@@ -2,6 +2,6 @@
 dist/
 playwright-report/
 test-results/
-.tesseract/
-.npm-cache/
-.tools/
+.tesseract
+.npm-cache
+.tools
