@@ -18,6 +18,7 @@ import {
 export interface GeneratedSpecImports {
   fixtures: string;
   program: string;
+  interpreters: string;
 }
 
 export interface GeneratedSpecModuleOptions {
@@ -82,7 +83,17 @@ function stepStatement(step: BoundStep, fixtures: string[], boundScenario: Bound
             constStatement(
               'runtimeResult',
               awaitExpression(
-                callExpression(identifier('runStepProgram'), [
+                ts.factory.createConditionalExpression(
+                  ts.factory.createBinaryExpression(
+                    ts.factory.createPropertyAccessExpression(
+                      ts.factory.createPropertyAccessExpression(identifier('process'), 'env'),
+                      'TESSERACT_INTERPRETER_MODE',
+                    ),
+                    ts.factory.createToken(ts.SyntaxKind.EqualsEqualsEqualsToken),
+                    stringLiteral('playwright'),
+                  ),
+                  ts.factory.createToken(ts.SyntaxKind.QuestionToken),
+                  callExpression(identifier('runStepProgram'), [
                   identifier('page'),
                   identifier('screens'),
                   fixtureContextExpression(fixtures),
@@ -96,6 +107,34 @@ function stepStatement(step: BoundStep, fixtures: string[], boundScenario: Bound
                     },
                   }),
                 ]),
+                  ts.factory.createToken(ts.SyntaxKind.ColonToken),
+                  awaitExpression(
+                    callExpression(identifier('runStaticInterpreter'), [
+                      ts.factory.createAsExpression(
+                        ts.factory.createBinaryExpression(
+                          ts.factory.createPropertyAccessExpression(
+                            ts.factory.createPropertyAccessExpression(identifier('process'), 'env'),
+                            'TESSERACT_INTERPRETER_MODE',
+                          ),
+                          ts.factory.createToken(ts.SyntaxKind.QuestionQuestionToken),
+                          stringLiteral('dry-run'),
+                        ),
+                        ts.factory.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword),
+                      ),
+                      stepProgramExpression(step.program),
+                      identifier('screens'),
+                      fixtureContextExpression(fixtures),
+                      expressionFromLiteral({
+                        adoId: boundScenario.source.ado_id,
+                        stepIndex: step.index,
+                        provenance: {
+                          sourceRevision: boundScenario.source.revision,
+                          contentHash: boundScenario.source.content_hash,
+                        },
+                      }),
+                    ]),
+                  ),
+                ),
               ),
             ),
             ts.factory.createIfStatement(
@@ -175,6 +214,7 @@ export function renderGeneratedSpecModule(boundScenario: BoundScenario, options:
   const statements: ts.Statement[] = [
     importDeclaration({ modulePath: options.imports.fixtures, namedImports: ['test'] }),
     importDeclaration({ modulePath: options.imports.program, namedImports: ['loadScreenRegistry', 'runStepProgram'] }),
+    importDeclaration({ modulePath: options.imports.interpreters, namedImports: ['runStaticInterpreter'] }),
     constStatement('screens', callExpression(identifier('loadScreenRegistry'), [expressionFromLiteral(uniqueScreens)])),
     statementFromExpression(
       callExpression(identifier('test'), [

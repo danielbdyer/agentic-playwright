@@ -26,6 +26,7 @@ interface CliOptions {
   section?: string;
   strict?: boolean;
   nodeId?: string;
+  interpreterMode?: 'playwright' | 'dry-run' | 'diagnostic';
 }
 
 function parseArgs(argv: string[]): { command: string; options: CliOptions } {
@@ -54,6 +55,14 @@ function parseArgs(argv: string[]): { command: string; options: CliOptions } {
     }
     if (token === '--section') {
       options.section = rest[index + 1];
+      index += 1;
+      continue;
+    }
+    if (token === '--interpreter-mode') {
+      const mode = rest[index + 1];
+      if (mode === 'playwright' || mode === 'dry-run' || mode === 'diagnostic') {
+        options.interpreterMode = mode;
+      }
       index += 1;
       continue;
     }
@@ -144,6 +153,10 @@ async function main(): Promise<void> {
       break;
     default:
       throw new Error('Unknown command. Expected sync, parse, bind, emit, compile, refresh, paths, capture, surface, graph, trace, impact, or types.');
+  }
+
+  if (options.interpreterMode) {
+    process.env.TESSERACT_INTERPRETER_MODE = options.interpreterMode;
   }
 
   const result = await Effect.runPromise(provideLocalServices(baseProgram, rootDir));

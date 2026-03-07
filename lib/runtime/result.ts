@@ -1,26 +1,12 @@
 import { CompilerDiagnostic, DiagnosticProvenance } from '../domain/types';
+import { ProgramFailure, ProgramFailureCode, StepProgramDiagnosticContext, StepProgramExecutionResult } from '../domain/program';
 
-export type RuntimeFailureCode =
-  | 'runtime-unknown-screen'
-  | 'runtime-unknown-effect-target'
-  | 'runtime-missing-action-handler'
-  | 'runtime-snapshot-handle-resolution-failed'
-  | 'runtime-step-program-escape-hatch'
-  | 'runtime-execution-failed';
-
-export interface RuntimeFailure {
-  code: RuntimeFailureCode;
-  message: string;
-  context?: Record<string, string>;
-  cause?: unknown;
-}
-
+export type RuntimeFailureCode = ProgramFailureCode;
+export type RuntimeFailure = ProgramFailure;
 export type RuntimeResult<T> = { ok: true; value: T } | { ok: false; error: RuntimeFailure; diagnostic?: CompilerDiagnostic };
 
-export interface RuntimeDiagnosticContext {
+export interface RuntimeDiagnosticContext extends StepProgramDiagnosticContext {
   adoId: CompilerDiagnostic['adoId'];
-  stepIndex?: number;
-  artifactPath?: string;
   provenance?: DiagnosticProvenance;
 }
 
@@ -37,5 +23,16 @@ export function runtimeErr(code: RuntimeFailureCode, message: string, context?: 
       context,
       cause,
     },
+  };
+}
+
+export function toRuntimeVoidResult(result: StepProgramExecutionResult): RuntimeResult<void> {
+  if (result.ok) {
+    return runtimeOk(undefined);
+  }
+  return {
+    ok: false,
+    error: result.error,
+    diagnostic: result.diagnostic,
   };
 }

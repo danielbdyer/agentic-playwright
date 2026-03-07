@@ -1,6 +1,6 @@
 ﻿import { parseRefPath } from './ref-path';
-import { ElementId, ScreenId, SnapshotTemplateId } from './identity';
-import { CapabilityName, ScenarioStep, StepInstruction, StepProgram, ValueRef } from './types';
+import { AdoId, ElementId, ScreenId, SnapshotTemplateId } from './identity';
+import { CapabilityName, CompilerDiagnostic, ScenarioStep, StepInstruction, StepProgram, ValueRef } from './types';
 
 const TEMPLATE_PATTERN = /^\{\{([a-zA-Z0-9_.]+)\}\}$/;
 
@@ -151,3 +151,62 @@ export function traceStepProgram(program: StepProgram): StepProgramTrace {
   };
 }
 
+
+export type ProgramFailureCode =
+  | 'runtime-unknown-screen'
+  | 'runtime-unknown-effect-target'
+  | 'runtime-missing-action-handler'
+  | 'runtime-snapshot-handle-resolution-failed'
+  | 'runtime-unresolved-value-ref'
+  | 'runtime-missing-snapshot-template'
+  | 'runtime-step-program-escape-hatch'
+  | 'runtime-execution-failed';
+
+export interface ProgramFailure {
+  code: ProgramFailureCode;
+  message: string;
+  context?: Record<string, string>;
+  cause?: unknown;
+}
+
+export interface StepProgramDiagnosticContext {
+  adoId: AdoId;
+  stepIndex?: number;
+  artifactPath?: string;
+  provenance?: {
+    sourceRevision?: number;
+    contentHash?: string;
+  };
+}
+
+export interface StepInterpreterDiagnostic {
+  code: ProgramFailureCode;
+  message: string;
+  context?: Record<string, string>;
+}
+
+export interface StepProgramInstructionOutcome {
+  instructionIndex: number;
+  instructionKind: StepInstruction['kind'];
+  expectedEffects: string[];
+  observedEffects: string[];
+  status: 'ok' | 'failed';
+  diagnostics: StepInterpreterDiagnostic[];
+  failureCode?: ProgramFailureCode;
+}
+
+export interface StepProgramExecution {
+  mode: string;
+  outcomes: StepProgramInstructionOutcome[];
+}
+
+export type StepProgramExecutionResult =
+  | { ok: true; value: StepProgramExecution }
+  | { ok: false; error: ProgramFailure; diagnostic?: CompilerDiagnostic; value: StepProgramExecution };
+
+export interface StepProgramInterpreter<TEnvironment> {
+  mode: string;
+  run(program: StepProgram, environment: TEnvironment, context?: StepProgramDiagnosticContext): Promise<StepProgramExecutionResult>;
+}
+
+export type { StepProgram };

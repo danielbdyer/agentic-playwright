@@ -31,6 +31,7 @@ export function emitScenario(options: { adoId: AdoId; paths: ProjectPaths }) {
       imports: {
         fixtures: relativeModule(outputPath, path.join(options.paths.rootDir, 'fixtures', 'index.ts')).replace(/\.ts$/, ''),
         program: relativeModule(outputPath, path.join(options.paths.rootDir, 'lib', 'runtime', 'program.ts')).replace(/\.ts$/, ''),
+        interpreters: relativeModule(outputPath, path.join(options.paths.rootDir, 'lib', 'application', 'interpreters', 'execute.ts')).replace(/\.ts$/, ''),
       },
     });
 
