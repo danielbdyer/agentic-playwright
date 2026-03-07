@@ -2,7 +2,7 @@ import path from 'path';
 import YAML from 'yaml';
 import { Effect } from 'effect';
 import { sha256, stableStringify } from '../domain/hash';
-import { createSnapshotTemplateId } from '../domain/identity';
+import { createSnapshotTemplateId, ScreenId } from '../domain/identity';
 import { deriveGraph, EvidenceArtifact, KnowledgeSnapshotArtifact, ScenarioGraphArtifact } from '../domain/derived-graph';
 import { AdoSnapshot, ScreenElements, ScreenPostures, SurfaceGraph } from '../domain/types';
 import { validateAdoSnapshot, validateDerivedGraph, validateScenario, validateScreenElements, validateScreenPostures, validateSurfaceGraph } from '../domain/validation';
@@ -16,7 +16,7 @@ interface ArtifactEnvelope<T> {
   artifactPath: string;
 }
 
-type FingerprintKind = 'snapshot' | 'surface' | 'elements' | 'postures' | 'scenario';
+type FingerprintKind = 'snapshot' | 'surface' | 'elements' | 'postures' | 'scenario' | 'evidence';
 
 interface InputFingerprint {
   kind: FingerprintKind;
@@ -77,7 +77,7 @@ function parseGraphManifest(value: unknown): GraphBuildManifest | null {
     }
     const entry = input as Partial<InputFingerprint>;
     if (
-      (entry.kind !== 'snapshot' && entry.kind !== 'surface' && entry.kind !== 'elements' && entry.kind !== 'postures' && entry.kind !== 'scenario')
+      (entry.kind !== 'snapshot' && entry.kind !== 'surface' && entry.kind !== 'elements' && entry.kind !== 'postures' && entry.kind !== 'scenario' && entry.kind !== 'evidence')
       || typeof entry.path !== 'string'
       || typeof entry.fingerprint !== 'string'
     ) {
@@ -194,9 +194,24 @@ export function buildDerivedGraph(options: { paths: ProjectPaths }) {
     }
 
     const evidenceFiles = (yield* walkFiles(fs, options.paths.evidenceDir)).filter((filePath) => filePath.endsWith('.json'));
-    const evidence: EvidenceArtifact[] = evidenceFiles.map((filePath) => ({
-      artifactPath: relativeProjectPath(options.paths, filePath),
-    }));
+    const evidence: EvidenceArtifact[] = [];
+    for (const filePath of evidenceFiles) {
+      const raw = yield* fs.readJson(filePath);
+      const artifactPath = relativeProjectPath(options.paths, filePath);
+      const parsed = raw && typeof raw === 'object' ? raw as Record<string, unknown> : null;
+      const drift = parsed?.drift && typeof parsed.drift === 'object' ? parsed.drift as Record<string, unknown> : null;
+      const driftClasses = Array.isArray(drift?.classes) ? drift.classes.filter((entry): entry is string => typeof entry === 'string') : [];
+      const entry: EvidenceArtifact = {
+        artifactPath,
+        kind: typeof parsed?.kind === 'string' ? parsed.kind : undefined,
+        baselineSnapshotTemplate: typeof parsed?.baselineSnapshotTemplate === 'string' ? parsed.baselineSnapshotTemplate : undefined,
+        screen: typeof parsed?.screen === 'string' ? parsed.screen as ScreenId : undefined,
+        driftClasses,
+        driftFingerprint: typeof drift?.driftFingerprint === 'string' ? drift.driftFingerprint : undefined,
+      };
+      evidence.push(entry);
+      inputFingerprints.push(fingerprintArtifact('evidence', artifactPath, raw));
+    }
 
     const inputs = sortFingerprints(inputFingerprints);
     const inputSetFingerprint = computeInputSetFingerprint(inputs);

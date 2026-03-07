@@ -3,6 +3,7 @@ import { Effect } from 'effect';
 import { bindScenario } from '../lib/application/bind';
 import { compileScenario } from '../lib/application/compile';
 import { emitScenario } from '../lib/application/emit';
+import { materializeDriftEvidence } from '../lib/application/drift';
 import { buildDerivedGraph } from '../lib/application/graph';
 import { impactNode } from '../lib/application/impact';
 import { describeScenarioPaths } from '../lib/application/inspect';
@@ -26,6 +27,7 @@ interface CliOptions {
   section?: string;
   strict?: boolean;
   nodeId?: string;
+  driftClass?: string;
 }
 
 function parseArgs(argv: string[]): { command: string; options: CliOptions } {
@@ -59,6 +61,11 @@ function parseArgs(argv: string[]): { command: string; options: CliOptions } {
     }
     if (token === '--node') {
       options.nodeId = rest[index + 1];
+      index += 1;
+      continue;
+    }
+    if (token === '--drift-class') {
+      options.driftClass = rest[index + 1];
       index += 1;
     }
   }
@@ -137,13 +144,20 @@ async function main(): Promise<void> {
       baseProgram = traceScenario({ adoId: createAdoId(requireArg(options.adoId, '--ado-id')), paths });
       break;
     case 'impact':
-      baseProgram = impactNode({ nodeId: requireArg(options.nodeId, '--node'), paths });
+      if (options.driftClass) {
+        baseProgram = impactNode({ driftClass: options.driftClass, paths });
+      } else {
+        baseProgram = impactNode({ nodeId: requireArg(options.nodeId, '--node'), paths });
+      }
+      break;
+    case 'drift':
+      baseProgram = materializeDriftEvidence({ paths });
       break;
     case 'types':
       baseProgram = generateTypes({ paths });
       break;
     default:
-      throw new Error('Unknown command. Expected sync, parse, bind, emit, compile, refresh, paths, capture, surface, graph, trace, impact, or types.');
+      throw new Error('Unknown command. Expected sync, parse, bind, emit, compile, refresh, paths, capture, surface, graph, trace, impact, drift, or types.');
   }
 
   const result = await Effect.runPromise(provideLocalServices(baseProgram, rootDir));

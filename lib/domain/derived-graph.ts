@@ -37,6 +37,11 @@ export interface KnowledgeSnapshotArtifact {
 
 export interface EvidenceArtifact {
   artifactPath: string;
+  kind?: string;
+  baselineSnapshotTemplate?: string;
+  screen?: ScreenId;
+  driftClasses?: string[];
+  driftFingerprint?: string;
 }
 
 export interface GraphBuildInput {
@@ -602,15 +607,99 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
   }
 
   for (const evidenceArtifact of input.evidence) {
+    const evidenceNodeId = graphIds.evidence(evidenceArtifact.artifactPath);
     addNode(nodes, createNode({
-      id: graphIds.evidence(evidenceArtifact.artifactPath),
+      id: evidenceNodeId,
       kind: 'evidence',
       label: path.basename(evidenceArtifact.artifactPath),
       artifactPath: evidenceArtifact.artifactPath,
       provenance: {
         knowledgePath: evidenceArtifact.artifactPath,
       },
+      payload: {
+        kind: evidenceArtifact.kind ?? 'evidence',
+        baselineSnapshotTemplate: evidenceArtifact.baselineSnapshotTemplate ?? null,
+        driftClasses: evidenceArtifact.driftClasses ?? [],
+      },
     }));
+    if (evidenceArtifact.baselineSnapshotTemplate) {
+      const snapshotNodeId = graphIds.snapshot.knowledge(evidenceArtifact.baselineSnapshotTemplate);
+      if (nodes.has(snapshotNodeId)) {
+        addEdge(edges, createEdge({
+          kind: 'derived-from',
+          from: evidenceNodeId,
+          to: snapshotNodeId,
+          provenance: {
+            knowledgePath: evidenceArtifact.artifactPath,
+          },
+        }));
+      }
+    }
+
+    if (evidenceArtifact.screen) {
+      const screenNodeId = graphIds.screen(evidenceArtifact.screen);
+      if (nodes.has(screenNodeId)) {
+        addEdge(edges, createEdge({
+          kind: 'references',
+          from: evidenceNodeId,
+          to: screenNodeId,
+          provenance: {
+            knowledgePath: evidenceArtifact.artifactPath,
+          },
+        }));
+      }
+
+      const screenElementsArtifact = screenElements.get(evidenceArtifact.screen);
+      if (screenElementsArtifact) {
+        for (const [elementKey] of Object.entries(screenElementsArtifact.elements)) {
+          const elementNodeId = graphIds.element(evidenceArtifact.screen, createElementId(elementKey));
+          if (nodes.has(elementNodeId)) {
+            addEdge(edges, createEdge({
+              kind: 'affects',
+              from: evidenceNodeId,
+              to: elementNodeId,
+              provenance: {
+                knowledgePath: evidenceArtifact.artifactPath,
+              },
+            }));
+          }
+        }
+      }
+
+      const surfaceGraph = surfaceGraphs.get(evidenceArtifact.screen);
+      if (surfaceGraph) {
+        for (const [surfaceKey] of Object.entries(surfaceGraph.surfaces)) {
+          const surfaceNodeId = graphIds.surface(evidenceArtifact.screen, createSurfaceId(surfaceKey));
+          if (nodes.has(surfaceNodeId)) {
+            addEdge(edges, createEdge({
+              kind: 'affects',
+              from: evidenceNodeId,
+              to: surfaceNodeId,
+              provenance: {
+                knowledgePath: evidenceArtifact.artifactPath,
+              },
+            }));
+          }
+        }
+      }
+    }
+
+    if (evidenceArtifact.baselineSnapshotTemplate) {
+      for (const scenarioArtifact of input.scenarios) {
+        const referenced = scenarioArtifact.artifact.steps.some((step) => step.snapshot_template === evidenceArtifact.baselineSnapshotTemplate);
+        if (referenced) {
+          addEdge(edges, createEdge({
+            kind: 'affects',
+            from: evidenceNodeId,
+            to: graphIds.scenario(scenarioArtifact.artifact.source.ado_id),
+            provenance: {
+              scenarioPath: scenarioArtifact.artifactPath,
+              knowledgePath: evidenceArtifact.artifactPath,
+            },
+          }));
+        }
+      }
+    }
   }
 
   return sortGraph({

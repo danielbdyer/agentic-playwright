@@ -1,5 +1,6 @@
 ﻿import YAML from 'yaml';
 import { Locator, expect } from '@playwright/test';
+import { classifySnapshotDrift, DriftClassification } from '../domain/drift';
 import { snapshotHandleResolutionError } from '../domain/errors';
 import { RuntimeResult, runtimeErr, runtimeOk } from './result';
 
@@ -56,12 +57,13 @@ export async function captureAriaYaml(locator: Locator): Promise<RuntimeResult<s
   return runtimeOk(normalizeSnapshotText(YAML.stringify(normalizeNode(snapshot as AccessibilityNode), { indent: 2 })));
 }
 
-export async function expectAriaSnapshot(locator: Locator, expectedSnapshot: string): Promise<RuntimeResult<void>> {
+export async function expectAriaSnapshot(locator: Locator, expectedSnapshot: string): Promise<RuntimeResult<DriftClassification>> {
   const actual = await captureAriaYaml(locator);
   if (!actual.ok) {
     return actual;
   }
 
+  const drift = classifySnapshotDrift(expectedSnapshot, actual.value);
   await expect(actual.value).toBe(normalizeSnapshotText(expectedSnapshot));
-  return runtimeOk(undefined);
+  return runtimeOk(drift);
 }

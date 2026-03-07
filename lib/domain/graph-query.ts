@@ -50,3 +50,21 @@ export function collectImpactSubgraph(graph: DerivedGraph, nodeId: string) {
   };
 }
 
+export function findScenarioIdsByDriftClass(graph: DerivedGraph, driftClass: string): string[] {
+  const matchingEvidenceNodeIds = graph.nodes
+    .filter((node) => node.kind === 'evidence' && Array.isArray(node.payload?.driftClasses) && (node.payload?.driftClasses as string[]).includes(driftClass))
+    .map((node) => node.id);
+
+  const scenarios = new Set<string>();
+
+  for (const evidenceNodeId of matchingEvidenceNodeIds) {
+    const impacted = collectImpactSubgraph(graph, evidenceNodeId);
+    for (const node of impacted.nodes) {
+      if (node.kind === 'scenario') {
+        scenarios.add(node.id);
+      }
+    }
+  }
+
+  return [...scenarios].sort((left, right) => left.localeCompare(right));
+}

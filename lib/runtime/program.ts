@@ -99,10 +99,14 @@ async function runInstruction(
             targetKind: 'element',
           });
         }
-        return expectAriaSnapshot(
+        const snapshotResult = await expectAriaSnapshot(
           locate(page, element),
           readFileSync(snapshotTemplatePath(instruction.snapshotTemplate), 'utf8'),
         );
+        if (!snapshotResult.ok) {
+          return snapshotResult;
+        }
+        return runtimeOk(undefined);
       }
       case 'custom-escape-hatch': {
         const error = runtimeEscapeHatchError(instruction.reason);
