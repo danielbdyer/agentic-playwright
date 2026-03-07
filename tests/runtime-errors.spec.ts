@@ -6,7 +6,9 @@ import {
   unknownScreenError,
 } from '../lib/domain/errors';
 import { createAdoId } from '../lib/domain/identity';
-import { runtimeFailureDiagnostic } from '../lib/runtime/program';
+import { StepProgram } from '../lib/domain/types';
+import { runStepProgram, runtimeFailureDiagnostic } from '../lib/runtime/program';
+import { ScreenRegistry } from '../lib/runtime/load';
 
 test('runtime/domain error constructors keep stable machine-classifiable codes', () => {
   expect(unknownScreenError('policy-search').code).toBe('runtime-unknown-screen');
@@ -46,4 +48,82 @@ test('runtime failures map to compiler diagnostics with provenance for reporting
   expect(diagnostic.stepIndex).toBe(3);
   expect(diagnostic.provenance.sourceRevision).toBe(12);
   expect(diagnostic.provenance.contentHash).toBe('abc123');
+});
+
+function createRuntimeHarness(widget: string = 'os-button'): {
+  page: unknown;
+  screens: ScreenRegistry;
+  clicks: { count: number };
+  program: StepProgram;
+} {
+  const clicks = { count: 0 };
+  const locator = {
+    click: async () => {
+      clicks.count += 1;
+    },
+    or: () => locator,
+    locator: () => locator,
+  };
+  const page = {
+    locator: () => locator,
+    getByTestId: () => locator,
+    getByRole: () => locator,
+    goto: async () => undefined,
+  };
+
+  return {
+    page,
+    screens: {
+      'policy-search': {
+        screen: {
+          screen: 'policy-search',
+          url: 'http://example.test/policy-search',
+          sections: {},
+        },
+        surfaces: {},
+        postures: {},
+        elements: {
+          searchButton: {
+            role: 'button',
+            name: 'Search',
+            cssFallback: '#search-button',
+            surface: 'search-form',
+            widget,
+          },
+        },
+      },
+    },
+    clicks,
+    program: {
+      kind: 'step-program',
+      instructions: [
+        {
+          kind: 'invoke',
+          screen: 'policy-search',
+          element: 'searchButton',
+          action: 'click',
+        },
+      ],
+    },
+  };
+}
+
+test('invoke executes through registered widget action handlers', async () => {
+  const harness = createRuntimeHarness('os-button');
+  const result = await runStepProgram(harness.page as never, harness.screens, {}, harness.program);
+
+  expect(result.ok).toBeTruthy();
+  expect(harness.clicks.count).toBe(1);
+});
+
+test('invoke fails with runtime-missing-action-handler when widget action is not registered', async () => {
+  const harness = createRuntimeHarness('os-date' as never);
+  const result = await runStepProgram(harness.page as never, harness.screens, {}, harness.program);
+
+  expect(result.ok).toBeFalsy();
+  if (!result.ok) {
+    expect(result.error.code).toBe('runtime-missing-action-handler');
+    expect(result.error.message).toBe('No click action registered for os-date');
+  }
+  expect(harness.clicks.count).toBe(0);
 });
