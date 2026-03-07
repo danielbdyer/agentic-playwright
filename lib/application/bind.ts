@@ -4,6 +4,7 @@ import { createDiagnostic } from '../domain/diagnostics';
 import { deriveCapabilities, findCapability } from '../domain/grammar';
 import { AdoId, ScreenId } from '../domain/identity';
 import { capabilityForInstruction, compileStepProgram, traceStepProgram } from '../domain/program';
+import { validatePostureContract } from '../domain/posture-contract';
 import { BoundScenario, CompilerDiagnostic, ProposedChangeMetadata, ScreenElements, ScreenPostures, SurfaceGraph } from '../domain/types';
 import { validateBoundScenario, validateScenario, validateScreenElements, validateScreenPostures, validateSurfaceGraph } from '../domain/validation';
 import { FileSystem } from './ports';
@@ -168,23 +169,18 @@ export function bindScenario(options: { adoId: AdoId; paths: ProjectPaths }) {
         }
       }
 
-      if (step.action === 'input' && step.posture) {
-        const postureSet = step.element && screenPostures ? screenPostures.postures[step.element] : undefined;
-        if (!postureSet || !postureSet[step.posture]) {
+      if (step.action === 'input' && step.posture && step.element) {
+        if (!screenPostures || !surfaceGraph || !screenElements) {
           reasons.push('unknown-posture');
-        } else if (surfaceGraph && screenElements) {
-          for (const effect of postureSet[step.posture].effects) {
-            if (effect.target === 'self' || effect.targetKind === 'self') {
-              continue;
-            }
-            const targetKind = effect.targetKind ?? (surfaceGraph.surfaces[effect.target] ? 'surface' : 'element');
-            if (targetKind === 'surface' && !surfaceGraph.surfaces[effect.target]) {
-              reasons.push('unknown-effect-target');
-            }
-            if (targetKind === 'element' && !screenElements.elements[effect.target]) {
-              reasons.push('unknown-effect-target');
-            }
-          }
+        } else {
+          const postureIssues = validatePostureContract({
+            elementId: step.element,
+            postureId: step.posture,
+            postures: screenPostures,
+            elements: screenElements,
+            surfaceGraph,
+          });
+          reasons.push(...postureIssues.map((issue) => issue.code));
         }
       }
 
