@@ -1,4 +1,4 @@
-﻿import { readFileSync, statSync } from 'fs';
+﻿import { readFileSync, statSync, unlinkSync, writeFileSync } from 'fs';
 import path from 'path';
 import { expect, test } from '@playwright/test';
 import { impactNode } from '../lib/application/impact';
@@ -104,4 +104,72 @@ test('graph and types skip rewrites when fingerprinted inputs are unchanged', as
   expect(typesSecond.incremental.outputFingerprint).toBe(typesFirst.incremental.outputFingerprint);
   expect(graphFingerprintAfter).toBe(graphFingerprintBefore);
   expect(typesFingerprintAfter).toBe(typesFingerprintBefore);
+});
+
+
+test('types regenerate when manifest is present but generated output is deleted or corrupted', async () => {
+  const paths = createProjectPaths(process.cwd());
+  const metadataPath = path.join(paths.generatedTypesDir, 'tesseract-knowledge.metadata.json');
+
+  const firstBuild = await runWithLocalServices(generateTypes({ paths }), process.cwd());
+  const firstManifest = JSON.parse(readFileSync(metadataPath, 'utf8').replace(/^﻿/, ''));
+
+  unlinkSync(firstBuild.outputPath);
+
+  const rebuiltMissingOutput = await runWithLocalServices(generateTypes({ paths }), process.cwd());
+  const manifestAfterMissingOutput = JSON.parse(readFileSync(metadataPath, 'utf8').replace(/^﻿/, ''));
+
+  expect(rebuiltMissingOutput.incremental.status).toBe('cache-miss');
+  expect(rebuiltMissingOutput.incremental.cacheInvalidationReason).toBe('missing-output');
+  expect(rebuiltMissingOutput.incremental.rewritten).toContain(path.join('lib', 'generated', 'tesseract-knowledge.ts'));
+  expect(rebuiltMissingOutput.incremental.rewritten).toContain(path.join('lib', 'generated', 'tesseract-knowledge.metadata.json'));
+  expect(manifestAfterMissingOutput.outputFingerprint).toBe(rebuiltMissingOutput.incremental.outputFingerprint);
+
+  writeFileSync(rebuiltMissingOutput.outputPath, `export const corrupted = true;\n`, 'utf8');
+
+  const rebuiltCorruptedOutput = await runWithLocalServices(generateTypes({ paths }), process.cwd());
+  const manifestAfterCorruption = JSON.parse(readFileSync(metadataPath, 'utf8').replace(/^﻿/, ''));
+
+  expect(rebuiltCorruptedOutput.incremental.status).toBe('cache-miss');
+  expect(rebuiltCorruptedOutput.incremental.cacheInvalidationReason).toBe('invalid-output');
+  expect(rebuiltCorruptedOutput.incremental.rewritten).toContain(path.join('lib', 'generated', 'tesseract-knowledge.ts'));
+  expect(rebuiltCorruptedOutput.incremental.rewritten).toContain(path.join('lib', 'generated', 'tesseract-knowledge.metadata.json'));
+  expect(manifestAfterCorruption.outputFingerprint).toBe(rebuiltCorruptedOutput.incremental.outputFingerprint);
+  expect(firstManifest.inputSetFingerprint).toBe(manifestAfterMissingOutput.inputSetFingerprint);
+  expect(firstManifest.inputSetFingerprint).toBe(manifestAfterCorruption.inputSetFingerprint);
+});
+
+test('graph rebuilds when manifest is present but cached graph is missing or invalid', async () => {
+  const paths = createProjectPaths(process.cwd());
+  const manifestPath = path.join(paths.graphDir, 'build-manifest.json');
+
+  const firstBuild = await runWithLocalServices(buildDerivedGraph({ paths }), process.cwd());
+  const firstManifest = JSON.parse(readFileSync(manifestPath, 'utf8').replace(/^﻿/, ''));
+
+  unlinkSync(paths.graphIndexPath);
+
+  const rebuiltMissingOutput = await runWithLocalServices(buildDerivedGraph({ paths }), process.cwd());
+  const manifestAfterMissingOutput = JSON.parse(readFileSync(manifestPath, 'utf8').replace(/^﻿/, ''));
+
+  expect(rebuiltMissingOutput.incremental.status).toBe('cache-miss');
+  expect(rebuiltMissingOutput.incremental.cacheInvalidationReason).toBe('missing-output');
+  expect(rebuiltMissingOutput.incremental.rewritten).toContain(path.join('.tesseract', 'graph', 'index.json'));
+  expect(rebuiltMissingOutput.incremental.rewritten).toContain(path.join('.tesseract', 'graph', 'mcp-catalog.json'));
+  expect(rebuiltMissingOutput.incremental.rewritten).toContain(path.join('.tesseract', 'graph', 'build-manifest.json'));
+  expect(manifestAfterMissingOutput.outputFingerprint).toBe(rebuiltMissingOutput.incremental.outputFingerprint);
+
+  writeFileSync(paths.graphIndexPath, '{"bad":true}', 'utf8');
+
+  const rebuiltInvalidOutput = await runWithLocalServices(buildDerivedGraph({ paths }), process.cwd());
+  const manifestAfterInvalidOutput = JSON.parse(readFileSync(manifestPath, 'utf8').replace(/^﻿/, ''));
+
+  expect(rebuiltInvalidOutput.incremental.status).toBe('cache-miss');
+  expect(rebuiltInvalidOutput.incremental.cacheInvalidationReason).toBe('invalid-output');
+  expect(rebuiltInvalidOutput.incremental.rewritten).toContain(path.join('.tesseract', 'graph', 'index.json'));
+  expect(rebuiltInvalidOutput.incremental.rewritten).toContain(path.join('.tesseract', 'graph', 'mcp-catalog.json'));
+  expect(rebuiltInvalidOutput.incremental.rewritten).toContain(path.join('.tesseract', 'graph', 'build-manifest.json'));
+  expect(manifestAfterInvalidOutput.outputFingerprint).toBe(rebuiltInvalidOutput.incremental.outputFingerprint);
+  expect(firstManifest.inputSetFingerprint).toBe(manifestAfterMissingOutput.inputSetFingerprint);
+  expect(firstManifest.inputSetFingerprint).toBe(manifestAfterInvalidOutput.inputSetFingerprint);
+  expect(firstBuild.graph.nodes.length).toBeGreaterThan(0);
 });
