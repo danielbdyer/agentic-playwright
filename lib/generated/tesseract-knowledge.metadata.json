@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "projection": "types",
+  "inputSetFingerprint": "sha256:7bd2cb1e09811ca9ed9f9bb7b5cece09d4d8fa5508c16b47443fbed3da817b6d",
+  "outputFingerprint": "sha256:2d03800c47ae1a275cda4fdd0ee6a8951d6bf7762a910e8e9b614b6b54bb519e",
+  "inputs": [
+    {
+      "kind": "elements",
+      "path": "knowledge/screens/policy-search.elements.yaml",
+      "fingerprint": "sha256:42c7a15db2bc22de7d2b09fbdbc0ddde7f9dfb278aca597173fde3e8b374e89e"
+    },
+    {
+      "kind": "postures",
+      "path": "knowledge/screens/policy-search.postures.yaml",
+      "fingerprint": "sha256:e7a7f34853b4a360f44af4c1a0dfe37e93d5c77bfa5ecff7e941192feed8e805"
+    },
+    {
+      "kind": "scenario",
+      "path": "scenarios/demo/policy-search/10001.scenario.yaml",
+      "fingerprint": "sha256:8bc5541397dfd509974724f69689b17dd8ea68451175860f8265e090734a9094"
+    },
+    {
+      "kind": "surface",
+      "path": "knowledge/surfaces/policy-search.surface.yaml",
+      "fingerprint": "sha256:ee08d898f31c7498706254ec89343ab77d8f723626cfb668a35981bd78fe45a8"
+    }
+  ]
+}

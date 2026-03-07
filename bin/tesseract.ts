@@ -77,6 +77,21 @@ function logJson(value: unknown): void {
   process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
 }
 
+function logIncrementalStatus(command: string, result: unknown): void {
+  if ((command !== 'graph' && command !== 'types') || !result || typeof result !== 'object') {
+    return;
+  }
+
+  const incremental = (result as { incremental?: { status?: string; changedInputs?: string[] } }).incremental;
+  if (!incremental || typeof incremental.status !== 'string') {
+    return;
+  }
+
+  const changedInputs = Array.isArray(incremental.changedInputs) ? incremental.changedInputs : [];
+  const changedSummary = changedInputs.length > 0 ? changedInputs.join(', ') : 'none';
+  process.stderr.write(`[${command}] ${incremental.status}; changedInputs=${changedSummary}\n`);
+}
+
 async function main(): Promise<void> {
   const { command, options } = parseArgs(process.argv.slice(2));
   const rootDir = process.cwd();
@@ -132,6 +147,7 @@ async function main(): Promise<void> {
   }
 
   const result = await Effect.runPromise(provideLocalServices(baseProgram, rootDir));
+  logIncrementalStatus(command, result);
   logJson(result);
 
   if (
