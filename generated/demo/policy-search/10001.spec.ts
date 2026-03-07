@@ -22,7 +22,7 @@ test("Verify policy search returns matching policy @smoke @billing @P1", async (
         description: "human"
     });
     await test.step("Navigate to Policy Search screen", async () => {
-        await runStepProgram(page, screens, {
+        const runtimeResult = await runStepProgram(page, screens, {
             demoSession,
             activePolicy
         }, {
@@ -33,10 +33,21 @@ test("Verify policy search returns matching policy @smoke @billing @P1", async (
                     screen: "policy-search"
                 }
             ]
+        }, {
+            adoId: "10001",
+            stepIndex: 1,
+            provenance: {
+                sourceRevision: 1,
+                contentHash: "sha256:1930319ee9882abb4af0ab8dc9d6c120f6ddc8b77ca6441c20be91697f7b19d1"
+            }
         });
+        if (!runtimeResult.ok) {
+            test.info().annotations.push({ type: "runtime-diagnostic", description: JSON.stringify(runtimeResult.diagnostic ?? runtimeResult.error) });
+            throw new Error(`[${runtimeResult.error.code}] ${runtimeResult.error.message}`);
+        }
     });
     await test.step("Enter policy number in search field", async () => {
-        await runStepProgram(page, screens, {
+        const runtimeResult = await runStepProgram(page, screens, {
             demoSession,
             activePolicy
         }, {
@@ -58,10 +69,21 @@ test("Verify policy search returns matching policy @smoke @billing @P1", async (
                     }
                 }
             ]
+        }, {
+            adoId: "10001",
+            stepIndex: 2,
+            provenance: {
+                sourceRevision: 1,
+                contentHash: "sha256:1930319ee9882abb4af0ab8dc9d6c120f6ddc8b77ca6441c20be91697f7b19d1"
+            }
         });
+        if (!runtimeResult.ok) {
+            test.info().annotations.push({ type: "runtime-diagnostic", description: JSON.stringify(runtimeResult.diagnostic ?? runtimeResult.error) });
+            throw new Error(`[${runtimeResult.error.code}] ${runtimeResult.error.message}`);
+        }
     });
     await test.step("Click Search button", async () => {
-        await runStepProgram(page, screens, {
+        const runtimeResult = await runStepProgram(page, screens, {
             demoSession,
             activePolicy
         }, {
@@ -74,10 +96,21 @@ test("Verify policy search returns matching policy @smoke @billing @P1", async (
                     action: "click"
                 }
             ]
+        }, {
+            adoId: "10001",
+            stepIndex: 3,
+            provenance: {
+                sourceRevision: 1,
+                contentHash: "sha256:1930319ee9882abb4af0ab8dc9d6c120f6ddc8b77ca6441c20be91697f7b19d1"
+            }
         });
+        if (!runtimeResult.ok) {
+            test.info().annotations.push({ type: "runtime-diagnostic", description: JSON.stringify(runtimeResult.diagnostic ?? runtimeResult.error) });
+            throw new Error(`[${runtimeResult.error.code}] ${runtimeResult.error.message}`);
+        }
     });
     await test.step("Verify search results show policy", async () => {
-        await runStepProgram(page, screens, {
+        const runtimeResult = await runStepProgram(page, screens, {
             demoSession,
             activePolicy
         }, {
@@ -90,7 +123,18 @@ test("Verify policy search returns matching policy @smoke @billing @P1", async (
                     snapshotTemplate: "snapshots/policy-search/results-with-policy.yaml"
                 }
             ]
+        }, {
+            adoId: "10001",
+            stepIndex: 4,
+            provenance: {
+                sourceRevision: 1,
+                contentHash: "sha256:1930319ee9882abb4af0ab8dc9d6c120f6ddc8b77ca6441c20be91697f7b19d1"
+            }
         });
+        if (!runtimeResult.ok) {
+            test.info().annotations.push({ type: "runtime-diagnostic", description: JSON.stringify(runtimeResult.diagnostic ?? runtimeResult.error) });
+            throw new Error(`[${runtimeResult.error.code}] ${runtimeResult.error.message}`);
+        }
     });
 });
 

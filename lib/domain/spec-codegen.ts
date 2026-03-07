@@ -67,7 +67,7 @@ function stepProgramExpression(program: StepProgram | undefined): ts.Expression 
   return expressionFromLiteral(program ?? { kind: 'step-program', instructions: [{ kind: 'custom-escape-hatch', reason: 'missing-program' }] });
 }
 
-function stepStatement(step: BoundStep, fixtures: string[]): ts.Statement {
+function stepStatement(step: BoundStep, fixtures: string[], boundScenario: BoundScenario): ts.Statement {
   return statementFromExpression(
     awaitExpression(
       callExpression(property(identifier('test'), 'step'), [
@@ -79,15 +79,67 @@ function stepStatement(step: BoundStep, fixtures: string[]): ts.Statement {
           undefined,
           ts.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
           ts.factory.createBlock([
-            statementFromExpression(
+            constStatement(
+              'runtimeResult',
               awaitExpression(
                 callExpression(identifier('runStepProgram'), [
                   identifier('page'),
                   identifier('screens'),
                   fixtureContextExpression(fixtures),
                   stepProgramExpression(step.program),
+                  expressionFromLiteral({
+                    adoId: boundScenario.source.ado_id,
+                    stepIndex: step.index,
+                    provenance: {
+                      sourceRevision: boundScenario.source.revision,
+                      contentHash: boundScenario.source.content_hash,
+                    },
+                  }),
                 ]),
               ),
+            ),
+            ts.factory.createIfStatement(
+              ts.factory.createPrefixUnaryExpression(
+                ts.SyntaxKind.ExclamationToken,
+                property(identifier('runtimeResult'), 'ok'),
+              ),
+              ts.factory.createBlock(
+                [
+                  statementFromExpression(
+                    callExpression(property(property(callExpression(property(identifier('test'), 'info'), []), 'annotations'), 'push'), [
+                      ts.factory.createObjectLiteralExpression([
+                        ts.factory.createPropertyAssignment('type', stringLiteral('runtime-diagnostic')),
+                        ts.factory.createPropertyAssignment(
+                          'description',
+                          callExpression(property(identifier('JSON'), 'stringify'), [
+                            ts.factory.createBinaryExpression(
+                              property(identifier('runtimeResult'), 'diagnostic'),
+                              ts.factory.createToken(ts.SyntaxKind.QuestionQuestionToken),
+                              property(identifier('runtimeResult'), 'error'),
+                            ),
+                          ]),
+                        ),
+                      ])
+                    ]),
+                  ),
+                  ts.factory.createThrowStatement(
+                    ts.factory.createNewExpression(identifier('Error'), undefined, [
+                      ts.factory.createTemplateExpression(ts.factory.createTemplateHead('['), [
+                        ts.factory.createTemplateSpan(
+                          property(property(identifier('runtimeResult'), 'error'), 'code'),
+                          ts.factory.createTemplateMiddle('] '),
+                        ),
+                        ts.factory.createTemplateSpan(
+                          property(property(identifier('runtimeResult'), 'error'), 'message'),
+                          ts.factory.createTemplateTail(''),
+                        ),
+                      ]),
+                    ]),
+                  ),
+                ],
+                true,
+              ),
+              undefined,
             ),
           ], true),
         ),
@@ -137,7 +189,7 @@ export function renderGeneratedSpecModule(boundScenario: BoundScenario, options:
             [
               ...annotationStatements(boundScenario, confidence, unboundSteps),
               ...lifecycleStatements(lifecycle),
-              ...(lifecycle === 'normal' || lifecycle === 'fail' ? boundScenario.steps.map((step) => stepStatement(step, fixtures)) : []),
+              ...(lifecycle === 'normal' || lifecycle === 'fail' ? boundScenario.steps.map((step) => stepStatement(step, fixtures, boundScenario)) : []),
             ],
             true,
           ),

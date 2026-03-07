@@ -1,7 +1,9 @@
 ﻿import { Locator } from '@playwright/test';
+import { missingActionHandlerError } from '../domain/errors';
 import { osButton } from '../../knowledge/components/os-button';
 import { osInput } from '../../knowledge/components/os-input';
 import { osTable } from '../../knowledge/components/os-table';
+import { RuntimeResult, runtimeErr, runtimeOk } from './result';
 
 const patterns: Record<string, Record<string, (locator: Locator, value?: string) => Promise<unknown>>> = {
   'os-button': osButton,
@@ -14,12 +16,13 @@ export async function interact(
   widget: string,
   action: string,
   value?: string,
-): Promise<void> {
+): Promise<RuntimeResult<void>> {
   const pattern = patterns[widget];
   if (!pattern || !pattern[action]) {
-    throw new Error(`No ${action} action registered for ${widget}`);
+    const error = missingActionHandlerError(widget, action);
+    return runtimeErr('runtime-missing-action-handler', error.message, error.context, error);
   }
 
   await pattern[action](locator, value);
+  return runtimeOk(undefined);
 }
-

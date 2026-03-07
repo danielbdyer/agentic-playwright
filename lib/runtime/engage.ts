@@ -1,8 +1,10 @@
 ﻿import { Locator, Page, expect } from '@playwright/test';
 import { ElementId, PostureId } from '../domain/identity';
+import { unknownEffectTargetError } from '../domain/errors';
 import { ElementSig, Posture, SurfaceDefinition } from '../domain/types';
 import { interact } from './interact';
 import { locate } from './locate';
+import { RuntimeResult, runtimeErr, runtimeOk } from './result';
 
 function coerceMessagePattern(value: string | null | undefined): RegExp | string | undefined {
   if (!value) {
@@ -35,21 +37,28 @@ function resolveTargetLocator(
   effect: { target: 'self' | string; targetKind?: 'self' | 'element' | 'surface' },
   elements: Record<string, ElementSig>,
   surfaces: Record<string, SurfaceDefinition>,
-): { locator: Locator; targetKind: 'element' | 'surface' } {
+): RuntimeResult<{ locator: Locator; targetKind: 'element' | 'surface' }> {
   if (effect.target === 'self' || effect.targetKind === 'self') {
-    return { locator: elementLocator, targetKind: 'element' };
+    return runtimeOk({ locator: elementLocator, targetKind: 'element' });
   }
 
   const inferredTargetKind = effect.targetKind ?? (surfaces[effect.target] ? 'surface' : 'element');
   if (inferredTargetKind === 'surface') {
     const surface = surfaces[effect.target];
     if (!surface) {
-      throw new Error(`Unknown surface target ${effect.target}`);
+      const error = unknownEffectTargetError(effect.target, 'surface');
+      return runtimeErr('runtime-unknown-effect-target', error.message, error.context, error);
     }
-    return { locator: page.locator(surface.selector), targetKind: 'surface' };
+    return runtimeOk({ locator: page.locator(surface.selector), targetKind: 'surface' });
   }
 
-  return { locator: locate(page, elements[effect.target]), targetKind: 'element' };
+  const element = elements[effect.target];
+  if (!element) {
+    const error = unknownEffectTargetError(effect.target, 'element');
+    return runtimeErr('runtime-unknown-effect-target', error.message, error.context, error);
+  }
+
+  return runtimeOk({ locator: locate(page, element), targetKind: 'element' });
 }
 
 export async function engage(
@@ -60,46 +69,59 @@ export async function engage(
   elementId: ElementId,
   postureId: PostureId = 'valid' as PostureId,
   override?: string,
-): Promise<void> {
+): Promise<RuntimeResult<void>> {
   const element = elements[elementId];
+  if (!element) {
+    const error = unknownEffectTargetError(elementId, 'element');
+    return runtimeErr('runtime-unknown-effect-target', error.message, error.context, error);
+  }
+
   const posture = postures[elementId]?.[postureId];
   const value = override ?? posture?.values?.[0];
   const locator = locate(page, element);
 
   if (value !== undefined) {
-    await interact(locator, element.widget, 'fill', value);
+    const fill = await interact(locator, element.widget, 'fill', value);
+    if (!fill.ok) {
+      return fill;
+    }
   }
 
   for (const effect of posture?.effects ?? []) {
-    const { locator: target, targetKind } = resolveTargetLocator(page, locator, effect, elements, surfaces);
+    const target = resolveTargetLocator(page, locator, effect, elements, surfaces);
+    if (!target.ok) {
+      return target;
+    }
+
     const pattern = coerceMessagePattern(effect.message);
 
     switch (effect.state) {
       case 'validation-error':
-        await expect(validationMessage(target, targetKind)).toBeVisible();
+        await expect(validationMessage(target.value.locator, target.value.targetKind)).toBeVisible();
         if (pattern) {
-          await expect(validationMessage(target, targetKind)).toHaveText(pattern);
+          await expect(validationMessage(target.value.locator, target.value.targetKind)).toHaveText(pattern);
         }
         break;
       case 'required-error':
-        await expect(requiredMessage(target, targetKind)).toBeVisible();
+        await expect(requiredMessage(target.value.locator, target.value.targetKind)).toBeVisible();
         break;
       case 'disabled':
-        await expect(target).toBeDisabled();
+        await expect(target.value.locator).toBeDisabled();
         break;
       case 'enabled':
-        await expect(target).toBeEnabled();
+        await expect(target.value.locator).toBeEnabled();
         break;
       case 'visible':
-        await expect(target).toBeVisible();
+        await expect(target.value.locator).toBeVisible();
         if (pattern) {
-          await expect(target).toHaveText(pattern);
+          await expect(target.value.locator).toHaveText(pattern);
         }
         break;
       case 'hidden':
-        await expect(target).toBeHidden();
+        await expect(target.value.locator).toBeHidden();
         break;
     }
   }
-}
 
+  return runtimeOk(undefined);
+}
