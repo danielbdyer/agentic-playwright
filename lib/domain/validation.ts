@@ -32,6 +32,7 @@
   ValueRef,
 } from './types';
 import { computeAdoContentHash } from './hash';
+import { normalizeScreenPostures } from './posture-contract';
 import { SchemaError } from './errors';
 import {
   AdoId,
@@ -509,7 +510,7 @@ export function validateScreenElements(value: unknown): ScreenElements {
 export function validateScreenPostures(value: unknown): ScreenPostures {
   const screen = expectRecord(value, 'screen-postures');
   const postures = expectRecord(screen.postures ?? {}, 'screen-postures.postures');
-  return {
+  return normalizeScreenPostures({
     screen: expectId(screen.screen, 'screen-postures.screen', createScreenId),
     postures: Object.fromEntries(
       Object.entries(postures).map(([elementId, entry]) => {
@@ -525,7 +526,7 @@ export function validateScreenPostures(value: unknown): ScreenPostures {
         ];
       }),
     ),
-  };
+  });
 }
 
 export function validateManifest(value: unknown): Manifest {
