@@ -1,4 +1,4 @@
-﻿# Tesseract
+# Tesseract
 
 Tesseract is a deterministic compiler that turns Azure DevOps manual test cases into disposable Playwright specs.
 
@@ -81,6 +81,21 @@ npm run bind
 npm run emit
 npm run capture
 ```
+
+### Dogfood bootstrap against a self-hosted mock app
+
+```powershell
+npm run dogfood:mock
+```
+
+This setup command:
+
+1. builds the CLI
+2. auto-generates a minimal local mock application in a temporary directory
+3. hosts it on `127.0.0.1`
+4. runs `tesseract bootstrap` against that mock base URL in an isolated workspace
+
+Use this to keep an end-to-end onboarding path as a first-class local workflow without mutating repository canonical artifacts during validation.
 
 ## Architecture
 

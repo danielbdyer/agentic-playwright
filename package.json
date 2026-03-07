@@ -26,7 +26,9 @@
     "impact": "npm run build && node dist/bin/tesseract.js impact --node element:policy-search:searchButton",
     "types": "npm run build && node dist/bin/tesseract.js types",
     "test": "node ./node_modules/@playwright/test/cli.js test",
-    "test:generated": "node ./node_modules/@playwright/test/cli.js test --config playwright.generated.config.ts"
+    "test:generated": "node ./node_modules/@playwright/test/cli.js test --config playwright.generated.config.ts",
+    "bootstrap": "npm run build && node dist/bin/tesseract.js bootstrap --base-url https://example.test --suite 10001 --auth-strategy none --crawl-depth 1 --crawl-allow-hosts example.test --crawl-timeout-ms 30000 --crawl-page-budget 20",
+    "dogfood:mock": "npm run build && node scripts/dogfood-mock.js"
   },
   "dependencies": {
     "@playwright/test": "^1.39.0",

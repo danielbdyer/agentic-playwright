@@ -1,6 +1,7 @@
-﻿#!/usr/bin/env node
+#!/usr/bin/env node
 import { Effect } from 'effect';
 import { bindScenario } from '../lib/application/bind';
+import { bootstrapProject } from '../lib/application/bootstrap/service';
 import { compileScenario } from '../lib/application/compile';
 import { emitScenario } from '../lib/application/emit';
 import { buildDerivedGraph } from '../lib/application/graph';
@@ -26,6 +27,13 @@ interface CliOptions {
   section?: string;
   strict?: boolean;
   nodeId?: string;
+  baseUrl?: string;
+  suiteIds?: string[];
+  authStrategy?: string;
+  crawlDepth?: number;
+  crawlAllowHosts?: string[];
+  crawlTimeoutMs?: number;
+  crawlPageBudget?: number;
 }
 
 function parseArgs(argv: string[]): { command: string; options: CliOptions } {
@@ -60,10 +68,61 @@ function parseArgs(argv: string[]): { command: string; options: CliOptions } {
     if (token === '--node') {
       options.nodeId = rest[index + 1];
       index += 1;
+      continue;
+    }
+    if (token === '--base-url') {
+      options.baseUrl = rest[index + 1];
+      index += 1;
+      continue;
+    }
+    if (token === '--suite') {
+      options.suiteIds = parseListArg(rest[index + 1], '--suite');
+      index += 1;
+      continue;
+    }
+    if (token === '--auth-strategy') {
+      options.authStrategy = rest[index + 1];
+      index += 1;
+      continue;
+    }
+    if (token === '--crawl-depth') {
+      options.crawlDepth = parseNumberArg(rest[index + 1], '--crawl-depth');
+      index += 1;
+      continue;
+    }
+    if (token === '--crawl-allow-hosts') {
+      options.crawlAllowHosts = parseListArg(rest[index + 1], '--crawl-allow-hosts');
+      index += 1;
+      continue;
+    }
+    if (token === '--crawl-timeout-ms') {
+      options.crawlTimeoutMs = parseNumberArg(rest[index + 1], '--crawl-timeout-ms');
+      index += 1;
+      continue;
+    }
+    if (token === '--crawl-page-budget') {
+      options.crawlPageBudget = parseNumberArg(rest[index + 1], '--crawl-page-budget');
+      index += 1;
     }
   }
 
   return { command, options };
+}
+
+
+function parseNumberArg(value: string | undefined, flag: string): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    throw new Error(`Invalid value for ${flag}`);
+  }
+  return parsed;
+}
+
+function parseListArg(value: string | undefined, flag: string): string[] {
+  if (!value) {
+    throw new Error(`Missing required ${flag}`);
+  }
+  return value.split(',').map((entry) => entry.trim()).filter(Boolean);
 }
 
 function requireArg(value: string | undefined, flag: string): string {
@@ -99,6 +158,22 @@ async function main(): Promise<void> {
   let baseProgram: Effect.Effect<unknown, unknown, FileSystem | AdoSource>;
 
   switch (command) {
+    case 'bootstrap':
+      baseProgram = bootstrapProject({
+        paths,
+        input: {
+          baseUrl: requireArg(options.baseUrl, '--base-url'),
+          suiteIds: options.suiteIds ?? [],
+          authStrategy: options.authStrategy ?? 'none',
+          crawlBounds: {
+            depth: options.crawlDepth ?? 1,
+            hostAllowlist: options.crawlAllowHosts ?? [],
+            timeoutMs: options.crawlTimeoutMs ?? 30000,
+            pageBudget: options.crawlPageBudget ?? 20,
+          },
+        },
+      });
+      break;
     case 'sync':
       baseProgram = syncSnapshots({ adoId: options.adoId ? createAdoId(options.adoId) : undefined, all: options.all, paths });
       break;
@@ -143,7 +218,7 @@ async function main(): Promise<void> {
       baseProgram = generateTypes({ paths });
       break;
     default:
-      throw new Error('Unknown command. Expected sync, parse, bind, emit, compile, refresh, paths, capture, surface, graph, trace, impact, or types.');
+      throw new Error('Unknown command. Expected bootstrap, sync, parse, bind, emit, compile, refresh, paths, capture, surface, graph, trace, impact, or types.');
   }
 
   const result = await Effect.runPromise(provideLocalServices(baseProgram, rootDir));

@@ -1,4 +1,4 @@
-﻿# Tesseract Agent Guide
+# Tesseract Agent Guide
 
 This repository is not a generic automation project. It is a compiler with a growing domain model. Agents working here should optimize for semantic collapse, deterministic derivation, and architectural clarity over local convenience.
 
@@ -325,6 +325,16 @@ When starting work, prefer these commands:
 - `npm run types`
 
 An agent should be able to discover what changed, what is impacted, and what artifacts are canonical without relying on repo lore.
+
+### Dogfood directive
+
+Before finalizing substantial workflow/compiler changes, agents should try to run an end-to-end local dogfood pass against a self-hosted auto-generated mock app:
+
+- `npm run dogfood:mock`
+
+This command starts a temporary local mock application, executes `tesseract bootstrap` against it in an isolated temporary workspace, and verifies that canonical onboarding artifacts are emitted without relying on external services.
+
+If this command fails because of environment limitations, capture the failure reason clearly in your final report and continue with the best available local validation.
 
 ## Decision framework
 
