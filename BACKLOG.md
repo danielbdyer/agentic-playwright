@@ -55,7 +55,58 @@ Potential evaluation targets:
 - Posture proposal ranking.
 - Benchmark-driven improvement of decomposition heuristics.
 
+### 6. QA readability: intent-labeled step functions in generated specs
+
+Surface the semantic intent string from each scenario step as a visible `test.step()` label in the generated Playwright spec, so QAs can read the spec top to bottom and confirm 1:1 correspondence with the ADO test case without cross-referencing YAML.
+
+Success criteria:
+- Each generated step wraps its actions in `test.step('Navigate to Policy Search screen', ...)`.
+- The intent string comes from the scenario YAML `intent` field, which originates from the ADO test case.
+- QA review reduces to comparing ADO step text against spec step labels.
+
+### 7. Locator strategy and fallback ladders
+
+Extend element definitions to support an ordered locator strategy (testId → role+name → CSS) rather than flat fields. The runtime tries locators in ladder order. When an agent hardens a selector, it proposes an updated strategy and optionally retains the previous selector as a fallback rung.
+
+Success criteria:
+- Element YAML supports a `locatorStrategy` field with ordered entries.
+- Runtime `locate.ts` tries the ladder in order and records which rung succeeded.
+- Evidence records capture locator rung used, feeding confidence scoring.
+- Backward compatible: existing flat `testId`/`role`/`name` fields desugar to a default ladder.
+
+### 8. Pattern contracts for persistent escape-hatch overrides
+
+Design a `knowledge/patterns/` schema where agent-discovered interaction patterns (combobox selection, date picker navigation, multi-step modals) are encoded as reusable pattern contracts. The compiler binds against pattern contracts instead of emitting custom escape hatches.
+
+Success criteria:
+- Pattern contract YAML defines interaction mechanics for a widget type.
+- Compiler resolves `custom-escape-hatch` instructions against matching pattern contracts.
+- Unresolved escape hatches remain classified as `semantic-gap`; resolved ones become normal capability-driven steps.
+- Trust policy governs promotion of agent-proposed patterns.
+
+### 9. Agent-driven selector hardening workflow
+
+Build the end-to-end workflow: agent detects selector failure → re-snapshots affected section → proposes hardened selector with evidence → regenerates affected specs → reruns impacted tests → confirms fix.
+
+Success criteria:
+- CLI command (or agent workflow) to trigger selective re-snapshot after failure.
+- Proposed element update carries evidence (before/after ARIA snapshots).
+- Trust policy evaluates the proposal before promotion.
+- Impact analysis identifies all scenarios affected by the changed element.
+- Rerun confirms green before the proposal is finalized.
+
+### 10. ADO-to-spec 1:1 traceability surface
+
+Provide a CLI or report view where QAs can see, for any ADO test case ID, the exact mapping: ADO step text → scenario YAML step → generated spec step label → runtime execution result. This closes the loop from authoring to verification.
+
+Success criteria:
+- `npm run trace <adoId>` shows the full ADO → scenario → spec → result chain.
+- Each link in the chain is navigable (file paths, line numbers).
+- Unbound or escape-hatch steps are visibly flagged.
+- Output is readable by non-developers (plain text or simple HTML report).
+
 ## Notes
 
 - The current milestone remains the deterministic vertical slice plus agent-friendly command surface.
 - Any future learned or optimized component must stay outside the compiler core and produce reviewable evidence.
+- The product vision centers on QA teams working in ADO and interacting with agents through the CLI. Architectural decisions should be evaluated against whether they make that workflow more transparent, more trustworthy, and more self-healing.
