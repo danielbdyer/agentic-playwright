@@ -29,6 +29,8 @@ interface GeneratedTypesManifest {
   inputs: InputFingerprint[];
 }
 
+type TypesCacheInvalidationReason = 'missing-output' | 'invalid-output';
+
 function generatedTypesManifestPath(paths: ProjectPaths): string {
   return path.join(paths.generatedTypesDir, 'tesseract-knowledge.metadata.json');
 }
@@ -198,21 +200,35 @@ export function generateTypes(options: { paths: ProjectPaths }) {
       (entry) => !inputs.some((candidate) => candidate.kind === entry.kind && candidate.path === entry.path),
     );
 
+    let cacheInvalidationReason: TypesCacheInvalidationReason | null = null;
     if (previousManifest && previousManifest.inputSetFingerprint === inputSetFingerprint && previousManifest.outputFingerprint === outputFingerprint) {
-      return {
-        outputPath,
-        screens: screensList,
-        fixtures: toSortedUnique(fixtureIds),
-        snapshots: toSortedUnique(snapshotTemplates),
-        incremental: {
-          status: 'cache-hit' as const,
-          inputSetFingerprint,
-          outputFingerprint,
-          changedInputs,
-          removedInputs: hasRemovedInputs,
-          rewritten: [] as string[],
-        },
-      };
+      const outputExists = yield* fs.exists(outputPath);
+      if (!outputExists) {
+        cacheInvalidationReason = 'missing-output';
+      } else {
+        const persistedModuleText = yield* fs.readText(outputPath);
+        const persistedOutputFingerprint = `sha256:${sha256(persistedModuleText)}`;
+        if (persistedOutputFingerprint !== outputFingerprint) {
+          cacheInvalidationReason = 'invalid-output';
+        }
+      }
+
+      if (cacheInvalidationReason === null) {
+        return {
+          outputPath,
+          screens: screensList,
+          fixtures: toSortedUnique(fixtureIds),
+          snapshots: toSortedUnique(snapshotTemplates),
+          incremental: {
+            status: 'cache-hit' as const,
+            inputSetFingerprint,
+            outputFingerprint,
+            changedInputs,
+            removedInputs: hasRemovedInputs,
+            rewritten: [] as string[],
+          },
+        };
+      }
     }
 
     yield* fs.writeText(outputPath, moduleText);
@@ -234,6 +250,7 @@ export function generateTypes(options: { paths: ProjectPaths }) {
         status: 'cache-miss' as const,
         inputSetFingerprint,
         outputFingerprint,
+        cacheInvalidationReason,
         changedInputs,
         removedInputs: hasRemovedInputs,
         rewritten: [

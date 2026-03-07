@@ -32,6 +32,8 @@ interface GraphBuildManifest {
   inputs: InputFingerprint[];
 }
 
+type GraphCacheInvalidationReason = 'missing-output' | 'invalid-output';
+
 function graphManifestPath(paths: ProjectPaths): string {
   return path.join(paths.graphDir, 'build-manifest.json');
 }
@@ -213,30 +215,46 @@ export function buildDerivedGraph(options: { paths: ProjectPaths }) {
       (entry) => !inputs.some((candidate) => candidate.kind === entry.kind && candidate.path === entry.path),
     );
 
+    let cacheInvalidationReason: GraphCacheInvalidationReason | null = null;
     if (previousManifest && previousManifest.inputSetFingerprint === inputSetFingerprint) {
-      const cachedGraphRaw = yield* fs.readJson(options.paths.graphIndexPath);
-      const cachedGraph = yield* trySync(
-        () => validateDerivedGraph(cachedGraphRaw),
-        'derived-graph-validation-failed',
-        'Derived graph failed validation',
-      );
-      const outputFingerprint = `sha256:${sha256(stableStringify(cachedGraphRaw))}`;
-      if (outputFingerprint === previousManifest.outputFingerprint) {
-        return {
-          graph: cachedGraph,
-          graphPath: options.paths.graphIndexPath,
-          mcpCatalogPath: options.paths.mcpCatalogPath,
-          nodeCount: cachedGraph.nodes.length,
-          edgeCount: cachedGraph.edges.length,
-          incremental: {
-            status: 'cache-hit' as const,
-            inputSetFingerprint,
-            outputFingerprint,
-            changedInputs,
-            removedInputs: hasRemovedInputs,
-            rewritten: [] as string[],
-          },
-        };
+      const cachedGraphExists = yield* fs.exists(options.paths.graphIndexPath);
+      if (!cachedGraphExists) {
+        cacheInvalidationReason = 'missing-output';
+      } else {
+        const cachedGraphRaw = yield* fs.readJson(options.paths.graphIndexPath);
+        const outputFingerprint = `sha256:${sha256(stableStringify(cachedGraphRaw))}`;
+
+        if (outputFingerprint !== previousManifest.outputFingerprint) {
+          cacheInvalidationReason = 'invalid-output';
+        } else {
+          const parsedCachedGraph = yield* Effect.either(
+            trySync(
+              () => validateDerivedGraph(cachedGraphRaw),
+              'derived-graph-validation-failed',
+              'Derived graph failed validation',
+            ),
+          );
+          if (parsedCachedGraph._tag === 'Left') {
+            cacheInvalidationReason = 'invalid-output';
+          } else {
+            const cachedGraph = parsedCachedGraph.right;
+            return {
+              graph: cachedGraph,
+              graphPath: options.paths.graphIndexPath,
+              mcpCatalogPath: options.paths.mcpCatalogPath,
+              nodeCount: cachedGraph.nodes.length,
+              edgeCount: cachedGraph.edges.length,
+              incremental: {
+                status: 'cache-hit' as const,
+                inputSetFingerprint,
+                outputFingerprint,
+                changedInputs,
+                removedInputs: hasRemovedInputs,
+                rewritten: [] as string[],
+              },
+            };
+          }
+        }
       }
     }
 
@@ -277,6 +295,7 @@ export function buildDerivedGraph(options: { paths: ProjectPaths }) {
         status: 'cache-miss' as const,
         inputSetFingerprint,
         outputFingerprint,
+        cacheInvalidationReason,
         changedInputs,
         removedInputs: hasRemovedInputs,
         rewritten: [
