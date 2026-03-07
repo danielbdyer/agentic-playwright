@@ -17,6 +17,7 @@
   ScenarioPrecondition,
   ScenarioSource,
   ScenarioStep,
+  ScenarioTemplateArtifact,
   ScreenElements,
   ScreenPostures,
   StepAction,
@@ -62,10 +63,11 @@ const surfaceKinds = ['screen-root', 'form', 'action-cluster', 'validation-regio
 const assertionKinds = ['state', 'structure'] as const;
 const effectTargetKinds = ['self', 'element', 'surface'] as const;
 const effectStates = ['validation-error', 'required-error', 'disabled', 'enabled', 'visible', 'hidden'] as const;
-const graphNodeKinds = ['snapshot', 'screen', 'section', 'surface', 'element', 'posture', 'capability', 'scenario', 'step', 'generated-spec', 'evidence'] as const;
-const graphEdgeKinds = ['derived-from', 'contains', 'references', 'uses', 'affects', 'asserts', 'emits', 'observed-by', 'proposed-change-for'] as const;
+const graphNodeKinds = ['snapshot', 'template', 'screen', 'section', 'surface', 'element', 'posture', 'capability', 'scenario', 'step', 'generated-spec', 'evidence'] as const;
+const graphEdgeKinds = ['derived-from', 'derived-from-template', 'contains', 'references', 'uses', 'affects', 'asserts', 'emits', 'observed-by', 'proposed-change-for'] as const;
 const diagnosticSeverities = ['info', 'warn', 'error'] as const;
 const diagnosticConfidences = ['human', 'agent-verified', 'agent-proposed', 'unbound', 'mixed'] as const;
+const postureExpansionPartitions = ['valid', 'invalid', 'empty', 'boundary'] as const;
 
 function expectRecord(value: unknown, path: string): UnknownRecord {
   if (!value || Array.isArray(value) || typeof value !== 'object') {
@@ -524,6 +526,32 @@ export function validateScreenPostures(value: unknown): ScreenPostures {
   };
 }
 
+
+function validatePostureExpansionRule(value: unknown, path: string) {
+  const rule = expectRecord(value, path);
+  return {
+    screen: expectId(rule.screen, `${path}.screen`, createScreenId),
+    baseline: expectId(rule.baseline, `${path}.baseline`, createPostureId),
+    overrides: expectArray(rule.overrides ?? [], `${path}.overrides`).map((entry, index) =>
+      expectEnum(entry, `${path}.overrides[${index}]`, postureExpansionPartitions),
+    ),
+    include: rule.include === undefined ? undefined : expectIdArray(rule.include, `${path}.include`, createElementId),
+    exclude: rule.exclude === undefined ? undefined : expectIdArray(rule.exclude, `${path}.exclude`, createElementId),
+    maxExpansions: rule.maxExpansions === undefined ? undefined : expectNumber(rule.maxExpansions, `${path}.maxExpansions`),
+  };
+}
+
+export function validateScenarioTemplateArtifact(value: unknown): ScenarioTemplateArtifact {
+  const template = expectRecord(value, 'scenario-template');
+  return {
+    id: expectString(template.id, 'scenario-template.id'),
+    scenarioAdoIds: expectIdArray(template.scenarioAdoIds ?? [], 'scenario-template.scenarioAdoIds', createAdoId),
+    rules: expectArray(template.rules ?? [], 'scenario-template.rules').map((entry, index) =>
+      validatePostureExpansionRule(entry, `scenario-template.rules[${index}]`),
+    ),
+  };
+}
+
 export function validateManifest(value: unknown): Manifest {
   const manifest = expectRecord(value, 'manifest');
   const entries = expectRecord(manifest.entries ?? {}, 'manifest.entries');
@@ -622,3 +650,74 @@ export function validateDerivedGraph(value: unknown): DerivedGraph {
   };
 }
 
+
+export function validateTemplateExpansionContext(input: {
+  template: ScenarioTemplateArtifact;
+  scenario: Scenario;
+  scenarioPath: string;
+  templatePath: string;
+  elements: ScreenElements;
+  postures: ScreenPostures;
+}): CompilerDiagnostic[] {
+  const diagnostics: CompilerDiagnostic[] = [];
+
+  for (const rule of input.template.rules) {
+    const candidateElements = rule.include ?? (Object.keys(input.elements.elements) as ElementId[]);
+
+    for (const elementId of candidateElements) {
+      if (rule.exclude?.includes(elementId)) {
+        continue;
+      }
+
+      if (!input.elements.elements[elementId]) {
+        diagnostics.push({
+          code: 'template-unknown-element',
+          severity: 'error',
+          message: `Unknown template element ${elementId}`,
+          adoId: input.scenario.source.ado_id,
+          artifactPath: input.templatePath,
+          provenance: {
+            scenarioPath: input.scenarioPath,
+          },
+        });
+        continue;
+      }
+
+      const postureSet = input.postures.postures[elementId] ?? {};
+      for (const required of rule.overrides) {
+        const found = Object.keys(postureSet).some((postureId) => {
+          if (required === 'valid') return postureId === 'valid';
+          return postureId.startsWith(required);
+        });
+        if (!found) {
+          diagnostics.push({
+            code: 'template-missing-posture-partition',
+            severity: 'error',
+            message: `Missing ${required} posture partition for ${elementId}`,
+            adoId: input.scenario.source.ado_id,
+            artifactPath: input.templatePath,
+            provenance: {
+              scenarioPath: input.scenarioPath,
+            },
+          });
+        }
+      }
+
+      const related = input.scenario.steps.filter((step) => step.screen === rule.screen && step.element === elementId);
+      if (related.some((step) => step.action !== 'input')) {
+        diagnostics.push({
+          code: 'template-non-input-action',
+          severity: 'error',
+          message: `Template element ${elementId} maps to non-input action`,
+          adoId: input.scenario.source.ado_id,
+          artifactPath: input.scenarioPath,
+          provenance: {
+            scenarioPath: input.scenarioPath,
+          },
+        });
+      }
+    }
+  }
+
+  return diagnostics;
+}

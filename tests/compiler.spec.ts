@@ -19,6 +19,19 @@ function wait(ms: number): Promise<void> {
   });
 }
 
+
+test('refresh writes deterministic expanded scenarios derived from templates', async () => {
+  const paths = createProjectPaths(process.cwd());
+  const adoId = createAdoId('10001');
+
+  const first = await runWithLocalServices(refreshScenario({ adoId, paths }), process.cwd());
+  const second = await runWithLocalServices(refreshScenario({ adoId, paths }), process.cwd());
+
+  expect(first.compile.expanded.expandedPath).toContain(path.join('.tesseract', 'bound', 'expanded', '10001.expanded.json'));
+  expect(first.compile.expanded.expandedSet.variants.map((entry) => entry.id)).toEqual(second.compile.expanded.expandedSet.variants.map((entry) => entry.id));
+  expect(first.compile.expanded.expandedSet.variants.length).toBeGreaterThan(0);
+});
+
 test('refresh recompiles the seeded scenario through graph, types, and program emission', async () => {
   const paths = createProjectPaths(process.cwd());
   const adoId = createAdoId('10001');

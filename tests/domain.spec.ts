@@ -3,13 +3,14 @@ import path from 'path';
 import YAML from 'yaml';
 import { expect, test } from '@playwright/test';
 import { deriveGraph } from '../lib/domain/derived-graph';
+import { expandScenarioPostures } from '../lib/domain/posture-expansion';
 import { deriveCapabilities, findCapability } from '../lib/domain/grammar';
 import { computeAdoContentHash } from '../lib/domain/hash';
 import { graphIds } from '../lib/domain/ids';
 import { compileStepProgram, traceStepProgram } from '../lib/domain/program';
 import { createRefPath, formatRefPath, parseRefPath } from '../lib/domain/ref-path';
 import { renderGeneratedKnowledgeModule } from '../lib/domain/typegen';
-import { validateAdoSnapshot, validateScenario, validateScreenElements, validateScreenPostures, validateSurfaceGraph } from '../lib/domain/validation';
+import { validateAdoSnapshot, validateScenario, validateScenarioTemplateArtifact, validateScreenElements, validateScreenPostures, validateSurfaceGraph } from '../lib/domain/validation';
 
 const rootDir = process.cwd();
 
@@ -97,12 +98,37 @@ test('reference-path helpers keep fixture paths structured', () => {
   expect(parseRefPath('activePolicy.number')).toEqual(refPath);
 });
 
+
+test('posture expansion is deterministic for identical inputs', () => {
+  const scenario = validateScenario(readYamlFixture('scenarios', 'demo', 'policy-search', '10001.scenario.yaml'));
+  const template = validateScenarioTemplateArtifact(readYamlFixture('scenarios', 'templates', 'policy-search.posture-expansion.yaml'));
+  const elements = validateScreenElements(readYamlFixture('knowledge', 'screens', 'policy-search.elements.yaml'));
+  const postures = validateScreenPostures(readYamlFixture('knowledge', 'screens', 'policy-search.postures.yaml'));
+
+  const input = {
+    scenario,
+    scenarioPath: 'scenarios/demo/policy-search/10001.scenario.yaml',
+    template,
+    templatePath: 'scenarios/templates/policy-search.posture-expansion.yaml',
+    screenElements: elements,
+    screenPostures: postures,
+    generatedAt: '2026-01-01T00:00:00.000Z',
+  };
+
+  const first = expandScenarioPostures(input);
+  const second = expandScenarioPostures(input);
+
+  expect(first.variants.map((entry) => entry.id)).toEqual(second.variants.map((entry) => entry.id));
+  expect(first.variants.every((entry, index) => entry.provenance.sourceElement <= (first.variants[index + 1]?.provenance.sourceElement ?? 'zzzz'))).toBeTruthy();
+});
+
 test('deriveGraph is deterministic from approved artifacts alone', () => {
   const snapshot = validateAdoSnapshot(readJsonFixture('fixtures', 'ado', '10001.json'));
   const scenario = validateScenario(readYamlFixture('scenarios', 'demo', 'policy-search', '10001.scenario.yaml'));
   const surfaceGraph = validateSurfaceGraph(readYamlFixture('knowledge', 'surfaces', 'policy-search.surface.yaml'));
   const elements = validateScreenElements(readYamlFixture('knowledge', 'screens', 'policy-search.elements.yaml'));
   const postures = validateScreenPostures(readYamlFixture('knowledge', 'screens', 'policy-search.postures.yaml'));
+  const template = validateScenarioTemplateArtifact(readYamlFixture('scenarios', 'templates', 'policy-search.posture-expansion.yaml'));
 
   const input = {
     snapshots: [{ artifact: snapshot, artifactPath: '.ado-sync/snapshots/10001.json' }],
@@ -118,6 +144,19 @@ test('deriveGraph is deterministic from approved artifacts alone', () => {
       artifactPath: 'scenarios/demo/policy-search/10001.scenario.yaml',
       generatedSpecPath: 'generated/demo/policy-search/10001.spec.ts',
       generatedSpecExists: true,
+    }],
+    scenarioTemplates: [{ artifact: template, artifactPath: 'scenarios/templates/policy-search.posture-expansion.yaml' }],
+    expandedScenarios: [{
+      artifact: expandScenarioPostures({
+        scenario,
+        scenarioPath: 'scenarios/demo/policy-search/10001.scenario.yaml',
+        template,
+        templatePath: 'scenarios/templates/policy-search.posture-expansion.yaml',
+        screenElements: elements,
+        screenPostures: postures,
+        generatedAt: '2026-01-01T00:00:00.000Z',
+      }),
+      artifactPath: '.tesseract/bound/expanded/10001.expanded.json',
     }],
     evidence: [],
   };
