@@ -30,6 +30,7 @@
   TrustPolicyEvaluation,
   TrustPolicyEvaluationReason,
   ValueRef,
+  WidgetCapabilityContract,
 } from './types';
 import { computeAdoContentHash } from './hash';
 import { normalizeScreenPostures } from './posture-contract';
@@ -67,6 +68,9 @@ const surfaceKinds = ['screen-root', 'form', 'action-cluster', 'validation-regio
 const assertionKinds = ['state', 'structure'] as const;
 const effectTargetKinds = ['self', 'element', 'surface'] as const;
 const effectStates = ['validation-error', 'required-error', 'disabled', 'enabled', 'visible', 'hidden'] as const;
+const widgetActions = ['click', 'fill', 'clear', 'get-value'] as const;
+const widgetPreconditions = ['visible', 'enabled', 'editable'] as const;
+const widgetEffectCategories = ['mutation', 'observation', 'focus', 'navigation'] as const;
 const graphNodeKinds = ['snapshot', 'screen', 'section', 'surface', 'element', 'posture', 'capability', 'scenario', 'step', 'generated-spec', 'evidence', 'policy-decision'] as const;
 const graphEdgeKinds = ['derived-from', 'contains', 'references', 'uses', 'affects', 'asserts', 'emits', 'observed-by', 'proposed-change-for', 'governs'] as const;
 const diagnosticSeverities = ['info', 'warn', 'error'] as const;
@@ -410,6 +414,62 @@ function validatePosture(value: unknown, path: string): Posture {
   };
 }
 
+function uniqueSorted<T extends string>(values: T[]): T[] {
+  return [...new Set(values)].sort((left, right) => left.localeCompare(right)) as T[];
+}
+
+export function validateWidgetCapabilityContract(value: unknown, path = 'widget-contract'): WidgetCapabilityContract {
+  const contract = expectRecord(value, path);
+  const supportedActions = uniqueSorted(
+    expectArray(contract.supportedActions ?? [], `${path}.supportedActions`).map((entry, index) =>
+      expectEnum(entry, `${path}.supportedActions[${index}]`, widgetActions),
+    ),
+  );
+  const requiredPreconditions = uniqueSorted(
+    expectArray(contract.requiredPreconditions ?? [], `${path}.requiredPreconditions`).map((entry, index) =>
+      expectEnum(entry, `${path}.requiredPreconditions[${index}]`, widgetPreconditions),
+    ),
+  );
+  const rawSideEffects = expectRecord(contract.sideEffects ?? {}, `${path}.sideEffects`);
+  const sideEffects = Object.fromEntries(
+    Object.entries(rawSideEffects).map(([action, semantics]) => {
+      const validatedAction = expectEnum(action, `${path}.sideEffects.${action}`, widgetActions);
+      if (!supportedActions.includes(validatedAction)) {
+        throw new SchemaError(`sideEffects references unsupported action ${validatedAction}`, `${path}.sideEffects.${action}`);
+      }
+      const entry = expectRecord(semantics, `${path}.sideEffects.${action}`);
+      return [
+        validatedAction,
+        {
+          expectedStates: uniqueSorted(
+            expectArray(entry.expectedStates ?? [], `${path}.sideEffects.${action}.expectedStates`).map((state, index) =>
+              expectEnum(state, `${path}.sideEffects.${action}.expectedStates[${index}]`, effectStates),
+            ),
+          ),
+          effectCategories: uniqueSorted(
+            expectArray(entry.effectCategories ?? [], `${path}.sideEffects.${action}.effectCategories`).map((category, index) =>
+              expectEnum(category, `${path}.sideEffects.${action}.effectCategories[${index}]`, widgetEffectCategories),
+            ),
+          ),
+        },
+      ];
+    }),
+  );
+
+  for (const action of supportedActions) {
+    if (!sideEffects[action]) {
+      throw new SchemaError(`missing side-effect semantics for action ${action}`, `${path}.sideEffects`);
+    }
+  }
+
+  return {
+    widget: expectId(contract.widget, `${path}.widget`, createWidgetId),
+    supportedActions,
+    requiredPreconditions,
+    sideEffects,
+  };
+}
+
 export function validateAdoSnapshot(value: unknown) {
   const snapshot = expectRecord(value, 'snapshot');
   const validated = {
@@ -683,4 +743,3 @@ export function validateTrustPolicyEvaluation(value: unknown): TrustPolicyEvalua
     reasons: expectArray(record.reasons ?? [], 'trustPolicyEvaluation.reasons').map((entry, index) => validateTrustPolicyEvaluationReason(entry, `trustPolicyEvaluation.reasons[${index}]`)),
   };
 }
-

@@ -7,7 +7,9 @@ import {
 } from '../lib/domain/errors';
 import { createAdoId } from '../lib/domain/identity';
 import { StepProgram } from '../lib/domain/types';
+import { deriveCapabilities } from '../lib/domain/grammar';
 import { runStepProgram, runtimeFailureDiagnostic } from '../lib/runtime/program';
+import { interact } from '../lib/runtime/interact';
 import { ScreenRegistry } from '../lib/runtime/load';
 
 test('runtime/domain error constructors keep stable machine-classifiable codes', () => {
@@ -126,4 +128,62 @@ test('invoke fails with runtime-missing-action-handler when widget action is not
     expect(result.error.message).toBe('No click action registered for os-date');
   }
   expect(harness.clicks.count).toBe(0);
+});
+
+test('interact fails with stable error codes for unsupported widget actions', async () => {
+  const locator = {
+    click: async () => undefined,
+    fill: async () => undefined,
+  };
+
+  const result = await interact(locator as never, 'os-button', 'fill', 'x');
+  expect(result.ok).toBeFalsy();
+  if (!result.ok) {
+    expect(result.error.code).toBe('runtime-missing-action-handler');
+    expect(result.error.message).toBe('No fill action registered for os-button');
+  }
+});
+
+test('capability derivation remains deterministic with contract-driven actions', () => {
+  const surfaceGraph = {
+    screen: 'policy-search',
+    url: 'http://example.test/policy-search',
+    sections: {
+      search: {
+        selector: '#search',
+        kind: 'form',
+        surfaces: ['search-form'],
+        snapshot: null,
+      },
+    },
+    surfaces: {
+      'search-form': {
+        kind: 'form',
+        section: 'search',
+        selector: '#search',
+        parents: [],
+        children: [],
+        elements: ['searchButton'],
+        assertions: ['state'],
+      },
+    },
+  } as const;
+  const elements = {
+    screen: 'policy-search',
+    url: 'http://example.test/policy-search',
+    elements: {
+      searchButton: {
+        role: 'button',
+        name: 'Search',
+        testId: null,
+        cssFallback: '#search-button',
+        surface: 'search-form',
+        widget: 'os-button',
+      },
+    },
+  } as const;
+
+  const first = deriveCapabilities(surfaceGraph as never, elements as never);
+  const second = deriveCapabilities(surfaceGraph as never, elements as never);
+  expect(first).toEqual(second);
 });

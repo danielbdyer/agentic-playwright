@@ -2,6 +2,7 @@
 import { ElementId, PostureId } from '../domain/identity';
 import { unknownEffectTargetError } from '../domain/errors';
 import { ElementSig, Posture, SurfaceDefinition } from '../domain/types';
+import { widgetCapabilityContracts } from '../../knowledge/components';
 import { interact } from './interact';
 import { locate } from './locate';
 import { RuntimeResult, runtimeErr, runtimeOk } from './result';
@@ -81,9 +82,18 @@ export async function engage(
   const locator = locate(page, element);
 
   if (value !== undefined) {
-    const fill = await interact(locator, element.widget, 'fill', value);
-    if (!fill.ok) {
-      return fill;
+    const contract = widgetCapabilityContracts[element.widget];
+    const writableAction = contract?.supportedActions.find((action) => action === 'fill' || action === 'clear');
+    if (!writableAction) {
+      const failed = await interact(locator, element.widget, 'fill', value);
+      if (!failed.ok) {
+        return failed;
+      }
+    } else {
+      const input = await interact(locator, element.widget, writableAction, value);
+      if (!input.ok) {
+        return input;
+      }
     }
   }
 

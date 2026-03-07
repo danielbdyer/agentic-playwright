@@ -42,6 +42,10 @@ export function missingActionHandlerError(widget: string, action: string): Runti
   return new RuntimeError('runtime-missing-action-handler', `No ${action} action registered for ${widget}`, { widget, action });
 }
 
+export function unknownWidgetActionError(widget: string, action: string): TesseractError {
+  return new TesseractError('domain-unknown-widget-action', `Unknown widget action ${action} for ${widget}`);
+}
+
 export function snapshotHandleResolutionError(): RuntimeError {
   return new RuntimeError('runtime-snapshot-handle-resolution-failed', 'Unable to resolve element handle for ARIA snapshot');
 }

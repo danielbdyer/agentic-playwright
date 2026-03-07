@@ -1,13 +1,8 @@
-﻿import { createElementId, createSurfaceId, ElementId, ScreenId, SurfaceId } from './identity';
-import { CapabilityName, DerivedCapability, ElementSig, ScreenElements, SurfaceGraph } from './types';
+﻿import { createSurfaceId, ElementId, ScreenId, SurfaceId } from './identity';
+import { unknownWidgetActionError } from './errors';
+import { CapabilityName, DerivedCapability, ElementSig, ScreenElements, SurfaceGraph, WidgetAction } from './types';
 import { graphIds, knowledgePaths } from './ids';
-
-const widgetCapabilities: Record<string, CapabilityName[]> = {
-  'os-button': ['invoke', 'observe-state'],
-  'os-input': ['enter', 'observe-state'],
-  'os-region': ['observe-state'],
-  'os-table': ['observe-structure', 'observe-state'],
-};
+import { widgetCapabilityContracts } from '../../knowledge/components';
 
 const roleCapabilities: Record<string, CapabilityName[]> = {
   alert: ['observe-state'],
@@ -23,8 +18,26 @@ function uniqueSorted<T extends string>(values: T[]): T[] {
   return [...new Set(values)].sort((left, right) => left.localeCompare(right)) as T[];
 }
 
+function capabilitiesFromWidgetAction(widget: string, action: WidgetAction): CapabilityName[] {
+  switch (action) {
+    case 'click':
+      return ['invoke'];
+    case 'fill':
+    case 'clear':
+      return ['enter'];
+    case 'get-value':
+      return ['observe-state'];
+    default:
+      throw unknownWidgetActionError(widget, action);
+  }
+}
+
 function capabilitiesForElement(element: ElementSig): CapabilityName[] {
-  return uniqueSorted([...(widgetCapabilities[element.widget] ?? []), ...(roleCapabilities[element.role] ?? [])]);
+  const contract = widgetCapabilityContracts[element.widget];
+  const contractOperations = contract
+    ? contract.supportedActions.flatMap((action) => capabilitiesFromWidgetAction(contract.widget, action))
+    : [];
+  return uniqueSorted([...contractOperations, ...(roleCapabilities[element.role] ?? [])]);
 }
 
 function surfaceOperations(
@@ -124,4 +137,3 @@ export function findCapability(
 ): DerivedCapability | undefined {
   return capabilities.find((entry) => entry.targetKind === targetKind && entry.target === target);
 }
-

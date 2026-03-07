@@ -1,6 +1,8 @@
 import path from 'path';
 import YAML from 'yaml';
 import { Effect } from 'effect';
+import { widgetCapabilityContracts } from '../../knowledge/components';
+import { deriveCapabilities } from '../domain/grammar';
 import { sha256, stableStringify } from '../domain/hash';
 import { validateScenario, validateScreenElements, validateScreenPostures, validateSurfaceGraph } from '../domain/validation';
 import { renderGeneratedKnowledgeModule } from '../domain/typegen';
@@ -110,7 +112,10 @@ export function generateTypes(options: { paths: ProjectPaths }) {
     const surfaceFiles = (yield* walkFiles(fs, options.paths.surfacesDir)).filter((filePath) => filePath.endsWith('.surface.yaml'));
     const screens = new Set<string>();
     const surfacesByScreen: Record<string, string[]> = {};
+    const surfaceActionsByScreen: Record<string, Record<string, string[]>> = {};
     const elementsByScreen: Record<string, string[]> = {};
+    const surfaceGraphsByScreen: Record<string, ReturnType<typeof validateSurfaceGraph>> = {};
+    const screenElementsByScreen: Record<string, ReturnType<typeof validateScreenElements>> = {};
     const posturesByScreen: Record<string, Record<string, string[]>> = {};
     const snapshotTemplates: string[] = [];
     const fixtureIds: string[] = [];
@@ -125,6 +130,7 @@ export function generateTypes(options: { paths: ProjectPaths }) {
       const artifactPath = relativeProjectPath(options.paths, filePath);
       inputFingerprints.push(fingerprintArtifact('surface', artifactPath, graph));
       screens.add(graph.screen);
+      surfaceGraphsByScreen[graph.screen] = graph;
       surfacesByScreen[graph.screen] = Object.keys(graph.surfaces).sort((left, right) => left.localeCompare(right));
       for (const section of Object.values(graph.sections)) {
         if (section.snapshot) {
@@ -144,6 +150,7 @@ export function generateTypes(options: { paths: ProjectPaths }) {
       const artifactPath = relativeProjectPath(options.paths, filePath);
       inputFingerprints.push(fingerprintArtifact('elements', artifactPath, elements));
       screens.add(elements.screen);
+      screenElementsByScreen[elements.screen] = elements;
       elementsByScreen[elements.screen] = Object.keys(elements.elements).sort((left, right) => left.localeCompare(right));
     }
 
@@ -194,7 +201,28 @@ export function generateTypes(options: { paths: ProjectPaths }) {
 
     const screensList = [...screens].sort((left, right) => left.localeCompare(right));
     for (const screen of screensList) {
+      const surfaceGraph = surfaceGraphsByScreen[screen];
+      const screenElements = screenElementsByScreen[screen];
+      if (!surfaceGraph || !screenElements) {
+        surfaceActionsByScreen[screen] = {};
+        continue;
+      }
+      const capabilities = deriveCapabilities(surfaceGraph, screenElements)
+        .filter((entry) => entry.targetKind === 'surface')
+        .map((entry) => [entry.target, entry.operations] as const)
+        .sort(([left], [right]) => left.localeCompare(right));
+      surfaceActionsByScreen[screen] = Object.fromEntries(capabilities);
+    }
+
+    const widgetActions = Object.fromEntries(
+      Object.entries(widgetCapabilityContracts)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([widget, contract]) => [widget, contract.supportedActions]),
+    );
+
+    for (const screen of screensList) {
       surfacesByScreen[screen] = surfacesByScreen[screen] ?? [];
+      surfaceActionsByScreen[screen] = surfaceActionsByScreen[screen] ?? {};
       elementsByScreen[screen] = elementsByScreen[screen] ?? [];
       posturesByScreen[screen] = posturesByScreen[screen] ?? {};
     }
@@ -202,7 +230,9 @@ export function generateTypes(options: { paths: ProjectPaths }) {
     const moduleText = renderGeneratedKnowledgeModule({
       screens: screensList,
       surfaces: surfacesByScreen,
+      surfaceActions: surfaceActionsByScreen,
       elements: elementsByScreen,
+      widgetActions,
       postures: posturesByScreen,
       snapshots: toSortedUnique(snapshotTemplates),
       fixtures: toSortedUnique(fixtureIds),

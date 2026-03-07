@@ -1,15 +1,33 @@
 ﻿import { Locator } from '@playwright/test';
 import { missingActionHandlerError } from '../domain/errors';
-import { osButton } from '../../knowledge/components/os-button';
-import { osInput } from '../../knowledge/components/os-input';
-import { osTable } from '../../knowledge/components/os-table';
+import { WidgetPrecondition } from '../domain/types';
+import { widgetActionHandlers, widgetCapabilityContracts } from '../../knowledge/components';
 import { RuntimeResult, runtimeErr, runtimeOk } from './result';
 
-const patterns: Record<string, Record<string, (locator: Locator, value?: string) => Promise<unknown>>> = {
-  'os-button': osButton,
-  'os-input': osInput,
-  'os-table': osTable,
-};
+async function assertPrecondition(locator: Locator, precondition: WidgetPrecondition): Promise<void> {
+  const target = locator as unknown as {
+    isVisible?: () => Promise<boolean>;
+    isEnabled?: () => Promise<boolean>;
+    isEditable?: () => Promise<boolean>;
+  };
+  switch (precondition) {
+    case 'visible':
+      if (typeof target.isVisible === 'function' && !(await target.isVisible())) {
+        throw new Error('Widget precondition failed: visible');
+      }
+      return;
+    case 'enabled':
+      if (typeof target.isEnabled === 'function' && !(await target.isEnabled())) {
+        throw new Error('Widget precondition failed: enabled');
+      }
+      return;
+    case 'editable':
+      if (typeof target.isEditable === 'function' && !(await target.isEditable())) {
+        throw new Error('Widget precondition failed: editable');
+      }
+      return;
+  }
+}
 
 export async function interact(
   locator: Locator,
@@ -17,12 +35,18 @@ export async function interact(
   action: string,
   value?: string,
 ): Promise<RuntimeResult<void>> {
-  const pattern = patterns[widget];
-  if (!pattern || !pattern[action]) {
+  const contract = widgetCapabilityContracts[widget];
+  const handlers = widgetActionHandlers[widget];
+  const hasAction = Boolean(contract?.supportedActions.includes(action as never) && handlers?.[action]);
+  if (!contract || !handlers || !hasAction) {
     const error = missingActionHandlerError(widget, action);
     return runtimeErr('runtime-missing-action-handler', error.message, error.context, error);
   }
 
-  await pattern[action](locator, value);
+  for (const precondition of contract.requiredPreconditions) {
+    await assertPrecondition(locator, precondition);
+  }
+
+  await handlers[action](locator, value);
   return runtimeOk(undefined);
 }

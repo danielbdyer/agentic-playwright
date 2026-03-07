@@ -21,6 +21,42 @@ export const elementIds = {
     ]
 } as const;
 export type ElementId<S extends ScreenId = ScreenId> = S extends "policy-search" ? "policyNumberInput" | "resultsTable" | "searchButton" | "validationSummary" : never;
+export const widgetSupportedActions = {
+    "os-button": [
+        "click",
+        "get-value"
+    ],
+    "os-input": [
+        "clear",
+        "fill",
+        "get-value"
+    ],
+    "os-table": [
+        "get-value"
+    ]
+} as const;
+export type WidgetId = "os-button" | "os-input" | "os-table";
+export type WidgetSupportedAction<W extends WidgetId = WidgetId> = (typeof widgetSupportedActions)[W][number];
+export const surfaceSupportedActions = {
+    "policy-search": {
+        "results-grid": [
+            "observe-state",
+            "observe-structure"
+        ],
+        "search-actions": [
+            "invoke",
+            "observe-state"
+        ],
+        "search-form": [
+            "enter",
+            "invoke",
+            "observe-state"
+        ],
+        "validation-surface": [
+            "observe-state"
+        ]
+    }
+} as const;
 export const postureIds = {
     "policy-search": {
         policyNumberInput: [
@@ -50,6 +86,24 @@ export const knowledgeIndex = {
             "search-form",
             "validation-surface"
         ],
+        surfaceActions: {
+            "results-grid": [
+                "observe-state",
+                "observe-structure"
+            ],
+            "search-actions": [
+                "invoke",
+                "observe-state"
+            ],
+            "search-form": [
+                "enter",
+                "invoke",
+                "observe-state"
+            ],
+            "validation-surface": [
+                "observe-state"
+            ]
+        },
         elements: [
             "policyNumberInput",
             "resultsTable",
