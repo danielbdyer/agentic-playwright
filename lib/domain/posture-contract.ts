@@ -1,5 +1,6 @@
-﻿import { ElementId, PostureId, SurfaceId } from './identity';
-import { EffectTargetKind, PostureEffect, ScreenElements, ScreenPostures, SurfaceGraph } from './types';
+import { ElementId, PostureId, SurfaceId } from './identity';
+import { normalizePostureEffectTarget, parseEffectTargetRef, ResolveEffectTargetContext } from './effect-target';
+import { PostureEffect, ScreenElements, ScreenPostures, SurfaceGraph } from './types';
 
 export type PostureContractIssueCode =
   | 'unknown-posture'
@@ -12,12 +13,6 @@ export interface PostureContractIssue {
   elementId: ElementId;
   postureId: PostureId;
   target?: ElementId | SurfaceId;
-}
-
-export interface ResolveEffectTargetContext {
-  effect: PostureEffect;
-  elements: ScreenElements;
-  surfaceGraph: SurfaceGraph;
 }
 
 const canonicalPostureIds = ['boundary', 'empty', 'invalid', 'valid'] as const;
@@ -36,16 +31,12 @@ export function normalizePostureEffects(effects: PostureEffect[]): PostureEffect
   const deduped = new Map<string, PostureEffect>();
 
   for (const effect of effects) {
-    const normalized: PostureEffect = {
+    const normalized = normalizePostureEffectTarget({
       target: effect.target,
       targetKind: effect.targetKind,
       state: effect.state,
       message: effect.message ?? null,
-    };
-
-    if (normalized.target === 'self') {
-      normalized.targetKind = 'self';
-    }
+    });
 
     deduped.set(effectTargetSortKey(normalized), normalized);
   }
@@ -89,29 +80,8 @@ export function normalizeScreenPostures(screenPostures: ScreenPostures): ScreenP
   };
 }
 
-export function resolveEffectTargetKind(context: ResolveEffectTargetContext): EffectTargetKind | 'ambiguous' | 'unknown' {
-  if (context.effect.target === 'self' || context.effect.targetKind === 'self') {
-    return 'self';
-  }
-
-  if (context.effect.targetKind === 'element' || context.effect.targetKind === 'surface') {
-    return context.effect.targetKind;
-  }
-
-  const target = context.effect.target;
-  const hasElement = Boolean(context.elements.elements[target]);
-  const hasSurface = Boolean(context.surfaceGraph.surfaces[target]);
-
-  if (hasElement && hasSurface) {
-    return 'ambiguous';
-  }
-  if (hasSurface) {
-    return 'surface';
-  }
-  if (hasElement) {
-    return 'element';
-  }
-  return 'unknown';
+export function resolveEffectTargetRef(context: ResolveEffectTargetContext) {
+  return parseEffectTargetRef(context);
 }
 
 export function validatePostureContract(params: {
@@ -142,28 +112,18 @@ export function validatePostureContract(params: {
   }
 
   for (const effect of posture.effects) {
-    const resolved = resolveEffectTargetKind({
+    const resolved = resolveEffectTargetRef({
       effect,
       elements: params.elements,
       surfaceGraph: params.surfaceGraph,
     });
 
-    if (resolved === 'unknown') {
+    if (!resolved.ok) {
       issues.push({
-        code: 'unknown-effect-target',
+        code: resolved.error.code,
         elementId: params.elementId,
         postureId: params.postureId,
-        target: effect.target === 'self' ? undefined : effect.target,
-      });
-      continue;
-    }
-
-    if (resolved === 'ambiguous') {
-      issues.push({
-        code: 'ambiguous-effect-target',
-        elementId: params.elementId,
-        postureId: params.postureId,
-        target: effect.target === 'self' ? undefined : effect.target,
+        target: resolved.error.target,
       });
     }
   }

@@ -4,7 +4,7 @@ import { createDiagnostic } from '../domain/diagnostics';
 import { deriveCapabilities, findCapability } from '../domain/grammar';
 import { AdoId, ScreenId } from '../domain/identity';
 import { capabilityForInstruction, compileStepProgram, traceStepProgram } from '../domain/program';
-import { validatePostureContract } from '../domain/posture-contract';
+import { PostureContractIssueCode, validatePostureContract } from '../domain/posture-contract';
 import { BoundScenario, CompilerDiagnostic, ProposedChangeMetadata, ScreenElements, ScreenPostures, SurfaceGraph } from '../domain/types';
 import { validateBoundScenario, validateScenario, validateScreenElements, validateScreenPostures, validateSurfaceGraph } from '../domain/validation';
 import { FileSystem } from './ports';
@@ -21,6 +21,18 @@ import {
 import { trySync } from './effect';
 import { TesseractError } from '../domain/errors';
 import { evaluateArtifactPolicy, loadEvidenceRecords, loadTrustPolicy, trustPolicyDiagnosticForScenario } from './trust-policy';
+
+
+function contractIssueToReason(code: PostureContractIssueCode): PostureContractIssueCode {
+  switch (code) {
+    case 'unknown-posture':
+    case 'missing-posture-values':
+    case 'unknown-effect-target':
+    case 'ambiguous-effect-target':
+      return code;
+  }
+}
+
 
 function findScenarioPath(paths: ProjectPaths, adoId: AdoId) {
   return Effect.gen(function* () {
@@ -180,7 +192,7 @@ export function bindScenario(options: { adoId: AdoId; paths: ProjectPaths }) {
             elements: screenElements,
             surfaceGraph,
           });
-          reasons.push(...postureIssues.map((issue) => issue.code));
+          reasons.push(...postureIssues.map((issue) => contractIssueToReason(issue.code)));
         }
       }
 

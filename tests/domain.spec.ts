@@ -7,7 +7,8 @@ import { deriveCapabilities, findCapability } from '../lib/domain/grammar';
 import { computeAdoContentHash } from '../lib/domain/hash';
 import { graphIds } from '../lib/domain/ids';
 import { compileStepProgram, traceStepProgram } from '../lib/domain/program';
-import { normalizeScreenPostures, resolveEffectTargetKind, validatePostureContract } from '../lib/domain/posture-contract';
+import { parseEffectTargetRef } from '../lib/domain/effect-target';
+import { normalizeScreenPostures, validatePostureContract } from '../lib/domain/posture-contract';
 import { createRefPath, formatRefPath, parseRefPath } from '../lib/domain/ref-path';
 import { renderGeneratedKnowledgeModule } from '../lib/domain/typegen';
 import { validateAdoSnapshot, validateScenario, validateScreenElements, validateScreenPostures, validateSurfaceGraph } from '../lib/domain/validation';
@@ -203,7 +204,7 @@ test('validatePostureContract flags unknown and empty posture contracts', () => 
   ]);
 });
 
-test('resolveEffectTargetKind treats dual surface/element ids without explicit target kind as ambiguous', () => {
+test('parseEffectTargetRef treats dual surface/element ids without explicit target kind as ambiguous', () => {
   const elements = {
     screen: 'policy-search',
     url: '/policy-search',
@@ -235,11 +236,17 @@ test('resolveEffectTargetKind treats dual surface/element ids without explicit t
     },
   };
 
-  const targetKind = resolveEffectTargetKind({
+  const targetRef = parseEffectTargetRef({
     effect: { target: 'sharedTarget', state: 'visible' },
     elements,
     surfaceGraph,
   });
 
-  expect(targetKind).toBe('ambiguous');
+  expect(targetRef).toEqual({
+    ok: false,
+    error: {
+      code: 'ambiguous-effect-target',
+      target: 'sharedTarget',
+    },
+  });
 });
