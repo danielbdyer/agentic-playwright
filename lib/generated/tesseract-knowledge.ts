@@ -32,14 +32,16 @@ export const postureIds = {
 } as const;
 export type ScreenPostureId<S extends ScreenId = ScreenId> = S extends "policy-search" ? "empty" | "invalid" | "valid" : never;
 export const snapshotTemplateIds = [
+    "snapshots/policy-search/results-with-policy-postcondition.yaml",
     "snapshots/policy-search/results-with-policy.yaml"
 ] as const;
-export type SnapshotTemplateId = "snapshots/policy-search/results-with-policy.yaml";
+export type SnapshotTemplateId = "snapshots/policy-search/results-with-policy-postcondition.yaml" | "snapshots/policy-search/results-with-policy.yaml";
 export const fixtureIds = [
     "activePolicy",
-    "demoSession"
+    "demoSession",
+    "postconditionFixture"
 ] as const;
-export type FixtureId = "activePolicy" | "demoSession";
+export type FixtureId = "activePolicy" | "demoSession" | "postconditionFixture";
 export const knowledgeIndex = {
     "policy-search": {
         surfaces: [
