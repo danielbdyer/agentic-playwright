@@ -6,9 +6,11 @@ import { buildDerivedGraph } from './graph';
 import { parseScenario } from './parse';
 import { ProjectPaths } from './paths';
 import { generateTypes } from './types';
+import { loadTrustPolicy } from './trust-policy';
 
 export function compileScenario(options: { adoId: AdoId; paths: ProjectPaths }) {
   return Effect.gen(function* () {
+    const trustPolicy = yield* loadTrustPolicy(options.paths);
     const parsed = yield* parseScenario(options);
     const bound = yield* bindScenario(options);
     const emitted = yield* emitScenario(options);
@@ -20,6 +22,7 @@ export function compileScenario(options: { adoId: AdoId; paths: ProjectPaths }) 
       emitted,
       graph,
       generatedTypes,
+      trustPolicy,
     };
   });
 }

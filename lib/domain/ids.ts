@@ -33,6 +33,7 @@ export const graphIds = {
   stepPrefix: (adoId: AdoId): string => joinGraphId('step', adoId, ''),
   generatedSpec: (adoId: AdoId): string => joinGraphId('generated-spec', adoId),
   evidence: (relativePath: string): string => joinGraphId('evidence', normalizePathFragment(relativePath)),
+  policyDecision: (decisionId: string): string => joinGraphId('policy-decision', decisionId),
 };
 
 export const mcpUris = {

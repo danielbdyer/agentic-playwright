@@ -3,20 +3,21 @@ import YAML from 'yaml';
 import { Effect } from 'effect';
 import { sha256, stableStringify } from '../domain/hash';
 import { createSnapshotTemplateId } from '../domain/identity';
-import { deriveGraph, EvidenceArtifact, KnowledgeSnapshotArtifact, ScenarioGraphArtifact } from '../domain/derived-graph';
-import { AdoSnapshot, ScreenElements, ScreenPostures, SurfaceGraph } from '../domain/types';
+import { deriveGraph, EvidenceArtifact, KnowledgeSnapshotArtifact, PolicyDecisionArtifact, ScenarioGraphArtifact } from '../domain/derived-graph';
+import { AdoSnapshot, EvidenceRecord, ProposedChangeMetadata, ScreenElements, ScreenPostures, SurfaceGraph } from '../domain/types';
 import { validateAdoSnapshot, validateDerivedGraph, validateScenario, validateScreenElements, validateScreenPostures, validateSurfaceGraph } from '../domain/validation';
 import { walkFiles } from './artifacts';
 import { trySync } from './effect';
 import { FileSystem } from './ports';
 import { generatedSpecPath, ProjectPaths, relativeProjectPath } from './paths';
+import { evaluateArtifactPolicy, loadTrustPolicy, policyDecisionGraphTarget } from './trust-policy';
 
 interface ArtifactEnvelope<T> {
   artifact: T;
   artifactPath: string;
 }
 
-type FingerprintKind = 'snapshot' | 'surface' | 'elements' | 'postures' | 'scenario';
+type FingerprintKind = 'snapshot' | 'surface' | 'elements' | 'postures' | 'scenario' | 'evidence' | 'policy';
 
 interface InputFingerprint {
   kind: FingerprintKind;
@@ -77,7 +78,7 @@ function parseGraphManifest(value: unknown): GraphBuildManifest | null {
     }
     const entry = input as Partial<InputFingerprint>;
     if (
-      (entry.kind !== 'snapshot' && entry.kind !== 'surface' && entry.kind !== 'elements' && entry.kind !== 'postures' && entry.kind !== 'scenario')
+      (entry.kind !== 'snapshot' && entry.kind !== 'surface' && entry.kind !== 'elements' && entry.kind !== 'postures' && entry.kind !== 'scenario' && entry.kind !== 'evidence' && entry.kind !== 'policy')
       || typeof entry.path !== 'string'
       || typeof entry.fingerprint !== 'string'
     ) {
@@ -98,6 +99,8 @@ export function buildDerivedGraph(options: { paths: ProjectPaths }) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const inputFingerprints: InputFingerprint[] = [];
+    const trustPolicy = yield* loadTrustPolicy(options.paths);
+    inputFingerprints.push(fingerprintArtifact('policy', relativeProjectPath(options.paths, options.paths.trustPolicyPath), trustPolicy));
 
     const snapshotFiles = (yield* walkFiles(fs, options.paths.snapshotDir)).filter((filePath) => filePath.endsWith('.json'));
     const snapshots: ArtifactEnvelope<AdoSnapshot>[] = [];
@@ -194,9 +197,40 @@ export function buildDerivedGraph(options: { paths: ProjectPaths }) {
     }
 
     const evidenceFiles = (yield* walkFiles(fs, options.paths.evidenceDir)).filter((filePath) => filePath.endsWith('.json'));
-    const evidence: EvidenceArtifact[] = evidenceFiles.map((filePath) => ({
-      artifactPath: relativeProjectPath(options.paths, filePath),
-    }));
+    const evidenceRecords: Array<{ artifactPath: string; record: EvidenceRecord }> = [];
+    const evidence: EvidenceArtifact[] = [];
+    for (const filePath of evidenceFiles) {
+      const artifactPath = relativeProjectPath(options.paths, filePath);
+      const record = (yield* fs.readJson(filePath)) as EvidenceRecord;
+      evidence.push({ artifactPath });
+      evidenceRecords.push({ artifactPath, record });
+      inputFingerprints.push(fingerprintArtifact('evidence', artifactPath, record));
+    }
+
+    const policyDecisions: PolicyDecisionArtifact[] = evidenceRecords.map(({ artifactPath, record }) => {
+      const proposedChange: ProposedChangeMetadata = {
+        artifactType: record.evidence.scope as ProposedChangeMetadata['artifactType'],
+        confidence: record.evidence.confidence,
+        autoHealClass: record.evidence.trigger,
+      };
+      const evaluation = evaluateArtifactPolicy({
+        policy: trustPolicy,
+        proposedChange,
+        evidence: evidenceRecords.map((entry) => ({ artifactPath: entry.artifactPath, record: entry.record })),
+      });
+      const targetNodeId = policyDecisionGraphTarget({
+        artifactType: proposedChange.artifactType,
+        artifactPath: record.evidence.proposal.file,
+      });
+      const decisionId = `${artifactPath}:${evaluation.decision}`;
+      return {
+        id: decisionId,
+        decision: evaluation.decision,
+        artifactPath,
+        targetNodeId,
+        reasons: evaluation.reasons.map((reason) => reason.message),
+      };
+    });
 
     const inputs = sortFingerprints(inputFingerprints);
     const inputSetFingerprint = computeInputSetFingerprint(inputs);
@@ -266,6 +300,7 @@ export function buildDerivedGraph(options: { paths: ProjectPaths }) {
       screenPostures,
       scenarios,
       evidence,
+      policyDecisions,
     });
 
     yield* fs.writeJson(options.paths.graphIndexPath, graph);

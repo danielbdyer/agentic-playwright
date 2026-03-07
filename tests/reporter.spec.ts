@@ -24,3 +24,9 @@ test('reporter classifies runtime domain failures from stable runtime error code
   const classification = classifyFailure('[runtime-unknown-screen] Unknown screen policy-search');
   expect(classification).toBe('runtime-domain');
 });
+
+
+test('reporter classifies assertion mismatches for forbidden auto-heal classes', () => {
+  const classification = classifyFailure('Error: expect(page).toMatchAriaSnapshot() to match ARIA snapshot');
+  expect(classification).toBe('structural-mismatch');
+});

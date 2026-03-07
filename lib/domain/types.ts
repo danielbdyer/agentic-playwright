@@ -315,6 +315,45 @@ export interface EvidenceRecord {
   };
 }
 
+export type TrustPolicyArtifactType = 'elements' | 'postures' | 'surface' | 'snapshot';
+export type TrustPolicyDecision = 'allow' | 'review' | 'deny';
+
+export interface TrustPolicyEvidenceRule {
+  minCount: number;
+  kinds: string[];
+}
+
+export interface TrustPolicyArtifactRule {
+  minimumConfidence: number;
+  requiredEvidence: TrustPolicyEvidenceRule;
+}
+
+export interface TrustPolicy {
+  version: 1;
+  artifactTypes: Record<TrustPolicyArtifactType, TrustPolicyArtifactRule>;
+  forbiddenAutoHealClasses: string[];
+}
+
+export interface ProposedChangeMetadata {
+  artifactType: TrustPolicyArtifactType;
+  confidence: number;
+  autoHealClass?: string | null;
+}
+
+export interface EvidenceDescriptor {
+  kind: string;
+}
+
+export interface TrustPolicyEvaluationReason {
+  code: 'minimum-confidence' | 'required-evidence' | 'forbidden-auto-heal';
+  message: string;
+}
+
+export interface TrustPolicyEvaluation {
+  decision: TrustPolicyDecision;
+  reasons: TrustPolicyEvaluationReason[];
+}
+
 export interface DerivedCapability {
   id: string;
   targetKind: 'screen' | 'surface' | 'element';
@@ -334,7 +373,8 @@ export type GraphNodeKind =
   | 'scenario'
   | 'step'
   | 'generated-spec'
-  | 'evidence';
+  | 'evidence'
+  | 'policy-decision';
 
 export type GraphEdgeKind =
   | 'derived-from'
@@ -345,7 +385,8 @@ export type GraphEdgeKind =
   | 'asserts'
   | 'emits'
   | 'observed-by'
-  | 'proposed-change-for';
+  | 'proposed-change-for'
+  | 'governs';
 
 export interface GraphNode {
   id: string;

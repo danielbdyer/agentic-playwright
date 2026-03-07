@@ -39,6 +39,14 @@ export interface EvidenceArtifact {
   artifactPath: string;
 }
 
+export interface PolicyDecisionArtifact {
+  id: string;
+  decision: 'allow' | 'review' | 'deny';
+  artifactPath: string;
+  targetNodeId: string;
+  reasons: string[];
+}
+
 export interface GraphBuildInput {
   snapshots: ArtifactEnvelope<AdoSnapshot>[];
   surfaceGraphs: ArtifactEnvelope<SurfaceGraph>[];
@@ -47,6 +55,7 @@ export interface GraphBuildInput {
   screenPostures: ArtifactEnvelope<ScreenPostures>[];
   scenarios: ScenarioGraphArtifact[];
   evidence: EvidenceArtifact[];
+  policyDecisions?: PolicyDecisionArtifact[];
 }
 
 function nodeFingerprint(kind: GraphNodeKind, id: string, payload?: Record<string, unknown>): string {
@@ -601,6 +610,38 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
     }
   }
 
+
+
+  for (const policyDecision of input.policyDecisions ?? []) {
+    const decisionNodeId = graphIds.policyDecision(policyDecision.id);
+    addNode(nodes, createNode({
+      id: decisionNodeId,
+      kind: 'policy-decision',
+      label: `${policyDecision.decision}: ${path.basename(policyDecision.artifactPath)}`,
+      artifactPath: policyDecision.artifactPath,
+      provenance: {
+        knowledgePath: policyDecision.artifactPath,
+      },
+      payload: {
+        decision: policyDecision.decision,
+        reasons: policyDecision.reasons,
+      },
+    }));
+
+    if (nodes.has(policyDecision.targetNodeId)) {
+      addEdge(edges, createEdge({
+        kind: 'governs',
+        from: decisionNodeId,
+        to: policyDecision.targetNodeId,
+        provenance: {
+          knowledgePath: policyDecision.artifactPath,
+        },
+        payload: {
+          decision: policyDecision.decision,
+        },
+      }));
+    }
+  }
   for (const evidenceArtifact of input.evidence) {
     addNode(nodes, createNode({
       id: graphIds.evidence(evidenceArtifact.artifactPath),

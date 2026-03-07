@@ -1,4 +1,4 @@
-﻿import { readFileSync, statSync, unlinkSync, writeFileSync } from 'fs';
+﻿import { mkdirSync, readFileSync, rmSync, statSync, unlinkSync, writeFileSync } from 'fs';
 import path from 'path';
 import { expect, test } from '@playwright/test';
 import { impactNode } from '../lib/application/impact';
@@ -27,10 +27,11 @@ test('refresh recompiles the seeded scenario through graph, types, and program e
   const graph = JSON.parse(readFileSync(result.compile.graph.graphPath, 'utf8').replace(/^\uFEFF/, ''));
 
   expect(result.sync.snapshots).toHaveLength(1);
-  expect(result.compile.bound.hasUnbound).toBeFalsy();
+  expect(result.compile.bound.hasUnbound).toBeTruthy();
+  expect(result.compile.bound.boundScenario.diagnostics.some((diagnostic) => diagnostic.code === 'trust-policy-blocked' || diagnostic.code === 'trust-policy-review-required')).toBeTruthy();
   expect(generated).toContain('runStepProgram');
   expect(generated).toContain('loadScreenRegistry');
-  expect(generated).toContain('kind: "step-program"');
+  expect(generated).toContain('test.fixme');
   expect(graph.nodes.some((node: { id: string }) => node.id === graphIds.surface(createScreenId('policy-search'), createSurfaceId('results-grid')))).toBeTruthy();
   expect(result.compile.generatedTypes.outputPath).toContain(path.join('lib', 'generated', 'tesseract-knowledge.ts'));
 });
@@ -172,4 +173,39 @@ test('graph rebuilds when manifest is present but cached graph is missing or inv
   expect(firstManifest.inputSetFingerprint).toBe(manifestAfterMissingOutput.inputSetFingerprint);
   expect(firstManifest.inputSetFingerprint).toBe(manifestAfterInvalidOutput.inputSetFingerprint);
   expect(firstBuild.graph.nodes.length).toBeGreaterThan(0);
+});
+
+
+test('graph projection includes policy decision audit nodes and governs edges', async () => {
+  const paths = createProjectPaths(process.cwd());
+  const evidenceDir = path.join(paths.evidenceDir, 'tests');
+  const evidencePath = path.join(evidenceDir, 'policy-decision.json');
+  mkdirSync(evidenceDir, { recursive: true });
+  writeFileSync(evidencePath, JSON.stringify({
+    evidence: {
+      type: 'assertion-run',
+      timestamp: new Date().toISOString(),
+      trigger: 'assertion-mismatch',
+      observation: { message: 'snapshot mismatch' },
+      proposal: {
+        file: 'knowledge/snapshots/policy-search/results-with-policy.yaml',
+        field: 'root',
+        old_value: 'A',
+        new_value: 'B',
+      },
+      confidence: 0.99,
+      risk: 'high',
+      scope: 'snapshot',
+    },
+  }, null, 2));
+
+  const graphResult = await runWithLocalServices(buildDerivedGraph({ paths }), process.cwd());
+  const policyNode = graphResult.graph.nodes.find((node) => node.kind === 'policy-decision');
+  const governsEdge = graphResult.graph.edges.find((edge) => edge.kind === 'governs');
+
+  expect(policyNode).toBeTruthy();
+  expect(policyNode?.payload?.decision).toBe('deny');
+  expect(governsEdge).toBeTruthy();
+
+  rmSync(evidencePath, { force: true });
 });

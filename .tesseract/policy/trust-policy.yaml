@@ -1,0 +1,35 @@
+version: 1
+artifactTypes:
+  elements:
+    minimumConfidence: 0.9
+    requiredEvidence:
+      minCount: 2
+      kinds:
+        - dom-snapshot
+        - aria-snapshot
+        - runtime-observation
+  postures:
+    minimumConfidence: 0.88
+    requiredEvidence:
+      minCount: 2
+      kinds:
+        - aria-snapshot
+        - runtime-observation
+  surface:
+    minimumConfidence: 0.92
+    requiredEvidence:
+      minCount: 2
+      kinds:
+        - dom-snapshot
+        - aria-snapshot
+  snapshot:
+    minimumConfidence: 0.95
+    requiredEvidence:
+      minCount: 3
+      kinds:
+        - dom-snapshot
+        - aria-snapshot
+        - assertion-run
+forbiddenAutoHealClasses:
+  - assertion-mismatch
+  - structural-mismatch

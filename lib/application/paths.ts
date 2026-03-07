@@ -19,6 +19,8 @@ export interface ProjectPaths {
   graphDir: string;
   graphIndexPath: string;
   mcpCatalogPath: string;
+  policyDir: string;
+  trustPolicyPath: string;
 }
 
 export function createProjectPaths(rootDir: string): ProjectPaths {
@@ -39,6 +41,8 @@ export function createProjectPaths(rootDir: string): ProjectPaths {
     graphDir: path.join(rootDir, '.tesseract', 'graph'),
     graphIndexPath: path.join(rootDir, '.tesseract', 'graph', 'index.json'),
     mcpCatalogPath: path.join(rootDir, '.tesseract', 'graph', 'mcp-catalog.json'),
+    policyDir: path.join(rootDir, '.tesseract', 'policy'),
+    trustPolicyPath: path.join(rootDir, '.tesseract', 'policy', 'trust-policy.yaml'),
   };
 }
 
