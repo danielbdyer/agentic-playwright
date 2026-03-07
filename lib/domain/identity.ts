@@ -1,4 +1,5 @@
 ﻿import { Brand, brandString } from './brand';
+import { SchemaError } from './errors';
 
 export type AdoId = Brand<string, 'AdoId'>;
 export type ScreenId = Brand<string, 'ScreenId'>;
@@ -9,6 +10,29 @@ export type PostureId = Brand<string, 'PostureId'>;
 export type FixtureId = Brand<string, 'FixtureId'>;
 export type SnapshotTemplateId = Brand<string, 'SnapshotTemplateId'>;
 export type WidgetId = Brand<string, 'WidgetId'>;
+
+function normalizePathSeparators(value: string): string {
+  return value.replace(/\\/g, '/');
+}
+
+export function ensureSafeRelativePathLike(value: string, path: string): string {
+  const normalized = normalizePathSeparators(value.trim());
+  const segments = normalized.split('/').filter((segment) => segment.length > 0);
+
+  if (!normalized) {
+    throw new SchemaError('expected non-empty path-like identifier', path);
+  }
+
+  if (normalized.startsWith('/') || /^[a-zA-Z]:/.test(normalized)) {
+    throw new SchemaError('absolute paths are not allowed', path);
+  }
+
+  if (segments.some((segment) => segment === '.' || segment === '..')) {
+    throw new SchemaError('path traversal segments are not allowed', path);
+  }
+
+  return normalized;
+}
 
 export function createAdoId(value: string): AdoId {
   return brandString<'AdoId'>(value);
@@ -39,7 +63,7 @@ export function createFixtureId(value: string): FixtureId {
 }
 
 export function createSnapshotTemplateId(value: string): SnapshotTemplateId {
-  return brandString<'SnapshotTemplateId'>(value);
+  return brandString<'SnapshotTemplateId'>(ensureSafeRelativePathLike(value, 'snapshot_template'));
 }
 
 export function createWidgetId(value: string): WidgetId {
