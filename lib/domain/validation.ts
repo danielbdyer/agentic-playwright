@@ -40,6 +40,7 @@ import {
   createSnapshotTemplateId,
   createSurfaceId,
   createWidgetId,
+  ensureSafeRelativePathLike,
   ElementId,
   FixtureId,
   PostureId,
@@ -165,7 +166,7 @@ function validateScenarioMetadata(value: unknown): ScenarioMetadata {
   const metadata = expectRecord(value, 'metadata');
   return {
     title: expectString(metadata.title, 'metadata.title'),
-    suite: expectString(metadata.suite, 'metadata.suite'),
+    suite: ensureSafeRelativePathLike(expectString(metadata.suite, 'metadata.suite'), 'metadata.suite'),
     tags: expectStringArray(metadata.tags ?? [], 'metadata.tags'),
     priority: expectNumber(metadata.priority, 'metadata.priority'),
     status: expectEnum(metadata.status, 'metadata.status', scenarioStatuses),
@@ -410,7 +411,7 @@ export function validateAdoSnapshot(value: unknown) {
     id: expectId(snapshot.id, 'snapshot.id', createAdoId),
     revision: expectNumber(snapshot.revision, 'snapshot.revision'),
     title: expectString(snapshot.title, 'snapshot.title'),
-    suitePath: expectString(snapshot.suitePath, 'snapshot.suitePath'),
+    suitePath: ensureSafeRelativePathLike(expectString(snapshot.suitePath, 'snapshot.suitePath'), 'snapshot.suitePath'),
     areaPath: expectString(snapshot.areaPath, 'snapshot.areaPath'),
     tags: expectStringArray(snapshot.tags ?? [], 'snapshot.tags'),
     priority: expectNumber(snapshot.priority, 'snapshot.priority'),

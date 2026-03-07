@@ -1,4 +1,5 @@
 ﻿import path from 'path';
+import { SchemaError } from '../domain/errors';
 import { AdoId, ScreenId } from '../domain/identity';
 
 export interface ProjectPaths {
@@ -41,6 +42,18 @@ export function createProjectPaths(rootDir: string): ProjectPaths {
   };
 }
 
+function resolvePathWithinRoot(rootDir: string, pathLike: string, valuePath: string): string {
+  const resolvedRoot = path.resolve(rootDir);
+  const resolvedCandidate = path.resolve(resolvedRoot, pathLike);
+  const relativeToRoot = path.relative(resolvedRoot, resolvedCandidate);
+
+  if (relativeToRoot.startsWith('..') || path.isAbsolute(relativeToRoot)) {
+    throw new SchemaError('resolved path escapes expected root', valuePath);
+  }
+
+  return resolvedCandidate;
+}
+
 export function snapshotPath(paths: ProjectPaths, adoId: AdoId): string {
   return path.join(paths.snapshotDir, `${adoId}.json`);
 }
@@ -50,7 +63,7 @@ export function archiveSnapshotPath(paths: ProjectPaths, adoId: AdoId, revision:
 }
 
 export function scenarioPath(paths: ProjectPaths, suitePath: string, adoId: AdoId): string {
-  return path.join(paths.scenariosDir, suitePath, `${adoId}.scenario.yaml`);
+  return resolvePathWithinRoot(paths.scenariosDir, path.join(suitePath, `${adoId}.scenario.yaml`), 'suitePath');
 }
 
 export function boundPath(paths: ProjectPaths, adoId: AdoId): string {
@@ -58,7 +71,7 @@ export function boundPath(paths: ProjectPaths, adoId: AdoId): string {
 }
 
 export function generatedSpecPath(paths: ProjectPaths, suitePath: string, adoId: AdoId): string {
-  return path.join(paths.generatedDir, suitePath, `${adoId}.spec.ts`);
+  return resolvePathWithinRoot(paths.generatedDir, path.join(suitePath, `${adoId}.spec.ts`), 'suitePath');
 }
 
 export function elementsPath(paths: ProjectPaths, screen: ScreenId): string {
@@ -75,7 +88,7 @@ export function surfacePath(paths: ProjectPaths, screen: ScreenId): string {
 
 export function knowledgeArtifactPath(paths: ProjectPaths, relativeArtifactPath: string): string {
   const normalized = relativeArtifactPath.replace(/^knowledge[\\/]/, '');
-  return path.join(paths.knowledgeDir, normalized);
+  return resolvePathWithinRoot(paths.knowledgeDir, normalized, 'relativeArtifactPath');
 }
 
 export function generatedKnowledgePath(paths: ProjectPaths): string {
@@ -89,4 +102,3 @@ export function agentDslPath(paths: ProjectPaths): string {
 export function relativeProjectPath(paths: ProjectPaths, absolutePath: string): string {
   return path.relative(paths.rootDir, absolutePath).replace(/\\/g, '/');
 }
-
