@@ -25,6 +25,10 @@
   SurfaceDefinition,
   SurfaceGraph,
   SurfaceSection,
+  TrustPolicy,
+  TrustPolicyArtifactType,
+  TrustPolicyEvaluation,
+  TrustPolicyEvaluationReason,
   ValueRef,
 } from './types';
 import { computeAdoContentHash } from './hash';
@@ -62,8 +66,8 @@ const surfaceKinds = ['screen-root', 'form', 'action-cluster', 'validation-regio
 const assertionKinds = ['state', 'structure'] as const;
 const effectTargetKinds = ['self', 'element', 'surface'] as const;
 const effectStates = ['validation-error', 'required-error', 'disabled', 'enabled', 'visible', 'hidden'] as const;
-const graphNodeKinds = ['snapshot', 'screen', 'section', 'surface', 'element', 'posture', 'capability', 'scenario', 'step', 'generated-spec', 'evidence'] as const;
-const graphEdgeKinds = ['derived-from', 'contains', 'references', 'uses', 'affects', 'asserts', 'emits', 'observed-by', 'proposed-change-for'] as const;
+const graphNodeKinds = ['snapshot', 'screen', 'section', 'surface', 'element', 'posture', 'capability', 'scenario', 'step', 'generated-spec', 'evidence', 'policy-decision'] as const;
+const graphEdgeKinds = ['derived-from', 'contains', 'references', 'uses', 'affects', 'asserts', 'emits', 'observed-by', 'proposed-change-for', 'governs'] as const;
 const diagnosticSeverities = ['info', 'warn', 'error'] as const;
 const diagnosticConfidences = ['human', 'agent-verified', 'agent-proposed', 'unbound', 'mixed'] as const;
 
@@ -619,6 +623,63 @@ export function validateDerivedGraph(value: unknown): DerivedGraph {
         description: expectString(template.description, `derived-graph.resourceTemplates[${index}].description`),
       };
     }),
+  };
+}
+
+
+function validateTrustPolicyArtifactType(value: unknown, path: string): TrustPolicyArtifactType {
+  return expectEnum(value, path, ['elements', 'postures', 'surface', 'snapshot'] as const);
+}
+
+function validateTrustPolicyEvaluationReason(value: unknown, path: string): TrustPolicyEvaluationReason {
+  const record = expectRecord(value, path);
+  return {
+    code: expectEnum(record.code, `${path}.code`, ['minimum-confidence', 'required-evidence', 'forbidden-auto-heal'] as const),
+    message: expectString(record.message, `${path}.message`),
+  };
+}
+
+export function validateTrustPolicy(value: unknown): TrustPolicy {
+  const policy = expectRecord(value, 'trustPolicy');
+  const artifactTypesRecord = expectRecord(policy.artifactTypes, 'trustPolicy.artifactTypes');
+  const parsedEntries = Object.entries(artifactTypesRecord).map(([artifactType, ruleValue]) => {
+    const typedArtifact = validateTrustPolicyArtifactType(artifactType, `trustPolicy.artifactTypes.${artifactType}`);
+    const ruleRecord = expectRecord(ruleValue, `trustPolicy.artifactTypes.${artifactType}`);
+    const evidenceRecord = expectRecord(ruleRecord.requiredEvidence, `trustPolicy.artifactTypes.${artifactType}.requiredEvidence`);
+    return [typedArtifact, {
+      minimumConfidence: expectNumber(ruleRecord.minimumConfidence, `trustPolicy.artifactTypes.${artifactType}.minimumConfidence`),
+      requiredEvidence: {
+        minCount: expectNumber(evidenceRecord.minCount, `trustPolicy.artifactTypes.${artifactType}.requiredEvidence.minCount`),
+        kinds: expectStringArray(evidenceRecord.kinds, `trustPolicy.artifactTypes.${artifactType}.requiredEvidence.kinds`),
+      },
+    }] as const;
+  });
+
+  const artifactTypes = Object.fromEntries(parsedEntries) as TrustPolicy['artifactTypes'];
+
+  for (const requiredType of ['elements', 'postures', 'surface', 'snapshot'] as const) {
+    if (!artifactTypes[requiredType]) {
+      throw new SchemaError(`missing trust policy rule for ${requiredType}`, 'trustPolicy.artifactTypes');
+    }
+  }
+
+  const version = expectNumber(policy.version, 'trustPolicy.version');
+  if (version !== 1) {
+    throw new SchemaError('expected version 1', 'trustPolicy.version');
+  }
+
+  return {
+    version,
+    artifactTypes,
+    forbiddenAutoHealClasses: expectStringArray(policy.forbiddenAutoHealClasses ?? [], 'trustPolicy.forbiddenAutoHealClasses'),
+  };
+}
+
+export function validateTrustPolicyEvaluation(value: unknown): TrustPolicyEvaluation {
+  const record = expectRecord(value, 'trustPolicyEvaluation');
+  return {
+    decision: expectEnum(record.decision, 'trustPolicyEvaluation.decision', ['allow', 'review', 'deny'] as const),
+    reasons: expectArray(record.reasons ?? [], 'trustPolicyEvaluation.reasons').map((entry, index) => validateTrustPolicyEvaluationReason(entry, `trustPolicyEvaluation.reasons[${index}]`)),
   };
 }
 

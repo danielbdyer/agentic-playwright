@@ -4,7 +4,7 @@ import { createDiagnostic } from '../domain/diagnostics';
 import { deriveCapabilities, findCapability } from '../domain/grammar';
 import { AdoId, ScreenId } from '../domain/identity';
 import { capabilityForInstruction, compileStepProgram, traceStepProgram } from '../domain/program';
-import { BoundScenario, CompilerDiagnostic, ScreenElements, ScreenPostures, SurfaceGraph } from '../domain/types';
+import { BoundScenario, CompilerDiagnostic, ProposedChangeMetadata, ScreenElements, ScreenPostures, SurfaceGraph } from '../domain/types';
 import { validateBoundScenario, validateScenario, validateScreenElements, validateScreenPostures, validateSurfaceGraph } from '../domain/validation';
 import { FileSystem } from './ports';
 import { walkFiles } from './artifacts';
@@ -19,6 +19,7 @@ import {
 } from './paths';
 import { trySync } from './effect';
 import { TesseractError } from '../domain/errors';
+import { evaluateArtifactPolicy, loadEvidenceRecords, loadTrustPolicy, trustPolicyDiagnosticForScenario } from './trust-policy';
 
 function findScenarioPath(paths: ProjectPaths, adoId: AdoId) {
   return Effect.gen(function* () {
@@ -116,6 +117,8 @@ export function bindScenario(options: { adoId: AdoId; paths: ProjectPaths }) {
       'scenario-validation-failed',
       `Scenario ${options.adoId} failed validation`,
     );
+    const trustPolicy = yield* loadTrustPolicy(options.paths);
+    const evidenceRecords = yield* loadEvidenceRecords(options.paths);
 
     const elementsCache = new Map<ScreenId, ScreenElements>();
     const posturesCache = new Map<ScreenId, ScreenPostures>();
@@ -213,6 +216,25 @@ export function bindScenario(options: { adoId: AdoId; paths: ProjectPaths }) {
             reasons.push('unsupported-capability');
           }
         }
+      }
+
+      const proposedChange: ProposedChangeMetadata = {
+        artifactType: step.action === 'assert-snapshot' ? 'snapshot' : step.action === 'navigate' ? 'surface' : step.action === 'input' ? 'postures' : 'elements',
+        confidence: step.confidence === 'human' ? 1 : step.confidence === 'agent-verified' ? 0.9 : step.confidence === 'agent-proposed' ? 0.7 : 0.1,
+        autoHealClass: step.action === 'assert-snapshot' ? 'assertion-mismatch' : null,
+      };
+      const policyEvaluation = evaluateArtifactPolicy({
+        policy: trustPolicy,
+        proposedChange,
+        evidence: evidenceRecords,
+      });
+      if (policyEvaluation.decision !== 'allow') {
+        reasons.push(policyEvaluation.decision === 'deny' ? 'trust-policy-blocked' : 'trust-policy-review-required');
+        diagnostics.push(trustPolicyDiagnosticForScenario({
+          adoId: scenario.source.ado_id,
+          artifactPath: relativeProjectPath(options.paths, scenarioFile),
+          evaluation: policyEvaluation,
+        }));
       }
 
       for (const reason of [...new Set(reasons)]) {

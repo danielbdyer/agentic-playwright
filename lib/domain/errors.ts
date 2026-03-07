@@ -65,3 +65,12 @@ export function toTesseractError(
 
   return new TesseractError(fallbackCode, fallbackMessage, cause);
 }
+
+
+export function trustPolicyDeniedError(message: string): TesseractError {
+  return new TesseractError('trust-policy-denied', message);
+}
+
+export function trustPolicyReviewRequiredError(message: string): TesseractError {
+  return new TesseractError('trust-policy-review-required', message);
+}
