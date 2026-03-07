@@ -13,6 +13,23 @@ function toSortedUnique(values: string[]): string[] {
   return [...new Set(values)].sort((left, right) => left.localeCompare(right));
 }
 
+const fixtureReferencePattern = /\{\{\s*([A-Za-z0-9_-]+)(?:\.[^}]*)?\s*\}\}/g;
+
+function fixtureIdsFromOverride(override: string | null | undefined): string[] {
+  if (!override) {
+    return [];
+  }
+
+  const fixtureIds: string[] = [];
+  for (const match of override.matchAll(fixtureReferencePattern)) {
+    const fixtureId = match[1];
+    if (fixtureId) {
+      fixtureIds.push(fixtureId);
+    }
+  }
+  return fixtureIds;
+}
+
 type FingerprintKind = 'surface' | 'elements' | 'postures' | 'scenario';
 
 interface InputFingerprint {
@@ -163,6 +180,13 @@ export function generateTypes(options: { paths: ProjectPaths }) {
         if (step.snapshot_template) {
           snapshotTemplates.push(step.snapshot_template);
         }
+        fixtureIds.push(...fixtureIdsFromOverride(step.override));
+      }
+      for (const postcondition of scenario.postconditions) {
+        if (postcondition.snapshot_template) {
+          snapshotTemplates.push(postcondition.snapshot_template);
+        }
+        fixtureIds.push(...fixtureIdsFromOverride(postcondition.override));
       }
     }
 
