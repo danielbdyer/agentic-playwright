@@ -10,6 +10,7 @@ import { engage } from './engage';
 import { loadScreenRegistry, ScreenRegistry } from './load';
 import { locate } from './locate';
 import { expectAriaSnapshot } from './aria';
+import { interact } from './interact';
 import { RuntimeDiagnosticContext, RuntimeFailure, RuntimeResult, runtimeErr, runtimeOk } from './result';
 
 function requireScreen(screens: ScreenRegistry, screenId: ScreenId): RuntimeResult<ScreenRegistry[string]> {
@@ -80,7 +81,10 @@ async function runInstruction(
             targetKind: 'element',
           });
         }
-        await locate(page, element).click();
+        const action = await interact(locate(page, element), element.widget, instruction.action);
+        if (!action.ok) {
+          return action;
+        }
         return runtimeOk(undefined);
       }
       case 'observe-structure': {
