@@ -20,13 +20,14 @@ test('generated knowledge surface provides a typed agent-facing DSL', () => {
 });
 
 
-test('generated unions include snapshot templates and fixtures referenced by postconditions', () => {
-  expect(snapshotTemplateIds).toContain('snapshots/policy-search/results-with-policy-postcondition.yaml');
-  expect(fixtureIds).toContain('postconditionFixture');
+test('generated unions include snapshot templates and fixtures referenced by the seeded scenario', () => {
+  expect(snapshotTemplateIds).toContain('snapshots/policy-search/results-with-policy.yaml');
+  expect(fixtureIds).toContain('activePolicy');
+  expect(fixtureIds).toContain('demoSession');
 
-  const postconditionSnapshot: (typeof snapshotTemplateIds)[number] = 'snapshots/policy-search/results-with-policy-postcondition.yaml';
-  const postconditionFixture: (typeof fixtureIds)[number] = 'postconditionFixture';
+  const snapshotRef: (typeof snapshotTemplateIds)[number] = 'snapshots/policy-search/results-with-policy.yaml';
+  const fixtureRef: (typeof fixtureIds)[number] = 'activePolicy';
 
-  expect(postconditionSnapshot).toBe('snapshots/policy-search/results-with-policy-postcondition.yaml');
-  expect(postconditionFixture).toBe('postconditionFixture');
+  expect(snapshotRef).toBe('snapshots/policy-search/results-with-policy.yaml');
+  expect(fixtureRef).toBe('activePolicy');
 });

@@ -1,16 +1,11 @@
 ﻿# Tesseract Agent Guide
 
-This repository is not a generic automation project. It is a compiler with a growing domain model. Agents working here should optimize for semantic collapse, deterministic derivation, and architectural clarity over local convenience.
+This is authorship guidance — how to write code in this repository. It is included in every agent session.
 
-The purpose of this guide is not trivia. It exists to preserve the reasons behind the architecture so that future changes continue to improve:
+For product vision, QA interaction model, and design rationale, see `VISION.md`.
+For planned work, see `BACKLOG.md`.
 
-- performance
-- scalability
-- observability
-- correctness
-- testability
-- maintainability
-- agent usability
+This repository is a compiler with a growing domain model. Optimize for semantic collapse, deterministic derivation, and architectural clarity over local convenience.
 
 ## Core posture
 
@@ -340,103 +335,14 @@ When unsure how to implement something, ask these questions in order:
 
 If a proposal fails most of these questions, it is probably the wrong layer or the wrong abstraction.
 
-## Product vision
+## Near-term architectural priorities
 
-Tesseract exists to let QA teams on OutSystems projects work at the level they already work — writing manual test cases in Azure DevOps — and have those test cases automatically become executable Playwright specs.
+1. Extend branded ids deeper into node and path-level value objects where it buys real safety.
+2. Strengthen the execution algebra plus interpreters.
+3. Further separation of application services from infrastructure adapters.
+4. More law-style tests around primitives and projections.
 
-### The bet
-
-If a manual test case is well-written enough for a human QA to follow step by step, it is well-written enough for an agent to infer executable intent against. The ADO test case is not a loose suggestion; it is a structured document with steps, expected results, and implicit data requirements. Tesseract treats it as a source program.
-
-### Single source of truth for selectors and data
-
-Every selector, element identity, posture, fixture reference, and snapshot template lives in one canonical place under `knowledge/`. When a selector breaks in one test out of thirty, the fix happens in one element definition, the compiler regenerates all affected specs, and the regression is resolved everywhere at once.
-
-This is the central scalability property. Without it, selector drift silently poisons test suites. With it, a single agent-driven repair cycle can:
-
-1. Detect the selector failure in a test run.
-2. Re-snapshot the affected screen section to capture the current DOM/ARIA state.
-3. Propose a hardened selector in the element definition, optionally keeping the old selector as a fallback in a ladder strategy.
-4. Regenerate all affected specs.
-5. Rerun the impacted tests to confirm the regression is fixed.
-6. Submit the knowledge update with evidence for trust policy review.
-
-### QA readability contract
-
-Generated specs must be transparent projections of the ADO test case. A QA reviewing a generated spec should be able to read it top to bottom and confirm:
-
-- The ADO test case ID and revision are visible.
-- Each step in the spec maps 1:1 to a step in the ADO case.
-- Each step carries the semantic intent string from the ADO case (e.g., "Enter policy number in search field") as a visible label in the test body.
-- The function calls within each step correspond to what the step semantically describes — navigating, entering data, clicking, asserting.
-
-The generated spec is disposable object code. The QA's review target is the mapping fidelity between the ADO case and the spec's step sequence, not the implementation details of locators or runtime helpers.
-
-### Agent interaction model
-
-QAs interact with agents (GitHub Copilot, Claude, or similar) through the Tesseract CLI. The agent's operating surface is:
-
-- `npm run refresh` to recompile everything from canonical inputs.
-- `npm run surface` to inspect what the system knows about a screen.
-- `npm run trace` to see what a scenario touches without executing it.
-- `npm run impact` to understand what a knowledge change affects.
-- `npm run capture` to re-snapshot a screen section from a live page.
-
-The agent does not need to understand Playwright APIs, DOM structure, or test framework internals. It works at the level of screens, elements, postures, scenarios, and evidence. The compiler handles the translation to executable code.
-
-### Escape hatches and persistent overrides
-
-Not every ADO step maps cleanly to the deterministic grammar. An agent may encounter:
-
-- An interaction pattern the knowledge layer has never seen (a combobox, date picker, multi-step modal).
-- A DOM structure that does not fit the current surface decomposition.
-- A step whose intent is clear but whose mechanical execution requires domain-specific logic.
-
-The current `custom-escape-hatch` instruction kind marks these gaps. The interpreter classifies them as `semantic-gap`. But the design intent is that escape hatches should not remain as dead code in generated specs. Instead:
-
-- The agent should encode the discovered pattern as a **persistent override** in the knowledge layer — not a hardcoded function, but a reusable pattern contract.
-- Pattern contracts describe the interaction mechanics of a widget type (how to select from a combobox, how to navigate a date picker) in a way the compiler can bind against in future scenarios.
-- When the same pattern appears in a different scenario, it resolves deterministically through the knowledge layer rather than requiring another escape hatch.
-- The trust policy governs promotion of agent-proposed patterns, requiring evidence and review before they become approved knowledge.
-
-This creates a ratchet: every escape hatch the agent encounters is an opportunity to extend the knowledge layer, reducing future escape hatches. The system gets more deterministic over time as pattern coverage grows.
-
-### Locator strategy and fallback ladders
-
-Element definitions should evolve to support a locator strategy rather than a single flat selector. The preferred approach:
-
-1. **Primary**: `data-testid` (most stable in OutSystems apps where test IDs are explicitly added).
-2. **Fallback**: ARIA role + accessible name (semantic, survives cosmetic refactors).
-3. **Last resort**: CSS selector (fragile, but sometimes necessary for OutSystems-generated DOM).
-
-When an agent hardens a selector, it proposes an updated strategy with the new primary and optionally retains the previous selector as a fallback rung. The runtime tries the ladder in order. The evidence record captures which rung succeeded, feeding back into confidence scoring.
-
-### Trust policy and the governance boundary
-
-Agents can propose freely. Promotion to approved knowledge requires evidence.
-
-The trust policy (`.tesseract/policy/trust-policy.yaml`) enforces:
-
-- Minimum confidence thresholds per artifact type.
-- Required evidence kinds and counts (DOM snapshots, ARIA snapshots, runtime observations, assertion runs).
-- Forbidden auto-heal classes (assertion mismatches, structural mismatches) that must always go through human review.
-
-Policy decisions are graph nodes with full provenance. The system can always answer: "Why was this element definition approved? What evidence supported it? What policy version governed the decision?"
-
-This is what makes the agent workflow safe at scale. The agent is a proposal engine. The trust policy is the review gate. The QA remains the approver for semantic changes.
-
-## Near-term priorities
-
-The next high-value structural changes are:
-
-1. extend branded ids deeper into node and path-level value objects where it buys real safety
-2. strengthen the execution algebra plus interpreters
-3. further separation of application services from infrastructure adapters
-4. more law-style tests around primitives and projections
-5. surface intent strings as visible step labels in generated specs for QA readability
-6. introduce locator strategy and fallback ladder support in element definitions
-7. design the pattern contract schema for persistent escape-hatch overrides
-8. build the agent-driven selector hardening workflow (detect → re-snapshot → propose → rerun → confirm)
+Product-level priorities (locator ladders, pattern contracts, selector hardening) live in `BACKLOG.md`.
 
 ## Editing guidance
 
@@ -449,8 +355,4 @@ The next high-value structural changes are:
 - If a concept crosses multiple layers, name the boundary explicitly.
 
 The repository should feel increasingly like a small compiler and knowledge system, not a collection of helper scripts.
-
-
-
-
 

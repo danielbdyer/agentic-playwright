@@ -55,14 +55,9 @@ Potential evaluation targets:
 - Posture proposal ranking.
 - Benchmark-driven improvement of decomposition heuristics.
 
-### 6. QA readability: intent-labeled step functions in generated specs
+### 6. QA readability: intent-labeled step functions in generated specs — DONE
 
-Surface the semantic intent string from each scenario step as a visible `test.step()` label in the generated Playwright spec, so QAs can read the spec top to bottom and confirm 1:1 correspondence with the ADO test case without cross-referencing YAML.
-
-Success criteria:
-- Each generated step wraps its actions in `test.step('Navigate to Policy Search screen', ...)`.
-- The intent string comes from the scenario YAML `intent` field, which originates from the ADO test case.
-- QA review reduces to comparing ADO step text against spec step labels.
+The spec codegen (`lib/domain/spec-codegen.ts`) already emits `test.step(step.intent, ...)` for each bound step. The intent string flows from ADO → scenario YAML → generated spec as a visible `test.step()` label.
 
 ### 7. Locator strategy and fallback ladders
 
