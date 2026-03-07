@@ -1,0 +1,40 @@
+{
+  "name": "tesseract",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Deterministic compiler from Azure DevOps manual tests to Playwright specs.",
+  "type": "commonjs",
+  "bin": {
+    "tesseract": "dist/bin/tesseract.js"
+  },
+  "engines": {
+    "node": ">=16.14.0"
+  },
+  "scripts": {
+    "build": "node ./node_modules/typescript/bin/tsc -p tsconfig.json",
+    "sync": "npm run build && node dist/bin/tesseract.js sync --all",
+    "parse": "npm run build && node dist/bin/tesseract.js parse --ado-id 10001",
+    "bind": "npm run build && node dist/bin/tesseract.js bind --ado-id 10001 --strict",
+    "emit": "npm run build && node dist/bin/tesseract.js emit --ado-id 10001",
+    "compile": "npm run build && node dist/bin/tesseract.js compile --ado-id 10001",
+    "refresh": "npm run build && node dist/bin/tesseract.js refresh --ado-id 10001",
+    "paths": "npm run build && node dist/bin/tesseract.js paths --ado-id 10001",
+    "capture": "npm run build && node dist/bin/tesseract.js capture --screen policy-search --section results-with-policy",
+    "surface": "npm run build && node dist/bin/tesseract.js surface --screen policy-search",
+    "graph": "npm run build && node dist/bin/tesseract.js graph",
+    "trace": "npm run build && node dist/bin/tesseract.js trace --ado-id 10001",
+    "impact": "npm run build && node dist/bin/tesseract.js impact --node element:policy-search:searchButton",
+    "types": "npm run build && node dist/bin/tesseract.js types",
+    "test": "node ./node_modules/@playwright/test/cli.js test",
+    "test:generated": "node ./node_modules/@playwright/test/cli.js test --config playwright.generated.config.ts"
+  },
+  "dependencies": {
+    "@playwright/test": "^1.39.0",
+    "effect": "^3.19.19",
+    "typescript": "^5.9.3",
+    "yaml": "^2.8.2"
+  },
+  "devDependencies": {
+    "@types/node": "^16.18.126"
+  }
+}

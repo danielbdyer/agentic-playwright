@@ -1,0 +1,50 @@
+﻿{
+    "id":  "10001",
+    "revision":  1,
+    "title":  "Verify policy search returns matching policy",
+    "suitePath":  "demo/policy-search",
+    "areaPath":  "demo",
+    "tags":  [
+                 "smoke",
+                 "billing",
+                 "P1"
+             ],
+    "priority":  1,
+    "steps":  [
+                  {
+                      "index":  1,
+                      "action":  "\u003cp\u003eNavigate to Policy Search screen\u003c/p\u003e",
+                      "expected":  "\u003cp\u003ePolicy Search screen loads\u003c/p\u003e"
+                  },
+                  {
+                      "index":  2,
+                      "action":  "\u003cp\u003eEnter policy number in search field\u003c/p\u003e",
+                      "expected":  "\u003cp\u003ePolicy Number accepts a valid policy\u003c/p\u003e"
+                  },
+                  {
+                      "index":  3,
+                      "action":  "\u003cp\u003eClick Search button\u003c/p\u003e",
+                      "expected":  "\u003cp\u003eSearch runs\u003c/p\u003e"
+                  },
+                  {
+                      "index":  4,
+                      "action":  "\u003cp\u003eVerify search results show policy\u003c/p\u003e",
+                      "expected":  "\u003cp\u003eMatching policy appears in Search Results\u003c/p\u003e"
+                  }
+              ],
+    "parameters":  [
+                       {
+                           "name":  "policyNumber",
+                           "values":  [
+                                          "POL-001"
+                                      ]
+                       }
+                   ],
+    "dataRows":  [
+                     {
+                         "policyNumber":  "POL-001"
+                     }
+                 ],
+    "contentHash":  "sha256:1930319ee9882abb4af0ab8dc9d6c120f6ddc8b77ca6441c20be91697f7b19d1",
+    "syncedAt":  "2026-03-07T00:00:00.000Z"
+}

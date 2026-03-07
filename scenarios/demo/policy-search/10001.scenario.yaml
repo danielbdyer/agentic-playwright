@@ -1,0 +1,46 @@
+source:
+  ado_id: "10001"
+  revision: 1
+  content_hash: sha256:1930319ee9882abb4af0ab8dc9d6c120f6ddc8b77ca6441c20be91697f7b19d1
+  synced_at: 2026-03-07T00:00:00.000Z
+metadata:
+  title: Verify policy search returns matching policy
+  suite: demo/policy-search
+  tags:
+    - smoke
+    - billing
+    - P1
+  priority: 1
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+  - fixture: activePolicy
+steps:
+  - index: 1
+    intent: Navigate to Policy Search screen
+    action: navigate
+    screen: policy-search
+    confidence: human
+  - index: 2
+    intent: Enter policy number in search field
+    action: input
+    screen: policy-search
+    element: policyNumberInput
+    posture: valid
+    override: "{{activePolicy.number}}"
+    confidence: human
+  - index: 3
+    intent: Click Search button
+    action: click
+    screen: policy-search
+    element: searchButton
+    confidence: human
+  - index: 4
+    intent: Verify search results show policy
+    action: assert-snapshot
+    screen: policy-search
+    element: resultsTable
+    snapshot_template: snapshots/policy-search/results-with-policy.yaml
+    confidence: human
+postconditions: []
