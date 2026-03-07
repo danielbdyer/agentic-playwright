@@ -1,15 +1,23 @@
-﻿import { readFileSync } from 'fs';
+﻿import { readFileSync, statSync } from 'fs';
 import path from 'path';
 import { expect, test } from '@playwright/test';
 import { impactNode } from '../lib/application/impact';
+import { buildDerivedGraph } from '../lib/application/graph';
 import { describeScenarioPaths } from '../lib/application/inspect';
 import { createProjectPaths } from '../lib/application/paths';
 import { refreshScenario } from '../lib/application/refresh';
 import { inspectSurface } from '../lib/application/surface';
+import { generateTypes } from '../lib/application/types';
 import { traceScenario } from '../lib/application/trace';
 import { createAdoId, createElementId, createScreenId, createSurfaceId } from '../lib/domain/identity';
 import { graphIds } from '../lib/domain/ids';
 import { runWithLocalServices } from '../lib/infrastructure/local-services';
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
 
 test('refresh recompiles the seeded scenario through graph, types, and program emission', async () => {
   const paths = createProjectPaths(process.cwd());
@@ -64,4 +72,36 @@ test('trace and impact queries operate over the derived graph without repo lore'
   expect(trace.nodes.some((node) => node.id === graphIds.step(adoId, 3))).toBeTruthy();
   expect(impact.impactedNodes.some((node) => node.id === graphIds.scenario(adoId))).toBeTruthy();
   expect(impact.impactedNodes.some((node) => node.id === graphIds.step(adoId, 3))).toBeTruthy();
+});
+
+test('graph and types skip rewrites when fingerprinted inputs are unchanged', async () => {
+  const paths = createProjectPaths(process.cwd());
+  const graphFirst = await runWithLocalServices(buildDerivedGraph({ paths }), process.cwd());
+  const typesFirst = await runWithLocalServices(generateTypes({ paths }), process.cwd());
+  const graphManifestPath = path.join(paths.graphDir, 'build-manifest.json');
+  const typesMetadataPath = path.join(paths.generatedTypesDir, 'tesseract-knowledge.metadata.json');
+  const graphMtimeBefore = statSync(paths.graphIndexPath).mtimeMs;
+  const typesMtimeBefore = statSync(typesFirst.outputPath).mtimeMs;
+  const graphFingerprintBefore = JSON.parse(readFileSync(graphManifestPath, 'utf8')).outputFingerprint;
+  const typesFingerprintBefore = JSON.parse(readFileSync(typesMetadataPath, 'utf8')).outputFingerprint;
+
+  await wait(20);
+
+  const graphSecond = await runWithLocalServices(buildDerivedGraph({ paths }), process.cwd());
+  const typesSecond = await runWithLocalServices(generateTypes({ paths }), process.cwd());
+  const graphMtimeAfter = statSync(paths.graphIndexPath).mtimeMs;
+  const typesMtimeAfter = statSync(typesSecond.outputPath).mtimeMs;
+  const graphFingerprintAfter = JSON.parse(readFileSync(graphManifestPath, 'utf8')).outputFingerprint;
+  const typesFingerprintAfter = JSON.parse(readFileSync(typesMetadataPath, 'utf8')).outputFingerprint;
+
+  expect(graphFirst.incremental.status).toMatch(/cache-(hit|miss)/);
+  expect(typesFirst.incremental.status).toMatch(/cache-(hit|miss)/);
+  expect(graphSecond.incremental.status).toBe('cache-hit');
+  expect(typesSecond.incremental.status).toBe('cache-hit');
+  expect(graphMtimeAfter).toBe(graphMtimeBefore);
+  expect(typesMtimeAfter).toBe(typesMtimeBefore);
+  expect(graphSecond.incremental.outputFingerprint).toBe(graphFirst.incremental.outputFingerprint);
+  expect(typesSecond.incremental.outputFingerprint).toBe(typesFirst.incremental.outputFingerprint);
+  expect(graphFingerprintAfter).toBe(graphFingerprintBefore);
+  expect(typesFingerprintAfter).toBe(typesFingerprintBefore);
 });

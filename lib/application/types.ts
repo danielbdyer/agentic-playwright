@@ -1,20 +1,93 @@
-﻿import path from 'path';
+import path from 'path';
 import YAML from 'yaml';
 import { Effect } from 'effect';
-import { walkFiles } from './artifacts';
-import { FileSystem } from './ports';
-import { generatedKnowledgePath, ProjectPaths } from './paths';
-import { trySync } from './effect';
+import { sha256, stableStringify } from '../domain/hash';
 import { validateScenario, validateScreenElements, validateScreenPostures, validateSurfaceGraph } from '../domain/validation';
 import { renderGeneratedKnowledgeModule } from '../domain/typegen';
+import { walkFiles } from './artifacts';
+import { trySync } from './effect';
+import { generatedKnowledgePath, ProjectPaths, relativeProjectPath } from './paths';
+import { FileSystem } from './ports';
 
 function toSortedUnique(values: string[]): string[] {
   return [...new Set(values)].sort((left, right) => left.localeCompare(right));
 }
 
+type FingerprintKind = 'surface' | 'elements' | 'postures' | 'scenario';
+
+interface InputFingerprint {
+  kind: FingerprintKind;
+  path: string;
+  fingerprint: string;
+}
+
+interface GeneratedTypesManifest {
+  version: 1;
+  projection: 'types';
+  inputSetFingerprint: string;
+  outputFingerprint: string;
+  inputs: InputFingerprint[];
+}
+
+function generatedTypesManifestPath(paths: ProjectPaths): string {
+  return path.join(paths.generatedTypesDir, 'tesseract-knowledge.metadata.json');
+}
+
+function fingerprintArtifact(kind: FingerprintKind, artifactPath: string, artifact: unknown): InputFingerprint {
+  return {
+    kind,
+    path: artifactPath,
+    fingerprint: `sha256:${sha256(stableStringify(artifact))}`,
+  };
+}
+
+function sortFingerprints(values: InputFingerprint[]): InputFingerprint[] {
+  return [...values].sort((left, right) => {
+    const kindOrder = left.kind.localeCompare(right.kind);
+    if (kindOrder !== 0) {
+      return kindOrder;
+    }
+    return left.path.localeCompare(right.path);
+  });
+}
+
+function computeInputSetFingerprint(inputs: InputFingerprint[]): string {
+  return `sha256:${sha256(stableStringify(sortFingerprints(inputs)))}`;
+}
+
+function parseTypesManifest(value: unknown): GeneratedTypesManifest | null {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+  const maybe = value as Partial<GeneratedTypesManifest>;
+  if (maybe.version !== 1 || maybe.projection !== 'types' || typeof maybe.inputSetFingerprint !== 'string' || typeof maybe.outputFingerprint !== 'string') {
+    return null;
+  }
+  if (!Array.isArray(maybe.inputs)) {
+    return null;
+  }
+  for (const input of maybe.inputs) {
+    if (!input || typeof input !== 'object') {
+      return null;
+    }
+    const entry = input as Partial<InputFingerprint>;
+    if ((entry.kind !== 'surface' && entry.kind !== 'elements' && entry.kind !== 'postures' && entry.kind !== 'scenario') || typeof entry.path !== 'string' || typeof entry.fingerprint !== 'string') {
+      return null;
+    }
+  }
+  return {
+    version: 1,
+    projection: 'types',
+    inputSetFingerprint: maybe.inputSetFingerprint,
+    outputFingerprint: maybe.outputFingerprint,
+    inputs: sortFingerprints(maybe.inputs as InputFingerprint[]),
+  };
+}
+
 export function generateTypes(options: { paths: ProjectPaths }) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
+    const inputFingerprints: InputFingerprint[] = [];
     const surfaceFiles = (yield* walkFiles(fs, options.paths.surfacesDir)).filter((filePath) => filePath.endsWith('.surface.yaml'));
     const screens = new Set<string>();
     const surfacesByScreen: Record<string, string[]> = {};
@@ -30,6 +103,8 @@ export function generateTypes(options: { paths: ProjectPaths }) {
         'surface-validation-failed',
         `Surface graph ${filePath} failed validation`,
       );
+      const artifactPath = relativeProjectPath(options.paths, filePath);
+      inputFingerprints.push(fingerprintArtifact('surface', artifactPath, graph));
       screens.add(graph.screen);
       surfacesByScreen[graph.screen] = Object.keys(graph.surfaces).sort((left, right) => left.localeCompare(right));
       for (const section of Object.values(graph.sections)) {
@@ -47,6 +122,8 @@ export function generateTypes(options: { paths: ProjectPaths }) {
         'elements-validation-failed',
         `Elements ${filePath} failed validation`,
       );
+      const artifactPath = relativeProjectPath(options.paths, filePath);
+      inputFingerprints.push(fingerprintArtifact('elements', artifactPath, elements));
       screens.add(elements.screen);
       elementsByScreen[elements.screen] = Object.keys(elements.elements).sort((left, right) => left.localeCompare(right));
     }
@@ -59,6 +136,8 @@ export function generateTypes(options: { paths: ProjectPaths }) {
         'postures-validation-failed',
         `Postures ${filePath} failed validation`,
       );
+      const artifactPath = relativeProjectPath(options.paths, filePath);
+      inputFingerprints.push(fingerprintArtifact('postures', artifactPath, postures));
       screens.add(postures.screen);
       posturesByScreen[postures.screen] = Object.fromEntries(
         Object.entries(postures.postures)
@@ -75,6 +154,8 @@ export function generateTypes(options: { paths: ProjectPaths }) {
         'scenario-validation-failed',
         `Scenario ${filePath} failed validation`,
       );
+      const artifactPath = relativeProjectPath(options.paths, filePath);
+      inputFingerprints.push(fingerprintArtifact('scenario', artifactPath, scenario));
       for (const precondition of scenario.preconditions) {
         fixtureIds.push(precondition.fixture);
       }
@@ -101,14 +182,65 @@ export function generateTypes(options: { paths: ProjectPaths }) {
       fixtures: toSortedUnique(fixtureIds),
     });
 
+    const inputs = sortFingerprints(inputFingerprints);
+    const inputSetFingerprint = computeInputSetFingerprint(inputs);
+    const outputFingerprint = `sha256:${sha256(moduleText)}`;
     const outputPath = generatedKnowledgePath(options.paths);
+    const metadataPath = generatedTypesManifestPath(options.paths);
+
+    const previousManifest = (yield* fs.exists(metadataPath))
+      ? parseTypesManifest(yield* fs.readJson(metadataPath))
+      : null;
+    const changedInputs = inputs
+      .filter((entry) => previousManifest?.inputs.find((candidate) => candidate.kind === entry.kind && candidate.path === entry.path)?.fingerprint !== entry.fingerprint)
+      .map((entry) => `${entry.kind}:${entry.path}`);
+    const hasRemovedInputs = (previousManifest?.inputs ?? []).some(
+      (entry) => !inputs.some((candidate) => candidate.kind === entry.kind && candidate.path === entry.path),
+    );
+
+    if (previousManifest && previousManifest.inputSetFingerprint === inputSetFingerprint && previousManifest.outputFingerprint === outputFingerprint) {
+      return {
+        outputPath,
+        screens: screensList,
+        fixtures: toSortedUnique(fixtureIds),
+        snapshots: toSortedUnique(snapshotTemplates),
+        incremental: {
+          status: 'cache-hit' as const,
+          inputSetFingerprint,
+          outputFingerprint,
+          changedInputs,
+          removedInputs: hasRemovedInputs,
+          rewritten: [] as string[],
+        },
+      };
+    }
+
     yield* fs.writeText(outputPath, moduleText);
+    const manifest: GeneratedTypesManifest = {
+      version: 1,
+      projection: 'types',
+      inputSetFingerprint,
+      outputFingerprint,
+      inputs,
+    };
+    yield* fs.writeJson(metadataPath, manifest);
+
     return {
       outputPath,
       screens: screensList,
       fixtures: toSortedUnique(fixtureIds),
       snapshots: toSortedUnique(snapshotTemplates),
+      incremental: {
+        status: 'cache-miss' as const,
+        inputSetFingerprint,
+        outputFingerprint,
+        changedInputs,
+        removedInputs: hasRemovedInputs,
+        rewritten: [
+          relativeProjectPath(options.paths, outputPath),
+          relativeProjectPath(options.paths, metadataPath),
+        ],
+      },
     };
   });
 }
-
