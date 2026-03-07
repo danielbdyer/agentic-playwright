@@ -1,4 +1,4 @@
-﻿import {
+﻿import type {
   AssertionKind,
   BoundScenario,
   BoundStep,
@@ -7,6 +7,7 @@
   DerivedGraph,
   EffectTargetKind,
   ElementSig,
+  LocatorStrategy,
   Manifest,
   Posture,
   PostureEffect,
@@ -18,7 +19,9 @@
   ScenarioSource,
   ScenarioStep,
   ScreenElements,
+  ScreenHints,
   ScreenPostures,
+  SharedPatterns,
   StepAction,
   StepInstruction,
   StepProgram,
@@ -36,7 +39,6 @@ import { computeAdoContentHash } from './hash';
 import { normalizeScreenPostures } from './posture-contract';
 import { SchemaError } from './errors';
 import {
-  AdoId,
   createAdoId,
   createElementId,
   createFixtureId,
@@ -47,34 +49,28 @@ import {
   createSurfaceId,
   createWidgetId,
   ensureSafeRelativePathLike,
-  ElementId,
-  FixtureId,
-  PostureId,
-  ScreenId,
-  SectionId,
-  SnapshotTemplateId,
-  SurfaceId,
-  WidgetId,
 } from './identity';
 
 type UnknownRecord = Record<string, unknown>;
 
 const scenarioStatuses = ['stub', 'draft', 'active', 'needs-repair', 'blocked', 'deprecated'] as const;
 const stepActions = ['navigate', 'input', 'click', 'assert-snapshot', 'custom'] as const;
-const confidences = ['human', 'agent-verified', 'agent-proposed', 'unbound'] as const;
+const confidences = ['human', 'agent-verified', 'agent-proposed', 'compiler-derived', 'unbound'] as const;
 const valueRefKinds = ['literal', 'fixture-path', 'posture-sample', 'parameter-row', 'generated-token'] as const;
 const stepInstructionKinds = ['navigate', 'enter', 'invoke', 'observe-structure', 'custom-escape-hatch'] as const;
 const surfaceKinds = ['screen-root', 'form', 'action-cluster', 'validation-region', 'result-set', 'details-pane', 'modal', 'section-root'] as const;
 const assertionKinds = ['state', 'structure'] as const;
 const effectTargetKinds = ['self', 'element', 'surface'] as const;
+const governanceStates = ['approved', 'review-required', 'blocked'] as const;
+const locatorStrategyKinds = ['test-id', 'role-name', 'css'] as const;
 const effectStates = ['validation-error', 'required-error', 'disabled', 'enabled', 'visible', 'hidden'] as const;
 const widgetActions = ['click', 'fill', 'clear', 'get-value'] as const;
 const widgetPreconditions = ['visible', 'enabled', 'editable'] as const;
 const widgetEffectCategories = ['mutation', 'observation', 'focus', 'navigation'] as const;
-const graphNodeKinds = ['snapshot', 'screen', 'section', 'surface', 'element', 'posture', 'capability', 'scenario', 'step', 'generated-spec', 'evidence', 'policy-decision'] as const;
+const graphNodeKinds = ['snapshot', 'screen', 'screen-hints', 'pattern', 'section', 'surface', 'element', 'posture', 'capability', 'scenario', 'step', 'generated-spec', 'generated-trace', 'generated-review', 'evidence', 'policy-decision'] as const;
 const graphEdgeKinds = ['derived-from', 'contains', 'references', 'uses', 'affects', 'asserts', 'emits', 'observed-by', 'proposed-change-for', 'governs'] as const;
 const diagnosticSeverities = ['info', 'warn', 'error'] as const;
-const diagnosticConfidences = ['human', 'agent-verified', 'agent-proposed', 'unbound', 'mixed'] as const;
+const diagnosticConfidences = ['human', 'agent-verified', 'agent-proposed', 'compiler-derived', 'unbound', 'mixed'] as const;
 
 function expectRecord(value: unknown, path: string): UnknownRecord {
   if (!value || Array.isArray(value) || typeof value !== 'object') {
@@ -332,6 +328,13 @@ function validateBoundStep(value: unknown, path: string): BoundStep {
     binding: {
       kind: expectEnum(binding.kind, `${path}.binding.kind`, ['bound', 'unbound'] as const),
       reasons: expectStringArray(binding.reasons ?? [], `${path}.binding.reasons`),
+      ruleId: expectOptionalString(binding.ruleId, `${path}.binding.ruleId`) ?? null,
+      normalizedIntent: expectString(binding.normalizedIntent ?? '', `${path}.binding.normalizedIntent`),
+      knowledgeRefs: expectStringArray(binding.knowledgeRefs ?? [], `${path}.binding.knowledgeRefs`),
+      supplementRefs: expectStringArray(binding.supplementRefs ?? [], `${path}.binding.supplementRefs`),
+      evidenceIds: expectStringArray(binding.evidenceIds ?? [], `${path}.binding.evidenceIds`),
+      governance: expectEnum(binding.governance, `${path}.binding.governance`, governanceStates),
+      reviewReasons: expectStringArray(binding.reviewReasons ?? [], `${path}.binding.reviewReasons`),
     },
     program: rawStep.program ? validateStepProgram(rawStep.program, `${path}.program`) : undefined,
   };
@@ -364,15 +367,53 @@ function validateSurfaceDefinition(value: unknown, path: string): SurfaceDefinit
   };
 }
 
+function validateLocatorStrategy(value: unknown, path: string): LocatorStrategy {
+  const strategy = expectRecord(value, path);
+  const kind = expectEnum(strategy.kind, `${path}.kind`, locatorStrategyKinds);
+
+  switch (kind) {
+    case 'test-id':
+      return {
+        kind,
+        value: expectString(strategy.value, `${path}.value`),
+      };
+    case 'role-name':
+      return {
+        kind,
+        role: expectString(strategy.role, `${path}.role`),
+        name: expectOptionalString(strategy.name, `${path}.name`) ?? null,
+      };
+    case 'css':
+      return {
+        kind,
+        value: expectString(strategy.value, `${path}.value`),
+      };
+  }
+}
+
 function validateElement(value: unknown, path: string): ElementSig {
   const element = expectRecord(value, path);
+  const role = expectString(element.role, `${path}.role`);
+  const name = expectOptionalString(element.name, `${path}.name`) ?? null;
+  const testId = expectOptionalString(element.testId, `${path}.testId`) ?? null;
+  const cssFallback = expectOptionalString(element.cssFallback, `${path}.cssFallback`) ?? null;
+  const locator = element.locator === undefined
+    ? [
+        ...(testId ? [{ kind: 'test-id', value: testId } as const] : []),
+        { kind: 'role-name' as const, role, name },
+        ...(cssFallback ? [{ kind: 'css', value: cssFallback } as const] : []),
+      ]
+    : expectArray(element.locator, `${path}.locator`).map((entry, index) => validateLocatorStrategy(entry, `${path}.locator[${index}]`));
+
   return {
-    role: expectString(element.role, `${path}.role`),
-    name: expectOptionalString(element.name, `${path}.name`) ?? null,
-    testId: expectOptionalString(element.testId, `${path}.testId`) ?? null,
-    cssFallback: expectOptionalString(element.cssFallback, `${path}.cssFallback`) ?? null,
+    role,
+    name,
+    testId,
+    cssFallback,
+    locator,
     surface: expectId(element.surface, `${path}.surface`, createSurfaceId),
     widget: expectId(element.widget, `${path}.widget`, createWidgetId),
+    affordance: expectOptionalString(element.affordance, `${path}.affordance`) ?? null,
     required: element.required === undefined ? undefined : expectBoolean(element.required, `${path}.required`),
   };
 }
@@ -567,6 +608,64 @@ export function validateScreenElements(value: unknown): ScreenElements {
   };
 }
 
+export function validateScreenHints(value: unknown): ScreenHints {
+  const hints = expectRecord(value, 'screen-hints');
+  const elements = expectRecord(hints.elements ?? {}, 'screen-hints.elements');
+  return {
+    screen: expectId(hints.screen, 'screen-hints.screen', createScreenId),
+    screenAliases: uniqueSorted(expectStringArray(hints.screenAliases ?? [], 'screen-hints.screenAliases')),
+    elements: Object.fromEntries(
+      Object.entries(elements).map(([elementId, entry]) => {
+        const hint = expectRecord(entry, `screen-hints.elements.${elementId}`);
+        return [
+          elementId,
+          {
+            aliases: uniqueSorted(expectStringArray(hint.aliases ?? [], `screen-hints.elements.${elementId}.aliases`)),
+            defaultValueRef: expectOptionalString(hint.defaultValueRef, `screen-hints.elements.${elementId}.defaultValueRef`) ?? null,
+            parameter: expectOptionalString(hint.parameter, `screen-hints.elements.${elementId}.parameter`) ?? null,
+            snapshotAliases: Object.fromEntries(
+              Object.entries(expectRecord(hint.snapshotAliases ?? {}, `screen-hints.elements.${elementId}.snapshotAliases`)).map(([snapshotId, aliases]) => [
+                ensureSafeRelativePathLike(snapshotId, `screen-hints.elements.${elementId}.snapshotAliases.${snapshotId}`),
+                uniqueSorted(expectStringArray(aliases, `screen-hints.elements.${elementId}.snapshotAliases.${snapshotId}`)),
+              ]),
+            ),
+            affordance: expectOptionalString(hint.affordance, `screen-hints.elements.${elementId}.affordance`) ?? null,
+          },
+        ];
+      }),
+    ),
+  };
+}
+
+export function validateSharedPatterns(value: unknown): SharedPatterns {
+  const patterns = expectRecord(value, 'shared-patterns');
+  const actions = expectRecord(patterns.actions, 'shared-patterns.actions');
+  const postures = expectRecord(patterns.postures ?? {}, 'shared-patterns.postures');
+  const requiredActions = ['navigate', 'input', 'click', 'assert-snapshot'] as const;
+
+  const validatedActions = Object.fromEntries(requiredActions.map((action) => {
+    const record = expectRecord(actions[action], `shared-patterns.actions.${action}`);
+    return [action, {
+      id: expectString(record.id, `shared-patterns.actions.${action}.id`),
+      aliases: uniqueSorted(expectStringArray(record.aliases ?? [], `shared-patterns.actions.${action}.aliases`)),
+    }];
+  })) as SharedPatterns['actions'];
+
+  return {
+    version: expectNumber(patterns.version, 'shared-patterns.version') as 1,
+    actions: validatedActions,
+    postures: Object.fromEntries(
+      Object.entries(postures).map(([postureId, entry]) => {
+        const record = expectRecord(entry, `shared-patterns.postures.${postureId}`);
+        return [postureId, {
+          id: expectString(record.id, `shared-patterns.postures.${postureId}.id`),
+          aliases: uniqueSorted(expectStringArray(record.aliases ?? [], `shared-patterns.postures.${postureId}.aliases`)),
+        }];
+      }),
+    ),
+  };
+}
+
 export function validateScreenPostures(value: unknown): ScreenPostures {
   const screen = expectRecord(value, 'screen-postures');
   const postures = expectRecord(screen.postures ?? {}, 'screen-postures.postures');
@@ -689,7 +788,7 @@ export function validateDerivedGraph(value: unknown): DerivedGraph {
 
 
 function validateTrustPolicyArtifactType(value: unknown, path: string): TrustPolicyArtifactType {
-  return expectEnum(value, path, ['elements', 'postures', 'surface', 'snapshot'] as const);
+  return expectEnum(value, path, ['elements', 'postures', 'surface', 'snapshot', 'hints', 'patterns'] as const);
 }
 
 function validateTrustPolicyEvaluationReason(value: unknown, path: string): TrustPolicyEvaluationReason {
@@ -718,7 +817,7 @@ export function validateTrustPolicy(value: unknown): TrustPolicy {
 
   const artifactTypes = Object.fromEntries(parsedEntries) as TrustPolicy['artifactTypes'];
 
-  for (const requiredType of ['elements', 'postures', 'surface', 'snapshot'] as const) {
+  for (const requiredType of ['elements', 'postures', 'surface', 'snapshot', 'hints', 'patterns'] as const) {
     if (!artifactTypes[requiredType]) {
       throw new SchemaError(`missing trust policy rule for ${requiredType}`, 'trustPolicy.artifactTypes');
     }
@@ -743,3 +842,11 @@ export function validateTrustPolicyEvaluation(value: unknown): TrustPolicyEvalua
     reasons: expectArray(record.reasons ?? [], 'trustPolicyEvaluation.reasons').map((entry, index) => validateTrustPolicyEvaluationReason(entry, `trustPolicyEvaluation.reasons[${index}]`)),
   };
 }
+
+
+
+
+
+
+
+

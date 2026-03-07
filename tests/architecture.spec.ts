@@ -14,7 +14,11 @@ function listTsFiles(relativeDir: string): string[] {
   const files: string[] = [];
 
   while (pending.length > 0) {
-    const current = pending.pop()!;
+    const current = pending.pop();
+    if (!current) {
+      continue;
+    }
+
     for (const entry of readdirSync(current, { withFileTypes: true })) {
       const nextPath = path.join(current, entry.name);
       if (entry.isDirectory()) {
@@ -32,7 +36,7 @@ function listTsFiles(relativeDir: string): string[] {
 
 function importsFor(filePath: string): string[] {
   const text = readFileSync(filePath, 'utf8').replace(/^\uFEFF/, '');
-  return [...text.matchAll(/from\s+['"]([^'"]+)['"]/g)].map((match) => match[1]);
+  return [...text.matchAll(/from\s+['"]([^'"]+)['"]/g)].flatMap((match) => (match[1] ? [match[1]] : []));
 }
 
 function relativeFile(filePath: string): string {

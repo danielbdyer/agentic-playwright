@@ -127,7 +127,8 @@ export function unionOfStringLiterals(values: string[]): ts.TypeNode {
   }
 
   const literals = values.map((value) => ts.factory.createLiteralTypeNode(stringLiteral(value)));
-  return literals.length === 1 ? literals[0] : ts.factory.createUnionTypeNode(literals);
+  const [literal] = literals;
+  return literal && literals.length === 1 ? literal : ts.factory.createUnionTypeNode(literals);
 }
 
 export function conditionalByScreen(
@@ -156,4 +157,5 @@ export function printModule(statements: ts.Statement[]): string {
   });
   return `${printer.printList(ts.ListFormat.MultiLine, ts.factory.createNodeArray(body), sourceFile)}\n`;
 }
+
 

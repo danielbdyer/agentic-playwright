@@ -1,7 +1,9 @@
 ﻿import YAML from 'yaml';
-import { Locator, expect } from '@playwright/test';
+import type { Locator} from '@playwright/test';
+import { expect } from '@playwright/test';
 import { snapshotHandleResolutionError } from '../domain/errors';
-import { RuntimeResult, runtimeErr, runtimeOk } from './result';
+import type { RuntimeResult} from './result';
+import { runtimeErr, runtimeOk } from './result';
 
 interface AccessibilityNode {
   role?: string;

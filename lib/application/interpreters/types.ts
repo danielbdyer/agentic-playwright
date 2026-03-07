@@ -1,4 +1,4 @@
-import {
+import type {
   ProgramFailureCode,
   StepInterpreterDiagnostic,
   StepProgram,
@@ -7,8 +7,8 @@ import {
   StepProgramInstructionOutcome,
   StepProgramInterpreter,
 } from '../../domain/program';
-import { PostureId, ScreenId, SnapshotTemplateId } from '../../domain/identity';
-import { ScreenElements, ScreenPostures, SurfaceGraph, ValueRef } from '../../domain/types';
+import type { PostureId, ScreenId, SnapshotTemplateId } from '../../domain/identity';
+import type { ScreenElements, ScreenPostures, SurfaceGraph, ValueRef } from '../../domain/types';
 
 export type InterpreterMode = 'playwright' | 'dry-run' | 'diagnostic';
 
@@ -47,9 +47,9 @@ export function interpreterOutcome(input: {
   index: number;
   instruction: StepProgram['instructions'][number];
   status: 'ok' | 'failed';
-  observedEffects?: string[];
-  diagnostics?: StepInterpreterDiagnostic[];
-  failureCode?: ProgramFailureCode;
+  observedEffects?: string[] | undefined;
+  diagnostics?: StepInterpreterDiagnostic[] | undefined;
+  failureCode?: ProgramFailureCode | undefined;
 }): StepProgramInstructionOutcome {
   return {
     instructionIndex: input.index,

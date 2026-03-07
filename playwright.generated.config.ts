@@ -1,5 +1,8 @@
 import { defineConfig } from '@playwright/test';
 
+const isCheckRun = process.env.TESSERACT_CHECK === '1';
+const isCi = process.env.CI === 'true' || process.env.CI === '1';
+
 export default defineConfig({
   testDir: 'generated',
   testMatch: ['**/*.spec.ts'],
@@ -9,7 +12,7 @@ export default defineConfig({
   use: {
     baseURL: 'http://127.0.0.1:3101',
     browserName: 'chromium',
-    channel: 'msedge',
+    channel: isCheckRun || isCi ? undefined : 'msedge',
     headless: true,
     trace: 'retain-on-failure',
   },

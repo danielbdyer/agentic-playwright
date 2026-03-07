@@ -1,17 +1,22 @@
 ﻿import { mkdirSync, readFileSync, rmSync, statSync, unlinkSync, writeFileSync } from 'fs';
 import path from 'path';
 import { expect, test } from '@playwright/test';
-import { impactNode } from '../lib/application/impact';
 import { buildDerivedGraph } from '../lib/application/graph';
+import { impactNode } from '../lib/application/impact';
 import { describeScenarioPaths } from '../lib/application/inspect';
 import { createProjectPaths } from '../lib/application/paths';
 import { refreshScenario } from '../lib/application/refresh';
 import { inspectSurface } from '../lib/application/surface';
-import { generateTypes } from '../lib/application/types';
 import { traceScenario } from '../lib/application/trace';
+import { generateTypes } from '../lib/application/types';
 import { createAdoId, createElementId, createScreenId, createSurfaceId } from '../lib/domain/identity';
 import { graphIds } from '../lib/domain/ids';
 import { runWithLocalServices } from '../lib/infrastructure/local-services';
+
+const policySearchScreenId = createScreenId('policy-search');
+const searchButtonId = createElementId('searchButton');
+const resultsGridId = createSurfaceId('results-grid');
+const searchFormId = createSurfaceId('search-form');
 
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => {
@@ -19,55 +24,76 @@ function wait(ms: number): Promise<void> {
   });
 }
 
+function projectPath(value: string): string {
+  return value.replace(/\\/g, '/');
+}
+
 test('refresh recompiles the seeded scenario through graph, types, and program emission', async () => {
   const paths = createProjectPaths(process.cwd());
   const adoId = createAdoId('10001');
   const result = await runWithLocalServices(refreshScenario({ adoId, paths }), process.cwd());
   const generated = readFileSync(result.compile.emitted.outputPath, 'utf8').replace(/^\uFEFF/, '');
+  const traceArtifact = JSON.parse(readFileSync(result.compile.emitted.tracePath, 'utf8').replace(/^\uFEFF/, ''));
+  const review = readFileSync(result.compile.emitted.reviewPath, 'utf8').replace(/^\uFEFF/, '');
   const graph = JSON.parse(readFileSync(result.compile.graph.graphPath, 'utf8').replace(/^\uFEFF/, ''));
 
   expect(result.sync.snapshots).toHaveLength(1);
-  expect(result.compile.bound.hasUnbound).toBeTruthy();
-  expect(result.compile.bound.boundScenario.diagnostics.some((diagnostic) => diagnostic.code === 'trust-policy-blocked' || diagnostic.code === 'trust-policy-review-required')).toBeTruthy();
+  expect(result.compile.bound.hasUnbound).toBeFalsy();
+  expect(result.compile.bound.boundScenario.steps.every((step) => step.confidence === 'compiler-derived')).toBeTruthy();
+  expect(result.compile.bound.boundScenario.steps.every((step) => step.binding.governance === 'approved')).toBeTruthy();
   expect(generated).toContain('runStepProgram');
   expect(generated).toContain('loadScreenRegistry');
-  expect(generated).toContain('test.fixme');
-  expect(graph.nodes.some((node: { id: string }) => node.id === graphIds.surface(createScreenId('policy-search'), createSurfaceId('results-grid')))).toBeTruthy();
-  expect(result.compile.generatedTypes.outputPath).toContain(path.join('lib', 'generated', 'tesseract-knowledge.ts'));
+  expect(generated).toContain('compiler-derived');
+  expect(traceArtifact.steps[1].supplementRefs).toContain('knowledge/patterns/core.patterns.yaml');
+  expect(traceArtifact.steps[1].supplementRefs).toContain('knowledge/screens/policy-search.hints.yaml');
+  expect(traceArtifact.governance).toBe('approved');
+  expect(traceArtifact.steps[0].normalizedIntent).toContain('navigate');
+  expect(review).toContain('# Verify policy search returns matching policy');
+  expect(review).toContain('## Step 1');
+  expect(graph.nodes.some((node: { id: string }) => node.id === graphIds.surface(policySearchScreenId, resultsGridId))).toBeTruthy();
+  expect(graph.nodes.some((node: { id: string }) => node.id === graphIds.screenHints(policySearchScreenId))).toBeTruthy();
+  expect(graph.nodes.some((node: { id: string }) => node.id === graphIds.pattern('core.input'))).toBeTruthy();
+  expect(graph.nodes.some((node: { id: string }) => node.id === graphIds.generatedTrace(adoId))).toBeTruthy();
+  expect(graph.nodes.some((node: { id: string }) => node.id === graphIds.generatedReview(adoId))).toBeTruthy();
+  expect(projectPath(result.compile.generatedTypes.outputPath)).toContain('lib/generated/tesseract-knowledge.ts');
 });
 
-test('paths identifies surface, graph, and generated-type artifacts for the seeded scenario', async () => {
+test('paths identifies surface, graph, generated review, and supplement artifacts for the seeded scenario', async () => {
   const paths = createProjectPaths(process.cwd());
   const result = await runWithLocalServices(describeScenarioPaths({ adoId: createAdoId('10001'), paths }), process.cwd());
 
-  expect(result.artifacts.snapshot).toContain(path.join('.ado-sync', 'snapshots', '10001.json'));
-  expect(result.artifacts.scenario).toContain(path.join('scenarios', 'demo', 'policy-search', '10001.scenario.yaml'));
-  expect(result.artifacts.graph).toContain(path.join('.tesseract', 'graph', 'index.json'));
+  expect(projectPath(result.artifacts.snapshot)).toContain('.ado-sync/snapshots/10001.json');
+  expect(projectPath(result.artifacts.scenario)).toContain('scenarios/demo/policy-search/10001.scenario.yaml');
+  expect(projectPath(result.artifacts.graph)).toContain('.tesseract/graph/index.json');
+  expect(projectPath(result.artifacts.trace)).toContain('generated/demo/policy-search/10001.trace.json');
+  expect(projectPath(result.artifacts.review)).toContain('generated/demo/policy-search/10001.review.md');
+  expect(projectPath(result.supplements.sharedPatterns)).toContain('knowledge/patterns/core.patterns.yaml');
   expect(result.knowledge).toEqual([
     {
       screen: 'policy-search',
       surface: expect.stringContaining('policy-search.surface.yaml'),
       elements: expect.stringContaining('policy-search.elements.yaml'),
       postures: expect.stringContaining('policy-search.postures.yaml'),
+      hints: expect.stringContaining('policy-search.hints.yaml'),
     },
   ]);
 });
 
 test('surface inspection returns approved structure plus derived capabilities', async () => {
   const paths = createProjectPaths(process.cwd());
-  const result = await runWithLocalServices(inspectSurface({ screen: createScreenId('policy-search'), paths }), process.cwd());
+  const result = await runWithLocalServices(inspectSurface({ screen: policySearchScreenId, paths }), process.cwd());
+  const resultsGrid = result.surfaceGraph.surfaces[resultsGridId];
 
-  expect(result.surfaceGraph.surfaces['results-grid'].assertions).toEqual(['structure', 'state']);
-  expect(result.capabilities.some((entry) => entry.targetKind === 'surface' && entry.target === createSurfaceId('search-form'))).toBeTruthy();
+  expect(resultsGrid?.assertions).toEqual(['structure', 'state']);
+  expect(result.capabilities.some((entry) => entry.targetKind === 'surface' && entry.target === searchFormId)).toBeTruthy();
 });
 
 test('trace and impact queries operate over the derived graph without repo lore', async () => {
   const paths = createProjectPaths(process.cwd());
   const adoId = createAdoId('10001');
-  const screenId = createScreenId('policy-search');
   await runWithLocalServices(refreshScenario({ adoId, paths }), process.cwd());
   const trace = await runWithLocalServices(traceScenario({ adoId, paths }), process.cwd());
-  const impact = await runWithLocalServices(impactNode({ nodeId: graphIds.element(screenId, createElementId('searchButton')), paths }), process.cwd());
+  const impact = await runWithLocalServices(impactNode({ nodeId: graphIds.element(policySearchScreenId, searchButtonId), paths }), process.cwd());
 
   expect(trace.nodes.some((node) => node.id === graphIds.scenario(adoId))).toBeTruthy();
   expect(trace.nodes.some((node) => node.id === graphIds.step(adoId, 3))).toBeTruthy();
@@ -107,7 +133,6 @@ test('graph and types skip rewrites when fingerprinted inputs are unchanged', as
   expect(typesFingerprintAfter).toBe(typesFingerprintBefore);
 });
 
-
 test('types regenerate when manifest is present but generated output is deleted or corrupted', async () => {
   const paths = createProjectPaths(process.cwd());
   const metadataPath = path.join(paths.generatedTypesDir, 'tesseract-knowledge.metadata.json');
@@ -122,8 +147,8 @@ test('types regenerate when manifest is present but generated output is deleted 
 
   expect(rebuiltMissingOutput.incremental.status).toBe('cache-miss');
   expect(rebuiltMissingOutput.incremental.cacheInvalidationReason).toBe('missing-output');
-  expect(rebuiltMissingOutput.incremental.rewritten).toContain(path.join('lib', 'generated', 'tesseract-knowledge.ts'));
-  expect(rebuiltMissingOutput.incremental.rewritten).toContain(path.join('lib', 'generated', 'tesseract-knowledge.metadata.json'));
+  expect(rebuiltMissingOutput.incremental.rewritten).toContain('lib/generated/tesseract-knowledge.ts');
+  expect(rebuiltMissingOutput.incremental.rewritten).toContain('lib/generated/tesseract-knowledge.metadata.json');
   expect(manifestAfterMissingOutput.outputFingerprint).toBe(rebuiltMissingOutput.incremental.outputFingerprint);
 
   writeFileSync(rebuiltMissingOutput.outputPath, `export const corrupted = true;\n`, 'utf8');
@@ -133,8 +158,8 @@ test('types regenerate when manifest is present but generated output is deleted 
 
   expect(rebuiltCorruptedOutput.incremental.status).toBe('cache-miss');
   expect(rebuiltCorruptedOutput.incremental.cacheInvalidationReason).toBe('invalid-output');
-  expect(rebuiltCorruptedOutput.incremental.rewritten).toContain(path.join('lib', 'generated', 'tesseract-knowledge.ts'));
-  expect(rebuiltCorruptedOutput.incremental.rewritten).toContain(path.join('lib', 'generated', 'tesseract-knowledge.metadata.json'));
+  expect(rebuiltCorruptedOutput.incremental.rewritten).toContain('lib/generated/tesseract-knowledge.ts');
+  expect(rebuiltCorruptedOutput.incremental.rewritten).toContain('lib/generated/tesseract-knowledge.metadata.json');
   expect(manifestAfterCorruption.outputFingerprint).toBe(rebuiltCorruptedOutput.incremental.outputFingerprint);
   expect(firstManifest.inputSetFingerprint).toBe(manifestAfterMissingOutput.inputSetFingerprint);
   expect(firstManifest.inputSetFingerprint).toBe(manifestAfterCorruption.inputSetFingerprint);
@@ -154,9 +179,9 @@ test('graph rebuilds when manifest is present but cached graph is missing or inv
 
   expect(rebuiltMissingOutput.incremental.status).toBe('cache-miss');
   expect(rebuiltMissingOutput.incremental.cacheInvalidationReason).toBe('missing-output');
-  expect(rebuiltMissingOutput.incremental.rewritten).toContain(path.join('.tesseract', 'graph', 'index.json'));
-  expect(rebuiltMissingOutput.incremental.rewritten).toContain(path.join('.tesseract', 'graph', 'mcp-catalog.json'));
-  expect(rebuiltMissingOutput.incremental.rewritten).toContain(path.join('.tesseract', 'graph', 'build-manifest.json'));
+  expect(rebuiltMissingOutput.incremental.rewritten).toContain('.tesseract/graph/index.json');
+  expect(rebuiltMissingOutput.incremental.rewritten).toContain('.tesseract/graph/mcp-catalog.json');
+  expect(rebuiltMissingOutput.incremental.rewritten).toContain('.tesseract/graph/build-manifest.json');
   expect(manifestAfterMissingOutput.outputFingerprint).toBe(rebuiltMissingOutput.incremental.outputFingerprint);
 
   writeFileSync(paths.graphIndexPath, '{"bad":true}', 'utf8');
@@ -166,15 +191,14 @@ test('graph rebuilds when manifest is present but cached graph is missing or inv
 
   expect(rebuiltInvalidOutput.incremental.status).toBe('cache-miss');
   expect(rebuiltInvalidOutput.incremental.cacheInvalidationReason).toBe('invalid-output');
-  expect(rebuiltInvalidOutput.incremental.rewritten).toContain(path.join('.tesseract', 'graph', 'index.json'));
-  expect(rebuiltInvalidOutput.incremental.rewritten).toContain(path.join('.tesseract', 'graph', 'mcp-catalog.json'));
-  expect(rebuiltInvalidOutput.incremental.rewritten).toContain(path.join('.tesseract', 'graph', 'build-manifest.json'));
+  expect(rebuiltInvalidOutput.incremental.rewritten).toContain('.tesseract/graph/index.json');
+  expect(rebuiltInvalidOutput.incremental.rewritten).toContain('.tesseract/graph/mcp-catalog.json');
+  expect(rebuiltInvalidOutput.incremental.rewritten).toContain('.tesseract/graph/build-manifest.json');
   expect(manifestAfterInvalidOutput.outputFingerprint).toBe(rebuiltInvalidOutput.incremental.outputFingerprint);
   expect(firstManifest.inputSetFingerprint).toBe(manifestAfterMissingOutput.inputSetFingerprint);
   expect(firstManifest.inputSetFingerprint).toBe(manifestAfterInvalidOutput.inputSetFingerprint);
   expect(firstBuild.graph.nodes.length).toBeGreaterThan(0);
 });
-
 
 test('graph projection includes policy decision audit nodes and governs edges', async () => {
   const paths = createProjectPaths(process.cwd());

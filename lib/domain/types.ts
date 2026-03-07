@@ -1,4 +1,4 @@
-﻿import {
+import type {
   AdoId,
   ElementId,
   FixtureId,
@@ -10,7 +10,8 @@
   WidgetId,
 } from './identity';
 
-export type Confidence = 'human' | 'agent-verified' | 'agent-proposed' | 'unbound';
+export type Confidence = 'human' | 'agent-verified' | 'agent-proposed' | 'compiler-derived' | 'unbound';
+export type Governance = 'approved' | 'review-required' | 'blocked';
 export type ScenarioStatus = 'stub' | 'draft' | 'active' | 'needs-repair' | 'blocked' | 'deprecated';
 export type StepAction = 'navigate' | 'input' | 'click' | 'assert-snapshot' | 'custom';
 export type DiagnosticSeverity = 'info' | 'warn' | 'error';
@@ -42,10 +43,16 @@ export type CapabilityName =
   | 'custom-escape-hatch';
 
 export type EffectTargetKind = 'self' | 'element' | 'surface';
+export type LocatorStrategyKind = 'test-id' | 'role-name' | 'css';
 
 export type WidgetAction = 'click' | 'fill' | 'clear' | 'get-value';
 export type WidgetPrecondition = 'visible' | 'enabled' | 'editable';
 export type WidgetEffectCategory = 'mutation' | 'observation' | 'focus' | 'navigation';
+
+export interface WidgetInteractionContext {
+  affordance?: string | null | undefined;
+}
+
 
 export interface WidgetActionSemantics {
   expectedStates: EffectState[];
@@ -59,6 +66,21 @@ export interface WidgetCapabilityContract {
   sideEffects: Partial<Record<WidgetAction, WidgetActionSemantics>>;
 }
 
+export type LocatorStrategy =
+  | {
+      kind: 'test-id';
+      value: string;
+    }
+  | {
+      kind: 'role-name';
+      role: string;
+      name?: string | null | undefined;
+    }
+  | {
+      kind: 'css';
+      value: string;
+    };
+
 export interface RefPath {
   segments: string[];
 }
@@ -67,7 +89,7 @@ export interface AdoStep {
   index: number;
   action: string;
   expected: string;
-  sharedStepId?: string;
+  sharedStepId?: string | undefined;
 }
 
 export interface AdoParameter {
@@ -108,7 +130,7 @@ export interface ScenarioMetadata {
 
 export interface ScenarioPrecondition {
   fixture: FixtureId;
-  params?: Record<string, string>;
+  params?: Record<string, string> | undefined;
 }
 
 export interface ValueRefLiteral {
@@ -184,21 +206,21 @@ export interface ScenarioStep {
   index: number;
   intent: string;
   action: StepAction;
-  screen?: ScreenId | null;
-  element?: ElementId | null;
-  posture?: PostureId | null;
-  override?: string | null;
-  snapshot_template?: SnapshotTemplateId | null;
+  screen?: ScreenId | null | undefined;
+  element?: ElementId | null | undefined;
+  posture?: PostureId | null | undefined;
+  override?: string | null | undefined;
+  snapshot_template?: SnapshotTemplateId | null | undefined;
   confidence: Confidence;
 }
 
 export interface ScenarioPostcondition {
   action: StepAction;
-  screen?: ScreenId | null;
-  element?: ElementId | null;
-  posture?: PostureId | null;
-  override?: string | null;
-  snapshot_template?: SnapshotTemplateId | null;
+  screen?: ScreenId | null | undefined;
+  element?: ElementId | null | undefined;
+  posture?: PostureId | null | undefined;
+  override?: string | null | undefined;
+  snapshot_template?: SnapshotTemplateId | null | undefined;
 }
 
 export interface Scenario {
@@ -213,8 +235,15 @@ export interface BoundStep extends ScenarioStep {
   binding: {
     kind: 'bound' | 'unbound';
     reasons: string[];
+    ruleId: string | null;
+    normalizedIntent: string;
+    knowledgeRefs: string[];
+    supplementRefs: string[];
+    evidenceIds: string[];
+    governance: Governance;
+    reviewReasons: string[];
   };
-  program?: StepProgram;
+  program?: StepProgram | undefined;
 }
 
 export interface BoundScenario extends Omit<Scenario, 'steps'> {
@@ -225,10 +254,10 @@ export interface BoundScenario extends Omit<Scenario, 'steps'> {
 
 export interface SurfaceSection {
   selector: string;
-  url?: string;
+  url?: string | undefined;
   kind: SurfaceKind;
   surfaces: SurfaceId[];
-  snapshot?: SnapshotTemplateId | null;
+  snapshot?: SnapshotTemplateId | null | undefined;
 }
 
 export interface SurfaceDefinition {
@@ -239,7 +268,7 @@ export interface SurfaceDefinition {
   children: SurfaceId[];
   elements: ElementId[];
   assertions: AssertionKind[];
-  required?: boolean;
+  required?: boolean | undefined;
 }
 
 export interface SurfaceGraph {
@@ -251,12 +280,14 @@ export interface SurfaceGraph {
 
 export interface ElementSig {
   role: string;
-  name?: string | null;
-  testId?: string | null;
-  cssFallback?: string | null;
+  name?: string | null | undefined;
+  testId?: string | null | undefined;
+  cssFallback?: string | null | undefined;
+  locator?: LocatorStrategy[] | undefined;
   surface: SurfaceId;
   widget: WidgetId;
-  required?: boolean;
+  affordance?: string | null | undefined;
+  required?: boolean | undefined;
 }
 
 export interface ScreenElements {
@@ -265,11 +296,36 @@ export interface ScreenElements {
   elements: Record<string, ElementSig>;
 }
 
+export interface ScreenElementHint {
+  aliases: string[];
+  defaultValueRef?: string | null | undefined;
+  parameter?: string | null | undefined;
+  snapshotAliases?: Record<string, string[]> | undefined;
+  affordance?: string | null | undefined;
+}
+
+export interface ScreenHints {
+  screen: ScreenId;
+  screenAliases: string[];
+  elements: Record<string, ScreenElementHint>;
+}
+
+export interface PatternAliasSet {
+  id: string;
+  aliases: string[];
+}
+
+export interface SharedPatterns {
+  version: 1;
+  actions: Record<'navigate' | 'input' | 'click' | 'assert-snapshot', PatternAliasSet>;
+  postures: Record<string, PatternAliasSet>;
+}
+
 export interface PostureEffect {
   target: 'self' | ElementId | SurfaceId;
-  targetKind?: EffectTargetKind;
+  targetKind?: EffectTargetKind | undefined;
   state: EffectState;
-  message?: string | null;
+  message?: string | null | undefined;
 }
 
 export interface Posture {
@@ -295,12 +351,12 @@ export interface Manifest {
 }
 
 export interface DiagnosticProvenance {
-  sourceRevision?: number;
-  contentHash?: string;
-  scenarioPath?: string;
-  snapshotPath?: string;
-  knowledgePath?: string;
-  confidence?: Confidence | 'mixed';
+  sourceRevision?: number | undefined;
+  contentHash?: string | undefined;
+  scenarioPath?: string | undefined;
+  snapshotPath?: string | undefined;
+  knowledgePath?: string | undefined;
+  confidence?: Confidence | 'mixed' | undefined;
 }
 
 export interface CompilerDiagnostic {
@@ -308,8 +364,8 @@ export interface CompilerDiagnostic {
   severity: DiagnosticSeverity;
   message: string;
   adoId: AdoId;
-  stepIndex?: number;
-  artifactPath?: string;
+  stepIndex?: number | undefined;
+  artifactPath?: string | undefined;
   provenance: DiagnosticProvenance;
 }
 
@@ -331,7 +387,7 @@ export interface EvidenceRecord {
   };
 }
 
-export type TrustPolicyArtifactType = 'elements' | 'postures' | 'surface' | 'snapshot';
+export type TrustPolicyArtifactType = 'elements' | 'postures' | 'surface' | 'snapshot' | 'hints' | 'patterns';
 export type TrustPolicyDecision = 'allow' | 'review' | 'deny';
 
 export interface TrustPolicyEvidenceRule {
@@ -353,7 +409,7 @@ export interface TrustPolicy {
 export interface ProposedChangeMetadata {
   artifactType: TrustPolicyArtifactType;
   confidence: number;
-  autoHealClass?: string | null;
+  autoHealClass?: string | null | undefined;
 }
 
 export interface EvidenceDescriptor {
@@ -381,6 +437,8 @@ export interface DerivedCapability {
 export type GraphNodeKind =
   | 'snapshot'
   | 'screen'
+  | 'screen-hints'
+  | 'pattern'
   | 'section'
   | 'surface'
   | 'element'
@@ -389,6 +447,8 @@ export type GraphNodeKind =
   | 'scenario'
   | 'step'
   | 'generated-spec'
+  | 'generated-trace'
+  | 'generated-review'
   | 'evidence'
   | 'policy-decision';
 
@@ -409,9 +469,9 @@ export interface GraphNode {
   kind: GraphNodeKind;
   label: string;
   fingerprint: string;
-  artifactPath?: string;
+  artifactPath?: string | undefined;
   provenance: DiagnosticProvenance;
-  payload?: Record<string, unknown>;
+  payload?: Record<string, unknown> | undefined;
 }
 
 export interface GraphEdge {
@@ -421,7 +481,7 @@ export interface GraphEdge {
   to: string;
   fingerprint: string;
   provenance: DiagnosticProvenance;
-  payload?: Record<string, unknown>;
+  payload?: Record<string, unknown> | undefined;
 }
 
 export interface MappedMcpResource {
@@ -455,4 +515,11 @@ export interface CaptureResult {
   hash: string;
   snapshot: string;
 }
+
+
+
+
+
+
+
 

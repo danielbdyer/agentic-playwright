@@ -1,149 +1,239 @@
 ﻿# Tesseract
 
-Tesseract is a deterministic compiler that turns Azure DevOps manual test cases into disposable Playwright specs.
+Tesseract is an inference-first compiler for QA intent.
 
-## Operating model
+It ingests Azure DevOps manual test cases, lowers them into scenario IR, binds them against approved screen knowledge, and emits disposable Playwright object code plus review artifacts. The goal is not to hand-author tests faster. The goal is to make executable verification a deterministic projection of upstream intent and approved knowledge.
 
-The repo is built around laminar grammars and derived projections:
+## What is canonical
 
-1. `ADO snapshot -> scenario IR`
-2. `ARIA baselines + SurfaceGraph -> approved screen structure`
-3. `SurfaceGraph + element signatures + postures -> capability/effect model`
-4. `Approved artifacts -> derived graph + generated types + generated specs`
+Approved, reviewable inputs:
 
-Canonical reviewed inputs are intentionally small:
+- `.ado-sync/`
+- `scenarios/`
+- `knowledge/surfaces/`
+- `knowledge/screens/`
+- `knowledge/patterns/`
+- `knowledge/snapshots/`
+- `.tesseract/evidence/`
+- `.tesseract/policy/`
 
-- `.ado-sync`
-- `scenarios`
-- `knowledge/surfaces`
-- `knowledge/screens`
-- `knowledge/snapshots`
-- `.tesseract/evidence`
+Derived outputs. Do not hand-edit:
 
-Derived artifacts live in:
+- `.tesseract/bound/`
+- `.tesseract/graph/`
+- `generated/`
+- `lib/generated/`
 
-- `generated`
-- `.tesseract/bound`
-- `.tesseract/graph`
-- `lib/generated`
+## Governance boundary
 
-## Agent-first workflow
+Deterministic compiler derivations are auto-approved.
 
-The repo is intentionally command-first. An agent should not need repo lore to refresh artifacts, inspect impacts, or discover canonical files.
+If a step binds from already approved artifacts through deterministic rules, it is emitted with:
 
-### Refresh one scenario end to end
+- `confidence: compiler-derived`
+- `governance: approved`
+
+Trust policy review applies only to proposed canonical changes such as:
+
+- `knowledge/screens/*.elements.yaml`
+- `knowledge/screens/*.postures.yaml`
+- `knowledge/screens/*.hints.yaml`
+- `knowledge/patterns/*.yaml`
+- `knowledge/surfaces/*.surface.yaml`
+- `knowledge/snapshots/**/*.yaml`
+- evidence-backed locator ladders and other supplement proposals
+
+This is the operating rule for agents in this repo:
+
+- compiler output derived from approved knowledge does not wait for human blessing
+- proposed new knowledge does
+
+## Compiler outputs
+
+For each scenario, Tesseract emits three aligned review surfaces:
+
+- `generated/{suite}/{ado_id}.spec.ts`: executable Playwright object code
+- `generated/{suite}/{ado_id}.trace.json`: machine-readable derivation and execution trace surface
+- `generated/{suite}/{ado_id}.review.md`: QA-facing review artifact
+
+The review artifact exists so a QA can answer:
+
+- Did each `test.step()` preserve the original ADO wording?
+- Did the compiler infer the right action, screen, element, posture, and snapshot?
+- Which approved files were used?
+- Which steps were purely deterministic, and which depended on local hints or promoted patterns?
+
+## Deterministic precedence
+
+Binding and inference follow a fixed precedence order:
+
+1. explicit scenario fields
+2. screen-local hints in `knowledge/screens/{screen}.hints.yaml`
+3. promoted shared patterns in `knowledge/patterns/`
+4. deterministic heuristics over approved knowledge
+5. `unbound`
+
+This order is part of the product. It must stay stable and testable.
+
+## Supplement hierarchy
+
+Use the smallest durable supplement that explains the gap.
+
+Screen-local supplements live in:
+
+- `knowledge/screens/{screen}.hints.yaml`
+
+They carry:
+
+- screen aliases
+- element aliases
+- default value refs
+- parameter cues
+- snapshot aliases
+- widget affordances
+
+Promoted cross-screen supplements live in:
+
+- `knowledge/patterns/*.yaml`
+
+They carry:
+
+- reusable intent phrase sets
+- posture alias sets
+- shared interaction or repair patterns after promotion
+
+Promotion rule:
+
+- land local first
+- promote only when repeated or intentionally generalized
+
+## Locator strategy
+
+Element signatures support ordered locator ladders.
+
+Preferred order:
+
+1. `test-id`
+2. `role-name`
+3. `css`
+
+The runtime resolves the ladder in order. If a fallback rung succeeds, the execution outcome records degraded locator use. This keeps "green but brittle" visible in review and graph surfaces.
+
+## Commands
+
+The repo is intentionally CLI-first.
 
 ```powershell
-npm run refresh
+npm run context    # print a generated repo brief from current sources
+npm run agent:sync # refresh docs/agent-context.md from current sources
+npm run refresh    # sync -> parse -> bind -> emit -> graph -> types
+npm run paths      # show canonical and derived artifact paths for one scenario
+npm run surface    # inspect approved surface graph and derived capabilities
+npm run graph      # rebuild the dependency/provenance graph
+npm run trace      # return the scenario-centric subgraph
+npm run impact     # return the impacted subgraph for a node id
+npm run types      # regenerate lib/generated/tesseract-knowledge.ts
+npm run capture    # capture or refresh ARIA snapshot knowledge
+npm run build      # emit runtime artifacts with the build-only TS config
+npm run typecheck  # strict repo-wide typecheck including tests
+npm run lint       # typed lint over hand-authored sources
+npm run check      # quiet build + typecheck + lint + test gate for local/CI use
+npm run knip       # maintainer-only dependency hygiene scan
+npm test           # run compiler/runtime/documentation laws
 ```
 
-This runs:
+## Quality Gate
 
-1. `sync`
-2. `parse`
-3. `bind`
-4. `emit`
-5. `graph`
-6. `types`
+Use Node `>=20.9.0` for local development and CI.
 
-### Discover the canonical files for one scenario
+`npm run check` is the authoritative gate for both local work and Azure DevOps. It runs `build`, `typecheck`, `lint`, and `test` sequentially.
 
-```powershell
-npm run paths
-```
+Output policy:
 
-This prints the exact snapshot, scenario, bound artifact, generated spec, graph, generated-type module, and knowledge files an agent should inspect or update.
+- successful `npm run check` runs emit one short line when each phase starts and passes
+- failed `npm run check` runs print only the failing phase and that phase's diagnostics
+- `npm run lint` ignores derived outputs such as `.ado-sync/`, `.tesseract/`, `generated/`, `lib/generated/`, `dist/`, and `test-results/`
+- `npm run typecheck` includes repo tests so fixture drift fails before runtime
 
-### Inspect approved surface structure and derived capabilities
+## Artifact map
 
-```powershell
-npm run surface
-npm run graph
-npm run trace
-npm run impact
-npm run types
-```
+| Artifact | Purpose | Review boundary |
+|---|---|---|
+| `.ado-sync/snapshots/{ado_id}.json` | upstream ADO source snapshot | canonical |
+| `scenarios/{suite}/{ado_id}.scenario.yaml` | canonical scenario IR | canonical |
+| `.tesseract/bound/{ado_id}.json` | bound scenario with provenance and governance | derived |
+| `generated/{suite}/{ado_id}.spec.ts` | executable object code | derived |
+| `generated/{suite}/{ado_id}.trace.json` | machine derivation trace | derived |
+| `generated/{suite}/{ado_id}.review.md` | QA review report | derived |
+| `.tesseract/graph/index.json` | dependency and provenance graph | derived |
 
-These commands expose the read-oriented agent surface:
+## What agents should inspect first
 
-- `surface`: approved `SurfaceGraph` plus derived capabilities for one screen
-- `graph`: regenerates `.tesseract/graph/index.json`
-- `trace`: returns the scenario-centric subgraph for one ADO case
-- `impact`: returns the impacted subgraph for one node id
-- `types`: regenerates `lib/generated/tesseract-knowledge.ts`
+When working on a scenario, prefer this sequence:
 
-### Individual stages
+1. `npm run paths`
+2. `npm run trace`
+3. `npm run impact`
+4. `npm run surface`
+5. `generated/...review.md`
 
-```powershell
-npm run sync
-npm run parse
-npm run bind
-npm run emit
-npm run capture
-```
+That sequence tells an agent:
 
-## Architecture
+- what is canonical
+- what was derived
+- what knowledge was used
+- what changed
+- what still needs a proposal instead of a code patch
 
-- `lib/domain`: pure types, validation, graph derivation, structured references, and TypeScript AST emitters
-- `lib/application`: Effect-based application services and orchestration only
-- `lib/infrastructure`: file system and ADO fixture ports
-- `lib/runtime`: Playwright-facing locator, interaction, data, and snapshot helpers
-- `lib/infrastructure/tooling`: shell adapters such as snapshot capture
-- `lib/generated`: generated type-safe knowledge surface and agent DSL
+## Bottleneck visibility
 
-The current directory layout is still pragmatic rather than fully extracted into `domain/application/infrastructure` packages, but the dependency rule is already enforced in tests:
+Bottleneck visibility is part of the product, not just diagnostics.
+
+The system should make it obvious which steps are:
+
+- `compiler-derived` from approved knowledge only
+- dependent on screen-local hints
+- dependent on promoted shared patterns
+- still `unbound`
+- blocked by missing canonical knowledge
+
+The graph, trace JSON, and review Markdown should all agree on that answer.
+
+## Architecture summary
+
+- `lib/domain`: pure values, validation, inference rules, graph derivation, AST-backed codegen
+- `lib/application`: Effect-based orchestration and port composition
+- `lib/infrastructure`: filesystem, local ADO adapter, reporting adapters
+- `lib/runtime`: locator resolution, widget interaction, execution interpreters
+- `knowledge/components/*.ts`: procedural widget interpreters only
+
+Boundary rules enforced by tests:
 
 - domain does not depend on application, infrastructure, or runtime
-- application depends on domain and application-local support modules, not infrastructure or runtime
+- application depends on domain and application-local support only
 - runtime does not depend on application or infrastructure orchestration
 
-## SurfaceGraph
+## Offline optimization lane
 
-Each screen now has an approved structural artifact at `knowledge/surfaces/{screen}.surface.yaml`.
+DSPy, GEPA, and similar systems belong outside the deterministic compiler path.
 
-`SurfaceGraph` owns:
+Use them for:
 
-- section boundaries
-- first-class surface ids
-- surface hierarchy
-- structural assertions
-- the approved decomposition between ARIA capture and screen knowledge
+- proposal ranking
+- supplement suggestion quality
+- benchmark evaluation
+- prompt and policy optimization over trace/evidence corpora
 
-Element signatures remain flat and reference a `surface` id. Postures remain the behavior layer and may target either elements or surfaces.
-
-## Unit-testability bias
-
-The codebase is intentionally split so the highest-entropy logic sits in pure functions:
-
-- graph derivation is pure in `lib/domain/derived-graph.ts`
-- capability/action collapse is pure in `lib/domain/grammar.ts`
-- generated TypeScript rendering is pure and AST-backed in `lib/domain/typegen.ts` and `lib/domain/spec-codegen.ts`
-- structured reference composition is centralized in `lib/domain/ref-path.ts`
-
-The compiler shell is then limited to reading approved artifacts, validating them, and persisting projections.
-
-## Structured references
-
-Executable surfaces no longer rely on dotted fixture-path protocol strings at runtime. A fixture reference now lowers into a structured `RefPath` with explicit `segments`, and only the scenario parser still interprets `{{fixture.path}}` syntax from upstream IR.
-
-Raw repository strings are also collapsed into branded domain identities at ingress. AdoId, ScreenId, ElementId, SurfaceId, PostureId, FixtureId, and SnapshotTemplateId now enter the system through validation or CLI parsing instead of flowing through the compiler as untyped strings.
+Do not use them to directly mutate canonical knowledge without evidence and review.
 
 ## Demo slice
 
-The seeded vertical slice uses ADO case `10001` and the `policy-search` screen.
+The seeded vertical slice uses:
 
-- Source fixture: `fixtures/ado/10001.json`
-- Surface graph: `knowledge/surfaces/policy-search.surface.yaml`
-- Screen knowledge: `knowledge/screens/policy-search.*.yaml`
-- Derived graph: `.tesseract/graph/index.json`
-- Generated type surface: `lib/generated/tesseract-knowledge.ts`
-- Generated spec: `generated/demo/policy-search/10001.spec.ts`
+- ADO case `10001`
+- screen `policy-search`
+- shared patterns at `knowledge/patterns/core.patterns.yaml`
+- local supplements at `knowledge/screens/policy-search.hints.yaml`
 
-## Environment note
-
-This machine is on Node 16. The latest Playwright ARIA snapshot APIs require Node 18+, so the repo currently uses a compatibility layer in `lib/runtime/aria.ts` for snapshot capture and comparison. The compiler, knowledge layout, and generated spec shape remain aligned with the intended architecture.
-
-
-
-
+Running `npm run refresh` on that slice should produce a fully `compiler-derived`, `approved` scenario with matching spec, trace, review, graph, and generated types.
 

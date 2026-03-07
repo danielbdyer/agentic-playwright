@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "tesseract",
   "version": "0.1.0",
   "private": true,
@@ -8,10 +8,13 @@
     "tesseract": "dist/bin/tesseract.js"
   },
   "engines": {
-    "node": ">=16.14.0"
+    "node": ">=20.9.0"
   },
   "scripts": {
-    "build": "node ./node_modules/typescript/bin/tsc -p tsconfig.json",
+    "context": "node -e \"const fs=require('fs');const path=require('path');const Module=module.constructor;const file=path.resolve('scripts/agent-context.cjs');const code=fs.readFileSync(file,'utf8');const m=new Module(file);m.filename=file;m.paths=[path.resolve('node_modules')];process.argv=['node',file];m._compile(code,file);\"",
+    "agent:sync": "node -e \"const fs=require('fs');const path=require('path');const Module=module.constructor;const file=path.resolve('scripts/agent-context.cjs');const code=fs.readFileSync(file,'utf8');const m=new Module(file);m.filename=file;m.paths=[path.resolve('node_modules')];process.argv=['node',file,'--write'];m._compile(code,file);\"",
+    "build": "node ./node_modules/typescript/bin/tsc -p tsconfig.build.json --pretty false",
+    "typecheck": "node -e \"const fs=require('fs');const path=require('path');const Module=module.constructor;const file=path.resolve('scripts/typecheck.cjs');const code=fs.readFileSync(file,'utf8');const m=new Module(file);m.filename=file;m.paths=[path.resolve('node_modules')];process.argv=['node',file];m._compile(code,file);\"",
     "sync": "npm run build && node dist/bin/tesseract.js sync --all",
     "parse": "npm run build && node dist/bin/tesseract.js parse --ado-id 10001",
     "bind": "npm run build && node dist/bin/tesseract.js bind --ado-id 10001 --strict",
@@ -25,6 +28,9 @@
     "trace": "npm run build && node dist/bin/tesseract.js trace --ado-id 10001",
     "impact": "npm run build && node dist/bin/tesseract.js impact --node element:policy-search:searchButton",
     "types": "npm run build && node dist/bin/tesseract.js types",
+    "lint": "node -e \"const fs=require('fs');const path=require('path');const Module=module.constructor;const file=path.resolve('scripts/lint.cjs');const code=fs.readFileSync(file,'utf8');const m=new Module(file);m.filename=file;m.paths=[path.resolve('node_modules')];process.argv=['node',file,...process.argv.slice(1)];m._compile(code,file);\" --",
+    "check": "node -e \"const fs=require('fs');const path=require('path');const Module=module.constructor;const file=path.resolve('scripts/check.cjs');const code=fs.readFileSync(file,'utf8');const m=new Module(file);m.filename=file;m.paths=[path.resolve('node_modules')];process.argv=['node',file];m._compile(code,file);\"",
+    "knip": "knip",
     "test": "node ./node_modules/@playwright/test/cli.js test",
     "test:generated": "node ./node_modules/@playwright/test/cli.js test --config playwright.generated.config.ts"
   },
@@ -35,6 +41,13 @@
     "yaml": "^2.8.2"
   },
   "devDependencies": {
-    "@types/node": "^16.18.126"
+    "@types/node": "^20.17.57",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "eslint": "^8.57.1",
+    "knip": "^5.86.0"
   }
 }
+
+
+

@@ -1,6 +1,6 @@
 ﻿import { Effect } from 'effect';
 import { ensureDerivedGraph } from './graph';
-import { ProjectPaths } from './paths';
+import type { ProjectPaths } from './paths';
 import { TesseractError } from '../domain/errors';
 import { collectImpactSubgraph } from '../domain/graph-query';
 

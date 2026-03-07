@@ -1,6 +1,6 @@
 ﻿import path from 'path';
 import { SchemaError } from '../domain/errors';
-import { AdoId, ScreenId } from '../domain/identity';
+import type { AdoId, ScreenId } from '../domain/identity';
 
 export interface ProjectPaths {
   rootDir: string;
@@ -11,6 +11,7 @@ export interface ProjectPaths {
   scenariosDir: string;
   knowledgeDir: string;
   surfacesDir: string;
+  patternsDir: string;
   generatedDir: string;
   generatedTypesDir: string;
   tesseractDir: string;
@@ -33,6 +34,7 @@ export function createProjectPaths(rootDir: string): ProjectPaths {
     scenariosDir: path.join(rootDir, 'scenarios'),
     knowledgeDir: path.join(rootDir, 'knowledge'),
     surfacesDir: path.join(rootDir, 'knowledge', 'surfaces'),
+    patternsDir: path.join(rootDir, 'knowledge', 'patterns'),
     generatedDir: path.join(rootDir, 'generated'),
     generatedTypesDir: path.join(rootDir, 'lib', 'generated'),
     tesseractDir: path.join(rootDir, '.tesseract'),
@@ -78,12 +80,28 @@ export function generatedSpecPath(paths: ProjectPaths, suitePath: string, adoId:
   return resolvePathWithinRoot(paths.generatedDir, path.join(suitePath, `${adoId}.spec.ts`), 'suitePath');
 }
 
+export function generatedTracePath(paths: ProjectPaths, suitePath: string, adoId: AdoId): string {
+  return resolvePathWithinRoot(paths.generatedDir, path.join(suitePath, `${adoId}.trace.json`), 'suitePath');
+}
+
+export function generatedReviewPath(paths: ProjectPaths, suitePath: string, adoId: AdoId): string {
+  return resolvePathWithinRoot(paths.generatedDir, path.join(suitePath, `${adoId}.review.md`), 'suitePath');
+}
+
 export function elementsPath(paths: ProjectPaths, screen: ScreenId): string {
   return path.join(paths.knowledgeDir, 'screens', `${screen}.elements.yaml`);
 }
 
 export function posturesPath(paths: ProjectPaths, screen: ScreenId): string {
   return path.join(paths.knowledgeDir, 'screens', `${screen}.postures.yaml`);
+}
+
+export function hintsPath(paths: ProjectPaths, screen: ScreenId): string {
+  return path.join(paths.knowledgeDir, 'screens', `${screen}.hints.yaml`);
+}
+
+export function sharedPatternsPath(paths: ProjectPaths): string {
+  return path.join(paths.patternsDir, 'core.patterns.yaml');
 }
 
 export function surfacePath(paths: ProjectPaths, screen: ScreenId): string {

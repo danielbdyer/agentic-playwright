@@ -1,6 +1,6 @@
 ﻿import { promises as fs } from 'fs';
 import path from 'path';
-import { FileSystemPort } from '../../application/ports';
+import type { FileSystemPort } from '../../application/ports';
 import { tryAsync } from '../../application/effect';
 
 function stripBom(value: string): string {

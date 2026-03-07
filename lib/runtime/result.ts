@@ -1,13 +1,13 @@
-import { CompilerDiagnostic, DiagnosticProvenance } from '../domain/types';
-import { ProgramFailure, ProgramFailureCode, StepProgramDiagnosticContext, StepProgramExecutionResult } from '../domain/program';
+﻿import type { CompilerDiagnostic, DiagnosticProvenance } from '../domain/types';
+import type { ProgramFailure, ProgramFailureCode, StepProgramDiagnosticContext, StepProgramExecutionResult } from '../domain/program';
 
 export type RuntimeFailureCode = ProgramFailureCode;
 export type RuntimeFailure = ProgramFailure;
-export type RuntimeResult<T> = { ok: true; value: T } | { ok: false; error: RuntimeFailure; diagnostic?: CompilerDiagnostic };
+export type RuntimeResult<T> = { ok: true; value: T } | { ok: false; error: RuntimeFailure; diagnostic?: CompilerDiagnostic | undefined };
 
-export interface RuntimeDiagnosticContext extends StepProgramDiagnosticContext {
+export interface RuntimeDiagnosticContext extends Omit<StepProgramDiagnosticContext, 'provenance'> {
   adoId: CompilerDiagnostic['adoId'];
-  provenance?: DiagnosticProvenance;
+  provenance?: DiagnosticProvenance | undefined;
 }
 
 export function runtimeOk<T>(value: T): RuntimeResult<T> {

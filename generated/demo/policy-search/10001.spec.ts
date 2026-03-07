@@ -5,7 +5,7 @@ import { runStaticInterpreter } from "../../../lib/application/interpreters/exec
 const screens = loadScreenRegistry([
     "policy-search"
 ]);
-test("Verify policy search returns matching policy @smoke @billing @P1", async ({ page, demoSession, activePolicy }) => {
+test("Verify policy search returns matching policy @smoke @billing @P1", async ({ page, activePolicy, demoSession }) => {
     test.info().annotations.push({
         type: "ado-id",
         description: "10001"
@@ -20,12 +20,209 @@ test("Verify policy search returns matching policy @smoke @billing @P1", async (
     });
     test.info().annotations.push({
         type: "confidence",
-        description: "unbound"
+        description: "compiler-derived"
     });
-    test.info().annotations.push({
-        type: "unbound-steps",
-        description: "1, 2, 3, 4"
+    await test.step("Navigate to Policy Search screen", async () => {
+        const runtimeResult = await (process.env.TESSERACT_INTERPRETER_MODE === "playwright" ? runStepProgram(page, screens, {
+            activePolicy,
+            demoSession
+        }, {
+            kind: "step-program",
+            instructions: [
+                {
+                    kind: "navigate",
+                    screen: "policy-search"
+                }
+            ]
+        }, {
+            adoId: "10001",
+            stepIndex: 1,
+            provenance: {
+                sourceRevision: 1,
+                contentHash: "sha256:1930319ee9882abb4af0ab8dc9d6c120f6ddc8b77ca6441c20be91697f7b19d1"
+            }
+        }) : await runStaticInterpreter(process.env.TESSERACT_INTERPRETER_MODE ?? "dry-run" as any, {
+            kind: "step-program",
+            instructions: [
+                {
+                    kind: "navigate",
+                    screen: "policy-search"
+                }
+            ]
+        }, screens, {
+            activePolicy,
+            demoSession
+        }, {
+            adoId: "10001",
+            stepIndex: 1,
+            provenance: {
+                sourceRevision: 1,
+                contentHash: "sha256:1930319ee9882abb4af0ab8dc9d6c120f6ddc8b77ca6441c20be91697f7b19d1"
+            }
+        }));
+        if (!runtimeResult.ok) {
+            test.info().annotations.push({ type: "runtime-diagnostic", description: JSON.stringify(runtimeResult.diagnostic ?? runtimeResult.error) });
+            throw new Error(`[${runtimeResult.error.code}] ${runtimeResult.error.message}`);
+        }
     });
-    test.fixme();
+    await test.step("Enter policy number in search field", async () => {
+        const runtimeResult = await (process.env.TESSERACT_INTERPRETER_MODE === "playwright" ? runStepProgram(page, screens, {
+            activePolicy,
+            demoSession
+        }, {
+            kind: "step-program",
+            instructions: [
+                {
+                    kind: "enter",
+                    screen: "policy-search",
+                    element: "policyNumberInput",
+                    posture: "valid",
+                    value: {
+                        kind: "fixture-path",
+                        path: {
+                            segments: [
+                                "activePolicy",
+                                "number"
+                            ]
+                        }
+                    }
+                }
+            ]
+        }, {
+            adoId: "10001",
+            stepIndex: 2,
+            provenance: {
+                sourceRevision: 1,
+                contentHash: "sha256:1930319ee9882abb4af0ab8dc9d6c120f6ddc8b77ca6441c20be91697f7b19d1"
+            }
+        }) : await runStaticInterpreter(process.env.TESSERACT_INTERPRETER_MODE ?? "dry-run" as any, {
+            kind: "step-program",
+            instructions: [
+                {
+                    kind: "enter",
+                    screen: "policy-search",
+                    element: "policyNumberInput",
+                    posture: "valid",
+                    value: {
+                        kind: "fixture-path",
+                        path: {
+                            segments: [
+                                "activePolicy",
+                                "number"
+                            ]
+                        }
+                    }
+                }
+            ]
+        }, screens, {
+            activePolicy,
+            demoSession
+        }, {
+            adoId: "10001",
+            stepIndex: 2,
+            provenance: {
+                sourceRevision: 1,
+                contentHash: "sha256:1930319ee9882abb4af0ab8dc9d6c120f6ddc8b77ca6441c20be91697f7b19d1"
+            }
+        }));
+        if (!runtimeResult.ok) {
+            test.info().annotations.push({ type: "runtime-diagnostic", description: JSON.stringify(runtimeResult.diagnostic ?? runtimeResult.error) });
+            throw new Error(`[${runtimeResult.error.code}] ${runtimeResult.error.message}`);
+        }
+    });
+    await test.step("Click Search button", async () => {
+        const runtimeResult = await (process.env.TESSERACT_INTERPRETER_MODE === "playwright" ? runStepProgram(page, screens, {
+            activePolicy,
+            demoSession
+        }, {
+            kind: "step-program",
+            instructions: [
+                {
+                    kind: "invoke",
+                    screen: "policy-search",
+                    element: "searchButton",
+                    action: "click"
+                }
+            ]
+        }, {
+            adoId: "10001",
+            stepIndex: 3,
+            provenance: {
+                sourceRevision: 1,
+                contentHash: "sha256:1930319ee9882abb4af0ab8dc9d6c120f6ddc8b77ca6441c20be91697f7b19d1"
+            }
+        }) : await runStaticInterpreter(process.env.TESSERACT_INTERPRETER_MODE ?? "dry-run" as any, {
+            kind: "step-program",
+            instructions: [
+                {
+                    kind: "invoke",
+                    screen: "policy-search",
+                    element: "searchButton",
+                    action: "click"
+                }
+            ]
+        }, screens, {
+            activePolicy,
+            demoSession
+        }, {
+            adoId: "10001",
+            stepIndex: 3,
+            provenance: {
+                sourceRevision: 1,
+                contentHash: "sha256:1930319ee9882abb4af0ab8dc9d6c120f6ddc8b77ca6441c20be91697f7b19d1"
+            }
+        }));
+        if (!runtimeResult.ok) {
+            test.info().annotations.push({ type: "runtime-diagnostic", description: JSON.stringify(runtimeResult.diagnostic ?? runtimeResult.error) });
+            throw new Error(`[${runtimeResult.error.code}] ${runtimeResult.error.message}`);
+        }
+    });
+    await test.step("Verify search results show policy", async () => {
+        const runtimeResult = await (process.env.TESSERACT_INTERPRETER_MODE === "playwright" ? runStepProgram(page, screens, {
+            activePolicy,
+            demoSession
+        }, {
+            kind: "step-program",
+            instructions: [
+                {
+                    kind: "observe-structure",
+                    screen: "policy-search",
+                    element: "resultsTable",
+                    snapshotTemplate: "snapshots/policy-search/results-with-policy.yaml"
+                }
+            ]
+        }, {
+            adoId: "10001",
+            stepIndex: 4,
+            provenance: {
+                sourceRevision: 1,
+                contentHash: "sha256:1930319ee9882abb4af0ab8dc9d6c120f6ddc8b77ca6441c20be91697f7b19d1"
+            }
+        }) : await runStaticInterpreter(process.env.TESSERACT_INTERPRETER_MODE ?? "dry-run" as any, {
+            kind: "step-program",
+            instructions: [
+                {
+                    kind: "observe-structure",
+                    screen: "policy-search",
+                    element: "resultsTable",
+                    snapshotTemplate: "snapshots/policy-search/results-with-policy.yaml"
+                }
+            ]
+        }, screens, {
+            activePolicy,
+            demoSession
+        }, {
+            adoId: "10001",
+            stepIndex: 4,
+            provenance: {
+                sourceRevision: 1,
+                contentHash: "sha256:1930319ee9882abb4af0ab8dc9d6c120f6ddc8b77ca6441c20be91697f7b19d1"
+            }
+        }));
+        if (!runtimeResult.ok) {
+            test.info().annotations.push({ type: "runtime-diagnostic", description: JSON.stringify(runtimeResult.diagnostic ?? runtimeResult.error) });
+            throw new Error(`[${runtimeResult.error.code}] ${runtimeResult.error.message}`);
+        }
+    });
 });
 

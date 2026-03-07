@@ -1,7 +1,7 @@
-import { ProgramFailure, StepProgram, StepProgramDiagnosticContext, StepProgramExecutionResult, StepProgramInterpreter } from '../../domain/program';
+import type { ProgramFailure, StepProgram, StepProgramDiagnosticContext, StepProgramExecutionResult, StepProgramInterpreter } from '../../domain/program';
 import { createDiagnostic } from '../../domain/diagnostics';
 import { dryRunInterpreter } from './dry-run';
-import { InterpreterEnvironment } from './types';
+import type { InterpreterEnvironment } from './types';
 
 function classify(error: ProgramFailure): string {
   if (error.code === 'runtime-unknown-screen' || error.code === 'runtime-unknown-effect-target') {

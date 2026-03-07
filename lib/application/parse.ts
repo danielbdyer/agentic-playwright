@@ -1,90 +1,42 @@
 ﻿import { Effect } from 'effect';
 import YAML from 'yaml';
 import { createDiagnostic } from '../domain/diagnostics';
-import { normalizeHtmlText } from '../domain/hash';
-import {
-  AdoId,
-  createElementId,
-  createFixtureId,
-  createPostureId,
-  createScreenId,
-  createSnapshotTemplateId,
-} from '../domain/identity';
-import { Scenario, ScenarioStep } from '../domain/types';
+import type { InferenceKnowledge } from '../domain/inference';
+import type { AdoId} from '../domain/identity';
+import { createFixtureId } from '../domain/identity';
+import type { AdoSnapshot, Scenario } from '../domain/types';
 import { validateAdoSnapshot } from '../domain/validation';
-import { FileSystem } from './ports';
-import { relativeProjectPath, ProjectPaths, scenarioPath, snapshotPath } from './paths';
 import { trySync } from './effect';
+import { inferSnapshotScenario, loadInferenceKnowledge } from './inference';
+import type { ProjectPaths} from './paths';
+import { relativeProjectPath, scenarioPath, snapshotPath } from './paths';
+import { FileSystem } from './ports';
 
-const policySearchScreen = createScreenId('policy-search');
-const policyNumberInput = createElementId('policyNumberInput');
-const searchButton = createElementId('searchButton');
-const resultsTable = createElementId('resultsTable');
-const validPosture = createPostureId('valid');
-const activePolicyNumber = '{{activePolicy.number}}';
-const demoSessionFixture = createFixtureId('demoSession');
-const activePolicyFixture = createFixtureId('activePolicy');
-const resultsSnapshot = createSnapshotTemplateId('snapshots/policy-search/results-with-policy.yaml');
+const fixtureReferencePattern = /\{\{\s*([A-Za-z0-9_-]+)(?:\.[^}]*)?\s*\}\}/g;
 
-function deriveScenarioStep(intent: string, index: number): ScenarioStep {
-  const normalizedIntent = intent.toLowerCase();
-
-  if (normalizedIntent === 'navigate to policy search screen') {
-    return {
-      index,
-      intent,
-      action: 'navigate',
-      screen: policySearchScreen,
-      confidence: 'human',
-    };
+function inferredFixtures(steps: Scenario['steps']) {
+  const fixtureIds = new Set<string>(['demoSession']);
+  for (const step of steps) {
+    if (!step.override) {
+      continue;
+    }
+    for (const match of step.override.matchAll(fixtureReferencePattern)) {
+      if (match[1]) {
+        fixtureIds.add(match[1]);
+      }
+    }
   }
-
-  if (normalizedIntent === 'enter policy number in search field') {
-    return {
-      index,
-      intent,
-      action: 'input',
-      screen: policySearchScreen,
-      element: policyNumberInput,
-      posture: validPosture,
-      override: activePolicyNumber,
-      confidence: 'human',
-    };
-  }
-
-  if (normalizedIntent === 'click search button') {
-    return {
-      index,
-      intent,
-      action: 'click',
-      screen: policySearchScreen,
-      element: searchButton,
-      confidence: 'human',
-    };
-  }
-
-  if (normalizedIntent === 'verify search results show policy') {
-    return {
-      index,
-      intent,
-      action: 'assert-snapshot',
-      screen: policySearchScreen,
-      element: resultsTable,
-      snapshot_template: resultsSnapshot,
-      confidence: 'human',
-    };
-  }
-
-  return {
-    index,
-    intent,
-    action: 'custom',
-    confidence: 'unbound',
-  };
+  return [...fixtureIds].sort((left, right) => left.localeCompare(right)).map((fixture) => ({ fixture: createFixtureId(fixture) }));
 }
 
-export function parseSnapshotToScenario(snapshot: ReturnType<typeof validateAdoSnapshot>): Scenario {
-  const steps = snapshot.steps.map((step) => deriveScenarioStep(normalizeHtmlText(step.action), step.index));
+function stepsConfidence(steps: Scenario['steps']) {
+  const unique = [...new Set(steps.map((step) => step.confidence))];
+  return unique.length === 1 ? unique[0] : 'mixed';
+}
+
+export function parseSnapshotToScenario(snapshot: AdoSnapshot, knowledge: InferenceKnowledge): Scenario {
+  const inferred = inferSnapshotScenario(snapshot, knowledge);
+  const steps = inferred.map((entry) => entry.step);
 
   return {
     source: {
@@ -101,10 +53,7 @@ export function parseSnapshotToScenario(snapshot: ReturnType<typeof validateAdoS
       status: 'active',
       status_detail: null,
     },
-    preconditions: [
-      { fixture: demoSessionFixture },
-      { fixture: activePolicyFixture },
-    ],
+    preconditions: inferredFixtures(steps),
     steps,
     postconditions: [],
   };
@@ -113,13 +62,14 @@ export function parseSnapshotToScenario(snapshot: ReturnType<typeof validateAdoS
 export function parseScenario(options: { adoId: AdoId; paths: ProjectPaths }) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
+    const knowledge = yield* loadInferenceKnowledge({ paths: options.paths });
     const rawSnapshot = yield* fs.readJson(snapshotPath(options.paths, options.adoId));
     const snapshot = yield* trySync(
       () => validateAdoSnapshot(rawSnapshot),
       'snapshot-validation-failed',
       `Snapshot ${options.adoId} failed validation`,
     );
-    const scenario = parseSnapshotToScenario(snapshot);
+    const scenario = parseSnapshotToScenario(snapshot, knowledge);
     const targetPath = scenarioPath(options.paths, snapshot.suitePath, snapshot.id);
     const serialized = YAML.stringify(scenario, { indent: 2 });
     yield* fs.writeText(targetPath, serialized);
@@ -138,10 +88,10 @@ export function parseScenario(options: { adoId: AdoId; paths: ProjectPaths }) {
             contentHash: snapshot.contentHash,
             sourceRevision: snapshot.revision,
             snapshotPath: relativeProjectPath(options.paths, snapshotPath(options.paths, snapshot.id)),
+            confidence: stepsConfidence(scenario.steps),
           },
         }),
       ],
     };
   });
 }
-

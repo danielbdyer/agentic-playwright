@@ -1,6 +1,7 @@
-﻿import { createSurfaceId, ElementId, ScreenId, SurfaceId } from './identity';
+﻿import type { ElementId, ScreenId, SurfaceId } from './identity';
+import { createSurfaceId } from './identity';
 import { unknownWidgetActionError } from './errors';
-import { CapabilityName, DerivedCapability, ElementSig, ScreenElements, SurfaceGraph, WidgetAction } from './types';
+import type { CapabilityName, DerivedCapability, ElementSig, ScreenElements, SurfaceGraph, WidgetAction } from './types';
 import { graphIds, knowledgePaths } from './ids';
 import { widgetCapabilityContracts } from '../../knowledge/components';
 

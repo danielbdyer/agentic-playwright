@@ -1,6 +1,6 @@
 ﻿import { parseRefPath } from './ref-path';
-import { AdoId, ElementId, ScreenId, SnapshotTemplateId } from './identity';
-import { CapabilityName, CompilerDiagnostic, ScenarioStep, StepInstruction, StepProgram, ValueRef } from './types';
+import type { AdoId, ElementId, ScreenId, SnapshotTemplateId } from './identity';
+import type { CapabilityName, CompilerDiagnostic, ScenarioStep, StepInstruction, StepProgram, ValueRef } from './types';
 
 const TEMPLATE_PATTERN = /^\{\{([a-zA-Z0-9_.]+)\}\}$/;
 
@@ -30,10 +30,11 @@ export function parseValueRef(raw: string | null | undefined, step?: Pick<Scenar
   }
 
   const match = raw.match(TEMPLATE_PATTERN);
-  if (match) {
+  const refPath = match?.[1];
+  if (refPath) {
     return {
       kind: 'fixture-path',
-      path: parseRefPath(match[1]),
+      path: parseRefPath(refPath),
     };
   }
 
@@ -156,6 +157,7 @@ export type ProgramFailureCode =
   | 'runtime-unknown-screen'
   | 'runtime-unknown-effect-target'
   | 'runtime-missing-action-handler'
+  | 'runtime-widget-precondition-failed'
   | 'runtime-snapshot-handle-resolution-failed'
   | 'runtime-unresolved-value-ref'
   | 'runtime-missing-snapshot-template'
@@ -165,24 +167,24 @@ export type ProgramFailureCode =
 export interface ProgramFailure {
   code: ProgramFailureCode;
   message: string;
-  context?: Record<string, string>;
-  cause?: unknown;
+  context?: Record<string, string> | undefined;
+  cause?: unknown | undefined;
 }
 
 export interface StepProgramDiagnosticContext {
   adoId: AdoId;
-  stepIndex?: number;
-  artifactPath?: string;
+  stepIndex?: number | undefined;
+  artifactPath?: string | undefined;
   provenance?: {
-    sourceRevision?: number;
-    contentHash?: string;
-  };
+    sourceRevision?: number | undefined;
+    contentHash?: string | undefined;
+  } | undefined;
 }
 
 export interface StepInterpreterDiagnostic {
   code: ProgramFailureCode;
   message: string;
-  context?: Record<string, string>;
+  context?: Record<string, string> | undefined;
 }
 
 export interface StepProgramInstructionOutcome {
@@ -192,7 +194,7 @@ export interface StepProgramInstructionOutcome {
   observedEffects: string[];
   status: 'ok' | 'failed';
   diagnostics: StepInterpreterDiagnostic[];
-  failureCode?: ProgramFailureCode;
+  failureCode?: ProgramFailureCode | undefined;
 }
 
 export interface StepProgramExecution {
@@ -202,7 +204,7 @@ export interface StepProgramExecution {
 
 export type StepProgramExecutionResult =
   | { ok: true; value: StepProgramExecution }
-  | { ok: false; error: ProgramFailure; diagnostic?: CompilerDiagnostic; value: StepProgramExecution };
+  | { ok: false; error: ProgramFailure; diagnostic?: CompilerDiagnostic | undefined; value: StepProgramExecution };
 
 export interface StepProgramInterpreter<TEnvironment> {
   mode: string;
@@ -210,3 +212,5 @@ export interface StepProgramInterpreter<TEnvironment> {
 }
 
 export type { StepProgram };
+
+

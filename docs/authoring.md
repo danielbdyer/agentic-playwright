@@ -1,224 +1,238 @@
-# Tesseract Engineering Guide
+﻿# Tesseract Authoring Guide
 
-Full authorship guidance for working in this codebase. Read this before making structural changes.
+This document explains how to add or change approved knowledge without collapsing the compiler into ad hoc code.
 
-For product vision, see `VISION.md`. For planned work, see `BACKLOG.md`.
+For a fast generated repo brief, read `docs/agent-context.md`. For the operational entrypoint, read `README.md`. For the product model, read `VISION.md`.
 
-## Core posture
+## Authoring principle
 
-- Treat approved artifacts as the source of truth.
-- Treat generated code, derived graphs, and generated types as projections.
-- Prefer deriving new representations from canonical inputs over authoring parallel truths.
-- Protect domain primitives as autonomous objects with explicit contracts.
-- Assume that a raw `string` standing in for a domain concept is a smell unless the boundary is truly textual.
-- Treat CLI args, YAML, JSON, env vars, and generated source text as ingress or egress boundaries; convert them into branded identities or structured values immediately after validation.
+Author the smallest approved artifact that makes the intent deterministic.
 
-## Canonical truths
+Preferred order:
 
-Approved inputs:
+1. fix or extend screen-local hints
+2. fix or extend element signatures or postures
+3. promote a shared pattern only when reuse justifies it
+4. touch runtime code only when the behavior is truly procedural
 
-| Directory | Contents |
-|-----------|----------|
-| `.ado-sync` | Azure DevOps snapshots |
-| `scenarios` | Parsed test case scenarios |
-| `knowledge/surfaces` | Screen decomposition |
-| `knowledge/screens` | Element and posture definitions |
-| `knowledge/snapshots` | ARIA snapshot templates |
-| `.tesseract/evidence` | Evidence artifacts |
-| `.tesseract/policy` | Trust policy configuration |
+## The approved artifact set
 
-Derived outputs (regenerated, never hand-edited):
+| Artifact | Owns |
+|---|---|
+| `.ado-sync/snapshots/{ado_id}.json` | upstream ADO truth snapshot |
+| `scenarios/{suite}/{ado_id}.scenario.yaml` | canonical scenario IR |
+| `knowledge/surfaces/{screen}.surface.yaml` | structural screen decomposition |
+| `knowledge/screens/{screen}.elements.yaml` | element identity and locator ladder |
+| `knowledge/screens/{screen}.postures.yaml` | behavior partitions and effect chains |
+| `knowledge/screens/{screen}.hints.yaml` | screen-local supplement layer |
+| `knowledge/patterns/*.yaml` | promoted shared supplement layer |
+| `knowledge/snapshots/**` | ARIA assertion templates |
+| `.tesseract/evidence/**` | evidence for proposed canonical changes |
 
-| Directory | Contents |
-|-----------|----------|
-| `.tesseract/bound` | Bound scenario artifacts |
-| `.tesseract/graph` | Dependency/provenance graph |
-| `lib/generated` | Generated type-safe knowledge APIs |
-| `generated` | Generated Playwright specs |
+## Deterministic vs review-required
 
-## Architectural north star
+Use this rule when deciding whether a change should exist at all:
 
-Tesseract is organized around laminar grammars:
+- if the compiler can derive it from already approved artifacts, do not create a new canonical file
+- if the compiler cannot derive it and the missing fact should persist, encode that fact in canonical knowledge and route it through review
 
-1. `ADO snapshot -> scenario IR`
-2. `ARIA baseline -> SurfaceGraph`
-3. `SurfaceGraph + element signatures + postures -> capabilities / effects`
-4. `Bound scenario -> generated spec`
-5. `Approved artifacts -> derived dependency/provenance graph`
+Outputs derived from approved artifacts become:
 
-Each stage should reduce entropy. When introducing a new abstraction, ask whether it collapses a messier surface into a smaller approved grammar.
+- `confidence: compiler-derived`
+- `governance: approved`
 
-## Why this architecture exists
+New or changed canonical knowledge remains review-gated.
 
-The architecture is shaped by practical constraints:
+## Scenario IR
 
-- OutSystems DOM is volatile and hostile to brittle automation.
-- ADO manual tests are human-authored and must remain traceable.
-- Agents are useful, but only if their operating surface is narrow and reviewable.
-- Generated tests should be disposable object code, not another hand-maintained truth store.
+`scenarios/**/*.scenario.yaml` is canonical IR, not generated output.
 
-This leads to deliberate design choices:
+Rules:
 
-- canonical artifacts are small and reviewable
-- derivations are deterministic and reproducible
-- domain logic is pushed into pure modules
-- infrastructure is kept replaceable
-- provenance is carried forward as a first-class concern
+- preserve `intent` exactly from ADO
+- use explicit fields only when deterministic inference is not enough or when human intent must override it
+- keep scenario data declarative
+- do not encode DOM trivia or widget choreography here
 
-## First-class primitives
+A scenario file should answer: what should happen, not how Playwright should do it.
 
-These are protected domain citizens and should be extended carefully:
+## Element signatures
 
-- `RefPath`
-- `SurfaceGraph`
-- `StepProgram`
-- `ValueRef`
-- `DerivedCapability`
-- `DerivedGraph`
-- AST-backed code generation modules
+`knowledge/screens/{screen}.elements.yaml` defines identity.
 
-When a change touches one of these, prefer:
+Use it for:
 
-- smart constructors over free-form object literals
-- exhaustive pattern matching over fallback branching
-- total validation at ingress
-- law-style unit tests for round-trips, determinism, and invariants
+- role
+- accessible name
+- ordered locator ladder
+- widget type
+- surface membership
+- optional affordance when the runtime needs a stable declarative hint
 
-## Programming style
+Prefer locator ladders in this order:
 
-- Write small pure functions that transform one well-typed value into another.
-- Make invalid states hard to represent.
-- Separate algebra from interpretation.
-- Favor composition over inheritance and convenience wrappers.
-- Prefer explicit data flow over hidden mutation.
-- Prefer total functions and exhaustive branching over fallback logic.
-- Prefer value objects over protocol strings.
-- Prefer explicit modules over "smart" utility grab-bags.
+1. `test-id`
+2. `role-name`
+3. `css`
 
-### What this means in practice
+A selector repair should usually update one element signature, not many generated specs.
 
-- If a concept has structure, model it as data.
-- If a concept has rules, centralize them in a domain module.
-- If a concept has side effects, interpret it at the boundary.
-- If a transformation can be derived, do not store it manually.
-- If an output is parseable or executable, avoid building it with ad hoc string interpolation.
+## Posture contracts
 
-## DDD stance
+`knowledge/screens/{screen}.postures.yaml` defines behavior partitions.
 
-The hard part is not browser automation. The hard part is the semantic model.
+Use postures for durable semantic dispositions such as:
 
-The domain is the product:
+- `valid`
+- `invalid`
+- `empty`
+- `boundary`
 
-- what a screen is
-- what a surface is
-- what an element is
-- what a posture means
-- what a scenario step can become
-- what provenance and impact mean
+Keep effects flat and reviewable:
 
-The code should reflect bounded contexts:
+- `target`
+- `state`
+- optional `message`
 
-- ADO sync and upstream truth
-- scenario normalization and binding
-- screen knowledge and surface decomposition
-- runtime execution and interaction
-- provenance, diagnostics, and graph projections
-- code generation
+A posture contract should be reusable by every future scenario that applies the same disposition to the same field.
 
-When a concept starts to mean different things in different places, split the context instead of overloading one type.
+## Screen hints
 
-## Clean Architecture
+`knowledge/screens/{screen}.hints.yaml` is the first supplement layer.
 
-Enforced layer rules:
+Use it for screen-local facts that help deterministic inference without changing runtime behavior globally:
 
-- `lib/domain` must not depend on application, infrastructure, or runtime.
-- `lib/application` must depend on domain and application-local modules only.
-- `lib/runtime` must not depend on application or infrastructure orchestration.
+- screen aliases
+- element aliases
+- default value refs
+- ADO parameter cues
+- snapshot aliases
+- local affordances
 
-The inner layers should not know about: filesystem layout, CLI args, Playwright APIs, ADO transport, reporter formatting, or MCP specifics.
+Examples of good hint usage:
 
-Enforced by `tests/architecture.spec.ts`.
+- a field is consistently called "policy no" in ADO but "Policy Number" in ARIA
+- a step refers to "search field" and there is one screen-local input that should win
+- a snapshot assertion phrase should map to one specific section template
 
-## Effect-TS
+Do not put cross-screen abstractions here.
 
-Use Effect for orchestration, dependency injection, and failure handling. Do not use it for pure domain logic.
+## Shared patterns
 
-- Keep `Effect.gen` in orchestration and interpreter layers.
-- Keep domain modules effect-free.
-- Use typed service dependencies instead of hidden globals.
-- Encode expected failure in the error channel.
-- Prefer structured diagnostics over thrown strings.
+`knowledge/patterns/*.yaml` is the promoted supplement layer.
 
-## Interpreters
+Use it for abstractions that are intentionally cross-screen:
 
-Three execution modes share a common `StepProgram` algebra:
+- reusable action alias sets
+- reusable posture alias sets
+- promoted repair or affordance patterns after they are proven locally
 
-| Mode | Purpose | Side effects |
-|------|---------|-------------|
-| `playwright` | Live browser automation | Yes |
-| `dry-run` | Static validation | No |
-| `diagnostic` | Validation with semantic error classification | No |
+Promotion rule:
 
-One program, multiple interpretations. Define the algebra first, interpret it at the boundary.
+- prove value locally first
+- promote only after repeated use or deliberate standardization
+
+If a pattern is still only meaningful on one screen, keep it in that screen's hints.
+
+## Runtime affordances
+
+Affordances are declarative runtime hints. They do not replace widget handlers.
+
+Use them when:
+
+- the widget family is already known
+- one screen variant needs a stable behavioral hint
+- the hint can stay small and declarative
+
+Do not turn affordances into mini scripts. Procedural interaction still belongs in `knowledge/components/*.ts` and `lib/runtime/`.
+
+## Evidence and proposals
+
+When an agent discovers missing knowledge, persist evidence before proposing canonical change.
+
+Evidence should explain:
+
+- what triggered the discovery
+- what artifact would change
+- what field would change
+- what observation supports it
+- how risky the change is
+
+Typical proposal classes:
+
+- locator repair
+- step binding supplement
+- widget affordance supplement
+- pattern promotion
+- snapshot template update
+
+## Review artifacts
+
+After `npm run refresh`, inspect:
+
+- `.tesseract/bound/{ado_id}.json`
+- `generated/{suite}/{ado_id}.trace.json`
+- `generated/{suite}/{ado_id}.review.md`
+- `.tesseract/graph/index.json`
+
+These should answer:
+
+- what was derived deterministically
+- which hints were used
+- which patterns were used
+- whether anything is review-required
+- what else would be impacted by a canonical change
+
+## Common workflows
+
+### Add a new screen
+
+1. capture or author `knowledge/surfaces/{screen}.surface.yaml`
+2. author `knowledge/screens/{screen}.elements.yaml`
+3. add `knowledge/screens/{screen}.postures.yaml` when the screen has durable data behavior
+4. add `knowledge/screens/{screen}.hints.yaml` only for inference gaps
+5. run `npm run surface`, `npm run refresh`, `npm run graph`, and `npm test`
+
+### Repair a brittle selector
+
+1. update the element's locator ladder in one place
+2. keep the older rung only if it still adds safe fallback value
+3. rerun `npm run refresh`
+4. inspect the review artifact and trace
+5. confirm impact through `npm run impact`
+
+### Promote a local supplement
+
+1. prove the behavior with a screen hint first
+2. collect repetition or evidence
+3. move the shared abstraction into `knowledge/patterns/`
+4. update affected hints or inference rules to reference the promoted pattern
+5. keep provenance visible in trace and graph outputs
 
 ## Anti-patterns
 
-Avoid:
+Do not introduce:
 
-- magic strings for ids, paths, or commands
-- string interpolation for generated TypeScript
-- domain logic inside adapters (filesystem, CLI, Playwright, reporter)
-- parallel truth stores when a canonical artifact can be extended
-- "utility" layers that quietly become a second domain without contracts
-- ambient state or globals that bypass Effect services
+- hidden runtime conditionals for one screen when a hint would do
+- parallel truth stores outside canonical artifacts
+- hand-edits to generated specs, trace JSON, or review Markdown
+- stringly typed pseudo-DSLs embedded in runtime code
+- human-only lore that is not captured in canonical knowledge or evidence
 
-## Testability
+## Verification checklist
 
-Design so important logic is testable without filesystem, browser, or network.
+Before finishing a change, verify:
 
-- Domain laws tested without side effects.
-- Application orchestration tested with in-memory or fake ports.
-- Runtime interpreters tested at the boundary they own.
-- Generated outputs tested for deterministic shape.
+- `npm run check`
+- `generated/...review.md` still matches the ADO wording and the inferred step program
+- graph/trace still show the right supplement and policy edges
 
-If a feature is hard to unit test, treat that as a design signal.
+Guardrail notes:
 
-## Provenance
+- `npm run check` is intentionally quiet on success and fully diagnostic on the first failing phase
+- `npm run lint` ignores derived outputs such as `.ado-sync/`, `.tesseract/`, `generated/`, `lib/generated/`, `dist/`, and `test-results/`
+- `npm run typecheck` includes `tests/` so fixture drift fails before runtime
+- `npm run knip` is maintainer-only in this pass and is not part of the blocking gate yet
 
-Every meaningful artifact must be traceable to: source snapshot, revision, content hash, scenario or knowledge path, confidence level.
+If the system cannot explain the change through its artifacts, keep modeling.
 
-If a new workflow cannot explain where a fact came from, it is under-modeled.
-
-## Decision framework
-
-When unsure how to implement something:
-
-1. What is the canonical truth here?
-2. What representation has the least entropy while preserving meaning?
-3. Should this be a value object, a pure derivation, or an interpreter?
-4. Can the invalid state be made unrepresentable?
-5. Can this be tested without side effects?
-6. Does this improve provenance, observability, and impact analysis?
-7. Does this reduce or increase stringly-typed protocol surfaces?
-
-## CLI commands
-
-```
-npm run refresh    # Full recompile from canonical inputs
-npm run paths      # Show canonical artifact paths for a scenario
-npm run surface    # Inspect approved screen structure
-npm run graph      # Build and inspect dependency graph
-npm run trace      # See what a scenario touches without executing
-npm run impact     # Analyze what a knowledge change affects
-npm run types      # Generate type-safe knowledge module
-npm run capture    # Re-snapshot a screen section from a live page
-npm run test       # Run all tests
-```
-
-## Editing guidance
-
-- Preserve the "derive, do not duplicate" principle.
-- If a change introduces a new representation, justify why it is canonical or derived.
-- If generated code is being assembled by concatenating strings, route it through the AST layer.
-- If a side effect is mixed with domain transformation, split it.
-- If a concept crosses multiple layers, name the boundary explicitly.

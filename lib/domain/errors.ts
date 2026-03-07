@@ -1,6 +1,6 @@
 export class TesseractError extends Error {
   readonly code: string;
-  readonly cause?: unknown;
+  readonly cause?: unknown | undefined;
 
   constructor(code: string, message: string, cause?: unknown) {
     super(message);
@@ -11,7 +11,7 @@ export class TesseractError extends Error {
 }
 
 export class SchemaError extends TesseractError {
-  readonly path?: string;
+  readonly path?: string | undefined;
 
   constructor(message: string, path?: string) {
     super('schema-error', path ? `${path}: ${message}` : message);
@@ -21,7 +21,7 @@ export class SchemaError extends TesseractError {
 }
 
 export class RuntimeError extends TesseractError {
-  readonly context?: Record<string, string>;
+  readonly context?: Record<string, string> | undefined;
 
   constructor(code: string, message: string, context?: Record<string, string>, cause?: unknown) {
     super(code, message, cause);
@@ -40,6 +40,14 @@ export function unknownEffectTargetError(target: string, targetKind: 'surface' |
 
 export function missingActionHandlerError(widget: string, action: string): RuntimeError {
   return new RuntimeError('runtime-missing-action-handler', `No ${action} action registered for ${widget}`, { widget, action });
+}
+
+export function widgetPreconditionError(precondition: string): RuntimeError {
+  return new RuntimeError(
+    'runtime-widget-precondition-failed',
+    `Widget precondition failed: ${precondition}`,
+    { precondition },
+  );
 }
 
 export function unknownWidgetActionError(widget: string, action: string): TesseractError {
@@ -69,7 +77,6 @@ export function toTesseractError(
 
   return new TesseractError(fallbackCode, fallbackMessage, cause);
 }
-
 
 export function trustPolicyDeniedError(message: string): TesseractError {
   return new TesseractError('trust-policy-denied', message);

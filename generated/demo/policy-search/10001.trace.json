@@ -1,0 +1,145 @@
+{
+  "adoId": "10001",
+  "revision": 1,
+  "title": "Verify policy search returns matching policy",
+  "suite": "demo/policy-search",
+  "confidence": "compiler-derived",
+  "governance": "approved",
+  "lifecycle": "normal",
+  "diagnostics": [],
+  "steps": [
+    {
+      "index": 1,
+      "intent": "Navigate to Policy Search screen",
+      "normalizedIntent": "navigate to policy search screen => policy search screen loads",
+      "action": "navigate",
+      "confidence": "compiler-derived",
+      "governance": "approved",
+      "ruleId": "core.navigate",
+      "knowledgeRefs": [
+        "knowledge/screens/policy-search.elements.yaml",
+        "knowledge/surfaces/policy-search.surface.yaml"
+      ],
+      "supplementRefs": [
+        "knowledge/patterns/core.patterns.yaml",
+        "knowledge/screens/policy-search.hints.yaml"
+      ],
+      "reviewReasons": [],
+      "reasons": [],
+      "evidenceIds": [],
+      "program": {
+        "kind": "step-program",
+        "instructions": [
+          {
+            "kind": "navigate",
+            "screen": "policy-search"
+          }
+        ]
+      }
+    },
+    {
+      "index": 2,
+      "intent": "Enter policy number in search field",
+      "normalizedIntent": "enter policy number in search field => policy number accepts a valid policy",
+      "action": "input",
+      "confidence": "compiler-derived",
+      "governance": "approved",
+      "ruleId": "core.input",
+      "knowledgeRefs": [
+        "knowledge/screens/policy-search.elements.yaml",
+        "knowledge/screens/policy-search.postures.yaml",
+        "knowledge/surfaces/policy-search.surface.yaml"
+      ],
+      "supplementRefs": [
+        "knowledge/patterns/core.patterns.yaml",
+        "knowledge/screens/policy-search.hints.yaml"
+      ],
+      "reviewReasons": [],
+      "reasons": [],
+      "evidenceIds": [],
+      "program": {
+        "kind": "step-program",
+        "instructions": [
+          {
+            "kind": "enter",
+            "screen": "policy-search",
+            "element": "policyNumberInput",
+            "posture": "valid",
+            "value": {
+              "kind": "fixture-path",
+              "path": {
+                "segments": [
+                  "activePolicy",
+                  "number"
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 3,
+      "intent": "Click Search button",
+      "normalizedIntent": "click search button => search runs",
+      "action": "click",
+      "confidence": "compiler-derived",
+      "governance": "approved",
+      "ruleId": "core.click",
+      "knowledgeRefs": [
+        "knowledge/screens/policy-search.elements.yaml",
+        "knowledge/surfaces/policy-search.surface.yaml"
+      ],
+      "supplementRefs": [
+        "knowledge/patterns/core.patterns.yaml",
+        "knowledge/screens/policy-search.hints.yaml"
+      ],
+      "reviewReasons": [],
+      "reasons": [],
+      "evidenceIds": [],
+      "program": {
+        "kind": "step-program",
+        "instructions": [
+          {
+            "kind": "invoke",
+            "screen": "policy-search",
+            "element": "searchButton",
+            "action": "click"
+          }
+        ]
+      }
+    },
+    {
+      "index": 4,
+      "intent": "Verify search results show policy",
+      "normalizedIntent": "matching policy appears in search results => verify search results show policy",
+      "action": "assert-snapshot",
+      "confidence": "compiler-derived",
+      "governance": "approved",
+      "ruleId": "core.assert-snapshot",
+      "knowledgeRefs": [
+        "knowledge/screens/policy-search.elements.yaml",
+        "knowledge/snapshots/policy-search/results-with-policy.yaml",
+        "knowledge/surfaces/policy-search.surface.yaml"
+      ],
+      "supplementRefs": [
+        "knowledge/patterns/core.patterns.yaml",
+        "knowledge/screens/policy-search.hints.yaml"
+      ],
+      "reviewReasons": [],
+      "reasons": [],
+      "evidenceIds": [],
+      "program": {
+        "kind": "step-program",
+        "instructions": [
+          {
+            "kind": "observe-structure",
+            "screen": "policy-search",
+            "element": "resultsTable",
+            "snapshotTemplate": "snapshots/policy-search/results-with-policy.yaml"
+          }
+        ]
+      }
+    }
+  ]
+}

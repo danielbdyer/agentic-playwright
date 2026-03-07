@@ -1,4 +1,4 @@
-﻿import { RefPath } from './types';
+﻿import type { RefPath } from './types';
 
 const PATH_SEPARATOR = '.';
 

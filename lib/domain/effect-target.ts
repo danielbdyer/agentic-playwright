@@ -1,5 +1,5 @@
-import { ElementId, SurfaceId } from './identity';
-import { PostureEffect, ScreenElements, SurfaceGraph } from './types';
+import type { ElementId, SurfaceId } from './identity';
+import type { PostureEffect, ScreenElements, SurfaceGraph } from './types';
 
 export type EffectTargetRef =
   | {

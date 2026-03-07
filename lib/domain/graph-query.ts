@@ -1,4 +1,4 @@
-﻿import { DerivedGraph } from './types';
+﻿import type { DerivedGraph } from './types';
 
 export function collectRelatedSubgraph(graph: DerivedGraph, seedNodeIds: Set<string>) {
   const expanded = new Set(seedNodeIds);

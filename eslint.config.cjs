@@ -1,0 +1,172 @@
+﻿const tsParser = require('@typescript-eslint/parser');
+const tsPlugin = require('@typescript-eslint/eslint-plugin');
+
+const tsFiles = ['**/*.ts', 'playwright*.ts'];
+const nodeScriptGlobals = {
+  __dirname: 'readonly',
+  module: 'readonly',
+  require: 'readonly',
+  exports: 'writable',
+  process: 'readonly',
+  console: 'readonly',
+  setTimeout: 'readonly',
+  clearTimeout: 'readonly',
+};
+
+const typedRules = {
+  'no-unused-vars': 'off',
+  '@typescript-eslint/no-unused-vars': ['error', {
+    argsIgnorePattern: '^_',
+    varsIgnorePattern: '^_',
+    caughtErrorsIgnorePattern: '^_',
+  }],
+  '@typescript-eslint/consistent-type-imports': ['error', {
+    prefer: 'type-imports',
+    fixStyle: 'separate-type-imports',
+  }],
+  '@typescript-eslint/no-floating-promises': 'error',
+  '@typescript-eslint/no-misused-promises': ['error', {
+    checksVoidReturn: {
+      attributes: false,
+    },
+  }],
+  '@typescript-eslint/switch-exhaustiveness-check': 'error',
+  '@typescript-eslint/ban-ts-comment': ['error', {
+    'ts-check': false,
+    'ts-expect-error': 'allow-with-description',
+    'ts-ignore': true,
+    'ts-nocheck': true,
+    minimumDescriptionLength: 8,
+  }],
+};
+
+module.exports = [
+  {
+    ignores: [
+      '.ado-sync/**',
+      '.tesseract/**',
+      '.tools/**',
+      'dist/**',
+      'generated/**',
+      'lib/generated/**',
+      'node_modules/**',
+      'test-results/**',
+      'tests-capture/**',
+    ],
+  },
+  {
+    files: ['scripts/**/*.cjs', '*.cjs'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'script',
+      globals: nodeScriptGlobals,
+    },
+    rules: {
+      'no-unused-vars': ['error', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+      }],
+    },
+  },
+  {
+    files: tsFiles,
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        project: true,
+        projectService: true,
+        tsconfigRootDir: __dirname,
+      },
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+    },
+    plugins: {
+      '@typescript-eslint': tsPlugin,
+    },
+    rules: typedRules,
+  },
+  {
+    files: ['lib/domain/**/*.ts'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        paths: [
+          { name: 'effect', message: 'Domain must stay free of Effect runtime dependencies.' },
+          { name: '@playwright/test', message: 'Domain must stay free of Playwright dependencies.' },
+          { name: 'playwright', message: 'Domain must stay free of Playwright dependencies.' },
+        ],
+        patterns: [
+          { group: ['effect/*'], message: 'Domain must stay free of Effect runtime dependencies.' },
+          { group: ['../application', '../application/*', '../application/**'], message: 'Domain must not import the application layer.' },
+          { group: ['../infrastructure', '../infrastructure/*', '../infrastructure/**'], message: 'Domain must not import infrastructure.' },
+          { group: ['../runtime', '../runtime/*', '../runtime/**'], message: 'Domain must not import runtime.' },
+        ],
+      }],
+    },
+  },
+  {
+    files: ['lib/application/**/*.ts'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [
+          { group: ['../infrastructure', '../infrastructure/*', '../infrastructure/**'], message: 'Application must not import infrastructure implementations.' },
+          { group: ['../runtime', '../runtime/*', '../runtime/**'], message: 'Application must not import runtime orchestration.' },
+        ],
+      }],
+      'no-restricted-syntax': ['error', {
+        selector: "ThrowStatement > NewExpression[callee.name='Error']",
+        message: 'Use structured domain/runtime errors instead of throwing Error in application/runtime code.',
+      }],
+    },
+  },
+  {
+    files: ['lib/runtime/**/*.ts'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [
+          { group: ['../application', '../application/*', '../application/**'], message: 'Runtime must stay isolated from application orchestration.' },
+          { group: ['../infrastructure', '../infrastructure/*', '../infrastructure/**'], message: 'Runtime must stay isolated from infrastructure orchestration.' },
+        ],
+      }],
+      'no-restricted-syntax': ['error', {
+        selector: "ThrowStatement > NewExpression[callee.name='Error']",
+        message: 'Use structured domain/runtime errors instead of throwing Error in application/runtime code.',
+      }],
+    },
+  },
+  {
+    files: ['lib/infrastructure/**/*.ts'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [
+          { group: ['../runtime', '../runtime/*', '../runtime/**', '../../runtime', '../../runtime/*', '../../runtime/**'], message: 'Infrastructure must not import runtime internals.' },
+        ],
+      }],
+    },
+  },
+  {
+    files: ['lib/**/*.ts'],
+    ignores: ['lib/infrastructure/tooling/capture-screen.ts'],
+    rules: {
+      'no-restricted-properties': ['error', {
+        object: 'process',
+        property: 'env',
+        message: 'Read environment variables only at explicit boundary modules.',
+      }],
+    },
+  },
+  {
+    files: ['tests/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-misused-promises': ['error', {
+        checksVoidReturn: false,
+      }],
+    },
+  },
+  {
+    files: ['playwright*.ts'],
+    rules: {
+      'no-restricted-properties': 'off',
+    },
+  },
+];

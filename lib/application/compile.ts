@@ -1,10 +1,10 @@
 ﻿import { Effect } from 'effect';
-import { AdoId } from '../domain/identity';
+import type { AdoId } from '../domain/identity';
 import { bindScenario } from './bind';
 import { emitScenario } from './emit';
 import { buildDerivedGraph } from './graph';
 import { parseScenario } from './parse';
-import { ProjectPaths } from './paths';
+import type { ProjectPaths } from './paths';
 import { generateTypes } from './types';
 import { loadTrustPolicy } from './trust-policy';
 

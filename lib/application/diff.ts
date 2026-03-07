@@ -1,4 +1,4 @@
-﻿import { ManifestEntry } from '../domain/types';
+﻿import type { ManifestEntry } from '../domain/types';
 
 export function hasSnapshotDrift(
   previous: ManifestEntry | undefined,

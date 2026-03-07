@@ -1,15 +1,48 @@
-import path from 'path';
+﻿import path from 'path';
 import YAML from 'yaml';
 import { Effect } from 'effect';
 import { sha256, stableStringify } from '../domain/hash';
 import { createSnapshotTemplateId } from '../domain/identity';
-import { deriveGraph, EvidenceArtifact, KnowledgeSnapshotArtifact, PolicyDecisionArtifact, ScenarioGraphArtifact } from '../domain/derived-graph';
-import { AdoSnapshot, EvidenceRecord, ProposedChangeMetadata, ScreenElements, ScreenPostures, SurfaceGraph } from '../domain/types';
-import { validateAdoSnapshot, validateDerivedGraph, validateScenario, validateScreenElements, validateScreenPostures, validateSurfaceGraph } from '../domain/validation';
+import type {
+  BoundScenarioGraphArtifact,
+  EvidenceArtifact,
+  KnowledgeSnapshotArtifact,
+  PolicyDecisionArtifact,
+  ScenarioGraphArtifact,
+  ScreenHintsArtifact,
+  SharedPatternsArtifact} from '../domain/derived-graph';
+import {
+  deriveGraph
+} from '../domain/derived-graph';
+import type {
+  AdoSnapshot,
+  EvidenceRecord,
+  ProposedChangeMetadata,
+  ScreenElements,
+  ScreenPostures,
+  SurfaceGraph} from '../domain/types';
+import {
+  validateAdoSnapshot,
+  validateBoundScenario,
+  validateDerivedGraph,
+  validateScenario,
+  validateScreenElements,
+  validateScreenHints,
+  validateScreenPostures,
+  validateSharedPatterns,
+  validateSurfaceGraph,
+} from '../domain/validation';
 import { walkFiles } from './artifacts';
 import { trySync } from './effect';
 import { FileSystem } from './ports';
-import { generatedSpecPath, ProjectPaths, relativeProjectPath } from './paths';
+import type {
+  ProjectPaths} from './paths';
+import {
+  generatedReviewPath,
+  generatedSpecPath,
+  generatedTracePath,
+  relativeProjectPath,
+} from './paths';
 import { evaluateArtifactPolicy, loadTrustPolicy, policyDecisionGraphTarget } from './trust-policy';
 
 interface ArtifactEnvelope<T> {
@@ -17,7 +50,7 @@ interface ArtifactEnvelope<T> {
   artifactPath: string;
 }
 
-type FingerprintKind = 'snapshot' | 'surface' | 'elements' | 'postures' | 'scenario' | 'evidence' | 'policy';
+type FingerprintKind = 'snapshot' | 'surface' | 'elements' | 'postures' | 'hints' | 'patterns' | 'scenario' | 'bound' | 'evidence' | 'policy';
 
 interface InputFingerprint {
   kind: FingerprintKind;
@@ -78,7 +111,18 @@ function parseGraphManifest(value: unknown): GraphBuildManifest | null {
     }
     const entry = input as Partial<InputFingerprint>;
     if (
-      (entry.kind !== 'snapshot' && entry.kind !== 'surface' && entry.kind !== 'elements' && entry.kind !== 'postures' && entry.kind !== 'scenario' && entry.kind !== 'evidence' && entry.kind !== 'policy')
+      (
+        entry.kind !== 'snapshot'
+        && entry.kind !== 'surface'
+        && entry.kind !== 'elements'
+        && entry.kind !== 'postures'
+        && entry.kind !== 'hints'
+        && entry.kind !== 'patterns'
+        && entry.kind !== 'scenario'
+        && entry.kind !== 'bound'
+        && entry.kind !== 'evidence'
+        && entry.kind !== 'policy'
+      )
       || typeof entry.path !== 'string'
       || typeof entry.fingerprint !== 'string'
     ) {
@@ -112,10 +156,7 @@ export function buildDerivedGraph(options: { paths: ProjectPaths }) {
         `Snapshot ${filePath} failed validation`,
       );
       const artifactPath = relativeProjectPath(options.paths, filePath);
-      snapshots.push({
-        artifact: snapshot,
-        artifactPath,
-      });
+      snapshots.push({ artifact: snapshot, artifactPath });
       inputFingerprints.push(fingerprintArtifact('snapshot', artifactPath, snapshot));
     }
 
@@ -129,10 +170,7 @@ export function buildDerivedGraph(options: { paths: ProjectPaths }) {
         `Surface graph ${filePath} failed validation`,
       );
       const artifactPath = relativeProjectPath(options.paths, filePath);
-      surfaceGraphs.push({
-        artifact: surfaceGraph,
-        artifactPath,
-      });
+      surfaceGraphs.push({ artifact: surfaceGraph, artifactPath });
       inputFingerprints.push(fingerprintArtifact('surface', artifactPath, surfaceGraph));
     }
 
@@ -142,7 +180,9 @@ export function buildDerivedGraph(options: { paths: ProjectPaths }) {
       artifactPath: relativeProjectPath(options.paths, filePath),
     }));
 
-    const elementFiles = (yield* walkFiles(fs, path.join(options.paths.knowledgeDir, 'screens'))).filter((filePath) => filePath.endsWith('.elements.yaml'));
+    const screenKnowledgeFiles = (yield* walkFiles(fs, path.join(options.paths.knowledgeDir, 'screens')));
+
+    const elementFiles = screenKnowledgeFiles.filter((filePath) => filePath.endsWith('.elements.yaml'));
     const screenElements: ArtifactEnvelope<ScreenElements>[] = [];
     for (const filePath of elementFiles) {
       const raw = yield* fs.readText(filePath);
@@ -152,14 +192,11 @@ export function buildDerivedGraph(options: { paths: ProjectPaths }) {
         `Elements file ${filePath} failed validation`,
       );
       const artifactPath = relativeProjectPath(options.paths, filePath);
-      screenElements.push({
-        artifact: elements,
-        artifactPath,
-      });
+      screenElements.push({ artifact: elements, artifactPath });
       inputFingerprints.push(fingerprintArtifact('elements', artifactPath, elements));
     }
 
-    const postureFiles = (yield* walkFiles(fs, path.join(options.paths.knowledgeDir, 'screens'))).filter((filePath) => filePath.endsWith('.postures.yaml'));
+    const postureFiles = screenKnowledgeFiles.filter((filePath) => filePath.endsWith('.postures.yaml'));
     const screenPostures: ArtifactEnvelope<ScreenPostures>[] = [];
     for (const filePath of postureFiles) {
       const raw = yield* fs.readText(filePath);
@@ -169,11 +206,36 @@ export function buildDerivedGraph(options: { paths: ProjectPaths }) {
         `Postures file ${filePath} failed validation`,
       );
       const artifactPath = relativeProjectPath(options.paths, filePath);
-      screenPostures.push({
-        artifact: postures,
-        artifactPath,
-      });
+      screenPostures.push({ artifact: postures, artifactPath });
       inputFingerprints.push(fingerprintArtifact('postures', artifactPath, postures));
+    }
+
+    const hintFiles = screenKnowledgeFiles.filter((filePath) => filePath.endsWith('.hints.yaml'));
+    const screenHints: ScreenHintsArtifact[] = [];
+    for (const filePath of hintFiles) {
+      const raw = yield* fs.readText(filePath);
+      const hints = yield* trySync(
+        () => validateScreenHints(YAML.parse(raw)),
+        'screen-hints-validation-failed',
+        `Screen hints file ${filePath} failed validation`,
+      );
+      const artifactPath = relativeProjectPath(options.paths, filePath);
+      screenHints.push({ artifact: hints, artifactPath });
+      inputFingerprints.push(fingerprintArtifact('hints', artifactPath, hints));
+    }
+
+    const patternFiles = (yield* walkFiles(fs, options.paths.patternsDir)).filter((filePath) => filePath.endsWith('.yaml'));
+    const sharedPatterns: SharedPatternsArtifact[] = [];
+    for (const filePath of patternFiles) {
+      const raw = yield* fs.readText(filePath);
+      const patterns = yield* trySync(
+        () => validateSharedPatterns(YAML.parse(raw)),
+        'shared-patterns-validation-failed',
+        `Shared patterns file ${filePath} failed validation`,
+      );
+      const artifactPath = relativeProjectPath(options.paths, filePath);
+      sharedPatterns.push({ artifact: patterns, artifactPath });
+      inputFingerprints.push(fingerprintArtifact('patterns', artifactPath, patterns));
     }
 
     const scenarioFiles = (yield* walkFiles(fs, options.paths.scenariosDir)).filter((filePath) => filePath.endsWith('.scenario.yaml'));
@@ -186,14 +248,34 @@ export function buildDerivedGraph(options: { paths: ProjectPaths }) {
         `Scenario ${filePath} failed validation`,
       );
       const generatedPath = generatedSpecPath(options.paths, scenario.metadata.suite, scenario.source.ado_id);
+      const tracePath = generatedTracePath(options.paths, scenario.metadata.suite, scenario.source.ado_id);
+      const reviewPath = generatedReviewPath(options.paths, scenario.metadata.suite, scenario.source.ado_id);
       const artifactPath = relativeProjectPath(options.paths, filePath);
       scenarios.push({
         artifact: scenario,
         artifactPath,
         generatedSpecPath: relativeProjectPath(options.paths, generatedPath),
         generatedSpecExists: yield* fs.exists(generatedPath),
+        generatedTracePath: relativeProjectPath(options.paths, tracePath),
+        generatedTraceExists: yield* fs.exists(tracePath),
+        generatedReviewPath: relativeProjectPath(options.paths, reviewPath),
+        generatedReviewExists: yield* fs.exists(reviewPath),
       });
       inputFingerprints.push(fingerprintArtifact('scenario', artifactPath, scenario));
+    }
+
+    const boundFiles = (yield* walkFiles(fs, options.paths.boundDir)).filter((filePath) => filePath.endsWith('.json'));
+    const boundScenarios: BoundScenarioGraphArtifact[] = [];
+    for (const filePath of boundFiles) {
+      const raw = yield* fs.readJson(filePath);
+      const boundScenario = yield* trySync(
+        () => validateBoundScenario(raw),
+        'bound-scenario-validation-failed',
+        `Bound scenario ${filePath} failed validation`,
+      );
+      const artifactPath = relativeProjectPath(options.paths, filePath);
+      boundScenarios.push({ artifact: boundScenario, artifactPath });
+      inputFingerprints.push(fingerprintArtifact('bound', artifactPath, boundScenario));
     }
 
     const evidenceFiles = (yield* walkFiles(fs, options.paths.evidenceDir)).filter((filePath) => filePath.endsWith('.json'));
@@ -202,7 +284,11 @@ export function buildDerivedGraph(options: { paths: ProjectPaths }) {
     for (const filePath of evidenceFiles) {
       const artifactPath = relativeProjectPath(options.paths, filePath);
       const record = (yield* fs.readJson(filePath)) as EvidenceRecord;
-      evidence.push({ artifactPath });
+      const targetNodeId = policyDecisionGraphTarget({
+        artifactType: record.evidence.scope as ProposedChangeMetadata['artifactType'],
+        artifactPath: record.evidence.proposal.file,
+      });
+      evidence.push({ artifactPath, targetNodeId });
       evidenceRecords.push({ artifactPath, record });
       inputFingerprints.push(fingerprintArtifact('evidence', artifactPath, record));
     }
@@ -298,7 +384,10 @@ export function buildDerivedGraph(options: { paths: ProjectPaths }) {
       knowledgeSnapshots,
       screenElements,
       screenPostures,
+      screenHints,
+      sharedPatterns,
       scenarios,
+      boundScenarios,
       evidence,
       policyDecisions,
     });
@@ -370,3 +459,4 @@ export function ensureDerivedGraph(options: { paths: ProjectPaths }) {
     };
   });
 }
+

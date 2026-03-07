@@ -5,12 +5,27 @@ import {
   unknownEffectTargetError,
   unknownScreenError,
 } from '../lib/domain/errors';
-import { createAdoId } from '../lib/domain/identity';
-import { StepProgram } from '../lib/domain/types';
+import {
+  createAdoId,
+  createElementId,
+  createScreenId,
+  createSurfaceId,
+  createWidgetId,
+  type WidgetId,
+} from '../lib/domain/identity';
+import { type StepProgram } from '../lib/domain/types';
 import { deriveCapabilities } from '../lib/domain/grammar';
-import { runStepProgram, runtimeFailureDiagnostic } from '../lib/runtime/program';
+import { playwrightStepProgramInterpreter, runStepProgram, runtimeFailureDiagnostic } from '../lib/runtime/program';
 import { interact } from '../lib/runtime/interact';
-import { ScreenRegistry } from '../lib/runtime/load';
+import { widgetActionHandlers } from '../knowledge/components';
+import type { ScreenRegistry } from '../lib/runtime/load';
+import { validateScreenElements, validateSurfaceGraph } from '../lib/domain/validation';
+
+const policySearchScreenId = createScreenId('policy-search');
+const searchButtonId = createElementId('searchButton');
+const searchFormId = createSurfaceId('search-form');
+const osButtonWidgetId = createWidgetId('os-button');
+const osDateWidgetId = createWidgetId('os-date');
 
 test('runtime/domain error constructors keep stable machine-classifiable codes', () => {
   expect(unknownScreenError('policy-search').code).toBe('runtime-unknown-screen');
@@ -52,7 +67,7 @@ test('runtime failures map to compiler diagnostics with provenance for reporting
   expect(diagnostic.provenance.contentHash).toBe('abc123');
 });
 
-function createRuntimeHarness(widget: string = 'os-button'): {
+function createRuntimeHarness(widget: WidgetId = osButtonWidgetId): {
   page: unknown;
   screens: ScreenRegistry;
   clicks: { count: number };
@@ -76,20 +91,20 @@ function createRuntimeHarness(widget: string = 'os-button'): {
   return {
     page,
     screens: {
-      'policy-search': {
+      [policySearchScreenId]: {
         screen: {
-          screen: 'policy-search',
+          screen: policySearchScreenId,
           url: 'http://example.test/policy-search',
           sections: {},
         },
         surfaces: {},
         postures: {},
         elements: {
-          searchButton: {
+          [searchButtonId]: {
             role: 'button',
             name: 'Search',
             cssFallback: '#search-button',
-            surface: 'search-form',
+            surface: searchFormId,
             widget,
           },
         },
@@ -101,8 +116,8 @@ function createRuntimeHarness(widget: string = 'os-button'): {
       instructions: [
         {
           kind: 'invoke',
-          screen: 'policy-search',
-          element: 'searchButton',
+          screen: policySearchScreenId,
+          element: searchButtonId,
           action: 'click',
         },
       ],
@@ -111,7 +126,7 @@ function createRuntimeHarness(widget: string = 'os-button'): {
 }
 
 test('invoke executes through registered widget action handlers', async () => {
-  const harness = createRuntimeHarness('os-button');
+  const harness = createRuntimeHarness(osButtonWidgetId);
   const result = await runStepProgram(harness.page as never, harness.screens, {}, harness.program);
 
   expect(result.ok).toBeTruthy();
@@ -119,7 +134,7 @@ test('invoke executes through registered widget action handlers', async () => {
 });
 
 test('invoke fails with runtime-missing-action-handler when widget action is not registered', async () => {
-  const harness = createRuntimeHarness('os-date' as never);
+  const harness = createRuntimeHarness(osDateWidgetId);
   const result = await runStepProgram(harness.page as never, harness.screens, {}, harness.program);
 
   expect(result.ok).toBeFalsy();
@@ -136,7 +151,7 @@ test('interact fails with stable error codes for unsupported widget actions', as
     fill: async () => undefined,
   };
 
-  const result = await interact(locator as never, 'os-button', 'fill', 'x');
+  const result = await interact(locator as never, osButtonWidgetId, 'fill', 'x');
   expect(result.ok).toBeFalsy();
   if (!result.ok) {
     expect(result.error.code).toBe('runtime-missing-action-handler');
@@ -144,46 +159,138 @@ test('interact fails with stable error codes for unsupported widget actions', as
   }
 });
 
+test('interact passes affordance context through widget handlers', async () => {
+  const locator = {
+    click: async () => undefined,
+  };
+  const buttonHandlers = widgetActionHandlers[osButtonWidgetId];
+  expect(buttonHandlers).toBeDefined();
+  if (!buttonHandlers) {
+    throw new TypeError('os-button handlers are required for this test');
+  }
+
+  const original = buttonHandlers.click;
+  expect(original).toBeDefined();
+  if (!original) {
+    throw new TypeError('os-button click handler is required for this test');
+  }
+
+  let seenAffordance: string | null | undefined;
+  buttonHandlers.click = async (_locator, _value, context) => {
+    seenAffordance = context?.affordance ?? null;
+  };
+
+  try {
+    const result = await interact(locator as never, osButtonWidgetId, 'click', undefined, { affordance: 'menu-trigger' });
+    expect(result.ok).toBeTruthy();
+    expect(seenAffordance).toBe('menu-trigger');
+  } finally {
+    buttonHandlers.click = original;
+  }
+});
+
+test('playwright interpreter records degraded locator use when a fallback rung succeeds', async () => {
+  const primaryLocator = {
+    count: async () => 0,
+    or: () => primaryLocator,
+  };
+  const fallbackLocator = {
+    count: async () => 1,
+    click: async () => undefined,
+    or: () => fallbackLocator,
+  };
+  const page = {
+    getByTestId: () => primaryLocator,
+    getByRole: () => fallbackLocator,
+    locator: () => fallbackLocator,
+    goto: async () => undefined,
+  };
+
+  const result = await playwrightStepProgramInterpreter.run({
+    kind: 'step-program',
+    instructions: [{
+      kind: 'invoke',
+      screen: policySearchScreenId,
+      element: searchButtonId,
+      action: 'click',
+    }],
+  }, {
+    page: page as never,
+    fixtures: {},
+    screens: {
+      [policySearchScreenId]: {
+        screen: {
+          screen: policySearchScreenId,
+          url: 'http://example.test/policy-search',
+          sections: {},
+        },
+        surfaces: {},
+        postures: {},
+        elements: {
+          [searchButtonId]: {
+            role: 'button',
+            name: 'Search',
+            testId: 'search-button',
+            locator: [
+              { kind: 'test-id', value: 'search-button' },
+              { kind: 'role-name', role: 'button', name: 'Search' },
+            ],
+            surface: searchFormId,
+            widget: osButtonWidgetId,
+          },
+        },
+      },
+    },
+  });
+
+  expect(result.ok).toBeTruthy();
+  if (result.ok) {
+    const firstOutcome = result.value.outcomes[0];
+    expect(firstOutcome?.observedEffects).toContain('degraded-locator');
+  }
+});
+
 test('capability derivation remains deterministic with contract-driven actions', () => {
-  const surfaceGraph = {
-    screen: 'policy-search',
+  const surfaceGraph = validateSurfaceGraph({
+    screen: policySearchScreenId,
     url: 'http://example.test/policy-search',
     sections: {
       search: {
         selector: '#search',
         kind: 'form',
-        surfaces: ['search-form'],
+        surfaces: [searchFormId],
         snapshot: null,
       },
     },
     surfaces: {
-      'search-form': {
+      [searchFormId]: {
         kind: 'form',
         section: 'search',
         selector: '#search',
         parents: [],
         children: [],
-        elements: ['searchButton'],
+        elements: [searchButtonId],
         assertions: ['state'],
       },
     },
-  } as const;
-  const elements = {
-    screen: 'policy-search',
+  });
+
+  const elements = validateScreenElements({
+    screen: policySearchScreenId,
     url: 'http://example.test/policy-search',
     elements: {
-      searchButton: {
+      [searchButtonId]: {
         role: 'button',
         name: 'Search',
         testId: null,
         cssFallback: '#search-button',
-        surface: 'search-form',
-        widget: 'os-button',
+        surface: searchFormId,
+        widget: osButtonWidgetId,
       },
     },
-  } as const;
+  });
 
-  const first = deriveCapabilities(surfaceGraph as never, elements as never);
-  const second = deriveCapabilities(surfaceGraph as never, elements as never);
+  const first = deriveCapabilities(surfaceGraph, elements);
+  const second = deriveCapabilities(surfaceGraph, elements);
   expect(first).toEqual(second);
 });

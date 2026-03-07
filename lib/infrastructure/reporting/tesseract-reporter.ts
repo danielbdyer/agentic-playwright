@@ -3,7 +3,7 @@ import path from 'path';
 import type { FullConfig, FullResult, Reporter, Suite, TestCase, TestResult } from '@playwright/test/reporter';
 import { createAdoId } from '../../domain/identity';
 import { graphIds } from '../../domain/ids';
-import { DerivedGraph } from '../../domain/types';
+import type { DerivedGraph } from '../../domain/types';
 import { validateDerivedGraph } from '../../domain/validation';
 
 export type FailureClassification =

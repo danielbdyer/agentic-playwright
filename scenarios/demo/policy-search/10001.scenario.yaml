@@ -14,14 +14,18 @@ metadata:
   status: active
   status_detail: null
 preconditions:
-  - fixture: demoSession
   - fixture: activePolicy
+  - fixture: demoSession
 steps:
   - index: 1
     intent: Navigate to Policy Search screen
     action: navigate
     screen: policy-search
-    confidence: human
+    element: searchButton
+    posture: null
+    override: null
+    snapshot_template: null
+    confidence: compiler-derived
   - index: 2
     intent: Enter policy number in search field
     action: input
@@ -29,18 +33,24 @@ steps:
     element: policyNumberInput
     posture: valid
     override: "{{activePolicy.number}}"
-    confidence: human
+    snapshot_template: null
+    confidence: compiler-derived
   - index: 3
     intent: Click Search button
     action: click
     screen: policy-search
     element: searchButton
-    confidence: human
+    posture: null
+    override: null
+    snapshot_template: null
+    confidence: compiler-derived
   - index: 4
     intent: Verify search results show policy
     action: assert-snapshot
     screen: policy-search
     element: resultsTable
+    posture: null
+    override: null
     snapshot_template: snapshots/policy-search/results-with-policy.yaml
-    confidence: human
+    confidence: compiler-derived
 postconditions: []

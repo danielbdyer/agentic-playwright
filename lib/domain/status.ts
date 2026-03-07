@@ -1,4 +1,4 @@
-﻿import { Confidence, ScenarioStatus } from './types';
+﻿import type { Confidence, ScenarioStatus } from './types';
 
 export function lifecycleForScenario(
   status: ScenarioStatus,
@@ -21,6 +21,6 @@ export function lifecycleForScenario(
 
 export function aggregateConfidence(confidences: Confidence[]): Confidence | 'mixed' {
   const unique = [...new Set(confidences)];
-  return unique.length === 1 ? unique[0] : 'mixed';
+  const [confidence] = unique;
+  return unique.length === 1 && confidence ? confidence : 'mixed';
 }
-

@@ -1,4 +1,4 @@
-import {
+import type {
   ProgramFailure,
   StepProgram,
   StepProgramDiagnosticContext,
@@ -7,7 +7,8 @@ import {
 } from '../../domain/program';
 import { createDiagnostic } from '../../domain/diagnostics';
 import { runtimeEscapeHatchError } from '../../domain/errors';
-import { interpreterOutcome, InterpreterEnvironment, requireScreen, resolvePosture } from './types';
+import type { InterpreterEnvironment} from './types';
+import { interpreterOutcome, requireScreen, resolvePosture } from './types';
 
 function failResult(
   mode: string,

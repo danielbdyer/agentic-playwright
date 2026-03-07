@@ -1,10 +1,11 @@
 ﻿import YAML from 'yaml';
 import { Effect } from 'effect';
-import { ScreenId } from '../domain/identity';
+import type { ScreenId } from '../domain/identity';
 import { deriveCapabilities } from '../domain/grammar';
 import { validateScreenElements, validateScreenPostures, validateSurfaceGraph } from '../domain/validation';
 import { FileSystem } from './ports';
-import { elementsPath, posturesPath, ProjectPaths, relativeProjectPath, surfacePath } from './paths';
+import type { ProjectPaths} from './paths';
+import { elementsPath, posturesPath, relativeProjectPath, surfacePath } from './paths';
 import { trySync } from './effect';
 
 export function inspectSurface(options: { screen: ScreenId; paths: ProjectPaths }) {

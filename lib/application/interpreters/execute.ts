@@ -1,9 +1,9 @@
 import { existsSync } from 'fs';
-import { StepProgram, StepProgramDiagnosticContext, StepProgramExecutionResult } from '../../domain/program';
-import { ValueRef } from '../../domain/types';
+import type { StepProgram, StepProgramDiagnosticContext, StepProgramExecutionResult } from '../../domain/program';
+import type { ValueRef } from '../../domain/types';
 import { diagnosticInterpreter } from './diagnostic';
 import { dryRunInterpreter } from './dry-run';
-import { InterpreterEnvironment, InterpreterMode, InterpreterScreenRegistry } from './types';
+import type { InterpreterEnvironment, InterpreterMode, InterpreterScreenRegistry } from './types';
 
 function lookupPath(fixtures: Record<string, unknown>, segments: string[]): unknown {
   let current: unknown = fixtures;

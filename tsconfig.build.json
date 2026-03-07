@@ -1,0 +1,24 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "noUncheckedIndexedAccess": false,
+    "exactOptionalPropertyTypes": false
+  },
+  "include": [
+    "bin/**/*.ts",
+    "fixtures/**/*.ts",
+    "knowledge/**/*.ts",
+    "lib/**/*.ts"
+  ],
+  "exclude": [
+    "dist",
+    ".ado-sync",
+    ".tesseract",
+    "generated",
+    "lib/generated",
+    "node_modules",
+    "test-results",
+    "tests"
+  ]
+}

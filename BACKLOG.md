@@ -1,107 +1,178 @@
 ﻿# Tesseract Backlog
 
-## Active product backlog
+## Current framing
 
-### 1. Agent-first ARIA surface decomposition
+The work is intentionally split into three lanes:
 
-Build a first-class pipeline that can ingest a whole-page ARIA snapshot, segment it into semantically meaningful testing surfaces, and persist those as descendant trees that map cleanly onto screen sections and element groups.
+1. deterministic compiler core
+2. agentic supplement and review loop
+3. offline optimization and evaluation
 
-Success criteria:
-- Start from one full-page ARIA capture.
-- Deterministically partition it into interactable, assertion-oriented, and structural surface groups.
-- Preserve provenance from page snapshot -> section tree -> generated knowledge artifacts.
-- Keep the partitioning output machine-readable and reviewable.
+The first lane ships trust. The second lane grows coverage. The third lane tunes the interface without contaminating the compiler core.
 
-### 2. Strongly typed agent-facing screen APIs
+## Deterministic compiler lane
 
-Generate or maintain strictly typed TypeScript APIs that mirror the approved knowledge layer so an agent gets immediate compiler feedback when it references invalid screens, elements, postures, or snapshot templates.
+### 1. Real Azure DevOps adapter behind `AdoSource`
 
-Success criteria:
-- Screen ids, element ids, posture ids, and fixture ids become typed exports or generated types.
-- Generated specs and agent-authored helpers fail at compile time when they drift from canonical knowledge.
-- Type generation remains downstream of approved YAML, not a second source of truth.
+Goal:
 
-### 3. DOM fuzzing and decomposition benchmarks
-
-Create a synthetic DOM and accessibility-surface fuzzing harness that can generate randomized but semantically valid forms, tables, validation states, and grouped workflows to stress test Tesseract's decomposition and binding strategy.
+- keep the local fixture adapter for development and tests
+- add the live ADO adapter as a replaceable infrastructure port
 
 Success criteria:
-- Produce seeded synthetic pages with deterministic replay.
-- Cover positive, negative, nested, and ambiguous accessibility trees.
-- Measure bind accuracy, decomposition stability, and artifact churn under repeated randomized runs.
-- Store benchmark results as reproducible reports rather than ad hoc observations.
 
-### 4. Policy extraction from agentic DOM praxis
+- `sync` can pull real test cases deterministically
+- local tests still run without network access
+- snapshot content hashes remain stable across adapters
 
-Make the implicit policy we are learning from the DOM explicit: which ARIA patterns imply sections, how interactables should be grouped, what should be treated as a posture boundary, and how assertion surfaces differ from interaction surfaces.
+### 2. Inference coverage expansion
+
+Goal:
+
+- increase the proportion of `compiler-derived` bound steps without adding prompt-only behavior
 
 Success criteria:
-- Write policy as versioned rules or contracts, not prompt lore.
-- Keep rules inspectable and testable against captured or synthetic ARIA trees.
-- Separate deterministic policy from any learned or optimized heuristics.
 
-### 5. DSPy and GEPA evaluation track
+- broader action phrase coverage
+- more deterministic screen and element disambiguation
+- stable precedence laws for hints, patterns, and heuristics
+- explicit unbound diagnostics when coverage runs out
 
-Evaluate whether DSPy, GEPA, or similar optimization layers belong in the offline suggestion and evaluation loop for decomposition quality, locator repair quality, or proposal ranking.
+### 3. Richer graph and trace projection
+
+Goal:
+
+- keep graph, trace JSON, and review Markdown aligned as provenance surfaces
+
+Success criteria:
+
+- step -> knowledge edges
+- step -> hint and pattern edges
+- emitted trace/review artifact nodes
+- policy and evidence linkage for canonical proposals
+
+### 4. Locator degradation surfacing
+
+Goal:
+
+- turn fallback-locator success into visible system signal
+
+Success criteria:
+
+- ladder resolution remains deterministic
+- degraded locator use appears in execution outcomes
+- review and graph surfaces can point to brittle-green scenarios
+- future evidence capture can build on the same signal without redesign
+
+### 5. Negative posture expansion
+
+Goal:
+
+- extend posture coverage from happy-path defaults into reusable negative verification
+
+Success criteria:
+
+- required data-bearing fields have meaningful invalid and empty partitions
+- effect chains remain flat, scoped, and reviewable
+- generated negative suites can reuse posture knowledge rather than handwritten assertions
+
+## Agentic supplement and review lane
+
+### 6. Local supplement proposal workflow
+
+Goal:
+
+- make screen hints the default first stop for inference gaps
+
+Success criteria:
+
+- proposal templates for aliases, default value refs, snapshot aliases, and affordances
+- evidence written before canonical change proposals
+- review surface clearly marks which deterministic steps depended on local hints
+
+### 7. Pattern promotion workflow
+
+Goal:
+
+- promote repeated local supplements into shared patterns deliberately, not accidentally
+
+Success criteria:
+
+- provenance links from promoted patterns back to source screens and evidence
+- promotion criteria documented and testable
+- graph exposes which scenarios now depend on promoted patterns
+
+### 8. Selector hardening loop
+
+Goal:
+
+- let agents repair a broken selector once and confirm the fix across impacted scenarios
+
+Success criteria:
+
+- selective re-snapshot of affected sections
+- ladder repair proposal with before/after evidence
+- impact query drives targeted rerun set
+- canonical update remains review-gated
+
+### 9. Review inbox quality
+
+Goal:
+
+- make `.review.md` the primary QA and agent collaboration surface for one scenario
+
+Success criteria:
+
+- every step explains ADO text, normalized intent, program, provenance kind, governance state, and unresolved gaps
+- review output stays aligned with trace JSON and generated spec
+- bottlenecks are visible without reading runtime code
+
+## Offline optimization and evaluation lane
+
+### 10. DSPy / GEPA proposal-evaluation track
 
 Guardrails:
-- Keep these tools outside the deterministic compiler path.
-- Use them only for proposal generation, scoring, or benchmark optimization.
-- Require evidence artifacts and human review before any canonical knowledge changes.
 
-Potential evaluation targets:
-- Section-boundary proposal quality.
-- Element signature suggestion quality.
-- Posture proposal ranking.
-- Benchmark-driven improvement of decomposition heuristics.
+- outside the deterministic compiler path
+- no direct canonical mutation
+- must operate over stored trace and evidence corpora
 
-### 6. QA readability: intent-labeled step functions in generated specs — DONE
+Potential targets:
 
-The spec codegen (`lib/domain/spec-codegen.ts`) already emits `test.step(step.intent, ...)` for each bound step. The intent string flows from ADO → scenario YAML → generated spec as a visible `test.step()` label.
+- phrase-to-element suggestion ranking
+- locator repair ranking
+- supplement proposal ranking
+- benchmark-driven prompt tuning for bounded agent tasks
 
-### 7. Locator strategy and fallback ladders
+### 11. Synthetic benchmark harness
 
-Extend element definitions to support an ordered locator strategy (testId → role+name → CSS) rather than flat fields. The runtime tries locators in ladder order. When an agent hardens a selector, it proposes an updated strategy and optionally retains the previous selector as a fallback rung.
+Goal:
 
-Success criteria:
-- Element YAML supports a `locatorStrategy` field with ordered entries.
-- Runtime `locate.ts` tries the ladder in order and records which rung succeeded.
-- Evidence records capture locator rung used, feeding confidence scoring.
-- Backward compatible: existing flat `testId`/`role`/`name` fields desugar to a default ladder.
-
-### 8. Pattern contracts for persistent escape-hatch overrides
-
-Design a `knowledge/patterns/` schema where agent-discovered interaction patterns (combobox selection, date picker navigation, multi-step modals) are encoded as reusable pattern contracts. The compiler binds against pattern contracts instead of emitting custom escape hatches.
+- stress the inference and supplement model with seeded, reproducible UI surfaces
 
 Success criteria:
-- Pattern contract YAML defines interaction mechanics for a widget type.
-- Compiler resolves `custom-escape-hatch` instructions against matching pattern contracts.
-- Unresolved escape hatches remain classified as `semantic-gap`; resolved ones become normal capability-driven steps.
-- Trust policy governs promotion of agent-proposed patterns.
 
-### 9. Agent-driven selector hardening workflow
+- deterministic replayable benchmark pages or artifact sets
+- measurable bind accuracy and artifact churn
+- repeatable comparisons between prompt, heuristic, and proposal strategies
 
-Build the end-to-end workflow: agent detects selector failure → re-snapshots affected section → proposes hardened selector with evidence → regenerates affected specs → reruns impacted tests → confirms fix.
+### 12. Bottleneck analytics
 
-Success criteria:
-- CLI command (or agent workflow) to trigger selective re-snapshot after failure.
-- Proposed element update carries evidence (before/after ARIA snapshots).
-- Trust policy evaluates the proposal before promotion.
-- Impact analysis identifies all scenarios affected by the changed element.
-- Rerun confirms green before the proposal is finalized.
+Goal:
 
-### 10. ADO-to-spec 1:1 traceability surface
-
-Provide a CLI or report view where QAs can see, for any ADO test case ID, the exact mapping: ADO step text → scenario YAML step → generated spec step label → runtime execution result. This closes the loop from authoring to verification.
+- quantify where the system is still spending human review or agent proposal effort
 
 Success criteria:
-- `npm run trace <adoId>` shows the full ADO → scenario → spec → result chain.
-- Each link in the chain is navigable (file paths, line numbers).
-- Unbound or escape-hatch steps are visibly flagged.
-- Output is readable by non-developers (plain text or simple HTML report).
 
-## Notes
+- counts of compiler-derived vs hint-backed vs pattern-backed vs unbound steps
+- common missing-knowledge classes
+- proposal acceptance and churn metrics over time
 
-- The current milestone remains the deterministic vertical slice plus agent-friendly command surface.
-- Any future learned or optimized component must stay outside the compiler core and produce reviewable evidence.
-- The product vision centers on QA teams working in ADO and interacting with agents through the CLI. Architectural decisions should be evaluated against whether they make that workflow more transparent, more trustworthy, and more self-healing.
+## Done in this slice
+
+- deterministic auto-approval for `compiler-derived` steps
+- separate `governance` state on bound steps
+- screen-local hints and promoted pattern artifacts
+- emitted `.spec.ts`, `.trace.json`, and `.review.md` outputs
+- graph nodes for hints, patterns, trace, review, evidence, and policy decisions
+- runtime affordance plumbing and degraded locator outcome signal

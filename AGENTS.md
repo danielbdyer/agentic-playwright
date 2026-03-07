@@ -1,48 +1,183 @@
-# Tesseract
+# Tesseract Agent Guide
 
-Deterministic compiler: Azure DevOps manual test cases -> Playwright specs for OutSystems.
+This repository is a compiler plus a reviewable knowledge system. Treat it that way.
 
-## Context routing
+## Start here
 
-Read the file that matches your task:
+Read the doc that matches your task:
 
-| Task | File |
-|------|------|
-| Writing or modifying code | [docs/authoring.md](docs/authoring.md) |
-| Understanding the product and QA workflow | [VISION.md](VISION.md) |
-| Checking planned or in-progress work | [BACKLOG.md](BACKLOG.md) |
+- fast repo brief: [docs/agent-context.md](docs/agent-context.md)
+- operational overview: [README.md](README.md)
+- product model and QA workflow: [VISION.md](VISION.md)
+- authorship and knowledge design: [docs/authoring.md](docs/authoring.md)
+- planned work split by lane: [BACKLOG.md](BACKLOG.md)
 
-Scoped guidance is applied automatically when working in specific directories (via `.github/instructions/`):
+Scoped instructions under `.github/instructions/` still apply for domain, knowledge, generated files, and tests.
 
-| Scope | File |
-|-------|------|
-| `lib/domain/**/*.ts` | [.github/instructions/domain.instructions.md](.github/instructions/domain.instructions.md) |
-| `knowledge/**`, `scenarios/**` | [.github/instructions/knowledge.instructions.md](.github/instructions/knowledge.instructions.md) |
-| `tests/**` | [.github/instructions/tests.instructions.md](.github/instructions/tests.instructions.md) |
-| `generated/**`, `lib/generated/**` | [.github/instructions/generated.instructions.md](.github/instructions/generated.instructions.md) |
+## Non-negotiable model
 
-## Essential facts
+- Approved artifacts are the source of truth.
+- Derived artifacts are projections.
+- Deterministic compiler derivations are auto-approved.
+- Only proposed canonical changes require trust-policy review.
+- Generated specs are disposable object code.
+- Provenance is part of correctness.
 
-- **Canonical inputs**: `.ado-sync/`, `scenarios/`, `knowledge/`, `.tesseract/evidence/`, `.tesseract/policy/`
-- **Derived outputs** (never hand-edit): `generated/`, `lib/generated/`, `.tesseract/bound/`, `.tesseract/graph/`
-- **Layer rules**: domain has no deps; application depends on domain only; runtime is isolated
-- **Enforced by**: `tests/architecture.spec.ts`
+## Canonical vs derived
 
-## CLI
+Canonical inputs:
 
+- `.ado-sync/`
+- `scenarios/`
+- `knowledge/surfaces/`
+- `knowledge/screens/`
+- `knowledge/patterns/`
+- `knowledge/snapshots/`
+- `.tesseract/evidence/`
+- `.tesseract/policy/`
+
+Derived outputs. Do not hand-edit unless the task is specifically about the generator:
+
+- `.tesseract/bound/`
+- `.tesseract/graph/`
+- `generated/`
+- `lib/generated/`
+
+## Governance vocabulary
+
+Use these terms consistently:
+
+- `confidence`: how a binding was produced
+- `compiler-derived`: deterministic derivation from approved artifacts
+- `governance`: whether a bound step is executable now or needs review
+- `approved`: deterministic or already-approved path, emit and run normally
+- `review-required`: depends on agent-proposed or otherwise unapproved canonical knowledge
+- `blocked`: do not execute
+
+Do not overload confidence with review state.
+
+## Deterministic precedence
+
+The inference and bind path is ordered:
+
+1. explicit scenario fields
+2. screen hints
+3. shared patterns
+4. deterministic heuristics
+5. `unbound`
+
+If you change this precedence, you are changing compiler semantics. Add or update tests accordingly.
+
+## Supplement hierarchy
+
+Screen-local first:
+
+- `knowledge/screens/{screen}.hints.yaml`
+
+Promoted shared layer second:
+
+- `knowledge/patterns/*.yaml`
+
+Promotion rule:
+
+- prefer local supplements for first discovery
+- promote only after repetition or deliberate generalization
+
+Do not hide novel behavior in runtime code when it can be expressed as reviewed knowledge.
+
+## What belongs where
+
+Use data when the concept is declarative:
+
+- aliases
+- locator ladders
+- default value refs
+- snapshot aliases
+- posture vocabularies
+- widget affordances
+
+Use code when the concept is genuinely procedural:
+
+- widget choreography in `knowledge/components/*.ts`
+- interpreter/runtime orchestration
+- filesystem, ADO, and reporting adapters
+- AST-backed emitters
+
+## Architectural guardrails
+
+- `lib/domain` must stay pure and side-effect free.
+- `lib/application` owns orchestration through Effect.
+- `lib/runtime` executes programs and resolves locators/widgets.
+- `lib/infrastructure` owns ports and adapters.
+
+When a concept starts to cross those boundaries, model the boundary explicitly instead of leaking strings or side effects.
+
+## Strong preferences
+
+- Prefer value objects over protocol strings.
+- Prefer pure derivations over storing parallel truth.
+- Prefer AST-backed code generation over source-string splicing.
+- Prefer law-style tests for determinism, precedence, normalization, and round-trips.
+- Prefer provenance-rich outputs over opaque success paths.
+
+## Review surface contract
+
+Every meaningful change should preserve or improve these outputs:
+
+- `generated/{suite}/{ado_id}.spec.ts`
+- `generated/{suite}/{ado_id}.trace.json`
+- `generated/{suite}/{ado_id}.review.md`
+- `.tesseract/graph/index.json`
+
+If a new workflow cannot explain itself through those artifacts, it is under-modeled.
+
+## Agent workflow
+
+Prefer this command sequence when orienting:
+
+```powershell
+npm run context
+npm run paths
+npm run trace
+npm run impact
+npm run surface
+npm run graph
+npm run types
+npm test
 ```
-npm run refresh    # Full recompile
-npm run surface    # Inspect screen knowledge
-npm run trace      # Trace scenario references
-npm run impact     # Analyze change impact
-npm run capture    # Re-snapshot from live page
-npm run test       # Run all tests
-```
 
-## Principles
+An agent should be able to discover:
 
-- Approved artifacts are the source of truth. Everything else is a projection.
-- Generated code is disposable object code built via TypeScript AST, not string interpolation.
-- Every artifact carries provenance: source, revision, content hash, confidence.
-- Escape hatches feed back into the knowledge layer as pattern contracts.
-- Trust policy governs what agents can promote to approved knowledge.
+- which files are canonical
+- which artifacts were derived
+- which supplements were used
+- where review is required
+- where the bottleneck is
+
+without relying on repo lore.
+
+## Trust policy boundary
+
+Trust policy governs proposed canonical changes such as:
+
+- elements
+- postures
+- hints
+- patterns
+- surfaces
+- snapshot templates
+
+Trust policy does not block compiler output that was derived from already approved artifacts.
+
+## Optimization lane
+
+DSPy, GEPA, and similar tooling are welcome in the offline evaluation lane only.
+
+Use them for:
+
+- ranking proposals
+- tuning agent prompts
+- measuring trace and evidence quality
+- improving benchmark outcomes
+
+Do not route them into the deterministic compiler core.

@@ -1,0 +1,44 @@
+﻿trigger:
+- main
+
+pr:
+- main
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  CI: 'true'
+
+steps:
+- task: NodeTool@0
+  displayName: Use Node 20
+  inputs:
+    versionSpec: '20.x'
+
+- script: npm ci
+  displayName: Install dependencies
+
+- script: npx playwright install --with-deps chromium
+  displayName: Install Playwright browsers
+
+- script: npm run check
+  displayName: Run quiet quality gate
+
+- task: PublishPipelineArtifact@1
+  displayName: Publish Playwright test results
+  condition: failed()
+  continueOnError: true
+  inputs:
+    targetPath: '$(System.DefaultWorkingDirectory)/test-results'
+    artifact: playwright-test-results
+    publishLocation: pipeline
+
+- task: PublishPipelineArtifact@1
+  displayName: Publish Playwright report
+  condition: failed()
+  continueOnError: true
+  inputs:
+    targetPath: '$(System.DefaultWorkingDirectory)/playwright-report'
+    artifact: playwright-report
+    publishLocation: pipeline

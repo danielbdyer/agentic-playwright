@@ -1,4 +1,4 @@
-﻿import { AdoId, ElementId, PostureId, ScreenId, SnapshotTemplateId, SurfaceId } from './identity';
+﻿import type { AdoId, ElementId, PostureId, ScreenId, SnapshotTemplateId, SurfaceId } from './identity';
 
 const separators = {
   graph: ':',
@@ -19,6 +19,8 @@ export const graphIds = {
     knowledge: (relativePath: SnapshotTemplateId | string): string => joinGraphId('snapshot', 'knowledge', normalizePathFragment(relativePath)),
   },
   screen: (screenId: ScreenId): string => joinGraphId('screen', screenId),
+  screenHints: (screenId: ScreenId): string => joinGraphId('screen-hints', screenId),
+  pattern: (patternId: string): string => joinGraphId('pattern', normalizePathFragment(patternId)),
   section: (screenId: ScreenId, sectionId: string): string => joinGraphId('section', screenId, sectionId),
   surface: (screenId: ScreenId, surfaceId: SurfaceId): string => joinGraphId('surface', screenId, surfaceId),
   element: (screenId: ScreenId, elementId: ElementId): string => joinGraphId('element', screenId, elementId),
@@ -32,6 +34,8 @@ export const graphIds = {
   step: (adoId: AdoId, index: number): string => joinGraphId('step', adoId, index),
   stepPrefix: (adoId: AdoId): string => joinGraphId('step', adoId, ''),
   generatedSpec: (adoId: AdoId): string => joinGraphId('generated-spec', adoId),
+  generatedTrace: (adoId: AdoId): string => joinGraphId('generated-trace', adoId),
+  generatedReview: (adoId: AdoId): string => joinGraphId('generated-review', adoId),
   evidence: (relativePath: string): string => joinGraphId('evidence', normalizePathFragment(relativePath)),
   policyDecision: (decisionId: string): string => joinGraphId('policy-decision', decisionId),
 };
@@ -47,5 +51,6 @@ export const knowledgePaths = {
   surface: (screenId: ScreenId): string => `knowledge/surfaces/${screenId}.surface.yaml`,
   elements: (screenId: ScreenId): string => `knowledge/screens/${screenId}.elements.yaml`,
   postures: (screenId: ScreenId): string => `knowledge/screens/${screenId}.postures.yaml`,
+  hints: (screenId: ScreenId): string => `knowledge/screens/${screenId}.hints.yaml`,
+  patterns: (): string => 'knowledge/patterns/core.patterns.yaml',
 } as const;
-

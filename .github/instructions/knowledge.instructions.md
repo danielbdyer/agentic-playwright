@@ -1,29 +1,43 @@
----
+﻿---
 applyTo: "knowledge/**/*.yaml,knowledge/**/*.ts,scenarios/**/*.yaml"
 ---
 
-# Knowledge and scenario artifacts
+# Knowledge and scenario instructions
 
-These are canonical, hand-authored or agent-proposed inputs to the compiler. They are the source of truth.
+These files are canonical. They define the facts the compiler is allowed to trust.
 
-## Artifact types
+## Canonical artifact types
 
-- `knowledge/surfaces/*.surface.yaml` — Screen decomposition into sections and surfaces.
-- `knowledge/screens/*.elements.yaml` — Element definitions (role, name, testId, widget, surface membership).
-- `knowledge/screens/*.postures.yaml` — Element state variations and effects.
-- `knowledge/snapshots/**/*.yaml` — ARIA snapshot templates for structural assertions.
-- `knowledge/components/*.ts` — Widget capability contracts (supported actions, preconditions, side effects).
-- `scenarios/**/*.scenario.yaml` — Parsed ADO test cases with steps, intent, and data references.
+- `knowledge/surfaces/*.surface.yaml`: screen structure and section boundaries
+- `knowledge/screens/*.elements.yaml`: element identity and locator ladders
+- `knowledge/screens/*.postures.yaml`: behavior partitions and effect chains
+- `knowledge/screens/*.hints.yaml`: screen-local supplement layer
+- `knowledge/patterns/*.yaml`: promoted shared supplement layer
+- `knowledge/snapshots/**/*.yaml`: ARIA assertion templates
+- `knowledge/components/*.ts`: procedural widget interpreters only
+- `scenarios/**/*.scenario.yaml`: canonical scenario IR
 
-## Rules
+## Governance rule
 
-- Every field must be semantically meaningful. No placeholder values.
-- Element `widget` fields must reference a registered widget contract in `knowledge/components/`.
-- Posture effects must reference valid elements or surfaces on the same screen.
-- Snapshot templates must exist at the referenced path.
-- Scenario `intent` fields carry the human-readable step description from ADO — preserve them exactly.
-- The `confidence` field tracks provenance: `human` > `agent-verified` > `agent-proposed` > `unbound`.
+- deterministic compiler output from approved artifacts is auto-approved
+- changes to these canonical files are review-gated
 
-## Validation
+When in doubt, ask whether the fact should persist across future scenarios. If yes, encode it here. If no, keep it derived.
 
-All knowledge artifacts are validated at ingress by `lib/domain/validation.ts`. Invalid artifacts fail the compiler pipeline immediately with a `SchemaError`.
+## Authoring rules
+
+- Preserve ADO step `intent` text exactly in scenarios.
+- Keep element identity separate from behavior.
+- Prefer screen-local hints before promoting shared patterns.
+- Keep affordances declarative and small.
+- Keep postures reusable, not scenario-specific.
+- Keep snapshot aliases and locator ladders explicit.
+
+## Anti-patterns
+
+Do not encode:
+
+- hidden runtime scripts in YAML
+- one-off scenario hacks in shared patterns
+- duplicate truths across hints, patterns, and elements
+- placeholders that do not reflect approved knowledge

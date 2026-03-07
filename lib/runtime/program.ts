@@ -1,23 +1,30 @@
-import path from 'path';
+﻿import path from 'path';
 import { existsSync, readFileSync } from 'fs';
-import { Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { createDiagnostic } from '../domain/diagnostics';
 import { runtimeEscapeHatchError, toTesseractError, unknownScreenError } from '../domain/errors';
-import { createPostureId, ScreenId, SnapshotTemplateId } from '../domain/identity';
-import { ProgramFailure, StepProgramDiagnosticContext, StepProgramExecutionResult, StepProgramInstructionOutcome, StepProgramInterpreter } from '../domain/program';
-import { CompilerDiagnostic, StepInstruction, StepProgram } from '../domain/types';
+import type { ScreenId, SnapshotTemplateId } from '../domain/identity';
+import { createPostureId } from '../domain/identity';
+import type { ProgramFailure, StepInterpreterDiagnostic, StepProgramDiagnosticContext, StepProgramExecutionResult, StepProgramInstructionOutcome, StepProgramInterpreter } from '../domain/program';
+import type { CompilerDiagnostic, StepInstruction, StepProgram } from '../domain/types';
 import { resolveDataValue } from './data';
 import { engage } from './engage';
-import { loadScreenRegistry, ScreenRegistry } from './load';
-import { locate } from './locate';
+import type { ScreenRegistry } from './load';
+import { loadScreenRegistry } from './load';
+import { resolveLocator } from './locate';
 import { expectAriaSnapshot } from './aria';
 import { interact } from './interact';
-import { RuntimeDiagnosticContext, RuntimeFailure, RuntimeResult, runtimeErr, runtimeOk, toRuntimeVoidResult } from './result';
+import type { RuntimeDiagnosticContext, RuntimeFailure, RuntimeResult} from './result';
+import { runtimeErr, runtimeOk, toRuntimeVoidResult } from './result';
 
 interface PlaywrightEnvironment {
   page: Page;
   screens: ScreenRegistry;
   fixtures: Record<string, unknown>;
+}
+
+interface RuntimeInstructionSuccess {
+  observedEffects: string[];
 }
 
 function requireScreen(screens: ScreenRegistry, screenId: ScreenId): RuntimeResult<ScreenRegistry[string]> {
@@ -45,12 +52,16 @@ function runtimeFailureDiagnostic(failure: RuntimeFailure, context: RuntimeDiagn
   });
 }
 
+function observedEffectsForLocator(degraded: boolean): string[] {
+  return degraded ? ['effect-applied', 'degraded-locator'] : ['effect-applied'];
+}
+
 async function runInstruction(
   page: Page,
   screens: ScreenRegistry,
   fixtures: Record<string, unknown>,
   instruction: StepInstruction,
-): Promise<RuntimeResult<void>> {
+): Promise<RuntimeResult<RuntimeInstructionSuccess>> {
   try {
     switch (instruction.kind) {
       case 'navigate': {
@@ -59,7 +70,7 @@ async function runInstruction(
           return screen;
         }
         await page.goto(screen.value.screen.url);
-        return runtimeOk(undefined);
+        return runtimeOk({ observedEffects: ['effect-applied'] });
       }
       case 'enter': {
         const screen = requireScreen(screens, instruction.screen);
@@ -92,11 +103,18 @@ async function runInstruction(
             targetKind: 'element',
           });
         }
-        const action = await interact(locate(page, element), element.widget, instruction.action);
+        const resolvedLocator = await resolveLocator(page, element);
+        const action = await interact(
+          resolvedLocator.locator,
+          element.widget,
+          instruction.action,
+          undefined,
+          { affordance: element.affordance ?? null },
+        );
         if (!action.ok) {
           return action;
         }
-        return runtimeOk(undefined);
+        return runtimeOk({ observedEffects: observedEffectsForLocator(resolvedLocator.degraded) });
       }
       case 'observe-structure': {
         const screen = requireScreen(screens, instruction.screen);
@@ -116,10 +134,15 @@ async function runInstruction(
             snapshotTemplate: instruction.snapshotTemplate,
           });
         }
-        return expectAriaSnapshot(
-          locate(page, element),
+        const resolvedLocator = await resolveLocator(page, element);
+        const comparison = await expectAriaSnapshot(
+          resolvedLocator.locator,
           readFileSync(templatePath, 'utf8'),
         );
+        if (!comparison.ok) {
+          return comparison;
+        }
+        return runtimeOk({ observedEffects: observedEffectsForLocator(resolvedLocator.degraded) });
       }
       case 'custom-escape-hatch': {
         const error = runtimeEscapeHatchError(instruction.reason);
@@ -161,9 +184,9 @@ export const playwrightStepProgramInterpreter: StepProgramInterpreter<Playwright
         instructionIndex: index,
         instructionKind: instruction.kind,
         expectedEffects: [instruction.kind],
-        observedEffects: ['effect-applied'],
+        observedEffects: result.value.observedEffects,
         status: 'ok',
-        diagnostics: [],
+        diagnostics: [] as StepInterpreterDiagnostic[],
       });
     }
 

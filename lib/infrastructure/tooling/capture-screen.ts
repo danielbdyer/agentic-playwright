@@ -1,8 +1,7 @@
 ﻿import path from 'path';
 import { execFile } from 'child_process';
-import { Effect } from 'effect';
-import { ScreenId } from '../../domain/identity';
-import { ProjectPaths } from '../../application/paths';
+import type { ScreenId } from '../../domain/identity';
+import type { ProjectPaths } from '../../application/paths';
 import { tryAsync } from '../../application/effect';
 
 export function captureScreenSection(options: {
@@ -57,5 +56,6 @@ export function captureScreenSection(options: {
     `Unable to capture screen ${options.screen} section ${options.section}`,
   );
 }
+
 
 

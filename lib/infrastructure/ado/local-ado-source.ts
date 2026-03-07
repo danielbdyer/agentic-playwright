@@ -1,6 +1,6 @@
 ﻿import { promises as fs } from 'fs';
 import path from 'path';
-import { AdoSourcePort } from '../../application/ports';
+import type { AdoSourcePort } from '../../application/ports';
 import { createAdoId } from '../../domain/identity';
 import { tryAsync } from '../../application/effect';
 

@@ -1,14 +1,14 @@
-import { AdoId } from './identity';
-import { CompilerDiagnostic, DiagnosticProvenance, DiagnosticSeverity, TrustPolicyDecision, TrustPolicyEvaluationReason } from './types';
+import type { AdoId } from './identity';
+import type { CompilerDiagnostic, DiagnosticProvenance, DiagnosticSeverity, TrustPolicyDecision, TrustPolicyEvaluationReason } from './types';
 
 export function createDiagnostic(input: {
   code: string;
   severity: DiagnosticSeverity;
   message: string;
   adoId: AdoId;
-  stepIndex?: number;
-  artifactPath?: string;
-  provenance?: DiagnosticProvenance;
+  stepIndex?: number | undefined;
+  artifactPath?: string | undefined;
+  provenance?: DiagnosticProvenance | undefined;
 }): CompilerDiagnostic {
   return {
     code: input.code,
@@ -36,7 +36,7 @@ export function createTrustPolicyDiagnostic(input: {
   decision: TrustPolicyDecision;
   artifactPath: string;
   reasons: TrustPolicyEvaluationReason[];
-  provenance?: DiagnosticProvenance;
+  provenance?: DiagnosticProvenance | undefined;
 }): CompilerDiagnostic {
   const reasonText = input.reasons.map((reason) => reason.message).join('; ');
   return createDiagnostic({

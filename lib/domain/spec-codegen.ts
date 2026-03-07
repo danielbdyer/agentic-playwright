@@ -1,6 +1,6 @@
 ﻿import * as ts from 'typescript';
 import { aggregateConfidence, lifecycleForScenario } from './status';
-import { BoundScenario, BoundStep, StepProgram } from './types';
+import type { BoundScenario, BoundStep, StepProgram } from './types';
 import {
   awaitExpression,
   callExpression,
@@ -243,3 +243,4 @@ export function renderGeneratedSpecModule(boundScenario: BoundScenario, options:
     lifecycle,
   };
 }
+

@@ -1,13 +1,13 @@
 {
   "version": 1,
   "projection": "types",
-  "inputSetFingerprint": "sha256:7bd2cb1e09811ca9ed9f9bb7b5cece09d4d8fa5508c16b47443fbed3da817b6d",
+  "inputSetFingerprint": "sha256:cca559c6cd20e38f1b07545cc20b636028570a157ab00e1eafc5dc57aed7adf4",
   "outputFingerprint": "sha256:3ebb6ce1147c70f1471ce0de7a84d8e5d31835c41978163768372e7ec10676f6",
   "inputs": [
     {
       "kind": "elements",
       "path": "knowledge/screens/policy-search.elements.yaml",
-      "fingerprint": "sha256:42c7a15db2bc22de7d2b09fbdbc0ddde7f9dfb278aca597173fde3e8b374e89e"
+      "fingerprint": "sha256:76222e35884703fffa7901b11e0506bcfdc462ad7923ab8a1100dc986b264ad7"
     },
     {
       "kind": "postures",
@@ -17,7 +17,7 @@
     {
       "kind": "scenario",
       "path": "scenarios/demo/policy-search/10001.scenario.yaml",
-      "fingerprint": "sha256:8bc5541397dfd509974724f69689b17dd8ea68451175860f8265e090734a9094"
+      "fingerprint": "sha256:eabef411d724db2e52c6590eaacd62ef9ec9b42cf79e8c31de51d7c36f59e75f"
     },
     {
       "kind": "surface",

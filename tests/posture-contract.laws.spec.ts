@@ -1,11 +1,37 @@
-import { expect, test } from '@playwright/test';
+﻿import { expect, test } from '@playwright/test';
 import {
   normalizePostureEffects,
   normalizeScreenPostures,
   resolveEffectTargetKind,
   validatePostureContract,
 } from '../lib/domain/posture-contract';
-import { PostureEffect, ScreenElements, ScreenPostures, SurfaceGraph } from '../lib/domain/types';
+import {
+  createElementId,
+  createPostureId,
+  createScreenId,
+  createSectionId,
+  createSurfaceId,
+  createWidgetId,
+} from '../lib/domain/identity';
+import type { PostureEffect, ScreenElements, ScreenPostures, SurfaceGraph } from '../lib/domain/types';
+import { validateScreenElements, validateScreenPostures, validateSurfaceGraph } from '../lib/domain/validation';
+
+const policySearchScreenId = createScreenId('policy-search');
+const policyNumberInputId = createElementId('policyNumberInput');
+const searchButtonId = createElementId('searchButton');
+const elementAId = createElementId('elementA');
+const elementBId = createElementId('elementB');
+const sharedElementId = createElementId('shared');
+const unknownElementId = createElementId('unknown');
+const surfaceAId = createSurfaceId('surfaceA');
+const sharedSurfaceId = createSurfaceId('shared');
+const formSurfaceId = createSurfaceId('form');
+const mainSectionId = createSectionId('main');
+const validPostureId = createPostureId('valid');
+const invalidPostureId = createPostureId('invalid');
+const emptyPostureId = createPostureId('empty');
+const boundaryPostureId = createPostureId('boundary');
+const customPostureId = createPostureId('custom');
 
 function mulberry32(seed: number): () => number {
   let current = seed >>> 0;
@@ -22,7 +48,7 @@ function randomInt(next: () => number, max: number): number {
 }
 
 function pick<T>(next: () => number, values: T[]): T {
-  return values[randomInt(next, values.length)];
+  return values[randomInt(next, values.length)] as T;
 }
 
 function maybe<T>(next: () => number, value: T): T | undefined {
@@ -37,8 +63,8 @@ function buildKnowledge(next: () => number): { elements: ScreenElements; surface
   const elementIds = ['elementA', 'elementB', 'shared'];
   const surfaceIds = ['surfaceA', 'surfaceB', 'shared'];
 
-  const elements: ScreenElements = {
-    screen: 'policy-search',
+  const elements = validateScreenElements({
+    screen: policySearchScreenId,
     url: '/policy-search',
     elements: Object.fromEntries(
       elementIds
@@ -50,21 +76,21 @@ function buildKnowledge(next: () => number): { elements: ScreenElements; surface
             name: id,
             testId: null,
             cssFallback: null,
-            widget: 'os-input',
-            surface: 'surfaceA',
+            widget: createWidgetId('os-input'),
+            surface: surfaceAId,
           },
         ]),
     ),
-  };
+  });
 
-  const surfaceGraph: SurfaceGraph = {
-    screen: 'policy-search',
+  const surfaceGraph = validateSurfaceGraph({
+    screen: policySearchScreenId,
     url: '/policy-search',
     sections: {
       main: {
         selector: '#main',
         kind: 'screen-root',
-        surfaces: ['surfaceA'],
+        surfaces: [surfaceAId],
       },
     },
     surfaces: Object.fromEntries(
@@ -74,7 +100,7 @@ function buildKnowledge(next: () => number): { elements: ScreenElements; surface
           id,
           {
             kind: 'form',
-            section: 'main',
+            section: mainSectionId,
             selector: `#${id}`,
             parents: [],
             children: [],
@@ -83,13 +109,20 @@ function buildKnowledge(next: () => number): { elements: ScreenElements; surface
           },
         ]),
     ),
-  };
+  });
 
   return { elements, surfaceGraph };
 }
 
 function buildRandomEffects(next: () => number): PostureEffect[] {
-  const targets: Array<PostureEffect['target']> = ['self', 'elementA', 'elementB', 'surfaceA', 'shared', 'unknown'];
+  const targets: Array<PostureEffect['target']> = [
+    'self',
+    elementAId,
+    elementBId,
+    surfaceAId,
+    pick(next, [sharedElementId, sharedSurfaceId]),
+    unknownElementId,
+  ];
   const states: PostureEffect['state'][] = ['disabled', 'enabled', 'hidden', 'required-error', 'validation-error', 'visible'];
   const effectCount = 1 + randomInt(next, 8);
 
@@ -111,10 +144,9 @@ function buildRandomEffects(next: () => number): PostureEffect[] {
 }
 
 function buildRandomPostures(next: () => number): ScreenPostures {
-  const elementIds = ['policyNumberInput', 'searchButton'];
-  const postureIds = ['valid', 'invalid', 'empty', 'boundary', 'custom'];
-
-  const postures: ScreenPostures['postures'] = {};
+  const elementIds = [policyNumberInputId, searchButtonId];
+  const postureIds = [validPostureId, invalidPostureId, emptyPostureId, boundaryPostureId, customPostureId];
+  const postures: Record<string, Record<string, { values: string[]; effects: PostureEffect[] }>> = {};
 
   for (const elementId of elementIds) {
     if (next() < 0.2) {
@@ -126,6 +158,10 @@ function buildRandomPostures(next: () => number): ScreenPostures {
 
     for (let index = 0; index < count; index += 1) {
       const postureId = postureIds[index % postureIds.length];
+      if (!postureId) {
+        continue;
+      }
+
       postureMap[postureId] = {
         values: Array.from({ length: randomInt(next, 5) }, () => `value-${randomInt(next, 4)}`),
         effects: buildRandomEffects(next),
@@ -135,10 +171,10 @@ function buildRandomPostures(next: () => number): ScreenPostures {
     postures[elementId] = postureMap;
   }
 
-  return {
-    screen: 'policy-search',
+  return validateScreenPostures({
+    screen: policySearchScreenId,
     postures,
-  };
+  });
 }
 
 test('normalizeScreenPostures is idempotent for randomized posture sets', () => {
@@ -169,17 +205,17 @@ test('normalizePostureEffects is idempotent and preserves stable sorted order', 
 
 test('normalizePostureEffects eliminates duplicates using deterministic effect sort keys', () => {
   const normalized = normalizePostureEffects([
-    { target: 'shared', targetKind: 'surface', state: 'visible', message: null },
-    { target: 'shared', targetKind: 'surface', state: 'visible', message: null },
-    { target: 'shared', targetKind: 'element', state: 'visible', message: null },
+    { target: sharedSurfaceId, targetKind: 'surface', state: 'visible', message: null },
+    { target: sharedSurfaceId, targetKind: 'surface', state: 'visible', message: null },
+    { target: sharedElementId, targetKind: 'element', state: 'visible', message: null },
     { target: 'self', state: 'validation-error', message: null },
     { target: 'self', targetKind: 'self', state: 'validation-error', message: null },
   ]);
 
   expect(normalized).toEqual([
-    { target: 'shared', targetKind: 'element', state: 'visible', message: null },
+    { target: sharedElementId, targetKind: 'element', state: 'visible', message: null },
     { target: 'self', targetKind: 'self', state: 'validation-error', message: null },
-    { target: 'shared', targetKind: 'surface', state: 'visible', message: null },
+    { target: sharedSurfaceId, targetKind: 'surface', state: 'visible', message: null },
   ]);
 });
 
@@ -190,7 +226,7 @@ test('resolveEffectTargetKind prioritizes explicit target kind and otherwise inf
 
     expect(
       resolveEffectTargetKind({
-        effect: { target: 'unknown', targetKind: 'surface', state: 'visible' },
+        effect: { target: unknownElementId, targetKind: 'surface', state: 'visible' },
         elements,
         surfaceGraph,
       }),
@@ -198,7 +234,7 @@ test('resolveEffectTargetKind prioritizes explicit target kind and otherwise inf
 
     expect(
       resolveEffectTargetKind({
-        effect: { target: 'unknown', targetKind: 'element', state: 'visible' },
+        effect: { target: unknownElementId, targetKind: 'element', state: 'visible' },
         elements,
         surfaceGraph,
       }),
@@ -213,12 +249,12 @@ test('resolveEffectTargetKind prioritizes explicit target kind and otherwise inf
     ).toBe('self');
 
     const inferred = resolveEffectTargetKind({
-      effect: { target: 'shared', state: 'visible' },
+      effect: { target: sharedElementId, state: 'visible' },
       elements,
       surfaceGraph,
     });
-    const hasElement = Boolean(elements.elements.shared);
-    const hasSurface = Boolean(surfaceGraph.surfaces.shared);
+    const hasElement = Boolean(elements.elements[sharedElementId]);
+    const hasSurface = Boolean(surfaceGraph.surfaces[sharedSurfaceId]);
 
     if (hasElement && hasSurface) {
       expect(inferred).toBe('ambiguous');
@@ -237,11 +273,11 @@ test('validatePostureContract emits stable issues for randomized normalized inpu
     const next = mulberry32(seed);
     const { elements, surfaceGraph } = buildKnowledge(next);
 
-    const postures = normalizeScreenPostures({
-      screen: 'policy-search',
+    const postures = validateScreenPostures({
+      screen: policySearchScreenId,
       postures: {
-        policyNumberInput: {
-          invalid: {
+        [policyNumberInputId]: {
+          [invalidPostureId]: {
             values: Array.from({ length: randomInt(next, 3) }, (_, index) => `v-${index}`),
             effects: buildRandomEffects(next),
           },
@@ -250,16 +286,16 @@ test('validatePostureContract emits stable issues for randomized normalized inpu
     });
 
     const firstPass = validatePostureContract({
-      elementId: 'policyNumberInput',
-      postureId: 'invalid',
+      elementId: policyNumberInputId,
+      postureId: invalidPostureId,
       postures,
       elements,
       surfaceGraph,
     });
 
     const secondPass = validatePostureContract({
-      elementId: 'policyNumberInput',
-      postureId: 'invalid',
+      elementId: policyNumberInputId,
+      postureId: invalidPostureId,
       postures,
       elements,
       surfaceGraph,
@@ -270,47 +306,47 @@ test('validatePostureContract emits stable issues for randomized normalized inpu
 });
 
 test('validatePostureContract regression: ambiguous-effect-target', () => {
-  const postures = normalizeScreenPostures({
-    screen: 'policy-search',
+  const postures = validateScreenPostures({
+    screen: policySearchScreenId,
     postures: {
-      policyNumberInput: {
-        invalid: {
+      [policyNumberInputId]: {
+        [invalidPostureId]: {
           values: ['bad-value'],
-          effects: [{ target: 'shared', state: 'visible' }],
+          effects: [{ target: sharedElementId, state: 'visible' }],
         },
       },
     },
   });
 
-  const elements: ScreenElements = {
-    screen: 'policy-search',
+  const elements = validateScreenElements({
+    screen: policySearchScreenId,
     url: '/policy-search',
     elements: {
-      shared: {
+      [sharedElementId]: {
         role: 'alert',
         name: null,
         testId: null,
         cssFallback: null,
-        widget: 'os-region',
-        surface: 'form',
+        widget: createWidgetId('os-region'),
+        surface: formSurfaceId,
       },
     },
-  };
+  });
 
-  const surfaceGraph: SurfaceGraph = {
-    screen: 'policy-search',
+  const surfaceGraph = validateSurfaceGraph({
+    screen: policySearchScreenId,
     url: '/policy-search',
     sections: {
-      main: {
+      [mainSectionId]: {
         selector: '#main',
         kind: 'screen-root',
-        surfaces: ['shared'],
+        surfaces: [sharedSurfaceId],
       },
     },
     surfaces: {
-      shared: {
+      [sharedSurfaceId]: {
         kind: 'validation-region',
-        section: 'main',
+        section: mainSectionId,
         selector: '#shared',
         parents: [],
         children: [],
@@ -318,12 +354,12 @@ test('validatePostureContract regression: ambiguous-effect-target', () => {
         assertions: ['state'],
       },
     },
-  };
+  });
 
   expect(
     validatePostureContract({
-      elementId: 'policyNumberInput',
-      postureId: 'invalid',
+      elementId: policyNumberInputId,
+      postureId: invalidPostureId,
       postures,
       elements,
       surfaceGraph,
@@ -331,76 +367,76 @@ test('validatePostureContract regression: ambiguous-effect-target', () => {
   ).toEqual([
     {
       code: 'ambiguous-effect-target',
-      elementId: 'policyNumberInput',
-      postureId: 'invalid',
-      target: 'shared',
+      elementId: policyNumberInputId,
+      postureId: invalidPostureId,
+      target: sharedElementId,
     },
   ]);
 });
 
 test('validatePostureContract regression: missing-posture-values', () => {
   const issues = validatePostureContract({
-    elementId: 'policyNumberInput',
-    postureId: 'invalid',
-    postures: normalizeScreenPostures({
-      screen: 'policy-search',
+    elementId: policyNumberInputId,
+    postureId: invalidPostureId,
+    postures: validateScreenPostures({
+      screen: policySearchScreenId,
       postures: {
-        policyNumberInput: {
-          invalid: {
+        [policyNumberInputId]: {
+          [invalidPostureId]: {
             values: [],
             effects: [{ target: 'self', state: 'validation-error' }],
           },
         },
       },
     }),
-    elements: {
-      screen: 'policy-search',
+    elements: validateScreenElements({
+      screen: policySearchScreenId,
       url: '/policy-search',
       elements: {},
-    },
-    surfaceGraph: {
-      screen: 'policy-search',
+    }),
+    surfaceGraph: validateSurfaceGraph({
+      screen: policySearchScreenId,
       url: '/policy-search',
       sections: {},
       surfaces: {},
-    },
+    }),
   });
 
   expect(issues).toEqual([
     {
       code: 'missing-posture-values',
-      elementId: 'policyNumberInput',
-      postureId: 'invalid',
+      elementId: policyNumberInputId,
+      postureId: invalidPostureId,
     },
   ]);
 });
 
 test('validatePostureContract regression: unknown-posture', () => {
   const issues = validatePostureContract({
-    elementId: 'policyNumberInput',
-    postureId: 'invalid',
-    postures: {
-      screen: 'policy-search',
+    elementId: policyNumberInputId,
+    postureId: invalidPostureId,
+    postures: validateScreenPostures({
+      screen: policySearchScreenId,
       postures: {},
-    },
-    elements: {
-      screen: 'policy-search',
+    }),
+    elements: validateScreenElements({
+      screen: policySearchScreenId,
       url: '/policy-search',
       elements: {},
-    },
-    surfaceGraph: {
-      screen: 'policy-search',
+    }),
+    surfaceGraph: validateSurfaceGraph({
+      screen: policySearchScreenId,
       url: '/policy-search',
       sections: {},
       surfaces: {},
-    },
+    }),
   });
 
   expect(issues).toEqual([
     {
       code: 'unknown-posture',
-      elementId: 'policyNumberInput',
-      postureId: 'invalid',
+      elementId: policyNumberInputId,
+      postureId: invalidPostureId,
     },
   ]);
 });

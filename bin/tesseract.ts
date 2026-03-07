@@ -13,20 +13,20 @@ import { inspectSurface } from '../lib/application/surface';
 import { syncSnapshots } from '../lib/application/sync';
 import { traceScenario } from '../lib/application/trace';
 import { generateTypes } from '../lib/application/types';
-import { AdoSource, FileSystem } from '../lib/application/ports';
+import type { AdoSource, FileSystem } from '../lib/application/ports';
 import { TesseractError } from '../lib/domain/errors';
 import { createAdoId, createScreenId } from '../lib/domain/identity';
 import { provideLocalServices } from '../lib/infrastructure/local-services';
 import { captureScreenSection } from '../lib/infrastructure/tooling/capture-screen';
 
 interface CliOptions {
-  all?: boolean;
-  adoId?: string;
-  screen?: string;
-  section?: string;
-  strict?: boolean;
-  nodeId?: string;
-  interpreterMode?: 'playwright' | 'dry-run' | 'diagnostic';
+  all?: boolean | undefined;
+  adoId?: string | undefined;
+  screen?: string | undefined;
+  section?: string | undefined;
+  strict?: boolean | undefined;
+  nodeId?: string | undefined;
+  interpreterMode?: 'playwright' | 'dry-run' | 'diagnostic' | undefined;
 }
 
 function parseArgs(argv: string[]): { command: string; options: CliOptions } {
@@ -91,7 +91,7 @@ function logIncrementalStatus(command: string, result: unknown): void {
     return;
   }
 
-  const incremental = (result as { incremental?: { status?: string; changedInputs?: string[] } }).incremental;
+  const incremental = (result as { incremental?: { status?: string | undefined; changedInputs?: string[] } }).incremental;
   if (!incremental || typeof incremental.status !== 'string') {
     return;
   }
@@ -109,7 +109,11 @@ async function main(): Promise<void> {
 
   switch (command) {
     case 'sync':
-      baseProgram = syncSnapshots({ adoId: options.adoId ? createAdoId(options.adoId) : undefined, all: options.all, paths });
+      baseProgram = syncSnapshots({
+        paths,
+        ...(options.adoId ? { adoId: createAdoId(options.adoId) } : {}),
+        ...(options.all ? { all: true } : {}),
+      });
       break;
     case 'parse':
       baseProgram = parseScenario({ adoId: createAdoId(requireArg(options.adoId, '--ado-id')), paths });
@@ -184,3 +188,4 @@ main().catch((error: unknown) => {
   process.stderr.write(`${rendered}\n`);
   process.exitCode = 1;
 });
+

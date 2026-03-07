@@ -2,18 +2,45 @@
 import path from 'path';
 import YAML from 'yaml';
 import { expect, test } from '@playwright/test';
-import { deriveGraph } from '../lib/domain/derived-graph';
+import { deriveGraph, type GraphBuildInput } from '../lib/domain/derived-graph';
 import { deriveCapabilities, findCapability } from '../lib/domain/grammar';
 import { computeAdoContentHash } from '../lib/domain/hash';
+import {
+  createElementId,
+  createPostureId,
+  createScreenId,
+  createSnapshotTemplateId,
+  createSurfaceId,
+  createWidgetId,
+} from '../lib/domain/identity';
 import { graphIds } from '../lib/domain/ids';
 import { compileStepProgram, traceStepProgram } from '../lib/domain/program';
 import { parseEffectTargetRef } from '../lib/domain/effect-target';
-import { normalizeScreenPostures, validatePostureContract } from '../lib/domain/posture-contract';
+import { validatePostureContract } from '../lib/domain/posture-contract';
 import { createRefPath, formatRefPath, parseRefPath } from '../lib/domain/ref-path';
 import { renderGeneratedKnowledgeModule } from '../lib/domain/typegen';
-import { validateAdoSnapshot, validateScenario, validateScreenElements, validateScreenPostures, validateSurfaceGraph } from '../lib/domain/validation';
+import {
+  validateAdoSnapshot,
+  validateScenario,
+  validateScreenElements,
+  validateScreenHints,
+  validateScreenPostures,
+  validateSharedPatterns,
+  validateSurfaceGraph,
+} from '../lib/domain/validation';
 
 const rootDir = process.cwd();
+const policySearchScreenId = createScreenId('policy-search');
+const policyNumberInputId = createElementId('policyNumberInput');
+const resultsTableId = createElementId('resultsTable');
+const searchFormId = createSurfaceId('search-form');
+const resultsGridId = createSurfaceId('results-grid');
+const validPostureId = createPostureId('valid');
+const invalidPostureId = createPostureId('invalid');
+const validationSummaryId = createElementId('validationSummary');
+const missingElementId = createElementId('missingElement');
+const sharedTargetId = createElementId('sharedTarget');
+const resultsWithPolicySnapshotId = createSnapshotTemplateId('snapshots/policy-search/results-with-policy.yaml');
 
 function readJsonFixture<T>(...segments: string[]): T {
   return JSON.parse(readFileSync(path.join(rootDir, ...segments), 'utf8').replace(/^\uFEFF/, '')) as T;
@@ -39,9 +66,9 @@ test('compileStepProgram lowers legacy input steps into a structured program', (
     index: 2,
     intent: 'Enter policy number in search field',
     action: 'input',
-    screen: 'policy-search',
-    element: 'policyNumberInput',
-    posture: 'valid',
+    screen: policySearchScreenId,
+    element: policyNumberInputId,
+    posture: validPostureId,
     override: '{{activePolicy.number}}',
     confidence: 'human',
   });
@@ -50,9 +77,9 @@ test('compileStepProgram lowers legacy input steps into a structured program', (
     kind: 'step-program',
     instructions: [{
       kind: 'enter',
-      screen: 'policy-search',
-      element: 'policyNumberInput',
-      posture: 'valid',
+      screen: policySearchScreenId,
+      element: policyNumberInputId,
+      posture: validPostureId,
       value: {
         kind: 'fixture-path',
         path: {
@@ -68,17 +95,17 @@ test('traceStepProgram exposes semantic references without runtime execution', (
     kind: 'step-program',
     instructions: [{
       kind: 'observe-structure',
-      screen: 'policy-search',
-      element: 'resultsTable',
-      snapshotTemplate: 'snapshots/policy-search/results-with-policy.yaml',
+      screen: policySearchScreenId,
+      element: resultsTableId,
+      snapshotTemplate: resultsWithPolicySnapshotId,
     }],
   });
 
   expect(trace).toEqual({
     instructionKinds: ['observe-structure'],
-    screens: ['policy-search'],
-    elements: ['resultsTable'],
-    snapshotTemplates: ['snapshots/policy-search/results-with-policy.yaml'],
+    screens: [policySearchScreenId],
+    elements: [resultsTableId],
+    snapshotTemplates: [resultsWithPolicySnapshotId],
     hasEscapeHatch: false,
   });
 });
@@ -87,7 +114,7 @@ test('surface graph becomes the structural source of capability derivation', () 
   const surfaceGraph = validateSurfaceGraph(readYamlFixture('knowledge', 'surfaces', 'policy-search.surface.yaml'));
   const elements = validateScreenElements(readYamlFixture('knowledge', 'screens', 'policy-search.elements.yaml'));
   const capabilities = deriveCapabilities(surfaceGraph, elements);
-  const searchForm = findCapability(capabilities, 'surface', 'search-form');
+  const searchForm = findCapability(capabilities, 'surface', searchFormId);
 
   expect(searchForm?.operations).toEqual(['enter', 'invoke', 'observe-state']);
 });
@@ -105,31 +132,41 @@ test('deriveGraph is deterministic from approved artifacts alone', () => {
   const surfaceGraph = validateSurfaceGraph(readYamlFixture('knowledge', 'surfaces', 'policy-search.surface.yaml'));
   const elements = validateScreenElements(readYamlFixture('knowledge', 'screens', 'policy-search.elements.yaml'));
   const postures = validateScreenPostures(readYamlFixture('knowledge', 'screens', 'policy-search.postures.yaml'));
+  const hints = validateScreenHints(readYamlFixture('knowledge', 'screens', 'policy-search.hints.yaml'));
+  const patterns = validateSharedPatterns(readYamlFixture('knowledge', 'patterns', 'core.patterns.yaml'));
 
   const input = {
     snapshots: [{ artifact: snapshot, artifactPath: '.ado-sync/snapshots/10001.json' }],
     surfaceGraphs: [{ artifact: surfaceGraph, artifactPath: 'knowledge/surfaces/policy-search.surface.yaml' }],
     knowledgeSnapshots: [{
-      relativePath: 'snapshots/policy-search/results-with-policy.yaml',
+      relativePath: resultsWithPolicySnapshotId,
       artifactPath: 'knowledge/snapshots/policy-search/results-with-policy.yaml',
     }],
     screenElements: [{ artifact: elements, artifactPath: 'knowledge/screens/policy-search.elements.yaml' }],
     screenPostures: [{ artifact: postures, artifactPath: 'knowledge/screens/policy-search.postures.yaml' }],
+    screenHints: [{ artifact: hints, artifactPath: 'knowledge/screens/policy-search.hints.yaml' }],
+    sharedPatterns: [{ artifact: patterns, artifactPath: 'knowledge/patterns/core.patterns.yaml' }],
     scenarios: [{
       artifact: scenario,
       artifactPath: 'scenarios/demo/policy-search/10001.scenario.yaml',
       generatedSpecPath: 'generated/demo/policy-search/10001.spec.ts',
       generatedSpecExists: true,
+      generatedTracePath: 'generated/demo/policy-search/10001.trace.json',
+      generatedTraceExists: true,
+      generatedReviewPath: 'generated/demo/policy-search/10001.review.md',
+      generatedReviewExists: true,
     }],
     evidence: [],
-  };
+  } satisfies GraphBuildInput;
 
   const graph = deriveGraph(input);
   const graphAgain = deriveGraph(input);
 
   expect(graph.fingerprint).toBe(graphAgain.fingerprint);
-  expect(graph.nodes.some((node) => node.id === graphIds.surface('policy-search', 'results-grid'))).toBeTruthy();
-  expect(graph.edges.some((edge) => edge.kind === 'asserts' && edge.to === graphIds.snapshot.knowledge('snapshots/policy-search/results-with-policy.yaml'))).toBeTruthy();
+  expect(graph.nodes.some((node) => node.id === graphIds.surface(policySearchScreenId, resultsGridId))).toBeTruthy();
+  expect(graph.edges.some((edge) => edge.kind === 'asserts' && edge.to === graphIds.snapshot.knowledge(resultsWithPolicySnapshotId))).toBeTruthy();
+  expect(graph.nodes.some((node) => node.id === graphIds.screenHints(policySearchScreenId))).toBeTruthy();
+  expect(graph.nodes.some((node) => node.id === graphIds.pattern('core.input'))).toBeTruthy();
 });
 
 test('renderGeneratedKnowledgeModule emits explicit unions from approved knowledge', () => {
@@ -149,28 +186,27 @@ test('renderGeneratedKnowledgeModule emits explicit unions from approved knowled
   expect(code.startsWith('// AUTO-GENERATED by tesseract')).toBeTruthy();
 });
 
-
 test('validateScreenPostures normalizes posture values and effect ordering deterministically', () => {
-  const raw = {
-    screen: 'policy-search',
+  const postures = validateScreenPostures({
+    screen: policySearchScreenId,
     postures: {
-      policyNumberInput: {
-        invalid: {
+      [policyNumberInputId]: {
+        [invalidPostureId]: {
           values: ['NOTAPOLICY', 'NOTAPOLICY', 'A-BAD-VALUE'],
           effects: [
-            { target: 'validationSummary', state: 'visible' },
-            { target: 'validationSummary', state: 'visible' },
+            { target: validationSummaryId, state: 'visible' },
+            { target: validationSummaryId, state: 'visible' },
             { target: 'self', state: 'validation-error' },
           ],
         },
       },
     },
-  };
+  });
 
-  const postures = validateScreenPostures(raw);
-  expect(postures.postures.policyNumberInput.invalid.values).toEqual(['A-BAD-VALUE', 'NOTAPOLICY']);
-  expect(postures.postures.policyNumberInput.invalid.effects).toEqual([
-    { target: 'validationSummary', targetKind: undefined, state: 'visible', message: null },
+  const invalidPosture = postures.postures[policyNumberInputId]?.[invalidPostureId];
+  expect(invalidPosture?.values).toEqual(['A-BAD-VALUE', 'NOTAPOLICY']);
+  expect(invalidPosture?.effects).toEqual([
+    { target: validationSummaryId, targetKind: undefined, state: 'visible', message: null },
     { target: 'self', targetKind: 'self', state: 'validation-error', message: null },
   ]);
 });
@@ -178,21 +214,21 @@ test('validateScreenPostures normalizes posture values and effect ordering deter
 test('validatePostureContract flags unknown and empty posture contracts', () => {
   const surfaceGraph = validateSurfaceGraph(readYamlFixture('knowledge', 'surfaces', 'policy-search.surface.yaml'));
   const elements = validateScreenElements(readYamlFixture('knowledge', 'screens', 'policy-search.elements.yaml'));
-  const postures = normalizeScreenPostures({
-    screen: 'policy-search',
+  const postures = validateScreenPostures({
+    screen: policySearchScreenId,
     postures: {
-      policyNumberInput: {
-        invalid: {
+      [policyNumberInputId]: {
+        [invalidPostureId]: {
           values: [],
-          effects: [{ target: 'missingElement', state: 'visible' }],
+          effects: [{ target: missingElementId, state: 'visible' }],
         },
       },
     },
   });
 
   const issues = validatePostureContract({
-    elementId: 'policyNumberInput',
-    postureId: 'invalid',
+    elementId: policyNumberInputId,
+    postureId: invalidPostureId,
     postures,
     elements,
     surfaceGraph,
@@ -205,26 +241,27 @@ test('validatePostureContract flags unknown and empty posture contracts', () => 
 });
 
 test('parseEffectTargetRef treats dual surface/element ids without explicit target kind as ambiguous', () => {
-  const elements = {
-    screen: 'policy-search',
+  const elements = validateScreenElements({
+    screen: policySearchScreenId,
     url: '/policy-search',
     elements: {
-      sharedTarget: {
+      [sharedTargetId]: {
         role: 'alert',
         name: 'Shared target',
         testId: null,
         cssFallback: null,
-        widget: 'os-region',
-        surface: 'search-form',
+        widget: createWidgetId('os-region'),
+        surface: searchFormId,
       },
     },
-  };
-  const surfaceGraph = {
-    screen: 'policy-search',
+  });
+
+  const surfaceGraph = validateSurfaceGraph({
+    screen: policySearchScreenId,
     url: '/policy-search',
     sections: {},
     surfaces: {
-      sharedTarget: {
+      [sharedTargetId]: {
         kind: 'validation-region',
         section: 'main',
         selector: '[data-test="shared-target"]',
@@ -234,10 +271,10 @@ test('parseEffectTargetRef treats dual surface/element ids without explicit targ
         assertions: ['state'],
       },
     },
-  };
+  });
 
   const targetRef = parseEffectTargetRef({
-    effect: { target: 'sharedTarget', state: 'visible' },
+    effect: { target: sharedTargetId, state: 'visible' },
     elements,
     surfaceGraph,
   });
@@ -246,7 +283,7 @@ test('parseEffectTargetRef treats dual surface/element ids without explicit targ
     ok: false,
     error: {
       code: 'ambiguous-effect-target',
-      target: 'sharedTarget',
+      target: sharedTargetId,
     },
   });
 });

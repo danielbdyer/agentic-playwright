@@ -1,12 +1,17 @@
-import { expect, test } from '@playwright/test';
+﻿import { expect, test } from '@playwright/test';
 import { diagnosticInterpreter } from '../lib/application/interpreters/diagnostic';
 import { dryRunInterpreter } from '../lib/application/interpreters/dry-run';
-import { InterpreterEnvironment } from '../lib/application/interpreters/types';
-import { createAdoId } from '../lib/domain/identity';
-import { StepProgram } from '../lib/domain/types';
+import type { InterpreterEnvironment } from '../lib/application/interpreters/types';
+import { createAdoId, createElementId, createScreenId, createSurfaceId, createWidgetId, type WidgetId } from '../lib/domain/identity';
+import type { StepProgram } from '../lib/domain/types';
 import { playwrightStepProgramInterpreter } from '../lib/runtime/program';
 
-function createHarness(widget: string = 'os-button') {
+const policySearchScreenId = createScreenId('policy-search');
+const searchButtonId = createElementId('searchButton');
+const searchFormId = createSurfaceId('search-form');
+const osButtonWidgetId = createWidgetId('os-button');
+
+function createHarness(widget: WidgetId = osButtonWidgetId) {
   const clicks = { count: 0 };
   const locator = {
     click: async () => {
@@ -23,20 +28,20 @@ function createHarness(widget: string = 'os-button') {
   };
 
   const screens = {
-    'policy-search': {
+    [policySearchScreenId]: {
       screen: {
-        screen: 'policy-search',
+        screen: policySearchScreenId,
         url: 'http://example.test/policy-search',
         sections: {},
       },
       surfaces: {},
       postures: {},
       elements: {
-        searchButton: {
+        [searchButtonId]: {
           role: 'button',
           name: 'Search',
           cssFallback: '#search-button',
-          surface: 'search-form',
+          surface: searchFormId,
           widget,
         },
       },
@@ -55,8 +60,8 @@ function createHarness(widget: string = 'os-button') {
     instructions: [
       {
         kind: 'invoke',
-        screen: 'policy-search',
-        element: 'searchButton',
+        screen: policySearchScreenId,
+        element: searchButtonId,
         action: 'click',
       },
     ],
@@ -91,7 +96,7 @@ test('diagnostic codes remain stable and provenance-preserving', async () => {
   const harness = createHarness();
   const failingProgram: StepProgram = {
     kind: 'step-program',
-    instructions: [{ kind: 'navigate', screen: 'missing-screen' as never }],
+    instructions: [{ kind: 'navigate', screen: createScreenId('missing-screen') }],
   };
 
   const result = await diagnosticInterpreter.run(

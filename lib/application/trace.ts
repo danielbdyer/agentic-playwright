@@ -1,10 +1,10 @@
 ﻿import { Effect } from 'effect';
-import { AdoId } from '../domain/identity';
+import type { AdoId } from '../domain/identity';
 import { collectRelatedSubgraph } from '../domain/graph-query';
 import { graphIds } from '../domain/ids';
 import { TesseractError } from '../domain/errors';
 import { ensureDerivedGraph } from './graph';
-import { ProjectPaths } from './paths';
+import type { ProjectPaths } from './paths';
 
 export function traceScenario(options: { adoId: AdoId; paths: ProjectPaths }) {
   return Effect.gen(function* () {

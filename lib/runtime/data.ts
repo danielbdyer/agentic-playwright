@@ -1,5 +1,5 @@
 ﻿import { formatRefPath } from '../domain/ref-path';
-import { ValueRef } from '../domain/types';
+import type { ValueRef } from '../domain/types';
 
 function lookupPath(fixtures: Record<string, unknown>, segments: string[]): unknown {
   let current: unknown = fixtures;

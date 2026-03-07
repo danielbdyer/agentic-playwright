@@ -1,6 +1,7 @@
-import { ElementId, PostureId, SurfaceId } from './identity';
-import { normalizePostureEffectTarget, parseEffectTargetRef, ResolveEffectTargetContext } from './effect-target';
-import { PostureEffect, ScreenElements, ScreenPostures, SurfaceGraph } from './types';
+﻿import type { ElementId, PostureId, SurfaceId } from './identity';
+import type { ResolveEffectTargetContext } from './effect-target';
+import { normalizePostureEffectTarget, parseEffectTargetRef } from './effect-target';
+import type { PostureEffect, ScreenElements, ScreenPostures, SurfaceGraph } from './types';
 
 export type PostureContractIssueCode =
   | 'unknown-posture'
@@ -84,6 +85,15 @@ export function resolveEffectTargetRef(context: ResolveEffectTargetContext) {
   return parseEffectTargetRef(context);
 }
 
+export function resolveEffectTargetKind(context: ResolveEffectTargetContext): 'self' | 'element' | 'surface' | 'ambiguous' | 'unknown' {
+  const result = parseEffectTargetRef(context);
+  if (!result.ok) {
+    return result.error.code === 'ambiguous-effect-target' ? 'ambiguous' : 'unknown';
+  }
+
+  return result.value.kind;
+}
+
 export function validatePostureContract(params: {
   elementId: ElementId;
   postureId: PostureId;
@@ -130,3 +140,4 @@ export function validatePostureContract(params: {
 
   return issues;
 }
+

@@ -1,31 +1,36 @@
-﻿import { Locator } from '@playwright/test';
-import { missingActionHandlerError } from '../domain/errors';
-import { WidgetPrecondition } from '../domain/types';
+import type { Locator } from '@playwright/test';
+import { missingActionHandlerError, widgetPreconditionError } from '../domain/errors';
+import type { WidgetInteractionContext, WidgetPrecondition } from '../domain/types';
 import { widgetActionHandlers, widgetCapabilityContracts } from '../../knowledge/components';
-import { RuntimeResult, runtimeErr, runtimeOk } from './result';
+import type { RuntimeResult} from './result';
+import { runtimeErr, runtimeOk } from './result';
 
-async function assertPrecondition(locator: Locator, precondition: WidgetPrecondition): Promise<void> {
+async function assertPrecondition(locator: Locator, precondition: WidgetPrecondition): Promise<RuntimeResult<void>> {
   const target = locator as unknown as {
     isVisible?: () => Promise<boolean>;
     isEnabled?: () => Promise<boolean>;
     isEditable?: () => Promise<boolean>;
   };
+
   switch (precondition) {
     case 'visible':
       if (typeof target.isVisible === 'function' && !(await target.isVisible())) {
-        throw new Error('Widget precondition failed: visible');
+        const error = widgetPreconditionError(precondition);
+        return runtimeErr('runtime-widget-precondition-failed', error.message, error.context, error);
       }
-      return;
+      return runtimeOk(undefined);
     case 'enabled':
       if (typeof target.isEnabled === 'function' && !(await target.isEnabled())) {
-        throw new Error('Widget precondition failed: enabled');
+        const error = widgetPreconditionError(precondition);
+        return runtimeErr('runtime-widget-precondition-failed', error.message, error.context, error);
       }
-      return;
+      return runtimeOk(undefined);
     case 'editable':
       if (typeof target.isEditable === 'function' && !(await target.isEditable())) {
-        throw new Error('Widget precondition failed: editable');
+        const error = widgetPreconditionError(precondition);
+        return runtimeErr('runtime-widget-precondition-failed', error.message, error.context, error);
       }
-      return;
+      return runtimeOk(undefined);
   }
 }
 
@@ -34,19 +39,24 @@ export async function interact(
   widget: string,
   action: string,
   value?: string,
+  context?: WidgetInteractionContext,
 ): Promise<RuntimeResult<void>> {
   const contract = widgetCapabilityContracts[widget];
   const handlers = widgetActionHandlers[widget];
-  const hasAction = Boolean(contract?.supportedActions.includes(action as never) && handlers?.[action]);
-  if (!contract || !handlers || !hasAction) {
+  const handler = handlers?.[action];
+  const hasAction = Boolean(contract?.supportedActions.includes(action as never) && handler);
+  if (!contract || !handlers || !handler || !hasAction) {
     const error = missingActionHandlerError(widget, action);
     return runtimeErr('runtime-missing-action-handler', error.message, error.context, error);
   }
 
   for (const precondition of contract.requiredPreconditions) {
-    await assertPrecondition(locator, precondition);
+    const preconditionResult = await assertPrecondition(locator, precondition);
+    if (!preconditionResult.ok) {
+      return preconditionResult;
+    }
   }
 
-  await handlers[action](locator, value);
+  await handler(locator, value, context);
   return runtimeOk(undefined);
 }

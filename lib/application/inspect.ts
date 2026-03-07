@@ -1,21 +1,25 @@
 ﻿import { Effect } from 'effect';
 import YAML from 'yaml';
-import { AdoId, ScreenId } from '../domain/identity';
+import type { AdoId, ScreenId } from '../domain/identity';
 import { validateAdoSnapshot, validateScenario } from '../domain/validation';
+import { trySync } from './effect';
 import { AdoSource, FileSystem } from './ports';
+import type {
+  ProjectPaths} from './paths';
 import {
   boundPath,
   elementsPath,
   generatedKnowledgePath,
+  generatedReviewPath,
   generatedSpecPath,
+  generatedTracePath,
+  hintsPath,
   posturesPath,
-  ProjectPaths,
-  relativeProjectPath,
   scenarioPath,
+  sharedPatternsPath,
   snapshotPath,
   surfacePath,
 } from './paths';
-import { trySync } from './effect';
 
 export function describeScenarioPaths(options: { adoId: AdoId; paths: ProjectPaths }) {
   return Effect.gen(function* () {
@@ -65,6 +69,8 @@ export function describeScenarioPaths(options: { adoId: AdoId; paths: ProjectPat
         scenario: canonicalScenarioPath,
         bound: boundPath(options.paths, options.adoId),
         generated: generatedSpecPath(options.paths, snapshot.suitePath, options.adoId),
+        trace: generatedTracePath(options.paths, snapshot.suitePath, options.adoId),
+        review: generatedReviewPath(options.paths, snapshot.suitePath, options.adoId),
         graph: options.paths.graphIndexPath,
         mcpCatalog: options.paths.mcpCatalogPath,
         generatedTypes: generatedKnowledgePath(options.paths),
@@ -74,8 +80,11 @@ export function describeScenarioPaths(options: { adoId: AdoId; paths: ProjectPat
         surface: surfacePath(options.paths, screen),
         elements: elementsPath(options.paths, screen),
         postures: posturesPath(options.paths, screen),
+        hints: hintsPath(options.paths, screen),
       })),
+      supplements: {
+        sharedPatterns: sharedPatternsPath(options.paths),
+      },
     };
   });
 }
-

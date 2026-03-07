@@ -1,14 +1,16 @@
-import path from 'path';
+﻿import path from 'path';
 import YAML from 'yaml';
 import { Effect } from 'effect';
 import { createTrustPolicyDiagnostic } from '../domain/diagnostics';
 import { evaluateTrustPolicy } from '../domain/trust-policy';
-import { AdoId, createScreenId } from '../domain/identity';
+import type { AdoId} from '../domain/identity';
+import { createScreenId } from '../domain/identity';
 import { graphIds } from '../domain/ids';
-import { EvidenceDescriptor, EvidenceRecord, ProposedChangeMetadata, TrustPolicy, TrustPolicyEvaluation } from '../domain/types';
+import type { EvidenceDescriptor, EvidenceRecord, ProposedChangeMetadata, TrustPolicy, TrustPolicyEvaluation } from '../domain/types';
 import { validateTrustPolicy } from '../domain/validation';
 import { trySync } from './effect';
-import { ProjectPaths, relativeProjectPath } from './paths';
+import type { ProjectPaths} from './paths';
+import { relativeProjectPath } from './paths';
 import { FileSystem } from './ports';
 import { walkFiles } from './artifacts';
 
@@ -100,3 +102,4 @@ export function trustPolicyDiagnosticForScenario(input: {
     reasons: input.evaluation.reasons,
   });
 }
+

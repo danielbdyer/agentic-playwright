@@ -1,6 +1,6 @@
-﻿import { Locator } from '@playwright/test';
+﻿import type { Locator } from '@playwright/test';
 import { createWidgetId } from '../../lib/domain/identity';
-import { WidgetCapabilityContract } from '../../lib/domain/types';
+import type { WidgetCapabilityContract } from '../../lib/domain/types';
 
 export const osTableContract: WidgetCapabilityContract = {
   widget: createWidgetId('os-table'),

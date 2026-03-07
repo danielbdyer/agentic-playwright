@@ -1,8 +1,8 @@
 ﻿import { Effect } from 'effect';
-import { AdoId } from '../domain/identity';
+import type { AdoId } from '../domain/identity';
 import { compileScenario } from './compile';
 import { syncSnapshots } from './sync';
-import { ProjectPaths } from './paths';
+import type { ProjectPaths } from './paths';
 
 export function refreshScenario(options: { adoId: AdoId; paths: ProjectPaths }) {
   return Effect.gen(function* () {

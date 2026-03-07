@@ -1,4 +1,5 @@
-﻿import { Brand, brandString } from './brand';
+﻿import type { Brand} from './brand';
+import { brandString } from './brand';
 import { SchemaError } from './errors';
 
 export type AdoId = Brand<string, 'AdoId'>;

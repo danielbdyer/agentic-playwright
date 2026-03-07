@@ -1,12 +1,13 @@
 ﻿import { Effect } from 'effect';
 import { createDiagnostic } from '../domain/diagnostics';
-import { AdoId } from '../domain/identity';
-import { Manifest, SyncResult } from '../domain/types';
+import type { AdoId } from '../domain/identity';
+import type { Manifest, SyncResult } from '../domain/types';
 import { validateAdoSnapshot, validateManifest } from '../domain/validation';
 import { AdoSource, FileSystem } from './ports';
+import type {
+  ProjectPaths} from './paths';
 import {
   archiveSnapshotPath,
-  ProjectPaths,
   relativeProjectPath,
   snapshotPath,
 } from './paths';

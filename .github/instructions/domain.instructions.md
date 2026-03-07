@@ -1,31 +1,48 @@
----
+﻿---
 applyTo: "lib/domain/**/*.ts"
 ---
 
-# Domain layer rules
+# Domain instructions
 
-This is the innermost layer of a clean architecture compiler. Code here must be pure and self-contained.
+This layer owns compiler semantics, provenance primitives, validation, inference rules, and AST-backed code generation.
 
-## Hard constraints
+## Hard boundaries
 
 - No imports from `lib/application/`, `lib/infrastructure/`, or `lib/runtime/`.
-- No filesystem, network, Playwright, or Effect-TS dependencies.
-- All functions should be pure: same input, same output, no side effects.
-- Enforced by `tests/architecture.spec.ts`.
+- No filesystem, network, Playwright, or Effect dependencies.
+- Keep functions pure and deterministic.
+- Preserve exhaustive branching and ingress validation.
 
-## Style
+## What to protect
 
-- Prefer branded identity types (`ScreenId`, `ElementId`, `PostureId`) over raw strings.
-- Use smart constructors with validation at ingress boundaries.
-- Prefer exhaustive pattern matching over fallback logic.
-- Write law-style tests for determinism, validation, and round-trips.
+Treat these as core domain primitives:
 
-## Protected primitives
+- `SurfaceGraph`
+- `StepProgram`
+- `ValueRef`
+- `DerivedGraph`
+- provenance and governance fields on bound artifacts
+- locator ladder and supplement vocabularies
 
-Extend these carefully — they are the core domain algebra:
+## Current operating model
 
-`RefPath`, `SurfaceGraph`, `StepProgram`, `ValueRef`, `DerivedCapability`, `DerivedGraph`
+- `compiler-derived` means deterministic derivation from approved artifacts.
+- `governance` is separate from confidence.
+- screen hints and shared patterns are approved data grammars, not runtime hacks.
+- graph and review projections must remain explainable from domain values alone.
 
-## Code generation
+## Preferences
 
-Files `spec-codegen.ts`, `typegen.ts`, and `ts-ast.ts` produce generated TypeScript via AST construction. Never use string interpolation for generated code. Build with `ts.factory.*` helpers and `printModule()`.
+- Prefer value objects and typed unions over raw strings.
+- Prefer stable precedence rules over heuristic fallthrough.
+- Prefer law-style tests for determinism, normalization, precedence, and round-trips.
+- Prefer AST construction over string interpolation for parseable output.
+
+## Anti-patterns
+
+Do not put in this layer:
+
+- hidden policy decisions based on filesystem paths
+- runtime-only conveniences masquerading as domain concepts
+- opaque utility functions that bypass validation
+- ad hoc confidence or governance logic scattered across modules

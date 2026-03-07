@@ -1,26 +1,23 @@
----
+﻿---
 applyTo: "tests/**/*.ts,tests/**/*.spec.ts"
 ---
 
-# Test conventions
+# Test instructions
 
-Tests use Playwright Test as a runner but most are not browser tests — they test compiler logic, domain invariants, and architecture rules.
+Tests in this repo protect compiler semantics, provenance, and artifact alignment.
 
-## Test categories
+## What new work should prove
 
-- `domain.spec.ts` — Domain law tests: determinism, validation, round-trips. No side effects.
-- `compiler.spec.ts` — Integration tests for the full pipeline (parse → bind → emit → graph → types).
-- `architecture.spec.ts` — Enforces layer dependency rules. Fails if forbidden imports appear.
-- `interpreters.spec.ts` — Verifies structural trace equivalence across interpreter modes.
-- `runtime-errors.spec.ts` — Error code stability and classification.
-- `runtime-load.spec.ts` — Screen knowledge loading and posture validation.
-- `path-security.spec.ts` — Path traversal rejection.
-- `generated-types.spec.ts` — Generated API contract verification.
-- `reporter.spec.ts` — Reporter integration and failure classification.
+- deterministic inference and precedence
+- separation of confidence from governance
+- supplement provenance through hints and patterns
+- alignment across spec, trace JSON, review Markdown, and graph outputs
+- runtime affordance plumbing and degraded locator signaling
+- documentation vocabulary staying in sync with the implementation
 
-## Rules
+## Preferences
 
-- New domain primitives need law-style tests (determinism, validation edge cases, invariants).
-- Tests must not depend on filesystem layout, network, or browser unless they specifically test that boundary.
-- Prefer in-memory fixtures over reading files where possible.
-- Test names should describe the invariant being verified, not the mechanism.
+- Favor law-style tests for pure domain logic.
+- Keep filesystem and runtime boundary tests narrow and explicit.
+- When adding a new artifact class, add at least one test that proves where it appears in projections.
+- When changing docs or agent workflow vocabulary, add or update a smoke test so that guidance does not silently drift.

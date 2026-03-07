@@ -1,11 +1,13 @@
 ﻿import path from 'path';
 import { deriveCapabilities } from './grammar';
-import { createElementId, createPostureId, createSurfaceId, ScreenId, SnapshotTemplateId } from './identity';
+import type { ScreenId, SnapshotTemplateId } from './identity';
+import { createElementId, createPostureId, createSurfaceId } from './identity';
 import { capabilityForInstruction, compileStepProgram, traceStepProgram } from './program';
 import { sha256, stableStringify } from './hash';
 import { graphIds, mcpUris } from './ids';
-import {
+import type {
   AdoSnapshot,
+  BoundScenario,
   DerivedCapability,
   DerivedGraph,
   GraphEdge,
@@ -16,7 +18,9 @@ import {
   MappedMcpTemplate,
   Scenario,
   ScreenElements,
+  ScreenHints,
   ScreenPostures,
+  SharedPatterns,
   SurfaceGraph,
 } from './types';
 
@@ -28,15 +32,26 @@ interface ArtifactEnvelope<T> {
 export interface ScenarioGraphArtifact extends ArtifactEnvelope<Scenario> {
   generatedSpecPath: string;
   generatedSpecExists: boolean;
+  generatedTracePath: string;
+  generatedTraceExists: boolean;
+  generatedReviewPath: string;
+  generatedReviewExists: boolean;
 }
+
+export interface BoundScenarioGraphArtifact extends ArtifactEnvelope<BoundScenario> {}
 
 export interface KnowledgeSnapshotArtifact {
   relativePath: SnapshotTemplateId;
   artifactPath: string;
 }
 
+export interface ScreenHintsArtifact extends ArtifactEnvelope<ScreenHints> {}
+
+export interface SharedPatternsArtifact extends ArtifactEnvelope<SharedPatterns> {}
+
 export interface EvidenceArtifact {
   artifactPath: string;
+  targetNodeId?: string;
 }
 
 export interface PolicyDecisionArtifact {
@@ -53,9 +68,17 @@ export interface GraphBuildInput {
   knowledgeSnapshots: KnowledgeSnapshotArtifact[];
   screenElements: ArtifactEnvelope<ScreenElements>[];
   screenPostures: ArtifactEnvelope<ScreenPostures>[];
+  screenHints?: ScreenHintsArtifact[];
+  sharedPatterns?: SharedPatternsArtifact[];
   scenarios: ScenarioGraphArtifact[];
+  boundScenarios?: BoundScenarioGraphArtifact[];
   evidence: EvidenceArtifact[];
   policyDecisions?: PolicyDecisionArtifact[];
+}
+
+interface StepGraphContext {
+  step: Scenario['steps'][number];
+  boundStep: BoundScenario['steps'][number] | null;
 }
 
 function nodeFingerprint(kind: GraphNodeKind, id: string, payload?: Record<string, unknown>): string {
@@ -165,11 +188,84 @@ function capabilityTargetNodeId(screenId: ScreenId, capability: DerivedCapabilit
   }
 }
 
+function basenameWithoutExtension(value: string): string {
+  return path.basename(value).replace(/\.[^.]+$/, '');
+}
+
+function patternFileNodeId(artifactPath: string): string {
+  return graphIds.pattern(basenameWithoutExtension(artifactPath));
+}
+
+function stepConfidence(context: StepGraphContext): Scenario['steps'][number]['confidence'] {
+  return context.boundStep?.confidence ?? context.step.confidence;
+}
+
+function stepBinding(context: StepGraphContext): BoundScenario['steps'][number]['binding'] | null {
+  return context.boundStep?.binding ?? null;
+}
+
+function mapKnowledgePathToNodeId(ref: string, context: StepGraphContext): string | null {
+  if (ref.startsWith('knowledge/snapshots/')) {
+    return graphIds.snapshot.knowledge(ref.replace(/^knowledge\//, ''));
+  }
+
+  if (ref.startsWith('knowledge/surfaces/') && ref.endsWith('.surface.yaml')) {
+    return graphIds.screen(path.basename(ref).replace('.surface.yaml', '') as ScreenId);
+  }
+
+  if (ref.startsWith('knowledge/screens/') && ref.endsWith('.elements.yaml')) {
+    if (context.step.screen && context.step.element) {
+      return graphIds.element(context.step.screen, context.step.element);
+    }
+    return graphIds.screen(path.basename(ref).replace('.elements.yaml', '') as ScreenId);
+  }
+
+  if (ref.startsWith('knowledge/screens/') && ref.endsWith('.postures.yaml')) {
+    if (context.step.screen && context.step.element && context.step.posture) {
+      return graphIds.posture(context.step.screen, context.step.element, context.step.posture);
+    }
+    return graphIds.screen(path.basename(ref).replace('.postures.yaml', '') as ScreenId);
+  }
+
+  if (ref.startsWith('knowledge/screens/') && ref.endsWith('.hints.yaml')) {
+    return graphIds.screenHints(path.basename(ref).replace('.hints.yaml', '') as ScreenId);
+  }
+
+  if (ref.startsWith('knowledge/patterns/')) {
+    return patternFileNodeId(ref);
+  }
+
+  return null;
+}
+
+function patternIdsForStep(stepContext: StepGraphContext, sharedPatternsArtifacts: SharedPatternsArtifact[]): string[] {
+  const ids: string[] = [];
+  const binding = stepBinding(stepContext);
+  if (binding?.ruleId) {
+    ids.push(graphIds.pattern(binding.ruleId));
+  }
+
+  if (stepContext.step.posture) {
+    for (const entry of sharedPatternsArtifacts) {
+      const descriptor = entry.artifact.postures[stepContext.step.posture];
+      if (descriptor?.id) {
+        ids.push(graphIds.pattern(descriptor.id));
+      }
+    }
+  }
+
+  return [...new Set(ids)].sort((left, right) => left.localeCompare(right));
+}
+
 export function deriveGraph(input: GraphBuildInput): DerivedGraph {
   const nodes = new Map<string, GraphNode>();
   const edges = new Map<string, GraphEdge>();
+  const screenHintsArtifacts = input.screenHints ?? [];
+  const sharedPatternsArtifacts = input.sharedPatterns ?? [];
+  const boundScenarioArtifacts = input.boundScenarios ?? [];
   const surfaceGraphs = new Map(input.surfaceGraphs.map((entry) => [entry.artifact.screen, entry.artifact] as const));
   const screenElements = new Map(input.screenElements.map((entry) => [entry.artifact.screen, entry.artifact] as const));
+  const boundScenarios = new Map(boundScenarioArtifacts.map((entry) => [entry.artifact.source.ado_id, entry.artifact] as const));
 
   for (const { artifact: snapshot, artifactPath } of input.snapshots) {
     addNode(nodes, createNode({
@@ -311,6 +407,8 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
           name: element.name ?? null,
           widget: element.widget,
           surface: element.surface,
+          affordance: element.affordance ?? null,
+          locator: element.locator ?? null,
         },
       }));
       addEdge(edges, createEdge({
@@ -420,8 +518,105 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
     }
   }
 
+  for (const { artifact: hints, artifactPath } of screenHintsArtifacts) {
+    const hintsNodeId = graphIds.screenHints(hints.screen);
+    addNode(nodes, createNode({
+      id: hintsNodeId,
+      kind: 'screen-hints',
+      label: `${hints.screen} hints`,
+      artifactPath,
+      provenance: {
+        knowledgePath: artifactPath,
+      },
+      payload: {
+        screenAliases: hints.screenAliases,
+        elementCount: Object.keys(hints.elements).length,
+      },
+    }));
+
+    if (nodes.has(graphIds.screen(hints.screen))) {
+      addEdge(edges, createEdge({
+        kind: 'contains',
+        from: graphIds.screen(hints.screen),
+        to: hintsNodeId,
+        provenance: {
+          knowledgePath: artifactPath,
+        },
+      }));
+    }
+  }
+
+  for (const { artifact: patterns, artifactPath } of sharedPatternsArtifacts) {
+    const rootId = patternFileNodeId(artifactPath);
+    addNode(nodes, createNode({
+      id: rootId,
+      kind: 'pattern',
+      label: path.basename(artifactPath),
+      artifactPath,
+      provenance: {
+        knowledgePath: artifactPath,
+      },
+      payload: {
+        category: 'registry',
+        version: patterns.version,
+      },
+    }));
+
+    for (const [actionKey, descriptor] of Object.entries(patterns.actions)) {
+      const actionNodeId = graphIds.pattern(descriptor.id);
+      addNode(nodes, createNode({
+        id: actionNodeId,
+        kind: 'pattern',
+        label: descriptor.id,
+        artifactPath,
+        provenance: {
+          knowledgePath: artifactPath,
+        },
+        payload: {
+          category: 'action',
+          action: actionKey,
+          aliases: descriptor.aliases,
+        },
+      }));
+      addEdge(edges, createEdge({
+        kind: 'contains',
+        from: rootId,
+        to: actionNodeId,
+        provenance: {
+          knowledgePath: artifactPath,
+        },
+      }));
+    }
+
+    for (const [postureKey, descriptor] of Object.entries(patterns.postures)) {
+      const posturePatternNodeId = graphIds.pattern(descriptor.id);
+      addNode(nodes, createNode({
+        id: posturePatternNodeId,
+        kind: 'pattern',
+        label: descriptor.id,
+        artifactPath,
+        provenance: {
+          knowledgePath: artifactPath,
+        },
+        payload: {
+          category: 'posture',
+          posture: postureKey,
+          aliases: descriptor.aliases,
+        },
+      }));
+      addEdge(edges, createEdge({
+        kind: 'contains',
+        from: rootId,
+        to: posturePatternNodeId,
+        provenance: {
+          knowledgePath: artifactPath,
+        },
+      }));
+    }
+  }
+
   for (const scenarioArtifact of input.scenarios) {
-    const { artifact: scenario, artifactPath, generatedSpecPath, generatedSpecExists } = scenarioArtifact;
+    const { artifact: scenario, artifactPath, generatedSpecPath, generatedSpecExists, generatedTracePath, generatedTraceExists, generatedReviewPath, generatedReviewExists } = scenarioArtifact;
     const scenarioNodeId = graphIds.scenario(scenario.source.ado_id);
     addNode(nodes, createNode({
       id: scenarioNodeId,
@@ -454,39 +649,69 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
       }));
     }
 
-    const generatedSpecId = graphIds.generatedSpec(scenario.source.ado_id);
-    addNode(nodes, createNode({
-      id: generatedSpecId,
-      kind: 'generated-spec',
-      label: path.basename(generatedSpecPath),
-      artifactPath: generatedSpecPath,
-      provenance: {
-        scenarioPath: artifactPath,
-      },
-      payload: {
+    const generatedArtifacts = [
+      {
+        id: graphIds.generatedSpec(scenario.source.ado_id),
+        kind: 'generated-spec' as const,
+        label: path.basename(generatedSpecPath),
+        artifactPath: generatedSpecPath,
         exists: generatedSpecExists,
       },
-    }));
-    addEdge(edges, createEdge({
-      kind: 'emits',
-      from: scenarioNodeId,
-      to: generatedSpecId,
-      provenance: {
-        scenarioPath: artifactPath,
+      {
+        id: graphIds.generatedTrace(scenario.source.ado_id),
+        kind: 'generated-trace' as const,
+        label: path.basename(generatedTracePath),
+        artifactPath: generatedTracePath,
+        exists: generatedTraceExists,
       },
-    }));
+      {
+        id: graphIds.generatedReview(scenario.source.ado_id),
+        kind: 'generated-review' as const,
+        label: path.basename(generatedReviewPath),
+        artifactPath: generatedReviewPath,
+        exists: generatedReviewExists,
+      },
+    ];
+
+    for (const generatedArtifact of generatedArtifacts) {
+      addNode(nodes, createNode({
+        id: generatedArtifact.id,
+        kind: generatedArtifact.kind,
+        label: generatedArtifact.label,
+        artifactPath: generatedArtifact.artifactPath,
+        provenance: {
+          scenarioPath: artifactPath,
+        },
+        payload: {
+          exists: generatedArtifact.exists,
+        },
+      }));
+      addEdge(edges, createEdge({
+        kind: 'emits',
+        from: scenarioNodeId,
+        to: generatedArtifact.id,
+        provenance: {
+          scenarioPath: artifactPath,
+        },
+      }));
+    }
+
+    const boundScenario = boundScenarios.get(scenario.source.ado_id) ?? null;
 
     for (const step of scenario.steps) {
+      const boundStep = boundScenario?.steps.find((candidate) => candidate.index === step.index) ?? null;
+      const stepContext: StepGraphContext = { step, boundStep };
       const stepNodeId = graphIds.step(scenario.source.ado_id, step.index);
       const program = compileStepProgram(step);
       const trace = traceStepProgram(program);
+      const binding = stepBinding(stepContext);
       addNode(nodes, createNode({
         id: stepNodeId,
         kind: 'step',
         label: step.intent,
         artifactPath,
         provenance: {
-          confidence: step.confidence,
+          confidence: stepConfidence(stepContext),
           contentHash: scenario.source.content_hash,
           scenarioPath: artifactPath,
           sourceRevision: scenario.source.revision,
@@ -494,6 +719,14 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
         payload: {
           action: step.action,
           instructionKinds: trace.instructionKinds,
+          bindingKind: binding?.kind ?? (trace.hasEscapeHatch ? 'unbound' : 'bound'),
+          governance: binding?.governance ?? 'approved',
+          ruleId: binding?.ruleId ?? null,
+          knowledgeRefs: binding?.knowledgeRefs ?? [],
+          supplementRefs: binding?.supplementRefs ?? [],
+          evidenceIds: binding?.evidenceIds ?? [],
+          reviewReasons: binding?.reviewReasons ?? [],
+          reasons: binding?.reasons ?? [],
         },
       }));
       addEdge(edges, createEdge({
@@ -516,7 +749,7 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
           from: stepNodeId,
           to: screenNodeId,
           provenance: {
-            confidence: step.confidence,
+            confidence: stepConfidence(stepContext),
             scenarioPath: artifactPath,
           },
         }));
@@ -535,7 +768,7 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
               from: stepNodeId,
               to: elementNodeId,
               provenance: {
-                confidence: step.confidence,
+                confidence: stepConfidence(stepContext),
                 scenarioPath: artifactPath,
               },
             }));
@@ -550,7 +783,7 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
                 from: stepNodeId,
                 to: surfaceNodeId,
                 provenance: {
-                  confidence: step.confidence,
+                  confidence: stepConfidence(stepContext),
                   scenarioPath: artifactPath,
                 },
               }));
@@ -566,7 +799,7 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
               from: stepNodeId,
               to: capabilityNodeId,
               provenance: {
-                confidence: step.confidence,
+                confidence: stepConfidence(stepContext),
                 scenarioPath: artifactPath,
               },
             }));
@@ -581,7 +814,7 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
             from: stepNodeId,
             to: capabilityNodeId,
             provenance: {
-              confidence: step.confidence,
+              confidence: stepConfidence(stepContext),
               scenarioPath: artifactPath,
             },
             payload: {
@@ -602,15 +835,81 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
           from: stepNodeId,
           to: snapshotNodeId,
           provenance: {
-            confidence: step.confidence,
+            confidence: stepConfidence(stepContext),
             scenarioPath: artifactPath,
+          },
+        }));
+      }
+
+      const boundKnowledgeRefs = binding?.knowledgeRefs ?? [];
+      for (const ref of boundKnowledgeRefs) {
+        const targetNodeId = mapKnowledgePathToNodeId(ref, stepContext);
+        if (!targetNodeId || !nodes.has(targetNodeId)) {
+          continue;
+        }
+        addEdge(edges, createEdge({
+          kind: 'references',
+          from: stepNodeId,
+          to: targetNodeId,
+          provenance: {
+            confidence: stepConfidence(stepContext),
+            scenarioPath: artifactPath,
+          },
+          payload: {
+            source: 'knowledge-ref',
+            ref,
+          },
+        }));
+      }
+
+      const supplementNodeIds = new Set<string>();
+      for (const ref of binding?.supplementRefs ?? []) {
+        const targetNodeId = mapKnowledgePathToNodeId(ref, stepContext);
+        if (targetNodeId) {
+          supplementNodeIds.add(targetNodeId);
+        }
+      }
+      for (const patternNodeId of patternIdsForStep(stepContext, sharedPatternsArtifacts)) {
+        supplementNodeIds.add(patternNodeId);
+      }
+      for (const targetNodeId of [...supplementNodeIds]) {
+        if (!nodes.has(targetNodeId)) {
+          continue;
+        }
+        addEdge(edges, createEdge({
+          kind: 'references',
+          from: stepNodeId,
+          to: targetNodeId,
+          provenance: {
+            confidence: stepConfidence(stepContext),
+            scenarioPath: artifactPath,
+          },
+          payload: {
+            source: 'supplement-ref',
+          },
+        }));
+      }
+
+      for (const evidenceId of binding?.evidenceIds ?? []) {
+        const evidenceNodeId = graphIds.evidence(evidenceId);
+        if (!nodes.has(evidenceNodeId)) {
+          continue;
+        }
+        addEdge(edges, createEdge({
+          kind: 'references',
+          from: stepNodeId,
+          to: evidenceNodeId,
+          provenance: {
+            confidence: stepConfidence(stepContext),
+            scenarioPath: artifactPath,
+          },
+          payload: {
+            source: 'evidence-ref',
           },
         }));
       }
     }
   }
-
-
 
   for (const policyDecision of input.policyDecisions ?? []) {
     const decisionNodeId = graphIds.policyDecision(policyDecision.id);
@@ -642,9 +941,11 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
       }));
     }
   }
+
   for (const evidenceArtifact of input.evidence) {
+    const evidenceNodeId = graphIds.evidence(evidenceArtifact.artifactPath);
     addNode(nodes, createNode({
-      id: graphIds.evidence(evidenceArtifact.artifactPath),
+      id: evidenceNodeId,
       kind: 'evidence',
       label: path.basename(evidenceArtifact.artifactPath),
       artifactPath: evidenceArtifact.artifactPath,
@@ -652,6 +953,17 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
         knowledgePath: evidenceArtifact.artifactPath,
       },
     }));
+
+    if (evidenceArtifact.targetNodeId && nodes.has(evidenceArtifact.targetNodeId)) {
+      addEdge(edges, createEdge({
+        kind: 'proposed-change-for',
+        from: evidenceNodeId,
+        to: evidenceArtifact.targetNodeId,
+        provenance: {
+          knowledgePath: evidenceArtifact.artifactPath,
+        },
+      }));
+    }
   }
 
   return sortGraph({
@@ -662,4 +974,3 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
     resourceTemplates: createResourceTemplates(),
   });
 }
-

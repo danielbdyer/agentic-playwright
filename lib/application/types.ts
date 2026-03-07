@@ -8,7 +8,8 @@ import { validateScenario, validateScreenElements, validateScreenPostures, valid
 import { renderGeneratedKnowledgeModule } from '../domain/typegen';
 import { walkFiles } from './artifacts';
 import { trySync } from './effect';
-import { generatedKnowledgePath, ProjectPaths, relativeProjectPath } from './paths';
+import type { ProjectPaths} from './paths';
+import { generatedKnowledgePath, relativeProjectPath } from './paths';
 import { FileSystem } from './ports';
 
 function toSortedUnique(values: string[]): string[] {

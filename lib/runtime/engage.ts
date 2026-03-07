@@ -1,11 +1,13 @@
-﻿import { Locator, Page, expect } from '@playwright/test';
-import { ElementId, PostureId } from '../domain/identity';
+﻿import type { Locator, Page} from '@playwright/test';
+import { expect } from '@playwright/test';
+import type { ElementId, PostureId } from '../domain/identity';
 import { unknownEffectTargetError } from '../domain/errors';
-import { ElementSig, Posture, SurfaceDefinition } from '../domain/types';
+import type { ElementSig, Posture, SurfaceDefinition } from '../domain/types';
 import { widgetCapabilityContracts } from '../../knowledge/components';
 import { interact } from './interact';
-import { locate } from './locate';
-import { RuntimeResult, runtimeErr, runtimeOk } from './result';
+import { locate, resolveLocator } from './locate';
+import type { RuntimeResult} from './result';
+import { runtimeErr, runtimeOk } from './result';
 
 function coerceMessagePattern(value: string | null | undefined): RegExp | string | undefined {
   if (!value) {
@@ -17,7 +19,12 @@ function coerceMessagePattern(value: string | null | undefined): RegExp | string
     return value;
   }
 
-  return new RegExp(match[1], match[2]);
+  const pattern = match[1];
+  if (pattern === undefined) {
+    return value;
+  }
+
+  return new RegExp(pattern, match[2] ?? '');
 }
 
 function validationMessage(target: Locator, targetKind: 'element' | 'surface'): Locator {
@@ -35,7 +42,7 @@ function requiredMessage(target: Locator, targetKind: 'element' | 'surface'): Lo
 function resolveTargetLocator(
   page: Page,
   elementLocator: Locator,
-  effect: { target: 'self' | string; targetKind?: 'self' | 'element' | 'surface' },
+  effect: { target: 'self' | string; targetKind?: 'self' | 'element' | 'surface' | undefined },
   elements: Record<string, ElementSig>,
   surfaces: Record<string, SurfaceDefinition>,
 ): RuntimeResult<{ locator: Locator; targetKind: 'element' | 'surface' }> {
@@ -70,7 +77,7 @@ export async function engage(
   elementId: ElementId,
   postureId: PostureId = 'valid' as PostureId,
   override?: string,
-): Promise<RuntimeResult<void>> {
+): Promise<RuntimeResult<{ observedEffects: string[] }>> {
   const element = elements[elementId];
   if (!element) {
     const error = unknownEffectTargetError(elementId, 'element');
@@ -79,18 +86,22 @@ export async function engage(
 
   const posture = postures[elementId]?.[postureId];
   const value = override ?? posture?.values?.[0];
-  const locator = locate(page, element);
+  const resolvedLocator = await resolveLocator(page, element);
+  const locator = resolvedLocator.locator;
+  const observedEffects = resolvedLocator.degraded
+    ? ['effect-applied', 'degraded-locator']
+    : ['effect-applied'];
 
   if (value !== undefined) {
     const contract = widgetCapabilityContracts[element.widget];
     const writableAction = contract?.supportedActions.find((action) => action === 'fill' || action === 'clear');
     if (!writableAction) {
-      const failed = await interact(locator, element.widget, 'fill', value);
+      const failed = await interact(locator, element.widget, 'fill', value, { affordance: element.affordance ?? null });
       if (!failed.ok) {
         return failed;
       }
     } else {
-      const input = await interact(locator, element.widget, writableAction, value);
+      const input = await interact(locator, element.widget, writableAction, value, { affordance: element.affordance ?? null });
       if (!input.ok) {
         return input;
       }
@@ -133,5 +144,7 @@ export async function engage(
     }
   }
 
-  return runtimeOk(undefined);
+  return runtimeOk({ observedEffects });
 }
+
+

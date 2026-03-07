@@ -1,114 +1,221 @@
-# Tesseract Product Vision
+﻿# Tesseract Vision
 
-Tesseract is a deterministic compiler that transforms Azure DevOps manual test cases into executable Playwright specs for OutSystems projects. This document describes the product-level design intent — the *why* and *how* from the perspective of QA teams and the agents that assist them.
+Tesseract is not a test framework.
 
-For authorship guidance (how to write code in this repo), see `AGENTS.md`.
+It is a compiler from human verification intent to executable verification, backed by a living knowledge system that grows through use.
+
+The source program is the Azure DevOps manual test case. The emitted object code is Playwright. The durable value is the knowledge captured between those two surfaces.
 
 ## The bet
 
-If a manual test case is well-written enough for a human QA to follow step by step, it is well-written enough for an agent to infer executable intent against. The ADO test case is not a loose suggestion; it is a structured document with steps, expected results, and implicit data requirements. Tesseract treats it as a source program.
+If a manual test is written clearly enough for a QA to infer step-wise behavior from it, then an agent can infer the same behavior from it when given a constrained, reviewable knowledge surface.
 
-## How QAs work with this system
+That is the core bet behind Tesseract:
 
-QAs write manual test cases in Azure DevOps. They do not write Playwright code. The system flow is:
+- manual tests are not second-class prose
+- they are upstream source code
+- the compiler should preserve their wording and derive executable structure from them
 
-1. ADO test cases are synced into `.ado-sync/` as snapshots.
-2. The compiler parses each snapshot into a scenario (structured YAML with intent, actions, elements, data references).
-3. The compiler binds each scenario step to the knowledge layer (screens, elements, postures, surfaces).
-4. The compiler emits a Playwright spec where each `test.step()` carries the ADO step's semantic intent string.
-5. QAs review the generated spec and confirm: does each step do what the ADO case says it should?
+## What changes with this model
 
-The QA's review target is **mapping fidelity** — not Playwright APIs, not DOM selectors, not runtime internals. The generated spec is disposable object code.
+Traditional automation stores too much irreplaceable knowledge inside hand-written tests.
 
-## Single source of truth
+A tester reads a case, infers the UI, writes selectors, hardcodes data, sprinkles assertions around the file, and then maintains that code forever while both the product and the test intent drift.
 
-Every selector, element identity, posture, fixture reference, and snapshot template lives in one canonical place under `knowledge/`. When a selector breaks in one test out of thirty, the fix happens in one element definition, the compiler regenerates all affected specs, and the regression is resolved everywhere at once.
+Tesseract externalizes that knowledge instead.
 
-This is the central scalability property. Without it, selector drift silently poisons test suites.
+It captures small facts in small files:
 
-### The self-healing cycle
+- what a screen is structurally
+- what an element is semantically
+- how a field behaves under different postures
+- what phrases on one screen map to what known elements or snapshots
+- what cross-screen patterns have been promoted into shared knowledge
 
-With single-source knowledge, a single agent-driven repair cycle can:
+The generated tests are disposable. The knowledge is the asset.
 
-1. Detect the selector failure in a test run.
-2. Re-snapshot the affected screen section to capture the current DOM/ARIA state.
-3. Propose a hardened selector in the element definition, optionally keeping the old selector as a fallback in a ladder strategy.
-4. Regenerate all affected specs.
-5. Rerun the impacted tests to confirm the regression is fixed.
-6. Submit the knowledge update with evidence for trust policy review.
+## The new governance boundary
 
-## Agent interaction model
+The most important operating rule is simple:
 
-QAs interact with agents (GitHub Copilot, Claude, or similar) through the Tesseract CLI. The agent's operating surface is:
+- deterministic derivations from approved artifacts are auto-approved
+- new canonical knowledge is review-gated
 
-| Command | Purpose |
-|---------|---------|
-| `npm run refresh` | Recompile everything from canonical inputs |
-| `npm run surface` | Inspect what the system knows about a screen |
-| `npm run trace` | See what a scenario touches without executing it |
-| `npm run impact` | Understand what a knowledge change affects |
-| `npm run capture` | Re-snapshot a screen section from a live page |
-| `npm run paths` | Show canonical artifact paths for a scenario |
-| `npm run graph` | Build and inspect the dependency graph |
+That means a QA team does not need to bless every working bound step one by one. If the compiler used approved elements, postures, hints, patterns, and snapshots through deterministic precedence rules, the output is executable now.
 
-The agent does not need to understand Playwright APIs, DOM structure, or test framework internals. It works at the level of screens, elements, postures, scenarios, and evidence. The compiler handles the translation to executable code.
+Human review is reserved for the durable facts that will shape future derivations:
 
-## QA readability contract
+- new or changed element signatures
+- posture changes
+- hint files
+- shared patterns
+- locator ladder repairs
+- snapshot template updates
 
-Generated specs must be transparent projections of the ADO test case. A QA reviewing a generated spec should be able to confirm:
+This keeps humans focused on canon, not on generated byproducts.
 
-- The ADO test case ID and revision are visible as test annotations.
-- Each step in the spec maps 1:1 to a step in the ADO case.
-- Each step carries the semantic intent string from the ADO case (e.g., "Enter policy number in search field") as the `test.step()` label.
-- The function calls within each step correspond to what the step semantically describes — navigating, entering data, clicking, asserting.
+## QA workflow
 
-## Escape hatches and the knowledge ratchet
+The QA-facing loop should feel like this:
 
-Not every ADO step maps cleanly to the deterministic grammar. An agent may encounter:
+1. author or refine the manual case in Azure DevOps
+2. sync and refresh the scenario
+3. inspect the generated review surface
+4. approve only when the system proposes new canonical knowledge
+5. rerun and observe whether the knowledge ratchet reduced future effort
 
-- An interaction pattern the knowledge layer has never seen (a combobox, date picker, multi-step modal).
-- A DOM structure that does not fit the current surface decomposition.
-- A step whose intent is clear but whose mechanical execution requires domain-specific logic.
+The QA should not need to read Playwright internals to answer whether the compiler was faithful.
 
-The current `custom-escape-hatch` instruction kind marks these gaps. The interpreter classifies them as `semantic-gap`. The design intent is that escape hatches feed back into the knowledge layer rather than remaining as dead code:
+That is why each scenario now emits:
 
-- The agent encodes the discovered pattern as a **persistent override** — a reusable pattern contract in the knowledge layer, not a hardcoded function.
-- Pattern contracts describe the interaction mechanics of a widget type (how to select from a combobox, how to navigate a date picker) in a way the compiler can bind against in future scenarios.
-- When the same pattern appears in a different scenario, it resolves deterministically rather than requiring another escape hatch.
-- The trust policy governs promotion of agent-proposed patterns, requiring evidence and review.
+- `generated/{suite}/{ado_id}.spec.ts`
+- `generated/{suite}/{ado_id}.trace.json`
+- `generated/{suite}/{ado_id}.review.md`
 
-This creates a ratchet: every escape hatch is an opportunity to extend the knowledge layer. The system gets more deterministic over time as pattern coverage grows.
+The spec is executable. The trace is machine-readable provenance. The review Markdown is the human explanation layer.
 
-## Locator strategy and fallback ladders
+## Review fidelity
 
-Element definitions should support an ordered locator strategy rather than a single flat selector:
+The generated review surface must let a QA answer, step by step:
 
-1. **Primary**: `data-testid` — most stable in OutSystems apps where test IDs are explicitly added.
-2. **Fallback**: ARIA role + accessible name — semantic, survives cosmetic refactors.
-3. **Last resort**: CSS selector — fragile, but sometimes necessary for OutSystems-generated DOM.
+- what exact ADO text was preserved
+- how the compiler normalized that text
+- what action the compiler inferred
+- what screen, element, posture, or snapshot it resolved to
+- what approved files were used
+- whether the step was `compiler-derived`, local-hint-backed, pattern-backed, or still unbound
 
-When an agent hardens a selector, it proposes an updated strategy with the new primary and optionally retains the previous selector as a fallback rung. The runtime tries the ladder in order. The evidence record captures which rung succeeded, feeding back into confidence scoring.
+That is the contract. If the review artifact cannot explain a step, the model is incomplete.
 
-## Trust policy and governance
+## Supplement hierarchy
 
-Agents can propose freely. Promotion to approved knowledge requires evidence.
+Not every useful fact deserves a runtime code change.
 
-The trust policy (`.tesseract/policy/trust-policy.yaml`) enforces:
+Tesseract treats supplements as first-class knowledge:
 
-- Minimum confidence thresholds per artifact type.
-- Required evidence kinds and counts (DOM snapshots, ARIA snapshots, runtime observations, assertion runs).
-- Forbidden auto-heal classes (assertion mismatches, structural mismatches) that must always go through human review.
+- screen-local supplements live in `knowledge/screens/{screen}.hints.yaml`
+- promoted shared supplements live in `knowledge/patterns/*.yaml`
 
-Policy decisions are graph nodes with full provenance. The system can always answer: "Why was this element definition approved? What evidence supported it? What policy version governed the decision?"
+This hierarchy matters because it lets the system learn without over-generalizing too early.
 
-The agent is a proposal engine. The trust policy is the review gate. The QA remains the approver for semantic changes.
+A local hint can encode:
 
-## Why OutSystems specifically
+- aliases
+- default value refs
+- parameter cues
+- snapshot aliases
+- local affordances
 
-OutSystems generates volatile DOM that is hostile to brittle automation:
+A promoted pattern can encode:
 
-- Element IDs and class names change across deployments.
-- ARIA semantics are inconsistent across platform versions.
-- Layout structure shifts without functional changes.
+- shared action vocabularies
+- shared posture vocabularies
+- promoted interaction or repair abstractions that proved reusable
 
-This makes the knowledge layer essential — not optional. Hard-coded selectors in test files break constantly. A centralized, evidence-governed knowledge layer is the only way to maintain a large test suite against an OutSystems application without constant manual repair.
+The promotion rule is deliberate:
+
+- local first
+- shared second
+
+That keeps the knowledge base grounded instead of turning it into abstract prompt lore.
+
+## Locator ladders and brittle-green visibility
+
+Selector drift is unavoidable in OutSystems. The answer is not to bury more selectors in more tests.
+
+Tesseract centralizes locator strategy in element signatures and supports ordered ladders such as:
+
+1. `test-id`
+2. `role-name`
+3. `css`
+
+If a fallback rung succeeds, the run may still be green, but it is not healthy in the same way. The system should surface that as degraded locator use so the knowledge can be hardened before a wider failure appears.
+
+This is part of the broader product goal: make silent brittleness visible.
+
+## Negative testing through posture
+
+The posture model remains the breakthrough.
+
+A field should not be described only by the value typed into it. It should also be described by the disposition taken toward it:
+
+- valid
+- invalid
+- empty
+- boundary
+
+Once a posture contract is authored, negative scenarios become data transformations over approved behavior knowledge rather than bespoke handwritten scripts.
+
+That is how Tesseract reduces the cost of the 50th test instead of increasing it.
+
+## Bottleneck visibility is a feature
+
+The system should reveal where it still needs help.
+
+A useful Tesseract installation should make it obvious which work is currently blocked by:
+
+- missing screen knowledge
+- missing local hints
+- missing promoted patterns
+- missing snapshot templates
+- unmodeled widget affordances
+- review-required proposals waiting on a human decision
+
+This is not failure reporting alone. It is product-level observability over the knowledge bottleneck.
+
+## Why the CLI matters
+
+QAs and agents should be able to navigate the repo through a stable command surface rather than institutional memory.
+
+Core commands:
+
+- `npm run refresh`
+- `npm run paths`
+- `npm run surface`
+- `npm run trace`
+- `npm run impact`
+- `npm run graph`
+- `npm run types`
+- `npm run capture`
+
+A good agent should be able to answer what changed, what is canonical, what was derived, and what must be reviewed by using those commands and the emitted artifacts.
+
+## Agents are bounded optimization passes
+
+Agents are not the compiler.
+
+They are useful when constrained to narrow, inspectable surfaces:
+
+- propose a locator ladder repair from evidence
+- propose a screen hint for a phrase that inference missed
+- promote a repeated local supplement into a shared pattern
+- classify failures and localize structural drift
+
+The system should preserve those contributions as reviewable proposals, not absorb them as invisible runtime mutations.
+
+## The next optimization lane
+
+There is a natural next step once trace and evidence corpora become rich enough: an offline evaluation and optimization lane.
+
+Tools like DSPy or GEPA may help with:
+
+- proposal ranking
+- hint or pattern suggestion quality
+- benchmark-driven prompt optimization
+- discovering where the deterministic grammar still leaves too much on the table
+
+But that lane must remain outside the deterministic compiler path.
+
+The compiler should stay explainable, reproducible, and testable. Optimization systems should compete to improve proposals and workflows around it, not silently replace the core semantics.
+
+## The six-month asset
+
+If this system is built carefully, the repo stops being just a test suite.
+
+It becomes a machine-readable model of the application's interactive surface, its behavior partitions, its structural assertions, its proposal history, and its repair bottlenecks.
+
+That is the enduring asset:
+
+- a QA-readable compiler
+- an agent-operable knowledge base
+- a reviewable path from human intent to executable verification

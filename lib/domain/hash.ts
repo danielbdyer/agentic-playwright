@@ -1,5 +1,5 @@
 ﻿import { createHash } from 'crypto';
-import { AdoParameter, AdoStep } from './types';
+import type { AdoParameter, AdoStep } from './types';
 
 const HTML_ENTITIES: Record<string, string> = {
   '&amp;': '&',

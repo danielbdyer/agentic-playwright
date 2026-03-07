@@ -1,27 +1,34 @@
 ﻿import { Effect } from 'effect';
 import YAML from 'yaml';
 import { createDiagnostic } from '../domain/diagnostics';
+import { inferSnapshotScenario, loadInferenceKnowledge } from './inference';
 import { deriveCapabilities, findCapability } from '../domain/grammar';
-import { AdoId, ScreenId } from '../domain/identity';
+import { normalizeIntentText } from '../domain/inference';
+import type { AdoId, ScreenId } from '../domain/identity';
 import { capabilityForInstruction, compileStepProgram, traceStepProgram } from '../domain/program';
-import { PostureContractIssueCode, validatePostureContract } from '../domain/posture-contract';
-import { BoundScenario, CompilerDiagnostic, ProposedChangeMetadata, ScreenElements, ScreenPostures, SurfaceGraph } from '../domain/types';
-import { validateBoundScenario, validateScenario, validateScreenElements, validateScreenPostures, validateSurfaceGraph } from '../domain/validation';
+import type { PostureContractIssueCode} from '../domain/posture-contract';
+import { validatePostureContract } from '../domain/posture-contract';
+import type { BoundScenario, CompilerDiagnostic, ScreenElements, ScreenPostures, SurfaceGraph } from '../domain/types';
+import { validateAdoSnapshot, validateBoundScenario, validateScenario, validateScreenElements, validateScreenPostures, validateSurfaceGraph } from '../domain/validation';
 import { FileSystem } from './ports';
 import { walkFiles } from './artifacts';
+import type {
+  ProjectPaths} from './paths';
 import {
   boundPath,
   elementsPath,
   knowledgeArtifactPath,
   posturesPath,
-  ProjectPaths,
   relativeProjectPath,
+  snapshotPath,
   surfacePath,
 } from './paths';
 import { trySync } from './effect';
 import { TesseractError } from '../domain/errors';
-import { evaluateArtifactPolicy, loadEvidenceRecords, loadTrustPolicy, trustPolicyDiagnosticForScenario } from './trust-policy';
 
+function uniqueSorted(values: string[]): string[] {
+  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
+}
 
 function contractIssueToReason(code: PostureContractIssueCode): PostureContractIssueCode {
   switch (code) {
@@ -33,7 +40,6 @@ function contractIssueToReason(code: PostureContractIssueCode): PostureContractI
   }
 }
 
-
 function findScenarioPath(paths: ProjectPaths, adoId: AdoId) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
@@ -41,7 +47,13 @@ function findScenarioPath(paths: ProjectPaths, adoId: AdoId) {
     if (matches.length === 0) {
       return yield* Effect.fail(new TesseractError('scenario-not-found', `Unable to find scenario for ADO ${adoId}`));
     }
-    return matches[0];
+
+    const [scenarioPath] = matches;
+    if (!scenarioPath) {
+      return yield* Effect.fail(new TesseractError('scenario-not-found', `Unable to find scenario for ADO ${adoId}`));
+    }
+
+    return scenarioPath;
   });
 }
 
@@ -130,20 +142,27 @@ export function bindScenario(options: { adoId: AdoId; paths: ProjectPaths }) {
       'scenario-validation-failed',
       `Scenario ${options.adoId} failed validation`,
     );
-    const trustPolicy = yield* loadTrustPolicy(options.paths);
-    const evidenceRecords = yield* loadEvidenceRecords(options.paths);
+    const rawSnapshot = yield* fs.readJson(snapshotPath(options.paths, options.adoId));
+    const snapshot = yield* trySync(
+      () => validateAdoSnapshot(rawSnapshot),
+      'snapshot-validation-failed',
+      `Snapshot ${options.adoId} failed validation`,
+    );
+    const inferenceKnowledge = yield* loadInferenceKnowledge({ paths: options.paths });
+    const inferredByIndex = new Map(inferSnapshotScenario(snapshot, inferenceKnowledge).map((entry) => [entry.step.index, entry]));
 
     const elementsCache = new Map<ScreenId, ScreenElements>();
     const posturesCache = new Map<ScreenId, ScreenPostures>();
     const surfacesCache = new Map<ScreenId, SurfaceGraph>();
     const diagnostics: CompilerDiagnostic[] = [];
-    const boundSteps = [];
+    const boundSteps: BoundScenario['steps'] = [];
 
     for (const step of scenario.steps) {
       const reasons: string[] = [];
       const program = compileStepProgram(step);
       const trace = traceStepProgram(program);
       const referencedScreen = step.screen ?? trace.screens[0];
+      const inferred = inferredByIndex.get(step.index);
       let screenElements: ScreenElements | undefined;
       let screenPostures: ScreenPostures | undefined;
       let surfaceGraph: SurfaceGraph | undefined;
@@ -226,26 +245,8 @@ export function bindScenario(options: { adoId: AdoId; paths: ProjectPaths }) {
         }
       }
 
-      const proposedChange: ProposedChangeMetadata = {
-        artifactType: step.action === 'assert-snapshot' ? 'snapshot' : step.action === 'navigate' ? 'surface' : step.action === 'input' ? 'postures' : 'elements',
-        confidence: step.confidence === 'human' ? 1 : step.confidence === 'agent-verified' ? 0.9 : step.confidence === 'agent-proposed' ? 0.7 : 0.1,
-        autoHealClass: step.action === 'assert-snapshot' ? 'assertion-mismatch' : null,
-      };
-      const policyEvaluation = evaluateArtifactPolicy({
-        policy: trustPolicy,
-        proposedChange,
-        evidence: evidenceRecords,
-      });
-      if (policyEvaluation.decision !== 'allow') {
-        reasons.push(policyEvaluation.decision === 'deny' ? 'trust-policy-blocked' : 'trust-policy-review-required');
-        diagnostics.push(trustPolicyDiagnosticForScenario({
-          adoId: scenario.source.ado_id,
-          artifactPath: relativeProjectPath(options.paths, scenarioFile),
-          evaluation: policyEvaluation,
-        }));
-      }
-
-      for (const reason of [...new Set(reasons)]) {
+      const uniqueReasons = uniqueSorted(reasons);
+      for (const reason of uniqueReasons) {
         diagnostics.push(
           createDiagnostic({
             code: reason,
@@ -264,17 +265,28 @@ export function bindScenario(options: { adoId: AdoId; paths: ProjectPaths }) {
         );
       }
 
-      const related = diagnostics
-        .filter((diagnostic) => diagnostic.stepIndex === step.index)
-        .map((diagnostic) => diagnostic.code);
+      const needsReview = uniqueReasons.length > 0 || step.confidence === 'agent-proposed' || step.confidence === 'agent-verified';
+      const reviewReasons = uniqueSorted([
+        ...(inferred?.reviewReasons ?? []),
+        ...uniqueReasons,
+        ...(step.confidence === 'agent-proposed' || step.confidence === 'agent-verified' ? [step.confidence] : []),
+      ]);
+      const confidence = uniqueReasons.length > 0 ? 'unbound' : step.confidence;
 
       boundSteps.push({
         ...step,
-        confidence: related.length > 0 ? 'unbound' : step.confidence,
+        confidence,
         program,
         binding: {
-          kind: (related.length > 0 ? 'unbound' : 'bound') as 'unbound' | 'bound',
-          reasons: related,
+          kind: (uniqueReasons.length > 0 ? 'unbound' : 'bound') as 'unbound' | 'bound',
+          reasons: uniqueReasons,
+          ruleId: inferred?.ruleId ?? null,
+          normalizedIntent: inferred?.normalizedIntent ?? normalizeIntentText(step.intent),
+          knowledgeRefs: inferred?.knowledgeRefs ?? [],
+          supplementRefs: inferred?.supplementRefs ?? [],
+          evidenceIds: [],
+          governance: (needsReview ? 'review-required' : 'approved') as 'review-required' | 'approved',
+          reviewReasons,
         },
       });
     }
@@ -296,8 +308,9 @@ export function bindScenario(options: { adoId: AdoId; paths: ProjectPaths }) {
         `Bound scenario ${options.adoId} failed validation`,
       ),
       boundPath: outputPath,
-      hasUnbound: diagnostics.length > 0,
+      hasUnbound: boundSteps.some((step) => step.binding.kind === 'unbound'),
     };
   });
 }
+
 

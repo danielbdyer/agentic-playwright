@@ -1,0 +1,24 @@
+﻿{
+  "entry": [
+    "bin/tesseract.ts",
+    "knowledge/components/index.ts",
+    "scripts/*.cjs"
+  ],
+  "project": [
+    "bin/**/*.ts",
+    "knowledge/**/*.ts",
+    "lib/**/*.ts",
+    "playwright*.ts",
+    "scripts/**/*.cjs",
+    "tests/**/*.ts"
+  ],
+  "ignore": [
+    ".ado-sync/**",
+    ".tesseract/**",
+    "dist/**",
+    "generated/**",
+    "lib/generated/**",
+    "test-results/**",
+    "tests-capture/**"
+  ]
+}

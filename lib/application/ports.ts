@@ -1,6 +1,7 @@
-﻿import { Context, Effect } from 'effect';
-import { AdoId } from '../domain/identity';
-import { TesseractError } from '../domain/errors';
+﻿import type { Effect } from 'effect';
+import { Context } from 'effect';
+import type { AdoId } from '../domain/identity';
+import type { TesseractError } from '../domain/errors';
 
 export interface FileSystemPort {
   readText(path: string): Effect.Effect<string, TesseractError>;
