@@ -43,6 +43,22 @@ export type CapabilityName =
 
 export type EffectTargetKind = 'self' | 'element' | 'surface';
 
+export type WidgetAction = 'click' | 'fill' | 'clear' | 'get-value';
+export type WidgetPrecondition = 'visible' | 'enabled' | 'editable';
+export type WidgetEffectCategory = 'mutation' | 'observation' | 'focus' | 'navigation';
+
+export interface WidgetActionSemantics {
+  expectedStates: EffectState[];
+  effectCategories: WidgetEffectCategory[];
+}
+
+export interface WidgetCapabilityContract {
+  widget: WidgetId;
+  supportedActions: WidgetAction[];
+  requiredPreconditions: WidgetPrecondition[];
+  sideEffects: Partial<Record<WidgetAction, WidgetActionSemantics>>;
+}
+
 export interface RefPath {
   segments: string[];
 }

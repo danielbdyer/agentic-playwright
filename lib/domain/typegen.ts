@@ -12,7 +12,9 @@ import {
 export interface GeneratedKnowledgeInput {
   screens: string[];
   surfaces: Record<string, string[]>;
+  surfaceActions: Record<string, Record<string, string[]>>;
   elements: Record<string, string[]>;
+  widgetActions: Record<string, string[]>;
   postures: Record<string, Record<string, string[]>>;
   snapshots: string[];
   fixtures: string[];
@@ -55,6 +57,30 @@ export function renderGeneratedKnowledgeModule(input: GeneratedKnowledgeInput): 
       conditionalByScreen('S', screenCases(input, (screen) => input.elements[screen] ?? [])),
       { exported: true, parameters: [typeParameterScreenId()] },
     ),
+    constStatement('widgetSupportedActions', asConst(expressionFromLiteral(input.widgetActions)), true),
+    typeAliasStatement(
+      'WidgetId',
+      unionOfStringLiterals(Object.keys(input.widgetActions).sort((left, right) => left.localeCompare(right))),
+      { exported: true },
+    ),
+    typeAliasStatement('WidgetSupportedAction', ts.factory.createIndexedAccessTypeNode(
+      ts.factory.createIndexedAccessTypeNode(
+        ts.factory.createTypeQueryNode(ts.factory.createIdentifier('widgetSupportedActions')),
+        ts.factory.createTypeReferenceNode('W'),
+      ),
+      ts.factory.createKeywordTypeNode(ts.SyntaxKind.NumberKeyword),
+    ), {
+      exported: true,
+      parameters: [
+        ts.factory.createTypeParameterDeclaration(
+          undefined,
+          'W',
+          ts.factory.createTypeReferenceNode('WidgetId'),
+          ts.factory.createTypeReferenceNode('WidgetId'),
+        ),
+      ],
+    }),
+    constStatement('surfaceSupportedActions', asConst(expressionFromLiteral(input.surfaceActions)), true),
     constStatement('postureIds', asConst(expressionFromLiteral(input.postures)), true),
     typeAliasStatement(
       'ScreenPostureId',
@@ -74,6 +100,7 @@ export function renderGeneratedKnowledgeModule(input: GeneratedKnowledgeInput): 
               screen,
               {
                 surfaces: input.surfaces[screen] ?? [],
+                surfaceActions: input.surfaceActions[screen] ?? {},
                 elements: input.elements[screen] ?? [],
                 postures: input.postures[screen] ?? {},
               },

@@ -134,7 +134,9 @@ test('renderGeneratedKnowledgeModule emits explicit unions from approved knowled
   const code = renderGeneratedKnowledgeModule({
     screens: ['policy-search'],
     surfaces: { 'policy-search': ['search-form'] },
+    surfaceActions: { 'policy-search': { 'search-form': ['enter', 'observe-state'] } },
     elements: { 'policy-search': ['policyNumberInput'] },
+    widgetActions: { 'os-input': ['fill', 'clear', 'get-value'] },
     postures: { 'policy-search': { policyNumberInput: ['valid'] } },
     snapshots: ['snapshots/policy-search/results-with-policy.yaml'],
     fixtures: ['activePolicy'],
