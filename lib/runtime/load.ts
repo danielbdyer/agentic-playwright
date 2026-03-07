@@ -1,5 +1,5 @@
 ﻿import path from 'path';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import YAML from 'yaml';
 import { ScreenId } from '../domain/identity';
 import { ScreenElements, ScreenPostures, SurfaceGraph } from '../domain/types';
@@ -28,7 +28,11 @@ export function loadScreen(screenId: ScreenId): LoadedScreen {
   const posturesFile = path.join(root, 'knowledge', 'screens', `${screenId}.postures.yaml`);
   const surfaceGraph = validateSurfaceGraph(YAML.parse(readFileSync(surfaceFile, 'utf8')));
   const elements = validateScreenElements(YAML.parse(readFileSync(elementsFile, 'utf8')));
-  const postures = validateScreenPostures(YAML.parse(readFileSync(posturesFile, 'utf8')));
+  // Postures are optional approved knowledge: if no posture artifact exists yet,
+  // load the screen with an empty posture map and continue using surfaces/elements.
+  const postures = existsSync(posturesFile)
+    ? validateScreenPostures(YAML.parse(readFileSync(posturesFile, 'utf8'))).postures
+    : ({} as LoadedScreen['postures']);
   const loaded: LoadedScreen = {
     screen: {
       screen: surfaceGraph.screen,
@@ -37,7 +41,7 @@ export function loadScreen(screenId: ScreenId): LoadedScreen {
     },
     surfaces: surfaceGraph.surfaces,
     elements: elements.elements,
-    postures: postures.postures,
+    postures,
   };
   cache.set(screenId, loaded);
   return loaded;
