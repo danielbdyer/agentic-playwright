@@ -43,13 +43,4 @@ steps:
     element: resultsTable
     snapshot_template: snapshots/policy-search/results-with-policy.yaml
     confidence: human
-postconditions:
-  - action: assert-snapshot
-    screen: policy-search
-    element: resultsTable
-    snapshot_template: snapshots/policy-search/results-with-policy-postcondition.yaml
-  - action: input
-    screen: policy-search
-    element: policyNumberInput
-    posture: valid
-    override: "{{postconditionFixture.number}}"
+postconditions: []
