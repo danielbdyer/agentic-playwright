@@ -9,6 +9,7 @@ export interface ProjectPaths {
   archiveDir: string;
   manifestPath: string;
   scenariosDir: string;
+  scenarioTemplatesDir: string;
   knowledgeDir: string;
   surfacesDir: string;
   generatedDir: string;
@@ -29,6 +30,7 @@ export function createProjectPaths(rootDir: string): ProjectPaths {
     archiveDir: path.join(rootDir, '.ado-sync', 'archive'),
     manifestPath: path.join(rootDir, '.ado-sync', 'manifest.json'),
     scenariosDir: path.join(rootDir, 'scenarios'),
+    scenarioTemplatesDir: path.join(rootDir, 'scenarios', 'templates'),
     knowledgeDir: path.join(rootDir, 'knowledge'),
     surfacesDir: path.join(rootDir, 'knowledge', 'surfaces'),
     generatedDir: path.join(rootDir, 'generated'),
@@ -68,6 +70,14 @@ export function scenarioPath(paths: ProjectPaths, suitePath: string, adoId: AdoI
 
 export function boundPath(paths: ProjectPaths, adoId: AdoId): string {
   return path.join(paths.boundDir, `${adoId}.json`);
+}
+
+export function expandedScenarioPath(paths: ProjectPaths, adoId: AdoId): string {
+  return path.join(paths.boundDir, "expanded", `${adoId}.expanded.json`);
+}
+
+export function scenarioTemplatePath(paths: ProjectPaths, name: string): string {
+  return resolvePathWithinRoot(paths.scenarioTemplatesDir, name, "name");
 }
 
 export function generatedSpecPath(paths: ProjectPaths, suitePath: string, adoId: AdoId): string {

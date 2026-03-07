@@ -3,9 +3,9 @@ import YAML from 'yaml';
 import { Effect } from 'effect';
 import { sha256, stableStringify } from '../domain/hash';
 import { createSnapshotTemplateId } from '../domain/identity';
-import { deriveGraph, EvidenceArtifact, KnowledgeSnapshotArtifact, ScenarioGraphArtifact } from '../domain/derived-graph';
-import { AdoSnapshot, ScreenElements, ScreenPostures, SurfaceGraph } from '../domain/types';
-import { validateAdoSnapshot, validateDerivedGraph, validateScenario, validateScreenElements, validateScreenPostures, validateSurfaceGraph } from '../domain/validation';
+import { deriveGraph, EvidenceArtifact, ExpandedScenarioGraphArtifact, KnowledgeSnapshotArtifact, ScenarioGraphArtifact, ScenarioTemplateGraphArtifact } from '../domain/derived-graph';
+import { AdoSnapshot, ExpandedScenarioSet, ScenarioTemplateArtifact, ScreenElements, ScreenPostures, SurfaceGraph } from '../domain/types';
+import { validateAdoSnapshot, validateDerivedGraph, validateScenario, validateScenarioTemplateArtifact, validateScreenElements, validateScreenPostures, validateSurfaceGraph } from '../domain/validation';
 import { walkFiles } from './artifacts';
 import { trySync } from './effect';
 import { FileSystem } from './ports';
@@ -16,7 +16,7 @@ interface ArtifactEnvelope<T> {
   artifactPath: string;
 }
 
-type FingerprintKind = 'snapshot' | 'surface' | 'elements' | 'postures' | 'scenario';
+type FingerprintKind = 'snapshot' | 'surface' | 'elements' | 'postures' | 'scenario' | 'template' | 'expanded-scenario';
 
 interface InputFingerprint {
   kind: FingerprintKind;
@@ -77,7 +77,7 @@ function parseGraphManifest(value: unknown): GraphBuildManifest | null {
     }
     const entry = input as Partial<InputFingerprint>;
     if (
-      (entry.kind !== 'snapshot' && entry.kind !== 'surface' && entry.kind !== 'elements' && entry.kind !== 'postures' && entry.kind !== 'scenario')
+      (entry.kind !== 'snapshot' && entry.kind !== 'surface' && entry.kind !== 'elements' && entry.kind !== 'postures' && entry.kind !== 'scenario' && entry.kind !== 'template' && entry.kind !== 'expanded-scenario')
       || typeof entry.path !== 'string'
       || typeof entry.fingerprint !== 'string'
     ) {
@@ -193,6 +193,31 @@ export function buildDerivedGraph(options: { paths: ProjectPaths }) {
       inputFingerprints.push(fingerprintArtifact('scenario', artifactPath, scenario));
     }
 
+
+    const templateFiles = (yield* walkFiles(fs, options.paths.scenarioTemplatesDir)).filter((filePath) => filePath.endsWith('.yaml'));
+    const scenarioTemplates: ScenarioTemplateGraphArtifact[] = [];
+    for (const filePath of templateFiles) {
+      const raw = yield* fs.readText(filePath);
+      const template = yield* trySync(
+        () => validateScenarioTemplateArtifact(YAML.parse(raw)),
+        'scenario-template-validation-failed',
+        `Scenario template ${filePath} failed validation`,
+      );
+      const artifactPath = relativeProjectPath(options.paths, filePath);
+      scenarioTemplates.push({ artifact: template as ScenarioTemplateArtifact, artifactPath });
+      inputFingerprints.push(fingerprintArtifact('template', artifactPath, template));
+    }
+
+    const expandedFiles = (yield* walkFiles(fs, path.join(options.paths.boundDir, 'expanded'))).filter((filePath) => filePath.endsWith('.expanded.json'));
+    const expandedScenarios: ExpandedScenarioGraphArtifact[] = [];
+    for (const filePath of expandedFiles) {
+      const raw = yield* fs.readJson(filePath);
+      const expanded = raw as ExpandedScenarioSet;
+      const artifactPath = relativeProjectPath(options.paths, filePath);
+      expandedScenarios.push({ artifact: expanded, artifactPath });
+      inputFingerprints.push(fingerprintArtifact('expanded-scenario', artifactPath, expanded));
+    }
+
     const evidenceFiles = (yield* walkFiles(fs, options.paths.evidenceDir)).filter((filePath) => filePath.endsWith('.json'));
     const evidence: EvidenceArtifact[] = evidenceFiles.map((filePath) => ({
       artifactPath: relativeProjectPath(options.paths, filePath),
@@ -265,6 +290,8 @@ export function buildDerivedGraph(options: { paths: ProjectPaths }) {
       screenElements,
       screenPostures,
       scenarios,
+      scenarioTemplates,
+      expandedScenarios,
       evidence,
     });
 

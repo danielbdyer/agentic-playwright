@@ -29,6 +29,8 @@ export const graphIds = {
     element: (screenId: ScreenId, elementId: ElementId): string => joinGraphId('capability', 'element', screenId, elementId),
   },
   scenario: (adoId: AdoId): string => joinGraphId('scenario', adoId),
+  scenarioVariant: (adoId: AdoId, variantId: string): string => joinGraphId('scenario-variant', adoId, variantId),
+  template: (templateId: string): string => joinGraphId('template', templateId),
   step: (adoId: AdoId, index: number): string => joinGraphId('step', adoId, index),
   stepPrefix: (adoId: AdoId): string => joinGraphId('step', adoId, ''),
   generatedSpec: (adoId: AdoId): string => joinGraphId('generated-spec', adoId),

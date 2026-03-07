@@ -266,6 +266,47 @@ export interface ScreenPostures {
   postures: Record<string, Record<string, Posture>>;
 }
 
+export type PostureExpansionPartition = 'valid' | 'invalid' | 'empty' | 'boundary';
+
+export interface PostureExpansionRule {
+  screen: ScreenId;
+  baseline: PostureId;
+  overrides: PostureExpansionPartition[];
+  include?: ElementId[];
+  exclude?: ElementId[];
+  maxExpansions?: number;
+}
+
+export interface ScenarioTemplateArtifact {
+  id: string;
+  scenarioAdoIds: AdoId[];
+  rules: PostureExpansionRule[];
+}
+
+export interface ExpandedScenarioVariant {
+  id: string;
+  scenario: Scenario;
+  provenance: {
+    templateId: string;
+    templatePath: string;
+    sourceScenarioPath: string;
+    sourceAdoId: AdoId;
+    sourceStepIndex: number;
+    sourceElement: ElementId;
+    baselinePosture: PostureId;
+    overridePosture: PostureId;
+  };
+}
+
+export interface ExpandedScenarioSet {
+  kind: 'expanded-scenario-set';
+  sourceAdoId: AdoId;
+  sourceScenarioPath: string;
+  generatedAt: string;
+  variants: ExpandedScenarioVariant[];
+  diagnostics: CompilerDiagnostic[];
+}
+
 export interface ManifestEntry {
   adoId: AdoId;
   revision: number;
@@ -325,6 +366,7 @@ export interface DerivedCapability {
 
 export type GraphNodeKind =
   | 'snapshot'
+  | 'template'
   | 'screen'
   | 'section'
   | 'surface'
@@ -338,6 +380,7 @@ export type GraphNodeKind =
 
 export type GraphEdgeKind =
   | 'derived-from'
+  | 'derived-from-template'
   | 'contains'
   | 'references'
   | 'uses'

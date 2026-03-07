@@ -1,0 +1,13 @@
+id: policy-search-invalid-inputs
+scenarioAdoIds:
+  - "10001"
+rules:
+  - screen: policy-search
+    baseline: valid
+    overrides:
+      - invalid
+      - empty
+      - boundary
+    include:
+      - policyNumberInput
+    maxExpansions: 6

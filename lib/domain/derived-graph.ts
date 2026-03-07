@@ -14,7 +14,9 @@ import {
   GraphNodeKind,
   MappedMcpResource,
   MappedMcpTemplate,
+  ExpandedScenarioSet,
   Scenario,
+  ScenarioTemplateArtifact,
   ScreenElements,
   ScreenPostures,
   SurfaceGraph,
@@ -39,6 +41,10 @@ export interface EvidenceArtifact {
   artifactPath: string;
 }
 
+export interface ScenarioTemplateGraphArtifact extends ArtifactEnvelope<ScenarioTemplateArtifact> {}
+
+export interface ExpandedScenarioGraphArtifact extends ArtifactEnvelope<ExpandedScenarioSet> {}
+
 export interface GraphBuildInput {
   snapshots: ArtifactEnvelope<AdoSnapshot>[];
   surfaceGraphs: ArtifactEnvelope<SurfaceGraph>[];
@@ -46,6 +52,8 @@ export interface GraphBuildInput {
   screenElements: ArtifactEnvelope<ScreenElements>[];
   screenPostures: ArtifactEnvelope<ScreenPostures>[];
   scenarios: ScenarioGraphArtifact[];
+  scenarioTemplates: ScenarioTemplateGraphArtifact[];
+  expandedScenarios: ExpandedScenarioGraphArtifact[];
   evidence: EvidenceArtifact[];
 }
 
@@ -283,6 +291,35 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
         category: 'knowledge',
       },
     }));
+  }
+
+  for (const { artifact: template, artifactPath } of input.scenarioTemplates) {
+    const templateNodeId = graphIds.template(template.id);
+    addNode(nodes, createNode({
+      id: templateNodeId,
+      kind: 'template',
+      label: template.id,
+      artifactPath,
+      provenance: {
+        scenarioPath: artifactPath,
+      },
+      payload: {
+        scenarioAdoIds: template.scenarioAdoIds,
+        ruleCount: template.rules.length,
+      },
+    }));
+
+    for (const adoId of template.scenarioAdoIds) {
+      const scenarioNodeId = graphIds.scenario(adoId);
+      addEdge(edges, createEdge({
+        kind: 'references',
+        from: templateNodeId,
+        to: scenarioNodeId,
+        provenance: {
+          scenarioPath: artifactPath,
+        },
+      }));
+    }
   }
 
   for (const { artifact: elements, artifactPath } of input.screenElements) {
@@ -598,6 +635,45 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
           },
         }));
       }
+    }
+  }
+
+  for (const { artifact: expandedSet, artifactPath } of input.expandedScenarios) {
+    for (const variant of expandedSet.variants) {
+      const variantNodeId = graphIds.scenarioVariant(expandedSet.sourceAdoId, variant.id);
+      addNode(nodes, createNode({
+        id: variantNodeId,
+        kind: 'scenario',
+        label: `${expandedSet.sourceAdoId}:${variant.id}`,
+        artifactPath,
+        provenance: {
+          scenarioPath: artifactPath,
+        },
+        payload: {
+          generated: true,
+          sourceStepIndex: variant.provenance.sourceStepIndex,
+          sourceElement: variant.provenance.sourceElement,
+          overridePosture: variant.provenance.overridePosture,
+        },
+      }));
+
+      addEdge(edges, createEdge({
+        kind: 'derived-from',
+        from: variantNodeId,
+        to: graphIds.scenario(expandedSet.sourceAdoId),
+        provenance: {
+          scenarioPath: artifactPath,
+        },
+      }));
+
+      addEdge(edges, createEdge({
+        kind: 'derived-from-template',
+        from: variantNodeId,
+        to: graphIds.template(variant.provenance.templateId),
+        provenance: {
+          scenarioPath: artifactPath,
+        },
+      }));
     }
   }
 
