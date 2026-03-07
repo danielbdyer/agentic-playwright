@@ -15,7 +15,14 @@ export type FailureClassification =
   | 'interaction-timeout'
   | 'navigation-failure'
   | 'data-setup-failure'
+  | 'runtime-domain'
   | 'unknown';
+
+
+function runtimeCodeFromMessage(message: string): string | undefined {
+  const match = message.match(/\[(runtime-[^\]]+)\]/i);
+  return match?.[1]?.toLowerCase();
+}
 
 export function classifyFailure(message: string): FailureClassification {
   const normalized = message.toLowerCase();
@@ -24,6 +31,7 @@ export function classifyFailure(message: string): FailureClassification {
   if (normalized.includes('timed out')) return 'locator-timeout';
   if (normalized.includes('expect(')) return 'assertion-mismatch';
   if (normalized.includes('goto')) return 'navigation-failure';
+  if (runtimeCodeFromMessage(message)) return 'runtime-domain';
   return 'unknown';
 }
 
@@ -76,8 +84,10 @@ export class TesseractReporter implements Reporter {
       const classification = classifyFailure(result.error.message);
       const adoId = test.annotations.find((annotation) => annotation.type === 'ado-id')?.description;
       const context = findFailureContext(this.graph, adoId);
+      const runtimeDiagnostic = test.annotations.find((annotation) => annotation.type === 'runtime-diagnostic')?.description;
+      const runtimeSuffix = runtimeDiagnostic ? ` [runtime=${runtimeDiagnostic}]` : '';
       const suffix = context.relatedNodes.length > 0 ? ` [graph=${context.relatedNodes.join(', ')}]` : '';
-      process.stderr.write(`[tesseract-reporter] ${classification}: ${result.error.message}${suffix}\n`);
+      process.stderr.write(`[tesseract-reporter] ${classification}: ${result.error.message}${suffix}${runtimeSuffix}\n`);
     }
   }
 

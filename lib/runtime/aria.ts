@@ -1,5 +1,7 @@
 ﻿import YAML from 'yaml';
 import { Locator, expect } from '@playwright/test';
+import { snapshotHandleResolutionError } from '../domain/errors';
+import { RuntimeResult, runtimeErr, runtimeOk } from './result';
 
 interface AccessibilityNode {
   role?: string;
@@ -35,10 +37,11 @@ function normalizeSnapshotText(snapshot: string): string {
   return snapshot.replace(/\r\n/g, '\n').trim();
 }
 
-export async function captureAriaYaml(locator: Locator): Promise<string> {
+export async function captureAriaYaml(locator: Locator): Promise<RuntimeResult<string>> {
   const handle = await locator.elementHandle();
   if (!handle) {
-    throw new Error('Unable to resolve element handle for ARIA snapshot');
+    const error = snapshotHandleResolutionError();
+    return runtimeErr('runtime-snapshot-handle-resolution-failed', error.message, error.context, error);
   }
 
   const snapshot = await locator.page().accessibility.snapshot({
@@ -47,14 +50,18 @@ export async function captureAriaYaml(locator: Locator): Promise<string> {
   });
 
   if (!snapshot) {
-    return '';
+    return runtimeOk('');
   }
 
-  return normalizeSnapshotText(YAML.stringify(normalizeNode(snapshot as AccessibilityNode), { indent: 2 }));
+  return runtimeOk(normalizeSnapshotText(YAML.stringify(normalizeNode(snapshot as AccessibilityNode), { indent: 2 })));
 }
 
-export async function expectAriaSnapshot(locator: Locator, expectedSnapshot: string): Promise<void> {
+export async function expectAriaSnapshot(locator: Locator, expectedSnapshot: string): Promise<RuntimeResult<void>> {
   const actual = await captureAriaYaml(locator);
-  await expect(actual).toBe(normalizeSnapshotText(expectedSnapshot));
-}
+  if (!actual.ok) {
+    return actual;
+  }
 
+  await expect(actual.value).toBe(normalizeSnapshotText(expectedSnapshot));
+  return runtimeOk(undefined);
+}
