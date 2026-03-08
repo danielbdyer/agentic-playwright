@@ -1,20 +1,26 @@
-﻿import path from 'path';
-import { existsSync, readFileSync } from 'fs';
 import type { Page } from '@playwright/test';
 import { createDiagnostic } from '../domain/diagnostics';
 import { runtimeEscapeHatchError, toTesseractError, unknownScreenError } from '../domain/errors';
-import type { ScreenId, SnapshotTemplateId } from '../domain/identity';
+import type { ScreenId } from '../domain/identity';
 import { createPostureId } from '../domain/identity';
-import type { ProgramFailure, StepInterpreterDiagnostic, StepProgramDiagnosticContext, StepProgramExecutionResult, StepProgramInstructionOutcome, StepProgramInterpreter } from '../domain/program';
+import type {
+  ProgramFailure,
+  StepInterpreterDiagnostic,
+  StepProgramDiagnosticContext,
+  StepProgramExecutionResult,
+  StepProgramInstructionOutcome,
+  StepProgramInterpreter,
+} from '../domain/program';
 import type { CompilerDiagnostic, StepInstruction, StepProgram } from '../domain/types';
 import { resolveDataValue } from './data';
 import { engage } from './engage';
 import type { ScreenRegistry } from './load';
 import { loadScreenRegistry } from './load';
 import { resolveLocator } from './locate';
-import { expectAriaSnapshot } from './aria';
+import { expectAriaSnapshot } from '../playwright/aria';
 import { interact } from './interact';
-import type { RuntimeDiagnosticContext, RuntimeFailure, RuntimeResult} from './result';
+import { hasSnapshotTemplate, readSnapshotTemplate } from './snapshots';
+import type { RuntimeDiagnosticContext, RuntimeFailure, RuntimeResult } from './result';
 import { runtimeErr, runtimeOk, toRuntimeVoidResult } from './result';
 
 interface PlaywrightEnvironment {
@@ -34,10 +40,6 @@ function requireScreen(screens: ScreenRegistry, screenId: ScreenId): RuntimeResu
     return runtimeErr('runtime-unknown-screen', error.message, error.context, error);
   }
   return runtimeOk(screen);
-}
-
-function snapshotTemplatePath(snapshotTemplate: SnapshotTemplateId): string {
-  return path.join(process.cwd(), 'knowledge', snapshotTemplate);
 }
 
 function runtimeFailureDiagnostic(failure: RuntimeFailure, context: RuntimeDiagnosticContext): CompilerDiagnostic {
@@ -128,8 +130,7 @@ async function runInstruction(
             targetKind: 'element',
           });
         }
-        const templatePath = snapshotTemplatePath(instruction.snapshotTemplate);
-        if (!existsSync(templatePath)) {
+        if (!hasSnapshotTemplate(instruction.snapshotTemplate)) {
           return runtimeErr('runtime-missing-snapshot-template', `Missing snapshot template ${instruction.snapshotTemplate}`, {
             snapshotTemplate: instruction.snapshotTemplate,
           });
@@ -137,7 +138,7 @@ async function runInstruction(
         const resolvedLocator = await resolveLocator(page, element);
         const comparison = await expectAriaSnapshot(
           resolvedLocator.locator,
-          readFileSync(templatePath, 'utf8'),
+          readSnapshotTemplate(instruction.snapshotTemplate),
         );
         if (!comparison.ok) {
           return comparison;

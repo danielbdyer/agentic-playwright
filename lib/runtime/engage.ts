@@ -3,7 +3,7 @@ import { expect } from '@playwright/test';
 import type { ElementId, PostureId } from '../domain/identity';
 import { unknownEffectTargetError } from '../domain/errors';
 import type { ElementSig, Posture, SurfaceDefinition } from '../domain/types';
-import { widgetCapabilityContracts } from '../../knowledge/components';
+import { widgetCapabilityContracts } from '../domain/widgets/contracts';
 import { interact } from './interact';
 import { locate, resolveLocator } from './locate';
 import type { RuntimeResult} from './result';

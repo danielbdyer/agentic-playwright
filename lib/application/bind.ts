@@ -1,30 +1,26 @@
 ﻿import { Effect } from 'effect';
-import YAML from 'yaml';
 import { createDiagnostic } from '../domain/diagnostics';
 import { inferSnapshotScenario, loadInferenceKnowledge } from './inference';
 import { deriveCapabilities, findCapability } from '../domain/grammar';
 import { normalizeIntentText } from '../domain/inference';
-import type { AdoId, ScreenId } from '../domain/identity';
+import type { AdoId } from '../domain/identity';
 import { capabilityForInstruction, compileStepProgram, traceStepProgram } from '../domain/program';
 import type { PostureContractIssueCode} from '../domain/posture-contract';
 import { validatePostureContract } from '../domain/posture-contract';
 import type { BoundScenario, CompilerDiagnostic, ScreenElements, ScreenPostures, SurfaceGraph } from '../domain/types';
-import { validateAdoSnapshot, validateBoundScenario, validateScenario, validateScreenElements, validateScreenPostures, validateSurfaceGraph } from '../domain/validation';
+import { validateBoundScenario } from '../domain/validation';
+import { loadWorkspaceCatalog } from './catalog';
 import { FileSystem } from './ports';
-import { walkFiles } from './artifacts';
 import type {
   ProjectPaths} from './paths';
 import {
   boundPath,
-  elementsPath,
   knowledgeArtifactPath,
-  posturesPath,
   relativeProjectPath,
-  snapshotPath,
-  surfacePath,
 } from './paths';
 import { trySync } from './effect';
 import { TesseractError } from '../domain/errors';
+import type { WorkspaceSession } from './workspace-session';
 
 function uniqueSorted(values: string[]): string[] {
   return [...new Set(values)].sort((left, right) => left.localeCompare(right));
@@ -40,120 +36,29 @@ function contractIssueToReason(code: PostureContractIssueCode): PostureContractI
   }
 }
 
-function findScenarioPath(paths: ProjectPaths, adoId: AdoId) {
+export function bindScenario(options: { adoId: AdoId; paths: ProjectPaths; session?: WorkspaceSession }) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
-    const matches = (yield* walkFiles(fs, paths.scenariosDir)).filter((filePath) => filePath.endsWith(`${adoId}.scenario.yaml`));
-    if (matches.length === 0) {
-      return yield* Effect.fail(new TesseractError('scenario-not-found', `Unable to find scenario for ADO ${adoId}`));
+    const catalog = options.session?.catalog ?? (yield* loadWorkspaceCatalog({ paths: options.paths }));
+    const scenarioArtifact = catalog.scenarios.find((entry) => entry.artifact.source.ado_id === options.adoId);
+    if (!scenarioArtifact) {
+      return yield* Effect.fail(new TesseractError('scenario-not-found', `Unable to find scenario for ADO ${options.adoId}`));
     }
-
-    const [scenarioPath] = matches;
-    if (!scenarioPath) {
-      return yield* Effect.fail(new TesseractError('scenario-not-found', `Unable to find scenario for ADO ${adoId}`));
+    const snapshotArtifact = catalog.snapshots.find((entry) => entry.artifact.id === options.adoId);
+    if (!snapshotArtifact) {
+      return yield* Effect.fail(new TesseractError('snapshot-not-found', `Unable to find snapshot for ADO ${options.adoId}`));
     }
-
-    return scenarioPath;
-  });
-}
-
-function loadScreenElements(paths: ProjectPaths, screen: ScreenId, cache: Map<ScreenId, ScreenElements>) {
-  return Effect.gen(function* () {
-    const cached = cache.get(screen);
-    if (cached) {
-      return cached;
-    }
-
-    const fs = yield* FileSystem;
-    const target = elementsPath(paths, screen);
-    const exists = yield* fs.exists(target);
-    if (!exists) {
-      return undefined;
-    }
-
-    const raw = yield* fs.readText(target);
-    const parsed = yield* trySync(
-      () => validateScreenElements(YAML.parse(raw)),
-      'elements-validation-failed',
-      `Elements file for ${screen} failed validation`,
-    );
-    cache.set(screen, parsed);
-    return parsed;
-  });
-}
-
-function loadScreenPostures(paths: ProjectPaths, screen: ScreenId, cache: Map<ScreenId, ScreenPostures>) {
-  return Effect.gen(function* () {
-    const cached = cache.get(screen);
-    if (cached) {
-      return cached;
-    }
-
-    const fs = yield* FileSystem;
-    const target = posturesPath(paths, screen);
-    const exists = yield* fs.exists(target);
-    if (!exists) {
-      return undefined;
-    }
-
-    const raw = yield* fs.readText(target);
-    const parsed = yield* trySync(
-      () => validateScreenPostures(YAML.parse(raw)),
-      'postures-validation-failed',
-      `Postures file for ${screen} failed validation`,
-    );
-    cache.set(screen, parsed);
-    return parsed;
-  });
-}
-
-function loadSurfaceGraph(paths: ProjectPaths, screen: ScreenId, cache: Map<ScreenId, SurfaceGraph>) {
-  return Effect.gen(function* () {
-    const cached = cache.get(screen);
-    if (cached) {
-      return cached;
-    }
-
-    const fs = yield* FileSystem;
-    const target = surfacePath(paths, screen);
-    const exists = yield* fs.exists(target);
-    if (!exists) {
-      return undefined;
-    }
-
-    const raw = yield* fs.readText(target);
-    const parsed = yield* trySync(
-      () => validateSurfaceGraph(YAML.parse(raw)),
-      'surface-validation-failed',
-      `Surface graph for ${screen} failed validation`,
-    );
-    cache.set(screen, parsed);
-    return parsed;
-  });
-}
-
-export function bindScenario(options: { adoId: AdoId; paths: ProjectPaths }) {
-  return Effect.gen(function* () {
-    const fs = yield* FileSystem;
-    const scenarioFile = yield* findScenarioPath(options.paths, options.adoId);
-    const scenarioText = yield* fs.readText(scenarioFile);
-    const scenario = yield* trySync(
-      () => validateScenario(YAML.parse(scenarioText)),
-      'scenario-validation-failed',
-      `Scenario ${options.adoId} failed validation`,
-    );
-    const rawSnapshot = yield* fs.readJson(snapshotPath(options.paths, options.adoId));
-    const snapshot = yield* trySync(
-      () => validateAdoSnapshot(rawSnapshot),
-      'snapshot-validation-failed',
-      `Snapshot ${options.adoId} failed validation`,
-    );
-    const inferenceKnowledge = yield* loadInferenceKnowledge({ paths: options.paths });
+    const scenarioFile = scenarioArtifact.absolutePath;
+    const scenario = scenarioArtifact.artifact;
+    const snapshot = snapshotArtifact.artifact;
+    const inferenceKnowledge = options.session?.inferenceKnowledge ?? (yield* loadInferenceKnowledge({ paths: options.paths, catalog }));
     const inferredByIndex = new Map(inferSnapshotScenario(snapshot, inferenceKnowledge).map((entry) => [entry.step.index, entry]));
-
-    const elementsCache = new Map<ScreenId, ScreenElements>();
-    const posturesCache = new Map<ScreenId, ScreenPostures>();
-    const surfacesCache = new Map<ScreenId, SurfaceGraph>();
+    const elementsByScreen = options.session?.screenIndexes.screenElements
+      ?? new Map(catalog.screenElements.map((entry) => [entry.artifact.screen, entry.artifact] as const));
+    const posturesByScreen = options.session?.screenIndexes.screenPostures
+      ?? new Map(catalog.screenPostures.map((entry) => [entry.artifact.screen, entry.artifact] as const));
+    const surfacesByScreen = options.session?.screenIndexes.surfaceGraphs
+      ?? new Map(catalog.surfaces.map((entry) => [entry.artifact.screen, entry.artifact] as const));
     const diagnostics: CompilerDiagnostic[] = [];
     const boundSteps: BoundScenario['steps'] = [];
 
@@ -173,9 +78,9 @@ export function bindScenario(options: { adoId: AdoId; paths: ProjectPaths }) {
       }
 
       if (referencedScreen) {
-        screenElements = yield* loadScreenElements(options.paths, referencedScreen, elementsCache);
-        screenPostures = yield* loadScreenPostures(options.paths, referencedScreen, posturesCache);
-        surfaceGraph = yield* loadSurfaceGraph(options.paths, referencedScreen, surfacesCache);
+        screenElements = elementsByScreen.get(referencedScreen);
+        screenPostures = posturesByScreen.get(referencedScreen);
+        surfaceGraph = surfacesByScreen.get(referencedScreen);
 
         if (!screenElements) {
           reasons.push('unknown-screen');

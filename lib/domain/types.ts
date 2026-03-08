@@ -12,9 +12,12 @@ import type {
 
 export type Confidence = 'human' | 'agent-verified' | 'agent-proposed' | 'compiler-derived' | 'unbound';
 export type Governance = 'approved' | 'review-required' | 'blocked';
+export type StepProvenanceKind = 'compiler-derived' | 'hint-backed' | 'pattern-backed' | 'unbound';
 export type ScenarioStatus = 'stub' | 'draft' | 'active' | 'needs-repair' | 'blocked' | 'deprecated';
 export type StepAction = 'navigate' | 'input' | 'click' | 'assert-snapshot' | 'custom';
 export type DiagnosticSeverity = 'info' | 'warn' | 'error';
+export type PatternActionName = 'navigate' | 'input' | 'click' | 'assert-snapshot';
+export type ScenarioLifecycle = 'normal' | 'fixme' | 'skip' | 'fail';
 export type EffectState =
   | 'validation-error'
   | 'required-error'
@@ -315,11 +318,24 @@ export interface PatternAliasSet {
   aliases: string[];
 }
 
-export interface SharedPatterns {
+export interface PatternDocument {
   version: 1;
-  actions: Record<'navigate' | 'input' | 'click' | 'assert-snapshot', PatternAliasSet>;
-  postures: Record<string, PatternAliasSet>;
+  actions?: Partial<Record<PatternActionName, PatternAliasSet>> | undefined;
+  postures?: Record<string, PatternAliasSet> | undefined;
 }
+
+export interface MergedPatterns {
+  version: 1;
+  actions: Record<PatternActionName, PatternAliasSet>;
+  postures: Record<string, PatternAliasSet>;
+  documents: string[];
+  sources: {
+    actions: Record<PatternActionName, string>;
+    postures: Record<string, string>;
+  };
+}
+
+export type SharedPatterns = MergedPatterns;
 
 export interface PostureEffect {
   target: 'self' | ElementId | SurfaceId;
@@ -514,6 +530,47 @@ export interface CaptureResult {
   hashPath: string;
   hash: string;
   snapshot: string;
+}
+
+export interface ScenarioExplanationSummary {
+  stepCount: number;
+  provenanceKinds: Record<StepProvenanceKind, number>;
+  governance: Record<Governance, number>;
+  unresolvedReasons: Array<{
+    reason: string;
+    count: number;
+  }>;
+}
+
+export interface ScenarioExplanationStep {
+  index: number;
+  intent: string;
+  normalizedIntent: string;
+  action: StepAction;
+  confidence: Confidence;
+  provenanceKind: StepProvenanceKind;
+  governance: Governance;
+  ruleId: string | null;
+  knowledgeRefs: string[];
+  supplementRefs: string[];
+  reviewReasons: string[];
+  unresolvedGaps: string[];
+  reasons: string[];
+  evidenceIds: string[];
+  program: StepProgram | null;
+}
+
+export interface ScenarioExplanation {
+  adoId: AdoId;
+  revision: number;
+  title: string;
+  suite: string;
+  confidence: Confidence | 'mixed';
+  governance: Governance;
+  lifecycle: ScenarioLifecycle;
+  diagnostics: CompilerDiagnostic[];
+  summary: ScenarioExplanationSummary;
+  steps: ScenarioExplanationStep[];
 }
 
 

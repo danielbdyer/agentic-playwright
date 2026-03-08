@@ -1,8 +1,13 @@
-﻿import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
 import path from 'path';
+import { tmpdir } from 'os';
 import { expect, test } from '@playwright/test';
+import { createProjectPaths } from '../lib/application/paths';
+import { inspectSurface } from '../lib/application/surface';
 import { createScreenId } from '../lib/domain/identity';
-import { loadScreen } from '../lib/runtime/load';
+import { createLocalScreenRegistryLoader } from '../lib/infrastructure/screen-registry/local-screen-registry-loader';
+import { runWithLocalServices } from '../lib/infrastructure/local-services';
+import { configureScreenRegistryLoader, loadScreen } from '../lib/runtime/load';
 
 function createWorkspace(
   screenId: string,
@@ -11,8 +16,7 @@ function createWorkspace(
     includeHints?: boolean;
   },
 ): { root: string; posturesPath: string } {
-  const repoRoot = process.cwd();
-  const root = mkdtempSync(path.join(repoRoot, '.tmp-runtime-load-'));
+  const root = mkdtempSync(path.join(tmpdir(), 'tesseract-runtime-load-'));
   const surfacesDir = path.join(root, 'knowledge', 'surfaces');
   const screensDir = path.join(root, 'knowledge', 'screens');
   mkdirSync(surfacesDir, { recursive: true });
@@ -97,11 +101,10 @@ elements:
 
 test('loadScreen succeeds with empty postures when posture knowledge is missing', () => {
   const screenId = `runtime-load-no-postures-${Date.now()}`;
-  const repoRoot = process.cwd();
   const workspace = createWorkspace(screenId, { includePostures: false });
 
   try {
-    process.chdir(workspace.root);
+    configureScreenRegistryLoader(createLocalScreenRegistryLoader(workspace.root));
     const loaded = loadScreen(createScreenId(screenId));
     const inputField = loaded.elements['input-field'];
 
@@ -110,18 +113,16 @@ test('loadScreen succeeds with empty postures when posture knowledge is missing'
     expect(loaded.postures).toEqual({});
     expect(existsSync(workspace.posturesPath)).toBeFalsy();
   } finally {
-    process.chdir(repoRoot);
     rmSync(workspace.root, { recursive: true, force: true });
   }
 });
 
 test('loadScreen validates and returns postures when posture knowledge exists', () => {
   const screenId = `runtime-load-with-postures-${Date.now()}`;
-  const repoRoot = process.cwd();
   const workspace = createWorkspace(screenId, { includePostures: true });
 
   try {
-    process.chdir(workspace.root);
+    configureScreenRegistryLoader(createLocalScreenRegistryLoader(workspace.root));
     const loaded = loadScreen(createScreenId(screenId));
     const inputFieldPostures = loaded.postures['input-field'];
     const validPosture = inputFieldPostures?.valid;
@@ -129,24 +130,42 @@ test('loadScreen validates and returns postures when posture knowledge exists', 
     expect(validPosture?.values).toEqual(['abc123']);
     expect(validPosture?.effects).toEqual([]);
   } finally {
-    process.chdir(repoRoot);
     rmSync(workspace.root, { recursive: true, force: true });
   }
 });
 
 test('loadScreen overlays screen hint affordances onto element signatures', () => {
   const screenId = `runtime-load-with-hints-${Date.now()}`;
-  const repoRoot = process.cwd();
   const workspace = createWorkspace(screenId, { includePostures: false, includeHints: true });
 
   try {
-    process.chdir(workspace.root);
+    configureScreenRegistryLoader(createLocalScreenRegistryLoader(workspace.root));
     const loaded = loadScreen(createScreenId(screenId));
     const inputField = loaded.elements['input-field'];
 
     expect(inputField?.affordance).toBe('masked-entry');
   } finally {
-    process.chdir(repoRoot);
+    rmSync(workspace.root, { recursive: true, force: true });
+  }
+});
+
+test('runtime loader and application surface inspection share the same screen bundle view', async () => {
+  const screenId = `runtime-load-parity-${Date.now()}`;
+  const workspace = createWorkspace(screenId, { includePostures: true, includeHints: true });
+  const screen = createScreenId(screenId);
+
+  try {
+    configureScreenRegistryLoader(createLocalScreenRegistryLoader(workspace.root));
+    const loaded = loadScreen(screen);
+    const inspected = await runWithLocalServices(
+      inspectSurface({ screen, paths: createProjectPaths(workspace.root) }),
+      workspace.root,
+    );
+
+    expect(loaded.surfaces).toEqual(inspected.screenBundle.surfaceGraph.surfaces);
+    expect(loaded.elements).toEqual(inspected.screenBundle.mergedElements);
+    expect(loaded.postures).toEqual(inspected.screenBundle.postures?.postures ?? {});
+  } finally {
     rmSync(workspace.root, { recursive: true, force: true });
   }
 });

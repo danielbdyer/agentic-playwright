@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "tesseract",
   "version": "0.1.0",
   "private": true,
@@ -13,7 +13,7 @@
   "scripts": {
     "context": "node -e \"const fs=require('fs');const path=require('path');const Module=module.constructor;const file=path.resolve('scripts/agent-context.cjs');const code=fs.readFileSync(file,'utf8');const m=new Module(file);m.filename=file;m.paths=[path.resolve('node_modules')];process.argv=['node',file];m._compile(code,file);\"",
     "agent:sync": "node -e \"const fs=require('fs');const path=require('path');const Module=module.constructor;const file=path.resolve('scripts/agent-context.cjs');const code=fs.readFileSync(file,'utf8');const m=new Module(file);m.filename=file;m.paths=[path.resolve('node_modules')];process.argv=['node',file,'--write'];m._compile(code,file);\"",
-    "build": "node ./node_modules/typescript/bin/tsc -p tsconfig.build.json --pretty false",
+    "build": "node scripts/build.cjs",
     "typecheck": "node -e \"const fs=require('fs');const path=require('path');const Module=module.constructor;const file=path.resolve('scripts/typecheck.cjs');const code=fs.readFileSync(file,'utf8');const m=new Module(file);m.filename=file;m.paths=[path.resolve('node_modules')];process.argv=['node',file];m._compile(code,file);\"",
     "sync": "npm run build && node dist/bin/tesseract.js sync --all",
     "parse": "npm run build && node dist/bin/tesseract.js parse --ado-id 10001",
@@ -28,6 +28,7 @@
     "trace": "npm run build && node dist/bin/tesseract.js trace --ado-id 10001",
     "impact": "npm run build && node dist/bin/tesseract.js impact --node element:policy-search:searchButton",
     "types": "npm run build && node dist/bin/tesseract.js types",
+    "demo-harness:build": "node scripts/build.cjs --demo-harness-only",
     "lint": "node -e \"const fs=require('fs');const path=require('path');const Module=module.constructor;const file=path.resolve('scripts/lint.cjs');const code=fs.readFileSync(file,'utf8');const m=new Module(file);m.filename=file;m.paths=[path.resolve('node_modules')];process.argv=['node',file,...process.argv.slice(1)];m._compile(code,file);\" --",
     "check": "node -e \"const fs=require('fs');const path=require('path');const Module=module.constructor;const file=path.resolve('scripts/check.cjs');const code=fs.readFileSync(file,'utf8');const m=new Module(file);m.filename=file;m.paths=[path.resolve('node_modules')];process.argv=['node',file];m._compile(code,file);\"",
     "knip": "knip",
@@ -42,12 +43,14 @@
   },
   "devDependencies": {
     "@types/node": "^20.17.57",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
+    "esbuild": "^0.19.12",
     "eslint": "^8.57.1",
-    "knip": "^5.86.0"
+    "knip": "^5.86.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
   }
 }
-
-
-

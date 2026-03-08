@@ -16,6 +16,7 @@ import { generateTypes } from '../lib/application/types';
 import type { AdoSource, FileSystem } from '../lib/application/ports';
 import { TesseractError } from '../lib/domain/errors';
 import { createAdoId, createScreenId } from '../lib/domain/identity';
+import { discoverScreenScaffold } from '../lib/infrastructure/tooling/discover-screen';
 import { provideLocalServices } from '../lib/infrastructure/local-services';
 import { captureScreenSection } from '../lib/infrastructure/tooling/capture-screen';
 
@@ -26,6 +27,8 @@ interface CliOptions {
   section?: string | undefined;
   strict?: boolean | undefined;
   nodeId?: string | undefined;
+  url?: string | undefined;
+  rootSelector?: string | undefined;
   interpreterMode?: 'playwright' | 'dry-run' | 'diagnostic' | undefined;
 }
 
@@ -50,6 +53,16 @@ function parseArgs(argv: string[]): { command: string; options: CliOptions } {
     }
     if (token === '--screen') {
       options.screen = rest[index + 1];
+      index += 1;
+      continue;
+    }
+    if (token === '--url') {
+      options.url = rest[index + 1];
+      index += 1;
+      continue;
+    }
+    if (token === '--root-selector') {
+      options.rootSelector = rest[index + 1];
       index += 1;
       continue;
     }
@@ -87,7 +100,7 @@ function logJson(value: unknown): void {
 }
 
 function logIncrementalStatus(command: string, result: unknown): void {
-  if ((command !== 'graph' && command !== 'types') || !result || typeof result !== 'object') {
+  if ((command !== 'graph' && command !== 'types' && command !== 'emit') || !result || typeof result !== 'object') {
     return;
   }
 
@@ -140,6 +153,14 @@ async function main(): Promise<void> {
         paths,
       });
       break;
+    case 'discover':
+      baseProgram = discoverScreenScaffold({
+        ...(options.screen ? { screen: options.screen } : {}),
+        url: requireArg(options.url, '--url'),
+        ...(options.rootSelector ? { rootSelector: options.rootSelector } : {}),
+        paths,
+      });
+      break;
     case 'surface':
       baseProgram = inspectSurface({ screen: createScreenId(requireArg(options.screen, '--screen')), paths });
       break;
@@ -156,7 +177,7 @@ async function main(): Promise<void> {
       baseProgram = generateTypes({ paths });
       break;
     default:
-      throw new Error('Unknown command. Expected sync, parse, bind, emit, compile, refresh, paths, capture, surface, graph, trace, impact, or types.');
+      throw new Error('Unknown command. Expected sync, parse, bind, emit, compile, refresh, paths, capture, discover, surface, graph, trace, impact, or types.');
   }
 
   if (options.interpreterMode) {

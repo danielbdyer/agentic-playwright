@@ -3,7 +3,8 @@ import path from 'path';
 import YAML from 'yaml';
 import { expect, test } from '@playwright/test';
 import { inferScenarioSteps } from '../lib/domain/inference';
-import { validateAdoSnapshot, validateScreenElements, validateScreenHints, validateScreenPostures, validateSharedPatterns, validateSurfaceGraph } from '../lib/domain/validation';
+import { mergePatternDocuments } from '../lib/domain/knowledge/patterns';
+import { validateAdoSnapshot, validatePatternDocument, validateScreenElements, validateScreenHints, validateScreenPostures, validateSurfaceGraph } from '../lib/domain/validation';
 
 const rootDir = process.cwd();
 
@@ -17,6 +18,8 @@ function readYamlFixture(...segments: string[]) {
 
 test('inferScenarioSteps deterministically derives the seeded scenario from approved knowledge', () => {
   const snapshot = validateAdoSnapshot(readJsonFixture<Record<string, unknown>>('fixtures', 'ado', '10001.json'));
+  const patternPath = 'knowledge/patterns/core.patterns.yaml';
+  const patternDocument = validatePatternDocument(readYamlFixture('knowledge', 'patterns', 'core.patterns.yaml'));
   const knowledge = {
     surfaceGraphs: {
       'policy-search': validateSurfaceGraph(readYamlFixture('knowledge', 'surfaces', 'policy-search.surface.yaml')),
@@ -30,7 +33,7 @@ test('inferScenarioSteps deterministically derives the seeded scenario from appr
     screenPostures: {
       'policy-search': validateScreenPostures(readYamlFixture('knowledge', 'screens', 'policy-search.postures.yaml')),
     },
-    sharedPatterns: validateSharedPatterns(readYamlFixture('knowledge', 'patterns', 'core.patterns.yaml')),
+    sharedPatterns: mergePatternDocuments([{ artifactPath: patternPath, artifact: patternDocument }]),
   };
 
   const first = inferScenarioSteps(snapshot, knowledge);

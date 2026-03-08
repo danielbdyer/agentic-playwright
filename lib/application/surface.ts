@@ -1,53 +1,26 @@
-﻿import YAML from 'yaml';
 import { Effect } from 'effect';
-import type { ScreenId } from '../domain/identity';
 import { deriveCapabilities } from '../domain/grammar';
-import { validateScreenElements, validateScreenPostures, validateSurfaceGraph } from '../domain/validation';
-import { FileSystem } from './ports';
-import type { ProjectPaths} from './paths';
-import { elementsPath, posturesPath, relativeProjectPath, surfacePath } from './paths';
-import { trySync } from './effect';
+import type { ScreenId } from '../domain/identity';
+import { loadScreenBundle } from './catalog';
+import type { ProjectPaths } from './paths';
 
 export function inspectSurface(options: { screen: ScreenId; paths: ProjectPaths }) {
   return Effect.gen(function* () {
-    const fs = yield* FileSystem;
-    const approvedSurfacePath = surfacePath(options.paths, options.screen);
-    const approvedElementsPath = elementsPath(options.paths, options.screen);
-    const approvedPosturesPath = posturesPath(options.paths, options.screen);
-
-    const rawSurface = yield* fs.readText(approvedSurfacePath);
-    const rawElements = yield* fs.readText(approvedElementsPath);
-    const rawPostures = yield* fs.readText(approvedPosturesPath);
-
-    const surfaceGraph = yield* trySync(
-      () => validateSurfaceGraph(YAML.parse(rawSurface)),
-      'surface-validation-failed',
-      `Surface graph ${options.screen} failed validation`,
-    );
-    const elements = yield* trySync(
-      () => validateScreenElements(YAML.parse(rawElements)),
-      'elements-validation-failed',
-      `Elements for ${options.screen} failed validation`,
-    );
-    const postures = yield* trySync(
-      () => validateScreenPostures(YAML.parse(rawPostures)),
-      'postures-validation-failed',
-      `Postures for ${options.screen} failed validation`,
-    );
-
-    const capabilities = deriveCapabilities(surfaceGraph, elements);
+    const entry = yield* loadScreenBundle({ screen: options.screen, paths: options.paths });
+    const capabilities = deriveCapabilities(entry.bundle.surfaceGraph, entry.elements.artifact);
     return {
       screen: options.screen,
       artifactPaths: {
-        surface: relativeProjectPath(options.paths, approvedSurfacePath),
-        elements: relativeProjectPath(options.paths, approvedElementsPath),
-        postures: relativeProjectPath(options.paths, approvedPosturesPath),
+        surface: entry.surface.artifactPath,
+        elements: entry.elements.artifactPath,
+        postures: entry.postures?.artifactPath ?? null,
+        hints: entry.hints?.artifactPath ?? null,
       },
-      surfaceGraph,
-      elementCount: Object.keys(elements.elements).length,
-      postureCount: Object.values(postures.postures).reduce((total, entry) => total + Object.keys(entry).length, 0),
+      surfaceGraph: entry.bundle.surfaceGraph,
+      screenBundle: entry.bundle,
+      elementCount: Object.keys(entry.bundle.mergedElements).length,
+      postureCount: Object.values(entry.postures?.artifact.postures ?? {}).reduce((total, item) => total + Object.keys(item).length, 0),
       capabilities,
     };
   });
 }
-

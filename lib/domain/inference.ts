@@ -68,20 +68,40 @@ function patternAliases(patterns: SharedPatterns, key: keyof SharedPatterns['act
   return patterns.actions[key]?.aliases ?? [];
 }
 
-function resolveAction(normalizedAction: string, patterns: SharedPatterns): { action: ScenarioStep['action']; ruleId: string | null } {
+function resolveAction(normalizedAction: string, patterns: SharedPatterns): {
+  action: ScenarioStep['action'];
+  ruleId: string | null;
+  supplementRefs: string[];
+} {
   if (bestAliasMatch(normalizedAction, patternAliases(patterns, 'navigate'))) {
-    return { action: 'navigate', ruleId: patterns.actions.navigate.id };
+    return {
+      action: 'navigate',
+      ruleId: patterns.actions.navigate.id,
+      supplementRefs: [patterns.sources.actions.navigate],
+    };
   }
   if (bestAliasMatch(normalizedAction, patternAliases(patterns, 'input'))) {
-    return { action: 'input', ruleId: patterns.actions.input.id };
+    return {
+      action: 'input',
+      ruleId: patterns.actions.input.id,
+      supplementRefs: [patterns.sources.actions.input],
+    };
   }
   if (bestAliasMatch(normalizedAction, patternAliases(patterns, 'click'))) {
-    return { action: 'click', ruleId: patterns.actions.click.id };
+    return {
+      action: 'click',
+      ruleId: patterns.actions.click.id,
+      supplementRefs: [patterns.sources.actions.click],
+    };
   }
   if (bestAliasMatch(normalizedAction, patternAliases(patterns, 'assert-snapshot'))) {
-    return { action: 'assert-snapshot', ruleId: patterns.actions['assert-snapshot'].id };
+    return {
+      action: 'assert-snapshot',
+      ruleId: patterns.actions['assert-snapshot'].id,
+      supplementRefs: [patterns.sources.actions['assert-snapshot']],
+    };
   }
-  return { action: 'custom', ruleId: null };
+  return { action: 'custom', ruleId: null, supplementRefs: [] };
 }
 
 function screenAliases(screenId: string, hints: ScreenHints | undefined): string[] {
@@ -160,23 +180,31 @@ function resolveElement(normalizedCombined: string, screen: string | null, knowl
   return { element: best?.element ?? null, usedHint: best?.usedHint ?? false };
 }
 
-function resolvePosture(normalizedCombined: string, screen: string | null, element: string | null, knowledge: InferenceKnowledge): string | null {
+function resolvePosture(
+  normalizedCombined: string,
+  screen: string | null,
+  element: string | null,
+  knowledge: InferenceKnowledge,
+): { posture: string | null; supplementRefs: string[] } {
   for (const [postureId, descriptor] of Object.entries(knowledge.sharedPatterns.postures)) {
     if (bestAliasMatch(normalizedCombined, descriptor.aliases)) {
-      return postureId;
+      return {
+        posture: postureId,
+        supplementRefs: [knowledge.sharedPatterns.sources.postures[postureId] ?? ''],
+      };
     }
   }
 
   if (!screen || !element) {
-    return null;
+    return { posture: null, supplementRefs: [] };
   }
 
   const postures = knowledge.screenPostures[screen]?.postures[element];
   if (postures?.valid) {
-    return 'valid';
+    return { posture: 'valid', supplementRefs: [] };
   }
 
-  return null;
+  return { posture: null, supplementRefs: [] };
 }
 
 function resolveOverride(
@@ -280,7 +308,7 @@ export function inferScenarioSteps(snapshot: AdoSnapshot, knowledge: InferenceKn
     const normalizedSearch = `${normalizedAction} ${normalizedExpected}`.trim();
     const actionResult = resolveAction(normalizedAction, knowledge.sharedPatterns);
     const reviewReasons: string[] = [];
-    const supplementRefs = [knowledgePaths.patterns()];
+    const supplementRefs = [...actionResult.supplementRefs];
     const screenResult = resolveScreen(normalizedSearch, actionResult.action, knowledge, previousScreen);
     if (screenResult.usedHint && screenResult.screen) {
       supplementRefs.push(knowledgePaths.hints(createScreenId(screenResult.screen)));
@@ -290,9 +318,11 @@ export function inferScenarioSteps(snapshot: AdoSnapshot, knowledge: InferenceKn
       supplementRefs.push(knowledgePaths.hints(createScreenId(screenResult.screen)));
     }
 
-    const posture = actionResult.action === 'input'
+    const postureResult = actionResult.action === 'input'
       ? resolvePosture(normalizedSearch, screenResult.screen, elementResult.element, knowledge)
-      : null;
+      : { posture: null, supplementRefs: [] };
+    const posture = postureResult.posture;
+    supplementRefs.push(...postureResult.supplementRefs);
     const overrideResult = actionResult.action === 'input'
       ? resolveOverride(screenResult.screen, elementResult.element, posture, { previousScreen, dataRow }, knowledge)
       : { override: null, usedHint: false };
