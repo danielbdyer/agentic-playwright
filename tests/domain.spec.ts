@@ -2,6 +2,7 @@
 import path from 'path';
 import YAML from 'yaml';
 import { expect, test } from '@playwright/test';
+import { bindScenarioStep } from '../lib/domain/binding';
 import { deriveGraph, type GraphBuildInput } from '../lib/domain/derived-graph';
 import { deriveCapabilities, findCapability } from '../lib/domain/grammar';
 import { computeAdoContentHash } from '../lib/domain/hash';
@@ -88,6 +89,74 @@ test('compileStepProgram lowers legacy input steps into a structured program', (
       },
     }],
   });
+});
+
+test('bindScenarioStep keeps binding semantics in the domain and approves supported steps', () => {
+  const surfaceGraph = validateSurfaceGraph(readYamlFixture('knowledge', 'surfaces', 'policy-search.surface.yaml'));
+  const elements = validateScreenElements(readYamlFixture('knowledge', 'screens', 'policy-search.elements.yaml'));
+  const postures = validateScreenPostures(readYamlFixture('knowledge', 'screens', 'policy-search.postures.yaml'));
+  const step = {
+    index: 2,
+    intent: 'Enter policy number in search field',
+    action: 'input' as const,
+    screen: policySearchScreenId,
+    element: policyNumberInputId,
+    posture: validPostureId,
+    override: '{{activePolicy.number}}',
+    confidence: 'compiler-derived' as const,
+    program: compileStepProgram({
+      index: 2,
+      intent: 'Enter policy number in search field',
+      action: 'input',
+      screen: policySearchScreenId,
+      element: policyNumberInputId,
+      posture: validPostureId,
+      override: '{{activePolicy.number}}',
+      confidence: 'compiler-derived',
+    }),
+  };
+
+  const bound = bindScenarioStep(step, {
+    screenElements: elements,
+    screenPostures: postures,
+    surfaceGraph,
+    availableSnapshotTemplates: new Set([resultsWithPolicySnapshotId]),
+  });
+
+  expect(bound.binding.kind).toBe('bound');
+  expect(bound.binding.governance).toBe('approved');
+  expect(bound.binding.reasons).toEqual([]);
+  expect(bound.confidence).toBe('compiler-derived');
+});
+
+test('bindScenarioStep reports canonical binding gaps instead of escape-hatch implementation details', () => {
+  const bound = bindScenarioStep({
+    index: 3,
+    intent: 'Click search',
+    action: 'click',
+    screen: null,
+    element: null,
+    posture: null,
+    override: null,
+    snapshot_template: null,
+    confidence: 'agent-proposed',
+    program: compileStepProgram({
+      index: 3,
+      intent: 'Click search',
+      action: 'click',
+      screen: null,
+      element: null,
+      posture: null,
+      override: null,
+      snapshot_template: null,
+      confidence: 'agent-proposed',
+    }),
+  }, {});
+
+  expect(bound.binding.reasons).toEqual(['missing-element', 'missing-screen']);
+  expect(bound.binding.reviewReasons).toContain('agent-proposed');
+  expect(bound.binding.governance).toBe('review-required');
+  expect(bound.confidence).toBe('unbound');
 });
 
 test('traceStepProgram exposes semantic references without runtime execution', () => {
