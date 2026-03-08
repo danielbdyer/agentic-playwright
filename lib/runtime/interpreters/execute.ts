@@ -1,5 +1,5 @@
-import { existsSync } from 'fs';
 import type { StepProgram, StepProgramDiagnosticContext, StepProgramExecutionResult } from '../../domain/program';
+import type { SnapshotTemplateLoader } from '../../domain/runtime-loaders';
 import type { ValueRef } from '../../domain/types';
 import { diagnosticInterpreter } from './diagnostic';
 import { dryRunInterpreter } from './dry-run';
@@ -41,11 +41,15 @@ function resolveValue(fixtures: Record<string, unknown>, raw: ValueRef | null | 
   }
 }
 
-function createEnvironment(screens: InterpreterScreenRegistry, fixtures: Record<string, unknown>): InterpreterEnvironment {
+function createEnvironment(
+  screens: InterpreterScreenRegistry,
+  fixtures: Record<string, unknown>,
+  snapshotLoader?: SnapshotTemplateLoader,
+): InterpreterEnvironment {
   return {
     screens,
     fixtures,
-    hasSnapshotTemplate: (template) => existsSync(`knowledge/${template}`),
+    hasSnapshotTemplate: (template) => snapshotLoader ? snapshotLoader.has(template) : false,
     resolveValue,
   };
 }
@@ -56,8 +60,9 @@ export async function runStaticInterpreter(
   screens: InterpreterScreenRegistry,
   fixtures: Record<string, unknown>,
   context?: StepProgramDiagnosticContext,
+  snapshotLoader?: SnapshotTemplateLoader,
 ): Promise<StepProgramExecutionResult> {
-  const environment = createEnvironment(screens, fixtures);
+  const environment = createEnvironment(screens, fixtures, snapshotLoader);
   return mode === 'dry-run'
     ? dryRunInterpreter.run(program, environment, context)
     : diagnosticInterpreter.run(program, environment, context);

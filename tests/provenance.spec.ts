@@ -10,12 +10,15 @@ function boundStep(overrides: Partial<BoundStep['binding']> & { confidence?: Bou
   return {
     index: 1,
     intent: 'Click Search button',
+    action_text: 'Click Search button',
+    expected_text: 'Search runs',
     action: 'click',
     screen: screenId,
     element: elementId,
     posture: null,
     override: null,
     snapshot_template: null,
+    resolution: null,
     confidence: overrides.confidence ?? 'compiler-derived',
     binding: {
       kind: overrides.kind ?? 'bound',
@@ -32,14 +35,21 @@ function boundStep(overrides: Partial<BoundStep['binding']> & { confidence?: Bou
 }
 
 test('provenance helpers distinguish compiler-derived, hint-backed, pattern-backed, and unbound steps', () => {
-  const compilerDerived = boundStep();
-  const hintBacked = boundStep({
-    ruleId: 'core.click',
-    supplementRefs: ['knowledge/screens/policy-search.hints.yaml'],
-  });
-  const patternBacked = boundStep({
-    ruleId: 'custom.promoted.click',
-    supplementRefs: ['knowledge/patterns/promoted.patterns.yaml'],
+  const explicit = {
+    ...boundStep(),
+    resolution: {
+      action: 'click' as const,
+      screen: screenId,
+      element: elementId,
+      posture: null,
+      override: null,
+      snapshot_template: null,
+    },
+  };
+  const approvedKnowledge = boundStep();
+  const deferred = boundStep({
+    kind: 'deferred',
+    confidence: 'intent-only',
   });
   const unbound = boundStep({
     kind: 'unbound',
@@ -47,26 +57,26 @@ test('provenance helpers distinguish compiler-derived, hint-backed, pattern-back
     reasons: ['missing-element'],
   });
 
-  expect(provenanceKindForBoundStep(compilerDerived)).toBe('compiler-derived');
-  expect(provenanceKindForBoundStep(hintBacked)).toBe('hint-backed');
-  expect(provenanceKindForBoundStep(patternBacked)).toBe('pattern-backed');
-  expect(provenanceKindForBoundStep(unbound)).toBe('unbound');
-  expect(summarizeProvenanceKinds([compilerDerived, hintBacked, patternBacked, unbound])).toEqual({
-    'compiler-derived': 1,
-    'hint-backed': 1,
-    'pattern-backed': 1,
-    unbound: 1,
+  expect(provenanceKindForBoundStep(explicit)).toBe('explicit');
+  expect(provenanceKindForBoundStep(approvedKnowledge)).toBe('approved-knowledge');
+  expect(provenanceKindForBoundStep(deferred)).toBe('unresolved');
+  expect(provenanceKindForBoundStep(unbound)).toBe('unresolved');
+  expect(summarizeProvenanceKinds([explicit, approvedKnowledge, deferred, unbound])).toEqual({
+    explicit: 1,
+    'approved-knowledge': 1,
+    'live-exploration': 0,
+    unresolved: 2,
   });
 });
 
 test('provenance summaries count unresolved reasons deterministically', () => {
   const steps = [
-    boundStep({ kind: 'unbound', confidence: 'unbound', reasons: ['missing-element', 'missing-screen'] }),
+    boundStep({ kind: 'deferred', confidence: 'intent-only' }),
     boundStep({ kind: 'unbound', confidence: 'unbound', reasons: ['missing-element'] }),
   ];
 
   expect(summarizeUnresolvedReasons(steps)).toEqual([
-    { reason: 'missing-element', count: 2 },
-    { reason: 'missing-screen', count: 1 },
+    { reason: 'missing-element', count: 1 },
+    { reason: 'runtime-resolution-required', count: 1 },
   ]);
 });

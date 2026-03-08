@@ -1,7 +1,7 @@
 ﻿import { expect, test } from '@playwright/test';
-import { diagnosticInterpreter } from '../lib/application/interpreters/diagnostic';
-import { dryRunInterpreter } from '../lib/application/interpreters/dry-run';
-import type { InterpreterEnvironment } from '../lib/application/interpreters/types';
+import { diagnosticInterpreter } from '../lib/runtime/interpreters/diagnostic';
+import { dryRunInterpreter } from '../lib/runtime/interpreters/dry-run';
+import type { InterpreterEnvironment } from '../lib/runtime/interpreters/types';
 import { createAdoId, createElementId, createScreenId, createSurfaceId, createWidgetId, type WidgetId } from '../lib/domain/identity';
 import type { StepProgram } from '../lib/domain/types';
 import { playwrightStepProgramInterpreter } from '../lib/runtime/program';

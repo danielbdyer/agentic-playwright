@@ -3,17 +3,17 @@
   "revision": 1,
   "title": "Verify policy search returns matching policy",
   "suite": "demo/policy-search",
-  "confidence": "compiler-derived",
+  "confidence": "intent-only",
   "governance": "approved",
   "lifecycle": "normal",
   "diagnostics": [],
   "summary": {
     "stepCount": 4,
     "provenanceKinds": {
-      "compiler-derived": 0,
-      "hint-backed": 4,
-      "pattern-backed": 0,
-      "unbound": 0
+      "explicit": 0,
+      "approved-knowledge": 4,
+      "live-exploration": 0,
+      "unresolved": 0
     },
     "governance": {
       "approved": 4,
@@ -26,43 +26,15 @@
     {
       "index": 1,
       "intent": "Navigate to Policy Search screen",
+      "actionText": "Navigate to Policy Search screen",
+      "expectedText": "Policy Search screen loads",
       "normalizedIntent": "navigate to policy search screen => policy search screen loads",
-      "action": "navigate",
-      "confidence": "compiler-derived",
-      "provenanceKind": "hint-backed",
+      "action": "custom",
+      "confidence": "intent-only",
+      "provenanceKind": "approved-knowledge",
       "governance": "approved",
-      "ruleId": "core.navigate",
-      "knowledgeRefs": [
-        "knowledge/screens/policy-search.elements.yaml",
-        "knowledge/surfaces/policy-search.surface.yaml"
-      ],
-      "supplementRefs": [
-        "knowledge/patterns/core.patterns.yaml",
-        "knowledge/screens/policy-search.hints.yaml"
-      ],
-      "reviewReasons": [],
-      "unresolvedGaps": [],
-      "reasons": [],
-      "evidenceIds": [],
-      "program": {
-        "kind": "step-program",
-        "instructions": [
-          {
-            "kind": "navigate",
-            "screen": "policy-search"
-          }
-        ]
-      }
-    },
-    {
-      "index": 2,
-      "intent": "Enter policy number in search field",
-      "normalizedIntent": "enter policy number in search field => policy number accepts a valid policy",
-      "action": "input",
-      "confidence": "compiler-derived",
-      "provenanceKind": "hint-backed",
-      "governance": "approved",
-      "ruleId": "core.input",
+      "bindingKind": "deferred",
+      "ruleId": null,
       "knowledgeRefs": [
         "knowledge/screens/policy-search.elements.yaml",
         "knowledge/screens/policy-search.postures.yaml",
@@ -76,38 +48,62 @@
       "unresolvedGaps": [],
       "reasons": [],
       "evidenceIds": [],
-      "program": {
-        "kind": "step-program",
-        "instructions": [
-          {
-            "kind": "enter",
-            "screen": "policy-search",
-            "element": "policyNumberInput",
-            "posture": "valid",
-            "value": {
-              "kind": "fixture-path",
-              "path": {
-                "segments": [
-                  "activePolicy",
-                  "number"
-                ]
-              }
-            }
-          }
-        ]
+      "program": null,
+      "runtime": {
+        "status": "resolved",
+        "runId": "2026-03-08T22-32-19-583Z",
+        "locatorStrategy": null,
+        "degraded": false
+      }
+    },
+    {
+      "index": 2,
+      "intent": "Enter policy number in search field",
+      "actionText": "Enter policy number in search field",
+      "expectedText": "Policy Number accepts a valid policy",
+      "normalizedIntent": "enter policy number in search field => policy number accepts a valid policy",
+      "action": "custom",
+      "confidence": "intent-only",
+      "provenanceKind": "approved-knowledge",
+      "governance": "approved",
+      "bindingKind": "deferred",
+      "ruleId": null,
+      "knowledgeRefs": [
+        "knowledge/screens/policy-search.elements.yaml",
+        "knowledge/screens/policy-search.postures.yaml",
+        "knowledge/surfaces/policy-search.surface.yaml"
+      ],
+      "supplementRefs": [
+        "knowledge/patterns/core.patterns.yaml",
+        "knowledge/screens/policy-search.hints.yaml"
+      ],
+      "reviewReasons": [],
+      "unresolvedGaps": [],
+      "reasons": [],
+      "evidenceIds": [],
+      "program": null,
+      "runtime": {
+        "status": "resolved",
+        "runId": "2026-03-08T22-32-19-583Z",
+        "locatorStrategy": null,
+        "degraded": false
       }
     },
     {
       "index": 3,
       "intent": "Click Search button",
+      "actionText": "Click Search button",
+      "expectedText": "Search runs",
       "normalizedIntent": "click search button => search runs",
-      "action": "click",
-      "confidence": "compiler-derived",
-      "provenanceKind": "hint-backed",
+      "action": "custom",
+      "confidence": "intent-only",
+      "provenanceKind": "approved-knowledge",
       "governance": "approved",
-      "ruleId": "core.click",
+      "bindingKind": "deferred",
+      "ruleId": null,
       "knowledgeRefs": [
         "knowledge/screens/policy-search.elements.yaml",
+        "knowledge/screens/policy-search.postures.yaml",
         "knowledge/surfaces/policy-search.surface.yaml"
       ],
       "supplementRefs": [
@@ -118,30 +114,29 @@
       "unresolvedGaps": [],
       "reasons": [],
       "evidenceIds": [],
-      "program": {
-        "kind": "step-program",
-        "instructions": [
-          {
-            "kind": "invoke",
-            "screen": "policy-search",
-            "element": "searchButton",
-            "action": "click"
-          }
-        ]
+      "program": null,
+      "runtime": {
+        "status": "resolved",
+        "runId": "2026-03-08T22-32-19-583Z",
+        "locatorStrategy": null,
+        "degraded": false
       }
     },
     {
       "index": 4,
       "intent": "Verify search results show policy",
+      "actionText": "Verify search results show policy",
+      "expectedText": "Matching policy appears in Search Results",
       "normalizedIntent": "matching policy appears in search results => verify search results show policy",
-      "action": "assert-snapshot",
-      "confidence": "compiler-derived",
-      "provenanceKind": "hint-backed",
+      "action": "custom",
+      "confidence": "intent-only",
+      "provenanceKind": "approved-knowledge",
       "governance": "approved",
-      "ruleId": "core.assert-snapshot",
+      "bindingKind": "deferred",
+      "ruleId": null,
       "knowledgeRefs": [
         "knowledge/screens/policy-search.elements.yaml",
-        "knowledge/snapshots/policy-search/results-with-policy.yaml",
+        "knowledge/screens/policy-search.postures.yaml",
         "knowledge/surfaces/policy-search.surface.yaml"
       ],
       "supplementRefs": [
@@ -152,16 +147,12 @@
       "unresolvedGaps": [],
       "reasons": [],
       "evidenceIds": [],
-      "program": {
-        "kind": "step-program",
-        "instructions": [
-          {
-            "kind": "observe-structure",
-            "screen": "policy-search",
-            "element": "resultsTable",
-            "snapshotTemplate": "snapshots/policy-search/results-with-policy.yaml"
-          }
-        ]
+      "program": null,
+      "runtime": {
+        "status": "resolved",
+        "runId": "2026-03-08T22-32-19-583Z",
+        "locatorStrategy": null,
+        "degraded": false
       }
     }
   ]

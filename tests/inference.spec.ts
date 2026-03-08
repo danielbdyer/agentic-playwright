@@ -1,10 +1,9 @@
-﻿import { readFileSync } from 'fs';
+import { readFileSync } from 'fs';
 import path from 'path';
-import YAML from 'yaml';
 import { expect, test } from '@playwright/test';
-import { inferScenarioSteps } from '../lib/domain/inference';
-import { mergePatternDocuments } from '../lib/domain/knowledge/patterns';
-import { validateAdoSnapshot, validatePatternDocument, validateScreenElements, validateScreenHints, validateScreenPostures, validateSurfaceGraph } from '../lib/domain/validation';
+import { parseSnapshotToScenario } from '../lib/application/parse';
+import { normalizeIntentText } from '../lib/domain/inference';
+import { validateAdoSnapshot } from '../lib/domain/validation';
 
 const rootDir = process.cwd();
 
@@ -12,45 +11,72 @@ function readJsonFixture<T>(...segments: string[]): T {
   return JSON.parse(readFileSync(path.join(rootDir, ...segments), 'utf8').replace(/^\uFEFF/, '')) as T;
 }
 
-function readYamlFixture(...segments: string[]) {
-  return YAML.parse(readFileSync(path.join(rootDir, ...segments), 'utf8').replace(/^\uFEFF/, ''));
-}
-
-test('inferScenarioSteps deterministically derives the seeded scenario from approved knowledge', () => {
+test('parseSnapshotToScenario preserves raw ADO intent as intent-only scenario steps', () => {
   const snapshot = validateAdoSnapshot(readJsonFixture<Record<string, unknown>>('fixtures', 'ado', '10001.json'));
-  const patternPath = 'knowledge/patterns/core.patterns.yaml';
-  const patternDocument = validatePatternDocument(readYamlFixture('knowledge', 'patterns', 'core.patterns.yaml'));
-  const knowledge = {
-    surfaceGraphs: {
-      'policy-search': validateSurfaceGraph(readYamlFixture('knowledge', 'surfaces', 'policy-search.surface.yaml')),
-    },
-    screenElements: {
-      'policy-search': validateScreenElements(readYamlFixture('knowledge', 'screens', 'policy-search.elements.yaml')),
-    },
-    screenHints: {
-      'policy-search': validateScreenHints(readYamlFixture('knowledge', 'screens', 'policy-search.hints.yaml')),
-    },
-    screenPostures: {
-      'policy-search': validateScreenPostures(readYamlFixture('knowledge', 'screens', 'policy-search.postures.yaml')),
-    },
-    sharedPatterns: mergePatternDocuments([{ artifactPath: patternPath, artifact: patternDocument }]),
-  };
+  const scenario = parseSnapshotToScenario(snapshot);
 
-  const first = inferScenarioSteps(snapshot, knowledge);
-  const second = inferScenarioSteps(snapshot, knowledge);
-  const secondStep = first[1];
-  const fourthStep = first[3];
-
-  expect(first).toEqual(second);
-  expect(first.map((entry) => entry.step.confidence)).toEqual([
-    'compiler-derived',
-    'compiler-derived',
-    'compiler-derived',
-    'compiler-derived',
+  expect(scenario.preconditions).toEqual([{ fixture: 'demoSession' }]);
+  expect(scenario.steps).toEqual([
+    {
+      index: 1,
+      intent: 'Navigate to Policy Search screen',
+      action_text: 'Navigate to Policy Search screen',
+      expected_text: 'Policy Search screen loads',
+      action: 'custom',
+      screen: null,
+      element: null,
+      posture: null,
+      override: null,
+      snapshot_template: null,
+      resolution: null,
+      confidence: 'intent-only',
+    },
+    {
+      index: 2,
+      intent: 'Enter policy number in search field',
+      action_text: 'Enter policy number in search field',
+      expected_text: 'Policy Number accepts a valid policy',
+      action: 'custom',
+      screen: null,
+      element: null,
+      posture: null,
+      override: null,
+      snapshot_template: null,
+      resolution: null,
+      confidence: 'intent-only',
+    },
+    {
+      index: 3,
+      intent: 'Click Search button',
+      action_text: 'Click Search button',
+      expected_text: 'Search runs',
+      action: 'custom',
+      screen: null,
+      element: null,
+      posture: null,
+      override: null,
+      snapshot_template: null,
+      resolution: null,
+      confidence: 'intent-only',
+    },
+    {
+      index: 4,
+      intent: 'Verify search results show policy',
+      action_text: 'Verify search results show policy',
+      expected_text: 'Matching policy appears in Search Results',
+      action: 'custom',
+      screen: null,
+      element: null,
+      posture: null,
+      override: null,
+      snapshot_template: null,
+      resolution: null,
+      confidence: 'intent-only',
+    },
   ]);
-  expect(secondStep?.step.override).toBe('{{activePolicy.number}}');
-  expect(secondStep?.supplementRefs).toContain('knowledge/patterns/core.patterns.yaml');
-  expect(secondStep?.supplementRefs).toContain('knowledge/screens/policy-search.hints.yaml');
-  expect(fourthStep?.step.snapshot_template).toBe('snapshots/policy-search/results-with-policy.yaml');
-  expect(fourthStep?.ruleId).toBe('core.assert-snapshot');
+});
+
+test('normalizeIntentText stays deterministic for runtime intent fingerprints', () => {
+  expect(normalizeIntentText('  <p>Verify&nbsp;Search Results</p>  ')).toBe('verify search results');
+  expect(normalizeIntentText('Click   Search button')).toBe('click search button');
 });

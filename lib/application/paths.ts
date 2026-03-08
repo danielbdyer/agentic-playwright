@@ -17,6 +17,8 @@ export interface ProjectPaths {
   tesseractDir: string;
   discoveryDir: string;
   boundDir: string;
+  tasksDir: string;
+  runsDir: string;
   evidenceDir: string;
   graphDir: string;
   graphIndexPath: string;
@@ -41,6 +43,8 @@ export function createProjectPaths(rootDir: string): ProjectPaths {
     tesseractDir: path.join(rootDir, '.tesseract'),
     discoveryDir: path.join(rootDir, '.tesseract', 'discovery'),
     boundDir: path.join(rootDir, '.tesseract', 'bound'),
+    tasksDir: path.join(rootDir, '.tesseract', 'tasks'),
+    runsDir: path.join(rootDir, '.tesseract', 'runs'),
     evidenceDir: path.join(rootDir, '.tesseract', 'evidence'),
     graphDir: path.join(rootDir, '.tesseract', 'graph'),
     graphIndexPath: path.join(rootDir, '.tesseract', 'graph', 'index.json'),
@@ -78,6 +82,26 @@ export function boundPath(paths: ProjectPaths, adoId: AdoId): string {
   return path.join(paths.boundDir, `${adoId}.json`);
 }
 
+export function taskPacketPath(paths: ProjectPaths, adoId: AdoId): string {
+  return path.join(paths.tasksDir, `${adoId}.resolution.json`);
+}
+
+export function runDirPath(paths: ProjectPaths, adoId: AdoId, runId: string): string {
+  return path.join(paths.runsDir, `${adoId}`, runId);
+}
+
+export function interpretationPath(paths: ProjectPaths, adoId: AdoId, runId: string): string {
+  return path.join(runDirPath(paths, adoId, runId), 'interpretation.json');
+}
+
+export function executionPath(paths: ProjectPaths, adoId: AdoId, runId: string): string {
+  return path.join(runDirPath(paths, adoId, runId), 'execution.json');
+}
+
+export function runRecordPath(paths: ProjectPaths, adoId: AdoId, runId: string): string {
+  return path.join(runDirPath(paths, adoId, runId), 'run.json');
+}
+
 export function generatedSpecPath(paths: ProjectPaths, suitePath: string, adoId: AdoId): string {
   return resolvePathWithinRoot(paths.generatedDir, path.join(suitePath, `${adoId}.spec.ts`), 'suitePath');
 }
@@ -88,6 +112,10 @@ export function generatedTracePath(paths: ProjectPaths, suitePath: string, adoId
 
 export function generatedReviewPath(paths: ProjectPaths, suitePath: string, adoId: AdoId): string {
   return resolvePathWithinRoot(paths.generatedDir, path.join(suitePath, `${adoId}.review.md`), 'suitePath');
+}
+
+export function generatedProposalsPath(paths: ProjectPaths, suitePath: string, adoId: AdoId): string {
+  return resolvePathWithinRoot(paths.generatedDir, path.join(suitePath, `${adoId}.proposals.json`), 'suitePath');
 }
 
 export function emitManifestPath(paths: ProjectPaths, suitePath: string, adoId: AdoId): string {

@@ -4,9 +4,9 @@ import { tmpdir } from 'os';
 import { expect, test } from '@playwright/test';
 import { createProjectPaths } from '../lib/application/paths';
 import { inspectSurface } from '../lib/application/surface';
+import { runWithLocalServices } from '../lib/composition/local-services';
 import { createScreenId } from '../lib/domain/identity';
 import { createLocalScreenRegistryLoader } from '../lib/infrastructure/screen-registry/local-screen-registry-loader';
-import { runWithLocalServices } from '../lib/infrastructure/local-services';
 import { configureScreenRegistryLoader, loadScreen } from '../lib/runtime/load';
 
 function createWorkspace(

@@ -74,8 +74,8 @@ export function runProjection<BuildResult, ReturnResult>(options: {
   manifestPath: string;
   inputFingerprints: ProjectionInputFingerprint[];
   outputFingerprint: string | null;
-  verifyPersistedOutput: (expectedOutputFingerprint: string) => Effect.Effect<ProjectionPersistedOutputState>;
-  buildAndWrite: () => Effect.Effect<{ result: BuildResult; outputFingerprint: string; rewritten: string[] }>;
+  verifyPersistedOutput: (expectedOutputFingerprint: string) => Effect.Effect<ProjectionPersistedOutputState, unknown, unknown>;
+  buildAndWrite: () => Effect.Effect<{ result: BuildResult; outputFingerprint: string; rewritten: string[] }, unknown, unknown>;
   withCacheHit: (incremental: ProjectionCacheHitIncremental) => ReturnResult;
   withCacheMiss: (built: BuildResult, incremental: ProjectionCacheMissIncremental) => ReturnResult;
 }) {

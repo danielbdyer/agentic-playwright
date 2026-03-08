@@ -6,7 +6,10 @@ import type {
   EvidenceRecord,
   MergedPatterns,
   PatternDocument,
+  ProposalBundle,
+  RunRecord,
   Scenario,
+  ScenarioTaskPacket,
   ScreenElements,
   ScreenHints,
   ScreenPostures,
@@ -41,6 +44,9 @@ export interface WorkspaceCatalog {
   snapshots: ArtifactEnvelope<AdoSnapshot>[];
   scenarios: ArtifactEnvelope<Scenario>[];
   boundScenarios: ArtifactEnvelope<BoundScenario>[];
+  taskPackets: ArtifactEnvelope<ScenarioTaskPacket>[];
+  runRecords: ArtifactEnvelope<RunRecord>[];
+  proposalBundles: ArtifactEnvelope<ProposalBundle>[];
   surfaces: ArtifactEnvelope<SurfaceGraph>[];
   screenElements: ArtifactEnvelope<ScreenElements>[];
   screenHints: ArtifactEnvelope<ScreenHints>[];

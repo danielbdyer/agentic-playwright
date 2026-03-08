@@ -1,7 +1,5 @@
 import { Effect } from 'effect';
 import type { InferenceKnowledge } from '../domain/inference';
-import { inferScenarioSteps } from '../domain/inference';
-import type { AdoSnapshot } from '../domain/types';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
 import type { ProjectPaths } from './paths';
 
@@ -32,8 +30,4 @@ export function loadInferenceKnowledge(options: { paths: ProjectPaths; catalog?:
     const catalog = options.catalog ?? (yield* loadWorkspaceCatalog({ paths: options.paths }));
     return inferenceKnowledgeFromCatalog(catalog);
   });
-}
-
-export function inferSnapshotScenario(snapshot: AdoSnapshot, knowledge: InferenceKnowledge) {
-  return inferScenarioSteps(snapshot, knowledge);
 }

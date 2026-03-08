@@ -1,19 +1,20 @@
 ﻿# Tesseract Authoring Guide
 
-This document explains how to add or change approved knowledge without collapsing the compiler into ad hoc code.
+This document explains how to add or change approved knowledge without collapsing the preparation pipeline or runtime agent into ad hoc code.
 
 For a fast generated repo brief, read `docs/agent-context.md`. For the operational entrypoint, read `README.md`. For the product model, read `VISION.md`.
 
 ## Authoring principle
 
-Author the smallest approved artifact that makes the intent deterministic.
+Author the smallest approved artifact that improves the shared human-agent interface.
 
 Preferred order:
 
-1. fix or extend screen-local hints
-2. fix or extend element signatures or postures
-3. promote a shared pattern only when reuse justifies it
-4. touch runtime code only when the behavior is truly procedural
+1. preserve raw scenario intent and add explicit `resolution` only when needed
+2. fix or extend screen-local hints
+3. fix or extend element signatures or postures
+4. promote a shared pattern only when reuse justifies it
+5. touch runtime code only when the behavior is truly procedural
 
 ## The approved artifact set
 
@@ -41,6 +42,12 @@ Outputs derived from approved artifacts become:
 - `confidence: compiler-derived`
 - `governance: approved`
 
+Intent-preserving steps that are valid but not yet resolved become:
+
+- `confidence: intent-only`
+- `binding.kind: deferred`
+- `governance: approved`
+
 New or changed canonical knowledge remains review-gated.
 
 ## Scenario IR
@@ -49,12 +56,12 @@ New or changed canonical knowledge remains review-gated.
 
 Rules:
 
-- preserve `intent` exactly from ADO
-- use explicit fields only when deterministic inference is not enough or when human intent must override it
+- preserve `intent`, `action_text`, and `expected_text` from ADO
+- use optional `resolution` only when human or approved structure must constrain runtime interpretation
 - keep scenario data declarative
 - do not encode DOM trivia or widget choreography here
 
-A scenario file should answer: what should happen, not how Playwright should do it.
+A scenario file should answer: what should happen, not how Playwright should do it. The runtime agent consumes this canonical intent through the task packet, not through hidden repo lore.
 
 ## Element signatures
 
@@ -100,7 +107,7 @@ A posture contract should be reusable by every future scenario that applies the 
 
 `knowledge/screens/{screen}.hints.yaml` is the first supplement layer.
 
-Use it for screen-local facts that help deterministic inference without changing runtime behavior globally:
+Use it for screen-local facts that help runtime interpretation without changing runtime behavior globally:
 
 - screen aliases
 - element aliases
@@ -146,7 +153,7 @@ Use them when:
 
 Do not turn affordances into mini scripts. Procedural interaction still belongs in `knowledge/components/*.ts` and `lib/runtime/`.
 
-## Evidence and proposals
+## Evidence, proposals, and generated tests
 
 When an agent discovers missing knowledge, persist evidence before proposing canonical change.
 
@@ -166,22 +173,58 @@ Typical proposal classes:
 - pattern promotion
 - snapshot template update
 
+Agents may also emit or update generated tests that exercise the same typed interfaces a human would use. That is allowed because generated specs are disposable object code, not canonical truth. The durable review surface remains:
+
+- canonical scenario intent
+- task packets
+- run receipts
+- evidence
+- proposal bundles
+
+A human may also author a testable concern directly against the generated type surface. If it fits the same typed contract, it should run through the same runtime handshake and remain inspectable through the same trace, review, and graph outputs.
+
 ## Review artifacts
 
 After `npm run refresh`, inspect:
 
 - `.tesseract/bound/{ado_id}.json`
+- `.tesseract/tasks/{ado_id}.resolution.json`
 - `generated/{suite}/{ado_id}.trace.json`
 - `generated/{suite}/{ado_id}.review.md`
 - `.tesseract/graph/index.json`
 
+After `npm run run`, also inspect:
+
+- `.tesseract/runs/{ado_id}/{run_id}/interpretation.json`
+- `.tesseract/runs/{ado_id}/{run_id}/execution.json`
+- `.tesseract/runs/{ado_id}/{run_id}/run.json`
+- `generated/{suite}/{ado_id}.proposals.json`
+
 These should answer:
 
-- what was derived deterministically
-- which hints were used
-- which patterns were used
+- what was preserved deterministically
+- what task context the agent received
+- which hints, patterns, and prior evidence were used
+- whether the agent resolved, resolved-with-proposals, or truly needed a human
 - whether anything is review-required
 - what else would be impacted by a canonical change
+
+## Development feedback loop
+
+While the runtime interaction model is still evolving, treat agent feedback as another unit-sized artifact candidate, not as implicit chat-only lore.
+
+Good feedback asks:
+
+- was task granularity right for the job
+- was unresolved context better presented step-by-step or in bulk
+- what did the agent have to discover that should have been present in docs or instructions
+- what safe recursive update would improve the next run without mutating canon blindly
+
+Guardrails:
+
+- feedback should never block execution or replace the formal run receipt
+- feedback should prefer small prompt, doc, or supplement updates over foundational churn
+- feedback should not escalate to a human unless the runtime path already exhausted approved knowledge, prior evidence, live DOM exploration, and safe degraded resolution
 
 ## Common workflows
 
@@ -190,7 +233,7 @@ These should answer:
 1. capture or author `knowledge/surfaces/{screen}.surface.yaml`
 2. author `knowledge/screens/{screen}.elements.yaml`
 3. add `knowledge/screens/{screen}.postures.yaml` when the screen has durable data behavior
-4. add `knowledge/screens/{screen}.hints.yaml` only for inference gaps
+4. add `knowledge/screens/{screen}.hints.yaml` only for runtime interpretation gaps
 5. run `npm run surface`, `npm run refresh`, `npm run graph`, and `npm test`
 
 ### Repair a brittle selector
@@ -206,7 +249,7 @@ These should answer:
 1. prove the behavior with a screen hint first
 2. collect repetition or evidence
 3. move the shared abstraction into `knowledge/patterns/`
-4. update affected hints or inference rules to reference the promoted pattern
+4. update affected hints or task-facing runtime knowledge to reference the promoted pattern
 5. keep provenance visible in trace and graph outputs
 
 ## Anti-patterns
@@ -218,6 +261,7 @@ Do not introduce:
 - hand-edits to generated specs, trace JSON, or review Markdown
 - stringly typed pseudo-DSLs embedded in runtime code
 - human-only lore that is not captured in canonical knowledge or evidence
+- escalating to a human before the agent has exhausted approved knowledge, prior evidence, DOM exploration, and safe degraded resolution
 
 ## Verification checklist
 
