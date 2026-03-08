@@ -1,0 +1,50 @@
+{
+  "id": "10002",
+  "revision": 1,
+  "title": "Verify invalid policy blocks policy journey progression",
+  "suitePath": "demo/policy-journey",
+  "areaPath": "demo",
+  "tags": [
+    "dogfood",
+    "validation",
+    "P1"
+  ],
+  "priority": 1,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Navigate to Policy Journey screen</p>",
+      "expected": "<p>Policy Journey screen loads</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Enter invalid policy number in Policy Number field</p>",
+      "expected": "<p>Policy Number rejects an invalid policy</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Click Continue to Coverage button</p>",
+      "expected": "<p>Eligibility validation is evaluated</p>"
+    },
+    {
+      "index": 4,
+      "action": "<p>Verify eligibility validation summary appears</p>",
+      "expected": "<p>Eligibility Step shows a validation error</p>"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "policyNumber",
+      "values": [
+        "BAD-404"
+      ]
+    }
+  ],
+  "dataRows": [
+    {
+      "policyNumber": "BAD-404"
+    }
+  ],
+  "contentHash": "sha256:f742b4cf45080a8ae75ee47b6ad66713c8d77dd07819a533171d75f897bb14fc",
+  "syncedAt": "2026-03-08T00:00:00.000Z"
+}

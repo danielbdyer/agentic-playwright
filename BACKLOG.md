@@ -168,6 +168,93 @@ Success criteria:
 - common missing-knowledge classes
 - proposal acceptance and churn metrics over time
 
+## Added after scaling review
+
+### 13. Projection framework consolidation
+
+Lane:
+
+- deterministic compiler core
+
+Goal:
+
+- make every derived artifact builder conform to one projection contract instead of duplicating cache, manifest, and rewrite logic per module
+
+Success criteria:
+
+- shared projection runner for scenario emit, graph, types, and future review surfaces
+- projection manifests include compiler/projection revision so code changes invalidate stale caches deterministically
+- changed-input and rewritten-output reporting stays structurally aligned across projections
+- adding a new projection requires modeling inputs and outputs, not copy-pasting cache code
+
+### 14. Targeted incremental compile planner
+
+Lane:
+
+- deterministic compiler core
+
+Goal:
+
+- move from "rebuild everything after each refresh" toward impact-aware projection planning over the workspace session and graph
+
+Success criteria:
+
+- compile path can determine which projections are affected by a changed snapshot, scenario, hint, pattern, or element signature
+- scenario-local work can stop short of unrelated graph or type rewrites when safe
+- graph impact queries and projection invalidation use the same provenance model
+- performance wins remain explainable and testable, not heuristic lore
+
+### 15. Hermetic runtime environment injection
+
+Lane:
+
+- deterministic compiler core
+
+Goal:
+
+- replace global loader configuration with explicit runtime environments so generated specs and interpreters are parallel-safe, composable, and easier to fuzz
+
+Success criteria:
+
+- `runStepProgram` and generated specs receive screen and snapshot loaders explicitly
+- fixture setup no longer mutates process-global runtime state
+- multiple harnesses can execute in one process without hidden cross-talk
+- runtime tests can instantiate isolated environments without repo-root side effects
+
+### 16. Domain schema and graph package decomposition
+
+Lane:
+
+- deterministic compiler core
+
+Goal:
+
+- finish splitting monolithic domain files into cohesive packages around scenario schema, approved knowledge schema, graph derivation, and trust policy
+
+Success criteria:
+
+- `types.ts`, `validation.ts`, and `derived-graph.ts` no longer act as catch-all modules
+- each package has law-style tests around determinism, normalization, and round-trips
+- public barrels are stable while internal modules stay small and navigable
+- future contributors can change one semantic area without opening a thousand-line file
+
+### 17. Proposal bundle generation for review-required knowledge
+
+Lane:
+
+- agentic supplement and review loop
+
+Goal:
+
+- emit machine-readable proposal bundles alongside `.review.md` so agents and humans can collaborate over concrete canonical changes instead of prose-only diagnosis
+
+Success criteria:
+
+- review-required steps can produce typed proposal payloads for hints, patterns, locator repairs, and snapshot updates
+- proposal bundles include evidence references, impacted scenarios, trust-policy evaluation, and suggested canonical patch targets
+- QA can review the proposal artifact without reading runtime internals
+- future agent workflows can consume the same bundle format for ranking, batching, and promotion
+
 ## Done in this slice
 
 - deterministic auto-approval for `compiler-derived` steps

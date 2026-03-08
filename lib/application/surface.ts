@@ -1,32 +1,25 @@
 import { Effect } from 'effect';
-import { TesseractError } from '../domain/errors';
 import { deriveCapabilities } from '../domain/grammar';
 import type { ScreenId } from '../domain/identity';
-import { loadScreenKnowledgeBundle } from './knowledge';
+import { loadScreenBundle } from './catalog';
 import type { ProjectPaths } from './paths';
 
 export function inspectSurface(options: { screen: ScreenId; paths: ProjectPaths }) {
   return Effect.gen(function* () {
-    const knowledge = yield* loadScreenKnowledgeBundle({ paths: options.paths, screen: options.screen });
-    if (!knowledge.surfaceGraph || !knowledge.elements || !knowledge.postures) {
-      return yield* Effect.fail(new TesseractError('surface-validation-failed', `Screen knowledge for ${options.screen} is incomplete`));
-    }
-
-    const surfaceGraph = knowledge.surfaceGraph.artifact;
-    const elements = knowledge.elements.artifact;
-    const postures = knowledge.postures.artifact;
-    const capabilities = deriveCapabilities(surfaceGraph, elements);
-
+    const entry = yield* loadScreenBundle({ screen: options.screen, paths: options.paths });
+    const capabilities = deriveCapabilities(entry.bundle.surfaceGraph, entry.elements.artifact);
     return {
       screen: options.screen,
       artifactPaths: {
-        surface: knowledge.surfaceGraph.artifactPath,
-        elements: knowledge.elements.artifactPath,
-        postures: knowledge.postures.artifactPath,
+        surface: entry.surface.artifactPath,
+        elements: entry.elements.artifactPath,
+        postures: entry.postures?.artifactPath ?? null,
+        hints: entry.hints?.artifactPath ?? null,
       },
-      surfaceGraph,
-      elementCount: Object.keys(elements.elements).length,
-      postureCount: Object.values(postures.postures).reduce((total, entry) => total + Object.keys(entry).length, 0),
+      surfaceGraph: entry.bundle.surfaceGraph,
+      screenBundle: entry.bundle,
+      elementCount: Object.keys(entry.bundle.mergedElements).length,
+      postureCount: Object.values(entry.postures?.artifact.postures ?? {}).reduce((total, item) => total + Object.keys(item).length, 0),
       capabilities,
     };
   });

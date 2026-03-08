@@ -1,4 +1,32 @@
-﻿import type { DerivedGraph } from './types';
+import type { DerivedGraph, GraphEdge, GraphNode } from './types';
+
+function nodeLookup(graph: DerivedGraph): Map<string, GraphNode> {
+  return new Map(graph.nodes.map((node) => [node.id, node] as const));
+}
+
+function dependentNodesForEdge(edge: GraphEdge, nodes: Map<string, GraphNode>, current: string): string[] {
+  switch (edge.kind) {
+    case 'derived-from':
+    case 'references':
+    case 'uses':
+    case 'asserts':
+    case 'observed-by':
+      return edge.to === current ? [edge.from] : [];
+    case 'emits':
+    case 'affects':
+    case 'proposed-change-for':
+    case 'governs':
+      return edge.from === current ? [edge.to] : [];
+    case 'contains': {
+      const parent = nodes.get(edge.from);
+      const child = nodes.get(edge.to);
+      if (edge.to === current && parent?.kind === 'scenario' && child?.kind === 'step') {
+        return [edge.from];
+      }
+      return [];
+    }
+  }
+}
 
 export function collectRelatedSubgraph(graph: DerivedGraph, seedNodeIds: Set<string>) {
   const expanded = new Set(seedNodeIds);
@@ -29,17 +57,20 @@ export function collectRelatedSubgraph(graph: DerivedGraph, seedNodeIds: Set<str
 export function collectImpactSubgraph(graph: DerivedGraph, nodeId: string) {
   const impacted = new Set<string>([nodeId]);
   const queue = [nodeId];
+  const nodes = nodeLookup(graph);
 
   while (queue.length > 0) {
-    const current = queue.shift()!;
+    const current = queue.shift();
+    if (!current) {
+      continue;
+    }
+
     for (const edge of graph.edges) {
-      if (edge.to === current && !impacted.has(edge.from)) {
-        impacted.add(edge.from);
-        queue.push(edge.from);
-      }
-      if (edge.from === current && !impacted.has(edge.to)) {
-        impacted.add(edge.to);
-        queue.push(edge.to);
+      for (const dependent of dependentNodesForEdge(edge, nodes, current)) {
+        if (!impacted.has(dependent)) {
+          impacted.add(dependent);
+          queue.push(dependent);
+        }
       }
     }
   }
@@ -49,4 +80,3 @@ export function collectImpactSubgraph(graph: DerivedGraph, nodeId: string) {
     edges: graph.edges.filter((edge) => impacted.has(edge.from) && impacted.has(edge.to)),
   };
 }
-

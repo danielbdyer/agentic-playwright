@@ -1,11 +1,11 @@
-﻿import { Effect } from 'effect';
+import { Effect } from 'effect';
 import YAML from 'yaml';
 import type { AdoId, ScreenId } from '../domain/identity';
 import { validateAdoSnapshot, validateScenario } from '../domain/validation';
+import { loadWorkspaceCatalog } from './catalog';
 import { trySync } from './effect';
 import { AdoSource, FileSystem } from './ports';
-import type {
-  ProjectPaths} from './paths';
+import type { ProjectPaths } from './paths';
 import {
   boundPath,
   elementsPath,
@@ -16,7 +16,6 @@ import {
   hintsPath,
   posturesPath,
   scenarioPath,
-  sharedPatternsPath,
   snapshotPath,
   surfacePath,
 } from './paths';
@@ -25,6 +24,7 @@ export function describeScenarioPaths(options: { adoId: AdoId; paths: ProjectPat
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const ado = yield* AdoSource;
+    const catalog = yield* loadWorkspaceCatalog({ paths: options.paths });
     const syncedSnapshotPath = snapshotPath(options.paths, options.adoId);
     const syncedExists = yield* fs.exists(syncedSnapshotPath);
     const rawSnapshot = syncedExists ? yield* fs.readJson(syncedSnapshotPath) : yield* ado.loadSnapshot(options.adoId);
@@ -83,7 +83,7 @@ export function describeScenarioPaths(options: { adoId: AdoId; paths: ProjectPat
         hints: hintsPath(options.paths, screen),
       })),
       supplements: {
-        sharedPatterns: sharedPatternsPath(options.paths),
+        sharedPatterns: catalog.patternDocuments.map((entry) => entry.artifactPath),
       },
     };
   });

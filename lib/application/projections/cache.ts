@@ -1,0 +1,107 @@
+import { sha256, stableStringify } from '../../domain/hash';
+
+export interface ProjectionInputFingerprint {
+  kind: string;
+  path: string;
+  fingerprint: string;
+}
+
+export interface ProjectionBuildManifest {
+  version: 1;
+  projection: string;
+  inputSetFingerprint: string;
+  outputFingerprint: string;
+  inputs: ProjectionInputFingerprint[];
+}
+
+export type ProjectionCacheInvalidationReason = 'missing-output' | 'invalid-output';
+
+export function fingerprintProjectionArtifact(kind: string, artifactPath: string, artifact: unknown): ProjectionInputFingerprint {
+  return {
+    kind,
+    path: artifactPath,
+    fingerprint: `sha256:${sha256(stableStringify(artifact))}`,
+  };
+}
+
+export function sortProjectionInputs(values: ProjectionInputFingerprint[]): ProjectionInputFingerprint[] {
+  return [...values].sort((left, right) => {
+    const kindOrder = left.kind.localeCompare(right.kind);
+    if (kindOrder !== 0) {
+      return kindOrder;
+    }
+    return left.path.localeCompare(right.path);
+  });
+}
+
+export function computeProjectionInputSetFingerprint(inputs: ProjectionInputFingerprint[]): string {
+  return `sha256:${sha256(stableStringify(sortProjectionInputs(inputs)))}`;
+}
+
+function normalizeProjectionValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((entry) => (entry === undefined ? null : normalizeProjectionValue(entry)));
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .filter(([, entry]) => entry !== undefined)
+        .map(([key, entry]) => [key, normalizeProjectionValue(entry)]),
+    );
+  }
+
+  return value;
+}
+
+export function fingerprintProjectionOutput(value: unknown): string {
+  return `sha256:${sha256(stableStringify(normalizeProjectionValue(value)))}`;
+}
+
+export function parseProjectionManifest(value: unknown, projection: string): ProjectionBuildManifest | null {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  const maybe = value as Partial<ProjectionBuildManifest>;
+  if (
+    maybe.version !== 1
+    || maybe.projection !== projection
+    || typeof maybe.inputSetFingerprint !== 'string'
+    || typeof maybe.outputFingerprint !== 'string'
+    || !Array.isArray(maybe.inputs)
+  ) {
+    return null;
+  }
+
+  for (const input of maybe.inputs) {
+    if (!input || typeof input !== 'object') {
+      return null;
+    }
+    const entry = input as Partial<ProjectionInputFingerprint>;
+    if (typeof entry.kind !== 'string' || typeof entry.path !== 'string' || typeof entry.fingerprint !== 'string') {
+      return null;
+    }
+  }
+
+  return {
+    version: 1,
+    projection,
+    inputSetFingerprint: maybe.inputSetFingerprint,
+    outputFingerprint: maybe.outputFingerprint,
+    inputs: sortProjectionInputs(maybe.inputs as ProjectionInputFingerprint[]),
+  };
+}
+
+export function diffProjectionInputs(inputs: ProjectionInputFingerprint[], previousManifest: ProjectionBuildManifest | null) {
+  const sorted = sortProjectionInputs(inputs);
+  return {
+    sortedInputs: sorted,
+    changedInputs: sorted
+      .filter((entry) => previousManifest?.inputs.find((candidate) => candidate.kind === entry.kind && candidate.path === entry.path)?.fingerprint !== entry.fingerprint)
+      .map((entry) => `${entry.kind}:${entry.path}`),
+    removedInputs: (previousManifest?.inputs ?? [])
+      .filter((entry) => !sorted.some((candidate) => candidate.kind === entry.kind && candidate.path === entry.path))
+      .map((entry) => `${entry.kind}:${entry.path}`),
+  };
+}

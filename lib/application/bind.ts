@@ -1,42 +1,18 @@
 import { Effect } from 'effect';
-import YAML from 'yaml';
 import { bindScenarioStep } from '../domain/binding';
 import { createDiagnostic } from '../domain/diagnostics';
 import { TesseractError } from '../domain/errors';
-import { inferScenarioSteps as inferSnapshotScenario } from '../domain/inference';
+import { inferSnapshotScenario, loadInferenceKnowledge } from './inference';
 import type { AdoId } from '../domain/identity';
 import { compileStepProgram } from '../domain/program';
 import type { BoundScenario, CompilerDiagnostic } from '../domain/types';
-import { validateAdoSnapshot, validateBoundScenario, validateScenario } from '../domain/validation';
-import { walkFiles } from './artifacts';
+import { validateBoundScenario } from '../domain/validation';
+import { loadWorkspaceCatalog } from './catalog';
 import { trySync } from './effect';
-import {
-  availableSnapshotTemplates,
-  createScreenKnowledgeCache,
-  listKnowledgeSnapshotArtifacts,
-  loadInferenceKnowledge,
-  loadScreenKnowledgeBundle,
-} from './knowledge';
 import type { ProjectPaths } from './paths';
-import { boundPath, relativeProjectPath, snapshotPath } from './paths';
+import { boundPath, relativeProjectPath } from './paths';
 import { FileSystem } from './ports';
-
-function findScenarioPath(paths: ProjectPaths, adoId: AdoId) {
-  return Effect.gen(function* () {
-    const fs = yield* FileSystem;
-    const matches = (yield* walkFiles(fs, paths.scenariosDir)).filter((filePath) => filePath.endsWith(`${adoId}.scenario.yaml`));
-    if (matches.length === 0) {
-      return yield* Effect.fail(new TesseractError('scenario-not-found', `Unable to find scenario for ADO ${adoId}`));
-    }
-
-    const [scenarioPath] = matches;
-    if (!scenarioPath) {
-      return yield* Effect.fail(new TesseractError('scenario-not-found', `Unable to find scenario for ADO ${adoId}`));
-    }
-
-    return scenarioPath;
-  });
-}
+import type { WorkspaceSession } from './workspace-session';
 
 function createStepDiagnostics(options: {
   reasons: readonly string[];
@@ -65,46 +41,45 @@ function createStepDiagnostics(options: {
   );
 }
 
-export function bindScenario(options: { adoId: AdoId; paths: ProjectPaths }) {
+export function bindScenario(options: { adoId: AdoId; paths: ProjectPaths; session?: WorkspaceSession }) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
-    const scenarioFile = yield* findScenarioPath(options.paths, options.adoId);
-    const scenarioText = yield* fs.readText(scenarioFile);
-    const scenario = yield* trySync(
-      () => validateScenario(YAML.parse(scenarioText)),
-      'scenario-validation-failed',
-      `Scenario ${options.adoId} failed validation`,
-    );
-    const rawSnapshot = yield* fs.readJson(snapshotPath(options.paths, options.adoId));
-    const snapshot = yield* trySync(
-      () => validateAdoSnapshot(rawSnapshot),
-      'snapshot-validation-failed',
-      `Snapshot ${options.adoId} failed validation`,
-    );
-    const inferenceKnowledge = yield* loadInferenceKnowledge({ paths: options.paths });
-    const inferredByIndex = new Map(
-      inferSnapshotScenario(snapshot, inferenceKnowledge).map((entry) => [entry.step.index, entry] as const),
-    );
-    const screenKnowledgeCache = createScreenKnowledgeCache();
-    const snapshotTemplates = availableSnapshotTemplates(yield* listKnowledgeSnapshotArtifacts({ paths: options.paths }));
+    const catalog = options.session?.catalog ?? (yield* loadWorkspaceCatalog({ paths: options.paths }));
+    const scenarioArtifact = catalog.scenarios.find((entry) => entry.artifact.source.ado_id === options.adoId);
+    if (!scenarioArtifact) {
+      return yield* Effect.fail(new TesseractError('scenario-not-found', `Unable to find scenario for ADO ${options.adoId}`));
+    }
+    const snapshotArtifact = catalog.snapshots.find((entry) => entry.artifact.id === options.adoId);
+    if (!snapshotArtifact) {
+      return yield* Effect.fail(new TesseractError('snapshot-not-found', `Unable to find snapshot for ADO ${options.adoId}`));
+    }
+
+    const scenarioFile = scenarioArtifact.absolutePath;
+    const scenario = scenarioArtifact.artifact;
+    const snapshot = snapshotArtifact.artifact;
+    const inferenceKnowledge = options.session?.inferenceKnowledge ?? (yield* loadInferenceKnowledge({ paths: options.paths, catalog }));
+    const inferredByIndex = new Map(inferSnapshotScenario(snapshot, inferenceKnowledge).map((entry) => [entry.step.index, entry] as const));
+    const screenElementsByScreen = options.session?.screenIndexes.screenElements
+      ?? new Map(catalog.screenElements.map((entry) => [entry.artifact.screen, entry.artifact] as const));
+    const screenPosturesByScreen = options.session?.screenIndexes.screenPostures
+      ?? new Map(catalog.screenPostures.map((entry) => [entry.artifact.screen, entry.artifact] as const));
+    const surfaceGraphsByScreen = options.session?.screenIndexes.surfaceGraphs
+      ?? new Map(catalog.surfaces.map((entry) => [entry.artifact.screen, entry.artifact] as const));
+    const snapshotTemplates = new Set(catalog.knowledgeSnapshots.map((entry) => entry.relativePath));
     const diagnostics: CompilerDiagnostic[] = [];
     const boundSteps: BoundScenario['steps'] = [];
 
     for (const step of scenario.steps) {
-      const inferred = inferredByIndex.get(step.index) ?? null;
-      const screenKnowledge = step.screen
-        ? yield* loadScreenKnowledgeBundle({ paths: options.paths, screen: step.screen, cache: screenKnowledgeCache })
-        : null;
       const boundStep = bindScenarioStep(
         {
           ...step,
           program: compileStepProgram(step),
         },
         {
-          inferred,
-          screenElements: screenKnowledge?.elements?.artifact,
-          screenPostures: screenKnowledge?.postures?.artifact,
-          surfaceGraph: screenKnowledge?.surfaceGraph?.artifact,
+          inferred: inferredByIndex.get(step.index) ?? null,
+          screenElements: step.screen ? screenElementsByScreen.get(step.screen) : undefined,
+          screenPostures: step.screen ? screenPosturesByScreen.get(step.screen) : undefined,
+          surfaceGraph: step.screen ? surfaceGraphsByScreen.get(step.screen) : undefined,
           availableSnapshotTemplates: snapshotTemplates,
         },
       );

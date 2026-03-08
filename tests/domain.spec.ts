@@ -15,6 +15,7 @@ import {
   createWidgetId,
 } from '../lib/domain/identity';
 import { graphIds } from '../lib/domain/ids';
+import { mergePatternDocuments } from '../lib/domain/knowledge/patterns';
 import { compileStepProgram, traceStepProgram } from '../lib/domain/program';
 import { parseEffectTargetRef } from '../lib/domain/effect-target';
 import { validatePostureContract } from '../lib/domain/posture-contract';
@@ -22,11 +23,11 @@ import { createRefPath, formatRefPath, parseRefPath } from '../lib/domain/ref-pa
 import { renderGeneratedKnowledgeModule } from '../lib/domain/typegen';
 import {
   validateAdoSnapshot,
+  validatePatternDocument,
   validateScenario,
   validateScreenElements,
   validateScreenHints,
   validateScreenPostures,
-  validateSharedPatterns,
   validateSurfaceGraph,
 } from '../lib/domain/validation';
 
@@ -49,6 +50,16 @@ function readJsonFixture<T>(...segments: string[]): T {
 
 function readYamlFixture(...segments: string[]) {
   return YAML.parse(readFileSync(path.join(rootDir, ...segments), 'utf8').replace(/^\uFEFF/, ''));
+}
+
+function readMergedPatterns() {
+  const artifactPath = 'knowledge/patterns/core.patterns.yaml';
+  const artifact = validatePatternDocument(readYamlFixture('knowledge', 'patterns', 'core.patterns.yaml'));
+  return {
+    artifactPath,
+    artifact,
+    merged: mergePatternDocuments([{ artifactPath, artifact }]),
+  };
 }
 
 test('computeAdoContentHash stays stable for the seeded fixture', () => {
@@ -202,7 +213,7 @@ test('deriveGraph is deterministic from approved artifacts alone', () => {
   const elements = validateScreenElements(readYamlFixture('knowledge', 'screens', 'policy-search.elements.yaml'));
   const postures = validateScreenPostures(readYamlFixture('knowledge', 'screens', 'policy-search.postures.yaml'));
   const hints = validateScreenHints(readYamlFixture('knowledge', 'screens', 'policy-search.hints.yaml'));
-  const patterns = validateSharedPatterns(readYamlFixture('knowledge', 'patterns', 'core.patterns.yaml'));
+  const patterns = readMergedPatterns();
 
   const input = {
     snapshots: [{ artifact: snapshot, artifactPath: '.ado-sync/snapshots/10001.json' }],
@@ -214,7 +225,7 @@ test('deriveGraph is deterministic from approved artifacts alone', () => {
     screenElements: [{ artifact: elements, artifactPath: 'knowledge/screens/policy-search.elements.yaml' }],
     screenPostures: [{ artifact: postures, artifactPath: 'knowledge/screens/policy-search.postures.yaml' }],
     screenHints: [{ artifact: hints, artifactPath: 'knowledge/screens/policy-search.hints.yaml' }],
-    sharedPatterns: [{ artifact: patterns, artifactPath: 'knowledge/patterns/core.patterns.yaml' }],
+    sharedPatterns: [{ artifact: patterns.artifact, artifactPath: patterns.artifactPath }],
     scenarios: [{
       artifact: scenario,
       artifactPath: 'scenarios/demo/policy-search/10001.scenario.yaml',

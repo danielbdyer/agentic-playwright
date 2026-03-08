@@ -1,7 +1,7 @@
 ﻿const tsParser = require('@typescript-eslint/parser');
 const tsPlugin = require('@typescript-eslint/eslint-plugin');
 
-const tsFiles = ['**/*.ts', 'playwright*.ts'];
+const tsFiles = ['**/*.ts', '**/*.tsx', 'playwright*.ts'];
 const nodeScriptGlobals = {
   __dirname: 'readonly',
   module: 'readonly',

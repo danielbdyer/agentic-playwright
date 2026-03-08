@@ -3,6 +3,7 @@
     "target": "ES2021",
     "module": "commonjs",
     "moduleResolution": "node",
+    "jsx": "react-jsx",
     "lib": ["ES2021", "DOM"],
     "strict": true,
     "noUncheckedIndexedAccess": true,
@@ -20,6 +21,7 @@
   "include": [
     "bin/**/*.ts",
     "fixtures/**/*.ts",
+    "fixtures/**/*.tsx",
     "knowledge/**/*.ts",
     "lib/**/*.ts",
     "playwright*.ts",

@@ -9,6 +9,8 @@
   ElementSig,
   LocatorStrategy,
   Manifest,
+  MergedPatterns,
+  PatternDocument,
   Posture,
   PostureEffect,
   RefPath,
@@ -36,6 +38,7 @@
   WidgetCapabilityContract,
 } from './types';
 import { computeAdoContentHash } from './hash';
+import { validatePatternDocument as validatePatternDocumentRecord } from './knowledge/patterns';
 import { normalizeScreenPostures } from './posture-contract';
 import { SchemaError } from './errors';
 import {
@@ -637,10 +640,17 @@ export function validateScreenHints(value: unknown): ScreenHints {
   };
 }
 
+export function validatePatternDocument(value: unknown): PatternDocument {
+  return validatePatternDocumentRecord(value);
+}
+
 export function validateSharedPatterns(value: unknown): SharedPatterns {
   const patterns = expectRecord(value, 'shared-patterns');
   const actions = expectRecord(patterns.actions, 'shared-patterns.actions');
   const postures = expectRecord(patterns.postures ?? {}, 'shared-patterns.postures');
+  const sources = expectRecord(patterns.sources, 'shared-patterns.sources');
+  const actionSources = expectRecord(sources.actions, 'shared-patterns.sources.actions');
+  const postureSources = expectRecord(sources.postures ?? {}, 'shared-patterns.sources.postures');
   const requiredActions = ['navigate', 'input', 'click', 'assert-snapshot'] as const;
 
   const validatedActions = Object.fromEntries(requiredActions.map((action) => {
@@ -649,7 +659,7 @@ export function validateSharedPatterns(value: unknown): SharedPatterns {
       id: expectString(record.id, `shared-patterns.actions.${action}.id`),
       aliases: uniqueSorted(expectStringArray(record.aliases ?? [], `shared-patterns.actions.${action}.aliases`)),
     }];
-  })) as SharedPatterns['actions'];
+  })) as MergedPatterns['actions'];
 
   return {
     version: expectNumber(patterns.version, 'shared-patterns.version') as 1,
@@ -663,6 +673,19 @@ export function validateSharedPatterns(value: unknown): SharedPatterns {
         }];
       }),
     ),
+    documents: uniqueSorted(expectStringArray(patterns.documents ?? [], 'shared-patterns.documents')),
+    sources: {
+      actions: Object.fromEntries(requiredActions.map((action) => [
+        action,
+        expectString(actionSources[action], `shared-patterns.sources.actions.${action}`),
+      ])) as MergedPatterns['sources']['actions'],
+      postures: Object.fromEntries(
+        Object.entries(postureSources).map(([postureId, sourcePath]) => [
+          postureId,
+          expectString(sourcePath, `shared-patterns.sources.postures.${postureId}`),
+        ]),
+      ),
+    },
   };
 }
 

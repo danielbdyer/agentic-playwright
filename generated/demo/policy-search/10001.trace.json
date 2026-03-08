@@ -7,6 +7,21 @@
   "governance": "approved",
   "lifecycle": "normal",
   "diagnostics": [],
+  "summary": {
+    "stepCount": 4,
+    "provenanceKinds": {
+      "compiler-derived": 0,
+      "hint-backed": 4,
+      "pattern-backed": 0,
+      "unbound": 0
+    },
+    "governance": {
+      "approved": 4,
+      "review-required": 0,
+      "blocked": 0
+    },
+    "unresolvedReasons": []
+  },
   "steps": [
     {
       "index": 1,
@@ -14,6 +29,7 @@
       "normalizedIntent": "navigate to policy search screen => policy search screen loads",
       "action": "navigate",
       "confidence": "compiler-derived",
+      "provenanceKind": "hint-backed",
       "governance": "approved",
       "ruleId": "core.navigate",
       "knowledgeRefs": [
@@ -25,6 +41,7 @@
         "knowledge/screens/policy-search.hints.yaml"
       ],
       "reviewReasons": [],
+      "unresolvedGaps": [],
       "reasons": [],
       "evidenceIds": [],
       "program": {
@@ -43,6 +60,7 @@
       "normalizedIntent": "enter policy number in search field => policy number accepts a valid policy",
       "action": "input",
       "confidence": "compiler-derived",
+      "provenanceKind": "hint-backed",
       "governance": "approved",
       "ruleId": "core.input",
       "knowledgeRefs": [
@@ -55,6 +73,7 @@
         "knowledge/screens/policy-search.hints.yaml"
       ],
       "reviewReasons": [],
+      "unresolvedGaps": [],
       "reasons": [],
       "evidenceIds": [],
       "program": {
@@ -84,6 +103,7 @@
       "normalizedIntent": "click search button => search runs",
       "action": "click",
       "confidence": "compiler-derived",
+      "provenanceKind": "hint-backed",
       "governance": "approved",
       "ruleId": "core.click",
       "knowledgeRefs": [
@@ -95,6 +115,7 @@
         "knowledge/screens/policy-search.hints.yaml"
       ],
       "reviewReasons": [],
+      "unresolvedGaps": [],
       "reasons": [],
       "evidenceIds": [],
       "program": {
@@ -115,6 +136,7 @@
       "normalizedIntent": "matching policy appears in search results => verify search results show policy",
       "action": "assert-snapshot",
       "confidence": "compiler-derived",
+      "provenanceKind": "hint-backed",
       "governance": "approved",
       "ruleId": "core.assert-snapshot",
       "knowledgeRefs": [
@@ -127,6 +149,7 @@
         "knowledge/screens/policy-search.hints.yaml"
       ],
       "reviewReasons": [],
+      "unresolvedGaps": [],
       "reasons": [],
       "evidenceIds": [],
       "program": {

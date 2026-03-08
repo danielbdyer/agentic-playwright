@@ -1,4 +1,11 @@
-﻿import { test as base } from '@playwright/test';
+import { test as base } from '@playwright/test';
+import { createLocalScreenRegistryLoader } from '../lib/infrastructure/screen-registry/local-screen-registry-loader';
+import { createLocalSnapshotTemplateLoader } from '../lib/infrastructure/snapshots/local-snapshot-template-loader';
+import { configureScreenRegistryLoader } from '../lib/runtime/load';
+import { configureSnapshotTemplateLoader } from '../lib/runtime/snapshots';
+
+configureScreenRegistryLoader(createLocalScreenRegistryLoader(process.cwd()));
+configureSnapshotTemplateLoader(createLocalSnapshotTemplateLoader(process.cwd()));
 
 interface DemoSession {
   baseURL: string;

@@ -3,7 +3,7 @@ import { createSurfaceId } from './identity';
 import { unknownWidgetActionError } from './errors';
 import type { CapabilityName, DerivedCapability, ElementSig, ScreenElements, SurfaceGraph, WidgetAction } from './types';
 import { graphIds, knowledgePaths } from './ids';
-import { widgetCapabilityContracts } from '../../knowledge/components';
+import { widgetCapabilityContracts } from './widgets/contracts';
 
 const roleCapabilities: Record<string, CapabilityName[]> = {
   alert: ['observe-state'],

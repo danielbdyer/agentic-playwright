@@ -8,6 +8,7 @@
   "include": [
     "bin/**/*.ts",
     "fixtures/**/*.ts",
+    "fixtures/**/*.tsx",
     "knowledge/**/*.ts",
     "lib/**/*.ts"
   ],

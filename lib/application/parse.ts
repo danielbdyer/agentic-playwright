@@ -11,6 +11,7 @@ import { inferSnapshotScenario, loadInferenceKnowledge } from './inference';
 import type { ProjectPaths} from './paths';
 import { relativeProjectPath, scenarioPath, snapshotPath } from './paths';
 import { FileSystem } from './ports';
+import type { WorkspaceSession } from './workspace-session';
 
 const fixtureReferencePattern = /\{\{\s*([A-Za-z0-9_-]+)(?:\.[^}]*)?\s*\}\}/g;
 
@@ -59,16 +60,21 @@ export function parseSnapshotToScenario(snapshot: AdoSnapshot, knowledge: Infere
   };
 }
 
-export function parseScenario(options: { adoId: AdoId; paths: ProjectPaths }) {
+export function parseScenario(options: { adoId: AdoId; paths: ProjectPaths; session?: WorkspaceSession }) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
-    const knowledge = yield* loadInferenceKnowledge({ paths: options.paths });
-    const rawSnapshot = yield* fs.readJson(snapshotPath(options.paths, options.adoId));
-    const snapshot = yield* trySync(
-      () => validateAdoSnapshot(rawSnapshot),
-      'snapshot-validation-failed',
-      `Snapshot ${options.adoId} failed validation`,
-    );
+    const knowledge = options.session?.inferenceKnowledge ?? (yield* loadInferenceKnowledge({ paths: options.paths }));
+    const catalogSnapshot = options.session?.catalog.snapshots.find((entry) => entry.artifact.id === options.adoId);
+    const snapshot = catalogSnapshot
+      ? catalogSnapshot.artifact
+      : yield* Effect.gen(function* () {
+          const rawSnapshot = yield* fs.readJson(snapshotPath(options.paths, options.adoId));
+          return yield* trySync(
+            () => validateAdoSnapshot(rawSnapshot),
+            'snapshot-validation-failed',
+            `Snapshot ${options.adoId} failed validation`,
+          );
+        });
     const scenario = parseSnapshotToScenario(snapshot, knowledge);
     const targetPath = scenarioPath(options.paths, snapshot.suitePath, snapshot.id);
     const serialized = YAML.stringify(scenario, { indent: 2 });

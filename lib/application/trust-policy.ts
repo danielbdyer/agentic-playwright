@@ -1,51 +1,34 @@
-﻿import path from 'path';
-import YAML from 'yaml';
+import path from 'path';
 import { Effect } from 'effect';
 import { createTrustPolicyDiagnostic } from '../domain/diagnostics';
 import { evaluateTrustPolicy } from '../domain/trust-policy';
-import type { AdoId} from '../domain/identity';
+import type { AdoId } from '../domain/identity';
 import { createScreenId } from '../domain/identity';
 import { graphIds } from '../domain/ids';
 import type { EvidenceDescriptor, EvidenceRecord, ProposedChangeMetadata, TrustPolicy, TrustPolicyEvaluation } from '../domain/types';
-import { validateTrustPolicy } from '../domain/validation';
-import { trySync } from './effect';
-import type { ProjectPaths} from './paths';
-import { relativeProjectPath } from './paths';
-import { FileSystem } from './ports';
-import { walkFiles } from './artifacts';
+import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
+import type { ProjectPaths } from './paths';
+import type { FileSystem } from './ports';
 
 export interface LoadedEvidenceRecord {
   artifactPath: string;
   record: EvidenceRecord;
 }
 
-export function loadTrustPolicy(paths: ProjectPaths): Effect.Effect<TrustPolicy, Error, FileSystem> {
+export function loadTrustPolicy(paths: ProjectPaths, catalog?: WorkspaceCatalog): Effect.Effect<TrustPolicy, Error, FileSystem> {
   return Effect.gen(function* () {
-    const fs = yield* FileSystem;
-    const raw = yield* fs.readText(paths.trustPolicyPath);
-    return yield* trySync(
-      () => validateTrustPolicy(YAML.parse(raw)),
-      'trust-policy-validation-failed',
-      `Trust policy ${paths.trustPolicyPath} failed validation`,
-    );
+    const resolvedCatalog = catalog ?? (yield* loadWorkspaceCatalog({ paths }));
+    return resolvedCatalog.trustPolicy.artifact;
   });
 }
 
-export function loadEvidenceRecords(paths: ProjectPaths): Effect.Effect<LoadedEvidenceRecord[], Error, FileSystem> {
+export function loadEvidenceRecords(paths: ProjectPaths, catalog?: WorkspaceCatalog): Effect.Effect<LoadedEvidenceRecord[], Error, FileSystem> {
   return Effect.gen(function* () {
-    const fs = yield* FileSystem;
-    const files = (yield* walkFiles(fs, paths.evidenceDir)).filter((filePath) => filePath.endsWith('.json'));
-    const records: LoadedEvidenceRecord[] = [];
-
-    for (const filePath of files) {
-      const raw = (yield* fs.readJson(filePath)) as EvidenceRecord;
-      records.push({
-        artifactPath: relativeProjectPath(paths, filePath),
-        record: raw,
-      });
-    }
-
-    return records;
+    const resolvedCatalog = catalog ?? (yield* loadWorkspaceCatalog({ paths }));
+    return resolvedCatalog.evidenceRecords.map((entry) => ({
+      artifactPath: entry.artifactPath,
+      record: entry.artifact,
+    }));
   });
 }
 
@@ -102,4 +85,3 @@ export function trustPolicyDiagnosticForScenario(input: {
     reasons: input.evaluation.reasons,
   });
 }
-

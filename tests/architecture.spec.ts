@@ -39,6 +39,10 @@ function importsFor(filePath: string): string[] {
   return [...text.matchAll(/from\s+['"]([^'"]+)['"]/g)].flatMap((match) => (match[1] ? [match[1]] : []));
 }
 
+function fileText(filePath: string): string {
+  return readFileSync(filePath, 'utf8').replace(/^\uFEFF/, '');
+}
+
 function relativeFile(filePath: string): string {
   return path.relative(rootDir, filePath).replace(/\\/g, '/');
 }
@@ -48,6 +52,23 @@ test('domain layer does not depend on application, infrastructure, runtime, or t
   const offenders = listTsFiles('lib/domain').flatMap((filePath) =>
     importsFor(filePath)
       .filter((specifier) => forbidden.some((prefix) => specifier.startsWith(prefix)))
+      .map((specifier) => `${relativeFile(filePath)} -> ${specifier}`),
+  );
+
+  expect(offenders).toEqual([]);
+});
+
+test('domain layer stays pure of playwright, filesystem adapters, and runtime component implementations', () => {
+  const offenders = listTsFiles('lib/domain').flatMap((filePath) =>
+    importsFor(filePath)
+      .filter((specifier) =>
+        specifier === '@playwright/test'
+        || specifier === 'fs'
+        || specifier === 'path'
+        || specifier.startsWith('node:fs')
+        || specifier.startsWith('node:path')
+        || specifier.includes('knowledge/components'),
+      )
       .map((specifier) => `${relativeFile(filePath)} -> ${specifier}`),
   );
 
@@ -72,6 +93,15 @@ test('runtime layer remains isolated from application and infrastructure orchest
       .filter((specifier) => forbidden.some((prefix) => specifier.startsWith(prefix)))
       .map((specifier) => `${relativeFile(filePath)} -> ${specifier}`),
   );
+
+  expect(offenders).toEqual([]);
+});
+
+test('runtime layer does not perform repo-root filesystem loading directly', () => {
+  const forbiddenPatterns = [/process\.cwd\(/, /readFileSync\(/, /existsSync\(/];
+  const offenders = listTsFiles('lib/runtime')
+    .filter((filePath) => forbiddenPatterns.some((pattern) => pattern.test(fileText(filePath))))
+    .map(relativeFile);
 
   expect(offenders).toEqual([]);
 });
