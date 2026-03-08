@@ -18,15 +18,11 @@ import {
 } from './paths';
 import { FileSystem } from './ports';
 import {
-  computeProjectionInputSetFingerprint,
-  diffProjectionInputs,
   fingerprintProjectionArtifact,
   fingerprintProjectionOutput,
-  parseProjectionManifest,
-  type ProjectionBuildManifest,
-  type ProjectionCacheInvalidationReason,
   type ProjectionInputFingerprint,
 } from './projections/cache';
+import { runProjection } from './projections/runner';
 
 function toPosix(value: string): string {
   return value.replace(/\\/g, '/');
@@ -176,70 +172,45 @@ export function emitScenario(
     const inputFingerprints: ProjectionInputFingerprint[] = [
       fingerprintProjectionArtifact('bound', relativeProjectPath(options.paths, source.boundPath), source.boundScenario),
     ];
-    const inputSetFingerprint = computeProjectionInputSetFingerprint(inputFingerprints);
     const outputFingerprint = emitOutputFingerprint(artifacts);
-    const previousManifest = (yield* fs.exists(artifacts.manifestPath))
-      ? parseProjectionManifest(yield* fs.readJson(artifacts.manifestPath), 'emit')
-      : null;
-    const { sortedInputs, changedInputs, removedInputs } = diffProjectionInputs(inputFingerprints, previousManifest);
 
-    let cacheInvalidationReason: ProjectionCacheInvalidationReason | null = null;
-    if (previousManifest && previousManifest.inputSetFingerprint === inputSetFingerprint && previousManifest.outputFingerprint === outputFingerprint) {
-      const persisted = yield* readPersistedEmitOutputState(artifacts);
-      if (persisted.status === 'ok') {
-        if (persisted.outputFingerprint === outputFingerprint) {
-          return {
+    return yield* runProjection({
+      projection: 'emit',
+      manifestPath: artifacts.manifestPath,
+      inputFingerprints,
+      outputFingerprint,
+      verifyPersistedOutput: () => readPersistedEmitOutputState(artifacts),
+      buildAndWrite: () => Effect.gen(function* () {
+        yield* fs.writeText(artifacts.outputPath, artifacts.rendered.code);
+        yield* fs.writeJson(artifacts.tracePath, artifacts.traceArtifact);
+        yield* fs.writeText(artifacts.reviewPath, artifacts.reviewText);
+        return {
+          result: {
             outputPath: artifacts.outputPath,
             tracePath: artifacts.tracePath,
             reviewPath: artifacts.reviewPath,
             lifecycle: artifacts.rendered.lifecycle,
-            incremental: {
-              status: 'cache-hit' as const,
-              inputSetFingerprint,
-              outputFingerprint,
-              changedInputs,
-              removedInputs,
-              rewritten: [] as string[],
-            },
-          };
-        }
-        cacheInvalidationReason = 'invalid-output';
-      } else {
-        cacheInvalidationReason = persisted.status;
-      }
-    }
-
-    yield* fs.writeText(artifacts.outputPath, artifacts.rendered.code);
-    yield* fs.writeJson(artifacts.tracePath, artifacts.traceArtifact);
-    yield* fs.writeText(artifacts.reviewPath, artifacts.reviewText);
-    const manifest: ProjectionBuildManifest = {
-      version: 1,
-      projection: 'emit',
-      inputSetFingerprint,
-      outputFingerprint,
-      inputs: sortedInputs,
-    };
-    yield* fs.writeJson(artifacts.manifestPath, manifest);
-
-    return {
-      outputPath: artifacts.outputPath,
-      tracePath: artifacts.tracePath,
-      reviewPath: artifacts.reviewPath,
-      lifecycle: artifacts.rendered.lifecycle,
-      incremental: {
-        status: 'cache-miss' as const,
-        inputSetFingerprint,
-        outputFingerprint,
-        cacheInvalidationReason,
-        changedInputs,
-        removedInputs,
-        rewritten: [
-          relativeProjectPath(options.paths, artifacts.outputPath),
-          relativeProjectPath(options.paths, artifacts.tracePath),
-          relativeProjectPath(options.paths, artifacts.reviewPath),
-          relativeProjectPath(options.paths, artifacts.manifestPath),
-        ],
-      },
-    };
+          },
+          outputFingerprint,
+          rewritten: [
+            relativeProjectPath(options.paths, artifacts.outputPath),
+            relativeProjectPath(options.paths, artifacts.tracePath),
+            relativeProjectPath(options.paths, artifacts.reviewPath),
+            relativeProjectPath(options.paths, artifacts.manifestPath),
+          ],
+        };
+      }),
+      withCacheHit: (incremental) => ({
+        outputPath: artifacts.outputPath,
+        tracePath: artifacts.tracePath,
+        reviewPath: artifacts.reviewPath,
+        lifecycle: artifacts.rendered.lifecycle,
+        incremental,
+      }),
+      withCacheMiss: (built, incremental) => ({
+        ...built,
+        incremental,
+      }),
+    });
   });
 }

@@ -9,14 +9,10 @@ import type { ProjectPaths } from './paths';
 import { generatedKnowledgePath, relativeProjectPath } from './paths';
 import { FileSystem } from './ports';
 import {
-  computeProjectionInputSetFingerprint,
-  diffProjectionInputs,
   fingerprintProjectionArtifact,
-  parseProjectionManifest,
-  type ProjectionBuildManifest,
-  type ProjectionCacheInvalidationReason,
   type ProjectionInputFingerprint,
 } from './projections/cache';
+import { runProjection } from './projections/runner';
 
 function toSortedUnique(values: string[]): string[] {
   return [...new Set(values)].sort((left, right) => left.localeCompare(right));
@@ -144,70 +140,58 @@ export function generateTypes(options: { paths: ProjectPaths; catalog?: Workspac
 
     const outputPath = generatedKnowledgePath(options.paths);
     const metadataPath = generatedTypesManifestPath(options.paths);
-    const inputSetFingerprint = computeProjectionInputSetFingerprint(inputFingerprints);
     const outputFingerprint = `sha256:${sha256(moduleText)}`;
-    const previousManifest = (yield* fs.exists(metadataPath))
-      ? parseProjectionManifest(yield* fs.readJson(metadataPath), 'types')
-      : null;
-    const { sortedInputs, changedInputs, removedInputs } = diffProjectionInputs(inputFingerprints, previousManifest);
+    const fixtures = toSortedUnique(fixtureIds);
+    const snapshots = toSortedUnique(snapshotTemplates);
 
-    let cacheInvalidationReason: ProjectionCacheInvalidationReason | null = null;
-    if (previousManifest && previousManifest.inputSetFingerprint === inputSetFingerprint && previousManifest.outputFingerprint === outputFingerprint) {
-      const outputExists = yield* fs.exists(outputPath);
-      if (!outputExists) {
-        cacheInvalidationReason = 'missing-output';
-      } else {
+    return yield* runProjection({
+      projection: 'types',
+      manifestPath: metadataPath,
+      inputFingerprints,
+      outputFingerprint,
+      verifyPersistedOutput: () => Effect.gen(function* () {
+        const outputExists = yield* fs.exists(outputPath);
+        if (!outputExists) {
+          return { status: 'missing-output' as const };
+        }
+
         const persistedModuleText = yield* fs.readText(outputPath);
         if (`sha256:${sha256(persistedModuleText)}` !== outputFingerprint) {
-          cacheInvalidationReason = 'invalid-output';
+          return { status: 'invalid-output' as const };
         }
-      }
 
-      if (cacheInvalidationReason === null) {
         return {
-          outputPath,
-          screens: screensList,
-          fixtures: toSortedUnique(fixtureIds),
-          snapshots: toSortedUnique(snapshotTemplates),
-          incremental: {
-            status: 'cache-hit' as const,
-            inputSetFingerprint,
-            outputFingerprint,
-            changedInputs,
-            removedInputs,
-            rewritten: [] as string[],
-          },
+          status: 'ok' as const,
+          outputFingerprint: `sha256:${sha256(persistedModuleText)}`,
         };
-      }
-    }
-
-    yield* fs.writeText(outputPath, moduleText);
-    const manifest: ProjectionBuildManifest = {
-      version: 1,
-      projection: 'types',
-      inputSetFingerprint,
-      outputFingerprint,
-      inputs: sortedInputs,
-    };
-    yield* fs.writeJson(metadataPath, manifest);
-
-    return {
-      outputPath,
-      screens: screensList,
-      fixtures: toSortedUnique(fixtureIds),
-      snapshots: toSortedUnique(snapshotTemplates),
-      incremental: {
-        status: 'cache-miss' as const,
-        inputSetFingerprint,
-        outputFingerprint,
-        cacheInvalidationReason,
-        changedInputs,
-        removedInputs,
-        rewritten: [
-          relativeProjectPath(options.paths, outputPath),
-          relativeProjectPath(options.paths, metadataPath),
-        ],
-      },
-    };
+      }),
+      buildAndWrite: () => Effect.gen(function* () {
+        yield* fs.writeText(outputPath, moduleText);
+        return {
+          result: {
+            outputPath,
+            screens: screensList,
+            fixtures,
+            snapshots,
+          },
+          outputFingerprint,
+          rewritten: [
+            relativeProjectPath(options.paths, outputPath),
+            relativeProjectPath(options.paths, metadataPath),
+          ],
+        };
+      }),
+      withCacheHit: (incremental) => ({
+        outputPath,
+        screens: screensList,
+        fixtures,
+        snapshots,
+        incremental,
+      }),
+      withCacheMiss: (built, incremental) => ({
+        ...built,
+        incremental,
+      }),
+    });
   });
 }
