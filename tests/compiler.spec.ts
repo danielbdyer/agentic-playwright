@@ -7,12 +7,13 @@ import { describeScenarioPaths } from '../lib/application/inspect';
 import { emitScenario } from '../lib/application/emit';
 import { emitManifestPath } from '../lib/application/paths';
 import { refreshScenario } from '../lib/application/refresh';
+import { runScenario } from '../lib/application/run';
 import { inspectSurface } from '../lib/application/surface';
 import { traceScenario } from '../lib/application/trace';
 import { generateTypes } from '../lib/application/types';
+import { runWithLocalServices } from '../lib/composition/local-services';
 import { createAdoId, createElementId, createScreenId, createSurfaceId } from '../lib/domain/identity';
 import { graphIds } from '../lib/domain/ids';
-import { runWithLocalServices } from '../lib/infrastructure/local-services';
 import { createTestWorkspace } from './support/workspace';
 
 const policySearchScreenId = createScreenId('policy-search');
@@ -47,27 +48,32 @@ test('refresh recompiles the seeded scenario through graph, types, and program e
 
     expect(result.sync.snapshots).toHaveLength(1);
     expect(result.compile.bound.hasUnbound).toBeFalsy();
-    expect(result.compile.bound.boundScenario.steps.every((step) => step.confidence === 'compiler-derived')).toBeTruthy();
+    expect(result.compile.bound.boundScenario.steps.every((step) => step.confidence === 'intent-only')).toBeTruthy();
+    expect(result.compile.bound.boundScenario.steps.every((step) => step.binding.kind === 'deferred')).toBeTruthy();
     expect(result.compile.bound.boundScenario.steps.every((step) => step.binding.governance === 'approved')).toBeTruthy();
-    expect(generated).toContain('runStepProgram');
-    expect(generated).toContain('loadScreenRegistry');
-    expect(generated).toContain('compiler-derived');
-    expect(traceArtifact.steps[1].supplementRefs).toContain('knowledge/patterns/core.patterns.yaml');
-    expect(traceArtifact.steps[1].supplementRefs).toContain('knowledge/screens/policy-search.hints.yaml');
-    expect(traceArtifact.steps[1].provenanceKind).toBe('hint-backed');
-    expect(traceArtifact.summary.provenanceKinds['hint-backed']).toBeGreaterThan(0);
+    expect(projectPath(result.compile.compileSnapshot.taskPath)).toContain('.tesseract/tasks/10001.resolution.json');
+    expect(generated).toContain('runScenarioStep');
+    expect(generated).toContain('createLocalRuntimeEnvironment');
+    expect(generated).toContain('intent-only');
+    expect(generated).toContain('deferred-steps');
+    expect(traceArtifact.steps[1].runtime.status).toBe('pending');
+    expect(traceArtifact.steps[1].provenanceKind).toBe('unresolved');
+    expect(traceArtifact.summary.provenanceKinds.unresolved).toBe(4);
+    expect(traceArtifact.summary.unresolvedReasons).toEqual([{ reason: 'runtime-resolution-required', count: 4 }]);
     expect(traceArtifact.governance).toBe('approved');
     expect(traceArtifact.steps[0].normalizedIntent).toContain('navigate');
     expect(review).toContain('# Verify policy search returns matching policy');
     expect(review).toContain('## Bottlenecks');
-    expect(review).toContain('Provenance kind: hint-backed');
+    expect(review).toContain('Preparation lane: scenario -> bound envelope -> task packet');
+    expect(review).toContain('Binding kind: deferred');
     expect(review).toContain('## Step 1');
     expect(graph.nodes.some((node: { id: string }) => node.id === graphIds.surface(policySearchScreenId, resultsGridId))).toBeTruthy();
     expect(graph.nodes.some((node: { id: string }) => node.id === graphIds.screenHints(policySearchScreenId))).toBeTruthy();
     expect(graph.nodes.some((node: { id: string }) => node.id === graphIds.pattern('core.input'))).toBeTruthy();
     expect(graph.nodes.some((node: { id: string }) => node.id === graphIds.generatedTrace(adoId))).toBeTruthy();
     expect(graph.nodes.some((node: { id: string }) => node.id === graphIds.generatedReview(adoId))).toBeTruthy();
-    expect(graph.nodes.find((node: { id: string; payload?: Record<string, unknown> }) => node.id === graphIds.step(adoId, 2))?.payload?.provenanceKind).toBe('hint-backed');
+    expect(graph.nodes.find((node: { id: string; payload?: Record<string, unknown> }) => node.id === graphIds.step(adoId, 2))?.payload?.provenanceKind).toBe('unresolved');
+    expect(graph.nodes.find((node: { id: string; payload?: Record<string, unknown> }) => node.id === graphIds.step(adoId, 2))?.payload?.runtimeStatus).toBe('pending');
     expect(projectPath(result.compile.generatedTypes.outputPath)).toContain('lib/generated/tesseract-knowledge.ts');
   } finally {
     workspace.cleanup();
@@ -84,9 +90,12 @@ test('paths identifies surface, graph, generated review, and supplement artifact
 
     expect(projectPath(result.artifacts.snapshot)).toContain('.ado-sync/snapshots/10001.json');
     expect(projectPath(result.artifacts.scenario)).toContain('scenarios/demo/policy-search/10001.scenario.yaml');
+    expect(projectPath(result.artifacts.bound)).toContain('.tesseract/bound/10001.json');
+    expect(projectPath(result.artifacts.task)).toContain('.tesseract/tasks/10001.resolution.json');
     expect(projectPath(result.artifacts.graph)).toContain('.tesseract/graph/index.json');
     expect(projectPath(result.artifacts.trace)).toContain('generated/demo/policy-search/10001.trace.json');
     expect(projectPath(result.artifacts.review)).toContain('generated/demo/policy-search/10001.review.md');
+    expect(projectPath(result.artifacts.trustPolicy)).toContain('.tesseract/policy/trust-policy.yaml');
     expect(result.supplements.sharedPatterns).toContain('knowledge/patterns/core.patterns.yaml');
     expect(result.knowledge).toEqual([
       {
@@ -110,6 +119,35 @@ test('surface inspection returns approved structure plus derived capabilities', 
 
     expect(resultsGrid?.assertions).toEqual(['structure', 'state']);
     expect(result.capabilities.some((entry) => entry.targetKind === 'surface' && entry.target === searchFormId)).toBeTruthy();
+  } finally {
+    workspace.cleanup();
+  }
+});
+
+test('run emits interpretation and execution receipts, then reprojects review surfaces', async () => {
+  const workspace = createTestWorkspace('compiler-run');
+  try {
+    const adoId = createAdoId('10001');
+    await runWithLocalServices(refreshScenario({ adoId, paths: workspace.paths }), workspace.rootDir);
+    const run = await runWithLocalServices(
+      runScenario({ adoId, paths: workspace.paths, interpreterMode: 'diagnostic' }),
+      workspace.rootDir,
+    );
+    const traceArtifact = JSON.parse(readFileSync(run.emitted.tracePath, 'utf8').replace(/^\uFEFF/, ''));
+    const review = readFileSync(run.emitted.reviewPath, 'utf8').replace(/^\uFEFF/, '');
+    const runRecord = JSON.parse(readFileSync(run.runPath, 'utf8').replace(/^\uFEFF/, ''));
+    const proposalBundle = JSON.parse(readFileSync(run.proposalsPath, 'utf8').replace(/^\uFEFF/, ''));
+    const graph = JSON.parse(readFileSync(run.graph.graphPath, 'utf8').replace(/^\uFEFF/, ''));
+
+    expect(runRecord.kind).toBe('scenario-run-record');
+    expect(runRecord.steps).toHaveLength(4);
+    expect(runRecord.steps.every((step: { interpretation: { kind: string } }) => step.interpretation.kind === 'resolved')).toBeTruthy();
+    expect(traceArtifact.summary.provenanceKinds['approved-knowledge']).toBe(4);
+    expect(traceArtifact.summary.provenanceKinds.unresolved).toBe(0);
+    expect(traceArtifact.steps.every((step: { runtime: { status: string } }) => step.runtime.status === 'resolved')).toBeTruthy();
+    expect(review).toContain('Runtime: resolved');
+    expect(proposalBundle.proposals).toEqual([]);
+    expect(graph.nodes.find((node: { id: string; payload?: Record<string, unknown> }) => node.id === graphIds.step(adoId, 2))?.payload?.runtimeStatus).toBe('resolved');
   } finally {
     workspace.cleanup();
   }
@@ -144,6 +182,12 @@ test('emit, types, and graph projections expose aligned incremental metadata for
   try {
     const adoId = createAdoId('10001');
     const refresh = await runWithLocalServices(refreshScenario({ adoId, paths: workspace.paths }), workspace.rootDir);
+    await runWithLocalServices(
+      emitScenario({ paths: workspace.paths, compileSnapshot: refresh.compile.compileSnapshot }),
+      workspace.rootDir,
+    );
+    await runWithLocalServices(generateTypes({ paths: workspace.paths }), workspace.rootDir);
+    await runWithLocalServices(buildDerivedGraph({ paths: workspace.paths }), workspace.rootDir);
 
     const emitHit = await runWithLocalServices(
       emitScenario({ paths: workspace.paths, compileSnapshot: refresh.compile.compileSnapshot }),
@@ -227,6 +271,10 @@ test('emit skips rewrites when the bound scenario and rendered artifacts are unc
   try {
     const adoId = createAdoId('10001');
     const refresh = await runWithLocalServices(refreshScenario({ adoId, paths: workspace.paths }), workspace.rootDir);
+    await runWithLocalServices(
+      emitScenario({ paths: workspace.paths, compileSnapshot: refresh.compile.compileSnapshot }),
+      workspace.rootDir,
+    );
     const suitePath = refresh.compile.compileSnapshot.boundScenario.metadata.suite;
     const manifestPath = emitManifestPath(workspace.paths, suitePath, adoId);
     const specMtimeBefore = statSync(refresh.compile.emitted.outputPath).mtimeMs;
@@ -258,6 +306,10 @@ test('emit regenerates when manifest is present but generated artifacts are miss
   try {
     const adoId = createAdoId('10001');
     const refresh = await runWithLocalServices(refreshScenario({ adoId, paths: workspace.paths }), workspace.rootDir);
+    await runWithLocalServices(
+      emitScenario({ paths: workspace.paths, compileSnapshot: refresh.compile.compileSnapshot }),
+      workspace.rootDir,
+    );
     const suitePath = refresh.compile.compileSnapshot.boundScenario.metadata.suite;
     const manifestPath = emitManifestPath(workspace.paths, suitePath, adoId);
     const relativeSpec = projectPath(path.relative(workspace.rootDir, refresh.compile.emitted.outputPath));
@@ -411,4 +463,3 @@ test('graph projection includes policy decision audit nodes and governs edges', 
     workspace.cleanup();
   }
 });
-

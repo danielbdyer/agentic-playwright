@@ -2,7 +2,6 @@ import { Effect } from 'effect';
 import { bindScenarioStep } from '../domain/binding';
 import { createDiagnostic } from '../domain/diagnostics';
 import { TesseractError } from '../domain/errors';
-import { inferSnapshotScenario, loadInferenceKnowledge } from './inference';
 import type { AdoId } from '../domain/identity';
 import { compileStepProgram } from '../domain/program';
 import type { BoundScenario, CompilerDiagnostic } from '../domain/types';
@@ -57,8 +56,6 @@ export function bindScenario(options: { adoId: AdoId; paths: ProjectPaths; sessi
     const scenarioFile = scenarioArtifact.absolutePath;
     const scenario = scenarioArtifact.artifact;
     const snapshot = snapshotArtifact.artifact;
-    const inferenceKnowledge = options.session?.inferenceKnowledge ?? (yield* loadInferenceKnowledge({ paths: options.paths, catalog }));
-    const inferredByIndex = new Map(inferSnapshotScenario(snapshot, inferenceKnowledge).map((entry) => [entry.step.index, entry] as const));
     const screenElementsByScreen = options.session?.screenIndexes.screenElements
       ?? new Map(catalog.screenElements.map((entry) => [entry.artifact.screen, entry.artifact] as const));
     const screenPosturesByScreen = options.session?.screenIndexes.screenPostures
@@ -73,10 +70,9 @@ export function bindScenario(options: { adoId: AdoId; paths: ProjectPaths; sessi
       const boundStep = bindScenarioStep(
         {
           ...step,
-          program: compileStepProgram(step),
+          program: step.resolution ? compileStepProgram(step) : undefined,
         },
         {
-          inferred: inferredByIndex.get(step.index) ?? null,
           screenElements: step.screen ? screenElementsByScreen.get(step.screen) : undefined,
           screenPostures: step.screen ? screenPosturesByScreen.get(step.screen) : undefined,
           surfaceGraph: step.screen ? surfaceGraphsByScreen.get(step.screen) : undefined,

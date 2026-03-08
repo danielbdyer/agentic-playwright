@@ -9,15 +9,15 @@ import { describeScenarioPaths } from '../lib/application/inspect';
 import { parseScenario } from '../lib/application/parse';
 import { createProjectPaths } from '../lib/application/paths';
 import { refreshScenario } from '../lib/application/refresh';
+import { runScenario } from '../lib/application/run';
 import { inspectSurface } from '../lib/application/surface';
 import { syncSnapshots } from '../lib/application/sync';
 import { traceScenario } from '../lib/application/trace';
 import { generateTypes } from '../lib/application/types';
-import type { AdoSource, FileSystem } from '../lib/application/ports';
 import { TesseractError } from '../lib/domain/errors';
 import { createAdoId, createScreenId } from '../lib/domain/identity';
+import { provideLocalServices } from '../lib/composition/local-services';
 import { discoverScreenScaffold } from '../lib/infrastructure/tooling/discover-screen';
-import { provideLocalServices } from '../lib/infrastructure/local-services';
 import { captureScreenSection } from '../lib/infrastructure/tooling/capture-screen';
 
 interface CliOptions {
@@ -118,7 +118,7 @@ async function main(): Promise<void> {
   const { command, options } = parseArgs(process.argv.slice(2));
   const rootDir = process.cwd();
   const paths = createProjectPaths(rootDir);
-  let baseProgram: Effect.Effect<unknown, unknown, FileSystem | AdoSource>;
+  let baseProgram: Effect.Effect<unknown, unknown, unknown>;
 
   switch (command) {
     case 'sync':
@@ -142,6 +142,15 @@ async function main(): Promise<void> {
       break;
     case 'refresh':
       baseProgram = refreshScenario({ adoId: createAdoId(requireArg(options.adoId, '--ado-id')), paths });
+      break;
+    case 'run':
+      baseProgram = runScenario({
+        adoId: createAdoId(requireArg(options.adoId, '--ado-id')),
+        paths,
+        interpreterMode: options.interpreterMode === 'diagnostic' || options.interpreterMode === 'dry-run'
+          ? options.interpreterMode
+          : 'diagnostic',
+      });
       break;
     case 'paths':
       baseProgram = describeScenarioPaths({ adoId: createAdoId(requireArg(options.adoId, '--ado-id')), paths });
@@ -177,7 +186,7 @@ async function main(): Promise<void> {
       baseProgram = generateTypes({ paths });
       break;
     default:
-      throw new Error('Unknown command. Expected sync, parse, bind, emit, compile, refresh, paths, capture, discover, surface, graph, trace, impact, or types.');
+      throw new Error('Unknown command. Expected sync, parse, bind, emit, compile, refresh, run, paths, capture, discover, surface, graph, trace, impact, or types.');
   }
 
   if (options.interpreterMode) {

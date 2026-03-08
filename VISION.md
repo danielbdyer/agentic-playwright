@@ -4,17 +4,18 @@ Tesseract is not a test framework.
 
 It is a compiler from human verification intent to executable verification, backed by a living knowledge system that grows through use.
 
-The source program is the Azure DevOps manual test case. The emitted object code is Playwright. The durable value is the knowledge captured between those two surfaces.
+The source program is the Azure DevOps manual test case. The emitted object code is Playwright. The durable value is the knowledge captured between those two surfaces and the typed runtime receipts that explain how intent was resolved.
 
 ## The bet
 
-If a manual test is written clearly enough for a QA to infer step-wise behavior from it, then an agent can infer the same behavior from it when given a constrained, reviewable knowledge surface.
+If a manual test is written clearly enough for a QA to infer step-wise behavior from it, then an agent can infer the same behavior from it when given a constrained, reviewable knowledge surface plus a task packet that makes the available memory explicit.
 
 That is the core bet behind Tesseract:
 
 - manual tests are not second-class prose
 - they are upstream source code
-- the compiler should preserve their wording and derive executable structure from them
+- the preparation lane should preserve their wording
+- the runtime lane should resolve them through approved knowledge before touching the live DOM
 
 ## What changes with this model
 
@@ -32,6 +33,8 @@ It captures small facts in small files:
 - what phrases on one screen map to what known elements or snapshots
 - what cross-screen patterns have been promoted into shared knowledge
 
+That knowledge is then projected into a runtime task packet so both humans and agents can see the same working context.
+
 The generated tests are disposable. The knowledge is the asset.
 
 ## The new governance boundary
@@ -41,7 +44,7 @@ The most important operating rule is simple:
 - deterministic derivations from approved artifacts are auto-approved
 - new canonical knowledge is review-gated
 
-That means a QA team does not need to bless every working bound step one by one. If the compiler used approved elements, postures, hints, patterns, and snapshots through deterministic precedence rules, the output is executable now.
+That means a QA team does not need to bless every working bound step one by one. If the preparation lane used approved elements, postures, hints, patterns, and snapshots through deterministic precedence rules, the output is executable now.
 
 Human review is reserved for the durable facts that will shape future derivations:
 
@@ -60,30 +63,35 @@ The QA-facing loop should feel like this:
 
 1. author or refine the manual case in Azure DevOps
 2. sync and refresh the scenario
-3. inspect the generated review surface
-4. approve only when the system proposes new canonical knowledge
-5. rerun and observe whether the knowledge ratchet reduced future effort
+3. inspect the bound envelope, task packet, and generated review surface
+4. run the scenario and inspect interpretation and execution receipts
+5. approve only when the system proposes new canonical knowledge
+6. rerun and observe whether the knowledge ratchet reduced future effort
 
 The QA should not need to read Playwright internals to answer whether the compiler was faithful.
 
 That is why each scenario now emits:
 
+- `.tesseract/bound/{ado_id}.json`
+- `.tesseract/tasks/{ado_id}.resolution.json`
 - `generated/{suite}/{ado_id}.spec.ts`
 - `generated/{suite}/{ado_id}.trace.json`
 - `generated/{suite}/{ado_id}.review.md`
+- `generated/{suite}/{ado_id}.proposals.json`
+- `.tesseract/runs/{ado_id}/{run_id}/run.json`
 
-The spec is executable. The trace is machine-readable provenance. The review Markdown is the human explanation layer.
+The spec is executable. The trace is machine-readable provenance. The review Markdown is the human explanation layer. The task packet and run receipts are the explicit handshake between the deterministic substrate and the runtime agent.
 
 ## Review fidelity
 
 The generated review surface must let a QA answer, step by step:
 
 - what exact ADO text was preserved
-- how the compiler normalized that text
-- what action the compiler inferred
-- what screen, element, posture, or snapshot it resolved to
-- what approved files were used
-- whether the step was `compiler-derived`, local-hint-backed, pattern-backed, or still unbound
+- how the preparation lane normalized and classified that text
+- whether the step is `compiler-derived`, `intent-only`, or structurally `unbound`
+- what task context and approved files were handed to the runtime agent
+- what screen, element, posture, or snapshot the runtime actually resolved to
+- whether the step resolved safely, resolved-with-proposals, or still needs a human
 
 That is the contract. If the review artifact cannot explain a step, the model is incomplete.
 
@@ -182,7 +190,7 @@ A good agent should be able to answer what changed, what is canonical, what was 
 
 ## Agents are bounded optimization passes
 
-Agents are not the compiler.
+Agents are not the compiler core.
 
 They are useful when constrained to narrow, inspectable surfaces:
 
@@ -192,6 +200,22 @@ They are useful when constrained to narrow, inspectable surfaces:
 - classify failures and localize structural drift
 
 The system should preserve those contributions as reviewable proposals, not absorb them as invisible runtime mutations.
+
+Humans and agents should also be able to author compatible testable concerns against the same typed seams. A generated spec, a human-authored supplement, and an agent-authored proposal should all fit the same contract rather than living in separate hidden worlds.
+
+That same rule should apply to generated tests: they should read like inspectable authored concerns, not opaque black-box emissions. If a human writes to the same interface, the system should accept it without forcing a second-class path.
+
+## Development-time feedback as artifact
+
+While the interaction model is still being shaped, it is reasonable to collect agent feedback after a task run, but only as a non-blocking derived artifact.
+
+Useful questions are:
+
+- was the context packet right-sized for the task
+- should unresolved concerns be grouped by step or by scenario
+- what did the agent have to rediscover that should live in repo instructions next time
+
+That feedback should drive unit-sized recursive improvements to prompts, docs, or supplemental knowledge. It should never outrank the run receipt, and it should never become a shortcut around the last-resort escalation rule.
 
 ## The next optimization lane
 

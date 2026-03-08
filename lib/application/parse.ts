@@ -1,13 +1,12 @@
 ﻿import { Effect } from 'effect';
 import YAML from 'yaml';
 import { createDiagnostic } from '../domain/diagnostics';
-import type { InferenceKnowledge } from '../domain/inference';
 import type { AdoId} from '../domain/identity';
+import { normalizeHtmlText } from '../domain/hash';
 import { createFixtureId } from '../domain/identity';
 import type { AdoSnapshot, Scenario } from '../domain/types';
 import { validateAdoSnapshot } from '../domain/validation';
 import { trySync } from './effect';
-import { inferSnapshotScenario, loadInferenceKnowledge } from './inference';
 import type { ProjectPaths} from './paths';
 import { relativeProjectPath, scenarioPath, snapshotPath } from './paths';
 import { FileSystem } from './ports';
@@ -35,9 +34,25 @@ function stepsConfidence(steps: Scenario['steps']) {
   return unique.length === 1 ? unique[0] : 'mixed';
 }
 
-export function parseSnapshotToScenario(snapshot: AdoSnapshot, knowledge: InferenceKnowledge): Scenario {
-  const inferred = inferSnapshotScenario(snapshot, knowledge);
-  const steps = inferred.map((entry) => entry.step);
+export function parseSnapshotToScenario(snapshot: AdoSnapshot): Scenario {
+  const steps = snapshot.steps.map((rawStep) => {
+    const actionText = normalizeHtmlText(rawStep.action);
+    const expectedText = normalizeHtmlText(rawStep.expected);
+    return {
+      index: rawStep.index,
+      intent: actionText,
+      action_text: actionText,
+      expected_text: expectedText,
+      action: 'custom' as const,
+      screen: null,
+      element: null,
+      posture: null,
+      override: null,
+      snapshot_template: null,
+      resolution: null,
+      confidence: 'intent-only' as const,
+    };
+  });
 
   return {
     source: {
@@ -63,7 +78,6 @@ export function parseSnapshotToScenario(snapshot: AdoSnapshot, knowledge: Infere
 export function parseScenario(options: { adoId: AdoId; paths: ProjectPaths; session?: WorkspaceSession }) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
-    const knowledge = options.session?.inferenceKnowledge ?? (yield* loadInferenceKnowledge({ paths: options.paths }));
     const catalogSnapshot = options.session?.catalog.snapshots.find((entry) => entry.artifact.id === options.adoId);
     const snapshot = catalogSnapshot
       ? catalogSnapshot.artifact
@@ -75,7 +89,7 @@ export function parseScenario(options: { adoId: AdoId; paths: ProjectPaths; sess
             `Snapshot ${options.adoId} failed validation`,
           );
         });
-    const scenario = parseSnapshotToScenario(snapshot, knowledge);
+    const scenario = parseSnapshotToScenario(snapshot);
     const targetPath = scenarioPath(options.paths, snapshot.suitePath, snapshot.id);
     const serialized = YAML.stringify(scenario, { indent: 2 });
     yield* fs.writeText(targetPath, serialized);

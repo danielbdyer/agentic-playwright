@@ -1,4 +1,5 @@
 import { deriveCapabilities } from './grammar';
+import { normalizeIntentText } from './inference';
 import type { ScreenId, SnapshotTemplateId } from './identity';
 import { createElementId, createPostureId, createSurfaceId } from './identity';
 import { provenanceKindForBoundStep } from './provenance';
@@ -18,7 +19,9 @@ import type {
   MappedMcpResource,
   MappedMcpTemplate,
   PatternDocument,
+  RunRecord,
   Scenario,
+  ScenarioTaskPacket,
   ScreenElements,
   ScreenHints,
   ScreenPostures,
@@ -40,6 +43,8 @@ export interface ScenarioGraphArtifact extends ArtifactEnvelope<Scenario> {
 }
 
 export interface BoundScenarioGraphArtifact extends ArtifactEnvelope<BoundScenario> {}
+
+export interface TaskPacketGraphArtifact extends ArtifactEnvelope<ScenarioTaskPacket> {}
 
 export interface KnowledgeSnapshotArtifact {
   relativePath: SnapshotTemplateId;
@@ -73,6 +78,8 @@ export interface GraphBuildInput {
   sharedPatterns?: SharedPatternsArtifact[];
   scenarios: ScenarioGraphArtifact[];
   boundScenarios?: BoundScenarioGraphArtifact[];
+  taskPackets?: TaskPacketGraphArtifact[];
+  runRecords?: ArtifactEnvelope<RunRecord>[];
   evidence: EvidenceArtifact[];
   policyDecisions?: PolicyDecisionArtifact[];
 }
@@ -214,7 +221,13 @@ function stepProvenanceKind(context: StepGraphContext) {
     return provenanceKindForBoundStep(context.boundStep);
   }
 
-  return context.step.confidence === 'unbound' ? 'unbound' : 'compiler-derived';
+  if (context.step.confidence === 'intent-only' || context.step.confidence === 'unbound') {
+    return 'unresolved';
+  }
+  if (context.step.resolution) {
+    return 'explicit';
+  }
+  return 'approved-knowledge';
 }
 
 function mapKnowledgePathToNodeId(ref: string, context: StepGraphContext): string | null {
@@ -270,12 +283,29 @@ function patternIdsForStep(stepContext: StepGraphContext, sharedPatternsArtifact
   return [...new Set(ids)].sort((left, right) => left.localeCompare(right));
 }
 
+function bestAliasMatches(normalizedIntent: string, aliases: string[]): string[] {
+  const matches = aliases
+    .map((alias) => normalizeIntentText(alias))
+    .filter((alias) => alias.length > 0 && normalizedIntent.includes(alias));
+  if (matches.length === 0) {
+    return [];
+  }
+  const maxLength = Math.max(...matches.map((alias) => alias.length));
+  return [...new Set(matches.filter((alias) => alias.length === maxLength))].sort((left, right) => left.localeCompare(right));
+}
+
 export function deriveGraph(input: GraphBuildInput): DerivedGraph {
   const nodes = new Map<string, GraphNode>();
   const edges = new Map<string, GraphEdge>();
   const screenHintsArtifacts = input.screenHints ?? [];
   const sharedPatternsArtifacts = input.sharedPatterns ?? [];
   const boundScenarioArtifacts = input.boundScenarios ?? [];
+  const taskPackets = new Map((input.taskPackets ?? []).map((entry) => [entry.artifact.adoId, entry.artifact] as const));
+  const runRecords = new Map(
+    (input.runRecords ?? [])
+      .sort((left, right) => right.artifact.completedAt.localeCompare(left.artifact.completedAt))
+      .map((entry) => [entry.artifact.adoId, entry.artifact] as const),
+  );
   const surfaceGraphs = new Map(input.surfaceGraphs.map((entry) => [entry.artifact.screen, entry.artifact] as const));
   const screenElements = new Map(input.screenElements.map((entry) => [entry.artifact.screen, entry.artifact] as const));
   const boundScenarios = new Map(boundScenarioArtifacts.map((entry) => [entry.artifact.source.ado_id, entry.artifact] as const));
@@ -710,14 +740,17 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
     }
 
     const boundScenario = boundScenarios.get(scenario.source.ado_id) ?? null;
+    const taskPacket = taskPackets.get(scenario.source.ado_id) ?? null;
+    const latestRun = runRecords.get(scenario.source.ado_id) ?? null;
     const explanationByStepIndex = new Map(
-      (boundScenario ? explainBoundScenario(boundScenario, 'normal').steps : []).map((step) => [step.index, step] as const),
+      (boundScenario ? explainBoundScenario(boundScenario, 'normal', latestRun).steps : []).map((step) => [step.index, step] as const),
     );
 
     for (const step of scenario.steps) {
       const boundStep = boundScenario?.steps.find((candidate) => candidate.index === step.index) ?? null;
       const explanation = explanationByStepIndex.get(step.index);
       const stepContext: StepGraphContext = { step, boundStep };
+      const taskStep = taskPacket?.steps.find((candidate) => candidate.index === step.index) ?? null;
       const stepNodeId = graphIds.step(scenario.source.ado_id, step.index);
       const program = explanation?.program ?? compileStepProgram(step);
       const trace = traceStepProgram(program);
@@ -745,6 +778,10 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
           evidenceIds: explanation?.evidenceIds ?? binding?.evidenceIds ?? [],
           reviewReasons: explanation?.reviewReasons ?? binding?.reviewReasons ?? [],
           reasons: explanation?.reasons ?? binding?.reasons ?? [],
+          runtimeStatus: explanation?.runtime?.status ?? 'pending',
+          runtimeRunId: explanation?.runtime?.runId ?? null,
+          runtimeLocatorStrategy: explanation?.runtime?.locatorStrategy ?? null,
+          runtimeDegraded: explanation?.runtime?.degraded ?? false,
         },
       }));
       addEdge(edges, createEdge({
@@ -771,6 +808,70 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
             scenarioPath: artifactPath,
           },
         }));
+      }
+
+      if (taskStep) {
+        const normalizedIntent = taskStep.normalizedIntent;
+        const matchedScreenAliases = taskStep.runtimeKnowledge.screens.flatMap((screen) =>
+          bestAliasMatches(normalizedIntent, screen.screenAliases).map((alias) => ({
+            screen: screen.screen,
+            alias,
+          })),
+        );
+        const taskScreens = matchedScreenAliases.length > 0
+          ? [...new Map(matchedScreenAliases.map((entry) => [entry.screen, entry])).values()]
+          : taskStep.runtimeKnowledge.screens.length === 1
+            ? [{ screen: taskStep.runtimeKnowledge.screens[0].screen, alias: null }]
+            : [];
+        for (const candidate of taskScreens) {
+          const screenNodeId = graphIds.screen(candidate.screen);
+          if (!nodes.has(screenNodeId)) {
+            continue;
+          }
+          addEdge(edges, createEdge({
+            kind: 'references',
+            from: stepNodeId,
+            to: screenNodeId,
+            provenance: {
+              confidence: stepConfidence(stepContext),
+              scenarioPath: artifactPath,
+            },
+            payload: {
+              source: 'task-packet-screen',
+              alias: candidate.alias,
+            },
+          }));
+        }
+
+        for (const screen of taskStep.runtimeKnowledge.screens) {
+          const matchedAliases = screen.elements.flatMap((element) =>
+            bestAliasMatches(normalizedIntent, element.aliases).map((alias) => ({
+              element: element.element,
+              screen: screen.screen,
+              alias,
+            })),
+          );
+          const maxLength = matchedAliases.reduce((current, candidate) => Math.max(current, candidate.alias.length), 0);
+          for (const match of matchedAliases.filter((candidate) => candidate.alias.length === maxLength)) {
+            const elementNodeId = graphIds.element(match.screen, match.element);
+            if (!nodes.has(elementNodeId)) {
+              continue;
+            }
+            addEdge(edges, createEdge({
+              kind: 'uses',
+              from: stepNodeId,
+              to: elementNodeId,
+              provenance: {
+                confidence: stepConfidence(stepContext),
+                scenarioPath: artifactPath,
+              },
+              payload: {
+                source: 'task-packet-alias',
+                alias: match.alias,
+              },
+            }));
+          }
+        }
       }
 
       for (const instruction of program.instructions) {

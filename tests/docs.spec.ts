@@ -16,13 +16,21 @@ test('repo docs describe deterministic auto-approval, supplements, and review ar
   const backlog = readFile('BACKLOG.md');
 
   expect(readme).toContain('compiler-derived');
+  expect(readme).toContain('intent-only');
+  expect(readme).toContain('.tesseract/tasks/{ado_id}.resolution.json');
+  expect(readme).toContain('generated/{suite}/{ado_id}.proposals.json');
   expect(readme).toContain('generated/{suite}/{ado_id}.review.md');
   expect(agents).toContain('governance');
+  expect(agents).toContain('needs-human');
   expect(agents).toContain('knowledge/screens/{screen}.hints.yaml');
   expect(authoring).toContain('knowledge/patterns/*.yaml');
+  expect(authoring).toContain('binding.kind: deferred');
+  expect(authoring).toContain('.tesseract/runs/{ado_id}/{run_id}/run.json');
   expect(authoring).toContain('review-gated');
   expect(vision).toContain('DSPy');
   expect(vision).toContain('bottleneck');
+  expect(vision).toContain('task packet');
+  expect(vision).toContain('run.json');
   expect(backlog).toContain('deterministic compiler core');
   expect(backlog).toContain('offline optimization and evaluation');
 });

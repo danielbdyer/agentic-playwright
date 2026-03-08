@@ -1,13 +1,12 @@
 import { deriveCapabilities, findCapability } from './grammar';
-import { normalizeIntentText, type StepInferenceResult } from './inference';
+import { normalizeIntentText } from './inference';
 import type { SnapshotTemplateId } from './identity';
 import { capabilityForInstruction, compileStepProgram, type StepProgram } from './program';
 import type { PostureContractIssueCode } from './posture-contract';
 import { validatePostureContract } from './posture-contract';
-import type { BoundStep, ScenarioStep, ScreenElements, ScreenPostures, SurfaceGraph } from './types';
+import type { BoundStep, Governance, ScenarioStep, ScreenElements, ScreenPostures, SurfaceGraph } from './types';
 
 export type StepBindingReason =
-  | 'unsupported-action'
   | 'missing-screen'
   | 'unknown-screen'
   | 'missing-surface-graph'
@@ -24,7 +23,6 @@ export type StepBindingReason =
 export type StepReviewReason = StepBindingReason | 'agent-proposed' | 'agent-verified';
 
 export interface StepBindingContext {
-  inferred?: StepInferenceResult | null | undefined;
   screenElements?: ScreenElements | undefined;
   screenPostures?: ScreenPostures | undefined;
   surfaceGraph?: SurfaceGraph | undefined;
@@ -56,7 +54,7 @@ function capabilityReasons(
 
   for (const instruction of program.instructions) {
     if (instruction.kind === 'custom-escape-hatch') {
-      reasons.push(step.action === 'custom' ? 'unsupported-action' : 'unsupported-capability');
+      reasons.push('unsupported-capability');
       continue;
     }
 
@@ -77,15 +75,51 @@ function capabilityReasons(
   return reasons;
 }
 
+function hasExplicitResolution(step: ScenarioStep): boolean {
+  const resolution = step.resolution;
+  return Boolean(
+    resolution
+    && (resolution.action || resolution.screen || resolution.element || resolution.posture || resolution.override || resolution.snapshot_template),
+  );
+}
+
+function normalizedIntentForStep(step: ScenarioStep): string {
+  return uniqueSorted([normalizeIntentText(step.action_text), normalizeIntentText(step.expected_text)]).join(' => ');
+}
+
+function governanceForBinding(kind: BoundStep['binding']['kind'], step: ScenarioStep): Governance {
+  if (kind === 'unbound') {
+    return 'blocked';
+  }
+  if (step.confidence === 'agent-proposed' || step.confidence === 'agent-verified') {
+    return 'review-required';
+  }
+  return 'approved';
+}
+
 export function bindScenarioStep(
   step: ScenarioStep & { program?: StepProgram | undefined },
   context: StepBindingContext,
 ): BoundStep {
   const reasons: StepBindingReason[] = [];
+  const explicit = hasExplicitResolution(step);
   const referencedScreen = step.screen;
 
-  if (step.action === 'custom') {
-    reasons.push('unsupported-action');
+  if (!explicit) {
+    return {
+      ...step,
+      binding: {
+        kind: 'deferred',
+        reasons: [],
+        ruleId: null,
+        normalizedIntent: normalizedIntentForStep(step),
+        knowledgeRefs: [],
+        supplementRefs: [],
+        evidenceIds: [],
+        governance: governanceForBinding('deferred', step),
+        reviewReasons: [],
+      },
+    };
   }
 
   if (!referencedScreen) {
@@ -145,29 +179,27 @@ export function bindScenarioStep(
   }
 
   const uniqueReasons = uniqueSorted(reasons);
-  const needsReview =
-    uniqueReasons.length > 0
-    || step.confidence === 'agent-proposed'
-    || step.confidence === 'agent-verified';
+  const bindingKind = uniqueReasons.length > 0 ? 'unbound' : 'bound';
+  const confidence = uniqueReasons.length > 0
+    ? 'unbound'
+    : (step.confidence === 'intent-only' ? 'human' : step.confidence);
   const reviewReasons = uniqueSorted([
-    ...((context.inferred?.reviewReasons ?? []) as StepReviewReason[]),
     ...uniqueReasons,
     ...(step.confidence === 'agent-proposed' || step.confidence === 'agent-verified' ? [step.confidence] : []),
   ]);
-  const confidence = uniqueReasons.length > 0 ? 'unbound' : step.confidence;
 
   return {
     ...step,
     confidence,
     binding: {
-      kind: uniqueReasons.length > 0 ? 'unbound' : 'bound',
+      kind: bindingKind,
       reasons: uniqueReasons,
-      ruleId: context.inferred?.ruleId ?? null,
-      normalizedIntent: context.inferred?.normalizedIntent ?? normalizeIntentText(step.intent),
-      knowledgeRefs: context.inferred?.knowledgeRefs ?? [],
-      supplementRefs: context.inferred?.supplementRefs ?? [],
+      ruleId: null,
+      normalizedIntent: normalizedIntentForStep(step),
+      knowledgeRefs: [],
+      supplementRefs: [],
       evidenceIds: [],
-      governance: needsReview ? 'review-required' : 'approved',
+      governance: governanceForBinding(bindingKind, step),
       reviewReasons,
     },
   };

@@ -10,14 +10,15 @@ import type {
   WidgetId,
 } from './identity';
 
-export type Confidence = 'human' | 'agent-verified' | 'agent-proposed' | 'compiler-derived' | 'unbound';
+export type Confidence = 'human' | 'agent-verified' | 'agent-proposed' | 'compiler-derived' | 'intent-only' | 'unbound';
 export type Governance = 'approved' | 'review-required' | 'blocked';
-export type StepProvenanceKind = 'compiler-derived' | 'hint-backed' | 'pattern-backed' | 'unbound';
+export type StepProvenanceKind = 'explicit' | 'approved-knowledge' | 'live-exploration' | 'unresolved';
 export type ScenarioStatus = 'stub' | 'draft' | 'active' | 'needs-repair' | 'blocked' | 'deprecated';
 export type StepAction = 'navigate' | 'input' | 'click' | 'assert-snapshot' | 'custom';
 export type DiagnosticSeverity = 'info' | 'warn' | 'error';
 export type PatternActionName = 'navigate' | 'input' | 'click' | 'assert-snapshot';
 export type ScenarioLifecycle = 'normal' | 'fixme' | 'skip' | 'fail';
+export type StepBindingKind = 'bound' | 'deferred' | 'unbound';
 export type EffectState =
   | 'validation-error'
   | 'required-error'
@@ -205,15 +206,27 @@ export interface StepProgram {
   instructions: StepInstruction[];
 }
 
+export interface StepResolution {
+  action?: StepAction | null | undefined;
+  screen?: ScreenId | null | undefined;
+  element?: ElementId | null | undefined;
+  posture?: PostureId | null | undefined;
+  override?: string | null | undefined;
+  snapshot_template?: SnapshotTemplateId | null | undefined;
+}
+
 export interface ScenarioStep {
   index: number;
   intent: string;
+  action_text: string;
+  expected_text: string;
   action: StepAction;
   screen?: ScreenId | null | undefined;
   element?: ElementId | null | undefined;
   posture?: PostureId | null | undefined;
   override?: string | null | undefined;
   snapshot_template?: SnapshotTemplateId | null | undefined;
+  resolution?: StepResolution | null | undefined;
   confidence: Confidence;
 }
 
@@ -236,7 +249,7 @@ export interface Scenario {
 
 export interface BoundStep extends ScenarioStep {
   binding: {
-    kind: 'bound' | 'unbound';
+    kind: StepBindingKind;
     reasons: string[];
     ruleId: string | null;
     normalizedIntent: string;
@@ -253,6 +266,61 @@ export interface BoundScenario extends Omit<Scenario, 'steps'> {
   kind: 'bound-scenario';
   steps: BoundStep[];
   diagnostics: CompilerDiagnostic[];
+}
+
+export interface StepTaskElementCandidate {
+  element: ElementId;
+  role: string;
+  name?: string | null | undefined;
+  surface: SurfaceId;
+  widget: WidgetId;
+  affordance?: string | null | undefined;
+  aliases: string[];
+  locator: LocatorStrategy[];
+  postures: PostureId[];
+  defaultValueRef?: string | null | undefined;
+  parameter?: string | null | undefined;
+  snapshotAliases?: Record<string, string[]> | undefined;
+}
+
+export interface StepTaskScreenCandidate {
+  screen: ScreenId;
+  url: string;
+  screenAliases: string[];
+  knowledgeRefs: string[];
+  supplementRefs: string[];
+  elements: StepTaskElementCandidate[];
+  sectionSnapshots: SnapshotTemplateId[];
+}
+
+export interface RuntimeKnowledgeSession {
+  knowledgeFingerprint: string;
+  sharedPatterns: SharedPatterns;
+  screens: StepTaskScreenCandidate[];
+  evidenceRefs: string[];
+}
+
+export interface StepTask {
+  index: number;
+  intent: string;
+  actionText: string;
+  expectedText: string;
+  normalizedIntent: string;
+  allowedActions: StepAction[];
+  explicitResolution: StepResolution | null;
+  runtimeKnowledge: RuntimeKnowledgeSession;
+  taskFingerprint: string;
+}
+
+export interface ScenarioTaskPacket {
+  kind: 'scenario-task-packet';
+  adoId: AdoId;
+  revision: number;
+  title: string;
+  suite: string;
+  taskFingerprint: string;
+  knowledgeFingerprint: string;
+  steps: StepTask[];
 }
 
 export interface SurfaceSection {
@@ -403,6 +471,163 @@ export interface EvidenceRecord {
   };
 }
 
+export interface ResolutionObservation {
+  source: 'knowledge' | 'evidence' | 'dom' | 'runtime';
+  summary: string;
+  detail?: Record<string, string> | undefined;
+}
+
+export interface ResolutionExhaustionEntry {
+  stage: 'explicit' | 'approved-screen-bundle' | 'local-hints' | 'shared-patterns' | 'prior-evidence' | 'live-dom' | 'safe-degraded-resolution';
+  outcome: 'attempted' | 'resolved' | 'skipped' | 'failed';
+  reason: string;
+}
+
+export interface ResolutionEvidenceDraft {
+  type: string;
+  trigger: string;
+  observation: Record<string, string>;
+  proposal: {
+    file: string;
+    field: string;
+    old_value: string | null;
+    new_value: string | null;
+  };
+  confidence: number;
+  risk: 'low' | 'medium' | 'high';
+  scope: string;
+}
+
+export interface ResolutionProposalDraft {
+  artifactType: TrustPolicyArtifactType;
+  targetPath: string;
+  title: string;
+  patch: Record<string, unknown>;
+  rationale: string;
+}
+
+export interface ResolutionTarget {
+  action: StepAction;
+  screen: ScreenId;
+  element?: ElementId | null | undefined;
+  posture?: PostureId | null | undefined;
+  override?: string | null | undefined;
+  snapshot_template?: SnapshotTemplateId | null | undefined;
+}
+
+interface ResolutionReceiptBase {
+  taskFingerprint: string;
+  knowledgeFingerprint: string;
+  provider: string;
+  mode: string;
+  runAt: string;
+  stepIndex: number;
+  knowledgeRefs: string[];
+  supplementRefs: string[];
+  observations: ResolutionObservation[];
+  exhaustion: ResolutionExhaustionEntry[];
+}
+
+export interface ResolvedReceipt extends ResolutionReceiptBase {
+  kind: 'resolved';
+  confidence: 'compiler-derived' | 'agent-verified';
+  provenanceKind: Extract<StepProvenanceKind, 'explicit' | 'approved-knowledge' | 'live-exploration'>;
+  target: ResolutionTarget;
+  evidenceDrafts: ResolutionEvidenceDraft[];
+  proposalDrafts: ResolutionProposalDraft[];
+}
+
+export interface ResolvedWithProposalsReceipt extends ResolutionReceiptBase {
+  kind: 'resolved-with-proposals';
+  confidence: 'agent-proposed' | 'agent-verified';
+  provenanceKind: Extract<StepProvenanceKind, 'approved-knowledge' | 'live-exploration'>;
+  target: ResolutionTarget;
+  evidenceDrafts: ResolutionEvidenceDraft[];
+  proposalDrafts: ResolutionProposalDraft[];
+}
+
+export interface NeedsHumanReceipt extends ResolutionReceiptBase {
+  kind: 'needs-human';
+  confidence: 'unbound';
+  provenanceKind: 'unresolved';
+  reason: string;
+  evidenceDrafts: ResolutionEvidenceDraft[];
+  proposalDrafts: ResolutionProposalDraft[];
+}
+
+export type ResolutionReceipt =
+  | ResolvedReceipt
+  | ResolvedWithProposalsReceipt
+  | NeedsHumanReceipt;
+
+export interface ExecutionDiagnostic {
+  code: string;
+  message: string;
+  context?: Record<string, string> | undefined;
+}
+
+export interface ExecutionObservation {
+  status: 'ok' | 'failed' | 'skipped';
+  observedEffects: string[];
+  diagnostics: ExecutionDiagnostic[];
+}
+
+export interface StepExecutionReceipt {
+  stepIndex: number;
+  taskFingerprint: string;
+  knowledgeFingerprint: string;
+  runAt: string;
+  mode: string;
+  locatorStrategy?: string | null | undefined;
+  degraded: boolean;
+  execution: ExecutionObservation;
+}
+
+export interface ScenarioRunStep {
+  stepIndex: number;
+  interpretation: ResolutionReceipt;
+  execution: StepExecutionReceipt;
+  evidenceIds: string[];
+}
+
+export interface RunRecord {
+  kind: 'scenario-run-record';
+  runId: string;
+  adoId: AdoId;
+  revision: number;
+  title: string;
+  suite: string;
+  taskFingerprint: string;
+  knowledgeFingerprint: string;
+  provider: string;
+  mode: string;
+  startedAt: string;
+  completedAt: string;
+  steps: ScenarioRunStep[];
+  evidenceIds: string[];
+}
+
+export interface ProposalEntry {
+  stepIndex: number;
+  artifactType: TrustPolicyArtifactType;
+  targetPath: string;
+  title: string;
+  patch: Record<string, unknown>;
+  evidenceIds: string[];
+  impactedSteps: number[];
+  trustPolicy: TrustPolicyEvaluation;
+}
+
+export interface ProposalBundle {
+  kind: 'proposal-bundle';
+  adoId: AdoId;
+  runId: string;
+  revision: number;
+  title: string;
+  suite: string;
+  proposals: ProposalEntry[];
+}
+
 export type TrustPolicyArtifactType = 'elements' | 'postures' | 'surface' | 'snapshot' | 'hints' | 'patterns';
 export type TrustPolicyDecision = 'allow' | 'review' | 'deny';
 
@@ -545,11 +770,14 @@ export interface ScenarioExplanationSummary {
 export interface ScenarioExplanationStep {
   index: number;
   intent: string;
+  actionText: string;
+  expectedText: string;
   normalizedIntent: string;
   action: StepAction;
   confidence: Confidence;
   provenanceKind: StepProvenanceKind;
   governance: Governance;
+  bindingKind: StepBindingKind;
   ruleId: string | null;
   knowledgeRefs: string[];
   supplementRefs: string[];
@@ -558,6 +786,12 @@ export interface ScenarioExplanationStep {
   reasons: string[];
   evidenceIds: string[];
   program: StepProgram | null;
+  runtime?: {
+    status: 'pending' | 'resolved' | 'resolved-with-proposals' | 'needs-human';
+    runId?: string | null | undefined;
+    locatorStrategy?: string | null | undefined;
+    degraded?: boolean | undefined;
+  } | undefined;
 }
 
 export interface ScenarioExplanation {

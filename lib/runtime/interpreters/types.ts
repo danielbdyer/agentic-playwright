@@ -54,64 +54,54 @@ export function interpreterOutcome(input: {
   return {
     instructionIndex: input.index,
     instructionKind: input.instruction.kind,
+    status: input.status,
     expectedEffects: expectedEffectsForInstruction(input.instruction.kind),
     observedEffects: input.observedEffects ?? [],
-    status: input.status,
     diagnostics: input.diagnostics ?? [],
     failureCode: input.failureCode,
   };
 }
 
-export interface ProgramInterpreterRegistry {
-  playwright: StepProgramInterpreter<unknown>;
-  dryRun: StepProgramInterpreter<InterpreterEnvironment>;
-  diagnostic: StepProgramInterpreter<InterpreterEnvironment>;
-}
-
-export async function runByMode(
-  registry: ProgramInterpreterRegistry,
-  mode: InterpreterMode,
-  program: StepProgram,
-  environment: InterpreterEnvironment,
-  context?: StepProgramDiagnosticContext,
-): Promise<StepProgramExecutionResult> {
-  switch (mode) {
-    case 'dry-run':
-      return registry.dryRun.run(program, environment, context);
-    case 'diagnostic':
-      return registry.diagnostic.run(program, environment, context);
-    case 'playwright':
-    default:
-      return registry.playwright.run(program, environment as unknown, context);
-  }
-}
-
-export function requireScreen(
-  screens: InterpreterScreenRegistry,
-  screenId: ScreenId,
-): { ok: true; value: InterpreterLoadedScreen } | { ok: false; code: ProgramFailureCode; message: string; context: Record<string, string> } {
+export function requireScreen(screens: InterpreterScreenRegistry, screenId: ScreenId) {
   const screen = screens[screenId];
   if (!screen) {
-    return { ok: false, code: 'runtime-unknown-screen', message: `Unknown screen ${screenId}`, context: { screenId } };
+    return {
+      ok: false as const,
+      code: 'runtime-unknown-screen' as const,
+      message: `Unknown screen ${screenId}`,
+      context: { screen: screenId },
+    };
   }
-  return { ok: true, value: screen };
+  return {
+    ok: true as const,
+    value: screen,
+  };
 }
 
 export function resolvePosture(
   screen: InterpreterLoadedScreen,
-  element: string,
-  posture: PostureId | null,
-): { ok: true } | { ok: false; code: ProgramFailureCode; message: string; context: Record<string, string> } {
-  if (!posture) {
-    return { ok: true };
+  elementId: string,
+  postureId: PostureId | null,
+) {
+  if (!postureId) {
+    return { ok: true as const, value: null };
   }
-  if (!screen.postures[element] || !screen.postures[element][posture]) {
+
+  const elementPostures = screen.postures[elementId];
+  if (!elementPostures || !elementPostures[postureId]) {
     return {
-      ok: false,
-      code: 'runtime-unknown-effect-target',
-      message: `Unknown posture ${posture} for element ${element}`,
-      context: { target: element, targetKind: 'element', posture },
+      ok: false as const,
+      code: 'runtime-unknown-effect-target' as const,
+      message: `Unknown posture ${postureId} for ${elementId}`,
+      context: { target: postureId, element: elementId, targetKind: 'posture' },
     };
   }
-  return { ok: true };
+
+  return {
+    ok: true as const,
+    value: elementPostures[postureId],
+  };
 }
+
+export type StaticInterpreter = StepProgramInterpreter<InterpreterEnvironment>;
+export type { StepProgramExecutionResult, StepProgramDiagnosticContext };

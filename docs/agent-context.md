@@ -4,9 +4,9 @@ Generated from `AGENTS.md`, `README.md`, `BACKLOG.md`, and `.github/instructions
 
 ## Purpose
 
-Tesseract is an inference-first compiler for QA intent.
+Tesseract is a deterministic preparation pipeline plus a knowledge-backed runtime agent for QA intent.
 
-It ingests Azure DevOps manual test cases, lowers them into scenario IR, binds them against approved screen knowledge, and emits disposable Playwright object code plus review artifacts. The goal is not to hand-author tests faster. The goal is to make executable verification a deterministic projection of upstream intent and approved knowledge.
+It ingests Azure DevOps manual test cases, preserves their wording as canonical scenario IR, projects resolvable deterministic artifacts, and emits disposable Playwright object code plus review surfaces. The goal is not to hand-author tests faster. The goal is to make executable verification a transparent collaboration loop between approved knowledge, runtime interpretation, and human oversight.
 
 ## Fast Start
 
@@ -14,6 +14,7 @@ It ingests Azure DevOps manual test cases, lowers them into scenario IR, binds t
 - Use `npm run paths`, `npm run trace`, `npm run impact`, and `npm run surface` before editing scenario-specific files.
 - operational overview: [README.md](README.md)
 - product model and QA workflow: [VISION.md](VISION.md)
+- domain ontology and invariants: [docs/domain-ontology.md](docs/domain-ontology.md)
 - authorship and knowledge design: [docs/authoring.md](docs/authoring.md)
 - planned work split by lane: [BACKLOG.md](BACKLOG.md)
 
@@ -31,6 +32,8 @@ It ingests Azure DevOps manual test cases, lowers them into scenario IR, binds t
 ## Derived Outputs
 
 - `.tesseract/bound/`
+- `.tesseract/tasks/`
+- `.tesseract/runs/`
 - `.tesseract/graph/`
 - `generated/`
 - `lib/generated/`
@@ -39,7 +42,8 @@ It ingests Azure DevOps manual test cases, lowers them into scenario IR, binds t
 
 - `npm run context` - print a generated repo brief from current sources
 - `npm run agent:sync` - refresh docs/agent-context.md from current sources
-- `npm run refresh` - sync -> parse -> bind -> emit -> graph -> types
+- `npm run refresh` - sync -> parse -> bind -> task -> emit -> graph -> types
+- `npm run run` - interpret -> execute -> evidence -> proposals -> re-emit -> graph
 - `npm run paths` - show canonical and derived artifact paths for one scenario
 - `npm run surface` - inspect approved surface graph and derived capabilities
 - `npm run graph` - rebuild the dependency/provenance graph
@@ -47,6 +51,11 @@ It ingests Azure DevOps manual test cases, lowers them into scenario IR, binds t
 - `npm run impact` - return the impacted subgraph for a node id
 - `npm run types` - regenerate lib/generated/tesseract-knowledge.ts
 - `npm run capture` - capture or refresh ARIA snapshot knowledge
+- `npm run build` - emit runtime artifacts with the build-only TS config
+- `npm run typecheck` - strict repo-wide typecheck including tests
+- `npm run lint` - typed lint over hand-authored sources
+- `npm run check` - quiet build + typecheck + lint + test gate for local/CI use
+- `npm run knip` - maintainer-only dependency hygiene scan
 - `npm test` - run compiler/runtime/documentation laws
 
 ## Scoped Guidance

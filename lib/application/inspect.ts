@@ -10,11 +10,13 @@ import {
   boundPath,
   elementsPath,
   generatedKnowledgePath,
+  generatedProposalsPath,
   generatedReviewPath,
   generatedSpecPath,
   generatedTracePath,
   hintsPath,
   posturesPath,
+  taskPacketPath,
   scenarioPath,
   snapshotPath,
   surfacePath,
@@ -37,6 +39,7 @@ export function describeScenarioPaths(options: { adoId: AdoId; paths: ProjectPat
     const canonicalScenarioPath = scenarioPath(options.paths, snapshot.suitePath, options.adoId);
     const scenarioExists = yield* fs.exists(canonicalScenarioPath);
     const referencedScreens = new Set<ScreenId>();
+    const taskPacket = catalog.taskPackets.find((entry) => entry.artifact.adoId === options.adoId)?.artifact ?? null;
 
     if (scenarioExists) {
       const scenarioText = yield* fs.readText(canonicalScenarioPath);
@@ -51,6 +54,18 @@ export function describeScenarioPaths(options: { adoId: AdoId; paths: ProjectPat
         }
       }
     }
+    if (referencedScreens.size === 0 && taskPacket) {
+      for (const step of taskPacket.steps) {
+        for (const screen of step.runtimeKnowledge.screens) {
+          referencedScreens.add(screen.screen);
+        }
+      }
+    }
+    if (referencedScreens.size === 0) {
+      for (const screen of Object.keys(catalog.screenBundles) as ScreenId[]) {
+        referencedScreens.add(screen);
+      }
+    }
 
     return {
       adoId: options.adoId,
@@ -60,19 +75,25 @@ export function describeScenarioPaths(options: { adoId: AdoId; paths: ProjectPat
         knowledge: options.paths.knowledgeDir,
         generated: options.paths.generatedDir,
         bound: options.paths.boundDir,
+        tasks: options.paths.tasksDir,
+        runs: options.paths.runsDir,
         evidence: options.paths.evidenceDir,
         graph: options.paths.graphDir,
+        policy: options.paths.policyDir,
         generatedTypes: options.paths.generatedTypesDir,
       },
       artifacts: {
         snapshot: syncedSnapshotPath,
         scenario: canonicalScenarioPath,
         bound: boundPath(options.paths, options.adoId),
+        task: taskPacketPath(options.paths, options.adoId),
         generated: generatedSpecPath(options.paths, snapshot.suitePath, options.adoId),
         trace: generatedTracePath(options.paths, snapshot.suitePath, options.adoId),
         review: generatedReviewPath(options.paths, snapshot.suitePath, options.adoId),
+        proposals: generatedProposalsPath(options.paths, snapshot.suitePath, options.adoId),
         graph: options.paths.graphIndexPath,
         mcpCatalog: options.paths.mcpCatalogPath,
+        trustPolicy: options.paths.trustPolicyPath,
         generatedTypes: generatedKnowledgePath(options.paths),
       },
       knowledge: [...referencedScreens].map((screen) => ({
