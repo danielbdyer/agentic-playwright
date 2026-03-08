@@ -58,41 +58,6 @@ export function fingerprintProjectionOutput(value: unknown): string {
   return `sha256:${sha256(stableStringify(normalizeProjectionValue(value)))}`;
 }
 
-export function parseProjectionManifest(value: unknown, projection: string): ProjectionBuildManifest | null {
-  if (!value || typeof value !== 'object') {
-    return null;
-  }
-
-  const maybe = value as Partial<ProjectionBuildManifest>;
-  if (
-    maybe.version !== 1
-    || maybe.projection !== projection
-    || typeof maybe.inputSetFingerprint !== 'string'
-    || typeof maybe.outputFingerprint !== 'string'
-    || !Array.isArray(maybe.inputs)
-  ) {
-    return null;
-  }
-
-  for (const input of maybe.inputs) {
-    if (!input || typeof input !== 'object') {
-      return null;
-    }
-    const entry = input as Partial<ProjectionInputFingerprint>;
-    if (typeof entry.kind !== 'string' || typeof entry.path !== 'string' || typeof entry.fingerprint !== 'string') {
-      return null;
-    }
-  }
-
-  return {
-    version: 1,
-    projection,
-    inputSetFingerprint: maybe.inputSetFingerprint,
-    outputFingerprint: maybe.outputFingerprint,
-    inputs: sortProjectionInputs(maybe.inputs as ProjectionInputFingerprint[]),
-  };
-}
-
 export function diffProjectionInputs(inputs: ProjectionInputFingerprint[], previousManifest: ProjectionBuildManifest | null) {
   const sorted = sortProjectionInputs(inputs);
   return {

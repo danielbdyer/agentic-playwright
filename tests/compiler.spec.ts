@@ -31,6 +31,10 @@ function projectPath(value: string): string {
   return value.replace(/\\/g, '/');
 }
 
+function incrementalKeys(value: Record<string, unknown>): string[] {
+  return Object.keys(value).sort((left, right) => left.localeCompare(right));
+}
+
 test('refresh recompiles the seeded scenario through graph, types, and program emission', async () => {
   const workspace = createTestWorkspace('compiler-refresh');
   try {
@@ -129,6 +133,54 @@ test('trace and impact queries operate over the derived graph without repo lore'
     expect(impact.impactedNodes.some((node) => node.id === graphIds.generatedSpec(adoId))).toBeTruthy();
     expect(impact.impactedNodes.some((node) => node.id === graphIds.step(adoId, 2))).toBeFalsy();
     expect(impact.impactedNodes.some((node) => node.id === graphIds.element(policySearchScreenId, resultsTableId))).toBeFalsy();
+  } finally {
+    workspace.cleanup();
+  }
+});
+
+
+test('emit, types, and graph projections expose aligned incremental metadata for equivalent cache states', async () => {
+  const workspace = createTestWorkspace('compiler-incremental-shape');
+  try {
+    const adoId = createAdoId('10001');
+    const refresh = await runWithLocalServices(refreshScenario({ adoId, paths: workspace.paths }), workspace.rootDir);
+
+    const emitHit = await runWithLocalServices(
+      emitScenario({ paths: workspace.paths, compileSnapshot: refresh.compile.compileSnapshot }),
+      workspace.rootDir,
+    );
+    const typesHit = await runWithLocalServices(generateTypes({ paths: workspace.paths }), workspace.rootDir);
+    const graphHit = await runWithLocalServices(buildDerivedGraph({ paths: workspace.paths }), workspace.rootDir);
+
+    expect(emitHit.incremental.status).toBe('cache-hit');
+    expect(typesHit.incremental.status).toBe('cache-hit');
+    expect(graphHit.incremental.status).toBe('cache-hit');
+
+    const hitKeys = incrementalKeys(emitHit.incremental as unknown as Record<string, unknown>);
+    expect(incrementalKeys(typesHit.incremental as unknown as Record<string, unknown>)).toEqual(hitKeys);
+    expect(incrementalKeys(graphHit.incremental as unknown as Record<string, unknown>)).toEqual(hitKeys);
+
+    unlinkSync(refresh.compile.emitted.outputPath);
+    unlinkSync(typesHit.outputPath);
+    unlinkSync(workspace.paths.graphIndexPath);
+
+    const emitMiss = await runWithLocalServices(
+      emitScenario({ paths: workspace.paths, compileSnapshot: refresh.compile.compileSnapshot }),
+      workspace.rootDir,
+    );
+    const typesMiss = await runWithLocalServices(generateTypes({ paths: workspace.paths }), workspace.rootDir);
+    const graphMiss = await runWithLocalServices(buildDerivedGraph({ paths: workspace.paths }), workspace.rootDir);
+
+    expect(emitMiss.incremental.status).toBe('cache-miss');
+    expect(typesMiss.incremental.status).toBe('cache-miss');
+    expect(graphMiss.incremental.status).toBe('cache-miss');
+    expect(emitMiss.incremental.cacheInvalidationReason).toBe('missing-output');
+    expect(typesMiss.incremental.cacheInvalidationReason).toBe('missing-output');
+    expect(graphMiss.incremental.cacheInvalidationReason).toBe('missing-output');
+
+    const missKeys = incrementalKeys(emitMiss.incremental as unknown as Record<string, unknown>);
+    expect(incrementalKeys(typesMiss.incremental as unknown as Record<string, unknown>)).toEqual(missKeys);
+    expect(incrementalKeys(graphMiss.incremental as unknown as Record<string, unknown>)).toEqual(missKeys);
   } finally {
     workspace.cleanup();
   }
