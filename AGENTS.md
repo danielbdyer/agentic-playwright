@@ -9,6 +9,7 @@ Read the doc that matches your task:
 - fast repo brief: [docs/agent-context.md](docs/agent-context.md)
 - operational overview: [README.md](README.md)
 - product model and QA workflow: [VISION.md](VISION.md)
+- domain ontology and invariants: [docs/domain-ontology.md](docs/domain-ontology.md)
 - authorship and knowledge design: [docs/authoring.md](docs/authoring.md)
 - planned work split by lane: [BACKLOG.md](BACKLOG.md)
 
