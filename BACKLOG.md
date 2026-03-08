@@ -255,6 +255,40 @@ Success criteria:
 - QA can review the proposal artifact without reading runtime internals
 - future agent workflows can consume the same bundle format for ranking, batching, and promotion
 
+## Proposed architectural changes
+
+### 18. Collapse deterministic parsing edge
+
+Lane:
+
+- cross-cutting (compiler core + agentic supplement loop)
+
+Goal:
+
+- stop treating ADO step text as a parseable grammar and move intent interpretation to the runtime agent, where it can be grounded in the live DOM
+
+Motivation:
+
+- the current inference layer (`lib/domain/inference.ts`) uses substring alias matching to pre-resolve step text at compile time
+- every novel phrasing requires a canonical knowledge edit (hint alias, pattern alias) before the step can bind
+- this scales linearly with phrasing diversity and inverts the promise that "the 50th test costs less than the 1st"
+- manual test prose was written for human testers who interpret agentically and lossily — it will never be a well-formed contractual interface
+
+Key principle:
+
+- identify which seams must be deterministic (schema, locators, postures, governance, provenance, codegen) and which should not be (prose interpretation, screen identification from DOM, element resolution from instruction + DOM)
+- the knowledge system remains the durable asset but becomes a runtime resource rather than a compile-time prerequisite
+- coverage should scale with agent execution, not with vocabulary curation
+
+Full proposal: [docs/adr-collapse-deterministic-parsing.md](docs/adr-collapse-deterministic-parsing.md)
+
+Success criteria:
+
+- novel ADO test cases produce executable (if degraded) runs without requiring alias authoring first
+- the knowledge system grows from agent execution, not from human synonym curation
+- the deterministic core (schema, governance, provenance, codegen) remains testable and reproducible
+- the review surface explains runtime interpretation with the same fidelity it currently explains compile-time inference
+
 ## Done in this slice
 
 - deterministic auto-approval for `compiler-derived` steps
