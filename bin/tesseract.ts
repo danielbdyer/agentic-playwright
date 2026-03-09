@@ -23,6 +23,7 @@ import { captureScreenSection } from '../lib/infrastructure/tooling/capture-scre
 interface CliOptions {
   all?: boolean | undefined;
   adoId?: string | undefined;
+  headed?: boolean | undefined;
   screen?: string | undefined;
   section?: string | undefined;
   strict?: boolean | undefined;
@@ -44,6 +45,10 @@ function parseArgs(argv: string[]): { command: string; options: CliOptions } {
     }
     if (token === '--strict') {
       options.strict = true;
+      continue;
+    }
+    if (token === '--headed') {
+      options.headed = true;
       continue;
     }
     if (token === '--ado-id') {
@@ -191,6 +196,9 @@ async function main(): Promise<void> {
 
   if (options.interpreterMode) {
     process.env.TESSERACT_INTERPRETER_MODE = options.interpreterMode;
+  }
+  if (options.headed) {
+    process.env.TESSERACT_HEADLESS = '0';
   }
 
   const result = await Effect.runPromise(provideLocalServices(baseProgram, rootDir));

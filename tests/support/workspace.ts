@@ -7,6 +7,7 @@ const workspaceSeeds = [
   'fixtures',
   'knowledge',
   'scenarios',
+  '.tesseract/evidence',
   '.tesseract/policy',
 ] as const;
 

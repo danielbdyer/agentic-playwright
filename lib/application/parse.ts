@@ -26,7 +26,12 @@ function inferredFixtures(steps: Scenario['steps']) {
       }
     }
   }
-  return [...fixtureIds].sort((left, right) => left.localeCompare(right)).map((fixture) => ({ fixture: createFixtureId(fixture) }));
+  return [...fixtureIds]
+    .sort((left, right) => left.localeCompare(right))
+    .map((fixture) => ({
+      fixture: createFixtureId(fixture),
+      params: undefined,
+    }));
 }
 
 function stepsConfidence(steps: Scenario['steps']) {

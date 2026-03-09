@@ -22,9 +22,11 @@ import type { ScreenRegistry } from '../lib/runtime/load';
 import { validateScreenElements, validateSurfaceGraph } from '../lib/domain/validation';
 
 const policySearchScreenId = createScreenId('policy-search');
+const policyNumberInputId = createElementId('policyNumberInput');
 const searchButtonId = createElementId('searchButton');
 const searchFormId = createSurfaceId('search-form');
 const osButtonWidgetId = createWidgetId('os-button');
+const osInputWidgetId = createWidgetId('os-input');
 const osDateWidgetId = createWidgetId('os-date');
 
 test('runtime/domain error constructors keep stable machine-classifiable codes', () => {
@@ -186,6 +188,84 @@ test('interact passes affordance context through widget handlers', async () => {
     expect(seenAffordance).toBe('menu-trigger');
   } finally {
     buttonHandlers.click = original;
+  }
+});
+
+test('enter prefers fill over clear when an input widget supports both actions', async () => {
+  const locator = {
+    count: async () => 1,
+    isEditable: async () => true,
+    isEnabled: async () => true,
+    isVisible: async () => true,
+    or: () => locator,
+  };
+  const page = {
+    getByTestId: () => locator,
+    getByRole: () => locator,
+    locator: () => locator,
+    goto: async () => undefined,
+  };
+  const inputHandlers = widgetActionHandlers[osInputWidgetId];
+  expect(inputHandlers).toBeDefined();
+  if (!inputHandlers) {
+    throw new TypeError('os-input handlers are required for this test');
+  }
+
+  const originalFill = inputHandlers.fill;
+  const originalClear = inputHandlers.clear;
+  const calls: string[] = [];
+  inputHandlers.fill = async (_locator, value) => {
+    calls.push(`fill:${value ?? ''}`);
+  };
+  inputHandlers.clear = async () => {
+    calls.push('clear');
+  };
+
+  try {
+    const result = await runStepProgram(page as never, {
+      [policySearchScreenId]: {
+        screen: {
+          screen: policySearchScreenId,
+          url: 'http://example.test/policy-search',
+          sections: {},
+        },
+        surfaces: {},
+        postures: {},
+        elements: {
+          [policyNumberInputId]: {
+            role: 'textbox',
+            name: 'Policy Number',
+            testId: 'policy-number-input',
+            locator: [
+              { kind: 'test-id', value: 'policy-number-input' },
+              { kind: 'role-name', role: 'textbox', name: 'Policy Number' },
+            ],
+            surface: searchFormId,
+            widget: osInputWidgetId,
+          },
+        },
+      },
+    }, {
+      activePolicy: { number: 'POL-001' },
+    }, {
+      kind: 'step-program',
+      instructions: [{
+        kind: 'enter',
+        screen: policySearchScreenId,
+        element: policyNumberInputId,
+        posture: 'valid',
+        value: {
+          kind: 'fixture-path',
+          path: { segments: ['activePolicy', 'number'] },
+        },
+      }],
+    });
+
+    expect(result.ok).toBeTruthy();
+    expect(calls).toEqual(['fill:POL-001']);
+  } finally {
+    inputHandlers.fill = originalFill;
+    inputHandlers.clear = originalClear;
   }
 });
 

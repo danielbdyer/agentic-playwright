@@ -34,7 +34,10 @@
     "check": "node -e \"const fs=require('fs');const path=require('path');const Module=module.constructor;const file=path.resolve('scripts/check.cjs');const code=fs.readFileSync(file,'utf8');const m=new Module(file);m.filename=file;m.paths=[path.resolve('node_modules')];process.argv=['node',file];m._compile(code,file);\"",
     "knip": "knip",
     "test": "node ./node_modules/@playwright/test/cli.js test",
-    "test:generated": "node ./node_modules/@playwright/test/cli.js test --config playwright.generated.config.ts"
+    "test:headed": "node scripts/run-playwright.cjs --config playwright.config.ts --headed",
+    "test:generated": "node scripts/run-playwright.cjs --config playwright.generated.config.ts --interpreter-mode playwright",
+    "test:generated:dry-run": "node scripts/run-playwright.cjs --config playwright.generated.config.ts",
+    "test:generated:headed": "node scripts/run-playwright.cjs --config playwright.generated.config.ts --interpreter-mode playwright --headed"
   },
   "dependencies": {
     "@playwright/test": "^1.39.0",

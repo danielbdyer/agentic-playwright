@@ -1,5 +1,6 @@
 import path from 'path';
 import { Effect } from 'effect';
+import type { TesseractError } from '../domain/errors';
 import { widgetCapabilityContracts } from '../domain/widgets/contracts';
 import { deriveCapabilities } from '../domain/grammar';
 import { sha256 } from '../domain/hash';
@@ -14,13 +15,15 @@ import {
 } from './projections/cache';
 import { runProjection, type ProjectionIncremental } from './projections/runner';
 
-export interface TypesProjectionResult {
+export interface GeneratedTypesProjectionResult {
   outputPath: string;
   screens: string[];
   fixtures: string[];
   snapshots: string[];
   incremental: ProjectionIncremental;
 }
+
+export type TypesProjectionResult = GeneratedTypesProjectionResult;
 
 function toSortedUnique(values: string[]): string[] {
   return [...new Set(values)].sort((left, right) => left.localeCompare(right));
@@ -161,7 +164,9 @@ export function generateTypes(options: { paths: ProjectPaths; catalog?: Workspac
 
     return yield* runProjection<
       Omit<TypesProjectionResult, 'incremental'>,
-      TypesProjectionResult
+      TypesProjectionResult,
+      TypesProjectionResult,
+      TesseractError
     >({
       projection: 'types',
       manifestPath: metadataPath,
@@ -199,14 +204,14 @@ export function generateTypes(options: { paths: ProjectPaths; catalog?: Workspac
           ],
         };
       }),
-      withCacheHit: (incremental) => ({
+      withCacheHit: (incremental): GeneratedTypesProjectionResult => ({
         outputPath,
         screens: screensList,
         fixtures,
         snapshots,
         incremental,
       }),
-      withCacheMiss: (built, incremental) => ({
+      withCacheMiss: (built, incremental): GeneratedTypesProjectionResult => ({
         ...built,
         incremental,
       }),

@@ -1,7 +1,7 @@
 ﻿import path from 'path';
 import { writeFileSync } from 'fs';
-import { test } from '@playwright/test';
 import { computeNormalizedSnapshotHash, normalizeAriaSnapshot } from '../lib/domain/hash';
+import { test } from '../fixtures/index';
 import { captureAriaYaml } from '../lib/runtime/aria';
 import { loadScreen } from '../lib/runtime/load';
 
@@ -21,8 +21,12 @@ test('capture requested screen section', async ({ page }, testInfo) => {
 
   await page.goto(section.url ?? loaded.screen.url);
   const snapshot = await captureAriaYaml(page.locator(section.selector));
-  const normalized = normalizeAriaSnapshot(snapshot);
-  const hash = computeNormalizedSnapshotHash(snapshot);
+  if (!snapshot.ok) {
+    throw snapshot.error;
+  }
+
+  const normalized = normalizeAriaSnapshot(snapshot.value);
+  const hash = computeNormalizedSnapshotHash(snapshot.value);
   const snapshotPath = path.join(process.cwd(), 'knowledge', 'snapshots', screenId, `${sectionId}.yaml`);
   const hashPath = path.join(process.cwd(), 'knowledge', 'snapshots', screenId, `${sectionId}.hash`);
 

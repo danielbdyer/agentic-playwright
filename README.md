@@ -158,6 +158,8 @@ npm run trace      # return the scenario-centric subgraph
 npm run impact     # return the impacted subgraph for a node id
 npm run types      # regenerate lib/generated/tesseract-knowledge.ts
 npm run capture    # capture or refresh ARIA snapshot knowledge
+npm run test:generated        # execute emitted specs against the demo harness with the real Playwright interpreter
+npm run test:generated:headed # same, but with a visible browser so an operator can follow along
 npm run build      # emit runtime artifacts with the build-only TS config
 npm run typecheck  # strict repo-wide typecheck including tests
 npm run lint       # typed lint over hand-authored sources
@@ -264,23 +266,13 @@ The seeded vertical slice uses:
 - shared patterns at `knowledge/patterns/core.patterns.yaml`
 - local supplements at `knowledge/screens/policy-search.hints.yaml`
 
-Running `npm run refresh` on that slice should produce an `intent-only`, `deferred`, `approved` preparation state with matching task packet, spec, trace, review, graph, and generated types. Running `npm run run` should project runtime receipts, proposals, and a re-emitted review surface that shows what the agent actually resolved.
+Running `npm run refresh` on that slice should produce a fully `compiler-derived`, `approved` scenario with matching spec, trace, review, graph, and generated types.
 
-## Collaborative interface
+## Follow-along mode
 
-Humans and agents should meet the system through the same typed seams:
+For operator-visible runs, use the headed path instead of relying on hidden environment variables.
 
-- humans may author scenarios, explicit `resolution` overrides, hints, patterns, snapshots, and evidence
-- agents may author those same canonical proposals, plus the task packets, run receipts, and generated tests that make their behavior reviewable
-- a human-authored concern that fits the generated type surface should run through the same contract as an agent-authored concern
-- generated specs are disposable object code, but the concern they encode should stay visible in scenario text, task packets, run receipts, and proposal bundles
-
-The intended collaboration model is:
-
-1. canonical intent stays human-readable
-2. runtime handshakes stay machine-checkable
-3. supplemental artifacts stay reviewable instead of hidden in runtime code
-4. escalation stays exceptional rather than becoming the default operator path
-
-During development, agent feedback about task granularity or missing context should also be treated as reviewable artifact material, not as hidden chat residue. If that loop is added, it should be non-blocking and scoped to unit-sized improvements to prompts, docs, or supplemental knowledge.
+- `npm run test:generated:headed` opens the emitted demo slice in a visible browser and executes the generated spec with `TESSERACT_INTERPRETER_MODE=playwright`.
+- `npm run capture -- --headed` keeps the browser visible while refreshing a snapshot section.
+- `node dist/bin/tesseract.js discover --url <url> --headed` keeps the browser visible while writing discovery scaffolds for a new screen.
 

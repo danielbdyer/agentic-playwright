@@ -1,6 +1,7 @@
 import path from 'path';
 import { Effect } from 'effect';
 import { knowledgePaths } from '../domain/ids';
+import type { TesseractError } from '../domain/errors';
 import type { AdoId, ElementId, PostureId, ScreenId, SnapshotTemplateId } from '../domain/identity';
 import type { ScenarioTaskPacket, StepResolution, StepTask, StepTaskElementCandidate, StepTaskScreenCandidate } from '../domain/types';
 import type { CompileSnapshot } from './compile-snapshot';
@@ -196,8 +197,10 @@ export function buildTaskPacketProjection(options:
     const outputFingerprint = fingerprintProjectionOutput(packet);
 
     return yield* runProjection<
-      { taskPacket: ScenarioTaskPacket; taskPath: string },
-      TaskProjectionResult
+      Omit<TaskProjectionResult, 'incremental'>,
+      TaskProjectionResult,
+      TaskProjectionResult,
+      TesseractError
     >({
       projection: 'task',
       manifestPath,

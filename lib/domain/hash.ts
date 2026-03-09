@@ -1,4 +1,5 @@
-﻿import { createHash } from 'crypto';
+import { createHash } from 'crypto';
+import { normalizeAriaSnapshot } from './aria-snapshot';
 import type { AdoParameter, AdoStep } from './types';
 
 const HTML_ENTITIES: Record<string, string> = {
@@ -42,14 +43,7 @@ export function normalizeHtmlText(input: string): string {
     .trim();
 }
 
-export function normalizeAriaSnapshot(snapshot: string): string {
-  return snapshot
-    .replace(/\r\n/g, '\n')
-    .split('\n')
-    .map((line) => line.replace(/[ \t]+$/g, ''))
-    .join('\n')
-    .trim();
-}
+export { normalizeAriaSnapshot };
 
 export function computeAdoContentHash(input: {
   steps: AdoStep[];
@@ -74,4 +68,3 @@ export function computeAdoContentHash(input: {
 export function computeNormalizedSnapshotHash(snapshot: string): string {
   return sha256(normalizeAriaSnapshot(snapshot));
 }
-

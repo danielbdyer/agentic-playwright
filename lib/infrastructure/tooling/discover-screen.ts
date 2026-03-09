@@ -6,6 +6,7 @@ import type { ProjectPaths } from '../../application/paths';
 import { buildDiscoveryArtifacts, deriveScreenIdFromUrl, type RawDiscoveredElement, type RawDiscoveredSurface } from '../../domain/discovery';
 import { tryAsync } from '../../application/effect';
 import { captureAriaYaml } from '../../playwright/aria';
+import { resolvePlaywrightHeadless, resolvePreferredPlaywrightChannel } from './browser-options';
 
 interface BrowserDiscoveryPayload {
   title: string;
@@ -20,12 +21,11 @@ export function discoverScreenScaffold(options: {
   paths: ProjectPaths;
 }) {
   return tryAsync(async () => {
-    const environment = Reflect.get(process, 'env') as NodeJS.ProcessEnv;
-    const isCheckRun = environment.TESSERACT_CHECK === '1';
-    const isCi = environment.CI === 'true' || environment.CI === '1';
+    const environment = process.env;
+    const channel = resolvePreferredPlaywrightChannel(environment);
     const browser = await chromium.launch({
-      headless: true,
-      ...(!isCheckRun && !isCi ? { channel: 'msedge' as const } : {}),
+      headless: resolvePlaywrightHeadless(environment),
+      ...(channel ? { channel } : {}),
     });
 
     try {
