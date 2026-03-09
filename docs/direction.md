@@ -78,9 +78,9 @@ The system is designed to be application-agnostic, but the immediate target envi
 
 - 15 screens
 - 20-50 selectors per screen (300-750 elements total)
-- 20 user roles
+- 20 user roles, some with variant authorization on field-level or state-level or entity-instance-level
 - ~300 entities and static entities
-- ~15 specialized business logic flows with multi-role handoffs, approval/reject processes, in-app messaging, and virtual team assignments
+- ~20 specialized business logic flows with multi-role handoffs, approval/reject processes
 - ~3000 scenarios
 
 The implementation details reference OutSystems (widget families like `os-input`, `os-button`, `os-table`; OutSystems-specific DOM patterns and selector strategies), but the core domain model, compiler, and runtime are framework-agnostic.
