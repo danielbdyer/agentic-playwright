@@ -1,6 +1,6 @@
 # Tesseract Agent Guide
 
-This repository is a compiler plus a reviewable knowledge system. Treat it that way.
+This repository is a deterministic preparation pipeline plus a reviewable runtime knowledge system. Treat it that way.
 
 ## Start here
 
@@ -40,6 +40,8 @@ Canonical inputs:
 Derived outputs. Do not hand-edit unless the task is specifically about the generator:
 
 - `.tesseract/bound/`
+- `.tesseract/tasks/`
+- `.tesseract/runs/`
 - `.tesseract/graph/`
 - `generated/`
 - `lib/generated/`
@@ -50,6 +52,7 @@ Use these terms consistently:
 
 - `confidence`: how a binding was produced
 - `compiler-derived`: deterministic derivation from approved artifacts
+- `intent-only`: preserved intent awaiting runtime interpretation
 - `governance`: whether a bound step is executable now or needs review
 - `approved`: deterministic or already-approved path, emit and run normally
 - `review-required`: depends on agent-proposed or otherwise unapproved canonical knowledge
@@ -59,13 +62,14 @@ Do not overload confidence with review state.
 
 ## Deterministic precedence
 
-The inference and bind path is ordered:
+The preparation and runtime search path is ordered:
 
 1. explicit scenario fields
-2. screen hints
+2. approved screen knowledge and screen hints
 3. shared patterns
-4. deterministic heuristics
-5. `unbound`
+4. prior evidence or run history
+5. live DOM exploration and safe degraded resolution
+6. `needs-human`
 
 If you change this precedence, you are changing compiler semantics. Add or update tests accordingly.
 
@@ -84,7 +88,7 @@ Promotion rule:
 - prefer local supplements for first discovery
 - promote only after repetition or deliberate generalization
 
-Do not hide novel behavior in runtime code when it can be expressed as reviewed knowledge.
+Do not hide novel behavior in runtime code when it can be expressed as reviewed knowledge. Human escalation is last-resort only after the agent has exhausted the non-human path.
 
 ## What belongs where
 
@@ -128,6 +132,8 @@ Every meaningful change should preserve or improve these outputs:
 - `generated/{suite}/{ado_id}.spec.ts`
 - `generated/{suite}/{ado_id}.trace.json`
 - `generated/{suite}/{ado_id}.review.md`
+- `generated/{suite}/{ado_id}.proposals.json`
+- `.tesseract/tasks/{ado_id}.resolution.json`
 - `.tesseract/graph/index.json`
 
 If a new workflow cannot explain itself through those artifacts, it is under-modeled.
@@ -143,6 +149,7 @@ npm run trace
 npm run impact
 npm run surface
 npm run graph
+npm run run
 npm run types
 npm test
 ```
@@ -151,6 +158,7 @@ An agent should be able to discover:
 
 - which files are canonical
 - which artifacts were derived
+- which knowledge and prior evidence the runtime agent will receive
 - which supplements were used
 - where review is required
 - where the bottleneck is

@@ -1,6 +1,6 @@
-﻿import * as ts from 'typescript';
+import * as ts from 'typescript';
 import { aggregateConfidence, lifecycleForScenario } from './status';
-import type { BoundScenario, BoundStep, StepProgram } from './types';
+import type { BoundScenario, ScenarioTaskPacket } from './types';
 import {
   awaitExpression,
   callExpression,
@@ -17,8 +17,8 @@ import {
 
 export interface GeneratedSpecImports {
   fixtures: string;
-  program: string;
-  interpreters: string;
+  runtime: string;
+  environment: string;
 }
 
 export interface GeneratedSpecModuleOptions {
@@ -43,7 +43,47 @@ function fixtureContextExpression(fixtures: string[]): ts.Expression {
   );
 }
 
-function annotationStatements(boundScenario: BoundScenario, confidence: string, unboundSteps: number[]): ts.Statement[] {
+function fixtureReferencePattern(raw: string, fixtures: Set<string>): void {
+  const matches = raw.matchAll(/\{\{\s*([A-Za-z0-9_-]+)(?:\.[^}]*)?\s*\}\}/g);
+  for (const match of matches) {
+    if (match[1]) {
+      fixtures.add(match[1]);
+    }
+  }
+}
+
+function fixturesForScenario(boundScenario: BoundScenario, taskPacket: ScenarioTaskPacket): string[] {
+  const fixtures = new Set<string>(boundScenario.preconditions.map((precondition) => precondition.fixture));
+  for (const step of taskPacket.steps) {
+    if (step.explicitResolution?.override) {
+      fixtureReferencePattern(step.explicitResolution.override, fixtures);
+    }
+    for (const screen of step.runtimeKnowledge.screens) {
+      for (const element of screen.elements) {
+        if (element.defaultValueRef) {
+          fixtureReferencePattern(element.defaultValueRef, fixtures);
+        }
+      }
+    }
+  }
+  return [...fixtures].sort((left, right) => left.localeCompare(right));
+}
+
+function runtimeModeExpression(): ts.Expression {
+  return ts.factory.createAsExpression(
+    ts.factory.createBinaryExpression(
+      ts.factory.createPropertyAccessExpression(
+        ts.factory.createPropertyAccessExpression(identifier('process'), 'env'),
+        'TESSERACT_INTERPRETER_MODE',
+      ),
+      ts.factory.createToken(ts.SyntaxKind.QuestionQuestionToken),
+      stringLiteral('dry-run'),
+    ),
+    ts.factory.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword),
+  );
+}
+
+function annotationStatements(boundScenario: BoundScenario, confidence: string, deferredSteps: number[], unboundSteps: number[]): ts.Statement[] {
   const annotations = [
     { type: 'ado-id', description: boundScenario.source.ado_id },
     { type: 'ado-revision', description: String(boundScenario.source.revision) },
@@ -51,6 +91,9 @@ function annotationStatements(boundScenario: BoundScenario, confidence: string, 
     { type: 'confidence', description: confidence },
   ];
 
+  if (deferredSteps.length > 0) {
+    annotations.push({ type: 'deferred-steps', description: deferredSteps.join(', ') });
+  }
   if (unboundSteps.length > 0) {
     annotations.push({ type: 'unbound-steps', description: unboundSteps.join(', ') });
   }
@@ -64,11 +107,24 @@ function annotationStatements(boundScenario: BoundScenario, confidence: string, 
   );
 }
 
-function stepProgramExpression(program: StepProgram | undefined): ts.Expression {
-  return expressionFromLiteral(program ?? { kind: 'step-program', instructions: [{ kind: 'custom-escape-hatch', reason: 'missing-program' }] });
+function failureConditionExpression(): ts.Expression {
+  return ts.factory.createBinaryExpression(
+    ts.factory.createBinaryExpression(
+      property(property(identifier('stepResult'), 'interpretation'), 'kind'),
+      ts.factory.createToken(ts.SyntaxKind.EqualsEqualsEqualsToken),
+      stringLiteral('needs-human'),
+    ),
+    ts.factory.createToken(ts.SyntaxKind.BarBarToken),
+    ts.factory.createBinaryExpression(
+      property(property(property(identifier('stepResult'), 'execution'), 'execution'), 'status'),
+      ts.factory.createToken(ts.SyntaxKind.EqualsEqualsEqualsToken),
+      stringLiteral('failed'),
+    ),
+  );
 }
 
-function stepStatement(step: BoundStep, fixtures: string[], boundScenario: BoundScenario): ts.Statement {
+function stepStatement(boundScenario: BoundScenario, stepIndex: number, task: ScenarioTaskPacket['steps'][number]): ts.Statement {
+  const step = boundScenario.steps[stepIndex];
   return statementFromExpression(
     awaitExpression(
       callExpression(property(identifier('test'), 'step'), [
@@ -81,103 +137,42 @@ function stepStatement(step: BoundStep, fixtures: string[], boundScenario: Bound
           ts.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
           ts.factory.createBlock([
             constStatement(
-              'runtimeResult',
+              'stepResult',
               awaitExpression(
-                ts.factory.createConditionalExpression(
-                  ts.factory.createBinaryExpression(
-                    ts.factory.createPropertyAccessExpression(
-                      ts.factory.createPropertyAccessExpression(identifier('process'), 'env'),
-                      'TESSERACT_INTERPRETER_MODE',
-                    ),
-                    ts.factory.createToken(ts.SyntaxKind.EqualsEqualsEqualsToken),
-                    stringLiteral('playwright'),
-                  ),
-                  ts.factory.createToken(ts.SyntaxKind.QuestionToken),
-                  callExpression(identifier('runStepProgram'), [
-                  identifier('page'),
-                  identifier('screens'),
-                  fixtureContextExpression(fixtures),
-                  stepProgramExpression(step.program),
+                callExpression(identifier('runScenarioStep'), [
+                  expressionFromLiteral(task),
+                  identifier('runtimeEnvironment'),
+                  identifier('runState'),
                   expressionFromLiteral({
                     adoId: boundScenario.source.ado_id,
-                    stepIndex: step.index,
-                    provenance: {
-                      sourceRevision: boundScenario.source.revision,
-                      contentHash: boundScenario.source.content_hash,
-                    },
+                    revision: boundScenario.source.revision,
+                    contentHash: boundScenario.source.content_hash,
                   }),
                 ]),
-                  ts.factory.createToken(ts.SyntaxKind.ColonToken),
-                  awaitExpression(
-                    callExpression(identifier('runStaticInterpreter'), [
-                      ts.factory.createAsExpression(
-                        ts.factory.createBinaryExpression(
-                          ts.factory.createPropertyAccessExpression(
-                            ts.factory.createPropertyAccessExpression(identifier('process'), 'env'),
-                            'TESSERACT_INTERPRETER_MODE',
-                          ),
-                          ts.factory.createToken(ts.SyntaxKind.QuestionQuestionToken),
-                          stringLiteral('dry-run'),
-                        ),
-                        ts.factory.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword),
-                      ),
-                      stepProgramExpression(step.program),
-                      identifier('screens'),
-                      fixtureContextExpression(fixtures),
-                      expressionFromLiteral({
-                        adoId: boundScenario.source.ado_id,
-                        stepIndex: step.index,
-                        provenance: {
-                          sourceRevision: boundScenario.source.revision,
-                          contentHash: boundScenario.source.content_hash,
-                        },
-                      }),
-                    ]),
-                  ),
-                ),
               ),
             ),
+            statementFromExpression(
+              callExpression(property(property(callExpression(property(identifier('test'), 'info'), []), 'annotations'), 'push'), [
+                ts.factory.createObjectLiteralExpression([
+                  ts.factory.createPropertyAssignment('type', stringLiteral('runtime-receipt')),
+                  ts.factory.createPropertyAssignment(
+                    'description',
+                    callExpression(property(identifier('JSON'), 'stringify'), [
+                      identifier('stepResult'),
+                    ]),
+                  ),
+                ]),
+              ]),
+            ),
             ts.factory.createIfStatement(
-              ts.factory.createPrefixUnaryExpression(
-                ts.SyntaxKind.ExclamationToken,
-                property(identifier('runtimeResult'), 'ok'),
-              ),
-              ts.factory.createBlock(
-                [
-                  statementFromExpression(
-                    callExpression(property(property(callExpression(property(identifier('test'), 'info'), []), 'annotations'), 'push'), [
-                      ts.factory.createObjectLiteralExpression([
-                        ts.factory.createPropertyAssignment('type', stringLiteral('runtime-diagnostic')),
-                        ts.factory.createPropertyAssignment(
-                          'description',
-                          callExpression(property(identifier('JSON'), 'stringify'), [
-                            ts.factory.createBinaryExpression(
-                              property(identifier('runtimeResult'), 'diagnostic'),
-                              ts.factory.createToken(ts.SyntaxKind.QuestionQuestionToken),
-                              property(identifier('runtimeResult'), 'error'),
-                            ),
-                          ]),
-                        ),
-                      ])
-                    ]),
-                  ),
-                  ts.factory.createThrowStatement(
-                    ts.factory.createNewExpression(identifier('Error'), undefined, [
-                      ts.factory.createTemplateExpression(ts.factory.createTemplateHead('['), [
-                        ts.factory.createTemplateSpan(
-                          property(property(identifier('runtimeResult'), 'error'), 'code'),
-                          ts.factory.createTemplateMiddle('] '),
-                        ),
-                        ts.factory.createTemplateSpan(
-                          property(property(identifier('runtimeResult'), 'error'), 'message'),
-                          ts.factory.createTemplateTail(''),
-                        ),
-                      ]),
-                    ]),
-                  ),
-                ],
-                true,
-              ),
+              failureConditionExpression(),
+              ts.factory.createBlock([
+                ts.factory.createThrowStatement(
+                  ts.factory.createNewExpression(identifier('Error'), undefined, [
+                    stringLiteral(`Step ${step.index} requires operator attention or failed execution`),
+                  ]),
+                ),
+              ], true),
               undefined,
             ),
           ], true),
@@ -200,22 +195,26 @@ function lifecycleStatements(lifecycle: 'normal' | 'fixme' | 'skip' | 'fail'): t
   }
 }
 
-export function renderGeneratedSpecModule(boundScenario: BoundScenario, options: GeneratedSpecModuleOptions): {
+export function renderGeneratedSpecModule(
+  boundScenario: BoundScenario,
+  taskPacket: ScenarioTaskPacket,
+  options: GeneratedSpecModuleOptions,
+): {
   code: string;
   lifecycle: 'normal' | 'fixme' | 'skip' | 'fail';
 } {
   const hasUnbound = boundScenario.steps.some((step) => step.binding.kind === 'unbound');
   const lifecycle = lifecycleForScenario(boundScenario.metadata.status, hasUnbound);
-  const fixtures = boundScenario.preconditions.map((precondition) => precondition.fixture);
-  const uniqueScreens = [...new Set(boundScenario.steps.map((step) => step.screen).filter(Boolean) as string[])].sort((left, right) => left.localeCompare(right));
+  const fixtures = fixturesForScenario(boundScenario, taskPacket);
+  const uniqueScreens = [...new Set(taskPacket.steps.flatMap((step) => step.runtimeKnowledge.screens.map((screen) => screen.screen)))].sort((left, right) => left.localeCompare(right));
   const confidence = aggregateConfidence(boundScenario.steps.map((step) => step.confidence));
+  const deferredSteps = boundScenario.steps.filter((step) => step.binding.kind === 'deferred').map((step) => step.index);
   const unboundSteps = boundScenario.steps.filter((step) => step.binding.kind === 'unbound').map((step) => step.index);
 
   const statements: ts.Statement[] = [
     importDeclaration({ modulePath: options.imports.fixtures, namedImports: ['test'] }),
-    importDeclaration({ modulePath: options.imports.program, namedImports: ['loadScreenRegistry', 'runStepProgram'] }),
-    importDeclaration({ modulePath: options.imports.interpreters, namedImports: ['runStaticInterpreter'] }),
-    constStatement('screens', callExpression(identifier('loadScreenRegistry'), [expressionFromLiteral(uniqueScreens)])),
+    importDeclaration({ modulePath: options.imports.runtime, namedImports: ['createScenarioRunState', 'runScenarioStep'] }),
+    importDeclaration({ modulePath: options.imports.environment, namedImports: ['createLocalRuntimeEnvironment'] }),
     statementFromExpression(
       callExpression(identifier('test'), [
         stringLiteral(titleWithTags(boundScenario.metadata.title, boundScenario.metadata.tags)),
@@ -227,9 +226,25 @@ export function renderGeneratedSpecModule(boundScenario: BoundScenario, options:
           ts.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
           ts.factory.createBlock(
             [
-              ...annotationStatements(boundScenario, confidence, unboundSteps),
+              ...annotationStatements(boundScenario, confidence, deferredSteps, unboundSteps),
               ...lifecycleStatements(lifecycle),
-              ...(lifecycle === 'normal' || lifecycle === 'fail' ? boundScenario.steps.map((step) => stepStatement(step, fixtures, boundScenario)) : []),
+              constStatement(
+                'runtimeEnvironment',
+                callExpression(identifier('createLocalRuntimeEnvironment'), [
+                  ts.factory.createObjectLiteralExpression([
+                    ts.factory.createPropertyAssignment('rootDir', callExpression(property(identifier('process'), 'cwd'), [])),
+                    ts.factory.createPropertyAssignment('screenIds', expressionFromLiteral(uniqueScreens)),
+                    ts.factory.createPropertyAssignment('fixtures', fixtureContextExpression(fixtures)),
+                    ts.factory.createPropertyAssignment('mode', runtimeModeExpression()),
+                    ts.factory.createPropertyAssignment('provider', stringLiteral('deterministic-runtime-step-agent')),
+                    ts.factory.createPropertyAssignment('page', identifier('page')),
+                  ], true),
+                ]),
+              ),
+              constStatement('runState', callExpression(identifier('createScenarioRunState'), [])),
+              ...(lifecycle === 'normal' || lifecycle === 'fail'
+                ? taskPacket.steps.map((task, index) => stepStatement(boundScenario, index, task))
+                : []),
             ],
             true,
           ),
@@ -243,4 +258,3 @@ export function renderGeneratedSpecModule(boundScenario: BoundScenario, options:
     lifecycle,
   };
 }
-

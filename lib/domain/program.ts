@@ -195,6 +195,7 @@ export interface StepProgramInstructionOutcome {
   status: 'ok' | 'failed';
   diagnostics: StepInterpreterDiagnostic[];
   failureCode?: ProgramFailureCode | undefined;
+  locatorStrategy?: string | undefined;
 }
 
 export interface StepProgramExecution {

@@ -1,8 +1,12 @@
-import { summarizeGovernance, summarizeProvenanceKinds, summarizeUnresolvedReasons, provenanceKindForBoundStep } from '../provenance';
+import { provenanceKindForBoundStep } from '../provenance';
 import { aggregateConfidence } from '../status';
-import type { BoundScenario, Governance, ScenarioExplanation, ScenarioLifecycle } from '../types';
+import type { BoundScenario, Governance, RunRecord, ScenarioExplanation, ScenarioLifecycle, StepProvenanceKind } from '../types';
 
-export function aggregateScenarioGovernance(boundScenario: BoundScenario): Governance {
+export function aggregateScenarioGovernance(boundScenario: BoundScenario, latestRun?: RunRecord | null): Governance {
+  if (latestRun?.steps.some((step) => step.interpretation.kind === 'needs-human')) {
+    return 'blocked';
+  }
+
   const states = [...new Set(boundScenario.steps.map((step) => step.binding.governance))];
   if (states.includes('blocked')) {
     return 'blocked';
@@ -13,38 +17,127 @@ export function aggregateScenarioGovernance(boundScenario: BoundScenario): Gover
   return 'approved';
 }
 
-export function explainBoundScenario(boundScenario: BoundScenario, lifecycle: ScenarioLifecycle): ScenarioExplanation {
+function runtimeStatusForStep(run: RunRecord | null | undefined, stepIndex: number): ScenarioExplanation['steps'][number]['runtime'] {
+  const runStep = run?.steps.find((step) => step.stepIndex === stepIndex);
+  if (!runStep) {
+    return {
+      status: 'pending',
+      runId: null,
+      locatorStrategy: null,
+      degraded: false,
+    };
+  }
+
+  return {
+    status: runStep.interpretation.kind,
+    runId: run?.runId ?? null,
+    locatorStrategy: runStep.execution.locatorStrategy ?? null,
+    degraded: runStep.execution.degraded,
+  };
+}
+
+function governanceForStep(boundStep: BoundScenario['steps'][number], run: RunRecord | null | undefined): Governance {
+  const runStep = run?.steps.find((step) => step.stepIndex === boundStep.index);
+  if (!runStep) {
+    return boundStep.binding.governance;
+  }
+  if (runStep.interpretation.kind === 'needs-human') {
+    return 'blocked';
+  }
+  if (runStep.interpretation.kind === 'resolved-with-proposals') {
+    return 'review-required';
+  }
+  return boundStep.binding.governance;
+}
+
+function provenanceForStep(boundStep: BoundScenario['steps'][number], run: RunRecord | null | undefined): StepProvenanceKind {
+  const runStep = run?.steps.find((step) => step.stepIndex === boundStep.index);
+  if (runStep) {
+    return runStep.interpretation.provenanceKind;
+  }
+  return provenanceKindForBoundStep(boundStep);
+}
+
+export function explainBoundScenario(boundScenario: BoundScenario, lifecycle: ScenarioLifecycle, latestRun?: RunRecord | null): ScenarioExplanation {
+  const steps = boundScenario.steps.map((step) => ({
+    index: step.index,
+    intent: step.intent,
+    actionText: step.action_text,
+    expectedText: step.expected_text,
+    normalizedIntent: step.binding.normalizedIntent,
+    action: step.action,
+    confidence: step.confidence,
+    provenanceKind: provenanceForStep(step, latestRun),
+    governance: governanceForStep(step, latestRun),
+    bindingKind: step.binding.kind,
+    ruleId: step.binding.ruleId,
+    knowledgeRefs: latestRun?.steps.find((runStep) => runStep.stepIndex === step.index)?.interpretation.knowledgeRefs ?? step.binding.knowledgeRefs,
+    supplementRefs: latestRun?.steps.find((runStep) => runStep.stepIndex === step.index)?.interpretation.supplementRefs ?? step.binding.supplementRefs,
+    reviewReasons: step.binding.reviewReasons,
+    unresolvedGaps: (() => {
+      const runStep = latestRun?.steps.find((candidate) => candidate.stepIndex === step.index);
+      if (!runStep) {
+        return step.binding.kind === 'deferred'
+          ? ['runtime-resolution-required']
+          : step.binding.reasons;
+      }
+      return runStep.interpretation.kind === 'needs-human'
+        ? [...step.binding.reasons, 'runtime-resolution-required']
+        : step.binding.reasons;
+    })(),
+    reasons: step.binding.reasons,
+    evidenceIds: latestRun?.steps.find((runStep) => runStep.stepIndex === step.index)?.evidenceIds ?? step.binding.evidenceIds,
+    program: step.program ?? null,
+    runtime: runtimeStatusForStep(latestRun, step.index),
+  }));
+  const provenanceKinds = steps.reduce<Record<StepProvenanceKind, number>>((counts, step) => {
+    counts[step.provenanceKind] += 1;
+    return counts;
+  }, {
+    explicit: 0,
+    'approved-knowledge': 0,
+    'live-exploration': 0,
+    unresolved: 0,
+  });
+  const governance = steps.reduce<Record<Governance, number>>((counts, step) => {
+    counts[step.governance] += 1;
+    return counts;
+  }, {
+    approved: 0,
+    'review-required': 0,
+    blocked: 0,
+  });
+  const unresolvedReasonCounts = new Map<string, number>();
+  for (const step of steps) {
+    for (const reason of step.unresolvedGaps) {
+      unresolvedReasonCounts.set(reason, (unresolvedReasonCounts.get(reason) ?? 0) + 1);
+    }
+  }
+  const unresolvedReasons = [...unresolvedReasonCounts.entries()]
+    .map(([reason, count]) => ({ reason, count }))
+    .sort((left, right) => {
+      const countOrder = right.count - left.count;
+      if (countOrder !== 0) {
+        return countOrder;
+      }
+      return left.reason.localeCompare(right.reason);
+    });
+
   return {
     adoId: boundScenario.source.ado_id,
     revision: boundScenario.source.revision,
     title: boundScenario.metadata.title,
     suite: boundScenario.metadata.suite,
     confidence: aggregateConfidence(boundScenario.steps.map((step) => step.confidence)),
-    governance: aggregateScenarioGovernance(boundScenario),
+    governance: aggregateScenarioGovernance(boundScenario, latestRun),
     lifecycle,
     diagnostics: boundScenario.diagnostics,
     summary: {
       stepCount: boundScenario.steps.length,
-      provenanceKinds: summarizeProvenanceKinds(boundScenario.steps),
-      governance: summarizeGovernance(boundScenario.steps),
-      unresolvedReasons: summarizeUnresolvedReasons(boundScenario.steps),
+      provenanceKinds,
+      governance,
+      unresolvedReasons,
     },
-    steps: boundScenario.steps.map((step) => ({
-      index: step.index,
-      intent: step.intent,
-      normalizedIntent: step.binding.normalizedIntent,
-      action: step.action,
-      confidence: step.confidence,
-      provenanceKind: provenanceKindForBoundStep(step),
-      governance: step.binding.governance,
-      ruleId: step.binding.ruleId,
-      knowledgeRefs: step.binding.knowledgeRefs,
-      supplementRefs: step.binding.supplementRefs,
-      reviewReasons: step.binding.reviewReasons,
-      unresolvedGaps: step.binding.reasons,
-      reasons: step.binding.reasons,
-      evidenceIds: step.binding.evidenceIds,
-      program: step.program ?? null,
-    })),
+    steps,
   };
 }

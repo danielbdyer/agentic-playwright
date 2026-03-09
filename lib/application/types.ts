@@ -47,13 +47,14 @@ function generatedTypesManifestPath(paths: ProjectPaths): string {
   return path.join(paths.generatedTypesDir, 'tesseract-knowledge.metadata.json');
 }
 
-export function generateTypes(options: { paths: ProjectPaths; catalog?: WorkspaceCatalog }) {
+export function generateTypes(options: { paths: ProjectPaths; catalog?: WorkspaceCatalog }): Effect.Effect<TypesProjectionResult, unknown, unknown> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const catalog = options.catalog ?? (yield* loadWorkspaceCatalog({ paths: options.paths }));
     const inputFingerprints: ProjectionInputFingerprint[] = [
       ...catalog.surfaces.map((entry) => fingerprintProjectionArtifact('surface', entry.artifactPath, entry.artifact)),
       ...catalog.screenElements.map((entry) => fingerprintProjectionArtifact('elements', entry.artifactPath, entry.artifact)),
+      ...catalog.screenHints.map((entry) => fingerprintProjectionArtifact('hints', entry.artifactPath, entry.artifact)),
       ...catalog.screenPostures.map((entry) => fingerprintProjectionArtifact('postures', entry.artifactPath, entry.artifact)),
       ...catalog.scenarios.map((entry) => fingerprintProjectionArtifact('scenario', entry.artifactPath, entry.artifact)),
     ];
@@ -78,6 +79,12 @@ export function generateTypes(options: { paths: ProjectPaths; catalog?: Workspac
     for (const entry of catalog.screenElements) {
       screens.add(entry.artifact.screen);
       elementsByScreen[entry.artifact.screen] = Object.keys(entry.artifact.elements).sort((left, right) => left.localeCompare(right));
+    }
+
+    for (const entry of catalog.screenHints) {
+      for (const hint of Object.values(entry.artifact.elements)) {
+        fixtureIds.push(...fixtureIdsFromOverride(hint.defaultValueRef));
+      }
     }
 
     for (const entry of catalog.screenPostures) {
@@ -152,7 +159,10 @@ export function generateTypes(options: { paths: ProjectPaths; catalog?: Workspac
     const fixtures = toSortedUnique(fixtureIds);
     const snapshots = toSortedUnique(snapshotTemplates);
 
-    return yield* runProjection({
+    return yield* runProjection<
+      Omit<TypesProjectionResult, 'incremental'>,
+      TypesProjectionResult
+    >({
       projection: 'types',
       manifestPath: metadataPath,
       inputFingerprints,

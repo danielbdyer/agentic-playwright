@@ -3,6 +3,7 @@ import { createDiagnostic } from '../domain/diagnostics';
 import { runtimeEscapeHatchError, toTesseractError, unknownScreenError } from '../domain/errors';
 import type { ScreenId } from '../domain/identity';
 import { createPostureId } from '../domain/identity';
+import type { SnapshotTemplateLoader } from '../domain/runtime-loaders';
 import type {
   ProgramFailure,
   StepInterpreterDiagnostic,
@@ -15,8 +16,8 @@ import type { CompilerDiagnostic, StepInstruction, StepProgram } from '../domain
 import { resolveDataValue } from './data';
 import { engage } from './engage';
 import type { ScreenRegistry } from './load';
-import { loadScreenRegistry } from './load';
 import { resolveLocator } from './locate';
+import { describeLocatorStrategy } from './locate';
 import { expectAriaSnapshot } from '../playwright/aria';
 import { interact } from './interact';
 import { hasSnapshotTemplate, readSnapshotTemplate } from './snapshots';
@@ -27,10 +28,12 @@ interface PlaywrightEnvironment {
   page: Page;
   screens: ScreenRegistry;
   fixtures: Record<string, unknown>;
+  snapshotLoader?: SnapshotTemplateLoader | undefined;
 }
 
 interface RuntimeInstructionSuccess {
   observedEffects: string[];
+  locatorStrategy?: string | undefined;
 }
 
 function requireScreen(screens: ScreenRegistry, screenId: ScreenId): RuntimeResult<ScreenRegistry[string]> {
@@ -59,32 +62,30 @@ function observedEffectsForLocator(degraded: boolean): string[] {
 }
 
 async function runInstruction(
-  page: Page,
-  screens: ScreenRegistry,
-  fixtures: Record<string, unknown>,
+  environment: PlaywrightEnvironment,
   instruction: StepInstruction,
 ): Promise<RuntimeResult<RuntimeInstructionSuccess>> {
   try {
     switch (instruction.kind) {
       case 'navigate': {
-        const screen = requireScreen(screens, instruction.screen);
+        const screen = requireScreen(environment.screens, instruction.screen);
         if (!screen.ok) {
           return screen;
         }
-        await page.goto(screen.value.screen.url);
+        await environment.page.goto(screen.value.screen.url);
         return runtimeOk({ observedEffects: ['effect-applied'] });
       }
       case 'enter': {
-        const screen = requireScreen(screens, instruction.screen);
+        const screen = requireScreen(environment.screens, instruction.screen);
         if (!screen.ok) {
           return screen;
         }
-        const resolvedValue = resolveDataValue(fixtures, instruction.value);
+        const resolvedValue = resolveDataValue(environment.fixtures, instruction.value);
         if (instruction.value && resolvedValue === undefined) {
           return runtimeErr('runtime-unresolved-value-ref', 'Unable to resolve input value', { instructionKind: instruction.kind });
         }
         return engage(
-          page,
+          environment.page,
           screen.value.elements,
           screen.value.postures,
           screen.value.surfaces,
@@ -94,7 +95,7 @@ async function runInstruction(
         );
       }
       case 'invoke': {
-        const screen = requireScreen(screens, instruction.screen);
+        const screen = requireScreen(environment.screens, instruction.screen);
         if (!screen.ok) {
           return screen;
         }
@@ -105,7 +106,7 @@ async function runInstruction(
             targetKind: 'element',
           });
         }
-        const resolvedLocator = await resolveLocator(page, element);
+        const resolvedLocator = await resolveLocator(environment.page, element);
         const action = await interact(
           resolvedLocator.locator,
           element.widget,
@@ -116,10 +117,13 @@ async function runInstruction(
         if (!action.ok) {
           return action;
         }
-        return runtimeOk({ observedEffects: observedEffectsForLocator(resolvedLocator.degraded) });
+        return runtimeOk({
+          observedEffects: observedEffectsForLocator(resolvedLocator.degraded),
+          locatorStrategy: describeLocatorStrategy(resolvedLocator.strategy),
+        });
       }
       case 'observe-structure': {
-        const screen = requireScreen(screens, instruction.screen);
+        const screen = requireScreen(environment.screens, instruction.screen);
         if (!screen.ok) {
           return screen;
         }
@@ -130,20 +134,29 @@ async function runInstruction(
             targetKind: 'element',
           });
         }
-        if (!hasSnapshotTemplate(instruction.snapshotTemplate)) {
+        const snapshotLoader = environment.snapshotLoader;
+        const hasTemplate = snapshotLoader
+          ? snapshotLoader.has(instruction.snapshotTemplate)
+          : hasSnapshotTemplate(instruction.snapshotTemplate);
+        if (!hasTemplate) {
           return runtimeErr('runtime-missing-snapshot-template', `Missing snapshot template ${instruction.snapshotTemplate}`, {
             snapshotTemplate: instruction.snapshotTemplate,
           });
         }
-        const resolvedLocator = await resolveLocator(page, element);
+        const resolvedLocator = await resolveLocator(environment.page, element);
         const comparison = await expectAriaSnapshot(
           resolvedLocator.locator,
-          readSnapshotTemplate(instruction.snapshotTemplate),
+          snapshotLoader
+            ? snapshotLoader.read(instruction.snapshotTemplate)
+            : readSnapshotTemplate(instruction.snapshotTemplate),
         );
         if (!comparison.ok) {
           return comparison;
         }
-        return runtimeOk({ observedEffects: observedEffectsForLocator(resolvedLocator.degraded) });
+        return runtimeOk({
+          observedEffects: observedEffectsForLocator(resolvedLocator.degraded),
+          locatorStrategy: describeLocatorStrategy(resolvedLocator.strategy),
+        });
       }
       case 'custom-escape-hatch': {
         const error = runtimeEscapeHatchError(instruction.reason);
@@ -162,7 +175,7 @@ export const playwrightStepProgramInterpreter: StepProgramInterpreter<Playwright
     const outcomes: StepProgramInstructionOutcome[] = [];
 
     for (const [index, instruction] of program.instructions.entries()) {
-      const result = await runInstruction(environment.page, environment.screens, environment.fixtures, instruction);
+      const result = await runInstruction(environment, instruction);
       if (!result.ok) {
         const failure: ProgramFailure = result.error;
         outcomes.push({
@@ -188,6 +201,7 @@ export const playwrightStepProgramInterpreter: StepProgramInterpreter<Playwright
         observedEffects: result.value.observedEffects,
         status: 'ok',
         diagnostics: [] as StepInterpreterDiagnostic[],
+        locatorStrategy: result.value.locatorStrategy,
       });
     }
 
@@ -201,9 +215,10 @@ export async function runStepProgram(
   fixtures: Record<string, unknown>,
   program: StepProgram,
   context?: RuntimeDiagnosticContext,
+  snapshotLoader?: SnapshotTemplateLoader,
 ): Promise<RuntimeResult<void>> {
-  const result = await playwrightStepProgramInterpreter.run(program, { page, screens, fixtures }, context);
+  const result = await playwrightStepProgramInterpreter.run(program, { page, screens, fixtures, snapshotLoader }, context);
   return toRuntimeVoidResult(result);
 }
 
-export { loadScreenRegistry, runtimeFailureDiagnostic };
+export { runtimeFailureDiagnostic };

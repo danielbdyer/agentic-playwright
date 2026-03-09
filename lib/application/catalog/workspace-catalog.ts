@@ -7,7 +7,10 @@ import type {
   BoundScenario,
   EvidenceRecord,
   PatternDocument,
+  ProposalBundle,
+  RunRecord,
   Scenario,
+  ScenarioTaskPacket,
   ScreenElements,
   ScreenHints,
   ScreenPostures,
@@ -17,7 +20,10 @@ import {
   validateAdoSnapshot,
   validateBoundScenario,
   validatePatternDocument,
+  validateProposalBundle,
+  validateRunRecord,
   validateScenario,
+  validateScenarioTaskPacket,
   validateScreenElements,
   validateScreenHints,
   validateScreenPostures,
@@ -143,6 +149,42 @@ export function loadWorkspaceCatalog(options: { paths: ProjectPaths }) {
       ));
     }
 
+    const taskFiles = (yield* walkFiles(fs, options.paths.tasksDir)).filter((filePath) => filePath.endsWith('.resolution.json'));
+    const taskPackets: ArtifactEnvelope<ScenarioTaskPacket>[] = [];
+    for (const filePath of taskFiles) {
+      taskPackets.push(yield* readJsonArtifact(
+        options.paths,
+        filePath,
+        validateScenarioTaskPacket,
+        'task-packet-validation-failed',
+        `Task packet ${filePath} failed validation`,
+      ));
+    }
+
+    const runFiles = (yield* walkFiles(fs, options.paths.runsDir)).filter((filePath) => path.basename(filePath) === 'run.json');
+    const runRecords: ArtifactEnvelope<RunRecord>[] = [];
+    for (const filePath of runFiles) {
+      runRecords.push(yield* readJsonArtifact(
+        options.paths,
+        filePath,
+        validateRunRecord,
+        'run-record-validation-failed',
+        `Run record ${filePath} failed validation`,
+      ));
+    }
+
+    const proposalFiles = (yield* walkFiles(fs, options.paths.generatedDir)).filter((filePath) => filePath.endsWith('.proposals.json'));
+    const proposalBundles: ArtifactEnvelope<ProposalBundle>[] = [];
+    for (const filePath of proposalFiles) {
+      proposalBundles.push(yield* readJsonArtifact(
+        options.paths,
+        filePath,
+        validateProposalBundle,
+        'proposal-bundle-validation-failed',
+        `Proposal bundle ${filePath} failed validation`,
+      ));
+    }
+
     const evidenceFiles = (yield* walkFiles(fs, options.paths.evidenceDir)).filter((filePath) => filePath.endsWith('.json'));
     const evidenceRecords: ArtifactEnvelope<EvidenceRecord>[] = [];
     for (const filePath of evidenceFiles) {
@@ -168,6 +210,9 @@ export function loadWorkspaceCatalog(options: { paths: ProjectPaths }) {
       snapshots,
       scenarios,
       boundScenarios,
+      taskPackets,
+      runRecords,
+      proposalBundles,
       surfaces,
       screenElements,
       screenHints,

@@ -21,6 +21,7 @@
     "emit": "npm run build && node dist/bin/tesseract.js emit --ado-id 10001",
     "compile": "npm run build && node dist/bin/tesseract.js compile --ado-id 10001",
     "refresh": "npm run build && node dist/bin/tesseract.js refresh --ado-id 10001",
+    "run": "npm run build && node dist/bin/tesseract.js run --ado-id 10001 --interpreter-mode diagnostic",
     "paths": "npm run build && node dist/bin/tesseract.js paths --ado-id 10001",
     "capture": "npm run build && node dist/bin/tesseract.js capture --screen policy-search --section results-with-policy",
     "surface": "npm run build && node dist/bin/tesseract.js surface --screen policy-search",

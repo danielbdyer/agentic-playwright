@@ -14,43 +14,54 @@ metadata:
   status: active
   status_detail: null
 preconditions:
-  - fixture: activePolicy
   - fixture: demoSession
 steps:
   - index: 1
     intent: Navigate to Policy Search screen
-    action: navigate
-    screen: policy-search
-    element: searchButton
+    action_text: Navigate to Policy Search screen
+    expected_text: Policy Search screen loads
+    action: custom
+    screen: null
+    element: null
     posture: null
     override: null
     snapshot_template: null
-    confidence: compiler-derived
+    resolution: null
+    confidence: intent-only
   - index: 2
     intent: Enter policy number in search field
-    action: input
-    screen: policy-search
-    element: policyNumberInput
-    posture: valid
-    override: "{{activePolicy.number}}"
+    action_text: Enter policy number in search field
+    expected_text: Policy Number accepts a valid policy
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
     snapshot_template: null
-    confidence: compiler-derived
+    resolution: null
+    confidence: intent-only
   - index: 3
     intent: Click Search button
-    action: click
-    screen: policy-search
-    element: searchButton
+    action_text: Click Search button
+    expected_text: Search runs
+    action: custom
+    screen: null
+    element: null
     posture: null
     override: null
     snapshot_template: null
-    confidence: compiler-derived
+    resolution: null
+    confidence: intent-only
   - index: 4
     intent: Verify search results show policy
-    action: assert-snapshot
-    screen: policy-search
-    element: resultsTable
+    action_text: Verify search results show policy
+    expected_text: Matching policy appears in Search Results
+    action: custom
+    screen: null
+    element: null
     posture: null
     override: null
-    snapshot_template: snapshots/policy-search/results-with-policy.yaml
-    confidence: compiler-derived
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
 postconditions: []

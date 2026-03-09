@@ -1,10 +1,10 @@
 import type { BoundStep, StepProvenanceKind } from './types';
 
 export interface CountByProvenanceKind {
-  'compiler-derived': number;
-  'hint-backed': number;
-  'pattern-backed': number;
-  unbound: number;
+  explicit: number;
+  'approved-knowledge': number;
+  'live-exploration': number;
+  unresolved: number;
 }
 
 export interface CountByGovernance {
@@ -19,10 +19,10 @@ export interface CountedReason {
 }
 
 const defaultProvenanceCounts = (): CountByProvenanceKind => ({
-  'compiler-derived': 0,
-  'hint-backed': 0,
-  'pattern-backed': 0,
-  unbound: 0,
+  explicit: 0,
+  'approved-knowledge': 0,
+  'live-exploration': 0,
+  unresolved: 0,
 });
 
 const defaultGovernanceCounts = (): CountByGovernance => ({
@@ -31,28 +31,16 @@ const defaultGovernanceCounts = (): CountByGovernance => ({
   blocked: 0,
 });
 
-function hasHintSupplement(step: BoundStep): boolean {
-  return step.binding.supplementRefs.some((ref) => ref.endsWith('.hints.yaml'));
-}
-
-function hasPatternSupplement(step: BoundStep): boolean {
-  return step.binding.supplementRefs.some((ref) => ref.includes('/patterns/') && !ref.endsWith('/core.patterns.yaml'));
-}
-
 export function provenanceKindForBoundStep(step: BoundStep): StepProvenanceKind {
-  if (step.binding.kind === 'unbound' || step.confidence === 'unbound') {
-    return 'unbound';
+  if (step.binding.kind === 'unbound' || step.binding.kind === 'deferred' || step.confidence === 'unbound' || step.confidence === 'intent-only') {
+    return 'unresolved';
   }
 
-  if (hasHintSupplement(step)) {
-    return 'hint-backed';
+  if (step.resolution) {
+    return 'explicit';
   }
 
-  if (hasPatternSupplement(step)) {
-    return 'pattern-backed';
-  }
-
-  return 'compiler-derived';
+  return 'approved-knowledge';
 }
 
 export function summarizeProvenanceKinds(steps: BoundStep[]): CountByProvenanceKind {
@@ -77,6 +65,9 @@ export function summarizeUnresolvedReasons(steps: BoundStep[]): CountedReason[] 
   for (const step of steps) {
     for (const reason of step.binding.reasons) {
       counts.set(reason, (counts.get(reason) ?? 0) + 1);
+    }
+    if (step.binding.kind === 'deferred') {
+      counts.set('runtime-resolution-required', (counts.get('runtime-resolution-required') ?? 0) + 1);
     }
   }
 

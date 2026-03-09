@@ -7,6 +7,7 @@ import { deriveGraph, type GraphBuildInput } from '../lib/domain/derived-graph';
 import { deriveCapabilities, findCapability } from '../lib/domain/grammar';
 import { computeAdoContentHash, computeNormalizedSnapshotHash, normalizeAriaSnapshot } from '../lib/domain/hash';
 import {
+  createAdoId,
   createElementId,
   createPostureId,
   createScreenId,
@@ -152,11 +153,22 @@ test('bindScenarioStep keeps binding semantics in the domain and approves suppor
   const step = {
     index: 2,
     intent: 'Enter policy number in search field',
+    action_text: 'Enter policy number in search field',
+    expected_text: 'Policy Number accepts a valid policy',
     action: 'input' as const,
     screen: policySearchScreenId,
     element: policyNumberInputId,
     posture: validPostureId,
     override: '{{activePolicy.number}}',
+    snapshot_template: null,
+    resolution: {
+      action: 'input' as const,
+      screen: policySearchScreenId,
+      element: policyNumberInputId,
+      posture: validPostureId,
+      override: '{{activePolicy.number}}',
+      snapshot_template: null,
+    },
     confidence: 'compiler-derived' as const,
     program: compileStepProgram({
       index: 2,
@@ -183,16 +195,26 @@ test('bindScenarioStep keeps binding semantics in the domain and approves suppor
   expect(bound.confidence).toBe('compiler-derived');
 });
 
-test('bindScenarioStep reports canonical binding gaps instead of escape-hatch implementation details', () => {
+test('bindScenarioStep reserves unbound for deterministic contradictions in explicit resolutions', () => {
   const bound = bindScenarioStep({
     index: 3,
     intent: 'Click search',
+    action_text: 'Click search',
+    expected_text: 'Search runs',
     action: 'click',
     screen: null,
     element: null,
     posture: null,
     override: null,
     snapshot_template: null,
+    resolution: {
+      action: 'click',
+      screen: null,
+      element: null,
+      posture: null,
+      override: null,
+      snapshot_template: null,
+    },
     confidence: 'agent-proposed',
     program: compileStepProgram({
       index: 3,
@@ -209,7 +231,7 @@ test('bindScenarioStep reports canonical binding gaps instead of escape-hatch im
 
   expect(bound.binding.reasons).toEqual(['missing-element', 'missing-screen']);
   expect(bound.binding.reviewReasons).toContain('agent-proposed');
-  expect(bound.binding.governance).toBe('review-required');
+  expect(bound.binding.governance).toBe('blocked');
   expect(bound.confidence).toBe('unbound');
 });
 
@@ -287,9 +309,10 @@ test('deriveGraph is deterministic from approved artifacts alone', () => {
 
   expect(graph.fingerprint).toBe(graphAgain.fingerprint);
   expect(graph.nodes.some((node) => node.id === graphIds.surface(policySearchScreenId, resultsGridId))).toBeTruthy();
-  expect(graph.edges.some((edge) => edge.kind === 'asserts' && edge.to === graphIds.snapshot.knowledge(resultsWithPolicySnapshotId))).toBeTruthy();
+  expect(graph.edges.some((edge) => edge.kind === 'observed-by' && edge.to === graphIds.snapshot.knowledge(resultsWithPolicySnapshotId))).toBeTruthy();
   expect(graph.nodes.some((node) => node.id === graphIds.screenHints(policySearchScreenId))).toBeTruthy();
   expect(graph.nodes.some((node) => node.id === graphIds.pattern('core.input'))).toBeTruthy();
+  expect(graph.nodes.find((node) => node.id === graphIds.step(createAdoId('10001'), 2))?.payload?.provenanceKind).toBe('unresolved');
 });
 
 test('renderGeneratedKnowledgeModule emits explicit unions from approved knowledge', () => {

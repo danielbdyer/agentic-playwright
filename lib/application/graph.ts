@@ -53,6 +53,15 @@ export interface LoadedDerivedGraphResult {
 
 export type EnsuredDerivedGraphResult = DerivedGraphProjectionResult | LoadedDerivedGraphResult;
 
+export interface GraphBuildResult {
+  graph: DerivedGraph;
+  graphPath: string;
+  mcpCatalogPath: string;
+  nodeCount: number;
+  edgeCount: number;
+  incremental: ProjectionIncremental;
+}
+
 function graphManifestPath(paths: ProjectPaths): string {
   return path.join(paths.graphDir, 'build-manifest.json');
 }
@@ -73,6 +82,9 @@ export function buildDerivedGraph(
       ...catalog.patternDocuments.map((entry) => fingerprintProjectionArtifact('patterns', entry.artifactPath, entry.artifact)),
       ...catalog.scenarios.map((entry) => fingerprintProjectionArtifact('scenario', entry.artifactPath, entry.artifact)),
       ...catalog.boundScenarios.map((entry) => fingerprintProjectionArtifact('bound', entry.artifactPath, entry.artifact)),
+      ...catalog.taskPackets.map((entry) => fingerprintProjectionArtifact('task', entry.artifactPath, entry.artifact)),
+      ...catalog.runRecords.map((entry) => fingerprintProjectionArtifact('run', entry.artifactPath, entry.artifact)),
+      ...catalog.proposalBundles.map((entry) => fingerprintProjectionArtifact('proposal-bundle', entry.artifactPath, entry.artifact)),
       ...catalog.evidenceRecords.map((entry) => fingerprintProjectionArtifact('evidence', entry.artifactPath, entry.artifact)),
     ];
 
@@ -105,6 +117,14 @@ export function buildDerivedGraph(
     }
 
     const boundScenarios: BoundScenarioGraphArtifact[] = catalog.boundScenarios.map(({ artifact, artifactPath }) => ({
+      artifact,
+      artifactPath,
+    }));
+    const taskPackets = catalog.taskPackets.map(({ artifact, artifactPath }) => ({
+      artifact,
+      artifactPath,
+    }));
+    const runRecords = catalog.runRecords.map(({ artifact, artifactPath }) => ({
       artifact,
       artifactPath,
     }));
@@ -144,7 +164,10 @@ export function buildDerivedGraph(
     const manifestPath = graphManifestPath(options.paths);
     let cachedGraphForHit: ReturnType<typeof validateDerivedGraph> | null = null;
 
-    return yield* runProjection({
+    return yield* runProjection<
+      Omit<GraphBuildResult, 'incremental'>,
+      GraphBuildResult
+    >({
       projection: 'graph',
       manifestPath,
       inputFingerprints,
@@ -190,6 +213,8 @@ export function buildDerivedGraph(
           sharedPatterns,
           scenarios,
           boundScenarios,
+          taskPackets,
+          runRecords,
           evidence,
           policyDecisions,
         });
