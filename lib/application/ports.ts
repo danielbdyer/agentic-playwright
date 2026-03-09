@@ -2,7 +2,14 @@
 import { Context } from 'effect';
 import type { AdoId, ScreenId } from '../domain/identity';
 import type { TesseractError } from '../domain/errors';
-import type { ResolutionReceipt, StepExecutionReceipt, StepTask } from '../domain/types';
+import type {
+  ExecutionPosture,
+  ResolutionReceipt,
+  RuntimeInterpreterMode,
+  StepExecutionReceipt,
+  StepTask,
+  WriteJournalEntry,
+} from '../domain/types';
 
 export interface FileSystemPort {
   readText(path: string): Effect.Effect<string, TesseractError>;
@@ -14,12 +21,17 @@ export interface FileSystemPort {
   ensureDir(path: string): Effect.Effect<void, TesseractError>;
 }
 
+export interface ExecutionContextPort {
+  posture: ExecutionPosture;
+  writeJournal(): readonly WriteJournalEntry[];
+}
+
 export interface AdoSourcePort {
   listSnapshotIds(): Effect.Effect<AdoId[], TesseractError>;
   loadSnapshot(adoId: AdoId): Effect.Effect<unknown, TesseractError>;
 }
 
-export type RuntimeScenarioMode = 'playwright' | 'dry-run' | 'diagnostic';
+export type RuntimeScenarioMode = RuntimeInterpreterMode;
 
 export interface RuntimeScenarioStepResult {
   interpretation: ResolutionReceipt;
@@ -31,6 +43,11 @@ export interface RuntimeScenarioRunnerPort {
     rootDir: string;
     mode: RuntimeScenarioMode;
     provider: string;
+    controlSelection?: {
+      runbook?: string | null | undefined;
+      dataset?: string | null | undefined;
+      resolutionControl?: string | null | undefined;
+    } | undefined;
     screenIds: readonly ScreenId[];
     fixtures: Record<string, unknown>;
     steps: readonly StepTask[];
@@ -40,10 +57,12 @@ export interface RuntimeScenarioRunnerPort {
       revision?: number | undefined;
       contentHash?: string | undefined;
     } | undefined;
+    posture?: ExecutionPosture | undefined;
   }): Effect.Effect<RuntimeScenarioStepResult[], unknown>;
 }
 
 export class FileSystem extends Context.Tag('tesseract/FileSystem')<FileSystem, FileSystemPort>() {}
 export class AdoSource extends Context.Tag('tesseract/AdoSource')<AdoSource, AdoSourcePort>() {}
 export class RuntimeScenarioRunner extends Context.Tag('tesseract/RuntimeScenarioRunner')<RuntimeScenarioRunner, RuntimeScenarioRunnerPort>() {}
+export class ExecutionContext extends Context.Tag('tesseract/ExecutionContext')<ExecutionContext, ExecutionContextPort>() {}
 

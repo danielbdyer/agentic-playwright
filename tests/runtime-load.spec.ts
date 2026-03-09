@@ -7,7 +7,6 @@ import { inspectSurface } from '../lib/application/surface';
 import { runWithLocalServices } from '../lib/composition/local-services';
 import { createScreenId } from '../lib/domain/identity';
 import { createLocalScreenRegistryLoader } from '../lib/infrastructure/screen-registry/local-screen-registry-loader';
-import { configureScreenRegistryLoader, loadScreen } from '../lib/runtime/load';
 
 function createWorkspace(
   screenId: string,
@@ -104,8 +103,7 @@ test('loadScreen succeeds with empty postures when posture knowledge is missing'
   const workspace = createWorkspace(screenId, { includePostures: false });
 
   try {
-    configureScreenRegistryLoader(createLocalScreenRegistryLoader(workspace.root));
-    const loaded = loadScreen(createScreenId(screenId));
+    const loaded = createLocalScreenRegistryLoader(workspace.root).loadScreen(createScreenId(screenId));
     const inputField = loaded.elements['input-field'];
 
     expect(loaded.screen.screen).toBe(screenId);
@@ -122,8 +120,7 @@ test('loadScreen validates and returns postures when posture knowledge exists', 
   const workspace = createWorkspace(screenId, { includePostures: true });
 
   try {
-    configureScreenRegistryLoader(createLocalScreenRegistryLoader(workspace.root));
-    const loaded = loadScreen(createScreenId(screenId));
+    const loaded = createLocalScreenRegistryLoader(workspace.root).loadScreen(createScreenId(screenId));
     const inputFieldPostures = loaded.postures['input-field'];
     const validPosture = inputFieldPostures?.valid;
 
@@ -139,8 +136,7 @@ test('loadScreen overlays screen hint affordances onto element signatures', () =
   const workspace = createWorkspace(screenId, { includePostures: false, includeHints: true });
 
   try {
-    configureScreenRegistryLoader(createLocalScreenRegistryLoader(workspace.root));
-    const loaded = loadScreen(createScreenId(screenId));
+    const loaded = createLocalScreenRegistryLoader(workspace.root).loadScreen(createScreenId(screenId));
     const inputField = loaded.elements['input-field'];
 
     expect(inputField?.affordance).toBe('masked-entry');
@@ -155,8 +151,7 @@ test('runtime loader and application surface inspection share the same screen bu
   const screen = createScreenId(screenId);
 
   try {
-    configureScreenRegistryLoader(createLocalScreenRegistryLoader(workspace.root));
-    const loaded = loadScreen(screen);
+    const loaded = createLocalScreenRegistryLoader(workspace.root).loadScreen(screen);
     const inspected = await runWithLocalServices(
       inspectSurface({ screen, paths: createProjectPaths(workspace.root) }),
       workspace.root,

@@ -1,0 +1,13 @@
+kind: runbook-control
+version: 1
+name: demo-smoke
+default: true
+selector:
+  adoIds: []
+  suites:
+    - demo/policy-search
+  tags:
+    - smoke
+interpreterMode: diagnostic
+dataset: demo-default
+resolutionControl: demo-policy-search

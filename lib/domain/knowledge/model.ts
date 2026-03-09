@@ -1,0 +1,16 @@
+export type {
+  AssertionKind,
+  DatasetControl,
+  ElementSig,
+  LocatorStrategy,
+  PatternDocument,
+  ResolutionControl,
+  RunbookControl,
+  ScreenElements,
+  ScreenHints,
+  ScreenPostures,
+  SharedPatterns,
+  SurfaceDefinition,
+  SurfaceGraph,
+  SurfaceSection,
+} from '../types';

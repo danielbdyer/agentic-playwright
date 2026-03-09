@@ -127,3 +127,77 @@ test('legacy compiler/adapters/tools/reporter directories no longer carry TypeSc
 
   expect(legacyFiles).toEqual([]);
 });
+
+test('bounded workflow packages expose explicit seam files instead of hidden lane contracts', () => {
+  const expectedFiles = [
+    'lib/domain/foundation/model.ts',
+    'lib/domain/foundation/validation.ts',
+    'lib/domain/foundation/ops.ts',
+    'lib/domain/foundation/index.ts',
+    'lib/domain/intent/model.ts',
+    'lib/domain/intent/validation.ts',
+    'lib/domain/intent/ops.ts',
+    'lib/domain/intent/index.ts',
+    'lib/domain/knowledge/model.ts',
+    'lib/domain/knowledge/validation.ts',
+    'lib/domain/knowledge/ops.ts',
+    'lib/domain/knowledge/index.ts',
+    'lib/domain/resolution/model.ts',
+    'lib/domain/resolution/validation.ts',
+    'lib/domain/resolution/ops.ts',
+    'lib/domain/resolution/index.ts',
+    'lib/domain/execution/model.ts',
+    'lib/domain/execution/validation.ts',
+    'lib/domain/execution/ops.ts',
+    'lib/domain/execution/index.ts',
+    'lib/domain/governance/model.ts',
+    'lib/domain/governance/validation.ts',
+    'lib/domain/governance/ops.ts',
+    'lib/domain/governance/index.ts',
+    'lib/domain/projection/model.ts',
+    'lib/domain/projection/validation.ts',
+    'lib/domain/projection/ops.ts',
+    'lib/domain/projection/index.ts',
+    'lib/application/intake/index.ts',
+    'lib/application/preparation/index.ts',
+    'lib/application/execution/index.ts',
+    'lib/application/projection/index.ts',
+    'lib/application/inspection/index.ts',
+    'lib/runtime/resolve/index.ts',
+    'lib/runtime/execute/index.ts',
+    'lib/runtime/observe/index.ts',
+  ];
+
+  const missing = expectedFiles
+    .filter((relativePath) => !existsSync(path.join(rootDir, relativePath)))
+    .sort((left, right) => left.localeCompare(right));
+
+  expect(missing).toEqual([]);
+});
+
+test('canonical control surfaces are present as first-class repo seams', () => {
+  const expectedPaths = [
+    'benchmarks',
+    'controls/datasets',
+    'controls/resolution',
+    'controls/runbooks',
+  ];
+  const missing = expectedPaths
+    .filter((relativePath) => !existsSync(path.join(rootDir, relativePath)))
+    .sort((left, right) => left.localeCompare(right));
+
+  expect(missing).toEqual([]);
+});
+
+test('operator documentation surfaces are present and linked from the repo entrypoints', () => {
+  const expectedPaths = [
+    'docs/operator-handbook.md',
+  ];
+  const missing = expectedPaths
+    .filter((relativePath) => !existsSync(path.join(rootDir, relativePath)))
+    .sort((left, right) => left.localeCompare(right));
+
+  expect(missing).toEqual([]);
+  expect(fileText(path.join(rootDir, 'README.md'))).toContain('docs/operator-handbook.md');
+  expect(fileText(path.join(rootDir, 'docs/authoring.md'))).toContain('docs/operator-handbook.md');
+});

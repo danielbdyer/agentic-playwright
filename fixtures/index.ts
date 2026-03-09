@@ -1,11 +1,4 @@
 import { test as base } from '@playwright/test';
-import { createLocalScreenRegistryLoader } from '../lib/infrastructure/screen-registry/local-screen-registry-loader';
-import { createLocalSnapshotTemplateLoader } from '../lib/infrastructure/snapshots/local-snapshot-template-loader';
-import { configureScreenRegistryLoader } from '../lib/runtime/load';
-import { configureSnapshotTemplateLoader } from '../lib/runtime/snapshots';
-
-configureScreenRegistryLoader(createLocalScreenRegistryLoader(process.cwd()));
-configureSnapshotTemplateLoader(createLocalSnapshotTemplateLoader(process.cwd()));
 
 interface DemoSession {
   baseURL: string;
@@ -18,6 +11,7 @@ interface ActivePolicy {
 export const test = base.extend<{
   demoSession: DemoSession;
   activePolicy: ActivePolicy;
+  generatedTokens: Record<string, string>;
 }>({
   demoSession: async ({ baseURL }, use) => {
     if (!baseURL) {
@@ -28,6 +22,11 @@ export const test = base.extend<{
   },
   activePolicy: async ({}, use) => {
     await use({ number: 'POL-001' });
+  },
+  generatedTokens: async ({}, use) => {
+    await use({
+      'policy-search.policyNumberInput': 'POL-001',
+    });
   },
 });
 

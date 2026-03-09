@@ -121,6 +121,8 @@ test('compileStepProgram lowers legacy input steps into a structured program', (
   const program = compileStepProgram({
     index: 2,
     intent: 'Enter policy number in search field',
+    action_text: 'Enter policy number in search field',
+    expected_text: 'Policy Number accepts a valid policy',
     action: 'input',
     screen: policySearchScreenId,
     element: policyNumberInputId,
@@ -173,6 +175,8 @@ test('bindScenarioStep keeps binding semantics in the domain and approves suppor
     program: compileStepProgram({
       index: 2,
       intent: 'Enter policy number in search field',
+      action_text: 'Enter policy number in search field',
+      expected_text: 'Policy Number accepts a valid policy',
       action: 'input',
       screen: policySearchScreenId,
       element: policyNumberInputId,
@@ -219,6 +223,8 @@ test('bindScenarioStep reserves unbound for deterministic contradictions in expl
     program: compileStepProgram({
       index: 3,
       intent: 'Click search',
+      action_text: 'Click search',
+      expected_text: 'Search runs',
       action: 'click',
       screen: null,
       element: null,

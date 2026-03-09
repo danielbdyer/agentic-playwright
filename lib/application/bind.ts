@@ -94,6 +94,44 @@ export function bindScenario(options: { adoId: AdoId; paths: ProjectPaths; sessi
     const boundScenario: BoundScenario = {
       ...scenario,
       kind: 'bound-scenario',
+      version: 1,
+      stage: 'preparation',
+      scope: 'scenario',
+      ids: {
+        adoId: scenario.source.ado_id,
+        suite: scenario.metadata.suite,
+        runId: null,
+        stepIndex: null,
+        dataset: null,
+        runbook: null,
+        resolutionControl: null,
+      },
+      fingerprints: {
+        artifact: scenario.source.content_hash,
+        content: scenario.source.content_hash,
+        knowledge: null,
+        controls: null,
+        task: null,
+        run: null,
+      },
+      lineage: {
+        sources: [relativeProjectPath(options.paths, scenarioFile)],
+        parents: [relativeProjectPath(options.paths, snapshotArtifact.absolutePath)],
+        handshakes: ['preparation'],
+      },
+      governance: boundSteps.some((step) => step.binding.governance === 'blocked')
+        ? 'blocked'
+        : boundSteps.some((step) => step.binding.governance === 'review-required')
+          ? 'review-required'
+          : 'approved',
+      payload: {
+        source: scenario.source,
+        metadata: scenario.metadata,
+        preconditions: scenario.preconditions,
+        steps: boundSteps,
+        postconditions: scenario.postconditions,
+        diagnostics,
+      },
       diagnostics,
       steps: boundSteps,
     };

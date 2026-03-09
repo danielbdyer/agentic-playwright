@@ -16,6 +16,23 @@ export type StepProvenanceKind = 'explicit' | 'approved-knowledge' | 'live-explo
 export type ScenarioStatus = 'stub' | 'draft' | 'active' | 'needs-repair' | 'blocked' | 'deprecated';
 export type StepAction = 'navigate' | 'input' | 'click' | 'assert-snapshot' | 'custom';
 export type DiagnosticSeverity = 'info' | 'warn' | 'error';
+export type RuntimeInterpreterMode = 'playwright' | 'dry-run' | 'diagnostic';
+export type WriteMode = 'persist' | 'no-write';
+export type WorkflowLane = 'intent' | 'knowledge' | 'control' | 'resolution' | 'execution' | 'governance' | 'projection';
+export type WorkflowStage = 'preparation' | 'resolution' | 'execution' | 'evidence' | 'proposal' | 'projection';
+export type WorkflowScope = 'scenario' | 'step' | 'run' | 'suite' | 'workspace' | 'control';
+export type StepWinningSource =
+  | 'scenario-explicit'
+  | 'resolution-control'
+  | 'runbook-dataset'
+  | 'default-dataset'
+  | 'knowledge-hint'
+  | 'posture-sample'
+  | 'generated-token'
+  | 'approved-knowledge'
+  | 'prior-evidence'
+  | 'live-dom'
+  | 'none';
 export type PatternActionName = 'navigate' | 'input' | 'click' | 'assert-snapshot';
 export type ScenarioLifecycle = 'normal' | 'fixme' | 'skip' | 'fail';
 export type StepBindingKind = 'bound' | 'deferred' | 'unbound';
@@ -52,6 +69,54 @@ export type LocatorStrategyKind = 'test-id' | 'role-name' | 'css';
 export type WidgetAction = 'click' | 'fill' | 'clear' | 'get-value';
 export type WidgetPrecondition = 'visible' | 'enabled' | 'editable';
 export type WidgetEffectCategory = 'mutation' | 'observation' | 'focus' | 'navigation';
+
+export interface WorkflowEnvelopeIds {
+  adoId?: AdoId | null | undefined;
+  suite?: string | null | undefined;
+  runId?: string | null | undefined;
+  stepIndex?: number | null | undefined;
+  dataset?: string | null | undefined;
+  runbook?: string | null | undefined;
+  resolutionControl?: string | null | undefined;
+}
+
+export interface WorkflowEnvelopeFingerprints {
+  artifact: string;
+  content?: string | null | undefined;
+  knowledge?: string | null | undefined;
+  controls?: string | null | undefined;
+  task?: string | null | undefined;
+  run?: string | null | undefined;
+}
+
+export interface WorkflowEnvelopeLineage {
+  sources: string[];
+  parents: string[];
+  handshakes: WorkflowStage[];
+}
+
+export interface WorkflowEnvelope<TPayload> {
+  version: 1;
+  stage: WorkflowStage;
+  scope: WorkflowScope;
+  ids: WorkflowEnvelopeIds;
+  fingerprints: WorkflowEnvelopeFingerprints;
+  lineage: WorkflowEnvelopeLineage;
+  governance: Governance;
+  payload: TPayload;
+}
+
+export interface ExecutionPosture {
+  interpreterMode: RuntimeInterpreterMode;
+  writeMode: WriteMode;
+  headed: boolean;
+}
+
+export interface WriteJournalEntry {
+  path: string;
+  operation: 'write-text' | 'write-json' | 'ensure-dir';
+  serialized: string | null;
+}
 
 export interface WidgetInteractionContext {
   affordance?: string | null | undefined;
@@ -264,6 +329,21 @@ export interface BoundStep extends ScenarioStep {
 
 export interface BoundScenario extends Omit<Scenario, 'steps'> {
   kind: 'bound-scenario';
+  version: 1;
+  stage: 'preparation';
+  scope: 'scenario';
+  ids: WorkflowEnvelopeIds;
+  fingerprints: WorkflowEnvelopeFingerprints;
+  lineage: WorkflowEnvelopeLineage;
+  governance: Governance;
+  payload: {
+    source: ScenarioSource;
+    metadata: ScenarioMetadata;
+    preconditions: ScenarioPrecondition[];
+    steps: BoundStep[];
+    postconditions: ScenarioPostcondition[];
+    diagnostics: CompilerDiagnostic[];
+  };
   steps: BoundStep[];
   diagnostics: CompilerDiagnostic[];
 }
@@ -298,6 +378,7 @@ export interface RuntimeKnowledgeSession {
   sharedPatterns: SharedPatterns;
   screens: StepTaskScreenCandidate[];
   evidenceRefs: string[];
+  controls: RuntimeControlSession;
 }
 
 export interface StepTask {
@@ -308,12 +389,28 @@ export interface StepTask {
   normalizedIntent: string;
   allowedActions: StepAction[];
   explicitResolution: StepResolution | null;
+  controlResolution: StepResolution | null;
   runtimeKnowledge: RuntimeKnowledgeSession;
   taskFingerprint: string;
 }
 
 export interface ScenarioTaskPacket {
   kind: 'scenario-task-packet';
+  version: 1;
+  stage: 'preparation';
+  scope: 'scenario';
+  ids: WorkflowEnvelopeIds;
+  fingerprints: WorkflowEnvelopeFingerprints;
+  lineage: WorkflowEnvelopeLineage;
+  governance: Governance;
+  payload: {
+    adoId: AdoId;
+    revision: number;
+    title: string;
+    suite: string;
+    knowledgeFingerprint: string;
+    steps: StepTask[];
+  };
   adoId: AdoId;
   revision: number;
   title: string;
@@ -422,6 +519,213 @@ export interface ScreenPostures {
   postures: Record<string, Record<string, Posture>>;
 }
 
+export interface DatasetControl {
+  kind: 'dataset-control';
+  version: 1;
+  name: string;
+  default?: boolean | undefined;
+  fixtures: Record<string, unknown>;
+  defaults?: {
+    elements?: Record<string, string> | undefined;
+    generatedTokens?: Record<string, string> | undefined;
+  } | undefined;
+}
+
+export interface ResolutionControlSelector {
+  adoIds: AdoId[];
+  suites: string[];
+  tags: string[];
+}
+
+export interface ResolutionControlStep {
+  stepIndex: number;
+  resolution: StepResolution;
+}
+
+export interface ResolutionControl {
+  kind: 'resolution-control';
+  version: 1;
+  name: string;
+  selector: ResolutionControlSelector;
+  steps: ResolutionControlStep[];
+}
+
+export interface RunbookControl {
+  kind: 'runbook-control';
+  version: 1;
+  name: string;
+  default?: boolean | undefined;
+  selector: ResolutionControlSelector;
+  interpreterMode?: RuntimeInterpreterMode | null | undefined;
+  dataset?: string | null | undefined;
+  resolutionControl?: string | null | undefined;
+}
+
+export interface RuntimeDatasetBinding {
+  name: string;
+  artifactPath: string;
+  isDefault: boolean;
+  fixtures: Record<string, unknown>;
+  elementDefaults: Record<string, string>;
+  generatedTokens: Record<string, string>;
+}
+
+export interface RuntimeResolutionControl {
+  name: string;
+  artifactPath: string;
+  stepIndex: number;
+  resolution: StepResolution;
+}
+
+export interface RuntimeRunbookControl {
+  name: string;
+  artifactPath: string;
+  isDefault: boolean;
+  selector: ResolutionControlSelector;
+  interpreterMode?: RuntimeInterpreterMode | null | undefined;
+  dataset?: string | null | undefined;
+  resolutionControl?: string | null | undefined;
+}
+
+export interface RuntimeControlSession {
+  datasets: RuntimeDatasetBinding[];
+  resolutionControls: RuntimeResolutionControl[];
+  runbooks: RuntimeRunbookControl[];
+}
+
+export type OperatorInboxItemKind = 'proposal' | 'degraded-locator' | 'needs-human' | 'blocked-policy';
+
+export interface OperatorInboxItem {
+  id: string;
+  kind: OperatorInboxItemKind;
+  status: 'actionable' | 'approved' | 'blocked' | 'informational';
+  title: string;
+  summary: string;
+  adoId?: AdoId | null | undefined;
+  suite?: string | null | undefined;
+  runId?: string | null | undefined;
+  stepIndex?: number | null | undefined;
+  proposalId?: string | null | undefined;
+  artifactPath?: string | null | undefined;
+  targetPath?: string | null | undefined;
+  winningConcern?: WorkflowLane | null | undefined;
+  winningSource?: StepWinningSource | null | undefined;
+  nextCommands: string[];
+}
+
+export interface ApprovalReceipt {
+  kind: 'approval-receipt';
+  version: 1;
+  proposalId: string;
+  inboxItemId: string;
+  approvedAt: string;
+  artifactType: TrustPolicyArtifactType;
+  targetPath: string;
+  receiptPath: string;
+  rerunPlanId: string;
+}
+
+export interface RerunPlan {
+  kind: 'rerun-plan';
+  version: 1;
+  planId: string;
+  createdAt: string;
+  reason: string;
+  sourceProposalId?: string | null | undefined;
+  sourceNodeIds: string[];
+  impactedScenarioIds: AdoId[];
+  impactedRunbooks: string[];
+  impactedProjections: Array<'emit' | 'graph' | 'types' | 'run'>;
+  reasons: string[];
+}
+
+export interface BenchmarkField {
+  id: string;
+  screen: string;
+  element: string;
+  label: string;
+  category: string;
+  required: boolean;
+  postures: string[];
+}
+
+export interface BenchmarkFlow {
+  id: string;
+  title: string;
+  route: string;
+  screens: string[];
+  fieldIds: string[];
+}
+
+export interface BenchmarkDriftEvent {
+  id: string;
+  kind: 'label-change' | 'locator-degradation' | 'widget-swap' | 'validation-copy-change' | 'section-structure-drift';
+  screen: string;
+  fieldId?: string | null | undefined;
+  severity: 'low' | 'medium' | 'high';
+  description: string;
+}
+
+export interface BenchmarkExpansionRule {
+  fieldIds: string[];
+  postures: string[];
+  variantsPerField: number;
+}
+
+export interface BenchmarkContext {
+  kind: 'benchmark-context';
+  version: 1;
+  name: string;
+  suite: string;
+  appRoute: string;
+  fieldCatalog: BenchmarkField[];
+  flows: BenchmarkFlow[];
+  driftEvents: BenchmarkDriftEvent[];
+  fieldAwarenessThresholds: {
+    minFieldAwarenessCount: number;
+    minFirstPassScreenResolutionRate: number;
+    minFirstPassElementResolutionRate: number;
+    maxDegradedLocatorRate: number;
+  };
+  benchmarkRunbooks: Array<{
+    name: string;
+    runbook: string;
+    tag?: string | null | undefined;
+  }>;
+  expansionRules: BenchmarkExpansionRule[];
+}
+
+export interface BenchmarkScorecard {
+  kind: 'benchmark-scorecard';
+  version: 1;
+  benchmark: string;
+  generatedAt: string;
+  uniqueFieldAwarenessCount: number;
+  firstPassScreenResolutionRate: number;
+  firstPassElementResolutionRate: number;
+  degradedLocatorRate: number;
+  reviewRequiredCount: number;
+  repairLoopCount: number;
+  operatorTouchCount: number;
+  knowledgeChurn: Record<string, number>;
+  generatedVariantCount: number;
+  thresholdStatus: 'pass' | 'warn' | 'fail';
+}
+
+export interface DogfoodRun {
+  kind: 'dogfood-run';
+  version: 1;
+  benchmark: string;
+  runId: string;
+  executedAt: string;
+  posture: ExecutionPosture;
+  runbooks: string[];
+  scenarioIds: AdoId[];
+  driftEventIds: string[];
+  scorecard: BenchmarkScorecard;
+  nextCommands: string[];
+}
+
 export interface ManifestEntry {
   adoId: AdoId;
   revision: number;
@@ -516,6 +820,13 @@ export interface ResolutionTarget {
 }
 
 interface ResolutionReceiptBase {
+  version: 1;
+  stage: 'resolution';
+  scope: 'step';
+  ids: WorkflowEnvelopeIds;
+  fingerprints: WorkflowEnvelopeFingerprints;
+  lineage: WorkflowEnvelopeLineage;
+  governance: Governance;
   taskFingerprint: string;
   knowledgeFingerprint: string;
   provider: string;
@@ -526,6 +837,9 @@ interface ResolutionReceiptBase {
   supplementRefs: string[];
   observations: ResolutionObservation[];
   exhaustion: ResolutionExhaustionEntry[];
+  handshakes: WorkflowStage[];
+  winningConcern: WorkflowLane;
+  winningSource: StepWinningSource;
 }
 
 export interface ResolvedReceipt extends ResolutionReceiptBase {
@@ -573,6 +887,13 @@ export interface ExecutionObservation {
 }
 
 export interface StepExecutionReceipt {
+  version: 1;
+  stage: 'execution';
+  scope: 'step';
+  ids: WorkflowEnvelopeIds;
+  fingerprints: WorkflowEnvelopeFingerprints;
+  lineage: WorkflowEnvelopeLineage;
+  governance: Governance;
   stepIndex: number;
   taskFingerprint: string;
   knowledgeFingerprint: string;
@@ -580,6 +901,7 @@ export interface StepExecutionReceipt {
   mode: string;
   locatorStrategy?: string | null | undefined;
   degraded: boolean;
+  handshakes: WorkflowStage[];
   execution: ExecutionObservation;
 }
 
@@ -592,6 +914,28 @@ export interface ScenarioRunStep {
 
 export interface RunRecord {
   kind: 'scenario-run-record';
+  version: 1;
+  stage: 'execution';
+  scope: 'run';
+  ids: WorkflowEnvelopeIds;
+  fingerprints: WorkflowEnvelopeFingerprints;
+  lineage: WorkflowEnvelopeLineage;
+  governance: Governance;
+  payload: {
+    runId: string;
+    adoId: AdoId;
+    revision: number;
+    title: string;
+    suite: string;
+    taskFingerprint: string;
+    knowledgeFingerprint: string;
+    provider: string;
+    mode: string;
+    startedAt: string;
+    completedAt: string;
+    steps: ScenarioRunStep[];
+    evidenceIds: string[];
+  };
   runId: string;
   adoId: AdoId;
   revision: number;
@@ -608,6 +952,7 @@ export interface RunRecord {
 }
 
 export interface ProposalEntry {
+  proposalId: string;
   stepIndex: number;
   artifactType: TrustPolicyArtifactType;
   targetPath: string;
@@ -620,6 +965,21 @@ export interface ProposalEntry {
 
 export interface ProposalBundle {
   kind: 'proposal-bundle';
+  version: 1;
+  stage: 'proposal';
+  scope: 'scenario';
+  ids: WorkflowEnvelopeIds;
+  fingerprints: WorkflowEnvelopeFingerprints;
+  lineage: WorkflowEnvelopeLineage;
+  governance: Governance;
+  payload: {
+    adoId: AdoId;
+    runId: string;
+    revision: number;
+    title: string;
+    suite: string;
+    proposals: ProposalEntry[];
+  };
   adoId: AdoId;
   runId: string;
   revision: number;
@@ -680,6 +1040,9 @@ export type GraphNodeKind =
   | 'screen'
   | 'screen-hints'
   | 'pattern'
+  | 'dataset'
+  | 'resolution-control'
+  | 'runbook'
   | 'section'
   | 'surface'
   | 'element'
@@ -761,6 +1124,13 @@ export interface ScenarioExplanationSummary {
   stepCount: number;
   provenanceKinds: Record<StepProvenanceKind, number>;
   governance: Record<Governance, number>;
+  stageMetrics: {
+    knowledgeHitRate: number;
+    liveExplorationRate: number;
+    degradedLocatorRate: number;
+    proposalCount: number;
+    reviewRequiredCount: number;
+  };
   unresolvedReasons: Array<{
     reason: string;
     count: number;
@@ -786,6 +1156,9 @@ export interface ScenarioExplanationStep {
   reasons: string[];
   evidenceIds: string[];
   program: StepProgram | null;
+  handshakes: WorkflowStage[];
+  winningConcern: WorkflowLane;
+  winningSource: StepWinningSource;
   runtime?: {
     status: 'pending' | 'resolved' | 'resolved-with-proposals' | 'needs-human';
     runId?: string | null | undefined;

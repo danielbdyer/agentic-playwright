@@ -2,13 +2,18 @@
 
 ## Current framing
 
-The work is intentionally split into three lanes:
+The operational architecture is now split into six concern lanes:
 
-1. deterministic compiler core
-2. agentic supplement and review loop
-3. offline optimization and evaluation
+1. intent
+2. knowledge
+3. control
+4. resolution
+5. execution
+6. governance/projection
 
-The first lane ships trust. The second lane grows coverage. The third lane tunes the interface without contaminating the compiler core.
+The offline optimization and evaluation lane remains a separate cross-cutting lane that must not contaminate the deterministic core.
+
+The point of the split is to make each concern independently optimizable with explicit seams, ownership, and precedence rules.
 
 ## Deterministic compiler lane
 

@@ -8,6 +8,7 @@ import {
 import {
   createAdoId,
   createElementId,
+  createPostureId,
   createScreenId,
   createSurfaceId,
   createWidgetId,
@@ -213,6 +214,11 @@ test('enter prefers fill over clear when an input widget supports both actions',
 
   const originalFill = inputHandlers.fill;
   const originalClear = inputHandlers.clear;
+  expect(originalFill).toBeDefined();
+  expect(originalClear).toBeDefined();
+  if (!originalFill || !originalClear) {
+    throw new TypeError('os-input fill and clear handlers are required for this test');
+  }
   const calls: string[] = [];
   inputHandlers.fill = async (_locator, value) => {
     calls.push(`fill:${value ?? ''}`);
@@ -249,14 +255,14 @@ test('enter prefers fill over clear when an input widget supports both actions',
       activePolicy: { number: 'POL-001' },
     }, {
       kind: 'step-program',
-      instructions: [{
-        kind: 'enter',
-        screen: policySearchScreenId,
-        element: policyNumberInputId,
-        posture: 'valid',
-        value: {
-          kind: 'fixture-path',
-          path: { segments: ['activePolicy', 'number'] },
+        instructions: [{
+          kind: 'enter',
+          screen: policySearchScreenId,
+          element: policyNumberInputId,
+          posture: createPostureId('valid'),
+          value: {
+            kind: 'fixture-path',
+            path: { segments: ['activePolicy', 'number'] },
         },
       }],
     });

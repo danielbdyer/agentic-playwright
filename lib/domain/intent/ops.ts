@@ -1,0 +1,1 @@
+export { normalizeIntentText } from '../inference';

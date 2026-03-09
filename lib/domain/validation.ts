@@ -1,20 +1,30 @@
 ﻿import type {
+  ApprovalReceipt,
   AssertionKind,
+  BenchmarkContext,
+  BenchmarkScorecard,
   BoundScenario,
   BoundStep,
   CompilerDiagnostic,
   Confidence,
+  DatasetControl,
   DerivedGraph,
   EffectTargetKind,
   ElementSig,
+  Governance,
   LocatorStrategy,
+  DogfoodRun,
   Manifest,
   MergedPatterns,
+  OperatorInboxItem,
   PatternDocument,
   Posture,
   PostureEffect,
   RefPath,
+  ResolutionControl,
+  RerunPlan,
   RunRecord,
+  RunbookControl,
   Scenario,
   ScenarioMetadata,
   ScenarioTaskPacket,
@@ -28,6 +38,7 @@
   SharedPatterns,
   StepAction,
   StepBindingKind,
+  StepExecutionReceipt,
   StepInstruction,
   StepResolution,
   StepProgram,
@@ -41,6 +52,12 @@
   TrustPolicyEvaluation,
   TrustPolicyEvaluationReason,
   ValueRef,
+  WorkflowEnvelopeFingerprints,
+  WorkflowEnvelopeIds,
+  WorkflowEnvelopeLineage,
+  WorkflowLane,
+  WorkflowScope,
+  WorkflowStage,
   WidgetCapabilityContract,
 } from './types';
 import { computeAdoContentHash } from './hash';
@@ -76,10 +93,14 @@ const effectStates = ['validation-error', 'required-error', 'disabled', 'enabled
 const widgetActions = ['click', 'fill', 'clear', 'get-value'] as const;
 const widgetPreconditions = ['visible', 'enabled', 'editable'] as const;
 const widgetEffectCategories = ['mutation', 'observation', 'focus', 'navigation'] as const;
-const graphNodeKinds = ['snapshot', 'screen', 'screen-hints', 'pattern', 'section', 'surface', 'element', 'posture', 'capability', 'scenario', 'step', 'generated-spec', 'generated-trace', 'generated-review', 'evidence', 'policy-decision'] as const;
+const graphNodeKinds = ['snapshot', 'screen', 'screen-hints', 'pattern', 'dataset', 'resolution-control', 'runbook', 'section', 'surface', 'element', 'posture', 'capability', 'scenario', 'step', 'generated-spec', 'generated-trace', 'generated-review', 'evidence', 'policy-decision'] as const;
 const graphEdgeKinds = ['derived-from', 'contains', 'references', 'uses', 'affects', 'asserts', 'emits', 'observed-by', 'proposed-change-for', 'governs'] as const;
 const diagnosticSeverities = ['info', 'warn', 'error'] as const;
 const diagnosticConfidences = ['human', 'agent-verified', 'agent-proposed', 'compiler-derived', 'intent-only', 'unbound', 'mixed'] as const;
+const workflowStages = ['preparation', 'resolution', 'execution', 'evidence', 'proposal', 'projection'] as const;
+const workflowScopes = ['scenario', 'step', 'run', 'suite', 'workspace', 'control'] as const;
+const workflowLanes = ['intent', 'knowledge', 'control', 'resolution', 'execution', 'governance', 'projection'] as const;
+const stepWinningSources = ['scenario-explicit', 'resolution-control', 'runbook-dataset', 'default-dataset', 'knowledge-hint', 'posture-sample', 'generated-token', 'approved-knowledge', 'prior-evidence', 'live-dom', 'none'] as const;
 
 function expectRecord(value: unknown, path: string): UnknownRecord {
   if (!value || Array.isArray(value) || typeof value !== 'object') {
@@ -157,6 +178,76 @@ function expectStringRecord(value: unknown, path: string): Record<string, string
   return Object.fromEntries(
     Object.entries(record).map(([key, entryValue]) => [key, expectString(entryValue, `${path}.${key}`)]),
   );
+}
+
+function validateWorkflowEnvelopeIds(value: unknown, path: string): WorkflowEnvelopeIds {
+  const ids = expectRecord(value ?? {}, path);
+  return {
+    adoId: expectOptionalId(ids.adoId, `${path}.adoId`, createAdoId) ?? null,
+    suite: expectOptionalString(ids.suite, `${path}.suite`) ?? null,
+    runId: expectOptionalString(ids.runId, `${path}.runId`) ?? null,
+    stepIndex: ids.stepIndex === undefined || ids.stepIndex === null ? null : expectNumber(ids.stepIndex, `${path}.stepIndex`),
+    dataset: expectOptionalString(ids.dataset, `${path}.dataset`) ?? null,
+    runbook: expectOptionalString(ids.runbook, `${path}.runbook`) ?? null,
+    resolutionControl: expectOptionalString(ids.resolutionControl, `${path}.resolutionControl`) ?? null,
+  };
+}
+
+function validateWorkflowEnvelopeFingerprints(value: unknown, path: string, fallbackArtifact: string): WorkflowEnvelopeFingerprints {
+  const fingerprints = expectRecord(value ?? {}, path);
+  return {
+    artifact: expectOptionalString(fingerprints.artifact, `${path}.artifact`) ?? fallbackArtifact,
+    content: expectOptionalString(fingerprints.content, `${path}.content`) ?? null,
+    knowledge: expectOptionalString(fingerprints.knowledge, `${path}.knowledge`) ?? null,
+    controls: expectOptionalString(fingerprints.controls, `${path}.controls`) ?? null,
+    task: expectOptionalString(fingerprints.task, `${path}.task`) ?? null,
+    run: expectOptionalString(fingerprints.run, `${path}.run`) ?? null,
+  };
+}
+
+function validateWorkflowEnvelopeLineage(value: unknown, path: string, defaults?: Partial<WorkflowEnvelopeLineage>): WorkflowEnvelopeLineage {
+  const lineage = expectRecord(value ?? {}, path);
+  return {
+    sources: expectStringArray(lineage.sources ?? defaults?.sources ?? [], `${path}.sources`),
+    parents: expectStringArray(lineage.parents ?? defaults?.parents ?? [], `${path}.parents`),
+    handshakes: expectArray(lineage.handshakes ?? defaults?.handshakes ?? [], `${path}.handshakes`).map((entry, index) =>
+      expectEnum(entry, `${path}.handshakes[${index}]`, workflowStages),
+    ) as WorkflowStage[],
+  };
+}
+
+function validateWorkflowEnvelopeHeader<Stage extends WorkflowStage, Scope extends WorkflowScope>(
+  value: UnknownRecord,
+  path: string,
+  defaults: {
+    stage: Stage;
+    scope: Scope;
+    governance: Governance;
+    artifactFingerprint: string;
+    ids?: Partial<WorkflowEnvelopeIds>;
+    lineage?: Partial<WorkflowEnvelopeLineage>;
+  },
+): {
+  version: 1;
+  stage: Stage;
+  scope: Scope;
+  ids: WorkflowEnvelopeIds;
+  fingerprints: WorkflowEnvelopeFingerprints;
+  lineage: WorkflowEnvelopeLineage;
+  governance: Governance;
+} {
+  return {
+    version: value.version === undefined ? 1 : expectNumber(value.version, `${path}.version`) as 1,
+    stage: value.stage === undefined ? defaults.stage : expectEnum(value.stage, `${path}.stage`, workflowStages) as Stage,
+    scope: value.scope === undefined ? defaults.scope : expectEnum(value.scope, `${path}.scope`, workflowScopes) as Scope,
+    ids: {
+      ...defaults.ids,
+      ...validateWorkflowEnvelopeIds(value.ids, `${path}.ids`),
+    },
+    fingerprints: validateWorkflowEnvelopeFingerprints(value.fingerprints, `${path}.fingerprints`, defaults.artifactFingerprint),
+    lineage: validateWorkflowEnvelopeLineage(value.lineage, `${path}.lineage`, defaults.lineage),
+    governance: value.governance === undefined ? defaults.governance : expectEnum(value.governance, `${path}.governance`, governanceStates),
+  };
 }
 
 function validateRefPath(value: unknown, path: string): RefPath {
@@ -599,13 +690,39 @@ export function validateScenario(value: unknown): Scenario {
 export function validateBoundScenario(value: unknown): BoundScenario {
   const scenario = validateScenario(value);
   const raw = expectRecord(value, 'scenario');
+  const steps = expectArray(raw.steps ?? [], 'steps').map((entry, index) => validateBoundStep(entry, `steps[${index}]`));
+  const diagnostics = expectArray(raw.diagnostics ?? [], 'diagnostics').map((entry, index) =>
+    validateDiagnostic(entry, `diagnostics[${index}]`),
+  );
+  const header = validateWorkflowEnvelopeHeader(raw, 'boundScenario', {
+    stage: 'preparation',
+    scope: 'scenario',
+    governance: diagnostics.some((diagnostic) => diagnostic.severity === 'error') ? 'blocked' : 'approved',
+    artifactFingerprint: scenario.source.content_hash,
+    ids: {
+      adoId: scenario.source.ado_id,
+      suite: scenario.metadata.suite,
+    },
+    lineage: {
+      sources: [],
+      parents: [],
+      handshakes: ['preparation'],
+    },
+  });
   return {
     ...scenario,
+    ...header,
     kind: expectEnum(raw.kind, 'kind', ['bound-scenario'] as const),
-    steps: expectArray(raw.steps ?? [], 'steps').map((entry, index) => validateBoundStep(entry, `steps[${index}]`)),
-    diagnostics: expectArray(raw.diagnostics ?? [], 'diagnostics').map((entry, index) =>
-      validateDiagnostic(entry, `diagnostics[${index}]`),
-    ),
+    payload: {
+      source: scenario.source,
+      metadata: scenario.metadata,
+      preconditions: scenario.preconditions,
+      steps,
+      postconditions: scenario.postconditions,
+      diagnostics,
+    },
+    steps,
+    diagnostics,
   };
 }
 
@@ -656,6 +773,51 @@ function validateRuntimeKnowledgeSession(value: unknown, path: string) {
       validateStepTaskScreenCandidate(entry, `${path}.screens[${index}]`),
     ),
     evidenceRefs: expectStringArray(session.evidenceRefs ?? [], `${path}.evidenceRefs`),
+    controls: (() => {
+      const controls = expectRecord(session.controls ?? {}, `${path}.controls`);
+      return {
+        datasets: expectArray(controls.datasets ?? [], `${path}.controls.datasets`).map((entry, index) => {
+          const dataset = expectRecord(entry, `${path}.controls.datasets[${index}]`);
+          return {
+            name: expectString(dataset.name, `${path}.controls.datasets[${index}].name`),
+            artifactPath: expectString(dataset.artifactPath, `${path}.controls.datasets[${index}].artifactPath`),
+            isDefault: expectBoolean(dataset.isDefault, `${path}.controls.datasets[${index}].isDefault`),
+            fixtures: expectRecord(dataset.fixtures ?? {}, `${path}.controls.datasets[${index}].fixtures`),
+            elementDefaults: Object.fromEntries(
+              Object.entries(expectRecord(dataset.elementDefaults ?? {}, `${path}.controls.datasets[${index}].elementDefaults`))
+                .map(([key, value]) => [key, expectString(value, `${path}.controls.datasets[${index}].elementDefaults.${key}`)]),
+            ),
+            generatedTokens: Object.fromEntries(
+              Object.entries(expectRecord(dataset.generatedTokens ?? {}, `${path}.controls.datasets[${index}].generatedTokens`))
+                .map(([key, value]) => [key, expectString(value, `${path}.controls.datasets[${index}].generatedTokens.${key}`)]),
+            ),
+          };
+        }),
+        resolutionControls: expectArray(controls.resolutionControls ?? [], `${path}.controls.resolutionControls`).map((entry, index) => {
+          const control = expectRecord(entry, `${path}.controls.resolutionControls[${index}]`);
+          return {
+            name: expectString(control.name, `${path}.controls.resolutionControls[${index}].name`),
+            artifactPath: expectString(control.artifactPath, `${path}.controls.resolutionControls[${index}].artifactPath`),
+            stepIndex: expectNumber(control.stepIndex, `${path}.controls.resolutionControls[${index}].stepIndex`),
+            resolution: validateStepResolution(control.resolution, `${path}.controls.resolutionControls[${index}].resolution`),
+          };
+        }),
+        runbooks: expectArray(controls.runbooks ?? [], `${path}.controls.runbooks`).map((entry, index) => {
+          const runbook = expectRecord(entry, `${path}.controls.runbooks[${index}]`);
+          return {
+            name: expectString(runbook.name, `${path}.controls.runbooks[${index}].name`),
+            artifactPath: expectString(runbook.artifactPath, `${path}.controls.runbooks[${index}].artifactPath`),
+            isDefault: expectBoolean(runbook.isDefault, `${path}.controls.runbooks[${index}].isDefault`),
+            selector: validateResolutionControlSelector(runbook.selector, `${path}.controls.runbooks[${index}].selector`),
+            interpreterMode: runbook.interpreterMode === undefined || runbook.interpreterMode === null
+              ? null
+              : expectEnum(runbook.interpreterMode, `${path}.controls.runbooks[${index}].interpreterMode`, ['playwright', 'dry-run', 'diagnostic'] as const),
+            dataset: expectOptionalString(runbook.dataset, `${path}.controls.runbooks[${index}].dataset`) ?? null,
+            resolutionControl: expectOptionalString(runbook.resolutionControl, `${path}.controls.runbooks[${index}].resolutionControl`) ?? null,
+          };
+        }),
+      };
+    })(),
   };
 }
 
@@ -673,6 +835,9 @@ function validateStepTask(value: unknown, path: string) {
     explicitResolution: task.explicitResolution === undefined || task.explicitResolution === null
       ? null
       : validateStepResolution(task.explicitResolution, `${path}.explicitResolution`),
+    controlResolution: task.controlResolution === undefined || task.controlResolution === null
+      ? null
+      : validateStepResolution(task.controlResolution, `${path}.controlResolution`),
     runtimeKnowledge: validateRuntimeKnowledgeSession(task.runtimeKnowledge, `${path}.runtimeKnowledge`),
     taskFingerprint: expectString(task.taskFingerprint, `${path}.taskFingerprint`),
   };
@@ -680,8 +845,34 @@ function validateStepTask(value: unknown, path: string) {
 
 export function validateScenarioTaskPacket(value: unknown): ScenarioTaskPacket {
   const packet = expectRecord(value, 'scenarioTaskPacket');
+  const header = validateWorkflowEnvelopeHeader(packet, 'scenarioTaskPacket', {
+    stage: 'preparation',
+    scope: 'scenario',
+    governance: 'approved',
+    artifactFingerprint: expectOptionalString(packet.taskFingerprint, 'scenarioTaskPacket.taskFingerprint') ?? 'scenario-task-packet',
+    ids: {
+      adoId: expectOptionalId(packet.adoId, 'scenarioTaskPacket.adoId', createAdoId) ?? null,
+      suite: expectOptionalString(packet.suite, 'scenarioTaskPacket.suite') ?? null,
+    },
+    lineage: {
+      sources: [],
+      parents: [],
+      handshakes: ['preparation'],
+    },
+  });
   return {
     kind: expectEnum(packet.kind, 'scenarioTaskPacket.kind', ['scenario-task-packet'] as const),
+    ...header,
+    payload: {
+      adoId: expectId(packet.adoId, 'scenarioTaskPacket.adoId', createAdoId),
+      revision: expectNumber(packet.revision, 'scenarioTaskPacket.revision'),
+      title: expectString(packet.title, 'scenarioTaskPacket.title'),
+      suite: ensureSafeRelativePathLike(expectString(packet.suite, 'scenarioTaskPacket.suite'), 'scenarioTaskPacket.suite'),
+      knowledgeFingerprint: expectString(packet.knowledgeFingerprint, 'scenarioTaskPacket.knowledgeFingerprint'),
+      steps: expectArray(packet.steps ?? [], 'scenarioTaskPacket.steps').map((entry, index) =>
+        validateStepTask(entry, `scenarioTaskPacket.steps[${index}]`),
+      ),
+    },
     adoId: expectId(packet.adoId, 'scenarioTaskPacket.adoId', createAdoId),
     revision: expectNumber(packet.revision, 'scenarioTaskPacket.revision'),
     title: expectString(packet.title, 'scenarioTaskPacket.title'),
@@ -756,7 +947,22 @@ function validateResolutionTarget(value: unknown, path: string) {
 
 function validateResolutionReceipt(value: unknown, path: string): ResolutionReceipt {
   const receipt = expectRecord(value, path);
+  const header = validateWorkflowEnvelopeHeader(receipt, path, {
+    stage: 'resolution',
+    scope: 'step',
+    governance: 'approved',
+    artifactFingerprint: expectOptionalString(receipt.taskFingerprint, `${path}.taskFingerprint`) ?? `${path}:resolution`,
+    ids: {
+      stepIndex: receipt.stepIndex === undefined ? null : expectNumber(receipt.stepIndex, `${path}.stepIndex`),
+    },
+    lineage: {
+      sources: [],
+      parents: [],
+      handshakes: ['preparation', 'resolution'],
+    },
+  });
   const base = {
+    ...header,
     taskFingerprint: expectString(receipt.taskFingerprint, `${path}.taskFingerprint`),
     knowledgeFingerprint: expectString(receipt.knowledgeFingerprint, `${path}.knowledgeFingerprint`),
     provider: expectString(receipt.provider, `${path}.provider`),
@@ -777,6 +983,15 @@ function validateResolutionReceipt(value: unknown, path: string): ResolutionRece
     proposalDrafts: expectArray(receipt.proposalDrafts ?? [], `${path}.proposalDrafts`).map((entry, index) =>
       validateResolutionProposalDraft(entry, `${path}.proposalDrafts[${index}]`),
     ),
+    handshakes: expectArray(receipt.handshakes ?? ['preparation', 'resolution'], `${path}.handshakes`).map((entry, index) =>
+      expectEnum(entry, `${path}.handshakes[${index}]`, workflowStages),
+    ) as WorkflowStage[],
+    winningConcern: receipt.winningConcern === undefined
+      ? 'resolution'
+      : expectEnum(receipt.winningConcern, `${path}.winningConcern`, workflowLanes) as WorkflowLane,
+    winningSource: receipt.winningSource === undefined
+      ? 'none'
+      : expectEnum(receipt.winningSource, `${path}.winningSource`, stepWinningSources),
   };
   const kind = expectEnum(receipt.kind, `${path}.kind`, ['resolved', 'resolved-with-proposals', 'needs-human'] as const);
   if (kind === 'needs-human') {
@@ -806,10 +1021,25 @@ function validateResolutionReceipt(value: unknown, path: string): ResolutionRece
   };
 }
 
-function validateStepExecutionReceipt(value: unknown, path: string) {
+function validateStepExecutionReceipt(value: unknown, path: string): StepExecutionReceipt {
   const receipt = expectRecord(value, path);
   const execution = expectRecord(receipt.execution, `${path}.execution`);
+  const header = validateWorkflowEnvelopeHeader(receipt, path, {
+    stage: 'execution',
+    scope: 'step',
+    governance: execution.status === 'failed' ? 'blocked' : 'approved',
+    artifactFingerprint: expectOptionalString(receipt.taskFingerprint, `${path}.taskFingerprint`) ?? `${path}:execution`,
+    ids: {
+      stepIndex: receipt.stepIndex === undefined ? null : expectNumber(receipt.stepIndex, `${path}.stepIndex`),
+    },
+    lineage: {
+      sources: [],
+      parents: [],
+      handshakes: ['preparation', 'resolution', 'execution'],
+    },
+  });
   return {
+    ...header,
     stepIndex: expectNumber(receipt.stepIndex, `${path}.stepIndex`),
     taskFingerprint: expectString(receipt.taskFingerprint, `${path}.taskFingerprint`),
     knowledgeFingerprint: expectString(receipt.knowledgeFingerprint, `${path}.knowledgeFingerprint`),
@@ -817,6 +1047,9 @@ function validateStepExecutionReceipt(value: unknown, path: string) {
     mode: expectString(receipt.mode, `${path}.mode`),
     locatorStrategy: expectOptionalString(receipt.locatorStrategy, `${path}.locatorStrategy`) ?? null,
     degraded: expectBoolean(receipt.degraded, `${path}.degraded`),
+    handshakes: expectArray(receipt.handshakes ?? ['preparation', 'resolution', 'execution'], `${path}.handshakes`).map((entry, index) =>
+      expectEnum(entry, `${path}.handshakes[${index}]`, workflowStages),
+    ) as WorkflowStage[],
     execution: {
       status: expectEnum(execution.status, `${path}.execution.status`, ['ok', 'failed', 'skipped'] as const),
       observedEffects: expectStringArray(execution.observedEffects ?? [], `${path}.execution.observedEffects`),
@@ -834,8 +1067,54 @@ function validateStepExecutionReceipt(value: unknown, path: string) {
 
 export function validateRunRecord(value: unknown): RunRecord {
   const record = expectRecord(value, 'runRecord');
+  const steps = expectArray(record.steps ?? [], 'runRecord.steps').map((entry, index) => {
+    const step = expectRecord(entry, `runRecord.steps[${index}]`);
+    return {
+      stepIndex: expectNumber(step.stepIndex, `runRecord.steps[${index}].stepIndex`),
+      interpretation: validateResolutionReceipt(step.interpretation, `runRecord.steps[${index}].interpretation`),
+      execution: validateStepExecutionReceipt(step.execution, `runRecord.steps[${index}].execution`),
+      evidenceIds: expectStringArray(step.evidenceIds ?? [], `runRecord.steps[${index}].evidenceIds`),
+    };
+  });
+  const evidenceIds = expectStringArray(record.evidenceIds ?? [], 'runRecord.evidenceIds');
+  const header = validateWorkflowEnvelopeHeader(record, 'runRecord', {
+    stage: 'execution',
+    scope: 'run',
+    governance: steps.some((step) => step.interpretation.kind === 'needs-human' || step.execution.execution.status === 'failed')
+      ? 'blocked'
+      : steps.some((step) => step.interpretation.kind === 'resolved-with-proposals')
+        ? 'review-required'
+        : 'approved',
+    artifactFingerprint: expectOptionalString(record.runId, 'runRecord.runId') ?? 'scenario-run-record',
+    ids: {
+      adoId: expectOptionalId(record.adoId, 'runRecord.adoId', createAdoId) ?? null,
+      suite: expectOptionalString(record.suite, 'runRecord.suite') ?? null,
+      runId: expectOptionalString(record.runId, 'runRecord.runId') ?? null,
+    },
+    lineage: {
+      sources: [],
+      parents: [],
+      handshakes: ['preparation', 'resolution', 'execution', 'evidence'],
+    },
+  });
   return {
     kind: expectEnum(record.kind, 'runRecord.kind', ['scenario-run-record'] as const),
+    ...header,
+    payload: {
+      runId: expectString(record.runId, 'runRecord.runId'),
+      adoId: expectId(record.adoId, 'runRecord.adoId', createAdoId),
+      revision: expectNumber(record.revision, 'runRecord.revision'),
+      title: expectString(record.title, 'runRecord.title'),
+      suite: ensureSafeRelativePathLike(expectString(record.suite, 'runRecord.suite'), 'runRecord.suite'),
+      taskFingerprint: expectString(record.taskFingerprint, 'runRecord.taskFingerprint'),
+      knowledgeFingerprint: expectString(record.knowledgeFingerprint, 'runRecord.knowledgeFingerprint'),
+      provider: expectString(record.provider, 'runRecord.provider'),
+      mode: expectString(record.mode, 'runRecord.mode'),
+      startedAt: expectString(record.startedAt, 'runRecord.startedAt'),
+      completedAt: expectString(record.completedAt, 'runRecord.completedAt'),
+      steps,
+      evidenceIds,
+    },
     runId: expectString(record.runId, 'runRecord.runId'),
     adoId: expectId(record.adoId, 'runRecord.adoId', createAdoId),
     revision: expectNumber(record.revision, 'runRecord.revision'),
@@ -847,43 +1126,66 @@ export function validateRunRecord(value: unknown): RunRecord {
     mode: expectString(record.mode, 'runRecord.mode'),
     startedAt: expectString(record.startedAt, 'runRecord.startedAt'),
     completedAt: expectString(record.completedAt, 'runRecord.completedAt'),
-    steps: expectArray(record.steps ?? [], 'runRecord.steps').map((entry, index) => {
-      const step = expectRecord(entry, `runRecord.steps[${index}]`);
-      return {
-        stepIndex: expectNumber(step.stepIndex, `runRecord.steps[${index}].stepIndex`),
-        interpretation: validateResolutionReceipt(step.interpretation, `runRecord.steps[${index}].interpretation`),
-        execution: validateStepExecutionReceipt(step.execution, `runRecord.steps[${index}].execution`),
-        evidenceIds: expectStringArray(step.evidenceIds ?? [], `runRecord.steps[${index}].evidenceIds`),
-      };
-    }),
-    evidenceIds: expectStringArray(record.evidenceIds ?? [], 'runRecord.evidenceIds'),
+    steps,
+    evidenceIds,
   };
 }
 
 export function validateProposalBundle(value: unknown): ProposalBundle {
   const bundle = expectRecord(value, 'proposalBundle');
+  const proposals = expectArray(bundle.proposals ?? [], 'proposalBundle.proposals').map((entry, index) => {
+    const proposal = expectRecord(entry, `proposalBundle.proposals[${index}]`);
+    return {
+      proposalId: expectString(proposal.proposalId, `proposalBundle.proposals[${index}].proposalId`),
+      stepIndex: expectNumber(proposal.stepIndex, `proposalBundle.proposals[${index}].stepIndex`),
+      artifactType: validateTrustPolicyArtifactType(proposal.artifactType, `proposalBundle.proposals[${index}].artifactType`),
+      targetPath: expectString(proposal.targetPath, `proposalBundle.proposals[${index}].targetPath`),
+      title: expectString(proposal.title, `proposalBundle.proposals[${index}].title`),
+      patch: expectRecord(proposal.patch ?? {}, `proposalBundle.proposals[${index}].patch`),
+      evidenceIds: expectStringArray(proposal.evidenceIds ?? [], `proposalBundle.proposals[${index}].evidenceIds`),
+      impactedSteps: expectArray(proposal.impactedSteps ?? [], `proposalBundle.proposals[${index}].impactedSteps`).map((stepIndex, impactedIndex) =>
+        expectNumber(stepIndex, `proposalBundle.proposals[${index}].impactedSteps[${impactedIndex}]`),
+      ),
+      trustPolicy: validateTrustPolicyEvaluation(proposal.trustPolicy),
+    };
+  });
+  const header = validateWorkflowEnvelopeHeader(bundle, 'proposalBundle', {
+    stage: 'proposal',
+    scope: 'scenario',
+    governance: proposals.some((proposal) => proposal.trustPolicy.decision === 'deny')
+      ? 'blocked'
+      : proposals.some((proposal) => proposal.trustPolicy.decision === 'review')
+        ? 'review-required'
+        : 'approved',
+    artifactFingerprint: expectOptionalString(bundle.runId, 'proposalBundle.runId') ?? 'proposal-bundle',
+    ids: {
+      adoId: expectOptionalId(bundle.adoId, 'proposalBundle.adoId', createAdoId) ?? null,
+      suite: expectOptionalString(bundle.suite, 'proposalBundle.suite') ?? null,
+      runId: expectOptionalString(bundle.runId, 'proposalBundle.runId') ?? null,
+    },
+    lineage: {
+      sources: [],
+      parents: [],
+      handshakes: ['preparation', 'resolution', 'execution', 'evidence', 'proposal'],
+    },
+  });
   return {
     kind: expectEnum(bundle.kind, 'proposalBundle.kind', ['proposal-bundle'] as const),
+    ...header,
+    payload: {
+      adoId: expectId(bundle.adoId, 'proposalBundle.adoId', createAdoId),
+      runId: expectString(bundle.runId, 'proposalBundle.runId'),
+      revision: expectNumber(bundle.revision, 'proposalBundle.revision'),
+      title: expectString(bundle.title, 'proposalBundle.title'),
+      suite: ensureSafeRelativePathLike(expectString(bundle.suite, 'proposalBundle.suite'), 'proposalBundle.suite'),
+      proposals,
+    },
     adoId: expectId(bundle.adoId, 'proposalBundle.adoId', createAdoId),
     runId: expectString(bundle.runId, 'proposalBundle.runId'),
     revision: expectNumber(bundle.revision, 'proposalBundle.revision'),
     title: expectString(bundle.title, 'proposalBundle.title'),
     suite: ensureSafeRelativePathLike(expectString(bundle.suite, 'proposalBundle.suite'), 'proposalBundle.suite'),
-    proposals: expectArray(bundle.proposals ?? [], 'proposalBundle.proposals').map((entry, index) => {
-      const proposal = expectRecord(entry, `proposalBundle.proposals[${index}]`);
-      return {
-        stepIndex: expectNumber(proposal.stepIndex, `proposalBundle.proposals[${index}].stepIndex`),
-        artifactType: validateTrustPolicyArtifactType(proposal.artifactType, `proposalBundle.proposals[${index}].artifactType`),
-        targetPath: expectString(proposal.targetPath, `proposalBundle.proposals[${index}].targetPath`),
-        title: expectString(proposal.title, `proposalBundle.proposals[${index}].title`),
-        patch: expectRecord(proposal.patch ?? {}, `proposalBundle.proposals[${index}].patch`),
-        evidenceIds: expectStringArray(proposal.evidenceIds ?? [], `proposalBundle.proposals[${index}].evidenceIds`),
-        impactedSteps: expectArray(proposal.impactedSteps ?? [], `proposalBundle.proposals[${index}].impactedSteps`).map((stepIndex, impactedIndex) =>
-          expectNumber(stepIndex, `proposalBundle.proposals[${index}].impactedSteps[${impactedIndex}]`),
-        ),
-        trustPolicy: validateTrustPolicyEvaluation(proposal.trustPolicy),
-      };
-    }),
+    proposals,
   };
 }
 
@@ -941,6 +1243,72 @@ export function validateScreenHints(value: unknown): ScreenHints {
         ];
       }),
     ),
+  };
+}
+
+export function validateDatasetControl(value: unknown): DatasetControl {
+  const dataset = expectRecord(value, 'dataset-control');
+  const defaults = expectRecord(dataset.defaults ?? {}, 'dataset-control.defaults');
+  return {
+    kind: expectEnum(dataset.kind, 'dataset-control.kind', ['dataset-control'] as const),
+    version: expectNumber(dataset.version, 'dataset-control.version') as 1,
+    name: expectString(dataset.name, 'dataset-control.name'),
+    default: dataset.default === undefined ? undefined : expectBoolean(dataset.default, 'dataset-control.default'),
+    fixtures: expectRecord(dataset.fixtures ?? {}, 'dataset-control.fixtures'),
+    defaults: {
+      elements: Object.fromEntries(
+        Object.entries(expectRecord(defaults.elements ?? {}, 'dataset-control.defaults.elements'))
+          .map(([key, entry]) => [key, expectString(entry, `dataset-control.defaults.elements.${key}`)]),
+      ),
+      generatedTokens: Object.fromEntries(
+        Object.entries(expectRecord(defaults.generatedTokens ?? {}, 'dataset-control.defaults.generatedTokens'))
+          .map(([key, entry]) => [key, expectString(entry, `dataset-control.defaults.generatedTokens.${key}`)]),
+      ),
+    },
+  };
+}
+
+function validateResolutionControlSelector(value: unknown, path: string) {
+  const selector = expectRecord(value ?? {}, path);
+  return {
+    adoIds: expectIdArray(selector.adoIds ?? [], `${path}.adoIds`, createAdoId),
+    suites: expectStringArray(selector.suites ?? [], `${path}.suites`).map((entry, index) =>
+      ensureSafeRelativePathLike(entry, `${path}.suites[${index}]`),
+    ),
+    tags: expectStringArray(selector.tags ?? [], `${path}.tags`),
+  };
+}
+
+export function validateResolutionControl(value: unknown): ResolutionControl {
+  const control = expectRecord(value, 'resolution-control');
+  return {
+    kind: expectEnum(control.kind, 'resolution-control.kind', ['resolution-control'] as const),
+    version: expectNumber(control.version, 'resolution-control.version') as 1,
+    name: expectString(control.name, 'resolution-control.name'),
+    selector: validateResolutionControlSelector(control.selector, 'resolution-control.selector'),
+    steps: expectArray(control.steps ?? [], 'resolution-control.steps').map((entry, index) => {
+      const step = expectRecord(entry, `resolution-control.steps[${index}]`);
+      return {
+        stepIndex: expectNumber(step.stepIndex, `resolution-control.steps[${index}].stepIndex`),
+        resolution: validateStepResolution(step.resolution, `resolution-control.steps[${index}].resolution`),
+      };
+    }),
+  };
+}
+
+export function validateRunbookControl(value: unknown): RunbookControl {
+  const runbook = expectRecord(value, 'runbook-control');
+  return {
+    kind: expectEnum(runbook.kind, 'runbook-control.kind', ['runbook-control'] as const),
+    version: expectNumber(runbook.version, 'runbook-control.version') as 1,
+    name: expectString(runbook.name, 'runbook-control.name'),
+    default: runbook.default === undefined ? undefined : expectBoolean(runbook.default, 'runbook-control.default'),
+    selector: validateResolutionControlSelector(runbook.selector, 'runbook-control.selector'),
+    interpreterMode: runbook.interpreterMode === undefined || runbook.interpreterMode === null
+      ? null
+      : expectEnum(runbook.interpreterMode, 'runbook-control.interpreterMode', ['playwright', 'dry-run', 'diagnostic'] as const),
+    dataset: expectOptionalString(runbook.dataset, 'runbook-control.dataset') ?? null,
+    resolutionControl: expectOptionalString(runbook.resolutionControl, 'runbook-control.resolutionControl') ?? null,
   };
 }
 
@@ -1167,6 +1535,193 @@ export function validateTrustPolicyEvaluation(value: unknown): TrustPolicyEvalua
   return {
     decision: expectEnum(record.decision, 'trustPolicyEvaluation.decision', ['allow', 'review', 'deny'] as const),
     reasons: expectArray(record.reasons ?? [], 'trustPolicyEvaluation.reasons').map((entry, index) => validateTrustPolicyEvaluationReason(entry, `trustPolicyEvaluation.reasons[${index}]`)),
+  };
+}
+
+export function validateOperatorInboxItem(value: unknown): OperatorInboxItem {
+  const item = expectRecord(value, 'operatorInboxItem');
+  return {
+    id: expectString(item.id, 'operatorInboxItem.id'),
+    kind: expectEnum(item.kind, 'operatorInboxItem.kind', ['proposal', 'degraded-locator', 'needs-human', 'blocked-policy'] as const),
+    status: expectEnum(item.status, 'operatorInboxItem.status', ['actionable', 'approved', 'blocked', 'informational'] as const),
+    title: expectString(item.title, 'operatorInboxItem.title'),
+    summary: expectString(item.summary, 'operatorInboxItem.summary'),
+    adoId: expectOptionalId(item.adoId, 'operatorInboxItem.adoId', createAdoId) ?? null,
+    suite: expectOptionalString(item.suite, 'operatorInboxItem.suite') ?? null,
+    runId: expectOptionalString(item.runId, 'operatorInboxItem.runId') ?? null,
+    stepIndex: item.stepIndex === undefined || item.stepIndex === null ? null : expectNumber(item.stepIndex, 'operatorInboxItem.stepIndex'),
+    proposalId: expectOptionalString(item.proposalId, 'operatorInboxItem.proposalId') ?? null,
+    artifactPath: expectOptionalString(item.artifactPath, 'operatorInboxItem.artifactPath') ?? null,
+    targetPath: expectOptionalString(item.targetPath, 'operatorInboxItem.targetPath') ?? null,
+    winningConcern: item.winningConcern === undefined || item.winningConcern === null
+      ? null
+      : expectEnum(item.winningConcern, 'operatorInboxItem.winningConcern', ['intent', 'knowledge', 'control', 'resolution', 'execution', 'governance', 'projection'] as const),
+    winningSource: item.winningSource === undefined || item.winningSource === null
+      ? null
+      : expectEnum(item.winningSource, 'operatorInboxItem.winningSource', [
+        'scenario-explicit',
+        'resolution-control',
+        'runbook-dataset',
+        'default-dataset',
+        'knowledge-hint',
+        'posture-sample',
+        'generated-token',
+        'approved-knowledge',
+        'prior-evidence',
+        'live-dom',
+        'none',
+      ] as const),
+    nextCommands: expectStringArray(item.nextCommands ?? [], 'operatorInboxItem.nextCommands'),
+  };
+}
+
+export function validateApprovalReceipt(value: unknown): ApprovalReceipt {
+  const receipt = expectRecord(value, 'approvalReceipt');
+  return {
+    kind: expectEnum(receipt.kind, 'approvalReceipt.kind', ['approval-receipt'] as const),
+    version: expectNumber(receipt.version, 'approvalReceipt.version') as 1,
+    proposalId: expectString(receipt.proposalId, 'approvalReceipt.proposalId'),
+    inboxItemId: expectString(receipt.inboxItemId, 'approvalReceipt.inboxItemId'),
+    approvedAt: expectString(receipt.approvedAt, 'approvalReceipt.approvedAt'),
+    artifactType: validateTrustPolicyArtifactType(receipt.artifactType, 'approvalReceipt.artifactType'),
+    targetPath: expectString(receipt.targetPath, 'approvalReceipt.targetPath'),
+    receiptPath: expectString(receipt.receiptPath, 'approvalReceipt.receiptPath'),
+    rerunPlanId: expectString(receipt.rerunPlanId, 'approvalReceipt.rerunPlanId'),
+  };
+}
+
+export function validateRerunPlan(value: unknown): RerunPlan {
+  const plan = expectRecord(value, 'rerunPlan');
+  return {
+    kind: expectEnum(plan.kind, 'rerunPlan.kind', ['rerun-plan'] as const),
+    version: expectNumber(plan.version, 'rerunPlan.version') as 1,
+    planId: expectString(plan.planId, 'rerunPlan.planId'),
+    createdAt: expectString(plan.createdAt, 'rerunPlan.createdAt'),
+    reason: expectString(plan.reason, 'rerunPlan.reason'),
+    sourceProposalId: expectOptionalString(plan.sourceProposalId, 'rerunPlan.sourceProposalId') ?? null,
+    sourceNodeIds: expectStringArray(plan.sourceNodeIds ?? [], 'rerunPlan.sourceNodeIds'),
+    impactedScenarioIds: expectIdArray(plan.impactedScenarioIds ?? [], 'rerunPlan.impactedScenarioIds', createAdoId),
+    impactedRunbooks: expectStringArray(plan.impactedRunbooks ?? [], 'rerunPlan.impactedRunbooks'),
+    impactedProjections: expectArray(plan.impactedProjections ?? [], 'rerunPlan.impactedProjections').map((entry, index) =>
+      expectEnum(entry, `rerunPlan.impactedProjections[${index}]`, ['emit', 'graph', 'types', 'run'] as const),
+    ),
+    reasons: expectStringArray(plan.reasons ?? [], 'rerunPlan.reasons'),
+  };
+}
+
+export function validateBenchmarkContext(value: unknown): BenchmarkContext {
+  const benchmark = expectRecord(value, 'benchmarkContext');
+  return {
+    kind: expectEnum(benchmark.kind, 'benchmarkContext.kind', ['benchmark-context'] as const),
+    version: expectNumber(benchmark.version, 'benchmarkContext.version') as 1,
+    name: expectString(benchmark.name, 'benchmarkContext.name'),
+    suite: ensureSafeRelativePathLike(expectString(benchmark.suite, 'benchmarkContext.suite'), 'benchmarkContext.suite'),
+    appRoute: expectString(benchmark.appRoute, 'benchmarkContext.appRoute'),
+    fieldCatalog: expectArray(benchmark.fieldCatalog ?? [], 'benchmarkContext.fieldCatalog').map((entry, index) => {
+      const field = expectRecord(entry, `benchmarkContext.fieldCatalog[${index}]`);
+      return {
+        id: expectString(field.id, `benchmarkContext.fieldCatalog[${index}].id`),
+        screen: expectString(field.screen, `benchmarkContext.fieldCatalog[${index}].screen`),
+        element: expectString(field.element, `benchmarkContext.fieldCatalog[${index}].element`),
+        label: expectString(field.label, `benchmarkContext.fieldCatalog[${index}].label`),
+        category: expectString(field.category, `benchmarkContext.fieldCatalog[${index}].category`),
+        required: expectBoolean(field.required, `benchmarkContext.fieldCatalog[${index}].required`),
+        postures: expectStringArray(field.postures ?? [], `benchmarkContext.fieldCatalog[${index}].postures`),
+      };
+    }),
+    flows: expectArray(benchmark.flows ?? [], 'benchmarkContext.flows').map((entry, index) => {
+      const flow = expectRecord(entry, `benchmarkContext.flows[${index}]`);
+      return {
+        id: expectString(flow.id, `benchmarkContext.flows[${index}].id`),
+        title: expectString(flow.title, `benchmarkContext.flows[${index}].title`),
+        route: expectString(flow.route, `benchmarkContext.flows[${index}].route`),
+        screens: expectStringArray(flow.screens ?? [], `benchmarkContext.flows[${index}].screens`),
+        fieldIds: expectStringArray(flow.fieldIds ?? [], `benchmarkContext.flows[${index}].fieldIds`),
+      };
+    }),
+    driftEvents: expectArray(benchmark.driftEvents ?? [], 'benchmarkContext.driftEvents').map((entry, index) => {
+      const event = expectRecord(entry, `benchmarkContext.driftEvents[${index}]`);
+      return {
+        id: expectString(event.id, `benchmarkContext.driftEvents[${index}].id`),
+        kind: expectEnum(event.kind, `benchmarkContext.driftEvents[${index}].kind`, ['label-change', 'locator-degradation', 'widget-swap', 'validation-copy-change', 'section-structure-drift'] as const),
+        screen: expectString(event.screen, `benchmarkContext.driftEvents[${index}].screen`),
+        fieldId: expectOptionalString(event.fieldId, `benchmarkContext.driftEvents[${index}].fieldId`) ?? null,
+        severity: expectEnum(event.severity, `benchmarkContext.driftEvents[${index}].severity`, ['low', 'medium', 'high'] as const),
+        description: expectString(event.description, `benchmarkContext.driftEvents[${index}].description`),
+      };
+    }),
+    fieldAwarenessThresholds: (() => {
+      const thresholds = expectRecord(benchmark.fieldAwarenessThresholds ?? {}, 'benchmarkContext.fieldAwarenessThresholds');
+      return {
+        minFieldAwarenessCount: expectNumber(thresholds.minFieldAwarenessCount, 'benchmarkContext.fieldAwarenessThresholds.minFieldAwarenessCount'),
+        minFirstPassScreenResolutionRate: expectNumber(thresholds.minFirstPassScreenResolutionRate, 'benchmarkContext.fieldAwarenessThresholds.minFirstPassScreenResolutionRate'),
+        minFirstPassElementResolutionRate: expectNumber(thresholds.minFirstPassElementResolutionRate, 'benchmarkContext.fieldAwarenessThresholds.minFirstPassElementResolutionRate'),
+        maxDegradedLocatorRate: expectNumber(thresholds.maxDegradedLocatorRate, 'benchmarkContext.fieldAwarenessThresholds.maxDegradedLocatorRate'),
+      };
+    })(),
+    benchmarkRunbooks: expectArray(benchmark.benchmarkRunbooks ?? [], 'benchmarkContext.benchmarkRunbooks').map((entry, index) => {
+      const runbook = expectRecord(entry, `benchmarkContext.benchmarkRunbooks[${index}]`);
+      return {
+        name: expectString(runbook.name, `benchmarkContext.benchmarkRunbooks[${index}].name`),
+        runbook: expectString(runbook.runbook, `benchmarkContext.benchmarkRunbooks[${index}].runbook`),
+        tag: expectOptionalString(runbook.tag, `benchmarkContext.benchmarkRunbooks[${index}].tag`) ?? null,
+      };
+    }),
+    expansionRules: expectArray(benchmark.expansionRules ?? [], 'benchmarkContext.expansionRules').map((entry, index) => {
+      const rule = expectRecord(entry, `benchmarkContext.expansionRules[${index}]`);
+      return {
+        fieldIds: expectStringArray(rule.fieldIds ?? [], `benchmarkContext.expansionRules[${index}].fieldIds`),
+        postures: expectStringArray(rule.postures ?? [], `benchmarkContext.expansionRules[${index}].postures`),
+        variantsPerField: expectNumber(rule.variantsPerField, `benchmarkContext.expansionRules[${index}].variantsPerField`),
+      };
+    }),
+  };
+}
+
+export function validateBenchmarkScorecard(value: unknown): BenchmarkScorecard {
+  const scorecard = expectRecord(value, 'benchmarkScorecard');
+  return {
+    kind: expectEnum(scorecard.kind, 'benchmarkScorecard.kind', ['benchmark-scorecard'] as const),
+    version: expectNumber(scorecard.version, 'benchmarkScorecard.version') as 1,
+    benchmark: expectString(scorecard.benchmark, 'benchmarkScorecard.benchmark'),
+    generatedAt: expectString(scorecard.generatedAt, 'benchmarkScorecard.generatedAt'),
+    uniqueFieldAwarenessCount: expectNumber(scorecard.uniqueFieldAwarenessCount, 'benchmarkScorecard.uniqueFieldAwarenessCount'),
+    firstPassScreenResolutionRate: expectNumber(scorecard.firstPassScreenResolutionRate, 'benchmarkScorecard.firstPassScreenResolutionRate'),
+    firstPassElementResolutionRate: expectNumber(scorecard.firstPassElementResolutionRate, 'benchmarkScorecard.firstPassElementResolutionRate'),
+    degradedLocatorRate: expectNumber(scorecard.degradedLocatorRate, 'benchmarkScorecard.degradedLocatorRate'),
+    reviewRequiredCount: expectNumber(scorecard.reviewRequiredCount, 'benchmarkScorecard.reviewRequiredCount'),
+    repairLoopCount: expectNumber(scorecard.repairLoopCount, 'benchmarkScorecard.repairLoopCount'),
+    operatorTouchCount: expectNumber(scorecard.operatorTouchCount, 'benchmarkScorecard.operatorTouchCount'),
+    knowledgeChurn: Object.fromEntries(
+      Object.entries(expectRecord(scorecard.knowledgeChurn ?? {}, 'benchmarkScorecard.knowledgeChurn'))
+        .map(([key, entry]) => [key, expectNumber(entry, `benchmarkScorecard.knowledgeChurn.${key}`)]),
+    ),
+    generatedVariantCount: expectNumber(scorecard.generatedVariantCount, 'benchmarkScorecard.generatedVariantCount'),
+    thresholdStatus: expectEnum(scorecard.thresholdStatus, 'benchmarkScorecard.thresholdStatus', ['pass', 'warn', 'fail'] as const),
+  };
+}
+
+export function validateDogfoodRun(value: unknown): DogfoodRun {
+  const run = expectRecord(value, 'dogfoodRun');
+  return {
+    kind: expectEnum(run.kind, 'dogfoodRun.kind', ['dogfood-run'] as const),
+    version: expectNumber(run.version, 'dogfoodRun.version') as 1,
+    benchmark: expectString(run.benchmark, 'dogfoodRun.benchmark'),
+    runId: expectString(run.runId, 'dogfoodRun.runId'),
+    executedAt: expectString(run.executedAt, 'dogfoodRun.executedAt'),
+    posture: (() => {
+      const posture = expectRecord(run.posture ?? {}, 'dogfoodRun.posture');
+      return {
+        interpreterMode: expectEnum(posture.interpreterMode, 'dogfoodRun.posture.interpreterMode', ['playwright', 'dry-run', 'diagnostic'] as const),
+        writeMode: expectEnum(posture.writeMode, 'dogfoodRun.posture.writeMode', ['persist', 'no-write'] as const),
+        headed: expectBoolean(posture.headed, 'dogfoodRun.posture.headed'),
+      };
+    })(),
+    runbooks: expectStringArray(run.runbooks ?? [], 'dogfoodRun.runbooks'),
+    scenarioIds: expectIdArray(run.scenarioIds ?? [], 'dogfoodRun.scenarioIds', createAdoId),
+    driftEventIds: expectStringArray(run.driftEventIds ?? [], 'dogfoodRun.driftEventIds'),
+    scorecard: validateBenchmarkScorecard(run.scorecard),
+    nextCommands: expectStringArray(run.nextCommands ?? [], 'dogfoodRun.nextCommands'),
   };
 }
 

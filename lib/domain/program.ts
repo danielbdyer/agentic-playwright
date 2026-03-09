@@ -3,6 +3,7 @@ import type { AdoId, ElementId, ScreenId, SnapshotTemplateId } from './identity'
 import type { CapabilityName, CompilerDiagnostic, ScenarioStep, StepInstruction, StepProgram, ValueRef } from './types';
 
 const TEMPLATE_PATTERN = /^\{\{([a-zA-Z0-9_.]+)\}\}$/;
+const GENERATED_TOKEN_PATTERN = /^<<generated:(.+)>>$/;
 
 export interface StepProgramTrace {
   instructionKinds: StepInstruction['kind'][];
@@ -35,6 +36,14 @@ export function parseValueRef(raw: string | null | undefined, step?: Pick<Scenar
     return {
       kind: 'fixture-path',
       path: parseRefPath(refPath),
+    };
+  }
+
+  const generatedToken = raw.match(GENERATED_TOKEN_PATTERN)?.[1];
+  if (generatedToken) {
+    return {
+      kind: 'generated-token',
+      token: generatedToken,
     };
   }
 

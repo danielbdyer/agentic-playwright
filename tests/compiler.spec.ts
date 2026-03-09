@@ -11,6 +11,8 @@ import { runScenario } from '../lib/application/run';
 import { inspectSurface } from '../lib/application/surface';
 import { traceScenario } from '../lib/application/trace';
 import { generateTypes } from '../lib/application/types';
+import { inspectWorkflow } from '../lib/application/workflow';
+import type { ProjectionCacheMissIncremental, ProjectionIncremental } from '../lib/application/projections/runner';
 import { runWithLocalServices } from '../lib/composition/local-services';
 import { createAdoId, createElementId, createScreenId, createSurfaceId } from '../lib/domain/identity';
 import { graphIds } from '../lib/domain/ids';
@@ -36,6 +38,14 @@ function incrementalKeys(value: Record<string, unknown>): string[] {
   return Object.keys(value).sort((left, right) => left.localeCompare(right));
 }
 
+function expectCacheMiss(incremental: ProjectionIncremental): ProjectionCacheMissIncremental {
+  expect(incremental.status).toBe('cache-miss');
+  if (incremental.status !== 'cache-miss') {
+    throw new Error(`Expected cache-miss incremental result, received ${incremental.status}`);
+  }
+  return incremental;
+}
+
 test('refresh recompiles the seeded scenario through graph, types, and program emission', async () => {
   const workspace = createTestWorkspace('compiler-refresh');
   try {
@@ -52,8 +62,9 @@ test('refresh recompiles the seeded scenario through graph, types, and program e
     expect(result.compile.bound.boundScenario.steps.every((step) => step.binding.kind === 'deferred')).toBeTruthy();
     expect(result.compile.bound.boundScenario.steps.every((step) => step.binding.governance === 'approved')).toBeTruthy();
     expect(projectPath(result.compile.compileSnapshot.taskPath)).toContain('.tesseract/tasks/10001.resolution.json');
-    expect(generated).toContain('runScenarioStep');
+    expect(generated).toContain('runScenarioHandshake');
     expect(generated).toContain('createLocalRuntimeEnvironment');
+    expect(generated).toContain('workflow.step');
     expect(generated).toContain('intent-only');
     expect(generated).toContain('deferred-steps');
     expect(traceArtifact.steps[1].runtime.status).toBe('pending');
@@ -119,6 +130,55 @@ test('surface inspection returns approved structure plus derived capabilities', 
 
     expect(resultsGrid?.assertions).toEqual(['structure', 'state']);
     expect(result.capabilities.some((entry) => entry.targetKind === 'surface' && entry.target === searchFormId)).toBeTruthy();
+  } finally {
+    workspace.cleanup();
+  }
+});
+
+test('workflow inspection exposes lane ownership, controls, and precedence for a seeded scenario', async () => {
+  const workspace = createTestWorkspace('compiler-workflow');
+  try {
+    await runWithLocalServices(
+      refreshScenario({ adoId: createAdoId('10001'), paths: workspace.paths }),
+      workspace.rootDir,
+    );
+    const result = await runWithLocalServices(
+      inspectWorkflow({ adoId: createAdoId('10001'), paths: workspace.paths }),
+      workspace.rootDir,
+    );
+
+    expect(result.lanes.map((lane) => lane.lane)).toEqual([
+      'intent',
+      'knowledge',
+      'control',
+      'resolution',
+      'execution',
+      'governance/projection',
+    ]);
+    expect(result.controls.datasets).toContainEqual(expect.objectContaining({
+      name: 'demo-default',
+      artifactPath: 'controls/datasets/demo-default.dataset.yaml',
+      isDefault: true,
+    }));
+    expect(result.controls.runbooks).toContainEqual(expect.objectContaining({
+      name: 'demo-smoke',
+      dataset: 'demo-default',
+      resolutionControl: 'demo-policy-search',
+    }));
+    expect(result.controls.resolutionControls).toContainEqual(expect.objectContaining({
+      name: 'demo-policy-search',
+      stepIndex: 2,
+    }));
+    expect(result.precedence.resolution).toEqual([
+      'scenario explicit',
+      'resolution controls',
+      'approved knowledge priors',
+      'prior evidence',
+      'live DOM',
+      'needs-human',
+    ]);
+    expect(result.selection.runbook).toBe('demo-smoke');
+    expect(result.fingerprints?.task).toBeTruthy();
   } finally {
     workspace.cleanup();
   }
@@ -215,16 +275,17 @@ test('emit, types, and graph projections expose aligned incremental metadata for
     const typesMiss = await runWithLocalServices(generateTypes({ paths: workspace.paths }), workspace.rootDir);
     const graphMiss = await runWithLocalServices(buildDerivedGraph({ paths: workspace.paths }), workspace.rootDir);
 
-    expect(emitMiss.incremental.status).toBe('cache-miss');
-    expect(typesMiss.incremental.status).toBe('cache-miss');
-    expect(graphMiss.incremental.status).toBe('cache-miss');
-    expect(emitMiss.incremental.cacheInvalidationReason).toBe('missing-output');
-    expect(typesMiss.incremental.cacheInvalidationReason).toBe('missing-output');
-    expect(graphMiss.incremental.cacheInvalidationReason).toBe('missing-output');
+    const emitMissIncremental = expectCacheMiss(emitMiss.incremental);
+    const typesMissIncremental = expectCacheMiss(typesMiss.incremental);
+    const graphMissIncremental = expectCacheMiss(graphMiss.incremental);
 
-    const missKeys = incrementalKeys(emitMiss.incremental as unknown as Record<string, unknown>);
-    expect(incrementalKeys(typesMiss.incremental as unknown as Record<string, unknown>)).toEqual(missKeys);
-    expect(incrementalKeys(graphMiss.incremental as unknown as Record<string, unknown>)).toEqual(missKeys);
+    expect(emitMissIncremental.cacheInvalidationReason).toBe('missing-output');
+    expect(typesMissIncremental.cacheInvalidationReason).toBe('missing-output');
+    expect(graphMissIncremental.cacheInvalidationReason).toBe('missing-output');
+
+    const missKeys = incrementalKeys(emitMissIncremental as unknown as Record<string, unknown>);
+    expect(incrementalKeys(typesMissIncremental as unknown as Record<string, unknown>)).toEqual(missKeys);
+    expect(incrementalKeys(graphMissIncremental as unknown as Record<string, unknown>)).toEqual(missKeys);
   } finally {
     workspace.cleanup();
   }
@@ -325,13 +386,13 @@ test('emit regenerates when manifest is present but generated artifacts are miss
     );
     const manifestAfterMissingOutput = JSON.parse(readFileSync(manifestPath, 'utf8').replace(/^﻿/, ''));
 
-    expect(rebuiltMissingOutput.incremental.status).toBe('cache-miss');
-    expect(rebuiltMissingOutput.incremental.cacheInvalidationReason).toBe('missing-output');
-    expect(rebuiltMissingOutput.incremental.rewritten).toContain(relativeSpec);
-    expect(rebuiltMissingOutput.incremental.rewritten).toContain(relativeTrace);
-    expect(rebuiltMissingOutput.incremental.rewritten).toContain(relativeReview);
-    expect(rebuiltMissingOutput.incremental.rewritten).toContain(relativeManifest);
-    expect(manifestAfterMissingOutput.outputFingerprint).toBe(rebuiltMissingOutput.incremental.outputFingerprint);
+    const rebuiltMissingOutputIncremental = expectCacheMiss(rebuiltMissingOutput.incremental);
+    expect(rebuiltMissingOutputIncremental.cacheInvalidationReason).toBe('missing-output');
+    expect(rebuiltMissingOutputIncremental.rewritten).toContain(relativeSpec);
+    expect(rebuiltMissingOutputIncremental.rewritten).toContain(relativeTrace);
+    expect(rebuiltMissingOutputIncremental.rewritten).toContain(relativeReview);
+    expect(rebuiltMissingOutputIncremental.rewritten).toContain(relativeManifest);
+    expect(manifestAfterMissingOutput.outputFingerprint).toBe(rebuiltMissingOutputIncremental.outputFingerprint);
 
     writeFileSync(refresh.compile.emitted.tracePath, '{"bad":', 'utf8');
 
@@ -341,13 +402,13 @@ test('emit regenerates when manifest is present but generated artifacts are miss
     );
     const manifestAfterInvalidOutput = JSON.parse(readFileSync(manifestPath, 'utf8').replace(/^﻿/, ''));
 
-    expect(rebuiltInvalidOutput.incremental.status).toBe('cache-miss');
-    expect(rebuiltInvalidOutput.incremental.cacheInvalidationReason).toBe('invalid-output');
-    expect(rebuiltInvalidOutput.incremental.rewritten).toContain(relativeSpec);
-    expect(rebuiltInvalidOutput.incremental.rewritten).toContain(relativeTrace);
-    expect(rebuiltInvalidOutput.incremental.rewritten).toContain(relativeReview);
-    expect(rebuiltInvalidOutput.incremental.rewritten).toContain(relativeManifest);
-    expect(manifestAfterInvalidOutput.outputFingerprint).toBe(rebuiltInvalidOutput.incremental.outputFingerprint);
+    const rebuiltInvalidOutputIncremental = expectCacheMiss(rebuiltInvalidOutput.incremental);
+    expect(rebuiltInvalidOutputIncremental.cacheInvalidationReason).toBe('invalid-output');
+    expect(rebuiltInvalidOutputIncremental.rewritten).toContain(relativeSpec);
+    expect(rebuiltInvalidOutputIncremental.rewritten).toContain(relativeTrace);
+    expect(rebuiltInvalidOutputIncremental.rewritten).toContain(relativeReview);
+    expect(rebuiltInvalidOutputIncremental.rewritten).toContain(relativeManifest);
+    expect(manifestAfterInvalidOutput.outputFingerprint).toBe(rebuiltInvalidOutputIncremental.outputFingerprint);
   } finally {
     workspace.cleanup();
   }
@@ -366,22 +427,22 @@ test('types regenerate when manifest is present but generated output is deleted 
     const rebuiltMissingOutput = await runWithLocalServices(generateTypes({ paths: workspace.paths }), workspace.rootDir);
     const manifestAfterMissingOutput = JSON.parse(readFileSync(metadataPath, 'utf8').replace(/^﻿/, ''));
 
-    expect(rebuiltMissingOutput.incremental.status).toBe('cache-miss');
-    expect(rebuiltMissingOutput.incremental.cacheInvalidationReason).toBe('missing-output');
-    expect(rebuiltMissingOutput.incremental.rewritten).toContain('lib/generated/tesseract-knowledge.ts');
-    expect(rebuiltMissingOutput.incremental.rewritten).toContain('lib/generated/tesseract-knowledge.metadata.json');
-    expect(manifestAfterMissingOutput.outputFingerprint).toBe(rebuiltMissingOutput.incremental.outputFingerprint);
+    const rebuiltMissingOutputIncremental = expectCacheMiss(rebuiltMissingOutput.incremental);
+    expect(rebuiltMissingOutputIncremental.cacheInvalidationReason).toBe('missing-output');
+    expect(rebuiltMissingOutputIncremental.rewritten).toContain('lib/generated/tesseract-knowledge.ts');
+    expect(rebuiltMissingOutputIncremental.rewritten).toContain('lib/generated/tesseract-knowledge.metadata.json');
+    expect(manifestAfterMissingOutput.outputFingerprint).toBe(rebuiltMissingOutputIncremental.outputFingerprint);
 
     writeFileSync(rebuiltMissingOutput.outputPath, `export const corrupted = true;\n`, 'utf8');
 
     const rebuiltCorruptedOutput = await runWithLocalServices(generateTypes({ paths: workspace.paths }), workspace.rootDir);
     const manifestAfterCorruption = JSON.parse(readFileSync(metadataPath, 'utf8').replace(/^﻿/, ''));
 
-    expect(rebuiltCorruptedOutput.incremental.status).toBe('cache-miss');
-    expect(rebuiltCorruptedOutput.incremental.cacheInvalidationReason).toBe('invalid-output');
-    expect(rebuiltCorruptedOutput.incremental.rewritten).toContain('lib/generated/tesseract-knowledge.ts');
-    expect(rebuiltCorruptedOutput.incremental.rewritten).toContain('lib/generated/tesseract-knowledge.metadata.json');
-    expect(manifestAfterCorruption.outputFingerprint).toBe(rebuiltCorruptedOutput.incremental.outputFingerprint);
+    const rebuiltCorruptedOutputIncremental = expectCacheMiss(rebuiltCorruptedOutput.incremental);
+    expect(rebuiltCorruptedOutputIncremental.cacheInvalidationReason).toBe('invalid-output');
+    expect(rebuiltCorruptedOutputIncremental.rewritten).toContain('lib/generated/tesseract-knowledge.ts');
+    expect(rebuiltCorruptedOutputIncremental.rewritten).toContain('lib/generated/tesseract-knowledge.metadata.json');
+    expect(manifestAfterCorruption.outputFingerprint).toBe(rebuiltCorruptedOutputIncremental.outputFingerprint);
     expect(firstManifest.inputSetFingerprint).toBe(manifestAfterMissingOutput.inputSetFingerprint);
     expect(firstManifest.inputSetFingerprint).toBe(manifestAfterCorruption.inputSetFingerprint);
   } finally {
@@ -402,24 +463,24 @@ test('graph rebuilds when manifest is present but cached graph is missing or inv
     const rebuiltMissingOutput = await runWithLocalServices(buildDerivedGraph({ paths: workspace.paths }), workspace.rootDir);
     const manifestAfterMissingOutput = JSON.parse(readFileSync(manifestPath, 'utf8').replace(/^﻿/, ''));
 
-    expect(rebuiltMissingOutput.incremental.status).toBe('cache-miss');
-    expect(rebuiltMissingOutput.incremental.cacheInvalidationReason).toBe('missing-output');
-    expect(rebuiltMissingOutput.incremental.rewritten).toContain('.tesseract/graph/index.json');
-    expect(rebuiltMissingOutput.incremental.rewritten).toContain('.tesseract/graph/mcp-catalog.json');
-    expect(rebuiltMissingOutput.incremental.rewritten).toContain('.tesseract/graph/build-manifest.json');
-    expect(manifestAfterMissingOutput.outputFingerprint).toBe(rebuiltMissingOutput.incremental.outputFingerprint);
+    const rebuiltMissingOutputIncremental = expectCacheMiss(rebuiltMissingOutput.incremental);
+    expect(rebuiltMissingOutputIncremental.cacheInvalidationReason).toBe('missing-output');
+    expect(rebuiltMissingOutputIncremental.rewritten).toContain('.tesseract/graph/index.json');
+    expect(rebuiltMissingOutputIncremental.rewritten).toContain('.tesseract/graph/mcp-catalog.json');
+    expect(rebuiltMissingOutputIncremental.rewritten).toContain('.tesseract/graph/build-manifest.json');
+    expect(manifestAfterMissingOutput.outputFingerprint).toBe(rebuiltMissingOutputIncremental.outputFingerprint);
 
     writeFileSync(workspace.paths.graphIndexPath, '{"bad":true}', 'utf8');
 
     const rebuiltInvalidOutput = await runWithLocalServices(buildDerivedGraph({ paths: workspace.paths }), workspace.rootDir);
     const manifestAfterInvalidOutput = JSON.parse(readFileSync(manifestPath, 'utf8').replace(/^﻿/, ''));
 
-    expect(rebuiltInvalidOutput.incremental.status).toBe('cache-miss');
-    expect(rebuiltInvalidOutput.incremental.cacheInvalidationReason).toBe('invalid-output');
-    expect(rebuiltInvalidOutput.incremental.rewritten).toContain('.tesseract/graph/index.json');
-    expect(rebuiltInvalidOutput.incremental.rewritten).toContain('.tesseract/graph/mcp-catalog.json');
-    expect(rebuiltInvalidOutput.incremental.rewritten).toContain('.tesseract/graph/build-manifest.json');
-    expect(manifestAfterInvalidOutput.outputFingerprint).toBe(rebuiltInvalidOutput.incremental.outputFingerprint);
+    const rebuiltInvalidOutputIncremental = expectCacheMiss(rebuiltInvalidOutput.incremental);
+    expect(rebuiltInvalidOutputIncremental.cacheInvalidationReason).toBe('invalid-output');
+    expect(rebuiltInvalidOutputIncremental.rewritten).toContain('.tesseract/graph/index.json');
+    expect(rebuiltInvalidOutputIncremental.rewritten).toContain('.tesseract/graph/mcp-catalog.json');
+    expect(rebuiltInvalidOutputIncremental.rewritten).toContain('.tesseract/graph/build-manifest.json');
+    expect(manifestAfterInvalidOutput.outputFingerprint).toBe(rebuiltInvalidOutputIncremental.outputFingerprint);
     expect(firstManifest.inputSetFingerprint).toBe(manifestAfterMissingOutput.inputSetFingerprint);
     expect(firstManifest.inputSetFingerprint).toBe(manifestAfterInvalidOutput.inputSetFingerprint);
     expect(firstBuild.graph.nodes.length).toBeGreaterThan(0);

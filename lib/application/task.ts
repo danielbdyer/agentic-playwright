@@ -4,6 +4,7 @@ import { knowledgePaths } from '../domain/ids';
 import type { TesseractError } from '../domain/errors';
 import type { AdoId, ElementId, PostureId, ScreenId, SnapshotTemplateId } from '../domain/identity';
 import type { ScenarioTaskPacket, StepResolution, StepTask, StepTaskElementCandidate, StepTaskScreenCandidate } from '../domain/types';
+import { controlResolutionForStep, runtimeControlsForScenario } from './controls';
 import type { CompileSnapshot } from './compile-snapshot';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
 import type { ProjectPaths } from './paths';
@@ -99,6 +100,7 @@ function buildTaskPacket(input: {
   compileSnapshot: CompileSnapshot;
   catalog: WorkspaceCatalog;
 }): ScenarioTaskPacket {
+  const runtimeControls = runtimeControlsForScenario(input.catalog, input.compileSnapshot.scenario);
   const knowledgeFingerprint = fingerprintProjectionOutput({
     screens: Object.values(input.catalog.screenBundles).map((entry) => ({
       surface: entry.surface.fingerprint,
@@ -109,6 +111,7 @@ function buildTaskPacket(input: {
     patterns: input.catalog.mergedPatterns,
     evidence: input.catalog.evidenceRecords.map((entry) => entry.fingerprint),
   });
+  const controlsFingerprint = fingerprintProjectionOutput(runtimeControls);
 
   const screens = Object.keys(input.catalog.screenBundles)
     .sort((left, right) => left.localeCompare(right))
@@ -120,6 +123,7 @@ function buildTaskPacket(input: {
     sharedPatterns: input.catalog.mergedPatterns,
     screens,
     evidenceRefs: input.catalog.evidenceRecords.map((entry) => entry.artifactPath).sort((left, right) => left.localeCompare(right)),
+    controls: runtimeControls,
   };
 
   const steps = input.compileSnapshot.boundScenario.steps.map((step) => {
@@ -131,6 +135,7 @@ function buildTaskPacket(input: {
       normalizedIntent: step.binding.normalizedIntent,
       allowedActions: step.resolution?.action ? [step.resolution.action] : ['navigate', 'input', 'click', 'assert-snapshot'],
       explicitResolution: stepResolution(step),
+      controlResolution: controlResolutionForStep(runtimeControls, step.index),
       runtimeKnowledge,
     };
     return {
@@ -139,8 +144,45 @@ function buildTaskPacket(input: {
     };
   });
 
+  const governance = input.compileSnapshot.boundScenario.steps.some((step) => step.binding.governance === 'blocked')
+    ? 'blocked'
+    : input.compileSnapshot.boundScenario.steps.some((step) => step.binding.governance === 'review-required')
+      ? 'review-required'
+      : 'approved';
   const packet: Omit<ScenarioTaskPacket, 'taskFingerprint'> = {
     kind: 'scenario-task-packet',
+    version: 1,
+    stage: 'preparation',
+    scope: 'scenario',
+    ids: {
+      adoId: input.compileSnapshot.adoId,
+      suite: input.compileSnapshot.scenario.metadata.suite,
+      dataset: runtimeControls.datasets.find((entry) => entry.isDefault)?.name ?? null,
+      runbook: runtimeControls.runbooks.find((entry) => entry.isDefault)?.name ?? null,
+      resolutionControl: runtimeControls.resolutionControls[0]?.name ?? null,
+    },
+    fingerprints: {
+      artifact: '',
+      content: input.compileSnapshot.scenario.source.content_hash,
+      knowledge: knowledgeFingerprint,
+      controls: controlsFingerprint,
+      task: null,
+      run: null,
+    },
+    lineage: {
+      sources: [input.compileSnapshot.scenarioPath, ...runtimeControls.datasets.map((entry) => entry.artifactPath), ...runtimeControls.runbooks.map((entry) => entry.artifactPath), ...runtimeControls.resolutionControls.map((entry) => entry.artifactPath)],
+      parents: [input.compileSnapshot.boundPath],
+      handshakes: ['preparation'],
+    },
+    governance,
+    payload: {
+      adoId: input.compileSnapshot.adoId,
+      revision: input.compileSnapshot.scenario.source.revision,
+      title: input.compileSnapshot.scenario.metadata.title,
+      suite: input.compileSnapshot.scenario.metadata.suite,
+      knowledgeFingerprint,
+      steps,
+    },
     adoId: input.compileSnapshot.adoId,
     revision: input.compileSnapshot.scenario.source.revision,
     title: input.compileSnapshot.scenario.metadata.title,
@@ -149,9 +191,15 @@ function buildTaskPacket(input: {
     steps,
   };
 
+  const taskFingerprint = fingerprintProjectionOutput(packet);
   return {
     ...packet,
-    taskFingerprint: fingerprintProjectionOutput(packet),
+    fingerprints: {
+      ...packet.fingerprints,
+      artifact: taskFingerprint,
+      task: taskFingerprint,
+    },
+    taskFingerprint,
   };
 }
 
@@ -191,6 +239,9 @@ export function buildTaskPacketProjection(options:
       ...catalog.screenHints.map((entry) => fingerprintProjectionArtifact('hints', entry.artifactPath, entry.artifact)),
       ...catalog.screenPostures.map((entry) => fingerprintProjectionArtifact('postures', entry.artifactPath, entry.artifact)),
       ...catalog.patternDocuments.map((entry) => fingerprintProjectionArtifact('patterns', entry.artifactPath, entry.artifact)),
+      ...catalog.datasets.map((entry) => fingerprintProjectionArtifact('dataset-control', entry.artifactPath, entry.artifact)),
+      ...catalog.resolutionControls.map((entry) => fingerprintProjectionArtifact('resolution-control', entry.artifactPath, entry.artifact)),
+      ...catalog.runbooks.map((entry) => fingerprintProjectionArtifact('runbook-control', entry.artifactPath, entry.artifact)),
       ...catalog.evidenceRecords.map((entry) => fingerprintProjectionArtifact('evidence', entry.artifactPath, entry.artifact)),
     ];
     const packet = buildTaskPacket({ compileSnapshot, catalog });

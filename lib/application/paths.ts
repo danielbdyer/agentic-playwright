@@ -9,6 +9,11 @@ export interface ProjectPaths {
   archiveDir: string;
   manifestPath: string;
   scenariosDir: string;
+  benchmarksDir: string;
+  controlsDir: string;
+  datasetsDir: string;
+  resolutionControlsDir: string;
+  runbooksDir: string;
   knowledgeDir: string;
   surfacesDir: string;
   patternsDir: string;
@@ -19,12 +24,17 @@ export interface ProjectPaths {
   boundDir: string;
   tasksDir: string;
   runsDir: string;
+  inboxDir: string;
+  inboxIndexPath: string;
+  inboxReportPath: string;
+  benchmarkRunsDir: string;
   evidenceDir: string;
   graphDir: string;
   graphIndexPath: string;
   mcpCatalogPath: string;
   policyDir: string;
   trustPolicyPath: string;
+  approvalsDir: string;
 }
 
 export function createProjectPaths(rootDir: string): ProjectPaths {
@@ -35,6 +45,11 @@ export function createProjectPaths(rootDir: string): ProjectPaths {
     archiveDir: path.join(rootDir, '.ado-sync', 'archive'),
     manifestPath: path.join(rootDir, '.ado-sync', 'manifest.json'),
     scenariosDir: path.join(rootDir, 'scenarios'),
+    benchmarksDir: path.join(rootDir, 'benchmarks'),
+    controlsDir: path.join(rootDir, 'controls'),
+    datasetsDir: path.join(rootDir, 'controls', 'datasets'),
+    resolutionControlsDir: path.join(rootDir, 'controls', 'resolution'),
+    runbooksDir: path.join(rootDir, 'controls', 'runbooks'),
     knowledgeDir: path.join(rootDir, 'knowledge'),
     surfacesDir: path.join(rootDir, 'knowledge', 'surfaces'),
     patternsDir: path.join(rootDir, 'knowledge', 'patterns'),
@@ -45,12 +60,17 @@ export function createProjectPaths(rootDir: string): ProjectPaths {
     boundDir: path.join(rootDir, '.tesseract', 'bound'),
     tasksDir: path.join(rootDir, '.tesseract', 'tasks'),
     runsDir: path.join(rootDir, '.tesseract', 'runs'),
+    inboxDir: path.join(rootDir, '.tesseract', 'inbox'),
+    inboxIndexPath: path.join(rootDir, '.tesseract', 'inbox', 'index.json'),
+    inboxReportPath: path.join(rootDir, 'generated', 'operator', 'inbox.md'),
+    benchmarkRunsDir: path.join(rootDir, '.tesseract', 'benchmarks'),
     evidenceDir: path.join(rootDir, '.tesseract', 'evidence'),
     graphDir: path.join(rootDir, '.tesseract', 'graph'),
     graphIndexPath: path.join(rootDir, '.tesseract', 'graph', 'index.json'),
     mcpCatalogPath: path.join(rootDir, '.tesseract', 'graph', 'mcp-catalog.json'),
     policyDir: path.join(rootDir, '.tesseract', 'policy'),
     trustPolicyPath: path.join(rootDir, '.tesseract', 'policy', 'trust-policy.yaml'),
+    approvalsDir: path.join(rootDir, '.tesseract', 'policy', 'approvals'),
   };
 }
 
@@ -80,6 +100,22 @@ export function scenarioPath(paths: ProjectPaths, suitePath: string, adoId: AdoI
 
 export function boundPath(paths: ProjectPaths, adoId: AdoId): string {
   return path.join(paths.boundDir, `${adoId}.json`);
+}
+
+export function datasetControlPath(paths: ProjectPaths, name: string): string {
+  return resolvePathWithinRoot(paths.datasetsDir, `${name}.dataset.yaml`, 'name');
+}
+
+export function benchmarkDefinitionPath(paths: ProjectPaths, name: string): string {
+  return resolvePathWithinRoot(paths.benchmarksDir, `${name}.benchmark.yaml`, 'name');
+}
+
+export function resolutionControlPath(paths: ProjectPaths, name: string): string {
+  return resolvePathWithinRoot(paths.resolutionControlsDir, `${name}.resolution.yaml`, 'name');
+}
+
+export function runbookPath(paths: ProjectPaths, name: string): string {
+  return resolvePathWithinRoot(paths.runbooksDir, `${name}.runbook.yaml`, 'name');
 }
 
 export function taskPacketPath(paths: ProjectPaths, adoId: AdoId): string {
@@ -120,6 +156,42 @@ export function generatedProposalsPath(paths: ProjectPaths, suitePath: string, a
 
 export function emitManifestPath(paths: ProjectPaths, suitePath: string, adoId: AdoId): string {
   return resolvePathWithinRoot(path.join(paths.tesseractDir, 'emit'), path.join(suitePath, `${adoId}.manifest.json`), 'suitePath');
+}
+
+export function approvalReceiptPath(paths: ProjectPaths, proposalId: string): string {
+  return resolvePathWithinRoot(paths.approvalsDir, `${proposalId}.approval.json`, 'proposalId');
+}
+
+export function rerunPlanPath(paths: ProjectPaths, planId: string): string {
+  return resolvePathWithinRoot(paths.inboxDir, `${planId}.rerun-plan.json`, 'planId');
+}
+
+export function benchmarkRunDirPath(paths: ProjectPaths, benchmarkName: string): string {
+  return resolvePathWithinRoot(paths.benchmarkRunsDir, benchmarkName, 'benchmarkName');
+}
+
+export function benchmarkDogfoodRunPath(paths: ProjectPaths, benchmarkName: string, runId: string): string {
+  return resolvePathWithinRoot(benchmarkRunDirPath(paths, benchmarkName), `${runId}.dogfood-run.json`, 'runId');
+}
+
+export function benchmarkScorecardJsonPath(paths: ProjectPaths, benchmarkName: string): string {
+  return resolvePathWithinRoot(paths.generatedDir, path.join('benchmarks', `${benchmarkName}.scorecard.json`), 'benchmarkName');
+}
+
+export function benchmarkScorecardMarkdownPath(paths: ProjectPaths, benchmarkName: string): string {
+  return resolvePathWithinRoot(paths.generatedDir, path.join('benchmarks', `${benchmarkName}.scorecard.md`), 'benchmarkName');
+}
+
+export function benchmarkVariantsSpecPath(paths: ProjectPaths, benchmarkName: string): string {
+  return resolvePathWithinRoot(paths.generatedDir, path.join('benchmarks', `${benchmarkName}.variants.spec.ts`), 'benchmarkName');
+}
+
+export function benchmarkVariantsTracePath(paths: ProjectPaths, benchmarkName: string): string {
+  return resolvePathWithinRoot(paths.generatedDir, path.join('benchmarks', `${benchmarkName}.variants.trace.json`), 'benchmarkName');
+}
+
+export function benchmarkVariantsReviewPath(paths: ProjectPaths, benchmarkName: string): string {
+  return resolvePathWithinRoot(paths.generatedDir, path.join('benchmarks', `${benchmarkName}.variants.review.md`), 'benchmarkName');
 }
 
 export function elementsPath(paths: ProjectPaths, screen: ScreenId): string {

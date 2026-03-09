@@ -4,11 +4,15 @@ Tesseract is a deterministic preparation pipeline plus a knowledge-backed runtim
 
 It ingests Azure DevOps manual test cases, preserves their wording as canonical scenario IR, projects resolvable deterministic artifacts, and emits disposable Playwright object code plus review surfaces. The goal is not to hand-author tests faster. The goal is to make executable verification a transparent collaboration loop between approved knowledge, runtime interpretation, and human oversight.
 
+Operator workflows are documented in `docs/operator-handbook.md`.
+
 ## What is canonical
 
 Approved, reviewable inputs:
 
 - `.ado-sync/`
+- `benchmarks/`
+- `controls/`
 - `scenarios/`
 - `knowledge/surfaces/`
 - `knowledge/screens/`
@@ -20,11 +24,26 @@ Approved, reviewable inputs:
 Derived outputs. Do not hand-edit:
 
 - `.tesseract/bound/`
+- `.tesseract/benchmarks/`
+- `.tesseract/inbox/`
 - `.tesseract/tasks/`
 - `.tesseract/runs/`
 - `.tesseract/graph/`
 - `generated/`
 - `lib/generated/`
+
+## Six workflow lanes
+
+Tesseract exposes six explicit concern lanes so humans and agents can tune each surface independently:
+
+- `intent`: `.ado-sync/` and `scenarios/`
+- `knowledge`: `knowledge/surfaces/`, `knowledge/screens/`, `knowledge/patterns/`, `knowledge/snapshots/`
+- `control`: `controls/datasets/`, `controls/resolution/`, `controls/runbooks/`
+- `resolution`: `.tesseract/tasks/` plus runtime interpretation receipts
+- `execution`: runtime execution receipts and run records
+- `governance/projection`: generated review surfaces, graph outputs, and trust-policy gates
+
+Every cross-lane handoff is carried as a typed envelope with `kind`, `version`, `stage`, `scope`, `ids`, `fingerprints`, `lineage`, `governance`, and `payload`.
 
 ## Governance boundary
 
@@ -71,11 +90,16 @@ And it emits aligned review surfaces:
 - `generated/{suite}/{ado_id}.review.md`: QA-facing review artifact
 - `generated/{suite}/{ado_id}.proposals.json`: typed proposal bundle for supplemental changes
 
+Generated specs are readable projections over the workflow facade. The task packet remains the machine contract; the emitted spec is the human-readable projection of that same handshake.
+
 Runtime execution adds:
 
 - `.tesseract/runs/{ado_id}/{run_id}/interpretation.json`
 - `.tesseract/runs/{ado_id}/{run_id}/execution.json`
 - `.tesseract/runs/{ado_id}/{run_id}/run.json`
+- `.tesseract/inbox/index.json`
+- `.tesseract/policy/approvals/{proposal_id}.approval.json`
+- `.tesseract/benchmarks/{benchmark}/{run_id}.dogfood-run.json`
 
 The review artifact exists so a QA can answer:
 
@@ -87,14 +111,32 @@ The review artifact exists so a QA can answer:
 
 ## Deterministic precedence
 
-Preparation and runtime search follow a fixed precedence order:
+Precedence is concern-specific and intentionally testable.
+
+Resolution:
 
 1. explicit scenario fields
-2. approved screen knowledge and screen-local hints in `knowledge/screens/{screen}.hints.yaml`
-3. promoted shared patterns in `knowledge/patterns/`
-4. prior evidence and run history
-5. live DOM exploration and safe degraded resolution
-6. `needs-human`
+2. `controls/resolution/*.resolution.yaml`
+3. approved screen knowledge and screen-local hints in `knowledge/screens/{screen}.hints.yaml`
+4. promoted shared patterns in `knowledge/patterns/`
+5. prior evidence and run history
+6. live DOM exploration and safe degraded resolution
+7. `needs-human`
+
+Data:
+
+1. explicit scenario override
+2. runbook dataset binding
+3. dataset default
+4. hint default value
+5. posture sample
+6. generated token
+
+Run selection:
+
+1. CLI flags
+2. `controls/runbooks/*.runbook.yaml`
+3. repo defaults
 
 This order is part of the product. It must stay stable and testable.
 
@@ -151,7 +193,13 @@ npm run context    # print a generated repo brief from current sources
 npm run agent:sync # refresh docs/agent-context.md from current sources
 npm run refresh    # sync -> parse -> bind -> task -> emit -> graph -> types
 npm run run        # interpret -> execute -> evidence -> proposals -> re-emit -> graph
+npm run workflow   # inspect lane ownership, controls, precedence, and fingerprints
 npm run paths      # show canonical and derived artifact paths for one scenario
+npm run inbox      # project the operator inbox from proposals, degraded locators, and needs-human steps
+npm run benchmark  # execute the flagship benchmark lane and emit scorecards + variant projections
+npm run scorecard  # reproject the latest benchmark scorecard without running scenarios
+npm run approve    # apply an approved proposal patch and emit a rerun plan
+npm run rerun-plan # compute the smallest safe rerun set for one proposal id
 npm run surface    # inspect approved surface graph and derived capabilities
 npm run graph      # rebuild the dependency/provenance graph
 npm run trace      # return the scenario-centric subgraph
@@ -166,7 +214,12 @@ npm run lint       # typed lint over hand-authored sources
 npm run check      # quiet build + typecheck + lint + test gate for local/CI use
 npm run knip       # maintainer-only dependency hygiene scan
 npm test           # run compiler/runtime/documentation laws
-```
+``` 
+
+Global operator flags for mutating commands:
+
+- `--no-write`: compute and project results, but keep writes in the would-write ledger
+- `--baseline`: alias for `--no-write --interpreter-mode dry-run`
 
 ## Quality Gate
 
@@ -186,10 +239,15 @@ Output policy:
 | Artifact | Purpose | Review boundary |
 |---|---|---|
 | `.ado-sync/snapshots/{ado_id}.json` | upstream ADO source snapshot | canonical |
+| `benchmarks/*.benchmark.yaml` | canonical benchmark field catalog, drifts, and runbook expansion rules | canonical |
+| `controls/**/*.yaml` | canonical tuning surfaces for datasets, runbooks, and resolution overrides | canonical |
 | `scenarios/{suite}/{ado_id}.scenario.yaml` | canonical scenario IR | canonical |
 | `.tesseract/bound/{ado_id}.json` | bound scenario with provenance and governance | derived |
 | `.tesseract/tasks/{ado_id}.resolution.json` | runtime task packet and knowledge handshake | derived |
 | `.tesseract/runs/{ado_id}/{run_id}/run.json` | interpretation + execution receipts | derived |
+| `.tesseract/inbox/index.json` | derived operator inbox surface | derived |
+| `.tesseract/policy/approvals/{proposal_id}.approval.json` | durable approval receipt | derived |
+| `.tesseract/benchmarks/{benchmark}/{run_id}.dogfood-run.json` | benchmark execution ledger | derived |
 | `generated/{suite}/{ado_id}.spec.ts` | executable object code | derived |
 | `generated/{suite}/{ado_id}.trace.json` | machine derivation trace | derived |
 | `generated/{suite}/{ado_id}.review.md` | QA review report | derived |
@@ -200,16 +258,19 @@ Output policy:
 
 When working on a scenario, prefer this sequence:
 
-1. `npm run paths`
-2. `npm run trace`
-3. `npm run impact`
-4. `npm run surface`
-5. `.tesseract/tasks/...resolution.json`
-6. `generated/...review.md`
+1. `npm run workflow`
+2. `npm run inbox`
+3. `npm run paths`
+4. `npm run trace`
+5. `npm run impact`
+6. `npm run surface`
+7. `.tesseract/tasks/...resolution.json`
+8. `generated/...review.md`
 
 That sequence tells an agent:
 
 - what is canonical
+- what controls are active for the selected run
 - what was derived
 - what knowledge and prior evidence the runtime agent will see
 - what changed

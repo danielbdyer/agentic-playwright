@@ -1,0 +1,306 @@
+import { Effect } from 'effect';
+import { loadWorkspaceCatalog } from './catalog';
+import { runScenarioSelection } from './run';
+import type { ProjectPaths } from './paths';
+import {
+  benchmarkDogfoodRunPath,
+  benchmarkScorecardJsonPath,
+  benchmarkScorecardMarkdownPath,
+  benchmarkVariantsReviewPath,
+  benchmarkVariantsSpecPath,
+  benchmarkVariantsTracePath,
+  relativeProjectPath,
+} from './paths';
+import { ExecutionContext, FileSystem } from './ports';
+import type {
+  BenchmarkContext,
+  BenchmarkScorecard,
+  DogfoodRun,
+  ProposalBundle,
+} from '../domain/types';
+
+interface BenchmarkVariant {
+  id: string;
+  fieldId: string;
+  screen: string;
+  element: string;
+  posture: string;
+  sourceRuleIndex: number;
+}
+
+function uniqueSorted(values: string[]): string[] {
+  return [...new Set(values.filter((value) => value.length > 0))].sort((left, right) => left.localeCompare(right));
+}
+
+function round(value: number): number {
+  return Number(value.toFixed(2));
+}
+
+function benchmarkByName(benchmarks: readonly BenchmarkContext[], name: string): BenchmarkContext {
+  const benchmark = benchmarks.find((entry) => entry.name === name) ?? null;
+  if (!benchmark) {
+    throw new Error(`Unknown benchmark ${name}`);
+  }
+  return benchmark;
+}
+
+function variantsForBenchmark(benchmark: BenchmarkContext): BenchmarkVariant[] {
+  return benchmark.expansionRules.flatMap((rule, ruleIndex) =>
+    rule.fieldIds.flatMap((fieldId) => {
+      const field = benchmark.fieldCatalog.find((entry) => entry.id === fieldId) ?? null;
+      if (!field) {
+        return [];
+      }
+      return rule.postures.flatMap((posture) =>
+        Array.from({ length: rule.variantsPerField }).map((_, variantIndex) => ({
+          id: `${fieldId}-${posture}-${variantIndex + 1}`,
+          fieldId,
+          screen: field.screen,
+          element: field.element,
+          posture,
+          sourceRuleIndex: ruleIndex,
+        })),
+      );
+    }),
+  );
+}
+
+function proposalsForScenarios(bundles: readonly ProposalBundle[], scenarioIds: readonly string[]): ProposalBundle[] {
+  return bundles.filter((bundle) => scenarioIds.includes(bundle.adoId));
+}
+
+function knowledgeChurnForBundles(bundles: readonly ProposalBundle[]): Record<string, number> {
+  const counts = new Map<string, number>();
+  for (const bundle of bundles) {
+    for (const proposal of bundle.proposals) {
+      counts.set(proposal.artifactType, (counts.get(proposal.artifactType) ?? 0) + 1);
+    }
+  }
+  return Object.fromEntries([...counts.entries()].sort(([left], [right]) => left.localeCompare(right)));
+}
+
+function scorecardForBenchmark(input: {
+  benchmark: BenchmarkContext;
+  scenarioIds: string[];
+  proposalBundles: ProposalBundle[];
+  approvalCount: number;
+  generatedVariantCount: number;
+}): BenchmarkScorecard {
+  const uniqueScreens = uniqueSorted(input.benchmark.fieldCatalog.map((field) => field.screen));
+  const driftCount = input.benchmark.driftEvents.length;
+  const locatorDriftCount = input.benchmark.driftEvents.filter((event) => event.kind === 'locator-degradation').length;
+  const widgetDriftCount = input.benchmark.driftEvents.filter((event) => event.kind === 'widget-swap').length;
+  const uniqueFieldAwarenessCount = input.benchmark.fieldCatalog.length;
+  const firstPassScreenResolutionRate = round(Math.max(0, (uniqueScreens.length - driftCount * 0.2) / Math.max(uniqueScreens.length, 1)));
+  const firstPassElementResolutionRate = round(
+    Math.max(0, (uniqueFieldAwarenessCount - locatorDriftCount - widgetDriftCount) / Math.max(uniqueFieldAwarenessCount, 1)),
+  );
+  const degradedLocatorRate = round(locatorDriftCount / Math.max(uniqueFieldAwarenessCount, 1));
+  const reviewRequiredCount = input.proposalBundles.reduce((count, bundle) =>
+    count + bundle.proposals.filter((proposal) => proposal.trustPolicy.decision !== 'allow').length,
+  0);
+  const repairLoopCount = input.proposalBundles.reduce((count, bundle) => count + bundle.proposals.length, 0);
+  const thresholds = input.benchmark.fieldAwarenessThresholds;
+  const thresholdStatus = uniqueFieldAwarenessCount < thresholds.minFieldAwarenessCount
+    || firstPassScreenResolutionRate < thresholds.minFirstPassScreenResolutionRate
+    || firstPassElementResolutionRate < thresholds.minFirstPassElementResolutionRate
+    || degradedLocatorRate > thresholds.maxDegradedLocatorRate
+    ? 'fail'
+    : reviewRequiredCount > 0
+      ? 'warn'
+      : 'pass';
+
+  return {
+    kind: 'benchmark-scorecard',
+    version: 1,
+    benchmark: input.benchmark.name,
+    generatedAt: new Date().toISOString(),
+    uniqueFieldAwarenessCount,
+    firstPassScreenResolutionRate,
+    firstPassElementResolutionRate,
+    degradedLocatorRate,
+    reviewRequiredCount,
+    repairLoopCount,
+    operatorTouchCount: input.approvalCount,
+    knowledgeChurn: knowledgeChurnForBundles(input.proposalBundles),
+    generatedVariantCount: input.generatedVariantCount,
+    thresholdStatus,
+  };
+}
+
+function renderVariantSpec(benchmark: BenchmarkContext, variants: readonly BenchmarkVariant[]): string {
+  const lines: string[] = [
+    `// Benchmark variants for ${benchmark.name}`,
+    `import { literal, workflow } from '../../lib/generated/workflow-facade';`,
+    '',
+    'export const benchmarkVariants = [',
+    ...variants.map((variant) =>
+      `  workflow.screen('${variant.screen}').element('${variant.element}').input(literal('${variant.id}'), '${variant.posture}'),`,
+    ),
+    '] as const;',
+    '',
+  ];
+  return `${lines.join('\n')}\n`;
+}
+
+function renderVariantReview(benchmark: BenchmarkContext, variants: readonly BenchmarkVariant[], scorecard: BenchmarkScorecard): string {
+  const lines: string[] = [
+    `# ${benchmark.name} benchmark`,
+    '',
+    `- Field awareness count: ${scorecard.uniqueFieldAwarenessCount}`,
+    `- Generated variants: ${scorecard.generatedVariantCount}`,
+    `- Threshold status: ${scorecard.thresholdStatus}`,
+    `- Next commands: tesseract benchmark --benchmark ${benchmark.name} | tesseract scorecard --benchmark ${benchmark.name} | tesseract inbox`,
+    '',
+  ];
+
+  for (const variant of variants) {
+    lines.push(`## ${variant.id}`);
+    lines.push('');
+    lines.push(`- Field: ${variant.fieldId}`);
+    lines.push(`- Screen: ${variant.screen}`);
+    lines.push(`- Element: ${variant.element}`);
+    lines.push(`- Posture: ${variant.posture}`);
+    lines.push('');
+  }
+
+  return `${lines.join('\n').trim()}\n`;
+}
+
+function variantTrace(benchmark: BenchmarkContext, variants: readonly BenchmarkVariant[], scorecard: BenchmarkScorecard) {
+  return {
+    kind: 'benchmark-variant-trace',
+    version: 1,
+    benchmark: benchmark.name,
+    generatedAt: new Date().toISOString(),
+    scorecard,
+    variants,
+  };
+}
+
+function renderScorecardMarkdown(benchmark: BenchmarkContext, scorecard: BenchmarkScorecard, run: DogfoodRun | null): string {
+  const lines = [
+    `# ${benchmark.name} scorecard`,
+    '',
+    `- Threshold status: ${scorecard.thresholdStatus}`,
+    `- Unique field awareness count: ${scorecard.uniqueFieldAwarenessCount}`,
+    `- First-pass screen resolution rate: ${scorecard.firstPassScreenResolutionRate}`,
+    `- First-pass element resolution rate: ${scorecard.firstPassElementResolutionRate}`,
+    `- Degraded locator rate: ${scorecard.degradedLocatorRate}`,
+    `- Review-required count: ${scorecard.reviewRequiredCount}`,
+    `- Repair-loop count: ${scorecard.repairLoopCount}`,
+    `- Operator-touch count: ${scorecard.operatorTouchCount}`,
+    `- Knowledge churn: ${JSON.stringify(scorecard.knowledgeChurn)}`,
+    `- Generated variants: ${scorecard.generatedVariantCount}`,
+    `- Next commands: tesseract benchmark --benchmark ${benchmark.name} | tesseract scorecard --benchmark ${benchmark.name} | tesseract inbox`,
+    '',
+    ...(run ? [
+      '## Dogfood run',
+      '',
+      `- Run id: ${run.runId}`,
+      `- Runbooks: ${run.runbooks.join(', ') || 'none'}`,
+      `- Scenario ids: ${run.scenarioIds.join(', ') || 'none'}`,
+      '',
+    ] : []),
+  ];
+  return `${lines.join('\n').trim()}\n`;
+}
+
+export function projectBenchmarkScorecard(options: {
+  paths: ProjectPaths;
+  benchmarkName: string;
+  includeExecution?: boolean | undefined;
+}) {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const executionContext = yield* ExecutionContext;
+    const catalog = yield* loadWorkspaceCatalog({ paths: options.paths });
+    const benchmark = benchmarkByName(catalog.benchmarks.map((entry) => entry.artifact), options.benchmarkName);
+    const variants = variantsForBenchmark(benchmark);
+
+    let scenarioIds: string[] = [];
+    if (options.includeExecution) {
+      for (const runbook of benchmark.benchmarkRunbooks) {
+        const selection = yield* runScenarioSelection({
+          paths: options.paths,
+          runbookName: runbook.runbook,
+          tag: runbook.tag ?? undefined,
+          interpreterMode: executionContext.posture.interpreterMode === 'playwright'
+            ? 'diagnostic'
+            : executionContext.posture.interpreterMode,
+          posture: executionContext.posture,
+        });
+        scenarioIds = uniqueSorted([...scenarioIds, ...selection.selection.adoIds]);
+      }
+    } else {
+      scenarioIds = uniqueSorted(
+        catalog.scenarios
+          .filter((entry) => entry.artifact.metadata.suite.startsWith(benchmark.suite))
+          .map((entry) => entry.artifact.source.ado_id),
+      );
+    }
+
+    const scorecardCatalog = options.includeExecution ? yield* loadWorkspaceCatalog({ paths: options.paths }) : catalog;
+    const proposalBundles = proposalsForScenarios(scorecardCatalog.proposalBundles.map((entry) => entry.artifact), scenarioIds);
+    const scorecard = scorecardForBenchmark({
+      benchmark,
+      scenarioIds,
+      proposalBundles,
+      approvalCount: scorecardCatalog.approvalReceipts.length,
+      generatedVariantCount: variants.length,
+    });
+    const dogfoodRun: DogfoodRun = {
+      kind: 'dogfood-run',
+      version: 1,
+      benchmark: benchmark.name,
+      runId: new Date().toISOString().replace(/[:.]/g, '-'),
+      executedAt: new Date().toISOString(),
+      posture: executionContext.posture,
+      runbooks: benchmark.benchmarkRunbooks.map((entry) => entry.runbook),
+      scenarioIds: scenarioIds as DogfoodRun['scenarioIds'],
+      driftEventIds: benchmark.driftEvents.map((event) => event.id),
+      scorecard,
+      nextCommands: [
+        `tesseract scorecard --benchmark ${benchmark.name}`,
+        `tesseract inbox`,
+      ],
+    };
+    const variantSpec = renderVariantSpec(benchmark, variants);
+    const variantTraceArtifact = variantTrace(benchmark, variants, scorecard);
+    const variantReview = renderVariantReview(benchmark, variants, scorecard);
+    const scorecardMarkdown = renderScorecardMarkdown(benchmark, scorecard, dogfoodRun);
+
+    const dogfoodPath = benchmarkDogfoodRunPath(options.paths, benchmark.name, dogfoodRun.runId);
+    const scorecardJsonPath = benchmarkScorecardJsonPath(options.paths, benchmark.name);
+    const scorecardMarkdownPath = benchmarkScorecardMarkdownPath(options.paths, benchmark.name);
+    const variantsSpecPath = benchmarkVariantsSpecPath(options.paths, benchmark.name);
+    const variantsTracePath = benchmarkVariantsTracePath(options.paths, benchmark.name);
+    const variantsReviewPath = benchmarkVariantsReviewPath(options.paths, benchmark.name);
+
+    yield* fs.writeJson(dogfoodPath, dogfoodRun);
+    yield* fs.writeJson(scorecardJsonPath, scorecard);
+    yield* fs.writeText(scorecardMarkdownPath, scorecardMarkdown);
+    yield* fs.writeText(variantsSpecPath, variantSpec);
+    yield* fs.writeJson(variantsTracePath, variantTraceArtifact);
+    yield* fs.writeText(variantsReviewPath, variantReview);
+
+    return {
+      benchmark: benchmark.name,
+      scorecard,
+      dogfoodRun,
+      scorecardJsonPath,
+      scorecardMarkdownPath,
+      variantsSpecPath,
+      variantsTracePath,
+      variantsReviewPath,
+      rewritten: [
+        relativeProjectPath(options.paths, dogfoodPath),
+        relativeProjectPath(options.paths, scorecardJsonPath),
+        relativeProjectPath(options.paths, scorecardMarkdownPath),
+        relativeProjectPath(options.paths, variantsSpecPath),
+        relativeProjectPath(options.paths, variantsTracePath),
+        relativeProjectPath(options.paths, variantsReviewPath),
+      ],
+    };
+  });
+}

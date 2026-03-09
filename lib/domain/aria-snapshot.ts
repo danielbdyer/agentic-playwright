@@ -119,7 +119,7 @@ export function canonicalizeAriaSnapshot(input: unknown): CanonicalAriaSnapshot 
   if (nodes.length === 0) {
     return null;
   }
-  return nodes.length === 1 ? nodes[0] : nodes;
+  return nodes.length === 1 ? (nodes[0] ?? null) : nodes;
 }
 
 export function renderAriaSnapshot(input: unknown): string {

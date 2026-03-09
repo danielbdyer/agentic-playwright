@@ -4,11 +4,16 @@ import { createSnapshotTemplateId } from '../../domain/identity';
 import { mergePatternDocuments } from '../../domain/knowledge/patterns';
 import type {
   AdoSnapshot,
+  ApprovalReceipt,
+  BenchmarkContext,
   BoundScenario,
+  DatasetControl,
   EvidenceRecord,
   PatternDocument,
   ProposalBundle,
+  ResolutionControl,
   RunRecord,
+  RunbookControl,
   Scenario,
   ScenarioTaskPacket,
   ScreenElements,
@@ -18,10 +23,15 @@ import type {
 } from '../../domain/types';
 import {
   validateAdoSnapshot,
+  validateApprovalReceipt,
+  validateBenchmarkContext,
   validateBoundScenario,
+  validateDatasetControl,
   validatePatternDocument,
   validateProposalBundle,
+  validateResolutionControl,
   validateRunRecord,
+  validateRunbookControl,
   validateScenario,
   validateScenarioTaskPacket,
   validateScreenElements,
@@ -105,6 +115,54 @@ export function loadWorkspaceCatalog(options: { paths: ProjectPaths }) {
       ));
     }
 
+    const datasetFiles = (yield* walkFiles(fs, options.paths.datasetsDir)).filter((filePath) => filePath.endsWith('.dataset.yaml'));
+    const datasets: ArtifactEnvelope<DatasetControl>[] = [];
+    for (const filePath of datasetFiles) {
+      datasets.push(yield* readYamlArtifact(
+        options.paths,
+        filePath,
+        validateDatasetControl,
+        'dataset-control-validation-failed',
+        `Dataset control ${filePath} failed validation`,
+      ));
+    }
+
+    const benchmarkFiles = (yield* walkFiles(fs, options.paths.benchmarksDir)).filter((filePath) => filePath.endsWith('.benchmark.yaml'));
+    const benchmarks: ArtifactEnvelope<BenchmarkContext>[] = [];
+    for (const filePath of benchmarkFiles) {
+      benchmarks.push(yield* readYamlArtifact(
+        options.paths,
+        filePath,
+        validateBenchmarkContext,
+        'benchmark-context-validation-failed',
+        `Benchmark ${filePath} failed validation`,
+      ));
+    }
+
+    const resolutionControlFiles = (yield* walkFiles(fs, options.paths.resolutionControlsDir)).filter((filePath) => filePath.endsWith('.resolution.yaml'));
+    const resolutionControls: ArtifactEnvelope<ResolutionControl>[] = [];
+    for (const filePath of resolutionControlFiles) {
+      resolutionControls.push(yield* readYamlArtifact(
+        options.paths,
+        filePath,
+        validateResolutionControl,
+        'resolution-control-validation-failed',
+        `Resolution control ${filePath} failed validation`,
+      ));
+    }
+
+    const runbookFiles = (yield* walkFiles(fs, options.paths.runbooksDir)).filter((filePath) => filePath.endsWith('.runbook.yaml'));
+    const runbooks: ArtifactEnvelope<RunbookControl>[] = [];
+    for (const filePath of runbookFiles) {
+      runbooks.push(yield* readYamlArtifact(
+        options.paths,
+        filePath,
+        validateRunbookControl,
+        'runbook-control-validation-failed',
+        `Runbook ${filePath} failed validation`,
+      ));
+    }
+
     const knowledgeSnapshotFiles = (yield* walkFiles(fs, path.join(options.paths.knowledgeDir, 'snapshots')))
       .filter((filePath) => filePath.endsWith('.yaml'));
     const knowledgeSnapshots = knowledgeSnapshotFiles.map((filePath) => ({
@@ -185,6 +243,18 @@ export function loadWorkspaceCatalog(options: { paths: ProjectPaths }) {
       ));
     }
 
+    const approvalFiles = (yield* walkFiles(fs, options.paths.approvalsDir)).filter((filePath) => filePath.endsWith('.approval.json'));
+    const approvalReceipts: ArtifactEnvelope<ApprovalReceipt>[] = [];
+    for (const filePath of approvalFiles) {
+      approvalReceipts.push(yield* readJsonArtifact(
+        options.paths,
+        filePath,
+        validateApprovalReceipt,
+        'approval-receipt-validation-failed',
+        `Approval receipt ${filePath} failed validation`,
+      ));
+    }
+
     const evidenceFiles = (yield* walkFiles(fs, options.paths.evidenceDir)).filter((filePath) => filePath.endsWith('.json'));
     const evidenceRecords: ArtifactEnvelope<EvidenceRecord>[] = [];
     for (const filePath of evidenceFiles) {
@@ -213,6 +283,11 @@ export function loadWorkspaceCatalog(options: { paths: ProjectPaths }) {
       taskPackets,
       runRecords,
       proposalBundles,
+      approvalReceipts,
+      datasets,
+      benchmarks,
+      resolutionControls,
+      runbooks,
       surfaces,
       screenElements,
       screenHints,

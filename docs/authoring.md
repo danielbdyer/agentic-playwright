@@ -2,7 +2,7 @@
 
 This document explains how to add or change approved knowledge without collapsing the preparation pipeline or runtime agent into ad hoc code.
 
-For a fast generated repo brief, read `docs/agent-context.md`. For the operational entrypoint, read `README.md`. For the product model, read `VISION.md`.
+For a fast generated repo brief, read `docs/agent-context.md`. For the operational entrypoint, read `README.md`. For the product model, read `VISION.md`. For operator loops and approval/rerun flow, read `docs/operator-handbook.md`.
 
 ## Authoring principle
 
@@ -21,6 +21,10 @@ Preferred order:
 | Artifact | Owns |
 |---|---|
 | `.ado-sync/snapshots/{ado_id}.json` | upstream ADO truth snapshot |
+| `benchmarks/*.benchmark.yaml` | benchmark field catalogs, drifts, and expansion rules |
+| `controls/datasets/*.dataset.yaml` | canonical dataset bundles and generated-token defaults |
+| `controls/resolution/*.resolution.yaml` | canonical persistent resolution overrides |
+| `controls/runbooks/*.runbook.yaml` | canonical run selection and interpreter defaults |
 | `scenarios/{suite}/{ado_id}.scenario.yaml` | canonical scenario IR |
 | `knowledge/surfaces/{screen}.surface.yaml` | structural screen decomposition |
 | `knowledge/screens/{screen}.elements.yaml` | element identity and locator ladder |
@@ -62,6 +66,29 @@ Rules:
 - do not encode DOM trivia or widget choreography here
 
 A scenario file should answer: what should happen, not how Playwright should do it. The runtime agent consumes this canonical intent through the task packet, not through hidden repo lore.
+
+## Controls
+
+`controls/` is the persistent tuning surface for operator and agent overrides. It is canonical input, not a scratch directory.
+
+Use `controls/datasets/*.dataset.yaml` for:
+
+- named fixture bundles
+- default element values keyed by `screen.element`
+- generated-token seeds that should persist across runs
+
+Use `controls/resolution/*.resolution.yaml` for:
+
+- scenario or step-scoped resolution overrides that should survive regeneration
+- operator-approved action, screen, element, posture, override, or snapshot fixes
+
+Use `controls/runbooks/*.runbook.yaml` for:
+
+- run selection by suite, tag, or explicit scenario
+- interpreter defaults
+- default dataset and resolution-control bindings
+
+Keep application truth in `knowledge/`. Use `controls/` to tune how approved truth is selected and executed.
 
 ## Element signatures
 
@@ -187,6 +214,7 @@ A human may also author a testable concern directly against the generated type s
 
 After `npm run refresh`, inspect:
 
+- `npm run workflow`
 - `.tesseract/bound/{ado_id}.json`
 - `.tesseract/tasks/{ado_id}.resolution.json`
 - `generated/{suite}/{ado_id}.trace.json`
@@ -203,6 +231,7 @@ After `npm run run`, also inspect:
 These should answer:
 
 - what was preserved deterministically
+- which control surface won when intent did not decide on its own
 - what task context the agent received
 - which hints, patterns, and prior evidence were used
 - whether the agent resolved, resolved-with-proposals, or truly needed a human

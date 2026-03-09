@@ -21,6 +21,9 @@ export const graphIds = {
   screen: (screenId: ScreenId): string => joinGraphId('screen', screenId),
   screenHints: (screenId: ScreenId): string => joinGraphId('screen-hints', screenId),
   pattern: (patternId: string): string => joinGraphId('pattern', normalizePathFragment(patternId)),
+  dataset: (datasetId: string): string => joinGraphId('dataset', normalizePathFragment(datasetId)),
+  resolutionControl: (controlId: string): string => joinGraphId('resolution-control', normalizePathFragment(controlId)),
+  runbook: (runbookId: string): string => joinGraphId('runbook', normalizePathFragment(runbookId)),
   section: (screenId: ScreenId, sectionId: string): string => joinGraphId('section', screenId, sectionId),
   surface: (screenId: ScreenId, surfaceId: SurfaceId): string => joinGraphId('surface', screenId, surfaceId),
   element: (screenId: ScreenId, elementId: ElementId): string => joinGraphId('element', screenId, elementId),
@@ -53,4 +56,10 @@ export const knowledgePaths = {
   postures: (screenId: ScreenId): string => `knowledge/screens/${screenId}.postures.yaml`,
   hints: (screenId: ScreenId): string => `knowledge/screens/${screenId}.hints.yaml`,
   patterns: (): string => 'knowledge/patterns/core.patterns.yaml',
+} as const;
+
+export const controlPaths = {
+  dataset: (name: string): string => `controls/datasets/${name}.dataset.yaml`,
+  resolution: (name: string): string => `controls/resolution/${name}.resolution.yaml`,
+  runbook: (name: string): string => `controls/runbooks/${name}.runbook.yaml`,
 } as const;

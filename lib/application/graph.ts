@@ -4,9 +4,12 @@ import { deriveGraph } from '../domain/derived-graph';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
 import type {
   BoundScenarioGraphArtifact,
+  DatasetControlArtifact,
   EvidenceArtifact,
   KnowledgeSnapshotArtifact,
   PolicyDecisionArtifact,
+  ResolutionControlArtifact,
+  RunbookControlArtifact,
   ScenarioGraphArtifact,
   ScreenHintsArtifact,
   SharedPatternsArtifact,
@@ -80,6 +83,9 @@ export function buildDerivedGraph(
       ...catalog.screenPostures.map((entry) => fingerprintProjectionArtifact('postures', entry.artifactPath, entry.artifact)),
       ...catalog.screenHints.map((entry) => fingerprintProjectionArtifact('hints', entry.artifactPath, entry.artifact)),
       ...catalog.patternDocuments.map((entry) => fingerprintProjectionArtifact('patterns', entry.artifactPath, entry.artifact)),
+      ...catalog.datasets.map((entry) => fingerprintProjectionArtifact('dataset-control', entry.artifactPath, entry.artifact)),
+      ...catalog.resolutionControls.map((entry) => fingerprintProjectionArtifact('resolution-control', entry.artifactPath, entry.artifact)),
+      ...catalog.runbooks.map((entry) => fingerprintProjectionArtifact('runbook-control', entry.artifactPath, entry.artifact)),
       ...catalog.scenarios.map((entry) => fingerprintProjectionArtifact('scenario', entry.artifactPath, entry.artifact)),
       ...catalog.boundScenarios.map((entry) => fingerprintProjectionArtifact('bound', entry.artifactPath, entry.artifact)),
       ...catalog.taskPackets.map((entry) => fingerprintProjectionArtifact('task', entry.artifactPath, entry.artifact)),
@@ -98,6 +104,9 @@ export function buildDerivedGraph(
     const screenPostures = catalog.screenPostures.map(({ artifact, artifactPath }) => ({ artifact, artifactPath }));
     const screenHints: ScreenHintsArtifact[] = catalog.screenHints.map(({ artifact, artifactPath }) => ({ artifact, artifactPath }));
     const sharedPatterns: SharedPatternsArtifact[] = catalog.patternDocuments.map(({ artifact, artifactPath }) => ({ artifact, artifactPath }));
+    const datasets: DatasetControlArtifact[] = catalog.datasets.map(({ artifact, artifactPath }) => ({ artifact, artifactPath }));
+    const resolutionControls: ResolutionControlArtifact[] = catalog.resolutionControls.map(({ artifact, artifactPath }) => ({ artifact, artifactPath }));
+    const runbooks: RunbookControlArtifact[] = catalog.runbooks.map(({ artifact, artifactPath }) => ({ artifact, artifactPath }));
 
     const scenarios: ScenarioGraphArtifact[] = [];
     for (const entry of catalog.scenarios) {
@@ -213,6 +222,9 @@ export function buildDerivedGraph(
           screenPostures,
           screenHints,
           sharedPatterns,
+          datasets,
+          resolutionControls,
+          runbooks,
           scenarios,
           boundScenarios,
           taskPackets,

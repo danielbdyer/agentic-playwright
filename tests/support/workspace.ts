@@ -5,6 +5,8 @@ import { createProjectPaths, type ProjectPaths } from '../../lib/application/pat
 
 const workspaceSeeds = [
   'fixtures',
+  'benchmarks',
+  'controls',
   'knowledge',
   'scenarios',
   '.tesseract/evidence',

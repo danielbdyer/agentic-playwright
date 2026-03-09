@@ -8,6 +8,7 @@ import type { BoundScenario, ProposalBundle, RunRecord, ScenarioExplanation, Sce
 import type { CompileSnapshot } from './compile-snapshot';
 import { loadWorkspaceCatalog } from './catalog';
 import type { WorkspaceCatalog } from './catalog';
+import { buildOperatorInboxItems, operatorInboxItemsForScenario } from './operator';
 import type { ProjectPaths } from './paths';
 import {
   emitManifestPath,
@@ -57,7 +58,7 @@ function latestProposalBundle(catalog: WorkspaceCatalog, adoId: AdoId): Proposal
     .sort((left, right) => right.artifact.runId.localeCompare(left.artifact.runId))[0]?.artifact ?? null;
 }
 
-function renderReview(trace: ScenarioExplanation, proposalBundle: ProposalBundle | null): string {
+function renderReview(trace: ScenarioExplanation, proposalBundle: ProposalBundle | null, inboxItems: ReturnType<typeof operatorInboxItemsForScenario>): string {
   const lines: string[] = [
     `# ${trace.title}`,
     '',
@@ -67,6 +68,8 @@ function renderReview(trace: ScenarioExplanation, proposalBundle: ProposalBundle
     `- Governance: ${trace.governance}`,
     `- Lifecycle: ${trace.lifecycle}`,
     `- Proposal bundle: ${proposalBundle ? proposalBundle.runId : 'none'}`,
+    `- Inbox items: ${inboxItems.length > 0 ? inboxItems.map((item) => item.id).join(', ') : 'none'}`,
+    `- Next commands: ${inboxItems.length > 0 ? inboxItems.flatMap((item) => item.nextCommands).filter((value, index, all) => all.indexOf(value) === index).join(' | ') : `tesseract workflow --ado-id ${trace.adoId} | tesseract inbox`}`,
     '',
     '## Pipeline',
     '',
@@ -78,6 +81,11 @@ function renderReview(trace: ScenarioExplanation, proposalBundle: ProposalBundle
     `- Step count: ${trace.summary.stepCount}`,
     `- Step provenance: explicit=${trace.summary.provenanceKinds.explicit}, approved-knowledge=${trace.summary.provenanceKinds['approved-knowledge']}, live-exploration=${trace.summary.provenanceKinds['live-exploration']}, unresolved=${trace.summary.provenanceKinds.unresolved}`,
     `- Governance counts: approved=${trace.summary.governance.approved}, review-required=${trace.summary.governance['review-required']}, blocked=${trace.summary.governance.blocked}`,
+    `- Knowledge hit rate: ${trace.summary.stageMetrics.knowledgeHitRate}`,
+    `- Live exploration rate: ${trace.summary.stageMetrics.liveExplorationRate}`,
+    `- Degraded locator rate: ${trace.summary.stageMetrics.degradedLocatorRate}`,
+    `- Proposal count: ${trace.summary.stageMetrics.proposalCount}`,
+    `- Review-required count: ${trace.summary.stageMetrics.reviewRequiredCount}`,
     `- Unresolved gaps: ${trace.summary.unresolvedReasons.length > 0 ? trace.summary.unresolvedReasons.map((entry) => `${entry.reason} (${entry.count})`).join(', ') : 'none'}`,
     '',
   ];
@@ -93,6 +101,9 @@ function renderReview(trace: ScenarioExplanation, proposalBundle: ProposalBundle
     lines.push(`- Provenance kind: ${step.provenanceKind}`);
     lines.push(`- Binding kind: ${step.bindingKind}`);
     lines.push(`- Governance: ${step.governance}`);
+    lines.push(`- Handshakes: ${step.handshakes.join(' -> ')}`);
+    lines.push(`- Winning concern: ${step.winningConcern}`);
+    lines.push(`- Winning source: ${step.winningSource}`);
     lines.push(`- Runtime: ${step.runtime?.status ?? 'pending'}`);
     lines.push(`- Runtime locator: ${step.runtime?.locatorStrategy ?? 'none'}`);
     lines.push(`- Runtime degraded: ${step.runtime?.degraded ? 'yes' : 'no'}`);
@@ -116,6 +127,7 @@ function renderEmitArtifacts(
   taskPacket: ScenarioTaskPacket,
   latestRun: RunRecord | null,
   proposalBundle: ProposalBundle | null,
+  inboxItems: ReturnType<typeof operatorInboxItemsForScenario>,
 ) {
   const outputPath = generatedSpecPath(paths, boundScenario.metadata.suite, boundScenario.source.ado_id);
   const tracePath = generatedTracePath(paths, boundScenario.metadata.suite, boundScenario.source.ado_id);
@@ -127,10 +139,11 @@ function renderEmitArtifacts(
       fixtures: relativeModule(outputPath, path.join(paths.rootDir, 'fixtures', 'index.ts')).replace(/\.ts$/, ''),
       runtime: relativeModule(outputPath, path.join(paths.rootDir, 'lib', 'runtime', 'scenario.ts')).replace(/\.ts$/, ''),
       environment: relativeModule(outputPath, path.join(paths.rootDir, 'lib', 'infrastructure', 'runtime', 'local-runtime-environment.ts')).replace(/\.ts$/, ''),
+      workflow: relativeModule(outputPath, path.join(paths.rootDir, 'lib', 'generated', 'workflow-facade.ts')).replace(/\.ts$/, ''),
     },
   });
   const traceArtifact = explainBoundScenario(boundScenario, rendered.lifecycle, latestRun);
-  const reviewText = renderReview(traceArtifact, proposalBundle);
+  const reviewText = renderReview(traceArtifact, proposalBundle, inboxItems);
 
   return {
     outputPath,
@@ -143,6 +156,39 @@ function renderEmitArtifacts(
     reviewText,
     proposalBundle: proposalBundle ?? {
       kind: 'proposal-bundle' as const,
+      version: 1,
+      stage: 'proposal' as const,
+      scope: 'scenario' as const,
+      ids: {
+        adoId: boundScenario.source.ado_id,
+        suite: boundScenario.metadata.suite,
+        runId: latestRun?.runId ?? 'pending',
+        dataset: null,
+        runbook: null,
+        resolutionControl: null,
+      },
+      fingerprints: {
+        artifact: latestRun?.runId ?? 'pending',
+        content: boundScenario.source.content_hash,
+        knowledge: null,
+        controls: null,
+        task: null,
+        run: latestRun?.runId ?? 'pending',
+      },
+      lineage: {
+        sources: [],
+        parents: [],
+        handshakes: ['preparation', 'resolution', 'execution', 'evidence', 'proposal'],
+      },
+      governance: 'approved' as const,
+      payload: {
+        adoId: boundScenario.source.ado_id,
+        runId: latestRun?.runId ?? 'pending',
+        revision: boundScenario.source.revision,
+        title: boundScenario.metadata.title,
+        suite: boundScenario.metadata.suite,
+        proposals: [],
+      },
       adoId: boundScenario.source.ado_id,
       runId: latestRun?.runId ?? 'pending',
       revision: boundScenario.source.revision,
@@ -221,7 +267,8 @@ export function emitScenario(
         })();
     const latestRun = latestRunForScenario(catalog, source.adoId);
     const proposalBundle = latestProposalBundle(catalog, source.adoId);
-    const artifacts = renderEmitArtifacts(options.paths, source.boundScenario, source.taskPacket, latestRun, proposalBundle);
+    const inboxItems = operatorInboxItemsForScenario(buildOperatorInboxItems(catalog), source.adoId);
+    const artifacts = renderEmitArtifacts(options.paths, source.boundScenario, source.taskPacket, latestRun, proposalBundle, inboxItems);
     const inputFingerprints: ProjectionInputFingerprint[] = [
       fingerprintProjectionArtifact('bound', relativeProjectPath(options.paths, source.boundPath), source.boundScenario),
       fingerprintProjectionArtifact('task', relativeProjectPath(options.paths, source.taskPath), source.taskPacket),

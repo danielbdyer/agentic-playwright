@@ -10,6 +10,7 @@ import { graphIds, mcpUris } from './ids';
 import type {
   AdoSnapshot,
   BoundScenario,
+  DatasetControl,
   DerivedCapability,
   DerivedGraph,
   GraphEdge,
@@ -19,7 +20,9 @@ import type {
   MappedMcpResource,
   MappedMcpTemplate,
   PatternDocument,
+  ResolutionControl,
   RunRecord,
+  RunbookControl,
   Scenario,
   ScenarioTaskPacket,
   ScreenElements,
@@ -54,6 +57,9 @@ export interface KnowledgeSnapshotArtifact {
 export interface ScreenHintsArtifact extends ArtifactEnvelope<ScreenHints> {}
 
 export interface SharedPatternsArtifact extends ArtifactEnvelope<PatternDocument> {}
+export interface DatasetControlArtifact extends ArtifactEnvelope<DatasetControl> {}
+export interface ResolutionControlArtifact extends ArtifactEnvelope<ResolutionControl> {}
+export interface RunbookControlArtifact extends ArtifactEnvelope<RunbookControl> {}
 
 export interface EvidenceArtifact {
   artifactPath: string;
@@ -76,6 +82,9 @@ export interface GraphBuildInput {
   screenPostures: ArtifactEnvelope<ScreenPostures>[];
   screenHints?: ScreenHintsArtifact[];
   sharedPatterns?: SharedPatternsArtifact[];
+  datasets?: DatasetControlArtifact[];
+  resolutionControls?: ResolutionControlArtifact[];
+  runbooks?: RunbookControlArtifact[];
   scenarios: ScenarioGraphArtifact[];
   boundScenarios?: BoundScenarioGraphArtifact[];
   taskPackets?: TaskPacketGraphArtifact[];
@@ -299,6 +308,9 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
   const edges = new Map<string, GraphEdge>();
   const screenHintsArtifacts = input.screenHints ?? [];
   const sharedPatternsArtifacts = input.sharedPatterns ?? [];
+  const datasetArtifacts = input.datasets ?? [];
+  const resolutionControlArtifacts = input.resolutionControls ?? [];
+  const runbookArtifacts = input.runbooks ?? [];
   const boundScenarioArtifacts = input.boundScenarios ?? [];
   const taskPackets = new Map((input.taskPackets ?? []).map((entry) => [entry.artifact.adoId, entry.artifact] as const));
   const runRecords = new Map(
@@ -658,6 +670,80 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
     }
   }
 
+  for (const { artifact: dataset, artifactPath } of datasetArtifacts) {
+    addNode(nodes, createNode({
+      id: graphIds.dataset(dataset.name),
+      kind: 'dataset',
+      label: dataset.name,
+      artifactPath,
+      provenance: {
+        knowledgePath: artifactPath,
+      },
+      payload: {
+        default: Boolean(dataset.default),
+        elementDefaults: Object.keys(dataset.defaults?.elements ?? {}).length,
+        fixtureKeys: Object.keys(dataset.fixtures ?? {}),
+      },
+    }));
+  }
+
+  for (const { artifact: control, artifactPath } of resolutionControlArtifacts) {
+    addNode(nodes, createNode({
+      id: graphIds.resolutionControl(control.name),
+      kind: 'resolution-control',
+      label: control.name,
+      artifactPath,
+      provenance: {
+        knowledgePath: artifactPath,
+      },
+      payload: {
+        stepIndexes: control.steps.map((step) => step.stepIndex),
+        selector: control.selector,
+      },
+    }));
+  }
+
+  for (const { artifact: runbook, artifactPath } of runbookArtifacts) {
+    addNode(nodes, createNode({
+      id: graphIds.runbook(runbook.name),
+      kind: 'runbook',
+      label: runbook.name,
+      artifactPath,
+      provenance: {
+        knowledgePath: artifactPath,
+      },
+      payload: {
+        default: Boolean(runbook.default),
+        selector: runbook.selector,
+        dataset: runbook.dataset ?? null,
+        resolutionControl: runbook.resolutionControl ?? null,
+        interpreterMode: runbook.interpreterMode ?? null,
+      },
+    }));
+
+    if (runbook.dataset) {
+      addEdge(edges, createEdge({
+        kind: 'references',
+        from: graphIds.runbook(runbook.name),
+        to: graphIds.dataset(runbook.dataset),
+        provenance: {
+          knowledgePath: artifactPath,
+        },
+      }));
+    }
+
+    if (runbook.resolutionControl) {
+      addEdge(edges, createEdge({
+        kind: 'references',
+        from: graphIds.runbook(runbook.name),
+        to: graphIds.resolutionControl(runbook.resolutionControl),
+        provenance: {
+          knowledgePath: artifactPath,
+        },
+      }));
+    }
+  }
+
   for (const scenarioArtifact of input.scenarios) {
     const { artifact: scenario, artifactPath, generatedSpecPath, generatedSpecExists, generatedTracePath, generatedTraceExists, generatedReviewPath, generatedReviewExists } = scenarioArtifact;
     const scenarioNodeId = graphIds.scenario(scenario.source.ado_id);
@@ -772,6 +858,9 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
           bindingKind: binding?.kind ?? (trace.hasEscapeHatch ? 'unbound' : 'bound'),
           provenanceKind: explanation?.provenanceKind ?? stepProvenanceKind(stepContext),
           governance: explanation?.governance ?? binding?.governance ?? 'approved',
+          handshakes: explanation?.handshakes ?? ['preparation'],
+          winningConcern: explanation?.winningConcern ?? 'intent',
+          winningSource: explanation?.winningSource ?? (step.resolution ? 'scenario-explicit' : 'approved-knowledge'),
           ruleId: explanation?.ruleId ?? binding?.ruleId ?? null,
           knowledgeRefs: explanation?.knowledgeRefs ?? binding?.knowledgeRefs ?? [],
           supplementRefs: explanation?.supplementRefs ?? binding?.supplementRefs ?? [],
@@ -818,10 +907,11 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
             alias,
           })),
         );
+        const onlyScreen = taskStep.runtimeKnowledge.screens[0] ?? null;
         const taskScreens = matchedScreenAliases.length > 0
           ? [...new Map(matchedScreenAliases.map((entry) => [entry.screen, entry])).values()]
-          : taskStep.runtimeKnowledge.screens.length === 1
-            ? [{ screen: taskStep.runtimeKnowledge.screens[0].screen, alias: null }]
+          : onlyScreen && taskStep.runtimeKnowledge.screens.length === 1
+            ? [{ screen: onlyScreen.screen, alias: null }]
             : [];
         for (const candidate of taskScreens) {
           const screenNodeId = graphIds.screen(candidate.screen);
@@ -871,6 +961,61 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
               },
             }));
           }
+        }
+
+        for (const dataset of taskStep.runtimeKnowledge.controls.datasets) {
+          const usesDataset = Object.keys(dataset.elementDefaults).length > 0;
+          if (!usesDataset || !nodes.has(graphIds.dataset(dataset.name))) {
+            continue;
+          }
+          addEdge(edges, createEdge({
+            kind: 'references',
+            from: stepNodeId,
+            to: graphIds.dataset(dataset.name),
+            provenance: {
+              confidence: stepConfidence(stepContext),
+              scenarioPath: artifactPath,
+            },
+            payload: {
+              source: 'dataset-control',
+            },
+          }));
+        }
+
+        for (const resolutionControl of taskStep.runtimeKnowledge.controls.resolutionControls.filter((entry) => entry.stepIndex === step.index)) {
+          if (!nodes.has(graphIds.resolutionControl(resolutionControl.name))) {
+            continue;
+          }
+          addEdge(edges, createEdge({
+            kind: 'references',
+            from: stepNodeId,
+            to: graphIds.resolutionControl(resolutionControl.name),
+            provenance: {
+              confidence: stepConfidence(stepContext),
+              scenarioPath: artifactPath,
+            },
+            payload: {
+              source: 'resolution-control',
+            },
+          }));
+        }
+
+        for (const runbook of taskStep.runtimeKnowledge.controls.runbooks) {
+          if (!nodes.has(graphIds.runbook(runbook.name))) {
+            continue;
+          }
+          addEdge(edges, createEdge({
+            kind: 'references',
+            from: stepNodeId,
+            to: graphIds.runbook(runbook.name),
+            provenance: {
+              confidence: stepConfidence(stepContext),
+              scenarioPath: artifactPath,
+            },
+            payload: {
+              source: 'runbook-control',
+            },
+          }));
         }
       }
 

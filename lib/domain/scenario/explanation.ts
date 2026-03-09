@@ -88,6 +88,9 @@ export function explainBoundScenario(boundScenario: BoundScenario, lifecycle: Sc
     reasons: step.binding.reasons,
     evidenceIds: latestRun?.steps.find((runStep) => runStep.stepIndex === step.index)?.evidenceIds ?? step.binding.evidenceIds,
     program: step.program ?? null,
+    handshakes: latestRun?.steps.find((runStep) => runStep.stepIndex === step.index)?.interpretation.handshakes ?? ['preparation'],
+    winningConcern: latestRun?.steps.find((runStep) => runStep.stepIndex === step.index)?.interpretation.winningConcern ?? 'intent',
+    winningSource: latestRun?.steps.find((runStep) => runStep.stepIndex === step.index)?.interpretation.winningSource ?? (step.resolution ? 'scenario-explicit' : step.binding.kind === 'deferred' ? 'none' : 'approved-knowledge'),
     runtime: runtimeStatusForStep(latestRun, step.index),
   }));
   const provenanceKinds = steps.reduce<Record<StepProvenanceKind, number>>((counts, step) => {
@@ -122,6 +125,12 @@ export function explainBoundScenario(boundScenario: BoundScenario, lifecycle: Sc
       }
       return left.reason.localeCompare(right.reason);
     });
+  const knowledgeHits = steps.filter((step) => step.provenanceKind === 'approved-knowledge').length;
+  const liveExplorationHits = steps.filter((step) => step.provenanceKind === 'live-exploration').length;
+  const degradedHits = steps.filter((step) => step.runtime?.degraded).length;
+  const proposalCount = latestRun?.steps.reduce((count, step) => count + step.interpretation.proposalDrafts.length, 0) ?? 0;
+  const reviewRequiredCount = steps.filter((step) => step.governance === 'review-required').length;
+  const rate = (value: number) => Number((steps.length === 0 ? 0 : value / steps.length).toFixed(2));
 
   return {
     adoId: boundScenario.source.ado_id,
@@ -136,6 +145,13 @@ export function explainBoundScenario(boundScenario: BoundScenario, lifecycle: Sc
       stepCount: boundScenario.steps.length,
       provenanceKinds,
       governance,
+      stageMetrics: {
+        knowledgeHitRate: rate(knowledgeHits),
+        liveExplorationRate: rate(liveExplorationHits),
+        degradedLocatorRate: rate(degradedHits),
+        proposalCount,
+        reviewRequiredCount,
+      },
       unresolvedReasons,
     },
     steps,

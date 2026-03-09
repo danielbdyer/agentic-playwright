@@ -2,12 +2,17 @@ import type { ScreenBundle } from '../../domain/knowledge/screen-bundle';
 import type { SnapshotTemplateId } from '../../domain/identity';
 import type {
   AdoSnapshot,
+  ApprovalReceipt,
+  BenchmarkContext,
   BoundScenario,
+  DatasetControl,
   EvidenceRecord,
   MergedPatterns,
   PatternDocument,
   ProposalBundle,
+  ResolutionControl,
   RunRecord,
+  RunbookControl,
   Scenario,
   ScenarioTaskPacket,
   ScreenElements,
@@ -47,6 +52,11 @@ export interface WorkspaceCatalog {
   taskPackets: ArtifactEnvelope<ScenarioTaskPacket>[];
   runRecords: ArtifactEnvelope<RunRecord>[];
   proposalBundles: ArtifactEnvelope<ProposalBundle>[];
+  approvalReceipts: ArtifactEnvelope<ApprovalReceipt>[];
+  datasets: ArtifactEnvelope<DatasetControl>[];
+  benchmarks: ArtifactEnvelope<BenchmarkContext>[];
+  resolutionControls: ArtifactEnvelope<ResolutionControl>[];
+  runbooks: ArtifactEnvelope<RunbookControl>[];
   surfaces: ArtifactEnvelope<SurfaceGraph>[];
   screenElements: ArtifactEnvelope<ScreenElements>[];
   screenHints: ArtifactEnvelope<ScreenHints>[];

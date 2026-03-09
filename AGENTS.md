@@ -11,6 +11,7 @@ Read the doc that matches your task:
 - product model and QA workflow: [VISION.md](VISION.md)
 - domain ontology and invariants: [docs/domain-ontology.md](docs/domain-ontology.md)
 - authorship and knowledge design: [docs/authoring.md](docs/authoring.md)
+- operator workflow and approvals: [docs/operator-handbook.md](docs/operator-handbook.md)
 - planned work split by lane: [BACKLOG.md](BACKLOG.md)
 
 Scoped instructions under `.github/instructions/` still apply for domain, knowledge, generated files, and tests.
@@ -29,6 +30,8 @@ Scoped instructions under `.github/instructions/` still apply for domain, knowle
 Canonical inputs:
 
 - `.ado-sync/`
+- `benchmarks/`
+- `controls/`
 - `scenarios/`
 - `knowledge/surfaces/`
 - `knowledge/screens/`
@@ -40,11 +43,26 @@ Canonical inputs:
 Derived outputs. Do not hand-edit unless the task is specifically about the generator:
 
 - `.tesseract/bound/`
+- `.tesseract/benchmarks/`
+- `.tesseract/inbox/`
 - `.tesseract/tasks/`
 - `.tesseract/runs/`
 - `.tesseract/graph/`
 - `generated/`
 - `lib/generated/`
+
+## Six workflow lanes
+
+Use this vocabulary consistently:
+
+- `intent`: `.ado-sync/` and `scenarios/`
+- `knowledge`: `knowledge/surfaces/`, `knowledge/screens/`, `knowledge/patterns/`, `knowledge/snapshots/`
+- `control`: `controls/datasets/`, `controls/resolution/`, `controls/runbooks/`
+- `resolution`: `.tesseract/tasks/` plus interpretation receipts
+- `execution`: execution receipts and run records
+- `governance/projection`: generated outputs, graph surfaces, and trust policy
+
+Every cross-lane handoff should expose the same envelope header: `kind`, `version`, `stage`, `scope`, `ids`, `fingerprints`, `lineage`, `governance`, and `payload`.
 
 ## Governance vocabulary
 
@@ -62,16 +80,34 @@ Do not overload confidence with review state.
 
 ## Deterministic precedence
 
-The preparation and runtime search path is ordered:
+Keep precedence concern-specific:
+
+Resolution:
 
 1. explicit scenario fields
-2. approved screen knowledge and screen hints
-3. shared patterns
-4. prior evidence or run history
-5. live DOM exploration and safe degraded resolution
-6. `needs-human`
+2. `controls/resolution/*.resolution.yaml`
+3. approved screen knowledge and screen hints
+4. shared patterns
+5. prior evidence or run history
+6. live DOM exploration and safe degraded resolution
+7. `needs-human`
 
-If you change this precedence, you are changing compiler semantics. Add or update tests accordingly.
+Data:
+
+1. explicit scenario override
+2. runbook dataset binding
+3. dataset default
+4. hint default value
+5. posture sample
+6. generated token
+
+Run selection:
+
+1. CLI flags
+2. runbook
+3. repo defaults
+
+If you change these precedence laws, you are changing compiler semantics. Add or update tests accordingly.
 
 ## Supplement hierarchy
 
@@ -144,6 +180,7 @@ Prefer this command sequence when orienting:
 
 ```powershell
 npm run context
+npm run workflow
 npm run paths
 npm run trace
 npm run impact
@@ -157,6 +194,7 @@ npm test
 An agent should be able to discover:
 
 - which files are canonical
+- which controls are active for a scenario or runbook
 - which artifacts were derived
 - which knowledge and prior evidence the runtime agent will receive
 - which supplements were used

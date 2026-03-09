@@ -6,6 +6,19 @@ It is a compiler from human verification intent to executable verification, back
 
 The source program is the Azure DevOps manual test case. The emitted object code is Playwright. The durable value is the knowledge captured between those two surfaces and the typed runtime receipts that explain how intent was resolved.
 
+## The six concern lanes
+
+The repo now treats its moving parts as six explicit lanes:
+
+- `intent`: source snapshots and scenario IR
+- `knowledge`: reviewed structural and semantic UI knowledge
+- `control`: datasets, runbooks, and persistent overrides
+- `resolution`: task packets and interpretation receipts
+- `execution`: execution receipts and run records
+- `governance/projection`: trust policy, review projections, and graph/reporting surfaces
+
+The point of the split is not taxonomy for its own sake. It is to make each concern independently optimizable without collapsing into hidden shared state.
+
 ## The bet
 
 If a manual test is written clearly enough for a QA to infer step-wise behavior from it, then an agent can infer the same behavior from it when given a constrained, reviewable knowledge surface plus a task packet that makes the available memory explicit.
@@ -25,17 +38,20 @@ A tester reads a case, infers the UI, writes selectors, hardcodes data, sprinkle
 
 Tesseract externalizes that knowledge instead.
 
-It captures small facts in small files:
+It captures small facts in small files and keeps the handshake between those files explicit:
 
 - what a screen is structurally
 - what an element is semantically
 - how a field behaves under different postures
 - what phrases on one screen map to what known elements or snapshots
 - what cross-screen patterns have been promoted into shared knowledge
+- what datasets, runbooks, or approved overrides should tune runtime behavior without mutating application truth
 
-That knowledge is then projected into a runtime task packet so both humans and agents can see the same working context.
+That knowledge is then projected into a runtime task packet so both humans and agents can see the same working context. Each handoff is carried in a typed envelope with stable lineage and fingerprints.
 
 The generated tests are disposable. The knowledge is the asset.
+
+The readable spec surface matters too. A generated test should read like a workflow facade over the machine contract, not like a raw object dump. The runtime handshake owns execution; the emitted spec owns legibility.
 
 ## The new governance boundary
 
@@ -63,7 +79,7 @@ The QA-facing loop should feel like this:
 
 1. author or refine the manual case in Azure DevOps
 2. sync and refresh the scenario
-3. inspect the bound envelope, task packet, and generated review surface
+3. inspect the workflow map, bound envelope, task packet, and generated review surface
 4. run the scenario and inspect interpretation and execution receipts
 5. approve only when the system proposes new canonical knowledge
 6. rerun and observe whether the knowledge ratchet reduced future effort
@@ -91,6 +107,7 @@ The generated review surface must let a QA answer, step by step:
 - whether the step is `compiler-derived`, `intent-only`, or structurally `unbound`
 - what task context and approved files were handed to the runtime agent
 - what screen, element, posture, or snapshot the runtime actually resolved to
+- which lane and precedence stack supplied the winning decision
 - whether the step resolved safely, resolved-with-proposals, or still needs a human
 
 That is the contract. If the review artifact cannot explain a step, the model is incomplete.

@@ -117,6 +117,16 @@ export function generateTypes(options: { paths: ProjectPaths; catalog?: Workspac
       }
     }
 
+    for (const entry of catalog.datasets) {
+      fixtureIds.push(...Object.keys(entry.artifact.fixtures));
+      if (Object.keys(entry.artifact.defaults?.generatedTokens ?? {}).length > 0) {
+        fixtureIds.push('generatedTokens');
+      }
+      for (const value of Object.values(entry.artifact.defaults?.elements ?? {})) {
+        fixtureIds.push(...fixtureIdsFromOverride(value));
+      }
+    }
+
     const screensList = [...screens].sort((left, right) => left.localeCompare(right));
     for (const screen of screensList) {
       const entry = catalog.screenBundles[screen];

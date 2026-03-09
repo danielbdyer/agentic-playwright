@@ -1,36 +1,51 @@
 ﻿#!/usr/bin/env node
 import { Effect } from 'effect';
+import { approveProposal } from '../lib/application/approve';
+import { projectBenchmarkScorecard } from '../lib/application/benchmark';
 import { bindScenario } from '../lib/application/bind';
 import { compileScenario } from '../lib/application/compile';
 import { emitScenario } from '../lib/application/emit';
 import { buildDerivedGraph } from '../lib/application/graph';
 import { impactNode } from '../lib/application/impact';
+import { emitOperatorInbox } from '../lib/application/inbox';
 import { describeScenarioPaths } from '../lib/application/inspect';
 import { parseScenario } from '../lib/application/parse';
 import { createProjectPaths } from '../lib/application/paths';
 import { refreshScenario } from '../lib/application/refresh';
-import { runScenario } from '../lib/application/run';
+import { buildRerunPlan } from '../lib/application/rerun-plan';
+import { runScenarioSelection } from '../lib/application/run';
+import { renderBenchmarkScorecard } from '../lib/application/scorecard';
 import { inspectSurface } from '../lib/application/surface';
 import { syncSnapshots } from '../lib/application/sync';
 import { traceScenario } from '../lib/application/trace';
 import { generateTypes } from '../lib/application/types';
+import { inspectWorkflow } from '../lib/application/workflow';
 import { TesseractError } from '../lib/domain/errors';
 import { createAdoId, createScreenId } from '../lib/domain/identity';
-import { provideLocalServices } from '../lib/composition/local-services';
+import { runWithLocalServicesDetailed } from '../lib/composition/local-services';
 import { discoverScreenScaffold } from '../lib/infrastructure/tooling/discover-screen';
 import { captureScreenSection } from '../lib/infrastructure/tooling/capture-screen';
+import type { ExecutionPosture, RuntimeInterpreterMode } from '../lib/domain/types';
 
 interface CliOptions {
   all?: boolean | undefined;
   adoId?: string | undefined;
+  baseline?: boolean | undefined;
+  benchmark?: string | undefined;
   headed?: boolean | undefined;
+  kind?: string | undefined;
+  noWrite?: boolean | undefined;
   screen?: string | undefined;
   section?: string | undefined;
   strict?: boolean | undefined;
   nodeId?: string | undefined;
+  proposalId?: string | undefined;
+  status?: string | undefined;
   url?: string | undefined;
   rootSelector?: string | undefined;
-  interpreterMode?: 'playwright' | 'dry-run' | 'diagnostic' | undefined;
+  runbook?: string | undefined;
+  tag?: string | undefined;
+  interpreterMode?: RuntimeInterpreterMode | undefined;
 }
 
 function parseArgs(argv: string[]): { command: string; options: CliOptions } {
@@ -51,6 +66,16 @@ function parseArgs(argv: string[]): { command: string; options: CliOptions } {
       options.headed = true;
       continue;
     }
+    if (token === '--no-write') {
+      options.noWrite = true;
+      continue;
+    }
+    if (token === '--baseline') {
+      options.baseline = true;
+      options.noWrite = true;
+      options.interpreterMode = 'dry-run';
+      continue;
+    }
     if (token === '--ado-id') {
       options.adoId = rest[index + 1];
       index += 1;
@@ -58,6 +83,36 @@ function parseArgs(argv: string[]): { command: string; options: CliOptions } {
     }
     if (token === '--screen') {
       options.screen = rest[index + 1];
+      index += 1;
+      continue;
+    }
+    if (token === '--runbook') {
+      options.runbook = rest[index + 1];
+      index += 1;
+      continue;
+    }
+    if (token === '--tag') {
+      options.tag = rest[index + 1];
+      index += 1;
+      continue;
+    }
+    if (token === '--proposal-id') {
+      options.proposalId = rest[index + 1];
+      index += 1;
+      continue;
+    }
+    if (token === '--benchmark') {
+      options.benchmark = rest[index + 1];
+      index += 1;
+      continue;
+    }
+    if (token === '--kind') {
+      options.kind = rest[index + 1];
+      index += 1;
+      continue;
+    }
+    if (token === '--status') {
+      options.status = rest[index + 1];
       index += 1;
       continue;
     }
@@ -119,10 +174,19 @@ function logIncrementalStatus(command: string, result: unknown): void {
   process.stderr.write(`[${command}] ${incremental.status}; changedInputs=${changedSummary}\n`);
 }
 
+function resolveExecutionPosture(options: CliOptions): ExecutionPosture {
+  return {
+    interpreterMode: options.interpreterMode ?? 'diagnostic',
+    writeMode: options.noWrite ? 'no-write' : 'persist',
+    headed: Boolean(options.headed),
+  };
+}
+
 async function main(): Promise<void> {
   const { command, options } = parseArgs(process.argv.slice(2));
   const rootDir = process.cwd();
   const paths = createProjectPaths(rootDir);
+  const posture = resolveExecutionPosture(options);
   let baseProgram: Effect.Effect<unknown, unknown, unknown>;
 
   switch (command) {
@@ -149,12 +213,15 @@ async function main(): Promise<void> {
       baseProgram = refreshScenario({ adoId: createAdoId(requireArg(options.adoId, '--ado-id')), paths });
       break;
     case 'run':
-      baseProgram = runScenario({
-        adoId: createAdoId(requireArg(options.adoId, '--ado-id')),
+      baseProgram = runScenarioSelection({
+        ...(options.adoId ? { adoId: createAdoId(options.adoId) } : {}),
         paths,
+        ...(options.runbook ? { runbookName: options.runbook } : {}),
+        ...(options.tag ? { tag: options.tag } : {}),
         interpreterMode: options.interpreterMode === 'diagnostic' || options.interpreterMode === 'dry-run'
           ? options.interpreterMode
           : 'diagnostic',
+        posture,
       });
       break;
     case 'paths':
@@ -190,28 +257,75 @@ async function main(): Promise<void> {
     case 'types':
       baseProgram = generateTypes({ paths });
       break;
+    case 'workflow':
+      baseProgram = inspectWorkflow({
+        paths,
+        ...(options.adoId ? { adoId: createAdoId(options.adoId) } : {}),
+        ...(options.runbook ? { runbookName: options.runbook } : {}),
+      });
+      break;
+    case 'inbox':
+      baseProgram = emitOperatorInbox({
+        paths,
+        filter: {
+          ...(options.adoId ? { adoId: options.adoId } : {}),
+          ...(options.kind ? { kind: options.kind } : {}),
+          ...(options.status ? { status: options.status } : {}),
+        },
+      });
+      break;
+    case 'approve':
+      baseProgram = approveProposal({
+        paths,
+        proposalId: requireArg(options.proposalId, '--proposal-id'),
+      });
+      break;
+    case 'rerun-plan':
+      baseProgram = buildRerunPlan({
+        paths,
+        proposalId: requireArg(options.proposalId, '--proposal-id'),
+      });
+      break;
+    case 'benchmark':
+      baseProgram = projectBenchmarkScorecard({
+        paths,
+        benchmarkName: requireArg(options.benchmark, '--benchmark'),
+        includeExecution: true,
+      });
+      break;
+    case 'scorecard':
+      baseProgram = renderBenchmarkScorecard({
+        paths,
+        benchmarkName: requireArg(options.benchmark, '--benchmark'),
+      });
+      break;
     default:
-      throw new Error('Unknown command. Expected sync, parse, bind, emit, compile, refresh, run, paths, capture, discover, surface, graph, trace, impact, or types.');
+      throw new Error('Unknown command. Expected sync, parse, bind, emit, compile, refresh, run, paths, capture, discover, surface, graph, trace, impact, types, workflow, inbox, approve, rerun-plan, benchmark, or scorecard.');
   }
 
   if (options.interpreterMode) {
     process.env.TESSERACT_INTERPRETER_MODE = options.interpreterMode;
   }
+  process.env.TESSERACT_WRITE_MODE = posture.writeMode;
   if (options.headed) {
     process.env.TESSERACT_HEADLESS = '0';
   }
 
-  const result = await Effect.runPromise(provideLocalServices(baseProgram, rootDir));
-  logIncrementalStatus(command, result);
-  logJson(result);
+  const execution = await runWithLocalServicesDetailed(baseProgram, rootDir, { posture });
+  logIncrementalStatus(command, execution.result);
+  logJson({
+    result: execution.result,
+    executionPosture: execution.posture,
+    wouldWrite: execution.wouldWrite,
+  });
 
   if (
     command === 'bind' &&
     options.strict &&
-    typeof result === 'object' &&
-    result !== null &&
-    'hasUnbound' in result &&
-    (result as { hasUnbound: boolean }).hasUnbound
+    typeof execution.result === 'object' &&
+    execution.result !== null &&
+    'hasUnbound' in execution.result &&
+    (execution.result as { hasUnbound: boolean }).hasUnbound
   ) {
     process.exitCode = 1;
   }

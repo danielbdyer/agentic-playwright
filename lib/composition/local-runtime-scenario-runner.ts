@@ -12,6 +12,8 @@ export const LocalRuntimeScenarioRunner: RuntimeScenarioRunnerPort = {
         fixtures: input.fixtures,
         mode: input.mode,
         provider: input.provider,
+        controlSelection: input.controlSelection,
+        posture: input.posture,
       });
       const runState = createScenarioRunState();
       const results = [];

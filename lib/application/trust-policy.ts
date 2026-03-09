@@ -66,6 +66,14 @@ export function policyDecisionGraphTarget(input: {
     return graphIds.screen(createScreenId(path.basename(input.artifactPath).replace('.postures.yaml', '')));
   }
 
+  if (input.artifactPath.includes('/screens/') && input.artifactPath.endsWith('.hints.yaml')) {
+    return graphIds.screenHints(createScreenId(path.basename(input.artifactPath).replace('.hints.yaml', '')));
+  }
+
+  if (input.artifactPath.includes('/patterns/') || input.artifactType === 'patterns') {
+    return graphIds.pattern(path.basename(input.artifactPath).replace(/\.[^.]+$/, ''));
+  }
+
   if (input.artifactPath.includes('/snapshots/') || input.artifactType === 'snapshot') {
     return graphIds.snapshot.knowledge(input.artifactPath.replace(/^knowledge\//, ''));
   }

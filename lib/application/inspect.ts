@@ -71,7 +71,9 @@ export function describeScenarioPaths(options: { adoId: AdoId; paths: ProjectPat
       adoId: options.adoId,
       roots: {
         adoSync: options.paths.adoSyncDir,
+        benchmarks: options.paths.benchmarksDir,
         scenarios: options.paths.scenariosDir,
+        controls: options.paths.controlsDir,
         knowledge: options.paths.knowledgeDir,
         generated: options.paths.generatedDir,
         bound: options.paths.boundDir,
@@ -80,6 +82,8 @@ export function describeScenarioPaths(options: { adoId: AdoId; paths: ProjectPat
         evidence: options.paths.evidenceDir,
         graph: options.paths.graphDir,
         policy: options.paths.policyDir,
+        approvals: options.paths.approvalsDir,
+        inbox: options.paths.inboxDir,
         generatedTypes: options.paths.generatedTypesDir,
       },
       artifacts: {
@@ -94,6 +98,8 @@ export function describeScenarioPaths(options: { adoId: AdoId; paths: ProjectPat
         graph: options.paths.graphIndexPath,
         mcpCatalog: options.paths.mcpCatalogPath,
         trustPolicy: options.paths.trustPolicyPath,
+        inboxIndex: options.paths.inboxIndexPath,
+        inboxReport: options.paths.inboxReportPath,
         generatedTypes: generatedKnowledgePath(options.paths),
       },
       knowledge: [...referencedScreens].map((screen) => ({
@@ -106,6 +112,12 @@ export function describeScenarioPaths(options: { adoId: AdoId; paths: ProjectPat
       supplements: {
         sharedPatterns: catalog.patternDocuments.map((entry) => entry.artifactPath),
       },
+      controls: {
+        datasets: catalog.datasets.map((entry) => entry.artifactPath),
+        resolution: catalog.resolutionControls.map((entry) => entry.artifactPath),
+        runbooks: catalog.runbooks.map((entry) => entry.artifactPath),
+      },
+      benchmarks: catalog.benchmarks.map((entry) => entry.artifactPath),
     };
   });
 }
