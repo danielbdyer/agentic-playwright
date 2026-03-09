@@ -11,7 +11,7 @@ import type {
   ScreenHintsArtifact,
   SharedPatternsArtifact,
 } from '../domain/derived-graph';
-import type { ProposedChangeMetadata } from '../domain/types';
+import type { DerivedGraph, ProposedChangeMetadata } from '../domain/types';
 import { validateDerivedGraph } from '../domain/validation';
 import { trySync } from './effect';
 import type { ProjectPaths } from './paths';
@@ -27,14 +27,39 @@ import {
   fingerprintProjectionOutput,
   type ProjectionInputFingerprint,
 } from './projections/cache';
-import { runProjection } from './projections/runner';
+import { runProjection, type ProjectionIncremental } from './projections/runner';
 import { evaluateArtifactPolicy, policyDecisionGraphTarget } from './trust-policy';
+import type { TesseractError } from '../domain/errors';
+
+export interface DerivedGraphProjectionResult {
+  graph: DerivedGraph;
+  graphPath: string;
+  mcpCatalogPath: string;
+  nodeCount: number;
+  edgeCount: number;
+  incremental: ProjectionIncremental;
+}
+
+export interface LoadedDerivedGraphResult {
+  graph: DerivedGraph;
+  graphPath: string;
+  mcpCatalogPath: string;
+  nodeCount: number;
+  edgeCount: number;
+  incremental: {
+    status: 'loaded-existing';
+  };
+}
+
+export type EnsuredDerivedGraphResult = DerivedGraphProjectionResult | LoadedDerivedGraphResult;
 
 function graphManifestPath(paths: ProjectPaths): string {
   return path.join(paths.graphDir, 'build-manifest.json');
 }
 
-export function buildDerivedGraph(options: { paths: ProjectPaths; catalog?: WorkspaceCatalog }) {
+export function buildDerivedGraph(
+  options: { paths: ProjectPaths; catalog?: WorkspaceCatalog },
+): Effect.Effect<DerivedGraphProjectionResult, TesseractError, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const catalog = options.catalog ?? (yield* loadWorkspaceCatalog({ paths: options.paths }));
@@ -191,7 +216,7 @@ export function buildDerivedGraph(options: { paths: ProjectPaths; catalog?: Work
           ],
         };
       }),
-      withCacheHit: (incremental) => {
+      withCacheHit: (incremental): DerivedGraphProjectionResult => {
         const graph = cachedGraphForHit;
         if (!graph) {
           throw new Error('Cache hit requested without validated graph state');
@@ -205,7 +230,7 @@ export function buildDerivedGraph(options: { paths: ProjectPaths; catalog?: Work
           incremental,
         };
       },
-      withCacheMiss: (built, incremental) => ({
+      withCacheMiss: (built, incremental): DerivedGraphProjectionResult => ({
         ...built,
         incremental,
       }),
@@ -213,7 +238,9 @@ export function buildDerivedGraph(options: { paths: ProjectPaths; catalog?: Work
   });
 }
 
-export function ensureDerivedGraph(options: { paths: ProjectPaths }) {
+export function ensureDerivedGraph(
+  options: { paths: ProjectPaths },
+): Effect.Effect<EnsuredDerivedGraphResult, TesseractError, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const exists = yield* fs.exists(options.paths.graphIndexPath);

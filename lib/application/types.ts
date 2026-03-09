@@ -12,7 +12,15 @@ import {
   fingerprintProjectionArtifact,
   type ProjectionInputFingerprint,
 } from './projections/cache';
-import { runProjection } from './projections/runner';
+import { runProjection, type ProjectionIncremental } from './projections/runner';
+
+export interface GeneratedTypesProjectionResult {
+  outputPath: string;
+  screens: string[];
+  fixtures: string[];
+  snapshots: string[];
+  incremental: ProjectionIncremental;
+}
 
 function toSortedUnique(values: string[]): string[] {
   return [...new Set(values)].sort((left, right) => left.localeCompare(right));
@@ -181,14 +189,14 @@ export function generateTypes(options: { paths: ProjectPaths; catalog?: Workspac
           ],
         };
       }),
-      withCacheHit: (incremental) => ({
+      withCacheHit: (incremental): GeneratedTypesProjectionResult => ({
         outputPath,
         screens: screensList,
         fixtures,
         snapshots,
         incremental,
       }),
-      withCacheMiss: (built, incremental) => ({
+      withCacheMiss: (built, incremental): GeneratedTypesProjectionResult => ({
         ...built,
         incremental,
       }),

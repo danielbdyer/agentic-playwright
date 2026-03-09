@@ -1,4 +1,5 @@
 import { Effect } from 'effect';
+import type { TesseractError } from '../../domain/errors';
 import { FileSystem } from '../ports';
 import {
   computeProjectionInputSetFingerprint,
@@ -69,16 +70,30 @@ export function parseProjectionManifest(value: unknown, projection: string): Pro
   };
 }
 
-export function runProjection<BuildResult, ReturnResult>(options: {
+export function runProjection<
+  BuildResult,
+  CacheHitResult,
+  CacheMissResult,
+  ProjectionError = never,
+  ProjectionRequirements = never,
+>(options: {
   projection: string;
   manifestPath: string;
   inputFingerprints: ProjectionInputFingerprint[];
   outputFingerprint: string | null;
-  verifyPersistedOutput: (expectedOutputFingerprint: string) => Effect.Effect<ProjectionPersistedOutputState>;
-  buildAndWrite: () => Effect.Effect<{ result: BuildResult; outputFingerprint: string; rewritten: string[] }>;
-  withCacheHit: (incremental: ProjectionCacheHitIncremental) => ReturnResult;
-  withCacheMiss: (built: BuildResult, incremental: ProjectionCacheMissIncremental) => ReturnResult;
-}) {
+  verifyPersistedOutput: (expectedOutputFingerprint: string) => Effect.Effect<
+    ProjectionPersistedOutputState,
+    ProjectionError,
+    ProjectionRequirements
+  >;
+  buildAndWrite: () => Effect.Effect<
+    { result: BuildResult; outputFingerprint: string; rewritten: string[] },
+    ProjectionError,
+    ProjectionRequirements
+  >;
+  withCacheHit: (incremental: ProjectionCacheHitIncremental) => CacheHitResult;
+  withCacheMiss: (built: BuildResult, incremental: ProjectionCacheMissIncremental) => CacheMissResult;
+}): Effect.Effect<CacheHitResult | CacheMissResult, TesseractError | ProjectionError, FileSystem | ProjectionRequirements> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const previousManifest = (yield* fs.exists(options.manifestPath))

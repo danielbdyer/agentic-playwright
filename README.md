@@ -134,6 +134,8 @@ npm run trace      # return the scenario-centric subgraph
 npm run impact     # return the impacted subgraph for a node id
 npm run types      # regenerate lib/generated/tesseract-knowledge.ts
 npm run capture    # capture or refresh ARIA snapshot knowledge
+npm run test:generated        # execute emitted specs against the demo harness with the real Playwright interpreter
+npm run test:generated:headed # same, but with a visible browser so an operator can follow along
 npm run build      # emit runtime artifacts with the build-only TS config
 npm run typecheck  # strict repo-wide typecheck including tests
 npm run lint       # typed lint over hand-authored sources
@@ -236,4 +238,12 @@ The seeded vertical slice uses:
 - local supplements at `knowledge/screens/policy-search.hints.yaml`
 
 Running `npm run refresh` on that slice should produce a fully `compiler-derived`, `approved` scenario with matching spec, trace, review, graph, and generated types.
+
+## Follow-along mode
+
+For operator-visible runs, use the headed path instead of relying on hidden environment variables.
+
+- `npm run test:generated:headed` opens the emitted demo slice in a visible browser and executes the generated spec with `TESSERACT_INTERPRETER_MODE=playwright`.
+- `npm run capture -- --headed` keeps the browser visible while refreshing a snapshot section.
+- `node dist/bin/tesseract.js discover --url <url> --headed` keeps the browser visible while writing discovery scaffolds for a new screen.
 

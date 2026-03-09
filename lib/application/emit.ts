@@ -22,7 +22,15 @@ import {
   fingerprintProjectionOutput,
   type ProjectionInputFingerprint,
 } from './projections/cache';
-import { runProjection } from './projections/runner';
+import { runProjection, type ProjectionIncremental } from './projections/runner';
+
+export interface EmitProjectionResult {
+  outputPath: string;
+  tracePath: string;
+  reviewPath: string;
+  lifecycle: 'normal' | 'fixme' | 'skip' | 'fail';
+  incremental: ProjectionIncremental;
+}
 
 function toPosix(value: string): string {
   return value.replace(/\\/g, '/');
@@ -200,14 +208,14 @@ export function emitScenario(
           ],
         };
       }),
-      withCacheHit: (incremental) => ({
+      withCacheHit: (incremental): EmitProjectionResult => ({
         outputPath: artifacts.outputPath,
         tracePath: artifacts.tracePath,
         reviewPath: artifacts.reviewPath,
         lifecycle: artifacts.rendered.lifecycle,
         incremental,
       }),
-      withCacheMiss: (built, incremental) => ({
+      withCacheMiss: (built, incremental): EmitProjectionResult => ({
         ...built,
         incremental,
       }),

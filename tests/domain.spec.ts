@@ -5,7 +5,7 @@ import { expect, test } from '@playwright/test';
 import { bindScenarioStep } from '../lib/domain/binding';
 import { deriveGraph, type GraphBuildInput } from '../lib/domain/derived-graph';
 import { deriveCapabilities, findCapability } from '../lib/domain/grammar';
-import { computeAdoContentHash } from '../lib/domain/hash';
+import { computeAdoContentHash, computeNormalizedSnapshotHash, normalizeAriaSnapshot } from '../lib/domain/hash';
 import {
   createElementId,
   createPostureId,
@@ -65,6 +65,49 @@ function readMergedPatterns() {
 test('computeAdoContentHash stays stable for the seeded fixture', () => {
   const fixture = validateAdoSnapshot(readJsonFixture<Record<string, unknown>>('fixtures', 'ado', '10001.json'));
   expect(computeAdoContentHash(fixture)).toBe(fixture.contentHash);
+});
+
+test('normalizeAriaSnapshot canonicalizes browser-specific accessibility tree variants', () => {
+  const approved = readFileSync(
+    path.join(rootDir, 'knowledge', 'snapshots', 'policy-search', 'results-with-policy.yaml'),
+    'utf8',
+  ).replace(/^\uFEFF/, '');
+  const currentBrowserVariant = `
+role: table
+name: Search Results
+children:
+  - role: none
+    children:
+      - role: row
+        children:
+          - role: columnheader
+            name: Policy Number
+            children:
+              - role: text
+                name: Policy Number
+          - role: columnheader
+            name: Status
+            children:
+              - role: text
+                name: Status
+  - role: rowgroup
+    children:
+      - role: row
+        children:
+          - role: gridcell
+            name: POL-001
+            children:
+              - role: text
+                name: POL-001
+          - role: gridcell
+            name: Active
+            children:
+              - role: text
+                name: Active
+`;
+
+  expect(normalizeAriaSnapshot(currentBrowserVariant)).toBe(normalizeAriaSnapshot(approved));
+  expect(computeNormalizedSnapshotHash(currentBrowserVariant)).toBe(computeNormalizedSnapshotHash(approved));
 });
 
 test('validateAdoSnapshot rejects a mismatched content hash', () => {

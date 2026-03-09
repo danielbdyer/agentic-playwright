@@ -1,7 +1,5 @@
 import { defineConfig } from '@playwright/test';
-
-const isCheckRun = process.env.TESSERACT_CHECK === '1';
-const isCi = process.env.CI === 'true' || process.env.CI === '1';
+import { resolvePlaywrightHeadless, resolvePreferredPlaywrightChannel } from './lib/infrastructure/tooling/browser-options';
 
 export default defineConfig({
   testDir: 'tests-capture',
@@ -12,8 +10,8 @@ export default defineConfig({
   use: {
     baseURL: 'http://127.0.0.1:3102',
     browserName: 'chromium',
-    channel: isCheckRun || isCi ? undefined : 'msedge',
-    headless: true,
+    channel: resolvePreferredPlaywrightChannel(process.env),
+    headless: resolvePlaywrightHeadless(process.env),
   },
   webServer: {
     command: 'node fixtures/demo-harness/server.cjs --port 3102',

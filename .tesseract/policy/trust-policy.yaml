@@ -1,0 +1,41 @@
+version: 1
+artifactTypes:
+  elements:
+    minimumConfidence: 0.95
+    requiredEvidence:
+      minCount: 1
+      kinds:
+        - assertion-run
+  postures:
+    minimumConfidence: 0.95
+    requiredEvidence:
+      minCount: 1
+      kinds:
+        - assertion-run
+  surface:
+    minimumConfidence: 0.95
+    requiredEvidence:
+      minCount: 1
+      kinds:
+        - assertion-run
+  snapshot:
+    minimumConfidence: 0.98
+    requiredEvidence:
+      minCount: 1
+      kinds:
+        - assertion-run
+  hints:
+    minimumConfidence: 0.9
+    requiredEvidence:
+      minCount: 1
+      kinds:
+        - assertion-run
+  patterns:
+    minimumConfidence: 0.95
+    requiredEvidence:
+      minCount: 1
+      kinds:
+        - assertion-run
+forbiddenAutoHealClasses:
+  - assertion-mismatch
+  - structural-mismatch

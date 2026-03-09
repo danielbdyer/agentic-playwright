@@ -94,7 +94,9 @@ export async function engage(
 
   if (value !== undefined) {
     const contract = widgetCapabilityContracts[element.widget];
-    const writableAction = contract?.supportedActions.find((action) => action === 'fill' || action === 'clear');
+    const writableAction = contract?.supportedActions.includes('fill')
+      ? 'fill'
+      : (value === '' && contract?.supportedActions.includes('clear') ? 'clear' : undefined);
     if (!writableAction) {
       const failed = await interact(locator, element.widget, 'fill', value, { affordance: element.affordance ?? null });
       if (!failed.ok) {

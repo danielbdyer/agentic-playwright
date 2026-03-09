@@ -2,6 +2,10 @@
 dist/
 playwright-report/
 test-results/
-.tesseract
+.tesseract/*
+!.tesseract/evidence/
+!.tesseract/evidence/.gitkeep
+!.tesseract/policy/
+!.tesseract/policy/trust-policy.yaml
 .npm-cache
 .tools
