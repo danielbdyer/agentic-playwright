@@ -12,6 +12,7 @@ Read the doc that matches your task:
 - domain ontology and invariants: [docs/domain-ontology.md](docs/domain-ontology.md)
 - authorship and knowledge design: [docs/authoring.md](docs/authoring.md)
 - planned work split by lane: [BACKLOG.md](BACKLOG.md)
+- design direction and owner decisions: [docs/direction.md](docs/direction.md)
 
 Scoped instructions under `.github/instructions/` still apply for domain, knowledge, generated files, and tests.
 

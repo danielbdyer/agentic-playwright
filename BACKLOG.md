@@ -255,9 +255,63 @@ Success criteria:
 - QA can review the proposal artifact without reading runtime internals
 - future agent workflows can consume the same bundle format for ranking, batching, and promotion
 
+### 18. Confidence auto-accrual engine
+
+Lane:
+
+- agentic supplement and review loop
+
+Goal:
+
+- track per-artifact confidence scores that accrue through successful execution runs, without requiring human blessing for routine knowledge growth
+
+Success criteria:
+
+- each artifact type (element, hint, posture, snapshot, pattern) carries a confidence score that increases on successful resolution and decreases on failure
+- confidence accrues across scenarios that reference the same artifact
+- when confidence exceeds trust-policy threshold, the artifact is treated as approved-equivalent
+- when confidence drops below threshold, the artifact is flagged for review
+- all score changes are logged in evidence for auditability
+
+### 19. LLM-assisted phrase-to-ontology translation layer
+
+Lane:
+
+- deterministic compiler core (bounded extension)
+
+Goal:
+
+- add structured inline LLM calls as a translation layer between novel ADO phrasing and known ontological terms, operating over the same knowledge catalog
+
+Success criteria:
+
+- translation calls are bounded, scorable, and cached
+- results map to existing domain types (action, screen, element, posture)
+- translation does not bypass the deterministic precedence order — it extends the "local hints" tier
+- failed translations produce typed diagnostics, not silent fallthrough
+- the translation layer can be disabled for fully deterministic reproduction
+
+### 20. CI webhook integration for OutSystems Lifetime API
+
+Lane:
+
+- deterministic compiler core (infrastructure)
+
+Goal:
+
+- auto-trigger test runs when modules are published via OutSystems Lifetime API webhooks
+
+Success criteria:
+
+- headless non-interactive execution mode with clean exit codes
+- machine-readable structured reports for dashboard aggregation
+- proposals generated but never auto-applied in CI
+- evidence and run receipts accumulate for later agent consumption
+- no realtime agentic intervention during CI execution
+
 ## Proposed architectural changes
 
-### 18. Collapse deterministic parsing edge
+### 21. Collapse deterministic parsing edge
 
 Lane:
 
