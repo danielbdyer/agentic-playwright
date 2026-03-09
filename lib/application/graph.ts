@@ -166,7 +166,9 @@ export function buildDerivedGraph(
 
     return yield* runProjection<
       Omit<GraphBuildResult, 'incremental'>,
-      GraphBuildResult
+      GraphBuildResult,
+      GraphBuildResult,
+      TesseractError
     >({
       projection: 'graph',
       manifestPath,

@@ -1,6 +1,7 @@
 import path from 'path';
 import { Effect } from 'effect';
 import { explainBoundScenario } from '../domain/scenario/explanation';
+import type { TesseractError } from '../domain/errors';
 import type { AdoId } from '../domain/identity';
 import { renderGeneratedSpecModule } from '../domain/spec-codegen';
 import type { BoundScenario, ProposalBundle, RunRecord, ScenarioExplanation, ScenarioLifecycle, ScenarioTaskPacket } from '../domain/types';
@@ -28,9 +29,12 @@ export interface EmitProjectionResult {
   outputPath: string;
   tracePath: string;
   reviewPath: string;
+  proposalsPath: string;
   lifecycle: 'normal' | 'fixme' | 'skip' | 'fail';
   incremental: ProjectionIncremental;
 }
+
+export type EmitScenarioResult = EmitProjectionResult;
 
 function toPosix(value: string): string {
   return value.replace(/\\/g, '/');
@@ -232,7 +236,10 @@ export function emitScenario(
 
     return yield* runProjection<
       Omit<EmitScenarioResult, 'incremental'>,
-      EmitScenarioResult
+      EmitScenarioResult,
+      EmitScenarioResult,
+      TesseractError,
+      FileSystem
     >({
       projection: 'emit',
       manifestPath: artifacts.manifestPath,
