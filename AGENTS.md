@@ -13,6 +13,7 @@ Read the doc that matches your task:
 - authorship and knowledge design: [docs/authoring.md](docs/authoring.md)
 - operator workflow and approvals: [docs/operator-handbook.md](docs/operator-handbook.md)
 - planned work split by lane: [BACKLOG.md](BACKLOG.md)
+- design direction and owner decisions: [docs/direction.md](docs/direction.md)
 
 Scoped instructions under `.github/instructions/` still apply for domain, knowledge, generated files, and tests.
 
