@@ -946,6 +946,18 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
           runtimeLocatorStrategy: explanation?.runtime?.locatorStrategy ?? null,
           runtimeLocatorRung: explanation?.runtime?.locatorRung ?? null,
           runtimeDegraded: explanation?.runtime?.degraded ?? false,
+          runtimeFailureFamily: explanation?.runtime?.failure?.family ?? 'none',
+          runtimeBudgetStatus: explanation?.runtime?.budget?.status ?? 'not-configured',
+          runtimeBudgetBreaches: explanation?.runtime?.budget?.breaches ?? [],
+          runtimeTimingMs: explanation?.runtime?.timing ?? {
+            setupMs: 0,
+            resolutionMs: 0,
+            actionMs: 0,
+            assertionMs: 0,
+            retriesMs: 0,
+            teardownMs: 0,
+            totalMs: 0,
+          },
         },
       }));
       addEdge(edges, createEdge({

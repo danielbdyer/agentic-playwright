@@ -1083,11 +1083,50 @@ function validateStepExecutionReceipt(value: unknown, path: string): StepExecuti
     degraded: expectBoolean(receipt.degraded, `${path}.degraded`),
     preconditionFailures: expectStringArray(receipt.preconditionFailures ?? [], `${path}.preconditionFailures`),
     durationMs: expectNumber(receipt.durationMs ?? 0, `${path}.durationMs`),
+    timing: (() => {
+      const timing = expectRecord(receipt.timing ?? {}, `${path}.timing`);
+      return {
+        setupMs: expectNumber(timing.setupMs ?? 0, `${path}.timing.setupMs`),
+        resolutionMs: expectNumber(timing.resolutionMs ?? 0, `${path}.timing.resolutionMs`),
+        actionMs: expectNumber(timing.actionMs ?? 0, `${path}.timing.actionMs`),
+        assertionMs: expectNumber(timing.assertionMs ?? 0, `${path}.timing.assertionMs`),
+        retriesMs: expectNumber(timing.retriesMs ?? 0, `${path}.timing.retriesMs`),
+        teardownMs: expectNumber(timing.teardownMs ?? 0, `${path}.timing.teardownMs`),
+        totalMs: expectNumber(timing.totalMs ?? receipt.durationMs ?? 0, `${path}.timing.totalMs`),
+      };
+    })(),
     cost: (() => {
       const cost = expectRecord(receipt.cost ?? { instructionCount: 0, diagnosticCount: 0 }, `${path}.cost`);
       return {
         instructionCount: expectNumber(cost.instructionCount, `${path}.cost.instructionCount`),
         diagnosticCount: expectNumber(cost.diagnosticCount, `${path}.cost.diagnosticCount`),
+      };
+    })(),
+    budget: (() => {
+      const budget = expectRecord(receipt.budget ?? {}, `${path}.budget`);
+      const thresholds = expectRecord(budget.thresholds ?? {}, `${path}.budget.thresholds`);
+      return {
+        thresholds: {
+          maxSetupMs: thresholds.maxSetupMs === undefined || thresholds.maxSetupMs === null ? undefined : expectNumber(thresholds.maxSetupMs, `${path}.budget.thresholds.maxSetupMs`),
+          maxResolutionMs: thresholds.maxResolutionMs === undefined || thresholds.maxResolutionMs === null ? undefined : expectNumber(thresholds.maxResolutionMs, `${path}.budget.thresholds.maxResolutionMs`),
+          maxActionMs: thresholds.maxActionMs === undefined || thresholds.maxActionMs === null ? undefined : expectNumber(thresholds.maxActionMs, `${path}.budget.thresholds.maxActionMs`),
+          maxAssertionMs: thresholds.maxAssertionMs === undefined || thresholds.maxAssertionMs === null ? undefined : expectNumber(thresholds.maxAssertionMs, `${path}.budget.thresholds.maxAssertionMs`),
+          maxRetriesMs: thresholds.maxRetriesMs === undefined || thresholds.maxRetriesMs === null ? undefined : expectNumber(thresholds.maxRetriesMs, `${path}.budget.thresholds.maxRetriesMs`),
+          maxTeardownMs: thresholds.maxTeardownMs === undefined || thresholds.maxTeardownMs === null ? undefined : expectNumber(thresholds.maxTeardownMs, `${path}.budget.thresholds.maxTeardownMs`),
+          maxTotalMs: thresholds.maxTotalMs === undefined || thresholds.maxTotalMs === null ? undefined : expectNumber(thresholds.maxTotalMs, `${path}.budget.thresholds.maxTotalMs`),
+          maxInstructionCount: thresholds.maxInstructionCount === undefined || thresholds.maxInstructionCount === null ? undefined : expectNumber(thresholds.maxInstructionCount, `${path}.budget.thresholds.maxInstructionCount`),
+          maxDiagnosticCount: thresholds.maxDiagnosticCount === undefined || thresholds.maxDiagnosticCount === null ? undefined : expectNumber(thresholds.maxDiagnosticCount, `${path}.budget.thresholds.maxDiagnosticCount`),
+        },
+        status: expectEnum(budget.status ?? 'not-configured', `${path}.budget.status`, ['within-budget', 'over-budget', 'not-configured'] as const),
+        breaches: expectStringArray(budget.breaches ?? [], `${path}.budget.breaches`),
+      };
+    })(),
+    failure: (() => {
+      const failure = expectRecord(receipt.failure ?? {}, `${path}.failure`);
+      return {
+        family: expectEnum(failure.family ?? 'none', `${path}.failure.family`, ['none', 'precondition-failure', 'locator-degradation-failure', 'environment-runtime-failure'] as const),
+        code: expectOptionalString(failure.code, `${path}.failure.code`) ?? null,
+        message: expectOptionalString(failure.message, `${path}.failure.message`) ?? null,
       };
     })(),
     handshakes: expectArray(receipt.handshakes ?? ['preparation', 'resolution', 'execution'], `${path}.handshakes`).map((entry, index) =>
@@ -1132,6 +1171,36 @@ export function validateRunRecord(value: unknown): RunRecord {
       failureClasses: Object.fromEntries(Object.entries(expectRecord(metrics.failureClasses ?? {}, 'runRecord.translationMetrics.failureClasses')).map(([key, value]) => [key, expectNumber(value, `runRecord.translationMetrics.failureClasses.${key}`)])),
     };
   })();
+  const executionMetrics = (() => {
+    const metrics = expectRecord(record.executionMetrics ?? {}, 'runRecord.executionMetrics');
+    const timingTotals = expectRecord(metrics.timingTotals ?? {}, 'runRecord.executionMetrics.timingTotals');
+    const costTotals = expectRecord(metrics.costTotals ?? {}, 'runRecord.executionMetrics.costTotals');
+    return {
+      timingTotals: {
+        setupMs: expectNumber(timingTotals.setupMs ?? 0, 'runRecord.executionMetrics.timingTotals.setupMs'),
+        resolutionMs: expectNumber(timingTotals.resolutionMs ?? 0, 'runRecord.executionMetrics.timingTotals.resolutionMs'),
+        actionMs: expectNumber(timingTotals.actionMs ?? 0, 'runRecord.executionMetrics.timingTotals.actionMs'),
+        assertionMs: expectNumber(timingTotals.assertionMs ?? 0, 'runRecord.executionMetrics.timingTotals.assertionMs'),
+        retriesMs: expectNumber(timingTotals.retriesMs ?? 0, 'runRecord.executionMetrics.timingTotals.retriesMs'),
+        teardownMs: expectNumber(timingTotals.teardownMs ?? 0, 'runRecord.executionMetrics.timingTotals.teardownMs'),
+        totalMs: expectNumber(timingTotals.totalMs ?? 0, 'runRecord.executionMetrics.timingTotals.totalMs'),
+      },
+      costTotals: {
+        instructionCount: expectNumber(costTotals.instructionCount ?? 0, 'runRecord.executionMetrics.costTotals.instructionCount'),
+        diagnosticCount: expectNumber(costTotals.diagnosticCount ?? 0, 'runRecord.executionMetrics.costTotals.diagnosticCount'),
+      },
+      budgetBreaches: expectNumber(metrics.budgetBreaches ?? 0, 'runRecord.executionMetrics.budgetBreaches'),
+      failureFamilies: (() => {
+        const families = expectRecord(metrics.failureFamilies ?? {}, 'runRecord.executionMetrics.failureFamilies');
+        return {
+          none: expectNumber(families.none ?? 0, 'runRecord.executionMetrics.failureFamilies.none'),
+          'precondition-failure': expectNumber(families['precondition-failure'] ?? 0, 'runRecord.executionMetrics.failureFamilies.precondition-failure'),
+          'locator-degradation-failure': expectNumber(families['locator-degradation-failure'] ?? 0, 'runRecord.executionMetrics.failureFamilies.locator-degradation-failure'),
+          'environment-runtime-failure': expectNumber(families['environment-runtime-failure'] ?? 0, 'runRecord.executionMetrics.failureFamilies.environment-runtime-failure'),
+        };
+      })(),
+    };
+  })();
   const header = validateWorkflowEnvelopeHeader(record, 'runRecord', {
     stage: 'execution',
     scope: 'run',
@@ -1170,6 +1239,7 @@ export function validateRunRecord(value: unknown): RunRecord {
       steps,
       evidenceIds,
       translationMetrics,
+      executionMetrics,
     },
     runId: expectString(record.runId, 'runRecord.runId'),
     adoId: expectId(record.adoId, 'runRecord.adoId', createAdoId),
@@ -1185,6 +1255,7 @@ export function validateRunRecord(value: unknown): RunRecord {
     steps,
     evidenceIds,
     translationMetrics,
+    executionMetrics,
   };
 }
 
@@ -1819,6 +1890,30 @@ export function validateBenchmarkScorecard(value: unknown): BenchmarkScorecard {
     thinKnowledgeScreenCount: expectNumber(scorecard.thinKnowledgeScreenCount ?? 0, 'benchmarkScorecard.thinKnowledgeScreenCount'),
     degradedLocatorHotspotCount: expectNumber(scorecard.degradedLocatorHotspotCount ?? 0, 'benchmarkScorecard.degradedLocatorHotspotCount'),
     overlayChurn: expectNumber(scorecard.overlayChurn ?? 0, 'benchmarkScorecard.overlayChurn'),
+    executionTimingTotalsMs: (() => {
+      const timing = expectRecord(scorecard.executionTimingTotalsMs ?? {}, 'benchmarkScorecard.executionTimingTotalsMs');
+      return {
+        setup: expectNumber(timing.setup ?? 0, 'benchmarkScorecard.executionTimingTotalsMs.setup'),
+        resolution: expectNumber(timing.resolution ?? 0, 'benchmarkScorecard.executionTimingTotalsMs.resolution'),
+        action: expectNumber(timing.action ?? 0, 'benchmarkScorecard.executionTimingTotalsMs.action'),
+        assertion: expectNumber(timing.assertion ?? 0, 'benchmarkScorecard.executionTimingTotalsMs.assertion'),
+        retries: expectNumber(timing.retries ?? 0, 'benchmarkScorecard.executionTimingTotalsMs.retries'),
+        teardown: expectNumber(timing.teardown ?? 0, 'benchmarkScorecard.executionTimingTotalsMs.teardown'),
+        total: expectNumber(timing.total ?? 0, 'benchmarkScorecard.executionTimingTotalsMs.total'),
+      };
+    })(),
+    executionCostTotals: (() => {
+      const cost = expectRecord(scorecard.executionCostTotals ?? {}, 'benchmarkScorecard.executionCostTotals');
+      return {
+        instructionCount: expectNumber(cost.instructionCount ?? 0, 'benchmarkScorecard.executionCostTotals.instructionCount'),
+        diagnosticCount: expectNumber(cost.diagnosticCount ?? 0, 'benchmarkScorecard.executionCostTotals.diagnosticCount'),
+      };
+    })(),
+    executionFailureFamilies: Object.fromEntries(
+      Object.entries(expectRecord(scorecard.executionFailureFamilies ?? {}, 'benchmarkScorecard.executionFailureFamilies'))
+        .map(([key, entry]) => [key, expectNumber(entry, `benchmarkScorecard.executionFailureFamilies.${key}`)]),
+    ),
+    budgetBreachCount: expectNumber(scorecard.budgetBreachCount ?? 0, 'benchmarkScorecard.budgetBreachCount'),
     thresholdStatus: expectEnum(scorecard.thresholdStatus, 'benchmarkScorecard.thresholdStatus', ['pass', 'warn', 'fail'] as const),
   };
 }
@@ -1847,9 +1942,6 @@ export function validateDogfoodRun(value: unknown): DogfoodRun {
     nextCommands: expectStringArray(run.nextCommands ?? [], 'dogfoodRun.nextCommands'),
   };
 }
-
-
-
 
 
 

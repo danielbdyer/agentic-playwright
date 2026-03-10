@@ -1,5 +1,7 @@
 import type { Page } from '@playwright/test';
 import type { AdoId } from '../domain/identity';
+import type { ExecutionBudgetThresholds } from '../domain/execution/telemetry';
+import { emptyExecutionTiming, evaluateExecutionBudget, normalizeFailureFamily } from '../domain/execution/telemetry';
 import { compileStepProgram } from '../domain/program';
 import type { SnapshotTemplateLoader } from '../domain/runtime-loaders';
 import type {
@@ -33,6 +35,7 @@ export interface RuntimeScenarioEnvironment {
   snapshotLoader: SnapshotTemplateLoader;
   agent?: RuntimeStepAgent | undefined;
   page?: Page | undefined;
+  executionBudgetThresholds?: ExecutionBudgetThresholds | undefined;
 }
 
 export interface ScenarioRunState {
@@ -136,10 +139,30 @@ export async function runScenarioStep(
         degraded: false,
         preconditionFailures: [],
         durationMs: 0,
+        timing: {
+          ...emptyExecutionTiming(),
+          totalMs: 0,
+        },
         cost: {
           instructionCount: 0,
           diagnosticCount: 1,
         },
+        budget: evaluateExecutionBudget({
+          timing: {
+            ...emptyExecutionTiming(),
+            totalMs: 0,
+          },
+          cost: {
+            instructionCount: 0,
+            diagnosticCount: 1,
+          },
+          thresholds: environment.executionBudgetThresholds,
+        }),
+        failure: normalizeFailureFamily({
+          status: 'skipped',
+          degraded: false,
+          diagnostics: executionDiagnosticsFromError('needs-human', interpretation.reason),
+        }),
         handshakes: ['preparation', 'resolution', 'execution'],
         execution: {
           status: 'skipped',
@@ -189,6 +212,17 @@ export async function runScenarioStep(
   const preconditionFailures = diagnostics
     .filter((diagnostic) => diagnostic.code === 'runtime-widget-precondition-failed')
     .map((diagnostic) => diagnostic.message);
+  const completedAt = Date.now();
+  const timing = {
+    ...emptyExecutionTiming(),
+    resolutionMs: firstOutcome ? Math.max(0, completedAt - startedAt - 1) : completedAt - startedAt,
+    actionMs: firstOutcome ? 1 : 0,
+    totalMs: completedAt - startedAt,
+  };
+  const cost = {
+    instructionCount: result.value.outcomes.length,
+    diagnosticCount: diagnostics.length,
+  };
   const execution: StepExecutionReceipt = {
     version: 1,
     stage: 'execution',
@@ -226,11 +260,19 @@ export async function runScenarioStep(
     locatorRung: firstOutcome?.locatorRung ?? null,
     degraded: Boolean(firstOutcome?.observedEffects.includes('degraded-locator')),
     preconditionFailures,
-    durationMs: Date.now() - startedAt,
-    cost: {
-      instructionCount: result.value.outcomes.length,
-      diagnosticCount: diagnostics.length,
-    },
+    durationMs: completedAt - startedAt,
+    timing,
+    cost,
+    budget: evaluateExecutionBudget({
+      timing,
+      cost,
+      thresholds: environment.executionBudgetThresholds,
+    }),
+    failure: normalizeFailureFamily({
+      status: result.ok ? 'ok' : 'failed',
+      degraded: Boolean(firstOutcome?.observedEffects.includes('degraded-locator')),
+      diagnostics,
+    }),
     handshakes: ['preparation', 'resolution', 'execution'],
     execution: result.ok
       ? {
