@@ -16,6 +16,7 @@ import { ExecutionContext, FileSystem, RuntimeScenarioRunner } from './ports';
 import type { ExecutionPosture } from '../domain/types';
 import type { AdoId } from '../domain/identity';
 import { selectRunContext } from './execution/select-run-context';
+import { runPipelineStage } from './pipeline';
 import { executeSteps } from './execution/execute-steps';
 import { persistEvidence } from './execution/persist-evidence';
 import { buildProposals } from './execution/build-proposals';
@@ -29,83 +30,92 @@ export function runScenario(options: {
   posture?: ExecutionPosture | undefined;
 }) {
   return Effect.gen(function* () {
-    const fs = yield* FileSystem;
-    const runtimeScenarioRunner = yield* RuntimeScenarioRunner;
-    const executionContext = yield* ExecutionContext;
-    const catalog = yield* loadWorkspaceCatalog({ paths: options.paths });
+    const stage = yield* runPipelineStage({
+      name: 'run',
+      loadDependencies: () => Effect.gen(function* () {
+        const fs = yield* FileSystem;
+        const runtimeScenarioRunner = yield* RuntimeScenarioRunner;
+        const executionContext = yield* ExecutionContext;
+        const catalog = yield* loadWorkspaceCatalog({ paths: options.paths });
+        return { fs, runtimeScenarioRunner, executionContext, catalog };
+      }),
+      compute: ({ fs, runtimeScenarioRunner, executionContext, catalog }) => Effect.gen(function* () {
+        const selectedContext = selectRunContext({
+          adoId: options.adoId,
+          catalog,
+          paths: options.paths,
+          ...(options.runbookName ? { runbookName: options.runbookName } : {}),
+          ...(options.interpreterMode ? { interpreterMode: options.interpreterMode } : {}),
+          ...(options.posture ? { posture: options.posture } : {}),
+          executionContextPosture: executionContext.posture,
+        });
 
-    const selectedContext = selectRunContext({
-      adoId: options.adoId,
-      catalog,
-      paths: options.paths,
-      ...(options.runbookName ? { runbookName: options.runbookName } : {}),
-      ...(options.interpreterMode ? { interpreterMode: options.interpreterMode } : {}),
-      ...(options.posture ? { posture: options.posture } : {}),
-      executionContextPosture: executionContext.posture,
+        const executionStage = yield* executeSteps({
+          runtimeScenarioRunner,
+          rootDir: options.paths.rootDir,
+          adoId: options.adoId,
+          selectedContext,
+        });
+
+        const evidenceStage = yield* persistEvidence({
+          fs,
+          paths: options.paths,
+          adoId: options.adoId,
+          runId: selectedContext.runId,
+          stepResults: executionStage.stepResults,
+        });
+
+        const evidenceCatalog = yield* loadWorkspaceCatalog({ paths: options.paths });
+        const proposalStage = buildProposals({
+          adoId: options.adoId,
+          runId: selectedContext.runId,
+          selectedContext,
+          stepResults: executionStage.stepResults,
+          evidenceWrites: evidenceStage.evidenceWrites,
+          evidenceCatalog,
+        });
+        const runRecordStage = buildRunRecord({
+          adoId: options.adoId,
+          runId: selectedContext.runId,
+          selectedContext,
+          stepResults: executionStage.stepResults,
+          evidenceWrites: evidenceStage.evidenceWrites,
+        });
+
+        const interpretationFile = interpretationPath(options.paths, options.adoId, selectedContext.runId);
+        const executionFile = executionPath(options.paths, options.adoId, selectedContext.runId);
+        const runFile = runRecordPath(options.paths, options.adoId, selectedContext.runId);
+        const proposalsFile = generatedProposalsPath(options.paths, selectedContext.scenarioEntry.artifact.metadata.suite, options.adoId);
+
+        yield* fs.writeJson(interpretationFile, executionStage.interpretationOutput);
+        yield* fs.writeJson(executionFile, executionStage.executionOutput);
+        yield* fs.writeJson(runFile, runRecordStage.runRecord);
+        yield* fs.writeJson(proposalsFile, proposalStage.proposalBundle);
+
+        const confidence = yield* projectConfidenceOverlayCatalog({ paths: options.paths });
+        const emitted = yield* emitScenario({ adoId: options.adoId, paths: options.paths });
+        const graph = yield* buildDerivedGraph({ paths: options.paths });
+        const inbox = yield* emitOperatorInbox({ paths: options.paths, filter: { adoId: options.adoId } });
+
+        return {
+          runId: selectedContext.runId,
+          runbook: selectedContext.activeRunbook?.name ?? null,
+          dataset: selectedContext.activeDataset?.name ?? null,
+          interpretationPath: interpretationFile,
+          executionPath: executionFile,
+          runPath: runFile,
+          proposalsPath: proposalsFile,
+          evidence: evidenceStage.evidenceWrites.map((entry) => entry.absolutePath),
+          confidence,
+          emitted,
+          graph,
+          inbox,
+          posture: selectedContext.posture,
+        };
+      }),
     });
 
-    const executionStage = yield* executeSteps({
-      runtimeScenarioRunner,
-      rootDir: options.paths.rootDir,
-      adoId: options.adoId,
-      selectedContext,
-    });
-
-    const evidenceStage = yield* persistEvidence({
-      fs,
-      paths: options.paths,
-      adoId: options.adoId,
-      runId: selectedContext.runId,
-      stepResults: executionStage.stepResults,
-    });
-
-    const evidenceCatalog = yield* loadWorkspaceCatalog({ paths: options.paths });
-    const proposalStage = buildProposals({
-      adoId: options.adoId,
-      runId: selectedContext.runId,
-      selectedContext,
-      stepResults: executionStage.stepResults,
-      evidenceWrites: evidenceStage.evidenceWrites,
-      evidenceCatalog,
-    });
-    const runRecordStage = buildRunRecord({
-      adoId: options.adoId,
-      runId: selectedContext.runId,
-      selectedContext,
-      stepResults: executionStage.stepResults,
-      evidenceWrites: evidenceStage.evidenceWrites,
-    });
-
-    const interpretationFile = interpretationPath(options.paths, options.adoId, selectedContext.runId);
-    const executionFile = executionPath(options.paths, options.adoId, selectedContext.runId);
-    const runFile = runRecordPath(options.paths, options.adoId, selectedContext.runId);
-    const proposalsFile = generatedProposalsPath(options.paths, selectedContext.scenarioEntry.artifact.metadata.suite, options.adoId);
-
-    yield* fs.writeJson(interpretationFile, executionStage.interpretationOutput);
-    yield* fs.writeJson(executionFile, executionStage.executionOutput);
-    yield* fs.writeJson(runFile, runRecordStage.runRecord);
-    yield* fs.writeJson(proposalsFile, proposalStage.proposalBundle);
-
-    const confidence = yield* projectConfidenceOverlayCatalog({ paths: options.paths });
-    const emitted = yield* emitScenario({ adoId: options.adoId, paths: options.paths });
-    const graph = yield* buildDerivedGraph({ paths: options.paths });
-    const inbox = yield* emitOperatorInbox({ paths: options.paths, filter: { adoId: options.adoId } });
-
-    return {
-      runId: selectedContext.runId,
-      runbook: selectedContext.activeRunbook?.name ?? null,
-      dataset: selectedContext.activeDataset?.name ?? null,
-      interpretationPath: interpretationFile,
-      executionPath: executionFile,
-      runPath: runFile,
-      proposalsPath: proposalsFile,
-      evidence: evidenceStage.evidenceWrites.map((entry) => entry.absolutePath),
-      confidence,
-      emitted,
-      graph,
-      inbox,
-      posture: selectedContext.posture,
-    };
+    return stage.computed;
   });
 }
 

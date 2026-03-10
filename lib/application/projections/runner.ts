@@ -1,9 +1,8 @@
 import { Effect } from 'effect';
 import type { TesseractError } from '../../domain/errors';
 import { FileSystem } from '../ports';
+import { runIncrementalStage } from '../pipeline';
 import {
-  computeProjectionInputSetFingerprint,
-  diffProjectionInputs,
   sortProjectionInputs,
   type ProjectionBuildManifest,
   type ProjectionCacheInvalidationReason,
@@ -94,54 +93,15 @@ export function runProjection<
   withCacheHit: (incremental: ProjectionCacheHitIncremental) => CacheHitResult;
   withCacheMiss: (built: BuildResult, incremental: ProjectionCacheMissIncremental) => CacheMissResult;
 }): Effect.Effect<CacheHitResult | CacheMissResult, TesseractError | ProjectionError, FileSystem | ProjectionRequirements> {
-  return Effect.gen(function* () {
-    const fs = yield* FileSystem;
-    const previousManifest = (yield* fs.exists(options.manifestPath))
-      ? parseProjectionManifest(yield* fs.readJson(options.manifestPath), options.projection)
-      : null;
-    const inputSetFingerprint = computeProjectionInputSetFingerprint(options.inputFingerprints);
-    const { sortedInputs, changedInputs, removedInputs } = diffProjectionInputs(options.inputFingerprints, previousManifest);
-
-    let cacheInvalidationReason: ProjectionCacheInvalidationReason | null = null;
-    const expectedOutputFingerprint = options.outputFingerprint ?? previousManifest?.outputFingerprint ?? null;
-    if (
-      previousManifest
-      && previousManifest.inputSetFingerprint === inputSetFingerprint
-      && expectedOutputFingerprint
-      && previousManifest.outputFingerprint === expectedOutputFingerprint
-    ) {
-      const persisted = yield* options.verifyPersistedOutput(expectedOutputFingerprint);
-      if (persisted.status === 'ok' && persisted.outputFingerprint === expectedOutputFingerprint) {
-        return options.withCacheHit({
-          status: 'cache-hit',
-          inputSetFingerprint,
-          outputFingerprint: expectedOutputFingerprint,
-          changedInputs,
-          removedInputs,
-          rewritten: [],
-        });
-      }
-      cacheInvalidationReason = persisted.status === 'ok' ? 'invalid-output' : persisted.status;
-    }
-
-    const built = yield* options.buildAndWrite();
-    const manifest: ProjectionBuildManifest = {
-      version: 1,
-      projection: options.projection,
-      inputSetFingerprint,
-      outputFingerprint: built.outputFingerprint,
-      inputs: sortedInputs,
-    };
-    yield* fs.writeJson(options.manifestPath, manifest);
-
-    return options.withCacheMiss(built.result, {
-      status: 'cache-miss',
-      inputSetFingerprint,
-      outputFingerprint: built.outputFingerprint,
-      cacheInvalidationReason,
-      changedInputs,
-      removedInputs,
-      rewritten: [...built.rewritten],
-    });
+  return runIncrementalStage({
+    name: options.projection,
+    manifestPath: options.manifestPath,
+    inputFingerprints: options.inputFingerprints,
+    outputFingerprint: options.outputFingerprint,
+    verifyPersistedOutput: options.verifyPersistedOutput,
+    persist: options.buildAndWrite,
+    withCacheHit: options.withCacheHit,
+    withCacheMiss: options.withCacheMiss,
   });
 }
+

@@ -25,7 +25,8 @@ import {
   fingerprintProjectionOutput,
   type ProjectionInputFingerprint,
 } from './projections/cache';
-import { runProjection, type ProjectionIncremental } from './projections/runner';
+import { type ProjectionIncremental } from './projections/runner';
+import { runIncrementalStage } from './pipeline';
 
 export interface EmitProjectionResult {
   outputPath: string;
@@ -283,19 +284,19 @@ export function emitScenario(
     ].filter((entry) => entry.path.length > 0);
     const outputFingerprint = emitOutputFingerprint(artifacts);
 
-    return yield* runProjection<
+    return yield* runIncrementalStage<
       Omit<EmitScenarioResult, 'incremental'>,
       EmitScenarioResult,
       EmitScenarioResult,
       TesseractError,
       FileSystem
     >({
-      projection: 'emit',
+      name: 'emit',
       manifestPath: artifacts.manifestPath,
       inputFingerprints,
       outputFingerprint,
       verifyPersistedOutput: () => readPersistedEmitOutputState(artifacts),
-      buildAndWrite: () => Effect.gen(function* () {
+      persist: () => Effect.gen(function* () {
         yield* fs.writeText(artifacts.outputPath, artifacts.rendered.code);
         yield* fs.writeJson(artifacts.tracePath, artifacts.traceArtifact);
         yield* fs.writeText(artifacts.reviewPath, artifacts.reviewText);

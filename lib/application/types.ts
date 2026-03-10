@@ -13,7 +13,8 @@ import {
   fingerprintProjectionArtifact,
   type ProjectionInputFingerprint,
 } from './projections/cache';
-import { runProjection, type ProjectionIncremental } from './projections/runner';
+import { type ProjectionIncremental } from './projections/runner';
+import { runIncrementalStage } from './pipeline';
 
 export interface GeneratedTypesProjectionResult {
   outputPath: string;
@@ -172,13 +173,13 @@ export function generateTypes(options: { paths: ProjectPaths; catalog?: Workspac
     const fixtures = toSortedUnique(fixtureIds);
     const snapshots = toSortedUnique(snapshotTemplates);
 
-    return yield* runProjection<
+    return yield* runIncrementalStage<
       Omit<TypesProjectionResult, 'incremental'>,
       TypesProjectionResult,
       TypesProjectionResult,
       TesseractError
     >({
-      projection: 'types',
+      name: 'types',
       manifestPath: metadataPath,
       inputFingerprints,
       outputFingerprint,
@@ -198,7 +199,7 @@ export function generateTypes(options: { paths: ProjectPaths; catalog?: Workspac
           outputFingerprint: `sha256:${sha256(persistedModuleText)}`,
         };
       }),
-      buildAndWrite: () => Effect.gen(function* () {
+      persist: () => Effect.gen(function* () {
         yield* fs.writeText(outputPath, moduleText);
         return {
           result: {

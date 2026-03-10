@@ -15,7 +15,8 @@ import {
   fingerprintProjectionOutput,
   type ProjectionInputFingerprint,
 } from './projections/cache';
-import { runProjection, type ProjectionIncremental } from './projections/runner';
+import { type ProjectionIncremental } from './projections/runner';
+import { runIncrementalStage } from './pipeline';
 
 export interface TaskProjectionResult {
   taskPacket: ScenarioTaskPacket;
@@ -253,13 +254,13 @@ export function buildTaskPacketProjection(options:
     const packet = buildTaskPacket({ compileSnapshot, catalog });
     const outputFingerprint = fingerprintProjectionOutput(packet);
 
-    return yield* runProjection<
+    return yield* runIncrementalStage<
       Omit<TaskProjectionResult, 'incremental'>,
       TaskProjectionResult,
       TaskProjectionResult,
       TesseractError
     >({
-      projection: 'task',
+      name: 'task',
       manifestPath,
       inputFingerprints,
       outputFingerprint,
@@ -274,7 +275,7 @@ export function buildTaskPacketProjection(options:
           outputFingerprint: fingerprintProjectionOutput(raw),
         };
       }),
-      buildAndWrite: () => Effect.gen(function* () {
+      persist: () => Effect.gen(function* () {
         yield* fs.writeJson(packetPath, packet);
         return {
           result: {
