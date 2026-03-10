@@ -180,6 +180,16 @@ Use them when:
 
 Do not turn affordances into mini scripts. Procedural interaction still belongs in `knowledge/components/*.ts` and `lib/runtime/`.
 
+Contract mapping for common widget families:
+
+- `os-input`: text-style entry (`fill`, `clear`, `get-value`)
+- `os-select`: option selection controls (`fill`, `clear`, `get-value`)
+- `os-button`: actionable triggers (`click`, `get-value`)
+- `os-toggle`: binary controls such as checkbox/radio/switch (`click`, `get-value`)
+- `os-table`: tabular read surfaces (`get-value`)
+
+Affordance hints should annotate family behavior, not redefine these actions. Keep hints declarative (for example `masked-entry`, `menu-trigger`, `single-select`, `boolean-toggle`) and let runtime handlers execute the contract.
+
 ## Evidence, proposals, and generated tests
 
 When an agent discovers missing knowledge, persist evidence before proposing canonical change.

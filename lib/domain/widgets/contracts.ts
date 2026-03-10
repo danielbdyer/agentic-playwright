@@ -51,8 +51,46 @@ export const osTableContract: WidgetCapabilityContract = {
   },
 };
 
+export const osSelectContract: WidgetCapabilityContract = {
+  widget: createWidgetId('os-select'),
+  supportedActions: ['fill', 'clear', 'get-value'],
+  requiredPreconditions: ['enabled', 'visible'],
+  sideEffects: {
+    fill: {
+      expectedStates: ['enabled', 'visible'],
+      effectCategories: ['mutation'],
+    },
+    clear: {
+      expectedStates: ['enabled', 'visible'],
+      effectCategories: ['mutation'],
+    },
+    'get-value': {
+      expectedStates: ['visible'],
+      effectCategories: ['observation'],
+    },
+  },
+};
+
+export const osToggleContract: WidgetCapabilityContract = {
+  widget: createWidgetId('os-toggle'),
+  supportedActions: ['click', 'get-value'],
+  requiredPreconditions: ['enabled', 'visible'],
+  sideEffects: {
+    click: {
+      expectedStates: ['enabled', 'visible'],
+      effectCategories: ['mutation'],
+    },
+    'get-value': {
+      expectedStates: ['visible'],
+      effectCategories: ['observation'],
+    },
+  },
+};
+
 export const widgetCapabilityContracts: WidgetContractRegistry = {
   [osButtonContract.widget]: osButtonContract,
   [osInputContract.widget]: osInputContract,
   [osTableContract.widget]: osTableContract,
+  [osSelectContract.widget]: osSelectContract,
+  [osToggleContract.widget]: osToggleContract,
 };

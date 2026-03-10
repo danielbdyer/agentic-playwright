@@ -2,7 +2,7 @@
   "version": 1,
   "projection": "types",
   "inputSetFingerprint": "sha256:a78ec5bdfc09b61c244401b008aebdd952fda2ffd3a81ae142e9960c13c662bc",
-  "outputFingerprint": "sha256:3ebb6ce1147c70f1471ce0de7a84d8e5d31835c41978163768372e7ec10676f6",
+  "outputFingerprint": "sha256:af325abdac32a743f7b9922cf41c8646a7405ed6c419c6b818ddf65302f7f07c",
   "inputs": [
     {
       "kind": "elements",

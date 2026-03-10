@@ -31,11 +31,20 @@ export const widgetSupportedActions = {
         "fill",
         "get-value"
     ],
+    "os-select": [
+        "fill",
+        "clear",
+        "get-value"
+    ],
     "os-table": [
+        "get-value"
+    ],
+    "os-toggle": [
+        "click",
         "get-value"
     ]
 } as const;
-export type WidgetId = "os-button" | "os-input" | "os-table";
+export type WidgetId = "os-button" | "os-input" | "os-select" | "os-table" | "os-toggle";
 export type WidgetSupportedAction<W extends WidgetId = WidgetId> = (typeof widgetSupportedActions)[W][number];
 export const surfaceSupportedActions = {
     "policy-search": {
@@ -73,9 +82,10 @@ export const snapshotTemplateIds = [
 export type SnapshotTemplateId = "snapshots/policy-search/results-with-policy.yaml";
 export const fixtureIds = [
     "activePolicy",
-    "demoSession"
+    "demoSession",
+    "generatedTokens"
 ] as const;
-export type FixtureId = "activePolicy" | "demoSession";
+export type FixtureId = "activePolicy" | "demoSession" | "generatedTokens";
 export const knowledgeIndex = {
     "policy-search": {
         surfaces: [

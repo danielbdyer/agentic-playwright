@@ -5,7 +5,7 @@ import { unknownEffectTargetError } from '../domain/errors';
 import type { ElementSig, Posture, SurfaceDefinition } from '../domain/types';
 import { widgetCapabilityContracts } from '../domain/widgets/contracts';
 import { interact } from './interact';
-import { locate, resolveLocator } from './locate';
+import { describeLocatorStrategy, locate, resolveLocator } from './locate';
 import type { RuntimeResult} from './result';
 import { runtimeErr, runtimeOk } from './result';
 
@@ -77,7 +77,7 @@ export async function engage(
   elementId: ElementId,
   postureId: PostureId = 'valid' as PostureId,
   override?: string,
-): Promise<RuntimeResult<{ observedEffects: string[] }>> {
+): Promise<RuntimeResult<{ observedEffects: string[]; locatorStrategy: string; locatorRung: number; widgetContract: string }>> {
   const element = elements[elementId];
   if (!element) {
     const error = unknownEffectTargetError(elementId, 'element');
@@ -146,7 +146,12 @@ export async function engage(
     }
   }
 
-  return runtimeOk({ observedEffects });
+  return runtimeOk({
+    observedEffects,
+    locatorStrategy: describeLocatorStrategy(resolvedLocator.strategy),
+    locatorRung: resolvedLocator.strategyIndex,
+    widgetContract: element.widget,
+  });
 }
 
 

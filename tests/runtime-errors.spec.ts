@@ -380,3 +380,90 @@ test('capability derivation remains deterministic with contract-driven actions',
   const second = deriveCapabilities(surfaceGraph, elements);
   expect(first).toEqual(second);
 });
+
+test('enter receipts carry locator and widget metadata for select interactions', async () => {
+  const calls: string[] = [];
+  const selectLocator = {
+    count: async () => 1,
+    isEnabled: async () => true,
+    isVisible: async () => true,
+    isEditable: async () => true,
+    selectOption: async (value: string) => {
+      calls.push(`select:${value}`);
+    },
+    fill: async (value: string) => {
+      calls.push(`fill:${value}`);
+    },
+    inputValue: async () => 'open',
+    or: () => selectLocator,
+  };
+  const page = {
+    getByTestId: () => selectLocator,
+    getByRole: () => selectLocator,
+    locator: () => selectLocator,
+    goto: async () => undefined,
+  };
+
+  const result = await playwrightStepProgramInterpreter.run({
+    kind: 'step-program',
+    instructions: [{
+      kind: 'enter',
+      screen: policySearchScreenId,
+      element: policyNumberInputId,
+      posture: createPostureId('valid'),
+      value: { kind: 'literal', value: 'open' },
+    }],
+  }, {
+    page: page as never,
+    fixtures: {},
+    screens: {
+      [policySearchScreenId]: {
+        screen: {
+          screen: policySearchScreenId,
+          url: 'http://example.test/policy-search',
+          sections: {},
+        },
+        surfaces: {},
+        postures: {},
+        elements: {
+          [policyNumberInputId]: {
+            role: 'combobox',
+            name: 'Status',
+            testId: 'status-select',
+            locator: [
+              { kind: 'test-id', value: 'status-select' },
+              { kind: 'role-name', role: 'combobox', name: 'Status' },
+            ],
+            surface: searchFormId,
+            widget: createWidgetId('os-select'),
+          },
+        },
+      },
+    },
+  });
+
+  expect(result.ok).toBeTruthy();
+  expect(calls).toContain('select:open');
+  if (result.ok) {
+    const firstOutcome = result.value.outcomes[0];
+    expect(firstOutcome?.widgetContract).toBe(createWidgetId('os-select'));
+    expect(firstOutcome?.locatorRung).toBe(0);
+    expect(firstOutcome?.observedEffects).toEqual(['effect-applied']);
+  }
+});
+
+test('toggle click handler degrades safely by reading aria-checked before mutating', async () => {
+  let clicks = 0;
+  const toggleLocator = {
+    isEnabled: async () => true,
+    isVisible: async () => true,
+    getAttribute: async () => 'true',
+    click: async () => {
+      clicks += 1;
+    },
+  };
+
+  const result = await interact(toggleLocator as never, createWidgetId('os-toggle'), 'click', 'true');
+  expect(result.ok).toBeTruthy();
+  expect(clicks).toBe(0);
+});

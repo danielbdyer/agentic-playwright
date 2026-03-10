@@ -234,13 +234,15 @@ function widgetForRole(role: string, inputType: string | null): string {
   if (role === 'table' || role === 'grid') {
     return 'os-table';
   }
+  if (role === 'combobox' || inputType === 'select-one' || inputType === 'select-multiple') {
+    return 'os-select';
+  }
+  if (role === 'checkbox' || role === 'radio' || role === 'switch') {
+    return 'os-toggle';
+  }
   if (
     role === 'textbox'
     || role === 'searchbox'
-    || role === 'combobox'
-    || role === 'checkbox'
-    || role === 'radio'
-    || role === 'switch'
     || inputType === 'text'
     || inputType === 'search'
     || inputType === 'date'
@@ -251,10 +253,10 @@ function widgetForRole(role: string, inputType: string | null): string {
 }
 
 function supportedActionsForRole(role: string, widget: string): ('click' | 'input' | 'assert-snapshot')[] {
-  if (widget === 'os-button' || role === 'button' || role === 'link') {
+  if (widget === 'os-button' || widget === 'os-toggle' || role === 'button' || role === 'link') {
     return ['click'];
   }
-  if (widget === 'os-input') {
+  if (widget === 'os-input' || widget === 'os-select') {
     return ['input'];
   }
   return ['assert-snapshot'];
