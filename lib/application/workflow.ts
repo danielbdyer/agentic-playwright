@@ -1,8 +1,10 @@
 import { Effect } from 'effect';
 import type { AdoId } from '../domain/identity';
+import { compareStrings, uniqueSorted } from '../domain/collections';
 import { loadWorkspaceCatalog } from './catalog';
 import { findRunbook, runtimeControlsForScenario } from './controls';
 import { buildOperatorInboxItems, operatorInboxItemsForScenario } from './operator';
+import { generatedReviewPath, generatedTracePath, relativeProjectPath } from './paths';
 import type { ProjectPaths } from './paths';
 
 const laneMap = [
@@ -50,6 +52,82 @@ export function inspectWorkflow(options: { paths: ProjectPaths; adoId?: AdoId | 
     });
     const controls = scenario ? runtimeControlsForScenario(catalog, scenario.artifact) : null;
     const inboxItems = scenario ? operatorInboxItemsForScenario(buildOperatorInboxItems(catalog), scenario.artifact.source.ado_id) : [];
+    const latestRun = scenario
+      ? catalog.runRecords
+        .filter((entry) => entry.artifact.adoId === scenario.artifact.source.ado_id)
+        .sort((left, right) => right.artifact.completedAt.localeCompare(left.artifact.completedAt))[0]?.artifact ?? null
+      : null;
+    const proposalBundle = scenario
+      ? catalog.proposalBundles
+        .filter((entry) => entry.artifact.adoId === scenario.artifact.source.ado_id)
+        .sort((left, right) => right.artifact.runId.localeCompare(left.artifact.runId))[0]?.artifact ?? null
+      : null;
+    const taskPacketEntry = scenario
+      ? catalog.taskPackets.find((entry) => entry.artifact.adoId === scenario.artifact.source.ado_id) ?? null
+      : null;
+
+    const sharedViews = scenario ? [
+      {
+        scenarioId: scenario.artifact.source.ado_id,
+        runId: latestRun?.runId ?? proposalBundle?.runId ?? null,
+        resolutionMode: latestRun?.steps[0]?.interpretation.resolutionMode ?? null,
+        winningSource: latestRun?.steps[0]?.interpretation.winningSource ?? null,
+        lineage: {
+          sources: uniqueSorted([
+            scenario.artifactPath,
+            ...controls?.datasets.map((entry) => entry.artifactPath) ?? [],
+            ...controls?.resolutionControls.map((entry) => entry.artifactPath) ?? [],
+            ...controls?.runbooks.map((entry) => entry.artifactPath) ?? [],
+          ]),
+          parents: uniqueSorted([
+            catalog.boundScenarios.find((entry) => entry.artifact.source.ado_id === scenario.artifact.source.ado_id)?.fingerprint ?? '',
+            catalog.taskPackets.find((entry) => entry.artifact.adoId === scenario.artifact.source.ado_id)?.fingerprint ?? '',
+            latestRun?.fingerprints.run ?? '',
+          ].filter((value) => value.length > 0)),
+          handshakes: uniqueSorted([
+            ...(latestRun?.lineage.handshakes ?? ['preparation', 'resolution', 'execution', 'projection']),
+            'proposal',
+          ]),
+        },
+        governance: latestRun?.governance ?? proposalBundle?.governance ?? 'approved',
+        nextActions: uniqueSorted([
+          `tesseract trace --ado-id ${scenario.artifact.source.ado_id}`,
+          `tesseract workflow --ado-id ${scenario.artifact.source.ado_id}`,
+          `tesseract inbox --ado-id ${scenario.artifact.source.ado_id}`,
+          ...(proposalBundle?.proposals.length
+            ? proposalBundle.proposals.flatMap((proposal) => [
+                `tesseract approve --proposal-id ${proposal.proposalId}`,
+                `tesseract rerun-plan --proposal-id ${proposal.proposalId}`,
+              ])
+            : ['tesseract inbox']),
+        ]),
+      },
+    ] : [];
+
+    const hotspotNavigation = latestRun
+      ? latestRun.steps
+        .map((step) => {
+          const stepProposal = proposalBundle?.proposals.find((proposal) => proposal.stepIndex === step.stepIndex) ?? null;
+          return {
+            stepIndex: step.stepIndex,
+            resolutionMode: step.interpretation.resolutionMode,
+            winningSource: step.interpretation.winningSource,
+            governance: step.execution.governance,
+            evidenceIds: step.evidenceIds,
+            commands: uniqueSorted([
+              `tesseract workflow --ado-id ${latestRun.adoId}`,
+              `tesseract trace --ado-id ${latestRun.adoId}`,
+              ...(stepProposal
+                ? [
+                    `tesseract approve --proposal-id ${stepProposal.proposalId}`,
+                    `tesseract rerun-plan --proposal-id ${stepProposal.proposalId}`,
+                  ]
+                : []),
+            ]),
+          };
+        })
+        .sort((left, right) => left.stepIndex - right.stepIndex)
+      : [];
 
     return {
       lanes: laneMap,
@@ -114,6 +192,121 @@ export function inspectWorkflow(options: { paths: ProjectPaths; adoId?: AdoId | 
           nextCommands: item.nextCommands,
         })),
       },
+      projections: scenario ? {
+        workflow: {
+          kind: 'workflow-view',
+          version: 1,
+          stage: 'projection',
+          scope: 'scenario',
+          ids: {
+            adoId: scenario.artifact.source.ado_id,
+            suite: scenario.artifact.metadata.suite,
+            runId: latestRun?.runId ?? null,
+          },
+          fingerprints: {
+            artifact: scenario.fingerprint,
+            content: scenario.artifact.source.content_hash,
+            knowledge: taskPacketEntry?.artifact.knowledgeFingerprint ?? null,
+            controls: controls?.runbooks[0]?.name ?? null,
+            task: taskPacketEntry?.fingerprint ?? null,
+            run: latestRun?.fingerprints.run ?? null,
+          },
+          lineage: sharedViews[0]?.lineage ?? { sources: [], parents: [], handshakes: [] },
+          governance: sharedViews[0]?.governance ?? 'approved',
+          payload: {
+            path: `command:tesseract workflow --ado-id ${scenario.artifact.source.ado_id}`,
+            hotspotNavigation,
+          },
+        },
+        trace: {
+          kind: 'generated-trace',
+          version: 1,
+          stage: 'projection',
+          scope: 'scenario',
+          ids: {
+            adoId: scenario.artifact.source.ado_id,
+            suite: scenario.artifact.metadata.suite,
+            runId: latestRun?.runId ?? null,
+          },
+          fingerprints: {
+            artifact: catalog.boundScenarios.find((entry) => entry.artifact.source.ado_id === scenario.artifact.source.ado_id)?.fingerprint ?? scenario.fingerprint,
+            content: scenario.artifact.source.content_hash,
+            knowledge: taskPacketEntry?.artifact.knowledgeFingerprint ?? null,
+            controls: controls?.runbooks[0]?.name ?? null,
+            task: taskPacketEntry?.fingerprint ?? null,
+            run: latestRun?.fingerprints.run ?? null,
+          },
+          lineage: sharedViews[0]?.lineage ?? { sources: [], parents: [], handshakes: [] },
+          governance: latestRun?.governance ?? 'approved',
+          payload: {
+            path: relativeProjectPath(options.paths, generatedTracePath(options.paths, scenario.artifact.metadata.suite, scenario.artifact.source.ado_id)),
+            command: `tesseract trace --ado-id ${scenario.artifact.source.ado_id}`,
+          },
+        },
+        review: {
+          kind: 'generated-review',
+          version: 1,
+          stage: 'projection',
+          scope: 'scenario',
+          ids: {
+            adoId: scenario.artifact.source.ado_id,
+            suite: scenario.artifact.metadata.suite,
+            runId: latestRun?.runId ?? null,
+          },
+          fingerprints: {
+            artifact: catalog.boundScenarios.find((entry) => entry.artifact.source.ado_id === scenario.artifact.source.ado_id)?.fingerprint ?? scenario.fingerprint,
+            content: scenario.artifact.source.content_hash,
+            knowledge: taskPacketEntry?.artifact.knowledgeFingerprint ?? null,
+            controls: controls?.runbooks[0]?.name ?? null,
+            task: taskPacketEntry?.fingerprint ?? null,
+            run: latestRun?.fingerprints.run ?? null,
+          },
+          lineage: sharedViews[0]?.lineage ?? { sources: [], parents: [], handshakes: [] },
+          governance: latestRun?.governance ?? proposalBundle?.governance ?? 'approved',
+          payload: {
+            path: relativeProjectPath(options.paths, generatedReviewPath(options.paths, scenario.artifact.metadata.suite, scenario.artifact.source.ado_id)),
+          },
+        },
+        graph: {
+          kind: 'derived-graph',
+          version: 1,
+          stage: 'projection',
+          scope: 'workspace',
+          ids: {
+            adoId: scenario.artifact.source.ado_id,
+            suite: scenario.artifact.metadata.suite,
+            runId: latestRun?.runId ?? null,
+          },
+          fingerprints: {
+            artifact: catalog.boundScenarios.find((entry) => entry.artifact.source.ado_id === scenario.artifact.source.ado_id)?.fingerprint ?? scenario.fingerprint,
+            content: scenario.artifact.source.content_hash,
+            knowledge: taskPacketEntry?.artifact.knowledgeFingerprint ?? null,
+            controls: controls?.runbooks[0]?.name ?? null,
+            task: taskPacketEntry?.fingerprint ?? null,
+            run: latestRun?.fingerprints.run ?? null,
+          },
+          lineage: sharedViews[0]?.lineage ?? { sources: [], parents: [], handshakes: [] },
+          governance: 'approved',
+          payload: {
+            path: relativeProjectPath(options.paths, options.paths.graphIndexPath),
+            command: 'tesseract graph',
+          },
+        },
+      } : null,
+      navigation: scenario ? {
+        flow: ['hotspot', 'evidence/trace', 'proposal approval', 'rerun plan'],
+        recipes: {
+          hotspot: `tesseract workflow --ado-id ${scenario.artifact.source.ado_id}`,
+          trace: `tesseract trace --ado-id ${scenario.artifact.source.ado_id}`,
+          approval: proposalBundle?.proposals[0]
+            ? `tesseract approve --proposal-id ${proposalBundle.proposals[0].proposalId}`
+            : `tesseract inbox --ado-id ${scenario.artifact.source.ado_id}`,
+          rerun: proposalBundle?.proposals[0]
+            ? `tesseract rerun-plan --proposal-id ${proposalBundle.proposals[0].proposalId}`
+            : `tesseract inbox --ado-id ${scenario.artifact.source.ado_id}`,
+        },
+      } : null,
+      sharedViews: sharedViews.sort((left, right) => compareStrings(left.scenarioId, right.scenarioId)),
       benchmarks: catalog.benchmarks.map((entry) => ({
         name: entry.artifact.name,
         artifactPath: entry.artifactPath,
@@ -141,7 +334,7 @@ export function inspectWorkflow(options: { paths: ProjectPaths; adoId?: AdoId | 
       fingerprints: scenario ? {
         scenario: scenario.fingerprint,
         bound: catalog.boundScenarios.find((entry) => entry.artifact.source.ado_id === scenario.artifact.source.ado_id)?.fingerprint ?? null,
-        task: catalog.taskPackets.find((entry) => entry.artifact.adoId === scenario.artifact.source.ado_id)?.fingerprint ?? null,
+        task: taskPacketEntry?.fingerprint ?? null,
       } : null,
     };
   });

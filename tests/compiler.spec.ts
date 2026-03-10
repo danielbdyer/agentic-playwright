@@ -180,6 +180,44 @@ test('workflow inspection exposes lane ownership, controls, and precedence for a
     ]);
     expect(result.selection.runbook).toBe('demo-smoke');
     expect(result.fingerprints?.task).toBeTruthy();
+    expect(result.sharedViews[0]).toMatchObject({
+      scenarioId: '10001',
+      resolutionMode: null,
+      winningSource: null,
+      governance: 'approved',
+    });
+    expect(result.navigation.flow).toEqual(['hotspot', 'evidence/trace', 'proposal approval', 'rerun plan']);
+    expect(result.projections.workflow).toMatchObject({
+      kind: 'workflow-view',
+      version: 1,
+      stage: 'projection',
+      scope: 'scenario',
+    });
+    expect(result.projections.trace).toMatchObject({
+      kind: 'generated-trace',
+      version: 1,
+      stage: 'projection',
+      scope: 'scenario',
+    });
+    expect(result.projections.review).toMatchObject({
+      kind: 'generated-review',
+      version: 1,
+      stage: 'projection',
+      scope: 'scenario',
+    });
+    expect(result.projections.graph).toMatchObject({
+      kind: 'derived-graph',
+      version: 1,
+      stage: 'projection',
+      scope: 'workspace',
+    });
+    expect(result.projections.workflow.ids.adoId).toBe('10001');
+    expect(result.projections.trace.ids.adoId).toBe('10001');
+    expect(result.projections.review.ids.adoId).toBe('10001');
+    expect(result.projections.graph.ids.adoId).toBe('10001');
+    expect(result.projections.workflow.governance).toBe(result.sharedViews[0].governance);
+    expect(result.projections.trace.governance).toBe(result.sharedViews[0].governance);
+    expect(result.projections.review.governance).toBe(result.sharedViews[0].governance);
   } finally {
     workspace.cleanup();
   }
@@ -194,6 +232,10 @@ test('run emits interpretation and execution receipts, then reprojects review su
       runScenario({ adoId, paths: workspace.paths, interpreterMode: 'diagnostic' }),
       workspace.rootDir,
     );
+    const workflow = await runWithLocalServices(
+      inspectWorkflow({ adoId, paths: workspace.paths }),
+      workspace.rootDir,
+    );
     const traceArtifact = JSON.parse(readFileSync(run.emitted.tracePath, 'utf8').replace(/^\uFEFF/, ''));
     const review = readFileSync(run.emitted.reviewPath, 'utf8').replace(/^\uFEFF/, '');
     const runRecord = JSON.parse(readFileSync(run.runPath, 'utf8').replace(/^\uFEFF/, ''));
@@ -206,6 +248,11 @@ test('run emits interpretation and execution receipts, then reprojects review su
     expect(traceArtifact.summary.provenanceKinds['approved-knowledge']).toBe(4);
     expect(traceArtifact.summary.provenanceKinds.unresolved).toBe(0);
     expect(traceArtifact.steps.every((step: { runtime: { status: string } }) => step.runtime.status === 'resolved')).toBeTruthy();
+    expect(workflow.sharedViews[0].winningSource).toBe(traceArtifact.steps[0].winningSource);
+    expect(workflow.sharedViews[0].governance).toBe(workflow.projections.workflow.governance);
+    expect(workflow.projections.trace.governance).toBe(workflow.projections.workflow.governance);
+    expect(workflow.projections.review.governance).toBe(workflow.projections.workflow.governance);
+    expect(workflow.projections.workflow.payload.hotspotNavigation[0].winningSource).toBe(traceArtifact.steps[0].winningSource);
     expect(review).toContain('Runtime: resolved');
     expect(proposalBundle.proposals).toEqual([]);
     expect(graph.nodes.find((node: { id: string; payload?: Record<string, unknown> }) => node.id === graphIds.step(adoId, 2))?.payload?.runtimeStatus).toBe('resolved');
