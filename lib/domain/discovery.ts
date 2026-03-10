@@ -1,5 +1,5 @@
 import { computeNormalizedSnapshotHash, normalizeAriaSnapshot } from './hash';
-import type { AssertionKind, SurfaceKind } from './types';
+import type { AssertionKind, SurfaceKind } from './types/workflow';
 
 export interface RawDiscoveredSurface {
   selector: string;

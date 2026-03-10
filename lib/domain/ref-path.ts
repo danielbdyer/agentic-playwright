@@ -1,4 +1,4 @@
-﻿import type { RefPath } from './types';
+﻿import type { RefPath } from './types/intent';
 
 const PATH_SEPARATOR = '.';
 
