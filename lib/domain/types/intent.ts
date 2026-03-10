@@ -39,6 +39,7 @@ export interface AdoSnapshot {
   title: string;
   suitePath: string;
   areaPath: string;
+  iterationPath: string;
   tags: string[];
   priority: number;
   steps: AdoStep[];

@@ -573,6 +573,7 @@ export function validateAdoSnapshot(value: unknown) {
     title: expectString(snapshot.title, 'snapshot.title'),
     suitePath: ensureSafeRelativePathLike(expectString(snapshot.suitePath, 'snapshot.suitePath'), 'snapshot.suitePath'),
     areaPath: expectString(snapshot.areaPath, 'snapshot.areaPath'),
+    iterationPath: expectString(snapshot.iterationPath ?? '', 'snapshot.iterationPath'),
     tags: expectStringArray(snapshot.tags ?? [], 'snapshot.tags'),
     priority: expectNumber(snapshot.priority, 'snapshot.priority'),
     steps: expectArray(snapshot.steps, 'snapshot.steps').map((entry, index) => {
@@ -1846,7 +1847,6 @@ export function validateDogfoodRun(value: unknown): DogfoodRun {
     nextCommands: expectStringArray(run.nextCommands ?? [], 'dogfoodRun.nextCommands'),
   };
 }
-
 
 
 

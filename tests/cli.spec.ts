@@ -55,3 +55,38 @@ test('parser rejects invalid enums and unknown flags', () => {
   expect(() => parseCliInvocation(['run', '--interpreter-mode', 'bad-mode'])).toThrow('Invalid --interpreter-mode: bad-mode');
   expect(() => parseCliInvocation(['workflow', '--baseline'])).toThrow('Unknown flag for workflow: --baseline');
 });
+
+test('sync command supports live ADO adapter overrides', () => {
+  const invocation = parseCliInvocation([
+    'sync',
+    '--all',
+    '--ado-source',
+    'live',
+    '--ado-org-url',
+    'https://dev.azure.com/acme',
+    '--ado-project',
+    'demo',
+    '--ado-pat',
+    'token',
+    '--ado-suite-path',
+    'demo/policy-search',
+    '--ado-area-path',
+    'demo',
+    '--ado-iteration-path',
+    'demo/sprint-1',
+    '--ado-tag-filter',
+    'smoke',
+  ]);
+
+  expect(invocation.command).toBe('sync');
+  expect(invocation.environment).toEqual({
+    TESSERACT_ADO_SOURCE: 'live',
+    TESSERACT_ADO_ORG_URL: 'https://dev.azure.com/acme',
+    TESSERACT_ADO_PROJECT: 'demo',
+    TESSERACT_ADO_PAT: 'token',
+    TESSERACT_ADO_SUITE_PATH: 'demo/policy-search',
+    TESSERACT_ADO_AREA_PATH: 'demo',
+    TESSERACT_ADO_ITERATION_PATH: 'demo/sprint-1',
+    TESSERACT_ADO_TAG: 'smoke',
+  });
+});

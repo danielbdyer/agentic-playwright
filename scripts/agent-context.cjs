@@ -151,6 +151,8 @@ function generateAgentContext() {
   const scopedGuidance = collectScopedGuidance();
   const layerRules = collectLayerRules(readme);
   const priorities = collectPriorities(backlog);
+  const adapterRequiredEnv = collectBulletsAfterLine(readme, 'Required live env vars:');
+  const adapterOptionalEnv = collectBulletsAfterLine(readme, 'Optional live filters:');
 
   const lines = [
     '# Agent Context',
@@ -178,6 +180,25 @@ function generateAgentContext() {
     '## Command Surface',
     '',
     ...commands.map(({ command, description }) => `- \`${command}\` - ${description}`),
+    '',
+    '## ADO Adapter Selection',
+    '',
+    '- Default adapter: fixture (`fixtures/ado/*.json`).',
+    '- Live adapter: set `--ado-source live` or `TESSERACT_ADO_SOURCE=live`.',
+    ...adapterRequiredEnv.length > 0
+      ? [
+          '',
+          'Required env vars:',
+          ...adapterRequiredEnv.map((item) => `- ${item}`),
+        ]
+      : [],
+    ...adapterOptionalEnv.length > 0
+      ? [
+          '',
+          'Optional env vars:',
+          ...adapterOptionalEnv.map((item) => `- ${item}`),
+        ]
+      : [],
     '',
     '## Scoped Guidance',
     '',

@@ -221,6 +221,28 @@ npm run knip       # maintainer-only dependency hygiene scan
 npm test           # run compiler/runtime/documentation laws
 ``` 
 
+### ADO adapter selection
+
+Sync defaults to the fixture adapter (`fixtures/ado/*.json`) so local tests remain deterministic.
+
+Use the live Azure DevOps adapter with `--ado-source live` (or `TESSERACT_ADO_SOURCE=live`).
+
+Required live env vars:
+
+- `TESSERACT_ADO_ORG_URL`
+- `TESSERACT_ADO_PROJECT`
+- `TESSERACT_ADO_PAT`
+- `TESSERACT_ADO_SUITE_PATH`
+
+Optional live filters:
+
+- `TESSERACT_ADO_AREA_PATH`
+- `TESSERACT_ADO_ITERATION_PATH`
+- `TESSERACT_ADO_TAG`
+- `TESSERACT_ADO_API_VERSION` (default `7.1`)
+
+Equivalent `sync` CLI overrides are available: `--ado-org-url`, `--ado-project`, `--ado-pat`, `--ado-suite-path`, `--ado-area-path`, `--ado-iteration-path`, and `--ado-tag-filter`.
+
 Global operator flags for mutating commands:
 
 - `--no-write`: compute and project results, but keep writes in the would-write ledger
@@ -304,7 +326,7 @@ The graph, trace JSON, and review Markdown should all agree on that answer.
 
 - `lib/domain`: pure values, validation, normalization, graph derivation, AST-backed codegen
 - `lib/application`: Effect-based orchestration and port composition
-- `lib/infrastructure`: filesystem, local ADO adapter, reporting adapters
+- `lib/infrastructure`: filesystem, fixture/live ADO adapters, reporting adapters
 - `lib/runtime`: task interpretation, locator resolution, widget interaction, execution interpreters
 - `knowledge/components/*.ts`: procedural widget interpreters only
 

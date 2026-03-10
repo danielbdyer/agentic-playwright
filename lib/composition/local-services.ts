@@ -1,6 +1,7 @@
 import { Effect } from 'effect';
 import { AdoSource, ExecutionContext, FileSystem, RuntimeScenarioRunner } from '../application/ports';
 import { makeLocalAdoSource } from '../infrastructure/ado/local-ado-source';
+import { makeLiveAdoSource, readLiveAdoSourceConfigFromEnv } from '../infrastructure/ado/live-ado-source';
 import { LocalFileSystem } from '../infrastructure/fs/local-fs';
 import { createRecordingWorkspaceFileSystem } from '../infrastructure/fs/recording-fs';
 import { LocalRuntimeScenarioRunner } from './local-runtime-scenario-runner';
@@ -23,6 +24,19 @@ function resolveExecutionPosture(posture?: Partial<ExecutionPosture> | undefined
     headed: posture?.headed ?? false,
     executionProfile: posture?.executionProfile ?? (process.env.CI ? 'ci-batch' : 'interactive'),
   };
+}
+
+function resolveAdoSource(rootDir: string) {
+  const selectedSource = process.env.TESSERACT_ADO_SOURCE?.trim().toLowerCase();
+  if (selectedSource !== 'live') {
+    return makeLocalAdoSource(rootDir);
+  }
+
+  const config = readLiveAdoSourceConfigFromEnv(process.env);
+  if (!config) {
+    throw new Error('TESSERACT_ADO_SOURCE=live requires TESSERACT_ADO_ORG_URL, TESSERACT_ADO_PROJECT, TESSERACT_ADO_PAT, and TESSERACT_ADO_SUITE_PATH');
+  }
+  return makeLiveAdoSource(config);
 }
 
 export function createLocalServiceContext(rootDir: string, options?: LocalServiceOptions): LocalServiceContext {
@@ -52,7 +66,7 @@ export function createLocalServiceContext(rootDir: string, options?: LocalServic
               fileSystem,
             ),
             AdoSource,
-            makeLocalAdoSource(rootDir),
+            resolveAdoSource(rootDir),
           ),
           RuntimeScenarioRunner,
           LocalRuntimeScenarioRunner,
