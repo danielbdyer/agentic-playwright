@@ -15,7 +15,7 @@ export interface LocalRuntimeEnvironment {
     dataset?: string | null | undefined;
     resolutionControl?: string | null | undefined;
   } | undefined;
-  translator?: ((request: TranslationRequest) => TranslationReceipt) | undefined;
+  translator?: ((request: TranslationRequest) => Promise<TranslationReceipt>) | undefined;
   fixtures: Record<string, unknown>;
   screens: ScreenRegistry;
   snapshotLoader: SnapshotTemplateLoader;
@@ -34,7 +34,7 @@ export function createLocalRuntimeEnvironment(input: {
     dataset?: string | null | undefined;
     resolutionControl?: string | null | undefined;
   } | undefined;
-  translator?: ((request: TranslationRequest) => TranslationReceipt) | undefined;
+  translator?: ((request: TranslationRequest) => Promise<TranslationReceipt>) | undefined;
   page?: Page | undefined;
 }): LocalRuntimeEnvironment {
   const screenLoader = createLocalScreenRegistryLoader(input.rootDir);

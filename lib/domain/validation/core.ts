@@ -780,6 +780,8 @@ function validateRuntimeKnowledgeSession(value: unknown, path: string) {
               : expectEnum(runbook.interpreterMode, `${path}.controls.runbooks[${index}].interpreterMode`, ['playwright', 'dry-run', 'diagnostic'] as const),
             dataset: expectOptionalString(runbook.dataset, `${path}.controls.runbooks[${index}].dataset`) ?? null,
             resolutionControl: expectOptionalString(runbook.resolutionControl, `${path}.controls.runbooks[${index}].resolutionControl`) ?? null,
+            translationEnabled: runbook.translationEnabled === undefined ? undefined : expectBoolean(runbook.translationEnabled, `${path}.controls.runbooks[${index}].translationEnabled`),
+            translationCacheEnabled: runbook.translationCacheEnabled === undefined ? undefined : expectBoolean(runbook.translationCacheEnabled, `${path}.controls.runbooks[${index}].translationCacheEnabled`),
           };
         }),
       };
@@ -949,6 +951,19 @@ function validateTranslationReceipt(value: unknown, path: string) {
       };
     }),
     rationale: expectString(receipt.rationale, `${path}.rationale`),
+    cache: receipt.cache === undefined || receipt.cache === null
+      ? undefined
+      : (() => {
+          const cache = expectRecord(receipt.cache, `${path}.cache`);
+          return {
+            key: expectString(cache.key, `${path}.cache.key`),
+            status: expectEnum(cache.status, `${path}.cache.status`, ['hit', 'miss', 'disabled'] as const),
+            reason: expectOptionalString(cache.reason, `${path}.cache.reason`) ?? null,
+          };
+        })(),
+    failureClass: receipt.failureClass === undefined
+      ? undefined
+      : expectEnum(receipt.failureClass, `${path}.failureClass`, ['none', 'no-candidate', 'runtime-disabled', 'cache-disabled', 'cache-miss', 'cache-invalidated', 'translator-error'] as const),
   };
 }
 
@@ -1104,6 +1119,18 @@ export function validateRunRecord(value: unknown): RunRecord {
     };
   });
   const evidenceIds = expectStringArray(record.evidenceIds ?? [], 'runRecord.evidenceIds');
+  const translationMetrics = (() => {
+    const metrics = expectRecord(record.translationMetrics ?? {}, 'runRecord.translationMetrics');
+    return {
+      total: expectNumber(metrics.total ?? 0, 'runRecord.translationMetrics.total'),
+      hits: expectNumber(metrics.hits ?? 0, 'runRecord.translationMetrics.hits'),
+      misses: expectNumber(metrics.misses ?? 0, 'runRecord.translationMetrics.misses'),
+      disabled: expectNumber(metrics.disabled ?? 0, 'runRecord.translationMetrics.disabled'),
+      hitRate: expectNumber(metrics.hitRate ?? 0, 'runRecord.translationMetrics.hitRate'),
+      missReasons: Object.fromEntries(Object.entries(expectRecord(metrics.missReasons ?? {}, 'runRecord.translationMetrics.missReasons')).map(([key, value]) => [key, expectNumber(value, `runRecord.translationMetrics.missReasons.${key}`)])),
+      failureClasses: Object.fromEntries(Object.entries(expectRecord(metrics.failureClasses ?? {}, 'runRecord.translationMetrics.failureClasses')).map(([key, value]) => [key, expectNumber(value, `runRecord.translationMetrics.failureClasses.${key}`)])),
+    };
+  })();
   const header = validateWorkflowEnvelopeHeader(record, 'runRecord', {
     stage: 'execution',
     scope: 'run',
@@ -1141,6 +1168,7 @@ export function validateRunRecord(value: unknown): RunRecord {
       completedAt: expectString(record.completedAt, 'runRecord.completedAt'),
       steps,
       evidenceIds,
+      translationMetrics,
     },
     runId: expectString(record.runId, 'runRecord.runId'),
     adoId: expectId(record.adoId, 'runRecord.adoId', createAdoId),
@@ -1155,6 +1183,7 @@ export function validateRunRecord(value: unknown): RunRecord {
     completedAt: expectString(record.completedAt, 'runRecord.completedAt'),
     steps,
     evidenceIds,
+    translationMetrics,
   };
 }
 
@@ -1336,6 +1365,8 @@ export function validateRunbookControl(value: unknown): RunbookControl {
       : expectEnum(runbook.interpreterMode, 'runbook-control.interpreterMode', ['playwright', 'dry-run', 'diagnostic'] as const),
     dataset: expectOptionalString(runbook.dataset, 'runbook-control.dataset') ?? null,
     resolutionControl: expectOptionalString(runbook.resolutionControl, 'runbook-control.resolutionControl') ?? null,
+    translationEnabled: runbook.translationEnabled === undefined ? undefined : expectBoolean(runbook.translationEnabled, 'runbook-control.translationEnabled'),
+    translationCacheEnabled: runbook.translationCacheEnabled === undefined ? undefined : expectBoolean(runbook.translationCacheEnabled, 'runbook-control.translationCacheEnabled'),
   };
 }
 

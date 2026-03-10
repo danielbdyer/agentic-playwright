@@ -57,6 +57,10 @@ export interface RuntimeScenarioRunnerPort {
       revision?: number | undefined;
       contentHash?: string | undefined;
     } | undefined;
+    translationOptions?: {
+      disableTranslation?: boolean | undefined;
+      disableTranslationCache?: boolean | undefined;
+    } | undefined;
     posture?: ExecutionPosture | undefined;
   }): Effect.Effect<RuntimeScenarioStepResult[], unknown>;
 }

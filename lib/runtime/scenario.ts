@@ -27,7 +27,7 @@ export interface RuntimeScenarioEnvironment {
     dataset?: string | null | undefined;
     resolutionControl?: string | null | undefined;
   } | undefined;
-  translator?: ((request: TranslationRequest) => TranslationReceipt) | undefined;
+  translator?: ((request: TranslationRequest) => Promise<TranslationReceipt>) | undefined;
   fixtures: Record<string, unknown>;
   screens: InterpreterScreenRegistry;
   snapshotLoader: SnapshotTemplateLoader;

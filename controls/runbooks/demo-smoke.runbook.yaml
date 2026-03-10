@@ -11,3 +11,6 @@ selector:
 interpreterMode: diagnostic
 dataset: demo-default
 resolutionControl: demo-policy-search
+
+translationEnabled: true
+translationCacheEnabled: true

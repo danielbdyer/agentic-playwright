@@ -133,7 +133,7 @@ export async function runResolutionPipeline(task: StepTask, context: RuntimeStep
   }
   recordExhaustion(stage.exhaustion, 'confidence-overlay', 'failed', 'No approved-equivalent confidence overlay produced an executable target');
 
-  const translated = resolveWithTranslation(task, context.translate);
+  const translated = await resolveWithTranslation(task, context.translate);
   if (translated.observation) {
     stage.observations.push(translated.observation);
   }

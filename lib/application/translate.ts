@@ -72,5 +72,6 @@ export function translateIntentToOntology(request: TranslationRequest): Translat
     rationale: selected
       ? `Structured translation matched ${selected.target} with score ${selected.score}.`
       : 'Structured translation could not map the step into a known ontology target.',
+    failureClass: selected ? 'none' : 'no-candidate',
   };
 }

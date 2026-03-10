@@ -48,6 +48,17 @@ export interface StepExecutionReceipt {
   execution: ExecutionObservation;
 }
 
+
+export interface TranslationRunMetrics {
+  total: number;
+  hits: number;
+  misses: number;
+  disabled: number;
+  hitRate: number;
+  missReasons: Record<string, number>;
+  failureClasses: Record<string, number>;
+}
+
 export interface ScenarioRunStep {
   stepIndex: number;
   interpretation: ResolutionReceipt;
@@ -78,6 +89,7 @@ export interface RunRecord {
     completedAt: string;
     steps: ScenarioRunStep[];
     evidenceIds: string[];
+    translationMetrics: TranslationRunMetrics;
   };
   runId: string;
   adoId: AdoId;
@@ -92,6 +104,7 @@ export interface RunRecord {
   completedAt: string;
   steps: ScenarioRunStep[];
   evidenceIds: string[];
+  translationMetrics: TranslationRunMetrics;
 }
 
 export interface ProposalEntry {

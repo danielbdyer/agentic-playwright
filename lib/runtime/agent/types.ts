@@ -12,7 +12,7 @@ export interface RuntimeStepAgentContext {
   provider: string;
   mode: string;
   runAt: string;
-  translate?: ((request: import('../../domain/types').TranslationRequest) => import('../../domain/types').TranslationReceipt) | undefined;
+  translate?: ((request: import('../../domain/types').TranslationRequest) => Promise<import('../../domain/types').TranslationReceipt>) | undefined;
   controlSelection?: {
     runbook?: string | null | undefined;
     dataset?: string | null | undefined;

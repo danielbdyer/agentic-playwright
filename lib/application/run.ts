@@ -28,6 +28,8 @@ export function runScenario(options: {
   interpreterMode?: 'dry-run' | 'diagnostic';
   runbookName?: string | undefined;
   posture?: ExecutionPosture | undefined;
+  disableTranslation?: boolean | undefined;
+  disableTranslationCache?: boolean | undefined;
 }) {
   return Effect.gen(function* () {
     const stage = yield* runPipelineStage({
@@ -55,6 +57,10 @@ export function runScenario(options: {
           rootDir: options.paths.rootDir,
           adoId: options.adoId,
           selectedContext,
+          translationOptions: {
+            disableTranslation: options.disableTranslation ?? !selectedContext.translationEnabled,
+            disableTranslationCache: options.disableTranslationCache ?? !selectedContext.translationCacheEnabled,
+          },
         });
 
         const evidenceStage = yield* persistEvidence({
@@ -126,6 +132,8 @@ export function runScenarioSelection(options: {
   tag?: string | undefined;
   interpreterMode?: 'dry-run' | 'diagnostic';
   posture?: ExecutionPosture | undefined;
+  disableTranslation?: boolean | undefined;
+  disableTranslationCache?: boolean | undefined;
 }) {
   return Effect.gen(function* () {
     const catalog = yield* loadWorkspaceCatalog({ paths: options.paths });
@@ -143,6 +151,8 @@ export function runScenarioSelection(options: {
         interpreterMode?: 'dry-run' | 'diagnostic';
         runbookName?: string;
         posture?: ExecutionPosture;
+        disableTranslation?: boolean;
+        disableTranslationCache?: boolean;
       } = {
         adoId: adoId as AdoId,
         paths: options.paths,
@@ -156,6 +166,12 @@ export function runScenarioSelection(options: {
       const runbookName = selection.runbook?.name ?? options.runbookName;
       if (runbookName) {
         runOptions.runbookName = runbookName;
+      }
+      if (options.disableTranslation) {
+        runOptions.disableTranslation = true;
+      }
+      if (options.disableTranslationCache) {
+        runOptions.disableTranslationCache = true;
       }
       runs.push(yield* runScenario(runOptions));
     }

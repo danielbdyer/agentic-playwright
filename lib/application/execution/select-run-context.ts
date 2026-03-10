@@ -88,6 +88,8 @@ export interface SelectedRunContext {
     revision: number;
     contentHash: string;
   };
+  translationEnabled: boolean;
+  translationCacheEnabled: boolean;
 }
 
 export function selectRunContext(input: {
@@ -158,5 +160,7 @@ export function selectRunContext(input: {
       revision: scenarioEntry.artifact.source.revision,
       contentHash: scenarioEntry.artifact.source.content_hash,
     },
+    translationEnabled: activeRunbook?.translationEnabled ?? true,
+    translationCacheEnabled: activeRunbook?.translationCacheEnabled ?? true,
   };
 }

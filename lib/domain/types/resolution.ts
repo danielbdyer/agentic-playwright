@@ -30,6 +30,9 @@ export interface TranslationCandidate {
 
 export interface TranslationRequest {
   version: 1;
+  taskFingerprint: string;
+  knowledgeFingerprint: string;
+  controlsFingerprint: string | null;
   normalizedIntent: string;
   actionText: string;
   expectedText: string;
@@ -56,6 +59,12 @@ export interface TranslationReceipt {
   selected: TranslationCandidate | null;
   candidates: TranslationCandidate[];
   rationale: string;
+  cache?: {
+    key: string;
+    status: 'hit' | 'miss' | 'disabled';
+    reason?: string | null | undefined;
+  } | undefined;
+  failureClass?: 'none' | 'no-candidate' | 'runtime-disabled' | 'cache-disabled' | 'cache-miss' | 'cache-invalidated' | 'translator-error' | undefined;
 }
 
 export interface StepTask {
@@ -137,6 +146,8 @@ export interface RunbookControl {
   interpreterMode?: RuntimeInterpreterMode | null | undefined;
   dataset?: string | null | undefined;
   resolutionControl?: string | null | undefined;
+  translationEnabled?: boolean | undefined;
+  translationCacheEnabled?: boolean | undefined;
 }
 
 export interface RuntimeDatasetBinding {
@@ -163,6 +174,8 @@ export interface RuntimeRunbookControl {
   interpreterMode?: RuntimeInterpreterMode | null | undefined;
   dataset?: string | null | undefined;
   resolutionControl?: string | null | undefined;
+  translationEnabled?: boolean | undefined;
+  translationCacheEnabled?: boolean | undefined;
 }
 
 export interface RuntimeControlSession {
@@ -307,6 +320,11 @@ interface ResolutionReceiptBase {
   winningConcern: WorkflowLane;
   winningSource: StepWinningSource;
   translation?: TranslationReceipt | null | undefined;
+  translationCache?: {
+    key: string | null;
+    status: 'hit' | 'miss' | 'disabled';
+    reason: string | null;
+  } | undefined;
 }
 
 export interface ResolvedReceipt extends ResolutionReceiptBase {
