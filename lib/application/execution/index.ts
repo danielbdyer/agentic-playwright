@@ -1,1 +1,11 @@
 export { runScenario, runScenarioSelection } from '../run';
+export { selectRunContext } from './select-run-context';
+export { executeSteps } from './execute-steps';
+export { persistEvidence } from './persist-evidence';
+export { buildProposals } from './build-proposals';
+export { buildRunRecord } from './build-run-record';
+export type { SelectedRunContext } from './select-run-context';
+export type { ExecuteStepsResult } from './execute-steps';
+export type { PersistEvidenceResult, PersistedEvidenceArtifact } from './persist-evidence';
+export type { BuildProposalsResult } from './build-proposals';
+export type { BuildRunRecordResult } from './build-run-record';
