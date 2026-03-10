@@ -7,6 +7,7 @@ import { renderGeneratedSpecModule } from '../domain/spec-codegen';
 import type { BoundScenario, ProposalBundle, RunRecord, ScenarioExplanation, ScenarioLifecycle, ScenarioTaskPacket } from '../domain/types';
 import type { CompileSnapshot } from './compile-snapshot';
 import { loadWorkspaceCatalog } from './catalog';
+import { createProposalBundleEnvelope, createScenarioEnvelopeFingerprints, createScenarioEnvelopeIds } from './catalog/envelope';
 import type { WorkspaceCatalog } from './catalog';
 import { buildOperatorInboxItems, operatorInboxItemsForScenario } from './operator';
 import type { ProjectPaths } from './paths';
@@ -167,33 +168,26 @@ function renderEmitArtifacts(
     rendered,
     traceArtifact,
     reviewText,
-    proposalBundle: proposalBundle ?? {
-      kind: 'proposal-bundle' as const,
-      version: 1,
-      stage: 'proposal' as const,
-      scope: 'scenario' as const,
-      ids: {
+    proposalBundle: proposalBundle ?? createProposalBundleEnvelope({
+      ids: createScenarioEnvelopeIds({
         adoId: boundScenario.source.ado_id,
         suite: boundScenario.metadata.suite,
         runId: latestRun?.runId ?? 'pending',
-        dataset: null,
-        runbook: null,
-        resolutionControl: null,
-      },
-      fingerprints: {
+      }),
+      fingerprints: createScenarioEnvelopeFingerprints({
         artifact: latestRun?.runId ?? 'pending',
         content: boundScenario.source.content_hash,
         knowledge: null,
         controls: null,
         task: null,
         run: latestRun?.runId ?? 'pending',
-      },
+      }),
       lineage: {
         sources: [],
         parents: [],
         handshakes: ['preparation', 'resolution', 'execution', 'evidence', 'proposal'],
       },
-      governance: 'approved' as const,
+      governance: 'approved',
       payload: {
         adoId: boundScenario.source.ado_id,
         runId: latestRun?.runId ?? 'pending',
@@ -202,13 +196,8 @@ function renderEmitArtifacts(
         suite: boundScenario.metadata.suite,
         proposals: [],
       },
-      adoId: boundScenario.source.ado_id,
-      runId: latestRun?.runId ?? 'pending',
-      revision: boundScenario.source.revision,
-      title: boundScenario.metadata.title,
-      suite: boundScenario.metadata.suite,
       proposals: [],
-    },
+    }),
   };
 }
 

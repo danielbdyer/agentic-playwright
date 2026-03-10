@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { loadWorkspaceCatalog } from '../lib/application/catalog';
+import { buildProposals } from '../lib/application/execution/build-proposals';
 import { buildRunRecord } from '../lib/application/execution/build-run-record';
 import { selectRunContext } from '../lib/application/execution/select-run-context';
 import { runWithLocalServices } from '../lib/composition/local-services';
@@ -10,7 +11,8 @@ import type { SelectedRunContext } from '../lib/application/execution/select-run
 import type { PersistedEvidenceArtifact } from '../lib/application/execution/persist-evidence';
 import { createTestWorkspace } from './support/workspace';
 
-function fakeSelectedContext(runId: string): SelectedRunContext {
+function fakeSelectedContext(runId: string, options?: { withRunbookAndDataset?: boolean }): SelectedRunContext {
+  const withRunbookAndDataset = options?.withRunbookAndDataset ?? false;
   return {
     runId,
     scenarioEntry: {
@@ -48,8 +50,19 @@ function fakeSelectedContext(runId: string): SelectedRunContext {
       },
     } as SelectedRunContext['taskPacketEntry'],
     snapshotEntry: {} as SelectedRunContext['snapshotEntry'],
-    activeRunbook: null,
-    activeDataset: null,
+    activeRunbook: withRunbookAndDataset
+      ? {
+          name: 'smoke-runbook',
+          resolutionControl: 'default-resolution',
+          artifactPath: 'controls/runbooks/smoke.runbook.yaml',
+        } as SelectedRunContext['activeRunbook']
+      : null,
+    activeDataset: withRunbookAndDataset
+      ? {
+          name: 'smoke-dataset',
+          artifactPath: 'controls/datasets/smoke.dataset.yaml',
+        } as SelectedRunContext['activeDataset']
+      : null,
     posture: {
       interpreterMode: 'diagnostic',
       writeMode: 'persist',
@@ -158,4 +171,68 @@ test('buildRunRecord governance is blocked for failed execution and review-requi
     evidenceWrites,
   });
   expect(reviewRun.runRecord.governance).toBe('review-required');
+});
+
+test('run/proposal envelopes preserve ids and lineage with/without runbook + dataset', () => {
+  const adoId = createAdoId('10001');
+  const stepResults = [fakeStepResult({ stepIndex: 1, interpretationKind: 'resolved' })];
+  const evidenceWrites: PersistedEvidenceArtifact[] = [];
+  const evidenceCatalog = {
+    evidenceRecords: [],
+    trustPolicy: { artifact: {} },
+  } as unknown as Parameters<typeof buildProposals>[0]['evidenceCatalog'];
+
+  const withoutSupplementsRecord = buildRunRecord({
+    adoId,
+    runId: 'run-no-controls',
+    selectedContext: fakeSelectedContext('run-no-controls'),
+    stepResults,
+    evidenceWrites,
+  }).runRecord;
+  const withSupplementsRecord = buildRunRecord({
+    adoId,
+    runId: 'run-with-controls',
+    selectedContext: fakeSelectedContext('run-with-controls', { withRunbookAndDataset: true }),
+    stepResults,
+    evidenceWrites,
+  }).runRecord;
+
+  expect(withoutSupplementsRecord.ids.runbook).toBeNull();
+  expect(withoutSupplementsRecord.ids.dataset).toBeNull();
+  expect(withoutSupplementsRecord.lineage.sources).toEqual(['sha256:task']);
+  expect(withSupplementsRecord.ids.runbook).toBe('smoke-runbook');
+  expect(withSupplementsRecord.ids.dataset).toBe('smoke-dataset');
+  expect(withSupplementsRecord.lineage.sources).toEqual([
+    'sha256:task',
+    'controls/runbooks/smoke.runbook.yaml',
+    'controls/datasets/smoke.dataset.yaml',
+  ]);
+
+  const withoutSupplementsProposal = buildProposals({
+    adoId,
+    runId: 'run-no-controls',
+    selectedContext: fakeSelectedContext('run-no-controls'),
+    stepResults,
+    evidenceWrites,
+    evidenceCatalog,
+  }).proposalBundle;
+  const withSupplementsProposal = buildProposals({
+    adoId,
+    runId: 'run-with-controls',
+    selectedContext: fakeSelectedContext('run-with-controls', { withRunbookAndDataset: true }),
+    stepResults,
+    evidenceWrites,
+    evidenceCatalog,
+  }).proposalBundle;
+
+  expect(withoutSupplementsProposal.ids.runbook).toBeNull();
+  expect(withoutSupplementsProposal.ids.dataset).toBeNull();
+  expect(withoutSupplementsProposal.lineage.sources).toEqual(['sha256:task']);
+  expect(withSupplementsProposal.ids.runbook).toBe('smoke-runbook');
+  expect(withSupplementsProposal.ids.dataset).toBe('smoke-dataset');
+  expect(withSupplementsProposal.lineage.sources).toEqual([
+    'sha256:task',
+    'controls/runbooks/smoke.runbook.yaml',
+    'controls/datasets/smoke.dataset.yaml',
+  ]);
 });
