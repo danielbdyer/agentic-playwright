@@ -27,6 +27,7 @@ export interface ProjectPaths {
   inboxDir: string;
   inboxIndexPath: string;
   inboxReportPath: string;
+  hotspotIndexPath: string;
   benchmarkRunsDir: string;
   evidenceDir: string;
   confidenceDir: string;
@@ -66,6 +67,7 @@ export function createProjectPaths(rootDir: string): ProjectPaths {
     inboxDir: path.join(rootDir, '.tesseract', 'inbox'),
     inboxIndexPath: path.join(rootDir, '.tesseract', 'inbox', 'index.json'),
     inboxReportPath: path.join(rootDir, 'generated', 'operator', 'inbox.md'),
+    hotspotIndexPath: path.join(rootDir, '.tesseract', 'inbox', 'hotspots.json'),
     benchmarkRunsDir: path.join(rootDir, '.tesseract', 'benchmarks'),
     evidenceDir: path.join(rootDir, '.tesseract', 'evidence'),
     confidenceDir: path.join(rootDir, '.tesseract', 'confidence'),

@@ -3,6 +3,7 @@ import type { AdoId } from '../domain/identity';
 import { loadWorkspaceCatalog } from './catalog';
 import { findRunbook, runtimeControlsForScenario } from './controls';
 import { buildOperatorInboxItems, operatorInboxItemsForScenario } from './operator';
+import { buildWorkflowHotspots } from './hotspots';
 import type { ProjectPaths } from './paths';
 
 const laneMap = [
@@ -54,6 +55,9 @@ export function inspectWorkflow(options: { paths: ProjectPaths; adoId?: AdoId | 
     const rerunPlans = catalog.rerunPlans
       .map((entry) => entry.artifact)
       .filter((plan) => !scenario || plan.impactedScenarioIds.includes(scenario.artifact.source.ado_id));
+
+    const hotspots = buildWorkflowHotspots(catalog.runRecords.map((entry) => entry.artifact))
+      .filter((entry) => !scenario || entry.samples.some((sample) => sample.adoId === scenario.artifact.source.ado_id));
 
     return {
       lanes: laneMap,
@@ -118,6 +122,14 @@ export function inspectWorkflow(options: { paths: ProjectPaths; adoId?: AdoId | 
           nextCommands: item.nextCommands,
         })),
       },
+      hotspots: hotspots.map((entry) => ({
+        id: entry.id,
+        kind: entry.kind,
+        screen: entry.screen,
+        family: entry.family,
+        occurrenceCount: entry.occurrenceCount,
+        suggestions: entry.suggestions,
+      })),
       reruns: rerunPlans.map((plan) => ({
         planId: plan.planId,
         reason: plan.reason,
