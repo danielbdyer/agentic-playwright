@@ -217,6 +217,12 @@ export interface RerunPlan {
   impactedProjections: Array<'emit' | 'graph' | 'types' | 'run'>;
   impactedConfidenceRecords?: string[] | null | undefined;
   reasons: string[];
+  selection: {
+    scenarios: Array<{ id: AdoId; why: string[] }>;
+    runbooks: Array<{ name: string; why: string[] }>;
+    projections: Array<{ name: 'emit' | 'graph' | 'types' | 'run'; why: string[] }>;
+    confidenceRecords: Array<{ id: string; why: string[] }>;
+  };
 }
 
 export interface EvidenceRecord {
