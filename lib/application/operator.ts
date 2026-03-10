@@ -243,13 +243,34 @@ export function findProposalById(catalog: WorkspaceCatalog, proposalIdValue: str
   return null;
 }
 
-export function renderOperatorInboxMarkdown(items: readonly OperatorInboxItem[]): string {
+export function renderOperatorInboxMarkdown(items: readonly OperatorInboxItem[], rerunPlans: readonly import('../domain/types').RerunPlan[] = []): string {
   const lines: string[] = [
     '# Operator Inbox',
     '',
     `- Item count: ${items.length}`,
     '',
   ];
+
+  if (rerunPlans.length > 0) {
+    lines.push('## Rerun plans');
+    lines.push('');
+    for (const plan of rerunPlans) {
+      lines.push(`- ${plan.planId}: scenarios=${plan.impactedScenarioIds.length}, runbooks=${plan.impactedRunbooks.length}, projections=${plan.impactedProjections.join(', ') || 'none'}`);
+      for (const scenario of plan.selection.scenarios) {
+        lines.push(`  - scenario ${scenario.id}: ${scenario.why.join(' | ') || 'n/a'}`);
+      }
+      for (const runbook of plan.selection.runbooks) {
+        lines.push(`  - runbook ${runbook.name}: ${runbook.why.join(' | ') || 'n/a'}`);
+      }
+      for (const projection of plan.selection.projections) {
+        lines.push(`  - projection ${projection.name}: ${projection.why.join(' | ') || 'n/a'}`);
+      }
+      for (const record of plan.selection.confidenceRecords) {
+        lines.push(`  - confidence ${record.id}: ${record.why.join(' | ') || 'n/a'}`);
+      }
+    }
+    lines.push('');
+  }
 
   for (const item of items) {
     lines.push(`## ${item.title}`);

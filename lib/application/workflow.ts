@@ -51,6 +51,10 @@ export function inspectWorkflow(options: { paths: ProjectPaths; adoId?: AdoId | 
     const controls = scenario ? runtimeControlsForScenario(catalog, scenario.artifact) : null;
     const inboxItems = scenario ? operatorInboxItemsForScenario(buildOperatorInboxItems(catalog), scenario.artifact.source.ado_id) : [];
 
+    const rerunPlans = catalog.rerunPlans
+      .map((entry) => entry.artifact)
+      .filter((plan) => !scenario || plan.impactedScenarioIds.includes(scenario.artifact.source.ado_id));
+
     return {
       lanes: laneMap,
       selection: {
@@ -114,6 +118,16 @@ export function inspectWorkflow(options: { paths: ProjectPaths; adoId?: AdoId | 
           nextCommands: item.nextCommands,
         })),
       },
+      reruns: rerunPlans.map((plan) => ({
+        planId: plan.planId,
+        reason: plan.reason,
+        sourceProposalId: plan.sourceProposalId ?? null,
+        impactedScenarioIds: plan.impactedScenarioIds,
+        impactedRunbooks: plan.impactedRunbooks,
+        impactedProjections: plan.impactedProjections,
+        impactedConfidenceRecords: plan.impactedConfidenceRecords ?? [],
+        selection: plan.selection,
+      })),
       benchmarks: catalog.benchmarks.map((entry) => ({
         name: entry.artifact.name,
         artifactPath: entry.artifactPath,

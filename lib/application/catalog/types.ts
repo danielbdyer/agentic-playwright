@@ -12,6 +12,7 @@ import type {
   PatternDocument,
   ProposalBundle,
   ResolutionControl,
+  RerunPlan,
   RunRecord,
   RunbookControl,
   Scenario,
@@ -54,6 +55,7 @@ export interface WorkspaceCatalog {
   runRecords: ArtifactEnvelope<RunRecord>[];
   proposalBundles: ArtifactEnvelope<ProposalBundle>[];
   approvalReceipts: ArtifactEnvelope<ApprovalReceipt>[];
+  rerunPlans: ArtifactEnvelope<RerunPlan>[];
   datasets: ArtifactEnvelope<DatasetControl>[];
   benchmarks: ArtifactEnvelope<BenchmarkContext>[];
   resolutionControls: ArtifactEnvelope<ResolutionControl>[];

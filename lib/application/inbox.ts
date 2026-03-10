@@ -20,18 +20,21 @@ export function emitOperatorInbox(options: {
       .filter((item) => !options.filter?.adoId || item.adoId === options.filter.adoId)
       .filter((item) => !options.filter?.kind || item.kind === options.filter.kind)
       .filter((item) => !options.filter?.status || item.status === options.filter.status);
-    const markdown = renderOperatorInboxMarkdown(filteredItems);
+    const rerunPlans = catalog.rerunPlans.map((entry) => entry.artifact);
+    const markdown = renderOperatorInboxMarkdown(filteredItems, rerunPlans);
     yield* fs.writeJson(options.paths.inboxIndexPath, {
       kind: 'operator-inbox',
       version: 1,
       generatedAt: new Date().toISOString(),
       items: filteredItems,
+      rerunPlans,
     });
     yield* fs.writeText(options.paths.inboxReportPath, markdown);
 
     return {
       itemCount: filteredItems.length,
       items: filteredItems,
+      rerunPlans,
       inboxIndexPath: options.paths.inboxIndexPath,
       inboxReportPath: options.paths.inboxReportPath,
       rewritten: [

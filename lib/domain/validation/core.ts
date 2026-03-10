@@ -1639,6 +1639,39 @@ export function validateRerunPlan(value: unknown): RerunPlan {
     ),
     impactedConfidenceRecords: expectStringArray(plan.impactedConfidenceRecords ?? [], 'rerunPlan.impactedConfidenceRecords'),
     reasons: expectStringArray(plan.reasons ?? [], 'rerunPlan.reasons'),
+    selection: (() => {
+      const selection = expectRecord(plan.selection ?? {}, 'rerunPlan.selection');
+      return {
+        scenarios: expectArray(selection.scenarios ?? [], 'rerunPlan.selection.scenarios').map((entry, index) => {
+          const scenario = expectRecord(entry, `rerunPlan.selection.scenarios[${index}]`);
+          return {
+            id: createAdoId(expectString(scenario.id, `rerunPlan.selection.scenarios[${index}].id`)),
+            why: expectStringArray(scenario.why ?? [], `rerunPlan.selection.scenarios[${index}].why`),
+          };
+        }),
+        runbooks: expectArray(selection.runbooks ?? [], 'rerunPlan.selection.runbooks').map((entry, index) => {
+          const runbook = expectRecord(entry, `rerunPlan.selection.runbooks[${index}]`);
+          return {
+            name: expectString(runbook.name, `rerunPlan.selection.runbooks[${index}].name`),
+            why: expectStringArray(runbook.why ?? [], `rerunPlan.selection.runbooks[${index}].why`),
+          };
+        }),
+        projections: expectArray(selection.projections ?? [], 'rerunPlan.selection.projections').map((entry, index) => {
+          const projection = expectRecord(entry, `rerunPlan.selection.projections[${index}]`);
+          return {
+            name: expectEnum(projection.name, `rerunPlan.selection.projections[${index}].name`, ['emit', 'graph', 'types', 'run'] as const),
+            why: expectStringArray(projection.why ?? [], `rerunPlan.selection.projections[${index}].why`),
+          };
+        }),
+        confidenceRecords: expectArray(selection.confidenceRecords ?? [], 'rerunPlan.selection.confidenceRecords').map((entry, index) => {
+          const record = expectRecord(entry, `rerunPlan.selection.confidenceRecords[${index}]`);
+          return {
+            id: expectString(record.id, `rerunPlan.selection.confidenceRecords[${index}].id`),
+            why: expectStringArray(record.why ?? [], `rerunPlan.selection.confidenceRecords[${index}].why`),
+          };
+        }),
+      };
+    })(),
   };
 }
 

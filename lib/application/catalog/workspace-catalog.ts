@@ -13,6 +13,7 @@ import type {
   PatternDocument,
   ProposalBundle,
   ResolutionControl,
+  RerunPlan,
   RunRecord,
   RunbookControl,
   Scenario,
@@ -32,6 +33,7 @@ import {
   validatePatternDocument,
   validateProposalBundle,
   validateResolutionControl,
+  validateRerunPlan,
   validateRunRecord,
   validateRunbookControl,
   validateScenario,
@@ -245,6 +247,19 @@ export function loadWorkspaceCatalog(options: { paths: ProjectPaths }) {
       ));
     }
 
+
+    const rerunPlanFiles = (yield* walkFiles(fs, options.paths.inboxDir)).filter((filePath) => filePath.endsWith('.rerun-plan.json'));
+    const rerunPlans: ArtifactEnvelope<RerunPlan>[] = [];
+    for (const filePath of rerunPlanFiles) {
+      rerunPlans.push(yield* readJsonArtifact(
+        options.paths,
+        filePath,
+        validateRerunPlan,
+        'rerun-plan-validation-failed',
+        `Rerun plan ${filePath} failed validation`,
+      ));
+    }
+
     const approvalFiles = (yield* walkFiles(fs, options.paths.approvalsDir)).filter((filePath) => filePath.endsWith('.approval.json'));
     const approvalReceipts: ArtifactEnvelope<ApprovalReceipt>[] = [];
     for (const filePath of approvalFiles) {
@@ -296,6 +311,7 @@ export function loadWorkspaceCatalog(options: { paths: ProjectPaths }) {
       runRecords,
       proposalBundles,
       approvalReceipts,
+      rerunPlans,
       datasets,
       benchmarks,
       resolutionControls,
