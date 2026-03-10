@@ -135,9 +135,12 @@ test('operator inbox, approval receipts, and rerun plans share a stable proposal
       emitOperatorInbox({ paths: workspace.paths, filter: { adoId: '10001' } }),
       workspace.rootDir,
     );
+    const hotspotIndex = workspace.readJson<{ kind: string; hotspots: Array<{ suggestions: Array<{ target: string }> }> }>('.tesseract', 'inbox', 'hotspots.json');
     const inboxProposal = inbox.items.find((item) => item.proposalId === proposal.proposalId) ?? null;
     expect(inboxProposal).toBeTruthy();
     expect(inboxProposal?.status).toBe('actionable');
+    expect(hotspotIndex.kind).toBe('workflow-hotspot-index');
+    expect(hotspotIndex.hotspots.every((entry) => entry.suggestions.length > 0)).toBeTruthy();
 
     const approved = await runWithLocalServices(
       approveProposal({ paths: workspace.paths, proposalId: proposal.proposalId }),

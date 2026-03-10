@@ -10,6 +10,7 @@ import type {
 } from '../domain/types';
 import type { WorkspaceCatalog } from './catalog';
 import { compareStrings, uniqueSorted } from '../domain/collections';
+import type { WorkflowHotspot } from './hotspots';
 
 function latestRuns(catalog: WorkspaceCatalog): Map<AdoId, RunRecord> {
   return new Map(
@@ -243,13 +244,30 @@ export function findProposalById(catalog: WorkspaceCatalog, proposalIdValue: str
   return null;
 }
 
-export function renderOperatorInboxMarkdown(items: readonly OperatorInboxItem[], rerunPlans: readonly import('../domain/types').RerunPlan[] = []): string {
+export function renderOperatorInboxMarkdown(
+  items: readonly OperatorInboxItem[],
+  rerunPlans: readonly import('../domain/types').RerunPlan[] = [],
+  hotspots: readonly WorkflowHotspot[] = [],
+): string {
   const lines: string[] = [
     '# Operator Inbox',
     '',
     `- Item count: ${items.length}`,
     '',
   ];
+
+  lines.push('## Hotspot suggestions');
+  lines.push('');
+  if (hotspots.length === 0) {
+    lines.push('- No repeated translation/agentic/degraded wins detected in the latest run per scenario.');
+  }
+  for (const hotspot of hotspots) {
+    lines.push(`- ${hotspot.kind} :: ${hotspot.screen} :: ${hotspot.family.field}/${hotspot.family.action} (${hotspot.occurrenceCount})`);
+    for (const suggestion of hotspot.suggestions) {
+      lines.push(`  - ${suggestion.target}: ${suggestion.reason}`);
+    }
+  }
+  lines.push('');
 
   if (rerunPlans.length > 0) {
     lines.push('## Rerun plans');

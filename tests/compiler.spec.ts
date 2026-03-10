@@ -3,6 +3,7 @@ import path from 'path';
 import { expect, test } from '@playwright/test';
 import { buildDerivedGraph } from '../lib/application/graph';
 import { impactNode } from '../lib/application/impact';
+import { emitOperatorInbox } from '../lib/application/inbox';
 import { describeScenarioPaths } from '../lib/application/inspect';
 import { emitScenario } from '../lib/application/emit';
 import { emitManifestPath } from '../lib/application/paths';
@@ -179,6 +180,7 @@ test('workflow inspection exposes lane ownership, controls, and precedence for a
       'needs-human',
     ]);
     expect(result.selection.runbook).toBe('demo-smoke');
+    expect(Array.isArray(result.hotspots)).toBeTruthy();
     expect(result.fingerprints?.task).toBeTruthy();
   } finally {
     workspace.cleanup();
@@ -199,6 +201,8 @@ test('run emits interpretation and execution receipts, then reprojects review su
     const runRecord = JSON.parse(readFileSync(run.runPath, 'utf8').replace(/^\uFEFF/, ''));
     const proposalBundle = JSON.parse(readFileSync(run.proposalsPath, 'utf8').replace(/^\uFEFF/, ''));
     const graph = JSON.parse(readFileSync(run.graph.graphPath, 'utf8').replace(/^\uFEFF/, ''));
+    await runWithLocalServices(emitOperatorInbox({ paths: workspace.paths, filter: { adoId: '10001' } }), workspace.rootDir);
+    const inboxReport = readFileSync(workspace.resolve('generated', 'operator', 'inbox.md'), 'utf8').replace(/^\uFEFF/, '');
 
     expect(runRecord.kind).toBe('scenario-run-record');
     expect(runRecord.steps).toHaveLength(4);
@@ -209,6 +213,7 @@ test('run emits interpretation and execution receipts, then reprojects review su
     expect(review).toContain('Runtime: resolved');
     expect(proposalBundle.proposals).toEqual([]);
     expect(graph.nodes.find((node: { id: string; payload?: Record<string, unknown> }) => node.id === graphIds.step(adoId, 2))?.payload?.runtimeStatus).toBe('resolved');
+    expect(inboxReport).toContain('## Hotspot suggestions');
   } finally {
     workspace.cleanup();
   }
