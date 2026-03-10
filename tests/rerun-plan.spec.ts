@@ -34,6 +34,7 @@ test('rerun planner returns no-op selection for unchanged inputs', async () => {
     expect(plan.impactedRunbooks).toEqual([]);
     expect(plan.impactedProjections).toEqual([]);
     expect(plan.selection.scenarios).toEqual([]);
+    expect(plan.selection.runbooks).toEqual([]);
   } finally {
     workspace.cleanup();
   }
@@ -63,6 +64,7 @@ test('single-node change selects only the directly impacted scenario with ration
     expect(plan.impactedScenarioIds).toContain('10001');
     expect(plan.selection.scenarios.find((entry) => entry.id === '10001')?.why.join(' ')).toMatch(/graph-lineage|artifact-reference/);
     expect(plan.selection.projections.find((entry) => entry.name === 'emit')).toBeTruthy();
+    expect(plan.selection.scenarios.find((entry) => entry.id === '10001')?.explanations[0]?.dependencyPath.length).toBeGreaterThan(0);
   } finally {
     workspace.cleanup();
   }
@@ -158,6 +160,78 @@ test('multi-hop lineage propagation keeps rerun selection deterministic', async 
     expect(plan.impactedScenarioIds).toEqual(['10001']);
     expect(plan.impactedRunbooks.length).toBeGreaterThan(0);
     expect(plan.selection.runbooks[0]?.why[0]).toContain('selected-by-scenario');
+    expect(plan.selection.runbooks[0]?.explanations[0]?.requiredBecause).toContain('selector includes at least one impacted scenario');
+  } finally {
+    workspace.cleanup();
+  }
+});
+
+
+test('unrelated artifact change stays excluded from rerun scenarios', async () => {
+  const workspace = createTestWorkspace('rerun-exclusion-boundary');
+  try {
+    await runWithLocalServices(
+      refreshScenario({ adoId: createAdoId('10001'), paths: workspace.paths }),
+      workspace.rootDir,
+    );
+
+    const catalog = await runWithLocalServices(loadWorkspaceCatalog({ paths: workspace.paths }), workspace.rootDir);
+
+    const plan = await runWithLocalServices(
+      internalRerunPlan.planRerunSelection({
+        catalog,
+        sourceNodeIds: [],
+        changedArtifactPaths: ['knowledge/screens/unknown-screen.hints.yaml'],
+        changedNodeReasons: ['unrelated path changed'],
+        reason: 'Boundary exclusion',
+      }),
+      workspace.rootDir,
+    );
+
+    expect(plan.impactedScenarioIds).toEqual([]);
+    expect(plan.impactedRunbooks).toEqual([]);
+    expect(plan.selection.scenarios).toEqual([]);
+  } finally {
+    workspace.cleanup();
+  }
+});
+
+test('rerun plan replay is stable for the same lineage inputs', async () => {
+  const workspace = createTestWorkspace('rerun-replay-stability');
+  try {
+    await runWithLocalServices(
+      refreshScenario({ adoId: createAdoId('10001'), paths: workspace.paths }),
+      workspace.rootDir,
+    );
+
+    const catalog = await runWithLocalServices(loadWorkspaceCatalog({ paths: workspace.paths }), workspace.rootDir);
+
+    const first = await runWithLocalServices(
+      internalRerunPlan.planRerunSelection({
+        catalog,
+        sourceNodeIds: [graphIds.element('policy-search', 'policyNumberInput')],
+        changedArtifactPaths: ['knowledge/screens/policy-search.elements.yaml'],
+        changedNodeReasons: ['element change'],
+        reason: 'Replay baseline',
+      }),
+      workspace.rootDir,
+    );
+
+    const second = await runWithLocalServices(
+      internalRerunPlan.planRerunSelection({
+        catalog,
+        sourceNodeIds: [graphIds.element('policy-search', 'policyNumberInput')],
+        changedArtifactPaths: ['knowledge/screens/policy-search.elements.yaml'],
+        changedNodeReasons: ['element change'],
+        reason: 'Replay baseline',
+      }),
+      workspace.rootDir,
+    );
+
+    expect(second.planId).toBe(first.planId);
+    expect(second.explanationFingerprint).toBe(first.explanationFingerprint);
+    expect(second.selection).toEqual(first.selection);
+    expect(second.impactedScenarioIds).toEqual(first.impactedScenarioIds);
   } finally {
     workspace.cleanup();
   }

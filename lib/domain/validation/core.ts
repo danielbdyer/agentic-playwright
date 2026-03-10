@@ -1671,6 +1671,7 @@ export function validateRerunPlan(value: unknown): RerunPlan {
     ),
     impactedConfidenceRecords: expectStringArray(plan.impactedConfidenceRecords ?? [], 'rerunPlan.impactedConfidenceRecords'),
     reasons: expectStringArray(plan.reasons ?? [], 'rerunPlan.reasons'),
+    explanationFingerprint: expectString(plan.explanationFingerprint, 'rerunPlan.explanationFingerprint'),
     selection: (() => {
       const selection = expectRecord(plan.selection ?? {}, 'rerunPlan.selection');
       return {
@@ -1679,6 +1680,15 @@ export function validateRerunPlan(value: unknown): RerunPlan {
           return {
             id: createAdoId(expectString(scenario.id, `rerunPlan.selection.scenarios[${index}].id`)),
             why: expectStringArray(scenario.why ?? [], `rerunPlan.selection.scenarios[${index}].why`),
+            explanations: expectArray(scenario.explanations ?? [], `rerunPlan.selection.scenarios[${index}].explanations`).map((explanation, explanationIndex) => {
+              const explanationRecord = expectRecord(explanation, `rerunPlan.selection.scenarios[${index}].explanations[${explanationIndex}]`);
+              return {
+                triggeringChange: expectString(explanationRecord.triggeringChange, `rerunPlan.selection.scenarios[${index}].explanations[${explanationIndex}].triggeringChange`),
+                dependencyPath: expectStringArray(explanationRecord.dependencyPath ?? [], `rerunPlan.selection.scenarios[${index}].explanations[${explanationIndex}].dependencyPath`),
+                requiredBecause: expectString(explanationRecord.requiredBecause, `rerunPlan.selection.scenarios[${index}].explanations[${explanationIndex}].requiredBecause`),
+                fingerprint: expectString(explanationRecord.fingerprint, `rerunPlan.selection.scenarios[${index}].explanations[${explanationIndex}].fingerprint`),
+              };
+            }),
           };
         }),
         runbooks: expectArray(selection.runbooks ?? [], 'rerunPlan.selection.runbooks').map((entry, index) => {
@@ -1686,6 +1696,15 @@ export function validateRerunPlan(value: unknown): RerunPlan {
           return {
             name: expectString(runbook.name, `rerunPlan.selection.runbooks[${index}].name`),
             why: expectStringArray(runbook.why ?? [], `rerunPlan.selection.runbooks[${index}].why`),
+            explanations: expectArray(runbook.explanations ?? [], `rerunPlan.selection.runbooks[${index}].explanations`).map((explanation, explanationIndex) => {
+              const explanationRecord = expectRecord(explanation, `rerunPlan.selection.runbooks[${index}].explanations[${explanationIndex}]`);
+              return {
+                triggeringChange: expectString(explanationRecord.triggeringChange, `rerunPlan.selection.runbooks[${index}].explanations[${explanationIndex}].triggeringChange`),
+                dependencyPath: expectStringArray(explanationRecord.dependencyPath ?? [], `rerunPlan.selection.runbooks[${index}].explanations[${explanationIndex}].dependencyPath`),
+                requiredBecause: expectString(explanationRecord.requiredBecause, `rerunPlan.selection.runbooks[${index}].explanations[${explanationIndex}].requiredBecause`),
+                fingerprint: expectString(explanationRecord.fingerprint, `rerunPlan.selection.runbooks[${index}].explanations[${explanationIndex}].fingerprint`),
+              };
+            }),
           };
         }),
         projections: expectArray(selection.projections ?? [], 'rerunPlan.selection.projections').map((entry, index) => {

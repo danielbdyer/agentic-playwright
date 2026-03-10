@@ -7,12 +7,18 @@ import { relativeProjectPath, rerunPlanPath } from './paths';
 import { FileSystem } from './ports';
 import { policyDecisionGraphTarget } from './trust-policy';
 import { sha256, stableStringify } from '../domain/hash';
-import { collectImpactSubgraph } from '../domain/graph-query';
 import { graphIds } from '../domain/ids';
 import type { AdoId } from '../domain/identity';
 import { createAdoId } from '../domain/identity';
-import type { GraphNode, RerunPlan, RunbookControl, Scenario } from '../domain/types';
-import { uniqueSorted } from '../domain/collections';
+import type { GraphEdge, GraphNode, RerunPlan, RunbookControl, Scenario } from '../domain/types';
+import { compareStrings, uniqueSorted } from '../domain/collections';
+
+interface SelectionExplanation {
+  triggeringChange: string;
+  dependencyPath: string[];
+  requiredBecause: string;
+  fingerprint: string;
+}
 
 function selectorMatchesScenario(
   selector: RunbookControl['selector'],
@@ -22,6 +28,78 @@ function selectorMatchesScenario(
   const matchesSuite = selector.suites.length === 0 || selector.suites.some((suite) => scenario.metadata.suite.startsWith(suite));
   const matchesTags = selector.tags.length === 0 || selector.tags.some((tag) => scenario.metadata.tags.includes(tag));
   return matchesAdoId && matchesSuite && matchesTags;
+}
+
+function nodeLabel(node: GraphNode | undefined): string {
+  if (!node) {
+    return 'unknown-node';
+  }
+  return `${node.id} (${node.kind})`;
+}
+
+function scenarioNodeId(adoId: AdoId): string {
+  return graphIds.scenario(adoId);
+}
+
+function overlayRecordIdFromNodeId(nodeId: string): string {
+  return nodeId.replace(`${graphIds.confidenceOverlay('')}`, '').replace(/^:/, '');
+}
+
+function dependentNodesForEdge(edge: GraphEdge, nodes: Map<string, GraphNode>, current: string): string[] {
+  switch (edge.kind) {
+    case 'derived-from':
+    case 'references':
+    case 'uses':
+    case 'learns-from':
+    case 'asserts':
+    case 'observed-by':
+      return edge.to === current ? [edge.from] : [];
+    case 'emits':
+    case 'affects':
+    case 'proposed-change-for':
+    case 'governs':
+      return edge.from === current ? [edge.to] : [];
+    case 'contains': {
+      const parent = nodes.get(edge.from);
+      const child = nodes.get(edge.to);
+      if (edge.to === current && parent?.kind === 'scenario' && child?.kind === 'step') {
+        return [edge.from];
+      }
+      return [];
+    }
+    default:
+      return [];
+  }
+}
+
+function buildImpactPaths(graph: { nodes: GraphNode[]; edges: GraphEdge[] }, sourceNodeId: string): Map<string, string[]> {
+  const nodesById = new Map(graph.nodes.map((node) => [node.id, node] as const));
+  const queue: string[] = [sourceNodeId];
+  const pathByNode = new Map<string, string[]>([[sourceNodeId, [sourceNodeId]]]);
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current) {
+      continue;
+    }
+    const currentPath = pathByNode.get(current);
+    if (!currentPath) {
+      continue;
+    }
+
+    const dependents = uniqueSorted(
+      graph.edges.flatMap((edge) => dependentNodesForEdge(edge, nodesById, current)),
+    );
+    for (const dependent of dependents) {
+      if (pathByNode.has(dependent)) {
+        continue;
+      }
+      pathByNode.set(dependent, [...currentPath, dependent]);
+      queue.push(dependent);
+    }
+  }
+
+  return pathByNode;
 }
 
 function scenariosReferencingArtifact(catalog: WorkspaceCatalog, artifactPath: string): string[] {
@@ -51,21 +129,18 @@ function scenariosReferencingArtifact(catalog: WorkspaceCatalog, artifactPath: s
   return uniqueSorted([...matches]);
 }
 
-function nodeLabel(node: GraphNode | undefined): string {
-  if (!node) {
-    return 'unknown-node';
-  }
-  return `${node.id} (${node.kind})`;
+function explanationFingerprint(explanation: Omit<SelectionExplanation, 'fingerprint'>): string {
+  return sha256(stableStringify(explanation));
 }
 
-function scenarioIdsFromGraphNodes(nodes: readonly GraphNode[]): AdoId[] {
-  return uniqueSorted(
-    nodes
-      .filter((node) => node.kind === 'scenario')
-      .map((node) => node.id.split(':').pop() ?? '')
-      .filter((value) => value.length > 0)
-      .map((value) => createAdoId(value)),
-  );
+function finalizeExplanations(explanations: readonly Omit<SelectionExplanation, 'fingerprint'>[]): SelectionExplanation[] {
+  return [...explanations]
+    .map((entry) => ({
+      ...entry,
+      dependencyPath: uniqueSorted(entry.dependencyPath),
+      fingerprint: explanationFingerprint(entry),
+    }))
+    .sort((left, right) => compareStrings(left.fingerprint, right.fingerprint));
 }
 
 function planRerunSelection(options: {
@@ -75,31 +150,44 @@ function planRerunSelection(options: {
   changedNodeReasons: string[];
   reason: string;
   sourceProposalId?: string | null | undefined;
+  proposalLineagePaths?: string[] | undefined;
 }): Effect.Effect<RerunPlan, Error, FileSystem> {
   return Effect.gen(function* () {
     const graph = yield* ensureDerivedGraph({ paths: options.catalog.paths });
     const graphNodesById = new Map(graph.graph.nodes.map((node) => [node.id, node] as const));
+    const sourceNodeIds = uniqueSorted(options.sourceNodeIds);
+    const changedArtifactPaths = uniqueSorted([...options.changedArtifactPaths, ...(options.proposalLineagePaths ?? [])]);
 
-    const impactedNodeIds = new Set<string>();
-    const scenarioReasons = new Map<string, Set<string>>();
+    const scenarioExplanations = new Map<string, Array<Omit<SelectionExplanation, 'fingerprint'>>>();
     const confidenceReasons = new Map<string, Set<string>>();
+    const scenarioReasonSummary = new Map<string, Set<string>>();
 
-    for (const sourceNodeId of uniqueSorted(options.sourceNodeIds)) {
-      const subgraph = collectImpactSubgraph(graph.graph, sourceNodeId);
-      for (const node of subgraph.nodes) {
-        impactedNodeIds.add(node.id);
-      }
-
+    for (const sourceNodeId of sourceNodeIds) {
       const sourceLabel = nodeLabel(graphNodesById.get(sourceNodeId));
-      for (const scenarioId of scenarioIdsFromGraphNodes(subgraph.nodes)) {
-        const reasons = scenarioReasons.get(scenarioId) ?? new Set<string>();
-        reasons.add(`graph-lineage from ${sourceLabel}`);
-        scenarioReasons.set(scenarioId, reasons);
-      }
+      const paths = buildImpactPaths(graph.graph, sourceNodeId);
+      for (const [nodeId, dependencyPath] of paths.entries()) {
+        const node = graphNodesById.get(nodeId);
+        if (node?.kind === 'scenario') {
+          const adoIdValue = node.id.split(':').pop() ?? '';
+          if (adoIdValue.length === 0) {
+            continue;
+          }
+          const adoId = createAdoId(adoIdValue);
+          const entry = scenarioExplanations.get(adoId) ?? [];
+          entry.push({
+            triggeringChange: `graph-node ${sourceLabel}`,
+            dependencyPath,
+            requiredBecause: 'Scenario is transitively dependent on changed lineage in .tesseract/graph/index.json.',
+          });
+          scenarioExplanations.set(adoId, entry);
 
-      for (const node of subgraph.nodes) {
-        if (node.kind === 'confidence-overlay') {
-          const overlayId = node.id.replace(`${graphIds.confidenceOverlay('')}`, '').replace(/^:/, '');
+          const reasons = scenarioReasonSummary.get(adoId) ?? new Set<string>();
+          reasons.add(`graph-lineage from ${sourceLabel}`);
+          scenarioReasonSummary.set(adoId, reasons);
+        }
+
+        if (node?.kind === 'confidence-overlay') {
+          const overlayId = overlayRecordIdFromNodeId(node.id);
           const reasons = confidenceReasons.get(overlayId) ?? new Set<string>();
           reasons.add(`graph-lineage from ${sourceLabel}`);
           confidenceReasons.set(overlayId, reasons);
@@ -107,11 +195,19 @@ function planRerunSelection(options: {
       }
     }
 
-    for (const changedArtifactPath of uniqueSorted(options.changedArtifactPaths)) {
+    for (const changedArtifactPath of changedArtifactPaths) {
       for (const scenarioId of scenariosReferencingArtifact(options.catalog, changedArtifactPath)) {
-        const reasons = scenarioReasons.get(scenarioId) ?? new Set<string>();
+        const entry = scenarioExplanations.get(scenarioId) ?? [];
+        entry.push({
+          triggeringChange: `artifact ${changedArtifactPath}`,
+          dependencyPath: [changedArtifactPath, scenarioNodeId(createAdoId(scenarioId))],
+          requiredBecause: 'Scenario runtime/binding references the changed artifact or proposal lineage source.',
+        });
+        scenarioExplanations.set(scenarioId, entry);
+
+        const reasons = scenarioReasonSummary.get(scenarioId) ?? new Set<string>();
         reasons.add(`artifact-reference ${changedArtifactPath}`);
-        scenarioReasons.set(scenarioId, reasons);
+        scenarioReasonSummary.set(scenarioId, reasons);
       }
 
       const confidenceRecords = options.catalog.confidenceCatalog?.artifact.records ?? [];
@@ -133,7 +229,7 @@ function planRerunSelection(options: {
       }
     }
 
-    const impactedScenarioIds = uniqueSorted([...scenarioReasons.keys()].map((id) => createAdoId(id)));
+    const impactedScenarioIds = uniqueSorted([...scenarioExplanations.keys()].map((id) => createAdoId(id)));
     const impactedRunbooks = uniqueSorted(
       options.catalog.runbooks
         .filter((entry) => options.catalog.scenarios.some((scenarioEntry) =>
@@ -145,7 +241,7 @@ function planRerunSelection(options: {
     const impactedConfidenceRecords = uniqueSorted([...confidenceReasons.keys()]);
 
     const impactedProjectionsSet = new Set<RerunPlan['impactedProjections'][number]>();
-    if (options.sourceNodeIds.length > 0 || options.changedArtifactPaths.length > 0) {
+    if (sourceNodeIds.length > 0 || changedArtifactPaths.length > 0) {
       impactedProjectionsSet.add('graph');
     }
     if (impactedScenarioIds.length > 0) {
@@ -159,32 +255,28 @@ function planRerunSelection(options: {
     }
     const impactedProjections = uniqueSorted([...impactedProjectionsSet]) as RerunPlan['impactedProjections'];
 
-    const planId = `rerun-${sha256(stableStringify({
-      sourceNodeIds: uniqueSorted(options.sourceNodeIds),
-      changedArtifactPaths: uniqueSorted(options.changedArtifactPaths),
-      impactedScenarioIds,
-      impactedRunbooks,
-      impactedProjections,
-      impactedConfidenceRecords,
-    })).slice(0, 12)}`;
-
     const selection = {
       scenarios: impactedScenarioIds.map((adoId) => ({
         id: adoId,
-        why: uniqueSorted([...(scenarioReasons.get(adoId) ?? new Set<string>())]),
+        why: uniqueSorted([...(scenarioReasonSummary.get(adoId) ?? new Set<string>())]),
+        explanations: finalizeExplanations(scenarioExplanations.get(adoId) ?? []),
       })),
-      runbooks: impactedRunbooks.map((name) => ({
-        name,
-        why: uniqueSorted(
-          options.catalog.scenarios
-            .filter((entry) => impactedScenarioIds.includes(entry.artifact.source.ado_id))
-            .filter((entry) => {
-              const runbook = options.catalog.runbooks.find((candidate) => candidate.artifact.name === name);
-              return runbook ? selectorMatchesScenario(runbook.artifact.selector, entry.artifact) : false;
-            })
-            .map((entry) => `selected-by-scenario ${entry.artifact.source.ado_id}`),
-        ),
-      })),
+      runbooks: impactedRunbooks.map((name) => {
+        const runbook = options.catalog.runbooks.find((entry) => entry.artifact.name === name);
+        const matchingScenarios = options.catalog.scenarios
+          .filter((entry) => impactedScenarioIds.includes(entry.artifact.source.ado_id))
+          .filter((entry) => (runbook ? selectorMatchesScenario(runbook.artifact.selector, entry.artifact) : false))
+          .map((entry) => entry.artifact.source.ado_id);
+        return {
+          name,
+          why: uniqueSorted(matchingScenarios.map((adoId) => `selected-by-scenario ${adoId}`)),
+          explanations: finalizeExplanations(matchingScenarios.map((adoId) => ({
+            triggeringChange: `scenario ${adoId}`,
+            dependencyPath: [scenarioNodeId(adoId), graphIds.runbook(name)],
+            requiredBecause: 'Runbook selector includes at least one impacted scenario; rerunning preserves control-lane determinism.',
+          }))),
+        };
+      }),
       projections: impactedProjections.map((name) => ({
         name,
         why: name === 'graph'
@@ -201,6 +293,21 @@ function planRerunSelection(options: {
       })),
     };
 
+    const explanationFingerprintValue = sha256(stableStringify({
+      scenarios: selection.scenarios.map((entry) => ({ id: entry.id, explanations: entry.explanations })),
+      runbooks: selection.runbooks.map((entry) => ({ name: entry.name, explanations: entry.explanations })),
+    }));
+
+    const planId = `rerun-${sha256(stableStringify({
+      sourceNodeIds,
+      changedArtifactPaths,
+      impactedScenarioIds,
+      impactedRunbooks,
+      impactedProjections,
+      impactedConfidenceRecords,
+      explanationFingerprintValue,
+    })).slice(0, 12)}`;
+
     return {
       kind: 'rerun-plan',
       version: 1,
@@ -208,7 +315,7 @@ function planRerunSelection(options: {
       createdAt: new Date().toISOString(),
       reason: options.reason,
       sourceProposalId: options.sourceProposalId ?? null,
-      sourceNodeIds: uniqueSorted(options.sourceNodeIds),
+      sourceNodeIds,
       impactedScenarioIds: impactedScenarioIds as RerunPlan['impactedScenarioIds'],
       impactedRunbooks,
       impactedProjections,
@@ -222,6 +329,7 @@ function planRerunSelection(options: {
           ? `Impacted confidence overlays: ${impactedConfidenceRecords.join(', ')}`
           : 'No confidence overlays were impacted.',
       ]),
+      explanationFingerprint: explanationFingerprintValue,
       selection,
     };
   });
@@ -245,6 +353,12 @@ export function buildRerunPlan(options: {
       artifactPath: located.proposal.targetPath,
     });
 
+    const proposalLineagePaths = uniqueSorted([
+      ...located.bundle.lineage.sources,
+      ...located.bundle.lineage.parents,
+      ...located.proposal.evidenceIds,
+    ]);
+
     const plan = yield* planRerunSelection({
       catalog,
       sourceNodeIds: [targetNodeId],
@@ -252,6 +366,7 @@ export function buildRerunPlan(options: {
       changedNodeReasons: [`${located.proposal.targetPath} maps to graph node ${targetNodeId}`],
       reason: options.reason ?? `Proposal ${options.proposalId} changes ${located.proposal.targetPath}`,
       sourceProposalId: options.proposalId,
+      proposalLineagePaths,
     });
 
     const outputPath = rerunPlanPath(options.paths, plan.planId);
