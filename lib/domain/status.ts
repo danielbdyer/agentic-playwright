@@ -1,4 +1,4 @@
-﻿import type { Confidence, ScenarioStatus } from './types';
+﻿import type { Confidence, ScenarioStatus } from './types/workflow';
 
 export function lifecycleForScenario(
   status: ScenarioStatus,

@@ -1,4 +1,4 @@
-import type { DerivedGraph, GraphEdge, GraphNode } from './types';
+import type { DerivedGraph, GraphEdge, GraphNode } from './types/projection';
 
 function nodeLookup(graph: DerivedGraph): Map<string, GraphNode> {
   return new Map(graph.nodes.map((node) => [node.id, node] as const));

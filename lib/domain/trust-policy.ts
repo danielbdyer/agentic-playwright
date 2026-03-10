@@ -4,7 +4,7 @@ import type {
   TrustPolicy,
   TrustPolicyEvaluation,
   TrustPolicyEvaluationReason,
-} from './types';
+} from './types/workflow';
 
 function confidenceThresholdReason(confidence: number, minimumConfidence: number): TrustPolicyEvaluationReason | null {
   if (confidence >= minimumConfidence) {

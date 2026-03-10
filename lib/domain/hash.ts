@@ -1,6 +1,6 @@
 import { createHash } from 'crypto';
 import { normalizeAriaSnapshot } from './aria-snapshot';
-import type { AdoParameter, AdoStep } from './types';
+import type { AdoParameter, AdoStep } from './types/intent';
 
 const HTML_ENTITIES: Record<string, string> = {
   '&amp;': '&',
