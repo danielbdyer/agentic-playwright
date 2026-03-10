@@ -21,6 +21,7 @@ export const graphIds = {
   screen: (screenId: ScreenId): string => joinGraphId('screen', screenId),
   screenHints: (screenId: ScreenId): string => joinGraphId('screen-hints', screenId),
   pattern: (patternId: string): string => joinGraphId('pattern', normalizePathFragment(patternId)),
+  confidenceOverlay: (recordId: string): string => joinGraphId('confidence-overlay', normalizePathFragment(recordId)),
   dataset: (datasetId: string): string => joinGraphId('dataset', normalizePathFragment(datasetId)),
   resolutionControl: (controlId: string): string => joinGraphId('resolution-control', normalizePathFragment(controlId)),
   runbook: (runbookId: string): string => joinGraphId('runbook', normalizePathFragment(runbookId)),

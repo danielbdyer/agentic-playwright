@@ -53,17 +53,31 @@ The generated tests are disposable. The knowledge is the asset.
 
 The readable spec surface matters too. A generated test should read like a workflow facade over the machine contract, not like a raw object dump. The runtime handshake owns execution; the emitted spec owns legibility.
 
+## The resolution ladder
+
+The runtime does not jump straight from prose to agentic DOM search.
+
+It resolves through a strict ladder:
+
+1. deterministic substrate from approved scenario, control, and knowledge inputs
+2. approved-equivalent confidence overlays derived from repeated successful execution
+3. structured translation over typed ontology candidates
+4. runtime agentic DOM resolution
+5. `needs-human` only after the prior stages are exhausted
+
+This is the handshake that keeps the system both scalable and legible. Translation is bounded. The runtime agent is the last non-human move, not the default move.
+
 ## The new governance boundary
 
 The most important operating rule is simple:
 
 - deterministic derivations from approved artifacts are auto-approved
-- knowledge confidence grows through successful use without requiring human blessing
+- knowledge confidence grows through successful use and can become approved-equivalent without rewriting canon
 - human review is reserved for destructive changes to leading hypotheses
 
 That means a QA team does not need to bless every working bound step one by one. If the preparation lane used approved elements, postures, hints, patterns, and snapshots through deterministic precedence rules, the output is executable now.
 
-Confidence accrues automatically through repeat runs. When an element's locator resolves successfully across multiple scenarios, its confidence score increases. When a hint's disambiguation proves consistent, its confidence increases. The system biases in the agent's favor as long as evidence keeps flowing. A well-reasoned agent thesis is inherently trustworthy within tolerance thresholds.
+Confidence accrues automatically through repeat runs. When an element's locator resolves successfully across multiple scenarios, its confidence score increases. When a hint's disambiguation proves consistent, its confidence increases. Those derived scores live in `.tesseract/confidence/index.json` and can cross the trust-policy threshold into `approved-equivalent` working knowledge. Canon remains untouched until a human approves a destructive canonical change.
 
 Human review is reserved for destructive changes to the leading hypothesis:
 
@@ -101,6 +115,8 @@ That is why each scenario now emits:
 
 The spec is executable. The trace is machine-readable provenance. The review Markdown is the human explanation layer. The task packet and run receipts are the explicit handshake between the deterministic substrate and the runtime agent.
 
+CI uses the same ladder with a different posture. `ci-batch` is headless and non-interactive by default, emits the same structured receipts and proposals, and forbids approval/apply behavior during the run.
+
 ## Review fidelity
 
 The generated review surface must let a QA answer, step by step:
@@ -109,6 +125,8 @@ The generated review surface must let a QA answer, step by step:
 - how the preparation lane normalized and classified that text
 - whether the step is `compiler-derived`, `intent-only`, or structurally `unbound`
 - what task context and approved files were handed to the runtime agent
+- whether the winning resolution mode was `deterministic`, `translation`, or `agentic`
+- whether approved-equivalent overlays contributed to the winning path
 - what screen, element, posture, or snapshot the runtime actually resolved to
 - which lane and precedence stack supplied the winning decision
 - whether the step resolved safely, resolved-with-proposals, or still needs a human
@@ -160,6 +178,8 @@ Tesseract centralizes locator strategy in element signatures and supports ordere
 If a fallback rung succeeds, the run may still be green, but it is not healthy in the same way. The system should surface that as degraded locator use so the knowledge can be hardened before a wider failure appears.
 
 This is part of the broader product goal: make silent brittleness visible.
+
+That same visibility now applies to translation wins, overlay-assisted wins, and agentic fallbacks. A green run should still show whether it depended on durable approved knowledge, approved-equivalent working knowledge, or runtime exploration.
 
 ## Negative testing through posture
 

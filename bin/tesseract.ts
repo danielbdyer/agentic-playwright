@@ -46,6 +46,7 @@ interface CliOptions {
   runbook?: string | undefined;
   tag?: string | undefined;
   interpreterMode?: RuntimeInterpreterMode | undefined;
+  executionProfile?: 'interactive' | 'ci-batch' | undefined;
 }
 
 function parseArgs(argv: string[]): { command: string; options: CliOptions } {
@@ -139,6 +140,18 @@ function parseArgs(argv: string[]): { command: string; options: CliOptions } {
       index += 1;
       continue;
     }
+    if (token === '--ci-batch') {
+      options.executionProfile = 'ci-batch';
+      continue;
+    }
+    if (token === '--execution-profile') {
+      const profile = rest[index + 1];
+      if (profile === 'interactive' || profile === 'ci-batch') {
+        options.executionProfile = profile;
+      }
+      index += 1;
+      continue;
+    }
     if (token === '--node') {
       options.nodeId = rest[index + 1];
       index += 1;
@@ -175,10 +188,12 @@ function logIncrementalStatus(command: string, result: unknown): void {
 }
 
 function resolveExecutionPosture(options: CliOptions): ExecutionPosture {
+  const executionProfile = options.executionProfile ?? (process.env.CI ? 'ci-batch' : 'interactive');
   return {
     interpreterMode: options.interpreterMode ?? 'diagnostic',
     writeMode: options.noWrite ? 'no-write' : 'persist',
-    headed: Boolean(options.headed),
+    headed: executionProfile === 'ci-batch' ? false : Boolean(options.headed),
+    executionProfile,
   };
 }
 

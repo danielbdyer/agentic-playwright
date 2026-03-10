@@ -9,6 +9,7 @@ import { sha256, stableStringify } from './hash';
 import { graphIds, mcpUris } from './ids';
 import type {
   AdoSnapshot,
+  ConfidenceOverlayCatalog,
   BoundScenario,
   DatasetControl,
   DerivedCapability,
@@ -60,6 +61,7 @@ export interface SharedPatternsArtifact extends ArtifactEnvelope<PatternDocument
 export interface DatasetControlArtifact extends ArtifactEnvelope<DatasetControl> {}
 export interface ResolutionControlArtifact extends ArtifactEnvelope<ResolutionControl> {}
 export interface RunbookControlArtifact extends ArtifactEnvelope<RunbookControl> {}
+export interface ConfidenceOverlayArtifact extends ArtifactEnvelope<ConfidenceOverlayCatalog> {}
 
 export interface EvidenceArtifact {
   artifactPath: string;
@@ -85,6 +87,7 @@ export interface GraphBuildInput {
   datasets?: DatasetControlArtifact[];
   resolutionControls?: ResolutionControlArtifact[];
   runbooks?: RunbookControlArtifact[];
+  confidenceOverlays?: ConfidenceOverlayArtifact[];
   scenarios: ScenarioGraphArtifact[];
   boundScenarios?: BoundScenarioGraphArtifact[];
   taskPackets?: TaskPacketGraphArtifact[];
@@ -311,6 +314,7 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
   const datasetArtifacts = input.datasets ?? [];
   const resolutionControlArtifacts = input.resolutionControls ?? [];
   const runbookArtifacts = input.runbooks ?? [];
+  const confidenceOverlayArtifacts = input.confidenceOverlays ?? [];
   const boundScenarioArtifacts = input.boundScenarios ?? [];
   const taskPackets = new Map((input.taskPackets ?? []).map((entry) => [entry.artifact.adoId, entry.artifact] as const));
   const runRecords = new Map(
@@ -687,6 +691,70 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
     }));
   }
 
+  for (const { artifact: confidenceCatalog, artifactPath } of confidenceOverlayArtifacts) {
+    for (const record of confidenceCatalog.records) {
+      const overlayNodeId = graphIds.confidenceOverlay(record.id);
+      addNode(nodes, createNode({
+        id: overlayNodeId,
+        kind: 'confidence-overlay',
+        label: record.id,
+        artifactPath,
+        provenance: {
+          knowledgePath: artifactPath,
+        },
+        payload: {
+          artifactType: record.artifactType,
+          artifactPath: record.artifactPath,
+          score: record.score,
+          threshold: record.threshold,
+          status: record.status,
+          screen: record.screen ?? null,
+          element: record.element ?? null,
+          posture: record.posture ?? null,
+          snapshotTemplate: record.snapshotTemplate ?? null,
+          learnedAliases: record.learnedAliases,
+        },
+      }));
+
+      const targetNodeId = record.snapshotTemplate
+        ? graphIds.snapshot.knowledge(record.snapshotTemplate)
+        : record.posture && record.screen && record.element
+          ? graphIds.posture(record.screen, record.element, record.posture)
+          : record.element && record.screen
+            ? graphIds.element(record.screen, record.element)
+            : record.screen && record.artifactType === 'hints'
+              ? graphIds.screenHints(record.screen)
+              : record.artifactType === 'patterns'
+                ? graphIds.pattern(basenameWithoutExtension(record.artifactPath))
+                : null;
+
+      if (targetNodeId && nodes.has(targetNodeId)) {
+        addEdge(edges, createEdge({
+          kind: 'references',
+          from: overlayNodeId,
+          to: targetNodeId,
+          provenance: {
+            knowledgePath: artifactPath,
+          },
+          payload: {
+            status: record.status,
+          },
+        }));
+      }
+
+      for (const evidenceId of record.lineage.evidenceIds) {
+        addEdge(edges, createEdge({
+          kind: 'learns-from',
+          from: overlayNodeId,
+          to: graphIds.evidence(evidenceId),
+          provenance: {
+            knowledgePath: artifactPath,
+          },
+        }));
+      }
+    }
+  }
+
   for (const { artifact: control, artifactPath } of resolutionControlArtifacts) {
     addNode(nodes, createNode({
       id: graphIds.resolutionControl(control.name),
@@ -861,15 +929,22 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
           handshakes: explanation?.handshakes ?? ['preparation'],
           winningConcern: explanation?.winningConcern ?? 'intent',
           winningSource: explanation?.winningSource ?? (step.resolution ? 'scenario-explicit' : 'approved-knowledge'),
+          resolutionMode: explanation?.resolutionMode ?? 'deterministic',
           ruleId: explanation?.ruleId ?? binding?.ruleId ?? null,
           knowledgeRefs: explanation?.knowledgeRefs ?? binding?.knowledgeRefs ?? [],
           supplementRefs: explanation?.supplementRefs ?? binding?.supplementRefs ?? [],
+          controlRefs: explanation?.controlRefs ?? [],
+          evidenceRefs: explanation?.evidenceRefs ?? [],
+          overlayRefs: explanation?.overlayRefs ?? [],
           evidenceIds: explanation?.evidenceIds ?? binding?.evidenceIds ?? [],
           reviewReasons: explanation?.reviewReasons ?? binding?.reviewReasons ?? [],
           reasons: explanation?.reasons ?? binding?.reasons ?? [],
           runtimeStatus: explanation?.runtime?.status ?? 'pending',
           runtimeRunId: explanation?.runtime?.runId ?? null,
+          runtimeResolutionMode: explanation?.runtime?.resolutionMode ?? null,
+          runtimeWidgetContract: explanation?.runtime?.widgetContract ?? null,
           runtimeLocatorStrategy: explanation?.runtime?.locatorStrategy ?? null,
+          runtimeLocatorRung: explanation?.runtime?.locatorRung ?? null,
           runtimeDegraded: explanation?.runtime?.degraded ?? false,
         },
       }));
@@ -1169,6 +1244,25 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
           },
           payload: {
             source: 'evidence-ref',
+          },
+        }));
+      }
+
+      for (const overlayRef of explanation?.overlayRefs ?? []) {
+        const overlayNodeId = graphIds.confidenceOverlay(overlayRef);
+        if (!nodes.has(overlayNodeId)) {
+          continue;
+        }
+        addEdge(edges, createEdge({
+          kind: 'references',
+          from: stepNodeId,
+          to: overlayNodeId,
+          provenance: {
+            confidence: stepConfidence(stepContext),
+            scenarioPath: artifactPath,
+          },
+          payload: {
+            source: 'approved-equivalent-overlay',
           },
         }));
       }

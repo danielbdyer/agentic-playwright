@@ -110,8 +110,11 @@ function buildTaskPacket(input: {
     })),
     patterns: input.catalog.mergedPatterns,
     evidence: input.catalog.evidenceRecords.map((entry) => entry.fingerprint),
+    confidence: input.catalog.confidenceCatalog?.fingerprint ?? null,
   });
   const controlsFingerprint = fingerprintProjectionOutput(runtimeControls);
+  const confidenceOverlays = (input.catalog.confidenceCatalog?.artifact.records ?? [])
+    .filter((record) => record.status === 'approved-equivalent');
 
   const screens = Object.keys(input.catalog.screenBundles)
     .sort((left, right) => left.localeCompare(right))
@@ -120,9 +123,11 @@ function buildTaskPacket(input: {
 
   const runtimeKnowledge = {
     knowledgeFingerprint,
+    confidenceFingerprint: input.catalog.confidenceCatalog?.fingerprint ?? null,
     sharedPatterns: input.catalog.mergedPatterns,
     screens,
     evidenceRefs: input.catalog.evidenceRecords.map((entry) => entry.artifactPath).sort((left, right) => left.localeCompare(right)),
+    confidenceOverlays,
     controls: runtimeControls,
   };
 
@@ -243,6 +248,7 @@ export function buildTaskPacketProjection(options:
       ...catalog.resolutionControls.map((entry) => fingerprintProjectionArtifact('resolution-control', entry.artifactPath, entry.artifact)),
       ...catalog.runbooks.map((entry) => fingerprintProjectionArtifact('runbook-control', entry.artifactPath, entry.artifact)),
       ...catalog.evidenceRecords.map((entry) => fingerprintProjectionArtifact('evidence', entry.artifactPath, entry.artifact)),
+      ...(catalog.confidenceCatalog ? [fingerprintProjectionArtifact('confidence-overlay-catalog', catalog.confidenceCatalog.artifactPath, catalog.confidenceCatalog.artifact)] : []),
     ];
     const packet = buildTaskPacket({ compileSnapshot, catalog });
     const outputFingerprint = fingerprintProjectionOutput(packet);

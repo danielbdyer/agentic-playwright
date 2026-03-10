@@ -173,7 +173,8 @@ test('workflow inspection exposes lane ownership, controls, and precedence for a
       'scenario explicit',
       'resolution controls',
       'approved knowledge priors',
-      'prior evidence',
+      'approved-equivalent overlays',
+      'structured translation',
       'live DOM',
       'needs-human',
     ]);

@@ -29,6 +29,8 @@ export interface ProjectPaths {
   inboxReportPath: string;
   benchmarkRunsDir: string;
   evidenceDir: string;
+  confidenceDir: string;
+  confidenceIndexPath: string;
   graphDir: string;
   graphIndexPath: string;
   mcpCatalogPath: string;
@@ -65,6 +67,8 @@ export function createProjectPaths(rootDir: string): ProjectPaths {
     inboxReportPath: path.join(rootDir, 'generated', 'operator', 'inbox.md'),
     benchmarkRunsDir: path.join(rootDir, '.tesseract', 'benchmarks'),
     evidenceDir: path.join(rootDir, '.tesseract', 'evidence'),
+    confidenceDir: path.join(rootDir, '.tesseract', 'confidence'),
+    confidenceIndexPath: path.join(rootDir, '.tesseract', 'confidence', 'index.json'),
     graphDir: path.join(rootDir, '.tesseract', 'graph'),
     graphIndexPath: path.join(rootDir, '.tesseract', 'graph', 'index.json'),
     mcpCatalogPath: path.join(rootDir, '.tesseract', 'graph', 'mcp-catalog.json'),

@@ -5,6 +5,7 @@ import type {
   ApprovalReceipt,
   BenchmarkContext,
   BoundScenario,
+  ConfidenceOverlayCatalog,
   DatasetControl,
   EvidenceRecord,
   MergedPatterns,
@@ -66,5 +67,6 @@ export interface WorkspaceCatalog {
   mergedPatterns: MergedPatterns;
   knowledgeSnapshots: KnowledgeSnapshotEntry[];
   evidenceRecords: ArtifactEnvelope<EvidenceRecord>[];
+  confidenceCatalog: ArtifactEnvelope<ConfidenceOverlayCatalog> | null;
   trustPolicy: ArtifactEnvelope<TrustPolicy>;
 }

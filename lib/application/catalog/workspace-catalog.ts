@@ -7,6 +7,7 @@ import type {
   ApprovalReceipt,
   BenchmarkContext,
   BoundScenario,
+  ConfidenceOverlayCatalog,
   DatasetControl,
   EvidenceRecord,
   PatternDocument,
@@ -26,6 +27,7 @@ import {
   validateApprovalReceipt,
   validateBenchmarkContext,
   validateBoundScenario,
+  validateConfidenceOverlayCatalog,
   validateDatasetControl,
   validatePatternDocument,
   validateProposalBundle,
@@ -267,6 +269,16 @@ export function loadWorkspaceCatalog(options: { paths: ProjectPaths }) {
       ));
     }
 
+    const confidenceCatalog = (yield* fs.exists(options.paths.confidenceIndexPath))
+      ? yield* readJsonArtifact(
+          options.paths,
+          options.paths.confidenceIndexPath,
+          validateConfidenceOverlayCatalog,
+          'confidence-overlay-catalog-validation-failed',
+          `Confidence overlay catalog ${options.paths.confidenceIndexPath} failed validation`,
+        )
+      : null as ArtifactEnvelope<ConfidenceOverlayCatalog> | null;
+
     const trustPolicy = yield* readYamlArtifact(
       options.paths,
       options.paths.trustPolicyPath,
@@ -300,6 +312,7 @@ export function loadWorkspaceCatalog(options: { paths: ProjectPaths }) {
       }))),
       knowledgeSnapshots,
       evidenceRecords,
+      confidenceCatalog,
       trustPolicy,
     } satisfies WorkspaceCatalog;
   });

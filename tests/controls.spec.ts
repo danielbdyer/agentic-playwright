@@ -86,6 +86,7 @@ test('runtime agent reports the winning data source across explicit, control, da
     controlResolution: null,
     runtimeKnowledge: {
       knowledgeFingerprint: 'sha256:knowledge',
+      confidenceFingerprint: 'sha256:confidence',
       sharedPatterns: {
         version: 1 as const,
         actions: {
@@ -132,6 +133,7 @@ test('runtime agent reports the winning data source across explicit, control, da
         sectionSnapshots: [],
       }],
       evidenceRefs: [],
+      confidenceOverlays: [],
       controls: {
         datasets: [{
           name: 'demo-default',
@@ -244,4 +246,207 @@ test('runtime agent reports the winning data source across explicit, control, da
     expect(generatedTokenReceipt.target.override).toBe('<<generated:policy-search.policyNumberInput>>');
     expect(generatedTokenReceipt.winningSource).toBe('generated-token');
   }
+});
+
+test('runtime agent uses approved-equivalent overlays before translation and live DOM', async () => {
+  const step = cloneJson({
+    index: 2,
+    intent: 'Enter policy reference',
+    actionText: 'Enter policy ref',
+    expectedText: 'Policy ref is accepted',
+    normalizedIntent: 'enter policy ref => policy ref is accepted',
+    allowedActions: ['input'],
+    explicitResolution: null,
+    controlResolution: null,
+    runtimeKnowledge: {
+      knowledgeFingerprint: 'sha256:knowledge',
+      confidenceFingerprint: 'sha256:confidence',
+      sharedPatterns: {
+        version: 1 as const,
+        actions: {
+          navigate: { id: 'core.navigate', aliases: ['navigate'] },
+          input: { id: 'core.input', aliases: ['enter', 'input', 'type'] },
+          click: { id: 'core.click', aliases: ['click'] },
+          'assert-snapshot': { id: 'core.assert-snapshot', aliases: ['verify'] },
+        },
+        postures: {},
+        documents: ['knowledge/patterns/core.patterns.yaml'],
+        sources: {
+          actions: {
+            navigate: 'knowledge/patterns/core.patterns.yaml',
+            input: 'knowledge/patterns/core.patterns.yaml',
+            click: 'knowledge/patterns/core.patterns.yaml',
+            'assert-snapshot': 'knowledge/patterns/core.patterns.yaml',
+          },
+          postures: {},
+        },
+      },
+      screens: [{
+        screen: createScreenId('policy-search'),
+        url: '/policy-search',
+        screenAliases: ['policy search'],
+        knowledgeRefs: ['knowledge/surfaces/policy-search.surface.yaml', 'knowledge/screens/policy-search.elements.yaml'],
+        supplementRefs: [],
+        elements: [{
+          element: createElementId('policyNumberInput'),
+          role: 'textbox',
+          name: 'Policy Number',
+          surface: createSurfaceId('search-form'),
+          widget: createWidgetId('os-input'),
+          affordance: 'text-entry',
+          aliases: ['policy number'],
+          locator: [],
+          postures: [],
+          defaultValueRef: null,
+          parameter: null,
+          snapshotAliases: {},
+        }],
+        sectionSnapshots: [],
+      }],
+      evidenceRefs: ['.tesseract/evidence/runs/10001/seed/step-2-0.json'],
+      confidenceOverlays: [{
+        id: 'overlay-policy-ref',
+        artifactType: 'hints',
+        artifactPath: 'knowledge/screens/policy-search.hints.yaml',
+        score: 0.95,
+        threshold: 0.9,
+        status: 'approved-equivalent',
+        successCount: 4,
+        failureCount: 0,
+        evidenceCount: 1,
+        screen: createScreenId('policy-search'),
+        element: createElementId('policyNumberInput'),
+        posture: null,
+        snapshotTemplate: null,
+        learnedAliases: ['policy ref'],
+        lastSuccessAt: '2026-03-09T00:00:00.000Z',
+        lastFailureAt: null,
+        lineage: {
+          runIds: ['seed-run'],
+          evidenceIds: ['.tesseract/evidence/runs/10001/seed/step-2-0.json'],
+          sourceArtifactPaths: ['.tesseract/runs/10001/seed/run.json'],
+        },
+      }],
+      controls: {
+        datasets: [],
+        resolutionControls: [],
+        runbooks: [],
+      },
+    },
+    taskFingerprint: 'sha256:task',
+  } satisfies StepTask);
+
+  const receipt = await deterministicRuntimeStepAgent.resolve(step, {
+    provider: 'test-agent',
+    mode: 'diagnostic',
+    runAt: '2026-03-09T00:00:00.000Z',
+  });
+
+  expect(receipt.kind).toBe('resolved');
+  if (receipt.kind !== 'resolved') {
+    throw new Error('expected overlay receipt to resolve');
+  }
+  expect(receipt.winningSource).toBe('approved-equivalent');
+  expect(receipt.resolutionMode).toBe('deterministic');
+  expect(receipt.overlayRefs).toContain('overlay-policy-ref');
+});
+
+test('runtime agent falls through to structured translation before live DOM', async () => {
+  const step = cloneJson({
+    index: 2,
+    intent: 'Enter reference number',
+    actionText: 'Type the reference number',
+    expectedText: 'Reference number is accepted',
+    normalizedIntent: 'type the reference number => reference number is accepted',
+    allowedActions: ['input'],
+    explicitResolution: null,
+    controlResolution: null,
+    runtimeKnowledge: {
+      knowledgeFingerprint: 'sha256:knowledge',
+      confidenceFingerprint: 'sha256:confidence',
+      sharedPatterns: {
+        version: 1 as const,
+        actions: {
+          navigate: { id: 'core.navigate', aliases: ['navigate'] },
+          input: { id: 'core.input', aliases: ['enter', 'input', 'type'] },
+          click: { id: 'core.click', aliases: ['click'] },
+          'assert-snapshot': { id: 'core.assert-snapshot', aliases: ['verify'] },
+        },
+        postures: {},
+        documents: ['knowledge/patterns/core.patterns.yaml'],
+        sources: {
+          actions: {
+            navigate: 'knowledge/patterns/core.patterns.yaml',
+            input: 'knowledge/patterns/core.patterns.yaml',
+            click: 'knowledge/patterns/core.patterns.yaml',
+            'assert-snapshot': 'knowledge/patterns/core.patterns.yaml',
+          },
+          postures: {},
+        },
+      },
+      screens: [{
+        screen: createScreenId('policy-search'),
+        url: '/policy-search',
+        screenAliases: ['policy search'],
+        knowledgeRefs: ['knowledge/surfaces/policy-search.surface.yaml', 'knowledge/screens/policy-search.elements.yaml'],
+        supplementRefs: [],
+        elements: [{
+          element: createElementId('policyNumberInput'),
+          role: 'textbox',
+          name: 'Reference Number',
+          surface: createSurfaceId('search-form'),
+          widget: createWidgetId('os-input'),
+          affordance: 'text-entry',
+          aliases: ['reference'],
+          locator: [],
+          postures: [],
+          defaultValueRef: null,
+          parameter: null,
+          snapshotAliases: {},
+        }],
+        sectionSnapshots: [],
+      }],
+      evidenceRefs: [],
+      confidenceOverlays: [],
+      controls: {
+        datasets: [],
+        resolutionControls: [],
+        runbooks: [],
+      },
+    },
+    taskFingerprint: 'sha256:task',
+  } satisfies StepTask);
+
+  const receipt = await deterministicRuntimeStepAgent.resolve(step, {
+    provider: 'test-agent',
+    mode: 'diagnostic',
+    runAt: '2026-03-09T00:00:00.000Z',
+    translate: (request) => ({
+      kind: 'translation-receipt',
+      version: 1,
+      mode: 'structured-translation',
+      matched: true,
+      selected: {
+        kind: 'element',
+        target: 'policy-search.policyNumberInput',
+        screen: createScreenId('policy-search'),
+        element: createElementId('policyNumberInput'),
+        posture: null,
+        snapshotTemplate: null,
+        aliases: ['reference number'],
+        score: 0.75,
+        sourceRefs: request.overlayRefs,
+      },
+      candidates: [],
+      rationale: 'Structured translation matched reference number to policy-search.policyNumberInput.',
+    }),
+  });
+
+  expect(receipt.kind).toBe('resolved');
+  if (receipt.kind !== 'resolved') {
+    throw new Error('expected translation receipt to resolve');
+  }
+  expect(receipt.winningSource).toBe('structured-translation');
+  expect(receipt.resolutionMode).toBe('translation');
+  expect(receipt.translation?.matched).toBeTruthy();
 });

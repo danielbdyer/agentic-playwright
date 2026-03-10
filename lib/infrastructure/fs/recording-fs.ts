@@ -39,6 +39,7 @@ export function createRecordingWorkspaceFileSystem(input: {
     projectPaths.generatedDir,
     projectPaths.generatedTypesDir,
     projectPaths.benchmarksDir,
+    projectPaths.confidenceDir,
   ].map(normalizePath);
   const shadowFiles = new Map<string, string>();
   const shadowDirs = new Set<string>();

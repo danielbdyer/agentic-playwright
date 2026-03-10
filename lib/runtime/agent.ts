@@ -2,12 +2,15 @@ import type { Page } from '@playwright/test';
 import { normalizeIntentText } from '../domain/inference';
 import { createPostureId, createSnapshotTemplateId } from '../domain/identity';
 import { knowledgePaths } from '../domain/ids';
+import { widgetCapabilityContracts } from '../domain/widgets/contracts';
 import type {
   ResolutionExhaustionEntry,
   ResolutionObservation,
   ResolutionProposalDraft,
   ResolutionReceipt,
   ResolutionTarget,
+  TranslationRequest,
+  TranslationReceipt,
   StepResolution,
   StepAction,
   StepTask,
@@ -23,6 +26,7 @@ export interface RuntimeStepAgentContext {
   provider: string;
   mode: string;
   runAt: string;
+  translate?: ((request: TranslationRequest) => TranslationReceipt) | undefined;
   controlSelection?: {
     runbook?: string | null | undefined;
     dataset?: string | null | undefined;
@@ -122,6 +126,28 @@ function selectedDataset(task: StepTask, context: RuntimeStepAgentContext) {
     return task.runtimeKnowledge.controls.datasets.find((entry) => entry.name === runbook.dataset) ?? null;
   }
   return task.runtimeKnowledge.controls.datasets.find((entry) => entry.isDefault) ?? task.runtimeKnowledge.controls.datasets[0] ?? null;
+}
+
+function selectedControlRefs(task: StepTask, context: RuntimeStepAgentContext): string[] {
+  const refs: string[] = [];
+  const runbook = selectedRunbook(task, context);
+  const dataset = selectedDataset(task, context);
+  const resolutionControlName = context.controlSelection?.resolutionControl ?? runbook?.resolutionControl ?? null;
+  const resolutionControl = resolutionControlName
+    ? task.runtimeKnowledge.controls.resolutionControls.find((entry) => entry.name === resolutionControlName)
+    : null;
+
+  if (runbook) {
+    refs.push(runbook.artifactPath);
+  }
+  if (dataset) {
+    refs.push(dataset.artifactPath);
+  }
+  if (resolutionControl) {
+    refs.push(resolutionControl.artifactPath);
+  }
+
+  return uniqueSorted(refs);
 }
 
 function datasetElementKey(screen: string, element: string): string {
@@ -318,17 +344,184 @@ function resolveSnapshot(task: StepTask, screen: StepTaskScreenCandidate | null,
   return { snapshotTemplate: null, supplementRefs: [] };
 }
 
-function isElementCompatible(action: StepAction | null, element: StepTaskElementCandidate): boolean {
+function widgetActionForStepAction(action: StepAction | null): 'fill' | 'click' | 'get-value' | null {
   switch (action) {
     case 'input':
-      return element.widget.includes('input');
+      return 'fill';
     case 'click':
-      return element.widget.includes('button') || element.role === 'button';
+      return 'click';
     case 'assert-snapshot':
-      return true;
+      return 'get-value';
     default:
-      return true;
+      return null;
   }
+}
+
+function isElementCompatible(action: StepAction | null, element: StepTaskElementCandidate): boolean {
+  const widgetAction = widgetActionForStepAction(action);
+  if (!widgetAction) {
+    return true;
+  }
+  const contract = widgetCapabilityContracts[element.widget];
+  if (!contract) {
+    return action === 'click' ? element.role === 'button' : action === 'assert-snapshot';
+  }
+  return contract.supportedActions.includes(widgetAction);
+}
+
+function overlayAliases(record: StepTask['runtimeKnowledge']['confidenceOverlays'][number]): string[] {
+  return uniqueSorted([
+    ...record.learnedAliases,
+    record.element ?? '',
+    record.screen ?? '',
+    record.snapshotTemplate ?? '',
+  ]);
+}
+
+function resolveWithConfidenceOverlay(
+  task: StepTask,
+  action: StepAction | null,
+  approvedScreen: StepTaskScreenCandidate | null,
+  approvedElement: StepTaskElementCandidate | null,
+  snapshotTemplate: ReturnType<typeof createSnapshotTemplateId> | null,
+): {
+  screen: StepTaskScreenCandidate | null;
+  element: StepTaskElementCandidate | null;
+  posture: ReturnType<typeof createPostureId> | null;
+  snapshotTemplate: ReturnType<typeof createSnapshotTemplateId> | null;
+  overlayRefs: string[];
+  observation?: ResolutionObservation | undefined;
+} {
+  const normalized = normalizedCombined(task);
+  const overlays = task.runtimeKnowledge.confidenceOverlays;
+  const overlayRefIds = new Set<string>();
+
+  let screen = approvedScreen;
+  if (!screen) {
+    const matchedScreen = overlays
+      .filter((record) => record.screen)
+      .map((record) => ({ record, match: bestAliasMatch(normalized, overlayAliases(record)) }))
+      .filter((entry): entry is { record: StepTask['runtimeKnowledge']['confidenceOverlays'][number]; match: AliasMatch } => entry.match !== null)
+      .sort((left, right) => right.match.score - left.match.score)[0];
+    if (matchedScreen?.record.screen) {
+      screen = task.runtimeKnowledge.screens.find((candidate) => candidate.screen === matchedScreen.record.screen) ?? null;
+      overlayRefIds.add(matchedScreen.record.id);
+    }
+  }
+
+  let element = approvedElement;
+  if (screen && !element && requiresElement(action)) {
+    const matchedElement = overlays
+      .filter((record) => record.screen === screen?.screen && record.element)
+      .map((record) => ({ record, match: bestAliasMatch(normalized, overlayAliases(record)) }))
+      .filter((entry): entry is { record: StepTask['runtimeKnowledge']['confidenceOverlays'][number]; match: AliasMatch } => entry.match !== null)
+      .sort((left, right) => right.match.score - left.match.score)[0];
+    if (matchedElement?.record.element) {
+      element = screen.elements.find((candidate) => candidate.element === matchedElement.record.element) ?? null;
+      overlayRefIds.add(matchedElement.record.id);
+    }
+  }
+
+  const postureRecord = screen && element
+    ? overlays.find((record) => record.screen === screen.screen && record.element === element.element && record.posture)
+    : null;
+  if (postureRecord?.posture) {
+    overlayRefIds.add(postureRecord.id);
+  }
+
+  const snapshotRecord = screen
+    ? overlays.find((record) => record.screen === screen.screen && record.snapshotTemplate)
+    : null;
+  if (snapshotRecord?.snapshotTemplate) {
+    overlayRefIds.add(snapshotRecord.id);
+  }
+
+  const overlayRefs = uniqueSorted([...overlayRefIds]);
+  return {
+    screen,
+    element,
+    posture: postureRecord?.posture ?? null,
+    snapshotTemplate: snapshotTemplate ?? snapshotRecord?.snapshotTemplate ?? null,
+    overlayRefs,
+    observation: overlayRefs.length > 0
+      ? {
+          source: 'overlay',
+          summary: 'Approved-equivalent confidence overlays supplied a deterministic target.',
+          detail: {
+            overlayRefs: overlayRefs.join(','),
+          },
+        }
+      : undefined,
+  };
+}
+
+function resolveWithTranslation(
+  task: StepTask,
+  translator: RuntimeStepAgentContext['translate'],
+): {
+  translation: TranslationReceipt | null;
+  screen: StepTaskScreenCandidate | null;
+  element: StepTaskElementCandidate | null;
+  overlayRefs: string[];
+  observation?: ResolutionObservation | undefined;
+} {
+  if (!translator) {
+    return { translation: null, screen: null, element: null, overlayRefs: [] };
+  }
+
+  const translation = translator({
+    version: 1,
+    normalizedIntent: task.normalizedIntent,
+    actionText: task.actionText,
+    expectedText: task.expectedText,
+    allowedActions: task.allowedActions,
+    screens: task.runtimeKnowledge.screens.map((screen) => ({
+      screen: screen.screen,
+      aliases: uniqueSorted([screen.screen, ...screen.screenAliases]),
+      elements: screen.elements.map((element) => ({
+        element: element.element,
+        aliases: uniqueSorted([element.element, element.name ?? '', ...element.aliases]),
+        postures: element.postures,
+        snapshotTemplates: screen.sectionSnapshots,
+      })),
+    })),
+    evidenceRefs: task.runtimeKnowledge.evidenceRefs,
+    overlayRefs: task.runtimeKnowledge.confidenceOverlays.map((record) => record.id),
+  });
+
+  const selectedElement = translation.selected?.kind === 'element'
+    ? task.runtimeKnowledge.screens
+        .find((screen) => screen.screen === translation.selected?.screen)
+        ?.elements.find((element) => element.element === translation.selected?.element) ?? null
+    : null;
+  const selectedScreenId = translation.selected?.kind === 'element'
+    ? translation.selected.screen ?? null
+    : translation.selected?.kind === 'screen'
+      ? translation.selected.screen ?? null
+      : null;
+  const selectedScreen = selectedScreenId
+    ? task.runtimeKnowledge.screens.find((screen) => screen.screen === selectedScreenId) ?? null
+    : null;
+  const overlayRefs = uniqueSorted(translation.candidates.flatMap((candidate) => candidate.sourceRefs));
+
+  return {
+    translation,
+    screen: selectedScreen,
+    element: selectedElement,
+    overlayRefs,
+    observation: translation.matched
+      ? {
+          source: 'translation',
+          summary: translation.rationale,
+          detail: translation.selected
+            ? {
+                target: translation.selected.target,
+                score: String(translation.selected.score),
+              }
+            : undefined,
+        }
+      : undefined,
+  };
 }
 
 async function resolveFromDom(
@@ -400,6 +593,8 @@ export const deterministicRuntimeStepAgent: RuntimeStepAgent = {
     const supplementRefs: string[] = [];
     const knowledgeRefs: string[] = [];
     const controlResolution = selectedControlResolution(task, context);
+    const controlRefs = selectedControlRefs(task, context);
+    const evidenceRefs = uniqueSorted(task.runtimeKnowledge.evidenceRefs);
 
     const explicit = task.explicitResolution;
     if (explicit?.action && explicit.screen && (!requiresElement(explicit.action) || explicit.element)) {
@@ -438,13 +633,18 @@ export const deterministicRuntimeStepAgent: RuntimeStepAgent = {
         mode: context.mode,
         runAt: context.runAt,
         stepIndex: task.index,
+        resolutionMode: 'deterministic',
         knowledgeRefs: explicit.screen ? [knowledgePaths.surface(explicit.screen), knowledgePaths.elements(explicit.screen)] : [],
         supplementRefs: [],
+        controlRefs,
+        evidenceRefs,
+        overlayRefs: [],
         observations,
         exhaustion,
         handshakes: ['preparation', 'resolution'],
         winningConcern: 'intent',
         winningSource: 'scenario-explicit',
+        translation: null,
         confidence: 'compiler-derived',
         provenanceKind: 'explicit',
         target: {
@@ -544,8 +744,12 @@ export const deterministicRuntimeStepAgent: RuntimeStepAgent = {
         mode: context.mode,
         runAt: context.runAt,
         stepIndex: task.index,
+        resolutionMode: 'deterministic',
         knowledgeRefs: uniqueSorted(knowledgeRefs),
         supplementRefs: uniqueSorted(supplementRefs),
+        controlRefs,
+        evidenceRefs,
+        overlayRefs: [],
         observations,
         exhaustion,
         handshakes: ['preparation', 'resolution'],
@@ -557,6 +761,7 @@ export const deterministicRuntimeStepAgent: RuntimeStepAgent = {
               ? 'control'
               : 'resolution',
         winningSource,
+        translation: null,
         confidence: 'agent-verified',
         provenanceKind: 'approved-knowledge',
         target: {
@@ -572,12 +777,157 @@ export const deterministicRuntimeStepAgent: RuntimeStepAgent = {
       };
     }
 
-    const domResolved = await resolveFromDom(context.page, task, screenResult.screen, action);
+    const overlayResult = resolveWithConfidenceOverlay(
+      task,
+      action,
+      screenResult.screen,
+      elementResult.element,
+      snapshotResult.snapshotTemplate,
+    );
+    if (overlayResult.observation) {
+      observations.push(overlayResult.observation);
+    }
+    if (overlayResult.overlayRefs.length > 0) {
+      recordExhaustion(exhaustion, 'confidence-overlay', 'resolved', `Approved-equivalent overlays resolved ${overlayResult.overlayRefs.join(', ')}`);
+      const overlayOverride = resolveOverride(task, overlayResult.screen, overlayResult.element, overlayResult.posture, controlResolution, context);
+      return {
+        kind: 'resolved',
+        version: 1,
+        stage: 'resolution',
+        scope: 'step',
+        ids: {
+          adoId: null,
+          suite: null,
+          runId: null,
+          stepIndex: task.index,
+          dataset: selectedDataset(task, context)?.name ?? null,
+          runbook: selectedRunbook(task, context)?.name ?? null,
+          resolutionControl: context.controlSelection?.resolutionControl ?? selectedRunbook(task, context)?.resolutionControl ?? null,
+        },
+        fingerprints: {
+          artifact: task.taskFingerprint,
+          knowledge: task.runtimeKnowledge.knowledgeFingerprint,
+          task: task.taskFingerprint,
+          controls: task.runtimeKnowledge.confidenceFingerprint ?? null,
+          content: null,
+          run: null,
+        },
+        lineage: {
+          sources: [...controlRefs, ...evidenceRefs, ...overlayResult.overlayRefs],
+          parents: [task.taskFingerprint],
+          handshakes: ['preparation', 'resolution'],
+        },
+        governance: 'approved',
+        taskFingerprint: task.taskFingerprint,
+        knowledgeFingerprint: task.runtimeKnowledge.knowledgeFingerprint,
+        provider: context.provider,
+        mode: context.mode,
+        runAt: context.runAt,
+        stepIndex: task.index,
+        resolutionMode: 'deterministic',
+        knowledgeRefs: uniqueSorted(knowledgeRefs),
+        supplementRefs: uniqueSorted(supplementRefs),
+        controlRefs,
+        evidenceRefs,
+        overlayRefs: overlayResult.overlayRefs,
+        observations,
+        exhaustion,
+        handshakes: ['preparation', 'resolution'],
+        winningConcern: 'knowledge',
+        winningSource: 'approved-equivalent',
+        translation: null,
+        confidence: 'agent-verified',
+        provenanceKind: 'approved-knowledge',
+        target: {
+          action: action ?? allowedActionFallback(task) ?? 'custom',
+          screen: overlayResult.screen!.screen,
+          element: overlayResult.element?.element ?? null,
+          posture: overlayResult.posture ?? null,
+          override: overlayOverride.override,
+          snapshot_template: overlayResult.snapshotTemplate,
+        },
+        evidenceDrafts: [],
+        proposalDrafts: [],
+      };
+    }
+    recordExhaustion(exhaustion, 'confidence-overlay', 'failed', 'No approved-equivalent confidence overlay produced an executable target');
+
+    const translated = resolveWithTranslation(task, context.translate);
+    if (translated.observation) {
+      observations.push(translated.observation);
+    }
+    if (translated.translation?.matched && translated.screen && (!requiresElement(action) || translated.element) && (action !== 'assert-snapshot' || snapshotResult.snapshotTemplate)) {
+      recordExhaustion(exhaustion, 'structured-translation', 'resolved', translated.translation.rationale);
+      const translatedOverride = resolveOverride(task, translated.screen, translated.element, postureResult.posture, controlResolution, context);
+      return {
+        kind: 'resolved',
+        version: 1,
+        stage: 'resolution',
+        scope: 'step',
+        ids: {
+          adoId: null,
+          suite: null,
+          runId: null,
+          stepIndex: task.index,
+          dataset: selectedDataset(task, context)?.name ?? null,
+          runbook: selectedRunbook(task, context)?.name ?? null,
+          resolutionControl: context.controlSelection?.resolutionControl ?? selectedRunbook(task, context)?.resolutionControl ?? null,
+        },
+        fingerprints: {
+          artifact: task.taskFingerprint,
+          knowledge: task.runtimeKnowledge.knowledgeFingerprint,
+          task: task.taskFingerprint,
+          controls: task.runtimeKnowledge.confidenceFingerprint ?? null,
+          content: null,
+          run: null,
+        },
+        lineage: {
+          sources: [...controlRefs, ...evidenceRefs],
+          parents: [task.taskFingerprint],
+          handshakes: ['preparation', 'resolution'],
+        },
+        governance: 'approved',
+        taskFingerprint: task.taskFingerprint,
+        knowledgeFingerprint: task.runtimeKnowledge.knowledgeFingerprint,
+        provider: context.provider,
+        mode: context.mode,
+        runAt: context.runAt,
+        stepIndex: task.index,
+        resolutionMode: 'translation',
+        knowledgeRefs: uniqueSorted(knowledgeRefs),
+        supplementRefs: uniqueSorted(supplementRefs),
+        controlRefs,
+        evidenceRefs,
+        overlayRefs: translated.overlayRefs,
+        observations,
+        exhaustion,
+        handshakes: ['preparation', 'resolution'],
+        winningConcern: 'resolution',
+        winningSource: 'structured-translation',
+        translation: translated.translation,
+        confidence: 'agent-verified',
+        provenanceKind: 'approved-knowledge',
+        target: {
+          action: action ?? allowedActionFallback(task) ?? 'custom',
+          screen: translated.screen.screen,
+          element: translated.element?.element ?? null,
+          posture: postureResult.posture,
+          override: translatedOverride.override,
+          snapshot_template: snapshotResult.snapshotTemplate,
+        },
+        evidenceDrafts: [],
+        proposalDrafts: [],
+      };
+    }
+    recordExhaustion(exhaustion, 'structured-translation', context.translate ? 'failed' : 'skipped', context.translate ? 'Structured translation did not produce an executable target' : 'No structured translation stage was configured');
+
+    const domScreen = translated.screen ?? overlayResult.screen ?? screenResult.screen;
+    const domResolved = await resolveFromDom(context.page, task, domScreen, action);
     if (domResolved.observation) {
       observations.push(domResolved.observation);
     }
-    if (domResolved.element && action && screenResult.screen && (action !== 'assert-snapshot' || snapshotResult.snapshotTemplate)) {
-      const liveScreen = screenResult.screen;
+    if (domResolved.element && action && domScreen && (action !== 'assert-snapshot' || snapshotResult.snapshotTemplate)) {
+      const liveScreen = domScreen;
       const liveElement = domResolved.element;
       recordExhaustion(exhaustion, 'live-dom', 'attempted', `Live DOM resolved ${domResolved.element.element}`);
       recordExhaustion(exhaustion, 'safe-degraded-resolution', 'resolved', 'A single live-DOM candidate remained after deterministic priors exhausted');
@@ -616,13 +966,18 @@ export const deterministicRuntimeStepAgent: RuntimeStepAgent = {
         mode: context.mode,
         runAt: context.runAt,
         stepIndex: task.index,
+        resolutionMode: 'agentic',
         knowledgeRefs: uniqueSorted(knowledgeRefs),
         supplementRefs: uniqueSorted(supplementRefs),
+        controlRefs,
+        evidenceRefs,
+        overlayRefs: uniqueSorted([...overlayResult.overlayRefs, ...translated.overlayRefs]),
         observations,
         exhaustion,
         handshakes: ['preparation', 'resolution'],
         winningConcern: 'resolution',
         winningSource: 'live-dom',
+        translation: translated.translation,
         confidence: 'agent-proposed',
         provenanceKind: 'live-exploration',
         target: {
@@ -692,13 +1047,18 @@ export const deterministicRuntimeStepAgent: RuntimeStepAgent = {
       mode: context.mode,
       runAt: context.runAt,
       stepIndex: task.index,
+      resolutionMode: 'agentic',
       knowledgeRefs: uniqueSorted(knowledgeRefs),
       supplementRefs: uniqueSorted(supplementRefs),
+      controlRefs,
+      evidenceRefs,
+      overlayRefs: uniqueSorted([...overlayResult.overlayRefs, ...translated.overlayRefs]),
       observations,
       exhaustion,
       handshakes: ['preparation', 'resolution'],
       winningConcern: 'resolution',
       winningSource: 'none',
+      translation: translated.translation,
       confidence: 'unbound',
       provenanceKind: 'unresolved',
       reason: 'No safe executable interpretation remained after exhausting explicit constraints, approved knowledge, prior evidence, live DOM exploration, and degraded resolution.',

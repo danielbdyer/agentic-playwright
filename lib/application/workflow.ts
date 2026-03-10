@@ -14,7 +14,7 @@ const laneMap = [
   {
     lane: 'knowledge',
     owns: ['knowledge/surfaces/', 'knowledge/screens/', 'knowledge/patterns/', 'knowledge/snapshots/'],
-    precedence: ['approved knowledge priors', 'locator ladders', 'widget affordances'],
+    precedence: ['approved knowledge priors', 'approved-equivalent overlays', 'locator ladders', 'widget affordances'],
   },
   {
     lane: 'control',
@@ -24,7 +24,7 @@ const laneMap = [
   {
     lane: 'resolution',
     owns: ['.tesseract/tasks/', '.tesseract/runs/*/interpretation.json'],
-    precedence: ['scenario explicit', 'resolution control', 'knowledge priors', 'prior evidence', 'live DOM'],
+    precedence: ['scenario explicit', 'resolution control', 'approved knowledge priors', 'approved-equivalent overlays', 'structured translation', 'live DOM'],
   },
   {
     lane: 'execution',
@@ -121,8 +121,19 @@ export function inspectWorkflow(options: { paths: ProjectPaths; adoId?: AdoId | 
         flowCount: entry.artifact.flows.length,
         driftEventCount: entry.artifact.driftEvents.length,
       })),
+      confidence: catalog.confidenceCatalog ? {
+        artifactPath: catalog.confidenceCatalog.artifactPath,
+        total: catalog.confidenceCatalog.artifact.summary.total,
+        approvedEquivalentCount: catalog.confidenceCatalog.artifact.summary.approvedEquivalentCount,
+        needsReviewCount: catalog.confidenceCatalog.artifact.summary.needsReviewCount,
+      } : {
+        artifactPath: null,
+        total: 0,
+        approvedEquivalentCount: 0,
+        needsReviewCount: 0,
+      },
       precedence: {
-        resolution: ['scenario explicit', 'resolution controls', 'approved knowledge priors', 'prior evidence', 'live DOM', 'needs-human'],
+        resolution: ['scenario explicit', 'resolution controls', 'approved knowledge priors', 'approved-equivalent overlays', 'structured translation', 'live DOM', 'needs-human'],
         data: ['scenario explicit override', 'runbook dataset binding', 'dataset default', 'hint default value', 'posture sample', 'generated token'],
         runSelection: ['CLI flags', 'runbook', 'repo defaults'],
         runtime: ['locator ladder', 'widget affordance', 'live DOM degraded fallback'],

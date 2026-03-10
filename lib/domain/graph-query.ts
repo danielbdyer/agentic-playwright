@@ -9,6 +9,7 @@ function dependentNodesForEdge(edge: GraphEdge, nodes: Map<string, GraphNode>, c
     case 'derived-from':
     case 'references':
     case 'uses':
+    case 'learns-from':
     case 'asserts':
     case 'observed-by':
       return edge.to === current ? [edge.from] : [];
@@ -25,6 +26,8 @@ function dependentNodesForEdge(edge: GraphEdge, nodes: Map<string, GraphNode>, c
       }
       return [];
     }
+    default:
+      return [];
   }
 }
 

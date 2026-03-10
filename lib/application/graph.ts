@@ -4,6 +4,7 @@ import { deriveGraph } from '../domain/derived-graph';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
 import type {
   BoundScenarioGraphArtifact,
+  ConfidenceOverlayArtifact,
   DatasetControlArtifact,
   EvidenceArtifact,
   KnowledgeSnapshotArtifact,
@@ -92,6 +93,7 @@ export function buildDerivedGraph(
       ...catalog.runRecords.map((entry) => fingerprintProjectionArtifact('run', entry.artifactPath, entry.artifact)),
       ...catalog.proposalBundles.map((entry) => fingerprintProjectionArtifact('proposal-bundle', entry.artifactPath, entry.artifact)),
       ...catalog.evidenceRecords.map((entry) => fingerprintProjectionArtifact('evidence', entry.artifactPath, entry.artifact)),
+      ...(catalog.confidenceCatalog ? [fingerprintProjectionArtifact('confidence-overlay-catalog', catalog.confidenceCatalog.artifactPath, catalog.confidenceCatalog.artifact)] : []),
     ];
 
     const snapshots = catalog.snapshots.map(({ artifact, artifactPath }) => ({ artifact, artifactPath }));
@@ -107,6 +109,9 @@ export function buildDerivedGraph(
     const datasets: DatasetControlArtifact[] = catalog.datasets.map(({ artifact, artifactPath }) => ({ artifact, artifactPath }));
     const resolutionControls: ResolutionControlArtifact[] = catalog.resolutionControls.map(({ artifact, artifactPath }) => ({ artifact, artifactPath }));
     const runbooks: RunbookControlArtifact[] = catalog.runbooks.map(({ artifact, artifactPath }) => ({ artifact, artifactPath }));
+    const confidenceOverlays: ConfidenceOverlayArtifact[] = catalog.confidenceCatalog
+      ? [{ artifact: catalog.confidenceCatalog.artifact, artifactPath: catalog.confidenceCatalog.artifactPath }]
+      : [];
 
     const scenarios: ScenarioGraphArtifact[] = [];
     for (const entry of catalog.scenarios) {
@@ -225,6 +230,7 @@ export function buildDerivedGraph(
           datasets,
           resolutionControls,
           runbooks,
+          confidenceOverlays,
           scenarios,
           boundScenarios,
           taskPackets,

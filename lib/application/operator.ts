@@ -51,14 +51,15 @@ function inboxItemId(input: {
 function runStepMetadata(
   run: RunRecord | null,
   stepIndex: number | null,
-): { winningConcern: WorkflowLane | null; winningSource: StepWinningSource | null } {
+): { winningConcern: WorkflowLane | null; winningSource: StepWinningSource | null; resolutionMode: RunRecord['steps'][number]['interpretation']['resolutionMode'] | null } {
   if (!run || stepIndex === null) {
-    return { winningConcern: null, winningSource: null };
+    return { winningConcern: null, winningSource: null, resolutionMode: null };
   }
   const step = run.steps.find((entry) => entry.stepIndex === stepIndex) ?? null;
   return {
     winningConcern: step?.interpretation.winningConcern ?? null,
     winningSource: step?.interpretation.winningSource ?? null,
+    resolutionMode: step?.interpretation.resolutionMode ?? null,
   };
 }
 
@@ -114,6 +115,7 @@ export function buildOperatorInboxItems(catalog: WorkspaceCatalog): OperatorInbo
         targetPath: proposal.targetPath,
         winningConcern: metadata.winningConcern,
         winningSource: metadata.winningSource,
+        resolutionMode: metadata.resolutionMode,
         nextCommands: proposal.trustPolicy.decision === 'deny'
           ? uniqueSorted([
               `tesseract workflow --ado-id ${bundle.adoId}`,
@@ -150,6 +152,7 @@ export function buildOperatorInboxItems(catalog: WorkspaceCatalog): OperatorInbo
           targetPath: null,
           winningConcern: step.interpretation.winningConcern,
           winningSource: step.interpretation.winningSource,
+          resolutionMode: step.interpretation.resolutionMode,
           nextCommands: uniqueSorted([
             `tesseract workflow --ado-id ${run.adoId}`,
             `tesseract inbox`,
@@ -177,6 +180,35 @@ export function buildOperatorInboxItems(catalog: WorkspaceCatalog): OperatorInbo
           targetPath: null,
           winningConcern: step.interpretation.winningConcern,
           winningSource: step.interpretation.winningSource,
+          resolutionMode: step.interpretation.resolutionMode,
+          nextCommands: uniqueSorted([
+            `tesseract workflow --ado-id ${run.adoId}`,
+            `tesseract inbox`,
+          ]),
+        });
+      }
+
+      if (step.interpretation.winningSource === 'approved-equivalent' && step.execution.execution.status === 'ok') {
+        items.push({
+          id: inboxItemId({
+            kind: 'approved-equivalent',
+            adoId: run.adoId,
+            runId: run.runId,
+            stepIndex: step.stepIndex,
+          }),
+          kind: 'approved-equivalent',
+          status: 'informational',
+          title: `Approved-equivalent overlay on step ${step.stepIndex}`,
+          summary: `Step ${step.stepIndex} executed green using derived confidence overlays instead of approved canon.`,
+          adoId: run.adoId,
+          suite: run.suite,
+          runId: run.runId,
+          stepIndex: step.stepIndex,
+          artifactPath: null,
+          targetPath: step.interpretation.overlayRefs[0] ?? null,
+          winningConcern: step.interpretation.winningConcern,
+          winningSource: step.interpretation.winningSource,
+          resolutionMode: step.interpretation.resolutionMode,
           nextCommands: uniqueSorted([
             `tesseract workflow --ado-id ${run.adoId}`,
             `tesseract inbox`,
@@ -236,6 +268,7 @@ export function renderOperatorInboxMarkdown(items: readonly OperatorInboxItem[])
     lines.push(`- Target: ${item.targetPath ?? 'n/a'}`);
     lines.push(`- Winning concern: ${item.winningConcern ?? 'n/a'}`);
     lines.push(`- Winning source: ${item.winningSource ?? 'n/a'}`);
+    lines.push(`- Resolution mode: ${item.resolutionMode ?? 'n/a'}`);
     lines.push(`- Next commands: ${item.nextCommands.length > 0 ? item.nextCommands.join(' | ') : 'n/a'}`);
     lines.push('');
   }

@@ -7,7 +7,7 @@ import { buildOperatorInboxItems, findProposalById } from './operator';
 import { buildRerunPlan } from './rerun-plan';
 import type { ProjectPaths } from './paths';
 import { approvalReceiptPath, relativeProjectPath } from './paths';
-import { FileSystem } from './ports';
+import { ExecutionContext, FileSystem } from './ports';
 import type { ApprovalReceipt, ProposalEntry } from '../domain/types';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -82,6 +82,10 @@ export function approveProposal(options: {
 }) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
+    const executionContext = yield* ExecutionContext;
+    if (executionContext.posture.executionProfile === 'ci-batch') {
+      throw new Error('Approvals are disabled in ci-batch execution profile');
+    }
     const catalog = yield* loadWorkspaceCatalog({ paths: options.paths });
     const located = findProposalById(catalog, options.proposalId);
     if (!located) {

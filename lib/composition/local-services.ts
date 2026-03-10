@@ -21,6 +21,7 @@ function resolveExecutionPosture(posture?: Partial<ExecutionPosture> | undefined
     interpreterMode: posture?.interpreterMode ?? 'diagnostic',
     writeMode: posture?.writeMode ?? 'persist',
     headed: posture?.headed ?? false,
+    executionProfile: posture?.executionProfile ?? (process.env.CI ? 'ci-batch' : 'interactive'),
   };
 }
 

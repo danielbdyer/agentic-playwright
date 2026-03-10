@@ -82,6 +82,8 @@ type UnknownRecord = Record<string, unknown>;
 const scenarioStatuses = ['stub', 'draft', 'active', 'needs-repair', 'blocked', 'deprecated'] as const;
 const stepActions = ['navigate', 'input', 'click', 'assert-snapshot', 'custom'] as const;
 const confidences = ['human', 'agent-verified', 'agent-proposed', 'compiler-derived', 'intent-only', 'unbound'] as const;
+const executionProfiles = ['interactive', 'ci-batch'] as const;
+const resolutionModes = ['deterministic', 'translation', 'agentic'] as const;
 const valueRefKinds = ['literal', 'fixture-path', 'posture-sample', 'parameter-row', 'generated-token'] as const;
 const stepInstructionKinds = ['navigate', 'enter', 'invoke', 'observe-structure', 'custom-escape-hatch'] as const;
 const surfaceKinds = ['screen-root', 'form', 'action-cluster', 'validation-region', 'result-set', 'details-pane', 'modal', 'section-root'] as const;
@@ -93,14 +95,14 @@ const effectStates = ['validation-error', 'required-error', 'disabled', 'enabled
 const widgetActions = ['click', 'fill', 'clear', 'get-value'] as const;
 const widgetPreconditions = ['visible', 'enabled', 'editable'] as const;
 const widgetEffectCategories = ['mutation', 'observation', 'focus', 'navigation'] as const;
-const graphNodeKinds = ['snapshot', 'screen', 'screen-hints', 'pattern', 'dataset', 'resolution-control', 'runbook', 'section', 'surface', 'element', 'posture', 'capability', 'scenario', 'step', 'generated-spec', 'generated-trace', 'generated-review', 'evidence', 'policy-decision'] as const;
-const graphEdgeKinds = ['derived-from', 'contains', 'references', 'uses', 'affects', 'asserts', 'emits', 'observed-by', 'proposed-change-for', 'governs'] as const;
+const graphNodeKinds = ['snapshot', 'screen', 'screen-hints', 'pattern', 'confidence-overlay', 'dataset', 'resolution-control', 'runbook', 'section', 'surface', 'element', 'posture', 'capability', 'scenario', 'step', 'generated-spec', 'generated-trace', 'generated-review', 'evidence', 'policy-decision'] as const;
+const graphEdgeKinds = ['derived-from', 'contains', 'references', 'uses', 'learns-from', 'affects', 'asserts', 'emits', 'observed-by', 'proposed-change-for', 'governs'] as const;
 const diagnosticSeverities = ['info', 'warn', 'error'] as const;
 const diagnosticConfidences = ['human', 'agent-verified', 'agent-proposed', 'compiler-derived', 'intent-only', 'unbound', 'mixed'] as const;
 const workflowStages = ['preparation', 'resolution', 'execution', 'evidence', 'proposal', 'projection'] as const;
 const workflowScopes = ['scenario', 'step', 'run', 'suite', 'workspace', 'control'] as const;
 const workflowLanes = ['intent', 'knowledge', 'control', 'resolution', 'execution', 'governance', 'projection'] as const;
-const stepWinningSources = ['scenario-explicit', 'resolution-control', 'runbook-dataset', 'default-dataset', 'knowledge-hint', 'posture-sample', 'generated-token', 'approved-knowledge', 'prior-evidence', 'live-dom', 'none'] as const;
+const stepWinningSources = ['scenario-explicit', 'resolution-control', 'runbook-dataset', 'default-dataset', 'knowledge-hint', 'posture-sample', 'generated-token', 'approved-knowledge', 'approved-equivalent', 'prior-evidence', 'structured-translation', 'live-dom', 'none'] as const;
 
 function expectRecord(value: unknown, path: string): UnknownRecord {
   if (!value || Array.isArray(value) || typeof value !== 'object') {
@@ -764,15 +766,47 @@ function validateStepTaskScreenCandidate(value: unknown, path: string) {
   };
 }
 
+function validateArtifactConfidenceRecord(value: unknown, path: string) {
+  const record = expectRecord(value, path);
+  const lineage = expectRecord(record.lineage ?? {}, `${path}.lineage`);
+  return {
+    id: expectString(record.id, `${path}.id`),
+    artifactType: validateTrustPolicyArtifactType(record.artifactType, `${path}.artifactType`),
+    artifactPath: expectString(record.artifactPath, `${path}.artifactPath`),
+    score: expectNumber(record.score, `${path}.score`),
+    threshold: expectNumber(record.threshold, `${path}.threshold`),
+    status: expectEnum(record.status, `${path}.status`, ['learning', 'approved-equivalent', 'needs-review'] as const),
+    successCount: expectNumber(record.successCount, `${path}.successCount`),
+    failureCount: expectNumber(record.failureCount, `${path}.failureCount`),
+    evidenceCount: expectNumber(record.evidenceCount, `${path}.evidenceCount`),
+    screen: expectOptionalId(record.screen, `${path}.screen`, createScreenId) ?? null,
+    element: expectOptionalId(record.element, `${path}.element`, createElementId) ?? null,
+    posture: expectOptionalId(record.posture, `${path}.posture`, createPostureId) ?? null,
+    snapshotTemplate: expectOptionalId(record.snapshotTemplate, `${path}.snapshotTemplate`, createSnapshotTemplateId) ?? null,
+    learnedAliases: expectStringArray(record.learnedAliases ?? [], `${path}.learnedAliases`),
+    lastSuccessAt: expectOptionalString(record.lastSuccessAt, `${path}.lastSuccessAt`) ?? null,
+    lastFailureAt: expectOptionalString(record.lastFailureAt, `${path}.lastFailureAt`) ?? null,
+    lineage: {
+      runIds: expectStringArray(lineage.runIds ?? [], `${path}.lineage.runIds`),
+      evidenceIds: expectStringArray(lineage.evidenceIds ?? [], `${path}.lineage.evidenceIds`),
+      sourceArtifactPaths: expectStringArray(lineage.sourceArtifactPaths ?? [], `${path}.lineage.sourceArtifactPaths`),
+    },
+  };
+}
+
 function validateRuntimeKnowledgeSession(value: unknown, path: string) {
   const session = expectRecord(value, path);
   return {
     knowledgeFingerprint: expectString(session.knowledgeFingerprint, `${path}.knowledgeFingerprint`),
+    confidenceFingerprint: expectOptionalString(session.confidenceFingerprint, `${path}.confidenceFingerprint`) ?? null,
     sharedPatterns: validateSharedPatterns(session.sharedPatterns),
     screens: expectArray(session.screens ?? [], `${path}.screens`).map((entry, index) =>
       validateStepTaskScreenCandidate(entry, `${path}.screens[${index}]`),
     ),
     evidenceRefs: expectStringArray(session.evidenceRefs ?? [], `${path}.evidenceRefs`),
+    confidenceOverlays: expectArray(session.confidenceOverlays ?? [], `${path}.confidenceOverlays`).map((entry, index) =>
+      validateArtifactConfidenceRecord(entry, `${path}.confidenceOverlays[${index}]`),
+    ),
     controls: (() => {
       const controls = expectRecord(session.controls ?? {}, `${path}.controls`);
       return {
@@ -888,7 +922,7 @@ export function validateScenarioTaskPacket(value: unknown): ScenarioTaskPacket {
 function validateResolutionObservation(value: unknown, path: string) {
   const observation = expectRecord(value, path);
   return {
-    source: expectEnum(observation.source, `${path}.source`, ['knowledge', 'evidence', 'dom', 'runtime'] as const),
+    source: expectEnum(observation.source, `${path}.source`, ['knowledge', 'evidence', 'overlay', 'translation', 'dom', 'runtime'] as const),
     summary: expectString(observation.summary, `${path}.summary`),
     detail: observation.detail === undefined ? undefined : expectStringRecord(observation.detail, `${path}.detail`),
   };
@@ -897,7 +931,7 @@ function validateResolutionObservation(value: unknown, path: string) {
 function validateResolutionExhaustionEntry(value: unknown, path: string) {
   const entry = expectRecord(value, path);
   return {
-    stage: expectEnum(entry.stage, `${path}.stage`, ['explicit', 'approved-screen-bundle', 'local-hints', 'shared-patterns', 'prior-evidence', 'live-dom', 'safe-degraded-resolution'] as const),
+    stage: expectEnum(entry.stage, `${path}.stage`, ['explicit', 'approved-screen-bundle', 'local-hints', 'shared-patterns', 'prior-evidence', 'confidence-overlay', 'structured-translation', 'live-dom', 'safe-degraded-resolution'] as const),
     outcome: expectEnum(entry.outcome, `${path}.outcome`, ['attempted', 'resolved', 'skipped', 'failed'] as const),
     reason: expectString(entry.reason, `${path}.reason`),
   };
@@ -945,6 +979,47 @@ function validateResolutionTarget(value: unknown, path: string) {
   };
 }
 
+function validateTranslationReceipt(value: unknown, path: string) {
+  const receipt = expectRecord(value, path);
+  return {
+    kind: expectEnum(receipt.kind, `${path}.kind`, ['translation-receipt'] as const),
+    version: expectNumber(receipt.version, `${path}.version`) as 1,
+    mode: expectEnum(receipt.mode, `${path}.mode`, ['structured-translation'] as const),
+    matched: expectBoolean(receipt.matched, `${path}.matched`),
+    selected: receipt.selected === undefined || receipt.selected === null
+      ? null
+      : (() => {
+          const candidate = expectRecord(receipt.selected, `${path}.selected`);
+          return {
+            kind: expectEnum(candidate.kind, `${path}.selected.kind`, ['screen', 'element', 'posture', 'snapshot-template'] as const),
+            target: expectString(candidate.target, `${path}.selected.target`),
+            screen: expectOptionalId(candidate.screen, `${path}.selected.screen`, createScreenId) ?? null,
+            element: expectOptionalId(candidate.element, `${path}.selected.element`, createElementId) ?? null,
+            posture: expectOptionalId(candidate.posture, `${path}.selected.posture`, createPostureId) ?? null,
+            snapshotTemplate: expectOptionalId(candidate.snapshotTemplate, `${path}.selected.snapshotTemplate`, createSnapshotTemplateId) ?? null,
+            aliases: expectStringArray(candidate.aliases ?? [], `${path}.selected.aliases`),
+            score: expectNumber(candidate.score, `${path}.selected.score`),
+            sourceRefs: expectStringArray(candidate.sourceRefs ?? [], `${path}.selected.sourceRefs`),
+          };
+        })(),
+    candidates: expectArray(receipt.candidates ?? [], `${path}.candidates`).map((entry, index) => {
+      const candidate = expectRecord(entry, `${path}.candidates[${index}]`);
+      return {
+        kind: expectEnum(candidate.kind, `${path}.candidates[${index}].kind`, ['screen', 'element', 'posture', 'snapshot-template'] as const),
+        target: expectString(candidate.target, `${path}.candidates[${index}].target`),
+        screen: expectOptionalId(candidate.screen, `${path}.candidates[${index}].screen`, createScreenId) ?? null,
+        element: expectOptionalId(candidate.element, `${path}.candidates[${index}].element`, createElementId) ?? null,
+        posture: expectOptionalId(candidate.posture, `${path}.candidates[${index}].posture`, createPostureId) ?? null,
+        snapshotTemplate: expectOptionalId(candidate.snapshotTemplate, `${path}.candidates[${index}].snapshotTemplate`, createSnapshotTemplateId) ?? null,
+        aliases: expectStringArray(candidate.aliases ?? [], `${path}.candidates[${index}].aliases`),
+        score: expectNumber(candidate.score, `${path}.candidates[${index}].score`),
+        sourceRefs: expectStringArray(candidate.sourceRefs ?? [], `${path}.candidates[${index}].sourceRefs`),
+      };
+    }),
+    rationale: expectString(receipt.rationale, `${path}.rationale`),
+  };
+}
+
 function validateResolutionReceipt(value: unknown, path: string): ResolutionReceipt {
   const receipt = expectRecord(value, path);
   const header = validateWorkflowEnvelopeHeader(receipt, path, {
@@ -969,8 +1044,12 @@ function validateResolutionReceipt(value: unknown, path: string): ResolutionRece
     mode: expectString(receipt.mode, `${path}.mode`),
     runAt: expectString(receipt.runAt, `${path}.runAt`),
     stepIndex: expectNumber(receipt.stepIndex, `${path}.stepIndex`),
+    resolutionMode: expectEnum(receipt.resolutionMode ?? 'deterministic', `${path}.resolutionMode`, resolutionModes),
     knowledgeRefs: expectStringArray(receipt.knowledgeRefs ?? [], `${path}.knowledgeRefs`),
     supplementRefs: expectStringArray(receipt.supplementRefs ?? [], `${path}.supplementRefs`),
+    controlRefs: expectStringArray(receipt.controlRefs ?? [], `${path}.controlRefs`),
+    evidenceRefs: expectStringArray(receipt.evidenceRefs ?? [], `${path}.evidenceRefs`),
+    overlayRefs: expectStringArray(receipt.overlayRefs ?? [], `${path}.overlayRefs`),
     observations: expectArray(receipt.observations ?? [], `${path}.observations`).map((entry, index) =>
       validateResolutionObservation(entry, `${path}.observations[${index}]`),
     ),
@@ -992,6 +1071,9 @@ function validateResolutionReceipt(value: unknown, path: string): ResolutionRece
     winningSource: receipt.winningSource === undefined
       ? 'none'
       : expectEnum(receipt.winningSource, `${path}.winningSource`, stepWinningSources),
+    translation: receipt.translation === undefined || receipt.translation === null
+      ? null
+      : validateTranslationReceipt(receipt.translation, `${path}.translation`),
   };
   const kind = expectEnum(receipt.kind, `${path}.kind`, ['resolved', 'resolved-with-proposals', 'needs-human'] as const);
   if (kind === 'needs-human') {
@@ -1045,8 +1127,21 @@ function validateStepExecutionReceipt(value: unknown, path: string): StepExecuti
     knowledgeFingerprint: expectString(receipt.knowledgeFingerprint, `${path}.knowledgeFingerprint`),
     runAt: expectString(receipt.runAt, `${path}.runAt`),
     mode: expectString(receipt.mode, `${path}.mode`),
+    widgetContract: expectOptionalString(receipt.widgetContract, `${path}.widgetContract`) ?? null,
     locatorStrategy: expectOptionalString(receipt.locatorStrategy, `${path}.locatorStrategy`) ?? null,
+    locatorRung: receipt.locatorRung === undefined || receipt.locatorRung === null
+      ? null
+      : expectNumber(receipt.locatorRung, `${path}.locatorRung`),
     degraded: expectBoolean(receipt.degraded, `${path}.degraded`),
+    preconditionFailures: expectStringArray(receipt.preconditionFailures ?? [], `${path}.preconditionFailures`),
+    durationMs: expectNumber(receipt.durationMs ?? 0, `${path}.durationMs`),
+    cost: (() => {
+      const cost = expectRecord(receipt.cost ?? { instructionCount: 0, diagnosticCount: 0 }, `${path}.cost`);
+      return {
+        instructionCount: expectNumber(cost.instructionCount, `${path}.cost.instructionCount`),
+        diagnosticCount: expectNumber(cost.diagnosticCount, `${path}.cost.diagnosticCount`),
+      };
+    })(),
     handshakes: expectArray(receipt.handshakes ?? ['preparation', 'resolution', 'execution'], `${path}.handshakes`).map((entry, index) =>
       expectEnum(entry, `${path}.handshakes[${index}]`, workflowStages),
     ) as WorkflowStage[],
@@ -1542,7 +1637,7 @@ export function validateOperatorInboxItem(value: unknown): OperatorInboxItem {
   const item = expectRecord(value, 'operatorInboxItem');
   return {
     id: expectString(item.id, 'operatorInboxItem.id'),
-    kind: expectEnum(item.kind, 'operatorInboxItem.kind', ['proposal', 'degraded-locator', 'needs-human', 'blocked-policy'] as const),
+    kind: expectEnum(item.kind, 'operatorInboxItem.kind', ['proposal', 'degraded-locator', 'needs-human', 'blocked-policy', 'approved-equivalent'] as const),
     status: expectEnum(item.status, 'operatorInboxItem.status', ['actionable', 'approved', 'blocked', 'informational'] as const),
     title: expectString(item.title, 'operatorInboxItem.title'),
     summary: expectString(item.summary, 'operatorInboxItem.summary'),
@@ -1567,10 +1662,15 @@ export function validateOperatorInboxItem(value: unknown): OperatorInboxItem {
         'posture-sample',
         'generated-token',
         'approved-knowledge',
+        'approved-equivalent',
         'prior-evidence',
+        'structured-translation',
         'live-dom',
         'none',
       ] as const),
+    resolutionMode: item.resolutionMode === undefined || item.resolutionMode === null
+      ? null
+      : expectEnum(item.resolutionMode, 'operatorInboxItem.resolutionMode', resolutionModes),
     nextCommands: expectStringArray(item.nextCommands ?? [], 'operatorInboxItem.nextCommands'),
   };
 }
@@ -1605,7 +1705,26 @@ export function validateRerunPlan(value: unknown): RerunPlan {
     impactedProjections: expectArray(plan.impactedProjections ?? [], 'rerunPlan.impactedProjections').map((entry, index) =>
       expectEnum(entry, `rerunPlan.impactedProjections[${index}]`, ['emit', 'graph', 'types', 'run'] as const),
     ),
+    impactedConfidenceRecords: expectStringArray(plan.impactedConfidenceRecords ?? [], 'rerunPlan.impactedConfidenceRecords'),
     reasons: expectStringArray(plan.reasons ?? [], 'rerunPlan.reasons'),
+  };
+}
+
+export function validateConfidenceOverlayCatalog(value: unknown) {
+  const catalog = expectRecord(value, 'confidenceOverlayCatalog');
+  const summary = expectRecord(catalog.summary ?? {}, 'confidenceOverlayCatalog.summary');
+  return {
+    kind: expectEnum(catalog.kind, 'confidenceOverlayCatalog.kind', ['confidence-overlay-catalog'] as const),
+    version: expectNumber(catalog.version, 'confidenceOverlayCatalog.version') as 1,
+    generatedAt: expectString(catalog.generatedAt, 'confidenceOverlayCatalog.generatedAt'),
+    records: expectArray(catalog.records ?? [], 'confidenceOverlayCatalog.records').map((entry, index) =>
+      validateArtifactConfidenceRecord(entry, `confidenceOverlayCatalog.records[${index}]`),
+    ),
+    summary: {
+      total: expectNumber(summary.total, 'confidenceOverlayCatalog.summary.total'),
+      approvedEquivalentCount: expectNumber(summary.approvedEquivalentCount, 'confidenceOverlayCatalog.summary.approvedEquivalentCount'),
+      needsReviewCount: expectNumber(summary.needsReviewCount, 'confidenceOverlayCatalog.summary.needsReviewCount'),
+    },
   };
 }
 
@@ -1697,6 +1816,12 @@ export function validateBenchmarkScorecard(value: unknown): BenchmarkScorecard {
         .map(([key, entry]) => [key, expectNumber(entry, `benchmarkScorecard.knowledgeChurn.${key}`)]),
     ),
     generatedVariantCount: expectNumber(scorecard.generatedVariantCount, 'benchmarkScorecard.generatedVariantCount'),
+    translationHitRate: expectNumber(scorecard.translationHitRate ?? 0, 'benchmarkScorecard.translationHitRate'),
+    agenticHitRate: expectNumber(scorecard.agenticHitRate ?? 0, 'benchmarkScorecard.agenticHitRate'),
+    approvedEquivalentCount: expectNumber(scorecard.approvedEquivalentCount ?? 0, 'benchmarkScorecard.approvedEquivalentCount'),
+    thinKnowledgeScreenCount: expectNumber(scorecard.thinKnowledgeScreenCount ?? 0, 'benchmarkScorecard.thinKnowledgeScreenCount'),
+    degradedLocatorHotspotCount: expectNumber(scorecard.degradedLocatorHotspotCount ?? 0, 'benchmarkScorecard.degradedLocatorHotspotCount'),
+    overlayChurn: expectNumber(scorecard.overlayChurn ?? 0, 'benchmarkScorecard.overlayChurn'),
     thresholdStatus: expectEnum(scorecard.thresholdStatus, 'benchmarkScorecard.thresholdStatus', ['pass', 'warn', 'fail'] as const),
   };
 }
@@ -1715,6 +1840,7 @@ export function validateDogfoodRun(value: unknown): DogfoodRun {
         interpreterMode: expectEnum(posture.interpreterMode, 'dogfoodRun.posture.interpreterMode', ['playwright', 'dry-run', 'diagnostic'] as const),
         writeMode: expectEnum(posture.writeMode, 'dogfoodRun.posture.writeMode', ['persist', 'no-write'] as const),
         headed: expectBoolean(posture.headed, 'dogfoodRun.posture.headed'),
+        executionProfile: expectEnum(posture.executionProfile ?? 'interactive', 'dogfoodRun.posture.executionProfile', executionProfiles),
       };
     })(),
     runbooks: expectStringArray(run.runbooks ?? [], 'dogfoodRun.runbooks'),

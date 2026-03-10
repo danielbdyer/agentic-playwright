@@ -1,6 +1,7 @@
 import path from 'path';
 import { Effect } from 'effect';
 import { proposalIdForEntry } from './operator';
+import { projectConfidenceOverlayCatalog } from './confidence';
 import { activeDatasetForRun, findRunbook, resolveRunSelection } from './controls';
 import { evaluateArtifactPolicy } from './trust-policy';
 import { buildDerivedGraph } from './graph';
@@ -372,6 +373,7 @@ export function runScenario(options: {
     yield* fs.writeJson(runFile, runRecord);
     yield* fs.writeJson(proposalsFile, proposalBundle);
 
+    const confidence = yield* projectConfidenceOverlayCatalog({ paths: options.paths });
     const emitted = yield* emitScenario({ adoId: options.adoId, paths: options.paths });
     const graph = yield* buildDerivedGraph({ paths: options.paths });
     const inbox = yield* emitOperatorInbox({ paths: options.paths, filter: { adoId: options.adoId } });
@@ -385,6 +387,7 @@ export function runScenario(options: {
       runPath: runFile,
       proposalsPath: proposalsFile,
       evidence: evidenceWrites.map((entry) => entry.absolutePath),
+      confidence,
       emitted,
       graph,
       inbox,

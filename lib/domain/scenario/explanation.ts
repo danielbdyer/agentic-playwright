@@ -23,16 +23,28 @@ function runtimeStatusForStep(run: RunRecord | null | undefined, stepIndex: numb
     return {
       status: 'pending',
       runId: null,
+      resolutionMode: null,
+      widgetContract: null,
       locatorStrategy: null,
+      locatorRung: null,
       degraded: false,
+      preconditionFailures: [],
+      durationMs: 0,
+      exhaustion: [],
     };
   }
 
   return {
     status: runStep.interpretation.kind,
     runId: run?.runId ?? null,
+    resolutionMode: runStep.interpretation.resolutionMode,
+    widgetContract: runStep.execution.widgetContract ?? null,
     locatorStrategy: runStep.execution.locatorStrategy ?? null,
+    locatorRung: runStep.execution.locatorRung ?? null,
     degraded: runStep.execution.degraded,
+    preconditionFailures: runStep.execution.preconditionFailures,
+    durationMs: runStep.execution.durationMs,
+    exhaustion: runStep.interpretation.exhaustion,
   };
 }
 
@@ -73,6 +85,9 @@ export function explainBoundScenario(boundScenario: BoundScenario, lifecycle: Sc
     ruleId: step.binding.ruleId,
     knowledgeRefs: latestRun?.steps.find((runStep) => runStep.stepIndex === step.index)?.interpretation.knowledgeRefs ?? step.binding.knowledgeRefs,
     supplementRefs: latestRun?.steps.find((runStep) => runStep.stepIndex === step.index)?.interpretation.supplementRefs ?? step.binding.supplementRefs,
+    controlRefs: latestRun?.steps.find((runStep) => runStep.stepIndex === step.index)?.interpretation.controlRefs ?? [],
+    evidenceRefs: latestRun?.steps.find((runStep) => runStep.stepIndex === step.index)?.interpretation.evidenceRefs ?? [],
+    overlayRefs: latestRun?.steps.find((runStep) => runStep.stepIndex === step.index)?.interpretation.overlayRefs ?? [],
     reviewReasons: step.binding.reviewReasons,
     unresolvedGaps: (() => {
       const runStep = latestRun?.steps.find((candidate) => candidate.stepIndex === step.index);
@@ -91,6 +106,8 @@ export function explainBoundScenario(boundScenario: BoundScenario, lifecycle: Sc
     handshakes: latestRun?.steps.find((runStep) => runStep.stepIndex === step.index)?.interpretation.handshakes ?? ['preparation'],
     winningConcern: latestRun?.steps.find((runStep) => runStep.stepIndex === step.index)?.interpretation.winningConcern ?? 'intent',
     winningSource: latestRun?.steps.find((runStep) => runStep.stepIndex === step.index)?.interpretation.winningSource ?? (step.resolution ? 'scenario-explicit' : step.binding.kind === 'deferred' ? 'none' : 'approved-knowledge'),
+    resolutionMode: latestRun?.steps.find((runStep) => runStep.stepIndex === step.index)?.interpretation.resolutionMode ?? 'deterministic',
+    translation: latestRun?.steps.find((runStep) => runStep.stepIndex === step.index)?.interpretation.translation ?? null,
     runtime: runtimeStatusForStep(latestRun, step.index),
   }));
   const provenanceKinds = steps.reduce<Record<StepProvenanceKind, number>>((counts, step) => {
@@ -126,10 +143,13 @@ export function explainBoundScenario(boundScenario: BoundScenario, lifecycle: Sc
       return left.reason.localeCompare(right.reason);
     });
   const knowledgeHits = steps.filter((step) => step.provenanceKind === 'approved-knowledge').length;
+  const translationHits = steps.filter((step) => step.resolutionMode === 'translation').length;
+  const agenticHits = steps.filter((step) => step.resolutionMode === 'agentic').length;
   const liveExplorationHits = steps.filter((step) => step.provenanceKind === 'live-exploration').length;
   const degradedHits = steps.filter((step) => step.runtime?.degraded).length;
   const proposalCount = latestRun?.steps.reduce((count, step) => count + step.interpretation.proposalDrafts.length, 0) ?? 0;
   const reviewRequiredCount = steps.filter((step) => step.governance === 'review-required').length;
+  const approvedEquivalentHits = steps.filter((step) => step.winningSource === 'approved-equivalent').length;
   const rate = (value: number) => Number((steps.length === 0 ? 0 : value / steps.length).toFixed(2));
 
   return {
@@ -147,10 +167,13 @@ export function explainBoundScenario(boundScenario: BoundScenario, lifecycle: Sc
       governance,
       stageMetrics: {
         knowledgeHitRate: rate(knowledgeHits),
+        translationHitRate: rate(translationHits),
+        agenticHitRate: rate(agenticHits),
         liveExplorationRate: rate(liveExplorationHits),
         degradedLocatorRate: rate(degradedHits),
         proposalCount,
         reviewRequiredCount,
+        approvedEquivalentRate: rate(approvedEquivalentHits),
       },
       unresolvedReasons,
     },

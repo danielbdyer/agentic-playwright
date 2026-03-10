@@ -10,6 +10,8 @@ import type {
   ScenarioStep,
   StepExecutionReceipt,
   StepTask,
+  TranslationRequest,
+  TranslationReceipt,
 } from '../domain/types';
 import { runStaticInterpreter } from './interpreters/execute';
 import type { InterpreterMode, InterpreterScreenRegistry } from './interpreters/types';
@@ -25,6 +27,7 @@ export interface RuntimeScenarioEnvironment {
     dataset?: string | null | undefined;
     resolutionControl?: string | null | undefined;
   } | undefined;
+  translator?: ((request: TranslationRequest) => TranslationReceipt) | undefined;
   fixtures: Record<string, unknown>;
   screens: InterpreterScreenRegistry;
   snapshotLoader: SnapshotTemplateLoader;
@@ -79,6 +82,7 @@ export async function runScenarioStep(
   state: ScenarioRunState,
   context?: { adoId: AdoId; artifactPath?: string | undefined; revision?: number | undefined; contentHash?: string | undefined },
 ): Promise<ScenarioStepRunResult> {
+  const startedAt = Date.now();
   const runAt = new Date().toISOString();
   const agent = environment.agent ?? deterministicRuntimeStepAgent;
   const interpretation = await agent.resolve(task, {
@@ -87,6 +91,7 @@ export async function runScenarioStep(
     provider: environment.provider,
     mode: environment.mode,
     runAt,
+    translate: environment.translator,
     controlSelection: environment.controlSelection,
   });
 
@@ -125,8 +130,16 @@ export async function runScenarioStep(
         knowledgeFingerprint: task.runtimeKnowledge.knowledgeFingerprint,
         runAt,
         mode: environment.mode,
+        widgetContract: null,
         locatorStrategy: null,
+        locatorRung: null,
         degraded: false,
+        preconditionFailures: [],
+        durationMs: 0,
+        cost: {
+          instructionCount: 0,
+          diagnosticCount: 1,
+        },
         handshakes: ['preparation', 'resolution', 'execution'],
         execution: {
           status: 'skipped',
@@ -168,6 +181,14 @@ export async function runScenarioStep(
       );
 
   const firstOutcome = result.value.outcomes[0];
+  const diagnostics = result.ok
+    ? []
+    : result.diagnostic
+      ? executionDiagnosticsFromError(result.diagnostic.code, result.diagnostic.message)
+      : executionDiagnosticsFromError(result.error.code, result.error.message, result.error.context);
+  const preconditionFailures = diagnostics
+    .filter((diagnostic) => diagnostic.code === 'runtime-widget-precondition-failed')
+    .map((diagnostic) => diagnostic.message);
   const execution: StepExecutionReceipt = {
     version: 1,
     stage: 'execution',
@@ -200,8 +221,16 @@ export async function runScenarioStep(
     knowledgeFingerprint: task.runtimeKnowledge.knowledgeFingerprint,
     runAt,
     mode: environment.mode,
+    widgetContract: firstOutcome?.widgetContract ?? null,
     locatorStrategy: firstOutcome?.locatorStrategy,
+    locatorRung: firstOutcome?.locatorRung ?? null,
     degraded: Boolean(firstOutcome?.observedEffects.includes('degraded-locator')),
+    preconditionFailures,
+    durationMs: Date.now() - startedAt,
+    cost: {
+      instructionCount: result.value.outcomes.length,
+      diagnosticCount: diagnostics.length,
+    },
     handshakes: ['preparation', 'resolution', 'execution'],
     execution: result.ok
       ? {
@@ -212,9 +241,7 @@ export async function runScenarioStep(
       : {
           status: 'failed',
           observedEffects: firstOutcome?.observedEffects ?? [],
-          diagnostics: result.diagnostic
-            ? executionDiagnosticsFromError(result.diagnostic.code, result.diagnostic.message)
-            : executionDiagnosticsFromError(result.error.code, result.error.message, result.error.context),
+          diagnostics,
         },
   };
 

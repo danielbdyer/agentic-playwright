@@ -1,6 +1,6 @@
 ﻿# Tesseract
 
-Tesseract is a deterministic preparation pipeline plus a knowledge-backed runtime agent for QA intent.
+Tesseract is a deterministic preparation pipeline plus a bounded translation bridge and a knowledge-backed runtime agent for QA intent.
 
 It ingests Azure DevOps manual test cases, preserves their wording as canonical scenario IR, projects resolvable deterministic artifacts, and emits disposable Playwright object code plus review surfaces. The goal is not to hand-author tests faster. The goal is to make executable verification a transparent collaboration loop between approved knowledge, runtime interpretation, and human oversight.
 
@@ -24,6 +24,7 @@ Approved, reviewable inputs:
 Derived outputs. Do not hand-edit:
 
 - `.tesseract/bound/`
+- `.tesseract/confidence/`
 - `.tesseract/benchmarks/`
 - `.tesseract/inbox/`
 - `.tesseract/tasks/`
@@ -73,6 +74,7 @@ Trust policy review applies only to proposed canonical changes such as:
 This is the operating rule for agents in this repo:
 
 - compiler output derived from approved knowledge does not wait for human blessing
+- approved-equivalent confidence overlays can participate in resolution without rewriting canon
 - proposed new knowledge does
 - `needs-human` is valid only after all non-human paths were exhausted
 
@@ -97,6 +99,7 @@ Runtime execution adds:
 - `.tesseract/runs/{ado_id}/{run_id}/interpretation.json`
 - `.tesseract/runs/{ado_id}/{run_id}/execution.json`
 - `.tesseract/runs/{ado_id}/{run_id}/run.json`
+- `.tesseract/confidence/index.json`
 - `.tesseract/inbox/index.json`
 - `.tesseract/policy/approvals/{proposal_id}.approval.json`
 - `.tesseract/benchmarks/{benchmark}/{run_id}.dogfood-run.json`
@@ -117,11 +120,13 @@ Resolution:
 
 1. explicit scenario fields
 2. `controls/resolution/*.resolution.yaml`
-3. approved screen knowledge and screen-local hints in `knowledge/screens/{screen}.hints.yaml`
-4. promoted shared patterns in `knowledge/patterns/`
-5. prior evidence and run history
+3. approved knowledge priors from screens, hints, patterns, and deterministic heuristics
+4. approved-equivalent confidence overlays from `.tesseract/confidence/index.json`
+5. structured translation over typed ontology candidates
 6. live DOM exploration and safe degraded resolution
 7. `needs-human`
+
+Prior evidence and run history feed overlays, translation, and the runtime agent. They are not a separate winning tier.
 
 Data:
 
@@ -220,6 +225,7 @@ Global operator flags for mutating commands:
 
 - `--no-write`: compute and project results, but keep writes in the would-write ledger
 - `--baseline`: alias for `--no-write --interpreter-mode dry-run`
+- `--ci-batch` or `--execution-profile ci-batch`: force headless non-interactive execution, allow proposal generation, and forbid approval/apply behavior
 
 ## Quality Gate
 
@@ -245,6 +251,7 @@ Output policy:
 | `.tesseract/bound/{ado_id}.json` | bound scenario with provenance and governance | derived |
 | `.tesseract/tasks/{ado_id}.resolution.json` | runtime task packet and knowledge handshake | derived |
 | `.tesseract/runs/{ado_id}/{run_id}/run.json` | interpretation + execution receipts | derived |
+| `.tesseract/confidence/index.json` | derived confidence overlay catalog and approved-equivalent working knowledge | derived |
 | `.tesseract/inbox/index.json` | derived operator inbox surface | derived |
 | `.tesseract/policy/approvals/{proposal_id}.approval.json` | durable approval receipt | derived |
 | `.tesseract/benchmarks/{benchmark}/{run_id}.dogfood-run.json` | benchmark execution ledger | derived |
@@ -285,6 +292,8 @@ The system should make it obvious which steps are:
 - `compiler-derived` from approved knowledge only
 - `intent-only` and intentionally deferred to runtime
 - resolved from approved knowledge at runtime
+- resolved from approved-equivalent confidence overlays
+- resolved through structured translation over known ontology
 - resolved through live exploration with reviewable proposals
 - still `unbound` because explicit structure contradicts approved knowledge
 - blocked by `needs-human` after all non-human paths were exhausted

@@ -82,10 +82,13 @@ function renderReview(trace: ScenarioExplanation, proposalBundle: ProposalBundle
     `- Step provenance: explicit=${trace.summary.provenanceKinds.explicit}, approved-knowledge=${trace.summary.provenanceKinds['approved-knowledge']}, live-exploration=${trace.summary.provenanceKinds['live-exploration']}, unresolved=${trace.summary.provenanceKinds.unresolved}`,
     `- Governance counts: approved=${trace.summary.governance.approved}, review-required=${trace.summary.governance['review-required']}, blocked=${trace.summary.governance.blocked}`,
     `- Knowledge hit rate: ${trace.summary.stageMetrics.knowledgeHitRate}`,
+    `- Translation hit rate: ${trace.summary.stageMetrics.translationHitRate}`,
+    `- Agentic hit rate: ${trace.summary.stageMetrics.agenticHitRate}`,
     `- Live exploration rate: ${trace.summary.stageMetrics.liveExplorationRate}`,
     `- Degraded locator rate: ${trace.summary.stageMetrics.degradedLocatorRate}`,
     `- Proposal count: ${trace.summary.stageMetrics.proposalCount}`,
     `- Review-required count: ${trace.summary.stageMetrics.reviewRequiredCount}`,
+    `- Approved-equivalent rate: ${trace.summary.stageMetrics.approvedEquivalentRate}`,
     `- Unresolved gaps: ${trace.summary.unresolvedReasons.length > 0 ? trace.summary.unresolvedReasons.map((entry) => `${entry.reason} (${entry.count})`).join(', ') : 'none'}`,
     '',
   ];
@@ -102,13 +105,23 @@ function renderReview(trace: ScenarioExplanation, proposalBundle: ProposalBundle
     lines.push(`- Binding kind: ${step.bindingKind}`);
     lines.push(`- Governance: ${step.governance}`);
     lines.push(`- Handshakes: ${step.handshakes.join(' -> ')}`);
+    lines.push(`- Resolution mode: ${step.resolutionMode}`);
     lines.push(`- Winning concern: ${step.winningConcern}`);
     lines.push(`- Winning source: ${step.winningSource}`);
     lines.push(`- Runtime: ${step.runtime?.status ?? 'pending'}`);
+    lines.push(`- Runtime widget contract: ${step.runtime?.widgetContract ?? 'none'}`);
     lines.push(`- Runtime locator: ${step.runtime?.locatorStrategy ?? 'none'}`);
+    lines.push(`- Runtime locator rung: ${step.runtime?.locatorRung ?? 'none'}`);
     lines.push(`- Runtime degraded: ${step.runtime?.degraded ? 'yes' : 'no'}`);
+    lines.push(`- Runtime duration ms: ${step.runtime?.durationMs ?? 0}`);
+    lines.push(`- Runtime precondition failures: ${step.runtime?.preconditionFailures?.join(', ') || 'none'}`);
     lines.push(`- Knowledge refs: ${step.knowledgeRefs.length > 0 ? step.knowledgeRefs.join(', ') : 'none'}`);
     lines.push(`- Supplements: ${step.supplementRefs.length > 0 ? step.supplementRefs.join(', ') : 'none'}`);
+    lines.push(`- Control refs: ${step.controlRefs.length > 0 ? step.controlRefs.join(', ') : 'none'}`);
+    lines.push(`- Evidence refs: ${step.evidenceRefs.length > 0 ? step.evidenceRefs.join(', ') : 'none'}`);
+    lines.push(`- Overlay refs: ${step.overlayRefs.length > 0 ? step.overlayRefs.join(', ') : 'none'}`);
+    lines.push(`- Translation: ${step.translation ? step.translation.rationale : 'none'}`);
+    lines.push(`- Exhaustion trail: ${step.runtime?.exhaustion?.map((entry) => `${entry.stage}:${entry.outcome}`).join(' -> ') || 'none'}`);
     lines.push(`- Unresolved gaps: ${step.unresolvedGaps.length > 0 ? step.unresolvedGaps.join(', ') : 'none'}`);
     lines.push(`- Review flags: ${step.reviewReasons.length > 0 ? step.reviewReasons.join(', ') : 'none'}`);
     lines.push('');

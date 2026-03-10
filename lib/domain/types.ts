@@ -17,10 +17,12 @@ export type ScenarioStatus = 'stub' | 'draft' | 'active' | 'needs-repair' | 'blo
 export type StepAction = 'navigate' | 'input' | 'click' | 'assert-snapshot' | 'custom';
 export type DiagnosticSeverity = 'info' | 'warn' | 'error';
 export type RuntimeInterpreterMode = 'playwright' | 'dry-run' | 'diagnostic';
+export type ExecutionProfile = 'interactive' | 'ci-batch';
 export type WriteMode = 'persist' | 'no-write';
 export type WorkflowLane = 'intent' | 'knowledge' | 'control' | 'resolution' | 'execution' | 'governance' | 'projection';
 export type WorkflowStage = 'preparation' | 'resolution' | 'execution' | 'evidence' | 'proposal' | 'projection';
 export type WorkflowScope = 'scenario' | 'step' | 'run' | 'suite' | 'workspace' | 'control';
+export type ResolutionMode = 'deterministic' | 'translation' | 'agentic';
 export type StepWinningSource =
   | 'scenario-explicit'
   | 'resolution-control'
@@ -30,7 +32,9 @@ export type StepWinningSource =
   | 'posture-sample'
   | 'generated-token'
   | 'approved-knowledge'
+  | 'approved-equivalent'
   | 'prior-evidence'
+  | 'structured-translation'
   | 'live-dom'
   | 'none';
 export type PatternActionName = 'navigate' | 'input' | 'click' | 'assert-snapshot';
@@ -110,6 +114,7 @@ export interface ExecutionPosture {
   interpreterMode: RuntimeInterpreterMode;
   writeMode: WriteMode;
   headed: boolean;
+  executionProfile: ExecutionProfile;
 }
 
 export interface WriteJournalEntry {
@@ -373,11 +378,93 @@ export interface StepTaskScreenCandidate {
   sectionSnapshots: SnapshotTemplateId[];
 }
 
+export interface TranslationCandidate {
+  kind: 'screen' | 'element' | 'posture' | 'snapshot-template';
+  target: string;
+  screen?: ScreenId | null | undefined;
+  element?: ElementId | null | undefined;
+  posture?: PostureId | null | undefined;
+  snapshotTemplate?: SnapshotTemplateId | null | undefined;
+  aliases: string[];
+  score: number;
+  sourceRefs: string[];
+}
+
+export interface TranslationRequest {
+  version: 1;
+  normalizedIntent: string;
+  actionText: string;
+  expectedText: string;
+  allowedActions: StepAction[];
+  screens: Array<{
+    screen: ScreenId;
+    aliases: string[];
+    elements: Array<{
+      element: ElementId;
+      aliases: string[];
+      postures: PostureId[];
+      snapshotTemplates: SnapshotTemplateId[];
+    }>;
+  }>;
+  evidenceRefs: string[];
+  overlayRefs: string[];
+}
+
+export interface TranslationReceipt {
+  kind: 'translation-receipt';
+  version: 1;
+  mode: 'structured-translation';
+  matched: boolean;
+  selected: TranslationCandidate | null;
+  candidates: TranslationCandidate[];
+  rationale: string;
+}
+
+export type ApprovalEquivalenceStatus = 'learning' | 'approved-equivalent' | 'needs-review';
+
+export interface ArtifactConfidenceRecord {
+  id: string;
+  artifactType: TrustPolicyArtifactType;
+  artifactPath: string;
+  score: number;
+  threshold: number;
+  status: ApprovalEquivalenceStatus;
+  successCount: number;
+  failureCount: number;
+  evidenceCount: number;
+  screen?: ScreenId | null | undefined;
+  element?: ElementId | null | undefined;
+  posture?: PostureId | null | undefined;
+  snapshotTemplate?: SnapshotTemplateId | null | undefined;
+  learnedAliases: string[];
+  lastSuccessAt?: string | null | undefined;
+  lastFailureAt?: string | null | undefined;
+  lineage: {
+    runIds: string[];
+    evidenceIds: string[];
+    sourceArtifactPaths: string[];
+  };
+}
+
+export interface ConfidenceOverlayCatalog {
+  kind: 'confidence-overlay-catalog';
+  version: 1;
+  generatedAt: string;
+  records: ArtifactConfidenceRecord[];
+  summary: {
+    total: number;
+    approvedEquivalentCount: number;
+    needsReviewCount: number;
+  };
+}
+
 export interface RuntimeKnowledgeSession {
   knowledgeFingerprint: string;
+  confidenceFingerprint?: string | null | undefined;
   sharedPatterns: SharedPatterns;
   screens: StepTaskScreenCandidate[];
   evidenceRefs: string[];
+  confidenceOverlays: ArtifactConfidenceRecord[];
   controls: RuntimeControlSession;
 }
 
@@ -593,7 +680,7 @@ export interface RuntimeControlSession {
   runbooks: RuntimeRunbookControl[];
 }
 
-export type OperatorInboxItemKind = 'proposal' | 'degraded-locator' | 'needs-human' | 'blocked-policy';
+export type OperatorInboxItemKind = 'proposal' | 'degraded-locator' | 'needs-human' | 'blocked-policy' | 'approved-equivalent';
 
 export interface OperatorInboxItem {
   id: string;
@@ -610,6 +697,7 @@ export interface OperatorInboxItem {
   targetPath?: string | null | undefined;
   winningConcern?: WorkflowLane | null | undefined;
   winningSource?: StepWinningSource | null | undefined;
+  resolutionMode?: ResolutionMode | null | undefined;
   nextCommands: string[];
 }
 
@@ -636,6 +724,7 @@ export interface RerunPlan {
   impactedScenarioIds: AdoId[];
   impactedRunbooks: string[];
   impactedProjections: Array<'emit' | 'graph' | 'types' | 'run'>;
+  impactedConfidenceRecords?: string[] | null | undefined;
   reasons: string[];
 }
 
@@ -709,6 +798,12 @@ export interface BenchmarkScorecard {
   operatorTouchCount: number;
   knowledgeChurn: Record<string, number>;
   generatedVariantCount: number;
+  translationHitRate: number;
+  agenticHitRate: number;
+  approvedEquivalentCount: number;
+  thinKnowledgeScreenCount: number;
+  degradedLocatorHotspotCount: number;
+  overlayChurn: number;
   thresholdStatus: 'pass' | 'warn' | 'fail';
 }
 
@@ -776,13 +871,13 @@ export interface EvidenceRecord {
 }
 
 export interface ResolutionObservation {
-  source: 'knowledge' | 'evidence' | 'dom' | 'runtime';
+  source: 'knowledge' | 'evidence' | 'overlay' | 'translation' | 'dom' | 'runtime';
   summary: string;
   detail?: Record<string, string> | undefined;
 }
 
 export interface ResolutionExhaustionEntry {
-  stage: 'explicit' | 'approved-screen-bundle' | 'local-hints' | 'shared-patterns' | 'prior-evidence' | 'live-dom' | 'safe-degraded-resolution';
+  stage: 'explicit' | 'approved-screen-bundle' | 'local-hints' | 'shared-patterns' | 'prior-evidence' | 'confidence-overlay' | 'structured-translation' | 'live-dom' | 'safe-degraded-resolution';
   outcome: 'attempted' | 'resolved' | 'skipped' | 'failed';
   reason: string;
 }
@@ -833,13 +928,18 @@ interface ResolutionReceiptBase {
   mode: string;
   runAt: string;
   stepIndex: number;
+  resolutionMode: ResolutionMode;
   knowledgeRefs: string[];
   supplementRefs: string[];
+  controlRefs: string[];
+  evidenceRefs: string[];
+  overlayRefs: string[];
   observations: ResolutionObservation[];
   exhaustion: ResolutionExhaustionEntry[];
   handshakes: WorkflowStage[];
   winningConcern: WorkflowLane;
   winningSource: StepWinningSource;
+  translation?: TranslationReceipt | null | undefined;
 }
 
 export interface ResolvedReceipt extends ResolutionReceiptBase {
@@ -899,8 +999,16 @@ export interface StepExecutionReceipt {
   knowledgeFingerprint: string;
   runAt: string;
   mode: string;
+  widgetContract?: string | null | undefined;
   locatorStrategy?: string | null | undefined;
+  locatorRung?: number | null | undefined;
   degraded: boolean;
+  preconditionFailures: string[];
+  durationMs: number;
+  cost: {
+    instructionCount: number;
+    diagnosticCount: number;
+  };
   handshakes: WorkflowStage[];
   execution: ExecutionObservation;
 }
@@ -1040,6 +1148,7 @@ export type GraphNodeKind =
   | 'screen'
   | 'screen-hints'
   | 'pattern'
+  | 'confidence-overlay'
   | 'dataset'
   | 'resolution-control'
   | 'runbook'
@@ -1061,6 +1170,7 @@ export type GraphEdgeKind =
   | 'contains'
   | 'references'
   | 'uses'
+  | 'learns-from'
   | 'affects'
   | 'asserts'
   | 'emits'
@@ -1126,10 +1236,13 @@ export interface ScenarioExplanationSummary {
   governance: Record<Governance, number>;
   stageMetrics: {
     knowledgeHitRate: number;
+    translationHitRate: number;
+    agenticHitRate: number;
     liveExplorationRate: number;
     degradedLocatorRate: number;
     proposalCount: number;
     reviewRequiredCount: number;
+    approvedEquivalentRate: number;
   };
   unresolvedReasons: Array<{
     reason: string;
@@ -1151,6 +1264,9 @@ export interface ScenarioExplanationStep {
   ruleId: string | null;
   knowledgeRefs: string[];
   supplementRefs: string[];
+  controlRefs: string[];
+  evidenceRefs: string[];
+  overlayRefs: string[];
   reviewReasons: string[];
   unresolvedGaps: string[];
   reasons: string[];
@@ -1159,11 +1275,19 @@ export interface ScenarioExplanationStep {
   handshakes: WorkflowStage[];
   winningConcern: WorkflowLane;
   winningSource: StepWinningSource;
+  resolutionMode: ResolutionMode;
+  translation?: TranslationReceipt | null | undefined;
   runtime?: {
     status: 'pending' | 'resolved' | 'resolved-with-proposals' | 'needs-human';
     runId?: string | null | undefined;
+    resolutionMode?: ResolutionMode | null | undefined;
+    widgetContract?: string | null | undefined;
     locatorStrategy?: string | null | undefined;
+    locatorRung?: number | null | undefined;
     degraded?: boolean | undefined;
+    preconditionFailures?: string[] | undefined;
+    durationMs?: number | undefined;
+    exhaustion?: ResolutionExhaustionEntry[] | undefined;
   } | undefined;
 }
 

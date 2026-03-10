@@ -85,6 +85,20 @@ function scorecardForBenchmark(input: {
   proposalBundles: ProposalBundle[];
   approvalCount: number;
   generatedVariantCount: number;
+  runRecords: Array<{
+    adoId: string;
+    steps: Array<{
+      resolutionMode: 'deterministic' | 'translation' | 'agentic';
+      winningSource: string;
+      degraded: boolean;
+    }>;
+  }>;
+  confidenceRecords: Array<{
+    id: string;
+    status: string;
+    screen?: string | null | undefined;
+    failureCount: number;
+  }>;
 }): BenchmarkScorecard {
   const uniqueScreens = uniqueSorted(input.benchmark.fieldCatalog.map((field) => field.screen));
   const driftCount = input.benchmark.driftEvents.length;
@@ -100,6 +114,24 @@ function scorecardForBenchmark(input: {
     count + bundle.proposals.filter((proposal) => proposal.trustPolicy.decision !== 'allow').length,
   0);
   const repairLoopCount = input.proposalBundles.reduce((count, bundle) => count + bundle.proposals.length, 0);
+  const benchmarkRuns = input.runRecords.filter((record) => input.scenarioIds.includes(record.adoId));
+  const benchmarkSteps = benchmarkRuns.flatMap((record) => record.steps);
+  const translationHitRate = round(benchmarkSteps.filter((step) => step.resolutionMode === 'translation').length / Math.max(benchmarkSteps.length, 1));
+  const agenticHitRate = round(benchmarkSteps.filter((step) => step.resolutionMode === 'agentic').length / Math.max(benchmarkSteps.length, 1));
+  const approvedEquivalentCount = benchmarkSteps.filter((step) => step.winningSource === 'approved-equivalent').length;
+  const thinKnowledgeScreenCount = uniqueScreens.filter((screen) =>
+    input.benchmark.fieldCatalog.filter((field) => field.screen === screen).length < 3,
+  ).length;
+  const degradedLocatorHotspotCount = uniqueSorted(
+    benchmarkRuns.flatMap((record) =>
+      record.steps
+        .filter((step) => step.degraded)
+        .map(() => record.adoId),
+    ),
+  ).length;
+  const overlayChurn = input.confidenceRecords.filter((record) =>
+    record.failureCount > 0 && uniqueScreens.includes(record.screen ?? ''),
+  ).length;
   const thresholds = input.benchmark.fieldAwarenessThresholds;
   const thresholdStatus = uniqueFieldAwarenessCount < thresholds.minFieldAwarenessCount
     || firstPassScreenResolutionRate < thresholds.minFirstPassScreenResolutionRate
@@ -124,6 +156,12 @@ function scorecardForBenchmark(input: {
     operatorTouchCount: input.approvalCount,
     knowledgeChurn: knowledgeChurnForBundles(input.proposalBundles),
     generatedVariantCount: input.generatedVariantCount,
+    translationHitRate,
+    agenticHitRate,
+    approvedEquivalentCount,
+    thinKnowledgeScreenCount,
+    degradedLocatorHotspotCount,
+    overlayChurn,
     thresholdStatus,
   };
 }
@@ -190,6 +228,12 @@ function renderScorecardMarkdown(benchmark: BenchmarkContext, scorecard: Benchma
     `- Review-required count: ${scorecard.reviewRequiredCount}`,
     `- Repair-loop count: ${scorecard.repairLoopCount}`,
     `- Operator-touch count: ${scorecard.operatorTouchCount}`,
+    `- Translation hit rate: ${scorecard.translationHitRate}`,
+    `- Agentic hit rate: ${scorecard.agenticHitRate}`,
+    `- Approved-equivalent count: ${scorecard.approvedEquivalentCount}`,
+    `- Thin-knowledge screens: ${scorecard.thinKnowledgeScreenCount}`,
+    `- Degraded locator hotspots: ${scorecard.degradedLocatorHotspotCount}`,
+    `- Overlay churn: ${scorecard.overlayChurn}`,
     `- Knowledge churn: ${JSON.stringify(scorecard.knowledgeChurn)}`,
     `- Generated variants: ${scorecard.generatedVariantCount}`,
     `- Next commands: tesseract benchmark --benchmark ${benchmark.name} | tesseract scorecard --benchmark ${benchmark.name} | tesseract inbox`,
@@ -248,6 +292,20 @@ export function projectBenchmarkScorecard(options: {
       proposalBundles,
       approvalCount: scorecardCatalog.approvalReceipts.length,
       generatedVariantCount: variants.length,
+      runRecords: scorecardCatalog.runRecords.map((entry) => ({
+        adoId: entry.artifact.adoId,
+        steps: entry.artifact.steps.map((step) => ({
+          resolutionMode: step.interpretation.resolutionMode,
+          winningSource: step.interpretation.winningSource,
+          degraded: step.execution.degraded,
+        })),
+      })),
+      confidenceRecords: (scorecardCatalog.confidenceCatalog?.artifact.records ?? []).map((record) => ({
+        id: record.id,
+        status: record.status,
+        screen: record.screen ?? null,
+        failureCount: record.failureCount,
+      })),
     });
     const dogfoodRun: DogfoodRun = {
       kind: 'dogfood-run',

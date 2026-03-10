@@ -88,6 +88,15 @@ export function buildRerunPlan(options: {
         ))
         .map((entry) => entry.artifact.name),
     );
+    const impactedConfidenceRecords = uniqueSorted(
+      (catalog.confidenceCatalog?.artifact.records ?? [])
+        .filter((record) =>
+          record.artifactPath === located.proposal.targetPath
+          || record.lineage.sourceArtifactPaths.includes(located.proposal.targetPath)
+          || record.lineage.evidenceIds.some((evidenceId) => evidenceId.includes(located.proposal.targetPath)),
+        )
+        .map((record) => record.id),
+    );
     const impactedProjections = uniqueSorted([
       'emit',
       'graph',
@@ -111,11 +120,15 @@ export function buildRerunPlan(options: {
       impactedScenarioIds: impactedScenarioIds as RerunPlan['impactedScenarioIds'],
       impactedRunbooks,
       impactedProjections,
+      impactedConfidenceRecords,
       reasons: [
         `${located.proposal.targetPath} maps to graph node ${targetNodeId}`,
         impactedScenarioIds.length > 0
           ? `Impacted scenarios: ${impactedScenarioIds.join(', ')}`
           : 'No impacted scenarios were found in the current graph.',
+        impactedConfidenceRecords.length > 0
+          ? `Impacted confidence overlays: ${impactedConfidenceRecords.join(', ')}`
+          : 'No approved-equivalent overlays currently depend on this artifact.',
       ],
     };
     const outputPath = rerunPlanPath(options.paths, planId);

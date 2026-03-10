@@ -1,5 +1,6 @@
 import { Effect } from 'effect';
 import type { RuntimeScenarioRunnerPort } from '../application/ports';
+import { translateIntentToOntology } from '../application/translate';
 import { createLocalRuntimeEnvironment } from '../infrastructure/runtime/local-runtime-environment';
 import { createScenarioRunState, runScenarioStep } from '../runtime/scenario';
 
@@ -14,6 +15,7 @@ export const LocalRuntimeScenarioRunner: RuntimeScenarioRunnerPort = {
         provider: input.provider,
         controlSelection: input.controlSelection,
         posture: input.posture,
+        translator: translateIntentToOntology,
       });
       const runState = createScenarioRunState();
       const results = [];

@@ -34,6 +34,8 @@ interface PlaywrightEnvironment {
 interface RuntimeInstructionSuccess {
   observedEffects: string[];
   locatorStrategy?: string | undefined;
+  locatorRung?: number | undefined;
+  widgetContract?: string | undefined;
 }
 
 function requireScreen(screens: ScreenRegistry, screenId: ScreenId): RuntimeResult<ScreenRegistry[string]> {
@@ -120,6 +122,8 @@ async function runInstruction(
         return runtimeOk({
           observedEffects: observedEffectsForLocator(resolvedLocator.degraded),
           locatorStrategy: describeLocatorStrategy(resolvedLocator.strategy),
+          locatorRung: resolvedLocator.strategyIndex,
+          widgetContract: element.widget,
         });
       }
       case 'observe-structure': {
@@ -156,6 +160,8 @@ async function runInstruction(
         return runtimeOk({
           observedEffects: observedEffectsForLocator(resolvedLocator.degraded),
           locatorStrategy: describeLocatorStrategy(resolvedLocator.strategy),
+          locatorRung: resolvedLocator.strategyIndex,
+          widgetContract: element.widget,
         });
       }
       case 'custom-escape-hatch': {
@@ -202,6 +208,8 @@ export const playwrightStepProgramInterpreter: StepProgramInterpreter<Playwright
         status: 'ok',
         diagnostics: [] as StepInterpreterDiagnostic[],
         locatorStrategy: result.value.locatorStrategy,
+        locatorRung: result.value.locatorRung,
+        widgetContract: result.value.widgetContract,
       });
     }
 
