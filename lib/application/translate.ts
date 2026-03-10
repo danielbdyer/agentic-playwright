@@ -1,9 +1,6 @@
 import { normalizeIntentText } from '../domain/inference';
 import type { TranslationCandidate, TranslationReceipt, TranslationRequest } from '../domain/types';
-
-function uniqueSorted(values: Iterable<string>): string[] {
-  return [...new Set([...values].filter((value) => value.length > 0))].sort((left, right) => left.localeCompare(right));
-}
+import { compareStrings, uniqueSorted } from '../domain/collections';
 
 function tokenize(value: string): string[] {
   return uniqueSorted(normalizeIntentText(value).split(/[^a-z0-9]+/).filter((token) => token.length > 1));
@@ -61,7 +58,7 @@ export function translateIntentToOntology(request: TranslationRequest): Translat
       if (byScore !== 0) {
         return byScore;
       }
-      return left.target.localeCompare(right.target);
+      return compareStrings(left.target, right.target);
     });
   const selected = ranked[0] ?? null;
 

@@ -9,10 +9,7 @@ import type {
   WorkflowLane,
 } from '../domain/types';
 import type { WorkspaceCatalog } from './catalog';
-
-function uniqueSorted(values: string[]): string[] {
-  return [...new Set(values.filter((value) => value.length > 0))].sort((left, right) => left.localeCompare(right));
-}
+import { compareStrings, uniqueSorted } from '../domain/collections';
 
 function latestRuns(catalog: WorkspaceCatalog): Map<AdoId, RunRecord> {
   return new Map(
@@ -218,13 +215,13 @@ export function buildOperatorInboxItems(catalog: WorkspaceCatalog): OperatorInbo
     }
   }
 
-  return items.sort((left, right) => left.id.localeCompare(right.id));
+  return items.sort((left, right) => compareStrings(left.id, right.id));
 }
 
 export function operatorInboxItemsForScenario(items: readonly OperatorInboxItem[], adoId: AdoId): OperatorInboxItem[] {
   return items
     .filter((item) => item.adoId === adoId)
-    .sort((left, right) => left.id.localeCompare(right.id));
+    .sort((left, right) => compareStrings(left.id, right.id));
 }
 
 export function findProposalById(catalog: WorkspaceCatalog, proposalIdValue: string): {

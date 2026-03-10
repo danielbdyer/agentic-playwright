@@ -5,6 +5,7 @@ import { capabilityForInstruction, compileStepProgram, type StepProgram } from '
 import type { PostureContractIssueCode } from './posture-contract';
 import { validatePostureContract } from './posture-contract';
 import type { BoundStep, Governance, ScenarioStep, ScreenElements, ScreenPostures, SurfaceGraph } from './types';
+import { uniqueSorted } from './collections';
 
 export type StepBindingReason =
   | 'missing-screen'
@@ -27,10 +28,6 @@ export interface StepBindingContext {
   screenPostures?: ScreenPostures | undefined;
   surfaceGraph?: SurfaceGraph | undefined;
   availableSnapshotTemplates?: ReadonlySet<SnapshotTemplateId> | undefined;
-}
-
-function uniqueSorted<T extends string>(values: readonly T[]): T[] {
-  return [...new Set(values)].sort((left, right) => left.localeCompare(right)) as T[];
 }
 
 function contractIssueToReason(code: PostureContractIssueCode): Extract<StepBindingReason, PostureContractIssueCode> {

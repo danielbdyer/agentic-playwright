@@ -1,11 +1,8 @@
 import { SchemaError } from '../errors';
 import type { MergedPatterns, PatternActionName, PatternAliasSet, PatternDocument } from '../types';
+import { uniqueSorted } from '../collections';
 
 const requiredActions = ['navigate', 'input', 'click', 'assert-snapshot'] as const satisfies ReadonlyArray<PatternActionName>;
-
-function uniqueSorted(values: string[]): string[] {
-  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
-}
 
 function validatePatternAliasSet(value: unknown, path: string): PatternAliasSet {
   if (!value || Array.isArray(value) || typeof value !== 'object') {

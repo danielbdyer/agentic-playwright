@@ -64,6 +64,7 @@ import { computeAdoContentHash } from './hash';
 import { validatePatternDocument as validatePatternDocumentRecord } from './knowledge/patterns';
 import { normalizeScreenPostures } from './posture-contract';
 import { SchemaError } from './errors';
+import { uniqueSorted } from './collections';
 import {
   createAdoId,
   createElementId,
@@ -575,10 +576,6 @@ function validatePosture(value: unknown, path: string): Posture {
       validateEffect(entry, `${path}.effects[${index}]`),
     ),
   };
-}
-
-function uniqueSorted<T extends string>(values: T[]): T[] {
-  return [...new Set(values)].sort((left, right) => left.localeCompare(right)) as T[];
 }
 
 export function validateWidgetCapabilityContract(value: unknown, path = 'widget-contract'): WidgetCapabilityContract {

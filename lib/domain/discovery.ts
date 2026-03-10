@@ -1,5 +1,6 @@
 import { computeNormalizedSnapshotHash, normalizeAriaSnapshot } from './hash';
 import type { AssertionKind, SurfaceKind } from './types/workflow';
+import { uniqueSorted } from './collections';
 
 export interface RawDiscoveredSurface {
   selector: string;
@@ -170,10 +171,6 @@ export interface DiscoveryArtifacts {
     }>;
   };
   sectionArtifacts: Record<string, DiscoverySectionArtifact>;
-}
-
-function uniqueSorted(values: string[]): string[] {
-  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
 }
 
 function slugify(value: string): string {

@@ -9,6 +9,7 @@ import { policyDecisionGraphTarget } from './trust-policy';
 import { sha256, stableStringify } from '../domain/hash';
 import { collectImpactSubgraph } from '../domain/graph-query';
 import type { RerunPlan, RunbookControl, Scenario } from '../domain/types';
+import { uniqueSorted } from '../domain/collections';
 
 function selectorMatchesScenario(
   selector: RunbookControl['selector'],
@@ -18,10 +19,6 @@ function selectorMatchesScenario(
   const matchesSuite = selector.suites.length === 0 || selector.suites.some((suite) => scenario.metadata.suite.startsWith(suite));
   const matchesTags = selector.tags.length === 0 || selector.tags.some((tag) => scenario.metadata.tags.includes(tag));
   return matchesAdoId && matchesSuite && matchesTags;
-}
-
-function uniqueSorted(values: string[]): string[] {
-  return [...new Set(values.filter((value) => value.length > 0))].sort((left, right) => left.localeCompare(right));
 }
 
 function scenariosReferencingArtifact(catalog: WorkspaceCatalog, artifactPath: string): string[] {

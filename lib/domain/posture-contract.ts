@@ -2,6 +2,7 @@
 import type { ResolveEffectTargetContext } from './effect-target';
 import { normalizePostureEffectTarget, parseEffectTargetRef } from './effect-target';
 import type { PostureEffect, ScreenElements, ScreenPostures, SurfaceGraph } from './types';
+import { compareStrings, uniqueSorted } from './collections';
 
 export type PostureContractIssueCode =
   | 'unknown-posture'
@@ -17,10 +18,6 @@ export interface PostureContractIssue {
 }
 
 const canonicalPostureIds = ['boundary', 'empty', 'invalid', 'valid'] as const;
-
-function uniqueSorted(values: string[]): string[] {
-  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
-}
 
 function effectTargetSortKey(effect: PostureEffect): string {
   const targetKind = effect.targetKind ?? 'element';
@@ -60,7 +57,7 @@ export function normalizeScreenPostures(screenPostures: ScreenPostures): ScreenP
               if (leftRank !== rightRank) {
                 return leftRank - rightRank;
               }
-              return left.localeCompare(right);
+              return compareStrings(left, right);
             })
             .map(([postureId, posture]) => [
               postureId,

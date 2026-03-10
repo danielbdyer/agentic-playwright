@@ -10,10 +10,7 @@ import type {
   StepResolution,
 } from '../domain/types';
 import type { WorkspaceCatalog } from './catalog';
-
-function uniqueSorted<T extends string>(values: T[]): T[] {
-  return [...new Set(values)].sort((left, right) => left.localeCompare(right)) as T[];
-}
+import { compareStrings, uniqueSorted } from '../domain/collections';
 
 function selectorMatchesScenario(
   selector: { adoIds: string[]; suites: string[]; tags: string[] },
@@ -67,7 +64,7 @@ function runtimeResolutionControls(
       if (stepOrder !== 0) {
         return stepOrder;
       }
-      return left.name.localeCompare(right.name);
+      return compareStrings(left.name, right.name);
     });
 }
 
@@ -78,7 +75,7 @@ export function runtimeControlsForScenario(catalog: WorkspaceCatalog, scenario: 
     runbooks: catalog.runbooks
       .filter((entry) => entry.artifact.default || selectorMatchesScenario(entry.artifact.selector, scenario))
       .map((entry) => runtimeRunbook(entry))
-      .sort((left, right) => left.name.localeCompare(right.name)),
+      .sort((left, right) => compareStrings(left.name, right.name)),
   };
 }
 
@@ -112,7 +109,7 @@ export function findRunbook(
       return selectorMatchesScenario(entry.artifact.selector, options.scenario);
     })
     .map((entry) => runtimeRunbook(entry))
-    .sort((left, right) => left.name.localeCompare(right.name));
+    .sort((left, right) => compareStrings(left.name, right.name));
   return runtimeRunbooks[0] ?? null;
 }
 
