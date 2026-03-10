@@ -9,10 +9,8 @@ import type {
   WorkflowLane,
 } from '../domain/types';
 import type { WorkspaceCatalog } from './catalog';
+import { uniqueSorted } from './collections';
 
-function uniqueSorted(values: string[]): string[] {
-  return [...new Set(values.filter((value) => value.length > 0))].sort((left, right) => left.localeCompare(right));
-}
 
 function latestRuns(catalog: WorkspaceCatalog): Map<AdoId, RunRecord> {
   return new Map(

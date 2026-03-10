@@ -12,6 +12,7 @@ import {
   relativeProjectPath,
 } from './paths';
 import { ExecutionContext, FileSystem } from './ports';
+import { uniqueSorted } from './collections';
 import type {
   BenchmarkContext,
   BenchmarkScorecard,
@@ -26,10 +27,6 @@ interface BenchmarkVariant {
   element: string;
   posture: string;
   sourceRuleIndex: number;
-}
-
-function uniqueSorted(values: string[]): string[] {
-  return [...new Set(values.filter((value) => value.length > 0))].sort((left, right) => left.localeCompare(right));
 }
 
 function round(value: number): number {
@@ -127,7 +124,7 @@ function scorecardForBenchmark(input: {
       record.steps
         .filter((step) => step.degraded)
         .map(() => record.adoId),
-    ),
+    )
   ).length;
   const overlayChurn = input.confidenceRecords.filter((record) =>
     record.failureCount > 0 && uniqueScreens.includes(record.screen ?? ''),

@@ -1,5 +1,6 @@
 import { computeNormalizedSnapshotHash, normalizeAriaSnapshot } from './hash';
 import type { AssertionKind, SurfaceKind } from './types';
+import { stableSortByKey, uniqueSorted } from './collections';
 
 export interface RawDiscoveredSurface {
   selector: string;
@@ -172,9 +173,6 @@ export interface DiscoveryArtifacts {
   sectionArtifacts: Record<string, DiscoverySectionArtifact>;
 }
 
-function uniqueSorted(values: string[]): string[] {
-  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
-}
 
 function slugify(value: string): string {
   return value
@@ -291,19 +289,11 @@ function locatorCandidatesForElement(input: {
 }
 
 function sortSurfaces(input: readonly RawDiscoveredSurface[]): RawDiscoveredSurface[] {
-  return [...input].sort((left, right) => {
-    const leftKey = `${left.selector}|${left.contract ?? ''}|${left.testId ?? ''}`;
-    const rightKey = `${right.selector}|${right.contract ?? ''}|${right.testId ?? ''}`;
-    return leftKey.localeCompare(rightKey);
-  });
+  return stableSortByKey(input, (entry) => `${entry.selector}|${entry.contract ?? ''}|${entry.testId ?? ''}`);
 }
 
 function sortElements(input: readonly RawDiscoveredElement[]): RawDiscoveredElement[] {
-  return [...input].sort((left, right) => {
-    const leftKey = `${left.selector}|${left.contract ?? ''}|${left.testId ?? ''}`;
-    const rightKey = `${right.selector}|${right.contract ?? ''}|${right.testId ?? ''}`;
-    return leftKey.localeCompare(rightKey);
-  });
+  return stableSortByKey(input, (entry) => `${entry.selector}|${entry.contract ?? ''}|${entry.testId ?? ''}`);
 }
 
 function sectionIdForSurface(surfaceId: string): string {

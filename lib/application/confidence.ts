@@ -11,10 +11,8 @@ import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
 import type { ProjectPaths } from './paths';
 import { relativeProjectPath } from './paths';
 import { FileSystem } from './ports';
+import { uniqueSorted } from './collections';
 
-function uniqueSorted(values: Iterable<string>): string[] {
-  return [...new Set([...values].filter((value) => value.length > 0))].sort((left, right) => left.localeCompare(right));
-}
 
 function round(value: number): number {
   return Number(value.toFixed(2));

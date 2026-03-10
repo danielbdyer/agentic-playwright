@@ -10,10 +10,8 @@ import type {
   StepResolution,
 } from '../domain/types';
 import type { WorkspaceCatalog } from './catalog';
+import { uniqueSorted } from './collections';
 
-function uniqueSorted<T extends string>(values: T[]): T[] {
-  return [...new Set(values)].sort((left, right) => left.localeCompare(right)) as T[];
-}
 
 function selectorMatchesScenario(
   selector: { adoIds: string[]; suites: string[]; tags: string[] },

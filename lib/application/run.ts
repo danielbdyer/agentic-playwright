@@ -20,12 +20,10 @@ import { ExecutionContext, FileSystem, RuntimeScenarioRunner } from './ports';
 import type { ExecutionPosture, ProposalBundle, RunRecord, StepTask } from '../domain/types';
 import type { AdoId } from '../domain/identity';
 import type { LoadedEvidenceRecord } from './trust-policy';
+import { uniqueSorted } from './collections';
 
 const fixtureReferencePattern = /^\{\{\s*([A-Za-z0-9_-]+)(?:\.[^}]*)?\s*\}\}$/;
 
-function uniqueSorted<T extends string>(values: T[]): T[] {
-  return [...new Set(values.filter((value) => value.length > 0))].sort((left, right) => left.localeCompare(right)) as T[];
-}
 
 function fixtureIdFromTemplateValue(value: string | null | undefined): string | null {
   if (!value) {

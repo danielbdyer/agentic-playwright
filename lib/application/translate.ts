@@ -1,9 +1,7 @@
 import { normalizeIntentText } from '../domain/inference';
 import type { TranslationCandidate, TranslationReceipt, TranslationRequest } from '../domain/types';
+import { uniqueSorted } from './collections';
 
-function uniqueSorted(values: Iterable<string>): string[] {
-  return [...new Set([...values].filter((value) => value.length > 0))].sort((left, right) => left.localeCompare(right));
-}
 
 function tokenize(value: string): string[] {
   return uniqueSorted(normalizeIntentText(value).split(/[^a-z0-9]+/).filter((token) => token.length > 1));
