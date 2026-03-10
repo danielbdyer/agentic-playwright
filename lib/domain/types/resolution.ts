@@ -230,9 +230,28 @@ export interface RerunPlan {
   impactedProjections: Array<'emit' | 'graph' | 'types' | 'run'>;
   impactedConfidenceRecords?: string[] | null | undefined;
   reasons: string[];
+  explanationFingerprint: string;
   selection: {
-    scenarios: Array<{ id: AdoId; why: string[] }>;
-    runbooks: Array<{ name: string; why: string[] }>;
+    scenarios: Array<{
+      id: AdoId;
+      why: string[];
+      explanations: Array<{
+        triggeringChange: string;
+        dependencyPath: string[];
+        requiredBecause: string;
+        fingerprint: string;
+      }>;
+    }>;
+    runbooks: Array<{
+      name: string;
+      why: string[];
+      explanations: Array<{
+        triggeringChange: string;
+        dependencyPath: string[];
+        requiredBecause: string;
+        fingerprint: string;
+      }>;
+    }>;
     projections: Array<{ name: 'emit' | 'graph' | 'types' | 'run'; why: string[] }>;
     confidenceRecords: Array<{ id: string; why: string[] }>;
   };
