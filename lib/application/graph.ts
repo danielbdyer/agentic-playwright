@@ -31,7 +31,8 @@ import {
   fingerprintProjectionOutput,
   type ProjectionInputFingerprint,
 } from './projections/cache';
-import { runProjection, type ProjectionIncremental } from './projections/runner';
+import { type ProjectionIncremental } from './projections/runner';
+import { runIncrementalStage } from './pipeline';
 import { evaluateArtifactPolicy, policyDecisionGraphTarget } from './trust-policy';
 import type { TesseractError } from '../domain/errors';
 
@@ -178,13 +179,13 @@ export function buildDerivedGraph(
     const manifestPath = graphManifestPath(options.paths);
     let cachedGraphForHit: ReturnType<typeof validateDerivedGraph> | null = null;
 
-    return yield* runProjection<
+    return yield* runIncrementalStage<
       Omit<GraphBuildResult, 'incremental'>,
       GraphBuildResult,
       GraphBuildResult,
       TesseractError
     >({
-      projection: 'graph',
+      name: 'graph',
       manifestPath,
       inputFingerprints,
       outputFingerprint: null,
@@ -218,7 +219,7 @@ export function buildDerivedGraph(
           outputFingerprint: persistedFingerprint,
         };
       }),
-      buildAndWrite: () => Effect.gen(function* () {
+      persist: () => Effect.gen(function* () {
         const graph = deriveGraph({
           snapshots,
           surfaceGraphs,

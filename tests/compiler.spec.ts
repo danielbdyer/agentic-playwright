@@ -377,6 +377,7 @@ test('emit regenerates when manifest is present but generated artifacts are miss
     const relativeSpec = projectPath(path.relative(workspace.rootDir, refresh.compile.emitted.outputPath));
     const relativeTrace = projectPath(path.relative(workspace.rootDir, refresh.compile.emitted.tracePath));
     const relativeReview = projectPath(path.relative(workspace.rootDir, refresh.compile.emitted.reviewPath));
+    const relativeProposals = projectPath(path.relative(workspace.rootDir, refresh.compile.emitted.proposalsPath));
     const relativeManifest = projectPath(path.relative(workspace.rootDir, manifestPath));
 
     unlinkSync(refresh.compile.emitted.reviewPath);
@@ -392,6 +393,7 @@ test('emit regenerates when manifest is present but generated artifacts are miss
     expect(rebuiltMissingOutputIncremental.rewritten).toContain(relativeSpec);
     expect(rebuiltMissingOutputIncremental.rewritten).toContain(relativeTrace);
     expect(rebuiltMissingOutputIncremental.rewritten).toContain(relativeReview);
+    expect(rebuiltMissingOutputIncremental.rewritten).toContain(relativeProposals);
     expect(rebuiltMissingOutputIncremental.rewritten).toContain(relativeManifest);
     expect(manifestAfterMissingOutput.outputFingerprint).toBe(rebuiltMissingOutputIncremental.outputFingerprint);
 
@@ -408,6 +410,7 @@ test('emit regenerates when manifest is present but generated artifacts are miss
     expect(rebuiltInvalidOutputIncremental.rewritten).toContain(relativeSpec);
     expect(rebuiltInvalidOutputIncremental.rewritten).toContain(relativeTrace);
     expect(rebuiltInvalidOutputIncremental.rewritten).toContain(relativeReview);
+    expect(rebuiltInvalidOutputIncremental.rewritten).toContain(relativeProposals);
     expect(rebuiltInvalidOutputIncremental.rewritten).toContain(relativeManifest);
     expect(manifestAfterInvalidOutput.outputFingerprint).toBe(rebuiltInvalidOutputIncremental.outputFingerprint);
   } finally {
