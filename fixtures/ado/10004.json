@@ -1,84 +1,85 @@
 {
-  "id": "10004",
-  "revision": 1,
-  "title": "Verify policy journey retains coverage after review reversal",
-  "suitePath": "demo/policy-journey",
-  "areaPath": "demo",
-  "tags": [
-    "dogfood",
-    "reversal",
-    "P1"
-  ],
-  "priority": 1,
-  "steps": [
-    {
-      "index": 1,
-      "action": "<p>Navigate to Policy Journey screen</p>",
-      "expected": "<p>Policy Journey screen loads</p>"
-    },
-    {
-      "index": 2,
-      "action": "<p>Enter policy number in Policy Number field</p>",
-      "expected": "<p>Policy Number accepts a valid policy</p>"
-    },
-    {
-      "index": 3,
-      "action": "<p>Click Continue to Coverage button</p>",
-      "expected": "<p>Coverage Details step loads</p>"
-    },
-    {
-      "index": 4,
-      "action": "<p>Enter valid coverage tier in Coverage Tier field</p>",
-      "expected": "<p>Coverage Tier accepts a valid tier</p>"
-    },
-    {
-      "index": 5,
-      "action": "<p>Enter valid effective date in Effective Date field</p>",
-      "expected": "<p>Effective Date accepts a valid date</p>"
-    },
-    {
-      "index": 6,
-      "action": "<p>Click Continue to Review button</p>",
-      "expected": "<p>Review Summary step loads</p>"
-    },
-    {
-      "index": 7,
-      "action": "<p>Click Back to Coverage button</p>",
-      "expected": "<p>Coverage Details step loads with retained data</p>"
-    },
-    {
-      "index": 8,
-      "action": "<p>Verify coverage details status shows retained coverage</p>",
-      "expected": "<p>Coverage Details Status shows selected tier and effective date</p>"
-    }
-  ],
-  "parameters": [
-    {
-      "name": "policyNumber",
-      "values": [
-        "POL-777"
-      ]
-    },
-    {
-      "name": "coverageTier",
-      "values": [
-        "Standard"
-      ]
-    },
-    {
-      "name": "effectiveDate",
-      "values": [
-        "2026-05-15"
-      ]
-    }
-  ],
-  "dataRows": [
-    {
-      "policyNumber": "POL-777",
-      "coverageTier": "Standard",
-      "effectiveDate": "2026-05-15"
-    }
-  ],
-  "contentHash": "sha256:3185d65cdad3d4760731365ccaa3b461b9ac199532cb89179e3752058cad46a3",
-  "syncedAt": "2026-03-08T00:00:00.000Z"
+    "id": "10004",
+    "revision": 1,
+    "title": "Verify policy journey retains coverage after review reversal",
+    "suitePath": "demo/policy-journey",
+    "areaPath": "demo",
+    "tags": [
+        "dogfood",
+        "reversal",
+        "P1"
+    ],
+    "priority": 1,
+    "steps": [
+        {
+            "index": 1,
+            "action": "<p>Navigate to Policy Journey screen</p>",
+            "expected": "<p>Policy Journey screen loads</p>"
+        },
+        {
+            "index": 2,
+            "action": "<p>Enter policy number in Policy Number field</p>",
+            "expected": "<p>Policy Number accepts a valid policy</p>"
+        },
+        {
+            "index": 3,
+            "action": "<p>Click Continue to Coverage button</p>",
+            "expected": "<p>Coverage Details step loads</p>"
+        },
+        {
+            "index": 4,
+            "action": "<p>Enter valid coverage tier in Coverage Tier field</p>",
+            "expected": "<p>Coverage Tier accepts a valid tier</p>"
+        },
+        {
+            "index": 5,
+            "action": "<p>Enter valid effective date in Effective Date field</p>",
+            "expected": "<p>Effective Date accepts a valid date</p>"
+        },
+        {
+            "index": 6,
+            "action": "<p>Click Continue to Review button</p>",
+            "expected": "<p>Review Summary step loads</p>"
+        },
+        {
+            "index": 7,
+            "action": "<p>Click Back to Coverage button</p>",
+            "expected": "<p>Coverage Details step loads with retained data</p>"
+        },
+        {
+            "index": 8,
+            "action": "<p>Verify coverage details status shows retained coverage</p>",
+            "expected": "<p>Coverage Details Status shows selected tier and effective date</p>"
+        }
+    ],
+    "parameters": [
+        {
+            "name": "policyNumber",
+            "values": [
+                "POL-777"
+            ]
+        },
+        {
+            "name": "coverageTier",
+            "values": [
+                "Standard"
+            ]
+        },
+        {
+            "name": "effectiveDate",
+            "values": [
+                "2026-05-15"
+            ]
+        }
+    ],
+    "dataRows": [
+        {
+            "policyNumber": "POL-777",
+            "coverageTier": "Standard",
+            "effectiveDate": "2026-05-15"
+        }
+    ],
+    "contentHash": "sha256:3185d65cdad3d4760731365ccaa3b461b9ac199532cb89179e3752058cad46a3",
+    "syncedAt": "2026-03-08T00:00:00.000Z",
+    "iterationPath": "demo/sprint-1"
 }

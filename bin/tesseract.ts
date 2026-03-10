@@ -32,6 +32,13 @@ async function main(): Promise<void> {
   if (posture.interpreterMode) {
     process.env.TESSERACT_INTERPRETER_MODE = posture.interpreterMode;
   }
+  if (invocation.environment) {
+    for (const [key, value] of Object.entries(invocation.environment)) {
+      if (value !== undefined) {
+        process.env[key] = value;
+      }
+    }
+  }
   process.env.TESSERACT_WRITE_MODE = posture.writeMode;
   if (posture.headed) {
     process.env.TESSERACT_HEADLESS = '0';

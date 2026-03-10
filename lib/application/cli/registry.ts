@@ -31,6 +31,14 @@ type InterpreterMode = (typeof interpreterModes)[number];
 type ExecutionProfile = (typeof executionProfiles)[number];
 
 interface ParsedFlags {
+  adoAreaPath?: string;
+  adoIterationPath?: string;
+  adoOrgUrl?: string;
+  adoPat?: string;
+  adoProject?: string;
+  adoSource?: 'fixture' | 'live';
+  adoSuitePath?: string;
+  adoTagFilter?: string;
   all?: boolean;
   adoId?: string;
   baseline?: boolean;
@@ -61,6 +69,7 @@ interface ParseContext {
 export interface CommandExecution {
   command: CommandName;
   strictExitOnUnbound: boolean;
+  environment?: Record<string, string | undefined>;
   postureInput: {
     interpreterMode?: RuntimeInterpreterMode;
     executionProfile?: ExecutionProfile;
@@ -148,6 +157,38 @@ const flagReaders: Record<string, (argv: string[], index: number, flags: ParsedF
   },
   '--ado-id': (argv, index, flags) => {
     flags.adoId = readFlagValue('--ado-id', argv[index + 1]);
+    return index + 1;
+  },
+  '--ado-source': (argv, index, flags) => {
+    flags.adoSource = parseEnum('--ado-source', argv[index + 1], ['fixture', 'live'] as const);
+    return index + 1;
+  },
+  '--ado-org-url': (argv, index, flags) => {
+    flags.adoOrgUrl = readFlagValue('--ado-org-url', argv[index + 1]);
+    return index + 1;
+  },
+  '--ado-project': (argv, index, flags) => {
+    flags.adoProject = readFlagValue('--ado-project', argv[index + 1]);
+    return index + 1;
+  },
+  '--ado-pat': (argv, index, flags) => {
+    flags.adoPat = readFlagValue('--ado-pat', argv[index + 1]);
+    return index + 1;
+  },
+  '--ado-suite-path': (argv, index, flags) => {
+    flags.adoSuitePath = readFlagValue('--ado-suite-path', argv[index + 1]);
+    return index + 1;
+  },
+  '--ado-area-path': (argv, index, flags) => {
+    flags.adoAreaPath = readFlagValue('--ado-area-path', argv[index + 1]);
+    return index + 1;
+  },
+  '--ado-iteration-path': (argv, index, flags) => {
+    flags.adoIterationPath = readFlagValue('--ado-iteration-path', argv[index + 1]);
+    return index + 1;
+  },
+  '--ado-tag-filter': (argv, index, flags) => {
+    flags.adoTagFilter = readFlagValue('--ado-tag-filter', argv[index + 1]);
     return index + 1;
   },
   '--screen': (argv, index, flags) => {
@@ -292,10 +333,20 @@ function requireNode(value: string | undefined): string {
 
 const commandRegistry: Record<CommandName, CommandSpec> = {
   sync: {
-    flags: ['--all', '--ado-id'],
+    flags: ['--all', '--ado-id', '--ado-source', '--ado-org-url', '--ado-project', '--ado-pat', '--ado-suite-path', '--ado-area-path', '--ado-iteration-path', '--ado-tag-filter'],
     parse: ({ flags }) => ({
       command: 'sync',
       strictExitOnUnbound: false,
+      environment: withDefinedValues({
+        TESSERACT_ADO_SOURCE: flags.adoSource,
+        TESSERACT_ADO_ORG_URL: flags.adoOrgUrl,
+        TESSERACT_ADO_PROJECT: flags.adoProject,
+        TESSERACT_ADO_PAT: flags.adoPat,
+        TESSERACT_ADO_SUITE_PATH: flags.adoSuitePath,
+        TESSERACT_ADO_AREA_PATH: flags.adoAreaPath,
+        TESSERACT_ADO_ITERATION_PATH: flags.adoIterationPath,
+        TESSERACT_ADO_TAG: flags.adoTagFilter,
+      }),
       postureInput: {},
       execute: (paths) => syncSnapshots({
         paths,
