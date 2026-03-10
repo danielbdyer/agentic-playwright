@@ -191,6 +191,9 @@ export interface ScenarioExplanationSummary {
   stageMetrics: {
     knowledgeHitRate: number;
     translationHitRate: number;
+    translationCacheHitRate: number;
+    translationCacheMissReasons: Record<string, number>;
+    translationFailureClasses: Record<string, number>;
     agenticHitRate: number;
     liveExplorationRate: number;
     degradedLocatorRate: number;

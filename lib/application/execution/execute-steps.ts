@@ -25,6 +25,10 @@ export function executeSteps(input: {
   rootDir: string;
   adoId: AdoId;
   selectedContext: SelectedRunContext;
+  translationOptions?: {
+    disableTranslation?: boolean | undefined;
+    disableTranslationCache?: boolean | undefined;
+  } | undefined;
 }) {
   return Effect.gen(function* () {
     const stepResults = yield* input.runtimeScenarioRunner.runSteps({
@@ -41,6 +45,7 @@ export function executeSteps(input: {
     steps: input.selectedContext.steps,
     posture: input.selectedContext.posture,
     context: input.selectedContext.context,
+    translationOptions: input.translationOptions,
   });
 
     return {

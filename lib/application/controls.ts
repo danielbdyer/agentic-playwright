@@ -42,6 +42,8 @@ function runtimeRunbook(runbook: { artifact: RunbookControl; artifactPath: strin
     interpreterMode: runbook.artifact.interpreterMode ?? null,
     dataset: runbook.artifact.dataset ?? null,
     resolutionControl: runbook.artifact.resolutionControl ?? null,
+    translationEnabled: runbook.artifact.translationEnabled,
+    translationCacheEnabled: runbook.artifact.translationCacheEnabled,
   };
 }
 

@@ -90,22 +90,25 @@ export function resolveWithConfidenceOverlay(
   };
 }
 
-export function resolveWithTranslation(
+export async function resolveWithTranslation(
   task: StepTask,
   translator: RuntimeStepAgentContext['translate'],
-): {
+): Promise<{
   translation: TranslationReceipt | null;
   screen: StepTaskScreenCandidate | null;
   element: StepTaskElementCandidate | null;
   overlayRefs: string[];
   observation?: ResolutionObservation | undefined;
-} {
+}> {
   if (!translator) {
     return { translation: null, screen: null, element: null, overlayRefs: [] };
   }
 
-  const translation = translator({
+  const translation = await translator({
     version: 1,
+    taskFingerprint: task.taskFingerprint,
+    knowledgeFingerprint: task.runtimeKnowledge.knowledgeFingerprint,
+    controlsFingerprint: task.runtimeKnowledge.confidenceFingerprint ?? null,
     normalizedIntent: task.normalizedIntent,
     actionText: task.actionText,
     expectedText: task.expectedText,

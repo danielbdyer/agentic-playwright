@@ -11,6 +11,39 @@ import {
 import type { PersistedEvidenceArtifact } from './persist-evidence';
 import type { SelectedRunContext } from './select-run-context';
 
+
+function translationMetrics(stepResults: RuntimeScenarioStepResult[]) {
+  const relevant = stepResults
+    .map((step) => step.interpretation.translation)
+    .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
+  const total = relevant.length;
+  const hits = relevant.filter((entry) => entry.cache?.status === 'hit').length;
+  const misses = relevant.filter((entry) => entry.cache?.status === 'miss').length;
+  const disabled = relevant.filter((entry) => entry.cache?.status === 'disabled').length;
+  const missReasons = relevant
+    .filter((entry) => entry.cache?.status !== 'hit')
+    .reduce<Record<string, number>>((acc, entry) => {
+      const reason = entry.cache?.reason ?? 'none';
+      acc[reason] = (acc[reason] ?? 0) + 1;
+      return acc;
+    }, {});
+  const failureClasses = relevant.reduce<Record<string, number>>((acc, entry) => {
+    const key = entry.failureClass ?? 'none';
+    acc[key] = (acc[key] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  return {
+    total,
+    hits,
+    misses,
+    disabled,
+    hitRate: Number((total === 0 ? 0 : hits / total).toFixed(2)),
+    missReasons,
+    failureClasses,
+  };
+}
+
 export interface BuildRunRecordResult {
   runRecord: RunRecord;
 }
@@ -31,6 +64,8 @@ export function buildRunRecord(input: {
       .map((entry) => entry.artifactPath),
   }));
   const evidenceIds = input.evidenceWrites.map((entry) => entry.artifactPath);
+
+  const metrics = translationMetrics(input.stepResults);
 
   const runRecord = createRunRecordEnvelope({
     ids: createScenarioEnvelopeIds({
@@ -74,6 +109,7 @@ export function buildRunRecord(input: {
       completedAt: input.stepResults[input.stepResults.length - 1]?.execution.runAt ?? new Date().toISOString(),
       steps: [],
       evidenceIds: [],
+      translationMetrics: metrics,
     },
     steps,
     evidenceIds,

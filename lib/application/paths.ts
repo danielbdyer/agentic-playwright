@@ -37,6 +37,7 @@ export interface ProjectPaths {
   policyDir: string;
   trustPolicyPath: string;
   approvalsDir: string;
+  translationCacheDir: string;
 }
 
 export function createProjectPaths(rootDir: string): ProjectPaths {
@@ -75,6 +76,7 @@ export function createProjectPaths(rootDir: string): ProjectPaths {
     policyDir: path.join(rootDir, '.tesseract', 'policy'),
     trustPolicyPath: path.join(rootDir, '.tesseract', 'policy', 'trust-policy.yaml'),
     approvalsDir: path.join(rootDir, '.tesseract', 'policy', 'approvals'),
+    translationCacheDir: path.join(rootDir, '.tesseract', 'translation-cache'),
   };
 }
 
@@ -233,4 +235,9 @@ export function agentDslPath(paths: ProjectPaths): string {
 
 export function relativeProjectPath(paths: ProjectPaths, absolutePath: string): string {
   return path.relative(paths.rootDir, absolutePath).replace(/\\/g, '/');
+}
+
+
+export function translationCachePath(paths: ProjectPaths, key: string): string {
+  return resolvePathWithinRoot(paths.translationCacheDir, `${key}.translation.json`, 'key');
 }

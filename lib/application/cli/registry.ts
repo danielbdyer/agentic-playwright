@@ -50,6 +50,8 @@ interface ParsedFlags {
   tag?: string;
   interpreterMode?: InterpreterMode;
   url?: string;
+  disableTranslation?: boolean;
+  disableTranslationCache?: boolean;
 }
 
 interface ParseContext {
@@ -204,6 +206,14 @@ const flagReaders: Record<string, (argv: string[], index: number, flags: ParsedF
     flags.nodeId = readFlagValue('--node', argv[index + 1]);
     return index + 1;
   },
+  '--disable-translation': (_argv, index, flags) => {
+    flags.disableTranslation = true;
+    return index;
+  },
+  '--disable-translation-cache': (_argv, index, flags) => {
+    flags.disableTranslationCache = true;
+    return index;
+  },
 };
 
 
@@ -340,7 +350,7 @@ const commandRegistry: Record<CommandName, CommandSpec> = {
     }),
   },
   run: {
-    flags: ['--ado-id', '--runbook', '--tag', '--interpreter-mode', '--execution-profile', '--ci-batch', '--headed', '--no-write', '--baseline'],
+    flags: ['--ado-id', '--runbook', '--tag', '--interpreter-mode', '--execution-profile', '--ci-batch', '--headed', '--no-write', '--baseline', '--disable-translation', '--disable-translation-cache'],
     parse: ({ flags }) => ({
       command: 'run',
       strictExitOnUnbound: false,
@@ -360,6 +370,8 @@ const commandRegistry: Record<CommandName, CommandSpec> = {
           : 'diagnostic',
         posture,
         paths,
+        disableTranslation: Boolean(flags.disableTranslation),
+        disableTranslationCache: Boolean(flags.disableTranslationCache),
       }),
     }),
   },

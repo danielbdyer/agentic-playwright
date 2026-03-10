@@ -85,6 +85,9 @@ function renderReview(trace: ScenarioExplanation, proposalBundle: ProposalBundle
     `- Governance counts: approved=${trace.summary.governance.approved}, review-required=${trace.summary.governance['review-required']}, blocked=${trace.summary.governance.blocked}`,
     `- Knowledge hit rate: ${trace.summary.stageMetrics.knowledgeHitRate}`,
     `- Translation hit rate: ${trace.summary.stageMetrics.translationHitRate}`,
+    `- Translation cache hit rate: ${trace.summary.stageMetrics.translationCacheHitRate}`,
+    `- Translation cache miss reasons: ${Object.entries(trace.summary.stageMetrics.translationCacheMissReasons).map(([reason, count]) => `${reason} (${count})`).join(', ') || 'none'}`,
+    `- Translation failure classes: ${Object.entries(trace.summary.stageMetrics.translationFailureClasses).map(([reason, count]) => `${reason} (${count})`).join(', ') || 'none'}`,
     `- Agentic hit rate: ${trace.summary.stageMetrics.agenticHitRate}`,
     `- Live exploration rate: ${trace.summary.stageMetrics.liveExplorationRate}`,
     `- Degraded locator rate: ${trace.summary.stageMetrics.degradedLocatorRate}`,
@@ -123,6 +126,8 @@ function renderReview(trace: ScenarioExplanation, proposalBundle: ProposalBundle
     lines.push(`- Evidence refs: ${step.evidenceRefs.length > 0 ? step.evidenceRefs.join(', ') : 'none'}`);
     lines.push(`- Overlay refs: ${step.overlayRefs.length > 0 ? step.overlayRefs.join(', ') : 'none'}`);
     lines.push(`- Translation: ${step.translation ? step.translation.rationale : 'none'}`);
+    lines.push(`- Translation cache: ${step.translation?.cache ? `${step.translation.cache.status} (${step.translation.cache.reason ?? 'none'})` : 'none'}`);
+    lines.push(`- Translation failure class: ${step.translation?.failureClass ?? 'none'}`);
     lines.push(`- Exhaustion trail: ${step.runtime?.exhaustion?.map((entry) => `${entry.stage}:${entry.outcome}`).join(' -> ') || 'none'}`);
     lines.push(`- Unresolved gaps: ${step.unresolvedGaps.length > 0 ? step.unresolvedGaps.join(', ') : 'none'}`);
     lines.push(`- Review flags: ${step.reviewReasons.length > 0 ? step.reviewReasons.join(', ') : 'none'}`);

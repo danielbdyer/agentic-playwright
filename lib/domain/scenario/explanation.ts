@@ -144,6 +144,24 @@ export function explainBoundScenario(boundScenario: BoundScenario, lifecycle: Sc
     });
   const knowledgeHits = steps.filter((step) => step.provenanceKind === 'approved-knowledge').length;
   const translationHits = steps.filter((step) => step.resolutionMode === 'translation').length;
+
+  const translationCacheEntries = steps
+    .map((step) => step.translation?.cache)
+    .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
+  const translationCacheHits = translationCacheEntries.filter((entry) => entry.status === 'hit').length;
+  const translationMissReasons = translationCacheEntries
+    .filter((entry) => entry.status !== 'hit')
+    .reduce<Record<string, number>>((acc, entry) => {
+      const reason = entry.reason ?? 'none';
+      acc[reason] = (acc[reason] ?? 0) + 1;
+      return acc;
+    }, {});
+  const translationFailureClasses = steps
+    .map((step) => step.translation?.failureClass ?? 'none')
+    .reduce<Record<string, number>>((acc, failureClass) => {
+      acc[failureClass] = (acc[failureClass] ?? 0) + 1;
+      return acc;
+    }, {});
   const agenticHits = steps.filter((step) => step.resolutionMode === 'agentic').length;
   const liveExplorationHits = steps.filter((step) => step.provenanceKind === 'live-exploration').length;
   const degradedHits = steps.filter((step) => step.runtime?.degraded).length;
@@ -168,6 +186,9 @@ export function explainBoundScenario(boundScenario: BoundScenario, lifecycle: Sc
       stageMetrics: {
         knowledgeHitRate: rate(knowledgeHits),
         translationHitRate: rate(translationHits),
+        translationCacheHitRate: Number((translationCacheEntries.length === 0 ? 0 : translationCacheHits / translationCacheEntries.length).toFixed(2)),
+        translationCacheMissReasons: translationMissReasons,
+        translationFailureClasses,
         agenticHitRate: rate(agenticHits),
         liveExplorationRate: rate(liveExplorationHits),
         degradedLocatorRate: rate(degradedHits),
