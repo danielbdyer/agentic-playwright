@@ -11,10 +11,7 @@ import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
 import type { ProjectPaths } from './paths';
 import { relativeProjectPath } from './paths';
 import { FileSystem } from './ports';
-
-function uniqueSorted(values: Iterable<string>): string[] {
-  return [...new Set([...values].filter((value) => value.length > 0))].sort((left, right) => left.localeCompare(right));
-}
+import { compareStrings, uniqueSorted } from '../domain/collections';
 
 function round(value: number): number {
   return Number(value.toFixed(2));
@@ -142,7 +139,7 @@ function contributeRunArtifacts(catalog: WorkspaceCatalog): Map<string, Aggregat
         taskStep?.normalizedIntent ?? '',
         taskStep?.actionText ?? '',
         taskStep?.expectedText ?? '',
-      ]);
+      ].filter((value) => value.length > 0));
       const success = step.execution.execution.status === 'ok' && step.interpretation.kind !== 'needs-human';
       const target = 'target' in step.interpretation ? step.interpretation.target : null;
       if (!target?.screen) {
@@ -280,7 +277,7 @@ export function buildConfidenceOverlayCatalog(catalog: WorkspaceCatalog): Confid
         },
       } satisfies ArtifactConfidenceRecord;
     })
-    .sort((left, right) => left.id.localeCompare(right.id));
+    .sort((left, right) => compareStrings(left.id, right.id));
 
   return {
     kind: 'confidence-overlay-catalog',

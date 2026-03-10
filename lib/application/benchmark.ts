@@ -12,6 +12,7 @@ import {
   relativeProjectPath,
 } from './paths';
 import { ExecutionContext, FileSystem } from './ports';
+import { groupBy, uniqueSorted } from '../domain/collections';
 import type {
   BenchmarkContext,
   BenchmarkScorecard,
@@ -26,10 +27,6 @@ interface BenchmarkVariant {
   element: string;
   posture: string;
   sourceRuleIndex: number;
-}
-
-function uniqueSorted(values: string[]): string[] {
-  return [...new Set(values.filter((value) => value.length > 0))].sort((left, right) => left.localeCompare(right));
 }
 
 function round(value: number): number {
@@ -70,13 +67,13 @@ function proposalsForScenarios(bundles: readonly ProposalBundle[], scenarioIds: 
 }
 
 function knowledgeChurnForBundles(bundles: readonly ProposalBundle[]): Record<string, number> {
-  const counts = new Map<string, number>();
-  for (const bundle of bundles) {
-    for (const proposal of bundle.proposals) {
-      counts.set(proposal.artifactType, (counts.get(proposal.artifactType) ?? 0) + 1);
-    }
-  }
-  return Object.fromEntries([...counts.entries()].sort(([left], [right]) => left.localeCompare(right)));
+  const grouped = groupBy(
+    bundles.flatMap((bundle) => bundle.proposals),
+    (proposal) => proposal.artifactType,
+  );
+  return Object.fromEntries(
+    Object.entries(grouped).map(([artifactType, proposals]) => [artifactType, proposals.length]),
+  );
 }
 
 function scorecardForBenchmark(input: {
@@ -100,7 +97,7 @@ function scorecardForBenchmark(input: {
     failureCount: number;
   }>;
 }): BenchmarkScorecard {
-  const uniqueScreens = uniqueSorted(input.benchmark.fieldCatalog.map((field) => field.screen));
+  const uniqueScreens = uniqueSorted(input.benchmark.fieldCatalog.map((field) => field.screen).filter((value) => value.length > 0));
   const driftCount = input.benchmark.driftEvents.length;
   const locatorDriftCount = input.benchmark.driftEvents.filter((event) => event.kind === 'locator-degradation').length;
   const widgetDriftCount = input.benchmark.driftEvents.filter((event) => event.kind === 'widget-swap').length;
@@ -127,7 +124,7 @@ function scorecardForBenchmark(input: {
       record.steps
         .filter((step) => step.degraded)
         .map(() => record.adoId),
-    ),
+    ).filter((value) => value.length > 0),
   ).length;
   const overlayChurn = input.confidenceRecords.filter((record) =>
     record.failureCount > 0 && uniqueScreens.includes(record.screen ?? ''),

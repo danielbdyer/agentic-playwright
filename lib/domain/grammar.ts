@@ -4,6 +4,7 @@ import { unknownWidgetActionError } from './errors';
 import type { CapabilityName, DerivedCapability, ElementSig, ScreenElements, SurfaceGraph, WidgetAction } from './types';
 import { graphIds, knowledgePaths } from './ids';
 import { widgetCapabilityContracts } from './widgets/contracts';
+import { compareStrings, uniqueSorted } from './collections';
 
 const roleCapabilities: Record<string, CapabilityName[]> = {
   alert: ['observe-state'],
@@ -14,10 +15,6 @@ const roleCapabilities: Record<string, CapabilityName[]> = {
   table: ['observe-structure', 'observe-state'],
   textbox: ['enter', 'observe-state'],
 };
-
-function uniqueSorted<T extends string>(values: T[]): T[] {
-  return [...new Set(values)].sort((left, right) => left.localeCompare(right)) as T[];
-}
 
 function capabilitiesFromWidgetAction(widget: string, action: WidgetAction): CapabilityName[] {
   switch (action) {
@@ -128,7 +125,7 @@ export function deriveCapabilities(surfaceGraph: SurfaceGraph, screenElements: S
       ...entry,
       operations: uniqueSorted(entry.operations),
     }))
-    .sort((left, right) => left.id.localeCompare(right.id));
+    .sort((left, right) => compareStrings(left.id, right.id));
 }
 
 export function findCapability(

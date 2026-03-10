@@ -1,6 +1,7 @@
 ﻿import { parseRefPath } from './ref-path';
 import type { AdoId, ElementId, ScreenId, SnapshotTemplateId } from './identity';
 import type { CapabilityName, CompilerDiagnostic, ScenarioStep, StepInstruction, StepProgram, ValueRef } from './types';
+import { uniqueSorted } from './collections';
 
 const TEMPLATE_PATTERN = /^\{\{([a-zA-Z0-9_.]+)\}\}$/;
 const GENERATED_TOKEN_PATTERN = /^<<generated:(.+)>>$/;
@@ -11,10 +12,6 @@ export interface StepProgramTrace {
   elements: ElementId[];
   snapshotTemplates: SnapshotTemplateId[];
   hasEscapeHatch: boolean;
-}
-
-function uniqueSorted<T extends string>(values: T[]): T[] {
-  return [...new Set(values)].sort((left, right) => left.localeCompare(right)) as T[];
 }
 
 export function parseValueRef(raw: string | null | undefined, step?: Pick<ScenarioStep, 'element' | 'posture'>): ValueRef | null {
