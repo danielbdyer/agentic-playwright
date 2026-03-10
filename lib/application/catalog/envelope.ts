@@ -116,6 +116,7 @@ export function createRunRecordEnvelope(input: {
       steps: input.steps,
       evidenceIds: input.evidenceIds,
       translationMetrics: input.payload.translationMetrics,
+      executionMetrics: input.payload.executionMetrics,
     },
     runId: input.payload.runId,
     adoId: input.payload.adoId,
@@ -131,6 +132,7 @@ export function createRunRecordEnvelope(input: {
     steps: input.steps,
     evidenceIds: input.evidenceIds,
     translationMetrics: input.payload.translationMetrics,
+    executionMetrics: input.payload.executionMetrics,
   };
 }
 

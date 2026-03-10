@@ -66,6 +66,40 @@ export function buildRunRecord(input: {
   const evidenceIds = input.evidenceWrites.map((entry) => entry.artifactPath);
 
   const metrics = translationMetrics(input.stepResults);
+  const executionMetrics = {
+    timingTotals: steps.reduce((acc, step) => ({
+      setupMs: acc.setupMs + (step.execution.timing?.setupMs ?? 0),
+      resolutionMs: acc.resolutionMs + (step.execution.timing?.resolutionMs ?? 0),
+      actionMs: acc.actionMs + (step.execution.timing?.actionMs ?? 0),
+      assertionMs: acc.assertionMs + (step.execution.timing?.assertionMs ?? 0),
+      retriesMs: acc.retriesMs + (step.execution.timing?.retriesMs ?? 0),
+      teardownMs: acc.teardownMs + (step.execution.timing?.teardownMs ?? 0),
+      totalMs: acc.totalMs + (step.execution.timing?.totalMs ?? step.execution.durationMs ?? 0),
+    }), {
+      setupMs: 0,
+      resolutionMs: 0,
+      actionMs: 0,
+      assertionMs: 0,
+      retriesMs: 0,
+      teardownMs: 0,
+      totalMs: 0,
+    }),
+    costTotals: steps.reduce((acc, step) => ({
+      instructionCount: acc.instructionCount + (step.execution.cost?.instructionCount ?? 0),
+      diagnosticCount: acc.diagnosticCount + (step.execution.cost?.diagnosticCount ?? 0),
+    }), { instructionCount: 0, diagnosticCount: 0 }),
+    budgetBreaches: steps.filter((step) => step.execution.budget?.status === 'over-budget').length,
+    failureFamilies: steps.reduce<Record<'none' | 'precondition-failure' | 'locator-degradation-failure' | 'environment-runtime-failure', number>>((acc, step) => {
+      const family = step.execution.failure?.family ?? 'none';
+      acc[family] += 1;
+      return acc;
+    }, {
+      none: 0,
+      'precondition-failure': 0,
+      'locator-degradation-failure': 0,
+      'environment-runtime-failure': 0,
+    }),
+  };
 
   const runRecord = createRunRecordEnvelope({
     ids: createScenarioEnvelopeIds({
@@ -110,6 +144,7 @@ export function buildRunRecord(input: {
       steps: [],
       evidenceIds: [],
       translationMetrics: metrics,
+      executionMetrics,
     },
     steps,
     evidenceIds,

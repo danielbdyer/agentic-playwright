@@ -93,6 +93,21 @@ export interface BenchmarkScorecard {
   thinKnowledgeScreenCount: number;
   degradedLocatorHotspotCount: number;
   overlayChurn: number;
+  executionTimingTotalsMs: {
+    setup: number;
+    resolution: number;
+    action: number;
+    assertion: number;
+    retries: number;
+    teardown: number;
+    total: number;
+  };
+  executionCostTotals: {
+    instructionCount: number;
+    diagnosticCount: number;
+  };
+  executionFailureFamilies: Record<string, number>;
+  budgetBreachCount: number;
   thresholdStatus: 'pass' | 'warn' | 'fail';
 }
 
@@ -200,6 +215,21 @@ export interface ScenarioExplanationSummary {
     proposalCount: number;
     reviewRequiredCount: number;
     approvedEquivalentRate: number;
+    runtimeFailureFamilies: Record<string, number>;
+    budgetBreachRate: number;
+    averageRuntimeCost: {
+      instructionCount: number;
+      diagnosticCount: number;
+    };
+    timing: {
+      setupMs: number;
+      resolutionMs: number;
+      actionMs: number;
+      assertionMs: number;
+      retriesMs: number;
+      teardownMs: number;
+      totalMs: number;
+    };
   };
   unresolvedReasons: Array<{ reason: string; count: number }>;
 }
@@ -241,6 +271,23 @@ export interface ScenarioExplanationStep {
     degraded?: boolean | undefined;
     preconditionFailures?: string[] | undefined;
     durationMs?: number | undefined;
+    timing?: {
+      setupMs: number;
+      resolutionMs: number;
+      actionMs: number;
+      assertionMs: number;
+      retriesMs: number;
+      teardownMs: number;
+      totalMs: number;
+    } | undefined;
+    budget?: {
+      status: 'within-budget' | 'over-budget' | 'not-configured';
+      breaches: string[];
+    } | undefined;
+    failure?: {
+      family: 'none' | 'precondition-failure' | 'locator-degradation-failure' | 'environment-runtime-failure';
+      code?: string | null | undefined;
+    } | undefined;
     exhaustion?: ResolutionExhaustionEntry[] | undefined;
   } | undefined;
 }

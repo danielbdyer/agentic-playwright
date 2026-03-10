@@ -84,6 +84,23 @@ function scorecardForBenchmark(input: {
   generatedVariantCount: number;
   runRecords: Array<{
     adoId: string;
+    executionMetrics: {
+      timingTotals: {
+        setupMs: number;
+        resolutionMs: number;
+        actionMs: number;
+        assertionMs: number;
+        retriesMs: number;
+        teardownMs: number;
+        totalMs: number;
+      };
+      costTotals: {
+        instructionCount: number;
+        diagnosticCount: number;
+      };
+      budgetBreaches: number;
+      failureFamilies: Record<string, number>;
+    };
     steps: Array<{
       resolutionMode: 'deterministic' | 'translation' | 'agentic';
       winningSource: string;
@@ -129,6 +146,26 @@ function scorecardForBenchmark(input: {
   const overlayChurn = input.confidenceRecords.filter((record) =>
     record.failureCount > 0 && uniqueScreens.includes(record.screen ?? ''),
   ).length;
+  const timingTotals = benchmarkRuns.reduce((acc, run) => ({
+    setup: acc.setup + run.executionMetrics.timingTotals.setupMs,
+    resolution: acc.resolution + run.executionMetrics.timingTotals.resolutionMs,
+    action: acc.action + run.executionMetrics.timingTotals.actionMs,
+    assertion: acc.assertion + run.executionMetrics.timingTotals.assertionMs,
+    retries: acc.retries + run.executionMetrics.timingTotals.retriesMs,
+    teardown: acc.teardown + run.executionMetrics.timingTotals.teardownMs,
+    total: acc.total + run.executionMetrics.timingTotals.totalMs,
+  }), { setup: 0, resolution: 0, action: 0, assertion: 0, retries: 0, teardown: 0, total: 0 });
+  const executionCostTotals = benchmarkRuns.reduce((acc, run) => ({
+    instructionCount: acc.instructionCount + run.executionMetrics.costTotals.instructionCount,
+    diagnosticCount: acc.diagnosticCount + run.executionMetrics.costTotals.diagnosticCount,
+  }), { instructionCount: 0, diagnosticCount: 0 });
+  const executionFailureFamilies = benchmarkRuns.reduce<Record<string, number>>((acc, run) => {
+    for (const [family, count] of Object.entries(run.executionMetrics.failureFamilies)) {
+      acc[family] = (acc[family] ?? 0) + count;
+    }
+    return acc;
+  }, {});
+  const budgetBreachCount = benchmarkRuns.reduce((sum, run) => sum + run.executionMetrics.budgetBreaches, 0);
   const thresholds = input.benchmark.fieldAwarenessThresholds;
   const thresholdStatus = uniqueFieldAwarenessCount < thresholds.minFieldAwarenessCount
     || firstPassScreenResolutionRate < thresholds.minFirstPassScreenResolutionRate
@@ -159,6 +196,10 @@ function scorecardForBenchmark(input: {
     thinKnowledgeScreenCount,
     degradedLocatorHotspotCount,
     overlayChurn,
+    executionTimingTotalsMs: timingTotals,
+    executionCostTotals,
+    executionFailureFamilies,
+    budgetBreachCount,
     thresholdStatus,
   };
 }
@@ -231,6 +272,10 @@ function renderScorecardMarkdown(benchmark: BenchmarkContext, scorecard: Benchma
     `- Thin-knowledge screens: ${scorecard.thinKnowledgeScreenCount}`,
     `- Degraded locator hotspots: ${scorecard.degradedLocatorHotspotCount}`,
     `- Overlay churn: ${scorecard.overlayChurn}`,
+    `- Execution timing totals (ms): ${JSON.stringify(scorecard.executionTimingTotalsMs)}`,
+    `- Execution cost totals: ${JSON.stringify(scorecard.executionCostTotals)}`,
+    `- Execution failure families: ${JSON.stringify(scorecard.executionFailureFamilies)}`,
+    `- Budget breach count: ${scorecard.budgetBreachCount}`,
     `- Knowledge churn: ${JSON.stringify(scorecard.knowledgeChurn)}`,
     `- Generated variants: ${scorecard.generatedVariantCount}`,
     `- Next commands: tesseract benchmark --benchmark ${benchmark.name} | tesseract scorecard --benchmark ${benchmark.name} | tesseract inbox`,
@@ -291,6 +336,7 @@ export function projectBenchmarkScorecard(options: {
       generatedVariantCount: variants.length,
       runRecords: scorecardCatalog.runRecords.map((entry) => ({
         adoId: entry.artifact.adoId,
+        executionMetrics: entry.artifact.executionMetrics,
         steps: entry.artifact.steps.map((step) => ({
           resolutionMode: step.interpretation.resolutionMode,
           winningSource: step.interpretation.winningSource,

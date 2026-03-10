@@ -40,9 +40,38 @@ export interface StepExecutionReceipt {
   degraded: boolean;
   preconditionFailures: string[];
   durationMs: number;
+  timing: {
+    setupMs: number;
+    resolutionMs: number;
+    actionMs: number;
+    assertionMs: number;
+    retriesMs: number;
+    teardownMs: number;
+    totalMs: number;
+  };
   cost: {
     instructionCount: number;
     diagnosticCount: number;
+  };
+  budget: {
+    thresholds: {
+      maxSetupMs?: number | undefined;
+      maxResolutionMs?: number | undefined;
+      maxActionMs?: number | undefined;
+      maxAssertionMs?: number | undefined;
+      maxRetriesMs?: number | undefined;
+      maxTeardownMs?: number | undefined;
+      maxTotalMs?: number | undefined;
+      maxInstructionCount?: number | undefined;
+      maxDiagnosticCount?: number | undefined;
+    };
+    status: 'within-budget' | 'over-budget' | 'not-configured';
+    breaches: string[];
+  };
+  failure: {
+    family: 'none' | 'precondition-failure' | 'locator-degradation-failure' | 'environment-runtime-failure';
+    code?: string | null | undefined;
+    message?: string | null | undefined;
   };
   handshakes: import('./workflow').WorkflowStage[];
   execution: ExecutionObservation;
@@ -90,6 +119,12 @@ export interface RunRecord {
     steps: ScenarioRunStep[];
     evidenceIds: string[];
     translationMetrics: TranslationRunMetrics;
+    executionMetrics: {
+      timingTotals: StepExecutionReceipt['timing'];
+      costTotals: StepExecutionReceipt['cost'];
+      budgetBreaches: number;
+      failureFamilies: Record<StepExecutionReceipt['failure']['family'], number>;
+    };
   };
   runId: string;
   adoId: AdoId;
@@ -105,6 +140,12 @@ export interface RunRecord {
   steps: ScenarioRunStep[];
   evidenceIds: string[];
   translationMetrics: TranslationRunMetrics;
+  executionMetrics: {
+    timingTotals: StepExecutionReceipt['timing'];
+    costTotals: StepExecutionReceipt['cost'];
+    budgetBreaches: number;
+    failureFamilies: Record<StepExecutionReceipt['failure']['family'], number>;
+  };
 }
 
 export interface ProposalEntry {

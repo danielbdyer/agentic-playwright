@@ -94,6 +94,10 @@ function renderReview(trace: ScenarioExplanation, proposalBundle: ProposalBundle
     `- Proposal count: ${trace.summary.stageMetrics.proposalCount}`,
     `- Review-required count: ${trace.summary.stageMetrics.reviewRequiredCount}`,
     `- Approved-equivalent rate: ${trace.summary.stageMetrics.approvedEquivalentRate}`,
+    `- Runtime failure families: ${Object.entries(trace.summary.stageMetrics.runtimeFailureFamilies).map(([family, count]) => `${family} (${count})`).join(', ') || 'none'}`,
+    `- Budget breach rate: ${trace.summary.stageMetrics.budgetBreachRate}`,
+    `- Average runtime cost: instructions=${trace.summary.stageMetrics.averageRuntimeCost.instructionCount}, diagnostics=${trace.summary.stageMetrics.averageRuntimeCost.diagnosticCount}`,
+    `- Runtime timing totals (ms): setup=${trace.summary.stageMetrics.timing.setupMs}, resolution=${trace.summary.stageMetrics.timing.resolutionMs}, action=${trace.summary.stageMetrics.timing.actionMs}, assertion=${trace.summary.stageMetrics.timing.assertionMs}, retries=${trace.summary.stageMetrics.timing.retriesMs}, teardown=${trace.summary.stageMetrics.timing.teardownMs}, total=${trace.summary.stageMetrics.timing.totalMs}`,
     `- Unresolved gaps: ${trace.summary.unresolvedReasons.length > 0 ? trace.summary.unresolvedReasons.map((entry) => `${entry.reason} (${entry.count})`).join(', ') : 'none'}`,
     '',
   ];
@@ -119,6 +123,9 @@ function renderReview(trace: ScenarioExplanation, proposalBundle: ProposalBundle
     lines.push(`- Runtime locator rung: ${step.runtime?.locatorRung ?? 'none'}`);
     lines.push(`- Runtime degraded: ${step.runtime?.degraded ? 'yes' : 'no'}`);
     lines.push(`- Runtime duration ms: ${step.runtime?.durationMs ?? 0}`);
+    lines.push(`- Runtime timing ms: ${step.runtime?.timing ? `setup=${step.runtime.timing.setupMs}, resolution=${step.runtime.timing.resolutionMs}, action=${step.runtime.timing.actionMs}, assertion=${step.runtime.timing.assertionMs}, retries=${step.runtime.timing.retriesMs}, teardown=${step.runtime.timing.teardownMs}, total=${step.runtime.timing.totalMs}` : 'none'}`);
+    lines.push(`- Runtime budget: ${step.runtime?.budget ? `${step.runtime.budget.status} (${step.runtime.budget.breaches.join(', ') || 'none'})` : 'none'}`);
+    lines.push(`- Runtime failure family: ${step.runtime?.failure?.family ?? 'none'} (${step.runtime?.failure?.code ?? 'none'})`);
     lines.push(`- Runtime precondition failures: ${step.runtime?.preconditionFailures?.join(', ') || 'none'}`);
     lines.push(`- Knowledge refs: ${step.knowledgeRefs.length > 0 ? step.knowledgeRefs.join(', ') : 'none'}`);
     lines.push(`- Supplements: ${step.supplementRefs.length > 0 ? step.supplementRefs.join(', ') : 'none'}`);

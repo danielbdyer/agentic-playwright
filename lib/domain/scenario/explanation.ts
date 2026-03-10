@@ -30,6 +30,23 @@ function runtimeStatusForStep(run: RunRecord | null | undefined, stepIndex: numb
       degraded: false,
       preconditionFailures: [],
       durationMs: 0,
+      timing: {
+        setupMs: 0,
+        resolutionMs: 0,
+        actionMs: 0,
+        assertionMs: 0,
+        retriesMs: 0,
+        teardownMs: 0,
+        totalMs: 0,
+      },
+      budget: {
+        status: 'not-configured',
+        breaches: [],
+      },
+      failure: {
+        family: 'none',
+        code: null,
+      },
       exhaustion: [],
     };
   }
@@ -44,6 +61,15 @@ function runtimeStatusForStep(run: RunRecord | null | undefined, stepIndex: numb
     degraded: runStep.execution.degraded,
     preconditionFailures: runStep.execution.preconditionFailures,
     durationMs: runStep.execution.durationMs,
+    timing: runStep.execution.timing,
+    budget: {
+      status: runStep.execution.budget.status,
+      breaches: runStep.execution.budget.breaches,
+    },
+    failure: {
+      family: runStep.execution.failure.family,
+      code: runStep.execution.failure.code ?? null,
+    },
     exhaustion: runStep.interpretation.exhaustion,
   };
 }
@@ -168,6 +194,37 @@ export function explainBoundScenario(boundScenario: BoundScenario, lifecycle: Sc
   const proposalCount = latestRun?.steps.reduce((count, step) => count + step.interpretation.proposalDrafts.length, 0) ?? 0;
   const reviewRequiredCount = steps.filter((step) => step.governance === 'review-required').length;
   const approvedEquivalentHits = steps.filter((step) => step.winningSource === 'approved-equivalent').length;
+  const runtimeFailureFamilies = steps.reduce<Record<string, number>>((acc, step) => {
+    const family = step.runtime?.failure?.family ?? 'none';
+    acc[family] = (acc[family] ?? 0) + 1;
+    return acc;
+  }, {});
+  const budgetBreaches = steps.filter((step) => step.runtime?.budget?.status === 'over-budget').length;
+  const timingTotals = steps.reduce((acc, step) => {
+    const timing = step.runtime?.timing;
+    if (!timing) {
+      return acc;
+    }
+    return {
+      setupMs: acc.setupMs + timing.setupMs,
+      resolutionMs: acc.resolutionMs + timing.resolutionMs,
+      actionMs: acc.actionMs + timing.actionMs,
+      assertionMs: acc.assertionMs + timing.assertionMs,
+      retriesMs: acc.retriesMs + timing.retriesMs,
+      teardownMs: acc.teardownMs + timing.teardownMs,
+      totalMs: acc.totalMs + timing.totalMs,
+    };
+  }, {
+    setupMs: 0,
+    resolutionMs: 0,
+    actionMs: 0,
+    assertionMs: 0,
+    retriesMs: 0,
+    teardownMs: 0,
+    totalMs: 0,
+  });
+  const avgInstructionCount = Number(((latestRun?.steps.reduce((sum, step) => sum + step.execution.cost.instructionCount, 0) ?? 0) / Math.max(steps.length, 1)).toFixed(2));
+  const avgDiagnosticCount = Number(((latestRun?.steps.reduce((sum, step) => sum + step.execution.cost.diagnosticCount, 0) ?? 0) / Math.max(steps.length, 1)).toFixed(2));
   const rate = (value: number) => Number((steps.length === 0 ? 0 : value / steps.length).toFixed(2));
 
   return {
@@ -195,6 +252,13 @@ export function explainBoundScenario(boundScenario: BoundScenario, lifecycle: Sc
         proposalCount,
         reviewRequiredCount,
         approvedEquivalentRate: rate(approvedEquivalentHits),
+        runtimeFailureFamilies,
+        budgetBreachRate: rate(budgetBreaches),
+        averageRuntimeCost: {
+          instructionCount: avgInstructionCount,
+          diagnosticCount: avgDiagnosticCount,
+        },
+        timing: timingTotals,
       },
       unresolvedReasons,
     },
