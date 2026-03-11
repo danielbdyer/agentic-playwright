@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { writeFileSync } from 'fs';
 import { loadWorkspaceCatalog } from '../lib/application/catalog';
 import {
   controlResolutionForStep,
@@ -449,4 +450,46 @@ test('runtime agent falls through to structured translation before live DOM', as
   expect(receipt.winningSource).toBe('structured-translation');
   expect(receipt.resolutionMode).toBe('translation');
   expect(receipt.translation?.matched).toBeTruthy();
+});
+
+
+test('runtime controls expose dom exploration policy from resolution controls', async () => {
+  const workspace = createTestWorkspace('controls-dom-policy');
+  try {
+    writeFileSync(workspace.resolve('controls', 'resolution', 'demo-policy-search.resolution.yaml'), `kind: resolution-control
+version: 1
+name: demo-policy-search
+selector:
+  adoIds: ["10001"]
+  suites: ["demo/policy-search"]
+  tags: ["smoke"]
+domExplorationPolicy:
+  maxCandidates: 2
+  maxProbes: 5
+  forbiddenActions: ["navigate", "custom"]
+steps:
+  - stepIndex: 2
+    resolution:
+      action: input
+      screen: policy-search
+      element: policyNumberInput
+`, 'utf8');
+
+    const catalog = await runWithLocalServices(loadWorkspaceCatalog({ paths: workspace.paths }), workspace.rootDir);
+    const scenario = catalog.scenarios.find((entry) => entry.artifact.source.ado_id === '10001')?.artifact;
+    expect(scenario).toBeTruthy();
+    if (!scenario) {
+      throw new Error('seeded scenario 10001 is required');
+    }
+
+    const controls = runtimeControlsForScenario(catalog, scenario);
+    const stepTwo = controls.resolutionControls.find((entry) => entry.stepIndex === 2 && entry.name === 'demo-policy-search');
+    expect(stepTwo?.domExplorationPolicy).toEqual({
+      maxCandidates: 2,
+      maxProbes: 5,
+      forbiddenActions: ['navigate', 'custom'],
+    });
+  } finally {
+    workspace.cleanup();
+  }
 });

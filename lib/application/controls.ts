@@ -60,6 +60,7 @@ function runtimeResolutionControls(
         artifactPath: entry.artifactPath,
         stepIndex: step.stepIndex,
         resolution: step.resolution,
+        domExplorationPolicy: entry.artifact.domExplorationPolicy,
       })),
     )
     .sort((left, right) => {

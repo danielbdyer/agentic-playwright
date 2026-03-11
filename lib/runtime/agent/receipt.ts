@@ -56,7 +56,7 @@ export function needsHumanReceipt(stage: RuntimeAgentStageContext, overlayRefs: 
   return {
     ...base,
     kind: 'needs-human',
-    governance: 'blocked',
+    governance: 'review-required',
     resolutionMode: 'agentic',
     overlayRefs: uniqueSorted(overlayRefs),
     winningConcern: 'resolution',
