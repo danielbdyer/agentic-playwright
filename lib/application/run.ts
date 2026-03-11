@@ -17,7 +17,7 @@ import type { ExecutionPosture } from '../domain/types';
 import type { AdoId } from '../domain/identity';
 import { selectRunContext } from './execution/select-run-context';
 import { runPipelineStage } from './pipeline';
-import { executeSteps } from './execution/execute-steps';
+import { interpretScenarioTaskPacket } from './execution/interpret';
 import { persistEvidence } from './execution/persist-evidence';
 import { buildProposals } from './execution/build-proposals';
 import { buildRunRecord } from './execution/build-run-record';
@@ -54,11 +54,24 @@ export function runScenario(options: {
           executionContextPosture: executionContext.posture,
         });
 
-        const executionStage = yield* executeSteps({
+        const executionStage = yield* interpretScenarioTaskPacket({
           runtimeScenarioRunner,
           rootDir: options.paths.rootDir,
           adoId: options.adoId,
-          selectedContext,
+          runId: selectedContext.runId,
+          taskPacket: selectedContext.taskPacketEntry.artifact,
+          mode: selectedContext.mode,
+          providerId: selectedContext.providerId,
+          screenIds: selectedContext.screenIds,
+          fixtures: selectedContext.fixtures,
+          controlSelection: {
+            runbook: selectedContext.activeRunbook?.name ?? null,
+            dataset: selectedContext.activeDataset?.name ?? null,
+            resolutionControl: selectedContext.activeRunbook?.resolutionControl ?? null,
+          },
+          steps: selectedContext.steps,
+          posture: selectedContext.posture,
+          context: selectedContext.context,
           translationOptions: {
             disableTranslation: options.disableTranslation ?? !selectedContext.translationEnabled,
             disableTranslationCache: options.disableTranslationCache ?? !selectedContext.translationCacheEnabled,

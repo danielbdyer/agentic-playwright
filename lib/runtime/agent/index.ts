@@ -16,6 +16,7 @@ import {
   rankSnapshotCandidates,
   type LatticeCandidate,
 } from './candidate-lattice';
+import { createPlaywrightDomResolver } from '../adapters/playwright-dom-resolver';
 
 export const RESOLUTION_PRECEDENCE = [
   'explicit',
@@ -221,8 +222,12 @@ export async function runResolutionPipeline(task: StepTask, context: RuntimeStep
   recordExhaustion(stage.exhaustion, 'structured-translation', context.translate ? 'failed' : 'skipped', context.translate ? 'Structured translation did not produce an executable target' : 'No structured translation stage was configured');
 
   const domScreen = translated.screen ?? overlayResult.screen ?? screen;
+  const domResolver = context.domResolver
+    ?? (context.page
+      ? createPlaywrightDomResolver(context.page as any)
+      : undefined);
   const domPolicy = selectedDomExplorationPolicy(task, context);
-  const domResolved = await resolveFromDom(context.page, task, domScreen, action, domPolicy);
+  const domResolved = await resolveFromDom(domResolver, task, domScreen, action, domPolicy);
   if (domResolved.observation) {
     stage.observations.push(domResolved.observation);
   }
@@ -295,7 +300,7 @@ export async function runResolutionPipeline(task: StepTask, context: RuntimeStep
     } as ResolutionReceipt;
   }
 
-  recordExhaustion(stage.exhaustion, 'live-dom', context.page ? 'failed' : 'skipped', context.page ? 'Live DOM did not produce a bounded executable candidate set' : 'No live runtime page was available');
+  recordExhaustion(stage.exhaustion, 'live-dom', domResolver ? 'failed' : 'skipped', domResolver ? 'Live DOM did not produce a bounded executable candidate set' : 'No live DOM resolver was available');
   recordExhaustion(stage.exhaustion, 'safe-degraded-resolution', 'failed', 'No safe degraded resolution remained after all machine paths were exhausted');
 
   return {

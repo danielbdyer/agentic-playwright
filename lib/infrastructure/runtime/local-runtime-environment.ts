@@ -1,8 +1,7 @@
-import type { Page } from '@playwright/test';
 import type { RuntimeScenarioMode } from '../../application/ports';
 import type { ScreenId } from '../../domain/identity';
 import type { ScreenRegistry, SnapshotTemplateLoader } from '../../domain/runtime-loaders';
-import type { ExecutionPosture, TranslationRequest, TranslationReceipt } from '../../domain/types';
+import type { ExecutionPosture, RuntimeDomResolver, TranslationRequest, TranslationReceipt } from '../../domain/types';
 import { createLocalScreenRegistryLoader } from '../screen-registry/local-screen-registry-loader';
 import { createLocalSnapshotTemplateLoader } from '../snapshots/local-snapshot-template-loader';
 
@@ -19,7 +18,7 @@ export interface LocalRuntimeEnvironment {
   fixtures: Record<string, unknown>;
   screens: ScreenRegistry;
   snapshotLoader: SnapshotTemplateLoader;
-  page?: Page | undefined;
+  domResolver?: RuntimeDomResolver | undefined;
 }
 
 export function createLocalRuntimeEnvironment(input: {
@@ -35,7 +34,7 @@ export function createLocalRuntimeEnvironment(input: {
     resolutionControl?: string | null | undefined;
   } | undefined;
   translator?: ((request: TranslationRequest) => Promise<TranslationReceipt>) | undefined;
-  page?: Page | undefined;
+  domResolver?: RuntimeDomResolver | undefined;
 }): LocalRuntimeEnvironment {
   const screenLoader = createLocalScreenRegistryLoader(input.rootDir);
   return {
@@ -45,7 +44,7 @@ export function createLocalRuntimeEnvironment(input: {
     controlSelection: input.controlSelection,
     translator: input.translator,
     fixtures: input.fixtures,
-    page: input.page,
+    domResolver: input.domResolver,
     screens: screenLoader.loadScreenRegistry(input.screenIds),
     snapshotLoader: createLocalSnapshotTemplateLoader(input.rootDir),
   };
