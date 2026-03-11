@@ -10,6 +10,7 @@ import type {
 } from '../../domain/types';
 import { precedenceWeight, resolutionPrecedenceLaw } from '../../domain/precedence';
 import { allowedActionFallback } from './resolve-action';
+import type { RuntimeWorkingMemory } from './types';
 import { bestAliasMatch, humanizeIdentifier, normalizedCombined, uniqueSorted } from './shared';
 
 export type LatticeSource = 'explicit' | 'control' | 'approved-knowledge' | 'overlay' | 'translation' | 'live-dom';
@@ -160,7 +161,7 @@ export function rankActionCandidates(task: StepTask, controlResolution: StepReso
   return asRanked(entries);
 }
 
-export function rankScreenCandidates(task: StepTask, action: StepAction | null, controlResolution: StepResolution | null, previousResolution: import('../../domain/types').ResolutionTarget | null | undefined): RankedLattice<StepTaskScreenCandidate> {
+export function rankScreenCandidates(task: StepTask, action: StepAction | null, controlResolution: StepResolution | null, previousResolution: import('../../domain/types').ResolutionTarget | null | undefined, runtimeWorkingMemory?: RuntimeWorkingMemory | undefined): RankedLattice<StepTaskScreenCandidate> {
   if (task.explicitResolution?.screen) {
     const explicit = task.runtimeKnowledge!.screens.find((screen) => screen.screen === task.explicitResolution?.screen) ?? null;
     return asRanked([
@@ -182,26 +183,34 @@ export function rankScreenCandidates(task: StepTask, action: StepAction | null, 
     if (!match) {
       continue;
     }
+    const memoryCarry = runtimeWorkingMemory?.currentScreen?.screen === screen.screen
+      ? Math.max(0, Math.round(runtimeWorkingMemory.currentScreen.confidence * 12))
+      : 0;
     entries.push(candidate({
       concern: 'screen',
       source: 'approved-knowledge',
       value: screen,
-      summary: `Screen matched approved aliases via "${match.alias}".`,
+      summary: `Screen matched approved aliases via "${match.alias}".${memoryCarry > 0 ? ' Working-memory prior reinforced same-screen continuation.' : ''}`,
       refs: [...screen.knowledgeRefs, ...screen.supplementRefs],
-      featureScores: { explicit: 0, control: 0, approvedKnowledge: 80, overlay: 0, translation: 0, dom: 0, alias: match.score, fallback: 0, carry: 0 },
+      featureScores: { explicit: 0, control: 0, approvedKnowledge: 80, overlay: 0, translation: 0, dom: 0, alias: match.score, fallback: 0, carry: memoryCarry },
     }));
   }
 
   if (entries.length === 0 && action !== 'navigate' && previousResolution?.screen) {
     const carried = task.runtimeKnowledge!.screens.find((screen) => screen.screen === previousResolution.screen) ?? null;
     if (carried) {
+      const memoryCarry = runtimeWorkingMemory?.currentScreen?.screen === carried.screen
+        ? Math.max(0, Math.round(runtimeWorkingMemory.currentScreen.confidence * 10))
+        : 0;
       entries.push(candidate({
         concern: 'screen',
         source: 'approved-knowledge',
         value: carried,
-        summary: 'Screen carried forward from previous deterministic resolution.',
+        summary: memoryCarry > 0
+          ? 'Screen carried forward from previous deterministic resolution and reinforced by working memory.'
+          : 'Screen carried forward from previous deterministic resolution.',
         refs: [...carried.knowledgeRefs, ...carried.supplementRefs],
-        featureScores: { explicit: 0, control: 0, approvedKnowledge: 15, overlay: 0, translation: 0, dom: 0, alias: 0, fallback: 0, carry: 6 },
+        featureScores: { explicit: 0, control: 0, approvedKnowledge: 15, overlay: 0, translation: 0, dom: 0, alias: 0, fallback: 0, carry: 6 + memoryCarry },
       }));
     }
   }
@@ -209,7 +218,7 @@ export function rankScreenCandidates(task: StepTask, action: StepAction | null, 
   return asRanked(entries);
 }
 
-export function rankElementCandidates(task: StepTask, screen: StepTaskScreenCandidate | null, controlResolution: StepResolution | null): RankedLattice<StepTaskElementCandidate> {
+export function rankElementCandidates(task: StepTask, screen: StepTaskScreenCandidate | null, controlResolution: StepResolution | null, runtimeWorkingMemory?: RuntimeWorkingMemory | undefined): RankedLattice<StepTaskElementCandidate> {
   if (!screen) {
     return { selected: null, ranked: [] };
   }
@@ -230,13 +239,15 @@ export function rankElementCandidates(task: StepTask, screen: StepTaskScreenCand
       if (!match) {
         return null;
       }
+      const entityKey = runtimeWorkingMemory?.activeEntityKeys.find((key) => aliases.some((alias) => alias.toLowerCase().includes(key.toLowerCase())));
+      const memoryCarry = entityKey ? 10 : 0;
       return candidate({
         concern: 'element',
         source: 'approved-knowledge',
         value: element,
-        summary: `Element matched local hints via "${match.alias}".`,
+        summary: `Element matched local hints via "${match.alias}".${entityKey ? ` Working-memory entity prior matched "${entityKey}".` : ''}`,
         refs: screen.supplementRefs,
-        featureScores: { explicit: 0, control: 0, approvedKnowledge: 80, overlay: 0, translation: 0, dom: 0, alias: match.score, fallback: 0, carry: 0 },
+        featureScores: { explicit: 0, control: 0, approvedKnowledge: 80, overlay: 0, translation: 0, dom: 0, alias: match.score, fallback: 0, carry: memoryCarry },
       });
     })
     .filter((entry): entry is LatticeCandidate<StepTaskElementCandidate> => Boolean(entry));

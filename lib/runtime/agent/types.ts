@@ -10,6 +10,7 @@ export interface RuntimeStepAgentContext {
   domResolver?: RuntimeDomResolver | undefined;
   page?: unknown;
   previousResolution?: import('../../domain/types').ResolutionTarget | null | undefined;
+  runtimeWorkingMemory?: RuntimeWorkingMemory | undefined;
   provider: string;
   mode: string;
   runAt: string;
@@ -21,9 +22,31 @@ export interface RuntimeStepAgentContext {
   } | undefined;
 }
 
+export interface RuntimeWorkingMemoryScreenState {
+  screen: import('../../domain/identity').ScreenId;
+  confidence: number;
+  observedAtStep: number;
+}
+
+export interface RuntimeWorkingMemoryAssertion {
+  summary: string;
+  observedAtStep: number;
+}
+
+export interface RuntimeWorkingMemory {
+  currentScreen: RuntimeWorkingMemoryScreenState | null;
+  activeEntityKeys: string[];
+  openedPanels: string[];
+  openedModals: string[];
+  lastSuccessfulLocatorRung: number | null;
+  recentAssertions: RuntimeWorkingMemoryAssertion[];
+  lineage: string[];
+}
+
 export interface RuntimeAgentStageContext {
   task: StepTask;
   context: RuntimeStepAgentContext;
+  memory: RuntimeWorkingMemory;
   controlResolution: StepResolution | null;
   controlRefs: string[];
   evidenceRefs: string[];
@@ -31,4 +54,5 @@ export interface RuntimeAgentStageContext {
   observations: ResolutionObservation[];
   knowledgeRefs: string[];
   supplementRefs: string[];
+  memoryLineage: string[];
 }

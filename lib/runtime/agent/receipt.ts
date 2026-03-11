@@ -29,7 +29,7 @@ function baseReceiptFields(stage: RuntimeAgentStageContext) {
       run: null,
     },
     lineage: {
-      sources: [] as string[],
+      sources: uniqueSorted(stage.memoryLineage.map((entry) => `memory:${entry}`)),
       parents: [task.taskFingerprint],
       handshakes,
     },
