@@ -1,13 +1,11 @@
 import type { RuntimeInterpreterMode, RuntimeProviderCapabilities, ResolutionReceipt, StepTask } from '../domain/types';
-import { deterministicRuntimeStepAgent } from '../runtime/agent';
-import type { RuntimeStepAgentContext } from '../runtime/agent';
 
 export type RuntimeProviderId = string;
 
 export interface RuntimeProvider {
   id: RuntimeProviderId;
   capabilities: RuntimeProviderCapabilities;
-  resolveStep(task: StepTask, context: RuntimeStepAgentContext): Promise<ResolutionReceipt>;
+  resolveStep(task: StepTask, context: unknown): Promise<ResolutionReceipt>;
 }
 
 function deterministicProvider(): RuntimeProvider {
@@ -19,8 +17,9 @@ function deterministicProvider(): RuntimeProvider {
       supportsProposalDrafts: true,
       deterministicMode: true,
     },
-    resolveStep(task, context) {
-      return deterministicRuntimeStepAgent.resolve(task, context);
+    async resolveStep(task, context) {
+      const runtimeAgent = await import('../runtime/agent');
+      return runtimeAgent.deterministicRuntimeStepAgent.resolve(task, context as never);
     },
   };
 }

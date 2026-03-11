@@ -9,6 +9,63 @@ import type {
 } from './workflow';
 import type { ResolutionReceipt } from './resolution';
 
+export interface InterpretationDriftChange {
+  field: 'winningSource' | 'target' | 'governance' | 'confidence' | 'exhaustion-path';
+  before: unknown;
+  after: unknown;
+}
+
+export interface InterpretationDriftStep {
+  stepIndex: number;
+  changed: boolean;
+  changes: InterpretationDriftChange[];
+  before: {
+    winningSource: string;
+    target: string;
+    governance: Governance;
+    confidence: string;
+    exhaustionPath: string[];
+  };
+  after: {
+    winningSource: string;
+    target: string;
+    governance: Governance;
+    confidence: string;
+    exhaustionPath: string[];
+  };
+}
+
+export interface InterpretationDriftRecord {
+  kind: 'interpretation-drift-record';
+  version: 1;
+  stage: 'resolution';
+  scope: 'run';
+  ids: WorkflowEnvelopeIds;
+  fingerprints: WorkflowEnvelopeFingerprints;
+  lineage: WorkflowEnvelopeLineage;
+  governance: Governance;
+  adoId: AdoId;
+  runId: string;
+  comparedRunId: string | null;
+  providerId: string;
+  mode: string;
+  comparedAt: string;
+  changedStepCount: number;
+  unchangedStepCount: number;
+  totalStepCount: number;
+  hasDrift: boolean;
+  provenance: {
+    taskFingerprint: string;
+    knowledgeFingerprint: string;
+    controlsFingerprint: string | null;
+    comparedTaskFingerprint: string | null;
+    comparedKnowledgeFingerprint: string | null;
+    comparedControlsFingerprint: string | null;
+  };
+  explainableByFingerprintDelta: boolean;
+  steps: InterpretationDriftStep[];
+}
+
 export interface ExecutionDiagnostic {
   code: string;
   message: string;

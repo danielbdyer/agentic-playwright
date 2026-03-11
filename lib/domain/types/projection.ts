@@ -92,6 +92,7 @@ export interface BenchmarkScorecard {
   approvedEquivalentCount: number;
   thinKnowledgeScreenCount: number;
   degradedLocatorHotspotCount: number;
+  interpretationDriftHotspotCount: number;
   overlayChurn: number;
   executionTimingTotalsMs: {
     setup: number;
@@ -158,7 +159,8 @@ export type GraphEdgeKind =
   | 'emits'
   | 'observed-by'
   | 'proposed-change-for'
-  | 'governs';
+  | 'governs'
+  | 'drifts-to';
 
 export interface GraphNode {
   id: string;

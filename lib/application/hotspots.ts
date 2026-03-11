@@ -1,11 +1,11 @@
-import type { RunRecord } from '../domain/types';
+import type { InterpretationDriftRecord, RunRecord } from '../domain/types';
 import { compareStrings } from '../domain/collections';
 
 function compareNumbers(left: number, right: number): number {
   return left - right;
 }
 
-export type HotspotKind = 'translation-win' | 'agentic-fallback-win' | 'degraded-locator-rung';
+export type HotspotKind = 'translation-win' | 'agentic-fallback-win' | 'degraded-locator-rung' | 'interpretation-drift';
 
 export interface HotspotSample {
   adoId: string;
@@ -15,6 +15,7 @@ export interface HotspotSample {
   resolutionMode: string;
   locatorRung: number | null;
   widgetContract: string | null;
+  changedFields?: string[] | undefined;
 }
 
 export interface WorkflowHotspot {
@@ -92,7 +93,7 @@ function proceduralSuggestionNeeded(action: string, samples: readonly HotspotSam
   return action === 'custom' || samples.some((sample) => Boolean(sample.widgetContract));
 }
 
-export function buildWorkflowHotspots(runRecords: readonly RunRecord[]): WorkflowHotspot[] {
+export function buildWorkflowHotspots(runRecords: readonly RunRecord[], driftRecords: readonly InterpretationDriftRecord[] = []): WorkflowHotspot[] {
   const accumulators = new Map<string, HotspotAccumulator>();
 
   for (const run of sortedLatestRuns(runRecords)) {
@@ -127,6 +128,29 @@ export function buildWorkflowHotspots(runRecords: readonly RunRecord[]): Workflo
       if (step.execution.degraded) {
         pushAccumulator(accumulators, { kind: 'degraded-locator-rung', screen, field, action, sample });
       }
+    }
+  }
+
+
+  for (const drift of driftRecords) {
+    for (const step of drift.steps.filter((entry) => entry.changed)) {
+      const field = step.after.target;
+      pushAccumulator(accumulators, {
+        kind: 'interpretation-drift',
+        screen: drift.adoId,
+        field,
+        action: step.after.winningSource,
+        sample: {
+          adoId: drift.adoId,
+          runId: drift.runId,
+          stepIndex: step.stepIndex,
+          winningSource: step.after.winningSource,
+          resolutionMode: 'agentic',
+          locatorRung: null,
+          widgetContract: null,
+          changedFields: step.changes.map((change) => change.field),
+        },
+      });
     }
   }
 

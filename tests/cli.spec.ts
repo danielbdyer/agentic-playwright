@@ -90,3 +90,12 @@ test('sync command supports live ADO adapter overrides', () => {
     TESSERACT_ADO_TAG: 'smoke',
   });
 });
+
+
+test('replay command parses provider and runbook filters', () => {
+  const invocation = parseCliInvocation(['replay', '--ado-id', '10001', '--runbook', 'policy-smoke', '--provider', 'deterministic-runtime-step-agent']);
+
+  expect(invocation.command).toBe('replay');
+  const effect = invocation.execute(createProjectPaths(process.cwd()), resolveExecutionPosture(invocation.postureInput));
+  expect(effect).toBeTruthy();
+});

@@ -9,6 +9,7 @@ import { emitScenario } from '../lib/application/emit';
 import { emitManifestPath } from '../lib/application/paths';
 import { refreshScenario } from '../lib/application/refresh';
 import { runScenario } from '../lib/application/run';
+import { replayInterpretation } from '../lib/application/replay-interpretation';
 import { inspectSurface } from '../lib/application/surface';
 import { traceScenario } from '../lib/application/trace';
 import { generateTypes } from '../lib/application/types';
@@ -214,6 +215,27 @@ test('run emits interpretation and execution receipts, then reprojects review su
     expect(proposalBundle.proposals).toEqual([]);
     expect(graph.nodes.find((node: { id: string; payload?: Record<string, unknown> }) => node.id === graphIds.step(adoId, 2))?.payload?.runtimeStatus).toBe('resolved');
     expect(inboxReport).toContain('## Hotspot suggestions');
+  } finally {
+    workspace.cleanup();
+  }
+});
+
+
+test('replay interpretation law: same provider and inputs yields no drift', async () => {
+  const workspace = createTestWorkspace('compiler-replay-no-drift');
+  try {
+    const adoId = createAdoId('10001');
+    await runWithLocalServices(refreshScenario({ adoId, paths: workspace.paths }), workspace.rootDir);
+    await runWithLocalServices(runScenario({ adoId, paths: workspace.paths, interpreterMode: 'diagnostic' }), workspace.rootDir);
+    const replay = await runWithLocalServices(
+      replayInterpretation({ adoId, paths: workspace.paths, interpreterMode: 'diagnostic' }),
+      workspace.rootDir,
+    );
+    const drift = JSON.parse(readFileSync(replay.driftPath, 'utf8').replace(/^﻿/, ''));
+
+    expect(drift.hasDrift).toBeFalsy();
+    expect(drift.changedStepCount).toBe(0);
+    expect(drift.explainableByFingerprintDelta).toBeTruthy();
   } finally {
     workspace.cleanup();
   }

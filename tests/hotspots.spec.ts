@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { buildWorkflowHotspots } from '../lib/application/hotspots';
-import type { RunRecord } from '../lib/domain/types';
+import type { InterpretationDriftRecord, RunRecord } from '../lib/domain/types';
 import { createAdoId } from '../lib/domain/identity';
 
 function fakeRun(input: {
@@ -77,6 +77,52 @@ function fakeRun(input: {
   } as unknown as RunRecord;
 }
 
+
+function fakeDrift(input: {
+  adoId: string;
+  runId: string;
+  stepIndex: number;
+  changedFields: Array<'winningSource' | 'target' | 'governance' | 'confidence' | 'exhaustion-path'>;
+}): InterpretationDriftRecord {
+  return {
+    kind: 'interpretation-drift-record',
+    version: 1,
+    stage: 'resolution',
+    scope: 'run',
+    ids: {},
+    fingerprints: { artifact: 'sha256:test' },
+    lineage: { sources: [], parents: [], handshakes: [] },
+    governance: 'review-required',
+    adoId: createAdoId(input.adoId),
+    runId: input.runId,
+    comparedRunId: 'older-run',
+    providerId: 'deterministic-runtime-step-agent',
+    mode: 'diagnostic',
+    comparedAt: '2025-01-01T00:00:00.000Z',
+    changedStepCount: 1,
+    unchangedStepCount: 0,
+    totalStepCount: 1,
+    hasDrift: true,
+    provenance: {
+      taskFingerprint: 'task',
+      knowledgeFingerprint: 'knowledge',
+      controlsFingerprint: null,
+      comparedTaskFingerprint: 'task-old',
+      comparedKnowledgeFingerprint: 'knowledge-old',
+      comparedControlsFingerprint: null,
+    },
+    explainableByFingerprintDelta: true,
+    steps: [{
+      stepIndex: input.stepIndex,
+      changed: true,
+      changes: input.changedFields.map((field) => ({ field, before: 'a', after: 'b' })),
+      before: { winningSource: 'approved-knowledge', target: 'a', governance: 'approved', confidence: 'compiler-derived', exhaustionPath: [] },
+      after: { winningSource: 'live-dom', target: 'b', governance: 'review-required', confidence: 'agent-verified', exhaustionPath: ['live-dom:resolved'] },
+    }],
+  } as unknown as InterpretationDriftRecord;
+}
+
+
 test('hotspots group repeated wins deterministically and map to canonical targets', () => {
   const hotspots = buildWorkflowHotspots([
     fakeRun({
@@ -143,10 +189,13 @@ test('hotspots group repeated wins deterministically and map to canonical target
         },
       ],
     }),
+  ], [
+    fakeDrift({ adoId: '10001', runId: 'run-10001-new', stepIndex: 3, changedFields: ['target', 'winningSource'] }),
   ]);
 
   expect(hotspots.map((entry) => entry.id)).toEqual([
     'translation-win:policy-search:policyNumberInput:input',
+    'interpretation-drift:10001:b:live-dom',
     'translation-win:coverage-details:policyNumberInput:input',
     'agentic-fallback-win:coverage-details:submitWidget:custom',
     'degraded-locator-rung:policy-search:policyNumberInput:input',

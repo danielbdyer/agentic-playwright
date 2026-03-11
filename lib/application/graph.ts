@@ -92,6 +92,7 @@ export function buildDerivedGraph(
       ...catalog.boundScenarios.map((entry) => fingerprintProjectionArtifact('bound', entry.artifactPath, entry.artifact)),
       ...catalog.taskPackets.map((entry) => fingerprintProjectionArtifact('task', entry.artifactPath, entry.artifact)),
       ...catalog.runRecords.map((entry) => fingerprintProjectionArtifact('run', entry.artifactPath, entry.artifact)),
+      ...catalog.interpretationDriftRecords.map((entry) => fingerprintProjectionArtifact('interpretation-drift', entry.artifactPath, entry.artifact)),
       ...catalog.proposalBundles.map((entry) => fingerprintProjectionArtifact('proposal-bundle', entry.artifactPath, entry.artifact)),
       ...catalog.evidenceRecords.map((entry) => fingerprintProjectionArtifact('evidence', entry.artifactPath, entry.artifact)),
       ...(catalog.confidenceCatalog ? [fingerprintProjectionArtifact('confidence-overlay-catalog', catalog.confidenceCatalog.artifactPath, catalog.confidenceCatalog.artifact)] : []),
@@ -140,6 +141,10 @@ export function buildDerivedGraph(
       artifactPath,
     }));
     const runRecords = catalog.runRecords.map(({ artifact, artifactPath }) => ({
+      artifact,
+      artifactPath,
+    }));
+    const interpretationDriftRecords = catalog.interpretationDriftRecords.map(({ artifact, artifactPath }) => ({
       artifact,
       artifactPath,
     }));
@@ -236,6 +241,7 @@ export function buildDerivedGraph(
           boundScenarios,
           taskPackets,
           runRecords,
+          interpretationDriftRecords,
           evidence,
           policyDecisions,
         });
