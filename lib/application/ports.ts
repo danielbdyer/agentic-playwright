@@ -1,6 +1,7 @@
 ﻿import type { Effect } from 'effect';
 import { Context } from 'effect';
 import type { AdoId, ScreenId } from '../domain/identity';
+import type { RuntimeProvider } from './runtime-provider';
 import type { TesseractError } from '../domain/errors';
 import type {
   ExecutionPosture,
@@ -42,7 +43,7 @@ export interface RuntimeScenarioRunnerPort {
   runSteps(input: {
     rootDir: string;
     mode: RuntimeScenarioMode;
-    provider: string;
+    runtimeProvider: RuntimeProvider;
     controlSelection?: {
       runbook?: string | null | undefined;
       dataset?: string | null | undefined;

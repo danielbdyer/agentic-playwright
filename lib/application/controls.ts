@@ -44,6 +44,7 @@ function runtimeRunbook(runbook: { artifact: RunbookControl; artifactPath: strin
     resolutionControl: runbook.artifact.resolutionControl ?? null,
     translationEnabled: runbook.artifact.translationEnabled,
     translationCacheEnabled: runbook.artifact.translationCacheEnabled,
+    providerId: runbook.artifact.providerId ?? null,
   };
 }
 

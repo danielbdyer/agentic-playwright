@@ -137,7 +137,7 @@ export function buildRunRecord(input: {
       suite: input.selectedContext.scenarioEntry.artifact.metadata.suite,
       taskFingerprint: input.selectedContext.taskPacketEntry.artifact.taskFingerprint,
       knowledgeFingerprint: input.selectedContext.taskPacketEntry.artifact.knowledgeFingerprint,
-      provider: 'deterministic-runtime-step-agent',
+      provider: input.selectedContext.providerId,
       mode: input.selectedContext.mode,
       startedAt: input.stepResults[0]?.interpretation.runAt ?? new Date().toISOString(),
       completedAt: input.stepResults[input.stepResults.length - 1]?.execution.runAt ?? new Date().toISOString(),

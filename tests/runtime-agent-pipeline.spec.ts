@@ -123,3 +123,29 @@ test('overlay resolution short-circuits translation and preserves receipt fields
   expect(receipt.translation).toBeNull();
   expect(translateCalls).toBe(0);
 });
+
+
+test('provider identity does not change receipt envelope shape or governance semantics', async () => {
+  const left = await runResolutionPipeline(baseStep(), {
+    provider: 'deterministic-runtime-step-agent',
+    mode: 'diagnostic',
+    runAt: '2026-03-09T00:00:00.000Z',
+  });
+  const right = await runResolutionPipeline(baseStep(), {
+    provider: 'vscode-runtime-step-agent',
+    mode: 'diagnostic',
+    runAt: '2026-03-09T00:00:00.000Z',
+  });
+
+  const shape = (receipt: typeof left) => ({
+    kind: receipt.kind,
+    stage: receipt.stage,
+    scope: receipt.scope,
+    governance: receipt.governance,
+    winningConcern: receipt.winningConcern,
+    winningSource: receipt.winningSource,
+    handshakes: receipt.handshakes,
+  });
+
+  expect(shape(left)).toEqual(shape(right));
+});

@@ -90,6 +90,7 @@ export interface SelectedRunContext {
   };
   translationEnabled: boolean;
   translationCacheEnabled: boolean;
+  providerId: string;
 }
 
 export function selectRunContext(input: {
@@ -98,6 +99,7 @@ export function selectRunContext(input: {
   paths: ProjectPaths;
   runbookName?: string | undefined;
   interpreterMode?: 'dry-run' | 'diagnostic';
+  providerId?: string | undefined;
   posture?: ExecutionPosture | undefined;
   executionContextPosture: ExecutionPosture;
 }): SelectedRunContext {
@@ -162,5 +164,6 @@ export function selectRunContext(input: {
     },
     translationEnabled: activeRunbook?.translationEnabled ?? true,
     translationCacheEnabled: activeRunbook?.translationCacheEnabled ?? true,
+    providerId: input.providerId ?? activeRunbook?.providerId ?? 'deterministic-runtime-step-agent',
   };
 }

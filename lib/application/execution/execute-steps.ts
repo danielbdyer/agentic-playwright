@@ -3,6 +3,8 @@ import type { RuntimeScenarioRunnerPort } from '../ports';
 import type { AdoId } from '../../domain/identity';
 import type { RuntimeScenarioStepResult } from '../ports';
 import type { SelectedRunContext } from './select-run-context';
+import { resolveRuntimeProvider } from '../runtime-provider';
+import { validateStepResults } from './validate-step-results';
 
 export interface ExecuteStepsResult {
   stepResults: RuntimeScenarioStepResult[];
@@ -31,22 +33,30 @@ export function executeSteps(input: {
   } | undefined;
 }) {
   return Effect.gen(function* () {
+    const runtimeProvider = resolveRuntimeProvider({
+      providerId: input.selectedContext.providerId,
+      mode: input.selectedContext.mode,
+      translationEnabled: !(input.translationOptions?.disableTranslation ?? false),
+    });
+
     const stepResults = yield* input.runtimeScenarioRunner.runSteps({
-    rootDir: input.rootDir,
-    screenIds: input.selectedContext.screenIds,
-    controlSelection: {
-      runbook: input.selectedContext.activeRunbook?.name ?? null,
-      dataset: input.selectedContext.activeDataset?.name ?? null,
-      resolutionControl: input.selectedContext.activeRunbook?.resolutionControl ?? null,
-    },
-    fixtures: input.selectedContext.fixtures,
-    mode: input.selectedContext.mode,
-    provider: 'deterministic-runtime-step-agent',
-    steps: input.selectedContext.steps,
-    posture: input.selectedContext.posture,
-    context: input.selectedContext.context,
-    translationOptions: input.translationOptions,
-  });
+      rootDir: input.rootDir,
+      screenIds: input.selectedContext.screenIds,
+      controlSelection: {
+        runbook: input.selectedContext.activeRunbook?.name ?? null,
+        dataset: input.selectedContext.activeDataset?.name ?? null,
+        resolutionControl: input.selectedContext.activeRunbook?.resolutionControl ?? null,
+      },
+      fixtures: input.selectedContext.fixtures,
+      mode: input.selectedContext.mode,
+      runtimeProvider,
+      steps: input.selectedContext.steps,
+      posture: input.selectedContext.posture,
+      context: input.selectedContext.context,
+      translationOptions: input.translationOptions,
+    });
+
+    validateStepResults({ providerId: runtimeProvider.id, results: stepResults });
 
     return {
       stepResults,

@@ -48,16 +48,19 @@ export const LocalRuntimeScenarioRunner: RuntimeScenarioRunnerPort = {
         screenIds: input.screenIds,
         fixtures: input.fixtures,
         mode: input.mode,
-        provider: input.provider,
+        provider: input.runtimeProvider.id,
         controlSelection: input.controlSelection,
         posture: input.posture,
         translator,
       });
       const runState = createScenarioRunState();
+      const agent = {
+        resolve: input.runtimeProvider.resolveStep,
+      };
       const results = [];
 
       for (const step of input.steps) {
-        results.push(yield* Effect.promise(() => runScenarioStep(step, runtimeEnvironment, runState, input.context)));
+        results.push(yield* Effect.promise(() => runScenarioStep(step, { ...runtimeEnvironment, agent }, runState, input.context)));
       }
 
       return results;

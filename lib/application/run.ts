@@ -30,6 +30,7 @@ export function runScenario(options: {
   posture?: ExecutionPosture | undefined;
   disableTranslation?: boolean | undefined;
   disableTranslationCache?: boolean | undefined;
+  providerId?: string | undefined;
 }) {
   return Effect.gen(function* () {
     const stage = yield* runPipelineStage({
@@ -49,6 +50,7 @@ export function runScenario(options: {
           ...(options.runbookName ? { runbookName: options.runbookName } : {}),
           ...(options.interpreterMode ? { interpreterMode: options.interpreterMode } : {}),
           ...(options.posture ? { posture: options.posture } : {}),
+          ...(options.providerId ? { providerId: options.providerId } : {}),
           executionContextPosture: executionContext.posture,
         });
 
@@ -134,6 +136,7 @@ export function runScenarioSelection(options: {
   posture?: ExecutionPosture | undefined;
   disableTranslation?: boolean | undefined;
   disableTranslationCache?: boolean | undefined;
+  providerId?: string | undefined;
 }) {
   return Effect.gen(function* () {
     const catalog = yield* loadWorkspaceCatalog({ paths: options.paths });
@@ -153,6 +156,7 @@ export function runScenarioSelection(options: {
         posture?: ExecutionPosture;
         disableTranslation?: boolean;
         disableTranslationCache?: boolean;
+        providerId?: string;
       } = {
         adoId: adoId as AdoId,
         paths: options.paths,
@@ -172,6 +176,9 @@ export function runScenarioSelection(options: {
       }
       if (options.disableTranslationCache) {
         runOptions.disableTranslationCache = true;
+      }
+      if (options.providerId) {
+        runOptions.providerId = options.providerId;
       }
       runs.push(yield* runScenario(runOptions));
     }

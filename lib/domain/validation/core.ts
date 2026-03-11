@@ -783,6 +783,7 @@ function validateRuntimeKnowledgeSession(value: unknown, path: string) {
             resolutionControl: expectOptionalString(runbook.resolutionControl, `${path}.controls.runbooks[${index}].resolutionControl`) ?? null,
             translationEnabled: runbook.translationEnabled === undefined ? undefined : expectBoolean(runbook.translationEnabled, `${path}.controls.runbooks[${index}].translationEnabled`),
             translationCacheEnabled: runbook.translationCacheEnabled === undefined ? undefined : expectBoolean(runbook.translationCacheEnabled, `${path}.controls.runbooks[${index}].translationCacheEnabled`),
+            providerId: expectOptionalString(runbook.providerId, `${path}.controls.runbooks[${index}].providerId`) ?? null,
           };
         }),
       };
@@ -1439,6 +1440,7 @@ export function validateRunbookControl(value: unknown): RunbookControl {
     resolutionControl: expectOptionalString(runbook.resolutionControl, 'runbook-control.resolutionControl') ?? null,
     translationEnabled: runbook.translationEnabled === undefined ? undefined : expectBoolean(runbook.translationEnabled, 'runbook-control.translationEnabled'),
     translationCacheEnabled: runbook.translationCacheEnabled === undefined ? undefined : expectBoolean(runbook.translationCacheEnabled, 'runbook-control.translationCacheEnabled'),
+    providerId: expectOptionalString(runbook.providerId, 'runbook-control.providerId') ?? null,
   };
 }
 

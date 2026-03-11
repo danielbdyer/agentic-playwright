@@ -67,6 +67,13 @@ export interface TranslationReceipt {
   failureClass?: 'none' | 'no-candidate' | 'runtime-disabled' | 'cache-disabled' | 'cache-miss' | 'cache-invalidated' | 'translator-error' | undefined;
 }
 
+export interface RuntimeProviderCapabilities {
+  supportsTranslation: boolean;
+  supportsDom: boolean;
+  supportsProposalDrafts: boolean;
+  deterministicMode: boolean;
+}
+
 export interface StepTask {
   index: number;
   intent: string;
@@ -148,6 +155,7 @@ export interface RunbookControl {
   resolutionControl?: string | null | undefined;
   translationEnabled?: boolean | undefined;
   translationCacheEnabled?: boolean | undefined;
+  providerId?: string | null | undefined;
 }
 
 export interface RuntimeDatasetBinding {
@@ -176,6 +184,7 @@ export interface RuntimeRunbookControl {
   resolutionControl?: string | null | undefined;
   translationEnabled?: boolean | undefined;
   translationCacheEnabled?: boolean | undefined;
+  providerId?: string | null | undefined;
 }
 
 export interface RuntimeControlSession {

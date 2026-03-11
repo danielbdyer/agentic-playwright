@@ -60,6 +60,7 @@ interface ParsedFlags {
   url?: string;
   disableTranslation?: boolean;
   disableTranslationCache?: boolean;
+  provider?: string;
 }
 
 interface ParseContext {
@@ -197,6 +198,10 @@ const flagReaders: Record<string, (argv: string[], index: number, flags: ParsedF
   },
   '--runbook': (argv, index, flags) => {
     flags.runbook = readFlagValue('--runbook', argv[index + 1]);
+    return index + 1;
+  },
+  '--provider': (argv, index, flags) => {
+    flags.provider = readFlagValue('--provider', argv[index + 1]);
     return index + 1;
   },
   '--tag': (argv, index, flags) => {
@@ -401,7 +406,7 @@ const commandRegistry: Record<CommandName, CommandSpec> = {
     }),
   },
   run: {
-    flags: ['--ado-id', '--runbook', '--tag', '--interpreter-mode', '--execution-profile', '--ci-batch', '--headed', '--no-write', '--baseline', '--disable-translation', '--disable-translation-cache'],
+    flags: ['--ado-id', '--runbook', '--provider', '--tag', '--interpreter-mode', '--execution-profile', '--ci-batch', '--headed', '--no-write', '--baseline', '--disable-translation', '--disable-translation-cache'],
     parse: ({ flags }) => ({
       command: 'run',
       strictExitOnUnbound: false,
@@ -416,6 +421,7 @@ const commandRegistry: Record<CommandName, CommandSpec> = {
         ...(flags.adoId ? { adoId: createAdoId(flags.adoId) } : {}),
         ...(flags.runbook ? { runbookName: flags.runbook } : {}),
         ...(flags.tag ? { tag: flags.tag } : {}),
+        ...(flags.provider ? { providerId: flags.provider } : {}),
         interpreterMode: posture.interpreterMode === 'diagnostic' || posture.interpreterMode === 'dry-run'
           ? posture.interpreterMode
           : 'diagnostic',
