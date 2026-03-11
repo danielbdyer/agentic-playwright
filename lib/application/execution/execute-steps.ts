@@ -3,8 +3,7 @@ import type { RuntimeScenarioRunnerPort } from '../ports';
 import type { AdoId } from '../../domain/identity';
 import type { RuntimeScenarioStepResult } from '../ports';
 import type { SelectedRunContext } from './select-run-context';
-import { resolveRuntimeProvider } from '../provider-registry';
-import { validateStepResults } from './validate-step-results';
+import { interpretScenarioTaskPacket } from './interpret';
 
 export interface ExecuteStepsResult {
   stepResults: RuntimeScenarioStepResult[];
@@ -33,52 +32,27 @@ export function executeSteps(input: {
   } | undefined;
 }) {
   return Effect.gen(function* () {
-    const runtimeProvider = resolveRuntimeProvider({
-      providerId: input.selectedContext.providerId,
-      mode: input.selectedContext.mode,
-      translationEnabled: !(input.translationOptions?.disableTranslation ?? false),
-    });
-
-    const stepResults = yield* input.runtimeScenarioRunner.runSteps({
+    const interpreted = yield* interpretScenarioTaskPacket({
+      runtimeScenarioRunner: input.runtimeScenarioRunner,
       rootDir: input.rootDir,
+      adoId: input.adoId,
+      runId: input.selectedContext.runId,
+      taskPacket: input.selectedContext.taskPacketEntry.artifact,
+      mode: input.selectedContext.mode,
+      providerId: input.selectedContext.providerId,
       screenIds: input.selectedContext.screenIds,
+      fixtures: input.selectedContext.fixtures,
       controlSelection: {
         runbook: input.selectedContext.activeRunbook?.name ?? null,
         dataset: input.selectedContext.activeDataset?.name ?? null,
         resolutionControl: input.selectedContext.activeRunbook?.resolutionControl ?? null,
       },
-      fixtures: input.selectedContext.fixtures,
-      mode: input.selectedContext.mode,
-      runtimeProvider,
       steps: input.selectedContext.steps,
-      runtimeKnowledgeSession: input.selectedContext.runtimeKnowledgeSession,
       posture: input.selectedContext.posture,
       context: input.selectedContext.context,
       translationOptions: input.translationOptions,
     });
 
-    validateStepResults({ providerId: runtimeProvider.id, results: stepResults });
-
-    return {
-      stepResults,
-      interpretationOutput: {
-        kind: 'scenario-interpretation-record',
-        adoId: input.adoId,
-        runId: input.selectedContext.runId,
-        steps: stepResults.map((step) => ({
-          stepIndex: step.interpretation.stepIndex,
-          interpretation: step.interpretation,
-        })),
-      },
-      executionOutput: {
-        kind: 'scenario-execution-record',
-        adoId: input.adoId,
-        runId: input.selectedContext.runId,
-        steps: stepResults.map((step) => ({
-          stepIndex: step.execution.stepIndex,
-          execution: step.execution,
-        })),
-      },
-    } satisfies ExecuteStepsResult;
+    return interpreted satisfies ExecuteStepsResult;
   });
 }

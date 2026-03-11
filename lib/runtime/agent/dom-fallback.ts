@@ -1,4 +1,3 @@
-import type { Page } from '@playwright/test';
 import { compareStrings } from '../../domain/collections';
 import { widgetCapabilityContracts } from '../../domain/widgets/contracts';
 import type {
@@ -10,7 +9,8 @@ import type {
   StepTaskElementCandidate,
   StepTaskScreenCandidate,
 } from '../../domain/types';
-import { describeLocatorStrategy, resolveLocator } from '../locate';
+import type { RuntimeDomResolver } from '../../domain/types';
+import { createPlaywrightDomResolver } from '../adapters/playwright-dom-resolver';
 
 export interface DomResolutionCandidate {
   element: StepTaskElementCandidate;
@@ -108,14 +108,19 @@ function candidateSummary(candidate: DomResolutionCandidate): ResolutionCandidat
 }
 
 export async function resolveFromDom(
-  page: Page | undefined,
+  domResolver: RuntimeDomResolver | unknown,
   task: StepTask,
   screen: StepTaskScreenCandidate | null,
   action: StepAction | null,
   policy?: DomExplorationPolicy | null,
 ): Promise<DomResolutionResult> {
   const effectivePolicy = policy ?? DEFAULT_DOM_POLICY;
-  if (!page || !screen || !action) {
+  const effectiveResolver = typeof (domResolver as { resolve?: unknown } | undefined)?.resolve === 'function'
+    ? domResolver as RuntimeDomResolver
+    : domResolver
+      ? createPlaywrightDomResolver(domResolver as any)
+      : undefined;
+  if (!effectiveResolver || !screen || !action) {
     return { candidates: [], topCandidate: null, probes: 0, policy: effectivePolicy };
   }
   if (effectivePolicy.forbiddenActions.includes(action)) {
@@ -131,51 +136,27 @@ export async function resolveFromDom(
     };
   }
 
-  const candidates: DomResolutionCandidate[] = [];
-  let probes = 0;
-  for (const candidate of screen.elements) {
-    if (probes >= effectivePolicy.maxProbes || candidates.length >= effectivePolicy.maxCandidates) {
-      break;
-    }
-    const widgetCompatibilityScore = compatibilityScore(action, candidate);
-    if (widgetCompatibilityScore <= 0) {
-      continue;
-    }
-    probes += 1;
-    const resolved = await resolveLocator(page, {
-      role: candidate.role,
-      name: candidate.name ?? null,
-      testId: null,
-      cssFallback: null,
-      locator: candidate.locator,
-      surface: candidate.surface,
-      widget: candidate.widget,
-      affordance: candidate.affordance ?? null,
+  const resolved = await effectiveResolver.resolve({ task, screen, action, policy: effectivePolicy });
+  const candidates = resolved.candidates
+    .filter((candidate) => compatibilityScore(action, candidate.element) > 0)
+    .map((candidate) => {
+      const computedRoleNameScore = roleNameScore(task, candidate.element);
+      return {
+        ...candidate,
+        score: scoreCandidate({
+          visibleCount: candidate.evidence.visibleCount,
+          roleNameScore: computedRoleNameScore,
+          locatorRung: candidate.evidence.locatorRung,
+          locatorStrategyCount: Math.max(1, candidate.evidence.locatorRung + 1),
+          widgetCompatibilityScore: candidate.evidence.widgetCompatibilityScore,
+        }),
+        evidence: {
+          ...candidate.evidence,
+          roleNameScore: computedRoleNameScore,
+        },
+      } satisfies DomResolutionCandidate;
     });
-    const visibleCount = await resolved.locator.count().catch(() => 0);
-    if (visibleCount < 1) {
-      continue;
-    }
-    const computedScore = scoreCandidate({
-      visibleCount,
-      roleNameScore: roleNameScore(task, candidate),
-      locatorRung: resolved.strategyIndex,
-      locatorStrategyCount: resolved.strategies.length,
-      widgetCompatibilityScore,
-    });
-    candidates.push({
-      element: candidate,
-      score: computedScore,
-      evidence: {
-        visibleCount,
-        roleNameScore: roleNameScore(task, candidate),
-        locatorQualityScore: resolved.degraded ? 0.5 : 1,
-        widgetCompatibilityScore,
-        locatorRung: resolved.strategyIndex,
-        locatorStrategy: describeLocatorStrategy(resolved.strategy),
-      },
-    });
-  }
+  const probes = resolved.probes;
 
   const ranked = candidates.sort((left, right) => {
     const scoreOrder = right.score - left.score;

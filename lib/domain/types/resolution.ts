@@ -1,4 +1,5 @@
 import type { AdoId, ElementId, PostureId, ScreenId, SnapshotTemplateId } from '../identity';
+import type { StepTaskElementCandidate, StepTaskScreenCandidate } from './knowledge';
 import type {
   Governance,
   ResolutionMode,
@@ -152,6 +153,32 @@ export interface DomExplorationPolicy {
   maxCandidates: number;
   maxProbes: number;
   forbiddenActions: import('./workflow').StepAction[];
+}
+
+export interface RuntimeDomCandidate {
+  element: StepTaskElementCandidate;
+  score: number;
+  evidence: {
+    visibleCount: number;
+    roleNameScore: number;
+    locatorQualityScore: number;
+    widgetCompatibilityScore: number;
+    locatorRung: number;
+    locatorStrategy: string;
+  };
+}
+
+export interface RuntimeDomResolver {
+  resolve(input: {
+    task: StepTask;
+    screen: StepTaskScreenCandidate;
+    action: StepAction;
+    policy: DomExplorationPolicy;
+  }): Promise<{
+    candidates: RuntimeDomCandidate[];
+    topCandidate: RuntimeDomCandidate | null;
+    probes: number;
+  }>;
 }
 
 export interface RunbookControl {

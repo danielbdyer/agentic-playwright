@@ -1,13 +1,14 @@
-import type { Page } from '@playwright/test';
 import type {
   ResolutionExhaustionEntry,
   ResolutionObservation,
+  RuntimeDomResolver,
   StepResolution,
   StepTask,
 } from '../../domain/types';
 
 export interface RuntimeStepAgentContext {
-  page?: Page | undefined;
+  domResolver?: RuntimeDomResolver | undefined;
+  page?: unknown;
   previousResolution?: import('../../domain/types').ResolutionTarget | null | undefined;
   provider: string;
   mode: string;

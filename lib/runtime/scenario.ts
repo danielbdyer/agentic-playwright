@@ -20,6 +20,7 @@ import { runStaticInterpreter } from './interpreters/execute';
 import type { InterpreterMode, InterpreterScreenRegistry } from './interpreters/types';
 import { playwrightStepProgramInterpreter } from './program';
 import { deterministicRuntimeStepAgent, type RuntimeStepAgent } from './agent';
+import type { RuntimeDomResolver } from '../domain/types';
 
 export interface RuntimeScenarioEnvironment {
   mode: InterpreterMode;
@@ -36,6 +37,7 @@ export interface RuntimeScenarioEnvironment {
   snapshotLoader: SnapshotTemplateLoader;
   agent?: RuntimeStepAgent | undefined;
   page?: Page | undefined;
+  domResolver?: RuntimeDomResolver | undefined;
   executionBudgetThresholds?: ExecutionBudgetThresholds | undefined;
 }
 
@@ -98,7 +100,7 @@ export async function runScenarioStep(
   const resolvedTask = task.runtimeKnowledge ? task : { ...task, runtimeKnowledge };
 
   const interpretation = await agent.resolve(resolvedTask, {
-    page: environment.page,
+    domResolver: environment.domResolver,
     previousResolution: state.previousResolution,
     provider: environment.provider,
     mode: environment.mode,

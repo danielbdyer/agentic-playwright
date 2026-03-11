@@ -6,7 +6,7 @@ import { interpretationDriftPath, interpretationPath, taskPacketPath } from './p
 import { FileSystem, RuntimeScenarioRunner } from './ports';
 import { loadWorkspaceCatalog } from './catalog';
 import { selectRunContext } from './execution/select-run-context';
-import { executeSteps } from './execution/execute-steps';
+import { interpretScenarioTaskPacket } from './execution/interpret';
 import { emitOperatorInbox } from './inbox';
 import { projectBenchmarkScorecard } from './benchmark';
 import { buildDerivedGraph } from './graph';
@@ -175,11 +175,24 @@ export function replayInterpretation(options: {
       .sort((left, right) => right.artifact.completedAt.localeCompare(left.artifact.completedAt))[0]?.artifact ?? null;
 
     const taskPacket = (yield* fs.readJson(taskPacketPath(options.paths, options.adoId))) as ScenarioTaskPacket;
-    const executionStage = yield* executeSteps({
+    const executionStage = yield* interpretScenarioTaskPacket({
       runtimeScenarioRunner,
       rootDir: options.paths.rootDir,
       adoId: options.adoId,
-      selectedContext,
+      runId: selectedContext.runId,
+      taskPacket,
+      mode: selectedContext.mode,
+      providerId: selectedContext.providerId,
+      screenIds: selectedContext.screenIds,
+      fixtures: selectedContext.fixtures,
+      controlSelection: {
+        runbook: selectedContext.activeRunbook?.name ?? null,
+        dataset: selectedContext.activeDataset?.name ?? null,
+        resolutionControl: selectedContext.activeRunbook?.resolutionControl ?? null,
+      },
+      steps: selectedContext.steps,
+      posture: selectedContext.posture,
+      context: selectedContext.context,
       translationOptions: {
         disableTranslation: !selectedContext.translationEnabled,
         disableTranslationCache: !selectedContext.translationCacheEnabled,
