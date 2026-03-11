@@ -3,6 +3,7 @@ import { Context } from 'effect';
 import type { AdoId, ScreenId } from '../domain/identity';
 import type { RuntimeProvider } from './runtime-provider';
 import type { TesseractError } from '../domain/errors';
+import type { RecoveryPolicy } from '../domain/execution/recovery-policy';
 import type {
   ExecutionPosture,
   ResolutionReceipt,
@@ -65,6 +66,7 @@ export interface RuntimeScenarioRunnerPort {
       disableTranslationCache?: boolean | undefined;
     } | undefined;
     posture?: ExecutionPosture | undefined;
+    recoveryPolicy?: RecoveryPolicy | undefined;
   }): Effect.Effect<RuntimeScenarioStepResult[], unknown>;
 }
 

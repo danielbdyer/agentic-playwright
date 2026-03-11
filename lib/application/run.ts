@@ -73,6 +73,7 @@ export function runScenario(options: {
           steps: selectedContext.steps,
           posture: selectedContext.posture,
           context: selectedContext.context,
+          recoveryPolicy: selectedContext.recoveryPolicy,
           translationOptions: {
             disableTranslation: options.disableTranslation ?? !selectedContext.translationEnabled,
             disableTranslationCache: options.disableTranslationCache ?? !selectedContext.translationCacheEnabled,

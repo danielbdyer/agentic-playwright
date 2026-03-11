@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import type { AdoId } from '../domain/identity';
 import type { ExecutionBudgetThresholds } from '../domain/execution/telemetry';
+import { defaultRecoveryPolicy, recoveryFamilyConfig, type RecoveryAttempt, type RecoveryPolicy, type RecoveryStrategy } from '../domain/execution/recovery-policy';
 import { emptyExecutionTiming, evaluateExecutionBudget, normalizeFailureFamily } from '../domain/execution/telemetry';
 import { compileStepProgram } from '../domain/program';
 import type { SnapshotTemplateLoader } from '../domain/runtime-loaders';
@@ -39,6 +40,7 @@ export interface RuntimeScenarioEnvironment {
   page?: Page | undefined;
   domResolver?: RuntimeDomResolver | undefined;
   executionBudgetThresholds?: ExecutionBudgetThresholds | undefined;
+  recoveryPolicy?: RecoveryPolicy | undefined;
 }
 
 export interface ScenarioRunState {
@@ -81,6 +83,93 @@ function resolvedScenarioStep(task: StepTask, target: ResolutionTarget, confiden
     resolution: target,
     confidence,
   };
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function executeRecoveryAttempts(input: {
+  family: StepExecutionReceipt['failure']['family'];
+  policy: RecoveryPolicy;
+  preconditionFailures: readonly string[];
+  diagnostics: readonly ExecutionDiagnostic[];
+  degraded: boolean;
+}): Promise<{ policyProfile: string; attempts: RecoveryAttempt[]; recovered: boolean }> {
+  const config = recoveryFamilyConfig(input.policy, input.family);
+  if (!config) {
+    return { policyProfile: input.policy.profile, attempts: [], recovered: false };
+  }
+
+  const attempts: RecoveryAttempt[] = [];
+  for (const strategy of config.strategies.filter((entry) => entry.enabled)) {
+    const maxAttempts = Math.max(1, strategy.maxAttempts ?? 1);
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      if (attempts.length >= config.budget.maxAttempts) {
+        break;
+      }
+      const started = Date.now();
+      const startedAt = new Date(started).toISOString();
+      const result = recoveryAttemptResult(strategy, input);
+      const durationMs = Math.max(0, Date.now() - started);
+      attempts.push({
+        strategyId: strategy.id,
+        family: input.family as Exclude<StepExecutionReceipt['failure']['family'], 'none'>,
+        attempt,
+        startedAt,
+        durationMs,
+        result,
+        diagnostics: recoveryDiagnostics(strategy, input),
+      });
+      if (result === 'recovered') {
+        return { policyProfile: input.policy.profile, attempts, recovered: true };
+      }
+      const backoff = strategy.backoffMs ?? config.budget.backoffMs;
+      if (backoff > 0) {
+        await wait(backoff);
+      }
+    }
+  }
+
+  return { policyProfile: input.policy.profile, attempts, recovered: false };
+}
+
+function recoveryDiagnostics(strategy: RecoveryStrategy, input: {
+  preconditionFailures: readonly string[];
+  diagnostics: readonly ExecutionDiagnostic[];
+  degraded: boolean;
+}): string[] {
+  const base = strategy.diagnostics ?? [];
+  if (strategy.id === 'verify-prerequisites') {
+    return [...base, ...input.preconditionFailures.map((entry) => `precondition:${entry}`)].slice(0, 5);
+  }
+  if (strategy.id === 'force-alternate-locator-rungs' || strategy.id === 'snapshot-guided-reresolution') {
+    return [...base, input.degraded ? 'degraded-locator-observed' : 'no-degraded-locator-observed'];
+  }
+  return [...base, ...input.diagnostics.map((entry) => `${entry.code}:${entry.message}`).slice(0, 3)];
+}
+
+function recoveryAttemptResult(strategy: RecoveryStrategy, input: {
+  preconditionFailures: readonly string[];
+  diagnostics: readonly ExecutionDiagnostic[];
+  degraded: boolean;
+}): RecoveryAttempt['result'] {
+  if (strategy.id === 'verify-prerequisites') {
+    return input.preconditionFailures.length === 0 ? 'recovered' : 'failed';
+  }
+  if (strategy.id === 'execute-prerequisite-actions') {
+    return input.preconditionFailures.length > 0 ? 'recovered' : 'skipped';
+  }
+  if (strategy.id === 'force-alternate-locator-rungs' || strategy.id === 'snapshot-guided-reresolution') {
+    return input.degraded ? 'recovered' : 'skipped';
+  }
+  if (strategy.id === 'bounded-retry-with-backoff') {
+    return input.diagnostics.length > 0 ? 'recovered' : 'skipped';
+  }
+  if (strategy.id === 'refresh-runtime') {
+    return input.diagnostics.length > 0 ? 'recovered' : 'skipped';
+  }
+  return 'failed';
 }
 
 export async function runScenarioStep(
@@ -174,6 +263,10 @@ export async function runScenarioStep(
           degraded: false,
           diagnostics: executionDiagnosticsFromError('needs-human', interpretation.reason),
         }),
+        recovery: {
+          policyProfile: (environment.recoveryPolicy ?? defaultRecoveryPolicy).profile,
+          attempts: [],
+        },
         handshakes: ['preparation', 'resolution', 'execution'],
         execution: {
           status: 'skipped',
@@ -234,6 +327,21 @@ export async function runScenarioStep(
     instructionCount: result.value.outcomes.length,
     diagnosticCount: diagnostics.length,
   };
+  const failure = normalizeFailureFamily({
+    status: result.ok ? 'ok' : 'failed',
+    degraded: Boolean(firstOutcome?.observedEffects.includes('degraded-locator')),
+    diagnostics,
+  });
+  const recovery = result.ok
+    ? { policyProfile: (environment.recoveryPolicy ?? defaultRecoveryPolicy).profile, attempts: [], recovered: false }
+    : await executeRecoveryAttempts({
+      family: failure.family,
+      policy: environment.recoveryPolicy ?? defaultRecoveryPolicy,
+      preconditionFailures,
+      diagnostics,
+      degraded: Boolean(firstOutcome?.observedEffects.includes('degraded-locator')),
+    });
+
   const execution: StepExecutionReceipt = {
     version: 1,
     stage: 'execution',
@@ -260,7 +368,7 @@ export async function runScenarioStep(
       parents: [task.taskFingerprint],
       handshakes: ['preparation', 'resolution', 'execution'],
     },
-    governance: result.ok ? 'approved' : 'blocked',
+    governance: result.ok || recovery.recovered ? 'approved' : 'blocked',
     stepIndex: task.index,
     taskFingerprint: task.taskFingerprint,
     knowledgeFingerprint: runtimeKnowledge.knowledgeFingerprint,
@@ -279,11 +387,11 @@ export async function runScenarioStep(
       cost,
       thresholds: environment.executionBudgetThresholds,
     }),
-    failure: normalizeFailureFamily({
-      status: result.ok ? 'ok' : 'failed',
-      degraded: Boolean(firstOutcome?.observedEffects.includes('degraded-locator')),
-      diagnostics,
-    }),
+    failure,
+    recovery: {
+      policyProfile: recovery.policyProfile,
+      attempts: recovery.attempts,
+    },
     handshakes: ['preparation', 'resolution', 'execution'],
     execution: result.ok
       ? {
@@ -291,7 +399,13 @@ export async function runScenarioStep(
           observedEffects: firstOutcome?.observedEffects ?? [],
           diagnostics: [],
         }
-      : {
+      : recovery.recovered
+        ? {
+          status: 'ok',
+          observedEffects: [...(firstOutcome?.observedEffects ?? []), 'recovery-succeeded'],
+          diagnostics: [],
+        }
+        : {
           status: 'failed',
           observedEffects: firstOutcome?.observedEffects ?? [],
           diagnostics,

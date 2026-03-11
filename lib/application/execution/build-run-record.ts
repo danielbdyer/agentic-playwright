@@ -99,6 +99,29 @@ export function buildRunRecord(input: {
       'locator-degradation-failure': 0,
       'environment-runtime-failure': 0,
     }),
+    recoveryFamilies: steps.reduce<Record<'precondition-failure' | 'locator-degradation-failure' | 'environment-runtime-failure', number>>((acc, step) => {
+      for (const attempt of step.execution.recovery.attempts) {
+        acc[attempt.family] += 1;
+      }
+      return acc;
+    }, {
+      'precondition-failure': 0,
+      'locator-degradation-failure': 0,
+      'environment-runtime-failure': 0,
+    }),
+    recoveryStrategies: steps.reduce<Record<'verify-prerequisites' | 'execute-prerequisite-actions' | 'force-alternate-locator-rungs' | 'snapshot-guided-reresolution' | 'bounded-retry-with-backoff' | 'refresh-runtime', number>>((acc, step) => {
+      for (const attempt of step.execution.recovery.attempts) {
+        acc[attempt.strategyId] += 1;
+      }
+      return acc;
+    }, {
+      'verify-prerequisites': 0,
+      'execute-prerequisite-actions': 0,
+      'force-alternate-locator-rungs': 0,
+      'snapshot-guided-reresolution': 0,
+      'bounded-retry-with-backoff': 0,
+      'refresh-runtime': 0,
+    }),
   };
 
   const runRecord = createRunRecordEnvelope({

@@ -800,6 +800,9 @@ function validateRuntimeKnowledgeSession(value: unknown, path: string) {
             translationEnabled: runbook.translationEnabled === undefined ? undefined : expectBoolean(runbook.translationEnabled, `${path}.controls.runbooks[${index}].translationEnabled`),
             translationCacheEnabled: runbook.translationCacheEnabled === undefined ? undefined : expectBoolean(runbook.translationCacheEnabled, `${path}.controls.runbooks[${index}].translationCacheEnabled`),
             providerId: expectOptionalString(runbook.providerId, `${path}.controls.runbooks[${index}].providerId`) ?? null,
+            recoveryPolicy: runbook.recoveryPolicy === undefined
+              ? undefined
+              : validateRecoveryPolicy(runbook.recoveryPolicy, `${path}.controls.runbooks[${index}].recoveryPolicy`),
           };
         }),
       };
@@ -1186,6 +1189,24 @@ function validateStepExecutionReceipt(value: unknown, path: string): StepExecuti
         message: expectOptionalString(failure.message, `${path}.failure.message`) ?? null,
       };
     })(),
+    recovery: (() => {
+      const recovery = expectRecord(receipt.recovery ?? {}, `${path}.recovery`);
+      return {
+        policyProfile: expectString(recovery.policyProfile ?? 'default', `${path}.recovery.policyProfile`),
+        attempts: expectArray(recovery.attempts ?? [], `${path}.recovery.attempts`).map((entry, index) => {
+          const attempt = expectRecord(entry, `${path}.recovery.attempts[${index}]`);
+          return {
+            strategyId: expectEnum(attempt.strategyId, `${path}.recovery.attempts[${index}].strategyId`, ['verify-prerequisites', 'execute-prerequisite-actions', 'force-alternate-locator-rungs', 'snapshot-guided-reresolution', 'bounded-retry-with-backoff', 'refresh-runtime'] as const),
+            family: expectEnum(attempt.family, `${path}.recovery.attempts[${index}].family`, ['precondition-failure', 'locator-degradation-failure', 'environment-runtime-failure'] as const),
+            attempt: expectNumber(attempt.attempt, `${path}.recovery.attempts[${index}].attempt`),
+            startedAt: expectString(attempt.startedAt, `${path}.recovery.attempts[${index}].startedAt`),
+            durationMs: expectNumber(attempt.durationMs, `${path}.recovery.attempts[${index}].durationMs`),
+            result: expectEnum(attempt.result, `${path}.recovery.attempts[${index}].result`, ['recovered', 'failed', 'skipped'] as const),
+            diagnostics: expectStringArray(attempt.diagnostics ?? [], `${path}.recovery.attempts[${index}].diagnostics`),
+          };
+        }),
+      };
+    })(),
     handshakes: expectArray(receipt.handshakes ?? ['preparation', 'resolution', 'execution'], `${path}.handshakes`).map((entry, index) =>
       expectEnum(entry, `${path}.handshakes[${index}]`, workflowStages),
     ) as WorkflowStage[],
@@ -1254,6 +1275,25 @@ export function validateRunRecord(value: unknown): RunRecord {
           'precondition-failure': expectNumber(families['precondition-failure'] ?? 0, 'runRecord.executionMetrics.failureFamilies.precondition-failure'),
           'locator-degradation-failure': expectNumber(families['locator-degradation-failure'] ?? 0, 'runRecord.executionMetrics.failureFamilies.locator-degradation-failure'),
           'environment-runtime-failure': expectNumber(families['environment-runtime-failure'] ?? 0, 'runRecord.executionMetrics.failureFamilies.environment-runtime-failure'),
+        };
+      })(),
+      recoveryFamilies: (() => {
+        const families = expectRecord(metrics.recoveryFamilies ?? {}, 'runRecord.executionMetrics.recoveryFamilies');
+        return {
+          'precondition-failure': expectNumber(families['precondition-failure'] ?? 0, 'runRecord.executionMetrics.recoveryFamilies.precondition-failure'),
+          'locator-degradation-failure': expectNumber(families['locator-degradation-failure'] ?? 0, 'runRecord.executionMetrics.recoveryFamilies.locator-degradation-failure'),
+          'environment-runtime-failure': expectNumber(families['environment-runtime-failure'] ?? 0, 'runRecord.executionMetrics.recoveryFamilies.environment-runtime-failure'),
+        };
+      })(),
+      recoveryStrategies: (() => {
+        const strategies = expectRecord(metrics.recoveryStrategies ?? {}, 'runRecord.executionMetrics.recoveryStrategies');
+        return {
+          'verify-prerequisites': expectNumber(strategies['verify-prerequisites'] ?? 0, 'runRecord.executionMetrics.recoveryStrategies.verify-prerequisites'),
+          'execute-prerequisite-actions': expectNumber(strategies['execute-prerequisite-actions'] ?? 0, 'runRecord.executionMetrics.recoveryStrategies.execute-prerequisite-actions'),
+          'force-alternate-locator-rungs': expectNumber(strategies['force-alternate-locator-rungs'] ?? 0, 'runRecord.executionMetrics.recoveryStrategies.force-alternate-locator-rungs'),
+          'snapshot-guided-reresolution': expectNumber(strategies['snapshot-guided-reresolution'] ?? 0, 'runRecord.executionMetrics.recoveryStrategies.snapshot-guided-reresolution'),
+          'bounded-retry-with-backoff': expectNumber(strategies['bounded-retry-with-backoff'] ?? 0, 'runRecord.executionMetrics.recoveryStrategies.bounded-retry-with-backoff'),
+          'refresh-runtime': expectNumber(strategies['refresh-runtime'] ?? 0, 'runRecord.executionMetrics.recoveryStrategies.refresh-runtime'),
         };
       })(),
     };
@@ -1496,6 +1536,38 @@ export function validateResolutionControl(value: unknown): ResolutionControl {
   };
 }
 
+
+function validateRecoveryPolicy(value: unknown, path: string) {
+  const policy = expectRecord(value, path);
+  const families = expectRecord(policy.families ?? {}, `${path}.families`);
+  const familyNames = ['precondition-failure', 'locator-degradation-failure', 'environment-runtime-failure'] as const;
+  return {
+    version: expectNumber(policy.version ?? 1, `${path}.version`) as 1,
+    profile: expectString(policy.profile ?? 'default', `${path}.profile`),
+    families: Object.fromEntries(familyNames.map((family) => {
+      const familyConfig = expectRecord(families[family] ?? {}, `${path}.families.${family}`);
+      const budget = expectRecord(familyConfig.budget ?? {}, `${path}.families.${family}.budget`);
+      return [family, {
+        budget: {
+          maxAttempts: expectNumber(budget.maxAttempts ?? 0, `${path}.families.${family}.budget.maxAttempts`),
+          maxTotalMs: expectNumber(budget.maxTotalMs ?? 0, `${path}.families.${family}.budget.maxTotalMs`),
+          backoffMs: expectNumber(budget.backoffMs ?? 0, `${path}.families.${family}.budget.backoffMs`),
+        },
+        strategies: expectArray(familyConfig.strategies ?? [], `${path}.families.${family}.strategies`).map((entry, index) => {
+          const strategy = expectRecord(entry, `${path}.families.${family}.strategies[${index}]`);
+          return {
+            id: expectEnum(strategy.id, `${path}.families.${family}.strategies[${index}].id`, ['verify-prerequisites', 'execute-prerequisite-actions', 'force-alternate-locator-rungs', 'snapshot-guided-reresolution', 'bounded-retry-with-backoff', 'refresh-runtime'] as const),
+            enabled: expectBoolean(strategy.enabled, `${path}.families.${family}.strategies[${index}].enabled`),
+            maxAttempts: strategy.maxAttempts === undefined ? undefined : expectNumber(strategy.maxAttempts, `${path}.families.${family}.strategies[${index}].maxAttempts`),
+            backoffMs: strategy.backoffMs === undefined ? undefined : expectNumber(strategy.backoffMs, `${path}.families.${family}.strategies[${index}].backoffMs`),
+            diagnostics: expectStringArray(strategy.diagnostics ?? [], `${path}.families.${family}.strategies[${index}].diagnostics`),
+          };
+        }),
+      }];
+    })) as import('../execution/recovery-policy').RecoveryPolicy['families'],
+  } satisfies import('../execution/recovery-policy').RecoveryPolicy;
+}
+
 export function validateRunbookControl(value: unknown): RunbookControl {
   const runbook = expectRecord(value, 'runbook-control');
   return {
@@ -1512,6 +1584,7 @@ export function validateRunbookControl(value: unknown): RunbookControl {
     translationEnabled: runbook.translationEnabled === undefined ? undefined : expectBoolean(runbook.translationEnabled, 'runbook-control.translationEnabled'),
     translationCacheEnabled: runbook.translationCacheEnabled === undefined ? undefined : expectBoolean(runbook.translationCacheEnabled, 'runbook-control.translationCacheEnabled'),
     providerId: expectOptionalString(runbook.providerId, 'runbook-control.providerId') ?? null,
+    recoveryPolicy: runbook.recoveryPolicy === undefined ? undefined : validateRecoveryPolicy(runbook.recoveryPolicy, 'runbook-control.recoveryPolicy'),
   };
 }
 
@@ -2122,6 +2195,14 @@ export function validateBenchmarkScorecard(value: unknown): BenchmarkScorecard {
     executionFailureFamilies: Object.fromEntries(
       Object.entries(expectRecord(scorecard.executionFailureFamilies ?? {}, 'benchmarkScorecard.executionFailureFamilies'))
         .map(([key, entry]) => [key, expectNumber(entry, `benchmarkScorecard.executionFailureFamilies.${key}`)]),
+    ),
+    recoveryFamilies: Object.fromEntries(
+      Object.entries(expectRecord(scorecard.recoveryFamilies ?? {}, 'benchmarkScorecard.recoveryFamilies'))
+        .map(([key, entry]) => [key, expectNumber(entry, `benchmarkScorecard.recoveryFamilies.${key}`)]),
+    ),
+    recoveryStrategies: Object.fromEntries(
+      Object.entries(expectRecord(scorecard.recoveryStrategies ?? {}, 'benchmarkScorecard.recoveryStrategies'))
+        .map(([key, entry]) => [key, expectNumber(entry, `benchmarkScorecard.recoveryStrategies.${key}`)]),
     ),
     budgetBreachCount: expectNumber(scorecard.budgetBreachCount ?? 0, 'benchmarkScorecard.budgetBreachCount'),
     thresholdStatus: expectEnum(scorecard.thresholdStatus, 'benchmarkScorecard.thresholdStatus', ['pass', 'warn', 'fail'] as const),

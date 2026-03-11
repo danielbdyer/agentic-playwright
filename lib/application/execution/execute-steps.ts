@@ -52,6 +52,7 @@ export function executeSteps(input: {
       steps: input.selectedContext.steps,
       posture: input.selectedContext.posture,
       context: input.selectedContext.context,
+      recoveryPolicy: input.selectedContext.recoveryPolicy,
       translationOptions: input.translationOptions,
     });
 

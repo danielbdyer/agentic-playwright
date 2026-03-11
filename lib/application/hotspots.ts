@@ -5,7 +5,7 @@ function compareNumbers(left: number, right: number): number {
   return left - right;
 }
 
-export type HotspotKind = 'translation-win' | 'agentic-fallback-win' | 'degraded-locator-rung' | 'interpretation-drift' | 'resolution-graph-needs-human';
+export type HotspotKind = 'translation-win' | 'agentic-fallback-win' | 'degraded-locator-rung' | 'recovery-policy-win' | 'interpretation-drift' | 'resolution-graph-needs-human';
 
 export interface HotspotSample {
   adoId: string;
@@ -16,6 +16,8 @@ export interface HotspotSample {
   locatorRung: number | null;
   widgetContract: string | null;
   changedFields?: string[] | undefined;
+  recoveryStrategy?: string | undefined;
+  recoveryFamily?: string | undefined;
 }
 
 export interface WorkflowHotspot {
@@ -127,6 +129,22 @@ export function buildWorkflowHotspots(runRecords: readonly RunRecord[], driftRec
 
       if (step.execution.degraded) {
         pushAccumulator(accumulators, { kind: 'degraded-locator-rung', screen, field, action, sample });
+      }
+
+
+      const recoveredAttempt = step.execution.recovery?.attempts?.find((entry) => entry.result === 'recovered') ?? null;
+      if (recoveredAttempt) {
+        pushAccumulator(accumulators, {
+          kind: 'recovery-policy-win',
+          screen,
+          field,
+          action,
+          sample: {
+            ...sample,
+            recoveryStrategy: recoveredAttempt.strategyId,
+            recoveryFamily: recoveredAttempt.family,
+          },
+        });
       }
     }
   }

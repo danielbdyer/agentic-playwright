@@ -122,6 +122,7 @@ export function interpretScenarioTaskPacket(input: {
     disableTranslationCache?: boolean | undefined;
   } | undefined;
   steps?: readonly StepTask[] | undefined;
+  recoveryPolicy?: import('../../domain/execution/recovery-policy').RecoveryPolicy | undefined;
 }) {
   return Effect.gen(function* () {
     const runtimeProvider = resolveRuntimeProvider({
@@ -141,6 +142,7 @@ export function interpretScenarioTaskPacket(input: {
       steps: activeSteps,
       runtimeKnowledgeSession: input.taskPacket.runtimeKnowledgeSession ?? input.taskPacket.payload.runtimeKnowledgeSession,
       posture: input.posture,
+      recoveryPolicy: input.recoveryPolicy,
       context: input.context,
       translationOptions: input.translationOptions,
     });

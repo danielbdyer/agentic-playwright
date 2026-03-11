@@ -101,6 +101,8 @@ function scorecardForBenchmark(input: {
       };
       budgetBreaches: number;
       failureFamilies: Record<string, number>;
+      recoveryFamilies: Record<string, number>;
+      recoveryStrategies: Record<string, number>;
     };
     steps: Array<{
       resolutionMode: 'deterministic' | 'translation' | 'agentic';
@@ -170,6 +172,18 @@ function scorecardForBenchmark(input: {
     }
     return acc;
   }, {});
+  const recoveryFamilies = benchmarkRuns.reduce<Record<string, number>>((acc, run) => {
+    for (const [family, count] of Object.entries(run.executionMetrics.recoveryFamilies ?? {})) {
+      acc[family] = (acc[family] ?? 0) + count;
+    }
+    return acc;
+  }, {});
+  const recoveryStrategies = benchmarkRuns.reduce<Record<string, number>>((acc, run) => {
+    for (const [strategy, count] of Object.entries(run.executionMetrics.recoveryStrategies ?? {})) {
+      acc[strategy] = (acc[strategy] ?? 0) + count;
+    }
+    return acc;
+  }, {});
   const budgetBreachCount = benchmarkRuns.reduce((sum, run) => sum + run.executionMetrics.budgetBreaches, 0);
   const thresholds = input.benchmark.fieldAwarenessThresholds;
   const thresholdStatus = uniqueFieldAwarenessCount < thresholds.minFieldAwarenessCount
@@ -205,6 +219,8 @@ function scorecardForBenchmark(input: {
     executionTimingTotalsMs: timingTotals,
     executionCostTotals,
     executionFailureFamilies,
+    recoveryFamilies,
+    recoveryStrategies,
     budgetBreachCount,
     thresholdStatus,
   };
@@ -282,6 +298,8 @@ function renderScorecardMarkdown(benchmark: BenchmarkContext, scorecard: Benchma
     `- Execution timing totals (ms): ${JSON.stringify(scorecard.executionTimingTotalsMs)}`,
     `- Execution cost totals: ${JSON.stringify(scorecard.executionCostTotals)}`,
     `- Execution failure families: ${JSON.stringify(scorecard.executionFailureFamilies)}`,
+    `- Recovery families: ${JSON.stringify(scorecard.recoveryFamilies)}`,
+    `- Recovery strategies: ${JSON.stringify(scorecard.recoveryStrategies)}`,
     `- Budget breach count: ${scorecard.budgetBreachCount}`,
     `- Knowledge churn: ${JSON.stringify(scorecard.knowledgeChurn)}`,
     `- Generated variants: ${scorecard.generatedVariantCount}`,

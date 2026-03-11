@@ -8,3 +8,5 @@ export type {
   StepProgram,
   ValueRef,
 } from '../types';
+
+export type { RecoveryAttempt, RecoveryBudget, RecoveryPolicy, RecoveryStrategy } from './recovery-policy';

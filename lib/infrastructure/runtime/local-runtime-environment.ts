@@ -2,6 +2,7 @@ import type { RuntimeScenarioMode } from '../../application/ports';
 import type { ScreenId } from '../../domain/identity';
 import type { ScreenRegistry, SnapshotTemplateLoader } from '../../domain/runtime-loaders';
 import type { ExecutionPosture, RuntimeDomResolver, TranslationRequest, TranslationReceipt } from '../../domain/types';
+import type { RecoveryPolicy } from '../../domain/execution/recovery-policy';
 import { createLocalScreenRegistryLoader } from '../screen-registry/local-screen-registry-loader';
 import { createLocalSnapshotTemplateLoader } from '../snapshots/local-snapshot-template-loader';
 
@@ -19,6 +20,7 @@ export interface LocalRuntimeEnvironment {
   screens: ScreenRegistry;
   snapshotLoader: SnapshotTemplateLoader;
   domResolver?: RuntimeDomResolver | undefined;
+  recoveryPolicy?: RecoveryPolicy | undefined;
 }
 
 export function createLocalRuntimeEnvironment(input: {
@@ -35,6 +37,7 @@ export function createLocalRuntimeEnvironment(input: {
   } | undefined;
   translator?: ((request: TranslationRequest) => Promise<TranslationReceipt>) | undefined;
   domResolver?: RuntimeDomResolver | undefined;
+  recoveryPolicy?: RecoveryPolicy | undefined;
 }): LocalRuntimeEnvironment {
   const screenLoader = createLocalScreenRegistryLoader(input.rootDir);
   return {
@@ -45,6 +48,7 @@ export function createLocalRuntimeEnvironment(input: {
     translator: input.translator,
     fixtures: input.fixtures,
     domResolver: input.domResolver,
+    recoveryPolicy: input.recoveryPolicy,
     screens: screenLoader.loadScreenRegistry(input.screenIds),
     snapshotLoader: createLocalSnapshotTemplateLoader(input.rootDir),
   };

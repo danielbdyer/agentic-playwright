@@ -108,6 +108,8 @@ export interface BenchmarkScorecard {
     diagnosticCount: number;
   };
   executionFailureFamilies: Record<string, number>;
+  recoveryFamilies: Record<string, number>;
+  recoveryStrategies: Record<string, number>;
   budgetBreachCount: number;
   thresholdStatus: 'pass' | 'warn' | 'fail';
 }
