@@ -807,8 +807,14 @@ function validateRuntimeKnowledgeSession(value: unknown, path: string) {
   };
 }
 
-function validateStepTask(value: unknown, path: string) {
+function validateStepTask(value: unknown, path: string, sharedRuntimeKnowledge?: import('../types').RuntimeKnowledgeSession | undefined) {
   const task = expectRecord(value, path);
+  const legacyRuntimeKnowledge = task.runtimeKnowledge === undefined
+    ? undefined
+    : validateRuntimeKnowledgeSession(task.runtimeKnowledge, `${path}.runtimeKnowledge`);
+  const knowledgeRef = task.knowledgeRef === undefined
+    ? undefined
+    : expectOptionalString(task.knowledgeRef, `${path}.knowledgeRef`) ?? null;
   return {
     index: expectNumber(task.index, `${path}.index`),
     intent: expectString(task.intent, `${path}.intent`),
@@ -824,7 +830,8 @@ function validateStepTask(value: unknown, path: string) {
     controlResolution: task.controlResolution === undefined || task.controlResolution === null
       ? null
       : validateStepResolution(task.controlResolution, `${path}.controlResolution`),
-    runtimeKnowledge: validateRuntimeKnowledgeSession(task.runtimeKnowledge, `${path}.runtimeKnowledge`),
+    knowledgeRef,
+    runtimeKnowledge: legacyRuntimeKnowledge ?? (knowledgeRef === 'scenario' ? sharedRuntimeKnowledge : undefined),
     taskFingerprint: expectString(task.taskFingerprint, `${path}.taskFingerprint`),
   };
 }
@@ -849,24 +856,42 @@ export function validateScenarioTaskPacket(value: unknown): ScenarioTaskPacket {
   return {
     kind: expectEnum(packet.kind, 'scenarioTaskPacket.kind', ['scenario-task-packet'] as const),
     ...header,
-    payload: {
-      adoId: expectId(packet.adoId, 'scenarioTaskPacket.adoId', createAdoId),
-      revision: expectNumber(packet.revision, 'scenarioTaskPacket.revision'),
-      title: expectString(packet.title, 'scenarioTaskPacket.title'),
-      suite: ensureSafeRelativePathLike(expectString(packet.suite, 'scenarioTaskPacket.suite'), 'scenarioTaskPacket.suite'),
-      knowledgeFingerprint: expectString(packet.knowledgeFingerprint, 'scenarioTaskPacket.knowledgeFingerprint'),
-      steps: expectArray(packet.steps ?? [], 'scenarioTaskPacket.steps').map((entry, index) =>
-        validateStepTask(entry, `scenarioTaskPacket.steps[${index}]`),
-      ),
-    },
+    version: (() => {
+      const version = expectNumber(packet.version, 'scenarioTaskPacket.version');
+      if (version !== 1 && version !== 2) {
+        throw new Error('scenarioTaskPacket.version must be 1 or 2');
+      }
+      return version;
+    })(),
+    payload: (() => {
+      const sharedRuntimeKnowledge = packet.runtimeKnowledgeSession === undefined
+        ? undefined
+        : validateRuntimeKnowledgeSession(packet.runtimeKnowledgeSession, 'scenarioTaskPacket.runtimeKnowledgeSession');
+      return {
+        adoId: expectId(packet.adoId, 'scenarioTaskPacket.adoId', createAdoId),
+        revision: expectNumber(packet.revision, 'scenarioTaskPacket.revision'),
+        title: expectString(packet.title, 'scenarioTaskPacket.title'),
+        suite: ensureSafeRelativePathLike(expectString(packet.suite, 'scenarioTaskPacket.suite'), 'scenarioTaskPacket.suite'),
+        knowledgeFingerprint: expectString(packet.knowledgeFingerprint, 'scenarioTaskPacket.knowledgeFingerprint'),
+        runtimeKnowledgeSession: sharedRuntimeKnowledge,
+        steps: expectArray(packet.steps ?? [], 'scenarioTaskPacket.steps').map((entry, index) =>
+          validateStepTask(entry, `scenarioTaskPacket.steps[${index}]`, sharedRuntimeKnowledge),
+        ),
+      };
+    })(),
     adoId: expectId(packet.adoId, 'scenarioTaskPacket.adoId', createAdoId),
     revision: expectNumber(packet.revision, 'scenarioTaskPacket.revision'),
     title: expectString(packet.title, 'scenarioTaskPacket.title'),
     suite: ensureSafeRelativePathLike(expectString(packet.suite, 'scenarioTaskPacket.suite'), 'scenarioTaskPacket.suite'),
     taskFingerprint: expectString(packet.taskFingerprint, 'scenarioTaskPacket.taskFingerprint'),
     knowledgeFingerprint: expectString(packet.knowledgeFingerprint, 'scenarioTaskPacket.knowledgeFingerprint'),
+    runtimeKnowledgeSession: packet.runtimeKnowledgeSession === undefined
+      ? undefined
+      : validateRuntimeKnowledgeSession(packet.runtimeKnowledgeSession, 'scenarioTaskPacket.runtimeKnowledgeSession'),
     steps: expectArray(packet.steps ?? [], 'scenarioTaskPacket.steps').map((entry, index) =>
-      validateStepTask(entry, `scenarioTaskPacket.steps[${index}]`),
+      validateStepTask(entry, `scenarioTaskPacket.steps[${index}]`, packet.runtimeKnowledgeSession === undefined
+        ? undefined
+        : validateRuntimeKnowledgeSession(packet.runtimeKnowledgeSession, 'scenarioTaskPacket.runtimeKnowledgeSession')),
     ),
   };
 }

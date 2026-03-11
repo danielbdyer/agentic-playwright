@@ -10,6 +10,7 @@ import type {
   Scenario,
   ScenarioTaskPacket,
   StepTask,
+  RuntimeKnowledgeSession,
 } from '../../domain/types';
 import type { AdoId, ScreenId } from '../../domain/identity';
 import { activeDatasetForRun, findRunbook } from '../controls';
@@ -61,11 +62,11 @@ function defaultFixtures(input: {
   return fixtures;
 }
 
-function taskStepsForRun(taskSteps: readonly StepTask[], resolutionControlName?: string | null): StepTask[] {
+function taskStepsForRun(taskSteps: readonly StepTask[], runtimeKnowledgeSession: RuntimeKnowledgeSession | undefined, resolutionControlName?: string | null): StepTask[] {
   return taskSteps.map((step) => ({
     ...step,
     controlResolution: resolutionControlName
-      ? (step.runtimeKnowledge.controls.resolutionControls.find((entry) => entry.name === resolutionControlName && entry.stepIndex === step.index)?.resolution ?? step.controlResolution)
+      ? (((step.runtimeKnowledge ?? runtimeKnowledgeSession)?.controls.resolutionControls.find((entry) => entry.name === resolutionControlName && entry.stepIndex === step.index)?.resolution) ?? step.controlResolution)
       : step.controlResolution,
   }));
 }
@@ -81,6 +82,7 @@ export interface SelectedRunContext {
   posture: ExecutionPosture;
   mode: RuntimeScenarioMode;
   steps: StepTask[];
+  runtimeKnowledgeSession?: RuntimeKnowledgeSession | undefined;
   screenIds: ScreenId[];
   fixtures: Record<string, unknown>;
   context: {
@@ -116,7 +118,8 @@ export function selectRunContext(input: {
     runbookName: input.runbookName ?? null,
     scenario: scenarioEntry.artifact,
   });
-  const activeDataset = activeDatasetForRun(taskPacketEntry.artifact.steps[0]?.runtimeKnowledge.controls ?? {
+  const runtimeKnowledgeSession = taskPacketEntry.artifact.runtimeKnowledgeSession ?? taskPacketEntry.artifact.payload.runtimeKnowledgeSession;
+  const activeDataset = activeDatasetForRun((taskPacketEntry.artifact.steps[0]?.runtimeKnowledge ?? runtimeKnowledgeSession)?.controls ?? {
     datasets: [],
     resolutionControls: [],
     runbooks: [],
@@ -124,19 +127,19 @@ export function selectRunContext(input: {
   const runId = new Date().toISOString().replace(/[:.]/g, '-');
   const posture = input.posture ?? input.executionContextPosture;
   const mode = input.interpreterMode ?? activeRunbook?.interpreterMode ?? posture.interpreterMode ?? 'diagnostic';
-  const steps = taskStepsForRun(taskPacketEntry.artifact.steps, activeRunbook?.resolutionControl ?? null);
+  const steps = taskStepsForRun(taskPacketEntry.artifact.steps, runtimeKnowledgeSession, activeRunbook?.resolutionControl ?? null);
   const fixtureIds = uniqueSorted([
     ...scenarioEntry.artifact.preconditions.map((precondition) => precondition.fixture),
     ...steps.flatMap((step) =>
-      step.runtimeKnowledge.screens.flatMap((screen) =>
+      (step.runtimeKnowledge ?? runtimeKnowledgeSession)?.screens.flatMap((screen) =>
         screen.elements
           .map((element) => fixtureIdFromTemplateValue(element.defaultValueRef))
           .filter((value): value is string => value !== null),
-      ),
+      ) ?? [],
     ),
   ]);
   const screenIds = uniqueSorted(
-    steps.flatMap((step) => step.runtimeKnowledge.screens.map((screen) => screen.screen)),
+    steps.flatMap((step) => ((step.runtimeKnowledge ?? runtimeKnowledgeSession)?.screens.map((screen) => screen.screen) ?? [])),
   ) as ScreenId[];
 
   return {
@@ -150,6 +153,7 @@ export function selectRunContext(input: {
     posture,
     mode,
     steps,
+    runtimeKnowledgeSession,
     screenIds,
     fixtures: defaultFixtures({
       fixtureIds,

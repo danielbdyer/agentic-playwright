@@ -51,6 +51,7 @@ export function executeSteps(input: {
       mode: input.selectedContext.mode,
       runtimeProvider,
       steps: input.selectedContext.steps,
+      runtimeKnowledgeSession: input.selectedContext.runtimeKnowledgeSession,
       posture: input.selectedContext.posture,
       context: input.selectedContext.context,
       translationOptions: input.translationOptions,

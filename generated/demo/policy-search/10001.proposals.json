@@ -1,5 +1,45 @@
 {
   "kind": "proposal-bundle",
+  "version": 1,
+  "stage": "proposal",
+  "scope": "scenario",
+  "ids": {
+    "adoId": null,
+    "suite": null,
+    "runId": null,
+    "stepIndex": null,
+    "dataset": null,
+    "runbook": null,
+    "resolutionControl": null
+  },
+  "fingerprints": {
+    "artifact": "2026-03-08T22-32-19-583Z",
+    "content": null,
+    "knowledge": null,
+    "controls": null,
+    "task": null,
+    "run": null
+  },
+  "lineage": {
+    "sources": [],
+    "parents": [],
+    "handshakes": [
+      "preparation",
+      "resolution",
+      "execution",
+      "evidence",
+      "proposal"
+    ]
+  },
+  "governance": "approved",
+  "payload": {
+    "adoId": "10001",
+    "runId": "2026-03-08T22-32-19-583Z",
+    "revision": 1,
+    "title": "Verify policy search returns matching policy",
+    "suite": "demo/policy-search",
+    "proposals": []
+  },
   "adoId": "10001",
   "runId": "2026-03-08T22-32-19-583Z",
   "revision": 1,

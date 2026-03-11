@@ -116,8 +116,8 @@ function scenariosReferencingArtifact(catalog: WorkspaceCatalog, artifactPath: s
 
   for (const entry of catalog.taskPackets) {
     if (entry.artifact.steps.some((step) =>
-      step.runtimeKnowledge.evidenceRefs.includes(artifactPath)
-      || step.runtimeKnowledge.screens.some((screen) =>
+      step.runtimeKnowledge!.evidenceRefs.includes(artifactPath)
+      || step.runtimeKnowledge!.screens.some((screen) =>
         screen.knowledgeRefs.includes(artifactPath)
         || screen.supplementRefs.includes(artifactPath),
       ),

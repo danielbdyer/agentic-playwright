@@ -9,6 +9,7 @@ import type {
   RuntimeInterpreterMode,
   StepExecutionReceipt,
   StepTask,
+  RuntimeKnowledgeSession,
   WriteJournalEntry,
 } from '../domain/types';
 
@@ -52,6 +53,7 @@ export interface RuntimeScenarioRunnerPort {
     screenIds: readonly ScreenId[];
     fixtures: Record<string, unknown>;
     steps: readonly StepTask[];
+    runtimeKnowledgeSession?: RuntimeKnowledgeSession | undefined;
     context?: {
       adoId: AdoId;
       artifactPath?: string | undefined;

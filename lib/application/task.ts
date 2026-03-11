@@ -122,7 +122,7 @@ function buildTaskPacket(input: {
     .map((screenId) => screenCandidate(input.catalog, screenId as ScreenId))
     .filter(Boolean) as StepTaskScreenCandidate[];
 
-  const runtimeKnowledge = {
+  const runtimeKnowledgeSession = {
     knowledgeFingerprint,
     confidenceFingerprint: input.catalog.confidenceCatalog?.fingerprint ?? null,
     sharedPatterns: input.catalog.mergedPatterns,
@@ -142,7 +142,7 @@ function buildTaskPacket(input: {
       allowedActions: step.resolution?.action ? [step.resolution.action] : ['navigate', 'input', 'click', 'assert-snapshot'],
       explicitResolution: stepResolution(step),
       controlResolution: controlResolutionForStep(runtimeControls, step.index),
-      runtimeKnowledge,
+      knowledgeRef: 'scenario',
     };
     return {
       ...task,
@@ -157,7 +157,7 @@ function buildTaskPacket(input: {
       : 'approved';
   const packet: Omit<ScenarioTaskPacket, 'taskFingerprint'> = {
     kind: 'scenario-task-packet',
-    version: 1,
+    version: 2,
     stage: 'preparation',
     scope: 'scenario',
     ids: {
@@ -187,6 +187,7 @@ function buildTaskPacket(input: {
       title: input.compileSnapshot.scenario.metadata.title,
       suite: input.compileSnapshot.scenario.metadata.suite,
       knowledgeFingerprint,
+      runtimeKnowledgeSession,
       steps,
     },
     adoId: input.compileSnapshot.adoId,
@@ -194,6 +195,7 @@ function buildTaskPacket(input: {
     title: input.compileSnapshot.scenario.metadata.title,
     suite: input.compileSnapshot.scenario.metadata.suite,
     knowledgeFingerprint,
+    runtimeKnowledgeSession,
     steps,
   };
 

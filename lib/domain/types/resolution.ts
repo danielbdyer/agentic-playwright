@@ -83,13 +83,14 @@ export interface StepTask {
   allowedActions: StepAction[];
   explicitResolution: StepResolution | null;
   controlResolution: StepResolution | null;
-  runtimeKnowledge: RuntimeKnowledgeSession;
+  knowledgeRef?: 'scenario' | string | null | undefined;
+  runtimeKnowledge?: RuntimeKnowledgeSession | undefined;
   taskFingerprint: string;
 }
 
 export interface ScenarioTaskPacket {
   kind: 'scenario-task-packet';
-  version: 1;
+  version: 1 | 2;
   stage: 'preparation';
   scope: 'scenario';
   ids: WorkflowEnvelopeIds;
@@ -102,6 +103,7 @@ export interface ScenarioTaskPacket {
     title: string;
     suite: string;
     knowledgeFingerprint: string;
+    runtimeKnowledgeSession?: RuntimeKnowledgeSession | undefined;
     steps: StepTask[];
   };
   adoId: AdoId;
@@ -110,6 +112,7 @@ export interface ScenarioTaskPacket {
   suite: string;
   taskFingerprint: string;
   knowledgeFingerprint: string;
+  runtimeKnowledgeSession?: RuntimeKnowledgeSession | undefined;
   steps: StepTask[];
 }
 

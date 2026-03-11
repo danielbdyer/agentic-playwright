@@ -11,16 +11,53 @@
     "stepCount": 4,
     "provenanceKinds": {
       "explicit": 0,
-      "approved-knowledge": 4,
+      "approved-knowledge": 0,
       "live-exploration": 0,
-      "unresolved": 0
+      "unresolved": 4
     },
     "governance": {
       "approved": 4,
       "review-required": 0,
       "blocked": 0
     },
-    "unresolvedReasons": []
+    "stageMetrics": {
+      "knowledgeHitRate": 0,
+      "translationHitRate": 0,
+      "translationCacheHitRate": 0,
+      "translationCacheMissReasons": {},
+      "translationFailureClasses": {
+        "none": 4
+      },
+      "agenticHitRate": 0,
+      "liveExplorationRate": 0,
+      "degradedLocatorRate": 0,
+      "proposalCount": 0,
+      "reviewRequiredCount": 0,
+      "approvedEquivalentRate": 0,
+      "runtimeFailureFamilies": {
+        "none": 4
+      },
+      "budgetBreachRate": 0,
+      "averageRuntimeCost": {
+        "instructionCount": 0,
+        "diagnosticCount": 0
+      },
+      "timing": {
+        "setupMs": 0,
+        "resolutionMs": 0,
+        "actionMs": 0,
+        "assertionMs": 0,
+        "retriesMs": 0,
+        "teardownMs": 0,
+        "totalMs": 0
+      }
+    },
+    "unresolvedReasons": [
+      {
+        "reason": "runtime-resolution-required",
+        "count": 4
+      }
+    ]
   },
   "steps": [
     {
@@ -31,29 +68,57 @@
       "normalizedIntent": "navigate to policy search screen => policy search screen loads",
       "action": "custom",
       "confidence": "intent-only",
-      "provenanceKind": "approved-knowledge",
+      "provenanceKind": "unresolved",
       "governance": "approved",
       "bindingKind": "deferred",
       "ruleId": null,
-      "knowledgeRefs": [
-        "knowledge/screens/policy-search.elements.yaml",
-        "knowledge/screens/policy-search.postures.yaml",
-        "knowledge/surfaces/policy-search.surface.yaml"
-      ],
-      "supplementRefs": [
-        "knowledge/patterns/core.patterns.yaml",
-        "knowledge/screens/policy-search.hints.yaml"
-      ],
+      "knowledgeRefs": [],
+      "supplementRefs": [],
+      "controlRefs": [],
+      "evidenceRefs": [],
+      "overlayRefs": [],
       "reviewReasons": [],
-      "unresolvedGaps": [],
+      "unresolvedGaps": [
+        "runtime-resolution-required"
+      ],
       "reasons": [],
       "evidenceIds": [],
       "program": null,
+      "handshakes": [
+        "preparation"
+      ],
+      "winningConcern": "intent",
+      "winningSource": "none",
+      "resolutionMode": "deterministic",
+      "translation": null,
       "runtime": {
-        "status": "resolved",
-        "runId": "2026-03-08T22-32-19-583Z",
+        "status": "pending",
+        "runId": null,
+        "resolutionMode": null,
+        "widgetContract": null,
         "locatorStrategy": null,
-        "degraded": false
+        "locatorRung": null,
+        "degraded": false,
+        "preconditionFailures": [],
+        "durationMs": 0,
+        "timing": {
+          "setupMs": 0,
+          "resolutionMs": 0,
+          "actionMs": 0,
+          "assertionMs": 0,
+          "retriesMs": 0,
+          "teardownMs": 0,
+          "totalMs": 0
+        },
+        "budget": {
+          "status": "not-configured",
+          "breaches": []
+        },
+        "failure": {
+          "family": "none",
+          "code": null
+        },
+        "exhaustion": []
       }
     },
     {
@@ -64,29 +129,57 @@
       "normalizedIntent": "enter policy number in search field => policy number accepts a valid policy",
       "action": "custom",
       "confidence": "intent-only",
-      "provenanceKind": "approved-knowledge",
+      "provenanceKind": "unresolved",
       "governance": "approved",
       "bindingKind": "deferred",
       "ruleId": null,
-      "knowledgeRefs": [
-        "knowledge/screens/policy-search.elements.yaml",
-        "knowledge/screens/policy-search.postures.yaml",
-        "knowledge/surfaces/policy-search.surface.yaml"
-      ],
-      "supplementRefs": [
-        "knowledge/patterns/core.patterns.yaml",
-        "knowledge/screens/policy-search.hints.yaml"
-      ],
+      "knowledgeRefs": [],
+      "supplementRefs": [],
+      "controlRefs": [],
+      "evidenceRefs": [],
+      "overlayRefs": [],
       "reviewReasons": [],
-      "unresolvedGaps": [],
+      "unresolvedGaps": [
+        "runtime-resolution-required"
+      ],
       "reasons": [],
       "evidenceIds": [],
       "program": null,
+      "handshakes": [
+        "preparation"
+      ],
+      "winningConcern": "intent",
+      "winningSource": "none",
+      "resolutionMode": "deterministic",
+      "translation": null,
       "runtime": {
-        "status": "resolved",
-        "runId": "2026-03-08T22-32-19-583Z",
+        "status": "pending",
+        "runId": null,
+        "resolutionMode": null,
+        "widgetContract": null,
         "locatorStrategy": null,
-        "degraded": false
+        "locatorRung": null,
+        "degraded": false,
+        "preconditionFailures": [],
+        "durationMs": 0,
+        "timing": {
+          "setupMs": 0,
+          "resolutionMs": 0,
+          "actionMs": 0,
+          "assertionMs": 0,
+          "retriesMs": 0,
+          "teardownMs": 0,
+          "totalMs": 0
+        },
+        "budget": {
+          "status": "not-configured",
+          "breaches": []
+        },
+        "failure": {
+          "family": "none",
+          "code": null
+        },
+        "exhaustion": []
       }
     },
     {
@@ -97,29 +190,57 @@
       "normalizedIntent": "click search button => search runs",
       "action": "custom",
       "confidence": "intent-only",
-      "provenanceKind": "approved-knowledge",
+      "provenanceKind": "unresolved",
       "governance": "approved",
       "bindingKind": "deferred",
       "ruleId": null,
-      "knowledgeRefs": [
-        "knowledge/screens/policy-search.elements.yaml",
-        "knowledge/screens/policy-search.postures.yaml",
-        "knowledge/surfaces/policy-search.surface.yaml"
-      ],
-      "supplementRefs": [
-        "knowledge/patterns/core.patterns.yaml",
-        "knowledge/screens/policy-search.hints.yaml"
-      ],
+      "knowledgeRefs": [],
+      "supplementRefs": [],
+      "controlRefs": [],
+      "evidenceRefs": [],
+      "overlayRefs": [],
       "reviewReasons": [],
-      "unresolvedGaps": [],
+      "unresolvedGaps": [
+        "runtime-resolution-required"
+      ],
       "reasons": [],
       "evidenceIds": [],
       "program": null,
+      "handshakes": [
+        "preparation"
+      ],
+      "winningConcern": "intent",
+      "winningSource": "none",
+      "resolutionMode": "deterministic",
+      "translation": null,
       "runtime": {
-        "status": "resolved",
-        "runId": "2026-03-08T22-32-19-583Z",
+        "status": "pending",
+        "runId": null,
+        "resolutionMode": null,
+        "widgetContract": null,
         "locatorStrategy": null,
-        "degraded": false
+        "locatorRung": null,
+        "degraded": false,
+        "preconditionFailures": [],
+        "durationMs": 0,
+        "timing": {
+          "setupMs": 0,
+          "resolutionMs": 0,
+          "actionMs": 0,
+          "assertionMs": 0,
+          "retriesMs": 0,
+          "teardownMs": 0,
+          "totalMs": 0
+        },
+        "budget": {
+          "status": "not-configured",
+          "breaches": []
+        },
+        "failure": {
+          "family": "none",
+          "code": null
+        },
+        "exhaustion": []
       }
     },
     {
@@ -130,29 +251,57 @@
       "normalizedIntent": "matching policy appears in search results => verify search results show policy",
       "action": "custom",
       "confidence": "intent-only",
-      "provenanceKind": "approved-knowledge",
+      "provenanceKind": "unresolved",
       "governance": "approved",
       "bindingKind": "deferred",
       "ruleId": null,
-      "knowledgeRefs": [
-        "knowledge/screens/policy-search.elements.yaml",
-        "knowledge/screens/policy-search.postures.yaml",
-        "knowledge/surfaces/policy-search.surface.yaml"
-      ],
-      "supplementRefs": [
-        "knowledge/patterns/core.patterns.yaml",
-        "knowledge/screens/policy-search.hints.yaml"
-      ],
+      "knowledgeRefs": [],
+      "supplementRefs": [],
+      "controlRefs": [],
+      "evidenceRefs": [],
+      "overlayRefs": [],
       "reviewReasons": [],
-      "unresolvedGaps": [],
+      "unresolvedGaps": [
+        "runtime-resolution-required"
+      ],
       "reasons": [],
       "evidenceIds": [],
       "program": null,
+      "handshakes": [
+        "preparation"
+      ],
+      "winningConcern": "intent",
+      "winningSource": "none",
+      "resolutionMode": "deterministic",
+      "translation": null,
       "runtime": {
-        "status": "resolved",
-        "runId": "2026-03-08T22-32-19-583Z",
+        "status": "pending",
+        "runId": null,
+        "resolutionMode": null,
+        "widgetContract": null,
         "locatorStrategy": null,
-        "degraded": false
+        "locatorRung": null,
+        "degraded": false,
+        "preconditionFailures": [],
+        "durationMs": 0,
+        "timing": {
+          "setupMs": 0,
+          "resolutionMs": 0,
+          "actionMs": 0,
+          "assertionMs": 0,
+          "retriesMs": 0,
+          "teardownMs": 0,
+          "totalMs": 0
+        },
+        "budget": {
+          "status": "not-configured",
+          "breaches": []
+        },
+        "failure": {
+          "family": "none",
+          "code": null
+        },
+        "exhaustion": []
       }
     }
   ]

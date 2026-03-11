@@ -60,7 +60,7 @@ export const LocalRuntimeScenarioRunner: RuntimeScenarioRunnerPort = {
       const results = [];
 
       for (const step of input.steps) {
-        results.push(yield* Effect.promise(() => runScenarioStep(step, { ...runtimeEnvironment, agent }, runState, input.context)));
+        results.push(yield* Effect.promise(() => runScenarioStep(step, { ...runtimeEnvironment, agent }, runState, input.context, input.runtimeKnowledgeSession)));
       }
 
       return results;

@@ -55,8 +55,9 @@ export function describeScenarioPaths(options: { adoId: AdoId; paths: ProjectPat
       }
     }
     if (referencedScreens.size === 0 && taskPacket) {
+      const runtimeKnowledgeSession = taskPacket.runtimeKnowledgeSession ?? taskPacket.payload.runtimeKnowledgeSession;
       for (const step of taskPacket.steps) {
-        for (const screen of step.runtimeKnowledge.screens) {
+        for (const screen of (step.runtimeKnowledge ?? runtimeKnowledgeSession)?.screens ?? []) {
           referencedScreens.add(screen.screen);
         }
       }
