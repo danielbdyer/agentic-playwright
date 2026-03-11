@@ -4,7 +4,7 @@ import { resolveFromDom } from './dom-fallback';
 import { proposalForSupplementGap } from './proposals';
 import { explicitResolvedReceipt, needsHumanReceipt } from './receipt';
 import { resolveOverride } from './resolve-target';
-import { selectedControlRefs, selectedControlResolution } from './select-controls';
+import { selectedControlRefs, selectedControlResolution, selectedDomExplorationPolicy } from './select-controls';
 import { recordExhaustion, uniqueSorted } from './shared';
 import { resolveWithConfidenceOverlay, resolveWithTranslation } from './translation';
 import type { RuntimeAgentStageContext, RuntimeStepAgentContext } from './types';
@@ -221,16 +221,41 @@ export async function runResolutionPipeline(task: StepTask, context: RuntimeStep
   recordExhaustion(stage.exhaustion, 'structured-translation', context.translate ? 'failed' : 'skipped', context.translate ? 'Structured translation did not produce an executable target' : 'No structured translation stage was configured');
 
   const domScreen = translated.screen ?? overlayResult.screen ?? screen;
-  const domResolved = await resolveFromDom(context.page, task, domScreen, action);
+  const domPolicy = selectedDomExplorationPolicy(task, context);
+  const domResolved = await resolveFromDom(context.page, task, domScreen, action, domPolicy);
   if (domResolved.observation) {
     stage.observations.push(domResolved.observation);
   }
-  if (domResolved.element && action && domScreen && (action !== 'assert-snapshot' || snapshotTemplate)) {
+  const domTop = domResolved.topCandidate;
+  const domShortlist = domResolved.candidates.slice(0, domResolved.policy.maxCandidates);
+  if (action && domScreen && domTop && (action !== 'assert-snapshot' || snapshotTemplate)) {
     const liveScreen = domScreen;
-    const liveElement = domResolved.element;
-    recordExhaustion(stage.exhaustion, 'live-dom', 'attempted', `Live DOM resolved ${domResolved.element.element}`);
-    recordExhaustion(stage.exhaustion, 'safe-degraded-resolution', 'resolved', 'A single live-DOM candidate remained after deterministic priors exhausted');
+    const liveElement = domTop.element;
+    recordExhaustion(stage.exhaustion, 'live-dom', 'attempted', `Live DOM ranked ${domResolved.candidates.length} candidate(s) and selected ${liveElement.element}`, {
+      topCandidates: domShortlist.map((candidate) => ({
+        concern: 'element',
+        source: 'live-dom',
+        value: candidate.element.element,
+        score: candidate.score,
+        reason: `rung=${candidate.evidence.locatorRung + 1}; role=${candidate.evidence.roleNameScore.toFixed(2)}; widget=${candidate.evidence.widgetCompatibilityScore.toFixed(2)}`,
+      })),
+      rejectedCandidates: domShortlist.slice(1).map((candidate) => ({
+        concern: 'element',
+        source: 'live-dom',
+        value: candidate.element.element,
+        score: candidate.score,
+        reason: `rung=${candidate.evidence.locatorRung + 1}; role=${candidate.evidence.roleNameScore.toFixed(2)}; widget=${candidate.evidence.widgetCompatibilityScore.toFixed(2)}`,
+      })),
+    });
+    recordExhaustion(stage.exhaustion, 'safe-degraded-resolution', 'resolved', domResolved.candidates.length === 1
+      ? 'A single live-DOM candidate remained after deterministic priors exhausted'
+      : 'Ambiguous but bounded live-DOM shortlist produced a deterministic tie-break winner');
     const proposalDrafts = proposalForSupplementGap(task, liveScreen, liveElement);
+    const candidateObservation = {
+      top: domShortlist.map((candidate) => `${candidate.element.element}:${candidate.score.toFixed(3)}`).join(' | '),
+      probes: String(domResolved.probes),
+      maxProbes: String(domResolved.policy.maxProbes),
+    };
     return {
       ...needsHumanReceipt(stage, [...overlayResult.overlayRefs, ...translated.overlayRefs], translated.translation),
       kind: 'resolved-with-proposals',
@@ -254,6 +279,7 @@ export async function runResolutionPipeline(task: StepTask, context: RuntimeStep
           step: String(task.index),
           screen: liveScreen.screen,
           element: liveElement.element,
+          ...candidateObservation,
         },
         proposal: {
           file: proposal.targetPath,
@@ -269,10 +295,35 @@ export async function runResolutionPipeline(task: StepTask, context: RuntimeStep
     } as ResolutionReceipt;
   }
 
-  recordExhaustion(stage.exhaustion, 'live-dom', context.page ? 'failed' : 'skipped', context.page ? 'Live DOM did not produce a unique safe resolution' : 'No live runtime page was available');
+  recordExhaustion(stage.exhaustion, 'live-dom', context.page ? 'failed' : 'skipped', context.page ? 'Live DOM did not produce a bounded executable candidate set' : 'No live runtime page was available');
   recordExhaustion(stage.exhaustion, 'safe-degraded-resolution', 'failed', 'No safe degraded resolution remained after all machine paths were exhausted');
 
-  return needsHumanReceipt(stage, [...overlayResult.overlayRefs, ...translated.overlayRefs], translated.translation);
+  return {
+    ...needsHumanReceipt(stage, [...overlayResult.overlayRefs, ...translated.overlayRefs], translated.translation),
+    governance: 'review-required',
+    reason: domResolved.candidates.length > 0
+      ? 'Live DOM exploration produced an ambiguous shortlist that requires human selection.'
+      : 'No safe executable interpretation remained after exhausting explicit constraints, approved knowledge, prior evidence, live DOM exploration, and degraded resolution.',
+    evidenceDrafts: domShortlist.map((candidate) => ({
+      type: 'runtime-resolution-gap',
+      trigger: 'live-dom-shortlist',
+      observation: {
+        step: String(task.index),
+        candidate: candidate.element.element,
+        score: candidate.score.toFixed(3),
+        locator: candidate.evidence.locatorStrategy,
+      },
+      proposal: {
+        file: 'knowledge/screens',
+        field: 'elements',
+        old_value: null,
+        new_value: candidate.element.element,
+      },
+      confidence: 0.5,
+      risk: 'low',
+      scope: 'hints',
+    })),
+  } as ResolutionReceipt;
 }
 
 export type { RuntimeStepAgentContext } from './types';

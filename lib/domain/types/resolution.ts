@@ -141,7 +141,14 @@ export interface ResolutionControl {
   version: 1;
   name: string;
   selector: ResolutionControlSelector;
+  domExplorationPolicy?: DomExplorationPolicy | undefined;
   steps: ResolutionControlStep[];
+}
+
+export interface DomExplorationPolicy {
+  maxCandidates: number;
+  maxProbes: number;
+  forbiddenActions: import('./workflow').StepAction[];
 }
 
 export interface RunbookControl {
@@ -172,6 +179,7 @@ export interface RuntimeResolutionControl {
   artifactPath: string;
   stepIndex: number;
   resolution: StepResolution;
+  domExplorationPolicy?: DomExplorationPolicy | undefined;
 }
 
 export interface RuntimeRunbookControl {

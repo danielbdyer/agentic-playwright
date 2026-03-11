@@ -19,6 +19,17 @@ export function selectedControlResolution(task: StepTask, context: RuntimeStepAg
   return selected?.resolution ?? task.controlResolution ?? scoped[0]?.resolution ?? null;
 }
 
+
+export function selectedDomExplorationPolicy(task: StepTask, context: RuntimeStepAgentContext) {
+  const runbook = selectedRunbook(task, context);
+  const selectedName = context.controlSelection?.resolutionControl ?? runbook?.resolutionControl ?? null;
+  const scoped = task.runtimeKnowledge.controls.resolutionControls.filter((entry) => entry.stepIndex === task.index);
+  const selected = selectedName
+    ? scoped.find((entry) => entry.name === selectedName) ?? null
+    : null;
+  return selected?.domExplorationPolicy ?? scoped[0]?.domExplorationPolicy ?? null;
+}
+
 export function selectedDataset(task: StepTask, context: RuntimeStepAgentContext) {
   if (context.controlSelection?.dataset) {
     return task.runtimeKnowledge.controls.datasets.find((entry) => entry.name === context.controlSelection?.dataset) ?? null;

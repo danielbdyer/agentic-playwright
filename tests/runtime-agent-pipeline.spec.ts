@@ -2,6 +2,18 @@ import { expect, test } from '@playwright/test';
 import { createElementId, createScreenId, createSurfaceId, createWidgetId } from '../lib/domain/identity';
 import type { StepTask } from '../lib/domain/types';
 import { RESOLUTION_PRECEDENCE, runResolutionPipeline } from '../lib/runtime/agent';
+import { resolveFromDom } from '../lib/runtime/agent/dom-fallback';
+
+
+function mockPageFromRoleCounts(roleCounts: Record<string, number>) {
+  return {
+    getByRole: (role: string, options?: { name?: string }) => ({
+      count: async () => roleCounts[`${role}:${options?.name ?? ''}`] ?? 0,
+    }),
+    getByTestId: () => ({ count: async () => 0 }),
+    locator: () => ({ count: async () => 0 }),
+  };
+}
 
 function baseStep(): StepTask {
   return {
@@ -124,7 +136,6 @@ test('overlay resolution short-circuits translation and preserves receipt fields
   expect(translateCalls).toBe(0);
 });
 
-
 test('provider identity does not change receipt envelope shape or governance semantics', async () => {
   const left = await runResolutionPipeline(baseStep(), {
     provider: 'deterministic-runtime-step-agent',
@@ -148,4 +159,103 @@ test('provider identity does not change receipt envelope shape or governance sem
   });
 
   expect(shape(left)).toEqual(shape(right));
+});
+
+test('live DOM ambiguity is bounded and deterministic for tie-breaking and shortlist evidence', async () => {
+  const page = mockPageFromRoleCounts({ 'textbox:A': 1, 'textbox:B': 1 });
+  const step = baseStep();
+  step.controlResolution = { action: 'input', screen: createScreenId('policy-search') };
+  step.runtimeKnowledge.confidenceOverlays = [];
+  step.runtimeKnowledge.controls.resolutionControls = [{
+    name: 'ci-policy',
+    artifactPath: 'controls/resolution/ci-policy.resolution.yaml',
+    stepIndex: 2,
+    resolution: {},
+    domExplorationPolicy: { maxCandidates: 2, maxProbes: 4, forbiddenActions: [] },
+  }];
+  step.runtimeKnowledge.screens[0].elements = [
+    {
+      element: createElementId('alphaInput'),
+      role: 'textbox',
+      name: 'A',
+      surface: createSurfaceId('search-form'),
+      widget: createWidgetId('os-input'),
+      aliases: [],
+      locator: [],
+      postures: [],
+      snapshotAliases: {},
+    },
+    {
+      element: createElementId('betaInput'),
+      role: 'textbox',
+      name: 'B',
+      surface: createSurfaceId('search-form'),
+      widget: createWidgetId('os-input'),
+      aliases: [],
+      locator: [],
+      postures: [],
+      snapshotAliases: {},
+    },
+  ];
+
+  const dom = await resolveFromDom(page as never, step, step.runtimeKnowledge.screens[0] ?? null, 'input', {
+    maxCandidates: 2,
+    maxProbes: 4,
+    forbiddenActions: [],
+  });
+  expect(dom.topCandidate?.element.element).toBe(createElementId('alphaInput'));
+  expect(dom.candidates.length).toBe(2);
+
+  const receipt = await runResolutionPipeline(step, {
+    page: page as never,
+    provider: 'test-agent',
+    mode: 'diagnostic',
+    runAt: '2026-03-09T00:00:00.000Z',
+    controlSelection: { resolutionControl: 'ci-policy' },
+  });
+
+  expect(receipt.kind).toBe('needs-human');
+  expect(receipt.governance).toBe('review-required');
+  expect(receipt.reason).toContain('No safe executable interpretation');
+});
+
+test('forbidden action policy yields review-required needs-human with shortlist evidence', async () => {
+  const page = mockPageFromRoleCounts({ 'button:Submit': 1, 'button:Continue': 1 });
+  const step = baseStep();
+  step.allowedActions = ['click'];
+  step.actionText = 'Click continue';
+  step.normalizedIntent = 'click continue => advances';
+  step.runtimeKnowledge.confidenceOverlays = [];
+  step.runtimeKnowledge.controls.resolutionControls = [{
+    name: 'interactive-policy',
+    artifactPath: 'controls/resolution/interactive-policy.resolution.yaml',
+    stepIndex: 2,
+    resolution: {},
+    domExplorationPolicy: { maxCandidates: 2, maxProbes: 1, forbiddenActions: ['click'] },
+  }];
+  step.runtimeKnowledge.screens[0].elements = [
+    {
+      element: createElementId('submitButton'),
+      role: 'button',
+      name: 'Submit',
+      surface: createSurfaceId('search-form'),
+      widget: createWidgetId('os-button'),
+      aliases: [],
+      locator: [],
+      postures: [],
+      snapshotAliases: {},
+    },
+  ];
+
+  const receipt = await runResolutionPipeline(step, {
+    page: page as never,
+    provider: 'test-agent',
+    mode: 'diagnostic',
+    runAt: '2026-03-09T00:00:00.000Z',
+    controlSelection: { resolutionControl: 'interactive-policy' },
+  });
+
+  expect(receipt.kind).toBe('needs-human');
+  expect(receipt.governance).toBe('review-required');
+  expect(receipt.reason).toContain('No safe executable interpretation');
 });

@@ -762,11 +762,26 @@ function validateRuntimeKnowledgeSession(value: unknown, path: string) {
         }),
         resolutionControls: expectArray(controls.resolutionControls ?? [], `${path}.controls.resolutionControls`).map((entry, index) => {
           const control = expectRecord(entry, `${path}.controls.resolutionControls[${index}]`);
+          const domPolicy = control.domExplorationPolicy === undefined
+            ? undefined
+            : expectRecord(control.domExplorationPolicy, `${path}.controls.resolutionControls[${index}].domExplorationPolicy`);
           return {
             name: expectString(control.name, `${path}.controls.resolutionControls[${index}].name`),
             artifactPath: expectString(control.artifactPath, `${path}.controls.resolutionControls[${index}].artifactPath`),
             stepIndex: expectNumber(control.stepIndex, `${path}.controls.resolutionControls[${index}].stepIndex`),
             resolution: validateStepResolution(control.resolution, `${path}.controls.resolutionControls[${index}].resolution`),
+            domExplorationPolicy: domPolicy
+              ? {
+                maxCandidates: expectNumber(domPolicy.maxCandidates, `${path}.controls.resolutionControls[${index}].domExplorationPolicy.maxCandidates`),
+                maxProbes: expectNumber(domPolicy.maxProbes, `${path}.controls.resolutionControls[${index}].domExplorationPolicy.maxProbes`),
+                forbiddenActions: expectArray(
+                  domPolicy.forbiddenActions ?? [],
+                  `${path}.controls.resolutionControls[${index}].domExplorationPolicy.forbiddenActions`,
+                ).map((entry, actionIndex) =>
+                  expectEnum(entry, `${path}.controls.resolutionControls[${index}].domExplorationPolicy.forbiddenActions[${actionIndex}]`, ['navigate', 'input', 'click', 'assert-snapshot', 'custom'] as const),
+                ),
+              }
+              : undefined,
           };
         }),
         runbooks: expectArray(controls.runbooks ?? [], `${path}.controls.runbooks`).map((entry, index) => {
@@ -1425,11 +1440,26 @@ function validateResolutionControlSelector(value: unknown, path: string) {
 
 export function validateResolutionControl(value: unknown): ResolutionControl {
   const control = expectRecord(value, 'resolution-control');
+  const domPolicy = control.domExplorationPolicy === undefined
+    ? undefined
+    : expectRecord(control.domExplorationPolicy, 'resolution-control.domExplorationPolicy');
   return {
     kind: expectEnum(control.kind, 'resolution-control.kind', ['resolution-control'] as const),
     version: expectNumber(control.version, 'resolution-control.version') as 1,
     name: expectString(control.name, 'resolution-control.name'),
     selector: validateResolutionControlSelector(control.selector, 'resolution-control.selector'),
+    domExplorationPolicy: domPolicy
+      ? {
+        maxCandidates: expectNumber(domPolicy.maxCandidates, 'resolution-control.domExplorationPolicy.maxCandidates'),
+        maxProbes: expectNumber(domPolicy.maxProbes, 'resolution-control.domExplorationPolicy.maxProbes'),
+        forbiddenActions: expectArray(
+          domPolicy.forbiddenActions ?? [],
+          'resolution-control.domExplorationPolicy.forbiddenActions',
+        ).map((entry, index) =>
+          expectEnum(entry, `resolution-control.domExplorationPolicy.forbiddenActions[${index}]`, ['navigate', 'input', 'click', 'assert-snapshot', 'custom'] as const),
+        ),
+      }
+      : undefined,
     steps: expectArray(control.steps ?? [], 'resolution-control.steps').map((entry, index) => {
       const step = expectRecord(entry, `resolution-control.steps[${index}]`);
       return {
