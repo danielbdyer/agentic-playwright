@@ -12,6 +12,7 @@ import type {
   ScenarioStep,
   StepExecutionReceipt,
   StepTask,
+  RuntimeKnowledgeSession,
   TranslationRequest,
   TranslationReceipt,
 } from '../domain/types';
@@ -49,6 +50,7 @@ export interface ScenarioStepRunResult {
 
 export interface ScenarioStepHandshake {
   task: StepTask;
+  runtimeKnowledgeSession?: RuntimeKnowledgeSession | undefined;
   directive?: unknown;
 }
 
@@ -84,11 +86,18 @@ export async function runScenarioStep(
   environment: RuntimeScenarioEnvironment,
   state: ScenarioRunState,
   context?: { adoId: AdoId; artifactPath?: string | undefined; revision?: number | undefined; contentHash?: string | undefined },
+  runtimeKnowledgeSession?: RuntimeKnowledgeSession | undefined,
 ): Promise<ScenarioStepRunResult> {
   const startedAt = Date.now();
   const runAt = new Date().toISOString();
   const agent = environment.agent ?? deterministicRuntimeStepAgent;
-  const interpretation = await agent.resolve(task, {
+  const runtimeKnowledge = task.runtimeKnowledge ?? runtimeKnowledgeSession;
+  if (!runtimeKnowledge) {
+    throw new Error(`Missing runtime knowledge for step ${task.index}`);
+  }
+  const resolvedTask = task.runtimeKnowledge ? task : { ...task, runtimeKnowledge };
+
+  const interpretation = await agent.resolve(resolvedTask, {
     page: environment.page,
     previousResolution: state.previousResolution,
     provider: environment.provider,
@@ -116,7 +125,7 @@ export async function runScenarioStep(
         },
         fingerprints: {
           artifact: task.taskFingerprint,
-          knowledge: task.runtimeKnowledge.knowledgeFingerprint,
+          knowledge: runtimeKnowledge.knowledgeFingerprint,
           task: task.taskFingerprint,
           controls: null,
           content: context?.contentHash ?? null,
@@ -130,7 +139,7 @@ export async function runScenarioStep(
         governance: 'blocked',
         stepIndex: task.index,
         taskFingerprint: task.taskFingerprint,
-        knowledgeFingerprint: task.runtimeKnowledge.knowledgeFingerprint,
+        knowledgeFingerprint: runtimeKnowledge.knowledgeFingerprint,
         runAt,
         mode: environment.mode,
         widgetContract: null,
@@ -174,7 +183,7 @@ export async function runScenarioStep(
   }
 
   state.previousResolution = interpretation.target;
-  const resolvedStep = resolvedScenarioStep(task, interpretation.target, interpretation.confidence);
+  const resolvedStep = resolvedScenarioStep(resolvedTask, interpretation.target, interpretation.confidence);
   const program = compileStepProgram(resolvedStep);
   const diagnosticContext = context
     ? {
@@ -238,7 +247,7 @@ export async function runScenarioStep(
     },
     fingerprints: {
       artifact: task.taskFingerprint,
-      knowledge: task.runtimeKnowledge.knowledgeFingerprint,
+      knowledge: runtimeKnowledge.knowledgeFingerprint,
       task: task.taskFingerprint,
       controls: null,
       content: context?.contentHash ?? null,
@@ -252,7 +261,7 @@ export async function runScenarioStep(
     governance: result.ok ? 'approved' : 'blocked',
     stepIndex: task.index,
     taskFingerprint: task.taskFingerprint,
-    knowledgeFingerprint: task.runtimeKnowledge.knowledgeFingerprint,
+    knowledgeFingerprint: runtimeKnowledge.knowledgeFingerprint,
     runAt,
     mode: environment.mode,
     widgetContract: firstOutcome?.widgetContract ?? null,
@@ -298,6 +307,7 @@ export async function runScenarioHandshake(
   environment: RuntimeScenarioEnvironment,
   state: ScenarioRunState,
   context?: { adoId: AdoId; artifactPath?: string | undefined; revision?: number | undefined; contentHash?: string | undefined },
+  runtimeKnowledgeSession?: RuntimeKnowledgeSession | undefined,
 ): Promise<ScenarioStepRunResult> {
-  return runScenarioStep(handshake.task, environment, state, context);
+  return runScenarioStep(handshake.task, environment, state, context, handshake.runtimeKnowledgeSession);
 }

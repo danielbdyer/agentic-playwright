@@ -33,7 +33,7 @@ export function resolveAction(task: StepTask, controlResolution: StepResolution 
     if (action === 'custom') {
       continue;
     }
-    const aliases = task.runtimeKnowledge.sharedPatterns.actions[action]?.aliases ?? [];
+    const aliases = task.runtimeKnowledge!.sharedPatterns.actions[action]?.aliases ?? [];
     if (bestAliasMatch(normalized, aliases)) {
       return {
         action,

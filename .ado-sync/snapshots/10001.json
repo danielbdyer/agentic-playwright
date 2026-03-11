@@ -4,6 +4,7 @@
   "title": "Verify policy search returns matching policy",
   "suitePath": "demo/policy-search",
   "areaPath": "demo",
+  "iterationPath": "demo/sprint-1",
   "tags": [
     "smoke",
     "billing",

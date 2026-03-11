@@ -555,3 +555,48 @@ test('graph projection includes policy decision audit nodes and governs edges', 
     workspace.cleanup();
   }
 });
+
+test('task packet separates task and knowledge fingerprints via scenario runtime knowledge session', async () => {
+  const workspace = createTestWorkspace('task-packet-fingerprint-separation');
+  try {
+    const adoId = createAdoId('10001');
+    const first = await runWithLocalServices(refreshScenario({ adoId, paths: workspace.paths }), workspace.rootDir);
+    const firstPacket = workspace.readJson<{ knowledgeFingerprint: string; steps: Array<{ taskFingerprint: string; knowledgeRef?: string; runtimeKnowledge?: unknown }>; runtimeKnowledgeSession?: unknown }>('.tesseract', 'tasks', '10001.resolution.json');
+
+    expect(firstPacket.runtimeKnowledgeSession).toBeTruthy();
+    expect(firstPacket.steps.every((step) => step.knowledgeRef === 'scenario')).toBeTruthy();
+    expect(firstPacket.steps.every((step) => step.runtimeKnowledge === undefined)).toBeTruthy();
+
+    const firstStepFingerprints = firstPacket.steps.map((step) => step.taskFingerprint);
+
+    const hintsPath = workspace.resolve('knowledge', 'screens', 'policy-search.hints.yaml');
+    const originalHints = readFileSync(hintsPath, 'utf8').replace(/^\uFEFF/, '');
+    writeFileSync(hintsPath, originalHints.replace('policy search screen', 'policy search workspace'), 'utf8');
+
+    const second = await runWithLocalServices(refreshScenario({ adoId, paths: workspace.paths }), workspace.rootDir);
+    const secondPacket = workspace.readJson<{ knowledgeFingerprint: string; steps: Array<{ taskFingerprint: string }>; taskFingerprint: string }>('.tesseract', 'tasks', '10001.resolution.json');
+
+    expect(second.compile.compileSnapshot.taskPacket.knowledgeFingerprint).not.toBe(first.compile.compileSnapshot.taskPacket.knowledgeFingerprint);
+    expect(secondPacket.steps.map((step) => step.taskFingerprint)).toEqual(firstStepFingerprints);
+    expect(secondPacket.taskFingerprint).not.toBe(first.compile.compileSnapshot.taskPacket.taskFingerprint);
+  } finally {
+    workspace.cleanup();
+  }
+});
+
+test('task packet size stays bounded with shared runtime knowledge session', async () => {
+  const workspace = createTestWorkspace('task-packet-size-sanity');
+  try {
+    const adoId = createAdoId('10001');
+    await runWithLocalServices(refreshScenario({ adoId, paths: workspace.paths }), workspace.rootDir);
+    const taskPath = workspace.resolve('.tesseract', 'tasks', '10001.resolution.json');
+    const packet = workspace.readJson<{ runtimeKnowledgeSession: unknown; steps: Array<{ runtimeKnowledge?: unknown }> }>('.tesseract', 'tasks', '10001.resolution.json');
+    const sizeBytes = statSync(taskPath).size;
+
+    expect(packet.runtimeKnowledgeSession).toBeTruthy();
+    expect(packet.steps.some((step) => step.runtimeKnowledge !== undefined)).toBeFalsy();
+    expect(sizeBytes).toBeLessThan(150_000);
+  } finally {
+    workspace.cleanup();
+  }
+});

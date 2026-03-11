@@ -60,7 +60,7 @@ export async function runResolutionPipeline(task: StepTask, context: RuntimeStep
     context,
     controlResolution: selectedControlResolution(task, context),
     controlRefs: selectedControlRefs(task, context),
-    evidenceRefs: uniqueSorted(task.runtimeKnowledge.evidenceRefs),
+    evidenceRefs: uniqueSorted(task.runtimeKnowledge!.evidenceRefs),
     exhaustion: [],
     observations: [],
     knowledgeRefs: [],
@@ -106,8 +106,8 @@ export async function runResolutionPipeline(task: StepTask, context: RuntimeStep
   recordExhaustion(
     stage.exhaustion,
     'prior-evidence',
-    task.runtimeKnowledge.evidenceRefs.length > 0 ? 'attempted' : 'skipped',
-    task.runtimeKnowledge.evidenceRefs.length > 0 ? 'Prior evidence refs were available to the agent task' : 'No prior evidence refs available',
+    task.runtimeKnowledge!.evidenceRefs.length > 0 ? 'attempted' : 'skipped',
+    task.runtimeKnowledge!.evidenceRefs.length > 0 ? 'Prior evidence refs were available to the agent task' : 'No prior evidence refs available',
   );
 
   const override = resolveOverride(task, screen, element, posture, stage.controlResolution, context);

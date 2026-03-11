@@ -991,16 +991,16 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
 
       if (taskStep) {
         const normalizedIntent = taskStep.normalizedIntent;
-        const matchedScreenAliases = taskStep.runtimeKnowledge.screens.flatMap((screen) =>
+        const matchedScreenAliases = taskStep.runtimeKnowledge!.screens.flatMap((screen) =>
           bestAliasMatches(normalizedIntent, screen.screenAliases).map((alias) => ({
             screen: screen.screen,
             alias,
           })),
         );
-        const onlyScreen = taskStep.runtimeKnowledge.screens[0] ?? null;
+        const onlyScreen = taskStep.runtimeKnowledge!.screens[0] ?? null;
         const taskScreens = matchedScreenAliases.length > 0
           ? [...new Map(matchedScreenAliases.map((entry) => [entry.screen, entry])).values()]
-          : onlyScreen && taskStep.runtimeKnowledge.screens.length === 1
+          : onlyScreen && taskStep.runtimeKnowledge!.screens.length === 1
             ? [{ screen: onlyScreen.screen, alias: null }]
             : [];
         for (const candidate of taskScreens) {
@@ -1023,7 +1023,7 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
           }));
         }
 
-        for (const screen of taskStep.runtimeKnowledge.screens) {
+        for (const screen of taskStep.runtimeKnowledge!.screens) {
           const matchedAliases = screen.elements.flatMap((element) =>
             bestAliasMatches(normalizedIntent, element.aliases).map((alias) => ({
               element: element.element,
@@ -1053,7 +1053,7 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
           }
         }
 
-        for (const dataset of taskStep.runtimeKnowledge.controls.datasets) {
+        for (const dataset of taskStep.runtimeKnowledge!.controls.datasets) {
           const usesDataset = Object.keys(dataset.elementDefaults).length > 0;
           if (!usesDataset || !nodes.has(graphIds.dataset(dataset.name))) {
             continue;
@@ -1072,7 +1072,7 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
           }));
         }
 
-        for (const resolutionControl of taskStep.runtimeKnowledge.controls.resolutionControls.filter((entry) => entry.stepIndex === step.index)) {
+        for (const resolutionControl of taskStep.runtimeKnowledge!.controls.resolutionControls.filter((entry) => entry.stepIndex === step.index)) {
           if (!nodes.has(graphIds.resolutionControl(resolutionControl.name))) {
             continue;
           }
@@ -1090,7 +1090,7 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
           }));
         }
 
-        for (const runbook of taskStep.runtimeKnowledge.controls.runbooks) {
+        for (const runbook of taskStep.runtimeKnowledge!.controls.runbooks) {
           if (!nodes.has(graphIds.runbook(runbook.name))) {
             continue;
           }

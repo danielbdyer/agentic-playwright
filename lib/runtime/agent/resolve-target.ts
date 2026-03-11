@@ -7,17 +7,17 @@ import type { RuntimeStepAgentContext } from './types';
 
 export function resolveScreen(task: StepTask, action: StepAction | null, controlResolution: StepResolution | null, previousResolution: ResolutionTarget | null | undefined): { screen: StepTaskScreenCandidate | null; supplementRefs: string[] } {
   if (task.explicitResolution?.screen) {
-    const explicit = task.runtimeKnowledge.screens.find((screen) => screen.screen === task.explicitResolution?.screen) ?? null;
+    const explicit = task.runtimeKnowledge!.screens.find((screen) => screen.screen === task.explicitResolution?.screen) ?? null;
     return { screen: explicit, supplementRefs: [] };
   }
   if (controlResolution?.screen) {
-    const controlled = task.runtimeKnowledge.screens.find((screen) => screen.screen === controlResolution.screen) ?? null;
+    const controlled = task.runtimeKnowledge!.screens.find((screen) => screen.screen === controlResolution.screen) ?? null;
     return { screen: controlled, supplementRefs: [] };
   }
 
   const normalized = normalizedCombined(task);
   let best: { screen: StepTaskScreenCandidate; score: number } | null = null;
-  for (const screen of task.runtimeKnowledge.screens) {
+  for (const screen of task.runtimeKnowledge!.screens) {
     const aliases = uniqueSorted([screen.screen, humanizeIdentifier(screen.screen), ...screen.screenAliases]);
     const match = bestAliasMatch(normalized, aliases);
     if (!match) {
@@ -35,7 +35,7 @@ export function resolveScreen(task: StepTask, action: StepAction | null, control
   }
 
   if (action !== 'navigate' && previousResolution?.screen) {
-    const carried = task.runtimeKnowledge.screens.find((screen) => screen.screen === previousResolution.screen) ?? null;
+    const carried = task.runtimeKnowledge!.screens.find((screen) => screen.screen === previousResolution.screen) ?? null;
     return { screen: carried, supplementRefs: carried?.supplementRefs ?? [] };
   }
 
@@ -83,7 +83,7 @@ export function resolvePosture(task: StepTask, element: StepTaskElementCandidate
     return { posture: controlResolution.posture, supplementRefs: [] };
   }
   const normalized = normalizedCombined(task);
-  for (const [postureId, descriptor] of Object.entries(task.runtimeKnowledge.sharedPatterns.postures)) {
+  for (const [postureId, descriptor] of Object.entries(task.runtimeKnowledge!.sharedPatterns.postures)) {
     if (bestAliasMatch(normalized, descriptor.aliases)) {
       return { posture: createPostureId(postureId), supplementRefs: [knowledgePaths.patterns()] };
     }

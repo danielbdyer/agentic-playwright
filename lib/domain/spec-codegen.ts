@@ -55,21 +55,26 @@ function fixtureReferencePattern(raw: string, fixtures: Set<string>): void {
 
 function fixturesForScenario(boundScenario: BoundScenario, taskPacket: ScenarioTaskPacket): string[] {
   const fixtures = new Set<string>(boundScenario.preconditions.map((precondition) => precondition.fixture));
+  const runtimeKnowledgeSession = taskPacket.runtimeKnowledgeSession ?? taskPacket.payload.runtimeKnowledgeSession;
   for (const step of taskPacket.steps) {
+    const runtimeKnowledge = step.runtimeKnowledge ?? runtimeKnowledgeSession;
+    if (!runtimeKnowledge) {
+      continue;
+    }
     if (step.explicitResolution?.override) {
       fixtureReferencePattern(step.explicitResolution.override, fixtures);
     }
     if (step.controlResolution?.override) {
       fixtureReferencePattern(step.controlResolution.override, fixtures);
     }
-    for (const screen of step.runtimeKnowledge.screens) {
+    for (const screen of runtimeKnowledge.screens) {
       for (const element of screen.elements) {
         if (element.defaultValueRef) {
           fixtureReferencePattern(element.defaultValueRef, fixtures);
         }
       }
     }
-    for (const dataset of step.runtimeKnowledge.controls.datasets) {
+    for (const dataset of runtimeKnowledge.controls.datasets) {
       for (const fixtureId of Object.keys(dataset.fixtures)) {
         fixtures.add(fixtureId);
       }
@@ -314,7 +319,8 @@ export function renderGeneratedSpecModule(
   const hasUnbound = boundScenario.steps.some((step) => step.binding.kind === 'unbound');
   const lifecycle = lifecycleForScenario(boundScenario.metadata.status, hasUnbound);
   const fixtures = fixturesForScenario(boundScenario, taskPacket);
-  const uniqueScreens = [...new Set(taskPacket.steps.flatMap((step) => step.runtimeKnowledge.screens.map((screen) => screen.screen)))].sort((left, right) => left.localeCompare(right));
+  const runtimeKnowledgeSession = taskPacket.runtimeKnowledgeSession ?? taskPacket.payload.runtimeKnowledgeSession;
+  const uniqueScreens = [...new Set(taskPacket.steps.flatMap((step) => (step.runtimeKnowledge ?? runtimeKnowledgeSession)?.screens.map((screen) => screen.screen) ?? []))].sort((left, right) => left.localeCompare(right));
   const confidence = aggregateConfidence(boundScenario.steps.map((step) => step.confidence));
   const deferredSteps = boundScenario.steps.filter((step) => step.binding.kind === 'deferred').map((step) => step.index);
   const unboundSteps = boundScenario.steps.filter((step) => step.binding.kind === 'unbound').map((step) => step.index);
