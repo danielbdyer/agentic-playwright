@@ -1,12 +1,15 @@
 import type { StepResolution, StepTask } from '../../domain/types';
+import { chooseByPrecedence, dataResolutionPrecedenceLaw, resolutionPrecedenceLaw, runSelectionPrecedenceLaw } from '../../domain/precedence';
 import { uniqueSorted } from './shared';
 import type { RuntimeStepAgentContext } from './types';
 
 export function selectedRunbook(task: StepTask, context: RuntimeStepAgentContext) {
-  if (context.controlSelection?.runbook) {
-    return task.runtimeKnowledge!.controls.runbooks.find((entry) => entry.name === context.controlSelection?.runbook) ?? null;
-  }
-  return task.runtimeKnowledge!.controls.runbooks.find((entry) => entry.isDefault) ?? task.runtimeKnowledge!.controls.runbooks[0] ?? null;
+  const runbooks = task.runtimeKnowledge!.controls.runbooks;
+  return chooseByPrecedence([
+    { rung: 'cli-flag', value: runbooks.find((entry) => entry.name === context.controlSelection?.runbook) ?? null },
+    { rung: 'runbook', value: runbooks.find((entry) => entry.isDefault) ?? null },
+    { rung: 'repo-default', value: runbooks[0] ?? null },
+  ], runSelectionPrecedenceLaw);
 }
 
 export function selectedControlResolution(task: StepTask, context: RuntimeStepAgentContext): StepResolution | null {
@@ -16,7 +19,10 @@ export function selectedControlResolution(task: StepTask, context: RuntimeStepAg
   const selected = selectedName
     ? scoped.find((entry) => entry.name === selectedName) ?? null
     : null;
-  return selected?.resolution ?? task.controlResolution ?? scoped[0]?.resolution ?? null;
+  return chooseByPrecedence([
+    { rung: 'explicit', value: task.controlResolution },
+    { rung: 'control', value: selected?.resolution ?? scoped[0]?.resolution ?? null },
+  ], resolutionPrecedenceLaw);
 }
 
 
@@ -31,14 +37,14 @@ export function selectedDomExplorationPolicy(task: StepTask, context: RuntimeSte
 }
 
 export function selectedDataset(task: StepTask, context: RuntimeStepAgentContext) {
-  if (context.controlSelection?.dataset) {
-    return task.runtimeKnowledge!.controls.datasets.find((entry) => entry.name === context.controlSelection?.dataset) ?? null;
-  }
+  const datasets = task.runtimeKnowledge!.controls.datasets;
   const runbook = selectedRunbook(task, context);
-  if (runbook?.dataset) {
-    return task.runtimeKnowledge!.controls.datasets.find((entry) => entry.name === runbook.dataset) ?? null;
-  }
-  return task.runtimeKnowledge!.controls.datasets.find((entry) => entry.isDefault) ?? task.runtimeKnowledge!.controls.datasets[0] ?? null;
+  return chooseByPrecedence([
+    { rung: 'explicit', value: datasets.find((entry) => entry.name === context.controlSelection?.dataset) ?? null },
+    { rung: 'runbook-dataset-binding', value: datasets.find((entry) => entry.name === runbook?.dataset) ?? null },
+    { rung: 'dataset-default', value: datasets.find((entry) => entry.isDefault) ?? null },
+    { rung: 'hint-default-value', value: datasets[0] ?? null },
+  ], dataResolutionPrecedenceLaw);
 }
 
 export function selectedControlRefs(task: StepTask, context: RuntimeStepAgentContext): string[] {

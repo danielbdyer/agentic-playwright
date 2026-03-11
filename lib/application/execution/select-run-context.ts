@@ -14,6 +14,7 @@ import type {
 } from '../../domain/types';
 import type { AdoId, ScreenId } from '../../domain/identity';
 import { activeDatasetForRun, findRunbook } from '../controls';
+import { chooseByPrecedence, runSelectionPrecedenceLaw } from '../../domain/precedence';
 
 const fixtureReferencePattern = /^\{\{\s*([A-Za-z0-9_-]+)(?:\.[^}]*)?\s*\}\}$/;
 
@@ -126,7 +127,11 @@ export function selectRunContext(input: {
   }, activeRunbook);
   const runId = new Date().toISOString().replace(/[:.]/g, '-');
   const posture = input.posture ?? input.executionContextPosture;
-  const mode = input.interpreterMode ?? activeRunbook?.interpreterMode ?? posture.interpreterMode ?? 'diagnostic';
+  const mode = chooseByPrecedence([
+    { rung: 'cli-flag', value: input.interpreterMode ?? null },
+    { rung: 'runbook', value: activeRunbook?.interpreterMode ?? null },
+    { rung: 'repo-default', value: posture.interpreterMode ?? 'diagnostic' },
+  ], runSelectionPrecedenceLaw) ?? 'diagnostic';
   const steps = taskStepsForRun(taskPacketEntry.artifact.steps, runtimeKnowledgeSession, activeRunbook?.resolutionControl ?? null);
   const fixtureIds = uniqueSorted([
     ...scenarioEntry.artifact.preconditions.map((precondition) => precondition.fixture),
@@ -168,6 +173,10 @@ export function selectRunContext(input: {
     },
     translationEnabled: activeRunbook?.translationEnabled ?? true,
     translationCacheEnabled: activeRunbook?.translationCacheEnabled ?? true,
-    providerId: input.providerId ?? activeRunbook?.providerId ?? 'deterministic-runtime-step-agent',
+    providerId: chooseByPrecedence([
+      { rung: 'cli-flag', value: input.providerId ?? null },
+      { rung: 'runbook', value: activeRunbook?.providerId ?? null },
+      { rung: 'repo-default', value: 'deterministic-runtime-step-agent' },
+    ], runSelectionPrecedenceLaw) ?? 'deterministic-runtime-step-agent',
   };
 }
