@@ -1,13 +1,21 @@
-import type { ResolutionReceipt, StepTask } from '../../domain/types';
-import { resolveAction, allowedActionFallback, requiresElement } from './resolve-action';
+import type { ResolutionCandidateSummary, ResolutionReceipt, StepTask } from '../../domain/types';
+import { requiresElement, allowedActionFallback } from './resolve-action';
 import { resolveFromDom } from './dom-fallback';
 import { proposalForSupplementGap } from './proposals';
 import { explicitResolvedReceipt, needsHumanReceipt } from './receipt';
-import { resolveElement, resolveOverride, resolvePosture, resolveScreen, resolveSnapshot } from './resolve-target';
+import { resolveOverride } from './resolve-target';
 import { selectedControlRefs, selectedControlResolution } from './select-controls';
 import { recordExhaustion, uniqueSorted } from './shared';
 import { resolveWithConfidenceOverlay, resolveWithTranslation } from './translation';
 import type { RuntimeAgentStageContext, RuntimeStepAgentContext } from './types';
+import {
+  rankActionCandidates,
+  rankElementCandidates,
+  rankPostureCandidates,
+  rankScreenCandidates,
+  rankSnapshotCandidates,
+  type LatticeCandidate,
+} from './candidate-lattice';
 
 export const RESOLUTION_PRECEDENCE = [
   'explicit',
@@ -18,6 +26,33 @@ export const RESOLUTION_PRECEDENCE = [
   'live-dom',
   'needs-human',
 ] as const;
+
+function summaryForValue<T>(concern: ResolutionCandidateSummary['concern'], ranked: Array<LatticeCandidate<T>>, topN = 3): { topCandidates: ResolutionCandidateSummary[]; rejectedCandidates: ResolutionCandidateSummary[] } {
+  const normalizeValue = (value: unknown): string => {
+    if (value === null || value === undefined) {
+      return '(none)';
+    }
+    if (typeof value === 'string') {
+      return value;
+    }
+    if (typeof value === 'object' && value !== null) {
+      const cast = value as { screen?: string; element?: string };
+      return cast.element ?? cast.screen ?? JSON.stringify(value);
+    }
+    return String(value);
+  };
+  const toSummary = (candidate: LatticeCandidate<T>): ResolutionCandidateSummary => ({
+    concern,
+    source: candidate.source,
+    value: normalizeValue(candidate.value),
+    score: candidate.score,
+    reason: candidate.summary,
+  });
+  return {
+    topCandidates: ranked.slice(0, topN).map(toSummary),
+    rejectedCandidates: ranked.slice(1, topN + 1).map(toSummary),
+  };
+}
 
 export async function runResolutionPipeline(task: StepTask, context: RuntimeStepAgentContext): Promise<ResolutionReceipt> {
   const stage: RuntimeAgentStageContext = {
@@ -39,33 +74,34 @@ export async function runResolutionPipeline(task: StepTask, context: RuntimeStep
   }
   recordExhaustion(stage.exhaustion, 'explicit', explicit ? 'attempted' : 'skipped', explicit ? 'Explicit constraints were partial and used as priors' : 'No explicit constraints present');
 
-  const actionResult = resolveAction(task, stage.controlResolution);
-  const action = actionResult.action;
-  stage.supplementRefs.push(...actionResult.supplementRefs);
-  if (!action) {
-    recordExhaustion(stage.exhaustion, 'approved-screen-bundle', 'failed', 'Unable to infer action from approved knowledge');
-  }
+  const actionLattice = rankActionCandidates(task, stage.controlResolution);
+  const action = actionLattice.selected?.value ?? null;
+  stage.supplementRefs.push(...actionLattice.selected?.refs ?? []);
+  const actionCandidates = summaryForValue('action', actionLattice.ranked);
 
-  const screenResult = resolveScreen(task, action, stage.controlResolution, context.previousResolution);
-  if (screenResult.screen) {
-    stage.knowledgeRefs.push(...screenResult.screen.knowledgeRefs);
-    stage.supplementRefs.push(...screenResult.supplementRefs);
-    recordExhaustion(stage.exhaustion, 'approved-screen-bundle', 'attempted', `Selected screen ${screenResult.screen.screen}`);
+  const screenLattice = rankScreenCandidates(task, action, stage.controlResolution, context.previousResolution);
+  const screen = screenLattice.selected?.value ?? null;
+  if (screen) {
+    stage.knowledgeRefs.push(...screen.knowledgeRefs);
+    stage.supplementRefs.push(...screen.supplementRefs);
+    recordExhaustion(stage.exhaustion, 'approved-screen-bundle', 'attempted', `Selected screen ${screen.screen}`, summaryForValue('screen', screenLattice.ranked));
   } else {
-    recordExhaustion(stage.exhaustion, 'approved-screen-bundle', 'failed', 'No screen candidate matched approved knowledge priors');
+    recordExhaustion(stage.exhaustion, 'approved-screen-bundle', 'failed', 'No screen candidate matched approved knowledge priors', summaryForValue('screen', screenLattice.ranked));
   }
 
-  const elementResult = resolveElement(task, screenResult.screen, stage.controlResolution);
-  if (elementResult.element) {
-    stage.supplementRefs.push(...elementResult.supplementRefs);
-    recordExhaustion(stage.exhaustion, 'local-hints', 'attempted', `Matched element ${elementResult.element.element}`);
+  const elementLattice = rankElementCandidates(task, screen, stage.controlResolution);
+  const element = elementLattice.selected?.value ?? null;
+  stage.supplementRefs.push(...elementLattice.selected?.refs ?? []);
+  if (element) {
+    recordExhaustion(stage.exhaustion, 'local-hints', 'attempted', `Matched element ${element.element}`, summaryForValue('element', elementLattice.ranked));
   } else {
-    recordExhaustion(stage.exhaustion, 'local-hints', 'failed', 'No element candidate matched local hints');
+    recordExhaustion(stage.exhaustion, 'local-hints', 'failed', 'No element candidate matched local hints', summaryForValue('element', elementLattice.ranked));
   }
 
-  const postureResult = resolvePosture(task, elementResult.element, stage.controlResolution);
-  stage.supplementRefs.push(...postureResult.supplementRefs);
-  recordExhaustion(stage.exhaustion, 'shared-patterns', postureResult.posture ? 'attempted' : 'skipped', postureResult.posture ? `Matched posture ${postureResult.posture}` : 'No shared posture pattern required');
+  const postureLattice = rankPostureCandidates(task, element, stage.controlResolution);
+  const posture = postureLattice.selected?.value ?? null;
+  stage.supplementRefs.push(...postureLattice.selected?.refs ?? []);
+  recordExhaustion(stage.exhaustion, 'shared-patterns', posture ? 'attempted' : 'skipped', posture ? `Matched posture ${posture}` : 'No shared posture pattern required', summaryForValue('posture', postureLattice.ranked));
 
   recordExhaustion(
     stage.exhaustion,
@@ -74,11 +110,31 @@ export async function runResolutionPipeline(task: StepTask, context: RuntimeStep
     task.runtimeKnowledge.evidenceRefs.length > 0 ? 'Prior evidence refs were available to the agent task' : 'No prior evidence refs available',
   );
 
-  const override = resolveOverride(task, screenResult.screen, elementResult.element, postureResult.posture, stage.controlResolution, context);
-  const snapshotResult = resolveSnapshot(task, screenResult.screen, elementResult.element, stage.controlResolution);
-  stage.supplementRefs.push(...snapshotResult.supplementRefs);
+  const override = resolveOverride(task, screen, element, posture, stage.controlResolution, context);
+  const snapshotLattice = rankSnapshotCandidates(task, screen, element, stage.controlResolution);
+  const snapshotTemplate = snapshotLattice.selected?.value ?? null;
+  stage.supplementRefs.push(...snapshotLattice.selected?.refs ?? []);
 
-  if (action && screenResult.screen && (!requiresElement(action) || elementResult.element) && (action !== 'assert-snapshot' || snapshotResult.snapshotTemplate)) {
+  stage.observations.push({
+    source: 'knowledge',
+    summary: 'Deterministic lattice ranked approved candidates across action, screen, element, posture, and snapshot concerns.',
+    topCandidates: [
+      ...actionCandidates.topCandidates.slice(0, 1),
+      ...summaryForValue('screen', screenLattice.ranked).topCandidates.slice(0, 1),
+      ...summaryForValue('element', elementLattice.ranked).topCandidates.slice(0, 1),
+      ...summaryForValue('posture', postureLattice.ranked).topCandidates.slice(0, 1),
+      ...summaryForValue('snapshot', snapshotLattice.ranked).topCandidates.slice(0, 1),
+    ],
+    rejectedCandidates: [
+      ...actionCandidates.rejectedCandidates,
+      ...summaryForValue('screen', screenLattice.ranked).rejectedCandidates,
+      ...summaryForValue('element', elementLattice.ranked).rejectedCandidates,
+      ...summaryForValue('posture', postureLattice.ranked).rejectedCandidates,
+      ...summaryForValue('snapshot', snapshotLattice.ranked).rejectedCandidates,
+    ],
+  });
+
+  if (action && screen && (!requiresElement(action) || element) && (action !== 'assert-snapshot' || snapshotTemplate)) {
     recordExhaustion(stage.exhaustion, 'safe-degraded-resolution', 'resolved', 'Approved deterministic priors produced an executable target');
     return {
       ...needsHumanReceipt(stage, [], null),
@@ -93,16 +149,16 @@ export async function runResolutionPipeline(task: StepTask, context: RuntimeStep
       provenanceKind: 'approved-knowledge',
       target: {
         action,
-        screen: screenResult.screen.screen,
-        element: elementResult.element?.element ?? null,
-        posture: postureResult.posture,
+        screen: screen.screen,
+        element: element?.element ?? null,
+        posture,
         override: override.override,
-        snapshot_template: snapshotResult.snapshotTemplate,
+        snapshot_template: snapshotTemplate,
       },
     } as ResolutionReceipt;
   }
 
-  const overlayResult = resolveWithConfidenceOverlay(task, action, screenResult.screen, elementResult.element, snapshotResult.snapshotTemplate);
+  const overlayResult = resolveWithConfidenceOverlay(task, action, screen, element, snapshotTemplate);
   if (overlayResult.observation) {
     stage.observations.push(overlayResult.observation);
   }
@@ -137,9 +193,9 @@ export async function runResolutionPipeline(task: StepTask, context: RuntimeStep
   if (translated.observation) {
     stage.observations.push(translated.observation);
   }
-  if (translated.translation?.matched && translated.screen && (!requiresElement(action) || translated.element) && (action !== 'assert-snapshot' || snapshotResult.snapshotTemplate)) {
+  if (translated.translation?.matched && translated.screen && (!requiresElement(action) || translated.element) && (action !== 'assert-snapshot' || snapshotTemplate)) {
     recordExhaustion(stage.exhaustion, 'structured-translation', 'resolved', translated.translation.rationale);
-    const translatedOverride = resolveOverride(task, translated.screen, translated.element, postureResult.posture, stage.controlResolution, context);
+    const translatedOverride = resolveOverride(task, translated.screen, translated.element, posture, stage.controlResolution, context);
     return {
       ...needsHumanReceipt(stage, [], null),
       kind: 'resolved',
@@ -156,20 +212,20 @@ export async function runResolutionPipeline(task: StepTask, context: RuntimeStep
         action: action ?? allowedActionFallback(task) ?? 'custom',
         screen: translated.screen.screen,
         element: translated.element?.element ?? null,
-        posture: postureResult.posture,
+        posture,
         override: translatedOverride.override,
-        snapshot_template: snapshotResult.snapshotTemplate,
+        snapshot_template: snapshotTemplate,
       },
     } as ResolutionReceipt;
   }
   recordExhaustion(stage.exhaustion, 'structured-translation', context.translate ? 'failed' : 'skipped', context.translate ? 'Structured translation did not produce an executable target' : 'No structured translation stage was configured');
 
-  const domScreen = translated.screen ?? overlayResult.screen ?? screenResult.screen;
+  const domScreen = translated.screen ?? overlayResult.screen ?? screen;
   const domResolved = await resolveFromDom(context.page, task, domScreen, action);
   if (domResolved.observation) {
     stage.observations.push(domResolved.observation);
   }
-  if (domResolved.element && action && domScreen && (action !== 'assert-snapshot' || snapshotResult.snapshotTemplate)) {
+  if (domResolved.element && action && domScreen && (action !== 'assert-snapshot' || snapshotTemplate)) {
     const liveScreen = domScreen;
     const liveElement = domResolved.element;
     recordExhaustion(stage.exhaustion, 'live-dom', 'attempted', `Live DOM resolved ${domResolved.element.element}`);
@@ -187,9 +243,9 @@ export async function runResolutionPipeline(task: StepTask, context: RuntimeStep
         action,
         screen: liveScreen.screen,
         element: liveElement.element,
-        posture: postureResult.posture,
-        override: resolveOverride(task, liveScreen, liveElement, postureResult.posture, stage.controlResolution, context).override,
-        snapshot_template: snapshotResult.snapshotTemplate,
+        posture,
+        override: resolveOverride(task, liveScreen, liveElement, posture, stage.controlResolution, context).override,
+        snapshot_template: snapshotTemplate,
       },
       evidenceDrafts: proposalDrafts.map((proposal) => ({
         type: 'runtime-resolution-gap',
