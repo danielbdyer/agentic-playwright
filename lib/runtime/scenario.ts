@@ -18,6 +18,7 @@ import type {
 } from '../domain/types';
 import { runStaticInterpreter } from './interpreters/execute';
 import type { InterpreterMode, InterpreterScreenRegistry } from './interpreters/types';
+import type { RuntimeWorkingMemory } from './agent/types';
 import { playwrightStepProgramInterpreter } from './program';
 import { deterministicRuntimeStepAgent, type RuntimeStepAgent } from './agent';
 import type { RuntimeDomResolver } from '../domain/types';
@@ -43,6 +44,7 @@ export interface RuntimeScenarioEnvironment {
 
 export interface ScenarioRunState {
   previousResolution: ResolutionTarget | null;
+  runtimeWorkingMemory: RuntimeWorkingMemory;
 }
 
 export interface ScenarioStepRunResult {
@@ -59,6 +61,15 @@ export interface ScenarioStepHandshake {
 export function createScenarioRunState(): ScenarioRunState {
   return {
     previousResolution: null,
+    runtimeWorkingMemory: {
+      currentScreen: null,
+      activeEntityKeys: [],
+      openedPanels: [],
+      openedModals: [],
+      lastSuccessfulLocatorRung: null,
+      recentAssertions: [],
+      lineage: [],
+    },
   };
 }
 
@@ -99,15 +110,18 @@ export async function runScenarioStep(
   }
   const resolvedTask = task.runtimeKnowledge ? task : { ...task, runtimeKnowledge };
 
-  const interpretation = await agent.resolve(resolvedTask, {
+  const resolutionContext = {
     domResolver: environment.domResolver,
     previousResolution: state.previousResolution,
+    runtimeWorkingMemory: state.runtimeWorkingMemory,
     provider: environment.provider,
     mode: environment.mode,
     runAt,
     translate: environment.translator,
     controlSelection: environment.controlSelection,
-  });
+  };
+  const interpretation = await agent.resolve(resolvedTask, resolutionContext);
+  state.runtimeWorkingMemory = resolutionContext.runtimeWorkingMemory ?? state.runtimeWorkingMemory;
 
   if (interpretation.kind === 'needs-human') {
     return {

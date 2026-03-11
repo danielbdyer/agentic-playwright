@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { createElementId, createScreenId, createSurfaceId, createWidgetId } from '../lib/domain/identity';
 import type { StepTask } from '../lib/domain/types';
-import { RESOLUTION_PRECEDENCE, runResolutionPipeline } from '../lib/runtime/agent';
+import { RESOLUTION_PRECEDENCE, runResolutionPipeline, type RuntimeStepAgentContext } from '../lib/runtime/agent';
 import { resolveFromDom } from '../lib/runtime/agent/dom-fallback';
 
 
@@ -258,4 +258,39 @@ test('forbidden action policy yields review-required needs-human with shortlist 
   expect(receipt.kind).toBe('needs-human');
   expect(receipt.governance).toBe('review-required');
   expect(receipt.reason).toContain('No safe executable interpretation');
+});
+
+
+test('working memory is updated across steps and receipt lineage captures memory priors', async () => {
+  const first = baseStep();
+  first.runtimeKnowledge.confidenceOverlays = [];
+  first.controlResolution = { action: 'input', screen: createScreenId('policy-search'), element: createElementId('policyNumberInput') };
+  const context: RuntimeStepAgentContext = {
+    provider: 'test-agent',
+    mode: 'diagnostic' as const,
+    runAt: '2026-03-09T00:00:00.000Z',
+  };
+
+  const firstReceipt = await runResolutionPipeline(first, context);
+  expect(firstReceipt.kind).toBe('resolved');
+  expect(context.runtimeWorkingMemory?.currentScreen?.screen).toBe(createScreenId('policy-search'));
+  expect(context.runtimeWorkingMemory?.activeEntityKeys).toContain(createElementId('policyNumberInput'));
+
+  const second = baseStep();
+  second.index = 9;
+  second.runtimeKnowledge.confidenceOverlays = [];
+  second.actionText = 'Navigate to policy search';
+  second.normalizedIntent = 'navigate to policy search => on policy search';
+  second.controlResolution = { action: 'navigate', screen: createScreenId('policy-search') };
+  await runResolutionPipeline(second, context);
+
+  expect(context.runtimeWorkingMemory?.openedPanels).toEqual([]);
+  expect(context.runtimeWorkingMemory?.openedModals).toEqual([]);
+
+  const third = baseStep();
+  third.index = 10;
+  third.runtimeKnowledge.confidenceOverlays = [];
+  third.controlResolution = { action: 'input', screen: createScreenId('policy-search'), element: createElementId('policyNumberInput') };
+  const thirdReceipt = await runResolutionPipeline(third, context);
+  expect(thirdReceipt.lineage.sources.some((entry) => entry.startsWith('memory:step:'))).toBeTruthy();
 });

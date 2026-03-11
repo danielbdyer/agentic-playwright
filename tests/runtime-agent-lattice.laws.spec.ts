@@ -108,3 +108,51 @@ test('screen and element ranking remain deterministic across equivalent permutat
   expect(leftElement.selected?.value?.element).toBe(rightElement.selected?.value?.element);
   expect(leftElement.ranked.map((entry) => entry.value?.element ?? null)).toEqual(rightElement.ranked.map((entry) => entry.value?.element ?? null));
 });
+
+
+test('working-memory priors boost same-screen continuation and known entity context', () => {
+  const task = buildTask({
+    actionText: 'Enter policy search preferred policy ref',
+    normalizedIntent: 'enter policy search preferred policy ref => policy accepted',
+    runtimeKnowledge: {
+      ...buildTask().runtimeKnowledge,
+      screens: [
+        {
+          ...buildTask().runtimeKnowledge.screens[0],
+          screen: createScreenId('z-policy-search'),
+          screenAliases: ['policy search'],
+        },
+        {
+          ...buildTask().runtimeKnowledge.screens[1],
+          screen: createScreenId('a-policy-search'),
+          screenAliases: ['policy search'],
+          elements: [
+            {
+              ...buildTask().runtimeKnowledge.screens[1].elements[0],
+              element: createElementId('preferredPolicyRefInput'),
+              aliases: ['policy ref', 'policy reference preferred'],
+            },
+          ],
+        },
+      ],
+    },
+  });
+
+  const memory = {
+    currentScreen: { screen: createScreenId('a-policy-search'), confidence: 1, observedAtStep: 1 },
+    activeEntityKeys: ['preferred'],
+    openedPanels: [],
+    openedModals: [],
+    lastSuccessfulLocatorRung: null,
+    recentAssertions: [],
+    lineage: [],
+  };
+
+  const screenRank = rankScreenCandidates(task, 'input', task.controlResolution, null, memory);
+  expect(screenRank.selected?.value?.screen).toBe(createScreenId('a-policy-search'));
+
+  const elementRank = rankElementCandidates(task, screenRank.selected?.value ?? null, task.controlResolution, memory);
+  expect(elementRank.selected?.value?.element).toBe(createElementId('preferredPolicyRefInput'));
+  expect(elementRank.selected?.summary).toContain('Working-memory entity prior');
+});
+
