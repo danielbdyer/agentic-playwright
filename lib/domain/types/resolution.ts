@@ -379,6 +379,52 @@ export interface ResolutionProposalDraft {
   rationale: string;
 }
 
+export type ResolutionPrecedenceRung = 'explicit' | 'control' | 'approved-knowledge' | 'overlay' | 'translation' | 'live-dom' | 'needs-human';
+
+export interface ResolutionGraphTraversalEntry {
+  rung: ResolutionPrecedenceRung;
+  outcome: 'attempted' | 'resolved' | 'skipped' | 'failed';
+  reason: string;
+}
+
+export interface ResolutionGraphCandidate {
+  concern: ResolutionCandidateSummary['concern'];
+  source: ResolutionCandidateSummary['source'];
+  value: string;
+  score: {
+    raw: number;
+    normalized: number;
+  };
+  reason: string;
+  selected: boolean;
+}
+
+export interface ResolutionGraphCandidateSet {
+  concern: ResolutionCandidateSummary['concern'];
+  rung: Exclude<ResolutionPrecedenceRung, 'needs-human'>;
+  candidates: ResolutionGraphCandidate[];
+}
+
+export interface StepResolutionGraph {
+  precedenceTraversal: ResolutionGraphTraversalEntry[];
+  candidateSets: ResolutionGraphCandidateSet[];
+  winner: {
+    rung: ResolutionPrecedenceRung;
+    rationale: string;
+    losingReasons: string[];
+  };
+  refs: {
+    controlRefs: string[];
+    knowledgeRefs: string[];
+    supplementRefs: string[];
+    evidenceRefs: string[];
+  };
+  links: {
+    translationReceiptRef: string | null;
+    domProbeEvidenceRef: string | null;
+  };
+}
+
 interface ResolutionReceiptBase {
   version: 1;
   stage: 'resolution';
@@ -405,6 +451,7 @@ interface ResolutionReceiptBase {
   winningConcern: WorkflowLane;
   winningSource: StepWinningSource;
   translation?: TranslationReceipt | null | undefined;
+  resolutionGraph?: StepResolutionGraph | undefined;
   translationCache?: {
     key: string | null;
     status: 'hit' | 'miss' | 'disabled';

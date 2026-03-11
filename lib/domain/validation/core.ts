@@ -1957,6 +1957,39 @@ export function validateBenchmarkContext(value: unknown): BenchmarkContext {
   };
 }
 
+export function validateResolutionGraphRecord(value: unknown): import('../types').ResolutionGraphRecord {
+  const record = expectRecord(value, 'resolutionGraphRecord');
+  const header = validateWorkflowEnvelopeHeader(record, 'resolutionGraphRecord', {
+    stage: 'resolution',
+    scope: 'run',
+    governance: expectEnum(record.governance ?? 'approved', 'resolutionGraphRecord.governance', governanceStates),
+    artifactFingerprint: expectOptionalString(record.runId, 'resolutionGraphRecord.runId') ?? 'resolution-graph-record',
+    ids: { runId: expectOptionalString(record.runId, 'resolutionGraphRecord.runId') ?? null, stepIndex: null },
+    lineage: { sources: [], parents: [], handshakes: ['preparation', 'resolution'] },
+  });
+  const steps = expectArray(record.steps, 'resolutionGraphRecord.steps').map((entry, index) => {
+    const step = expectRecord(entry, `resolutionGraphRecord.steps[${index}]`);
+    return {
+      stepIndex: expectNumber(step.stepIndex, `resolutionGraphRecord.steps[${index}].stepIndex`),
+      graph: step.graph as import('../types').StepResolutionGraph,
+    };
+  });
+  return {
+    ...header,
+    kind: expectEnum(record.kind, 'resolutionGraphRecord.kind', ['resolution-graph-record'] as const),
+    version: expectNumber(record.version, 'resolutionGraphRecord.version') as 1,
+    stage: 'resolution',
+    scope: 'run',
+    governance: expectEnum(record.governance ?? 'approved', 'resolutionGraphRecord.governance', governanceStates),
+    adoId: expectString(record.adoId, 'resolutionGraphRecord.adoId') as import('../identity').AdoId,
+    runId: expectString(record.runId, 'resolutionGraphRecord.runId'),
+    providerId: expectString(record.providerId, 'resolutionGraphRecord.providerId'),
+    mode: expectString(record.mode, 'resolutionGraphRecord.mode'),
+    generatedAt: expectString(record.generatedAt, 'resolutionGraphRecord.generatedAt'),
+    steps,
+  };
+}
+
 export function validateInterpretationDriftRecord(value: unknown): InterpretationDriftRecord {
   const record = expectRecord(value, 'interpretationDriftRecord');
   const steps = expectArray(record.steps ?? [], 'interpretationDriftRecord.steps').map((entry, index) => {
@@ -1964,7 +1997,7 @@ export function validateInterpretationDriftRecord(value: unknown): Interpretatio
     const changes = expectArray(step.changes ?? [], `interpretationDriftRecord.steps[${index}].changes`).map((changeEntry, changeIndex) => {
       const change = expectRecord(changeEntry, `interpretationDriftRecord.steps[${index}].changes[${changeIndex}]`);
       return {
-        field: expectEnum(change.field, `interpretationDriftRecord.steps[${index}].changes[${changeIndex}].field`, ['winningSource', 'target', 'governance', 'confidence', 'exhaustion-path'] as const),
+        field: expectEnum(change.field, `interpretationDriftRecord.steps[${index}].changes[${changeIndex}].field`, ['winningSource', 'target', 'governance', 'confidence', 'exhaustion-path', 'resolution-graph'] as const),
         before: change.before,
         after: change.after,
       };
@@ -1981,6 +2014,7 @@ export function validateInterpretationDriftRecord(value: unknown): Interpretatio
         governance: expectEnum(before.governance ?? 'approved', `interpretationDriftRecord.steps[${index}].before.governance`, governanceStates),
         confidence: expectString(before.confidence ?? 'unbound', `interpretationDriftRecord.steps[${index}].before.confidence`),
         exhaustionPath: expectStringArray(before.exhaustionPath ?? [], `interpretationDriftRecord.steps[${index}].before.exhaustionPath`),
+        resolutionGraphDigest: expectString(before.resolutionGraphDigest ?? 'none', `interpretationDriftRecord.steps[${index}].before.resolutionGraphDigest`),
       },
       after: {
         winningSource: expectString(after.winningSource ?? 'none', `interpretationDriftRecord.steps[${index}].after.winningSource`),
@@ -1988,6 +2022,12 @@ export function validateInterpretationDriftRecord(value: unknown): Interpretatio
         governance: expectEnum(after.governance ?? 'approved', `interpretationDriftRecord.steps[${index}].after.governance`, governanceStates),
         confidence: expectString(after.confidence ?? 'unbound', `interpretationDriftRecord.steps[${index}].after.confidence`),
         exhaustionPath: expectStringArray(after.exhaustionPath ?? [], `interpretationDriftRecord.steps[${index}].after.exhaustionPath`),
+        resolutionGraphDigest: expectString(after.resolutionGraphDigest ?? 'none', `interpretationDriftRecord.steps[${index}].after.resolutionGraphDigest`),
+      },
+      resolutionGraphDrift: {
+        traversalPathChanged: expectBoolean(expectRecord(step.resolutionGraphDrift ?? {}, `interpretationDriftRecord.steps[${index}].resolutionGraphDrift`).traversalPathChanged ?? false, `interpretationDriftRecord.steps[${index}].resolutionGraphDrift.traversalPathChanged`),
+        winnerRungChanged: expectBoolean(expectRecord(step.resolutionGraphDrift ?? {}, `interpretationDriftRecord.steps[${index}].resolutionGraphDrift`).winnerRungChanged ?? false, `interpretationDriftRecord.steps[${index}].resolutionGraphDrift.winnerRungChanged`),
+        winnerRationaleChanged: expectBoolean(expectRecord(step.resolutionGraphDrift ?? {}, `interpretationDriftRecord.steps[${index}].resolutionGraphDrift`).winnerRationaleChanged ?? false, `interpretationDriftRecord.steps[${index}].resolutionGraphDrift.winnerRationaleChanged`),
       },
     };
   });

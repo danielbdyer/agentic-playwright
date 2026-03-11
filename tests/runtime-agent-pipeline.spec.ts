@@ -104,7 +104,7 @@ test('resolution pipeline precedence is explicit and stable', () => {
     'explicit',
     'control',
     'approved-knowledge',
-    'overlays',
+    'overlay',
     'translation',
     'live-dom',
     'needs-human',

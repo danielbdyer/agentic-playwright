@@ -10,6 +10,7 @@ import {
   executionPath,
   generatedProposalsPath,
   interpretationPath,
+  resolutionGraphPath,
   runRecordPath,
 } from './paths';
 import { ExecutionContext, FileSystem, RuntimeScenarioRunner } from './ports';
@@ -105,11 +106,13 @@ export function runScenario(options: {
 
         const interpretationFile = interpretationPath(options.paths, options.adoId, selectedContext.runId);
         const executionFile = executionPath(options.paths, options.adoId, selectedContext.runId);
+        const resolutionGraphFile = resolutionGraphPath(options.paths, options.adoId, selectedContext.runId);
         const runFile = runRecordPath(options.paths, options.adoId, selectedContext.runId);
         const proposalsFile = generatedProposalsPath(options.paths, selectedContext.scenarioEntry.artifact.metadata.suite, options.adoId);
 
         yield* fs.writeJson(interpretationFile, executionStage.interpretationOutput);
         yield* fs.writeJson(executionFile, executionStage.executionOutput);
+        yield* fs.writeJson(resolutionGraphFile, executionStage.resolutionGraphOutput);
         yield* fs.writeJson(runFile, runRecordStage.runRecord);
         yield* fs.writeJson(proposalsFile, proposalStage.proposalBundle);
 
@@ -124,6 +127,7 @@ export function runScenario(options: {
           dataset: selectedContext.activeDataset?.name ?? null,
           interpretationPath: interpretationFile,
           executionPath: executionFile,
+          resolutionGraphPath: resolutionGraphFile,
           runPath: runFile,
           proposalsPath: proposalsFile,
           evidence: evidenceStage.evidenceWrites.map((entry) => entry.absolutePath),

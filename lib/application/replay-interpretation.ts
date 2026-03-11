@@ -2,7 +2,7 @@ import { Effect } from 'effect';
 import type { AdoId } from '../domain/identity';
 import type { InterpretationDriftRecord, ResolutionReceipt, ScenarioTaskPacket } from '../domain/types';
 import type { ProjectPaths } from './paths';
-import { interpretationDriftPath, interpretationPath, taskPacketPath } from './paths';
+import { interpretationDriftPath, interpretationPath, resolutionGraphPath, taskPacketPath } from './paths';
 import { FileSystem, RuntimeScenarioRunner } from './ports';
 import { loadWorkspaceCatalog } from './catalog';
 import { selectRunContext } from './execution/select-run-context';
@@ -29,6 +29,20 @@ function exhaustionPath(receipt: ResolutionReceipt): string[] {
   return receipt.exhaustion.map((entry) => `${entry.stage}:${entry.outcome}`);
 }
 
+
+function resolutionGraphDigest(receipt: ResolutionReceipt): string {
+  const graph = receipt.resolutionGraph;
+  if (!graph) {
+    return 'none';
+  }
+  return JSON.stringify({
+    traversal: graph.precedenceTraversal.map((entry) => `${entry.rung}:${entry.outcome}`),
+    winner: graph.winner,
+    refs: graph.refs,
+    links: graph.links,
+  });
+}
+
 function createDriftRecord(input: {
   adoId: AdoId;
   runId: string;
@@ -46,6 +60,8 @@ function createDriftRecord(input: {
     const beforeExhaustion = prior ? exhaustionPath(prior) : [];
     const afterExhaustion = exhaustionPath(next);
     const changes: InterpretationDriftRecord['steps'][number]['changes'] = [];
+    const beforeGraphDigest = prior ? resolutionGraphDigest(prior) : 'none';
+    const afterGraphDigest = resolutionGraphDigest(next);
 
     if ((prior?.winningSource ?? 'none') !== next.winningSource) {
       changes.push({ field: 'winningSource', before: prior?.winningSource ?? 'none', after: next.winningSource });
@@ -62,6 +78,9 @@ function createDriftRecord(input: {
     if (JSON.stringify(beforeExhaustion) !== JSON.stringify(afterExhaustion)) {
       changes.push({ field: 'exhaustion-path', before: beforeExhaustion, after: afterExhaustion });
     }
+    if (beforeGraphDigest !== afterGraphDigest) {
+      changes.push({ field: 'resolution-graph', before: beforeGraphDigest, after: afterGraphDigest });
+    }
 
     return {
       stepIndex: step.stepIndex,
@@ -73,6 +92,7 @@ function createDriftRecord(input: {
         governance: prior?.governance ?? 'approved',
         confidence: prior?.confidence ?? 'unbound',
         exhaustionPath: beforeExhaustion,
+        resolutionGraphDigest: beforeGraphDigest,
       },
       after: {
         winningSource: next.winningSource,
@@ -80,6 +100,12 @@ function createDriftRecord(input: {
         governance: next.governance,
         confidence: next.confidence,
         exhaustionPath: afterExhaustion,
+        resolutionGraphDigest: afterGraphDigest,
+      },
+      resolutionGraphDrift: {
+        traversalPathChanged: JSON.stringify(prior?.resolutionGraph?.precedenceTraversal ?? []) !== JSON.stringify(next.resolutionGraph?.precedenceTraversal ?? []),
+        winnerRungChanged: (prior?.resolutionGraph?.winner.rung ?? 'needs-human') !== (next.resolutionGraph?.winner.rung ?? 'needs-human'),
+        winnerRationaleChanged: (prior?.resolutionGraph?.winner.rationale ?? 'none') !== (next.resolutionGraph?.winner.rationale ?? 'none'),
       },
     };
   });
@@ -200,7 +226,9 @@ export function replayInterpretation(options: {
     });
 
     const interpretationFile = interpretationPath(options.paths, options.adoId, selectedContext.runId);
+    const resolutionGraphFile = resolutionGraphPath(options.paths, options.adoId, selectedContext.runId);
     yield* fs.writeJson(interpretationFile, executionStage.interpretationOutput);
+    yield* fs.writeJson(resolutionGraphFile, executionStage.resolutionGraphOutput);
 
     const priorRaw = priorRun ? yield* fs.readJson(interpretationPath(options.paths, options.adoId, priorRun.runId)) : null;
     const priorRecord = isInterpretationRecord(priorRaw) ? priorRaw : null;
@@ -227,6 +255,7 @@ export function replayInterpretation(options: {
     return {
       runId: selectedContext.runId,
       interpretationPath: interpretationFile,
+      resolutionGraphPath: resolutionGraphFile,
       driftPath: driftFile,
       changedStepCount: drift.changedStepCount,
       explainableByFingerprintDelta: drift.explainableByFingerprintDelta,

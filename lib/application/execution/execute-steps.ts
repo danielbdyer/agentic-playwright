@@ -1,6 +1,7 @@
 import { Effect } from 'effect';
 import type { RuntimeScenarioRunnerPort } from '../ports';
 import type { AdoId } from '../../domain/identity';
+import type { ResolutionGraphRecord } from '../../domain/types';
 import type { RuntimeScenarioStepResult } from '../ports';
 import type { SelectedRunContext } from './select-run-context';
 import { interpretScenarioTaskPacket } from './interpret';
@@ -13,6 +14,7 @@ export interface ExecuteStepsResult {
     runId: string;
     steps: Array<{ stepIndex: number; interpretation: RuntimeScenarioStepResult['interpretation'] }>;
   };
+  resolutionGraphOutput: ResolutionGraphRecord;
   executionOutput: {
     kind: 'scenario-execution-record';
     adoId: AdoId;

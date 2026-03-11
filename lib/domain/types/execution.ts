@@ -9,8 +9,37 @@ import type {
 } from './workflow';
 import type { ResolutionReceipt } from './resolution';
 
+
+export interface ResolutionGraphDriftDelta {
+  traversalPathChanged: boolean;
+  winnerRungChanged: boolean;
+  winnerRationaleChanged: boolean;
+}
+
+export interface ResolutionGraphStepRecord {
+  stepIndex: number;
+  graph: import('./resolution').StepResolutionGraph;
+}
+
+export interface ResolutionGraphRecord {
+  kind: 'resolution-graph-record';
+  version: 1;
+  stage: 'resolution';
+  scope: 'run';
+  ids: WorkflowEnvelopeIds;
+  fingerprints: WorkflowEnvelopeFingerprints;
+  lineage: WorkflowEnvelopeLineage;
+  governance: Governance;
+  adoId: AdoId;
+  runId: string;
+  providerId: string;
+  mode: string;
+  generatedAt: string;
+  steps: ResolutionGraphStepRecord[];
+}
+
 export interface InterpretationDriftChange {
-  field: 'winningSource' | 'target' | 'governance' | 'confidence' | 'exhaustion-path';
+  field: 'winningSource' | 'target' | 'governance' | 'confidence' | 'exhaustion-path' | 'resolution-graph';
   before: unknown;
   after: unknown;
 }
@@ -25,6 +54,7 @@ export interface InterpretationDriftStep {
     governance: Governance;
     confidence: string;
     exhaustionPath: string[];
+    resolutionGraphDigest: string;
   };
   after: {
     winningSource: string;
@@ -32,7 +62,9 @@ export interface InterpretationDriftStep {
     governance: Governance;
     confidence: string;
     exhaustionPath: string[];
+    resolutionGraphDigest: string;
   };
+  resolutionGraphDrift: ResolutionGraphDriftDelta;
 }
 
 export interface InterpretationDriftRecord {

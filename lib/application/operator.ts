@@ -128,6 +128,37 @@ export function buildOperatorInboxItems(catalog: WorkspaceCatalog): OperatorInbo
     }
   }
 
+
+  for (const graphEntry of catalog.resolutionGraphRecords) {
+    const graph = graphEntry.artifact;
+    const liveDomWins = graph.steps.filter((step) => step.graph.winner.rung === 'live-dom').length;
+    const needsHumanWins = graph.steps.filter((step) => step.graph.winner.rung === 'needs-human').length;
+    if (liveDomWins === 0 && needsHumanWins === 0) {
+      continue;
+    }
+    items.push({
+      id: inboxItemId({ kind: 'needs-human', adoId: graph.adoId, runId: graph.runId, stepIndex: null }),
+      kind: 'needs-human',
+      status: needsHumanWins > 0 ? 'actionable' : 'informational',
+      title: `Resolution graph hotspot for run ${graph.runId}`,
+      summary: `Resolution graph winners include live-dom=${liveDomWins}, needs-human=${needsHumanWins}.`,
+      adoId: graph.adoId,
+      suite: null,
+      runId: graph.runId,
+      stepIndex: null,
+      proposalId: null,
+      artifactPath: null,
+      targetPath: null,
+      winningConcern: 'resolution',
+      winningSource: needsHumanWins > 0 ? 'none' : 'live-dom',
+      resolutionMode: 'agentic',
+      nextCommands: uniqueSorted([
+        `tesseract replay-interpretation --ado-id ${graph.adoId}`,
+        `tesseract inbox`,
+      ]),
+    });
+  }
+
   for (const run of latestRunByAdo.values()) {
     for (const step of run.steps) {
       if (step.execution.degraded) {

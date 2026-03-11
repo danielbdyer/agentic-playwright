@@ -22,7 +22,11 @@ export function emitOperatorInbox(options: {
       .filter((item) => !options.filter?.kind || item.kind === options.filter.kind)
       .filter((item) => !options.filter?.status || item.status === options.filter.status);
     const rerunPlans = catalog.rerunPlans.map((entry) => entry.artifact);
-    const hotspots = buildWorkflowHotspots(catalog.runRecords.map((entry) => entry.artifact), catalog.interpretationDriftRecords.map((entry) => entry.artifact));
+    const hotspots = buildWorkflowHotspots(
+      catalog.runRecords.map((entry) => entry.artifact),
+      catalog.interpretationDriftRecords.map((entry) => entry.artifact),
+      catalog.resolutionGraphRecords.map((entry) => entry.artifact),
+    );
     const markdown = renderOperatorInboxMarkdown(filteredItems, rerunPlans, hotspots);
     yield* fs.writeJson(options.paths.inboxIndexPath, {
       kind: 'operator-inbox',

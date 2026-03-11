@@ -1,11 +1,11 @@
-import type { InterpretationDriftRecord, RunRecord } from '../domain/types';
+import type { InterpretationDriftRecord, ResolutionGraphRecord, RunRecord } from '../domain/types';
 import { compareStrings } from '../domain/collections';
 
 function compareNumbers(left: number, right: number): number {
   return left - right;
 }
 
-export type HotspotKind = 'translation-win' | 'agentic-fallback-win' | 'degraded-locator-rung' | 'interpretation-drift';
+export type HotspotKind = 'translation-win' | 'agentic-fallback-win' | 'degraded-locator-rung' | 'interpretation-drift' | 'resolution-graph-needs-human';
 
 export interface HotspotSample {
   adoId: string;
@@ -93,7 +93,7 @@ function proceduralSuggestionNeeded(action: string, samples: readonly HotspotSam
   return action === 'custom' || samples.some((sample) => Boolean(sample.widgetContract));
 }
 
-export function buildWorkflowHotspots(runRecords: readonly RunRecord[], driftRecords: readonly InterpretationDriftRecord[] = []): WorkflowHotspot[] {
+export function buildWorkflowHotspots(runRecords: readonly RunRecord[], driftRecords: readonly InterpretationDriftRecord[] = [], resolutionGraphs: readonly ResolutionGraphRecord[] = []): WorkflowHotspot[] {
   const accumulators = new Map<string, HotspotAccumulator>();
 
   for (const run of sortedLatestRuns(runRecords)) {
@@ -149,6 +149,28 @@ export function buildWorkflowHotspots(runRecords: readonly RunRecord[], driftRec
           locatorRung: null,
           widgetContract: null,
           changedFields: step.changes.map((change) => change.field),
+        },
+      });
+    }
+  }
+
+
+  for (const graph of resolutionGraphs) {
+    for (const step of graph.steps.filter((entry) => entry.graph.winner.rung === 'needs-human')) {
+      pushAccumulator(accumulators, {
+        kind: 'resolution-graph-needs-human',
+        screen: graph.adoId,
+        field: 'winner-rung',
+        action: 'needs-human',
+        sample: {
+          adoId: graph.adoId,
+          runId: graph.runId,
+          stepIndex: step.stepIndex,
+          winningSource: 'none',
+          resolutionMode: 'agentic',
+          locatorRung: null,
+          widgetContract: null,
+          changedFields: ['resolution-graph'],
         },
       });
     }

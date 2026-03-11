@@ -60,7 +60,15 @@ function latestProposalBundle(catalog: WorkspaceCatalog, adoId: AdoId): Proposal
     .sort((left, right) => right.artifact.runId.localeCompare(left.artifact.runId))[0]?.artifact ?? null;
 }
 
-function renderReview(trace: ScenarioExplanation, proposalBundle: ProposalBundle | null, inboxItems: ReturnType<typeof operatorInboxItemsForScenario>): string {
+function renderReview(trace: ScenarioExplanation, proposalBundle: ProposalBundle | null, inboxItems: ReturnType<typeof operatorInboxItemsForScenario>, latestRun: RunRecord | null): string {
+  const rungRollup = latestRun
+    ? latestRun.steps.reduce<Record<string, number>>((acc, step) => {
+        const rung = step.interpretation.resolutionGraph?.winner.rung ?? 'none';
+        acc[rung] = (acc[rung] ?? 0) + 1;
+        return acc;
+      }, {})
+    : {};
+
   const lines: string[] = [
     `# ${trace.title}`,
     '',
@@ -96,6 +104,7 @@ function renderReview(trace: ScenarioExplanation, proposalBundle: ProposalBundle
     `- Approved-equivalent rate: ${trace.summary.stageMetrics.approvedEquivalentRate}`,
     `- Runtime failure families: ${Object.entries(trace.summary.stageMetrics.runtimeFailureFamilies).map(([family, count]) => `${family} (${count})`).join(', ') || 'none'}`,
     `- Budget breach rate: ${trace.summary.stageMetrics.budgetBreachRate}`,
+    `- Resolution graph winner rungs: ${Object.entries(rungRollup).map(([rung, count]) => `${rung} (${count})`).join(', ') || 'none'}`,
     `- Average runtime cost: instructions=${trace.summary.stageMetrics.averageRuntimeCost.instructionCount}, diagnostics=${trace.summary.stageMetrics.averageRuntimeCost.diagnosticCount}`,
     `- Runtime timing totals (ms): setup=${trace.summary.stageMetrics.timing.setupMs}, resolution=${trace.summary.stageMetrics.timing.resolutionMs}, action=${trace.summary.stageMetrics.timing.actionMs}, assertion=${trace.summary.stageMetrics.timing.assertionMs}, retries=${trace.summary.stageMetrics.timing.retriesMs}, teardown=${trace.summary.stageMetrics.timing.teardownMs}, total=${trace.summary.stageMetrics.timing.totalMs}`,
     `- Unresolved gaps: ${trace.summary.unresolvedReasons.length > 0 ? trace.summary.unresolvedReasons.map((entry) => `${entry.reason} (${entry.count})`).join(', ') : 'none'}`,
@@ -170,7 +179,7 @@ function renderEmitArtifacts(
     },
   });
   const traceArtifact = explainBoundScenario(boundScenario, rendered.lifecycle, latestRun);
-  const reviewText = renderReview(traceArtifact, proposalBundle, inboxItems);
+  const reviewText = renderReview(traceArtifact, proposalBundle, inboxItems, latestRun);
 
   return {
     outputPath,

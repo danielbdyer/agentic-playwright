@@ -22,7 +22,7 @@ export const RESOLUTION_PRECEDENCE = [
   'explicit',
   'control',
   'approved-knowledge',
-  'overlays',
+  'overlay',
   'translation',
   'live-dom',
   'needs-human',
