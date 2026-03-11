@@ -284,10 +284,21 @@ export interface EvidenceRecord {
   };
 }
 
+
+export interface ResolutionCandidateSummary {
+  concern: 'action' | 'screen' | 'element' | 'posture' | 'snapshot';
+  source: 'explicit' | 'control' | 'approved-knowledge' | 'overlay' | 'translation' | 'live-dom';
+  value: string;
+  score: number;
+  reason: string;
+}
+
 export interface ResolutionObservation {
   source: 'knowledge' | 'evidence' | 'overlay' | 'translation' | 'dom' | 'runtime';
   summary: string;
   detail?: Record<string, string> | undefined;
+  topCandidates?: ResolutionCandidateSummary[] | undefined;
+  rejectedCandidates?: ResolutionCandidateSummary[] | undefined;
 }
 
 export interface ResolutionExhaustionEntry {
@@ -303,6 +314,8 @@ export interface ResolutionExhaustionEntry {
     | 'safe-degraded-resolution';
   outcome: 'attempted' | 'resolved' | 'skipped' | 'failed';
   reason: string;
+  topCandidates?: ResolutionCandidateSummary[] | undefined;
+  rejectedCandidates?: ResolutionCandidateSummary[] | undefined;
 }
 
 export interface ResolutionEvidenceDraft {

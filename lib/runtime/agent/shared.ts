@@ -15,8 +15,9 @@ export function recordExhaustion(
   stage: ResolutionExhaustionEntry['stage'],
   outcome: ResolutionExhaustionEntry['outcome'],
   reason: string,
+  candidates: Pick<ResolutionExhaustionEntry, 'topCandidates' | 'rejectedCandidates'> = {},
 ): void {
-  entries.push({ stage, outcome, reason });
+  entries.push({ stage, outcome, reason, ...candidates });
 }
 
 export function normalizedCombined(task: StepTask): string {

@@ -855,12 +855,25 @@ export function validateScenarioTaskPacket(value: unknown): ScenarioTaskPacket {
   };
 }
 
+function validateResolutionCandidateSummary(value: unknown, path: string) {
+  const summary = expectRecord(value, path);
+  return {
+    concern: expectEnum(summary.concern, `${path}.concern`, ['action', 'screen', 'element', 'posture', 'snapshot'] as const),
+    source: expectEnum(summary.source, `${path}.source`, ['explicit', 'control', 'approved-knowledge', 'overlay', 'translation', 'live-dom'] as const),
+    value: expectString(summary.value, `${path}.value`),
+    score: expectNumber(summary.score, `${path}.score`),
+    reason: expectString(summary.reason, `${path}.reason`),
+  };
+}
+
 function validateResolutionObservation(value: unknown, path: string) {
   const observation = expectRecord(value, path);
   return {
     source: expectEnum(observation.source, `${path}.source`, ['knowledge', 'evidence', 'overlay', 'translation', 'dom', 'runtime'] as const),
     summary: expectString(observation.summary, `${path}.summary`),
     detail: observation.detail === undefined ? undefined : expectStringRecord(observation.detail, `${path}.detail`),
+    topCandidates: observation.topCandidates === undefined ? undefined : expectArray(observation.topCandidates, `${path}.topCandidates`).map((entry, index) => validateResolutionCandidateSummary(entry, `${path}.topCandidates[${index}]`)),
+    rejectedCandidates: observation.rejectedCandidates === undefined ? undefined : expectArray(observation.rejectedCandidates, `${path}.rejectedCandidates`).map((entry, index) => validateResolutionCandidateSummary(entry, `${path}.rejectedCandidates[${index}]`)),
   };
 }
 
@@ -870,6 +883,8 @@ function validateResolutionExhaustionEntry(value: unknown, path: string) {
     stage: expectEnum(entry.stage, `${path}.stage`, ['explicit', 'approved-screen-bundle', 'local-hints', 'shared-patterns', 'prior-evidence', 'confidence-overlay', 'structured-translation', 'live-dom', 'safe-degraded-resolution'] as const),
     outcome: expectEnum(entry.outcome, `${path}.outcome`, ['attempted', 'resolved', 'skipped', 'failed'] as const),
     reason: expectString(entry.reason, `${path}.reason`),
+    topCandidates: entry.topCandidates === undefined ? undefined : expectArray(entry.topCandidates, `${path}.topCandidates`).map((candidate, index) => validateResolutionCandidateSummary(candidate, `${path}.topCandidates[${index}]`)),
+    rejectedCandidates: entry.rejectedCandidates === undefined ? undefined : expectArray(entry.rejectedCandidates, `${path}.rejectedCandidates`).map((candidate, index) => validateResolutionCandidateSummary(candidate, `${path}.rejectedCandidates[${index}]`)),
   };
 }
 
