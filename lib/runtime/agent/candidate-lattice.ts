@@ -8,6 +8,7 @@ import type {
   StepTaskElementCandidate,
   StepTaskScreenCandidate,
 } from '../../domain/types';
+import { precedenceWeight, resolutionPrecedenceLaw } from '../../domain/precedence';
 import { allowedActionFallback } from './resolve-action';
 import { bestAliasMatch, humanizeIdentifier, normalizedCombined, uniqueSorted } from './shared';
 
@@ -45,12 +46,12 @@ export interface RankedLattice<T> {
 }
 
 const SOURCE_WEIGHT: Record<LatticeSource, number> = {
-  explicit: 700,
-  control: 600,
-  'approved-knowledge': 500,
-  overlay: 400,
-  translation: 300,
-  'live-dom': 200,
+  explicit: precedenceWeight(resolutionPrecedenceLaw, 'explicit'),
+  control: precedenceWeight(resolutionPrecedenceLaw, 'control'),
+  'approved-knowledge': precedenceWeight(resolutionPrecedenceLaw, 'approved-screen-knowledge'),
+  overlay: precedenceWeight(resolutionPrecedenceLaw, 'approved-equivalent-overlay'),
+  translation: precedenceWeight(resolutionPrecedenceLaw, 'structured-translation'),
+  'live-dom': precedenceWeight(resolutionPrecedenceLaw, 'live-dom'),
 };
 
 function confidenceFor(source: LatticeSource): LatticeCandidate<unknown>['confidenceComponents'] {

@@ -1,4 +1,5 @@
 import type { ResolutionCandidateSummary, ResolutionReceipt, StepTask } from '../../domain/types';
+import { resolutionPrecedenceLaw } from '../../domain/precedence';
 import { requiresElement, allowedActionFallback } from './resolve-action';
 import { resolveFromDom } from './dom-fallback';
 import { proposalForSupplementGap } from './proposals';
@@ -18,15 +19,7 @@ import {
 } from './candidate-lattice';
 import { createPlaywrightDomResolver } from '../adapters/playwright-dom-resolver';
 
-export const RESOLUTION_PRECEDENCE = [
-  'explicit',
-  'control',
-  'approved-knowledge',
-  'overlay',
-  'translation',
-  'live-dom',
-  'needs-human',
-] as const;
+export const RESOLUTION_PRECEDENCE = resolutionPrecedenceLaw;
 
 function summaryForValue<T>(concern: ResolutionCandidateSummary['concern'], ranked: Array<LatticeCandidate<T>>, topN = 3): { topCandidates: ResolutionCandidateSummary[]; rejectedCandidates: ResolutionCandidateSummary[] } {
   const normalizeValue = (value: unknown): string => {

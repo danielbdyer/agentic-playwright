@@ -11,6 +11,7 @@ import type {
 } from '../domain/types';
 import type { WorkspaceCatalog } from './catalog';
 import { compareStrings, uniqueSorted } from '../domain/collections';
+import { chooseByPrecedence, runSelectionPrecedenceLaw } from '../domain/precedence';
 
 function selectorMatchesScenario(
   selector: { adoIds: string[]; suites: string[]; tags: string[] },
@@ -89,10 +90,10 @@ export function controlResolutionForStep(
   selectedControlName?: string | null,
 ): StepResolution | null {
   const scoped = controls.resolutionControls.filter((entry) => entry.stepIndex === stepIndex);
-  const selected = selectedControlName
-    ? scoped.find((entry) => entry.name === selectedControlName) ?? null
-    : null;
-  return selected?.resolution ?? scoped[0]?.resolution ?? null;
+  return chooseByPrecedence([
+    { rung: 'cli-flag', value: selectedControlName ? scoped.find((entry) => entry.name === selectedControlName)?.resolution ?? null : null },
+    { rung: 'runbook', value: scoped[0]?.resolution ?? null },
+  ], runSelectionPrecedenceLaw);
 }
 
 export function findRunbook(
@@ -100,21 +101,13 @@ export function findRunbook(
   options: { runbookName?: string | null; scenario?: Scenario | null },
 ): RuntimeRunbookControl | null {
   const runtimeRunbooks = catalog.runbooks
-    .filter((entry) => {
-      if (options.runbookName) {
-        return entry.artifact.name === options.runbookName;
-      }
-      if (entry.artifact.default) {
-        return true;
-      }
-      if (!options.scenario) {
-        return false;
-      }
-      return selectorMatchesScenario(entry.artifact.selector, options.scenario);
-    })
     .map((entry) => runtimeRunbook(entry))
     .sort((left, right) => compareStrings(left.name, right.name));
-  return runtimeRunbooks[0] ?? null;
+  return chooseByPrecedence([
+    { rung: 'cli-flag', value: options.runbookName ? runtimeRunbooks.find((entry) => entry.name === options.runbookName) ?? null : null },
+    { rung: 'runbook', value: runtimeRunbooks.find((entry) => entry.isDefault) ?? null },
+    { rung: 'repo-default', value: options.scenario ? runtimeRunbooks.find((entry) => selectorMatchesScenario(entry.selector, options.scenario)) ?? null : null },
+  ], runSelectionPrecedenceLaw);
 }
 
 export function resolveRunSelection(
@@ -154,8 +147,8 @@ export function activeDatasetForRun(
   controls: RuntimeControlSession,
   runbook: RuntimeRunbookControl | null,
 ): RuntimeDatasetBinding | null {
-  if (runbook?.dataset) {
-    return controls.datasets.find((entry) => entry.name === runbook.dataset) ?? null;
-  }
-  return controls.datasets.find((entry) => entry.isDefault) ?? controls.datasets[0] ?? null;
+  return chooseByPrecedence([
+    { rung: 'runbook', value: runbook?.dataset ? controls.datasets.find((entry) => entry.name === runbook.dataset) ?? null : null },
+    { rung: 'repo-default', value: controls.datasets.find((entry) => entry.isDefault) ?? controls.datasets[0] ?? null },
+  ], runSelectionPrecedenceLaw);
 }
