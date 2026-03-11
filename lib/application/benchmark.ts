@@ -17,6 +17,7 @@ import type {
   BenchmarkContext,
   BenchmarkScorecard,
   DogfoodRun,
+  InterpretationDriftRecord,
   ProposalBundle,
 } from '../domain/types';
 
@@ -113,6 +114,7 @@ function scorecardForBenchmark(input: {
     screen?: string | null | undefined;
     failureCount: number;
   }>;
+  interpretationDriftRecords: InterpretationDriftRecord[];
 }): BenchmarkScorecard {
   const uniqueScreens = uniqueSorted(input.benchmark.fieldCatalog.map((field) => field.screen).filter((value) => value.length > 0));
   const driftCount = input.benchmark.driftEvents.length;
@@ -143,6 +145,9 @@ function scorecardForBenchmark(input: {
         .map(() => record.adoId),
     ).filter((value) => value.length > 0),
   ).length;
+  const interpretationDriftHotspotCount = input.interpretationDriftRecords
+    .filter((record) => input.scenarioIds.includes(record.adoId) && record.hasDrift)
+    .reduce((sum, record) => sum + record.changedStepCount, 0);
   const overlayChurn = input.confidenceRecords.filter((record) =>
     record.failureCount > 0 && uniqueScreens.includes(record.screen ?? ''),
   ).length;
@@ -195,6 +200,7 @@ function scorecardForBenchmark(input: {
     approvedEquivalentCount,
     thinKnowledgeScreenCount,
     degradedLocatorHotspotCount,
+    interpretationDriftHotspotCount,
     overlayChurn,
     executionTimingTotalsMs: timingTotals,
     executionCostTotals,
@@ -271,6 +277,7 @@ function renderScorecardMarkdown(benchmark: BenchmarkContext, scorecard: Benchma
     `- Approved-equivalent count: ${scorecard.approvedEquivalentCount}`,
     `- Thin-knowledge screens: ${scorecard.thinKnowledgeScreenCount}`,
     `- Degraded locator hotspots: ${scorecard.degradedLocatorHotspotCount}`,
+    `- Interpretation drift hotspots: ${scorecard.interpretationDriftHotspotCount}`,
     `- Overlay churn: ${scorecard.overlayChurn}`,
     `- Execution timing totals (ms): ${JSON.stringify(scorecard.executionTimingTotalsMs)}`,
     `- Execution cost totals: ${JSON.stringify(scorecard.executionCostTotals)}`,
@@ -349,6 +356,7 @@ export function projectBenchmarkScorecard(options: {
         screen: record.screen ?? null,
         failureCount: record.failureCount,
       })),
+      interpretationDriftRecords: scorecardCatalog.interpretationDriftRecords.map((entry) => entry.artifact),
     });
     const dogfoodRun: DogfoodRun = {
       kind: 'dogfood-run',

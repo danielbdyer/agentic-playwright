@@ -138,6 +138,10 @@ export function interpretationPath(paths: ProjectPaths, adoId: AdoId, runId: str
   return path.join(runDirPath(paths, adoId, runId), 'interpretation.json');
 }
 
+export function interpretationDriftPath(paths: ProjectPaths, adoId: AdoId, runId: string): string {
+  return path.join(runDirPath(paths, adoId, runId), 'interpretation-drift.json');
+}
+
 export function executionPath(paths: ProjectPaths, adoId: AdoId, runId: string): string {
   return path.join(runDirPath(paths, adoId, runId), 'execution.json');
 }

@@ -13,6 +13,7 @@ import { createProjectPaths, type ProjectPaths } from '../paths';
 import { refreshScenario } from '../refresh';
 import { buildRerunPlan } from '../rerun-plan';
 import { runScenarioSelection } from '../run';
+import { replayInterpretation } from '../replay-interpretation';
 import { renderBenchmarkScorecard } from '../scorecard';
 import { inspectSurface } from '../surface';
 import { syncSnapshots } from '../sync';
@@ -107,7 +108,8 @@ export type CommandName =
   | 'approve'
   | 'rerun-plan'
   | 'benchmark'
-  | 'scorecard';
+  | 'scorecard'
+  | 'replay';
 
 export const commandNames: readonly CommandName[] = [
   'sync',
@@ -131,6 +133,7 @@ export const commandNames: readonly CommandName[] = [
   'rerun-plan',
   'benchmark',
   'scorecard',
+  'replay',
 ] as const;
 
 const flagReaders: Record<string, (argv: string[], index: number, flags: ParsedFlags) => number> = {
@@ -405,6 +408,25 @@ const commandRegistry: Record<CommandName, CommandSpec> = {
       execute: (paths) => refreshScenario({ adoId: createAdoId(requireAdoId(flags.adoId)), paths }),
     }),
   },
+  replay: {
+    flags: ['--ado-id', '--runbook', '--provider', '--interpreter-mode'],
+    parse: ({ flags }) => ({
+      command: 'replay',
+      strictExitOnUnbound: false,
+      postureInput: withDefinedValues({
+        interpreterMode: flags.interpreterMode,
+      }),
+      execute: (paths, posture) => replayInterpretation({
+        adoId: createAdoId(requireAdoId(flags.adoId)),
+        ...(flags.runbook ? { runbookName: flags.runbook } : {}),
+        ...(flags.provider ? { providerId: flags.provider } : {}),
+        interpreterMode: posture.interpreterMode === 'diagnostic' || posture.interpreterMode === 'dry-run'
+          ? posture.interpreterMode
+          : 'diagnostic',
+        paths,
+      }),
+    }),
+  },
   run: {
     flags: ['--ado-id', '--runbook', '--provider', '--tag', '--interpreter-mode', '--execution-profile', '--ci-batch', '--headed', '--no-write', '--baseline', '--disable-translation', '--disable-translation-cache'],
     parse: ({ flags }) => ({
@@ -596,7 +618,7 @@ const commandRegistry: Record<CommandName, CommandSpec> = {
 export function parseCliInvocation(argv: string[]): CommandExecution {
   const [rawCommand = 'help', ...tokens] = argv;
   if (!isCommandName(rawCommand)) {
-    throw new Error('Unknown command. Expected sync, parse, bind, emit, compile, refresh, run, paths, capture, discover, surface, graph, trace, impact, types, workflow, inbox, approve, rerun-plan, benchmark, or scorecard.');
+    throw new Error('Unknown command. Expected sync, parse, bind, emit, compile, refresh, run, replay, paths, capture, discover, surface, graph, trace, impact, types, workflow, inbox, approve, rerun-plan, benchmark, or scorecard.');
   }
 
   const spec = commandRegistry[rawCommand];

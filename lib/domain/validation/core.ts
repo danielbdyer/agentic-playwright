@@ -25,6 +25,7 @@
   RerunPlan,
   RunRecord,
   RunbookControl,
+  InterpretationDriftRecord,
   Scenario,
   ScenarioMetadata,
   ScenarioTaskPacket,
@@ -110,7 +111,7 @@ const widgetActions = ['click', 'fill', 'clear', 'get-value'] as const;
 const widgetPreconditions = ['visible', 'enabled', 'editable'] as const;
 const widgetEffectCategories = ['mutation', 'observation', 'focus', 'navigation'] as const;
 const graphNodeKinds = ['snapshot', 'screen', 'screen-hints', 'pattern', 'confidence-overlay', 'dataset', 'resolution-control', 'runbook', 'section', 'surface', 'element', 'posture', 'capability', 'scenario', 'step', 'generated-spec', 'generated-trace', 'generated-review', 'evidence', 'policy-decision'] as const;
-const graphEdgeKinds = ['derived-from', 'contains', 'references', 'uses', 'learns-from', 'affects', 'asserts', 'emits', 'observed-by', 'proposed-change-for', 'governs'] as const;
+const graphEdgeKinds = ['derived-from', 'contains', 'references', 'uses', 'learns-from', 'affects', 'asserts', 'emits', 'observed-by', 'proposed-change-for', 'governs', 'drifts-to'] as const;
 const diagnosticSeverities = ['info', 'warn', 'error'] as const;
 const diagnosticConfidences = ['human', 'agent-verified', 'agent-proposed', 'compiler-derived', 'intent-only', 'unbound', 'mixed'] as const;
 const workflowStages = ['preparation', 'resolution', 'execution', 'evidence', 'proposal', 'projection'] as const;
@@ -1931,6 +1932,83 @@ export function validateBenchmarkContext(value: unknown): BenchmarkContext {
   };
 }
 
+export function validateInterpretationDriftRecord(value: unknown): InterpretationDriftRecord {
+  const record = expectRecord(value, 'interpretationDriftRecord');
+  const steps = expectArray(record.steps ?? [], 'interpretationDriftRecord.steps').map((entry, index) => {
+    const step = expectRecord(entry, `interpretationDriftRecord.steps[${index}]`);
+    const changes = expectArray(step.changes ?? [], `interpretationDriftRecord.steps[${index}].changes`).map((changeEntry, changeIndex) => {
+      const change = expectRecord(changeEntry, `interpretationDriftRecord.steps[${index}].changes[${changeIndex}]`);
+      return {
+        field: expectEnum(change.field, `interpretationDriftRecord.steps[${index}].changes[${changeIndex}].field`, ['winningSource', 'target', 'governance', 'confidence', 'exhaustion-path'] as const),
+        before: change.before,
+        after: change.after,
+      };
+    });
+    const before = expectRecord(step.before ?? {}, `interpretationDriftRecord.steps[${index}].before`);
+    const after = expectRecord(step.after ?? {}, `interpretationDriftRecord.steps[${index}].after`);
+    return {
+      stepIndex: expectNumber(step.stepIndex, `interpretationDriftRecord.steps[${index}].stepIndex`),
+      changed: expectBoolean(step.changed, `interpretationDriftRecord.steps[${index}].changed`),
+      changes,
+      before: {
+        winningSource: expectString(before.winningSource ?? 'none', `interpretationDriftRecord.steps[${index}].before.winningSource`),
+        target: expectString(before.target ?? 'none', `interpretationDriftRecord.steps[${index}].before.target`),
+        governance: expectEnum(before.governance ?? 'approved', `interpretationDriftRecord.steps[${index}].before.governance`, governanceStates),
+        confidence: expectString(before.confidence ?? 'unbound', `interpretationDriftRecord.steps[${index}].before.confidence`),
+        exhaustionPath: expectStringArray(before.exhaustionPath ?? [], `interpretationDriftRecord.steps[${index}].before.exhaustionPath`),
+      },
+      after: {
+        winningSource: expectString(after.winningSource ?? 'none', `interpretationDriftRecord.steps[${index}].after.winningSource`),
+        target: expectString(after.target ?? 'none', `interpretationDriftRecord.steps[${index}].after.target`),
+        governance: expectEnum(after.governance ?? 'approved', `interpretationDriftRecord.steps[${index}].after.governance`, governanceStates),
+        confidence: expectString(after.confidence ?? 'unbound', `interpretationDriftRecord.steps[${index}].after.confidence`),
+        exhaustionPath: expectStringArray(after.exhaustionPath ?? [], `interpretationDriftRecord.steps[${index}].after.exhaustionPath`),
+      },
+    };
+  });
+  const header = validateWorkflowEnvelopeHeader(record, 'interpretationDriftRecord', {
+    stage: 'resolution',
+    scope: 'run',
+    governance: expectEnum(record.governance ?? 'approved', 'interpretationDriftRecord.governance', governanceStates),
+    artifactFingerprint: expectOptionalString(record.runId, 'interpretationDriftRecord.runId') ?? 'interpretation-drift-record',
+    ids: {
+      adoId: expectOptionalId(record.adoId, 'interpretationDriftRecord.adoId', createAdoId) ?? null,
+      runId: expectOptionalString(record.runId, 'interpretationDriftRecord.runId') ?? null,
+      suite: null,
+    },
+    lineage: {
+      sources: expectStringArray(expectRecord(record.lineage ?? {}, 'interpretationDriftRecord.lineage').sources ?? [], 'interpretationDriftRecord.lineage.sources'),
+      parents: expectStringArray(expectRecord(record.lineage ?? {}, 'interpretationDriftRecord.lineage').parents ?? [], 'interpretationDriftRecord.lineage.parents'),
+      handshakes: ['preparation', 'resolution'],
+    },
+  });
+  const provenance = expectRecord(record.provenance ?? {}, 'interpretationDriftRecord.provenance');
+  return {
+    kind: expectEnum(record.kind, 'interpretationDriftRecord.kind', ['interpretation-drift-record'] as const),
+    ...header,
+    adoId: expectId(record.adoId, 'interpretationDriftRecord.adoId', createAdoId),
+    runId: expectString(record.runId, 'interpretationDriftRecord.runId'),
+    comparedRunId: expectOptionalString(record.comparedRunId, 'interpretationDriftRecord.comparedRunId') ?? null,
+    providerId: expectString(record.providerId, 'interpretationDriftRecord.providerId'),
+    mode: expectString(record.mode, 'interpretationDriftRecord.mode'),
+    comparedAt: expectString(record.comparedAt, 'interpretationDriftRecord.comparedAt'),
+    changedStepCount: expectNumber(record.changedStepCount, 'interpretationDriftRecord.changedStepCount'),
+    unchangedStepCount: expectNumber(record.unchangedStepCount, 'interpretationDriftRecord.unchangedStepCount'),
+    totalStepCount: expectNumber(record.totalStepCount, 'interpretationDriftRecord.totalStepCount'),
+    hasDrift: expectBoolean(record.hasDrift, 'interpretationDriftRecord.hasDrift'),
+    provenance: {
+      taskFingerprint: expectString(provenance.taskFingerprint, 'interpretationDriftRecord.provenance.taskFingerprint'),
+      knowledgeFingerprint: expectString(provenance.knowledgeFingerprint, 'interpretationDriftRecord.provenance.knowledgeFingerprint'),
+      controlsFingerprint: expectOptionalString(provenance.controlsFingerprint, 'interpretationDriftRecord.provenance.controlsFingerprint') ?? null,
+      comparedTaskFingerprint: expectOptionalString(provenance.comparedTaskFingerprint, 'interpretationDriftRecord.provenance.comparedTaskFingerprint') ?? null,
+      comparedKnowledgeFingerprint: expectOptionalString(provenance.comparedKnowledgeFingerprint, 'interpretationDriftRecord.provenance.comparedKnowledgeFingerprint') ?? null,
+      comparedControlsFingerprint: expectOptionalString(provenance.comparedControlsFingerprint, 'interpretationDriftRecord.provenance.comparedControlsFingerprint') ?? null,
+    },
+    explainableByFingerprintDelta: expectBoolean(record.explainableByFingerprintDelta, 'interpretationDriftRecord.explainableByFingerprintDelta'),
+    steps,
+  };
+}
+
 export function validateBenchmarkScorecard(value: unknown): BenchmarkScorecard {
   const scorecard = expectRecord(value, 'benchmarkScorecard');
   return {
@@ -1955,6 +2033,7 @@ export function validateBenchmarkScorecard(value: unknown): BenchmarkScorecard {
     approvedEquivalentCount: expectNumber(scorecard.approvedEquivalentCount ?? 0, 'benchmarkScorecard.approvedEquivalentCount'),
     thinKnowledgeScreenCount: expectNumber(scorecard.thinKnowledgeScreenCount ?? 0, 'benchmarkScorecard.thinKnowledgeScreenCount'),
     degradedLocatorHotspotCount: expectNumber(scorecard.degradedLocatorHotspotCount ?? 0, 'benchmarkScorecard.degradedLocatorHotspotCount'),
+    interpretationDriftHotspotCount: expectNumber(scorecard.interpretationDriftHotspotCount ?? 0, 'benchmarkScorecard.interpretationDriftHotspotCount'),
     overlayChurn: expectNumber(scorecard.overlayChurn ?? 0, 'benchmarkScorecard.overlayChurn'),
     executionTimingTotalsMs: (() => {
       const timing = expectRecord(scorecard.executionTimingTotalsMs ?? {}, 'benchmarkScorecard.executionTimingTotalsMs');

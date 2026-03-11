@@ -1,1 +1,1 @@
-export { validateBenchmarkContext, validateBenchmarkScorecard, validateDogfoodRun, validateRunRecord } from './core';
+export { validateBenchmarkContext, validateBenchmarkScorecard, validateDogfoodRun, validateInterpretationDriftRecord, validateRunRecord } from './core';

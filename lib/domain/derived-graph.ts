@@ -23,6 +23,7 @@ import type {
   PatternDocument,
   ResolutionControl,
   RunRecord,
+  InterpretationDriftRecord,
   RunbookControl,
   Scenario,
   ScenarioTaskPacket,
@@ -92,6 +93,7 @@ export interface GraphBuildInput {
   boundScenarios?: BoundScenarioGraphArtifact[];
   taskPackets?: TaskPacketGraphArtifact[];
   runRecords?: ArtifactEnvelope<RunRecord>[];
+  interpretationDriftRecords?: ArtifactEnvelope<InterpretationDriftRecord>[];
   evidence: EvidenceArtifact[];
   policyDecisions?: PolicyDecisionArtifact[];
 }
@@ -323,6 +325,7 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
       .map((entry) => [entry.artifact.adoId, entry.artifact] as const),
   );
   const surfaceGraphs = new Map(input.surfaceGraphs.map((entry) => [entry.artifact.screen, entry.artifact] as const));
+  const driftRecords = (input.interpretationDriftRecords ?? []).slice().sort((left, right) => right.artifact.comparedAt.localeCompare(left.artifact.comparedAt));
   const screenElements = new Map(input.screenElements.map((entry) => [entry.artifact.screen, entry.artifact] as const));
   const boundScenarios = new Map(boundScenarioArtifacts.map((entry) => [entry.artifact.source.ado_id, entry.artifact] as const));
 
@@ -1307,6 +1310,36 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
         },
         payload: {
           decision: policyDecision.decision,
+        },
+      }));
+    }
+  }
+
+  for (const { artifact: drift } of driftRecords) {
+    const changedSteps = drift.steps.filter((step) => step.changed);
+    if (changedSteps.length === 0) {
+      continue;
+    }
+    for (const step of changedSteps) {
+      const stepNodeId = graphIds.step(drift.adoId, step.stepIndex);
+      if (!nodes.has(stepNodeId)) {
+        continue;
+      }
+      addEdge(edges, createEdge({
+        kind: 'drifts-to',
+        from: graphIds.scenario(drift.adoId),
+        to: stepNodeId,
+        provenance: {
+          confidence: drift.explainableByFingerprintDelta ? 'compiler-derived' : 'agent-proposed',
+        },
+        payload: {
+          runId: drift.runId,
+          comparedRunId: drift.comparedRunId,
+          changedFields: step.changes.map((change) => change.field),
+          taskFingerprint: drift.provenance.taskFingerprint,
+          knowledgeFingerprint: drift.provenance.knowledgeFingerprint,
+          controlsFingerprint: drift.provenance.controlsFingerprint,
+          explainableByFingerprintDelta: drift.explainableByFingerprintDelta,
         },
       }));
     }

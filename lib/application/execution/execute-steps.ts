@@ -3,7 +3,7 @@ import type { RuntimeScenarioRunnerPort } from '../ports';
 import type { AdoId } from '../../domain/identity';
 import type { RuntimeScenarioStepResult } from '../ports';
 import type { SelectedRunContext } from './select-run-context';
-import { resolveRuntimeProvider } from '../runtime-provider';
+import { resolveRuntimeProvider } from '../provider-registry';
 import { validateStepResults } from './validate-step-results';
 
 export interface ExecuteStepsResult {

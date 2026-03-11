@@ -10,6 +10,7 @@ import type {
   ConfidenceOverlayCatalog,
   DatasetControl,
   EvidenceRecord,
+  InterpretationDriftRecord,
   PatternDocument,
   ProposalBundle,
   ResolutionControl,
@@ -43,6 +44,7 @@ import {
   validateScreenPostures,
   validateSurfaceGraph,
   validateTrustPolicy,
+  validateInterpretationDriftRecord,
 } from '../../domain/validation';
 import { walkFiles } from '../artifacts';
 import type { ProjectPaths } from '../paths';
@@ -235,6 +237,19 @@ export function loadWorkspaceCatalog(options: { paths: ProjectPaths }) {
       ));
     }
 
+
+    const interpretationDriftFiles = (yield* walkFiles(fs, options.paths.runsDir)).filter((filePath) => path.basename(filePath) === 'interpretation-drift.json');
+    const interpretationDriftRecords: ArtifactEnvelope<InterpretationDriftRecord>[] = [];
+    for (const filePath of interpretationDriftFiles) {
+      interpretationDriftRecords.push(yield* readJsonArtifact(
+        options.paths,
+        filePath,
+        validateInterpretationDriftRecord,
+        'interpretation-drift-validation-failed',
+        `Interpretation drift ${filePath} failed validation`,
+      ));
+    }
+
     const proposalFiles = (yield* walkFiles(fs, options.paths.generatedDir)).filter((filePath) => filePath.endsWith('.proposals.json'));
     const proposalBundles: ArtifactEnvelope<ProposalBundle>[] = [];
     for (const filePath of proposalFiles) {
@@ -328,6 +343,7 @@ export function loadWorkspaceCatalog(options: { paths: ProjectPaths }) {
       }))),
       knowledgeSnapshots,
       evidenceRecords,
+      interpretationDriftRecords,
       confidenceCatalog,
       trustPolicy,
     } satisfies WorkspaceCatalog;
