@@ -11,6 +11,7 @@ import type {
   DatasetControl,
   EvidenceRecord,
   InterpretationDriftRecord,
+  ResolutionGraphRecord,
   PatternDocument,
   ProposalBundle,
   ResolutionControl,
@@ -45,6 +46,7 @@ import {
   validateSurfaceGraph,
   validateTrustPolicy,
   validateInterpretationDriftRecord,
+  validateResolutionGraphRecord,
 } from '../../domain/validation';
 import { walkFiles } from '../artifacts';
 import type { ProjectPaths } from '../paths';
@@ -238,6 +240,19 @@ export function loadWorkspaceCatalog(options: { paths: ProjectPaths }) {
     }
 
 
+
+    const resolutionGraphFiles = (yield* walkFiles(fs, options.paths.runsDir)).filter((filePath) => path.basename(filePath) === 'resolution-graph.json');
+    const resolutionGraphRecords: ArtifactEnvelope<ResolutionGraphRecord>[] = [];
+    for (const filePath of resolutionGraphFiles) {
+      resolutionGraphRecords.push(yield* readJsonArtifact(
+        options.paths,
+        filePath,
+        validateResolutionGraphRecord,
+        'resolution-graph-validation-failed',
+        `Resolution graph ${filePath} failed validation`,
+      ));
+    }
+
     const interpretationDriftFiles = (yield* walkFiles(fs, options.paths.runsDir)).filter((filePath) => path.basename(filePath) === 'interpretation-drift.json');
     const interpretationDriftRecords: ArtifactEnvelope<InterpretationDriftRecord>[] = [];
     for (const filePath of interpretationDriftFiles) {
@@ -344,6 +359,7 @@ export function loadWorkspaceCatalog(options: { paths: ProjectPaths }) {
       knowledgeSnapshots,
       evidenceRecords,
       interpretationDriftRecords,
+      resolutionGraphRecords,
       confidenceCatalog,
       trustPolicy,
     } satisfies WorkspaceCatalog;

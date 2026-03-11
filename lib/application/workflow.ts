@@ -56,7 +56,11 @@ export function inspectWorkflow(options: { paths: ProjectPaths; adoId?: AdoId | 
       .map((entry) => entry.artifact)
       .filter((plan) => !scenario || plan.impactedScenarioIds.includes(scenario.artifact.source.ado_id));
 
-    const hotspots = buildWorkflowHotspots(catalog.runRecords.map((entry) => entry.artifact), catalog.interpretationDriftRecords.map((entry) => entry.artifact))
+    const hotspots = buildWorkflowHotspots(
+      catalog.runRecords.map((entry) => entry.artifact),
+      catalog.interpretationDriftRecords.map((entry) => entry.artifact),
+      catalog.resolutionGraphRecords.map((entry) => entry.artifact),
+    )
       .filter((entry) => !scenario || entry.samples.some((sample) => sample.adoId === scenario.artifact.source.ado_id));
 
     return {

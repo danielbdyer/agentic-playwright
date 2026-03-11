@@ -9,6 +9,7 @@ import type {
   DatasetControl,
   EvidenceRecord,
   InterpretationDriftRecord,
+  ResolutionGraphRecord,
   MergedPatterns,
   PatternDocument,
   ProposalBundle,
@@ -71,6 +72,7 @@ export interface WorkspaceCatalog {
   knowledgeSnapshots: KnowledgeSnapshotEntry[];
   evidenceRecords: ArtifactEnvelope<EvidenceRecord>[];
   interpretationDriftRecords: ArtifactEnvelope<InterpretationDriftRecord>[];
+  resolutionGraphRecords: ArtifactEnvelope<ResolutionGraphRecord>[];
   confidenceCatalog: ArtifactEnvelope<ConfidenceOverlayCatalog> | null;
   trustPolicy: ArtifactEnvelope<TrustPolicy>;
 }

@@ -146,6 +146,11 @@ export function executionPath(paths: ProjectPaths, adoId: AdoId, runId: string):
   return path.join(runDirPath(paths, adoId, runId), 'execution.json');
 }
 
+
+export function resolutionGraphPath(paths: ProjectPaths, adoId: AdoId, runId: string): string {
+  return path.join(runDirPath(paths, adoId, runId), 'resolution-graph.json');
+}
+
 export function runRecordPath(paths: ProjectPaths, adoId: AdoId, runId: string): string {
   return path.join(runDirPath(paths, adoId, runId), 'run.json');
 }
