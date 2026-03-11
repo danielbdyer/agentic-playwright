@@ -52,6 +52,7 @@ export const LocalRuntimeScenarioRunner: RuntimeScenarioRunnerPort = {
         controlSelection: input.controlSelection,
         posture: input.posture,
         translator,
+        recoveryPolicy: input.recoveryPolicy,
       });
       const runState = createScenarioRunState();
       const agent = {

@@ -162,10 +162,25 @@ export interface StepExecutionReceipt {
     code?: string | null | undefined;
     message?: string | null | undefined;
   };
+  recovery: {
+    policyProfile: string;
+    attempts: RecoveryAttemptReceipt[];
+  };
   handshakes: import('./workflow').WorkflowStage[];
   execution: ExecutionObservation;
 }
 
+
+
+export interface RecoveryAttemptReceipt {
+  strategyId: import('../execution/recovery-policy').RecoveryStrategyId;
+  family: Exclude<StepExecutionReceipt['failure']['family'], 'none'>;
+  attempt: number;
+  startedAt: string;
+  durationMs: number;
+  result: 'recovered' | 'failed' | 'skipped';
+  diagnostics: string[];
+}
 
 export interface TranslationRunMetrics {
   total: number;
@@ -213,6 +228,8 @@ export interface RunRecord {
       costTotals: StepExecutionReceipt['cost'];
       budgetBreaches: number;
       failureFamilies: Record<StepExecutionReceipt['failure']['family'], number>;
+      recoveryFamilies: Record<Exclude<StepExecutionReceipt['failure']['family'], 'none'>, number>;
+      recoveryStrategies: Record<import('../execution/recovery-policy').RecoveryStrategyId, number>;
     };
   };
   runId: string;
@@ -234,6 +251,8 @@ export interface RunRecord {
     costTotals: StepExecutionReceipt['cost'];
     budgetBreaches: number;
     failureFamilies: Record<StepExecutionReceipt['failure']['family'], number>;
+    recoveryFamilies: Record<Exclude<StepExecutionReceipt['failure']['family'], 'none'>, number>;
+    recoveryStrategies: Record<import('../execution/recovery-policy').RecoveryStrategyId, number>;
   };
 }
 

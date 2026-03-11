@@ -219,6 +219,7 @@ export function replayInterpretation(options: {
       steps: selectedContext.steps,
       posture: selectedContext.posture,
       context: selectedContext.context,
+      recoveryPolicy: selectedContext.recoveryPolicy,
       translationOptions: {
         disableTranslation: !selectedContext.translationEnabled,
         disableTranslationCache: !selectedContext.translationCacheEnabled,

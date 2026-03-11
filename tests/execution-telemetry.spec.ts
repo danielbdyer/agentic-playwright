@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { evaluateExecutionBudget, normalizeFailureFamily } from '../lib/domain/execution/telemetry';
+import { defaultRecoveryPolicy, recoveryFamilyConfig } from '../lib/domain/execution/recovery-policy';
 
 test('normalizeFailureFamily maps failures into canonical families', () => {
   expect(normalizeFailureFamily({ status: 'ok', degraded: false, diagnostics: [] }).family).toBe('none');
@@ -58,3 +59,14 @@ test('evaluateExecutionBudget reports not-configured, within-budget, and over-bu
   expect(overBudget.status).toBe('over-budget');
   expect(overBudget.breaches).toEqual(['resolutionMs', 'totalMs', 'instructionCount']);
 });
+
+
+test('recovery policy resolves per failure family and ignores none', () => {
+  expect(recoveryFamilyConfig(defaultRecoveryPolicy, 'none')).toBeNull();
+  const preconditionPolicy = recoveryFamilyConfig(defaultRecoveryPolicy, 'precondition-failure');
+  expect(preconditionPolicy?.strategies.map((entry) => entry.id)).toEqual([
+    'verify-prerequisites',
+    'execute-prerequisite-actions',
+  ]);
+});
+

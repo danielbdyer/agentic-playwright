@@ -34,6 +34,7 @@ test('workspace catalog exposes canonical control surfaces for the seeded scenar
     const controls = runtimeControlsForScenario(catalog, scenario);
     expect(controls.datasets.map((entry) => entry.name)).toEqual(['demo-default']);
     expect(controls.runbooks.map((entry) => entry.name)).toEqual(['demo-smoke']);
+    expect(controls.runbooks[0]?.recoveryPolicy?.families['environment-runtime-failure']?.budget.maxAttempts).toBe(3);
     expect(controls.resolutionControls.map((entry) => entry.stepIndex)).toEqual([2, 3, 4]);
 
     const stepTwoResolution = controlResolutionForStep(controls, 2, 'demo-policy-search');

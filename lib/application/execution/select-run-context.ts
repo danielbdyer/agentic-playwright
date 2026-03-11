@@ -15,6 +15,7 @@ import type {
 import type { AdoId, ScreenId } from '../../domain/identity';
 import { activeDatasetForRun, findRunbook } from '../controls';
 import { chooseByPrecedence, runSelectionPrecedenceLaw } from '../../domain/precedence';
+import type { RecoveryPolicy } from '../../domain/execution/recovery-policy';
 
 const fixtureReferencePattern = /^\{\{\s*([A-Za-z0-9_-]+)(?:\.[^}]*)?\s*\}\}$/;
 
@@ -94,6 +95,7 @@ export interface SelectedRunContext {
   translationEnabled: boolean;
   translationCacheEnabled: boolean;
   providerId: string;
+  recoveryPolicy?: RecoveryPolicy | undefined;
 }
 
 export function selectRunContext(input: {
@@ -178,5 +180,6 @@ export function selectRunContext(input: {
       { rung: 'runbook', value: activeRunbook?.providerId ?? null },
       { rung: 'repo-default', value: 'deterministic-runtime-step-agent' },
     ], runSelectionPrecedenceLaw) ?? 'deterministic-runtime-step-agent',
+    recoveryPolicy: activeRunbook?.recoveryPolicy,
   };
 }

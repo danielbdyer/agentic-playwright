@@ -46,6 +46,7 @@ function runtimeRunbook(runbook: { artifact: RunbookControl; artifactPath: strin
     translationEnabled: runbook.artifact.translationEnabled,
     translationCacheEnabled: runbook.artifact.translationCacheEnabled,
     providerId: runbook.artifact.providerId ?? null,
+    recoveryPolicy: runbook.artifact.recoveryPolicy,
   };
 }
 
@@ -106,7 +107,7 @@ export function findRunbook(
   return chooseByPrecedence([
     { rung: 'cli-flag', value: options.runbookName ? runtimeRunbooks.find((entry) => entry.name === options.runbookName) ?? null : null },
     { rung: 'runbook', value: runtimeRunbooks.find((entry) => entry.isDefault) ?? null },
-    { rung: 'repo-default', value: options.scenario ? runtimeRunbooks.find((entry) => selectorMatchesScenario(entry.selector, options.scenario)) ?? null : null },
+    { rung: 'repo-default', value: options.scenario ? runtimeRunbooks.find((entry) => selectorMatchesScenario(entry.selector, options.scenario as Scenario)) ?? null : null },
   ], runSelectionPrecedenceLaw);
 }
 

@@ -193,6 +193,7 @@ export interface RunbookControl {
   translationEnabled?: boolean | undefined;
   translationCacheEnabled?: boolean | undefined;
   providerId?: string | null | undefined;
+  recoveryPolicy?: import('../execution/recovery-policy').RecoveryPolicy | undefined;
 }
 
 export interface RuntimeDatasetBinding {
@@ -223,6 +224,7 @@ export interface RuntimeRunbookControl {
   translationEnabled?: boolean | undefined;
   translationCacheEnabled?: boolean | undefined;
   providerId?: string | null | undefined;
+  recoveryPolicy?: import('../execution/recovery-policy').RecoveryPolicy | undefined;
 }
 
 export interface RuntimeControlSession {
@@ -231,7 +233,7 @@ export interface RuntimeControlSession {
   runbooks: RuntimeRunbookControl[];
 }
 
-export type OperatorInboxItemKind = 'proposal' | 'degraded-locator' | 'needs-human' | 'blocked-policy' | 'approved-equivalent';
+export type OperatorInboxItemKind = 'proposal' | 'degraded-locator' | 'needs-human' | 'blocked-policy' | 'approved-equivalent' | 'recovery';
 
 export interface OperatorInboxItem {
   id: string;
