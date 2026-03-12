@@ -16,6 +16,7 @@ Read the doc that matches your task:
 - planned work split by lane: [BACKLOG.md](BACKLOG.md)
 - design direction and owner decisions: [docs/direction.md](docs/direction.md)
 - implementation coding notes: [docs/coding-notes.md](docs/coding-notes.md)
+- seams, invariants, and verification: [docs/seams-and-invariants.md](docs/seams-and-invariants.md)
 
 Scoped instructions under `.github/instructions/` still apply for domain, knowledge, generated files, and tests.
 
