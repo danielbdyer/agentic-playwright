@@ -1,310 +1,164 @@
-# Coding Notes for Implementation Phases
+# Coding Notes
 
-Quick-reference notes distilled from `docs/master-architecture.md`, `CLAUDE.md`, `BACKLOG.md`, `docs/domain-ontology.md`, and `docs/direction.md`. Consult this before starting work on any phase.
+These notes are opinionated. They exist because the master architecture is precise but dense, and an implementer mid-flight needs the *throughline*, not another index.
 
-## Current Implementation State
+Read this before starting any phase. If something here contradicts `docs/master-architecture.md`, the master architecture wins.
 
-### Types that exist (`lib/domain/types/`)
+---
 
-| Contract | File | Status |
-|---|---|---|
-| `ApplicationInterfaceGraph` | `lib/domain/types/interface.ts:197` | Implemented (v1) |
-| `SelectorCanon` | `lib/domain/types/interface.ts:181` | Implemented (v1) |
-| `SelectorProbe` | `lib/domain/types/interface.ts:97` | Implemented |
-| `CanonicalTargetRef` | `lib/domain/identity.ts` | Implemented (brand type) |
-| `AgentSession` | `lib/domain/types/session.ts:43` | Implemented (v1) |
-| `TrainingCorpusManifest` | `lib/domain/types/learning.ts:44` | Implemented |
-| `GroundedSpecFragment` | `lib/domain/types/learning.ts:6` | Partial (learning-side only) |
+## The Core Insight
 
-### Types not yet implemented
+Tesseract's entire design follows from one bet: **the application is knowable, and that knowledge is worth more than the tests it produces**.
 
-| Contract | Master Architecture Section | Phase |
-|---|---|---|
-| `StateNode` | State and Event Topology | Phase 2 |
-| `StateTransitionGraph` | State and Event Topology | Phase 2 |
-| `StateTransition` | State and Event Topology | Phase 2 |
-| `EventSignature` | State and Event Topology | Phase 2 |
-| `ScenarioDecomposition` | Scenario Compilation | Phase 3 |
-| `GroundedSpecFlow` | Readable Test Emission | Phase 4 |
-| `LearningCorpus` (full) | Learning and Ratchet | Phase 6 |
+Traditional test automation treats the DOM as a hostile surface you poke at with selectors and pray stays stable. Every test rediscovers the same buttons, the same fields, the same state transitions. The 50th test is as expensive as the 1st. At 200 tests the suite is a maintenance liability. At 2000 it's fiction.
 
-## Layer Boundaries — Hard Rules
+Tesseract inverts this. You harvest the application into a shared model *once*. Every scenario is a projection through that model. The emitted Playwright file is disposable object code — like a `.o` file from a compiler. The durable assets are the interface graph, the selector canon, the state topology, and the provenance chain that explains how they were built.
+
+This is not a metaphor. It is the literal implementation strategy, and every design decision follows from it.
+
+---
+
+## The Three Moves That Make Everything Work
+
+### 1. Targets define selectors, not the other way around
+
+This is the selector inversion, and it is the single most important structural decision in the system.
+
+A `CanonicalTargetRef` is a semantic identity: "the policy number input on the policy-search screen." It exists whether or not we have a working selector for it. Selectors are `SelectorProbe` entries in `SelectorCanon` — they are *evidence* for how to find a target, ranked by health, ordered into ladders, and subject to drift detection.
+
+When you're implementing, the test for whether you've internalized this: **if you're about to write a selector string anywhere other than knowledge YAML or `SelectorCanon`, stop.** Scenarios reference target refs. Emitted specs reference target refs. Receipts reference target refs. The selector is resolved at the last possible moment through the canon, and drift accumulates on the existing ref rather than spawning a duplicate.
+
+This is how 2000 scenarios can reference the same control without 2000 copies of a selector. When that selector drifts, one canon update repairs them all.
+
+### 2. Dynamic behavior is structure, not code
+
+When field A reveals field B, the traditional approach is a runtime wait, a retry loop, or a recovery handler baked into the emitted test. That works for one test. It does not compose.
+
+In Tesseract, that relationship is a `StateTransition` in the `StateTransitionGraph`: a typed edge from "advanced filters collapsed" to "advanced filters expanded," triggered by an `EventSignature` on the toggle, with observable effects on the target set. It is stored once, keyed, and referenced by ID from every scenario that depends on it.
+
+The practical consequence: **when you model a new dynamic behavior, ask whether it should be a node in the state graph before reaching for a runtime workaround.** Visibility, enablement, validation gates, modal lifecycle, navigation state — these are all structural relationships that belong in the model, not procedural code that belongs in the emitted spec.
+
+The emission pipeline consumes state transitions explicitly. The runtime enforces preconditions, dispatches events, observes effects, and records what actually happened. This is how the system learns and how receipts stay meaningful.
+
+### 3. Learning is aggressive but governance is absolute
+
+The system has two very different velocities, and keeping them separate is what makes the whole thing safe at scale.
+
+**Fast lane (derived, ratchets automatically):** selector health, drift observations, observed state transitions, session artifacts, replay examples, training corpora, benchmark outcomes. These move on every run. No human in the loop.
+
+**Slow lane (canonical, requires proposal + review):** new targets, changed semantic meaning, promoted patterns, approved screen knowledge edits, snapshot template changes, surface model changes. These move only through the trust-policy boundary.
+
+The key insight: *the fast lane is what makes the system improve.* The slow lane is what keeps it honest. If you blur them — if derived knowledge silently mutates canon, or if canonical changes bypass review — the system becomes opaque and the governance promise is broken.
+
+When implementing, the test: **can I explain what changed and why from the review surface?** If yes, you're on the right track. If a run silently changed approved truth, or if a new workflow can't explain itself through traces and proposals, the model is under-specified.
+
+---
+
+## The Interpretation Surface Is the Product
+
+The six workflow lanes (intent, knowledge, control, resolution, execution, governance) tell you where a concern lives operationally. The three spines (interface, session, learning) tell you what the system is actually made of. But neither is the thing that ties them together.
+
+The interpretation surface is. It is the single machine boundary that planning, runtime, emission, review, and learning all consume. When it works, every consumer agrees on what the application meant:
+
+- The emitted spec says "click the save button on the policy-edit screen."
+- The runtime receipt says "resolved target `surface:policy-edit/element:save-button` via selector probe `#save-btn` at rung 1, observed state transition `save-button:enabled → save-button:disabled` with governance `approved`."
+- The review markdown shows the human what happened and why.
+- The learning corpus records the grounded fragment for future decomposition training.
+
+If those four surfaces disagree, something is wrong with the interpretation surface, not with any individual consumer.
+
+---
+
+## How to Stay in the Groove
+
+### Before writing code, know which layer you're in
 
 ```
-lib/domain/       → pure, no side effects, no I/O
-lib/application/  → orchestration via Effect, depends only on domain
-lib/runtime/      → Playwright execution and locator resolution, no application imports
-lib/infrastructure/ → ports and adapters, implements application ports
+lib/domain/          pure values, validation, inference, codegen — NO side effects, NO I/O
+lib/application/     orchestration via Effect — depends only on domain
+lib/runtime/         Playwright execution, locator resolution — no application imports
+lib/infrastructure/  ports and adapters — implements application ports
 ```
 
-Violations to watch for:
-- Domain code importing `@playwright/test` or `fs`
-- Runtime code importing application orchestration
-- Infrastructure concerns leaking into domain types
-- Side effects in domain functions (even logging)
+The most common violation is domain code that needs "just a little I/O." It doesn't. Model the data in domain, orchestrate the I/O in application, execute the effect in infrastructure. If that feels heavy for your change, the change might be simpler than you think.
 
-## Canonical vs Derived — Decision Guide
+### Before editing a file, know if it's canonical or derived
 
-Before creating or editing a file, ask: **is this canonical or derived?**
+If you're about to hand-edit something under `.tesseract/tasks/`, `.tesseract/interface/`, `.tesseract/graph/`, `generated/`, or `lib/generated/` — you're in the wrong place. Fix the generator that produces it.
 
-**Canonical** (hand-authored, source of truth):
-- `knowledge/screens/*.elements.yaml` — element definitions
-- `knowledge/screens/*.postures.yaml` — posture contracts
-- `knowledge/screens/*.hints.yaml` — screen-local hints
-- `knowledge/patterns/*.yaml` — promoted shared patterns
-- `knowledge/surfaces/*.surface.yaml` — surface structure
-- `knowledge/snapshots/` — ARIA snapshot templates
-- `scenarios/` — scenario IR from ADO
-- `controls/` — resolution controls, datasets, runbooks
-- `.tesseract/evidence/` — evidence records
-- `.tesseract/policy/` — trust policy
+If you're editing under `knowledge/`, `scenarios/`, `controls/`, or `.tesseract/policy/` — you're editing source of truth. Treat it with the same care as production code.
 
-**Derived** (generated, do not hand-edit):
-- `.tesseract/interface/` — interface graph + selector canon
-- `.tesseract/tasks/` — resolution JSONs
-- `.tesseract/graph/` — dependency graph
-- `.tesseract/sessions/` — session ledgers
-- `.tesseract/learning/` — training corpora
-- `generated/` — emitted specs, traces, reviews
-- `lib/generated/` — generated TypeScript
-
-If you're tempted to hand-edit a derived file, you probably need to fix the generator instead.
-
-## Resolution Precedence — Never Reorder Without Tests
+### The resolution precedence is compiler semantics
 
 ```
 1. explicit scenario fields
-2. controls/resolution/*.resolution.yaml
-3. approved screen knowledge + screen hints
+2. resolution controls
+3. approved screen knowledge + hints
 4. shared patterns
 5. prior evidence or run history
-6. live DOM exploration (safe degraded resolution)
+6. live DOM exploration (degraded resolution)
 7. needs-human
 ```
 
-Changing this order is changing compiler semantics. Update law tests in `tests/` before merging.
+If you reorder this, add a tier, or skip a tier, you are changing what the compiler produces. Write a law test first. This is non-negotiable.
 
-## Governance Vocabulary — Use Precisely
+### Use AST-backed generation, always
 
-| Term | Meaning | Do NOT confuse with |
-|---|---|---|
-| `confidence` | How a binding was produced | governance |
-| `compiler-derived` | Deterministic derivation from approved artifacts | approved |
-| `intent-only` | Preserved intent awaiting runtime interpretation | unbound |
-| `governance` | Whether a bound step is executable now | confidence |
-| `approved` | Deterministic or already-approved path | compiler-derived |
-| `review-required` | Depends on agent-proposed or unapproved knowledge | blocked |
-| `blocked` | Do not execute | review-required |
+`lib/domain/ts-ast.ts` and `lib/domain/spec-codegen.ts` exist precisely so we never splice source strings. Template literals, string concatenation, and manual indentation management in codegen are bugs waiting to happen. The AST approach composes, the string approach doesn't.
 
-## Envelope Header — Every Cross-Lane Artifact
+### Provenance is not optional metadata
 
-Every artifact that crosses lane boundaries must carry:
+Every derived artifact must carry: what inputs it consumed, which resolution stage won, what was exhausted before the winner, and enough lineage to reconstruct the derivation. This is part of correctness, not part of logging.
 
-```typescript
-{
-  kind: string;
-  version: number;
-  stage: string;
-  scope: string;
-  ids: Record<string, string>;
-  fingerprints: Record<string, string>;
-  lineage: { /* provenance chain */ };
-  governance: { confidence: string; status: string };
-  payload: { /* domain-specific content */ };
-}
-```
+The envelope header (`kind`, `version`, `stage`, `scope`, `ids`, `fingerprints`, `lineage`, `governance`, `payload`) exists for exactly this reason. If your new artifact doesn't carry it, ask why.
 
-## Phase-by-Phase Implementation Notes
+---
 
-### Phase 1: Interface Graph and Selector Canon
+## The Phased Program — What Each Phase Actually Unlocks
 
-**Goal**: Make `ApplicationInterfaceGraph` and `SelectorCanon` deterministic and law-tested.
+The phases aren't just a checklist. Each one opens a capability that the next one depends on.
 
-Key files to modify:
-- `lib/domain/types/interface.ts` — may need schema tightening
-- `lib/application/interface-intelligence.ts` — projection orchestration
-- `lib/domain/derived-graph.ts` — graph derivation logic
+**Phase 1 (Interface Graph + Selector Canon)** establishes the shared model. Without it, every scenario is an island. With it, 2000 scenarios share one picture of the application. The unlock: selectors stop being a per-test concern.
 
-Rules:
-- Selector duplication is forbidden by architecture. Every semantic target gets exactly one `CanonicalTargetRef`. Selector ladders attach only to `SelectorCanon`.
-- Scenarios, emitted specs, and receipts reference target refs, never raw duplicated selectors.
-- Drift evidence accumulates on the existing selector ref.
-- Write law-style tests for determinism, round-trips, and normalization.
+**Phase 2 (State + Event Topology)** makes dynamic behavior explicit. Without it, field reveals, validation gates, and modal lifecycles are runtime surprises. With it, they're typed edges in a reusable graph. The unlock: the system can reason about preconditions and effects instead of guessing.
 
-Output files:
-- `.tesseract/interface/index.json` — the graph
-- `.tesseract/interface/selectors.json` — the canon
+**Phase 3 (Scenario Decomposition)** grounds ADO prose in the shared model. Without it, the lowering from human intent to executable steps is ad-hoc. With it, every step target, assertion anchor, and fallback path points to a graph node. The unlock: scenarios become projections, not programs.
 
-### Phase 2: State and Event Modeling
+**Phase 4 (Readable Emission)** produces QA-grade Playwright through one canonical event pipeline. Without it, readability and machine truth diverge. With it, the spec reads like a human wrote it while every helper resolves through target refs, selector probes, state checks, event dispatch, and provenance-rich receipts. The unlock: trust. A QA can read the spec and a machine can audit the receipt, and they agree.
 
-**Goal**: Introduce `StateNode`, `StateTransitionGraph`, `StateTransition`, and `EventSignature`.
+**Phase 5 (Agent Workbench)** standardizes how agents and operators interact with the system. Without it, every agent integration is a snowflake. With it, Copilot, Claude Code, a CI bot, and a human operator all speak the same typed event vocabulary against the same shared truth. The unlock: the system works the same way regardless of who or what is driving it.
 
-Where new types go:
-- `lib/domain/types/interface.ts` — alongside existing interface types
+**Phase 6 (Learning + Evaluation)** closes the improvement loop. Without it, knowledge grows only through human authoring. With it, decomposition, repair, and workflow corpora accumulate from real provenance and get evaluated offline. The unlock: the system gets materially better with use.
 
-Modeling rules:
-- Visibility and enabled state → explicit `StateNode`
-- Triggers → explicit `EventSignature`
-- Effects → explicit `StateTransition`
-- Each transition is keyed and referential so many scenarios reuse the same state knowledge
-- Runtime receipts record observed transition IDs, not freeform notes
+**Phase 7 (Scale Operations)** makes incremental recomputation bounded. Without it, a change to one screen recompiles everything. With it, fingerprint-based change detection ensures only affected scenarios recompute. The unlock: thousands of scenarios stay fast.
 
-Behaviors to model:
-- field A reveals field B
-- selecting radio option C disables field D
-- opening a modal changes the active surface
-- saving moves the route to confirmation state
-- validation creates visible error region and blocks submit
+---
 
-Test strategy: law-style tests proving transitions are stored once and reused across scenarios.
+## The Backlog Critical Path
 
-### Phase 3: Scenario Decomposition
+A1 (runtime interpretation) is the bottleneck. It unblocks A2 (auto-approval), which unblocks A3 (dogfood orchestrator), which enables D1 (structured entropy). Everything else can proceed in parallel, but the A-lane is the spine.
 
-**Goal**: Lower ADO cases into `ScenarioDecomposition`, bind to graph refs, selector refs, and state transitions.
+The deep reason A1 matters: it breaks the alias treadmill. Today, novel ADO phrasing requires knowledge edits before execution. After A1, the runtime interpreter resolves intent against the live DOM and knowledge priors, and the knowledge system grows from execution rather than from human synonym curation. This is the transition from "human authors tests faster" to "system understands applications."
 
-Lowering path:
-```
-ADO text → ScenarioDecomposition → bind against graph/targets/transitions → GroundedSpecFlow
-```
+---
 
-Every step target, assertion anchor, and fallback path must point to graph node IDs and selector refs explicitly. No ad-hoc re-derivation.
+## Signals You're Doing It Right
 
-Key consideration: `ScenarioDecomposition` is a model type that goes in `lib/domain/types/`. The lowering logic that produces it belongs in `lib/application/`.
+- You added a new screen and it became available to future scenarios by entering the shared model once — no scenario-local patches required.
+- You changed a selector in one place and 40 scenarios picked up the fix.
+- A dynamic behavior is modeled as a state transition and three scenarios reuse it without knowing about each other.
+- The emitted test reads like a human wrote it, but the trace JSON explains exactly which resolution stage won every step.
+- A run failed, and the receipt tells you *why* it failed with enough specificity to know whether the app changed or the knowledge is stale.
+- The 50th test was cheaper to produce than the 1st.
 
-### Phase 4: Readable Emission
+## Signals You're Drifting
 
-**Goal**: Emit QA-grade Playwright from `GroundedSpecFlow` through one canonical runtime event pipeline.
-
-The emitted code should look like an experienced QA wrote it:
-```typescript
-test('scenario title', async ({ page }) => {
-  await test.step('navigate to policy search', async () => { ... });
-  await test.step('enter policy number', async () => { ... });
-});
-```
-
-Under the surface, every helper maps to:
-1. Resolve `CanonicalTargetRef`
-2. Select best `SelectorProbe` from `SelectorCanon`
-3. Enforce preconditions from current `StateNode`
-4. Dispatch the `EventSignature`
-5. Observe `StateTransition` effects
-6. Record provenance-rich receipts
-
-Use AST-backed code generation (`lib/domain/ts-ast.ts`, `lib/domain/spec-codegen.ts`), never source-string splicing.
-
-### Phase 5: Agent Workbench
-
-**Goal**: Standardize `AgentSessionLedger`, support provider-agnostic adapters.
-
-Key files:
-- `lib/application/agent-session-adapter.ts` — already exists
-- `lib/application/agent-session-ledger.ts` — already exists
-- `lib/domain/types/session.ts` — session types
-
-Typed event vocabulary (all agents must support):
-- orientation, artifact inspection, discovery request
-- observation recorded, spec fragment proposed
-- proposal approved/rejected, rerun requested
-- execution reviewed, benchmark action, replay action
-
-Copilot is an adapter target, not the domain model.
-
-### Phase 6: Learning and Evaluation
-
-**Goal**: Emit replay and training corpora from real provenance.
-
-Key file: `lib/domain/types/learning.ts` — already has `TrainingCorpusManifest` and `GroundedSpecFragment`.
-
-Generative learning runtimes land in fixed order:
-1. decomposition
-2. repair-recovery
-3. workflow
-
-DSPy, GEPA, and similar tooling stay in the offline evaluation lane only. Never route them into the deterministic compiler core.
-
-### Phase 7: Scale Operations
-
-**Goal**: Support 2000+ scenarios through incremental recomputation.
-
-Strategy:
-- One shared interface model, many scenario projections
-- Bounded incremental recomputation by affected graph fingerprints
-- Selector and state knowledge reused across scenarios
-- Discovery focused only on impacted or thin-knowledge surfaces
-
-Metrics to surface:
-- Interface graph drift
-- Selector degradation
-- State transition churn
-- Scenario decomposition instability
-- Knowledge bottlenecks by route, surface, and widget family
-
-## Common Pitfalls
-
-1. **Duplicating selectors**: If you find yourself writing a selector string in a scenario, spec, or receipt — stop. It belongs in `SelectorCanon` only.
-
-2. **Hiding dynamic behavior in runtime code**: If a field toggle reveals another field, the relationship lives in `StateTransitionGraph`, not in emitted waits or recovery code.
-
-3. **Overloading confidence with governance**: `confidence` describes production method; `governance` describes executability. Keep them separate.
-
-4. **Hand-editing derived files**: If you change `generated/` or `.tesseract/tasks/`, you're working in the wrong place. Fix the generator.
-
-5. **Leaking side effects into domain**: `lib/domain/` must stay pure. If you need I/O, use Effect in `lib/application/`.
-
-6. **Source-string splicing for codegen**: Always use AST-backed generation via `lib/domain/ts-ast.ts`.
-
-7. **Skipping provenance**: Every derived artifact must explain what inputs it used, which stage won, and what was exhausted.
-
-8. **Breaking precedence order without tests**: The resolution precedence is compiler semantics. Law tests must cover any changes.
-
-9. **Promoting patterns prematurely**: Land hints screen-locally first. Promote to `knowledge/patterns/` only after repetition or deliberate generalization.
-
-10. **Adding optimization tooling to the compiler core**: DSPy, GEPA, and friends belong in the offline evaluation lane only.
-
-## Command Cheat Sheet
-
-```bash
-npm run context     # print repo brief
-npm run workflow    # inspect lane ownership, controls, precedence
-npm run paths       # show canonical/derived paths for one scenario
-npm run trace       # scenario-centric subgraph
-npm run impact      # impacted subgraph for a node id
-npm run surface     # inspect approved surface graph
-npm run graph       # rebuild dependency/provenance graph
-npm run run         # interpret → execute → evidence → proposals
-npm run types       # regenerate lib/generated/tesseract-knowledge.ts
-npm test            # compiler/runtime/documentation laws
-npm run check       # build + typecheck + lint + test gate
-npm run typecheck   # strict repo-wide typecheck
-npm run lint        # typed lint over hand-authored sources
-```
-
-## Review Surface Contract
-
-Every meaningful change should preserve or improve:
-
-| Artifact | Path |
-|---|---|
-| Emitted spec | `generated/{suite}/{ado_id}.spec.ts` |
-| Trace JSON | `generated/{suite}/{ado_id}.trace.json` |
-| Review markdown | `generated/{suite}/{ado_id}.review.md` |
-| Proposals | `generated/{suite}/{ado_id}.proposals.json` |
-| Resolution | `.tesseract/tasks/{ado_id}.resolution.json` |
-| Graph | `.tesseract/graph/index.json` |
-
-If a new workflow cannot explain itself through these artifacts, it is under-modeled.
-
-## Backlog Priority Quick Reference
-
-| # | Item | Key Dependency |
-|---|---|---|
-| 1 | A1 — ADR collapse: runtime interpretation | — |
-| 2 | A2 — Confidence-gated auto-approval | A1 |
-| 3 | A3 — Dogfood orchestrator | A1, A2 |
-| 4 | B1 — URL variant discovery | — |
-| 5 | D1 — Structured entropy harness | A3, B1 |
-| 6 | B3 — Confidence decay | — |
-| 7 | E2 — VSCode extension surface | — |
-
-A1 is the critical path. It unblocks A2, A3, D1, and F2.
+- You wrote a selector string in a scenario, a spec, or a receipt instead of referencing a target ref.
+- You added a `waitForSelector` or retry loop in emitted code to handle a field reveal that should be a state transition.
+- You confused `confidence` (how a binding was produced) with `governance` (whether it's allowed to execute).
+- You hand-edited a file under `generated/` or `.tesseract/tasks/`.
+- A new workflow produces results that can't be explained through the existing review artifacts.
+- You put I/O in `lib/domain/` because "it's just one call."
+- You promoted a pattern to `knowledge/patterns/` before it proved itself screen-locally.
+- You spliced source strings instead of using the AST codegen.
+- You added optimization tooling (DSPy, GEPA) to the compiler core instead of the offline evaluation lane.
