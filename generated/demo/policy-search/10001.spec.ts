@@ -3,7 +3,7 @@ import { test } from "../../../fixtures/index";
 import { createScenarioRunState, runScenarioHandshake } from "../../../lib/runtime/scenario";
 import { createLocalRuntimeEnvironment } from "../../../lib/infrastructure/runtime/local-runtime-environment";
 import { fixture, generatedToken, literal, workflow } from "../../../lib/generated/workflow-facade";
-test("Verify policy search returns matching policy @smoke @billing @P1", async ({ page, activePolicy, demoSession, generatedTokens }) => {
+test("Verify policy search returns matching policy @smoke @billing @P1", async ({ page, demoSession }) => {
     test.info().annotations.push({
         type: "ado-id",
         description: "10001"
@@ -30,9 +30,7 @@ test("Verify policy search returns matching policy @smoke @billing @P1", async (
             "policy-search"
         ],
         fixtures: {
-            activePolicy,
-            demoSession,
-            generatedTokens
+            demoSession
         },
         mode: process.env.TESSERACT_INTERPRETER_MODE ?? "dry-run" as any,
         provider: "deterministic-runtime-step-agent",
@@ -65,7 +63,37 @@ test("Verify policy search returns matching policy @smoke @billing @P1", async (
             explicitResolution: null,
             controlResolution: null,
             knowledgeRef: "scenario",
-            taskFingerprint: "sha256:5ed237a2aa5d80392312258c7fcc3b8e188b343231c370f9f2db28e5c15a1da9"
+            runtimeKnowledge: undefined,
+            grounding: {
+                targetRefs: [
+                    "target:element:policy-search:searchButton"
+                ],
+                selectorRefs: [
+                    "selector:target:element:policy-search:searchButton:role-name:0:button:Search",
+                    "selector:target:element:policy-search:searchButton:role-name:1:button:Search",
+                    "selector:target:element:policy-search:searchButton:test-id:0:search-button"
+                ],
+                fallbackSelectorRefs: [
+                    "selector:target:element:policy-search:policyNumberInput:role-name:0:textbox:Policy Number",
+                    "selector:target:element:policy-search:policyNumberInput:role-name:1:textbox:Policy Number",
+                    "selector:target:element:policy-search:policyNumberInput:test-id:0:policy-number-input",
+                    "selector:target:element:policy-search:resultsTable:role-name:1:table:Search Results",
+                    "selector:target:element:policy-search:resultsTable:test-id:0:search-results-table",
+                    "selector:target:element:policy-search:searchButton:role-name:0:button:Search",
+                    "selector:target:element:policy-search:searchButton:role-name:1:button:Search",
+                    "selector:target:element:policy-search:searchButton:test-id:0:search-button",
+                    "selector:target:element:policy-search:validationSummary:role-name:1:alert:",
+                    "selector:target:element:policy-search:validationSummary:test-id:0:validation-summary"
+                ],
+                routeVariantRefs: [
+                    "route-variant:demo:policy-search:default",
+                    "route-variant:demo:policy-search:results-with-policy"
+                ],
+                assertionAnchors: [
+                    "snapshot-anchor:policy-search:snapshots/policy-search/results-with-policy.yaml"
+                ]
+            },
+            taskFingerprint: "sha256:6533da5ab9b6a35f13f073ba7f2c1c3aa821032a1fcd9cee6a9cd942bacaa294"
         }, null), runtimeEnvironment, runState, {
             adoId: "10001",
             revision: 1,
@@ -99,7 +127,37 @@ test("Verify policy search returns matching policy @smoke @billing @P1", async (
                 snapshot_template: null
             },
             knowledgeRef: "scenario",
-            taskFingerprint: "sha256:0a0c84c89dfde9f48356198759f9f6f2148c9770b8f840cdf5aa490bff6f2200"
+            runtimeKnowledge: undefined,
+            grounding: {
+                targetRefs: [
+                    "target:element:policy-search:policyNumberInput"
+                ],
+                selectorRefs: [
+                    "selector:target:element:policy-search:policyNumberInput:role-name:0:textbox:Policy Number",
+                    "selector:target:element:policy-search:policyNumberInput:role-name:1:textbox:Policy Number",
+                    "selector:target:element:policy-search:policyNumberInput:test-id:0:policy-number-input"
+                ],
+                fallbackSelectorRefs: [
+                    "selector:target:element:policy-search:policyNumberInput:role-name:0:textbox:Policy Number",
+                    "selector:target:element:policy-search:policyNumberInput:role-name:1:textbox:Policy Number",
+                    "selector:target:element:policy-search:policyNumberInput:test-id:0:policy-number-input",
+                    "selector:target:element:policy-search:resultsTable:role-name:1:table:Search Results",
+                    "selector:target:element:policy-search:resultsTable:test-id:0:search-results-table",
+                    "selector:target:element:policy-search:searchButton:role-name:0:button:Search",
+                    "selector:target:element:policy-search:searchButton:role-name:1:button:Search",
+                    "selector:target:element:policy-search:searchButton:test-id:0:search-button",
+                    "selector:target:element:policy-search:validationSummary:role-name:1:alert:",
+                    "selector:target:element:policy-search:validationSummary:test-id:0:validation-summary"
+                ],
+                routeVariantRefs: [
+                    "route-variant:demo:policy-search:default",
+                    "route-variant:demo:policy-search:results-with-policy"
+                ],
+                assertionAnchors: [
+                    "snapshot-anchor:policy-search:snapshots/policy-search/results-with-policy.yaml"
+                ]
+            },
+            taskFingerprint: "sha256:18c470a16f057ca7f4219e3ce0236b3176c45f137c8327d70341fdc370c6e73c"
         }, workflow.screen("policy-search").element("policyNumberInput").input(null, "valid")), runtimeEnvironment, runState, {
             adoId: "10001",
             revision: 1,
@@ -133,7 +191,37 @@ test("Verify policy search returns matching policy @smoke @billing @P1", async (
                 snapshot_template: null
             },
             knowledgeRef: "scenario",
-            taskFingerprint: "sha256:4901808265366a83faccc807af0445df9b66ff3db397d3d36cd912af0b51766c"
+            runtimeKnowledge: undefined,
+            grounding: {
+                targetRefs: [
+                    "target:element:policy-search:searchButton"
+                ],
+                selectorRefs: [
+                    "selector:target:element:policy-search:searchButton:role-name:0:button:Search",
+                    "selector:target:element:policy-search:searchButton:role-name:1:button:Search",
+                    "selector:target:element:policy-search:searchButton:test-id:0:search-button"
+                ],
+                fallbackSelectorRefs: [
+                    "selector:target:element:policy-search:policyNumberInput:role-name:0:textbox:Policy Number",
+                    "selector:target:element:policy-search:policyNumberInput:role-name:1:textbox:Policy Number",
+                    "selector:target:element:policy-search:policyNumberInput:test-id:0:policy-number-input",
+                    "selector:target:element:policy-search:resultsTable:role-name:1:table:Search Results",
+                    "selector:target:element:policy-search:resultsTable:test-id:0:search-results-table",
+                    "selector:target:element:policy-search:searchButton:role-name:0:button:Search",
+                    "selector:target:element:policy-search:searchButton:role-name:1:button:Search",
+                    "selector:target:element:policy-search:searchButton:test-id:0:search-button",
+                    "selector:target:element:policy-search:validationSummary:role-name:1:alert:",
+                    "selector:target:element:policy-search:validationSummary:test-id:0:validation-summary"
+                ],
+                routeVariantRefs: [
+                    "route-variant:demo:policy-search:default",
+                    "route-variant:demo:policy-search:results-with-policy"
+                ],
+                assertionAnchors: [
+                    "snapshot-anchor:policy-search:snapshots/policy-search/results-with-policy.yaml"
+                ]
+            },
+            taskFingerprint: "sha256:dc2093d2dbefcad560d8ba50c2efce771d6c0032f3d62b839bd8aa21acf71b7c"
         }, workflow.screen("policy-search").element("searchButton").click()), runtimeEnvironment, runState, {
             adoId: "10001",
             revision: 1,
@@ -167,7 +255,36 @@ test("Verify policy search returns matching policy @smoke @billing @P1", async (
                 snapshot_template: "snapshots/policy-search/results-with-policy.yaml"
             },
             knowledgeRef: "scenario",
-            taskFingerprint: "sha256:1791050358dd7ab29a92c131a817098ce632b8571fb1edd557916c6aec7e52a5"
+            runtimeKnowledge: undefined,
+            grounding: {
+                targetRefs: [
+                    "target:element:policy-search:resultsTable"
+                ],
+                selectorRefs: [
+                    "selector:target:element:policy-search:resultsTable:role-name:1:table:Search Results",
+                    "selector:target:element:policy-search:resultsTable:test-id:0:search-results-table"
+                ],
+                fallbackSelectorRefs: [
+                    "selector:target:element:policy-search:policyNumberInput:role-name:0:textbox:Policy Number",
+                    "selector:target:element:policy-search:policyNumberInput:role-name:1:textbox:Policy Number",
+                    "selector:target:element:policy-search:policyNumberInput:test-id:0:policy-number-input",
+                    "selector:target:element:policy-search:resultsTable:role-name:1:table:Search Results",
+                    "selector:target:element:policy-search:resultsTable:test-id:0:search-results-table",
+                    "selector:target:element:policy-search:searchButton:role-name:0:button:Search",
+                    "selector:target:element:policy-search:searchButton:role-name:1:button:Search",
+                    "selector:target:element:policy-search:searchButton:test-id:0:search-button",
+                    "selector:target:element:policy-search:validationSummary:role-name:1:alert:",
+                    "selector:target:element:policy-search:validationSummary:test-id:0:validation-summary"
+                ],
+                routeVariantRefs: [
+                    "route-variant:demo:policy-search:default",
+                    "route-variant:demo:policy-search:results-with-policy"
+                ],
+                assertionAnchors: [
+                    "snapshot-anchor:policy-search:snapshots/policy-search/results-with-policy.yaml"
+                ]
+            },
+            taskFingerprint: "sha256:7110355b9ffd37eb4263b3764d82b594ded0cfa2a1698217de9bf5840ce811a9"
         }, workflow.screen("policy-search").element("resultsTable").observeStructure("snapshots/policy-search/results-with-policy.yaml")), runtimeEnvironment, runState, {
             adoId: "10001",
             revision: 1,

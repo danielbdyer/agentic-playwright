@@ -4,13 +4,18 @@ import { createSnapshotTemplateId } from '../../domain/identity';
 import { mergePatternDocuments } from '../../domain/knowledge/patterns';
 import type {
   AdoSnapshot,
+  AgentSession,
   ApprovalReceipt,
   BenchmarkContext,
   BoundScenario,
+  ApplicationInterfaceGraph,
   ConfidenceOverlayCatalog,
   DatasetControl,
+  DiscoveryRun,
   EvidenceRecord,
+  HarvestManifest,
   InterpretationDriftRecord,
+  ReplayExample,
   ResolutionGraphRecord,
   PatternDocument,
   ProposalBundle,
@@ -19,21 +24,28 @@ import type {
   RunRecord,
   RunbookControl,
   Scenario,
+  SelectorCanon,
   ScenarioTaskPacket,
   ScreenElements,
   ScreenHints,
   ScreenPostures,
   SurfaceGraph,
+  TrainingCorpusManifest,
 } from '../../domain/types';
 import {
   validateAdoSnapshot,
+  validateAgentSession,
   validateApprovalReceipt,
   validateBenchmarkContext,
   validateBoundScenario,
+  validateApplicationInterfaceGraph,
   validateConfidenceOverlayCatalog,
   validateDatasetControl,
+  validateDiscoveryRun,
+  validateHarvestManifest,
   validatePatternDocument,
   validateProposalBundle,
+  validateReplayExample,
   validateResolutionControl,
   validateRerunPlan,
   validateRunRecord,
@@ -43,7 +55,9 @@ import {
   validateScreenElements,
   validateScreenHints,
   validateScreenPostures,
+  validateSelectorCanon,
   validateSurfaceGraph,
+  validateTrainingCorpusManifest,
   validateTrustPolicy,
   validateInterpretationDriftRecord,
   validateResolutionGraphRecord,
@@ -239,6 +253,30 @@ export function loadWorkspaceCatalog(options: { paths: ProjectPaths }) {
       ));
     }
 
+    const routeFiles = (yield* walkFiles(fs, options.paths.routesDir)).filter((filePath) => filePath.endsWith('.routes.yaml'));
+    const routeManifests: ArtifactEnvelope<HarvestManifest>[] = [];
+    for (const filePath of routeFiles) {
+      routeManifests.push(yield* readYamlArtifact(
+        options.paths,
+        filePath,
+        validateHarvestManifest,
+        'harvest-manifest-validation-failed',
+        `Harvest manifest ${filePath} failed validation`,
+      ));
+    }
+
+    const discoveryFiles = (yield* walkFiles(fs, options.paths.discoveryDir)).filter((filePath) => path.basename(filePath) === 'crawl.json');
+    const discoveryRuns: ArtifactEnvelope<DiscoveryRun>[] = [];
+    for (const filePath of discoveryFiles) {
+      discoveryRuns.push(yield* readJsonArtifact(
+        options.paths,
+        filePath,
+        validateDiscoveryRun,
+        'discovery-run-validation-failed',
+        `Discovery run ${filePath} failed validation`,
+      ));
+    }
+
 
 
     const resolutionGraphFiles = (yield* walkFiles(fs, options.paths.runsDir)).filter((filePath) => path.basename(filePath) === 'resolution-graph.json');
@@ -324,6 +362,67 @@ export function loadWorkspaceCatalog(options: { paths: ProjectPaths }) {
         )
       : null as ArtifactEnvelope<ConfidenceOverlayCatalog> | null;
 
+    const interfaceGraph = (yield* fs.exists(options.paths.interfaceGraphIndexPath))
+      ? (() => Effect.gen(function* () {
+          const result = yield* Effect.either(readJsonArtifact(
+            options.paths,
+            options.paths.interfaceGraphIndexPath,
+            validateApplicationInterfaceGraph,
+            'application-interface-graph-validation-failed',
+            `Application interface graph ${options.paths.interfaceGraphIndexPath} failed validation`,
+          ));
+          return result._tag === 'Right' ? result.right : null;
+        }))()
+      : Effect.succeed(null as ArtifactEnvelope<ApplicationInterfaceGraph> | null);
+
+    const selectorCanon = (yield* fs.exists(options.paths.selectorCanonPath))
+      ? (() => Effect.gen(function* () {
+          const result = yield* Effect.either(readJsonArtifact(
+            options.paths,
+            options.paths.selectorCanonPath,
+            validateSelectorCanon,
+            'selector-canon-validation-failed',
+            `Selector canon ${options.paths.selectorCanonPath} failed validation`,
+          ));
+          return result._tag === 'Right' ? result.right : null;
+        }))()
+      : Effect.succeed(null as ArtifactEnvelope<SelectorCanon> | null);
+
+    const sessionFiles = (yield* walkFiles(fs, options.paths.sessionsDir)).filter((filePath) => path.basename(filePath) === 'session.json');
+    const agentSessions: ArtifactEnvelope<AgentSession>[] = [];
+    for (const filePath of sessionFiles) {
+      agentSessions.push(yield* readJsonArtifact(
+        options.paths,
+        filePath,
+        validateAgentSession,
+        'agent-session-validation-failed',
+        `Agent session ${filePath} failed validation`,
+      ));
+    }
+
+    const learningManifest = (yield* fs.exists(options.paths.learningManifestPath))
+      ? yield* readJsonArtifact(
+          options.paths,
+          options.paths.learningManifestPath,
+          validateTrainingCorpusManifest,
+          'training-corpus-manifest-validation-failed',
+          `Training corpus manifest ${options.paths.learningManifestPath} failed validation`,
+        )
+      : null as ArtifactEnvelope<TrainingCorpusManifest> | null;
+
+    const replayFiles = (yield* walkFiles(fs, path.join(options.paths.learningDir, 'replays')))
+      .filter((filePath) => filePath.endsWith('.json'));
+    const replayExamples: ArtifactEnvelope<ReplayExample>[] = [];
+    for (const filePath of replayFiles) {
+      replayExamples.push(yield* readJsonArtifact(
+        options.paths,
+        filePath,
+        validateReplayExample,
+        'replay-example-validation-failed',
+        `Replay example ${filePath} failed validation`,
+      ));
+    }
+
     const trustPolicy = yield* readYamlArtifact(
       options.paths,
       options.paths.trustPolicyPath,
@@ -344,6 +443,7 @@ export function loadWorkspaceCatalog(options: { paths: ProjectPaths }) {
       rerunPlans,
       datasets,
       benchmarks,
+      routeManifests,
       resolutionControls,
       runbooks,
       surfaces,
@@ -357,10 +457,16 @@ export function loadWorkspaceCatalog(options: { paths: ProjectPaths }) {
         artifact: entry.artifact,
       }))),
       knowledgeSnapshots,
+      discoveryRuns,
       evidenceRecords,
       interpretationDriftRecords,
       resolutionGraphRecords,
       confidenceCatalog,
+      interfaceGraph: yield* interfaceGraph,
+      selectorCanon: yield* selectorCanon,
+      agentSessions,
+      learningManifest,
+      replayExamples,
       trustPolicy,
     } satisfies WorkspaceCatalog;
   });

@@ -1,4 +1,14 @@
-import type { ElementId, PostureId, ScreenId, SectionId, SnapshotTemplateId, SurfaceId, WidgetId } from '../identity';
+import type {
+  CanonicalTargetRef,
+  ElementId,
+  PostureId,
+  ScreenId,
+  SectionId,
+  SelectorRef,
+  SnapshotTemplateId,
+  SurfaceId,
+  WidgetId,
+} from '../identity';
 import type {
   AssertionKind,
   EffectState,
@@ -13,6 +23,7 @@ import type { RuntimeControlSession } from './resolution';
 
 export interface StepTaskElementCandidate {
   element: ElementId;
+  targetRef?: CanonicalTargetRef | null | undefined;
   role: string;
   name?: string | null | undefined;
   surface: SurfaceId;
@@ -24,16 +35,20 @@ export interface StepTaskElementCandidate {
   defaultValueRef?: string | null | undefined;
   parameter?: string | null | undefined;
   snapshotAliases?: Record<string, string[]> | undefined;
+  graphNodeId?: string | null | undefined;
+  selectorRefs?: SelectorRef[] | undefined;
 }
 
 export interface StepTaskScreenCandidate {
   screen: ScreenId;
   url: string;
+  routeVariantRefs?: string[] | undefined;
   screenAliases: string[];
   knowledgeRefs: string[];
   supplementRefs: string[];
   elements: StepTaskElementCandidate[];
   sectionSnapshots: SnapshotTemplateId[];
+  graphNodeId?: string | null | undefined;
 }
 
 export type ApprovalEquivalenceStatus = 'learning' | 'approved-equivalent' | 'needs-review';
@@ -77,6 +92,10 @@ export interface ConfidenceOverlayCatalog {
 export interface RuntimeKnowledgeSession {
   knowledgeFingerprint: string;
   confidenceFingerprint?: string | null | undefined;
+  interfaceGraphFingerprint?: string | null | undefined;
+  selectorCanonFingerprint?: string | null | undefined;
+  interfaceGraphPath?: string | null | undefined;
+  selectorCanonPath?: string | null | undefined;
   sharedPatterns: SharedPatterns;
   screens: StepTaskScreenCandidate[];
   evidenceRefs: string[];

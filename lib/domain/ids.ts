@@ -1,4 +1,14 @@
-﻿import type { AdoId, ElementId, PostureId, ScreenId, SnapshotTemplateId, SurfaceId } from './identity';
+import type {
+  AdoId,
+  CanonicalTargetRef,
+  ElementId,
+  PostureId,
+  RouteId,
+  RouteVariantId,
+  ScreenId,
+  SnapshotTemplateId,
+  SurfaceId,
+} from './identity';
 
 const separators = {
   graph: ':',
@@ -18,6 +28,8 @@ export const graphIds = {
     ado: (adoId: AdoId): string => joinGraphId('snapshot', 'ado', adoId),
     knowledge: (relativePath: SnapshotTemplateId | string): string => joinGraphId('snapshot', 'knowledge', normalizePathFragment(relativePath)),
   },
+  route: (routeId: RouteId | string): string => joinGraphId('route', routeId),
+  routeVariant: (routeId: RouteId | string, variantId: RouteVariantId | string): string => joinGraphId('route-variant', routeId, variantId),
   screen: (screenId: ScreenId): string => joinGraphId('screen', screenId),
   screenHints: (screenId: ScreenId): string => joinGraphId('screen-hints', screenId),
   pattern: (patternId: string): string => joinGraphId('pattern', normalizePathFragment(patternId)),
@@ -28,6 +40,10 @@ export const graphIds = {
   section: (screenId: ScreenId, sectionId: string): string => joinGraphId('section', screenId, sectionId),
   surface: (screenId: ScreenId, surfaceId: SurfaceId): string => joinGraphId('surface', screenId, surfaceId),
   element: (screenId: ScreenId, elementId: ElementId): string => joinGraphId('element', screenId, elementId),
+  target: (targetRef: CanonicalTargetRef | string): string => joinGraphId('target', targetRef),
+  snapshotAnchor: (screenId: ScreenId, snapshotTemplateId: SnapshotTemplateId | string): string =>
+    joinGraphId('snapshot-anchor', screenId, normalizePathFragment(snapshotTemplateId)),
+  harvestRun: (runId: string): string => joinGraphId('harvest-run', runId),
   posture: (screenId: ScreenId, elementId: ElementId, postureId: PostureId): string => joinGraphId('posture', screenId, elementId, postureId),
   capability: {
     screen: (screenId: ScreenId): string => joinGraphId('capability', 'screen', screenId),
@@ -52,6 +68,7 @@ export const mcpUris = {
 } as const;
 
 export const knowledgePaths = {
+  routes: (app: string): string => `knowledge/routes/${app}.routes.yaml`,
   surface: (screenId: ScreenId): string => `knowledge/surfaces/${screenId}.surface.yaml`,
   elements: (screenId: ScreenId): string => `knowledge/screens/${screenId}.elements.yaml`,
   postures: (screenId: ScreenId): string => `knowledge/screens/${screenId}.postures.yaml`,

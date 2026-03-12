@@ -15,15 +15,22 @@ export interface ProjectPaths {
   resolutionControlsDir: string;
   runbooksDir: string;
   knowledgeDir: string;
+  routesDir: string;
   surfacesDir: string;
   patternsDir: string;
   generatedDir: string;
   generatedTypesDir: string;
   tesseractDir: string;
+  interfaceDir: string;
+  interfaceGraphIndexPath: string;
+  selectorCanonPath: string;
   discoveryDir: string;
   boundDir: string;
   tasksDir: string;
   runsDir: string;
+  sessionsDir: string;
+  learningDir: string;
+  learningManifestPath: string;
   inboxDir: string;
   inboxIndexPath: string;
   inboxReportPath: string;
@@ -55,15 +62,22 @@ export function createProjectPaths(rootDir: string): ProjectPaths {
     resolutionControlsDir: path.join(rootDir, 'controls', 'resolution'),
     runbooksDir: path.join(rootDir, 'controls', 'runbooks'),
     knowledgeDir: path.join(rootDir, 'knowledge'),
+    routesDir: path.join(rootDir, 'knowledge', 'routes'),
     surfacesDir: path.join(rootDir, 'knowledge', 'surfaces'),
     patternsDir: path.join(rootDir, 'knowledge', 'patterns'),
     generatedDir: path.join(rootDir, 'generated'),
     generatedTypesDir: path.join(rootDir, 'lib', 'generated'),
     tesseractDir: path.join(rootDir, '.tesseract'),
+    interfaceDir: path.join(rootDir, '.tesseract', 'interface'),
+    interfaceGraphIndexPath: path.join(rootDir, '.tesseract', 'interface', 'index.json'),
+    selectorCanonPath: path.join(rootDir, '.tesseract', 'interface', 'selectors.json'),
     discoveryDir: path.join(rootDir, '.tesseract', 'discovery'),
     boundDir: path.join(rootDir, '.tesseract', 'bound'),
     tasksDir: path.join(rootDir, '.tesseract', 'tasks'),
     runsDir: path.join(rootDir, '.tesseract', 'runs'),
+    sessionsDir: path.join(rootDir, '.tesseract', 'sessions'),
+    learningDir: path.join(rootDir, '.tesseract', 'learning'),
+    learningManifestPath: path.join(rootDir, '.tesseract', 'learning', 'manifest.json'),
     inboxDir: path.join(rootDir, '.tesseract', 'inbox'),
     inboxIndexPath: path.join(rootDir, '.tesseract', 'inbox', 'index.json'),
     inboxReportPath: path.join(rootDir, 'generated', 'operator', 'inbox.md'),
@@ -132,6 +146,26 @@ export function taskPacketPath(paths: ProjectPaths, adoId: AdoId): string {
 
 export function runDirPath(paths: ProjectPaths, adoId: AdoId, runId: string): string {
   return path.join(paths.runsDir, `${adoId}`, runId);
+}
+
+export function agentSessionDirPath(paths: ProjectPaths, sessionId: string): string {
+  return resolvePathWithinRoot(paths.sessionsDir, sessionId, 'sessionId');
+}
+
+export function agentSessionPath(paths: ProjectPaths, sessionId: string): string {
+  return path.join(agentSessionDirPath(paths, sessionId), 'session.json');
+}
+
+export function agentSessionEventsPath(paths: ProjectPaths, sessionId: string): string {
+  return path.join(agentSessionDirPath(paths, sessionId), 'events.jsonl');
+}
+
+export function agentSessionTranscriptRefsPath(paths: ProjectPaths, sessionId: string): string {
+  return path.join(agentSessionDirPath(paths, sessionId), 'transcripts.json');
+}
+
+export function learningRuntimeDirPath(paths: ProjectPaths, runtime: 'decomposition' | 'repair-recovery' | 'workflow' | 'replays'): string {
+  return resolvePathWithinRoot(paths.learningDir, runtime, 'runtime');
 }
 
 export function interpretationPath(paths: ProjectPaths, adoId: AdoId, runId: string): string {

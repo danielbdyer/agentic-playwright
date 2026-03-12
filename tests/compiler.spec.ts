@@ -6,7 +6,9 @@ import { impactNode } from '../lib/application/impact';
 import { emitOperatorInbox } from '../lib/application/inbox';
 import { describeScenarioPaths } from '../lib/application/inspect';
 import { emitScenario } from '../lib/application/emit';
+import { loadWorkspaceCatalog } from '../lib/application/catalog';
 import { emitManifestPath } from '../lib/application/paths';
+import { resolveAgentSessionAdapter } from '../lib/application/provider-registry';
 import { refreshScenario } from '../lib/application/refresh';
 import { runScenario } from '../lib/application/run';
 import { replayInterpretation } from '../lib/application/replay-interpretation';
@@ -18,9 +20,11 @@ import type { ProjectionCacheMissIncremental, ProjectionIncremental } from '../l
 import { runWithLocalServices } from '../lib/composition/local-services';
 import { createAdoId, createElementId, createScreenId, createSurfaceId } from '../lib/domain/identity';
 import { graphIds } from '../lib/domain/ids';
+import { harvestDeclaredRoutes } from '../lib/infrastructure/tooling/harvest-routes';
 import { createTestWorkspace } from './support/workspace';
 
 const policySearchScreenId = createScreenId('policy-search');
+const policyNumberInputId = createElementId('policyNumberInput');
 const searchButtonId = createElementId('searchButton');
 const resultsTableId = createElementId('resultsTable');
 const resultsGridId = createSurfaceId('results-grid');
@@ -106,9 +110,15 @@ test('paths identifies surface, graph, generated review, and supplement artifact
     expect(projectPath(result.artifacts.bound)).toContain('.tesseract/bound/10001.json');
     expect(projectPath(result.artifacts.task)).toContain('.tesseract/tasks/10001.resolution.json');
     expect(projectPath(result.artifacts.graph)).toContain('.tesseract/graph/index.json');
+    expect(projectPath(result.artifacts.interfaceGraph)).toContain('.tesseract/interface/index.json');
+    expect(projectPath(result.artifacts.selectorCanon)).toContain('.tesseract/interface/selectors.json');
     expect(projectPath(result.artifacts.trace)).toContain('generated/demo/policy-search/10001.trace.json');
     expect(projectPath(result.artifacts.review)).toContain('generated/demo/policy-search/10001.review.md');
+    expect(projectPath(result.artifacts.learningManifest)).toContain('.tesseract/learning/manifest.json');
     expect(projectPath(result.artifacts.trustPolicy)).toContain('.tesseract/policy/trust-policy.yaml');
+    expect(projectPath(result.roots.interface)).toContain('.tesseract/interface');
+    expect(projectPath(result.roots.sessions)).toContain('.tesseract/sessions');
+    expect(projectPath(result.roots.learning)).toContain('.tesseract/learning');
     expect(result.supplements.sharedPatterns).toContain('knowledge/patterns/core.patterns.yaml');
     expect(result.knowledge).toEqual([
       {
@@ -119,6 +129,55 @@ test('paths identifies surface, graph, generated review, and supplement artifact
         hints: expect.stringContaining('policy-search.hints.yaml'),
       },
     ]);
+  } finally {
+    workspace.cleanup();
+  }
+});
+
+test('harvest visits declared route variants and writes route-scoped receipts', async () => {
+  const workspace = createTestWorkspace('compiler-harvest');
+  try {
+    const result = await runWithLocalServices(
+      harvestDeclaredRoutes({ paths: workspace.paths, app: 'demo' }),
+      workspace.rootDir,
+    );
+    const index = workspace.readJson<{
+      app: string;
+      receipts: Array<{ routeId: string; variantId: string; status: string; receiptPath?: string }>;
+    }>('.tesseract', 'discovery', 'demo', 'index.json');
+    const defaultReceipt = workspace.readJson<{
+      app: string;
+      routeId: string;
+      variantId: string;
+      url: string;
+      targets: unknown[];
+      selectorProbes: unknown[];
+    }>('.tesseract', 'discovery', 'demo', 'policy-search', 'default', 'crawl.json');
+    const seededReceipt = workspace.readJson<{ variantId: string; url: string }>(
+      '.tesseract',
+      'discovery',
+      'demo',
+      'policy-search',
+      'results-with-policy',
+      'crawl.json',
+    );
+
+    expect(result.failures).toEqual([]);
+    expect(result.receipts).toEqual([
+      '.tesseract/discovery/demo/policy-search/default/crawl.json',
+      '.tesseract/discovery/demo/policy-search/results-with-policy/crawl.json',
+    ]);
+    expect(index.app).toBe('demo');
+    expect(index.receipts).toHaveLength(2);
+    expect(index.receipts.every((entry) => entry.status === 'ok')).toBeTruthy();
+    expect(defaultReceipt.app).toBe('demo');
+    expect(defaultReceipt.routeId).toBe('policy-search');
+    expect(defaultReceipt.variantId).toBe('default');
+    expect(defaultReceipt.url.startsWith('file:///')).toBeTruthy();
+    expect(defaultReceipt.targets.length).toBeGreaterThan(0);
+    expect(defaultReceipt.selectorProbes.length).toBeGreaterThan(0);
+    expect(seededReceipt.variantId).toBe('results-with-policy');
+    expect(seededReceipt.url).toContain('seed=POL-001');
   } finally {
     workspace.cleanup();
   }
@@ -212,6 +271,10 @@ test('run emits interpretation and execution receipts, then reprojects review su
     expect(traceArtifact.summary.provenanceKinds.unresolved).toBe(0);
     expect(traceArtifact.steps.every((step: { runtime: { status: string } }) => step.runtime.status === 'resolved')).toBeTruthy();
     expect(review).toContain('Runtime: resolved');
+    expect(review).toContain('Interface graph fingerprint:');
+    expect(review).toContain('Selector canon fingerprint:');
+    expect(review).toContain('Agent sessions: 1');
+    expect(review).toContain('Learning corpora: 3');
     expect(proposalBundle.proposals).toEqual([]);
     expect(graph.nodes.find((node: { id: string; payload?: Record<string, unknown> }) => node.id === graphIds.step(adoId, 2))?.payload?.runtimeStatus).toBe('resolved');
     expect(inboxReport).toContain('## Hotspot suggestions');
@@ -556,46 +619,292 @@ test('graph projection includes policy decision audit nodes and governs edges', 
   }
 });
 
-test('task packet separates task and knowledge fingerprints via scenario runtime knowledge session', async () => {
+test('task packet separates task and knowledge fingerprints via shared interface references', async () => {
   const workspace = createTestWorkspace('task-packet-fingerprint-separation');
   try {
     const adoId = createAdoId('10001');
     const first = await runWithLocalServices(refreshScenario({ adoId, paths: workspace.paths }), workspace.rootDir);
-    const firstPacket = workspace.readJson<{ knowledgeFingerprint: string; steps: Array<{ taskFingerprint: string; knowledgeRef?: string; runtimeKnowledge?: unknown }>; runtimeKnowledgeSession?: unknown }>('.tesseract', 'tasks', '10001.resolution.json');
+    const firstPacket = workspace.readJson<{ payload: { knowledgeFingerprint: string; steps: Array<{ taskFingerprint: string; knowledgeRef?: string; runtimeKnowledge?: unknown }>; interface: unknown; selectors: unknown } }>('.tesseract', 'tasks', '10001.resolution.json');
 
-    expect(firstPacket.runtimeKnowledgeSession).toBeTruthy();
-    expect(firstPacket.steps.every((step) => step.knowledgeRef === 'scenario')).toBeTruthy();
-    expect(firstPacket.steps.every((step) => step.runtimeKnowledge === undefined)).toBeTruthy();
+    expect(firstPacket.payload.interface).toBeTruthy();
+    expect(firstPacket.payload.selectors).toBeTruthy();
+    expect(firstPacket.payload.steps.every((step) => step.knowledgeRef === 'scenario')).toBeTruthy();
+    expect(firstPacket.payload.steps.every((step) => step.runtimeKnowledge === undefined)).toBeTruthy();
 
-    const firstStepFingerprints = firstPacket.steps.map((step) => step.taskFingerprint);
+    const firstStepFingerprints = firstPacket.payload.steps.map((step) => step.taskFingerprint);
 
     const hintsPath = workspace.resolve('knowledge', 'screens', 'policy-search.hints.yaml');
     const originalHints = readFileSync(hintsPath, 'utf8').replace(/^\uFEFF/, '');
     writeFileSync(hintsPath, originalHints.replace('policy search screen', 'policy search workspace'), 'utf8');
 
     const second = await runWithLocalServices(refreshScenario({ adoId, paths: workspace.paths }), workspace.rootDir);
-    const secondPacket = workspace.readJson<{ knowledgeFingerprint: string; steps: Array<{ taskFingerprint: string }>; taskFingerprint: string }>('.tesseract', 'tasks', '10001.resolution.json');
+    const secondPacket = workspace.readJson<{ payload: { knowledgeFingerprint: string; steps: Array<{ taskFingerprint: string }> }; taskFingerprint: string }>('.tesseract', 'tasks', '10001.resolution.json');
 
-    expect(second.compile.compileSnapshot.taskPacket.knowledgeFingerprint).not.toBe(first.compile.compileSnapshot.taskPacket.knowledgeFingerprint);
-    expect(secondPacket.steps.map((step) => step.taskFingerprint)).toEqual(firstStepFingerprints);
+    expect(second.compile.compileSnapshot.taskPacket.payload.knowledgeFingerprint).not.toBe(first.compile.compileSnapshot.taskPacket.payload.knowledgeFingerprint);
+    expect(secondPacket.payload.steps.map((step) => step.taskFingerprint)).toEqual(firstStepFingerprints);
     expect(secondPacket.taskFingerprint).not.toBe(first.compile.compileSnapshot.taskPacket.taskFingerprint);
   } finally {
     workspace.cleanup();
   }
 });
 
-test('task packet size stays bounded with shared runtime knowledge session', async () => {
+test('task packet size stays bounded with shared interface references', async () => {
   const workspace = createTestWorkspace('task-packet-size-sanity');
   try {
     const adoId = createAdoId('10001');
     await runWithLocalServices(refreshScenario({ adoId, paths: workspace.paths }), workspace.rootDir);
     const taskPath = workspace.resolve('.tesseract', 'tasks', '10001.resolution.json');
-    const packet = workspace.readJson<{ runtimeKnowledgeSession: unknown; steps: Array<{ runtimeKnowledge?: unknown }> }>('.tesseract', 'tasks', '10001.resolution.json');
+    const packet = workspace.readJson<{ payload: { interface: unknown; selectors: unknown; steps: Array<{ runtimeKnowledge?: unknown }> } }>('.tesseract', 'tasks', '10001.resolution.json');
     const sizeBytes = statSync(taskPath).size;
 
-    expect(packet.runtimeKnowledgeSession).toBeTruthy();
-    expect(packet.steps.some((step) => step.runtimeKnowledge !== undefined)).toBeFalsy();
+    expect(packet.payload.interface).toBeTruthy();
+    expect(packet.payload.selectors).toBeTruthy();
+    expect(packet.payload.steps.some((step) => step.runtimeKnowledge !== undefined)).toBeFalsy();
     expect(sizeBytes).toBeLessThan(150_000);
+  } finally {
+    workspace.cleanup();
+  }
+});
+
+test('interface intelligence compiles deterministic graph and selector canon with grounded task packets', async () => {
+  const workspace = createTestWorkspace('interface-intelligence');
+  try {
+    const discoveryDir = workspace.resolve('.tesseract', 'discovery', 'policy-search');
+    mkdirSync(discoveryDir, { recursive: true });
+      const discoveryTargetRef = `target:element:${policySearchScreenId}:${policyNumberInputId}`;
+      writeFileSync(
+        path.join(discoveryDir, 'crawl.json'),
+        `${JSON.stringify({
+          kind: 'discovery-run',
+          version: 2,
+          stage: 'preparation',
+          scope: 'workspace',
+          governance: 'approved',
+          app: 'demo',
+          routeId: 'policy-search',
+          variantId: 'default',
+          routeVariantRef: 'route-variant:demo:policy-search:default',
+          runId: 'seeded-discovery-run',
+          screen: 'policy-search',
+          url: '/policy-search',
+        title: 'Policy Search',
+        discoveredAt: '2026-03-10T00:00:00.000Z',
+        artifactPath: '.tesseract/discovery/policy-search/crawl.json',
+        rootSelector: 'body',
+        snapshotHash: 'sha256:seeded-discovery',
+        sections: [{
+          id: 'searchFormSection',
+          depth: 0,
+          selector: 'form',
+          surfaceIds: ['search-form'],
+          elementIds: ['policyNumberInput'],
+        }],
+        surfaces: [{
+          id: 'search-form',
+          targetRef: `target:surface:${policySearchScreenId}:search-form`,
+          section: 'searchFormSection',
+          selector: 'form',
+          role: 'form',
+          name: 'Search form',
+          kind: 'form',
+          assertions: ['state'],
+          testId: 'policy-search-form',
+        }],
+        elements: [{
+          id: 'policyNumberInput',
+          targetRef: discoveryTargetRef,
+          surface: 'search-form',
+          selector: "[data-testid='policy-number']",
+          role: 'textbox',
+          name: 'Policy Number',
+          testId: 'policy-number',
+          widget: 'os-input',
+          required: true,
+          locatorHint: 'test-id',
+          locatorCandidates: [{ kind: 'test-id', value: 'policy-number' }],
+        }],
+        snapshotAnchors: [],
+        targets: [{
+          targetRef: discoveryTargetRef,
+          graphNodeId: graphIds.target(discoveryTargetRef),
+          kind: 'element',
+          screen: 'policy-search',
+          section: 'searchFormSection',
+          surface: 'search-form',
+          element: 'policyNumberInput',
+        }],
+        reviewNotes: [],
+        selectorProbes: [{
+          id: `${discoveryTargetRef}:probe:test-id:0`,
+          selectorRef: `selector:${discoveryTargetRef}:test-id:0:policy-number`,
+          targetRef: discoveryTargetRef,
+          graphNodeId: graphIds.target(discoveryTargetRef),
+          screen: 'policy-search',
+          section: 'searchFormSection',
+          element: 'policyNumberInput',
+          strategy: { kind: 'test-id', value: 'policy-number' },
+          source: 'discovery',
+          variantRef: 'route-variant:demo:policy-search:default',
+        }],
+        graphDeltas: {
+          nodeIds: [graphIds.target(discoveryTargetRef)],
+          edgeIds: [],
+        },
+      }, null, 2)}\n`,
+      'utf8',
+    );
+
+    const adoId = createAdoId('10001');
+    const first = await runWithLocalServices(refreshScenario({ adoId, paths: workspace.paths }), workspace.rootDir);
+    const firstGraph = workspace.readJson<{ fingerprint: string; discoveryRunIds: string[]; nodes: Array<{ id: string; kind: string }> }>('.tesseract', 'interface', 'index.json');
+    const firstSelectors = workspace.readJson<{ fingerprint: string; entries: Array<{ probes: Array<{ selectorRef: string; source: string }> }> }>('.tesseract', 'interface', 'selectors.json');
+    const taskPacket = workspace.readJson<{
+      payload: {
+        interface: { fingerprint?: string };
+        selectors: { fingerprint?: string };
+        steps: Array<{ grounding?: { selectorRefs: string[] } }>;
+      };
+    }>('.tesseract', 'tasks', '10001.resolution.json');
+
+    expect(firstGraph.discoveryRunIds).toContain('seeded-discovery-run');
+    expect(firstGraph.nodes.some((node) => node.kind === 'harvest-run' && node.id === 'harvest-run:seeded-discovery-run')).toBeTruthy();
+    expect(firstSelectors.entries.some((entry) => entry.probes.some((probe) => probe.source === 'discovery' && probe.selectorRef.includes('policy-number')))).toBeTruthy();
+    expect(taskPacket.payload.interface.fingerprint).toBe(firstGraph.fingerprint);
+    expect(taskPacket.payload.selectors.fingerprint).toBe(firstSelectors.fingerprint);
+    expect(taskPacket.payload.steps.every((step) => step.grounding !== undefined)).toBeTruthy();
+    expect(taskPacket.payload.steps.some((step) => (step.grounding?.selectorRefs.length ?? 0) > 0)).toBeTruthy();
+    expect(first.compile.compileSnapshot.taskPacket.payload.interface.fingerprint).toBe(firstGraph.fingerprint);
+    expect(first.compile.compileSnapshot.taskPacket.payload.selectors.fingerprint).toBe(firstSelectors.fingerprint);
+
+    await runWithLocalServices(refreshScenario({ adoId, paths: workspace.paths }), workspace.rootDir);
+    const secondGraph = workspace.readJson<{ fingerprint: string }>('.tesseract', 'interface', 'index.json');
+    const secondSelectors = workspace.readJson<{ fingerprint: string }>('.tesseract', 'interface', 'selectors.json');
+
+    expect(secondGraph.fingerprint).toBe(firstGraph.fingerprint);
+    expect(secondSelectors.fingerprint).toBe(firstSelectors.fingerprint);
+  } finally {
+    workspace.cleanup();
+  }
+});
+
+test('agent session adapters share one provider-agnostic event vocabulary', async () => {
+  const workspace = createTestWorkspace('agent-session-vocabulary');
+  try {
+    const adoId = createAdoId('10001');
+    await runWithLocalServices(refreshScenario({ adoId, paths: workspace.paths }), workspace.rootDir);
+    const catalog = await runWithLocalServices(loadWorkspaceCatalog({ paths: workspace.paths }), workspace.rootDir);
+    const taskPacket = catalog.taskPackets.find((entry) => entry.artifact.payload.adoId === adoId)?.artifact;
+
+    expect(taskPacket).toBeTruthy();
+    if (!taskPacket) {
+      throw new Error('task packet is required');
+    }
+
+    const input = {
+      adoId,
+      runId: 'session-run',
+      sessionId: 'session-run',
+      taskPacket,
+      interfaceGraph: catalog.interfaceGraph?.artifact ?? null,
+      selectorCanon: catalog.selectorCanon?.artifact ?? null,
+      proposalBundle: null,
+      learningManifest: catalog.learningManifest?.artifact ?? null,
+    };
+
+    const deterministic = resolveAgentSessionAdapter('deterministic-agent-session').eventVocabulary(input);
+    const copilot = resolveAgentSessionAdapter('copilot-vscode-chat').eventVocabulary(input);
+    const deterministicTypes = [...new Set(deterministic.map((event) => event.type))].sort((left, right) => left.localeCompare(right));
+    const copilotTypes = [...new Set(copilot.map((event) => event.type))].sort((left, right) => left.localeCompare(right));
+
+    expect(deterministicTypes).toEqual(copilotTypes);
+    expect(deterministicTypes).toEqual(['artifact-inspection', 'execution-reviewed', 'orientation']);
+  } finally {
+    workspace.cleanup();
+  }
+});
+
+test('run scenario emits agent session and learning artifacts with replay-ready provenance', async () => {
+  const workspace = createTestWorkspace('agent-session-learning');
+  try {
+    const adoId = createAdoId('10001');
+    await runWithLocalServices(refreshScenario({ adoId, paths: workspace.paths }), workspace.rootDir);
+
+    const decomposition = workspace.readJson<Array<{ runtime: string; graphNodeIds: string[]; selectorRefs: string[] }>>(
+      '.tesseract',
+      'learning',
+      'decomposition',
+      '10001.fragments.json',
+    );
+    const workflow = workspace.readJson<Array<{ runtime: string; graphNodeIds: string[]; selectorRefs: string[] }>>(
+      '.tesseract',
+      'learning',
+      'workflow',
+      '10001.fragments.json',
+    );
+    const compileManifest = workspace.readJson<{ kind: string; corpora: Array<{ runtime: string; exampleCount: number }> }>(
+      '.tesseract',
+      'learning',
+      'manifest.json',
+    );
+
+    expect(decomposition.every((fragment) => fragment.runtime === 'decomposition')).toBeTruthy();
+    expect(workflow[0]?.runtime).toBe('workflow');
+    expect(workflow[0]?.graphNodeIds.length).toBeGreaterThan(0);
+    expect(workflow[0]?.selectorRefs.length).toBeGreaterThan(0);
+    expect(compileManifest.kind).toBe('training-corpus-manifest');
+    expect(compileManifest.corpora.map((entry) => entry.runtime)).toEqual(['decomposition', 'repair-recovery', 'workflow']);
+
+    const run = await runWithLocalServices(
+      runScenario({ adoId, paths: workspace.paths, interpreterMode: 'diagnostic' }),
+      workspace.rootDir,
+    );
+    const session = workspace.readJson<{ sessionId: string; adapterId: string; eventCount: number; eventTypes: Record<string, number>; transcripts: Array<{ kind: string }> }>(
+      '.tesseract',
+      'sessions',
+      run.runId,
+      'session.json',
+    );
+    const sessionEvents = workspace.readText('.tesseract', 'sessions', run.runId, 'events.jsonl')
+      .trim()
+      .split('\n')
+      .filter((line) => line.length > 0)
+      .map((line) => JSON.parse(line) as { type: string });
+    const repair = workspace.readJson<Array<{ runtime: string }>>(
+      '.tesseract',
+      'learning',
+      'repair-recovery',
+      '10001.fragments.json',
+    );
+    const replay = workspace.readJson<{ runtime: string; fragmentIds: string[]; graphNodeIds: string[]; selectorRefs: string[] }>(
+      '.tesseract',
+      'learning',
+      'replays',
+      `10001.${run.runId}.json`,
+    );
+    const manifest = workspace.readJson<{ replayExamples: number; corpora: Array<{ runtime: string; exampleCount: number }> }>(
+      '.tesseract',
+      'learning',
+      'manifest.json',
+    );
+    const catalog = await runWithLocalServices(loadWorkspaceCatalog({ paths: workspace.paths }), workspace.rootDir);
+
+    expect(session.sessionId).toBe(run.runId);
+    expect(session.adapterId).toBe('deterministic-agent-session');
+    expect(session.eventCount).toBe(sessionEvents.length);
+    expect(session.transcripts[0]?.kind).toBe('none');
+    expect(session.eventTypes.orientation).toBe(1);
+    expect(session.eventTypes['artifact-inspection']).toBe(1);
+    expect(session.eventTypes['execution-reviewed']).toBe(1);
+    expect(sessionEvents.map((event) => event.type)).toEqual(['orientation', 'artifact-inspection', 'execution-reviewed']);
+    expect(repair.every((fragment) => fragment.runtime === 'repair-recovery')).toBeTruthy();
+    expect(replay.runtime).toBe('workflow');
+    expect(replay.fragmentIds.length).toBeGreaterThan(0);
+    expect(replay.graphNodeIds.length).toBeGreaterThan(0);
+    expect(replay.selectorRefs.length).toBeGreaterThan(0);
+    expect(manifest.replayExamples).toBe(1);
+    expect(catalog.agentSessions.some((entry) => entry.artifact.sessionId === run.runId)).toBeTruthy();
+    expect(catalog.learningManifest?.artifact.replayExamples).toBe(1);
+    expect(catalog.replayExamples.some((entry) => entry.artifact.runId === run.runId)).toBeTruthy();
   } finally {
     workspace.cleanup();
   }

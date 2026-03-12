@@ -1,4 +1,12 @@
-import type { AdoId, ElementId, PostureId, ScreenId, SnapshotTemplateId } from '../identity';
+import type {
+  AdoId,
+  CanonicalTargetRef,
+  ElementId,
+  PostureId,
+  ScreenId,
+  SelectorRef,
+  SnapshotTemplateId,
+} from '../identity';
 import type { StepTaskElementCandidate, StepTaskScreenCandidate } from './knowledge';
 import type {
   Governance,
@@ -75,6 +83,30 @@ export interface RuntimeProviderCapabilities {
   deterministicMode: boolean;
 }
 
+export interface ResolutionEngineCapabilities extends RuntimeProviderCapabilities {}
+
+export interface TaskArtifactRef {
+  fingerprint: string | null;
+  artifactPath: string | null;
+}
+
+export interface ScenarioKnowledgeSlice {
+  routeRefs: string[];
+  routeVariantRefs: string[];
+  screenRefs: ScreenId[];
+  targetRefs: CanonicalTargetRef[];
+  evidenceRefs: string[];
+  controlRefs: string[];
+}
+
+export interface StepTaskGrounding {
+  targetRefs: CanonicalTargetRef[];
+  selectorRefs: SelectorRef[];
+  fallbackSelectorRefs: SelectorRef[];
+  routeVariantRefs: string[];
+  assertionAnchors: string[];
+}
+
 export interface StepTask {
   index: number;
   intent: string;
@@ -86,12 +118,13 @@ export interface StepTask {
   controlResolution: StepResolution | null;
   knowledgeRef?: 'scenario' | string | null | undefined;
   runtimeKnowledge?: RuntimeKnowledgeSession | undefined;
+  grounding?: StepTaskGrounding | undefined;
   taskFingerprint: string;
 }
 
 export interface ScenarioTaskPacket {
   kind: 'scenario-task-packet';
-  version: 1 | 2;
+  version: 4;
   stage: 'preparation';
   scope: 'scenario';
   ids: WorkflowEnvelopeIds;
@@ -104,17 +137,12 @@ export interface ScenarioTaskPacket {
     title: string;
     suite: string;
     knowledgeFingerprint: string;
-    runtimeKnowledgeSession?: RuntimeKnowledgeSession | undefined;
+    interface: TaskArtifactRef;
+    selectors: TaskArtifactRef;
+    knowledgeSlice: ScenarioKnowledgeSlice;
     steps: StepTask[];
   };
-  adoId: AdoId;
-  revision: number;
-  title: string;
-  suite: string;
   taskFingerprint: string;
-  knowledgeFingerprint: string;
-  runtimeKnowledgeSession?: RuntimeKnowledgeSession | undefined;
-  steps: StepTask[];
 }
 
 export interface DatasetControl {

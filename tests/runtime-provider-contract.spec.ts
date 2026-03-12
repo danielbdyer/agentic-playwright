@@ -3,7 +3,8 @@ import { createRuntimeProviderRegistry, resolveRuntimeProvider, type RuntimeProv
 import { validateStepResults } from '../lib/application/execution/validate-step-results';
 import { createElementId, createScreenId, createSurfaceId, createWidgetId } from '../lib/domain/identity';
 import { runResolutionPipeline } from '../lib/runtime/agent';
-import type { StepTask } from '../lib/domain/types';
+import type { RuntimeStepAgentContext } from '../lib/runtime/agent/types';
+import type { StepExecutionReceipt, StepTask } from '../lib/domain/types';
 
 function baseStep(explicit = false): StepTask {
   return {
@@ -88,7 +89,7 @@ test('provider capability negotiation rejects incompatible mode', () => {
       supportsProposalDrafts: true,
       deterministicMode: false,
     },
-    resolveStep: async (task, context) => runResolutionPipeline(task, context),
+    resolveStep: async (task, context) => runResolutionPipeline(task, context as RuntimeStepAgentContext),
   };
   const registry = createRuntimeProviderRegistry([provider]);
 
@@ -106,7 +107,7 @@ test('post-provider validation enforces governance invariants', async () => {
     mode: 'diagnostic',
     runAt: '2026-03-09T00:00:00.000Z',
   });
-  const execution = {
+  const execution: StepExecutionReceipt = {
     version: 1 as const,
     stage: 'execution' as const,
     scope: 'step' as const,
@@ -134,7 +135,6 @@ test('post-provider validation enforces governance invariants', async () => {
     governance: 'approved' as const,
     taskFingerprint: 'sha256:task',
     knowledgeFingerprint: 'sha256:knowledge',
-    provider: 'deterministic-runtime-step-agent',
     mode: 'diagnostic',
     runAt: '2026-03-09T00:00:00.000Z',
     stepIndex: 1,
@@ -144,12 +144,16 @@ test('post-provider validation enforces governance invariants', async () => {
     degraded: false,
     preconditionFailures: [],
     durationMs: 0,
-    timing: { setupMs: 0, actionMs: 0, assertionMs: 0, teardownMs: 0, resolutionMs: 0, totalMs: 0 },
+    timing: { setupMs: 0, resolutionMs: 0, actionMs: 0, assertionMs: 0, retriesMs: 0, teardownMs: 0, totalMs: 0 },
     cost: { instructionCount: 0, diagnosticCount: 0 },
-    budget: { status: 'within-budget' as const, violations: [] },
-    failure: null,
+    budget: { thresholds: {}, status: 'within-budget' as const, breaches: [] },
+    failure: { family: 'none' },
+    recovery: {
+      policyProfile: 'none',
+      attempts: [],
+    },
     handshakes: ['preparation', 'resolution', 'execution'] as const,
-    execution: { status: 'passed' as const, observedEffects: [], diagnostics: [] },
+    execution: { status: 'ok' as const, observedEffects: [], diagnostics: [] },
   };
 
   expect(() => validateStepResults({
@@ -159,6 +163,15 @@ test('post-provider validation enforces governance invariants', async () => {
 
   expect(() => validateStepResults({
     providerId: 'deterministic-runtime-step-agent',
-    results: [{ interpretation: { ...interpretation, kind: 'needs-human', governance: 'approved', reason: 'manual' }, execution }],
+    results: [{
+      interpretation: {
+        ...interpretation,
+        kind: 'needs-human',
+        governance: 'approved',
+        reason: 'manual',
+        confidence: 'unbound',
+      } as Parameters<typeof validateStepResults>[0]['results'][number]['interpretation'],
+      execution,
+    }],
   })).toThrow(/needs-human governance/);
 });

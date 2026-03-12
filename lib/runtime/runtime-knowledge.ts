@@ -17,5 +17,5 @@ export function runtimeKnowledgeForStep(
 }
 
 export function runtimeKnowledgeForPacket(packet: ScenarioTaskPacket): RuntimeKnowledgeSession | undefined {
-  return packet.runtimeKnowledgeSession ?? packet.payload.runtimeKnowledgeSession;
+  return undefined;
 }

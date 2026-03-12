@@ -4,6 +4,8 @@ import { SchemaError } from './errors';
 
 export type AdoId = Brand<string, 'AdoId'>;
 export type ScreenId = Brand<string, 'ScreenId'>;
+export type RouteId = Brand<string, 'RouteId'>;
+export type RouteVariantId = Brand<string, 'RouteVariantId'>;
 export type SectionId = Brand<string, 'SectionId'>;
 export type SurfaceId = Brand<string, 'SurfaceId'>;
 export type ElementId = Brand<string, 'ElementId'>;
@@ -11,6 +13,8 @@ export type PostureId = Brand<string, 'PostureId'>;
 export type FixtureId = Brand<string, 'FixtureId'>;
 export type SnapshotTemplateId = Brand<string, 'SnapshotTemplateId'>;
 export type WidgetId = Brand<string, 'WidgetId'>;
+export type CanonicalTargetRef = Brand<string, 'CanonicalTargetRef'>;
+export type SelectorRef = Brand<string, 'SelectorRef'>;
 
 function normalizePathSeparators(value: string): string {
   return value.replace(/\\/g, '/');
@@ -43,6 +47,14 @@ export function createScreenId(value: string): ScreenId {
   return brandString<'ScreenId'>(value);
 }
 
+export function createRouteId(value: string): RouteId {
+  return brandString<'RouteId'>(value);
+}
+
+export function createRouteVariantId(value: string): RouteVariantId {
+  return brandString<'RouteVariantId'>(value);
+}
+
 export function createSectionId(value: string): SectionId {
   return brandString<'SectionId'>(value);
 }
@@ -69,5 +81,13 @@ export function createSnapshotTemplateId(value: string): SnapshotTemplateId {
 
 export function createWidgetId(value: string): WidgetId {
   return brandString<'WidgetId'>(value);
+}
+
+export function createCanonicalTargetRef(value: string): CanonicalTargetRef {
+  return brandString<'CanonicalTargetRef'>(value);
+}
+
+export function createSelectorRef(value: string): SelectorRef {
+  return brandString<'SelectorRef'>(value);
 }
 

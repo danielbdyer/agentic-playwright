@@ -23,6 +23,7 @@ import { inspectWorkflow } from '../workflow';
 import { createAdoId, createScreenId } from '../../domain/identity';
 import type { ExecutionPosture, RuntimeInterpreterMode } from '../../domain/types';
 import { discoverScreenScaffold } from '../../infrastructure/tooling/discover-screen';
+import { harvestDeclaredRoutes } from '../../infrastructure/tooling/harvest-routes';
 import { captureScreenSection } from '../../infrastructure/tooling/capture-screen';
 
 const interpreterModes = ['playwright', 'dry-run', 'diagnostic'] as const;
@@ -51,6 +52,7 @@ interface ParsedFlags {
   nodeId?: string;
   proposalId?: string;
   rootSelector?: string;
+  routes?: string;
   runbook?: string;
   screen?: string;
   section?: string;
@@ -98,6 +100,7 @@ export type CommandName =
   | 'paths'
   | 'capture'
   | 'discover'
+  | 'harvest'
   | 'surface'
   | 'graph'
   | 'trace'
@@ -122,6 +125,7 @@ export const commandNames: readonly CommandName[] = [
   'paths',
   'capture',
   'discover',
+  'harvest',
   'surface',
   'graph',
   'trace',
@@ -233,6 +237,10 @@ const flagReaders: Record<string, (argv: string[], index: number, flags: ParsedF
   },
   '--root-selector': (argv, index, flags) => {
     flags.rootSelector = readFlagValue('--root-selector', argv[index + 1]);
+    return index + 1;
+  },
+  '--routes': (argv, index, flags) => {
+    flags.routes = readFlagValue('--routes', argv[index + 1]);
     return index + 1;
   },
   '--section': (argv, index, flags) => {
@@ -490,6 +498,27 @@ const commandRegistry: Record<CommandName, CommandSpec> = {
       }),
     }),
   },
+  harvest: {
+    flags: ['--routes', '--all', '--headed'],
+    parse: ({ flags }) => {
+      const execution: CommandExecution = {
+        command: 'harvest',
+        strictExitOnUnbound: false,
+        postureInput: withDefinedValues({
+          headed: flags.headed,
+        }),
+        execute: (paths) => harvestDeclaredRoutes({
+          paths,
+          ...(flags.routes ? { app: flags.routes } : {}),
+          ...(flags.all ? { all: true } : {}),
+        }),
+      };
+      if (flags.headed) {
+        execution.environment = { TESSERACT_HEADLESS: '0' };
+      }
+      return execution;
+    },
+  },
   surface: {
     flags: ['--screen'],
     parse: ({ flags }) => ({
@@ -618,7 +647,7 @@ const commandRegistry: Record<CommandName, CommandSpec> = {
 export function parseCliInvocation(argv: string[]): CommandExecution {
   const [rawCommand = 'help', ...tokens] = argv;
   if (!isCommandName(rawCommand)) {
-    throw new Error('Unknown command. Expected sync, parse, bind, emit, compile, refresh, run, replay, paths, capture, discover, surface, graph, trace, impact, types, workflow, inbox, approve, rerun-plan, benchmark, or scorecard.');
+    throw new Error('Unknown command. Expected sync, parse, bind, emit, compile, refresh, run, replay, paths, capture, discover, harvest, surface, graph, trace, impact, types, workflow, inbox, approve, rerun-plan, benchmark, or scorecard.');
   }
 
   const spec = commandRegistry[rawCommand];

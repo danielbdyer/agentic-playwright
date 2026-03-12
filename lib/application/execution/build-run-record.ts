@@ -100,7 +100,7 @@ export function buildRunRecord(input: {
       'environment-runtime-failure': 0,
     }),
     recoveryFamilies: steps.reduce<Record<'precondition-failure' | 'locator-degradation-failure' | 'environment-runtime-failure', number>>((acc, step) => {
-      for (const attempt of step.execution.recovery.attempts) {
+      for (const attempt of step.execution.recovery?.attempts ?? []) {
         acc[attempt.family] += 1;
       }
       return acc;
@@ -110,7 +110,7 @@ export function buildRunRecord(input: {
       'environment-runtime-failure': 0,
     }),
     recoveryStrategies: steps.reduce<Record<'verify-prerequisites' | 'execute-prerequisite-actions' | 'force-alternate-locator-rungs' | 'snapshot-guided-reresolution' | 'bounded-retry-with-backoff' | 'refresh-runtime', number>>((acc, step) => {
-      for (const attempt of step.execution.recovery.attempts) {
+      for (const attempt of step.execution.recovery?.attempts ?? []) {
         acc[attempt.strategyId] += 1;
       }
       return acc;
@@ -136,7 +136,7 @@ export function buildRunRecord(input: {
     fingerprints: createScenarioEnvelopeFingerprints({
       artifact: input.runId,
       content: input.selectedContext.scenarioEntry.artifact.source.content_hash,
-      knowledge: input.selectedContext.taskPacketEntry.artifact.knowledgeFingerprint,
+      knowledge: input.selectedContext.taskPacketEntry.artifact.payload.knowledgeFingerprint,
       controls: input.selectedContext.taskPacketEntry.artifact.fingerprints.controls,
       task: input.selectedContext.taskPacketEntry.artifact.taskFingerprint,
       run: input.runId,
@@ -159,7 +159,7 @@ export function buildRunRecord(input: {
       title: input.selectedContext.scenarioEntry.artifact.metadata.title,
       suite: input.selectedContext.scenarioEntry.artifact.metadata.suite,
       taskFingerprint: input.selectedContext.taskPacketEntry.artifact.taskFingerprint,
-      knowledgeFingerprint: input.selectedContext.taskPacketEntry.artifact.knowledgeFingerprint,
+      knowledgeFingerprint: input.selectedContext.taskPacketEntry.artifact.payload.knowledgeFingerprint,
       provider: input.selectedContext.providerId,
       mode: input.selectedContext.mode,
       startedAt: input.stepResults[0]?.interpretation.runAt ?? new Date().toISOString(),

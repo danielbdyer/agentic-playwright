@@ -4,7 +4,15 @@ import { explainBoundScenario } from '../domain/scenario/explanation';
 import type { TesseractError } from '../domain/errors';
 import type { AdoId } from '../domain/identity';
 import { renderGeneratedSpecModule } from '../domain/spec-codegen';
-import type { BoundScenario, ProposalBundle, RunRecord, ScenarioExplanation, ScenarioLifecycle, ScenarioTaskPacket } from '../domain/types';
+import type {
+  BoundScenario,
+  ProposalBundle,
+  RunRecord,
+  ScenarioExplanation,
+  ScenarioLifecycle,
+  ScenarioProjectionInput,
+  ScenarioTaskPacket,
+} from '../domain/types';
 import type { CompileSnapshot } from './compile-snapshot';
 import { loadWorkspaceCatalog } from './catalog';
 import { createProposalBundleEnvelope, createScenarioEnvelopeFingerprints, createScenarioEnvelopeIds } from './catalog/envelope';
@@ -60,7 +68,41 @@ function latestProposalBundle(catalog: WorkspaceCatalog, adoId: AdoId): Proposal
     .sort((left, right) => right.artifact.runId.localeCompare(left.artifact.runId))[0]?.artifact ?? null;
 }
 
-function renderReview(trace: ScenarioExplanation, proposalBundle: ProposalBundle | null, inboxItems: ReturnType<typeof operatorInboxItemsForScenario>, latestRun: RunRecord | null): string {
+function latestSessionsForScenario(catalog: WorkspaceCatalog, adoId: AdoId) {
+  return catalog.agentSessions
+    .filter((entry) => entry.artifact.scenarioIds.includes(adoId))
+    .sort((left, right) => right.artifact.startedAt.localeCompare(left.artifact.startedAt))
+    .map((entry) => entry.artifact);
+}
+
+function createScenarioProjectionInput(input: {
+  adoId: AdoId;
+  boundScenario: BoundScenario;
+  taskPacket: ScenarioTaskPacket;
+  latestRun: RunRecord | null;
+  proposalBundle: ProposalBundle | null;
+  catalog: WorkspaceCatalog;
+}): ScenarioProjectionInput {
+  return {
+    adoId: input.adoId,
+    boundScenario: input.boundScenario,
+    taskPacket: input.taskPacket,
+    latestRun: input.latestRun,
+    proposalBundle: input.proposalBundle,
+    interfaceGraph: input.catalog.interfaceGraph?.artifact ?? null,
+    selectorCanon: input.catalog.selectorCanon?.artifact ?? null,
+    sessions: latestSessionsForScenario(input.catalog, input.adoId),
+    learningManifest: input.catalog.learningManifest?.artifact ?? null,
+  };
+}
+
+function renderReview(
+  trace: ScenarioExplanation,
+  proposalBundle: ProposalBundle | null,
+  inboxItems: ReturnType<typeof operatorInboxItemsForScenario>,
+  latestRun: RunRecord | null,
+  projectionInput: ScenarioProjectionInput,
+): string {
   const rungRollup = latestRun
     ? latestRun.steps.reduce<Record<string, number>>((acc, step) => {
         const rung = step.interpretation.resolutionGraph?.winner.rung ?? 'none';
@@ -78,6 +120,10 @@ function renderReview(trace: ScenarioExplanation, proposalBundle: ProposalBundle
     `- Governance: ${trace.governance}`,
     `- Lifecycle: ${trace.lifecycle}`,
     `- Proposal bundle: ${proposalBundle ? proposalBundle.runId : 'none'}`,
+    `- Interface graph fingerprint: ${projectionInput.interfaceGraph?.fingerprint ?? 'none'}`,
+    `- Selector canon fingerprint: ${projectionInput.selectorCanon?.fingerprint ?? 'none'}`,
+    `- Agent sessions: ${projectionInput.sessions.length}`,
+    `- Learning corpora: ${projectionInput.learningManifest?.corpora.length ?? 0}`,
     `- Inbox items: ${inboxItems.length > 0 ? inboxItems.map((item) => item.id).join(', ') : 'none'}`,
     `- Next commands: ${inboxItems.length > 0 ? inboxItems.flatMap((item) => item.nextCommands).filter((value, index, all) => all.indexOf(value) === index).join(' | ') : `tesseract workflow --ado-id ${trace.adoId} | tesseract inbox`}`,
     '',
@@ -164,6 +210,7 @@ function renderEmitArtifacts(
   latestRun: RunRecord | null,
   proposalBundle: ProposalBundle | null,
   inboxItems: ReturnType<typeof operatorInboxItemsForScenario>,
+  projectionInput: ScenarioProjectionInput,
 ) {
   const outputPath = generatedSpecPath(paths, boundScenario.metadata.suite, boundScenario.source.ado_id);
   const tracePath = generatedTracePath(paths, boundScenario.metadata.suite, boundScenario.source.ado_id);
@@ -179,7 +226,7 @@ function renderEmitArtifacts(
     },
   });
   const traceArtifact = explainBoundScenario(boundScenario, rendered.lifecycle, latestRun);
-  const reviewText = renderReview(traceArtifact, proposalBundle, inboxItems, latestRun);
+  const reviewText = renderReview(traceArtifact, proposalBundle, inboxItems, latestRun, projectionInput);
 
   return {
     outputPath,
@@ -274,7 +321,7 @@ export function emitScenario(
       : (() => {
           const scenario = catalog.scenarios.find((entry) => entry.artifact.source.ado_id === options.adoId);
           const boundScenario = catalog.boundScenarios.find((entry) => entry.artifact.source.ado_id === options.adoId);
-          const taskPacket = catalog.taskPackets.find((entry) => entry.artifact.adoId === options.adoId);
+          const taskPacket = catalog.taskPackets.find((entry) => entry.artifact.payload.adoId === options.adoId);
           if (!scenario || !boundScenario || !taskPacket) {
             throw new Error(`Missing scenario, bound scenario, or task packet for ${options.adoId}`);
           }
@@ -292,11 +339,25 @@ export function emitScenario(
     const latestRun = latestRunForScenario(catalog, source.adoId);
     const proposalBundle = latestProposalBundle(catalog, source.adoId);
     const inboxItems = operatorInboxItemsForScenario(buildOperatorInboxItems(catalog), source.adoId);
-    const artifacts = renderEmitArtifacts(options.paths, source.boundScenario, source.taskPacket, latestRun, proposalBundle, inboxItems);
+    const projectionInput = createScenarioProjectionInput({
+      adoId: source.adoId,
+      boundScenario: source.boundScenario,
+      taskPacket: source.taskPacket,
+      latestRun,
+      proposalBundle,
+      catalog,
+    });
+    const artifacts = renderEmitArtifacts(options.paths, source.boundScenario, source.taskPacket, latestRun, proposalBundle, inboxItems, projectionInput);
     const inputFingerprints: ProjectionInputFingerprint[] = [
       fingerprintProjectionArtifact('bound', relativeProjectPath(options.paths, source.boundPath), source.boundScenario),
       fingerprintProjectionArtifact('task', relativeProjectPath(options.paths, source.taskPath), source.taskPacket),
       ...(latestRun ? [fingerprintProjectionArtifact('run', relativeProjectPath(options.paths, catalog.runRecords.find((entry) => entry.artifact.runId === latestRun.runId)?.absolutePath ?? ''), latestRun)] : []),
+      ...(catalog.interfaceGraph ? [fingerprintProjectionArtifact('interface-graph', catalog.interfaceGraph.artifactPath, catalog.interfaceGraph.artifact)] : []),
+      ...(catalog.selectorCanon ? [fingerprintProjectionArtifact('selector-canon', catalog.selectorCanon.artifactPath, catalog.selectorCanon.artifact)] : []),
+      ...(catalog.learningManifest ? [fingerprintProjectionArtifact('learning-manifest', catalog.learningManifest.artifactPath, catalog.learningManifest.artifact)] : []),
+      ...catalog.agentSessions
+        .filter((entry) => entry.artifact.scenarioIds.includes(source.adoId))
+        .map((entry) => fingerprintProjectionArtifact('agent-session', entry.artifactPath, entry.artifact)),
       fingerprintProjectionArtifact(
         'proposal-bundle',
         relativeProjectPath(options.paths, catalog.proposalBundles.find((entry) => entry.artifact.runId === artifacts.proposalBundle.runId)?.absolutePath ?? artifacts.proposalsPath),

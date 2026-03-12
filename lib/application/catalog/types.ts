@@ -2,13 +2,18 @@ import type { ScreenBundle } from '../../domain/knowledge/screen-bundle';
 import type { SnapshotTemplateId } from '../../domain/identity';
 import type {
   AdoSnapshot,
+  AgentSession,
   ApprovalReceipt,
   BenchmarkContext,
   BoundScenario,
+  ApplicationInterfaceGraph,
   ConfidenceOverlayCatalog,
   DatasetControl,
+  DiscoveryRun,
   EvidenceRecord,
+  HarvestManifest,
   InterpretationDriftRecord,
+  ReplayExample,
   ResolutionGraphRecord,
   MergedPatterns,
   PatternDocument,
@@ -18,11 +23,13 @@ import type {
   RunRecord,
   RunbookControl,
   Scenario,
+  SelectorCanon,
   ScenarioTaskPacket,
   ScreenElements,
   ScreenHints,
   ScreenPostures,
   SurfaceGraph,
+  TrainingCorpusManifest,
   TrustPolicy,
 } from '../../domain/types';
 import type { ProjectPaths } from '../paths';
@@ -60,6 +67,7 @@ export interface WorkspaceCatalog {
   rerunPlans: ArtifactEnvelope<RerunPlan>[];
   datasets: ArtifactEnvelope<DatasetControl>[];
   benchmarks: ArtifactEnvelope<BenchmarkContext>[];
+  routeManifests: ArtifactEnvelope<HarvestManifest>[];
   resolutionControls: ArtifactEnvelope<ResolutionControl>[];
   runbooks: ArtifactEnvelope<RunbookControl>[];
   surfaces: ArtifactEnvelope<SurfaceGraph>[];
@@ -70,9 +78,15 @@ export interface WorkspaceCatalog {
   patternDocuments: ArtifactEnvelope<PatternDocument>[];
   mergedPatterns: MergedPatterns;
   knowledgeSnapshots: KnowledgeSnapshotEntry[];
+  discoveryRuns: ArtifactEnvelope<DiscoveryRun>[];
   evidenceRecords: ArtifactEnvelope<EvidenceRecord>[];
   interpretationDriftRecords: ArtifactEnvelope<InterpretationDriftRecord>[];
   resolutionGraphRecords: ArtifactEnvelope<ResolutionGraphRecord>[];
   confidenceCatalog: ArtifactEnvelope<ConfidenceOverlayCatalog> | null;
+  interfaceGraph: ArtifactEnvelope<ApplicationInterfaceGraph> | null;
+  selectorCanon: ArtifactEnvelope<SelectorCanon> | null;
+  agentSessions: ArtifactEnvelope<AgentSession>[];
+  learningManifest: ArtifactEnvelope<TrainingCorpusManifest> | null;
+  replayExamples: ArtifactEnvelope<ReplayExample>[];
   trustPolicy: ArtifactEnvelope<TrustPolicy>;
 }

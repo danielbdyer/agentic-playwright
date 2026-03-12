@@ -7,7 +7,7 @@ import { relativeProjectPath, rerunPlanPath } from './paths';
 import { FileSystem } from './ports';
 import { policyDecisionGraphTarget } from './trust-policy';
 import { sha256, stableStringify } from '../domain/hash';
-import { graphIds } from '../domain/ids';
+import { graphIds, knowledgePaths } from '../domain/ids';
 import type { AdoId } from '../domain/identity';
 import { createAdoId } from '../domain/identity';
 import type { GraphEdge, GraphNode, RerunPlan, RunbookControl, Scenario } from '../domain/types';
@@ -115,14 +115,17 @@ function scenariosReferencingArtifact(catalog: WorkspaceCatalog, artifactPath: s
   }
 
   for (const entry of catalog.taskPackets) {
-    if (entry.artifact.steps.some((step) =>
-      step.runtimeKnowledge!.evidenceRefs.includes(artifactPath)
-      || step.runtimeKnowledge!.screens.some((screen) =>
-        screen.knowledgeRefs.includes(artifactPath)
-        || screen.supplementRefs.includes(artifactPath),
-      ),
-    )) {
-      matches.add(entry.artifact.adoId);
+    const payload = entry.artifact.payload;
+    const referencesKnowledgeScreen = payload.knowledgeSlice.screenRefs.some((screen) =>
+      artifactPath === knowledgePaths.surface(screen)
+      || artifactPath === knowledgePaths.elements(screen)
+      || artifactPath === knowledgePaths.postures(screen)
+      || artifactPath === knowledgePaths.hints(screen),
+    );
+    if (payload.knowledgeSlice.evidenceRefs.includes(artifactPath)
+      || payload.knowledgeSlice.controlRefs.includes(artifactPath)
+      || referencesKnowledgeScreen) {
+      matches.add(payload.adoId);
     }
   }
 

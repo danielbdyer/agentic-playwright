@@ -1,14 +1,17 @@
-import type { RuntimeInterpreterMode, RuntimeProviderCapabilities, ResolutionReceipt, StepTask } from '../domain/types';
+import type { ResolutionEngineCapabilities, RuntimeInterpreterMode, ResolutionReceipt, StepTask } from '../domain/types';
 
-export type RuntimeProviderId = string;
+export type ResolutionEngineId = string;
+export type RuntimeProviderId = ResolutionEngineId;
 
-export interface RuntimeProvider {
-  id: RuntimeProviderId;
-  capabilities: RuntimeProviderCapabilities;
+export interface ResolutionEngine {
+  id: ResolutionEngineId;
+  capabilities: ResolutionEngineCapabilities;
   resolveStep(task: StepTask, context: unknown): Promise<ResolutionReceipt>;
 }
 
-function deterministicProvider(): RuntimeProvider {
+export type RuntimeProvider = ResolutionEngine;
+
+function deterministicProvider(): ResolutionEngine {
   return {
     id: 'deterministic-runtime-step-agent',
     capabilities: {
@@ -24,18 +27,44 @@ function deterministicProvider(): RuntimeProvider {
   };
 }
 
-function providerCompatibilityError(provider: RuntimeProvider, mode: RuntimeInterpreterMode): string | null {
-  if (mode === 'playwright' && !provider.capabilities.supportsDom) {
-    return `Runtime provider "${provider.id}" cannot run in playwright mode without DOM support.`;
+function providerCompatibilityError(engine: ResolutionEngine, mode: RuntimeInterpreterMode): string | null {
+  if (mode === 'playwright' && !engine.capabilities.supportsDom) {
+    return `Resolution engine "${engine.id}" cannot run in playwright mode without DOM support.`;
   }
   return null;
 }
 
-export function createRuntimeProviderRegistry(providers: RuntimeProvider[] = [deterministicProvider()]): Map<RuntimeProviderId, RuntimeProvider> {
-  return new Map(providers.map((provider) => [provider.id, provider]));
+export function createResolutionEngineRegistry(engines: ResolutionEngine[] = [deterministicProvider()]): Map<ResolutionEngineId, ResolutionEngine> {
+  return new Map(engines.map((engine) => [engine.id, engine]));
 }
 
-const defaultRegistry = createRuntimeProviderRegistry();
+export function createRuntimeProviderRegistry(providers: RuntimeProvider[] = [deterministicProvider()]): Map<RuntimeProviderId, RuntimeProvider> {
+  return createResolutionEngineRegistry(providers);
+}
+
+const defaultRegistry = createResolutionEngineRegistry();
+
+export function resolveResolutionEngine(input: {
+  providerId?: ResolutionEngineId | null | undefined;
+  mode: RuntimeInterpreterMode;
+  translationEnabled: boolean;
+  registry?: Map<ResolutionEngineId, ResolutionEngine>;
+}): ResolutionEngine {
+  const providerId = input.providerId ?? 'deterministic-runtime-step-agent';
+  const registry = input.registry ?? defaultRegistry;
+  const engine = registry.get(providerId);
+  if (!engine) {
+    throw new Error(`Unknown resolution engine "${providerId}".`);
+  }
+  const incompatibility = providerCompatibilityError(engine, input.mode);
+  if (incompatibility) {
+    throw new Error(incompatibility);
+  }
+  if (input.translationEnabled && !engine.capabilities.supportsTranslation) {
+    throw new Error(`Resolution engine "${engine.id}" does not support translation.`);
+  }
+  return engine;
+}
 
 export function resolveRuntimeProvider(input: {
   providerId?: RuntimeProviderId | null | undefined;
@@ -43,18 +72,5 @@ export function resolveRuntimeProvider(input: {
   translationEnabled: boolean;
   registry?: Map<RuntimeProviderId, RuntimeProvider>;
 }): RuntimeProvider {
-  const providerId = input.providerId ?? 'deterministic-runtime-step-agent';
-  const registry = input.registry ?? defaultRegistry;
-  const provider = registry.get(providerId);
-  if (!provider) {
-    throw new Error(`Unknown runtime provider "${providerId}".`);
-  }
-  const incompatibility = providerCompatibilityError(provider, input.mode);
-  if (incompatibility) {
-    throw new Error(incompatibility);
-  }
-  if (input.translationEnabled && !provider.capabilities.supportsTranslation) {
-    throw new Error(`Runtime provider "${provider.id}" does not support translation.`);
-  }
-  return provider;
+  return resolveResolutionEngine(input);
 }

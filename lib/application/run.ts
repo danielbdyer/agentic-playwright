@@ -2,8 +2,10 @@ import { Effect } from 'effect';
 import { projectConfidenceOverlayCatalog } from './confidence';
 import { resolveRunSelection } from './controls';
 import { buildDerivedGraph } from './graph';
+import { writeAgentSessionLedger } from './agent-session-ledger';
 import { emitScenario } from './emit';
 import { emitOperatorInbox } from './inbox';
+import { projectLearningArtifacts } from './learning';
 import { loadWorkspaceCatalog } from './catalog';
 import type { ProjectPaths } from './paths';
 import {
@@ -73,6 +75,7 @@ export function runScenario(options: {
           steps: selectedContext.steps,
           posture: selectedContext.posture,
           context: selectedContext.context,
+          runtimeKnowledgeSession: selectedContext.runtimeKnowledgeSession,
           recoveryPolicy: selectedContext.recoveryPolicy,
           translationOptions: {
             disableTranslation: options.disableTranslation ?? !selectedContext.translationEnabled,
@@ -104,6 +107,29 @@ export function runScenario(options: {
           stepResults: executionStage.stepResults,
           evidenceWrites: evidenceStage.evidenceWrites,
         });
+        const learning = yield* projectLearningArtifacts({
+          paths: options.paths,
+          boundScenario: selectedContext.boundScenarioEntry.artifact,
+          taskPacket: selectedContext.taskPacketEntry.artifact,
+          interfaceGraph: catalog.interfaceGraph?.artifact ?? null,
+          selectorCanon: catalog.selectorCanon?.artifact ?? null,
+          runRecord: runRecordStage.runRecord,
+          proposalBundle: proposalStage.proposalBundle,
+        });
+        const session = yield* writeAgentSessionLedger({
+          paths: options.paths,
+          adoId: options.adoId,
+          runId: selectedContext.runId,
+          providerId: selectedContext.providerId,
+          executionProfile: selectedContext.posture.executionProfile,
+          startedAt: runRecordStage.runRecord.startedAt,
+          completedAt: runRecordStage.runRecord.completedAt,
+          taskPacket: selectedContext.taskPacketEntry.artifact,
+          interfaceGraph: catalog.interfaceGraph?.artifact ?? null,
+          selectorCanon: catalog.selectorCanon?.artifact ?? null,
+          proposalBundle: proposalStage.proposalBundle,
+          learningManifest: learning.manifest,
+        });
 
         const interpretationFile = interpretationPath(options.paths, options.adoId, selectedContext.runId);
         const executionFile = executionPath(options.paths, options.adoId, selectedContext.runId);
@@ -132,6 +158,8 @@ export function runScenario(options: {
           runPath: runFile,
           proposalsPath: proposalsFile,
           evidence: evidenceStage.evidenceWrites.map((entry) => entry.absolutePath),
+          learning,
+          session,
           confidence,
           emitted,
           graph,

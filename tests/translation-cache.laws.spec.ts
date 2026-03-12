@@ -60,10 +60,23 @@ test('translation-disabled replay is reproducible for runtime interpretation', a
       confidenceFingerprint: 'sha256:confidence',
       sharedPatterns: {
         version: 1,
-        actions: {},
+        actions: {
+          navigate: { id: 'core.navigate', aliases: ['navigate'] },
+          input: { id: 'core.input', aliases: ['enter', 'input', 'type'] },
+          click: { id: 'core.click', aliases: ['click'] },
+          'assert-snapshot': { id: 'core.assert-snapshot', aliases: ['verify'] },
+        },
         postures: {},
         documents: [],
-        sources: { actions: {}, postures: {} },
+        sources: {
+          actions: {
+            navigate: 'knowledge/patterns/core.patterns.yaml',
+            input: 'knowledge/patterns/core.patterns.yaml',
+            click: 'knowledge/patterns/core.patterns.yaml',
+            'assert-snapshot': 'knowledge/patterns/core.patterns.yaml',
+          },
+          postures: {},
+        },
       },
       screens: [],
       evidenceRefs: [],

@@ -1,6 +1,6 @@
 import { Effect } from 'effect';
 import type { AdoId } from '../../domain/identity';
-import type { ResolutionGraphRecord, ResolutionReceipt, ScenarioTaskPacket, StepResolutionGraph, StepTask } from '../../domain/types';
+import type { ResolutionGraphRecord, ResolutionReceipt, RuntimeKnowledgeSession, ScenarioTaskPacket, StepResolutionGraph, StepTask } from '../../domain/types';
 import type { RuntimeScenarioRunnerPort, RuntimeScenarioStepResult } from '../ports';
 import { resolveRuntimeProvider } from '../provider-registry';
 import { validateStepResults } from './validate-step-results';
@@ -122,6 +122,7 @@ export function interpretScenarioTaskPacket(input: {
     disableTranslationCache?: boolean | undefined;
   } | undefined;
   steps?: readonly StepTask[] | undefined;
+  runtimeKnowledgeSession?: RuntimeKnowledgeSession | undefined;
   recoveryPolicy?: import('../../domain/execution/recovery-policy').RecoveryPolicy | undefined;
 }) {
   return Effect.gen(function* () {
@@ -131,7 +132,7 @@ export function interpretScenarioTaskPacket(input: {
       translationEnabled: !(input.translationOptions?.disableTranslation ?? false),
     });
 
-    const activeSteps = input.steps ?? input.taskPacket.steps;
+    const activeSteps = input.steps ?? input.taskPacket.payload.steps;
     const stepResults = yield* input.runtimeScenarioRunner.runSteps({
       rootDir: input.rootDir,
       screenIds: input.screenIds,
@@ -140,7 +141,7 @@ export function interpretScenarioTaskPacket(input: {
       mode: input.mode,
       runtimeProvider,
       steps: activeSteps,
-      runtimeKnowledgeSession: input.taskPacket.runtimeKnowledgeSession ?? input.taskPacket.payload.runtimeKnowledgeSession,
+      runtimeKnowledgeSession: input.runtimeKnowledgeSession,
       posture: input.posture,
       recoveryPolicy: input.recoveryPolicy,
       context: input.context,
@@ -194,7 +195,7 @@ export function interpretScenarioTaskPacket(input: {
         fingerprints: {
           artifact: input.runId,
           content: null,
-          knowledge: input.taskPacket.knowledgeFingerprint,
+          knowledge: input.taskPacket.payload.knowledgeFingerprint,
           controls: input.taskPacket.fingerprints.controls ?? null,
           task: input.taskPacket.taskFingerprint,
           run: input.runId,

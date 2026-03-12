@@ -13,9 +13,10 @@ import type {
   RuntimeKnowledgeSession,
 } from '../../domain/types';
 import type { AdoId, ScreenId } from '../../domain/identity';
-import { activeDatasetForRun, findRunbook } from '../controls';
+import { activeDatasetForRun, findRunbook, runtimeControlsForScenario } from '../controls';
 import { chooseByPrecedence, runSelectionPrecedenceLaw } from '../../domain/precedence';
 import type { RecoveryPolicy } from '../../domain/execution/recovery-policy';
+import { buildRuntimeKnowledgeSession } from '../task';
 
 const fixtureReferencePattern = /^\{\{\s*([A-Za-z0-9_-]+)(?:\.[^}]*)?\s*\}\}$/;
 
@@ -110,7 +111,7 @@ export function selectRunContext(input: {
 }): SelectedRunContext {
   const scenarioEntry = input.catalog.scenarios.find((entry) => entry.artifact.source.ado_id === input.adoId);
   const boundScenarioEntry = input.catalog.boundScenarios.find((entry) => entry.artifact.source.ado_id === input.adoId);
-  const taskPacketEntry = input.catalog.taskPackets.find((entry) => entry.artifact.adoId === input.adoId);
+  const taskPacketEntry = input.catalog.taskPackets.find((entry) => entry.artifact.payload.adoId === input.adoId);
   const snapshotEntry = input.catalog.snapshots.find((entry) => entry.artifact.id === input.adoId);
 
   if (!scenarioEntry || !boundScenarioEntry || !taskPacketEntry || !snapshotEntry) {
@@ -121,12 +122,16 @@ export function selectRunContext(input: {
     runbookName: input.runbookName ?? null,
     scenario: scenarioEntry.artifact,
   });
-  const runtimeKnowledgeSession = taskPacketEntry.artifact.runtimeKnowledgeSession ?? taskPacketEntry.artifact.payload.runtimeKnowledgeSession;
-  const activeDataset = activeDatasetForRun((taskPacketEntry.artifact.steps[0]?.runtimeKnowledge ?? runtimeKnowledgeSession)?.controls ?? {
-    datasets: [],
-    resolutionControls: [],
-    runbooks: [],
-  }, activeRunbook);
+  const runtimeControls = runtimeControlsForScenario(input.catalog, scenarioEntry.artifact);
+  const runtimeKnowledgeSession = buildRuntimeKnowledgeSession({
+    catalog: input.catalog,
+    knowledgeFingerprint: taskPacketEntry.artifact.payload.knowledgeFingerprint,
+    runtimeControls,
+    interfaceGraph: input.catalog.interfaceGraph?.artifact ?? null,
+    selectorCanon: input.catalog.selectorCanon?.artifact ?? null,
+    screenRefs: taskPacketEntry.artifact.payload.knowledgeSlice.screenRefs,
+  });
+  const activeDataset = activeDatasetForRun(runtimeKnowledgeSession.controls, activeRunbook);
   const runId = new Date().toISOString().replace(/[:.]/g, '-');
   const posture = input.posture ?? input.executionContextPosture;
   const mode = chooseByPrecedence([
@@ -134,14 +139,14 @@ export function selectRunContext(input: {
     { rung: 'runbook', value: activeRunbook?.interpreterMode ?? null },
     { rung: 'repo-default', value: posture.interpreterMode ?? 'diagnostic' },
   ], runSelectionPrecedenceLaw) ?? 'diagnostic';
-  const steps = taskStepsForRun(taskPacketEntry.artifact.steps, runtimeKnowledgeSession, activeRunbook?.resolutionControl ?? null);
+  const steps = taskStepsForRun(taskPacketEntry.artifact.payload.steps, runtimeKnowledgeSession, activeRunbook?.resolutionControl ?? null);
   const fixtureIds = uniqueSorted([
     ...scenarioEntry.artifact.preconditions.map((precondition) => precondition.fixture),
     ...steps.flatMap((step) =>
-      (step.runtimeKnowledge ?? runtimeKnowledgeSession)?.screens.flatMap((screen) =>
-        screen.elements
-          .map((element) => fixtureIdFromTemplateValue(element.defaultValueRef))
-          .filter((value): value is string => value !== null),
+        (step.runtimeKnowledge ?? runtimeKnowledgeSession)?.screens.flatMap((screen) =>
+          screen.elements
+            .map((element) => fixtureIdFromTemplateValue(element.defaultValueRef))
+            .filter((value): value is string => value !== null),
       ) ?? [],
     ),
   ]);

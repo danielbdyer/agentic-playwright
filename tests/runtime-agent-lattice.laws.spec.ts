@@ -3,6 +3,13 @@ import { createElementId, createScreenId, createSurfaceId, createWidgetId } from
 import type { StepTask } from '../lib/domain/types';
 import { rankActionCandidates, rankElementCandidates, rankScreenCandidates } from '../lib/runtime/agent/candidate-lattice';
 
+function requireRuntimeKnowledge(task: StepTask): NonNullable<StepTask['runtimeKnowledge']> {
+  if (!task.runtimeKnowledge) {
+    throw new Error('runtime knowledge is required for this test');
+  }
+  return task.runtimeKnowledge;
+}
+
 function buildTask(overrides: Partial<StepTask> = {}): StepTask {
   const policyScreen = {
     screen: createScreenId('policy-search'),
@@ -83,10 +90,11 @@ test('candidate lattice precedence keeps explicit above control above approved k
 
 test('screen and element ranking remain deterministic across equivalent permutations', () => {
   const left = buildTask();
+  const baselineKnowledge = requireRuntimeKnowledge(buildTask());
   const right = buildTask({
     runtimeKnowledge: {
-      ...buildTask().runtimeKnowledge,
-      screens: [...buildTask().runtimeKnowledge.screens].reverse().map((screen) => ({
+      ...baselineKnowledge,
+      screens: [...baselineKnowledge.screens].reverse().map((screen) => ({
         ...screen,
         screenAliases: [...screen.screenAliases].reverse(),
         elements: [...screen.elements].reverse().map((element) => ({
@@ -111,24 +119,28 @@ test('screen and element ranking remain deterministic across equivalent permutat
 
 
 test('working-memory priors boost same-screen continuation and known entity context', () => {
+  const baselineKnowledge = requireRuntimeKnowledge(buildTask());
+  const firstScreen = baselineKnowledge.screens[0]!;
+  const secondScreen = baselineKnowledge.screens[1]!;
+  const preferredElement = secondScreen.elements[0]!;
   const task = buildTask({
     actionText: 'Enter policy search preferred policy ref',
     normalizedIntent: 'enter policy search preferred policy ref => policy accepted',
     runtimeKnowledge: {
-      ...buildTask().runtimeKnowledge,
+      ...baselineKnowledge,
       screens: [
         {
-          ...buildTask().runtimeKnowledge.screens[0],
+          ...firstScreen,
           screen: createScreenId('z-policy-search'),
           screenAliases: ['policy search'],
         },
         {
-          ...buildTask().runtimeKnowledge.screens[1],
+          ...secondScreen,
           screen: createScreenId('a-policy-search'),
           screenAliases: ['policy search'],
           elements: [
             {
-              ...buildTask().runtimeKnowledge.screens[1].elements[0],
+              ...preferredElement,
               element: createElementId('preferredPolicyRefInput'),
               aliases: ['policy ref', 'policy reference preferred'],
             },

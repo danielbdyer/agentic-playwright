@@ -1,0 +1,18 @@
+kind: harvest-manifest
+version: 1
+app: demo
+baseUrl: fixtures/demo-harness
+routes:
+  - id: policy-search
+    screen: policy-search
+    entryUrl: /policy-search.html
+    rootSelector: body
+    variants:
+      - id: default
+        url: /policy-search.html
+        screen: policy-search
+        rootSelector: body
+      - id: results-with-policy
+        url: /policy-search.html?seed=POL-001
+        screen: policy-search
+        rootSelector: body

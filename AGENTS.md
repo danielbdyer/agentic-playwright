@@ -1,6 +1,6 @@
 # Tesseract Agent Guide
 
-This repository is a deterministic preparation pipeline plus a reviewable runtime knowledge system. Treat it that way.
+This repository is an interface intelligence and agent workbench system built around a deterministic preparation pipeline and a reviewable runtime knowledge system. Treat it that way.
 
 ## Start here
 
@@ -8,6 +8,7 @@ Read the doc that matches your task:
 
 - fast repo brief: [docs/agent-context.md](docs/agent-context.md)
 - operational overview: [README.md](README.md)
+- authoritative architecture doctrine: [docs/master-architecture.md](docs/master-architecture.md)
 - product model and QA workflow: [VISION.md](VISION.md)
 - domain ontology and invariants: [docs/domain-ontology.md](docs/domain-ontology.md)
 - authorship and knowledge design: [docs/authoring.md](docs/authoring.md)
@@ -16,6 +17,12 @@ Read the doc that matches your task:
 - design direction and owner decisions: [docs/direction.md](docs/direction.md)
 
 Scoped instructions under `.github/instructions/` still apply for domain, knowledge, generated files, and tests.
+
+The six public lanes remain the operating vocabulary. The deeper architectural spines now cut across them:
+
+- `interface`
+- `session`
+- `learning`
 
 ## Non-negotiable model
 
@@ -46,6 +53,9 @@ Derived outputs. Do not hand-edit unless the task is specifically about the gene
 - `.tesseract/bound/`
 - `.tesseract/benchmarks/`
 - `.tesseract/inbox/`
+- `.tesseract/interface/`
+- `.tesseract/learning/`
+- `.tesseract/sessions/`
 - `.tesseract/tasks/`
 - `.tesseract/runs/`
 - `.tesseract/graph/`

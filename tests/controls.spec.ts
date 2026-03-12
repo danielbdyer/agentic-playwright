@@ -21,6 +21,13 @@ function cloneJson<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
+function requireRuntimeKnowledge(step: StepTask): NonNullable<StepTask['runtimeKnowledge']> {
+  if (!step.runtimeKnowledge) {
+    throw new Error('runtime knowledge is required for this test');
+  }
+  return step.runtimeKnowledge;
+}
+
 test('workspace catalog exposes canonical control surfaces for the seeded scenario', async () => {
   const workspace = createTestWorkspace('controls-catalog');
   try {
@@ -158,11 +165,12 @@ test('runtime agent reports the winning data source across explicit, control, da
 
   {
     const explicitStep = cloneJson(baseStep);
+    const explicitRuntimeKnowledge = requireRuntimeKnowledge(explicitStep);
     explicitStep.explicitResolution = {
       action: 'input',
-      screen: explicitStep.runtimeKnowledge.screens[0]?.screen ?? null,
-      element: explicitStep.runtimeKnowledge.screens[0]?.elements[0]?.element ?? null,
-      posture: explicitStep.runtimeKnowledge.screens[0]?.elements[0]?.postures[0] ?? null,
+      screen: explicitRuntimeKnowledge.screens[0]?.screen ?? null,
+      element: explicitRuntimeKnowledge.screens[0]?.elements[0]?.element ?? null,
+      posture: explicitRuntimeKnowledge.screens[0]?.elements[0]?.postures[0] ?? null,
       override: '{{scenarioOverride.value}}',
       snapshot_template: null,
     };
@@ -181,17 +189,18 @@ test('runtime agent reports the winning data source across explicit, control, da
 
   {
     const controlledStep = cloneJson(baseStep);
+    const controlledRuntimeKnowledge = requireRuntimeKnowledge(controlledStep);
     controlledStep.explicitResolution = null;
     controlledStep.controlResolution = {
       action: 'input',
-      screen: controlledStep.runtimeKnowledge.screens[0]?.screen ?? null,
-      element: controlledStep.runtimeKnowledge.screens[0]?.elements[0]?.element ?? null,
+      screen: controlledRuntimeKnowledge.screens[0]?.screen ?? null,
+      element: controlledRuntimeKnowledge.screens[0]?.elements[0]?.element ?? null,
       posture: null,
       override: '{{controlOverride.value}}',
       snapshot_template: null,
     };
-    controlledStep.runtimeKnowledge.controls.runbooks = [];
-    controlledStep.runtimeKnowledge.controls.resolutionControls = [];
+    controlledRuntimeKnowledge.controls.runbooks = [];
+    controlledRuntimeKnowledge.controls.resolutionControls = [];
     const controlledReceipt = await deterministicRuntimeStepAgent.resolve(controlledStep, {
       provider: 'test-agent',
       mode: 'diagnostic',
@@ -207,10 +216,11 @@ test('runtime agent reports the winning data source across explicit, control, da
 
   {
     const datasetStep = cloneJson(baseStep);
+    const datasetRuntimeKnowledge = requireRuntimeKnowledge(datasetStep);
     datasetStep.explicitResolution = null;
     datasetStep.controlResolution = null;
-    datasetStep.runtimeKnowledge.controls.runbooks = [];
-    datasetStep.runtimeKnowledge.controls.resolutionControls = [];
+    datasetRuntimeKnowledge.controls.runbooks = [];
+    datasetRuntimeKnowledge.controls.resolutionControls = [];
     const datasetReceipt = await deterministicRuntimeStepAgent.resolve(datasetStep, {
       provider: 'test-agent',
       mode: 'diagnostic',
@@ -226,13 +236,14 @@ test('runtime agent reports the winning data source across explicit, control, da
 
   {
     const generatedTokenStep = cloneJson(baseStep);
+    const generatedTokenRuntimeKnowledge = requireRuntimeKnowledge(generatedTokenStep);
     generatedTokenStep.explicitResolution = null;
     generatedTokenStep.controlResolution = null;
-    generatedTokenStep.runtimeKnowledge.controls.runbooks = [];
-    generatedTokenStep.runtimeKnowledge.controls.resolutionControls = [];
-    generatedTokenStep.runtimeKnowledge.controls.datasets = [];
-    generatedTokenStep.runtimeKnowledge.screens[0]!.elements[0] = {
-      ...generatedTokenStep.runtimeKnowledge.screens[0]!.elements[0]!,
+    generatedTokenRuntimeKnowledge.controls.runbooks = [];
+    generatedTokenRuntimeKnowledge.controls.resolutionControls = [];
+    generatedTokenRuntimeKnowledge.controls.datasets = [];
+    generatedTokenRuntimeKnowledge.screens[0]!.elements[0] = {
+      ...generatedTokenRuntimeKnowledge.screens[0]!.elements[0]!,
       defaultValueRef: null,
       postures: [],
     };
@@ -423,7 +434,7 @@ test('runtime agent falls through to structured translation before live DOM', as
     provider: 'test-agent',
     mode: 'diagnostic',
     runAt: '2026-03-09T00:00:00.000Z',
-    translate: (request) => ({
+    translate: async (request) => ({
       kind: 'translation-receipt',
       version: 1,
       mode: 'structured-translation',

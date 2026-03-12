@@ -52,10 +52,10 @@ function thresholdForArtifact(catalog: WorkspaceCatalog, artifactType: TrustPoli
   return catalog.trustPolicy.artifact.artifactTypes[artifactType]?.minimumConfidence ?? 1;
 }
 
-function stepTaskForRunStep(catalog: WorkspaceCatalog, runAdoId: string, stepIndex: number): ScenarioTaskPacket['steps'][number] | null {
+function stepTaskForRunStep(catalog: WorkspaceCatalog, runAdoId: string, stepIndex: number): ScenarioTaskPacket['payload']['steps'][number] | null {
   return catalog.taskPackets
-    .find((entry) => entry.artifact.adoId === runAdoId)
-    ?.artifact.steps.find((step) => step.index === stepIndex) ?? null;
+    .find((entry) => entry.artifact.payload.adoId === runAdoId)
+    ?.artifact.payload.steps.find((step) => step.index === stepIndex) ?? null;
 }
 
 interface AggregateRecord {

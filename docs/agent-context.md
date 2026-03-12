@@ -4,9 +4,13 @@ Generated from `AGENTS.md`, `README.md`, `BACKLOG.md`, and `.github/instructions
 
 ## Purpose
 
-Tesseract is a deterministic preparation pipeline plus a bounded translation bridge and a knowledge-backed runtime agent for QA intent.
+Tesseract is an interface intelligence and agent workbench system for QA intent.
 
-It ingests Azure DevOps manual test cases, preserves their wording as canonical scenario IR, projects resolvable deterministic artifacts, and emits disposable Playwright object code plus review surfaces. The goal is not to hand-author tests faster. The goal is to make executable verification a transparent collaboration loop between approved knowledge, runtime interpretation, and human oversight.
+It still includes a deterministic preparation pipeline, a bounded translation bridge, and a knowledge-backed runtime agent, but those are now consumers of a deeper shared model: the interface graph, the selector canon, the state transition topology, the session ledger, and the learning corpus.
+
+Tesseract ingests Azure DevOps manual test cases, preserves their wording as canonical scenario IR, harvests application reality into a shared interpretation surface, and emits disposable Playwright object code plus review surfaces. The goal is not to hand-author tests faster. The goal is to make executable verification a transparent collaboration loop between approved knowledge, runtime interpretation, human oversight, and durable interface intelligence.
+
+The authoritative architecture doctrine lives in `docs/master-architecture.md`.
 
 Operator workflows are documented in `docs/operator-handbook.md`.
 
@@ -15,6 +19,7 @@ Operator workflows are documented in `docs/operator-handbook.md`.
 - Run `npm run context` to print this brief from live repository sources.
 - Use `npm run paths`, `npm run trace`, `npm run impact`, and `npm run surface` before editing scenario-specific files.
 - operational overview: [README.md](README.md)
+- authoritative architecture doctrine: [docs/master-architecture.md](docs/master-architecture.md)
 - product model and QA workflow: [VISION.md](VISION.md)
 - domain ontology and invariants: [docs/domain-ontology.md](docs/domain-ontology.md)
 - authorship and knowledge design: [docs/authoring.md](docs/authoring.md)
@@ -44,6 +49,9 @@ Operator workflows are documented in `docs/operator-handbook.md`.
 - `.tesseract/tasks/`
 - `.tesseract/runs/`
 - `.tesseract/graph/`
+- `.tesseract/interface/`
+- `.tesseract/sessions/`
+- `.tesseract/learning/`
 - `generated/`
 - `lib/generated/`
 

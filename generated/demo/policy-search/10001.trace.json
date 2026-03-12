@@ -11,9 +11,9 @@
     "stepCount": 4,
     "provenanceKinds": {
       "explicit": 0,
-      "approved-knowledge": 0,
+      "approved-knowledge": 4,
       "live-exploration": 0,
-      "unresolved": 4
+      "unresolved": 0
     },
     "governance": {
       "approved": 4,
@@ -21,7 +21,7 @@
       "blocked": 0
     },
     "stageMetrics": {
-      "knowledgeHitRate": 0,
+      "knowledgeHitRate": 1,
       "translationHitRate": 0,
       "translationCacheHitRate": 0,
       "translationCacheMissReasons": {},
@@ -35,29 +35,25 @@
       "reviewRequiredCount": 0,
       "approvedEquivalentRate": 0,
       "runtimeFailureFamilies": {
-        "none": 4
+        "none": 3,
+        "environment-runtime-failure": 1
       },
       "budgetBreachRate": 0,
       "averageRuntimeCost": {
-        "instructionCount": 0,
-        "diagnosticCount": 0
+        "instructionCount": 1,
+        "diagnosticCount": 0.25
       },
       "timing": {
         "setupMs": 0,
-        "resolutionMs": 0,
-        "actionMs": 0,
+        "resolutionMs": 7,
+        "actionMs": 4,
         "assertionMs": 0,
         "retriesMs": 0,
         "teardownMs": 0,
-        "totalMs": 0
+        "totalMs": 10
       }
     },
-    "unresolvedReasons": [
-      {
-        "reason": "runtime-resolution-required",
-        "count": 4
-      }
-    ]
+    "unresolvedReasons": []
   },
   "steps": [
     {
@@ -68,47 +64,57 @@
       "normalizedIntent": "navigate to policy search screen => policy search screen loads",
       "action": "custom",
       "confidence": "intent-only",
-      "provenanceKind": "unresolved",
+      "provenanceKind": "approved-knowledge",
       "governance": "approved",
       "bindingKind": "deferred",
       "ruleId": null,
-      "knowledgeRefs": [],
-      "supplementRefs": [],
-      "controlRefs": [],
+      "knowledgeRefs": [
+        "knowledge/screens/policy-search.elements.yaml",
+        "knowledge/screens/policy-search.postures.yaml",
+        "knowledge/surfaces/policy-search.surface.yaml"
+      ],
+      "supplementRefs": [
+        "knowledge/patterns/core.patterns.yaml",
+        "knowledge/screens/policy-search.hints.yaml"
+      ],
+      "controlRefs": [
+        "controls/datasets/demo-default.dataset.yaml",
+        "controls/resolution/demo-policy-search.resolution.yaml",
+        "controls/runbooks/demo-smoke.runbook.yaml"
+      ],
       "evidenceRefs": [],
       "overlayRefs": [],
       "reviewReasons": [],
-      "unresolvedGaps": [
-        "runtime-resolution-required"
-      ],
+      "unresolvedGaps": [],
       "reasons": [],
       "evidenceIds": [],
       "program": null,
       "handshakes": [
-        "preparation"
+        "preparation",
+        "resolution"
       ],
-      "winningConcern": "intent",
-      "winningSource": "none",
+      "winningConcern": "knowledge",
+      "winningSource": "generated-token",
       "resolutionMode": "deterministic",
       "translation": null,
       "runtime": {
-        "status": "pending",
-        "runId": null,
-        "resolutionMode": null,
+        "status": "resolved",
+        "runId": "2026-03-12T04-52-36-051Z",
+        "resolutionMode": "deterministic",
         "widgetContract": null,
         "locatorStrategy": null,
         "locatorRung": null,
         "degraded": false,
         "preconditionFailures": [],
-        "durationMs": 0,
+        "durationMs": 7,
         "timing": {
           "setupMs": 0,
-          "resolutionMs": 0,
-          "actionMs": 0,
+          "resolutionMs": 6,
+          "actionMs": 1,
           "assertionMs": 0,
           "retriesMs": 0,
           "teardownMs": 0,
-          "totalMs": 0
+          "totalMs": 7
         },
         "budget": {
           "status": "not-configured",
@@ -118,7 +124,60 @@
           "family": "none",
           "code": null
         },
-        "exhaustion": []
+        "exhaustion": [
+          {
+            "stage": "explicit",
+            "outcome": "skipped",
+            "reason": "No explicit constraints present"
+          },
+          {
+            "stage": "approved-screen-bundle",
+            "outcome": "attempted",
+            "reason": "Selected screen policy-search",
+            "topCandidates": [
+              {
+                "concern": "screen",
+                "source": "approved-knowledge",
+                "value": "policy-search",
+                "score": 800,
+                "reason": "Screen matched approved aliases via \"policy search screen\"."
+              }
+            ],
+            "rejectedCandidates": []
+          },
+          {
+            "stage": "local-hints",
+            "outcome": "attempted",
+            "reason": "Matched element searchButton",
+            "topCandidates": [
+              {
+                "concern": "element",
+                "source": "approved-knowledge",
+                "value": "searchButton",
+                "score": 786,
+                "reason": "Element matched local hints via \"search\"."
+              }
+            ],
+            "rejectedCandidates": []
+          },
+          {
+            "stage": "shared-patterns",
+            "outcome": "skipped",
+            "reason": "No shared posture pattern required",
+            "topCandidates": [],
+            "rejectedCandidates": []
+          },
+          {
+            "stage": "prior-evidence",
+            "outcome": "skipped",
+            "reason": "No prior evidence refs available"
+          },
+          {
+            "stage": "safe-degraded-resolution",
+            "outcome": "resolved",
+            "reason": "Approved deterministic priors produced an executable target"
+          }
+        ]
       }
     },
     {
@@ -129,57 +188,127 @@
       "normalizedIntent": "enter policy number in search field => policy number accepts a valid policy",
       "action": "custom",
       "confidence": "intent-only",
-      "provenanceKind": "unresolved",
+      "provenanceKind": "approved-knowledge",
       "governance": "approved",
       "bindingKind": "deferred",
       "ruleId": null,
-      "knowledgeRefs": [],
-      "supplementRefs": [],
-      "controlRefs": [],
+      "knowledgeRefs": [
+        "knowledge/screens/policy-search.elements.yaml",
+        "knowledge/screens/policy-search.postures.yaml",
+        "knowledge/surfaces/policy-search.surface.yaml"
+      ],
+      "supplementRefs": [
+        "knowledge/screens/policy-search.hints.yaml"
+      ],
+      "controlRefs": [
+        "controls/datasets/demo-default.dataset.yaml",
+        "controls/resolution/demo-policy-search.resolution.yaml",
+        "controls/runbooks/demo-smoke.runbook.yaml"
+      ],
       "evidenceRefs": [],
       "overlayRefs": [],
       "reviewReasons": [],
-      "unresolvedGaps": [
-        "runtime-resolution-required"
-      ],
+      "unresolvedGaps": [],
       "reasons": [],
       "evidenceIds": [],
       "program": null,
       "handshakes": [
-        "preparation"
+        "preparation",
+        "resolution"
       ],
-      "winningConcern": "intent",
-      "winningSource": "none",
+      "winningConcern": "knowledge",
+      "winningSource": "resolution-control",
       "resolutionMode": "deterministic",
       "translation": null,
       "runtime": {
-        "status": "pending",
-        "runId": null,
-        "resolutionMode": null,
+        "status": "resolved",
+        "runId": "2026-03-12T04-52-36-051Z",
+        "resolutionMode": "deterministic",
         "widgetContract": null,
         "locatorStrategy": null,
         "locatorRung": null,
         "degraded": false,
         "preconditionFailures": [],
-        "durationMs": 0,
+        "durationMs": 2,
         "timing": {
           "setupMs": 0,
-          "resolutionMs": 0,
-          "actionMs": 0,
+          "resolutionMs": 1,
+          "actionMs": 1,
           "assertionMs": 0,
           "retriesMs": 0,
           "teardownMs": 0,
-          "totalMs": 0
+          "totalMs": 2
         },
         "budget": {
           "status": "not-configured",
           "breaches": []
         },
         "failure": {
-          "family": "none",
-          "code": null
+          "family": "environment-runtime-failure",
+          "code": "runtime-unresolved-value-ref"
         },
-        "exhaustion": []
+        "exhaustion": [
+          {
+            "stage": "explicit",
+            "outcome": "skipped",
+            "reason": "No explicit constraints present"
+          },
+          {
+            "stage": "approved-screen-bundle",
+            "outcome": "attempted",
+            "reason": "Selected screen policy-search",
+            "topCandidates": [
+              {
+                "concern": "screen",
+                "source": "control",
+                "value": "policy-search",
+                "score": 900,
+                "reason": "Screen constrained by resolution control."
+              }
+            ],
+            "rejectedCandidates": []
+          },
+          {
+            "stage": "local-hints",
+            "outcome": "attempted",
+            "reason": "Matched element policyNumberInput",
+            "topCandidates": [
+              {
+                "concern": "element",
+                "source": "control",
+                "value": "policyNumberInput",
+                "score": 900,
+                "reason": "Element constrained by resolution control."
+              }
+            ],
+            "rejectedCandidates": []
+          },
+          {
+            "stage": "shared-patterns",
+            "outcome": "attempted",
+            "reason": "Matched posture valid",
+            "topCandidates": [
+              {
+                "concern": "posture",
+                "source": "control",
+                "value": "valid",
+                "score": 900,
+                "reason": "Posture constrained by resolution control."
+              }
+            ],
+            "rejectedCandidates": []
+          },
+          {
+            "stage": "prior-evidence",
+            "outcome": "skipped",
+            "reason": "No prior evidence refs available"
+          },
+          {
+            "stage": "safe-degraded-resolution",
+            "outcome": "resolved",
+            "reason": "Approved deterministic priors produced an executable target"
+          }
+        ]
       }
     },
     {
@@ -190,47 +319,56 @@
       "normalizedIntent": "click search button => search runs",
       "action": "custom",
       "confidence": "intent-only",
-      "provenanceKind": "unresolved",
+      "provenanceKind": "approved-knowledge",
       "governance": "approved",
       "bindingKind": "deferred",
       "ruleId": null,
-      "knowledgeRefs": [],
-      "supplementRefs": [],
-      "controlRefs": [],
+      "knowledgeRefs": [
+        "knowledge/screens/policy-search.elements.yaml",
+        "knowledge/screens/policy-search.postures.yaml",
+        "knowledge/surfaces/policy-search.surface.yaml"
+      ],
+      "supplementRefs": [
+        "knowledge/screens/policy-search.hints.yaml"
+      ],
+      "controlRefs": [
+        "controls/datasets/demo-default.dataset.yaml",
+        "controls/resolution/demo-policy-search.resolution.yaml",
+        "controls/runbooks/demo-smoke.runbook.yaml"
+      ],
       "evidenceRefs": [],
       "overlayRefs": [],
       "reviewReasons": [],
-      "unresolvedGaps": [
-        "runtime-resolution-required"
-      ],
+      "unresolvedGaps": [],
       "reasons": [],
       "evidenceIds": [],
       "program": null,
       "handshakes": [
-        "preparation"
+        "preparation",
+        "resolution"
       ],
-      "winningConcern": "intent",
-      "winningSource": "none",
+      "winningConcern": "knowledge",
+      "winningSource": "resolution-control",
       "resolutionMode": "deterministic",
       "translation": null,
       "runtime": {
-        "status": "pending",
-        "runId": null,
-        "resolutionMode": null,
+        "status": "resolved",
+        "runId": "2026-03-12T04-52-36-051Z",
+        "resolutionMode": "deterministic",
         "widgetContract": null,
         "locatorStrategy": null,
         "locatorRung": null,
         "degraded": false,
         "preconditionFailures": [],
-        "durationMs": 0,
+        "durationMs": 1,
         "timing": {
           "setupMs": 0,
           "resolutionMs": 0,
-          "actionMs": 0,
+          "actionMs": 1,
           "assertionMs": 0,
           "retriesMs": 0,
           "teardownMs": 0,
-          "totalMs": 0
+          "totalMs": 1
         },
         "budget": {
           "status": "not-configured",
@@ -240,7 +378,60 @@
           "family": "none",
           "code": null
         },
-        "exhaustion": []
+        "exhaustion": [
+          {
+            "stage": "explicit",
+            "outcome": "skipped",
+            "reason": "No explicit constraints present"
+          },
+          {
+            "stage": "approved-screen-bundle",
+            "outcome": "attempted",
+            "reason": "Selected screen policy-search",
+            "topCandidates": [
+              {
+                "concern": "screen",
+                "source": "control",
+                "value": "policy-search",
+                "score": 900,
+                "reason": "Screen constrained by resolution control."
+              }
+            ],
+            "rejectedCandidates": []
+          },
+          {
+            "stage": "local-hints",
+            "outcome": "attempted",
+            "reason": "Matched element searchButton",
+            "topCandidates": [
+              {
+                "concern": "element",
+                "source": "control",
+                "value": "searchButton",
+                "score": 900,
+                "reason": "Element constrained by resolution control."
+              }
+            ],
+            "rejectedCandidates": []
+          },
+          {
+            "stage": "shared-patterns",
+            "outcome": "skipped",
+            "reason": "No shared posture pattern required",
+            "topCandidates": [],
+            "rejectedCandidates": []
+          },
+          {
+            "stage": "prior-evidence",
+            "outcome": "skipped",
+            "reason": "No prior evidence refs available"
+          },
+          {
+            "stage": "safe-degraded-resolution",
+            "outcome": "resolved",
+            "reason": "Approved deterministic priors produced an executable target"
+          }
+        ]
       }
     },
     {
@@ -251,33 +442,43 @@
       "normalizedIntent": "matching policy appears in search results => verify search results show policy",
       "action": "custom",
       "confidence": "intent-only",
-      "provenanceKind": "unresolved",
+      "provenanceKind": "approved-knowledge",
       "governance": "approved",
       "bindingKind": "deferred",
       "ruleId": null,
-      "knowledgeRefs": [],
-      "supplementRefs": [],
-      "controlRefs": [],
+      "knowledgeRefs": [
+        "knowledge/screens/policy-search.elements.yaml",
+        "knowledge/screens/policy-search.postures.yaml",
+        "knowledge/surfaces/policy-search.surface.yaml"
+      ],
+      "supplementRefs": [
+        "knowledge/patterns/core.patterns.yaml",
+        "knowledge/screens/policy-search.hints.yaml"
+      ],
+      "controlRefs": [
+        "controls/datasets/demo-default.dataset.yaml",
+        "controls/resolution/demo-policy-search.resolution.yaml",
+        "controls/runbooks/demo-smoke.runbook.yaml"
+      ],
       "evidenceRefs": [],
       "overlayRefs": [],
       "reviewReasons": [],
-      "unresolvedGaps": [
-        "runtime-resolution-required"
-      ],
+      "unresolvedGaps": [],
       "reasons": [],
       "evidenceIds": [],
       "program": null,
       "handshakes": [
-        "preparation"
+        "preparation",
+        "resolution"
       ],
-      "winningConcern": "intent",
-      "winningSource": "none",
+      "winningConcern": "knowledge",
+      "winningSource": "resolution-control",
       "resolutionMode": "deterministic",
       "translation": null,
       "runtime": {
-        "status": "pending",
-        "runId": null,
-        "resolutionMode": null,
+        "status": "resolved",
+        "runId": "2026-03-12T04-52-36-051Z",
+        "resolutionMode": "deterministic",
         "widgetContract": null,
         "locatorStrategy": null,
         "locatorRung": null,
@@ -287,7 +488,7 @@
         "timing": {
           "setupMs": 0,
           "resolutionMs": 0,
-          "actionMs": 0,
+          "actionMs": 1,
           "assertionMs": 0,
           "retriesMs": 0,
           "teardownMs": 0,
@@ -301,7 +502,68 @@
           "family": "none",
           "code": null
         },
-        "exhaustion": []
+        "exhaustion": [
+          {
+            "stage": "explicit",
+            "outcome": "skipped",
+            "reason": "No explicit constraints present"
+          },
+          {
+            "stage": "approved-screen-bundle",
+            "outcome": "attempted",
+            "reason": "Selected screen policy-search",
+            "topCandidates": [
+              {
+                "concern": "screen",
+                "source": "control",
+                "value": "policy-search",
+                "score": 900,
+                "reason": "Screen constrained by resolution control."
+              }
+            ],
+            "rejectedCandidates": []
+          },
+          {
+            "stage": "local-hints",
+            "outcome": "attempted",
+            "reason": "Matched element resultsTable",
+            "topCandidates": [
+              {
+                "concern": "element",
+                "source": "control",
+                "value": "resultsTable",
+                "score": 900,
+                "reason": "Element constrained by resolution control."
+              }
+            ],
+            "rejectedCandidates": []
+          },
+          {
+            "stage": "shared-patterns",
+            "outcome": "attempted",
+            "reason": "Matched posture valid",
+            "topCandidates": [
+              {
+                "concern": "posture",
+                "source": "approved-knowledge",
+                "value": "valid",
+                "score": 788,
+                "reason": "Posture matched shared pattern alias \"matching\"."
+              }
+            ],
+            "rejectedCandidates": []
+          },
+          {
+            "stage": "prior-evidence",
+            "outcome": "skipped",
+            "reason": "No prior evidence refs available"
+          },
+          {
+            "stage": "safe-degraded-resolution",
+            "outcome": "resolved",
+            "reason": "Approved deterministic priors produced an executable target"
+          }
+        ]
       }
     }
   ]

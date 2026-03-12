@@ -42,12 +42,54 @@ function fakeSelectedContext(runId: string, options?: { withRunbookAndDataset?: 
     boundScenarioEntry: {} as SelectedRunContext['boundScenarioEntry'],
     taskPacketEntry: {
       artifact: {
-        taskFingerprint: 'sha256:task',
-        knowledgeFingerprint: 'sha256:knowledge',
-        fingerprints: {
-          controls: 'sha256:controls',
+        kind: 'scenario-task-packet',
+        version: 4,
+        stage: 'preparation',
+        scope: 'scenario',
+        ids: {
+          adoId: createAdoId('10001'),
+          suite: 'Demo',
+          dataset: null,
+          runbook: null,
+          resolutionControl: null,
         },
+        taskFingerprint: 'sha256:task',
+        payload: {
+          adoId: createAdoId('10001'),
+          revision: 1,
+          title: 'Scenario',
+          suite: 'Demo',
+          knowledgeFingerprint: 'sha256:knowledge',
+          interface: { fingerprint: null, artifactPath: null },
+          selectors: { fingerprint: null, artifactPath: null },
+          knowledgeSlice: {
+            routeRefs: [],
+            routeVariantRefs: [],
+            screenRefs: [],
+            targetRefs: [],
+            evidenceRefs: [],
+            controlRefs: [],
+          },
+          steps: [],
+        },
+        fingerprints: {
+          artifact: 'sha256:task',
+          content: 'sha256:content',
+          knowledge: 'sha256:knowledge',
+          controls: 'sha256:controls',
+          task: 'sha256:task',
+          run: null,
+        },
+        lineage: {
+          sources: [],
+          parents: [],
+          handshakes: ['preparation'],
+        },
+        governance: 'approved',
       },
+      artifactPath: '.tesseract/tasks/10001.resolution.json',
+      absolutePath: '/tmp/.tesseract/tasks/10001.resolution.json',
+      fingerprint: 'fp:task',
     } as SelectedRunContext['taskPacketEntry'],
     snapshotEntry: {} as SelectedRunContext['snapshotEntry'],
     activeRunbook: withRunbookAndDataset
@@ -78,6 +120,9 @@ function fakeSelectedContext(runId: string, options?: { withRunbookAndDataset?: 
       revision: 1,
       contentHash: 'sha256:content',
     },
+    translationEnabled: true,
+    translationCacheEnabled: true,
+    providerId: 'deterministic-runtime-step-agent',
   };
 }
 

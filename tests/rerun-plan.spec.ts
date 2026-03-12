@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'fs';
 import path from 'path';
-import { createAdoId } from '../lib/domain/identity';
+import { createAdoId, createElementId, createScreenId } from '../lib/domain/identity';
 import { graphIds } from '../lib/domain/ids';
 import { loadWorkspaceCatalog } from '../lib/application/catalog';
 import { refreshScenario } from '../lib/application/refresh';
@@ -53,7 +53,7 @@ test('single-node change selects only the directly impacted scenario with ration
     const plan = await runWithLocalServices(
       internalRerunPlan.planRerunSelection({
         catalog,
-        sourceNodeIds: [graphIds.screenHints('policy-search')],
+        sourceNodeIds: [graphIds.screenHints(createScreenId('policy-search'))],
         changedArtifactPaths: ['knowledge/screens/policy-search.hints.yaml'],
         changedNodeReasons: ['screen hints changed'],
         reason: 'Single-node canonical hint change',
@@ -149,7 +149,7 @@ test('multi-hop lineage propagation keeps rerun selection deterministic', async 
     const plan = await runWithLocalServices(
       internalRerunPlan.planRerunSelection({
         catalog,
-        sourceNodeIds: [graphIds.element('policy-search', 'policyNumberInput')],
+        sourceNodeIds: [graphIds.element(createScreenId('policy-search'), createElementId('policyNumberInput'))],
         changedArtifactPaths: ['knowledge/screens/policy-search.elements.yaml'],
         changedNodeReasons: ['element change'],
         reason: 'Element change should propagate to scenario/runbook/projections',
@@ -209,7 +209,7 @@ test('rerun plan replay is stable for the same lineage inputs', async () => {
     const first = await runWithLocalServices(
       internalRerunPlan.planRerunSelection({
         catalog,
-        sourceNodeIds: [graphIds.element('policy-search', 'policyNumberInput')],
+        sourceNodeIds: [graphIds.element(createScreenId('policy-search'), createElementId('policyNumberInput'))],
         changedArtifactPaths: ['knowledge/screens/policy-search.elements.yaml'],
         changedNodeReasons: ['element change'],
         reason: 'Replay baseline',
@@ -220,7 +220,7 @@ test('rerun plan replay is stable for the same lineage inputs', async () => {
     const second = await runWithLocalServices(
       internalRerunPlan.planRerunSelection({
         catalog,
-        sourceNodeIds: [graphIds.element('policy-search', 'policyNumberInput')],
+        sourceNodeIds: [graphIds.element(createScreenId('policy-search'), createElementId('policyNumberInput'))],
         changedArtifactPaths: ['knowledge/screens/policy-search.elements.yaml'],
         changedNodeReasons: ['element change'],
         reason: 'Replay baseline',

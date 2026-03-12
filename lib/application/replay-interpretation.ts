@@ -133,7 +133,7 @@ function createDriftRecord(input: {
     fingerprints: {
       artifact: input.runId,
       content: null,
-      knowledge: firstReceipt?.knowledgeFingerprint ?? input.taskPacket.knowledgeFingerprint,
+      knowledge: firstReceipt?.knowledgeFingerprint ?? input.taskPacket.payload.knowledgeFingerprint,
       controls: firstReceipt?.fingerprints.controls ?? null,
       task: input.taskPacket.taskFingerprint,
       run: input.runId,
@@ -156,7 +156,7 @@ function createDriftRecord(input: {
     hasDrift: changedStepCount > 0,
     provenance: {
       taskFingerprint: input.taskPacket.taskFingerprint,
-      knowledgeFingerprint: firstReceipt?.knowledgeFingerprint ?? input.taskPacket.knowledgeFingerprint,
+      knowledgeFingerprint: firstReceipt?.knowledgeFingerprint ?? input.taskPacket.payload.knowledgeFingerprint,
       controlsFingerprint: firstReceipt?.fingerprints.controls ?? null,
       comparedTaskFingerprint: previousFirst?.taskFingerprint ?? null,
       comparedKnowledgeFingerprint: previousFirst?.knowledgeFingerprint ?? null,
@@ -217,6 +217,7 @@ export function replayInterpretation(options: {
         resolutionControl: selectedContext.activeRunbook?.resolutionControl ?? null,
       },
       steps: selectedContext.steps,
+      runtimeKnowledgeSession: selectedContext.runtimeKnowledgeSession,
       posture: selectedContext.posture,
       context: selectedContext.context,
       recoveryPolicy: selectedContext.recoveryPolicy,

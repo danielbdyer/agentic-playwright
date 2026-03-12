@@ -68,10 +68,12 @@ import { SchemaError } from '../errors';
 import { uniqueSorted } from '../collections';
 import {
   createAdoId,
+  createCanonicalTargetRef,
   createElementId,
   createFixtureId,
   createPostureId,
   createScreenId,
+  createSelectorRef,
   createSectionId,
   createSnapshotTemplateId,
   createSurfaceId,
@@ -666,6 +668,9 @@ function validateStepTaskElementCandidate(value: unknown, path: string) {
   const candidate = expectRecord(value, path);
   return {
     element: expectId(candidate.element, `${path}.element`, createElementId),
+    targetRef: candidate.targetRef === undefined || candidate.targetRef === null
+      ? null
+      : expectId(candidate.targetRef, `${path}.targetRef`, createCanonicalTargetRef),
     role: expectString(candidate.role, `${path}.role`),
     name: expectOptionalString(candidate.name, `${path}.name`) ?? null,
     surface: expectId(candidate.surface, `${path}.surface`, createSurfaceId),
@@ -676,6 +681,10 @@ function validateStepTaskElementCandidate(value: unknown, path: string) {
     postures: expectIdArray(candidate.postures ?? [], `${path}.postures`, createPostureId),
     defaultValueRef: expectOptionalString(candidate.defaultValueRef, `${path}.defaultValueRef`) ?? null,
     parameter: expectOptionalString(candidate.parameter, `${path}.parameter`) ?? null,
+    graphNodeId: expectOptionalString(candidate.graphNodeId, `${path}.graphNodeId`) ?? null,
+    selectorRefs: expectArray(candidate.selectorRefs ?? [], `${path}.selectorRefs`).map((entry, index) =>
+      expectId(entry, `${path}.selectorRefs[${index}]`, createSelectorRef),
+    ),
     snapshotAliases: Object.fromEntries(
       Object.entries(expectRecord(candidate.snapshotAliases ?? {}, `${path}.snapshotAliases`)).map(([snapshotId, aliases]) => [
         ensureSafeRelativePathLike(snapshotId, `${path}.snapshotAliases.${snapshotId}`),
@@ -690,6 +699,7 @@ function validateStepTaskScreenCandidate(value: unknown, path: string) {
   return {
     screen: expectId(candidate.screen, `${path}.screen`, createScreenId),
     url: expectString(candidate.url, `${path}.url`),
+    routeVariantRefs: expectStringArray(candidate.routeVariantRefs ?? [], `${path}.routeVariantRefs`),
     screenAliases: expectStringArray(candidate.screenAliases ?? [], `${path}.screenAliases`),
     knowledgeRefs: expectStringArray(candidate.knowledgeRefs ?? [], `${path}.knowledgeRefs`),
     supplementRefs: expectStringArray(candidate.supplementRefs ?? [], `${path}.supplementRefs`),
@@ -697,6 +707,7 @@ function validateStepTaskScreenCandidate(value: unknown, path: string) {
       validateStepTaskElementCandidate(entry, `${path}.elements[${index}]`),
     ),
     sectionSnapshots: expectIdArray(candidate.sectionSnapshots ?? [], `${path}.sectionSnapshots`, createSnapshotTemplateId),
+    graphNodeId: expectOptionalString(candidate.graphNodeId, `${path}.graphNodeId`) ?? null,
   };
 }
 
@@ -733,6 +744,10 @@ function validateRuntimeKnowledgeSession(value: unknown, path: string) {
   return {
     knowledgeFingerprint: expectString(session.knowledgeFingerprint, `${path}.knowledgeFingerprint`),
     confidenceFingerprint: expectOptionalString(session.confidenceFingerprint, `${path}.confidenceFingerprint`) ?? null,
+    interfaceGraphFingerprint: expectOptionalString(session.interfaceGraphFingerprint, `${path}.interfaceGraphFingerprint`) ?? null,
+    selectorCanonFingerprint: expectOptionalString(session.selectorCanonFingerprint, `${path}.selectorCanonFingerprint`) ?? null,
+    interfaceGraphPath: expectOptionalString(session.interfaceGraphPath, `${path}.interfaceGraphPath`) ?? null,
+    selectorCanonPath: expectOptionalString(session.selectorCanonPath, `${path}.selectorCanonPath`) ?? null,
     sharedPatterns: validateSharedPatterns(session.sharedPatterns),
     screens: expectArray(session.screens ?? [], `${path}.screens`).map((entry, index) =>
       validateStepTaskScreenCandidate(entry, `${path}.screens[${index}]`),
@@ -835,20 +850,41 @@ function validateStepTask(value: unknown, path: string, sharedRuntimeKnowledge?:
       : validateStepResolution(task.controlResolution, `${path}.controlResolution`),
     knowledgeRef,
     runtimeKnowledge: legacyRuntimeKnowledge ?? (knowledgeRef === 'scenario' ? sharedRuntimeKnowledge : undefined),
+    grounding: task.grounding === undefined
+      ? undefined
+      : (() => {
+          const grounding = expectRecord(task.grounding, `${path}.grounding`);
+          return {
+            targetRefs: expectArray(grounding.targetRefs ?? [], `${path}.grounding.targetRefs`).map((entry, index) =>
+              expectId(entry, `${path}.grounding.targetRefs[${index}]`, createCanonicalTargetRef),
+            ),
+            selectorRefs: expectArray(grounding.selectorRefs ?? [], `${path}.grounding.selectorRefs`).map((entry, index) =>
+              expectId(entry, `${path}.grounding.selectorRefs[${index}]`, createSelectorRef),
+            ),
+            fallbackSelectorRefs: expectArray(grounding.fallbackSelectorRefs ?? [], `${path}.grounding.fallbackSelectorRefs`).map((entry, index) =>
+              expectId(entry, `${path}.grounding.fallbackSelectorRefs[${index}]`, createSelectorRef),
+            ),
+            routeVariantRefs: expectStringArray(grounding.routeVariantRefs ?? [], `${path}.grounding.routeVariantRefs`),
+            assertionAnchors: expectStringArray(grounding.assertionAnchors ?? [], `${path}.grounding.assertionAnchors`),
+          };
+        })(),
     taskFingerprint: expectString(task.taskFingerprint, `${path}.taskFingerprint`),
   };
 }
 
 export function validateScenarioTaskPacket(value: unknown): ScenarioTaskPacket {
   const packet = expectRecord(value, 'scenarioTaskPacket');
+  const payloadRecord = packet.payload === undefined
+    ? null
+    : expectRecord(packet.payload, 'scenarioTaskPacket.payload');
   const header = validateWorkflowEnvelopeHeader(packet, 'scenarioTaskPacket', {
     stage: 'preparation',
     scope: 'scenario',
     governance: 'approved',
     artifactFingerprint: expectOptionalString(packet.taskFingerprint, 'scenarioTaskPacket.taskFingerprint') ?? 'scenario-task-packet',
     ids: {
-      adoId: expectOptionalId(packet.adoId, 'scenarioTaskPacket.adoId', createAdoId) ?? null,
-      suite: expectOptionalString(packet.suite, 'scenarioTaskPacket.suite') ?? null,
+      adoId: expectOptionalId(packet.ids && typeof packet.ids === 'object' ? (packet.ids as Record<string, unknown>).adoId : packet.adoId, 'scenarioTaskPacket.adoId', createAdoId) ?? null,
+      suite: expectOptionalString(packet.ids && typeof packet.ids === 'object' ? (packet.ids as Record<string, unknown>).suite : packet.suite, 'scenarioTaskPacket.suite') ?? null,
     },
     lineage: {
       sources: [],
@@ -859,43 +895,70 @@ export function validateScenarioTaskPacket(value: unknown): ScenarioTaskPacket {
   return {
     kind: expectEnum(packet.kind, 'scenarioTaskPacket.kind', ['scenario-task-packet'] as const),
     ...header,
-    version: (() => {
-      const version = expectNumber(packet.version, 'scenarioTaskPacket.version');
-      if (version !== 1 && version !== 2) {
-        throw new Error('scenarioTaskPacket.version must be 1 or 2');
-      }
-      return version;
-    })(),
+    version: 4,
     payload: (() => {
-      const sharedRuntimeKnowledge = packet.runtimeKnowledgeSession === undefined
+      const sharedRuntimeKnowledge = packet.runtimeKnowledgeSession === undefined && (!payloadRecord || payloadRecord.runtimeKnowledgeSession === undefined)
         ? undefined
-        : validateRuntimeKnowledgeSession(packet.runtimeKnowledgeSession, 'scenarioTaskPacket.runtimeKnowledgeSession');
+        : validateRuntimeKnowledgeSession(packet.runtimeKnowledgeSession ?? payloadRecord?.runtimeKnowledgeSession, 'scenarioTaskPacket.runtimeKnowledgeSession');
+      const adoId = expectId(payloadRecord?.adoId ?? packet.adoId, 'scenarioTaskPacket.adoId', createAdoId);
+      const revision = expectNumber(payloadRecord?.revision ?? packet.revision, 'scenarioTaskPacket.revision');
+      const title = expectString(payloadRecord?.title ?? packet.title, 'scenarioTaskPacket.title');
+      const suite = ensureSafeRelativePathLike(expectString(payloadRecord?.suite ?? packet.suite, 'scenarioTaskPacket.suite'), 'scenarioTaskPacket.suite');
+      const knowledgeFingerprint = expectString(payloadRecord?.knowledgeFingerprint ?? packet.knowledgeFingerprint, 'scenarioTaskPacket.knowledgeFingerprint');
       return {
-        adoId: expectId(packet.adoId, 'scenarioTaskPacket.adoId', createAdoId),
-        revision: expectNumber(packet.revision, 'scenarioTaskPacket.revision'),
-        title: expectString(packet.title, 'scenarioTaskPacket.title'),
-        suite: ensureSafeRelativePathLike(expectString(packet.suite, 'scenarioTaskPacket.suite'), 'scenarioTaskPacket.suite'),
-        knowledgeFingerprint: expectString(packet.knowledgeFingerprint, 'scenarioTaskPacket.knowledgeFingerprint'),
-        runtimeKnowledgeSession: sharedRuntimeKnowledge,
-        steps: expectArray(packet.steps ?? [], 'scenarioTaskPacket.steps').map((entry, index) =>
+        adoId,
+        revision,
+        title,
+        suite,
+        knowledgeFingerprint,
+        interface: (() => {
+          const interfaceRecord = expectRecord(payloadRecord?.interface ?? {
+            fingerprint: packet.interfaceGraphFingerprint ?? null,
+            artifactPath: null,
+          }, 'scenarioTaskPacket.payload.interface');
+          return {
+            fingerprint: expectOptionalString(interfaceRecord.fingerprint, 'scenarioTaskPacket.payload.interface.fingerprint') ?? null,
+            artifactPath: expectOptionalString(interfaceRecord.artifactPath, 'scenarioTaskPacket.payload.interface.artifactPath') ?? null,
+          };
+        })(),
+        selectors: (() => {
+          const selectorRecord = expectRecord(payloadRecord?.selectors ?? {
+            fingerprint: packet.selectorCanonFingerprint ?? null,
+            artifactPath: null,
+          }, 'scenarioTaskPacket.payload.selectors');
+          return {
+            fingerprint: expectOptionalString(selectorRecord.fingerprint, 'scenarioTaskPacket.payload.selectors.fingerprint') ?? null,
+            artifactPath: expectOptionalString(selectorRecord.artifactPath, 'scenarioTaskPacket.payload.selectors.artifactPath') ?? null,
+          };
+        })(),
+        knowledgeSlice: (() => {
+          const slice = expectRecord(payloadRecord?.knowledgeSlice ?? {
+            routeRefs: [],
+            routeVariantRefs: [],
+            screenRefs: [],
+            targetRefs: [],
+            evidenceRefs: sharedRuntimeKnowledge?.evidenceRefs ?? [],
+            controlRefs: [],
+          }, 'scenarioTaskPacket.payload.knowledgeSlice');
+          return {
+            routeRefs: expectStringArray(slice.routeRefs ?? [], 'scenarioTaskPacket.payload.knowledgeSlice.routeRefs'),
+            routeVariantRefs: expectStringArray(slice.routeVariantRefs ?? [], 'scenarioTaskPacket.payload.knowledgeSlice.routeVariantRefs'),
+            screenRefs: expectArray(slice.screenRefs ?? [], 'scenarioTaskPacket.payload.knowledgeSlice.screenRefs').map((entry, index) =>
+              expectId(entry, `scenarioTaskPacket.payload.knowledgeSlice.screenRefs[${index}]`, createScreenId),
+            ),
+            targetRefs: expectArray(slice.targetRefs ?? [], 'scenarioTaskPacket.payload.knowledgeSlice.targetRefs').map((entry, index) =>
+              expectId(entry, `scenarioTaskPacket.payload.knowledgeSlice.targetRefs[${index}]`, createCanonicalTargetRef),
+            ),
+            evidenceRefs: expectStringArray(slice.evidenceRefs ?? [], 'scenarioTaskPacket.payload.knowledgeSlice.evidenceRefs'),
+            controlRefs: expectStringArray(slice.controlRefs ?? [], 'scenarioTaskPacket.payload.knowledgeSlice.controlRefs'),
+          };
+        })(),
+        steps: expectArray(payloadRecord?.steps ?? packet.steps ?? [], 'scenarioTaskPacket.steps').map((entry, index) =>
           validateStepTask(entry, `scenarioTaskPacket.steps[${index}]`, sharedRuntimeKnowledge),
         ),
       };
     })(),
-    adoId: expectId(packet.adoId, 'scenarioTaskPacket.adoId', createAdoId),
-    revision: expectNumber(packet.revision, 'scenarioTaskPacket.revision'),
-    title: expectString(packet.title, 'scenarioTaskPacket.title'),
-    suite: ensureSafeRelativePathLike(expectString(packet.suite, 'scenarioTaskPacket.suite'), 'scenarioTaskPacket.suite'),
     taskFingerprint: expectString(packet.taskFingerprint, 'scenarioTaskPacket.taskFingerprint'),
-    knowledgeFingerprint: expectString(packet.knowledgeFingerprint, 'scenarioTaskPacket.knowledgeFingerprint'),
-    runtimeKnowledgeSession: packet.runtimeKnowledgeSession === undefined
-      ? undefined
-      : validateRuntimeKnowledgeSession(packet.runtimeKnowledgeSession, 'scenarioTaskPacket.runtimeKnowledgeSession'),
-    steps: expectArray(packet.steps ?? [], 'scenarioTaskPacket.steps').map((entry, index) =>
-      validateStepTask(entry, `scenarioTaskPacket.steps[${index}]`, packet.runtimeKnowledgeSession === undefined
-        ? undefined
-        : validateRuntimeKnowledgeSession(packet.runtimeKnowledgeSession, 'scenarioTaskPacket.runtimeKnowledgeSession')),
-    ),
   };
 }
 

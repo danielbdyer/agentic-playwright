@@ -39,7 +39,7 @@ export function describeScenarioPaths(options: { adoId: AdoId; paths: ProjectPat
     const canonicalScenarioPath = scenarioPath(options.paths, snapshot.suitePath, options.adoId);
     const scenarioExists = yield* fs.exists(canonicalScenarioPath);
     const referencedScreens = new Set<ScreenId>();
-    const taskPacket = catalog.taskPackets.find((entry) => entry.artifact.adoId === options.adoId)?.artifact ?? null;
+    const taskPacket = catalog.taskPackets.find((entry) => entry.artifact.payload.adoId === options.adoId)?.artifact ?? null;
 
     if (scenarioExists) {
       const scenarioText = yield* fs.readText(canonicalScenarioPath);
@@ -55,11 +55,8 @@ export function describeScenarioPaths(options: { adoId: AdoId; paths: ProjectPat
       }
     }
     if (referencedScreens.size === 0 && taskPacket) {
-      const runtimeKnowledgeSession = taskPacket.runtimeKnowledgeSession ?? taskPacket.payload.runtimeKnowledgeSession;
-      for (const step of taskPacket.steps) {
-        for (const screen of (step.runtimeKnowledge ?? runtimeKnowledgeSession)?.screens ?? []) {
-          referencedScreens.add(screen.screen);
-        }
+      for (const screen of taskPacket.payload.knowledgeSlice.screenRefs) {
+        referencedScreens.add(screen);
       }
     }
     if (referencedScreens.size === 0) {
@@ -77,9 +74,12 @@ export function describeScenarioPaths(options: { adoId: AdoId; paths: ProjectPat
         controls: options.paths.controlsDir,
         knowledge: options.paths.knowledgeDir,
         generated: options.paths.generatedDir,
+        interface: options.paths.interfaceDir,
         bound: options.paths.boundDir,
         tasks: options.paths.tasksDir,
         runs: options.paths.runsDir,
+        sessions: options.paths.sessionsDir,
+        learning: options.paths.learningDir,
         evidence: options.paths.evidenceDir,
         confidence: options.paths.confidenceDir,
         graph: options.paths.graphDir,
@@ -97,6 +97,8 @@ export function describeScenarioPaths(options: { adoId: AdoId; paths: ProjectPat
         trace: generatedTracePath(options.paths, snapshot.suitePath, options.adoId),
         review: generatedReviewPath(options.paths, snapshot.suitePath, options.adoId),
         proposals: generatedProposalsPath(options.paths, snapshot.suitePath, options.adoId),
+        interfaceGraph: options.paths.interfaceGraphIndexPath,
+        selectorCanon: options.paths.selectorCanonPath,
         graph: options.paths.graphIndexPath,
         mcpCatalog: options.paths.mcpCatalogPath,
         confidence: options.paths.confidenceIndexPath,
@@ -104,6 +106,7 @@ export function describeScenarioPaths(options: { adoId: AdoId; paths: ProjectPat
         inboxIndex: options.paths.inboxIndexPath,
         inboxReport: options.paths.inboxReportPath,
         generatedTypes: generatedKnowledgePath(options.paths),
+        learningManifest: options.paths.learningManifestPath,
       },
       knowledge: [...referencedScreens].map((screen) => ({
         screen,

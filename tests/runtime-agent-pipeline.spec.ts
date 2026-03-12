@@ -86,8 +86,13 @@ function baseStep(): StepTask {
         posture: null,
         snapshotTemplate: null,
         learnedAliases: ['policy ref'],
-        sourceRunId: 'run-1',
-        sourceStepIndex: 2,
+        lastSuccessAt: '2026-03-09T00:00:00.000Z',
+        lastFailureAt: null,
+        lineage: {
+          runIds: ['run-1'],
+          evidenceIds: ['.tesseract/evidence/runs/10001/seed/step-2-0.json'],
+          sourceArtifactPaths: ['knowledge/screens/policy-search.hints.yaml'],
+        },
       }],
       controls: {
         datasets: [],
@@ -99,13 +104,22 @@ function baseStep(): StepTask {
   };
 }
 
+function requireRuntimeKnowledge(step: StepTask): NonNullable<StepTask['runtimeKnowledge']> {
+  if (!step.runtimeKnowledge) {
+    throw new Error('runtime knowledge is required for this test');
+  }
+  return step.runtimeKnowledge;
+}
+
 test('resolution pipeline precedence is explicit and stable', () => {
   expect(RESOLUTION_PRECEDENCE).toEqual([
     'explicit',
     'control',
-    'approved-knowledge',
-    'overlay',
-    'translation',
+    'approved-screen-knowledge',
+    'shared-patterns',
+    'prior-evidence',
+    'approved-equivalent-overlay',
+    'structured-translation',
     'live-dom',
     'needs-human',
   ]);
@@ -117,10 +131,12 @@ test('overlay resolution short-circuits translation and preserves receipt fields
     provider: 'test-agent',
     mode: 'diagnostic',
     runAt: '2026-03-09T00:00:00.000Z',
-    translate: () => {
+    translate: async () => {
       translateCalls += 1;
       return {
+        kind: 'translation-receipt' as const,
         version: 1,
+        mode: 'structured-translation' as const,
         matched: true,
         rationale: 'should not run',
         selected: null,
@@ -162,22 +178,27 @@ test('provider identity does not change receipt envelope shape or governance sem
 });
 
 test('live DOM ambiguity is bounded and deterministic for tie-breaking and shortlist evidence', async () => {
-  const page = mockPageFromRoleCounts({ 'textbox:A': 1, 'textbox:B': 1 });
+  const page = mockPageFromRoleCounts({ 'textbox:Primary': 1, 'textbox:Secondary': 1 });
   const step = baseStep();
+  const runtimeKnowledge = requireRuntimeKnowledge(step);
+  step.intent = 'Populate entry';
+  step.actionText = 'Provide customer value';
+  step.expectedText = 'Value is accepted';
+  step.normalizedIntent = 'provide customer value => value is accepted';
   step.controlResolution = { action: 'input', screen: createScreenId('policy-search') };
-  step.runtimeKnowledge.confidenceOverlays = [];
-  step.runtimeKnowledge.controls.resolutionControls = [{
+  runtimeKnowledge.confidenceOverlays = [];
+  runtimeKnowledge.controls.resolutionControls = [{
     name: 'ci-policy',
     artifactPath: 'controls/resolution/ci-policy.resolution.yaml',
     stepIndex: 2,
     resolution: {},
     domExplorationPolicy: { maxCandidates: 2, maxProbes: 4, forbiddenActions: [] },
   }];
-  step.runtimeKnowledge.screens[0].elements = [
+  runtimeKnowledge.screens[0]!.elements = [
     {
-      element: createElementId('alphaInput'),
+      element: createElementId('primaryInput'),
       role: 'textbox',
-      name: 'A',
+      name: 'Primary',
       surface: createSurfaceId('search-form'),
       widget: createWidgetId('os-input'),
       aliases: [],
@@ -186,9 +207,9 @@ test('live DOM ambiguity is bounded and deterministic for tie-breaking and short
       snapshotAliases: {},
     },
     {
-      element: createElementId('betaInput'),
+      element: createElementId('secondaryInput'),
       role: 'textbox',
-      name: 'B',
+      name: 'Secondary',
       surface: createSurfaceId('search-form'),
       widget: createWidgetId('os-input'),
       aliases: [],
@@ -198,12 +219,12 @@ test('live DOM ambiguity is bounded and deterministic for tie-breaking and short
     },
   ];
 
-  const dom = await resolveFromDom(page as never, step, step.runtimeKnowledge.screens[0] ?? null, 'input', {
+  const dom = await resolveFromDom(page as never, step, runtimeKnowledge.screens[0] ?? null, 'input', {
     maxCandidates: 2,
     maxProbes: 4,
     forbiddenActions: [],
   });
-  expect(dom.topCandidate?.element.element).toBe(createElementId('alphaInput'));
+  expect(dom.topCandidate?.element.element).toBe(createElementId('primaryInput'));
   expect(dom.candidates.length).toBe(2);
 
   const receipt = await runResolutionPipeline(step, {
@@ -214,26 +235,33 @@ test('live DOM ambiguity is bounded and deterministic for tie-breaking and short
     controlSelection: { resolutionControl: 'ci-policy' },
   });
 
-  expect(receipt.kind).toBe('needs-human');
+  expect(receipt.kind).toBe('resolved-with-proposals');
+  if (receipt.kind !== 'resolved-with-proposals') {
+    throw new Error('expected resolved-with-proposals receipt');
+  }
   expect(receipt.governance).toBe('review-required');
-  expect(receipt.reason).toContain('No safe executable interpretation');
+  expect(receipt.winningSource).toBe('live-dom');
+  expect(receipt.target.element).toBe(createElementId('primaryInput'));
+  expect(receipt.proposalDrafts).toHaveLength(1);
+  expect(receipt.evidenceDrafts).toHaveLength(1);
 });
 
 test('forbidden action policy yields review-required needs-human with shortlist evidence', async () => {
   const page = mockPageFromRoleCounts({ 'button:Submit': 1, 'button:Continue': 1 });
   const step = baseStep();
+  const runtimeKnowledge = requireRuntimeKnowledge(step);
   step.allowedActions = ['click'];
   step.actionText = 'Click continue';
   step.normalizedIntent = 'click continue => advances';
-  step.runtimeKnowledge.confidenceOverlays = [];
-  step.runtimeKnowledge.controls.resolutionControls = [{
+  runtimeKnowledge.confidenceOverlays = [];
+  runtimeKnowledge.controls.resolutionControls = [{
     name: 'interactive-policy',
     artifactPath: 'controls/resolution/interactive-policy.resolution.yaml',
     stepIndex: 2,
     resolution: {},
     domExplorationPolicy: { maxCandidates: 2, maxProbes: 1, forbiddenActions: ['click'] },
   }];
-  step.runtimeKnowledge.screens[0].elements = [
+  runtimeKnowledge.screens[0]!.elements = [
     {
       element: createElementId('submitButton'),
       role: 'button',
@@ -256,6 +284,9 @@ test('forbidden action policy yields review-required needs-human with shortlist 
   });
 
   expect(receipt.kind).toBe('needs-human');
+  if (receipt.kind !== 'needs-human') {
+    throw new Error('expected needs-human receipt');
+  }
   expect(receipt.governance).toBe('review-required');
   expect(receipt.reason).toContain('No safe executable interpretation');
 });
@@ -263,7 +294,7 @@ test('forbidden action policy yields review-required needs-human with shortlist 
 
 test('working memory is updated across steps and receipt lineage captures memory priors', async () => {
   const first = baseStep();
-  first.runtimeKnowledge.confidenceOverlays = [];
+  requireRuntimeKnowledge(first).confidenceOverlays = [];
   first.controlResolution = { action: 'input', screen: createScreenId('policy-search'), element: createElementId('policyNumberInput') };
   const context: RuntimeStepAgentContext = {
     provider: 'test-agent',
@@ -278,7 +309,7 @@ test('working memory is updated across steps and receipt lineage captures memory
 
   const second = baseStep();
   second.index = 9;
-  second.runtimeKnowledge.confidenceOverlays = [];
+  requireRuntimeKnowledge(second).confidenceOverlays = [];
   second.actionText = 'Navigate to policy search';
   second.normalizedIntent = 'navigate to policy search => on policy search';
   second.controlResolution = { action: 'navigate', screen: createScreenId('policy-search') };
@@ -289,7 +320,7 @@ test('working memory is updated across steps and receipt lineage captures memory
 
   const third = baseStep();
   third.index = 10;
-  third.runtimeKnowledge.confidenceOverlays = [];
+  requireRuntimeKnowledge(third).confidenceOverlays = [];
   third.controlResolution = { action: 'input', screen: createScreenId('policy-search'), element: createElementId('policyNumberInput') };
   const thirdReceipt = await runResolutionPipeline(third, context);
   expect(thirdReceipt.lineage.sources.some((entry) => entry.startsWith('memory:step:'))).toBeTruthy();

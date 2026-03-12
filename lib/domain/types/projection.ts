@@ -1,4 +1,5 @@
 import type { AdoId } from '../identity';
+import type { AgentSession } from './session';
 import type {
   CompilerDiagnostic,
   Confidence,
@@ -14,8 +15,14 @@ import type {
   StepWinningSource,
   WorkflowStage,
 } from './workflow';
+import type { ApplicationInterfaceGraph } from './interface';
+import type { TrainingCorpusManifest } from './learning';
 import type { StepProgram } from './intent';
+import type { BoundScenario } from './intent';
+import type { SelectorCanon } from './interface';
 import type { ResolutionExhaustionEntry, TranslationReceipt } from './resolution';
+import type { ProposalBundle, RunRecord } from './execution';
+import type { ScenarioTaskPacket } from './resolution';
 
 export interface BenchmarkField {
   id: string;
@@ -307,4 +314,16 @@ export interface ScenarioExplanation {
   diagnostics: CompilerDiagnostic[];
   summary: ScenarioExplanationSummary;
   steps: ScenarioExplanationStep[];
+}
+
+export interface ScenarioProjectionInput {
+  adoId: AdoId;
+  boundScenario: BoundScenario;
+  taskPacket: ScenarioTaskPacket;
+  latestRun: RunRecord | null;
+  proposalBundle: ProposalBundle | null;
+  interfaceGraph?: ApplicationInterfaceGraph | null | undefined;
+  selectorCanon?: SelectorCanon | null | undefined;
+  sessions: AgentSession[];
+  learningManifest?: TrainingCorpusManifest | null | undefined;
 }

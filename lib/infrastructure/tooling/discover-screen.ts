@@ -2,16 +2,47 @@ import { mkdirSync, writeFileSync } from 'fs';
 import path from 'path';
 import { chromium } from '@playwright/test';
 import YAML from 'yaml';
-import type { ProjectPaths } from '../../application/paths';
+import { relativeProjectPath, type ProjectPaths } from '../../application/paths';
 import { buildDiscoveryArtifacts, deriveScreenIdFromUrl, type RawDiscoveredElement, type RawDiscoveredSurface } from '../../domain/discovery';
+import { graphIds } from '../../domain/ids';
+import {
+  createCanonicalTargetRef,
+  createElementId,
+  createRouteId,
+  createRouteVariantId,
+  createScreenId,
+  createSectionId,
+  createSelectorRef,
+  createSurfaceId,
+} from '../../domain/identity';
 import { tryAsync } from '../../application/effect';
 import { captureAriaYaml } from '../../playwright/aria';
 import { resolvePlaywrightHeadless, resolvePreferredPlaywrightChannel } from './browser-options';
+import type { DiscoveryRun, LocatorStrategy } from '../../domain/types';
 
 interface BrowserDiscoveryPayload {
   title: string;
   surfaces: RawDiscoveredSurface[];
   elements: RawDiscoveredElement[];
+}
+
+function locatorSelectorValue(strategy: LocatorStrategy): string {
+  if ('value' in strategy) {
+    return strategy.value;
+  }
+  return `${strategy.role}:${strategy.name ?? ''}`;
+}
+
+function selectorRefForCandidate(input: {
+  targetRef: string;
+  strategy: LocatorStrategy;
+  rung: number;
+}) {
+  return createSelectorRef(`selector:${input.targetRef}:${input.strategy.kind}:${input.rung}:${locatorSelectorValue(input.strategy)}`);
+}
+
+function sectionIdForSurface(surfaceId: string): string {
+  return `${surfaceId}Section`;
 }
 
 export function discoverScreenScaffold(options: {
@@ -294,6 +325,7 @@ export function discoverScreenScaffold(options: {
       const surfaceScaffoldPath = path.join(screenDir, `${screen}.surface.scaffold.yaml`);
       const elementsScaffoldPath = path.join(screenDir, `${screen}.elements.scaffold.yaml`);
       const sectionsIndexPath = path.join(sectionsDir, 'index.json');
+      const crawlPath = path.join(screenDir, 'crawl.json');
 
       writeFileSync(snapshotPath, `${artifacts.snapshot}\n`, 'utf8');
       writeFileSync(hashPath, `${artifacts.snapshotHash}\n`, 'utf8');
@@ -346,6 +378,116 @@ export function discoverScreenScaffold(options: {
         sections: sectionEntries,
       }, null, 2)}\n`, 'utf8');
 
+      const screenId = createScreenId(screen);
+      const routeId = createRouteId(screen);
+      const variantId = createRouteVariantId('discover');
+      const variantRef = `route-variant:discover:${routeId}:${variantId}`;
+      const selectorProbes = artifacts.report.elements.flatMap((element) => {
+        const elementId = createElementId(element.id);
+        const targetRef = createCanonicalTargetRef(`target:element:${screenId}:${elementId}`);
+        const graphNodeId = graphIds.target(targetRef);
+        return element.locatorCandidates.map((strategy, rung) => ({
+          id: `${targetRef}:probe:${strategy.kind}:${rung}`,
+          selectorRef: selectorRefForCandidate({ targetRef, strategy, rung }),
+          targetRef,
+          graphNodeId,
+          screen: screenId,
+          section: createSectionId(sectionIdForSurface(element.surfaceId)),
+          element: elementId,
+          strategy,
+          source: 'discovery' as const,
+          variantRef,
+        }));
+      });
+      const targets: DiscoveryRun['targets'] = [
+        ...artifacts.report.surfaces.map((surface) => {
+          const surfaceId = createSurfaceId(surface.id);
+          const targetRef = createCanonicalTargetRef(`target:surface:${screenId}:${surfaceId}`);
+          return {
+            targetRef,
+            graphNodeId: graphIds.target(targetRef),
+            kind: 'surface' as const,
+            screen: screenId,
+            section: createSectionId(sectionIdForSurface(surface.id)),
+            surface: surfaceId,
+          };
+        }),
+        ...artifacts.report.elements.map((element) => {
+          const elementId = createElementId(element.id);
+          const targetRef = createCanonicalTargetRef(`target:element:${screenId}:${elementId}`);
+          return {
+            targetRef,
+            graphNodeId: graphIds.target(targetRef),
+            kind: 'element' as const,
+            screen: screenId,
+            section: createSectionId(sectionIdForSurface(element.surfaceId)),
+            surface: createSurfaceId(element.surfaceId),
+            element: elementId,
+          };
+        }),
+      ];
+
+      const discoveryRun: DiscoveryRun = {
+        kind: 'discovery-run',
+        version: 2,
+        stage: 'preparation',
+        scope: 'workspace',
+        governance: 'approved',
+        app: 'discover',
+        routeId,
+        variantId,
+        routeVariantRef: variantRef,
+        runId: artifacts.snapshotHash,
+        screen: screenId,
+        url: options.url,
+        title: payload.title,
+        discoveredAt: new Date().toISOString(),
+        artifactPath: relativeProjectPath(options.paths, crawlPath),
+        rootSelector,
+        snapshotHash: artifacts.snapshotHash,
+        sections: sectionEntries.map((section) => ({
+          id: createSectionId(sectionIdForSurface(section.id)),
+          depth: section.depth,
+          selector: section.selector,
+          surfaceIds: section.surfaceIds.map((surfaceId) => createSurfaceId(surfaceId)),
+          elementIds: section.elementIds.map((elementId) => createElementId(elementId)),
+        })),
+        surfaces: artifacts.report.surfaces.map((surface) => ({
+          id: createSurfaceId(surface.id),
+          targetRef: createCanonicalTargetRef(`target:surface:${screenId}:${createSurfaceId(surface.id)}`),
+          section: createSectionId(sectionIdForSurface(surface.id)),
+          selector: surface.selector,
+          role: surface.role,
+          name: surface.name,
+          kind: surface.kindSuggestion,
+          assertions: surface.assertions,
+          testId: surface.testId,
+        })),
+        elements: artifacts.report.elements.map((element) => ({
+          id: createElementId(element.id),
+          targetRef: createCanonicalTargetRef(`target:element:${screenId}:${createElementId(element.id)}`),
+          surface: createSurfaceId(element.surfaceId),
+          selector: element.selector,
+          role: element.role,
+          name: element.name,
+          testId: element.testId,
+          widget: element.widgetSuggestion,
+          required: element.required,
+          locatorHint: element.locatorHint,
+          locatorCandidates: element.locatorCandidates,
+        })),
+        snapshotAnchors: [],
+        targets,
+        reviewNotes: artifacts.report.reviewNotes,
+        selectorProbes,
+        graphDeltas: {
+          nodeIds: targets.map((target) => target.graphNodeId),
+          edgeIds: [],
+        },
+      };
+
+      writeFileSync(crawlPath, `${JSON.stringify(discoveryRun, null, 2)}\n`, 'utf8');
+
       return {
         screen,
         url: options.url,
@@ -356,6 +498,7 @@ export function discoverScreenScaffold(options: {
         surfaceScaffoldPath,
         elementsScaffoldPath,
         sectionsIndexPath,
+        crawlPath,
         snapshotHash: artifacts.snapshotHash,
         reviewNotes: artifacts.report.reviewNotes,
       };

@@ -4,25 +4,32 @@
   "stage": "proposal",
   "scope": "scenario",
   "ids": {
-    "adoId": null,
-    "suite": null,
-    "runId": null,
+    "adoId": "10001",
+    "suite": "demo/policy-search",
+    "runId": "2026-03-12T04-52-36-051Z",
     "stepIndex": null,
-    "dataset": null,
-    "runbook": null,
-    "resolutionControl": null
+    "dataset": "demo-default",
+    "runbook": "demo-smoke",
+    "resolutionControl": "demo-policy-search"
   },
   "fingerprints": {
-    "artifact": "2026-03-08T22-32-19-583Z",
-    "content": null,
-    "knowledge": null,
-    "controls": null,
-    "task": null,
-    "run": null
+    "artifact": "2026-03-12T04-52-36-051Z:proposal",
+    "content": "sha256:1930319ee9882abb4af0ab8dc9d6c120f6ddc8b77ca6441c20be91697f7b19d1",
+    "knowledge": "sha256:0e4a70ad919f91872eaa36a3f09570ddcbb6ccec5f21f0d6ab7aaa035f99cf38",
+    "controls": "sha256:5d46baad2c61c92b01288807d0ddb53565590599498a25897fa91fcde56ced32",
+    "task": "sha256:fa6ce96727af0861c6e5a057de0764a0260df5afb133a9cc12021efee6478f29",
+    "run": "2026-03-12T04-52-36-051Z"
   },
   "lineage": {
-    "sources": [],
-    "parents": [],
+    "sources": [
+      "sha256:fa6ce96727af0861c6e5a057de0764a0260df5afb133a9cc12021efee6478f29",
+      "controls/runbooks/demo-smoke.runbook.yaml",
+      "controls/datasets/demo-default.dataset.yaml"
+    ],
+    "parents": [
+      "sha256:fa6ce96727af0861c6e5a057de0764a0260df5afb133a9cc12021efee6478f29",
+      "2026-03-12T04-52-36-051Z"
+    ],
     "handshakes": [
       "preparation",
       "resolution",
@@ -34,14 +41,14 @@
   "governance": "approved",
   "payload": {
     "adoId": "10001",
-    "runId": "2026-03-08T22-32-19-583Z",
+    "runId": "2026-03-12T04-52-36-051Z",
     "revision": 1,
     "title": "Verify policy search returns matching policy",
     "suite": "demo/policy-search",
     "proposals": []
   },
   "adoId": "10001",
-  "runId": "2026-03-08T22-32-19-583Z",
+  "runId": "2026-03-12T04-52-36-051Z",
   "revision": 1,
   "title": "Verify policy search returns matching policy",
   "suite": "demo/policy-search",

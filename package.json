@@ -11,8 +11,8 @@
     "node": ">=20.9.0"
   },
   "scripts": {
-    "context": "node -e \"const fs=require('fs');const path=require('path');const Module=module.constructor;const file=path.resolve('scripts/agent-context.cjs');const code=fs.readFileSync(file,'utf8');const m=new Module(file);m.filename=file;m.paths=[path.resolve('node_modules')];process.argv=['node',file];m._compile(code,file);\"",
-    "agent:sync": "node -e \"const fs=require('fs');const path=require('path');const Module=module.constructor;const file=path.resolve('scripts/agent-context.cjs');const code=fs.readFileSync(file,'utf8');const m=new Module(file);m.filename=file;m.paths=[path.resolve('node_modules')];process.argv=['node',file,'--write'];m._compile(code,file);\"",
+    "context": "node scripts/agent-context.cjs",
+    "agent:sync": "node scripts/agent-context.cjs --write",
     "build": "node scripts/build.cjs",
     "typecheck": "node -e \"const fs=require('fs');const path=require('path');const Module=module.constructor;const file=path.resolve('scripts/typecheck.cjs');const code=fs.readFileSync(file,'utf8');const m=new Module(file);m.filename=file;m.paths=[path.resolve('node_modules')];process.argv=['node',file];m._compile(code,file);\"",
     "sync": "npm run build && node dist/bin/tesseract.js sync --all",

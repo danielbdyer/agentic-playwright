@@ -8,41 +8,44 @@ import { validateAdoSnapshot } from '../lib/domain/validation';
 
 const rootDir = process.cwd();
 
+function mockResponse(body: unknown, status = 200): Promise<Response> {
+  return Promise.resolve({
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => body,
+  } as Response);
+}
+
 function mockedAdoFetch(input: string): Promise<Response> {
   if (input.includes('/_apis/wit/wiql')) {
-    return Promise.resolve(new Response(JSON.stringify({ workItems: [{ id: 10001 }] }), { status: 200 }));
+    return mockResponse({ workItems: [{ id: 10001 }] });
   }
 
   if (input.includes('/_apis/wit/workitems/10001')) {
-    return Promise.resolve(
-      new Response(
-        JSON.stringify({
-          id: 10001,
-          rev: 1,
-          fields: {
-            'System.Title': 'Verify policy search returns matching policy',
-            'System.Tags': 'smoke; billing; P1',
-            'System.AreaPath': 'demo',
-            'System.IterationPath': 'demo/sprint-1',
-            'Microsoft.VSTS.Common.Priority': 1,
-            'Microsoft.VSTS.TCM.Steps': [
-              '<steps id="0" last="4">',
-              '<step id="2" type="ActionStep"><parameterizedString isformatted="true"><![CDATA[<p>Navigate to Policy Search screen</p>]]></parameterizedString><parameterizedString isformatted="true"><![CDATA[<p>Policy Search screen loads</p>]]></parameterizedString></step>',
-              '<step id="3" type="ActionStep"><parameterizedString isformatted="true"><![CDATA[<p>Enter policy number in search field</p>]]></parameterizedString><parameterizedString isformatted="true"><![CDATA[<p>Policy Number accepts a valid policy</p>]]></parameterizedString></step>',
-              '<step id="4" type="ActionStep"><parameterizedString isformatted="true"><![CDATA[<p>Click Search button</p>]]></parameterizedString><parameterizedString isformatted="true"><![CDATA[<p>Search runs</p>]]></parameterizedString></step>',
-              '<step id="5" type="ValidateStep"><parameterizedString isformatted="true"><![CDATA[<p>Verify search results show policy</p>]]></parameterizedString><parameterizedString isformatted="true"><![CDATA[<p>Matching policy appears in Search Results</p>]]></parameterizedString></step>',
-              '</steps>',
-            ].join(''),
-            'Microsoft.VSTS.TCM.Parameters': '<parameters><param name="policyNumber" bind="default" /></parameters>',
-            'Microsoft.VSTS.TCM.LocalDataSource': '<NewDataSet><Table1><policyNumber>POL-001</policyNumber></Table1></NewDataSet>',
-          },
-        }),
-        { status: 200 },
-      ),
-    );
+    return mockResponse({
+      id: 10001,
+      rev: 1,
+      fields: {
+        'System.Title': 'Verify policy search returns matching policy',
+        'System.Tags': 'smoke; billing; P1',
+        'System.AreaPath': 'demo',
+        'System.IterationPath': 'demo/sprint-1',
+        'Microsoft.VSTS.Common.Priority': 1,
+        'Microsoft.VSTS.TCM.Steps': [
+          '<steps id="0" last="4">',
+          '<step id="2" type="ActionStep"><parameterizedString isformatted="true"><![CDATA[<p>Navigate to Policy Search screen</p>]]></parameterizedString><parameterizedString isformatted="true"><![CDATA[<p>Policy Search screen loads</p>]]></parameterizedString></step>',
+          '<step id="3" type="ActionStep"><parameterizedString isformatted="true"><![CDATA[<p>Enter policy number in search field</p>]]></parameterizedString><parameterizedString isformatted="true"><![CDATA[<p>Policy Number accepts a valid policy</p>]]></parameterizedString></step>',
+          '<step id="4" type="ActionStep"><parameterizedString isformatted="true"><![CDATA[<p>Click Search button</p>]]></parameterizedString><parameterizedString isformatted="true"><![CDATA[<p>Search runs</p>]]></parameterizedString></step>',
+          '<step id="5" type="ValidateStep"><parameterizedString isformatted="true"><![CDATA[<p>Verify search results show policy</p>]]></parameterizedString><parameterizedString isformatted="true"><![CDATA[<p>Matching policy appears in Search Results</p>]]></parameterizedString></step>',
+          '</steps>',
+        ].join(''),
+        'Microsoft.VSTS.TCM.Parameters': '<parameters><param name="policyNumber" bind="default" /></parameters>',
+        'Microsoft.VSTS.TCM.LocalDataSource': '<NewDataSet><Table1><policyNumber>POL-001</policyNumber></Table1></NewDataSet>',
+      },
+    });
   }
 
-  return Promise.resolve(new Response('not found', { status: 404 }));
+  return mockResponse({ message: 'not found' }, 404);
 }
 
 test('live ADO adapter produces deterministic snapshot parity with fixture flow', async () => {

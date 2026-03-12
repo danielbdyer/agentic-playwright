@@ -318,7 +318,7 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
   const runbookArtifacts = input.runbooks ?? [];
   const confidenceOverlayArtifacts = input.confidenceOverlays ?? [];
   const boundScenarioArtifacts = input.boundScenarios ?? [];
-  const taskPackets = new Map((input.taskPackets ?? []).map((entry) => [entry.artifact.adoId, entry.artifact] as const));
+  const taskPackets = new Map((input.taskPackets ?? []).map((entry) => [entry.artifact.payload.adoId, entry.artifact] as const));
   const runRecords = new Map(
     (input.runRecords ?? [])
       .sort((left, right) => right.artifact.completedAt.localeCompare(left.artifact.completedAt))
@@ -907,7 +907,7 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
       const boundStep = boundScenario?.steps.find((candidate) => candidate.index === step.index) ?? null;
       const explanation = explanationByStepIndex.get(step.index);
       const stepContext: StepGraphContext = { step, boundStep };
-      const taskStep = taskPacket?.steps.find((candidate) => candidate.index === step.index) ?? null;
+      const taskStep = taskPacket?.payload.steps.find((candidate) => candidate.index === step.index) ?? null;
       const stepNodeId = graphIds.step(scenario.source.ado_id, step.index);
       const program = explanation?.program ?? compileStepProgram(step);
       const trace = traceStepProgram(program);
@@ -990,21 +990,8 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
       }
 
       if (taskStep) {
-        const normalizedIntent = taskStep.normalizedIntent;
-        const matchedScreenAliases = taskStep.runtimeKnowledge!.screens.flatMap((screen) =>
-          bestAliasMatches(normalizedIntent, screen.screenAliases).map((alias) => ({
-            screen: screen.screen,
-            alias,
-          })),
-        );
-        const onlyScreen = taskStep.runtimeKnowledge!.screens[0] ?? null;
-        const taskScreens = matchedScreenAliases.length > 0
-          ? [...new Map(matchedScreenAliases.map((entry) => [entry.screen, entry])).values()]
-          : onlyScreen && taskStep.runtimeKnowledge!.screens.length === 1
-            ? [{ screen: onlyScreen.screen, alias: null }]
-            : [];
-        for (const candidate of taskScreens) {
-          const screenNodeId = graphIds.screen(candidate.screen);
+        for (const screenId of (taskPacket?.payload.knowledgeSlice.screenRefs ?? [])) {
+          const screenNodeId = graphIds.screen(screenId);
           if (!nodes.has(screenNodeId)) {
             continue;
           }
@@ -1018,92 +1005,44 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
             },
             payload: {
               source: 'task-packet-screen',
-              alias: candidate.alias,
             },
           }));
         }
 
-        for (const screen of taskStep.runtimeKnowledge!.screens) {
-          const matchedAliases = screen.elements.flatMap((element) =>
-            bestAliasMatches(normalizedIntent, element.aliases).map((alias) => ({
-              element: element.element,
-              screen: screen.screen,
-              alias,
-            })),
-          );
-          const maxLength = matchedAliases.reduce((current, candidate) => Math.max(current, candidate.alias.length), 0);
-          for (const match of matchedAliases.filter((candidate) => candidate.alias.length === maxLength)) {
-            const elementNodeId = graphIds.element(match.screen, match.element);
-            if (!nodes.has(elementNodeId)) {
-              continue;
-            }
+        for (const targetRef of taskStep.grounding?.targetRefs ?? []) {
+          const targetNodeId = graphIds.target(targetRef);
+          if (nodes.has(targetNodeId)) {
             addEdge(edges, createEdge({
               kind: 'uses',
               from: stepNodeId,
-              to: elementNodeId,
+              to: targetNodeId,
               provenance: {
                 confidence: stepConfidence(stepContext),
                 scenarioPath: artifactPath,
               },
               payload: {
-                source: 'task-packet-alias',
-                alias: match.alias,
+                source: 'task-grounding',
               },
             }));
           }
-        }
 
-        for (const dataset of taskStep.runtimeKnowledge!.controls.datasets) {
-          const usesDataset = Object.keys(dataset.elementDefaults).length > 0;
-          if (!usesDataset || !nodes.has(graphIds.dataset(dataset.name))) {
-            continue;
-          }
+          const match = String(targetRef).match(/^target:(element|surface):([^:]+):(.+)$/);
+          if (!match) continue;
+          const [, kind, screenId, localId] = match;
+          const legacyNodeId = kind === 'element'
+            ? graphIds.element(screenId as never, localId as never)
+            : graphIds.surface(screenId as never, localId as never);
+          if (!nodes.has(legacyNodeId)) continue;
           addEdge(edges, createEdge({
-            kind: 'references',
+            kind: 'uses',
             from: stepNodeId,
-            to: graphIds.dataset(dataset.name),
+            to: legacyNodeId,
             provenance: {
               confidence: stepConfidence(stepContext),
               scenarioPath: artifactPath,
             },
             payload: {
-              source: 'dataset-control',
-            },
-          }));
-        }
-
-        for (const resolutionControl of taskStep.runtimeKnowledge!.controls.resolutionControls.filter((entry) => entry.stepIndex === step.index)) {
-          if (!nodes.has(graphIds.resolutionControl(resolutionControl.name))) {
-            continue;
-          }
-          addEdge(edges, createEdge({
-            kind: 'references',
-            from: stepNodeId,
-            to: graphIds.resolutionControl(resolutionControl.name),
-            provenance: {
-              confidence: stepConfidence(stepContext),
-              scenarioPath: artifactPath,
-            },
-            payload: {
-              source: 'resolution-control',
-            },
-          }));
-        }
-
-        for (const runbook of taskStep.runtimeKnowledge!.controls.runbooks) {
-          if (!nodes.has(graphIds.runbook(runbook.name))) {
-            continue;
-          }
-          addEdge(edges, createEdge({
-            kind: 'references',
-            from: stepNodeId,
-            to: graphIds.runbook(runbook.name),
-            provenance: {
-              confidence: stepConfidence(stepContext),
-              scenarioPath: artifactPath,
-            },
-            payload: {
-              source: 'runbook-control',
+              source: 'task-grounding-legacy',
             },
           }));
         }

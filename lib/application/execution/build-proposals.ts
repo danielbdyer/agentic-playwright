@@ -95,7 +95,7 @@ export function buildProposals(input: {
     fingerprints: createScenarioEnvelopeFingerprints({
       artifact: `${input.runId}:proposal`,
       content: input.selectedContext.scenarioEntry.artifact.source.content_hash,
-      knowledge: input.selectedContext.taskPacketEntry.artifact.knowledgeFingerprint,
+      knowledge: input.selectedContext.taskPacketEntry.artifact.payload.knowledgeFingerprint,
       controls: input.selectedContext.taskPacketEntry.artifact.fingerprints.controls,
       task: input.selectedContext.taskPacketEntry.artifact.taskFingerprint,
       run: input.runId,

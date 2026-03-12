@@ -4,6 +4,8 @@ import { bindScenario } from './bind';
 import { createCompileSnapshot } from './compile-snapshot';
 import { emitScenario } from './emit';
 import { buildDerivedGraph } from './graph';
+import { projectInterfaceIntelligence } from './interface-intelligence';
+import { projectLearningArtifacts } from './learning';
 import { parseScenario } from './parse';
 import { runPipelineStage } from './pipeline';
 import type { ProjectPaths } from './paths';
@@ -38,15 +40,28 @@ export function compileScenario(options: { adoId: AdoId; paths: ProjectPaths }) 
           taskPath: '',
           hasUnbound: bound.hasUnbound,
         });
+        const interfaceIntelligence = yield* projectInterfaceIntelligence({
+          paths: options.paths,
+          catalog: sessionWithScenario.catalog,
+        });
         const task: TaskProjectionResult = yield* buildTaskPacketProjection({
           paths: options.paths,
           compileSnapshot: initialSnapshot,
           catalog: sessionWithScenario.catalog,
+          interfaceGraph: interfaceIntelligence.interfaceGraph,
+          selectorCanon: interfaceIntelligence.selectorCanon,
         });
         const compileSnapshot = createCompileSnapshot({
           ...initialSnapshot,
           taskPacket: task.taskPacket,
           taskPath: task.taskPath,
+        });
+        const learning = yield* projectLearningArtifacts({
+          paths: options.paths,
+          boundScenario: bound.boundScenario,
+          taskPacket: task.taskPacket,
+          interfaceGraph: interfaceIntelligence.interfaceGraph,
+          selectorCanon: interfaceIntelligence.selectorCanon,
         });
         const sessionWithBound = withBoundScenarioInWorkspaceSession({
           session: sessionWithScenario,
@@ -59,6 +74,8 @@ export function compileScenario(options: { adoId: AdoId; paths: ProjectPaths }) 
         return {
           parsed,
           bound,
+          interfaceIntelligence,
+          learning,
           compileSnapshot,
           emitted,
           graph,
@@ -67,11 +84,13 @@ export function compileScenario(options: { adoId: AdoId; paths: ProjectPaths }) 
       }),
     });
 
-    const { parsed, bound, compileSnapshot, emitted, graph, generatedTypes } = stage.computed;
+    const { parsed, bound, interfaceIntelligence, learning, compileSnapshot, emitted, graph, generatedTypes } = stage.computed;
     return {
       compileSnapshot,
       parsed,
       bound,
+      interfaceIntelligence,
+      learning,
       emitted,
       graph,
       generatedTypes,
