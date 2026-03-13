@@ -397,6 +397,8 @@ export function discoverScreenScaffold(options: {
           strategy,
           source: 'discovery' as const,
           variantRef,
+          validWhenStateRefs: [],
+          invalidWhenStateRefs: [],
         }));
       });
       const targets: DiscoveryRun['targets'] = [
@@ -480,6 +482,10 @@ export function discoverScreenScaffold(options: {
         targets,
         reviewNotes: artifacts.report.reviewNotes,
         selectorProbes,
+        stateObservations: [],
+        eventCandidates: [],
+        transitionObservations: [],
+        observationDiffs: [],
         graphDeltas: {
           nodeIds: targets.map((target) => target.graphNodeId),
           edgeIds: [],

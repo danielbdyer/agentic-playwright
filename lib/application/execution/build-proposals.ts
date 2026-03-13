@@ -77,6 +77,27 @@ export function buildProposals(input: {
           },
           evidence: loadedEvidence,
         }),
+        certification: 'uncertified' as const,
+        activation: {
+          status: 'pending' as const,
+          activatedAt: null,
+          certifiedAt: null,
+          reason: null,
+        },
+        lineage: {
+          runIds: [input.runId],
+          evidenceIds: input.evidenceWrites
+            .filter((entry) => entry.stepIndex === step.interpretation.stepIndex)
+            .map((entry) => entry.artifactPath),
+          sourceArtifactPaths: [
+            input.selectedContext.taskPacketEntry.artifactPath,
+            ...(input.selectedContext.activeRunbook ? [input.selectedContext.activeRunbook.artifactPath] : []),
+            ...(input.selectedContext.activeDataset ? [input.selectedContext.activeDataset.artifactPath] : []),
+          ],
+          role: null,
+          state: null,
+          driftSeed: null,
+        },
       };
       proposalEntry.proposalId = proposalIdForEntry(proposalBundleIdentity, proposalEntry);
       return proposalEntry;

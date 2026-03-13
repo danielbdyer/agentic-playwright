@@ -9,6 +9,10 @@ selector:
   tags:
     - smoke
 steps:
+  - stepIndex: 1
+    resolution:
+      action: navigate
+      screen: policy-search
   - stepIndex: 2
     resolution:
       action: input

@@ -1,87 +1,29 @@
 import { expect, test } from '@playwright/test';
-import { createRuntimeProviderRegistry, resolveRuntimeProvider, type RuntimeProvider } from '../lib/application/runtime-provider';
+import { createResolutionEngineRegistry, resolveResolutionEngine, type ResolutionEngine } from '../lib/application/resolution-engine';
 import { validateStepResults } from '../lib/application/execution/validate-step-results';
-import { createElementId, createScreenId, createSurfaceId, createWidgetId } from '../lib/domain/identity';
 import { runResolutionPipeline } from '../lib/runtime/agent';
 import type { RuntimeStepAgentContext } from '../lib/runtime/agent/types';
-import type { StepExecutionReceipt, StepTask } from '../lib/domain/types';
+import type { StepExecutionReceipt } from '../lib/domain/types';
+import { createAgentContext, createInterfaceResolutionContext, createStepTask } from './support/interface-fixtures';
 
-function baseStep(explicit = false): StepTask {
-  return {
-    index: 1,
-    intent: 'Enter policy reference',
-    actionText: 'Enter policy ref',
-    expectedText: 'Policy ref is accepted',
-    normalizedIntent: 'enter policy ref => policy ref is accepted',
-    allowedActions: ['input'],
+function baseFixture(explicit = false) {
+  const resolutionContext = createInterfaceResolutionContext();
+  const task = createStepTask({
     explicitResolution: explicit ? {
       action: 'input',
-      screen: createScreenId('policy-search'),
-      element: createElementId('policyNumberInput'),
+      screen: resolutionContext.screens[0]!.screen,
+      element: resolutionContext.screens[0]!.elements[0]!.element,
       posture: null,
       snapshot_template: null,
       override: null,
     } : null,
-    controlResolution: null,
-    runtimeKnowledge: {
-      knowledgeFingerprint: 'sha256:knowledge',
-      confidenceFingerprint: 'sha256:confidence',
-      sharedPatterns: {
-        version: 1,
-        actions: {
-          navigate: { id: 'core.navigate', aliases: ['navigate'] },
-          input: { id: 'core.input', aliases: ['enter', 'input', 'type'] },
-          click: { id: 'core.click', aliases: ['click'] },
-          'assert-snapshot': { id: 'core.assert-snapshot', aliases: ['verify'] },
-        },
-        postures: {},
-        documents: ['knowledge/patterns/core.patterns.yaml'],
-        sources: {
-          actions: {
-            navigate: 'knowledge/patterns/core.patterns.yaml',
-            input: 'knowledge/patterns/core.patterns.yaml',
-            click: 'knowledge/patterns/core.patterns.yaml',
-            'assert-snapshot': 'knowledge/patterns/core.patterns.yaml',
-          },
-          postures: {},
-        },
-      },
-      screens: [{
-        screen: createScreenId('policy-search'),
-        url: '/policy-search',
-        screenAliases: ['policy search'],
-        knowledgeRefs: ['knowledge/surfaces/policy-search.surface.yaml', 'knowledge/screens/policy-search.elements.yaml'],
-        supplementRefs: ['knowledge/screens/policy-search.hints.yaml'],
-        elements: [{
-          element: createElementId('policyNumberInput'),
-          role: 'textbox',
-          name: 'Policy Number',
-          surface: createSurfaceId('search-form'),
-          widget: createWidgetId('os-input'),
-          affordance: 'text-entry',
-          aliases: ['policy number', 'policy ref'],
-          locator: [],
-          postures: [],
-          defaultValueRef: null,
-          parameter: null,
-          snapshotAliases: {},
-        }],
-        sectionSnapshots: [],
-      }],
-      evidenceRefs: [],
-      confidenceOverlays: [],
-      controls: {
-        datasets: [],
-        resolutionControls: [],
-        runbooks: [],
-      },
-    },
-    taskFingerprint: 'sha256:task',
-  };
+    allowedActions: ['input'],
+  }, resolutionContext);
+  return { task, resolutionContext };
 }
 
 test('provider capability negotiation rejects incompatible mode', () => {
-  const provider: RuntimeProvider = {
+  const provider: ResolutionEngine = {
     id: 'no-dom',
     capabilities: {
       supportsTranslation: true,
@@ -91,9 +33,9 @@ test('provider capability negotiation rejects incompatible mode', () => {
     },
     resolveStep: async (task, context) => runResolutionPipeline(task, context as RuntimeStepAgentContext),
   };
-  const registry = createRuntimeProviderRegistry([provider]);
+  const registry = createResolutionEngineRegistry([provider]);
 
-  expect(() => resolveRuntimeProvider({
+  expect(() => resolveResolutionEngine({
     providerId: 'no-dom',
     mode: 'playwright',
     translationEnabled: true,
@@ -102,11 +44,10 @@ test('provider capability negotiation rejects incompatible mode', () => {
 });
 
 test('post-provider validation enforces governance invariants', async () => {
-  const interpretation = await runResolutionPipeline(baseStep(true), {
+  const { task, resolutionContext } = baseFixture(true);
+  const interpretation = await runResolutionPipeline(task, createAgentContext(resolutionContext, {
     provider: 'deterministic-runtime-step-agent',
-    mode: 'diagnostic',
-    runAt: '2026-03-09T00:00:00.000Z',
-  });
+  }));
   const execution: StepExecutionReceipt = {
     version: 1 as const,
     stage: 'execution' as const,

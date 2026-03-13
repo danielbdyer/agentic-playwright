@@ -1042,7 +1042,7 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
               scenarioPath: artifactPath,
             },
             payload: {
-              source: 'task-grounding-legacy',
+              source: 'task-grounding',
             },
           }));
         }

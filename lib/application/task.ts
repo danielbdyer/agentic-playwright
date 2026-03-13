@@ -1,33 +1,27 @@
 import path from 'path';
 import { Effect } from 'effect';
 import { normalizeIntentText } from '../domain/inference';
-import { graphIds, knowledgePaths } from '../domain/ids';
 import type { TesseractError } from '../domain/errors';
 import {
-  createCanonicalTargetRef,
-  createElementId,
   type AdoId,
-  type ElementId,
-  type PostureId,
   type ScreenId,
-  type SelectorRef,
-  type SnapshotTemplateId,
 } from '../domain/identity';
 import type {
   ApplicationInterfaceGraph,
-  RuntimeKnowledgeSession,
+  InterfaceResolutionContext,
   ScenarioKnowledgeSlice,
   ScenarioTaskPacket,
   SelectorCanon,
+  StateTransitionGraph,
   StepResolution,
   StepTask,
-  StepTaskElementCandidate,
   StepTaskGrounding,
   StepTaskScreenCandidate,
 } from '../domain/types';
 import { controlResolutionForStep, runtimeControlsForScenario } from './controls';
 import type { CompileSnapshot } from './compile-snapshot';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
+import { buildInterfaceResolutionContext } from './interface-resolution';
 import type { ProjectPaths } from './paths';
 import { relativeProjectPath, taskPacketPath } from './paths';
 import { FileSystem } from './ports';
@@ -44,6 +38,8 @@ export interface TaskProjectionResult {
   taskPath: string;
   incremental: ProjectionIncremental;
 }
+
+type StepTaskSeed = Omit<StepTask, 'grounding' | 'taskFingerprint'>;
 
 function taskManifestPath(paths: ProjectPaths, adoId: AdoId): string {
   return path.join(paths.tasksDir, `${adoId}.manifest.json`);
@@ -62,95 +58,18 @@ function stepResolution(step: CompileSnapshot['boundScenario']['steps'][number])
   };
 }
 
-function elementTargetRef(screenId: ScreenId, elementId: ElementId) {
-  return createCanonicalTargetRef(`target:element:${screenId}:${elementId}`);
-}
-
-function selectorRefsForElement(selectorCanon: SelectorCanon | null | undefined, screenId: ScreenId, elementId: ElementId): SelectorRef[] {
-  if (!selectorCanon) return [];
-  return selectorCanon.entries
-    .find((entry) => entry.targetRef === elementTargetRef(screenId, elementId))
-    ?.probes.map((probe) => probe.selectorRef)
-    .sort((left, right) => left.localeCompare(right)) ?? [];
-}
-
-function routeVariantRefsForScreen(interfaceGraph: ApplicationInterfaceGraph | null | undefined, screenId: ScreenId): string[] {
-  if (!interfaceGraph) return [];
-  return interfaceGraph.nodes
-    .filter((node) => node.kind === 'route-variant' && node.screen === screenId)
-    .map((node) => String(node.payload?.routeVariantRef ?? ''))
-    .filter((value) => value.length > 0)
-    .sort((left, right) => left.localeCompare(right));
-}
-
-function screenCandidate(
-  catalog: WorkspaceCatalog,
-  screenId: ScreenId,
-  interfaceGraph?: ApplicationInterfaceGraph | null | undefined,
-  selectorCanon?: SelectorCanon | null | undefined,
-): StepTaskScreenCandidate | null {
-  const bundleEntry = catalog.screenBundles[screenId];
-  if (!bundleEntry) return null;
-
-  const sectionSnapshots = [...new Set(Object.values(bundleEntry.bundle.surfaceGraph.sections)
-    .map((section) => section.snapshot)
-    .filter(Boolean) as SnapshotTemplateId[])].sort((left, right) => left.localeCompare(right));
-
-  const elements = Object.entries(bundleEntry.bundle.mergedElements)
-    .map(([elementId, element]) => {
-      const hint = bundleEntry.hints?.artifact.elements[elementId];
-      const postures = bundleEntry.postures?.artifact.postures[elementId]
-        ? Object.keys(bundleEntry.postures.artifact.postures[elementId]).sort((left, right) => left.localeCompare(right)) as PostureId[]
-        : [];
-      const candidate: StepTaskElementCandidate = {
-        element: elementId as ElementId,
-        targetRef: elementTargetRef(screenId, elementId as ElementId),
-        role: element.role,
-        name: element.name ?? null,
-        surface: element.surface,
-        widget: element.widget,
-        affordance: element.affordance ?? null,
-        aliases: [...new Set([elementId, element.name ?? '', ...(hint?.aliases ?? [])].filter((value) => value.length > 0))].sort((left, right) => left.localeCompare(right)),
-        locator: element.locator ?? [],
-        postures,
-        defaultValueRef: hint?.defaultValueRef ?? null,
-        parameter: hint?.parameter ?? null,
-        snapshotAliases: hint?.snapshotAliases,
-        graphNodeId: graphIds.element(screenId, elementId as ElementId),
-        selectorRefs: selectorRefsForElement(selectorCanon, screenId, elementId as ElementId),
-      };
-      return candidate;
-    })
-    .sort((left, right) => left.element.localeCompare(right.element));
-
-  return {
-    screen: screenId,
-    url: bundleEntry.bundle.surfaceGraph.url,
-    routeVariantRefs: routeVariantRefsForScreen(interfaceGraph, screenId),
-    screenAliases: [...new Set([screenId, ...(bundleEntry.hints?.artifact.screenAliases ?? [])])].sort((left, right) => left.localeCompare(right)),
-    knowledgeRefs: [
-      knowledgePaths.surface(screenId),
-      knowledgePaths.elements(screenId),
-      ...(bundleEntry.postures ? [knowledgePaths.postures(screenId)] : []),
-    ],
-    supplementRefs: bundleEntry.hints ? [knowledgePaths.hints(screenId)] : [],
-    elements,
-    sectionSnapshots,
-    graphNodeId: graphIds.screen(screenId),
-  };
-}
-
-function groundedStepTask(input: { step: Omit<StepTask, 'taskFingerprint'>; screens: StepTaskScreenCandidate[] }): StepTaskGrounding {
+function groundedStepTask(input: { step: StepTaskSeed; resolutionContext: InterfaceResolutionContext }): StepTaskGrounding {
+  const screens = input.resolutionContext.screens;
   const normalized = normalizeIntentText(`${input.step.actionText} ${input.step.expectedText}`);
-  const matchedScreens = input.screens.filter((screen) =>
+  const matchedScreens = screens.filter((screen) =>
     screen.screenAliases.some((alias) => normalizeIntentText(alias).length > 0 && normalized.includes(normalizeIntentText(alias))),
   );
   const preferredScreen = input.step.explicitResolution?.screen ?? input.step.controlResolution?.screen ?? null;
   const candidateScreens = preferredScreen
-    ? input.screens.filter((screen) => screen.screen === preferredScreen)
+    ? screens.filter((screen) => screen.screen === preferredScreen)
     : matchedScreens.length > 0
       ? matchedScreens
-      : input.screens;
+      : screens;
   const preferredElement = input.step.explicitResolution?.element ?? input.step.controlResolution?.element ?? null;
   const candidateElements = candidateScreens.flatMap((screen) =>
     screen.elements.filter((element) => {
@@ -158,54 +77,76 @@ function groundedStepTask(input: { step: Omit<StepTask, 'taskFingerprint'>; scre
       return element.aliases.some((alias) => normalizeIntentText(alias).length > 0 && normalized.includes(normalizeIntentText(alias)));
     }),
   );
-  const groundedElements = candidateElements;
+  const groundedElements = preferredElement && candidateElements.length === 0
+    ? candidateScreens.flatMap((screen) => screen.elements.filter((element) => element.element === preferredElement))
+    : candidateElements;
+  const groundedScreens = groundedElements.length > 0
+    ? candidateScreens.filter((screen) => groundedElements.some((element) => screen.elements.some((candidate) => candidate.element === element.element)))
+    : candidateScreens;
+  const exactAction = input.step.explicitResolution?.action
+    ?? input.step.controlResolution?.action
+    ?? (input.step.allowedActions.length === 1 ? input.step.allowedActions[0] : null);
+  const targetRefs = [...new Set(groundedElements.flatMap((element) => element.targetRef ? [element.targetRef] : []))].sort((left, right) => left.localeCompare(right));
+  const stateGraph = input.resolutionContext.stateGraph ?? null;
+  const eventSignatureRefs = stateGraph
+    ? stateGraph.eventSignatures
+      .filter((event) => targetRefs.includes(event.targetRef) && (!exactAction || event.dispatch.action === exactAction))
+      .map((event) => ({
+        ref: event.ref,
+        score: event.aliases.some((alias) => normalized.includes(normalizeIntentText(alias))) ? 3 : 0,
+      }))
+      .sort((left, right) => right.score - left.score || left.ref.localeCompare(right.ref))
+      .map((event) => event.ref)
+    : [];
+  const expectedTransitionRefs = stateGraph
+    ? [...new Set(stateGraph.eventSignatures
+      .filter((event) => eventSignatureRefs.includes(event.ref))
+      .flatMap((event) => event.effects.transitionRefs))].sort((left, right) => left.localeCompare(right))
+    : [];
+  const effectAssertions = stateGraph
+    ? [...new Set(stateGraph.eventSignatures
+      .filter((event) => eventSignatureRefs.includes(event.ref))
+      .flatMap((event) => event.effects.assertions))].sort((left, right) => left.localeCompare(right))
+    : [];
+  const requiredStateRefs = stateGraph
+    ? [...new Set(stateGraph.eventSignatures
+      .filter((event) => eventSignatureRefs.includes(event.ref))
+      .flatMap((event) => event.requiredStateRefs))].sort((left, right) => left.localeCompare(right))
+    : [];
+  const forbiddenStateRefs = stateGraph
+    ? [...new Set(stateGraph.eventSignatures
+      .filter((event) => eventSignatureRefs.includes(event.ref))
+      .flatMap((event) => event.forbiddenStateRefs))].sort((left, right) => left.localeCompare(right))
+    : [];
+  const resultStateRefs = stateGraph
+    ? [...new Set(stateGraph.eventSignatures
+      .filter((event) => eventSignatureRefs.includes(event.ref))
+      .flatMap((event) => event.effects.resultStateRefs))].sort((left, right) => left.localeCompare(right))
+    : [];
   return {
-    targetRefs: [...new Set(groundedElements.flatMap((element) => element.targetRef ? [element.targetRef] : []))].sort((left, right) => left.localeCompare(right)),
+    targetRefs,
     selectorRefs: [...new Set(groundedElements.flatMap((element) => element.selectorRefs ?? []))].sort((left, right) => left.localeCompare(right)),
-    fallbackSelectorRefs: [...new Set(candidateScreens.flatMap((screen) => screen.elements.flatMap((element) => element.selectorRefs ?? [])))].sort((left, right) => left.localeCompare(right)),
-    routeVariantRefs: [...new Set(candidateScreens.flatMap((screen) => screen.routeVariantRefs ?? []))].sort((left, right) => left.localeCompare(right)),
-    assertionAnchors: [...new Set(candidateScreens.flatMap((screen) => screen.sectionSnapshots.map((snapshot) => `snapshot-anchor:${screen.screen}:${snapshot}`)))].sort((left, right) => left.localeCompare(right)),
-  };
-}
-
-export function buildRuntimeKnowledgeSession(input: {
-  catalog: WorkspaceCatalog;
-  knowledgeFingerprint: string;
-  runtimeControls: ReturnType<typeof runtimeControlsForScenario>;
-  interfaceGraph?: ApplicationInterfaceGraph | null | undefined;
-  selectorCanon?: SelectorCanon | null | undefined;
-  screenRefs?: ScreenId[] | undefined;
-}): RuntimeKnowledgeSession {
-  const confidenceOverlays = (input.catalog.confidenceCatalog?.artifact.records ?? []).filter((record) => record.status === 'approved-equivalent');
-  const screens = Object.keys(input.catalog.screenBundles)
-    .sort((left, right) => left.localeCompare(right))
-    .map((screenId) => screenCandidate(input.catalog, screenId as ScreenId, input.interfaceGraph, input.selectorCanon))
-    .filter(Boolean)
-    .filter((entry) => !input.screenRefs || input.screenRefs.includes(entry!.screen)) as StepTaskScreenCandidate[];
-
-  return {
-    knowledgeFingerprint: input.knowledgeFingerprint,
-    confidenceFingerprint: input.catalog.confidenceCatalog?.fingerprint ?? null,
-    interfaceGraphFingerprint: input.interfaceGraph?.fingerprint ?? null,
-    selectorCanonFingerprint: input.selectorCanon?.fingerprint ?? null,
-    interfaceGraphPath: input.catalog.interfaceGraph?.artifactPath ?? null,
-    selectorCanonPath: input.catalog.selectorCanon?.artifactPath ?? null,
-    sharedPatterns: input.catalog.mergedPatterns,
-    screens,
-    evidenceRefs: input.catalog.evidenceRecords.map((entry) => entry.artifactPath).sort((left, right) => left.localeCompare(right)),
-    confidenceOverlays,
-    controls: input.runtimeControls,
+    fallbackSelectorRefs: [...new Set(groundedScreens.flatMap((screen) => screen.elements.flatMap((element) => element.selectorRefs ?? [])))].sort((left, right) => left.localeCompare(right)),
+    routeVariantRefs: [...new Set(groundedScreens.flatMap((screen) => screen.routeVariantRefs ?? []))].sort((left, right) => left.localeCompare(right)),
+    assertionAnchors: [...new Set(groundedScreens.flatMap((screen) => screen.sectionSnapshots.map((snapshot) => `snapshot-anchor:${screen.screen}:${snapshot}`)))].sort((left, right) => left.localeCompare(right)),
+    effectAssertions,
+    requiredStateRefs,
+    forbiddenStateRefs,
+    eventSignatureRefs,
+    expectedTransitionRefs,
+    resultStateRefs,
   };
 }
 
 function buildKnowledgeSlice(input: {
-  runtimeKnowledgeSession: RuntimeKnowledgeSession;
-  interfaceGraph?: ApplicationInterfaceGraph | null | undefined;
+  resolutionContext: InterfaceResolutionContext;
+  interfaceGraph: ApplicationInterfaceGraph;
+  stateGraph: StateTransitionGraph;
   runtimeControls: ReturnType<typeof runtimeControlsForScenario>;
 }): ScenarioKnowledgeSlice {
-  const screenRefs = input.runtimeKnowledgeSession.screens.map((screen) => screen.screen).sort((left, right) => left.localeCompare(right));
-  const targetRefs = [...new Set(input.runtimeKnowledgeSession.screens.flatMap((screen) =>
-    screen.elements.flatMap((element) => element.targetRef ? [element.targetRef] : []),
+  const screenRefs = input.resolutionContext.screens.map((screen) => screen.screen).sort((left, right) => left.localeCompare(right));
+  const targetRefs = [...new Set(input.resolutionContext.screens.flatMap((screen) =>
+    screen.elements.flatMap((element) => [element.targetRef]),
   ))].sort((left, right) => left.localeCompare(right));
   const controlRefs = [
     ...input.runtimeControls.datasets.map((entry) => entry.artifactPath),
@@ -214,11 +155,23 @@ function buildKnowledgeSlice(input: {
   ].sort((left, right) => left.localeCompare(right));
 
   return {
-    routeRefs: input.interfaceGraph?.routeRefs ?? [],
-    routeVariantRefs: [...new Set(input.runtimeKnowledgeSession.screens.flatMap((screen) => screen.routeVariantRefs ?? []))].sort((left, right) => left.localeCompare(right)),
+    routeRefs: input.interfaceGraph.routeRefs,
+    routeVariantRefs: [...new Set(input.resolutionContext.screens.flatMap((screen) => screen.routeVariantRefs ?? []))].sort((left, right) => left.localeCompare(right)),
     screenRefs,
     targetRefs,
-    evidenceRefs: input.runtimeKnowledgeSession.evidenceRefs,
+    stateRefs: input.stateGraph.states
+      .filter((state) => screenRefs.includes(state.screen))
+      .map((state) => state.ref)
+      .sort((left, right) => left.localeCompare(right)),
+    eventSignatureRefs: input.stateGraph.eventSignatures
+      .filter((event) => screenRefs.includes(event.screen))
+      .map((event) => event.ref)
+      .sort((left, right) => left.localeCompare(right)),
+    transitionRefs: input.stateGraph.transitions
+      .filter((transition) => screenRefs.includes(transition.screen))
+      .map((transition) => transition.ref)
+      .sort((left, right) => left.localeCompare(right)),
+    evidenceRefs: input.resolutionContext.evidenceRefs,
     controlRefs,
   };
 }
@@ -229,8 +182,15 @@ function buildTaskPacket(input: {
   catalog: WorkspaceCatalog;
   interfaceGraph?: ApplicationInterfaceGraph | null | undefined;
   selectorCanon?: SelectorCanon | null | undefined;
+  stateGraph?: StateTransitionGraph | null | undefined;
 }): ScenarioTaskPacket {
   const runtimeControls = runtimeControlsForScenario(input.catalog, input.compileSnapshot.scenario);
+  const interfaceGraph = input.interfaceGraph ?? null;
+  const selectorCanon = input.selectorCanon ?? null;
+  const stateGraph = input.stateGraph ?? null;
+  if (!interfaceGraph || !selectorCanon || !stateGraph) {
+    throw new Error(`Missing interface graph, selector canon, or state graph for scenario ${input.compileSnapshot.adoId}`);
+  }
   const knowledgeFingerprint = fingerprintProjectionOutput({
     screens: Object.values(input.catalog.screenBundles).map((entry) => ({
       surface: entry.surface.fingerprint,
@@ -241,20 +201,22 @@ function buildTaskPacket(input: {
     patterns: input.catalog.mergedPatterns,
     evidence: input.catalog.evidenceRecords.map((entry) => entry.fingerprint),
     confidence: input.catalog.confidenceCatalog?.fingerprint ?? null,
-    interfaceGraph: input.interfaceGraph?.fingerprint ?? null,
-    selectorCanon: input.selectorCanon?.fingerprint ?? null,
+    interfaceGraph: interfaceGraph.fingerprint,
+    selectorCanon: selectorCanon.fingerprint,
+    stateGraph: stateGraph.fingerprint,
   });
   const controlsFingerprint = fingerprintProjectionOutput(runtimeControls);
-  const runtimeKnowledgeSession = buildRuntimeKnowledgeSession({
+  const resolutionContext = buildInterfaceResolutionContext({
     catalog: input.catalog,
     knowledgeFingerprint,
     runtimeControls,
-    interfaceGraph: input.interfaceGraph ?? null,
-    selectorCanon: input.selectorCanon ?? null,
+    interfaceGraph,
+    selectorCanon,
+    stateGraph,
   });
 
   const steps = input.compileSnapshot.boundScenario.steps.map((step) => {
-    const task: Omit<StepTask, 'taskFingerprint'> = {
+    const task: StepTaskSeed = {
       index: step.index,
       intent: step.intent,
       actionText: step.action_text,
@@ -263,9 +225,8 @@ function buildTaskPacket(input: {
       allowedActions: step.resolution?.action ? [step.resolution.action] : ['navigate', 'input', 'click', 'assert-snapshot'],
       explicitResolution: stepResolution(step),
       controlResolution: controlResolutionForStep(runtimeControls, step.index),
-      knowledgeRef: 'scenario',
     };
-    const groundedTask = { ...task, grounding: groundedStepTask({ step: task, screens: runtimeKnowledgeSession.screens }) };
+    const groundedTask = { ...task, grounding: groundedStepTask({ step: task, resolutionContext }) };
     return { ...groundedTask, taskFingerprint: fingerprintProjectionOutput(groundedTask) };
   });
 
@@ -281,16 +242,21 @@ function buildTaskPacket(input: {
     suite: input.compileSnapshot.scenario.metadata.suite,
     knowledgeFingerprint,
     interface: {
-      fingerprint: input.interfaceGraph?.fingerprint ?? null,
-      artifactPath: input.interfaceGraph ? relativeProjectPath(input.paths, input.paths.interfaceGraphIndexPath) : null,
+      fingerprint: interfaceGraph.fingerprint,
+      artifactPath: relativeProjectPath(input.paths, input.paths.interfaceGraphIndexPath),
     },
     selectors: {
-      fingerprint: input.selectorCanon?.fingerprint ?? null,
-      artifactPath: input.selectorCanon ? relativeProjectPath(input.paths, input.paths.selectorCanonPath) : null,
+      fingerprint: selectorCanon.fingerprint,
+      artifactPath: relativeProjectPath(input.paths, input.paths.selectorCanonPath),
+    },
+    stateGraph: {
+      fingerprint: stateGraph.fingerprint,
+      artifactPath: relativeProjectPath(input.paths, input.paths.stateGraphPath),
     },
     knowledgeSlice: buildKnowledgeSlice({
-      runtimeKnowledgeSession,
-      interfaceGraph: input.interfaceGraph ?? null,
+      resolutionContext,
+      interfaceGraph,
+      stateGraph,
       runtimeControls,
     }),
     steps,
@@ -298,7 +264,7 @@ function buildTaskPacket(input: {
 
   const packet: Omit<ScenarioTaskPacket, 'taskFingerprint'> = {
     kind: 'scenario-task-packet',
-    version: 4,
+    version: 5,
     stage: 'preparation',
     scope: 'scenario',
     ids: {
@@ -343,8 +309,8 @@ function buildTaskPacket(input: {
 }
 
 export function buildTaskPacketProjection(options:
-  | { paths: ProjectPaths; compileSnapshot: CompileSnapshot; catalog?: WorkspaceCatalog; interfaceGraph?: ApplicationInterfaceGraph | null | undefined; selectorCanon?: SelectorCanon | null | undefined }
-  | { paths: ProjectPaths; adoId: AdoId; catalog?: WorkspaceCatalog; interfaceGraph?: ApplicationInterfaceGraph | null | undefined; selectorCanon?: SelectorCanon | null | undefined }): Effect.Effect<TaskProjectionResult, unknown, unknown> {
+  | { paths: ProjectPaths; compileSnapshot: CompileSnapshot; catalog?: WorkspaceCatalog; interfaceGraph?: ApplicationInterfaceGraph | null | undefined; selectorCanon?: SelectorCanon | null | undefined; stateGraph?: StateTransitionGraph | null | undefined }
+  | { paths: ProjectPaths; adoId: AdoId; catalog?: WorkspaceCatalog; interfaceGraph?: ApplicationInterfaceGraph | null | undefined; selectorCanon?: SelectorCanon | null | undefined; stateGraph?: StateTransitionGraph | null | undefined }): Effect.Effect<TaskProjectionResult, unknown, unknown> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const catalog = options.catalog ?? (yield* loadWorkspaceCatalog({ paths: options.paths }));
@@ -384,6 +350,7 @@ export function buildTaskPacketProjection(options:
       ...(catalog.confidenceCatalog ? [fingerprintProjectionArtifact('confidence-overlay-catalog', catalog.confidenceCatalog.artifactPath, catalog.confidenceCatalog.artifact)] : []),
       ...(options.interfaceGraph ? [fingerprintProjectionArtifact('interface-graph', options.paths.interfaceGraphIndexPath, options.interfaceGraph)] : []),
       ...(options.selectorCanon ? [fingerprintProjectionArtifact('selector-canon', options.paths.selectorCanonPath, options.selectorCanon)] : []),
+      ...(options.stateGraph ? [fingerprintProjectionArtifact('state-graph', options.paths.stateGraphPath, options.stateGraph)] : []),
     ];
     const packet = buildTaskPacket({
       paths: options.paths,
@@ -391,6 +358,7 @@ export function buildTaskPacketProjection(options:
       catalog,
       interfaceGraph: options.interfaceGraph ?? catalog.interfaceGraph?.artifact ?? null,
       selectorCanon: options.selectorCanon ?? catalog.selectorCanon?.artifact ?? null,
+      stateGraph: options.stateGraph ?? catalog.stateGraph?.artifact ?? null,
     });
     const outputFingerprint = fingerprintProjectionOutput(packet);
 

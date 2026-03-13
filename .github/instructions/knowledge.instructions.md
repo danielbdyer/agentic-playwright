@@ -29,9 +29,11 @@ When in doubt, ask whether the fact should persist across future scenarios. If y
 - Preserve ADO step `intent` text exactly in scenarios.
 - Keep element identity separate from behavior.
 - Prefer screen-local hints before promoting shared patterns.
+- Promote shared patterns only when they are intentionally global or cross-screen, not because a demo or single-site proof needs a YAML file.
 - Keep affordances declarative and small.
 - Keep postures reusable, not scenario-specific.
 - Keep snapshot aliases and locator ladders explicit.
+- Keep test-only or synthetic knowledge under `tests/fixtures/`, not under `knowledge/`.
 
 ## Anti-patterns
 
@@ -39,5 +41,7 @@ Do not encode:
 
 - hidden runtime scripts in YAML
 - one-off scenario hacks in shared patterns
+- site-specific experimental scaffolding in `knowledge/patterns/`
+- test-only synthetic artifacts in `knowledge/`
 - duplicate truths across hints, patterns, and elements
 - placeholders that do not reflect approved knowledge

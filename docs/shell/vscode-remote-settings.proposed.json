@@ -1,0 +1,14 @@
+{
+  "terminal.integrated.shellIntegration.enabled": true,
+  "terminal.integrated.env.linux": {
+    "TERM_PROGRAM": "vscode"
+  },
+  "terminal.integrated.defaultProfile.linux": "zsh",
+  "terminal.integrated.profiles.linux": {
+    "zsh": {
+      "path": "/usr/bin/zsh",
+      "args": ["-l"],
+      "icon": "terminal-bash"
+    }
+  }
+}

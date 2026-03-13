@@ -109,6 +109,7 @@ export type CommandName =
   | 'workflow'
   | 'inbox'
   | 'approve'
+  | 'certify'
   | 'rerun-plan'
   | 'benchmark'
   | 'scorecard'
@@ -134,6 +135,7 @@ export const commandNames: readonly CommandName[] = [
   'workflow',
   'inbox',
   'approve',
+  'certify',
   'rerun-plan',
   'benchmark',
   'scorecard',
@@ -602,6 +604,18 @@ const commandRegistry: Record<CommandName, CommandSpec> = {
       execute: (paths) => approveProposal({
         paths,
         proposalId: requireProposalId(flags.proposalId),
+        }),
+    }),
+  },
+  certify: {
+    flags: ['--proposal-id'],
+    parse: ({ flags }) => ({
+      command: 'certify',
+      strictExitOnUnbound: false,
+      postureInput: {},
+      execute: (paths) => approveProposal({
+        paths,
+        proposalId: requireProposalId(flags.proposalId),
       }),
     }),
   },
@@ -647,7 +661,7 @@ const commandRegistry: Record<CommandName, CommandSpec> = {
 export function parseCliInvocation(argv: string[]): CommandExecution {
   const [rawCommand = 'help', ...tokens] = argv;
   if (!isCommandName(rawCommand)) {
-    throw new Error('Unknown command. Expected sync, parse, bind, emit, compile, refresh, run, replay, paths, capture, discover, harvest, surface, graph, trace, impact, types, workflow, inbox, approve, rerun-plan, benchmark, or scorecard.');
+    throw new Error('Unknown command. Expected sync, parse, bind, emit, compile, refresh, run, replay, paths, capture, discover, harvest, surface, graph, trace, impact, types, workflow, inbox, approve, certify, rerun-plan, benchmark, or scorecard.');
   }
 
   const spec = commandRegistry[rawCommand];

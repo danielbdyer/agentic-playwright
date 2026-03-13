@@ -1,7 +1,7 @@
 {
   "version": 1,
   "projection": "types",
-  "inputSetFingerprint": "sha256:a78ec5bdfc09b61c244401b008aebdd952fda2ffd3a81ae142e9960c13c662bc",
+  "inputSetFingerprint": "sha256:0db7f40f4272e9b6b8bcfa00b902c46859952ae11afb1c055f2933559ae7a077",
   "outputFingerprint": "sha256:6eb504ba1253857ca29ba73422f27e6ea044ee0d2035b327f2b250720c4c4fda",
   "inputs": [
     {
@@ -12,7 +12,7 @@
     {
       "kind": "hints",
       "path": "knowledge/screens/policy-search.hints.yaml",
-      "fingerprint": "sha256:07609c0152ed5259b465f49a4b24b24b48a0b0a2c259eb08a181a019519040e8"
+      "fingerprint": "sha256:8a1f0d9dce0bad922fdf2c82a421e30bc39de075131b54729543a050c95d7e54"
     },
     {
       "kind": "postures",

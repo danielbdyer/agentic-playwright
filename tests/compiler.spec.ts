@@ -20,6 +20,7 @@ import type { ProjectionCacheMissIncremental, ProjectionIncremental } from '../l
 import { runWithLocalServices } from '../lib/composition/local-services';
 import { createAdoId, createElementId, createScreenId, createSurfaceId } from '../lib/domain/identity';
 import { graphIds } from '../lib/domain/ids';
+import { validateDiscoveryIndex } from '../lib/domain/validation';
 import { harvestDeclaredRoutes } from '../lib/infrastructure/tooling/harvest-routes';
 import { createTestWorkspace } from './support/workspace';
 
@@ -57,6 +58,30 @@ test('refresh recompiles the seeded scenario through graph, types, and program e
   try {
     const adoId = createAdoId('10001');
     const result = await runWithLocalServices(refreshScenario({ adoId, paths: workspace.paths }), workspace.rootDir);
+    const taskPacket = workspace.readJson<{
+      version: number;
+      payload: {
+        stateGraph: { fingerprint?: string };
+        knowledgeSlice: {
+          stateRefs: string[];
+          eventSignatureRefs: string[];
+          transitionRefs: string[];
+        };
+        steps: Array<{
+          grounding: {
+            eventSignatureRefs: string[];
+            expectedTransitionRefs: string[];
+            resultStateRefs: string[];
+          };
+        }>;
+      };
+    }>('.tesseract', 'tasks', '10001.resolution.json');
+    const stateGraph = workspace.readJson<{
+      fingerprint: string;
+      stateRefs: string[];
+      eventSignatureRefs: string[];
+      transitionRefs: string[];
+    }>('.tesseract', 'interface', 'state-graph.json');
     const generated = readFileSync(result.compile.emitted.outputPath, 'utf8').replace(/^\uFEFF/, '');
     const traceArtifact = JSON.parse(readFileSync(result.compile.emitted.tracePath, 'utf8').replace(/^\uFEFF/, ''));
     const review = readFileSync(result.compile.emitted.reviewPath, 'utf8').replace(/^\uFEFF/, '');
@@ -68,9 +93,19 @@ test('refresh recompiles the seeded scenario through graph, types, and program e
     expect(result.compile.bound.boundScenario.steps.every((step) => step.binding.kind === 'deferred')).toBeTruthy();
     expect(result.compile.bound.boundScenario.steps.every((step) => step.binding.governance === 'approved')).toBeTruthy();
     expect(projectPath(result.compile.compileSnapshot.taskPath)).toContain('.tesseract/tasks/10001.resolution.json');
+    expect(projectPath(result.compile.emitted.runtimePath)).toContain('.tesseract/tasks/10001.runtime.json');
+    expect(taskPacket.version).toBe(5);
+    expect(taskPacket.payload.stateGraph.fingerprint).toBe(stateGraph.fingerprint);
+    expect(taskPacket.payload.knowledgeSlice.stateRefs).toEqual(stateGraph.stateRefs);
+    expect(taskPacket.payload.knowledgeSlice.eventSignatureRefs).toEqual(stateGraph.eventSignatureRefs);
+    expect(taskPacket.payload.knowledgeSlice.transitionRefs).toEqual(stateGraph.transitionRefs);
+    expect(taskPacket.payload.steps.some((step) => step.grounding.eventSignatureRefs.length > 0)).toBeTruthy();
+    expect(taskPacket.payload.steps.some((step) => step.grounding.expectedTransitionRefs.length > 0)).toBeTruthy();
+    expect(taskPacket.payload.steps.some((step) => step.grounding.resultStateRefs.length > 0)).toBeTruthy();
     expect(generated).toContain('runScenarioHandshake');
     expect(generated).toContain('createLocalRuntimeEnvironment');
-    expect(generated).toContain('workflow.step');
+    expect(generated).toContain('loadScenarioRuntimeHandoff');
+    expect(generated).toContain('stepHandshakeFromHandoff');
     expect(generated).toContain('intent-only');
     expect(generated).toContain('deferred-steps');
     expect(traceArtifact.steps[1].runtime.status).toBe('pending');
@@ -83,7 +118,10 @@ test('refresh recompiles the seeded scenario through graph, types, and program e
     expect(review).toContain('## Bottlenecks');
     expect(review).toContain('Preparation lane: scenario -> bound envelope -> task packet');
     expect(review).toContain('Binding kind: deferred');
+    expect(review).toContain('State graph fingerprint:');
     expect(review).toContain('## Step 1');
+    expect(review).toContain('Event signatures:');
+    expect(review).toContain('Expected transitions:');
     expect(graph.nodes.some((node: { id: string }) => node.id === graphIds.surface(policySearchScreenId, resultsGridId))).toBeTruthy();
     expect(graph.nodes.some((node: { id: string }) => node.id === graphIds.screenHints(policySearchScreenId))).toBeTruthy();
     expect(graph.nodes.some((node: { id: string }) => node.id === graphIds.pattern('core.input'))).toBeTruthy();
@@ -141,17 +179,23 @@ test('harvest visits declared route variants and writes route-scoped receipts', 
       harvestDeclaredRoutes({ paths: workspace.paths, app: 'demo' }),
       workspace.rootDir,
     );
-    const index = workspace.readJson<{
-      app: string;
-      receipts: Array<{ routeId: string; variantId: string; status: string; receiptPath?: string }>;
-    }>('.tesseract', 'discovery', 'demo', 'index.json');
+    const index = validateDiscoveryIndex(workspace.readJson(
+      '.tesseract',
+      'discovery',
+      'demo',
+      'index.json',
+    ));
     const defaultReceipt = workspace.readJson<{
       app: string;
       routeId: string;
       variantId: string;
       url: string;
+      selectorProbes: Array<{ variantRef: string }>;
+      stateObservations: Array<{ stateRef: string; source: string; observed: boolean }>;
+      eventCandidates: Array<{ eventSignatureRef: string }>;
+      transitionObservations: Array<{ transitionRef?: string | null; classification: string }>;
+      observationDiffs: Array<{ eventSignatureRef?: string | null; classification: string }>;
       targets: unknown[];
-      selectorProbes: unknown[];
     }>('.tesseract', 'discovery', 'demo', 'policy-search', 'default', 'crawl.json');
     const seededReceipt = workspace.readJson<{ variantId: string; url: string }>(
       '.tesseract',
@@ -168,16 +212,97 @@ test('harvest visits declared route variants and writes route-scoped receipts', 
       '.tesseract/discovery/demo/policy-search/results-with-policy/crawl.json',
     ]);
     expect(index.app).toBe('demo');
+    expect(index.version).toBe(2);
     expect(index.receipts).toHaveLength(2);
     expect(index.receipts.every((entry) => entry.status === 'ok')).toBeTruthy();
+    expect(index.receipts.every((entry) => entry.writeDisposition === 'rewritten')).toBeTruthy();
+    expect(index.receipts.every((entry) => entry.contentFingerprint?.startsWith('sha256:'))).toBeTruthy();
     expect(defaultReceipt.app).toBe('demo');
     expect(defaultReceipt.routeId).toBe('policy-search');
     expect(defaultReceipt.variantId).toBe('default');
     expect(defaultReceipt.url.startsWith('file:///')).toBeTruthy();
     expect(defaultReceipt.targets.length).toBeGreaterThan(0);
     expect(defaultReceipt.selectorProbes.length).toBeGreaterThan(0);
+    expect(defaultReceipt.selectorProbes.every((probe) => probe.variantRef === 'route-variant:demo:policy-search:default')).toBeTruthy();
+    expect(defaultReceipt.stateObservations.length).toBeGreaterThan(0);
+    expect(defaultReceipt.eventCandidates.map((candidate) => candidate.eventSignatureRef)).toEqual([
+      'event:policy-search:click-search',
+      'event:policy-search:enter-policy-number',
+    ]);
+    expect(defaultReceipt.transitionObservations.some((entry) => entry.transitionRef === 'transition:policy-search:populate-policy-number')).toBeTruthy();
+    expect(defaultReceipt.transitionObservations.some((entry) => entry.transitionRef === 'transition:policy-search:show-results')).toBeTruthy();
+    expect(defaultReceipt.transitionObservations.every((entry) => entry.classification === 'matched')).toBeTruthy();
+    expect(defaultReceipt.observationDiffs.some((entry) => entry.eventSignatureRef === 'event:policy-search:enter-policy-number' && entry.classification === 'observed')).toBeTruthy();
     expect(seededReceipt.variantId).toBe('results-with-policy');
     expect(seededReceipt.url).toContain('seed=POL-001');
+  } finally {
+    workspace.cleanup();
+  }
+});
+
+test('harvest reuses unchanged route receipts and rewrites deterministically on drift', async () => {
+  test.setTimeout(60_000);
+  const workspace = createTestWorkspace('compiler-harvest-idempotence');
+  try {
+    await runWithLocalServices(
+      harvestDeclaredRoutes({ paths: workspace.paths, app: 'demo' }),
+      workspace.rootDir,
+    );
+    const defaultReceiptPath = workspace.resolve('.tesseract', 'discovery', 'demo', 'policy-search', 'default', 'crawl.json');
+    const resultsReceiptPath = workspace.resolve('.tesseract', 'discovery', 'demo', 'policy-search', 'results-with-policy', 'crawl.json');
+    const firstIndex = validateDiscoveryIndex(workspace.readJson(
+      '.tesseract',
+      'discovery',
+      'demo',
+      'index.json',
+    ));
+    const firstFingerprint = firstIndex.receipts.find((entry) => entry.variantId === 'default')?.contentFingerprint ?? null;
+    const firstResultsFingerprint = firstIndex.receipts.find((entry) => entry.variantId === 'results-with-policy')?.contentFingerprint ?? null;
+    const firstModifiedAt = statSync(defaultReceiptPath).mtimeMs;
+    const firstResultsModifiedAt = statSync(resultsReceiptPath).mtimeMs;
+
+    await wait(1100);
+    await runWithLocalServices(
+      harvestDeclaredRoutes({ paths: workspace.paths, app: 'demo' }),
+      workspace.rootDir,
+    );
+    const reusedIndex = validateDiscoveryIndex(workspace.readJson(
+      '.tesseract',
+      'discovery',
+      'demo',
+      'index.json',
+    ));
+    const reusedFingerprint = reusedIndex.receipts.find((entry) => entry.variantId === 'default')?.contentFingerprint ?? null;
+
+    expect(reusedIndex.receipts.every((entry) => entry.writeDisposition === 'reused')).toBeTruthy();
+    expect(reusedFingerprint).toBe(firstFingerprint);
+    expect(statSync(defaultReceiptPath).mtimeMs).toBe(firstModifiedAt);
+
+    const fixturePath = workspace.resolve('fixtures', 'demo-harness', 'policy-search.html');
+    const originalFixture = readFileSync(fixturePath, 'utf8').replace(/^\uFEFF/, '');
+    writeFileSync(fixturePath, originalFixture.replace('Search Results', 'Policy Matches'), 'utf8');
+
+    await wait(1100);
+    await runWithLocalServices(
+      harvestDeclaredRoutes({ paths: workspace.paths, app: 'demo' }),
+      workspace.rootDir,
+    );
+    const rewrittenIndex = validateDiscoveryIndex(workspace.readJson(
+      '.tesseract',
+      'discovery',
+      'demo',
+      'index.json',
+    ));
+    const rewrittenFingerprint = rewrittenIndex.receipts.find((entry) => entry.variantId === 'default')?.contentFingerprint ?? null;
+    const rewrittenResultsEntry = rewrittenIndex.receipts.find((entry) => entry.variantId === 'results-with-policy') ?? null;
+
+    expect(rewrittenIndex.receipts.some((entry) => entry.writeDisposition === 'rewritten')).toBeTruthy();
+    expect(rewrittenIndex.receipts.find((entry) => entry.variantId === 'default')?.writeDisposition).toBe('reused');
+    expect(rewrittenResultsEntry?.writeDisposition).toBe('rewritten');
+    expect(rewrittenFingerprint).toBe(reusedFingerprint);
+    expect(rewrittenResultsEntry?.contentFingerprint).not.toBe(firstResultsFingerprint);
+    expect(statSync(defaultReceiptPath).mtimeMs).toBe(firstModifiedAt);
+    expect(statSync(resultsReceiptPath).mtimeMs).toBeGreaterThan(firstResultsModifiedAt);
   } finally {
     workspace.cleanup();
   }
@@ -273,11 +398,89 @@ test('run emits interpretation and execution receipts, then reprojects review su
     expect(review).toContain('Runtime: resolved');
     expect(review).toContain('Interface graph fingerprint:');
     expect(review).toContain('Selector canon fingerprint:');
+    expect(review).toContain('State graph fingerprint:');
     expect(review).toContain('Agent sessions: 1');
     expect(review).toContain('Learning corpora: 3');
+    expect(review).toContain('Event signatures:');
+    expect(review).toContain('Transition observations:');
+    expect(runRecord.steps.some((step: { execution: { eventSignatureRefs?: string[]; transitionObservations?: unknown[] } }) =>
+      (step.execution.eventSignatureRefs?.length ?? 0) > 0
+      && (step.execution.transitionObservations?.length ?? 0) > 0)).toBeTruthy();
     expect(proposalBundle.proposals).toEqual([]);
     expect(graph.nodes.find((node: { id: string; payload?: Record<string, unknown> }) => node.id === graphIds.step(adoId, 2))?.payload?.runtimeStatus).toBe('resolved');
     expect(inboxReport).toContain('## Hotspot suggestions');
+  } finally {
+    workspace.cleanup();
+  }
+});
+
+test('promoted behavior patterns reuse the same transition ids from interface graph through run receipts', async () => {
+  const workspace = createTestWorkspace('compiler-phase2-reuse');
+  try {
+    const adoId = createAdoId('10001');
+    writeFileSync(
+      workspace.resolve('knowledge', 'patterns', 'form-entry.behavior.yaml'),
+      readFileSync(path.join(process.cwd(), 'tests', 'fixtures', 'knowledge', 'patterns', 'form-entry.behavior.yaml'), 'utf8'),
+      'utf8',
+    );
+    await runWithLocalServices(refreshScenario({ adoId, paths: workspace.paths }), workspace.rootDir);
+    const run = await runWithLocalServices(runScenario({ adoId, paths: workspace.paths, interpreterMode: 'diagnostic' }), workspace.rootDir);
+
+    const stateGraph = workspace.readJson<{
+      eventSignatures: Array<{
+        ref: string;
+        provenance: string[];
+        effects: { transitionRefs: string[]; assertions: string[] };
+      }>;
+      transitions: Array<{ ref: string; provenance: string[] }>;
+    }>('.tesseract', 'interface', 'state-graph.json');
+    const taskPacket = workspace.readJson<{
+      payload: {
+        steps: Array<{
+          index: number;
+          grounding: {
+            eventSignatureRefs: string[];
+            expectedTransitionRefs: string[];
+            effectAssertions: string[];
+          };
+        }>;
+      };
+    }>('.tesseract', 'tasks', '10001.resolution.json');
+    const runRecord = JSON.parse(readFileSync(run.runPath, 'utf8').replace(/^\uFEFF/, '')) as {
+      steps: Array<{
+        stepIndex: number;
+        execution: {
+          eventSignatureRefs?: string[];
+          expectedTransitionRefs?: string[];
+          effectAssertions?: string[];
+        };
+      }>;
+    };
+
+    const inputEvent = stateGraph.eventSignatures.find((entry) => entry.ref === 'event:policy-search:enter-policy-number');
+    const populatedTransition = stateGraph.transitions.find((entry) => entry.ref === 'transition:policy-search:populate-policy-number');
+    const stepTwo = taskPacket.payload.steps.find((step) => step.index === 2);
+    const executedStepTwo = runRecord.steps.find((step) => step.stepIndex === 2);
+
+    expect(inputEvent).toBeTruthy();
+    expect(populatedTransition).toBeTruthy();
+    expect(stepTwo).toBeTruthy();
+    expect(executedStepTwo).toBeTruthy();
+
+    expect(inputEvent?.provenance).toEqual(expect.arrayContaining([
+      'knowledge/screens/policy-search.behavior.yaml',
+      'knowledge/patterns/form-entry.behavior.yaml',
+    ]));
+    expect(populatedTransition?.provenance).toEqual(expect.arrayContaining([
+      'knowledge/screens/policy-search.behavior.yaml',
+      'knowledge/patterns/form-entry.behavior.yaml',
+    ]));
+    expect(inputEvent?.effects.transitionRefs).toContain('transition:policy-search:populate-policy-number');
+    expect(inputEvent?.effects.assertions).toContain('Policy number field keeps the entered value');
+    expect(stepTwo?.grounding.expectedTransitionRefs).toContain('transition:policy-search:populate-policy-number');
+    expect(stepTwo?.grounding.effectAssertions).toContain('Policy number field keeps the entered value');
+    expect(executedStepTwo?.execution.expectedTransitionRefs).toContain('transition:policy-search:populate-policy-number');
+    expect(executedStepTwo?.execution.effectAssertions).toContain('Policy number field keeps the entered value');
   } finally {
     workspace.cleanup();
   }
@@ -624,12 +827,13 @@ test('task packet separates task and knowledge fingerprints via shared interface
   try {
     const adoId = createAdoId('10001');
     const first = await runWithLocalServices(refreshScenario({ adoId, paths: workspace.paths }), workspace.rootDir);
-    const firstPacket = workspace.readJson<{ payload: { knowledgeFingerprint: string; steps: Array<{ taskFingerprint: string; knowledgeRef?: string; runtimeKnowledge?: unknown }>; interface: unknown; selectors: unknown } }>('.tesseract', 'tasks', '10001.resolution.json');
+    const firstPacket = workspace.readJson<{ payload: { knowledgeFingerprint: string; steps: Array<{ taskFingerprint: string; grounding: unknown; knowledgeRef?: string; runtimeKnowledge?: unknown }>; interface: unknown; selectors: unknown } }>('.tesseract', 'tasks', '10001.resolution.json');
 
     expect(firstPacket.payload.interface).toBeTruthy();
     expect(firstPacket.payload.selectors).toBeTruthy();
-    expect(firstPacket.payload.steps.every((step) => step.knowledgeRef === 'scenario')).toBeTruthy();
+    expect(firstPacket.payload.steps.every((step) => step.knowledgeRef === undefined)).toBeTruthy();
     expect(firstPacket.payload.steps.every((step) => step.runtimeKnowledge === undefined)).toBeTruthy();
+    expect(firstPacket.payload.steps.every((step) => step.grounding)).toBeTruthy();
 
     const firstStepFingerprints = firstPacket.payload.steps.map((step) => step.taskFingerprint);
 

@@ -1,22 +1,28 @@
 import {
   createCanonicalTargetRef,
   createElementId,
+  createEventSignatureRef,
   createRouteId,
   createRouteVariantId,
   createScreenId,
   createSectionId,
   createSelectorRef,
   createSnapshotTemplateId,
+  createStateNodeRef,
   createSurfaceId,
+  createTransitionRef,
 } from '../identity';
 import type {
   ApplicationInterfaceGraph,
+  DiscoveryIndex,
   DiscoveryRun,
   InterfaceGraphEdge,
   InterfaceGraphNode,
   SelectorCanon,
   SelectorCanonEntry,
   SelectorProbe,
+  StateTransitionGraph,
+  TransitionObservation,
 } from '../types';
 import {
   expectArray,
@@ -29,6 +35,7 @@ import {
   expectRecord,
   expectString,
   expectStringArray,
+  expectStringRecord,
 } from './primitives';
 
 function validateLocatorStrategy(value: unknown, path: string) {
@@ -51,7 +58,7 @@ function validateInterfaceGraphNode(value: unknown, path: string): InterfaceGrap
   const node = expectRecord(value, path);
   return {
     id: expectString(node.id, `${path}.id`),
-    kind: expectEnum(node.kind, `${path}.kind`, ['route', 'route-variant', 'screen', 'section', 'surface', 'target', 'snapshot-anchor', 'harvest-run'] as const),
+    kind: expectEnum(node.kind, `${path}.kind`, ['route', 'route-variant', 'screen', 'section', 'surface', 'target', 'snapshot-anchor', 'harvest-run', 'state', 'event-signature', 'transition'] as const),
     label: expectString(node.label, `${path}.label`),
     fingerprint: expectString(node.fingerprint, `${path}.fingerprint`),
     route: expectOptionalId(node.route, `${path}.route`, createRouteId) ?? null,
@@ -72,7 +79,7 @@ function validateInterfaceGraphEdge(value: unknown, path: string): InterfaceGrap
   const edge = expectRecord(value, path);
   return {
     id: expectString(edge.id, `${path}.id`),
-    kind: expectEnum(edge.kind, `${path}.kind`, ['route-target', 'variant-of-route', 'contains', 'references-target', 'references-snapshot', 'discovered-by'] as const),
+    kind: expectEnum(edge.kind, `${path}.kind`, ['route-target', 'variant-of-route', 'contains', 'references-target', 'references-snapshot', 'discovered-by', 'requires-state', 'causes-transition', 'results-in-state'] as const),
     from: expectString(edge.from, `${path}.from`),
     to: expectString(edge.to, `${path}.to`),
     fingerprint: expectString(edge.fingerprint, `${path}.fingerprint`),
@@ -85,7 +92,7 @@ export function validateApplicationInterfaceGraph(value: unknown): ApplicationIn
   const graph = expectRecord(value, 'applicationInterfaceGraph');
   return {
     kind: expectEnum(graph.kind, 'applicationInterfaceGraph.kind', ['application-interface-graph'] as const),
-    version: expectNumber(graph.version, 'applicationInterfaceGraph.version') as 1,
+    version: expectNumber(graph.version, 'applicationInterfaceGraph.version') as 2,
     generatedAt: expectString(graph.generatedAt, 'applicationInterfaceGraph.generatedAt'),
     fingerprint: expectString(graph.fingerprint, 'applicationInterfaceGraph.fingerprint'),
     discoveryRunIds: expectStringArray(graph.discoveryRunIds ?? [], 'applicationInterfaceGraph.discoveryRunIds'),
@@ -93,6 +100,15 @@ export function validateApplicationInterfaceGraph(value: unknown): ApplicationIn
     routeVariantRefs: expectStringArray(graph.routeVariantRefs ?? [], 'applicationInterfaceGraph.routeVariantRefs'),
     targetRefs: expectArray(graph.targetRefs ?? [], 'applicationInterfaceGraph.targetRefs').map((entry, index) =>
       expectId(entry, `applicationInterfaceGraph.targetRefs[${index}]`, createCanonicalTargetRef),
+    ),
+    stateRefs: expectArray(graph.stateRefs ?? [], 'applicationInterfaceGraph.stateRefs').map((entry, index) =>
+      expectId(entry, `applicationInterfaceGraph.stateRefs[${index}]`, createStateNodeRef),
+    ),
+    eventSignatureRefs: expectArray(graph.eventSignatureRefs ?? [], 'applicationInterfaceGraph.eventSignatureRefs').map((entry, index) =>
+      expectId(entry, `applicationInterfaceGraph.eventSignatureRefs[${index}]`, createEventSignatureRef),
+    ),
+    transitionRefs: expectArray(graph.transitionRefs ?? [], 'applicationInterfaceGraph.transitionRefs').map((entry, index) =>
+      expectId(entry, `applicationInterfaceGraph.transitionRefs[${index}]`, createTransitionRef),
     ),
     nodes: expectArray(graph.nodes ?? [], 'applicationInterfaceGraph.nodes').map((entry, index) =>
       validateInterfaceGraphNode(entry, `applicationInterfaceGraph.nodes[${index}]`),
@@ -115,6 +131,12 @@ function validateSelectorProbe(value: unknown, path: string): SelectorProbe {
     rung: expectNumber(probe.rung, `${path}.rung`),
     artifactPath: expectString(probe.artifactPath, `${path}.artifactPath`),
     variantRefs: expectStringArray(probe.variantRefs ?? [], `${path}.variantRefs`),
+    validWhenStateRefs: expectArray(probe.validWhenStateRefs ?? [], `${path}.validWhenStateRefs`).map((entry, index) =>
+      expectId(entry, `${path}.validWhenStateRefs[${index}]`, createStateNodeRef),
+    ),
+    invalidWhenStateRefs: expectArray(probe.invalidWhenStateRefs ?? [], `${path}.invalidWhenStateRefs`).map((entry, index) =>
+      expectId(entry, `${path}.invalidWhenStateRefs[${index}]`, createStateNodeRef),
+    ),
     discoveredFrom: expectOptionalString(probe.discoveredFrom, `${path}.discoveredFrom`) ?? null,
     evidenceRefs: expectStringArray(probe.evidenceRefs ?? [], `${path}.evidenceRefs`),
     successCount: expectNumber(probe.successCount, `${path}.successCount`),
@@ -162,6 +184,30 @@ export function validateSelectorCanon(value: unknown): SelectorCanon {
       degradedProbeCount: expectNumber(summary.degradedProbeCount ?? 0, 'selectorCanon.summary.degradedProbeCount'),
       healthyProbeCount: expectNumber(summary.healthyProbeCount ?? 0, 'selectorCanon.summary.healthyProbeCount'),
     },
+  };
+}
+
+function validateTransitionObservation(value: unknown, path: string): TransitionObservation {
+  const observation = expectRecord(value, path);
+  return {
+    observationId: expectString(observation.observationId, `${path}.observationId`),
+    source: expectEnum(observation.source, `${path}.source`, ['harvest', 'runtime'] as const),
+    actor: expectEnum(observation.actor, `${path}.actor`, ['safe-active-harvest', 'runtime-execution', 'live-dom'] as const),
+    screen: expectId(observation.screen, `${path}.screen`, createScreenId),
+    eventSignatureRef: expectOptionalId(observation.eventSignatureRef, `${path}.eventSignatureRef`, createEventSignatureRef) ?? null,
+    transitionRef: expectOptionalId(observation.transitionRef, `${path}.transitionRef`, createTransitionRef) ?? null,
+    expectedTransitionRefs: expectArray(observation.expectedTransitionRefs ?? [], `${path}.expectedTransitionRefs`).map((entry, index) =>
+      expectId(entry, `${path}.expectedTransitionRefs[${index}]`, createTransitionRef),
+    ),
+    observedStateRefs: expectArray(observation.observedStateRefs ?? [], `${path}.observedStateRefs`).map((entry, index) =>
+      expectId(entry, `${path}.observedStateRefs[${index}]`, createStateNodeRef),
+    ),
+    unexpectedStateRefs: expectArray(observation.unexpectedStateRefs ?? [], `${path}.unexpectedStateRefs`).map((entry, index) =>
+      expectId(entry, `${path}.unexpectedStateRefs[${index}]`, createStateNodeRef),
+    ),
+    confidence: expectEnum(observation.confidence, `${path}.confidence`, ['observed', 'inferred', 'missing'] as const),
+    classification: expectEnum(observation.classification, `${path}.classification`, ['matched', 'ambiguous-match', 'missing-expected', 'unexpected-effects'] as const),
+    detail: observation.detail === undefined ? undefined : expectStringRecord(observation.detail, `${path}.detail`),
   };
 }
 
@@ -269,6 +315,43 @@ export function validateDiscoveryRun(value: unknown): DiscoveryRun {
         strategy: validateLocatorStrategy(probe.strategy, `discoveryRun.selectorProbes[${index}].strategy`),
         source: expectEnum(probe.source, `discoveryRun.selectorProbes[${index}].source`, ['discovery'] as const),
         variantRef: expectString(probe.variantRef, `discoveryRun.selectorProbes[${index}].variantRef`),
+        validWhenStateRefs: expectArray(probe.validWhenStateRefs ?? [], `discoveryRun.selectorProbes[${index}].validWhenStateRefs`).map((value, valueIndex) =>
+          expectId(value, `discoveryRun.selectorProbes[${index}].validWhenStateRefs[${valueIndex}]`, createStateNodeRef),
+        ),
+        invalidWhenStateRefs: expectArray(probe.invalidWhenStateRefs ?? [], `discoveryRun.selectorProbes[${index}].invalidWhenStateRefs`).map((value, valueIndex) =>
+          expectId(value, `discoveryRun.selectorProbes[${index}].invalidWhenStateRefs[${valueIndex}]`, createStateNodeRef),
+        ),
+      };
+    }),
+    stateObservations: expectArray(run.stateObservations ?? [], 'discoveryRun.stateObservations').map((entry, index) => {
+      const observation = expectRecord(entry, `discoveryRun.stateObservations[${index}]`);
+      return {
+        stateRef: expectId(observation.stateRef, `discoveryRun.stateObservations[${index}].stateRef`, createStateNodeRef),
+        source: expectEnum(observation.source, `discoveryRun.stateObservations[${index}].source`, ['baseline', 'active-harvest'] as const),
+        observed: expectBoolean(observation.observed, `discoveryRun.stateObservations[${index}].observed`),
+        detail: observation.detail === undefined ? undefined : expectStringRecord(observation.detail, `discoveryRun.stateObservations[${index}].detail`),
+      };
+    }),
+    eventCandidates: expectArray(run.eventCandidates ?? [], 'discoveryRun.eventCandidates').map((entry, index) => {
+      const candidate = expectRecord(entry, `discoveryRun.eventCandidates[${index}]`);
+      return {
+        eventSignatureRef: expectId(candidate.eventSignatureRef, `discoveryRun.eventCandidates[${index}].eventSignatureRef`, createEventSignatureRef),
+        targetRef: expectId(candidate.targetRef, `discoveryRun.eventCandidates[${index}].targetRef`, createCanonicalTargetRef),
+        action: expectEnum(candidate.action, `discoveryRun.eventCandidates[${index}].action`, ['navigate', 'input', 'click', 'assert-snapshot', 'custom'] as const),
+        source: expectEnum(candidate.source, `discoveryRun.eventCandidates[${index}].source`, ['approved-behavior', 'active-harvest'] as const),
+      };
+    }),
+    transitionObservations: expectArray(run.transitionObservations ?? [], 'discoveryRun.transitionObservations').map((entry, index) =>
+      validateTransitionObservation(entry, `discoveryRun.transitionObservations[${index}]`),
+    ),
+    observationDiffs: expectArray(run.observationDiffs ?? [], 'discoveryRun.observationDiffs').map((entry, index) => {
+      const diff = expectRecord(entry, `discoveryRun.observationDiffs[${index}]`);
+      return {
+        beforeStateRef: expectOptionalId(diff.beforeStateRef, `discoveryRun.observationDiffs[${index}].beforeStateRef`, createStateNodeRef) ?? null,
+        afterStateRef: expectOptionalId(diff.afterStateRef, `discoveryRun.observationDiffs[${index}].afterStateRef`, createStateNodeRef) ?? null,
+        eventSignatureRef: expectOptionalId(diff.eventSignatureRef, `discoveryRun.observationDiffs[${index}].eventSignatureRef`, createEventSignatureRef) ?? null,
+        transitionRef: expectOptionalId(diff.transitionRef, `discoveryRun.observationDiffs[${index}].transitionRef`, createTransitionRef) ?? null,
+        classification: expectEnum(diff.classification, `discoveryRun.observationDiffs[${index}].classification`, ['observed', 'missing', 'unexpected'] as const),
       };
     }),
     graphDeltas: (() => {
@@ -278,5 +361,57 @@ export function validateDiscoveryRun(value: unknown): DiscoveryRun {
         edgeIds: expectStringArray(deltas.edgeIds ?? [], 'discoveryRun.graphDeltas.edgeIds'),
       };
     })(),
+  };
+}
+
+export function validateDiscoveryIndex(value: unknown): DiscoveryIndex {
+  const index = expectRecord(value, 'discoveryIndex');
+  return {
+    kind: expectEnum(index.kind, 'discoveryIndex.kind', ['discovery-index'] as const),
+    version: expectNumber(index.version, 'discoveryIndex.version') as 2,
+    app: expectString(index.app, 'discoveryIndex.app'),
+    generatedAt: expectString(index.generatedAt, 'discoveryIndex.generatedAt'),
+    receipts: expectArray(index.receipts ?? [], 'discoveryIndex.receipts').map((entry, entryIndex) => {
+      const receipt = expectRecord(entry, `discoveryIndex.receipts[${entryIndex}]`);
+      return {
+        routeId: expectId(receipt.routeId, `discoveryIndex.receipts[${entryIndex}].routeId`, createRouteId),
+        variantId: expectId(receipt.variantId, `discoveryIndex.receipts[${entryIndex}].variantId`, createRouteVariantId),
+        routeVariantRef: expectString(receipt.routeVariantRef, `discoveryIndex.receipts[${entryIndex}].routeVariantRef`),
+        screen: expectId(receipt.screen, `discoveryIndex.receipts[${entryIndex}].screen`, createScreenId),
+        status: expectEnum(receipt.status, `discoveryIndex.receipts[${entryIndex}].status`, ['ok', 'failed'] as const),
+        receiptId: expectOptionalString(receipt.receiptId, `discoveryIndex.receipts[${entryIndex}].receiptId`) ?? null,
+        receiptPath: expectOptionalString(receipt.receiptPath, `discoveryIndex.receipts[${entryIndex}].receiptPath`) ?? null,
+        contentFingerprint: expectOptionalString(receipt.contentFingerprint, `discoveryIndex.receipts[${entryIndex}].contentFingerprint`) ?? null,
+        writeDisposition: expectEnum(receipt.writeDisposition, `discoveryIndex.receipts[${entryIndex}].writeDisposition`, ['reused', 'rewritten', 'failed'] as const),
+        resolvedUrl: expectOptionalString(receipt.resolvedUrl, `discoveryIndex.receipts[${entryIndex}].resolvedUrl`) ?? null,
+        rootSelector: expectOptionalString(receipt.rootSelector, `discoveryIndex.receipts[${entryIndex}].rootSelector`) ?? null,
+        message: expectOptionalString(receipt.message, `discoveryIndex.receipts[${entryIndex}].message`) ?? null,
+      };
+    }),
+  };
+}
+
+export function validateStateTransitionGraph(value: unknown): StateTransitionGraph {
+  const graph = expectRecord(value, 'stateTransitionGraph');
+  return {
+    kind: expectEnum(graph.kind, 'stateTransitionGraph.kind', ['state-transition-graph'] as const),
+    version: expectNumber(graph.version, 'stateTransitionGraph.version') as 1,
+    generatedAt: expectString(graph.generatedAt, 'stateTransitionGraph.generatedAt'),
+    fingerprint: expectString(graph.fingerprint, 'stateTransitionGraph.fingerprint'),
+    stateRefs: expectArray(graph.stateRefs ?? [], 'stateTransitionGraph.stateRefs').map((entry, index) =>
+      expectId(entry, `stateTransitionGraph.stateRefs[${index}]`, createStateNodeRef),
+    ),
+    eventSignatureRefs: expectArray(graph.eventSignatureRefs ?? [], 'stateTransitionGraph.eventSignatureRefs').map((entry, index) =>
+      expectId(entry, `stateTransitionGraph.eventSignatureRefs[${index}]`, createEventSignatureRef),
+    ),
+    transitionRefs: expectArray(graph.transitionRefs ?? [], 'stateTransitionGraph.transitionRefs').map((entry, index) =>
+      expectId(entry, `stateTransitionGraph.transitionRefs[${index}]`, createTransitionRef),
+    ),
+    states: expectArray(graph.states ?? [], 'stateTransitionGraph.states').map((entry, index) => expectRecord(entry, `stateTransitionGraph.states[${index}]`) as any),
+    eventSignatures: expectArray(graph.eventSignatures ?? [], 'stateTransitionGraph.eventSignatures').map((entry, index) => expectRecord(entry, `stateTransitionGraph.eventSignatures[${index}]`) as any),
+    transitions: expectArray(graph.transitions ?? [], 'stateTransitionGraph.transitions').map((entry, index) => expectRecord(entry, `stateTransitionGraph.transitions[${index}]`) as any),
+    observations: expectArray(graph.observations ?? [], 'stateTransitionGraph.observations').map((entry, index) =>
+      validateTransitionObservation(entry, `stateTransitionGraph.observations[${index}]`),
+    ),
   };
 }

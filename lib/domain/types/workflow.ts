@@ -2,6 +2,7 @@ import type { AdoId, ElementId, PostureId, ScreenId, SnapshotTemplateId, Surface
 
 export type Confidence = 'human' | 'agent-verified' | 'agent-proposed' | 'compiler-derived' | 'intent-only' | 'unbound';
 export type Governance = 'approved' | 'review-required' | 'blocked';
+export type CertificationStatus = 'uncertified' | 'certified';
 export type StepProvenanceKind = 'explicit' | 'approved-knowledge' | 'live-exploration' | 'unresolved';
 export type ScenarioStatus = 'stub' | 'draft' | 'active' | 'needs-repair' | 'blocked' | 'deprecated';
 export type StepAction = 'navigate' | 'input' | 'click' | 'assert-snapshot' | 'custom';
@@ -139,6 +140,29 @@ export interface TrustPolicyEvaluationReason {
 export interface TrustPolicyEvaluation {
   decision: TrustPolicyDecision;
   reasons: TrustPolicyEvaluationReason[];
+}
+
+export interface CanonicalLineage {
+  runIds: string[];
+  evidenceIds: string[];
+  sourceArtifactPaths: string[];
+  role?: string | null | undefined;
+  state?: string | null | undefined;
+  driftSeed?: string | null | undefined;
+}
+
+export interface CanonicalKnowledgeMetadata {
+  certification: CertificationStatus;
+  activatedAt: string;
+  certifiedAt?: string | null | undefined;
+  lineage: CanonicalLineage;
+}
+
+export interface ProposalActivation {
+  status: 'pending' | 'activated' | 'blocked';
+  activatedAt?: string | null | undefined;
+  certifiedAt?: string | null | undefined;
+  reason?: string | null | undefined;
 }
 
 export interface DiagnosticProvenance {

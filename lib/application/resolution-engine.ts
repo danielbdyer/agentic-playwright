@@ -1,7 +1,6 @@
 import type { ResolutionEngineCapabilities, RuntimeInterpreterMode, ResolutionReceipt, StepTask } from '../domain/types';
 
 export type ResolutionEngineId = string;
-export type RuntimeProviderId = ResolutionEngineId;
 
 export interface ResolutionEngine {
   id: ResolutionEngineId;
@@ -9,9 +8,7 @@ export interface ResolutionEngine {
   resolveStep(task: StepTask, context: unknown): Promise<ResolutionReceipt>;
 }
 
-export type RuntimeProvider = ResolutionEngine;
-
-function deterministicProvider(): ResolutionEngine {
+function deterministicEngine(): ResolutionEngine {
   return {
     id: 'deterministic-runtime-step-agent',
     capabilities: {
@@ -27,19 +24,15 @@ function deterministicProvider(): ResolutionEngine {
   };
 }
 
-function providerCompatibilityError(engine: ResolutionEngine, mode: RuntimeInterpreterMode): string | null {
+function engineCompatibilityError(engine: ResolutionEngine, mode: RuntimeInterpreterMode): string | null {
   if (mode === 'playwright' && !engine.capabilities.supportsDom) {
     return `Resolution engine "${engine.id}" cannot run in playwright mode without DOM support.`;
   }
   return null;
 }
 
-export function createResolutionEngineRegistry(engines: ResolutionEngine[] = [deterministicProvider()]): Map<ResolutionEngineId, ResolutionEngine> {
+export function createResolutionEngineRegistry(engines: ResolutionEngine[] = [deterministicEngine()]): Map<ResolutionEngineId, ResolutionEngine> {
   return new Map(engines.map((engine) => [engine.id, engine]));
-}
-
-export function createRuntimeProviderRegistry(providers: RuntimeProvider[] = [deterministicProvider()]): Map<RuntimeProviderId, RuntimeProvider> {
-  return createResolutionEngineRegistry(providers);
 }
 
 const defaultRegistry = createResolutionEngineRegistry();
@@ -56,7 +49,7 @@ export function resolveResolutionEngine(input: {
   if (!engine) {
     throw new Error(`Unknown resolution engine "${providerId}".`);
   }
-  const incompatibility = providerCompatibilityError(engine, input.mode);
+  const incompatibility = engineCompatibilityError(engine, input.mode);
   if (incompatibility) {
     throw new Error(incompatibility);
   }
@@ -64,13 +57,4 @@ export function resolveResolutionEngine(input: {
     throw new Error(`Resolution engine "${engine.id}" does not support translation.`);
   }
   return engine;
-}
-
-export function resolveRuntimeProvider(input: {
-  providerId?: RuntimeProviderId | null | undefined;
-  mode: RuntimeInterpreterMode;
-  translationEnabled: boolean;
-  registry?: Map<RuntimeProviderId, RuntimeProvider>;
-}): RuntimeProvider {
-  return resolveResolutionEngine(input);
 }

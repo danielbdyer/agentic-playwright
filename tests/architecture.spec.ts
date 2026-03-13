@@ -128,6 +128,24 @@ test('legacy compiler/adapters/tools/reporter directories no longer carry TypeSc
   expect(legacyFiles).toEqual([]);
 });
 
+test('active source no longer references legacy phase-one runtime and graph compatibility names', () => {
+  const files = [
+    ...listTsFiles('lib'),
+  ];
+  const forbidden = [
+    /\bRuntimeProvider\b/,
+    /\bRuntimeKnowledgeSession\b/,
+    /\bCompiledInterfaceGraph\b/,
+    /task-grounding-legacy/,
+  ];
+
+  const offenders = files
+    .filter((filePath) => forbidden.some((pattern) => pattern.test(fileText(filePath))))
+    .map(relativeFile);
+
+  expect(offenders).toEqual([]);
+});
+
 test('bounded workflow packages expose explicit seam files instead of hidden lane contracts', () => {
   const expectedFiles = [
     'lib/domain/foundation/model.ts',

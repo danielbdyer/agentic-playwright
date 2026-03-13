@@ -1,9 +1,9 @@
-import type { ResolutionObservation, StepAction, StepTask, StepTaskElementCandidate, StepTaskScreenCandidate, TranslationReceipt } from '../../domain/types';
+import type { ArtifactConfidenceRecord, ResolutionObservation, StepAction, StepTask, StepTaskElementCandidate, StepTaskScreenCandidate, TranslationReceipt } from '../../domain/types';
 import { normalizedCombined, bestAliasMatch, uniqueSorted } from './shared';
 import { requiresElement } from './resolve-action';
 import type { RuntimeStepAgentContext } from './types';
 
-function overlayAliases(record: NonNullable<StepTask['runtimeKnowledge']>['confidenceOverlays'][number]): string[] {
+function overlayAliases(record: ArtifactConfidenceRecord): string[] {
   return uniqueSorted([
     ...record.learnedAliases,
     record.element ?? '',
@@ -12,15 +12,16 @@ function overlayAliases(record: NonNullable<StepTask['runtimeKnowledge']>['confi
   ]);
 }
 
-function translationCandidateScreens(task: StepTask): StepTaskScreenCandidate[] {
+function translationCandidateScreens(task: StepTask, context: RuntimeStepAgentContext): StepTaskScreenCandidate[] {
   const normalized = normalizedCombined(task);
   const explicitScreen = task.explicitResolution?.screen ?? task.controlResolution?.screen ?? null;
+  const screens = context.resolutionContext.screens;
   if (explicitScreen) {
-    const selected = task.runtimeKnowledge!.screens.find((screen) => screen.screen === explicitScreen);
-    return selected ? [selected] : task.runtimeKnowledge!.screens.slice(0, 1);
+    const selected = screens.find((screen) => screen.screen === explicitScreen);
+    return selected ? [selected] : screens.slice(0, 1);
   }
 
-  const ranked = task.runtimeKnowledge!.screens
+  const ranked = screens
     .map((screen) => ({
       screen,
       score: bestAliasMatch(normalized, uniqueSorted([screen.screen, ...screen.screenAliases]))?.score ?? 0,
@@ -33,12 +34,16 @@ function translationCandidateScreens(task: StepTask): StepTaskScreenCandidate[] 
 function translationCandidateElements(task: StepTask, screen: StepTaskScreenCandidate): StepTaskElementCandidate[] {
   const normalized = normalizedCombined(task);
   const explicitElement = task.explicitResolution?.element ?? task.controlResolution?.element ?? null;
+  const allowedTargetRefs = new Set(task.grounding.targetRefs);
+  const elements = allowedTargetRefs.size === 0
+    ? screen.elements
+    : screen.elements.filter((element) => allowedTargetRefs.has(element.targetRef));
   if (explicitElement) {
-    const selected = screen.elements.find((element) => element.element === explicitElement);
-    return selected ? [selected] : screen.elements.slice(0, 1);
+    const selected = elements.find((element) => element.element === explicitElement);
+    return selected ? [selected] : elements.slice(0, 1);
   }
 
-  const ranked = screen.elements
+  const ranked = elements
     .map((element) => ({
       element,
       score: bestAliasMatch(normalized, uniqueSorted([element.element, element.name ?? '', ...element.aliases]))?.score ?? 0,
@@ -50,6 +55,7 @@ function translationCandidateElements(task: StepTask, screen: StepTaskScreenCand
 
 export function resolveWithConfidenceOverlay(
   task: StepTask,
+  context: RuntimeStepAgentContext,
   action: StepAction | null,
   approvedScreen: StepTaskScreenCandidate | null,
   approvedElement: StepTaskElementCandidate | null,
@@ -63,7 +69,7 @@ export function resolveWithConfidenceOverlay(
   observation?: ResolutionObservation | undefined;
 } {
   const normalized = normalizedCombined(task);
-  const overlays = task.runtimeKnowledge!.confidenceOverlays;
+  const overlays = context.resolutionContext.confidenceOverlays;
   const overlayRefIds = new Set<string>();
 
   let screen = approvedScreen;
@@ -74,7 +80,7 @@ export function resolveWithConfidenceOverlay(
       .filter((entry) => entry.match !== null)
       .sort((left, right) => right.match!.score - left.match!.score)[0];
     if (matchedScreen?.record.screen) {
-      screen = task.runtimeKnowledge!.screens.find((candidate) => candidate.screen === matchedScreen.record.screen) ?? null;
+      screen = context.resolutionContext.screens.find((candidate) => candidate.screen === matchedScreen.record.screen) ?? null;
       overlayRefIds.add(matchedScreen.record.id);
     }
   }
@@ -115,7 +121,7 @@ export function resolveWithConfidenceOverlay(
     overlayRefs,
     observation: overlayRefs.length > 0
       ? {
-          source: 'overlay',
+          source: 'approved-equivalent-overlay',
           summary: 'Approved-equivalent confidence overlays supplied a deterministic target.',
           detail: {
             overlayRefs: overlayRefs.join(','),
@@ -127,7 +133,7 @@ export function resolveWithConfidenceOverlay(
 
 export async function resolveWithTranslation(
   task: StepTask,
-  translator: RuntimeStepAgentContext['translate'],
+  context: RuntimeStepAgentContext,
 ): Promise<{
   translation: TranslationReceipt | null;
   screen: StepTaskScreenCandidate | null;
@@ -135,16 +141,16 @@ export async function resolveWithTranslation(
   overlayRefs: string[];
   observation?: ResolutionObservation | undefined;
 }> {
-  if (!translator) {
+  if (!context.translate) {
     return { translation: null, screen: null, element: null, overlayRefs: [] };
   }
 
-  const candidateScreens = translationCandidateScreens(task);
-  const translation = await translator({
+  const candidateScreens = translationCandidateScreens(task, context);
+  const translation = await context.translate({
     version: 1,
     taskFingerprint: task.taskFingerprint,
-    knowledgeFingerprint: task.runtimeKnowledge!.knowledgeFingerprint,
-    controlsFingerprint: task.runtimeKnowledge!.confidenceFingerprint ?? null,
+    knowledgeFingerprint: context.resolutionContext.knowledgeFingerprint,
+    controlsFingerprint: context.resolutionContext.confidenceFingerprint ?? null,
     normalizedIntent: task.normalizedIntent,
     actionText: task.actionText,
     expectedText: task.expectedText,
@@ -159,12 +165,12 @@ export async function resolveWithTranslation(
         snapshotTemplates: screen.sectionSnapshots,
       })),
     })),
-    evidenceRefs: task.runtimeKnowledge!.evidenceRefs,
-    overlayRefs: task.runtimeKnowledge!.confidenceOverlays.map((record) => record.id),
+    evidenceRefs: context.resolutionContext.evidenceRefs,
+    overlayRefs: context.resolutionContext.confidenceOverlays.map((record) => record.id),
   });
 
   const selectedElement = translation.selected?.kind === 'element'
-    ? task.runtimeKnowledge!.screens
+    ? context.resolutionContext.screens
         .find((screen) => screen.screen === translation.selected?.screen)
         ?.elements.find((element) => element.element === translation.selected?.element) ?? null
     : null;
@@ -174,7 +180,7 @@ export async function resolveWithTranslation(
       ? translation.selected.screen ?? null
       : null;
   const selectedScreen = selectedScreenId
-    ? task.runtimeKnowledge!.screens.find((screen) => screen.screen === selectedScreenId) ?? null
+    ? context.resolutionContext.screens.find((screen) => screen.screen === selectedScreenId) ?? null
     : null;
   const overlayRefs = uniqueSorted(translation.candidates.flatMap((candidate) => candidate.sourceRefs));
 
@@ -185,7 +191,7 @@ export async function resolveWithTranslation(
     overlayRefs,
     observation: translation.matched
       ? {
-          source: 'translation',
+          source: 'structured-translation',
           summary: translation.rationale,
           detail: translation.selected
             ? {

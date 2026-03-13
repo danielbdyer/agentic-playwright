@@ -50,6 +50,7 @@ export function compileScenario(options: { adoId: AdoId; paths: ProjectPaths }) 
           catalog: sessionWithScenario.catalog,
           interfaceGraph: interfaceIntelligence.interfaceGraph,
           selectorCanon: interfaceIntelligence.selectorCanon,
+          stateGraph: interfaceIntelligence.stateGraph,
         });
         const compileSnapshot = createCompileSnapshot({
           ...initialSnapshot,

@@ -1,6 +1,6 @@
 import { normalizeIntentText } from '../../domain/inference';
 import { knowledgePaths } from '../../domain/ids';
-import type { StepAction, StepResolution, StepTask } from '../../domain/types';
+import type { InterfaceResolutionContext, StepAction, StepResolution, StepTask } from '../../domain/types';
 import { bestAliasMatch } from './shared';
 
 export function allowedActionFallback(task: StepTask): StepAction | null {
@@ -20,7 +20,7 @@ export function allowedActionFallback(task: StepTask): StepAction | null {
   return task.allowedActions.length === 1 ? task.allowedActions[0] ?? null : null;
 }
 
-export function resolveAction(task: StepTask, controlResolution: StepResolution | null): { action: StepAction | null; supplementRefs: string[] } {
+export function resolveAction(task: StepTask, controlResolution: StepResolution | null, resolutionContext?: Pick<InterfaceResolutionContext, 'sharedPatterns'>): { action: StepAction | null; supplementRefs: string[] } {
   if (task.explicitResolution?.action) {
     return { action: task.explicitResolution.action, supplementRefs: [] };
   }
@@ -33,7 +33,7 @@ export function resolveAction(task: StepTask, controlResolution: StepResolution 
     if (action === 'custom') {
       continue;
     }
-    const aliases = task.runtimeKnowledge!.sharedPatterns.actions[action]?.aliases ?? [];
+    const aliases = resolutionContext?.sharedPatterns.actions[action]?.aliases ?? [];
     if (bestAliasMatch(normalized, aliases)) {
       return {
         action,

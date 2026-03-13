@@ -1,8 +1,8 @@
 import { Effect } from 'effect';
 import type { AdoId } from '../../domain/identity';
-import type { ResolutionGraphRecord, ResolutionReceipt, RuntimeKnowledgeSession, ScenarioTaskPacket, StepResolutionGraph, StepTask } from '../../domain/types';
+import type { InterfaceResolutionContext, ResolutionGraphRecord, ResolutionReceipt, ScenarioTaskPacket, StepResolutionGraph, StepTask } from '../../domain/types';
 import type { RuntimeScenarioRunnerPort, RuntimeScenarioStepResult } from '../ports';
-import { resolveRuntimeProvider } from '../provider-registry';
+import { resolveResolutionEngine } from '../provider-registry';
 import { validateStepResults } from './validate-step-results';
 
 export interface InterpretScenarioResult {
@@ -23,13 +23,7 @@ export interface InterpretScenarioResult {
 }
 
 function toRung(stage: ResolutionReceipt['exhaustion'][number]['stage']): StepResolutionGraph['precedenceTraversal'][number]['rung'] {
-  if (stage === 'explicit') return 'explicit';
-  if (stage === 'confidence-overlay') return 'overlay';
-  if (stage === 'structured-translation') return 'translation';
-  if (stage === 'live-dom') return 'live-dom';
-  if (stage === 'safe-degraded-resolution') return 'needs-human';
-  if (stage === 'approved-screen-bundle' || stage === 'local-hints' || stage === 'shared-patterns' || stage === 'prior-evidence') return 'approved-knowledge';
-  return 'approved-knowledge';
+  return stage;
 }
 
 function scoreCandidates(candidates: NonNullable<ResolutionReceipt['exhaustion'][number]['topCandidates']>) {
@@ -55,7 +49,7 @@ function buildStepResolutionGraph(step: RuntimeScenarioStepResult, task: StepTas
     .filter((entry) => (entry.topCandidates?.length ?? 0) > 0)
     .map((entry) => ({
       concern: entry.topCandidates![0]!.concern,
-      rung: toRung(entry.stage === 'safe-degraded-resolution' ? 'live-dom' : entry.stage) as Exclude<StepResolutionGraph['winner']['rung'], 'needs-human'>,
+      rung: toRung(entry.stage) as Exclude<StepResolutionGraph['winner']['rung'], 'needs-human'>,
       candidates: scoreCandidates(entry.topCandidates!),
     }));
   const winnerRung = receipt.kind === 'needs-human'
@@ -65,12 +59,14 @@ function buildStepResolutionGraph(step: RuntimeScenarioStepResult, task: StepTas
       : receipt.winningSource === 'resolution-control'
         ? 'control'
         : receipt.winningSource === 'approved-equivalent'
-          ? 'overlay'
+          ? 'approved-equivalent-overlay'
           : receipt.winningSource === 'structured-translation'
-            ? 'translation'
+            ? 'structured-translation'
             : receipt.winningSource === 'live-dom'
               ? 'live-dom'
-              : 'approved-knowledge';
+              : receipt.winningSource === 'prior-evidence'
+                ? 'prior-evidence'
+                : 'approved-screen-knowledge';
 
   return {
     precedenceTraversal: traversal,
@@ -122,11 +118,11 @@ export function interpretScenarioTaskPacket(input: {
     disableTranslationCache?: boolean | undefined;
   } | undefined;
   steps?: readonly StepTask[] | undefined;
-  runtimeKnowledgeSession?: RuntimeKnowledgeSession | undefined;
+  resolutionContext: InterfaceResolutionContext;
   recoveryPolicy?: import('../../domain/execution/recovery-policy').RecoveryPolicy | undefined;
 }) {
   return Effect.gen(function* () {
-    const runtimeProvider = resolveRuntimeProvider({
+    const resolutionEngine = resolveResolutionEngine({
       providerId: input.providerId,
       mode: input.mode,
       translationEnabled: !(input.translationOptions?.disableTranslation ?? false),
@@ -139,16 +135,16 @@ export function interpretScenarioTaskPacket(input: {
       controlSelection: input.controlSelection,
       fixtures: input.fixtures,
       mode: input.mode,
-      runtimeProvider,
+      resolutionEngine,
       steps: activeSteps,
-      runtimeKnowledgeSession: input.runtimeKnowledgeSession,
+      resolutionContext: input.resolutionContext,
       posture: input.posture,
       recoveryPolicy: input.recoveryPolicy,
       context: input.context,
       translationOptions: input.translationOptions,
     });
 
-    validateStepResults({ providerId: runtimeProvider.id, results: stepResults });
+    validateStepResults({ providerId: resolutionEngine.id, results: stepResults });
 
     const graphs = stepResults.map((step) => {
       const task = activeSteps.find((entry) => entry.index === step.interpretation.stepIndex) ?? activeSteps[0]!;
@@ -208,7 +204,7 @@ export function interpretScenarioTaskPacket(input: {
         governance: stepResults.some((step) => step.interpretation.governance !== 'approved') ? 'review-required' : 'approved',
         adoId: input.adoId,
         runId: input.runId,
-        providerId: runtimeProvider.id,
+        providerId: resolutionEngine.id,
         mode: input.mode,
         generatedAt: stepResults[0]?.interpretation.runAt ?? new Date().toISOString(),
         steps: graphs,

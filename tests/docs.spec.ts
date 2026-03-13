@@ -34,9 +34,12 @@ test('repo docs describe deterministic auto-approval, supplements, and review ar
   expect(agentContext).toContain('interface intelligence');
   expect(agentContext).toContain('docs/master-architecture.md');
   expect(authoring).toContain('knowledge/patterns/*.yaml');
+  expect(authoring).toContain('tests/fixtures/knowledge/**');
+  expect(authoring).toContain('knowledge/patterns/');
+  expect(authoring).toContain('certification');
   expect(authoring).toContain('binding.kind: deferred');
   expect(authoring).toContain('.tesseract/runs/{ado_id}/{run_id}/run.json');
-  expect(authoring).toContain('review-gated');
+  expect(authoring).toContain('uncertified');
   expect(masterArchitecture).toContain('Interface Intelligence');
   expect(masterArchitecture).toContain('Agent Workbench');
   expect(masterArchitecture).toContain('Interpretation Surface');
@@ -67,6 +70,9 @@ test('scoped instruction files reflect hints, patterns, generated review artifac
   expect(readFile('.github', 'instructions', 'domain.instructions.md')).toContain('compiler-derived');
   expect(readFile('.github', 'instructions', 'knowledge.instructions.md')).toContain('knowledge/screens/*.hints.yaml');
   expect(readFile('.github', 'instructions', 'knowledge.instructions.md')).toContain('knowledge/patterns/*.yaml');
+  expect(readFile('.github', 'instructions', 'knowledge.instructions.md')).toContain('tests/fixtures/');
   expect(readFile('.github', 'instructions', 'generated.instructions.md')).toContain('review.md');
   expect(readFile('.github', 'instructions', 'tests.instructions.md')).toContain('documentation vocabulary');
+  expect(existsSync(path.join(rootDir, 'tests', 'fixtures', 'knowledge', 'patterns', 'form-entry.behavior.yaml'))).toBeTruthy();
+  expect(existsSync(path.join(rootDir, 'knowledge', 'patterns', 'form-entry.behavior.yaml'))).toBeFalsy();
 });

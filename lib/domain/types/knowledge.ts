@@ -1,15 +1,19 @@
 import type {
   CanonicalTargetRef,
   ElementId,
+  EventSignatureRef,
   PostureId,
   ScreenId,
   SectionId,
   SelectorRef,
   SnapshotTemplateId,
+  StateNodeRef,
   SurfaceId,
+  TransitionRef,
   WidgetId,
 } from '../identity';
 import type {
+  CanonicalKnowledgeMetadata,
   AssertionKind,
   EffectState,
   EffectTargetKind,
@@ -23,7 +27,7 @@ import type { RuntimeControlSession } from './resolution';
 
 export interface StepTaskElementCandidate {
   element: ElementId;
-  targetRef?: CanonicalTargetRef | null | undefined;
+  targetRef: CanonicalTargetRef;
   role: string;
   name?: string | null | undefined;
   surface: SurfaceId;
@@ -36,13 +40,13 @@ export interface StepTaskElementCandidate {
   parameter?: string | null | undefined;
   snapshotAliases?: Record<string, string[]> | undefined;
   graphNodeId?: string | null | undefined;
-  selectorRefs?: SelectorRef[] | undefined;
+  selectorRefs: SelectorRef[];
 }
 
 export interface StepTaskScreenCandidate {
   screen: ScreenId;
   url: string;
-  routeVariantRefs?: string[] | undefined;
+  routeVariantRefs: string[];
   screenAliases: string[];
   knowledgeRefs: string[];
   supplementRefs: string[];
@@ -89,18 +93,21 @@ export interface ConfidenceOverlayCatalog {
   };
 }
 
-export interface RuntimeKnowledgeSession {
+export interface InterfaceResolutionContext {
   knowledgeFingerprint: string;
   confidenceFingerprint?: string | null | undefined;
   interfaceGraphFingerprint?: string | null | undefined;
   selectorCanonFingerprint?: string | null | undefined;
+  stateGraphFingerprint?: string | null | undefined;
   interfaceGraphPath?: string | null | undefined;
   selectorCanonPath?: string | null | undefined;
+  stateGraphPath?: string | null | undefined;
   sharedPatterns: SharedPatterns;
   screens: StepTaskScreenCandidate[];
   evidenceRefs: string[];
   confidenceOverlays: ArtifactConfidenceRecord[];
   controls: RuntimeControlSession;
+  stateGraph?: import('./interface').StateTransitionGraph | null | undefined;
 }
 
 export interface SurfaceSection {
@@ -153,12 +160,132 @@ export interface ScreenElementHint {
   parameter?: string | null | undefined;
   snapshotAliases?: Record<string, string[]> | undefined;
   affordance?: string | null | undefined;
+  acquired?: CanonicalKnowledgeMetadata | null | undefined;
 }
 
 export interface ScreenHints {
   screen: ScreenId;
   screenAliases: string[];
   elements: Record<string, ScreenElementHint>;
+}
+
+export type StatePredicateSemantics =
+  | 'visible'
+  | 'hidden'
+  | 'enabled'
+  | 'disabled'
+  | 'valid'
+  | 'invalid'
+  | 'open'
+  | 'closed'
+  | 'expanded'
+  | 'collapsed'
+  | 'populated'
+  | 'cleared'
+  | 'active-route'
+  | 'active-modal';
+
+export interface ObservationPredicate {
+  kind: StatePredicateSemantics;
+  targetRef?: CanonicalTargetRef | null | undefined;
+  selectorRef?: SelectorRef | null | undefined;
+  routeVariantRef?: string | null | undefined;
+  attribute?: string | null | undefined;
+  value?: string | null | undefined;
+  message?: string | null | undefined;
+}
+
+export interface StateNode {
+  ref: StateNodeRef;
+  screen: ScreenId;
+  label: string;
+  aliases: string[];
+  scope: 'screen' | 'surface' | 'target' | 'route' | 'modal';
+  targetRef?: CanonicalTargetRef | null | undefined;
+  routeVariantRefs: string[];
+  predicates: ObservationPredicate[];
+  provenance: string[];
+}
+
+export interface EventObservationPlan {
+  timeoutMs?: number | null | undefined;
+  settleMs?: number | null | undefined;
+  observeStateRefs: StateNodeRef[];
+}
+
+export interface EventExpectedEffects {
+  transitionRefs: TransitionRef[];
+  resultStateRefs: StateNodeRef[];
+  observableEffects: string[];
+  assertions: string[];
+}
+
+export interface EventSignature {
+  ref: EventSignatureRef;
+  screen: ScreenId;
+  targetRef: CanonicalTargetRef;
+  label: string;
+  aliases: string[];
+  dispatch: {
+    action: StepResolution['action'];
+    sampleValue?: string | null | undefined;
+  };
+  requiredStateRefs: StateNodeRef[];
+  forbiddenStateRefs: StateNodeRef[];
+  effects: EventExpectedEffects;
+  observationPlan: EventObservationPlan;
+  provenance: string[];
+}
+
+export type TransitionEffectKind =
+  | 'reveal'
+  | 'hide'
+  | 'enable'
+  | 'disable'
+  | 'validate'
+  | 'invalidate'
+  | 'open'
+  | 'close'
+  | 'navigate'
+  | 'return'
+  | 'expand'
+  | 'collapse'
+  | 'populate'
+  | 'clear';
+
+export interface StateTransition {
+  ref: TransitionRef;
+  screen: ScreenId;
+  label: string;
+  aliases: string[];
+  eventSignatureRef: EventSignatureRef;
+  sourceStateRefs: StateNodeRef[];
+  targetStateRefs: StateNodeRef[];
+  effectKind: TransitionEffectKind;
+  observableEffects: string[];
+  provenance: string[];
+}
+
+export interface ScreenBehavior {
+  kind: 'screen-behavior';
+  version: 1;
+  screen: ScreenId;
+  aliases: string[];
+  routeVariantRefs: string[];
+  knowledgeRefs: string[];
+  stateNodes: StateNode[];
+  eventSignatures: EventSignature[];
+  transitions: StateTransition[];
+}
+
+export interface BehaviorPatternDocument {
+  kind: 'behavior-pattern';
+  version: 1;
+  id: string;
+  aliases: string[];
+  stateNodes: StateNode[];
+  eventSignatures: EventSignature[];
+  transitions: StateTransition[];
 }
 
 export interface PatternAliasSet {

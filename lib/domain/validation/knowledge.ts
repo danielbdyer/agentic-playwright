@@ -1,6 +1,8 @@
 export {
+  validateBehaviorPatternDocument,
   validateManifest,
   validatePatternDocument,
+  validateScreenBehavior,
   validateScreenElements,
   validateScreenHints,
   validateScreenPostures,

@@ -9,6 +9,7 @@ import { createAdoId } from '../lib/domain/identity';
 import type { RuntimeScenarioStepResult } from '../lib/application/ports';
 import type { SelectedRunContext } from '../lib/application/execution/select-run-context';
 import type { PersistedEvidenceArtifact } from '../lib/application/execution/persist-evidence';
+import { createInterfaceResolutionContext } from './support/interface-fixtures';
 import { createTestWorkspace } from './support/workspace';
 
 function fakeSelectedContext(runId: string, options?: { withRunbookAndDataset?: boolean }): SelectedRunContext {
@@ -43,7 +44,7 @@ function fakeSelectedContext(runId: string, options?: { withRunbookAndDataset?: 
     taskPacketEntry: {
       artifact: {
         kind: 'scenario-task-packet',
-        version: 4,
+        version: 5,
         stage: 'preparation',
         scope: 'scenario',
         ids: {
@@ -62,11 +63,15 @@ function fakeSelectedContext(runId: string, options?: { withRunbookAndDataset?: 
           knowledgeFingerprint: 'sha256:knowledge',
           interface: { fingerprint: null, artifactPath: null },
           selectors: { fingerprint: null, artifactPath: null },
+          stateGraph: { fingerprint: null, artifactPath: null },
           knowledgeSlice: {
             routeRefs: [],
             routeVariantRefs: [],
             screenRefs: [],
             targetRefs: [],
+            stateRefs: [],
+            eventSignatureRefs: [],
+            transitionRefs: [],
             evidenceRefs: [],
             controlRefs: [],
           },
@@ -113,6 +118,7 @@ function fakeSelectedContext(runId: string, options?: { withRunbookAndDataset?: 
     },
     mode: 'diagnostic',
     steps: [],
+    resolutionContext: createInterfaceResolutionContext(),
     screenIds: [],
     fixtures: {},
     context: {
@@ -187,7 +193,7 @@ test('selectRunContext keeps run selection precedence: CLI mode > runbook mode >
   }
 });
 
-test('buildRunRecord governance is blocked for failed execution and review-required for proposal resolution', () => {
+test('buildRunRecord governance is blocked for failed execution and approved for active-canon proposal resolution', () => {
   const adoId = createAdoId('10001');
   const evidenceWrites: PersistedEvidenceArtifact[] = [{
     artifactPath: '.tesseract/evidence/runs/10001/run-1/step-2-0.json',
@@ -215,7 +221,7 @@ test('buildRunRecord governance is blocked for failed execution and review-requi
     ],
     evidenceWrites,
   });
-  expect(reviewRun.runRecord.governance).toBe('review-required');
+  expect(reviewRun.runRecord.governance).toBe('approved');
 });
 
 test('run/proposal envelopes preserve ids and lineage with/without runbook + dataset', () => {

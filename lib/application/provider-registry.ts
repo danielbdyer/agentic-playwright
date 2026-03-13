@@ -1,13 +1,9 @@
 export {
   createResolutionEngineRegistry,
-  createRuntimeProviderRegistry,
   resolveResolutionEngine,
-  resolveRuntimeProvider,
   type ResolutionEngine,
   type ResolutionEngineId,
-  type RuntimeProvider,
-  type RuntimeProviderId,
-} from './runtime-provider';
+} from './resolution-engine';
 export {
   createAgentSessionAdapterRegistry,
   resolveAgentSessionAdapter,

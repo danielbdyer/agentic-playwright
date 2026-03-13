@@ -2,6 +2,8 @@ import { normalizeIntentText } from '../../domain/inference';
 import { createPostureId, createSnapshotTemplateId } from '../../domain/identity';
 import { knowledgePaths } from '../../domain/ids';
 import type {
+  InterfaceResolutionContext,
+  ObservedStateSession,
   StepAction,
   StepResolution,
   StepTask,
@@ -10,10 +12,18 @@ import type {
 } from '../../domain/types';
 import { precedenceWeight, resolutionPrecedenceLaw } from '../../domain/precedence';
 import { allowedActionFallback } from './resolve-action';
-import type { RuntimeWorkingMemory } from './types';
 import { bestAliasMatch, humanizeIdentifier, normalizedCombined, uniqueSorted } from './shared';
 
-export type LatticeSource = 'explicit' | 'control' | 'approved-knowledge' | 'overlay' | 'translation' | 'live-dom';
+export type LatticeSource =
+  | 'explicit'
+  | 'control'
+  | 'approved-screen-knowledge'
+  | 'shared-patterns'
+  | 'prior-evidence'
+  | 'approved-equivalent-overlay'
+  | 'structured-translation'
+  | 'live-dom';
+
 export type LatticeConcern = 'action' | 'screen' | 'element' | 'posture' | 'snapshot';
 
 export interface LatticeCandidate<T> {
@@ -49,14 +59,16 @@ export interface RankedLattice<T> {
 const SOURCE_WEIGHT: Record<LatticeSource, number> = {
   explicit: precedenceWeight(resolutionPrecedenceLaw, 'explicit'),
   control: precedenceWeight(resolutionPrecedenceLaw, 'control'),
-  'approved-knowledge': precedenceWeight(resolutionPrecedenceLaw, 'approved-screen-knowledge'),
-  overlay: precedenceWeight(resolutionPrecedenceLaw, 'approved-equivalent-overlay'),
-  translation: precedenceWeight(resolutionPrecedenceLaw, 'structured-translation'),
+  'approved-screen-knowledge': precedenceWeight(resolutionPrecedenceLaw, 'approved-screen-knowledge'),
+  'shared-patterns': precedenceWeight(resolutionPrecedenceLaw, 'shared-patterns'),
+  'prior-evidence': precedenceWeight(resolutionPrecedenceLaw, 'prior-evidence'),
+  'approved-equivalent-overlay': precedenceWeight(resolutionPrecedenceLaw, 'approved-equivalent-overlay'),
+  'structured-translation': precedenceWeight(resolutionPrecedenceLaw, 'structured-translation'),
   'live-dom': precedenceWeight(resolutionPrecedenceLaw, 'live-dom'),
 };
 
 function confidenceFor(source: LatticeSource): LatticeCandidate<unknown>['confidenceComponents'] {
-  if (source === 'overlay' || source === 'translation') {
+  if (source === 'approved-equivalent-overlay' || source === 'structured-translation') {
     return { compilerDerived: 0, agentVerified: 1, agentProposed: 0 };
   }
   if (source === 'live-dom') {
@@ -99,7 +111,23 @@ function asRanked<T>(entries: Array<LatticeCandidate<T>>): RankedLattice<T> {
   return { selected: ranked[0] ?? null, ranked };
 }
 
-export function rankActionCandidates(task: StepTask, controlResolution: StepResolution | null): RankedLattice<StepAction> {
+function groundedScreens(task: StepTask, resolutionContext: InterfaceResolutionContext): StepTaskScreenCandidate[] {
+  const routeVariantRefs = new Set(task.grounding.routeVariantRefs);
+  if (routeVariantRefs.size === 0) {
+    return resolutionContext.screens;
+  }
+  return resolutionContext.screens.filter((screen) => screen.routeVariantRefs.some((ref) => routeVariantRefs.has(ref)));
+}
+
+function groundedElements(task: StepTask, screen: StepTaskScreenCandidate): StepTaskElementCandidate[] {
+  const targetRefs = new Set(task.grounding.targetRefs);
+  if (targetRefs.size === 0) {
+    return screen.elements;
+  }
+  return screen.elements.filter((element) => targetRefs.has(element.targetRef));
+}
+
+export function rankActionCandidates(task: StepTask, controlResolution: StepResolution | null, resolutionContext: InterfaceResolutionContext): RankedLattice<StepAction> {
   if (task.explicitResolution?.action) {
     return asRanked([
       candidate({
@@ -131,14 +159,14 @@ export function rankActionCandidates(task: StepTask, controlResolution: StepReso
     if (action === 'custom') {
       continue;
     }
-    const aliases = task.runtimeKnowledge!.sharedPatterns.actions[action]?.aliases ?? [];
+    const aliases = resolutionContext.sharedPatterns.actions[action]?.aliases ?? [];
     const match = bestAliasMatch(normalized, aliases);
     if (!match) {
       continue;
     }
     entries.push(candidate({
       concern: 'action',
-      source: 'approved-knowledge',
+      source: 'shared-patterns',
       value: action,
       summary: `Action matched shared pattern alias "${match.alias}".`,
       refs: [knowledgePaths.patterns()],
@@ -150,7 +178,7 @@ export function rankActionCandidates(task: StepTask, controlResolution: StepReso
   if (entries.length === 0 && fallback) {
     entries.push(candidate({
       concern: 'action',
-      source: 'approved-knowledge',
+      source: 'shared-patterns',
       value: fallback,
       summary: 'Action inferred from deterministic fallback grammar.',
       refs: [],
@@ -161,15 +189,22 @@ export function rankActionCandidates(task: StepTask, controlResolution: StepReso
   return asRanked(entries);
 }
 
-export function rankScreenCandidates(task: StepTask, action: StepAction | null, controlResolution: StepResolution | null, previousResolution: import('../../domain/types').ResolutionTarget | null | undefined, runtimeWorkingMemory?: RuntimeWorkingMemory | undefined): RankedLattice<StepTaskScreenCandidate> {
+export function rankScreenCandidates(
+  task: StepTask,
+  action: StepAction | null,
+  controlResolution: StepResolution | null,
+  previousResolution: import('../../domain/types').ResolutionTarget | null | undefined,
+  resolutionContext: InterfaceResolutionContext,
+  observedStateSession?: ObservedStateSession | undefined,
+): RankedLattice<StepTaskScreenCandidate> {
   if (task.explicitResolution?.screen) {
-    const explicit = task.runtimeKnowledge!.screens.find((screen) => screen.screen === task.explicitResolution?.screen) ?? null;
+    const explicit = groundedScreens(task, resolutionContext).find((screen) => screen.screen === task.explicitResolution?.screen) ?? null;
     return asRanked([
       candidate({ concern: 'screen', source: 'explicit', value: explicit, summary: 'Screen constrained by explicit scenario field.', refs: [], featureScores: { explicit: 100, control: 0, approvedKnowledge: 0, overlay: 0, translation: 0, dom: 0, alias: 0, fallback: 0, carry: 0 } }),
     ]);
   }
   if (controlResolution?.screen) {
-    const controlled = task.runtimeKnowledge!.screens.find((screen) => screen.screen === controlResolution.screen) ?? null;
+    const controlled = groundedScreens(task, resolutionContext).find((screen) => screen.screen === controlResolution.screen) ?? null;
     return asRanked([
       candidate({ concern: 'screen', source: 'control', value: controlled, summary: 'Screen constrained by resolution control.', refs: [], featureScores: { explicit: 0, control: 100, approvedKnowledge: 0, overlay: 0, translation: 0, dom: 0, alias: 0, fallback: 0, carry: 0 } }),
     ]);
@@ -177,18 +212,18 @@ export function rankScreenCandidates(task: StepTask, action: StepAction | null, 
 
   const normalized = normalizedCombined(task);
   const entries: Array<LatticeCandidate<StepTaskScreenCandidate>> = [];
-  for (const screen of task.runtimeKnowledge!.screens) {
+  for (const screen of groundedScreens(task, resolutionContext)) {
     const aliases = uniqueSorted([screen.screen, humanizeIdentifier(screen.screen), ...screen.screenAliases]);
     const match = bestAliasMatch(normalized, aliases);
     if (!match) {
       continue;
     }
-    const memoryCarry = runtimeWorkingMemory?.currentScreen?.screen === screen.screen
-      ? Math.max(0, Math.round(runtimeWorkingMemory.currentScreen.confidence * 12))
+    const memoryCarry = observedStateSession?.currentScreen?.screen === screen.screen
+      ? Math.max(0, Math.round(observedStateSession.currentScreen.confidence * 12))
       : 0;
     entries.push(candidate({
       concern: 'screen',
-      source: 'approved-knowledge',
+      source: 'approved-screen-knowledge',
       value: screen,
       summary: `Screen matched approved aliases via "${match.alias}".${memoryCarry > 0 ? ' Working-memory prior reinforced same-screen continuation.' : ''}`,
       refs: [...screen.knowledgeRefs, ...screen.supplementRefs],
@@ -197,14 +232,14 @@ export function rankScreenCandidates(task: StepTask, action: StepAction | null, 
   }
 
   if (entries.length === 0 && action !== 'navigate' && previousResolution?.screen) {
-    const carried = task.runtimeKnowledge!.screens.find((screen) => screen.screen === previousResolution.screen) ?? null;
+    const carried = groundedScreens(task, resolutionContext).find((screen) => screen.screen === previousResolution.screen) ?? null;
     if (carried) {
-      const memoryCarry = runtimeWorkingMemory?.currentScreen?.screen === carried.screen
-        ? Math.max(0, Math.round(runtimeWorkingMemory.currentScreen.confidence * 10))
+      const memoryCarry = observedStateSession?.currentScreen?.screen === carried.screen
+        ? Math.max(0, Math.round(observedStateSession.currentScreen.confidence * 10))
         : 0;
       entries.push(candidate({
         concern: 'screen',
-        source: 'approved-knowledge',
+        source: 'approved-screen-knowledge',
         value: carried,
         summary: memoryCarry > 0
           ? 'Screen carried forward from previous deterministic resolution and reinforced by working memory.'
@@ -218,34 +253,34 @@ export function rankScreenCandidates(task: StepTask, action: StepAction | null, 
   return asRanked(entries);
 }
 
-export function rankElementCandidates(task: StepTask, screen: StepTaskScreenCandidate | null, controlResolution: StepResolution | null, runtimeWorkingMemory?: RuntimeWorkingMemory | undefined): RankedLattice<StepTaskElementCandidate> {
+export function rankElementCandidates(task: StepTask, screen: StepTaskScreenCandidate | null, controlResolution: StepResolution | null, observedStateSession?: ObservedStateSession | undefined): RankedLattice<StepTaskElementCandidate> {
   if (!screen) {
     return { selected: null, ranked: [] };
   }
   if (task.explicitResolution?.element) {
-    const explicit = screen.elements.find((element) => element.element === task.explicitResolution?.element) ?? null;
+    const explicit = groundedElements(task, screen).find((element) => element.element === task.explicitResolution?.element) ?? null;
     return asRanked([candidate({ concern: 'element', source: 'explicit', value: explicit, summary: 'Element constrained by explicit scenario field.', refs: screen.supplementRefs, featureScores: { explicit: 100, control: 0, approvedKnowledge: 0, overlay: 0, translation: 0, dom: 0, alias: 0, fallback: 0, carry: 0 } })]);
   }
   if (controlResolution?.element) {
-    const controlled = screen.elements.find((element) => element.element === controlResolution.element) ?? null;
+    const controlled = groundedElements(task, screen).find((element) => element.element === controlResolution.element) ?? null;
     return asRanked([candidate({ concern: 'element', source: 'control', value: controlled, summary: 'Element constrained by resolution control.', refs: screen.supplementRefs, featureScores: { explicit: 0, control: 100, approvedKnowledge: 0, overlay: 0, translation: 0, dom: 0, alias: 0, fallback: 0, carry: 0 } })]);
   }
 
   const normalized = normalizedCombined(task);
-  const entries = screen.elements
+  const entries = groundedElements(task, screen)
     .map((element) => {
       const aliases = uniqueSorted([element.element, humanizeIdentifier(element.element), element.name ?? '', ...element.aliases]);
       const match = bestAliasMatch(normalized, aliases);
       if (!match) {
         return null;
       }
-      const entityKey = runtimeWorkingMemory?.activeEntityKeys.find((key) => aliases.some((alias) => alias.toLowerCase().includes(key.toLowerCase())));
-      const memoryCarry = entityKey ? 10 : 0;
+      const targetSeen = observedStateSession?.activeTargetRefs.includes(element.targetRef) ?? false;
+      const memoryCarry = targetSeen ? 10 : 0;
       return candidate({
         concern: 'element',
-        source: 'approved-knowledge',
+        source: 'approved-screen-knowledge',
         value: element,
-        summary: `Element matched local hints via "${match.alias}".${entityKey ? ` Working-memory entity prior matched "${entityKey}".` : ''}`,
+        summary: `Element matched local hints via "${match.alias}".${targetSeen ? ' Observed-state session preserved a prior target match.' : ''}`,
         refs: screen.supplementRefs,
         featureScores: { explicit: 0, control: 0, approvedKnowledge: 80, overlay: 0, translation: 0, dom: 0, alias: match.score, fallback: 0, carry: memoryCarry },
       });
@@ -255,7 +290,7 @@ export function rankElementCandidates(task: StepTask, screen: StepTaskScreenCand
   return asRanked(entries);
 }
 
-export function rankPostureCandidates(task: StepTask, element: StepTaskElementCandidate | null, controlResolution: StepResolution | null): RankedLattice<ReturnType<typeof createPostureId>> {
+export function rankPostureCandidates(task: StepTask, element: StepTaskElementCandidate | null, controlResolution: StepResolution | null, resolutionContext: InterfaceResolutionContext): RankedLattice<ReturnType<typeof createPostureId>> {
   if (task.explicitResolution?.posture) {
     return asRanked([candidate({ concern: 'posture', source: 'explicit', value: task.explicitResolution.posture, summary: 'Posture constrained by explicit scenario field.', refs: [], featureScores: { explicit: 100, control: 0, approvedKnowledge: 0, overlay: 0, translation: 0, dom: 0, alias: 0, fallback: 0, carry: 0 } })]);
   }
@@ -265,14 +300,14 @@ export function rankPostureCandidates(task: StepTask, element: StepTaskElementCa
 
   const normalized = normalizedCombined(task);
   const entries: Array<LatticeCandidate<ReturnType<typeof createPostureId>>> = [];
-  for (const [postureId, descriptor] of Object.entries(task.runtimeKnowledge!.sharedPatterns.postures)) {
+  for (const [postureId, descriptor] of Object.entries(resolutionContext.sharedPatterns.postures)) {
     const match = bestAliasMatch(normalized, descriptor.aliases);
     if (!match) {
       continue;
     }
     entries.push(candidate({
       concern: 'posture',
-      source: 'approved-knowledge',
+      source: 'shared-patterns',
       value: createPostureId(postureId),
       summary: `Posture matched shared pattern alias "${match.alias}".`,
       refs: [knowledgePaths.patterns()],
@@ -283,7 +318,7 @@ export function rankPostureCandidates(task: StepTask, element: StepTaskElementCa
   if (entries.length === 0 && element?.postures.some((posture) => posture === createPostureId('valid'))) {
     entries.push(candidate({
       concern: 'posture',
-      source: 'approved-knowledge',
+      source: 'approved-screen-knowledge',
       value: createPostureId('valid'),
       summary: 'Posture defaulted to valid posture advertised by element.',
       refs: [],
@@ -311,7 +346,7 @@ export function rankSnapshotCandidates(task: StepTask, screen: StepTaskScreenCan
     }
     entries.push(candidate({
       concern: 'snapshot',
-      source: 'approved-knowledge',
+      source: 'approved-screen-knowledge',
       value: createSnapshotTemplateId(snapshotTemplate),
       summary: `Snapshot template matched alias "${match.alias}".`,
       refs: screen?.supplementRefs ?? [],
@@ -322,7 +357,7 @@ export function rankSnapshotCandidates(task: StepTask, screen: StepTaskScreenCan
   if (entries.length === 0 && (screen?.sectionSnapshots.length ?? 0) === 1) {
     entries.push(candidate({
       concern: 'snapshot',
-      source: 'approved-knowledge',
+      source: 'approved-screen-knowledge',
       value: screen?.sectionSnapshots[0] ?? null,
       summary: 'Snapshot template defaulted from single section snapshot.',
       refs: [],

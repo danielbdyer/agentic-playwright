@@ -1,0 +1,133 @@
+kind: behavior-pattern
+version: 1
+id: core.form-entry.validation-reset
+aliases:
+  - form entry reset validation
+  - valid input clears validation
+stateNodes:
+  - ref: state:policy-search:policy-number-cleared
+    screen: policy-search
+    label: Policy number field is cleared
+    aliases:
+      - policy number empty
+      - search field empty
+    scope: target
+    targetRef: target:element:policy-search:policyNumberInput
+    routeVariantRefs:
+      - route-variant:demo:policy-search:default
+    predicates:
+      - kind: cleared
+        targetRef: target:element:policy-search:policyNumberInput
+        attribute: value
+        value: ""
+    provenance: []
+  - ref: state:policy-search:policy-number-populated
+    screen: policy-search
+    label: Policy number field is populated
+    aliases:
+      - policy number entered
+      - policy number populated
+    scope: target
+    targetRef: target:element:policy-search:policyNumberInput
+    routeVariantRefs:
+      - route-variant:demo:policy-search:default
+      - route-variant:demo:policy-search:results-with-policy
+    predicates:
+      - kind: populated
+        targetRef: target:element:policy-search:policyNumberInput
+        attribute: value
+    provenance: []
+  - ref: state:policy-search:validation-hidden
+    screen: policy-search
+    label: Validation summary is hidden
+    aliases:
+      - validation hidden
+      - no validation summary shown
+    scope: target
+    targetRef: target:element:policy-search:validationSummary
+    routeVariantRefs:
+      - route-variant:demo:policy-search:default
+      - route-variant:demo:policy-search:results-with-policy
+    predicates:
+      - kind: hidden
+        targetRef: target:element:policy-search:validationSummary
+    provenance: []
+  - ref: state:policy-search:validation-visible
+    screen: policy-search
+    label: Validation summary is visible
+    aliases:
+      - validation visible
+      - error summary shown
+    scope: target
+    targetRef: target:element:policy-search:validationSummary
+    routeVariantRefs:
+      - route-variant:demo:policy-search:default
+    predicates:
+      - kind: visible
+        targetRef: target:element:policy-search:validationSummary
+    provenance: []
+eventSignatures:
+  - ref: event:policy-search:enter-policy-number
+    screen: policy-search
+    targetRef: target:element:policy-search:policyNumberInput
+    label: Enter policy number
+    aliases:
+      - enter policy number
+      - enter policy reference
+      - type valid policy number
+    dispatch:
+      action: input
+      sampleValue: POL-001
+    requiredStateRefs: []
+    forbiddenStateRefs: []
+    effects:
+      transitionRefs:
+        - transition:policy-search:populate-policy-number
+        - transition:policy-search:hide-validation-on-input
+      resultStateRefs:
+        - state:policy-search:policy-number-populated
+        - state:policy-search:validation-hidden
+      observableEffects:
+        - value-entry
+        - validation-cleared
+      assertions:
+        - Policy number field keeps the entered value
+        - Validation summary stays hidden after valid input
+    observationPlan:
+      timeoutMs: 1500
+      settleMs: 50
+      observeStateRefs:
+        - state:policy-search:policy-number-populated
+        - state:policy-search:validation-hidden
+    provenance: []
+transitions:
+  - ref: transition:policy-search:populate-policy-number
+    screen: policy-search
+    label: Policy number becomes populated
+    aliases:
+      - populate policy number
+      - populate a required input field
+    eventSignatureRef: event:policy-search:enter-policy-number
+    sourceStateRefs:
+      - state:policy-search:policy-number-cleared
+    targetStateRefs:
+      - state:policy-search:policy-number-populated
+    effectKind: populate
+    observableEffects:
+      - value-entry
+    provenance: []
+  - ref: transition:policy-search:hide-validation-on-input
+    screen: policy-search
+    label: Validation summary hides while typing
+    aliases:
+      - hide validation on input
+      - valid input clears visible validation
+    eventSignatureRef: event:policy-search:enter-policy-number
+    sourceStateRefs:
+      - state:policy-search:validation-visible
+    targetStateRefs:
+      - state:policy-search:validation-hidden
+    effectKind: hide
+    observableEffects:
+      - validation-cleared
+    provenance: []

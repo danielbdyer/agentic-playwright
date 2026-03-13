@@ -29,6 +29,13 @@ function runtimeStatusForStep(run: RunRecord | null | undefined, stepIndex: numb
       locatorRung: null,
       degraded: false,
       preconditionFailures: [],
+      requiredStateRefs: [],
+      forbiddenStateRefs: [],
+      effectAssertions: [],
+      eventSignatureRefs: [],
+      expectedTransitionRefs: [],
+      observedStateRefs: [],
+      transitionObservations: [],
       durationMs: 0,
       timing: {
         setupMs: 0,
@@ -60,6 +67,16 @@ function runtimeStatusForStep(run: RunRecord | null | undefined, stepIndex: numb
     locatorRung: runStep.execution.locatorRung ?? null,
     degraded: runStep.execution.degraded,
     preconditionFailures: runStep.execution.preconditionFailures,
+    requiredStateRefs: runStep.execution.requiredStateRefs ?? [],
+    forbiddenStateRefs: runStep.execution.forbiddenStateRefs ?? [],
+    effectAssertions: runStep.execution.effectAssertions ?? [],
+    eventSignatureRefs: runStep.execution.eventSignatureRefs ?? [],
+    expectedTransitionRefs: runStep.execution.expectedTransitionRefs ?? [],
+    observedStateRefs: runStep.execution.observedStateRefs ?? [],
+    transitionObservations: (runStep.execution.transitionObservations ?? []).map((entry) => ({
+      transitionRef: entry.transitionRef ?? null,
+      classification: entry.classification,
+    })),
     durationMs: runStep.execution.durationMs,
     timing: runStep.execution.timing,
     budget: {
@@ -82,10 +99,7 @@ function governanceForStep(boundStep: BoundScenario['steps'][number], run: RunRe
   if (runStep.interpretation.kind === 'needs-human') {
     return 'blocked';
   }
-  if (runStep.interpretation.kind === 'resolved-with-proposals') {
-    return 'review-required';
-  }
-  return boundStep.binding.governance;
+  return 'approved';
 }
 
 function provenanceForStep(boundStep: BoundScenario['steps'][number], run: RunRecord | null | undefined): StepProvenanceKind {

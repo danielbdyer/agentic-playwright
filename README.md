@@ -88,7 +88,7 @@ This is the operating rule for agents in this repo:
 
 - compiler output derived from approved knowledge does not wait for human blessing
 - approved-equivalent confidence overlays can participate in resolution without rewriting canon
-- proposed new knowledge does
+- schema-valid runtime-acquired canonical knowledge activates immediately and is tagged `uncertified` or `certified`
 - `needs-human` is valid only after all non-human paths were exhausted
 
 ## Pipeline outputs
@@ -97,6 +97,7 @@ For each scenario, Tesseract projects deterministic preparation artifacts:
 
 - `.tesseract/bound/{ado_id}.json`: bound envelope with `bound | deferred | unbound`
 - `.tesseract/tasks/{ado_id}.resolution.json`: runtime task packet with intent, constraints, knowledge refs, graph refs, selector refs, and stable fingerprints
+- `.tesseract/tasks/{ado_id}.runtime.json`: runtime handoff with selected steps, resolution context, controls, fixtures, and posture
 
 And it emits aligned review surfaces:
 

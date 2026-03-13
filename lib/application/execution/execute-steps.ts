@@ -50,6 +50,7 @@ export function executeSteps(input: {
         resolutionControl: input.selectedContext.activeRunbook?.resolutionControl ?? null,
       },
       steps: input.selectedContext.steps,
+      resolutionContext: input.selectedContext.resolutionContext,
       posture: input.selectedContext.posture,
       context: input.selectedContext.context,
       recoveryPolicy: input.selectedContext.recoveryPolicy,

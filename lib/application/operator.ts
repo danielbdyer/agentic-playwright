@@ -84,7 +84,7 @@ export function buildOperatorInboxItems(catalog: WorkspaceCatalog): OperatorInbo
       }
       seenProposalIds.add(stableProposalId);
       const metadata = runStepMetadata(run, proposal.stepIndex);
-      const kind = proposal.trustPolicy.decision === 'deny' ? 'blocked-policy' : 'proposal';
+      const kind = proposal.activation.status === 'blocked' ? 'blocked-policy' : 'proposal';
       items.push({
         id: inboxItemId({
           kind,
@@ -95,15 +95,17 @@ export function buildOperatorInboxItems(catalog: WorkspaceCatalog): OperatorInbo
           targetPath: proposal.targetPath,
         }),
         kind,
-        status: proposal.trustPolicy.decision === 'deny'
+        status: proposal.activation.status === 'blocked'
           ? 'blocked'
-          : approvals.has(stableProposalId)
+          : proposal.certification === 'certified' || approvals.has(stableProposalId)
             ? 'approved'
             : 'actionable',
         title: proposal.title,
-        summary: proposal.trustPolicy.decision === 'deny'
-          ? `Trust policy denied a proposed ${proposal.artifactType} change for ${proposal.targetPath}.`
-          : `Proposal for ${proposal.artifactType} at ${proposal.targetPath}.`,
+        summary: proposal.activation.status === 'blocked'
+          ? `Active-canon activation failed for ${proposal.artifactType} at ${proposal.targetPath}: ${proposal.activation.reason ?? 'unknown reason'}.`
+          : proposal.certification === 'certified'
+            ? `Certified canon is active for ${proposal.artifactType} at ${proposal.targetPath}.`
+            : `Active canon is live for ${proposal.artifactType} at ${proposal.targetPath} and remains uncertified.`,
         adoId: bundle.adoId,
         suite: bundle.suite,
         runId: bundle.runId,
@@ -114,12 +116,13 @@ export function buildOperatorInboxItems(catalog: WorkspaceCatalog): OperatorInbo
         winningConcern: metadata.winningConcern,
         winningSource: metadata.winningSource,
         resolutionMode: metadata.resolutionMode,
-        nextCommands: proposal.trustPolicy.decision === 'deny'
+        nextCommands: proposal.activation.status === 'blocked'
           ? uniqueSorted([
               `tesseract workflow --ado-id ${bundle.adoId}`,
               `tesseract inbox`,
             ])
           : uniqueSorted([
+              `tesseract certify --proposal-id ${stableProposalId}`,
               `tesseract approve --proposal-id ${stableProposalId}`,
               `tesseract rerun-plan --proposal-id ${stableProposalId}`,
               `tesseract workflow --ado-id ${bundle.adoId}`,

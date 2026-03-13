@@ -1,112 +1,48 @@
 import { expect, test } from '@playwright/test';
-import { createElementId, createScreenId, createSurfaceId, createWidgetId } from '../lib/domain/identity';
-import type { StepTask } from '../lib/domain/types';
+import { createCanonicalTargetRef, createElementId, createScreenId } from '../lib/domain/identity';
 import { rankActionCandidates, rankElementCandidates, rankScreenCandidates } from '../lib/runtime/agent/candidate-lattice';
-
-function requireRuntimeKnowledge(task: StepTask): NonNullable<StepTask['runtimeKnowledge']> {
-  if (!task.runtimeKnowledge) {
-    throw new Error('runtime knowledge is required for this test');
-  }
-  return task.runtimeKnowledge;
-}
-
-function buildTask(overrides: Partial<StepTask> = {}): StepTask {
-  const policyScreen = {
-    screen: createScreenId('policy-search'),
-    url: '/policy-search',
-    screenAliases: ['policy search', 'policy lookup'],
-    knowledgeRefs: ['knowledge/surfaces/policy-search.surface.yaml'],
-    supplementRefs: ['knowledge/screens/policy-search.hints.yaml'],
-    elements: [
-      {
-        element: createElementId('policyNumberInput'),
-        role: 'textbox',
-        name: 'Policy Number',
-        surface: createSurfaceId('search-form'),
-        widget: createWidgetId('os-input'),
-        affordance: 'text-entry',
-        aliases: ['policy ref', 'policy number'],
-        locator: [],
-        postures: [],
-        defaultValueRef: null,
-        parameter: null,
-        snapshotAliases: {},
-      },
-    ],
-    sectionSnapshots: [],
-  };
-
-  return {
-    index: 1,
-    intent: 'Enter policy reference',
-    actionText: 'Enter policy ref',
-    expectedText: 'Policy ref is accepted',
-    normalizedIntent: 'enter policy ref => policy ref is accepted',
-    allowedActions: ['input', 'click'],
-    explicitResolution: null,
-    controlResolution: null,
-    runtimeKnowledge: {
-      knowledgeFingerprint: 'sha256:knowledge',
-      confidenceFingerprint: 'sha256:confidence',
-      sharedPatterns: {
-        version: 1,
-        actions: {
-          navigate: { id: 'core.navigate', aliases: ['navigate'] },
-          input: { id: 'core.input', aliases: ['enter', 'input', 'type'] },
-          click: { id: 'core.click', aliases: ['click', 'select'] },
-          'assert-snapshot': { id: 'core.assert-snapshot', aliases: ['verify'] },
-        },
-        postures: {},
-        documents: ['knowledge/patterns/core.patterns.yaml'],
-        sources: { actions: { navigate: 'knowledge/patterns/core.patterns.yaml', input: 'knowledge/patterns/core.patterns.yaml', click: 'knowledge/patterns/core.patterns.yaml', 'assert-snapshot': 'knowledge/patterns/core.patterns.yaml' }, postures: {} },
-      },
-      screens: [policyScreen, { ...policyScreen, screen: createScreenId('alpha-screen'), screenAliases: ['policy search'] }],
-      evidenceRefs: [],
-      confidenceOverlays: [],
-      controls: { datasets: [], resolutionControls: [], runbooks: [] },
-    },
-    taskFingerprint: 'sha256:task',
-    ...overrides,
-  };
-}
+import { cloneJson, createInterfaceResolutionContext, createPolicySearchScreen, createStepTask } from './support/interface-fixtures';
 
 test('candidate lattice precedence keeps explicit above control above approved knowledge', () => {
-  const explicitTask = buildTask({
+  const resolutionContext = createInterfaceResolutionContext();
+  const explicitTask = createStepTask({
     explicitResolution: { action: 'click', screen: createScreenId('policy-search') },
     controlResolution: { action: 'input' },
-  });
-  const explicitRank = rankActionCandidates(explicitTask, explicitTask.controlResolution);
+  }, resolutionContext);
+  const explicitRank = rankActionCandidates(explicitTask, explicitTask.controlResolution, resolutionContext);
   expect(explicitRank.selected?.value).toBe('click');
   expect(explicitRank.selected?.source).toBe('explicit');
 
-  const controlTask = buildTask({
+  const controlTask = createStepTask({
     explicitResolution: null,
     controlResolution: { action: 'click' },
-  });
-  const controlRank = rankActionCandidates(controlTask, controlTask.controlResolution);
+  }, resolutionContext);
+  const controlRank = rankActionCandidates(controlTask, controlTask.controlResolution, resolutionContext);
   expect(controlRank.selected?.value).toBe('click');
   expect(controlRank.selected?.source).toBe('control');
 });
 
 test('screen and element ranking remain deterministic across equivalent permutations', () => {
-  const left = buildTask();
-  const baselineKnowledge = requireRuntimeKnowledge(buildTask());
-  const right = buildTask({
-    runtimeKnowledge: {
-      ...baselineKnowledge,
-      screens: [...baselineKnowledge.screens].reverse().map((screen) => ({
-        ...screen,
-        screenAliases: [...screen.screenAliases].reverse(),
-        elements: [...screen.elements].reverse().map((element) => ({
-          ...element,
-          aliases: [...element.aliases].reverse(),
-        })),
-      })),
-    },
+  const leftContext = createInterfaceResolutionContext({
+    screens: [
+      createPolicySearchScreen(),
+      createPolicySearchScreen({ screen: createScreenId('alpha-screen'), screenAliases: ['policy search'] }),
+    ],
   });
+  const left = createStepTask({}, leftContext);
+  const rightContext = cloneJson(leftContext);
+  rightContext.screens = [...rightContext.screens].reverse().map((screen) => ({
+    ...screen,
+    screenAliases: [...screen.screenAliases].reverse(),
+    elements: [...screen.elements].reverse().map((element) => ({
+      ...element,
+      aliases: [...element.aliases].reverse(),
+    })),
+  }));
+  const right = createStepTask({}, rightContext);
 
-  const leftScreen = rankScreenCandidates(left, 'input', left.controlResolution, null);
-  const rightScreen = rankScreenCandidates(right, 'input', right.controlResolution, null);
+  const leftScreen = rankScreenCandidates(left, 'input', left.controlResolution, null, leftContext);
+  const rightScreen = rankScreenCandidates(right, 'input', right.controlResolution, null, rightContext);
 
   expect(leftScreen.selected?.value?.screen).toBe(rightScreen.selected?.value?.screen);
   expect(leftScreen.ranked.map((entry) => entry.value?.screen ?? null)).toEqual(rightScreen.ranked.map((entry) => entry.value?.screen ?? null));
@@ -117,54 +53,47 @@ test('screen and element ranking remain deterministic across equivalent permutat
   expect(leftElement.ranked.map((entry) => entry.value?.element ?? null)).toEqual(rightElement.ranked.map((entry) => entry.value?.element ?? null));
 });
 
-
 test('working-memory priors boost same-screen continuation and known entity context', () => {
-  const baselineKnowledge = requireRuntimeKnowledge(buildTask());
-  const firstScreen = baselineKnowledge.screens[0]!;
-  const secondScreen = baselineKnowledge.screens[1]!;
-  const preferredElement = secondScreen.elements[0]!;
-  const task = buildTask({
+  const resolutionContext = createInterfaceResolutionContext({
+    screens: [
+      createPolicySearchScreen({
+        screen: createScreenId('z-policy-search'),
+        screenAliases: ['policy search'],
+      }),
+      createPolicySearchScreen({
+        screen: createScreenId('a-policy-search'),
+        screenAliases: ['policy search'],
+        elements: [
+          {
+            ...createPolicySearchScreen().elements[0]!,
+            element: createElementId('preferredPolicyRefInput'),
+            targetRef: createCanonicalTargetRef('target:element:a-policy-search:preferredPolicyRefInput'),
+            aliases: ['policy ref', 'policy reference preferred'],
+          },
+        ],
+      }),
+    ],
+  });
+  const task = createStepTask({
     actionText: 'Enter policy search preferred policy ref',
     normalizedIntent: 'enter policy search preferred policy ref => policy accepted',
-    runtimeKnowledge: {
-      ...baselineKnowledge,
-      screens: [
-        {
-          ...firstScreen,
-          screen: createScreenId('z-policy-search'),
-          screenAliases: ['policy search'],
-        },
-        {
-          ...secondScreen,
-          screen: createScreenId('a-policy-search'),
-          screenAliases: ['policy search'],
-          elements: [
-            {
-              ...preferredElement,
-              element: createElementId('preferredPolicyRefInput'),
-              aliases: ['policy ref', 'policy reference preferred'],
-            },
-          ],
-        },
-      ],
-    },
-  });
+  }, resolutionContext);
 
   const memory = {
     currentScreen: { screen: createScreenId('a-policy-search'), confidence: 1, observedAtStep: 1 },
-    activeEntityKeys: ['preferred'],
-    openedPanels: [],
-    openedModals: [],
+    activeStateRefs: [],
+    lastObservedTransitionRefs: [],
+    activeRouteVariantRefs: [],
+    activeTargetRefs: [createCanonicalTargetRef('target:element:a-policy-search:preferredPolicyRefInput')],
     lastSuccessfulLocatorRung: null,
     recentAssertions: [],
     lineage: [],
   };
 
-  const screenRank = rankScreenCandidates(task, 'input', task.controlResolution, null, memory);
+  const screenRank = rankScreenCandidates(task, 'input', task.controlResolution, null, resolutionContext, memory);
   expect(screenRank.selected?.value?.screen).toBe(createScreenId('a-policy-search'));
 
   const elementRank = rankElementCandidates(task, screenRank.selected?.value ?? null, task.controlResolution, memory);
   expect(elementRank.selected?.value?.element).toBe(createElementId('preferredPolicyRefInput'));
-  expect(elementRank.selected?.summary).toContain('Working-memory entity prior');
+  expect(elementRank.selected?.summary).toContain('Observed-state session preserved a prior target match');
 });
-

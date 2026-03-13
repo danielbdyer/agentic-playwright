@@ -7,6 +7,7 @@ import type {
   AgentSession,
   ApprovalReceipt,
   BenchmarkContext,
+  BehaviorPatternDocument,
   BoundScenario,
   ApplicationInterfaceGraph,
   ConfidenceOverlayCatalog,
@@ -26,9 +27,11 @@ import type {
   Scenario,
   SelectorCanon,
   ScenarioTaskPacket,
+  ScreenBehavior,
   ScreenElements,
   ScreenHints,
   ScreenPostures,
+  StateTransitionGraph,
   SurfaceGraph,
   TrainingCorpusManifest,
 } from '../../domain/types';
@@ -52,15 +55,18 @@ import {
   validateRunbookControl,
   validateScenario,
   validateScenarioTaskPacket,
+  validateScreenBehavior,
   validateScreenElements,
   validateScreenHints,
   validateScreenPostures,
   validateSelectorCanon,
+  validateStateTransitionGraph,
   validateSurfaceGraph,
   validateTrainingCorpusManifest,
   validateTrustPolicy,
   validateInterpretationDriftRecord,
   validateResolutionGraphRecord,
+  validateBehaviorPatternDocument,
 } from '../../domain/validation';
 import { walkFiles } from '../artifacts';
 import type { ProjectPaths } from '../paths';
@@ -70,6 +76,25 @@ import { createArtifactEnvelope, upsertArtifactEnvelope } from './envelope';
 import { readJsonArtifact, readYamlArtifact } from './loaders';
 import { assembleScreenBundles } from './screen-bundles';
 import type { ArtifactEnvelope, WorkspaceCatalog } from './types';
+
+function readDisposableJsonArtifact<T>(
+  paths: ProjectPaths,
+  absolutePath: string,
+  validate: (value: unknown) => T,
+  errorCode: string,
+  errorMessage: string,
+) {
+  return Effect.gen(function* () {
+    const result = yield* Effect.either(readJsonArtifact(
+      paths,
+      absolutePath,
+      validate,
+      errorCode,
+      errorMessage,
+    ));
+    return result._tag === 'Right' ? result.right : null as ArtifactEnvelope<T> | null;
+  });
+}
 
 export function loadWorkspaceCatalog(options: { paths: ProjectPaths }) {
   return Effect.gen(function* () {
@@ -125,7 +150,20 @@ export function loadWorkspaceCatalog(options: { paths: ProjectPaths }) {
       ));
     }
 
-    const patternFiles = (yield* walkFiles(fs, options.paths.patternsDir)).filter((filePath) => filePath.endsWith('.yaml'));
+    const behaviorFiles = screenKnowledgeFiles.filter((filePath) => filePath.endsWith('.behavior.yaml'));
+    const screenBehaviors: ArtifactEnvelope<ScreenBehavior>[] = [];
+    for (const filePath of behaviorFiles) {
+      screenBehaviors.push(yield* readYamlArtifact(
+        options.paths,
+        filePath,
+        validateScreenBehavior,
+        'screen-behavior-validation-failed',
+        `Screen behavior ${filePath} failed validation`,
+      ));
+    }
+
+    const patternFiles = (yield* walkFiles(fs, options.paths.patternsDir))
+      .filter((filePath) => filePath.endsWith('.yaml') && !filePath.endsWith('.behavior.yaml'));
     const patternDocuments: ArtifactEnvelope<PatternDocument>[] = [];
     for (const filePath of patternFiles) {
       patternDocuments.push(yield* readYamlArtifact(
@@ -134,6 +172,18 @@ export function loadWorkspaceCatalog(options: { paths: ProjectPaths }) {
         validatePatternDocument,
         'pattern-document-validation-failed',
         `Pattern document ${filePath} failed validation`,
+      ));
+    }
+
+    const behaviorPatternFiles = (yield* walkFiles(fs, options.paths.patternsDir)).filter((filePath) => filePath.endsWith('.behavior.yaml'));
+    const behaviorPatterns: ArtifactEnvelope<BehaviorPatternDocument>[] = [];
+    for (const filePath of behaviorPatternFiles) {
+      behaviorPatterns.push(yield* readYamlArtifact(
+        options.paths,
+        filePath,
+        validateBehaviorPatternDocument,
+        'behavior-pattern-document-validation-failed',
+        `Behavior pattern ${filePath} failed validation`,
       ));
     }
 
@@ -232,25 +282,27 @@ export function loadWorkspaceCatalog(options: { paths: ProjectPaths }) {
     const taskFiles = (yield* walkFiles(fs, options.paths.tasksDir)).filter((filePath) => filePath.endsWith('.resolution.json'));
     const taskPackets: ArtifactEnvelope<ScenarioTaskPacket>[] = [];
     for (const filePath of taskFiles) {
-      taskPackets.push(yield* readJsonArtifact(
+      const artifact = yield* readDisposableJsonArtifact(
         options.paths,
         filePath,
         validateScenarioTaskPacket,
         'task-packet-validation-failed',
         `Task packet ${filePath} failed validation`,
-      ));
+      );
+      if (artifact) taskPackets.push(artifact);
     }
 
     const runFiles = (yield* walkFiles(fs, options.paths.runsDir)).filter((filePath) => path.basename(filePath) === 'run.json');
     const runRecords: ArtifactEnvelope<RunRecord>[] = [];
     for (const filePath of runFiles) {
-      runRecords.push(yield* readJsonArtifact(
+      const artifact = yield* readDisposableJsonArtifact(
         options.paths,
         filePath,
         validateRunRecord,
         'run-record-validation-failed',
         `Run record ${filePath} failed validation`,
-      ));
+      );
+      if (artifact) runRecords.push(artifact);
     }
 
     const routeFiles = (yield* walkFiles(fs, options.paths.routesDir)).filter((filePath) => filePath.endsWith('.routes.yaml'));
@@ -282,62 +334,67 @@ export function loadWorkspaceCatalog(options: { paths: ProjectPaths }) {
     const resolutionGraphFiles = (yield* walkFiles(fs, options.paths.runsDir)).filter((filePath) => path.basename(filePath) === 'resolution-graph.json');
     const resolutionGraphRecords: ArtifactEnvelope<ResolutionGraphRecord>[] = [];
     for (const filePath of resolutionGraphFiles) {
-      resolutionGraphRecords.push(yield* readJsonArtifact(
+      const artifact = yield* readDisposableJsonArtifact(
         options.paths,
         filePath,
         validateResolutionGraphRecord,
         'resolution-graph-validation-failed',
         `Resolution graph ${filePath} failed validation`,
-      ));
+      );
+      if (artifact) resolutionGraphRecords.push(artifact);
     }
 
     const interpretationDriftFiles = (yield* walkFiles(fs, options.paths.runsDir)).filter((filePath) => path.basename(filePath) === 'interpretation-drift.json');
     const interpretationDriftRecords: ArtifactEnvelope<InterpretationDriftRecord>[] = [];
     for (const filePath of interpretationDriftFiles) {
-      interpretationDriftRecords.push(yield* readJsonArtifact(
+      const artifact = yield* readDisposableJsonArtifact(
         options.paths,
         filePath,
         validateInterpretationDriftRecord,
         'interpretation-drift-validation-failed',
         `Interpretation drift ${filePath} failed validation`,
-      ));
+      );
+      if (artifact) interpretationDriftRecords.push(artifact);
     }
 
     const proposalFiles = (yield* walkFiles(fs, options.paths.generatedDir)).filter((filePath) => filePath.endsWith('.proposals.json'));
     const proposalBundles: ArtifactEnvelope<ProposalBundle>[] = [];
     for (const filePath of proposalFiles) {
-      proposalBundles.push(yield* readJsonArtifact(
+      const artifact = yield* readDisposableJsonArtifact(
         options.paths,
         filePath,
         validateProposalBundle,
         'proposal-bundle-validation-failed',
         `Proposal bundle ${filePath} failed validation`,
-      ));
+      );
+      if (artifact) proposalBundles.push(artifact);
     }
 
 
     const rerunPlanFiles = (yield* walkFiles(fs, options.paths.inboxDir)).filter((filePath) => filePath.endsWith('.rerun-plan.json'));
     const rerunPlans: ArtifactEnvelope<RerunPlan>[] = [];
     for (const filePath of rerunPlanFiles) {
-      rerunPlans.push(yield* readJsonArtifact(
+      const artifact = yield* readDisposableJsonArtifact(
         options.paths,
         filePath,
         validateRerunPlan,
         'rerun-plan-validation-failed',
         `Rerun plan ${filePath} failed validation`,
-      ));
+      );
+      if (artifact) rerunPlans.push(artifact);
     }
 
     const approvalFiles = (yield* walkFiles(fs, options.paths.approvalsDir)).filter((filePath) => filePath.endsWith('.approval.json'));
     const approvalReceipts: ArtifactEnvelope<ApprovalReceipt>[] = [];
     for (const filePath of approvalFiles) {
-      approvalReceipts.push(yield* readJsonArtifact(
+      const artifact = yield* readDisposableJsonArtifact(
         options.paths,
         filePath,
         validateApprovalReceipt,
         'approval-receipt-validation-failed',
         `Approval receipt ${filePath} failed validation`,
-      ));
+      );
+      if (artifact) approvalReceipts.push(artifact);
     }
 
     const evidenceFiles = (yield* walkFiles(fs, options.paths.evidenceDir)).filter((filePath) => filePath.endsWith('.json'));
@@ -387,6 +444,19 @@ export function loadWorkspaceCatalog(options: { paths: ProjectPaths }) {
           return result._tag === 'Right' ? result.right : null;
         }))()
       : Effect.succeed(null as ArtifactEnvelope<SelectorCanon> | null);
+
+    const stateGraph = (yield* fs.exists(options.paths.stateGraphPath))
+      ? (() => Effect.gen(function* () {
+          const result = yield* Effect.either(readJsonArtifact(
+            options.paths,
+            options.paths.stateGraphPath,
+            validateStateTransitionGraph,
+            'state-transition-graph-validation-failed',
+            `State transition graph ${options.paths.stateGraphPath} failed validation`,
+          ));
+          return result._tag === 'Right' ? result.right : null;
+        }))()
+      : Effect.succeed(null as ArtifactEnvelope<StateTransitionGraph> | null);
 
     const sessionFiles = (yield* walkFiles(fs, options.paths.sessionsDir)).filter((filePath) => path.basename(filePath) === 'session.json');
     const agentSessions: ArtifactEnvelope<AgentSession>[] = [];
@@ -450,8 +520,10 @@ export function loadWorkspaceCatalog(options: { paths: ProjectPaths }) {
       screenElements,
       screenHints,
       screenPostures,
+      screenBehaviors,
       screenBundles: assembleScreenBundles({ surfaces, screenElements, screenHints, screenPostures }),
       patternDocuments,
+      behaviorPatterns,
       mergedPatterns: mergePatternDocuments(patternDocuments.map((entry) => ({
         artifactPath: entry.artifactPath,
         artifact: entry.artifact,
@@ -464,6 +536,7 @@ export function loadWorkspaceCatalog(options: { paths: ProjectPaths }) {
       confidenceCatalog,
       interfaceGraph: yield* interfaceGraph,
       selectorCanon: yield* selectorCanon,
+      stateGraph: yield* stateGraph,
       agentSessions,
       learningManifest,
       replayExamples,

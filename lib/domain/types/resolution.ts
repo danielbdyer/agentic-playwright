@@ -2,14 +2,19 @@ import type {
   AdoId,
   CanonicalTargetRef,
   ElementId,
+  EventSignatureRef,
   PostureId,
   ScreenId,
   SelectorRef,
   SnapshotTemplateId,
+  StateNodeRef,
+  TransitionRef,
 } from '../identity';
 import type { StepTaskElementCandidate, StepTaskScreenCandidate } from './knowledge';
+import type { ResolutionPrecedenceRung } from '../precedence';
 import type {
   Governance,
+  ExecutionPosture,
   ResolutionMode,
   RuntimeInterpreterMode,
   StepAction,
@@ -23,7 +28,7 @@ import type {
   WorkflowStage,
 } from './workflow';
 import type { StepResolution } from './intent';
-import type { ArtifactConfidenceRecord, RuntimeKnowledgeSession } from './knowledge';
+import type { ArtifactConfidenceRecord, InterfaceResolutionContext } from './knowledge';
 
 export interface TranslationCandidate {
   kind: 'screen' | 'element' | 'posture' | 'snapshot-template';
@@ -76,14 +81,12 @@ export interface TranslationReceipt {
   failureClass?: 'none' | 'no-candidate' | 'runtime-disabled' | 'cache-disabled' | 'cache-miss' | 'cache-invalidated' | 'translator-error' | undefined;
 }
 
-export interface RuntimeProviderCapabilities {
+export interface ResolutionEngineCapabilities {
   supportsTranslation: boolean;
   supportsDom: boolean;
   supportsProposalDrafts: boolean;
   deterministicMode: boolean;
 }
-
-export interface ResolutionEngineCapabilities extends RuntimeProviderCapabilities {}
 
 export interface TaskArtifactRef {
   fingerprint: string | null;
@@ -95,6 +98,9 @@ export interface ScenarioKnowledgeSlice {
   routeVariantRefs: string[];
   screenRefs: ScreenId[];
   targetRefs: CanonicalTargetRef[];
+  stateRefs: StateNodeRef[];
+  eventSignatureRefs: EventSignatureRef[];
+  transitionRefs: TransitionRef[];
   evidenceRefs: string[];
   controlRefs: string[];
 }
@@ -105,6 +111,12 @@ export interface StepTaskGrounding {
   fallbackSelectorRefs: SelectorRef[];
   routeVariantRefs: string[];
   assertionAnchors: string[];
+  effectAssertions: string[];
+  requiredStateRefs: StateNodeRef[];
+  forbiddenStateRefs: StateNodeRef[];
+  eventSignatureRefs: EventSignatureRef[];
+  expectedTransitionRefs: TransitionRef[];
+  resultStateRefs: StateNodeRef[];
 }
 
 export interface StepTask {
@@ -116,15 +128,35 @@ export interface StepTask {
   allowedActions: StepAction[];
   explicitResolution: StepResolution | null;
   controlResolution: StepResolution | null;
-  knowledgeRef?: 'scenario' | string | null | undefined;
-  runtimeKnowledge?: RuntimeKnowledgeSession | undefined;
-  grounding?: StepTaskGrounding | undefined;
+  grounding: StepTaskGrounding;
   taskFingerprint: string;
+}
+
+export interface ObservedStateSessionScreenState {
+  screen: ScreenId;
+  confidence: number;
+  observedAtStep: number;
+}
+
+export interface ObservedStateSessionAssertion {
+  summary: string;
+  observedAtStep: number;
+}
+
+export interface ObservedStateSession {
+  currentScreen: ObservedStateSessionScreenState | null;
+  activeStateRefs: StateNodeRef[];
+  lastObservedTransitionRefs: TransitionRef[];
+  activeRouteVariantRefs: string[];
+  activeTargetRefs: CanonicalTargetRef[];
+  lastSuccessfulLocatorRung: number | null;
+  recentAssertions: ObservedStateSessionAssertion[];
+  lineage: string[];
 }
 
 export interface ScenarioTaskPacket {
   kind: 'scenario-task-packet';
-  version: 4;
+  version: 5;
   stage: 'preparation';
   scope: 'scenario';
   ids: WorkflowEnvelopeIds;
@@ -139,10 +171,77 @@ export interface ScenarioTaskPacket {
     knowledgeFingerprint: string;
     interface: TaskArtifactRef;
     selectors: TaskArtifactRef;
+    stateGraph: TaskArtifactRef;
     knowledgeSlice: ScenarioKnowledgeSlice;
     steps: StepTask[];
   };
   taskFingerprint: string;
+}
+
+export interface ScenarioRuntimeStep {
+  task: StepTask;
+  directive?: unknown;
+}
+
+export interface ScenarioRuntimeHandoff {
+  kind: 'scenario-runtime-handoff';
+  version: 1;
+  stage: 'preparation';
+  scope: 'scenario';
+  ids: WorkflowEnvelopeIds;
+  fingerprints: WorkflowEnvelopeFingerprints;
+  lineage: WorkflowEnvelopeLineage;
+  governance: Governance;
+  payload: {
+    adoId: AdoId;
+    revision: number;
+    title: string;
+    suite: string;
+    screenIds: ScreenId[];
+    steps: ScenarioRuntimeStep[];
+    resolutionContext: InterfaceResolutionContext;
+    fixtures: Record<string, unknown>;
+    controlSelection: {
+      runbook?: string | null | undefined;
+      dataset?: string | null | undefined;
+      resolutionControl?: string | null | undefined;
+    };
+    context: {
+      adoId: AdoId;
+      revision: number;
+      contentHash: string;
+      artifactPath?: string | undefined;
+    };
+    posture: ExecutionPosture;
+    providerId: string;
+    translationEnabled: boolean;
+    translationCacheEnabled: boolean;
+    recoveryPolicy?: import('../execution/recovery-policy').RecoveryPolicy | undefined;
+  };
+  adoId: AdoId;
+  revision: number;
+  title: string;
+  suite: string;
+  screenIds: ScreenId[];
+  steps: ScenarioRuntimeStep[];
+  resolutionContext: InterfaceResolutionContext;
+  fixtures: Record<string, unknown>;
+  controlSelection: {
+    runbook?: string | null | undefined;
+    dataset?: string | null | undefined;
+    resolutionControl?: string | null | undefined;
+  };
+  context: {
+    adoId: AdoId;
+    revision: number;
+    contentHash: string;
+    artifactPath?: string | undefined;
+  };
+  posture: ExecutionPosture;
+  providerId: string;
+  translationEnabled: boolean;
+  translationCacheEnabled: boolean;
+  recoveryPolicy?: import('../execution/recovery-policy').RecoveryPolicy | undefined;
 }
 
 export interface DatasetControl {
@@ -355,14 +454,29 @@ export interface EvidenceRecord {
 
 export interface ResolutionCandidateSummary {
   concern: 'action' | 'screen' | 'element' | 'posture' | 'snapshot';
-  source: 'explicit' | 'control' | 'approved-knowledge' | 'overlay' | 'translation' | 'live-dom';
+  source:
+    | 'explicit'
+    | 'control'
+    | 'approved-screen-knowledge'
+    | 'shared-patterns'
+    | 'prior-evidence'
+    | 'approved-equivalent-overlay'
+    | 'structured-translation'
+    | 'live-dom';
   value: string;
   score: number;
   reason: string;
 }
 
 export interface ResolutionObservation {
-  source: 'knowledge' | 'evidence' | 'overlay' | 'translation' | 'dom' | 'runtime';
+  source:
+    | 'approved-screen-knowledge'
+    | 'shared-patterns'
+    | 'prior-evidence'
+    | 'approved-equivalent-overlay'
+    | 'structured-translation'
+    | 'live-dom'
+    | 'runtime';
   summary: string;
   detail?: Record<string, string> | undefined;
   topCandidates?: ResolutionCandidateSummary[] | undefined;
@@ -370,16 +484,7 @@ export interface ResolutionObservation {
 }
 
 export interface ResolutionExhaustionEntry {
-  stage:
-    | 'explicit'
-    | 'approved-screen-bundle'
-    | 'local-hints'
-    | 'shared-patterns'
-    | 'prior-evidence'
-    | 'confidence-overlay'
-    | 'structured-translation'
-    | 'live-dom'
-    | 'safe-degraded-resolution';
+  stage: ResolutionPrecedenceRung;
   outcome: 'attempted' | 'resolved' | 'skipped' | 'failed';
   reason: string;
   topCandidates?: ResolutionCandidateSummary[] | undefined;
@@ -408,8 +513,6 @@ export interface ResolutionProposalDraft {
   patch: Record<string, unknown>;
   rationale: string;
 }
-
-export type ResolutionPrecedenceRung = 'explicit' | 'control' | 'approved-knowledge' | 'overlay' | 'translation' | 'live-dom' | 'needs-human';
 
 export interface ResolutionGraphTraversalEntry {
   rung: ResolutionPrecedenceRung;

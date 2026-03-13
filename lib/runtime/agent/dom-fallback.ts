@@ -130,7 +130,7 @@ export async function resolveFromDom(
       probes: 0,
       policy: effectivePolicy,
       observation: {
-        source: 'dom',
+        source: 'live-dom',
         summary: `Skipped live DOM exploration because action ${action} is forbidden by policy.`,
       },
     };
@@ -174,7 +174,7 @@ export async function resolveFromDom(
     policy: effectivePolicy,
     observation: ranked.length > 0
       ? {
-        source: 'dom',
+        source: 'live-dom',
         summary: ranked.length === 1
           ? 'Resolved uniquely visible candidate from live DOM'
           : 'Ranked multiple live-DOM candidates with bounded policy exploration',

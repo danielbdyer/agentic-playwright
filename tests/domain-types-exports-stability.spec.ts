@@ -65,7 +65,7 @@ import type {
   ApprovalEquivalenceStatus,
   ArtifactConfidenceRecord,
   ConfidenceOverlayCatalog,
-  RuntimeKnowledgeSession,
+  InterfaceResolutionContext,
   StepTask,
   ScenarioTaskPacket,
   SurfaceSection,

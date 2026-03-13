@@ -1,4 +1,4 @@
-import type { AdoId } from '../identity';
+import type { AdoId, EventSignatureRef, StateNodeRef, TransitionRef } from '../identity';
 import type { AgentSession } from './session';
 import type {
   CompilerDiagnostic,
@@ -15,7 +15,7 @@ import type {
   StepWinningSource,
   WorkflowStage,
 } from './workflow';
-import type { ApplicationInterfaceGraph } from './interface';
+import type { ApplicationInterfaceGraph, StateTransitionGraph } from './interface';
 import type { TrainingCorpusManifest } from './learning';
 import type { StepProgram } from './intent';
 import type { BoundScenario } from './intent';
@@ -281,6 +281,16 @@ export interface ScenarioExplanationStep {
     locatorRung?: number | null | undefined;
     degraded?: boolean | undefined;
     preconditionFailures?: string[] | undefined;
+    requiredStateRefs?: StateNodeRef[] | undefined;
+    forbiddenStateRefs?: StateNodeRef[] | undefined;
+    eventSignatureRefs?: EventSignatureRef[] | undefined;
+    expectedTransitionRefs?: TransitionRef[] | undefined;
+    observedStateRefs?: StateNodeRef[] | undefined;
+    effectAssertions?: string[] | undefined;
+    transitionObservations?: Array<{
+      transitionRef?: TransitionRef | null | undefined;
+      classification: 'matched' | 'ambiguous-match' | 'missing-expected' | 'unexpected-effects';
+    }> | undefined;
     durationMs?: number | undefined;
     timing?: {
       setupMs: number;
@@ -324,6 +334,7 @@ export interface ScenarioProjectionInput {
   proposalBundle: ProposalBundle | null;
   interfaceGraph?: ApplicationInterfaceGraph | null | undefined;
   selectorCanon?: SelectorCanon | null | undefined;
+  stateGraph?: StateTransitionGraph | null | undefined;
   sessions: AgentSession[];
   learningManifest?: TrainingCorpusManifest | null | undefined;
 }

@@ -5,19 +5,42 @@ import { bestAliasMatch, humanizeIdentifier, normalizedCombined, uniqueSorted } 
 import { selectedDataset, selectedRunbook } from './select-controls';
 import type { RuntimeStepAgentContext } from './types';
 
-export function resolveScreen(task: StepTask, action: StepAction | null, controlResolution: StepResolution | null, previousResolution: ResolutionTarget | null | undefined): { screen: StepTaskScreenCandidate | null; supplementRefs: string[] } {
+function groundedScreens(task: StepTask, context: RuntimeStepAgentContext): StepTaskScreenCandidate[] {
+  const allowedRouteVariantRefs = new Set(task.grounding.routeVariantRefs);
+  if (allowedRouteVariantRefs.size === 0) {
+    return context.resolutionContext.screens;
+  }
+  return context.resolutionContext.screens.filter((screen) => screen.routeVariantRefs.some((ref) => allowedRouteVariantRefs.has(ref)));
+}
+
+function groundedElements(task: StepTask, screen: StepTaskScreenCandidate): StepTaskElementCandidate[] {
+  const allowedTargetRefs = new Set(task.grounding.targetRefs);
+  if (allowedTargetRefs.size === 0) {
+    return screen.elements;
+  }
+  return screen.elements.filter((element) => allowedTargetRefs.has(element.targetRef));
+}
+
+export function resolveScreen(
+  task: StepTask,
+  action: StepAction | null,
+  controlResolution: StepResolution | null,
+  previousResolution: ResolutionTarget | null | undefined,
+  context: RuntimeStepAgentContext,
+): { screen: StepTaskScreenCandidate | null; supplementRefs: string[] } {
+  const screens = groundedScreens(task, context);
   if (task.explicitResolution?.screen) {
-    const explicit = task.runtimeKnowledge!.screens.find((screen) => screen.screen === task.explicitResolution?.screen) ?? null;
+    const explicit = screens.find((screen) => screen.screen === task.explicitResolution?.screen) ?? null;
     return { screen: explicit, supplementRefs: [] };
   }
   if (controlResolution?.screen) {
-    const controlled = task.runtimeKnowledge!.screens.find((screen) => screen.screen === controlResolution.screen) ?? null;
+    const controlled = screens.find((screen) => screen.screen === controlResolution.screen) ?? null;
     return { screen: controlled, supplementRefs: [] };
   }
 
   const normalized = normalizedCombined(task);
   let best: { screen: StepTaskScreenCandidate; score: number } | null = null;
-  for (const screen of task.runtimeKnowledge!.screens) {
+  for (const screen of screens) {
     const aliases = uniqueSorted([screen.screen, humanizeIdentifier(screen.screen), ...screen.screenAliases]);
     const match = bestAliasMatch(normalized, aliases);
     if (!match) {
@@ -35,7 +58,7 @@ export function resolveScreen(task: StepTask, action: StepAction | null, control
   }
 
   if (action !== 'navigate' && previousResolution?.screen) {
-    const carried = task.runtimeKnowledge!.screens.find((screen) => screen.screen === previousResolution.screen) ?? null;
+    const carried = screens.find((screen) => screen.screen === previousResolution.screen) ?? null;
     return { screen: carried, supplementRefs: carried?.supplementRefs ?? [] };
   }
 
@@ -47,18 +70,19 @@ export function resolveElement(task: StepTask, screen: StepTaskScreenCandidate |
     return { element: null, supplementRefs: [] };
   }
 
+  const elements = groundedElements(task, screen);
   if (task.explicitResolution?.element) {
-    const explicit = screen.elements.find((element) => element.element === task.explicitResolution?.element) ?? null;
+    const explicit = elements.find((element) => element.element === task.explicitResolution?.element) ?? null;
     return { element: explicit, supplementRefs: explicit ? screen.supplementRefs : [] };
   }
   if (controlResolution?.element) {
-    const controlled = screen.elements.find((element) => element.element === controlResolution.element) ?? null;
+    const controlled = elements.find((element) => element.element === controlResolution.element) ?? null;
     return { element: controlled, supplementRefs: controlled ? screen.supplementRefs : [] };
   }
 
   const normalized = normalizedCombined(task);
   let best: { element: StepTaskElementCandidate; score: number } | null = null;
-  for (const element of screen.elements) {
+  for (const element of elements) {
     const aliases = uniqueSorted([element.element, humanizeIdentifier(element.element), element.name ?? '', ...element.aliases]);
     const match = bestAliasMatch(normalized, aliases);
     if (!match) {
@@ -75,7 +99,12 @@ export function resolveElement(task: StepTask, screen: StepTaskScreenCandidate |
   };
 }
 
-export function resolvePosture(task: StepTask, element: StepTaskElementCandidate | null, controlResolution: StepResolution | null): { posture: ReturnType<typeof createPostureId> | null; supplementRefs: string[] } {
+export function resolvePosture(
+  task: StepTask,
+  element: StepTaskElementCandidate | null,
+  controlResolution: StepResolution | null,
+  context: RuntimeStepAgentContext,
+): { posture: ReturnType<typeof createPostureId> | null; supplementRefs: string[] } {
   if (task.explicitResolution?.posture) {
     return { posture: task.explicitResolution.posture, supplementRefs: [] };
   }
@@ -83,7 +112,7 @@ export function resolvePosture(task: StepTask, element: StepTaskElementCandidate
     return { posture: controlResolution.posture, supplementRefs: [] };
   }
   const normalized = normalizedCombined(task);
-  for (const [postureId, descriptor] of Object.entries(task.runtimeKnowledge!.sharedPatterns.postures)) {
+  for (const [postureId, descriptor] of Object.entries(context.resolutionContext.sharedPatterns.postures)) {
     if (bestAliasMatch(normalized, descriptor.aliases)) {
       return { posture: createPostureId(postureId), supplementRefs: [knowledgePaths.patterns()] };
     }

@@ -1,0 +1,30 @@
+# Proposed ~/.zprofile
+# Purpose: login-shell environment only. Keep prompt, plugins, and shell
+# integration in ~/.zshrc.
+
+# Preserve distro or user profile settings if present.
+if [[ -f "$HOME/.profile" ]]; then
+  emulate sh -c '. "$HOME/.profile"'
+fi
+
+# Shared login environment.
+export CHROME_DEVEL_SANDBOX=/usr/local/sbin/chrome-devel-sandbox
+export DOCKER_HOST=tcp://localhost:2375
+export VAGRANT_WSL_ENABLE_WINDOWS_ACCESS=1
+export PNPM_HOME="$HOME/.local/share/pnpm"
+export NVM_DIR="$HOME/.nvm"
+export GH_ACCESSIBLE_PROMPTER=1
+export GH_SPINNER_DISABLED=1
+
+# Deduplicated PATH handling.
+typeset -U path PATH
+path=(
+  "$HOME/.local/bin"
+  "$HOME/.npm/bin"
+  "$PNPM_HOME"
+  $path
+)
+
+if [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
+  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+fi

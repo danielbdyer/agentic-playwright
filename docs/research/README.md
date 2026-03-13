@@ -29,6 +29,7 @@ This research set is meant to make Backlog Item A1 implementable without overfit
 1. [A1 runtime lifecycle map](./a1-runtime-lifecycle-map.md)
 2. [VS Code and Copilot ecosystem survey](./vscode-copilot-ecosystem-survey.md)
 3. [Agentic scaffold decisions](./agentic-scaffold-decisions.md)
+4. [Scenario kernel and interpreter family](./scenario-kernel-and-interpreters.md)
 
 ## Glossary
 

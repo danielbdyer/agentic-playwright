@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import type { AdoId } from '../domain/identity';
+import type { AdoId, StateNodeRef, TransitionRef } from '../domain/identity';
 import type { ExecutionBudgetThresholds } from '../domain/execution/telemetry';
 import { defaultRecoveryPolicy, recoveryFamilyConfig, type RecoveryAttempt, type RecoveryPolicy, type RecoveryStrategy } from '../domain/execution/recovery-policy';
 import { emptyExecutionTiming, evaluateExecutionBudget, normalizeFailureFamily } from '../domain/execution/telemetry';
@@ -8,21 +8,24 @@ import type { SnapshotTemplateLoader } from '../domain/runtime-loaders';
 import type {
   ExecutionPosture,
   ExecutionDiagnostic,
+  InterfaceResolutionContext,
+  ObservedStateSession,
   ResolutionReceipt,
+  ScenarioRuntimeHandoff,
   ResolutionTarget,
   ScenarioStep,
   StepExecutionReceipt,
   StepTask,
-  RuntimeKnowledgeSession,
   TranslationRequest,
   TranslationReceipt,
 } from '../domain/types';
 import { runStaticInterpreter } from './interpreters/execute';
 import type { InterpreterMode, InterpreterScreenRegistry } from './interpreters/types';
-import type { RuntimeWorkingMemory } from './agent/types';
 import { playwrightStepProgramInterpreter } from './program';
 import { deterministicRuntimeStepAgent, type RuntimeStepAgent } from './agent';
+import { applyProposalDraftsToRuntimeContext } from './agent/proposals';
 import type { RuntimeDomResolver } from '../domain/types';
+import { observeStateRefsOnPage, observeTransitionOnPage } from '../playwright/state-topology';
 
 export interface RuntimeScenarioEnvironment {
   mode: InterpreterMode;
@@ -46,7 +49,7 @@ export interface RuntimeScenarioEnvironment {
 
 export interface ScenarioRunState {
   previousResolution: ResolutionTarget | null;
-  runtimeWorkingMemory: RuntimeWorkingMemory;
+  observedStateSession: ObservedStateSession;
 }
 
 export interface ScenarioStepRunResult {
@@ -56,18 +59,31 @@ export interface ScenarioStepRunResult {
 
 export interface ScenarioStepHandshake {
   task: StepTask;
-  runtimeKnowledgeSession?: RuntimeKnowledgeSession | undefined;
+  resolutionContext: InterfaceResolutionContext;
   directive?: unknown;
+}
+
+export function stepHandshakeFromHandoff(handoff: ScenarioRuntimeHandoff, zeroBasedIndex: number): ScenarioStepHandshake {
+  const step = handoff.steps[zeroBasedIndex] ?? null;
+  if (!step) {
+    throw new Error(`Missing runtime handoff step ${zeroBasedIndex + 1} for ${handoff.adoId}`);
+  }
+  return {
+    task: step.task,
+    directive: step.directive,
+    resolutionContext: handoff.resolutionContext,
+  };
 }
 
 export function createScenarioRunState(): ScenarioRunState {
   return {
     previousResolution: null,
-    runtimeWorkingMemory: {
+    observedStateSession: {
       currentScreen: null,
-      activeEntityKeys: [],
-      openedPanels: [],
-      openedModals: [],
+      activeStateRefs: [],
+      lastObservedTransitionRefs: [],
+      activeRouteVariantRefs: [],
+      activeTargetRefs: [],
       lastSuccessfulLocatorRung: null,
       recentAssertions: [],
       lineage: [],
@@ -77,6 +93,91 @@ export function createScenarioRunState(): ScenarioRunState {
 
 function executionDiagnosticsFromError(code: string, message: string, context?: Record<string, string>): ExecutionDiagnostic[] {
   return [{ code, message, context }];
+}
+
+function uniqueSorted<T extends string>(values: Iterable<T>): T[] {
+  return [...new Set(values)].sort((left, right) => left.localeCompare(right)) as T[];
+}
+
+function activeRouteVariantRefs(state: ScenarioRunState, task: StepTask): string[] {
+  return state.observedStateSession.activeRouteVariantRefs.length > 0
+    ? state.observedStateSession.activeRouteVariantRefs
+    : task.grounding.routeVariantRefs;
+}
+
+function relevantStateRefs(task: StepTask): StateNodeRef[] {
+  return uniqueSorted([
+    ...task.grounding.requiredStateRefs,
+    ...task.grounding.forbiddenStateRefs,
+    ...task.grounding.resultStateRefs,
+  ]);
+}
+
+function inferTransitionObservations(input: {
+  task: StepTask;
+  interpretation: Exclude<ResolutionReceipt, { kind: 'needs-human' }>;
+  success: boolean;
+}): import('../domain/types').TransitionObservation[] {
+  if (input.task.grounding.expectedTransitionRefs.length === 0) {
+    return [];
+  }
+
+  const observedStateRefs = input.success ? input.task.grounding.resultStateRefs : [];
+  return [{
+    observationId: `runtime:${input.task.index}:${input.interpretation.target.action}`,
+    source: 'runtime',
+    actor: 'runtime-execution',
+    screen: input.interpretation.target.screen,
+    eventSignatureRef: input.task.grounding.eventSignatureRefs[0] ?? null,
+    transitionRef: input.task.grounding.expectedTransitionRefs.length === 1 ? input.task.grounding.expectedTransitionRefs[0]! : null,
+    expectedTransitionRefs: input.task.grounding.expectedTransitionRefs,
+    observedStateRefs,
+    unexpectedStateRefs: [],
+    confidence: input.success ? 'inferred' : 'missing',
+    classification: input.success ? 'matched' : 'missing-expected',
+    detail: {
+      mode: 'static-inference',
+      result: input.success ? 'ok' : 'failed',
+    },
+  }];
+}
+
+function mergeObservedStateSession(input: {
+  state: ScenarioRunState;
+  task: StepTask;
+  interpretation: Exclude<ResolutionReceipt, { kind: 'needs-human' }>;
+  observedStateRefs: StateNodeRef[];
+  transitionRefs: TransitionRef[];
+}) {
+  const relevant = new Set(relevantStateRefs(input.task));
+  input.state.observedStateSession = {
+    ...input.state.observedStateSession,
+    currentScreen: {
+      screen: input.interpretation.target.screen,
+      confidence: input.interpretation.confidence === 'compiler-derived' ? 1 : 0.8,
+      observedAtStep: input.task.index,
+    },
+    activeStateRefs: uniqueSorted([
+      ...input.state.observedStateSession.activeStateRefs.filter((ref) => !relevant.has(ref)),
+      ...input.observedStateRefs,
+    ]),
+    lastObservedTransitionRefs: uniqueSorted(input.transitionRefs),
+    activeRouteVariantRefs: uniqueSorted([
+      ...input.state.observedStateSession.activeRouteVariantRefs,
+      ...input.task.grounding.routeVariantRefs,
+    ]),
+    activeTargetRefs: uniqueSorted([
+      ...input.state.observedStateSession.activeTargetRefs,
+      ...input.task.grounding.targetRefs,
+    ]),
+    lineage: uniqueSorted([
+      ...input.state.observedStateSession.lineage,
+      `step:${input.task.index}`,
+      `screen:${input.interpretation.target.screen}`,
+      ...input.transitionRefs.map((ref) => `transition:${ref}`),
+      ...input.observedStateRefs.map((ref) => `state:${ref}`),
+    ]).slice(-48),
+  };
 }
 
 function resolvedScenarioStep(task: StepTask, target: ResolutionTarget, confidence: ScenarioStep['confidence']): ScenarioStep {
@@ -188,29 +289,28 @@ export async function runScenarioStep(
   environment: RuntimeScenarioEnvironment,
   state: ScenarioRunState,
   context?: { adoId: AdoId; artifactPath?: string | undefined; revision?: number | undefined; contentHash?: string | undefined },
-  runtimeKnowledgeSession?: RuntimeKnowledgeSession | undefined,
+  interfaceResolutionContext?: InterfaceResolutionContext | undefined,
 ): Promise<ScenarioStepRunResult> {
   const startedAt = Date.now();
   const runAt = new Date().toISOString();
   const agent = environment.agent ?? deterministicRuntimeStepAgent;
-  const runtimeKnowledge = task.runtimeKnowledge ?? runtimeKnowledgeSession;
-  if (!runtimeKnowledge) {
-    throw new Error(`Missing runtime knowledge for step ${task.index}`);
+  if (!interfaceResolutionContext) {
+    throw new Error(`Missing interface resolution context for step ${task.index}`);
   }
-  const resolvedTask = task.runtimeKnowledge ? task : { ...task, runtimeKnowledge };
 
-  const resolutionContext = {
+  const agentContext = {
+    resolutionContext: interfaceResolutionContext,
     domResolver: environment.domResolver,
     previousResolution: state.previousResolution,
-    runtimeWorkingMemory: state.runtimeWorkingMemory,
+    observedStateSession: state.observedStateSession,
     provider: environment.provider,
     mode: environment.mode,
     runAt,
     translate: environment.translator,
     controlSelection: environment.controlSelection,
   };
-  const interpretation = await agent.resolve(resolvedTask, resolutionContext);
-  state.runtimeWorkingMemory = resolutionContext.runtimeWorkingMemory ?? state.runtimeWorkingMemory;
+  const interpretation = await agent.resolve(task, agentContext);
+  state.observedStateSession = agentContext.observedStateSession ?? state.observedStateSession;
 
   if (interpretation.kind === 'needs-human') {
     return {
@@ -230,7 +330,7 @@ export async function runScenarioStep(
         },
         fingerprints: {
           artifact: task.taskFingerprint,
-          knowledge: runtimeKnowledge.knowledgeFingerprint,
+          knowledge: agentContext.resolutionContext.knowledgeFingerprint,
           task: task.taskFingerprint,
           controls: null,
           content: context?.contentHash ?? null,
@@ -244,7 +344,7 @@ export async function runScenarioStep(
         governance: 'blocked',
         stepIndex: task.index,
         taskFingerprint: task.taskFingerprint,
-        knowledgeFingerprint: runtimeKnowledge.knowledgeFingerprint,
+        knowledgeFingerprint: agentContext.resolutionContext.knowledgeFingerprint,
         runAt,
         mode: environment.mode,
         widgetContract: null,
@@ -252,6 +352,12 @@ export async function runScenarioStep(
         locatorRung: null,
         degraded: false,
         preconditionFailures: [],
+        requiredStateRefs: task.grounding.requiredStateRefs,
+        forbiddenStateRefs: task.grounding.forbiddenStateRefs,
+        eventSignatureRefs: task.grounding.eventSignatureRefs,
+        expectedTransitionRefs: task.grounding.expectedTransitionRefs,
+        observedStateRefs: [],
+        transitionObservations: [],
         durationMs: 0,
         timing: {
           ...emptyExecutionTiming(),
@@ -291,8 +397,119 @@ export async function runScenarioStep(
     };
   }
 
+  const observedRelevantStateRefs = relevantStateRefs(task);
+  const activeVariants = activeRouteVariantRefs(state, task);
+  const beforeObservedStateRefs = environment.page && interfaceResolutionContext.stateGraph
+    ? (await observeStateRefsOnPage({
+        page: environment.page,
+        context: interfaceResolutionContext,
+        stateRefs: observedRelevantStateRefs,
+        activeRouteVariantRefs: activeVariants,
+      }))
+        .filter((entry) => entry.observed)
+        .map((entry) => entry.stateRef)
+    : state.observedStateSession.activeStateRefs.filter((ref) => observedRelevantStateRefs.includes(ref));
+  const beforeSet = new Set(beforeObservedStateRefs);
+  const skipStatePreconditions = interpretation.target.action === 'navigate';
+  const missingRequiredStates = skipStatePreconditions
+    ? []
+    : task.grounding.requiredStateRefs.filter((ref) => !beforeSet.has(ref));
+  const forbiddenActiveStates = skipStatePreconditions
+    ? []
+    : task.grounding.forbiddenStateRefs.filter((ref) => beforeSet.has(ref));
+  if (missingRequiredStates.length > 0 || forbiddenActiveStates.length > 0) {
+    const diagnostics = executionDiagnosticsFromError(
+      'runtime-state-precondition-failed',
+      `State preconditions failed for step ${task.index}`,
+      {
+        missingRequiredStates: missingRequiredStates.join(','),
+        forbiddenActiveStates: forbiddenActiveStates.join(','),
+      },
+    );
+    const timing = {
+      ...emptyExecutionTiming(),
+      totalMs: 0,
+    };
+    return {
+      interpretation,
+      execution: {
+        version: 1,
+        stage: 'execution',
+        scope: 'step',
+        ids: {
+          adoId: context?.adoId ?? null,
+          suite: null,
+          runId: null,
+          stepIndex: task.index,
+          dataset: environment.controlSelection?.dataset ?? null,
+          runbook: environment.controlSelection?.runbook ?? null,
+          resolutionControl: environment.controlSelection?.resolutionControl ?? null,
+        },
+        fingerprints: {
+          artifact: task.taskFingerprint,
+          knowledge: interfaceResolutionContext.knowledgeFingerprint,
+          task: task.taskFingerprint,
+          controls: null,
+          content: context?.contentHash ?? null,
+          run: null,
+        },
+        lineage: {
+          sources: [],
+          parents: [task.taskFingerprint],
+          handshakes: ['preparation', 'resolution', 'execution'],
+        },
+        governance: 'blocked',
+        stepIndex: task.index,
+        taskFingerprint: task.taskFingerprint,
+        knowledgeFingerprint: interfaceResolutionContext.knowledgeFingerprint,
+        runAt,
+        mode: environment.mode,
+        widgetContract: null,
+        locatorStrategy: null,
+        locatorRung: null,
+        degraded: false,
+        preconditionFailures: diagnostics.map((entry) => entry.message),
+        requiredStateRefs: task.grounding.requiredStateRefs,
+        forbiddenStateRefs: task.grounding.forbiddenStateRefs,
+        eventSignatureRefs: task.grounding.eventSignatureRefs,
+        expectedTransitionRefs: task.grounding.expectedTransitionRefs,
+        observedStateRefs: beforeObservedStateRefs,
+        transitionObservations: [],
+        durationMs: 0,
+        timing,
+        cost: {
+          instructionCount: 0,
+          diagnosticCount: diagnostics.length,
+        },
+        budget: evaluateExecutionBudget({
+          timing,
+          cost: {
+            instructionCount: 0,
+            diagnosticCount: diagnostics.length,
+          },
+          thresholds: environment.executionBudgetThresholds,
+        }),
+        failure: normalizeFailureFamily({
+          status: 'failed',
+          degraded: false,
+          diagnostics,
+        }),
+        recovery: {
+          policyProfile: (environment.recoveryPolicy ?? defaultRecoveryPolicy).profile,
+          attempts: [],
+        },
+        handshakes: ['preparation', 'resolution', 'execution'],
+        execution: {
+          status: 'failed',
+          observedEffects: [],
+          diagnostics,
+        },
+      },
+    };
+  }
+
   state.previousResolution = interpretation.target;
-  const resolvedStep = resolvedScenarioStep(resolvedTask, interpretation.target, interpretation.confidence);
+  const resolvedStep = resolvedScenarioStep(task, interpretation.target, interpretation.confidence);
   const program = compileStepProgram(resolvedStep);
   const diagnosticContext = context
     ? {
@@ -355,6 +572,49 @@ export async function runScenarioStep(
       diagnostics,
       degraded: Boolean(firstOutcome?.observedEffects.includes('degraded-locator')),
     });
+  const runtimeSucceeded = result.ok || recovery.recovered;
+  const transitionObservations = task.grounding.expectedTransitionRefs.length === 0
+    ? []
+    : environment.page && interfaceResolutionContext.stateGraph
+      ? await Promise.all(
+          (task.grounding.eventSignatureRefs.length > 0 ? task.grounding.eventSignatureRefs : [null]).map((eventSignatureRef, index) =>
+            observeTransitionOnPage({
+              page: environment.page!,
+              context: interfaceResolutionContext,
+              screen: interpretation.target.screen,
+              eventSignatureRef,
+              expectedTransitionRefs: task.grounding.expectedTransitionRefs,
+              beforeObservedStateRefs,
+              activeRouteVariantRefs: activeVariants,
+              source: 'runtime',
+              actor: 'runtime-execution',
+              observationId: `runtime:${task.index}:${index}:${eventSignatureRef ?? 'none'}`,
+            }),
+          ),
+        )
+      : inferTransitionObservations({
+          task,
+          interpretation,
+          success: runtimeSucceeded,
+        });
+  const observedStateRefs = uniqueSorted(transitionObservations.flatMap((entry) => entry.observedStateRefs));
+  const matchedTransitionRefs = uniqueSorted(
+    transitionObservations
+      .filter((entry) => entry.classification === 'matched' && entry.transitionRef)
+      .map((entry) => entry.transitionRef!)
+  );
+  if (runtimeSucceeded) {
+    if (interpretation.kind === 'resolved-with-proposals') {
+      applyProposalDraftsToRuntimeContext(interfaceResolutionContext, interpretation.proposalDrafts);
+    }
+    mergeObservedStateSession({
+      state,
+      task,
+      interpretation,
+      observedStateRefs: observedStateRefs.length > 0 ? observedStateRefs : task.grounding.resultStateRefs,
+      transitionRefs: matchedTransitionRefs,
+    });
+  }
 
   const execution: StepExecutionReceipt = {
     version: 1,
@@ -371,7 +631,7 @@ export async function runScenarioStep(
     },
     fingerprints: {
       artifact: task.taskFingerprint,
-      knowledge: runtimeKnowledge.knowledgeFingerprint,
+      knowledge: agentContext.resolutionContext.knowledgeFingerprint,
       task: task.taskFingerprint,
       controls: null,
       content: context?.contentHash ?? null,
@@ -385,7 +645,7 @@ export async function runScenarioStep(
     governance: result.ok || recovery.recovered ? 'approved' : 'blocked',
     stepIndex: task.index,
     taskFingerprint: task.taskFingerprint,
-    knowledgeFingerprint: runtimeKnowledge.knowledgeFingerprint,
+    knowledgeFingerprint: agentContext.resolutionContext.knowledgeFingerprint,
     runAt,
     mode: environment.mode,
     widgetContract: firstOutcome?.widgetContract ?? null,
@@ -393,6 +653,13 @@ export async function runScenarioStep(
     locatorRung: firstOutcome?.locatorRung ?? null,
     degraded: Boolean(firstOutcome?.observedEffects.includes('degraded-locator')),
     preconditionFailures,
+    requiredStateRefs: task.grounding.requiredStateRefs,
+    forbiddenStateRefs: task.grounding.forbiddenStateRefs,
+    effectAssertions: task.grounding.effectAssertions,
+    eventSignatureRefs: task.grounding.eventSignatureRefs,
+    expectedTransitionRefs: task.grounding.expectedTransitionRefs,
+    observedStateRefs,
+    transitionObservations,
     durationMs: completedAt - startedAt,
     timing,
     cost,
@@ -437,7 +704,6 @@ export async function runScenarioHandshake(
   environment: RuntimeScenarioEnvironment,
   state: ScenarioRunState,
   context?: { adoId: AdoId; artifactPath?: string | undefined; revision?: number | undefined; contentHash?: string | undefined },
-  runtimeKnowledgeSession?: RuntimeKnowledgeSession | undefined,
 ): Promise<ScenarioStepRunResult> {
-  return runScenarioStep(handshake.task, environment, state, context, handshake.runtimeKnowledgeSession);
+  return runScenarioStep(handshake.task, environment, state, context, handshake.resolutionContext);
 }

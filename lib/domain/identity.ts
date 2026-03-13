@@ -15,6 +15,9 @@ export type SnapshotTemplateId = Brand<string, 'SnapshotTemplateId'>;
 export type WidgetId = Brand<string, 'WidgetId'>;
 export type CanonicalTargetRef = Brand<string, 'CanonicalTargetRef'>;
 export type SelectorRef = Brand<string, 'SelectorRef'>;
+export type StateNodeRef = Brand<string, 'StateNodeRef'>;
+export type EventSignatureRef = Brand<string, 'EventSignatureRef'>;
+export type TransitionRef = Brand<string, 'TransitionRef'>;
 
 function normalizePathSeparators(value: string): string {
   return value.replace(/\\/g, '/');
@@ -89,5 +92,17 @@ export function createCanonicalTargetRef(value: string): CanonicalTargetRef {
 
 export function createSelectorRef(value: string): SelectorRef {
   return brandString<'SelectorRef'>(value);
+}
+
+export function createStateNodeRef(value: string): StateNodeRef {
+  return brandString<'StateNodeRef'>(value);
+}
+
+export function createEventSignatureRef(value: string): EventSignatureRef {
+  return brandString<'EventSignatureRef'>(value);
+}
+
+export function createTransitionRef(value: string): TransitionRef {
+  return brandString<'TransitionRef'>(value);
 }
 

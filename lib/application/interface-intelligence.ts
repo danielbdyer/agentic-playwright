@@ -1,5 +1,6 @@
 import path from 'path';
 import { Effect } from 'effect';
+import { SchemaError } from '../domain/errors';
 import {
   createCanonicalTargetRef,
   createElementId,
@@ -11,24 +12,33 @@ import {
   createSurfaceId,
   type CanonicalTargetRef,
   type ElementId,
+  type EventSignatureRef,
+  type PostureId,
   type RouteId,
   type RouteVariantId,
   type ScreenId,
   type SnapshotTemplateId,
+  type StateNodeRef,
   type SurfaceId,
+  type TransitionRef,
 } from '../domain/identity';
 import { graphIds } from '../domain/ids';
 import type {
   ApplicationInterfaceGraph,
   ArtifactConfidenceRecord,
   DiscoveryRun,
+  EventSignature,
   HarvestManifest,
   InterfaceGraphEdge,
   InterfaceGraphNode,
   LocatorStrategy,
+  ScreenBehavior,
   SelectorCanon,
   SelectorCanonEntry,
   SelectorProbe,
+  StateNode,
+  StateTransition,
+  StateTransitionGraph,
 } from '../domain/types';
 import { validateDiscoveryRun } from '../domain/validation';
 import { walkFiles } from './artifacts';
@@ -47,9 +57,11 @@ import { runProjection, type ProjectionIncremental } from './projections/runner'
 export interface InterfaceIntelligenceProjectionResult {
   interfaceGraph: ApplicationInterfaceGraph;
   selectorCanon: SelectorCanon;
+  stateGraph: StateTransitionGraph;
   discoveryRuns: ArtifactEnvelope<DiscoveryRun>[];
   interfaceGraphPath: string;
   selectorCanonPath: string;
+  stateGraphPath: string;
   incremental: ProjectionIncremental;
 }
 
@@ -94,6 +106,8 @@ type SelectorProbeSeed = {
   failureCount?: number | undefined;
   lastUsedAt?: string | null | undefined;
   lineage?: SelectorProbe['lineage'] | undefined;
+  validWhenStateRefs?: StateNodeRef[] | undefined;
+  invalidWhenStateRefs?: StateNodeRef[] | undefined;
 };
 
 function manifestPath(paths: ProjectPaths): string {
@@ -106,6 +120,18 @@ function sortStrings(values: Iterable<string>): string[] {
 
 function selectorValue(strategy: LocatorStrategy): string {
   return 'value' in strategy ? strategy.value : `${strategy.role}:${strategy.name ?? ''}`;
+}
+
+function stateNodeGraphId(ref: StateNodeRef): string {
+  return `state:${ref}`;
+}
+
+function eventSignatureGraphId(ref: EventSignatureRef): string {
+  return `event-signature:${ref}`;
+}
+
+function transitionGraphId(ref: TransitionRef): string {
+  return `transition:${ref}`;
 }
 
 function routeRef(app: string, routeId: RouteId): string {
@@ -275,6 +301,60 @@ function routeBindings(catalog: WorkspaceCatalog): RouteBinding[] {
   })).sort((left, right) => left.entryUrl.localeCompare(right.entryUrl));
 }
 
+function routeVariantRefsForScreen(routes: readonly RouteBinding[], screen: ScreenId): string[] {
+  return sortStrings(routes.flatMap((binding) =>
+    binding.variants
+      .filter((variant) => variant.screen === screen)
+      .map((variant) => routeVariantRef(binding.app, binding.routeId, variant.variantId)),
+  ));
+}
+
+function surfaceEntryForScreen(catalog: WorkspaceCatalog, screen: ScreenId) {
+  return catalog.surfaces.find((entry) => entry.artifact.screen === screen) ?? null;
+}
+
+function elementsEntryForScreen(catalog: WorkspaceCatalog, screen: ScreenId) {
+  return catalog.screenElements.find((entry) => entry.artifact.screen === screen) ?? null;
+}
+
+function hintsEntryForScreen(catalog: WorkspaceCatalog, screen: ScreenId) {
+  return catalog.screenHints.find((entry) => entry.artifact.screen === screen) ?? null;
+}
+
+function posturesEntryForScreen(catalog: WorkspaceCatalog, screen: ScreenId) {
+  return catalog.screenPostures.find((entry) => entry.artifact.screen === screen) ?? null;
+}
+
+function screenAliases(catalog: WorkspaceCatalog, screen: ScreenId): string[] {
+  const hints = hintsEntryForScreen(catalog, screen);
+  return sortStrings([screen, ...(hints?.artifact.screenAliases ?? [])]);
+}
+
+function screenKnowledgeRefs(catalog: WorkspaceCatalog, screen: ScreenId): string[] {
+  return sortStrings([
+    surfaceEntryForScreen(catalog, screen)?.artifactPath ?? '',
+    elementsEntryForScreen(catalog, screen)?.artifactPath ?? '',
+  ].filter((value) => value.length > 0));
+}
+
+function screenSupplementRefs(catalog: WorkspaceCatalog, screen: ScreenId): string[] {
+  return sortStrings([
+    hintsEntryForScreen(catalog, screen)?.artifactPath ?? '',
+    posturesEntryForScreen(catalog, screen)?.artifactPath ?? '',
+  ].filter((value) => value.length > 0));
+}
+
+function screenSectionSnapshots(catalog: WorkspaceCatalog, screen: ScreenId): SnapshotTemplateId[] {
+  const surfaceEntry = surfaceEntryForScreen(catalog, screen);
+  if (!surfaceEntry) {
+    return [];
+  }
+  return [...new Set(Object.values(surfaceEntry.artifact.sections)
+    .map((section) => section.snapshot)
+    .filter((value): value is SnapshotTemplateId => value !== null && value !== undefined))]
+    .sort((left, right) => left.localeCompare(right));
+}
+
 function targetDescriptors(input: {
   catalog: WorkspaceCatalog;
   discoveryRuns: readonly ArtifactEnvelope<DiscoveryRun>[];
@@ -293,7 +373,13 @@ function targetDescriptors(input: {
         source: 'approved-knowledge',
         snapshotTemplate,
         artifactPaths: [surfaceEntry.artifactPath],
-        payload: { section: sectionId, selector: section.selector },
+        payload: {
+          section: sectionId,
+          selector: section.selector,
+          aliases: [section.snapshot],
+          knowledgeRefs: screenKnowledgeRefs(input.catalog, surfaceEntry.artifact.screen),
+          supplementRefs: screenSupplementRefs(input.catalog, surfaceEntry.artifact.screen),
+        },
       });
     }
     for (const [surfaceId, surface] of Object.entries(surfaceEntry.artifact.surfaces)) {
@@ -305,13 +391,26 @@ function targetDescriptors(input: {
         source: 'approved-knowledge',
         surface: createSurfaceId(surfaceId),
         artifactPaths: [surfaceEntry.artifactPath],
-        payload: { section: surface.section, selector: surface.selector, assertions: surface.assertions },
+        payload: {
+          section: surface.section,
+          selector: surface.selector,
+          assertions: surface.assertions,
+          aliases: [surfaceId],
+          knowledgeRefs: screenKnowledgeRefs(input.catalog, surfaceEntry.artifact.screen),
+          supplementRefs: screenSupplementRefs(input.catalog, surfaceEntry.artifact.screen),
+        },
       });
     }
   }
 
   for (const elementsEntry of input.catalog.screenElements) {
     for (const [elementId, element] of Object.entries(elementsEntry.artifact.elements)) {
+      const hintsEntry = hintsEntryForScreen(input.catalog, elementsEntry.artifact.screen);
+      const posturesEntry = posturesEntryForScreen(input.catalog, elementsEntry.artifact.screen);
+      const hint = hintsEntry?.artifact.elements[elementId];
+      const postures = posturesEntry?.artifact.postures[elementId]
+        ? Object.keys(posturesEntry.artifact.postures[elementId]).sort((left, right) => left.localeCompare(right)) as PostureId[]
+        : [];
       const targetRef = elementTargetRef(elementsEntry.artifact.screen, createElementId(elementId));
       descriptors.set(targetRef, {
         targetRef,
@@ -321,7 +420,21 @@ function targetDescriptors(input: {
         surface: element.surface,
         element: createElementId(elementId),
         artifactPaths: [elementsEntry.artifactPath],
-        payload: { role: element.role, name: element.name ?? null, widget: element.widget },
+        payload: {
+          role: element.role,
+          name: element.name ?? null,
+          widget: element.widget,
+          affordance: element.affordance ?? hint?.affordance ?? null,
+          required: element.required ?? false,
+          aliases: sortStrings([elementId, element.name ?? '', ...(hint?.aliases ?? [])].filter((value) => value.length > 0)),
+          locatorStrategies: element.locator ?? [],
+          postures,
+          defaultValueRef: hint?.defaultValueRef ?? null,
+          parameter: hint?.parameter ?? null,
+          snapshotAliases: hint?.snapshotAliases ?? {},
+          knowledgeRefs: screenKnowledgeRefs(input.catalog, elementsEntry.artifact.screen),
+          supplementRefs: screenSupplementRefs(input.catalog, elementsEntry.artifact.screen),
+        },
       });
     }
   }
@@ -336,6 +449,8 @@ function targetDescriptors(input: {
             ? snapshotTargetRef(target.screen, target.snapshotTemplate)
             : discoveredTargetRef(target.screen, target.kind, target.graphNodeId);
       const existing = descriptors.get(targetRef);
+      const discoveryElement = discoveryEntry.artifact.elements.find((entry) => entry.targetRef === targetRef) ?? null;
+      const discoverySurface = discoveryEntry.artifact.surfaces.find((entry) => entry.targetRef === targetRef) ?? null;
       descriptors.set(targetRef, {
         targetRef,
         screen: target.screen,
@@ -345,12 +460,243 @@ function targetDescriptors(input: {
         element: target.element ?? existing?.element ?? null,
         snapshotTemplate: target.snapshotTemplate ?? existing?.snapshotTemplate ?? null,
         artifactPaths: sortStrings([...(existing?.artifactPaths ?? []), discoveryEntry.artifactPath]),
-        payload: { ...(existing?.payload ?? {}), graphNodeId: target.graphNodeId, discoveryRunId: discoveryEntry.artifact.runId },
+        payload: {
+          ...(existing?.payload ?? {}),
+          graphNodeId: target.graphNodeId,
+          discoveryRunId: discoveryEntry.artifact.runId,
+          aliases: sortStrings([
+            ...(((existing?.payload ?? {}) as { aliases?: string[] }).aliases ?? []),
+            discoveryElement?.id ?? '',
+            discoveryElement?.name ?? '',
+            discoverySurface?.id ?? '',
+            discoverySurface?.name ?? '',
+          ].filter((value) => value.length > 0)),
+          role: discoveryElement?.role ?? discoverySurface?.role ?? (((existing?.payload ?? {}) as { role?: string | null }).role ?? null),
+          name: discoveryElement?.name ?? discoverySurface?.name ?? (((existing?.payload ?? {}) as { name?: string | null }).name ?? null),
+          widget: discoveryElement?.widget ?? (((existing?.payload ?? {}) as { widget?: string | null }).widget ?? null),
+          required: discoveryElement?.required ?? (((existing?.payload ?? {}) as { required?: boolean }).required ?? false),
+          locatorStrategies: discoveryElement?.locatorCandidates ?? (((existing?.payload ?? {}) as { locatorStrategies?: LocatorStrategy[] }).locatorStrategies ?? []),
+          knowledgeRefs: ((existing?.payload ?? {}) as { knowledgeRefs?: string[] }).knowledgeRefs ?? [],
+          supplementRefs: ((existing?.payload ?? {}) as { supplementRefs?: string[] }).supplementRefs ?? [],
+        },
       });
     }
   }
 
   return [...descriptors.values()].sort((left, right) => left.targetRef.localeCompare(right.targetRef));
+}
+
+function behaviorRecords(catalog: WorkspaceCatalog): Array<{
+  artifactPath: string;
+  artifact: ScreenBehavior | { stateNodes: StateNode[]; eventSignatures: EventSignature[]; transitions: StateTransition[] };
+}> {
+  return [
+    ...catalog.screenBehaviors.map((entry) => ({ artifactPath: entry.artifactPath, artifact: entry.artifact })),
+    ...catalog.behaviorPatterns.map((entry) => ({ artifactPath: entry.artifactPath, artifact: entry.artifact })),
+  ].sort((left, right) => left.artifactPath.localeCompare(right.artifactPath));
+}
+
+function stateIdentityKey(state: StateNode): string {
+  return [
+    state.screen,
+    state.scope,
+    state.targetRef ?? '',
+    [...state.routeVariantRefs].sort((left, right) => left.localeCompare(right)).join('|'),
+    [...state.predicates]
+      .map((predicate) => JSON.stringify(predicate))
+      .sort((left, right) => left.localeCompare(right))
+      .join('|'),
+  ].join('::');
+}
+
+function eventIdentityKey(event: EventSignature): string {
+  return [
+    event.screen,
+    event.targetRef,
+    event.dispatch.action,
+    event.dispatch.sampleValue ?? '',
+  ].join('::');
+}
+
+function transitionSemanticKey(transition: StateTransition): string {
+  return [
+    transition.screen,
+    transition.eventSignatureRef,
+    [...transition.sourceStateRefs].sort((left, right) => left.localeCompare(right)).join('|'),
+    [...transition.targetStateRefs].sort((left, right) => left.localeCompare(right)).join('|'),
+    transition.effectKind,
+  ].join('::');
+}
+
+function assertNoSupportCycles(events: readonly EventSignature[]): void {
+  const adjacency = new Map<StateNodeRef, StateNodeRef[]>();
+  for (const event of events) {
+    for (const resultStateRef of event.effects.resultStateRefs) {
+      adjacency.set(resultStateRef, [
+        ...(adjacency.get(resultStateRef) ?? []),
+        ...event.requiredStateRefs,
+      ]);
+    }
+  }
+
+  const visiting = new Set<StateNodeRef>();
+  const visited = new Set<StateNodeRef>();
+
+  const visit = (stateRef: StateNodeRef, lineage: StateNodeRef[]): void => {
+    if (visited.has(stateRef)) {
+      return;
+    }
+    if (visiting.has(stateRef)) {
+      throw new SchemaError(`support cycle detected: ${[...lineage, stateRef].join(' -> ')}`, 'stateTransitionGraph.transitions');
+    }
+    visiting.add(stateRef);
+    for (const next of adjacency.get(stateRef) ?? []) {
+      visit(next, [...lineage, stateRef]);
+    }
+    visiting.delete(stateRef);
+    visited.add(stateRef);
+  };
+
+  for (const stateRef of adjacency.keys()) {
+    visit(stateRef, []);
+  }
+}
+
+function assertMergedTopologyIntegrity(input: {
+  states: readonly StateNode[];
+  events: readonly EventSignature[];
+  transitions: readonly StateTransition[];
+}): void {
+  const transitionRefBySemanticKey = new Map<string, TransitionRef>();
+  for (const transition of input.transitions) {
+    const semanticKey = transitionSemanticKey(transition);
+    const existing = transitionRefBySemanticKey.get(semanticKey);
+    if (existing && existing !== transition.ref) {
+      throw new SchemaError(`duplicate transition semantics detected for ${existing} and ${transition.ref}`, 'stateTransitionGraph.transitions');
+    }
+    transitionRefBySemanticKey.set(semanticKey, transition.ref);
+  }
+  assertNoSupportCycles(input.events);
+}
+
+function buildStateTransitionGraph(input: {
+  catalog: WorkspaceCatalog;
+  discoveryRuns: readonly ArtifactEnvelope<DiscoveryRun>[];
+}): StateTransitionGraph {
+  const states = new Map<StateNodeRef, StateNode>();
+  const events = new Map<EventSignatureRef, EventSignature>();
+  const transitions = new Map<TransitionRef, StateTransition>();
+  const observations = [
+    ...input.discoveryRuns.flatMap((entry) => entry.artifact.transitionObservations ?? []),
+    ...input.catalog.runRecords.flatMap((entry) => entry.artifact.steps.flatMap((step) => step.execution.transitionObservations ?? [])),
+  ]
+    .sort((left, right) => left.observationId.localeCompare(right.observationId));
+
+  for (const entry of behaviorRecords(input.catalog)) {
+    for (const state of entry.artifact.stateNodes) {
+      const existing = states.get(state.ref);
+      if (existing && stateIdentityKey(existing) !== stateIdentityKey(state)) {
+        throw new SchemaError(`state ref ${state.ref} has conflicting identity across behavior artifacts`, entry.artifactPath);
+      }
+      states.set(state.ref, existing ? {
+        ...existing,
+        aliases: sortStrings([...(existing.aliases ?? []), ...(state.aliases ?? [])]),
+        routeVariantRefs: sortStrings([...(existing.routeVariantRefs ?? []), ...(state.routeVariantRefs ?? [])]),
+        predicates: [...existing.predicates, ...state.predicates],
+        provenance: sortStrings([...(existing.provenance ?? []), entry.artifactPath, ...state.provenance]),
+      } : {
+        ...state,
+        aliases: sortStrings(state.aliases),
+        routeVariantRefs: sortStrings(state.routeVariantRefs),
+        provenance: sortStrings([entry.artifactPath, ...state.provenance]),
+      });
+    }
+    for (const event of entry.artifact.eventSignatures) {
+      const existing = events.get(event.ref);
+      if (existing && eventIdentityKey(existing) !== eventIdentityKey(event)) {
+        throw new SchemaError(`event ref ${event.ref} has conflicting identity across behavior artifacts`, entry.artifactPath);
+      }
+      events.set(event.ref, existing ? {
+        ...existing,
+        aliases: sortStrings([...(existing.aliases ?? []), ...(event.aliases ?? [])]),
+        requiredStateRefs: sortStrings([...(existing.requiredStateRefs ?? []), ...(event.requiredStateRefs ?? [])]) as StateNodeRef[],
+        forbiddenStateRefs: sortStrings([...(existing.forbiddenStateRefs ?? []), ...(event.forbiddenStateRefs ?? [])]) as StateNodeRef[],
+        effects: {
+          transitionRefs: sortStrings([...(existing.effects.transitionRefs ?? []), ...(event.effects.transitionRefs ?? [])]) as TransitionRef[],
+          resultStateRefs: sortStrings([...(existing.effects.resultStateRefs ?? []), ...(event.effects.resultStateRefs ?? [])]) as StateNodeRef[],
+          observableEffects: sortStrings([...(existing.effects.observableEffects ?? []), ...(event.effects.observableEffects ?? [])]),
+          assertions: sortStrings([...(existing.effects.assertions ?? []), ...(event.effects.assertions ?? [])]),
+        },
+        provenance: sortStrings([...(existing.provenance ?? []), entry.artifactPath, ...event.provenance]),
+      } : {
+        ...event,
+        aliases: sortStrings(event.aliases),
+        requiredStateRefs: sortStrings(event.requiredStateRefs) as StateNodeRef[],
+        forbiddenStateRefs: sortStrings(event.forbiddenStateRefs) as StateNodeRef[],
+        effects: {
+          transitionRefs: sortStrings(event.effects.transitionRefs) as TransitionRef[],
+          resultStateRefs: sortStrings(event.effects.resultStateRefs) as StateNodeRef[],
+          observableEffects: sortStrings(event.effects.observableEffects),
+          assertions: sortStrings(event.effects.assertions),
+        },
+        provenance: sortStrings([entry.artifactPath, ...event.provenance]),
+      });
+    }
+    for (const transition of entry.artifact.transitions) {
+      const existing = transitions.get(transition.ref);
+      transitions.set(transition.ref, existing ? {
+        ...existing,
+        aliases: sortStrings([...(existing.aliases ?? []), ...(transition.aliases ?? [])]),
+        sourceStateRefs: sortStrings([...(existing.sourceStateRefs ?? []), ...(transition.sourceStateRefs ?? [])]) as StateNodeRef[],
+        targetStateRefs: sortStrings([...(existing.targetStateRefs ?? []), ...(transition.targetStateRefs ?? [])]) as StateNodeRef[],
+        observableEffects: sortStrings([...(existing.observableEffects ?? []), ...(transition.observableEffects ?? [])]),
+        provenance: sortStrings([...(existing.provenance ?? []), entry.artifactPath, ...transition.provenance]),
+      } : {
+        ...transition,
+        aliases: sortStrings(transition.aliases),
+        sourceStateRefs: sortStrings(transition.sourceStateRefs) as StateNodeRef[],
+        targetStateRefs: sortStrings(transition.targetStateRefs) as StateNodeRef[],
+        observableEffects: sortStrings(transition.observableEffects),
+        provenance: sortStrings([entry.artifactPath, ...transition.provenance]),
+      });
+    }
+  }
+
+  assertMergedTopologyIntegrity({
+    states: [...states.values()],
+    events: [...events.values()],
+    transitions: [...transitions.values()],
+  });
+
+  const graph = {
+    kind: 'state-transition-graph' as const,
+    version: 1 as const,
+    generatedAt: latestDeterministicTimestamp({
+      discoveryRuns: input.discoveryRuns,
+      confidenceRecords: input.catalog.confidenceCatalog?.artifact.records ?? [],
+    }),
+    fingerprint: '',
+    stateRefs: [...states.keys()].sort((left, right) => left.localeCompare(right)),
+    eventSignatureRefs: [...events.keys()].sort((left, right) => left.localeCompare(right)),
+    transitionRefs: [...transitions.keys()].sort((left, right) => left.localeCompare(right)),
+    states: [...states.values()].sort((left, right) => left.ref.localeCompare(right.ref)),
+    eventSignatures: [...events.values()].sort((left, right) => left.ref.localeCompare(right.ref)),
+    transitions: [...transitions.values()].sort((left, right) => left.ref.localeCompare(right.ref)),
+    observations,
+  };
+
+  return {
+    ...graph,
+    fingerprint: fingerprintProjectionOutput({
+      stateRefs: graph.stateRefs,
+      eventSignatureRefs: graph.eventSignatureRefs,
+      transitionRefs: graph.transitionRefs,
+      states: graph.states,
+      eventSignatures: graph.eventSignatures,
+      transitions: graph.transitions,
+      observations: graph.observations,
+    }),
+  };
 }
 
 function matchingConfidenceRecord(input: {
@@ -369,9 +715,32 @@ function selectorStatus(input: { confidenceRecord: ArtifactConfidenceRecord | nu
   return input.strategy.kind === 'css' ? 'unverified' : 'healthy';
 }
 
+function selectorStateApplicability(stateGraph: StateTransitionGraph, targetRef: CanonicalTargetRef) {
+  const valid = new Set<StateNodeRef>();
+  const invalid = new Set<StateNodeRef>();
+  for (const state of stateGraph.states) {
+    if (state.targetRef !== targetRef) {
+      continue;
+    }
+    for (const predicate of state.predicates) {
+      if (['visible', 'enabled', 'open', 'expanded', 'active-route', 'active-modal', 'populated', 'valid'].includes(predicate.kind)) {
+        valid.add(state.ref);
+      }
+      if (['hidden', 'disabled', 'closed', 'collapsed', 'cleared', 'invalid'].includes(predicate.kind)) {
+        invalid.add(state.ref);
+      }
+    }
+  }
+  return {
+    validWhenStateRefs: [...valid].sort((left, right) => left.localeCompare(right)),
+    invalidWhenStateRefs: [...invalid].sort((left, right) => left.localeCompare(right)),
+  };
+}
+
 function buildApplicationInterfaceGraph(_input: {
   catalog: WorkspaceCatalog;
   discoveryRuns: readonly ArtifactEnvelope<DiscoveryRun>[];
+  stateGraph: StateTransitionGraph;
 }): ApplicationInterfaceGraph {
   const input = _input;
   const nodes = new Map<string, InterfaceGraphNode>();
@@ -442,7 +811,14 @@ function buildApplicationInterfaceGraph(_input: {
       artifactPaths: [surfaceEntry.artifactPath],
       source: 'approved-knowledge',
       screen: surfaceGraph.screen,
-      payload: { url: surfaceGraph.url },
+      payload: {
+        url: surfaceGraph.url,
+        aliases: screenAliases(input.catalog, surfaceGraph.screen),
+        routeVariantRefs: routeVariantRefsForScreen(routes, surfaceGraph.screen),
+        knowledgeRefs: screenKnowledgeRefs(input.catalog, surfaceGraph.screen),
+        supplementRefs: screenSupplementRefs(input.catalog, surfaceGraph.screen),
+        sectionSnapshots: screenSectionSnapshots(input.catalog, surfaceGraph.screen),
+      },
     }));
 
     for (const [sectionId, section] of Object.entries(surfaceGraph.sections)) {
@@ -534,7 +910,12 @@ function buildApplicationInterfaceGraph(_input: {
       element: target.element ?? null,
       snapshotTemplate: target.snapshotTemplate ?? null,
       targetRef: target.targetRef,
-      payload: { kind: target.kind, ...(target.payload ?? {}) },
+      payload: {
+        kind: target.kind,
+        routeVariantRefs: routeVariantRefsForScreen(routes, target.screen),
+        sectionSnapshots: screenSectionSnapshots(input.catalog, target.screen),
+        ...(target.payload ?? {}),
+      },
     }));
   }
 
@@ -589,9 +970,120 @@ function buildApplicationInterfaceGraph(_input: {
     }
   }
 
+  for (const state of input.stateGraph.states) {
+    upsertNode(nodes, createNode({
+      id: stateNodeGraphId(state.ref),
+      kind: 'state',
+      label: state.label,
+      artifactPaths: state.provenance,
+      source: 'approved-knowledge',
+      screen: state.screen,
+      targetRef: state.targetRef ?? null,
+      payload: {
+        aliases: state.aliases,
+        scope: state.scope,
+        routeVariantRefs: state.routeVariantRefs,
+        predicates: state.predicates,
+      },
+    }));
+    upsertEdge(edges, createEdge({
+      kind: 'contains',
+      from: graphIds.screen(state.screen),
+      to: stateNodeGraphId(state.ref),
+      lineage: state.provenance,
+    }));
+    if (state.targetRef) {
+      upsertEdge(edges, createEdge({
+        kind: 'references-target',
+        from: stateNodeGraphId(state.ref),
+        to: graphIds.target(state.targetRef),
+        lineage: state.provenance,
+      }));
+    }
+  }
+
+  for (const event of input.stateGraph.eventSignatures) {
+    upsertNode(nodes, createNode({
+      id: eventSignatureGraphId(event.ref),
+      kind: 'event-signature',
+      label: event.label,
+      artifactPaths: event.provenance,
+      source: 'approved-knowledge',
+      screen: event.screen,
+      targetRef: event.targetRef,
+      payload: {
+        aliases: event.aliases,
+        dispatch: event.dispatch,
+        requiredStateRefs: event.requiredStateRefs,
+        forbiddenStateRefs: event.forbiddenStateRefs,
+        effects: event.effects,
+        observationPlan: event.observationPlan,
+      },
+    }));
+    upsertEdge(edges, createEdge({
+      kind: 'contains',
+      from: graphIds.screen(event.screen),
+      to: eventSignatureGraphId(event.ref),
+      lineage: event.provenance,
+    }));
+    upsertEdge(edges, createEdge({
+      kind: 'references-target',
+      from: eventSignatureGraphId(event.ref),
+      to: graphIds.target(event.targetRef),
+      lineage: event.provenance,
+    }));
+    for (const stateRef of [...event.requiredStateRefs, ...event.forbiddenStateRefs]) {
+      upsertEdge(edges, createEdge({
+        kind: 'requires-state',
+        from: eventSignatureGraphId(event.ref),
+        to: stateNodeGraphId(stateRef),
+        lineage: event.provenance,
+      }));
+    }
+  }
+
+  for (const transition of input.stateGraph.transitions) {
+    upsertNode(nodes, createNode({
+      id: transitionGraphId(transition.ref),
+      kind: 'transition',
+      label: transition.label,
+      artifactPaths: transition.provenance,
+      source: 'approved-knowledge',
+      screen: transition.screen,
+      payload: {
+        aliases: transition.aliases,
+        effectKind: transition.effectKind,
+        observableEffects: transition.observableEffects,
+        eventSignatureRef: transition.eventSignatureRef,
+        sourceStateRefs: transition.sourceStateRefs,
+        targetStateRefs: transition.targetStateRefs,
+      },
+    }));
+    upsertEdge(edges, createEdge({
+      kind: 'contains',
+      from: graphIds.screen(transition.screen),
+      to: transitionGraphId(transition.ref),
+      lineage: transition.provenance,
+    }));
+    upsertEdge(edges, createEdge({
+      kind: 'causes-transition',
+      from: eventSignatureGraphId(transition.eventSignatureRef),
+      to: transitionGraphId(transition.ref),
+      lineage: transition.provenance,
+    }));
+    for (const stateRef of transition.targetStateRefs) {
+      upsertEdge(edges, createEdge({
+        kind: 'results-in-state',
+        from: transitionGraphId(transition.ref),
+        to: stateNodeGraphId(stateRef),
+        lineage: transition.provenance,
+      }));
+    }
+  }
+
   const graph = {
     kind: 'application-interface-graph' as const,
-    version: 1 as const,
+    version: 2 as const,
     generatedAt: latestDeterministicTimestamp({
       discoveryRuns: input.discoveryRuns,
       confidenceRecords: input.catalog.confidenceCatalog?.artifact.records ?? [],
@@ -603,6 +1095,9 @@ function buildApplicationInterfaceGraph(_input: {
       binding.variants.map((variant) => routeVariantRef(binding.app, binding.routeId, variant.variantId)),
     )),
     targetRefs: [...targetRefs].sort((left, right) => left.localeCompare(right)),
+    stateRefs: input.stateGraph.stateRefs,
+    eventSignatureRefs: input.stateGraph.eventSignatureRefs,
+    transitionRefs: input.stateGraph.transitionRefs,
     nodes: [...nodes.values()].sort((left, right) => left.id.localeCompare(right.id)),
     edges: [...edges.values()].sort((left, right) => left.id.localeCompare(right.id)),
   };
@@ -614,6 +1109,9 @@ function buildApplicationInterfaceGraph(_input: {
       routeRefs: graph.routeRefs,
       routeVariantRefs: graph.routeVariantRefs,
       targetRefs: graph.targetRefs,
+      stateRefs: graph.stateRefs,
+      eventSignatureRefs: graph.eventSignatureRefs,
+      transitionRefs: graph.transitionRefs,
       nodes: graph.nodes,
       edges: graph.edges,
     }),
@@ -624,6 +1122,7 @@ function buildSelectorCanon(_input: {
   catalog: WorkspaceCatalog;
   discoveryRuns: readonly ArtifactEnvelope<DiscoveryRun>[];
   interfaceGraph: ApplicationInterfaceGraph;
+  stateGraph: StateTransitionGraph;
 }): SelectorCanon {
   const input = _input;
   const descriptors = new Map<CanonicalTargetRef, TargetDescriptor>(
@@ -700,6 +1199,8 @@ function buildSelectorCanon(_input: {
         artifactPath: discoveryEntry.artifactPath,
         variantRefs: [probe.variantRef],
         discoveredFrom: discoveryEntry.artifact.runId,
+        validWhenStateRefs: probe.validWhenStateRefs,
+        invalidWhenStateRefs: probe.invalidWhenStateRefs,
         lineage: {
           sourceArtifactPaths: [discoveryEntry.artifactPath],
           discoveryRunIds: [discoveryEntry.artifact.runId],
@@ -724,6 +1225,8 @@ function buildSelectorCanon(_input: {
       rung: seed.rung,
       artifactPath: seed.artifactPath,
       variantRefs: sortStrings(seed.variantRefs ?? []),
+      validWhenStateRefs: sortStrings(seed.validWhenStateRefs ?? selectorStateApplicability(input.stateGraph, seed.targetRef).validWhenStateRefs) as StateNodeRef[],
+      invalidWhenStateRefs: sortStrings(seed.invalidWhenStateRefs ?? selectorStateApplicability(input.stateGraph, seed.targetRef).invalidWhenStateRefs) as StateNodeRef[],
       discoveredFrom: seed.discoveredFrom ?? null,
       evidenceRefs: sortStrings(seed.evidenceRefs ?? []),
       successCount: seed.successCount ?? 0,
@@ -803,14 +1306,17 @@ export function projectInterfaceIntelligence(options: { paths: ProjectPaths; cat
       ...catalog.screenElements.map((entry) => fingerprintProjectionArtifact('elements', entry.artifactPath, entry.artifact)),
       ...catalog.screenHints.map((entry) => fingerprintProjectionArtifact('hints', entry.artifactPath, entry.artifact)),
       ...catalog.screenPostures.map((entry) => fingerprintProjectionArtifact('postures', entry.artifactPath, entry.artifact)),
+      ...catalog.screenBehaviors.map((entry) => fingerprintProjectionArtifact('screen-behavior', entry.artifactPath, entry.artifact)),
       ...catalog.patternDocuments.map((entry) => fingerprintProjectionArtifact('patterns', entry.artifactPath, entry.artifact)),
+      ...catalog.behaviorPatterns.map((entry) => fingerprintProjectionArtifact('behavior-pattern', entry.artifactPath, entry.artifact)),
       ...catalog.evidenceRecords.map((entry) => fingerprintProjectionArtifact('evidence', entry.artifactPath, entry.artifact)),
       ...(catalog.confidenceCatalog ? [fingerprintProjectionArtifact('confidence-overlay-catalog', catalog.confidenceCatalog.artifactPath, catalog.confidenceCatalog.artifact)] : []),
       ...discoveryRuns.map((entry) => fingerprintProjectionArtifact('discovery-run', entry.artifactPath, entry.artifact)),
     ];
-    const interfaceGraph = buildApplicationInterfaceGraph({ catalog, discoveryRuns });
-    const selectorCanon = buildSelectorCanon({ catalog, discoveryRuns, interfaceGraph });
-    const outputFingerprint = fingerprintProjectionOutput({ interfaceGraph, selectorCanon });
+    const stateGraph = buildStateTransitionGraph({ catalog, discoveryRuns });
+    const interfaceGraph = buildApplicationInterfaceGraph({ catalog, discoveryRuns, stateGraph });
+    const selectorCanon = buildSelectorCanon({ catalog, discoveryRuns, interfaceGraph, stateGraph });
+    const outputFingerprint = fingerprintProjectionOutput({ interfaceGraph, selectorCanon, stateGraph });
 
     return yield* runProjection({
       projection: 'interface-intelligence',
@@ -820,28 +1326,34 @@ export function projectInterfaceIntelligence(options: { paths: ProjectPaths; cat
       verifyPersistedOutput: (expectedOutputFingerprint) => Effect.gen(function* () {
         const interfaceExists = yield* fs.exists(options.paths.interfaceGraphIndexPath);
         const selectorExists = yield* fs.exists(options.paths.selectorCanonPath);
-        if (!interfaceExists || !selectorExists) return { status: 'missing-output' as const };
+        const stateGraphExists = yield* fs.exists(options.paths.stateGraphPath);
+        if (!interfaceExists || !selectorExists || !stateGraphExists) return { status: 'missing-output' as const };
         const persistedInterface = yield* fs.readJson(options.paths.interfaceGraphIndexPath);
         const persistedSelectors = yield* fs.readJson(options.paths.selectorCanonPath);
-        const persistedFingerprint = fingerprintProjectionOutput({ interfaceGraph: persistedInterface, selectorCanon: persistedSelectors });
+        const persistedStateGraph = yield* fs.readJson(options.paths.stateGraphPath);
+        const persistedFingerprint = fingerprintProjectionOutput({ interfaceGraph: persistedInterface, selectorCanon: persistedSelectors, stateGraph: persistedStateGraph });
         if (persistedFingerprint !== expectedOutputFingerprint) return { status: 'invalid-output' as const };
         return { status: 'ok' as const, outputFingerprint: persistedFingerprint };
       }),
       buildAndWrite: () => Effect.gen(function* () {
         yield* fs.writeJson(options.paths.interfaceGraphIndexPath, interfaceGraph);
         yield* fs.writeJson(options.paths.selectorCanonPath, selectorCanon);
+        yield* fs.writeJson(options.paths.stateGraphPath, stateGraph);
         return {
           result: {
             interfaceGraph,
             selectorCanon,
+            stateGraph,
             discoveryRuns,
             interfaceGraphPath: options.paths.interfaceGraphIndexPath,
             selectorCanonPath: options.paths.selectorCanonPath,
+            stateGraphPath: options.paths.stateGraphPath,
           },
           outputFingerprint,
           rewritten: [
             relativeProjectPath(options.paths, options.paths.interfaceGraphIndexPath),
             relativeProjectPath(options.paths, options.paths.selectorCanonPath),
+            relativeProjectPath(options.paths, options.paths.stateGraphPath),
             relativeProjectPath(options.paths, manifestPath(options.paths)),
           ],
         };
@@ -849,9 +1361,11 @@ export function projectInterfaceIntelligence(options: { paths: ProjectPaths; cat
       withCacheHit: (incremental) => ({
         interfaceGraph,
         selectorCanon,
+        stateGraph,
         discoveryRuns,
         interfaceGraphPath: options.paths.interfaceGraphIndexPath,
         selectorCanonPath: options.paths.selectorCanonPath,
+        stateGraphPath: options.paths.stateGraphPath,
         incremental,
       }),
       withCacheMiss: (built, incremental) => ({ ...built, incremental }),

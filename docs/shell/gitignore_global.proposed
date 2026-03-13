@@ -1,0 +1,15 @@
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+*.tmp
+*.log
+.direnv/
+.env
+.env.*
+.python-version
+.tool-versions
+node_modules/
+dist/
+coverage/

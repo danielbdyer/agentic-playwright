@@ -4,7 +4,7 @@ import { uniqueSorted } from './shared';
 import type { RuntimeStepAgentContext } from './types';
 
 export function selectedRunbook(task: StepTask, context: RuntimeStepAgentContext) {
-  const runbooks = task.runtimeKnowledge!.controls.runbooks;
+  const runbooks = context.resolutionContext.controls.runbooks;
   return chooseByPrecedence([
     { rung: 'cli-flag', value: runbooks.find((entry) => entry.name === context.controlSelection?.runbook) ?? null },
     { rung: 'runbook', value: runbooks.find((entry) => entry.isDefault) ?? null },
@@ -15,7 +15,7 @@ export function selectedRunbook(task: StepTask, context: RuntimeStepAgentContext
 export function selectedControlResolution(task: StepTask, context: RuntimeStepAgentContext): StepResolution | null {
   const runbook = selectedRunbook(task, context);
   const selectedName = context.controlSelection?.resolutionControl ?? runbook?.resolutionControl ?? null;
-  const scoped = task.runtimeKnowledge!.controls.resolutionControls.filter((entry) => entry.stepIndex === task.index);
+  const scoped = context.resolutionContext.controls.resolutionControls.filter((entry) => entry.stepIndex === task.index);
   const selected = selectedName
     ? scoped.find((entry) => entry.name === selectedName) ?? null
     : null;
@@ -29,7 +29,7 @@ export function selectedControlResolution(task: StepTask, context: RuntimeStepAg
 export function selectedDomExplorationPolicy(task: StepTask, context: RuntimeStepAgentContext) {
   const runbook = selectedRunbook(task, context);
   const selectedName = context.controlSelection?.resolutionControl ?? runbook?.resolutionControl ?? null;
-  const scoped = task.runtimeKnowledge!.controls.resolutionControls.filter((entry) => entry.stepIndex === task.index);
+  const scoped = context.resolutionContext.controls.resolutionControls.filter((entry) => entry.stepIndex === task.index);
   const selected = selectedName
     ? scoped.find((entry) => entry.name === selectedName) ?? null
     : null;
@@ -37,7 +37,7 @@ export function selectedDomExplorationPolicy(task: StepTask, context: RuntimeSte
 }
 
 export function selectedDataset(task: StepTask, context: RuntimeStepAgentContext) {
-  const datasets = task.runtimeKnowledge!.controls.datasets;
+  const datasets = context.resolutionContext.controls.datasets;
   const runbook = selectedRunbook(task, context);
   return chooseByPrecedence([
     { rung: 'explicit', value: datasets.find((entry) => entry.name === context.controlSelection?.dataset) ?? null },
@@ -53,7 +53,7 @@ export function selectedControlRefs(task: StepTask, context: RuntimeStepAgentCon
   const dataset = selectedDataset(task, context);
   const resolutionControlName = context.controlSelection?.resolutionControl ?? runbook?.resolutionControl ?? null;
   const resolutionControl = resolutionControlName
-    ? task.runtimeKnowledge!.controls.resolutionControls.find((entry) => entry.name === resolutionControlName)
+    ? context.resolutionContext.controls.resolutionControls.find((entry) => entry.name === resolutionControlName)
     : null;
 
   if (runbook) {

@@ -3,6 +3,7 @@
   AssertionKind,
   BenchmarkContext,
   BenchmarkScorecard,
+  BehaviorPatternDocument,
   BoundScenario,
   BoundStep,
   CompilerDiagnostic,
@@ -11,6 +12,7 @@
   DerivedGraph,
   EffectTargetKind,
   ElementSig,
+  EventSignature,
   Governance,
   LocatorStrategy,
   DogfoodRun,
@@ -25,6 +27,7 @@
   RerunPlan,
   RunRecord,
   RunbookControl,
+  ScreenBehavior,
   InterpretationDriftRecord,
   Scenario,
   ScenarioMetadata,
@@ -36,6 +39,8 @@
   ScreenElements,
   ScreenHints,
   ScreenPostures,
+  StateNode,
+  StateTransition,
   SharedPatterns,
   StepAction,
   StepBindingKind,
@@ -70,13 +75,16 @@ import {
   createAdoId,
   createCanonicalTargetRef,
   createElementId,
+  createEventSignatureRef,
   createFixtureId,
   createPostureId,
   createScreenId,
   createSelectorRef,
   createSectionId,
   createSnapshotTemplateId,
+  createStateNodeRef,
   createSurfaceId,
+  createTransitionRef,
   createWidgetId,
   ensureSafeRelativePathLike,
 } from '../identity';
@@ -107,6 +115,7 @@ const surfaceKinds = ['screen-root', 'form', 'action-cluster', 'validation-regio
 const assertionKinds = ['state', 'structure'] as const;
 const effectTargetKinds = ['self', 'element', 'surface'] as const;
 const governanceStates = ['approved', 'review-required', 'blocked'] as const;
+const certificationStates = ['uncertified', 'certified'] as const;
 const locatorStrategyKinds = ['test-id', 'role-name', 'css'] as const;
 const effectStates = ['validation-error', 'required-error', 'disabled', 'enabled', 'visible', 'hidden'] as const;
 const widgetActions = ['click', 'fill', 'clear', 'get-value'] as const;
@@ -120,6 +129,8 @@ const workflowStages = ['preparation', 'resolution', 'execution', 'evidence', 'p
 const workflowScopes = ['scenario', 'step', 'run', 'suite', 'workspace', 'control'] as const;
 const workflowLanes = ['intent', 'knowledge', 'control', 'resolution', 'execution', 'governance', 'projection'] as const;
 const stepWinningSources = ['scenario-explicit', 'resolution-control', 'runbook-dataset', 'default-dataset', 'knowledge-hint', 'posture-sample', 'generated-token', 'approved-knowledge', 'approved-equivalent', 'prior-evidence', 'structured-translation', 'live-dom', 'none'] as const;
+const statePredicateSemantics = ['visible', 'hidden', 'enabled', 'disabled', 'valid', 'invalid', 'open', 'closed', 'expanded', 'collapsed', 'populated', 'cleared', 'active-route', 'active-modal'] as const;
+const transitionEffectKinds = ['reveal', 'hide', 'enable', 'disable', 'validate', 'invalidate', 'open', 'close', 'navigate', 'return', 'expand', 'collapse', 'populate', 'clear'] as const;
 
 function validateWorkflowEnvelopeIds(value: unknown, path: string): WorkflowEnvelopeIds {
   const ids = expectRecord(value ?? {}, path);
@@ -188,6 +199,38 @@ function validateWorkflowEnvelopeHeader<Stage extends WorkflowStage, Scope exten
     fingerprints: validateWorkflowEnvelopeFingerprints(value.fingerprints, `${path}.fingerprints`, defaults.artifactFingerprint),
     lineage: validateWorkflowEnvelopeLineage(value.lineage, `${path}.lineage`, defaults.lineage),
     governance: value.governance === undefined ? defaults.governance : expectEnum(value.governance, `${path}.governance`, governanceStates),
+  };
+}
+
+function validateCanonicalLineage(value: unknown, path: string) {
+  const lineage = expectRecord(value ?? {}, path);
+  return {
+    runIds: expectStringArray(lineage.runIds ?? [], `${path}.runIds`),
+    evidenceIds: expectStringArray(lineage.evidenceIds ?? [], `${path}.evidenceIds`),
+    sourceArtifactPaths: expectStringArray(lineage.sourceArtifactPaths ?? [], `${path}.sourceArtifactPaths`),
+    role: expectOptionalString(lineage.role, `${path}.role`) ?? null,
+    state: expectOptionalString(lineage.state, `${path}.state`) ?? null,
+    driftSeed: expectOptionalString(lineage.driftSeed, `${path}.driftSeed`) ?? null,
+  };
+}
+
+function validateCanonicalKnowledgeMetadata(value: unknown, path: string) {
+  const metadata = expectRecord(value, path);
+  return {
+    certification: expectEnum(metadata.certification, `${path}.certification`, certificationStates),
+    activatedAt: expectString(metadata.activatedAt, `${path}.activatedAt`),
+    certifiedAt: expectOptionalString(metadata.certifiedAt, `${path}.certifiedAt`) ?? null,
+    lineage: validateCanonicalLineage(metadata.lineage, `${path}.lineage`),
+  };
+}
+
+function validateProposalActivation(value: unknown, path: string) {
+  const activation = expectRecord(value ?? {}, path);
+  return {
+    status: expectEnum(activation.status ?? 'pending', `${path}.status`, ['pending', 'activated', 'blocked'] as const),
+    activatedAt: expectOptionalString(activation.activatedAt, `${path}.activatedAt`) ?? null,
+    certifiedAt: expectOptionalString(activation.certifiedAt, `${path}.certifiedAt`) ?? null,
+    reason: expectOptionalString(activation.reason, `${path}.reason`) ?? null,
   };
 }
 
@@ -739,7 +782,7 @@ function validateArtifactConfidenceRecord(value: unknown, path: string) {
   };
 }
 
-function validateRuntimeKnowledgeSession(value: unknown, path: string) {
+function validateInterfaceResolutionContext(value: unknown, path: string) {
   const session = expectRecord(value, path);
   return {
     knowledgeFingerprint: expectString(session.knowledgeFingerprint, `${path}.knowledgeFingerprint`),
@@ -825,14 +868,8 @@ function validateRuntimeKnowledgeSession(value: unknown, path: string) {
   };
 }
 
-function validateStepTask(value: unknown, path: string, sharedRuntimeKnowledge?: import('../types').RuntimeKnowledgeSession | undefined) {
+function validateStepTask(value: unknown, path: string) {
   const task = expectRecord(value, path);
-  const legacyRuntimeKnowledge = task.runtimeKnowledge === undefined
-    ? undefined
-    : validateRuntimeKnowledgeSession(task.runtimeKnowledge, `${path}.runtimeKnowledge`);
-  const knowledgeRef = task.knowledgeRef === undefined
-    ? undefined
-    : expectOptionalString(task.knowledgeRef, `${path}.knowledgeRef`) ?? null;
   return {
     index: expectNumber(task.index, `${path}.index`),
     intent: expectString(task.intent, `${path}.intent`),
@@ -848,26 +885,38 @@ function validateStepTask(value: unknown, path: string, sharedRuntimeKnowledge?:
     controlResolution: task.controlResolution === undefined || task.controlResolution === null
       ? null
       : validateStepResolution(task.controlResolution, `${path}.controlResolution`),
-    knowledgeRef,
-    runtimeKnowledge: legacyRuntimeKnowledge ?? (knowledgeRef === 'scenario' ? sharedRuntimeKnowledge : undefined),
-    grounding: task.grounding === undefined
-      ? undefined
-      : (() => {
-          const grounding = expectRecord(task.grounding, `${path}.grounding`);
-          return {
-            targetRefs: expectArray(grounding.targetRefs ?? [], `${path}.grounding.targetRefs`).map((entry, index) =>
-              expectId(entry, `${path}.grounding.targetRefs[${index}]`, createCanonicalTargetRef),
-            ),
-            selectorRefs: expectArray(grounding.selectorRefs ?? [], `${path}.grounding.selectorRefs`).map((entry, index) =>
-              expectId(entry, `${path}.grounding.selectorRefs[${index}]`, createSelectorRef),
-            ),
-            fallbackSelectorRefs: expectArray(grounding.fallbackSelectorRefs ?? [], `${path}.grounding.fallbackSelectorRefs`).map((entry, index) =>
-              expectId(entry, `${path}.grounding.fallbackSelectorRefs[${index}]`, createSelectorRef),
-            ),
-            routeVariantRefs: expectStringArray(grounding.routeVariantRefs ?? [], `${path}.grounding.routeVariantRefs`),
-            assertionAnchors: expectStringArray(grounding.assertionAnchors ?? [], `${path}.grounding.assertionAnchors`),
-          };
-        })(),
+    grounding: (() => {
+      const grounding = expectRecord(task.grounding, `${path}.grounding`);
+      return {
+        targetRefs: expectArray(grounding.targetRefs ?? [], `${path}.grounding.targetRefs`).map((entry, index) =>
+          expectId(entry, `${path}.grounding.targetRefs[${index}]`, createCanonicalTargetRef),
+        ),
+        selectorRefs: expectArray(grounding.selectorRefs ?? [], `${path}.grounding.selectorRefs`).map((entry, index) =>
+          expectId(entry, `${path}.grounding.selectorRefs[${index}]`, createSelectorRef),
+        ),
+        fallbackSelectorRefs: expectArray(grounding.fallbackSelectorRefs ?? [], `${path}.grounding.fallbackSelectorRefs`).map((entry, index) =>
+          expectId(entry, `${path}.grounding.fallbackSelectorRefs[${index}]`, createSelectorRef),
+        ),
+        routeVariantRefs: expectStringArray(grounding.routeVariantRefs ?? [], `${path}.grounding.routeVariantRefs`),
+        assertionAnchors: expectStringArray(grounding.assertionAnchors ?? [], `${path}.grounding.assertionAnchors`),
+        effectAssertions: expectStringArray(grounding.effectAssertions ?? [], `${path}.grounding.effectAssertions`),
+        requiredStateRefs: expectArray(grounding.requiredStateRefs ?? [], `${path}.grounding.requiredStateRefs`).map((entry, index) =>
+          expectId(entry, `${path}.grounding.requiredStateRefs[${index}]`, createStateNodeRef),
+        ),
+        forbiddenStateRefs: expectArray(grounding.forbiddenStateRefs ?? [], `${path}.grounding.forbiddenStateRefs`).map((entry, index) =>
+          expectId(entry, `${path}.grounding.forbiddenStateRefs[${index}]`, createStateNodeRef),
+        ),
+        eventSignatureRefs: expectArray(grounding.eventSignatureRefs ?? [], `${path}.grounding.eventSignatureRefs`).map((entry, index) =>
+          expectId(entry, `${path}.grounding.eventSignatureRefs[${index}]`, createEventSignatureRef),
+        ),
+        expectedTransitionRefs: expectArray(grounding.expectedTransitionRefs ?? [], `${path}.grounding.expectedTransitionRefs`).map((entry, index) =>
+          expectId(entry, `${path}.grounding.expectedTransitionRefs[${index}]`, createTransitionRef),
+        ),
+        resultStateRefs: expectArray(grounding.resultStateRefs ?? [], `${path}.grounding.resultStateRefs`).map((entry, index) =>
+          expectId(entry, `${path}.grounding.resultStateRefs[${index}]`, createStateNodeRef),
+        ),
+      };
+    })(),
     taskFingerprint: expectString(task.taskFingerprint, `${path}.taskFingerprint`),
   };
 }
@@ -883,8 +932,8 @@ export function validateScenarioTaskPacket(value: unknown): ScenarioTaskPacket {
     governance: 'approved',
     artifactFingerprint: expectOptionalString(packet.taskFingerprint, 'scenarioTaskPacket.taskFingerprint') ?? 'scenario-task-packet',
     ids: {
-      adoId: expectOptionalId(packet.ids && typeof packet.ids === 'object' ? (packet.ids as Record<string, unknown>).adoId : packet.adoId, 'scenarioTaskPacket.adoId', createAdoId) ?? null,
-      suite: expectOptionalString(packet.ids && typeof packet.ids === 'object' ? (packet.ids as Record<string, unknown>).suite : packet.suite, 'scenarioTaskPacket.suite') ?? null,
+      adoId: expectOptionalId(packet.ids && typeof packet.ids === 'object' ? (packet.ids as Record<string, unknown>).adoId : undefined, 'scenarioTaskPacket.ids.adoId', createAdoId) ?? null,
+      suite: expectOptionalString(packet.ids && typeof packet.ids === 'object' ? (packet.ids as Record<string, unknown>).suite : undefined, 'scenarioTaskPacket.ids.suite') ?? null,
     },
     lineage: {
       sources: [],
@@ -895,16 +944,14 @@ export function validateScenarioTaskPacket(value: unknown): ScenarioTaskPacket {
   return {
     kind: expectEnum(packet.kind, 'scenarioTaskPacket.kind', ['scenario-task-packet'] as const),
     ...header,
-    version: 4,
+    version: 5,
     payload: (() => {
-      const sharedRuntimeKnowledge = packet.runtimeKnowledgeSession === undefined && (!payloadRecord || payloadRecord.runtimeKnowledgeSession === undefined)
-        ? undefined
-        : validateRuntimeKnowledgeSession(packet.runtimeKnowledgeSession ?? payloadRecord?.runtimeKnowledgeSession, 'scenarioTaskPacket.runtimeKnowledgeSession');
-      const adoId = expectId(payloadRecord?.adoId ?? packet.adoId, 'scenarioTaskPacket.adoId', createAdoId);
-      const revision = expectNumber(payloadRecord?.revision ?? packet.revision, 'scenarioTaskPacket.revision');
-      const title = expectString(payloadRecord?.title ?? packet.title, 'scenarioTaskPacket.title');
-      const suite = ensureSafeRelativePathLike(expectString(payloadRecord?.suite ?? packet.suite, 'scenarioTaskPacket.suite'), 'scenarioTaskPacket.suite');
-      const knowledgeFingerprint = expectString(payloadRecord?.knowledgeFingerprint ?? packet.knowledgeFingerprint, 'scenarioTaskPacket.knowledgeFingerprint');
+      const payload = expectRecord(payloadRecord, 'scenarioTaskPacket.payload');
+      const adoId = expectId(payload.adoId, 'scenarioTaskPacket.payload.adoId', createAdoId);
+      const revision = expectNumber(payload.revision, 'scenarioTaskPacket.payload.revision');
+      const title = expectString(payload.title, 'scenarioTaskPacket.payload.title');
+      const suite = ensureSafeRelativePathLike(expectString(payload.suite, 'scenarioTaskPacket.payload.suite'), 'scenarioTaskPacket.payload.suite');
+      const knowledgeFingerprint = expectString(payload.knowledgeFingerprint, 'scenarioTaskPacket.payload.knowledgeFingerprint');
       return {
         adoId,
         revision,
@@ -912,32 +959,36 @@ export function validateScenarioTaskPacket(value: unknown): ScenarioTaskPacket {
         suite,
         knowledgeFingerprint,
         interface: (() => {
-          const interfaceRecord = expectRecord(payloadRecord?.interface ?? {
-            fingerprint: packet.interfaceGraphFingerprint ?? null,
-            artifactPath: null,
-          }, 'scenarioTaskPacket.payload.interface');
+          const interfaceRecord = expectRecord(payload.interface, 'scenarioTaskPacket.payload.interface');
           return {
             fingerprint: expectOptionalString(interfaceRecord.fingerprint, 'scenarioTaskPacket.payload.interface.fingerprint') ?? null,
             artifactPath: expectOptionalString(interfaceRecord.artifactPath, 'scenarioTaskPacket.payload.interface.artifactPath') ?? null,
           };
         })(),
         selectors: (() => {
-          const selectorRecord = expectRecord(payloadRecord?.selectors ?? {
-            fingerprint: packet.selectorCanonFingerprint ?? null,
-            artifactPath: null,
-          }, 'scenarioTaskPacket.payload.selectors');
+          const selectorRecord = expectRecord(payload.selectors, 'scenarioTaskPacket.payload.selectors');
           return {
             fingerprint: expectOptionalString(selectorRecord.fingerprint, 'scenarioTaskPacket.payload.selectors.fingerprint') ?? null,
             artifactPath: expectOptionalString(selectorRecord.artifactPath, 'scenarioTaskPacket.payload.selectors.artifactPath') ?? null,
           };
         })(),
+        stateGraph: (() => {
+          const stateGraphRecord = expectRecord(payload.stateGraph, 'scenarioTaskPacket.payload.stateGraph');
+          return {
+            fingerprint: expectOptionalString(stateGraphRecord.fingerprint, 'scenarioTaskPacket.payload.stateGraph.fingerprint') ?? null,
+            artifactPath: expectOptionalString(stateGraphRecord.artifactPath, 'scenarioTaskPacket.payload.stateGraph.artifactPath') ?? null,
+          };
+        })(),
         knowledgeSlice: (() => {
-          const slice = expectRecord(payloadRecord?.knowledgeSlice ?? {
+          const slice = expectRecord(payload.knowledgeSlice ?? {
             routeRefs: [],
             routeVariantRefs: [],
             screenRefs: [],
             targetRefs: [],
-            evidenceRefs: sharedRuntimeKnowledge?.evidenceRefs ?? [],
+            stateRefs: [],
+            eventSignatureRefs: [],
+            transitionRefs: [],
+            evidenceRefs: [],
             controlRefs: [],
           }, 'scenarioTaskPacket.payload.knowledgeSlice');
           return {
@@ -949,12 +1000,21 @@ export function validateScenarioTaskPacket(value: unknown): ScenarioTaskPacket {
             targetRefs: expectArray(slice.targetRefs ?? [], 'scenarioTaskPacket.payload.knowledgeSlice.targetRefs').map((entry, index) =>
               expectId(entry, `scenarioTaskPacket.payload.knowledgeSlice.targetRefs[${index}]`, createCanonicalTargetRef),
             ),
+            stateRefs: expectArray(slice.stateRefs ?? [], 'scenarioTaskPacket.payload.knowledgeSlice.stateRefs').map((entry, index) =>
+              expectId(entry, `scenarioTaskPacket.payload.knowledgeSlice.stateRefs[${index}]`, createStateNodeRef),
+            ),
+            eventSignatureRefs: expectArray(slice.eventSignatureRefs ?? [], 'scenarioTaskPacket.payload.knowledgeSlice.eventSignatureRefs').map((entry, index) =>
+              expectId(entry, `scenarioTaskPacket.payload.knowledgeSlice.eventSignatureRefs[${index}]`, createEventSignatureRef),
+            ),
+            transitionRefs: expectArray(slice.transitionRefs ?? [], 'scenarioTaskPacket.payload.knowledgeSlice.transitionRefs').map((entry, index) =>
+              expectId(entry, `scenarioTaskPacket.payload.knowledgeSlice.transitionRefs[${index}]`, createTransitionRef),
+            ),
             evidenceRefs: expectStringArray(slice.evidenceRefs ?? [], 'scenarioTaskPacket.payload.knowledgeSlice.evidenceRefs'),
             controlRefs: expectStringArray(slice.controlRefs ?? [], 'scenarioTaskPacket.payload.knowledgeSlice.controlRefs'),
           };
         })(),
-        steps: expectArray(payloadRecord?.steps ?? packet.steps ?? [], 'scenarioTaskPacket.steps').map((entry, index) =>
-          validateStepTask(entry, `scenarioTaskPacket.steps[${index}]`, sharedRuntimeKnowledge),
+        steps: expectArray(payload.steps ?? [], 'scenarioTaskPacket.steps').map((entry, index) =>
+          validateStepTask(entry, `scenarioTaskPacket.steps[${index}]`),
         ),
       };
     })(),
@@ -966,7 +1026,7 @@ function validateResolutionCandidateSummary(value: unknown, path: string) {
   const summary = expectRecord(value, path);
   return {
     concern: expectEnum(summary.concern, `${path}.concern`, ['action', 'screen', 'element', 'posture', 'snapshot'] as const),
-    source: expectEnum(summary.source, `${path}.source`, ['explicit', 'control', 'approved-knowledge', 'overlay', 'translation', 'live-dom'] as const),
+    source: expectEnum(summary.source, `${path}.source`, ['explicit', 'control', 'approved-screen-knowledge', 'shared-patterns', 'prior-evidence', 'approved-equivalent-overlay', 'structured-translation', 'live-dom'] as const),
     value: expectString(summary.value, `${path}.value`),
     score: expectNumber(summary.score, `${path}.score`),
     reason: expectString(summary.reason, `${path}.reason`),
@@ -976,7 +1036,7 @@ function validateResolutionCandidateSummary(value: unknown, path: string) {
 function validateResolutionObservation(value: unknown, path: string) {
   const observation = expectRecord(value, path);
   return {
-    source: expectEnum(observation.source, `${path}.source`, ['knowledge', 'evidence', 'overlay', 'translation', 'dom', 'runtime'] as const),
+    source: expectEnum(observation.source, `${path}.source`, ['approved-screen-knowledge', 'shared-patterns', 'prior-evidence', 'approved-equivalent-overlay', 'structured-translation', 'live-dom', 'runtime'] as const),
     summary: expectString(observation.summary, `${path}.summary`),
     detail: observation.detail === undefined ? undefined : expectStringRecord(observation.detail, `${path}.detail`),
     topCandidates: observation.topCandidates === undefined ? undefined : expectArray(observation.topCandidates, `${path}.topCandidates`).map((entry, index) => validateResolutionCandidateSummary(entry, `${path}.topCandidates[${index}]`)),
@@ -987,7 +1047,7 @@ function validateResolutionObservation(value: unknown, path: string) {
 function validateResolutionExhaustionEntry(value: unknown, path: string) {
   const entry = expectRecord(value, path);
   return {
-    stage: expectEnum(entry.stage, `${path}.stage`, ['explicit', 'approved-screen-bundle', 'local-hints', 'shared-patterns', 'prior-evidence', 'confidence-overlay', 'structured-translation', 'live-dom', 'safe-degraded-resolution'] as const),
+    stage: expectEnum(entry.stage, `${path}.stage`, ['explicit', 'control', 'approved-screen-knowledge', 'shared-patterns', 'prior-evidence', 'approved-equivalent-overlay', 'structured-translation', 'live-dom', 'needs-human'] as const),
     outcome: expectEnum(entry.outcome, `${path}.outcome`, ['attempted', 'resolved', 'skipped', 'failed'] as const),
     reason: expectString(entry.reason, `${path}.reason`),
     topCandidates: entry.topCandidates === undefined ? undefined : expectArray(entry.topCandidates, `${path}.topCandidates`).map((candidate, index) => validateResolutionCandidateSummary(candidate, `${path}.topCandidates[${index}]`)),
@@ -1205,6 +1265,45 @@ function validateStepExecutionReceipt(value: unknown, path: string): StepExecuti
       : expectNumber(receipt.locatorRung, `${path}.locatorRung`),
     degraded: expectBoolean(receipt.degraded, `${path}.degraded`),
     preconditionFailures: expectStringArray(receipt.preconditionFailures ?? [], `${path}.preconditionFailures`),
+    requiredStateRefs: expectArray(receipt.requiredStateRefs ?? [], `${path}.requiredStateRefs`).map((entry, index) =>
+      expectId(entry, `${path}.requiredStateRefs[${index}]`, createStateNodeRef),
+    ),
+    forbiddenStateRefs: expectArray(receipt.forbiddenStateRefs ?? [], `${path}.forbiddenStateRefs`).map((entry, index) =>
+      expectId(entry, `${path}.forbiddenStateRefs[${index}]`, createStateNodeRef),
+    ),
+    effectAssertions: expectStringArray(receipt.effectAssertions ?? [], `${path}.effectAssertions`),
+    eventSignatureRefs: expectArray(receipt.eventSignatureRefs ?? [], `${path}.eventSignatureRefs`).map((entry, index) =>
+      expectId(entry, `${path}.eventSignatureRefs[${index}]`, createEventSignatureRef),
+    ),
+    expectedTransitionRefs: expectArray(receipt.expectedTransitionRefs ?? [], `${path}.expectedTransitionRefs`).map((entry, index) =>
+      expectId(entry, `${path}.expectedTransitionRefs[${index}]`, createTransitionRef),
+    ),
+    observedStateRefs: expectArray(receipt.observedStateRefs ?? [], `${path}.observedStateRefs`).map((entry, index) =>
+      expectId(entry, `${path}.observedStateRefs[${index}]`, createStateNodeRef),
+    ),
+    transitionObservations: expectArray(receipt.transitionObservations ?? [], `${path}.transitionObservations`).map((entry, index) => {
+      const observation = expectRecord(entry, `${path}.transitionObservations[${index}]`);
+      return {
+        observationId: expectString(observation.observationId, `${path}.transitionObservations[${index}].observationId`),
+        source: expectEnum(observation.source, `${path}.transitionObservations[${index}].source`, ['harvest', 'runtime'] as const),
+        actor: expectEnum(observation.actor, `${path}.transitionObservations[${index}].actor`, ['safe-active-harvest', 'runtime-execution', 'live-dom'] as const),
+        screen: expectId(observation.screen, `${path}.transitionObservations[${index}].screen`, createScreenId),
+        eventSignatureRef: expectOptionalId(observation.eventSignatureRef, `${path}.transitionObservations[${index}].eventSignatureRef`, createEventSignatureRef) ?? null,
+        transitionRef: expectOptionalId(observation.transitionRef, `${path}.transitionObservations[${index}].transitionRef`, createTransitionRef) ?? null,
+        expectedTransitionRefs: expectArray(observation.expectedTransitionRefs ?? [], `${path}.transitionObservations[${index}].expectedTransitionRefs`).map((ref, refIndex) =>
+          expectId(ref, `${path}.transitionObservations[${index}].expectedTransitionRefs[${refIndex}]`, createTransitionRef),
+        ),
+        observedStateRefs: expectArray(observation.observedStateRefs ?? [], `${path}.transitionObservations[${index}].observedStateRefs`).map((ref, refIndex) =>
+          expectId(ref, `${path}.transitionObservations[${index}].observedStateRefs[${refIndex}]`, createStateNodeRef),
+        ),
+        unexpectedStateRefs: expectArray(observation.unexpectedStateRefs ?? [], `${path}.transitionObservations[${index}].unexpectedStateRefs`).map((ref, refIndex) =>
+          expectId(ref, `${path}.transitionObservations[${index}].unexpectedStateRefs[${refIndex}]`, createStateNodeRef),
+        ),
+        confidence: expectEnum(observation.confidence, `${path}.transitionObservations[${index}].confidence`, ['observed', 'inferred', 'missing'] as const),
+        classification: expectEnum(observation.classification, `${path}.transitionObservations[${index}].classification`, ['matched', 'ambiguous-match', 'missing-expected', 'unexpected-effects'] as const),
+        detail: observation.detail === undefined ? undefined : expectStringRecord(observation.detail, `${path}.transitionObservations[${index}].detail`),
+      };
+    }),
     durationMs: expectNumber(receipt.durationMs ?? 0, `${path}.durationMs`),
     timing: (() => {
       const timing = expectRecord(receipt.timing ?? {}, `${path}.timing`);
@@ -1366,9 +1465,7 @@ export function validateRunRecord(value: unknown): RunRecord {
     scope: 'run',
     governance: steps.some((step) => step.interpretation.kind === 'needs-human' || step.execution.execution.status === 'failed')
       ? 'blocked'
-      : steps.some((step) => step.interpretation.kind === 'resolved-with-proposals')
-        ? 'review-required'
-        : 'approved',
+      : 'approved',
     artifactFingerprint: expectOptionalString(record.runId, 'runRecord.runId') ?? 'scenario-run-record',
     ids: {
       adoId: expectOptionalId(record.adoId, 'runRecord.adoId', createAdoId) ?? null,
@@ -1435,6 +1532,9 @@ export function validateProposalBundle(value: unknown): ProposalBundle {
         expectNumber(stepIndex, `proposalBundle.proposals[${index}].impactedSteps[${impactedIndex}]`),
       ),
       trustPolicy: validateTrustPolicyEvaluation(proposal.trustPolicy),
+      certification: expectEnum(proposal.certification ?? 'uncertified', `proposalBundle.proposals[${index}].certification`, certificationStates),
+      activation: validateProposalActivation(proposal.activation, `proposalBundle.proposals[${index}].activation`),
+      lineage: validateCanonicalLineage(proposal.lineage, `proposalBundle.proposals[${index}].lineage`),
     };
   });
   const header = validateWorkflowEnvelopeHeader(bundle, 'proposalBundle', {
@@ -1527,6 +1627,9 @@ export function validateScreenHints(value: unknown): ScreenHints {
               ]),
             ),
             affordance: expectOptionalString(hint.affordance, `screen-hints.elements.${elementId}.affordance`) ?? null,
+            acquired: hint.acquired === undefined || hint.acquired === null
+              ? null
+              : validateCanonicalKnowledgeMetadata(hint.acquired, `screen-hints.elements.${elementId}.acquired`),
           },
         ];
       }),
@@ -1720,6 +1823,203 @@ export function validateScreenPostures(value: unknown): ScreenPostures {
       }),
     ),
   });
+}
+
+function validateObservationPredicate(value: unknown, path: string) {
+  const predicate = expectRecord(value, path);
+  return {
+    kind: expectEnum(predicate.kind, `${path}.kind`, statePredicateSemantics),
+    targetRef: expectOptionalId(predicate.targetRef, `${path}.targetRef`, createCanonicalTargetRef) ?? null,
+    selectorRef: expectOptionalId(predicate.selectorRef, `${path}.selectorRef`, createSelectorRef) ?? null,
+    routeVariantRef: expectOptionalString(predicate.routeVariantRef, `${path}.routeVariantRef`) ?? null,
+    attribute: expectOptionalString(predicate.attribute, `${path}.attribute`) ?? null,
+    value: expectOptionalString(predicate.value, `${path}.value`) ?? null,
+    message: expectOptionalString(predicate.message, `${path}.message`) ?? null,
+  };
+}
+
+function validateStateNode(value: unknown, path: string): StateNode {
+  const node = expectRecord(value, path);
+  return {
+    ref: expectId(node.ref, `${path}.ref`, createStateNodeRef),
+    screen: expectId(node.screen, `${path}.screen`, createScreenId),
+    label: expectString(node.label, `${path}.label`),
+    aliases: uniqueSorted(expectStringArray(node.aliases ?? [], `${path}.aliases`)),
+    scope: expectEnum(node.scope, `${path}.scope`, ['screen', 'surface', 'target', 'route', 'modal'] as const),
+    targetRef: expectOptionalId(node.targetRef, `${path}.targetRef`, createCanonicalTargetRef) ?? null,
+    routeVariantRefs: uniqueSorted(expectStringArray(node.routeVariantRefs ?? [], `${path}.routeVariantRefs`)),
+    predicates: expectArray(node.predicates ?? [], `${path}.predicates`).map((entry, index) =>
+      validateObservationPredicate(entry, `${path}.predicates[${index}]`),
+    ),
+    provenance: uniqueSorted(expectStringArray(node.provenance ?? [], `${path}.provenance`)),
+  };
+}
+
+function validateEventSignature(value: unknown, path: string): EventSignature {
+  const event = expectRecord(value, path);
+  const dispatch = expectRecord(event.dispatch ?? {}, `${path}.dispatch`);
+  const effects = expectRecord(event.effects ?? {}, `${path}.effects`);
+  const observationPlan = expectRecord(event.observationPlan ?? {}, `${path}.observationPlan`);
+  return {
+    ref: expectId(event.ref, `${path}.ref`, createEventSignatureRef),
+    screen: expectId(event.screen, `${path}.screen`, createScreenId),
+    targetRef: expectId(event.targetRef, `${path}.targetRef`, createCanonicalTargetRef),
+    label: expectString(event.label, `${path}.label`),
+    aliases: uniqueSorted(expectStringArray(event.aliases ?? [], `${path}.aliases`)),
+    dispatch: {
+      action: validateAction(dispatch.action, `${path}.dispatch.action`),
+      sampleValue: expectOptionalString(dispatch.sampleValue, `${path}.dispatch.sampleValue`) ?? null,
+    },
+    requiredStateRefs: expectArray(event.requiredStateRefs ?? [], `${path}.requiredStateRefs`).map((entry, index) =>
+      expectId(entry, `${path}.requiredStateRefs[${index}]`, createStateNodeRef),
+    ),
+    forbiddenStateRefs: expectArray(event.forbiddenStateRefs ?? [], `${path}.forbiddenStateRefs`).map((entry, index) =>
+      expectId(entry, `${path}.forbiddenStateRefs[${index}]`, createStateNodeRef),
+    ),
+    effects: {
+      transitionRefs: expectArray(effects.transitionRefs ?? [], `${path}.effects.transitionRefs`).map((entry, index) =>
+        expectId(entry, `${path}.effects.transitionRefs[${index}]`, createTransitionRef),
+      ),
+      resultStateRefs: expectArray(effects.resultStateRefs ?? [], `${path}.effects.resultStateRefs`).map((entry, index) =>
+        expectId(entry, `${path}.effects.resultStateRefs[${index}]`, createStateNodeRef),
+      ),
+      observableEffects: uniqueSorted(expectStringArray(effects.observableEffects ?? [], `${path}.effects.observableEffects`)),
+      assertions: uniqueSorted(expectStringArray(effects.assertions ?? [], `${path}.effects.assertions`)),
+    },
+    observationPlan: {
+      timeoutMs: observationPlan.timeoutMs === undefined ? null : expectNumber(observationPlan.timeoutMs, `${path}.observationPlan.timeoutMs`),
+      settleMs: observationPlan.settleMs === undefined ? null : expectNumber(observationPlan.settleMs, `${path}.observationPlan.settleMs`),
+      observeStateRefs: expectArray(observationPlan.observeStateRefs ?? [], `${path}.observationPlan.observeStateRefs`).map((entry, index) =>
+        expectId(entry, `${path}.observationPlan.observeStateRefs[${index}]`, createStateNodeRef),
+      ),
+    },
+    provenance: uniqueSorted(expectStringArray(event.provenance ?? [], `${path}.provenance`)),
+  };
+}
+
+function validateStateTransition(value: unknown, path: string): StateTransition {
+  const transition = expectRecord(value, path);
+  return {
+    ref: expectId(transition.ref, `${path}.ref`, createTransitionRef),
+    screen: expectId(transition.screen, `${path}.screen`, createScreenId),
+    label: expectString(transition.label, `${path}.label`),
+    aliases: uniqueSorted(expectStringArray(transition.aliases ?? [], `${path}.aliases`)),
+    eventSignatureRef: expectId(transition.eventSignatureRef, `${path}.eventSignatureRef`, createEventSignatureRef),
+    sourceStateRefs: expectArray(transition.sourceStateRefs ?? [], `${path}.sourceStateRefs`).map((entry, index) =>
+      expectId(entry, `${path}.sourceStateRefs[${index}]`, createStateNodeRef),
+    ),
+    targetStateRefs: expectArray(transition.targetStateRefs ?? [], `${path}.targetStateRefs`).map((entry, index) =>
+      expectId(entry, `${path}.targetStateRefs[${index}]`, createStateNodeRef),
+    ),
+    effectKind: expectEnum(transition.effectKind, `${path}.effectKind`, transitionEffectKinds),
+    observableEffects: uniqueSorted(expectStringArray(transition.observableEffects ?? [], `${path}.observableEffects`)),
+    provenance: uniqueSorted(expectStringArray(transition.provenance ?? [], `${path}.provenance`)),
+  };
+}
+
+function assertBehaviorTopology(input: {
+  stateNodes: StateNode[];
+  eventSignatures: EventSignature[];
+  transitions: StateTransition[];
+  path: string;
+}): void {
+  const stateRefs = new Set(input.stateNodes.map((state) => state.ref));
+  const eventRefs = new Set(input.eventSignatures.map((event) => event.ref));
+  const transitionByRef = new Map(input.transitions.map((transition) => [transition.ref, transition] as const));
+
+  for (const [index, state] of input.stateNodes.entries()) {
+    if (state.predicates.length === 0) {
+      throw new SchemaError('expected at least one observation predicate', `${input.path}.stateNodes[${index}].predicates`);
+    }
+  }
+
+  for (const [index, event] of input.eventSignatures.entries()) {
+    if (event.effects.transitionRefs.length === 0) {
+      throw new SchemaError('expected at least one transition ref', `${input.path}.eventSignatures[${index}].effects.transitionRefs`);
+    }
+    if (event.effects.resultStateRefs.length === 0) {
+      throw new SchemaError('expected at least one result state ref', `${input.path}.eventSignatures[${index}].effects.resultStateRefs`);
+    }
+    if (event.effects.assertions.length === 0) {
+      throw new SchemaError('expected at least one assertion', `${input.path}.eventSignatures[${index}].effects.assertions`);
+    }
+    if (event.observationPlan.observeStateRefs.length === 0) {
+      throw new SchemaError('expected at least one observed state ref', `${input.path}.eventSignatures[${index}].observationPlan.observeStateRefs`);
+    }
+    for (const [transitionIndex, transitionRef] of event.effects.transitionRefs.entries()) {
+      if (!transitionByRef.has(transitionRef)) {
+        throw new SchemaError('references unknown transition', `${input.path}.eventSignatures[${index}].effects.transitionRefs[${transitionIndex}]`);
+      }
+    }
+    for (const [stateIndex, stateRef] of [...event.requiredStateRefs, ...event.forbiddenStateRefs, ...event.effects.resultStateRefs, ...event.observationPlan.observeStateRefs].entries()) {
+      if (!stateRefs.has(stateRef)) {
+        throw new SchemaError('references unknown state', `${input.path}.eventSignatures[${index}].stateRefs[${stateIndex}]`);
+      }
+    }
+
+    const expectedResultStateRefs = uniqueSorted(event.effects.transitionRefs.flatMap((transitionRef) => transitionByRef.get(transitionRef)?.targetStateRefs ?? []));
+    if (expectedResultStateRefs.join('|') !== uniqueSorted(event.effects.resultStateRefs).join('|')) {
+      throw new SchemaError('effect resultStateRefs must equal the union of referenced transition target states', `${input.path}.eventSignatures[${index}].effects.resultStateRefs`);
+    }
+  }
+
+  for (const [index, transition] of input.transitions.entries()) {
+    if (!eventRefs.has(transition.eventSignatureRef)) {
+      throw new SchemaError('references unknown event signature', `${input.path}.transitions[${index}].eventSignatureRef`);
+    }
+    if (transition.targetStateRefs.length === 0) {
+      throw new SchemaError('expected at least one target state ref', `${input.path}.transitions[${index}].targetStateRefs`);
+    }
+    for (const [stateIndex, stateRef] of [...transition.sourceStateRefs, ...transition.targetStateRefs].entries()) {
+      if (!stateRefs.has(stateRef)) {
+        throw new SchemaError('references unknown state', `${input.path}.transitions[${index}].stateRefs[${stateIndex}]`);
+      }
+    }
+  }
+}
+
+export function validateScreenBehavior(value: unknown): ScreenBehavior {
+  const behavior = expectRecord(value, 'screen-behavior');
+  const validated = {
+    kind: expectEnum(behavior.kind, 'screen-behavior.kind', ['screen-behavior'] as const),
+    version: expectNumber(behavior.version, 'screen-behavior.version') as 1,
+    screen: expectId(behavior.screen, 'screen-behavior.screen', createScreenId),
+    aliases: uniqueSorted(expectStringArray(behavior.aliases ?? [], 'screen-behavior.aliases')),
+    routeVariantRefs: uniqueSorted(expectStringArray(behavior.routeVariantRefs ?? [], 'screen-behavior.routeVariantRefs')),
+    knowledgeRefs: uniqueSorted(expectStringArray(behavior.knowledgeRefs ?? [], 'screen-behavior.knowledgeRefs')),
+    stateNodes: expectArray(behavior.stateNodes ?? [], 'screen-behavior.stateNodes').map((entry, index) =>
+      validateStateNode(entry, `screen-behavior.stateNodes[${index}]`),
+    ),
+    eventSignatures: expectArray(behavior.eventSignatures ?? [], 'screen-behavior.eventSignatures').map((entry, index) =>
+      validateEventSignature(entry, `screen-behavior.eventSignatures[${index}]`),
+    ),
+    transitions: expectArray(behavior.transitions ?? [], 'screen-behavior.transitions').map((entry, index) =>
+      validateStateTransition(entry, `screen-behavior.transitions[${index}]`),
+    ),
+  };
+  assertBehaviorTopology({ ...validated, path: 'screen-behavior' });
+  return validated;
+}
+
+export function validateBehaviorPatternDocument(value: unknown): BehaviorPatternDocument {
+  const pattern = expectRecord(value, 'behavior-pattern');
+  const validated = {
+    kind: expectEnum(pattern.kind, 'behavior-pattern.kind', ['behavior-pattern'] as const),
+    version: expectNumber(pattern.version, 'behavior-pattern.version') as 1,
+    id: expectString(pattern.id, 'behavior-pattern.id'),
+    aliases: uniqueSorted(expectStringArray(pattern.aliases ?? [], 'behavior-pattern.aliases')),
+    stateNodes: expectArray(pattern.stateNodes ?? [], 'behavior-pattern.stateNodes').map((entry, index) =>
+      validateStateNode(entry, `behavior-pattern.stateNodes[${index}]`),
+    ),
+    eventSignatures: expectArray(pattern.eventSignatures ?? [], 'behavior-pattern.eventSignatures').map((entry, index) =>
+      validateEventSignature(entry, `behavior-pattern.eventSignatures[${index}]`),
+    ),
+    transitions: expectArray(pattern.transitions ?? [], 'behavior-pattern.transitions').map((entry, index) =>
+      validateStateTransition(entry, `behavior-pattern.transitions[${index}]`),
+    ),
+  };
+  assertBehaviorTopology({ ...validated, path: 'behavior-pattern' });
+  return validated;
 }
 
 export function validateManifest(value: unknown): Manifest {

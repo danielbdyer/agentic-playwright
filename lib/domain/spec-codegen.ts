@@ -18,8 +18,8 @@ import {
 export interface GeneratedSpecImports {
   fixtures: string;
   runtime: string;
+  runtimeHandoff: string;
   environment: string;
-  workflow: string;
 }
 
 export interface GeneratedSpecModuleOptions {
@@ -145,73 +145,7 @@ function failureConditionExpression(): ts.Expression {
   );
 }
 
-function workflowValueExpression(raw: string | null | undefined): ts.Expression {
-  if (raw === undefined || raw === null) {
-    return ts.factory.createNull();
-  }
-
-  const fixtureMatch = raw.match(/^\{\{\s*([A-Za-z0-9_-]+)(?:\.([^}]+))?\s*\}\}$/);
-  if (fixtureMatch?.[1]) {
-    const fixtureName = fixtureMatch[1];
-    const segments = fixtureMatch[2]?.split('.').filter((segment) => segment.length > 0) ?? [];
-    return callExpression(identifier('fixture'), [
-      stringLiteral(fixtureName),
-      ...segments.map((segment) => stringLiteral(segment)),
-    ]);
-  }
-
-  const generatedMatch = raw.match(/^<<generated:(.+)>>$/);
-  if (generatedMatch?.[1]) {
-    return callExpression(identifier('generatedToken'), [
-      stringLiteral(generatedMatch[1]),
-    ]);
-  }
-
-  return callExpression(identifier('literal'), [
-    stringLiteral(raw),
-  ]);
-}
-
-function workflowDirectiveExpression(task: ScenarioTaskPacket['payload']['steps'][number]): ts.Expression {
-  const resolution = task.explicitResolution ?? task.controlResolution;
-  if (!resolution?.action || !resolution.screen) {
-    return ts.factory.createNull();
-  }
-
-  if (resolution.action === 'navigate') {
-    return ts.factory.createNull();
-  }
-
-  if (!resolution.element) {
-    return ts.factory.createNull();
-  }
-
-  const screenElement = callExpression(
-    property(
-      callExpression(property(identifier('workflow'), 'screen'), [stringLiteral(resolution.screen)]),
-      'element',
-    ),
-    [stringLiteral(resolution.element)],
-  );
-
-  switch (resolution.action) {
-    case 'input':
-      return callExpression(property(screenElement, 'input'), [
-        workflowValueExpression(resolution.override),
-        ...(resolution.posture ? [stringLiteral(resolution.posture)] : []),
-      ]);
-    case 'click':
-      return callExpression(property(screenElement, 'click'), []);
-    case 'assert-snapshot':
-      return resolution.snapshot_template
-        ? callExpression(property(screenElement, 'observeStructure'), [stringLiteral(resolution.snapshot_template)])
-        : ts.factory.createNull();
-    default:
-      return ts.factory.createNull();
-  }
-}
-
-function stepStatement(boundScenario: BoundScenario, step: BoundScenario['steps'][number], task: ScenarioTaskPacket['payload']['steps'][number]): ts.Statement {
+function stepStatement(boundScenario: BoundScenario, step: BoundScenario['steps'][number], zeroBasedIndex: number): ts.Statement {
   return statementFromExpression(
     awaitExpression(
       callExpression(property(identifier('test'), 'step'), [
@@ -227,17 +161,13 @@ function stepStatement(boundScenario: BoundScenario, step: BoundScenario['steps'
               'stepResult',
               awaitExpression(
                 callExpression(identifier('runScenarioHandshake'), [
-                  callExpression(property(identifier('workflow'), 'step'), [
-                    expressionFromLiteral(task),
-                    workflowDirectiveExpression(task),
+                  callExpression(identifier('stepHandshakeFromHandoff'), [
+                    identifier('runtimeHandoff'),
+                    ts.factory.createNumericLiteral(zeroBasedIndex),
                   ]),
                   identifier('runtimeEnvironment'),
                   identifier('runState'),
-                  expressionFromLiteral({
-                    adoId: boundScenario.source.ado_id,
-                    revision: boundScenario.source.revision,
-                    contentHash: boundScenario.source.content_hash,
-                  }),
+                  property(identifier('runtimeHandoff'), 'context'),
                 ]),
               ),
             ),
@@ -303,9 +233,9 @@ export function renderGeneratedSpecModule(
 
   const statements: ts.Statement[] = [
     importDeclaration({ modulePath: options.imports.fixtures, namedImports: ['test'] }),
-    importDeclaration({ modulePath: options.imports.runtime, namedImports: ['createScenarioRunState', 'runScenarioHandshake'] }),
+    importDeclaration({ modulePath: options.imports.runtime, namedImports: ['createScenarioRunState', 'runScenarioHandshake', 'stepHandshakeFromHandoff'] }),
+    importDeclaration({ modulePath: options.imports.runtimeHandoff, namedImports: ['loadScenarioRuntimeHandoff'] }),
     importDeclaration({ modulePath: options.imports.environment, namedImports: ['createLocalRuntimeEnvironment'] }),
-    importDeclaration({ modulePath: options.imports.workflow, namedImports: ['fixture', 'generatedToken', 'literal', 'workflow'] }),
     statementFromExpression(
       callExpression(identifier('test'), [
         stringLiteral(titleWithTags(boundScenario.metadata.title, boundScenario.metadata.tags)),
@@ -320,40 +250,49 @@ export function renderGeneratedSpecModule(
               ...annotationStatements(boundScenario, confidence, deferredSteps, unboundSteps),
               ...lifecycleStatements(lifecycle),
               constStatement(
+                'runtimeHandoff',
+                callExpression(identifier('loadScenarioRuntimeHandoff'), [
+                  ts.factory.createObjectLiteralExpression([
+                    ts.factory.createPropertyAssignment('rootDir', callExpression(property(identifier('process'), 'cwd'), [])),
+                    ts.factory.createPropertyAssignment('adoId', stringLiteral(boundScenario.source.ado_id)),
+                  ], true),
+                ]),
+              ),
+              constStatement(
                 'runtimeEnvironment',
                 callExpression(identifier('createLocalRuntimeEnvironment'), [
                   ts.factory.createObjectLiteralExpression([
                     ts.factory.createPropertyAssignment('rootDir', callExpression(property(identifier('process'), 'cwd'), [])),
-                    ts.factory.createPropertyAssignment('screenIds', expressionFromLiteral(uniqueScreens)),
-                    ts.factory.createPropertyAssignment('fixtures', fixtureContextExpression(fixtures)),
-                    ts.factory.createPropertyAssignment('mode', runtimeModeExpression()),
-                    ts.factory.createPropertyAssignment('provider', stringLiteral('deterministic-runtime-step-agent')),
+                    ts.factory.createPropertyAssignment('screenIds', property(identifier('runtimeHandoff'), 'screenIds')),
                     ts.factory.createPropertyAssignment(
-                      'posture',
+                      'fixtures',
                       ts.factory.createObjectLiteralExpression([
-                        ts.factory.createPropertyAssignment('interpreterMode', runtimeModeExpression()),
-                        ts.factory.createPropertyAssignment('writeMode', runtimeWriteModeExpression()),
-                        ts.factory.createPropertyAssignment('headed', runtimeHeadedExpression()),
+                        ts.factory.createSpreadAssignment(property(identifier('runtimeHandoff'), 'fixtures')),
+                        ts.factory.createSpreadAssignment(fixtureContextExpression(fixtures)),
                       ], true),
                     ),
+                    ts.factory.createPropertyAssignment('mode', runtimeModeExpression()),
+                    ts.factory.createPropertyAssignment('provider', property(identifier('runtimeHandoff'), 'providerId')),
                     ts.factory.createPropertyAssignment(
-                      'controlSelection',
-                      expressionFromLiteral({
-                        dataset: taskPacket.ids.dataset ?? null,
-                        runbook: taskPacket.ids.runbook ?? null,
-                        resolutionControl: taskPacket.ids.resolutionControl ?? null,
-                      }),
+                      'posture',
+                      ts.factory.createObjectLiteralExpression(
+                        [
+                          ts.factory.createSpreadAssignment(property(identifier('runtimeHandoff'), 'posture')),
+                          ts.factory.createPropertyAssignment('interpreterMode', runtimeModeExpression()),
+                          ts.factory.createPropertyAssignment('writeMode', runtimeWriteModeExpression()),
+                          ts.factory.createPropertyAssignment('headed', runtimeHeadedExpression()),
+                        ],
+                        true,
+                      ),
                     ),
+                    ts.factory.createPropertyAssignment('controlSelection', property(identifier('runtimeHandoff'), 'controlSelection')),
                     ts.factory.createPropertyAssignment('page', identifier('page')),
                   ], true),
                 ]),
               ),
               constStatement('runState', callExpression(identifier('createScenarioRunState'), [])),
               ...(lifecycle === 'normal' || lifecycle === 'fail'
-                ? boundScenario.steps.flatMap((step, index) => {
-                    const task = taskPacket.payload.steps[index];
-                    return task ? [stepStatement(boundScenario, step, task)] : [];
-                  })
+                ? boundScenario.steps.map((step, index) => stepStatement(boundScenario, step, index))
                 : []),
             ],
             true,

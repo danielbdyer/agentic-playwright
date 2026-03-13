@@ -6,29 +6,29 @@
   "ids": {
     "adoId": "10001",
     "suite": "demo/policy-search",
-    "runId": "2026-03-12T04-52-36-051Z",
+    "runId": "2026-03-13T01-55-38-254Z",
     "stepIndex": null,
     "dataset": "demo-default",
     "runbook": "demo-smoke",
     "resolutionControl": "demo-policy-search"
   },
   "fingerprints": {
-    "artifact": "2026-03-12T04-52-36-051Z:proposal",
+    "artifact": "2026-03-13T01-55-38-254Z:proposal",
     "content": "sha256:1930319ee9882abb4af0ab8dc9d6c120f6ddc8b77ca6441c20be91697f7b19d1",
-    "knowledge": "sha256:0e4a70ad919f91872eaa36a3f09570ddcbb6ccec5f21f0d6ab7aaa035f99cf38",
+    "knowledge": "sha256:d547ec52541fe38846b532c9a824cf88f17852fde333c58c11d720201c53e0ca",
     "controls": "sha256:5d46baad2c61c92b01288807d0ddb53565590599498a25897fa91fcde56ced32",
-    "task": "sha256:fa6ce96727af0861c6e5a057de0764a0260df5afb133a9cc12021efee6478f29",
-    "run": "2026-03-12T04-52-36-051Z"
+    "task": "sha256:1209a75f3fd848c1dc1bea232569098e90450941c6e505540dcd78d1c8eacadc",
+    "run": "2026-03-13T01-55-38-254Z"
   },
   "lineage": {
     "sources": [
-      "sha256:fa6ce96727af0861c6e5a057de0764a0260df5afb133a9cc12021efee6478f29",
+      "sha256:1209a75f3fd848c1dc1bea232569098e90450941c6e505540dcd78d1c8eacadc",
       "controls/runbooks/demo-smoke.runbook.yaml",
       "controls/datasets/demo-default.dataset.yaml"
     ],
     "parents": [
-      "sha256:fa6ce96727af0861c6e5a057de0764a0260df5afb133a9cc12021efee6478f29",
-      "2026-03-12T04-52-36-051Z"
+      "sha256:1209a75f3fd848c1dc1bea232569098e90450941c6e505540dcd78d1c8eacadc",
+      "2026-03-13T01-55-38-254Z"
     ],
     "handshakes": [
       "preparation",
@@ -41,14 +41,14 @@
   "governance": "approved",
   "payload": {
     "adoId": "10001",
-    "runId": "2026-03-12T04-52-36-051Z",
+    "runId": "2026-03-13T01-55-38-254Z",
     "revision": 1,
     "title": "Verify policy search returns matching policy",
     "suite": "demo/policy-search",
     "proposals": []
   },
   "adoId": "10001",
-  "runId": "2026-03-12T04-52-36-051Z",
+  "runId": "2026-03-13T01-55-38-254Z",
   "revision": 1,
   "title": "Verify policy search returns matching policy",
   "suite": "demo/policy-search",

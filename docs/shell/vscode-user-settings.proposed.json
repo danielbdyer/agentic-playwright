@@ -1,0 +1,14 @@
+{
+  "terminal.integrated.shellIntegration.enabled": true,
+  "terminal.integrated.env.windows": {
+    "TERM_PROGRAM": "vscode"
+  },
+  "terminal.integrated.defaultProfile.windows": "WSL Ubuntu (zsh)",
+  "terminal.integrated.profiles.windows": {
+    "WSL Ubuntu (zsh)": {
+      "path": "C:\\Windows\\System32\\wsl.exe",
+      "args": ["-d", "Ubuntu", "zsh", "-l"],
+      "icon": "terminal-bash"
+    }
+  }
+}

@@ -217,7 +217,7 @@ export function replayInterpretation(options: {
         resolutionControl: selectedContext.activeRunbook?.resolutionControl ?? null,
       },
       steps: selectedContext.steps,
-      runtimeKnowledgeSession: selectedContext.runtimeKnowledgeSession,
+      resolutionContext: selectedContext.resolutionContext,
       posture: selectedContext.posture,
       context: selectedContext.context,
       recoveryPolicy: selectedContext.recoveryPolicy,

@@ -24,7 +24,7 @@ export function validateStepResults(input: {
       assertInvariant(receipt.governance === 'approved', `step[${index}] resolved governance must be approved`);
     }
     if (receipt.kind === 'resolved-with-proposals') {
-      assertInvariant(receipt.governance === 'review-required', `step[${index}] resolved-with-proposals governance must be review-required`);
+      assertInvariant(receipt.governance === 'approved', `step[${index}] resolved-with-proposals governance must be approved`);
     }
   });
 }

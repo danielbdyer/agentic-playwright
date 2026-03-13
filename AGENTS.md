@@ -1,6 +1,6 @@
 # Tesseract Agent Guide
 
-This repository is an interface intelligence and agent workbench system built around a deterministic preparation pipeline and a reviewable runtime knowledge system. Treat it that way.
+This repository is an interface intelligence and agent workbench system built around a deterministic preparation pipeline and an active canonical knowledge loop. Treat it that way.
 
 ## Start here
 
@@ -28,10 +28,10 @@ The six public lanes remain the operating vocabulary. The deeper architectural s
 
 ## Non-negotiable model
 
-- Approved artifacts are the source of truth.
+- Active canonical artifacts are the source of truth.
 - Derived artifacts are projections.
 - Deterministic compiler derivations are auto-approved.
-- Only proposed canonical changes require trust-policy review.
+- Certification is a designation on canon, not an execution gate.
 - Generated specs are disposable object code.
 - Provenance is part of correctness.
 
@@ -84,9 +84,9 @@ Use these terms consistently:
 - `confidence`: how a binding was produced
 - `compiler-derived`: deterministic derivation from approved artifacts
 - `intent-only`: preserved intent awaiting runtime interpretation
-- `governance`: whether a bound step is executable now or needs review
+- `governance`: whether a bound step is executable now or needs operator follow-up
 - `approved`: deterministic or already-approved path, emit and run normally
-- `review-required`: depends on agent-proposed or otherwise unapproved canonical knowledge
+- `review-required`: the system needs operator follow-up, but this is not synonymous with uncertified canon
 - `blocked`: do not execute
 
 Do not overload confidence with review state.
@@ -211,14 +211,14 @@ An agent should be able to discover:
 - which artifacts were derived
 - which knowledge and prior evidence the runtime agent will receive
 - which supplements were used
-- where review is required
+- where certification or operator follow-up is needed
 - where the bottleneck is
 
 without relying on repo lore.
 
 ## Trust policy boundary
 
-Trust policy governs proposed canonical changes such as:
+Trust policy evaluates certification for canonical changes such as:
 
 - elements
 - postures
@@ -227,7 +227,7 @@ Trust policy governs proposed canonical changes such as:
 - surfaces
 - snapshot templates
 
-Trust policy does not block compiler output that was derived from already approved artifacts.
+Trust policy does not block compiler output that was derived from existing canon, and it does not prevent activation of schema-valid runtime-acquired canon.
 
 ## Optimization lane
 

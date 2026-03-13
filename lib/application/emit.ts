@@ -14,6 +14,7 @@ import type {
   ScenarioTaskPacket,
 } from '../domain/types';
 import type { CompileSnapshot } from './compile-snapshot';
+import { buildScenarioRuntimeHandoff } from './runtime-handoff';
 import { loadWorkspaceCatalog } from './catalog';
 import { createProposalBundleEnvelope, createScenarioEnvelopeFingerprints, createScenarioEnvelopeIds } from './catalog/envelope';
 import type { WorkspaceCatalog } from './catalog';
@@ -26,6 +27,7 @@ import {
   generatedSpecPath,
   generatedTracePath,
   relativeProjectPath,
+  runtimeHandoffPath,
 } from './paths';
 import { FileSystem } from './ports';
 import {
@@ -41,6 +43,7 @@ export interface EmitProjectionResult {
   tracePath: string;
   reviewPath: string;
   proposalsPath: string;
+  runtimePath: string;
   lifecycle: 'normal' | 'fixme' | 'skip' | 'fail';
   incremental: ProjectionIncremental;
 }
@@ -91,6 +94,7 @@ function createScenarioProjectionInput(input: {
     proposalBundle: input.proposalBundle,
     interfaceGraph: input.catalog.interfaceGraph?.artifact ?? null,
     selectorCanon: input.catalog.selectorCanon?.artifact ?? null,
+    stateGraph: input.catalog.stateGraph?.artifact ?? null,
     sessions: latestSessionsForScenario(input.catalog, input.adoId),
     learningManifest: input.catalog.learningManifest?.artifact ?? null,
   };
@@ -122,6 +126,7 @@ function renderReview(
     `- Proposal bundle: ${proposalBundle ? proposalBundle.runId : 'none'}`,
     `- Interface graph fingerprint: ${projectionInput.interfaceGraph?.fingerprint ?? 'none'}`,
     `- Selector canon fingerprint: ${projectionInput.selectorCanon?.fingerprint ?? 'none'}`,
+    `- State graph fingerprint: ${projectionInput.stateGraph?.fingerprint ?? 'none'}`,
     `- Agent sessions: ${projectionInput.sessions.length}`,
     `- Learning corpora: ${projectionInput.learningManifest?.corpora.length ?? 0}`,
     `- Inbox items: ${inboxItems.length > 0 ? inboxItems.map((item) => item.id).join(', ') : 'none'}`,
@@ -156,8 +161,10 @@ function renderReview(
     `- Unresolved gaps: ${trace.summary.unresolvedReasons.length > 0 ? trace.summary.unresolvedReasons.map((entry) => `${entry.reason} (${entry.count})`).join(', ') : 'none'}`,
     '',
   ];
+  const taskByIndex = new Map(projectionInput.taskPacket.payload.steps.map((step) => [step.index, step]));
 
   for (const step of trace.steps) {
+    const taskGrounding = taskByIndex.get(step.index)?.grounding ?? null;
     lines.push(`## Step ${step.index}`);
     lines.push('');
     lines.push(`- Action text: ${step.actionText}`);
@@ -182,6 +189,13 @@ function renderReview(
     lines.push(`- Runtime budget: ${step.runtime?.budget ? `${step.runtime.budget.status} (${step.runtime.budget.breaches.join(', ') || 'none'})` : 'none'}`);
     lines.push(`- Runtime failure family: ${step.runtime?.failure?.family ?? 'none'} (${step.runtime?.failure?.code ?? 'none'})`);
     lines.push(`- Runtime precondition failures: ${step.runtime?.preconditionFailures?.join(', ') || 'none'}`);
+    lines.push(`- Required states: ${taskGrounding?.requiredStateRefs.join(', ') || 'none'}`);
+    lines.push(`- Forbidden states: ${taskGrounding?.forbiddenStateRefs.join(', ') || 'none'}`);
+    lines.push(`- Effect assertions: ${taskGrounding?.effectAssertions.join(' | ') || 'none'}`);
+    lines.push(`- Event signatures: ${taskGrounding?.eventSignatureRefs.join(', ') || 'none'}`);
+    lines.push(`- Expected transitions: ${taskGrounding?.expectedTransitionRefs.join(', ') || 'none'}`);
+    lines.push(`- Observed states: ${step.runtime?.observedStateRefs?.join(', ') || 'none'}`);
+    lines.push(`- Transition observations: ${step.runtime?.transitionObservations?.map((entry) => `${entry.transitionRef ?? 'none'}:${entry.classification}`).join(', ') || 'none'}`);
     lines.push(`- Knowledge refs: ${step.knowledgeRefs.length > 0 ? step.knowledgeRefs.join(', ') : 'none'}`);
     lines.push(`- Supplements: ${step.supplementRefs.length > 0 ? step.supplementRefs.join(', ') : 'none'}`);
     lines.push(`- Control refs: ${step.controlRefs.length > 0 ? step.controlRefs.join(', ') : 'none'}`);
@@ -207,6 +221,7 @@ function renderEmitArtifacts(
   paths: ProjectPaths,
   boundScenario: BoundScenario,
   taskPacket: ScenarioTaskPacket,
+  runtimeHandoff: import('../domain/types').ScenarioRuntimeHandoff,
   latestRun: RunRecord | null,
   proposalBundle: ProposalBundle | null,
   inboxItems: ReturnType<typeof operatorInboxItemsForScenario>,
@@ -216,13 +231,14 @@ function renderEmitArtifacts(
   const tracePath = generatedTracePath(paths, boundScenario.metadata.suite, boundScenario.source.ado_id);
   const reviewPath = generatedReviewPath(paths, boundScenario.metadata.suite, boundScenario.source.ado_id);
   const proposalsPath = generatedProposalsPath(paths, boundScenario.metadata.suite, boundScenario.source.ado_id);
+  const runtimePath = runtimeHandoffPath(paths, boundScenario.source.ado_id);
   const manifestPath = emitManifestPath(paths, boundScenario.metadata.suite, boundScenario.source.ado_id);
   const rendered = renderGeneratedSpecModule(boundScenario, taskPacket, {
     imports: {
       fixtures: relativeModule(outputPath, path.join(paths.rootDir, 'fixtures', 'index.ts')).replace(/\.ts$/, ''),
       runtime: relativeModule(outputPath, path.join(paths.rootDir, 'lib', 'runtime', 'scenario.ts')).replace(/\.ts$/, ''),
+      runtimeHandoff: relativeModule(outputPath, path.join(paths.rootDir, 'lib', 'application', 'runtime-handoff.ts')).replace(/\.ts$/, ''),
       environment: relativeModule(outputPath, path.join(paths.rootDir, 'lib', 'infrastructure', 'runtime', 'local-runtime-environment.ts')).replace(/\.ts$/, ''),
-      workflow: relativeModule(outputPath, path.join(paths.rootDir, 'lib', 'generated', 'workflow-facade.ts')).replace(/\.ts$/, ''),
     },
   });
   const traceArtifact = explainBoundScenario(boundScenario, rendered.lifecycle, latestRun);
@@ -233,10 +249,12 @@ function renderEmitArtifacts(
     tracePath,
     reviewPath,
     proposalsPath,
+    runtimePath,
     manifestPath,
     rendered,
     traceArtifact,
     reviewText,
+    runtimeHandoff,
     proposalBundle: proposalBundle ?? createProposalBundleEnvelope({
       ids: createScenarioEnvelopeIds({
         adoId: boundScenario.source.ado_id,
@@ -276,6 +294,7 @@ function emitOutputFingerprint(artifacts: ReturnType<typeof renderEmitArtifacts>
     trace: artifacts.traceArtifact,
     review: artifacts.reviewText,
     proposals: artifacts.proposalBundle,
+    runtime: artifacts.runtimeHandoff,
   });
 }
 
@@ -286,13 +305,15 @@ function readPersistedEmitOutputState(artifacts: ReturnType<typeof renderEmitArt
     const traceExists = yield* fs.exists(artifacts.tracePath);
     const reviewExists = yield* fs.exists(artifacts.reviewPath);
     const proposalsExist = yield* fs.exists(artifacts.proposalsPath);
-    if (!specExists || !traceExists || !reviewExists || !proposalsExist) {
+    const runtimeExists = yield* fs.exists(artifacts.runtimePath);
+    if (!specExists || !traceExists || !reviewExists || !proposalsExist || !runtimeExists) {
       return { status: 'missing-output' as const };
     }
 
     const persistedTrace = yield* Effect.either(fs.readJson(artifacts.tracePath));
     const persistedProposals = yield* Effect.either(fs.readJson(artifacts.proposalsPath));
-    if (persistedTrace._tag === 'Left' || persistedProposals._tag === 'Left') {
+    const persistedRuntime = yield* Effect.either(fs.readJson(artifacts.runtimePath));
+    if (persistedTrace._tag === 'Left' || persistedProposals._tag === 'Left' || persistedRuntime._tag === 'Left') {
       return { status: 'invalid-output' as const };
     }
 
@@ -305,6 +326,7 @@ function readPersistedEmitOutputState(artifacts: ReturnType<typeof renderEmitArt
         trace: persistedTrace.right,
         review: persistedReview,
         proposals: persistedProposals.right,
+        runtime: persistedRuntime.right,
       }),
     };
   });
@@ -347,7 +369,21 @@ export function emitScenario(
       proposalBundle,
       catalog,
     });
-    const artifacts = renderEmitArtifacts(options.paths, source.boundScenario, source.taskPacket, latestRun, proposalBundle, inboxItems, projectionInput);
+    const runtimeHandoff = buildScenarioRuntimeHandoff({
+      adoId: source.adoId,
+      paths: options.paths,
+      catalog,
+    });
+    const artifacts = renderEmitArtifacts(
+      options.paths,
+      source.boundScenario,
+      source.taskPacket,
+      runtimeHandoff,
+      latestRun,
+      proposalBundle,
+      inboxItems,
+      projectionInput,
+    );
     const inputFingerprints: ProjectionInputFingerprint[] = [
       fingerprintProjectionArtifact('bound', relativeProjectPath(options.paths, source.boundPath), source.boundScenario),
       fingerprintProjectionArtifact('task', relativeProjectPath(options.paths, source.taskPath), source.taskPacket),
@@ -383,12 +419,14 @@ export function emitScenario(
         yield* fs.writeJson(artifacts.tracePath, artifacts.traceArtifact);
         yield* fs.writeText(artifacts.reviewPath, artifacts.reviewText);
         yield* fs.writeJson(artifacts.proposalsPath, artifacts.proposalBundle);
+        yield* fs.writeJson(artifacts.runtimePath, artifacts.runtimeHandoff);
         return {
           result: {
             outputPath: artifacts.outputPath,
             tracePath: artifacts.tracePath,
             reviewPath: artifacts.reviewPath,
             proposalsPath: artifacts.proposalsPath,
+            runtimePath: artifacts.runtimePath,
             lifecycle: artifacts.rendered.lifecycle,
           },
           outputFingerprint,
@@ -397,6 +435,7 @@ export function emitScenario(
             relativeProjectPath(options.paths, artifacts.tracePath),
             relativeProjectPath(options.paths, artifacts.reviewPath),
             relativeProjectPath(options.paths, artifacts.proposalsPath),
+            relativeProjectPath(options.paths, artifacts.runtimePath),
             relativeProjectPath(options.paths, artifacts.manifestPath),
           ],
         };
@@ -406,6 +445,7 @@ export function emitScenario(
         tracePath: artifacts.tracePath,
         reviewPath: artifacts.reviewPath,
         proposalsPath: artifacts.proposalsPath,
+        runtimePath: artifacts.runtimePath,
         lifecycle: artifacts.rendered.lifecycle,
         incremental,
       }),

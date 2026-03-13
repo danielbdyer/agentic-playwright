@@ -1,6 +1,9 @@
-import type { AdoId } from '../identity';
+import type { AdoId, EventSignatureRef, StateNodeRef, TransitionRef } from '../identity';
 import type {
+  CanonicalLineage,
+  CertificationStatus,
   Governance,
+  ProposalActivation,
   TrustPolicyArtifactType,
   TrustPolicyEvaluation,
   WorkflowEnvelopeFingerprints,
@@ -8,6 +11,7 @@ import type {
   WorkflowEnvelopeLineage,
 } from './workflow';
 import type { ResolutionReceipt } from './resolution';
+import type { TransitionObservation } from './interface';
 
 
 export interface ResolutionGraphDriftDelta {
@@ -128,6 +132,13 @@ export interface StepExecutionReceipt {
   locatorRung?: number | null | undefined;
   degraded: boolean;
   preconditionFailures: string[];
+  requiredStateRefs?: StateNodeRef[] | undefined;
+  forbiddenStateRefs?: StateNodeRef[] | undefined;
+  effectAssertions?: string[] | undefined;
+  eventSignatureRefs?: EventSignatureRef[] | undefined;
+  expectedTransitionRefs?: TransitionRef[] | undefined;
+  observedStateRefs?: StateNodeRef[] | undefined;
+  transitionObservations?: TransitionObservation[] | undefined;
   durationMs: number;
   timing: {
     setupMs: number;
@@ -266,6 +277,9 @@ export interface ProposalEntry {
   evidenceIds: string[];
   impactedSteps: number[];
   trustPolicy: TrustPolicyEvaluation;
+  certification: CertificationStatus;
+  activation: ProposalActivation;
+  lineage: CanonicalLineage;
 }
 
 export interface ProposalBundle {

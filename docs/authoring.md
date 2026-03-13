@@ -34,12 +34,12 @@ Preferred order:
 | `knowledge/snapshots/**` | ARIA assertion templates |
 | `.tesseract/evidence/**` | evidence for proposed canonical changes |
 
-## Deterministic vs review-required
+## Deterministic vs active canon
 
 Use this rule when deciding whether a change should exist at all:
 
-- if the compiler can derive it from already approved artifacts, do not create a new canonical file
-- if the compiler cannot derive it and the missing fact should persist, encode that fact in canonical knowledge and route it through review
+- if the compiler can derive it from existing canonical artifacts, do not create a new canonical file
+- if the compiler cannot derive it and the missing fact should persist, encode or activate that fact in canonical knowledge with provenance and certification metadata
 
 Outputs derived from approved artifacts become:
 
@@ -52,7 +52,13 @@ Intent-preserving steps that are valid but not yet resolved become:
 - `binding.kind: deferred`
 - `governance: approved`
 
-New or changed canonical knowledge remains review-gated.
+Runtime-acquired canonical knowledge should carry:
+
+- `certification: uncertified | certified`
+- `activatedAt`
+- lineage back to runs, evidence, and source artifacts
+
+New or changed canonical knowledge can activate immediately when it is schema-valid. Certification is an official designation, not an execution brake.
 
 ## Scenario IR
 
@@ -168,6 +174,36 @@ Promotion rule:
 
 If a pattern is still only meaningful on one screen, keep it in that screen's hints.
 
+Additional boundary:
+
+- only persist artifacts here when they express operator-approved, intentionally reusable knowledge
+- do not store site-specific experimental harvests or synthetic proof artifacts in `knowledge/patterns/`
+- if a behavior YAML exists only to exercise compiler/runtime invariants, keep it under `tests/fixtures/` and seed it into a temp workspace during the test
+
+`knowledge/patterns/` is not a staging area for disposable agent output. Runtime or agentic discovery should activate screen-local canon first, stay provenance-rich, and promote into shared patterns only after repetition or deliberate standardization.
+
+## Test fixtures vs canonical knowledge
+
+Use `tests/fixtures/knowledge/**` for artifacts that exist only to prove determinism, validation, promotion boundaries, or runtime closure.
+
+Use `knowledge/**` only when all of the following are true:
+
+- the fact is intended to persist beyond one test run
+- the fact is not just a scaffold for a demo or experimental site
+- an operator would plausibly review and approve it as canonical knowledge
+
+Examples that belong in `tests/fixtures/knowledge/**`:
+
+- duplicate-transition proofs
+- support-cycle proofs
+- synthetic behavior patterns used only to exercise projection reuse
+
+Examples that may belong in `knowledge/**`:
+
+- globally reusable alias/posture vocabularies
+- screen-local knowledge for a deliberately curated site after operator/agent alignment
+- promoted shared patterns that have proven reuse across independently curated screens
+
 ## Runtime affordances
 
 Affordances are declarative runtime hints. They do not replace widget handlers.
@@ -235,7 +271,7 @@ These should answer:
 - what task context the agent received
 - which hints, patterns, and prior evidence were used
 - whether the agent resolved, resolved-with-proposals, or truly needed a human
-- whether anything is review-required
+- whether anything is uncertified, certified, or still needs operator follow-up
 - what else would be impacted by a canonical change
 
 ## Development feedback loop
@@ -308,4 +344,3 @@ Guardrail notes:
 - `npm run knip` is maintainer-only in this pass and is not part of the blocking gate yet
 
 If the system cannot explain the change through its artifacts, keep modeling.
-

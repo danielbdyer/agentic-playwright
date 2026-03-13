@@ -24,6 +24,7 @@ export interface ProjectPaths {
   interfaceDir: string;
   interfaceGraphIndexPath: string;
   selectorCanonPath: string;
+  stateGraphPath: string;
   discoveryDir: string;
   boundDir: string;
   tasksDir: string;
@@ -71,6 +72,7 @@ export function createProjectPaths(rootDir: string): ProjectPaths {
     interfaceDir: path.join(rootDir, '.tesseract', 'interface'),
     interfaceGraphIndexPath: path.join(rootDir, '.tesseract', 'interface', 'index.json'),
     selectorCanonPath: path.join(rootDir, '.tesseract', 'interface', 'selectors.json'),
+    stateGraphPath: path.join(rootDir, '.tesseract', 'interface', 'state-graph.json'),
     discoveryDir: path.join(rootDir, '.tesseract', 'discovery'),
     boundDir: path.join(rootDir, '.tesseract', 'bound'),
     tasksDir: path.join(rootDir, '.tesseract', 'tasks'),
@@ -142,6 +144,10 @@ export function runbookPath(paths: ProjectPaths, name: string): string {
 
 export function taskPacketPath(paths: ProjectPaths, adoId: AdoId): string {
   return path.join(paths.tasksDir, `${adoId}.resolution.json`);
+}
+
+export function runtimeHandoffPath(paths: ProjectPaths, adoId: AdoId): string {
+  return path.join(paths.tasksDir, `${adoId}.runtime.json`);
 }
 
 export function runDirPath(paths: ProjectPaths, adoId: AdoId, runId: string): string {
@@ -255,6 +261,10 @@ export function posturesPath(paths: ProjectPaths, screen: ScreenId): string {
 
 export function hintsPath(paths: ProjectPaths, screen: ScreenId): string {
   return path.join(paths.knowledgeDir, 'screens', `${screen}.hints.yaml`);
+}
+
+export function behaviorPath(paths: ProjectPaths, screen: ScreenId): string {
+  return path.join(paths.knowledgeDir, 'screens', `${screen}.behavior.yaml`);
 }
 
 export function surfacePath(paths: ProjectPaths, screen: ScreenId): string {

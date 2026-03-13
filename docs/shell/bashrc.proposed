@@ -1,0 +1,87 @@
+# Proposed ~/.bashrc
+# Purpose: keep Bash fast and predictable when used directly.
+# Recommendation: set Zsh as your default interactive shell instead of exec'ing
+# from Bash. That keeps VS Code shell integration and startup behavior consistent.
+
+# Exit early for non-interactive shells.
+case $- in
+  *i*) ;;
+  *) return ;;
+esac
+
+# VS Code shell integration for Bash.
+if [[ "$TERM_PROGRAM" == "vscode" ]] && command -v code >/dev/null 2>&1; then
+  . "$(code --locate-shell-integration-path bash)"
+fi
+
+# History behavior.
+HISTCONTROL=ignoreboth
+HISTSIZE=5000
+HISTFILESIZE=10000
+shopt -s histappend checkwinsize
+
+# Useful environment.
+export CHROME_DEVEL_SANDBOX=/usr/local/sbin/chrome-devel-sandbox
+export DOCKER_HOST=tcp://localhost:2375
+export VAGRANT_WSL_ENABLE_WINDOWS_ACCESS=1
+export NVM_DIR="$HOME/.nvm"
+export GH_ACCESSIBLE_PROMPTER=1
+export GH_SPINNER_DISABLED=1
+
+# PATH helpers.
+path_prepend() {
+  case ":$PATH:" in
+    *":$1:"*) ;;
+    *) PATH="$1:$PATH" ;;
+  esac
+}
+
+path_append() {
+  case ":$PATH:" in
+    *":$1:"*) ;;
+    *) PATH="$PATH:$1" ;;
+  esac
+}
+
+path_prepend "$HOME/.local/bin"
+path_prepend "$HOME/.npm/bin"
+path_prepend "$HOME/.local/share/pnpm"
+
+if [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
+  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+fi
+
+# Optional user aliases.
+if [[ -f "$HOME/.bash_aliases" ]]; then
+  . "$HOME/.bash_aliases"
+fi
+
+# Bash completion.
+if ! shopt -oq posix; then
+  if [[ -f /usr/share/bash-completion/bash_completion ]]; then
+    . /usr/share/bash-completion/bash_completion
+  elif [[ -f /etc/bash_completion ]]; then
+    . /etc/bash_completion
+  fi
+fi
+
+# Lazy-load NVM only when needed.
+__load_nvm() {
+  unset -f nvm node npm npx corepack pnpm pnpx
+  [[ -s "$NVM_DIR/nvm.sh" ]] && . "$NVM_DIR/nvm.sh"
+  [[ -s "$NVM_DIR/bash_completion" ]] && . "$NVM_DIR/bash_completion"
+  if command -v nvm >/dev/null 2>&1; then
+    nvm use --silent default >/dev/null 2>&1 || nvm use --silent node >/dev/null 2>&1 || true
+  fi
+}
+
+nvm() { __load_nvm; nvm "$@"; }
+node() { __load_nvm; node "$@"; }
+npm() { __load_nvm; npm "$@"; }
+npx() { __load_nvm; npx "$@"; }
+corepack() { __load_nvm; corepack "$@"; }
+pnpm() { __load_nvm; command pnpm "$@"; }
+pnpx() { __load_nvm; command pnpx "$@"; }
+
+# One-time setup, not shell startup:
+#   npm config set prefix "$HOME/.npm"

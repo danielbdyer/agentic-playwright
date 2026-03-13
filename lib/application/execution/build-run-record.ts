@@ -150,7 +150,7 @@ export function buildRunRecord(input: {
     }),
     governance: deriveGovernanceState({
       hasBlocked: steps.some((step) => step.interpretation.kind === 'needs-human' || step.execution.execution.status === 'failed'),
-      hasReviewRequired: steps.some((step) => step.interpretation.kind === 'resolved-with-proposals'),
+      hasReviewRequired: false,
     }),
     payload: {
       runId: input.runId,

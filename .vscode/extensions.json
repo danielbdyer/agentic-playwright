@@ -1,0 +1,13 @@
+{
+  "recommendations": [
+    "github.copilot",
+    "github.copilot-chat",
+    "anthropic.claude-code",
+    "github.vscode-pull-request-github",
+    "eamodio.gitlens",
+    "ms-vscode-remote.remote-wsl",
+    "redhat.vscode-yaml",
+    "dbaeumer.vscode-eslint",
+    "ms-playwright.playwright"
+  ]
+}

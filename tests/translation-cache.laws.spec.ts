@@ -1,8 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { translationCacheKey } from '../lib/application/translation-cache';
-import type { StepTask, TranslationRequest } from '../lib/domain/types';
+import type { TranslationRequest } from '../lib/domain/types';
 import { createElementId, createScreenId } from '../lib/domain/identity';
 import { deterministicRuntimeStepAgent } from '../lib/runtime/agent';
+import { createAgentContext, createInterfaceResolutionContext, createStepTask } from './support/interface-fixtures';
 
 function baseRequest(): TranslationRequest {
   return {
@@ -45,52 +46,36 @@ test('translation cache key invalidates when fingerprints change', () => {
 });
 
 test('translation-disabled replay is reproducible for runtime interpretation', async () => {
-  const task: StepTask = {
-    index: 1,
+  const resolutionContext = createInterfaceResolutionContext({
+    screens: [],
+    controls: { datasets: [], resolutionControls: [], runbooks: [] },
+  });
+  const task = createStepTask({
     intent: 'Enter policy number into search box',
     actionText: 'Enter policy number into search box',
     expectedText: 'Policy number should be accepted',
     normalizedIntent: 'enter policy number into search box => policy number should be accepted',
     allowedActions: ['input'],
-    explicitResolution: null,
-    controlResolution: null,
-    taskFingerprint: 'sha256:task',
-    runtimeKnowledge: {
-      knowledgeFingerprint: 'sha256:knowledge',
-      confidenceFingerprint: 'sha256:confidence',
-      sharedPatterns: {
-        version: 1,
-        actions: {
-          navigate: { id: 'core.navigate', aliases: ['navigate'] },
-          input: { id: 'core.input', aliases: ['enter', 'input', 'type'] },
-          click: { id: 'core.click', aliases: ['click'] },
-          'assert-snapshot': { id: 'core.assert-snapshot', aliases: ['verify'] },
-        },
-        postures: {},
-        documents: [],
-        sources: {
-          actions: {
-            navigate: 'knowledge/patterns/core.patterns.yaml',
-            input: 'knowledge/patterns/core.patterns.yaml',
-            click: 'knowledge/patterns/core.patterns.yaml',
-            'assert-snapshot': 'knowledge/patterns/core.patterns.yaml',
-          },
-          postures: {},
-        },
-      },
-      screens: [],
-      evidenceRefs: [],
-      confidenceOverlays: [],
-      controls: { datasets: [], resolutionControls: [], runbooks: [] },
-    } as StepTask['runtimeKnowledge'],
-  };
+    grounding: {
+      targetRefs: [],
+      selectorRefs: [],
+      fallbackSelectorRefs: [],
+      routeVariantRefs: [],
+      assertionAnchors: [],
+      effectAssertions: [],
+      requiredStateRefs: [],
+      forbiddenStateRefs: [],
+      eventSignatureRefs: [],
+      expectedTransitionRefs: [],
+      resultStateRefs: [],
+    },
+  }, resolutionContext);
 
-  const context = {
+  const context = createAgentContext(resolutionContext, {
     provider: 'deterministic-runtime-step-agent',
-    mode: 'diagnostic',
     runAt: '2024-01-01T00:00:00.000Z',
     translate: undefined,
-  };
+  });
 
   const first = await deterministicRuntimeStepAgent.resolve(task, context);
   const second = await deterministicRuntimeStepAgent.resolve(task, context);

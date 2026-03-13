@@ -1,4 +1,4 @@
-import type { ResolutionCandidateSummary, ResolutionReceipt, StepTask } from '../../domain/types';
+import type { ObservedStateSession, ResolutionCandidateSummary, ResolutionReceipt, StepTask } from '../../domain/types';
 import { resolutionPrecedenceLaw } from '../../domain/precedence';
 import { requiresElement, allowedActionFallback } from './resolve-action';
 import { resolveFromDom } from './dom-fallback';
@@ -8,7 +8,7 @@ import { resolveOverride } from './resolve-target';
 import { selectedControlRefs, selectedControlResolution, selectedDomExplorationPolicy } from './select-controls';
 import { recordExhaustion, uniqueSorted } from './shared';
 import { resolveWithConfidenceOverlay, resolveWithTranslation } from './translation';
-import type { RuntimeAgentStageContext, RuntimeStepAgentContext, RuntimeWorkingMemory } from './types';
+import type { RuntimeAgentStageContext, RuntimeStepAgentContext } from './types';
 import {
   rankActionCandidates,
   rankElementCandidates,
@@ -21,30 +21,31 @@ import { createPlaywrightDomResolver } from '../adapters/playwright-dom-resolver
 
 export const RESOLUTION_PRECEDENCE = resolutionPrecedenceLaw;
 
-const MEMORY_MAX_ENTITY_KEYS = 6;
-const MEMORY_MAX_OPENED_SURFACES = 6;
+const MEMORY_MAX_ACTIVE_REFS = 8;
 const MEMORY_MAX_RECENT_ASSERTIONS = 8;
 const MEMORY_STALENESS_TTL_STEPS = 5;
 const MEMORY_SCREEN_CONFIDENCE_FLOOR = 0.35;
 
-function createEmptyRuntimeWorkingMemory(): RuntimeWorkingMemory {
+function createEmptyObservedStateSession(): ObservedStateSession {
   return {
     currentScreen: null,
-    activeEntityKeys: [],
-    openedPanels: [],
-    openedModals: [],
+    activeStateRefs: [],
+    lastObservedTransitionRefs: [],
+    activeRouteVariantRefs: [],
+    activeTargetRefs: [],
     lastSuccessfulLocatorRung: null,
     recentAssertions: [],
     lineage: [],
   };
 }
 
-function normalizeWorkingMemory(task: StepTask, memory: RuntimeWorkingMemory): RuntimeWorkingMemory {
-  const next: RuntimeWorkingMemory = {
+function normalizeObservedStateSession(task: StepTask, memory: ObservedStateSession): ObservedStateSession {
+  const next: ObservedStateSession = {
     currentScreen: memory.currentScreen,
-    activeEntityKeys: uniqueSorted(memory.activeEntityKeys).slice(0, MEMORY_MAX_ENTITY_KEYS),
-    openedPanels: uniqueSorted(memory.openedPanels).slice(0, MEMORY_MAX_OPENED_SURFACES),
-    openedModals: uniqueSorted(memory.openedModals).slice(0, MEMORY_MAX_OPENED_SURFACES),
+    activeStateRefs: uniqueSorted(memory.activeStateRefs).slice(0, MEMORY_MAX_ACTIVE_REFS),
+    lastObservedTransitionRefs: uniqueSorted(memory.lastObservedTransitionRefs).slice(0, MEMORY_MAX_ACTIVE_REFS),
+    activeRouteVariantRefs: uniqueSorted(memory.activeRouteVariantRefs).slice(0, MEMORY_MAX_ACTIVE_REFS),
+    activeTargetRefs: uniqueSorted(memory.activeTargetRefs).slice(0, MEMORY_MAX_ACTIVE_REFS),
     lastSuccessfulLocatorRung: memory.lastSuccessfulLocatorRung,
     recentAssertions: memory.recentAssertions
       .filter((entry) => Number.isFinite(entry.observedAtStep) && task.index - entry.observedAtStep <= MEMORY_STALENESS_TTL_STEPS)
@@ -57,18 +58,34 @@ function normalizeWorkingMemory(task: StepTask, memory: RuntimeWorkingMemory): R
   }
   if (next.currentScreen && next.currentScreen.confidence < MEMORY_SCREEN_CONFIDENCE_FLOOR) {
     next.currentScreen = null;
-    next.openedPanels = [];
-    next.openedModals = [];
+    next.activeStateRefs = [];
+    next.lastObservedTransitionRefs = [];
   }
   if (task.actionText.toLowerCase().includes('navigate')) {
-    next.openedPanels = [];
-    next.openedModals = [];
+    next.activeStateRefs = [];
+    next.lastObservedTransitionRefs = [];
   }
 
   return next;
 }
 
-function updateWorkingMemoryAfterResolution(stage: RuntimeAgentStageContext, receipt: ResolutionReceipt): void {
+function resolvedTargetRef(stage: RuntimeAgentStageContext, receipt: ResolutionReceipt) {
+  if (receipt.kind === 'needs-human' || !receipt.target.element) {
+    return null;
+  }
+  const screen = stage.context.resolutionContext.screens.find((entry) => entry.screen === receipt.target.screen);
+  return screen?.elements.find((entry) => entry.element === receipt.target.element)?.targetRef ?? null;
+}
+
+function routeVariantRefsForReceipt(stage: RuntimeAgentStageContext, receipt: ResolutionReceipt): string[] {
+  if (receipt.kind === 'needs-human') {
+    return stage.task.grounding.routeVariantRefs;
+  }
+  const screen = stage.context.resolutionContext.screens.find((entry) => entry.screen === receipt.target.screen);
+  return screen?.routeVariantRefs.length ? screen.routeVariantRefs : stage.task.grounding.routeVariantRefs;
+}
+
+function updateObservedStateSessionAfterResolution(stage: RuntimeAgentStageContext, receipt: ResolutionReceipt): void {
   if (receipt.kind === 'needs-human') {
     return;
   }
@@ -79,16 +96,14 @@ function updateWorkingMemoryAfterResolution(stage: RuntimeAgentStageContext, rec
     confidence: receipt.confidence === 'compiler-derived' ? 1 : receipt.confidence === 'agent-verified' ? 0.8 : 0.65,
     observedAtStep: stage.task.index,
   };
+  memory.activeRouteVariantRefs = uniqueSorted([
+    ...memory.activeRouteVariantRefs,
+    ...routeVariantRefsForReceipt(stage, receipt),
+  ]).slice(0, MEMORY_MAX_ACTIVE_REFS);
 
-  if (receipt.target.element) {
-    memory.activeEntityKeys = uniqueSorted([...memory.activeEntityKeys, receipt.target.element]).slice(0, MEMORY_MAX_ENTITY_KEYS);
-    const elementText = receipt.target.element.toLowerCase();
-    if (elementText.includes('modal')) {
-      memory.openedModals = uniqueSorted([...memory.openedModals, receipt.target.element]).slice(0, MEMORY_MAX_OPENED_SURFACES);
-    }
-    if (elementText.includes('panel')) {
-      memory.openedPanels = uniqueSorted([...memory.openedPanels, receipt.target.element]).slice(0, MEMORY_MAX_OPENED_SURFACES);
-    }
+  const targetRef = resolvedTargetRef(stage, receipt);
+  if (targetRef) {
+    memory.activeTargetRefs = uniqueSorted([...memory.activeTargetRefs, targetRef]).slice(0, MEMORY_MAX_ACTIVE_REFS);
   }
 
   if (receipt.target.action === 'assert-snapshot') {
@@ -142,8 +157,8 @@ function summaryForValue<T>(concern: ResolutionCandidateSummary['concern'], rank
 }
 
 export async function runResolutionPipeline(task: StepTask, context: RuntimeStepAgentContext): Promise<ResolutionReceipt> {
-  const memory = normalizeWorkingMemory(task, context.runtimeWorkingMemory ?? createEmptyRuntimeWorkingMemory());
-  context.runtimeWorkingMemory = memory;
+  const memory = normalizeObservedStateSession(task, context.observedStateSession ?? createEmptyObservedStateSession());
+  context.observedStateSession = memory;
 
   const stage: RuntimeAgentStageContext = {
     task,
@@ -151,7 +166,7 @@ export async function runResolutionPipeline(task: StepTask, context: RuntimeStep
     memory,
     controlResolution: selectedControlResolution(task, context),
     controlRefs: selectedControlRefs(task, context),
-    evidenceRefs: uniqueSorted(task.runtimeKnowledge!.evidenceRefs),
+    evidenceRefs: uniqueSorted(context.resolutionContext.evidenceRefs),
     exhaustion: [],
     observations: [],
     knowledgeRefs: [],
@@ -163,36 +178,36 @@ export async function runResolutionPipeline(task: StepTask, context: RuntimeStep
   if (explicit?.action && explicit.screen && (!requiresElement(explicit.action) || explicit.element)) {
     recordExhaustion(stage.exhaustion, 'explicit', 'resolved', 'Explicit structured resolution satisfied executable requirements');
     const receipt = explicitResolvedReceipt(stage);
-    updateWorkingMemoryAfterResolution(stage, receipt);
+    updateObservedStateSessionAfterResolution(stage, receipt);
     return receipt;
   }
   recordExhaustion(stage.exhaustion, 'explicit', explicit ? 'attempted' : 'skipped', explicit ? 'Explicit constraints were partial and used as priors' : 'No explicit constraints present');
 
-  const actionLattice = rankActionCandidates(task, stage.controlResolution);
+  const actionLattice = rankActionCandidates(task, stage.controlResolution, context.resolutionContext);
   const action = actionLattice.selected?.value ?? null;
   stage.supplementRefs.push(...actionLattice.selected?.refs ?? []);
   const actionCandidates = summaryForValue('action', actionLattice.ranked);
 
-  const screenLattice = rankScreenCandidates(task, action, stage.controlResolution, context.previousResolution, stage.memory);
+  const screenLattice = rankScreenCandidates(task, action, stage.controlResolution, context.previousResolution, context.resolutionContext, stage.memory);
   const screen = screenLattice.selected?.value ?? null;
   if (screen) {
     stage.knowledgeRefs.push(...screen.knowledgeRefs);
     stage.supplementRefs.push(...screen.supplementRefs);
-    recordExhaustion(stage.exhaustion, 'approved-screen-bundle', 'attempted', `Selected screen ${screen.screen}`, summaryForValue('screen', screenLattice.ranked));
+    recordExhaustion(stage.exhaustion, 'approved-screen-knowledge', 'attempted', `Selected screen ${screen.screen}`, summaryForValue('screen', screenLattice.ranked));
   } else {
-    recordExhaustion(stage.exhaustion, 'approved-screen-bundle', 'failed', 'No screen candidate matched approved knowledge priors', summaryForValue('screen', screenLattice.ranked));
+    recordExhaustion(stage.exhaustion, 'approved-screen-knowledge', 'failed', 'No screen candidate matched approved screen knowledge priors', summaryForValue('screen', screenLattice.ranked));
   }
 
   const elementLattice = rankElementCandidates(task, screen, stage.controlResolution, stage.memory);
   const element = elementLattice.selected?.value ?? null;
   stage.supplementRefs.push(...elementLattice.selected?.refs ?? []);
   if (element) {
-    recordExhaustion(stage.exhaustion, 'local-hints', 'attempted', `Matched element ${element.element}`, summaryForValue('element', elementLattice.ranked));
+    recordExhaustion(stage.exhaustion, 'approved-screen-knowledge', 'attempted', `Matched element ${element.element}`, summaryForValue('element', elementLattice.ranked));
   } else {
-    recordExhaustion(stage.exhaustion, 'local-hints', 'failed', 'No element candidate matched local hints', summaryForValue('element', elementLattice.ranked));
+    recordExhaustion(stage.exhaustion, 'approved-screen-knowledge', 'failed', 'No element candidate matched approved screen knowledge', summaryForValue('element', elementLattice.ranked));
   }
 
-  const postureLattice = rankPostureCandidates(task, element, stage.controlResolution);
+  const postureLattice = rankPostureCandidates(task, element, stage.controlResolution, context.resolutionContext);
   const posture = postureLattice.selected?.value ?? null;
   stage.supplementRefs.push(...postureLattice.selected?.refs ?? []);
   recordExhaustion(stage.exhaustion, 'shared-patterns', posture ? 'attempted' : 'skipped', posture ? `Matched posture ${posture}` : 'No shared posture pattern required', summaryForValue('posture', postureLattice.ranked));
@@ -200,8 +215,8 @@ export async function runResolutionPipeline(task: StepTask, context: RuntimeStep
   recordExhaustion(
     stage.exhaustion,
     'prior-evidence',
-    task.runtimeKnowledge!.evidenceRefs.length > 0 ? 'attempted' : 'skipped',
-    task.runtimeKnowledge!.evidenceRefs.length > 0 ? 'Prior evidence refs were available to the agent task' : 'No prior evidence refs available',
+    context.resolutionContext.evidenceRefs.length > 0 ? 'attempted' : 'skipped',
+    context.resolutionContext.evidenceRefs.length > 0 ? 'Prior evidence refs were available to the agent task' : 'No prior evidence refs available',
   );
 
   const override = resolveOverride(task, screen, element, posture, stage.controlResolution, context);
@@ -210,7 +225,7 @@ export async function runResolutionPipeline(task: StepTask, context: RuntimeStep
   stage.supplementRefs.push(...snapshotLattice.selected?.refs ?? []);
 
   stage.observations.push({
-    source: 'knowledge',
+    source: 'approved-screen-knowledge',
     summary: 'Deterministic lattice ranked approved candidates across action, screen, element, posture, and snapshot concerns.',
     topCandidates: [
       ...actionCandidates.topCandidates.slice(0, 1),
@@ -229,7 +244,16 @@ export async function runResolutionPipeline(task: StepTask, context: RuntimeStep
   });
 
   if (action && screen && (!requiresElement(action) || element) && (action !== 'assert-snapshot' || snapshotTemplate)) {
-    recordExhaustion(stage.exhaustion, 'safe-degraded-resolution', 'resolved', 'Approved deterministic priors produced an executable target');
+    const winningSource = override.source === 'approved-equivalent'
+      ? 'approved-equivalent-overlay'
+      : override.source === 'prior-evidence'
+        ? 'prior-evidence'
+        : override.source === 'structured-translation'
+          ? 'structured-translation'
+          : postureLattice.selected?.source === 'shared-patterns' || actionLattice.selected?.source === 'shared-patterns'
+            ? 'shared-patterns'
+            : 'approved-screen-knowledge';
+    recordExhaustion(stage.exhaustion, winningSource, 'resolved', 'Approved deterministic priors produced an executable target');
     const receipt = {
       ...needsHumanReceipt(stage, [], null),
       kind: 'resolved',
@@ -250,16 +274,16 @@ export async function runResolutionPipeline(task: StepTask, context: RuntimeStep
         snapshot_template: snapshotTemplate,
       },
     } as ResolutionReceipt;
-    updateWorkingMemoryAfterResolution(stage, receipt);
+    updateObservedStateSessionAfterResolution(stage, receipt);
     return receipt;
   }
 
-  const overlayResult = resolveWithConfidenceOverlay(task, action, screen, element, snapshotTemplate);
+  const overlayResult = resolveWithConfidenceOverlay(task, context, action, screen, element, snapshotTemplate);
   if (overlayResult.observation) {
     stage.observations.push(overlayResult.observation);
   }
   if (overlayResult.overlayRefs.length > 0) {
-    recordExhaustion(stage.exhaustion, 'confidence-overlay', 'resolved', `Approved-equivalent overlays resolved ${overlayResult.overlayRefs.join(', ')}`);
+    recordExhaustion(stage.exhaustion, 'approved-equivalent-overlay', 'resolved', `Approved-equivalent overlays resolved ${overlayResult.overlayRefs.join(', ')}`);
     const overlayOverride = resolveOverride(task, overlayResult.screen, overlayResult.element, overlayResult.posture, stage.controlResolution, context);
     const receipt = {
       ...needsHumanReceipt(stage, [], null),
@@ -282,12 +306,12 @@ export async function runResolutionPipeline(task: StepTask, context: RuntimeStep
         snapshot_template: overlayResult.snapshotTemplate,
       },
     } as ResolutionReceipt;
-    updateWorkingMemoryAfterResolution(stage, receipt);
+    updateObservedStateSessionAfterResolution(stage, receipt);
     return receipt;
   }
-  recordExhaustion(stage.exhaustion, 'confidence-overlay', 'failed', 'No approved-equivalent confidence overlay produced an executable target');
+  recordExhaustion(stage.exhaustion, 'approved-equivalent-overlay', 'failed', 'No approved-equivalent confidence overlay produced an executable target');
 
-  const translated = await resolveWithTranslation(task, context.translate);
+  const translated = await resolveWithTranslation(task, context);
   if (translated.observation) {
     stage.observations.push(translated.observation);
   }
@@ -315,7 +339,7 @@ export async function runResolutionPipeline(task: StepTask, context: RuntimeStep
         snapshot_template: snapshotTemplate,
       },
     } as ResolutionReceipt;
-    updateWorkingMemoryAfterResolution(stage, receipt);
+    updateObservedStateSessionAfterResolution(stage, receipt);
     return receipt;
   }
   recordExhaustion(stage.exhaustion, 'structured-translation', context.translate ? 'failed' : 'skipped', context.translate ? 'Structured translation did not produce an executable target' : 'No structured translation stage was configured');
@@ -351,9 +375,6 @@ export async function runResolutionPipeline(task: StepTask, context: RuntimeStep
         reason: `rung=${candidate.evidence.locatorRung + 1}; role=${candidate.evidence.roleNameScore.toFixed(2)}; widget=${candidate.evidence.widgetCompatibilityScore.toFixed(2)}`,
       })),
     });
-    recordExhaustion(stage.exhaustion, 'safe-degraded-resolution', 'resolved', domResolved.candidates.length === 1
-      ? 'A single live-DOM candidate remained after deterministic priors exhausted'
-      : 'Ambiguous but bounded live-DOM shortlist produced a deterministic tie-break winner');
     const proposalDrafts = proposalForSupplementGap(task, liveScreen, liveElement);
     const candidateObservation = {
       top: domShortlist.map((candidate) => `${candidate.element.element}:${candidate.score.toFixed(3)}`).join(' | '),
@@ -363,7 +384,7 @@ export async function runResolutionPipeline(task: StepTask, context: RuntimeStep
     const receipt = {
       ...needsHumanReceipt(stage, [...overlayResult.overlayRefs, ...translated.overlayRefs], translated.translation),
       kind: 'resolved-with-proposals',
-      governance: 'review-required',
+      governance: 'approved',
       lineage: { sources: [], parents: [task.taskFingerprint], handshakes: ['preparation', 'resolution'] },
       winningSource: 'live-dom',
       confidence: 'agent-proposed',
@@ -397,12 +418,12 @@ export async function runResolutionPipeline(task: StepTask, context: RuntimeStep
       })),
       proposalDrafts,
     } as ResolutionReceipt;
-    updateWorkingMemoryAfterResolution(stage, receipt);
+    updateObservedStateSessionAfterResolution(stage, receipt);
     return receipt;
   }
 
   recordExhaustion(stage.exhaustion, 'live-dom', domResolver ? 'failed' : 'skipped', domResolver ? 'Live DOM did not produce a bounded executable candidate set' : 'No live DOM resolver was available');
-  recordExhaustion(stage.exhaustion, 'safe-degraded-resolution', 'failed', 'No safe degraded resolution remained after all machine paths were exhausted');
+  recordExhaustion(stage.exhaustion, 'needs-human', 'failed', 'No safe executable interpretation remained after all machine paths were exhausted');
 
   return {
     ...needsHumanReceipt(stage, [...overlayResult.overlayRefs, ...translated.overlayRefs], translated.translation),

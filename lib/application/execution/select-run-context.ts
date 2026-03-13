@@ -5,18 +5,18 @@ import type {
   AdoSnapshot,
   BoundScenario,
   ExecutionPosture,
+  InterfaceResolutionContext,
   RuntimeDatasetBinding,
   RuntimeRunbookControl,
   Scenario,
   ScenarioTaskPacket,
   StepTask,
-  RuntimeKnowledgeSession,
 } from '../../domain/types';
 import type { AdoId, ScreenId } from '../../domain/identity';
 import { activeDatasetForRun, findRunbook, runtimeControlsForScenario } from '../controls';
 import { chooseByPrecedence, runSelectionPrecedenceLaw } from '../../domain/precedence';
 import type { RecoveryPolicy } from '../../domain/execution/recovery-policy';
-import { buildRuntimeKnowledgeSession } from '../task';
+import { buildInterfaceResolutionContext } from '../interface-resolution';
 
 const fixtureReferencePattern = /^\{\{\s*([A-Za-z0-9_-]+)(?:\.[^}]*)?\s*\}\}$/;
 
@@ -65,11 +65,11 @@ function defaultFixtures(input: {
   return fixtures;
 }
 
-function taskStepsForRun(taskSteps: readonly StepTask[], runtimeKnowledgeSession: RuntimeKnowledgeSession | undefined, resolutionControlName?: string | null): StepTask[] {
+function taskStepsForRun(taskSteps: readonly StepTask[], resolutionContext: InterfaceResolutionContext, resolutionControlName?: string | null): StepTask[] {
   return taskSteps.map((step) => ({
     ...step,
     controlResolution: resolutionControlName
-      ? (((step.runtimeKnowledge ?? runtimeKnowledgeSession)?.controls.resolutionControls.find((entry) => entry.name === resolutionControlName && entry.stepIndex === step.index)?.resolution) ?? step.controlResolution)
+      ? (resolutionContext.controls.resolutionControls.find((entry) => entry.name === resolutionControlName && entry.stepIndex === step.index)?.resolution ?? step.controlResolution)
       : step.controlResolution,
   }));
 }
@@ -85,7 +85,7 @@ export interface SelectedRunContext {
   posture: ExecutionPosture;
   mode: RuntimeScenarioMode;
   steps: StepTask[];
-  runtimeKnowledgeSession?: RuntimeKnowledgeSession | undefined;
+  resolutionContext: InterfaceResolutionContext;
   screenIds: ScreenId[];
   fixtures: Record<string, unknown>;
   context: {
@@ -123,35 +123,42 @@ export function selectRunContext(input: {
     scenario: scenarioEntry.artifact,
   });
   const runtimeControls = runtimeControlsForScenario(input.catalog, scenarioEntry.artifact);
-  const runtimeKnowledgeSession = buildRuntimeKnowledgeSession({
+  const interfaceGraph = input.catalog.interfaceGraph?.artifact ?? null;
+  const selectorCanon = input.catalog.selectorCanon?.artifact ?? null;
+  const stateGraph = input.catalog.stateGraph?.artifact ?? null;
+  if (!interfaceGraph || !selectorCanon || !stateGraph) {
+    throw new Error(`Missing interface graph, selector canon, or state graph for ${input.adoId}`);
+  }
+  const resolutionContext = buildInterfaceResolutionContext({
     catalog: input.catalog,
     knowledgeFingerprint: taskPacketEntry.artifact.payload.knowledgeFingerprint,
     runtimeControls,
-    interfaceGraph: input.catalog.interfaceGraph?.artifact ?? null,
-    selectorCanon: input.catalog.selectorCanon?.artifact ?? null,
+    interfaceGraph,
+    selectorCanon,
+    stateGraph,
     screenRefs: taskPacketEntry.artifact.payload.knowledgeSlice.screenRefs,
   });
-  const activeDataset = activeDatasetForRun(runtimeKnowledgeSession.controls, activeRunbook);
+  const activeDataset = activeDatasetForRun(resolutionContext.controls, activeRunbook);
   const runId = new Date().toISOString().replace(/[:.]/g, '-');
   const posture = input.posture ?? input.executionContextPosture;
   const mode = chooseByPrecedence([
     { rung: 'cli-flag', value: input.interpreterMode ?? null },
     { rung: 'runbook', value: activeRunbook?.interpreterMode ?? null },
-    { rung: 'repo-default', value: posture.interpreterMode ?? 'diagnostic' },
+      { rung: 'repo-default', value: posture.interpreterMode ?? 'diagnostic' },
   ], runSelectionPrecedenceLaw) ?? 'diagnostic';
-  const steps = taskStepsForRun(taskPacketEntry.artifact.payload.steps, runtimeKnowledgeSession, activeRunbook?.resolutionControl ?? null);
+  const steps = taskStepsForRun(taskPacketEntry.artifact.payload.steps, resolutionContext, activeRunbook?.resolutionControl ?? null);
   const fixtureIds = uniqueSorted([
     ...scenarioEntry.artifact.preconditions.map((precondition) => precondition.fixture),
     ...steps.flatMap((step) =>
-        (step.runtimeKnowledge ?? runtimeKnowledgeSession)?.screens.flatMap((screen) =>
+        resolutionContext.screens.flatMap((screen) =>
           screen.elements
             .map((element) => fixtureIdFromTemplateValue(element.defaultValueRef))
             .filter((value): value is string => value !== null),
-      ) ?? [],
+      ),
     ),
   ]);
   const screenIds = uniqueSorted(
-    steps.flatMap((step) => ((step.runtimeKnowledge ?? runtimeKnowledgeSession)?.screens.map((screen) => screen.screen) ?? [])),
+    resolutionContext.screens.map((screen) => screen.screen),
   ) as ScreenId[];
 
   return {
@@ -165,7 +172,7 @@ export function selectRunContext(input: {
     posture,
     mode,
     steps,
-    runtimeKnowledgeSession,
+    resolutionContext,
     screenIds,
     fixtures: defaultFixtures({
       fixtureIds,

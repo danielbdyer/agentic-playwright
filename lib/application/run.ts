@@ -1,6 +1,7 @@
 import { Effect } from 'effect';
 import { projectConfidenceOverlayCatalog } from './confidence';
 import { resolveRunSelection } from './controls';
+import { activateProposalBundle } from './activate-proposals';
 import { buildDerivedGraph } from './graph';
 import { writeAgentSessionLedger } from './agent-session-ledger';
 import { emitScenario } from './emit';
@@ -75,7 +76,7 @@ export function runScenario(options: {
           steps: selectedContext.steps,
           posture: selectedContext.posture,
           context: selectedContext.context,
-          runtimeKnowledgeSession: selectedContext.runtimeKnowledgeSession,
+          resolutionContext: selectedContext.resolutionContext,
           recoveryPolicy: selectedContext.recoveryPolicy,
           translationOptions: {
             disableTranslation: options.disableTranslation ?? !selectedContext.translationEnabled,
@@ -100,6 +101,10 @@ export function runScenario(options: {
           evidenceWrites: evidenceStage.evidenceWrites,
           evidenceCatalog,
         });
+        const activationStage = yield* activateProposalBundle({
+          paths: options.paths,
+          proposalBundle: proposalStage.proposalBundle,
+        });
         const runRecordStage = buildRunRecord({
           adoId: options.adoId,
           runId: selectedContext.runId,
@@ -114,7 +119,7 @@ export function runScenario(options: {
           interfaceGraph: catalog.interfaceGraph?.artifact ?? null,
           selectorCanon: catalog.selectorCanon?.artifact ?? null,
           runRecord: runRecordStage.runRecord,
-          proposalBundle: proposalStage.proposalBundle,
+          proposalBundle: activationStage.proposalBundle,
         });
         const session = yield* writeAgentSessionLedger({
           paths: options.paths,
@@ -127,7 +132,7 @@ export function runScenario(options: {
           taskPacket: selectedContext.taskPacketEntry.artifact,
           interfaceGraph: catalog.interfaceGraph?.artifact ?? null,
           selectorCanon: catalog.selectorCanon?.artifact ?? null,
-          proposalBundle: proposalStage.proposalBundle,
+          proposalBundle: activationStage.proposalBundle,
           learningManifest: learning.manifest,
         });
 
@@ -141,7 +146,7 @@ export function runScenario(options: {
         yield* fs.writeJson(executionFile, executionStage.executionOutput);
         yield* fs.writeJson(resolutionGraphFile, executionStage.resolutionGraphOutput);
         yield* fs.writeJson(runFile, runRecordStage.runRecord);
-        yield* fs.writeJson(proposalsFile, proposalStage.proposalBundle);
+        yield* fs.writeJson(proposalsFile, activationStage.proposalBundle);
 
         const confidence = yield* projectConfidenceOverlayCatalog({ paths: options.paths });
         const emitted = yield* emitScenario({ adoId: options.adoId, paths: options.paths });
@@ -158,6 +163,8 @@ export function runScenario(options: {
           runPath: runFile,
           proposalsPath: proposalsFile,
           evidence: evidenceStage.evidenceWrites.map((entry) => entry.absolutePath),
+          activatedCanonPaths: activationStage.activatedPaths,
+          blockedProposalIds: activationStage.blockedProposalIds,
           learning,
           session,
           confidence,
