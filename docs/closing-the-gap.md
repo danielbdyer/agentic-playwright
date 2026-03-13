@@ -264,3 +264,173 @@ The sequence is done when all of the following are true:
 8. `npm run dogfood -- --max-iterations 2` completes with a legible ledger
 
 None of these require LLM integration, external APIs, or a real enterprise app. They all work against the local demo harness with deterministic fixtures. That's by design — the first proof should be reproducible by anyone who clones the repo.
+
+---
+
+## Five things the codebase hasn't thought about yet
+
+The six moves above close the gap between aspiration and proof. These five recommendations address genuine blind spots — concerns that don't appear in the backlog, the master architecture, or any existing doc. They're the kind of thing that bites a system *after* the flywheel starts working.
+
+### Blind spot 1: Knowledge census and debt tracking
+
+The system has rich knowledge artifacts per screen (elements, postures, hints, behavior, surfaces) and a benchmark scorecard that counts `thinKnowledgeScreenCount`. But there is no concept of **knowledge completeness as a measurable, per-screen metric**, and no concept of **knowledge debt** — the gap between what's authored and what's needed.
+
+Today, you can author `policy-search.elements.yaml` with 4 elements but zero behavior definitions, or write a behavior file with event signatures that reference elements that don't exist yet. Nothing flags that as incomplete. When a second, third, and tenth screen arrive, the question "which screens are ready for scenario work and which need more knowledge?" has no answer except reading every YAML file by hand.
+
+**What's needed:**
+
+A `npm run census` command that walks the knowledge directory and produces a structured report:
+
+```
+Screen: policy-search
+  Elements: 4 (all have locator ladders)
+  Postures: 3 (covers 3 of 4 elements)
+  Behavior: 6 state nodes, 2 event signatures, 4 transitions
+  Hints: present (12 aliases)
+  Surface: present (4 surfaces)
+  Completeness: 92%
+  Debt: validationSummary has no posture definition
+
+Screen: policy-detail
+  Elements: 5
+  Postures: 0  ← DEBT
+  Behavior: 0  ← DEBT
+  Hints: present (3 aliases)
+  Surface: present
+  Completeness: 40%
+  Debt: no postures, no behavior, 2 elements missing locator ladders
+```
+
+The census should also track **unused knowledge** — hints or patterns authored but never referenced by any scenario's resolution. This prevents knowledge rot: artifacts that were useful once but now just add noise to the resolution candidate set.
+
+**Why this isn't in the backlog:** The backlog assumes knowledge authoring is a human operator task guided by hotspots and inbox items. That's the right runtime loop. But it doesn't address the *static* question of whether authored knowledge is structurally complete before any scenario ever runs. The census is a compile-time concern, not a runtime one.
+
+**Implementation shape:**
+- Pure domain function: `assessKnowledgeCompleteness(screen, elements, postures, behavior, hints, surface) → CoverageReport`
+- Application command that walks `knowledge/` and calls it per screen
+- Output as both JSON (machine-consumable) and markdown (human-readable)
+- Integrate into `npm run workflow` as a "knowledge health" section
+
+---
+
+### Blind spot 2: Schema evolution strategy
+
+Every envelope type has `version: 1`. There is exactly one compatibility adapter (`lib/application/compat/surface-adapter.ts`) handling one historical version bump. There is no general migration framework.
+
+This matters more than it seems. The `.tesseract/` directory is full of derived artifacts with schemas that will change. When `StepExecutionReceipt` gains a new field, or `InterfaceGraphNode` adds a new `kind`, or `AgentEvent` adds a new event type, every artifact on disk from a prior run becomes unparseable by the new code. Today this is invisible because there's one screen and one scenario — the artifacts get rebuilt from scratch on every `npm run refresh`. At scale with cached incremental artifacts, historical run records, and learning corpora, schema drift becomes a data integrity problem.
+
+**What's needed:**
+
+A lightweight versioned schema contract:
+
+1. **Schema version registry** — a single file mapping `(kind, version)` → validation function. When a type changes, bump its version.
+
+2. **Forward-reading adapters** — when loading an artifact, check its version. If it's older than current, apply a migration function. If it's newer (written by a future version of the code), refuse to load rather than silently misinterpreting.
+
+3. **`npm run migrate`** — walks `.tesseract/` and upgrades old artifacts in place. Useful after a version bump.
+
+4. **Law test: schema version monotonicity** — if you change a type's shape, you must bump its version. Test this by maintaining a fingerprint of each schema's type signature and failing when the fingerprint changes without a version bump.
+
+**Why this isn't in the backlog:** The backlog focuses on runtime behavior and the flywheel loop. Schema evolution is infrastructure that doesn't show up until the system has enough historical data to care about — which is exactly the point the flywheel proof will reach.
+
+**Implementation shape:**
+- Registry in `lib/domain/schema-registry.ts` — a map of `{ kind: string, version: number, validate: (x) => T, migrate?: (old) => T }`
+- Loader wrapper in `lib/application/catalog/loaders.ts` that checks version before parsing
+- CLI command `migrate` in the registry
+- ~200 LOC total
+
+---
+
+### Blind spot 3: Golden-file regression testing for generated artifacts
+
+The generated spec (`10001.spec.ts`), trace JSON, and review markdown are all produced by deterministic codegen from deterministic inputs. But there is no test that asserts "the output hasn't changed unexpectedly." The only validation is that the generated spec *runs* against the demo harness (`npm run test:generated`).
+
+This creates a silent regression risk: a refactor of `spec-codegen.ts` or `emit.ts` could change the generated output in a way that's functionally equivalent but structurally different, and nobody would know until a human reads the diff. Worse, a refactor could change the output in a way that's functionally *broken*, and the only signal would be a Playwright test failure — which doesn't tell you *what changed in the codegen*.
+
+**What's needed:**
+
+Golden-file snapshot tests for the three primary generated artifacts:
+
+1. Store approved baselines in `tests/golden/` (e.g., `tests/golden/10001.spec.ts.snap`, `tests/golden/10001.trace.json.snap`, `tests/golden/10001.review.md.snap`)
+2. A test that runs `emitScenario()` and compares the output against the golden file
+3. When the golden file diverges, the test fails with a readable diff showing exactly what changed
+4. Update the golden file explicitly with `npm run test -- --update-snapshots` (or equivalent)
+
+This is distinct from `npm run test:generated` which validates *runtime behavior*. Golden-file testing validates *codegen stability* — that the same inputs produce the same textual output.
+
+**Why this isn't in the backlog:** The backlog treats generated specs as "disposable object code" — they're projections that can be rebuilt. That's architecturally correct. But in practice, the readability of generated specs is a product value (the VISION doc says "emitted tests should read like a strong authored test"). If a codegen change makes the output less readable, golden-file testing catches it. Disposable doesn't mean unreviewed.
+
+**Implementation shape:**
+- `tests/golden-file.spec.ts` — 3 tests, one per artifact type
+- `tests/golden/` directory with approved baselines
+- Helper to normalize timestamps/fingerprints before comparison (so deterministic inputs produce byte-identical outputs)
+- ~100 LOC
+
+---
+
+### Blind spot 4: Ad-hoc scenario filtering without a runbook
+
+The CLI today requires a runbook (`controls/runbooks/*.runbook.yaml`) to select which scenarios to run. There's no way to say `npm run run -- --tag smoke` or `npm run run -- --screen policy-search` or `npm run run -- --priority P1` from the command line without first authoring a runbook that selects those scenarios.
+
+This is friction that compounds. During development, an operator wants to run "just the smoke tests" or "just the scenarios touching the screen I changed." Writing a runbook for every ad-hoc filter is ceremony that slows the iteration loop. And since the `selector` mechanism already exists inside runbooks (`adoIds`, `suites`, `tags`), the filtering logic is already implemented — it just isn't exposed to the CLI.
+
+**What's needed:**
+
+CLI flags that create an ephemeral implicit runbook:
+
+```
+npm run run -- --tag smoke                    # all scenarios tagged 'smoke'
+npm run run -- --screen policy-search         # all scenarios touching policy-search
+npm run run -- --priority P1                  # all scenarios with priority P1
+npm run run -- --tag smoke --screen policy-search  # intersection
+npm run run -- --ado-id 10001,10002           # explicit list (already partially exists)
+```
+
+Internally, these flags construct a transient `RunbookControl` with the appropriate selector, the same way the existing runbook loading works. No new domain concepts needed.
+
+**Why this isn't in the backlog:** The backlog item C1 mentions "translation cache and evaluation harness" and D1 mentions "structured entropy harness," both of which involve selecting scenario subsets. But neither addresses the basic ergonomic gap of *ad-hoc filtering during development*. The runbook is the right abstraction for production configurations. CLI flags are the right abstraction for the iteration loop.
+
+**Implementation shape:**
+- Add `--tag`, `--screen`, `--priority` flags to the `run` command in `lib/application/cli/registry.ts`
+- Build a transient `RunbookControl` from the flags in `selectRunContext()`
+- The selector matching logic already exists in `selectorMatchesScenario()`
+- ~80 LOC
+
+---
+
+### Blind spot 5: Knowledge artifact change-impact preview
+
+The rerun-plan (`npm run rerun-plan`) computes the smallest safe rerun set *after* a proposal has been activated. But there's no way to preview the impact *before* making a knowledge change. If an operator is about to edit `policy-search.elements.yaml`, there's no command that answers "which scenarios would be affected, and what would change in their resolution?"
+
+This matters because knowledge edits are the primary way the system improves. An operator who edits a hints file, an elements file, or a behavior file should be able to see the blast radius before committing. Today, the only way to find out is to make the change, run `npm run refresh`, and compare the outputs manually.
+
+**What's needed:**
+
+A `npm run impact:preview` command (or extension of the existing `npm run impact`) that takes a knowledge artifact path and shows:
+
+```
+$ npm run impact:preview -- --file knowledge/screens/policy-search.elements.yaml
+
+Affected scenarios: 10001, 10002
+Affected interface graph nodes: 4 (target:element:policy-search:*)
+Affected selector canon entries: 4
+Affected state transitions: 2 (reference affected targets)
+
+Step-level impact:
+  10001 step 2: element policyNumberInput — resolution would change
+  10001 step 3: element searchButton — no change (different element)
+  10002 step 1: element policyNumberInput — resolution would change
+  10002 step 3: element policyNumber — no change (different screen)
+```
+
+This is the knowledge-editing counterpart of `git diff --stat` — a fast preview of what would be affected, without actually running anything.
+
+**Why this isn't in the backlog:** The backlog has `npm run impact` for graph node impact analysis and `npm run rerun-plan` for post-activation replanning. But neither addresses the pre-edit preview use case. The graph impact command works on graph node IDs, not on knowledge file paths. The rerun plan works after activation, not before. The gap is in the *authoring workflow* — the moment an operator opens a YAML file and wonders "what will this change break?"
+
+**Implementation shape:**
+- Extend `lib/application/impact.ts` to accept a file path (not just a graph node ID)
+- Map the file path to the graph nodes that reference it (the `artifactPaths` field on `InterfaceGraphNode` already tracks this)
+- Walk the graph edges to find affected scenarios
+- For each affected scenario, compute which steps reference affected targets
+- Output as JSON and markdown
+- ~250 LOC
