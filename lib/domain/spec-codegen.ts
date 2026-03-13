@@ -18,7 +18,7 @@ import {
 export interface GeneratedSpecImports {
   fixtures: string;
   runtime: string;
-  runtimeHandoff: string;
+  execution: string;
   environment: string;
 }
 
@@ -161,13 +161,13 @@ function stepStatement(boundScenario: BoundScenario, step: BoundScenario['steps'
               'stepResult',
               awaitExpression(
                 callExpression(identifier('runScenarioHandshake'), [
-                  callExpression(identifier('stepHandshakeFromHandoff'), [
-                    identifier('runtimeHandoff'),
+                  callExpression(identifier('stepHandshakeFromPlan'), [
+                    identifier('runPlan'),
                     ts.factory.createNumericLiteral(zeroBasedIndex),
                   ]),
                   identifier('runtimeEnvironment'),
                   identifier('runState'),
-                  property(identifier('runtimeHandoff'), 'context'),
+                  property(identifier('runPlan'), 'context'),
                 ]),
               ),
             ),
@@ -226,15 +226,14 @@ export function renderGeneratedSpecModule(
   const hasUnbound = boundScenario.steps.some((step) => step.binding.kind === 'unbound');
   const lifecycle = lifecycleForScenario(boundScenario.metadata.status, hasUnbound);
   const fixtures = fixturesForScenario(boundScenario, taskPacket);
-  const uniqueScreens = [...new Set(taskPacket.payload.knowledgeSlice.screenRefs)].sort((left, right) => left.localeCompare(right));
   const confidence = aggregateConfidence(boundScenario.steps.map((step) => step.confidence));
   const deferredSteps = boundScenario.steps.filter((step) => step.binding.kind === 'deferred').map((step) => step.index);
   const unboundSteps = boundScenario.steps.filter((step) => step.binding.kind === 'unbound').map((step) => step.index);
 
   const statements: ts.Statement[] = [
     importDeclaration({ modulePath: options.imports.fixtures, namedImports: ['test'] }),
-    importDeclaration({ modulePath: options.imports.runtime, namedImports: ['createScenarioRunState', 'runScenarioHandshake', 'stepHandshakeFromHandoff'] }),
-    importDeclaration({ modulePath: options.imports.runtimeHandoff, namedImports: ['loadScenarioRuntimeHandoff'] }),
+    importDeclaration({ modulePath: options.imports.runtime, namedImports: ['createScenarioRunState', 'runScenarioHandshake', 'stepHandshakeFromPlan'] }),
+    importDeclaration({ modulePath: options.imports.execution, namedImports: ['loadScenarioRunPlan'] }),
     importDeclaration({ modulePath: options.imports.environment, namedImports: ['createLocalRuntimeEnvironment'] }),
     statementFromExpression(
       callExpression(identifier('test'), [
@@ -250,11 +249,21 @@ export function renderGeneratedSpecModule(
               ...annotationStatements(boundScenario, confidence, deferredSteps, unboundSteps),
               ...lifecycleStatements(lifecycle),
               constStatement(
-                'runtimeHandoff',
-                callExpression(identifier('loadScenarioRuntimeHandoff'), [
+                'runPlan',
+                callExpression(identifier('loadScenarioRunPlan'), [
                   ts.factory.createObjectLiteralExpression([
                     ts.factory.createPropertyAssignment('rootDir', callExpression(property(identifier('process'), 'cwd'), [])),
                     ts.factory.createPropertyAssignment('adoId', stringLiteral(boundScenario.source.ado_id)),
+                    ts.factory.createPropertyAssignment(
+                      'executionContextPosture',
+                      ts.factory.createObjectLiteralExpression([
+                        ts.factory.createPropertyAssignment('interpreterMode', runtimeModeExpression()),
+                        ts.factory.createPropertyAssignment('writeMode', runtimeWriteModeExpression()),
+                        ts.factory.createPropertyAssignment('headed', runtimeHeadedExpression()),
+                        ts.factory.createPropertyAssignment('executionProfile', stringLiteral('interactive')),
+                      ], true),
+                    ),
+                    ts.factory.createPropertyAssignment('interpreterMode', runtimeModeExpression()),
                   ], true),
                 ]),
               ),
@@ -263,21 +272,21 @@ export function renderGeneratedSpecModule(
                 callExpression(identifier('createLocalRuntimeEnvironment'), [
                   ts.factory.createObjectLiteralExpression([
                     ts.factory.createPropertyAssignment('rootDir', callExpression(property(identifier('process'), 'cwd'), [])),
-                    ts.factory.createPropertyAssignment('screenIds', property(identifier('runtimeHandoff'), 'screenIds')),
+                    ts.factory.createPropertyAssignment('screenIds', property(identifier('runPlan'), 'screenIds')),
                     ts.factory.createPropertyAssignment(
                       'fixtures',
                       ts.factory.createObjectLiteralExpression([
-                        ts.factory.createSpreadAssignment(property(identifier('runtimeHandoff'), 'fixtures')),
+                        ts.factory.createSpreadAssignment(property(identifier('runPlan'), 'fixtures')),
                         ts.factory.createSpreadAssignment(fixtureContextExpression(fixtures)),
                       ], true),
                     ),
                     ts.factory.createPropertyAssignment('mode', runtimeModeExpression()),
-                    ts.factory.createPropertyAssignment('provider', property(identifier('runtimeHandoff'), 'providerId')),
+                    ts.factory.createPropertyAssignment('provider', property(identifier('runPlan'), 'providerId')),
                     ts.factory.createPropertyAssignment(
                       'posture',
                       ts.factory.createObjectLiteralExpression(
                         [
-                          ts.factory.createSpreadAssignment(property(identifier('runtimeHandoff'), 'posture')),
+                          ts.factory.createSpreadAssignment(property(identifier('runPlan'), 'posture')),
                           ts.factory.createPropertyAssignment('interpreterMode', runtimeModeExpression()),
                           ts.factory.createPropertyAssignment('writeMode', runtimeWriteModeExpression()),
                           ts.factory.createPropertyAssignment('headed', runtimeHeadedExpression()),
@@ -285,7 +294,7 @@ export function renderGeneratedSpecModule(
                         true,
                       ),
                     ),
-                    ts.factory.createPropertyAssignment('controlSelection', property(identifier('runtimeHandoff'), 'controlSelection')),
+                    ts.factory.createPropertyAssignment('controlSelection', property(identifier('runPlan'), 'controlSelection')),
                     ts.factory.createPropertyAssignment('page', identifier('page')),
                   ], true),
                 ]),

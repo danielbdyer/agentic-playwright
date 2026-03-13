@@ -1,21 +1,26 @@
 import type { Page } from '@playwright/test';
+import { readFileSync } from 'fs';
+import path from 'path';
 import type { AdoId, StateNodeRef, TransitionRef } from '../domain/identity';
 import type { ExecutionBudgetThresholds } from '../domain/execution/telemetry';
 import { defaultRecoveryPolicy, recoveryFamilyConfig, type RecoveryAttempt, type RecoveryPolicy, type RecoveryStrategy } from '../domain/execution/recovery-policy';
 import { emptyExecutionTiming, evaluateExecutionBudget, normalizeFailureFamily } from '../domain/execution/telemetry';
 import { compileStepProgram } from '../domain/program';
 import type { SnapshotTemplateLoader } from '../domain/runtime-loaders';
+import { RuntimeError } from '../domain/errors';
 import type {
   ExecutionPosture,
   ExecutionDiagnostic,
   InterfaceResolutionContext,
   ObservedStateSession,
   ResolutionReceipt,
-  ScenarioRuntimeHandoff,
+  ScenarioInterpretationSurface,
+  ScenarioRunPlan,
   ResolutionTarget,
   ScenarioStep,
   StepExecutionReceipt,
   StepTask,
+  TransitionObservation,
   TranslationRequest,
   TranslationReceipt,
 } from '../domain/types';
@@ -63,16 +68,24 @@ export interface ScenarioStepHandshake {
   directive?: unknown;
 }
 
-export function stepHandshakeFromHandoff(handoff: ScenarioRuntimeHandoff, zeroBasedIndex: number): ScenarioStepHandshake {
-  const step = handoff.steps[zeroBasedIndex] ?? null;
+export function stepHandshakeFromPlan(plan: ScenarioRunPlan, zeroBasedIndex: number): ScenarioStepHandshake {
+  const step = plan.steps[zeroBasedIndex] ?? null;
   if (!step) {
-    throw new Error(`Missing runtime handoff step ${zeroBasedIndex + 1} for ${handoff.adoId}`);
+    throw new RuntimeError('runtime-missing-run-plan-step', `Missing run plan step ${zeroBasedIndex + 1} for ${plan.adoId}`);
   }
   return {
-    task: step.task,
-    directive: step.directive,
-    resolutionContext: handoff.resolutionContext,
+    task: step,
+    directive: undefined,
+    resolutionContext: plan.resolutionContext,
   };
+}
+
+export function loadScenarioInterpretationSurface(input: {
+  rootDir: string;
+  adoId: AdoId | string;
+}): ScenarioInterpretationSurface {
+  const filePath = path.join(input.rootDir, '.tesseract', 'tasks', `${input.adoId}.resolution.json`);
+  return JSON.parse(readFileSync(filePath, 'utf8').replace(/^\uFEFF/, '')) as ScenarioInterpretationSurface;
 }
 
 export function createScenarioRunState(): ScenarioRunState {
@@ -117,7 +130,7 @@ function inferTransitionObservations(input: {
   task: StepTask;
   interpretation: Exclude<ResolutionReceipt, { kind: 'needs-human' }>;
   success: boolean;
-}): import('../domain/types').TransitionObservation[] {
+}): TransitionObservation[] {
   if (input.task.grounding.expectedTransitionRefs.length === 0) {
     return [];
   }
@@ -295,7 +308,7 @@ export async function runScenarioStep(
   const runAt = new Date().toISOString();
   const agent = environment.agent ?? deterministicRuntimeStepAgent;
   if (!interfaceResolutionContext) {
-    throw new Error(`Missing interface resolution context for step ${task.index}`);
+    throw new RuntimeError('runtime-missing-resolution-context', `Missing interface resolution context for step ${task.index}`);
   }
 
   const agentContext = {

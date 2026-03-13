@@ -1,16 +1,14 @@
 ﻿import type { Effect } from 'effect';
 import { Context } from 'effect';
-import type { AdoId, ScreenId } from '../domain/identity';
+import type { AdoId } from '../domain/identity';
 import type { ResolutionEngine } from './resolution-engine';
 import type { TesseractError } from '../domain/errors';
-import type { RecoveryPolicy } from '../domain/execution/recovery-policy';
 import type {
   ExecutionPosture,
-  InterfaceResolutionContext,
   ResolutionReceipt,
   RuntimeInterpreterMode,
+  ScenarioRunPlan,
   StepExecutionReceipt,
-  StepTask,
   WriteJournalEntry,
 } from '../domain/types';
 
@@ -44,29 +42,12 @@ export interface RuntimeScenarioStepResult {
 export interface RuntimeScenarioRunnerPort {
   runSteps(input: {
     rootDir: string;
-    mode: RuntimeScenarioMode;
+    plan: ScenarioRunPlan;
     resolutionEngine: ResolutionEngine;
-    controlSelection?: {
-      runbook?: string | null | undefined;
-      dataset?: string | null | undefined;
-      resolutionControl?: string | null | undefined;
-    } | undefined;
-    screenIds: readonly ScreenId[];
-    fixtures: Record<string, unknown>;
-    steps: readonly StepTask[];
-    resolutionContext: InterfaceResolutionContext;
-    context?: {
-      adoId: AdoId;
-      artifactPath?: string | undefined;
-      revision?: number | undefined;
-      contentHash?: string | undefined;
-    } | undefined;
     translationOptions?: {
       disableTranslation?: boolean | undefined;
       disableTranslationCache?: boolean | undefined;
     } | undefined;
-    posture?: ExecutionPosture | undefined;
-    recoveryPolicy?: RecoveryPolicy | undefined;
   }): Effect.Effect<RuntimeScenarioStepResult[], unknown>;
 }
 

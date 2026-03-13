@@ -45,14 +45,14 @@ export const LocalRuntimeScenarioRunner: RuntimeScenarioRunnerPort = {
 
       const runtimeEnvironment = createLocalRuntimeEnvironment({
         rootDir: input.rootDir,
-        screenIds: input.screenIds,
-        fixtures: input.fixtures,
-        mode: input.mode,
+        screenIds: input.plan.screenIds,
+        fixtures: input.plan.fixtures,
+        mode: input.plan.mode,
         provider: input.resolutionEngine.id,
-        controlSelection: input.controlSelection,
-        posture: input.posture,
+        controlSelection: input.plan.controlSelection,
+        posture: input.plan.posture,
         translator,
-        recoveryPolicy: input.recoveryPolicy,
+        recoveryPolicy: input.plan.recoveryPolicy,
       });
       const runState = createScenarioRunState();
       const agent = {
@@ -60,8 +60,8 @@ export const LocalRuntimeScenarioRunner: RuntimeScenarioRunnerPort = {
       };
       const results = [];
 
-      for (const step of input.steps) {
-        results.push(yield* Effect.promise(() => runScenarioStep(step, { ...runtimeEnvironment, agent }, runState, input.context, input.resolutionContext)));
+      for (const step of input.plan.steps) {
+        results.push(yield* Effect.promise(() => runScenarioStep(step, { ...runtimeEnvironment, agent }, runState, input.plan.context, input.plan.resolutionContext)));
       }
 
       return results;

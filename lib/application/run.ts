@@ -19,12 +19,14 @@ import {
 import { ExecutionContext, FileSystem, RuntimeScenarioRunner } from './ports';
 import type { ExecutionPosture } from '../domain/types';
 import type { AdoId } from '../domain/identity';
-import { selectRunContext } from './execution/select-run-context';
+import { loadScenarioInterpretationSurfaceFromCatalog, prepareScenarioRunPlan } from './execution/select-run-context';
 import { runPipelineStage } from './pipeline';
-import { interpretScenarioTaskPacket } from './execution/interpret';
+import { interpretScenarioFromPlan } from './execution/interpret';
 import { persistEvidence } from './execution/persist-evidence';
 import { buildProposals } from './execution/build-proposals';
 import { buildRunRecord } from './execution/build-run-record';
+import { foldScenarioRun } from './execution/fold';
+import { taskPacketFromSurface } from './compat/surface-adapter';
 
 export function runScenario(options: {
   adoId: AdoId;
@@ -47,8 +49,9 @@ export function runScenario(options: {
         return { fs, runtimeScenarioRunner, executionContext, catalog };
       }),
       compute: ({ fs, runtimeScenarioRunner, executionContext, catalog }) => Effect.gen(function* () {
-        const selectedContext = selectRunContext({
-          adoId: options.adoId,
+        const surfaceEntry = loadScenarioInterpretationSurfaceFromCatalog(catalog, options.adoId);
+        const plan = prepareScenarioRunPlan({
+          surface: surfaceEntry.artifact,
           catalog,
           paths: options.paths,
           ...(options.runbookName ? { runbookName: options.runbookName } : {}),
@@ -57,30 +60,19 @@ export function runScenario(options: {
           ...(options.providerId ? { providerId: options.providerId } : {}),
           executionContextPosture: executionContext.posture,
         });
+        const scenarioEntry = catalog.scenarios.find((entry) => entry.artifact.source.ado_id === options.adoId)!;
+        const boundScenarioEntry = catalog.boundScenarios.find((entry) => entry.artifact.source.ado_id === options.adoId)!;
+        const compatTaskPacket = taskPacketFromSurface(surfaceEntry.artifact);
 
-        const executionStage = yield* interpretScenarioTaskPacket({
+        const executionStage = yield* interpretScenarioFromPlan({
           runtimeScenarioRunner,
           rootDir: options.paths.rootDir,
-          adoId: options.adoId,
-          runId: selectedContext.runId,
-          taskPacket: selectedContext.taskPacketEntry.artifact,
-          mode: selectedContext.mode,
-          providerId: selectedContext.providerId,
-          screenIds: selectedContext.screenIds,
-          fixtures: selectedContext.fixtures,
-          controlSelection: {
-            runbook: selectedContext.activeRunbook?.name ?? null,
-            dataset: selectedContext.activeDataset?.name ?? null,
-            resolutionControl: selectedContext.activeRunbook?.resolutionControl ?? null,
-          },
-          steps: selectedContext.steps,
-          posture: selectedContext.posture,
-          context: selectedContext.context,
-          resolutionContext: selectedContext.resolutionContext,
-          recoveryPolicy: selectedContext.recoveryPolicy,
+          plan,
+          knowledgeFingerprint: surfaceEntry.artifact.payload.knowledgeFingerprint,
+          controlsFingerprint: surfaceEntry.artifact.fingerprints.controls ?? null,
           translationOptions: {
-            disableTranslation: options.disableTranslation ?? !selectedContext.translationEnabled,
-            disableTranslationCache: options.disableTranslationCache ?? !selectedContext.translationCacheEnabled,
+            disableTranslation: options.disableTranslation ?? !plan.translationEnabled,
+            disableTranslationCache: options.disableTranslationCache ?? !plan.translationCacheEnabled,
           },
         });
 
@@ -88,15 +80,21 @@ export function runScenario(options: {
           fs,
           paths: options.paths,
           adoId: options.adoId,
-          runId: selectedContext.runId,
+          runId: plan.runId,
           stepResults: executionStage.stepResults,
+        });
+        const fold = foldScenarioRun({
+          plan,
+          stepResults: executionStage.stepResults,
+          evidenceWrites: evidenceStage.evidenceWrites,
         });
 
         const evidenceCatalog = yield* loadWorkspaceCatalog({ paths: options.paths });
         const proposalStage = buildProposals({
           adoId: options.adoId,
-          runId: selectedContext.runId,
-          selectedContext,
+          runId: plan.runId,
+          plan,
+          surfaceArtifactPath: surfaceEntry.artifactPath,
           stepResults: executionStage.stepResults,
           evidenceWrites: evidenceStage.evidenceWrites,
           evidenceCatalog,
@@ -106,16 +104,15 @@ export function runScenario(options: {
           proposalBundle: proposalStage.proposalBundle,
         });
         const runRecordStage = buildRunRecord({
-          adoId: options.adoId,
-          runId: selectedContext.runId,
-          selectedContext,
+          plan,
+          fold,
           stepResults: executionStage.stepResults,
           evidenceWrites: evidenceStage.evidenceWrites,
         });
         const learning = yield* projectLearningArtifacts({
           paths: options.paths,
-          boundScenario: selectedContext.boundScenarioEntry.artifact,
-          taskPacket: selectedContext.taskPacketEntry.artifact,
+          boundScenario: boundScenarioEntry.artifact,
+          taskPacket: compatTaskPacket,
           interfaceGraph: catalog.interfaceGraph?.artifact ?? null,
           selectorCanon: catalog.selectorCanon?.artifact ?? null,
           runRecord: runRecordStage.runRecord,
@@ -124,23 +121,23 @@ export function runScenario(options: {
         const session = yield* writeAgentSessionLedger({
           paths: options.paths,
           adoId: options.adoId,
-          runId: selectedContext.runId,
-          providerId: selectedContext.providerId,
-          executionProfile: selectedContext.posture.executionProfile,
+          runId: plan.runId,
+          providerId: plan.providerId,
+          executionProfile: plan.posture.executionProfile,
           startedAt: runRecordStage.runRecord.startedAt,
           completedAt: runRecordStage.runRecord.completedAt,
-          taskPacket: selectedContext.taskPacketEntry.artifact,
+          taskPacket: compatTaskPacket,
           interfaceGraph: catalog.interfaceGraph?.artifact ?? null,
           selectorCanon: catalog.selectorCanon?.artifact ?? null,
           proposalBundle: activationStage.proposalBundle,
           learningManifest: learning.manifest,
         });
 
-        const interpretationFile = interpretationPath(options.paths, options.adoId, selectedContext.runId);
-        const executionFile = executionPath(options.paths, options.adoId, selectedContext.runId);
-        const resolutionGraphFile = resolutionGraphPath(options.paths, options.adoId, selectedContext.runId);
-        const runFile = runRecordPath(options.paths, options.adoId, selectedContext.runId);
-        const proposalsFile = generatedProposalsPath(options.paths, selectedContext.scenarioEntry.artifact.metadata.suite, options.adoId);
+        const interpretationFile = interpretationPath(options.paths, options.adoId, plan.runId);
+        const executionFile = executionPath(options.paths, options.adoId, plan.runId);
+        const resolutionGraphFile = resolutionGraphPath(options.paths, options.adoId, plan.runId);
+        const runFile = runRecordPath(options.paths, options.adoId, plan.runId);
+        const proposalsFile = generatedProposalsPath(options.paths, scenarioEntry.artifact.metadata.suite, options.adoId);
 
         yield* fs.writeJson(interpretationFile, executionStage.interpretationOutput);
         yield* fs.writeJson(executionFile, executionStage.executionOutput);
@@ -154,9 +151,9 @@ export function runScenario(options: {
         const inbox = yield* emitOperatorInbox({ paths: options.paths, filter: { adoId: options.adoId } });
 
         return {
-          runId: selectedContext.runId,
-          runbook: selectedContext.activeRunbook?.name ?? null,
-          dataset: selectedContext.activeDataset?.name ?? null,
+          runId: plan.runId,
+          runbook: plan.controlSelection.runbook ?? null,
+          dataset: plan.controlSelection.dataset ?? null,
           interpretationPath: interpretationFile,
           executionPath: executionFile,
           resolutionGraphPath: resolutionGraphFile,
@@ -171,7 +168,7 @@ export function runScenario(options: {
           emitted,
           graph,
           inbox,
-          posture: selectedContext.posture,
+          posture: plan.posture,
         };
       }),
     });

@@ -1,16 +1,20 @@
 import type { AdoId, EventSignatureRef, StateNodeRef, TransitionRef } from '../identity';
+import type { RecoveryStrategyId } from '../execution/recovery-policy';
 import type {
   CanonicalLineage,
   CertificationStatus,
   Governance,
   ProposalActivation,
+  ResolutionMode,
+  StepWinningSource,
   TrustPolicyArtifactType,
   TrustPolicyEvaluation,
+  WorkflowStage,
   WorkflowEnvelopeFingerprints,
   WorkflowEnvelopeIds,
   WorkflowEnvelopeLineage,
 } from './workflow';
-import type { ResolutionReceipt } from './resolution';
+import type { ResolutionReceipt, StepResolutionGraph, TranslationReceipt } from './resolution';
 import type { TransitionObservation } from './interface';
 
 
@@ -22,7 +26,7 @@ export interface ResolutionGraphDriftDelta {
 
 export interface ResolutionGraphStepRecord {
   stepIndex: number;
-  graph: import('./resolution').StepResolutionGraph;
+  graph: StepResolutionGraph;
 }
 
 export interface ResolutionGraphRecord {
@@ -177,14 +181,14 @@ export interface StepExecutionReceipt {
     policyProfile: string;
     attempts: RecoveryAttemptReceipt[];
   };
-  handshakes: import('./workflow').WorkflowStage[];
+  handshakes: WorkflowStage[];
   execution: ExecutionObservation;
 }
 
 
 
 export interface RecoveryAttemptReceipt {
-  strategyId: import('../execution/recovery-policy').RecoveryStrategyId;
+  strategyId: RecoveryStrategyId;
   family: Exclude<StepExecutionReceipt['failure']['family'], 'none'>;
   attempt: number;
   startedAt: string;
@@ -201,6 +205,45 @@ export interface TranslationRunMetrics {
   hitRate: number;
   missReasons: Record<string, number>;
   failureClasses: Record<string, number>;
+}
+
+export interface StepFold {
+  stepIndex: number;
+  evidenceIds: string[];
+  observedStateRefs: StateNodeRef[];
+  matchedTransitionRefs: TransitionRef[];
+  failureFamily: StepExecutionReceipt['failure']['family'];
+  failureCode: string | null;
+  failureMessage: string | null;
+  translation: TranslationReceipt | null;
+  recoveryAttempts: RecoveryStrategyId[];
+  timing: StepExecutionReceipt['timing'];
+  cost: StepExecutionReceipt['cost'];
+  budgetStatus: StepExecutionReceipt['budget']['status'];
+  degraded: boolean;
+  resolutionMode: ResolutionMode;
+  winningSource: StepWinningSource;
+}
+
+export interface ScenarioRunFold {
+  kind: 'scenario-run-fold';
+  version: 1;
+  adoId: AdoId;
+  runId: string;
+  surfaceFingerprint: string;
+  byStep: ReadonlyMap<number, StepFold>;
+  translationMetrics: TranslationRunMetrics;
+  executionMetrics: {
+    timingTotals: StepExecutionReceipt['timing'];
+    costTotals: StepExecutionReceipt['cost'];
+    budgetBreaches: number;
+    failureFamilies: Record<StepExecutionReceipt['failure']['family'], number>;
+    recoveryFamilies: Record<Exclude<StepExecutionReceipt['failure']['family'], 'none'>, number>;
+    recoveryStrategies: Record<RecoveryStrategyId, number>;
+  };
+  evidenceIds: string[];
+  observedStateRefs: StateNodeRef[];
+  matchedTransitionRefs: TransitionRef[];
 }
 
 export interface ScenarioRunStep {
@@ -240,7 +283,7 @@ export interface RunRecord {
       budgetBreaches: number;
       failureFamilies: Record<StepExecutionReceipt['failure']['family'], number>;
       recoveryFamilies: Record<Exclude<StepExecutionReceipt['failure']['family'], 'none'>, number>;
-      recoveryStrategies: Record<import('../execution/recovery-policy').RecoveryStrategyId, number>;
+      recoveryStrategies: Record<RecoveryStrategyId, number>;
     };
   };
   runId: string;
@@ -263,7 +306,7 @@ export interface RunRecord {
     budgetBreaches: number;
     failureFamilies: Record<StepExecutionReceipt['failure']['family'], number>;
     recoveryFamilies: Record<Exclude<StepExecutionReceipt['failure']['family'], 'none'>, number>;
-    recoveryStrategies: Record<import('../execution/recovery-policy').RecoveryStrategyId, number>;
+    recoveryStrategies: Record<RecoveryStrategyId, number>;
   };
 }
 

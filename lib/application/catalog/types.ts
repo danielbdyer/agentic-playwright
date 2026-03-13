@@ -24,6 +24,7 @@ import type {
   RunRecord,
   RunbookControl,
   Scenario,
+  ScenarioInterpretationSurface,
   SelectorCanon,
   ScenarioTaskPacket,
   ScreenBehavior,
@@ -63,6 +64,7 @@ export interface WorkspaceCatalog {
   snapshots: ArtifactEnvelope<AdoSnapshot>[];
   scenarios: ArtifactEnvelope<Scenario>[];
   boundScenarios: ArtifactEnvelope<BoundScenario>[];
+  interpretationSurfaces: ArtifactEnvelope<ScenarioInterpretationSurface>[];
   taskPackets: ArtifactEnvelope<ScenarioTaskPacket>[];
   runRecords: ArtifactEnvelope<RunRecord>[];
   proposalBundles: ArtifactEnvelope<ProposalBundle>[];

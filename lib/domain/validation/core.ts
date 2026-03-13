@@ -24,12 +24,14 @@
   PostureEffect,
   RefPath,
   ResolutionControl,
+  ResolutionGraphRecord,
   RerunPlan,
   RunRecord,
   RunbookControl,
   ScreenBehavior,
   InterpretationDriftRecord,
   Scenario,
+  ScenarioInterpretationSurface,
   ScenarioMetadata,
   ScenarioTaskPacket,
   ScenarioPostcondition,
@@ -46,6 +48,7 @@
   StepBindingKind,
   StepExecutionReceipt,
   StepInstruction,
+  StepResolutionGraph,
   StepResolution,
   StepProgram,
   ProposalBundle,
@@ -66,6 +69,7 @@
   WorkflowStage,
   WidgetCapabilityContract,
 } from '../types';
+import type { RecoveryPolicy } from '../execution/recovery-policy';
 import { computeAdoContentHash } from '../hash';
 import { validatePatternDocument as validatePatternDocumentRecord } from '../knowledge/patterns';
 import { normalizeScreenPostures } from '../posture-contract';
@@ -870,6 +874,8 @@ function validateInterfaceResolutionContext(value: unknown, path: string) {
 
 function validateStepTask(value: unknown, path: string) {
   const task = expectRecord(value, path);
+  const stepFingerprint = expectOptionalString(task.stepFingerprint, `${path}.stepFingerprint`)
+    ?? expectString(task.taskFingerprint, `${path}.taskFingerprint`);
   return {
     index: expectNumber(task.index, `${path}.index`),
     intent: expectString(task.intent, `${path}.intent`),
@@ -917,7 +923,112 @@ function validateStepTask(value: unknown, path: string) {
         ),
       };
     })(),
-    taskFingerprint: expectString(task.taskFingerprint, `${path}.taskFingerprint`),
+    stepFingerprint,
+    taskFingerprint: stepFingerprint,
+  };
+}
+
+export function validateScenarioInterpretationSurface(value: unknown): ScenarioInterpretationSurface {
+  const surface = expectRecord(value, 'scenarioInterpretationSurface');
+  const payloadRecord = surface.payload === undefined
+    ? null
+    : expectRecord(surface.payload, 'scenarioInterpretationSurface.payload');
+  const header = validateWorkflowEnvelopeHeader(surface, 'scenarioInterpretationSurface', {
+    stage: 'preparation',
+    scope: 'scenario',
+    governance: 'approved',
+    artifactFingerprint: expectOptionalString(surface.surfaceFingerprint, 'scenarioInterpretationSurface.surfaceFingerprint') ?? 'scenario-interpretation-surface',
+    ids: {
+      adoId: expectOptionalId(surface.ids && typeof surface.ids === 'object' ? (surface.ids as Record<string, unknown>).adoId : undefined, 'scenarioInterpretationSurface.ids.adoId', createAdoId) ?? null,
+      suite: expectOptionalString(surface.ids && typeof surface.ids === 'object' ? (surface.ids as Record<string, unknown>).suite : undefined, 'scenarioInterpretationSurface.ids.suite') ?? null,
+    },
+    lineage: {
+      sources: [],
+      parents: [],
+      handshakes: ['preparation'],
+    },
+  });
+
+  return {
+    kind: expectEnum(surface.kind, 'scenarioInterpretationSurface.kind', ['scenario-interpretation-surface'] as const),
+    ...header,
+    version: 1,
+    payload: (() => {
+      const payload = expectRecord(payloadRecord, 'scenarioInterpretationSurface.payload');
+      const adoId = expectId(payload.adoId, 'scenarioInterpretationSurface.payload.adoId', createAdoId);
+      const revision = expectNumber(payload.revision, 'scenarioInterpretationSurface.payload.revision');
+      const title = expectString(payload.title, 'scenarioInterpretationSurface.payload.title');
+      const suite = ensureSafeRelativePathLike(expectString(payload.suite, 'scenarioInterpretationSurface.payload.suite'), 'scenarioInterpretationSurface.payload.suite');
+      const knowledgeFingerprint = expectString(payload.knowledgeFingerprint, 'scenarioInterpretationSurface.payload.knowledgeFingerprint');
+      const resolutionContext = validateInterfaceResolutionContext(payload.resolutionContext, 'scenarioInterpretationSurface.payload.resolutionContext') as ScenarioInterpretationSurface['payload']['resolutionContext'];
+      return {
+        adoId,
+        revision,
+        title,
+        suite,
+        knowledgeFingerprint,
+        interface: (() => {
+          const interfaceRecord = expectRecord(payload.interface, 'scenarioInterpretationSurface.payload.interface');
+          return {
+            fingerprint: expectOptionalString(interfaceRecord.fingerprint, 'scenarioInterpretationSurface.payload.interface.fingerprint') ?? null,
+            artifactPath: expectOptionalString(interfaceRecord.artifactPath, 'scenarioInterpretationSurface.payload.interface.artifactPath') ?? null,
+          };
+        })(),
+        selectors: (() => {
+          const selectorRecord = expectRecord(payload.selectors, 'scenarioInterpretationSurface.payload.selectors');
+          return {
+            fingerprint: expectOptionalString(selectorRecord.fingerprint, 'scenarioInterpretationSurface.payload.selectors.fingerprint') ?? null,
+            artifactPath: expectOptionalString(selectorRecord.artifactPath, 'scenarioInterpretationSurface.payload.selectors.artifactPath') ?? null,
+          };
+        })(),
+        stateGraph: (() => {
+          const stateGraphRecord = expectRecord(payload.stateGraph, 'scenarioInterpretationSurface.payload.stateGraph');
+          return {
+            fingerprint: expectOptionalString(stateGraphRecord.fingerprint, 'scenarioInterpretationSurface.payload.stateGraph.fingerprint') ?? null,
+            artifactPath: expectOptionalString(stateGraphRecord.artifactPath, 'scenarioInterpretationSurface.payload.stateGraph.artifactPath') ?? null,
+          };
+        })(),
+        knowledgeSlice: (() => {
+          const slice = expectRecord(payload.knowledgeSlice ?? {
+            routeRefs: [],
+            routeVariantRefs: [],
+            screenRefs: [],
+            targetRefs: [],
+            stateRefs: [],
+            eventSignatureRefs: [],
+            transitionRefs: [],
+            evidenceRefs: [],
+            controlRefs: [],
+          }, 'scenarioInterpretationSurface.payload.knowledgeSlice');
+          return {
+            routeRefs: expectStringArray(slice.routeRefs ?? [], 'scenarioInterpretationSurface.payload.knowledgeSlice.routeRefs'),
+            routeVariantRefs: expectStringArray(slice.routeVariantRefs ?? [], 'scenarioInterpretationSurface.payload.knowledgeSlice.routeVariantRefs'),
+            screenRefs: expectArray(slice.screenRefs ?? [], 'scenarioInterpretationSurface.payload.knowledgeSlice.screenRefs').map((entry, index) =>
+              expectId(entry, `scenarioInterpretationSurface.payload.knowledgeSlice.screenRefs[${index}]`, createScreenId),
+            ),
+            targetRefs: expectArray(slice.targetRefs ?? [], 'scenarioInterpretationSurface.payload.knowledgeSlice.targetRefs').map((entry, index) =>
+              expectId(entry, `scenarioInterpretationSurface.payload.knowledgeSlice.targetRefs[${index}]`, createCanonicalTargetRef),
+            ),
+            stateRefs: expectArray(slice.stateRefs ?? [], 'scenarioInterpretationSurface.payload.knowledgeSlice.stateRefs').map((entry, index) =>
+              expectId(entry, `scenarioInterpretationSurface.payload.knowledgeSlice.stateRefs[${index}]`, createStateNodeRef),
+            ),
+            eventSignatureRefs: expectArray(slice.eventSignatureRefs ?? [], 'scenarioInterpretationSurface.payload.knowledgeSlice.eventSignatureRefs').map((entry, index) =>
+              expectId(entry, `scenarioInterpretationSurface.payload.knowledgeSlice.eventSignatureRefs[${index}]`, createEventSignatureRef),
+            ),
+            transitionRefs: expectArray(slice.transitionRefs ?? [], 'scenarioInterpretationSurface.payload.knowledgeSlice.transitionRefs').map((entry, index) =>
+              expectId(entry, `scenarioInterpretationSurface.payload.knowledgeSlice.transitionRefs[${index}]`, createTransitionRef),
+            ),
+            evidenceRefs: expectStringArray(slice.evidenceRefs ?? [], 'scenarioInterpretationSurface.payload.knowledgeSlice.evidenceRefs'),
+            controlRefs: expectStringArray(slice.controlRefs ?? [], 'scenarioInterpretationSurface.payload.knowledgeSlice.controlRefs'),
+          };
+        })(),
+        steps: expectArray(payload.steps ?? [], 'scenarioInterpretationSurface.steps').map((entry, index) =>
+          validateStepTask(entry, `scenarioInterpretationSurface.steps[${index}]`),
+        ),
+        resolutionContext,
+      };
+    })(),
+    surfaceFingerprint: expectString(surface.surfaceFingerprint, 'scenarioInterpretationSurface.surfaceFingerprint'),
   };
 }
 
@@ -1730,8 +1841,8 @@ function validateRecoveryPolicy(value: unknown, path: string) {
           };
         }),
       }];
-    })) as import('../execution/recovery-policy').RecoveryPolicy['families'],
-  } satisfies import('../execution/recovery-policy').RecoveryPolicy;
+    })) as RecoveryPolicy['families'],
+  } satisfies RecoveryPolicy;
 }
 
 export function validateRunbookControl(value: unknown): RunbookControl {
@@ -2393,7 +2504,7 @@ export function validateBenchmarkContext(value: unknown): BenchmarkContext {
   };
 }
 
-export function validateResolutionGraphRecord(value: unknown): import('../types').ResolutionGraphRecord {
+export function validateResolutionGraphRecord(value: unknown): ResolutionGraphRecord {
   const record = expectRecord(value, 'resolutionGraphRecord');
   const header = validateWorkflowEnvelopeHeader(record, 'resolutionGraphRecord', {
     stage: 'resolution',
@@ -2407,7 +2518,7 @@ export function validateResolutionGraphRecord(value: unknown): import('../types'
     const step = expectRecord(entry, `resolutionGraphRecord.steps[${index}]`);
     return {
       stepIndex: expectNumber(step.stepIndex, `resolutionGraphRecord.steps[${index}].stepIndex`),
-      graph: step.graph as import('../types').StepResolutionGraph,
+      graph: step.graph as StepResolutionGraph,
     };
   });
   return {
@@ -2417,7 +2528,7 @@ export function validateResolutionGraphRecord(value: unknown): import('../types'
     stage: 'resolution',
     scope: 'run',
     governance: expectEnum(record.governance ?? 'approved', 'resolutionGraphRecord.governance', governanceStates),
-    adoId: expectString(record.adoId, 'resolutionGraphRecord.adoId') as import('../identity').AdoId,
+    adoId: expectString(record.adoId, 'resolutionGraphRecord.adoId') as ResolutionGraphRecord['adoId'],
     runId: expectString(record.runId, 'resolutionGraphRecord.runId'),
     providerId: expectString(record.providerId, 'resolutionGraphRecord.providerId'),
     mode: expectString(record.mode, 'resolutionGraphRecord.mode'),

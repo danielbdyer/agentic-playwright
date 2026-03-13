@@ -1,6 +1,6 @@
 import { Effect } from 'effect';
 import type { AdoId } from '../../domain/identity';
-import type { InterfaceResolutionContext, ResolutionGraphRecord, ResolutionReceipt, ScenarioTaskPacket, StepResolutionGraph, StepTask } from '../../domain/types';
+import type { ResolutionGraphRecord, ResolutionReceipt, ScenarioRunPlan, ScenarioTaskPacket, StepResolutionGraph, StepTask } from '../../domain/types';
 import type { RuntimeScenarioRunnerPort, RuntimeScenarioStepResult } from '../ports';
 import { resolveResolutionEngine } from '../provider-registry';
 import { validateStepResults } from './validate-step-results';
@@ -118,36 +118,75 @@ export function interpretScenarioTaskPacket(input: {
     disableTranslationCache?: boolean | undefined;
   } | undefined;
   steps?: readonly StepTask[] | undefined;
-  resolutionContext: InterfaceResolutionContext;
+  resolutionContext: ScenarioRunPlan['resolutionContext'];
   recoveryPolicy?: import('../../domain/execution/recovery-policy').RecoveryPolicy | undefined;
+}) {
+  const plan: ScenarioRunPlan = {
+    kind: 'scenario-run-plan',
+    version: 1,
+    adoId: input.adoId,
+    runId: input.runId,
+    surfaceFingerprint: input.taskPacket.taskFingerprint,
+    title: input.taskPacket.payload.title,
+    suite: input.taskPacket.payload.suite,
+    controlsFingerprint: input.taskPacket.fingerprints.controls ?? null,
+    posture: input.posture ?? { interpreterMode: 'diagnostic', executionProfile: 'interactive', headed: false, writeMode: 'persist' },
+    mode: input.mode,
+    providerId: input.providerId,
+    controlSelection: input.controlSelection ?? {},
+    fixtures: input.fixtures,
+    screenIds: [...input.screenIds],
+    steps: [...(input.steps ?? input.taskPacket.payload.steps)],
+    resolutionContext: input.resolutionContext,
+    context: {
+      adoId: input.adoId,
+      revision: input.context?.revision ?? input.taskPacket.payload.revision,
+      contentHash: input.context?.contentHash ?? input.taskPacket.fingerprints.content ?? '',
+      artifactPath: input.context?.artifactPath,
+    },
+    translationEnabled: !(input.translationOptions?.disableTranslation ?? false),
+    translationCacheEnabled: !(input.translationOptions?.disableTranslationCache ?? false),
+    recoveryPolicy: input.recoveryPolicy,
+  };
+  return interpretScenarioFromPlan({
+    runtimeScenarioRunner: input.runtimeScenarioRunner,
+    rootDir: input.rootDir,
+    plan,
+    knowledgeFingerprint: input.taskPacket.payload.knowledgeFingerprint,
+    controlsFingerprint: input.taskPacket.fingerprints.controls ?? null,
+    translationOptions: input.translationOptions,
+  });
+}
+
+export function interpretScenarioFromPlan(input: {
+  runtimeScenarioRunner: RuntimeScenarioRunnerPort;
+  rootDir: string;
+  plan: ScenarioRunPlan;
+  knowledgeFingerprint?: string | undefined;
+  controlsFingerprint?: string | null | undefined;
+  translationOptions?: {
+    disableTranslation?: boolean | undefined;
+    disableTranslationCache?: boolean | undefined;
+  } | undefined;
 }) {
   return Effect.gen(function* () {
     const resolutionEngine = resolveResolutionEngine({
-      providerId: input.providerId,
-      mode: input.mode,
+      providerId: input.plan.providerId,
+      mode: input.plan.mode,
       translationEnabled: !(input.translationOptions?.disableTranslation ?? false),
     });
 
-    const activeSteps = input.steps ?? input.taskPacket.payload.steps;
     const stepResults = yield* input.runtimeScenarioRunner.runSteps({
       rootDir: input.rootDir,
-      screenIds: input.screenIds,
-      controlSelection: input.controlSelection,
-      fixtures: input.fixtures,
-      mode: input.mode,
+      plan: input.plan,
       resolutionEngine,
-      steps: activeSteps,
-      resolutionContext: input.resolutionContext,
-      posture: input.posture,
-      recoveryPolicy: input.recoveryPolicy,
-      context: input.context,
       translationOptions: input.translationOptions,
     });
 
     validateStepResults({ providerId: resolutionEngine.id, results: stepResults });
 
     const graphs = stepResults.map((step) => {
-      const task = activeSteps.find((entry) => entry.index === step.interpretation.stepIndex) ?? activeSteps[0]!;
+      const task = input.plan.steps.find((entry) => entry.index === step.interpretation.stepIndex) ?? input.plan.steps[0]!;
       return { stepIndex: step.interpretation.stepIndex, graph: buildStepResolutionGraph(step, task) };
     });
 
@@ -164,8 +203,8 @@ export function interpretScenarioTaskPacket(input: {
       }),
       interpretationOutput: {
         kind: 'scenario-interpretation-record',
-        adoId: input.adoId,
-        runId: input.runId,
+        adoId: input.plan.adoId,
+        runId: input.plan.runId,
         steps: stepResults.map((step) => ({
           stepIndex: step.interpretation.stepIndex,
           interpretation: {
@@ -180,39 +219,39 @@ export function interpretScenarioTaskPacket(input: {
         stage: 'resolution',
         scope: 'run',
         ids: {
-          adoId: input.adoId,
+          adoId: input.plan.adoId,
           suite: null,
-          runId: input.runId,
+          runId: input.plan.runId,
           stepIndex: null,
-          dataset: input.controlSelection?.dataset ?? null,
-          runbook: input.controlSelection?.runbook ?? null,
-          resolutionControl: input.controlSelection?.resolutionControl ?? null,
+          dataset: input.plan.controlSelection.dataset ?? null,
+          runbook: input.plan.controlSelection.runbook ?? null,
+          resolutionControl: input.plan.controlSelection.resolutionControl ?? null,
         },
         fingerprints: {
-          artifact: input.runId,
+          artifact: input.plan.runId,
           content: null,
-          knowledge: input.taskPacket.payload.knowledgeFingerprint,
-          controls: input.taskPacket.fingerprints.controls ?? null,
-          task: input.taskPacket.taskFingerprint,
-          run: input.runId,
+          knowledge: input.knowledgeFingerprint ?? input.plan.resolutionContext.knowledgeFingerprint,
+          controls: input.controlsFingerprint ?? null,
+          task: input.plan.surfaceFingerprint,
+          run: input.plan.runId,
         },
         lineage: {
-          sources: [input.taskPacket.taskFingerprint],
-          parents: [input.taskPacket.taskFingerprint],
+          sources: [input.plan.surfaceFingerprint],
+          parents: [input.plan.surfaceFingerprint],
           handshakes: ['preparation', 'resolution'],
         },
         governance: stepResults.some((step) => step.interpretation.governance !== 'approved') ? 'review-required' : 'approved',
-        adoId: input.adoId,
-        runId: input.runId,
+        adoId: input.plan.adoId,
+        runId: input.plan.runId,
         providerId: resolutionEngine.id,
-        mode: input.mode,
+        mode: input.plan.mode,
         generatedAt: stepResults[0]?.interpretation.runAt ?? new Date().toISOString(),
         steps: graphs,
       },
       executionOutput: {
         kind: 'scenario-execution-record',
-        adoId: input.adoId,
-        runId: input.runId,
+        adoId: input.plan.adoId,
+        runId: input.plan.runId,
         steps: stepResults.map((step) => ({
           stepIndex: step.execution.stepIndex,
           execution: step.execution,

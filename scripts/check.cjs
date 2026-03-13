@@ -94,7 +94,12 @@ async function main() {
     {
       name: 'typecheck',
       command: NODE,
-      args: ['-e', loadFileScript(path.join(ROOT_DIR, 'scripts', 'typecheck.cjs'))],
+      args: [
+        path.join(ROOT_DIR, 'scripts', 'typecheck.cjs'),
+        '--no-pretty',
+        '--report-file',
+        '.tesseract/reports/check-typecheck-report.json',
+      ],
     },
     {
       name: 'lint',

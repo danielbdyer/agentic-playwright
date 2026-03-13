@@ -3,7 +3,7 @@ import { evaluateArtifactPolicy } from '../trust-policy';
 import type { LoadedEvidenceRecord } from '../trust-policy';
 import type { WorkspaceCatalog } from '../catalog';
 import type { AdoId } from '../../domain/identity';
-import type { ProposalBundle } from '../../domain/types';
+import type { ProposalBundle, ScenarioRunPlan } from '../../domain/types';
 import {
   createEnvelopeLineage,
   createProposalBundleEnvelope,
@@ -13,7 +13,6 @@ import {
 } from '../catalog/envelope';
 import type { RuntimeScenarioStepResult } from '../ports';
 import type { PersistedEvidenceArtifact } from './persist-evidence';
-import type { SelectedRunContext } from './select-run-context';
 
 export interface BuildProposalsResult {
   proposalBundle: ProposalBundle;
@@ -22,14 +21,21 @@ export interface BuildProposalsResult {
 export function buildProposals(input: {
   adoId: AdoId;
   runId: string;
-  selectedContext: SelectedRunContext;
+  plan: ScenarioRunPlan;
+  surfaceArtifactPath: string;
   stepResults: RuntimeScenarioStepResult[];
   evidenceWrites: PersistedEvidenceArtifact[];
   evidenceCatalog: WorkspaceCatalog;
 }): BuildProposalsResult {
+  const activeRunbook = input.plan.controlSelection.runbook
+    ? input.evidenceCatalog.runbooks.find((entry) => entry.artifact.name === input.plan.controlSelection.runbook)?.artifact ?? null
+    : null;
+  const activeDataset = input.plan.controlSelection.dataset
+    ? input.evidenceCatalog.datasets.find((entry) => entry.artifact.name === input.plan.controlSelection.dataset)?.artifact ?? null
+    : null;
   const proposalBundleIdentity = {
     adoId: input.adoId,
-    suite: input.selectedContext.scenarioEntry.artifact.metadata.suite,
+    suite: input.plan.suite,
   } as const;
   const loadedEvidence: LoadedEvidenceRecord[] = input.evidenceCatalog.evidenceRecords.map((entry) => ({
     artifactPath: entry.artifactPath,
@@ -90,9 +96,9 @@ export function buildProposals(input: {
             .filter((entry) => entry.stepIndex === step.interpretation.stepIndex)
             .map((entry) => entry.artifactPath),
           sourceArtifactPaths: [
-            input.selectedContext.taskPacketEntry.artifactPath,
-            ...(input.selectedContext.activeRunbook ? [input.selectedContext.activeRunbook.artifactPath] : []),
-            ...(input.selectedContext.activeDataset ? [input.selectedContext.activeDataset.artifactPath] : []),
+            input.surfaceArtifactPath,
+            ...(activeRunbook ? [input.evidenceCatalog.runbooks.find((entry) => entry.artifact.name === activeRunbook.name)?.artifactPath ?? ''] : []),
+            ...(activeDataset ? [input.evidenceCatalog.datasets.find((entry) => entry.artifact.name === activeDataset.name)?.artifactPath ?? ''] : []),
           ],
           role: null,
           state: null,
@@ -107,25 +113,23 @@ export function buildProposals(input: {
   const proposalBundle = createProposalBundleEnvelope({
     ids: createScenarioEnvelopeIds({
       adoId: input.adoId,
-      suite: input.selectedContext.scenarioEntry.artifact.metadata.suite,
+      suite: input.plan.suite,
       runId: input.runId,
-      dataset: input.selectedContext.activeDataset?.name,
-      runbook: input.selectedContext.activeRunbook?.name,
-      resolutionControl: input.selectedContext.activeRunbook?.resolutionControl,
+      dataset: input.plan.controlSelection.dataset,
+      runbook: input.plan.controlSelection.runbook,
+      resolutionControl: input.plan.controlSelection.resolutionControl,
     }),
     fingerprints: createScenarioEnvelopeFingerprints({
       artifact: `${input.runId}:proposal`,
-      content: input.selectedContext.scenarioEntry.artifact.source.content_hash,
-      knowledge: input.selectedContext.taskPacketEntry.artifact.payload.knowledgeFingerprint,
-      controls: input.selectedContext.taskPacketEntry.artifact.fingerprints.controls,
-      task: input.selectedContext.taskPacketEntry.artifact.taskFingerprint,
+      content: input.plan.context.contentHash,
+      knowledge: input.plan.resolutionContext.knowledgeFingerprint,
+      controls: input.plan.controlsFingerprint,
+      task: input.plan.surfaceFingerprint,
       run: input.runId,
     }),
     lineage: createEnvelopeLineage({
-      taskFingerprint: input.selectedContext.taskPacketEntry.artifact.taskFingerprint,
-      runbookArtifactPath: input.selectedContext.activeRunbook?.artifactPath,
-      datasetArtifactPath: input.selectedContext.activeDataset?.artifactPath,
-      parents: [input.selectedContext.taskPacketEntry.artifact.taskFingerprint, input.runId],
+      taskFingerprint: input.plan.surfaceFingerprint,
+      parents: [input.plan.surfaceFingerprint, input.runId],
       handshakes: ['preparation', 'resolution', 'execution', 'evidence', 'proposal'],
     }),
     governance: deriveGovernanceState({
@@ -135,9 +139,9 @@ export function buildProposals(input: {
     payload: {
       adoId: input.adoId,
       runId: input.runId,
-      revision: input.selectedContext.scenarioEntry.artifact.source.revision,
-      title: input.selectedContext.scenarioEntry.artifact.metadata.title,
-      suite: input.selectedContext.scenarioEntry.artifact.metadata.suite,
+      revision: input.plan.context.revision,
+      title: input.plan.title,
+      suite: input.plan.suite,
       proposals: [],
     },
     proposals,

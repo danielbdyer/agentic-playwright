@@ -16,6 +16,7 @@ import type {
   Governance,
   ExecutionPosture,
   ResolutionMode,
+  ResolutionTarget,
   RuntimeInterpreterMode,
   StepAction,
   StepProvenanceKind,
@@ -28,7 +29,8 @@ import type {
   WorkflowStage,
 } from './workflow';
 import type { StepResolution } from './intent';
-import type { ArtifactConfidenceRecord, InterfaceResolutionContext } from './knowledge';
+import type { InterfaceResolutionContext } from './knowledge';
+import type { RecoveryPolicy } from '../execution/recovery-policy';
 
 export interface TranslationCandidate {
   kind: 'screen' | 'element' | 'posture' | 'snapshot-template';
@@ -105,7 +107,7 @@ export interface ScenarioKnowledgeSlice {
   controlRefs: string[];
 }
 
-export interface StepTaskGrounding {
+export interface StepGrounding {
   targetRefs: CanonicalTargetRef[];
   selectorRefs: SelectorRef[];
   fallbackSelectorRefs: SelectorRef[];
@@ -119,7 +121,7 @@ export interface StepTaskGrounding {
   resultStateRefs: StateNodeRef[];
 }
 
-export interface StepTask {
+export interface GroundedStep {
   index: number;
   intent: string;
   actionText: string;
@@ -128,7 +130,96 @@ export interface StepTask {
   allowedActions: StepAction[];
   explicitResolution: StepResolution | null;
   controlResolution: StepResolution | null;
-  grounding: StepTaskGrounding;
+  grounding: StepGrounding;
+  stepFingerprint: string;
+  taskFingerprint: string;
+}
+
+/** @deprecated Use `GroundedStep`. */
+export type StepTask = GroundedStep;
+
+/** @deprecated Use `StepGrounding`. */
+export type StepTaskGrounding = StepGrounding;
+
+export interface ScenarioInterpretationSurface {
+  kind: 'scenario-interpretation-surface';
+  version: 1;
+  stage: 'preparation';
+  scope: 'scenario';
+  ids: WorkflowEnvelopeIds;
+  fingerprints: WorkflowEnvelopeFingerprints;
+  lineage: WorkflowEnvelopeLineage;
+  governance: Governance;
+  payload: {
+    adoId: AdoId;
+    revision: number;
+    title: string;
+    suite: string;
+    knowledgeFingerprint: string;
+    interface: TaskArtifactRef;
+    selectors: TaskArtifactRef;
+    stateGraph: TaskArtifactRef;
+    knowledgeSlice: ScenarioKnowledgeSlice;
+    steps: GroundedStep[];
+    resolutionContext: InterfaceResolutionContext;
+  };
+  surfaceFingerprint: string;
+}
+
+export interface ScenarioRunPlan {
+  kind: 'scenario-run-plan';
+  version: 1;
+  adoId: AdoId;
+  runId: string;
+  surfaceFingerprint: string;
+  title: string;
+  suite: string;
+  controlsFingerprint: string | null;
+  posture: ExecutionPosture;
+  mode: RuntimeInterpreterMode;
+  providerId: string;
+  controlSelection: {
+    runbook?: string | null | undefined;
+    dataset?: string | null | undefined;
+    resolutionControl?: string | null | undefined;
+  };
+  fixtures: Record<string, unknown>;
+  screenIds: ScreenId[];
+  steps: GroundedStep[];
+  resolutionContext: InterfaceResolutionContext;
+  context: {
+    adoId: AdoId;
+    revision: number;
+    contentHash: string;
+    artifactPath?: string | undefined;
+  };
+  translationEnabled: boolean;
+  translationCacheEnabled: boolean;
+  recoveryPolicy?: RecoveryPolicy | undefined;
+}
+
+/** @deprecated Use `ScenarioInterpretationSurface`. */
+export interface ScenarioTaskPacket {
+  kind: 'scenario-task-packet';
+  version: 5;
+  stage: 'preparation';
+  scope: 'scenario';
+  ids: WorkflowEnvelopeIds;
+  fingerprints: WorkflowEnvelopeFingerprints;
+  lineage: WorkflowEnvelopeLineage;
+  governance: Governance;
+  payload: {
+    adoId: AdoId;
+    revision: number;
+    title: string;
+    suite: string;
+    knowledgeFingerprint: string;
+    interface: TaskArtifactRef;
+    selectors: TaskArtifactRef;
+    stateGraph: TaskArtifactRef;
+    knowledgeSlice: ScenarioKnowledgeSlice;
+    steps: GroundedStep[];
+  };
   taskFingerprint: string;
 }
 
@@ -152,30 +243,6 @@ export interface ObservedStateSession {
   lastSuccessfulLocatorRung: number | null;
   recentAssertions: ObservedStateSessionAssertion[];
   lineage: string[];
-}
-
-export interface ScenarioTaskPacket {
-  kind: 'scenario-task-packet';
-  version: 5;
-  stage: 'preparation';
-  scope: 'scenario';
-  ids: WorkflowEnvelopeIds;
-  fingerprints: WorkflowEnvelopeFingerprints;
-  lineage: WorkflowEnvelopeLineage;
-  governance: Governance;
-  payload: {
-    adoId: AdoId;
-    revision: number;
-    title: string;
-    suite: string;
-    knowledgeFingerprint: string;
-    interface: TaskArtifactRef;
-    selectors: TaskArtifactRef;
-    stateGraph: TaskArtifactRef;
-    knowledgeSlice: ScenarioKnowledgeSlice;
-    steps: StepTask[];
-  };
-  taskFingerprint: string;
 }
 
 export interface ScenarioRuntimeStep {
@@ -216,7 +283,7 @@ export interface ScenarioRuntimeHandoff {
     providerId: string;
     translationEnabled: boolean;
     translationCacheEnabled: boolean;
-    recoveryPolicy?: import('../execution/recovery-policy').RecoveryPolicy | undefined;
+    recoveryPolicy?: RecoveryPolicy | undefined;
   };
   adoId: AdoId;
   revision: number;
@@ -241,7 +308,7 @@ export interface ScenarioRuntimeHandoff {
   providerId: string;
   translationEnabled: boolean;
   translationCacheEnabled: boolean;
-  recoveryPolicy?: import('../execution/recovery-policy').RecoveryPolicy | undefined;
+  recoveryPolicy?: RecoveryPolicy | undefined;
 }
 
 export interface DatasetControl {
@@ -279,7 +346,7 @@ export interface ResolutionControl {
 export interface DomExplorationPolicy {
   maxCandidates: number;
   maxProbes: number;
-  forbiddenActions: import('./workflow').StepAction[];
+  forbiddenActions: StepAction[];
 }
 
 export interface RuntimeDomCandidate {
@@ -320,7 +387,7 @@ export interface RunbookControl {
   translationEnabled?: boolean | undefined;
   translationCacheEnabled?: boolean | undefined;
   providerId?: string | null | undefined;
-  recoveryPolicy?: import('../execution/recovery-policy').RecoveryPolicy | undefined;
+  recoveryPolicy?: RecoveryPolicy | undefined;
 }
 
 export interface RuntimeDatasetBinding {
@@ -351,7 +418,7 @@ export interface RuntimeRunbookControl {
   translationEnabled?: boolean | undefined;
   translationCacheEnabled?: boolean | undefined;
   providerId?: string | null | undefined;
-  recoveryPolicy?: import('../execution/recovery-policy').RecoveryPolicy | undefined;
+  recoveryPolicy?: RecoveryPolicy | undefined;
 }
 
 export interface RuntimeControlSession {
@@ -596,7 +663,7 @@ export interface ResolvedReceipt extends ResolutionReceiptBase {
   kind: 'resolved';
   confidence: 'compiler-derived' | 'agent-verified';
   provenanceKind: Extract<StepProvenanceKind, 'explicit' | 'approved-knowledge' | 'live-exploration'>;
-  target: import('./workflow').ResolutionTarget;
+  target: ResolutionTarget;
   evidenceDrafts: ResolutionEvidenceDraft[];
   proposalDrafts: ResolutionProposalDraft[];
 }
@@ -605,7 +672,7 @@ export interface ResolvedWithProposalsReceipt extends ResolutionReceiptBase {
   kind: 'resolved-with-proposals';
   confidence: 'agent-proposed' | 'agent-verified';
   provenanceKind: Extract<StepProvenanceKind, 'approved-knowledge' | 'live-exploration'>;
-  target: import('./workflow').ResolutionTarget;
+  target: ResolutionTarget;
   evidenceDrafts: ResolutionEvidenceDraft[];
   proposalDrafts: ResolutionProposalDraft[];
 }

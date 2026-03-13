@@ -25,6 +25,7 @@ import type {
   RunRecord,
   RunbookControl,
   Scenario,
+  ScenarioInterpretationSurface,
   SelectorCanon,
   ScenarioTaskPacket,
   ScreenBehavior,
@@ -54,6 +55,7 @@ import {
   validateRunRecord,
   validateRunbookControl,
   validateScenario,
+  validateScenarioInterpretationSurface,
   validateScenarioTaskPacket,
   validateScreenBehavior,
   validateScreenElements,
@@ -69,6 +71,7 @@ import {
   validateBehaviorPatternDocument,
 } from '../../domain/validation';
 import { walkFiles } from '../artifacts';
+import { taskPacketFromSurface } from '../compat/surface-adapter';
 import type { ProjectPaths } from '../paths';
 import { boundPath, relativeProjectPath, snapshotPath } from '../paths';
 import { FileSystem } from '../ports';
@@ -280,16 +283,36 @@ export function loadWorkspaceCatalog(options: { paths: ProjectPaths }) {
     }
 
     const taskFiles = (yield* walkFiles(fs, options.paths.tasksDir)).filter((filePath) => filePath.endsWith('.resolution.json'));
+    const interpretationSurfaces: ArtifactEnvelope<ScenarioInterpretationSurface>[] = [];
     const taskPackets: ArtifactEnvelope<ScenarioTaskPacket>[] = [];
     for (const filePath of taskFiles) {
-      const artifact = yield* readDisposableJsonArtifact(
+      const surface = yield* readDisposableJsonArtifact(
+        options.paths,
+        filePath,
+        validateScenarioInterpretationSurface,
+        'scenario-interpretation-surface-validation-failed',
+        `Scenario interpretation surface ${filePath} failed validation`,
+      );
+      if (surface) {
+        interpretationSurfaces.push(surface);
+        taskPackets.push({
+          ...surface,
+          artifact: taskPacketFromSurface(surface.artifact),
+          fingerprint: surface.fingerprint,
+        });
+        continue;
+      }
+
+      const taskPacket = yield* readDisposableJsonArtifact(
         options.paths,
         filePath,
         validateScenarioTaskPacket,
         'task-packet-validation-failed',
         `Task packet ${filePath} failed validation`,
       );
-      if (artifact) taskPackets.push(artifact);
+      if (taskPacket) {
+        taskPackets.push(taskPacket);
+      }
     }
 
     const runFiles = (yield* walkFiles(fs, options.paths.runsDir)).filter((filePath) => path.basename(filePath) === 'run.json');
@@ -506,6 +529,7 @@ export function loadWorkspaceCatalog(options: { paths: ProjectPaths }) {
       snapshots,
       scenarios,
       boundScenarios,
+      interpretationSurfaces,
       taskPackets,
       runRecords,
       proposalBundles,

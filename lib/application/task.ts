@@ -1,24 +1,24 @@
 import path from 'path';
 import { Effect } from 'effect';
 import { normalizeIntentText } from '../domain/inference';
-import type { TesseractError } from '../domain/errors';
+import { TesseractError } from '../domain/errors';
 import {
   type AdoId,
-  type ScreenId,
 } from '../domain/identity';
 import type {
   ApplicationInterfaceGraph,
+  GroundedStep,
   InterfaceResolutionContext,
+  ScenarioInterpretationSurface,
   ScenarioKnowledgeSlice,
   ScenarioTaskPacket,
   SelectorCanon,
   StateTransitionGraph,
   StepResolution,
-  StepTask,
-  StepTaskGrounding,
-  StepTaskScreenCandidate,
+  StepGrounding,
 } from '../domain/types';
 import { controlResolutionForStep, runtimeControlsForScenario } from './controls';
+import { taskPacketFromSurface } from './compat/surface-adapter';
 import type { CompileSnapshot } from './compile-snapshot';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
 import { buildInterfaceResolutionContext } from './interface-resolution';
@@ -34,12 +34,13 @@ import { type ProjectionIncremental } from './projections/runner';
 import { runIncrementalStage } from './pipeline';
 
 export interface TaskProjectionResult {
+  surface: ScenarioInterpretationSurface;
   taskPacket: ScenarioTaskPacket;
   taskPath: string;
   incremental: ProjectionIncremental;
 }
 
-type StepTaskSeed = Omit<StepTask, 'grounding' | 'taskFingerprint'>;
+type StepTaskSeed = Omit<GroundedStep, 'grounding' | 'stepFingerprint' | 'taskFingerprint'>;
 
 function taskManifestPath(paths: ProjectPaths, adoId: AdoId): string {
   return path.join(paths.tasksDir, `${adoId}.manifest.json`);
@@ -58,7 +59,7 @@ function stepResolution(step: CompileSnapshot['boundScenario']['steps'][number])
   };
 }
 
-function groundedStepTask(input: { step: StepTaskSeed; resolutionContext: InterfaceResolutionContext }): StepTaskGrounding {
+function groundedStepTask(input: { step: StepTaskSeed; resolutionContext: InterfaceResolutionContext }): StepGrounding {
   const screens = input.resolutionContext.screens;
   const normalized = normalizeIntentText(`${input.step.actionText} ${input.step.expectedText}`);
   const matchedScreens = screens.filter((screen) =>
@@ -176,20 +177,23 @@ function buildKnowledgeSlice(input: {
   };
 }
 
-function buildTaskPacket(input: {
+export function buildScenarioInterpretationSurface(input: {
   paths: ProjectPaths;
   compileSnapshot: CompileSnapshot;
   catalog: WorkspaceCatalog;
   interfaceGraph?: ApplicationInterfaceGraph | null | undefined;
   selectorCanon?: SelectorCanon | null | undefined;
   stateGraph?: StateTransitionGraph | null | undefined;
-}): ScenarioTaskPacket {
+}): ScenarioInterpretationSurface {
   const runtimeControls = runtimeControlsForScenario(input.catalog, input.compileSnapshot.scenario);
   const interfaceGraph = input.interfaceGraph ?? null;
   const selectorCanon = input.selectorCanon ?? null;
   const stateGraph = input.stateGraph ?? null;
   if (!interfaceGraph || !selectorCanon || !stateGraph) {
-    throw new Error(`Missing interface graph, selector canon, or state graph for scenario ${input.compileSnapshot.adoId}`);
+    throw new TesseractError(
+      'task-missing-runtime-graphs',
+      `Missing interface graph, selector canon, or state graph for scenario ${input.compileSnapshot.adoId}`,
+    );
   }
   const knowledgeFingerprint = fingerprintProjectionOutput({
     screens: Object.values(input.catalog.screenBundles).map((entry) => ({
@@ -227,7 +231,8 @@ function buildTaskPacket(input: {
       controlResolution: controlResolutionForStep(runtimeControls, step.index),
     };
     const groundedTask = { ...task, grounding: groundedStepTask({ step: task, resolutionContext }) };
-    return { ...groundedTask, taskFingerprint: fingerprintProjectionOutput(groundedTask) };
+    const stepFingerprint = fingerprintProjectionOutput(groundedTask);
+    return { ...groundedTask, stepFingerprint, taskFingerprint: stepFingerprint };
   });
 
   const governance = input.compileSnapshot.boundScenario.steps.some((step) => step.binding.governance === 'blocked')
@@ -235,7 +240,7 @@ function buildTaskPacket(input: {
     : input.compileSnapshot.boundScenario.steps.some((step) => step.binding.governance === 'review-required')
       ? 'review-required'
       : 'approved';
-  const payload = {
+  const payload: ScenarioInterpretationSurface['payload'] = {
     adoId: input.compileSnapshot.adoId,
     revision: input.compileSnapshot.scenario.source.revision,
     title: input.compileSnapshot.scenario.metadata.title,
@@ -260,11 +265,12 @@ function buildTaskPacket(input: {
       runtimeControls,
     }),
     steps,
+    resolutionContext,
   };
 
-  const packet: Omit<ScenarioTaskPacket, 'taskFingerprint'> = {
-    kind: 'scenario-task-packet',
-    version: 5,
+  const surface: Omit<ScenarioInterpretationSurface, 'surfaceFingerprint'> = {
+    kind: 'scenario-interpretation-surface',
+    version: 1,
     stage: 'preparation',
     scope: 'scenario',
     ids: {
@@ -296,16 +302,27 @@ function buildTaskPacket(input: {
     payload,
   };
 
-  const taskFingerprint = fingerprintProjectionOutput(packet);
+  const surfaceFingerprint = fingerprintProjectionOutput(surface);
   return {
-    ...packet,
+    ...surface,
     fingerprints: {
-      ...packet.fingerprints,
-      artifact: taskFingerprint,
-      task: taskFingerprint,
+      ...surface.fingerprints,
+      artifact: surfaceFingerprint,
+      task: surfaceFingerprint,
     },
-    taskFingerprint,
+    surfaceFingerprint,
   };
+}
+
+export function buildTaskPacket(input: {
+  paths: ProjectPaths;
+  compileSnapshot: CompileSnapshot;
+  catalog: WorkspaceCatalog;
+  interfaceGraph?: ApplicationInterfaceGraph | null | undefined;
+  selectorCanon?: SelectorCanon | null | undefined;
+  stateGraph?: StateTransitionGraph | null | undefined;
+}): ScenarioTaskPacket {
+  return taskPacketFromSurface(buildScenarioInterpretationSurface(input));
 }
 
 export function buildTaskPacketProjection(options:
@@ -319,7 +336,12 @@ export function buildTaskPacketProjection(options:
       : (() => {
           const scenario = catalog.scenarios.find((entry) => entry.artifact.source.ado_id === options.adoId);
           const boundScenario = catalog.boundScenarios.find((entry) => entry.artifact.source.ado_id === options.adoId);
-          if (!scenario || !boundScenario) throw new Error(`Missing scenario or bound scenario for ${options.adoId}`);
+          if (!scenario || !boundScenario) {
+            throw new TesseractError(
+              'task-missing-compile-snapshot',
+              `Missing scenario or bound scenario for ${options.adoId}`,
+            );
+          }
           return {
             adoId: options.adoId,
             scenario: scenario.artifact,
@@ -352,7 +374,7 @@ export function buildTaskPacketProjection(options:
       ...(options.selectorCanon ? [fingerprintProjectionArtifact('selector-canon', options.paths.selectorCanonPath, options.selectorCanon)] : []),
       ...(options.stateGraph ? [fingerprintProjectionArtifact('state-graph', options.paths.stateGraphPath, options.stateGraph)] : []),
     ];
-    const packet = buildTaskPacket({
+    const surface = buildScenarioInterpretationSurface({
       paths: options.paths,
       compileSnapshot,
       catalog,
@@ -360,7 +382,8 @@ export function buildTaskPacketProjection(options:
       selectorCanon: options.selectorCanon ?? catalog.selectorCanon?.artifact ?? null,
       stateGraph: options.stateGraph ?? catalog.stateGraph?.artifact ?? null,
     });
-    const outputFingerprint = fingerprintProjectionOutput(packet);
+    const taskPacket = taskPacketFromSurface(surface);
+    const outputFingerprint = fingerprintProjectionOutput(surface);
 
     return yield* runIncrementalStage<
       Omit<TaskProjectionResult, 'incremental'>,
@@ -379,9 +402,9 @@ export function buildTaskPacketProjection(options:
         return { status: 'ok' as const, outputFingerprint: fingerprintProjectionOutput(raw) };
       }),
       persist: () => Effect.gen(function* () {
-        yield* fs.writeJson(packetPath, packet);
+        yield* fs.writeJson(packetPath, surface);
         return {
-          result: { taskPacket: packet, taskPath: packetPath },
+          result: { surface, taskPacket, taskPath: packetPath },
           outputFingerprint,
           rewritten: [
             relativeProjectPath(options.paths, packetPath),
@@ -389,7 +412,7 @@ export function buildTaskPacketProjection(options:
           ],
         };
       }),
-      withCacheHit: (incremental) => ({ taskPacket: packet, taskPath: packetPath, incremental }),
+      withCacheHit: (incremental) => ({ surface, taskPacket, taskPath: packetPath, incremental }),
       withCacheMiss: (built, incremental) => ({ ...built, incremental }),
     });
   });
