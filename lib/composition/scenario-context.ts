@@ -87,6 +87,10 @@ export function createScenarioContext(
 
   const runState: ScenarioRunState = createScenarioRunState();
 
+  const isStepFailure = (result: Awaited<ReturnType<typeof runScenarioHandshake>>): boolean =>
+    result.interpretation.kind === 'needs-human' ||
+    result.execution.execution.status === 'failed';
+
   const executeStep = async (stepIndex: number, stepTitle: string): Promise<void> => {
     await test.step(stepTitle, async () => {
       const stepResult = await runScenarioHandshake(
@@ -96,15 +100,13 @@ export function createScenarioContext(
         runPlan.context,
       );
 
+      // Playwright's annotations API requires mutation — this is the framework boundary
       test.info().annotations.push({
         type: 'runtime-receipt',
         description: JSON.stringify(stepResult),
       });
 
-      if (
-        stepResult.interpretation.kind === 'needs-human' ||
-        stepResult.execution.execution.status === 'failed'
-      ) {
+      if (isStepFailure(stepResult)) {
         throw new Error(
           `Step ${stepIndex + 1} requires operator attention or failed execution`,
         );

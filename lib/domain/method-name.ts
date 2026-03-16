@@ -41,23 +41,32 @@ export function deriveMethodName(
 /**
  * Deduplicate method names within a screen by appending step index when collisions occur.
  * Returns a new array with the same length as the input.
+ *
+ * Two-pass fold: first pass counts occurrences, second pass resolves names.
  */
 export function deduplicateMethodNames(
   methods: ReadonlyArray<{ readonly methodName: string; readonly stepIndex: number }>,
 ): ReadonlyArray<string> {
-  const counts = new Map<string, number>();
-  for (const m of methods) {
-    counts.set(m.methodName, (counts.get(m.methodName) ?? 0) + 1);
-  }
+  const counts: ReadonlyMap<string, number> = methods.reduce(
+    (acc, m) => new Map([...acc, [m.methodName, (acc.get(m.methodName) ?? 0) + 1]]),
+    new Map<string, number>(),
+  );
 
-  const seen = new Map<string, number>();
-  return methods.map((m) => {
-    const count = counts.get(m.methodName) ?? 1;
-    if (count === 1) return m.methodName;
-    const occurrence = (seen.get(m.methodName) ?? 0) + 1;
-    seen.set(m.methodName, occurrence);
-    return occurrence === 1 ? m.methodName : `${m.methodName}${m.stepIndex}`;
-  });
+  return methods.reduce<{ readonly names: ReadonlyArray<string>; readonly seen: ReadonlyMap<string, number> }>(
+    (acc, m) => {
+      const count = counts.get(m.methodName) ?? 1;
+      if (count === 1) {
+        return { names: [...acc.names, m.methodName], seen: acc.seen };
+      }
+      const occurrence = (acc.seen.get(m.methodName) ?? 0) + 1;
+      const name = occurrence === 1 ? m.methodName : `${m.methodName}${m.stepIndex}`;
+      return {
+        names: [...acc.names, name],
+        seen: new Map([...acc.seen, [m.methodName, occurrence]]),
+      };
+    },
+    { names: [], seen: new Map() },
+  ).names;
 }
 
 function toCamelCase(s: string): string {
@@ -69,12 +78,8 @@ function capitalize(s: string): string {
 }
 
 function stripSuffixes(id: string, suffixes: ReadonlyArray<string>): string {
-  for (const suffix of suffixes) {
-    if (id.endsWith(suffix) && id.length > suffix.length) {
-      return id.slice(0, -suffix.length);
-    }
-  }
-  return id;
+  const match = suffixes.find((suffix) => id.endsWith(suffix) && id.length > suffix.length);
+  return match ? id.slice(0, -match.length) : id;
 }
 
 function camelCaseFromIntent(intent: string, prefix: string): string {
