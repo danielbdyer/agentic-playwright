@@ -19,16 +19,6 @@ export function exhaustionEntry(
   return { stage, outcome, reason, ...candidates };
 }
 
-/** @deprecated Use exhaustionEntry() and collect functionally. */
-export function recordExhaustion(
-  entries: ResolutionExhaustionEntry[],
-  stage: ResolutionExhaustionEntry['stage'],
-  outcome: ResolutionExhaustionEntry['outcome'],
-  reason: string,
-  candidates: Pick<ResolutionExhaustionEntry, 'topCandidates' | 'rejectedCandidates'> = {},
-): void {
-  entries.push({ stage, outcome, reason, ...candidates });
-}
 
 export function normalizedCombined(task: GroundedStep): string {
   return `${normalizeIntentText(task.actionText)} ${normalizeIntentText(task.expectedText)}`.trim();

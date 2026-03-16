@@ -4,7 +4,8 @@ import { selectedControlRefs, selectedControlResolution } from './select-control
 import { uniqueSorted } from './shared';
 import type { ResolutionStrategy, StrategyAttemptResult } from './strategy';
 import { runStrategyChain } from './strategy';
-import type { RuntimeAgentStageContext, RuntimeStepAgentContext } from './types';
+import type { RuntimeAgentStageContext, RuntimeStepAgentContext, StageEffects } from './types';
+import { mergeEffectsIntoStage, EMPTY_EFFECTS } from './types';
 import {
   tryExplicitResolution,
   buildLatticeAccumulator,
@@ -169,55 +170,68 @@ function deriveObservedStateSessionAfterResolution(stage: RuntimeAgentStageConte
   };
 }
 
-function captureStageEvents(
-  stage: RuntimeAgentStageContext,
-  beforeExhaustionLen: number,
-  beforeObservationLen: number,
-): ResolutionEvent[] {
+function effectsToEvents(effects: StageEffects): ResolutionEvent[] {
   return [
-    ...stage.exhaustion.slice(beforeExhaustionLen).map((entry): ResolutionEvent => ({ kind: 'exhaustion-recorded', entry })),
-    ...stage.observations.slice(beforeObservationLen).map((observation): ResolutionEvent => ({ kind: 'observation-recorded', observation })),
+    ...effects.exhaustion.map((entry): ResolutionEvent => ({ kind: 'exhaustion-recorded', entry })),
+    ...effects.observations.map((observation): ResolutionEvent => ({ kind: 'observation-recorded', observation })),
+    ...(effects.knowledgeRefs.length > 0 ? [{ kind: 'refs-collected' as const, refKind: 'knowledge' as const, refs: effects.knowledgeRefs }] : []),
+    ...(effects.supplementRefs.length > 0 ? [{ kind: 'refs-collected' as const, refKind: 'supplement' as const, refs: effects.supplementRefs }] : []),
   ];
 }
 
-function wrapStageAsStrategy(
+function pureStrategy(
   name: string,
   rungs: ResolutionStrategy['rungs'],
   requiresAccumulator: boolean,
-  fn: (stage: RuntimeAgentStageContext, acc: import('./resolution-stages').ResolutionAccumulator | null) => ResolutionReceipt | null | Promise<ResolutionReceipt | null>,
+  fn: (stage: RuntimeAgentStageContext, acc: import('./resolution-stages').ResolutionAccumulator | null) => { receipt: ResolutionReceipt | null; effects: StageEffects } | Promise<{ receipt: ResolutionReceipt | null; effects: StageEffects }>,
 ): ResolutionStrategy {
   return {
     name,
     rungs,
     requiresAccumulator,
     async attempt(stage, acc): Promise<StrategyAttemptResult> {
-      const exhaustionBefore = stage.exhaustion.length;
-      const observationsBefore = stage.observations.length;
-      const receipt = await fn(stage, acc);
-      const events = captureStageEvents(stage, exhaustionBefore, observationsBefore);
-      if (stage.knowledgeRefs.length > 0) {
-        events.push({ kind: 'refs-collected', refKind: 'knowledge', refs: [...stage.knowledgeRefs] });
-      }
-      if (stage.supplementRefs.length > 0) {
-        events.push({ kind: 'refs-collected', refKind: 'supplement', refs: [...stage.supplementRefs] });
-      }
-      return { receipt, events };
+      const result = await fn(stage, acc);
+      mergeEffectsIntoStage(stage, result.effects);
+      return { receipt: result.receipt, events: effectsToEvents(result.effects) };
     },
   };
 }
 
-const resolutionStrategies: readonly ResolutionStrategy[] = [
-  wrapStageAsStrategy('explicit-resolution', ['explicit', 'control'], false,
+const preAccumulatorStrategies: readonly ResolutionStrategy[] = [
+  pureStrategy('explicit-resolution', ['explicit', 'control'], false,
     (stage) => tryExplicitResolution(stage)),
-  wrapStageAsStrategy('approved-knowledge', ['approved-screen-knowledge', 'shared-patterns', 'prior-evidence'], true,
-    (stage, acc) => tryApprovedKnowledgeResolution(stage, acc!)),
-  wrapStageAsStrategy('confidence-overlay', ['approved-equivalent-overlay'], true,
-    (stage, acc) => tryOverlayResolution(stage, acc!)),
-  wrapStageAsStrategy('structured-translation', ['structured-translation'], true,
-    (stage, acc) => tryTranslationResolution(stage, acc!)),
-  wrapStageAsStrategy('live-dom-fallback', ['live-dom', 'needs-human'], true,
-    (stage, acc) => tryLiveDomOrFallback(stage, acc!)),
 ];
+
+function buildPostAccumulatorStrategies(accRef: { current: import('./resolution-stages').ResolutionAccumulator }): readonly ResolutionStrategy[] {
+  return [
+    pureStrategy('approved-knowledge', ['approved-screen-knowledge', 'shared-patterns', 'prior-evidence'], true,
+      (stage) => tryApprovedKnowledgeResolution(stage, accRef.current)),
+    {
+      name: 'confidence-overlay',
+      rungs: ['approved-equivalent-overlay'],
+      requiresAccumulator: true,
+      async attempt(stage): Promise<StrategyAttemptResult> {
+        const result = tryOverlayResolution(stage, accRef.current);
+        accRef.current = result.accumulator;
+        mergeEffectsIntoStage(stage, result.effects);
+        return { receipt: result.receipt, events: effectsToEvents(result.effects) };
+      },
+    },
+    {
+      name: 'structured-translation',
+      rungs: ['structured-translation'],
+      requiresAccumulator: true,
+      async attempt(stage): Promise<StrategyAttemptResult> {
+        const result = await tryTranslationResolution(stage, accRef.current);
+        accRef.current = result.accumulator;
+        mergeEffectsIntoStage(stage, result.effects);
+        return { receipt: result.receipt, events: effectsToEvents(result.effects) };
+      },
+    },
+    pureStrategy('live-dom-fallback', ['live-dom', 'needs-human'], true,
+      async (stage) => tryLiveDomOrFallback(stage, accRef.current)),
+  ];
+}
 
 export async function runResolutionPipeline(task: GroundedStep, context: RuntimeStepAgentContext): Promise<ResolutionPipelineResult> {
   const memory = normalizeObservedStateSession(task, context.observedStateSession ?? createEmptyObservedStateSession());
@@ -244,37 +258,41 @@ export async function runResolutionPipeline(task: GroundedStep, context: Runtime
     return { kind: 'memory-updated', session: updated };
   };
 
-  const preAccumulatorStrategies = resolutionStrategies.filter((s) => !s.requiresAccumulator);
-  const postAccumulatorStrategies = resolutionStrategies.filter((s) => s.requiresAccumulator);
-
   const seedEvents: ResolutionEvent[] = [
     ...(stage.controlRefs.length > 0 ? [{ kind: 'refs-collected' as const, refKind: 'control' as const, refs: [...stage.controlRefs] }] : []),
     ...(stage.evidenceRefs.length > 0 ? [{ kind: 'refs-collected' as const, refKind: 'evidence' as const, refs: [...stage.evidenceRefs] }] : []),
   ];
 
+  // Phase 1: Pre-accumulator strategies (explicit resolution)
   const earlyResult = await runStrategyChain(preAccumulatorStrategies, stage, null);
   if (earlyResult.receipt) {
     const memoryEvent = applyMemory(earlyResult.receipt);
     return { receipt: earlyResult.receipt, events: [...seedEvents, ...earlyResult.events, memoryEvent] };
   }
 
-  const acc = buildLatticeAccumulator(stage);
-  const latticeEvents = captureStageEvents(stage, 0, 0);
+  // Phase 2: Build lattice accumulator (pure — returns effects, merged here)
+  const latticeResult = buildLatticeAccumulator(stage);
+  mergeEffectsIntoStage(stage, latticeResult.effects);
+  const latticeEvents = effectsToEvents(latticeResult.effects);
 
-  const result = await runStrategyChain(postAccumulatorStrategies, stage, acc);
+  // Phase 3: Post-accumulator strategies (knowledge, overlay, translation, live-dom)
+  const accRef = { current: latticeResult.accumulator };
+  const postStrategies = buildPostAccumulatorStrategies(accRef);
+
+  const result = await runStrategyChain(postStrategies, stage, accRef.current);
   if (result.receipt) {
     const memoryEvent = applyMemory(result.receipt);
     return { receipt: result.receipt, events: [...seedEvents, ...earlyResult.events, ...latticeEvents, ...result.events, memoryEvent] };
   }
 
-  const exhaustionBefore = stage.exhaustion.length;
-  const observationsBefore = stage.observations.length;
-  const fallbackReceipt = await tryLiveDomOrFallback(stage, acc);
-  const fallbackEvents = captureStageEvents(stage, exhaustionBefore, observationsBefore);
-  const memoryEvent = applyMemory(fallbackReceipt);
+  // Phase 4: Final fallback (should always produce a receipt via needs-human)
+  const fallback = await tryLiveDomOrFallback(stage, accRef.current);
+  mergeEffectsIntoStage(stage, fallback.effects);
+  const fallbackEvents = effectsToEvents(fallback.effects);
+  const memoryEvent = applyMemory(fallback.receipt);
   return {
-    receipt: fallbackReceipt,
-    events: [...seedEvents, ...earlyResult.events, ...latticeEvents, ...result.events, ...fallbackEvents, { kind: 'receipt-produced', receipt: fallbackReceipt }, memoryEvent],
+    receipt: fallback.receipt,
+    events: [...seedEvents, ...earlyResult.events, ...latticeEvents, ...result.events, ...fallbackEvents, { kind: 'receipt-produced', receipt: fallback.receipt }, memoryEvent],
   };
 }
 
