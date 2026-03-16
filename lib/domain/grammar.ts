@@ -42,89 +42,70 @@ function surfaceOperations(
   surfaceId: SurfaceId,
   surfaceGraph: SurfaceGraph,
   elements: ScreenElements['elements'],
-  seen: Set<SurfaceId>,
+  seen: ReadonlySet<SurfaceId>,
 ): CapabilityName[] {
   if (seen.has(surfaceId)) {
     return [];
   }
 
-  seen.add(surfaceId);
   const surface = surfaceGraph.surfaces[surfaceId];
   if (!surface) {
     return [];
   }
 
-  const operations: CapabilityName[] = [];
-  if (surface.assertions.includes('state')) {
-    operations.push('observe-state');
-  }
-  if (surface.assertions.includes('structure')) {
-    operations.push('observe-structure');
-  }
-
-  for (const elementId of surface.elements) {
+  const nextSeen = new Set([...seen, surfaceId]);
+  const assertionOps: CapabilityName[] = [
+    ...(surface.assertions.includes('state') ? ['observe-state' as const] : []),
+    ...(surface.assertions.includes('structure') ? ['observe-structure' as const] : []),
+  ];
+  const elementOps = surface.elements.flatMap((elementId) => {
     const element = elements[elementId];
-    if (element) {
-      operations.push(...capabilitiesForElement(element));
-    }
-  }
+    return element ? capabilitiesForElement(element) : [];
+  });
+  const childOps = surface.children.flatMap((child) =>
+    surfaceOperations(child, surfaceGraph, elements, nextSeen),
+  );
 
-  for (const child of surface.children) {
-    operations.push(...surfaceOperations(child, surfaceGraph, elements, seen));
-  }
-
-  return uniqueSorted(operations);
+  return uniqueSorted([...assertionOps, ...elementOps, ...childOps]);
 }
 
 export function deriveCapabilities(surfaceGraph: SurfaceGraph, screenElements: ScreenElements): DerivedCapability[] {
   const screenId = surfaceGraph.screen;
-  const capabilities: DerivedCapability[] = [
-    {
-      id: graphIds.capability.screen(screenId),
-      targetKind: 'screen',
-      target: screenId,
-      operations: ['navigate'],
-      provenance: {
-        knowledgePath: knowledgePaths.surface(screenId),
-      },
-    },
-  ];
 
-  for (const [surfaceKey, surface] of Object.entries(surfaceGraph.surfaces)) {
+  const screenCapability: DerivedCapability = {
+    id: graphIds.capability.screen(screenId),
+    targetKind: 'screen',
+    target: screenId,
+    operations: ['navigate'],
+    provenance: { knowledgePath: knowledgePaths.surface(screenId) },
+  };
+
+  const surfaceAndElementCapabilities = Object.entries(surfaceGraph.surfaces).flatMap(([surfaceKey, surface]) => {
     const surfaceId = createSurfaceId(surfaceKey);
-    capabilities.push({
+    const surfaceCapability: DerivedCapability = {
       id: graphIds.capability.surface(screenId, surfaceId),
       targetKind: 'surface',
       target: surfaceId,
       operations: surfaceOperations(surfaceId, surfaceGraph, screenElements.elements, new Set<SurfaceId>()),
-      provenance: {
-        knowledgePath: knowledgePaths.surface(screenId),
-      },
-    });
-
-    for (const elementId of surface.elements) {
+      provenance: { knowledgePath: knowledgePaths.surface(screenId) },
+    };
+    const elementCapabilities: DerivedCapability[] = surface.elements.flatMap((elementId) => {
       const element = screenElements.elements[elementId];
-      if (!element) {
-        continue;
-      }
+      return element
+        ? [{
+            id: graphIds.capability.element(screenId, elementId),
+            targetKind: 'element' as const,
+            target: elementId,
+            operations: capabilitiesForElement(element),
+            provenance: { knowledgePath: knowledgePaths.elements(screenId) },
+          }]
+        : [];
+    });
+    return [surfaceCapability, ...elementCapabilities];
+  });
 
-      capabilities.push({
-        id: graphIds.capability.element(screenId, elementId),
-        targetKind: 'element',
-        target: elementId,
-        operations: capabilitiesForElement(element),
-        provenance: {
-          knowledgePath: knowledgePaths.elements(screenId),
-        },
-      });
-    }
-  }
-
-  return capabilities
-    .map((entry) => ({
-      ...entry,
-      operations: uniqueSorted(entry.operations),
-    }))
+  return [screenCapability, ...surfaceAndElementCapabilities]
+    .map((entry) => ({ ...entry, operations: uniqueSorted(entry.operations) }))
     .sort((left, right) => compareStrings(left.id, right.id));
 }
 

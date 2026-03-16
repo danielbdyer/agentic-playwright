@@ -60,16 +60,20 @@ export function evaluateExecutionBudget(input: {
       breaches: [],
     };
   }
-  const breaches: string[] = [];
-  if (thresholds.maxSetupMs !== undefined && input.timing.setupMs > thresholds.maxSetupMs) breaches.push('setupMs');
-  if (thresholds.maxResolutionMs !== undefined && input.timing.resolutionMs > thresholds.maxResolutionMs) breaches.push('resolutionMs');
-  if (thresholds.maxActionMs !== undefined && input.timing.actionMs > thresholds.maxActionMs) breaches.push('actionMs');
-  if (thresholds.maxAssertionMs !== undefined && input.timing.assertionMs > thresholds.maxAssertionMs) breaches.push('assertionMs');
-  if (thresholds.maxRetriesMs !== undefined && input.timing.retriesMs > thresholds.maxRetriesMs) breaches.push('retriesMs');
-  if (thresholds.maxTeardownMs !== undefined && input.timing.teardownMs > thresholds.maxTeardownMs) breaches.push('teardownMs');
-  if (thresholds.maxTotalMs !== undefined && input.timing.totalMs > thresholds.maxTotalMs) breaches.push('totalMs');
-  if (thresholds.maxInstructionCount !== undefined && input.cost.instructionCount > thresholds.maxInstructionCount) breaches.push('instructionCount');
-  if (thresholds.maxDiagnosticCount !== undefined && input.cost.diagnosticCount > thresholds.maxDiagnosticCount) breaches.push('diagnosticCount');
+  const budgetChecks: readonly { field: string; threshold: number | undefined; actual: number }[] = [
+    { field: 'setupMs', threshold: thresholds.maxSetupMs, actual: input.timing.setupMs },
+    { field: 'resolutionMs', threshold: thresholds.maxResolutionMs, actual: input.timing.resolutionMs },
+    { field: 'actionMs', threshold: thresholds.maxActionMs, actual: input.timing.actionMs },
+    { field: 'assertionMs', threshold: thresholds.maxAssertionMs, actual: input.timing.assertionMs },
+    { field: 'retriesMs', threshold: thresholds.maxRetriesMs, actual: input.timing.retriesMs },
+    { field: 'teardownMs', threshold: thresholds.maxTeardownMs, actual: input.timing.teardownMs },
+    { field: 'totalMs', threshold: thresholds.maxTotalMs, actual: input.timing.totalMs },
+    { field: 'instructionCount', threshold: thresholds.maxInstructionCount, actual: input.cost.instructionCount },
+    { field: 'diagnosticCount', threshold: thresholds.maxDiagnosticCount, actual: input.cost.diagnosticCount },
+  ];
+  const breaches = budgetChecks
+    .filter((check) => check.threshold !== undefined && check.actual > check.threshold)
+    .map((check) => check.field);
   return {
     thresholds,
     status: breaches.length > 0 ? 'over-budget' : 'within-budget',

@@ -1,8 +1,6 @@
 import type { StepInstruction } from '../../domain/types';
 import type {
   ProgramFailure,
-  ProgramFailureCode,
-  StepInterpreterDiagnostic,
   StepProgram,
   StepProgramDiagnosticContext,
   StepProgramExecutionResult,
@@ -13,8 +11,8 @@ import { interpreterOutcome } from './types';
 export interface InstructionOutcome {
   status: 'ok' | 'failed';
   observedEffects: string[];
-  diagnostics?: StepInterpreterDiagnostic[];
-  failureCode?: ProgramFailureCode;
+  diagnostics?: import('../../domain/program').StepInterpreterDiagnostic[];
+  failureCode?: import('../../domain/program').ProgramFailureCode;
   locatorStrategy?: string;
   locatorRung?: number;
   widgetContract?: string;
@@ -42,6 +40,52 @@ function dispatchInstruction<TEnv>(
   }
 }
 
+function toOutcome(index: number, instruction: StepInstruction, result: InstructionOutcome): StepProgramInstructionOutcome {
+  return {
+    ...interpreterOutcome({
+      index,
+      instruction,
+      status: result.status,
+      observedEffects: result.observedEffects,
+      diagnostics: result.diagnostics,
+      failureCode: result.failureCode,
+    }),
+    locatorStrategy: result.locatorStrategy,
+    locatorRung: result.locatorRung,
+    widgetContract: result.widgetContract,
+  };
+}
+
+async function foldInstructions<TEnv>(
+  instructions: readonly StepInstruction[],
+  env: TEnv,
+  evaluator: InstructionEvaluator<TEnv>,
+  index: number,
+  accumulated: readonly StepProgramInstructionOutcome[],
+): Promise<{ outcomes: StepProgramInstructionOutcome[]; failure: ProgramFailure | null }> {
+  if (index >= instructions.length) {
+    return { outcomes: [...accumulated], failure: null };
+  }
+
+  const instruction = instructions[index]!;
+  const result = await dispatchInstruction(evaluator, env, instruction);
+  const outcome = toOutcome(index, instruction, result);
+  const outcomes = [...accumulated, outcome];
+
+  if (result.status === 'failed') {
+    return {
+      outcomes,
+      failure: {
+        code: result.failureCode ?? 'runtime-execution-failed',
+        message: result.diagnostics?.[0]?.message ?? `Instruction ${index} failed`,
+        context: {},
+      },
+    };
+  }
+
+  return foldInstructions(instructions, env, evaluator, index + 1, outcomes);
+}
+
 export async function interpretProgram<TEnv>(
   program: StepProgram,
   env: TEnv,
@@ -49,40 +93,9 @@ export async function interpretProgram<TEnv>(
   mode: string,
   _context?: StepProgramDiagnosticContext,
 ): Promise<StepProgramExecutionResult> {
-  const outcomes: StepProgramInstructionOutcome[] = [];
+  const { outcomes, failure } = await foldInstructions(program.instructions, env, evaluator, 0, []);
 
-  for (let i = 0; i < program.instructions.length; i++) {
-    const instruction = program.instructions[i]!;
-    const result = await dispatchInstruction(evaluator, env, instruction);
-    const outcome: StepProgramInstructionOutcome = {
-      ...interpreterOutcome({
-        index: i,
-        instruction,
-        status: result.status,
-        observedEffects: result.observedEffects,
-        diagnostics: result.diagnostics,
-        failureCode: result.failureCode,
-      }),
-      locatorStrategy: result.locatorStrategy,
-      locatorRung: result.locatorRung,
-      widgetContract: result.widgetContract,
-    };
-
-    outcomes.push(outcome);
-
-    if (result.status === 'failed') {
-      const failure: ProgramFailure = {
-        code: result.failureCode ?? 'runtime-execution-failed',
-        message: result.diagnostics?.[0]?.message ?? `Instruction ${i} failed`,
-        context: {},
-      };
-      return {
-        ok: false,
-        error: failure,
-        value: { mode, outcomes },
-      };
-    }
-  }
-
-  return { ok: true, value: { mode, outcomes } };
+  return failure
+    ? { ok: false, error: failure, value: { mode, outcomes } }
+    : { ok: true, value: { mode, outcomes } };
 }

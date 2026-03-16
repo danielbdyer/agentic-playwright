@@ -174,14 +174,10 @@ function captureStageEvents(
   beforeExhaustionLen: number,
   beforeObservationLen: number,
 ): ResolutionEvent[] {
-  const events: ResolutionEvent[] = [];
-  for (let i = beforeExhaustionLen; i < stage.exhaustion.length; i++) {
-    events.push({ kind: 'exhaustion-recorded', entry: stage.exhaustion[i]! });
-  }
-  for (let i = beforeObservationLen; i < stage.observations.length; i++) {
-    events.push({ kind: 'observation-recorded', observation: stage.observations[i]! });
-  }
-  return events;
+  return [
+    ...stage.exhaustion.slice(beforeExhaustionLen).map((entry): ResolutionEvent => ({ kind: 'exhaustion-recorded', entry })),
+    ...stage.observations.slice(beforeObservationLen).map((observation): ResolutionEvent => ({ kind: 'observation-recorded', observation })),
+  ];
 }
 
 function wrapStageAsStrategy(
@@ -241,51 +237,45 @@ export async function runResolutionPipeline(task: GroundedStep, context: Runtime
     memoryLineage: memory.lineage,
   };
 
-  const allEvents: ResolutionEvent[] = [];
-
-  const applyMemory = (receipt: ResolutionReceipt): ResolutionReceipt => {
+  const applyMemory = (receipt: ResolutionReceipt): ResolutionEvent => {
     const updated = deriveObservedStateSessionAfterResolution(stage, receipt);
     context.observedStateSession = updated;
     stage.memoryLineage = updated.lineage;
-    allEvents.push({ kind: 'memory-updated', session: updated });
-    return receipt;
+    return { kind: 'memory-updated', session: updated };
   };
 
   const preAccumulatorStrategies = resolutionStrategies.filter((s) => !s.requiresAccumulator);
   const postAccumulatorStrategies = resolutionStrategies.filter((s) => s.requiresAccumulator);
 
-  if (stage.controlRefs.length > 0) {
-    allEvents.push({ kind: 'refs-collected', refKind: 'control', refs: [...stage.controlRefs] });
-  }
-  if (stage.evidenceRefs.length > 0) {
-    allEvents.push({ kind: 'refs-collected', refKind: 'evidence', refs: [...stage.evidenceRefs] });
-  }
+  const seedEvents: ResolutionEvent[] = [
+    ...(stage.controlRefs.length > 0 ? [{ kind: 'refs-collected' as const, refKind: 'control' as const, refs: [...stage.controlRefs] }] : []),
+    ...(stage.evidenceRefs.length > 0 ? [{ kind: 'refs-collected' as const, refKind: 'evidence' as const, refs: [...stage.evidenceRefs] }] : []),
+  ];
 
   const earlyResult = await runStrategyChain(preAccumulatorStrategies, stage, null);
-  allEvents.push(...earlyResult.events);
   if (earlyResult.receipt) {
-    const receipt = applyMemory(earlyResult.receipt);
-    return { receipt, events: allEvents };
+    const memoryEvent = applyMemory(earlyResult.receipt);
+    return { receipt: earlyResult.receipt, events: [...seedEvents, ...earlyResult.events, memoryEvent] };
   }
 
   const acc = buildLatticeAccumulator(stage);
   const latticeEvents = captureStageEvents(stage, 0, 0);
-  allEvents.push(...latticeEvents);
 
   const result = await runStrategyChain(postAccumulatorStrategies, stage, acc);
-  allEvents.push(...result.events);
   if (result.receipt) {
-    const receipt = applyMemory(result.receipt);
-    return { receipt, events: allEvents };
+    const memoryEvent = applyMemory(result.receipt);
+    return { receipt: result.receipt, events: [...seedEvents, ...earlyResult.events, ...latticeEvents, ...result.events, memoryEvent] };
   }
 
   const exhaustionBefore = stage.exhaustion.length;
   const observationsBefore = stage.observations.length;
   const fallbackReceipt = await tryLiveDomOrFallback(stage, acc);
-  allEvents.push(...captureStageEvents(stage, exhaustionBefore, observationsBefore));
-  allEvents.push({ kind: 'receipt-produced', receipt: fallbackReceipt });
-  const receipt = applyMemory(fallbackReceipt);
-  return { receipt, events: allEvents };
+  const fallbackEvents = captureStageEvents(stage, exhaustionBefore, observationsBefore);
+  const memoryEvent = applyMemory(fallbackReceipt);
+  return {
+    receipt: fallbackReceipt,
+    events: [...seedEvents, ...earlyResult.events, ...latticeEvents, ...result.events, ...fallbackEvents, { kind: 'receipt-produced', receipt: fallbackReceipt }, memoryEvent],
+  };
 }
 
 export type { RuntimeStepAgentContext } from './types';
