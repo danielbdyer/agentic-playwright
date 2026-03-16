@@ -66,7 +66,6 @@ import type {
   ArtifactConfidenceRecord,
   ConfidenceOverlayCatalog,
   InterfaceResolutionContext,
-  StepTask,
   ScenarioTaskPacket,
   SurfaceSection,
   SurfaceDefinition,

@@ -135,12 +135,6 @@ export interface GroundedStep {
   taskFingerprint: string;
 }
 
-/** @deprecated Use `GroundedStep`. */
-export type StepTask = GroundedStep;
-
-/** @deprecated Use `StepGrounding`. */
-export type StepTaskGrounding = StepGrounding;
-
 export interface ScenarioInterpretationSurface {
   kind: 'scenario-interpretation-surface';
   version: 1;
@@ -182,6 +176,10 @@ export interface ScenarioRunPlan {
     runbook?: string | null | undefined;
     dataset?: string | null | undefined;
     resolutionControl?: string | null | undefined;
+  };
+  controlArtifactPaths: {
+    runbook?: string | null | undefined;
+    dataset?: string | null | undefined;
   };
   fixtures: Record<string, unknown>;
   screenIds: ScreenId[];
@@ -298,7 +296,7 @@ export interface RuntimeDomCandidate {
 
 export interface RuntimeDomResolver {
   resolve(input: {
-    task: StepTask;
+    task: GroundedStep;
     screen: StepTaskScreenCandidate;
     action: StepAction;
     policy: DomExplorationPolicy;

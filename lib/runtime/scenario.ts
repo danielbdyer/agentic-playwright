@@ -1,6 +1,4 @@
 import type { Page } from '@playwright/test';
-import { readFileSync } from 'fs';
-import path from 'path';
 import type { AdoId, StateNodeRef, TransitionRef } from '../domain/identity';
 import type { ExecutionBudgetThresholds } from '../domain/execution/telemetry';
 import { defaultRecoveryPolicy, recoveryFamilyConfig, type RecoveryAttempt, type RecoveryPolicy, type RecoveryStrategy } from '../domain/execution/recovery-policy';
@@ -14,7 +12,6 @@ import type {
   InterfaceResolutionContext,
   ObservedStateSession,
   ResolutionReceipt,
-  ScenarioInterpretationSurface,
   ScenarioRunPlan,
   ResolutionTarget,
   ScenarioStep,
@@ -78,14 +75,6 @@ export function stepHandshakeFromPlan(plan: ScenarioRunPlan, zeroBasedIndex: num
     directive: undefined,
     resolutionContext: plan.resolutionContext,
   };
-}
-
-export function loadScenarioInterpretationSurface(input: {
-  rootDir: string;
-  adoId: AdoId | string;
-}): ScenarioInterpretationSurface {
-  const filePath = path.join(input.rootDir, '.tesseract', 'tasks', `${input.adoId}.resolution.json`);
-  return JSON.parse(readFileSync(filePath, 'utf8').replace(/^\uFEFF/, '')) as ScenarioInterpretationSurface;
 }
 
 export function createScenarioRunState(): ScenarioRunState {

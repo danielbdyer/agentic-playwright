@@ -13,7 +13,7 @@ import type {
   GroundedStep,
   InterfaceResolutionContext,
   StepTaskElementCandidate,
-  StepTaskGrounding,
+  StepGrounding,
   StepTaskScreenCandidate,
 } from '../../lib/domain/types';
 import type { RuntimeStepAgentContext } from '../../lib/runtime/agent/types';
@@ -116,8 +116,8 @@ export function createInterfaceResolutionContext(overrides: Partial<InterfaceRes
 
 export function groundingFromContext(
   resolutionContext: InterfaceResolutionContext,
-  overrides: Partial<StepTaskGrounding> = {},
-): StepTaskGrounding {
+  overrides: Partial<StepGrounding> = {},
+): StepGrounding {
   const screens = resolutionContext.screens;
   const elements = screens.flatMap((screen) => screen.elements);
   return {

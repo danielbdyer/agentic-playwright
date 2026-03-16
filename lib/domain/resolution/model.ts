@@ -7,6 +7,6 @@ export type {
   ScenarioTaskPacket,
   StepBindingKind,
   StepResolution,
-  StepTask,
+  GroundedStep,
   StepWinningSource,
 } from '../types';

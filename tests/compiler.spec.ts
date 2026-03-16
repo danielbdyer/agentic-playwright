@@ -93,7 +93,7 @@ test('refresh recompiles the seeded scenario through graph, types, and program e
     expect(result.compile.bound.boundScenario.steps.every((step) => step.binding.kind === 'deferred')).toBeTruthy();
     expect(result.compile.bound.boundScenario.steps.every((step) => step.binding.governance === 'approved')).toBeTruthy();
     expect(projectPath(result.compile.compileSnapshot.taskPath)).toContain('.tesseract/tasks/10001.resolution.json');
-    expect(taskPacket.version).toBe(5);
+    expect(taskPacket.version).toBe(1);
     expect(taskPacket.payload.stateGraph.fingerprint).toBe(stateGraph.fingerprint);
     expect(taskPacket.payload.knowledgeSlice.stateRefs).toEqual(stateGraph.stateRefs);
     expect(taskPacket.payload.knowledgeSlice.eventSignatureRefs).toEqual(stateGraph.eventSignatureRefs);
@@ -115,7 +115,7 @@ test('refresh recompiles the seeded scenario through graph, types, and program e
     expect(traceArtifact.steps[0].normalizedIntent).toContain('navigate');
     expect(review).toContain('# Verify policy search returns matching policy');
     expect(review).toContain('## Bottlenecks');
-    expect(review).toContain('Preparation lane: scenario -> bound envelope -> task packet');
+    expect(review).toContain('Preparation lane: scenario -> bound envelope -> interpretation surface');
     expect(review).toContain('Binding kind: deferred');
     expect(review).toContain('State graph fingerprint:');
     expect(review).toContain('## Step 1');

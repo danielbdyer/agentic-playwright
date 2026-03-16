@@ -134,6 +134,7 @@ export function interpretScenarioTaskPacket(input: {
     mode: input.mode,
     providerId: input.providerId,
     controlSelection: input.controlSelection ?? {},
+    controlArtifactPaths: {},
     fixtures: input.fixtures,
     screenIds: [...input.screenIds],
     steps: [...(input.steps ?? input.taskPacket.payload.steps)],

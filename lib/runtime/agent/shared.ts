@@ -10,6 +10,16 @@ export function uniqueSorted<T extends string>(values: T[]): T[] {
   return [...new Set(values.filter((value) => value.length > 0))].sort((left, right) => left.localeCompare(right)) as T[];
 }
 
+export function exhaustionEntry(
+  stage: ResolutionExhaustionEntry['stage'],
+  outcome: ResolutionExhaustionEntry['outcome'],
+  reason: string,
+  candidates: Pick<ResolutionExhaustionEntry, 'topCandidates' | 'rejectedCandidates'> = {},
+): ResolutionExhaustionEntry {
+  return { stage, outcome, reason, ...candidates };
+}
+
+/** @deprecated Use exhaustionEntry() and collect functionally. */
 export function recordExhaustion(
   entries: ResolutionExhaustionEntry[],
   stage: ResolutionExhaustionEntry['stage'],

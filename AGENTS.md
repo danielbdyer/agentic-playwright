@@ -168,6 +168,8 @@ When a concept starts to cross those boundaries, model the boundary explicitly i
 
 ## Strong preferences
 
+- Prefer pure functions and immutable data. Return new objects instead of mutating parameters. Avoid `let`, `Array.push`, and mutable accumulation patterns. See `docs/coding-notes.md` § Functional Programming Style for detailed guidance.
+- Prefer `const` bindings, ternary expressions, and higher-order functions (`map`, `filter`, `reduce`, `flatMap`) over imperative loops and mutable state.
 - Prefer value objects over protocol strings.
 - Prefer pure derivations over storing parallel truth.
 - Prefer AST-backed code generation over source-string splicing.

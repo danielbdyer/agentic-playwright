@@ -150,6 +150,14 @@ export function prepareScenarioRunPlan(input: {
       dataset: activeDataset?.name ?? null,
       resolutionControl: activeRunbook?.resolutionControl ?? null,
     },
+    controlArtifactPaths: {
+      runbook: activeRunbook
+        ? input.catalog.runbooks.find((entry) => entry.artifact.name === activeRunbook.name)?.artifactPath ?? null
+        : null,
+      dataset: activeDataset
+        ? input.catalog.datasets.find((entry) => entry.artifact.name === activeDataset.name)?.artifactPath ?? null
+        : null,
+    },
     context: {
       adoId: input.surface.payload.adoId,
       revision: scenarioEntry.artifact.source.revision,

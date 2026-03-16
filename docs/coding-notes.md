@@ -6,6 +6,73 @@ If something here contradicts `docs/master-architecture.md`, the master architec
 
 ---
 
+## Functional Programming Style
+
+This codebase has a strong preference for functional programming, pure functions, and immutable data design. These are not absolute rules, but they are the default — deviations should be deliberate and justified, not accidental.
+
+### Prefer pure functions
+
+A function that takes inputs and returns outputs without mutating anything is easier to test, easier to compose, and easier to reason about under concurrency. When a function needs to produce side effects, return the effects as data and let the caller apply them.
+
+```typescript
+// Prefer: return new data
+function normalizeSession(task: GroundedStep, memory: ObservedStateSession): ObservedStateSession {
+  const screenStale = memory.currentScreen !== null && task.index - memory.currentScreen.observedAtStep > TTL;
+  return {
+    ...memory,
+    currentScreen: screenStale ? null : memory.currentScreen,
+  };
+}
+
+// Avoid: mutate in place
+function normalizeSession(task: GroundedStep, memory: ObservedStateSession): void {
+  if (memory.currentScreen && task.index - memory.currentScreen.observedAtStep > TTL) {
+    memory.currentScreen = null;
+  }
+}
+```
+
+### Avoid `let`
+
+Use `const` for all bindings. If you need conditional assignment, use a ternary or an immediately-invoked expression. If you find yourself reaching for `let`, ask whether you can restructure the logic as a `reduce`, `map`, `filter`, or plain conditional expression.
+
+### Avoid `Array.push` and mutable accumulation
+
+Prefer `[...existing, ...additions]` over `existing.push(...additions)`. Prefer `array.concat(...)` or spread. When building up a collection across stages, collect the pieces as data and merge them at the end.
+
+```typescript
+// Prefer: functional collection
+const collectedRefs = [
+  ...(actionLattice.selected?.refs ?? []),
+  ...(screenLattice.selected?.refs ?? []),
+];
+
+// Avoid: mutating accumulation
+const refs: string[] = [];
+refs.push(...(actionLattice.selected?.refs ?? []));
+refs.push(...(screenLattice.selected?.refs ?? []));
+```
+
+### Prefer higher-order functions
+
+`map`, `filter`, `reduce`, `flatMap`, `some`, `every`, `find` express intent more clearly than imperative loops. Use them when the transformation is natural. Fall back to `for...of` only when early return, complex control flow, or performance require it.
+
+### Return new objects, don't mutate parameters
+
+When a function needs to update a record, return a new record with the changes applied. Callers should assign the result rather than relying on mutation of a shared reference.
+
+### Where mutation is acceptable
+
+Some patterns legitimately benefit from mutation:
+
+- **Effect handlers** that manage infrastructure lifecycle (database connections, browser contexts)
+- **Performance-critical hot loops** where allocation pressure matters (measure first)
+- **Playwright page interactions** that are inherently side-effectful
+
+In these cases, scope the mutation as tightly as possible and document why the pure alternative was insufficient.
+
+---
+
 ## The Two Dragons
 
 Tesseract has two engines. They are not parallel workstreams. They are not independent modules. They are a mated pair whose power comes from the fact that each one feeds the other.

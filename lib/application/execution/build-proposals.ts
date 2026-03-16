@@ -129,6 +129,8 @@ export function buildProposals(input: {
     }),
     lineage: createEnvelopeLineage({
       taskFingerprint: input.plan.surfaceFingerprint,
+      runbookArtifactPath: input.plan.controlArtifactPaths.runbook ?? null,
+      datasetArtifactPath: input.plan.controlArtifactPaths.dataset ?? null,
       parents: [input.plan.surfaceFingerprint, input.runId],
       handshakes: ['preparation', 'resolution', 'execution', 'evidence', 'proposal'],
     }),

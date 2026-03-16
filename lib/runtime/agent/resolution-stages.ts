@@ -12,7 +12,7 @@ import { proposalForSupplementGap } from './proposals';
 import { explicitResolvedReceipt, needsHumanReceipt } from './receipt';
 import { resolveOverride } from './resolve-target';
 import { selectedDomExplorationPolicy } from './select-controls';
-import { recordExhaustion } from './shared';
+import { exhaustionEntry, recordExhaustion } from './shared';
 import { resolveWithConfidenceOverlay, resolveWithTranslation } from './translation';
 import type { RuntimeAgentStageContext } from './types';
 import {
@@ -84,47 +84,48 @@ export function buildLatticeAccumulator(stage: RuntimeAgentStageContext): Resolu
 
   const actionLattice = rankActionCandidates(task, controlResolution, context.resolutionContext);
   const action = actionLattice.selected?.value ?? null;
-  stage.supplementRefs.push(...actionLattice.selected?.refs ?? []);
   const actionCandidates = summaryForValue('action', actionLattice.ranked);
 
   const screenLattice = rankScreenCandidates(task, action, controlResolution, context.previousResolution, context.resolutionContext, memory);
   const screen = screenLattice.selected?.value ?? null;
-  if (screen) {
-    stage.knowledgeRefs.push(...screen.knowledgeRefs);
-    stage.supplementRefs.push(...screen.supplementRefs);
-    recordExhaustion(stage.exhaustion, 'approved-screen-knowledge', 'attempted', `Selected screen ${screen.screen}`, summaryForValue('screen', screenLattice.ranked));
-  } else {
-    recordExhaustion(stage.exhaustion, 'approved-screen-knowledge', 'failed', 'No screen candidate matched approved screen knowledge priors', summaryForValue('screen', screenLattice.ranked));
-  }
 
   const elementLattice = rankElementCandidates(task, screen, controlResolution, memory);
   const element = elementLattice.selected?.value ?? null;
-  stage.supplementRefs.push(...elementLattice.selected?.refs ?? []);
-  if (element) {
-    recordExhaustion(stage.exhaustion, 'approved-screen-knowledge', 'attempted', `Matched element ${element.element}`, summaryForValue('element', elementLattice.ranked));
-  } else {
-    recordExhaustion(stage.exhaustion, 'approved-screen-knowledge', 'failed', 'No element candidate matched approved screen knowledge', summaryForValue('element', elementLattice.ranked));
-  }
 
   const postureLattice = rankPostureCandidates(task, element, controlResolution, context.resolutionContext);
   const posture = postureLattice.selected?.value ?? null;
-  stage.supplementRefs.push(...postureLattice.selected?.refs ?? []);
-  recordExhaustion(stage.exhaustion, 'shared-patterns', posture ? 'attempted' : 'skipped', posture ? `Matched posture ${posture}` : 'No shared posture pattern required', summaryForValue('posture', postureLattice.ranked));
-
-  recordExhaustion(
-    stage.exhaustion,
-    'prior-evidence',
-    context.resolutionContext.evidenceRefs.length > 0 ? 'attempted' : 'skipped',
-    context.resolutionContext.evidenceRefs.length > 0 ? 'Prior evidence refs were available to the agent task' : 'No prior evidence refs available',
-  );
 
   const override = resolveOverride(task, screen, element, posture, controlResolution, context);
   const snapshotLattice = rankSnapshotCandidates(task, screen, element, controlResolution);
   const snapshotTemplate = snapshotLattice.selected?.value ?? null;
-  stage.supplementRefs.push(...snapshotLattice.selected?.refs ?? []);
 
-  stage.observations.push({
-    source: 'approved-screen-knowledge',
+  // Collect refs functionally instead of mutating stage arrays
+  const collectedSupplementRefs = [
+    ...(actionLattice.selected?.refs ?? []),
+    ...(screen?.supplementRefs ?? []),
+    ...(elementLattice.selected?.refs ?? []),
+    ...(postureLattice.selected?.refs ?? []),
+    ...(snapshotLattice.selected?.refs ?? []),
+  ];
+  const collectedKnowledgeRefs = screen ? screen.knowledgeRefs : [];
+
+  const collectedExhaustion = [
+    screen
+      ? exhaustionEntry('approved-screen-knowledge', 'attempted', `Selected screen ${screen.screen}`, summaryForValue('screen', screenLattice.ranked))
+      : exhaustionEntry('approved-screen-knowledge', 'failed', 'No screen candidate matched approved screen knowledge priors', summaryForValue('screen', screenLattice.ranked)),
+    element
+      ? exhaustionEntry('approved-screen-knowledge', 'attempted', `Matched element ${element.element}`, summaryForValue('element', elementLattice.ranked))
+      : exhaustionEntry('approved-screen-knowledge', 'failed', 'No element candidate matched approved screen knowledge', summaryForValue('element', elementLattice.ranked)),
+    exhaustionEntry('shared-patterns', posture ? 'attempted' : 'skipped', posture ? `Matched posture ${posture}` : 'No shared posture pattern required', summaryForValue('posture', postureLattice.ranked)),
+    exhaustionEntry(
+      'prior-evidence',
+      context.resolutionContext.evidenceRefs.length > 0 ? 'attempted' : 'skipped',
+      context.resolutionContext.evidenceRefs.length > 0 ? 'Prior evidence refs were available to the agent task' : 'No prior evidence refs available',
+    ),
+  ];
+
+  const latticeObservation = {
+    source: 'approved-screen-knowledge' as const,
     summary: 'Deterministic lattice ranked approved candidates across action, screen, element, posture, and snapshot concerns.',
     topCandidates: [
       ...actionCandidates.topCandidates.slice(0, 1),
@@ -140,7 +141,13 @@ export function buildLatticeAccumulator(stage: RuntimeAgentStageContext): Resolu
       ...summaryForValue('posture', postureLattice.ranked).rejectedCandidates,
       ...summaryForValue('snapshot', snapshotLattice.ranked).rejectedCandidates,
     ],
-  });
+  };
+
+  // Apply collected effects to stage
+  stage.supplementRefs = [...stage.supplementRefs, ...collectedSupplementRefs];
+  stage.knowledgeRefs = [...stage.knowledgeRefs, ...collectedKnowledgeRefs];
+  stage.exhaustion = [...stage.exhaustion, ...collectedExhaustion];
+  stage.observations = [...stage.observations, latticeObservation];
 
   return {
     action,

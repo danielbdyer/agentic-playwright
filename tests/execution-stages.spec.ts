@@ -45,6 +45,10 @@ function fakePlan(runId: string, options?: { withRunbookAndDataset?: boolean }):
       dataset: withRunbookAndDataset ? 'smoke-dataset' : null,
       resolutionControl: withRunbookAndDataset ? 'default-resolution' : null,
     },
+    controlArtifactPaths: {
+      runbook: withRunbookAndDataset ? 'controls/runbooks/smoke.runbook.yaml' : null,
+      dataset: withRunbookAndDataset ? 'controls/datasets/smoke.dataset.yaml' : null,
+    },
     translationEnabled: true,
     translationCacheEnabled: true,
     providerId: 'deterministic-runtime-step-agent',
@@ -151,6 +155,8 @@ test('run/proposal envelopes preserve ids and lineage with/without runbook + dat
   const evidenceCatalog = {
     evidenceRecords: [],
     trustPolicy: { artifact: {} },
+    runbooks: [],
+    datasets: [],
   } as unknown as Parameters<typeof buildProposals>[0]['evidenceCatalog'];
 
   const planNoControls = fakePlan('run-no-controls');

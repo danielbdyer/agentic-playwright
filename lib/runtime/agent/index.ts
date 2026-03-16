@@ -33,10 +33,15 @@ function createEmptyObservedStateSession(): ObservedStateSession {
 }
 
 function normalizeObservedStateSession(task: GroundedStep, memory: ObservedStateSession): ObservedStateSession {
-  const next: ObservedStateSession = {
-    currentScreen: memory.currentScreen,
-    activeStateRefs: uniqueSorted(memory.activeStateRefs).slice(0, MEMORY_MAX_ACTIVE_REFS),
-    lastObservedTransitionRefs: uniqueSorted(memory.lastObservedTransitionRefs).slice(0, MEMORY_MAX_ACTIVE_REFS),
+  const screenStale = memory.currentScreen !== null && task.index - memory.currentScreen.observedAtStep > MEMORY_STALENESS_TTL_STEPS;
+  const screenLowConfidence = memory.currentScreen !== null && memory.currentScreen.confidence < MEMORY_SCREEN_CONFIDENCE_FLOOR;
+  const currentScreen = screenStale || screenLowConfidence ? null : memory.currentScreen;
+  const clearStateRefs = screenLowConfidence || task.actionText.toLowerCase().includes('navigate');
+
+  return {
+    currentScreen,
+    activeStateRefs: clearStateRefs ? [] : uniqueSorted(memory.activeStateRefs).slice(0, MEMORY_MAX_ACTIVE_REFS),
+    lastObservedTransitionRefs: clearStateRefs ? [] : uniqueSorted(memory.lastObservedTransitionRefs).slice(0, MEMORY_MAX_ACTIVE_REFS),
     activeRouteVariantRefs: uniqueSorted(memory.activeRouteVariantRefs).slice(0, MEMORY_MAX_ACTIVE_REFS),
     activeTargetRefs: uniqueSorted(memory.activeTargetRefs).slice(0, MEMORY_MAX_ACTIVE_REFS),
     lastSuccessfulLocatorRung: memory.lastSuccessfulLocatorRung,
@@ -45,21 +50,6 @@ function normalizeObservedStateSession(task: GroundedStep, memory: ObservedState
       .slice(-MEMORY_MAX_RECENT_ASSERTIONS),
     lineage: memory.lineage.slice(-32),
   };
-
-  if (next.currentScreen && task.index - next.currentScreen.observedAtStep > MEMORY_STALENESS_TTL_STEPS) {
-    next.currentScreen = null;
-  }
-  if (next.currentScreen && next.currentScreen.confidence < MEMORY_SCREEN_CONFIDENCE_FLOOR) {
-    next.currentScreen = null;
-    next.activeStateRefs = [];
-    next.lastObservedTransitionRefs = [];
-  }
-  if (task.actionText.toLowerCase().includes('navigate')) {
-    next.activeStateRefs = [];
-    next.lastObservedTransitionRefs = [];
-  }
-
-  return next;
 }
 
 function resolvedTargetRef(stage: RuntimeAgentStageContext, receipt: ResolutionReceipt) {
@@ -78,48 +68,47 @@ function routeVariantRefsForReceipt(stage: RuntimeAgentStageContext, receipt: Re
   return screen?.routeVariantRefs.length ? screen.routeVariantRefs : stage.task.grounding.routeVariantRefs;
 }
 
-function updateObservedStateSessionAfterResolution(stage: RuntimeAgentStageContext, receipt: ResolutionReceipt): void {
+function deriveObservedStateSessionAfterResolution(stage: RuntimeAgentStageContext, receipt: ResolutionReceipt): ObservedStateSession {
   if (receipt.kind === 'needs-human') {
-    return;
+    return stage.memory;
   }
 
-  const memory = stage.memory;
-  memory.currentScreen = {
-    screen: receipt.target.screen,
-    confidence: receipt.confidence === 'compiler-derived' ? 1 : receipt.confidence === 'agent-verified' ? 0.8 : 0.65,
-    observedAtStep: stage.task.index,
-  };
-  memory.activeRouteVariantRefs = uniqueSorted([
-    ...memory.activeRouteVariantRefs,
-    ...routeVariantRefsForReceipt(stage, receipt),
-  ]).slice(0, MEMORY_MAX_ACTIVE_REFS);
-
+  const confidenceScore = receipt.confidence === 'compiler-derived' ? 1 : receipt.confidence === 'agent-verified' ? 0.8 : 0.65;
   const targetRef = resolvedTargetRef(stage, receipt);
-  if (targetRef) {
-    memory.activeTargetRefs = uniqueSorted([...memory.activeTargetRefs, targetRef]).slice(0, MEMORY_MAX_ACTIVE_REFS);
-  }
-
-  if (receipt.target.action === 'assert-snapshot') {
-    memory.recentAssertions = [
-      ...memory.recentAssertions,
-      { summary: `${receipt.target.screen}:${receipt.target.snapshot_template ?? 'default'}`, observedAtStep: stage.task.index },
-    ]
-      .filter((entry) => stage.task.index - entry.observedAtStep <= MEMORY_STALENESS_TTL_STEPS)
-      .slice(-MEMORY_MAX_RECENT_ASSERTIONS);
-  }
-
-  if (receipt.winningSource === 'live-dom') {
-    memory.lastSuccessfulLocatorRung = 0;
-  }
-
-  memory.lineage = uniqueSorted([
-    ...memory.lineage,
+  const lineage = uniqueSorted([
+    ...stage.memory.lineage,
     `step:${stage.task.index}`,
     `screen:${receipt.target.screen}`,
     `source:${receipt.winningSource}`,
     `confidence:${receipt.confidence}`,
   ]).slice(-32);
-  stage.memoryLineage = memory.lineage;
+
+  return {
+    currentScreen: {
+      screen: receipt.target.screen,
+      confidence: confidenceScore,
+      observedAtStep: stage.task.index,
+    },
+    activeStateRefs: stage.memory.activeStateRefs,
+    lastObservedTransitionRefs: stage.memory.lastObservedTransitionRefs,
+    activeRouteVariantRefs: uniqueSorted([
+      ...stage.memory.activeRouteVariantRefs,
+      ...routeVariantRefsForReceipt(stage, receipt),
+    ]).slice(0, MEMORY_MAX_ACTIVE_REFS),
+    activeTargetRefs: targetRef
+      ? uniqueSorted([...stage.memory.activeTargetRefs, targetRef]).slice(0, MEMORY_MAX_ACTIVE_REFS)
+      : stage.memory.activeTargetRefs,
+    lastSuccessfulLocatorRung: receipt.winningSource === 'live-dom' ? 0 : stage.memory.lastSuccessfulLocatorRung,
+    recentAssertions: receipt.target.action === 'assert-snapshot'
+      ? [
+          ...stage.memory.recentAssertions,
+          { summary: `${receipt.target.screen}:${receipt.target.snapshot_template ?? 'default'}`, observedAtStep: stage.task.index },
+        ]
+          .filter((entry) => stage.task.index - entry.observedAtStep <= MEMORY_STALENESS_TTL_STEPS)
+          .slice(-MEMORY_MAX_RECENT_ASSERTIONS)
+      : stage.memory.recentAssertions,
+    lineage,
+  };
 }
 
 export async function runResolutionPipeline(task: GroundedStep, context: RuntimeStepAgentContext): Promise<ResolutionReceipt> {
@@ -140,35 +129,36 @@ export async function runResolutionPipeline(task: GroundedStep, context: Runtime
     memoryLineage: memory.lineage,
   };
 
+  const applyMemory = (receipt: ResolutionReceipt): ResolutionReceipt => {
+    const updated = deriveObservedStateSessionAfterResolution(stage, receipt);
+    context.observedStateSession = updated;
+    stage.memoryLineage = updated.lineage;
+    return receipt;
+  };
+
   const explicit = tryExplicitResolution(stage);
   if (explicit) {
-    updateObservedStateSessionAfterResolution(stage, explicit);
-    return explicit;
+    return applyMemory(explicit);
   }
 
   const acc = buildLatticeAccumulator(stage);
 
   const knowledge = tryApprovedKnowledgeResolution(stage, acc);
   if (knowledge) {
-    updateObservedStateSessionAfterResolution(stage, knowledge);
-    return knowledge;
+    return applyMemory(knowledge);
   }
 
   const overlay = tryOverlayResolution(stage, acc);
   if (overlay) {
-    updateObservedStateSessionAfterResolution(stage, overlay);
-    return overlay;
+    return applyMemory(overlay);
   }
 
   const translation = await tryTranslationResolution(stage, acc);
   if (translation) {
-    updateObservedStateSessionAfterResolution(stage, translation);
-    return translation;
+    return applyMemory(translation);
   }
 
-  const receipt = await tryLiveDomOrFallback(stage, acc);
-  updateObservedStateSessionAfterResolution(stage, receipt);
-  return receipt;
+  return applyMemory(await tryLiveDomOrFallback(stage, acc));
 }
 
 export type { RuntimeStepAgentContext } from './types';
