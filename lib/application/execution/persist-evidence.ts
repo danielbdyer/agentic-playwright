@@ -27,25 +27,23 @@ export function persistEvidence(input: {
   stepResults: RuntimeScenarioStepResult[];
 }) {
   return Effect.gen(function* () {
-    const evidenceWrites: PersistedEvidenceArtifact[] = [];
-
-    for (const step of input.stepResults) {
-      for (const [index, draft] of step.interpretation.evidenceDrafts.entries()) {
-        const absolutePath = evidencePath(input.paths, input.adoId, input.runId, step.interpretation.stepIndex, index);
-        yield* input.fs.writeJson(absolutePath, {
-          evidence: {
-            ...draft,
-            timestamp: step.interpretation.runAt,
-          },
-        });
-        evidenceWrites.push({
-          artifactPath: relativeProjectPath(input.paths, absolutePath),
-          absolutePath,
-          stepIndex: step.interpretation.stepIndex,
-        });
-      }
-    }
-
-    return { evidenceWrites } satisfies PersistEvidenceResult;
+    const nested = yield* Effect.forEach(input.stepResults, (step) =>
+      Effect.forEach(
+        step.interpretation.evidenceDrafts.map((draft, index) => ({ draft, index })),
+        ({ draft, index }) => {
+          const absolutePath = evidencePath(input.paths, input.adoId, input.runId, step.interpretation.stepIndex, index);
+          return Effect.gen(function* () {
+            yield* input.fs.writeJson(absolutePath, {
+              evidence: { ...draft, timestamp: step.interpretation.runAt },
+            });
+            return {
+              artifactPath: relativeProjectPath(input.paths, absolutePath),
+              absolutePath,
+              stepIndex: step.interpretation.stepIndex,
+            } satisfies PersistedEvidenceArtifact;
+          });
+        },
+      ));
+    return { evidenceWrites: nested.flat() } satisfies PersistEvidenceResult;
   });
 }

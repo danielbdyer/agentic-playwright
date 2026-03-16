@@ -236,9 +236,8 @@ export function replayInterpretation(options: {
 
     const inbox = yield* emitOperatorInbox({ paths: options.paths, filter: { adoId: options.adoId } });
     const graph = yield* buildDerivedGraph({ paths: options.paths });
-    for (const benchmark of catalog.benchmarks) {
-      yield* projectBenchmarkScorecard({ paths: options.paths, benchmarkName: benchmark.artifact.name, includeExecution: false });
-    }
+    yield* Effect.forEach(catalog.benchmarks, (benchmark) =>
+      projectBenchmarkScorecard({ paths: options.paths, benchmarkName: benchmark.artifact.name, includeExecution: false }));
 
     return {
       runId: plan.runId,

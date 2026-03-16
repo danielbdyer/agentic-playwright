@@ -115,22 +115,22 @@ export function buildDerivedGraph(
       ? [{ artifact: catalog.confidenceCatalog.artifact, artifactPath: catalog.confidenceCatalog.artifactPath }]
       : [];
 
-    const scenarios: ScenarioGraphArtifact[] = [];
-    for (const entry of catalog.scenarios) {
-      const generatedPath = generatedSpecPath(options.paths, entry.artifact.metadata.suite, entry.artifact.source.ado_id);
-      const tracePath = generatedTracePath(options.paths, entry.artifact.metadata.suite, entry.artifact.source.ado_id);
-      const reviewPath = generatedReviewPath(options.paths, entry.artifact.metadata.suite, entry.artifact.source.ado_id);
-      scenarios.push({
-        artifact: entry.artifact,
-        artifactPath: entry.artifactPath,
-        generatedSpecPath: relativeProjectPath(options.paths, generatedPath),
-        generatedSpecExists: yield* fs.exists(generatedPath),
-        generatedTracePath: relativeProjectPath(options.paths, tracePath),
-        generatedTraceExists: yield* fs.exists(tracePath),
-        generatedReviewPath: relativeProjectPath(options.paths, reviewPath),
-        generatedReviewExists: yield* fs.exists(reviewPath),
-      });
-    }
+    const scenarios: ScenarioGraphArtifact[] = yield* Effect.forEach(catalog.scenarios, (entry) =>
+      Effect.gen(function* () {
+        const generatedPath = generatedSpecPath(options.paths, entry.artifact.metadata.suite, entry.artifact.source.ado_id);
+        const tracePath = generatedTracePath(options.paths, entry.artifact.metadata.suite, entry.artifact.source.ado_id);
+        const reviewPath = generatedReviewPath(options.paths, entry.artifact.metadata.suite, entry.artifact.source.ado_id);
+        return {
+          artifact: entry.artifact,
+          artifactPath: entry.artifactPath,
+          generatedSpecPath: relativeProjectPath(options.paths, generatedPath),
+          generatedSpecExists: yield* fs.exists(generatedPath),
+          generatedTracePath: relativeProjectPath(options.paths, tracePath),
+          generatedTraceExists: yield* fs.exists(tracePath),
+          generatedReviewPath: relativeProjectPath(options.paths, reviewPath),
+          generatedReviewExists: yield* fs.exists(reviewPath),
+        };
+      }));
 
     const boundScenarios: BoundScenarioGraphArtifact[] = catalog.boundScenarios.map(({ artifact, artifactPath }) => ({
       artifact,

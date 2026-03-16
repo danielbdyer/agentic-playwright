@@ -44,6 +44,25 @@ export interface ActivateProposalBundleResult {
   blockedProposalIds: string[];
 }
 
+function tryActivateProposal(fsPort: import('./ports').FileSystemPort, rootDir: string, proposal: ProposalEntry, activatedAt: string) {
+  return Effect.gen(function* () {
+    const candidate = activatedProposal(proposal, activatedAt);
+    try {
+      const absoluteTargetPath = path.join(rootDir, proposal.targetPath);
+      const currentRaw = (yield* fsPort.exists(absoluteTargetPath))
+        ? yield* fsPort.readText(absoluteTargetPath)
+        : '{}';
+      const nextArtifact = applyProposalPatch(parseProposalArtifact(currentRaw, proposal.targetPath), candidate);
+      validatePatchedProposalArtifact(proposal.targetPath, candidate, nextArtifact);
+      yield* fsPort.writeText(absoluteTargetPath, serializeProposalArtifact(proposal.targetPath, nextArtifact));
+      return { proposal: candidate, activatedPath: absoluteTargetPath, blocked: false as const };
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : 'proposal activation failed';
+      return { proposal: blockedProposal(proposal, reason), activatedPath: null, blocked: true as const, proposalId: proposal.proposalId };
+    }
+  });
+}
+
 export function activateProposalBundle(options: {
   paths: ProjectPaths;
   proposalBundle: ProposalBundle;
@@ -51,28 +70,20 @@ export function activateProposalBundle(options: {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const activatedAt = new Date().toISOString();
-    const activatedPaths = new Set<string>();
-    const blockedProposalIds: string[] = [];
-    const proposals: ProposalEntry[] = [];
 
-    for (const proposal of options.proposalBundle.proposals) {
-      const candidate = activatedProposal(proposal, activatedAt);
-      try {
-        const absoluteTargetPath = path.join(options.paths.rootDir, proposal.targetPath);
-        const currentRaw = (yield* fs.exists(absoluteTargetPath))
-          ? yield* fs.readText(absoluteTargetPath)
-          : '{}';
-        const nextArtifact = applyProposalPatch(parseProposalArtifact(currentRaw, proposal.targetPath), candidate);
-        validatePatchedProposalArtifact(proposal.targetPath, candidate, nextArtifact);
-        yield* fs.writeText(absoluteTargetPath, serializeProposalArtifact(proposal.targetPath, nextArtifact));
-        proposals.push(candidate);
-        activatedPaths.add(absoluteTargetPath);
-      } catch (error) {
-        const reason = error instanceof Error ? error.message : 'proposal activation failed';
-        proposals.push(blockedProposal(proposal, reason));
-        blockedProposalIds.push(proposal.proposalId);
-      }
-    }
+    const results = yield* Effect.forEach(
+      options.proposalBundle.proposals,
+      (proposal) => tryActivateProposal(fs, options.paths.rootDir, proposal, activatedAt),
+    );
+
+    const proposals = results.map((result) => result.proposal);
+    const activatedPaths = results
+      .filter((result): result is typeof result & { activatedPath: string } => result.activatedPath !== null)
+      .map((result) => result.activatedPath)
+      .sort((left, right) => left.localeCompare(right));
+    const blockedProposalIds = results
+      .filter((result) => result.blocked)
+      .map((result) => (result as { proposalId: string }).proposalId);
 
     const hasBlocked = proposals.some((proposal) => proposal.activation.status === 'blocked');
     const proposalBundle: ProposalBundle = {
@@ -87,7 +98,7 @@ export function activateProposalBundle(options: {
 
     return {
       proposalBundle,
-      activatedPaths: [...activatedPaths].sort((left, right) => left.localeCompare(right)),
+      activatedPaths,
       blockedProposalIds,
     } satisfies ActivateProposalBundleResult;
   });
@@ -104,24 +115,21 @@ export function backupBeforeActivation(options: {
 }) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
-    const backups: CompensationBackup[] = [];
-    for (const proposal of options.proposalBundle.proposals) {
-      const absoluteTargetPath = path.join(options.paths.rootDir, proposal.targetPath);
-      const exists = yield* fs.exists(absoluteTargetPath);
-      if (exists) {
-        const content = yield* fs.readText(absoluteTargetPath);
-        backups.push({ filePath: absoluteTargetPath, originalContent: content });
-      }
-    }
-    return backups;
+    const all = yield* Effect.forEach(options.proposalBundle.proposals, (proposal) =>
+      Effect.gen(function* () {
+        const absoluteTargetPath = path.join(options.paths.rootDir, proposal.targetPath);
+        const exists = yield* fs.exists(absoluteTargetPath);
+        return exists
+          ? { filePath: absoluteTargetPath, originalContent: yield* fs.readText(absoluteTargetPath) } as CompensationBackup
+          : null;
+      }));
+    return all.filter((entry): entry is CompensationBackup => entry !== null);
   });
 }
 
 export function deactivateProposals(backups: CompensationBackup[]) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
-    for (const backup of backups) {
-      yield* fs.writeText(backup.filePath, backup.originalContent);
-    }
+    yield* Effect.forEach(backups, (backup) => fs.writeText(backup.filePath, backup.originalContent));
   });
 }
