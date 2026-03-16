@@ -1,7 +1,9 @@
-import type { ObservedStateSession, ResolutionCandidateSummary, ResolutionReceipt, GroundedStep } from '../../domain/types';
+import type { ObservedStateSession, ResolutionReceipt, GroundedStep } from '../../domain/types';
 import { resolutionPrecedenceLaw } from '../../domain/precedence';
 import { selectedControlRefs, selectedControlResolution } from './select-controls';
 import { uniqueSorted } from './shared';
+import type { ResolutionStrategy } from './strategy';
+import { runStrategyChain } from './strategy';
 import type { RuntimeAgentStageContext, RuntimeStepAgentContext } from './types';
 import {
   tryExplicitResolution,
@@ -111,6 +113,39 @@ function deriveObservedStateSessionAfterResolution(stage: RuntimeAgentStageConte
   };
 }
 
+const resolutionStrategies: readonly ResolutionStrategy[] = [
+  {
+    name: 'explicit-resolution',
+    rungs: ['explicit', 'control'],
+    requiresAccumulator: false,
+    attempt: async (stage) => tryExplicitResolution(stage),
+  },
+  {
+    name: 'approved-knowledge',
+    rungs: ['approved-screen-knowledge', 'shared-patterns', 'prior-evidence'],
+    requiresAccumulator: true,
+    attempt: async (stage, acc) => tryApprovedKnowledgeResolution(stage, acc!),
+  },
+  {
+    name: 'confidence-overlay',
+    rungs: ['approved-equivalent-overlay'],
+    requiresAccumulator: true,
+    attempt: async (stage, acc) => tryOverlayResolution(stage, acc!),
+  },
+  {
+    name: 'structured-translation',
+    rungs: ['structured-translation'],
+    requiresAccumulator: true,
+    attempt: async (stage, acc) => tryTranslationResolution(stage, acc!),
+  },
+  {
+    name: 'live-dom-fallback',
+    rungs: ['live-dom', 'needs-human'],
+    requiresAccumulator: true,
+    attempt: async (stage, acc) => tryLiveDomOrFallback(stage, acc!),
+  },
+];
+
 export async function runResolutionPipeline(task: GroundedStep, context: RuntimeStepAgentContext): Promise<ResolutionReceipt> {
   const memory = normalizeObservedStateSession(task, context.observedStateSession ?? createEmptyObservedStateSession());
   context.observedStateSession = memory;
@@ -136,26 +171,19 @@ export async function runResolutionPipeline(task: GroundedStep, context: Runtime
     return receipt;
   };
 
-  const explicit = tryExplicitResolution(stage);
-  if (explicit) {
-    return applyMemory(explicit);
+  const preAccumulatorStrategies = resolutionStrategies.filter((s) => !s.requiresAccumulator);
+  const postAccumulatorStrategies = resolutionStrategies.filter((s) => s.requiresAccumulator);
+
+  const earlyResult = await runStrategyChain(preAccumulatorStrategies, stage, null);
+  if (earlyResult) {
+    return applyMemory(earlyResult);
   }
 
   const acc = buildLatticeAccumulator(stage);
 
-  const knowledge = tryApprovedKnowledgeResolution(stage, acc);
-  if (knowledge) {
-    return applyMemory(knowledge);
-  }
-
-  const overlay = tryOverlayResolution(stage, acc);
-  if (overlay) {
-    return applyMemory(overlay);
-  }
-
-  const translation = await tryTranslationResolution(stage, acc);
-  if (translation) {
-    return applyMemory(translation);
+  const result = await runStrategyChain(postAccumulatorStrategies, stage, acc);
+  if (result) {
+    return applyMemory(result);
   }
 
   return applyMemory(await tryLiveDomOrFallback(stage, acc));
