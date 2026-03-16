@@ -223,6 +223,32 @@ function buildPostAccumulatorStrategies(accRef: { current: import('./resolution-
   ];
 }
 
+export interface PipelinePhase {
+  readonly name: string;
+  run(stage: RuntimeAgentStageContext): Promise<import('./strategy').StrategyChainResult>;
+}
+
+async function runPipelinePhases(
+  phases: readonly PipelinePhase[],
+  stage: RuntimeAgentStageContext,
+): Promise<import('./strategy').StrategyChainResult> {
+  const step = async (
+    remaining: readonly PipelinePhase[],
+    priorEvents: readonly ResolutionEvent[],
+  ): Promise<import('./strategy').StrategyChainResult> => {
+    const [head, ...tail] = remaining;
+    if (!head) {
+      return { receipt: null, events: [...priorEvents] };
+    }
+    const result = await head.run(stage);
+    const accumulated = [...priorEvents, ...result.events];
+    return result.receipt
+      ? { receipt: result.receipt, events: accumulated }
+      : step(tail, accumulated);
+  };
+  return step(phases, []);
+}
+
 export async function runResolutionPipeline(
   task: GroundedStep,
   context: RuntimeStepAgentContext,
@@ -257,37 +283,46 @@ export async function runResolutionPipeline(
     ...(stage.evidenceRefs.length > 0 ? [{ kind: 'refs-collected' as const, refKind: 'evidence' as const, refs: [...stage.evidenceRefs] }] : []),
   ];
 
-  // Phase 1: Pre-accumulator strategies (explicit resolution)
-  const earlyResult = await runStrategyChain(preAccumulatorStrategies, stage, null);
-  if (earlyResult.receipt) {
-    const memoryEvent = applyMemory(earlyResult.receipt);
-    return { receipt: earlyResult.receipt, events: [...seedEvents, ...earlyResult.events, memoryEvent] };
-  }
+  const accRef = { current: null as import('./resolution-stages').ResolutionAccumulator | null };
 
-  // Phase 2: Build lattice accumulator (pure — returns effects, merged here)
-  const latticeResult = buildLatticeAccumulator(stage);
-  mergeEffectsIntoStage(stage, latticeResult.effects);
-  const latticeEvents = effectsToEvents(latticeResult.effects);
+  const phases: readonly PipelinePhase[] = [
+    {
+      name: 'pre-accumulator',
+      run: (s) => runStrategyChain(preAccumulatorStrategies, s, null),
+    },
+    {
+      name: 'lattice-accumulator',
+      run: async (s) => {
+        const latticeResult = buildLatticeAccumulator(s);
+        mergeEffectsIntoStage(s, latticeResult.effects);
+        accRef.current = latticeResult.accumulator;
+        return { receipt: null, events: effectsToEvents(latticeResult.effects) };
+      },
+    },
+    {
+      name: 'post-accumulator',
+      run: (s) => {
+        const postStrategies = buildPostAccumulatorStrategies(accRef as { current: import('./resolution-stages').ResolutionAccumulator });
+        return runStrategyChain(postStrategies, s, accRef.current);
+      },
+    },
+    {
+      name: 'final-fallback',
+      run: async (s) => {
+        const fallback = await tryLiveDomOrFallback(s, accRef.current!);
+        mergeEffectsIntoStage(s, fallback.effects);
+        return {
+          receipt: fallback.receipt,
+          events: [...effectsToEvents(fallback.effects), { kind: 'receipt-produced' as const, receipt: fallback.receipt }],
+        };
+      },
+    },
+  ];
 
-  // Phase 3: Post-accumulator strategies (knowledge, overlay, translation, live-dom)
-  const accRef = { current: latticeResult.accumulator };
-  const postStrategies = buildPostAccumulatorStrategies(accRef);
-
-  const result = await runStrategyChain(postStrategies, stage, accRef.current);
-  if (result.receipt) {
-    const memoryEvent = applyMemory(result.receipt);
-    return { receipt: result.receipt, events: [...seedEvents, ...earlyResult.events, ...latticeEvents, ...result.events, memoryEvent] };
-  }
-
-  // Phase 4: Final fallback (should always produce a receipt via needs-human)
-  const fallback = await tryLiveDomOrFallback(stage, accRef.current);
-  mergeEffectsIntoStage(stage, fallback.effects);
-  const fallbackEvents = effectsToEvents(fallback.effects);
-  const memoryEvent = applyMemory(fallback.receipt);
-  return {
-    receipt: fallback.receipt,
-    events: [...seedEvents, ...earlyResult.events, ...latticeEvents, ...result.events, ...fallbackEvents, { kind: 'receipt-produced', receipt: fallback.receipt }, memoryEvent],
-  };
+  const result = await runPipelinePhases(phases, stage);
+  const receipt = result.receipt!;
+  const memoryEvent = applyMemory(receipt);
+  return { receipt, events: [...seedEvents, ...result.events, memoryEvent] };
 }
 
 export type { RuntimeStepAgentContext } from './types';

@@ -2,6 +2,44 @@ import type { AdoId, ElementId, PostureId, ScreenId, SnapshotTemplateId, Surface
 
 export type Confidence = 'human' | 'agent-verified' | 'agent-proposed' | 'compiler-derived' | 'intent-only' | 'unbound';
 export type Governance = 'approved' | 'review-required' | 'blocked';
+
+declare const GovernanceBrand: unique symbol;
+export type Approved<T> = T & { readonly [GovernanceBrand]: 'approved' };
+export type ReviewRequired<T> = T & { readonly [GovernanceBrand]: 'review-required' };
+export type Blocked<T> = T & { readonly [GovernanceBrand]: 'blocked' };
+export type Governed<T, G extends Governance> =
+  G extends 'approved' ? Approved<T>
+    : G extends 'review-required' ? ReviewRequired<T>
+      : Blocked<T>;
+
+export function isApproved<T extends { governance: Governance }>(item: T): item is Approved<T> {
+  return item.governance === 'approved';
+}
+
+export function isBlocked<T extends { governance: Governance }>(item: T): item is Blocked<T> {
+  return item.governance === 'blocked';
+}
+
+export function isReviewRequired<T extends { governance: Governance }>(item: T): item is ReviewRequired<T> {
+  return item.governance === 'review-required';
+}
+
+export function requireApproved<T extends { governance: Governance }>(item: T, label = 'artifact'): asserts item is Approved<T> {
+  if (item.governance !== 'approved') {
+    throw new Error(`Expected ${label} governance to be approved, got ${item.governance}`);
+  }
+}
+
+export function foldGovernance<T extends { governance: Governance }, R>(
+  item: T,
+  cases: { approved: (item: Approved<T>) => R; reviewRequired: (item: ReviewRequired<T>) => R; blocked: (item: Blocked<T>) => R },
+): R {
+  switch (item.governance) {
+    case 'approved': return cases.approved(item as Approved<T>);
+    case 'review-required': return cases.reviewRequired(item as ReviewRequired<T>);
+    case 'blocked': return cases.blocked(item as Blocked<T>);
+  }
+}
 export type CertificationStatus = 'uncertified' | 'certified';
 export type StepProvenanceKind = 'explicit' | 'approved-knowledge' | 'live-exploration' | 'unresolved';
 export type ScenarioStatus = 'stub' | 'draft' | 'active' | 'needs-repair' | 'blocked' | 'deprecated';
@@ -83,6 +121,13 @@ export interface WorkflowEnvelope<TPayload> {
   lineage: WorkflowEnvelopeLineage;
   governance: Governance;
   payload: TPayload;
+}
+
+export function mapPayload<A, B>(
+  envelope: WorkflowEnvelope<A>,
+  f: (payload: A) => B,
+): WorkflowEnvelope<B> {
+  return { ...envelope, payload: f(envelope.payload) };
 }
 
 export interface ExecutionPosture {

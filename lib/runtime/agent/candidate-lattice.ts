@@ -67,6 +67,31 @@ const SOURCE_WEIGHT: Record<LatticeSource, number> = {
   'live-dom': precedenceWeight(resolutionPrecedenceLaw, 'live-dom'),
 };
 
+export interface ScoringRule<T> {
+  score(input: T): number;
+}
+
+export function combineScoringRules<T>(...rules: readonly ScoringRule<T>[]): ScoringRule<T> {
+  return { score: (input) => rules.reduce((total, rule) => total + rule.score(input), 0) };
+}
+
+export function contramapScoringRule<A, B>(rule: ScoringRule<A>, f: (b: B) => A): ScoringRule<B> {
+  return { score: (input) => rule.score(f(input)) };
+}
+
+export const sourceWeightRule: ScoringRule<LatticeSource> = {
+  score: (source) => SOURCE_WEIGHT[source],
+};
+
+export const featureTotalRule: ScoringRule<LatticeCandidate<unknown>['featureScores']> = {
+  score: (features) => Object.values(features).reduce((sum, value) => sum + value, 0),
+};
+
+const candidateScoring = combineScoringRules<Omit<LatticeCandidate<unknown>, 'score' | 'confidenceComponents'>>(
+  contramapScoringRule(sourceWeightRule, (c) => c.source),
+  contramapScoringRule(featureTotalRule, (c) => c.featureScores),
+);
+
 function confidenceFor(source: LatticeSource): LatticeCandidate<unknown>['confidenceComponents'] {
   if (source === 'approved-equivalent-overlay' || source === 'structured-translation') {
     return { compilerDerived: 0, agentVerified: 1, agentProposed: 0 };
@@ -78,10 +103,9 @@ function confidenceFor(source: LatticeSource): LatticeCandidate<unknown>['confid
 }
 
 function candidate<T>(input: Omit<LatticeCandidate<T>, 'score' | 'confidenceComponents'>): LatticeCandidate<T> {
-  const featureTotal = Object.values(input.featureScores).reduce((sum, value) => sum + value, 0);
   return {
     ...input,
-    score: SOURCE_WEIGHT[input.source] + featureTotal,
+    score: candidateScoring.score(input as Omit<LatticeCandidate<unknown>, 'score' | 'confidenceComponents'>),
     confidenceComponents: confidenceFor(input.source),
   };
 }

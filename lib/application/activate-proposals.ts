@@ -3,6 +3,7 @@ import { Effect } from 'effect';
 import type { ProposalBundle, ProposalEntry } from '../domain/types';
 import type { ProjectPaths } from './paths';
 import { FileSystem } from './ports';
+import { trySync } from './effect';
 import { applyProposalPatch, parseProposalArtifact, serializeProposalArtifact, validatePatchedProposalArtifact } from './proposal-patches';
 
 function certificationForProposal(proposal: ProposalEntry): ProposalEntry['certification'] {
@@ -45,22 +46,29 @@ export interface ActivateProposalBundleResult {
 }
 
 function tryActivateProposal(fsPort: import('./ports').FileSystemPort, rootDir: string, proposal: ProposalEntry, activatedAt: string) {
+  const candidate = activatedProposal(proposal, activatedAt);
+  const absoluteTargetPath = path.join(rootDir, proposal.targetPath);
+
   return Effect.gen(function* () {
-    const candidate = activatedProposal(proposal, activatedAt);
-    try {
-      const absoluteTargetPath = path.join(rootDir, proposal.targetPath);
-      const currentRaw = (yield* fsPort.exists(absoluteTargetPath))
-        ? yield* fsPort.readText(absoluteTargetPath)
-        : '{}';
-      const nextArtifact = applyProposalPatch(parseProposalArtifact(currentRaw, proposal.targetPath), candidate);
-      validatePatchedProposalArtifact(proposal.targetPath, candidate, nextArtifact);
-      yield* fsPort.writeText(absoluteTargetPath, serializeProposalArtifact(proposal.targetPath, nextArtifact));
-      return { proposal: candidate, activatedPath: absoluteTargetPath, blocked: false as const };
-    } catch (error) {
-      const reason = error instanceof Error ? error.message : 'proposal activation failed';
-      return { proposal: blockedProposal(proposal, reason), activatedPath: null, blocked: true as const, proposalId: proposal.proposalId };
-    }
-  });
+    const currentRaw = (yield* fsPort.exists(absoluteTargetPath))
+      ? yield* fsPort.readText(absoluteTargetPath)
+      : '{}';
+    const nextArtifact = yield* trySync(
+      () => applyProposalPatch(parseProposalArtifact(currentRaw, proposal.targetPath), candidate),
+      'proposal-patch-failed', `Proposal patch failed for ${proposal.targetPath}`);
+    yield* trySync(
+      () => validatePatchedProposalArtifact(proposal.targetPath, candidate, nextArtifact),
+      'proposal-validation-failed', `Proposal validation failed for ${proposal.targetPath}`);
+    yield* fsPort.writeText(absoluteTargetPath, serializeProposalArtifact(proposal.targetPath, nextArtifact));
+    return { proposal: candidate, activatedPath: absoluteTargetPath, blocked: false as const };
+  }).pipe(
+    Effect.catchAll((error) => Effect.succeed({
+      proposal: blockedProposal(proposal, error instanceof Error ? error.message : 'proposal activation failed'),
+      activatedPath: null,
+      blocked: true as const,
+      proposalId: proposal.proposalId,
+    })),
+  );
 }
 
 export function activateProposalBundle(options: {

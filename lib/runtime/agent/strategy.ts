@@ -25,14 +25,19 @@ export async function runStrategyChain(
   stage: RuntimeAgentStageContext,
   acc: ResolutionAccumulator | null,
 ): Promise<StrategyChainResult> {
-  const allEvents: ResolutionEvent[] = [];
-  for (const strategy of strategies) {
-    const { receipt, events } = await strategy.attempt(stage, acc);
-    allEvents.push(...events);
-    if (receipt) {
-      allEvents.push({ kind: 'receipt-produced', receipt });
-      return { receipt, events: allEvents };
+  const step = async (
+    remaining: readonly ResolutionStrategy[],
+    priorEvents: readonly ResolutionEvent[],
+  ): Promise<StrategyChainResult> => {
+    const [head, ...tail] = remaining;
+    if (!head) {
+      return { receipt: null, events: [...priorEvents] };
     }
-  }
-  return { receipt: null, events: allEvents };
+    const { receipt, events } = await head.attempt(stage, acc);
+    const accumulated = [...priorEvents, ...events];
+    return receipt
+      ? { receipt, events: [...accumulated, { kind: 'receipt-produced', receipt }] }
+      : step(tail, accumulated);
+  };
+  return step(strategies, []);
 }
