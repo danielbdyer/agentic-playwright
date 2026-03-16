@@ -1,10 +1,7 @@
 import YAML from 'yaml';
+import { isRecord } from '../domain/collections';
 import type { ProposalEntry } from '../domain/types';
 import { validateScreenHints } from '../domain/validation';
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-}
 
 function mergeRecords(target: Record<string, unknown>, patch: Record<string, unknown>): Record<string, unknown> {
   const next: Record<string, unknown> = { ...target };

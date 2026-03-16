@@ -168,14 +168,35 @@ When a concept starts to cross those boundaries, model the boundary explicitly i
 
 ## Strong preferences
 
-- Prefer pure functions and immutable data. Return new objects instead of mutating parameters. Avoid `let`, `Array.push`, and mutable accumulation patterns. See `docs/coding-notes.md` § Functional Programming Style for detailed guidance.
+Read `docs/coding-notes.md` thoroughly before writing code. It contains authoritative guidance on FP style, Effect patterns, design pattern vocabulary, and testability conventions that govern all contributions.
+
+### Functional programming
+
+- Prefer pure functions and immutable data. Return new objects instead of mutating parameters. Avoid `let`, `Array.push`, and mutable accumulation patterns.
 - Prefer `const` bindings, ternary expressions, and higher-order functions (`map`, `filter`, `reduce`, `flatMap`) over imperative loops and mutable state.
-- Prefer recursive folds over mutable accumulation with early return. When a sequential process short-circuits on success and accumulates events, model it as a recursive `step(remaining, priorEvents)` function. See `runStrategyChain` and `runPipelinePhases`.
+- Prefer recursive folds over mutable accumulation with early return. When a sequential process short-circuits on success and accumulates events, model it as a recursive `step(remaining, priorEvents)` function. See `runStrategyChain`, `runPipelinePhases`, and `runDogfoodLoop`.
+- Mark all exported interface fields as `readonly`. Use `ReadonlyArray<T>` and `readonly T[]` for array fields in public interfaces.
+
+### Effect-forward orchestration
+
+- Prefer `Effect.gen` with `yield*` for sequential orchestration. Never use `Effect.runPromise`/`Effect.runSync` outside `lib/composition/`.
 - Prefer `Effect.all({...})` over sequential `yield*` chains for structurally independent operations. This makes independence explicit at the type level even without runtime concurrency. See `loadWorkspaceCatalog`.
 - Prefer `Effect.catchTag` over `Effect.either` + manual `_tag` discrimination. Use `Effect.catchAll` when recovering uniformly from any failure.
-- Prefer composable abstractions (`ScoringRule` with `combine`/`contramap`, `PipelinePhase` arrays) over hardcoded inline arithmetic or switch blocks. Small semigroups compose; hardcoded formulas don't.
+- Thread immutable state through recursive Effect steps rather than mutating closed-over `let` bindings. See `docs/coding-notes.md` § Effect-Forward Patterns.
+- Use `Effect.succeed`/`Effect.fail` for pure lifts. Never throw inside `Effect.gen`.
+
+### Design patterns (Gang of Four vocabulary)
+
+- **Strategy**: resolution ladder, pipeline phase chains. New behaviors compose as new strategies, not as branches in existing strategies.
+- **Visitor/Fold**: exhaustive case analysis for discriminated unions. Use typed switch or `foldGovernance` — never unchecked `if` chains.
+- **Composite**: scoring rules, validation rules, pipeline phases. Use `combine`/`contramap`. Small semigroups compose; hardcoded formulas don't.
+- **State Machine**: convergence detection, lifecycle management. Pure state transitions separate from loop bodies.
+- **Interpreter**: compilation phases, resolution pipeline. Each phase is a pure function from typed input to typed output with provenance.
+- **Envelope**: every cross-boundary artifact carries a standard envelope. Use `mapPayload(envelope, f)` — never manual spread-and-reassemble.
+
+### Other strong preferences
+
 - Prefer phantom branded types (`Approved<T>`, `Blocked<T>`) at governance boundaries over runtime-only checks. Type guards (`isApproved`, `isBlocked`) and assertions (`requireApproved`) narrow at the type level. Use `foldGovernance` for exhaustive case analysis.
-- Prefer `mapPayload(envelope, f)` over manual `{ ...envelope, payload: f(envelope.payload) }` spreads for `WorkflowEnvelope` transforms.
 - Prefer value objects over protocol strings.
 - Prefer pure derivations over storing parallel truth.
 - Prefer AST-backed code generation over source-string splicing.

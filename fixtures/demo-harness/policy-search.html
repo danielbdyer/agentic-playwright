@@ -168,8 +168,10 @@
         function renderPolicy(policy) {
           resultsBody.innerHTML = '';
           const row = document.createElement('tr');
+          row.setAttribute('data-testid', 'result-row');
+          row.style.cursor = 'pointer';
           row.innerHTML =
-            '<td>' + policy.number + '</td>' +
+            '<td><a href="policy-detail.html?id=' + encodeURIComponent(policy.number) + '" data-testid="result-link">' + policy.number + '</a></td>' +
             '<td>' + policy.status + '</td>';
           resultsBody.appendChild(row);
           resultsWrapper.hidden = false;

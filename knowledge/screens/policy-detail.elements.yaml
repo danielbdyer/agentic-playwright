@@ -1,0 +1,45 @@
+screen: policy-detail
+url: /policy-detail.html?id=POL-001
+elements:
+  policyNumber:
+    role: text
+    name: Policy Number
+    testId: policy-number
+    surface: detail-fields
+    widget: os-region
+    required: true
+  policyStatus:
+    role: text
+    name: Policy Status
+    testId: policy-status
+    surface: detail-fields
+    widget: os-region
+    required: true
+  effectiveDate:
+    role: text
+    name: Effective Date
+    testId: effective-date
+    surface: detail-fields
+    widget: os-region
+    required: true
+  claimsTable:
+    role: table
+    name: Claims Table
+    testId: claims-table
+    surface: claims-grid
+    widget: os-table
+    required: false
+  backToSearch:
+    role: link
+    name: Back to Search
+    testId: back-to-search
+    surface: navigation
+    widget: os-button
+    required: true
+  errorPanel:
+    role: alert
+    name: null
+    testId: error-panel
+    surface: error-surface
+    widget: os-region
+    required: false

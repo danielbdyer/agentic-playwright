@@ -3,10 +3,10 @@ import { test } from "../../../fixtures/index";
 import { createScenarioRunState, runScenarioHandshake, stepHandshakeFromPlan } from "../../../lib/runtime/scenario";
 import { loadScenarioRunPlan } from "../../../lib/application/execution/load-run-plan";
 import { createLocalRuntimeEnvironment } from "../../../lib/infrastructure/runtime/local-runtime-environment";
-test("Verify policy search returns matching policy @smoke @billing @P1", async ({ page, demoSession }) => {
+test("Verify navigating to policy detail shows correct policy information @smoke @navigation @P1", async ({ page, demoSession }) => {
     test.info().annotations.push({
         type: "ado-id",
-        description: "10001"
+        description: "10010"
     });
     test.info().annotations.push({
         type: "ado-revision",
@@ -14,7 +14,7 @@ test("Verify policy search returns matching policy @smoke @billing @P1", async (
     });
     test.info().annotations.push({
         type: "content-hash",
-        description: "sha256:1930319ee9882abb4af0ab8dc9d6c120f6ddc8b77ca6441c20be91697f7b19d1"
+        description: "sha256:dcceb5d5f884a5c6a7ae8a24be17558289691591432312e36f398360f82fd5da"
     });
     test.info().annotations.push({
         type: "confidence",
@@ -22,11 +22,11 @@ test("Verify policy search returns matching policy @smoke @billing @P1", async (
     });
     test.info().annotations.push({
         type: "deferred-steps",
-        description: "1, 2, 3, 4"
+        description: "1, 2, 3, 4, 5, 6"
     });
     const runPlan = loadScenarioRunPlan({
         rootDir: process.cwd(),
-        adoId: "10001",
+        adoId: "10010",
         executionContextPosture: {
             interpreterMode: process.env.TESSERACT_INTERPRETER_MODE ?? "dry-run" as any,
             writeMode: process.env.TESSERACT_WRITE_MODE ?? "persist" as any,
@@ -77,11 +77,25 @@ test("Verify policy search returns matching policy @smoke @billing @P1", async (
             throw new Error("Step 3 requires operator attention or failed execution");
         }
     });
-    await test.step("Verify search results show policy", async () => {
+    await test.step("Click policy number link in results row", async () => {
         const stepResult = await runScenarioHandshake(stepHandshakeFromPlan(runPlan, 3), runtimeEnvironment, runState, runPlan.context);
         test.info().annotations.push({ type: "runtime-receipt", description: JSON.stringify(stepResult) });
         if (stepResult.interpretation.kind === "needs-human" || stepResult.execution.execution.status === "failed") {
             throw new Error("Step 4 requires operator attention or failed execution");
+        }
+    });
+    await test.step("Verify policy number and status are displayed", async () => {
+        const stepResult = await runScenarioHandshake(stepHandshakeFromPlan(runPlan, 4), runtimeEnvironment, runState, runPlan.context);
+        test.info().annotations.push({ type: "runtime-receipt", description: JSON.stringify(stepResult) });
+        if (stepResult.interpretation.kind === "needs-human" || stepResult.execution.execution.status === "failed") {
+            throw new Error("Step 5 requires operator attention or failed execution");
+        }
+    });
+    await test.step("Verify claims table is visible with claim entries", async () => {
+        const stepResult = await runScenarioHandshake(stepHandshakeFromPlan(runPlan, 5), runtimeEnvironment, runState, runPlan.context);
+        test.info().annotations.push({ type: "runtime-receipt", description: JSON.stringify(stepResult) });
+        if (stepResult.interpretation.kind === "needs-human" || stepResult.execution.execution.status === "failed") {
+            throw new Error("Step 6 requires operator attention or failed execution");
         }
     });
 });

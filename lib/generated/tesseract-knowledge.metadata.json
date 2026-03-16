@@ -1,13 +1,23 @@
 {
   "version": 1,
   "projection": "types",
-  "inputSetFingerprint": "sha256:0db7f40f4272e9b6b8bcfa00b902c46859952ae11afb1c055f2933559ae7a077",
-  "outputFingerprint": "sha256:6eb504ba1253857ca29ba73422f27e6ea044ee0d2035b327f2b250720c4c4fda",
+  "inputSetFingerprint": "sha256:586221fd49382b420efd06eaad6e53883021f33f5e3f24b9288b05191dc484f5",
+  "outputFingerprint": "sha256:06cff1489c923826b73a4ae5faabb18129b9118d4616851f321dda5b35b00e0d",
   "inputs": [
+    {
+      "kind": "elements",
+      "path": "knowledge/screens/policy-detail.elements.yaml",
+      "fingerprint": "sha256:725417e1bc48b9aef21c9725725bae231f133e1e29a9b4636c2a7378cb447bdc"
+    },
     {
       "kind": "elements",
       "path": "knowledge/screens/policy-search.elements.yaml",
       "fingerprint": "sha256:76222e35884703fffa7901b11e0506bcfdc462ad7923ab8a1100dc986b264ad7"
+    },
+    {
+      "kind": "hints",
+      "path": "knowledge/screens/policy-detail.hints.yaml",
+      "fingerprint": "sha256:6b87a9f35590fa804675684fb84e0dfb50795833358f1c6c647cdab976abd6ea"
     },
     {
       "kind": "hints",
@@ -16,13 +26,33 @@
     },
     {
       "kind": "postures",
+      "path": "knowledge/screens/policy-detail.postures.yaml",
+      "fingerprint": "sha256:f4a254a0437836c82f35c3091384e28dcd3776ea801339f7508861f3124db2e0"
+    },
+    {
+      "kind": "postures",
       "path": "knowledge/screens/policy-search.postures.yaml",
       "fingerprint": "sha256:e7a7f34853b4a360f44af4c1a0dfe37e93d5c77bfa5ecff7e941192feed8e805"
     },
     {
       "kind": "scenario",
+      "path": "scenarios/demo/policy-detail/10010.scenario.yaml",
+      "fingerprint": "sha256:863bc77134656d995dc2944c5883db17e920d136b1bc664886a467facb45bd2a"
+    },
+    {
+      "kind": "scenario",
+      "path": "scenarios/demo/policy-detail/10011.scenario.yaml",
+      "fingerprint": "sha256:bd88b7f1ac3ab934b6ca41f24b304395825ec0d3d542b4bb66b9a862ab0eb03c"
+    },
+    {
+      "kind": "scenario",
       "path": "scenarios/demo/policy-search/10001.scenario.yaml",
       "fingerprint": "sha256:6b5876985d7079807d2d744a431e686f8eae96a28f8510e97730be75f1f1ee6e"
+    },
+    {
+      "kind": "surface",
+      "path": "knowledge/surfaces/policy-detail.surface.yaml",
+      "fingerprint": "sha256:2afc71c03e834dc998a6b59f22908dbae96546816db8a427aa390417c414da52"
     },
     {
       "kind": "surface",

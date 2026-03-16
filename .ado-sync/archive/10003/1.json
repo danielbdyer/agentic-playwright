@@ -1,0 +1,61 @@
+{
+  "id": "10003",
+  "revision": 1,
+  "title": "Verify navigating to policy detail shows correct policy information",
+  "suitePath": "demo/policy-detail",
+  "areaPath": "demo",
+  "iterationPath": "demo/sprint-1",
+  "tags": [
+    "smoke",
+    "navigation",
+    "P1"
+  ],
+  "priority": 1,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Navigate to Policy Search screen</p>",
+      "expected": "<p>Policy Search screen loads</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Enter policy number in search field</p>",
+      "expected": "<p>Policy Number accepts a valid policy</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Click Search button</p>",
+      "expected": "<p>Search runs and matching policy appears in search results</p>"
+    },
+    {
+      "index": 4,
+      "action": "<p>Click policy number link in results row</p>",
+      "expected": "<p>Policy Detail screen loads with correct policy number</p>"
+    },
+    {
+      "index": 5,
+      "action": "<p>Verify policy number and status are displayed</p>",
+      "expected": "<p>Policy number POL-001 and Active status are visible</p>"
+    },
+    {
+      "index": 6,
+      "action": "<p>Verify claims table is visible with claim entries</p>",
+      "expected": "<p>Claims are listed in the claims table</p>"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "policyNumber",
+      "values": [
+        "POL-001"
+      ]
+    }
+  ],
+  "dataRows": [
+    {
+      "policyNumber": "POL-001"
+    }
+  ],
+  "contentHash": "sha256:dcceb5d5f884a5c6a7ae8a24be17558289691591432312e36f398360f82fd5da",
+  "syncedAt": "2026-03-16T00:00:00.000Z"
+}

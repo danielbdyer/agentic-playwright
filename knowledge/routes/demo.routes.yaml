@@ -16,3 +16,12 @@ routes:
         url: /policy-search.html?seed=POL-001
         screen: policy-search
         rootSelector: body
+  - id: policy-detail
+    screen: policy-detail
+    entryUrl: /policy-detail.html?id=POL-001
+    rootSelector: body
+    variants:
+      - id: with-policy
+        url: /policy-detail.html?id=POL-001
+        screen: policy-detail
+        rootSelector: body

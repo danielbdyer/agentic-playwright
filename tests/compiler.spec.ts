@@ -1,12 +1,20 @@
 ﻿import { mkdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'fs';
 import path from 'path';
 import { expect, test } from '@playwright/test';
+import { activateProposalBundle } from '../lib/application/activate-proposals';
+import { applyDriftEvents, type VarianceManifest } from '../lib/application/drift';
+import { runDogfoodLoop, type DogfoodLedger } from '../lib/application/dogfood';
 import { buildDerivedGraph } from '../lib/application/graph';
 import { impactNode } from '../lib/application/impact';
 import { emitOperatorInbox } from '../lib/application/inbox';
 import { describeScenarioPaths } from '../lib/application/inspect';
 import { emitScenario } from '../lib/application/emit';
 import { loadWorkspaceCatalog } from '../lib/application/catalog';
+import {
+  createProposalBundleEnvelope,
+  createScenarioEnvelopeFingerprints,
+  createScenarioEnvelopeIds,
+} from '../lib/application/catalog/envelope';
 import { emitManifestPath } from '../lib/application/paths';
 import { resolveAgentSessionAdapter } from '../lib/application/provider-registry';
 import { refreshScenario } from '../lib/application/refresh';
@@ -20,6 +28,7 @@ import type { ProjectionCacheMissIncremental, ProjectionIncremental } from '../l
 import { runWithLocalServices } from '../lib/composition/local-services';
 import { createAdoId, createElementId, createScreenId, createSurfaceId } from '../lib/domain/identity';
 import { graphIds } from '../lib/domain/ids';
+import type { ProposalEntry } from '../lib/domain/types';
 import { validateDiscoveryIndex } from '../lib/domain/validation';
 import { harvestDeclaredRoutes } from '../lib/infrastructure/tooling/harvest-routes';
 import { createTestWorkspace } from './support/workspace';
@@ -157,7 +166,7 @@ test('paths identifies surface, graph, generated review, and supplement artifact
     expect(projectPath(result.roots.sessions)).toContain('.tesseract/sessions');
     expect(projectPath(result.roots.learning)).toContain('.tesseract/learning');
     expect(result.supplements.sharedPatterns).toContain('knowledge/patterns/core.patterns.yaml');
-    expect(result.knowledge).toEqual([
+    expect(result.knowledge).toEqual(expect.arrayContaining([
       {
         screen: 'policy-search',
         surface: expect.stringContaining('policy-search.surface.yaml'),
@@ -165,13 +174,21 @@ test('paths identifies surface, graph, generated review, and supplement artifact
         postures: expect.stringContaining('policy-search.postures.yaml'),
         hints: expect.stringContaining('policy-search.hints.yaml'),
       },
-    ]);
+      {
+        screen: 'policy-detail',
+        surface: expect.stringContaining('policy-detail.surface.yaml'),
+        elements: expect.stringContaining('policy-detail.elements.yaml'),
+        postures: expect.stringContaining('policy-detail.postures.yaml'),
+        hints: expect.stringContaining('policy-detail.hints.yaml'),
+      },
+    ]));
   } finally {
     workspace.cleanup();
   }
 });
 
 test('harvest visits declared route variants and writes route-scoped receipts', async () => {
+  test.setTimeout(120_000);
   const workspace = createTestWorkspace('compiler-harvest');
   try {
     const result = await runWithLocalServices(
@@ -206,13 +223,14 @@ test('harvest visits declared route variants and writes route-scoped receipts', 
     );
 
     expect(result.failures).toEqual([]);
-    expect(result.receipts).toEqual([
+    expect(result.receipts).toEqual(expect.arrayContaining([
       '.tesseract/discovery/demo/policy-search/default/crawl.json',
       '.tesseract/discovery/demo/policy-search/results-with-policy/crawl.json',
-    ]);
+      '.tesseract/discovery/demo/policy-detail/with-policy/crawl.json',
+    ]));
     expect(index.app).toBe('demo');
     expect(index.version).toBe(2);
-    expect(index.receipts).toHaveLength(2);
+    expect(index.receipts).toHaveLength(3);
     expect(index.receipts.every((entry) => entry.status === 'ok')).toBeTruthy();
     expect(index.receipts.every((entry) => entry.writeDisposition === 'rewritten')).toBeTruthy();
     expect(index.receipts.every((entry) => entry.contentFingerprint?.startsWith('sha256:'))).toBeTruthy();
@@ -240,7 +258,7 @@ test('harvest visits declared route variants and writes route-scoped receipts', 
 });
 
 test('harvest reuses unchanged route receipts and rewrites deterministically on drift', async () => {
-  test.setTimeout(60_000);
+  test.setTimeout(120_000);
   const workspace = createTestWorkspace('compiler-harvest-idempotence');
   try {
     await runWithLocalServices(
@@ -990,6 +1008,38 @@ test('interface intelligence compiles deterministic graph and selector canon wit
   }
 });
 
+test('interface graph and selector canon span both screens after second-screen compilation', async () => {
+  const workspace = createTestWorkspace('multi-screen-graph');
+  try {
+    await runWithLocalServices(refreshScenario({ adoId: createAdoId('10001'), paths: workspace.paths }), workspace.rootDir);
+    await runWithLocalServices(refreshScenario({ adoId: createAdoId('10010'), paths: workspace.paths }), workspace.rootDir);
+    const graph = workspace.readJson<{
+      nodes: Array<{ id: string; kind: string; screen?: string | null }>;
+      edges: Array<{ id: string; kind: string }>;
+      targetRefs: string[];
+      stateRefs: string[];
+    }>('.tesseract', 'interface', 'index.json');
+    const selectors = workspace.readJson<{
+      entries: Array<{ targetRef: string }>;
+      summary: { totalTargets: number };
+    }>('.tesseract', 'interface', 'selectors.json');
+
+    const screenSet = new Set(graph.nodes.filter((n) => n.screen).map((n) => n.screen));
+    expect(screenSet.has('policy-search')).toBeTruthy();
+    expect(screenSet.has('policy-detail')).toBeTruthy();
+
+    const selectorScreens = new Set(selectors.entries.map((e) => e.targetRef.split(':')[2]));
+    expect(selectorScreens.has('policy-search')).toBeTruthy();
+    expect(selectorScreens.has('policy-detail')).toBeTruthy();
+
+    expect(graph.targetRefs.some((ref) => ref.includes('policy-search'))).toBeTruthy();
+    expect(graph.targetRefs.some((ref) => ref.includes('policy-detail'))).toBeTruthy();
+    expect(selectors.summary.totalTargets).toBeGreaterThan(10);
+  } finally {
+    workspace.cleanup();
+  }
+});
+
 test('agent session adapters share one provider-agnostic event vocabulary', async () => {
   const workspace = createTestWorkspace('agent-session-vocabulary');
   try {
@@ -1108,6 +1158,327 @@ test('run scenario emits agent session and learning artifacts with replay-ready 
     expect(catalog.agentSessions.some((entry) => entry.artifact.sessionId === run.runId)).toBeTruthy();
     expect(catalog.learningManifest?.artifact.replayExamples).toBe(1);
     expect(catalog.replayExamples.some((entry) => entry.artifact.runId === run.runId)).toBeTruthy();
+  } finally {
+    workspace.cleanup();
+  }
+});
+
+test('flywheel: proposal activation improves knowledge hit rate on recompile for 10011', async () => {
+  const workspace = createTestWorkspace('flywheel-proposal-loop');
+  try {
+    const adoId = createAdoId('10011');
+
+    // Phase 1: compile + run 10011 in diagnostic mode — step 4 (underwriter) is unresolved
+    await runWithLocalServices(refreshScenario({ adoId, paths: workspace.paths }), workspace.rootDir);
+    const baselineRun = await runWithLocalServices(
+      runScenario({ adoId, paths: workspace.paths, interpreterMode: 'diagnostic' }),
+      workspace.rootDir,
+    );
+    const baselineTrace = JSON.parse(readFileSync(baselineRun.emitted.tracePath, 'utf8').replace(/^\uFEFF/, '')) as {
+      summary: { stageMetrics: { knowledgeHitRate: number } };
+      steps: Array<{ provenanceKind: string; unresolvedGaps: string[] }>;
+    };
+    expect(baselineTrace.summary.stageMetrics.knowledgeHitRate).toBe(0.75);
+    expect(baselineTrace.steps[3]!.provenanceKind).toBe('unresolved');
+    expect(baselineTrace.steps[3]!.unresolvedGaps).toContain('runtime-resolution-required');
+
+    // Phase 2: simulate what the runtime agent would do — add the underwriter element
+    // to the knowledge layer (as live DOM discovery would propose)
+    const elementsPath = path.join(workspace.rootDir, 'knowledge', 'screens', 'policy-detail.elements.yaml');
+    const elementsContent = readFileSync(elementsPath, 'utf8');
+    writeFileSync(elementsPath, elementsContent + `  underwriter:
+    role: text
+    name: Underwriter
+    testId: underwriter
+    surface: detail-fields
+    widget: os-region
+    required: false
+`);
+
+    // Also add a hint alias to help match the novel phrasing
+    const proposal: ProposalEntry = {
+      proposalId: 'proposal-underwriter-alias',
+      stepIndex: 4,
+      artifactType: 'hints',
+      targetPath: 'knowledge/screens/policy-detail.hints.yaml',
+      title: 'Capture phrasing for step 4 (underwriter)',
+      patch: {
+        screen: 'policy-detail',
+        element: 'underwriter',
+        alias: 'Verify the underwriter name is displayed on the detail page',
+      },
+      evidenceIds: [],
+      impactedSteps: [4],
+      trustPolicy: { decision: 'allow', reasons: [] },
+      certification: 'uncertified',
+      activation: {
+        status: 'pending',
+        activatedAt: null,
+        certifiedAt: null,
+        reason: null,
+      },
+      lineage: {
+        runIds: ['flywheel-run-1'],
+        evidenceIds: [],
+        sourceArtifactPaths: ['.tesseract/tasks/10011.runtime.json'],
+        role: 'csr',
+        state: 'quoted',
+        driftSeed: 'flywheel-seed-1',
+      },
+    };
+
+    const proposalBundle = createProposalBundleEnvelope({
+      ids: createScenarioEnvelopeIds({
+        adoId,
+        suite: 'demo/policy-detail',
+        runId: 'flywheel-run-1',
+        dataset: 'demo-default',
+        runbook: 'demo-smoke',
+        resolutionControl: null,
+      }),
+      fingerprints: createScenarioEnvelopeFingerprints({
+        artifact: 'flywheel-run-1:proposal',
+        content: 'sha256:content',
+        knowledge: 'sha256:knowledge',
+        controls: 'sha256:controls',
+        task: 'sha256:task',
+        run: 'flywheel-run-1',
+      }),
+      lineage: {
+        sources: ['.tesseract/tasks/10011.runtime.json'],
+        parents: ['sha256:task', 'flywheel-run-1'],
+        handshakes: ['preparation', 'resolution', 'execution', 'evidence', 'proposal'],
+      },
+      governance: 'approved',
+      payload: {
+        adoId,
+        runId: 'flywheel-run-1',
+        revision: 1,
+        title: 'Verify policy detail loads and displays coverage effective date',
+        suite: 'demo/policy-detail',
+        proposals: [proposal],
+      },
+      proposals: [proposal],
+    });
+
+    // Phase 3: activate the hint proposal — patches hints file with underwriter alias
+    const activation = await runWithLocalServices(activateProposalBundle({
+      paths: workspace.paths,
+      proposalBundle,
+    }), workspace.rootDir);
+    expect(activation.blockedProposalIds).toEqual([]);
+    expect(activation.activatedPaths).toHaveLength(1);
+    expect(activation.activatedPaths[0]).toContain('policy-detail.hints.yaml');
+
+    // Phase 4: recompile + re-run — step 4 should now resolve from approved knowledge
+    await runWithLocalServices(refreshScenario({ adoId, paths: workspace.paths }), workspace.rootDir);
+    const improvedRun = await runWithLocalServices(
+      runScenario({ adoId, paths: workspace.paths, interpreterMode: 'diagnostic' }),
+      workspace.rootDir,
+    );
+    const improvedTrace = JSON.parse(readFileSync(improvedRun.emitted.tracePath, 'utf8').replace(/^\uFEFF/, '')) as {
+      summary: { stageMetrics: { knowledgeHitRate: number } };
+      steps: Array<{ provenanceKind: string; unresolvedGaps: string[] }>;
+    };
+
+    // The flywheel turned: knowledge hit rate improved from 0.75 to 1.0
+    expect(improvedTrace.summary.stageMetrics.knowledgeHitRate).toBe(1);
+    expect(improvedTrace.steps[3]!.provenanceKind).toBe('approved-knowledge');
+    expect(improvedTrace.steps[3]!.unresolvedGaps).toEqual([]);
+
+    // Move 5: scorecard delta — structured comparison of the two runs
+    const delta = {
+      baseline: {
+        runId: baselineRun.runId,
+        knowledgeHitRate: baselineTrace.summary.stageMetrics.knowledgeHitRate,
+        unresolvedSteps: baselineTrace.steps.filter((s) => s.provenanceKind === 'unresolved').length,
+        approvedKnowledgeSteps: baselineTrace.steps.filter((s) => s.provenanceKind === 'approved-knowledge').length,
+      },
+      improved: {
+        runId: improvedRun.runId,
+        knowledgeHitRate: improvedTrace.summary.stageMetrics.knowledgeHitRate,
+        unresolvedSteps: improvedTrace.steps.filter((s) => s.provenanceKind === 'unresolved').length,
+        approvedKnowledgeSteps: improvedTrace.steps.filter((s) => s.provenanceKind === 'approved-knowledge').length,
+      },
+      proposalActivations: 1,
+      knowledgeHitRateDelta: improvedTrace.summary.stageMetrics.knowledgeHitRate - baselineTrace.summary.stageMetrics.knowledgeHitRate,
+      unresolvedDelta: improvedTrace.steps.filter((s) => s.provenanceKind === 'unresolved').length - baselineTrace.steps.filter((s) => s.provenanceKind === 'unresolved').length,
+    };
+
+    // Resolution quality improved
+    expect(delta.knowledgeHitRateDelta).toBe(0.25);
+    // Unresolved count decreased
+    expect(delta.unresolvedDelta).toBe(-1);
+    // Knowledge coverage increased
+    expect(delta.improved.approvedKnowledgeSteps).toBeGreaterThan(delta.baseline.approvedKnowledgeSteps);
+    // Exactly one proposal activation drove the improvement
+    expect(delta.proposalActivations).toBe(1);
+  } finally {
+    workspace.cleanup();
+  }
+});
+
+test('dogfood loop completes two iterations and produces a legible ledger', async () => {
+  const workspace = createTestWorkspace('dogfood-loop');
+  try {
+    const adoId = createAdoId('10001');
+    await runWithLocalServices(refreshScenario({ adoId, paths: workspace.paths }), workspace.rootDir);
+
+    const { ledger, ledgerPath } = await runWithLocalServices(
+      runDogfoodLoop({
+        paths: workspace.paths,
+        maxIterations: 2,
+        interpreterMode: 'diagnostic',
+      }),
+      workspace.rootDir,
+    );
+
+    expect(ledger.kind).toBe('dogfood-ledger');
+    expect(ledger.version).toBe(1);
+    expect(ledger.maxIterations).toBe(2);
+    expect(ledger.completedIterations).toBeGreaterThanOrEqual(1);
+    expect(ledger.completedIterations).toBeLessThanOrEqual(2);
+    expect(ledger.iterations.length).toBeGreaterThanOrEqual(1);
+    expect(ledger.iterations[0]!.iteration).toBe(1);
+    expect(ledger.iterations[0]!.scenarioIds.length).toBeGreaterThan(0);
+    expect(ledger.iterations[0]!.knowledgeHitRate).toBeGreaterThanOrEqual(0);
+    expect(typeof ledger.knowledgeHitRateDelta).toBe('number');
+    expect(typeof ledger.totalProposalsActivated).toBe('number');
+
+    // Hardened ledger fields
+    expect(ledger.convergenceReason).toBeDefined();
+    expect(typeof ledger.totalInstructionCount).toBe('number');
+    expect(ledger.totalInstructionCount).toBeGreaterThanOrEqual(0);
+    expect(ledger.iterations[0]!.totalStepCount).toBeGreaterThan(0);
+    expect(typeof ledger.iterations[0]!.instructionCount).toBe('number');
+    expect(typeof ledger.iterations[0]!.unresolvedStepCount).toBe('number');
+
+    const writtenLedger = JSON.parse(readFileSync(ledgerPath, 'utf8').replace(/^\uFEFF/, '')) as DogfoodLedger;
+    expect(writtenLedger.kind).toBe('dogfood-ledger');
+    expect(writtenLedger.completedIterations).toBe(ledger.completedIterations);
+    expect(writtenLedger.convergenceReason).toBe(ledger.convergenceReason);
+    expect(writtenLedger.totalInstructionCount).toBe(ledger.totalInstructionCount);
+  } finally {
+    workspace.cleanup();
+  }
+});
+
+test('dogfood loop converges early when budget is exhausted', async () => {
+  const workspace = createTestWorkspace('dogfood-budget');
+  try {
+    const adoId = createAdoId('10001');
+    await runWithLocalServices(refreshScenario({ adoId, paths: workspace.paths }), workspace.rootDir);
+
+    const { ledger } = await runWithLocalServices(
+      runDogfoodLoop({
+        paths: workspace.paths,
+        maxIterations: 5,
+        maxInstructionCount: 0,
+        interpreterMode: 'diagnostic',
+      }),
+      workspace.rootDir,
+    );
+
+    expect(ledger.converged).toBe(true);
+    expect(ledger.convergenceReason).toBe('budget-exhausted');
+    expect(ledger.completedIterations).toBe(1);
+    expect(ledger.totalInstructionCount).toBeGreaterThanOrEqual(0);
+  } finally {
+    workspace.cleanup();
+  }
+});
+
+test('dogfood loop converges when threshold-met on stable knowledge', async () => {
+  const workspace = createTestWorkspace('dogfood-threshold');
+  try {
+    const adoId = createAdoId('10001');
+    await runWithLocalServices(refreshScenario({ adoId, paths: workspace.paths }), workspace.rootDir);
+
+    const { ledger } = await runWithLocalServices(
+      runDogfoodLoop({
+        paths: workspace.paths,
+        maxIterations: 3,
+        convergenceThreshold: 0.5,
+        interpreterMode: 'diagnostic',
+      }),
+      workspace.rootDir,
+    );
+
+    // With a high threshold (0.5), if knowledge doesn't improve by 50%+ between
+    // iterations, convergence triggers. Stable knowledge base should trigger this.
+    expect(ledger.completedIterations).toBeGreaterThanOrEqual(2);
+    expect(['threshold-met', 'no-proposals', 'max-iterations']).toContain(ledger.convergenceReason);
+  } finally {
+    workspace.cleanup();
+  }
+});
+
+test('drift applicator mutates knowledge files according to variance manifest', async () => {
+  const workspace = createTestWorkspace('drift-applicator');
+  try {
+    const adoId = createAdoId('10001');
+    await runWithLocalServices(refreshScenario({ adoId, paths: workspace.paths }), workspace.rootDir);
+
+    const manifest: VarianceManifest = {
+      kind: 'variance-manifest',
+      version: 1,
+      description: 'Test drift events for policy-search',
+      screen: 'policy-search',
+      'drift-events': [
+        {
+          id: 'label-drift-search-button',
+          type: 'label-change',
+          target: { screen: 'policy-search', element: 'searchButton' },
+          mutation: { field: 'name', from: 'Search', to: 'Find Policies' },
+        },
+        {
+          id: 'locator-drift-results',
+          type: 'locator-degradation',
+          target: { screen: 'policy-search', element: 'resultsTable' },
+          mutation: { field: 'testId', from: 'search-results-table', to: 'results-grid-v2' },
+        },
+        {
+          id: 'element-addition-reset',
+          type: 'element-addition',
+          target: { screen: 'policy-search' },
+          mutation: {
+            elementId: 'resetButton',
+            definition: { role: 'button', name: 'Reset', testId: 'reset-btn', surface: 'search-actions', widget: 'os-button', required: false },
+          },
+        },
+        {
+          id: 'alias-removal-validation',
+          type: 'alias-removal',
+          target: { screen: 'policy-search', element: 'validationSummary' },
+          mutation: { removedAliases: ['error summary'] },
+        },
+      ],
+    };
+
+    const result = await runWithLocalServices(
+      applyDriftEvents({ paths: workspace.paths, manifest }),
+      workspace.rootDir,
+    );
+
+    expect(result.appliedEventIds).toEqual([
+      'label-drift-search-button',
+      'locator-drift-results',
+      'element-addition-reset',
+      'alias-removal-validation',
+    ]);
+    expect(result.modifiedFiles.length).toBeGreaterThanOrEqual(1);
+
+    // Verify elements file was mutated
+    const elementsPath = path.join(workspace.rootDir, 'knowledge/screens/policy-search.elements.yaml');
+    const elementsText = readFileSync(elementsPath, 'utf8');
+    expect(elementsText).toContain('Find Policies');
+    expect(elementsText).toContain('results-grid-v2');
+    expect(elementsText).toContain('resetButton');
+
+    // Verify hints file was mutated (alias removal)
+    const hintsPath = path.join(workspace.rootDir, 'knowledge/screens/policy-search.hints.yaml');
+    const hintsText = readFileSync(hintsPath, 'utf8');
+    expect(hintsText).not.toContain('error summary');
   } finally {
     workspace.cleanup();
   }

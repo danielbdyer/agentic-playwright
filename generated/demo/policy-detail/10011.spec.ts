@@ -3,10 +3,10 @@ import { test } from "../../../fixtures/index";
 import { createScenarioRunState, runScenarioHandshake, stepHandshakeFromPlan } from "../../../lib/runtime/scenario";
 import { loadScenarioRunPlan } from "../../../lib/application/execution/load-run-plan";
 import { createLocalRuntimeEnvironment } from "../../../lib/infrastructure/runtime/local-runtime-environment";
-test("Verify policy search returns matching policy @smoke @billing @P1", async ({ page, demoSession }) => {
+test("Verify policy detail loads and displays coverage effective date @smoke @flywheel-proof @P2", async ({ page, demoSession }) => {
     test.info().annotations.push({
         type: "ado-id",
-        description: "10001"
+        description: "10011"
     });
     test.info().annotations.push({
         type: "ado-revision",
@@ -14,7 +14,7 @@ test("Verify policy search returns matching policy @smoke @billing @P1", async (
     });
     test.info().annotations.push({
         type: "content-hash",
-        description: "sha256:1930319ee9882abb4af0ab8dc9d6c120f6ddc8b77ca6441c20be91697f7b19d1"
+        description: "sha256:c0a0191175bd534caa8dc7a06731308af5018cf09d7a82f02ec1a3f14e2c65e6"
     });
     test.info().annotations.push({
         type: "confidence",
@@ -26,7 +26,7 @@ test("Verify policy search returns matching policy @smoke @billing @P1", async (
     });
     const runPlan = loadScenarioRunPlan({
         rootDir: process.cwd(),
-        adoId: "10001",
+        adoId: "10011",
         executionContextPosture: {
             interpreterMode: process.env.TESSERACT_INTERPRETER_MODE ?? "dry-run" as any,
             writeMode: process.env.TESSERACT_WRITE_MODE ?? "persist" as any,
@@ -56,28 +56,28 @@ test("Verify policy search returns matching policy @smoke @billing @P1", async (
         page: page
     });
     const runState = createScenarioRunState();
-    await test.step("Navigate to Policy Search screen", async () => {
+    await test.step("Open the policy detail page for POL-001", async () => {
         const stepResult = await runScenarioHandshake(stepHandshakeFromPlan(runPlan, 0), runtimeEnvironment, runState, runPlan.context);
         test.info().annotations.push({ type: "runtime-receipt", description: JSON.stringify(stepResult) });
         if (stepResult.interpretation.kind === "needs-human" || stepResult.execution.execution.status === "failed") {
             throw new Error("Step 1 requires operator attention or failed execution");
         }
     });
-    await test.step("Enter policy number in search field", async () => {
+    await test.step("Check the coverage start date shown on the detail page", async () => {
         const stepResult = await runScenarioHandshake(stepHandshakeFromPlan(runPlan, 1), runtimeEnvironment, runState, runPlan.context);
         test.info().annotations.push({ type: "runtime-receipt", description: JSON.stringify(stepResult) });
         if (stepResult.interpretation.kind === "needs-human" || stepResult.execution.execution.status === "failed") {
             throw new Error("Step 2 requires operator attention or failed execution");
         }
     });
-    await test.step("Click Search button", async () => {
+    await test.step("Confirm the claims listing includes at least one entry", async () => {
         const stepResult = await runScenarioHandshake(stepHandshakeFromPlan(runPlan, 2), runtimeEnvironment, runState, runPlan.context);
         test.info().annotations.push({ type: "runtime-receipt", description: JSON.stringify(stepResult) });
         if (stepResult.interpretation.kind === "needs-human" || stepResult.execution.execution.status === "failed") {
             throw new Error("Step 3 requires operator attention or failed execution");
         }
     });
-    await test.step("Verify search results show policy", async () => {
+    await test.step("Verify the underwriter name is displayed on the detail page", async () => {
         const stepResult = await runScenarioHandshake(stepHandshakeFromPlan(runPlan, 3), runtimeEnvironment, runState, runPlan.context);
         test.info().annotations.push({ type: "runtime-receipt", description: JSON.stringify(stepResult) });
         if (stepResult.interpretation.kind === "needs-human" || stepResult.execution.execution.status === "failed") {
