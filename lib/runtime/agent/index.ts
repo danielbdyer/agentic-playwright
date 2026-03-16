@@ -43,16 +43,6 @@ export function deriveMemoryCapacity(stepCount: number, stateNodeCount: number):
   };
 }
 
-let activeCapacity: MemoryCapacity = DEFAULT_MEMORY_CAPACITY;
-
-export function setMemoryCapacity(capacity: MemoryCapacity): void {
-  activeCapacity = capacity;
-}
-
-export function resetMemoryCapacity(): void {
-  activeCapacity = DEFAULT_MEMORY_CAPACITY;
-}
-
 function createEmptyObservedStateSession(): ObservedStateSession {
   return {
     currentScreen: null,
@@ -67,25 +57,25 @@ function createEmptyObservedStateSession(): ObservedStateSession {
   };
 }
 
-function normalizeObservedStateSession(task: GroundedStep, memory: ObservedStateSession): ObservedStateSession {
+function normalizeObservedStateSession(task: GroundedStep, memory: ObservedStateSession, capacity: MemoryCapacity): ObservedStateSession {
   const hasCausalOverride = memory.causalLinks.some((link) => link.relevantForSteps.includes(task.index));
-  const screenStale = !hasCausalOverride && memory.currentScreen !== null && task.index - memory.currentScreen.observedAtStep > activeCapacity.stalenessTtl;
-  const screenLowConfidence = !hasCausalOverride && memory.currentScreen !== null && memory.currentScreen.confidence < activeCapacity.screenConfidenceFloor;
+  const screenStale = !hasCausalOverride && memory.currentScreen !== null && task.index - memory.currentScreen.observedAtStep > capacity.stalenessTtl;
+  const screenLowConfidence = !hasCausalOverride && memory.currentScreen !== null && memory.currentScreen.confidence < capacity.screenConfidenceFloor;
   const currentScreen = screenStale || screenLowConfidence ? null : memory.currentScreen;
   const clearStateRefs = screenLowConfidence || task.actionText.toLowerCase().includes('navigate');
 
   return {
     currentScreen,
-    activeStateRefs: clearStateRefs ? [] : uniqueSorted(memory.activeStateRefs).slice(0, activeCapacity.maxActiveRefs),
-    lastObservedTransitionRefs: clearStateRefs ? [] : uniqueSorted(memory.lastObservedTransitionRefs).slice(0, activeCapacity.maxActiveRefs),
-    activeRouteVariantRefs: uniqueSorted(memory.activeRouteVariantRefs).slice(0, activeCapacity.maxActiveRefs),
-    activeTargetRefs: uniqueSorted(memory.activeTargetRefs).slice(0, activeCapacity.maxActiveRefs),
+    activeStateRefs: clearStateRefs ? [] : uniqueSorted(memory.activeStateRefs).slice(0, capacity.maxActiveRefs),
+    lastObservedTransitionRefs: clearStateRefs ? [] : uniqueSorted(memory.lastObservedTransitionRefs).slice(0, capacity.maxActiveRefs),
+    activeRouteVariantRefs: uniqueSorted(memory.activeRouteVariantRefs).slice(0, capacity.maxActiveRefs),
+    activeTargetRefs: uniqueSorted(memory.activeTargetRefs).slice(0, capacity.maxActiveRefs),
     lastSuccessfulLocatorRung: memory.lastSuccessfulLocatorRung,
     recentAssertions: memory.recentAssertions
-      .filter((entry) => Number.isFinite(entry.observedAtStep) && task.index - entry.observedAtStep <= activeCapacity.stalenessTtl)
-      .slice(-activeCapacity.maxRecentAssertions),
+      .filter((entry) => Number.isFinite(entry.observedAtStep) && task.index - entry.observedAtStep <= capacity.stalenessTtl)
+      .slice(-capacity.maxRecentAssertions),
     causalLinks: memory.causalLinks.filter((link) => link.relevantForSteps.some((step) => step >= task.index)),
-    lineage: memory.lineage.slice(-activeCapacity.maxLineageEntries),
+    lineage: memory.lineage.slice(-capacity.maxLineageEntries),
   };
 }
 
@@ -126,7 +116,7 @@ function deriveCausalLinks(stage: RuntimeAgentStageContext, receipt: ResolutionR
   return [...stage.memory.causalLinks, ...newLinks];
 }
 
-function deriveObservedStateSessionAfterResolution(stage: RuntimeAgentStageContext, receipt: ResolutionReceipt): ObservedStateSession {
+function deriveObservedStateSessionAfterResolution(stage: RuntimeAgentStageContext, receipt: ResolutionReceipt, capacity: MemoryCapacity): ObservedStateSession {
   if (receipt.kind === 'needs-human') {
     return stage.memory;
   }
@@ -139,7 +129,7 @@ function deriveObservedStateSessionAfterResolution(stage: RuntimeAgentStageConte
     `screen:${receipt.target.screen}`,
     `source:${receipt.winningSource}`,
     `confidence:${receipt.confidence}`,
-  ]).slice(-activeCapacity.maxLineageEntries);
+  ]).slice(-capacity.maxLineageEntries);
 
   return {
     currentScreen: {
@@ -152,9 +142,9 @@ function deriveObservedStateSessionAfterResolution(stage: RuntimeAgentStageConte
     activeRouteVariantRefs: uniqueSorted([
       ...stage.memory.activeRouteVariantRefs,
       ...routeVariantRefsForReceipt(stage, receipt),
-    ]).slice(0, activeCapacity.maxActiveRefs),
+    ]).slice(0, capacity.maxActiveRefs),
     activeTargetRefs: targetRef
-      ? uniqueSorted([...stage.memory.activeTargetRefs, targetRef]).slice(0, activeCapacity.maxActiveRefs)
+      ? uniqueSorted([...stage.memory.activeTargetRefs, targetRef]).slice(0, capacity.maxActiveRefs)
       : stage.memory.activeTargetRefs,
     lastSuccessfulLocatorRung: receipt.winningSource === 'live-dom' ? 0 : stage.memory.lastSuccessfulLocatorRung,
     recentAssertions: receipt.target.action === 'assert-snapshot'
@@ -162,8 +152,8 @@ function deriveObservedStateSessionAfterResolution(stage: RuntimeAgentStageConte
           ...stage.memory.recentAssertions,
           { summary: `${receipt.target.screen}:${receipt.target.snapshot_template ?? 'default'}`, observedAtStep: stage.task.index },
         ]
-          .filter((entry) => stage.task.index - entry.observedAtStep <= activeCapacity.stalenessTtl)
-          .slice(-activeCapacity.maxRecentAssertions)
+          .filter((entry) => stage.task.index - entry.observedAtStep <= capacity.stalenessTtl)
+          .slice(-capacity.maxRecentAssertions)
       : stage.memory.recentAssertions,
     causalLinks: deriveCausalLinks(stage, receipt),
     lineage,
@@ -233,8 +223,12 @@ function buildPostAccumulatorStrategies(accRef: { current: import('./resolution-
   ];
 }
 
-export async function runResolutionPipeline(task: GroundedStep, context: RuntimeStepAgentContext): Promise<ResolutionPipelineResult> {
-  const memory = normalizeObservedStateSession(task, context.observedStateSession ?? createEmptyObservedStateSession());
+export async function runResolutionPipeline(
+  task: GroundedStep,
+  context: RuntimeStepAgentContext,
+  capacity: MemoryCapacity = DEFAULT_MEMORY_CAPACITY,
+): Promise<ResolutionPipelineResult> {
+  const memory = normalizeObservedStateSession(task, context.observedStateSession ?? createEmptyObservedStateSession(), capacity);
   context.observedStateSession = memory;
 
   const stage: RuntimeAgentStageContext = {
@@ -252,7 +246,7 @@ export async function runResolutionPipeline(task: GroundedStep, context: Runtime
   };
 
   const applyMemory = (receipt: ResolutionReceipt): ResolutionEvent => {
-    const updated = deriveObservedStateSessionAfterResolution(stage, receipt);
+    const updated = deriveObservedStateSessionAfterResolution(stage, receipt, capacity);
     context.observedStateSession = updated;
     stage.memoryLineage = updated.lineage;
     return { kind: 'memory-updated', session: updated };
