@@ -92,3 +92,36 @@ export function activateProposalBundle(options: {
     } satisfies ActivateProposalBundleResult;
   });
 }
+
+export interface CompensationBackup {
+  filePath: string;
+  originalContent: string;
+}
+
+export function backupBeforeActivation(options: {
+  paths: ProjectPaths;
+  proposalBundle: ProposalBundle;
+}) {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const backups: CompensationBackup[] = [];
+    for (const proposal of options.proposalBundle.proposals) {
+      const absoluteTargetPath = path.join(options.paths.rootDir, proposal.targetPath);
+      const exists = yield* fs.exists(absoluteTargetPath);
+      if (exists) {
+        const content = yield* fs.readText(absoluteTargetPath);
+        backups.push({ filePath: absoluteTargetPath, originalContent: content });
+      }
+    }
+    return backups;
+  });
+}
+
+export function deactivateProposals(backups: CompensationBackup[]) {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    for (const backup of backups) {
+      yield* fs.writeText(backup.filePath, backup.originalContent);
+    }
+  });
+}

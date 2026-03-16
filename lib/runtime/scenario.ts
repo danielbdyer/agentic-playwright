@@ -88,6 +88,7 @@ export function createScenarioRunState(): ScenarioRunState {
       activeTargetRefs: [],
       lastSuccessfulLocatorRung: null,
       recentAssertions: [],
+      causalLinks: [],
       lineage: [],
     },
   };

@@ -87,6 +87,7 @@ test('working-memory priors boost same-screen continuation and known entity cont
     activeTargetRefs: [createCanonicalTargetRef('target:element:a-policy-search:preferredPolicyRefInput')],
     lastSuccessfulLocatorRung: null,
     recentAssertions: [],
+    causalLinks: [],
     lineage: [],
   };
 

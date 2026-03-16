@@ -232,6 +232,13 @@ export interface ObservedStateSessionAssertion {
   observedAtStep: number;
 }
 
+export interface CausalLink {
+  stepIndex: number;
+  firedTransitionRef: TransitionRef;
+  targetStateRef: StateNodeRef;
+  relevantForSteps: number[];
+}
+
 export interface ObservedStateSession {
   currentScreen: ObservedStateSessionScreenState | null;
   activeStateRefs: StateNodeRef[];
@@ -240,6 +247,7 @@ export interface ObservedStateSession {
   activeTargetRefs: CanonicalTargetRef[];
   lastSuccessfulLocatorRung: number | null;
   recentAssertions: ObservedStateSessionAssertion[];
+  causalLinks: CausalLink[];
   lineage: string[];
 }
 
@@ -488,6 +496,18 @@ export interface ResolutionExhaustionEntry {
   reason: string;
   topCandidates?: ResolutionCandidateSummary[] | undefined;
   rejectedCandidates?: ResolutionCandidateSummary[] | undefined;
+}
+
+export type ResolutionEvent =
+  | { kind: 'exhaustion-recorded'; entry: ResolutionExhaustionEntry }
+  | { kind: 'observation-recorded'; observation: ResolutionObservation }
+  | { kind: 'refs-collected'; refKind: 'knowledge' | 'supplement' | 'control' | 'evidence'; refs: string[] }
+  | { kind: 'memory-updated'; session: ObservedStateSession }
+  | { kind: 'receipt-produced'; receipt: ResolutionReceipt };
+
+export interface ResolutionPipelineResult {
+  receipt: ResolutionReceipt;
+  events: ResolutionEvent[];
 }
 
 export interface ResolutionEvidenceDraft {

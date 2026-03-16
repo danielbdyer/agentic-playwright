@@ -1,4 +1,4 @@
-import type { ResolutionReceipt, GroundedStep } from '../domain/types';
+import type { ResolutionPipelineResult, ResolutionReceipt, GroundedStep } from '../domain/types';
 import { runResolutionPipeline, type RuntimeStepAgentContext } from './agent/index';
 
 export interface RuntimeStepAgent {
@@ -7,9 +7,10 @@ export interface RuntimeStepAgent {
 
 export const deterministicRuntimeStepAgent: RuntimeStepAgent = {
   async resolve(task: GroundedStep, context: RuntimeStepAgentContext): Promise<ResolutionReceipt> {
-    return runResolutionPipeline(task, context);
+    const { receipt } = await runResolutionPipeline(task, context);
+    return receipt;
   },
 };
 
-export type { RuntimeStepAgentContext };
+export type { RuntimeStepAgentContext, ResolutionPipelineResult };
 export { runResolutionPipeline, RESOLUTION_PRECEDENCE } from './agent/index';

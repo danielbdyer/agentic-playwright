@@ -99,7 +99,7 @@ test('needs-human is emitted only after machine rungs are exhausted', async () =
     },
   }, resolutionContext);
 
-  const receipt = await runResolutionPipeline(task, createAgentContext(resolutionContext));
+  const { receipt } = await runResolutionPipeline(task, createAgentContext(resolutionContext));
 
   expect(receipt.kind).toBe('needs-human');
   const stages = receipt.exhaustion.map((entry) => entry.stage);

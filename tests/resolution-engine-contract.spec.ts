@@ -31,7 +31,7 @@ test('provider capability negotiation rejects incompatible mode', () => {
       supportsProposalDrafts: true,
       deterministicMode: false,
     },
-    resolveStep: async (task, context) => runResolutionPipeline(task, context as RuntimeStepAgentContext),
+    resolveStep: async (task, context) => (await runResolutionPipeline(task, context as RuntimeStepAgentContext)).receipt,
   };
   const registry = createResolutionEngineRegistry([provider]);
 
@@ -45,7 +45,7 @@ test('provider capability negotiation rejects incompatible mode', () => {
 
 test('post-provider validation enforces governance invariants', async () => {
   const { task, resolutionContext } = baseFixture(true);
-  const interpretation = await runResolutionPipeline(task, createAgentContext(resolutionContext, {
+  const { receipt: interpretation } = await runResolutionPipeline(task, createAgentContext(resolutionContext, {
     provider: 'deterministic-runtime-step-agent',
   }));
   const execution: StepExecutionReceipt = {

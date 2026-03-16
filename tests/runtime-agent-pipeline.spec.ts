@@ -76,7 +76,7 @@ test('resolution pipeline precedence is explicit and stable', () => {
 test('overlay resolution short-circuits translation and preserves receipt fields', async () => {
   const { step, resolutionContext } = baseFixture();
   let translateCalls = 0;
-  const receipt = await runResolutionPipeline(step, createAgentContext(resolutionContext, {
+  const { receipt } = await runResolutionPipeline(step, createAgentContext(resolutionContext, {
     translate: async () => {
       translateCalls += 1;
       return {
@@ -100,10 +100,10 @@ test('overlay resolution short-circuits translation and preserves receipt fields
 
 test('provider identity does not change receipt envelope shape or governance semantics', async () => {
   const { step, resolutionContext } = baseFixture();
-  const left = await runResolutionPipeline(step, createAgentContext(resolutionContext, {
+  const { receipt: left } = await runResolutionPipeline(step, createAgentContext(resolutionContext, {
     provider: 'deterministic-runtime-step-agent',
   }));
-  const right = await runResolutionPipeline(step, createAgentContext(resolutionContext, {
+  const { receipt: right } = await runResolutionPipeline(step, createAgentContext(resolutionContext, {
     provider: 'vscode-runtime-step-agent',
   }));
 
@@ -165,7 +165,7 @@ test('live DOM ambiguity is bounded and deterministic for tie-breaking and short
   expect(dom.topCandidate?.element.element).toBe(createElementId('primaryInput'));
   expect(dom.candidates.length).toBe(2);
 
-  const receipt = await runResolutionPipeline(step, createAgentContext(resolutionContext, {
+  const { receipt } = await runResolutionPipeline(step, createAgentContext(resolutionContext, {
     page: page as never,
     controlSelection: { resolutionControl: 'ci-policy' },
   }));
@@ -363,7 +363,7 @@ test('forbidden action policy yields review-required needs-human with shortlist 
     fallbackSelectorRefs: resolutionContext.screens[0]!.elements.flatMap((element) => element.selectorRefs),
   };
 
-  const receipt = await runResolutionPipeline(step, createAgentContext(resolutionContext, {
+  const { receipt } = await runResolutionPipeline(step, createAgentContext(resolutionContext, {
     page: page as never,
     controlSelection: { resolutionControl: 'interactive-policy' },
   }));
@@ -382,7 +382,7 @@ test('working memory is updated across steps and receipt lineage captures memory
   firstFixture.step.controlResolution = { action: 'input', screen: createScreenId('policy-search'), element: createElementId('policyNumberInput') };
   const context: RuntimeStepAgentContext = createAgentContext(firstFixture.resolutionContext);
 
-  const firstReceipt = await runResolutionPipeline(firstFixture.step, context);
+  const { receipt: firstReceipt } = await runResolutionPipeline(firstFixture.step, context);
   expect(firstReceipt.kind).toBe('resolved');
   expect(context.observedStateSession?.currentScreen?.screen).toBe(createScreenId('policy-search'));
   expect(context.observedStateSession?.activeTargetRefs).toContain(createCanonicalTargetRef('target:element:policy-search:policyNumberInput'));
@@ -404,6 +404,6 @@ test('working memory is updated across steps and receipt lineage captures memory
   thirdFixture.resolutionContext.confidenceOverlays = [];
   thirdFixture.step.controlResolution = { action: 'input', screen: createScreenId('policy-search'), element: createElementId('policyNumberInput') };
   context.resolutionContext = thirdFixture.resolutionContext;
-  const thirdReceipt = await runResolutionPipeline(thirdFixture.step, context);
+  const { receipt: thirdReceipt } = await runResolutionPipeline(thirdFixture.step, context);
   expect(thirdReceipt.lineage.sources.some((entry) => entry.startsWith('memory:step:'))).toBeTruthy();
 });
