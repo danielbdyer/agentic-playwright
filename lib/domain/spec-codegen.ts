@@ -1,6 +1,6 @@
 import * as ts from 'typescript';
-import { aggregateConfidence, lifecycleForScenario } from './status';
-import type { BoundScenario, ScenarioInterpretationSurface } from './types';
+import type { GroundedFlowStep, GroundedSpecFlow } from './types';
+import type { ScenarioLifecycle } from './types/workflow';
 import {
   awaitExpression,
   callExpression,
@@ -15,55 +15,37 @@ import {
   stringLiteral,
 } from './ts-ast';
 
-export interface GeneratedSpecImports {
-  fixtures: string;
-  runtime: string;
-  execution: string;
-  environment: string;
+export interface ReadableSpecImports {
+  readonly fixtures: string;
+  readonly readableHelpers: string;
+  readonly scenario: string;
+  readonly execution: string;
+  readonly environment: string;
 }
 
-export interface GeneratedSpecModuleOptions {
-  imports: GeneratedSpecImports;
+export interface ReadableSpecModuleOptions {
+  readonly imports: ReadableSpecImports;
 }
 
-function titleWithTags(title: string, tags: string[]): string {
-  if (tags.length === 0) {
-    return title;
-  }
-  return `${title} ${tags.map((tag) => `@${tag}`).join(' ')}`;
+/** @deprecated Use ReadableSpecImports. Alias for migration. */
+export type GeneratedSpecImports = ReadableSpecImports;
+
+/** @deprecated Use ReadableSpecModuleOptions. Alias for migration. */
+export type GeneratedSpecModuleOptions = ReadableSpecModuleOptions;
+
+function titleWithTags(title: string, tags: ReadonlyArray<string>): string {
+  return tags.length === 0
+    ? title
+    : `${title} ${tags.map((tag) => `@${tag}`).join(' ')}`;
 }
 
-function fixtureContextExpression(fixtures: string[]): ts.Expression {
-  if (fixtures.length === 0) {
-    return ts.factory.createObjectLiteralExpression([], false);
-  }
-
-  return ts.factory.createObjectLiteralExpression(
-    fixtures.map((fixture) => ts.factory.createShorthandPropertyAssignment(identifier(fixture))),
-    true,
-  );
-}
-
-function fixtureReferencePattern(raw: string, fixtures: Set<string>): void {
-  const matches = raw.matchAll(/\{\{\s*([A-Za-z0-9_-]+)(?:\.[^}]*)?\s*\}\}/g);
-  for (const match of matches) {
-    if (match[1]) {
-      fixtures.add(match[1]);
-    }
-  }
-}
-
-function fixturesForScenario(boundScenario: BoundScenario, surface: ScenarioInterpretationSurface): string[] {
-  const fixtures = new Set<string>(boundScenario.preconditions.map((precondition) => precondition.fixture));
-  for (const step of surface.payload.steps) {
-    if (step.explicitResolution?.override) {
-      fixtureReferencePattern(step.explicitResolution.override, fixtures);
-    }
-    if (step.controlResolution?.override) {
-      fixtureReferencePattern(step.controlResolution.override, fixtures);
-    }
-  }
-  return [...fixtures].sort((left, right) => left.localeCompare(right));
+function fixtureContextExpression(fixtures: ReadonlyArray<string>): ts.Expression {
+  return fixtures.length === 0
+    ? ts.factory.createObjectLiteralExpression([], false)
+    : ts.factory.createObjectLiteralExpression(
+        fixtures.map((fixture) => ts.factory.createShorthandPropertyAssignment(identifier(fixture))),
+        true,
+      );
 }
 
 function runtimeModeExpression(): ts.Expression {
@@ -105,11 +87,16 @@ function runtimeHeadedExpression(): ts.Expression {
   );
 }
 
-function annotationStatements(boundScenario: BoundScenario, confidence: string, deferredSteps: number[], unboundSteps: number[]): ts.Statement[] {
-  const annotations = [
-    { type: 'ado-id', description: boundScenario.source.ado_id },
-    { type: 'ado-revision', description: String(boundScenario.source.revision) },
-    { type: 'content-hash', description: boundScenario.source.content_hash },
+function annotationStatements(flow: GroundedSpecFlow): ts.Statement[] {
+  const { metadata } = flow;
+  const deferredSteps = flow.steps.filter((step) => step.bindingKind === 'deferred').map((step) => step.index);
+  const unboundSteps = flow.steps.filter((step) => step.bindingKind === 'unbound').map((step) => step.index);
+  const confidence = typeof metadata.confidence === 'string' ? metadata.confidence : 'mixed';
+
+  const annotations: Array<{ type: string; description: string }> = [
+    { type: 'ado-id', description: metadata.adoId },
+    { type: 'ado-revision', description: String(metadata.revision) },
+    { type: 'content-hash', description: metadata.contentHash },
     { type: 'confidence', description: confidence },
   ];
 
@@ -129,6 +116,29 @@ function annotationStatements(boundScenario: BoundScenario, confidence: string, 
   );
 }
 
+function helperNameForAction(step: GroundedFlowStep): string {
+  switch (step.action) {
+    case 'navigate': return 'navigateTo';
+    case 'input': return 'fillField';
+    case 'click': return 'clickElement';
+    case 'assert-snapshot': return 'expectSnapshot';
+    case 'custom': return 'executeStep';
+  }
+}
+
+function readableHelperImports(steps: ReadonlyArray<GroundedFlowStep>): string[] {
+  const helpers = new Set(steps.map(helperNameForAction));
+  return [...helpers].sort((left, right) => left.localeCompare(right));
+}
+
+function stepComment(step: GroundedFlowStep): string {
+  const parts: string[] = [];
+  if (step.screen) parts.push(`screen: ${step.screen}`);
+  if (step.element) parts.push(`element: ${step.element}`);
+  if (step.dataValue) parts.push(`data: ${step.dataValue}`);
+  return parts.length > 0 ? ` [${parts.join(', ')}]` : '';
+}
+
 function failureConditionExpression(): ts.Expression {
   return ts.factory.createBinaryExpression(
     ts.factory.createBinaryExpression(
@@ -145,11 +155,15 @@ function failureConditionExpression(): ts.Expression {
   );
 }
 
-function stepStatement(boundScenario: BoundScenario, step: BoundScenario['steps'][number], zeroBasedIndex: number): ts.Statement {
+function readableStepStatement(step: GroundedFlowStep, zeroBasedIndex: number): ts.Statement {
+  const helperName = helperNameForAction(step);
+  const comment = stepComment(step);
+  const stepTitle = `${step.intent}${comment}`;
+
   return statementFromExpression(
     awaitExpression(
       callExpression(property(identifier('test'), 'step'), [
-        stringLiteral(step.intent),
+        stringLiteral(stepTitle),
         ts.factory.createArrowFunction(
           [ts.factory.createModifier(ts.SyntaxKind.AsyncKeyword)],
           undefined,
@@ -160,14 +174,11 @@ function stepStatement(boundScenario: BoundScenario, step: BoundScenario['steps'
             constStatement(
               'stepResult',
               awaitExpression(
-                callExpression(identifier('runScenarioHandshake'), [
-                  callExpression(identifier('stepHandshakeFromPlan'), [
-                    identifier('runPlan'),
-                    ts.factory.createNumericLiteral(zeroBasedIndex),
-                  ]),
+                callExpression(identifier(helperName), [
                   identifier('runtimeEnvironment'),
                   identifier('runState'),
-                  property(identifier('runPlan'), 'context'),
+                  identifier('runPlan'),
+                  ts.factory.createNumericLiteral(zeroBasedIndex),
                 ]),
               ),
             ),
@@ -202,7 +213,7 @@ function stepStatement(boundScenario: BoundScenario, step: BoundScenario['steps'
   );
 }
 
-function lifecycleStatements(lifecycle: 'normal' | 'fixme' | 'skip' | 'fail'): ts.Statement[] {
+function lifecycleStatements(lifecycle: ScenarioLifecycle): ts.Statement[] {
   switch (lifecycle) {
     case 'fixme':
       return [statementFromExpression(callExpression(property(identifier('test'), 'fixme'), []))];
@@ -215,29 +226,26 @@ function lifecycleStatements(lifecycle: 'normal' | 'fixme' | 'skip' | 'fail'): t
   }
 }
 
-export function renderGeneratedSpecModule(
-  boundScenario: BoundScenario,
-  surface: ScenarioInterpretationSurface,
-  options: GeneratedSpecModuleOptions,
+export function renderReadableSpecModule(
+  flow: GroundedSpecFlow,
+  options: ReadableSpecModuleOptions,
 ): {
   code: string;
-  lifecycle: 'normal' | 'fixme' | 'skip' | 'fail';
+  lifecycle: ScenarioLifecycle;
 } {
-  const hasUnbound = boundScenario.steps.some((step) => step.binding.kind === 'unbound');
-  const lifecycle = lifecycleForScenario(boundScenario.metadata.status, hasUnbound);
-  const fixtures = fixturesForScenario(boundScenario, surface);
-  const confidence = aggregateConfidence(boundScenario.steps.map((step) => step.confidence));
-  const deferredSteps = boundScenario.steps.filter((step) => step.binding.kind === 'deferred').map((step) => step.index);
-  const unboundSteps = boundScenario.steps.filter((step) => step.binding.kind === 'unbound').map((step) => step.index);
+  const { metadata, steps } = flow;
+  const helperImports = readableHelperImports(steps);
+  const fixtures = metadata.fixtures;
 
   const statements: ts.Statement[] = [
     importDeclaration({ modulePath: options.imports.fixtures, namedImports: ['test'] }),
-    importDeclaration({ modulePath: options.imports.runtime, namedImports: ['createScenarioRunState', 'runScenarioHandshake', 'stepHandshakeFromPlan'] }),
+    importDeclaration({ modulePath: options.imports.readableHelpers, namedImports: helperImports }),
+    importDeclaration({ modulePath: options.imports.scenario, namedImports: ['createScenarioRunState'] }),
     importDeclaration({ modulePath: options.imports.execution, namedImports: ['loadScenarioRunPlan'] }),
     importDeclaration({ modulePath: options.imports.environment, namedImports: ['createLocalRuntimeEnvironment'] }),
     statementFromExpression(
       callExpression(identifier('test'), [
-        stringLiteral(titleWithTags(boundScenario.metadata.title, boundScenario.metadata.tags)),
+        stringLiteral(titleWithTags(metadata.title, metadata.tags)),
         ts.factory.createArrowFunction(
           [ts.factory.createModifier(ts.SyntaxKind.AsyncKeyword)],
           undefined,
@@ -246,14 +254,14 @@ export function renderGeneratedSpecModule(
           ts.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
           ts.factory.createBlock(
             [
-              ...annotationStatements(boundScenario, confidence, deferredSteps, unboundSteps),
-              ...lifecycleStatements(lifecycle),
+              ...annotationStatements(flow),
+              ...lifecycleStatements(metadata.lifecycle),
               constStatement(
                 'runPlan',
                 callExpression(identifier('loadScenarioRunPlan'), [
                   ts.factory.createObjectLiteralExpression([
                     ts.factory.createPropertyAssignment('rootDir', callExpression(property(identifier('process'), 'cwd'), [])),
-                    ts.factory.createPropertyAssignment('adoId', stringLiteral(boundScenario.source.ado_id)),
+                    ts.factory.createPropertyAssignment('adoId', stringLiteral(metadata.adoId)),
                     ts.factory.createPropertyAssignment(
                       'executionContextPosture',
                       ts.factory.createObjectLiteralExpression([
@@ -300,8 +308,8 @@ export function renderGeneratedSpecModule(
                 ]),
               ),
               constStatement('runState', callExpression(identifier('createScenarioRunState'), [])),
-              ...(lifecycle === 'normal' || lifecycle === 'fail'
-                ? boundScenario.steps.map((step, index) => stepStatement(boundScenario, step, index))
+              ...(metadata.lifecycle === 'normal' || metadata.lifecycle === 'fail'
+                ? steps.map((step, index) => readableStepStatement(step, index))
                 : []),
             ],
             true,
@@ -313,6 +321,9 @@ export function renderGeneratedSpecModule(
 
   return {
     code: printModule(statements),
-    lifecycle,
+    lifecycle: metadata.lifecycle,
   };
 }
+
+/** @deprecated Use renderReadableSpecModule. Kept temporarily for migration. */
+export const renderGeneratedSpecModule = renderReadableSpecModule;

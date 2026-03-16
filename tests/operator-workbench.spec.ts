@@ -45,7 +45,7 @@ test('persist and no-write refresh compute the same derived fingerprints while n
       .toEqual(persisted.compile.generatedTypes.screens);
     expect(baseline.wouldWrite.some((entry) => projectPath(entry.path).includes('generated/demo/policy-search/10001.spec.ts'))).toBeTruthy();
     expect(readFileSync(workspace.resolve('generated', 'demo', 'policy-search', '10001.spec.ts'), 'utf8').replace(/^\uFEFF/, ''))
-      .toContain('runScenarioHandshake');
+      .toContain('readable-helpers');
     expect(baseline.wouldWrite.some((entry) => projectPath(entry.path).includes('generated/demo/policy-search/10001.spec.ts'))).toBeTruthy();
     expect(baseline.wouldWrite.some((entry) => projectPath(entry.path).includes('.tesseract/graph/index.json'))).toBeTruthy();
   } finally {

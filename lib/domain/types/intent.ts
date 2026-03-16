@@ -173,6 +173,44 @@ export interface BoundStep extends ScenarioStep {
   program?: StepProgram | undefined;
 }
 
+export interface GroundedFlowStep {
+  readonly index: number;
+  readonly intent: string;
+  readonly action: StepAction;
+  readonly screen: ScreenId | null;
+  readonly element: ElementId | null;
+  readonly posture: PostureId | null;
+  readonly snapshotTemplate: SnapshotTemplateId | null;
+  readonly dataValue: string | null;
+  readonly dataSource: 'scenario-explicit' | 'resolution-control' | 'dataset' | 'fixture' | 'posture-sample' | 'generated-token' | 'none';
+  readonly confidence: Confidence;
+  readonly governance: Governance;
+  readonly bindingKind: StepBindingKind;
+  readonly provenanceKind: 'explicit' | 'approved-knowledge' | 'live-exploration' | 'unresolved';
+  readonly normalizedIntent: string;
+  readonly knowledgeRefs: ReadonlyArray<string>;
+  readonly supplementRefs: ReadonlyArray<string>;
+}
+
+export interface GroundedFlowMetadata {
+  readonly adoId: AdoId;
+  readonly revision: number;
+  readonly contentHash: string;
+  readonly title: string;
+  readonly suite: string;
+  readonly tags: ReadonlyArray<string>;
+  readonly lifecycle: 'normal' | 'fixme' | 'skip' | 'fail';
+  readonly confidence: Confidence | 'mixed';
+  readonly governance: Governance;
+  readonly fixtures: ReadonlyArray<string>;
+}
+
+export interface GroundedSpecFlow {
+  readonly kind: 'grounded-spec-flow';
+  readonly metadata: GroundedFlowMetadata;
+  readonly steps: ReadonlyArray<GroundedFlowStep>;
+}
+
 export interface BoundScenario extends Omit<Scenario, 'steps'> {
   kind: 'bound-scenario';
   version: 1;
