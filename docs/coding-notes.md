@@ -179,6 +179,271 @@ In these cases, scope the mutation as tightly as possible and document why the p
 
 ---
 
+## Effect-Forward Patterns
+
+This codebase uses [Effect](https://effect.website) as its primary side-effect and error management system. Effect is not optional infrastructure — it is the orchestration backbone. Every application-layer function that performs I/O, reads the filesystem, or sequences operations returns an `Effect`. Understanding these patterns is required for contributing code.
+
+### Use `Effect.gen` for sequential orchestration
+
+`Effect.gen` is the primary way to write sequential effectful code. It reads like async/await but carries typed errors and dependency requirements through the type system:
+
+```typescript
+// Canonical pattern: Effect.gen with yield*
+function refreshScenario(options: { adoId: AdoId; paths: ProjectPaths }) {
+  return Effect.gen(function* () {
+    const catalog = yield* loadWorkspaceCatalog({ paths: options.paths });
+    const scenario = yield* findScenario(catalog, options.adoId);
+    const bound = yield* bindScenario({ adoId: options.adoId, paths: options.paths });
+    return yield* emitScenario({ adoId: options.adoId, paths: options.paths });
+  });
+}
+```
+
+Never use `Effect.runPromise` or `Effect.runSync` inside application code. These are composition-root operations only (`lib/composition/`).
+
+### Use `Effect.all` for structurally independent operations
+
+When multiple operations are logically independent — meaning neither's output feeds the other's input — use `Effect.all` to make independence explicit at the type level:
+
+```typescript
+// Prefer: independence is explicit
+const { catalog, graph, canon } = yield* Effect.all({
+  catalog: loadWorkspaceCatalog({ paths }),
+  graph: loadInterfaceGraph({ paths }),
+  canon: loadSelectorCanon({ paths }),
+});
+
+// Avoid: false sequential dependency
+const catalog = yield* loadWorkspaceCatalog({ paths });
+const graph = yield* loadInterfaceGraph({ paths });
+const canon = yield* loadSelectorCanon({ paths });
+```
+
+For ordered collections where each element is independent, use `Effect.all` with an array:
+
+```typescript
+const results = yield* Effect.all(
+  scenarioIds.map((id) => refreshScenario({ adoId: id, paths })),
+  { concurrency: 1 },
+);
+```
+
+### Use `Effect.catchTag` for typed error recovery
+
+Prefer `Effect.catchTag` over `Effect.either` + manual `_tag` discrimination:
+
+```typescript
+// Prefer: typed recovery
+const result = yield* loadArtifact(path).pipe(
+  Effect.catchTag('FileNotFound', () => Effect.succeed(defaultValue)),
+);
+
+// Avoid: manual either discrimination
+const either = yield* Effect.either(loadArtifact(path));
+const result = either._tag === 'Left' && either.left._tag === 'FileNotFound'
+  ? defaultValue
+  : either._tag === 'Right' ? either.right : yield* Effect.fail(either.left);
+```
+
+### Use `Effect.succeed` / `Effect.fail` for pure lifts
+
+When constructing effects from pure values, use `Effect.succeed` for success and `Effect.fail` for typed errors. Never throw inside an `Effect.gen`:
+
+```typescript
+// Prefer: typed failure
+if (!scenario) {
+  return yield* Effect.fail(new TesseractError({ code: 'NOT_FOUND', message: `Scenario ${id} not found` }));
+}
+
+// Avoid: thrown exceptions inside Effect.gen
+if (!scenario) {
+  throw new Error(`Scenario ${id} not found`);
+}
+```
+
+### Thread immutable state through recursive Effect steps
+
+When an Effect-based loop needs to accumulate state across iterations (dogfood loop, pipeline phases, strategy chains), use a recursive `step` function that carries immutable state as parameters rather than mutating closed-over variables:
+
+```typescript
+// Prefer: recursive fold with immutable state
+interface LoopState {
+  readonly iterations: readonly IterationResult[];
+  readonly cumulativeInstructions: number;
+}
+
+function step(
+  iteration: number,
+  state: LoopState,
+  options: Options,
+): Effect.Effect<LoopState, unknown, unknown> {
+  if (iteration > options.maxIterations) return Effect.succeed(state);
+
+  return Effect.gen(function* () {
+    const result = yield* runIteration(iteration, options);
+    const nextState: LoopState = {
+      iterations: [...state.iterations, result],
+      cumulativeInstructions: state.cumulativeInstructions + result.instructionCount,
+    };
+    return shouldStop(nextState)
+      ? nextState
+      : yield* step(iteration + 1, nextState, options);
+  });
+}
+
+// Avoid: mutable let bindings inside Effect.gen
+return Effect.gen(function* () {
+  let cumulativeInstructions = 0;
+  const iterations: IterationResult[] = [];
+  for (let i = 1; i <= maxIterations; i++) {
+    const result = yield* runIteration(i, options);
+    iterations.push(result);
+    cumulativeInstructions += result.instructionCount;
+  }
+});
+```
+
+This is the Effect equivalent of the recursive fold pattern described in the FP Style section. The `step` function's signature makes the state contract explicit: what goes in, what comes out, and where the recursion terminates.
+
+---
+
+## Design Pattern Vocabulary
+
+This codebase uses classical design patterns deliberately. When you encounter one, preserve it. When you need a new abstraction, reach for the vocabulary below before inventing something novel.
+
+### Strategy (Resolution Ladder)
+
+The resolution ladder is a Strategy chain. Each rung is a self-contained resolution strategy with the same interface. The pipeline tries them in precedence order and returns the first success:
+
+```
+ResolutionStrategy.attempt(stage, accumulator) → { receipt, events }
+```
+
+When adding a new resolution rung, implement the `ResolutionStrategy` interface. Do not add special-case branches inside existing strategies. The chain composition in `runStrategyChain` handles ordering and short-circuiting.
+
+### Visitor / Fold (Drift Applicator, Governance Analysis)
+
+When a function processes a heterogeneous collection of tagged variants, use a fold or visitor pattern with exhaustive case analysis:
+
+```typescript
+// Fold pattern for drift events
+const finalElements = elementEvents.reduce(
+  (doc, event) => applyDriftToElements(doc, event),
+  initialElements,
+);
+
+// Exhaustive visitor via switch + never check
+function applyDriftToElements(doc: Record<string, unknown>, event: DriftEvent): Record<string, unknown> {
+  switch (event.type) {
+    case 'label-change': return applyLabelChange(doc, event);
+    case 'locator-degradation': return applyLocatorDegradation(doc, event);
+    case 'element-addition': return applyElementAddition(doc, event);
+    default: return doc;
+  }
+}
+```
+
+Use `foldGovernance` for governance case analysis. Use typed switch exhaustion for any discriminated union.
+
+### Composite (Scoring Rules, Pipeline Phases)
+
+When multiple independent dimensions combine into a single result, use a composable abstraction with `combine`/`contramap`:
+
+- `ScoringRule` with `combineScoringRules` and `contramapScoringRule` for multi-dimensional scoring
+- `PipelinePhase` arrays with `runPipelinePhases` for sequential processing with early termination
+- `ValidationRule` composition for multi-constraint validation
+
+The key property: each component is testable in isolation, and new components compose without modifying existing code (Open/Closed Principle).
+
+### State Machine (Convergence Detection, Lifecycle)
+
+When a process has discrete states and transitions, model them as a state machine rather than as conditional branches:
+
+```typescript
+// State machine: inputs determine next state, state determines continuation
+function determineConvergenceReason(
+  iteration: number,
+  state: LoopState,
+  options: Options,
+): { converged: boolean; reason: ConvergenceReason | null } {
+  if (noProposals(state) && iteration > 1) return { converged: true, reason: 'no-proposals' };
+  if (belowThreshold(state, options)) return { converged: true, reason: 'threshold-met' };
+  if (budgetExhausted(state, options)) return { converged: true, reason: 'budget-exhausted' };
+  if (iteration >= options.maxIterations) return { converged: false, reason: 'max-iterations' };
+  return { converged: false, reason: null };
+}
+```
+
+The convergence function is a pure state transition. The loop calls it and acts on the result. Convergence logic never leaks into the loop body.
+
+### Interpreter (Resolution Pipeline, Compiler Phases)
+
+The entire Tesseract system is an interpreter that lowers human-readable test scenarios through progressively more concrete representations. Each compilation phase (parse → bind → emit → compile) is an Interpreter stage. The resolution ladder is an Interpreter for step intent. The emitter is an Interpreter from grounded flows to executable code.
+
+When adding a new compilation phase or lowering step:
+1. Define the input and output types explicitly
+2. Make the phase a pure function (or Effect) from input to output
+3. Carry provenance through the phase (lineage, fingerprints, source attribution)
+4. Ensure the phase is independently testable with law-style tests
+
+### Envelope Discipline
+
+Every cross-boundary artifact carries a standard envelope: `kind`, `version`, `stage`, `scope`, `ids`, `fingerprints`, `lineage`, `governance`, `payload`. Use `mapPayload(envelope, f)` for transforms. Never destructure and reassemble envelopes manually.
+
+When creating a new artifact type, define it as a `WorkflowEnvelope<T>` variant. The envelope header is the contract that makes artifacts comparable, traceable, and governable across the system.
+
+---
+
+## Scalability and Testability Conventions
+
+### Law-style tests
+
+Every deterministic invariant should have a law-style test. These tests verify properties, not examples:
+
+- **Determinism**: same inputs → same outputs, always
+- **Precedence**: higher-priority rules win over lower-priority rules
+- **Normalization**: equivalent inputs produce identical normalized forms
+- **Round-trips**: serialize → deserialize → serialize is identity
+- **Commutativity/Associativity**: where applicable for combinators
+
+Name law tests after the property they verify: `'resolution precedence: explicit wins over knowledge'`, `'content hash is stable for equivalent step orderings'`.
+
+### Separation of construction and execution
+
+Functions that build data should not also execute side effects. Separate the "what" from the "when":
+
+```typescript
+// Prefer: build the plan, then execute it
+function buildRunPlan(scenarios: Scenario[], options: Options): RunPlan { ... }
+function executeRunPlan(plan: RunPlan): Effect.Effect<RunResult, ...> { ... }
+
+// Avoid: single function that decides and acts
+function runScenarios(scenarios: Scenario[], options: Options): Effect.Effect<RunResult, ...> {
+  // decision logic tangled with execution
+}
+```
+
+### Readonly interfaces at boundaries
+
+Export `readonly` on all interface fields for types that represent data. Reserve mutable interfaces for implementation-internal accumulation that is not exposed through public APIs:
+
+```typescript
+export interface DogfoodLedger {
+  readonly kind: 'dogfood-ledger';
+  readonly version: 1;
+  readonly iterations: readonly DogfoodIterationResult[];
+  readonly converged: boolean;
+}
+```
+
+This prevents accidental mutation by consumers and makes the immutability contract explicit.
+
+---
+
+In these cases, scope the mutation as tightly as possible and document why the pure alternative was insufficient.
+
+---
+
 ## The Two Dragons
 
 Tesseract has two engines. They are not parallel workstreams. They are not independent modules. They are a mated pair whose power comes from the fact that each one feeds the other.

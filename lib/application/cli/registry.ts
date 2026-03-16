@@ -66,6 +66,8 @@ interface ParsedFlags {
   disableTranslationCache?: boolean;
   provider?: string;
   maxIterations?: number;
+  convergenceThreshold?: number;
+  maxCost?: number;
 }
 
 interface ParseContext {
@@ -219,6 +221,14 @@ const flagReaders: Record<string, (argv: string[], index: number, flags: ParsedF
   },
   '--max-iterations': (argv, index, flags) => {
     flags.maxIterations = Number(readFlagValue('--max-iterations', argv[index + 1]));
+    return index + 1;
+  },
+  '--convergence-threshold': (argv, index, flags) => {
+    flags.convergenceThreshold = Number(readFlagValue('--convergence-threshold', argv[index + 1]));
+    return index + 1;
+  },
+  '--max-cost': (argv, index, flags) => {
+    flags.maxCost = Number(readFlagValue('--max-cost', argv[index + 1]));
     return index + 1;
   },
   '--tag': (argv, index, flags) => {
@@ -665,7 +675,7 @@ const commandRegistry: Record<CommandName, CommandSpec> = {
     }),
   },
   dogfood: {
-    flags: ['--max-iterations', '--tag', '--runbook', '--interpreter-mode'],
+    flags: ['--max-iterations', '--convergence-threshold', '--max-cost', '--tag', '--runbook', '--interpreter-mode'],
     parse: ({ flags }) => ({
       command: 'dogfood',
       strictExitOnUnbound: false,
@@ -675,6 +685,8 @@ const commandRegistry: Record<CommandName, CommandSpec> = {
       execute: (paths) => runDogfoodLoop({
         paths,
         maxIterations: flags.maxIterations ?? 2,
+        convergenceThreshold: flags.convergenceThreshold,
+        maxInstructionCount: flags.maxCost,
         tag: flags.tag,
         runbook: flags.runbook,
         interpreterMode: (flags.interpreterMode === 'playwright' ? 'diagnostic' : flags.interpreterMode) as 'dry-run' | 'diagnostic' | undefined,
