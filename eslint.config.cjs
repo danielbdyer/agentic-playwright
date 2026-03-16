@@ -102,6 +102,12 @@ module.exports = [
           { group: ['../runtime', '../runtime/*', '../runtime/**'], message: 'Domain must not import runtime.' },
         ],
       }],
+      'no-restricted-syntax': ['error',
+        { selector: "VariableDeclaration[kind='let']", message: 'Prefer const with pure expressions. Use reduce/map/filter instead of let + mutation.' },
+        { selector: "CallExpression[callee.property.name='push']", message: 'Prefer spread, concat, or reduce over Array.push.' },
+        { selector: 'ForStatement', message: 'Prefer map/filter/reduce/flatMap over imperative for loops.' },
+        { selector: 'ForInStatement', message: 'Prefer Object.entries().map() over for...in.' },
+      ],
     },
   },
   {
@@ -113,10 +119,11 @@ module.exports = [
           { group: ['../runtime', '../runtime/*', '../runtime/**'], message: 'Application must not import runtime orchestration.' },
         ],
       }],
-      'no-restricted-syntax': ['error', {
-        selector: "ThrowStatement > NewExpression[callee.name='Error']",
-        message: 'Use structured domain/runtime errors instead of throwing Error in application/runtime code.',
-      }],
+      'no-restricted-syntax': ['error',
+        { selector: "ThrowStatement > NewExpression[callee.name='Error']", message: 'Use structured domain/runtime errors instead of throwing Error in application/runtime code.' },
+        { selector: 'ForStatement', message: 'Prefer map/filter/reduce/flatMap over imperative for loops.' },
+        { selector: 'ForInStatement', message: 'Prefer Object.entries().map() over for...in.' },
+      ],
     },
   },
   {

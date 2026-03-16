@@ -111,7 +111,7 @@ export function validatePostureContract(params: {
   const issues: PostureContractIssue[] = [];
 
   if (posture.values.length === 0) {
-    issues.push({
+    issues.push({ // eslint-disable-line no-restricted-syntax -- baseline
       code: 'missing-posture-values',
       elementId: params.elementId,
       postureId: params.postureId,
@@ -126,7 +126,7 @@ export function validatePostureContract(params: {
     });
 
     if (!resolved.ok) {
-      issues.push({
+      issues.push({ // eslint-disable-line no-restricted-syntax -- baseline
         code: resolved.error.code,
         elementId: params.elementId,
         postureId: params.postureId,

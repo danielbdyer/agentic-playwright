@@ -66,7 +66,7 @@ export function evaluateTrustPolicy(input: {
 
   const minimumConfidence = confidenceThresholdReason(input.proposedChange.confidence, artifactRule.minimumConfidence);
   if (minimumConfidence) {
-    reasons.push(minimumConfidence);
+    reasons.push(minimumConfidence); // eslint-disable-line no-restricted-syntax -- baseline
   }
 
   const evidenceReason = evidenceRuleReason({
@@ -75,12 +75,12 @@ export function evaluateTrustPolicy(input: {
     minimumCount: artifactRule.requiredEvidence.minCount,
   });
   if (evidenceReason) {
-    reasons.push(evidenceReason);
+    reasons.push(evidenceReason); // eslint-disable-line no-restricted-syntax -- baseline
   }
 
   const autoHealReason = forbiddenAutoHealReason(input.proposedChange.autoHealClass, input.policy.forbiddenAutoHealClasses);
   if (autoHealReason) {
-    reasons.push(autoHealReason);
+    reasons.push(autoHealReason); // eslint-disable-line no-restricted-syntax -- baseline
   }
 
   return {

@@ -33,7 +33,7 @@ function dependentNodesForEdge(edge: GraphEdge, nodes: Map<string, GraphNode>, c
 
 export function collectRelatedSubgraph(graph: DerivedGraph, seedNodeIds: Set<string>) {
   const expanded = new Set(seedNodeIds);
-  let changed = true;
+  let changed = true; // eslint-disable-line no-restricted-syntax -- baseline: fixed-point convergence
 
   while (changed) {
     changed = false;
@@ -72,7 +72,7 @@ export function collectImpactSubgraph(graph: DerivedGraph, nodeId: string) {
       for (const dependent of dependentNodesForEdge(edge, nodes, current)) {
         if (!impacted.has(dependent)) {
           impacted.add(dependent);
-          queue.push(dependent);
+          queue.push(dependent); // eslint-disable-line no-restricted-syntax -- baseline: BFS queue
         }
       }
     }

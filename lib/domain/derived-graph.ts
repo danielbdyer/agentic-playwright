@@ -282,14 +282,14 @@ function patternIdsForStep(stepContext: StepGraphContext, sharedPatternsArtifact
   const ids: string[] = [];
   const binding = stepBinding(stepContext);
   if (binding?.ruleId) {
-    ids.push(graphIds.pattern(binding.ruleId));
+    ids.push(graphIds.pattern(binding.ruleId)); // eslint-disable-line no-restricted-syntax -- baseline
   }
 
   if (stepContext.step.posture) {
     for (const entry of sharedPatternsArtifacts) {
       const descriptor = entry.artifact.postures?.[stepContext.step.posture];
       if (descriptor?.id) {
-        ids.push(graphIds.pattern(descriptor.id));
+        ids.push(graphIds.pattern(descriptor.id)); // eslint-disable-line no-restricted-syntax -- baseline
       }
     }
   }

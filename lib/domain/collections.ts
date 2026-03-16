@@ -19,7 +19,7 @@ export function groupBy<T, K extends string>(values: Iterable<T>, keyOf: (value:
   for (const value of values) {
     const key = keyOf(value);
     const existing = groups.get(key) ?? [];
-    existing.push(value);
+    existing.push(value); // eslint-disable-line no-restricted-syntax -- baseline: groupBy accumulation
     groups.set(key, existing);
   }
   return Object.fromEntries(sortByStringKey(groups.entries(), ([key]) => key)) as Record<K, T[]>;

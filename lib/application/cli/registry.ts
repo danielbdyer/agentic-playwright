@@ -704,7 +704,7 @@ export function parseCliInvocation(argv: string[]): CommandExecution {
   const spec = commandRegistry[rawCommand];
   const flags: ParsedFlags = {};
 
-  for (let index = 0; index < tokens.length; index += 1) {
+  for (let index = 0; index < tokens.length; index += 1) { // eslint-disable-line no-restricted-syntax -- baseline: index-advancing flag parser
     const token = tokens[index];
     if (!token || !token.startsWith('--')) {
       continue;
