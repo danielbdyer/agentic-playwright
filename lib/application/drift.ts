@@ -1,5 +1,6 @@
 import YAML from 'yaml';
 import { Effect } from 'effect';
+import { isRecord } from '../domain/collections';
 import { FileSystem } from './ports';
 import type { ProjectPaths } from './paths';
 
@@ -8,13 +9,7 @@ export interface DriftTarget {
   readonly element?: string;
 }
 
-export interface LabelChangeMutation {
-  readonly field: string;
-  readonly from: string;
-  readonly to: string;
-}
-
-export interface LocatorDegradationMutation {
+export interface FieldReplaceMutation {
   readonly field: string;
   readonly from: string;
   readonly to: string;
@@ -33,7 +28,7 @@ export interface DriftEvent {
   readonly id: string;
   readonly type: 'label-change' | 'locator-degradation' | 'element-addition' | 'alias-removal';
   readonly target: DriftTarget;
-  readonly mutation: LabelChangeMutation | LocatorDegradationMutation | ElementAdditionMutation | AliasRemovalMutation;
+  readonly mutation: FieldReplaceMutation | ElementAdditionMutation | AliasRemovalMutation;
 }
 
 export interface VarianceManifest {
@@ -49,14 +44,10 @@ export interface DriftApplyResult {
   readonly modifiedFiles: readonly string[];
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-}
-
-function applyLabelChange(
+function replaceElementField(
   elements: Record<string, unknown>,
   element: string,
-  mutation: LabelChangeMutation,
+  mutation: FieldReplaceMutation,
 ): Record<string, unknown> {
   const entry = isRecord(elements[element]) ? { ...elements[element] as Record<string, unknown> } : {};
   return entry[mutation.field] === mutation.from
@@ -64,18 +55,7 @@ function applyLabelChange(
     : elements;
 }
 
-function applyLocatorDegradation(
-  elements: Record<string, unknown>,
-  element: string,
-  mutation: LocatorDegradationMutation,
-): Record<string, unknown> {
-  const entry = isRecord(elements[element]) ? { ...elements[element] as Record<string, unknown> } : {};
-  return entry[mutation.field] === mutation.from
-    ? { ...elements, [element]: { ...entry, [mutation.field]: mutation.to } }
-    : elements;
-}
-
-function applyElementAddition(
+function addElement(
   elements: Record<string, unknown>,
   mutation: ElementAdditionMutation,
 ): Record<string, unknown> {
@@ -84,7 +64,7 @@ function applyElementAddition(
     : { ...elements, [mutation.elementId]: mutation.definition };
 }
 
-function applyAliasRemoval(
+function removeAliases(
   hintsElements: Record<string, unknown>,
   element: string,
   mutation: AliasRemovalMutation,
@@ -105,19 +85,15 @@ function applyDriftToElements(
 
   switch (event.type) {
     case 'label-change':
-      return {
-        ...doc,
-        elements: applyLabelChange(elements, event.target.element!, event.mutation as LabelChangeMutation),
-      };
     case 'locator-degradation':
       return {
         ...doc,
-        elements: applyLocatorDegradation(elements, event.target.element!, event.mutation as LocatorDegradationMutation),
+        elements: replaceElementField(elements, event.target.element!, event.mutation as FieldReplaceMutation),
       };
     case 'element-addition':
       return {
         ...doc,
-        elements: applyElementAddition(elements, event.mutation as ElementAdditionMutation),
+        elements: addElement(elements, event.mutation as ElementAdditionMutation),
       };
     default:
       return doc;
@@ -134,8 +110,16 @@ function applyDriftToHints(
   const elements = isRecord(doc.elements) ? { ...doc.elements as Record<string, unknown> } : {};
   return {
     ...doc,
-    elements: applyAliasRemoval(elements, event.target.element!, event.mutation as AliasRemovalMutation),
+    elements: removeAliases(elements, event.target.element!, event.mutation as AliasRemovalMutation),
   };
+}
+
+function collectModifiedFile(
+  path: string,
+  initial: Record<string, unknown>,
+  final: Record<string, unknown>,
+): readonly string[] {
+  return YAML.stringify(final) !== YAML.stringify(initial) ? [path] : [];
 }
 
 export function loadVarianceManifest(manifestPath: string) {
@@ -161,8 +145,10 @@ export function applyDriftEvents(options: {
     const elementsPath = `${paths.rootDir}/knowledge/screens/${manifest.screen}.elements.yaml`;
     const hintsPath = `${paths.rootDir}/knowledge/screens/${manifest.screen}.hints.yaml`;
 
-    const elementsText = yield* fs.readText(elementsPath);
-    const hintsText = yield* fs.readText(hintsPath);
+    const { elementsText, hintsText } = yield* Effect.all({
+      elementsText: fs.readText(elementsPath),
+      hintsText: fs.readText(hintsPath),
+    });
 
     const initialElements = YAML.parse(elementsText) as Record<string, unknown>;
     const initialHints = YAML.parse(hintsText) as Record<string, unknown>;
@@ -182,19 +168,20 @@ export function applyDriftEvents(options: {
       initialHints,
     );
 
-    const modifiedFiles: string[] = [];
+    const modifiedFiles = [
+      ...collectModifiedFile(elementsPath, initialElements, finalElements),
+      ...collectModifiedFile(hintsPath, initialHints, finalHints),
+    ];
 
-    const elementsChanged = YAML.stringify(finalElements) !== YAML.stringify(initialElements);
-    if (elementsChanged) {
-      yield* fs.writeText(elementsPath, YAML.stringify(finalElements));
-      modifiedFiles.push(elementsPath);
-    }
-
-    const hintsChanged = YAML.stringify(finalHints) !== YAML.stringify(initialHints);
-    if (hintsChanged) {
-      yield* fs.writeText(hintsPath, YAML.stringify(finalHints));
-      modifiedFiles.push(hintsPath);
-    }
+    yield* Effect.all(
+      modifiedFiles.map((filePath) => {
+        const content = filePath === elementsPath
+          ? YAML.stringify(finalElements)
+          : YAML.stringify(finalHints);
+        return fs.writeText(filePath, content);
+      }),
+      { concurrency: 1 },
+    );
 
     return {
       appliedEventIds: events.map((e) => e.id),
