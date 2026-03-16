@@ -20,6 +20,13 @@
       "contentHash": "sha256:dcceb5d5f884a5c6a7ae8a24be17558289691591432312e36f398360f82fd5da",
       "syncedAt": "2026-03-16T00:00:00.000Z",
       "sourcePath": ".ado-sync/snapshots/10010.json"
+    },
+    "10011": {
+      "adoId": "10011",
+      "revision": 1,
+      "contentHash": "sha256:c0a0191175bd534caa8dc7a06731308af5018cf09d7a82f02ec1a3f14e2c65e6",
+      "syncedAt": "2026-03-16T00:00:00.000Z",
+      "sourcePath": ".ado-sync/snapshots/10011.json"
     }
   }
 }

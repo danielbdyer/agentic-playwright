@@ -6,22 +6,30 @@
   "ids": {
     "adoId": "10010",
     "suite": "demo/policy-detail",
-    "runId": "pending",
-    "dataset": null,
-    "runbook": null,
-    "resolutionControl": null
+    "runId": "2026-03-16T16-34-55-318Z",
+    "stepIndex": null,
+    "dataset": "demo-default",
+    "runbook": "demo-smoke",
+    "resolutionControl": "demo-policy-search"
   },
   "fingerprints": {
-    "artifact": "pending",
+    "artifact": "2026-03-16T16-34-55-318Z:proposal",
     "content": "sha256:dcceb5d5f884a5c6a7ae8a24be17558289691591432312e36f398360f82fd5da",
-    "knowledge": null,
-    "controls": null,
-    "task": null,
-    "run": "pending"
+    "knowledge": "sha256:4bb29cd3fde742c848135ecb375af79b9d633d868c20d91491d164049dab49be",
+    "controls": "sha256:15485c9655ba48ffb1dc96dd5a8544f1d1f11a0b07433af3470f88f7eb3f8081",
+    "task": "sha256:9a7c4b0dd75f6bc3c712b84fdbee580b3d52f21276b35ab9fa573d36366c7860",
+    "run": "2026-03-16T16-34-55-318Z"
   },
   "lineage": {
-    "sources": [],
-    "parents": [],
+    "sources": [
+      "sha256:9a7c4b0dd75f6bc3c712b84fdbee580b3d52f21276b35ab9fa573d36366c7860",
+      "controls/runbooks/demo-smoke.runbook.yaml",
+      "controls/datasets/demo-default.dataset.yaml"
+    ],
+    "parents": [
+      "sha256:9a7c4b0dd75f6bc3c712b84fdbee580b3d52f21276b35ab9fa573d36366c7860",
+      "2026-03-16T16-34-55-318Z"
+    ],
     "handshakes": [
       "preparation",
       "resolution",
@@ -33,14 +41,14 @@
   "governance": "approved",
   "payload": {
     "adoId": "10010",
-    "runId": "pending",
+    "runId": "2026-03-16T16-34-55-318Z",
     "revision": 1,
     "title": "Verify navigating to policy detail shows correct policy information",
     "suite": "demo/policy-detail",
     "proposals": []
   },
   "adoId": "10010",
-  "runId": "pending",
+  "runId": "2026-03-16T16-34-55-318Z",
   "revision": 1,
   "title": "Verify navigating to policy detail shows correct policy information",
   "suite": "demo/policy-detail",

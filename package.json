@@ -28,6 +28,7 @@
     "rerun-plan": "npm run build && node dist/bin/tesseract.js rerun-plan",
     "benchmark": "npm run build && node dist/bin/tesseract.js benchmark --benchmark flagship-policy-journey",
     "scorecard": "npm run build && node dist/bin/tesseract.js scorecard --benchmark flagship-policy-journey",
+    "dogfood": "npm run build && node dist/bin/tesseract.js dogfood",
     "capture": "npm run build && node dist/bin/tesseract.js capture --screen policy-search --section results-with-policy",
     "surface": "npm run build && node dist/bin/tesseract.js surface --screen policy-search",
     "workflow": "npm run build && node dist/bin/tesseract.js workflow --ado-id 10001",

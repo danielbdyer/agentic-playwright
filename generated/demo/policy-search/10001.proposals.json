@@ -6,29 +6,29 @@
   "ids": {
     "adoId": "10001",
     "suite": "demo/policy-search",
-    "runId": "2026-03-13T01-55-38-254Z",
+    "runId": "2026-03-16T17-00-51-226Z",
     "stepIndex": null,
     "dataset": "demo-default",
     "runbook": "demo-smoke",
     "resolutionControl": "demo-policy-search"
   },
   "fingerprints": {
-    "artifact": "2026-03-13T01-55-38-254Z:proposal",
+    "artifact": "2026-03-16T17-00-51-226Z:proposal",
     "content": "sha256:1930319ee9882abb4af0ab8dc9d6c120f6ddc8b77ca6441c20be91697f7b19d1",
-    "knowledge": "sha256:d547ec52541fe38846b532c9a824cf88f17852fde333c58c11d720201c53e0ca",
-    "controls": "sha256:5d46baad2c61c92b01288807d0ddb53565590599498a25897fa91fcde56ced32",
-    "task": "sha256:1209a75f3fd848c1dc1bea232569098e90450941c6e505540dcd78d1c8eacadc",
-    "run": "2026-03-13T01-55-38-254Z"
+    "knowledge": "sha256:288a1feb280f7ca23b45c6cb05bf37771f30b8e4f01a48b5cebc4f6c2d1bc8fa",
+    "controls": "sha256:280818d57e17b80cf8e03547ce3b9d2580d061cee7df9c4ba29b293f6eb35634",
+    "task": "sha256:e9a6473267c4e3df45f2761cb68dc0e4c4e54be6c3d1dcc0adcc977ebd218f9e",
+    "run": "2026-03-16T17-00-51-226Z"
   },
   "lineage": {
     "sources": [
-      "sha256:1209a75f3fd848c1dc1bea232569098e90450941c6e505540dcd78d1c8eacadc",
+      "sha256:e9a6473267c4e3df45f2761cb68dc0e4c4e54be6c3d1dcc0adcc977ebd218f9e",
       "controls/runbooks/demo-smoke.runbook.yaml",
       "controls/datasets/demo-default.dataset.yaml"
     ],
     "parents": [
-      "sha256:1209a75f3fd848c1dc1bea232569098e90450941c6e505540dcd78d1c8eacadc",
-      "2026-03-13T01-55-38-254Z"
+      "sha256:e9a6473267c4e3df45f2761cb68dc0e4c4e54be6c3d1dcc0adcc977ebd218f9e",
+      "2026-03-16T17-00-51-226Z"
     ],
     "handshakes": [
       "preparation",
@@ -41,14 +41,14 @@
   "governance": "approved",
   "payload": {
     "adoId": "10001",
-    "runId": "2026-03-13T01-55-38-254Z",
+    "runId": "2026-03-16T17-00-51-226Z",
     "revision": 1,
     "title": "Verify policy search returns matching policy",
     "suite": "demo/policy-search",
     "proposals": []
   },
   "adoId": "10001",
-  "runId": "2026-03-13T01-55-38-254Z",
+  "runId": "2026-03-16T17-00-51-226Z",
   "revision": 1,
   "title": "Verify policy search returns matching policy",
   "suite": "demo/policy-search",

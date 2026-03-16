@@ -3,6 +3,7 @@ import { approveProposal } from '../approve';
 import { projectBenchmarkScorecard } from '../benchmark';
 import { bindScenario } from '../bind';
 import { compileScenario } from '../compile';
+import { runDogfoodLoop } from '../dogfood';
 import { emitScenario } from '../emit';
 import { buildDerivedGraph } from '../graph';
 import { impactNode } from '../impact';
@@ -64,6 +65,7 @@ interface ParsedFlags {
   disableTranslation?: boolean;
   disableTranslationCache?: boolean;
   provider?: string;
+  maxIterations?: number;
 }
 
 interface ParseContext {
@@ -113,7 +115,8 @@ export type CommandName =
   | 'rerun-plan'
   | 'benchmark'
   | 'scorecard'
-  | 'replay';
+  | 'replay'
+  | 'dogfood';
 
 export const commandNames: readonly CommandName[] = [
   'sync',
@@ -140,6 +143,7 @@ export const commandNames: readonly CommandName[] = [
   'benchmark',
   'scorecard',
   'replay',
+  'dogfood',
 ] as const;
 
 const flagReaders: Record<string, (argv: string[], index: number, flags: ParsedFlags) => number> = {
@@ -211,6 +215,10 @@ const flagReaders: Record<string, (argv: string[], index: number, flags: ParsedF
   },
   '--provider': (argv, index, flags) => {
     flags.provider = readFlagValue('--provider', argv[index + 1]);
+    return index + 1;
+  },
+  '--max-iterations': (argv, index, flags) => {
+    flags.maxIterations = Number(readFlagValue('--max-iterations', argv[index + 1]));
     return index + 1;
   },
   '--tag': (argv, index, flags) => {
@@ -656,12 +664,29 @@ const commandRegistry: Record<CommandName, CommandSpec> = {
       }),
     }),
   },
+  dogfood: {
+    flags: ['--max-iterations', '--tag', '--runbook', '--interpreter-mode'],
+    parse: ({ flags }) => ({
+      command: 'dogfood',
+      strictExitOnUnbound: false,
+      postureInput: withDefinedValues({
+        interpreterMode: flags.interpreterMode,
+      }),
+      execute: (paths) => runDogfoodLoop({
+        paths,
+        maxIterations: flags.maxIterations ?? 2,
+        tag: flags.tag,
+        runbook: flags.runbook,
+        interpreterMode: (flags.interpreterMode === 'playwright' ? 'diagnostic' : flags.interpreterMode) as 'dry-run' | 'diagnostic' | undefined,
+      }),
+    }),
+  },
 };
 
 export function parseCliInvocation(argv: string[]): CommandExecution {
   const [rawCommand = 'help', ...tokens] = argv;
   if (!isCommandName(rawCommand)) {
-    throw new Error('Unknown command. Expected sync, parse, bind, emit, compile, refresh, run, replay, paths, capture, discover, harvest, surface, graph, trace, impact, types, workflow, inbox, approve, certify, rerun-plan, benchmark, or scorecard.');
+    throw new Error('Unknown command. Expected sync, parse, bind, emit, compile, refresh, run, replay, paths, capture, discover, harvest, surface, graph, trace, impact, types, workflow, inbox, approve, certify, rerun-plan, benchmark, scorecard, or dogfood.');
   }
 
   const spec = commandRegistry[rawCommand];

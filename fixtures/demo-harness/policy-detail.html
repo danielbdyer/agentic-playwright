@@ -140,6 +140,9 @@
 
           <span class="field-label">Effective Date</span>
           <span id="effective-date" data-testid="effective-date" aria-label="Effective Date"></span>
+
+          <span class="field-label">Underwriter</span>
+          <span id="underwriter" data-testid="underwriter" aria-label="Underwriter"></span>
         </div>
       </section>
 
@@ -175,6 +178,7 @@
             number: 'POL-001',
             status: 'Active',
             effectiveDate: '2024-01-15',
+            underwriter: 'Apex Coverage Partners',
             claims: [
               { id: 'CLM-101', date: '2024-06-20', amount: '$1,250.00' },
               { id: 'CLM-102', date: '2025-01-08', amount: '$430.00' },
@@ -191,6 +195,7 @@
         var policyNumberEl = document.getElementById('policy-number');
         var policyStatusEl = document.getElementById('policy-status');
         var effectiveDateEl = document.getElementById('effective-date');
+        var underwriterEl = document.getElementById('underwriter');
         var claimsBody = document.getElementById('claims-body');
 
         function renderPolicy(policy) {
@@ -201,6 +206,7 @@
             '<span class="status-badge ' + statusClass + '">' + policy.status + '</span>';
 
           effectiveDateEl.textContent = policy.effectiveDate;
+          underwriterEl.textContent = policy.underwriter || '';
           detailPanel.hidden = false;
 
           if (policy.claims && policy.claims.length > 0) {

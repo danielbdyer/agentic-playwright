@@ -1,7 +1,7 @@
 {
   "version": 1,
   "projection": "types",
-  "inputSetFingerprint": "sha256:40925541bd3105c07bb041f6090cf8c0442f123bd92887b58164efba82ea14f3",
+  "inputSetFingerprint": "sha256:586221fd49382b420efd06eaad6e53883021f33f5e3f24b9288b05191dc484f5",
   "outputFingerprint": "sha256:06cff1489c923826b73a4ae5faabb18129b9118d4616851f321dda5b35b00e0d",
   "inputs": [
     {
@@ -38,6 +38,11 @@
       "kind": "scenario",
       "path": "scenarios/demo/policy-detail/10010.scenario.yaml",
       "fingerprint": "sha256:863bc77134656d995dc2944c5883db17e920d136b1bc664886a467facb45bd2a"
+    },
+    {
+      "kind": "scenario",
+      "path": "scenarios/demo/policy-detail/10011.scenario.yaml",
+      "fingerprint": "sha256:bd88b7f1ac3ab934b6ca41f24b304395825ec0d3d542b4bb66b9a862ab0eb03c"
     },
     {
       "kind": "scenario",

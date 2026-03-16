@@ -1,12 +1,19 @@
 ﻿import { mkdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'fs';
 import path from 'path';
 import { expect, test } from '@playwright/test';
+import { activateProposalBundle } from '../lib/application/activate-proposals';
+import { runDogfoodLoop, type DogfoodLedger } from '../lib/application/dogfood';
 import { buildDerivedGraph } from '../lib/application/graph';
 import { impactNode } from '../lib/application/impact';
 import { emitOperatorInbox } from '../lib/application/inbox';
 import { describeScenarioPaths } from '../lib/application/inspect';
 import { emitScenario } from '../lib/application/emit';
 import { loadWorkspaceCatalog } from '../lib/application/catalog';
+import {
+  createProposalBundleEnvelope,
+  createScenarioEnvelopeFingerprints,
+  createScenarioEnvelopeIds,
+} from '../lib/application/catalog/envelope';
 import { emitManifestPath } from '../lib/application/paths';
 import { resolveAgentSessionAdapter } from '../lib/application/provider-registry';
 import { refreshScenario } from '../lib/application/refresh';
@@ -20,6 +27,7 @@ import type { ProjectionCacheMissIncremental, ProjectionIncremental } from '../l
 import { runWithLocalServices } from '../lib/composition/local-services';
 import { createAdoId, createElementId, createScreenId, createSurfaceId } from '../lib/domain/identity';
 import { graphIds } from '../lib/domain/ids';
+import type { ProposalEntry } from '../lib/domain/types';
 import { validateDiscoveryIndex } from '../lib/domain/validation';
 import { harvestDeclaredRoutes } from '../lib/infrastructure/tooling/harvest-routes';
 import { createTestWorkspace } from './support/workspace';
@@ -1149,6 +1157,196 @@ test('run scenario emits agent session and learning artifacts with replay-ready 
     expect(catalog.agentSessions.some((entry) => entry.artifact.sessionId === run.runId)).toBeTruthy();
     expect(catalog.learningManifest?.artifact.replayExamples).toBe(1);
     expect(catalog.replayExamples.some((entry) => entry.artifact.runId === run.runId)).toBeTruthy();
+  } finally {
+    workspace.cleanup();
+  }
+});
+
+test('flywheel: proposal activation improves knowledge hit rate on recompile for 10011', async () => {
+  const workspace = createTestWorkspace('flywheel-proposal-loop');
+  try {
+    const adoId = createAdoId('10011');
+
+    // Phase 1: compile + run 10011 in diagnostic mode — step 4 (underwriter) is unresolved
+    await runWithLocalServices(refreshScenario({ adoId, paths: workspace.paths }), workspace.rootDir);
+    const baselineRun = await runWithLocalServices(
+      runScenario({ adoId, paths: workspace.paths, interpreterMode: 'diagnostic' }),
+      workspace.rootDir,
+    );
+    const baselineTrace = JSON.parse(readFileSync(baselineRun.emitted.tracePath, 'utf8').replace(/^\uFEFF/, '')) as {
+      summary: { stageMetrics: { knowledgeHitRate: number } };
+      steps: Array<{ provenanceKind: string; unresolvedGaps: string[] }>;
+    };
+    expect(baselineTrace.summary.stageMetrics.knowledgeHitRate).toBe(0.75);
+    expect(baselineTrace.steps[3]!.provenanceKind).toBe('unresolved');
+    expect(baselineTrace.steps[3]!.unresolvedGaps).toContain('runtime-resolution-required');
+
+    // Phase 2: simulate what the runtime agent would do — add the underwriter element
+    // to the knowledge layer (as live DOM discovery would propose)
+    const elementsPath = path.join(workspace.rootDir, 'knowledge', 'screens', 'policy-detail.elements.yaml');
+    const elementsContent = readFileSync(elementsPath, 'utf8');
+    writeFileSync(elementsPath, elementsContent + `  underwriter:
+    role: text
+    name: Underwriter
+    testId: underwriter
+    surface: detail-fields
+    widget: os-region
+    required: false
+`);
+
+    // Also add a hint alias to help match the novel phrasing
+    const proposal: ProposalEntry = {
+      proposalId: 'proposal-underwriter-alias',
+      stepIndex: 4,
+      artifactType: 'hints',
+      targetPath: 'knowledge/screens/policy-detail.hints.yaml',
+      title: 'Capture phrasing for step 4 (underwriter)',
+      patch: {
+        screen: 'policy-detail',
+        element: 'underwriter',
+        alias: 'Verify the underwriter name is displayed on the detail page',
+      },
+      evidenceIds: [],
+      impactedSteps: [4],
+      trustPolicy: { decision: 'allow', reasons: [] },
+      certification: 'uncertified',
+      activation: {
+        status: 'pending',
+        activatedAt: null,
+        certifiedAt: null,
+        reason: null,
+      },
+      lineage: {
+        runIds: ['flywheel-run-1'],
+        evidenceIds: [],
+        sourceArtifactPaths: ['.tesseract/tasks/10011.runtime.json'],
+        role: 'csr',
+        state: 'quoted',
+        driftSeed: 'flywheel-seed-1',
+      },
+    };
+
+    const proposalBundle = createProposalBundleEnvelope({
+      ids: createScenarioEnvelopeIds({
+        adoId,
+        suite: 'demo/policy-detail',
+        runId: 'flywheel-run-1',
+        dataset: 'demo-default',
+        runbook: 'demo-smoke',
+        resolutionControl: null,
+      }),
+      fingerprints: createScenarioEnvelopeFingerprints({
+        artifact: 'flywheel-run-1:proposal',
+        content: 'sha256:content',
+        knowledge: 'sha256:knowledge',
+        controls: 'sha256:controls',
+        task: 'sha256:task',
+        run: 'flywheel-run-1',
+      }),
+      lineage: {
+        sources: ['.tesseract/tasks/10011.runtime.json'],
+        parents: ['sha256:task', 'flywheel-run-1'],
+        handshakes: ['preparation', 'resolution', 'execution', 'evidence', 'proposal'],
+      },
+      governance: 'approved',
+      payload: {
+        adoId,
+        runId: 'flywheel-run-1',
+        revision: 1,
+        title: 'Verify policy detail loads and displays coverage effective date',
+        suite: 'demo/policy-detail',
+        proposals: [proposal],
+      },
+      proposals: [proposal],
+    });
+
+    // Phase 3: activate the hint proposal — patches hints file with underwriter alias
+    const activation = await runWithLocalServices(activateProposalBundle({
+      paths: workspace.paths,
+      proposalBundle,
+    }), workspace.rootDir);
+    expect(activation.blockedProposalIds).toEqual([]);
+    expect(activation.activatedPaths).toHaveLength(1);
+    expect(activation.activatedPaths[0]).toContain('policy-detail.hints.yaml');
+
+    // Phase 4: recompile + re-run — step 4 should now resolve from approved knowledge
+    await runWithLocalServices(refreshScenario({ adoId, paths: workspace.paths }), workspace.rootDir);
+    const improvedRun = await runWithLocalServices(
+      runScenario({ adoId, paths: workspace.paths, interpreterMode: 'diagnostic' }),
+      workspace.rootDir,
+    );
+    const improvedTrace = JSON.parse(readFileSync(improvedRun.emitted.tracePath, 'utf8').replace(/^\uFEFF/, '')) as {
+      summary: { stageMetrics: { knowledgeHitRate: number } };
+      steps: Array<{ provenanceKind: string; unresolvedGaps: string[] }>;
+    };
+
+    // The flywheel turned: knowledge hit rate improved from 0.75 to 1.0
+    expect(improvedTrace.summary.stageMetrics.knowledgeHitRate).toBe(1);
+    expect(improvedTrace.steps[3]!.provenanceKind).toBe('approved-knowledge');
+    expect(improvedTrace.steps[3]!.unresolvedGaps).toEqual([]);
+
+    // Move 5: scorecard delta — structured comparison of the two runs
+    const delta = {
+      baseline: {
+        runId: baselineRun.runId,
+        knowledgeHitRate: baselineTrace.summary.stageMetrics.knowledgeHitRate,
+        unresolvedSteps: baselineTrace.steps.filter((s) => s.provenanceKind === 'unresolved').length,
+        approvedKnowledgeSteps: baselineTrace.steps.filter((s) => s.provenanceKind === 'approved-knowledge').length,
+      },
+      improved: {
+        runId: improvedRun.runId,
+        knowledgeHitRate: improvedTrace.summary.stageMetrics.knowledgeHitRate,
+        unresolvedSteps: improvedTrace.steps.filter((s) => s.provenanceKind === 'unresolved').length,
+        approvedKnowledgeSteps: improvedTrace.steps.filter((s) => s.provenanceKind === 'approved-knowledge').length,
+      },
+      proposalActivations: 1,
+      knowledgeHitRateDelta: improvedTrace.summary.stageMetrics.knowledgeHitRate - baselineTrace.summary.stageMetrics.knowledgeHitRate,
+      unresolvedDelta: improvedTrace.steps.filter((s) => s.provenanceKind === 'unresolved').length - baselineTrace.steps.filter((s) => s.provenanceKind === 'unresolved').length,
+    };
+
+    // Resolution quality improved
+    expect(delta.knowledgeHitRateDelta).toBe(0.25);
+    // Unresolved count decreased
+    expect(delta.unresolvedDelta).toBe(-1);
+    // Knowledge coverage increased
+    expect(delta.improved.approvedKnowledgeSteps).toBeGreaterThan(delta.baseline.approvedKnowledgeSteps);
+    // Exactly one proposal activation drove the improvement
+    expect(delta.proposalActivations).toBe(1);
+  } finally {
+    workspace.cleanup();
+  }
+});
+
+test('dogfood loop completes two iterations and produces a legible ledger', async () => {
+  const workspace = createTestWorkspace('dogfood-loop');
+  try {
+    const adoId = createAdoId('10001');
+    await runWithLocalServices(refreshScenario({ adoId, paths: workspace.paths }), workspace.rootDir);
+
+    const { ledger, ledgerPath } = await runWithLocalServices(
+      runDogfoodLoop({
+        paths: workspace.paths,
+        maxIterations: 2,
+        interpreterMode: 'diagnostic',
+      }),
+      workspace.rootDir,
+    );
+
+    expect(ledger.kind).toBe('dogfood-ledger');
+    expect(ledger.version).toBe(1);
+    expect(ledger.maxIterations).toBe(2);
+    expect(ledger.completedIterations).toBeGreaterThanOrEqual(1);
+    expect(ledger.completedIterations).toBeLessThanOrEqual(2);
+    expect(ledger.iterations.length).toBeGreaterThanOrEqual(1);
+    expect(ledger.iterations[0]!.iteration).toBe(1);
+    expect(ledger.iterations[0]!.scenarioIds.length).toBeGreaterThan(0);
+    expect(ledger.iterations[0]!.knowledgeHitRate).toBeGreaterThanOrEqual(0);
+    expect(typeof ledger.knowledgeHitRateDelta).toBe('number');
+    expect(typeof ledger.totalProposalsActivated).toBe('number');
+
+    const writtenLedger = JSON.parse(readFileSync(ledgerPath, 'utf8').replace(/^\uFEFF/, '')) as DogfoodLedger;
+    expect(writtenLedger.kind).toBe('dogfood-ledger');
+    expect(writtenLedger.completedIterations).toBe(ledger.completedIterations);
   } finally {
     workspace.cleanup();
   }
