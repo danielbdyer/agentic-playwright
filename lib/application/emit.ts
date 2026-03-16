@@ -214,9 +214,9 @@ export function emitScenario(
       : (() => {
           const scenario = catalog.scenarios.find((entry) => entry.artifact.source.ado_id === options.adoId);
           const boundScenario = catalog.boundScenarios.find((entry) => entry.artifact.source.ado_id === options.adoId);
-          const taskPacket = catalog.taskPackets.find((entry) => entry.artifact.payload.adoId === options.adoId);
-          if (!scenario || !boundScenario || !taskPacket) {
-            throw new Error(`Missing scenario, bound scenario, or task packet for ${options.adoId}`);
+          const surface = catalog.interpretationSurfaces.find((entry) => entry.artifact.payload.adoId === options.adoId);
+          if (!scenario || !boundScenario || !surface) {
+            throw new Error(`Missing scenario, bound scenario, or interpretation surface for ${options.adoId}`);
           }
           return {
             adoId: options.adoId,
@@ -224,8 +224,8 @@ export function emitScenario(
             scenarioPath: scenario.absolutePath,
             boundScenario: boundScenario.artifact,
             boundPath: boundScenario.absolutePath,
-            taskPacket: taskPacket.artifact,
-            taskPath: taskPacket.absolutePath,
+            surface: surface.artifact,
+            surfacePath: surface.absolutePath,
             hasUnbound: boundScenario.artifact.steps.some((step) => step.binding.kind === 'unbound'),
           } satisfies CompileSnapshot;
         })();
@@ -255,7 +255,7 @@ export function emitScenario(
     );
     const inputFingerprints: ProjectionInputFingerprint[] = [
       fingerprintProjectionArtifact('bound', relativeProjectPath(options.paths, source.boundPath), source.boundScenario),
-      fingerprintProjectionArtifact('task', relativeProjectPath(options.paths, source.taskPath), source.taskPacket),
+      fingerprintProjectionArtifact('task', relativeProjectPath(options.paths, source.surfacePath), source.surface),
       ...(latestRun ? [fingerprintProjectionArtifact('run', relativeProjectPath(options.paths, catalog.runRecords.find((entry) => entry.artifact.runId === latestRun.runId)?.absolutePath ?? ''), latestRun)] : []),
       ...(catalog.interfaceGraph ? [fingerprintProjectionArtifact('interface-graph', catalog.interfaceGraph.artifactPath, catalog.interfaceGraph.artifact)] : []),
       ...(catalog.selectorCanon ? [fingerprintProjectionArtifact('selector-canon', catalog.selectorCanon.artifactPath, catalog.selectorCanon.artifact)] : []),

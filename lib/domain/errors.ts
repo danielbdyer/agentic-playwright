@@ -1,4 +1,5 @@
 export class TesseractError extends Error {
+  readonly _tag: string = 'TesseractError';
   readonly code: string;
   readonly cause?: unknown | undefined;
 
@@ -11,6 +12,7 @@ export class TesseractError extends Error {
 }
 
 export class SchemaError extends TesseractError {
+  override readonly _tag = 'SchemaError' as const;
   readonly path?: string | undefined;
 
   constructor(message: string, path?: string) {
@@ -20,13 +22,47 @@ export class SchemaError extends TesseractError {
   }
 }
 
+export class FileSystemError extends TesseractError {
+  override readonly _tag = 'FileSystemError' as const;
+  readonly filePath?: string | undefined;
+
+  constructor(code: string, message: string, filePath?: string, cause?: unknown) {
+    super(code, message, cause);
+    this.name = 'FileSystemError';
+    this.filePath = filePath;
+  }
+}
+
+export class ResolutionError extends TesseractError {
+  override readonly _tag = 'ResolutionError' as const;
+  readonly context?: Record<string, string> | undefined;
+
+  constructor(code: string, message: string, context?: Record<string, string>, cause?: unknown) {
+    super(code, message, cause);
+    this.name = 'ResolutionError';
+    this.context = context;
+  }
+}
+
 export class RuntimeError extends TesseractError {
+  override readonly _tag = 'RuntimeError' as const;
   readonly context?: Record<string, string> | undefined;
 
   constructor(code: string, message: string, context?: Record<string, string>, cause?: unknown) {
     super(code, message, cause);
     this.name = 'RuntimeError';
     this.context = context;
+  }
+}
+
+export class PipelineError extends TesseractError {
+  override readonly _tag = 'PipelineError' as const;
+  readonly stage?: string | undefined;
+
+  constructor(code: string, message: string, stage?: string, cause?: unknown) {
+    super(code, message, cause);
+    this.name = 'PipelineError';
+    this.stage = stage;
   }
 }
 
@@ -76,6 +112,23 @@ export function toTesseractError(
   }
 
   return new TesseractError(fallbackCode, fallbackMessage, cause);
+}
+
+export function toFileSystemError(
+  cause: unknown,
+  code: string,
+  message: string,
+  filePath?: string,
+): FileSystemError {
+  if (cause instanceof FileSystemError) {
+    return cause;
+  }
+
+  if (cause instanceof Error) {
+    return new FileSystemError(code, cause.message, filePath, cause);
+  }
+
+  return new FileSystemError(code, message, filePath, cause);
 }
 
 export function trustPolicyDeniedError(message: string): TesseractError {

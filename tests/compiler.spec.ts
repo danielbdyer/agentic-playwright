@@ -92,7 +92,7 @@ test('refresh recompiles the seeded scenario through graph, types, and program e
     expect(result.compile.bound.boundScenario.steps.every((step) => step.confidence === 'intent-only')).toBeTruthy();
     expect(result.compile.bound.boundScenario.steps.every((step) => step.binding.kind === 'deferred')).toBeTruthy();
     expect(result.compile.bound.boundScenario.steps.every((step) => step.binding.governance === 'approved')).toBeTruthy();
-    expect(projectPath(result.compile.compileSnapshot.taskPath)).toContain('.tesseract/tasks/10001.resolution.json');
+    expect(projectPath(result.compile.compileSnapshot.surfacePath)).toContain('.tesseract/tasks/10001.resolution.json');
     expect(taskPacket.version).toBe(1);
     expect(taskPacket.payload.stateGraph.fingerprint).toBe(stateGraph.fingerprint);
     expect(taskPacket.payload.knowledgeSlice.stateRefs).toEqual(stateGraph.stateRefs);
@@ -843,9 +843,9 @@ test('task packet separates task and knowledge fingerprints via shared interface
     const second = await runWithLocalServices(refreshScenario({ adoId, paths: workspace.paths }), workspace.rootDir);
     const secondPacket = workspace.readJson<{ payload: { knowledgeFingerprint: string; steps: Array<{ taskFingerprint: string }> }; taskFingerprint: string }>('.tesseract', 'tasks', '10001.resolution.json');
 
-    expect(second.compile.compileSnapshot.taskPacket.payload.knowledgeFingerprint).not.toBe(first.compile.compileSnapshot.taskPacket.payload.knowledgeFingerprint);
+    expect(second.compile.compileSnapshot.surface.payload.knowledgeFingerprint).not.toBe(first.compile.compileSnapshot.surface.payload.knowledgeFingerprint);
     expect(secondPacket.payload.steps.map((step) => step.taskFingerprint)).toEqual(firstStepFingerprints);
-    expect(secondPacket.taskFingerprint).not.toBe(first.compile.compileSnapshot.taskPacket.taskFingerprint);
+    expect(secondPacket.taskFingerprint).not.toBe(first.compile.compileSnapshot.surface.surfaceFingerprint);
   } finally {
     workspace.cleanup();
   }
@@ -976,8 +976,8 @@ test('interface intelligence compiles deterministic graph and selector canon wit
     expect(taskPacket.payload.selectors.fingerprint).toBe(firstSelectors.fingerprint);
     expect(taskPacket.payload.steps.every((step) => step.grounding !== undefined)).toBeTruthy();
     expect(taskPacket.payload.steps.some((step) => (step.grounding?.selectorRefs.length ?? 0) > 0)).toBeTruthy();
-    expect(first.compile.compileSnapshot.taskPacket.payload.interface.fingerprint).toBe(firstGraph.fingerprint);
-    expect(first.compile.compileSnapshot.taskPacket.payload.selectors.fingerprint).toBe(firstSelectors.fingerprint);
+    expect(first.compile.compileSnapshot.surface.payload.interface.fingerprint).toBe(firstGraph.fingerprint);
+    expect(first.compile.compileSnapshot.surface.payload.selectors.fingerprint).toBe(firstSelectors.fingerprint);
 
     await runWithLocalServices(refreshScenario({ adoId, paths: workspace.paths }), workspace.rootDir);
     const secondGraph = workspace.readJson<{ fingerprint: string }>('.tesseract', 'interface', 'index.json');

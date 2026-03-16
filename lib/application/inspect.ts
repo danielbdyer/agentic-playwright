@@ -39,7 +39,7 @@ export function describeScenarioPaths(options: { adoId: AdoId; paths: ProjectPat
     const canonicalScenarioPath = scenarioPath(options.paths, snapshot.suitePath, options.adoId);
     const scenarioExists = yield* fs.exists(canonicalScenarioPath);
     const referencedScreens = new Set<ScreenId>();
-    const taskPacket = catalog.taskPackets.find((entry) => entry.artifact.payload.adoId === options.adoId)?.artifact ?? null;
+    const surface = catalog.interpretationSurfaces.find((entry) => entry.artifact.payload.adoId === options.adoId)?.artifact ?? null;
 
     if (scenarioExists) {
       const scenarioText = yield* fs.readText(canonicalScenarioPath);
@@ -54,8 +54,8 @@ export function describeScenarioPaths(options: { adoId: AdoId; paths: ProjectPat
         }
       }
     }
-    if (referencedScreens.size === 0 && taskPacket) {
-      for (const screen of taskPacket.payload.knowledgeSlice.screenRefs) {
+    if (referencedScreens.size === 0 && surface) {
+      for (const screen of surface.payload.knowledgeSlice.screenRefs) {
         referencedScreens.add(screen);
       }
     }

@@ -37,8 +37,8 @@ test('persist and no-write refresh compute the same derived fingerprints while n
       workspace.rootDir,
     );
 
-    expect(baseline.result.compile.compileSnapshot.taskPacket.taskFingerprint)
-      .toBe(persisted.compile.compileSnapshot.taskPacket.taskFingerprint);
+    expect(baseline.result.compile.compileSnapshot.surface.surfaceFingerprint)
+      .toBe(persisted.compile.compileSnapshot.surface.surfaceFingerprint);
     expect(baseline.result.compile.graph.graph.fingerprint)
       .toBe(persisted.compile.graph.graph.fingerprint);
     expect(baseline.result.compile.generatedTypes.screens)

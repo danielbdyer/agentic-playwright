@@ -1,6 +1,6 @@
 ﻿import { Effect } from 'effect';
-import type { TesseractError} from '../domain/errors';
-import { toTesseractError } from '../domain/errors';
+import type { TesseractError, FileSystemError } from '../domain/errors';
+import { toTesseractError, toFileSystemError } from '../domain/errors';
 
 export function trySync<A>(
   thunk: () => A,
@@ -21,6 +21,18 @@ export function tryAsync<A>(
   return Effect.tryPromise({
     try: thunk,
     catch: (cause) => toTesseractError(cause, code, message),
+  });
+}
+
+export function tryFileSystem<A>(
+  thunk: () => Promise<A>,
+  code: string,
+  message: string,
+  filePath?: string,
+): Effect.Effect<A, FileSystemError> {
+  return Effect.tryPromise({
+    try: thunk,
+    catch: (cause) => toFileSystemError(cause, code, message, filePath),
   });
 }
 

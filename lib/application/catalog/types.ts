@@ -26,7 +26,6 @@ import type {
   Scenario,
   ScenarioInterpretationSurface,
   SelectorCanon,
-  ScenarioTaskPacket,
   ScreenBehavior,
   ScreenElements,
   ScreenHints,
@@ -65,7 +64,6 @@ export interface WorkspaceCatalog {
   scenarios: ArtifactEnvelope<Scenario>[];
   boundScenarios: ArtifactEnvelope<BoundScenario>[];
   interpretationSurfaces: ArtifactEnvelope<ScenarioInterpretationSurface>[];
-  taskPackets: ArtifactEnvelope<ScenarioTaskPacket>[];
   runRecords: ArtifactEnvelope<RunRecord>[];
   proposalBundles: ArtifactEnvelope<ProposalBundle>[];
   approvalReceipts: ArtifactEnvelope<ApprovalReceipt>[];

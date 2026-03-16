@@ -1,6 +1,6 @@
 import { Effect } from 'effect';
 import type { AdoId } from '../../domain/identity';
-import type { ResolutionGraphRecord, ResolutionReceipt, ScenarioRunPlan, ScenarioTaskPacket, StepResolutionGraph, GroundedStep } from '../../domain/types';
+import type { ResolutionGraphRecord, ResolutionReceipt, ScenarioRunPlan, ScenarioInterpretationSurface, StepResolutionGraph, GroundedStep } from '../../domain/types';
 import type { RuntimeScenarioRunnerPort, RuntimeScenarioStepResult } from '../ports';
 import { resolveResolutionEngine } from '../provider-registry';
 import { validateStepResults } from './validate-step-results';
@@ -91,12 +91,12 @@ function buildStepResolutionGraph(step: RuntimeScenarioStepResult, task: Grounde
   };
 }
 
-export function interpretScenarioTaskPacket(input: {
+export function interpretScenarioSurface(input: {
   runtimeScenarioRunner: RuntimeScenarioRunnerPort;
   rootDir: string;
   adoId: AdoId;
   runId: string;
-  taskPacket: ScenarioTaskPacket;
+  surface: ScenarioInterpretationSurface;
   mode: 'dry-run' | 'diagnostic' | 'playwright';
   providerId: string;
   screenIds: readonly import('../../domain/identity').ScreenId[];
@@ -126,10 +126,10 @@ export function interpretScenarioTaskPacket(input: {
     version: 1,
     adoId: input.adoId,
     runId: input.runId,
-    surfaceFingerprint: input.taskPacket.taskFingerprint,
-    title: input.taskPacket.payload.title,
-    suite: input.taskPacket.payload.suite,
-    controlsFingerprint: input.taskPacket.fingerprints.controls ?? null,
+    surfaceFingerprint: input.surface.surfaceFingerprint,
+    title: input.surface.payload.title,
+    suite: input.surface.payload.suite,
+    controlsFingerprint: input.surface.fingerprints.controls ?? null,
     posture: input.posture ?? { interpreterMode: 'diagnostic', executionProfile: 'interactive', headed: false, writeMode: 'persist' },
     mode: input.mode,
     providerId: input.providerId,
@@ -137,12 +137,12 @@ export function interpretScenarioTaskPacket(input: {
     controlArtifactPaths: {},
     fixtures: input.fixtures,
     screenIds: [...input.screenIds],
-    steps: [...(input.steps ?? input.taskPacket.payload.steps)],
+    steps: [...(input.steps ?? input.surface.payload.steps)],
     resolutionContext: input.resolutionContext,
     context: {
       adoId: input.adoId,
-      revision: input.context?.revision ?? input.taskPacket.payload.revision,
-      contentHash: input.context?.contentHash ?? input.taskPacket.fingerprints.content ?? '',
+      revision: input.context?.revision ?? input.surface.payload.revision,
+      contentHash: input.context?.contentHash ?? input.surface.fingerprints.content ?? '',
       artifactPath: input.context?.artifactPath,
     },
     translationEnabled: !(input.translationOptions?.disableTranslation ?? false),
@@ -153,8 +153,8 @@ export function interpretScenarioTaskPacket(input: {
     runtimeScenarioRunner: input.runtimeScenarioRunner,
     rootDir: input.rootDir,
     plan,
-    knowledgeFingerprint: input.taskPacket.payload.knowledgeFingerprint,
-    controlsFingerprint: input.taskPacket.fingerprints.controls ?? null,
+    knowledgeFingerprint: input.surface.payload.knowledgeFingerprint,
+    controlsFingerprint: input.surface.fingerprints.controls ?? null,
     translationOptions: input.translationOptions,
   });
 }
