@@ -36,6 +36,18 @@ The current implementation program is:
 5. standardize provider-agnostic session ledgers and workbench event vocabularies
 6. use replay and evaluation corpora to improve the system without weakening governance
 
+## Composition direction
+
+The codebase is moving toward richer use of its Effect and functional composition tools. The direction is:
+
+- **Structural parallelism over sequential chains.** Independent operations should be expressed with `Effect.all` so the type system documents independence. This applies to file walks, artifact loads, and any batch of operations that don't depend on each other's results.
+- **Effect-native error recovery over JS try/catch.** Synchronous throws should be lifted into the Effect error channel via `trySync`. Recovery should use `Effect.catchTag` for discriminated error handling or `Effect.catchAll` for uniform fallback — not `try/catch` blocks inside `Effect.gen`.
+- **Composable phase and scoring abstractions.** Multi-phase pipelines should be expressed as `PipelinePhase[]` arrays consumed by a generic fold, not as inline code blocks. Scoring formulas should be expressed as composable `ScoringRule` semigroups with `combine`/`contramap`, not as hardcoded arithmetic.
+- **Phantom governance at type boundaries.** Functions that require a specific governance state should express it through phantom branded types (`Approved<T>`, `Blocked<T>`) in their signatures. The `foldGovernance` combinator should be used for exhaustive case analysis.
+- **Recursive folds over mutable accumulation.** Sequential processes that accumulate results and short-circuit on success should be expressed as recursive `step(remaining, prior)` functions, not `for` loops with `.push()` and early `return`.
+
+These are not aspirational. The patterns are implemented in the codebase today and should be extended to new code naturally.
+
 ## Scale posture
 
 The immediate system target is thousands of scenarios against a shared application model.

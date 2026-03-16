@@ -170,6 +170,12 @@ When a concept starts to cross those boundaries, model the boundary explicitly i
 
 - Prefer pure functions and immutable data. Return new objects instead of mutating parameters. Avoid `let`, `Array.push`, and mutable accumulation patterns. See `docs/coding-notes.md` § Functional Programming Style for detailed guidance.
 - Prefer `const` bindings, ternary expressions, and higher-order functions (`map`, `filter`, `reduce`, `flatMap`) over imperative loops and mutable state.
+- Prefer recursive folds over mutable accumulation with early return. When a sequential process short-circuits on success and accumulates events, model it as a recursive `step(remaining, priorEvents)` function. See `runStrategyChain` and `runPipelinePhases`.
+- Prefer `Effect.all({...})` over sequential `yield*` chains for structurally independent operations. This makes independence explicit at the type level even without runtime concurrency. See `loadWorkspaceCatalog`.
+- Prefer `Effect.catchTag` over `Effect.either` + manual `_tag` discrimination. Use `Effect.catchAll` when recovering uniformly from any failure.
+- Prefer composable abstractions (`ScoringRule` with `combine`/`contramap`, `PipelinePhase` arrays) over hardcoded inline arithmetic or switch blocks. Small semigroups compose; hardcoded formulas don't.
+- Prefer phantom branded types (`Approved<T>`, `Blocked<T>`) at governance boundaries over runtime-only checks. Type guards (`isApproved`, `isBlocked`) and assertions (`requireApproved`) narrow at the type level. Use `foldGovernance` for exhaustive case analysis.
+- Prefer `mapPayload(envelope, f)` over manual `{ ...envelope, payload: f(envelope.payload) }` spreads for `WorkflowEnvelope` transforms.
 - Prefer value objects over protocol strings.
 - Prefer pure derivations over storing parallel truth.
 - Prefer AST-backed code generation over source-string splicing.

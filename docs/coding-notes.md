@@ -61,6 +61,111 @@ refs.push(...(screenLattice.selected?.refs ?? []));
 
 When a function needs to update a record, return a new record with the changes applied. Callers should assign the result rather than relying on mutation of a shared reference.
 
+### Prefer recursive folds over mutable accumulation with early return
+
+When a sequential process walks a list, accumulates events, and short-circuits on success, the imperative pattern is `push` + early `return` inside a `for` loop. The functional pattern is a recursive `step` function that carries accumulated state as parameters:
+
+```typescript
+// Prefer: recursive fold with immutable accumulation
+async function runStrategyChain(
+  strategies: readonly ResolutionStrategy[],
+  stage: RuntimeAgentStageContext,
+  acc: ResolutionAccumulator | null,
+): Promise<StrategyChainResult> {
+  const step = async (
+    remaining: readonly ResolutionStrategy[],
+    priorEvents: readonly ResolutionEvent[],
+  ): Promise<StrategyChainResult> => {
+    const [head, ...tail] = remaining;
+    if (!head) {
+      return { receipt: null, events: [...priorEvents] };
+    }
+    const { receipt, events } = await head.attempt(stage, acc);
+    const accumulated = [...priorEvents, ...events];
+    return receipt
+      ? { receipt, events: [...accumulated, { kind: 'receipt-produced', receipt }] }
+      : step(tail, accumulated);
+  };
+  return step(strategies, []);
+}
+
+// Avoid: mutable array with push + early return
+async function runStrategyChain(...): Promise<StrategyChainResult> {
+  const allEvents: ResolutionEvent[] = [];
+  for (const strategy of strategies) {
+    const { receipt, events } = await strategy.attempt(stage, acc);
+    allEvents.push(...events);
+    if (receipt) {
+      allEvents.push({ kind: 'receipt-produced', receipt });
+      return { receipt, events: allEvents };
+    }
+  }
+  return { receipt: null, events: allEvents };
+}
+```
+
+The recursive fold makes the data flow explicit: `priorEvents` is the accumulated state, `remaining` shrinks on each step, and the result is a clean value — no shared mutable array between iterations.
+
+This same pattern applies at higher levels of abstraction. `runPipelinePhases` uses the identical fold structure to compose `PipelinePhase` objects, and `chooseByPrecedence` uses `reduce` for precedence-ordered selection.
+
+### Prefer composable abstractions for scoring, ranking, and selection
+
+When computing a score from multiple independent dimensions, extract each dimension as a composable rule rather than hardcoding the formula inline:
+
+```typescript
+// Prefer: composable scoring rules
+interface ScoringRule<T> {
+  score(input: T): number;
+}
+
+function combineScoringRules<T>(...rules: readonly ScoringRule<T>[]): ScoringRule<T> {
+  return { score: (input) => rules.reduce((total, rule) => total + rule.score(input), 0) };
+}
+
+function contramapScoringRule<A, B>(rule: ScoringRule<A>, f: (b: B) => A): ScoringRule<B> {
+  return { score: (input) => rule.score(f(input)) };
+}
+
+const candidateScoring = combineScoringRules<CandidateInput>(
+  contramapScoringRule(sourceWeightRule, (c) => c.source),
+  contramapScoringRule(featureTotalRule, (c) => c.featureScores),
+);
+
+// Avoid: hardcoded inline arithmetic
+function candidate<T>(input: CandidateInput<T>): LatticeCandidate<T> {
+  const featureTotal = Object.values(input.featureScores).reduce((sum, v) => sum + v, 0);
+  return { ...input, score: SOURCE_WEIGHT[input.source] + featureTotal };
+}
+```
+
+Individual rules are testable in isolation. New scoring dimensions compose without modifying existing code. The same `combine`/`contramap` pattern works for any semigroup: scoring, confidence, governance derivation.
+
+### Prefer phantom branded types at governance boundaries
+
+When a type has a discriminated field (`governance: 'approved' | 'review-required' | 'blocked'`), use phantom brands to carry the discrimination at the type level:
+
+```typescript
+// Narrow at the type level, not just at runtime
+declare const GovernanceBrand: unique symbol;
+type Approved<T> = T & { readonly [GovernanceBrand]: 'approved' };
+
+function isApproved<T extends { governance: Governance }>(item: T): item is Approved<T> {
+  return item.governance === 'approved';
+}
+
+function requireApproved<T extends { governance: Governance }>(item: T): asserts item is Approved<T> {
+  if (item.governance !== 'approved') throw new Error(`Expected approved, got ${item.governance}`);
+}
+
+// Exhaustive case analysis
+function foldGovernance<T extends { governance: Governance }, R>(
+  item: T,
+  cases: { approved: (item: Approved<T>) => R; reviewRequired: ...; blocked: ... },
+): R { ... }
+```
+
+This is not about replacing runtime checks. It's about making governance constraints visible in function signatures. A function that accepts `Approved<WorkflowEnvelope<X>>` documents at the type level that governance has been verified before the call.
+
 ### Where mutation is acceptable
 
 Some patterns legitimately benefit from mutation:
@@ -68,6 +173,7 @@ Some patterns legitimately benefit from mutation:
 - **Effect handlers** that manage infrastructure lifecycle (database connections, browser contexts)
 - **Performance-critical hot loops** where allocation pressure matters (measure first)
 - **Playwright page interactions** that are inherently side-effectful
+- **Mutable refs** shared between pipeline phases (e.g., `accRef` in `runResolutionPipeline`) when the phases are closures that capture the ref by reference and the ref is scoped to one pipeline execution
 
 In these cases, scope the mutation as tightly as possible and document why the pure alternative was insufficient.
 
