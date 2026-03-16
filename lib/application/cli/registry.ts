@@ -695,6 +695,35 @@ const commandRegistry: Record<CommandName, CommandSpec> = {
   },
 };
 
+function parseTokensRec(
+  tokens: ReadonlyArray<string>,
+  index: number,
+  flags: ParsedFlags,
+  spec: { readonly flags: ReadonlyArray<string> },
+  command: string,
+): ParsedFlags {
+  if (index >= tokens.length) {
+    return flags;
+  }
+
+  const token = tokens[index];
+  if (!token || !token.startsWith('--')) {
+    return parseTokensRec(tokens, index + 1, flags, spec, command);
+  }
+
+  if (!spec.flags.includes(token)) {
+    throw new Error(`Unknown flag for ${command}: ${token}`);
+  }
+
+  const reader = flagReaders[token];
+  if (!reader) {
+    throw new Error(`Unsupported flag reader for ${token}`);
+  }
+
+  const nextIndex = reader(tokens as string[], index, flags);
+  return parseTokensRec(tokens, nextIndex + 1, flags, spec, command);
+}
+
 export function parseCliInvocation(argv: string[]): CommandExecution {
   const [rawCommand = 'help', ...tokens] = argv;
   if (!isCommandName(rawCommand)) {
@@ -702,22 +731,7 @@ export function parseCliInvocation(argv: string[]): CommandExecution {
   }
 
   const spec = commandRegistry[rawCommand];
-  const flags: ParsedFlags = {};
-
-  for (let index = 0; index < tokens.length; index += 1) { // eslint-disable-line no-restricted-syntax -- baseline: index-advancing flag parser
-    const token = tokens[index];
-    if (!token || !token.startsWith('--')) {
-      continue;
-    }
-    if (!spec.flags.includes(token)) {
-      throw new Error(`Unknown flag for ${rawCommand}: ${token}`);
-    }
-    const reader = flagReaders[token];
-    if (!reader) {
-      throw new Error(`Unsupported flag reader for ${token}`);
-    }
-    index = reader(tokens, index, flags);
-  }
+  const flags = parseTokensRec(tokens, 0, {}, spec, rawCommand);
 
   return spec.parse({ flags });
 }
