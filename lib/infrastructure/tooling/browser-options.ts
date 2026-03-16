@@ -10,7 +10,27 @@ export function resolvePlaywrightHeadless(environment: NodeJS.ProcessEnv): boole
 }
 
 export function resolvePreferredPlaywrightChannel(environment: NodeJS.ProcessEnv): 'msedge' | undefined {
+  const explicit = environment.TESSERACT_CHANNEL?.trim().toLowerCase();
+  if (explicit === 'msedge') return 'msedge';
+  if (explicit === 'chromium' || explicit === 'default') return undefined;
+
   const isCheckRun = environment.TESSERACT_CHECK === '1';
   const isCi = environment.CI === 'true' || environment.CI === '1';
-  return isCheckRun || isCi ? undefined : 'msedge';
+  if (isCheckRun || isCi) return undefined;
+
+  return isMsedgeAvailable() ? 'msedge' : undefined;
+}
+
+let msedgeProbeResult: boolean | null = null;
+
+function isMsedgeAvailable(): boolean {
+  if (msedgeProbeResult !== null) return msedgeProbeResult;
+  try {
+    const { execSync } = require('child_process');
+    execSync('which msedge || test -x /opt/microsoft/msedge/msedge', { stdio: 'ignore' });
+    msedgeProbeResult = true;
+  } catch {
+    msedgeProbeResult = false;
+  }
+  return msedgeProbeResult;
 }

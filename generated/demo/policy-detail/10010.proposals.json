@@ -1,0 +1,48 @@
+{
+  "kind": "proposal-bundle",
+  "version": 1,
+  "stage": "proposal",
+  "scope": "scenario",
+  "ids": {
+    "adoId": "10010",
+    "suite": "demo/policy-detail",
+    "runId": "pending",
+    "dataset": null,
+    "runbook": null,
+    "resolutionControl": null
+  },
+  "fingerprints": {
+    "artifact": "pending",
+    "content": "sha256:dcceb5d5f884a5c6a7ae8a24be17558289691591432312e36f398360f82fd5da",
+    "knowledge": null,
+    "controls": null,
+    "task": null,
+    "run": "pending"
+  },
+  "lineage": {
+    "sources": [],
+    "parents": [],
+    "handshakes": [
+      "preparation",
+      "resolution",
+      "execution",
+      "evidence",
+      "proposal"
+    ]
+  },
+  "governance": "approved",
+  "payload": {
+    "adoId": "10010",
+    "runId": "pending",
+    "revision": 1,
+    "title": "Verify navigating to policy detail shows correct policy information",
+    "suite": "demo/policy-detail",
+    "proposals": []
+  },
+  "adoId": "10010",
+  "runId": "pending",
+  "revision": 1,
+  "title": "Verify navigating to policy detail shows correct policy information",
+  "suite": "demo/policy-detail",
+  "proposals": []
+}

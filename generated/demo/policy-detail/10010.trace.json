@@ -1,22 +1,22 @@
 {
-  "adoId": "10001",
+  "adoId": "10010",
   "revision": 1,
-  "title": "Verify policy search returns matching policy",
-  "suite": "demo/policy-search",
+  "title": "Verify navigating to policy detail shows correct policy information",
+  "suite": "demo/policy-detail",
   "confidence": "intent-only",
   "governance": "approved",
   "lifecycle": "normal",
   "diagnostics": [],
   "summary": {
-    "stepCount": 4,
+    "stepCount": 6,
     "provenanceKinds": {
       "explicit": 0,
       "approved-knowledge": 0,
       "live-exploration": 0,
-      "unresolved": 4
+      "unresolved": 6
     },
     "governance": {
-      "approved": 4,
+      "approved": 6,
       "review-required": 0,
       "blocked": 0
     },
@@ -26,7 +26,7 @@
       "translationCacheHitRate": 0,
       "translationCacheMissReasons": {},
       "translationFailureClasses": {
-        "none": 4
+        "none": 6
       },
       "agenticHitRate": 0,
       "liveExplorationRate": 0,
@@ -35,7 +35,7 @@
       "reviewRequiredCount": 0,
       "approvedEquivalentRate": 0,
       "runtimeFailureFamilies": {
-        "none": 4
+        "none": 6
       },
       "budgetBreachRate": 0,
       "averageRuntimeCost": {
@@ -55,7 +55,7 @@
     "unresolvedReasons": [
       {
         "reason": "runtime-resolution-required",
-        "count": 4
+        "count": 6
       }
     ]
   },
@@ -200,8 +200,8 @@
       "index": 3,
       "intent": "Click Search button",
       "actionText": "Click Search button",
-      "expectedText": "Search runs",
-      "normalizedIntent": "click search button => search runs",
+      "expectedText": "Search runs and matching policy appears in search results",
+      "normalizedIntent": "click search button => search runs and matching policy appears in search results",
       "action": "custom",
       "confidence": "intent-only",
       "provenanceKind": "unresolved",
@@ -266,10 +266,146 @@
     },
     {
       "index": 4,
-      "intent": "Verify search results show policy",
-      "actionText": "Verify search results show policy",
-      "expectedText": "Matching policy appears in Search Results",
-      "normalizedIntent": "matching policy appears in search results => verify search results show policy",
+      "intent": "Click policy number link in results row",
+      "actionText": "Click policy number link in results row",
+      "expectedText": "Policy Detail screen loads with correct policy number",
+      "normalizedIntent": "click policy number link in results row => policy detail screen loads with correct policy number",
+      "action": "custom",
+      "confidence": "intent-only",
+      "provenanceKind": "unresolved",
+      "governance": "approved",
+      "bindingKind": "deferred",
+      "ruleId": null,
+      "knowledgeRefs": [],
+      "supplementRefs": [],
+      "controlRefs": [],
+      "evidenceRefs": [],
+      "overlayRefs": [],
+      "reviewReasons": [],
+      "unresolvedGaps": [
+        "runtime-resolution-required"
+      ],
+      "reasons": [],
+      "evidenceIds": [],
+      "program": null,
+      "handshakes": [
+        "preparation"
+      ],
+      "winningConcern": "intent",
+      "winningSource": "none",
+      "resolutionMode": "deterministic",
+      "translation": null,
+      "runtime": {
+        "status": "pending",
+        "runId": null,
+        "resolutionMode": null,
+        "widgetContract": null,
+        "locatorStrategy": null,
+        "locatorRung": null,
+        "degraded": false,
+        "preconditionFailures": [],
+        "requiredStateRefs": [],
+        "forbiddenStateRefs": [],
+        "effectAssertions": [],
+        "eventSignatureRefs": [],
+        "expectedTransitionRefs": [],
+        "observedStateRefs": [],
+        "transitionObservations": [],
+        "durationMs": 0,
+        "timing": {
+          "setupMs": 0,
+          "resolutionMs": 0,
+          "actionMs": 0,
+          "assertionMs": 0,
+          "retriesMs": 0,
+          "teardownMs": 0,
+          "totalMs": 0
+        },
+        "budget": {
+          "status": "not-configured",
+          "breaches": []
+        },
+        "failure": {
+          "family": "none",
+          "code": null
+        },
+        "exhaustion": []
+      }
+    },
+    {
+      "index": 5,
+      "intent": "Verify policy number and status are displayed",
+      "actionText": "Verify policy number and status are displayed",
+      "expectedText": "Policy number POL-001 and Active status are visible",
+      "normalizedIntent": "policy number pol-001 and active status are visible => verify policy number and status are displayed",
+      "action": "custom",
+      "confidence": "intent-only",
+      "provenanceKind": "unresolved",
+      "governance": "approved",
+      "bindingKind": "deferred",
+      "ruleId": null,
+      "knowledgeRefs": [],
+      "supplementRefs": [],
+      "controlRefs": [],
+      "evidenceRefs": [],
+      "overlayRefs": [],
+      "reviewReasons": [],
+      "unresolvedGaps": [
+        "runtime-resolution-required"
+      ],
+      "reasons": [],
+      "evidenceIds": [],
+      "program": null,
+      "handshakes": [
+        "preparation"
+      ],
+      "winningConcern": "intent",
+      "winningSource": "none",
+      "resolutionMode": "deterministic",
+      "translation": null,
+      "runtime": {
+        "status": "pending",
+        "runId": null,
+        "resolutionMode": null,
+        "widgetContract": null,
+        "locatorStrategy": null,
+        "locatorRung": null,
+        "degraded": false,
+        "preconditionFailures": [],
+        "requiredStateRefs": [],
+        "forbiddenStateRefs": [],
+        "effectAssertions": [],
+        "eventSignatureRefs": [],
+        "expectedTransitionRefs": [],
+        "observedStateRefs": [],
+        "transitionObservations": [],
+        "durationMs": 0,
+        "timing": {
+          "setupMs": 0,
+          "resolutionMs": 0,
+          "actionMs": 0,
+          "assertionMs": 0,
+          "retriesMs": 0,
+          "teardownMs": 0,
+          "totalMs": 0
+        },
+        "budget": {
+          "status": "not-configured",
+          "breaches": []
+        },
+        "failure": {
+          "family": "none",
+          "code": null
+        },
+        "exhaustion": []
+      }
+    },
+    {
+      "index": 6,
+      "intent": "Verify claims table is visible with claim entries",
+      "actionText": "Verify claims table is visible with claim entries",
+      "expectedText": "Claims are listed in the claims table",
+      "normalizedIntent": "claims are listed in the claims table => verify claims table is visible with claim entries",
       "action": "custom",
       "confidence": "intent-only",
       "provenanceKind": "unresolved",

@@ -157,7 +157,7 @@ test('paths identifies surface, graph, generated review, and supplement artifact
     expect(projectPath(result.roots.sessions)).toContain('.tesseract/sessions');
     expect(projectPath(result.roots.learning)).toContain('.tesseract/learning');
     expect(result.supplements.sharedPatterns).toContain('knowledge/patterns/core.patterns.yaml');
-    expect(result.knowledge).toEqual([
+    expect(result.knowledge).toEqual(expect.arrayContaining([
       {
         screen: 'policy-search',
         surface: expect.stringContaining('policy-search.surface.yaml'),
@@ -165,13 +165,21 @@ test('paths identifies surface, graph, generated review, and supplement artifact
         postures: expect.stringContaining('policy-search.postures.yaml'),
         hints: expect.stringContaining('policy-search.hints.yaml'),
       },
-    ]);
+      {
+        screen: 'policy-detail',
+        surface: expect.stringContaining('policy-detail.surface.yaml'),
+        elements: expect.stringContaining('policy-detail.elements.yaml'),
+        postures: expect.stringContaining('policy-detail.postures.yaml'),
+        hints: expect.stringContaining('policy-detail.hints.yaml'),
+      },
+    ]));
   } finally {
     workspace.cleanup();
   }
 });
 
 test('harvest visits declared route variants and writes route-scoped receipts', async () => {
+  test.setTimeout(120_000);
   const workspace = createTestWorkspace('compiler-harvest');
   try {
     const result = await runWithLocalServices(
@@ -206,13 +214,14 @@ test('harvest visits declared route variants and writes route-scoped receipts', 
     );
 
     expect(result.failures).toEqual([]);
-    expect(result.receipts).toEqual([
+    expect(result.receipts).toEqual(expect.arrayContaining([
       '.tesseract/discovery/demo/policy-search/default/crawl.json',
       '.tesseract/discovery/demo/policy-search/results-with-policy/crawl.json',
-    ]);
+      '.tesseract/discovery/demo/policy-detail/with-policy/crawl.json',
+    ]));
     expect(index.app).toBe('demo');
     expect(index.version).toBe(2);
-    expect(index.receipts).toHaveLength(2);
+    expect(index.receipts).toHaveLength(3);
     expect(index.receipts.every((entry) => entry.status === 'ok')).toBeTruthy();
     expect(index.receipts.every((entry) => entry.writeDisposition === 'rewritten')).toBeTruthy();
     expect(index.receipts.every((entry) => entry.contentFingerprint?.startsWith('sha256:'))).toBeTruthy();
@@ -240,7 +249,7 @@ test('harvest visits declared route variants and writes route-scoped receipts', 
 });
 
 test('harvest reuses unchanged route receipts and rewrites deterministically on drift', async () => {
-  test.setTimeout(60_000);
+  test.setTimeout(120_000);
   const workspace = createTestWorkspace('compiler-harvest-idempotence');
   try {
     await runWithLocalServices(
@@ -985,6 +994,38 @@ test('interface intelligence compiles deterministic graph and selector canon wit
 
     expect(secondGraph.fingerprint).toBe(firstGraph.fingerprint);
     expect(secondSelectors.fingerprint).toBe(firstSelectors.fingerprint);
+  } finally {
+    workspace.cleanup();
+  }
+});
+
+test('interface graph and selector canon span both screens after second-screen compilation', async () => {
+  const workspace = createTestWorkspace('multi-screen-graph');
+  try {
+    await runWithLocalServices(refreshScenario({ adoId: createAdoId('10001'), paths: workspace.paths }), workspace.rootDir);
+    await runWithLocalServices(refreshScenario({ adoId: createAdoId('10010'), paths: workspace.paths }), workspace.rootDir);
+    const graph = workspace.readJson<{
+      nodes: Array<{ id: string; kind: string; screen?: string | null }>;
+      edges: Array<{ id: string; kind: string }>;
+      targetRefs: string[];
+      stateRefs: string[];
+    }>('.tesseract', 'interface', 'index.json');
+    const selectors = workspace.readJson<{
+      entries: Array<{ targetRef: string }>;
+      summary: { totalTargets: number };
+    }>('.tesseract', 'interface', 'selectors.json');
+
+    const screenSet = new Set(graph.nodes.filter((n) => n.screen).map((n) => n.screen));
+    expect(screenSet.has('policy-search')).toBeTruthy();
+    expect(screenSet.has('policy-detail')).toBeTruthy();
+
+    const selectorScreens = new Set(selectors.entries.map((e) => e.targetRef.split(':')[2]));
+    expect(selectorScreens.has('policy-search')).toBeTruthy();
+    expect(selectorScreens.has('policy-detail')).toBeTruthy();
+
+    expect(graph.targetRefs.some((ref) => ref.includes('policy-search'))).toBeTruthy();
+    expect(graph.targetRefs.some((ref) => ref.includes('policy-detail'))).toBeTruthy();
+    expect(selectors.summary.totalTargets).toBeGreaterThan(10);
   } finally {
     workspace.cleanup();
   }

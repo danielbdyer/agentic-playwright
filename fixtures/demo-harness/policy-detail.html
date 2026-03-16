@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Policy Detail</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "Segoe UI", sans-serif;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at top left, #f7fbff 0%, #eef3f7 45%, #e2ebf1 100%);
+        color: #0c2231;
+      }
+
+      main {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 48px 24px 80px;
+      }
+
+      .card {
+        background: rgba(255, 255, 255, 0.92);
+        border: 1px solid rgba(12, 34, 49, 0.08);
+        border-radius: 20px;
+        box-shadow: 0 24px 60px rgba(12, 34, 49, 0.08);
+        padding: 24px;
+      }
+
+      .layout {
+        display: grid;
+        gap: 24px;
+      }
+
+      .field-grid {
+        display: grid;
+        grid-template-columns: 160px 1fr;
+        gap: 12px 24px;
+        align-items: baseline;
+      }
+
+      .field-label {
+        font-weight: 700;
+        letter-spacing: 0.02em;
+      }
+
+      a {
+        color: #0d5c63;
+        font-weight: 600;
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+
+      .ErrorMessage {
+        color: #9d1c1c;
+        font-weight: 600;
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th,
+      td {
+        padding: 12px 14px;
+        border-bottom: 1px solid #d3dfe6;
+        text-align: left;
+      }
+
+      thead {
+        background: #edf5f6;
+      }
+
+      .status-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 999px;
+        font-weight: 600;
+        font-size: 0.875rem;
+      }
+
+      .status-active {
+        background: #d4edda;
+        color: #155724;
+      }
+
+      .status-lapsed {
+        background: #fff3cd;
+        color: #856404;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="layout">
+      <header class="card">
+        <h1>Policy Detail</h1>
+        <p>
+          <a href="policy-search.html" data-testid="back-to-search">
+            &larr; Back to Search
+          </a>
+        </p>
+      </header>
+
+      <section
+        id="error-panel"
+        data-testid="error-panel"
+        class="card ErrorMessage"
+        role="alert"
+        hidden
+      >
+        Policy not found.
+      </section>
+
+      <section
+        id="detail-panel"
+        data-testid="detail-panel"
+        class="card"
+        aria-label="Policy Details"
+        hidden
+      >
+        <div class="field-grid">
+          <span class="field-label">Policy Number</span>
+          <span id="policy-number" data-testid="policy-number" aria-label="Policy Number"></span>
+
+          <span class="field-label">Status</span>
+          <span id="policy-status" data-testid="policy-status" aria-label="Policy Status"></span>
+
+          <span class="field-label">Effective Date</span>
+          <span id="effective-date" data-testid="effective-date" aria-label="Effective Date"></span>
+        </div>
+      </section>
+
+      <section
+        id="claims-panel"
+        data-testid="claims-panel"
+        class="card"
+        aria-label="Claims Panel"
+        hidden
+      >
+        <h2>Claims</h2>
+        <table
+          aria-label="Claims Table"
+          data-testid="claims-table"
+          id="claims-table"
+        >
+          <thead>
+            <tr>
+              <th scope="col">Claim ID</th>
+              <th scope="col">Date</th>
+              <th scope="col">Amount</th>
+            </tr>
+          </thead>
+          <tbody id="claims-body"></tbody>
+        </table>
+      </section>
+    </main>
+
+    <script>
+      (function bootstrap() {
+        var policies = {
+          'POL-001': {
+            number: 'POL-001',
+            status: 'Active',
+            effectiveDate: '2024-01-15',
+            claims: [
+              { id: 'CLM-101', date: '2024-06-20', amount: '$1,250.00' },
+              { id: 'CLM-102', date: '2025-01-08', amount: '$430.00' },
+            ],
+          },
+        };
+
+        var params = new URL(window.location.href).searchParams;
+        var policyId = (params.get('id') || '').toUpperCase();
+
+        var errorPanel = document.getElementById('error-panel');
+        var detailPanel = document.getElementById('detail-panel');
+        var claimsPanel = document.getElementById('claims-panel');
+        var policyNumberEl = document.getElementById('policy-number');
+        var policyStatusEl = document.getElementById('policy-status');
+        var effectiveDateEl = document.getElementById('effective-date');
+        var claimsBody = document.getElementById('claims-body');
+
+        function renderPolicy(policy) {
+          policyNumberEl.textContent = policy.number;
+
+          var statusClass = policy.status === 'Active' ? 'status-active' : 'status-lapsed';
+          policyStatusEl.innerHTML =
+            '<span class="status-badge ' + statusClass + '">' + policy.status + '</span>';
+
+          effectiveDateEl.textContent = policy.effectiveDate;
+          detailPanel.hidden = false;
+
+          if (policy.claims && policy.claims.length > 0) {
+            claimsBody.innerHTML = '';
+            policy.claims.forEach(function (claim) {
+              var row = document.createElement('tr');
+              row.innerHTML =
+                '<td>' + claim.id + '</td>' +
+                '<td>' + claim.date + '</td>' +
+                '<td>' + claim.amount + '</td>';
+              claimsBody.appendChild(row);
+            });
+            claimsPanel.hidden = false;
+          }
+        }
+
+        if (!policyId) {
+          errorPanel.hidden = false;
+          return;
+        }
+
+        var policy = policies[policyId];
+        if (policy) {
+          renderPolicy(policy);
+        } else {
+          errorPanel.hidden = false;
+        }
+      })();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,69 @@
+screen: policy-detail
+url: /policy-detail.html?id=POL-001
+sections:
+  detail-section:
+    selector: "[data-testid='detail-panel']"
+    kind: details-pane
+    surfaces:
+      - detail-fields
+      - navigation
+  claims-section:
+    selector: "[data-testid='claims-panel']"
+    url: /policy-detail.html?id=POL-001
+    kind: result-set
+    snapshot: snapshots/policy-detail/with-claims.yaml
+    surfaces:
+      - claims-grid
+  error-section:
+    selector: "[data-testid='error-panel']"
+    kind: validation-region
+    surfaces:
+      - error-surface
+surfaces:
+  detail-fields:
+    kind: details-pane
+    section: detail-section
+    selector: "[data-testid='detail-panel']"
+    parents: []
+    children: []
+    elements:
+      - policyNumber
+      - policyStatus
+      - effectiveDate
+    assertions:
+      - state
+    required: true
+  navigation:
+    kind: action-cluster
+    section: detail-section
+    selector: "[data-testid='back-to-search']"
+    parents: []
+    children: []
+    elements:
+      - backToSearch
+    assertions:
+      - state
+    required: true
+  claims-grid:
+    kind: result-set
+    section: claims-section
+    selector: "[data-testid='claims-table']"
+    parents: []
+    children: []
+    elements:
+      - claimsTable
+    assertions:
+      - structure
+      - state
+    required: false
+  error-surface:
+    kind: validation-region
+    section: error-section
+    selector: "[data-testid='error-panel']"
+    parents: []
+    children: []
+    elements:
+      - errorPanel
+    assertions:
+      - state
+    required: false
