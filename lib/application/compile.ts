@@ -60,7 +60,7 @@ export function compileScenario(options: { adoId: AdoId; paths: ProjectPaths }) 
         const learning = yield* projectLearningArtifacts({
           paths: options.paths,
           boundScenario: bound.boundScenario,
-          taskPacket: task.taskPacket,
+          surface: task.surface,
           interfaceGraph: interfaceIntelligence.interfaceGraph,
           selectorCanon: interfaceIntelligence.selectorCanon,
         });

@@ -201,10 +201,10 @@ export function selectRunContext(input: {
     surface: surfaceEntry.artifact,
     catalog: input.catalog,
     paths: input.paths,
-    runbookName: input.runbookName,
-    interpreterMode: input.interpreterMode,
-    providerId: input.providerId,
-    posture: input.posture,
+    ...(input.runbookName ? { runbookName: input.runbookName } : {}),
+    ...(input.interpreterMode ? { interpreterMode: input.interpreterMode } : {}),
+    ...(input.providerId ? { providerId: input.providerId } : {}),
+    ...(input.posture ? { posture: input.posture } : {}),
     executionContextPosture: input.executionContextPosture,
   });
   return {

@@ -1,4 +1,4 @@
-import type { ArtifactConfidenceRecord, ResolutionObservation, StepAction, StepTask, StepTaskElementCandidate, StepTaskScreenCandidate, TranslationReceipt } from '../../domain/types';
+import type { ArtifactConfidenceRecord, ResolutionObservation, StepAction, GroundedStep, StepTaskElementCandidate, StepTaskScreenCandidate, TranslationReceipt } from '../../domain/types';
 import { normalizedCombined, bestAliasMatch, uniqueSorted } from './shared';
 import { requiresElement } from './resolve-action';
 import type { RuntimeStepAgentContext } from './types';
@@ -12,7 +12,7 @@ function overlayAliases(record: ArtifactConfidenceRecord): string[] {
   ]);
 }
 
-function translationCandidateScreens(task: StepTask, context: RuntimeStepAgentContext): StepTaskScreenCandidate[] {
+function translationCandidateScreens(task: GroundedStep, context: RuntimeStepAgentContext): StepTaskScreenCandidate[] {
   const normalized = normalizedCombined(task);
   const explicitScreen = task.explicitResolution?.screen ?? task.controlResolution?.screen ?? null;
   const screens = context.resolutionContext.screens;
@@ -31,7 +31,7 @@ function translationCandidateScreens(task: StepTask, context: RuntimeStepAgentCo
   return (positive.length > 0 ? positive : ranked.map((entry) => entry.screen)).slice(0, 3);
 }
 
-function translationCandidateElements(task: StepTask, screen: StepTaskScreenCandidate): StepTaskElementCandidate[] {
+function translationCandidateElements(task: GroundedStep, screen: StepTaskScreenCandidate): StepTaskElementCandidate[] {
   const normalized = normalizedCombined(task);
   const explicitElement = task.explicitResolution?.element ?? task.controlResolution?.element ?? null;
   const allowedTargetRefs = new Set(task.grounding.targetRefs);
@@ -54,7 +54,7 @@ function translationCandidateElements(task: StepTask, screen: StepTaskScreenCand
 }
 
 export function resolveWithConfidenceOverlay(
-  task: StepTask,
+  task: GroundedStep,
   context: RuntimeStepAgentContext,
   action: StepAction | null,
   approvedScreen: StepTaskScreenCandidate | null,
@@ -132,7 +132,7 @@ export function resolveWithConfidenceOverlay(
 }
 
 export async function resolveWithTranslation(
-  task: StepTask,
+  task: GroundedStep,
   context: RuntimeStepAgentContext,
 ): Promise<{
   translation: TranslationReceipt | null;

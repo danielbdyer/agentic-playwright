@@ -5,7 +5,7 @@ import type {
   ResolutionObservation,
   RuntimeDomResolver,
   StepResolution,
-  StepTask,
+  GroundedStep,
 } from '../../domain/types';
 
 export interface RuntimeStepAgentContext {
@@ -26,7 +26,7 @@ export interface RuntimeStepAgentContext {
 }
 
 export interface RuntimeAgentStageContext {
-  task: StepTask;
+  task: GroundedStep;
   context: RuntimeStepAgentContext;
   memory: ObservedStateSession;
   controlResolution: StepResolution | null;

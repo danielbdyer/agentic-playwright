@@ -1,9 +1,9 @@
 import { normalizeIntentText } from '../../domain/inference';
 import { knowledgePaths } from '../../domain/ids';
-import type { InterfaceResolutionContext, StepAction, StepResolution, StepTask } from '../../domain/types';
+import type { InterfaceResolutionContext, StepAction, StepResolution, GroundedStep } from '../../domain/types';
 import { bestAliasMatch } from './shared';
 
-export function allowedActionFallback(task: StepTask): StepAction | null {
+export function allowedActionFallback(task: GroundedStep): StepAction | null {
   const normalized = normalizeIntentText(task.actionText);
   if (normalized.startsWith('navigate')) {
     return 'navigate';
@@ -20,7 +20,7 @@ export function allowedActionFallback(task: StepTask): StepAction | null {
   return task.allowedActions.length === 1 ? task.allowedActions[0] ?? null : null;
 }
 
-export function resolveAction(task: StepTask, controlResolution: StepResolution | null, resolutionContext?: Pick<InterfaceResolutionContext, 'sharedPatterns'>): { action: StepAction | null; supplementRefs: string[] } {
+export function resolveAction(task: GroundedStep, controlResolution: StepResolution | null, resolutionContext?: Pick<InterfaceResolutionContext, 'sharedPatterns'>): { action: StepAction | null; supplementRefs: string[] } {
   if (task.explicitResolution?.action) {
     return { action: task.explicitResolution.action, supplementRefs: [] };
   }

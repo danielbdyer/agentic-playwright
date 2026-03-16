@@ -10,8 +10,8 @@ import {
   createWidgetId,
 } from '../../lib/domain/identity';
 import type {
+  GroundedStep,
   InterfaceResolutionContext,
-  StepTask,
   StepTaskElementCandidate,
   StepTaskGrounding,
   StepTaskScreenCandidate,
@@ -136,7 +136,7 @@ export function groundingFromContext(
   };
 }
 
-export function createStepTask(overrides: Partial<StepTask> = {}, resolutionContext = createInterfaceResolutionContext()): StepTask {
+export function createGroundedStep(overrides: Partial<GroundedStep> = {}, resolutionContext = createInterfaceResolutionContext()): GroundedStep {
   return {
     index: 1,
     intent: 'Enter policy reference',
@@ -147,6 +147,7 @@ export function createStepTask(overrides: Partial<StepTask> = {}, resolutionCont
     explicitResolution: null,
     controlResolution: null,
     grounding: groundingFromContext(resolutionContext),
+    stepFingerprint: 'sha256:step',
     taskFingerprint: 'sha256:task',
     ...overrides,
   };

@@ -1,7 +1,7 @@
 import { knowledgePaths } from '../../domain/ids';
-import type { InterfaceResolutionContext, ResolutionProposalDraft, StepTask, StepTaskElementCandidate, StepTaskScreenCandidate } from '../../domain/types';
+import type { InterfaceResolutionContext, ResolutionProposalDraft, GroundedStep, StepTaskElementCandidate, StepTaskScreenCandidate } from '../../domain/types';
 
-export function proposalForSupplementGap(task: StepTask, screen: StepTaskScreenCandidate, element: StepTaskElementCandidate): ResolutionProposalDraft[] {
+export function proposalForSupplementGap(task: GroundedStep, screen: StepTaskScreenCandidate, element: StepTaskElementCandidate): ResolutionProposalDraft[] {
   return [{
     artifactType: 'hints',
     targetPath: knowledgePaths.hints(screen.screen),

@@ -93,7 +93,6 @@ test('refresh recompiles the seeded scenario through graph, types, and program e
     expect(result.compile.bound.boundScenario.steps.every((step) => step.binding.kind === 'deferred')).toBeTruthy();
     expect(result.compile.bound.boundScenario.steps.every((step) => step.binding.governance === 'approved')).toBeTruthy();
     expect(projectPath(result.compile.compileSnapshot.taskPath)).toContain('.tesseract/tasks/10001.resolution.json');
-    expect(projectPath(result.compile.emitted.runtimePath)).toContain('.tesseract/tasks/10001.runtime.json');
     expect(taskPacket.version).toBe(5);
     expect(taskPacket.payload.stateGraph.fingerprint).toBe(stateGraph.fingerprint);
     expect(taskPacket.payload.knowledgeSlice.stateRefs).toEqual(stateGraph.stateRefs);
@@ -104,8 +103,8 @@ test('refresh recompiles the seeded scenario through graph, types, and program e
     expect(taskPacket.payload.steps.some((step) => step.grounding.resultStateRefs.length > 0)).toBeTruthy();
     expect(generated).toContain('runScenarioHandshake');
     expect(generated).toContain('createLocalRuntimeEnvironment');
-    expect(generated).toContain('loadScenarioRuntimeHandoff');
-    expect(generated).toContain('stepHandshakeFromHandoff');
+    expect(generated).toContain('loadScenarioRunPlan');
+    expect(generated).toContain('stepHandshakeFromPlan');
     expect(generated).toContain('intent-only');
     expect(generated).toContain('deferred-steps');
     expect(traceArtifact.steps[1].runtime.status).toBe('pending');
@@ -997,18 +996,18 @@ test('agent session adapters share one provider-agnostic event vocabulary', asyn
     const adoId = createAdoId('10001');
     await runWithLocalServices(refreshScenario({ adoId, paths: workspace.paths }), workspace.rootDir);
     const catalog = await runWithLocalServices(loadWorkspaceCatalog({ paths: workspace.paths }), workspace.rootDir);
-    const taskPacket = catalog.taskPackets.find((entry) => entry.artifact.payload.adoId === adoId)?.artifact;
+    const surface = catalog.interpretationSurfaces.find((entry) => entry.artifact.payload.adoId === adoId)?.artifact;
 
-    expect(taskPacket).toBeTruthy();
-    if (!taskPacket) {
-      throw new Error('task packet is required');
+    expect(surface).toBeTruthy();
+    if (!surface) {
+      throw new Error('interpretation surface is required');
     }
 
     const input = {
       adoId,
       runId: 'session-run',
       sessionId: 'session-run',
-      taskPacket,
+      surface,
       interfaceGraph: catalog.interfaceGraph?.artifact ?? null,
       selectorCanon: catalog.selectorCanon?.artifact ?? null,
       proposalBundle: null,

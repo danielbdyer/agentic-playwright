@@ -5,7 +5,7 @@ import type {
   ResolutionCandidateSummary,
   ResolutionObservation,
   StepAction,
-  StepTask,
+  GroundedStep,
   StepTaskElementCandidate,
   StepTaskScreenCandidate,
 } from '../../domain/types';
@@ -39,7 +39,7 @@ const DEFAULT_DOM_POLICY: DomExplorationPolicy = {
   forbiddenActions: ['navigate', 'custom'],
 };
 
-function roleNameScore(task: StepTask, candidate: StepTaskElementCandidate): number {
+function roleNameScore(task: GroundedStep, candidate: StepTaskElementCandidate): number {
   const loweredIntent = task.actionText.toLowerCase();
   const loweredExpected = task.expectedText.toLowerCase();
   const aliases = candidate.aliases.map((alias) => alias.toLowerCase());
@@ -109,7 +109,7 @@ function candidateSummary(candidate: DomResolutionCandidate): ResolutionCandidat
 
 export async function resolveFromDom(
   domResolver: RuntimeDomResolver | unknown,
-  task: StepTask,
+  task: GroundedStep,
   screen: StepTaskScreenCandidate | null,
   action: StepAction | null,
   policy?: DomExplorationPolicy | null,

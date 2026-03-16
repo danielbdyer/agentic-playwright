@@ -22,7 +22,7 @@ import type { BoundScenario } from './intent';
 import type { SelectorCanon } from './interface';
 import type { ResolutionExhaustionEntry, TranslationReceipt } from './resolution';
 import type { ProposalBundle, RunRecord } from './execution';
-import type { ScenarioTaskPacket } from './resolution';
+import type { ScenarioInterpretationSurface } from './resolution';
 
 export interface BenchmarkField {
   id: string;
@@ -329,7 +329,7 @@ export interface ScenarioExplanation {
 export interface ScenarioProjectionInput {
   adoId: AdoId;
   boundScenario: BoundScenario;
-  taskPacket: ScenarioTaskPacket;
+  surface: ScenarioInterpretationSurface;
   latestRun: RunRecord | null;
   proposalBundle: ProposalBundle | null;
   interfaceGraph?: ApplicationInterfaceGraph | null | undefined;

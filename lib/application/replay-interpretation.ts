@@ -5,8 +5,9 @@ import type { ProjectPaths } from './paths';
 import { interpretationDriftPath, interpretationPath, resolutionGraphPath, taskPacketPath } from './paths';
 import { FileSystem, RuntimeScenarioRunner } from './ports';
 import { loadWorkspaceCatalog } from './catalog';
-import { selectRunContext } from './execution/select-run-context';
-import { interpretScenarioTaskPacket } from './execution/interpret';
+import { loadScenarioInterpretationSurfaceFromCatalog, prepareScenarioRunPlan } from './execution/select-run-context';
+import { interpretScenarioFromPlan } from './execution/interpret';
+import { taskPacketFromSurface } from './compat/surface-adapter';
 import { emitOperatorInbox } from './inbox';
 import { projectBenchmarkScorecard } from './benchmark';
 import { buildDerivedGraph } from './graph';
@@ -186,8 +187,9 @@ export function replayInterpretation(options: {
     const fs = yield* FileSystem;
     const runtimeScenarioRunner = yield* RuntimeScenarioRunner;
     const catalog = yield* loadWorkspaceCatalog({ paths: options.paths });
-    const selectedContext = selectRunContext({
-      adoId: options.adoId,
+    const surfaceEntry = loadScenarioInterpretationSurfaceFromCatalog(catalog, options.adoId);
+    const plan = prepareScenarioRunPlan({
+      surface: surfaceEntry.artifact,
       catalog,
       paths: options.paths,
       ...(options.runbookName ? { runbookName: options.runbookName } : {}),
@@ -200,35 +202,21 @@ export function replayInterpretation(options: {
       .filter((entry) => entry.artifact.adoId === options.adoId)
       .sort((left, right) => right.artifact.completedAt.localeCompare(left.artifact.completedAt))[0]?.artifact ?? null;
 
-    const taskPacket = (yield* fs.readJson(taskPacketPath(options.paths, options.adoId))) as ScenarioTaskPacket;
-    const executionStage = yield* interpretScenarioTaskPacket({
+    const taskPacket = taskPacketFromSurface(surfaceEntry.artifact);
+    const executionStage = yield* interpretScenarioFromPlan({
       runtimeScenarioRunner,
       rootDir: options.paths.rootDir,
-      adoId: options.adoId,
-      runId: selectedContext.runId,
-      taskPacket,
-      mode: selectedContext.mode,
-      providerId: selectedContext.providerId,
-      screenIds: selectedContext.screenIds,
-      fixtures: selectedContext.fixtures,
-      controlSelection: {
-        runbook: selectedContext.activeRunbook?.name ?? null,
-        dataset: selectedContext.activeDataset?.name ?? null,
-        resolutionControl: selectedContext.activeRunbook?.resolutionControl ?? null,
-      },
-      steps: selectedContext.steps,
-      resolutionContext: selectedContext.resolutionContext,
-      posture: selectedContext.posture,
-      context: selectedContext.context,
-      recoveryPolicy: selectedContext.recoveryPolicy,
+      plan,
+      knowledgeFingerprint: surfaceEntry.artifact.payload.knowledgeFingerprint,
+      controlsFingerprint: surfaceEntry.artifact.fingerprints.controls ?? null,
       translationOptions: {
-        disableTranslation: !selectedContext.translationEnabled,
-        disableTranslationCache: !selectedContext.translationCacheEnabled,
+        disableTranslation: !plan.translationEnabled,
+        disableTranslationCache: !plan.translationCacheEnabled,
       },
     });
 
-    const interpretationFile = interpretationPath(options.paths, options.adoId, selectedContext.runId);
-    const resolutionGraphFile = resolutionGraphPath(options.paths, options.adoId, selectedContext.runId);
+    const interpretationFile = interpretationPath(options.paths, options.adoId, plan.runId);
+    const resolutionGraphFile = resolutionGraphPath(options.paths, options.adoId, plan.runId);
     yield* fs.writeJson(interpretationFile, executionStage.interpretationOutput);
     yield* fs.writeJson(resolutionGraphFile, executionStage.resolutionGraphOutput);
 
@@ -236,16 +224,16 @@ export function replayInterpretation(options: {
     const priorRecord = isInterpretationRecord(priorRaw) ? priorRaw : null;
     const drift = createDriftRecord({
       adoId: options.adoId,
-      runId: selectedContext.runId,
-      providerId: selectedContext.providerId,
-      mode: selectedContext.mode,
+      runId: plan.runId,
+      providerId: plan.providerId,
+      mode: plan.mode,
       current: executionStage.interpretationOutput,
       previous: priorRecord,
       taskPacket,
       taskPacketArtifactPath: taskPacketPath(options.paths, options.adoId),
     });
 
-    const driftFile = interpretationDriftPath(options.paths, options.adoId, selectedContext.runId);
+    const driftFile = interpretationDriftPath(options.paths, options.adoId, plan.runId);
     yield* fs.writeJson(driftFile, drift);
 
     const inbox = yield* emitOperatorInbox({ paths: options.paths, filter: { adoId: options.adoId } });
@@ -255,7 +243,7 @@ export function replayInterpretation(options: {
     }
 
     return {
-      runId: selectedContext.runId,
+      runId: plan.runId,
       interpretationPath: interpretationFile,
       resolutionGraphPath: resolutionGraphFile,
       driftPath: driftFile,

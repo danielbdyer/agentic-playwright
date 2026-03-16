@@ -1,6 +1,6 @@
 import { Effect } from 'effect';
 import type { AdoId } from '../../domain/identity';
-import type { ResolutionGraphRecord, ResolutionReceipt, ScenarioRunPlan, ScenarioTaskPacket, StepResolutionGraph, StepTask } from '../../domain/types';
+import type { ResolutionGraphRecord, ResolutionReceipt, ScenarioRunPlan, ScenarioTaskPacket, StepResolutionGraph, GroundedStep } from '../../domain/types';
 import type { RuntimeScenarioRunnerPort, RuntimeScenarioStepResult } from '../ports';
 import { resolveResolutionEngine } from '../provider-registry';
 import { validateStepResults } from './validate-step-results';
@@ -41,7 +41,7 @@ function scoreCandidates(candidates: NonNullable<ResolutionReceipt['exhaustion']
   }));
 }
 
-function buildStepResolutionGraph(step: RuntimeScenarioStepResult, task: StepTask): StepResolutionGraph {
+function buildStepResolutionGraph(step: RuntimeScenarioStepResult, task: GroundedStep): StepResolutionGraph {
   const receipt = step.interpretation;
   const traversal = receipt.exhaustion
     .map((entry) => ({ rung: toRung(entry.stage), outcome: entry.outcome, reason: entry.reason }));
@@ -117,7 +117,7 @@ export function interpretScenarioTaskPacket(input: {
     disableTranslation?: boolean | undefined;
     disableTranslationCache?: boolean | undefined;
   } | undefined;
-  steps?: readonly StepTask[] | undefined;
+  steps?: readonly GroundedStep[] | undefined;
   resolutionContext: ScenarioRunPlan['resolutionContext'];
   recoveryPolicy?: import('../../domain/execution/recovery-policy').RecoveryPolicy | undefined;
 }) {

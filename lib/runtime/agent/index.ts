@@ -1,4 +1,4 @@
-import type { ObservedStateSession, ResolutionCandidateSummary, ResolutionReceipt, StepTask } from '../../domain/types';
+import type { ObservedStateSession, ResolutionCandidateSummary, ResolutionReceipt, GroundedStep } from '../../domain/types';
 import { resolutionPrecedenceLaw } from '../../domain/precedence';
 import { requiresElement, allowedActionFallback } from './resolve-action';
 import { resolveFromDom } from './dom-fallback';
@@ -39,7 +39,7 @@ function createEmptyObservedStateSession(): ObservedStateSession {
   };
 }
 
-function normalizeObservedStateSession(task: StepTask, memory: ObservedStateSession): ObservedStateSession {
+function normalizeObservedStateSession(task: GroundedStep, memory: ObservedStateSession): ObservedStateSession {
   const next: ObservedStateSession = {
     currentScreen: memory.currentScreen,
     activeStateRefs: uniqueSorted(memory.activeStateRefs).slice(0, MEMORY_MAX_ACTIVE_REFS),
@@ -156,7 +156,7 @@ function summaryForValue<T>(concern: ResolutionCandidateSummary['concern'], rank
   };
 }
 
-export async function runResolutionPipeline(task: StepTask, context: RuntimeStepAgentContext): Promise<ResolutionReceipt> {
+export async function runResolutionPipeline(task: GroundedStep, context: RuntimeStepAgentContext): Promise<ResolutionReceipt> {
   const memory = normalizeObservedStateSession(task, context.observedStateSession ?? createEmptyObservedStateSession());
   context.observedStateSession = memory;
 

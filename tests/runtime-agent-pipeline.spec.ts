@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { createAdoId, createCanonicalTargetRef, createElementId, createScreenId, createSurfaceId, createWidgetId } from '../lib/domain/identity';
+import type { GroundedStep } from '../lib/domain/types';
 import { RESOLUTION_PRECEDENCE, runResolutionPipeline, type RuntimeStepAgentContext } from '../lib/runtime/agent';
 import { createScenarioRunState, runScenarioStep } from '../lib/runtime/scenario';
 import { resolveFromDom } from '../lib/runtime/agent/dom-fallback';
@@ -9,7 +10,7 @@ import {
   createInterfaceResolutionContext,
   createPolicySearchElement,
   createPolicySearchScreen,
-  createStepTask,
+  createGroundedStep,
   groundingFromContext,
 } from './support/interface-fixtures';
 
@@ -51,7 +52,7 @@ function baseFixture() {
       },
     }],
   });
-  const step = createStepTask({
+  const step = createGroundedStep({
     index: 2,
     allowedActions: ['input'],
   }, resolutionContext);
@@ -196,7 +197,7 @@ test('runScenarioStep activates live-dom hint proposals into the shared runtime 
       elements: [searchButton],
     })],
   });
-  const firstStep = createStepTask({
+  const firstStep = createGroundedStep({
     index: 1,
     intent: 'Open finder',
     actionText: 'Open finder',
@@ -205,7 +206,7 @@ test('runScenarioStep activates live-dom hint proposals into the shared runtime 
     allowedActions: ['click'],
     grounding: groundingFromContext(resolutionContext),
   }, resolutionContext);
-  const secondStep = createStepTask({
+  const secondStep = createGroundedStep({
     ...firstStep,
     index: 2,
     taskFingerprint: 'sha256:task-2',
@@ -237,10 +238,10 @@ test('runScenarioStep activates live-dom hint proposals into the shared runtime 
       read: () => '',
     },
     agent: {
-      resolve: async (task, context) => ({
-        version: 1,
-        stage: 'resolution',
-        scope: 'step',
+      resolve: async (task: GroundedStep, context: RuntimeStepAgentContext) => ({
+        version: 1 as const,
+        stage: 'resolution' as const,
+        scope: 'step' as const,
         ids: {
           adoId: null,
           suite: null,
@@ -263,7 +264,7 @@ test('runScenarioStep activates live-dom hint proposals into the shared runtime 
           parents: [task.taskFingerprint],
           handshakes: ['preparation', 'resolution'],
         },
-        governance: 'approved',
+        governance: 'approved' as const,
         taskFingerprint: task.taskFingerprint,
         knowledgeFingerprint: context.resolutionContext.knowledgeFingerprint,
         provider: context.provider,
@@ -282,11 +283,11 @@ test('runScenarioStep activates live-dom hint proposals into the shared runtime 
         winningConcern: 'knowledge',
         winningSource: 'live-dom',
         translation: null,
-        kind: 'resolved-with-proposals',
-        confidence: 'agent-proposed',
-        provenanceKind: 'live-exploration',
+        kind: 'resolved-with-proposals' as const,
+        confidence: 'agent-proposed' as const,
+        provenanceKind: 'live-exploration' as const,
         target: {
-          action: 'click',
+          action: 'click' as import('../lib/domain/types').StepAction,
           screen: createScreenId('policy-search'),
           element: createElementId('searchButton'),
           posture: null,
@@ -295,7 +296,7 @@ test('runScenarioStep activates live-dom hint proposals into the shared runtime 
         },
         evidenceDrafts: [],
         proposalDrafts: [{
-          artifactType: 'hints',
+          artifactType: 'hints' as const,
           targetPath: 'knowledge/screens/policy-search.hints.yaml',
           title: 'Capture open finder phrasing',
           patch: {
@@ -305,7 +306,7 @@ test('runScenarioStep activates live-dom hint proposals into the shared runtime 
           },
           rationale: 'prove same-run alias activation',
         }],
-      }),
+      }) as import('../lib/domain/types').ResolutionReceipt,
     },
   };
 

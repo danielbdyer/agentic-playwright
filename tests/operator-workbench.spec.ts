@@ -80,6 +80,21 @@ test('operator inbox, approval receipts, and rerun plans share a stable proposal
         decision: 'review' as const,
         reasons: [],
       },
+      certification: 'uncertified' as const,
+      activation: {
+        status: 'pending' as const,
+        activatedAt: null,
+        certifiedAt: null,
+        reason: null,
+      },
+      lineage: {
+        runIds: ['seeded-run'],
+        evidenceIds: ['.tesseract/evidence/demo-policy-number.json'],
+        sourceArtifactPaths: ['.tesseract/tasks/10001.resolution.json'],
+        role: null,
+        state: null,
+        driftSeed: null,
+      },
     };
     proposal.proposalId = proposalIdForEntry(
       { adoId, suite: 'demo/policy-search' },
@@ -216,6 +231,21 @@ test('ci-batch posture forbids proposal approval', async () => {
       trustPolicy: {
         decision: 'review' as const,
         reasons: [],
+      },
+      certification: 'uncertified' as const,
+      activation: {
+        status: 'pending' as const,
+        activatedAt: null,
+        certifiedAt: null,
+        reason: null,
+      },
+      lineage: {
+        runIds: ['seeded-run'],
+        evidenceIds: ['.tesseract/evidence/demo-policy-number.json'],
+        sourceArtifactPaths: ['.tesseract/tasks/10001.resolution.json'],
+        role: null,
+        state: null,
+        driftSeed: null,
       },
     };
     proposal.proposalId = proposalIdForEntry(

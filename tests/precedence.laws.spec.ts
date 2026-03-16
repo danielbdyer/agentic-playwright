@@ -3,7 +3,7 @@ import { createScreenId } from '../lib/domain/identity';
 import { rankActionCandidates } from '../lib/runtime/agent/candidate-lattice';
 import { selectedControlResolution } from '../lib/runtime/agent/select-controls';
 import { runResolutionPipeline } from '../lib/runtime/agent';
-import { cloneJson, createAgentContext, createInterfaceResolutionContext, createStepTask } from './support/interface-fixtures';
+import { cloneJson, createAgentContext, createInterfaceResolutionContext, createGroundedStep } from './support/interface-fixtures';
 
 function buildContextWithControls() {
   return createInterfaceResolutionContext({
@@ -45,7 +45,7 @@ function buildContextWithControls() {
 
 test('explicit always outranks control for the same resolution concern', () => {
   const resolutionContext = buildContextWithControls();
-  const task = createStepTask({
+  const task = createGroundedStep({
     explicitResolution: { action: 'click' },
     controlResolution: { action: 'input' },
   }, resolutionContext);
@@ -62,8 +62,8 @@ test('control selection obeys runbook scoping deterministically under permutatio
     resolutionControls: [...permutedContext.controls.resolutionControls].reverse(),
     runbooks: [...permutedContext.controls.runbooks].reverse(),
   };
-  const base = createStepTask({}, baseContext);
-  const permuted = createStepTask({}, permutedContext);
+  const base = createGroundedStep({}, baseContext);
+  const permuted = createGroundedStep({}, permutedContext);
 
   const context = createAgentContext(baseContext, {
     controlSelection: { runbook: 'beta-runbook' },
@@ -81,7 +81,7 @@ test('needs-human is emitted only after machine rungs are exhausted', async () =
     screens: [],
     controls: { datasets: [], resolutionControls: [], runbooks: [] },
   });
-  const task = createStepTask({
+  const task = createGroundedStep({
     allowedActions: ['custom'],
     actionText: 'Do unsupported thing',
     grounding: {
@@ -121,11 +121,11 @@ test('deterministic ordering stability holds under candidate permutation', () =>
       },
     },
   });
-  const left = createStepTask({
+  const left = createGroundedStep({
     explicitResolution: null,
     controlResolution: null,
   }, leftContext);
-  const right = createStepTask({
+  const right = createGroundedStep({
     explicitResolution: null,
     controlResolution: null,
   }, rightContext);

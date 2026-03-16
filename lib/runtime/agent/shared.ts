@@ -1,5 +1,5 @@
 import { normalizeIntentText } from '../../domain/inference';
-import type { ResolutionExhaustionEntry, StepTask } from '../../domain/types';
+import type { ResolutionExhaustionEntry, GroundedStep } from '../../domain/types';
 
 export interface AliasMatch {
   alias: string;
@@ -20,7 +20,7 @@ export function recordExhaustion(
   entries.push({ stage, outcome, reason, ...candidates });
 }
 
-export function normalizedCombined(task: StepTask): string {
+export function normalizedCombined(task: GroundedStep): string {
   return `${normalizeIntentText(task.actionText)} ${normalizeIntentText(task.expectedText)}`.trim();
 }
 
