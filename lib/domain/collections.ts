@@ -15,12 +15,9 @@ export function uniqueSorted<T extends string>(values: Iterable<T>): T[] {
 }
 
 export function groupBy<T, K extends string>(values: Iterable<T>, keyOf: (value: T) => K): Record<K, T[]> {
-  const groups = new Map<K, T[]>();
-  for (const value of values) {
+  const groups = [...values].reduce<Map<K, T[]>>((acc, value) => {
     const key = keyOf(value);
-    const existing = groups.get(key) ?? [];
-    existing.push(value); // eslint-disable-line no-restricted-syntax -- baseline: groupBy accumulation
-    groups.set(key, existing);
-  }
+    return acc.set(key, [...(acc.get(key) ?? []), value]);
+  }, new Map());
   return Object.fromEntries(sortByStringKey(groups.entries(), ([key]) => key)) as Record<K, T[]>;
 }

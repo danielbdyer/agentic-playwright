@@ -44,7 +44,7 @@ function forbiddenAutoHealReason(autoHealClass: string | null | undefined, forbi
   };
 }
 
-function decisionForReasons(reasons: TrustPolicyEvaluationReason[]): TrustPolicyEvaluation['decision'] {
+function decisionForReasons(reasons: ReadonlyArray<TrustPolicyEvaluationReason>): TrustPolicyEvaluation['decision'] {
   if (reasons.length === 0) {
     return 'allow';
   }
@@ -62,29 +62,19 @@ export function evaluateTrustPolicy(input: {
   evidence: EvidenceDescriptor[];
 }): TrustPolicyEvaluation {
   const artifactRule = input.policy.artifactTypes[input.proposedChange.artifactType];
-  const reasons: TrustPolicyEvaluationReason[] = [];
 
-  const minimumConfidence = confidenceThresholdReason(input.proposedChange.confidence, artifactRule.minimumConfidence);
-  if (minimumConfidence) {
-    reasons.push(minimumConfidence); // eslint-disable-line no-restricted-syntax -- baseline
-  }
-
-  const evidenceReason = evidenceRuleReason({
-    evidence: input.evidence,
-    requiredKinds: artifactRule.requiredEvidence.kinds,
-    minimumCount: artifactRule.requiredEvidence.minCount,
-  });
-  if (evidenceReason) {
-    reasons.push(evidenceReason); // eslint-disable-line no-restricted-syntax -- baseline
-  }
-
-  const autoHealReason = forbiddenAutoHealReason(input.proposedChange.autoHealClass, input.policy.forbiddenAutoHealClasses);
-  if (autoHealReason) {
-    reasons.push(autoHealReason); // eslint-disable-line no-restricted-syntax -- baseline
-  }
+  const reasons: ReadonlyArray<TrustPolicyEvaluationReason> = [
+    confidenceThresholdReason(input.proposedChange.confidence, artifactRule.minimumConfidence),
+    evidenceRuleReason({
+      evidence: input.evidence,
+      requiredKinds: artifactRule.requiredEvidence.kinds,
+      minimumCount: artifactRule.requiredEvidence.minCount,
+    }),
+    forbiddenAutoHealReason(input.proposedChange.autoHealClass, input.policy.forbiddenAutoHealClasses),
+  ].filter((reason): reason is TrustPolicyEvaluationReason => reason !== null);
 
   return {
     decision: decisionForReasons(reasons),
-    reasons,
+    reasons: [...reasons],
   };
 }

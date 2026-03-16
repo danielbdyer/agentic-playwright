@@ -279,22 +279,17 @@ function mapKnowledgePathToNodeId(ref: string, context: StepGraphContext): strin
 }
 
 function patternIdsForStep(stepContext: StepGraphContext, sharedPatternsArtifacts: SharedPatternsArtifact[]): string[] {
-  const ids: string[] = [];
   const binding = stepBinding(stepContext);
-  if (binding?.ruleId) {
-    ids.push(graphIds.pattern(binding.ruleId)); // eslint-disable-line no-restricted-syntax -- baseline
-  }
+  const bindingIds = binding?.ruleId ? [graphIds.pattern(binding.ruleId)] : [];
 
-  if (stepContext.step.posture) {
-    for (const entry of sharedPatternsArtifacts) {
-      const descriptor = entry.artifact.postures?.[stepContext.step.posture];
-      if (descriptor?.id) {
-        ids.push(graphIds.pattern(descriptor.id)); // eslint-disable-line no-restricted-syntax -- baseline
-      }
-    }
-  }
+  const postureIds = stepContext.step.posture
+    ? sharedPatternsArtifacts
+        .map((entry) => entry.artifact.postures?.[stepContext.step.posture!]?.id)
+        .filter((id): id is string => id !== undefined && id !== null)
+        .map((id) => graphIds.pattern(id))
+    : [];
 
-  return [...new Set(ids)].sort((left, right) => left.localeCompare(right));
+  return [...new Set([...bindingIds, ...postureIds])].sort((left, right) => left.localeCompare(right));
 }
 
 function bestAliasMatches(normalizedIntent: string, aliases: string[]): string[] {

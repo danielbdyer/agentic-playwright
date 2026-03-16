@@ -200,16 +200,12 @@ function camelize(value: string): string {
 }
 
 function ensureUniqueId(base: string, seen: Set<string>): string {
-  // eslint-disable-next-line no-restricted-syntax -- fixed-point unique-ID generation
-  let next = base || 'discoveredItem';
-  // eslint-disable-next-line no-restricted-syntax -- loop counter for unique-ID suffix
-  let suffix = 2;
-  while (seen.has(next)) {
-    next = `${base}${suffix}`;
-    suffix += 1;
-  }
-  seen.add(next);
-  return next;
+  const candidate = base || 'discoveredItem';
+  const findUnique = (name: string, suffix: number): string =>
+    seen.has(name) ? findUnique(`${candidate}${suffix}`, suffix + 1) : name;
+  const result = findUnique(candidate, 2);
+  seen.add(result);
+  return result;
 }
 
 function surfaceKindForRole(role: string | null, tagName: string): SurfaceKind {
@@ -278,16 +274,11 @@ function locatorCandidatesForElement(input: {
   name: string | null;
   testId: string | null;
 }): DiscoveryElementReport['locatorCandidates'] {
-  // eslint-disable-next-line no-restricted-syntax -- baseline: local accumulation with immutable handoff
-  const candidates: DiscoveryElementReport['locatorCandidates'] = [];
-  if (input.testId) {
-    candidates.push({ kind: 'test-id', value: input.testId }); // eslint-disable-line no-restricted-syntax
-  }
-  candidates.push({ kind: 'role-name', role: input.role, name: input.name }); // eslint-disable-line no-restricted-syntax
-  if (!input.testId) {
-    candidates.push({ kind: 'css', value: input.selector }); // eslint-disable-line no-restricted-syntax
-  }
-  return candidates;
+  return [
+    ...(input.testId ? [{ kind: 'test-id' as const, value: input.testId }] : []),
+    { kind: 'role-name' as const, role: input.role, name: input.name },
+    ...(!input.testId ? [{ kind: 'css' as const, value: input.selector }] : []),
+  ];
 }
 
 function sortSurfaces(input: readonly RawDiscoveredSurface[]): RawDiscoveredSurface[] {
@@ -342,22 +333,21 @@ export function buildDiscoveryArtifacts(input: DiscoveryInput): DiscoveryArtifac
   const sectionId = 'discovered-root';
   const surfaceIdsBySelector = new Map<string, string>();
   const discoveredSurfaceIds = new Set<string>();
-  const normalizedSurfaces = sortSurfaces(input.surfaces);
+  const sortedSurfaces = sortSurfaces(input.surfaces);
+  const normalizedSurfaces: readonly RawDiscoveredSurface[] = sortedSurfaces.length === 0
+    ? [{
+        selector: input.rootSelector,
+        parentSelector: null,
+        role: 'main',
+        name: input.title,
+        testId: null,
+        idAttribute: null,
+        contract: null,
+        tagName: 'main',
+      }]
+    : sortedSurfaces;
   const surfaceSelectors = new Set(normalizedSurfaces.map((surface) => surface.selector));
   const normalizedElements = sortElements(input.elements.filter((element) => !surfaceSelectors.has(element.selector)));
-
-  if (normalizedSurfaces.length === 0) {
-    normalizedSurfaces.push({ // eslint-disable-line no-restricted-syntax -- baseline
-      selector: input.rootSelector,
-      parentSelector: null,
-      role: 'main',
-      name: input.title,
-      testId: null,
-      idAttribute: null,
-      contract: null,
-      tagName: 'main',
-    });
-  }
 
   for (const surface of normalizedSurfaces) {
     const baseId = createStableBaseId({
@@ -383,7 +373,6 @@ export function buildDiscoveryArtifacts(input: DiscoveryInput): DiscoveryArtifac
   const discoveredElementIds = new Set<string>();
   const elementsBySurface = new Map<string, string[]>();
   const childSurfacesByParent = new Map<string, string[]>();
-  const notes: DiscoveryReviewNote[] = [];
 
   const surfaceReports: DiscoverySurfaceReport[] = normalizedSurfaces.map((surface) => {
     const surfaceId = surfaceIdsBySelector.get(surface.selector) ?? rootSurfaceId;
@@ -391,14 +380,6 @@ export function buildDiscoveryArtifacts(input: DiscoveryInput): DiscoveryArtifac
     const assertions = surfaceAssertionsForRole(surface.role, surface.tagName);
     if (parentSurfaceId) {
       childSurfacesByParent.set(parentSurfaceId, [...(childSurfacesByParent.get(parentSurfaceId) ?? []), surfaceId]);
-    }
-    if (!surface.name && !surface.testId) {
-      notes.push({ // eslint-disable-line no-restricted-syntax -- baseline // eslint-disable-line no-restricted-syntax -- baseline
-        code: 'missing-accessible-name',
-        message: `Surface ${surfaceId} has no accessible name or test id; review selector quality before promotion.`,
-        targetId: surfaceId,
-        targetKind: 'surface',
-      });
     }
     return {
       id: surfaceId,
@@ -435,24 +416,6 @@ export function buildDiscoveryArtifacts(input: DiscoveryInput): DiscoveryArtifac
     });
     elementsBySurface.set(surfaceId, [...(elementsBySurface.get(surfaceId) ?? []), elementId]);
 
-    if (!element.name && !element.testId) {
-      notes.push({ // eslint-disable-line no-restricted-syntax -- baseline // eslint-disable-line no-restricted-syntax -- baseline
-        code: 'missing-accessible-name',
-        message: `Element ${elementId} has no accessible name or test id; another agent should review the proposed selector.`,
-        targetId: elementId,
-        targetKind: 'element',
-      });
-    }
-
-    if (locatorHint === 'css') {
-      notes.push({ // eslint-disable-line no-restricted-syntax -- baseline // eslint-disable-line no-restricted-syntax -- baseline
-        code: 'css-fallback-only',
-        message: `Element ${elementId} relies on a css fallback only; promote a more stable locator if available.`,
-        targetId: elementId,
-        targetKind: 'element',
-      });
-    }
-
     return {
       id: elementId,
       selector: element.selector,
@@ -468,14 +431,44 @@ export function buildDiscoveryArtifacts(input: DiscoveryInput): DiscoveryArtifac
     };
   });
 
-  if (elementReports.some((element) => element.supportedActions.includes('click'))) {
-    notes.push({ // eslint-disable-line no-restricted-syntax -- baseline
-      code: 'state-exploration-recommended',
-      message: `Discovered state exposes click-capable controls; capture additional seeded states before promoting canonical knowledge for ${input.screen}.`,
-      targetId: rootSurfaceId,
-      targetKind: 'surface',
-    });
-  }
+  const surfaceNotes: DiscoveryReviewNote[] = surfaceReports
+    .filter((surface) => !surface.name && !surface.testId)
+    .map((surface) => ({
+      code: 'missing-accessible-name' as const,
+      message: `Surface ${surface.id} has no accessible name or test id; review selector quality before promotion.`,
+      targetId: surface.id,
+      targetKind: 'surface' as const,
+    }));
+
+  const elementNotes: DiscoveryReviewNote[] = elementReports.flatMap((element) => [
+    ...(!element.name && !element.testId
+      ? [{
+          code: 'missing-accessible-name' as const,
+          message: `Element ${element.id} has no accessible name or test id; another agent should review the proposed selector.`,
+          targetId: element.id,
+          targetKind: 'element' as const,
+        }]
+      : []),
+    ...(element.locatorHint === 'css'
+      ? [{
+          code: 'css-fallback-only' as const,
+          message: `Element ${element.id} relies on a css fallback only; promote a more stable locator if available.`,
+          targetId: element.id,
+          targetKind: 'element' as const,
+        }]
+      : []),
+  ]);
+
+  const clickExplorationNote: DiscoveryReviewNote[] = elementReports.some((element) => element.supportedActions.includes('click'))
+    ? [{
+        code: 'state-exploration-recommended' as const,
+        message: `Discovered state exposes click-capable controls; capture additional seeded states before promoting canonical knowledge for ${input.screen}.`,
+        targetId: rootSurfaceId,
+        targetKind: 'surface' as const,
+      }]
+    : [];
+
+  const notes: ReadonlyArray<DiscoveryReviewNote> = [...surfaceNotes, ...elementNotes, ...clickExplorationNote];
 
   const topLevelSurfaceIds = surfaceReports
     .filter((surface) => surface.parentSurfaceId === null)
@@ -555,23 +548,18 @@ export function buildDiscoveryArtifacts(input: DiscoveryInput): DiscoveryArtifac
   }
 
   function descendantSurfaceIds(rootId: string): string[] {
-    const ordered: string[] = [];
-    const queue = [rootId];
-    const seen = new Set<string>();
-
-    while (queue.length > 0) {
-      const current = queue.shift();
+    const traverse = (frontier: ReadonlyArray<string>, seen: Set<string>, result: ReadonlyArray<string>): ReadonlyArray<string> => {
+      if (frontier.length === 0) {
+        return result;
+      }
+      const [current, ...rest] = frontier;
       if (!current || seen.has(current)) {
-        continue;
+        return traverse(rest, seen, result);
       }
-      seen.add(current);
-      ordered.push(current); // eslint-disable-line no-restricted-syntax -- baseline: BFS traversal
-      for (const child of uniqueSorted(childSurfacesByParent.get(current) ?? [])) {
-        queue.push(child); // eslint-disable-line no-restricted-syntax -- baseline: BFS queue
-      }
-    }
-
-    return ordered;
+      const children = uniqueSorted(childSurfacesByParent.get(current) ?? []);
+      return traverse([...rest, ...children], new Set([...seen, current]), [...result, current]);
+    };
+    return [...traverse([rootId], new Set(), [])];
   }
 
   function descendantElementIds(rootId: string): string[] {
@@ -656,7 +644,7 @@ export function buildDiscoveryArtifacts(input: DiscoveryInput): DiscoveryArtifac
       snapshotHash,
       surfaces: surfaceReports,
       elements: elementReports,
-      reviewNotes: notes.sort((left, right) => `${left.targetKind}:${left.targetId}:${left.code}`.localeCompare(`${right.targetKind}:${right.targetId}:${right.code}`)),
+      reviewNotes: [...notes].sort((left, right) => `${left.targetKind}:${left.targetId}:${left.code}`.localeCompare(`${right.targetKind}:${right.targetId}:${right.code}`)),
     },
     surfaceScaffold,
     elementsScaffold,
