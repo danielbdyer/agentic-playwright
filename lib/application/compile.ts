@@ -9,7 +9,7 @@ import { projectLearningArtifacts } from './learning';
 import { parseScenario } from './parse';
 import { runPipelineStage } from './pipeline';
 import type { ProjectPaths } from './paths';
-import { buildTaskPacketProjection, type TaskProjectionResult } from './task';
+import { buildInterpretationSurfaceProjection, type TaskProjectionResult } from './task';
 import { generateTypes } from './types';
 import {
   loadWorkspaceSession,
@@ -36,15 +36,15 @@ export function compileScenario(options: { adoId: AdoId; paths: ProjectPaths }) 
           scenarioPath: parsed.scenarioPath,
           boundScenario: bound.boundScenario,
           boundPath: bound.boundPath,
-          taskPacket: {} as never,
-          taskPath: '',
+          surface: null as never,
+          surfacePath: '',
           hasUnbound: bound.hasUnbound,
         });
         const interfaceIntelligence = yield* projectInterfaceIntelligence({
           paths: options.paths,
           catalog: sessionWithScenario.catalog,
         });
-        const task: TaskProjectionResult = yield* buildTaskPacketProjection({
+        const task: TaskProjectionResult = yield* buildInterpretationSurfaceProjection({
           paths: options.paths,
           compileSnapshot: initialSnapshot,
           catalog: sessionWithScenario.catalog,
@@ -54,13 +54,13 @@ export function compileScenario(options: { adoId: AdoId; paths: ProjectPaths }) 
         });
         const compileSnapshot = createCompileSnapshot({
           ...initialSnapshot,
-          taskPacket: task.taskPacket,
-          taskPath: task.taskPath,
+          surface: task.surface,
+          surfacePath: task.surfacePath,
         });
         const learning = yield* projectLearningArtifacts({
           paths: options.paths,
           boundScenario: bound.boundScenario,
-          taskPacket: task.taskPacket,
+          surface: task.surface,
           interfaceGraph: interfaceIntelligence.interfaceGraph,
           selectorCanon: interfaceIntelligence.selectorCanon,
         });

@@ -1,7 +1,7 @@
-﻿import { promises as fs } from 'fs';
+import { promises as fs } from 'fs';
 import path from 'path';
 import type { FileSystemPort } from '../../application/ports';
-import { tryAsync } from '../../application/effect';
+import { tryFileSystem } from '../../application/effect';
 
 function stripBom(value: string): string {
   return value.replace(/^\uFEFF/, '');
@@ -9,33 +9,34 @@ function stripBom(value: string): string {
 
 export const LocalFileSystem: FileSystemPort = {
   readText(filePath) {
-    return tryAsync(async () => stripBom(await fs.readFile(filePath, 'utf8')), 'fs-read-failed', `Unable to read ${filePath}`);
+    return tryFileSystem(async () => stripBom(await fs.readFile(filePath, 'utf8')), 'fs-read-failed', `Unable to read ${filePath}`, filePath);
   },
 
   writeText(filePath, contents) {
-    return tryAsync(async () => {
+    return tryFileSystem(async () => {
       await fs.mkdir(path.dirname(filePath), { recursive: true });
       await fs.writeFile(filePath, contents, 'utf8');
-    }, 'fs-write-failed', `Unable to write ${filePath}`);
+    }, 'fs-write-failed', `Unable to write ${filePath}`, filePath);
   },
 
   readJson(filePath) {
-    return tryAsync(
+    return tryFileSystem(
       async () => JSON.parse(stripBom(await fs.readFile(filePath, 'utf8'))),
       'json-read-failed',
       `Unable to read JSON from ${filePath}`,
+      filePath,
     );
   },
 
   writeJson(filePath, value) {
-    return tryAsync(async () => {
+    return tryFileSystem(async () => {
       await fs.mkdir(path.dirname(filePath), { recursive: true });
       await fs.writeFile(filePath, JSON.stringify(value, null, 2), 'utf8');
-    }, 'json-write-failed', `Unable to write JSON to ${filePath}`);
+    }, 'json-write-failed', `Unable to write JSON to ${filePath}`, filePath);
   },
 
   exists(filePath) {
-    return tryAsync(async () => {
+    return tryFileSystem(async () => {
       try {
         await fs.access(filePath);
         return true;
@@ -46,15 +47,14 @@ export const LocalFileSystem: FileSystemPort = {
         }
         throw error;
       }
-    }, 'fs-access-failed', `Unable to inspect ${filePath}`);
+    }, 'fs-access-failed', `Unable to inspect ${filePath}`, filePath);
   },
 
   listDir(dirPath) {
-    return tryAsync(() => fs.readdir(dirPath), 'fs-list-failed', `Unable to list ${dirPath}`);
+    return tryFileSystem(() => fs.readdir(dirPath), 'fs-list-failed', `Unable to list ${dirPath}`, dirPath);
   },
 
   ensureDir(dirPath) {
-    return tryAsync(() => fs.mkdir(dirPath, { recursive: true }), 'fs-mkdir-failed', `Unable to create ${dirPath}`);
+    return tryFileSystem(() => fs.mkdir(dirPath, { recursive: true }), 'fs-mkdir-failed', `Unable to create ${dirPath}`, dirPath);
   },
 };
-

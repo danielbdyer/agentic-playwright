@@ -122,39 +122,35 @@ export function capabilityForInstruction(instruction: StepInstruction): Capabili
 }
 
 export function traceStepProgram(program: StepProgram): StepProgramTrace {
-  const screens: ScreenId[] = [];
-  const elements: ElementId[] = [];
-  const snapshotTemplates: SnapshotTemplateId[] = [];
-  const instructionKinds = program.instructions.map((instruction) => instruction.kind);
-  let hasEscapeHatch = false;
+  const seed: StepProgramTrace = {
+    instructionKinds: [],
+    screens: [],
+    elements: [],
+    snapshotTemplates: [],
+    hasEscapeHatch: false,
+  };
 
-  for (const instruction of program.instructions) {
-    switch (instruction.kind) {
+  const raw = program.instructions.reduce((acc, instruction) => {
+    const kind = instruction.kind;
+    const base = { ...acc, instructionKinds: [...acc.instructionKinds, kind] };
+    switch (kind) {
       case 'navigate':
-        screens.push(instruction.screen);
-        break;
+        return { ...base, screens: [...base.screens, instruction.screen] };
       case 'enter':
       case 'invoke':
-        screens.push(instruction.screen);
-        elements.push(instruction.element);
-        break;
+        return { ...base, screens: [...base.screens, instruction.screen], elements: [...base.elements, instruction.element] };
       case 'observe-structure':
-        screens.push(instruction.screen);
-        elements.push(instruction.element);
-        snapshotTemplates.push(instruction.snapshotTemplate);
-        break;
+        return { ...base, screens: [...base.screens, instruction.screen], elements: [...base.elements, instruction.element], snapshotTemplates: [...base.snapshotTemplates, instruction.snapshotTemplate] };
       case 'custom-escape-hatch':
-        hasEscapeHatch = true;
-        break;
+        return { ...base, hasEscapeHatch: true };
     }
-  }
+  }, seed);
 
   return {
-    instructionKinds,
-    screens: uniqueSorted(screens),
-    elements: uniqueSorted(elements),
-    snapshotTemplates: uniqueSorted(snapshotTemplates),
-    hasEscapeHatch,
+    ...raw,
+    screens: uniqueSorted(raw.screens),
+    elements: uniqueSorted(raw.elements),
+    snapshotTemplates: uniqueSorted(raw.snapshotTemplates),
   };
 }
 

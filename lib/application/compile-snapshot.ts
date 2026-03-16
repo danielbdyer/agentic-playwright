@@ -1,5 +1,5 @@
 import type { AdoId } from '../domain/identity';
-import type { BoundScenario, Scenario, ScenarioTaskPacket } from '../domain/types';
+import type { BoundScenario, Scenario, ScenarioInterpretationSurface } from '../domain/types';
 
 export interface CompileSnapshot {
   adoId: AdoId;
@@ -7,8 +7,8 @@ export interface CompileSnapshot {
   scenarioPath: string;
   boundScenario: BoundScenario;
   boundPath: string;
-  taskPacket: ScenarioTaskPacket;
-  taskPath: string;
+  surface: ScenarioInterpretationSurface;
+  surfacePath: string;
   hasUnbound: boolean;
 }
 

@@ -4,7 +4,7 @@ import { knowledgePaths } from '../domain/ids';
 import type {
   ArtifactConfidenceRecord,
   ConfidenceOverlayCatalog,
-  ScenarioTaskPacket,
+  GroundedStep,
   TrustPolicyArtifactType,
 } from '../domain/types';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
@@ -52,8 +52,8 @@ function thresholdForArtifact(catalog: WorkspaceCatalog, artifactType: TrustPoli
   return catalog.trustPolicy.artifact.artifactTypes[artifactType]?.minimumConfidence ?? 1;
 }
 
-function stepTaskForRunStep(catalog: WorkspaceCatalog, runAdoId: string, stepIndex: number): ScenarioTaskPacket['payload']['steps'][number] | null {
-  return catalog.taskPackets
+function stepTaskForRunStep(catalog: WorkspaceCatalog, runAdoId: string, stepIndex: number): GroundedStep | null {
+  return catalog.interpretationSurfaces
     .find((entry) => entry.artifact.payload.adoId === runAdoId)
     ?.artifact.payload.steps.find((step) => step.index === stepIndex) ?? null;
 }

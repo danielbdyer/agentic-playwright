@@ -11,14 +11,12 @@ import type {
   InterfaceResolutionContext,
   ScenarioInterpretationSurface,
   ScenarioKnowledgeSlice,
-  ScenarioTaskPacket,
   SelectorCanon,
   StateTransitionGraph,
   StepResolution,
   StepGrounding,
 } from '../domain/types';
 import { controlResolutionForStep, runtimeControlsForScenario } from './controls';
-import { taskPacketFromSurface } from './compat/surface-adapter';
 import type { CompileSnapshot } from './compile-snapshot';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
 import { buildInterfaceResolutionContext } from './interface-resolution';
@@ -35,8 +33,7 @@ import { runIncrementalStage } from './pipeline';
 
 export interface TaskProjectionResult {
   surface: ScenarioInterpretationSurface;
-  taskPacket: ScenarioTaskPacket;
-  taskPath: string;
+  surfacePath: string;
   incremental: ProjectionIncremental;
 }
 
@@ -314,18 +311,7 @@ export function buildScenarioInterpretationSurface(input: {
   };
 }
 
-export function buildTaskPacket(input: {
-  paths: ProjectPaths;
-  compileSnapshot: CompileSnapshot;
-  catalog: WorkspaceCatalog;
-  interfaceGraph?: ApplicationInterfaceGraph | null | undefined;
-  selectorCanon?: SelectorCanon | null | undefined;
-  stateGraph?: StateTransitionGraph | null | undefined;
-}): ScenarioTaskPacket {
-  return taskPacketFromSurface(buildScenarioInterpretationSurface(input));
-}
-
-export function buildTaskPacketProjection(options:
+export function buildInterpretationSurfaceProjection(options:
   | { paths: ProjectPaths; compileSnapshot: CompileSnapshot; catalog?: WorkspaceCatalog; interfaceGraph?: ApplicationInterfaceGraph | null | undefined; selectorCanon?: SelectorCanon | null | undefined; stateGraph?: StateTransitionGraph | null | undefined }
   | { paths: ProjectPaths; adoId: AdoId; catalog?: WorkspaceCatalog; interfaceGraph?: ApplicationInterfaceGraph | null | undefined; selectorCanon?: SelectorCanon | null | undefined; stateGraph?: StateTransitionGraph | null | undefined }): Effect.Effect<TaskProjectionResult, unknown, unknown> {
   return Effect.gen(function* () {
@@ -348,8 +334,8 @@ export function buildTaskPacketProjection(options:
             scenarioPath: scenario.absolutePath,
             boundScenario: boundScenario.artifact,
             boundPath: boundScenario.absolutePath,
-            taskPacket: {} as ScenarioTaskPacket,
-            taskPath: '',
+            surface: null as unknown as ScenarioInterpretationSurface,
+            surfacePath: '',
             hasUnbound: boundScenario.artifact.steps.some((step) => step.binding.kind === 'unbound'),
           } satisfies CompileSnapshot;
         })();
@@ -382,7 +368,6 @@ export function buildTaskPacketProjection(options:
       selectorCanon: options.selectorCanon ?? catalog.selectorCanon?.artifact ?? null,
       stateGraph: options.stateGraph ?? catalog.stateGraph?.artifact ?? null,
     });
-    const taskPacket = taskPacketFromSurface(surface);
     const outputFingerprint = fingerprintProjectionOutput(surface);
 
     return yield* runIncrementalStage<
@@ -404,7 +389,7 @@ export function buildTaskPacketProjection(options:
       persist: () => Effect.gen(function* () {
         yield* fs.writeJson(packetPath, surface);
         return {
-          result: { surface, taskPacket, taskPath: packetPath },
+          result: { surface, surfacePath: packetPath },
           outputFingerprint,
           rewritten: [
             relativeProjectPath(options.paths, packetPath),
@@ -412,7 +397,7 @@ export function buildTaskPacketProjection(options:
           ],
         };
       }),
-      withCacheHit: (incremental) => ({ surface, taskPacket, taskPath: packetPath, incremental }),
+      withCacheHit: (incremental) => ({ surface, surfacePath: packetPath, incremental }),
       withCacheMiss: (built, incremental) => ({ ...built, incremental }),
     });
   });

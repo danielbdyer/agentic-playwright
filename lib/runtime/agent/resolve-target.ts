@@ -1,11 +1,11 @@
-import { createPostureId, createSnapshotTemplateId } from '../../domain/identity';
+import { createPostureId } from '../../domain/identity';
 import { knowledgePaths } from '../../domain/ids';
-import type { ResolutionTarget, StepAction, StepResolution, StepTask, StepTaskElementCandidate, StepTaskScreenCandidate } from '../../domain/types';
+import type { ResolutionTarget, StepAction, StepResolution, GroundedStep, StepTaskElementCandidate, StepTaskScreenCandidate } from '../../domain/types';
 import { bestAliasMatch, humanizeIdentifier, normalizedCombined, uniqueSorted } from './shared';
 import { selectedDataset, selectedRunbook } from './select-controls';
 import type { RuntimeStepAgentContext } from './types';
 
-function groundedScreens(task: StepTask, context: RuntimeStepAgentContext): StepTaskScreenCandidate[] {
+function groundedScreens(task: GroundedStep, context: RuntimeStepAgentContext): StepTaskScreenCandidate[] {
   const allowedRouteVariantRefs = new Set(task.grounding.routeVariantRefs);
   if (allowedRouteVariantRefs.size === 0) {
     return context.resolutionContext.screens;
@@ -13,16 +13,8 @@ function groundedScreens(task: StepTask, context: RuntimeStepAgentContext): Step
   return context.resolutionContext.screens.filter((screen) => screen.routeVariantRefs.some((ref) => allowedRouteVariantRefs.has(ref)));
 }
 
-function groundedElements(task: StepTask, screen: StepTaskScreenCandidate): StepTaskElementCandidate[] {
-  const allowedTargetRefs = new Set(task.grounding.targetRefs);
-  if (allowedTargetRefs.size === 0) {
-    return screen.elements;
-  }
-  return screen.elements.filter((element) => allowedTargetRefs.has(element.targetRef));
-}
-
 export function resolveScreen(
-  task: StepTask,
+  task: GroundedStep,
   action: StepAction | null,
   controlResolution: StepResolution | null,
   previousResolution: ResolutionTarget | null | undefined,
@@ -65,42 +57,8 @@ export function resolveScreen(
   return { screen: null, supplementRefs: [] };
 }
 
-export function resolveElement(task: StepTask, screen: StepTaskScreenCandidate | null, controlResolution: StepResolution | null): { element: StepTaskElementCandidate | null; supplementRefs: string[] } {
-  if (!screen) {
-    return { element: null, supplementRefs: [] };
-  }
-
-  const elements = groundedElements(task, screen);
-  if (task.explicitResolution?.element) {
-    const explicit = elements.find((element) => element.element === task.explicitResolution?.element) ?? null;
-    return { element: explicit, supplementRefs: explicit ? screen.supplementRefs : [] };
-  }
-  if (controlResolution?.element) {
-    const controlled = elements.find((element) => element.element === controlResolution.element) ?? null;
-    return { element: controlled, supplementRefs: controlled ? screen.supplementRefs : [] };
-  }
-
-  const normalized = normalizedCombined(task);
-  let best: { element: StepTaskElementCandidate; score: number } | null = null;
-  for (const element of elements) {
-    const aliases = uniqueSorted([element.element, humanizeIdentifier(element.element), element.name ?? '', ...element.aliases]);
-    const match = bestAliasMatch(normalized, aliases);
-    if (!match) {
-      continue;
-    }
-    if (!best || match.score > best.score) {
-      best = { element, score: match.score };
-    }
-  }
-
-  return {
-    element: best?.element ?? null,
-    supplementRefs: best ? screen.supplementRefs : [],
-  };
-}
-
 export function resolvePosture(
-  task: StepTask,
+  task: GroundedStep,
   element: StepTaskElementCandidate | null,
   controlResolution: StepResolution | null,
   context: RuntimeStepAgentContext,
@@ -132,7 +90,7 @@ function generatedTokenKey(screen: string, element: string): string {
 }
 
 export function resolveOverride(
-  task: StepTask,
+  task: GroundedStep,
   screen: StepTaskScreenCandidate | null,
   element: StepTaskElementCandidate | null,
   posture: ReturnType<typeof createPostureId> | null,
@@ -184,21 +142,3 @@ export function resolveOverride(
   return { override: null, source: 'none' };
 }
 
-export function resolveSnapshot(task: StepTask, screen: StepTaskScreenCandidate | null, element: StepTaskElementCandidate | null, controlResolution: StepResolution | null): { snapshotTemplate: ReturnType<typeof createSnapshotTemplateId> | null; supplementRefs: string[] } {
-  if (task.explicitResolution?.snapshot_template) {
-    return { snapshotTemplate: task.explicitResolution.snapshot_template, supplementRefs: [] };
-  }
-  if (controlResolution?.snapshot_template) {
-    return { snapshotTemplate: controlResolution.snapshot_template, supplementRefs: [] };
-  }
-  const normalized = normalizedCombined(task);
-  for (const [snapshotTemplate, aliases] of Object.entries(element?.snapshotAliases ?? {})) {
-    if (bestAliasMatch(normalized, aliases)) {
-      return { snapshotTemplate: createSnapshotTemplateId(snapshotTemplate), supplementRefs: screen?.supplementRefs ?? [] };
-    }
-  }
-  if ((screen?.sectionSnapshots.length ?? 0) === 1) {
-    return { snapshotTemplate: screen?.sectionSnapshots[0] ?? null, supplementRefs: [] };
-  }
-  return { snapshotTemplate: null, supplementRefs: [] };
-}

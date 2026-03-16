@@ -98,9 +98,9 @@ for (const decision of ['review', 'deny'] as const) {
       const hints = YAML.parse(workspace.readText('knowledge', 'screens', 'policy-search.hints.yaml')) as {
         elements: Record<string, { aliases: string[]; acquired?: { certification: string; lineage: { role?: string | null } } }>;
       };
-      expect(hints.elements.searchButton.aliases).toContain(`Search alias ${decision}`);
-      expect(hints.elements.searchButton.acquired?.certification).toBe('uncertified');
-      expect(hints.elements.searchButton.acquired?.lineage.role).toBe('csr');
+      expect(hints.elements.searchButton!.aliases).toContain(`Search alias ${decision}`);
+      expect(hints.elements.searchButton!.acquired?.certification).toBe('uncertified');
+      expect(hints.elements.searchButton!.acquired?.lineage.role).toBe('csr');
     } finally {
       workspace.cleanup();
     }

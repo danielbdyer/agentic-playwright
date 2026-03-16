@@ -18,7 +18,7 @@ import {
   cloneJson,
   createAgentContext,
   createInterfaceResolutionContext,
-  createStepTask,
+  createGroundedStep,
 } from './support/interface-fixtures';
 
 test('workspace catalog exposes canonical control surfaces for the seeded scenario', async () => {
@@ -96,7 +96,7 @@ test('runtime agent reports the winning data source across explicit, control, da
   });
   resolutionContext.screens[0]!.elements[0]!.defaultValueRef = '{{activePolicy.number}}';
   resolutionContext.screens[0]!.elements[0]!.parameter = 'policyNumber';
-  const baseStep = createStepTask({
+  const baseStep = createGroundedStep({
     index: 2,
     actionText: 'Enter policy number on policy search',
     expectedText: 'Policy number is accepted',
@@ -195,7 +195,7 @@ test('runtime agent uses approved-equivalent overlays before translation and liv
       },
     }],
   });
-  const step = createStepTask({
+  const step = createGroundedStep({
     index: 2,
     allowedActions: ['input'],
   }, resolutionContext);
@@ -216,7 +216,7 @@ test('runtime agent falls through to structured translation before live DOM', as
   resolutionContext.confidenceOverlays = [];
   resolutionContext.screens[0]!.elements[0]!.name = 'Reference Number';
   resolutionContext.screens[0]!.elements[0]!.aliases = ['reference'];
-  const step = createStepTask({
+  const step = createGroundedStep({
     index: 2,
     intent: 'Enter reference number',
     actionText: 'Type the reference number',

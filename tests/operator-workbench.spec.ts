@@ -37,8 +37,8 @@ test('persist and no-write refresh compute the same derived fingerprints while n
       workspace.rootDir,
     );
 
-    expect(baseline.result.compile.compileSnapshot.taskPacket.taskFingerprint)
-      .toBe(persisted.compile.compileSnapshot.taskPacket.taskFingerprint);
+    expect(baseline.result.compile.compileSnapshot.surface.surfaceFingerprint)
+      .toBe(persisted.compile.compileSnapshot.surface.surfaceFingerprint);
     expect(baseline.result.compile.graph.graph.fingerprint)
       .toBe(persisted.compile.graph.graph.fingerprint);
     expect(baseline.result.compile.generatedTypes.screens)
@@ -79,6 +79,21 @@ test('operator inbox, approval receipts, and rerun plans share a stable proposal
       trustPolicy: {
         decision: 'review' as const,
         reasons: [],
+      },
+      certification: 'uncertified' as const,
+      activation: {
+        status: 'pending' as const,
+        activatedAt: null,
+        certifiedAt: null,
+        reason: null,
+      },
+      lineage: {
+        runIds: ['seeded-run'],
+        evidenceIds: ['.tesseract/evidence/demo-policy-number.json'],
+        sourceArtifactPaths: ['.tesseract/tasks/10001.resolution.json'],
+        role: null,
+        state: null,
+        driftSeed: null,
       },
     };
     proposal.proposalId = proposalIdForEntry(
@@ -216,6 +231,21 @@ test('ci-batch posture forbids proposal approval', async () => {
       trustPolicy: {
         decision: 'review' as const,
         reasons: [],
+      },
+      certification: 'uncertified' as const,
+      activation: {
+        status: 'pending' as const,
+        activatedAt: null,
+        certifiedAt: null,
+        reason: null,
+      },
+      lineage: {
+        runIds: ['seeded-run'],
+        evidenceIds: ['.tesseract/evidence/demo-policy-number.json'],
+        sourceArtifactPaths: ['.tesseract/tasks/10001.resolution.json'],
+        role: null,
+        state: null,
+        driftSeed: null,
       },
     };
     proposal.proposalId = proposalIdForEntry(

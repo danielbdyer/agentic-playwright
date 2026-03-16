@@ -46,6 +46,8 @@ export function buildRunRecord(input: {
     }),
     lineage: createEnvelopeLineage({
       taskFingerprint: input.plan.surfaceFingerprint,
+      runbookArtifactPath: input.plan.controlArtifactPaths.runbook ?? null,
+      datasetArtifactPath: input.plan.controlArtifactPaths.dataset ?? null,
       parents: [input.plan.surfaceFingerprint],
       handshakes: ['preparation', 'resolution', 'execution', 'evidence'],
     }),

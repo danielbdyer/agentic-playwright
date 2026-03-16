@@ -1,11 +1,11 @@
 import { expect, test } from '@playwright/test';
 import { createCanonicalTargetRef, createElementId, createScreenId } from '../lib/domain/identity';
 import { rankActionCandidates, rankElementCandidates, rankScreenCandidates } from '../lib/runtime/agent/candidate-lattice';
-import { cloneJson, createInterfaceResolutionContext, createPolicySearchScreen, createStepTask } from './support/interface-fixtures';
+import { cloneJson, createInterfaceResolutionContext, createPolicySearchScreen, createGroundedStep } from './support/interface-fixtures';
 
 test('candidate lattice precedence keeps explicit above control above approved knowledge', () => {
   const resolutionContext = createInterfaceResolutionContext();
-  const explicitTask = createStepTask({
+  const explicitTask = createGroundedStep({
     explicitResolution: { action: 'click', screen: createScreenId('policy-search') },
     controlResolution: { action: 'input' },
   }, resolutionContext);
@@ -13,7 +13,7 @@ test('candidate lattice precedence keeps explicit above control above approved k
   expect(explicitRank.selected?.value).toBe('click');
   expect(explicitRank.selected?.source).toBe('explicit');
 
-  const controlTask = createStepTask({
+  const controlTask = createGroundedStep({
     explicitResolution: null,
     controlResolution: { action: 'click' },
   }, resolutionContext);
@@ -29,7 +29,7 @@ test('screen and element ranking remain deterministic across equivalent permutat
       createPolicySearchScreen({ screen: createScreenId('alpha-screen'), screenAliases: ['policy search'] }),
     ],
   });
-  const left = createStepTask({}, leftContext);
+  const left = createGroundedStep({}, leftContext);
   const rightContext = cloneJson(leftContext);
   rightContext.screens = [...rightContext.screens].reverse().map((screen) => ({
     ...screen,
@@ -39,7 +39,7 @@ test('screen and element ranking remain deterministic across equivalent permutat
       aliases: [...element.aliases].reverse(),
     })),
   }));
-  const right = createStepTask({}, rightContext);
+  const right = createGroundedStep({}, rightContext);
 
   const leftScreen = rankScreenCandidates(left, 'input', left.controlResolution, null, leftContext);
   const rightScreen = rankScreenCandidates(right, 'input', right.controlResolution, null, rightContext);
@@ -74,7 +74,7 @@ test('working-memory priors boost same-screen continuation and known entity cont
       }),
     ],
   });
-  const task = createStepTask({
+  const task = createGroundedStep({
     actionText: 'Enter policy search preferred policy ref',
     normalizedIntent: 'enter policy search preferred policy ref => policy accepted',
   }, resolutionContext);
@@ -87,6 +87,7 @@ test('working-memory priors boost same-screen continuation and known entity cont
     activeTargetRefs: [createCanonicalTargetRef('target:element:a-policy-search:preferredPolicyRefInput')],
     lastSuccessfulLocatorRung: null,
     recentAssertions: [],
+    causalLinks: [],
     lineage: [],
   };
 

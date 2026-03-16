@@ -207,6 +207,62 @@ test('canonical control surfaces are present as first-class repo seams', () => {
   expect(missing).toEqual([]);
 });
 
+test('scenario kernel: buildInterfaceResolutionContext is confined to preparation-phase files only', () => {
+  const allowedFiles = new Set([
+    'lib/application/task.ts',
+    'lib/application/interface-resolution.ts',
+  ]);
+  const files = listTsFiles('lib');
+  const offenders = files
+    .filter((filePath) => {
+      const rel = relativeFile(filePath);
+      if (allowedFiles.has(rel)) return false;
+      return fileText(filePath).includes('buildInterfaceResolutionContext');
+    })
+    .map(relativeFile);
+
+  expect(offenders).toEqual([]);
+});
+
+test('scenario kernel: ScenarioRuntimeHandoff type has been fully removed', () => {
+  const files = listTsFiles('lib');
+  const offenders = files
+    .filter((filePath) => /\bScenarioRuntimeHandoff\b/.test(fileText(filePath)))
+    .map(relativeFile);
+
+  expect(offenders).toEqual([]);
+});
+
+test('scenario kernel: runtime layer does not import from application/runtime-handoff', () => {
+  const offenders = listTsFiles('lib/runtime').flatMap((filePath) =>
+    importsFor(filePath)
+      .filter((specifier) => specifier.includes('runtime-handoff'))
+      .map((specifier) => `${relativeFile(filePath)} -> ${specifier}`),
+  );
+
+  expect(offenders).toEqual([]);
+});
+
+test('scenario kernel: new code should use ScenarioRunPlan not SelectedRunContext for plan data', () => {
+  const allowedFiles = new Set([
+    'lib/application/execution/select-run-context.ts',
+    'lib/application/run.ts',
+    'lib/application/emit.ts',
+  ]);
+  const files = listTsFiles('lib');
+  const offenders = files
+    .filter((filePath) => {
+      const rel = relativeFile(filePath);
+      if (allowedFiles.has(rel)) return false;
+      const text = fileText(filePath);
+      // Check for accessing old SelectedRunContext fields directly (not through .plan)
+      return /selectedContext\.(mode|steps|screenIds|fixtures|resolutionContext|posture|providerId)\b/.test(text);
+    })
+    .map(relativeFile);
+
+  expect(offenders).toEqual([]);
+});
+
 test('operator documentation surfaces are present and linked from the repo entrypoints', () => {
   const expectedPaths = [
     'docs/operator-handbook.md',

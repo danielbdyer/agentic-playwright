@@ -1,6 +1,6 @@
 import * as ts from 'typescript';
 import { aggregateConfidence, lifecycleForScenario } from './status';
-import type { BoundScenario, ScenarioTaskPacket } from './types';
+import type { BoundScenario, ScenarioInterpretationSurface } from './types';
 import {
   awaitExpression,
   callExpression,
@@ -53,9 +53,9 @@ function fixtureReferencePattern(raw: string, fixtures: Set<string>): void {
   }
 }
 
-function fixturesForScenario(boundScenario: BoundScenario, taskPacket: ScenarioTaskPacket): string[] {
+function fixturesForScenario(boundScenario: BoundScenario, surface: ScenarioInterpretationSurface): string[] {
   const fixtures = new Set<string>(boundScenario.preconditions.map((precondition) => precondition.fixture));
-  for (const step of taskPacket.payload.steps) {
+  for (const step of surface.payload.steps) {
     if (step.explicitResolution?.override) {
       fixtureReferencePattern(step.explicitResolution.override, fixtures);
     }
@@ -217,7 +217,7 @@ function lifecycleStatements(lifecycle: 'normal' | 'fixme' | 'skip' | 'fail'): t
 
 export function renderGeneratedSpecModule(
   boundScenario: BoundScenario,
-  taskPacket: ScenarioTaskPacket,
+  surface: ScenarioInterpretationSurface,
   options: GeneratedSpecModuleOptions,
 ): {
   code: string;
@@ -225,7 +225,7 @@ export function renderGeneratedSpecModule(
 } {
   const hasUnbound = boundScenario.steps.some((step) => step.binding.kind === 'unbound');
   const lifecycle = lifecycleForScenario(boundScenario.metadata.status, hasUnbound);
-  const fixtures = fixturesForScenario(boundScenario, taskPacket);
+  const fixtures = fixturesForScenario(boundScenario, surface);
   const confidence = aggregateConfidence(boundScenario.steps.map((step) => step.confidence));
   const deferredSteps = boundScenario.steps.filter((step) => step.binding.kind === 'deferred').map((step) => step.index);
   const unboundSteps = boundScenario.steps.filter((step) => step.binding.kind === 'unbound').map((step) => step.index);

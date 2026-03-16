@@ -26,7 +26,6 @@ import { persistEvidence } from './execution/persist-evidence';
 import { buildProposals } from './execution/build-proposals';
 import { buildRunRecord } from './execution/build-run-record';
 import { foldScenarioRun } from './execution/fold';
-import { taskPacketFromSurface } from './compat/surface-adapter';
 
 export function runScenario(options: {
   adoId: AdoId;
@@ -62,8 +61,6 @@ export function runScenario(options: {
         });
         const scenarioEntry = catalog.scenarios.find((entry) => entry.artifact.source.ado_id === options.adoId)!;
         const boundScenarioEntry = catalog.boundScenarios.find((entry) => entry.artifact.source.ado_id === options.adoId)!;
-        const compatTaskPacket = taskPacketFromSurface(surfaceEntry.artifact);
-
         const executionStage = yield* interpretScenarioFromPlan({
           runtimeScenarioRunner,
           rootDir: options.paths.rootDir,
@@ -112,7 +109,7 @@ export function runScenario(options: {
         const learning = yield* projectLearningArtifacts({
           paths: options.paths,
           boundScenario: boundScenarioEntry.artifact,
-          taskPacket: compatTaskPacket,
+          surface: surfaceEntry.artifact,
           interfaceGraph: catalog.interfaceGraph?.artifact ?? null,
           selectorCanon: catalog.selectorCanon?.artifact ?? null,
           runRecord: runRecordStage.runRecord,
@@ -126,7 +123,7 @@ export function runScenario(options: {
           executionProfile: plan.posture.executionProfile,
           startedAt: runRecordStage.runRecord.startedAt,
           completedAt: runRecordStage.runRecord.completedAt,
-          taskPacket: compatTaskPacket,
+          surface: surfaceEntry.artifact,
           interfaceGraph: catalog.interfaceGraph?.artifact ?? null,
           selectorCanon: catalog.selectorCanon?.artifact ?? null,
           proposalBundle: activationStage.proposalBundle,

@@ -150,6 +150,14 @@ export function prepareScenarioRunPlan(input: {
       dataset: activeDataset?.name ?? null,
       resolutionControl: activeRunbook?.resolutionControl ?? null,
     },
+    controlArtifactPaths: {
+      runbook: activeRunbook
+        ? input.catalog.runbooks.find((entry) => entry.artifact.name === activeRunbook.name)?.artifactPath ?? null
+        : null,
+      dataset: activeDataset
+        ? input.catalog.datasets.find((entry) => entry.artifact.name === activeDataset.name)?.artifactPath ?? null
+        : null,
+    },
     context: {
       adoId: input.surface.payload.adoId,
       revision: scenarioEntry.artifact.source.revision,
@@ -201,10 +209,10 @@ export function selectRunContext(input: {
     surface: surfaceEntry.artifact,
     catalog: input.catalog,
     paths: input.paths,
-    runbookName: input.runbookName,
-    interpreterMode: input.interpreterMode,
-    providerId: input.providerId,
-    posture: input.posture,
+    ...(input.runbookName ? { runbookName: input.runbookName } : {}),
+    ...(input.interpreterMode ? { interpreterMode: input.interpreterMode } : {}),
+    ...(input.providerId ? { providerId: input.providerId } : {}),
+    ...(input.posture ? { posture: input.posture } : {}),
     executionContextPosture: input.executionContextPosture,
   });
   return {

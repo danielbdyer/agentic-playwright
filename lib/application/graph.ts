@@ -90,7 +90,7 @@ export function buildDerivedGraph(
       ...catalog.runbooks.map((entry) => fingerprintProjectionArtifact('runbook-control', entry.artifactPath, entry.artifact)),
       ...catalog.scenarios.map((entry) => fingerprintProjectionArtifact('scenario', entry.artifactPath, entry.artifact)),
       ...catalog.boundScenarios.map((entry) => fingerprintProjectionArtifact('bound', entry.artifactPath, entry.artifact)),
-      ...catalog.taskPackets.map((entry) => fingerprintProjectionArtifact('task', entry.artifactPath, entry.artifact)),
+      ...catalog.interpretationSurfaces.map((entry) => fingerprintProjectionArtifact('task', entry.artifactPath, entry.artifact)),
       ...catalog.runRecords.map((entry) => fingerprintProjectionArtifact('run', entry.artifactPath, entry.artifact)),
       ...catalog.interpretationDriftRecords.map((entry) => fingerprintProjectionArtifact('interpretation-drift', entry.artifactPath, entry.artifact)),
       ...catalog.proposalBundles.map((entry) => fingerprintProjectionArtifact('proposal-bundle', entry.artifactPath, entry.artifact)),
@@ -115,28 +115,28 @@ export function buildDerivedGraph(
       ? [{ artifact: catalog.confidenceCatalog.artifact, artifactPath: catalog.confidenceCatalog.artifactPath }]
       : [];
 
-    const scenarios: ScenarioGraphArtifact[] = [];
-    for (const entry of catalog.scenarios) {
-      const generatedPath = generatedSpecPath(options.paths, entry.artifact.metadata.suite, entry.artifact.source.ado_id);
-      const tracePath = generatedTracePath(options.paths, entry.artifact.metadata.suite, entry.artifact.source.ado_id);
-      const reviewPath = generatedReviewPath(options.paths, entry.artifact.metadata.suite, entry.artifact.source.ado_id);
-      scenarios.push({
-        artifact: entry.artifact,
-        artifactPath: entry.artifactPath,
-        generatedSpecPath: relativeProjectPath(options.paths, generatedPath),
-        generatedSpecExists: yield* fs.exists(generatedPath),
-        generatedTracePath: relativeProjectPath(options.paths, tracePath),
-        generatedTraceExists: yield* fs.exists(tracePath),
-        generatedReviewPath: relativeProjectPath(options.paths, reviewPath),
-        generatedReviewExists: yield* fs.exists(reviewPath),
-      });
-    }
+    const scenarios: ScenarioGraphArtifact[] = yield* Effect.forEach(catalog.scenarios, (entry) =>
+      Effect.gen(function* () {
+        const generatedPath = generatedSpecPath(options.paths, entry.artifact.metadata.suite, entry.artifact.source.ado_id);
+        const tracePath = generatedTracePath(options.paths, entry.artifact.metadata.suite, entry.artifact.source.ado_id);
+        const reviewPath = generatedReviewPath(options.paths, entry.artifact.metadata.suite, entry.artifact.source.ado_id);
+        return {
+          artifact: entry.artifact,
+          artifactPath: entry.artifactPath,
+          generatedSpecPath: relativeProjectPath(options.paths, generatedPath),
+          generatedSpecExists: yield* fs.exists(generatedPath),
+          generatedTracePath: relativeProjectPath(options.paths, tracePath),
+          generatedTraceExists: yield* fs.exists(tracePath),
+          generatedReviewPath: relativeProjectPath(options.paths, reviewPath),
+          generatedReviewExists: yield* fs.exists(reviewPath),
+        };
+      }));
 
     const boundScenarios: BoundScenarioGraphArtifact[] = catalog.boundScenarios.map(({ artifact, artifactPath }) => ({
       artifact,
       artifactPath,
     }));
-    const taskPackets = catalog.taskPackets.map(({ artifact, artifactPath }) => ({
+    const interpretationSurfaces = catalog.interpretationSurfaces.map(({ artifact, artifactPath }) => ({
       artifact,
       artifactPath,
     }));
@@ -239,7 +239,7 @@ export function buildDerivedGraph(
           confidenceOverlays,
           scenarios,
           boundScenarios,
-          taskPackets,
+          interpretationSurfaces,
           runRecords,
           interpretationDriftRecords,
           evidence,

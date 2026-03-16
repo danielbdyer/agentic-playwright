@@ -4,11 +4,11 @@ import { validateStepResults } from '../lib/application/execution/validate-step-
 import { runResolutionPipeline } from '../lib/runtime/agent';
 import type { RuntimeStepAgentContext } from '../lib/runtime/agent/types';
 import type { StepExecutionReceipt } from '../lib/domain/types';
-import { createAgentContext, createInterfaceResolutionContext, createStepTask } from './support/interface-fixtures';
+import { createAgentContext, createInterfaceResolutionContext, createGroundedStep } from './support/interface-fixtures';
 
 function baseFixture(explicit = false) {
   const resolutionContext = createInterfaceResolutionContext();
-  const task = createStepTask({
+  const task = createGroundedStep({
     explicitResolution: explicit ? {
       action: 'input',
       screen: resolutionContext.screens[0]!.screen,
@@ -31,7 +31,7 @@ test('provider capability negotiation rejects incompatible mode', () => {
       supportsProposalDrafts: true,
       deterministicMode: false,
     },
-    resolveStep: async (task, context) => runResolutionPipeline(task, context as RuntimeStepAgentContext),
+    resolveStep: async (task, context) => (await runResolutionPipeline(task, context as RuntimeStepAgentContext)).receipt,
   };
   const registry = createResolutionEngineRegistry([provider]);
 
@@ -45,7 +45,7 @@ test('provider capability negotiation rejects incompatible mode', () => {
 
 test('post-provider validation enforces governance invariants', async () => {
   const { task, resolutionContext } = baseFixture(true);
-  const interpretation = await runResolutionPipeline(task, createAgentContext(resolutionContext, {
+  const { receipt: interpretation } = await runResolutionPipeline(task, createAgentContext(resolutionContext, {
     provider: 'deterministic-runtime-step-agent',
   }));
   const execution: StepExecutionReceipt = {

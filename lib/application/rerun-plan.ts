@@ -114,7 +114,7 @@ function scenariosReferencingArtifact(catalog: WorkspaceCatalog, artifactPath: s
     }
   }
 
-  for (const entry of catalog.taskPackets) {
+  for (const entry of catalog.interpretationSurfaces) {
     const payload = entry.artifact.payload;
     const referencesKnowledgeScreen = payload.knowledgeSlice.screenRefs.some((screen) =>
       artifactPath === knowledgePaths.surface(screen)

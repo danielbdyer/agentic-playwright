@@ -135,12 +135,6 @@ export interface GroundedStep {
   taskFingerprint: string;
 }
 
-/** @deprecated Use `GroundedStep`. */
-export type StepTask = GroundedStep;
-
-/** @deprecated Use `StepGrounding`. */
-export type StepTaskGrounding = StepGrounding;
-
 export interface ScenarioInterpretationSurface {
   kind: 'scenario-interpretation-surface';
   version: 1;
@@ -182,6 +176,10 @@ export interface ScenarioRunPlan {
     runbook?: string | null | undefined;
     dataset?: string | null | undefined;
     resolutionControl?: string | null | undefined;
+  };
+  controlArtifactPaths: {
+    runbook?: string | null | undefined;
+    dataset?: string | null | undefined;
   };
   fixtures: Record<string, unknown>;
   screenIds: ScreenId[];
@@ -234,6 +232,13 @@ export interface ObservedStateSessionAssertion {
   observedAtStep: number;
 }
 
+export interface CausalLink {
+  stepIndex: number;
+  firedTransitionRef: TransitionRef;
+  targetStateRef: StateNodeRef;
+  relevantForSteps: number[];
+}
+
 export interface ObservedStateSession {
   currentScreen: ObservedStateSessionScreenState | null;
   activeStateRefs: StateNodeRef[];
@@ -242,73 +247,8 @@ export interface ObservedStateSession {
   activeTargetRefs: CanonicalTargetRef[];
   lastSuccessfulLocatorRung: number | null;
   recentAssertions: ObservedStateSessionAssertion[];
+  causalLinks: CausalLink[];
   lineage: string[];
-}
-
-export interface ScenarioRuntimeStep {
-  task: StepTask;
-  directive?: unknown;
-}
-
-export interface ScenarioRuntimeHandoff {
-  kind: 'scenario-runtime-handoff';
-  version: 1;
-  stage: 'preparation';
-  scope: 'scenario';
-  ids: WorkflowEnvelopeIds;
-  fingerprints: WorkflowEnvelopeFingerprints;
-  lineage: WorkflowEnvelopeLineage;
-  governance: Governance;
-  payload: {
-    adoId: AdoId;
-    revision: number;
-    title: string;
-    suite: string;
-    screenIds: ScreenId[];
-    steps: ScenarioRuntimeStep[];
-    resolutionContext: InterfaceResolutionContext;
-    fixtures: Record<string, unknown>;
-    controlSelection: {
-      runbook?: string | null | undefined;
-      dataset?: string | null | undefined;
-      resolutionControl?: string | null | undefined;
-    };
-    context: {
-      adoId: AdoId;
-      revision: number;
-      contentHash: string;
-      artifactPath?: string | undefined;
-    };
-    posture: ExecutionPosture;
-    providerId: string;
-    translationEnabled: boolean;
-    translationCacheEnabled: boolean;
-    recoveryPolicy?: RecoveryPolicy | undefined;
-  };
-  adoId: AdoId;
-  revision: number;
-  title: string;
-  suite: string;
-  screenIds: ScreenId[];
-  steps: ScenarioRuntimeStep[];
-  resolutionContext: InterfaceResolutionContext;
-  fixtures: Record<string, unknown>;
-  controlSelection: {
-    runbook?: string | null | undefined;
-    dataset?: string | null | undefined;
-    resolutionControl?: string | null | undefined;
-  };
-  context: {
-    adoId: AdoId;
-    revision: number;
-    contentHash: string;
-    artifactPath?: string | undefined;
-  };
-  posture: ExecutionPosture;
-  providerId: string;
-  translationEnabled: boolean;
-  translationCacheEnabled: boolean;
-  recoveryPolicy?: RecoveryPolicy | undefined;
 }
 
 export interface DatasetControl {
@@ -364,7 +304,7 @@ export interface RuntimeDomCandidate {
 
 export interface RuntimeDomResolver {
   resolve(input: {
-    task: StepTask;
+    task: GroundedStep;
     screen: StepTaskScreenCandidate;
     action: StepAction;
     policy: DomExplorationPolicy;
@@ -556,6 +496,18 @@ export interface ResolutionExhaustionEntry {
   reason: string;
   topCandidates?: ResolutionCandidateSummary[] | undefined;
   rejectedCandidates?: ResolutionCandidateSummary[] | undefined;
+}
+
+export type ResolutionEvent =
+  | { kind: 'exhaustion-recorded'; entry: ResolutionExhaustionEntry }
+  | { kind: 'observation-recorded'; observation: ResolutionObservation }
+  | { kind: 'refs-collected'; refKind: 'knowledge' | 'supplement' | 'control' | 'evidence'; refs: string[] }
+  | { kind: 'memory-updated'; session: ObservedStateSession }
+  | { kind: 'receipt-produced'; receipt: ResolutionReceipt };
+
+export interface ResolutionPipelineResult {
+  receipt: ResolutionReceipt;
+  events: ResolutionEvent[];
 }
 
 export interface ResolutionEvidenceDraft {

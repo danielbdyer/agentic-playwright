@@ -3,7 +3,7 @@ import { translationCacheKey } from '../lib/application/translation-cache';
 import type { TranslationRequest } from '../lib/domain/types';
 import { createElementId, createScreenId } from '../lib/domain/identity';
 import { deterministicRuntimeStepAgent } from '../lib/runtime/agent';
-import { createAgentContext, createInterfaceResolutionContext, createStepTask } from './support/interface-fixtures';
+import { createAgentContext, createInterfaceResolutionContext, createGroundedStep } from './support/interface-fixtures';
 
 function baseRequest(): TranslationRequest {
   return {
@@ -50,7 +50,7 @@ test('translation-disabled replay is reproducible for runtime interpretation', a
     screens: [],
     controls: { datasets: [], resolutionControls: [], runbooks: [] },
   });
-  const task = createStepTask({
+  const task = createGroundedStep({
     intent: 'Enter policy number into search box',
     actionText: 'Enter policy number into search box',
     expectedText: 'Policy number should be accepted',

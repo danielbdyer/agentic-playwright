@@ -146,10 +146,6 @@ export function taskPacketPath(paths: ProjectPaths, adoId: AdoId): string {
   return path.join(paths.tasksDir, `${adoId}.resolution.json`);
 }
 
-export function runtimeHandoffPath(paths: ProjectPaths, adoId: AdoId): string {
-  return path.join(paths.tasksDir, `${adoId}.runtime.json`);
-}
-
 export function runDirPath(paths: ProjectPaths, adoId: AdoId, runId: string): string {
   return path.join(paths.runsDir, `${adoId}`, runId);
 }

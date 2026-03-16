@@ -6,7 +6,7 @@ import type {
   ObservedStateSession,
   StepAction,
   StepResolution,
-  StepTask,
+  GroundedStep,
   StepTaskElementCandidate,
   StepTaskScreenCandidate,
 } from '../../domain/types';
@@ -67,6 +67,31 @@ const SOURCE_WEIGHT: Record<LatticeSource, number> = {
   'live-dom': precedenceWeight(resolutionPrecedenceLaw, 'live-dom'),
 };
 
+export interface ScoringRule<T> {
+  score(input: T): number;
+}
+
+export function combineScoringRules<T>(...rules: readonly ScoringRule<T>[]): ScoringRule<T> {
+  return { score: (input) => rules.reduce((total, rule) => total + rule.score(input), 0) };
+}
+
+export function contramapScoringRule<A, B>(rule: ScoringRule<A>, f: (b: B) => A): ScoringRule<B> {
+  return { score: (input) => rule.score(f(input)) };
+}
+
+export const sourceWeightRule: ScoringRule<LatticeSource> = {
+  score: (source) => SOURCE_WEIGHT[source],
+};
+
+export const featureTotalRule: ScoringRule<LatticeCandidate<unknown>['featureScores']> = {
+  score: (features) => Object.values(features).reduce((sum, value) => sum + value, 0),
+};
+
+const candidateScoring = combineScoringRules<Omit<LatticeCandidate<unknown>, 'score' | 'confidenceComponents'>>(
+  contramapScoringRule(sourceWeightRule, (c) => c.source),
+  contramapScoringRule(featureTotalRule, (c) => c.featureScores),
+);
+
 function confidenceFor(source: LatticeSource): LatticeCandidate<unknown>['confidenceComponents'] {
   if (source === 'approved-equivalent-overlay' || source === 'structured-translation') {
     return { compilerDerived: 0, agentVerified: 1, agentProposed: 0 };
@@ -78,10 +103,9 @@ function confidenceFor(source: LatticeSource): LatticeCandidate<unknown>['confid
 }
 
 function candidate<T>(input: Omit<LatticeCandidate<T>, 'score' | 'confidenceComponents'>): LatticeCandidate<T> {
-  const featureTotal = Object.values(input.featureScores).reduce((sum, value) => sum + value, 0);
   return {
     ...input,
-    score: SOURCE_WEIGHT[input.source] + featureTotal,
+    score: candidateScoring.score(input as Omit<LatticeCandidate<unknown>, 'score' | 'confidenceComponents'>),
     confidenceComponents: confidenceFor(input.source),
   };
 }
@@ -111,7 +135,7 @@ function asRanked<T>(entries: Array<LatticeCandidate<T>>): RankedLattice<T> {
   return { selected: ranked[0] ?? null, ranked };
 }
 
-function groundedScreens(task: StepTask, resolutionContext: InterfaceResolutionContext): StepTaskScreenCandidate[] {
+function groundedScreens(task: GroundedStep, resolutionContext: InterfaceResolutionContext): StepTaskScreenCandidate[] {
   const routeVariantRefs = new Set(task.grounding.routeVariantRefs);
   if (routeVariantRefs.size === 0) {
     return resolutionContext.screens;
@@ -119,7 +143,7 @@ function groundedScreens(task: StepTask, resolutionContext: InterfaceResolutionC
   return resolutionContext.screens.filter((screen) => screen.routeVariantRefs.some((ref) => routeVariantRefs.has(ref)));
 }
 
-function groundedElements(task: StepTask, screen: StepTaskScreenCandidate): StepTaskElementCandidate[] {
+function groundedElements(task: GroundedStep, screen: StepTaskScreenCandidate): StepTaskElementCandidate[] {
   const targetRefs = new Set(task.grounding.targetRefs);
   if (targetRefs.size === 0) {
     return screen.elements;
@@ -127,7 +151,7 @@ function groundedElements(task: StepTask, screen: StepTaskScreenCandidate): Step
   return screen.elements.filter((element) => targetRefs.has(element.targetRef));
 }
 
-export function rankActionCandidates(task: StepTask, controlResolution: StepResolution | null, resolutionContext: InterfaceResolutionContext): RankedLattice<StepAction> {
+export function rankActionCandidates(task: GroundedStep, controlResolution: StepResolution | null, resolutionContext: InterfaceResolutionContext): RankedLattice<StepAction> {
   if (task.explicitResolution?.action) {
     return asRanked([
       candidate({
@@ -190,7 +214,7 @@ export function rankActionCandidates(task: StepTask, controlResolution: StepReso
 }
 
 export function rankScreenCandidates(
-  task: StepTask,
+  task: GroundedStep,
   action: StepAction | null,
   controlResolution: StepResolution | null,
   previousResolution: import('../../domain/types').ResolutionTarget | null | undefined,
@@ -253,7 +277,7 @@ export function rankScreenCandidates(
   return asRanked(entries);
 }
 
-export function rankElementCandidates(task: StepTask, screen: StepTaskScreenCandidate | null, controlResolution: StepResolution | null, observedStateSession?: ObservedStateSession | undefined): RankedLattice<StepTaskElementCandidate> {
+export function rankElementCandidates(task: GroundedStep, screen: StepTaskScreenCandidate | null, controlResolution: StepResolution | null, observedStateSession?: ObservedStateSession | undefined): RankedLattice<StepTaskElementCandidate> {
   if (!screen) {
     return { selected: null, ranked: [] };
   }
@@ -290,7 +314,7 @@ export function rankElementCandidates(task: StepTask, screen: StepTaskScreenCand
   return asRanked(entries);
 }
 
-export function rankPostureCandidates(task: StepTask, element: StepTaskElementCandidate | null, controlResolution: StepResolution | null, resolutionContext: InterfaceResolutionContext): RankedLattice<ReturnType<typeof createPostureId>> {
+export function rankPostureCandidates(task: GroundedStep, element: StepTaskElementCandidate | null, controlResolution: StepResolution | null, resolutionContext: InterfaceResolutionContext): RankedLattice<ReturnType<typeof createPostureId>> {
   if (task.explicitResolution?.posture) {
     return asRanked([candidate({ concern: 'posture', source: 'explicit', value: task.explicitResolution.posture, summary: 'Posture constrained by explicit scenario field.', refs: [], featureScores: { explicit: 100, control: 0, approvedKnowledge: 0, overlay: 0, translation: 0, dom: 0, alias: 0, fallback: 0, carry: 0 } })]);
   }
@@ -329,7 +353,7 @@ export function rankPostureCandidates(task: StepTask, element: StepTaskElementCa
   return asRanked(entries);
 }
 
-export function rankSnapshotCandidates(task: StepTask, screen: StepTaskScreenCandidate | null, element: StepTaskElementCandidate | null, controlResolution: StepResolution | null): RankedLattice<ReturnType<typeof createSnapshotTemplateId>> {
+export function rankSnapshotCandidates(task: GroundedStep, screen: StepTaskScreenCandidate | null, element: StepTaskElementCandidate | null, controlResolution: StepResolution | null): RankedLattice<ReturnType<typeof createSnapshotTemplateId>> {
   if (task.explicitResolution?.snapshot_template) {
     return asRanked([candidate({ concern: 'snapshot', source: 'explicit', value: task.explicitResolution.snapshot_template, summary: 'Snapshot template constrained by explicit scenario field.', refs: [], featureScores: { explicit: 100, control: 0, approvedKnowledge: 0, overlay: 0, translation: 0, dom: 0, alias: 0, fallback: 0, carry: 0 } })]);
   }

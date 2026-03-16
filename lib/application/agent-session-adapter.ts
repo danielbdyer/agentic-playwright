@@ -3,7 +3,7 @@ import type {
   AgentSession,
   ApplicationInterfaceGraph,
   ProposalBundle,
-  ScenarioTaskPacket,
+  ScenarioInterpretationSurface,
   SelectorCanon,
   TrainingCorpusManifest,
   TranscriptRef,
@@ -24,7 +24,7 @@ export interface AgentSessionAdapter {
     adoId: AdoId;
     runId: string;
     sessionId: string;
-    taskPacket: ScenarioTaskPacket;
+    surface: ScenarioInterpretationSurface;
     interfaceGraph: ApplicationInterfaceGraph | null;
     selectorCanon: SelectorCanon | null;
     proposalBundle: ProposalBundle | null;
@@ -55,14 +55,14 @@ function baseEvents(input: {
   adoId: AdoId;
   runId: string;
   sessionId: string;
-  taskPacket: ScenarioTaskPacket;
+  surface: ScenarioInterpretationSurface;
   interfaceGraph: ApplicationInterfaceGraph | null;
   selectorCanon: SelectorCanon | null;
   proposalBundle: ProposalBundle | null;
   learningManifest: TrainingCorpusManifest | null;
   host: AgentSessionAdapter['host'];
 }): AgentEvent[] {
-  const taskFingerprint = input.taskPacket.taskFingerprint;
+  const taskFingerprint = input.surface.surfaceFingerprint;
   const artifactPaths = [
     input.interfaceGraph ? '.tesseract/interface/index.json' : null,
     input.selectorCanon ? '.tesseract/interface/selectors.json' : null,
@@ -72,17 +72,17 @@ function baseEvents(input: {
     {
       version: 1,
       id: `${input.sessionId}:orientation`,
-      at: input.learningManifest?.generatedAt ?? input.taskPacket.ids.runId ?? input.runId,
+      at: input.learningManifest?.generatedAt ?? input.surface.ids.runId ?? input.runId,
       type: 'orientation',
       actor: 'system',
       summary: `Session oriented around ${input.adoId} on ${input.host}.`,
       ids: {
         adoId: input.adoId,
         runId: input.runId,
-        suite: input.taskPacket.ids.suite ?? null,
-        dataset: input.taskPacket.ids.dataset ?? null,
-        runbook: input.taskPacket.ids.runbook ?? null,
-        resolutionControl: input.taskPacket.ids.resolutionControl ?? null,
+        suite: input.surface.ids.suite ?? null,
+        dataset: input.surface.ids.dataset ?? null,
+        runbook: input.surface.ids.runbook ?? null,
+        resolutionControl: input.surface.ids.resolutionControl ?? null,
         stepIndex: null,
       },
       refs: {
@@ -94,7 +94,7 @@ function baseEvents(input: {
       payload: {
         host: input.host,
         taskFingerprint,
-        knowledgeFingerprint: input.taskPacket.payload.knowledgeFingerprint,
+        knowledgeFingerprint: input.surface.payload.knowledgeFingerprint,
       },
     },
     {
@@ -107,21 +107,21 @@ function baseEvents(input: {
       ids: {
         adoId: input.adoId,
         runId: input.runId,
-        suite: input.taskPacket.ids.suite ?? null,
-        dataset: input.taskPacket.ids.dataset ?? null,
-        runbook: input.taskPacket.ids.runbook ?? null,
-        resolutionControl: input.taskPacket.ids.resolutionControl ?? null,
+        suite: input.surface.ids.suite ?? null,
+        dataset: input.surface.ids.dataset ?? null,
+        runbook: input.surface.ids.runbook ?? null,
+        resolutionControl: input.surface.ids.resolutionControl ?? null,
         stepIndex: null,
       },
       refs: {
         artifactPaths,
-        graphNodeIds: input.taskPacket.payload.steps.flatMap((step) => (step.grounding?.targetRefs ?? []).map((targetRef) => `target:${targetRef}`)),
-        selectorRefs: input.taskPacket.payload.steps.flatMap((step) => step.grounding?.selectorRefs ?? []),
+        graphNodeIds: input.surface.payload.steps.flatMap((step) => (step.grounding?.targetRefs ?? []).map((targetRef) => `target:${targetRef}`)),
+        selectorRefs: input.surface.payload.steps.flatMap((step) => step.grounding?.selectorRefs ?? []),
         transcriptIds: [],
       },
       payload: {
-        interfaceGraphFingerprint: input.taskPacket.payload.interface.fingerprint ?? null,
-        selectorCanonFingerprint: input.taskPacket.payload.selectors.fingerprint ?? null,
+        interfaceGraphFingerprint: input.surface.payload.interface.fingerprint ?? null,
+        selectorCanonFingerprint: input.surface.payload.selectors.fingerprint ?? null,
         proposalCount: input.proposalBundle?.proposals.length ?? 0,
       },
     },
@@ -135,10 +135,10 @@ function baseEvents(input: {
       ids: {
         adoId: input.adoId,
         runId: input.runId,
-        suite: input.taskPacket.ids.suite ?? null,
-        dataset: input.taskPacket.ids.dataset ?? null,
-        runbook: input.taskPacket.ids.runbook ?? null,
-        resolutionControl: input.taskPacket.ids.resolutionControl ?? null,
+        suite: input.surface.ids.suite ?? null,
+        dataset: input.surface.ids.dataset ?? null,
+        runbook: input.surface.ids.runbook ?? null,
+        resolutionControl: input.surface.ids.resolutionControl ?? null,
         stepIndex: null,
       },
       refs: {

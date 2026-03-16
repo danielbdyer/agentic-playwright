@@ -26,7 +26,7 @@ import type {
   InterpretationDriftRecord,
   RunbookControl,
   Scenario,
-  ScenarioTaskPacket,
+  ScenarioInterpretationSurface,
   ScreenElements,
   ScreenHints,
   ScreenPostures,
@@ -49,7 +49,7 @@ export interface ScenarioGraphArtifact extends ArtifactEnvelope<Scenario> {
 
 export interface BoundScenarioGraphArtifact extends ArtifactEnvelope<BoundScenario> {}
 
-export interface TaskPacketGraphArtifact extends ArtifactEnvelope<ScenarioTaskPacket> {}
+export interface InterpretationSurfaceGraphArtifact extends ArtifactEnvelope<ScenarioInterpretationSurface> {}
 
 export interface KnowledgeSnapshotArtifact {
   relativePath: SnapshotTemplateId;
@@ -91,7 +91,7 @@ export interface GraphBuildInput {
   confidenceOverlays?: ConfidenceOverlayArtifact[];
   scenarios: ScenarioGraphArtifact[];
   boundScenarios?: BoundScenarioGraphArtifact[];
-  taskPackets?: TaskPacketGraphArtifact[];
+  interpretationSurfaces?: InterpretationSurfaceGraphArtifact[];
   runRecords?: ArtifactEnvelope<RunRecord>[];
   interpretationDriftRecords?: ArtifactEnvelope<InterpretationDriftRecord>[];
   evidence: EvidenceArtifact[];
@@ -318,7 +318,7 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
   const runbookArtifacts = input.runbooks ?? [];
   const confidenceOverlayArtifacts = input.confidenceOverlays ?? [];
   const boundScenarioArtifacts = input.boundScenarios ?? [];
-  const taskPackets = new Map((input.taskPackets ?? []).map((entry) => [entry.artifact.payload.adoId, entry.artifact] as const));
+  const interpretationSurfaces = new Map((input.interpretationSurfaces ?? []).map((entry) => [entry.artifact.payload.adoId, entry.artifact] as const));
   const runRecords = new Map(
     (input.runRecords ?? [])
       .sort((left, right) => right.artifact.completedAt.localeCompare(left.artifact.completedAt))
@@ -897,7 +897,7 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
     }
 
     const boundScenario = boundScenarios.get(scenario.source.ado_id) ?? null;
-    const taskPacket = taskPackets.get(scenario.source.ado_id) ?? null;
+    const surface = interpretationSurfaces.get(scenario.source.ado_id) ?? null;
     const latestRun = runRecords.get(scenario.source.ado_id) ?? null;
     const explanationByStepIndex = new Map(
       (boundScenario ? explainBoundScenario(boundScenario, 'normal', latestRun).steps : []).map((step) => [step.index, step] as const),
@@ -907,7 +907,7 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
       const boundStep = boundScenario?.steps.find((candidate) => candidate.index === step.index) ?? null;
       const explanation = explanationByStepIndex.get(step.index);
       const stepContext: StepGraphContext = { step, boundStep };
-      const taskStep = taskPacket?.payload.steps.find((candidate) => candidate.index === step.index) ?? null;
+      const taskStep = surface?.payload.steps.find((candidate) => candidate.index === step.index) ?? null;
       const stepNodeId = graphIds.step(scenario.source.ado_id, step.index);
       const program = explanation?.program ?? compileStepProgram(step);
       const trace = traceStepProgram(program);
@@ -990,7 +990,7 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
       }
 
       if (taskStep) {
-        for (const screenId of (taskPacket?.payload.knowledgeSlice.screenRefs ?? [])) {
+        for (const screenId of (surface?.payload.knowledgeSlice.screenRefs ?? [])) {
           const screenNodeId = graphIds.screen(screenId);
           if (!nodes.has(screenNodeId)) {
             continue;

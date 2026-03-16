@@ -3,7 +3,7 @@ import type {
   AgentSession,
   ApplicationInterfaceGraph,
   ProposalBundle,
-  ScenarioTaskPacket,
+  ScenarioInterpretationSurface,
   SelectorCanon,
   TrainingCorpusManifest,
 } from '../domain/types';
@@ -38,7 +38,7 @@ export function writeAgentSessionLedger(input: {
   executionProfile: AgentSession['executionProfile'];
   startedAt: string;
   completedAt: string | null;
-  taskPacket: ScenarioTaskPacket;
+  surface: ScenarioInterpretationSurface;
   interfaceGraph: ApplicationInterfaceGraph | null;
   selectorCanon: SelectorCanon | null;
   proposalBundle: ProposalBundle | null;
@@ -57,7 +57,7 @@ export function writeAgentSessionLedger(input: {
       adoId: input.adoId,
       runId: input.runId,
       sessionId,
-      taskPacket: input.taskPacket,
+      surface: input.surface,
       interfaceGraph: input.interfaceGraph,
       selectorCanon: input.selectorCanon,
       proposalBundle: input.proposalBundle,

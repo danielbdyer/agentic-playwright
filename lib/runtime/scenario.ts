@@ -1,6 +1,4 @@
 import type { Page } from '@playwright/test';
-import { readFileSync } from 'fs';
-import path from 'path';
 import type { AdoId, StateNodeRef, TransitionRef } from '../domain/identity';
 import type { ExecutionBudgetThresholds } from '../domain/execution/telemetry';
 import { defaultRecoveryPolicy, recoveryFamilyConfig, type RecoveryAttempt, type RecoveryPolicy, type RecoveryStrategy } from '../domain/execution/recovery-policy';
@@ -14,12 +12,11 @@ import type {
   InterfaceResolutionContext,
   ObservedStateSession,
   ResolutionReceipt,
-  ScenarioInterpretationSurface,
   ScenarioRunPlan,
   ResolutionTarget,
   ScenarioStep,
   StepExecutionReceipt,
-  StepTask,
+  GroundedStep,
   TransitionObservation,
   TranslationRequest,
   TranslationReceipt,
@@ -63,7 +60,7 @@ export interface ScenarioStepRunResult {
 }
 
 export interface ScenarioStepHandshake {
-  task: StepTask;
+  task: GroundedStep;
   resolutionContext: InterfaceResolutionContext;
   directive?: unknown;
 }
@@ -80,14 +77,6 @@ export function stepHandshakeFromPlan(plan: ScenarioRunPlan, zeroBasedIndex: num
   };
 }
 
-export function loadScenarioInterpretationSurface(input: {
-  rootDir: string;
-  adoId: AdoId | string;
-}): ScenarioInterpretationSurface {
-  const filePath = path.join(input.rootDir, '.tesseract', 'tasks', `${input.adoId}.resolution.json`);
-  return JSON.parse(readFileSync(filePath, 'utf8').replace(/^\uFEFF/, '')) as ScenarioInterpretationSurface;
-}
-
 export function createScenarioRunState(): ScenarioRunState {
   return {
     previousResolution: null,
@@ -99,6 +88,7 @@ export function createScenarioRunState(): ScenarioRunState {
       activeTargetRefs: [],
       lastSuccessfulLocatorRung: null,
       recentAssertions: [],
+      causalLinks: [],
       lineage: [],
     },
   };
@@ -112,13 +102,13 @@ function uniqueSorted<T extends string>(values: Iterable<T>): T[] {
   return [...new Set(values)].sort((left, right) => left.localeCompare(right)) as T[];
 }
 
-function activeRouteVariantRefs(state: ScenarioRunState, task: StepTask): string[] {
+function activeRouteVariantRefs(state: ScenarioRunState, task: GroundedStep): string[] {
   return state.observedStateSession.activeRouteVariantRefs.length > 0
     ? state.observedStateSession.activeRouteVariantRefs
     : task.grounding.routeVariantRefs;
 }
 
-function relevantStateRefs(task: StepTask): StateNodeRef[] {
+function relevantStateRefs(task: GroundedStep): StateNodeRef[] {
   return uniqueSorted([
     ...task.grounding.requiredStateRefs,
     ...task.grounding.forbiddenStateRefs,
@@ -127,7 +117,7 @@ function relevantStateRefs(task: StepTask): StateNodeRef[] {
 }
 
 function inferTransitionObservations(input: {
-  task: StepTask;
+  task: GroundedStep;
   interpretation: Exclude<ResolutionReceipt, { kind: 'needs-human' }>;
   success: boolean;
 }): TransitionObservation[] {
@@ -157,7 +147,7 @@ function inferTransitionObservations(input: {
 
 function mergeObservedStateSession(input: {
   state: ScenarioRunState;
-  task: StepTask;
+  task: GroundedStep;
   interpretation: Exclude<ResolutionReceipt, { kind: 'needs-human' }>;
   observedStateRefs: StateNodeRef[];
   transitionRefs: TransitionRef[];
@@ -193,7 +183,7 @@ function mergeObservedStateSession(input: {
   };
 }
 
-function resolvedScenarioStep(task: StepTask, target: ResolutionTarget, confidence: ScenarioStep['confidence']): ScenarioStep {
+function resolvedScenarioStep(task: GroundedStep, target: ResolutionTarget, confidence: ScenarioStep['confidence']): ScenarioStep {
   return {
     index: task.index,
     intent: task.intent,
@@ -298,7 +288,7 @@ function recoveryAttemptResult(strategy: RecoveryStrategy, input: {
 }
 
 export async function runScenarioStep(
-  task: StepTask,
+  task: GroundedStep,
   environment: RuntimeScenarioEnvironment,
   state: ScenarioRunState,
   context?: { adoId: AdoId; artifactPath?: string | undefined; revision?: number | undefined; contentHash?: string | undefined },

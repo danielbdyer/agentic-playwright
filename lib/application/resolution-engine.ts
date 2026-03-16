@@ -1,11 +1,11 @@
-import type { ResolutionEngineCapabilities, RuntimeInterpreterMode, ResolutionReceipt, StepTask } from '../domain/types';
+import type { ResolutionEngineCapabilities, RuntimeInterpreterMode, ResolutionReceipt, GroundedStep } from '../domain/types';
 
 export type ResolutionEngineId = string;
 
 export interface ResolutionEngine {
   id: ResolutionEngineId;
   capabilities: ResolutionEngineCapabilities;
-  resolveStep(task: StepTask, context: unknown): Promise<ResolutionReceipt>;
+  resolveStep(task: GroundedStep, context: unknown): Promise<ResolutionReceipt>;
 }
 
 function deterministicEngine(): ResolutionEngine {

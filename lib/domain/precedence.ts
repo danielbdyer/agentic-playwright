@@ -33,13 +33,14 @@ export function chooseByPrecedence<TEntry, TRung extends string>(
   candidates: ReadonlyArray<{ rung: TRung; value: TEntry | null | undefined }>,
   law: ReadonlyArray<TRung>,
 ): TEntry | null {
-  for (const rung of law) {
-    const match = candidates.find((candidate) => candidate.rung === rung);
-    if (match?.value !== null && match?.value !== undefined) {
-      return match.value;
-    }
-  }
-  return null;
+  return law.reduce<TEntry | null>(
+    (winner, rung) => {
+      if (winner !== null) return winner;
+      const match = candidates.find((candidate) => candidate.rung === rung);
+      return match?.value !== null && match?.value !== undefined ? match.value : null;
+    },
+    null,
+  );
 }
 
 export function precedenceWeight<TRung extends string>(

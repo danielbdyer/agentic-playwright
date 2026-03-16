@@ -92,9 +92,8 @@ test('refresh recompiles the seeded scenario through graph, types, and program e
     expect(result.compile.bound.boundScenario.steps.every((step) => step.confidence === 'intent-only')).toBeTruthy();
     expect(result.compile.bound.boundScenario.steps.every((step) => step.binding.kind === 'deferred')).toBeTruthy();
     expect(result.compile.bound.boundScenario.steps.every((step) => step.binding.governance === 'approved')).toBeTruthy();
-    expect(projectPath(result.compile.compileSnapshot.taskPath)).toContain('.tesseract/tasks/10001.resolution.json');
-    expect(projectPath(result.compile.emitted.runtimePath)).toContain('.tesseract/tasks/10001.runtime.json');
-    expect(taskPacket.version).toBe(5);
+    expect(projectPath(result.compile.compileSnapshot.surfacePath)).toContain('.tesseract/tasks/10001.resolution.json');
+    expect(taskPacket.version).toBe(1);
     expect(taskPacket.payload.stateGraph.fingerprint).toBe(stateGraph.fingerprint);
     expect(taskPacket.payload.knowledgeSlice.stateRefs).toEqual(stateGraph.stateRefs);
     expect(taskPacket.payload.knowledgeSlice.eventSignatureRefs).toEqual(stateGraph.eventSignatureRefs);
@@ -104,8 +103,8 @@ test('refresh recompiles the seeded scenario through graph, types, and program e
     expect(taskPacket.payload.steps.some((step) => step.grounding.resultStateRefs.length > 0)).toBeTruthy();
     expect(generated).toContain('runScenarioHandshake');
     expect(generated).toContain('createLocalRuntimeEnvironment');
-    expect(generated).toContain('loadScenarioRuntimeHandoff');
-    expect(generated).toContain('stepHandshakeFromHandoff');
+    expect(generated).toContain('loadScenarioRunPlan');
+    expect(generated).toContain('stepHandshakeFromPlan');
     expect(generated).toContain('intent-only');
     expect(generated).toContain('deferred-steps');
     expect(traceArtifact.steps[1].runtime.status).toBe('pending');
@@ -116,7 +115,7 @@ test('refresh recompiles the seeded scenario through graph, types, and program e
     expect(traceArtifact.steps[0].normalizedIntent).toContain('navigate');
     expect(review).toContain('# Verify policy search returns matching policy');
     expect(review).toContain('## Bottlenecks');
-    expect(review).toContain('Preparation lane: scenario -> bound envelope -> task packet');
+    expect(review).toContain('Preparation lane: scenario -> bound envelope -> interpretation surface');
     expect(review).toContain('Binding kind: deferred');
     expect(review).toContain('State graph fingerprint:');
     expect(review).toContain('## Step 1');
@@ -844,9 +843,9 @@ test('task packet separates task and knowledge fingerprints via shared interface
     const second = await runWithLocalServices(refreshScenario({ adoId, paths: workspace.paths }), workspace.rootDir);
     const secondPacket = workspace.readJson<{ payload: { knowledgeFingerprint: string; steps: Array<{ taskFingerprint: string }> }; taskFingerprint: string }>('.tesseract', 'tasks', '10001.resolution.json');
 
-    expect(second.compile.compileSnapshot.taskPacket.payload.knowledgeFingerprint).not.toBe(first.compile.compileSnapshot.taskPacket.payload.knowledgeFingerprint);
+    expect(second.compile.compileSnapshot.surface.payload.knowledgeFingerprint).not.toBe(first.compile.compileSnapshot.surface.payload.knowledgeFingerprint);
     expect(secondPacket.payload.steps.map((step) => step.taskFingerprint)).toEqual(firstStepFingerprints);
-    expect(secondPacket.taskFingerprint).not.toBe(first.compile.compileSnapshot.taskPacket.taskFingerprint);
+    expect(secondPacket.taskFingerprint).not.toBe(first.compile.compileSnapshot.surface.surfaceFingerprint);
   } finally {
     workspace.cleanup();
   }
@@ -977,8 +976,8 @@ test('interface intelligence compiles deterministic graph and selector canon wit
     expect(taskPacket.payload.selectors.fingerprint).toBe(firstSelectors.fingerprint);
     expect(taskPacket.payload.steps.every((step) => step.grounding !== undefined)).toBeTruthy();
     expect(taskPacket.payload.steps.some((step) => (step.grounding?.selectorRefs.length ?? 0) > 0)).toBeTruthy();
-    expect(first.compile.compileSnapshot.taskPacket.payload.interface.fingerprint).toBe(firstGraph.fingerprint);
-    expect(first.compile.compileSnapshot.taskPacket.payload.selectors.fingerprint).toBe(firstSelectors.fingerprint);
+    expect(first.compile.compileSnapshot.surface.payload.interface.fingerprint).toBe(firstGraph.fingerprint);
+    expect(first.compile.compileSnapshot.surface.payload.selectors.fingerprint).toBe(firstSelectors.fingerprint);
 
     await runWithLocalServices(refreshScenario({ adoId, paths: workspace.paths }), workspace.rootDir);
     const secondGraph = workspace.readJson<{ fingerprint: string }>('.tesseract', 'interface', 'index.json');
@@ -997,18 +996,18 @@ test('agent session adapters share one provider-agnostic event vocabulary', asyn
     const adoId = createAdoId('10001');
     await runWithLocalServices(refreshScenario({ adoId, paths: workspace.paths }), workspace.rootDir);
     const catalog = await runWithLocalServices(loadWorkspaceCatalog({ paths: workspace.paths }), workspace.rootDir);
-    const taskPacket = catalog.taskPackets.find((entry) => entry.artifact.payload.adoId === adoId)?.artifact;
+    const surface = catalog.interpretationSurfaces.find((entry) => entry.artifact.payload.adoId === adoId)?.artifact;
 
-    expect(taskPacket).toBeTruthy();
-    if (!taskPacket) {
-      throw new Error('task packet is required');
+    expect(surface).toBeTruthy();
+    if (!surface) {
+      throw new Error('interpretation surface is required');
     }
 
     const input = {
       adoId,
       runId: 'session-run',
       sessionId: 'session-run',
-      taskPacket,
+      surface,
       interfaceGraph: catalog.interfaceGraph?.artifact ?? null,
       selectorCanon: catalog.selectorCanon?.artifact ?? null,
       proposalBundle: null,

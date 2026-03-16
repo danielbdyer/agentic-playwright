@@ -45,31 +45,20 @@ function capabilityReasons(
   screenElements: ScreenElements,
   surfaceGraph: SurfaceGraph,
 ): StepBindingReason[] {
-  const reasons: StepBindingReason[] = [];
   const program = step.program ?? compileStepProgram(step);
   const capabilities = deriveCapabilities(surfaceGraph, screenElements);
 
-  for (const instruction of program.instructions) {
+  return program.instructions.flatMap((instruction): StepBindingReason[] => {
     if (instruction.kind === 'custom-escape-hatch') {
-      reasons.push('unsupported-capability');
-      continue;
+      return ['unsupported-capability'];
     }
-
-    if (instruction.kind === 'navigate') {
-      const capability = findCapability(capabilities, 'screen', instruction.screen);
-      if (!capability || !capability.operations.includes(capabilityForInstruction(instruction))) {
-        reasons.push('unsupported-capability');
-      }
-      continue;
-    }
-
-    const capability = findCapability(capabilities, 'element', instruction.element);
-    if (!capability || !capability.operations.includes(capabilityForInstruction(instruction))) {
-      reasons.push('unsupported-capability');
-    }
-  }
-
-  return reasons;
+    const targetKind = instruction.kind === 'navigate' ? 'screen' as const : 'element' as const;
+    const target = instruction.kind === 'navigate' ? instruction.screen : instruction.element;
+    const capability = findCapability(capabilities, targetKind, target);
+    return !capability || !capability.operations.includes(capabilityForInstruction(instruction))
+      ? ['unsupported-capability']
+      : [];
+  });
 }
 
 function hasExplicitResolution(step: ScenarioStep): boolean {
@@ -98,7 +87,6 @@ export function bindScenarioStep(
   step: ScenarioStep & { program?: StepProgram | undefined },
   context: StepBindingContext,
 ): BoundStep {
-  const reasons: StepBindingReason[] = [];
   const explicit = hasExplicitResolution(step);
   const referencedScreen = step.screen;
 
@@ -119,61 +107,55 @@ export function bindScenarioStep(
     };
   }
 
-  if (!referencedScreen) {
-    reasons.push('missing-screen');
-  } else {
-    if (!context.screenElements) {
-      reasons.push('unknown-screen');
-    }
-    if (!context.surfaceGraph) {
-      reasons.push('missing-surface-graph');
-    }
-  }
+  const screenReasons: StepBindingReason[] = !referencedScreen
+    ? ['missing-screen']
+    : [
+        ...(!context.screenElements ? ['unknown-screen' as const] : []),
+        ...(!context.surfaceGraph ? ['missing-surface-graph' as const] : []),
+      ];
 
-  if ((step.action === 'input' || step.action === 'click' || step.action === 'assert-snapshot') && !step.element) {
-    reasons.push('missing-element');
-  }
+  const elementReasons: StepBindingReason[] = [
+    ...((step.action === 'input' || step.action === 'click' || step.action === 'assert-snapshot') && !step.element
+      ? ['missing-element' as const] : []),
+    ...(step.element && context.screenElements && !context.screenElements.elements[step.element]
+      ? ['unknown-element' as const] : []),
+    ...(step.element && context.screenElements && context.surfaceGraph
+      && context.screenElements.elements[step.element]
+      && !context.surfaceGraph.surfaces[context.screenElements.elements[step.element]!.surface]
+      ? ['unknown-surface' as const] : []),
+  ];
 
-  if (step.element && context.screenElements && !context.screenElements.elements[step.element]) {
-    reasons.push('unknown-element');
-  }
+  const postureReasons: StepBindingReason[] = step.action === 'input' && step.posture && step.element
+    ? (!context.screenPostures || !context.surfaceGraph || !context.screenElements
+        ? ['unknown-posture']
+        : validatePostureContract({
+            elementId: step.element,
+            postureId: step.posture,
+            postures: context.screenPostures,
+            elements: context.screenElements,
+            surfaceGraph: context.surfaceGraph,
+          }).map((issue) => contractIssueToReason(issue.code)))
+    : [];
 
-  if (step.element && context.screenElements && context.surfaceGraph) {
-    const element = context.screenElements.elements[step.element];
-    if (element && !context.surfaceGraph.surfaces[element.surface]) {
-      reasons.push('unknown-surface');
-    }
-  }
+  const snapshotReasons: StepBindingReason[] = step.action === 'assert-snapshot'
+    ? (!step.snapshot_template
+        ? ['missing-snapshot-template']
+        : !(context.availableSnapshotTemplates?.has(step.snapshot_template) ?? false)
+          ? ['missing-snapshot-template']
+          : [])
+    : [];
 
-  if (step.action === 'input' && step.posture && step.element) {
-    if (!context.screenPostures || !context.surfaceGraph || !context.screenElements) {
-      reasons.push('unknown-posture');
-    } else {
-      const postureIssues = validatePostureContract({
-        elementId: step.element,
-        postureId: step.posture,
-        postures: context.screenPostures,
-        elements: context.screenElements,
-        surfaceGraph: context.surfaceGraph,
-      });
-      reasons.push(...postureIssues.map((issue) => contractIssueToReason(issue.code)));
-    }
-  }
+  const capReasons = context.surfaceGraph && context.screenElements
+    ? capabilityReasons(step, context.screenElements, context.surfaceGraph)
+    : [];
 
-  if (step.action === 'assert-snapshot') {
-    if (!step.snapshot_template) {
-      reasons.push('missing-snapshot-template');
-    } else {
-      const hasSnapshotTemplate = context.availableSnapshotTemplates?.has(step.snapshot_template) ?? false;
-      if (!hasSnapshotTemplate) {
-        reasons.push('missing-snapshot-template');
-      }
-    }
-  }
-
-  if (context.surfaceGraph && context.screenElements) {
-    reasons.push(...capabilityReasons(step, context.screenElements, context.surfaceGraph));
-  }
+  const reasons: StepBindingReason[] = [
+    ...screenReasons,
+    ...elementReasons,
+    ...postureReasons,
+    ...snapshotReasons,
+    ...capReasons,
+  ];
 
   const uniqueReasons = uniqueSorted(reasons);
   const bindingKind = uniqueReasons.length > 0 ? 'unbound' : 'bound';

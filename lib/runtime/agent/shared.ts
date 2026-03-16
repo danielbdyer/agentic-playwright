@@ -1,5 +1,5 @@
 import { normalizeIntentText } from '../../domain/inference';
-import type { ResolutionExhaustionEntry, StepTask } from '../../domain/types';
+import type { ResolutionExhaustionEntry, GroundedStep } from '../../domain/types';
 
 export interface AliasMatch {
   alias: string;
@@ -10,17 +10,17 @@ export function uniqueSorted<T extends string>(values: T[]): T[] {
   return [...new Set(values.filter((value) => value.length > 0))].sort((left, right) => left.localeCompare(right)) as T[];
 }
 
-export function recordExhaustion(
-  entries: ResolutionExhaustionEntry[],
+export function exhaustionEntry(
   stage: ResolutionExhaustionEntry['stage'],
   outcome: ResolutionExhaustionEntry['outcome'],
   reason: string,
   candidates: Pick<ResolutionExhaustionEntry, 'topCandidates' | 'rejectedCandidates'> = {},
-): void {
-  entries.push({ stage, outcome, reason, ...candidates });
+): ResolutionExhaustionEntry {
+  return { stage, outcome, reason, ...candidates };
 }
 
-export function normalizedCombined(task: StepTask): string {
+
+export function normalizedCombined(task: GroundedStep): string {
   return `${normalizeIntentText(task.actionText)} ${normalizeIntentText(task.expectedText)}`.trim();
 }
 

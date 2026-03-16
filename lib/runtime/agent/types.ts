@@ -5,7 +5,7 @@ import type {
   ResolutionObservation,
   RuntimeDomResolver,
   StepResolution,
-  StepTask,
+  GroundedStep,
 } from '../../domain/types';
 
 export interface RuntimeStepAgentContext {
@@ -26,7 +26,7 @@ export interface RuntimeStepAgentContext {
 }
 
 export interface RuntimeAgentStageContext {
-  task: StepTask;
+  task: GroundedStep;
   context: RuntimeStepAgentContext;
   memory: ObservedStateSession;
   controlResolution: StepResolution | null;
@@ -37,4 +37,25 @@ export interface RuntimeAgentStageContext {
   knowledgeRefs: string[];
   supplementRefs: string[];
   memoryLineage: string[];
+}
+
+export interface StageEffects {
+  exhaustion: ResolutionExhaustionEntry[];
+  observations: ResolutionObservation[];
+  knowledgeRefs: string[];
+  supplementRefs: string[];
+}
+
+export const EMPTY_EFFECTS: StageEffects = {
+  exhaustion: [],
+  observations: [],
+  knowledgeRefs: [],
+  supplementRefs: [],
+};
+
+export function mergeEffectsIntoStage(stage: RuntimeAgentStageContext, effects: StageEffects): void {
+  stage.exhaustion = [...stage.exhaustion, ...effects.exhaustion];
+  stage.observations = [...stage.observations, ...effects.observations];
+  stage.knowledgeRefs = [...stage.knowledgeRefs, ...effects.knowledgeRefs];
+  stage.supplementRefs = [...stage.supplementRefs, ...effects.supplementRefs];
 }

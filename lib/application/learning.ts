@@ -7,7 +7,7 @@ import type {
   ProposalBundle,
   ReplayExample,
   RunRecord,
-  ScenarioTaskPacket,
+  ScenarioInterpretationSurface,
   SelectorCanon,
   TrainingCorpusManifest,
 } from '../domain/types';
@@ -35,7 +35,7 @@ function sortStrings(values: Iterable<string>): string[] {
   return [...new Set(values)].sort((left, right) => left.localeCompare(right));
 }
 
-function fragmentConfidence(step: ScenarioTaskPacket['payload']['steps'][number]): GroundedSpecFragment['confidence'] {
+function fragmentConfidence(step: ScenarioInterpretationSurface['payload']['steps'][number]): GroundedSpecFragment['confidence'] {
   if (step.explicitResolution) {
     return 'compiler-derived';
   }
@@ -43,12 +43,12 @@ function fragmentConfidence(step: ScenarioTaskPacket['payload']['steps'][number]
 }
 
 function decompositionFragments(input: {
-  taskPacket: ScenarioTaskPacket;
+  surface: ScenarioInterpretationSurface;
 }): GroundedSpecFragment[] {
-  return input.taskPacket.payload.steps.map((step) => ({
-    id: `decomposition:${input.taskPacket.payload.adoId}:${step.index}`,
+  return input.surface.payload.steps.map((step) => ({
+    id: `decomposition:${input.surface.payload.adoId}:${step.index}`,
     runtime: 'decomposition',
-    adoId: input.taskPacket.payload.adoId,
+    adoId: input.surface.payload.adoId,
     title: `Step ${step.index}`,
     stepIndexes: [step.index],
     action: step.explicitResolution?.action ?? step.allowedActions[0] ?? 'custom',
@@ -59,30 +59,30 @@ function decompositionFragments(input: {
     selectorRefs: step.grounding?.selectorRefs ?? [],
     assertionAnchors: step.grounding?.assertionAnchors ?? [],
     artifactRefs: [
-      `.tesseract/tasks/${input.taskPacket.payload.adoId}.resolution.json`,
+      `.tesseract/tasks/${input.surface.payload.adoId}.resolution.json`,
     ],
     confidence: fragmentConfidence(step),
   }));
 }
 
 function workflowFragments(input: {
-  taskPacket: ScenarioTaskPacket;
+  surface: ScenarioInterpretationSurface;
 }): GroundedSpecFragment[] {
   return [{
-    id: `workflow:${input.taskPacket.payload.adoId}`,
+    id: `workflow:${input.surface.payload.adoId}`,
     runtime: 'workflow',
-    adoId: input.taskPacket.payload.adoId,
-    title: input.taskPacket.payload.title,
-    stepIndexes: input.taskPacket.payload.steps.map((step) => step.index),
+    adoId: input.surface.payload.adoId,
+    title: input.surface.payload.title,
+    stepIndexes: input.surface.payload.steps.map((step) => step.index),
     action: 'composite',
-    intent: input.taskPacket.payload.title,
-    graphNodeIds: sortStrings(input.taskPacket.payload.steps.flatMap((step) =>
+    intent: input.surface.payload.title,
+    graphNodeIds: sortStrings(input.surface.payload.steps.flatMap((step) =>
       step.grounding?.targetRefs.map((targetRef) => `target:${targetRef}`) ?? [],
     )),
-    selectorRefs: sortStrings(input.taskPacket.payload.steps.flatMap((step) => step.grounding?.selectorRefs ?? [])),
-    assertionAnchors: sortStrings(input.taskPacket.payload.steps.flatMap((step) => step.grounding?.assertionAnchors ?? [])),
+    selectorRefs: sortStrings(input.surface.payload.steps.flatMap((step) => step.grounding?.selectorRefs ?? [])),
+    assertionAnchors: sortStrings(input.surface.payload.steps.flatMap((step) => step.grounding?.assertionAnchors ?? [])),
     artifactRefs: [
-      `.tesseract/tasks/${input.taskPacket.payload.adoId}.resolution.json`,
+      `.tesseract/tasks/${input.surface.payload.adoId}.resolution.json`,
     ],
     confidence: 'compiler-derived',
   }];
@@ -119,7 +119,7 @@ function repairRecoveryFragments(input: {
 }
 
 function replayExample(input: {
-  taskPacket: ScenarioTaskPacket;
+  surface: ScenarioInterpretationSurface;
   runRecord: RunRecord;
   sessionId?: string | null | undefined;
   fragments: GroundedSpecFragment[];
@@ -132,8 +132,8 @@ function replayExample(input: {
     runId: input.runRecord.runId,
     sessionId: input.sessionId ?? null,
     createdAt: input.runRecord.completedAt,
-    taskFingerprint: input.taskPacket.taskFingerprint,
-    knowledgeFingerprint: input.taskPacket.payload.knowledgeFingerprint,
+    taskFingerprint: input.surface.surfaceFingerprint,
+    knowledgeFingerprint: input.surface.payload.knowledgeFingerprint,
     fragmentIds: input.fragments.map((fragment) => fragment.id),
     receiptRefs: [
       `.tesseract/runs/${input.runRecord.adoId}/${input.runRecord.runId}/interpretation.json`,
@@ -186,7 +186,7 @@ function rebuildManifest(fs: FileSystemPort, paths: ProjectPaths) {
 export function projectLearningArtifacts(input: {
   paths: ProjectPaths;
   boundScenario: BoundScenario;
-  taskPacket: ScenarioTaskPacket;
+  surface: ScenarioInterpretationSurface;
   interfaceGraph?: ApplicationInterfaceGraph | null | undefined;
   selectorCanon?: SelectorCanon | null | undefined;
   runRecord?: RunRecord | null | undefined;
@@ -196,10 +196,10 @@ export function projectLearningArtifacts(input: {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const rewritten: string[] = [];
-    const decomposition = decompositionFragments({ taskPacket: input.taskPacket });
-    const workflow = workflowFragments({ taskPacket: input.taskPacket });
-    const decompositionPath = fragmentFilePath(input.paths, 'decomposition', input.taskPacket.payload.adoId);
-    const workflowPath = fragmentFilePath(input.paths, 'workflow', input.taskPacket.payload.adoId);
+    const decomposition = decompositionFragments({ surface: input.surface });
+    const workflow = workflowFragments({ surface: input.surface });
+    const decompositionPath = fragmentFilePath(input.paths, 'decomposition', input.surface.payload.adoId);
+    const workflowPath = fragmentFilePath(input.paths, 'workflow', input.surface.payload.adoId);
     yield* fs.writeJson(decompositionPath, decomposition);
     yield* fs.writeJson(workflowPath, workflow);
     rewritten.push(
@@ -212,16 +212,16 @@ export function projectLearningArtifacts(input: {
         runRecord: input.runRecord,
         proposalBundle: input.proposalBundle ?? null,
       });
-      const repairPath = fragmentFilePath(input.paths, 'repair-recovery', input.taskPacket.payload.adoId);
+      const repairPath = fragmentFilePath(input.paths, 'repair-recovery', input.surface.payload.adoId);
       yield* fs.writeJson(repairPath, repairs);
       rewritten.push(relativeProjectPath(input.paths, repairPath));
       const replay = replayExample({
-        taskPacket: input.taskPacket,
+        surface: input.surface,
         runRecord: input.runRecord,
         sessionId: input.sessionId,
         fragments: [...decomposition, ...workflow, ...repairs],
       });
-      const replayPath = replayFilePath(input.paths, input.taskPacket.payload.adoId, input.runRecord.runId);
+      const replayPath = replayFilePath(input.paths, input.surface.payload.adoId, input.runRecord.runId);
       yield* fs.writeJson(replayPath, replay);
       rewritten.push(relativeProjectPath(input.paths, replayPath));
     }

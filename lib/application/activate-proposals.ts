@@ -3,6 +3,7 @@ import { Effect } from 'effect';
 import type { ProposalBundle, ProposalEntry } from '../domain/types';
 import type { ProjectPaths } from './paths';
 import { FileSystem } from './ports';
+import { trySync } from './effect';
 import { applyProposalPatch, parseProposalArtifact, serializeProposalArtifact, validatePatchedProposalArtifact } from './proposal-patches';
 
 function certificationForProposal(proposal: ProposalEntry): ProposalEntry['certification'] {
@@ -44,6 +45,32 @@ export interface ActivateProposalBundleResult {
   blockedProposalIds: string[];
 }
 
+function tryActivateProposal(fsPort: import('./ports').FileSystemPort, rootDir: string, proposal: ProposalEntry, activatedAt: string) {
+  const candidate = activatedProposal(proposal, activatedAt);
+  const absoluteTargetPath = path.join(rootDir, proposal.targetPath);
+
+  return Effect.gen(function* () {
+    const currentRaw = (yield* fsPort.exists(absoluteTargetPath))
+      ? yield* fsPort.readText(absoluteTargetPath)
+      : '{}';
+    const nextArtifact = yield* trySync(
+      () => applyProposalPatch(parseProposalArtifact(currentRaw, proposal.targetPath), candidate),
+      'proposal-patch-failed', `Proposal patch failed for ${proposal.targetPath}`);
+    yield* trySync(
+      () => validatePatchedProposalArtifact(proposal.targetPath, candidate, nextArtifact),
+      'proposal-validation-failed', `Proposal validation failed for ${proposal.targetPath}`);
+    yield* fsPort.writeText(absoluteTargetPath, serializeProposalArtifact(proposal.targetPath, nextArtifact));
+    return { proposal: candidate, activatedPath: absoluteTargetPath, blocked: false as const };
+  }).pipe(
+    Effect.catchAll((error) => Effect.succeed({
+      proposal: blockedProposal(proposal, error instanceof Error ? error.message : 'proposal activation failed'),
+      activatedPath: null,
+      blocked: true as const,
+      proposalId: proposal.proposalId,
+    })),
+  );
+}
+
 export function activateProposalBundle(options: {
   paths: ProjectPaths;
   proposalBundle: ProposalBundle;
@@ -51,28 +78,20 @@ export function activateProposalBundle(options: {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const activatedAt = new Date().toISOString();
-    const activatedPaths = new Set<string>();
-    const blockedProposalIds: string[] = [];
-    const proposals: ProposalEntry[] = [];
 
-    for (const proposal of options.proposalBundle.proposals) {
-      const candidate = activatedProposal(proposal, activatedAt);
-      try {
-        const absoluteTargetPath = path.join(options.paths.rootDir, proposal.targetPath);
-        const currentRaw = (yield* fs.exists(absoluteTargetPath))
-          ? yield* fs.readText(absoluteTargetPath)
-          : '{}';
-        const nextArtifact = applyProposalPatch(parseProposalArtifact(currentRaw, proposal.targetPath), candidate);
-        validatePatchedProposalArtifact(proposal.targetPath, candidate, nextArtifact);
-        yield* fs.writeText(absoluteTargetPath, serializeProposalArtifact(proposal.targetPath, nextArtifact));
-        proposals.push(candidate);
-        activatedPaths.add(absoluteTargetPath);
-      } catch (error) {
-        const reason = error instanceof Error ? error.message : 'proposal activation failed';
-        proposals.push(blockedProposal(proposal, reason));
-        blockedProposalIds.push(proposal.proposalId);
-      }
-    }
+    const results = yield* Effect.forEach(
+      options.proposalBundle.proposals,
+      (proposal) => tryActivateProposal(fs, options.paths.rootDir, proposal, activatedAt),
+    );
+
+    const proposals = results.map((result) => result.proposal);
+    const activatedPaths = results
+      .filter((result): result is typeof result & { activatedPath: string } => result.activatedPath !== null)
+      .map((result) => result.activatedPath)
+      .sort((left, right) => left.localeCompare(right));
+    const blockedProposalIds = results
+      .filter((result) => result.blocked)
+      .map((result) => (result as { proposalId: string }).proposalId);
 
     const hasBlocked = proposals.some((proposal) => proposal.activation.status === 'blocked');
     const proposalBundle: ProposalBundle = {
@@ -87,8 +106,38 @@ export function activateProposalBundle(options: {
 
     return {
       proposalBundle,
-      activatedPaths: [...activatedPaths].sort((left, right) => left.localeCompare(right)),
+      activatedPaths,
       blockedProposalIds,
     } satisfies ActivateProposalBundleResult;
+  });
+}
+
+export interface CompensationBackup {
+  filePath: string;
+  originalContent: string;
+}
+
+export function backupBeforeActivation(options: {
+  paths: ProjectPaths;
+  proposalBundle: ProposalBundle;
+}) {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const all = yield* Effect.forEach(options.proposalBundle.proposals, (proposal) =>
+      Effect.gen(function* () {
+        const absoluteTargetPath = path.join(options.paths.rootDir, proposal.targetPath);
+        const exists = yield* fs.exists(absoluteTargetPath);
+        return exists
+          ? { filePath: absoluteTargetPath, originalContent: yield* fs.readText(absoluteTargetPath) } as CompensationBackup
+          : null;
+      }));
+    return all.filter((entry): entry is CompensationBackup => entry !== null);
+  });
+}
+
+export function deactivateProposals(backups: CompensationBackup[]) {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    yield* Effect.forEach(backups, (backup) => fs.writeText(backup.filePath, backup.originalContent));
   });
 }

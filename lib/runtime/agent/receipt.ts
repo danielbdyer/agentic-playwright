@@ -1,12 +1,16 @@
 import { knowledgePaths } from '../../domain/ids';
 import type { ResolutionReceipt } from '../../domain/types';
 import { selectedDataset, selectedRunbook } from './select-controls';
-import type { RuntimeAgentStageContext } from './types';
+import type { RuntimeAgentStageContext, StageEffects } from './types';
 import { uniqueSorted } from './shared';
 
-function baseReceiptFields(stage: RuntimeAgentStageContext) {
+function baseReceiptFields(stage: RuntimeAgentStageContext, pendingEffects?: StageEffects) {
   const { task, context } = stage;
   const handshakes: import('../../domain/types').WorkflowStage[] = ['preparation', 'resolution'];
+  const exhaustion = [...stage.exhaustion, ...(pendingEffects?.exhaustion ?? [])];
+  const observations = [...stage.observations, ...(pendingEffects?.observations ?? [])];
+  const knowledgeRefs = uniqueSorted([...stage.knowledgeRefs, ...(pendingEffects?.knowledgeRefs ?? [])]);
+  const supplementRefs = uniqueSorted([...stage.supplementRefs, ...(pendingEffects?.supplementRefs ?? [])]);
   return {
     version: 1 as const,
     stage: 'resolution' as const,
@@ -39,20 +43,20 @@ function baseReceiptFields(stage: RuntimeAgentStageContext) {
     mode: context.mode,
     runAt: context.runAt,
     stepIndex: task.index,
-    knowledgeRefs: uniqueSorted(stage.knowledgeRefs),
-    supplementRefs: uniqueSorted(stage.supplementRefs),
+    knowledgeRefs,
+    supplementRefs,
     controlRefs: stage.controlRefs,
     evidenceRefs: stage.evidenceRefs,
-    observations: stage.observations,
-    exhaustion: stage.exhaustion,
+    observations,
+    exhaustion,
     handshakes,
     evidenceDrafts: [],
     proposalDrafts: [],
   };
 }
 
-export function needsHumanReceipt(stage: RuntimeAgentStageContext, overlayRefs: string[], translation: import('../../domain/types').TranslationReceipt | null): ResolutionReceipt {
-  const base = baseReceiptFields(stage);
+export function needsHumanReceipt(stage: RuntimeAgentStageContext, overlayRefs: string[], translation: import('../../domain/types').TranslationReceipt | null, pendingEffects?: StageEffects): ResolutionReceipt {
+  const base = baseReceiptFields(stage, pendingEffects);
   return {
     ...base,
     kind: 'needs-human',
@@ -68,18 +72,18 @@ export function needsHumanReceipt(stage: RuntimeAgentStageContext, overlayRefs: 
   };
 }
 
-export function explicitResolvedReceipt(stage: RuntimeAgentStageContext): ResolutionReceipt {
+export function explicitResolvedReceipt(stage: RuntimeAgentStageContext, pendingEffects?: StageEffects): ResolutionReceipt {
   const explicit = stage.task.explicitResolution;
   if (!explicit?.action || !explicit.screen) {
     throw new Error('explicitResolvedReceipt requires explicit action and screen');
   }
   return {
-    ...baseReceiptFields(stage),
+    ...baseReceiptFields(stage, pendingEffects),
     kind: 'resolved',
     governance: 'approved',
     resolutionMode: 'deterministic',
     fingerprints: {
-      ...baseReceiptFields(stage).fingerprints,
+      ...baseReceiptFields(stage, pendingEffects).fingerprints,
       controls: null,
     },
     knowledgeRefs: [knowledgePaths.surface(explicit.screen), knowledgePaths.elements(explicit.screen)],

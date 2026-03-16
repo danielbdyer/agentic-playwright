@@ -4,9 +4,8 @@ export type {
   ResolutionReceipt,
   ResolutionTarget,
   RuntimeControlSession,
-  ScenarioTaskPacket,
   StepBindingKind,
   StepResolution,
-  StepTask,
+  GroundedStep,
   StepWinningSource,
 } from '../types';

@@ -171,7 +171,7 @@ export function inspectWorkflow(options: { paths: ProjectPaths; adoId?: AdoId | 
       fingerprints: scenario ? {
         scenario: scenario.fingerprint,
         bound: catalog.boundScenarios.find((entry) => entry.artifact.source.ado_id === scenario.artifact.source.ado_id)?.fingerprint ?? null,
-        task: catalog.taskPackets.find((entry) => entry.artifact.payload.adoId === scenario.artifact.source.ado_id)?.fingerprint ?? null,
+        task: catalog.interpretationSurfaces.find((entry) => entry.artifact.payload.adoId === scenario.artifact.source.ado_id)?.fingerprint ?? null,
       } : null,
     };
   });

@@ -234,7 +234,29 @@ Stages compose sequentially. Each stage declares its dependencies, computes its 
 
 **Invariant**: Incremental caching must be semantically transparent — `runIncrementalStage(stage)` must produce the same observable result as running the stage directly, modulo the caching side effect. The fingerprint function must be injective enough that distinct inputs produce distinct fingerprints. If in doubt, invalidate more aggressively.
 
-### Error Handling
+### Structural Parallelism with `Effect.all`
+
+When multiple effects are structurally independent — they don't depend on each other's results — express that independence with `Effect.all({...})` instead of sequential `yield*` chains:
+
+```typescript
+// Prefer: Effect.all makes independence explicit at the type level
+const walks = yield* Effect.all({
+  surfaces: walkFiles(fs, paths.surfacesDir),
+  screens: walkFiles(fs, path.join(paths.knowledgeDir, 'screens')),
+  patterns: walkFiles(fs, paths.patternsDir),
+  datasets: walkFiles(fs, paths.datasetsDir),
+});
+
+// Avoid: sequential yield* hides the independence
+const surfaceFiles = yield* walkFiles(fs, paths.surfacesDir);
+const screenFiles = yield* walkFiles(fs, path.join(paths.knowledgeDir, 'screens'));
+const patternFiles = yield* walkFiles(fs, paths.patternsDir);
+const datasetFiles = yield* walkFiles(fs, paths.datasetsDir);
+```
+
+Even without runtime concurrency, `Effect.all` documents at the type level which operations are independent. Future concurrency improvements can then parallelize them without restructuring the code. The `loadWorkspaceCatalog` function uses this pattern to batch ~20 independent file walks and ~25 independent artifact loads into two `Effect.all` calls.
+
+### Error Handling and Typed Recovery
 
 Two utility functions in `lib/application/effect.ts`:
 
@@ -243,7 +265,88 @@ function trySync<A>(thunk: () => A, code: string, message: string): Effect<A, Te
 function tryAsync<A>(thunk: () => Promise<A>, code: string, message: string): Effect<A, TesseractError>
 ```
 
-All application errors are `TesseractError` with a code and message. Errors propagate through Effect's failure channel. Domain code throws plain exceptions (caught at the application boundary). Infrastructure code throws adapter-specific errors (wrapped by the port implementation).
+All application errors are `TesseractError` with a code and message. The error hierarchy uses `_tag` fields for Effect-compatible discrimination:
+
+| Class | `_tag` | Use case |
+|---|---|---|
+| `TesseractError` | `'TesseractError'` | Base class, generic failures |
+| `SchemaError` | `'SchemaError'` | Validation failures with path context |
+| `FileSystemError` | `'FileSystemError'` | I/O failures with file path context |
+| `ResolutionError` | `'ResolutionError'` | Resolution failures with context map |
+| `RuntimeError` | `'RuntimeError'` | Playwright/widget failures with context map |
+| `PipelineError` | `'PipelineError'` | Pipeline stage failures with stage name |
+
+**Prefer `Effect.catchTag` for typed error recovery** when you need to handle specific error types:
+
+```typescript
+// Prefer: Effect.catchTag for tagged error discrimination
+return readJsonArtifact(paths, absolutePath, validate, errorCode, errorMessage).pipe(
+  Effect.map((envelope): ArtifactEnvelope<T> | null => envelope),
+  Effect.catchTag('TesseractError', () => Effect.succeed(null)),
+);
+
+// Avoid: Effect.either + manual _tag check
+const result = yield* Effect.either(readJsonArtifact(...));
+return result._tag === 'Right' ? result.right : null;
+```
+
+**Use `Effect.catchAll` for uniform recovery** when any failure should produce the same fallback:
+
+```typescript
+// Lift sync throws into Effect channel, then recover uniformly
+return Effect.gen(function* () {
+  const nextArtifact = yield* trySync(
+    () => applyProposalPatch(parsed, candidate),
+    'proposal-patch-failed', `Proposal patch failed for ${targetPath}`);
+  yield* fsPort.writeText(absoluteTargetPath, serialized);
+  return { proposal: candidate, blocked: false as const };
+}).pipe(
+  Effect.catchAll((error) => Effect.succeed({
+    proposal: blockedProposal(proposal, error.message),
+    blocked: true as const,
+  })),
+);
+```
+
+Domain code throws plain exceptions (caught at the application boundary via `trySync`). Infrastructure code throws adapter-specific errors (wrapped by the port implementation). Application code uses `Effect.catchTag` or `Effect.catchAll` to recover — never bare `try/catch` inside `Effect.gen`.
+
+### Pipeline Composition
+
+The `PipelinePhase` interface models a composable step in a multi-phase pipeline:
+
+```typescript
+interface PipelinePhase {
+  readonly name: string;
+  run(stage: RuntimeAgentStageContext): Promise<StrategyChainResult>;
+}
+```
+
+Phases compose via `runPipelinePhases`, which uses the same recursive fold pattern as `runStrategyChain`: walk the phases sequentially, accumulate events, short-circuit on receipt. This replaces hardcoded inline phase blocks with a composable array:
+
+```typescript
+const phases: readonly PipelinePhase[] = [
+  { name: 'pre-accumulator', run: (s) => runStrategyChain(preAccumulatorStrategies, s, null) },
+  { name: 'lattice-accumulator', run: async (s) => { /* build lattice, return events */ } },
+  { name: 'post-accumulator', run: (s) => runStrategyChain(postStrategies, s, accRef.current) },
+  { name: 'final-fallback', run: async (s) => { /* tryLiveDomOrFallback, always returns receipt */ } },
+];
+const result = await runPipelinePhases(phases, stage);
+```
+
+When adding a new pipeline phase, add it to the array. The fold handles event accumulation and early exit automatically.
+
+### Governance Type Safety
+
+The `WorkflowEnvelope` carries a `governance: Governance` field that is checked at runtime boundaries. Phantom branded types make governance constraints visible at the type level:
+
+```typescript
+// Type-level governance narrowing
+function isApproved<T extends { governance: Governance }>(item: T): item is Approved<T>
+function requireApproved<T extends { governance: Governance }>(item: T): asserts item is Approved<T>
+function foldGovernance<T extends { governance: Governance }, R>(item: T, cases: {...}): R
+```
+
+Use these at boundaries where governance determines whether an operation should proceed: execution entry points, proposal activation, evidence persistence. The `mapPayload(envelope, f)` utility preserves governance branding through payload transforms.
 
 ---
 
