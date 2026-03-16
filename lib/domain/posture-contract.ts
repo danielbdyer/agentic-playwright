@@ -108,33 +108,27 @@ export function validatePostureContract(params: {
     return [{ code: 'unknown-posture', elementId: params.elementId, postureId: params.postureId }];
   }
 
-  const issues: PostureContractIssue[] = [];
+  const missingValuesIssue: PostureContractIssue[] = posture.values.length === 0
+    ? [{ code: 'missing-posture-values', elementId: params.elementId, postureId: params.postureId }]
+    : [];
 
-  if (posture.values.length === 0) {
-    issues.push({
-      code: 'missing-posture-values',
-      elementId: params.elementId,
-      postureId: params.postureId,
-    });
-  }
-
-  for (const effect of posture.effects) {
+  const effectIssues: PostureContractIssue[] = posture.effects.flatMap((effect) => {
     const resolved = resolveEffectTargetRef({
       effect,
       elements: params.elements,
       surfaceGraph: params.surfaceGraph,
     });
 
-    if (!resolved.ok) {
-      issues.push({
-        code: resolved.error.code,
-        elementId: params.elementId,
-        postureId: params.postureId,
-        target: resolved.error.target,
-      });
-    }
-  }
+    return resolved.ok
+      ? []
+      : [{
+          code: resolved.error.code,
+          elementId: params.elementId,
+          postureId: params.postureId,
+          target: resolved.error.target,
+        } satisfies PostureContractIssue];
+  });
 
-  return issues;
+  return [...missingValuesIssue, ...effectIssues];
 }
 

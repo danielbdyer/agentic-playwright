@@ -3,7 +3,8 @@ import { Effect } from 'effect';
 import { explainBoundScenario } from '../domain/scenario/explanation';
 import type { TesseractError } from '../domain/errors';
 import type { AdoId } from '../domain/identity';
-import { renderGeneratedSpecModule } from '../domain/spec-codegen';
+import { buildGroundedSpecFlow } from '../domain/grounded-flow';
+import { renderReadableSpecModule } from '../domain/spec-codegen';
 import type {
   BoundScenario,
   ProposalBundle,
@@ -110,12 +111,11 @@ function renderEmitArtifacts(
   const reviewPath = generatedReviewPath(paths, boundScenario.metadata.suite, boundScenario.source.ado_id);
   const proposalsPath = generatedProposalsPath(paths, boundScenario.metadata.suite, boundScenario.source.ado_id);
   const manifestPath = emitManifestPath(paths, boundScenario.metadata.suite, boundScenario.source.ado_id);
-  const rendered = renderGeneratedSpecModule(boundScenario, surface, {
+  const flow = buildGroundedSpecFlow(boundScenario, surface);
+  const rendered = renderReadableSpecModule(flow, {
     imports: {
       fixtures: relativeModule(outputPath, path.join(paths.rootDir, 'fixtures', 'index.ts')).replace(/\.ts$/, ''),
-      runtime: relativeModule(outputPath, path.join(paths.rootDir, 'lib', 'runtime', 'scenario.ts')).replace(/\.ts$/, ''),
-      execution: relativeModule(outputPath, path.join(paths.rootDir, 'lib', 'application', 'execution', 'load-run-plan.ts')).replace(/\.ts$/, ''),
-      environment: relativeModule(outputPath, path.join(paths.rootDir, 'lib', 'infrastructure', 'runtime', 'local-runtime-environment.ts')).replace(/\.ts$/, ''),
+      scenarioContext: relativeModule(outputPath, path.join(paths.rootDir, 'lib', 'composition', 'scenario-context.ts')).replace(/\.ts$/, ''),
     },
   });
   const traceArtifact = explainBoundScenario(boundScenario, rendered.lifecycle, latestRun);

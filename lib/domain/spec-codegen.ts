@@ -1,6 +1,7 @@
 import * as ts from 'typescript';
-import { aggregateConfidence, lifecycleForScenario } from './status';
-import type { BoundScenario, ScenarioInterpretationSurface } from './types';
+import type { GroundedFlowStep, GroundedSpecFlow } from './types';
+import type { ScenarioLifecycle } from './types/workflow';
+import { deriveMethodName, deduplicateMethodNames } from './method-name';
 import {
   awaitExpression,
   callExpression,
@@ -15,112 +16,46 @@ import {
   stringLiteral,
 } from './ts-ast';
 
-export interface GeneratedSpecImports {
-  fixtures: string;
-  runtime: string;
-  execution: string;
-  environment: string;
+export interface ReadableSpecImports {
+  readonly fixtures: string;
+  readonly scenarioContext: string;
 }
 
-export interface GeneratedSpecModuleOptions {
-  imports: GeneratedSpecImports;
+export interface ReadableSpecModuleOptions {
+  readonly imports: ReadableSpecImports;
 }
 
-function titleWithTags(title: string, tags: string[]): string {
-  if (tags.length === 0) {
-    return title;
-  }
-  return `${title} ${tags.map((tag) => `@${tag}`).join(' ')}`;
+/** @deprecated Use ReadableSpecImports. Alias for migration. */
+export type GeneratedSpecImports = ReadableSpecImports;
+
+/** @deprecated Use ReadableSpecModuleOptions. Alias for migration. */
+export type GeneratedSpecModuleOptions = ReadableSpecModuleOptions;
+
+function titleWithTags(title: string, tags: ReadonlyArray<string>): string {
+  return tags.length === 0
+    ? title
+    : `${title} ${tags.map((tag) => `@${tag}`).join(' ')}`;
 }
 
-function fixtureContextExpression(fixtures: string[]): ts.Expression {
-  if (fixtures.length === 0) {
-    return ts.factory.createObjectLiteralExpression([], false);
-  }
+function annotationStatements(flow: GroundedSpecFlow): ReadonlyArray<ts.Statement> {
+  const { metadata } = flow;
+  const deferredSteps = flow.steps.filter((step) => step.bindingKind === 'deferred').map((step) => step.index);
+  const unboundSteps = flow.steps.filter((step) => step.bindingKind === 'unbound').map((step) => step.index);
+  const confidence = typeof metadata.confidence === 'string' ? metadata.confidence : 'mixed';
 
-  return ts.factory.createObjectLiteralExpression(
-    fixtures.map((fixture) => ts.factory.createShorthandPropertyAssignment(identifier(fixture))),
-    true,
-  );
-}
-
-function fixtureReferencePattern(raw: string, fixtures: Set<string>): void {
-  const matches = raw.matchAll(/\{\{\s*([A-Za-z0-9_-]+)(?:\.[^}]*)?\s*\}\}/g);
-  for (const match of matches) {
-    if (match[1]) {
-      fixtures.add(match[1]);
-    }
-  }
-}
-
-function fixturesForScenario(boundScenario: BoundScenario, surface: ScenarioInterpretationSurface): string[] {
-  const fixtures = new Set<string>(boundScenario.preconditions.map((precondition) => precondition.fixture));
-  for (const step of surface.payload.steps) {
-    if (step.explicitResolution?.override) {
-      fixtureReferencePattern(step.explicitResolution.override, fixtures);
-    }
-    if (step.controlResolution?.override) {
-      fixtureReferencePattern(step.controlResolution.override, fixtures);
-    }
-  }
-  return [...fixtures].sort((left, right) => left.localeCompare(right));
-}
-
-function runtimeModeExpression(): ts.Expression {
-  return ts.factory.createAsExpression(
-    ts.factory.createBinaryExpression(
-      ts.factory.createPropertyAccessExpression(
-        ts.factory.createPropertyAccessExpression(identifier('process'), 'env'),
-        'TESSERACT_INTERPRETER_MODE',
-      ),
-      ts.factory.createToken(ts.SyntaxKind.QuestionQuestionToken),
-      stringLiteral('dry-run'),
-    ),
-    ts.factory.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword),
-  );
-}
-
-function runtimeWriteModeExpression(): ts.Expression {
-  return ts.factory.createAsExpression(
-    ts.factory.createBinaryExpression(
-      ts.factory.createPropertyAccessExpression(
-        ts.factory.createPropertyAccessExpression(identifier('process'), 'env'),
-        'TESSERACT_WRITE_MODE',
-      ),
-      ts.factory.createToken(ts.SyntaxKind.QuestionQuestionToken),
-      stringLiteral('persist'),
-    ),
-    ts.factory.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword),
-  );
-}
-
-function runtimeHeadedExpression(): ts.Expression {
-  return ts.factory.createBinaryExpression(
-    ts.factory.createPropertyAccessExpression(
-      ts.factory.createPropertyAccessExpression(identifier('process'), 'env'),
-      'TESSERACT_HEADLESS',
-    ),
-    ts.factory.createToken(ts.SyntaxKind.EqualsEqualsEqualsToken),
-    stringLiteral('0'),
-  );
-}
-
-function annotationStatements(boundScenario: BoundScenario, confidence: string, deferredSteps: number[], unboundSteps: number[]): ts.Statement[] {
-  const annotations = [
-    { type: 'ado-id', description: boundScenario.source.ado_id },
-    { type: 'ado-revision', description: String(boundScenario.source.revision) },
-    { type: 'content-hash', description: boundScenario.source.content_hash },
+  const baseAnnotations: ReadonlyArray<{ readonly type: string; readonly description: string }> = [
+    { type: 'ado-id', description: metadata.adoId },
+    { type: 'ado-revision', description: String(metadata.revision) },
+    { type: 'content-hash', description: metadata.contentHash },
     { type: 'confidence', description: confidence },
   ];
 
-  if (deferredSteps.length > 0) {
-    annotations.push({ type: 'deferred-steps', description: deferredSteps.join(', ') });
-  }
-  if (unboundSteps.length > 0) {
-    annotations.push({ type: 'unbound-steps', description: unboundSteps.join(', ') });
-  }
+  const conditionalAnnotations: ReadonlyArray<{ readonly type: string; readonly description: string }> = [
+    ...(deferredSteps.length > 0 ? [{ type: 'deferred-steps', description: deferredSteps.join(', ') }] : []),
+    ...(unboundSteps.length > 0 ? [{ type: 'unbound-steps', description: unboundSteps.join(', ') }] : []),
+  ];
 
-  return annotations.map((annotation) =>
+  return [...baseAnnotations, ...conditionalAnnotations].map((annotation) =>
     statementFromExpression(
       callExpression(property(property(callExpression(property(identifier('test'), 'info'), []), 'annotations'), 'push'), [
         expressionFromLiteral(annotation),
@@ -129,190 +64,218 @@ function annotationStatements(boundScenario: BoundScenario, confidence: string, 
   );
 }
 
-function failureConditionExpression(): ts.Expression {
-  return ts.factory.createBinaryExpression(
-    ts.factory.createBinaryExpression(
-      property(property(identifier('stepResult'), 'interpretation'), 'kind'),
-      ts.factory.createToken(ts.SyntaxKind.EqualsEqualsEqualsToken),
-      stringLiteral('needs-human'),
-    ),
-    ts.factory.createToken(ts.SyntaxKind.BarBarToken),
-    ts.factory.createBinaryExpression(
-      property(property(property(identifier('stepResult'), 'execution'), 'execution'), 'status'),
-      ts.factory.createToken(ts.SyntaxKind.EqualsEqualsEqualsToken),
-      stringLiteral('failed'),
-    ),
+function lifecycleStatements(lifecycle: ScenarioLifecycle): ReadonlyArray<ts.Statement> {
+  const methodName: Record<string, string> = { fixme: 'fixme', skip: 'skip', fail: 'fail' };
+  const name = methodName[lifecycle];
+  return name
+    ? [statementFromExpression(callExpression(property(identifier('test'), name), []))]
+    : [];
+}
+
+interface ResolvedScreenMethod {
+  readonly screenId: string;
+  readonly methodName: string;
+  readonly stepIndex: number;
+  readonly stepTitle: string;
+}
+
+/**
+ * Convert a screen ID like "policy-search" to a camelCase variable name like "policySearch".
+ */
+function screenVarName(screenId: string): string {
+  return screenId === '__global__'
+    ? 'scenario'
+    : screenId.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
+}
+
+/**
+ * Group items by a key function, preserving insertion order.
+ */
+function groupBy<T>(items: ReadonlyArray<T>, keyFn: (item: T) => string): ReadonlyMap<string, ReadonlyArray<T>> {
+  return items.reduce(
+    (acc, item) => {
+      const key = keyFn(item);
+      const existing = acc.get(key) ?? [];
+      return new Map([...acc, [key, [...existing, item]]]);
+    },
+    new Map<string, ReadonlyArray<T>>(),
   );
 }
 
-function stepStatement(boundScenario: BoundScenario, step: BoundScenario['steps'][number], zeroBasedIndex: number): ts.Statement {
+/**
+ * Collect unique values from an array by key, preserving first-appearance order.
+ */
+function uniqueBy<T>(items: ReadonlyArray<T>, keyFn: (item: T) => string): ReadonlyArray<string> {
+  return items.reduce<{ readonly keys: ReadonlyArray<string>; readonly seen: ReadonlySet<string> }>(
+    (acc, item) => {
+      const key = keyFn(item);
+      return acc.seen.has(key)
+        ? acc
+        : { keys: [...acc.keys, key], seen: new Set([...acc.seen, key]) };
+    },
+    { keys: [], seen: new Set() },
+  ).keys;
+}
+
+/**
+ * Group steps by screen and derive POM-style method names.
+ * Steps without a screen are assigned to a synthetic '__global__' screen.
+ */
+function resolveScreenMethods(steps: ReadonlyArray<GroundedFlowStep>): ReadonlyArray<ResolvedScreenMethod> {
+  const rawMethods = steps.map((step, originalIndex) => ({
+    screenId: step.screen ?? '__global__',
+    methodName: deriveMethodName(step.action, step.element, step.intent),
+    stepIndex: step.index,
+    stepTitle: step.intent,
+    originalIndex,
+  }));
+
+  const byScreen = groupBy(rawMethods, (m) => m.screenId);
+
+  // Deduplicate per screen, then reassemble in original order
+  const deduplicatedEntries: ReadonlyArray<{ readonly originalIndex: number; readonly resolved: ResolvedScreenMethod }> =
+    [...byScreen.entries()].flatMap(([screenId, screenMethods]) => {
+      const deduped = deduplicateMethodNames(screenMethods);
+      return screenMethods.map((m, i) => ({
+        originalIndex: m.originalIndex,
+        resolved: {
+          screenId,
+          methodName: deduped[i] ?? m.methodName,
+          stepIndex: m.stepIndex,
+          stepTitle: m.stepTitle,
+        },
+      }));
+    });
+
+  return [...deduplicatedEntries]
+    .sort((a, b) => a.originalIndex - b.originalIndex)
+    .map((entry) => entry.resolved);
+}
+
+function fixtureSpreadExpression(fixtures: ReadonlyArray<string>): ts.Expression {
+  return fixtures.length === 0
+    ? ts.factory.createObjectLiteralExpression([], false)
+    : ts.factory.createObjectLiteralExpression(
+        fixtures.map((fixture) => ts.factory.createShorthandPropertyAssignment(identifier(fixture))),
+        true,
+      );
+}
+
+/**
+ * Build an inline POM facade object literal for a screen.
+ * Each method is an arrow function that delegates to scenario.executeStep(index, title).
+ */
+function screenFacadeDeclaration(
+  screenId: string,
+  methods: ReadonlyArray<ResolvedScreenMethod>,
+): ts.Statement {
+  const properties = methods.map((m) =>
+    ts.factory.createPropertyAssignment(
+      identifier(m.methodName),
+      ts.factory.createArrowFunction(
+        undefined,
+        undefined,
+        [],
+        undefined,
+        ts.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
+        callExpression(property(identifier('scenario'), 'executeStep'), [
+          ts.factory.createNumericLiteral(m.stepIndex),
+          stringLiteral(m.stepTitle),
+        ]),
+      ),
+    ),
+  );
+
+  return constStatement(
+    screenVarName(screenId),
+    ts.factory.createObjectLiteralExpression(properties, true),
+  );
+}
+
+function stepCallStatement(m: ResolvedScreenMethod): ts.Statement {
+  const target = m.screenId === '__global__'
+    ? identifier('scenario')
+    : identifier(screenVarName(m.screenId));
+
   return statementFromExpression(
     awaitExpression(
-      callExpression(property(identifier('test'), 'step'), [
-        stringLiteral(step.intent),
-        ts.factory.createArrowFunction(
-          [ts.factory.createModifier(ts.SyntaxKind.AsyncKeyword)],
-          undefined,
-          [],
-          undefined,
-          ts.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
-          ts.factory.createBlock([
-            constStatement(
-              'stepResult',
-              awaitExpression(
-                callExpression(identifier('runScenarioHandshake'), [
-                  callExpression(identifier('stepHandshakeFromPlan'), [
-                    identifier('runPlan'),
-                    ts.factory.createNumericLiteral(zeroBasedIndex),
-                  ]),
-                  identifier('runtimeEnvironment'),
-                  identifier('runState'),
-                  property(identifier('runPlan'), 'context'),
-                ]),
-              ),
-            ),
-            statementFromExpression(
-              callExpression(property(property(callExpression(property(identifier('test'), 'info'), []), 'annotations'), 'push'), [
-                ts.factory.createObjectLiteralExpression([
-                  ts.factory.createPropertyAssignment('type', stringLiteral('runtime-receipt')),
-                  ts.factory.createPropertyAssignment(
-                    'description',
-                    callExpression(property(identifier('JSON'), 'stringify'), [
-                      identifier('stepResult'),
-                    ]),
-                  ),
-                ]),
-              ]),
-            ),
-            ts.factory.createIfStatement(
-              failureConditionExpression(),
-              ts.factory.createBlock([
-                ts.factory.createThrowStatement(
-                  ts.factory.createNewExpression(identifier('Error'), undefined, [
-                    stringLiteral(`Step ${step.index} requires operator attention or failed execution`),
-                  ]),
-                ),
-              ], true),
-              undefined,
-            ),
-          ], true),
-        ),
-      ]),
+      callExpression(property(target, m.methodName), []),
     ),
   );
 }
 
-function lifecycleStatements(lifecycle: 'normal' | 'fixme' | 'skip' | 'fail'): ts.Statement[] {
-  switch (lifecycle) {
-    case 'fixme':
-      return [statementFromExpression(callExpression(property(identifier('test'), 'fixme'), []))];
-    case 'skip':
-      return [statementFromExpression(callExpression(property(identifier('test'), 'skip'), []))];
-    case 'fail':
-      return [statementFromExpression(callExpression(property(identifier('test'), 'fail'), []))];
-    default:
-      return [];
-  }
-}
-
-export function renderGeneratedSpecModule(
-  boundScenario: BoundScenario,
-  surface: ScenarioInterpretationSurface,
-  options: GeneratedSpecModuleOptions,
+/**
+ * Emit a POM-aligned, QA-legible Playwright spec from a GroundedSpecFlow.
+ *
+ * The generated spec:
+ * - Imports only `test` (from fixtures) and `createScenarioContext` (from scenario-context)
+ * - Constructs a single `ScenarioContext` that curries all runtime internals
+ * - Builds inline POM facade objects per screen with named methods
+ * - Calls named methods on screen objects (e.g., `policySearch.navigate()`)
+ * - Never exposes runPlan, runtimeEnvironment, runState, or step indices
+ */
+export function renderReadableSpecModule(
+  flow: GroundedSpecFlow,
+  options: ReadableSpecModuleOptions,
 ): {
-  code: string;
-  lifecycle: 'normal' | 'fixme' | 'skip' | 'fail';
+  readonly code: string;
+  readonly lifecycle: ScenarioLifecycle;
 } {
-  const hasUnbound = boundScenario.steps.some((step) => step.binding.kind === 'unbound');
-  const lifecycle = lifecycleForScenario(boundScenario.metadata.status, hasUnbound);
-  const fixtures = fixturesForScenario(boundScenario, surface);
-  const confidence = aggregateConfidence(boundScenario.steps.map((step) => step.confidence));
-  const deferredSteps = boundScenario.steps.filter((step) => step.binding.kind === 'deferred').map((step) => step.index);
-  const unboundSteps = boundScenario.steps.filter((step) => step.binding.kind === 'unbound').map((step) => step.index);
+  const { metadata, steps } = flow;
+  const resolvedMethods = resolveScreenMethods(steps);
+  const emitSteps = metadata.lifecycle === 'normal' || metadata.lifecycle === 'fail';
 
-  const statements: ts.Statement[] = [
+  const screenOrder = uniqueBy(resolvedMethods, (m) => m.screenId);
+  const methodsByScreen = groupBy(resolvedMethods, (m) => m.screenId);
+
+  const facadeDeclarations: ReadonlyArray<ts.Statement> = emitSteps
+    ? screenOrder
+        .filter((s) => s !== '__global__')
+        .map((screenId) => screenFacadeDeclaration(screenId, methodsByScreen.get(screenId) ?? []))
+    : [];
+
+  const stepStatements: ReadonlyArray<ts.Statement> = emitSteps
+    ? resolvedMethods.map(stepCallStatement)
+    : [];
+
+  const testBody: ReadonlyArray<ts.Statement> = [
+    ...annotationStatements(flow),
+    ...lifecycleStatements(metadata.lifecycle),
+    constStatement(
+      'scenario',
+      callExpression(identifier('createScenarioContext'), [
+        identifier('page'),
+        stringLiteral(metadata.adoId),
+        fixtureSpreadExpression(metadata.fixtures),
+      ]),
+    ),
+    ...facadeDeclarations,
+    ...stepStatements,
+  ];
+
+  const statements: ReadonlyArray<ts.Statement> = [
     importDeclaration({ modulePath: options.imports.fixtures, namedImports: ['test'] }),
-    importDeclaration({ modulePath: options.imports.runtime, namedImports: ['createScenarioRunState', 'runScenarioHandshake', 'stepHandshakeFromPlan'] }),
-    importDeclaration({ modulePath: options.imports.execution, namedImports: ['loadScenarioRunPlan'] }),
-    importDeclaration({ modulePath: options.imports.environment, namedImports: ['createLocalRuntimeEnvironment'] }),
+    importDeclaration({ modulePath: options.imports.scenarioContext, namedImports: ['createScenarioContext'] }),
     statementFromExpression(
       callExpression(identifier('test'), [
-        stringLiteral(titleWithTags(boundScenario.metadata.title, boundScenario.metadata.tags)),
+        stringLiteral(titleWithTags(metadata.title, metadata.tags)),
         ts.factory.createArrowFunction(
           [ts.factory.createModifier(ts.SyntaxKind.AsyncKeyword)],
           undefined,
-          [ts.factory.createParameterDeclaration(undefined, undefined, objectBindingPattern(['page', ...fixtures]))],
+          [ts.factory.createParameterDeclaration(undefined, undefined, objectBindingPattern(['page', ...metadata.fixtures]))],
           undefined,
           ts.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
-          ts.factory.createBlock(
-            [
-              ...annotationStatements(boundScenario, confidence, deferredSteps, unboundSteps),
-              ...lifecycleStatements(lifecycle),
-              constStatement(
-                'runPlan',
-                callExpression(identifier('loadScenarioRunPlan'), [
-                  ts.factory.createObjectLiteralExpression([
-                    ts.factory.createPropertyAssignment('rootDir', callExpression(property(identifier('process'), 'cwd'), [])),
-                    ts.factory.createPropertyAssignment('adoId', stringLiteral(boundScenario.source.ado_id)),
-                    ts.factory.createPropertyAssignment(
-                      'executionContextPosture',
-                      ts.factory.createObjectLiteralExpression([
-                        ts.factory.createPropertyAssignment('interpreterMode', runtimeModeExpression()),
-                        ts.factory.createPropertyAssignment('writeMode', runtimeWriteModeExpression()),
-                        ts.factory.createPropertyAssignment('headed', runtimeHeadedExpression()),
-                        ts.factory.createPropertyAssignment('executionProfile', stringLiteral('interactive')),
-                      ], true),
-                    ),
-                    ts.factory.createPropertyAssignment('interpreterMode', runtimeModeExpression()),
-                  ], true),
-                ]),
-              ),
-              constStatement(
-                'runtimeEnvironment',
-                callExpression(identifier('createLocalRuntimeEnvironment'), [
-                  ts.factory.createObjectLiteralExpression([
-                    ts.factory.createPropertyAssignment('rootDir', callExpression(property(identifier('process'), 'cwd'), [])),
-                    ts.factory.createPropertyAssignment('screenIds', property(identifier('runPlan'), 'screenIds')),
-                    ts.factory.createPropertyAssignment(
-                      'fixtures',
-                      ts.factory.createObjectLiteralExpression([
-                        ts.factory.createSpreadAssignment(property(identifier('runPlan'), 'fixtures')),
-                        ts.factory.createSpreadAssignment(fixtureContextExpression(fixtures)),
-                      ], true),
-                    ),
-                    ts.factory.createPropertyAssignment('mode', runtimeModeExpression()),
-                    ts.factory.createPropertyAssignment('provider', property(identifier('runPlan'), 'providerId')),
-                    ts.factory.createPropertyAssignment(
-                      'posture',
-                      ts.factory.createObjectLiteralExpression(
-                        [
-                          ts.factory.createSpreadAssignment(property(identifier('runPlan'), 'posture')),
-                          ts.factory.createPropertyAssignment('interpreterMode', runtimeModeExpression()),
-                          ts.factory.createPropertyAssignment('writeMode', runtimeWriteModeExpression()),
-                          ts.factory.createPropertyAssignment('headed', runtimeHeadedExpression()),
-                        ],
-                        true,
-                      ),
-                    ),
-                    ts.factory.createPropertyAssignment('controlSelection', property(identifier('runPlan'), 'controlSelection')),
-                    ts.factory.createPropertyAssignment('page', identifier('page')),
-                  ], true),
-                ]),
-              ),
-              constStatement('runState', callExpression(identifier('createScenarioRunState'), [])),
-              ...(lifecycle === 'normal' || lifecycle === 'fail'
-                ? boundScenario.steps.map((step, index) => stepStatement(boundScenario, step, index))
-                : []),
-            ],
-            true,
-          ),
+          ts.factory.createBlock([...testBody], true),
         ),
       ]),
     ),
   ];
 
   return {
-    code: printModule(statements),
-    lifecycle,
+    code: printModule([...statements]),
+    lifecycle: metadata.lifecycle,
   };
 }
+
+/** @deprecated Use renderReadableSpecModule. Kept temporarily for migration. */
+export const renderGeneratedSpecModule = renderReadableSpecModule;

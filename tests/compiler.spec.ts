@@ -110,10 +110,8 @@ test('refresh recompiles the seeded scenario through graph, types, and program e
     expect(taskPacket.payload.steps.some((step) => step.grounding.eventSignatureRefs.length > 0)).toBeTruthy();
     expect(taskPacket.payload.steps.some((step) => step.grounding.expectedTransitionRefs.length > 0)).toBeTruthy();
     expect(taskPacket.payload.steps.some((step) => step.grounding.resultStateRefs.length > 0)).toBeTruthy();
-    expect(generated).toContain('runScenarioHandshake');
-    expect(generated).toContain('createLocalRuntimeEnvironment');
-    expect(generated).toContain('loadScenarioRunPlan');
-    expect(generated).toContain('stepHandshakeFromPlan');
+    expect(generated).toContain('scenario-context');
+    expect(generated).toContain('createScenarioContext');
     expect(generated).toContain('intent-only');
     expect(generated).toContain('deferred-steps');
     expect(traceArtifact.steps[1].runtime.status).toBe('pending');

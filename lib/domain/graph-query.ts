@@ -32,24 +32,20 @@ function dependentNodesForEdge(edge: GraphEdge, nodes: Map<string, GraphNode>, c
 }
 
 export function collectRelatedSubgraph(graph: DerivedGraph, seedNodeIds: Set<string>) {
-  const expanded = new Set(seedNodeIds);
-  let changed = true;
-
-  while (changed) {
-    changed = false;
-    for (const edge of graph.edges) {
-      if (expanded.has(edge.from) || expanded.has(edge.to)) {
-        if (!expanded.has(edge.from)) {
-          expanded.add(edge.from);
-          changed = true;
-        }
-        if (!expanded.has(edge.to)) {
-          expanded.add(edge.to);
-          changed = true;
-        }
+  const expandOnce = (current: Set<string>): Set<string> =>
+    graph.edges.reduce((acc, edge) => {
+      if (acc.has(edge.from) || acc.has(edge.to)) {
+        return new Set([...acc, edge.from, edge.to]);
       }
-    }
-  }
+      return acc;
+    }, current);
+
+  const converge = (current: Set<string>): Set<string> => {
+    const next = expandOnce(current);
+    return next.size === current.size ? current : converge(next);
+  };
+
+  const expanded = converge(new Set(seedNodeIds));
 
   return {
     nodes: graph.nodes.filter((node) => expanded.has(node.id)),
@@ -58,25 +54,23 @@ export function collectRelatedSubgraph(graph: DerivedGraph, seedNodeIds: Set<str
 }
 
 export function collectImpactSubgraph(graph: DerivedGraph, nodeId: string) {
-  const impacted = new Set<string>([nodeId]);
-  const queue = [nodeId];
   const nodes = nodeLookup(graph);
 
-  while (queue.length > 0) {
-    const current = queue.shift();
-    if (!current) {
-      continue;
+  const traverse = (frontier: ReadonlyArray<string>, visited: Set<string>): Set<string> => {
+    if (frontier.length === 0) {
+      return visited;
     }
 
-    for (const edge of graph.edges) {
-      for (const dependent of dependentNodesForEdge(edge, nodes, current)) {
-        if (!impacted.has(dependent)) {
-          impacted.add(dependent);
-          queue.push(dependent);
-        }
-      }
-    }
-  }
+    const [current, ...rest] = frontier;
+    const newDependents = graph.edges
+      .flatMap((edge) => dependentNodesForEdge(edge, nodes, current!))
+      .filter((dependent) => !visited.has(dependent));
+
+    const nextVisited = new Set([...visited, ...newDependents]);
+    return traverse([...rest, ...newDependents], nextVisited);
+  };
+
+  const impacted = traverse([nodeId], new Set([nodeId]));
 
   return {
     nodes: graph.nodes.filter((node) => impacted.has(node.id)),
