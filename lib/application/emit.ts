@@ -115,10 +115,7 @@ function renderEmitArtifacts(
   const rendered = renderReadableSpecModule(flow, {
     imports: {
       fixtures: relativeModule(outputPath, path.join(paths.rootDir, 'fixtures', 'index.ts')).replace(/\.ts$/, ''),
-      readableHelpers: relativeModule(outputPath, path.join(paths.rootDir, 'lib', 'runtime', 'readable-helpers.ts')).replace(/\.ts$/, ''),
-      scenario: relativeModule(outputPath, path.join(paths.rootDir, 'lib', 'runtime', 'scenario.ts')).replace(/\.ts$/, ''),
-      execution: relativeModule(outputPath, path.join(paths.rootDir, 'lib', 'application', 'execution', 'load-run-plan.ts')).replace(/\.ts$/, ''),
-      environment: relativeModule(outputPath, path.join(paths.rootDir, 'lib', 'infrastructure', 'runtime', 'local-runtime-environment.ts')).replace(/\.ts$/, ''),
+      scenarioContext: relativeModule(outputPath, path.join(paths.rootDir, 'lib', 'composition', 'scenario-context.ts')).replace(/\.ts$/, ''),
     },
   });
   const traceArtifact = explainBoundScenario(boundScenario, rendered.lifecycle, latestRun);

@@ -9,22 +9,9 @@ import { refreshScenario } from '../lib/application/refresh';
 import { runWithLocalServices } from '../lib/composition/local-services';
 import { createTestWorkspace } from './support/workspace';
 
-function mulberry32(seed: number): () => number {
-  let current = seed >>> 0;
-  return () => {
-    current = (current + 0x6D2B79F5) >>> 0;
-    let value = Math.imul(current ^ (current >>> 15), 1 | current);
-    value = (value + Math.imul(value ^ (value >>> 7), 61 | value)) ^ value;
-    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
 const testImports = {
   fixtures: '../../../fixtures/index',
-  readableHelpers: '../../../lib/runtime/readable-helpers',
-  scenario: '../../../lib/runtime/scenario',
-  execution: '../../../lib/application/execution/load-run-plan',
-  environment: '../../../lib/infrastructure/runtime/local-runtime-environment',
+  scenarioContext: '../../../lib/composition/scenario-context',
 };
 
 function createTestBoundScenario(overrides?: Partial<{ stepCount: number; hasUnbound: boolean; seed: number }>): BoundScenario {
@@ -207,45 +194,55 @@ test('emitted readable spec AST contains import declarations and test call', () 
   const imports = sourceFile.statements.filter(ts.isImportDeclaration);
   const expressions = sourceFile.statements.filter(ts.isExpressionStatement);
 
-  expect(imports.length).toBeGreaterThanOrEqual(4);
+  // Now only 2 imports: test (fixtures) and createScenarioContext (scenario-context)
+  expect(imports.length).toBe(2);
   expect(expressions.length).toBeGreaterThanOrEqual(1);
 });
 
-// --- Structural Tests: Helper-to-Pipeline Mapping ---
+// --- Structural Tests: POM-Style Emission ---
 
-test('emitted spec references only canonical readable helpers, not raw runScenarioHandshake', () => {
+test('emitted spec uses POM-style screen methods, not raw pipeline calls', () => {
   const boundScenario = createTestBoundScenario();
   const surface = createTestSurface(boundScenario);
   const flow = buildGroundedSpecFlow(boundScenario, surface);
   const result = renderReadableSpecModule(flow, { imports: testImports });
 
-  const canonicalHelpers = ['navigateTo', 'fillField', 'clickElement', 'expectSnapshot', 'executeStep'];
-  const hasCanonicalHelper = canonicalHelpers.some((helper) => result.code.includes(helper));
-  expect(hasCanonicalHelper).toBe(true);
+  // Should contain POM-derived method names
+  expect(result.code).toContain('navigate');
+  expect(result.code).toContain('enterElement');
+  expect(result.code).toContain('clickElement');
+  expect(result.code).toContain('expectElement');
 
+  // Should not contain raw pipeline calls
   expect(result.code).not.toContain('runScenarioHandshake');
   expect(result.code).not.toContain('stepHandshakeFromPlan');
+
+  // Should not expose runtime internals
+  expect(result.code).not.toContain('runtimeEnvironment');
+  expect(result.code).not.toContain('runState');
+  expect(result.code).not.toContain('runPlan');
+  expect(result.code).not.toContain('loadScenarioRunPlan');
+  expect(result.code).not.toContain('createLocalRuntimeEnvironment');
+  expect(result.code).not.toContain('createScenarioRunState');
 });
 
-test('each step action maps to the correct readable helper', () => {
-  const boundScenario = createTestBoundScenario({ stepCount: 4 });
-  const surface = createTestSurface(boundScenario);
-  const flow = buildGroundedSpecFlow(boundScenario, surface);
-  const result = renderReadableSpecModule(flow, { imports: testImports });
-
-  expect(result.code).toContain('navigateTo');
-  expect(result.code).toContain('fillField');
-  expect(result.code).toContain('clickElement');
-  expect(result.code).toContain('expectSnapshot');
-});
-
-test('readable helpers import is present in emitted spec', () => {
+test('emitted spec uses createScenarioContext to curry runtime internals', () => {
   const boundScenario = createTestBoundScenario();
   const surface = createTestSurface(boundScenario);
   const flow = buildGroundedSpecFlow(boundScenario, surface);
   const result = renderReadableSpecModule(flow, { imports: testImports });
 
-  expect(result.code).toContain('readable-helpers');
+  expect(result.code).toContain('createScenarioContext');
+  expect(result.code).toContain('scenario-context');
+});
+
+test('scenario-context import is present in emitted spec', () => {
+  const boundScenario = createTestBoundScenario();
+  const surface = createTestSurface(boundScenario);
+  const flow = buildGroundedSpecFlow(boundScenario, surface);
+  const result = renderReadableSpecModule(flow, { imports: testImports });
+
+  expect(result.code).toContain('scenario-context');
 });
 
 // --- Contract Tests: Emission-Execution Parity ---
@@ -261,29 +258,31 @@ test('emitted spec preserves all required annotations', () => {
   expect(result.code).toContain('content-hash');
   expect(result.code).toContain('confidence');
   expect(result.code).toContain('intent-only');
-  expect(result.code).toContain('runtime-receipt');
 });
 
-test('emitted spec step count matches input flow step count', () => {
+test('emitted spec step count matches input flow step count via POM method calls', () => {
   for (const stepCount of [1, 3, 5, 8]) {
     const boundScenario = createTestBoundScenario({ stepCount });
     const surface = createTestSurface(boundScenario);
     const flow = buildGroundedSpecFlow(boundScenario, surface);
     const result = renderReadableSpecModule(flow, { imports: testImports });
 
-    const stepMatches = result.code.match(/test\.step\(/g) ?? [];
-    expect(stepMatches.length).toBe(stepCount);
+    // Count await expressions on screen methods (testScreen.methodName())
+    const awaitCalls = result.code.match(/await testScreen\./g) ?? [];
+    expect(awaitCalls.length).toBe(stepCount);
   }
 });
 
-test('emitted spec includes grounding context in step titles', () => {
-  const boundScenario = createTestBoundScenario({ stepCount: 2 });
+test('emitted spec builds inline POM facade per screen', () => {
+  const boundScenario = createTestBoundScenario({ stepCount: 4 });
   const surface = createTestSurface(boundScenario);
   const flow = buildGroundedSpecFlow(boundScenario, surface);
   const result = renderReadableSpecModule(flow, { imports: testImports });
 
-  expect(result.code).toContain('screen: test-screen');
-  expect(result.code).toContain('element: element-');
+  // Should contain inline facade object with method definitions
+  expect(result.code).toContain('const testScreen = {');
+  expect(result.code).toContain('navigate:');
+  expect(result.code).toContain('scenario.executeStep');
 });
 
 test('lifecycle is fixme when steps are unbound', () => {
@@ -316,19 +315,17 @@ test('readable emission integrates with the full compile pipeline', async () => 
     const result = await runWithLocalServices(refreshScenario({ adoId, paths: workspace.paths }), workspace.rootDir);
     const generated = readFileSync(result.compile.emitted.outputPath, 'utf8').replace(/^\uFEFF/, '');
 
-    // Readable helpers should be present instead of raw handshake calls
-    const canonicalHelpers = ['navigateTo', 'fillField', 'clickElement', 'expectSnapshot', 'executeStep'];
-    const hasCanonicalHelper = canonicalHelpers.some((helper) => generated.includes(helper));
-    expect(hasCanonicalHelper).toBe(true);
+    // Should use POM-aligned createScenarioContext pattern
+    expect(generated).toContain('createScenarioContext');
 
-    // Should not contain raw pipeline calls
+    // Should NOT contain raw pipeline calls or runtime internals
     expect(generated).not.toContain('runScenarioHandshake');
     expect(generated).not.toContain('stepHandshakeFromPlan');
+    expect(generated).not.toContain('loadScenarioRunPlan');
+    expect(generated).not.toContain('createLocalRuntimeEnvironment');
+    expect(generated).not.toContain('createScenarioRunState');
 
-    // Should still contain required structural elements
-    expect(generated).toContain('createLocalRuntimeEnvironment');
-    expect(generated).toContain('loadScenarioRunPlan');
-    expect(generated).toContain('createScenarioRunState');
+    // Should contain core annotations
     expect(generated).toContain('intent-only');
 
     // AST should be valid
