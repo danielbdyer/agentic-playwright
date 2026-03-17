@@ -19,14 +19,19 @@ export function approveProposal(options: {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const executionContext = yield* ExecutionContext;
-    if (executionContext.posture.executionProfile === 'ci-batch') {
-      return yield* Effect.fail(new TesseractError('approval-disabled', 'Approvals are disabled in ci-batch execution profile'));
-    }
+    yield* Effect.succeed(executionContext.posture.executionProfile).pipe(
+      Effect.filterOrFail(
+        (profile) => profile !== 'ci-batch',
+        () => new TesseractError('approval-disabled', 'Approvals are disabled in ci-batch execution profile'),
+      ),
+    );
     const catalog = yield* loadWorkspaceCatalog({ paths: options.paths });
-    const located = findProposalById(catalog, options.proposalId);
-    if (!located) {
-      return yield* Effect.fail(new TesseractError('proposal-not-found', `Unknown proposal ${options.proposalId}`));
-    }
+    const located = yield* Effect.succeed(findProposalById(catalog, options.proposalId)).pipe(
+      Effect.filterOrFail(
+        (result): result is NonNullable<typeof result> => result != null,
+        () => new TesseractError('proposal-not-found', `Unknown proposal ${options.proposalId}`),
+      ),
+    );
 
     const approvedAt = new Date().toISOString();
     const certifiedProposal: ProposalEntry = {

@@ -45,14 +45,18 @@ export function bindScenario(options: { adoId: AdoId; paths: ProjectPaths; sessi
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const catalog = options.session?.catalog ?? (yield* loadWorkspaceCatalog({ paths: options.paths }));
-    const scenarioArtifact = catalog.scenarios.find((entry) => entry.artifact.source.ado_id === options.adoId);
-    if (!scenarioArtifact) {
-      return yield* Effect.fail(new TesseractError('scenario-not-found', `Unable to find scenario for ADO ${options.adoId}`));
-    }
-    const snapshotArtifact = catalog.snapshots.find((entry) => entry.artifact.id === options.adoId);
-    if (!snapshotArtifact) {
-      return yield* Effect.fail(new TesseractError('snapshot-not-found', `Unable to find snapshot for ADO ${options.adoId}`));
-    }
+    const scenarioArtifact = yield* Effect.succeed(
+      catalog.scenarios.find((entry) => entry.artifact.source.ado_id === options.adoId),
+    ).pipe(Effect.filterOrFail(
+      (entry): entry is NonNullable<typeof entry> => entry != null,
+      () => new TesseractError('scenario-not-found', `Unable to find scenario for ADO ${options.adoId}`),
+    ));
+    const snapshotArtifact = yield* Effect.succeed(
+      catalog.snapshots.find((entry) => entry.artifact.id === options.adoId),
+    ).pipe(Effect.filterOrFail(
+      (entry): entry is NonNullable<typeof entry> => entry != null,
+      () => new TesseractError('snapshot-not-found', `Unable to find snapshot for ADO ${options.adoId}`),
+    ));
 
     const scenarioFile = scenarioArtifact.absolutePath;
     const scenario = scenarioArtifact.artifact;
@@ -147,5 +151,5 @@ export function bindScenario(options: { adoId: AdoId; paths: ProjectPaths; sessi
       boundPath: outputPath,
       hasUnbound: boundSteps.some((step) => step.binding.kind === 'unbound'),
     };
-  });
+  }).pipe(Effect.withSpan('bind-scenario', { attributes: { adoId: options.adoId } }));
 }

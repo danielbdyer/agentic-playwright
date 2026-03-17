@@ -347,10 +347,12 @@ export function buildRerunPlan(options: {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const catalog = yield* loadWorkspaceCatalog({ paths: options.paths });
-    const located = findProposalById(catalog, options.proposalId);
-    if (!located) {
-      return yield* Effect.fail(new TesseractError('proposal-not-found', `Unknown proposal ${options.proposalId}`));
-    }
+    const located = yield* Effect.succeed(findProposalById(catalog, options.proposalId)).pipe(
+      Effect.filterOrFail(
+        (result): result is NonNullable<typeof result> => result != null,
+        () => new TesseractError('proposal-not-found', `Unknown proposal ${options.proposalId}`),
+      ),
+    );
 
     const targetNodeId = policyDecisionGraphTarget({
       artifactType: located.proposal.artifactType,

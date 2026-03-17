@@ -246,11 +246,13 @@ export function buildDerivedGraph(
           policyDecisions,
         });
 
-        yield* fs.writeJson(options.paths.graphIndexPath, graph);
-        yield* fs.writeJson(options.paths.mcpCatalogPath, {
-          resources: graph.resources,
-          resourceTemplates: graph.resourceTemplates,
-        });
+        yield* Effect.all([
+          fs.writeJson(options.paths.graphIndexPath, graph),
+          fs.writeJson(options.paths.mcpCatalogPath, {
+            resources: graph.resources,
+            resourceTemplates: graph.resourceTemplates,
+          }),
+        ]);
 
         return {
           result: {
@@ -287,7 +289,7 @@ export function buildDerivedGraph(
         incremental,
       }),
     });
-  });
+  }).pipe(Effect.withSpan('build-derived-graph'));
 }
 
 export function ensureDerivedGraph(

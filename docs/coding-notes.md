@@ -369,6 +369,62 @@ yield* loadArtifact(path).pipe(
 );
 ```
 
+**Caution:** `mapError` changes the error type. If downstream code uses `Effect.catchTag` to selectively recover from specific error types (e.g., `TesseractError` vs `FileSystemError`), `mapError` can widen the set of caught errors and change behavior. Avoid `mapError` on functions consumed by `catchTag`-based recovery.
+
+### Use `Effect.filterOrFail` for guard-style validation
+
+When a guard check produces an error on the falsy branch, collapse the two-step `if (!x) yield* Effect.fail(...)` into a single `filterOrFail`:
+
+```typescript
+// Prefer: filterOrFail narrows the type and fails in one expression
+const scenario = yield* Effect.succeed(
+  catalog.scenarios.find((entry) => entry.artifact.source.ado_id === adoId),
+).pipe(Effect.filterOrFail(
+  (entry): entry is NonNullable<typeof entry> => entry != null,
+  () => new TesseractError('scenario-not-found', `Unable to find scenario for ADO ${adoId}`),
+));
+
+// Avoid: two-step check
+const scenario = catalog.scenarios.find((entry) => entry.artifact.source.ado_id === adoId);
+if (!scenario) {
+  return yield* Effect.fail(new TesseractError('scenario-not-found', `Unable to find scenario for ADO ${adoId}`));
+}
+```
+
+### Use `Effect.withSpan` for pipeline observability
+
+Annotate top-level orchestration functions (compile, bind, emit, graph, run) with `Effect.withSpan` to enable structured tracing. Each span should carry the key identifying attributes:
+
+```typescript
+export function compileScenario(options: { adoId: AdoId; paths: ProjectPaths }) {
+  return Effect.gen(function* () {
+    // ...orchestration logic
+  }).pipe(Effect.withSpan('compile-scenario', { attributes: { adoId: options.adoId } }));
+}
+```
+
+Spans compose automatically — a span on `compileScenario` will nest the spans from `bindScenario`, `emitScenario`, and `buildDerivedGraph` when they run inside it. This is valuable for diagnosing slow compilation or resolution bottlenecks without changing function signatures.
+
+### Group independent writes with `Effect.all`
+
+When multiple file writes are structurally independent (neither depends on the other's result), group them with `Effect.all` to document independence and enable future parallelism:
+
+```typescript
+// Prefer: independence is explicit
+yield* Effect.all([
+  fs.writeText(specPath, code),
+  fs.writeJson(tracePath, trace),
+  fs.writeText(reviewPath, review),
+  fs.writeJson(proposalsPath, proposals),
+]);
+
+// Avoid: false sequential dependency
+yield* fs.writeText(specPath, code);
+yield* fs.writeJson(tracePath, trace);
+yield* fs.writeText(reviewPath, review);
+yield* fs.writeJson(proposalsPath, proposals);
+```
+
 ---
 
 ## Design Pattern Vocabulary

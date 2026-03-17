@@ -175,10 +175,12 @@ function emitOutputFingerprint(artifacts: ReturnType<typeof renderEmitArtifacts>
 function readPersistedEmitOutputState(artifacts: ReturnType<typeof renderEmitArtifacts>) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
-    const specExists = yield* fs.exists(artifacts.outputPath);
-    const traceExists = yield* fs.exists(artifacts.tracePath);
-    const reviewExists = yield* fs.exists(artifacts.reviewPath);
-    const proposalsExist = yield* fs.exists(artifacts.proposalsPath);
+    const { specExists, traceExists, reviewExists, proposalsExist } = yield* Effect.all({
+      specExists: fs.exists(artifacts.outputPath),
+      traceExists: fs.exists(artifacts.tracePath),
+      reviewExists: fs.exists(artifacts.reviewPath),
+      proposalsExist: fs.exists(artifacts.proposalsPath),
+    });
     if (!specExists || !traceExists || !reviewExists || !proposalsExist) {
       return { status: 'missing-output' as const };
     }
@@ -230,10 +232,12 @@ export function emitScenario(
             hasUnbound: boundScenario.artifact.steps.some((step) => step.binding.kind === 'unbound'),
           } satisfies CompileSnapshot;
         });
-    const surfaceEntry = catalog.interpretationSurfaces.find((entry) => entry.artifact.payload.adoId === source.adoId);
-    if (!surfaceEntry) {
-      return yield* Effect.fail(new TesseractError('missing-surface', `Missing interpretation surface for ${source.adoId}`));
-    }
+    const surfaceEntry = yield* Effect.succeed(
+      catalog.interpretationSurfaces.find((entry) => entry.artifact.payload.adoId === source.adoId),
+    ).pipe(Effect.filterOrFail(
+      (entry): entry is NonNullable<typeof entry> => entry != null,
+      () => new TesseractError('missing-surface', `Missing interpretation surface for ${source.adoId}`),
+    ));
     const latestRun = latestRunForScenario(catalog, source.adoId);
     const proposalBundle = latestProposalBundle(catalog, source.adoId);
     const inboxItems = operatorInboxItemsForScenario(buildOperatorInboxItems(catalog), source.adoId);
@@ -285,10 +289,12 @@ export function emitScenario(
       outputFingerprint,
       verifyPersistedOutput: () => readPersistedEmitOutputState(artifacts),
       persist: () => Effect.gen(function* () {
-        yield* fs.writeText(artifacts.outputPath, artifacts.rendered.code);
-        yield* fs.writeJson(artifacts.tracePath, artifacts.traceArtifact);
-        yield* fs.writeText(artifacts.reviewPath, artifacts.reviewText);
-        yield* fs.writeJson(artifacts.proposalsPath, artifacts.proposalBundle);
+        yield* Effect.all([
+          fs.writeText(artifacts.outputPath, artifacts.rendered.code),
+          fs.writeJson(artifacts.tracePath, artifacts.traceArtifact),
+          fs.writeText(artifacts.reviewPath, artifacts.reviewText),
+          fs.writeJson(artifacts.proposalsPath, artifacts.proposalBundle),
+        ]);
         return {
           result: {
             outputPath: artifacts.outputPath,
@@ -320,5 +326,5 @@ export function emitScenario(
         incremental,
       }),
     });
-  });
+  }).pipe(Effect.withSpan('emit-scenario'));
 }
