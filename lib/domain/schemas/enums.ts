@@ -116,3 +116,7 @@ export const RecoveryStrategyIdSchema = Schema.Literal(...recoveryStrategyIds);
 
 export const failureFamilies = ['precondition-failure', 'locator-degradation-failure', 'environment-runtime-failure'] as const;
 export const FailureFamilySchema = Schema.Literal(...failureFamilies);
+
+// Operator inbox
+export const operatorInboxItemKinds = ['proposal', 'degraded-locator', 'needs-human', 'blocked-policy', 'approved-equivalent', 'recovery'] as const;
+export const OperatorInboxItemKindSchema = Schema.Literal(...operatorInboxItemKinds);

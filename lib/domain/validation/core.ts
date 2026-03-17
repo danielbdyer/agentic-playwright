@@ -1,6 +1,7 @@
 ﻿import * as schemaDecode from '../schemas/decode';
 import * as schemas from '../schemas';
 import type {
+  AdoSnapshot,
   ApprovalReceipt,
   AssertionKind,
   BenchmarkContext,
@@ -10,6 +11,7 @@ import type {
   BoundStep,
   CompilerDiagnostic,
   Confidence,
+  ConfidenceOverlayCatalog,
   DatasetControl,
   DerivedGraph,
   EffectTargetKind,
@@ -566,113 +568,35 @@ function validatePosture(value: unknown, path: string): Posture {
 }
 
 export function validateWidgetCapabilityContract(value: unknown, path = 'widget-contract'): WidgetCapabilityContract {
-  const contract = expectRecord(value, path);
-  const supportedActions = uniqueSorted(
-    expectArray(contract.supportedActions ?? [], `${path}.supportedActions`).map((entry, index) =>
-      expectEnum(entry, `${path}.supportedActions[${index}]`, widgetActions),
-    ),
-  );
-  const requiredPreconditions = uniqueSorted(
-    expectArray(contract.requiredPreconditions ?? [], `${path}.requiredPreconditions`).map((entry, index) =>
-      expectEnum(entry, `${path}.requiredPreconditions[${index}]`, widgetPreconditions),
-    ),
-  );
-  const rawSideEffects = expectRecord(contract.sideEffects ?? {}, `${path}.sideEffects`);
-  const sideEffects = Object.fromEntries(
-    Object.entries(rawSideEffects).map(([action, semantics]) => {
-      const validatedAction = expectEnum(action, `${path}.sideEffects.${action}`, widgetActions);
-      if (!supportedActions.includes(validatedAction)) {
-        throw new SchemaError(`sideEffects references unsupported action ${validatedAction}`, `${path}.sideEffects.${action}`);
-      }
-      const entry = expectRecord(semantics, `${path}.sideEffects.${action}`);
-      return [
-        validatedAction,
-        {
-          expectedStates: uniqueSorted(
-            expectArray(entry.expectedStates ?? [], `${path}.sideEffects.${action}.expectedStates`).map((state, index) =>
-              expectEnum(state, `${path}.sideEffects.${action}.expectedStates[${index}]`, effectStates),
-            ),
-          ),
-          effectCategories: uniqueSorted(
-            expectArray(entry.effectCategories ?? [], `${path}.sideEffects.${action}.effectCategories`).map((category, index) =>
-              expectEnum(category, `${path}.sideEffects.${action}.effectCategories[${index}]`, widgetEffectCategories),
-            ),
-          ),
-        },
-      ];
-    }),
-  );
-
-  for (const action of supportedActions) {
-    if (!sideEffects[action]) {
+  const decoded = schemaDecode.decoderFor<WidgetCapabilityContract>(schemas.WidgetCapabilityContractSchema)(value);
+  // Cross-field validation: sideEffects keys must be subset of supportedActions
+  for (const action of Object.keys(decoded.sideEffects)) {
+    if (!decoded.supportedActions.includes(action as typeof decoded.supportedActions[number])) {
+      throw new SchemaError(`sideEffects references unsupported action ${action}`, `${path}.sideEffects.${action}`);
+    }
+  }
+  // Every supportedAction must have side-effect semantics
+  for (const action of decoded.supportedActions) {
+    if (!decoded.sideEffects[action]) {
       throw new SchemaError(`missing side-effect semantics for action ${action}`, `${path}.sideEffects`);
     }
   }
-
-  return {
-    widget: expectId(contract.widget, `${path}.widget`, createWidgetId),
-    supportedActions,
-    requiredPreconditions,
-    sideEffects,
-  };
+  return decoded;
 }
 
-export function validateAdoSnapshot(value: unknown) {
-  const snapshot = expectRecord(value, 'snapshot');
-  const validated = {
-    id: expectId(snapshot.id, 'snapshot.id', createAdoId),
-    revision: expectNumber(snapshot.revision, 'snapshot.revision'),
-    title: expectString(snapshot.title, 'snapshot.title'),
-    suitePath: ensureSafeRelativePathLike(expectString(snapshot.suitePath, 'snapshot.suitePath'), 'snapshot.suitePath'),
-    areaPath: expectString(snapshot.areaPath, 'snapshot.areaPath'),
-    iterationPath: expectString(snapshot.iterationPath ?? '', 'snapshot.iterationPath'),
-    tags: expectStringArray(snapshot.tags ?? [], 'snapshot.tags'),
-    priority: expectNumber(snapshot.priority, 'snapshot.priority'),
-    steps: expectArray(snapshot.steps, 'snapshot.steps').map((entry, index) => {
-      const step = expectRecord(entry, `snapshot.steps[${index}]`);
-      return {
-        index: expectNumber(step.index, `snapshot.steps[${index}].index`),
-        action: expectString(step.action, `snapshot.steps[${index}].action`),
-        expected: expectString(step.expected, `snapshot.steps[${index}].expected`),
-        sharedStepId: step.sharedStepId === undefined ? undefined : expectString(step.sharedStepId, `snapshot.steps[${index}].sharedStepId`),
-      };
-    }),
-    parameters: expectArray(snapshot.parameters ?? [], 'snapshot.parameters').map((entry, index) => {
-      const parameter = expectRecord(entry, `snapshot.parameters[${index}]`);
-      return {
-        name: expectString(parameter.name, `snapshot.parameters[${index}].name`),
-        values: expectStringArray(parameter.values, `snapshot.parameters[${index}].values`),
-      };
-    }),
-    dataRows: expectArray(snapshot.dataRows ?? [], 'snapshot.dataRows').map((entry, index) =>
-      expectStringRecord(entry, `snapshot.dataRows[${index}]`),
-    ),
-    contentHash: expectString(snapshot.contentHash, 'snapshot.contentHash'),
-    syncedAt: expectString(snapshot.syncedAt, 'snapshot.syncedAt'),
-  };
-
+export function validateAdoSnapshot(value: unknown): AdoSnapshot {
+  const validated = schemaDecode.decoderFor<AdoSnapshot>(schemas.AdoSnapshotSchema)(value);
+  // Post-decode: path safety check and content hash verification
+  ensureSafeRelativePathLike(validated.suitePath, 'snapshot.suitePath');
   const computedHash = computeAdoContentHash(validated);
   if (validated.contentHash !== computedHash) {
     throw new SchemaError(`contentHash mismatch, expected ${computedHash}`, 'snapshot.contentHash');
   }
-
   return validated;
 }
 
-export function validateScenario(value: unknown): Scenario {
-  const scenario = expectRecord(value, 'scenario');
-  return {
-    source: validateScenarioSource(scenario.source),
-    metadata: validateScenarioMetadata(scenario.metadata),
-    preconditions: expectArray(scenario.preconditions ?? [], 'preconditions').map((entry, index) =>
-      validatePrecondition(entry, `preconditions[${index}]`),
-    ),
-    steps: expectArray(scenario.steps ?? [], 'steps').map((entry, index) => validateStepBase(entry, `steps[${index}]`)),
-    postconditions: expectArray(scenario.postconditions ?? [], 'postconditions').map((entry, index) =>
-      validatePostcondition(entry, `postconditions[${index}]`),
-    ),
-  };
-}
+export const validateScenario: (value: unknown) => Scenario =
+  schemaDecode.decoderFor<Scenario>(schemas.ScenarioSchema);
 
 export function validateBoundScenario(value: unknown): BoundScenario {
   const scenario = validateScenario(value);
@@ -1690,87 +1614,40 @@ export function validateProposalBundle(value: unknown): ProposalBundle {
   };
 }
 
-export function validateSurfaceGraph(value: unknown): SurfaceGraph {
-  const graph = expectRecord(value, 'surface-graph');
-  const sections = expectRecord(graph.sections ?? {}, 'surface-graph.sections');
-  const surfaces = expectRecord(graph.surfaces ?? {}, 'surface-graph.surfaces');
-  return {
-    screen: expectId(graph.screen, 'surface-graph.screen', createScreenId),
-    url: expectString(graph.url, 'surface-graph.url'),
-    sections: Object.fromEntries(
-      Object.entries(sections).map(([key, entry]) => [key, validateSection(entry, `surface-graph.sections.${key}`)]),
-    ),
-    surfaces: Object.fromEntries(
-      Object.entries(surfaces).map(([key, entry]) => [key, validateSurfaceDefinition(entry, `surface-graph.surfaces.${key}`)]),
-    ),
-  };
-}
+export const validateSurfaceGraph: (value: unknown) => SurfaceGraph =
+  schemaDecode.decoderFor<SurfaceGraph>(schemas.SurfaceGraphSchema);
 
-export function validateScreenElements(value: unknown): ScreenElements {
-  const screen = expectRecord(value, 'screen-elements');
-  const elements = expectRecord(screen.elements, 'screen-elements.elements');
-  return {
-    screen: expectId(screen.screen, 'screen-elements.screen', createScreenId),
-    url: expectString(screen.url, 'screen-elements.url'),
-    elements: Object.fromEntries(
-      Object.entries(elements).map(([key, entry]) => [key, validateElement(entry, `screen-elements.elements.${key}`)]),
-    ),
-  };
-}
+export const validateScreenElements: (value: unknown) => ScreenElements =
+  schemaDecode.decoderFor<ScreenElements>(schemas.ScreenElementsSchema);
 
 export function validateScreenHints(value: unknown): ScreenHints {
-  const hints = expectRecord(value, 'screen-hints');
-  const elements = expectRecord(hints.elements ?? {}, 'screen-hints.elements');
+  const decoded = schemaDecode.decoderFor<ScreenHints>(schemas.ScreenHintsSchema)(value);
+  // Post-decode normalization: uniqueSorted aliases, ensureSafeRelativePathLike on snapshot IDs
   return {
-    screen: expectId(hints.screen, 'screen-hints.screen', createScreenId),
-    screenAliases: uniqueSorted(expectStringArray(hints.screenAliases ?? [], 'screen-hints.screenAliases')),
+    ...decoded,
+    screenAliases: uniqueSorted(decoded.screenAliases),
     elements: Object.fromEntries(
-      Object.entries(elements).map(([elementId, entry]) => {
-        const hint = expectRecord(entry, `screen-hints.elements.${elementId}`);
-        return [
-          elementId,
-          {
-            aliases: uniqueSorted(expectStringArray(hint.aliases ?? [], `screen-hints.elements.${elementId}.aliases`)),
-            defaultValueRef: expectOptionalString(hint.defaultValueRef, `screen-hints.elements.${elementId}.defaultValueRef`) ?? null,
-            parameter: expectOptionalString(hint.parameter, `screen-hints.elements.${elementId}.parameter`) ?? null,
-            snapshotAliases: Object.fromEntries(
-              Object.entries(expectRecord(hint.snapshotAliases ?? {}, `screen-hints.elements.${elementId}.snapshotAliases`)).map(([snapshotId, aliases]) => [
-                ensureSafeRelativePathLike(snapshotId, `screen-hints.elements.${elementId}.snapshotAliases.${snapshotId}`),
-                uniqueSorted(expectStringArray(aliases, `screen-hints.elements.${elementId}.snapshotAliases.${snapshotId}`)),
-              ]),
-            ),
-            affordance: expectOptionalString(hint.affordance, `screen-hints.elements.${elementId}.affordance`) ?? null,
-            acquired: hint.acquired === undefined || hint.acquired === null
-              ? null
-              : validateCanonicalKnowledgeMetadata(hint.acquired, `screen-hints.elements.${elementId}.acquired`),
-          },
-        ];
-      }),
+      Object.entries(decoded.elements).map(([elementId, hint]) => [
+        elementId,
+        {
+          ...hint,
+          aliases: uniqueSorted(hint.aliases),
+          snapshotAliases: hint.snapshotAliases
+            ? Object.fromEntries(
+                Object.entries(hint.snapshotAliases).map(([snapshotId, aliases]) => [
+                  ensureSafeRelativePathLike(snapshotId, `screen-hints.elements.${elementId}.snapshotAliases.${snapshotId}`),
+                  uniqueSorted(aliases),
+                ]),
+              )
+            : undefined,
+        },
+      ]),
     ),
   };
 }
 
-export function validateDatasetControl(value: unknown): DatasetControl {
-  const dataset = expectRecord(value, 'dataset-control');
-  const defaults = expectRecord(dataset.defaults ?? {}, 'dataset-control.defaults');
-  return {
-    kind: expectEnum(dataset.kind, 'dataset-control.kind', ['dataset-control'] as const),
-    version: expectNumber(dataset.version, 'dataset-control.version') as 1,
-    name: expectString(dataset.name, 'dataset-control.name'),
-    default: dataset.default === undefined ? undefined : expectBoolean(dataset.default, 'dataset-control.default'),
-    fixtures: expectRecord(dataset.fixtures ?? {}, 'dataset-control.fixtures'),
-    defaults: {
-      elements: Object.fromEntries(
-        Object.entries(expectRecord(defaults.elements ?? {}, 'dataset-control.defaults.elements'))
-          .map(([key, entry]) => [key, expectString(entry, `dataset-control.defaults.elements.${key}`)]),
-      ),
-      generatedTokens: Object.fromEntries(
-        Object.entries(expectRecord(defaults.generatedTokens ?? {}, 'dataset-control.defaults.generatedTokens'))
-          .map(([key, entry]) => [key, expectString(entry, `dataset-control.defaults.generatedTokens.${key}`)]),
-      ),
-    },
-  };
-}
+export const validateDatasetControl: (value: unknown) => DatasetControl =
+  schemaDecode.decoderFor<DatasetControl>(schemas.DatasetControlSchema);
 
 function validateResolutionControlSelector(value: unknown, path: string) {
   const selector = expectRecord(value ?? {}, path);
@@ -1784,35 +1661,12 @@ function validateResolutionControlSelector(value: unknown, path: string) {
 }
 
 export function validateResolutionControl(value: unknown): ResolutionControl {
-  const control = expectRecord(value, 'resolution-control');
-  const domPolicy = control.domExplorationPolicy === undefined
-    ? undefined
-    : expectRecord(control.domExplorationPolicy, 'resolution-control.domExplorationPolicy');
-  return {
-    kind: expectEnum(control.kind, 'resolution-control.kind', ['resolution-control'] as const),
-    version: expectNumber(control.version, 'resolution-control.version') as 1,
-    name: expectString(control.name, 'resolution-control.name'),
-    selector: validateResolutionControlSelector(control.selector, 'resolution-control.selector'),
-    domExplorationPolicy: domPolicy
-      ? {
-        maxCandidates: expectNumber(domPolicy.maxCandidates, 'resolution-control.domExplorationPolicy.maxCandidates'),
-        maxProbes: expectNumber(domPolicy.maxProbes, 'resolution-control.domExplorationPolicy.maxProbes'),
-        forbiddenActions: expectArray(
-          domPolicy.forbiddenActions ?? [],
-          'resolution-control.domExplorationPolicy.forbiddenActions',
-        ).map((entry, index) =>
-          expectEnum(entry, `resolution-control.domExplorationPolicy.forbiddenActions[${index}]`, ['navigate', 'input', 'click', 'assert-snapshot', 'custom'] as const),
-        ),
-      }
-      : undefined,
-    steps: expectArray(control.steps ?? [], 'resolution-control.steps').map((entry, index) => {
-      const step = expectRecord(entry, `resolution-control.steps[${index}]`);
-      return {
-        stepIndex: expectNumber(step.stepIndex, `resolution-control.steps[${index}].stepIndex`),
-        resolution: validateStepResolution(step.resolution, `resolution-control.steps[${index}].resolution`),
-      };
-    }),
-  };
+  const decoded = schemaDecode.decoderFor<ResolutionControl>(schemas.ResolutionControlSchema)(value);
+  // Post-decode: path safety on suites
+  for (const [index, suite] of decoded.selector.suites.entries()) {
+    ensureSafeRelativePathLike(suite, `resolution-control.selector.suites[${index}]`);
+  }
+  return decoded;
 }
 
 
@@ -1848,23 +1702,12 @@ function validateRecoveryPolicy(value: unknown, path: string) {
 }
 
 export function validateRunbookControl(value: unknown): RunbookControl {
-  const runbook = expectRecord(value, 'runbook-control');
-  return {
-    kind: expectEnum(runbook.kind, 'runbook-control.kind', ['runbook-control'] as const),
-    version: expectNumber(runbook.version, 'runbook-control.version') as 1,
-    name: expectString(runbook.name, 'runbook-control.name'),
-    default: runbook.default === undefined ? undefined : expectBoolean(runbook.default, 'runbook-control.default'),
-    selector: validateResolutionControlSelector(runbook.selector, 'runbook-control.selector'),
-    interpreterMode: runbook.interpreterMode === undefined || runbook.interpreterMode === null
-      ? null
-      : expectEnum(runbook.interpreterMode, 'runbook-control.interpreterMode', ['playwright', 'dry-run', 'diagnostic'] as const),
-    dataset: expectOptionalString(runbook.dataset, 'runbook-control.dataset') ?? null,
-    resolutionControl: expectOptionalString(runbook.resolutionControl, 'runbook-control.resolutionControl') ?? null,
-    translationEnabled: runbook.translationEnabled === undefined ? undefined : expectBoolean(runbook.translationEnabled, 'runbook-control.translationEnabled'),
-    translationCacheEnabled: runbook.translationCacheEnabled === undefined ? undefined : expectBoolean(runbook.translationCacheEnabled, 'runbook-control.translationCacheEnabled'),
-    providerId: expectOptionalString(runbook.providerId, 'runbook-control.providerId') ?? null,
-    recoveryPolicy: runbook.recoveryPolicy === undefined ? undefined : validateRecoveryPolicy(runbook.recoveryPolicy, 'runbook-control.recoveryPolicy'),
-  };
+  const decoded = schemaDecode.decoderFor<RunbookControl>(schemas.RunbookControlSchema)(value);
+  // Post-decode: path safety on suites
+  for (const [index, suite] of decoded.selector.suites.entries()) {
+    ensureSafeRelativePathLike(suite, `runbook-control.selector.suites[${index}]`);
+  }
+  return decoded;
 }
 
 export function validatePatternDocument(value: unknown): PatternDocument {
@@ -1872,70 +1715,20 @@ export function validatePatternDocument(value: unknown): PatternDocument {
 }
 
 export function validateSharedPatterns(value: unknown): SharedPatterns {
-  const patterns = expectRecord(value, 'shared-patterns');
-  const actions = expectRecord(patterns.actions, 'shared-patterns.actions');
-  const postures = expectRecord(patterns.postures ?? {}, 'shared-patterns.postures');
-  const sources = expectRecord(patterns.sources, 'shared-patterns.sources');
-  const actionSources = expectRecord(sources.actions, 'shared-patterns.sources.actions');
-  const postureSources = expectRecord(sources.postures ?? {}, 'shared-patterns.sources.postures');
+  const decoded = schemaDecode.decoderFor<SharedPatterns>(schemas.MergedPatternsSchema)(value);
+  // Validate all required actions are present
   const requiredActions = ['navigate', 'input', 'click', 'assert-snapshot'] as const;
-
-  const validatedActions = Object.fromEntries(requiredActions.map((action) => {
-    const record = expectRecord(actions[action], `shared-patterns.actions.${action}`);
-    return [action, {
-      id: expectString(record.id, `shared-patterns.actions.${action}.id`),
-      aliases: uniqueSorted(expectStringArray(record.aliases ?? [], `shared-patterns.actions.${action}.aliases`)),
-    }];
-  })) as MergedPatterns['actions'];
-
-  return {
-    version: expectNumber(patterns.version, 'shared-patterns.version') as 1,
-    actions: validatedActions,
-    postures: Object.fromEntries(
-      Object.entries(postures).map(([postureId, entry]) => {
-        const record = expectRecord(entry, `shared-patterns.postures.${postureId}`);
-        return [postureId, {
-          id: expectString(record.id, `shared-patterns.postures.${postureId}.id`),
-          aliases: uniqueSorted(expectStringArray(record.aliases ?? [], `shared-patterns.postures.${postureId}.aliases`)),
-        }];
-      }),
-    ),
-    documents: uniqueSorted(expectStringArray(patterns.documents ?? [], 'shared-patterns.documents')),
-    sources: {
-      actions: Object.fromEntries(requiredActions.map((action) => [
-        action,
-        expectString(actionSources[action], `shared-patterns.sources.actions.${action}`),
-      ])) as MergedPatterns['sources']['actions'],
-      postures: Object.fromEntries(
-        Object.entries(postureSources).map(([postureId, sourcePath]) => [
-          postureId,
-          expectString(sourcePath, `shared-patterns.sources.postures.${postureId}`),
-        ]),
-      ),
-    },
-  };
+  for (const action of requiredActions) {
+    if (!decoded.actions[action]) {
+      throw new SchemaError(`missing required action ${action}`, 'shared-patterns.actions');
+    }
+  }
+  return decoded;
 }
 
 export function validateScreenPostures(value: unknown): ScreenPostures {
-  const screen = expectRecord(value, 'screen-postures');
-  const postures = expectRecord(screen.postures ?? {}, 'screen-postures.postures');
-  return normalizeScreenPostures({
-    screen: expectId(screen.screen, 'screen-postures.screen', createScreenId),
-    postures: Object.fromEntries(
-      Object.entries(postures).map(([elementId, entry]) => {
-        const postureSet = expectRecord(entry, `screen-postures.postures.${elementId}`);
-        return [
-          elementId,
-          Object.fromEntries(
-            Object.entries(postureSet).map(([postureId, postureValue]) => [
-              postureId,
-              validatePosture(postureValue, `screen-postures.postures.${elementId}.${postureId}`),
-            ]),
-          ),
-        ];
-      }),
-    ),
-  });
+  const decoded = schemaDecode.decoderFor<ScreenPostures>(schemas.ScreenPosturesSchema)(value);
+  return normalizeScreenPostures(decoded);
 }
 
 function validateObservationPredicate(value: unknown, path: string) {
@@ -2092,45 +1885,13 @@ function assertBehaviorTopology(input: {
 }
 
 export function validateScreenBehavior(value: unknown): ScreenBehavior {
-  const behavior = expectRecord(value, 'screen-behavior');
-  const validated = {
-    kind: expectEnum(behavior.kind, 'screen-behavior.kind', ['screen-behavior'] as const),
-    version: expectNumber(behavior.version, 'screen-behavior.version') as 1,
-    screen: expectId(behavior.screen, 'screen-behavior.screen', createScreenId),
-    aliases: uniqueSorted(expectStringArray(behavior.aliases ?? [], 'screen-behavior.aliases')),
-    routeVariantRefs: uniqueSorted(expectStringArray(behavior.routeVariantRefs ?? [], 'screen-behavior.routeVariantRefs')),
-    knowledgeRefs: uniqueSorted(expectStringArray(behavior.knowledgeRefs ?? [], 'screen-behavior.knowledgeRefs')),
-    stateNodes: expectArray(behavior.stateNodes ?? [], 'screen-behavior.stateNodes').map((entry, index) =>
-      validateStateNode(entry, `screen-behavior.stateNodes[${index}]`),
-    ),
-    eventSignatures: expectArray(behavior.eventSignatures ?? [], 'screen-behavior.eventSignatures').map((entry, index) =>
-      validateEventSignature(entry, `screen-behavior.eventSignatures[${index}]`),
-    ),
-    transitions: expectArray(behavior.transitions ?? [], 'screen-behavior.transitions').map((entry, index) =>
-      validateStateTransition(entry, `screen-behavior.transitions[${index}]`),
-    ),
-  };
+  const validated = schemaDecode.decoderFor<ScreenBehavior>(schemas.ScreenBehaviorSchema)(value);
   assertBehaviorTopology({ ...validated, path: 'screen-behavior' });
   return validated;
 }
 
 export function validateBehaviorPatternDocument(value: unknown): BehaviorPatternDocument {
-  const pattern = expectRecord(value, 'behavior-pattern');
-  const validated = {
-    kind: expectEnum(pattern.kind, 'behavior-pattern.kind', ['behavior-pattern'] as const),
-    version: expectNumber(pattern.version, 'behavior-pattern.version') as 1,
-    id: expectString(pattern.id, 'behavior-pattern.id'),
-    aliases: uniqueSorted(expectStringArray(pattern.aliases ?? [], 'behavior-pattern.aliases')),
-    stateNodes: expectArray(pattern.stateNodes ?? [], 'behavior-pattern.stateNodes').map((entry, index) =>
-      validateStateNode(entry, `behavior-pattern.stateNodes[${index}]`),
-    ),
-    eventSignatures: expectArray(pattern.eventSignatures ?? [], 'behavior-pattern.eventSignatures').map((entry, index) =>
-      validateEventSignature(entry, `behavior-pattern.eventSignatures[${index}]`),
-    ),
-    transitions: expectArray(pattern.transitions ?? [], 'behavior-pattern.transitions').map((entry, index) =>
-      validateStateTransition(entry, `behavior-pattern.transitions[${index}]`),
-    ),
-  };
+  const validated = schemaDecode.decoderFor<BehaviorPatternDocument>(schemas.BehaviorPatternDocumentSchema)(value);
   assertBehaviorTopology({ ...validated, path: 'behavior-pattern' });
   return validated;
 }
@@ -2186,33 +1947,8 @@ function validateGraphEdge(value: unknown, path: string) {
   };
 }
 
-export function validateDerivedGraph(value: unknown): DerivedGraph {
-  const graph = expectRecord(value, 'derived-graph');
-  return {
-    version: expectEnum(graph.version, 'derived-graph.version', ['v1'] as const),
-    fingerprint: expectString(graph.fingerprint, 'derived-graph.fingerprint'),
-    nodes: expectArray(graph.nodes ?? [], 'derived-graph.nodes').map((entry, index) =>
-      validateGraphNode(entry, `derived-graph.nodes[${index}]`),
-    ),
-    edges: expectArray(graph.edges ?? [], 'derived-graph.edges').map((entry, index) =>
-      validateGraphEdge(entry, `derived-graph.edges[${index}]`),
-    ),
-    resources: expectArray(graph.resources ?? [], 'derived-graph.resources').map((entry, index) => {
-      const resource = expectRecord(entry, `derived-graph.resources[${index}]`);
-      return {
-        uri: expectString(resource.uri, `derived-graph.resources[${index}].uri`),
-        description: expectString(resource.description, `derived-graph.resources[${index}].description`),
-      };
-    }),
-    resourceTemplates: expectArray(graph.resourceTemplates ?? [], 'derived-graph.resourceTemplates').map((entry, index) => {
-      const template = expectRecord(entry, `derived-graph.resourceTemplates[${index}]`);
-      return {
-        uriTemplate: expectString(template.uriTemplate, `derived-graph.resourceTemplates[${index}].uriTemplate`),
-        description: expectString(template.description, `derived-graph.resourceTemplates[${index}].description`),
-      };
-    }),
-  };
-}
+export const validateDerivedGraph: (value: unknown) => DerivedGraph =
+  schemaDecode.decoderFor<DerivedGraph>(schemas.DerivedGraphSchema);
 
 
 function validateTrustPolicyArtifactType(value: unknown, path: string): TrustPolicyArtifactType {
@@ -2233,152 +1969,17 @@ export const validateTrustPolicy: (value: unknown) => TrustPolicy =
 export const validateTrustPolicyEvaluation: (value: unknown) => TrustPolicyEvaluation =
   schemaDecode.decoderFor<TrustPolicyEvaluation>(schemas.TrustPolicyEvaluationSchema);
 
-export function validateOperatorInboxItem(value: unknown): OperatorInboxItem {
-  const item = expectRecord(value, 'operatorInboxItem');
-  return {
-    id: expectString(item.id, 'operatorInboxItem.id'),
-    kind: expectEnum(item.kind, 'operatorInboxItem.kind', ['proposal', 'degraded-locator', 'needs-human', 'blocked-policy', 'approved-equivalent'] as const),
-    status: expectEnum(item.status, 'operatorInboxItem.status', ['actionable', 'approved', 'blocked', 'informational'] as const),
-    title: expectString(item.title, 'operatorInboxItem.title'),
-    summary: expectString(item.summary, 'operatorInboxItem.summary'),
-    adoId: expectOptionalId(item.adoId, 'operatorInboxItem.adoId', createAdoId) ?? null,
-    suite: expectOptionalString(item.suite, 'operatorInboxItem.suite') ?? null,
-    runId: expectOptionalString(item.runId, 'operatorInboxItem.runId') ?? null,
-    stepIndex: item.stepIndex === undefined || item.stepIndex === null ? null : expectNumber(item.stepIndex, 'operatorInboxItem.stepIndex'),
-    proposalId: expectOptionalString(item.proposalId, 'operatorInboxItem.proposalId') ?? null,
-    artifactPath: expectOptionalString(item.artifactPath, 'operatorInboxItem.artifactPath') ?? null,
-    targetPath: expectOptionalString(item.targetPath, 'operatorInboxItem.targetPath') ?? null,
-    winningConcern: item.winningConcern === undefined || item.winningConcern === null
-      ? null
-      : expectEnum(item.winningConcern, 'operatorInboxItem.winningConcern', ['intent', 'knowledge', 'control', 'resolution', 'execution', 'governance', 'projection'] as const),
-    winningSource: item.winningSource === undefined || item.winningSource === null
-      ? null
-      : expectEnum(item.winningSource, 'operatorInboxItem.winningSource', [
-        'scenario-explicit',
-        'resolution-control',
-        'runbook-dataset',
-        'default-dataset',
-        'knowledge-hint',
-        'posture-sample',
-        'generated-token',
-        'approved-knowledge',
-        'approved-equivalent',
-        'prior-evidence',
-        'structured-translation',
-        'live-dom',
-        'none',
-      ] as const),
-    resolutionMode: item.resolutionMode === undefined || item.resolutionMode === null
-      ? null
-      : expectEnum(item.resolutionMode, 'operatorInboxItem.resolutionMode', resolutionModes),
-    nextCommands: expectStringArray(item.nextCommands ?? [], 'operatorInboxItem.nextCommands'),
-  };
-}
+export const validateOperatorInboxItem: (value: unknown) => OperatorInboxItem =
+  schemaDecode.decoderFor<OperatorInboxItem>(schemas.OperatorInboxItemSchema);
 
-export function validateApprovalReceipt(value: unknown): ApprovalReceipt {
-  const receipt = expectRecord(value, 'approvalReceipt');
-  return {
-    kind: expectEnum(receipt.kind, 'approvalReceipt.kind', ['approval-receipt'] as const),
-    version: expectNumber(receipt.version, 'approvalReceipt.version') as 1,
-    proposalId: expectString(receipt.proposalId, 'approvalReceipt.proposalId'),
-    inboxItemId: expectString(receipt.inboxItemId, 'approvalReceipt.inboxItemId'),
-    approvedAt: expectString(receipt.approvedAt, 'approvalReceipt.approvedAt'),
-    artifactType: validateTrustPolicyArtifactType(receipt.artifactType, 'approvalReceipt.artifactType'),
-    targetPath: expectString(receipt.targetPath, 'approvalReceipt.targetPath'),
-    receiptPath: expectString(receipt.receiptPath, 'approvalReceipt.receiptPath'),
-    rerunPlanId: expectString(receipt.rerunPlanId, 'approvalReceipt.rerunPlanId'),
-  };
-}
+export const validateApprovalReceipt: (value: unknown) => ApprovalReceipt =
+  schemaDecode.decoderFor<ApprovalReceipt>(schemas.ApprovalReceiptSchema);
 
-export function validateRerunPlan(value: unknown): RerunPlan {
-  const plan = expectRecord(value, 'rerunPlan');
-  return {
-    kind: expectEnum(plan.kind, 'rerunPlan.kind', ['rerun-plan'] as const),
-    version: expectNumber(plan.version, 'rerunPlan.version') as 1,
-    planId: expectString(plan.planId, 'rerunPlan.planId'),
-    createdAt: expectString(plan.createdAt, 'rerunPlan.createdAt'),
-    reason: expectString(plan.reason, 'rerunPlan.reason'),
-    sourceProposalId: expectOptionalString(plan.sourceProposalId, 'rerunPlan.sourceProposalId') ?? null,
-    sourceNodeIds: expectStringArray(plan.sourceNodeIds ?? [], 'rerunPlan.sourceNodeIds'),
-    impactedScenarioIds: expectIdArray(plan.impactedScenarioIds ?? [], 'rerunPlan.impactedScenarioIds', createAdoId),
-    impactedRunbooks: expectStringArray(plan.impactedRunbooks ?? [], 'rerunPlan.impactedRunbooks'),
-    impactedProjections: expectArray(plan.impactedProjections ?? [], 'rerunPlan.impactedProjections').map((entry, index) =>
-      expectEnum(entry, `rerunPlan.impactedProjections[${index}]`, ['emit', 'graph', 'types', 'run'] as const),
-    ),
-    impactedConfidenceRecords: expectStringArray(plan.impactedConfidenceRecords ?? [], 'rerunPlan.impactedConfidenceRecords'),
-    reasons: expectStringArray(plan.reasons ?? [], 'rerunPlan.reasons'),
-    explanationFingerprint: expectString(plan.explanationFingerprint, 'rerunPlan.explanationFingerprint'),
-    selection: (() => {
-      const selection = expectRecord(plan.selection ?? {}, 'rerunPlan.selection');
-      return {
-        scenarios: expectArray(selection.scenarios ?? [], 'rerunPlan.selection.scenarios').map((entry, index) => {
-          const scenario = expectRecord(entry, `rerunPlan.selection.scenarios[${index}]`);
-          return {
-            id: createAdoId(expectString(scenario.id, `rerunPlan.selection.scenarios[${index}].id`)),
-            why: expectStringArray(scenario.why ?? [], `rerunPlan.selection.scenarios[${index}].why`),
-            explanations: expectArray(scenario.explanations ?? [], `rerunPlan.selection.scenarios[${index}].explanations`).map((explanation, explanationIndex) => {
-              const explanationRecord = expectRecord(explanation, `rerunPlan.selection.scenarios[${index}].explanations[${explanationIndex}]`);
-              return {
-                triggeringChange: expectString(explanationRecord.triggeringChange, `rerunPlan.selection.scenarios[${index}].explanations[${explanationIndex}].triggeringChange`),
-                dependencyPath: expectStringArray(explanationRecord.dependencyPath ?? [], `rerunPlan.selection.scenarios[${index}].explanations[${explanationIndex}].dependencyPath`),
-                requiredBecause: expectString(explanationRecord.requiredBecause, `rerunPlan.selection.scenarios[${index}].explanations[${explanationIndex}].requiredBecause`),
-                fingerprint: expectString(explanationRecord.fingerprint, `rerunPlan.selection.scenarios[${index}].explanations[${explanationIndex}].fingerprint`),
-              };
-            }),
-          };
-        }),
-        runbooks: expectArray(selection.runbooks ?? [], 'rerunPlan.selection.runbooks').map((entry, index) => {
-          const runbook = expectRecord(entry, `rerunPlan.selection.runbooks[${index}]`);
-          return {
-            name: expectString(runbook.name, `rerunPlan.selection.runbooks[${index}].name`),
-            why: expectStringArray(runbook.why ?? [], `rerunPlan.selection.runbooks[${index}].why`),
-            explanations: expectArray(runbook.explanations ?? [], `rerunPlan.selection.runbooks[${index}].explanations`).map((explanation, explanationIndex) => {
-              const explanationRecord = expectRecord(explanation, `rerunPlan.selection.runbooks[${index}].explanations[${explanationIndex}]`);
-              return {
-                triggeringChange: expectString(explanationRecord.triggeringChange, `rerunPlan.selection.runbooks[${index}].explanations[${explanationIndex}].triggeringChange`),
-                dependencyPath: expectStringArray(explanationRecord.dependencyPath ?? [], `rerunPlan.selection.runbooks[${index}].explanations[${explanationIndex}].dependencyPath`),
-                requiredBecause: expectString(explanationRecord.requiredBecause, `rerunPlan.selection.runbooks[${index}].explanations[${explanationIndex}].requiredBecause`),
-                fingerprint: expectString(explanationRecord.fingerprint, `rerunPlan.selection.runbooks[${index}].explanations[${explanationIndex}].fingerprint`),
-              };
-            }),
-          };
-        }),
-        projections: expectArray(selection.projections ?? [], 'rerunPlan.selection.projections').map((entry, index) => {
-          const projection = expectRecord(entry, `rerunPlan.selection.projections[${index}]`);
-          return {
-            name: expectEnum(projection.name, `rerunPlan.selection.projections[${index}].name`, ['emit', 'graph', 'types', 'run'] as const),
-            why: expectStringArray(projection.why ?? [], `rerunPlan.selection.projections[${index}].why`),
-          };
-        }),
-        confidenceRecords: expectArray(selection.confidenceRecords ?? [], 'rerunPlan.selection.confidenceRecords').map((entry, index) => {
-          const record = expectRecord(entry, `rerunPlan.selection.confidenceRecords[${index}]`);
-          return {
-            id: expectString(record.id, `rerunPlan.selection.confidenceRecords[${index}].id`),
-            why: expectStringArray(record.why ?? [], `rerunPlan.selection.confidenceRecords[${index}].why`),
-          };
-        }),
-      };
-    })(),
-  };
-}
+export const validateRerunPlan: (value: unknown) => RerunPlan =
+  schemaDecode.decoderFor<RerunPlan>(schemas.RerunPlanSchema);
 
-export function validateConfidenceOverlayCatalog(value: unknown) {
-  const catalog = expectRecord(value, 'confidenceOverlayCatalog');
-  const summary = expectRecord(catalog.summary ?? {}, 'confidenceOverlayCatalog.summary');
-  return {
-    kind: expectEnum(catalog.kind, 'confidenceOverlayCatalog.kind', ['confidence-overlay-catalog'] as const),
-    version: expectNumber(catalog.version, 'confidenceOverlayCatalog.version') as 1,
-    generatedAt: expectString(catalog.generatedAt, 'confidenceOverlayCatalog.generatedAt'),
-    records: expectArray(catalog.records ?? [], 'confidenceOverlayCatalog.records').map((entry, index) =>
-      validateArtifactConfidenceRecord(entry, `confidenceOverlayCatalog.records[${index}]`),
-    ),
-    summary: {
-      total: expectNumber(summary.total, 'confidenceOverlayCatalog.summary.total'),
-      approvedEquivalentCount: expectNumber(summary.approvedEquivalentCount, 'confidenceOverlayCatalog.summary.approvedEquivalentCount'),
-      needsReviewCount: expectNumber(summary.needsReviewCount, 'confidenceOverlayCatalog.summary.needsReviewCount'),
-    },
-  };
-}
+export const validateConfidenceOverlayCatalog: (value: unknown) => ConfidenceOverlayCatalog =
+  schemaDecode.decoderFor<ConfidenceOverlayCatalog>(schemas.ConfidenceOverlayCatalogSchema);
 
 export function validateBenchmarkContext(value: unknown): BenchmarkContext {
   const benchmark = expectRecord(value, 'benchmarkContext');
@@ -2566,92 +2167,11 @@ export function validateInterpretationDriftRecord(value: unknown): Interpretatio
   };
 }
 
-export function validateBenchmarkScorecard(value: unknown): BenchmarkScorecard {
-  const scorecard = expectRecord(value, 'benchmarkScorecard');
-  return {
-    kind: expectEnum(scorecard.kind, 'benchmarkScorecard.kind', ['benchmark-scorecard'] as const),
-    version: expectNumber(scorecard.version, 'benchmarkScorecard.version') as 1,
-    benchmark: expectString(scorecard.benchmark, 'benchmarkScorecard.benchmark'),
-    generatedAt: expectString(scorecard.generatedAt, 'benchmarkScorecard.generatedAt'),
-    uniqueFieldAwarenessCount: expectNumber(scorecard.uniqueFieldAwarenessCount, 'benchmarkScorecard.uniqueFieldAwarenessCount'),
-    firstPassScreenResolutionRate: expectNumber(scorecard.firstPassScreenResolutionRate, 'benchmarkScorecard.firstPassScreenResolutionRate'),
-    firstPassElementResolutionRate: expectNumber(scorecard.firstPassElementResolutionRate, 'benchmarkScorecard.firstPassElementResolutionRate'),
-    degradedLocatorRate: expectNumber(scorecard.degradedLocatorRate, 'benchmarkScorecard.degradedLocatorRate'),
-    reviewRequiredCount: expectNumber(scorecard.reviewRequiredCount, 'benchmarkScorecard.reviewRequiredCount'),
-    repairLoopCount: expectNumber(scorecard.repairLoopCount, 'benchmarkScorecard.repairLoopCount'),
-    operatorTouchCount: expectNumber(scorecard.operatorTouchCount, 'benchmarkScorecard.operatorTouchCount'),
-    knowledgeChurn: Object.fromEntries(
-      Object.entries(expectRecord(scorecard.knowledgeChurn ?? {}, 'benchmarkScorecard.knowledgeChurn'))
-        .map(([key, entry]) => [key, expectNumber(entry, `benchmarkScorecard.knowledgeChurn.${key}`)]),
-    ),
-    generatedVariantCount: expectNumber(scorecard.generatedVariantCount, 'benchmarkScorecard.generatedVariantCount'),
-    translationHitRate: expectNumber(scorecard.translationHitRate ?? 0, 'benchmarkScorecard.translationHitRate'),
-    agenticHitRate: expectNumber(scorecard.agenticHitRate ?? 0, 'benchmarkScorecard.agenticHitRate'),
-    approvedEquivalentCount: expectNumber(scorecard.approvedEquivalentCount ?? 0, 'benchmarkScorecard.approvedEquivalentCount'),
-    thinKnowledgeScreenCount: expectNumber(scorecard.thinKnowledgeScreenCount ?? 0, 'benchmarkScorecard.thinKnowledgeScreenCount'),
-    degradedLocatorHotspotCount: expectNumber(scorecard.degradedLocatorHotspotCount ?? 0, 'benchmarkScorecard.degradedLocatorHotspotCount'),
-    interpretationDriftHotspotCount: expectNumber(scorecard.interpretationDriftHotspotCount ?? 0, 'benchmarkScorecard.interpretationDriftHotspotCount'),
-    overlayChurn: expectNumber(scorecard.overlayChurn ?? 0, 'benchmarkScorecard.overlayChurn'),
-    executionTimingTotalsMs: (() => {
-      const timing = expectRecord(scorecard.executionTimingTotalsMs ?? {}, 'benchmarkScorecard.executionTimingTotalsMs');
-      return {
-        setup: expectNumber(timing.setup ?? 0, 'benchmarkScorecard.executionTimingTotalsMs.setup'),
-        resolution: expectNumber(timing.resolution ?? 0, 'benchmarkScorecard.executionTimingTotalsMs.resolution'),
-        action: expectNumber(timing.action ?? 0, 'benchmarkScorecard.executionTimingTotalsMs.action'),
-        assertion: expectNumber(timing.assertion ?? 0, 'benchmarkScorecard.executionTimingTotalsMs.assertion'),
-        retries: expectNumber(timing.retries ?? 0, 'benchmarkScorecard.executionTimingTotalsMs.retries'),
-        teardown: expectNumber(timing.teardown ?? 0, 'benchmarkScorecard.executionTimingTotalsMs.teardown'),
-        total: expectNumber(timing.total ?? 0, 'benchmarkScorecard.executionTimingTotalsMs.total'),
-      };
-    })(),
-    executionCostTotals: (() => {
-      const cost = expectRecord(scorecard.executionCostTotals ?? {}, 'benchmarkScorecard.executionCostTotals');
-      return {
-        instructionCount: expectNumber(cost.instructionCount ?? 0, 'benchmarkScorecard.executionCostTotals.instructionCount'),
-        diagnosticCount: expectNumber(cost.diagnosticCount ?? 0, 'benchmarkScorecard.executionCostTotals.diagnosticCount'),
-      };
-    })(),
-    executionFailureFamilies: Object.fromEntries(
-      Object.entries(expectRecord(scorecard.executionFailureFamilies ?? {}, 'benchmarkScorecard.executionFailureFamilies'))
-        .map(([key, entry]) => [key, expectNumber(entry, `benchmarkScorecard.executionFailureFamilies.${key}`)]),
-    ),
-    recoveryFamilies: Object.fromEntries(
-      Object.entries(expectRecord(scorecard.recoveryFamilies ?? {}, 'benchmarkScorecard.recoveryFamilies'))
-        .map(([key, entry]) => [key, expectNumber(entry, `benchmarkScorecard.recoveryFamilies.${key}`)]),
-    ),
-    recoveryStrategies: Object.fromEntries(
-      Object.entries(expectRecord(scorecard.recoveryStrategies ?? {}, 'benchmarkScorecard.recoveryStrategies'))
-        .map(([key, entry]) => [key, expectNumber(entry, `benchmarkScorecard.recoveryStrategies.${key}`)]),
-    ),
-    budgetBreachCount: expectNumber(scorecard.budgetBreachCount ?? 0, 'benchmarkScorecard.budgetBreachCount'),
-    thresholdStatus: expectEnum(scorecard.thresholdStatus, 'benchmarkScorecard.thresholdStatus', ['pass', 'warn', 'fail'] as const),
-  };
-}
+export const validateBenchmarkScorecard: (value: unknown) => BenchmarkScorecard =
+  schemaDecode.decoderFor<BenchmarkScorecard>(schemas.BenchmarkScorecardSchema);
 
-export function validateDogfoodRun(value: unknown): DogfoodRun {
-  const run = expectRecord(value, 'dogfoodRun');
-  return {
-    kind: expectEnum(run.kind, 'dogfoodRun.kind', ['dogfood-run'] as const),
-    version: expectNumber(run.version, 'dogfoodRun.version') as 1,
-    benchmark: expectString(run.benchmark, 'dogfoodRun.benchmark'),
-    runId: expectString(run.runId, 'dogfoodRun.runId'),
-    executedAt: expectString(run.executedAt, 'dogfoodRun.executedAt'),
-    posture: (() => {
-      const posture = expectRecord(run.posture ?? {}, 'dogfoodRun.posture');
-      return {
-        interpreterMode: expectEnum(posture.interpreterMode, 'dogfoodRun.posture.interpreterMode', ['playwright', 'dry-run', 'diagnostic'] as const),
-        writeMode: expectEnum(posture.writeMode, 'dogfoodRun.posture.writeMode', ['persist', 'no-write'] as const),
-        headed: expectBoolean(posture.headed, 'dogfoodRun.posture.headed'),
-        executionProfile: expectEnum(posture.executionProfile ?? 'interactive', 'dogfoodRun.posture.executionProfile', executionProfiles),
-      };
-    })(),
-    runbooks: expectStringArray(run.runbooks ?? [], 'dogfoodRun.runbooks'),
-    scenarioIds: expectIdArray(run.scenarioIds ?? [], 'dogfoodRun.scenarioIds', createAdoId),
-    driftEventIds: expectStringArray(run.driftEventIds ?? [], 'dogfoodRun.driftEventIds'),
-    scorecard: validateBenchmarkScorecard(run.scorecard),
-    nextCommands: expectStringArray(run.nextCommands ?? [], 'dogfoodRun.nextCommands'),
-  };
-}
+export const validateDogfoodRun: (value: unknown) => DogfoodRun =
+  schemaDecode.decoderFor<DogfoodRun>(schemas.DogfoodRunSchema);
 
 
 
