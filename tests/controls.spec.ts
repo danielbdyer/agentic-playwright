@@ -67,7 +67,7 @@ test('run selection gives CLI ado id priority and otherwise uses runbook/tag sel
       runbookName: 'demo-smoke',
       tag: 'smoke',
     })).toEqual({
-      adoIds: ['10001'],
+      adoIds: expect.arrayContaining(['10001']),
       runbook: expect.objectContaining({ name: 'demo-smoke' }),
     });
   } finally {

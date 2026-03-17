@@ -1,0 +1,117 @@
+kind: benchmark-context
+version: 1
+name: closing-the-gap
+suite: demo
+appRoute: /policy-search.html
+fieldCatalog:
+  - id: search.policy-number-input
+    screen: policy-search
+    element: policyNumberInput
+    label: Policy Number Input
+    category: search
+    required: true
+    postures: [valid, empty]
+  - id: search.search-button
+    screen: policy-search
+    element: searchButton
+    label: Search Button
+    category: search
+    required: true
+    postures: [valid]
+  - id: search.results-table
+    screen: policy-search
+    element: resultsTable
+    label: Results Table
+    category: search
+    required: true
+    postures: [valid, empty]
+  - id: search.validation-summary
+    screen: policy-search
+    element: validationSummary
+    label: Validation Summary
+    category: search
+    required: false
+    postures: [valid, empty]
+  - id: detail.policy-number
+    screen: policy-detail
+    element: policyNumber
+    label: Policy Number
+    category: detail
+    required: true
+    postures: [valid]
+  - id: detail.policy-status
+    screen: policy-detail
+    element: policyStatus
+    label: Policy Status
+    category: detail
+    required: true
+    postures: [valid]
+  - id: detail.effective-date
+    screen: policy-detail
+    element: effectiveDate
+    label: Effective Date
+    category: detail
+    required: true
+    postures: [valid]
+  - id: detail.claims-table
+    screen: policy-detail
+    element: claimsTable
+    label: Claims Table
+    category: detail
+    required: false
+    postures: [valid, empty]
+  - id: detail.back-to-search
+    screen: policy-detail
+    element: backToSearch
+    label: Back to Search
+    category: detail
+    required: true
+    postures: [valid]
+  - id: detail.error-panel
+    screen: policy-detail
+    element: errorPanel
+    label: Error Panel
+    category: detail
+    required: false
+    postures: [valid, empty]
+flows:
+  - id: search-to-detail
+    title: Search for policy and view detail
+    route: /policy-search.html
+    screens: [policy-search, policy-detail]
+    fieldIds:
+      [
+        search.policy-number-input,
+        search.search-button,
+        search.results-table,
+        detail.policy-number,
+        detail.policy-status,
+        detail.effective-date,
+        detail.claims-table,
+        detail.back-to-search,
+      ]
+driftEvents:
+  - id: drift-policy-number-locator
+    kind: locator-degradation
+    screen: policy-detail
+    fieldId: detail.policy-number
+    severity: high
+    description: Policy Number test id is removed and role fallback must win.
+fieldAwarenessThresholds:
+  minFieldAwarenessCount: 8
+  minFirstPassScreenResolutionRate: 0.6
+  minFirstPassElementResolutionRate: 0.6
+  maxDegradedLocatorRate: 0.3
+benchmarkRunbooks:
+  - name: demo-smoke-closing-the-gap
+    runbook: demo-smoke
+    tag: smoke
+expansionRules:
+  - fieldIds:
+      [
+        search.policy-number-input,
+        detail.policy-number,
+        detail.effective-date,
+      ]
+    postures: [empty]
+    variantsPerField: 1

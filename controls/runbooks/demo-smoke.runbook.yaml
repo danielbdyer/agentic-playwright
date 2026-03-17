@@ -6,6 +6,7 @@ selector:
   adoIds: []
   suites:
     - demo/policy-search
+    - demo/policy-detail
   tags:
     - smoke
 interpreterMode: diagnostic

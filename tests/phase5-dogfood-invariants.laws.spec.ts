@@ -85,7 +85,7 @@ test('knowledge hit rate delta shows improvement across iterations', () => {
 });
 
 test('convergence reason is one of the valid enum values', () => {
-  const validReasons = ['no-proposals', 'threshold-met', 'budget-exhausted', 'max-iterations', null];
+  const validReasons: ReadonlyArray<DogfoodLedger['convergenceReason']> = ['no-proposals', 'threshold-met', 'budget-exhausted', 'max-iterations', null];
 
   for (const reason of validReasons) {
     const ledger = createMockLedger({ convergenceReason: reason });
