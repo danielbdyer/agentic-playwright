@@ -18,6 +18,7 @@ import type {
   BenchmarkScorecard,
   DogfoodRun,
   InterpretationDriftRecord,
+  LearningScorecard,
   ProposalBundle,
 } from '../domain/types';
 
@@ -117,6 +118,7 @@ function scorecardForBenchmark(input: {
     failureCount: number;
   }>;
   interpretationDriftRecords: InterpretationDriftRecord[];
+  learningScorecard?: LearningScorecard | null | undefined;
 }): BenchmarkScorecard {
   const uniqueScreens = uniqueSorted(input.benchmark.fieldCatalog.map((field) => field.screen).filter((value) => value.length > 0));
   const driftCount = input.benchmark.driftEvents.length;
@@ -223,6 +225,7 @@ function scorecardForBenchmark(input: {
     recoveryStrategies,
     budgetBreachCount,
     thresholdStatus,
+    learning: input.learningScorecard ?? null,
   };
 }
 
@@ -305,6 +308,22 @@ function renderScorecardMarkdown(benchmark: BenchmarkContext, scorecard: Benchma
     `- Generated variants: ${scorecard.generatedVariantCount}`,
     `- Next commands: tesseract benchmark --benchmark ${benchmark.name} | tesseract scorecard --benchmark ${benchmark.name} | tesseract inbox`,
     '',
+    ...(scorecard.learning ? [
+      '## Learning',
+      '',
+      `- Corpus fragment count: ${scorecard.learning.corpusFragmentCount}`,
+      `- Replay example count: ${scorecard.learning.replayExampleCount}`,
+      `- Avg reproducibility score: ${scorecard.learning.avgReproducibilityScore}`,
+      `- Fragment provenance completeness: ${scorecard.learning.fragmentProvenanceCompleteness}`,
+      `- Thin screen count: ${scorecard.learning.thinScreenCount}`,
+      `- Thin action family count: ${scorecard.learning.thinActionFamilyCount}`,
+      `- Top bottleneck screen: ${scorecard.learning.topBottleneckScreen ?? 'none'}`,
+      `- Top bottleneck impact: ${scorecard.learning.topBottleneckImpact}`,
+      `- Ranked proposal count: ${scorecard.learning.rankedProposalCount}`,
+      `- Top proposal id: ${scorecard.learning.topProposalId ?? 'none'}`,
+      `- Top proposal score: ${scorecard.learning.topProposalScore}`,
+      '',
+    ] : []),
     ...(run ? [
       '## Dogfood run',
       '',
