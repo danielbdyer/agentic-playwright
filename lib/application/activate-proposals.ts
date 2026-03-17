@@ -1,10 +1,11 @@
 import path from 'path';
 import { Effect } from 'effect';
-import type { ProposalBundle, ProposalEntry } from '../domain/types';
+import type { AutoApprovalPolicy, ProposalBundle, ProposalEntry, TrustPolicy } from '../domain/types';
 import type { ProjectPaths } from './paths';
 import { FileSystem } from './ports';
 import { trySync } from './effect';
 import { applyProposalPatch, parseProposalArtifact, serializeProposalArtifact, validatePatchedProposalArtifact } from './proposal-patches';
+import { evaluateAutoApproval } from '../domain/trust-policy';
 
 function certificationForProposal(proposal: ProposalEntry): ProposalEntry['certification'] {
   return proposal.trustPolicy.decision === 'allow' ? 'certified' : 'uncertified';
@@ -139,5 +140,93 @@ export function deactivateProposals(backups: CompensationBackup[]) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     yield* Effect.forEach(backups, (backup) => fs.writeText(backup.filePath, backup.originalContent));
+  });
+}
+
+// ─── WP5: Auto-Approval Activation ───
+
+/**
+ * Filter proposals eligible for auto-approval, then activate them.
+ *
+ * Proposals that pass auto-approval gates are activated immediately.
+ * Proposals that fail remain in 'pending' status for manual review.
+ * This produces identical receipts to manual activation — the only
+ * difference is the activation.reason field.
+ */
+interface AutoApprovalStepResult {
+  readonly proposal: ProposalEntry;
+  readonly activatedPath: string | null;
+  readonly blocked: boolean;
+}
+
+export function autoApproveEligibleProposals(options: {
+  readonly paths: ProjectPaths;
+  readonly proposalBundle: ProposalBundle;
+  readonly autoApprovalPolicy: AutoApprovalPolicy;
+  readonly trustPolicy: TrustPolicy;
+}): Effect.Effect<ActivateProposalBundleResult, unknown, unknown> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const activatedAt = new Date().toISOString();
+
+    const results: AutoApprovalStepResult[] = yield* Effect.forEach(
+      options.proposalBundle.proposals,
+      (proposal): Effect.Effect<AutoApprovalStepResult, never, never> => {
+        const autoResult = evaluateAutoApproval({
+          policy: options.autoApprovalPolicy,
+          trustEvaluation: proposal.trustPolicy,
+          proposedChange: {
+            artifactType: proposal.artifactType,
+            confidence: 0.9,
+            autoHealClass: 'runtime-intent-cutover',
+          },
+          trustPolicy: options.trustPolicy,
+        });
+
+        if (!autoResult.approved) {
+          return Effect.succeed({
+            proposal: {
+              ...proposal,
+              activation: {
+                ...proposal.activation,
+                reason: `Auto-approval declined: ${autoResult.reason}`,
+              },
+            },
+            activatedPath: null,
+            blocked: false,
+          });
+        }
+
+        return tryActivateProposal(fs, options.paths.rootDir, proposal, activatedAt).pipe(
+          Effect.map((result) => ({
+            proposal: result.proposal,
+            activatedPath: result.activatedPath,
+            blocked: result.blocked,
+          })),
+        );
+      },
+    );
+
+    const proposals = results.map((result) => result.proposal);
+    const activatedPaths = results
+      .filter((result) => result.activatedPath !== null)
+      .map((result) => result.activatedPath!)
+      .sort((left, right) => left.localeCompare(right));
+    const blockedProposalIds = results
+      .filter((result) => result.blocked)
+      .map((result) => result.proposal.proposalId);
+
+    const hasBlocked = proposals.some((proposal) => proposal.activation.status === 'blocked');
+    const proposalBundle: ProposalBundle = {
+      ...options.proposalBundle,
+      governance: hasBlocked ? 'blocked' : 'approved',
+      payload: {
+        ...options.proposalBundle.payload,
+        proposals,
+      },
+      proposals,
+    };
+
+    return { proposalBundle, activatedPaths, blockedProposalIds };
   });
 }

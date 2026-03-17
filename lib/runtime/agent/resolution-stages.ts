@@ -8,7 +8,7 @@ import type {
 } from '../../domain/types';
 import { requiresElement, allowedActionFallback } from './resolve-action';
 import { resolveFromDom } from './dom-fallback';
-import { proposalForSupplementGap } from './proposals';
+import { proposalForSupplementGap, proposalsFromInterpretation } from './proposals';
 import { explicitResolvedReceipt, needsHumanReceipt } from './receipt';
 import { resolveOverride } from './resolve-target';
 import { selectedDomExplorationPolicy } from './select-controls';
@@ -299,28 +299,59 @@ export async function tryTranslationResolution(stage: RuntimeAgentStageContext, 
       exhaustion: [exhaustionEntry('structured-translation', 'resolved', translated.translation.rationale)],
       observations,
     };
+
+    // WP4: Generate interpretation proposals so next run resolves deterministically
+    const interpretationProposals = stage.interpretation
+      ? proposalsFromInterpretation(stage.task, stage.interpretation, stage.context.resolutionContext)
+      : [];
+    const hasProposals = interpretationProposals.length > 0;
+
+    const baseReceipt = {
+      ...needsHumanReceipt(stage, [], null, resolvedEffects),
+      kind: hasProposals ? 'resolved-with-proposals' as const : 'resolved' as const,
+      governance: 'approved' as const,
+      resolutionMode: 'translation' as const,
+      lineage: { sources: [...stage.controlRefs, ...stage.evidenceRefs], parents: [stage.task.taskFingerprint], handshakes: ['preparation', 'resolution'] },
+      overlayRefs: translated.overlayRefs,
+      winningConcern: 'resolution',
+      winningSource: 'structured-translation',
+      translation: translated.translation,
+      confidence: hasProposals ? 'agent-proposed' as const : 'agent-verified' as const,
+      provenanceKind: 'approved-knowledge' as const,
+      target: {
+        action: acc.action ?? allowedActionFallback(stage.task) ?? 'custom',
+        screen: translated.screen.screen,
+        element: translated.element?.element ?? null,
+        posture: acc.posture,
+        override: translatedOverride.override,
+        snapshot_template: acc.snapshotTemplate,
+      },
+      ...(hasProposals ? {
+        evidenceDrafts: interpretationProposals.map((proposal) => ({
+          type: 'runtime-resolution-gap' as const,
+          trigger: 'translation-interpretation' as const,
+          observation: {
+            step: String(stage.task.index),
+            screen: translated.screen!.screen,
+            element: translated.element?.element ?? null,
+            source: stage.interpretation!.source,
+          },
+          proposal: {
+            file: proposal.targetPath,
+            field: 'elements',
+            old_value: null,
+            new_value: stage.task.actionText,
+          },
+          confidence: 0.85,
+          risk: 'low' as const,
+          scope: proposal.artifactType,
+        })),
+        proposalDrafts: interpretationProposals,
+      } : {}),
+    };
+
     return {
-      receipt: {
-        ...needsHumanReceipt(stage, [], null, resolvedEffects),
-        kind: 'resolved',
-        governance: 'approved',
-        resolutionMode: 'translation',
-        lineage: { sources: [...stage.controlRefs, ...stage.evidenceRefs], parents: [stage.task.taskFingerprint], handshakes: ['preparation', 'resolution'] },
-        overlayRefs: translated.overlayRefs,
-        winningConcern: 'resolution',
-        winningSource: 'structured-translation',
-        translation: translated.translation,
-        confidence: 'agent-verified',
-        provenanceKind: 'approved-knowledge',
-        target: {
-          action: acc.action ?? allowedActionFallback(stage.task) ?? 'custom',
-          screen: translated.screen.screen,
-          element: translated.element?.element ?? null,
-          posture: acc.posture,
-          override: translatedOverride.override,
-          snapshot_template: acc.snapshotTemplate,
-        },
-      } as ResolutionReceipt,
+      receipt: baseReceipt as ResolutionReceipt,
       effects: {
         ...EMPTY_EFFECTS,
         exhaustion: [exhaustionEntry('structured-translation', 'resolved', translated.translation.rationale)],
@@ -356,7 +387,11 @@ export async function tryLiveDomOrFallback(stage: RuntimeAgentStageContext, acc:
   if (acc.action && domScreen && domTop && (acc.action !== 'assert-snapshot' || acc.snapshotTemplate)) {
     const liveScreen = domScreen;
     const liveElement = domTop.element;
-    const proposalDrafts = proposalForSupplementGap(stage.task, liveScreen, liveElement);
+    const supplementProposals = proposalForSupplementGap(stage.task, liveScreen, liveElement);
+    const interpretationProposals = stage.interpretation
+      ? proposalsFromInterpretation(stage.task, stage.interpretation, stage.context.resolutionContext)
+      : [];
+    const proposalDrafts = [...supplementProposals, ...interpretationProposals];
     const candidateObservation = {
       top: domShortlist.map((candidate) => `${candidate.element.element}:${candidate.score.toFixed(3)}`).join(' | '),
       probes: String(domResolved.probes),

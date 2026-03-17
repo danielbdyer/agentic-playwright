@@ -187,6 +187,20 @@ export interface TrustPolicyEvaluation {
   reasons: TrustPolicyEvaluationReason[];
 }
 
+// ─── WP5: Auto-Approval Policy ───
+
+export interface AutoApprovalPolicy {
+  readonly enabled: boolean;
+  readonly profile: ExecutionProfile;
+  readonly forbiddenHealClasses: readonly string[];
+  readonly thresholdOverrides: Readonly<Record<string, number>>;
+}
+
+export interface AutoApprovalResult {
+  readonly approved: boolean;
+  readonly reason: string;
+}
+
 export interface CanonicalLineage {
   runIds: string[];
   evidenceIds: string[];

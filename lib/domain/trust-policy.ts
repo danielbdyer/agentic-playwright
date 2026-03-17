@@ -1,5 +1,8 @@
 import type {
+  AutoApprovalPolicy,
+  AutoApprovalResult,
   EvidenceDescriptor,
+  ExecutionProfile,
   ProposedChangeMetadata,
   TrustPolicy,
   TrustPolicyEvaluation,
@@ -77,4 +80,75 @@ export function evaluateTrustPolicy(input: {
     decision: decisionForReasons(reasons),
     reasons: [...reasons],
   };
+}
+
+// ─── WP5: Auto-Approval ───
+
+const PROFILE_AUTO_APPROVAL: Record<ExecutionProfile, boolean> = {
+  'ci-batch': false,
+  'interactive': false,
+  'dogfood': true,
+};
+
+export const DEFAULT_AUTO_APPROVAL_POLICY: AutoApprovalPolicy = {
+  enabled: false,
+  profile: 'interactive',
+  forbiddenHealClasses: [],
+  thresholdOverrides: {},
+};
+
+/**
+ * Evaluate whether a proposal should be auto-approved based on:
+ * 1. Execution profile permits auto-approval
+ * 2. Auto-approval policy is enabled
+ * 3. Trust-policy evaluation allows the change
+ * 4. Heal class is not in the forbidden list
+ * 5. Confidence meets threshold (with optional per-artifact overrides)
+ */
+export function evaluateAutoApproval(input: {
+  readonly policy: AutoApprovalPolicy;
+  readonly trustEvaluation: TrustPolicyEvaluation;
+  readonly proposedChange: ProposedChangeMetadata;
+  readonly trustPolicy: TrustPolicy;
+}): AutoApprovalResult {
+  const { policy, trustEvaluation, proposedChange, trustPolicy } = input;
+
+  // Gate 1: Profile must permit auto-approval
+  if (!PROFILE_AUTO_APPROVAL[policy.profile]) {
+    return { approved: false, reason: `Profile '${policy.profile}' does not permit auto-approval` };
+  }
+
+  // Gate 2: Auto-approval must be enabled
+  if (!policy.enabled) {
+    return { approved: false, reason: 'Auto-approval is not enabled' };
+  }
+
+  // Gate 3: Trust-policy must allow the change
+  if (trustEvaluation.decision === 'deny') {
+    return { approved: false, reason: `Trust policy denied: ${trustEvaluation.reasons.map((r) => r.message).join('; ')}` };
+  }
+
+  // Gate 4: Heal class must not be forbidden
+  if (proposedChange.autoHealClass && policy.forbiddenHealClasses.includes(proposedChange.autoHealClass)) {
+    return { approved: false, reason: `Heal class '${proposedChange.autoHealClass}' is forbidden for auto-approval` };
+  }
+
+  // Gate 5: Confidence meets artifact-type threshold
+  const threshold = policy.thresholdOverrides[proposedChange.artifactType]
+    ?? trustPolicy.artifactTypes[proposedChange.artifactType]?.minimumConfidence
+    ?? 0.8;
+
+  if (proposedChange.confidence < threshold) {
+    return {
+      approved: false,
+      reason: `Confidence ${proposedChange.confidence.toFixed(2)} is below auto-approval threshold ${threshold.toFixed(2)}`,
+    };
+  }
+
+  // Gate 6: Trust evaluation must be 'allow' (not just 'review')
+  if (trustEvaluation.decision !== 'allow') {
+    return { approved: false, reason: `Trust policy requires review: ${trustEvaluation.reasons.map((r) => r.message).join('; ')}` };
+  }
+
+  return { approved: true, reason: 'All auto-approval gates passed' };
 }
