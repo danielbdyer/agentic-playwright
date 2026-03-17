@@ -46,7 +46,7 @@ export type ScenarioStatus = 'stub' | 'draft' | 'active' | 'needs-repair' | 'blo
 export type StepAction = 'navigate' | 'input' | 'click' | 'assert-snapshot' | 'custom';
 export type DiagnosticSeverity = 'info' | 'warn' | 'error';
 export type RuntimeInterpreterMode = 'playwright' | 'dry-run' | 'diagnostic';
-export type ExecutionProfile = 'interactive' | 'ci-batch';
+export type ExecutionProfile = 'interactive' | 'ci-batch' | 'dogfood';
 export type WriteMode = 'persist' | 'no-write';
 export type WorkflowLane = 'intent' | 'knowledge' | 'control' | 'resolution' | 'execution' | 'governance' | 'projection';
 export type WorkflowStage = 'preparation' | 'resolution' | 'execution' | 'evidence' | 'proposal' | 'projection';
@@ -185,6 +185,20 @@ export interface TrustPolicyEvaluationReason {
 export interface TrustPolicyEvaluation {
   decision: TrustPolicyDecision;
   reasons: TrustPolicyEvaluationReason[];
+}
+
+// ─── WP5: Auto-Approval Policy ───
+
+export interface AutoApprovalPolicy {
+  readonly enabled: boolean;
+  readonly profile: ExecutionProfile;
+  readonly forbiddenHealClasses: readonly string[];
+  readonly thresholdOverrides: Readonly<Record<string, number>>;
+}
+
+export interface AutoApprovalResult {
+  readonly approved: boolean;
+  readonly reason: string;
 }
 
 export interface CanonicalLineage {

@@ -2,6 +2,7 @@
 import { Context } from 'effect';
 import type { AdoId } from '../domain/identity';
 import type { ResolutionEngine } from './resolution-engine';
+import type { TranslationProvider } from './translation-provider';
 import type { TesseractError } from '../domain/errors';
 import type {
   ExecutionPosture,
@@ -47,6 +48,7 @@ export interface RuntimeScenarioRunnerPort {
     translationOptions?: {
       disableTranslation?: boolean | undefined;
       disableTranslationCache?: boolean | undefined;
+      translationProvider?: TranslationProvider | undefined;
     } | undefined;
   }): Effect.Effect<RuntimeScenarioStepResult[], unknown>;
 }

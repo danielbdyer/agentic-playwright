@@ -111,7 +111,7 @@ import {
 const scenarioStatuses = ['stub', 'draft', 'active', 'needs-repair', 'blocked', 'deprecated'] as const;
 const stepActions = ['navigate', 'input', 'click', 'assert-snapshot', 'custom'] as const;
 const confidences = ['human', 'agent-verified', 'agent-proposed', 'compiler-derived', 'intent-only', 'unbound'] as const;
-const executionProfiles = ['interactive', 'ci-batch'] as const;
+const executionProfiles = ['interactive', 'ci-batch', 'dogfood'] as const;
 const resolutionModes = ['deterministic', 'translation', 'agentic'] as const;
 const valueRefKinds = ['literal', 'fixture-path', 'posture-sample', 'parameter-row', 'generated-token'] as const;
 const stepInstructionKinds = ['navigate', 'enter', 'invoke', 'observe-structure', 'custom-escape-hatch'] as const;

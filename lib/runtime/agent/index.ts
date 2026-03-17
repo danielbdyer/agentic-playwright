@@ -6,6 +6,7 @@ import type { ResolutionStrategy, StrategyAttemptResult } from './strategy';
 import { runStrategyChain } from './strategy';
 import type { RuntimeAgentStageContext, RuntimeStepAgentContext, StageEffects } from './types';
 import { mergeEffectsIntoStage, EMPTY_EFFECTS } from './types';
+import { interpretStepIntent } from './interpret-intent';
 import {
   tryExplicitResolution,
   buildLatticeAccumulator,
@@ -286,6 +287,15 @@ export async function runResolutionPipeline(
   const accRef = { current: null as import('./resolution-stages').ResolutionAccumulator | null };
 
   const phases: readonly PipelinePhase[] = [
+    {
+      name: 'intent-interpretation',
+      run: async (s) => {
+        const interpretationResult = await interpretStepIntent(s.task, s.context);
+        mergeEffectsIntoStage(s, interpretationResult.effects);
+        s.interpretation = interpretationResult.interpretation ?? undefined;
+        return { receipt: null, events: effectsToEvents(interpretationResult.effects) };
+      },
+    },
     {
       name: 'pre-accumulator',
       run: (s) => runStrategyChain(preAccumulatorStrategies, s, null),

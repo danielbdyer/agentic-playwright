@@ -247,8 +247,10 @@ test('runtime agent falls through to structured translation before live DOM', as
     }),
   }));
 
-  expect(receipt.kind).toBe('resolved');
-  if (receipt.kind !== 'resolved') {
+  // Translation may produce 'resolved' or 'resolved-with-proposals' when
+  // WP4 interpretation proposals are generated alongside the translation receipt
+  expect(['resolved', 'resolved-with-proposals']).toContain(receipt.kind);
+  if (receipt.kind !== 'resolved' && receipt.kind !== 'resolved-with-proposals') {
     throw new Error('expected translation receipt to resolve');
   }
   expect(receipt.winningSource).toBe('structured-translation');

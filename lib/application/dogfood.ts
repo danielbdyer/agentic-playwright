@@ -1,12 +1,13 @@
 import { Effect } from 'effect';
-import { activateProposalBundle } from './activate-proposals';
+import { activateProposalBundle, autoApproveEligibleProposals } from './activate-proposals';
 import { loadWorkspaceCatalog } from './catalog';
 import type { ProjectPaths } from './paths';
 import { refreshScenario } from './refresh';
 import { runScenarioSelection } from './run';
 import { FileSystem } from './ports';
 import type { AdoId } from '../domain/identity';
-import type { ProposalBundle } from '../domain/types';
+import type { AutoApprovalPolicy, ProposalBundle, TrustPolicy } from '../domain/types';
+import { DEFAULT_AUTO_APPROVAL_POLICY } from '../domain/trust-policy';
 
 export interface DogfoodIterationResult {
   readonly iteration: number;
@@ -40,6 +41,7 @@ export interface DogfoodOptions {
   readonly tag?: string | undefined;
   readonly runbook?: string | undefined;
   readonly interpreterMode?: 'dry-run' | 'diagnostic' | undefined;
+  readonly autoApprovalPolicy?: AutoApprovalPolicy | undefined;
 }
 
 interface LoopState {
@@ -133,11 +135,21 @@ function determineConvergenceReason(
 function accumulateProposalTotals(
   pendingBundles: readonly ProposalBundle[],
   paths: ProjectPaths,
+  autoApprovalPolicy?: AutoApprovalPolicy | undefined,
+  trustPolicy?: TrustPolicy | undefined,
 ): Effect.Effect<{ readonly activated: number; readonly blocked: number }, unknown, unknown> {
   return Effect.gen(function* () {
+    const useAutoApproval = autoApprovalPolicy?.enabled && trustPolicy;
     const results = yield* Effect.all(
       pendingBundles.map((bundle) =>
-        activateProposalBundle({ paths, proposalBundle: bundle }),
+        useAutoApproval
+          ? autoApproveEligibleProposals({
+              paths,
+              proposalBundle: bundle,
+              autoApprovalPolicy: autoApprovalPolicy!,
+              trustPolicy: trustPolicy!,
+            })
+          : activateProposalBundle({ paths, proposalBundle: bundle }),
       ),
       { concurrency: 1 },
     );
@@ -177,7 +189,17 @@ function runIteration(iteration: number, options: DogfoodOptions) {
     const pendingBundles = collectPendingProposals(
       postRunCatalog.proposalBundles.map((entry) => entry.artifact),
     );
-    const proposalTotals = yield* accumulateProposalTotals(pendingBundles, options.paths);
+    const resolvedAutoPolicy = options.autoApprovalPolicy ?? {
+      ...DEFAULT_AUTO_APPROVAL_POLICY,
+      enabled: true,
+      profile: 'dogfood',
+    };
+    const proposalTotals = yield* accumulateProposalTotals(
+      pendingBundles,
+      options.paths,
+      resolvedAutoPolicy,
+      postRunCatalog.trustPolicy.artifact,
+    );
 
     const result: DogfoodIterationResult = {
       iteration,

@@ -4,9 +4,11 @@ import type {
   ResolutionExhaustionEntry,
   ResolutionObservation,
   RuntimeDomResolver,
+  StepAction,
   StepResolution,
   GroundedStep,
 } from '../../domain/types';
+import type { ElementId, PostureId, ScreenId } from '../../domain/identity';
 
 export interface RuntimeStepAgentContext {
   resolutionContext: InterfaceResolutionContext;
@@ -37,6 +39,7 @@ export interface RuntimeAgentStageContext {
   knowledgeRefs: string[];
   supplementRefs: string[];
   memoryLineage: string[];
+  interpretation?: IntentInterpretation | undefined;
 }
 
 export interface StageEffects {
@@ -58,4 +61,20 @@ export function mergeEffectsIntoStage(stage: RuntimeAgentStageContext, effects: 
   stage.observations = [...stage.observations, ...effects.observations];
   stage.knowledgeRefs = [...stage.knowledgeRefs, ...effects.knowledgeRefs];
   stage.supplementRefs = [...stage.supplementRefs, ...effects.supplementRefs];
+}
+
+// ─── WP3: Intent Interpretation ───
+
+export type InterpretationSource = 'knowledge-heuristic' | 'knowledge-translation' | 'dom-exploration';
+export type InterpretationConfidence = 'high' | 'medium' | 'low';
+
+export interface IntentInterpretation {
+  readonly stepText: string;
+  readonly interpretedAction: StepAction | null;
+  readonly interpretedScreen: ScreenId | null;
+  readonly interpretedElement: ElementId | null;
+  readonly interpretedPosture: PostureId | null;
+  readonly confidence: InterpretationConfidence;
+  readonly source: InterpretationSource;
+  readonly knowledgeRefs: readonly string[];
 }
