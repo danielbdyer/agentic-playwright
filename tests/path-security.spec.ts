@@ -39,6 +39,7 @@ test('ingress validation rejects mixed slash and backslash traversal for suitePa
     title: 'Traversal attempt',
     suitePath: 'demo\\..\\..\\escape',
     areaPath: 'demo',
+    iterationPath: 'sprint1',
     tags: [],
     priority: 1,
     steps: [{ index: 1, action: 'a', expected: 'b' }],
