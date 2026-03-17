@@ -170,6 +170,30 @@ export function learningRuntimeDirPath(paths: ProjectPaths, runtime: 'decomposit
   return resolvePathWithinRoot(paths.learningDir, runtime, 'runtime');
 }
 
+export function learningHealthPath(paths: ProjectPaths): string {
+  return path.join(paths.learningDir, 'health.json');
+}
+
+export function learningEvaluationsDir(paths: ProjectPaths): string {
+  return path.join(paths.learningDir, 'evaluations');
+}
+
+export function replayEvaluationPath(paths: ProjectPaths, adoId: AdoId, runId: string): string {
+  return path.join(learningEvaluationsDir(paths), `${adoId}.${runId}.eval.json`);
+}
+
+export function replayEvaluationSummaryPath(paths: ProjectPaths): string {
+  return path.join(learningEvaluationsDir(paths), 'summary.json');
+}
+
+export function learningBottlenecksPath(paths: ProjectPaths): string {
+  return path.join(paths.learningDir, 'bottlenecks.json');
+}
+
+export function learningRankingsPath(paths: ProjectPaths): string {
+  return path.join(paths.learningDir, 'rankings.json');
+}
+
 export function interpretationPath(paths: ProjectPaths, adoId: AdoId, runId: string): string {
   return path.join(runDirPath(paths, adoId, runId), 'interpretation.json');
 }

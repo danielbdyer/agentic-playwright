@@ -16,7 +16,7 @@ import type {
   WorkflowStage,
 } from './workflow';
 import type { ApplicationInterfaceGraph, StateTransitionGraph } from './interface';
-import type { TrainingCorpusManifest } from './learning';
+import type { LearningScorecard, TrainingCorpusManifest } from './learning';
 import type { StepProgram } from './intent';
 import type { BoundScenario } from './intent';
 import type { SelectorCanon } from './interface';
@@ -119,6 +119,7 @@ export interface BenchmarkScorecard {
   recoveryStrategies: Record<string, number>;
   budgetBreachCount: number;
   thresholdStatus: 'pass' | 'warn' | 'fail';
+  learning: LearningScorecard | null;
 }
 
 export interface DogfoodRun {
