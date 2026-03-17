@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test';
+import { uniqueSorted } from '../domain/collections';
 import type { AdoId, StateNodeRef, TransitionRef } from '../domain/identity';
 import type { ExecutionBudgetThresholds } from '../domain/execution/telemetry';
 import { defaultRecoveryPolicy, recoveryFamilyConfig, type RecoveryAttempt, type RecoveryPolicy, type RecoveryStrategy } from '../domain/execution/recovery-policy';
@@ -96,10 +97,6 @@ export function createScenarioRunState(): ScenarioRunState {
 
 function executionDiagnosticsFromError(code: string, message: string, context?: Record<string, string>): ExecutionDiagnostic[] {
   return [{ code, message, context }];
-}
-
-function uniqueSorted<T extends string>(values: Iterable<T>): T[] {
-  return [...new Set(values)].sort((left, right) => left.localeCompare(right)) as T[];
 }
 
 function activeRouteVariantRefs(state: ScenarioRunState, task: GroundedStep): string[] {

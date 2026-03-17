@@ -127,10 +127,10 @@ export function backupBeforeActivation(options: {
     const all = yield* Effect.forEach(options.proposalBundle.proposals, (proposal) =>
       Effect.gen(function* () {
         const absoluteTargetPath = path.join(options.paths.rootDir, proposal.targetPath);
-        const exists = yield* fs.exists(absoluteTargetPath);
-        return exists
-          ? { filePath: absoluteTargetPath, originalContent: yield* fs.readText(absoluteTargetPath) } as CompensationBackup
-          : null;
+        return yield* fs.readText(absoluteTargetPath).pipe(
+          Effect.map((originalContent): CompensationBackup => ({ filePath: absoluteTargetPath, originalContent })),
+          Effect.catchTag('FileSystemError', () => Effect.succeed(null)),
+        );
       }));
     return all.filter((entry): entry is CompensationBackup => entry !== null);
   });

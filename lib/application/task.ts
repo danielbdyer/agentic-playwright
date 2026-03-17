@@ -19,6 +19,7 @@ import type {
 import { controlResolutionForStep, runtimeControlsForScenario } from './controls';
 import type { CompileSnapshot } from './compile-snapshot';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
+import { deriveGovernanceState } from './catalog/envelope';
 import { buildInterfaceResolutionContext } from './interface-resolution';
 import type { ProjectPaths } from './paths';
 import { relativeProjectPath, taskPacketPath } from './paths';
@@ -232,11 +233,10 @@ export function buildScenarioInterpretationSurface(input: {
     return { ...groundedTask, stepFingerprint, taskFingerprint: stepFingerprint };
   });
 
-  const governance = input.compileSnapshot.boundScenario.steps.some((step) => step.binding.governance === 'blocked')
-    ? 'blocked'
-    : input.compileSnapshot.boundScenario.steps.some((step) => step.binding.governance === 'review-required')
-      ? 'review-required'
-      : 'approved';
+  const governance = deriveGovernanceState({
+    hasBlocked: input.compileSnapshot.boundScenario.steps.some((step) => step.binding.governance === 'blocked'),
+    hasReviewRequired: input.compileSnapshot.boundScenario.steps.some((step) => step.binding.governance === 'review-required'),
+  });
   const payload: ScenarioInterpretationSurface['payload'] = {
     adoId: input.compileSnapshot.adoId,
     revision: input.compileSnapshot.scenario.source.revision,

@@ -1,7 +1,7 @@
 import path from 'path';
 import { Effect } from 'effect';
 import { explainBoundScenario } from '../domain/scenario/explanation';
-import type { TesseractError } from '../domain/errors';
+import { TesseractError } from '../domain/errors';
 import type { AdoId } from '../domain/identity';
 import { buildGroundedSpecFlow } from '../domain/grounded-flow';
 import { renderReadableSpecModule } from '../domain/spec-codegen';
@@ -209,14 +209,14 @@ export function emitScenario(
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const catalog = yield* loadWorkspaceCatalog({ paths: options.paths });
-    const source = 'compileSnapshot' in options
+    const source: CompileSnapshot = 'compileSnapshot' in options
       ? options.compileSnapshot
-      : (() => {
+      : yield* Effect.gen(function* () {
           const scenario = catalog.scenarios.find((entry) => entry.artifact.source.ado_id === options.adoId);
           const boundScenario = catalog.boundScenarios.find((entry) => entry.artifact.source.ado_id === options.adoId);
           const surface = catalog.interpretationSurfaces.find((entry) => entry.artifact.payload.adoId === options.adoId);
           if (!scenario || !boundScenario || !surface) {
-            throw new Error(`Missing scenario, bound scenario, or interpretation surface for ${options.adoId}`);
+            return yield* Effect.fail(new TesseractError('missing-compile-artifacts', `Missing scenario, bound scenario, or interpretation surface for ${options.adoId}`));
           }
           return {
             adoId: options.adoId,
@@ -228,10 +228,10 @@ export function emitScenario(
             surfacePath: surface.absolutePath,
             hasUnbound: boundScenario.artifact.steps.some((step) => step.binding.kind === 'unbound'),
           } satisfies CompileSnapshot;
-        })();
+        });
     const surfaceEntry = catalog.interpretationSurfaces.find((entry) => entry.artifact.payload.adoId === source.adoId);
     if (!surfaceEntry) {
-      throw new Error(`Missing interpretation surface for ${source.adoId}`);
+      return yield* Effect.fail(new TesseractError('missing-surface', `Missing interpretation surface for ${source.adoId}`));
     }
     const latestRun = latestRunForScenario(catalog, source.adoId);
     const proposalBundle = latestProposalBundle(catalog, source.adoId);

@@ -1,10 +1,7 @@
 import type { ScenarioRunFold, ScenarioRunPlan, StepExecutionReceipt, TranslationRunMetrics } from '../../domain/types';
 import type { RuntimeScenarioStepResult } from '../ports';
 import type { PersistedEvidenceArtifact } from './persist-evidence';
-
-function uniqueSorted<T extends string>(values: T[]): T[] {
-  return [...new Set(values)].sort((left, right) => left.localeCompare(right)) as T[];
-}
+import { uniqueSorted } from '../../domain/collections';
 
 function computeTranslationMetrics(stepResults: RuntimeScenarioStepResult[]): TranslationRunMetrics {
   const relevant = stepResults

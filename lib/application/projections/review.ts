@@ -7,37 +7,275 @@ import type {
 } from '../../domain/types';
 import type { operatorInboxItemsForScenario } from '../operator';
 
-export function renderReview(
+interface ReviewMetadata {
+  readonly title: string;
+  readonly adoId: string;
+  readonly revision: number;
+  readonly confidence: string;
+  readonly governance: string;
+  readonly lifecycle: string;
+  readonly proposalBundleRunId: string | null;
+  readonly interfaceGraphFingerprint: string | null;
+  readonly selectorCanonFingerprint: string | null;
+  readonly stateGraphFingerprint: string | null;
+  readonly agentSessionCount: number;
+  readonly learningCorporaCount: number;
+  readonly inboxItemIds: readonly string[];
+  readonly nextCommands: readonly string[];
+}
+
+interface ReviewBottlenecks {
+  readonly stepCount: number;
+  readonly provenanceKinds: Record<string, number>;
+  readonly governanceCounts: Record<string, number>;
+  readonly knowledgeHitRate: number;
+  readonly translationHitRate: number;
+  readonly translationCacheHitRate: number;
+  readonly translationCacheMissReasons: Record<string, number>;
+  readonly translationFailureClasses: Record<string, number>;
+  readonly agenticHitRate: number;
+  readonly liveExplorationRate: number;
+  readonly degradedLocatorRate: number;
+  readonly proposalCount: number;
+  readonly reviewRequiredCount: number;
+  readonly approvedEquivalentRate: number;
+  readonly runtimeFailureFamilies: Record<string, number>;
+  readonly budgetBreachRate: number;
+  readonly rungRollup: Record<string, number>;
+  readonly averageRuntimeCost: { readonly instructionCount: number; readonly diagnosticCount: number };
+  readonly timing: {
+    readonly setupMs: number;
+    readonly resolutionMs: number;
+    readonly actionMs: number;
+    readonly assertionMs: number;
+    readonly retriesMs: number;
+    readonly teardownMs: number;
+    readonly totalMs: number;
+  };
+  readonly unresolvedReasons: ReadonlyArray<{ readonly reason: string; readonly count: number }>;
+}
+
+interface ReviewStepGrounding {
+  readonly requiredStateRefs: readonly string[];
+  readonly forbiddenStateRefs: readonly string[];
+  readonly effectAssertions: readonly string[];
+  readonly eventSignatureRefs: readonly string[];
+  readonly expectedTransitionRefs: readonly string[];
+}
+
+interface ReviewStep {
+  readonly index: number;
+  readonly actionText: string;
+  readonly expectedText: string;
+  readonly normalizedIntent: string;
+  readonly action: string;
+  readonly confidence: string;
+  readonly provenanceKind: string;
+  readonly bindingKind: string;
+  readonly governance: string;
+  readonly handshakes: readonly string[];
+  readonly resolutionMode: string;
+  readonly winningConcern: string;
+  readonly winningSource: string;
+  readonly runtime: ScenarioExplanation['steps'][number]['runtime'];
+  readonly grounding: ReviewStepGrounding | null;
+  readonly knowledgeRefs: readonly string[];
+  readonly supplementRefs: readonly string[];
+  readonly controlRefs: readonly string[];
+  readonly evidenceRefs: readonly string[];
+  readonly overlayRefs: readonly string[];
+  readonly translation: ScenarioExplanation['steps'][number]['translation'];
+  readonly unresolvedGaps: readonly string[];
+  readonly reviewReasons: readonly string[];
+  readonly program: unknown;
+}
+
+export interface ReviewDocument {
+  readonly metadata: ReviewMetadata;
+  readonly bottlenecks: ReviewBottlenecks;
+  readonly steps: readonly ReviewStep[];
+}
+
+export function buildReviewDocument(
   trace: ScenarioExplanation,
   proposalBundle: ProposalBundle | null,
   inboxItems: ReturnType<typeof operatorInboxItemsForScenario>,
   latestRun: RunRecord | null,
   projectionInput: ScenarioProjectionInput,
-): string {
+): ReviewDocument {
   const rungRollup = latestRun
     ? latestRun.steps.reduce<Record<string, number>>((acc, step) => {
         const rung = step.interpretation.resolutionGraph?.winner.rung ?? 'none';
-        acc[rung] = (acc[rung] ?? 0) + 1;
-        return acc;
+        return { ...acc, [rung]: (acc[rung] ?? 0) + 1 };
       }, {})
     : {};
 
-  const lines: string[] = [
-    `# ${trace.title}`,
+  const taskByIndex = new Map<number, GroundedStep>(projectionInput.surface.payload.steps.map((step) => [step.index, step]));
+
+  const uniqueNextCommands = inboxItems.length > 0
+    ? inboxItems.flatMap((item) => item.nextCommands).filter((value, index, all) => all.indexOf(value) === index)
+    : [`tesseract workflow --ado-id ${trace.adoId}`, `tesseract inbox`];
+
+  return {
+    metadata: {
+      title: trace.title,
+      adoId: trace.adoId,
+      revision: trace.revision,
+      confidence: trace.confidence,
+      governance: trace.governance,
+      lifecycle: trace.lifecycle,
+      proposalBundleRunId: proposalBundle?.runId ?? null,
+      interfaceGraphFingerprint: projectionInput.interfaceGraph?.fingerprint ?? null,
+      selectorCanonFingerprint: projectionInput.selectorCanon?.fingerprint ?? null,
+      stateGraphFingerprint: projectionInput.stateGraph?.fingerprint ?? null,
+      agentSessionCount: projectionInput.sessions.length,
+      learningCorporaCount: projectionInput.learningManifest?.corpora.length ?? 0,
+      inboxItemIds: inboxItems.map((item) => item.id),
+      nextCommands: uniqueNextCommands,
+    },
+    bottlenecks: {
+      stepCount: trace.summary.stepCount,
+      provenanceKinds: trace.summary.provenanceKinds,
+      governanceCounts: trace.summary.governance,
+      knowledgeHitRate: trace.summary.stageMetrics.knowledgeHitRate,
+      translationHitRate: trace.summary.stageMetrics.translationHitRate,
+      translationCacheHitRate: trace.summary.stageMetrics.translationCacheHitRate,
+      translationCacheMissReasons: trace.summary.stageMetrics.translationCacheMissReasons,
+      translationFailureClasses: trace.summary.stageMetrics.translationFailureClasses,
+      agenticHitRate: trace.summary.stageMetrics.agenticHitRate,
+      liveExplorationRate: trace.summary.stageMetrics.liveExplorationRate,
+      degradedLocatorRate: trace.summary.stageMetrics.degradedLocatorRate,
+      proposalCount: trace.summary.stageMetrics.proposalCount,
+      reviewRequiredCount: trace.summary.stageMetrics.reviewRequiredCount,
+      approvedEquivalentRate: trace.summary.stageMetrics.approvedEquivalentRate,
+      runtimeFailureFamilies: trace.summary.stageMetrics.runtimeFailureFamilies,
+      budgetBreachRate: trace.summary.stageMetrics.budgetBreachRate,
+      rungRollup,
+      averageRuntimeCost: trace.summary.stageMetrics.averageRuntimeCost,
+      timing: trace.summary.stageMetrics.timing,
+      unresolvedReasons: trace.summary.unresolvedReasons,
+    },
+    steps: trace.steps.map((step) => {
+      const grounding = taskByIndex.get(step.index)?.grounding ?? null;
+      return {
+        index: step.index,
+        actionText: step.actionText,
+        expectedText: step.expectedText,
+        normalizedIntent: step.normalizedIntent,
+        action: step.action,
+        confidence: step.confidence,
+        provenanceKind: step.provenanceKind,
+        bindingKind: step.bindingKind,
+        governance: step.governance,
+        handshakes: step.handshakes,
+        resolutionMode: step.resolutionMode,
+        winningConcern: step.winningConcern,
+        winningSource: step.winningSource,
+        runtime: step.runtime,
+        grounding: grounding ? {
+          requiredStateRefs: grounding.requiredStateRefs,
+          forbiddenStateRefs: grounding.forbiddenStateRefs,
+          effectAssertions: grounding.effectAssertions,
+          eventSignatureRefs: grounding.eventSignatureRefs,
+          expectedTransitionRefs: grounding.expectedTransitionRefs,
+        } : null,
+        knowledgeRefs: step.knowledgeRefs,
+        supplementRefs: step.supplementRefs,
+        controlRefs: step.controlRefs,
+        evidenceRefs: step.evidenceRefs,
+        overlayRefs: step.overlayRefs,
+        translation: step.translation,
+        unresolvedGaps: step.unresolvedGaps,
+        reviewReasons: step.reviewReasons,
+        program: step.program ?? null,
+      };
+    }),
+  };
+}
+
+function formatRecord(entries: Record<string, number>): string {
+  const formatted = Object.entries(entries).map(([key, count]) => `${key} (${count})`).join(', ');
+  return formatted || 'none';
+}
+
+function formatList(values: readonly string[]): string {
+  return values.length > 0 ? values.join(', ') : 'none';
+}
+
+function renderStepMarkdown(step: ReviewStep): string {
+  const timing = step.runtime?.timing;
+  const timingLine = timing
+    ? `setup=${timing.setupMs}, resolution=${timing.resolutionMs}, action=${timing.actionMs}, assertion=${timing.assertionMs}, retries=${timing.retriesMs}, teardown=${timing.teardownMs}, total=${timing.totalMs}`
+    : 'none';
+  return [
+    `## Step ${step.index}`,
     '',
-    `- ADO: ${trace.adoId}`,
-    `- Revision: ${trace.revision}`,
-    `- Confidence: ${trace.confidence}`,
-    `- Governance: ${trace.governance}`,
-    `- Lifecycle: ${trace.lifecycle}`,
-    `- Proposal bundle: ${proposalBundle ? proposalBundle.runId : 'none'}`,
-    `- Interface graph fingerprint: ${projectionInput.interfaceGraph?.fingerprint ?? 'none'}`,
-    `- Selector canon fingerprint: ${projectionInput.selectorCanon?.fingerprint ?? 'none'}`,
-    `- State graph fingerprint: ${projectionInput.stateGraph?.fingerprint ?? 'none'}`,
-    `- Agent sessions: ${projectionInput.sessions.length}`,
-    `- Learning corpora: ${projectionInput.learningManifest?.corpora.length ?? 0}`,
-    `- Inbox items: ${inboxItems.length > 0 ? inboxItems.map((item) => item.id).join(', ') : 'none'}`,
-    `- Next commands: ${inboxItems.length > 0 ? inboxItems.flatMap((item) => item.nextCommands).filter((value, index, all) => all.indexOf(value) === index).join(' | ') : `tesseract workflow --ado-id ${trace.adoId} | tesseract inbox`}`,
+    `- Action text: ${step.actionText}`,
+    `- Expected text: ${step.expectedText}`,
+    `- Normalized: ${step.normalizedIntent}`,
+    `- Preparation action: ${step.action}`,
+    `- Confidence: ${step.confidence}`,
+    `- Provenance kind: ${step.provenanceKind}`,
+    `- Binding kind: ${step.bindingKind}`,
+    `- Governance: ${step.governance}`,
+    `- Handshakes: ${step.handshakes.join(' -> ')}`,
+    `- Resolution mode: ${step.resolutionMode}`,
+    `- Winning concern: ${step.winningConcern}`,
+    `- Winning source: ${step.winningSource}`,
+    `- Runtime: ${step.runtime?.status ?? 'pending'}`,
+    `- Runtime widget contract: ${step.runtime?.widgetContract ?? 'none'}`,
+    `- Runtime locator: ${step.runtime?.locatorStrategy ?? 'none'}`,
+    `- Runtime locator rung: ${step.runtime?.locatorRung ?? 'none'}`,
+    `- Runtime degraded: ${step.runtime?.degraded ? 'yes' : 'no'}`,
+    `- Runtime duration ms: ${step.runtime?.durationMs ?? 0}`,
+    `- Runtime timing ms: ${timingLine}`,
+    `- Runtime budget: ${step.runtime?.budget ? `${step.runtime.budget.status} (${step.runtime.budget.breaches.join(', ') || 'none'})` : 'none'}`,
+    `- Runtime failure family: ${step.runtime?.failure?.family ?? 'none'} (${step.runtime?.failure?.code ?? 'none'})`,
+    `- Runtime precondition failures: ${step.runtime?.preconditionFailures?.join(', ') || 'none'}`,
+    `- Required states: ${step.grounding?.requiredStateRefs.join(', ') || 'none'}`,
+    `- Forbidden states: ${step.grounding?.forbiddenStateRefs.join(', ') || 'none'}`,
+    `- Effect assertions: ${step.grounding?.effectAssertions.join(' | ') || 'none'}`,
+    `- Event signatures: ${step.grounding?.eventSignatureRefs.join(', ') || 'none'}`,
+    `- Expected transitions: ${step.grounding?.expectedTransitionRefs.join(', ') || 'none'}`,
+    `- Observed states: ${step.runtime?.observedStateRefs?.join(', ') || 'none'}`,
+    `- Transition observations: ${step.runtime?.transitionObservations?.map((entry) => `${entry.transitionRef ?? 'none'}:${entry.classification}`).join(', ') || 'none'}`,
+    `- Knowledge refs: ${formatList(step.knowledgeRefs)}`,
+    `- Supplements: ${formatList(step.supplementRefs)}`,
+    `- Control refs: ${formatList(step.controlRefs)}`,
+    `- Evidence refs: ${formatList(step.evidenceRefs)}`,
+    `- Overlay refs: ${formatList(step.overlayRefs)}`,
+    `- Translation: ${step.translation ? step.translation.rationale : 'none'}`,
+    `- Translation cache: ${step.translation?.cache ? `${step.translation.cache.status} (${step.translation.cache.reason ?? 'none'})` : 'none'}`,
+    `- Translation failure class: ${step.translation?.failureClass ?? 'none'}`,
+    `- Exhaustion trail: ${step.runtime?.exhaustion?.map((entry) => `${entry.stage}:${entry.outcome}`).join(' -> ') || 'none'}`,
+    `- Unresolved gaps: ${formatList(step.unresolvedGaps)}`,
+    `- Review flags: ${formatList(step.reviewReasons)}`,
+    '',
+    '```json',
+    JSON.stringify(step.program, null, 2),
+    '```',
+    '',
+  ].join('\n');
+}
+
+export function renderReviewMarkdown(doc: ReviewDocument): string {
+  const { metadata: m, bottlenecks: b } = doc;
+  const header = [
+    `# ${m.title}`,
+    '',
+    `- ADO: ${m.adoId}`,
+    `- Revision: ${m.revision}`,
+    `- Confidence: ${m.confidence}`,
+    `- Governance: ${m.governance}`,
+    `- Lifecycle: ${m.lifecycle}`,
+    `- Proposal bundle: ${m.proposalBundleRunId ?? 'none'}`,
+    `- Interface graph fingerprint: ${m.interfaceGraphFingerprint ?? 'none'}`,
+    `- Selector canon fingerprint: ${m.selectorCanonFingerprint ?? 'none'}`,
+    `- State graph fingerprint: ${m.stateGraphFingerprint ?? 'none'}`,
+    `- Agent sessions: ${m.agentSessionCount}`,
+    `- Learning corpora: ${m.learningCorporaCount}`,
+    `- Inbox items: ${formatList(m.inboxItemIds)}`,
+    `- Next commands: ${m.nextCommands.join(' | ')}`,
     '',
     '## Pipeline',
     '',
@@ -46,80 +284,40 @@ export function renderReview(
     '',
     '## Bottlenecks',
     '',
-    `- Step count: ${trace.summary.stepCount}`,
-    `- Step provenance: explicit=${trace.summary.provenanceKinds.explicit}, approved-knowledge=${trace.summary.provenanceKinds['approved-knowledge']}, live-exploration=${trace.summary.provenanceKinds['live-exploration']}, unresolved=${trace.summary.provenanceKinds.unresolved}`,
-    `- Governance counts: approved=${trace.summary.governance.approved}, review-required=${trace.summary.governance['review-required']}, blocked=${trace.summary.governance.blocked}`,
-    `- Knowledge hit rate: ${trace.summary.stageMetrics.knowledgeHitRate}`,
-    `- Translation hit rate: ${trace.summary.stageMetrics.translationHitRate}`,
-    `- Translation cache hit rate: ${trace.summary.stageMetrics.translationCacheHitRate}`,
-    `- Translation cache miss reasons: ${Object.entries(trace.summary.stageMetrics.translationCacheMissReasons).map(([reason, count]) => `${reason} (${count})`).join(', ') || 'none'}`,
-    `- Translation failure classes: ${Object.entries(trace.summary.stageMetrics.translationFailureClasses).map(([reason, count]) => `${reason} (${count})`).join(', ') || 'none'}`,
-    `- Agentic hit rate: ${trace.summary.stageMetrics.agenticHitRate}`,
-    `- Live exploration rate: ${trace.summary.stageMetrics.liveExplorationRate}`,
-    `- Degraded locator rate: ${trace.summary.stageMetrics.degradedLocatorRate}`,
-    `- Proposal count: ${trace.summary.stageMetrics.proposalCount}`,
-    `- Review-required count: ${trace.summary.stageMetrics.reviewRequiredCount}`,
-    `- Approved-equivalent rate: ${trace.summary.stageMetrics.approvedEquivalentRate}`,
-    `- Runtime failure families: ${Object.entries(trace.summary.stageMetrics.runtimeFailureFamilies).map(([family, count]) => `${family} (${count})`).join(', ') || 'none'}`,
-    `- Budget breach rate: ${trace.summary.stageMetrics.budgetBreachRate}`,
-    `- Resolution graph winner rungs: ${Object.entries(rungRollup).map(([rung, count]) => `${rung} (${count})`).join(', ') || 'none'}`,
-    `- Average runtime cost: instructions=${trace.summary.stageMetrics.averageRuntimeCost.instructionCount}, diagnostics=${trace.summary.stageMetrics.averageRuntimeCost.diagnosticCount}`,
-    `- Runtime timing totals (ms): setup=${trace.summary.stageMetrics.timing.setupMs}, resolution=${trace.summary.stageMetrics.timing.resolutionMs}, action=${trace.summary.stageMetrics.timing.actionMs}, assertion=${trace.summary.stageMetrics.timing.assertionMs}, retries=${trace.summary.stageMetrics.timing.retriesMs}, teardown=${trace.summary.stageMetrics.timing.teardownMs}, total=${trace.summary.stageMetrics.timing.totalMs}`,
-    `- Unresolved gaps: ${trace.summary.unresolvedReasons.length > 0 ? trace.summary.unresolvedReasons.map((entry) => `${entry.reason} (${entry.count})`).join(', ') : 'none'}`,
+    `- Step count: ${b.stepCount}`,
+    `- Step provenance: explicit=${b.provenanceKinds['explicit'] ?? 0}, approved-knowledge=${b.provenanceKinds['approved-knowledge'] ?? 0}, live-exploration=${b.provenanceKinds['live-exploration'] ?? 0}, unresolved=${b.provenanceKinds['unresolved'] ?? 0}`,
+    `- Governance counts: approved=${b.governanceCounts['approved'] ?? 0}, review-required=${b.governanceCounts['review-required'] ?? 0}, blocked=${b.governanceCounts['blocked'] ?? 0}`,
+    `- Knowledge hit rate: ${b.knowledgeHitRate}`,
+    `- Translation hit rate: ${b.translationHitRate}`,
+    `- Translation cache hit rate: ${b.translationCacheHitRate}`,
+    `- Translation cache miss reasons: ${formatRecord(b.translationCacheMissReasons)}`,
+    `- Translation failure classes: ${formatRecord(b.translationFailureClasses)}`,
+    `- Agentic hit rate: ${b.agenticHitRate}`,
+    `- Live exploration rate: ${b.liveExplorationRate}`,
+    `- Degraded locator rate: ${b.degradedLocatorRate}`,
+    `- Proposal count: ${b.proposalCount}`,
+    `- Review-required count: ${b.reviewRequiredCount}`,
+    `- Approved-equivalent rate: ${b.approvedEquivalentRate}`,
+    `- Runtime failure families: ${formatRecord(b.runtimeFailureFamilies)}`,
+    `- Budget breach rate: ${b.budgetBreachRate}`,
+    `- Resolution graph winner rungs: ${formatRecord(b.rungRollup)}`,
+    `- Average runtime cost: instructions=${b.averageRuntimeCost.instructionCount}, diagnostics=${b.averageRuntimeCost.diagnosticCount}`,
+    `- Runtime timing totals (ms): setup=${b.timing.setupMs}, resolution=${b.timing.resolutionMs}, action=${b.timing.actionMs}, assertion=${b.timing.assertionMs}, retries=${b.timing.retriesMs}, teardown=${b.timing.teardownMs}, total=${b.timing.totalMs}`,
+    `- Unresolved gaps: ${b.unresolvedReasons.length > 0 ? b.unresolvedReasons.map((entry) => `${entry.reason} (${entry.count})`).join(', ') : 'none'}`,
     '',
-  ];
-  const taskByIndex = new Map<number, GroundedStep>(projectionInput.surface.payload.steps.map((step) => [step.index, step]));
+  ].join('\n');
 
-  for (const step of trace.steps) {
-    const taskGrounding = taskByIndex.get(step.index)?.grounding ?? null;
-    lines.push(`## Step ${step.index}`);
-    lines.push('');
-    lines.push(`- Action text: ${step.actionText}`);
-    lines.push(`- Expected text: ${step.expectedText}`);
-    lines.push(`- Normalized: ${step.normalizedIntent}`);
-    lines.push(`- Preparation action: ${step.action}`);
-    lines.push(`- Confidence: ${step.confidence}`);
-    lines.push(`- Provenance kind: ${step.provenanceKind}`);
-    lines.push(`- Binding kind: ${step.bindingKind}`);
-    lines.push(`- Governance: ${step.governance}`);
-    lines.push(`- Handshakes: ${step.handshakes.join(' -> ')}`);
-    lines.push(`- Resolution mode: ${step.resolutionMode}`);
-    lines.push(`- Winning concern: ${step.winningConcern}`);
-    lines.push(`- Winning source: ${step.winningSource}`);
-    lines.push(`- Runtime: ${step.runtime?.status ?? 'pending'}`);
-    lines.push(`- Runtime widget contract: ${step.runtime?.widgetContract ?? 'none'}`);
-    lines.push(`- Runtime locator: ${step.runtime?.locatorStrategy ?? 'none'}`);
-    lines.push(`- Runtime locator rung: ${step.runtime?.locatorRung ?? 'none'}`);
-    lines.push(`- Runtime degraded: ${step.runtime?.degraded ? 'yes' : 'no'}`);
-    lines.push(`- Runtime duration ms: ${step.runtime?.durationMs ?? 0}`);
-    lines.push(`- Runtime timing ms: ${step.runtime?.timing ? `setup=${step.runtime.timing.setupMs}, resolution=${step.runtime.timing.resolutionMs}, action=${step.runtime.timing.actionMs}, assertion=${step.runtime.timing.assertionMs}, retries=${step.runtime.timing.retriesMs}, teardown=${step.runtime.timing.teardownMs}, total=${step.runtime.timing.totalMs}` : 'none'}`);
-    lines.push(`- Runtime budget: ${step.runtime?.budget ? `${step.runtime.budget.status} (${step.runtime.budget.breaches.join(', ') || 'none'})` : 'none'}`);
-    lines.push(`- Runtime failure family: ${step.runtime?.failure?.family ?? 'none'} (${step.runtime?.failure?.code ?? 'none'})`);
-    lines.push(`- Runtime precondition failures: ${step.runtime?.preconditionFailures?.join(', ') || 'none'}`);
-    lines.push(`- Required states: ${taskGrounding?.requiredStateRefs.join(', ') || 'none'}`);
-    lines.push(`- Forbidden states: ${taskGrounding?.forbiddenStateRefs.join(', ') || 'none'}`);
-    lines.push(`- Effect assertions: ${taskGrounding?.effectAssertions.join(' | ') || 'none'}`);
-    lines.push(`- Event signatures: ${taskGrounding?.eventSignatureRefs.join(', ') || 'none'}`);
-    lines.push(`- Expected transitions: ${taskGrounding?.expectedTransitionRefs.join(', ') || 'none'}`);
-    lines.push(`- Observed states: ${step.runtime?.observedStateRefs?.join(', ') || 'none'}`);
-    lines.push(`- Transition observations: ${step.runtime?.transitionObservations?.map((entry) => `${entry.transitionRef ?? 'none'}:${entry.classification}`).join(', ') || 'none'}`);
-    lines.push(`- Knowledge refs: ${step.knowledgeRefs.length > 0 ? step.knowledgeRefs.join(', ') : 'none'}`);
-    lines.push(`- Supplements: ${step.supplementRefs.length > 0 ? step.supplementRefs.join(', ') : 'none'}`);
-    lines.push(`- Control refs: ${step.controlRefs.length > 0 ? step.controlRefs.join(', ') : 'none'}`);
-    lines.push(`- Evidence refs: ${step.evidenceRefs.length > 0 ? step.evidenceRefs.join(', ') : 'none'}`);
-    lines.push(`- Overlay refs: ${step.overlayRefs.length > 0 ? step.overlayRefs.join(', ') : 'none'}`);
-    lines.push(`- Translation: ${step.translation ? step.translation.rationale : 'none'}`);
-    lines.push(`- Translation cache: ${step.translation?.cache ? `${step.translation.cache.status} (${step.translation.cache.reason ?? 'none'})` : 'none'}`);
-    lines.push(`- Translation failure class: ${step.translation?.failureClass ?? 'none'}`);
-    lines.push(`- Exhaustion trail: ${step.runtime?.exhaustion?.map((entry) => `${entry.stage}:${entry.outcome}`).join(' -> ') || 'none'}`);
-    lines.push(`- Unresolved gaps: ${step.unresolvedGaps.length > 0 ? step.unresolvedGaps.join(', ') : 'none'}`);
-    lines.push(`- Review flags: ${step.reviewReasons.length > 0 ? step.reviewReasons.join(', ') : 'none'}`);
-    lines.push('');
-    lines.push('```json');
-    lines.push(JSON.stringify(step.program ?? null, null, 2));
-    lines.push('```');
-    lines.push('');
-  }
+  const stepSections = doc.steps.map(renderStepMarkdown).join('');
+  return `${header}${stepSections}`.trim() + '\n';
+}
 
-  return `${lines.join('\n').trim()}\n`;
+/** @deprecated Use buildReviewDocument + renderReviewMarkdown */
+export function renderReview(
+  trace: ScenarioExplanation,
+  proposalBundle: ProposalBundle | null,
+  inboxItems: ReturnType<typeof operatorInboxItemsForScenario>,
+  latestRun: RunRecord | null,
+  projectionInput: ScenarioProjectionInput,
+): string {
+  return renderReviewMarkdown(buildReviewDocument(trace, proposalBundle, inboxItems, latestRun, projectionInput));
 }

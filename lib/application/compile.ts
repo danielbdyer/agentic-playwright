@@ -69,9 +69,11 @@ export function compileScenario(options: { adoId: AdoId; paths: ProjectPaths }) 
           boundScenario: bound.boundScenario,
           boundPath: bound.boundPath,
         });
-        const emitted = yield* emitScenario({ paths: options.paths, compileSnapshot });
-        const graph = yield* buildDerivedGraph({ paths: options.paths });
-        const generatedTypes = yield* generateTypes({ paths: options.paths, catalog: sessionWithBound.catalog });
+        const { emitted, graph, generatedTypes } = yield* Effect.all({
+          emitted: emitScenario({ paths: options.paths, compileSnapshot }),
+          graph: buildDerivedGraph({ paths: options.paths }),
+          generatedTypes: generateTypes({ paths: options.paths, catalog: sessionWithBound.catalog }),
+        });
         return {
           parsed,
           bound,

@@ -8,6 +8,7 @@ import type {
   StepResolution,
 } from './types';
 import type { Confidence, Governance, StepProvenanceKind } from './types/workflow';
+import { isBlocked, isReviewRequired } from './types/workflow';
 import { lifecycleForScenario, aggregateConfidence } from './status';
 
 function resolveDataSource(
@@ -38,10 +39,8 @@ function deriveProvenanceKind(step: BoundStep): StepProvenanceKind {
 }
 
 function deriveAggregateGovernance(steps: ReadonlyArray<GroundedFlowStep>, scenarioGovernance: Governance): Governance {
-  const hasBlocked = steps.some((step) => step.governance === 'blocked');
-  if (hasBlocked) return 'blocked';
-  const hasReviewRequired = steps.some((step) => step.governance === 'review-required');
-  if (hasReviewRequired) return 'review-required';
+  if (steps.some((step) => isBlocked(step))) return 'blocked';
+  if (steps.some((step) => isReviewRequired(step))) return 'review-required';
   return scenarioGovernance;
 }
 

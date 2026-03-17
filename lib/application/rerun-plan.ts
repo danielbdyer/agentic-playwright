@@ -6,6 +6,7 @@ import type { ProjectPaths } from './paths';
 import { relativeProjectPath, rerunPlanPath } from './paths';
 import { FileSystem } from './ports';
 import { policyDecisionGraphTarget } from './trust-policy';
+import { TesseractError } from '../domain/errors';
 import { sha256, stableStringify } from '../domain/hash';
 import { graphIds, knowledgePaths } from '../domain/ids';
 import type { AdoId } from '../domain/identity';
@@ -348,7 +349,7 @@ export function buildRerunPlan(options: {
     const catalog = yield* loadWorkspaceCatalog({ paths: options.paths });
     const located = findProposalById(catalog, options.proposalId);
     if (!located) {
-      throw new Error(`Unknown proposal ${options.proposalId}`);
+      return yield* Effect.fail(new TesseractError('proposal-not-found', `Unknown proposal ${options.proposalId}`));
     }
 
     const targetNodeId = policyDecisionGraphTarget({
