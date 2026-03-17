@@ -1,0 +1,78 @@
+source:
+  ado_id: "20010"
+  revision: 1
+  content_hash: sha256:974eba0734540356eb46f059b49765da0ad675cce3f15a1a5982e6effb64c259
+  synced_at: 2026-03-17T23:21:17.901Z
+metadata:
+  title: "Synthetic scenario 10: policy-search with 5 steps"
+  suite: synthetic/policy-detail
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Navigate to policy search
+    action_text: Navigate to policy search
+    expected_text: policy search loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Click on the search
+    action_text: Click on the search
+    expected_text: search action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Ensure validation summary can be seen
+    action_text: Ensure validation summary can be seen
+    expected_text: validation summary is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Observe results table content
+    action_text: Observe results table content
+    expected_text: results table is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: Provide a valid value for policy number field
+    action_text: Provide a valid value for policy number field
+    expected_text: policy number field accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

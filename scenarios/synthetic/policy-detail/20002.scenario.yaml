@@ -1,0 +1,66 @@
+source:
+  ado_id: "20002"
+  revision: 1
+  content_hash: sha256:2f1582c6bb72c1dda9118cda1e555b61675aa1d45c81b79b2dc6ba2fb158bace
+  synced_at: 2026-03-17T23:21:17.898Z
+metadata:
+  title: "Synthetic scenario 2: policy-search with 4 steps"
+  suite: synthetic/policy-detail
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Open policy search screen
+    action_text: Open policy search screen
+    expected_text: policy search screen loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Tap search
+    action_text: Tap search
+    expected_text: search action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Confirm validation summary appears
+    action_text: Confirm validation summary appears
+    expected_text: validation summary is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Check that results table is displayed
+    action_text: Check that results table is displayed
+    expected_text: results table is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

@@ -1,0 +1,66 @@
+source:
+  ado_id: "20032"
+  revision: 1
+  content_hash: sha256:be4ec3d03660a9c885a98b436732ee1ea314610124fe41936bdac0b1359a11f3
+  synced_at: 2026-03-17T23:21:17.905Z
+metadata:
+  title: "Synthetic scenario 32: policy-detail with 4 steps"
+  suite: synthetic/policy-detail
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Visit the policy details
+    action_text: Visit the policy details
+    expected_text: policy details loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Activate back link
+    action_text: Activate back link
+    expected_text: back link action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Verify error message is visible
+    action_text: Verify error message is visible
+    expected_text: error message is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: See that policy status is on screen
+    action_text: See that policy status is on screen
+    expected_text: policy status is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

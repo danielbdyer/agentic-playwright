@@ -1,0 +1,78 @@
+source:
+  ado_id: "20015"
+  revision: 1
+  content_hash: sha256:f253c07cad075f32c221f4a06b5b6f48906ea3ebab267015ef7f1f8ff1e2051b
+  synced_at: 2026-03-17T23:21:17.893Z
+metadata:
+  title: Synthetic cross-screen scenario 15
+  suite: synthetic/cross-screen
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Open policy detail screen
+    action_text: Open policy detail screen
+    expected_text: policy detail screen loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Confirm policy number appears
+    action_text: Confirm policy number appears
+    expected_text: policy number is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Load the policy search page
+    action_text: Load the policy search page
+    expected_text: policy search loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Trigger search button
+    action_text: Trigger search button
+    expected_text: search button action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: Verify error summary is visible
+    action_text: Verify error summary is visible
+    expected_text: error summary is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

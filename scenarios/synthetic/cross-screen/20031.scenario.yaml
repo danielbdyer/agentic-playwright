@@ -1,0 +1,66 @@
+source:
+  ado_id: "20031"
+  revision: 1
+  content_hash: sha256:02e43d06b8902cd37c583a0e0b5b3866c42fd72b9ee2a6ea3fbcdafedc8902d2
+  synced_at: 2026-03-17T23:21:17.896Z
+metadata:
+  title: Synthetic cross-screen scenario 31
+  suite: synthetic/cross-screen
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Load the policy detail page
+    action_text: Load the policy detail page
+    expected_text: policy detail loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Confirm error message appears
+    action_text: Confirm error message appears
+    expected_text: error message is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Browse to policy search
+    action_text: Browse to policy search
+    expected_text: policy search loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Key in test data at search field
+    action_text: Key in test data at search field
+    expected_text: search field accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

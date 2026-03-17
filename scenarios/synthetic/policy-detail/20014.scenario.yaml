@@ -1,0 +1,54 @@
+source:
+  ado_id: "20014"
+  revision: 1
+  content_hash: sha256:52170e3fa38bc3cebcc9f50b89e2c64b2d3d68c4cde5e02065fdf4289dc35801
+  synced_at: 2026-03-17T23:21:17.901Z
+metadata:
+  title: "Synthetic scenario 14: policy-search with 3 steps"
+  suite: synthetic/policy-detail
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Visit the policy search screen
+    action_text: Visit the policy search screen
+    expected_text: policy search screen loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Press the search button
+    action_text: Press the search button
+    expected_text: search button action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Confirm search results appears
+    action_text: Confirm search results appears
+    expected_text: search results is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

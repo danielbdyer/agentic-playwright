@@ -1,0 +1,78 @@
+source:
+  ado_id: "20045"
+  revision: 1
+  content_hash: sha256:9d58c34ef91a0dad7eb7b94c4a8ba0c9d333a276499c882cbcd709accf34be72
+  synced_at: 2026-03-17T23:21:17.908Z
+metadata:
+  title: "Synthetic scenario 45: policy-search with 5 steps"
+  suite: synthetic/policy-detail
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Navigate to policy search
+    action_text: Navigate to policy search
+    expected_text: policy search loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: See that results table is on screen
+    action_text: See that results table is on screen
+    expected_text: results table is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Type a valid value into the policy number field
+    action_text: Type a valid value into the policy number field
+    expected_text: policy number field accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: See that validation summary is on screen
+    action_text: See that validation summary is on screen
+    expected_text: validation summary is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: Hit the search button
+    action_text: Hit the search button
+    expected_text: search button action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

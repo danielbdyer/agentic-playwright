@@ -1,0 +1,44 @@
+{
+  "id": "20040",
+  "revision": 1,
+  "title": "Synthetic scenario 40: policy-detail with 5 steps",
+  "suitePath": "synthetic/policy-detail",
+  "areaPath": "synthetic",
+  "iterationPath": "synthetic/sprint-1",
+  "tags": [
+    "synthetic",
+    "dogfood"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Access policy detail</p>",
+      "expected": "<p>policy detail loads successfully</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Validate status badge is present</p>",
+      "expected": "<p>status badge is visible on screen</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Check that effective date is displayed</p>",
+      "expected": "<p>effective date is visible on screen</p>"
+    },
+    {
+      "index": 4,
+      "action": "<p>Tap back link</p>",
+      "expected": "<p>back link action completes</p>"
+    },
+    {
+      "index": 5,
+      "action": "<p>Observe error panel content</p>",
+      "expected": "<p>error panel is visible on screen</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:b57ebe539c3835d7f9d8966dda832c1392428a6345452b335f3c9f66141810a5",
+  "syncedAt": "2026-03-17T23:21:17.907Z"
+}

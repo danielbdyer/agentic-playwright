@@ -31,9 +31,32 @@ elements:
         - claims are listed
   backToSearch:
     aliases:
-      - back to search
+      - Access policy detail
+      - Access policy detail screen
+      - Access policy details
       - back link
+      - back to search
+      - Browse to policy detail screen
       - return to search
+      - Switch to policy detail
+      - Switch to policy detail screen
+      - Visit the policy detail screen
+    acquired:
+      certification: uncertified
+      activatedAt: 2026-03-17T23:35:57.100Z
+      certifiedAt: null
+      lineage:
+        runIds:
+          - 2026-03-17T23-35-56-605Z
+        evidenceIds:
+          - .tesseract/evidence/runs/20049/2026-03-17T23-35-56-605Z/step-1-0.json
+        sourceArtifactPaths:
+          - .tesseract/tasks/20049.resolution.json
+          - controls/runbooks/synthetic-dogfood.runbook.yaml
+          - controls/datasets/demo-default.dataset.yaml
+        role: null
+        state: null
+        driftSeed: null
   errorPanel:
     aliases:
       - error panel

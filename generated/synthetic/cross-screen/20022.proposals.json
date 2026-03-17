@@ -1,0 +1,56 @@
+{
+  "kind": "proposal-bundle",
+  "version": 1,
+  "stage": "proposal",
+  "scope": "scenario",
+  "ids": {
+    "adoId": "20022",
+    "suite": "synthetic/cross-screen",
+    "runId": "2026-03-17T23-39-32-159Z",
+    "stepIndex": null,
+    "dataset": "demo-default",
+    "runbook": "synthetic-dogfood",
+    "resolutionControl": null
+  },
+  "fingerprints": {
+    "artifact": "2026-03-17T23-39-32-159Z:proposal",
+    "content": "sha256:4d1f99eb70075cf778f8af03a4050048cd9d63a9d4fd7a73c7b9514a30580e9b",
+    "knowledge": "sha256:4004178df4dad32369c9fc2b305fc785e36d21a6027416d4a62a6d9bae1c65a8",
+    "controls": "sha256:c0252f1171ea86755144ec6dab6157a5de6d1380bbd085cfe6f8642279a404b0",
+    "task": "sha256:9f35a7b3e7e3e233efa3f635824f3cb72189ec44c852edb3d8602887de06a257",
+    "run": "2026-03-17T23-39-32-159Z"
+  },
+  "lineage": {
+    "sources": [
+      "sha256:9f35a7b3e7e3e233efa3f635824f3cb72189ec44c852edb3d8602887de06a257",
+      "controls/runbooks/synthetic-dogfood.runbook.yaml",
+      "controls/datasets/demo-default.dataset.yaml"
+    ],
+    "parents": [
+      "sha256:9f35a7b3e7e3e233efa3f635824f3cb72189ec44c852edb3d8602887de06a257",
+      "2026-03-17T23-39-32-159Z"
+    ],
+    "handshakes": [
+      "preparation",
+      "resolution",
+      "execution",
+      "evidence",
+      "proposal"
+    ]
+  },
+  "governance": "approved",
+  "payload": {
+    "adoId": "20022",
+    "runId": "2026-03-17T23-39-32-159Z",
+    "revision": 1,
+    "title": "Synthetic cross-screen scenario 22",
+    "suite": "synthetic/cross-screen",
+    "proposals": []
+  },
+  "adoId": "20022",
+  "runId": "2026-03-17T23-39-32-159Z",
+  "revision": 1,
+  "title": "Synthetic cross-screen scenario 22",
+  "suite": "synthetic/cross-screen",
+  "proposals": []
+}

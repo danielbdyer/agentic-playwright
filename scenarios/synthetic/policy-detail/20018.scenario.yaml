@@ -1,0 +1,66 @@
+source:
+  ado_id: "20018"
+  revision: 1
+  content_hash: sha256:f1c0f0eca013f74786b13360d35d88f791d599cca456ae3dd59d3faa8314beeb
+  synced_at: 2026-03-17T23:21:17.902Z
+metadata:
+  title: "Synthetic scenario 18: policy-detail with 4 steps"
+  suite: synthetic/policy-detail
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Switch to policy detail screen
+    action_text: Switch to policy detail screen
+    expected_text: policy detail screen loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Validate date is present
+    action_text: Validate date is present
+    expected_text: date is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Select back to search
+    action_text: Select back to search
+    expected_text: back to search action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Observe claims content
+    action_text: Observe claims content
+    expected_text: claims is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

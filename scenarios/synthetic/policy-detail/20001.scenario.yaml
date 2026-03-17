@@ -1,0 +1,78 @@
+source:
+  ado_id: "20001"
+  revision: 1
+  content_hash: sha256:7bc9e2a2d1ae204c8d95f8ac1833ddb7b6d78c0e86abdb91ffda7704e8406e67
+  synced_at: 2026-03-17T23:21:17.898Z
+metadata:
+  title: "Synthetic scenario 1: policy-detail with 5 steps"
+  suite: synthetic/policy-detail
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Go to the policy detail
+    action_text: Go to the policy detail
+    expected_text: policy detail loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Trigger back to search
+    action_text: Trigger back to search
+    expected_text: back to search action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: See that policy number display is on screen
+    action_text: See that policy number display is on screen
+    expected_text: policy number display is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Validate claims is present
+    action_text: Validate claims is present
+    expected_text: claims is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: Verify error message is visible
+    action_text: Verify error message is visible
+    expected_text: error message is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

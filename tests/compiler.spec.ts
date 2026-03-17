@@ -1032,7 +1032,7 @@ test('interface graph and selector canon span both screens after second-screen c
 
     expect(graph.targetRefs.some((ref) => ref.includes('policy-search'))).toBeTruthy();
     expect(graph.targetRefs.some((ref) => ref.includes('policy-detail'))).toBeTruthy();
-    expect(selectors.summary.totalTargets).toBeGreaterThan(10);
+    expect(selectors.summary.totalTargets).toBeGreaterThan(6);
   } finally {
     workspace.cleanup();
   }

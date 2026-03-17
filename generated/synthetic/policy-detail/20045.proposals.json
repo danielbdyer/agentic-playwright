@@ -1,0 +1,56 @@
+{
+  "kind": "proposal-bundle",
+  "version": 1,
+  "stage": "proposal",
+  "scope": "scenario",
+  "ids": {
+    "adoId": "20045",
+    "suite": "synthetic/policy-detail",
+    "runId": "2026-03-17T23-41-33-730Z",
+    "stepIndex": null,
+    "dataset": "demo-default",
+    "runbook": "synthetic-dogfood",
+    "resolutionControl": null
+  },
+  "fingerprints": {
+    "artifact": "2026-03-17T23-41-33-730Z:proposal",
+    "content": "sha256:9d58c34ef91a0dad7eb7b94c4a8ba0c9d333a276499c882cbcd709accf34be72",
+    "knowledge": "sha256:4004178df4dad32369c9fc2b305fc785e36d21a6027416d4a62a6d9bae1c65a8",
+    "controls": "sha256:c0252f1171ea86755144ec6dab6157a5de6d1380bbd085cfe6f8642279a404b0",
+    "task": "sha256:22365e52c08d17647b0d8b7e519575272c7b1ac64c6a7baae5a86f09e1afdae9",
+    "run": "2026-03-17T23-41-33-730Z"
+  },
+  "lineage": {
+    "sources": [
+      "sha256:22365e52c08d17647b0d8b7e519575272c7b1ac64c6a7baae5a86f09e1afdae9",
+      "controls/runbooks/synthetic-dogfood.runbook.yaml",
+      "controls/datasets/demo-default.dataset.yaml"
+    ],
+    "parents": [
+      "sha256:22365e52c08d17647b0d8b7e519575272c7b1ac64c6a7baae5a86f09e1afdae9",
+      "2026-03-17T23-41-33-730Z"
+    ],
+    "handshakes": [
+      "preparation",
+      "resolution",
+      "execution",
+      "evidence",
+      "proposal"
+    ]
+  },
+  "governance": "approved",
+  "payload": {
+    "adoId": "20045",
+    "runId": "2026-03-17T23-41-33-730Z",
+    "revision": 1,
+    "title": "Synthetic scenario 45: policy-search with 5 steps",
+    "suite": "synthetic/policy-detail",
+    "proposals": []
+  },
+  "adoId": "20045",
+  "runId": "2026-03-17T23-41-33-730Z",
+  "revision": 1,
+  "title": "Synthetic scenario 45: policy-search with 5 steps",
+  "suite": "synthetic/policy-detail",
+  "proposals": []
+}

@@ -1,0 +1,66 @@
+source:
+  ado_id: "20048"
+  revision: 1
+  content_hash: sha256:97904634d6e24593a1f617e898461568b0cdb1a5c8b1f5ec4e34e3e2f6db413c
+  synced_at: 2026-03-17T23:21:17.909Z
+metadata:
+  title: "Synthetic scenario 48: policy-detail with 4 steps"
+  suite: synthetic/policy-detail
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Access policy detail
+    action_text: Access policy detail
+    expected_text: policy detail loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Assert claims list is shown
+    action_text: Assert claims list is shown
+    expected_text: claims list is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Check that policy number display is displayed
+    action_text: Check that policy number display is displayed
+    expected_text: policy number display is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Validate policy status is present
+    action_text: Validate policy status is present
+    expected_text: policy status is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

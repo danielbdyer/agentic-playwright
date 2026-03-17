@@ -1,8 +1,200 @@
 # Operator Inbox
 
-- Item count: 0
+- Item count: 2
 
 ## Hotspot suggestions
 
-- recovery-policy-win :: policy-search :: policyNumberInput/input (1)
+- recovery-policy-win :: policy-detail :: backToSearch/custom (19)
+  - knowledge/screens/policy-detail.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/components/*.ts: Procedural widget choreography is recurring; codify a reusable widget contract.
+- recovery-policy-win :: policy-search :: searchButton/custom (8)
   - knowledge/screens/policy-search.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/components/*.ts: Procedural widget choreography is recurring; codify a reusable widget contract.
+- recovery-policy-win :: policy-detail :: snapshots/policy-detail/with-claims.yaml/custom (7)
+  - knowledge/screens/policy-detail.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/components/*.ts: Procedural widget choreography is recurring; codify a reusable widget contract.
+- resolution-graph-needs-human :: 20016 :: winner-rung/needs-human (6)
+  - knowledge/screens/20016.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- recovery-policy-win :: policy-detail :: effectiveDate/custom (6)
+  - knowledge/screens/policy-detail.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/components/*.ts: Procedural widget choreography is recurring; codify a reusable widget contract.
+- resolution-graph-needs-human :: 20044 :: winner-rung/needs-human (5)
+  - knowledge/screens/20044.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- recovery-policy-win :: policy-detail :: errorPanel/custom (5)
+  - knowledge/screens/policy-detail.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/components/*.ts: Procedural widget choreography is recurring; codify a reusable widget contract.
+- recovery-policy-win :: policy-detail :: policyNumber/custom (5)
+  - knowledge/screens/policy-detail.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/components/*.ts: Procedural widget choreography is recurring; codify a reusable widget contract.
+- recovery-policy-win :: policy-detail :: policyStatus/custom (5)
+  - knowledge/screens/policy-detail.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/components/*.ts: Procedural widget choreography is recurring; codify a reusable widget contract.
+- recovery-policy-win :: policy-search :: policyNumberInput/custom (5)
+  - knowledge/screens/policy-search.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/components/*.ts: Procedural widget choreography is recurring; codify a reusable widget contract.
+- recovery-policy-win :: policy-search :: resultsTable/custom (5)
+  - knowledge/screens/policy-search.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/components/*.ts: Procedural widget choreography is recurring; codify a reusable widget contract.
+- resolution-graph-needs-human :: 20003 :: winner-rung/needs-human (4)
+  - knowledge/screens/20003.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- resolution-graph-needs-human :: 20013 :: winner-rung/needs-human (4)
+  - knowledge/screens/20013.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- resolution-graph-needs-human :: 20029 :: winner-rung/needs-human (4)
+  - knowledge/screens/20029.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- resolution-graph-needs-human :: 20031 :: winner-rung/needs-human (4)
+  - knowledge/screens/20031.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- resolution-graph-needs-human :: 20032 :: winner-rung/needs-human (4)
+  - knowledge/screens/20032.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- resolution-graph-needs-human :: 20042 :: winner-rung/needs-human (4)
+  - knowledge/screens/20042.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- resolution-graph-needs-human :: 20043 :: winner-rung/needs-human (4)
+  - knowledge/screens/20043.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- recovery-policy-win :: policy-detail :: claimsTable/custom (4)
+  - knowledge/screens/policy-detail.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/components/*.ts: Procedural widget choreography is recurring; codify a reusable widget contract.
+- resolution-graph-needs-human :: 20001 :: winner-rung/needs-human (3)
+  - knowledge/screens/20001.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- resolution-graph-needs-human :: 20004 :: winner-rung/needs-human (3)
+  - knowledge/screens/20004.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- resolution-graph-needs-human :: 20014 :: winner-rung/needs-human (3)
+  - knowledge/screens/20014.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- resolution-graph-needs-human :: 20017 :: winner-rung/needs-human (3)
+  - knowledge/screens/20017.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- resolution-graph-needs-human :: 20019 :: winner-rung/needs-human (3)
+  - knowledge/screens/20019.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- resolution-graph-needs-human :: 20020 :: winner-rung/needs-human (3)
+  - knowledge/screens/20020.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- resolution-graph-needs-human :: 20021 :: winner-rung/needs-human (3)
+  - knowledge/screens/20021.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- resolution-graph-needs-human :: 20040 :: winner-rung/needs-human (3)
+  - knowledge/screens/20040.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- resolution-graph-needs-human :: 20045 :: winner-rung/needs-human (3)
+  - knowledge/screens/20045.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- resolution-graph-needs-human :: 20046 :: winner-rung/needs-human (3)
+  - knowledge/screens/20046.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- recovery-policy-win :: policy-search :: snapshots/policy-search/results-with-policy.yaml/custom (3)
+  - knowledge/screens/policy-search.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/components/*.ts: Procedural widget choreography is recurring; codify a reusable widget contract.
+- recovery-policy-win :: policy-search :: validationSummary/custom (3)
+  - knowledge/screens/policy-search.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/components/*.ts: Procedural widget choreography is recurring; codify a reusable widget contract.
+- resolution-graph-needs-human :: 20010 :: winner-rung/needs-human (2)
+  - knowledge/screens/20010.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- resolution-graph-needs-human :: 20018 :: winner-rung/needs-human (2)
+  - knowledge/screens/20018.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- resolution-graph-needs-human :: 20022 :: winner-rung/needs-human (2)
+  - knowledge/screens/20022.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- resolution-graph-needs-human :: 20024 :: winner-rung/needs-human (2)
+  - knowledge/screens/20024.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- resolution-graph-needs-human :: 20027 :: winner-rung/needs-human (2)
+  - knowledge/screens/20027.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- resolution-graph-needs-human :: 20034 :: winner-rung/needs-human (2)
+  - knowledge/screens/20034.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- resolution-graph-needs-human :: 20047 :: winner-rung/needs-human (2)
+  - knowledge/screens/20047.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- resolution-graph-needs-human :: 20000 :: winner-rung/needs-human (1)
+  - knowledge/screens/20000.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- resolution-graph-needs-human :: 20002 :: winner-rung/needs-human (1)
+  - knowledge/screens/20002.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- resolution-graph-needs-human :: 20005 :: winner-rung/needs-human (1)
+  - knowledge/screens/20005.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- resolution-graph-needs-human :: 20012 :: winner-rung/needs-human (1)
+  - knowledge/screens/20012.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- resolution-graph-needs-human :: 20015 :: winner-rung/needs-human (1)
+  - knowledge/screens/20015.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- resolution-graph-needs-human :: 20023 :: winner-rung/needs-human (1)
+  - knowledge/screens/20023.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- resolution-graph-needs-human :: 20025 :: winner-rung/needs-human (1)
+  - knowledge/screens/20025.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- resolution-graph-needs-human :: 20026 :: winner-rung/needs-human (1)
+  - knowledge/screens/20026.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- resolution-graph-needs-human :: 20028 :: winner-rung/needs-human (1)
+  - knowledge/screens/20028.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- resolution-graph-needs-human :: 20033 :: winner-rung/needs-human (1)
+  - knowledge/screens/20033.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- resolution-graph-needs-human :: 20036 :: winner-rung/needs-human (1)
+  - knowledge/screens/20036.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- resolution-graph-needs-human :: 20037 :: winner-rung/needs-human (1)
+  - knowledge/screens/20037.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- resolution-graph-needs-human :: 20039 :: winner-rung/needs-human (1)
+  - knowledge/screens/20039.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- resolution-graph-needs-human :: 20041 :: winner-rung/needs-human (1)
+  - knowledge/screens/20041.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- resolution-graph-needs-human :: 20048 :: winner-rung/needs-human (1)
+  - knowledge/screens/20048.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+- resolution-graph-needs-human :: 20049 :: winner-rung/needs-human (1)
+  - knowledge/screens/20049.hints.yaml: Capture deterministic aliases/defaults so this family resolves without runtime fallback.
+  - knowledge/patterns/*.yaml: This field/action family appears across screens; promote shared aliases and locator ladders.
+
+## Needs human on step 2
+
+- Inbox id: inbox-8e68d05c637637d44f36689f3ec22004f0544950bc5ff8eae067012e89c8a2c4
+- Kind: needs-human
+- Status: actionable
+- Summary: Runtime exhausted approved knowledge and live DOM resolution for step 2.
+- Scenario: 20049
+- Run: 2026-03-17T23-35-56-605Z
+- Step: 2
+- Proposal id: n/a
+- Target: n/a
+- Winning concern: resolution
+- Winning source: none
+- Resolution mode: agentic
+- Next commands: tesseract inbox | tesseract workflow --ado-id 20049
+
+## Resolution graph hotspot for run 2026-03-17T23-35-56-605Z
+
+- Inbox id: inbox-c933097c5b2b4851b3f6fa1a7c14a8f55a5cf7af78779c21779b7838fa91b61b
+- Kind: needs-human
+- Status: actionable
+- Summary: Resolution graph winners include live-dom=0, needs-human=1.
+- Scenario: 20049
+- Run: 2026-03-17T23-35-56-605Z
+- Step: n/a
+- Proposal id: n/a
+- Target: n/a
+- Winning concern: resolution
+- Winning source: none
+- Resolution mode: agentic
+- Next commands: tesseract inbox | tesseract replay-interpretation --ado-id 20049

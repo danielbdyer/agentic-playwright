@@ -1,0 +1,39 @@
+{
+  "id": "20042",
+  "revision": 1,
+  "title": "Synthetic scenario 42: policy-detail with 4 steps",
+  "suitePath": "synthetic/policy-detail",
+  "areaPath": "synthetic",
+  "iterationPath": "synthetic/sprint-1",
+  "tags": [
+    "synthetic",
+    "dogfood"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Browse to policy detail</p>",
+      "expected": "<p>policy detail loads successfully</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Hit the back link</p>",
+      "expected": "<p>back link action completes</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Observe error panel content</p>",
+      "expected": "<p>error panel is visible on screen</p>"
+    },
+    {
+      "index": 4,
+      "action": "<p>Validate status is present</p>",
+      "expected": "<p>status is visible on screen</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:cfd001d4b86c3f95654543dc37441c0c13e802991ad7c518d87be017ec409d9b",
+  "syncedAt": "2026-03-17T23:21:17.907Z"
+}

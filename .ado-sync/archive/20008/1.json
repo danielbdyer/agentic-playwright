@@ -1,0 +1,34 @@
+{
+  "id": "20008",
+  "revision": 1,
+  "title": "Synthetic scenario 8: policy-detail with 3 steps",
+  "suitePath": "synthetic/policy-detail",
+  "areaPath": "synthetic",
+  "iterationPath": "synthetic/sprint-1",
+  "tags": [
+    "synthetic",
+    "dogfood"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Open policy detail</p>",
+      "expected": "<p>policy detail loads successfully</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Click on the back link</p>",
+      "expected": "<p>back link action completes</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Ensure status can be seen</p>",
+      "expected": "<p>status is visible on screen</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:ed1f85723162750457f009e8a56b76edeef3795030fc6b07b8ab40e834b0fc3b",
+  "syncedAt": "2026-03-17T23:21:17.900Z"
+}

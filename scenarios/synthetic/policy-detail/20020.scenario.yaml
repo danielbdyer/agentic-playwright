@@ -1,0 +1,66 @@
+source:
+  ado_id: "20020"
+  revision: 1
+  content_hash: sha256:bafb41569c5c8718e2ec60773c7f976103940024cb6131abf18b4bc601d2df8e
+  synced_at: 2026-03-17T23:21:17.902Z
+metadata:
+  title: "Synthetic scenario 20: policy-search with 4 steps"
+  suite: synthetic/policy-detail
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Go to the policy search
+    action_text: Go to the policy search
+    expected_text: policy search loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Observe results table content
+    action_text: Observe results table content
+    expected_text: results table is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Set policy number field to a valid value
+    action_text: Set policy number field to a valid value
+    expected_text: policy number field accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Tap search
+    action_text: Tap search
+    expected_text: search action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

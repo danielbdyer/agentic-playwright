@@ -1,0 +1,45 @@
+kind: runbook-control
+version: 1
+name: synthetic-dogfood
+default: false
+selector:
+  adoIds: []
+  suites: []
+  tags:
+    - synthetic
+interpreterMode: diagnostic
+dataset: demo-default
+translationEnabled: true
+translationCacheEnabled: true
+recoveryPolicy:
+  version: 1
+  profile: synthetic-dogfood
+  families:
+    precondition-failure:
+      budget:
+        maxAttempts: 1
+        maxTotalMs: 500
+        backoffMs: 50
+      strategies:
+        - id: verify-prerequisites
+          enabled: true
+          maxAttempts: 1
+    locator-degradation-failure:
+      budget:
+        maxAttempts: 1
+        maxTotalMs: 1000
+        backoffMs: 50
+      strategies:
+        - id: force-alternate-locator-rungs
+          enabled: true
+          maxAttempts: 1
+    environment-runtime-failure:
+      budget:
+        maxAttempts: 2
+        maxTotalMs: 2000
+        backoffMs: 100
+      strategies:
+        - id: bounded-retry-with-backoff
+          enabled: true
+          maxAttempts: 1
+          backoffMs: 100

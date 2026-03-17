@@ -1,0 +1,78 @@
+source:
+  ado_id: "20033"
+  revision: 1
+  content_hash: sha256:8107eea512ce4bb8894f258da63f5dde49b3f88bc87977ec4e033b5a5fecdc79
+  synced_at: 2026-03-17T23:21:17.905Z
+metadata:
+  title: "Synthetic scenario 33: policy-search with 5 steps"
+  suite: synthetic/policy-detail
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Go to the policy search
+    action_text: Go to the policy search
+    expected_text: policy search loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Input a valid value in the search field
+    action_text: Input a valid value in the search field
+    expected_text: search field accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Tap search
+    action_text: Tap search
+    expected_text: search action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Check that validation summary is displayed
+    action_text: Check that validation summary is displayed
+    expected_text: validation summary is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: Verify results table is visible
+    action_text: Verify results table is visible
+    expected_text: results table is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []
