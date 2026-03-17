@@ -5,15 +5,24 @@ import type {
   KnowledgeBottleneck,
   KnowledgeBottleneckReport,
 } from '../domain/types';
-import { uniqueSorted } from '../domain/collections';
+import { groupBy, uniqueSorted } from '../domain/collections';
+import {
+  round4,
+  screenFromGraphNodeIds,
+  actionFamilyOf,
+  combineScoringRules,
+  weightedScoringRule,
+  contramapScoringRule,
+  type ScoringRule,
+} from './learning-shared';
 
-function round4(value: number): number {
-  return Number(value.toFixed(4));
-}
-
-function screenFromGraphNodeIds(graphNodeIds: readonly string[]): string {
-  const screenRef = graphNodeIds.find((id) => id.startsWith('screen:') || id.startsWith('target:'));
-  return screenRef?.replace(/^(screen:|target:)/, '') ?? 'unknown';
+interface ScreenActionContext {
+  readonly screen: string;
+  readonly action: string;
+  readonly repairDensity: number;
+  readonly translationRate: number;
+  readonly unresolvedRate: number;
+  readonly screenFragmentShare: number;
 }
 
 interface RunStepSummary {
@@ -24,9 +33,22 @@ interface RunStepSummary {
   readonly action: string;
 }
 
+// ─── Composable scoring rules for bottleneck impact ───
+
+const repairDensityRule: ScoringRule<ScreenActionContext> = { score: (ctx) => ctx.repairDensity };
+const translationRateRule: ScoringRule<ScreenActionContext> = { score: (ctx) => ctx.translationRate };
+const unresolvedRateRule: ScoringRule<ScreenActionContext> = { score: (ctx) => ctx.unresolvedRate };
+const inverseFragmentShareRule: ScoringRule<ScreenActionContext> = { score: (ctx) => 1 - ctx.screenFragmentShare };
+
+const bottleneckScoring = combineScoringRules<ScreenActionContext>(
+  weightedScoringRule(0.3, repairDensityRule),
+  weightedScoringRule(0.25, translationRateRule),
+  weightedScoringRule(0.25, unresolvedRateRule),
+  weightedScoringRule(0.2, inverseFragmentShareRule),
+);
+
 function detectSignal(input: {
   readonly screen: string;
-  readonly action: string;
   readonly healthReport: CorpusHealthReport;
   readonly repairDensity: number;
   readonly translationRate: number;
@@ -63,6 +85,14 @@ function recommendArtifacts(screen: string, signal: BottleneckSignal): readonly 
   }
 }
 
+function buildScreenActionPairs(fragments: readonly GroundedSpecFragment[]): readonly { readonly screen: string; readonly action: string }[] {
+  const groups = groupBy(fragments, (f) => screenFromGraphNodeIds(f.graphNodeIds));
+  return Object.entries(groups).flatMap(([screen, screenFragments]) => {
+    const actions = uniqueSorted(screenFragments.map((f) => actionFamilyOf(f.action)));
+    return actions.map((action) => ({ screen, action }));
+  });
+}
+
 export function projectBottlenecks(input: {
   readonly healthReport: CorpusHealthReport;
   readonly fragments: readonly GroundedSpecFragment[];
@@ -70,19 +100,11 @@ export function projectBottlenecks(input: {
   readonly generatedAt?: string | undefined;
 }): KnowledgeBottleneckReport {
   const repairFragments = input.fragments.filter((f) => f.runtime === 'repair-recovery');
-  const screenActions = new Map<string, Set<string>>();
+  const totalFragments = Math.max(input.fragments.length, 1);
+  const pairs = buildScreenActionPairs(input.fragments);
 
-  for (const fragment of input.fragments) {
-    const screen = screenFromGraphNodeIds(fragment.graphNodeIds);
-    const actions = screenActions.get(screen) ?? new Set();
-    actions.add(fragment.action === 'composite' ? 'composite' : fragment.action);
-    screenActions.set(screen, actions);
-  }
-
-  const bottlenecks: KnowledgeBottleneck[] = [];
-
-  for (const [screen, actions] of screenActions.entries()) {
-    for (const action of actions) {
+  const bottlenecks: readonly KnowledgeBottleneck[] = pairs
+    .map(({ screen, action }) => {
       const screenFragments = input.fragments.filter((f) =>
         screenFromGraphNodeIds(f.graphNodeIds) === screen,
       );
@@ -97,35 +119,33 @@ export function projectBottlenecks(input: {
       const translationRate = screenSteps.length === 0 ? 0 : translationSteps.length / screenSteps.length;
       const unresolvedRate = screenSteps.length === 0 ? 0 : unresolvedSteps.length / screenSteps.length;
 
-      const signal = detectSignal({
+      const ctx: ScreenActionContext = {
         screen,
         action,
+        repairDensity,
+        translationRate,
+        unresolvedRate,
+        screenFragmentShare: screenFragments.length / totalFragments,
+      };
+
+      const signal = detectSignal({
+        screen,
         healthReport: input.healthReport,
         repairDensity,
         translationRate,
         unresolvedRate,
       });
 
-      const impactScore = round4(
-        0.3 * repairDensity +
-        0.25 * translationRate +
-        0.25 * unresolvedRate +
-        0.2 * (1 - (screenFragments.length / Math.max(input.fragments.length, 1))),
-      );
-
-      bottlenecks.push({
+      return {
         rank: 0,
         screen,
         element: null,
         actionFamily: action,
         signal,
-        impactScore,
+        impactScore: round4(bottleneckScoring.score(ctx)),
         recommendedArtifacts: recommendArtifacts(screen, signal),
-      });
-    }
-  }
-
-  const ranked = bottlenecks
+      };
+    })
     .sort((a, b) => b.impactScore - a.impactScore || a.screen.localeCompare(b.screen))
     .map((b, i) => ({ ...b, rank: i + 1 }));
 
@@ -133,8 +153,8 @@ export function projectBottlenecks(input: {
     kind: 'knowledge-bottleneck-report',
     version: 1,
     generatedAt: input.generatedAt ?? new Date(0).toISOString(),
-    bottlenecks: ranked,
-    topScreens: uniqueSorted(ranked.slice(0, 5).map((b) => b.screen)),
-    topActionFamilies: uniqueSorted(ranked.slice(0, 5).map((b) => b.actionFamily)),
+    bottlenecks,
+    topScreens: uniqueSorted(bottlenecks.slice(0, 5).map((b) => b.screen)),
+    topActionFamilies: uniqueSorted(bottlenecks.slice(0, 5).map((b) => b.actionFamily)),
   };
 }

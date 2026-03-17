@@ -6,10 +6,41 @@ import type {
   RankedProposal,
 } from '../domain/types';
 import { uniqueSorted } from '../domain/collections';
+import {
+  round4,
+  combineScoringRules,
+  weightedScoringRule,
+  type ScoringRule,
+} from './learning-shared';
 
-function round4(value: number): number {
-  return Number(value.toFixed(4));
+// ─── Composable scoring rules for proposal ranking ───
+
+interface ProposalContext {
+  readonly affectedScenarioCount: number;
+  readonly bottleneckReduction: number;
+  readonly trustPolicyWeight: number;
+  readonly hasEvidence: boolean;
 }
+
+const scenarioImpactRule: ScoringRule<ProposalContext> = {
+  score: (ctx) => Math.min(ctx.affectedScenarioCount / 10, 1),
+};
+const bottleneckReductionRule: ScoringRule<ProposalContext> = {
+  score: (ctx) => ctx.bottleneckReduction,
+};
+const trustWeightRule: ScoringRule<ProposalContext> = {
+  score: (ctx) => ctx.trustPolicyWeight,
+};
+const evidenceRule: ScoringRule<ProposalContext> = {
+  score: (ctx) => ctx.hasEvidence ? 0.8 : 0.3,
+};
+
+const proposalScoring = combineScoringRules<ProposalContext>(
+  weightedScoringRule(0.3, scenarioImpactRule),
+  weightedScoringRule(0.3, bottleneckReductionRule),
+  weightedScoringRule(0.2, trustWeightRule),
+  weightedScoringRule(0.2, evidenceRule),
+);
 
 function pendingProposals(bundles: readonly ProposalBundle[]): ReadonlyArray<{
   readonly bundle: ProposalBundle;
@@ -33,8 +64,7 @@ function computeAffectedScenarioCount(
   if (screen.length === 0) {
     return 1;
   }
-  const affected = new Set<string>();
-  affected.add(bundle.adoId);
+  const affected = new Set<string>([bundle.adoId]);
   for (const other of allBundles) {
     for (const p of other.proposals) {
       if (p.targetPath.includes(screen)) {
@@ -76,16 +106,12 @@ function buildRationale(
   affectedCount: number,
   bottleneckReduction: number,
 ): readonly string[] {
-  const lines: string[] = [];
-  if (affectedCount > 1) {
-    lines.push(`Affects ${affectedCount} scenarios`);
-  }
-  if (bottleneckReduction > 0) {
-    lines.push(`Reduces top bottleneck by ${(bottleneckReduction * 100).toFixed(1)}%`);
-  }
-  lines.push(`Trust policy: ${proposal.trustPolicy.decision}`);
-  lines.push(`Artifact type: ${proposal.artifactType}`);
-  return lines;
+  return [
+    ...(affectedCount > 1 ? [`Affects ${affectedCount} scenarios`] : []),
+    ...(bottleneckReduction > 0 ? [`Reduces top bottleneck by ${(bottleneckReduction * 100).toFixed(1)}%`] : []),
+    `Trust policy: ${proposal.trustPolicy.decision}`,
+    `Artifact type: ${proposal.artifactType}`,
+  ];
 }
 
 export function rankProposals(input: {
@@ -95,7 +121,7 @@ export function rankProposals(input: {
 }): ProposalRankingReport {
   const pending = pendingProposals(input.proposalBundles);
 
-  const scored: RankedProposal[] = pending.map(({ bundle, proposal }) => {
+  const scored: readonly RankedProposal[] = pending.map(({ bundle, proposal }) => {
     const affectedScenarioCount = computeAffectedScenarioCount(proposal, bundle, input.proposalBundles);
     const bottleneckReduction = computeBottleneckReduction(proposal, input.bottleneckReport);
     const tpWeight = trustPolicyWeight(proposal.trustPolicy.decision);
@@ -105,12 +131,12 @@ export function rankProposals(input: {
         .map((seg) => seg.replace(/\.(elements|hints|surface|postures|behavior)\.yaml$/, '')),
     );
 
-    const overallScore = round4(
-      0.3 * Math.min(affectedScenarioCount / 10, 1) +
-      0.3 * bottleneckReduction +
-      0.2 * tpWeight +
-      0.2 * (proposal.evidenceIds.length > 0 ? 0.8 : 0.3),
-    );
+    const ctx: ProposalContext = {
+      affectedScenarioCount,
+      bottleneckReduction,
+      trustPolicyWeight: tpWeight,
+      hasEvidence: proposal.evidenceIds.length > 0,
+    };
 
     return {
       rank: 0,
@@ -124,12 +150,13 @@ export function rankProposals(input: {
         expectedReproducibilityDelta: round4(bottleneckReduction * 0.3),
         trustPolicyDecision: proposal.trustPolicy.decision,
       },
-      overallScore,
+      overallScore: round4(proposalScoring.score(ctx)),
       rationale: buildRationale(proposal, affectedScenarioCount, bottleneckReduction),
     };
   });
 
   const ranked = scored
+    .slice()
     .sort((a, b) => b.overallScore - a.overallScore || a.proposalId.localeCompare(b.proposalId))
     .map((r, i) => ({ ...r, rank: i + 1 }));
 

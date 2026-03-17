@@ -32,24 +32,23 @@ export interface LearningEvaluationResult {
   readonly artifactPaths: readonly string[];
 }
 
+function isGroundedFragment(entry: unknown): entry is GroundedSpecFragment {
+  return entry != null && typeof entry === 'object' && 'id' in entry && 'runtime' in entry;
+}
+
 function loadAllFragments(fs: { readJson(path: string): Effect.Effect<unknown, unknown> }, learningDir: string) {
   return Effect.gen(function* () {
     const allFiles = yield* walkFiles(fs as never, learningDir);
     const fragmentFiles = allFiles.filter((f) =>
       f.endsWith('.fragments.json') && !f.includes('manifest'),
     );
-    const fragments: GroundedSpecFragment[] = [];
-    for (const file of fragmentFiles) {
-      const content = yield* fs.readJson(file);
-      if (Array.isArray(content)) {
-        for (const entry of content) {
-          if (entry && typeof entry === 'object' && 'id' in entry && 'runtime' in entry) {
-            fragments.push(entry as GroundedSpecFragment);
-          }
-        }
-      }
-    }
-    return fragments;
+    const fileContents = yield* Effect.all(
+      fragmentFiles.map((file) => fs.readJson(file)),
+      { concurrency: 1 },
+    );
+    return fileContents.flatMap((content) =>
+      Array.isArray(content) ? content.filter(isGroundedFragment) : [],
+    );
   });
 }
 
@@ -145,15 +144,17 @@ export function projectLearningEvaluation(options: {
       manifest,
     );
 
-    // Write artifacts
+    // Write artifacts (independent writes)
     const healthPath = learningHealthPath(options.paths);
     const bottlenecksPath = learningBottlenecksPath(options.paths);
     const rankingsPath = learningRankingsPath(options.paths);
 
     yield* fs.ensureDir(options.paths.learningDir);
-    yield* fs.writeJson(healthPath, healthReport);
-    yield* fs.writeJson(bottlenecksPath, bottleneckReport);
-    yield* fs.writeJson(rankingsPath, rankingReport);
+    yield* Effect.all({
+      health: fs.writeJson(healthPath, healthReport),
+      bottlenecks: fs.writeJson(bottlenecksPath, bottleneckReport),
+      rankings: fs.writeJson(rankingsPath, rankingReport),
+    });
 
     const artifactPaths = [
       relativeProjectPath(options.paths, healthPath),

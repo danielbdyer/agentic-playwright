@@ -6,7 +6,7 @@ import type {
   ReplayStepResult,
   ResolutionReceipt,
 } from '../domain/types';
-import { uniqueSorted } from '../domain/collections';
+import { round4 } from './learning-shared';
 
 function targetKey(receipt: ResolutionReceipt): string {
   if (receipt.kind === 'needs-human') {
@@ -24,20 +24,13 @@ function compareStep(
   const replaySource = replay?.winningSource ?? 'none';
   const originalTarget = original ? targetKey(original) : 'none';
   const replayTarget = replay ? targetKey(replay) : 'none';
-  const driftFields: string[] = [];
 
-  if (originalSource !== replaySource) {
-    driftFields.push('winningSource');
-  }
-  if (originalTarget !== replayTarget) {
-    driftFields.push('target');
-  }
-  if ((original?.governance ?? 'approved') !== (replay?.governance ?? 'approved')) {
-    driftFields.push('governance');
-  }
-  if ((original?.confidence ?? 'unbound') !== (replay?.confidence ?? 'unbound')) {
-    driftFields.push('confidence');
-  }
+  const driftFields = [
+    ...(originalSource !== replaySource ? ['winningSource'] : []),
+    ...(originalTarget !== replayTarget ? ['target'] : []),
+    ...((original?.governance ?? 'approved') !== (replay?.governance ?? 'approved') ? ['governance'] : []),
+    ...((original?.confidence ?? 'unbound') !== (replay?.confidence ?? 'unbound') ? ['confidence'] : []),
+  ];
 
   return {
     stepIndex,
@@ -59,7 +52,7 @@ export function evaluateReplayExample(input: {
   readonly evaluatedAt?: string | undefined;
 }): ReplayEvaluationResult {
   const maxSteps = Math.max(input.originalReceipts.length, input.replayReceipts.length);
-  const stepResults: ReplayStepResult[] = Array.from({ length: maxSteps }, (_, i) =>
+  const stepResults: readonly ReplayStepResult[] = Array.from({ length: maxSteps }, (_, i) =>
     compareStep(i, input.originalReceipts[i] ?? null, input.replayReceipts[i] ?? null),
   );
 
@@ -79,7 +72,7 @@ export function evaluateReplayExample(input: {
     stepCount: maxSteps,
     matchedStepCount: matchedCount,
     driftedStepCount: driftedCount,
-    reproducibilityScore: maxSteps === 0 ? 1 : Number((matchedCount / maxSteps).toFixed(4)),
+    reproducibilityScore: maxSteps === 0 ? 1 : round4(matchedCount / maxSteps),
     stepResults,
     evaluatedAt: input.evaluatedAt ?? new Date(0).toISOString(),
   };
@@ -93,7 +86,7 @@ export function buildReplayEvaluationSummary(input: {
   const evaluated = input.results.length;
   const avgScore = evaluated === 0
     ? 0
-    : Number((input.results.reduce((sum, r) => sum + r.reproducibilityScore, 0) / evaluated).toFixed(4));
+    : round4(input.results.reduce((sum, r) => sum + r.reproducibilityScore, 0) / evaluated);
   const knowledgeChangedCount = input.results.filter((r) => r.knowledgeChanged).length;
   const perfectCount = input.results.filter((r) => r.reproducibilityScore === 1).length;
   const driftedCount = input.results.filter((r) => r.driftedStepCount > 0).length;
@@ -108,7 +101,7 @@ export function buildReplayEvaluationSummary(input: {
       count: runtimeResults.length,
       avgReproducibility: runtimeResults.length === 0
         ? 0
-        : Number((runtimeResults.reduce((sum, r) => sum + r.reproducibilityScore, 0) / runtimeResults.length).toFixed(4)),
+        : round4(runtimeResults.reduce((sum, r) => sum + r.reproducibilityScore, 0) / runtimeResults.length),
     };
   });
 
