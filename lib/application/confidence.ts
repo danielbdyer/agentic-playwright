@@ -59,52 +59,54 @@ function stepTaskForRunStep(catalog: WorkspaceCatalog, runAdoId: string, stepInd
 }
 
 interface AggregateRecord {
-  artifactType: TrustPolicyArtifactType;
-  artifactPath: string;
-  screen: ArtifactConfidenceRecord['screen'];
-  element: ArtifactConfidenceRecord['element'];
-  posture: ArtifactConfidenceRecord['posture'];
-  snapshotTemplate: ArtifactConfidenceRecord['snapshotTemplate'];
-  successCount: number;
-  failureCount: number;
-  learnedAliases: Set<string>;
-  lastSuccessAt: string | null;
-  lastFailureAt: string | null;
-  runIds: Set<string>;
-  sourceArtifactPaths: Set<string>;
+  readonly artifactType: TrustPolicyArtifactType;
+  readonly artifactPath: string;
+  readonly screen: ArtifactConfidenceRecord['screen'];
+  readonly element: ArtifactConfidenceRecord['element'];
+  readonly posture: ArtifactConfidenceRecord['posture'];
+  readonly snapshotTemplate: ArtifactConfidenceRecord['snapshotTemplate'];
+  readonly successCount: number;
+  readonly failureCount: number;
+  readonly learnedAliases: ReadonlySet<string>;
+  readonly lastSuccessAt: string | null;
+  readonly lastFailureAt: string | null;
+  readonly runIds: ReadonlySet<string>;
+  readonly sourceArtifactPaths: ReadonlySet<string>;
 }
 
-function upsertAggregate(
-  aggregates: Map<string, AggregateRecord>,
-  input: {
-    artifactType: TrustPolicyArtifactType;
-    artifactPath: string;
-    screen?: ArtifactConfidenceRecord['screen'];
-    element?: ArtifactConfidenceRecord['element'];
-    posture?: ArtifactConfidenceRecord['posture'];
-    snapshotTemplate?: ArtifactConfidenceRecord['snapshotTemplate'];
-    learnedAliases: string[];
-    runId: string;
-    runArtifactPath: string;
-    runAt: string;
-    success: boolean;
-  },
-): void {
-  const id = confidenceRecordId({
-    artifactType: input.artifactType,
-    artifactPath: input.artifactPath,
-    screen: input.screen ?? null,
-    element: input.element ?? null,
-    posture: input.posture ?? null,
-    snapshotTemplate: input.snapshotTemplate ?? null,
+interface AggregateContribution {
+  readonly artifactType: TrustPolicyArtifactType;
+  readonly artifactPath: string;
+  readonly screen: ArtifactConfidenceRecord['screen'];
+  readonly element: ArtifactConfidenceRecord['element'];
+  readonly posture: ArtifactConfidenceRecord['posture'];
+  readonly snapshotTemplate: ArtifactConfidenceRecord['snapshotTemplate'];
+  readonly learnedAliases: readonly string[];
+  readonly runId: string;
+  readonly runArtifactPath: string;
+  readonly runAt: string;
+  readonly success: boolean;
+}
+
+function contributionId(c: AggregateContribution): string {
+  return confidenceRecordId({
+    artifactType: c.artifactType,
+    artifactPath: c.artifactPath,
+    screen: c.screen ?? null,
+    element: c.element ?? null,
+    posture: c.posture ?? null,
+    snapshotTemplate: c.snapshotTemplate ?? null,
   });
-  const existing = aggregates.get(id) ?? {
-    artifactType: input.artifactType,
-    artifactPath: input.artifactPath,
-    screen: input.screen ?? null,
-    element: input.element ?? null,
-    posture: input.posture ?? null,
-    snapshotTemplate: input.snapshotTemplate ?? null,
+}
+
+function emptyAggregate(c: AggregateContribution): AggregateRecord {
+  return {
+    artifactType: c.artifactType,
+    artifactPath: c.artifactPath,
+    screen: c.screen ?? null,
+    element: c.element ?? null,
+    posture: c.posture ?? null,
+    snapshotTemplate: c.snapshotTemplate ?? null,
     successCount: 0,
     failureCount: 0,
     learnedAliases: new Set<string>(),
@@ -113,122 +115,72 @@ function upsertAggregate(
     runIds: new Set<string>(),
     sourceArtifactPaths: new Set<string>(),
   };
+}
 
-  if (input.success) {
-    existing.successCount += 1;
-    existing.lastSuccessAt = input.runAt;
-  } else {
-    existing.failureCount += 1;
-    existing.lastFailureAt = input.runAt;
+function mergeContribution(acc: AggregateRecord, c: AggregateContribution): AggregateRecord {
+  return {
+    ...acc,
+    successCount: acc.successCount + (c.success ? 1 : 0),
+    failureCount: acc.failureCount + (c.success ? 0 : 1),
+    lastSuccessAt: c.success ? c.runAt : acc.lastSuccessAt,
+    lastFailureAt: c.success ? acc.lastFailureAt : c.runAt,
+    learnedAliases: new Set([...acc.learnedAliases, ...c.learnedAliases]),
+    runIds: new Set([...acc.runIds, c.runId]),
+    sourceArtifactPaths: new Set([...acc.sourceArtifactPaths, c.runArtifactPath]),
+  };
+}
+
+function stepContributions(
+  catalog: WorkspaceCatalog,
+  runEntry: WorkspaceCatalog['runRecords'][number],
+  step: WorkspaceCatalog['runRecords'][number]['artifact']['steps'][number],
+): readonly AggregateContribution[] {
+  const taskStep = stepTaskForRunStep(catalog, runEntry.artifact.adoId, step.stepIndex);
+  const learnedAliases = uniqueSorted([
+    taskStep?.normalizedIntent ?? '',
+    taskStep?.actionText ?? '',
+    taskStep?.expectedText ?? '',
+  ].filter((value) => value.length > 0));
+  const success = step.execution.execution.status === 'ok' && step.interpretation.kind !== 'needs-human';
+  const target = 'target' in step.interpretation ? step.interpretation.target : null;
+  if (!target?.screen) {
+    return [];
   }
-  for (const alias of input.learnedAliases) {
-    existing.learnedAliases.add(alias);
-  }
-  existing.runIds.add(input.runId);
-  existing.sourceArtifactPaths.add(input.runArtifactPath);
-  aggregates.set(id, existing);
+
+  const base = { learnedAliases, runId: runEntry.artifact.runId, runArtifactPath: runEntry.artifactPath, runAt: step.execution.runAt, success };
+  return [
+    ...(target.element ? [{
+      artifactType: 'elements' as const, artifactPath: knowledgePaths.elements(target.screen),
+      screen: target.screen, element: target.element, posture: null, snapshotTemplate: null, ...base,
+    }] : []),
+    ...step.interpretation.supplementRefs.filter((ref) => ref.endsWith('.hints.yaml')).map((hintRef) => ({
+      artifactType: 'hints' as const, artifactPath: hintRef,
+      screen: target.screen, element: target.element ?? null, posture: null, snapshotTemplate: null, ...base,
+    })),
+    ...step.interpretation.supplementRefs.filter((ref) => ref.includes('/patterns/')).map((patternRef) => ({
+      artifactType: 'patterns' as const, artifactPath: patternRef,
+      screen: target.screen, element: target.element ?? null, posture: null, snapshotTemplate: null, ...base,
+    })),
+    ...(target.posture && target.element ? [{
+      artifactType: 'postures' as const, artifactPath: knowledgePaths.postures(target.screen),
+      screen: target.screen, element: target.element, posture: target.posture, snapshotTemplate: null, ...base,
+    }] : []),
+    ...(target.snapshot_template ? [{
+      artifactType: 'snapshot' as const, artifactPath: snapshotArtifactPath(target.snapshot_template),
+      screen: target.screen, element: target.element ?? null, posture: null, snapshotTemplate: target.snapshot_template, ...base,
+    }] : []),
+  ];
 }
 
 function contributeRunArtifacts(catalog: WorkspaceCatalog): Map<string, AggregateRecord> {
-  const aggregates = new Map<string, AggregateRecord>();
-
-  for (const runEntry of catalog.runRecords) {
-    for (const step of runEntry.artifact.steps) {
-      const taskStep = stepTaskForRunStep(catalog, runEntry.artifact.adoId, step.stepIndex);
-      const learnedAliases = uniqueSorted([
-        taskStep?.normalizedIntent ?? '',
-        taskStep?.actionText ?? '',
-        taskStep?.expectedText ?? '',
-      ].filter((value) => value.length > 0));
-      const success = step.execution.execution.status === 'ok' && step.interpretation.kind !== 'needs-human';
-      const target = 'target' in step.interpretation ? step.interpretation.target : null;
-      if (!target?.screen) {
-        continue;
-      }
-
-      if (target.element) {
-        upsertAggregate(aggregates, {
-          artifactType: 'elements',
-          artifactPath: knowledgePaths.elements(target.screen),
-          screen: target.screen,
-          element: target.element,
-          posture: null,
-          snapshotTemplate: null,
-          learnedAliases,
-          runId: runEntry.artifact.runId,
-          runArtifactPath: runEntry.artifactPath,
-          runAt: step.execution.runAt,
-          success,
-        });
-      }
-
-      for (const hintRef of step.interpretation.supplementRefs.filter((ref) => ref.endsWith('.hints.yaml'))) {
-        upsertAggregate(aggregates, {
-          artifactType: 'hints',
-          artifactPath: hintRef,
-          screen: target.screen,
-          element: target.element ?? null,
-          posture: null,
-          snapshotTemplate: null,
-          learnedAliases,
-          runId: runEntry.artifact.runId,
-          runArtifactPath: runEntry.artifactPath,
-          runAt: step.execution.runAt,
-          success,
-        });
-      }
-
-      for (const patternRef of step.interpretation.supplementRefs.filter((ref) => ref.includes('/patterns/'))) {
-        upsertAggregate(aggregates, {
-          artifactType: 'patterns',
-          artifactPath: patternRef,
-          screen: target.screen,
-          element: target.element ?? null,
-          posture: null,
-          snapshotTemplate: null,
-          learnedAliases,
-          runId: runEntry.artifact.runId,
-          runArtifactPath: runEntry.artifactPath,
-          runAt: step.execution.runAt,
-          success,
-        });
-      }
-
-      if (target.posture && target.element) {
-        upsertAggregate(aggregates, {
-          artifactType: 'postures',
-          artifactPath: knowledgePaths.postures(target.screen),
-          screen: target.screen,
-          element: target.element,
-          posture: target.posture,
-          snapshotTemplate: null,
-          learnedAliases,
-          runId: runEntry.artifact.runId,
-          runArtifactPath: runEntry.artifactPath,
-          runAt: step.execution.runAt,
-          success,
-        });
-      }
-
-      if (target.snapshot_template) {
-        upsertAggregate(aggregates, {
-          artifactType: 'snapshot',
-          artifactPath: snapshotArtifactPath(target.snapshot_template),
-          screen: target.screen,
-          element: target.element ?? null,
-          posture: null,
-          snapshotTemplate: target.snapshot_template,
-          learnedAliases,
-          runId: runEntry.artifact.runId,
-          runArtifactPath: runEntry.artifactPath,
-          runAt: step.execution.runAt,
-          success,
-        });
-      }
-    }
-  }
-
-  return aggregates;
+  const contributions = catalog.runRecords.flatMap((runEntry) =>
+    runEntry.artifact.steps.flatMap((step) => stepContributions(catalog, runEntry, step)),
+  );
+  return contributions.reduce((aggregates, contribution) => {
+    const id = contributionId(contribution);
+    const existing = aggregates.get(id) ?? emptyAggregate(contribution);
+    return new Map(aggregates).set(id, mergeContribution(existing, contribution));
+  }, new Map<string, AggregateRecord>());
 }
 
 function scoreForAggregate(successCount: number, failureCount: number, evidenceCount: number): number {
@@ -279,16 +231,21 @@ export function buildConfidenceOverlayCatalog(catalog: WorkspaceCatalog): Confid
     })
     .sort((left, right) => compareStrings(left.id, right.id));
 
+  const summary = records.reduce(
+    (acc, record) => ({
+      total: acc.total + 1,
+      approvedEquivalentCount: acc.approvedEquivalentCount + (record.status === 'approved-equivalent' ? 1 : 0),
+      needsReviewCount: acc.needsReviewCount + (record.status === 'needs-review' ? 1 : 0),
+    }),
+    { total: 0, approvedEquivalentCount: 0, needsReviewCount: 0 },
+  );
+
   return {
     kind: 'confidence-overlay-catalog',
     version: 1,
     generatedAt: new Date().toISOString(),
     records,
-    summary: {
-      total: records.length,
-      approvedEquivalentCount: records.filter((record) => record.status === 'approved-equivalent').length,
-      needsReviewCount: records.filter((record) => record.status === 'needs-review').length,
-    },
+    summary,
   };
 }
 

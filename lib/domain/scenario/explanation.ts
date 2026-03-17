@@ -1,6 +1,7 @@
 import { provenanceKindForBoundStep } from '../provenance';
 import { aggregateConfidence } from '../status';
 import type { BoundScenario, Governance, RunRecord, ScenarioExplanation, ScenarioLifecycle, StepProvenanceKind } from '../types';
+import { isReviewRequired } from '../types/workflow';
 
 export function aggregateScenarioGovernance(boundScenario: BoundScenario, latestRun?: RunRecord | null): Governance {
   if (latestRun?.steps.some((step) => step.interpretation.kind === 'needs-human')) {
@@ -206,7 +207,7 @@ export function explainBoundScenario(boundScenario: BoundScenario, lifecycle: Sc
   const liveExplorationHits = steps.filter((step) => step.provenanceKind === 'live-exploration').length;
   const degradedHits = steps.filter((step) => step.runtime?.degraded).length;
   const proposalCount = latestRun?.steps.reduce((count, step) => count + step.interpretation.proposalDrafts.length, 0) ?? 0;
-  const reviewRequiredCount = steps.filter((step) => step.governance === 'review-required').length;
+  const reviewRequiredCount = steps.filter((step) => isReviewRequired(step)).length;
   const approvedEquivalentHits = steps.filter((step) => step.winningSource === 'approved-equivalent').length;
   const runtimeFailureFamilies = steps.reduce<Record<string, number>>((acc, step) => {
     const family = step.runtime?.failure?.family ?? 'none';

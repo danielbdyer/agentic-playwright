@@ -1,3 +1,4 @@
+import { isApproved, isReviewRequired } from '../../domain/types/workflow';
 import type { RuntimeScenarioStepResult } from '../ports';
 
 function assertInvariant(condition: boolean, message: string): asserts condition {
@@ -18,13 +19,13 @@ export function validateStepResults(input: {
     assertInvariant(receipt.stepIndex === step.execution.stepIndex, `step[${index}] interpretation/execution stepIndex mismatch`);
     assertInvariant(receipt.handshakes.includes('resolution'), `step[${index}] missing resolution handshake`);
     if (receipt.kind === 'needs-human') {
-      assertInvariant(receipt.governance === 'review-required', `step[${index}] needs-human governance must be review-required`);
+      assertInvariant(isReviewRequired(receipt), `step[${index}] needs-human governance must be review-required`);
     }
     if (receipt.kind === 'resolved') {
-      assertInvariant(receipt.governance === 'approved', `step[${index}] resolved governance must be approved`);
+      assertInvariant(isApproved(receipt), `step[${index}] resolved governance must be approved`);
     }
     if (receipt.kind === 'resolved-with-proposals') {
-      assertInvariant(receipt.governance === 'approved', `step[${index}] resolved-with-proposals governance must be approved`);
+      assertInvariant(isApproved(receipt), `step[${index}] resolved-with-proposals governance must be approved`);
     }
   });
 }

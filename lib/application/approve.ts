@@ -40,9 +40,9 @@ export function approveProposal(options: {
       },
     };
     const targetAbsolutePath = path.join(options.paths.rootDir, located.proposal.targetPath);
-    const currentRaw = (yield* fs.exists(targetAbsolutePath))
-      ? yield* fs.readText(targetAbsolutePath)
-      : '{}';
+    const currentRaw = yield* fs.readText(targetAbsolutePath).pipe(
+      Effect.catchTag('FileSystemError', () => Effect.succeed('{}')),
+    );
     const nextArtifact = applyProposalPatch(parseProposalArtifact(currentRaw, located.proposal.targetPath), certifiedProposal);
     validatePatchedProposalArtifact(located.proposal.targetPath, certifiedProposal, nextArtifact);
     yield* fs.writeText(targetAbsolutePath, serializeProposalArtifact(located.proposal.targetPath, nextArtifact));
