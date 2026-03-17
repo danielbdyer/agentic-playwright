@@ -2,6 +2,7 @@ import path from 'path';
 import { pathToFileURL } from 'url';
 import { chromium } from '@playwright/test';
 import { Effect } from 'effect';
+import { uniqueSorted } from '../../domain/collections';
 import { sha256, stableStringify } from '../../domain/hash';
 import { createCanonicalTargetRef, createElementId } from '../../domain/identity';
 import type {
@@ -161,9 +162,6 @@ function fingerprintDiscoveryIndex(index: DiscoveryIndex): string {
   return `sha256:${sha256(stableStringify(stableIndex))}`;
 }
 
-function uniqueSorted<T extends string>(values: Iterable<T>): T[] {
-  return [...new Set(values)].sort((left, right) => left.localeCompare(right)) as T[];
-}
 
 function behaviorArtifactsForScreen(catalog: WorkspaceCatalog, screen: string): Array<{
   artifactPath: string;

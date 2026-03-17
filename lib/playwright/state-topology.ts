@@ -11,6 +11,7 @@ import type {
   TransitionObservation,
 } from '../domain/types';
 import type { CanonicalTargetRef, EventSignatureRef, StateNodeRef, TransitionRef } from '../domain/identity';
+import { uniqueSorted } from '../domain/collections';
 
 export interface ObservationContextScreen {
   screen: StepTaskScreenCandidate['screen'];
@@ -37,10 +38,6 @@ interface ResolvedObservationLocator {
   strategy: LocatorStrategy;
   strategyIndex: number;
   degraded: boolean;
-}
-
-function uniqueSorted<T extends string>(values: Iterable<T>): T[] {
-  return [...new Set(values)].sort((left, right) => left.localeCompare(right)) as T[];
 }
 
 function fallbackLocatorStrategy(candidate: Pick<StepTaskElementCandidate, 'role' | 'name'>): LocatorStrategy {

@@ -1,5 +1,7 @@
 import path from 'path';
 import { Effect } from 'effect';
+import { TesseractError } from '../domain/errors';
+import { mapPayload } from '../domain/types/workflow';
 import { loadWorkspaceCatalog } from './catalog';
 import { emitOperatorInbox } from './inbox';
 import { buildOperatorInboxItems, findProposalById } from './operator';
@@ -18,12 +20,12 @@ export function approveProposal(options: {
     const fs = yield* FileSystem;
     const executionContext = yield* ExecutionContext;
     if (executionContext.posture.executionProfile === 'ci-batch') {
-      throw new Error('Approvals are disabled in ci-batch execution profile');
+      return yield* Effect.fail(new TesseractError('approval-disabled', 'Approvals are disabled in ci-batch execution profile'));
     }
     const catalog = yield* loadWorkspaceCatalog({ paths: options.paths });
     const located = findProposalById(catalog, options.proposalId);
     if (!located) {
-      throw new Error(`Unknown proposal ${options.proposalId}`);
+      return yield* Effect.fail(new TesseractError('proposal-not-found', `Unknown proposal ${options.proposalId}`));
     }
 
     const approvedAt = new Date().toISOString();
@@ -46,15 +48,12 @@ export function approveProposal(options: {
     yield* fs.writeText(targetAbsolutePath, serializeProposalArtifact(located.proposal.targetPath, nextArtifact));
 
     const bundleAbsolutePath = path.join(options.paths.rootDir, located.artifactPath);
+    const replaceProposal = (proposals: readonly ProposalEntry[]) =>
+      proposals.map((proposal) =>
+        proposal.proposalId === certifiedProposal.proposalId ? certifiedProposal : proposal);
     const nextBundle = {
-      ...located.bundle,
-      proposals: located.bundle.proposals.map((proposal) =>
-        proposal.proposalId === certifiedProposal.proposalId ? certifiedProposal : proposal),
-      payload: {
-        ...located.bundle.payload,
-        proposals: located.bundle.payload.proposals.map((proposal) =>
-          proposal.proposalId === certifiedProposal.proposalId ? certifiedProposal : proposal),
-      },
+      ...mapPayload(located.bundle, (payload) => ({ ...payload, proposals: replaceProposal(payload.proposals) })),
+      proposals: replaceProposal(located.bundle.proposals),
     };
     yield* fs.writeJson(bundleAbsolutePath, nextBundle);
 

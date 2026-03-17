@@ -1,13 +1,12 @@
+import { uniqueSorted } from '../../domain/collections';
 import { normalizeIntentText } from '../../domain/inference';
 import type { ResolutionExhaustionEntry, GroundedStep } from '../../domain/types';
+
+export { uniqueSorted };
 
 export interface AliasMatch {
   alias: string;
   score: number;
-}
-
-export function uniqueSorted<T extends string>(values: T[]): T[] {
-  return [...new Set(values.filter((value) => value.length > 0))].sort((left, right) => left.localeCompare(right)) as T[];
 }
 
 export function exhaustionEntry(

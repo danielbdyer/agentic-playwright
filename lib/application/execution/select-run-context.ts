@@ -11,15 +11,12 @@ import type {
   ScenarioRunPlan,
 } from '../../domain/types';
 import type { AdoId, ScreenId } from '../../domain/identity';
+import { uniqueSorted } from '../../domain/collections';
 import { TesseractError } from '../../domain/errors';
 import { activeDatasetForRun, findRunbook } from '../controls';
 import { chooseByPrecedence, runSelectionPrecedenceLaw } from '../../domain/precedence';
 
 const fixtureReferencePattern = /^\{\{\s*([A-Za-z0-9_-]+)(?:\.[^}]*)?\s*\}\}$/;
-
-function uniqueSorted<T extends string>(values: T[]): T[] {
-  return [...new Set(values.filter((value) => value.length > 0))].sort((left, right) => left.localeCompare(right)) as T[];
-}
 
 function fixtureIdFromTemplateValue(value: string | null | undefined): string | null {
   if (!value) {
@@ -120,9 +117,9 @@ export function prepareScenarioRunPlan(input: {
             .filter((value): value is string => value !== null),
       ),
     ),
-  ]);
+  ].filter((value) => value.length > 0));
   const screenIds = uniqueSorted(
-    input.surface.payload.resolutionContext.screens.map((screen) => screen.screen),
+    input.surface.payload.resolutionContext.screens.map((screen) => screen.screen).filter((value) => value.length > 0),
   ) as ScreenId[];
 
   return {

@@ -3,6 +3,7 @@ import { Effect } from 'effect';
 import type { FileSystemPort } from '../../application/ports';
 import { createProjectPaths } from '../../application/paths';
 import type { ExecutionPosture, WriteJournalEntry } from '../../domain/types';
+import { uniqueSorted } from '../../domain/collections';
 
 function normalizePath(filePath: string): string {
   return path.resolve(filePath);
@@ -12,10 +13,6 @@ function isSameOrNested(targetPath: string, rootPath: string): boolean {
   const normalizedTarget = normalizePath(targetPath);
   const normalizedRoot = normalizePath(rootPath);
   return normalizedTarget === normalizedRoot || normalizedTarget.startsWith(`${normalizedRoot}${path.sep}`);
-}
-
-function uniqueSorted(values: Iterable<string>): string[] {
-  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
 }
 
 function serializedJson(value: unknown): string {

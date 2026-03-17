@@ -7,6 +7,7 @@ import { compileStepProgram } from '../domain/program';
 import type { BoundScenario, CompilerDiagnostic } from '../domain/types';
 import { validateBoundScenario } from '../domain/validation';
 import { loadWorkspaceCatalog } from './catalog';
+import { deriveGovernanceState } from './catalog/envelope';
 import { trySync } from './effect';
 import type { ProjectPaths } from './paths';
 import { boundPath, relativeProjectPath } from './paths';
@@ -119,11 +120,10 @@ export function bindScenario(options: { adoId: AdoId; paths: ProjectPaths; sessi
         parents: [relativeProjectPath(options.paths, snapshotArtifact.absolutePath)],
         handshakes: ['preparation'],
       },
-      governance: boundSteps.some((step) => step.binding.governance === 'blocked')
-        ? 'blocked'
-        : boundSteps.some((step) => step.binding.governance === 'review-required')
-          ? 'review-required'
-          : 'approved',
+      governance: deriveGovernanceState({
+        hasBlocked: boundSteps.some((step) => step.binding.governance === 'blocked'),
+        hasReviewRequired: boundSteps.some((step) => step.binding.governance === 'review-required'),
+      }),
       payload: {
         source: scenario.source,
         metadata: scenario.metadata,

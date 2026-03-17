@@ -1,6 +1,6 @@
 import path from 'path';
 import { Effect } from 'effect';
-import { SchemaError } from '../domain/errors';
+import { SchemaError, TesseractError } from '../domain/errors';
 import {
   createCanonicalTargetRef,
   createElementId,
@@ -1298,7 +1298,7 @@ export function projectInterfaceIntelligence(options: { paths: ProjectPaths; cat
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const catalog = options.catalog ?? null;
-    if (!catalog) throw new Error('projectInterfaceIntelligence requires a loaded catalog');
+    if (!catalog) return yield* Effect.fail(new TesseractError('missing-catalog', 'projectInterfaceIntelligence requires a loaded catalog'));
     const discoveryRuns = catalog.discoveryRuns.length > 0 ? catalog.discoveryRuns : yield* loadDiscoveryRuns({ paths: options.paths });
     const inputFingerprints: ProjectionInputFingerprint[] = [
       ...catalog.routeManifests.map((entry) => fingerprintProjectionArtifact('harvest-manifest', entry.artifactPath, entry.artifact as HarvestManifest)),
