@@ -6,3 +6,6 @@ export * from './knowledge';
 export * from './intent';
 export * from './control';
 export * from './execution';
+export * from './session';
+export * from './learning';
+export * from './routes';

@@ -22,7 +22,7 @@ test('intent validator round-trips scenario fixture and keeps error path', () =>
     source: { ado_id: '10001', revision: 1, content_hash: 'hash', synced_at: '2026-01-01T00:00:00Z' },
     metadata: { title: 'Scenario', suite: 'smoke', tags: ['a'], priority: 1, status: 'active', status_detail: null },
     preconditions: [],
-    steps: [{ index: 0, action_text: 'click', expected_text: '', confidence: 'human' }],
+    steps: [{ index: 0, intent: 'click button', action_text: 'click', expected_text: '', action: 'click', confidence: 'human' }],
     postconditions: [],
   };
   const parsed = validateScenario(fixture);
@@ -46,7 +46,7 @@ test('knowledge validator round-trips screen-elements fixture and keeps error pa
   };
   const parsed = validateScreenElements(fixture);
   expect(validateScreenElements(parsed)).toEqual(parsed);
-  expectSchemaPath(() => validateScreenElements({ ...fixture, elements: { searchButton: { ...fixture.elements.searchButton, role: 1 } } }), 'screen-elements.elements.searchButton.role');
+  expectSchemaPath(() => validateScreenElements({ ...fixture, elements: { searchButton: { ...fixture.elements.searchButton, role: 1 } } }), 'elements.searchButton.role');
 });
 
 test('resolution validator round-trips resolution-control fixture and keeps error path', () => {
@@ -59,7 +59,7 @@ test('resolution validator round-trips resolution-control fixture and keeps erro
   };
   const parsed = validateResolutionControl(fixture);
   expect(validateResolutionControl(parsed)).toEqual(parsed);
-  expectSchemaPath(() => validateResolutionControl({ ...fixture, steps: [{ stepIndex: 'x', resolution: { action: 'click' } }] }), 'resolution-control.steps[0].stepIndex');
+  expectSchemaPath(() => validateResolutionControl({ ...fixture, steps: [{ stepIndex: 'x', resolution: { action: 'click' } }] }), 'steps[0].stepIndex');
 });
 
 test('execution validator round-trips benchmark fixture and keeps error path', () => {
@@ -97,7 +97,7 @@ test('projection validator round-trips derived graph fixture and keeps error pat
   };
   const parsed = validateDerivedGraph(fixture);
   expect(validateDerivedGraph(parsed)).toEqual(parsed);
-  expectSchemaPath(() => validateDerivedGraph({ ...fixture, nodes: [{ ...fixture.nodes[0], kind: 'bad' }] }), 'derived-graph.nodes[0].kind');
+  expectSchemaPath(() => validateDerivedGraph({ ...fixture, nodes: [{ ...fixture.nodes[0], kind: 'bad' }] }), 'nodes[0].kind');
 });
 
 test('trust-policy validator round-trips trust policy fixture and keeps error path', () => {
@@ -116,5 +116,5 @@ test('trust-policy validator round-trips trust policy fixture and keeps error pa
   };
   const parsed = validateTrustPolicy(fixture);
   expect(validateTrustPolicy(parsed)).toEqual(parsed);
-  expectSchemaPath(() => validateTrustPolicy({ ...fixture, artifactTypes: { ...fixture.artifactTypes, surface: { ...rule, minimumConfidence: 'bad' } } }), 'trustPolicy.artifactTypes.surface.minimumConfidence');
+  expectSchemaPath(() => validateTrustPolicy({ ...fixture, artifactTypes: { ...fixture.artifactTypes, surface: { ...rule, minimumConfidence: 'bad' } } }), 'artifactTypes.surface.minimumConfidence');
 });
