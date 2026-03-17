@@ -1,4 +1,4 @@
-import { Effect } from 'effect';
+import { Effect, Layer } from 'effect';
 import { AdoSource, ExecutionContext, FileSystem, RuntimeScenarioRunner } from '../application/ports';
 import { makeLocalAdoSource } from '../infrastructure/ado/local-ado-source';
 import { makeLiveAdoSource, readLiveAdoSourceConfigFromEnv } from '../infrastructure/ado/live-ado-source';
@@ -53,26 +53,20 @@ export function createLocalServiceContext(rootDir: string, options?: LocalServic
     writeJournal: () => [...journal],
   };
 
+  const layer = Layer.mergeAll(
+    Layer.succeed(FileSystem, fileSystem),
+    Layer.succeed(AdoSource, resolveAdoSource(rootDir)),
+    Layer.succeed(RuntimeScenarioRunner, LocalRuntimeScenarioRunner),
+    Layer.succeed(ExecutionContext, executionContext),
+  );
+
   return {
     posture,
     writeJournal: () => executionContext.writeJournal(),
     provide<A, E, R>(program: Effect.Effect<A, E, R>): Effect.Effect<A, E, never> {
-      return Effect.provideService(
-        Effect.provideService(
-          Effect.provideService(
-            Effect.provideService(
-              program as Effect.Effect<A, E, FileSystem | AdoSource | RuntimeScenarioRunner | ExecutionContext>,
-              FileSystem,
-              fileSystem,
-            ),
-            AdoSource,
-            resolveAdoSource(rootDir),
-          ),
-          RuntimeScenarioRunner,
-          LocalRuntimeScenarioRunner,
-        ),
-        ExecutionContext,
-        executionContext,
+      return Effect.provide(
+        program as Effect.Effect<A, E, FileSystem | AdoSource | RuntimeScenarioRunner | ExecutionContext>,
+        layer,
       ) as Effect.Effect<A, E, never>;
     },
   };

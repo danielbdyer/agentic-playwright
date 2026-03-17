@@ -64,10 +64,7 @@ export function bindScenario(options: { adoId: AdoId; paths: ProjectPaths; sessi
     const surfaceGraphsByScreen = options.session?.screenIndexes.surfaceGraphs
       ?? new Map(catalog.surfaces.map((entry) => [entry.artifact.screen, entry.artifact] as const));
     const snapshotTemplates = new Set(catalog.knowledgeSnapshots.map((entry) => entry.relativePath));
-    const diagnostics: CompilerDiagnostic[] = [];
-    const boundSteps: BoundScenario['steps'] = [];
-
-    for (const step of scenario.steps) {
+    const stepsWithDiagnostics = scenario.steps.map((step) => {
       const boundStep = bindScenarioStep(
         {
           ...step,
@@ -80,7 +77,7 @@ export function bindScenario(options: { adoId: AdoId; paths: ProjectPaths; sessi
           availableSnapshotTemplates: snapshotTemplates,
         },
       );
-      diagnostics.push(...createStepDiagnostics({
+      const stepDiagnostics = createStepDiagnostics({
         reasons: boundStep.binding.reasons,
         adoId: scenario.source.ado_id,
         stepIndex: step.index,
@@ -88,9 +85,11 @@ export function bindScenario(options: { adoId: AdoId; paths: ProjectPaths; sessi
         contentHash: scenario.source.content_hash,
         revision: scenario.source.revision,
         confidence: step.confidence,
-      }));
-      boundSteps.push(boundStep);
-    }
+      });
+      return { boundStep, stepDiagnostics };
+    });
+    const boundSteps: BoundScenario['steps'] = stepsWithDiagnostics.map(({ boundStep }) => boundStep);
+    const diagnostics: CompilerDiagnostic[] = stepsWithDiagnostics.flatMap(({ stepDiagnostics }) => stepDiagnostics);
 
     const boundScenario: BoundScenario = {
       ...scenario,

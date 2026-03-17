@@ -206,18 +206,18 @@ export function buildDerivedGraph(
           return { status: 'invalid-output' as const };
         }
 
-        const parsedCachedGraph = yield* Effect.either(
-          trySync(
-            () => validateDerivedGraph(cachedGraphRaw),
-            'derived-graph-validation-failed',
-            'Derived graph failed validation',
-          ),
+        const validatedGraph = yield* trySync(
+          () => validateDerivedGraph(cachedGraphRaw),
+          'derived-graph-validation-failed',
+          'Derived graph failed validation',
+        ).pipe(
+          Effect.catchAll(() => Effect.succeed(null)),
         );
-        if (parsedCachedGraph._tag === 'Left') {
+        if (!validatedGraph) {
           return { status: 'invalid-output' as const };
         }
 
-        cachedGraphForHit = parsedCachedGraph.right;
+        cachedGraphForHit = validatedGraph;
 
         return {
           status: 'ok' as const,

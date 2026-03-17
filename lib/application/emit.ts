@@ -183,23 +183,24 @@ function readPersistedEmitOutputState(artifacts: ReturnType<typeof renderEmitArt
       return { status: 'missing-output' as const };
     }
 
-    const persistedTrace = yield* Effect.either(fs.readJson(artifacts.tracePath));
-    const persistedProposals = yield* Effect.either(fs.readJson(artifacts.proposalsPath));
-    if (persistedTrace._tag === 'Left' || persistedProposals._tag === 'Left') {
-      return { status: 'invalid-output' as const };
-    }
-
-    const persistedSpec = yield* fs.readText(artifacts.outputPath);
-    const persistedReview = yield* fs.readText(artifacts.reviewPath);
-    return {
-      status: 'ok' as const,
-      outputFingerprint: fingerprintProjectionOutput({
-        spec: persistedSpec,
-        trace: persistedTrace.right,
-        review: persistedReview,
-        proposals: persistedProposals.right,
-      }),
-    };
+    const persistedOutput = yield* Effect.all({
+      trace: fs.readJson(artifacts.tracePath),
+      proposals: fs.readJson(artifacts.proposalsPath),
+      spec: fs.readText(artifacts.outputPath),
+      review: fs.readText(artifacts.reviewPath),
+    }).pipe(
+      Effect.map(({ trace, proposals, spec, review }) => ({
+        status: 'ok' as const,
+        outputFingerprint: fingerprintProjectionOutput({
+          spec,
+          trace,
+          review,
+          proposals,
+        }),
+      })),
+      Effect.catchAll(() => Effect.succeed({ status: 'invalid-output' as const })),
+    );
+    return persistedOutput;
   });
 }
 

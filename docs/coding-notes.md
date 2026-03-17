@@ -305,6 +305,70 @@ return Effect.gen(function* () {
 
 This is the Effect equivalent of the recursive fold pattern described in the FP Style section. The `step` function's signature makes the state contract explicit: what goes in, what comes out, and where the recursion terminates.
 
+### Use `Effect.all` with `{ concurrency }` to actually parallelize (with care)
+
+`Effect.all({...})` without a concurrency option runs sequentially by default — it only documents independence without exploiting it. Add `{ concurrency: 'unbounded' }` for truly independent operations, or `{ concurrency: N }` for controlled fan-out.
+
+**Caution:** This codebase relies on deterministic artifact ordering for fingerprinting and content hashing. If the results of a concurrent `Effect.all` feed into fingerprinting, the loaded items must be sorted deterministically after loading. Do not add `{ concurrency }` to catalog loading or graph building without first ensuring a stable sort on the output:
+
+```typescript
+// Safe: concurrency with deterministic post-sort
+const loaded = yield* Effect.all({
+  surfaces: loadAllYaml(paths, surfaceFiles, validate),
+  screens: loadAllYaml(paths, screenFiles, validate),
+}, { concurrency: 'unbounded' });
+const sortedSurfaces = [...loaded.surfaces].sort((a, b) => a.artifactPath.localeCompare(b.artifactPath));
+```
+
+### Use `Layer.mergeAll` + `Effect.provide` for service composition
+
+When providing multiple services, compose them into a single Layer rather than nesting `Effect.provideService` calls:
+
+```typescript
+// Prefer: layer composition
+const layer = Layer.mergeAll(
+  Layer.succeed(FileSystem, fs),
+  Layer.succeed(AdoSource, ado),
+  Layer.succeed(RuntimeScenarioRunner, runner),
+  Layer.succeed(ExecutionContext, ctx),
+);
+Effect.provide(program, layer);
+
+// Avoid: nested provideService
+Effect.provideService(
+  Effect.provideService(
+    Effect.provideService(
+      Effect.provideService(program, FileSystem, fs),
+      AdoSource, ado),
+    RuntimeScenarioRunner, runner),
+  ExecutionContext, ctx);
+```
+
+### Use `Effect.tap` for observation without transformation
+
+When you need to observe an intermediate value (record provenance, log telemetry) without changing the data flow, use `Effect.tap` rather than explicit bind-and-return:
+
+```typescript
+// Prefer: tap makes pass-through explicit
+const result = yield* doWork().pipe(Effect.tap(recordProvenance));
+
+// Avoid: manual sequencing
+const result = yield* doWork();
+yield* recordProvenance(result);
+return result;
+```
+
+### Use `Effect.mapError` for error enrichment
+
+When adding context (file paths, step IDs, pipeline stages) to errors as they propagate, use `Effect.mapError` instead of catch-and-re-fail:
+
+```typescript
+// Prefer: mapError transforms the error channel cleanly
+yield* loadArtifact(path).pipe(
+  Effect.mapError((e) => new PipelineError({ ...e, stage: 'bind', artifactPath: path })),
+);
+```
+
 ---
 
 ## Design Pattern Vocabulary
