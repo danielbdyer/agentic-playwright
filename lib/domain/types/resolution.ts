@@ -75,6 +75,7 @@ export interface TranslationReceipt {
   selected: TranslationCandidate | null;
   candidates: TranslationCandidate[];
   rationale: string;
+  translationProvider?: string | undefined;
   cache?: {
     key: string;
     status: 'hit' | 'miss' | 'disabled';
