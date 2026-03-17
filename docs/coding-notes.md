@@ -512,6 +512,100 @@ Every cross-boundary artifact carries a standard envelope: `kind`, `version`, `s
 
 When creating a new artifact type, define it as a `WorkflowEnvelope<T>` variant. The envelope header is the contract that makes artifacts comparable, traceable, and governable across the system.
 
+**Caveat:** `ProposalBundle` has an identical `proposals` field at both `payload.proposals` and top-level `proposals`. This duplication means `mapPayload` alone cannot fully update the bundle — you must also update the top-level field. This is a known structural debt, not a pattern to replicate.
+
+### Exhaustive Match (`Effect.Match`)
+
+For discriminated unions (types defined as `A | B | C` where each variant carries a different `kind` literal), use `Match.discriminatorsExhaustive("kind")` for compile-time exhaustiveness:
+
+```typescript
+import { Match, pipe } from 'effect';
+
+const result = pipe(
+  Match.type<StepInstruction>(),
+  Match.discriminatorsExhaustive('kind')({
+    navigate: (i) => 'navigate' as const,
+    enter: (i) => 'enter' as const,
+    invoke: (i) => 'invoke' as const,
+    'observe-structure': (i) => 'observe-structure' as const,
+    'custom-escape-hatch': (i) => 'custom-escape-hatch' as const,
+  }),
+)(instruction);
+```
+
+**When to use:** True discriminated unions where each variant is a separate type with a literal `kind` field (e.g., `StepInstruction`, `ValueRef`, `LocatorStrategy`).
+
+**When NOT to use:** Single interfaces with a union-typed field (e.g., `GraphEdge` with `kind: GraphEdgeKind`). `Match.discriminatorsExhaustive` requires structurally distinct union members — a single interface with a string literal union field will produce `never` types. Use a traditional `switch` statement for these.
+
+### ValidationRule Combinator
+
+Validation rules are composable via `combineValidationRules` and `contramapValidationRule`, paralleling the existing `ScoringRule` pattern in `candidate-lattice.ts`:
+
+```typescript
+import { combineValidationRules, requiredField, enumField } from '../domain/validation/rules';
+
+const scenarioRule = combineValidationRules(
+  requiredField<Scenario>('source', 'scenario source'),
+  enumField<Scenario>('status', ['active', 'draft', 'stub']),
+);
+
+const diagnostics = scenarioRule.validate(scenario);
+```
+
+Use `contramapValidationRule` to adapt a rule to a different input type.
+
+### StateMachine Abstraction
+
+For recursive Effect loops with convergence detection, use `StateMachine<S, E, R>` from `lib/application/state-machine.ts`:
+
+```typescript
+import { runStateMachine } from './state-machine';
+
+const machine = {
+  initial: INITIAL_STATE,
+  step: (state: LoopState) => Effect.gen(function* () {
+    const result = yield* runIteration(state);
+    return { next: result.nextState, done: result.converged };
+  }),
+};
+
+const finalState = yield* runStateMachine(machine);
+```
+
+This separates the state transition logic from the loop mechanism. The `step` function is a pure state transition; `runStateMachine` handles recursion.
+
+### Governance Type Utilities
+
+Use phantom-branded types and type guards at governance boundaries:
+
+- **Type guards** (`isApproved`, `isBlocked`, `isReviewRequired`): use for simple boolean checks and type narrowing in `if`/`filter` chains.
+- **Assertion** (`requireApproved`): use at entry points that must reject non-approved artifacts (throws on failure).
+- **Fold** (`foldGovernance`): use when all three governance cases require distinct handling logic. Ensures exhaustiveness at the type level.
+- **Conditional type** (`Governed<T, G>`): use in generic function signatures where the governance level is a type parameter.
+- **Envelope aliases** (`ApprovedEnvelope<T>`, `BlockedEnvelope<T>`): use for function parameters that should only accept envelopes of a specific governance state.
+- **Infer utility** (`PayloadOf<T>`): use to extract the payload type from an envelope type without repeating it.
+
+### `readonly` Enforcement
+
+All exported interface fields must be `readonly`. Array fields use `readonly T[]`:
+
+```typescript
+// Correct
+export interface MyType {
+  readonly name: string;
+  readonly items: readonly string[];
+  readonly nested: Readonly<Record<string, readonly number[]>>;
+}
+
+// Incorrect — missing readonly
+export interface MyType {
+  name: string;
+  items: string[];
+}
+```
+
+Reference files for the canonical pattern: `lib/domain/types/workflow.ts`, `lib/domain/types/execution.ts`, `lib/domain/types/resolution.ts`, `lib/domain/types/intent.ts`.
+
 ---
 
 ## Scalability and Testability Conventions

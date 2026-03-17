@@ -1,4 +1,5 @@
-﻿import { formatRefPath } from '../domain/ref-path';
+﻿import { Match, pipe } from 'effect';
+import { formatRefPath } from '../domain/ref-path';
 import type { ValueRef } from '../domain/types';
 
 function lookupPath(fixtures: Record<string, unknown>, segments: string[]): unknown {
@@ -20,42 +21,37 @@ export function resolveDataValue(
     return undefined;
   }
 
-  switch (raw.kind) {
-    case 'literal':
-      return raw.value;
-    case 'fixture-path': {
-      const resolved = lookupPath(fixtures, raw.path.segments);
-      return resolved === undefined || resolved === null ? undefined : String(resolved);
-    }
-    case 'parameter-row': {
-      const row = fixtures.dataRow as Record<string, unknown> | undefined;
-      const resolved = row?.[raw.name];
-      return resolved === undefined || resolved === null ? undefined : String(resolved);
-    }
-    case 'generated-token': {
-      const resolved = (fixtures.generatedTokens as Record<string, unknown> | undefined)?.[raw.token];
-      return resolved === undefined || resolved === null ? raw.token : String(resolved);
-    }
-    case 'posture-sample':
-      return undefined;
-    default:
-      return undefined;
-  }
+  return pipe(
+    Match.type<ValueRef>(),
+    Match.discriminatorsExhaustive('kind')({
+      'literal': (r) => r.value,
+      'fixture-path': (r) => {
+        const resolved = lookupPath(fixtures, r.path.segments);
+        return resolved === undefined || resolved === null ? undefined : String(resolved);
+      },
+      'parameter-row': (r) => {
+        const row = fixtures.dataRow as Record<string, unknown> | undefined;
+        const resolved = row?.[r.name];
+        return resolved === undefined || resolved === null ? undefined : String(resolved);
+      },
+      'generated-token': (r) => {
+        const resolved = (fixtures.generatedTokens as Record<string, unknown> | undefined)?.[r.token];
+        return resolved === undefined || resolved === null ? r.token : String(resolved);
+      },
+      'posture-sample': () => undefined,
+    }),
+  )(raw);
 }
 
 export function describeValueRef(raw: ValueRef): string {
-  switch (raw.kind) {
-    case 'fixture-path':
-      return formatRefPath(raw.path);
-    case 'literal':
-      return raw.value;
-    case 'generated-token':
-      return raw.token;
-    case 'parameter-row':
-      return `${raw.name}[${raw.rowIndex}]`;
-    case 'posture-sample':
-      return `${raw.element}.${raw.posture}[${raw.sampleIndex}]`;
-    default:
-      return '';
-  }
+  return pipe(
+    Match.type<ValueRef>(),
+    Match.discriminatorsExhaustive('kind')({
+      'fixture-path': (r) => formatRefPath(r.path),
+      'literal': (r) => r.value,
+      'generated-token': (r) => r.token,
+      'parameter-row': (r) => `${r.name}[${r.rowIndex}]`,
+      'posture-sample': (r) => `${r.element}.${r.posture}[${r.sampleIndex}]`,
+    }),
+  )(raw);
 }

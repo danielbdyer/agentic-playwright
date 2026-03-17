@@ -129,13 +129,13 @@ test('live DOM ambiguity is bounded and deterministic for tie-breaking and short
   step.normalizedIntent = 'provide customer value => value is accepted';
   step.controlResolution = { action: 'input', screen: createScreenId('policy-search') };
   resolutionContext.confidenceOverlays = [];
-  resolutionContext.controls.resolutionControls = [{
+  resolutionContext.controls = { ...resolutionContext.controls, resolutionControls: [{
     name: 'ci-policy',
     artifactPath: 'controls/resolution/ci-policy.resolution.yaml',
     stepIndex: 2,
     resolution: {},
     domExplorationPolicy: { maxCandidates: 2, maxProbes: 4, forbiddenActions: [] },
-  }];
+  }] } as typeof resolutionContext.controls;
   resolutionContext.screens[0]!.elements = [
     createPolicySearchElement({
       element: createElementId('primaryInput'),
@@ -339,13 +339,13 @@ test('forbidden action policy yields review-required needs-human with shortlist 
   step.actionText = 'Click continue';
   step.normalizedIntent = 'click continue => advances';
   resolutionContext.confidenceOverlays = [];
-  resolutionContext.controls.resolutionControls = [{
+  resolutionContext.controls = { ...resolutionContext.controls, resolutionControls: [{
     name: 'interactive-policy',
     artifactPath: 'controls/resolution/interactive-policy.resolution.yaml',
     stepIndex: 2,
     resolution: {},
     domExplorationPolicy: { maxCandidates: 2, maxProbes: 1, forbiddenActions: ['click'] },
-  }];
+  }] } as typeof resolutionContext.controls;
   resolutionContext.screens[0]!.elements = [{
     ...createPolicySearchElement({
       element: createElementId('submitButton'),

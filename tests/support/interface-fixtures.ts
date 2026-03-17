@@ -18,8 +18,11 @@ import type {
 } from '../../lib/domain/types';
 import type { RuntimeStepAgentContext } from '../../lib/runtime/agent/types';
 
-export function cloneJson<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value)) as T;
+/** Strips readonly modifiers from the top-level fields — for test fixture mutation only. */
+export type Mutable<T> = { -readonly [K in keyof T]: T[K] };
+
+export function cloneJson<T>(value: T): Mutable<T> {
+  return JSON.parse(JSON.stringify(value)) as Mutable<T>;
 }
 
 export function createPolicySearchElement(overrides: Partial<StepTaskElementCandidate> = {}): StepTaskElementCandidate {
@@ -59,7 +62,7 @@ export function createPolicySearchScreen(overrides: Partial<StepTaskScreenCandid
   };
 }
 
-export function createInterfaceResolutionContext(overrides: Partial<InterfaceResolutionContext> = {}): InterfaceResolutionContext {
+export function createInterfaceResolutionContext(overrides: Partial<InterfaceResolutionContext> = {}): Mutable<InterfaceResolutionContext> {
   return {
     knowledgeFingerprint: 'sha256:knowledge',
     confidenceFingerprint: 'sha256:confidence',
@@ -136,7 +139,7 @@ export function groundingFromContext(
   };
 }
 
-export function createGroundedStep(overrides: Partial<GroundedStep> = {}, resolutionContext = createInterfaceResolutionContext()): GroundedStep {
+export function createGroundedStep(overrides: Partial<GroundedStep> = {}, resolutionContext = createInterfaceResolutionContext()): Mutable<GroundedStep> {
   return {
     index: 1,
     intent: 'Enter policy reference',

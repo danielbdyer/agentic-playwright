@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test';
+import { Match, pipe } from 'effect';
 import { createDiagnostic } from '../domain/diagnostics';
 import { runtimeEscapeHatchError, toTesseractError, unknownScreenError } from '../domain/errors';
 import type { ScreenId } from '../domain/identity';
@@ -68,107 +69,110 @@ async function runInstruction(
   instruction: StepInstruction,
 ): Promise<RuntimeResult<RuntimeInstructionSuccess>> {
   try {
-    switch (instruction.kind) {
-      case 'navigate': {
-        const screen = requireScreen(environment.screens, instruction.screen);
-        if (!screen.ok) {
-          return screen;
-        }
-        await environment.page.goto(screen.value.screen.url);
-        return runtimeOk({ observedEffects: ['effect-applied'] });
-      }
-      case 'enter': {
-        const screen = requireScreen(environment.screens, instruction.screen);
-        if (!screen.ok) {
-          return screen;
-        }
-        const resolvedValue = resolveDataValue(environment.fixtures, instruction.value);
-        if (instruction.value && resolvedValue === undefined) {
-          return runtimeErr('runtime-unresolved-value-ref', 'Unable to resolve input value', { instructionKind: instruction.kind });
-        }
-        return engage(
-          environment.page,
-          screen.value.elements,
-          screen.value.postures,
-          screen.value.surfaces,
-          instruction.element,
-          instruction.posture ?? createPostureId('valid'),
-          resolvedValue,
-        );
-      }
-      case 'invoke': {
-        const screen = requireScreen(environment.screens, instruction.screen);
-        if (!screen.ok) {
-          return screen;
-        }
-        const element = screen.value.elements[instruction.element];
-        if (!element) {
-          return runtimeErr('runtime-unknown-effect-target', `Unknown element target ${instruction.element}`, {
-            target: instruction.element,
-            targetKind: 'element',
+    return await pipe(
+      Match.type<StepInstruction>(),
+      Match.discriminatorsExhaustive('kind')({
+        'navigate': async (i) => {
+          const screen = requireScreen(environment.screens, i.screen);
+          if (!screen.ok) {
+            return screen;
+          }
+          await environment.page.goto(screen.value.screen.url);
+          return runtimeOk({ observedEffects: ['effect-applied'] });
+        },
+        'enter': async (i) => {
+          const screen = requireScreen(environment.screens, i.screen);
+          if (!screen.ok) {
+            return screen;
+          }
+          const resolvedValue = resolveDataValue(environment.fixtures, i.value);
+          if (i.value && resolvedValue === undefined) {
+            return runtimeErr('runtime-unresolved-value-ref', 'Unable to resolve input value', { instructionKind: i.kind });
+          }
+          return engage(
+            environment.page,
+            screen.value.elements,
+            screen.value.postures,
+            screen.value.surfaces,
+            i.element,
+            i.posture ?? createPostureId('valid'),
+            resolvedValue,
+          );
+        },
+        'invoke': async (i) => {
+          const screen = requireScreen(environment.screens, i.screen);
+          if (!screen.ok) {
+            return screen;
+          }
+          const element = screen.value.elements[i.element];
+          if (!element) {
+            return runtimeErr('runtime-unknown-effect-target', `Unknown element target ${i.element}`, {
+              target: i.element,
+              targetKind: 'element',
+            });
+          }
+          const resolvedLocator = await resolveLocator(environment.page, element);
+          const action = await interact(
+            resolvedLocator.locator,
+            element.widget,
+            i.action,
+            undefined,
+            { affordance: element.affordance ?? null },
+          );
+          if (!action.ok) {
+            return action;
+          }
+          return runtimeOk({
+            observedEffects: observedEffectsForLocator(resolvedLocator.degraded),
+            locatorStrategy: describeLocatorStrategy(resolvedLocator.strategy),
+            locatorRung: resolvedLocator.strategyIndex,
+            widgetContract: element.widget,
           });
-        }
-        const resolvedLocator = await resolveLocator(environment.page, element);
-        const action = await interact(
-          resolvedLocator.locator,
-          element.widget,
-          instruction.action,
-          undefined,
-          { affordance: element.affordance ?? null },
-        );
-        if (!action.ok) {
-          return action;
-        }
-        return runtimeOk({
-          observedEffects: observedEffectsForLocator(resolvedLocator.degraded),
-          locatorStrategy: describeLocatorStrategy(resolvedLocator.strategy),
-          locatorRung: resolvedLocator.strategyIndex,
-          widgetContract: element.widget,
-        });
-      }
-      case 'observe-structure': {
-        const screen = requireScreen(environment.screens, instruction.screen);
-        if (!screen.ok) {
-          return screen;
-        }
-        const element = screen.value.elements[instruction.element];
-        if (!element) {
-          return runtimeErr('runtime-unknown-effect-target', `Unknown element target ${instruction.element}`, {
-            target: instruction.element,
-            targetKind: 'element',
+        },
+        'observe-structure': async (i) => {
+          const screen = requireScreen(environment.screens, i.screen);
+          if (!screen.ok) {
+            return screen;
+          }
+          const element = screen.value.elements[i.element];
+          if (!element) {
+            return runtimeErr('runtime-unknown-effect-target', `Unknown element target ${i.element}`, {
+              target: i.element,
+              targetKind: 'element',
+            });
+          }
+          const snapshotLoader = environment.snapshotLoader;
+          const hasTemplate = snapshotLoader
+            ? snapshotLoader.has(i.snapshotTemplate)
+            : hasSnapshotTemplate(i.snapshotTemplate);
+          if (!hasTemplate) {
+            return runtimeErr('runtime-missing-snapshot-template', `Missing snapshot template ${i.snapshotTemplate}`, {
+              snapshotTemplate: i.snapshotTemplate,
+            });
+          }
+          const resolvedLocator = await resolveLocator(environment.page, element);
+          const comparison = await expectAriaSnapshot(
+            resolvedLocator.locator,
+            snapshotLoader
+              ? snapshotLoader.read(i.snapshotTemplate)
+              : readSnapshotTemplate(i.snapshotTemplate),
+          );
+          if (!comparison.ok) {
+            return comparison;
+          }
+          return runtimeOk({
+            observedEffects: observedEffectsForLocator(resolvedLocator.degraded),
+            locatorStrategy: describeLocatorStrategy(resolvedLocator.strategy),
+            locatorRung: resolvedLocator.strategyIndex,
+            widgetContract: element.widget,
           });
-        }
-        const snapshotLoader = environment.snapshotLoader;
-        const hasTemplate = snapshotLoader
-          ? snapshotLoader.has(instruction.snapshotTemplate)
-          : hasSnapshotTemplate(instruction.snapshotTemplate);
-        if (!hasTemplate) {
-          return runtimeErr('runtime-missing-snapshot-template', `Missing snapshot template ${instruction.snapshotTemplate}`, {
-            snapshotTemplate: instruction.snapshotTemplate,
-          });
-        }
-        const resolvedLocator = await resolveLocator(environment.page, element);
-        const comparison = await expectAriaSnapshot(
-          resolvedLocator.locator,
-          snapshotLoader
-            ? snapshotLoader.read(instruction.snapshotTemplate)
-            : readSnapshotTemplate(instruction.snapshotTemplate),
-        );
-        if (!comparison.ok) {
-          return comparison;
-        }
-        return runtimeOk({
-          observedEffects: observedEffectsForLocator(resolvedLocator.degraded),
-          locatorStrategy: describeLocatorStrategy(resolvedLocator.strategy),
-          locatorRung: resolvedLocator.strategyIndex,
-          widgetContract: element.widget,
-        });
-      }
-      case 'custom-escape-hatch': {
-        const error = runtimeEscapeHatchError(instruction.reason);
-        return runtimeErr('runtime-step-program-escape-hatch', error.message, error.context, error);
-      }
-    }
+        },
+        'custom-escape-hatch': (i) => {
+          const error = runtimeEscapeHatchError(i.reason);
+          return Promise.resolve(runtimeErr('runtime-step-program-escape-hatch', error.message, error.context, error));
+        },
+      }),
+    )(instruction);
   } catch (cause) {
     const error = toTesseractError(cause, 'runtime-execution-failed', 'Runtime execution failed');
     return runtimeErr('runtime-execution-failed', error.message, undefined, cause);

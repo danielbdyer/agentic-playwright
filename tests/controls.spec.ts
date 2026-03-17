@@ -156,7 +156,7 @@ test('runtime agent reports the winning data source across explicit, control, da
   {
     const step = cloneJson(baseStep);
     const generatedContext = cloneJson(resolutionContext);
-    generatedContext.controls.datasets = [];
+    generatedContext.controls = { ...generatedContext.controls, datasets: [] as [] };
     generatedContext.screens[0]!.elements[0]!.defaultValueRef = null;
     const receipt = await deterministicRuntimeStepAgent.resolve(step, createAgentContext(generatedContext));
     expect(receipt.kind).toBe('resolved');

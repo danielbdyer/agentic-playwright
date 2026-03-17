@@ -12,8 +12,8 @@ export interface GroundedSpecFragment {
   action: StepAction | 'composite';
   intent: string;
   graphNodeIds: string[];
-  selectorRefs: string[];
-  assertionAnchors: string[];
+  selectorRefs: readonly string[];
+  assertionAnchors: readonly string[];
   artifactRefs: string[];
   confidence: Extract<Confidence, 'compiler-derived' | 'agent-verified' | 'agent-proposed'>;
 }

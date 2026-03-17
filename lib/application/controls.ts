@@ -14,7 +14,7 @@ import { compareStrings, uniqueSorted } from '../domain/collections';
 import { chooseByPrecedence, runSelectionPrecedenceLaw } from '../domain/precedence';
 
 function selectorMatchesScenario(
-  selector: { adoIds: string[]; suites: string[]; tags: string[] },
+  selector: { adoIds: readonly string[]; suites: readonly string[]; tags: readonly string[] },
   scenario: Scenario,
 ): boolean {
   const matchesAdoId = selector.adoIds.length === 0 || selector.adoIds.includes(scenario.source.ado_id);

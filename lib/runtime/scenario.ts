@@ -99,13 +99,13 @@ function executionDiagnosticsFromError(code: string, message: string, context?: 
   return [{ code, message, context }];
 }
 
-function activeRouteVariantRefs(state: ScenarioRunState, task: GroundedStep): string[] {
+function activeRouteVariantRefs(state: ScenarioRunState, task: GroundedStep): readonly string[] {
   return state.observedStateSession.activeRouteVariantRefs.length > 0
     ? state.observedStateSession.activeRouteVariantRefs
     : task.grounding.routeVariantRefs;
 }
 
-function relevantStateRefs(task: GroundedStep): StateNodeRef[] {
+function relevantStateRefs(task: GroundedStep): readonly StateNodeRef[] {
   return uniqueSorted([
     ...task.grounding.requiredStateRefs,
     ...task.grounding.forbiddenStateRefs,
@@ -146,8 +146,8 @@ function mergeObservedStateSession(input: {
   state: ScenarioRunState;
   task: GroundedStep;
   interpretation: Exclude<ResolutionReceipt, { kind: 'needs-human' }>;
-  observedStateRefs: StateNodeRef[];
-  transitionRefs: TransitionRef[];
+  observedStateRefs: readonly StateNodeRef[];
+  transitionRefs: readonly TransitionRef[];
 }) {
   const relevant = new Set(relevantStateRefs(input.task));
   input.state.observedStateSession = {

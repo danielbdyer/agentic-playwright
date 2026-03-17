@@ -10,14 +10,14 @@ import {
 } from './ts-ast';
 
 export interface GeneratedKnowledgeInput {
-  screens: string[];
-  surfaces: Record<string, string[]>;
-  surfaceActions: Record<string, Record<string, string[]>>;
-  elements: Record<string, string[]>;
-  widgetActions: Record<string, string[]>;
-  postures: Record<string, Record<string, string[]>>;
-  snapshots: string[];
-  fixtures: string[];
+  screens: readonly string[];
+  surfaces: Readonly<Record<string, readonly string[]>>;
+  surfaceActions: Readonly<Record<string, Readonly<Record<string, readonly string[]>>>>;
+  elements: Readonly<Record<string, readonly string[]>>;
+  widgetActions: Readonly<Record<string, readonly string[]>>;
+  postures: Readonly<Record<string, Readonly<Record<string, readonly string[]>>>>;
+  snapshots: readonly string[];
+  fixtures: readonly string[];
 }
 
 function typeParameterScreenId(): ts.TypeParameterDeclaration {
@@ -29,7 +29,7 @@ function typeParameterScreenId(): ts.TypeParameterDeclaration {
   );
 }
 
-function screenCases(input: GeneratedKnowledgeInput, selector: (screen: string) => string[]): Array<{ screen: string; values: string[] }> {
+function screenCases(input: GeneratedKnowledgeInput, selector: (screen: string) => readonly string[]): Array<{ screen: string; values: readonly string[] }> {
   return input.screens.map((screen) => ({
     screen,
     values: selector(screen),

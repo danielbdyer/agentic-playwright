@@ -1,4 +1,5 @@
 ﻿import type { Page, Locator } from '@playwright/test';
+import { Match, pipe } from 'effect';
 import type { ElementSig, LocatorStrategy } from '../domain/types';
 
 export interface ResolvedLocator {
@@ -24,25 +25,25 @@ export function locatorStrategies(element: ElementSig): LocatorStrategy[] {
 }
 
 export function describeLocatorStrategy(strategy: LocatorStrategy): string {
-  switch (strategy.kind) {
-    case 'test-id':
-      return `test-id:${strategy.value}`;
-    case 'role-name':
-      return strategy.name ? `role:${strategy.role}[name=${strategy.name}]` : `role:${strategy.role}`;
-    case 'css':
-      return `css:${strategy.value}`;
-  }
+  return pipe(
+    Match.type<LocatorStrategy>(),
+    Match.discriminatorsExhaustive('kind')({
+      'test-id': (s) => `test-id:${s.value}`,
+      'role-name': (s) => s.name ? `role:${s.role}[name=${s.name}]` : `role:${s.role}`,
+      'css': (s) => `css:${s.value}`,
+    }),
+  )(strategy);
 }
 
 function locatorForStrategy(page: Page, strategy: LocatorStrategy): Locator {
-  switch (strategy.kind) {
-    case 'test-id':
-      return page.getByTestId(strategy.value);
-    case 'role-name':
-      return page.getByRole(strategy.role as never, strategy.name ? { name: strategy.name } : undefined);
-    case 'css':
-      return page.locator(strategy.value);
-  }
+  return pipe(
+    Match.type<LocatorStrategy>(),
+    Match.discriminatorsExhaustive('kind')({
+      'test-id': (s) => page.getByTestId(s.value),
+      'role-name': (s) => page.getByRole(s.role as never, s.name ? { name: s.name } : undefined),
+      'css': (s) => page.locator(s.value),
+    }),
+  )(strategy);
 }
 
 async function strategyMatches(locator: Locator): Promise<boolean> {

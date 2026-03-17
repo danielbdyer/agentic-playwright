@@ -98,8 +98,8 @@ export function createRunRecordEnvelope(input: {
   fingerprints: WorkflowEnvelopeFingerprints;
   lineage: WorkflowEnvelopeLineage;
   payload: RunRecord['payload'];
-  steps: ScenarioRunStep[];
-  evidenceIds: string[];
+  steps: readonly ScenarioRunStep[];
+  evidenceIds: readonly string[];
   governance: Governance;
 }): RunRecord {
   return {

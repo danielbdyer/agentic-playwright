@@ -1,34 +1,28 @@
+import { Match, pipe } from 'effect';
 import type { DerivedGraph, GraphEdge, GraphNode } from './types/projection';
 
 function nodeLookup(graph: DerivedGraph): Map<string, GraphNode> {
   return new Map(graph.nodes.map((node) => [node.id, node] as const));
 }
 
+const inwardKinds: ReadonlySet<string> = new Set(['derived-from', 'references', 'uses', 'learns-from', 'asserts', 'observed-by']);
+const outwardKinds: ReadonlySet<string> = new Set(['emits', 'affects', 'proposed-change-for', 'governs']);
+
 function dependentNodesForEdge(edge: GraphEdge, nodes: Map<string, GraphNode>, current: string): string[] {
-  switch (edge.kind) {
-    case 'derived-from':
-    case 'references':
-    case 'uses':
-    case 'learns-from':
-    case 'asserts':
-    case 'observed-by':
-      return edge.to === current ? [edge.from] : [];
-    case 'emits':
-    case 'affects':
-    case 'proposed-change-for':
-    case 'governs':
-      return edge.from === current ? [edge.to] : [];
-    case 'contains': {
+  return pipe(
+    Match.value(edge.kind as string),
+    Match.when((k) => inwardKinds.has(k), () => edge.to === current ? [edge.from] : []),
+    Match.when((k) => outwardKinds.has(k), () => edge.from === current ? [edge.to] : []),
+    Match.when('contains', () => {
       const parent = nodes.get(edge.from);
       const child = nodes.get(edge.to);
       if (edge.to === current && parent?.kind === 'scenario' && child?.kind === 'step') {
         return [edge.from];
       }
-      return [];
-    }
-    default:
-      return [];
-  }
+      return [] as string[];
+    }),
+    Match.orElse(() => [] as string[]),
+  );
 }
 
 export function collectRelatedSubgraph(graph: DerivedGraph, seedNodeIds: Set<string>) {

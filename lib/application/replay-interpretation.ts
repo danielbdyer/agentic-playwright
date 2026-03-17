@@ -1,6 +1,6 @@
 import { Effect } from 'effect';
 import type { AdoId } from '../domain/identity';
-import type { InterpretationDriftRecord, ResolutionReceipt, ScenarioInterpretationSurface } from '../domain/types';
+import type { InterpretationDriftChange, InterpretationDriftRecord, ResolutionReceipt, ScenarioInterpretationSurface } from '../domain/types';
 import type { ProjectPaths } from './paths';
 import { interpretationDriftPath, interpretationPath, resolutionGraphPath, taskPacketPath } from './paths';
 import { FileSystem, RuntimeScenarioRunner } from './ports';
@@ -59,7 +59,7 @@ function createDriftRecord(input: {
     const next = step.interpretation;
     const beforeExhaustion = prior ? exhaustionPath(prior) : [];
     const afterExhaustion = exhaustionPath(next);
-    const changes: InterpretationDriftRecord['steps'][number]['changes'] = [];
+    const changes: InterpretationDriftChange[] = [];
     const beforeGraphDigest = prior ? resolutionGraphDigest(prior) : 'none';
     const afterGraphDigest = resolutionGraphDigest(next);
 

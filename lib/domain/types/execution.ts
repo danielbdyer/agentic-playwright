@@ -19,333 +19,333 @@ import type { TransitionObservation } from './interface';
 
 
 export interface ResolutionGraphDriftDelta {
-  traversalPathChanged: boolean;
-  winnerRungChanged: boolean;
-  winnerRationaleChanged: boolean;
+  readonly traversalPathChanged: boolean;
+  readonly winnerRungChanged: boolean;
+  readonly winnerRationaleChanged: boolean;
 }
 
 export interface ResolutionGraphStepRecord {
-  stepIndex: number;
-  graph: StepResolutionGraph;
+  readonly stepIndex: number;
+  readonly graph: StepResolutionGraph;
 }
 
 export interface ResolutionGraphRecord {
-  kind: 'resolution-graph-record';
-  version: 1;
-  stage: 'resolution';
-  scope: 'run';
-  ids: WorkflowEnvelopeIds;
-  fingerprints: WorkflowEnvelopeFingerprints;
-  lineage: WorkflowEnvelopeLineage;
-  governance: Governance;
-  adoId: AdoId;
-  runId: string;
-  providerId: string;
-  mode: string;
-  generatedAt: string;
-  steps: ResolutionGraphStepRecord[];
+  readonly kind: 'resolution-graph-record';
+  readonly version: 1;
+  readonly stage: 'resolution';
+  readonly scope: 'run';
+  readonly ids: WorkflowEnvelopeIds;
+  readonly fingerprints: WorkflowEnvelopeFingerprints;
+  readonly lineage: WorkflowEnvelopeLineage;
+  readonly governance: Governance;
+  readonly adoId: AdoId;
+  readonly runId: string;
+  readonly providerId: string;
+  readonly mode: string;
+  readonly generatedAt: string;
+  readonly steps: readonly ResolutionGraphStepRecord[];
 }
 
 export interface InterpretationDriftChange {
-  field: 'winningSource' | 'target' | 'governance' | 'confidence' | 'exhaustion-path' | 'resolution-graph';
-  before: unknown;
-  after: unknown;
+  readonly field: 'winningSource' | 'target' | 'governance' | 'confidence' | 'exhaustion-path' | 'resolution-graph';
+  readonly before: unknown;
+  readonly after: unknown;
 }
 
 export interface InterpretationDriftStep {
-  stepIndex: number;
-  changed: boolean;
-  changes: InterpretationDriftChange[];
-  before: {
-    winningSource: string;
-    target: string;
-    governance: Governance;
-    confidence: string;
-    exhaustionPath: string[];
-    resolutionGraphDigest: string;
+  readonly stepIndex: number;
+  readonly changed: boolean;
+  readonly changes: readonly InterpretationDriftChange[];
+  readonly before: {
+    readonly winningSource: string;
+    readonly target: string;
+    readonly governance: Governance;
+    readonly confidence: string;
+    readonly exhaustionPath: readonly string[];
+    readonly resolutionGraphDigest: string;
   };
-  after: {
-    winningSource: string;
-    target: string;
-    governance: Governance;
-    confidence: string;
-    exhaustionPath: string[];
-    resolutionGraphDigest: string;
+  readonly after: {
+    readonly winningSource: string;
+    readonly target: string;
+    readonly governance: Governance;
+    readonly confidence: string;
+    readonly exhaustionPath: readonly string[];
+    readonly resolutionGraphDigest: string;
   };
-  resolutionGraphDrift: ResolutionGraphDriftDelta;
+  readonly resolutionGraphDrift: ResolutionGraphDriftDelta;
 }
 
 export interface InterpretationDriftRecord {
-  kind: 'interpretation-drift-record';
-  version: 1;
-  stage: 'resolution';
-  scope: 'run';
-  ids: WorkflowEnvelopeIds;
-  fingerprints: WorkflowEnvelopeFingerprints;
-  lineage: WorkflowEnvelopeLineage;
-  governance: Governance;
-  adoId: AdoId;
-  runId: string;
-  comparedRunId: string | null;
-  providerId: string;
-  mode: string;
-  comparedAt: string;
-  changedStepCount: number;
-  unchangedStepCount: number;
-  totalStepCount: number;
-  hasDrift: boolean;
-  provenance: {
-    taskFingerprint: string;
-    knowledgeFingerprint: string;
-    controlsFingerprint: string | null;
-    comparedTaskFingerprint: string | null;
-    comparedKnowledgeFingerprint: string | null;
-    comparedControlsFingerprint: string | null;
+  readonly kind: 'interpretation-drift-record';
+  readonly version: 1;
+  readonly stage: 'resolution';
+  readonly scope: 'run';
+  readonly ids: WorkflowEnvelopeIds;
+  readonly fingerprints: WorkflowEnvelopeFingerprints;
+  readonly lineage: WorkflowEnvelopeLineage;
+  readonly governance: Governance;
+  readonly adoId: AdoId;
+  readonly runId: string;
+  readonly comparedRunId: string | null;
+  readonly providerId: string;
+  readonly mode: string;
+  readonly comparedAt: string;
+  readonly changedStepCount: number;
+  readonly unchangedStepCount: number;
+  readonly totalStepCount: number;
+  readonly hasDrift: boolean;
+  readonly provenance: {
+    readonly taskFingerprint: string;
+    readonly knowledgeFingerprint: string;
+    readonly controlsFingerprint: string | null;
+    readonly comparedTaskFingerprint: string | null;
+    readonly comparedKnowledgeFingerprint: string | null;
+    readonly comparedControlsFingerprint: string | null;
   };
-  explainableByFingerprintDelta: boolean;
-  steps: InterpretationDriftStep[];
+  readonly explainableByFingerprintDelta: boolean;
+  readonly steps: readonly InterpretationDriftStep[];
 }
 
 export interface ExecutionDiagnostic {
-  code: string;
-  message: string;
-  context?: Record<string, string> | undefined;
+  readonly code: string;
+  readonly message: string;
+  readonly context?: Readonly<Record<string, string>> | undefined;
 }
 
 export interface ExecutionObservation {
-  status: 'ok' | 'failed' | 'skipped';
-  observedEffects: string[];
-  diagnostics: ExecutionDiagnostic[];
+  readonly status: 'ok' | 'failed' | 'skipped';
+  readonly observedEffects: readonly string[];
+  readonly diagnostics: readonly ExecutionDiagnostic[];
 }
 
 export interface StepExecutionReceipt {
-  version: 1;
-  stage: 'execution';
-  scope: 'step';
-  ids: WorkflowEnvelopeIds;
-  fingerprints: WorkflowEnvelopeFingerprints;
-  lineage: WorkflowEnvelopeLineage;
-  governance: Governance;
-  stepIndex: number;
-  taskFingerprint: string;
-  knowledgeFingerprint: string;
-  runAt: string;
-  mode: string;
-  widgetContract?: string | null | undefined;
-  locatorStrategy?: string | null | undefined;
-  locatorRung?: number | null | undefined;
-  degraded: boolean;
-  preconditionFailures: string[];
-  requiredStateRefs?: StateNodeRef[] | undefined;
-  forbiddenStateRefs?: StateNodeRef[] | undefined;
-  effectAssertions?: string[] | undefined;
-  eventSignatureRefs?: EventSignatureRef[] | undefined;
-  expectedTransitionRefs?: TransitionRef[] | undefined;
-  observedStateRefs?: StateNodeRef[] | undefined;
-  transitionObservations?: TransitionObservation[] | undefined;
-  durationMs: number;
-  timing: {
-    setupMs: number;
-    resolutionMs: number;
-    actionMs: number;
-    assertionMs: number;
-    retriesMs: number;
-    teardownMs: number;
-    totalMs: number;
+  readonly version: 1;
+  readonly stage: 'execution';
+  readonly scope: 'step';
+  readonly ids: WorkflowEnvelopeIds;
+  readonly fingerprints: WorkflowEnvelopeFingerprints;
+  readonly lineage: WorkflowEnvelopeLineage;
+  readonly governance: Governance;
+  readonly stepIndex: number;
+  readonly taskFingerprint: string;
+  readonly knowledgeFingerprint: string;
+  readonly runAt: string;
+  readonly mode: string;
+  readonly widgetContract?: string | null | undefined;
+  readonly locatorStrategy?: string | null | undefined;
+  readonly locatorRung?: number | null | undefined;
+  readonly degraded: boolean;
+  readonly preconditionFailures: readonly string[];
+  readonly requiredStateRefs?: readonly StateNodeRef[] | undefined;
+  readonly forbiddenStateRefs?: readonly StateNodeRef[] | undefined;
+  readonly effectAssertions?: readonly string[] | undefined;
+  readonly eventSignatureRefs?: readonly EventSignatureRef[] | undefined;
+  readonly expectedTransitionRefs?: readonly TransitionRef[] | undefined;
+  readonly observedStateRefs?: readonly StateNodeRef[] | undefined;
+  readonly transitionObservations?: readonly TransitionObservation[] | undefined;
+  readonly durationMs: number;
+  readonly timing: {
+    readonly setupMs: number;
+    readonly resolutionMs: number;
+    readonly actionMs: number;
+    readonly assertionMs: number;
+    readonly retriesMs: number;
+    readonly teardownMs: number;
+    readonly totalMs: number;
   };
-  cost: {
-    instructionCount: number;
-    diagnosticCount: number;
+  readonly cost: {
+    readonly instructionCount: number;
+    readonly diagnosticCount: number;
   };
-  budget: {
-    thresholds: {
-      maxSetupMs?: number | undefined;
-      maxResolutionMs?: number | undefined;
-      maxActionMs?: number | undefined;
-      maxAssertionMs?: number | undefined;
-      maxRetriesMs?: number | undefined;
-      maxTeardownMs?: number | undefined;
-      maxTotalMs?: number | undefined;
-      maxInstructionCount?: number | undefined;
-      maxDiagnosticCount?: number | undefined;
+  readonly budget: {
+    readonly thresholds: {
+      readonly maxSetupMs?: number | undefined;
+      readonly maxResolutionMs?: number | undefined;
+      readonly maxActionMs?: number | undefined;
+      readonly maxAssertionMs?: number | undefined;
+      readonly maxRetriesMs?: number | undefined;
+      readonly maxTeardownMs?: number | undefined;
+      readonly maxTotalMs?: number | undefined;
+      readonly maxInstructionCount?: number | undefined;
+      readonly maxDiagnosticCount?: number | undefined;
     };
-    status: 'within-budget' | 'over-budget' | 'not-configured';
-    breaches: string[];
+    readonly status: 'within-budget' | 'over-budget' | 'not-configured';
+    readonly breaches: readonly string[];
   };
-  failure: {
-    family: 'none' | 'precondition-failure' | 'locator-degradation-failure' | 'environment-runtime-failure';
-    code?: string | null | undefined;
-    message?: string | null | undefined;
+  readonly failure: {
+    readonly family: 'none' | 'precondition-failure' | 'locator-degradation-failure' | 'environment-runtime-failure';
+    readonly code?: string | null | undefined;
+    readonly message?: string | null | undefined;
   };
-  recovery: {
-    policyProfile: string;
-    attempts: RecoveryAttemptReceipt[];
+  readonly recovery: {
+    readonly policyProfile: string;
+    readonly attempts: readonly RecoveryAttemptReceipt[];
   };
-  handshakes: WorkflowStage[];
-  execution: ExecutionObservation;
+  readonly handshakes: readonly WorkflowStage[];
+  readonly execution: ExecutionObservation;
 }
 
 
 
 export interface RecoveryAttemptReceipt {
-  strategyId: RecoveryStrategyId;
-  family: Exclude<StepExecutionReceipt['failure']['family'], 'none'>;
-  attempt: number;
-  startedAt: string;
-  durationMs: number;
-  result: 'recovered' | 'failed' | 'skipped';
-  diagnostics: string[];
+  readonly strategyId: RecoveryStrategyId;
+  readonly family: Exclude<StepExecutionReceipt['failure']['family'], 'none'>;
+  readonly attempt: number;
+  readonly startedAt: string;
+  readonly durationMs: number;
+  readonly result: 'recovered' | 'failed' | 'skipped';
+  readonly diagnostics: readonly string[];
 }
 
 export interface TranslationRunMetrics {
-  total: number;
-  hits: number;
-  misses: number;
-  disabled: number;
-  hitRate: number;
-  missReasons: Record<string, number>;
-  failureClasses: Record<string, number>;
+  readonly total: number;
+  readonly hits: number;
+  readonly misses: number;
+  readonly disabled: number;
+  readonly hitRate: number;
+  readonly missReasons: Readonly<Record<string, number>>;
+  readonly failureClasses: Readonly<Record<string, number>>;
 }
 
 export interface StepFold {
-  stepIndex: number;
-  evidenceIds: string[];
-  observedStateRefs: StateNodeRef[];
-  matchedTransitionRefs: TransitionRef[];
-  failureFamily: StepExecutionReceipt['failure']['family'];
-  failureCode: string | null;
-  failureMessage: string | null;
-  translation: TranslationReceipt | null;
-  recoveryAttempts: RecoveryStrategyId[];
-  timing: StepExecutionReceipt['timing'];
-  cost: StepExecutionReceipt['cost'];
-  budgetStatus: StepExecutionReceipt['budget']['status'];
-  degraded: boolean;
-  resolutionMode: ResolutionMode;
-  winningSource: StepWinningSource;
+  readonly stepIndex: number;
+  readonly evidenceIds: readonly string[];
+  readonly observedStateRefs: readonly StateNodeRef[];
+  readonly matchedTransitionRefs: readonly TransitionRef[];
+  readonly failureFamily: StepExecutionReceipt['failure']['family'];
+  readonly failureCode: string | null;
+  readonly failureMessage: string | null;
+  readonly translation: TranslationReceipt | null;
+  readonly recoveryAttempts: readonly RecoveryStrategyId[];
+  readonly timing: StepExecutionReceipt['timing'];
+  readonly cost: StepExecutionReceipt['cost'];
+  readonly budgetStatus: StepExecutionReceipt['budget']['status'];
+  readonly degraded: boolean;
+  readonly resolutionMode: ResolutionMode;
+  readonly winningSource: StepWinningSource;
 }
 
 export interface ScenarioRunFold {
-  kind: 'scenario-run-fold';
-  version: 1;
-  adoId: AdoId;
-  runId: string;
-  surfaceFingerprint: string;
-  byStep: ReadonlyMap<number, StepFold>;
-  translationMetrics: TranslationRunMetrics;
-  executionMetrics: {
-    timingTotals: StepExecutionReceipt['timing'];
-    costTotals: StepExecutionReceipt['cost'];
-    budgetBreaches: number;
-    failureFamilies: Record<StepExecutionReceipt['failure']['family'], number>;
-    recoveryFamilies: Record<Exclude<StepExecutionReceipt['failure']['family'], 'none'>, number>;
-    recoveryStrategies: Record<RecoveryStrategyId, number>;
+  readonly kind: 'scenario-run-fold';
+  readonly version: 1;
+  readonly adoId: AdoId;
+  readonly runId: string;
+  readonly surfaceFingerprint: string;
+  readonly byStep: ReadonlyMap<number, StepFold>;
+  readonly translationMetrics: TranslationRunMetrics;
+  readonly executionMetrics: {
+    readonly timingTotals: StepExecutionReceipt['timing'];
+    readonly costTotals: StepExecutionReceipt['cost'];
+    readonly budgetBreaches: number;
+    readonly failureFamilies: Readonly<Record<StepExecutionReceipt['failure']['family'], number>>;
+    readonly recoveryFamilies: Readonly<Record<Exclude<StepExecutionReceipt['failure']['family'], 'none'>, number>>;
+    readonly recoveryStrategies: Readonly<Record<RecoveryStrategyId, number>>;
   };
-  evidenceIds: string[];
-  observedStateRefs: StateNodeRef[];
-  matchedTransitionRefs: TransitionRef[];
+  readonly evidenceIds: readonly string[];
+  readonly observedStateRefs: readonly StateNodeRef[];
+  readonly matchedTransitionRefs: readonly TransitionRef[];
 }
 
 export interface ScenarioRunStep {
-  stepIndex: number;
-  interpretation: ResolutionReceipt;
-  execution: StepExecutionReceipt;
-  evidenceIds: string[];
+  readonly stepIndex: number;
+  readonly interpretation: ResolutionReceipt;
+  readonly execution: StepExecutionReceipt;
+  readonly evidenceIds: readonly string[];
 }
 
 export interface RunRecord {
-  kind: 'scenario-run-record';
-  version: 1;
-  stage: 'execution';
-  scope: 'run';
-  ids: WorkflowEnvelopeIds;
-  fingerprints: WorkflowEnvelopeFingerprints;
-  lineage: WorkflowEnvelopeLineage;
-  governance: Governance;
-  payload: {
-    runId: string;
-    adoId: AdoId;
-    revision: number;
-    title: string;
-    suite: string;
-    taskFingerprint: string;
-    knowledgeFingerprint: string;
-    provider: string;
-    mode: string;
-    startedAt: string;
-    completedAt: string;
-    steps: ScenarioRunStep[];
-    evidenceIds: string[];
-    translationMetrics: TranslationRunMetrics;
-    executionMetrics: {
-      timingTotals: StepExecutionReceipt['timing'];
-      costTotals: StepExecutionReceipt['cost'];
-      budgetBreaches: number;
-      failureFamilies: Record<StepExecutionReceipt['failure']['family'], number>;
-      recoveryFamilies: Record<Exclude<StepExecutionReceipt['failure']['family'], 'none'>, number>;
-      recoveryStrategies: Record<RecoveryStrategyId, number>;
+  readonly kind: 'scenario-run-record';
+  readonly version: 1;
+  readonly stage: 'execution';
+  readonly scope: 'run';
+  readonly ids: WorkflowEnvelopeIds;
+  readonly fingerprints: WorkflowEnvelopeFingerprints;
+  readonly lineage: WorkflowEnvelopeLineage;
+  readonly governance: Governance;
+  readonly payload: {
+    readonly runId: string;
+    readonly adoId: AdoId;
+    readonly revision: number;
+    readonly title: string;
+    readonly suite: string;
+    readonly taskFingerprint: string;
+    readonly knowledgeFingerprint: string;
+    readonly provider: string;
+    readonly mode: string;
+    readonly startedAt: string;
+    readonly completedAt: string;
+    readonly steps: readonly ScenarioRunStep[];
+    readonly evidenceIds: readonly string[];
+    readonly translationMetrics: TranslationRunMetrics;
+    readonly executionMetrics: {
+      readonly timingTotals: StepExecutionReceipt['timing'];
+      readonly costTotals: StepExecutionReceipt['cost'];
+      readonly budgetBreaches: number;
+      readonly failureFamilies: Readonly<Record<StepExecutionReceipt['failure']['family'], number>>;
+      readonly recoveryFamilies: Readonly<Record<Exclude<StepExecutionReceipt['failure']['family'], 'none'>, number>>;
+      readonly recoveryStrategies: Readonly<Record<RecoveryStrategyId, number>>;
     };
   };
-  runId: string;
-  adoId: AdoId;
-  revision: number;
-  title: string;
-  suite: string;
-  taskFingerprint: string;
-  knowledgeFingerprint: string;
-  provider: string;
-  mode: string;
-  startedAt: string;
-  completedAt: string;
-  steps: ScenarioRunStep[];
-  evidenceIds: string[];
-  translationMetrics: TranslationRunMetrics;
-  executionMetrics: {
-    timingTotals: StepExecutionReceipt['timing'];
-    costTotals: StepExecutionReceipt['cost'];
-    budgetBreaches: number;
-    failureFamilies: Record<StepExecutionReceipt['failure']['family'], number>;
-    recoveryFamilies: Record<Exclude<StepExecutionReceipt['failure']['family'], 'none'>, number>;
-    recoveryStrategies: Record<RecoveryStrategyId, number>;
+  readonly runId: string;
+  readonly adoId: AdoId;
+  readonly revision: number;
+  readonly title: string;
+  readonly suite: string;
+  readonly taskFingerprint: string;
+  readonly knowledgeFingerprint: string;
+  readonly provider: string;
+  readonly mode: string;
+  readonly startedAt: string;
+  readonly completedAt: string;
+  readonly steps: readonly ScenarioRunStep[];
+  readonly evidenceIds: readonly string[];
+  readonly translationMetrics: TranslationRunMetrics;
+  readonly executionMetrics: {
+    readonly timingTotals: StepExecutionReceipt['timing'];
+    readonly costTotals: StepExecutionReceipt['cost'];
+    readonly budgetBreaches: number;
+    readonly failureFamilies: Readonly<Record<StepExecutionReceipt['failure']['family'], number>>;
+    readonly recoveryFamilies: Readonly<Record<Exclude<StepExecutionReceipt['failure']['family'], 'none'>, number>>;
+    readonly recoveryStrategies: Readonly<Record<RecoveryStrategyId, number>>;
   };
 }
 
 export interface ProposalEntry {
-  proposalId: string;
-  stepIndex: number;
-  artifactType: TrustPolicyArtifactType;
-  targetPath: string;
-  title: string;
-  patch: Record<string, unknown>;
-  evidenceIds: string[];
-  impactedSteps: number[];
-  trustPolicy: TrustPolicyEvaluation;
-  certification: CertificationStatus;
-  activation: ProposalActivation;
-  lineage: CanonicalLineage;
+  readonly proposalId: string;
+  readonly stepIndex: number;
+  readonly artifactType: TrustPolicyArtifactType;
+  readonly targetPath: string;
+  readonly title: string;
+  readonly patch: Readonly<Record<string, unknown>>;
+  readonly evidenceIds: readonly string[];
+  readonly impactedSteps: readonly number[];
+  readonly trustPolicy: TrustPolicyEvaluation;
+  readonly certification: CertificationStatus;
+  readonly activation: ProposalActivation;
+  readonly lineage: CanonicalLineage;
 }
 
 export interface ProposalBundle {
-  kind: 'proposal-bundle';
-  version: 1;
-  stage: 'proposal';
-  scope: 'scenario';
-  ids: WorkflowEnvelopeIds;
-  fingerprints: WorkflowEnvelopeFingerprints;
-  lineage: WorkflowEnvelopeLineage;
-  governance: Governance;
-  payload: {
-    adoId: AdoId;
-    runId: string;
-    revision: number;
-    title: string;
-    suite: string;
-    proposals: ProposalEntry[];
+  readonly kind: 'proposal-bundle';
+  readonly version: 1;
+  readonly stage: 'proposal';
+  readonly scope: 'scenario';
+  readonly ids: WorkflowEnvelopeIds;
+  readonly fingerprints: WorkflowEnvelopeFingerprints;
+  readonly lineage: WorkflowEnvelopeLineage;
+  readonly governance: Governance;
+  readonly payload: {
+    readonly adoId: AdoId;
+    readonly runId: string;
+    readonly revision: number;
+    readonly title: string;
+    readonly suite: string;
+    readonly proposals: readonly ProposalEntry[];
   };
-  adoId: AdoId;
-  runId: string;
-  revision: number;
-  title: string;
-  suite: string;
-  proposals: ProposalEntry[];
+  readonly adoId: AdoId;
+  readonly runId: string;
+  readonly revision: number;
+  readonly title: string;
+  readonly suite: string;
+  readonly proposals: readonly ProposalEntry[];
 }

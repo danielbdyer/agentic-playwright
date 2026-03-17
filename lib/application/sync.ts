@@ -54,8 +54,8 @@ export function syncSnapshots(options: { adoId?: AdoId; all?: boolean; paths: Pr
     );
 
     const nextEntries = { ...manifest.entries };
-    const snapshots: SyncResult['snapshots'] = [];
-    const diagnostics: SyncResult['diagnostics'] = [];
+    const snapshots: import('../domain/types/intent').AdoSnapshot[] = [];
+    const diagnostics: import('../domain/types/workflow').CompilerDiagnostic[] = [];
 
     yield* fs.ensureDir(options.paths.snapshotDir);
 

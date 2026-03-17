@@ -5,6 +5,7 @@ import type { ProjectPaths } from './paths';
 import { refreshScenario } from './refresh';
 import { runScenarioSelection } from './run';
 import { FileSystem } from './ports';
+import { runStateMachine } from './state-machine';
 import type { AdoId } from '../domain/identity';
 import type { AutoApprovalPolicy, ProposalBundle, TrustPolicy } from '../domain/types';
 import { DEFAULT_AUTO_APPROVAL_POLICY } from '../domain/trust-policy';
@@ -216,40 +217,36 @@ function runIteration(iteration: number, options: DogfoodOptions) {
   });
 }
 
-function step(
-  iteration: number,
-  state: LoopState,
-  options: DogfoodOptions,
-): Effect.Effect<LoopState, unknown, unknown> {
-  if (iteration > options.maxIterations) {
-    return Effect.succeed(state);
-  }
+function dogfoodMachine(options: DogfoodOptions) {
+  return {
+    initial: INITIAL_STATE,
+    step: (state: LoopState) => Effect.gen(function* () {
+      const iteration = state.iterations.length + 1;
+      if (iteration > options.maxIterations) {
+        return { next: state, done: true };
+      }
 
-  return Effect.gen(function* () {
-    const result = yield* runIteration(iteration, options);
-    const nextCumulativeInstructions = state.cumulativeInstructions + result.instructionCount;
-    const prevHitRate = state.iterations.length > 0
-      ? state.iterations[state.iterations.length - 1]!.knowledgeHitRate
-      : null;
+      const result = yield* runIteration(iteration, options);
+      const nextCumulativeInstructions = state.cumulativeInstructions + result.instructionCount;
+      const prevHitRate = state.iterations.length > 0
+        ? state.iterations[state.iterations.length - 1]!.knowledgeHitRate
+        : null;
 
-    const nextIterations = [...state.iterations, result];
+      const convergence = determineConvergenceReason(
+        iteration, options.maxIterations, result.proposalsActivated,
+        prevHitRate, result.knowledgeHitRate, nextCumulativeInstructions, options,
+      );
 
-    const convergence = determineConvergenceReason(
-      iteration, options.maxIterations, result.proposalsActivated,
-      prevHitRate, result.knowledgeHitRate, nextCumulativeInstructions, options,
-    );
+      const nextState: LoopState = {
+        iterations: [...state.iterations, result],
+        cumulativeInstructions: nextCumulativeInstructions,
+        converged: convergence.converged,
+        convergenceReason: convergence.reason ?? state.convergenceReason,
+      };
 
-    const nextState: LoopState = {
-      iterations: nextIterations,
-      cumulativeInstructions: nextCumulativeInstructions,
-      converged: convergence.converged,
-      convergenceReason: convergence.reason ?? state.convergenceReason,
-    };
-
-    return convergence.converged || convergence.reason === 'max-iterations'
-      ? nextState
-      : yield* step(iteration + 1, nextState, options);
-  });
+      return { next: nextState, done: convergence.converged || convergence.reason === 'max-iterations' };
+    }),
+  };
 }
 
 function buildLedger(state: LoopState, options: DogfoodOptions): DogfoodLedger {
@@ -275,7 +272,7 @@ function buildLedger(state: LoopState, options: DogfoodOptions): DogfoodLedger {
 export function runDogfoodLoop(options: DogfoodOptions) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
-    const finalState = yield* step(1, INITIAL_STATE, options);
+    const finalState = yield* runStateMachine(dogfoodMachine(options));
     const ledger = buildLedger(finalState, options);
 
     const ledgerPath = `${options.paths.rootDir}/.tesseract/runs/dogfood-ledger.json`;
