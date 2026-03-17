@@ -1,4 +1,6 @@
-﻿import type {
+﻿import * as schemaDecode from '../schemas/decode';
+import * as schemas from '../schemas';
+import type {
   ApprovalReceipt,
   AssertionKind,
   BenchmarkContext,
@@ -2133,27 +2135,8 @@ export function validateBehaviorPatternDocument(value: unknown): BehaviorPattern
   return validated;
 }
 
-export function validateManifest(value: unknown): Manifest {
-  const manifest = expectRecord(value, 'manifest');
-  const entries = expectRecord(manifest.entries ?? {}, 'manifest.entries');
-  return {
-    entries: Object.fromEntries(
-      Object.entries(entries).map(([adoId, entry]) => {
-        const item = expectRecord(entry, `manifest.entries.${adoId}`);
-        return [
-          adoId,
-          {
-            adoId: expectId(item.adoId, `manifest.entries.${adoId}.adoId`, createAdoId),
-            revision: expectNumber(item.revision, `manifest.entries.${adoId}.revision`),
-            contentHash: expectString(item.contentHash, `manifest.entries.${adoId}.contentHash`),
-            syncedAt: expectString(item.syncedAt, `manifest.entries.${adoId}.syncedAt`),
-            sourcePath: expectString(item.sourcePath, `manifest.entries.${adoId}.sourcePath`),
-          },
-        ];
-      }),
-    ),
-  };
-}
+export const validateManifest: (value: unknown) => Manifest =
+  schemaDecode.decoderFor<Manifest>(schemas.ManifestSchema);
 
 function validateGraphNode(value: unknown, path: string) {
   const node = expectRecord(value, path);
@@ -2244,49 +2227,11 @@ function validateTrustPolicyEvaluationReason(value: unknown, path: string): Trus
   };
 }
 
-export function validateTrustPolicy(value: unknown): TrustPolicy {
-  const policy = expectRecord(value, 'trustPolicy');
-  const artifactTypesRecord = expectRecord(policy.artifactTypes, 'trustPolicy.artifactTypes');
-  const parsedEntries = Object.entries(artifactTypesRecord).map(([artifactType, ruleValue]) => {
-    const typedArtifact = validateTrustPolicyArtifactType(artifactType, `trustPolicy.artifactTypes.${artifactType}`);
-    const ruleRecord = expectRecord(ruleValue, `trustPolicy.artifactTypes.${artifactType}`);
-    const evidenceRecord = expectRecord(ruleRecord.requiredEvidence, `trustPolicy.artifactTypes.${artifactType}.requiredEvidence`);
-    return [typedArtifact, {
-      minimumConfidence: expectNumber(ruleRecord.minimumConfidence, `trustPolicy.artifactTypes.${artifactType}.minimumConfidence`),
-      requiredEvidence: {
-        minCount: expectNumber(evidenceRecord.minCount, `trustPolicy.artifactTypes.${artifactType}.requiredEvidence.minCount`),
-        kinds: expectStringArray(evidenceRecord.kinds, `trustPolicy.artifactTypes.${artifactType}.requiredEvidence.kinds`),
-      },
-    }] as const;
-  });
+export const validateTrustPolicy: (value: unknown) => TrustPolicy =
+  schemaDecode.decoderFor<TrustPolicy>(schemas.TrustPolicySchema);
 
-  const artifactTypes = Object.fromEntries(parsedEntries) as TrustPolicy['artifactTypes'];
-
-  for (const requiredType of ['elements', 'postures', 'surface', 'snapshot', 'hints', 'patterns'] as const) {
-    if (!artifactTypes[requiredType]) {
-      throw new SchemaError(`missing trust policy rule for ${requiredType}`, 'trustPolicy.artifactTypes');
-    }
-  }
-
-  const version = expectNumber(policy.version, 'trustPolicy.version');
-  if (version !== 1) {
-    throw new SchemaError('expected version 1', 'trustPolicy.version');
-  }
-
-  return {
-    version,
-    artifactTypes,
-    forbiddenAutoHealClasses: expectStringArray(policy.forbiddenAutoHealClasses ?? [], 'trustPolicy.forbiddenAutoHealClasses'),
-  };
-}
-
-export function validateTrustPolicyEvaluation(value: unknown): TrustPolicyEvaluation {
-  const record = expectRecord(value, 'trustPolicyEvaluation');
-  return {
-    decision: expectEnum(record.decision, 'trustPolicyEvaluation.decision', ['allow', 'review', 'deny'] as const),
-    reasons: expectArray(record.reasons ?? [], 'trustPolicyEvaluation.reasons').map((entry, index) => validateTrustPolicyEvaluationReason(entry, `trustPolicyEvaluation.reasons[${index}]`)),
-  };
-}
+export const validateTrustPolicyEvaluation: (value: unknown) => TrustPolicyEvaluation =
+  schemaDecode.decoderFor<TrustPolicyEvaluation>(schemas.TrustPolicyEvaluationSchema);
 
 export function validateOperatorInboxItem(value: unknown): OperatorInboxItem {
   const item = expectRecord(value, 'operatorInboxItem');
