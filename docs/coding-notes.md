@@ -305,6 +305,126 @@ return Effect.gen(function* () {
 
 This is the Effect equivalent of the recursive fold pattern described in the FP Style section. The `step` function's signature makes the state contract explicit: what goes in, what comes out, and where the recursion terminates.
 
+### Use `Effect.all` with `{ concurrency }` to actually parallelize (with care)
+
+`Effect.all({...})` without a concurrency option runs sequentially by default — it only documents independence without exploiting it. Add `{ concurrency: 'unbounded' }` for truly independent operations, or `{ concurrency: N }` for controlled fan-out.
+
+**Caution:** This codebase relies on deterministic artifact ordering for fingerprinting and content hashing. If the results of a concurrent `Effect.all` feed into fingerprinting, the loaded items must be sorted deterministically after loading. Do not add `{ concurrency }` to catalog loading or graph building without first ensuring a stable sort on the output:
+
+```typescript
+// Safe: concurrency with deterministic post-sort
+const loaded = yield* Effect.all({
+  surfaces: loadAllYaml(paths, surfaceFiles, validate),
+  screens: loadAllYaml(paths, screenFiles, validate),
+}, { concurrency: 'unbounded' });
+const sortedSurfaces = [...loaded.surfaces].sort((a, b) => a.artifactPath.localeCompare(b.artifactPath));
+```
+
+### Use `Layer.mergeAll` + `Effect.provide` for service composition
+
+When providing multiple services, compose them into a single Layer rather than nesting `Effect.provideService` calls:
+
+```typescript
+// Prefer: layer composition
+const layer = Layer.mergeAll(
+  Layer.succeed(FileSystem, fs),
+  Layer.succeed(AdoSource, ado),
+  Layer.succeed(RuntimeScenarioRunner, runner),
+  Layer.succeed(ExecutionContext, ctx),
+);
+Effect.provide(program, layer);
+
+// Avoid: nested provideService
+Effect.provideService(
+  Effect.provideService(
+    Effect.provideService(
+      Effect.provideService(program, FileSystem, fs),
+      AdoSource, ado),
+    RuntimeScenarioRunner, runner),
+  ExecutionContext, ctx);
+```
+
+### Use `Effect.tap` for observation without transformation
+
+When you need to observe an intermediate value (record provenance, log telemetry) without changing the data flow, use `Effect.tap` rather than explicit bind-and-return:
+
+```typescript
+// Prefer: tap makes pass-through explicit
+const result = yield* doWork().pipe(Effect.tap(recordProvenance));
+
+// Avoid: manual sequencing
+const result = yield* doWork();
+yield* recordProvenance(result);
+return result;
+```
+
+### Use `Effect.mapError` for error enrichment
+
+When adding context (file paths, step IDs, pipeline stages) to errors as they propagate, use `Effect.mapError` instead of catch-and-re-fail:
+
+```typescript
+// Prefer: mapError transforms the error channel cleanly
+yield* loadArtifact(path).pipe(
+  Effect.mapError((e) => new PipelineError({ ...e, stage: 'bind', artifactPath: path })),
+);
+```
+
+**Caution:** `mapError` changes the error type. If downstream code uses `Effect.catchTag` to selectively recover from specific error types (e.g., `TesseractError` vs `FileSystemError`), `mapError` can widen the set of caught errors and change behavior. Avoid `mapError` on functions consumed by `catchTag`-based recovery.
+
+### Use `Effect.filterOrFail` for guard-style validation
+
+When a guard check produces an error on the falsy branch, collapse the two-step `if (!x) yield* Effect.fail(...)` into a single `filterOrFail`:
+
+```typescript
+// Prefer: filterOrFail narrows the type and fails in one expression
+const scenario = yield* Effect.succeed(
+  catalog.scenarios.find((entry) => entry.artifact.source.ado_id === adoId),
+).pipe(Effect.filterOrFail(
+  (entry): entry is NonNullable<typeof entry> => entry != null,
+  () => new TesseractError('scenario-not-found', `Unable to find scenario for ADO ${adoId}`),
+));
+
+// Avoid: two-step check
+const scenario = catalog.scenarios.find((entry) => entry.artifact.source.ado_id === adoId);
+if (!scenario) {
+  return yield* Effect.fail(new TesseractError('scenario-not-found', `Unable to find scenario for ADO ${adoId}`));
+}
+```
+
+### Use `Effect.withSpan` for pipeline observability
+
+Annotate top-level orchestration functions (compile, bind, emit, graph, run) with `Effect.withSpan` to enable structured tracing. Each span should carry the key identifying attributes:
+
+```typescript
+export function compileScenario(options: { adoId: AdoId; paths: ProjectPaths }) {
+  return Effect.gen(function* () {
+    // ...orchestration logic
+  }).pipe(Effect.withSpan('compile-scenario', { attributes: { adoId: options.adoId } }));
+}
+```
+
+Spans compose automatically — a span on `compileScenario` will nest the spans from `bindScenario`, `emitScenario`, and `buildDerivedGraph` when they run inside it. This is valuable for diagnosing slow compilation or resolution bottlenecks without changing function signatures.
+
+### Group independent writes with `Effect.all`
+
+When multiple file writes are structurally independent (neither depends on the other's result), group them with `Effect.all` to document independence and enable future parallelism:
+
+```typescript
+// Prefer: independence is explicit
+yield* Effect.all([
+  fs.writeText(specPath, code),
+  fs.writeJson(tracePath, trace),
+  fs.writeText(reviewPath, review),
+  fs.writeJson(proposalsPath, proposals),
+]);
+
+// Avoid: false sequential dependency
+yield* fs.writeText(specPath, code);
+yield* fs.writeJson(tracePath, trace);
+yield* fs.writeText(reviewPath, review);
+yield* fs.writeJson(proposalsPath, proposals);
+```
+
 ---
 
 ## Design Pattern Vocabulary
@@ -391,6 +511,100 @@ When adding a new compilation phase or lowering step:
 Every cross-boundary artifact carries a standard envelope: `kind`, `version`, `stage`, `scope`, `ids`, `fingerprints`, `lineage`, `governance`, `payload`. Use `mapPayload(envelope, f)` for transforms. Never destructure and reassemble envelopes manually.
 
 When creating a new artifact type, define it as a `WorkflowEnvelope<T>` variant. The envelope header is the contract that makes artifacts comparable, traceable, and governable across the system.
+
+**Caveat:** `ProposalBundle` has an identical `proposals` field at both `payload.proposals` and top-level `proposals`. This duplication means `mapPayload` alone cannot fully update the bundle — you must also update the top-level field. This is a known structural debt, not a pattern to replicate.
+
+### Exhaustive Match (`Effect.Match`)
+
+For discriminated unions (types defined as `A | B | C` where each variant carries a different `kind` literal), use `Match.discriminatorsExhaustive("kind")` for compile-time exhaustiveness:
+
+```typescript
+import { Match, pipe } from 'effect';
+
+const result = pipe(
+  Match.type<StepInstruction>(),
+  Match.discriminatorsExhaustive('kind')({
+    navigate: (i) => 'navigate' as const,
+    enter: (i) => 'enter' as const,
+    invoke: (i) => 'invoke' as const,
+    'observe-structure': (i) => 'observe-structure' as const,
+    'custom-escape-hatch': (i) => 'custom-escape-hatch' as const,
+  }),
+)(instruction);
+```
+
+**When to use:** True discriminated unions where each variant is a separate type with a literal `kind` field (e.g., `StepInstruction`, `ValueRef`, `LocatorStrategy`).
+
+**When NOT to use:** Single interfaces with a union-typed field (e.g., `GraphEdge` with `kind: GraphEdgeKind`). `Match.discriminatorsExhaustive` requires structurally distinct union members — a single interface with a string literal union field will produce `never` types. Use a traditional `switch` statement for these.
+
+### ValidationRule Combinator
+
+Validation rules are composable via `combineValidationRules` and `contramapValidationRule`, paralleling the existing `ScoringRule` pattern in `candidate-lattice.ts`:
+
+```typescript
+import { combineValidationRules, requiredField, enumField } from '../domain/validation/rules';
+
+const scenarioRule = combineValidationRules(
+  requiredField<Scenario>('source', 'scenario source'),
+  enumField<Scenario>('status', ['active', 'draft', 'stub']),
+);
+
+const diagnostics = scenarioRule.validate(scenario);
+```
+
+Use `contramapValidationRule` to adapt a rule to a different input type.
+
+### StateMachine Abstraction
+
+For recursive Effect loops with convergence detection, use `StateMachine<S, E, R>` from `lib/application/state-machine.ts`:
+
+```typescript
+import { runStateMachine } from './state-machine';
+
+const machine = {
+  initial: INITIAL_STATE,
+  step: (state: LoopState) => Effect.gen(function* () {
+    const result = yield* runIteration(state);
+    return { next: result.nextState, done: result.converged };
+  }),
+};
+
+const finalState = yield* runStateMachine(machine);
+```
+
+This separates the state transition logic from the loop mechanism. The `step` function is a pure state transition; `runStateMachine` handles recursion.
+
+### Governance Type Utilities
+
+Use phantom-branded types and type guards at governance boundaries:
+
+- **Type guards** (`isApproved`, `isBlocked`, `isReviewRequired`): use for simple boolean checks and type narrowing in `if`/`filter` chains.
+- **Assertion** (`requireApproved`): use at entry points that must reject non-approved artifacts (throws on failure).
+- **Fold** (`foldGovernance`): use when all three governance cases require distinct handling logic. Ensures exhaustiveness at the type level.
+- **Conditional type** (`Governed<T, G>`): use in generic function signatures where the governance level is a type parameter.
+- **Envelope aliases** (`ApprovedEnvelope<T>`, `BlockedEnvelope<T>`): use for function parameters that should only accept envelopes of a specific governance state.
+- **Infer utility** (`PayloadOf<T>`): use to extract the payload type from an envelope type without repeating it.
+
+### `readonly` Enforcement
+
+All exported interface fields must be `readonly`. Array fields use `readonly T[]`:
+
+```typescript
+// Correct
+export interface MyType {
+  readonly name: string;
+  readonly items: readonly string[];
+  readonly nested: Readonly<Record<string, readonly number[]>>;
+}
+
+// Incorrect — missing readonly
+export interface MyType {
+  name: string;
+  items: string[];
+}
+```
+
+Reference files for the canonical pattern: `lib/domain/types/workflow.ts`, `lib/domain/types/execution.ts`, `lib/domain/types/resolution.ts`, `lib/domain/types/intent.ts`.
 
 ---
 

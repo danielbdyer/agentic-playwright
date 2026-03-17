@@ -33,273 +33,273 @@ import type { InterfaceResolutionContext } from './knowledge';
 import type { RecoveryPolicy } from '../execution/recovery-policy';
 
 export interface TranslationCandidate {
-  kind: 'screen' | 'element' | 'posture' | 'snapshot-template';
-  target: string;
-  screen?: ScreenId | null | undefined;
-  element?: ElementId | null | undefined;
-  posture?: PostureId | null | undefined;
-  snapshotTemplate?: SnapshotTemplateId | null | undefined;
-  aliases: string[];
-  score: number;
-  sourceRefs: string[];
+  readonly kind: 'screen' | 'element' | 'posture' | 'snapshot-template';
+  readonly target: string;
+  readonly screen?: ScreenId | null | undefined;
+  readonly element?: ElementId | null | undefined;
+  readonly posture?: PostureId | null | undefined;
+  readonly snapshotTemplate?: SnapshotTemplateId | null | undefined;
+  readonly aliases: readonly string[];
+  readonly score: number;
+  readonly sourceRefs: readonly string[];
 }
 
 export interface TranslationRequest {
-  version: 1;
-  taskFingerprint: string;
-  knowledgeFingerprint: string;
-  controlsFingerprint: string | null;
-  normalizedIntent: string;
-  actionText: string;
-  expectedText: string;
-  allowedActions: StepAction[];
-  screens: Array<{
-    screen: ScreenId;
-    aliases: string[];
-    elements: Array<{
-      element: ElementId;
-      aliases: string[];
-      postures: PostureId[];
-      snapshotTemplates: SnapshotTemplateId[];
+  readonly version: 1;
+  readonly taskFingerprint: string;
+  readonly knowledgeFingerprint: string;
+  readonly controlsFingerprint: string | null;
+  readonly normalizedIntent: string;
+  readonly actionText: string;
+  readonly expectedText: string;
+  readonly allowedActions: readonly StepAction[];
+  readonly screens: ReadonlyArray<{
+    readonly screen: ScreenId;
+    readonly aliases: readonly string[];
+    readonly elements: ReadonlyArray<{
+      readonly element: ElementId;
+      readonly aliases: readonly string[];
+      readonly postures: readonly PostureId[];
+      readonly snapshotTemplates: readonly SnapshotTemplateId[];
     }>;
   }>;
-  evidenceRefs: string[];
-  overlayRefs: string[];
+  readonly evidenceRefs: readonly string[];
+  readonly overlayRefs: readonly string[];
 }
 
 export interface TranslationReceipt {
-  kind: 'translation-receipt';
-  version: 1;
-  mode: 'structured-translation';
-  matched: boolean;
-  selected: TranslationCandidate | null;
-  candidates: TranslationCandidate[];
-  rationale: string;
-  translationProvider?: string | undefined;
-  cache?: {
-    key: string;
-    status: 'hit' | 'miss' | 'disabled';
-    reason?: string | null | undefined;
+  readonly kind: 'translation-receipt';
+  readonly version: 1;
+  readonly mode: 'structured-translation';
+  readonly matched: boolean;
+  readonly selected: TranslationCandidate | null;
+  readonly candidates: readonly TranslationCandidate[];
+  readonly rationale: string;
+  readonly translationProvider?: string | undefined;
+  readonly cache?: {
+    readonly key: string;
+    readonly status: 'hit' | 'miss' | 'disabled';
+    readonly reason?: string | null | undefined;
   } | undefined;
-  failureClass?: 'none' | 'no-candidate' | 'runtime-disabled' | 'cache-disabled' | 'cache-miss' | 'cache-invalidated' | 'translator-error' | undefined;
+  readonly failureClass?: 'none' | 'no-candidate' | 'runtime-disabled' | 'cache-disabled' | 'cache-miss' | 'cache-invalidated' | 'translator-error' | undefined;
 }
 
 export interface ResolutionEngineCapabilities {
-  supportsTranslation: boolean;
-  supportsDom: boolean;
-  supportsProposalDrafts: boolean;
-  deterministicMode: boolean;
+  readonly supportsTranslation: boolean;
+  readonly supportsDom: boolean;
+  readonly supportsProposalDrafts: boolean;
+  readonly deterministicMode: boolean;
 }
 
 export interface TaskArtifactRef {
-  fingerprint: string | null;
-  artifactPath: string | null;
+  readonly fingerprint: string | null;
+  readonly artifactPath: string | null;
 }
 
 export interface ScenarioKnowledgeSlice {
-  routeRefs: string[];
-  routeVariantRefs: string[];
-  screenRefs: ScreenId[];
-  targetRefs: CanonicalTargetRef[];
-  stateRefs: StateNodeRef[];
-  eventSignatureRefs: EventSignatureRef[];
-  transitionRefs: TransitionRef[];
-  evidenceRefs: string[];
-  controlRefs: string[];
+  readonly routeRefs: readonly string[];
+  readonly routeVariantRefs: readonly string[];
+  readonly screenRefs: readonly ScreenId[];
+  readonly targetRefs: readonly CanonicalTargetRef[];
+  readonly stateRefs: readonly StateNodeRef[];
+  readonly eventSignatureRefs: readonly EventSignatureRef[];
+  readonly transitionRefs: readonly TransitionRef[];
+  readonly evidenceRefs: readonly string[];
+  readonly controlRefs: readonly string[];
 }
 
 export interface StepGrounding {
-  targetRefs: CanonicalTargetRef[];
-  selectorRefs: SelectorRef[];
-  fallbackSelectorRefs: SelectorRef[];
-  routeVariantRefs: string[];
-  assertionAnchors: string[];
-  effectAssertions: string[];
-  requiredStateRefs: StateNodeRef[];
-  forbiddenStateRefs: StateNodeRef[];
-  eventSignatureRefs: EventSignatureRef[];
-  expectedTransitionRefs: TransitionRef[];
-  resultStateRefs: StateNodeRef[];
+  readonly targetRefs: readonly CanonicalTargetRef[];
+  readonly selectorRefs: readonly SelectorRef[];
+  readonly fallbackSelectorRefs: readonly SelectorRef[];
+  readonly routeVariantRefs: readonly string[];
+  readonly assertionAnchors: readonly string[];
+  readonly effectAssertions: readonly string[];
+  readonly requiredStateRefs: readonly StateNodeRef[];
+  readonly forbiddenStateRefs: readonly StateNodeRef[];
+  readonly eventSignatureRefs: readonly EventSignatureRef[];
+  readonly expectedTransitionRefs: readonly TransitionRef[];
+  readonly resultStateRefs: readonly StateNodeRef[];
 }
 
 export interface GroundedStep {
-  index: number;
-  intent: string;
-  actionText: string;
-  expectedText: string;
-  normalizedIntent: string;
-  allowedActions: StepAction[];
-  explicitResolution: StepResolution | null;
-  controlResolution: StepResolution | null;
-  grounding: StepGrounding;
-  stepFingerprint: string;
-  taskFingerprint: string;
+  readonly index: number;
+  readonly intent: string;
+  readonly actionText: string;
+  readonly expectedText: string;
+  readonly normalizedIntent: string;
+  readonly allowedActions: readonly StepAction[];
+  readonly explicitResolution: StepResolution | null;
+  readonly controlResolution: StepResolution | null;
+  readonly grounding: StepGrounding;
+  readonly stepFingerprint: string;
+  readonly taskFingerprint: string;
 }
 
 export interface ScenarioInterpretationSurface {
-  kind: 'scenario-interpretation-surface';
-  version: 1;
-  stage: 'preparation';
-  scope: 'scenario';
-  ids: WorkflowEnvelopeIds;
-  fingerprints: WorkflowEnvelopeFingerprints;
-  lineage: WorkflowEnvelopeLineage;
-  governance: Governance;
-  payload: {
-    adoId: AdoId;
-    revision: number;
-    title: string;
-    suite: string;
-    knowledgeFingerprint: string;
-    interface: TaskArtifactRef;
-    selectors: TaskArtifactRef;
-    stateGraph: TaskArtifactRef;
-    knowledgeSlice: ScenarioKnowledgeSlice;
-    steps: GroundedStep[];
-    resolutionContext: InterfaceResolutionContext;
+  readonly kind: 'scenario-interpretation-surface';
+  readonly version: 1;
+  readonly stage: 'preparation';
+  readonly scope: 'scenario';
+  readonly ids: WorkflowEnvelopeIds;
+  readonly fingerprints: WorkflowEnvelopeFingerprints;
+  readonly lineage: WorkflowEnvelopeLineage;
+  readonly governance: Governance;
+  readonly payload: {
+    readonly adoId: AdoId;
+    readonly revision: number;
+    readonly title: string;
+    readonly suite: string;
+    readonly knowledgeFingerprint: string;
+    readonly interface: TaskArtifactRef;
+    readonly selectors: TaskArtifactRef;
+    readonly stateGraph: TaskArtifactRef;
+    readonly knowledgeSlice: ScenarioKnowledgeSlice;
+    readonly steps: readonly GroundedStep[];
+    readonly resolutionContext: InterfaceResolutionContext;
   };
-  surfaceFingerprint: string;
+  readonly surfaceFingerprint: string;
 }
 
 export interface ScenarioRunPlan {
-  kind: 'scenario-run-plan';
-  version: 1;
-  adoId: AdoId;
-  runId: string;
-  surfaceFingerprint: string;
-  title: string;
-  suite: string;
-  controlsFingerprint: string | null;
-  posture: ExecutionPosture;
-  mode: RuntimeInterpreterMode;
-  providerId: string;
-  controlSelection: {
-    runbook?: string | null | undefined;
-    dataset?: string | null | undefined;
-    resolutionControl?: string | null | undefined;
+  readonly kind: 'scenario-run-plan';
+  readonly version: 1;
+  readonly adoId: AdoId;
+  readonly runId: string;
+  readonly surfaceFingerprint: string;
+  readonly title: string;
+  readonly suite: string;
+  readonly controlsFingerprint: string | null;
+  readonly posture: ExecutionPosture;
+  readonly mode: RuntimeInterpreterMode;
+  readonly providerId: string;
+  readonly controlSelection: {
+    readonly runbook?: string | null | undefined;
+    readonly dataset?: string | null | undefined;
+    readonly resolutionControl?: string | null | undefined;
   };
-  controlArtifactPaths: {
-    runbook?: string | null | undefined;
-    dataset?: string | null | undefined;
+  readonly controlArtifactPaths: {
+    readonly runbook?: string | null | undefined;
+    readonly dataset?: string | null | undefined;
   };
-  fixtures: Record<string, unknown>;
-  screenIds: ScreenId[];
-  steps: GroundedStep[];
-  resolutionContext: InterfaceResolutionContext;
-  context: {
-    adoId: AdoId;
-    revision: number;
-    contentHash: string;
-    artifactPath?: string | undefined;
+  readonly fixtures: Readonly<Record<string, unknown>>;
+  readonly screenIds: readonly ScreenId[];
+  readonly steps: readonly GroundedStep[];
+  readonly resolutionContext: InterfaceResolutionContext;
+  readonly context: {
+    readonly adoId: AdoId;
+    readonly revision: number;
+    readonly contentHash: string;
+    readonly artifactPath?: string | undefined;
   };
-  translationEnabled: boolean;
-  translationCacheEnabled: boolean;
-  recoveryPolicy?: RecoveryPolicy | undefined;
+  readonly translationEnabled: boolean;
+  readonly translationCacheEnabled: boolean;
+  readonly recoveryPolicy?: RecoveryPolicy | undefined;
 }
 
 /** @deprecated Use `ScenarioInterpretationSurface`. */
 export interface ScenarioTaskPacket {
-  kind: 'scenario-task-packet';
-  version: 5;
-  stage: 'preparation';
-  scope: 'scenario';
-  ids: WorkflowEnvelopeIds;
-  fingerprints: WorkflowEnvelopeFingerprints;
-  lineage: WorkflowEnvelopeLineage;
-  governance: Governance;
-  payload: {
-    adoId: AdoId;
-    revision: number;
-    title: string;
-    suite: string;
-    knowledgeFingerprint: string;
-    interface: TaskArtifactRef;
-    selectors: TaskArtifactRef;
-    stateGraph: TaskArtifactRef;
-    knowledgeSlice: ScenarioKnowledgeSlice;
-    steps: GroundedStep[];
+  readonly kind: 'scenario-task-packet';
+  readonly version: 5;
+  readonly stage: 'preparation';
+  readonly scope: 'scenario';
+  readonly ids: WorkflowEnvelopeIds;
+  readonly fingerprints: WorkflowEnvelopeFingerprints;
+  readonly lineage: WorkflowEnvelopeLineage;
+  readonly governance: Governance;
+  readonly payload: {
+    readonly adoId: AdoId;
+    readonly revision: number;
+    readonly title: string;
+    readonly suite: string;
+    readonly knowledgeFingerprint: string;
+    readonly interface: TaskArtifactRef;
+    readonly selectors: TaskArtifactRef;
+    readonly stateGraph: TaskArtifactRef;
+    readonly knowledgeSlice: ScenarioKnowledgeSlice;
+    readonly steps: readonly GroundedStep[];
   };
-  taskFingerprint: string;
+  readonly taskFingerprint: string;
 }
 
 export interface ObservedStateSessionScreenState {
-  screen: ScreenId;
-  confidence: number;
-  observedAtStep: number;
+  readonly screen: ScreenId;
+  readonly confidence: number;
+  readonly observedAtStep: number;
 }
 
 export interface ObservedStateSessionAssertion {
-  summary: string;
-  observedAtStep: number;
+  readonly summary: string;
+  readonly observedAtStep: number;
 }
 
 export interface CausalLink {
-  stepIndex: number;
-  firedTransitionRef: TransitionRef;
-  targetStateRef: StateNodeRef;
-  relevantForSteps: number[];
+  readonly stepIndex: number;
+  readonly firedTransitionRef: TransitionRef;
+  readonly targetStateRef: StateNodeRef;
+  readonly relevantForSteps: readonly number[];
 }
 
 export interface ObservedStateSession {
-  currentScreen: ObservedStateSessionScreenState | null;
-  activeStateRefs: StateNodeRef[];
-  lastObservedTransitionRefs: TransitionRef[];
-  activeRouteVariantRefs: string[];
-  activeTargetRefs: CanonicalTargetRef[];
-  lastSuccessfulLocatorRung: number | null;
-  recentAssertions: ObservedStateSessionAssertion[];
-  causalLinks: CausalLink[];
-  lineage: string[];
+  readonly currentScreen: ObservedStateSessionScreenState | null;
+  readonly activeStateRefs: readonly StateNodeRef[];
+  readonly lastObservedTransitionRefs: readonly TransitionRef[];
+  readonly activeRouteVariantRefs: readonly string[];
+  readonly activeTargetRefs: readonly CanonicalTargetRef[];
+  readonly lastSuccessfulLocatorRung: number | null;
+  readonly recentAssertions: readonly ObservedStateSessionAssertion[];
+  readonly causalLinks: readonly CausalLink[];
+  readonly lineage: readonly string[];
 }
 
 export interface DatasetControl {
-  kind: 'dataset-control';
-  version: 1;
-  name: string;
-  default?: boolean | undefined;
-  fixtures: Record<string, unknown>;
-  defaults?: {
-    elements?: Record<string, string> | undefined;
-    generatedTokens?: Record<string, string> | undefined;
+  readonly kind: 'dataset-control';
+  readonly version: 1;
+  readonly name: string;
+  readonly default?: boolean | undefined;
+  readonly fixtures: Readonly<Record<string, unknown>>;
+  readonly defaults?: {
+    readonly elements?: Readonly<Record<string, string>> | undefined;
+    readonly generatedTokens?: Readonly<Record<string, string>> | undefined;
   } | undefined;
 }
 
 export interface ResolutionControlSelector {
-  adoIds: AdoId[];
-  suites: string[];
-  tags: string[];
+  readonly adoIds: readonly AdoId[];
+  readonly suites: readonly string[];
+  readonly tags: readonly string[];
 }
 
 export interface ResolutionControlStep {
-  stepIndex: number;
-  resolution: StepResolution;
+  readonly stepIndex: number;
+  readonly resolution: StepResolution;
 }
 
 export interface ResolutionControl {
-  kind: 'resolution-control';
-  version: 1;
-  name: string;
-  selector: ResolutionControlSelector;
-  domExplorationPolicy?: DomExplorationPolicy | undefined;
-  steps: ResolutionControlStep[];
+  readonly kind: 'resolution-control';
+  readonly version: 1;
+  readonly name: string;
+  readonly selector: ResolutionControlSelector;
+  readonly domExplorationPolicy?: DomExplorationPolicy | undefined;
+  readonly steps: readonly ResolutionControlStep[];
 }
 
 export interface DomExplorationPolicy {
-  maxCandidates: number;
-  maxProbes: number;
-  forbiddenActions: StepAction[];
+  readonly maxCandidates: number;
+  readonly maxProbes: number;
+  readonly forbiddenActions: readonly StepAction[];
 }
 
 export interface RuntimeDomCandidate {
-  element: StepTaskElementCandidate;
-  score: number;
-  evidence: {
-    visibleCount: number;
-    roleNameScore: number;
-    locatorQualityScore: number;
-    widgetCompatibilityScore: number;
-    locatorRung: number;
-    locatorStrategy: string;
+  readonly element: StepTaskElementCandidate;
+  readonly score: number;
+  readonly evidence: {
+    readonly visibleCount: number;
+    readonly roleNameScore: number;
+    readonly locatorQualityScore: number;
+    readonly widgetCompatibilityScore: number;
+    readonly locatorRung: number;
+    readonly locatorStrategy: string;
   };
 }
 
@@ -317,152 +317,152 @@ export interface RuntimeDomResolver {
 }
 
 export interface RunbookControl {
-  kind: 'runbook-control';
-  version: 1;
-  name: string;
-  default?: boolean | undefined;
-  selector: ResolutionControlSelector;
-  interpreterMode?: RuntimeInterpreterMode | null | undefined;
-  dataset?: string | null | undefined;
-  resolutionControl?: string | null | undefined;
-  translationEnabled?: boolean | undefined;
-  translationCacheEnabled?: boolean | undefined;
-  providerId?: string | null | undefined;
-  recoveryPolicy?: RecoveryPolicy | undefined;
+  readonly kind: 'runbook-control';
+  readonly version: 1;
+  readonly name: string;
+  readonly default?: boolean | undefined;
+  readonly selector: ResolutionControlSelector;
+  readonly interpreterMode?: RuntimeInterpreterMode | null | undefined;
+  readonly dataset?: string | null | undefined;
+  readonly resolutionControl?: string | null | undefined;
+  readonly translationEnabled?: boolean | undefined;
+  readonly translationCacheEnabled?: boolean | undefined;
+  readonly providerId?: string | null | undefined;
+  readonly recoveryPolicy?: RecoveryPolicy | undefined;
 }
 
 export interface RuntimeDatasetBinding {
-  name: string;
-  artifactPath: string;
-  isDefault: boolean;
-  fixtures: Record<string, unknown>;
-  elementDefaults: Record<string, string>;
-  generatedTokens: Record<string, string>;
+  readonly name: string;
+  readonly artifactPath: string;
+  readonly isDefault: boolean;
+  readonly fixtures: Readonly<Record<string, unknown>>;
+  readonly elementDefaults: Readonly<Record<string, string>>;
+  readonly generatedTokens: Readonly<Record<string, string>>;
 }
 
 export interface RuntimeResolutionControl {
-  name: string;
-  artifactPath: string;
-  stepIndex: number;
-  resolution: StepResolution;
-  domExplorationPolicy?: DomExplorationPolicy | undefined;
+  readonly name: string;
+  readonly artifactPath: string;
+  readonly stepIndex: number;
+  readonly resolution: StepResolution;
+  readonly domExplorationPolicy?: DomExplorationPolicy | undefined;
 }
 
 export interface RuntimeRunbookControl {
-  name: string;
-  artifactPath: string;
-  isDefault: boolean;
-  selector: ResolutionControlSelector;
-  interpreterMode?: RuntimeInterpreterMode | null | undefined;
-  dataset?: string | null | undefined;
-  resolutionControl?: string | null | undefined;
-  translationEnabled?: boolean | undefined;
-  translationCacheEnabled?: boolean | undefined;
-  providerId?: string | null | undefined;
-  recoveryPolicy?: RecoveryPolicy | undefined;
+  readonly name: string;
+  readonly artifactPath: string;
+  readonly isDefault: boolean;
+  readonly selector: ResolutionControlSelector;
+  readonly interpreterMode?: RuntimeInterpreterMode | null | undefined;
+  readonly dataset?: string | null | undefined;
+  readonly resolutionControl?: string | null | undefined;
+  readonly translationEnabled?: boolean | undefined;
+  readonly translationCacheEnabled?: boolean | undefined;
+  readonly providerId?: string | null | undefined;
+  readonly recoveryPolicy?: RecoveryPolicy | undefined;
 }
 
 export interface RuntimeControlSession {
-  datasets: RuntimeDatasetBinding[];
-  resolutionControls: RuntimeResolutionControl[];
-  runbooks: RuntimeRunbookControl[];
+  readonly datasets: readonly RuntimeDatasetBinding[];
+  readonly resolutionControls: readonly RuntimeResolutionControl[];
+  readonly runbooks: readonly RuntimeRunbookControl[];
 }
 
 export type OperatorInboxItemKind = 'proposal' | 'degraded-locator' | 'needs-human' | 'blocked-policy' | 'approved-equivalent' | 'recovery';
 
 export interface OperatorInboxItem {
-  id: string;
-  kind: OperatorInboxItemKind;
-  status: 'actionable' | 'approved' | 'blocked' | 'informational';
-  title: string;
-  summary: string;
-  adoId?: AdoId | null | undefined;
-  suite?: string | null | undefined;
-  runId?: string | null | undefined;
-  stepIndex?: number | null | undefined;
-  proposalId?: string | null | undefined;
-  artifactPath?: string | null | undefined;
-  targetPath?: string | null | undefined;
-  winningConcern?: WorkflowLane | null | undefined;
-  winningSource?: StepWinningSource | null | undefined;
-  resolutionMode?: ResolutionMode | null | undefined;
-  nextCommands: string[];
+  readonly id: string;
+  readonly kind: OperatorInboxItemKind;
+  readonly status: 'actionable' | 'approved' | 'blocked' | 'informational';
+  readonly title: string;
+  readonly summary: string;
+  readonly adoId?: AdoId | null | undefined;
+  readonly suite?: string | null | undefined;
+  readonly runId?: string | null | undefined;
+  readonly stepIndex?: number | null | undefined;
+  readonly proposalId?: string | null | undefined;
+  readonly artifactPath?: string | null | undefined;
+  readonly targetPath?: string | null | undefined;
+  readonly winningConcern?: WorkflowLane | null | undefined;
+  readonly winningSource?: StepWinningSource | null | undefined;
+  readonly resolutionMode?: ResolutionMode | null | undefined;
+  readonly nextCommands: readonly string[];
 }
 
 export interface ApprovalReceipt {
-  kind: 'approval-receipt';
-  version: 1;
-  proposalId: string;
-  inboxItemId: string;
-  approvedAt: string;
-  artifactType: TrustPolicyArtifactType;
-  targetPath: string;
-  receiptPath: string;
-  rerunPlanId: string;
+  readonly kind: 'approval-receipt';
+  readonly version: 1;
+  readonly proposalId: string;
+  readonly inboxItemId: string;
+  readonly approvedAt: string;
+  readonly artifactType: TrustPolicyArtifactType;
+  readonly targetPath: string;
+  readonly receiptPath: string;
+  readonly rerunPlanId: string;
 }
 
 export interface RerunPlan {
-  kind: 'rerun-plan';
-  version: 1;
-  planId: string;
-  createdAt: string;
-  reason: string;
-  sourceProposalId?: string | null | undefined;
-  sourceNodeIds: string[];
-  impactedScenarioIds: AdoId[];
-  impactedRunbooks: string[];
-  impactedProjections: Array<'emit' | 'graph' | 'types' | 'run'>;
-  impactedConfidenceRecords?: string[] | null | undefined;
-  reasons: string[];
-  explanationFingerprint: string;
-  selection: {
-    scenarios: Array<{
-      id: AdoId;
-      why: string[];
-      explanations: Array<{
-        triggeringChange: string;
-        dependencyPath: string[];
-        requiredBecause: string;
-        fingerprint: string;
+  readonly kind: 'rerun-plan';
+  readonly version: 1;
+  readonly planId: string;
+  readonly createdAt: string;
+  readonly reason: string;
+  readonly sourceProposalId?: string | null | undefined;
+  readonly sourceNodeIds: readonly string[];
+  readonly impactedScenarioIds: readonly AdoId[];
+  readonly impactedRunbooks: readonly string[];
+  readonly impactedProjections: ReadonlyArray<'emit' | 'graph' | 'types' | 'run'>;
+  readonly impactedConfidenceRecords?: readonly string[] | null | undefined;
+  readonly reasons: readonly string[];
+  readonly explanationFingerprint: string;
+  readonly selection: {
+    readonly scenarios: ReadonlyArray<{
+      readonly id: AdoId;
+      readonly why: readonly string[];
+      readonly explanations: ReadonlyArray<{
+        readonly triggeringChange: string;
+        readonly dependencyPath: readonly string[];
+        readonly requiredBecause: string;
+        readonly fingerprint: string;
       }>;
     }>;
-    runbooks: Array<{
-      name: string;
-      why: string[];
-      explanations: Array<{
-        triggeringChange: string;
-        dependencyPath: string[];
-        requiredBecause: string;
-        fingerprint: string;
+    readonly runbooks: ReadonlyArray<{
+      readonly name: string;
+      readonly why: readonly string[];
+      readonly explanations: ReadonlyArray<{
+        readonly triggeringChange: string;
+        readonly dependencyPath: readonly string[];
+        readonly requiredBecause: string;
+        readonly fingerprint: string;
       }>;
     }>;
-    projections: Array<{ name: 'emit' | 'graph' | 'types' | 'run'; why: string[] }>;
-    confidenceRecords: Array<{ id: string; why: string[] }>;
+    readonly projections: ReadonlyArray<{ readonly name: 'emit' | 'graph' | 'types' | 'run'; readonly why: readonly string[] }>;
+    readonly confidenceRecords: ReadonlyArray<{ readonly id: string; readonly why: readonly string[] }>;
   };
 }
 
 export interface EvidenceRecord {
-  evidence: {
-    type: string;
-    timestamp: string;
-    trigger: string;
-    observation: Record<string, string>;
-    proposal: {
-      file: string;
-      field: string;
-      old_value: string | null;
-      new_value: string | null;
+  readonly evidence: {
+    readonly type: string;
+    readonly timestamp: string;
+    readonly trigger: string;
+    readonly observation: Readonly<Record<string, string>>;
+    readonly proposal: {
+      readonly file: string;
+      readonly field: string;
+      readonly old_value: string | null;
+      readonly new_value: string | null;
     };
-    confidence: number;
-    risk: 'low' | 'medium' | 'high';
-    scope: string;
+    readonly confidence: number;
+    readonly risk: 'low' | 'medium' | 'high';
+    readonly scope: string;
   };
 }
 
 
 export interface ResolutionCandidateSummary {
-  concern: 'action' | 'screen' | 'element' | 'posture' | 'snapshot';
-  source:
+  readonly concern: 'action' | 'screen' | 'element' | 'posture' | 'snapshot';
+  readonly source:
     | 'explicit'
     | 'control'
     | 'approved-screen-knowledge'
@@ -471,13 +471,13 @@ export interface ResolutionCandidateSummary {
     | 'approved-equivalent-overlay'
     | 'structured-translation'
     | 'live-dom';
-  value: string;
-  score: number;
-  reason: string;
+  readonly value: string;
+  readonly score: number;
+  readonly reason: string;
 }
 
 export interface ResolutionObservation {
-  source:
+  readonly source:
     | 'approved-screen-knowledge'
     | 'shared-patterns'
     | 'prior-evidence'
@@ -485,158 +485,158 @@ export interface ResolutionObservation {
     | 'structured-translation'
     | 'live-dom'
     | 'runtime';
-  summary: string;
-  detail?: Record<string, string> | undefined;
-  topCandidates?: ResolutionCandidateSummary[] | undefined;
-  rejectedCandidates?: ResolutionCandidateSummary[] | undefined;
+  readonly summary: string;
+  readonly detail?: Readonly<Record<string, string>> | undefined;
+  readonly topCandidates?: readonly ResolutionCandidateSummary[] | undefined;
+  readonly rejectedCandidates?: readonly ResolutionCandidateSummary[] | undefined;
 }
 
 export interface ResolutionExhaustionEntry {
-  stage: ResolutionPrecedenceRung;
-  outcome: 'attempted' | 'resolved' | 'skipped' | 'failed';
-  reason: string;
-  topCandidates?: ResolutionCandidateSummary[] | undefined;
-  rejectedCandidates?: ResolutionCandidateSummary[] | undefined;
+  readonly stage: ResolutionPrecedenceRung;
+  readonly outcome: 'attempted' | 'resolved' | 'skipped' | 'failed';
+  readonly reason: string;
+  readonly topCandidates?: readonly ResolutionCandidateSummary[] | undefined;
+  readonly rejectedCandidates?: readonly ResolutionCandidateSummary[] | undefined;
 }
 
 export type ResolutionEvent =
-  | { kind: 'exhaustion-recorded'; entry: ResolutionExhaustionEntry }
-  | { kind: 'observation-recorded'; observation: ResolutionObservation }
-  | { kind: 'refs-collected'; refKind: 'knowledge' | 'supplement' | 'control' | 'evidence'; refs: string[] }
-  | { kind: 'memory-updated'; session: ObservedStateSession }
-  | { kind: 'receipt-produced'; receipt: ResolutionReceipt };
+  | { readonly kind: 'exhaustion-recorded'; readonly entry: ResolutionExhaustionEntry }
+  | { readonly kind: 'observation-recorded'; readonly observation: ResolutionObservation }
+  | { readonly kind: 'refs-collected'; readonly refKind: 'knowledge' | 'supplement' | 'control' | 'evidence'; readonly refs: readonly string[] }
+  | { readonly kind: 'memory-updated'; readonly session: ObservedStateSession }
+  | { readonly kind: 'receipt-produced'; readonly receipt: ResolutionReceipt };
 
 export interface ResolutionPipelineResult {
-  receipt: ResolutionReceipt;
-  events: ResolutionEvent[];
+  readonly receipt: ResolutionReceipt;
+  readonly events: readonly ResolutionEvent[];
 }
 
 export interface ResolutionEvidenceDraft {
-  type: string;
-  trigger: string;
-  observation: Record<string, string>;
-  proposal: {
-    file: string;
-    field: string;
-    old_value: string | null;
-    new_value: string | null;
+  readonly type: string;
+  readonly trigger: string;
+  readonly observation: Readonly<Record<string, string>>;
+  readonly proposal: {
+    readonly file: string;
+    readonly field: string;
+    readonly old_value: string | null;
+    readonly new_value: string | null;
   };
-  confidence: number;
-  risk: 'low' | 'medium' | 'high';
-  scope: string;
+  readonly confidence: number;
+  readonly risk: 'low' | 'medium' | 'high';
+  readonly scope: string;
 }
 
 export interface ResolutionProposalDraft {
-  artifactType: TrustPolicyArtifactType;
-  targetPath: string;
-  title: string;
-  patch: Record<string, unknown>;
-  rationale: string;
+  readonly artifactType: TrustPolicyArtifactType;
+  readonly targetPath: string;
+  readonly title: string;
+  readonly patch: Readonly<Record<string, unknown>>;
+  readonly rationale: string;
 }
 
 export interface ResolutionGraphTraversalEntry {
-  rung: ResolutionPrecedenceRung;
-  outcome: 'attempted' | 'resolved' | 'skipped' | 'failed';
-  reason: string;
+  readonly rung: ResolutionPrecedenceRung;
+  readonly outcome: 'attempted' | 'resolved' | 'skipped' | 'failed';
+  readonly reason: string;
 }
 
 export interface ResolutionGraphCandidate {
-  concern: ResolutionCandidateSummary['concern'];
-  source: ResolutionCandidateSummary['source'];
-  value: string;
-  score: {
-    raw: number;
-    normalized: number;
+  readonly concern: ResolutionCandidateSummary['concern'];
+  readonly source: ResolutionCandidateSummary['source'];
+  readonly value: string;
+  readonly score: {
+    readonly raw: number;
+    readonly normalized: number;
   };
-  reason: string;
-  selected: boolean;
+  readonly reason: string;
+  readonly selected: boolean;
 }
 
 export interface ResolutionGraphCandidateSet {
-  concern: ResolutionCandidateSummary['concern'];
-  rung: Exclude<ResolutionPrecedenceRung, 'needs-human'>;
-  candidates: ResolutionGraphCandidate[];
+  readonly concern: ResolutionCandidateSummary['concern'];
+  readonly rung: Exclude<ResolutionPrecedenceRung, 'needs-human'>;
+  readonly candidates: readonly ResolutionGraphCandidate[];
 }
 
 export interface StepResolutionGraph {
-  precedenceTraversal: ResolutionGraphTraversalEntry[];
-  candidateSets: ResolutionGraphCandidateSet[];
-  winner: {
-    rung: ResolutionPrecedenceRung;
-    rationale: string;
-    losingReasons: string[];
+  readonly precedenceTraversal: readonly ResolutionGraphTraversalEntry[];
+  readonly candidateSets: readonly ResolutionGraphCandidateSet[];
+  readonly winner: {
+    readonly rung: ResolutionPrecedenceRung;
+    readonly rationale: string;
+    readonly losingReasons: readonly string[];
   };
-  refs: {
-    controlRefs: string[];
-    knowledgeRefs: string[];
-    supplementRefs: string[];
-    evidenceRefs: string[];
+  readonly refs: {
+    readonly controlRefs: readonly string[];
+    readonly knowledgeRefs: readonly string[];
+    readonly supplementRefs: readonly string[];
+    readonly evidenceRefs: readonly string[];
   };
-  links: {
-    translationReceiptRef: string | null;
-    domProbeEvidenceRef: string | null;
+  readonly links: {
+    readonly translationReceiptRef: string | null;
+    readonly domProbeEvidenceRef: string | null;
   };
 }
 
 interface ResolutionReceiptBase {
-  version: 1;
-  stage: 'resolution';
-  scope: 'step';
-  ids: WorkflowEnvelopeIds;
-  fingerprints: WorkflowEnvelopeFingerprints;
-  lineage: WorkflowEnvelopeLineage;
-  governance: Governance;
-  taskFingerprint: string;
-  knowledgeFingerprint: string;
-  provider: string;
-  mode: string;
-  runAt: string;
-  stepIndex: number;
-  resolutionMode: ResolutionMode;
-  knowledgeRefs: string[];
-  supplementRefs: string[];
-  controlRefs: string[];
-  evidenceRefs: string[];
-  overlayRefs: string[];
-  observations: ResolutionObservation[];
-  exhaustion: ResolutionExhaustionEntry[];
-  handshakes: WorkflowStage[];
-  winningConcern: WorkflowLane;
-  winningSource: StepWinningSource;
-  translation?: TranslationReceipt | null | undefined;
-  resolutionGraph?: StepResolutionGraph | undefined;
-  translationCache?: {
-    key: string | null;
-    status: 'hit' | 'miss' | 'disabled';
-    reason: string | null;
+  readonly version: 1;
+  readonly stage: 'resolution';
+  readonly scope: 'step';
+  readonly ids: WorkflowEnvelopeIds;
+  readonly fingerprints: WorkflowEnvelopeFingerprints;
+  readonly lineage: WorkflowEnvelopeLineage;
+  readonly governance: Governance;
+  readonly taskFingerprint: string;
+  readonly knowledgeFingerprint: string;
+  readonly provider: string;
+  readonly mode: string;
+  readonly runAt: string;
+  readonly stepIndex: number;
+  readonly resolutionMode: ResolutionMode;
+  readonly knowledgeRefs: readonly string[];
+  readonly supplementRefs: readonly string[];
+  readonly controlRefs: readonly string[];
+  readonly evidenceRefs: readonly string[];
+  readonly overlayRefs: readonly string[];
+  readonly observations: readonly ResolutionObservation[];
+  readonly exhaustion: readonly ResolutionExhaustionEntry[];
+  readonly handshakes: readonly WorkflowStage[];
+  readonly winningConcern: WorkflowLane;
+  readonly winningSource: StepWinningSource;
+  readonly translation?: TranslationReceipt | null | undefined;
+  readonly resolutionGraph?: StepResolutionGraph | undefined;
+  readonly translationCache?: {
+    readonly key: string | null;
+    readonly status: 'hit' | 'miss' | 'disabled';
+    readonly reason: string | null;
   } | undefined;
 }
 
 export interface ResolvedReceipt extends ResolutionReceiptBase {
-  kind: 'resolved';
-  confidence: 'compiler-derived' | 'agent-verified';
-  provenanceKind: Extract<StepProvenanceKind, 'explicit' | 'approved-knowledge' | 'live-exploration'>;
-  target: ResolutionTarget;
-  evidenceDrafts: ResolutionEvidenceDraft[];
-  proposalDrafts: ResolutionProposalDraft[];
+  readonly kind: 'resolved';
+  readonly confidence: 'compiler-derived' | 'agent-verified';
+  readonly provenanceKind: Extract<StepProvenanceKind, 'explicit' | 'approved-knowledge' | 'live-exploration'>;
+  readonly target: ResolutionTarget;
+  readonly evidenceDrafts: readonly ResolutionEvidenceDraft[];
+  readonly proposalDrafts: readonly ResolutionProposalDraft[];
 }
 
 export interface ResolvedWithProposalsReceipt extends ResolutionReceiptBase {
-  kind: 'resolved-with-proposals';
-  confidence: 'agent-proposed' | 'agent-verified';
-  provenanceKind: Extract<StepProvenanceKind, 'approved-knowledge' | 'live-exploration'>;
-  target: ResolutionTarget;
-  evidenceDrafts: ResolutionEvidenceDraft[];
-  proposalDrafts: ResolutionProposalDraft[];
+  readonly kind: 'resolved-with-proposals';
+  readonly confidence: 'agent-proposed' | 'agent-verified';
+  readonly provenanceKind: Extract<StepProvenanceKind, 'approved-knowledge' | 'live-exploration'>;
+  readonly target: ResolutionTarget;
+  readonly evidenceDrafts: readonly ResolutionEvidenceDraft[];
+  readonly proposalDrafts: readonly ResolutionProposalDraft[];
 }
 
 export interface NeedsHumanReceipt extends ResolutionReceiptBase {
-  kind: 'needs-human';
-  confidence: 'unbound';
-  provenanceKind: 'unresolved';
-  reason: string;
-  evidenceDrafts: ResolutionEvidenceDraft[];
-  proposalDrafts: ResolutionProposalDraft[];
+  readonly kind: 'needs-human';
+  readonly confidence: 'unbound';
+  readonly provenanceKind: 'unresolved';
+  readonly reason: string;
+  readonly evidenceDrafts: readonly ResolutionEvidenceDraft[];
+  readonly proposalDrafts: readonly ResolutionProposalDraft[];
 }
 
 export type ResolutionReceipt = ResolvedReceipt | ResolvedWithProposalsReceipt | NeedsHumanReceipt;

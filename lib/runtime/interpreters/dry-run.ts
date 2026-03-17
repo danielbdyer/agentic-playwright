@@ -1,3 +1,4 @@
+import { Match, pipe } from 'effect';
 import type {
   ProgramFailure,
   StepProgram,
@@ -7,8 +8,13 @@ import type {
 } from '../../domain/program';
 import { createDiagnostic } from '../../domain/diagnostics';
 import { runtimeEscapeHatchError } from '../../domain/errors';
-import type { InterpreterEnvironment} from './types';
+import type { StepInstruction } from '../../domain/types';
+import type { InterpreterEnvironment } from './types';
 import { interpreterOutcome, requireScreen, resolvePosture } from './types';
+
+type DryRunStepResult =
+  | { readonly cont: true; readonly outcome: ReturnType<typeof interpreterOutcome> }
+  | { readonly cont: false; readonly outcome: ReturnType<typeof interpreterOutcome>; readonly error: ProgramFailure };
 
 function failResult(
   mode: string,
@@ -34,73 +40,78 @@ function failResult(
   };
 }
 
+function validateElementTarget(
+  environment: InterpreterEnvironment,
+  index: number,
+  instruction: Extract<StepInstruction, { kind: 'invoke' }> | Extract<StepInstruction, { kind: 'observe-structure' }>,
+): DryRunStepResult {
+  const screen = requireScreen(environment.screens, instruction.screen);
+  if (!screen.ok) {
+    return { cont: false, outcome: interpreterOutcome({ index, instruction, status: 'failed', diagnostics: [{ code: screen.code, message: screen.message, context: screen.context }], failureCode: screen.code }), error: { code: screen.code, message: screen.message, context: screen.context } };
+  }
+  if (!screen.value.elements[instruction.element]) {
+    const error = { code: 'runtime-unknown-effect-target' as const, message: `Unknown element target ${instruction.element}`, context: { target: instruction.element, targetKind: 'element' } };
+    return { cont: false, outcome: interpreterOutcome({ index, instruction, status: 'failed', diagnostics: [error], failureCode: error.code }), error };
+  }
+  if (instruction.kind === 'observe-structure' && !environment.hasSnapshotTemplate(instruction.snapshotTemplate)) {
+    const error = { code: 'runtime-missing-snapshot-template' as const, message: `Missing snapshot template ${instruction.snapshotTemplate}`, context: { snapshotTemplate: instruction.snapshotTemplate } };
+    return { cont: false, outcome: interpreterOutcome({ index, instruction, status: 'failed', diagnostics: [error], failureCode: error.code }), error };
+  }
+  return { cont: true, outcome: interpreterOutcome({ index, instruction, status: 'ok', observedEffects: ['target:validated'] }) };
+}
+
+const dryRunDispatch = pipe(
+  Match.type<StepInstruction>(),
+  Match.discriminatorsExhaustive('kind')({
+    'navigate': (i) => (environment: InterpreterEnvironment, index: number): DryRunStepResult => {
+      const screen = requireScreen(environment.screens, i.screen);
+      if (!screen.ok) {
+        return { cont: false, outcome: interpreterOutcome({ index, instruction: i, status: 'failed', diagnostics: [{ code: screen.code, message: screen.message, context: screen.context }], failureCode: screen.code }), error: { code: screen.code, message: screen.message, context: screen.context } };
+      }
+      return { cont: true, outcome: interpreterOutcome({ index, instruction: i, status: 'ok', observedEffects: ['navigation:validated'] }) };
+    },
+    'enter': (i) => (environment: InterpreterEnvironment, index: number): DryRunStepResult => {
+      const screen = requireScreen(environment.screens, i.screen);
+      if (!screen.ok) {
+        return { cont: false, outcome: interpreterOutcome({ index, instruction: i, status: 'failed', diagnostics: [{ code: screen.code, message: screen.message, context: screen.context }], failureCode: screen.code }), error: { code: screen.code, message: screen.message, context: screen.context } };
+      }
+      if (!screen.value.elements[i.element]) {
+        const error = { code: 'runtime-unknown-effect-target' as const, message: `Unknown element target ${i.element}`, context: { target: i.element, targetKind: 'element' } };
+        return { cont: false, outcome: interpreterOutcome({ index, instruction: i, status: 'failed', diagnostics: [error], failureCode: error.code }), error };
+      }
+      const posture = resolvePosture(screen.value, i.element, i.posture);
+      if (!posture.ok) {
+        return { cont: false, outcome: interpreterOutcome({ index, instruction: i, status: 'failed', diagnostics: [{ code: posture.code, message: posture.message, context: posture.context }], failureCode: posture.code }), error: { code: posture.code, message: posture.message, context: posture.context } };
+      }
+      const resolved = environment.resolveValue(environment.fixtures, i.value);
+      if (i.value && resolved === undefined) {
+        const error = { code: 'runtime-unresolved-value-ref' as const, message: 'Unable to resolve input value', context: { instructionKind: i.kind } };
+        return { cont: false, outcome: interpreterOutcome({ index, instruction: i, status: 'failed', diagnostics: [error], failureCode: error.code }), error };
+      }
+      return { cont: true, outcome: interpreterOutcome({ index, instruction: i, status: 'ok', observedEffects: ['value-entry:validated'] }) };
+    },
+    'invoke': (i) => (environment: InterpreterEnvironment, index: number): DryRunStepResult =>
+      validateElementTarget(environment, index, i),
+    'observe-structure': (i) => (environment: InterpreterEnvironment, index: number): DryRunStepResult =>
+      validateElementTarget(environment, index, i),
+    'custom-escape-hatch': (i) => (_environment: InterpreterEnvironment, index: number): DryRunStepResult => {
+      const errorInfo = runtimeEscapeHatchError(i.reason);
+      const error: ProgramFailure = { code: 'runtime-step-program-escape-hatch', message: errorInfo.message, context: errorInfo.context };
+      return { cont: false, outcome: interpreterOutcome({ index, instruction: i, status: 'failed', diagnostics: [{ code: error.code, message: error.message, context: error.context }], failureCode: error.code }), error };
+    },
+  }),
+);
+
 export const dryRunInterpreter: StepProgramInterpreter<InterpreterEnvironment> = {
   mode: 'dry-run',
   async run(program: StepProgram, environment: InterpreterEnvironment, context?: StepProgramDiagnosticContext): Promise<StepProgramExecutionResult> {
     const outcomes: ReturnType<typeof interpreterOutcome>[] = [];
 
     for (const [index, instruction] of program.instructions.entries()) {
-      switch (instruction.kind) {
-        case 'navigate': {
-          const screen = requireScreen(environment.screens, instruction.screen);
-          if (!screen.ok) {
-            outcomes.push(interpreterOutcome({ index, instruction, status: 'failed', diagnostics: [{ code: screen.code, message: screen.message, context: screen.context }], failureCode: screen.code }));
-            return failResult(this.mode, outcomes, { code: screen.code, message: screen.message, context: screen.context }, context);
-          }
-          outcomes.push(interpreterOutcome({ index, instruction, status: 'ok', observedEffects: ['navigation:validated'] }));
-          break;
-        }
-        case 'enter': {
-          const screen = requireScreen(environment.screens, instruction.screen);
-          if (!screen.ok) {
-            outcomes.push(interpreterOutcome({ index, instruction, status: 'failed', diagnostics: [{ code: screen.code, message: screen.message, context: screen.context }], failureCode: screen.code }));
-            return failResult(this.mode, outcomes, { code: screen.code, message: screen.message, context: screen.context }, context);
-          }
-          if (!screen.value.elements[instruction.element]) {
-            const error = { code: 'runtime-unknown-effect-target' as const, message: `Unknown element target ${instruction.element}`, context: { target: instruction.element, targetKind: 'element' } };
-            outcomes.push(interpreterOutcome({ index, instruction, status: 'failed', diagnostics: [error], failureCode: error.code }));
-            return failResult(this.mode, outcomes, error, context);
-          }
-          const posture = resolvePosture(screen.value, instruction.element, instruction.posture);
-          if (!posture.ok) {
-            outcomes.push(interpreterOutcome({ index, instruction, status: 'failed', diagnostics: [{ code: posture.code, message: posture.message, context: posture.context }], failureCode: posture.code }));
-            return failResult(this.mode, outcomes, { code: posture.code, message: posture.message, context: posture.context }, context);
-          }
-          const resolved = environment.resolveValue(environment.fixtures, instruction.value);
-          if (instruction.value && resolved === undefined) {
-            const error = { code: 'runtime-unresolved-value-ref' as const, message: 'Unable to resolve input value', context: { instructionKind: instruction.kind } };
-            outcomes.push(interpreterOutcome({ index, instruction, status: 'failed', diagnostics: [error], failureCode: error.code }));
-            return failResult(this.mode, outcomes, error, context);
-          }
-          outcomes.push(interpreterOutcome({ index, instruction, status: 'ok', observedEffects: ['value-entry:validated'] }));
-          break;
-        }
-        case 'invoke':
-        case 'observe-structure': {
-          const screen = requireScreen(environment.screens, instruction.screen);
-          if (!screen.ok) {
-            outcomes.push(interpreterOutcome({ index, instruction, status: 'failed', diagnostics: [{ code: screen.code, message: screen.message, context: screen.context }], failureCode: screen.code }));
-            return failResult(this.mode, outcomes, { code: screen.code, message: screen.message, context: screen.context }, context);
-          }
-          if (!screen.value.elements[instruction.element]) {
-            const error = { code: 'runtime-unknown-effect-target' as const, message: `Unknown element target ${instruction.element}`, context: { target: instruction.element, targetKind: 'element' } };
-            outcomes.push(interpreterOutcome({ index, instruction, status: 'failed', diagnostics: [error], failureCode: error.code }));
-            return failResult(this.mode, outcomes, error, context);
-          }
-          if (instruction.kind === 'observe-structure' && !environment.hasSnapshotTemplate(instruction.snapshotTemplate)) {
-            const error = { code: 'runtime-missing-snapshot-template' as const, message: `Missing snapshot template ${instruction.snapshotTemplate}`, context: { snapshotTemplate: instruction.snapshotTemplate } };
-            outcomes.push(interpreterOutcome({ index, instruction, status: 'failed', diagnostics: [error], failureCode: error.code }));
-            return failResult(this.mode, outcomes, error, context);
-          }
-          outcomes.push(interpreterOutcome({ index, instruction, status: 'ok', observedEffects: ['target:validated'] }));
-          break;
-        }
-        case 'custom-escape-hatch': {
-          const errorInfo = runtimeEscapeHatchError(instruction.reason);
-          const error: ProgramFailure = { code: 'runtime-step-program-escape-hatch', message: errorInfo.message, context: errorInfo.context };
-          outcomes.push(interpreterOutcome({ index, instruction, status: 'failed', diagnostics: [{ code: error.code, message: error.message, context: error.context }], failureCode: error.code }));
-          return failResult(this.mode, outcomes, error, context);
-        }
+      const result = dryRunDispatch(instruction)(environment, index);
+      outcomes.push(result.outcome);
+      if (!result.cont) {
+        return failResult(this.mode, outcomes, result.error, context);
       }
     }
 

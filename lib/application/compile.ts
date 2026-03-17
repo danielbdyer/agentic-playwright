@@ -69,11 +69,11 @@ export function compileScenario(options: { adoId: AdoId; paths: ProjectPaths }) 
           boundScenario: bound.boundScenario,
           boundPath: bound.boundPath,
         });
-        const { emitted, graph, generatedTypes } = yield* Effect.all({
-          emitted: emitScenario({ paths: options.paths, compileSnapshot }),
+        const emitted = yield* emitScenario({ paths: options.paths, compileSnapshot });
+        const { graph, generatedTypes } = yield* Effect.all({
           graph: buildDerivedGraph({ paths: options.paths }),
           generatedTypes: generateTypes({ paths: options.paths, catalog: sessionWithBound.catalog }),
-        });
+        }, { concurrency: 'unbounded' });
         return {
           parsed,
           bound,
@@ -99,5 +99,5 @@ export function compileScenario(options: { adoId: AdoId; paths: ProjectPaths }) 
       generatedTypes,
       trustPolicy: stage.dependencies.catalog.trustPolicy.artifact,
     };
-  });
+  }).pipe(Effect.withSpan('compile-scenario', { attributes: { adoId: options.adoId } }));
 }

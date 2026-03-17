@@ -35,7 +35,7 @@ export function createTrustPolicyDiagnostic(input: {
   adoId: AdoId;
   decision: TrustPolicyDecision;
   artifactPath: string;
-  reasons: TrustPolicyEvaluationReason[];
+  reasons: readonly TrustPolicyEvaluationReason[];
   provenance?: DiagnosticProvenance | undefined;
 }): CompilerDiagnostic {
   const reasonText = input.reasons.map((reason) => reason.message).join('; ');

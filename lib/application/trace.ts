@@ -11,10 +11,12 @@ export function traceScenario(options: { adoId: AdoId; paths: ProjectPaths }) {
   return Effect.gen(function* () {
     const derived = (yield* ensureDerivedGraph({ paths: options.paths })) as { graph: DerivedGraph; graphPath: string };
     const scenarioNodeId = graphIds.scenario(options.adoId);
-    const scenarioExists = derived.graph.nodes.some((node) => node.id === scenarioNodeId);
-    if (!scenarioExists) {
-      return yield* Effect.fail(new TesseractError('trace-not-found', `Unable to trace scenario ${options.adoId}`));
-    }
+    yield* Effect.succeed(derived.graph.nodes.some((node) => node.id === scenarioNodeId)).pipe(
+      Effect.filterOrFail(
+        (exists): exists is true => exists,
+        () => new TesseractError('trace-not-found', `Unable to trace scenario ${options.adoId}`),
+      ),
+    );
 
     const seedNodes = new Set<string>([scenarioNodeId]);
     const stepPrefix = graphIds.stepPrefix(options.adoId);

@@ -1,3 +1,4 @@
+import { Match, pipe } from 'effect';
 import type { StepInstruction } from '../../domain/types';
 import type {
   ProgramFailure,
@@ -31,13 +32,16 @@ function dispatchInstruction<TEnv>(
   env: TEnv,
   instruction: StepInstruction,
 ): Promise<InstructionOutcome> {
-  switch (instruction.kind) {
-    case 'navigate': return evaluator.navigate(env, instruction);
-    case 'enter': return evaluator.enter(env, instruction);
-    case 'invoke': return evaluator.invoke(env, instruction);
-    case 'observe-structure': return evaluator.observeStructure(env, instruction);
-    case 'custom-escape-hatch': return evaluator.escapeHatch(env, instruction);
-  }
+  return pipe(
+    Match.type<StepInstruction>(),
+    Match.discriminatorsExhaustive('kind')({
+      'navigate': (i) => evaluator.navigate(env, i),
+      'enter': (i) => evaluator.enter(env, i),
+      'invoke': (i) => evaluator.invoke(env, i),
+      'observe-structure': (i) => evaluator.observeStructure(env, i),
+      'custom-escape-hatch': (i) => evaluator.escapeHatch(env, i),
+    }),
+  )(instruction);
 }
 
 function toOutcome(index: number, instruction: StepInstruction, result: InstructionOutcome): StepProgramInstructionOutcome {

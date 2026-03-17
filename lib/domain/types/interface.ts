@@ -274,9 +274,9 @@ export interface TransitionObservation {
   screen: ScreenId;
   eventSignatureRef?: EventSignatureRef | null | undefined;
   transitionRef?: TransitionRef | null | undefined;
-  expectedTransitionRefs: TransitionRef[];
-  observedStateRefs: StateNodeRef[];
-  unexpectedStateRefs: StateNodeRef[];
+  expectedTransitionRefs: readonly TransitionRef[];
+  observedStateRefs: readonly StateNodeRef[];
+  unexpectedStateRefs: readonly StateNodeRef[];
   confidence: 'observed' | 'inferred' | 'missing';
   classification: 'matched' | 'ambiguous-match' | 'missing-expected' | 'unexpected-effects';
   detail?: Record<string, string> | undefined;

@@ -346,7 +346,7 @@ export async function tryTranslationResolution(stage: RuntimeAgentStageContext, 
           risk: 'low' as const,
           scope: proposal.artifactType,
         })),
-        proposalDrafts: interpretationProposals,
+        proposalDrafts: [...interpretationProposals],
       } : {}),
     };
 

@@ -1,4 +1,4 @@
-import { Effect } from 'effect';
+import { Effect, Match, pipe } from 'effect';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
 import { ensureDerivedGraph } from './graph';
 import { findProposalById } from './operator';
@@ -46,31 +46,24 @@ function overlayRecordIdFromNodeId(nodeId: string): string {
   return nodeId.replace(`${graphIds.confidenceOverlay('')}`, '').replace(/^:/, '');
 }
 
+const inwardKinds: ReadonlySet<string> = new Set(['derived-from', 'references', 'uses', 'learns-from', 'asserts', 'observed-by']);
+const outwardKinds: ReadonlySet<string> = new Set(['emits', 'affects', 'proposed-change-for', 'governs']);
+
 function dependentNodesForEdge(edge: GraphEdge, nodes: Map<string, GraphNode>, current: string): string[] {
-  switch (edge.kind) {
-    case 'derived-from':
-    case 'references':
-    case 'uses':
-    case 'learns-from':
-    case 'asserts':
-    case 'observed-by':
-      return edge.to === current ? [edge.from] : [];
-    case 'emits':
-    case 'affects':
-    case 'proposed-change-for':
-    case 'governs':
-      return edge.from === current ? [edge.to] : [];
-    case 'contains': {
+  return pipe(
+    Match.value(edge.kind as string),
+    Match.when((k) => inwardKinds.has(k), () => edge.to === current ? [edge.from] : []),
+    Match.when((k) => outwardKinds.has(k), () => edge.from === current ? [edge.to] : []),
+    Match.when('contains', () => {
       const parent = nodes.get(edge.from);
       const child = nodes.get(edge.to);
       if (edge.to === current && parent?.kind === 'scenario' && child?.kind === 'step') {
         return [edge.from];
       }
-      return [];
-    }
-    default:
-      return [];
-  }
+      return [] as string[];
+    }),
+    Match.orElse(() => [] as string[]),
+  );
 }
 
 function buildImpactPaths(graph: { nodes: GraphNode[]; edges: GraphEdge[] }, sourceNodeId: string): Map<string, string[]> {
@@ -347,10 +340,12 @@ export function buildRerunPlan(options: {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const catalog = yield* loadWorkspaceCatalog({ paths: options.paths });
-    const located = findProposalById(catalog, options.proposalId);
-    if (!located) {
-      return yield* Effect.fail(new TesseractError('proposal-not-found', `Unknown proposal ${options.proposalId}`));
-    }
+    const located = yield* Effect.succeed(findProposalById(catalog, options.proposalId)).pipe(
+      Effect.filterOrFail(
+        (result): result is NonNullable<typeof result> => result != null,
+        () => new TesseractError('proposal-not-found', `Unknown proposal ${options.proposalId}`),
+      ),
+    );
 
     const targetNodeId = policyDecisionGraphTarget({
       artifactType: located.proposal.artifactType,

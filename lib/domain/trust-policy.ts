@@ -21,8 +21,8 @@ function confidenceThresholdReason(confidence: number, minimumConfidence: number
 }
 
 function evidenceRuleReason(input: {
-  evidence: EvidenceDescriptor[];
-  requiredKinds: string[];
+  evidence: readonly EvidenceDescriptor[];
+  requiredKinds: readonly string[];
   minimumCount: number;
 }): TrustPolicyEvaluationReason | null {
   const eligibleCount = input.evidence.filter((descriptor) => input.requiredKinds.includes(descriptor.kind)).length;
@@ -36,7 +36,7 @@ function evidenceRuleReason(input: {
   };
 }
 
-function forbiddenAutoHealReason(autoHealClass: string | null | undefined, forbiddenClasses: string[]): TrustPolicyEvaluationReason | null {
+function forbiddenAutoHealReason(autoHealClass: string | null | undefined, forbiddenClasses: readonly string[]): TrustPolicyEvaluationReason | null {
   if (!autoHealClass || !forbiddenClasses.includes(autoHealClass)) {
     return null;
   }

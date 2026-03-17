@@ -88,7 +88,7 @@ function resolvedTargetRef(stage: RuntimeAgentStageContext, receipt: ResolutionR
   return screen?.elements.find((entry) => entry.element === receipt.target.element)?.targetRef ?? null;
 }
 
-function routeVariantRefsForReceipt(stage: RuntimeAgentStageContext, receipt: ResolutionReceipt): string[] {
+function routeVariantRefsForReceipt(stage: RuntimeAgentStageContext, receipt: ResolutionReceipt): readonly string[] {
   if (receipt.kind === 'needs-human') {
     return stage.task.grounding.routeVariantRefs;
   }
@@ -96,7 +96,7 @@ function routeVariantRefsForReceipt(stage: RuntimeAgentStageContext, receipt: Re
   return screen?.routeVariantRefs.length ? screen.routeVariantRefs : stage.task.grounding.routeVariantRefs;
 }
 
-function deriveCausalLinks(stage: RuntimeAgentStageContext, receipt: ResolutionReceipt): CausalLink[] {
+function deriveCausalLinks(stage: RuntimeAgentStageContext, receipt: ResolutionReceipt): readonly CausalLink[] {
   if (receipt.kind === 'needs-human') return stage.memory.causalLinks;
 
   const expectedTransitions = stage.task.grounding.expectedTransitionRefs;

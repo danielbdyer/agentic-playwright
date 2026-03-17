@@ -136,11 +136,13 @@ export function runScenario(options: {
         const runFile = runRecordPath(options.paths, options.adoId, plan.runId);
         const proposalsFile = generatedProposalsPath(options.paths, scenarioEntry.artifact.metadata.suite, options.adoId);
 
-        yield* fs.writeJson(interpretationFile, executionStage.interpretationOutput);
-        yield* fs.writeJson(executionFile, executionStage.executionOutput);
-        yield* fs.writeJson(resolutionGraphFile, executionStage.resolutionGraphOutput);
-        yield* fs.writeJson(runFile, runRecordStage.runRecord);
-        yield* fs.writeJson(proposalsFile, activationStage.proposalBundle);
+        yield* Effect.all([
+          fs.writeJson(interpretationFile, executionStage.interpretationOutput),
+          fs.writeJson(executionFile, executionStage.executionOutput),
+          fs.writeJson(resolutionGraphFile, executionStage.resolutionGraphOutput),
+          fs.writeJson(runFile, runRecordStage.runRecord),
+          fs.writeJson(proposalsFile, activationStage.proposalBundle),
+        ]);
 
         const confidence = yield* projectConfidenceOverlayCatalog({ paths: options.paths });
         const emitted = yield* emitScenario({ adoId: options.adoId, paths: options.paths });
@@ -171,7 +173,7 @@ export function runScenario(options: {
     });
 
     return stage.computed;
-  });
+  }).pipe(Effect.withSpan('run-scenario', { attributes: { adoId: options.adoId } }));
 }
 
 export function runScenarioSelection(options: {

@@ -1,5 +1,6 @@
 export { runScenario, runScenarioSelection } from '../run';
-export { loadScenarioRunPlan } from './load-run-plan';
+export { loadScenarioRunPlan, loadScenarioRunPlanEffect } from './load-run-plan';
+export type { LoadScenarioRunPlanInput } from './load-run-plan';
 export { selectRunContext } from './select-run-context';
 export { executeSteps } from './execute-steps';
 export { persistEvidence } from './persist-evidence';

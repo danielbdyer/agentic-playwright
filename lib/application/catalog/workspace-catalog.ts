@@ -77,18 +77,25 @@ import { readJsonArtifact, readYamlArtifact } from './loaders';
 import { assembleScreenBundles } from './screen-bundles';
 import type { ArtifactEnvelope, WorkspaceCatalog } from './types';
 
+/** Stable sort on artifactPath ensures deterministic fingerprinting regardless of load order. */
+function sortByArtifactPath<T>(envelopes: ArtifactEnvelope<T>[]): ArtifactEnvelope<T>[] {
+  return [...envelopes].sort((a, b) => a.artifactPath.localeCompare(b.artifactPath));
+}
+
 function loadAllYaml<T>(
   paths: ProjectPaths, files: readonly string[], validate: (value: unknown) => T, errorCode: string, label: string,
 ) {
   return Effect.forEach(files, (filePath) =>
-    readYamlArtifact(paths, filePath, validate, errorCode, `${label} ${filePath} failed validation`));
+    readYamlArtifact(paths, filePath, validate, errorCode, `${label} ${filePath} failed validation`),
+  ).pipe(Effect.map(sortByArtifactPath));
 }
 
 function loadAllJson<T>(
   paths: ProjectPaths, files: readonly string[], validate: (value: unknown) => T, errorCode: string, label: string,
 ) {
   return Effect.forEach(files, (filePath) =>
-    readJsonArtifact(paths, filePath, validate, errorCode, `${label} ${filePath} failed validation`));
+    readJsonArtifact(paths, filePath, validate, errorCode, `${label} ${filePath} failed validation`),
+  ).pipe(Effect.map(sortByArtifactPath));
 }
 
 function readDisposableJsonArtifact<T>(
@@ -109,7 +116,7 @@ function loadAllDisposableJson<T>(
 ) {
   return Effect.forEach(files, (filePath) =>
     readDisposableJsonArtifact(paths, filePath, validate, errorCode, `${label} ${filePath} failed validation`),
-  ).pipe(Effect.map((results) => results.filter((entry): entry is ArtifactEnvelope<T> => entry !== null)));
+  ).pipe(Effect.map((results) => sortByArtifactPath(results.filter((entry): entry is ArtifactEnvelope<T> => entry !== null))));
 }
 
 function readDisposableSingleton<T>(
@@ -145,7 +152,7 @@ export function loadWorkspaceCatalog(options: { paths: ProjectPaths }) {
       evidence: walkFiles(fs, options.paths.evidenceDir),
       sessions: walkFiles(fs, options.paths.sessionsDir),
       replays: walkFiles(fs, path.join(options.paths.learningDir, 'replays')),
-    });
+    }, { concurrency: 'unbounded' });
 
     // Phase 2: Load all artifact types in parallel (each group is independent)
     const loaded = yield* Effect.all({
@@ -227,7 +234,7 @@ export function loadWorkspaceCatalog(options: { paths: ProjectPaths }) {
       replayExamples: loadAllJson<ReplayExample>(options.paths,
         walks.replays.filter((f) => f.endsWith('.json')),
         validateReplayExample, 'replay-example-validation-failed', 'Replay example'),
-    });
+    }, { concurrency: 'unbounded' });
 
     const knowledgeSnapshots = walks.knowledgeSnapshots
       .filter((filePath) => filePath.endsWith('.yaml'))

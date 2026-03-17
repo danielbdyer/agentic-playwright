@@ -257,17 +257,17 @@ export interface ScenarioExplanationStep {
   governance: Governance;
   bindingKind: StepBindingKind;
   ruleId: string | null;
-  knowledgeRefs: string[];
-  supplementRefs: string[];
-  controlRefs: string[];
-  evidenceRefs: string[];
-  overlayRefs: string[];
-  reviewReasons: string[];
-  unresolvedGaps: string[];
-  reasons: string[];
-  evidenceIds: string[];
+  knowledgeRefs: readonly string[];
+  supplementRefs: readonly string[];
+  controlRefs: readonly string[];
+  evidenceRefs: readonly string[];
+  overlayRefs: readonly string[];
+  reviewReasons: readonly string[];
+  unresolvedGaps: readonly string[];
+  reasons: readonly string[];
+  evidenceIds: readonly string[];
   program: StepProgram | null;
-  handshakes: WorkflowStage[];
+  handshakes: readonly WorkflowStage[];
   winningConcern: import('./workflow').WorkflowLane;
   winningSource: StepWinningSource;
   resolutionMode: ResolutionMode;
@@ -280,13 +280,13 @@ export interface ScenarioExplanationStep {
     locatorStrategy?: string | null | undefined;
     locatorRung?: number | null | undefined;
     degraded?: boolean | undefined;
-    preconditionFailures?: string[] | undefined;
-    requiredStateRefs?: StateNodeRef[] | undefined;
-    forbiddenStateRefs?: StateNodeRef[] | undefined;
-    eventSignatureRefs?: EventSignatureRef[] | undefined;
-    expectedTransitionRefs?: TransitionRef[] | undefined;
-    observedStateRefs?: StateNodeRef[] | undefined;
-    effectAssertions?: string[] | undefined;
+    preconditionFailures?: readonly string[] | undefined;
+    requiredStateRefs?: readonly StateNodeRef[] | undefined;
+    forbiddenStateRefs?: readonly StateNodeRef[] | undefined;
+    eventSignatureRefs?: readonly EventSignatureRef[] | undefined;
+    expectedTransitionRefs?: readonly TransitionRef[] | undefined;
+    observedStateRefs?: readonly StateNodeRef[] | undefined;
+    effectAssertions?: readonly string[] | undefined;
     transitionObservations?: Array<{
       transitionRef?: TransitionRef | null | undefined;
       classification: 'matched' | 'ambiguous-match' | 'missing-expected' | 'unexpected-effects';
@@ -303,13 +303,13 @@ export interface ScenarioExplanationStep {
     } | undefined;
     budget?: {
       status: 'within-budget' | 'over-budget' | 'not-configured';
-      breaches: string[];
+      breaches: readonly string[];
     } | undefined;
     failure?: {
       family: 'none' | 'precondition-failure' | 'locator-degradation-failure' | 'environment-runtime-failure';
       code?: string | null | undefined;
     } | undefined;
-    exhaustion?: ResolutionExhaustionEntry[] | undefined;
+    exhaustion?: readonly ResolutionExhaustionEntry[] | undefined;
   } | undefined;
 }
 

@@ -121,7 +121,7 @@ export function objectBindingPattern(names: string[]): ts.ObjectBindingPattern {
   );
 }
 
-export function unionOfStringLiterals(values: string[]): ts.TypeNode {
+export function unionOfStringLiterals(values: readonly string[]): ts.TypeNode {
   if (values.length === 0) {
     return ts.factory.createKeywordTypeNode(ts.SyntaxKind.NeverKeyword);
   }
@@ -133,7 +133,7 @@ export function unionOfStringLiterals(values: string[]): ts.TypeNode {
 
 export function conditionalByScreen(
   parameterName: string,
-  cases: Array<{ screen: string; values: string[] }>,
+  cases: Array<{ screen: string; values: readonly string[] }>,
 ): ts.TypeNode {
   return [...cases].reverse().reduce<ts.TypeNode>(
     (fallback, entry) =>

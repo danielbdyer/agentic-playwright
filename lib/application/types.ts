@@ -64,7 +64,7 @@ export function generateTypes(options: { paths: ProjectPaths; catalog?: Workspac
     ];
     const screens = new Set<string>();
     const surfacesByScreen: Record<string, string[]> = {};
-    const surfaceActionsByScreen: Record<string, Record<string, string[]>> = {};
+    const surfaceActionsByScreen: Record<string, Record<string, readonly string[]>> = {};
     const elementsByScreen: Record<string, string[]> = {};
     const posturesByScreen: Record<string, Record<string, string[]>> = {};
     const snapshotTemplates: string[] = [];

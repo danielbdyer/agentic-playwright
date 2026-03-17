@@ -46,13 +46,16 @@ export function syncSnapshots(options: { adoId?: AdoId; all?: boolean; paths: Pr
         ? [options.adoId]
         : [];
 
-    if (ids.length === 0) {
-      return yield* Effect.fail(new Error('sync requires --all or --ado-id'));
-    }
+    yield* Effect.succeed(ids).pipe(
+      Effect.filterOrFail(
+        (items) => items.length > 0,
+        () => new Error('sync requires --all or --ado-id'),
+      ),
+    );
 
     const nextEntries = { ...manifest.entries };
-    const snapshots: SyncResult['snapshots'] = [];
-    const diagnostics: SyncResult['diagnostics'] = [];
+    const snapshots: import('../domain/types/intent').AdoSnapshot[] = [];
+    const diagnostics: import('../domain/types/workflow').CompilerDiagnostic[] = [];
 
     yield* fs.ensureDir(options.paths.snapshotDir);
 

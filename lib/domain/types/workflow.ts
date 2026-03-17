@@ -88,40 +88,44 @@ export type EffectTargetKind = 'self' | 'element' | 'surface';
 export type LocatorStrategyKind = 'test-id' | 'role-name' | 'css';
 
 export interface WorkflowEnvelopeIds {
-  adoId?: AdoId | null | undefined;
-  suite?: string | null | undefined;
-  runId?: string | null | undefined;
-  stepIndex?: number | null | undefined;
-  dataset?: string | null | undefined;
-  runbook?: string | null | undefined;
-  resolutionControl?: string | null | undefined;
+  readonly adoId?: AdoId | null | undefined;
+  readonly suite?: string | null | undefined;
+  readonly runId?: string | null | undefined;
+  readonly stepIndex?: number | null | undefined;
+  readonly dataset?: string | null | undefined;
+  readonly runbook?: string | null | undefined;
+  readonly resolutionControl?: string | null | undefined;
 }
 
 export interface WorkflowEnvelopeFingerprints {
-  artifact: string;
-  content?: string | null | undefined;
-  knowledge?: string | null | undefined;
-  controls?: string | null | undefined;
-  task?: string | null | undefined;
-  run?: string | null | undefined;
+  readonly artifact: string;
+  readonly content?: string | null | undefined;
+  readonly knowledge?: string | null | undefined;
+  readonly controls?: string | null | undefined;
+  readonly task?: string | null | undefined;
+  readonly run?: string | null | undefined;
 }
 
 export interface WorkflowEnvelopeLineage {
-  sources: string[];
-  parents: string[];
-  handshakes: WorkflowStage[];
+  readonly sources: readonly string[];
+  readonly parents: readonly string[];
+  readonly handshakes: readonly WorkflowStage[];
 }
 
 export interface WorkflowEnvelope<TPayload> {
-  version: 1;
-  stage: WorkflowStage;
-  scope: WorkflowScope;
-  ids: WorkflowEnvelopeIds;
-  fingerprints: WorkflowEnvelopeFingerprints;
-  lineage: WorkflowEnvelopeLineage;
-  governance: Governance;
-  payload: TPayload;
+  readonly version: 1;
+  readonly stage: WorkflowStage;
+  readonly scope: WorkflowScope;
+  readonly ids: WorkflowEnvelopeIds;
+  readonly fingerprints: WorkflowEnvelopeFingerprints;
+  readonly lineage: WorkflowEnvelopeLineage;
+  readonly governance: Governance;
+  readonly payload: TPayload;
 }
+
+export type PayloadOf<T> = T extends WorkflowEnvelope<infer P> ? P : never;
+export type ApprovedEnvelope<T> = Approved<WorkflowEnvelope<T>>;
+export type BlockedEnvelope<T> = Blocked<WorkflowEnvelope<T>>;
 
 export function mapPayload<A, B>(
   envelope: WorkflowEnvelope<A>,
@@ -131,16 +135,16 @@ export function mapPayload<A, B>(
 }
 
 export interface ExecutionPosture {
-  interpreterMode: RuntimeInterpreterMode;
-  writeMode: WriteMode;
-  headed: boolean;
-  executionProfile: ExecutionProfile;
+  readonly interpreterMode: RuntimeInterpreterMode;
+  readonly writeMode: WriteMode;
+  readonly headed: boolean;
+  readonly executionProfile: ExecutionProfile;
 }
 
 export interface WriteJournalEntry {
-  path: string;
-  operation: 'write-text' | 'write-json' | 'ensure-dir';
-  serialized: string | null;
+  readonly path: string;
+  readonly operation: 'write-text' | 'write-json' | 'ensure-dir';
+  readonly serialized: string | null;
 }
 
 export type LocatorStrategy =
@@ -152,39 +156,39 @@ export type TrustPolicyArtifactType = 'elements' | 'postures' | 'surface' | 'sna
 export type TrustPolicyDecision = 'allow' | 'review' | 'deny';
 
 export interface TrustPolicyEvidenceRule {
-  minCount: number;
-  kinds: string[];
+  readonly minCount: number;
+  readonly kinds: readonly string[];
 }
 
 export interface TrustPolicyArtifactRule {
-  minimumConfidence: number;
-  requiredEvidence: TrustPolicyEvidenceRule;
+  readonly minimumConfidence: number;
+  readonly requiredEvidence: TrustPolicyEvidenceRule;
 }
 
 export interface TrustPolicy {
-  version: 1;
-  artifactTypes: Record<TrustPolicyArtifactType, TrustPolicyArtifactRule>;
-  forbiddenAutoHealClasses: string[];
+  readonly version: 1;
+  readonly artifactTypes: Readonly<Record<TrustPolicyArtifactType, TrustPolicyArtifactRule>>;
+  readonly forbiddenAutoHealClasses: readonly string[];
 }
 
 export interface ProposedChangeMetadata {
-  artifactType: TrustPolicyArtifactType;
-  confidence: number;
-  autoHealClass?: string | null | undefined;
+  readonly artifactType: TrustPolicyArtifactType;
+  readonly confidence: number;
+  readonly autoHealClass?: string | null | undefined;
 }
 
 export interface EvidenceDescriptor {
-  kind: string;
+  readonly kind: string;
 }
 
 export interface TrustPolicyEvaluationReason {
-  code: 'minimum-confidence' | 'required-evidence' | 'forbidden-auto-heal';
-  message: string;
+  readonly code: 'minimum-confidence' | 'required-evidence' | 'forbidden-auto-heal';
+  readonly message: string;
 }
 
 export interface TrustPolicyEvaluation {
-  decision: TrustPolicyDecision;
-  reasons: TrustPolicyEvaluationReason[];
+  readonly decision: TrustPolicyDecision;
+  readonly reasons: readonly TrustPolicyEvaluationReason[];
 }
 
 // ─── WP5: Auto-Approval Policy ───
@@ -202,85 +206,85 @@ export interface AutoApprovalResult {
 }
 
 export interface CanonicalLineage {
-  runIds: string[];
-  evidenceIds: string[];
-  sourceArtifactPaths: string[];
-  role?: string | null | undefined;
-  state?: string | null | undefined;
-  driftSeed?: string | null | undefined;
+  readonly runIds: readonly string[];
+  readonly evidenceIds: readonly string[];
+  readonly sourceArtifactPaths: readonly string[];
+  readonly role?: string | null | undefined;
+  readonly state?: string | null | undefined;
+  readonly driftSeed?: string | null | undefined;
 }
 
 export interface CanonicalKnowledgeMetadata {
-  certification: CertificationStatus;
-  activatedAt: string;
-  certifiedAt?: string | null | undefined;
-  lineage: CanonicalLineage;
+  readonly certification: CertificationStatus;
+  readonly activatedAt: string;
+  readonly certifiedAt?: string | null | undefined;
+  readonly lineage: CanonicalLineage;
 }
 
 export interface ProposalActivation {
-  status: 'pending' | 'activated' | 'blocked';
-  activatedAt?: string | null | undefined;
-  certifiedAt?: string | null | undefined;
-  reason?: string | null | undefined;
+  readonly status: 'pending' | 'activated' | 'blocked';
+  readonly activatedAt?: string | null | undefined;
+  readonly certifiedAt?: string | null | undefined;
+  readonly reason?: string | null | undefined;
 }
 
 export interface DiagnosticProvenance {
-  sourceRevision?: number | undefined;
-  contentHash?: string | undefined;
-  scenarioPath?: string | undefined;
-  snapshotPath?: string | undefined;
-  knowledgePath?: string | undefined;
-  confidence?: Confidence | 'mixed' | undefined;
+  readonly sourceRevision?: number | undefined;
+  readonly contentHash?: string | undefined;
+  readonly scenarioPath?: string | undefined;
+  readonly snapshotPath?: string | undefined;
+  readonly knowledgePath?: string | undefined;
+  readonly confidence?: Confidence | 'mixed' | undefined;
 }
 
 export interface CompilerDiagnostic {
-  code: string;
-  severity: DiagnosticSeverity;
-  message: string;
-  adoId: AdoId;
-  stepIndex?: number | undefined;
-  artifactPath?: string | undefined;
-  provenance: DiagnosticProvenance;
+  readonly code: string;
+  readonly severity: DiagnosticSeverity;
+  readonly message: string;
+  readonly adoId: AdoId;
+  readonly stepIndex?: number | undefined;
+  readonly artifactPath?: string | undefined;
+  readonly provenance: DiagnosticProvenance;
 }
 
 export interface DerivedCapability {
-  id: string;
-  targetKind: 'screen' | 'surface' | 'element';
-  target: ScreenId | SurfaceId | ElementId;
-  operations: CapabilityName[];
-  provenance: DiagnosticProvenance;
+  readonly id: string;
+  readonly targetKind: 'screen' | 'surface' | 'element';
+  readonly target: ScreenId | SurfaceId | ElementId;
+  readonly operations: readonly CapabilityName[];
+  readonly provenance: DiagnosticProvenance;
 }
 
 export interface ManifestEntry {
-  adoId: AdoId;
-  revision: number;
-  contentHash: string;
-  syncedAt: string;
-  sourcePath: string;
+  readonly adoId: AdoId;
+  readonly revision: number;
+  readonly contentHash: string;
+  readonly syncedAt: string;
+  readonly sourcePath: string;
 }
 
 export interface Manifest {
-  entries: Record<string, ManifestEntry>;
+  readonly entries: Readonly<Record<string, ManifestEntry>>;
 }
 
 export interface SyncResult {
-  manifest: Manifest;
-  snapshots: import('./intent').AdoSnapshot[];
-  diagnostics: CompilerDiagnostic[];
+  readonly manifest: Manifest;
+  readonly snapshots: readonly import('./intent').AdoSnapshot[];
+  readonly diagnostics: readonly CompilerDiagnostic[];
 }
 
 export interface CaptureResult {
-  snapshotPath: string;
-  hashPath: string;
-  hash: string;
-  snapshot: string;
+  readonly snapshotPath: string;
+  readonly hashPath: string;
+  readonly hash: string;
+  readonly snapshot: string;
 }
 
 export interface ResolutionTarget {
-  action: StepAction;
-  screen: ScreenId;
-  element?: ElementId | null | undefined;
-  posture?: PostureId | null | undefined;
-  override?: string | null | undefined;
-  snapshot_template?: SnapshotTemplateId | null | undefined;
+  readonly action: StepAction;
+  readonly screen: ScreenId;
+  readonly element?: ElementId | null | undefined;
+  readonly posture?: PostureId | null | undefined;
+  readonly override?: string | null | undefined;
+  readonly snapshot_template?: SnapshotTemplateId | null | undefined;
 }

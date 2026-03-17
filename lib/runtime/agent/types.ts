@@ -38,7 +38,7 @@ export interface RuntimeAgentStageContext {
   observations: ResolutionObservation[];
   knowledgeRefs: string[];
   supplementRefs: string[];
-  memoryLineage: string[];
+  memoryLineage: readonly string[];
   interpretation?: IntentInterpretation | undefined;
 }
 

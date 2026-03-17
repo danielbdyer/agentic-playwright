@@ -1,4 +1,5 @@
-﻿import { parseRefPath } from './ref-path';
+﻿import { Match, pipe } from 'effect';
+import { parseRefPath } from './ref-path';
 import type { AdoId, ElementId, ScreenId, SnapshotTemplateId } from './identity';
 import type { CapabilityName, CompilerDiagnostic, ScenarioStep, StepInstruction, StepProgram, ValueRef } from './types';
 import { uniqueSorted } from './collections';
@@ -106,19 +107,16 @@ export function compileStepProgram(step: ScenarioStep): StepProgram {
 }
 
 export function capabilityForInstruction(instruction: StepInstruction): CapabilityName {
-  switch (instruction.kind) {
-    case 'navigate':
-      return 'navigate';
-    case 'enter':
-      return 'enter';
-    case 'invoke':
-      return 'invoke';
-    case 'observe-structure':
-      return 'observe-structure';
-    case 'custom-escape-hatch':
-    default:
-      return 'custom-escape-hatch';
-  }
+  return pipe(
+    Match.type<StepInstruction>(),
+    Match.discriminatorsExhaustive('kind')({
+      'navigate': () => 'navigate' as const,
+      'enter': () => 'enter' as const,
+      'invoke': () => 'invoke' as const,
+      'observe-structure': () => 'observe-structure' as const,
+      'custom-escape-hatch': () => 'custom-escape-hatch' as const,
+    }),
+  )(instruction);
 }
 
 export function traceStepProgram(program: StepProgram): StepProgramTrace {
@@ -130,20 +128,20 @@ export function traceStepProgram(program: StepProgram): StepProgramTrace {
     hasEscapeHatch: false,
   };
 
+  const traceInstruction = pipe(
+    Match.type<StepInstruction>(),
+    Match.discriminatorsExhaustive('kind')({
+      'navigate': (i) => (base: StepProgramTrace) => ({ ...base, screens: [...base.screens, i.screen] }),
+      'enter': (i) => (base: StepProgramTrace) => ({ ...base, screens: [...base.screens, i.screen], elements: [...base.elements, i.element] }),
+      'invoke': (i) => (base: StepProgramTrace) => ({ ...base, screens: [...base.screens, i.screen], elements: [...base.elements, i.element] }),
+      'observe-structure': (i) => (base: StepProgramTrace) => ({ ...base, screens: [...base.screens, i.screen], elements: [...base.elements, i.element], snapshotTemplates: [...base.snapshotTemplates, i.snapshotTemplate] }),
+      'custom-escape-hatch': () => (base: StepProgramTrace) => ({ ...base, hasEscapeHatch: true }),
+    }),
+  );
+
   const raw = program.instructions.reduce((acc, instruction) => {
-    const kind = instruction.kind;
-    const base = { ...acc, instructionKinds: [...acc.instructionKinds, kind] };
-    switch (kind) {
-      case 'navigate':
-        return { ...base, screens: [...base.screens, instruction.screen] };
-      case 'enter':
-      case 'invoke':
-        return { ...base, screens: [...base.screens, instruction.screen], elements: [...base.elements, instruction.element] };
-      case 'observe-structure':
-        return { ...base, screens: [...base.screens, instruction.screen], elements: [...base.elements, instruction.element], snapshotTemplates: [...base.snapshotTemplates, instruction.snapshotTemplate] };
-      case 'custom-escape-hatch':
-        return { ...base, hasEscapeHatch: true };
-    }
+    const base = { ...acc, instructionKinds: [...acc.instructionKinds, instruction.kind] };
+    return traceInstruction(instruction)(base);
   }, seed);
 
   return {
