@@ -1,0 +1,44 @@
+{
+  "id": "20010",
+  "revision": 1,
+  "title": "Synthetic scenario 10: policy-search with 5 steps",
+  "suitePath": "synthetic/policy-detail",
+  "areaPath": "synthetic",
+  "iterationPath": "synthetic/sprint-1",
+  "tags": [
+    "synthetic",
+    "dogfood"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Navigate to policy search</p>",
+      "expected": "<p>policy search loads successfully</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Click on the search</p>",
+      "expected": "<p>search action completes</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Ensure validation summary can be seen</p>",
+      "expected": "<p>validation summary is visible on screen</p>"
+    },
+    {
+      "index": 4,
+      "action": "<p>Observe results table content</p>",
+      "expected": "<p>results table is visible on screen</p>"
+    },
+    {
+      "index": 5,
+      "action": "<p>Provide a valid value for policy number field</p>",
+      "expected": "<p>policy number field accepts the input</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:974eba0734540356eb46f059b49765da0ad675cce3f15a1a5982e6effb64c259",
+  "syncedAt": "2026-03-17T23:21:17.901Z"
+}

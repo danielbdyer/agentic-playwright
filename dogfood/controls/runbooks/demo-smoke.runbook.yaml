@@ -1,0 +1,56 @@
+kind: runbook-control
+version: 1
+name: demo-smoke
+default: true
+selector:
+  adoIds: []
+  suites:
+    - demo/policy-search
+  tags:
+    - smoke
+interpreterMode: diagnostic
+dataset: demo-default
+resolutionControl: demo-policy-search
+translationEnabled: true
+translationCacheEnabled: true
+recoveryPolicy:
+  version: 1
+  profile: demo-smoke
+  families:
+    precondition-failure:
+      budget:
+        maxAttempts: 2
+        maxTotalMs: 750
+        backoffMs: 50
+      strategies:
+        - id: verify-prerequisites
+          enabled: true
+          maxAttempts: 1
+        - id: execute-prerequisite-actions
+          enabled: true
+          maxAttempts: 1
+    locator-degradation-failure:
+      budget:
+        maxAttempts: 2
+        maxTotalMs: 1500
+        backoffMs: 75
+      strategies:
+        - id: force-alternate-locator-rungs
+          enabled: true
+          maxAttempts: 1
+        - id: snapshot-guided-reresolution
+          enabled: true
+          maxAttempts: 1
+    environment-runtime-failure:
+      budget:
+        maxAttempts: 3
+        maxTotalMs: 4000
+        backoffMs: 200
+      strategies:
+        - id: bounded-retry-with-backoff
+          enabled: true
+          maxAttempts: 2
+          backoffMs: 200
+        - id: refresh-runtime
+          enabled: true
+          maxAttempts: 1

@@ -1,0 +1,16 @@
+screen: policy-detail
+postures:
+  policyNumber:
+    valid:
+      values:
+        - POL-001
+      effects: []
+  claimsTable:
+    populated:
+      values:
+        - POL-001
+      effects: []
+    empty:
+      values:
+        - ""
+      effects: []

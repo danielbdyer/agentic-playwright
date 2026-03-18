@@ -22,7 +22,7 @@ test-results/
 #
 # When a production suite arrives, its content lives at the repo
 # root (or a named suite directory) and is fully versioned.
-dogfood/
+# dogfood/  # un-ignored on training branch for fixture continuity
 
 # Deterministic compiler output.  Regenerated as a build step.
 # Production suites will track lib/generated/ once they exist.

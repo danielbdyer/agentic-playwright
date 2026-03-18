@@ -1,0 +1,298 @@
+kind: benchmark-context
+version: 1
+name: flagship-policy-journey
+suite: demo
+appRoute: /policy-journey.html
+fieldCatalog:
+  - id: account.company-name
+    screen: account-intake
+    element: companyNameInput
+    label: Company Name
+    category: account
+    required: true
+    postures: [valid, empty, boundary]
+  - id: account.company-code
+    screen: account-intake
+    element: companyCodeInput
+    label: Company Code
+    category: account
+    required: true
+    postures: [valid, invalid]
+  - id: account.region
+    screen: account-intake
+    element: regionSelect
+    label: Region
+    category: account
+    required: true
+    postures: [valid, empty]
+  - id: account.line-of-business
+    screen: account-intake
+    element: lineOfBusinessSelect
+    label: Line Of Business
+    category: account
+    required: true
+    postures: [valid, empty]
+  - id: insured.first-name
+    screen: insured-profile
+    element: firstNameInput
+    label: First Name
+    category: insured
+    required: true
+    postures: [valid, empty]
+  - id: insured.last-name
+    screen: insured-profile
+    element: lastNameInput
+    label: Last Name
+    category: insured
+    required: true
+    postures: [valid, empty]
+  - id: insured.birth-date
+    screen: insured-profile
+    element: birthDateInput
+    label: Birth Date
+    category: insured
+    required: true
+    postures: [valid, invalid]
+  - id: insured.email
+    screen: insured-profile
+    element: emailInput
+    label: Email
+    category: insured
+    required: true
+    postures: [valid, invalid]
+  - id: insured.phone
+    screen: insured-profile
+    element: phoneInput
+    label: Phone
+    category: insured
+    required: false
+    postures: [valid, invalid]
+  - id: address.street-1
+    screen: address-details
+    element: street1Input
+    label: Street 1
+    category: address
+    required: true
+    postures: [valid, empty]
+  - id: address.street-2
+    screen: address-details
+    element: street2Input
+    label: Street 2
+    category: address
+    required: false
+    postures: [valid, empty]
+  - id: address.city
+    screen: address-details
+    element: cityInput
+    label: City
+    category: address
+    required: true
+    postures: [valid, empty]
+  - id: address.state
+    screen: address-details
+    element: stateSelect
+    label: State
+    category: address
+    required: true
+    postures: [valid, empty]
+  - id: address.postal-code
+    screen: address-details
+    element: postalCodeInput
+    label: Postal Code
+    category: address
+    required: true
+    postures: [valid, invalid]
+  - id: coverage.policy-number
+    screen: coverage-details
+    element: policyNumberInput
+    label: Policy Number
+    category: coverage
+    required: true
+    postures: [valid, invalid]
+  - id: coverage.effective-date
+    screen: coverage-details
+    element: effectiveDateInput
+    label: Effective Date
+    category: coverage
+    required: true
+    postures: [valid, invalid]
+  - id: coverage.expiration-date
+    screen: coverage-details
+    element: expirationDateInput
+    label: Expiration Date
+    category: coverage
+    required: true
+    postures: [valid, invalid]
+  - id: coverage.tier
+    screen: coverage-details
+    element: coverageTierInput
+    label: Coverage Tier
+    category: coverage
+    required: true
+    postures: [valid, boundary]
+  - id: coverage.deductible
+    screen: coverage-details
+    element: deductibleInput
+    label: Deductible
+    category: coverage
+    required: true
+    postures: [valid, boundary]
+  - id: coverage.limit
+    screen: coverage-details
+    element: limitInput
+    label: Coverage Limit
+    category: coverage
+    required: true
+    postures: [valid, boundary]
+  - id: payment.billing-plan
+    screen: payment-setup
+    element: billingPlanSelect
+    label: Billing Plan
+    category: payment
+    required: true
+    postures: [valid, empty]
+  - id: payment.autopay
+    screen: payment-setup
+    element: autoPayToggle
+    label: Auto Pay
+    category: payment
+    required: false
+    postures: [valid]
+  - id: payment.card-type
+    screen: payment-setup
+    element: cardTypeSelect
+    label: Card Type
+    category: payment
+    required: true
+    postures: [valid, empty]
+  - id: payment.card-last4
+    screen: payment-setup
+    element: cardLastFourInput
+    label: Card Last Four
+    category: payment
+    required: true
+    postures: [valid, invalid]
+  - id: review.summary-account
+    screen: review-submit
+    element: accountSummaryCard
+    label: Account Summary
+    category: review
+    required: true
+    postures: [valid]
+  - id: review.summary-insured
+    screen: review-submit
+    element: insuredSummaryCard
+    label: Insured Summary
+    category: review
+    required: true
+    postures: [valid]
+  - id: review.summary-coverage
+    screen: review-submit
+    element: coverageSummaryCard
+    label: Coverage Summary
+    category: review
+    required: true
+    postures: [valid]
+  - id: review.submit
+    screen: review-submit
+    element: submitApplicationButton
+    label: Submit Application
+    category: review
+    required: true
+    postures: [valid]
+flows:
+  - id: account-to-review
+    title: Account intake through review
+    route: /policy-journey.html
+    screens: [account-intake, insured-profile, address-details, coverage-details, payment-setup, review-submit]
+    fieldIds:
+      [
+        account.company-name,
+        account.company-code,
+        account.region,
+        account.line-of-business,
+        insured.first-name,
+        insured.last-name,
+        insured.birth-date,
+        insured.email,
+        insured.phone,
+        address.street-1,
+        address.street-2,
+        address.city,
+        address.state,
+        address.postal-code,
+        coverage.policy-number,
+        coverage.effective-date,
+        coverage.expiration-date,
+        coverage.tier,
+        coverage.deductible,
+        coverage.limit,
+        payment.billing-plan,
+        payment.autopay,
+        payment.card-type,
+        payment.card-last4,
+        review.summary-account,
+        review.summary-insured,
+        review.summary-coverage,
+        review.submit,
+      ]
+driftEvents:
+  - id: drift-policy-number-label
+    kind: label-change
+    screen: coverage-details
+    fieldId: coverage.policy-number
+    severity: medium
+    description: Policy Number label drifts to Policy Ref.
+  - id: drift-effective-date-locator
+    kind: locator-degradation
+    screen: coverage-details
+    fieldId: coverage.effective-date
+    severity: high
+    description: Effective Date test id is removed and role fallback must win.
+  - id: drift-billing-plan-widget
+    kind: widget-swap
+    screen: payment-setup
+    fieldId: payment.billing-plan
+    severity: medium
+    description: Billing Plan shifts from native select to composite combobox.
+  - id: drift-postal-copy
+    kind: validation-copy-change
+    screen: address-details
+    fieldId: address.postal-code
+    severity: low
+    description: Postal Code validation copy changes wording.
+  - id: drift-review-layout
+    kind: section-structure-drift
+    screen: review-submit
+    severity: high
+    description: Review summary cards move into a nested accordion layout.
+fieldAwarenessThresholds:
+  minFieldAwarenessCount: 24
+  minFirstPassScreenResolutionRate: 0.6
+  minFirstPassElementResolutionRate: 0.7
+  maxDegradedLocatorRate: 0.2
+benchmarkRunbooks:
+  - name: demo-smoke-benchmark
+    runbook: demo-smoke
+    tag: smoke
+expansionRules:
+  - fieldIds:
+      [
+        coverage.policy-number,
+        coverage.effective-date,
+        coverage.expiration-date,
+        coverage.tier,
+        coverage.deductible,
+        coverage.limit,
+      ]
+    postures: [invalid, boundary]
+    variantsPerField: 2
+  - fieldIds:
+      [
+        account.company-name,
+        insured.email,
+        address.postal-code,
+        payment.card-last4,
+      ]
+    postures: [empty, invalid]
+    variantsPerField: 2
