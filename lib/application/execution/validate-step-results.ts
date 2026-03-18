@@ -1,4 +1,5 @@
 import { isApproved, isReviewRequired } from '../../domain/types/workflow';
+import { foldResolutionReceipt } from '../../domain/visitors';
 import type { RuntimeScenarioStepResult } from '../ports';
 
 function assertInvariant(condition: boolean, message: string): asserts condition {
@@ -18,14 +19,10 @@ export function validateStepResults(input: {
     assertInvariant(receipt.provider === input.providerId, `step[${index}] provider mismatch`);
     assertInvariant(receipt.stepIndex === step.execution.stepIndex, `step[${index}] interpretation/execution stepIndex mismatch`);
     assertInvariant(receipt.handshakes.includes('resolution'), `step[${index}] missing resolution handshake`);
-    if (receipt.kind === 'needs-human') {
-      assertInvariant(isReviewRequired(receipt), `step[${index}] needs-human governance must be review-required`);
-    }
-    if (receipt.kind === 'resolved') {
-      assertInvariant(isApproved(receipt), `step[${index}] resolved governance must be approved`);
-    }
-    if (receipt.kind === 'resolved-with-proposals') {
-      assertInvariant(isApproved(receipt), `step[${index}] resolved-with-proposals governance must be approved`);
-    }
+    foldResolutionReceipt(receipt, {
+      resolved: (r) => assertInvariant(isApproved(r), `step[${index}] resolved governance must be approved`),
+      resolvedWithProposals: (r) => assertInvariant(isApproved(r), `step[${index}] resolved-with-proposals governance must be approved`),
+      needsHuman: (r) => assertInvariant(isReviewRequired(r), `step[${index}] needs-human governance must be review-required`),
+    });
   });
 }

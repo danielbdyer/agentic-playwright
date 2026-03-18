@@ -30,6 +30,7 @@ import {
 } from '../domain/types';
 import type { ExperimentRecord, ExperimentRegistry } from '../domain/types';
 import type { DogfoodLedger } from './dogfood';
+import { foldPipelineFailureClass } from '../domain/visitors';
 import { resolutionPrecedenceLaw, type ResolutionPrecedenceRung } from '../domain/precedence';
 
 // ─── Step-level classification ───
@@ -80,28 +81,16 @@ function classifyFailure(step: StepOutcome): PipelineFailureClass | null {
 }
 
 function improvementTargetFor(failureClass: PipelineFailureClass): PipelineImprovementTarget {
-  switch (failureClass) {
-    case 'translation-threshold-miss':
-      return { kind: 'translation', detail: 'Adjust overlap score threshold or improve scoring formula' };
-    case 'translation-normalization-gap':
-      return { kind: 'translation', detail: 'Add normalization rules for unrecognized phrasing patterns' };
-    case 'alias-coverage-gap':
-      return { kind: 'resolution', detail: 'Improve alias generation heuristics for predictable patterns' };
-    case 'resolution-rung-skip':
-      return { kind: 'resolution', detail: 'Strengthen higher-precedence rungs to resolve before fallback' };
-    case 'scoring-weight-mismatch':
-      return { kind: 'scoring', detail: 'Re-weight bottleneck scoring signals based on observed correlations' };
-    case 'recovery-strategy-miss':
-      return { kind: 'recovery', detail: 'Reorder or add recovery strategies for unhandled failure families' };
-    case 'convergence-stall':
-      return { kind: 'scoring', detail: 'Improve proposal ranking to prioritize high-yield proposals' };
-    case 'trust-policy-over-block':
-      return { kind: 'trust-policy', detail: 'Lower confidence thresholds or widen evidence requirements' };
-    default: {
-      const _exhaustive: never = failureClass;
-      return _exhaustive;
-    }
-  }
+  return foldPipelineFailureClass<PipelineImprovementTarget>(failureClass, {
+    translationThresholdMiss: () => ({ kind: 'translation', detail: 'Adjust overlap score threshold or improve scoring formula' }),
+    translationNormalizationGap: () => ({ kind: 'translation', detail: 'Add normalization rules for unrecognized phrasing patterns' }),
+    aliasCoverageGap: () => ({ kind: 'resolution', detail: 'Improve alias generation heuristics for predictable patterns' }),
+    resolutionRungSkip: () => ({ kind: 'resolution', detail: 'Strengthen higher-precedence rungs to resolve before fallback' }),
+    scoringWeightMismatch: () => ({ kind: 'scoring', detail: 'Re-weight bottleneck scoring signals based on observed correlations' }),
+    recoveryStrategyMiss: () => ({ kind: 'recovery', detail: 'Reorder or add recovery strategies for unhandled failure families' }),
+    convergenceStall: () => ({ kind: 'scoring', detail: 'Improve proposal ranking to prioritize high-yield proposals' }),
+    trustPolicyOverBlock: () => ({ kind: 'trust-policy', detail: 'Lower confidence thresholds or widen evidence requirements' }),
+  });
 }
 
 // ─── Extraction from dogfood ledger + run records ───

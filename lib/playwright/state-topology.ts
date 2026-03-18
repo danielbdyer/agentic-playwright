@@ -12,6 +12,7 @@ import type {
 } from '../domain/types';
 import type { CanonicalTargetRef, EventSignatureRef, StateNodeRef, TransitionRef } from '../domain/identity';
 import { uniqueSorted } from '../domain/collections';
+import { foldLocatorStrategy } from '../domain/visitors';
 
 export interface ObservationContextScreen {
   screen: StepTaskScreenCandidate['screen'];
@@ -53,25 +54,19 @@ function candidateStrategies(candidate: Pick<StepTaskElementCandidate, 'role' | 
 }
 
 function locatorForStrategy(page: Page, strategy: LocatorStrategy): Locator {
-  switch (strategy.kind) {
-    case 'test-id':
-      return page.getByTestId(strategy.value);
-    case 'role-name':
-      return page.getByRole(strategy.role as never, strategy.name ? { name: strategy.name } : undefined);
-    case 'css':
-      return page.locator(strategy.value);
-  }
+  return foldLocatorStrategy(strategy, {
+    testId: (s) => page.getByTestId(s.value),
+    roleName: (s) => page.getByRole(s.role as never, s.name ? { name: s.name } : undefined),
+    css: (s) => page.locator(s.value),
+  });
 }
 
 function describeLocatorStrategy(strategy: LocatorStrategy): string {
-  switch (strategy.kind) {
-    case 'test-id':
-      return `test-id:${strategy.value}`;
-    case 'role-name':
-      return strategy.name ? `role:${strategy.role}[name=${strategy.name}]` : `role:${strategy.role}`;
-    case 'css':
-      return `css:${strategy.value}`;
-  }
+  return foldLocatorStrategy(strategy, {
+    testId: (s) => `test-id:${s.value}`,
+    roleName: (s) => s.name ? `role:${s.role}[name=${s.name}]` : `role:${s.role}`,
+    css: (s) => `css:${s.value}`,
+  });
 }
 
 async function strategyMatches(locator: Locator): Promise<boolean> {

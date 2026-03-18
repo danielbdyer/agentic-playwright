@@ -1,6 +1,7 @@
 import type { StepProgram, StepProgramDiagnosticContext, StepProgramExecutionResult } from '../../domain/program';
 import type { SnapshotTemplateLoader } from '../../domain/runtime-loaders';
 import type { ValueRef } from '../../domain/types';
+import { foldValueRef } from '../../domain/visitors';
 import { diagnosticInterpreter } from './diagnostic';
 import { dryRunInterpreter } from './dry-run';
 import type { InterpreterEnvironment, InterpreterMode, InterpreterScreenRegistry } from './types';
@@ -20,25 +21,23 @@ function resolveValue(fixtures: Record<string, unknown>, raw: ValueRef | null | 
   if (!raw) {
     return undefined;
   }
-  switch (raw.kind) {
-    case 'literal':
-      return raw.value;
-    case 'fixture-path': {
-      const resolved = lookupPath(fixtures, raw.path.segments);
+  return foldValueRef(raw, {
+    literal: (ref) => ref.value,
+    fixturePath: (ref) => {
+      const resolved = lookupPath(fixtures, ref.path.segments);
       return resolved === undefined || resolved === null ? undefined : String(resolved);
-    }
-    case 'parameter-row': {
+    },
+    parameterRow: (ref) => {
       const row = fixtures.dataRow as Record<string, unknown> | undefined;
-      const resolved = row?.[raw.name];
+      const resolved = row?.[ref.name];
       return resolved === undefined || resolved === null ? undefined : String(resolved);
-    }
-    case 'generated-token': {
-      const resolved = (fixtures.generatedTokens as Record<string, unknown> | undefined)?.[raw.token];
-      return resolved === undefined || resolved === null ? raw.token : String(resolved);
-    }
-    case 'posture-sample':
-      return undefined;
-  }
+    },
+    generatedToken: (ref) => {
+      const resolved = (fixtures.generatedTokens as Record<string, unknown> | undefined)?.[ref.token];
+      return resolved === undefined || resolved === null ? ref.token : String(resolved);
+    },
+    postureSample: () => undefined,
+  });
 }
 
 function createEnvironment(
