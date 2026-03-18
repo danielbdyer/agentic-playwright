@@ -1,19 +1,28 @@
-﻿node_modules/
+node_modules/
 dist/
 playwright-report/
 test-results/
+.npm-cache
+.tools
+
+# ── Runtime engine (.tesseract) ──────────────────────────────────
+# Bulk-ignore everything under .tesseract/; the engine recreates it.
+# Allowlist only governance anchors that must survive across clones.
 .tesseract/*
 !.tesseract/policy/
 !.tesseract/policy/trust-policy.yaml
 !.tesseract/benchmarks/
 !.tesseract/benchmarks/scorecard.json
-.npm-cache
-.tools
 
-# Synthetic artifacts are ephemeral training scaffolding.
-# Only pipeline code and the scorecard persist.
+# ── Synthetic clean room ─────────────────────────────────────────
+# The synthetic/dogfood suite is ephemeral by design.  The flywheel
+# proves itself by regenerating from scratch each run.  Nothing it
+# produces is tracked.
+#
+# Suite-name boundary (scenarios, generated):
 scenarios/synthetic/
 generated/synthetic/
+# ID-range boundary (fixtures, ado-sync — synthetic IDs are 2xxxx):
+fixtures/ado/2*.json
 .ado-sync/snapshots/2*.json
 .ado-sync/archive/2*/
-fixtures/ado/2*.json
