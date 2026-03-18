@@ -95,6 +95,9 @@ export const RuntimeInterpreterModeSchema = Schema.Literal(...runtimeInterpreter
 export const writeModes = ['persist', 'no-write'] as const;
 export const WriteModeSchema = Schema.Literal(...writeModes);
 
+export const knowledgePostures = ['cold-start', 'warm-start', 'production'] as const;
+export const KnowledgePostureSchema = Schema.Literal(...knowledgePostures);
+
 export const trustPolicyArtifactTypes = ['elements', 'postures', 'surface', 'snapshot', 'hints', 'patterns'] as const;
 export const TrustPolicyArtifactTypeSchema = Schema.Literal(...trustPolicyArtifactTypes);
 

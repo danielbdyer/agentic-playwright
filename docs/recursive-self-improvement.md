@@ -599,6 +599,27 @@ The prize is a pipeline that gets better at resolving novel interface intent eve
 
 This section is the operational runbook for executing a recursive self-improvement cycle. It answers: what do I run, what do I keep, what do I discard, and how do I know I haven't been contaminated?
 
+### Knowledge Posture
+
+Before running the clean room, choose a **knowledge posture** — this determines what the system starts with:
+
+| Posture | Tier 1 (problem statement) | Tier 2 (learned knowledge) | Use case |
+|---|---|---|---|
+| `cold-start` | Loaded | **Excluded** | "Can the system learn from scratch?" |
+| `warm-start` | Loaded | Loaded | "Does the pipeline resolve correctly given known screens?" |
+| `production` | Loaded | Loaded | Full deployment with version-controlled knowledge |
+
+Set the posture in one of three ways (highest precedence first):
+
+1. **CLI flag:** `npx tsx scripts/speedrun.ts --posture cold-start`
+2. **Suite config file:** Create `{suiteRoot}/posture.yaml` containing `posture: cold-start`
+3. **Default:** `warm-start` (backward compatible)
+
+The suite config file approach is "set and forget" — every tool that loads the workspace catalog will respect it automatically without needing CLI flags.
+
+**Tier 1** (always present): `.ado-sync/`, `scenarios/`, `controls/`, `benchmarks/`, `fixtures/`
+**Tier 2** (posture-gated): `knowledge/screens/`, `knowledge/patterns/`, `knowledge/surfaces/`, `knowledge/snapshots/`, `knowledge/components/`, `knowledge/routes/`
+
 ### Prerequisites
 
 Before entering the loop:
@@ -606,6 +627,7 @@ Before entering the loop:
 1. **Working tree is clean.** `git status` shows no modifications. The scorecard (`.tesseract/benchmarks/scorecard.json`) is committed at the current high-water-mark.
 2. **Pipeline version is known.** `git rev-parse --short HEAD` gives the `pipelineVersion` tag for this cycle.
 3. **Architecture fitness passes.** `npx playwright test tests/architecture-fitness.laws.spec.ts` is green.
+4. **Knowledge posture is set.** Either via `posture.yaml` at the suite root or via `--posture` flag.
 
 ### Step 1: Wipe Synthetic State
 

@@ -3,7 +3,7 @@
  *
  * Clean-slate → generate → flywheel → measure → compare → report.
  *
- * Usage: npx tsx scripts/speedrun.ts [--count N] [--seed S] [--max-iterations N]
+ * Usage: npx tsx scripts/speedrun.ts [--count N] [--seed S] [--max-iterations N] [--posture cold-start|warm-start|production]
  */
 
 import { Effect } from 'effect';
@@ -17,7 +17,8 @@ import { buildFitnessReport, compareToScorecard, updateScorecard, type FitnessIn
 import { loadWorkspaceCatalog } from '../lib/application/catalog';
 import { recordExperiment } from '../lib/application/experiment-registry';
 import { runWithLocalServices } from '../lib/composition/local-services';
-import type { ExperimentRecord, PipelineConfig, PipelineScorecard, ProposalBundle, SubstrateContext } from '../lib/domain/types';
+import { resolveKnowledgePosture } from '../lib/application/knowledge-posture';
+import type { ExperimentRecord, KnowledgePosture, PipelineConfig, PipelineScorecard, ProposalBundle, SubstrateContext } from '../lib/domain/types';
 import { DEFAULT_PIPELINE_CONFIG, mergePipelineConfig } from '../lib/domain/types';
 import type { RunRecord } from '../lib/domain/types/execution';
 
@@ -33,6 +34,7 @@ const maxIterations = Number(argVal('--max-iterations', '5'));
 const configPath = argVal('--config', '');
 const experimentTag = argVal('--tag', '');
 const substrate = argVal('--substrate', 'synthetic') as 'synthetic' | 'production' | 'hybrid';
+const explicitPosture = args.includes('--posture') ? argVal('--posture', '') as KnowledgePosture : undefined;
 
 function loadPipelineConfig(): PipelineConfig {
   if (!configPath) {
@@ -46,6 +48,7 @@ const pipelineConfig = loadPipelineConfig();
 
 const rootDir = process.cwd();
 const paths = createProjectPaths(rootDir, path.join(rootDir, 'dogfood'));
+const knowledgePosture = resolveKnowledgePosture(paths.postureConfigPath, explicitPosture);
 
 function getPipelineVersion(): string {
   try {
@@ -129,7 +132,7 @@ const program = Effect.gen(function* () {
   console.log(`Generated ${genResult.scenariosGenerated} scenarios across ${genResult.screens.length} screens`);
 
   // Step 2: Run dogfood flywheel
-  console.log(`\n=== Running dogfood flywheel (max ${maxIterations} iterations) ===\n`);
+  console.log(`\n=== Running dogfood flywheel (max ${maxIterations} iterations, posture: ${knowledgePosture}) ===\n`);
   const { ledger } = yield* runDogfoodLoop({
     paths,
     maxIterations,
@@ -137,6 +140,7 @@ const program = Effect.gen(function* () {
     interpreterMode: 'diagnostic',
     tag: 'synthetic',
     runbook: 'synthetic-dogfood',
+    knowledgePosture,
   });
 
   console.log(`Flywheel complete: ${ledger.completedIterations} iterations, converged=${ledger.converged} (${ledger.convergenceReason})`);
@@ -144,8 +148,8 @@ const program = Effect.gen(function* () {
     console.log(`  Iteration ${iter.iteration}: hitRate=${iter.knowledgeHitRate}, proposals=${iter.proposalsActivated}, steps=${iter.totalStepCount}`);
   }
 
-  // Step 3: Collect run data for fitness report
-  const catalog = yield* loadWorkspaceCatalog({ paths });
+  // Step 3: Collect run data for fitness report (always warm-start to read results)
+  const catalog = yield* loadWorkspaceCatalog({ paths, knowledgePosture: 'warm-start' });
   const runRecords: RunRecord[] = catalog.runRecords.map((e) => e.artifact as unknown as RunRecord);
   const runSteps = runRecords.flatMap((record) =>
     record.steps.map((step) => ({
@@ -161,6 +165,7 @@ const program = Effect.gen(function* () {
 async function main(): Promise<void> {
   const pipelineVersion = getPipelineVersion();
   console.log(`Pipeline version: ${pipelineVersion}`);
+  console.log(`Knowledge posture: ${knowledgePosture}`);
 
   // Step 0: Clean slate
   cleanSlate();

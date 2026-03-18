@@ -71,11 +71,13 @@ import {
 import { walkFiles } from '../artifacts';
 import type { ProjectPaths } from '../paths';
 import { boundPath, relativeProjectPath, snapshotPath } from '../paths';
-import { FileSystem } from '../ports';
+import { FileSystem, type FileSystemPort } from '../ports';
 import { createArtifactEnvelope, upsertArtifactEnvelope } from './envelope';
 import { readJsonArtifact, readYamlArtifact } from './loaders';
 import { assembleScreenBundles } from './screen-bundles';
 import type { ArtifactEnvelope, WorkspaceCatalog } from './types';
+import type { KnowledgePosture } from '../../domain/types';
+import { postureIncludesKnowledge } from '../../domain/types';
 
 /** Stable sort on artifactPath ensures deterministic fingerprinting regardless of load order. */
 function sortByArtifactPath<T>(envelopes: ArtifactEnvelope<T>[]): ArtifactEnvelope<T>[] {
@@ -125,26 +127,52 @@ function readDisposableSingleton<T>(
   return readDisposableJsonArtifact(paths, absolutePath, validate, errorCode, `${label} ${absolutePath} failed validation`);
 }
 
-export function loadWorkspaceCatalog(options: { paths: ProjectPaths }) {
+export interface LoadCatalogOptions {
+  readonly paths: ProjectPaths;
+  /**
+   * Knowledge posture controls which tiers of content are loaded.
+   *
+   * - `cold-start`: Skip all pre-existing knowledge (screens, patterns, surfaces,
+   *    snapshots, routes). The system must discover everything from scratch.
+   * - `warm-start`: Load all canonical knowledge. Default for backward compatibility.
+   * - `production`: Same as warm-start at runtime.
+   */
+  readonly knowledgePosture?: KnowledgePosture | undefined;
+}
+
+/** Walk a directory if the posture includes knowledge; otherwise return empty. */
+function walkKnowledgeDir(
+  fs: FileSystemPort, dir: string, posture: KnowledgePosture,
+) {
+  return postureIncludesKnowledge(posture)
+    ? walkFiles(fs, dir)
+    : Effect.succeed([] as string[]);
+}
+
+export function loadWorkspaceCatalog(options: LoadCatalogOptions) {
+  const posture: KnowledgePosture = options.knowledgePosture ?? 'warm-start';
+
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
 
-    // Phase 1: Walk all independent directories in parallel
+    // Phase 1: Walk all independent directories in parallel.
+    // Knowledge directories are gated by the knowledge posture —
+    // cold-start returns empty arrays, forcing the system to learn from scratch.
     const walks = yield* Effect.all({
-      surfaces: walkFiles(fs, options.paths.surfacesDir),
-      screens: walkFiles(fs, path.join(options.paths.knowledgeDir, 'screens')),
-      patterns: walkFiles(fs, options.paths.patternsDir),
+      surfaces: walkKnowledgeDir(fs, options.paths.surfacesDir, posture),
+      screens: walkKnowledgeDir(fs, path.join(options.paths.knowledgeDir, 'screens'), posture),
+      patterns: walkKnowledgeDir(fs, options.paths.patternsDir, posture),
       datasets: walkFiles(fs, options.paths.datasetsDir),
       benchmarks: walkFiles(fs, options.paths.benchmarksDir),
       resolutionControls: walkFiles(fs, options.paths.resolutionControlsDir),
       runbooks: walkFiles(fs, options.paths.runbooksDir),
-      knowledgeSnapshots: walkFiles(fs, path.join(options.paths.knowledgeDir, 'snapshots')),
+      knowledgeSnapshots: walkKnowledgeDir(fs, path.join(options.paths.knowledgeDir, 'snapshots'), posture),
       snapshots: walkFiles(fs, options.paths.snapshotDir),
       scenarios: walkFiles(fs, options.paths.scenariosDir),
       bound: walkFiles(fs, options.paths.boundDir),
       tasks: walkFiles(fs, options.paths.tasksDir),
       runs: walkFiles(fs, options.paths.runsDir),
-      routes: walkFiles(fs, options.paths.routesDir),
+      routes: walkKnowledgeDir(fs, options.paths.routesDir, posture),
       discovery: walkFiles(fs, options.paths.discoveryDir),
       generated: walkFiles(fs, options.paths.generatedDir),
       inbox: walkFiles(fs, options.paths.inboxDir),

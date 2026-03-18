@@ -39,19 +39,30 @@ The six public lanes remain the operating vocabulary. The deeper architectural s
 
 Canonical inputs (suite-scoped, under `dogfood/` for training or repo root for production):
 
+Tier 1 — Problem statement (always loaded):
+
 - `.ado-sync/`
 - `benchmarks/`
 - `controls/`
 - `scenarios/`
+- `fixtures/`
+- `.tesseract/evidence/`
+- `.tesseract/policy/`
+
+Tier 2 — Learned knowledge (gated by knowledge posture):
+
 - `knowledge/surfaces/`
 - `knowledge/screens/`
 - `knowledge/patterns/`
 - `knowledge/snapshots/`
 - `knowledge/components/`
 - `knowledge/routes/`
-- `fixtures/`
-- `.tesseract/evidence/`
-- `.tesseract/policy/`
+
+Knowledge posture (`posture.yaml` at suite root or `--posture` CLI flag):
+
+- `cold-start`: Tier 1 only — tests the system's ability to discover and learn from scratch.
+- `warm-start`: Tier 1 + Tier 2 — tests the pipeline given pre-existing knowledge. Default.
+- `production`: Same as warm-start + all output version-controlled.
 
 Derived outputs. Do not hand-edit unless the task is specifically about the generator:
 

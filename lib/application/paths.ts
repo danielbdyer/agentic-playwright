@@ -5,6 +5,7 @@ import type { AdoId, ScreenId } from '../domain/identity';
 export interface ProjectPaths {
   readonly rootDir: string;
   readonly suiteRoot: string;
+  readonly postureConfigPath: string;
   readonly adoSyncDir: string;
   readonly snapshotDir: string;
   readonly archiveDir: string;
@@ -64,6 +65,7 @@ export function createProjectPaths(rootDir: string, suiteRoot?: string): Project
   return {
     rootDir,
     suiteRoot: suite,
+    postureConfigPath: path.join(suite, 'posture.yaml'),
     adoSyncDir: path.join(suite, '.ado-sync'),
     snapshotDir: path.join(suite, '.ado-sync', 'snapshots'),
     archiveDir: path.join(suite, '.ado-sync', 'archive'),

@@ -141,6 +141,53 @@ export interface ExecutionPosture {
   readonly executionProfile: ExecutionProfile;
 }
 
+// ─── Knowledge Posture ───
+//
+// Controls which tiers of content the workspace catalog loads:
+//
+//   cold-start  — Problem statement only (Tier 1). No pre-existing knowledge.
+//                 Tests the system's ability to discover and learn from scratch.
+//   warm-start  — Full canonical knowledge included (Tier 1 + Tier 2).
+//                 Tests the compiler and resolution pipeline given known screens.
+//   production  — Same runtime behavior as warm-start, but all artifacts
+//                 (including generated output) are version-controlled.
+//
+// Tier 1 (problem statement): .ado-sync/, scenarios/, controls/, benchmarks/, fixtures/
+// Tier 2 (learned knowledge): knowledge/screens/, knowledge/patterns/, knowledge/surfaces/,
+//         knowledge/snapshots/, knowledge/components/, knowledge/routes/
+
+export type KnowledgePosture = 'cold-start' | 'warm-start' | 'production';
+
+/**
+ * Exhaustive fold over KnowledgePosture — forces callers to handle all three cases.
+ */
+export function foldKnowledgePosture<R>(
+  posture: KnowledgePosture,
+  handlers: {
+    readonly coldStart: () => R;
+    readonly warmStart: () => R;
+    readonly production: () => R;
+  },
+): R {
+  switch (posture) {
+    case 'cold-start': return handlers.coldStart();
+    case 'warm-start': return handlers.warmStart();
+    case 'production': return handlers.production();
+  }
+}
+
+/**
+ * Whether the given posture includes pre-existing knowledge (Tier 2).
+ * cold-start excludes it; warm-start and production include it.
+ */
+export function postureIncludesKnowledge(posture: KnowledgePosture): boolean {
+  return foldKnowledgePosture(posture, {
+    coldStart: () => false,
+    warmStart: () => true,
+    production: () => true,
+  });
+}
+
 export interface WriteJournalEntry {
   readonly path: string;
   readonly operation: 'write-text' | 'write-json' | 'ensure-dir';
