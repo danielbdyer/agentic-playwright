@@ -15,8 +15,10 @@ import { generateSyntheticScenarios } from '../lib/application/synthesis/scenari
 import { runDogfoodLoop } from '../lib/application/dogfood';
 import { buildFitnessReport, compareToScorecard, updateScorecard, type FitnessInputData } from '../lib/application/fitness';
 import { loadWorkspaceCatalog } from '../lib/application/catalog';
+import { recordExperiment } from '../lib/application/experiment-registry';
 import { runWithLocalServices } from '../lib/composition/local-services';
-import type { PipelineScorecard, ProposalBundle } from '../lib/domain/types';
+import type { ExperimentRecord, PipelineConfig, PipelineScorecard, ProposalBundle, SubstrateContext } from '../lib/domain/types';
+import { DEFAULT_PIPELINE_CONFIG, mergePipelineConfig } from '../lib/domain/types';
 import type { RunRecord } from '../lib/domain/types/execution';
 
 const args = process.argv.slice(2);
@@ -28,6 +30,19 @@ function argVal(name: string, fallback: string): string {
 const count = Number(argVal('--count', '50'));
 const seed = argVal('--seed', 'speedrun-v1');
 const maxIterations = Number(argVal('--max-iterations', '5'));
+const configPath = argVal('--config', '');
+const experimentTag = argVal('--tag', '');
+const substrate = argVal('--substrate', 'synthetic') as 'synthetic' | 'production' | 'hybrid';
+
+function loadPipelineConfig(): PipelineConfig {
+  if (!configPath) {
+    return DEFAULT_PIPELINE_CONFIG;
+  }
+  const overrides = JSON.parse(fs.readFileSync(configPath, 'utf8')) as Partial<PipelineConfig>;
+  return mergePipelineConfig(DEFAULT_PIPELINE_CONFIG, overrides);
+}
+
+const pipelineConfig = loadPipelineConfig();
 
 const rootDir = process.cwd();
 const paths = createProjectPaths(rootDir, path.join(rootDir, 'dogfood'));
@@ -118,7 +133,7 @@ const program = Effect.gen(function* () {
   const { ledger } = yield* runDogfoodLoop({
     paths,
     maxIterations,
-    convergenceThreshold: 0.01,
+    convergenceThreshold: pipelineConfig.convergenceThreshold,
     interpreterMode: 'diagnostic',
     tag: 'synthetic',
     runbook: 'synthetic-dogfood',
@@ -153,6 +168,7 @@ async function main(): Promise<void> {
   // Steps 1-3: Generate + flywheel + collect data
   const { ledger, runSteps, proposalBundles } = await runWithLocalServices(program, rootDir, {
     posture: { interpreterMode: 'diagnostic', writeMode: 'persist', executionProfile: 'dogfood' },
+    pipelineConfig,
   });
 
   // Step 4: Build fitness report
@@ -183,6 +199,38 @@ async function main(): Promise<void> {
   } else {
     console.log('\nScorecard unchanged — did not beat the mark.');
   }
+
+  // Step 6b: Record experiment
+  const substrateContext: SubstrateContext = {
+    substrate,
+    seed,
+    scenarioCount: count,
+    screenCount: report.metrics.resolutionByRung.length,
+    phrasingTemplateVersion: 'v1',
+  };
+  const configDelta: Partial<PipelineConfig> = configPath
+    ? JSON.parse(fs.readFileSync(configPath, 'utf8')) as Partial<PipelineConfig>
+    : {};
+  const experimentRecord: ExperimentRecord = {
+    id: new Date().toISOString().replace(/[:.]/g, '-'),
+    runAt: report.runAt,
+    pipelineVersion,
+    baselineConfig: DEFAULT_PIPELINE_CONFIG,
+    configDelta,
+    substrateContext,
+    fitnessReport: report,
+    scorecardComparison: {
+      improved: comparison.improved,
+      knowledgeHitRateDelta: comparison.knowledgeHitRateDelta,
+      translationPrecisionDelta: comparison.translationPrecisionDelta,
+      convergenceVelocityDelta: comparison.convergenceVelocityDelta,
+    },
+    accepted: comparison.improved,
+    tags: experimentTag ? [experimentTag] : [],
+    parentExperimentId: null,
+  };
+  recordExperiment(rootDir, experimentRecord);
+  console.log(`Experiment recorded: ${experimentRecord.id}`);
 
   // Step 7: Report failure modes
   if (report.failureModes.length > 0) {

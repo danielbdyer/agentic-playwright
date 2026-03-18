@@ -104,9 +104,75 @@ export interface ScorecardHistoryEntry {
   readonly improved: boolean;
 }
 
+// ─── Pareto Frontier ───
+
+export interface ParetoObjectives {
+  readonly knowledgeHitRate: number;
+  readonly translationPrecision: number;
+  readonly convergenceVelocity: number;
+  readonly proposalYield: number;
+}
+
+export interface ParetoFrontierEntry {
+  readonly pipelineVersion: string;
+  readonly addedAt: string;
+  readonly objectives: ParetoObjectives;
+}
+
+/**
+ * Pareto dominance: a dominates b iff a is >= b on ALL objectives and strictly > on at least one.
+ * convergenceVelocity is inverted (lower = better).
+ */
+export function paretoDominates(a: ParetoObjectives, b: ParetoObjectives): boolean {
+  const pairs: readonly [number, number][] = [
+    [a.knowledgeHitRate, b.knowledgeHitRate],
+    [a.translationPrecision, b.translationPrecision],
+    [-a.convergenceVelocity, -b.convergenceVelocity], // invert: fewer iterations = better
+    [a.proposalYield, b.proposalYield],
+  ];
+  const allGte = pairs.every(([av, bv]) => av >= bv);
+  const someGt = pairs.some(([av, bv]) => av > bv);
+  return allGte && someGt;
+}
+
+/**
+ * Check if a new entry would be accepted by the Pareto frontier.
+ * Accepted iff no existing frontier entry Pareto-dominates the candidate.
+ */
+export function isAcceptedByParetoFrontier(
+  frontier: readonly ParetoFrontierEntry[],
+  candidate: ParetoObjectives,
+): boolean {
+  return !frontier.some((entry) => paretoDominates(entry.objectives, candidate));
+}
+
+/**
+ * Add a new entry to the Pareto frontier, pruning dominated entries.
+ */
+export function addToParetoFrontier(
+  frontier: readonly ParetoFrontierEntry[],
+  entry: ParetoFrontierEntry,
+): readonly ParetoFrontierEntry[] {
+  // Remove entries dominated by the new one
+  const surviving = frontier.filter((existing) => !paretoDominates(entry.objectives, existing.objectives));
+  return [...surviving, entry];
+}
+
+export function objectivesFromMetrics(metrics: PipelineFitnessMetrics): ParetoObjectives {
+  return {
+    knowledgeHitRate: metrics.knowledgeHitRate,
+    translationPrecision: metrics.translationPrecision,
+    convergenceVelocity: metrics.convergenceVelocity,
+    proposalYield: metrics.proposalYield,
+  };
+}
+
+// ─── Pipeline Scorecard (committed to git) ───
+
 export interface PipelineScorecard {
   readonly kind: 'pipeline-scorecard';
   readonly version: 1;
   readonly highWaterMark: ScorecardHighWaterMark;
   readonly history: readonly ScorecardHistoryEntry[];
+  readonly paretoFrontier?: readonly ParetoFrontierEntry[];
 }

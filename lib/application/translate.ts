@@ -1,5 +1,6 @@
 import { normalizeIntentText } from '../domain/inference';
 import type { TranslationCandidate, TranslationReceipt, TranslationRequest } from '../domain/types';
+import { DEFAULT_PIPELINE_CONFIG } from '../domain/types';
 import { compareStrings, uniqueSorted } from '../domain/collections';
 
 function tokenize(value: string): string[] {
@@ -18,7 +19,7 @@ function overlapScore(queryTokens: string[], aliases: string[]): number {
   return Number((overlap / Math.max(queryTokens.length, aliasTokens.length)).toFixed(2));
 }
 
-export function translateIntentToOntology(request: TranslationRequest): TranslationReceipt {
+export function translateIntentToOntology(request: TranslationRequest, translationThreshold = DEFAULT_PIPELINE_CONFIG.translationThreshold): TranslationReceipt {
   const queryTokens = tokenize(`${request.actionText} ${request.expectedText}`);
   const candidates: TranslationCandidate[] = [];
 
@@ -52,7 +53,7 @@ export function translateIntentToOntology(request: TranslationRequest): Translat
   }
 
   const ranked = candidates
-    .filter((candidate) => candidate.score >= 0.34)
+    .filter((candidate) => candidate.score >= translationThreshold)
     .sort((left, right) => {
       const byScore = right.score - left.score;
       if (byScore !== 0) {

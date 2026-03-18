@@ -11,7 +11,8 @@
  * and which knowledge refs were consulted.
  */
 
-import type { GroundedStep, StepAction, StepTaskScreenCandidate, StepTaskElementCandidate } from '../../domain/types';
+import type { GroundedStep, IntentThresholds, StepAction, StepTaskScreenCandidate, StepTaskElementCandidate } from '../../domain/types';
+import { DEFAULT_PIPELINE_CONFIG } from '../../domain/types';
 import type { ScreenId, ElementId, PostureId } from '../../domain/identity';
 import type { RuntimeStepAgentContext, IntentInterpretation, InterpretationConfidence, InterpretationSource, StageEffects } from './types';
 import { EMPTY_EFFECTS } from './types';
@@ -88,8 +89,8 @@ function rankHeuristicCandidates(
   }).sort((left, right) => right.score - left.score);
 }
 
-function confidenceFromScore(score: number, hasElement: boolean): InterpretationConfidence {
-  const threshold = hasElement ? 6 : 4;
+function confidenceFromScore(score: number, hasElement: boolean, thresholds: IntentThresholds = DEFAULT_PIPELINE_CONFIG.intentThresholds): InterpretationConfidence {
+  const threshold = hasElement ? thresholds.element : thresholds.screen;
   return score >= threshold * 2 ? 'high'
     : score >= threshold ? 'medium'
     : 'low';

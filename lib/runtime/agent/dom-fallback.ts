@@ -2,6 +2,7 @@ import { compareStrings } from '../../domain/collections';
 import { widgetCapabilityContracts } from '../../domain/widgets/contracts';
 import type {
   DomExplorationPolicy,
+  DomScoringWeights,
   ResolutionCandidateSummary,
   ResolutionObservation,
   StepAction,
@@ -9,6 +10,7 @@ import type {
   StepTaskElementCandidate,
   StepTaskScreenCandidate,
 } from '../../domain/types';
+import { DEFAULT_PIPELINE_CONFIG } from '../../domain/types';
 import type { RuntimeDomResolver } from '../../domain/types';
 import { createPlaywrightDomResolver } from '../adapters/playwright-dom-resolver';
 
@@ -84,16 +86,18 @@ function scoreCandidate(input: {
   locatorRung: number;
   locatorStrategyCount: number;
   widgetCompatibilityScore: number;
+  domWeights?: DomScoringWeights;
 }): number {
+  const weights = input.domWeights ?? DEFAULT_PIPELINE_CONFIG.domScoringWeights;
   const visibilityScore = input.visibleCount > 0 ? Math.min(1, 0.4 + (input.visibleCount === 1 ? 0.25 : 0.05)) : 0;
   const locatorQualityScore = input.locatorStrategyCount <= 1
     ? 1
     : Math.max(0, 1 - (input.locatorRung / Math.max(1, input.locatorStrategyCount - 1)));
   return Number((
-    (visibilityScore * 0.35)
-    + (input.roleNameScore * 0.25)
-    + (locatorQualityScore * 0.2)
-    + (input.widgetCompatibilityScore * 0.2)
+    (visibilityScore * weights.visibility)
+    + (input.roleNameScore * weights.roleName)
+    + (locatorQualityScore * weights.locatorQuality)
+    + (input.widgetCompatibilityScore * weights.widgetCompatibility)
   ).toFixed(6));
 }
 
@@ -113,6 +117,7 @@ export async function resolveFromDom(
   screen: StepTaskScreenCandidate | null,
   action: StepAction | null,
   policy?: DomExplorationPolicy | null,
+  domWeights?: DomScoringWeights | undefined,
 ): Promise<DomResolutionResult> {
   const effectivePolicy = policy ?? DEFAULT_DOM_POLICY;
   const effectiveResolver = typeof (domResolver as { resolve?: unknown } | undefined)?.resolve === 'function'
@@ -149,6 +154,7 @@ export async function resolveFromDom(
           locatorRung: candidate.evidence.locatorRung,
           locatorStrategyCount: Math.max(1, candidate.evidence.locatorRung + 1),
           widgetCompatibilityScore: candidate.evidence.widgetCompatibilityScore,
+          ...(domWeights ? { domWeights } : {}),
         }),
         evidence: {
           ...candidate.evidence,
