@@ -1,7 +1,7 @@
 ﻿import path from 'path';
 import { writeFileSync } from 'fs';
 import { computeNormalizedSnapshotHash, normalizeAriaSnapshot } from '../lib/domain/hash';
-import { test } from '../fixtures/index';
+import { test } from '../dogfood/fixtures/index';
 import { captureAriaYaml } from '../lib/runtime/aria';
 import { loadScreen } from '../lib/runtime/load';
 

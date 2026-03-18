@@ -43,10 +43,11 @@ const typedRules = {
 module.exports = [
   {
     ignores: [
-      '.ado-sync/**',
+      'dogfood/.ado-sync/**',
       '.tesseract/**',
       '.tools/**',
       'dist/**',
+      'dogfood/generated/**',
       'generated/**',
       'lib/generated/**',
       'node_modules/**',

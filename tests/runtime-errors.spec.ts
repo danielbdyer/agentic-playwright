@@ -18,7 +18,7 @@ import { type StepProgram } from '../lib/domain/types';
 import { deriveCapabilities } from '../lib/domain/grammar';
 import { playwrightStepProgramInterpreter, runStepProgram, runtimeFailureDiagnostic } from '../lib/runtime/program';
 import { interact } from '../lib/runtime/interact';
-import { widgetActionHandlers } from '../knowledge/components';
+import { widgetActionHandlers } from '../dogfood/knowledge/components';
 import type { ScreenRegistry } from '../lib/runtime/load';
 import { validateScreenElements, validateSurfaceGraph } from '../lib/domain/validation';
 

@@ -9,6 +9,7 @@ import type { ExecutionPosture, WriteJournalEntry } from '../domain/types';
 
 export interface LocalServiceOptions {
   posture?: Partial<ExecutionPosture> | undefined;
+  suiteRoot?: string | undefined;
 }
 
 export interface LocalServiceContext {
@@ -26,10 +27,10 @@ function resolveExecutionPosture(posture?: Partial<ExecutionPosture> | undefined
   };
 }
 
-function resolveAdoSource(rootDir: string) {
+function resolveAdoSource(rootDir: string, suiteRoot?: string) {
   const selectedSource = process.env.TESSERACT_ADO_SOURCE?.trim().toLowerCase();
   if (selectedSource !== 'live') {
-    return makeLocalAdoSource(rootDir);
+    return makeLocalAdoSource(rootDir, suiteRoot);
   }
 
   const config = readLiveAdoSourceConfigFromEnv(process.env);
@@ -41,9 +42,11 @@ function resolveAdoSource(rootDir: string) {
 
 export function createLocalServiceContext(rootDir: string, options?: LocalServiceOptions): LocalServiceContext {
   const posture = resolveExecutionPosture(options?.posture);
+  const suiteRoot = options?.suiteRoot;
   const journal: WriteJournalEntry[] = [];
   const fileSystem = createRecordingWorkspaceFileSystem({
     rootDir,
+    suiteRoot,
     posture,
     delegate: LocalFileSystem,
     journal,
@@ -55,7 +58,7 @@ export function createLocalServiceContext(rootDir: string, options?: LocalServic
 
   const layer = Layer.mergeAll(
     Layer.succeed(FileSystem, fileSystem),
-    Layer.succeed(AdoSource, resolveAdoSource(rootDir)),
+    Layer.succeed(AdoSource, resolveAdoSource(rootDir, suiteRoot)),
     Layer.succeed(RuntimeScenarioRunner, LocalRuntimeScenarioRunner),
     Layer.succeed(ExecutionContext, executionContext),
   );

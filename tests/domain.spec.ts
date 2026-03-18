@@ -45,12 +45,14 @@ const missingElementId = createElementId('missingElement');
 const sharedTargetId = createElementId('sharedTarget');
 const resultsWithPolicySnapshotId = createSnapshotTemplateId('snapshots/policy-search/results-with-policy.yaml');
 
+const suiteRoot = path.join(rootDir, 'dogfood');
+
 function readJsonFixture<T>(...segments: string[]): T {
-  return JSON.parse(readFileSync(path.join(rootDir, ...segments), 'utf8').replace(/^\uFEFF/, '')) as T;
+  return JSON.parse(readFileSync(path.join(suiteRoot, ...segments), 'utf8').replace(/^\uFEFF/, '')) as T;
 }
 
 function readYamlFixture(...segments: string[]) {
-  return YAML.parse(readFileSync(path.join(rootDir, ...segments), 'utf8').replace(/^\uFEFF/, ''));
+  return YAML.parse(readFileSync(path.join(suiteRoot, ...segments), 'utf8').replace(/^\uFEFF/, ''));
 }
 
 function readMergedPatterns() {

@@ -43,6 +43,7 @@ export interface RuntimeScenarioStepResult {
 export interface RuntimeScenarioRunnerPort {
   runSteps(input: {
     rootDir: string;
+    suiteRoot?: string | undefined;
     plan: ScenarioRunPlan;
     resolutionEngine: ResolutionEngine;
     translationOptions?: {

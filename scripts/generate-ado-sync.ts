@@ -124,9 +124,9 @@ function parseTags(content: string): string[] {
   return tags;
 }
 
-const syntheticDir = path.resolve('scenarios/synthetic');
-const adoSyncDir = path.resolve('.ado-sync/snapshots');
-const fixturesDir = path.resolve('fixtures/ado');
+const syntheticDir = path.resolve('dogfood/scenarios/synthetic');
+const adoSyncDir = path.resolve('dogfood/.ado-sync/snapshots');
+const fixturesDir = path.resolve('dogfood/fixtures/ado');
 
 fs.mkdirSync(adoSyncDir, { recursive: true });
 fs.mkdirSync(fixturesDir, { recursive: true });

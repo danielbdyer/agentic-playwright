@@ -4,6 +4,7 @@ import type { AdoId, ScreenId } from '../domain/identity';
 
 export interface ProjectPaths {
   rootDir: string;
+  suiteRoot: string;
   adoSyncDir: string;
   snapshotDir: string;
   archiveDir: string;
@@ -49,24 +50,35 @@ export interface ProjectPaths {
   translationCacheDir: string;
 }
 
-export function createProjectPaths(rootDir: string): ProjectPaths {
+/**
+ * Suite root: where content/training data lives.
+ * For dogfood: `{rootDir}/dogfood`
+ * For production: the rootDir itself (or a named suite directory).
+ *
+ * Engine root (rootDir) owns: `.tesseract/`, `lib/generated/`.
+ * Suite root owns: `scenarios/`, `knowledge/`, `controls/`, `fixtures/`,
+ *   `benchmarks/`, `.ado-sync/`, `generated/`.
+ */
+export function createProjectPaths(rootDir: string, suiteRoot?: string): ProjectPaths {
+  const suite = suiteRoot ?? rootDir;
   return {
     rootDir,
-    adoSyncDir: path.join(rootDir, '.ado-sync'),
-    snapshotDir: path.join(rootDir, '.ado-sync', 'snapshots'),
-    archiveDir: path.join(rootDir, '.ado-sync', 'archive'),
-    manifestPath: path.join(rootDir, '.ado-sync', 'manifest.json'),
-    scenariosDir: path.join(rootDir, 'scenarios'),
-    benchmarksDir: path.join(rootDir, 'benchmarks'),
-    controlsDir: path.join(rootDir, 'controls'),
-    datasetsDir: path.join(rootDir, 'controls', 'datasets'),
-    resolutionControlsDir: path.join(rootDir, 'controls', 'resolution'),
-    runbooksDir: path.join(rootDir, 'controls', 'runbooks'),
-    knowledgeDir: path.join(rootDir, 'knowledge'),
-    routesDir: path.join(rootDir, 'knowledge', 'routes'),
-    surfacesDir: path.join(rootDir, 'knowledge', 'surfaces'),
-    patternsDir: path.join(rootDir, 'knowledge', 'patterns'),
-    generatedDir: path.join(rootDir, 'generated'),
+    suiteRoot: suite,
+    adoSyncDir: path.join(suite, '.ado-sync'),
+    snapshotDir: path.join(suite, '.ado-sync', 'snapshots'),
+    archiveDir: path.join(suite, '.ado-sync', 'archive'),
+    manifestPath: path.join(suite, '.ado-sync', 'manifest.json'),
+    scenariosDir: path.join(suite, 'scenarios'),
+    benchmarksDir: path.join(suite, 'benchmarks'),
+    controlsDir: path.join(suite, 'controls'),
+    datasetsDir: path.join(suite, 'controls', 'datasets'),
+    resolutionControlsDir: path.join(suite, 'controls', 'resolution'),
+    runbooksDir: path.join(suite, 'controls', 'runbooks'),
+    knowledgeDir: path.join(suite, 'knowledge'),
+    routesDir: path.join(suite, 'knowledge', 'routes'),
+    surfacesDir: path.join(suite, 'knowledge', 'surfaces'),
+    patternsDir: path.join(suite, 'knowledge', 'patterns'),
+    generatedDir: path.join(suite, 'generated'),
     generatedTypesDir: path.join(rootDir, 'lib', 'generated'),
     tesseractDir: path.join(rootDir, '.tesseract'),
     interfaceDir: path.join(rootDir, '.tesseract', 'interface'),
@@ -309,7 +321,14 @@ export function agentDslPath(paths: ProjectPaths): string {
 }
 
 export function relativeProjectPath(paths: ProjectPaths, absolutePath: string): string {
-  return path.relative(paths.rootDir, absolutePath).replace(/\\/g, '/');
+  const resolved = path.resolve(absolutePath);
+  const resolvedSuite = path.resolve(paths.suiteRoot);
+  const resolvedRoot = path.resolve(paths.rootDir);
+  // Content paths are relative to suite root; engine paths are relative to repo root.
+  const base = resolved.startsWith(`${resolvedSuite}${path.sep}`) || resolved === resolvedSuite
+    ? resolvedSuite
+    : resolvedRoot;
+  return path.relative(base, resolved).replace(/\\/g, '/');
 }
 
 

@@ -7,15 +7,16 @@
   },
   "include": [
     "bin/**/*.ts",
-    "fixtures/**/*.ts",
-    "fixtures/**/*.tsx",
-    "knowledge/**/*.ts",
+    "dogfood/fixtures/**/*.ts",
+    "dogfood/fixtures/**/*.tsx",
+    "dogfood/knowledge/**/*.ts",
     "lib/**/*.ts"
   ],
   "exclude": [
     "dist",
-    ".ado-sync",
+    "dogfood/.ado-sync",
     ".tesseract",
+    "dogfood/generated",
     "generated",
     "lib/generated",
     "node_modules",

@@ -15,14 +15,20 @@ test-results/
 !.tesseract/benchmarks/scorecard.json
 
 # ── Dogfood clean room ───────────────────────────────────────────
-# Until production suites exist, all generated output is clean-room
-# output.  The flywheel proves itself by regenerating from scratch
-# each run.  Nothing it produces is tracked.
+# All training data lives under dogfood/.  On main, the entire
+# directory is gitignored — the flywheel regenerates from scratch.
+# On training branches, remove or override this line so dogfood/
+# content persists for continuity between runs.
 #
-# All compiler output:
+# When a production suite arrives, its content lives at the repo
+# root (or a named suite directory) and is fully versioned.
+dogfood/
+
+# Deterministic compiler output.  Regenerated as a build step.
+# Production suites will track lib/generated/ once they exist.
+lib/generated/
 generated/
-# Synthetic scenarios and fixtures (ID range 2xxxx):
+
+# Leftover synthetic output that may exist outside dogfood/ from
+# prior pipeline runs.  Safe to remove once all paths are migrated.
 scenarios/synthetic/
-fixtures/ado/2*.json
-.ado-sync/snapshots/2*.json
-.ado-sync/archive/2*/

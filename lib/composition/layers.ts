@@ -8,8 +8,8 @@ import type { ExecutionPosture, WriteJournalEntry } from '../domain/types';
 
 export const FileSystemLive = Layer.succeed(FileSystem, LocalFileSystem);
 
-export const AdoSourceLive = (rootDir: string) =>
-  Layer.succeed(AdoSource, makeLocalAdoSource(rootDir));
+export const AdoSourceLive = (rootDir: string, suiteRoot?: string) =>
+  Layer.succeed(AdoSource, makeLocalAdoSource(rootDir, suiteRoot));
 
 export const RuntimeScenarioRunnerLive =
   Layer.succeed(RuntimeScenarioRunner, LocalRuntimeScenarioRunner);

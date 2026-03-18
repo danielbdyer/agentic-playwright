@@ -44,7 +44,7 @@ test('persist and no-write refresh compute the same derived fingerprints while n
     expect(baseline.result.compile.generatedTypes.screens)
       .toEqual(persisted.compile.generatedTypes.screens);
     expect(baseline.wouldWrite.some((entry) => projectPath(entry.path).includes('generated/demo/policy-search/10001.spec.ts'))).toBeTruthy();
-    expect(readFileSync(workspace.resolve('generated', 'demo', 'policy-search', '10001.spec.ts'), 'utf8').replace(/^\uFEFF/, ''))
+    expect(readFileSync(workspace.suiteResolve('generated', 'demo', 'policy-search', '10001.spec.ts'), 'utf8').replace(/^\uFEFF/, ''))
       .toContain('scenario-context');
     expect(baseline.wouldWrite.some((entry) => projectPath(entry.path).includes('generated/demo/policy-search/10001.spec.ts'))).toBeTruthy();
     expect(baseline.wouldWrite.some((entry) => projectPath(entry.path).includes('.tesseract/graph/index.json'))).toBeTruthy();
@@ -161,7 +161,7 @@ test('operator inbox, approval receipts, and rerun plans share a stable proposal
       approveProposal({ paths: workspace.paths, proposalId: proposal.proposalId }),
       workspace.rootDir,
     );
-    const hintsText = readFileSync(workspace.resolve('knowledge', 'screens', 'policy-search.hints.yaml'), 'utf8').replace(/^\uFEFF/, '');
+    const hintsText = readFileSync(workspace.suiteResolve('knowledge', 'screens', 'policy-search.hints.yaml'), 'utf8').replace(/^\uFEFF/, '');
     const approvalText = readFileSync(approved.receiptPath, 'utf8').replace(/^\uFEFF/, '');
 
     expect(hintsText).toContain('Policy ref');

@@ -30,7 +30,7 @@ const seed = argVal('--seed', 'speedrun-v1');
 const maxIterations = Number(argVal('--max-iterations', '5'));
 
 const rootDir = process.cwd();
-const paths = createProjectPaths(rootDir);
+const paths = createProjectPaths(rootDir, path.join(rootDir, 'dogfood'));
 
 function getPipelineVersion(): string {
   try {

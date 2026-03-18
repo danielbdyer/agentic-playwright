@@ -13,7 +13,10 @@ const seedArg = args.indexOf('--seed');
 const count = countArg >= 0 ? Number(args[countArg + 1]) : 50;
 const seed = seedArg >= 0 ? args[seedArg + 1]! : 'moonshot-v1';
 
-const paths = createProjectPaths(process.cwd());
+import * as path from 'path';
+
+const rootDir = process.cwd();
+const paths = createProjectPaths(rootDir, path.join(rootDir, 'dogfood'));
 
 const program = generateSyntheticScenarios({
   paths,

@@ -65,7 +65,7 @@ test('interface projection rejects duplicate transition semantics under differen
   const workspace = createTestWorkspace('phase2-duplicate-transition');
   try {
     writeFileSync(
-      workspace.resolve('knowledge', 'patterns', 'duplicate-transition.behavior.yaml'),
+      workspace.suiteResolve('knowledge', 'patterns', 'duplicate-transition.behavior.yaml'),
       [
         'kind: behavior-pattern',
         'version: 1',
@@ -180,7 +180,7 @@ test('interface projection rejects support cycles in event prerequisites', async
   const workspace = createTestWorkspace('phase2-support-cycle');
   try {
     writeFileSync(
-      workspace.resolve('knowledge', 'patterns', 'support-cycle.behavior.yaml'),
+      workspace.suiteResolve('knowledge', 'patterns', 'support-cycle.behavior.yaml'),
       [
         'kind: behavior-pattern',
         'version: 1',

@@ -21,12 +21,13 @@ function serializedJson(value: unknown): string {
 
 export function createRecordingWorkspaceFileSystem(input: {
   rootDir: string;
+  suiteRoot?: string | undefined;
   posture: ExecutionPosture;
   delegate: FileSystemPort;
   journal: WriteJournalEntry[];
 }): FileSystemPort {
   const rootDir = normalizePath(input.rootDir);
-  const projectPaths = createProjectPaths(rootDir);
+  const projectPaths = createProjectPaths(rootDir, input.suiteRoot);
   const protectedRoots = [
     projectPaths.adoSyncDir,
     projectPaths.controlsDir,

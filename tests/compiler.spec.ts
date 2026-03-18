@@ -293,7 +293,7 @@ test('harvest reuses unchanged route receipts and rewrites deterministically on 
     expect(reusedFingerprint).toBe(firstFingerprint);
     expect(statSync(defaultReceiptPath).mtimeMs).toBe(firstModifiedAt);
 
-    const fixturePath = workspace.resolve('fixtures', 'demo-harness', 'policy-search.html');
+    const fixturePath = workspace.suiteResolve('fixtures', 'demo-harness', 'policy-search.html');
     const originalFixture = readFileSync(fixturePath, 'utf8').replace(/^\uFEFF/, '');
     writeFileSync(fixturePath, originalFixture.replace('Search Results', 'Policy Matches'), 'utf8');
 
@@ -402,7 +402,7 @@ test('run emits interpretation and execution receipts, then reprojects review su
     const proposalBundle = JSON.parse(readFileSync(run.proposalsPath, 'utf8').replace(/^\uFEFF/, ''));
     const graph = JSON.parse(readFileSync(run.graph.graphPath, 'utf8').replace(/^\uFEFF/, ''));
     await runWithLocalServices(emitOperatorInbox({ paths: workspace.paths, filter: { adoId: '10001' } }), workspace.rootDir);
-    const inboxReport = readFileSync(workspace.resolve('generated', 'operator', 'inbox.md'), 'utf8').replace(/^\uFEFF/, '');
+    const inboxReport = readFileSync(workspace.suiteResolve('generated', 'operator', 'inbox.md'), 'utf8').replace(/^\uFEFF/, '');
 
     expect(runRecord.kind).toBe('scenario-run-record');
     expect(runRecord.steps).toHaveLength(4);
@@ -434,7 +434,7 @@ test('promoted behavior patterns reuse the same transition ids from interface gr
   try {
     const adoId = createAdoId('10001');
     writeFileSync(
-      workspace.resolve('knowledge', 'patterns', 'form-entry.behavior.yaml'),
+      workspace.suiteResolve('knowledge', 'patterns', 'form-entry.behavior.yaml'),
       readFileSync(path.join(process.cwd(), 'tests', 'fixtures', 'knowledge', 'patterns', 'form-entry.behavior.yaml'), 'utf8'),
       'utf8',
     );
@@ -852,7 +852,7 @@ test('task packet separates task and knowledge fingerprints via shared interface
 
     const firstStepFingerprints = firstPacket.payload.steps.map((step) => step.taskFingerprint);
 
-    const hintsPath = workspace.resolve('knowledge', 'screens', 'policy-search.hints.yaml');
+    const hintsPath = workspace.suiteResolve('knowledge', 'screens', 'policy-search.hints.yaml');
     const originalHints = readFileSync(hintsPath, 'utf8').replace(/^\uFEFF/, '');
     writeFileSync(hintsPath, originalHints.replace('policy search screen', 'policy search workspace'), 'utf8');
 

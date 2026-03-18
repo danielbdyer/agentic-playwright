@@ -9,6 +9,7 @@ import { loadScenarioInterpretationSurfaceFromCatalog, prepareScenarioRunPlan } 
 
 export interface LoadScenarioRunPlanInput {
   readonly rootDir: string;
+  readonly suiteRoot?: string | undefined;
   readonly adoId: AdoId | string;
   readonly executionContextPosture: ExecutionPosture;
   readonly runbookName?: string | undefined;
@@ -21,7 +22,7 @@ export interface LoadScenarioRunPlanInput {
  * Prefer this in effectful code; use loadScenarioRunPlan only at the composition root.
  */
 export function loadScenarioRunPlanEffect(input: LoadScenarioRunPlanInput): Effect.Effect<ScenarioRunPlan, unknown, FileSystem> {
-  const paths = createProjectPaths(input.rootDir);
+  const paths = createProjectPaths(input.rootDir, input.suiteRoot);
   return loadWorkspaceCatalog({ paths }).pipe(
     Effect.map((catalog) => {
       const surfaceEntry = loadScenarioInterpretationSurfaceFromCatalog(catalog, input.adoId as AdoId);
@@ -45,7 +46,7 @@ export function loadScenarioRunPlanEffect(input: LoadScenarioRunPlanInput): Effe
  * Application-layer code should prefer loadScenarioRunPlanEffect.
  */
 export function loadScenarioRunPlan(input: LoadScenarioRunPlanInput): ScenarioRunPlan {
-  const paths = createProjectPaths(input.rootDir);
+  const paths = createProjectPaths(input.rootDir, input.suiteRoot);
   const program = loadWorkspaceCatalog({ paths }).pipe(
     Effect.provideService(FileSystem, LocalFileSystem),
   );
