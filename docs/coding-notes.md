@@ -463,7 +463,7 @@ function applyDriftToElements(doc: Record<string, unknown>, event: DriftEvent): 
 }
 ```
 
-Use `foldGovernance` for governance case analysis. Use typed switch exhaustion for any discriminated union.
+Use `foldGovernance` for governance case analysis. Use the typed fold functions from `lib/domain/visitors.ts` for all major discriminated unions: `foldValueRef`, `foldStepInstruction`, `foldLocatorStrategy`, `foldResolutionReceipt`, `foldResolutionOutcome`, `foldImprovementTarget`, `foldResolutionEvent`, `foldPipelineFailureClass`. Prefer these over raw `switch` statements — the fold guarantees compile-time exhaustiveness when a new variant is added.
 
 ### Composite (Scoring Rules, Pipeline Phases)
 

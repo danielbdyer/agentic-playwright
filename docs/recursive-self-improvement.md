@@ -594,3 +594,125 @@ At that point, the scorecard is the objective function for an agent operating on
 This is not general AGI. It is narrow, bounded, law-driven self-improvement within a well-defined parameter space. The invariants (clean-slate, monotonic, deterministic, provenance, governance) ensure the loop stays safe. The failure taxonomy ensures the loop stays targeted. The scorecard ensures the loop stays honest.
 
 The prize is a pipeline that gets better at resolving novel interface intent every time it runs — not because it memorized more aliases, but because its resolution, scoring, and ranking mechanics improved.
+
+## Five Tuning Surfaces
+
+The recursive improvement loop described above optimizes Surface 1 (hyperparameters). But the full optimization landscape has five surfaces, each with different granularity, feedback latency, and leverage characteristics. All five are in scope for the self-improvement system.
+
+### Surface 1: Hyperparameters (weights and thresholds)
+
+The 15 tunable constants in `PipelineConfig`. These are the traditional "model parameters" — numeric values that control scoring, ranking, translation, and convergence behavior without changing code structure. Tuning is fast (single speedrun), reversible (restore the config), and measurable (scorecard delta). This is the surface the speedrun loop already targets.
+
+**Feedback latency:** One speedrun cycle (seconds to minutes).
+**Leverage:** Moderate — bounded by the expressiveness of the algorithms that consume them.
+
+### Surface 2: Code structure (algorithms, patterns, abstractions)
+
+The resolution ladder stages, the candidate lattice algorithm, the harvest algorithm, the strategy chain composition, the scoring rule combinators — these are the *functions* that hyperparameters flow through. A better algorithm renders parameter sensitivity moot: if the resolution ladder can skip directly to the right rung because the information is preserved in a form that makes the answer obvious, the individual rung weights don't matter.
+
+Code structure improvements include:
+
+- **Visitor pattern coverage**: replacing ad-hoc switch/if chains with exhaustive typed folds (see `lib/domain/visitors.ts`). Each fold call site is a compile-time contract that new union variants cannot be silently ignored.
+- **Layer integrity**: maintaining the `domain → application → runtime → infrastructure` dependency direction. Layer violations leak side effects into pure code, making the domain untestable and the optimization surface noisy.
+- **Composable abstractions**: `ScoringRule` with `combine`/`contramap`, `PipelinePhase` with fold, `StateMachine` with pure transitions. Each abstraction decomposes a monolithic algorithm into independently tunable, independently testable components.
+- **Pure function ratio**: the percentage of domain-layer functions that are side-effect free. Higher purity means more functions are amenable to law-style testing and deterministic optimization.
+- **Envelope discipline**: the percentage of cross-boundary artifacts that carry full `WorkflowEnvelope` headers. Gaps in envelope coverage are gaps in provenance, which are gaps in the system's ability to explain itself.
+
+**Feedback latency:** One development cycle (the architecture fitness report measures structural properties).
+**Leverage:** High — a structural improvement transfers to all future parameter tuning and all future applications.
+
+### Surface 3: Knowledge representation (type surfaces, data schemas)
+
+The type system itself is a compression scheme. `CanonicalTargetRef` compresses "the policy number input on the policy-search screen" into a branded string. `LocatorStrategy` compresses three families of DOM lookup into a three-variant union. `ResolutionReceipt` compresses an entire resolution pipeline execution into a typed envelope.
+
+Type surface improvements include:
+
+- **Discriminated union completeness**: are all possible states of a concept represented as variants, or are some hidden in string fields? Every untyped string is a compression loss.
+- **Phantom brand coverage**: are governance states, confidence levels, and certification states carried at the type level, or only at runtime? Phantom brands are zero-cost compression that makes invalid states unrepresentable.
+- **Schema evolution**: when a new concept emerges (e.g., `ParetoObjectives`), does it compose with existing types or require parallel truth? Every parallel representation is information duplication.
+- **Readonly enforcement**: mutable fields are implicit state machines. Marking fields `readonly` compresses the state space by eliminating mutation as a concern.
+
+**Feedback latency:** One development cycle (type-check + law tests).
+**Leverage:** Very high — type-level improvements propagate to every consumer and every future extension. A well-typed interface prevents entire classes of bugs at compile time.
+
+### Surface 4: Documentation and authorial leverage
+
+The CLAUDE.md, `docs/coding-notes.md`, `docs/master-architecture.md`, and domain ontology are not passive references — they are *training data for agent sessions*. An agent session that correctly applies the supplement hierarchy on the first attempt (because `docs/coding-notes.md` explains it clearly) saves an entire debug cycle. An agent session that violates layer integrity (because the documentation doesn't show a concrete negative example) costs a review cycle.
+
+Documentation improvements include:
+
+- **Worked examples**: concrete before/after code samples for each coding convention. Assertions like "prefer recursive folds" are weaker than a side-by-side comparison with line-by-line annotation.
+- **Anti-pattern galleries**: explicit "do NOT do this" sections with the *specific* failure mode that results. An agent reading "avoid `let`" may comply; an agent reading "avoid `let` because it breaks determinism in the scoring fold, which causes the bottleneck detector to produce unstable rankings" understands *why*.
+- **Decision records**: when a design choice is non-obvious, a 3-sentence ADR (context, decision, consequence) prevents future agents from re-deriving the same reasoning. `docs/adr-collapse-deterministic-parsing.md` is the existing pattern.
+- **Cross-reference completeness**: every concept should be reachable from the CLAUDE.md start-here list within two hops. Orphan documentation is undiscoverable documentation, which is equivalent to absent documentation for agent sessions.
+
+**Feedback latency:** One agent session (does the agent apply the convention correctly?).
+**Leverage:** Multiplicative — documentation quality multiplies the effectiveness of every agent session, every human review, and every onboarding. It is the highest-leverage surface for systems that are primarily agent-developed.
+
+### Surface 5: Information-theoretic efficiency (lossless compression of domain signal)
+
+This is the meta-surface. Every code construct, type surface, algorithm, and documentation artifact is a compression of domain reality. The question is: how much signal survives the compression?
+
+The translation pipeline normalizes intent text into tokens — every normalization step is a lossy compression. If "navigate to the policy search page" and "go to policy search" produce different token sets, the compression is losing shared meaning. The harvest algorithm decides what to retain from DOM exploration — every discarded attribute is a compression loss. The supplement hierarchy promotes screen-local hints to shared patterns — if the promotion loses context (which screen originated the pattern, under what conditions it was observed), the compression is lossy.
+
+Information efficiency improvements include:
+
+- **Translation loss rate**: what fraction of intent text meaning is destroyed by normalization? Measured as the gap between raw phrasing diversity and post-normalization candidate set size.
+- **Supplement reuse factor**: how often is a promoted pattern actually exercised across multiple screens? Low reuse suggests premature promotion (the compression was wrong) or poor generalization (the pattern is too specific).
+- **Resolution path entropy**: how many different resolution paths lead to the same correct answer? High entropy means the system is doing redundant work. Low entropy means the compression is efficient — the right answer follows from the data structure itself.
+- **Alias redundancy rate**: what fraction of aliases are strict subsets of other aliases? Redundant aliases waste matching time and create false-match risk without adding information.
+- **Algorithm tuning surface density**: how many independently tunable parameters does each algorithm expose per unit of output variance? High density means fine-grained control. Low density means the algorithm is either well-optimized (can't improve further) or under-parameterized (can't express the right behavior).
+
+**Feedback latency:** Multiple speedrun cycles (statistical measurement over varied inputs).
+**Leverage:** Foundational — information efficiency improvements make all other surfaces more effective. A lossless compression of domain signal means parameters tune faster, code changes have clearer effects, and documentation is easier to write because the concepts are crisper.
+
+### The Overfitting Concern Across Surfaces
+
+The user correctly identified that dogfood optimization risks overfitting to synthetic data. This risk exists on all five surfaces but has different mitigation strategies:
+
+- **Surface 1** (parameters): Vary the scenario generator seed across speedrun epochs. Require improvement to hold across 3+ seeds before accepting.
+- **Surface 2** (code): Architecture fitness metrics are application-independent — layer integrity, purity, visitor coverage don't change with the test suite.
+- **Surface 3** (types): Type-level improvements are verified by the compiler, not by runtime data. They can't overfit.
+- **Surface 4** (docs): Agent session effectiveness is measurable across different tasks, not just one task type.
+- **Surface 5** (information): Information efficiency metrics require large sample sizes by definition. Widen the scenario generator's phrasing templates, increase `variantsPerField`, and diversify `driftEvents` to increase variance. The Pareto frontier (4 objectives) provides regularization — a change that helps one metric at the expense of three is rejected.
+
+The key insight: **Surfaces 2-5 are inherently more robust to overfitting than Surface 1** because they measure structural properties, not behavioral outcomes. A codebase with better layer integrity, more exhaustive type safety, clearer documentation, and more efficient information compression will perform better on *any* application, not just the current dogfood suite.
+
+### The Production-Free Advantage
+
+Without production data, we cannot overfit to production. But we can still measure generalization capacity: the ability to handle wider classes of inputs. Structural improvements (Surfaces 2-4) are testable right now because they are measured by architecture fitness, type-checking, and agent session effectiveness — none of which require production targets.
+
+Surface 5 (information efficiency) can be measured synthetically by generating adversarial scenarios: phrasings that stress normalization, drift events that stress the harvest algorithm, state topologies that stress the resolution ladder. The structured entropy harness (D1 in the backlog) is the tool for this.
+
+The architecture fitness report (`lib/domain/types/architecture-fitness.ts`) provides the measurement infrastructure for Surfaces 2-5. It measures layer violations, visitor coverage, provenance completeness, knowledge compression, purity, envelope discipline, and parameter exposure. Each metric has a direction of improvement (fewer violations, higher coverage, more completeness) that is independent of any particular application.
+
+## Architecture Fitness Report
+
+The `ArchitectureFitnessReport` is the structural analog of the `PipelineFitnessReport`. Where the pipeline report measures *how well the system resolves intent* (runtime behavior), the architecture report measures *how well the codebase supports improvement* (structural health).
+
+### Metrics
+
+| Metric | What it measures | Direction |
+|---|---|---|
+| Layer violations | Imports crossing `domain → application → runtime → infrastructure` boundaries in the wrong direction | Fewer is better |
+| Visitor coverage | % of discriminated union consumers using exhaustive fold/visitor vs raw switch/if | Higher is better |
+| Provenance completeness | % of derived artifacts carrying full lineage, fingerprints, and governance | Higher is better |
+| Knowledge compression | Ratio of scenarios served per knowledge artifact | Higher is better |
+| Domain purity | % of domain-layer functions that are pure (no `let`, no mutation, no side effects) | Higher is better |
+| Envelope discipline | % of cross-boundary artifacts using `WorkflowEnvelope` vs raw objects | Higher is better |
+| Parameter exposure | % of tunable constants surfaced in `PipelineConfig` | Higher is better |
+
+### Implementation
+
+The types live in `lib/domain/types/architecture-fitness.ts`. The report is a domain-layer data structure — it describes what was measured, not how. The measurement itself (static analysis, AST scanning, grep-based counting) can be implemented as a script or application-layer module.
+
+### Relationship to Pipeline Fitness
+
+The two reports are complementary:
+
+- **Pipeline fitness** answers: "How well does the system perform?" (loss function)
+- **Architecture fitness** answers: "How improvable is the system?" (learning rate)
+
+A system with good pipeline fitness but poor architecture fitness has hit a ceiling — it works today but is resistant to further improvement. A system with poor pipeline fitness but good architecture fitness has headroom — it doesn't work well yet, but its structure supports rapid improvement.
+
+The recursive improvement loop should optimize both: pipeline fitness is the primary objective, architecture fitness is the regularization term.
