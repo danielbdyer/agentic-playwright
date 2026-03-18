@@ -1,21 +1,22 @@
 ﻿{
   "entry": [
     "bin/tesseract.ts",
-    "knowledge/components/index.ts",
+    "dogfood/knowledge/components/index.ts",
     "scripts/*.cjs"
   ],
   "project": [
     "bin/**/*.ts",
-    "knowledge/**/*.ts",
+    "dogfood/knowledge/**/*.ts",
     "lib/**/*.ts",
     "playwright*.ts",
     "scripts/**/*.cjs",
     "tests/**/*.ts"
   ],
   "ignore": [
-    ".ado-sync/**",
+    "dogfood/.ado-sync/**",
     ".tesseract/**",
     "dist/**",
+    "dogfood/generated/**",
     "generated/**",
     "lib/generated/**",
     "test-results/**",

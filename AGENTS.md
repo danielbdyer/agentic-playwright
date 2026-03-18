@@ -37,7 +37,7 @@ The six public lanes remain the operating vocabulary. The deeper architectural s
 
 ## Canonical vs derived
 
-Canonical inputs:
+Canonical inputs (suite-scoped, under `dogfood/` for training or repo root for production):
 
 - `.ado-sync/`
 - `benchmarks/`
@@ -47,6 +47,9 @@ Canonical inputs:
 - `knowledge/screens/`
 - `knowledge/patterns/`
 - `knowledge/snapshots/`
+- `knowledge/components/`
+- `knowledge/routes/`
+- `fixtures/`
 - `.tesseract/evidence/`
 - `.tesseract/policy/`
 
@@ -64,13 +67,25 @@ Derived outputs. Do not hand-edit unless the task is specifically about the gene
 - `generated/`
 - `lib/generated/`
 
+## Tracking rule: production vs dogfood
+
+All training data — scenarios, knowledge, fixtures, controls, benchmarks, ADO sync artifacts — lives under a single `dogfood/` directory. This is the suite root.
+
+**On main**: `dogfood/` and `lib/generated/` are gitignored. The flywheel regenerates from scratch. Nothing it learns persists across clones.
+
+**On training branches**: Remove or override the `dogfood/` gitignore line so content persists for continuity between runs. Never merge evolvable surfaces (knowledge, fixtures, generated output) back to main — only merge business logic improvements to the engine.
+
+**When production arrives**: Production content lives at the repo root (or a named suite directory like `production/`) and is fully versioned. `lib/generated/` is tracked again. The `createProjectPaths(rootDir, suiteRoot)` function resolves content paths relative to the suite root, so the engine works identically with any suite location.
+
+The `.tesseract/*` runtime engine directory is bulk-gitignored regardless of suite; only governance anchors (`trust-policy.yaml`, `scorecard.json`) survive.
+
 ## Six workflow lanes
 
 Use this vocabulary consistently:
 
-- `intent`: `.ado-sync/` and `scenarios/`
-- `knowledge`: `knowledge/surfaces/`, `knowledge/screens/`, `knowledge/patterns/`, `knowledge/snapshots/`
-- `control`: `controls/datasets/`, `controls/resolution/`, `controls/runbooks/`
+- `intent`: `dogfood/.ado-sync/` and `dogfood/scenarios/`
+- `knowledge`: `dogfood/knowledge/surfaces/`, `dogfood/knowledge/screens/`, `dogfood/knowledge/patterns/`, `dogfood/knowledge/snapshots/`
+- `control`: `dogfood/controls/datasets/`, `dogfood/controls/resolution/`, `dogfood/controls/runbooks/`
 - `resolution`: `.tesseract/tasks/` plus interpretation receipts
 - `execution`: execution receipts and run records
 - `governance/projection`: generated outputs, graph surfaces, and trust policy

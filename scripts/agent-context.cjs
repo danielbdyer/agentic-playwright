@@ -183,7 +183,7 @@ function generateAgentContext() {
     '',
     '## ADO Adapter Selection',
     '',
-    '- Default adapter: fixture (`fixtures/ado/*.json`).',
+    '- Default adapter: fixture (`dogfood/fixtures/ado/*.json`).',
     '- Live adapter: set `--ado-source live` or `TESSERACT_ADO_SOURCE=live`.',
     ...adapterRequiredEnv.length > 0
       ? [

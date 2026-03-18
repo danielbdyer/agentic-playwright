@@ -1,3 +1,4 @@
+import path from 'path';
 import type { Page } from '@playwright/test';
 import { test } from '@playwright/test';
 import type { AdoId } from '../domain/identity';
@@ -50,8 +51,10 @@ export function createScenarioContext(
   const writeMode: WriteMode = (process.env.TESSERACT_WRITE_MODE ?? 'persist') as WriteMode;
   const headed = process.env.TESSERACT_HEADLESS === '0';
 
+  const rootDir = process.cwd();
   const runPlan: ScenarioRunPlan = loadScenarioRunPlan({
-    rootDir: process.cwd(),
+    rootDir,
+    suiteRoot: path.join(rootDir, 'dogfood'),
     adoId: adoId as AdoId,
     executionContextPosture: {
       interpreterMode,

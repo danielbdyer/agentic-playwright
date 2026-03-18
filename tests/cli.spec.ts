@@ -1,6 +1,10 @@
+import path from 'path';
 import { expect, test } from '@playwright/test';
 import { createProjectPaths } from '../lib/application/paths';
 import { parseCliInvocation, resolveExecutionPosture } from '../lib/application/cli/registry';
+
+const cwd = process.cwd();
+const dogfoodPaths = createProjectPaths(cwd, path.join(cwd, 'dogfood'));
 
 test('run command parses shared posture flags and baseline defaults', () => {
   const invocation = parseCliInvocation([
@@ -27,14 +31,14 @@ test('workflow command accepts ado and runbook filters', () => {
   const invocation = parseCliInvocation(['workflow', '--ado-id', '10001', '--runbook', 'suite-a']);
 
   expect(invocation.command).toBe('workflow');
-  const effect = invocation.execute(createProjectPaths(process.cwd()), resolveExecutionPosture(invocation.postureInput));
+  const effect = invocation.execute(dogfoodPaths, resolveExecutionPosture(invocation.postureInput));
   expect(effect).toBeTruthy();
 });
 
 test('approve command enforces required proposal id', () => {
   const invocation = parseCliInvocation(['approve']);
 
-  expect(() => invocation.execute(createProjectPaths(process.cwd()), resolveExecutionPosture(invocation.postureInput))).toThrow(
+  expect(() => invocation.execute(dogfoodPaths, resolveExecutionPosture(invocation.postureInput))).toThrow(
     'Missing required --proposal-id',
   );
 });
@@ -43,10 +47,10 @@ test('capture command enforces required screen and section', () => {
   const missingScreen = parseCliInvocation(['capture', '--section', 'results-with-policy']);
   const missingSection = parseCliInvocation(['capture', '--screen', 'policy-search']);
 
-  expect(() => missingScreen.execute(createProjectPaths(process.cwd()), resolveExecutionPosture(missingScreen.postureInput))).toThrow(
+  expect(() => missingScreen.execute(dogfoodPaths, resolveExecutionPosture(missingScreen.postureInput))).toThrow(
     'Missing required --screen',
   );
-  expect(() => missingSection.execute(createProjectPaths(process.cwd()), resolveExecutionPosture(missingSection.postureInput))).toThrow(
+  expect(() => missingSection.execute(dogfoodPaths, resolveExecutionPosture(missingSection.postureInput))).toThrow(
     'Missing required --section',
   );
 });
@@ -96,6 +100,6 @@ test('replay command parses provider and runbook filters', () => {
   const invocation = parseCliInvocation(['replay', '--ado-id', '10001', '--runbook', 'policy-smoke', '--provider', 'deterministic-runtime-step-agent']);
 
   expect(invocation.command).toBe('replay');
-  const effect = invocation.execute(createProjectPaths(process.cwd()), resolveExecutionPosture(invocation.postureInput));
+  const effect = invocation.execute(dogfoodPaths, resolveExecutionPosture(invocation.postureInput));
   expect(effect).toBeTruthy();
 });

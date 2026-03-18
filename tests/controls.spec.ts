@@ -261,7 +261,7 @@ test('runtime agent falls through to structured translation before live DOM', as
 test('runtime controls expose dom exploration policy from resolution controls', async () => {
   const workspace = createTestWorkspace('controls-dom-policy');
   try {
-    writeFileSync(workspace.resolve('controls', 'resolution', 'demo-policy-search.resolution.yaml'), `kind: resolution-control
+    writeFileSync(workspace.suiteResolve('controls', 'resolution', 'demo-policy-search.resolution.yaml'), `kind: resolution-control
 version: 1
 name: demo-policy-search
 selector:

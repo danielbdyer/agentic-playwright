@@ -8,8 +8,8 @@ function stripBom(value: string): string {
   return value.replace(/^\uFEFF/, '');
 }
 
-export function makeLocalAdoSource(rootDir: string): AdoSourcePort {
-  const fixturesDir = path.join(rootDir, 'fixtures', 'ado');
+export function makeLocalAdoSource(rootDir: string, suiteRoot?: string): AdoSourcePort {
+  const fixturesDir = path.join(suiteRoot ?? rootDir, 'fixtures', 'ado');
 
   return {
     listSnapshotIds() {

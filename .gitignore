@@ -1,11 +1,34 @@
-﻿node_modules/
+node_modules/
 dist/
 playwright-report/
 test-results/
-.tesseract/*
-!.tesseract/evidence/
-!.tesseract/evidence/.gitkeep
-!.tesseract/policy/
-!.tesseract/policy/trust-policy.yaml
 .npm-cache
 .tools
+
+# ── Runtime engine (.tesseract) ──────────────────────────────────
+# Bulk-ignore everything under .tesseract/; the engine recreates it.
+# Allowlist only governance anchors that must survive across clones.
+.tesseract/*
+!.tesseract/policy/
+!.tesseract/policy/trust-policy.yaml
+!.tesseract/benchmarks/
+!.tesseract/benchmarks/scorecard.json
+
+# ── Dogfood clean room ───────────────────────────────────────────
+# All training data lives under dogfood/.  On main, the entire
+# directory is gitignored — the flywheel regenerates from scratch.
+# On training branches, remove or override this line so dogfood/
+# content persists for continuity between runs.
+#
+# When a production suite arrives, its content lives at the repo
+# root (or a named suite directory) and is fully versioned.
+dogfood/
+
+# Deterministic compiler output.  Regenerated as a build step.
+# Production suites will track lib/generated/ once they exist.
+lib/generated/
+generated/
+
+# Leftover synthetic output that may exist outside dogfood/ from
+# prior pipeline runs.  Safe to remove once all paths are migrated.
+scenarios/synthetic/

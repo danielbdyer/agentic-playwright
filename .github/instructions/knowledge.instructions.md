@@ -1,5 +1,5 @@
 ﻿---
-applyTo: "knowledge/**/*.yaml,knowledge/**/*.ts,scenarios/**/*.yaml"
+applyTo: "dogfood/knowledge/**/*.yaml,dogfood/knowledge/**/*.ts,dogfood/scenarios/**/*.yaml,knowledge/**/*.yaml,knowledge/**/*.ts,scenarios/**/*.yaml"
 ---
 
 # Knowledge and scenario instructions

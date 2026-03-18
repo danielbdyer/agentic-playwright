@@ -8,8 +8,8 @@ import type { ExecutionPosture, WriteJournalEntry } from '../domain/types';
 
 export const FileSystemLive = Layer.succeed(FileSystem, LocalFileSystem);
 
-export const AdoSourceLive = (rootDir: string) =>
-  Layer.succeed(AdoSource, makeLocalAdoSource(rootDir));
+export const AdoSourceLive = (rootDir: string, suiteRoot?: string) =>
+  Layer.succeed(AdoSource, makeLocalAdoSource(rootDir, suiteRoot));
 
 export const RuntimeScenarioRunnerLive =
   Layer.succeed(RuntimeScenarioRunner, LocalRuntimeScenarioRunner);
@@ -20,21 +20,22 @@ export const ExecutionContextLive = (posture: ExecutionPosture) =>
     writeJournal: () => [] as WriteJournalEntry[],
   });
 
-export const RecordingFileSystemLive = (rootDir: string, posture: ExecutionPosture, journal: WriteJournalEntry[]) =>
+export const RecordingFileSystemLive = (rootDir: string, posture: ExecutionPosture, journal: WriteJournalEntry[], suiteRoot?: string) =>
   Layer.succeed(
     FileSystem,
     createRecordingWorkspaceFileSystem({
       rootDir,
+      suiteRoot,
       posture,
       delegate: LocalFileSystem,
       journal,
     }),
   );
 
-export const LocalServicesLive = (rootDir: string, posture: ExecutionPosture, journal: WriteJournalEntry[]) =>
+export const LocalServicesLive = (rootDir: string, posture: ExecutionPosture, journal: WriteJournalEntry[], suiteRoot?: string) =>
   Layer.mergeAll(
-    RecordingFileSystemLive(rootDir, posture, journal),
-    AdoSourceLive(rootDir),
+    RecordingFileSystemLive(rootDir, posture, journal, suiteRoot),
+    AdoSourceLive(rootDir, suiteRoot),
     RuntimeScenarioRunnerLive,
     ExecutionContextLive(posture),
   );

@@ -43,12 +43,26 @@ export interface AgentSessionAdapter {
   }): AgentSession;
 }
 
+const ALL_EVENT_TYPES: readonly AgentEvent['type'][] = [
+  'orientation',
+  'artifact-inspection',
+  'discovery-request',
+  'observation-recorded',
+  'spec-fragment-proposed',
+  'proposal-approved',
+  'proposal-rejected',
+  'rerun-requested',
+  'execution-reviewed',
+  'benchmark-action',
+  'replay-action',
+] as const;
+
 function summarizeEvents(events: AgentEvent[]): AgentSession['eventTypes'] {
-  const counts: Partial<Record<AgentEvent['type'], number>> = {};
+  const counts = Object.fromEntries(ALL_EVENT_TYPES.map((type) => [type, 0])) as Record<AgentEvent['type'], number>;
   for (const event of events) {
     counts[event.type] = (counts[event.type] ?? 0) + 1;
   }
-  return counts as AgentSession['eventTypes'];
+  return counts;
 }
 
 function baseEvents(input: {

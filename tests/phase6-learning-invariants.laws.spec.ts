@@ -28,7 +28,7 @@ function makeFragment(overrides: Partial<GroundedSpecFragment> = {}): GroundedSp
     adoId: '10001' as never,
     title: 'Step 0',
     stepIndexes: [0],
-    action: 'fill',
+    action: 'input',
     intent: 'Enter policy number',
     graphNodeIds: ['target:policy-search'],
     selectorRefs: ['#policyNumber'],
@@ -226,7 +226,7 @@ test('invariant 3: changed knowledge fingerprint sets knowledgeChanged', () => {
 test('invariant 3: different winning source produces drift', () => {
   const example = makeReplayExample();
   const originalReceipt = makeReceipt({ winningSource: 'approved-knowledge' });
-  const replayReceipt = makeReceipt({ winningSource: 'translation' });
+  const replayReceipt = makeReceipt({ winningSource: 'structured-translation' });
 
   const result = evaluateReplayExample({
     example,
@@ -367,14 +367,14 @@ test('corpus health: runtime coverage counts are correct', () => {
 
 test('corpus health: action family coverage detects thin actions', () => {
   const fragments = [
-    makeFragment({ id: 'd:10001:0', action: 'fill' }),
-    makeFragment({ id: 'd:10001:1', action: 'fill' }),
+    makeFragment({ id: 'd:10001:0', action: 'input' }),
+    makeFragment({ id: 'd:10001:1', action: 'input' }),
     makeFragment({ id: 'd:10001:2', action: 'click' }),
   ];
 
   const health = projectCorpusHealth({ manifest: makeManifest(), fragments, generatedAt: TIMESTAMP });
 
-  const fillEntry = health.actionFamilyCoverage.find((a) => a.action === 'fill');
+  const fillEntry = health.actionFamilyCoverage.find((a) => a.action === 'input');
   expect(fillEntry?.thin).toBe(false);
   expect(fillEntry?.fragmentCount).toBe(2);
 
@@ -449,7 +449,7 @@ test('ranking: trust-policy-allowed proposals outrank review-required with equal
     proposals: [{
       ...makeProposalBundle().proposals[0]!,
       proposalId: 'prop-allow',
-      trustPolicy: { decision: 'allow', reason: 'ok', confidence: 0.9, evidenceSufficiency: true },
+      trustPolicy: { decision: 'allow', reasons: [] },
     }],
   });
 
@@ -458,7 +458,7 @@ test('ranking: trust-policy-allowed proposals outrank review-required with equal
     proposals: [{
       ...makeProposalBundle().proposals[0]!,
       proposalId: 'prop-review',
-      trustPolicy: { decision: 'review', reason: 'needs review', confidence: 0.5, evidenceSufficiency: false },
+      trustPolicy: { decision: 'review', reasons: [{ code: 'minimum-confidence', message: 'needs review' }] },
     }],
   });
 

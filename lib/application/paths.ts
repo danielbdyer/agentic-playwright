@@ -3,70 +3,82 @@ import { SchemaError } from '../domain/errors';
 import type { AdoId, ScreenId } from '../domain/identity';
 
 export interface ProjectPaths {
-  rootDir: string;
-  adoSyncDir: string;
-  snapshotDir: string;
-  archiveDir: string;
-  manifestPath: string;
-  scenariosDir: string;
-  benchmarksDir: string;
-  controlsDir: string;
-  datasetsDir: string;
-  resolutionControlsDir: string;
-  runbooksDir: string;
-  knowledgeDir: string;
-  routesDir: string;
-  surfacesDir: string;
-  patternsDir: string;
-  generatedDir: string;
-  generatedTypesDir: string;
-  tesseractDir: string;
-  interfaceDir: string;
-  interfaceGraphIndexPath: string;
-  selectorCanonPath: string;
-  stateGraphPath: string;
-  discoveryDir: string;
-  boundDir: string;
-  tasksDir: string;
-  runsDir: string;
-  sessionsDir: string;
-  learningDir: string;
-  learningManifestPath: string;
-  inboxDir: string;
-  inboxIndexPath: string;
-  inboxReportPath: string;
-  hotspotIndexPath: string;
-  benchmarkRunsDir: string;
-  evidenceDir: string;
-  confidenceDir: string;
-  confidenceIndexPath: string;
-  graphDir: string;
-  graphIndexPath: string;
-  mcpCatalogPath: string;
-  policyDir: string;
-  trustPolicyPath: string;
-  approvalsDir: string;
-  translationCacheDir: string;
+  readonly rootDir: string;
+  readonly suiteRoot: string;
+  readonly adoSyncDir: string;
+  readonly snapshotDir: string;
+  readonly archiveDir: string;
+  readonly manifestPath: string;
+  readonly scenariosDir: string;
+  readonly benchmarksDir: string;
+  readonly controlsDir: string;
+  readonly datasetsDir: string;
+  readonly resolutionControlsDir: string;
+  readonly runbooksDir: string;
+  readonly knowledgeDir: string;
+  readonly routesDir: string;
+  readonly surfacesDir: string;
+  readonly patternsDir: string;
+  readonly generatedDir: string;
+  readonly generatedTypesDir: string;
+  readonly tesseractDir: string;
+  readonly interfaceDir: string;
+  readonly interfaceGraphIndexPath: string;
+  readonly selectorCanonPath: string;
+  readonly stateGraphPath: string;
+  readonly discoveryDir: string;
+  readonly boundDir: string;
+  readonly tasksDir: string;
+  readonly runsDir: string;
+  readonly sessionsDir: string;
+  readonly learningDir: string;
+  readonly learningManifestPath: string;
+  readonly inboxDir: string;
+  readonly inboxIndexPath: string;
+  readonly inboxReportPath: string;
+  readonly hotspotIndexPath: string;
+  readonly benchmarkRunsDir: string;
+  readonly evidenceDir: string;
+  readonly confidenceDir: string;
+  readonly confidenceIndexPath: string;
+  readonly graphDir: string;
+  readonly graphIndexPath: string;
+  readonly mcpCatalogPath: string;
+  readonly policyDir: string;
+  readonly trustPolicyPath: string;
+  readonly approvalsDir: string;
+  readonly translationCacheDir: string;
 }
 
-export function createProjectPaths(rootDir: string): ProjectPaths {
+/**
+ * Suite root: where content/training data lives.
+ * For dogfood: `{rootDir}/dogfood`
+ * For production: the rootDir itself (or a named suite directory).
+ *
+ * Engine root (rootDir) owns: `.tesseract/`, `lib/generated/`.
+ * Suite root owns: `scenarios/`, `knowledge/`, `controls/`, `fixtures/`,
+ *   `benchmarks/`, `.ado-sync/`, `generated/`.
+ */
+export function createProjectPaths(rootDir: string, suiteRoot?: string): ProjectPaths {
+  const suite = suiteRoot ?? rootDir;
   return {
     rootDir,
-    adoSyncDir: path.join(rootDir, '.ado-sync'),
-    snapshotDir: path.join(rootDir, '.ado-sync', 'snapshots'),
-    archiveDir: path.join(rootDir, '.ado-sync', 'archive'),
-    manifestPath: path.join(rootDir, '.ado-sync', 'manifest.json'),
-    scenariosDir: path.join(rootDir, 'scenarios'),
-    benchmarksDir: path.join(rootDir, 'benchmarks'),
-    controlsDir: path.join(rootDir, 'controls'),
-    datasetsDir: path.join(rootDir, 'controls', 'datasets'),
-    resolutionControlsDir: path.join(rootDir, 'controls', 'resolution'),
-    runbooksDir: path.join(rootDir, 'controls', 'runbooks'),
-    knowledgeDir: path.join(rootDir, 'knowledge'),
-    routesDir: path.join(rootDir, 'knowledge', 'routes'),
-    surfacesDir: path.join(rootDir, 'knowledge', 'surfaces'),
-    patternsDir: path.join(rootDir, 'knowledge', 'patterns'),
-    generatedDir: path.join(rootDir, 'generated'),
+    suiteRoot: suite,
+    adoSyncDir: path.join(suite, '.ado-sync'),
+    snapshotDir: path.join(suite, '.ado-sync', 'snapshots'),
+    archiveDir: path.join(suite, '.ado-sync', 'archive'),
+    manifestPath: path.join(suite, '.ado-sync', 'manifest.json'),
+    scenariosDir: path.join(suite, 'scenarios'),
+    benchmarksDir: path.join(suite, 'benchmarks'),
+    controlsDir: path.join(suite, 'controls'),
+    datasetsDir: path.join(suite, 'controls', 'datasets'),
+    resolutionControlsDir: path.join(suite, 'controls', 'resolution'),
+    runbooksDir: path.join(suite, 'controls', 'runbooks'),
+    knowledgeDir: path.join(suite, 'knowledge'),
+    routesDir: path.join(suite, 'knowledge', 'routes'),
+    surfacesDir: path.join(suite, 'knowledge', 'surfaces'),
+    patternsDir: path.join(suite, 'knowledge', 'patterns'),
+    generatedDir: path.join(suite, 'generated'),
     generatedTypesDir: path.join(rootDir, 'lib', 'generated'),
     tesseractDir: path.join(rootDir, '.tesseract'),
     interfaceDir: path.join(rootDir, '.tesseract', 'interface'),
@@ -309,7 +321,14 @@ export function agentDslPath(paths: ProjectPaths): string {
 }
 
 export function relativeProjectPath(paths: ProjectPaths, absolutePath: string): string {
-  return path.relative(paths.rootDir, absolutePath).replace(/\\/g, '/');
+  const resolved = path.resolve(absolutePath);
+  const resolvedSuite = path.resolve(paths.suiteRoot);
+  const resolvedRoot = path.resolve(paths.rootDir);
+  // Content paths are relative to suite root; engine paths are relative to repo root.
+  const base = resolved.startsWith(`${resolvedSuite}${path.sep}`) || resolved === resolvedSuite
+    ? resolvedSuite
+    : resolvedRoot;
+  return path.relative(base, resolved).replace(/\\/g, '/');
 }
 
 

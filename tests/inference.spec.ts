@@ -6,9 +6,10 @@ import { normalizeIntentText } from '../lib/domain/inference';
 import { validateAdoSnapshot } from '../lib/domain/validation';
 
 const rootDir = process.cwd();
+const suiteRoot = path.join(rootDir, 'dogfood');
 
 function readJsonFixture<T>(...segments: string[]): T {
-  return JSON.parse(readFileSync(path.join(rootDir, ...segments), 'utf8').replace(/^\uFEFF/, '')) as T;
+  return JSON.parse(readFileSync(path.join(suiteRoot, ...segments), 'utf8').replace(/^\uFEFF/, '')) as T;
 }
 
 test('parseSnapshotToScenario preserves raw ADO intent as intent-only scenario steps', () => {

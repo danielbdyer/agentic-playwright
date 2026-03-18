@@ -333,7 +333,7 @@ export async function tryTranslationResolution(stage: RuntimeAgentStageContext, 
           observation: {
             step: String(stage.task.index),
             screen: translated.screen!.screen,
-            element: translated.element?.element ?? null,
+            element: translated.element?.element ?? '',
             source: stage.interpretation!.source,
           },
           proposal: {

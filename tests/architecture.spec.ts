@@ -67,7 +67,8 @@ test('domain layer stays pure of playwright, filesystem adapters, and runtime co
         || specifier === 'path'
         || specifier.startsWith('node:fs')
         || specifier.startsWith('node:path')
-        || specifier.includes('knowledge/components'),
+        || specifier.includes('knowledge/components')
+        || specifier.includes('dogfood/knowledge/components'),
       )
       .map((specifier) => `${relativeFile(filePath)} -> ${specifier}`),
   );
@@ -194,6 +195,7 @@ test('bounded workflow packages expose explicit seam files instead of hidden lan
 });
 
 test('canonical control surfaces are present as first-class repo seams', () => {
+  const suiteRoot = path.join(rootDir, 'dogfood');
   const expectedPaths = [
     'benchmarks',
     'controls/datasets',
@@ -201,7 +203,7 @@ test('canonical control surfaces are present as first-class repo seams', () => {
     'controls/runbooks',
   ];
   const missing = expectedPaths
-    .filter((relativePath) => !existsSync(path.join(rootDir, relativePath)))
+    .filter((relativePath) => !existsSync(path.join(suiteRoot, relativePath)))
     .sort((left, right) => left.localeCompare(right));
 
   expect(missing).toEqual([]);

@@ -80,7 +80,7 @@ function buildDefaultTranslator(
 export const LocalRuntimeScenarioRunner: RuntimeScenarioRunnerPort = {
   runSteps(input) {
     return Effect.gen(function* () {
-      const paths = createProjectPaths(input.rootDir);
+      const paths = createProjectPaths(input.rootDir, input.suiteRoot);
       const translationDisabled = Boolean(input.translationOptions?.disableTranslation);
       const cacheDisabled = Boolean(input.translationOptions?.disableTranslationCache);
       const externalProvider = input.translationOptions?.translationProvider;

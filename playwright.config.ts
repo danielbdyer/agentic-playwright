@@ -15,7 +15,7 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   webServer: {
-    command: 'node fixtures/demo-harness/server.cjs --port 3100',
+    command: 'node dogfood/fixtures/demo-harness/server.cjs --port 3100',
     url: 'http://127.0.0.1:3100/policy-search.html',
     reuseExistingServer: true,
     timeout: 30_000,

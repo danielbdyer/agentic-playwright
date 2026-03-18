@@ -1,3 +1,4 @@
+import path from 'path';
 import { Effect } from 'effect';
 import { approveProposal } from '../approve';
 import { projectBenchmarkScorecard } from '../benchmark';
@@ -752,6 +753,6 @@ export function resolveExecutionPosture(input: CommandExecution['postureInput'])
   };
 }
 
-export function createCliPaths(rootDir: string): ProjectPaths {
-  return createProjectPaths(rootDir);
+export function createCliPaths(rootDir: string, suiteRoot?: string): ProjectPaths {
+  return createProjectPaths(rootDir, suiteRoot ?? path.join(rootDir, 'dogfood'));
 }

@@ -1,5 +1,5 @@
 ﻿---
-applyTo: "generated/**/*.ts,generated/**/*.json,generated/**/*.md,lib/generated/**/*.ts"
+applyTo: "dogfood/generated/**/*.ts,dogfood/generated/**/*.json,dogfood/generated/**/*.md,generated/**/*.ts,generated/**/*.json,generated/**/*.md,lib/generated/**/*.ts"
 ---
 
 # Generated artifact instructions
@@ -15,7 +15,7 @@ Generated surfaces include:
 
 To change them, update:
 
-- canonical knowledge in `knowledge/` or `scenarios/`
+- canonical knowledge in `dogfood/knowledge/` or `dogfood/scenarios/` (suite-relative: `knowledge/` or `scenarios/`)
 - bind or emit logic in `lib/application/`
 - AST-backed generators in `lib/domain/`
 
