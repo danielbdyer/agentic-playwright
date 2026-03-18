@@ -16,3 +16,4 @@ scenarios/synthetic/
 generated/synthetic/
 .ado-sync/snapshots/2*.json
 .ado-sync/archive/2*/
+fixtures/ado/2*.json
