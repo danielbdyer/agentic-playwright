@@ -3,9 +3,15 @@ dist/
 playwright-report/
 test-results/
 .tesseract/*
-!.tesseract/evidence/
-!.tesseract/evidence/.gitkeep
 !.tesseract/policy/
 !.tesseract/policy/trust-policy.yaml
+!.tesseract/benchmarks/
+!.tesseract/benchmarks/scorecard.json
 .npm-cache
 .tools
+
+# Synthetic artifacts are ephemeral training scaffolding.
+# Only pipeline code and the scorecard persist.
+scenarios/synthetic/
+generated/synthetic/
+.ado-sync/synthetic/

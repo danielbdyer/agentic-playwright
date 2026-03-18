@@ -44,7 +44,8 @@
     "test:headed": "node scripts/run-playwright.cjs --config playwright.config.ts --headed",
     "test:generated": "node scripts/run-playwright.cjs --config playwright.generated.config.ts --interpreter-mode playwright",
     "test:generated:dry-run": "node scripts/run-playwright.cjs --config playwright.generated.config.ts",
-    "test:generated:headed": "node scripts/run-playwright.cjs --config playwright.generated.config.ts --interpreter-mode playwright --headed"
+    "test:generated:headed": "node scripts/run-playwright.cjs --config playwright.generated.config.ts --interpreter-mode playwright --headed",
+    "speedrun": "npm run build && npx tsx scripts/speedrun.ts"
   },
   "dependencies": {
     "@playwright/test": "^1.39.0",

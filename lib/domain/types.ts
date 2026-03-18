@@ -9,3 +9,4 @@ export * from './types/projection';
 export * from './types/session';
 export * from './types/learning';
 export * from './types/widgets';
+export * from './types/fitness';

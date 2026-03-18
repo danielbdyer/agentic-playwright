@@ -301,6 +301,7 @@ function scenarioToYaml(
     '  revision: 1',
     `  content_hash: sha256:synthetic-${adoId}`,
     `  synced_at: ${new Date().toISOString()}`,
+    '  origin: synthetic',
     'metadata:',
     `  title: "${title.replace(/"/g, '\\"')}"`,
     `  suite: ${suite}`,
