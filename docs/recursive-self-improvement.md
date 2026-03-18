@@ -595,6 +595,161 @@ This is not general AGI. It is narrow, bounded, law-driven self-improvement with
 
 The prize is a pipeline that gets better at resolving novel interface intent every time it runs — not because it memorized more aliases, but because its resolution, scoring, and ranking mechanics improved.
 
+## Clean Room Protocol
+
+This section is the operational runbook for executing a recursive self-improvement cycle. It answers: what do I run, what do I keep, what do I discard, and how do I know I haven't been contaminated?
+
+### Prerequisites
+
+Before entering the loop:
+
+1. **Working tree is clean.** `git status` shows no modifications. The scorecard (`.tesseract/benchmarks/scorecard.json`) is committed at the current high-water-mark.
+2. **Pipeline version is known.** `git rev-parse --short HEAD` gives the `pipelineVersion` tag for this cycle.
+3. **Architecture fitness passes.** `npx playwright test tests/architecture-fitness.laws.spec.ts` is green.
+
+### Step 1: Wipe Synthetic State
+
+```bash
+npm run speedrun:clean
+# or manually:
+git checkout -- dogfood/
+rm -rf .tesseract/benchmarks/experiment-registry.json
+rm -rf .tesseract/runs/ .tesseract/tasks/ .tesseract/sessions/ .tesseract/learning/
+rm -rf .tesseract/bound/ .tesseract/inbox/ .tesseract/interface/ .tesseract/graph/
+rm -rf generated/ lib/generated/
+```
+
+**Why:** Every synthetic artifact from prior runs is a potential contamination vector. Knowledge files must start from `git HEAD`, not from a prior run's proposals. Generated specs, tasks, sessions, and learning fragments are disposable object code — they are regenerated from canonical inputs.
+
+**What survives the wipe:**
+- `lib/` (pipeline source code — the thing being improved)
+- `dogfood/knowledge/` (restored to git HEAD — canonical inputs)
+- `dogfood/scenarios/` (restored to git HEAD)
+- `dogfood/controls/` (restored to git HEAD)
+- `.tesseract/policy/trust-policy.yaml` (governance anchor)
+- `.tesseract/benchmarks/scorecard.json` (monotonic high-water-mark)
+
+**What is destroyed:**
+- All `.tesseract/` runtime directories (runs, tasks, sessions, learning, interface, graph, bound, inbox)
+- All `generated/` output
+- Any knowledge modifications from prior flywheel iterations
+- The experiment registry (optional — keep for history, destroy for purity)
+
+### Step 2: Generate Synthetic Scenarios
+
+```bash
+npm run speedrun:generate -- --seed <seed>
+```
+
+The scenario generator (`lib/application/synthesis/scenario-generator.ts`) walks the knowledge model and produces synthetic scenarios using 8 phrasing templates per action type. The seed controls the RNG.
+
+**Contamination check:** Synthetic scenarios must derive from the knowledge model *as it exists at git HEAD*, not from any prior run's proposals or evidence. The generator reads `dogfood/knowledge/` and produces `dogfood/scenarios/` — it never reads `.tesseract/` runtime artifacts.
+
+### Step 3: Run the Dogfood Loop
+
+```bash
+npm run speedrun -- --seed <seed> [--config <config.json>]
+```
+
+The speedrun script:
+1. Compiles scenarios through the resolution pipeline
+2. Runs the dogfood loop (auto-approve → recompile → rerun → converge)
+3. Produces a `PipelineFitnessReport` and `ScorecardComparison`
+4. Records an `ExperimentRecord` in the experiment registry
+
+**What the dogfood loop modifies during execution (ephemeral):**
+- Knowledge files: proposals are activated into `dogfood/knowledge/` during the loop. **These modifications are ephemeral** — they exist only for the duration of the run and are discarded in Step 5.
+- `.tesseract/` runtime artifacts: generated as side effects of compilation and execution.
+- `generated/` specs: emitted tests, traces, reviews.
+
+**What the dogfood loop produces (durable outputs):**
+- `PipelineFitnessReport` — the gradient signal
+- `ScorecardComparison` — did this beat the mark?
+- `ExperimentRecord` — the experiment log entry
+
+### Step 4: Evaluate
+
+Read the fitness report. The decision tree:
+
+```
+If scorecardComparison.improved:
+  → The pipeline code (or config) change improved metrics from a clean slate
+  → Accept: update scorecard, commit pipeline code + scorecard
+  → The code change is the durable output of this cycle
+
+If not improved:
+  → The change did not help (or regressed)
+  → Reject: discard the pipeline code change, keep the scorecard unchanged
+  → The experiment record is still logged for history
+```
+
+For Pareto evaluation, "improved" means the new entry is not dominated by any existing frontier entry on all four objectives (`knowledgeHitRate`, `translationPrecision`, `convergenceVelocity`, `proposalYield`).
+
+### Step 5: Restore Clean State
+
+```bash
+git checkout -- dogfood/
+rm -rf .tesseract/runs/ .tesseract/tasks/ .tesseract/sessions/ .tesseract/learning/
+rm -rf .tesseract/bound/ .tesseract/inbox/ .tesseract/interface/ .tesseract/graph/
+rm -rf generated/ lib/generated/
+```
+
+**Why:** Even if the experiment was accepted, the knowledge modifications from the dogfood loop are ephemeral. They were activations of proposals specific to *this* seed and *this* config. Keeping them would contaminate the next cycle — the next run must start from the same canonical knowledge to ensure that improvement comes from the *pipeline code change*, not from residual activated knowledge.
+
+**The only durable outputs that survive:**
+- Pipeline code changes (committed to git if accepted)
+- Updated scorecard (committed to git if improved)
+- Experiment registry entry (appended, never deleted)
+
+### Step 6: Repeat with Varied Seeds
+
+To guard against overfitting to a single seed:
+
+```bash
+for seed in 42 137 256 500 999; do
+  npm run speedrun -- --seed $seed [--config <config.json>]
+done
+```
+
+A pipeline change is robust if it improves (or at least does not regress) across 3+ seeds. If improvement holds for seed 42 but regresses for seed 137, the change is overfitting to the phrasing distribution of seed 42.
+
+### Contamination Detection Checklist
+
+After each cycle, verify:
+
+| Check | How to verify | Contaminated if |
+|---|---|---|
+| Knowledge at HEAD | `git diff dogfood/` is empty | Any knowledge file is modified |
+| No residual runtime artifacts | `.tesseract/runs/` is empty | Run records from prior cycles exist |
+| Scenario text is synthetic | Scenarios use generator phrasing templates | Scenarios contain proposal-derived text |
+| Fitness is deterministic | Re-run with same seed produces same report | Different metrics for same seed + same code |
+| Scorecard provenance | `scorecard.pipelineVersion` matches `git rev-parse --short HEAD` | Version mismatch |
+| Experiment lineage | `experimentRecord.parentExperimentId` points to a valid prior entry | Orphaned experiment with no lineage |
+
+### What the Experiment Registry Keeps
+
+The experiment registry (`.tesseract/benchmarks/experiment-registry.json`) is the *training log* of the self-improvement loop. It is append-only and persists across cycles. It records:
+
+- **Every experiment run**, whether accepted or rejected
+- **The config delta** — exactly what parameter(s) were changed
+- **The resolved config** — the full config used (delta merged onto defaults)
+- **The fitness report** — full metrics and failure classification
+- **The scorecard comparison** — whether it beat the mark
+- **The hypothesis** — why this experiment was tried
+- **The parent experiment ID** — lineage for tracking improvement chains
+
+The registry is a derived artifact (it lives in `.tesseract/benchmarks/`), but it is *not* wiped in Step 1 or Step 5. It accumulates across all cycles because it is the historical record that correlation computation (Phase 6) needs.
+
+**Exception:** For a fully clean room start (e.g., evaluating a completely new approach), delete the registry along with everything else. This resets the training history.
+
+### When to Break the Clean Room
+
+The clean room protocol is designed for *parameter tuning and algorithm improvement* (Surfaces 1-2). For *type surface changes* (Surface 3), *documentation changes* (Surface 4), and *information efficiency improvements* (Surface 5), the clean room protocol applies differently:
+
+- **Surface 3 (types)**: Type changes are verified by the compiler, not by the speedrun. Run `npx tsc --noEmit` and `npx playwright test tests/architecture-fitness.laws.spec.ts`. No clean room needed — the type system is a universal invariant checker.
+- **Surface 4 (docs)**: Documentation changes are verified by agent session effectiveness. No clean room needed — run the architecture fitness tests to ensure cross-reference completeness.
+- **Surface 5 (information efficiency)**: Information efficiency changes *do* need the clean room, because they affect runtime behavior. Follow the full protocol with multi-seed verification.
+
 ## Five Tuning Surfaces
 
 The recursive improvement loop described above optimizes Surface 1 (hyperparameters). But the full optimization landscape has five surfaces, each with different granularity, feedback latency, and leverage characteristics. All five are in scope for the self-improvement system.
