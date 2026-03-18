@@ -64,6 +64,18 @@ Derived outputs. Do not hand-edit unless the task is specifically about the gene
 - `generated/`
 - `lib/generated/`
 
+## Tracking rule: production vs synthetic
+
+Production suites (e.g. `demo/`) are fully versioned. Their generated outputs — specs, traces, reviews, proposals — are tracked in git because fingerprinted provenance and diffable knowledge evolution are the point.
+
+The synthetic/dogfood suite is a clean room. The flywheel proves itself by regenerating from scratch each run. Nothing it produces is tracked. Two boundaries enforce this:
+
+- **Suite name**: `scenarios/synthetic/`, `generated/synthetic/` — gitignored by directory.
+- **ID range**: synthetic IDs are `2xxxx`. `fixtures/ado/2*.json`, `.ado-sync/snapshots/2*.json`, `.ado-sync/archive/2*/` — gitignored by prefix.
+- **Runtime engine**: `.tesseract/*` is bulk-gitignored regardless of suite; only governance anchors (`trust-policy.yaml`, `scorecard.json`) survive.
+
+When adding a new output directory to the pipeline, extend both boundaries if synthetic artifacts can land there. The test is: "does this file exist only because the compiler produced it from synthetic inputs?" If yes, it must be gitignored.
+
 ## Six workflow lanes
 
 Use this vocabulary consistently:
