@@ -14,15 +14,15 @@ test-results/
 !.tesseract/benchmarks/
 !.tesseract/benchmarks/scorecard.json
 
-# ── Synthetic clean room ─────────────────────────────────────────
-# The synthetic/dogfood suite is ephemeral by design.  The flywheel
-# proves itself by regenerating from scratch each run.  Nothing it
-# produces is tracked.
+# ── Dogfood clean room ───────────────────────────────────────────
+# Until production suites exist, all generated output is clean-room
+# output.  The flywheel proves itself by regenerating from scratch
+# each run.  Nothing it produces is tracked.
 #
-# Suite-name boundary (scenarios, generated):
+# All compiler output:
+generated/
+# Synthetic scenarios and fixtures (ID range 2xxxx):
 scenarios/synthetic/
-generated/synthetic/
-# ID-range boundary (fixtures, ado-sync — synthetic IDs are 2xxxx):
 fixtures/ado/2*.json
 .ado-sync/snapshots/2*.json
 .ado-sync/archive/2*/
