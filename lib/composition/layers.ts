@@ -20,21 +20,22 @@ export const ExecutionContextLive = (posture: ExecutionPosture) =>
     writeJournal: () => [] as WriteJournalEntry[],
   });
 
-export const RecordingFileSystemLive = (rootDir: string, posture: ExecutionPosture, journal: WriteJournalEntry[]) =>
+export const RecordingFileSystemLive = (rootDir: string, posture: ExecutionPosture, journal: WriteJournalEntry[], suiteRoot?: string) =>
   Layer.succeed(
     FileSystem,
     createRecordingWorkspaceFileSystem({
       rootDir,
+      suiteRoot,
       posture,
       delegate: LocalFileSystem,
       journal,
     }),
   );
 
-export const LocalServicesLive = (rootDir: string, posture: ExecutionPosture, journal: WriteJournalEntry[]) =>
+export const LocalServicesLive = (rootDir: string, posture: ExecutionPosture, journal: WriteJournalEntry[], suiteRoot?: string) =>
   Layer.mergeAll(
-    RecordingFileSystemLive(rootDir, posture, journal),
-    AdoSourceLive(rootDir),
+    RecordingFileSystemLive(rootDir, posture, journal, suiteRoot),
+    AdoSourceLive(rootDir, suiteRoot),
     RuntimeScenarioRunnerLive,
     ExecutionContextLive(posture),
   );

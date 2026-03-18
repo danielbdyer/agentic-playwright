@@ -8,14 +8,14 @@ import { LocalRuntimeScenarioRunner } from './local-runtime-scenario-runner';
 import type { ExecutionPosture, WriteJournalEntry } from '../domain/types';
 
 export interface LocalServiceOptions {
-  posture?: Partial<ExecutionPosture> | undefined;
-  suiteRoot?: string | undefined;
+  readonly posture?: Partial<ExecutionPosture> | undefined;
+  readonly suiteRoot?: string | undefined;
 }
 
 export interface LocalServiceContext {
-  posture: ExecutionPosture;
-  writeJournal(): readonly WriteJournalEntry[];
-  provide<A, E, R>(program: Effect.Effect<A, E, R>): Effect.Effect<A, E, never>;
+  readonly posture: ExecutionPosture;
+  readonly writeJournal: () => readonly WriteJournalEntry[];
+  readonly provide: <A, E, R>(program: Effect.Effect<A, E, R>) => Effect.Effect<A, E, never>;
 }
 
 function resolveExecutionPosture(posture?: Partial<ExecutionPosture> | undefined): ExecutionPosture {
@@ -84,9 +84,9 @@ export function provideLocalServices<A, E, R>(
 }
 
 export interface RunWithLocalServicesResult<A> {
-  result: A;
-  posture: ExecutionPosture;
-  wouldWrite: WriteJournalEntry[];
+  readonly result: A;
+  readonly posture: ExecutionPosture;
+  readonly wouldWrite: readonly WriteJournalEntry[];
 }
 
 export function runWithLocalServices<A, E, R>(

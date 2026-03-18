@@ -36,8 +36,8 @@ export interface AdoSourcePort {
 export type RuntimeScenarioMode = RuntimeInterpreterMode;
 
 export interface RuntimeScenarioStepResult {
-  interpretation: ResolutionReceipt;
-  execution: StepExecutionReceipt;
+  readonly interpretation: ResolutionReceipt;
+  readonly execution: StepExecutionReceipt;
 }
 
 export interface RuntimeScenarioRunnerPort {

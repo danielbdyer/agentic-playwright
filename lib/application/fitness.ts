@@ -91,6 +91,10 @@ function improvementTargetFor(failureClass: PipelineFailureClass): PipelineImpro
       return { kind: 'scoring', detail: 'Improve proposal ranking to prioritize high-yield proposals' };
     case 'trust-policy-over-block':
       return { kind: 'trust-policy', detail: 'Lower confidence thresholds or widen evidence requirements' };
+    default: {
+      const _exhaustive: never = failureClass;
+      return _exhaustive;
+    }
   }
 }
 
@@ -194,13 +198,31 @@ export function buildFitnessReport(data: FitnessInputData): PipelineFitnessRepor
     }
   }
 
+  // Check for convergence stall before building failure modes
+  const ledgerIterations = data.ledger.iterations;
+  const convergenceStalled = ledgerIterations.length >= 2
+    && (() => {
+      const last = ledgerIterations[ledgerIterations.length - 1]!;
+      const prev = ledgerIterations[ledgerIterations.length - 2]!;
+      return last.proposalsActivated > 0 && last.knowledgeHitRate <= prev.knowledgeHitRate;
+    })();
+
+  if (convergenceStalled && !failureMap.has('convergence-stall')) {
+    const last = ledgerIterations[ledgerIterations.length - 1]!;
+    failureMap.set('convergence-stall', {
+      count: 1,
+      affectedSteps: last.totalStepCount,
+      intents: ['convergence stalled: proposals generated but no hit rate improvement'],
+    });
+  }
+
   const failureModes: readonly PipelineFailureMode[] = [...failureMap.entries()]
     .sort(([, a], [, b]) => b.count - a.count)
-    .map(([cls, data]) => ({
+    .map(([cls, info]) => ({
       class: cls,
-      count: data.count,
-      affectedSteps: data.affectedSteps,
-      exampleIntents: data.intents,
+      count: info.count,
+      affectedSteps: info.affectedSteps,
+      exampleIntents: info.intents,
       improvementTarget: improvementTargetFor(cls),
     }));
 
@@ -210,6 +232,11 @@ export function buildFitnessReport(data: FitnessInputData): PipelineFitnessRepor
   const translationRelevant = steps.filter((s) =>
     s.winningSource === 'structured-translation' || s.translationMatched,
   );
+
+  const recoveryAttempted = steps.filter((s) => s.recoveryAttempts > 0);
+  const recoverySuccessRate = recoveryAttempted.length > 0
+    ? round4(recoveryAttempted.filter((s) => s.recoverySucceeded).length / recoveryAttempted.length)
+    : 1;
 
   const metrics: PipelineFitnessMetrics = {
     knowledgeHitRate: data.ledger.iterations.length > 0
@@ -229,32 +256,8 @@ export function buildFitnessReport(data: FitnessInputData): PipelineFitnessRepor
     degradedLocatorRate: totalSteps > 0
       ? round4(steps.filter((s) => s.degraded).length / totalSteps)
       : 0,
-    recoverySuccessRate: (() => {
-      const attempted = steps.filter((s) => s.recoveryAttempts > 0);
-      return attempted.length > 0
-        ? round4(attempted.filter((s) => s.recoverySucceeded).length / attempted.length)
-        : 1;
-    })(),
+    recoverySuccessRate,
   };
-
-  // Check for convergence stall
-  const ledgerIterations = data.ledger.iterations;
-  if (ledgerIterations.length >= 2) {
-    const last = ledgerIterations[ledgerIterations.length - 1]!;
-    const prev = ledgerIterations[ledgerIterations.length - 2]!;
-    if (last.proposalsActivated > 0 && last.knowledgeHitRate <= prev.knowledgeHitRate) {
-      const existing = failureMap.get('convergence-stall');
-      if (!existing) {
-        (failureModes as PipelineFailureMode[]).push({
-          class: 'convergence-stall',
-          count: 1,
-          affectedSteps: last.totalStepCount,
-          exampleIntents: ['convergence stalled: proposals generated but no hit rate improvement'],
-          improvementTarget: improvementTargetFor('convergence-stall'),
-        });
-      }
-    }
-  }
 
   // Scoring effectiveness — correlate bottleneck signals with improvement
   const scoringEffectiveness: ScoringEffectiveness = {
