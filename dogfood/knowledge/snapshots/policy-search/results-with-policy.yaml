@@ -1,0 +1,43 @@
+role: table
+name: Search Results
+children:
+  - role: rowgroup
+    children:
+      - role: row
+        children:
+          - role: columnheader
+            name: Policy Number
+            children:
+              - role: text
+                name: Policy Number
+                children:
+                  - role: InlineTextBox
+                    name: Policy Number
+          - role: columnheader
+            name: Status
+            children:
+              - role: text
+                name: Status
+                children:
+                  - role: InlineTextBox
+                    name: Status
+  - role: rowgroup
+    children:
+      - role: row
+        children:
+          - role: cell
+            name: POL-001
+            children:
+              - role: text
+                name: POL-001
+                children:
+                  - role: InlineTextBox
+                    name: POL-001
+          - role: cell
+            name: Active
+            children:
+              - role: text
+                name: Active
+                children:
+                  - role: InlineTextBox
+                    name: Active

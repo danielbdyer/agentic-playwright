@@ -1,0 +1,67 @@
+﻿screen: policy-search
+url: /policy-search.html
+sections:
+  search-form:
+    selector: "#search-form"
+    kind: form
+    surfaces:
+      - search-form
+      - search-actions
+      - validation-surface
+  results-with-policy:
+    selector: "[data-testid='search-results-table']"
+    url: /policy-search.html?seed=POL-001
+    kind: result-set
+    snapshot: snapshots/policy-search/results-with-policy.yaml
+    surfaces:
+      - results-grid
+surfaces:
+  search-form:
+    kind: form
+    section: search-form
+    selector: "#search-form"
+    parents: []
+    children:
+      - search-actions
+      - validation-surface
+    elements:
+      - policyNumberInput
+    assertions:
+      - state
+    required: true
+  search-actions:
+    kind: action-cluster
+    section: search-form
+    selector: "[data-testid='search-button']"
+    parents:
+      - search-form
+    children: []
+    elements:
+      - searchButton
+    assertions:
+      - state
+    required: true
+  validation-surface:
+    kind: validation-region
+    section: search-form
+    selector: "[data-testid='validation-summary']"
+    parents:
+      - search-form
+    children: []
+    elements:
+      - validationSummary
+    assertions:
+      - state
+    required: false
+  results-grid:
+    kind: result-set
+    section: results-with-policy
+    selector: "[data-testid='search-results-table']"
+    parents: []
+    children: []
+    elements:
+      - resultsTable
+    assertions:
+      - structure
+      - state
+    required: true

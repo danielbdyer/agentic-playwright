@@ -1,0 +1,34 @@
+{
+  "id": "20026",
+  "revision": 1,
+  "title": "Synthetic scenario 26: policy-search with 3 steps",
+  "suitePath": "synthetic/policy-detail",
+  "areaPath": "synthetic",
+  "iterationPath": "synthetic/sprint-1",
+  "tags": [
+    "synthetic",
+    "dogfood"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Access policy search</p>",
+      "expected": "<p>policy search loads successfully</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Activate search button</p>",
+      "expected": "<p>search button action completes</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Provide a valid value for policy number field</p>",
+      "expected": "<p>policy number field accepts the input</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:ce245a17c5cd306ae4ee3bcd41088830d22aff4c95d53a52b073cac6a648b139",
+  "syncedAt": "2026-03-17T23:21:17.903Z"
+}

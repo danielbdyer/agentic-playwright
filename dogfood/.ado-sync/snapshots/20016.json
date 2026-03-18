@@ -1,0 +1,44 @@
+{
+  "id": "20016",
+  "revision": 1,
+  "title": "Synthetic cross-screen scenario 16",
+  "suitePath": "synthetic/cross-screen",
+  "areaPath": "synthetic",
+  "iterationPath": "synthetic/sprint-1",
+  "tags": [
+    "synthetic",
+    "dogfood"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Browse to policy details</p>",
+      "expected": "<p>policy details loads successfully</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Select return to search</p>",
+      "expected": "<p>return to search action completes</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Switch to policy search</p>",
+      "expected": "<p>policy search loads successfully</p>"
+    },
+    {
+      "index": 4,
+      "action": "<p>Click search</p>",
+      "expected": "<p>search action completes</p>"
+    },
+    {
+      "index": 5,
+      "action": "<p>Observe search results content</p>",
+      "expected": "<p>search results is visible on screen</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:4c244dd9869776d2b8170c764089480c9291504a3b5fa3fdc031a449200e000e",
+  "syncedAt": "2026-03-17T23:21:17.894Z"
+}

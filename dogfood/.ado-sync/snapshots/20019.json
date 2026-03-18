@@ -1,0 +1,49 @@
+{
+  "id": "20019",
+  "revision": 1,
+  "title": "Synthetic cross-screen scenario 19",
+  "suitePath": "synthetic/cross-screen",
+  "areaPath": "synthetic",
+  "iterationPath": "synthetic/sprint-1",
+  "tags": [
+    "synthetic",
+    "dogfood"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Navigate to policy detail</p>",
+      "expected": "<p>policy detail loads successfully</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Check that policy number display is displayed</p>",
+      "expected": "<p>policy number display is visible on screen</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Check that policy status is displayed</p>",
+      "expected": "<p>policy status is visible on screen</p>"
+    },
+    {
+      "index": 4,
+      "action": "<p>Visit the policy search</p>",
+      "expected": "<p>policy search loads successfully</p>"
+    },
+    {
+      "index": 5,
+      "action": "<p>Verify validation summary is visible</p>",
+      "expected": "<p>validation summary is visible on screen</p>"
+    },
+    {
+      "index": 6,
+      "action": "<p>Validate results table is present</p>",
+      "expected": "<p>results table is visible on screen</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:3b22b83a8eec0921f832d66e6acfb749777b76552828bf7e1a34e119d9fa2148",
+  "syncedAt": "2026-03-17T23:21:17.894Z"
+}

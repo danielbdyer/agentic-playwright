@@ -1,0 +1,19 @@
+﻿screen: policy-search
+postures:
+  policyNumberInput:
+    valid:
+      values:
+        - POL-001
+      effects: []
+    invalid:
+      values:
+        - NOTAPOLICY
+      effects:
+        - target: validation-surface
+          targetKind: surface
+          state: visible
+          message: /no matching policy found/i
+    empty:
+      values:
+        - ""
+      effects: []

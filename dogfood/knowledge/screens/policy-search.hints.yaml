@@ -1,0 +1,52 @@
+screen: policy-search
+screenAliases:
+  - policy search
+  - policy search screen
+elements:
+  policyNumberInput:
+    aliases:
+      - policy number
+      - policy number field
+      - search field
+    defaultValueRef: "{{activePolicy.number}}"
+    parameter: policyNumber
+    affordance: text-entry
+  searchButton:
+    aliases:
+      - Access policy search
+      - Access policy search screen
+      - Activate search button
+      - Browse to policy search screen
+      - Load the policy search screen page
+      - search
+      - search button
+      - Trigger search button
+      - Visit the policy search screen
+    acquired:
+      certification: uncertified
+      activatedAt: 2026-03-17T23:35:47.652Z
+      certifiedAt: null
+      lineage:
+        runIds:
+          - 2026-03-17T23-35-47-177Z
+        evidenceIds:
+          - .tesseract/evidence/runs/20046/2026-03-17T23-35-47-177Z/step-5-0.json
+        sourceArtifactPaths:
+          - .tesseract/tasks/20046.resolution.json
+          - controls/runbooks/synthetic-dogfood.runbook.yaml
+          - controls/datasets/demo-default.dataset.yaml
+        role: null
+        state: null
+        driftSeed: null
+  resultsTable:
+    aliases:
+      - search results
+      - results table
+    snapshotAliases:
+      snapshots/policy-search/results-with-policy.yaml:
+        - verify search results show policy
+        - matching policy appears in search results
+  validationSummary:
+    aliases:
+      - validation summary
+      - error summary

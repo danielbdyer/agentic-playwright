@@ -1,0 +1,44 @@
+{
+  "id": "20001",
+  "revision": 1,
+  "title": "Synthetic scenario 1: policy-detail with 5 steps",
+  "suitePath": "synthetic/policy-detail",
+  "areaPath": "synthetic",
+  "iterationPath": "synthetic/sprint-1",
+  "tags": [
+    "synthetic",
+    "dogfood"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Go to the policy detail</p>",
+      "expected": "<p>policy detail loads successfully</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Trigger back to search</p>",
+      "expected": "<p>back to search action completes</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>See that policy number display is on screen</p>",
+      "expected": "<p>policy number display is visible on screen</p>"
+    },
+    {
+      "index": 4,
+      "action": "<p>Validate claims is present</p>",
+      "expected": "<p>claims is visible on screen</p>"
+    },
+    {
+      "index": 5,
+      "action": "<p>Verify error message is visible</p>",
+      "expected": "<p>error message is visible on screen</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:7bc9e2a2d1ae204c8d95f8ac1833ddb7b6d78c0e86abdb91ffda7704e8406e67",
+  "syncedAt": "2026-03-17T23:21:17.898Z"
+}
