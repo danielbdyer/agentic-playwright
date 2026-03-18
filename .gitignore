@@ -14,4 +14,5 @@ test-results/
 # Only pipeline code and the scorecard persist.
 scenarios/synthetic/
 generated/synthetic/
-.ado-sync/synthetic/
+.ado-sync/snapshots/2*.json
+.ado-sync/archive/2*/
