@@ -199,13 +199,12 @@ function camelize(value: string): string {
     .join('');
 }
 
-function ensureUniqueId(base: string, seen: Set<string>): string {
+function ensureUniqueId(base: string, seen: ReadonlySet<string>): readonly [string, ReadonlySet<string>] {
   const candidate = base || 'discoveredItem';
   const findUnique = (name: string, suffix: number): string =>
     seen.has(name) ? findUnique(`${candidate}${suffix}`, suffix + 1) : name;
   const result = findUnique(candidate, 2);
-  seen.add(result);
-  return result;
+  return [result, new Set([...seen, result])];
 }
 
 function surfaceKindForRole(role: string | null, tagName: string): SurfaceKind {
@@ -331,8 +330,7 @@ export function buildDiscoveryArtifacts(input: DiscoveryInput): DiscoveryArtifac
   const normalizedSnapshot = normalizeAriaSnapshot(input.rootSnapshot);
   const snapshotHash = computeNormalizedSnapshotHash(normalizedSnapshot);
   const sectionId = 'discovered-root';
-  const surfaceIdsBySelector = new Map<string, string>();
-  const discoveredSurfaceIds = new Set<string>();
+  const initialSurfaceIds: ReadonlySet<string> = new Set();
   const sortedSurfaces = sortSurfaces(input.surfaces);
   const normalizedSurfaces: readonly RawDiscoveredSurface[] = sortedSurfaces.length === 0
     ? [{
@@ -349,18 +347,24 @@ export function buildDiscoveryArtifacts(input: DiscoveryInput): DiscoveryArtifac
   const surfaceSelectors = new Set(normalizedSurfaces.map((surface) => surface.selector));
   const normalizedElements = sortElements(input.elements.filter((element) => !surfaceSelectors.has(element.selector)));
 
-  for (const surface of normalizedSurfaces) {
-    const baseId = createStableBaseId({
-      contract: surface.contract,
-      testId: surface.testId,
-      idAttribute: surface.idAttribute,
-      name: surface.name,
-      role: surface.role,
-      suffix: 'surface',
-    });
-    const surfaceId = ensureUniqueId(baseId, discoveredSurfaceIds);
-    surfaceIdsBySelector.set(surface.selector, surfaceId);
-  }
+  const { surfaceIdsBySelector, seenSurfaceIds } = normalizedSurfaces.reduce(
+    (acc, surface) => {
+      const baseId = createStableBaseId({
+        contract: surface.contract,
+        testId: surface.testId,
+        idAttribute: surface.idAttribute,
+        name: surface.name,
+        role: surface.role,
+        suffix: 'surface',
+      });
+      const [surfaceId, nextSeen] = ensureUniqueId(baseId, acc.seenSurfaceIds);
+      return {
+        surfaceIdsBySelector: new Map([...acc.surfaceIdsBySelector, [surface.selector, surfaceId]]),
+        seenSurfaceIds: nextSeen,
+      };
+    },
+    { surfaceIdsBySelector: new Map<string, string>(), seenSurfaceIds: initialSurfaceIds },
+  );
 
   const rootSurfaceId = normalizedSurfaces
     .filter((surface) => surface.parentSelector === null)
@@ -370,17 +374,10 @@ export function buildDiscoveryArtifacts(input: DiscoveryInput): DiscoveryArtifac
       .map((surface) => surfaceIdsBySelector.get(surface.selector))
       .find((value) => value !== undefined)
     ?? 'pageRoot';
-  const discoveredElementIds = new Set<string>();
-  const elementsBySurface = new Map<string, string[]>();
-  const childSurfacesByParent = new Map<string, string[]>();
-
-  const surfaceReports: DiscoverySurfaceReport[] = normalizedSurfaces.map((surface) => {
+  const surfaceReports: readonly DiscoverySurfaceReport[] = normalizedSurfaces.map((surface) => {
     const surfaceId = surfaceIdsBySelector.get(surface.selector) ?? rootSurfaceId;
     const parentSurfaceId = surface.parentSelector ? (surfaceIdsBySelector.get(surface.parentSelector) ?? null) : null;
     const assertions = surfaceAssertionsForRole(surface.role, surface.tagName);
-    if (parentSurfaceId) {
-      childSurfacesByParent.set(parentSurfaceId, [...(childSurfacesByParent.get(parentSurfaceId) ?? []), surfaceId]);
-    }
     return {
       id: surfaceId,
       selector: surface.selector,
@@ -393,43 +390,60 @@ export function buildDiscoveryArtifacts(input: DiscoveryInput): DiscoveryArtifac
     };
   });
 
-  const elementReports: DiscoveryElementReport[] = normalizedElements.map((element) => {
-    const role = element.role ?? 'region';
-    const widget = widgetForRole(role, element.inputType);
-    const elementId = ensureUniqueId(createStableBaseId({
-      contract: element.contract,
-      testId: element.testId,
-      idAttribute: element.idAttribute,
-      name: element.name,
-      role,
-      suffix: 'element',
-    }), discoveredElementIds);
-    const surfaceId = element.surfaceSelector
-      ? (surfaceIdsBySelector.get(element.surfaceSelector) ?? rootSurfaceId)
-      : rootSurfaceId;
-    const locatorHint = selectLocatorHint(element.testId, element.name);
-    const locatorCandidates = locatorCandidatesForElement({
-      selector: element.selector,
-      role,
-      name: element.name,
-      testId: element.testId,
-    });
-    elementsBySurface.set(surfaceId, [...(elementsBySurface.get(surfaceId) ?? []), elementId]);
+  const childSurfacesByParent: ReadonlyMap<string, readonly string[]> = surfaceReports.reduce(
+    (map, report) => report.parentSurfaceId
+      ? new Map([...map, [report.parentSurfaceId, [...(map.get(report.parentSurfaceId) ?? []), report.id]]])
+      : map,
+    new Map<string, readonly string[]>(),
+  );
 
-    return {
-      id: elementId,
-      selector: element.selector,
-      surfaceId,
-      role,
-      name: element.name,
-      testId: element.testId,
-      widgetSuggestion: widget,
-      locatorHint,
-      locatorCandidates,
-      supportedActions: supportedActionsForRole(role, widget),
-      required: element.required,
-    };
-  });
+  const { elementReports, elementsBySurface } = normalizedElements.reduce(
+    (acc, element) => {
+      const role = element.role ?? 'region';
+      const widget = widgetForRole(role, element.inputType);
+      const [elementId, nextSeen] = ensureUniqueId(createStableBaseId({
+        contract: element.contract,
+        testId: element.testId,
+        idAttribute: element.idAttribute,
+        name: element.name,
+        role,
+        suffix: 'element',
+      }), acc.seenIds);
+      const surfaceId = element.surfaceSelector
+        ? (surfaceIdsBySelector.get(element.surfaceSelector) ?? rootSurfaceId)
+        : rootSurfaceId;
+      const locatorHint = selectLocatorHint(element.testId, element.name);
+      const locatorCandidates = locatorCandidatesForElement({
+        selector: element.selector,
+        role,
+        name: element.name,
+        testId: element.testId,
+      });
+      const report: DiscoveryElementReport = {
+        id: elementId,
+        selector: element.selector,
+        surfaceId,
+        role,
+        name: element.name,
+        testId: element.testId,
+        widgetSuggestion: widget,
+        locatorHint,
+        locatorCandidates,
+        supportedActions: supportedActionsForRole(role, widget),
+        required: element.required,
+      };
+      return {
+        elementReports: [...acc.elementReports, report],
+        elementsBySurface: new Map([...acc.elementsBySurface, [surfaceId, [...(acc.elementsBySurface.get(surfaceId) ?? []), elementId]]]),
+        seenIds: nextSeen,
+      };
+    },
+    {
+      elementReports: [] as readonly DiscoveryElementReport[],
+      elementsBySurface: new Map<string, readonly string[]>(),
+      seenIds: seenSurfaceIds,
+    },
+  );
 
   const surfaceNotes: DiscoveryReviewNote[] = surfaceReports
     .filter((surface) => !surface.name && !surface.testId)
@@ -528,6 +542,8 @@ export function buildDiscoveryArtifacts(input: DiscoveryInput): DiscoveryArtifac
 
   const surfaceById = new Map(surfaceReports.map((surface) => [surface.id, surface] as const));
   const elementById = new Map(elementReports.map((element) => [element.id, element] as const));
+  // Pure memoization cache — depthForSurface computes a deterministic result
+  // from the immutable surfaceById map. Cache mutation is confined to this closure.
   const depthCache = new Map<string, number>();
 
   function depthForSurface(surfaceId: string): number {
@@ -642,8 +658,8 @@ export function buildDiscoveryArtifacts(input: DiscoveryInput): DiscoveryArtifac
       title: input.title,
       rootSelector: input.rootSelector,
       snapshotHash,
-      surfaces: surfaceReports,
-      elements: elementReports,
+      surfaces: surfaceReports as DiscoverySurfaceReport[],
+      elements: elementReports as DiscoveryElementReport[],
       reviewNotes: [...notes].sort((left, right) => `${left.targetKind}:${left.targetId}:${left.code}`.localeCompare(`${right.targetKind}:${right.targetId}:${right.code}`)),
     },
     surfaceScaffold,

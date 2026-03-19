@@ -117,7 +117,7 @@ export function applyProposalDraftsToRuntimeContext(
       continue;
     }
     if (!element.aliases.includes(alias)) {
-      element.aliases = [...element.aliases, alias].sort((left, right) => left.localeCompare(right));
+      (element as { aliases: readonly string[] }).aliases = [...element.aliases, alias].sort((left, right) => left.localeCompare(right));
     }
   }
 }

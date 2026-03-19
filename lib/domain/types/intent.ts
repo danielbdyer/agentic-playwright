@@ -18,84 +18,84 @@ import type {
 } from './workflow';
 
 export interface RefPath {
-  segments: string[];
+  readonly segments: readonly string[];
 }
 
 export interface AdoStep {
-  index: number;
-  action: string;
-  expected: string;
-  sharedStepId?: string | undefined;
+  readonly index: number;
+  readonly action: string;
+  readonly expected: string;
+  readonly sharedStepId?: string | undefined;
 }
 
 export interface AdoParameter {
-  name: string;
-  values: string[];
+  readonly name: string;
+  readonly values: readonly string[];
 }
 
 export interface AdoSnapshot {
-  id: AdoId;
-  revision: number;
-  title: string;
-  suitePath: string;
-  areaPath: string;
-  iterationPath: string;
-  tags: string[];
-  priority: number;
-  steps: AdoStep[];
-  parameters: AdoParameter[];
-  dataRows: Record<string, string>[];
-  contentHash: string;
-  syncedAt: string;
+  readonly id: AdoId;
+  readonly revision: number;
+  readonly title: string;
+  readonly suitePath: string;
+  readonly areaPath: string;
+  readonly iterationPath: string;
+  readonly tags: readonly string[];
+  readonly priority: number;
+  readonly steps: readonly AdoStep[];
+  readonly parameters: readonly AdoParameter[];
+  readonly dataRows: readonly Readonly<Record<string, string>>[];
+  readonly contentHash: string;
+  readonly syncedAt: string;
 }
 
 export interface ScenarioSource {
-  ado_id: AdoId;
-  revision: number;
-  content_hash: string;
-  synced_at: string;
+  readonly ado_id: AdoId;
+  readonly revision: number;
+  readonly content_hash: string;
+  readonly synced_at: string;
 }
 
 export interface ScenarioMetadata {
-  title: string;
-  suite: string;
-  tags: string[];
-  priority: number;
-  status: import('./workflow').ScenarioStatus;
-  status_detail: string | null;
+  readonly title: string;
+  readonly suite: string;
+  readonly tags: readonly string[];
+  readonly priority: number;
+  readonly status: import('./workflow').ScenarioStatus;
+  readonly status_detail: string | null;
 }
 
 export interface ScenarioPrecondition {
-  fixture: FixtureId;
-  params?: Record<string, string> | undefined;
+  readonly fixture: FixtureId;
+  readonly params?: Readonly<Record<string, string>> | undefined;
 }
 
 export interface ValueRefLiteral {
-  kind: 'literal';
-  value: string;
+  readonly kind: 'literal';
+  readonly value: string;
 }
 
 export interface ValueRefFixturePath {
-  kind: 'fixture-path';
-  path: RefPath;
+  readonly kind: 'fixture-path';
+  readonly path: RefPath;
 }
 
 export interface ValueRefPostureSample {
-  kind: 'posture-sample';
-  element: ElementId;
-  posture: PostureId;
-  sampleIndex: number;
+  readonly kind: 'posture-sample';
+  readonly element: ElementId;
+  readonly posture: PostureId;
+  readonly sampleIndex: number;
 }
 
 export interface ValueRefParameterRow {
-  kind: 'parameter-row';
-  name: string;
-  rowIndex: number;
+  readonly kind: 'parameter-row';
+  readonly name: string;
+  readonly rowIndex: number;
 }
 
 export interface ValueRefGeneratedToken {
-  kind: 'generated-token';
-  token: string;
+  readonly kind: 'generated-token';
+  readonly token: string;
 }
 
 export type ValueRef =
@@ -113,64 +113,64 @@ export type StepInstruction =
   | { kind: 'custom-escape-hatch'; reason: string };
 
 export interface StepProgram {
-  kind: 'step-program';
-  instructions: StepInstruction[];
+  readonly kind: 'step-program';
+  readonly instructions: readonly StepInstruction[];
 }
 
 export interface StepResolution {
-  action?: StepAction | null | undefined;
-  screen?: ScreenId | null | undefined;
-  element?: ElementId | null | undefined;
-  posture?: PostureId | null | undefined;
-  override?: string | null | undefined;
-  snapshot_template?: SnapshotTemplateId | null | undefined;
+  readonly action?: StepAction | null | undefined;
+  readonly screen?: ScreenId | null | undefined;
+  readonly element?: ElementId | null | undefined;
+  readonly posture?: PostureId | null | undefined;
+  readonly override?: string | null | undefined;
+  readonly snapshot_template?: SnapshotTemplateId | null | undefined;
 }
 
 export interface ScenarioStep {
-  index: number;
-  intent: string;
-  action_text: string;
-  expected_text: string;
-  action: StepAction;
-  screen?: ScreenId | null | undefined;
-  element?: ElementId | null | undefined;
-  posture?: PostureId | null | undefined;
-  override?: string | null | undefined;
-  snapshot_template?: SnapshotTemplateId | null | undefined;
-  resolution?: StepResolution | null | undefined;
-  confidence: Confidence;
+  readonly index: number;
+  readonly intent: string;
+  readonly action_text: string;
+  readonly expected_text: string;
+  readonly action: StepAction;
+  readonly screen?: ScreenId | null | undefined;
+  readonly element?: ElementId | null | undefined;
+  readonly posture?: PostureId | null | undefined;
+  readonly override?: string | null | undefined;
+  readonly snapshot_template?: SnapshotTemplateId | null | undefined;
+  readonly resolution?: StepResolution | null | undefined;
+  readonly confidence: Confidence;
 }
 
 export interface ScenarioPostcondition {
-  action: StepAction;
-  screen?: ScreenId | null | undefined;
-  element?: ElementId | null | undefined;
-  posture?: PostureId | null | undefined;
-  override?: string | null | undefined;
-  snapshot_template?: SnapshotTemplateId | null | undefined;
+  readonly action: StepAction;
+  readonly screen?: ScreenId | null | undefined;
+  readonly element?: ElementId | null | undefined;
+  readonly posture?: PostureId | null | undefined;
+  readonly override?: string | null | undefined;
+  readonly snapshot_template?: SnapshotTemplateId | null | undefined;
 }
 
 export interface Scenario {
-  source: ScenarioSource;
-  metadata: ScenarioMetadata;
-  preconditions: ScenarioPrecondition[];
-  steps: ScenarioStep[];
-  postconditions: ScenarioPostcondition[];
+  readonly source: ScenarioSource;
+  readonly metadata: ScenarioMetadata;
+  readonly preconditions: readonly ScenarioPrecondition[];
+  readonly steps: readonly ScenarioStep[];
+  readonly postconditions: readonly ScenarioPostcondition[];
 }
 
 export interface BoundStep extends ScenarioStep {
-  binding: {
-    kind: StepBindingKind;
-    reasons: string[];
-    ruleId: string | null;
-    normalizedIntent: string;
-    knowledgeRefs: string[];
-    supplementRefs: string[];
-    evidenceIds: string[];
-    governance: Governance;
-    reviewReasons: string[];
+  readonly binding: {
+    readonly kind: StepBindingKind;
+    readonly reasons: readonly string[];
+    readonly ruleId: string | null;
+    readonly normalizedIntent: string;
+    readonly knowledgeRefs: readonly string[];
+    readonly supplementRefs: readonly string[];
+    readonly evidenceIds: readonly string[];
+    readonly governance: Governance;
+    readonly reviewReasons: readonly string[];
   };
-  program?: StepProgram | undefined;
+  readonly program?: StepProgram | undefined;
 }
 
 export interface GroundedFlowStep {
@@ -212,22 +212,22 @@ export interface GroundedSpecFlow {
 }
 
 export interface BoundScenario extends Omit<Scenario, 'steps'> {
-  kind: 'bound-scenario';
-  version: 1;
-  stage: 'preparation';
-  scope: 'scenario';
-  ids: WorkflowEnvelopeIds;
-  fingerprints: WorkflowEnvelopeFingerprints;
-  lineage: WorkflowEnvelopeLineage;
-  governance: Governance;
-  payload: {
-    source: ScenarioSource;
-    metadata: ScenarioMetadata;
-    preconditions: ScenarioPrecondition[];
-    steps: BoundStep[];
-    postconditions: ScenarioPostcondition[];
-    diagnostics: CompilerDiagnostic[];
+  readonly kind: 'bound-scenario';
+  readonly version: 1;
+  readonly stage: 'preparation';
+  readonly scope: 'scenario';
+  readonly ids: WorkflowEnvelopeIds;
+  readonly fingerprints: WorkflowEnvelopeFingerprints;
+  readonly lineage: WorkflowEnvelopeLineage;
+  readonly governance: Governance;
+  readonly payload: {
+    readonly source: ScenarioSource;
+    readonly metadata: ScenarioMetadata;
+    readonly preconditions: readonly ScenarioPrecondition[];
+    readonly steps: readonly BoundStep[];
+    readonly postconditions: readonly ScenarioPostcondition[];
+    readonly diagnostics: readonly CompilerDiagnostic[];
   };
-  steps: BoundStep[];
-  diagnostics: CompilerDiagnostic[];
+  readonly steps: readonly BoundStep[];
+  readonly diagnostics: readonly CompilerDiagnostic[];
 }

@@ -48,7 +48,7 @@ export interface LatticeCandidate<T> {
     agentProposed: number;
   };
   summary: string;
-  refs: string[];
+  refs: readonly string[];
 }
 
 export interface RankedLattice<T> {
@@ -135,7 +135,7 @@ function asRanked<T>(entries: Array<LatticeCandidate<T>>): RankedLattice<T> {
   return { selected: ranked[0] ?? null, ranked };
 }
 
-function groundedScreens(task: GroundedStep, resolutionContext: InterfaceResolutionContext): StepTaskScreenCandidate[] {
+function groundedScreens(task: GroundedStep, resolutionContext: InterfaceResolutionContext): readonly StepTaskScreenCandidate[] {
   const routeVariantRefs = new Set(task.grounding.routeVariantRefs);
   if (routeVariantRefs.size === 0) {
     return resolutionContext.screens;
@@ -143,7 +143,7 @@ function groundedScreens(task: GroundedStep, resolutionContext: InterfaceResolut
   return resolutionContext.screens.filter((screen) => screen.routeVariantRefs.some((ref) => routeVariantRefs.has(ref)));
 }
 
-function groundedElements(task: GroundedStep, screen: StepTaskScreenCandidate): StepTaskElementCandidate[] {
+function groundedElements(task: GroundedStep, screen: StepTaskScreenCandidate): readonly StepTaskElementCandidate[] {
   const targetRefs = new Set(task.grounding.targetRefs);
   if (targetRefs.size === 0) {
     return screen.elements;

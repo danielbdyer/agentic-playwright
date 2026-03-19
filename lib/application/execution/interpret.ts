@@ -1,6 +1,7 @@
 import { Effect } from 'effect';
 import type { AdoId } from '../../domain/identity';
 import type { ResolutionGraphRecord, ResolutionReceipt, ScenarioRunPlan, ScenarioInterpretationSurface, StepResolutionGraph, GroundedStep } from '../../domain/types';
+import { WINNING_SOURCE_TO_RUNG } from '../../domain/visitors';
 import type { RuntimeScenarioRunnerPort, RuntimeScenarioStepResult } from '../ports';
 import { resolveResolutionEngine } from '../provider-registry';
 import { validateStepResults } from './validate-step-results';
@@ -52,21 +53,9 @@ function buildStepResolutionGraph(step: RuntimeScenarioStepResult, task: Grounde
       rung: toRung(entry.stage) as Exclude<StepResolutionGraph['winner']['rung'], 'needs-human'>,
       candidates: scoreCandidates(entry.topCandidates!),
     }));
-  const winnerRung = receipt.kind === 'needs-human'
+  const winnerRung = (receipt.kind === 'needs-human'
     ? 'needs-human'
-    : receipt.winningSource === 'scenario-explicit'
-      ? 'explicit'
-      : receipt.winningSource === 'resolution-control'
-        ? 'control'
-        : receipt.winningSource === 'approved-equivalent'
-          ? 'approved-equivalent-overlay'
-          : receipt.winningSource === 'structured-translation'
-            ? 'structured-translation'
-            : receipt.winningSource === 'live-dom'
-              ? 'live-dom'
-              : receipt.winningSource === 'prior-evidence'
-                ? 'prior-evidence'
-                : 'approved-screen-knowledge';
+    : WINNING_SOURCE_TO_RUNG[receipt.winningSource]) as StepResolutionGraph['winner']['rung'];
 
   return {
     precedenceTraversal: traversal,

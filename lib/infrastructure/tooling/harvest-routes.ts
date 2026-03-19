@@ -7,6 +7,7 @@ import { sha256, stableStringify } from '../../domain/hash';
 import { createCanonicalTargetRef, createElementId } from '../../domain/identity';
 import type {
   DiscoveryIndex,
+  DiscoveryIndexEntry,
   DiscoveryRun,
   EventSignature,
   HarvestManifest,
@@ -165,7 +166,7 @@ function fingerprintDiscoveryIndex(index: DiscoveryIndex): string {
 
 function behaviorArtifactsForScreen(catalog: WorkspaceCatalog, screen: string): Array<{
   artifactPath: string;
-  artifact: ScreenBehavior | { stateNodes: StateNode[]; eventSignatures: EventSignature[]; transitions: StateTransition[] };
+  artifact: ScreenBehavior | { stateNodes: readonly StateNode[]; eventSignatures: readonly EventSignature[]; transitions: readonly StateTransition[] };
 }> {
   return [
     ...catalog.screenBehaviors
@@ -208,9 +209,9 @@ function buildHarvestStateGraph(input: {
       events: [...events.values()],
       transitions: [...transitions.values()],
     }))}`,
-    stateRefs: [...states.keys()].sort((left, right) => left.localeCompare(right)) as StateTransitionGraph['stateRefs'],
-    eventSignatureRefs: [...events.keys()].sort((left, right) => left.localeCompare(right)) as StateTransitionGraph['eventSignatureRefs'],
-    transitionRefs: [...transitions.keys()].sort((left, right) => left.localeCompare(right)) as StateTransitionGraph['transitionRefs'],
+    stateRefs: [...states.keys()].sort((left, right) => left.localeCompare(right)) as unknown as StateTransitionGraph['stateRefs'],
+    eventSignatureRefs: [...events.keys()].sort((left, right) => left.localeCompare(right)) as unknown as StateTransitionGraph['eventSignatureRefs'],
+    transitionRefs: [...transitions.keys()].sort((left, right) => left.localeCompare(right)) as unknown as StateTransitionGraph['transitionRefs'],
     states: [...states.values()].sort((left, right) => left.ref.localeCompare(right.ref)),
     eventSignatures: [...events.values()].sort((left, right) => left.ref.localeCompare(right.ref)),
     transitions: [...transitions.values()].sort((left, right) => left.ref.localeCompare(right.ref)),
@@ -322,8 +323,8 @@ async function collectBehaviorObservations(input: {
       }))
       .sort((left, right) => left.eventSignatureRef.localeCompare(right.eventSignatureRef));
 
-    const transitionObservations: DiscoveryRun['transitionObservations'] = [];
-    const observationDiffs: DiscoveryRun['observationDiffs'] = [];
+    const transitionObservations: Array<DiscoveryRun['transitionObservations'][number]> = [];
+    const observationDiffs: Array<DiscoveryRun['observationDiffs'][number]> = [];
 
     for (const event of stateGraph.eventSignatures.filter((entry) => entry.screen === input.screen)) {
       const page = await browser.newPage();
@@ -444,7 +445,7 @@ export function harvestDeclaredRoutes(options: {
 
     for (const manifest of manifests) {
       const appIndexPath = path.join(options.paths.discoveryDir, manifest.artifact.app, 'index.json');
-      const appReceipts: DiscoveryIndex['receipts'] = [];
+      const appReceipts: DiscoveryIndexEntry[] = [];
 
       for (const route of manifest.artifact.routes) {
         for (const variant of route.variants) {

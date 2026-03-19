@@ -43,41 +43,33 @@ export function provenanceKindForBoundStep(step: BoundStep): StepProvenanceKind 
   return 'approved-knowledge';
 }
 
-export function summarizeProvenanceKinds(steps: BoundStep[]): CountByProvenanceKind {
-  const counts = defaultProvenanceCounts();
-  for (const step of steps) {
-    counts[provenanceKindForBoundStep(step)] += 1;
-  }
-  return counts;
+export function summarizeProvenanceKinds(steps: readonly BoundStep[]): CountByProvenanceKind {
+  return steps.reduce<CountByProvenanceKind>(
+    (counts, step) => {
+      const kind = provenanceKindForBoundStep(step);
+      return { ...counts, [kind]: counts[kind] + 1 };
+    },
+    defaultProvenanceCounts(),
+  );
 }
 
-export function summarizeGovernance(steps: BoundStep[]): CountByGovernance {
-  const counts = defaultGovernanceCounts();
-  for (const step of steps) {
-    counts[step.binding.governance] += 1;
-  }
-  return counts;
+export function summarizeGovernance(steps: readonly BoundStep[]): CountByGovernance {
+  return steps.reduce<CountByGovernance>(
+    (counts, step) => ({ ...counts, [step.binding.governance]: counts[step.binding.governance] + 1 }),
+    defaultGovernanceCounts(),
+  );
 }
 
-export function summarizeUnresolvedReasons(steps: BoundStep[]): CountedReason[] {
-  const counts = new Map<string, number>();
-
-  for (const step of steps) {
-    for (const reason of step.binding.reasons) {
-      counts.set(reason, (counts.get(reason) ?? 0) + 1);
-    }
-    if (step.binding.kind === 'deferred') {
-      counts.set('runtime-resolution-required', (counts.get('runtime-resolution-required') ?? 0) + 1);
-    }
-  }
-
+export function summarizeUnresolvedReasons(steps: readonly BoundStep[]): readonly CountedReason[] {
+  const allReasons = steps.flatMap((step) => [
+    ...step.binding.reasons,
+    ...(step.binding.kind === 'deferred' ? ['runtime-resolution-required'] : []),
+  ]);
+  const counts = allReasons.reduce<ReadonlyMap<string, number>>(
+    (map, reason) => new Map([...map, [reason, (map.get(reason) ?? 0) + 1]]),
+    new Map(),
+  );
   return [...counts.entries()]
     .map(([reason, count]) => ({ reason, count }))
-    .sort((left, right) => {
-      const countOrder = right.count - left.count;
-      if (countOrder !== 0) {
-        return countOrder;
-      }
-      return left.reason.localeCompare(right.reason);
-    });
+    .sort((left, right) => right.count - left.count || left.reason.localeCompare(right.reason));
 }

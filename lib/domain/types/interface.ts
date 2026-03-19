@@ -40,258 +40,258 @@ export type InterfaceGraphEdgeKind =
   | 'results-in-state';
 
 export interface InterfaceGraphNode {
-  id: string;
-  kind: InterfaceGraphNodeKind;
-  label: string;
-  fingerprint: string;
-  route?: RouteId | null | undefined;
-  variant?: RouteVariantId | null | undefined;
-  screen?: ScreenId | null | undefined;
-  section?: SectionId | null | undefined;
-  surface?: SurfaceId | null | undefined;
-  element?: ElementId | null | undefined;
-  snapshotTemplate?: SnapshotTemplateId | null | undefined;
-  targetRef?: CanonicalTargetRef | null | undefined;
-  artifactPaths: string[];
-  source: 'approved-knowledge' | 'discovery' | 'derived-working';
-  payload?: Record<string, unknown> | undefined;
+  readonly id: string;
+  readonly kind: InterfaceGraphNodeKind;
+  readonly label: string;
+  readonly fingerprint: string;
+  readonly route?: RouteId | null | undefined;
+  readonly variant?: RouteVariantId | null | undefined;
+  readonly screen?: ScreenId | null | undefined;
+  readonly section?: SectionId | null | undefined;
+  readonly surface?: SurfaceId | null | undefined;
+  readonly element?: ElementId | null | undefined;
+  readonly snapshotTemplate?: SnapshotTemplateId | null | undefined;
+  readonly targetRef?: CanonicalTargetRef | null | undefined;
+  readonly artifactPaths: readonly string[];
+  readonly source: 'approved-knowledge' | 'discovery' | 'derived-working';
+  readonly payload?: Readonly<Record<string, unknown>> | undefined;
 }
 
 export interface InterfaceGraphEdge {
-  id: string;
-  kind: InterfaceGraphEdgeKind;
-  from: string;
-  to: string;
-  fingerprint: string;
-  lineage: string[];
-  payload?: Record<string, unknown> | undefined;
+  readonly id: string;
+  readonly kind: InterfaceGraphEdgeKind;
+  readonly from: string;
+  readonly to: string;
+  readonly fingerprint: string;
+  readonly lineage: readonly string[];
+  readonly payload?: Readonly<Record<string, unknown>> | undefined;
 }
 
 export interface DiscoveryObservedSurface {
-  id: SurfaceId;
-  targetRef: CanonicalTargetRef;
-  section: SectionId;
-  selector: string;
-  role: string | null;
-  name: string | null;
-  kind: SurfaceKind;
-  assertions: AssertionKind[];
-  testId: string | null;
+  readonly id: SurfaceId;
+  readonly targetRef: CanonicalTargetRef;
+  readonly section: SectionId;
+  readonly selector: string;
+  readonly role: string | null;
+  readonly name: string | null;
+  readonly kind: SurfaceKind;
+  readonly assertions: readonly AssertionKind[];
+  readonly testId: string | null;
 }
 
 export interface DiscoveryObservedElement {
-  id: ElementId;
-  targetRef: CanonicalTargetRef;
-  surface: SurfaceId;
-  selector: string;
-  role: string;
-  name: string | null;
-  testId: string | null;
-  widget: string;
-  required: boolean;
-  locatorHint: 'test-id' | 'role-name' | 'css';
-  locatorCandidates: LocatorStrategy[];
+  readonly id: ElementId;
+  readonly targetRef: CanonicalTargetRef;
+  readonly surface: SurfaceId;
+  readonly selector: string;
+  readonly role: string;
+  readonly name: string | null;
+  readonly testId: string | null;
+  readonly widget: string;
+  readonly required: boolean;
+  readonly locatorHint: 'test-id' | 'role-name' | 'css';
+  readonly locatorCandidates: readonly LocatorStrategy[];
 }
 
 export interface DiscoveryTarget {
-  targetRef: CanonicalTargetRef;
-  graphNodeId: string;
-  kind: 'surface' | 'element' | 'snapshot-anchor';
-  screen: ScreenId;
-  section?: SectionId | null | undefined;
-  surface?: SurfaceId | null | undefined;
-  element?: ElementId | null | undefined;
-  snapshotTemplate?: SnapshotTemplateId | null | undefined;
+  readonly targetRef: CanonicalTargetRef;
+  readonly graphNodeId: string;
+  readonly kind: 'surface' | 'element' | 'snapshot-anchor';
+  readonly screen: ScreenId;
+  readonly section?: SectionId | null | undefined;
+  readonly surface?: SurfaceId | null | undefined;
+  readonly element?: ElementId | null | undefined;
+  readonly snapshotTemplate?: SnapshotTemplateId | null | undefined;
 }
 
 export interface SelectorProbe {
-  id: string;
-  selectorRef: SelectorRef;
-  strategy: LocatorStrategy;
-  source: 'approved-knowledge' | 'discovery' | 'evidence';
-  status: 'healthy' | 'degraded' | 'unverified';
-  rung: number;
-  artifactPath: string;
-  variantRefs: string[];
-  validWhenStateRefs: StateNodeRef[];
-  invalidWhenStateRefs: StateNodeRef[];
-  discoveredFrom?: string | null | undefined;
-  evidenceRefs: string[];
-  successCount: number;
-  failureCount: number;
-  lastUsedAt?: string | null | undefined;
-  lineage: {
-    sourceArtifactPaths: string[];
-    discoveryRunIds: string[];
-    evidenceRefs: string[];
+  readonly id: string;
+  readonly selectorRef: SelectorRef;
+  readonly strategy: LocatorStrategy;
+  readonly source: 'approved-knowledge' | 'discovery' | 'evidence';
+  readonly status: 'healthy' | 'degraded' | 'unverified';
+  readonly rung: number;
+  readonly artifactPath: string;
+  readonly variantRefs: readonly string[];
+  readonly validWhenStateRefs: readonly StateNodeRef[];
+  readonly invalidWhenStateRefs: readonly StateNodeRef[];
+  readonly discoveredFrom?: string | null | undefined;
+  readonly evidenceRefs: readonly string[];
+  readonly successCount: number;
+  readonly failureCount: number;
+  readonly lastUsedAt?: string | null | undefined;
+  readonly lineage: {
+    readonly sourceArtifactPaths: readonly string[];
+    readonly discoveryRunIds: readonly string[];
+    readonly evidenceRefs: readonly string[];
   };
 }
 
 export interface DiscoveryRun {
-  kind: 'discovery-run';
-  version: 2;
-  stage: 'preparation';
-  scope: 'workspace';
-  governance: 'approved';
-  app: string;
-  routeId: RouteId;
-  variantId: RouteVariantId;
-  routeVariantRef: string;
-  runId: string;
-  screen: ScreenId;
-  url: string;
-  title: string;
-  discoveredAt: string;
-  artifactPath: string;
-  rootSelector: string;
-  snapshotHash: string;
-  sections: Array<{
-    id: SectionId;
-    depth: number;
-    selector: string;
-    surfaceIds: SurfaceId[];
-    elementIds: ElementId[];
+  readonly kind: 'discovery-run';
+  readonly version: 2;
+  readonly stage: 'preparation';
+  readonly scope: 'workspace';
+  readonly governance: 'approved';
+  readonly app: string;
+  readonly routeId: RouteId;
+  readonly variantId: RouteVariantId;
+  readonly routeVariantRef: string;
+  readonly runId: string;
+  readonly screen: ScreenId;
+  readonly url: string;
+  readonly title: string;
+  readonly discoveredAt: string;
+  readonly artifactPath: string;
+  readonly rootSelector: string;
+  readonly snapshotHash: string;
+  readonly sections: ReadonlyArray<{
+    readonly id: SectionId;
+    readonly depth: number;
+    readonly selector: string;
+    readonly surfaceIds: readonly SurfaceId[];
+    readonly elementIds: readonly ElementId[];
   }>;
-  surfaces: DiscoveryObservedSurface[];
-  elements: DiscoveryObservedElement[];
-  snapshotAnchors: string[];
-  targets: DiscoveryTarget[];
-  reviewNotes: Array<{
-    code: 'missing-accessible-name' | 'css-fallback-only' | 'state-exploration-recommended';
-    message: string;
-    targetId: string;
-    targetKind: 'surface' | 'element' | 'snapshot-anchor';
+  readonly surfaces: readonly DiscoveryObservedSurface[];
+  readonly elements: readonly DiscoveryObservedElement[];
+  readonly snapshotAnchors: readonly string[];
+  readonly targets: readonly DiscoveryTarget[];
+  readonly reviewNotes: ReadonlyArray<{
+    readonly code: 'missing-accessible-name' | 'css-fallback-only' | 'state-exploration-recommended';
+    readonly message: string;
+    readonly targetId: string;
+    readonly targetKind: 'surface' | 'element' | 'snapshot-anchor';
   }>;
-  selectorProbes: Array<{
-    id: string;
-    selectorRef: SelectorRef;
-    targetRef: CanonicalTargetRef;
-    graphNodeId: string;
-    screen: ScreenId;
-    section?: SectionId | null | undefined;
-    element?: ElementId | null | undefined;
-    strategy: LocatorStrategy;
-    source: 'discovery';
-    variantRef: string;
-    validWhenStateRefs: StateNodeRef[];
-    invalidWhenStateRefs: StateNodeRef[];
+  readonly selectorProbes: ReadonlyArray<{
+    readonly id: string;
+    readonly selectorRef: SelectorRef;
+    readonly targetRef: CanonicalTargetRef;
+    readonly graphNodeId: string;
+    readonly screen: ScreenId;
+    readonly section?: SectionId | null | undefined;
+    readonly element?: ElementId | null | undefined;
+    readonly strategy: LocatorStrategy;
+    readonly source: 'discovery';
+    readonly variantRef: string;
+    readonly validWhenStateRefs: readonly StateNodeRef[];
+    readonly invalidWhenStateRefs: readonly StateNodeRef[];
   }>;
-  stateObservations: Array<{
-    stateRef: StateNodeRef;
-    source: 'baseline' | 'active-harvest';
-    observed: boolean;
-    detail?: Record<string, string> | undefined;
+  readonly stateObservations: ReadonlyArray<{
+    readonly stateRef: StateNodeRef;
+    readonly source: 'baseline' | 'active-harvest';
+    readonly observed: boolean;
+    readonly detail?: Readonly<Record<string, string>> | undefined;
   }>;
-  eventCandidates: Array<{
-    eventSignatureRef: EventSignatureRef;
-    targetRef: CanonicalTargetRef;
-    action: 'navigate' | 'input' | 'click' | 'assert-snapshot' | 'custom';
-    source: 'approved-behavior' | 'active-harvest';
+  readonly eventCandidates: ReadonlyArray<{
+    readonly eventSignatureRef: EventSignatureRef;
+    readonly targetRef: CanonicalTargetRef;
+    readonly action: 'navigate' | 'input' | 'click' | 'assert-snapshot' | 'custom';
+    readonly source: 'approved-behavior' | 'active-harvest';
   }>;
-  transitionObservations: TransitionObservation[];
-  observationDiffs: Array<{
-    beforeStateRef: StateNodeRef | null;
-    afterStateRef: StateNodeRef | null;
-    eventSignatureRef?: EventSignatureRef | null | undefined;
-    transitionRef?: TransitionRef | null | undefined;
-    classification: 'observed' | 'missing' | 'unexpected';
+  readonly transitionObservations: readonly TransitionObservation[];
+  readonly observationDiffs: ReadonlyArray<{
+    readonly beforeStateRef: StateNodeRef | null;
+    readonly afterStateRef: StateNodeRef | null;
+    readonly eventSignatureRef?: EventSignatureRef | null | undefined;
+    readonly transitionRef?: TransitionRef | null | undefined;
+    readonly classification: 'observed' | 'missing' | 'unexpected';
   }>;
-  graphDeltas: {
-    nodeIds: string[];
-    edgeIds: string[];
+  readonly graphDeltas: {
+    readonly nodeIds: readonly string[];
+    readonly edgeIds: readonly string[];
   };
 }
 
 export interface DiscoveryIndexEntry {
-  routeId: RouteId;
-  variantId: RouteVariantId;
-  routeVariantRef: string;
-  screen: ScreenId;
-  status: 'ok' | 'failed';
-  receiptId?: string | null | undefined;
-  receiptPath?: string | null | undefined;
-  contentFingerprint?: string | null | undefined;
-  writeDisposition: 'reused' | 'rewritten' | 'failed';
-  resolvedUrl?: string | null | undefined;
-  rootSelector?: string | null | undefined;
-  message?: string | null | undefined;
+  readonly routeId: RouteId;
+  readonly variantId: RouteVariantId;
+  readonly routeVariantRef: string;
+  readonly screen: ScreenId;
+  readonly status: 'ok' | 'failed';
+  readonly receiptId?: string | null | undefined;
+  readonly receiptPath?: string | null | undefined;
+  readonly contentFingerprint?: string | null | undefined;
+  readonly writeDisposition: 'reused' | 'rewritten' | 'failed';
+  readonly resolvedUrl?: string | null | undefined;
+  readonly rootSelector?: string | null | undefined;
+  readonly message?: string | null | undefined;
 }
 
 export interface DiscoveryIndex {
-  kind: 'discovery-index';
-  version: 2;
-  app: string;
-  generatedAt: string;
-  receipts: DiscoveryIndexEntry[];
+  readonly kind: 'discovery-index';
+  readonly version: 2;
+  readonly app: string;
+  readonly generatedAt: string;
+  readonly receipts: readonly DiscoveryIndexEntry[];
 }
 
 export interface SelectorCanonEntry {
-  targetRef: CanonicalTargetRef;
-  screen: ScreenId;
-  kind: 'surface' | 'element' | 'snapshot-anchor' | 'discovered';
-  surface?: SurfaceId | null | undefined;
-  element?: ElementId | null | undefined;
-  snapshotTemplate?: SnapshotTemplateId | null | undefined;
-  probes: SelectorProbe[];
+  readonly targetRef: CanonicalTargetRef;
+  readonly screen: ScreenId;
+  readonly kind: 'surface' | 'element' | 'snapshot-anchor' | 'discovered';
+  readonly surface?: SurfaceId | null | undefined;
+  readonly element?: ElementId | null | undefined;
+  readonly snapshotTemplate?: SnapshotTemplateId | null | undefined;
+  readonly probes: readonly SelectorProbe[];
 }
 
 export interface SelectorCanon {
-  kind: 'selector-canon';
-  version: 1;
-  generatedAt: string;
-  fingerprint: string;
-  entries: SelectorCanonEntry[];
-  summary: {
-    totalTargets: number;
-    totalProbes: number;
-    approvedKnowledgeProbeCount: number;
-    discoveryProbeCount: number;
-    degradedProbeCount: number;
-    healthyProbeCount: number;
+  readonly kind: 'selector-canon';
+  readonly version: 1;
+  readonly generatedAt: string;
+  readonly fingerprint: string;
+  readonly entries: readonly SelectorCanonEntry[];
+  readonly summary: {
+    readonly totalTargets: number;
+    readonly totalProbes: number;
+    readonly approvedKnowledgeProbeCount: number;
+    readonly discoveryProbeCount: number;
+    readonly degradedProbeCount: number;
+    readonly healthyProbeCount: number;
   };
 }
 
 export interface ApplicationInterfaceGraph {
-  kind: 'application-interface-graph';
-  version: 2;
-  generatedAt: string;
-  fingerprint: string;
-  discoveryRunIds: string[];
-  routeRefs: string[];
-  routeVariantRefs: string[];
-  targetRefs: CanonicalTargetRef[];
-  stateRefs: StateNodeRef[];
-  eventSignatureRefs: EventSignatureRef[];
-  transitionRefs: TransitionRef[];
-  nodes: InterfaceGraphNode[];
-  edges: InterfaceGraphEdge[];
+  readonly kind: 'application-interface-graph';
+  readonly version: 2;
+  readonly generatedAt: string;
+  readonly fingerprint: string;
+  readonly discoveryRunIds: readonly string[];
+  readonly routeRefs: readonly string[];
+  readonly routeVariantRefs: readonly string[];
+  readonly targetRefs: readonly CanonicalTargetRef[];
+  readonly stateRefs: readonly StateNodeRef[];
+  readonly eventSignatureRefs: readonly EventSignatureRef[];
+  readonly transitionRefs: readonly TransitionRef[];
+  readonly nodes: readonly InterfaceGraphNode[];
+  readonly edges: readonly InterfaceGraphEdge[];
 }
 
 export interface TransitionObservation {
-  observationId: string;
-  source: 'harvest' | 'runtime';
-  actor: 'safe-active-harvest' | 'runtime-execution' | 'live-dom';
-  screen: ScreenId;
-  eventSignatureRef?: EventSignatureRef | null | undefined;
-  transitionRef?: TransitionRef | null | undefined;
-  expectedTransitionRefs: readonly TransitionRef[];
-  observedStateRefs: readonly StateNodeRef[];
-  unexpectedStateRefs: readonly StateNodeRef[];
-  confidence: 'observed' | 'inferred' | 'missing';
-  classification: 'matched' | 'ambiguous-match' | 'missing-expected' | 'unexpected-effects';
-  detail?: Record<string, string> | undefined;
+  readonly observationId: string;
+  readonly source: 'harvest' | 'runtime';
+  readonly actor: 'safe-active-harvest' | 'runtime-execution' | 'live-dom';
+  readonly screen: ScreenId;
+  readonly eventSignatureRef?: EventSignatureRef | null | undefined;
+  readonly transitionRef?: TransitionRef | null | undefined;
+  readonly expectedTransitionRefs: readonly TransitionRef[];
+  readonly observedStateRefs: readonly StateNodeRef[];
+  readonly unexpectedStateRefs: readonly StateNodeRef[];
+  readonly confidence: 'observed' | 'inferred' | 'missing';
+  readonly classification: 'matched' | 'ambiguous-match' | 'missing-expected' | 'unexpected-effects';
+  readonly detail?: Readonly<Record<string, string>> | undefined;
 }
 
 export interface StateTransitionGraph {
-  kind: 'state-transition-graph';
-  version: 1;
-  generatedAt: string;
-  fingerprint: string;
-  stateRefs: StateNodeRef[];
-  eventSignatureRefs: EventSignatureRef[];
-  transitionRefs: TransitionRef[];
-  states: StateNode[];
-  eventSignatures: EventSignature[];
-  transitions: StateTransition[];
-  observations: TransitionObservation[];
+  readonly kind: 'state-transition-graph';
+  readonly version: 1;
+  readonly generatedAt: string;
+  readonly fingerprint: string;
+  readonly stateRefs: readonly StateNodeRef[];
+  readonly eventSignatureRefs: readonly EventSignatureRef[];
+  readonly transitionRefs: readonly TransitionRef[];
+  readonly states: readonly StateNode[];
+  readonly eventSignatures: readonly EventSignature[];
+  readonly transitions: readonly StateTransition[];
+  readonly observations: readonly TransitionObservation[];
 }

@@ -99,15 +99,15 @@ type SelectorProbeSeed = {
   strategy: LocatorStrategy;
   rung: number;
   artifactPath: string;
-  variantRefs?: string[] | undefined;
+  variantRefs?: readonly string[] | undefined;
   discoveredFrom?: string | null | undefined;
-  evidenceRefs?: string[] | undefined;
+  evidenceRefs?: readonly string[] | undefined;
   successCount?: number | undefined;
   failureCount?: number | undefined;
   lastUsedAt?: string | null | undefined;
   lineage?: SelectorProbe['lineage'] | undefined;
-  validWhenStateRefs?: StateNodeRef[] | undefined;
-  invalidWhenStateRefs?: StateNodeRef[] | undefined;
+  validWhenStateRefs?: readonly StateNodeRef[] | undefined;
+  invalidWhenStateRefs?: readonly StateNodeRef[] | undefined;
 };
 
 function manifestPath(paths: ProjectPaths): string {
@@ -178,7 +178,7 @@ function createNode(input: {
   id: string;
   kind: InterfaceGraphNode['kind'];
   label: string;
-  artifactPaths: string[];
+  artifactPaths: readonly string[];
   source: InterfaceGraphNode['source'];
   route?: RouteId | null | undefined;
   variant?: RouteVariantId | null | undefined;
@@ -212,7 +212,7 @@ function createEdge(input: {
   kind: InterfaceGraphEdge['kind'];
   from: string;
   to: string;
-  lineage: string[];
+  lineage: readonly string[];
   payload?: Record<string, unknown> | undefined;
 }): InterfaceGraphEdge {
   return {
@@ -488,7 +488,7 @@ function targetDescriptors(input: {
 
 function behaviorRecords(catalog: WorkspaceCatalog): Array<{
   artifactPath: string;
-  artifact: ScreenBehavior | { stateNodes: StateNode[]; eventSignatures: EventSignature[]; transitions: StateTransition[] };
+  artifact: ScreenBehavior | { stateNodes: readonly StateNode[]; eventSignatures: readonly EventSignature[]; transitions: readonly StateTransition[] };
 }> {
   return [
     ...catalog.screenBehaviors.map((entry) => ({ artifactPath: entry.artifactPath, artifact: entry.artifact })),

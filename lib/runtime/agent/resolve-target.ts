@@ -5,7 +5,7 @@ import { bestAliasMatch, humanizeIdentifier, normalizedCombined, uniqueSorted } 
 import { selectedDataset, selectedRunbook } from './select-controls';
 import type { RuntimeStepAgentContext } from './types';
 
-function groundedScreens(task: GroundedStep, context: RuntimeStepAgentContext): StepTaskScreenCandidate[] {
+function groundedScreens(task: GroundedStep, context: RuntimeStepAgentContext): readonly StepTaskScreenCandidate[] {
   const allowedRouteVariantRefs = new Set(task.grounding.routeVariantRefs);
   if (allowedRouteVariantRefs.size === 0) {
     return context.resolutionContext.screens;
@@ -19,7 +19,7 @@ export function resolveScreen(
   controlResolution: StepResolution | null,
   previousResolution: ResolutionTarget | null | undefined,
   context: RuntimeStepAgentContext,
-): { screen: StepTaskScreenCandidate | null; supplementRefs: string[] } {
+): { screen: StepTaskScreenCandidate | null; supplementRefs: readonly string[] } {
   const screens = groundedScreens(task, context);
   if (task.explicitResolution?.screen) {
     const explicit = screens.find((screen) => screen.screen === task.explicitResolution?.screen) ?? null;
@@ -45,13 +45,13 @@ export function resolveScreen(
   if (best) {
     return {
       screen: best.screen,
-      supplementRefs: best.screen.supplementRefs,
+      supplementRefs: [...best.screen.supplementRefs],
     };
   }
 
   if (action !== 'navigate' && previousResolution?.screen) {
     const carried = screens.find((screen) => screen.screen === previousResolution.screen) ?? null;
-    return { screen: carried, supplementRefs: carried?.supplementRefs ?? [] };
+    return { screen: carried, supplementRefs: [...(carried?.supplementRefs ?? [])] };
   }
 
   return { screen: null, supplementRefs: [] };
@@ -62,7 +62,7 @@ export function resolvePosture(
   element: StepTaskElementCandidate | null,
   controlResolution: StepResolution | null,
   context: RuntimeStepAgentContext,
-): { posture: ReturnType<typeof createPostureId> | null; supplementRefs: string[] } {
+): { posture: ReturnType<typeof createPostureId> | null; supplementRefs: readonly string[] } {
   if (task.explicitResolution?.posture) {
     return { posture: task.explicitResolution.posture, supplementRefs: [] };
   }

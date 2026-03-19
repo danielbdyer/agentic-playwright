@@ -25,83 +25,83 @@ import type { ProposalBundle, RunRecord } from './execution';
 import type { ScenarioInterpretationSurface } from './resolution';
 
 export interface BenchmarkField {
-  id: string;
-  screen: string;
-  element: string;
-  label: string;
-  category: string;
-  required: boolean;
-  postures: string[];
+  readonly id: string;
+  readonly screen: string;
+  readonly element: string;
+  readonly label: string;
+  readonly category: string;
+  readonly required: boolean;
+  readonly postures: readonly string[];
 }
 
 export interface BenchmarkFlow {
-  id: string;
-  title: string;
-  route: string;
-  screens: string[];
-  fieldIds: string[];
+  readonly id: string;
+  readonly title: string;
+  readonly route: string;
+  readonly screens: readonly string[];
+  readonly fieldIds: readonly string[];
 }
 
 export interface BenchmarkDriftEvent {
-  id: string;
-  kind: 'label-change' | 'locator-degradation' | 'widget-swap' | 'validation-copy-change' | 'section-structure-drift';
-  screen: string;
-  fieldId?: string | null | undefined;
-  severity: 'low' | 'medium' | 'high';
-  description: string;
+  readonly id: string;
+  readonly kind: 'label-change' | 'locator-degradation' | 'widget-swap' | 'validation-copy-change' | 'section-structure-drift';
+  readonly screen: string;
+  readonly fieldId?: string | null | undefined;
+  readonly severity: 'low' | 'medium' | 'high';
+  readonly description: string;
 }
 
 export interface BenchmarkExpansionRule {
-  fieldIds: string[];
-  postures: string[];
-  variantsPerField: number;
+  readonly fieldIds: readonly string[];
+  readonly postures: readonly string[];
+  readonly variantsPerField: number;
 }
 
 export interface BenchmarkContext {
-  kind: 'benchmark-context';
-  version: 1;
-  name: string;
-  suite: string;
-  appRoute: string;
-  fieldCatalog: BenchmarkField[];
-  flows: BenchmarkFlow[];
-  driftEvents: BenchmarkDriftEvent[];
-  fieldAwarenessThresholds: {
-    minFieldAwarenessCount: number;
-    minFirstPassScreenResolutionRate: number;
-    minFirstPassElementResolutionRate: number;
-    maxDegradedLocatorRate: number;
+  readonly kind: 'benchmark-context';
+  readonly version: 1;
+  readonly name: string;
+  readonly suite: string;
+  readonly appRoute: string;
+  readonly fieldCatalog: readonly BenchmarkField[];
+  readonly flows: readonly BenchmarkFlow[];
+  readonly driftEvents: readonly BenchmarkDriftEvent[];
+  readonly fieldAwarenessThresholds: {
+    readonly minFieldAwarenessCount: number;
+    readonly minFirstPassScreenResolutionRate: number;
+    readonly minFirstPassElementResolutionRate: number;
+    readonly maxDegradedLocatorRate: number;
   };
-  benchmarkRunbooks: Array<{
-    name: string;
-    runbook: string;
-    tag?: string | null | undefined;
+  readonly benchmarkRunbooks: ReadonlyArray<{
+    readonly name: string;
+    readonly runbook: string;
+    readonly tag?: string | null | undefined;
   }>;
-  expansionRules: BenchmarkExpansionRule[];
+  readonly expansionRules: readonly BenchmarkExpansionRule[];
 }
 
 export interface BenchmarkScorecard {
-  kind: 'benchmark-scorecard';
-  version: 1;
-  benchmark: string;
-  generatedAt: string;
-  uniqueFieldAwarenessCount: number;
-  firstPassScreenResolutionRate: number;
-  firstPassElementResolutionRate: number;
-  degradedLocatorRate: number;
-  reviewRequiredCount: number;
-  repairLoopCount: number;
-  operatorTouchCount: number;
-  knowledgeChurn: Record<string, number>;
-  generatedVariantCount: number;
-  translationHitRate: number;
-  agenticHitRate: number;
-  approvedEquivalentCount: number;
-  thinKnowledgeScreenCount: number;
-  degradedLocatorHotspotCount: number;
-  interpretationDriftHotspotCount: number;
-  overlayChurn: number;
-  executionTimingTotalsMs: {
+  readonly kind: 'benchmark-scorecard';
+  readonly version: 1;
+  readonly benchmark: string;
+  readonly generatedAt: string;
+  readonly uniqueFieldAwarenessCount: number;
+  readonly firstPassScreenResolutionRate: number;
+  readonly firstPassElementResolutionRate: number;
+  readonly degradedLocatorRate: number;
+  readonly reviewRequiredCount: number;
+  readonly repairLoopCount: number;
+  readonly operatorTouchCount: number;
+  readonly knowledgeChurn: Readonly<Record<string, number>>;
+  readonly generatedVariantCount: number;
+  readonly translationHitRate: number;
+  readonly agenticHitRate: number;
+  readonly approvedEquivalentCount: number;
+  readonly thinKnowledgeScreenCount: number;
+  readonly degradedLocatorHotspotCount: number;
+  readonly interpretationDriftHotspotCount: number;
+  readonly overlayChurn: number;
+  readonly executionTimingTotalsMs: {
     setup: number;
     resolution: number;
     action: number;
@@ -114,26 +114,26 @@ export interface BenchmarkScorecard {
     instructionCount: number;
     diagnosticCount: number;
   };
-  executionFailureFamilies: Record<string, number>;
-  recoveryFamilies: Record<string, number>;
-  recoveryStrategies: Record<string, number>;
-  budgetBreachCount: number;
-  thresholdStatus: 'pass' | 'warn' | 'fail';
-  learning: LearningScorecard | null;
+  readonly executionFailureFamilies: Readonly<Record<string, number>>;
+  readonly recoveryFamilies: Readonly<Record<string, number>>;
+  readonly recoveryStrategies: Readonly<Record<string, number>>;
+  readonly budgetBreachCount: number;
+  readonly thresholdStatus: 'pass' | 'warn' | 'fail';
+  readonly learning: LearningScorecard | null;
 }
 
 export interface DogfoodRun {
-  kind: 'dogfood-run';
-  version: 1;
-  benchmark: string;
-  runId: string;
-  executedAt: string;
-  posture: ExecutionPosture;
-  runbooks: string[];
-  scenarioIds: AdoId[];
-  driftEventIds: string[];
-  scorecard: BenchmarkScorecard;
-  nextCommands: string[];
+  readonly kind: 'dogfood-run';
+  readonly version: 1;
+  readonly benchmark: string;
+  readonly runId: string;
+  readonly executedAt: string;
+  readonly posture: ExecutionPosture;
+  readonly runbooks: readonly string[];
+  readonly scenarioIds: readonly AdoId[];
+  readonly driftEventIds: readonly string[];
+  readonly scorecard: BenchmarkScorecard;
+  readonly nextCommands: readonly string[];
 }
 
 export type GraphNodeKind =
@@ -173,61 +173,61 @@ export type GraphEdgeKind =
   | 'drifts-to';
 
 export interface GraphNode {
-  id: string;
-  kind: GraphNodeKind;
-  label: string;
-  fingerprint: string;
-  artifactPath?: string | undefined;
-  provenance: DiagnosticProvenance;
-  payload?: Record<string, unknown> | undefined;
+  readonly id: string;
+  readonly kind: GraphNodeKind;
+  readonly label: string;
+  readonly fingerprint: string;
+  readonly artifactPath?: string | undefined;
+  readonly provenance: DiagnosticProvenance;
+  readonly payload?: Readonly<Record<string, unknown>> | undefined;
 }
 
 export interface GraphEdge {
-  id: string;
-  kind: GraphEdgeKind;
-  from: string;
-  to: string;
-  fingerprint: string;
-  provenance: DiagnosticProvenance;
-  payload?: Record<string, unknown> | undefined;
+  readonly id: string;
+  readonly kind: GraphEdgeKind;
+  readonly from: string;
+  readonly to: string;
+  readonly fingerprint: string;
+  readonly provenance: DiagnosticProvenance;
+  readonly payload?: Readonly<Record<string, unknown>> | undefined;
 }
 
 export interface MappedMcpResource {
-  uri: string;
-  description: string;
+  readonly uri: string;
+  readonly description: string;
 }
 
 export interface MappedMcpTemplate {
-  uriTemplate: string;
-  description: string;
+  readonly uriTemplate: string;
+  readonly description: string;
 }
 
 export interface DerivedGraph {
-  version: 'v1';
-  fingerprint: string;
-  nodes: GraphNode[];
-  edges: GraphEdge[];
-  resources: MappedMcpResource[];
-  resourceTemplates: MappedMcpTemplate[];
+  readonly version: 'v1';
+  readonly fingerprint: string;
+  readonly nodes: readonly GraphNode[];
+  readonly edges: readonly GraphEdge[];
+  readonly resources: readonly MappedMcpResource[];
+  readonly resourceTemplates: readonly MappedMcpTemplate[];
 }
 
 export interface ScenarioExplanationSummary {
-  stepCount: number;
-  provenanceKinds: Record<StepProvenanceKind, number>;
-  governance: Record<Governance, number>;
-  stageMetrics: {
+  readonly stepCount: number;
+  readonly provenanceKinds: Readonly<Record<StepProvenanceKind, number>>;
+  readonly governance: Readonly<Record<Governance, number>>;
+  readonly stageMetrics: {
     knowledgeHitRate: number;
     translationHitRate: number;
     translationCacheHitRate: number;
-    translationCacheMissReasons: Record<string, number>;
-    translationFailureClasses: Record<string, number>;
+    translationCacheMissReasons: Readonly<Record<string, number>>;
+    translationFailureClasses: Readonly<Record<string, number>>;
     agenticHitRate: number;
     liveExplorationRate: number;
     degradedLocatorRate: number;
     proposalCount: number;
     reviewRequiredCount: number;
     approvedEquivalentRate: number;
-    runtimeFailureFamilies: Record<string, number>;
+    runtimeFailureFamilies: Readonly<Record<string, number>>;
     budgetBreachRate: number;
     averageRuntimeCost: {
       instructionCount: number;
@@ -243,21 +243,21 @@ export interface ScenarioExplanationSummary {
       totalMs: number;
     };
   };
-  unresolvedReasons: Array<{ reason: string; count: number }>;
+  readonly unresolvedReasons: ReadonlyArray<{ readonly reason: string; readonly count: number }>;
 }
 
 export interface ScenarioExplanationStep {
-  index: number;
-  intent: string;
-  actionText: string;
-  expectedText: string;
-  normalizedIntent: string;
-  action: StepAction;
-  confidence: Confidence;
-  provenanceKind: StepProvenanceKind;
-  governance: Governance;
-  bindingKind: StepBindingKind;
-  ruleId: string | null;
+  readonly index: number;
+  readonly intent: string;
+  readonly actionText: string;
+  readonly expectedText: string;
+  readonly normalizedIntent: string;
+  readonly action: StepAction;
+  readonly confidence: Confidence;
+  readonly provenanceKind: StepProvenanceKind;
+  readonly governance: Governance;
+  readonly bindingKind: StepBindingKind;
+  readonly ruleId: string | null;
   knowledgeRefs: readonly string[];
   supplementRefs: readonly string[];
   controlRefs: readonly string[];
@@ -269,11 +269,11 @@ export interface ScenarioExplanationStep {
   evidenceIds: readonly string[];
   program: StepProgram | null;
   handshakes: readonly WorkflowStage[];
-  winningConcern: import('./workflow').WorkflowLane;
-  winningSource: StepWinningSource;
-  resolutionMode: ResolutionMode;
-  translation?: TranslationReceipt | null | undefined;
-  runtime?: {
+  readonly winningConcern: import('./workflow').WorkflowLane;
+  readonly winningSource: StepWinningSource;
+  readonly resolutionMode: ResolutionMode;
+  readonly translation?: TranslationReceipt | null | undefined;
+  readonly runtime?: {
     status: 'pending' | 'resolved' | 'resolved-with-proposals' | 'needs-human';
     runId?: string | null | undefined;
     resolutionMode?: ResolutionMode | null | undefined;
@@ -315,27 +315,27 @@ export interface ScenarioExplanationStep {
 }
 
 export interface ScenarioExplanation {
-  adoId: AdoId;
-  revision: number;
-  title: string;
-  suite: string;
-  confidence: Confidence | 'mixed';
-  governance: Governance;
-  lifecycle: ScenarioLifecycle;
-  diagnostics: CompilerDiagnostic[];
-  summary: ScenarioExplanationSummary;
-  steps: ScenarioExplanationStep[];
+  readonly adoId: AdoId;
+  readonly revision: number;
+  readonly title: string;
+  readonly suite: string;
+  readonly confidence: Confidence | 'mixed';
+  readonly governance: Governance;
+  readonly lifecycle: ScenarioLifecycle;
+  readonly diagnostics: readonly CompilerDiagnostic[];
+  readonly summary: ScenarioExplanationSummary;
+  readonly steps: readonly ScenarioExplanationStep[];
 }
 
 export interface ScenarioProjectionInput {
-  adoId: AdoId;
-  boundScenario: BoundScenario;
-  surface: ScenarioInterpretationSurface;
-  latestRun: RunRecord | null;
-  proposalBundle: ProposalBundle | null;
-  interfaceGraph?: ApplicationInterfaceGraph | null | undefined;
-  selectorCanon?: SelectorCanon | null | undefined;
-  stateGraph?: StateTransitionGraph | null | undefined;
-  sessions: AgentSession[];
-  learningManifest?: TrainingCorpusManifest | null | undefined;
+  readonly adoId: AdoId;
+  readonly boundScenario: BoundScenario;
+  readonly surface: ScenarioInterpretationSurface;
+  readonly latestRun: RunRecord | null;
+  readonly proposalBundle: ProposalBundle | null;
+  readonly interfaceGraph?: ApplicationInterfaceGraph | null | undefined;
+  readonly selectorCanon?: SelectorCanon | null | undefined;
+  readonly stateGraph?: StateTransitionGraph | null | undefined;
+  readonly sessions: readonly AgentSession[];
+  readonly learningManifest?: TrainingCorpusManifest | null | undefined;
 }

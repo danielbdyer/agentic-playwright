@@ -32,7 +32,7 @@ export function humanizeIdentifier(value: string): string {
     .toLowerCase();
 }
 
-export function bestAliasMatch(normalizedText: string, aliases: string[]): AliasMatch | null {
+export function bestAliasMatch(normalizedText: string, aliases: readonly string[]): AliasMatch | null {
   let best: AliasMatch | null = null;
   for (const alias of uniqueSorted(aliases.map((entry) => normalizeIntentText(entry)))) {
     if (!alias || !normalizedText.includes(alias)) {

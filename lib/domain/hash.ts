@@ -46,8 +46,8 @@ export function normalizeHtmlText(input: string): string {
 export { normalizeAriaSnapshot };
 
 export function computeAdoContentHash(input: {
-  steps: AdoStep[];
-  parameters: AdoParameter[];
+  steps: readonly AdoStep[];
+  parameters: readonly AdoParameter[];
 }): string {
   const normalized = {
     parameters: input.parameters.map((parameter) => ({

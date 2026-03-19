@@ -15,43 +15,43 @@ export type AgentEventType =
   | 'replay-action';
 
 export interface TranscriptRef {
-  id: string;
-  kind: 'structured-log' | 'copilot-chat' | 'none';
-  label: string;
-  provider: string;
-  uri?: string | null | undefined;
-  artifactPath?: string | null | undefined;
+  readonly id: string;
+  readonly kind: 'structured-log' | 'copilot-chat' | 'none';
+  readonly label: string;
+  readonly provider: string;
+  readonly uri?: string | null | undefined;
+  readonly artifactPath?: string | null | undefined;
 }
 
 export interface AgentEvent {
-  version: 1;
-  id: string;
-  at: string;
-  type: AgentEventType;
-  actor: 'agent' | 'human' | 'system';
-  summary: string;
-  ids?: WorkflowEnvelopeIds | undefined;
-  refs: {
-    artifactPaths: string[];
-    graphNodeIds: string[];
-    selectorRefs: string[];
-    transcriptIds: string[];
+  readonly version: 1;
+  readonly id: string;
+  readonly at: string;
+  readonly type: AgentEventType;
+  readonly actor: 'agent' | 'human' | 'system';
+  readonly summary: string;
+  readonly ids?: WorkflowEnvelopeIds | undefined;
+  readonly refs: {
+    readonly artifactPaths: readonly string[];
+    readonly graphNodeIds: readonly string[];
+    readonly selectorRefs: readonly string[];
+    readonly transcriptIds: readonly string[];
   };
-  payload: Record<string, unknown>;
+  readonly payload: Readonly<Record<string, unknown>>;
 }
 
 export interface AgentSession {
-  kind: 'agent-session';
-  version: 1;
-  sessionId: string;
-  adapterId: string;
-  providerId: string;
-  executionProfile: 'interactive' | 'ci-batch' | 'dogfood';
-  startedAt: string;
-  completedAt?: string | null | undefined;
-  scenarioIds: AdoId[];
-  runIds: string[];
-  transcripts: TranscriptRef[];
-  eventCount: number;
-  eventTypes: Record<AgentEventType, number>;
+  readonly kind: 'agent-session';
+  readonly version: 1;
+  readonly sessionId: string;
+  readonly adapterId: string;
+  readonly providerId: string;
+  readonly executionProfile: 'interactive' | 'ci-batch' | 'dogfood';
+  readonly startedAt: string;
+  readonly completedAt?: string | null | undefined;
+  readonly scenarioIds: readonly AdoId[];
+  readonly runIds: readonly string[];
+  readonly transcripts: readonly TranscriptRef[];
+  readonly eventCount: number;
+  readonly eventTypes: Readonly<Record<AgentEventType, number>>;
 }

@@ -133,7 +133,7 @@ export function buildLatticeAccumulator(stage: RuntimeAgentStageContext): Lattic
     ...(postureLattice.selected?.refs ?? []),
     ...(snapshotLattice.selected?.refs ?? []),
   ];
-  const knowledgeRefs = screen ? screen.knowledgeRefs : [];
+  const knowledgeRefs = screen ? [...screen.knowledgeRefs] : [];
 
   const exhaustion = [
     screen

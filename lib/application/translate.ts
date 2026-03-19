@@ -21,36 +21,37 @@ function overlapScore(queryTokens: string[], aliases: string[]): number {
 
 export function translateIntentToOntology(request: TranslationRequest, translationThreshold = DEFAULT_PIPELINE_CONFIG.translationThreshold): TranslationReceipt {
   const queryTokens = tokenize(`${request.actionText} ${request.expectedText}`);
-  const candidates: TranslationCandidate[] = [];
 
-  for (const screen of request.screens) {
+  const candidates: readonly TranslationCandidate[] = request.screens.flatMap((screen) => {
     const screenScore = overlapScore(queryTokens, [...screen.aliases, screen.screen]);
-    if (screenScore > 0) {
-      candidates.push({
-        kind: 'screen',
-        target: screen.screen,
-        screen: screen.screen,
-        aliases: uniqueSorted([...screen.aliases, screen.screen]),
-        score: screenScore,
-        sourceRefs: request.overlayRefs,
-      });
-    }
-
-    for (const element of screen.elements) {
-      const elementScore = overlapScore(queryTokens, [...element.aliases, element.element]);
-      if (elementScore > 0) {
-        candidates.push({
-          kind: 'element',
-          target: `${screen.screen}.${element.element}`,
+    const screenCandidates: readonly TranslationCandidate[] = screenScore > 0
+      ? [{
+          kind: 'screen',
+          target: screen.screen,
           screen: screen.screen,
-          element: element.element,
-          aliases: uniqueSorted([...element.aliases, element.element]),
-          score: elementScore,
+          aliases: uniqueSorted([...screen.aliases, screen.screen]),
+          score: screenScore,
           sourceRefs: request.overlayRefs,
-        });
-      }
-    }
-  }
+        }]
+      : [];
+
+    const elementCandidates: readonly TranslationCandidate[] = screen.elements.flatMap((element) => {
+      const elementScore = overlapScore(queryTokens, [...element.aliases, element.element]);
+      return elementScore > 0
+        ? [{
+            kind: 'element' as const,
+            target: `${screen.screen}.${element.element}`,
+            screen: screen.screen,
+            element: element.element,
+            aliases: uniqueSorted([...element.aliases, element.element]),
+            score: elementScore,
+            sourceRefs: request.overlayRefs,
+          }]
+        : [];
+    });
+
+    return [...screenCandidates, ...elementCandidates];
+  });
 
   const ranked = candidates
     .filter((candidate) => candidate.score >= translationThreshold)

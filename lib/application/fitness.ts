@@ -205,35 +205,35 @@ function computeBottleneckCorrelations(
   }
 
   // Group by substrate for within-substrate correlation
-  const bySubstrate = new Map<string, readonly ExperimentRecord[]>();
-  for (const exp of experiments) {
-    const key = exp.substrateContext.substrate;
-    const existing = bySubstrate.get(key) ?? [];
-    bySubstrate.set(key, [...existing, exp]);
-  }
+  const bySubstrate = experiments.reduce<ReadonlyMap<string, readonly ExperimentRecord[]>>(
+    (map, exp) => {
+      const key = exp.substrateContext.substrate;
+      return new Map([...map, [key, [...(map.get(key) ?? []), exp]]]);
+    },
+    new Map(),
+  );
 
-  // Accumulate correlation signal per bottleneck signal
-  const signalDeltas = new Map<string, number[]>();
-  for (const signal of BOTTLENECK_SIGNALS) {
-    signalDeltas.set(signal.signal, []);
-  }
-
-  for (const [, subExps] of bySubstrate) {
+  // Collect delta signals from consecutive experiment pairs within each substrate
+  const signalDeltas = [...bySubstrate.values()].flatMap((subExps) => {
     const sorted = [...subExps].sort((a, b) => a.runAt.localeCompare(b.runAt));
-    for (let i = 0; i < sorted.length - 1; i++) {
-      const current = sorted[i]!;
+    return sorted.slice(0, -1).flatMap((current, i) => {
       const next = sorted[i + 1]!;
       const topFailure = current.fitnessReport.failureModes[0];
-      if (!topFailure) continue;
+      if (!topFailure) return [];
       const signal = FAILURE_TO_SIGNAL[topFailure.class];
-      if (!signal) continue;
+      if (!signal) return [];
       const delta = next.fitnessReport.metrics.knowledgeHitRate - current.fitnessReport.metrics.knowledgeHitRate;
-      signalDeltas.get(signal)?.push(delta);
-    }
-  }
+      return [{ signal, delta }];
+    });
+  });
+
+  const deltasBySignal = signalDeltas.reduce<ReadonlyMap<string, readonly number[]>>(
+    (map, { signal, delta }) => new Map([...map, [signal, [...(map.get(signal) ?? []), delta]]]),
+    new Map(),
+  );
 
   return BOTTLENECK_SIGNALS.map(({ signal, weight }) => {
-    const deltas = signalDeltas.get(signal) ?? [];
+    const deltas = deltasBySignal.get(signal) ?? [];
     const correlation = deltas.length > 0
       ? round4(deltas.reduce((sum, d) => sum + d, 0) / deltas.length)
       : 0;
@@ -258,18 +258,19 @@ export function buildFitnessReport(data: FitnessInputData): PipelineFitnessRepor
   );
 
   // Classify failures
-  const failureMap = new Map<PipelineFailureClass, { count: number; affectedSteps: number; intents: string[] }>();
-  for (const step of steps) {
-    const failureClass = classifyFailure(step);
-    if (failureClass !== null) {
-      const existing = failureMap.get(failureClass) ?? { count: 0, affectedSteps: 0, intents: [] };
-      failureMap.set(failureClass, {
+  const failureMap = steps.reduce<ReadonlyMap<PipelineFailureClass, { readonly count: number; readonly affectedSteps: number; readonly intents: readonly string[] }>>(
+    (map, step) => {
+      const failureClass = classifyFailure(step);
+      if (failureClass === null) return map;
+      const existing = map.get(failureClass) ?? { count: 0, affectedSteps: 0, intents: [] };
+      return new Map([...map, [failureClass, {
         count: existing.count + 1,
         affectedSteps: existing.affectedSteps + 1,
         intents: existing.intents.length < 5 ? [...existing.intents, step.intent] : existing.intents,
-      });
-    }
-  }
+      }]]);
+    },
+    new Map(),
+  );
 
   // Check for convergence stall before building failure modes
   const ledgerIterations = data.ledger.iterations;
@@ -280,16 +281,15 @@ export function buildFitnessReport(data: FitnessInputData): PipelineFitnessRepor
       return last.proposalsActivated > 0 && last.knowledgeHitRate <= prev.knowledgeHitRate;
     })();
 
-  if (convergenceStalled && !failureMap.has('convergence-stall')) {
-    const last = ledgerIterations[ledgerIterations.length - 1]!;
-    failureMap.set('convergence-stall', {
-      count: 1,
-      affectedSteps: last.totalStepCount,
-      intents: ['convergence stalled: proposals generated but no hit rate improvement'],
-    });
-  }
+  const finalFailureMap = (convergenceStalled && !failureMap.has('convergence-stall'))
+    ? new Map([...failureMap, ['convergence-stall' as PipelineFailureClass, {
+        count: 1,
+        affectedSteps: ledgerIterations[ledgerIterations.length - 1]!.totalStepCount,
+        intents: ['convergence stalled: proposals generated but no hit rate improvement'] as readonly string[],
+      }]])
+    : failureMap;
 
-  const failureModes: readonly PipelineFailureMode[] = [...failureMap.entries()]
+  const failureModes: readonly PipelineFailureMode[] = [...finalFailureMap.entries()]
     .sort(([, a], [, b]) => b.count - a.count)
     .map(([cls, info]) => ({
       class: cls,

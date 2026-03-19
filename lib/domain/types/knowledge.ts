@@ -26,147 +26,147 @@ import type { StepResolution } from './intent';
 import type { RuntimeControlSession } from './resolution';
 
 export interface StepTaskElementCandidate {
-  element: ElementId;
-  targetRef: CanonicalTargetRef;
-  role: string;
-  name?: string | null | undefined;
-  surface: SurfaceId;
-  widget: WidgetId;
-  affordance?: string | null | undefined;
-  aliases: string[];
-  locator: LocatorStrategy[];
-  postures: PostureId[];
-  defaultValueRef?: string | null | undefined;
-  parameter?: string | null | undefined;
-  snapshotAliases?: Record<string, string[]> | undefined;
-  graphNodeId?: string | null | undefined;
-  selectorRefs: SelectorRef[];
+  readonly element: ElementId;
+  readonly targetRef: CanonicalTargetRef;
+  readonly role: string;
+  readonly name?: string | null | undefined;
+  readonly surface: SurfaceId;
+  readonly widget: WidgetId;
+  readonly affordance?: string | null | undefined;
+  readonly aliases: readonly string[];
+  readonly locator: readonly LocatorStrategy[];
+  readonly postures: readonly PostureId[];
+  readonly defaultValueRef?: string | null | undefined;
+  readonly parameter?: string | null | undefined;
+  readonly snapshotAliases?: Readonly<Record<string, readonly string[]>> | undefined;
+  readonly graphNodeId?: string | null | undefined;
+  readonly selectorRefs: readonly SelectorRef[];
 }
 
 export interface StepTaskScreenCandidate {
-  screen: ScreenId;
-  url: string;
-  routeVariantRefs: string[];
-  screenAliases: string[];
-  knowledgeRefs: string[];
-  supplementRefs: string[];
-  elements: StepTaskElementCandidate[];
-  sectionSnapshots: SnapshotTemplateId[];
-  graphNodeId?: string | null | undefined;
+  readonly screen: ScreenId;
+  readonly url: string;
+  readonly routeVariantRefs: readonly string[];
+  readonly screenAliases: readonly string[];
+  readonly knowledgeRefs: readonly string[];
+  readonly supplementRefs: readonly string[];
+  readonly elements: readonly StepTaskElementCandidate[];
+  readonly sectionSnapshots: readonly SnapshotTemplateId[];
+  readonly graphNodeId?: string | null | undefined;
 }
 
 export type ApprovalEquivalenceStatus = 'learning' | 'approved-equivalent' | 'needs-review';
 
 export interface ArtifactConfidenceRecord {
-  id: string;
-  artifactType: TrustPolicyArtifactType;
-  artifactPath: string;
-  score: number;
-  threshold: number;
-  status: ApprovalEquivalenceStatus;
-  successCount: number;
-  failureCount: number;
-  evidenceCount: number;
-  screen?: ScreenId | null | undefined;
-  element?: ElementId | null | undefined;
-  posture?: PostureId | null | undefined;
-  snapshotTemplate?: SnapshotTemplateId | null | undefined;
-  learnedAliases: string[];
-  lastSuccessAt?: string | null | undefined;
-  lastFailureAt?: string | null | undefined;
-  lineage: {
-    runIds: string[];
-    evidenceIds: string[];
-    sourceArtifactPaths: string[];
+  readonly id: string;
+  readonly artifactType: TrustPolicyArtifactType;
+  readonly artifactPath: string;
+  readonly score: number;
+  readonly threshold: number;
+  readonly status: ApprovalEquivalenceStatus;
+  readonly successCount: number;
+  readonly failureCount: number;
+  readonly evidenceCount: number;
+  readonly screen?: ScreenId | null | undefined;
+  readonly element?: ElementId | null | undefined;
+  readonly posture?: PostureId | null | undefined;
+  readonly snapshotTemplate?: SnapshotTemplateId | null | undefined;
+  readonly learnedAliases: readonly string[];
+  readonly lastSuccessAt?: string | null | undefined;
+  readonly lastFailureAt?: string | null | undefined;
+  readonly lineage: {
+    readonly runIds: readonly string[];
+    readonly evidenceIds: readonly string[];
+    readonly sourceArtifactPaths: readonly string[];
   };
 }
 
 export interface ConfidenceOverlayCatalog {
-  kind: 'confidence-overlay-catalog';
-  version: 1;
-  generatedAt: string;
-  records: ArtifactConfidenceRecord[];
-  summary: {
-    total: number;
-    approvedEquivalentCount: number;
-    needsReviewCount: number;
+  readonly kind: 'confidence-overlay-catalog';
+  readonly version: 1;
+  readonly generatedAt: string;
+  readonly records: readonly ArtifactConfidenceRecord[];
+  readonly summary: {
+    readonly total: number;
+    readonly approvedEquivalentCount: number;
+    readonly needsReviewCount: number;
   };
 }
 
 export interface InterfaceResolutionContext {
-  knowledgeFingerprint: string;
-  confidenceFingerprint?: string | null | undefined;
-  interfaceGraphFingerprint?: string | null | undefined;
-  selectorCanonFingerprint?: string | null | undefined;
-  stateGraphFingerprint?: string | null | undefined;
-  interfaceGraphPath?: string | null | undefined;
-  selectorCanonPath?: string | null | undefined;
-  stateGraphPath?: string | null | undefined;
-  sharedPatterns: SharedPatterns;
-  screens: StepTaskScreenCandidate[];
-  evidenceRefs: string[];
-  confidenceOverlays: ArtifactConfidenceRecord[];
-  controls: RuntimeControlSession;
-  stateGraph?: import('./interface').StateTransitionGraph | null | undefined;
+  readonly knowledgeFingerprint: string;
+  readonly confidenceFingerprint?: string | null | undefined;
+  readonly interfaceGraphFingerprint?: string | null | undefined;
+  readonly selectorCanonFingerprint?: string | null | undefined;
+  readonly stateGraphFingerprint?: string | null | undefined;
+  readonly interfaceGraphPath?: string | null | undefined;
+  readonly selectorCanonPath?: string | null | undefined;
+  readonly stateGraphPath?: string | null | undefined;
+  readonly sharedPatterns: SharedPatterns;
+  readonly screens: readonly StepTaskScreenCandidate[];
+  readonly evidenceRefs: readonly string[];
+  readonly confidenceOverlays: readonly ArtifactConfidenceRecord[];
+  readonly controls: RuntimeControlSession;
+  readonly stateGraph?: import('./interface').StateTransitionGraph | null | undefined;
 }
 
 export interface SurfaceSection {
-  selector: string;
-  url?: string | undefined;
-  kind: SurfaceKind;
-  surfaces: SurfaceId[];
-  snapshot?: SnapshotTemplateId | null | undefined;
+  readonly selector: string;
+  readonly url?: string | undefined;
+  readonly kind: SurfaceKind;
+  readonly surfaces: readonly SurfaceId[];
+  readonly snapshot?: SnapshotTemplateId | null | undefined;
 }
 
 export interface SurfaceDefinition {
-  kind: SurfaceKind;
-  section: SectionId;
-  selector: string;
-  parents: SurfaceId[];
-  children: SurfaceId[];
-  elements: ElementId[];
-  assertions: AssertionKind[];
-  required?: boolean | undefined;
+  readonly kind: SurfaceKind;
+  readonly section: SectionId;
+  readonly selector: string;
+  readonly parents: readonly SurfaceId[];
+  readonly children: readonly SurfaceId[];
+  readonly elements: readonly ElementId[];
+  readonly assertions: readonly AssertionKind[];
+  readonly required?: boolean | undefined;
 }
 
 export interface SurfaceGraph {
-  screen: ScreenId;
-  url: string;
-  sections: Record<string, SurfaceSection>;
-  surfaces: Record<string, SurfaceDefinition>;
+  readonly screen: ScreenId;
+  readonly url: string;
+  readonly sections: Readonly<Record<string, SurfaceSection>>;
+  readonly surfaces: Readonly<Record<string, SurfaceDefinition>>;
 }
 
 export interface ElementSig {
-  role: string;
-  name?: string | null | undefined;
-  testId?: string | null | undefined;
-  cssFallback?: string | null | undefined;
-  locator?: LocatorStrategy[] | undefined;
-  surface: SurfaceId;
-  widget: WidgetId;
-  affordance?: string | null | undefined;
-  required?: boolean | undefined;
+  readonly role: string;
+  readonly name?: string | null | undefined;
+  readonly testId?: string | null | undefined;
+  readonly cssFallback?: string | null | undefined;
+  readonly locator?: readonly LocatorStrategy[] | undefined;
+  readonly surface: SurfaceId;
+  readonly widget: WidgetId;
+  readonly affordance?: string | null | undefined;
+  readonly required?: boolean | undefined;
 }
 
 export interface ScreenElements {
-  screen: ScreenId;
-  url: string;
-  elements: Record<string, ElementSig>;
+  readonly screen: ScreenId;
+  readonly url: string;
+  readonly elements: Readonly<Record<string, ElementSig>>;
 }
 
 export interface ScreenElementHint {
-  aliases: string[];
-  defaultValueRef?: string | null | undefined;
-  parameter?: string | null | undefined;
-  snapshotAliases?: Record<string, string[]> | undefined;
-  affordance?: string | null | undefined;
-  acquired?: CanonicalKnowledgeMetadata | null | undefined;
+  readonly aliases: readonly string[];
+  readonly defaultValueRef?: string | null | undefined;
+  readonly parameter?: string | null | undefined;
+  readonly snapshotAliases?: Readonly<Record<string, readonly string[]>> | undefined;
+  readonly affordance?: string | null | undefined;
+  readonly acquired?: CanonicalKnowledgeMetadata | null | undefined;
 }
 
 export interface ScreenHints {
-  screen: ScreenId;
-  screenAliases: string[];
-  elements: Record<string, ScreenElementHint>;
+  readonly screen: ScreenId;
+  readonly screenAliases: readonly string[];
+  readonly elements: Readonly<Record<string, ScreenElementHint>>;
 }
 
 export type StatePredicateSemantics =
@@ -186,55 +186,55 @@ export type StatePredicateSemantics =
   | 'active-modal';
 
 export interface ObservationPredicate {
-  kind: StatePredicateSemantics;
-  targetRef?: CanonicalTargetRef | null | undefined;
-  selectorRef?: SelectorRef | null | undefined;
-  routeVariantRef?: string | null | undefined;
-  attribute?: string | null | undefined;
-  value?: string | null | undefined;
-  message?: string | null | undefined;
+  readonly kind: StatePredicateSemantics;
+  readonly targetRef?: CanonicalTargetRef | null | undefined;
+  readonly selectorRef?: SelectorRef | null | undefined;
+  readonly routeVariantRef?: string | null | undefined;
+  readonly attribute?: string | null | undefined;
+  readonly value?: string | null | undefined;
+  readonly message?: string | null | undefined;
 }
 
 export interface StateNode {
-  ref: StateNodeRef;
-  screen: ScreenId;
-  label: string;
-  aliases: string[];
-  scope: 'screen' | 'surface' | 'target' | 'route' | 'modal';
-  targetRef?: CanonicalTargetRef | null | undefined;
-  routeVariantRefs: string[];
-  predicates: ObservationPredicate[];
-  provenance: string[];
+  readonly ref: StateNodeRef;
+  readonly screen: ScreenId;
+  readonly label: string;
+  readonly aliases: readonly string[];
+  readonly scope: 'screen' | 'surface' | 'target' | 'route' | 'modal';
+  readonly targetRef?: CanonicalTargetRef | null | undefined;
+  readonly routeVariantRefs: readonly string[];
+  readonly predicates: readonly ObservationPredicate[];
+  readonly provenance: readonly string[];
 }
 
 export interface EventObservationPlan {
-  timeoutMs?: number | null | undefined;
-  settleMs?: number | null | undefined;
-  observeStateRefs: StateNodeRef[];
+  readonly timeoutMs?: number | null | undefined;
+  readonly settleMs?: number | null | undefined;
+  readonly observeStateRefs: readonly StateNodeRef[];
 }
 
 export interface EventExpectedEffects {
-  transitionRefs: TransitionRef[];
-  resultStateRefs: StateNodeRef[];
-  observableEffects: string[];
-  assertions: string[];
+  readonly transitionRefs: readonly TransitionRef[];
+  readonly resultStateRefs: readonly StateNodeRef[];
+  readonly observableEffects: readonly string[];
+  readonly assertions: readonly string[];
 }
 
 export interface EventSignature {
-  ref: EventSignatureRef;
-  screen: ScreenId;
-  targetRef: CanonicalTargetRef;
-  label: string;
-  aliases: string[];
-  dispatch: {
-    action: StepResolution['action'];
-    sampleValue?: string | null | undefined;
+  readonly ref: EventSignatureRef;
+  readonly screen: ScreenId;
+  readonly targetRef: CanonicalTargetRef;
+  readonly label: string;
+  readonly aliases: readonly string[];
+  readonly dispatch: {
+    readonly action: StepResolution['action'];
+    readonly sampleValue?: string | null | undefined;
   };
-  requiredStateRefs: StateNodeRef[];
-  forbiddenStateRefs: StateNodeRef[];
-  effects: EventExpectedEffects;
-  observationPlan: EventObservationPlan;
-  provenance: string[];
+  readonly requiredStateRefs: readonly StateNodeRef[];
+  readonly forbiddenStateRefs: readonly StateNodeRef[];
+  readonly effects: EventExpectedEffects;
+  readonly observationPlan: EventObservationPlan;
+  readonly provenance: readonly string[];
 }
 
 export type TransitionEffectKind =
@@ -254,77 +254,77 @@ export type TransitionEffectKind =
   | 'clear';
 
 export interface StateTransition {
-  ref: TransitionRef;
-  screen: ScreenId;
-  label: string;
-  aliases: string[];
-  eventSignatureRef: EventSignatureRef;
-  sourceStateRefs: StateNodeRef[];
-  targetStateRefs: StateNodeRef[];
-  effectKind: TransitionEffectKind;
-  observableEffects: string[];
-  provenance: string[];
+  readonly ref: TransitionRef;
+  readonly screen: ScreenId;
+  readonly label: string;
+  readonly aliases: readonly string[];
+  readonly eventSignatureRef: EventSignatureRef;
+  readonly sourceStateRefs: readonly StateNodeRef[];
+  readonly targetStateRefs: readonly StateNodeRef[];
+  readonly effectKind: TransitionEffectKind;
+  readonly observableEffects: readonly string[];
+  readonly provenance: readonly string[];
 }
 
 export interface ScreenBehavior {
-  kind: 'screen-behavior';
-  version: 1;
-  screen: ScreenId;
-  aliases: string[];
-  routeVariantRefs: string[];
-  knowledgeRefs: string[];
-  stateNodes: StateNode[];
-  eventSignatures: EventSignature[];
-  transitions: StateTransition[];
+  readonly kind: 'screen-behavior';
+  readonly version: 1;
+  readonly screen: ScreenId;
+  readonly aliases: readonly string[];
+  readonly routeVariantRefs: readonly string[];
+  readonly knowledgeRefs: readonly string[];
+  readonly stateNodes: readonly StateNode[];
+  readonly eventSignatures: readonly EventSignature[];
+  readonly transitions: readonly StateTransition[];
 }
 
 export interface BehaviorPatternDocument {
-  kind: 'behavior-pattern';
-  version: 1;
-  id: string;
-  aliases: string[];
-  stateNodes: StateNode[];
-  eventSignatures: EventSignature[];
-  transitions: StateTransition[];
+  readonly kind: 'behavior-pattern';
+  readonly version: 1;
+  readonly id: string;
+  readonly aliases: readonly string[];
+  readonly stateNodes: readonly StateNode[];
+  readonly eventSignatures: readonly EventSignature[];
+  readonly transitions: readonly StateTransition[];
 }
 
 export interface PatternAliasSet {
-  id: string;
-  aliases: string[];
+  readonly id: string;
+  readonly aliases: readonly string[];
 }
 
 export interface PatternDocument {
-  version: 1;
-  actions?: Partial<Record<PatternActionName, PatternAliasSet>> | undefined;
-  postures?: Record<string, PatternAliasSet> | undefined;
+  readonly version: 1;
+  readonly actions?: Readonly<Partial<Record<PatternActionName, PatternAliasSet>>> | undefined;
+  readonly postures?: Readonly<Record<string, PatternAliasSet>> | undefined;
 }
 
 export interface MergedPatterns {
-  version: 1;
-  actions: Record<PatternActionName, PatternAliasSet>;
-  postures: Record<string, PatternAliasSet>;
-  documents: string[];
-  sources: {
-    actions: Record<PatternActionName, string>;
-    postures: Record<string, string>;
+  readonly version: 1;
+  readonly actions: Readonly<Record<PatternActionName, PatternAliasSet>>;
+  readonly postures: Readonly<Record<string, PatternAliasSet>>;
+  readonly documents: readonly string[];
+  readonly sources: {
+    readonly actions: Readonly<Record<PatternActionName, string>>;
+    readonly postures: Readonly<Record<string, string>>;
   };
 }
 
 export type SharedPatterns = MergedPatterns;
 
 export interface PostureEffect {
-  target: 'self' | ElementId | SurfaceId;
-  targetKind?: EffectTargetKind | undefined;
-  state: EffectState;
-  message?: string | null | undefined;
+  readonly target: 'self' | ElementId | SurfaceId;
+  readonly targetKind?: EffectTargetKind | undefined;
+  readonly state: EffectState;
+  readonly message?: string | null | undefined;
 }
 
 export interface Posture {
-  values: string[];
-  effects: PostureEffect[];
+  readonly values: readonly string[];
+  readonly effects: readonly PostureEffect[];
 }
 
 export interface ScreenPostures {
-  screen: ScreenId;
-  postures: Record<string, Record<string, Posture>>;
+  readonly screen: ScreenId;
+  readonly postures: Readonly<Record<string, Readonly<Record<string, Posture>>>>;
 }

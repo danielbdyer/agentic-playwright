@@ -151,38 +151,22 @@ export function explainBoundScenario(boundScenario: BoundScenario, lifecycle: Sc
     translation: latestRun?.steps.find((runStep) => runStep.stepIndex === step.index)?.interpretation.translation ?? null,
     runtime: runtimeStatusForStep(latestRun, step.index),
   }));
-  const provenanceKinds = steps.reduce<Record<StepProvenanceKind, number>>((counts, step) => {
-    counts[step.provenanceKind] += 1;
-    return counts;
-  }, {
-    explicit: 0,
-    'approved-knowledge': 0,
-    'live-exploration': 0,
-    unresolved: 0,
-  });
-  const governance = steps.reduce<Record<Governance, number>>((counts, step) => {
-    counts[step.governance] += 1;
-    return counts;
-  }, {
-    approved: 0,
-    'review-required': 0,
-    blocked: 0,
-  });
-  const unresolvedReasonCounts = new Map<string, number>();
-  for (const step of steps) {
-    for (const reason of step.unresolvedGaps) {
-      unresolvedReasonCounts.set(reason, (unresolvedReasonCounts.get(reason) ?? 0) + 1);
-    }
-  }
+  const provenanceKinds = steps.reduce<Record<StepProvenanceKind, number>>(
+    (counts, step) => ({ ...counts, [step.provenanceKind]: counts[step.provenanceKind] + 1 }),
+    { explicit: 0, 'approved-knowledge': 0, 'live-exploration': 0, unresolved: 0 },
+  );
+  const governance = steps.reduce<Record<Governance, number>>(
+    (counts, step) => ({ ...counts, [step.governance]: counts[step.governance] + 1 }),
+    { approved: 0, 'review-required': 0, blocked: 0 },
+  );
+  const allReasons = steps.flatMap((step) => step.unresolvedGaps);
+  const unresolvedReasonCounts = allReasons.reduce<ReadonlyMap<string, number>>(
+    (map, reason) => new Map([...map, [reason, (map.get(reason) ?? 0) + 1]]),
+    new Map(),
+  );
   const unresolvedReasons = [...unresolvedReasonCounts.entries()]
     .map(([reason, count]) => ({ reason, count }))
-    .sort((left, right) => {
-      const countOrder = right.count - left.count;
-      if (countOrder !== 0) {
-        return countOrder;
-      }
-      return left.reason.localeCompare(right.reason);
-    });
+    .sort((left, right) => right.count - left.count || left.reason.localeCompare(right.reason));
   const knowledgeHits = steps.filter((step) => step.provenanceKind === 'approved-knowledge').length;
   const translationHits = steps.filter((step) => step.resolutionMode === 'translation').length;
 

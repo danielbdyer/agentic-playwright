@@ -20,7 +20,7 @@ function fallbackRoleStrategy(element: ElementSig): LocatorStrategy {
 
 export function locatorStrategies(element: ElementSig): LocatorStrategy[] {
   return element.locator && element.locator.length > 0
-    ? element.locator
+    ? [...element.locator]
     : [fallbackRoleStrategy(element), ...(element.cssFallback ? [{ kind: 'css', value: element.cssFallback } as const] : [])];
 }
 

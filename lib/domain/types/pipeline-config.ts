@@ -128,6 +128,32 @@ export const DEFAULT_PIPELINE_CONFIG: PipelineConfig = {
   convergenceThreshold: 0.01,
 };
 
+// ─── Config validation ───
+
+function validateWeightSum(name: string, weights: object, tolerance = 0.01): readonly string[] {
+  const sum = Object.values(weights as Record<string, number>).reduce((s, v) => s + v, 0);
+  return Math.abs(sum - 1.0) > tolerance
+    ? [`${name} weights sum to ${sum.toFixed(4)}, expected ~1.0`]
+    : [];
+}
+
+export function validatePipelineConfig(config: PipelineConfig): readonly string[] {
+  return [
+    ...validateWeightSum('bottleneckWeights', config.bottleneckWeights),
+    ...validateWeightSum('proposalRankingWeights', config.proposalRankingWeights),
+    ...validateWeightSum('domScoringWeights', config.domScoringWeights),
+    ...(config.translationThreshold <= 0 || config.translationThreshold >= 1
+      ? [`translationThreshold must be in (0, 1), got ${config.translationThreshold}`]
+      : []),
+    ...(config.convergenceThreshold < 0
+      ? [`convergenceThreshold must be non-negative, got ${config.convergenceThreshold}`]
+      : []),
+    ...(config.precedenceBase <= 0
+      ? [`precedenceBase must be positive, got ${config.precedenceBase}`]
+      : []),
+  ];
+}
+
 // ─── Config merging utility ───
 
 export function mergePipelineConfig(
