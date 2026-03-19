@@ -78,6 +78,8 @@ import { assembleScreenBundles } from './screen-bundles';
 import type { ArtifactEnvelope, WorkspaceCatalog } from './types';
 import type { KnowledgePosture } from '../../domain/types';
 import { postureIncludesKnowledge } from '../../domain/types';
+import { parseSnapshotToScenario } from '../parse';
+import { fingerprintArtifact } from './envelope';
 
 /** Stable sort on artifactPath ensures deterministic fingerprinting regardless of load order. */
 function sortByArtifactPath<T>(envelopes: ArtifactEnvelope<T>[]): ArtifactEnvelope<T>[] {
@@ -319,10 +321,25 @@ export function loadWorkspaceCatalog(options: LoadCatalogOptions) {
       `Trust policy ${options.paths.trustPolicyPath} failed validation`,
     );
 
+    // In cold-start mode, derive scenarios directly from ADO snapshots rather than
+    // loading authored scenario files. The snapshot IS the Tier 1 source of truth —
+    // there is no need to load a derivative and strip it back to intent-only.
+    const scenarios: ArtifactEnvelope<Scenario>[] = postureIncludesKnowledge(posture)
+      ? loaded.scenarios
+      : loaded.snapshots.map((snapshotEnvelope) => {
+          const scenario = parseSnapshotToScenario(snapshotEnvelope.artifact);
+          return {
+            artifact: scenario,
+            artifactPath: `derived://snapshot/${snapshotEnvelope.artifact.id}`,
+            absolutePath: snapshotEnvelope.absolutePath,
+            fingerprint: fingerprintArtifact(scenario),
+          };
+        });
+
     return {
       paths: options.paths,
       snapshots: loaded.snapshots,
-      scenarios: loaded.scenarios,
+      scenarios,
       boundScenarios: loaded.boundScenarios,
       interpretationSurfaces: loaded.interpretationSurfaces,
       runRecords: loaded.runRecords,
