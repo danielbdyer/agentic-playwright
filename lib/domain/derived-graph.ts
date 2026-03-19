@@ -157,6 +157,159 @@ function addEdge(store: Map<string, GraphEdge>, edge: GraphEdge): void {
   store.set(edge.id, edge);
 }
 
+// --- GraphAccumulator: immutable graph building ---
+
+interface GraphAccumulator {
+  readonly nodes: ReadonlyMap<string, GraphNode>;
+  readonly edges: ReadonlyMap<string, GraphEdge>;
+}
+
+const EMPTY_GRAPH: GraphAccumulator = { nodes: new Map(), edges: new Map() };
+
+const withNode = (acc: GraphAccumulator, node: GraphNode): GraphAccumulator => ({
+  nodes: new Map([...acc.nodes, [node.id, node]]),
+  edges: acc.edges,
+});
+
+const withEdge = (acc: GraphAccumulator, edge: GraphEdge): GraphAccumulator => ({
+  nodes: acc.nodes,
+  edges: new Map([...acc.edges, [edge.id, edge]]),
+});
+
+const withItems = (
+  acc: GraphAccumulator,
+  items: { readonly nodes?: readonly GraphNode[]; readonly edges?: readonly GraphEdge[] },
+): GraphAccumulator => ({
+  nodes: new Map([...acc.nodes, ...(items.nodes ?? []).map((n) => [n.id, n] as const)]),
+  edges: new Map([...acc.edges, ...(items.edges ?? []).map((e) => [e.id, e] as const)]),
+});
+
+const mergeAccumulators = (a: GraphAccumulator, b: GraphAccumulator): GraphAccumulator => ({
+  nodes: new Map([...a.nodes, ...b.nodes]),
+  edges: new Map([...a.edges, ...b.edges]),
+});
+
+// --- Phase type ---
+
+interface Lookups {
+  readonly interpretationSurfaces: ReadonlyMap<string, ScenarioInterpretationSurface>;
+  readonly runRecords: ReadonlyMap<string, RunRecord>;
+  readonly surfaceGraphs: ReadonlyMap<string, SurfaceGraph>;
+  readonly screenElements: ReadonlyMap<string, ScreenElements>;
+  readonly boundScenarios: ReadonlyMap<string, BoundScenario>;
+  readonly driftRecords: readonly ArtifactEnvelope<InterpretationDriftRecord>[];
+  readonly screenHintsArtifacts: readonly ScreenHintsArtifact[];
+  readonly sharedPatternsArtifacts: readonly SharedPatternsArtifact[];
+  readonly datasetArtifacts: readonly DatasetControlArtifact[];
+  readonly resolutionControlArtifacts: readonly ResolutionControlArtifact[];
+  readonly runbookArtifacts: readonly RunbookControlArtifact[];
+  readonly confidenceOverlayArtifacts: readonly ConfidenceOverlayArtifact[];
+  readonly boundScenarioArtifacts: readonly BoundScenarioGraphArtifact[];
+}
+
+type GraphPhase = (acc: GraphAccumulator, input: GraphBuildInput, lookups: Lookups) => GraphAccumulator;
+
+function buildLookups(input: GraphBuildInput): Lookups {
+  return {
+    interpretationSurfaces: new Map((input.interpretationSurfaces ?? []).map((entry) => [entry.artifact.payload.adoId, entry.artifact] as const)),
+    runRecords: new Map(
+      [...(input.runRecords ?? [])].sort((left, right) => right.artifact.completedAt.localeCompare(left.artifact.completedAt))
+        .map((entry) => [entry.artifact.adoId, entry.artifact] as const),
+    ),
+    surfaceGraphs: new Map(input.surfaceGraphs.map((entry) => [entry.artifact.screen, entry.artifact] as const)),
+    screenElements: new Map(input.screenElements.map((entry) => [entry.artifact.screen, entry.artifact] as const)),
+    boundScenarios: new Map((input.boundScenarios ?? []).map((entry) => [entry.artifact.source.ado_id, entry.artifact] as const)),
+    driftRecords: [...(input.interpretationDriftRecords ?? [])].sort((left, right) => right.artifact.comparedAt.localeCompare(left.artifact.comparedAt)),
+    screenHintsArtifacts: input.screenHints ?? [],
+    sharedPatternsArtifacts: input.sharedPatterns ?? [],
+    datasetArtifacts: input.datasets ?? [],
+    resolutionControlArtifacts: input.resolutionControls ?? [],
+    runbookArtifacts: input.runbooks ?? [],
+    confidenceOverlayArtifacts: input.confidenceOverlays ?? [],
+    boundScenarioArtifacts: input.boundScenarios ?? [],
+  };
+}
+
+// --- Pure phases ---
+
+const snapshotPhase: GraphPhase = (_acc, input) =>
+  input.snapshots.reduce<GraphAccumulator>(
+    (acc, { artifact: snapshot, artifactPath }) =>
+      withNode(acc, createNode({
+        id: graphIds.snapshot.ado(snapshot.id),
+        kind: 'snapshot',
+        label: snapshot.title,
+        artifactPath,
+        provenance: {
+          contentHash: snapshot.contentHash,
+          snapshotPath: artifactPath,
+          sourceRevision: snapshot.revision,
+        },
+        payload: {
+          category: 'ado',
+          suite: snapshot.suitePath,
+        },
+      })),
+    EMPTY_GRAPH,
+  );
+
+const knowledgeSnapshotPhase: GraphPhase = (_acc, input) =>
+  input.knowledgeSnapshots.reduce<GraphAccumulator>(
+    (acc, knowledgeSnapshot) =>
+      withNode(acc, createNode({
+        id: graphIds.snapshot.knowledge(knowledgeSnapshot.relativePath),
+        kind: 'snapshot',
+        label: basename(knowledgeSnapshot.artifactPath),
+        artifactPath: knowledgeSnapshot.artifactPath,
+        provenance: {
+          knowledgePath: knowledgeSnapshot.artifactPath,
+        },
+        payload: {
+          category: 'knowledge',
+        },
+      })),
+    EMPTY_GRAPH,
+  );
+
+const datasetPhase: GraphPhase = (_acc, _input, lookups) =>
+  lookups.datasetArtifacts.reduce<GraphAccumulator>(
+    (acc, { artifact: dataset, artifactPath }) =>
+      withNode(acc, createNode({
+        id: graphIds.dataset(dataset.name),
+        kind: 'dataset',
+        label: dataset.name,
+        artifactPath,
+        provenance: {
+          knowledgePath: artifactPath,
+        },
+        payload: {
+          default: Boolean(dataset.default),
+          elementDefaults: Object.keys(dataset.defaults?.elements ?? {}).length,
+          fixtureKeys: Object.keys(dataset.fixtures ?? {}),
+        },
+      })),
+    EMPTY_GRAPH,
+  );
+
+const resolutionControlPhase: GraphPhase = (_acc, _input, lookups) =>
+  lookups.resolutionControlArtifacts.reduce<GraphAccumulator>(
+    (acc, { artifact: control, artifactPath }) =>
+      withNode(acc, createNode({
+        id: graphIds.resolutionControl(control.name),
+        kind: 'resolution-control',
+        label: control.name,
+        artifactPath,
+        provenance: {
+          knowledgePath: artifactPath,
+        },
+        payload: {
+          stepIndexes: control.steps.map((step) => step.stepIndex),
+          selector: control.selector,
+        },
+      })),
+    EMPTY_GRAPH,
+  );
+
 function createResources(): MappedMcpResource[] {
   return [
     {
@@ -278,7 +431,7 @@ function mapKnowledgePathToNodeId(ref: string, context: StepGraphContext): strin
   return null;
 }
 
-function patternIdsForStep(stepContext: StepGraphContext, sharedPatternsArtifacts: SharedPatternsArtifact[]): string[] {
+function patternIdsForStep(stepContext: StepGraphContext, sharedPatternsArtifacts: readonly SharedPatternsArtifact[]): string[] {
   const binding = stepBinding(stepContext);
   const bindingIds = binding?.ruleId ? [graphIds.pattern(binding.ruleId)] : [];
 
@@ -304,43 +457,20 @@ function bestAliasMatches(normalizedIntent: string, aliases: string[]): string[]
 }
 
 export function deriveGraph(input: GraphBuildInput): DerivedGraph {
+  const lookups = buildLookups(input);
   const nodes = new Map<string, GraphNode>();
   const edges = new Map<string, GraphEdge>();
-  const screenHintsArtifacts = input.screenHints ?? [];
-  const sharedPatternsArtifacts = input.sharedPatterns ?? [];
-  const datasetArtifacts = input.datasets ?? [];
-  const resolutionControlArtifacts = input.resolutionControls ?? [];
-  const runbookArtifacts = input.runbooks ?? [];
-  const confidenceOverlayArtifacts = input.confidenceOverlays ?? [];
-  const boundScenarioArtifacts = input.boundScenarios ?? [];
-  const interpretationSurfaces = new Map((input.interpretationSurfaces ?? []).map((entry) => [entry.artifact.payload.adoId, entry.artifact] as const));
-  const runRecords = new Map(
-    (input.runRecords ?? [])
-      .sort((left, right) => right.artifact.completedAt.localeCompare(left.artifact.completedAt))
-      .map((entry) => [entry.artifact.adoId, entry.artifact] as const),
-  );
-  const surfaceGraphs = new Map(input.surfaceGraphs.map((entry) => [entry.artifact.screen, entry.artifact] as const));
-  const driftRecords = (input.interpretationDriftRecords ?? []).slice().sort((left, right) => right.artifact.comparedAt.localeCompare(left.artifact.comparedAt));
-  const screenElements = new Map(input.screenElements.map((entry) => [entry.artifact.screen, entry.artifact] as const));
-  const boundScenarios = new Map(boundScenarioArtifacts.map((entry) => [entry.artifact.source.ado_id, entry.artifact] as const));
 
-  for (const { artifact: snapshot, artifactPath } of input.snapshots) {
-    addNode(nodes, createNode({
-      id: graphIds.snapshot.ado(snapshot.id),
-      kind: 'snapshot',
-      label: snapshot.title,
-      artifactPath,
-      provenance: {
-        contentHash: snapshot.contentHash,
-        snapshotPath: artifactPath,
-        sourceRevision: snapshot.revision,
-      },
-      payload: {
-        category: 'ado',
-        suite: snapshot.suitePath,
-      },
-    }));
-  }
+  const phase1 = [snapshotPhase, knowledgeSnapshotPhase, datasetPhase, resolutionControlPhase].reduce(
+    (acc, phase) => phase(acc, input, lookups),
+    EMPTY_GRAPH,
+  );
+  phase1.nodes.forEach((node) => nodes.set(node.id, node));
+  phase1.edges.forEach((edge) => edges.set(edge.id, edge));
+
+  // Aliases from lookups for remaining imperative phases (will be removed as phases are converted)
+  const { surfaceGraphs, screenElements, boundScenarios, interpretationSurfaces, runRecords, driftRecords,
+    screenHintsArtifacts, sharedPatternsArtifacts, confidenceOverlayArtifacts, runbookArtifacts } = lookups;
 
   for (const { artifact: surfaceGraph, artifactPath } of input.surfaceGraphs) {
     addNode(nodes, createNode({
@@ -430,21 +560,6 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
         }));
       }
     }
-  }
-
-  for (const knowledgeSnapshot of input.knowledgeSnapshots) {
-    addNode(nodes, createNode({
-      id: graphIds.snapshot.knowledge(knowledgeSnapshot.relativePath),
-      kind: 'snapshot',
-      label: basename(knowledgeSnapshot.artifactPath),
-      artifactPath: knowledgeSnapshot.artifactPath,
-      provenance: {
-        knowledgePath: knowledgeSnapshot.artifactPath,
-      },
-      payload: {
-        category: 'knowledge',
-      },
-    }));
   }
 
   for (const { artifact: elements, artifactPath } of input.screenElements) {
@@ -672,23 +787,6 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
     }
   }
 
-  for (const { artifact: dataset, artifactPath } of datasetArtifacts) {
-    addNode(nodes, createNode({
-      id: graphIds.dataset(dataset.name),
-      kind: 'dataset',
-      label: dataset.name,
-      artifactPath,
-      provenance: {
-        knowledgePath: artifactPath,
-      },
-      payload: {
-        default: Boolean(dataset.default),
-        elementDefaults: Object.keys(dataset.defaults?.elements ?? {}).length,
-        fixtureKeys: Object.keys(dataset.fixtures ?? {}),
-      },
-    }));
-  }
-
   for (const { artifact: confidenceCatalog, artifactPath } of confidenceOverlayArtifacts) {
     for (const record of confidenceCatalog.records) {
       const overlayNodeId = graphIds.confidenceOverlay(record.id);
@@ -751,22 +849,6 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
         }));
       }
     }
-  }
-
-  for (const { artifact: control, artifactPath } of resolutionControlArtifacts) {
-    addNode(nodes, createNode({
-      id: graphIds.resolutionControl(control.name),
-      kind: 'resolution-control',
-      label: control.name,
-      artifactPath,
-      provenance: {
-        knowledgePath: artifactPath,
-      },
-      payload: {
-        stepIndexes: control.steps.map((step) => step.stepIndex),
-        selector: control.selector,
-      },
-    }));
   }
 
   for (const { artifact: runbook, artifactPath } of runbookArtifacts) {
