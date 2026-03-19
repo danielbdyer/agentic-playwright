@@ -1,3 +1,4 @@
+import { sortByStringKey } from './collections';
 import { deriveCapabilities } from './grammar';
 import { normalizeIntentText } from './inference';
 import type { ScreenId, SnapshotTemplateId } from './identity';
@@ -34,17 +35,17 @@ import type {
 } from './types';
 
 interface ArtifactEnvelope<T> {
-  artifact: T;
-  artifactPath: string;
+  readonly artifact: T;
+  readonly artifactPath: string;
 }
 
 export interface ScenarioGraphArtifact extends ArtifactEnvelope<Scenario> {
-  generatedSpecPath: string;
-  generatedSpecExists: boolean;
-  generatedTracePath: string;
-  generatedTraceExists: boolean;
-  generatedReviewPath: string;
-  generatedReviewExists: boolean;
+  readonly generatedSpecPath: string;
+  readonly generatedSpecExists: boolean;
+  readonly generatedTracePath: string;
+  readonly generatedTraceExists: boolean;
+  readonly generatedReviewPath: string;
+  readonly generatedReviewExists: boolean;
 }
 
 export interface BoundScenarioGraphArtifact extends ArtifactEnvelope<BoundScenario> {}
@@ -52,8 +53,8 @@ export interface BoundScenarioGraphArtifact extends ArtifactEnvelope<BoundScenar
 export interface InterpretationSurfaceGraphArtifact extends ArtifactEnvelope<ScenarioInterpretationSurface> {}
 
 export interface KnowledgeSnapshotArtifact {
-  relativePath: SnapshotTemplateId;
-  artifactPath: string;
+  readonly relativePath: SnapshotTemplateId;
+  readonly artifactPath: string;
 }
 
 export interface ScreenHintsArtifact extends ArtifactEnvelope<ScreenHints> {}
@@ -65,42 +66,42 @@ export interface RunbookControlArtifact extends ArtifactEnvelope<RunbookControl>
 export interface ConfidenceOverlayArtifact extends ArtifactEnvelope<ConfidenceOverlayCatalog> {}
 
 export interface EvidenceArtifact {
-  artifactPath: string;
-  targetNodeId?: string;
+  readonly artifactPath: string;
+  readonly targetNodeId?: string;
 }
 
 export interface PolicyDecisionArtifact {
-  id: string;
-  decision: 'allow' | 'review' | 'deny';
-  artifactPath: string;
-  targetNodeId: string;
-  reasons: string[];
+  readonly id: string;
+  readonly decision: 'allow' | 'review' | 'deny';
+  readonly artifactPath: string;
+  readonly targetNodeId: string;
+  readonly reasons: readonly string[];
 }
 
 export interface GraphBuildInput {
-  snapshots: ArtifactEnvelope<AdoSnapshot>[];
-  surfaceGraphs: ArtifactEnvelope<SurfaceGraph>[];
-  knowledgeSnapshots: KnowledgeSnapshotArtifact[];
-  screenElements: ArtifactEnvelope<ScreenElements>[];
-  screenPostures: ArtifactEnvelope<ScreenPostures>[];
-  screenHints?: ScreenHintsArtifact[];
-  sharedPatterns?: SharedPatternsArtifact[];
-  datasets?: DatasetControlArtifact[];
-  resolutionControls?: ResolutionControlArtifact[];
-  runbooks?: RunbookControlArtifact[];
-  confidenceOverlays?: ConfidenceOverlayArtifact[];
-  scenarios: ScenarioGraphArtifact[];
-  boundScenarios?: BoundScenarioGraphArtifact[];
-  interpretationSurfaces?: InterpretationSurfaceGraphArtifact[];
-  runRecords?: ArtifactEnvelope<RunRecord>[];
-  interpretationDriftRecords?: ArtifactEnvelope<InterpretationDriftRecord>[];
-  evidence: EvidenceArtifact[];
-  policyDecisions?: PolicyDecisionArtifact[];
+  readonly snapshots: readonly ArtifactEnvelope<AdoSnapshot>[];
+  readonly surfaceGraphs: readonly ArtifactEnvelope<SurfaceGraph>[];
+  readonly knowledgeSnapshots: readonly KnowledgeSnapshotArtifact[];
+  readonly screenElements: readonly ArtifactEnvelope<ScreenElements>[];
+  readonly screenPostures: readonly ArtifactEnvelope<ScreenPostures>[];
+  readonly screenHints?: readonly ScreenHintsArtifact[];
+  readonly sharedPatterns?: readonly SharedPatternsArtifact[];
+  readonly datasets?: readonly DatasetControlArtifact[];
+  readonly resolutionControls?: readonly ResolutionControlArtifact[];
+  readonly runbooks?: readonly RunbookControlArtifact[];
+  readonly confidenceOverlays?: readonly ConfidenceOverlayArtifact[];
+  readonly scenarios: readonly ScenarioGraphArtifact[];
+  readonly boundScenarios?: readonly BoundScenarioGraphArtifact[];
+  readonly interpretationSurfaces?: readonly InterpretationSurfaceGraphArtifact[];
+  readonly runRecords?: readonly ArtifactEnvelope<RunRecord>[];
+  readonly interpretationDriftRecords?: readonly ArtifactEnvelope<InterpretationDriftRecord>[];
+  readonly evidence: readonly EvidenceArtifact[];
+  readonly policyDecisions?: readonly PolicyDecisionArtifact[];
 }
 
 interface StepGraphContext {
-  step: Scenario['steps'][number];
-  boundStep: BoundScenario['steps'][number] | null;
+  readonly step: Scenario['steps'][number];
+  readonly boundStep: BoundScenario['steps'][number] | null;
 }
 
 function nodeFingerprint(kind: GraphNodeKind, id: string, payload?: Record<string, unknown>): string {
@@ -1225,10 +1226,10 @@ function createResourceTemplates(): MappedMcpTemplate[] {
 }
 
 function sortGraph(graph: Omit<DerivedGraph, 'fingerprint'>): DerivedGraph {
-  const nodes = [...graph.nodes].sort((left, right) => left.id.localeCompare(right.id));
-  const edges = [...graph.edges].sort((left, right) => left.id.localeCompare(right.id));
-  const resources = [...graph.resources].sort((left, right) => left.uri.localeCompare(right.uri));
-  const resourceTemplates = [...graph.resourceTemplates].sort((left, right) => left.uriTemplate.localeCompare(right.uriTemplate));
+  const nodes = sortByStringKey(graph.nodes, (n) => n.id);
+  const edges = sortByStringKey(graph.edges, (e) => e.id);
+  const resources = sortByStringKey(graph.resources, (r) => r.uri);
+  const resourceTemplates = sortByStringKey(graph.resourceTemplates, (r) => r.uriTemplate);
   return {
     ...graph,
     nodes,
