@@ -2,7 +2,7 @@
 import { formatRefPath } from '../domain/ref-path';
 import type { ValueRef } from '../domain/types';
 
-function lookupPath(fixtures: Record<string, unknown>, segments: string[]): unknown {
+function lookupPath(fixtures: Record<string, unknown>, segments: readonly string[]): unknown {
   let current: unknown = fixtures;
   for (const segment of segments) {
     if (!current || typeof current !== 'object' || !(segment in (current as Record<string, unknown>))) {

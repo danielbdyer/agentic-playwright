@@ -289,6 +289,26 @@ Trust policy does not block:
 - deterministic output derived from approved artifacts
 - approved-equivalent overlay growth inside threshold policy
 
+## The Three Dragons
+
+The system has three co-equal architectural concerns (the "three dragons") that cut across all six lanes:
+
+1. **Interface Intelligence** (the Noun Engine) — models what the UI *is*: routes, screens, surfaces, targets, selectors, states, transitions, affordances. Its aggregate is `ApplicationInterfaceGraph`. Lives primarily in `lib/domain/types/interface.ts` and `lib/application/interface-intelligence.ts`.
+
+2. **Agent Workbench** (the Verb Engine) — models what agents *do*: discover, resolve, execute, observe, propose, approve, replay, learn. Its aggregate is `RunRecord`. Lives primarily in `lib/domain/types/execution.ts` and `lib/runtime/agent/`.
+
+3. **Recursive Self-Improvement** (the Meta Engine) — models how the system *improves itself*: the dogfood loop, fitness classification, knob search, Pareto frontier tracking, convergence detection. Its aggregate is `DogfoodLedger`. Lives primarily in `lib/application/dogfood.ts`, `lib/application/fitness.ts`, and `lib/domain/types/fitness.ts`.
+
+## Concepts added by the domain audit
+
+- **Dragon** — one of three co-equal architectural concerns (see above)
+- **Fitness Report** — the "gradient" of the self-improving loop; classifies step-level resolution outcomes into failure modes that map to tunable parameters
+- **Knob Search** — the "backward pass" of the self-improving loop; maps failure classes to tunable parameters and generates candidate `PipelineConfig` perturbations
+- **Pareto Frontier** — the multi-objective acceptance surface; a candidate config is accepted iff it is not dominated by any point already on the frontier
+- **Agent Participant** — an external agent (AI, CI, operator) modeled as a first-class session participant with typed capabilities and interactive callbacks
+- **GraphAccumulator** — the immutable value object pattern for building `DerivedGraph` from pure phase functions composed via sequential fold
+- **Pipeline Config Validation** — pure function `validatePipelineConfig` that enforces weight-sum ~1.0, scalar bounds, and well-formedness invariants on the hyper-parameter space
+
 ## Out of scope for the ontology
 
 - prompt strategies

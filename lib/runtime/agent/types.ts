@@ -45,8 +45,8 @@ export interface RuntimeAgentStageContext {
 export interface StageEffects {
   exhaustion: ResolutionExhaustionEntry[];
   observations: ResolutionObservation[];
-  knowledgeRefs: string[];
-  supplementRefs: string[];
+  knowledgeRefs: readonly string[];
+  supplementRefs: readonly string[];
 }
 
 export const EMPTY_EFFECTS: StageEffects = {

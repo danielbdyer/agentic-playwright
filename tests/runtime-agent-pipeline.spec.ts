@@ -136,7 +136,7 @@ test('live DOM ambiguity is bounded and deterministic for tie-breaking and short
     resolution: {},
     domExplorationPolicy: { maxCandidates: 2, maxProbes: 4, forbiddenActions: [] },
   }] } as typeof resolutionContext.controls;
-  resolutionContext.screens[0]!.elements = [
+  (resolutionContext.screens[0]! as unknown as Record<string, unknown>).elements = [
     createPolicySearchElement({
       element: createElementId('primaryInput'),
       targetRef: createCanonicalTargetRef('target:element:policy-search:primaryInput'),
@@ -346,7 +346,7 @@ test('forbidden action policy yields review-required needs-human with shortlist 
     resolution: {},
     domExplorationPolicy: { maxCandidates: 2, maxProbes: 1, forbiddenActions: ['click'] },
   }] } as typeof resolutionContext.controls;
-  resolutionContext.screens[0]!.elements = [{
+  (resolutionContext.screens[0]! as unknown as Record<string, unknown>).elements = [{
     ...createPolicySearchElement({
       element: createElementId('submitButton'),
       targetRef: createCanonicalTargetRef('target:element:policy-search:submitButton'),

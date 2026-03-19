@@ -94,8 +94,8 @@ test('runtime agent reports the winning data source across explicit, control, da
       runbooks: [],
     },
   });
-  resolutionContext.screens[0]!.elements[0]!.defaultValueRef = '{{activePolicy.number}}';
-  resolutionContext.screens[0]!.elements[0]!.parameter = 'policyNumber';
+  (resolutionContext.screens[0]!.elements[0]! as unknown as Record<string, unknown>).defaultValueRef = '{{activePolicy.number}}';
+  (resolutionContext.screens[0]!.elements[0]! as unknown as Record<string, unknown>).parameter = 'policyNumber';
   const baseStep = createGroundedStep({
     index: 2,
     actionText: 'Enter policy number on policy search',
@@ -157,7 +157,7 @@ test('runtime agent reports the winning data source across explicit, control, da
     const step = cloneJson(baseStep);
     const generatedContext = cloneJson(resolutionContext);
     generatedContext.controls = { ...generatedContext.controls, datasets: [] as [] };
-    generatedContext.screens[0]!.elements[0]!.defaultValueRef = null;
+    (generatedContext.screens[0]!.elements[0]! as unknown as Record<string, unknown>).defaultValueRef = null;
     const receipt = await deterministicRuntimeStepAgent.resolve(step, createAgentContext(generatedContext));
     expect(receipt.kind).toBe('resolved');
     if (receipt.kind !== 'resolved') {
@@ -214,8 +214,8 @@ test('runtime agent uses approved-equivalent overlays before translation and liv
 test('runtime agent falls through to structured translation before live DOM', async () => {
   const resolutionContext = createInterfaceResolutionContext();
   resolutionContext.confidenceOverlays = [];
-  resolutionContext.screens[0]!.elements[0]!.name = 'Reference Number';
-  resolutionContext.screens[0]!.elements[0]!.aliases = ['reference'];
+  (resolutionContext.screens[0]!.elements[0]! as unknown as Record<string, unknown>).name = 'Reference Number';
+  (resolutionContext.screens[0]!.elements[0]! as unknown as Record<string, unknown>).aliases = ['reference'];
   const step = createGroundedStep({
     index: 2,
     intent: 'Enter reference number',

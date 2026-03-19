@@ -6,17 +6,17 @@ export type WidgetPrecondition = 'visible' | 'enabled' | 'editable';
 export type WidgetEffectCategory = 'mutation' | 'observation' | 'focus' | 'navigation';
 
 export interface WidgetInteractionContext {
-  affordance?: string | null | undefined;
+  readonly affordance?: string | null | undefined;
 }
 
 export interface WidgetActionSemantics {
-  expectedStates: EffectState[];
-  effectCategories: WidgetEffectCategory[];
+  readonly expectedStates: readonly EffectState[];
+  readonly effectCategories: readonly WidgetEffectCategory[];
 }
 
 export interface WidgetCapabilityContract {
-  widget: WidgetId;
-  supportedActions: WidgetAction[];
-  requiredPreconditions: WidgetPrecondition[];
-  sideEffects: Partial<Record<WidgetAction, WidgetActionSemantics>>;
+  readonly widget: WidgetId;
+  readonly supportedActions: readonly WidgetAction[];
+  readonly requiredPreconditions: readonly WidgetPrecondition[];
+  readonly sideEffects: Readonly<Partial<Record<WidgetAction, WidgetActionSemantics>>>;
 }

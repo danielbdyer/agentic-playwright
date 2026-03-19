@@ -166,6 +166,71 @@ function foldGovernance<T extends { governance: Governance }, R>(
 
 This is not about replacing runtime checks. It's about making governance constraints visible in function signatures. A function that accepts `Approved<WorkflowEnvelope<X>>` documents at the type level that governance has been verified before the call.
 
+### Explicit prohibition list
+
+The domain audit identified recurring violations. These patterns are explicitly prohibited in `lib/domain/` and strongly discouraged in `lib/application/`:
+
+- **`let` declarations** — use `const` with ternary, `reduce`, or recursive fold
+- **`Array.push()`** — use `[...existing, newItem]` or `flatMap`
+- **`Map.set()` in loops** — use `new Map(items.map(x => [key(x), value(x)]))` constructor or `reduce` into immutable Map
+- **`for` loops in domain code** — use `map`/`filter`/`reduce`/`flatMap`
+- **`void`-returning functions that mutate parameters** — return new objects; callers apply
+- **`while` loops** — use recursive folds
+- **`continue`/`break`** — use `filter` or fold termination
+
+### Canonical patterns from the domain audit
+
+**GraphAccumulator pattern** (for building large data structures):
+```typescript
+interface GraphAccumulator {
+  readonly nodes: ReadonlyMap<string, GraphNode>;
+  readonly edges: ReadonlyMap<string, GraphEdge>;
+}
+
+const withNode = (acc: GraphAccumulator, node: GraphNode): GraphAccumulator => ({
+  ...acc, nodes: new Map([...acc.nodes, [node.id, node]]),
+});
+
+// Compose via sequential reduce when phases depend on prior state:
+const result = phases.reduce((acc, phase) => phase(acc), EMPTY_GRAPH);
+```
+
+**Frequency counting pattern** (replacing `for` + `counts[key] += 1`):
+```typescript
+const counts = items.reduce<Record<string, number>>(
+  (acc, item) => ({ ...acc, [item.key]: (acc[item.key] ?? 0) + 1 }),
+  {},
+);
+```
+
+**Grouping pattern** (replacing mutable `Map.set()` loops):
+```typescript
+const grouped = items.reduce<ReadonlyMap<string, readonly Item[]>>(
+  (map, item) => new Map([...map, [item.key, [...(map.get(item.key) ?? []), item]]]),
+  new Map(),
+);
+```
+
+**Pure ID allocation** (replacing mutable `Set.add()`):
+```typescript
+function ensureUniqueId(base: string, seen: ReadonlySet<string>): readonly [string, ReadonlySet<string>] {
+  const findUnique = (name: string, suffix: number): string =>
+    seen.has(name) ? findUnique(`${base}${suffix}`, suffix + 1) : name;
+  const result = findUnique(base, 2);
+  return [result, new Set([...seen, result])];
+}
+// Thread through reduce: const { ids, seen } = items.reduce(...)
+```
+
+**Exhaustive record lookup** (replacing nested ternary chains on discriminated unions):
+```typescript
+const WINNING_SOURCE_TO_RUNG: Readonly<Record<StepWinningSource, string>> = {
+  'scenario-explicit': 'explicit',
+  'resolution-control': 'control',
+  // TypeScript enforces all variants are covered at compile time
+};
+```
+
 ### Where mutation is acceptable
 
 Some patterns legitimately benefit from mutation:
@@ -174,6 +239,7 @@ Some patterns legitimately benefit from mutation:
 - **Performance-critical hot loops** where allocation pressure matters (measure first)
 - **Playwright page interactions** that are inherently side-effectful
 - **Mutable refs** shared between pipeline phases (e.g., `accRef` in `runResolutionPipeline`) when the phases are closures that capture the ref by reference and the ref is scoped to one pipeline execution
+- **Pure memoization caches** — a `Map` used to cache results of a deterministic function over immutable inputs is acceptable when confined to a single closure scope
 
 In these cases, scope the mutation as tightly as possible and document why the pure alternative was insufficient.
 

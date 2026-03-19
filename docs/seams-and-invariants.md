@@ -693,3 +693,39 @@ When implementing a new phase:
 7. **Prove projection agreement.** When you add a new projection surface, verify it agrees with existing surfaces about resolution outcomes, governance states, and provenance chains.
 
 The goal is not test coverage for its own sake. The goal is that an implementer can make a change, run the tests, and know — not hope, *know* — that the architecture's invariants still hold.
+
+---
+
+## Invariants Added by the Domain Audit
+
+The March 2026 domain audit identified several invariants that were implicit in the code but not enforced by law tests. These are now codified:
+
+### Readonly contract invariant
+
+All exported interface fields in `lib/domain/types/` must use `readonly`. All array fields must use `readonly T[]` or `ReadonlyArray<T>`. All `Record<K,V>` fields at boundaries must use `Readonly<Record<K,V>>`.
+
+Enforcement: the TypeScript compiler. Any mutation of a domain type field produces a compilation error.
+
+### Envelope normalization invariant
+
+Every cross-boundary artifact type must carry the standard envelope: `kind`, `version`, `stage`, `scope`, `ids`, `fingerprints`, `lineage`, `governance`, `payload`. Data must live in `payload` — not duplicated at the top level.
+
+Enforcement: planned law test `tests/envelope-normalization.laws.spec.ts`.
+
+### Fold exhaustiveness invariant
+
+Every discriminated union in the domain must have a corresponding fold function in `lib/domain/visitors.ts`. New variants added to a union must break compilation at all fold call sites until handled.
+
+Enforcement: TypeScript exhaustiveness checking in switch statements within fold functions.
+
+### Weight-sum preservation invariant
+
+All weight vector types (`BottleneckWeights`, `RankingWeights`, `DomScoringWeights`) must sum to ~1.0. `mergePipelineConfig` must preserve this property.
+
+Enforcement: `validatePipelineConfig` in `lib/domain/types/pipeline-config.ts`. Planned law test `tests/pipeline-config-invariants.laws.spec.ts`.
+
+### Domain purity invariant
+
+`lib/domain/` must be pure and side-effect free. No `let`, no `Array.push`, no `Map.set()` in loops, no `for` loops, no `void`-returning parameter-mutating functions.
+
+Enforcement: code review and the explicit prohibition list in `docs/coding-notes.md`.

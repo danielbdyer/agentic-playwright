@@ -16,8 +16,8 @@ import { foldLocatorStrategy } from '../domain/visitors';
 
 export interface ObservationContextScreen {
   screen: StepTaskScreenCandidate['screen'];
-  routeVariantRefs: string[];
-  elements: Array<Pick<
+  routeVariantRefs: readonly string[];
+  elements: ReadonlyArray<Pick<
     StepTaskElementCandidate,
     'element' | 'targetRef' | 'role' | 'name' | 'locator' | 'widget' | 'surface'
   >>;
@@ -25,7 +25,7 @@ export interface ObservationContextScreen {
 
 export interface PlaywrightStateObservationContext {
   stateGraph: StateTransitionGraph;
-  screens: ObservationContextScreen[];
+  screens: readonly ObservationContextScreen[];
 }
 
 export interface StateObservationResult {
@@ -49,7 +49,7 @@ function fallbackLocatorStrategy(candidate: Pick<StepTaskElementCandidate, 'role
   };
 }
 
-function candidateStrategies(candidate: Pick<StepTaskElementCandidate, 'role' | 'name' | 'locator'>): LocatorStrategy[] {
+function candidateStrategies(candidate: Pick<StepTaskElementCandidate, 'role' | 'name' | 'locator'>): readonly LocatorStrategy[] {
   return candidate.locator.length > 0 ? candidate.locator : [fallbackLocatorStrategy(candidate)];
 }
 

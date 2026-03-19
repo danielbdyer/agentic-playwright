@@ -403,7 +403,7 @@ export function projectBenchmarkScorecard(options: {
       executedAt: new Date().toISOString(),
       posture: executionContext.posture,
       runbooks: benchmark.benchmarkRunbooks.map((entry) => entry.runbook),
-      scenarioIds: scenarioIds as DogfoodRun['scenarioIds'],
+      scenarioIds: scenarioIds as unknown as DogfoodRun['scenarioIds'],
       driftEventIds: benchmark.driftEvents.map((event) => event.id),
       scorecard,
       nextCommands: [

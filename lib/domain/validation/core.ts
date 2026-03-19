@@ -1824,9 +1824,9 @@ function validateStateTransition(value: unknown, path: string): StateTransition 
 }
 
 function assertBehaviorTopology(input: {
-  stateNodes: StateNode[];
-  eventSignatures: EventSignature[];
-  transitions: StateTransition[];
+  stateNodes: readonly StateNode[];
+  eventSignatures: readonly EventSignature[];
+  transitions: readonly StateTransition[];
   path: string;
 }): void {
   const stateRefs = new Set(input.stateNodes.map((state) => state.ref));

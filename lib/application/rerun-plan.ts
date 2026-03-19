@@ -66,7 +66,7 @@ function dependentNodesForEdge(edge: GraphEdge, nodes: Map<string, GraphNode>, c
   );
 }
 
-function buildImpactPaths(graph: { nodes: GraphNode[]; edges: GraphEdge[] }, sourceNodeId: string): Map<string, string[]> {
+function buildImpactPaths(graph: { nodes: readonly GraphNode[]; edges: readonly GraphEdge[] }, sourceNodeId: string): Map<string, string[]> {
   const nodesById = new Map(graph.nodes.map((node) => [node.id, node] as const));
   const queue: string[] = [sourceNodeId];
   const pathByNode = new Map<string, string[]>([[sourceNodeId, [sourceNodeId]]]);
