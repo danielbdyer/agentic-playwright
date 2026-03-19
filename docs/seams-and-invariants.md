@@ -146,13 +146,13 @@ The system has five major seams — typed boundaries where one stage hands off t
 
 **Contract types**:
 - Input: `RunRecord` (aggregated step results), `ProposalBundle`, `WorkspaceSession`
-- Output: emitted specs, trace JSON, review markdown, inbox projections, graph deltas, learning fragments, session ledger, scorecard metrics
+- Output: emitted specs, trace JSON, review markdown, inbox projections, graph deltas, improvement fragments, intervention/session ledger, scorecard metrics
 
 **Invariants**:
 - **Projection agreement**: All projection surfaces must agree on what happened. The emitted spec, the trace JSON, the review markdown, and the graph must tell the same story about which resolution stage won each step — tested via `domain.spec.ts` graph derivation and `architecture.spec.ts` structural contracts
 - **Fingerprint stability**: Graph node and edge fingerprints are deterministic from their inputs — proven in `domain.spec.ts`
 - **Learning fragment provenance**: Every `GroundedSpecFragment` keys back to graphNodeIds, selectorRefs, and assertionAnchors — structural contract in `lib/domain/types/learning.ts`
-- **Session ledger completeness**: Every run produces a session with typed events (orientation, artifact-inspection, execution-reviewed at minimum) — tested in `execution-stages.spec.ts`
+- **Intervention/session ledger completeness**: Every run produces a session with typed events and linked intervention receipts (orientation, artifact-inspection, execution-reviewed at minimum) — tested in `execution-stages.spec.ts`
 - **Proposal lineage**: Every `ProposalEntry` carries evidenceIds, impactedSteps, and trustPolicy evaluation — structural contract
 
 **Effect pattern**: Projection is orchestrated in `compileScenario()` and `runScenario()` using `Effect.gen()` chains that yield `FileSystem` for persistence. The pipeline stage abstraction (`lib/application/pipeline/stage.ts`) provides incremental caching: if input fingerprints haven't changed, the stage is skipped.
@@ -453,7 +453,7 @@ These already exist and are tested:
 |---|---|---|
 | Provider equivalence | Same scenario executed through different adapters produces same resolution receipts | Contract test: deterministic adapter vs copilot adapter, compare receipts |
 | Event vocabulary completeness | Every provider emits at least: orientation, artifact-inspection, execution-reviewed | Contract test per adapter |
-| Session ledger determinism | Same run → same session envelope (excluding timestamps) | Law test: normalize timestamps, verify identity |
+| Intervention/session ledger determinism | Same run → same session envelope (excluding timestamps) | Law test: normalize timestamps, verify identity |
 | Workbench degradation | When no agent is present, all artifacts still emit (as structured reports) | Contract test: run with no provider, verify output artifacts exist |
 
 ### Phase 6 Invariants (Learning) — To Implement

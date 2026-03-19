@@ -44,7 +44,10 @@ async function main(): Promise<void> {
     process.env.TESSERACT_HEADLESS = '0';
   }
 
-  const execution = await runWithLocalServicesDetailed(baseProgram, rootDir, { posture });
+  const execution = await runWithLocalServicesDetailed(baseProgram, rootDir, {
+    posture,
+    suiteRoot: paths.suiteRoot,
+  });
   logIncrementalStatus(invocation.command, execution.result);
   logJson({
     result: execution.result,

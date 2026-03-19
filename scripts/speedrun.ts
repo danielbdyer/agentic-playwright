@@ -14,6 +14,7 @@ import { createProjectPaths } from '../lib/application/paths';
 import { generateSyntheticScenarios } from '../lib/application/synthesis/scenario-generator';
 import { runDogfoodLoop } from '../lib/application/dogfood';
 import { buildFitnessReport, compareToScorecard, updateScorecard, type FitnessInputData } from '../lib/application/fitness';
+import { buildImprovementRun, recordImprovementRun } from '../lib/application/improvement';
 import { loadWorkspaceCatalog } from '../lib/application/catalog';
 import { recordExperiment } from '../lib/application/experiment-registry';
 import { runWithLocalServices } from '../lib/composition/local-services';
@@ -216,6 +217,32 @@ async function main(): Promise<void> {
   const configDelta: Partial<PipelineConfig> = configPath
     ? JSON.parse(fs.readFileSync(configPath, 'utf8')) as Partial<PipelineConfig>
     : {};
+  const improvementRun = buildImprovementRun({
+    paths,
+    pipelineVersion,
+    baselineConfig: DEFAULT_PIPELINE_CONFIG,
+    configDelta,
+    substrateContext,
+    fitnessReport: report,
+    scorecardComparison: {
+      improved: comparison.improved,
+      knowledgeHitRateDelta: comparison.knowledgeHitRateDelta,
+      translationPrecisionDelta: comparison.translationPrecisionDelta,
+      convergenceVelocityDelta: comparison.convergenceVelocityDelta,
+    },
+    scorecardSummary: comparison.summary,
+    ledger,
+    parentExperimentId: null,
+    tags: experimentTag ? [experimentTag] : [],
+  });
+  await runWithLocalServices(
+    recordImprovementRun({ paths, run: improvementRun }),
+    rootDir,
+    {
+      posture: { interpreterMode: 'diagnostic', writeMode: 'persist', executionProfile: 'dogfood' },
+      pipelineConfig,
+    },
+  );
   const experimentRecord: ExperimentRecord = {
     id: new Date().toISOString().replace(/[:.]/g, '-'),
     runAt: report.runAt,
@@ -233,8 +260,17 @@ async function main(): Promise<void> {
     accepted: comparison.improved,
     tags: experimentTag ? [experimentTag] : [],
     parentExperimentId: null,
+    improvementRunId: improvementRun.improvementRunId,
+    improvementRun,
   };
-  recordExperiment(rootDir, experimentRecord);
+  await runWithLocalServices(
+    recordExperiment(paths, experimentRecord),
+    rootDir,
+    {
+      posture: { interpreterMode: 'diagnostic', writeMode: 'persist', executionProfile: 'dogfood' },
+      pipelineConfig,
+    },
+  );
   console.log(`Experiment recorded: ${experimentRecord.id}`);
 
   // Step 7: Report failure modes

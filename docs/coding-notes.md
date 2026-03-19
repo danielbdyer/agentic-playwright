@@ -724,15 +724,17 @@ In these cases, scope the mutation as tightly as possible and document why the p
 
 ---
 
-## The Two Dragons
+## The Three Architectural Spines
 
-Tesseract has two engines. They are not parallel workstreams. They are not independent modules. They are a mated pair whose power comes from the fact that each one feeds the other.
+Tesseract has three co-equal architectural spines. They are not parallel workstreams. They are not independent modules. Their power comes from the fact that each one feeds the others through shared artifacts and governed feedback loops.
 
-**Interface Intelligence** is the noun engine. It answers: *what is the application?* Routes, screens, surfaces, targets, selectors, states, transitions, events, affordances — the static and dynamic structure of the thing under test, harvested once and preserved durably.
+**Interface Intelligence** is the structural spine. It answers: *what is the application?* Routes, screens, surfaces, targets, selectors, states, transitions, events, affordances - the static and dynamic structure of the thing under test, harvested once and preserved durably.
 
-**Agent Workbench** is the verb engine. It answers: *what do we do about it?* Discovery, resolution, execution, observation, proposal, approval, replay, learning — the operational lifecycle through which the noun engine gets built, tested, improved, and eventually self-tuning.
+**Agent Workbench** is the intervention spine. It answers: *what do we do about it?* Discovery, resolution, execution, observation, proposal, approval, rerun, benchmark action, and other typed interventions through which the structural spine gets exercised and extended.
 
-Neither engine alone is the product. Interface Intelligence without the Workbench is a dead model that nobody maintains. The Workbench without Interface Intelligence is an agent poking blindly at the DOM, rediscovering the same buttons every run. The product is the flywheel between them.
+**Recursive Improvement** is the optimization spine. It answers: *how does the system improve itself?* Objective vectors, classified signals, candidate interventions, governed acceptance, and checkpointed lineage that make the next run cheaper without blurring governance.
+
+No single spine is the product. Interface Intelligence without intervention is a dead model that nobody maintains. Intervention without Interface Intelligence is an agent poking blindly at the DOM. Improvement without the other two has nothing trustworthy to optimize. The product is the governed loop between all three.
 
 ### The Flywheel
 
@@ -918,11 +920,11 @@ Memory is bounded (max 6 entity keys, 6 surfaces, 8 assertions) and subject to s
 
 The memory is not persistent across runs. It exists within one scenario execution. Cross-run memory lives in the interface model, the selector canon, and the confidence overlays — the durable layers that the next run consumes.
 
-### The Session Ledger
+### The Intervention and Session Ledger
 
-Every run produces an `AgentSessionLedger` at `.tesseract/sessions/{sessionId}/`:
+Every run produces an intervention/session ledger at `.tesseract/sessions/{sessionId}/`:
 
-- `session.json` — the session envelope: adapter, provider, execution profile, duration, event summary
+- `session.json` — the session envelope: adapter, provider, execution profile, duration, participant and event summary
 - `events.jsonl` — typed event stream
 - `transcripts.json` — optional external transcript references
 
@@ -944,7 +946,7 @@ The typed event vocabulary is authoritative. Every agent host — Copilot, Claud
 
 The session adapter abstraction (`lib/application/agent-session-adapter.ts`) provides two implementations today — `deterministicAdapter()` for CI/batch and `copilotAdapter()` for VSCode Copilot Chat — but the interface is designed for more. Any provider that can emit these events is a first-class workbench citizen.
 
-The deep implication: **an operator talking to an agent is not outside the system.** That conversation is a typed workbench workflow against shared truth. The session ledger records it. The learning corpus can train from it. The benchmark scorecard can measure it. The agent's contribution is not ephemeral — it is part of the system's durable memory.
+The deep implication: **an operator talking to an agent is not outside the system.** That conversation is a typed workbench workflow against shared truth. The intervention/session ledger records it. The improvement corpora can train from it. The benchmark scorecard can measure it. The agent's contribution is not ephemeral — it is part of the system's durable memory.
 
 ### Execution Receipts and Provenance
 
@@ -1048,9 +1050,9 @@ This is the surface that DSPy and GEPA will eventually consume. They don't need 
 
 ---
 
-## The Interpretation Surface: Where the Dragons Meet
+## The Interpretation Surface: Where the Spines Meet
 
-The six workflow lanes (intent, knowledge, control, resolution, execution, governance) tell you where a concern lives operationally. The three architectural spines (interface, session, learning) tell you what the system is made of. But the *interpretation surface* is where Interface Intelligence and the Agent Workbench share a single machine contract.
+The six workflow lanes (intent, knowledge, control, resolution, execution, governance) tell you where a concern lives operationally. The three architectural spines (interface, intervention, improvement) tell you what the system is made of. But the *interpretation surface* is where Interface Intelligence, the Agent Workbench, and Recursive Improvement share a single machine contract.
 
 The interpretation surface extends the repo-wide envelope discipline and carries:
 
@@ -1137,7 +1139,7 @@ The `runScenario()` pipeline in `lib/application/run.ts` chains the full executi
 5. **Build proposals** — trust-policy-evaluated change drafts
 6. **Build run record** — aggregate all receipts
 7. **Project learning** — emit grounded fragments and replay examples
-8. **Write session ledger** — record the agent/operator session
+8. **Write intervention/session ledger** — record the agent/operator session and linked intervention receipts
 9. **Emit derived artifacts** — specs, traces, reviews, inbox projections, graph updates
 
 Every step produces a `StepExecutionReceipt` with full provenance. The resolution receipt records which rung won and what was exhausted. The execution receipt records timing, cost, failure classification, and recovery attempts.
@@ -1213,7 +1215,7 @@ The system demonstrably hardens faster with diverse exposure than with repeated 
 
 ### Phase 8: Self-Tuning (The End State)
 
-This is where the two dragons become one engine.
+This is where the three spines start behaving like one governed system.
 
 When the system has:
 - A rich interface model (noun engine)
@@ -1313,7 +1315,7 @@ Land local first. Promote only after repetition or deliberate generalization. Pr
 - The scorecard shows first-pass resolution rate improving over successive dogfood runs.
 - A hotspot identified a thin-knowledge screen and the suggestion pointed to the exact hints file.
 - An auto-approved proposal triggered recompilation and the affected scenarios passed on rerun.
-- The learning corpus grew without a human authoring a single training example.
+- The improvement corpora grew without a human authoring a single training example.
 
 ## Signals You're Drifting
 
@@ -1340,4 +1342,4 @@ A1 → A2 (auto-approval) → A3 (dogfood orchestrator) → D1 (structured entro
 
 The end state: the operator provides URL entry points and ADO test cases. The system discovers the application, models its structure and behavior, decomposes the test cases into grounded flows, emits readable Playwright, executes it, observes what happened, proposes improvements, evaluates them statistically, applies them through governance, and measures whether it got better. The operator reviews proposals, adjusts trust-policy thresholds, and authors knowledge only where the system genuinely can't figure it out.
 
-That's the bet. Both dragons, flying together.
+That's the bet. All three spines, working together.

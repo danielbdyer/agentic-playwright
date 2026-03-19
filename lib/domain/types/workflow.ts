@@ -90,11 +90,17 @@ export type LocatorStrategyKind = 'test-id' | 'role-name' | 'css';
 export interface WorkflowEnvelopeIds {
   readonly adoId?: AdoId | null | undefined;
   readonly suite?: string | null | undefined;
+  readonly sessionId?: string | null | undefined;
   readonly runId?: string | null | undefined;
   readonly stepIndex?: number | null | undefined;
   readonly dataset?: string | null | undefined;
   readonly runbook?: string | null | undefined;
   readonly resolutionControl?: string | null | undefined;
+  readonly participantIds?: readonly string[] | undefined;
+  readonly interventionIds?: readonly string[] | undefined;
+  readonly improvementRunId?: string | null | undefined;
+  readonly iteration?: number | null | undefined;
+  readonly parentExperimentId?: string | null | undefined;
 }
 
 export interface WorkflowEnvelopeFingerprints {
@@ -110,6 +116,7 @@ export interface WorkflowEnvelopeLineage {
   readonly sources: readonly string[];
   readonly parents: readonly string[];
   readonly handshakes: readonly WorkflowStage[];
+  readonly experimentIds?: readonly string[] | undefined;
 }
 
 export interface WorkflowEnvelope<TPayload> {

@@ -6,12 +6,13 @@ Tesseract is an interface intelligence and agent workbench system that compiles 
 
 ## North Star
 
-Tesseract has two durable centers:
+Tesseract has three durable architectural spines:
 
-- `Interface Intelligence`: the semantic spine that harvests and preserves what the application is
-- `Agent Workbench`: the operational spine that governs how operators and agents inspect, extend, execute, review, and learn from that application model
+- `Interface Intelligence`: the structural spine that harvests and preserves what the application is
+- `Agent Workbench`: the intervention spine that governs how operators and agents inspect, extend, execute, review, and rerun against that application model
+- `Recursive Improvement`: the optimization spine that evaluates, tunes, accepts, and checkpoints improvements to the system itself
 
-These centers meet at one shared `Interpretation Surface`. The interpretation surface is the machine contract that planning, runtime resolution, emitted tests, review artifacts, and learning systems all consume.
+These spines meet at one shared `Interpretation Surface`. The interpretation surface is the machine contract that planning, runtime resolution, emitted tests, review artifacts, intervention services, and improvement services all consume.
 
 The compiler remains essential, but it is no longer the conceptual center. The compiler is one projection engine over the shared interpretation surface, not the whole product.
 
@@ -42,8 +43,8 @@ The six public workflow lanes remain the operator vocabulary:
 Those lanes are not the true conceptual center anymore. Three cross-cutting spines run through them:
 
 - `interface`: approved and discovered UI structure, targets, states, selectors, transitions, and provenance
-- `session`: provider-agnostic agent and operator lifecycle events, workbench receipts, and intervention history
-- `learning`: replay, training, evaluation, health, drift, and derived ratchet layers
+- `intervention`: typed participants, sessions, approvals, reruns, reviews, and codebase-touching receipts
+- `improvement`: experiments, objective vectors, candidate interventions, acceptance decisions, checkpoints, and replay/evaluation surfaces
 
 The six lanes tell us where a concern lives operationally. The three spines tell us what the system is really made of.
 
@@ -174,31 +175,31 @@ The readable, executable-flow input for Playwright emission.
 
 It is the last model before code generation and must stay close enough to human QA reasoning that a generated spec reads like a well-authored test rather than opaque output.
 
-### `AgentSessionLedger`
+### `InterventionLedger`
 
-The durable record of operator and agent work against the system.
+The durable record of participants, sessions, and operator or agent work against the system.
 
-It lives at `.tesseract/sessions/{sessionId}/` and includes:
+Current projections live at `.tesseract/sessions/{sessionId}/` and include:
 
 - `session.json`
 - `events.jsonl`
 - transcript references when available
 
-Typed events are authoritative. Raw transcript text is optional and referenced, not authoritative.
+Typed events and linked intervention receipts are authoritative. Raw transcript text is optional and referenced, not authoritative.
 
-### `LearningCorpus`
+### `ImprovementRun`
 
-The derived replay, training, and evaluation surfaces keyed back to interface and scenario truth.
+The governed optimization aggregate for recursive improvement.
 
 It includes:
 
-- replay examples
-- decomposition corpora
-- repair and recovery corpora
-- workflow corpora
-- benchmark outcomes
+- substrate context and clean-room lineage
+- iterations and objective vectors
+- classified signals and candidate interventions
+- acceptance decisions and checkpoint references
+- convergence state and parent lineage
 
-The manifest lives under `.tesseract/learning/`.
+The append-only ledger lives at `.tesseract/benchmarks/improvement-ledger.json`. Replay and training corpora remain derived child projections under `.tesseract/learning/`.
 
 ## Canonical and Derived Split
 
@@ -215,8 +216,8 @@ Derived artifacts:
 - `ApplicationInterfaceGraph`
 - `SelectorCanon`
 - observed state transition overlays
-- session ledgers
-- replay and training corpora
+- intervention and session ledgers
+- improvement ledgers plus replay and training corpora
 - generated specs, traces, reviews, and proposals
 - run receipts and benchmark outputs
 
@@ -228,7 +229,7 @@ Promotion boundary:
 
 ## Interpretation Surface
 
-The interpretation surface is the single machine boundary shared by planning, runtime, review, and learning.
+The interpretation surface is the single machine boundary shared by planning, runtime, review, intervention, and improvement.
 
 It extends the repo-wide envelope discipline and carries:
 
@@ -321,7 +322,7 @@ Scenario-driven execution may:
 - observe new state transitions
 - discover missing assertions
 - propose new targets or hints
-- strengthen the learning corpus
+- strengthen the improvement corpora
 
 ### Phase 3: Canonical Promotion
 
@@ -373,7 +374,7 @@ The agent workbench is the operational counterpart to interface intelligence.
 It standardizes how operators and agent hosts interact with the system through:
 
 - provider-agnostic session adapters
-- durable session ledgers
+- durable intervention/session ledgers
 - review and intervention surfaces
 - replay surfaces
 - benchmark and evaluation actions
@@ -396,7 +397,7 @@ Agent hosts must map onto the same typed event vocabulary, including:
 
 An operator talking to an agent is not outside the system. That conversation is one more typed workbench workflow against shared truth.
 
-## Learning and Ratchet
+## Recursive Improvement and Ratchet
 
 Tesseract must improve without blurring governance.
 
@@ -405,7 +406,7 @@ Immediate derived updates are allowed for:
 - selector health
 - selector drift observations
 - observed state transitions
-- session artifacts
+- intervention and session artifacts
 - replay examples
 - decomposition, repair, and workflow corpora
 - benchmark and evaluation surfaces
@@ -465,8 +466,9 @@ The current repo already contains several surfaces that map cleanly into this do
 | `generated/{suite}/{ado_id}.trace.json` | machine-readable provenance projection |
 | `generated/{suite}/{ado_id}.review.md` | QA-facing explanation layer |
 | `.tesseract/runs/{ado_id}/{run_id}/run.json` | execution and interpretation receipt ledger |
-| `.tesseract/sessions/{sessionId}/` | `AgentSessionLedger` |
-| `.tesseract/learning/manifest.json` | `LearningCorpus` manifest |
+| `.tesseract/sessions/{sessionId}/` | `InterventionLedger` projection |
+| `.tesseract/benchmarks/improvement-ledger.json` | append-only `ImprovementRun` ledger |
+| `.tesseract/learning/manifest.json` | improvement corpora manifest |
 
 Transitional code names are acceptable for implementation continuity, but new design work should target the contracts in this document.
 
@@ -506,11 +508,11 @@ The rollout order is fixed.
 
 ### Phase 5: Agent Workbench
 
-- standardize `AgentSessionLedger`
+- standardize the intervention/session ledger
 - support provider-agnostic adapters with Copilot as a flagship conformance target
 - unify review, rerun, replay, and intervention workflows
 
-### Phase 6: Learning and Evaluation
+### Phase 6: Improvement and Evaluation
 
 - emit replay and training corpora from real provenance
 - evaluate decomposition, repair, and workflow runtimes

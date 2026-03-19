@@ -6,7 +6,7 @@ For the product model, read `VISION.md`. For operational use, read `README.md`. 
 
 ## What Tesseract is
 
-Tesseract is a compiler from human verification intent to executable verification, backed by a living knowledge system that grows through use.
+Tesseract is a compiler from human verification intent to executable verification, backed by a living knowledge system, typed intervention receipts, and a governed recursive-improvement loop.
 
 The source program is the Azure DevOps manual test case. The emitted object code is Playwright. The durable asset is the reviewed knowledge plus the typed handshakes that explain how intent was resolved.
 
@@ -18,6 +18,12 @@ The system exposes six public lanes:
 4. `resolution`
 5. `execution`
 6. `governance/projection`
+
+Three architectural spines cut across those lanes:
+
+1. `interface`
+2. `intervention`
+3. `improvement`
 
 The most important internal ladder sits inside `resolution`:
 
@@ -112,6 +118,24 @@ A translation receipt is the typed record of the structured translation stage. I
 
 Derived home: runtime interpretation and run receipts
 
+### Participant
+
+A participant is a typed operator, agent, or system actor with declared capabilities and provenance-rich references.
+
+Derived home: session envelopes, intervention receipts, and improvement runs
+
+### Intervention
+
+An intervention is a typed action against the codebase or workflow surface, such as approval, rerun planning, benchmark action, proposal activation, or recursive-improvement change application.
+
+Derived home: session envelopes, operator inbox, approvals, and recursive-improvement ledgers
+
+### Improvement run
+
+An improvement run is the governed optimization aggregate for recursive improvement. It records substrate context, iterations, objective vectors, signals, candidate interventions, acceptance decisions, and checkpoint lineage.
+
+Derived home: `.tesseract/benchmarks/improvement-ledger.json`
+
 ## Core commitments
 
 ### 1. Approved artifacts are the source of truth
@@ -136,7 +160,7 @@ Selectors live in element signatures. Postures live in posture contracts. Widget
 
 ### 6. The 50th test should cost less than the 1st
 
-Each run should either execute cheaply from approved knowledge or leave behind evidence, overlays, or proposals that make future runs cheaper.
+Each run should either execute cheaply from approved knowledge or leave behind evidence, overlays, intervention receipts, or improvement signals that make future runs cheaper.
 
 ### 7. Bottleneck visibility is a feature
 
@@ -241,7 +265,7 @@ The knowledge layer serves four consumers:
 1. the deterministic compiler
 2. the structured translation bridge
 3. the runtime agent
-4. future operator and agent sessions through persisted canon, evidence, and overlays
+4. future operator interventions and recursive-improvement services through persisted canon, evidence, overlays, and governed ledgers
 
 The same knowledge should be queryable by all four surfaces through typed seams.
 
@@ -262,6 +286,10 @@ Representative node kinds:
 - `generated-spec`
 - `generated-trace`
 - `generated-review`
+- `participant`
+- `intervention`
+- `improvement-run`
+- `acceptance-decision`
 
 Representative edge kinds:
 
@@ -289,23 +317,23 @@ Trust policy does not block:
 - deterministic output derived from approved artifacts
 - approved-equivalent overlay growth inside threshold policy
 
-## The Three Dragons
+## The Three Architectural Spines
 
-The system has three co-equal architectural concerns (the "three dragons") that cut across all six lanes:
+The system has three co-equal architectural spines that cut across all six lanes:
 
-1. **Interface Intelligence** (the Noun Engine) — models what the UI *is*: routes, screens, surfaces, targets, selectors, states, transitions, affordances. Its aggregate is `ApplicationInterfaceGraph`. Lives primarily in `lib/domain/types/interface.ts` and `lib/application/interface-intelligence.ts`.
+1. **Interface Intelligence** — models what the UI *is*: routes, screens, surfaces, targets, selectors, states, transitions, affordances. Its aggregate is `ApplicationInterfaceGraph`. Lives primarily in `lib/domain/types/interface.ts` and the graph/interface derivation path.
 
-2. **Agent Workbench** (the Verb Engine) — models what agents *do*: discover, resolve, execute, observe, propose, approve, replay, learn. Its aggregate is `RunRecord`. Lives primarily in `lib/domain/types/execution.ts` and `lib/runtime/agent/`.
+2. **Agent Workbench** — models what operators and agents *do*: discover, resolve, execute, observe, propose, approve, rerun, benchmark, and intervene on the codebase. Its aggregate is the intervention/session ledger around `RunRecord`, `AgentSession`, and `InterventionReceipt`. Lives primarily in `lib/domain/types/execution.ts`, `lib/domain/types/session.ts`, `lib/domain/types/intervention.ts`, and `lib/runtime/agent/`.
 
-3. **Recursive Self-Improvement** (the Meta Engine) — models how the system *improves itself*: the dogfood loop, fitness classification, knob search, Pareto frontier tracking, convergence detection. Its aggregate is `DogfoodLedger`. Lives primarily in `lib/application/dogfood.ts`, `lib/application/fitness.ts`, and `lib/domain/types/fitness.ts`.
+3. **Recursive Improvement** — models how the system *improves itself*: substrate-specific runs, fitness classification, candidate generation, Pareto acceptance, convergence detection, and checkpointed lineage. Its aggregate is `ImprovementRun`, with `DogfoodLedger` retained as a compatibility projection. Lives primarily in `lib/application/improvement.ts`, `lib/application/fitness.ts`, `lib/domain/types/improvement.ts`, and `lib/domain/types/fitness.ts`.
 
 ## Concepts added by the domain audit
 
-- **Dragon** — one of three co-equal architectural concerns (see above)
+- **Architectural Spine** — one of the three co-equal architectural concerns listed above
 - **Fitness Report** — the "gradient" of the self-improving loop; classifies step-level resolution outcomes into failure modes that map to tunable parameters
 - **Knob Search** — the "backward pass" of the self-improving loop; maps failure classes to tunable parameters and generates candidate `PipelineConfig` perturbations
 - **Pareto Frontier** — the multi-objective acceptance surface; a candidate config is accepted iff it is not dominated by any point already on the frontier
-- **Agent Participant** — an external agent (AI, CI, operator) modeled as a first-class session participant with typed capabilities and interactive callbacks
+- **Agent Participant** — an external agent (AI, CI, operator) modeled as a first-class intervention participant with typed capabilities and interactive callbacks
 - **GraphAccumulator** — the immutable value object pattern for building `DerivedGraph` from pure phase functions composed via sequential fold
 - **Pipeline Config Validation** — pure function `validatePipelineConfig` that enforces weight-sum ~1.0, scalar bounds, and well-formedness invariants on the hyper-parameter space
 

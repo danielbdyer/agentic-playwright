@@ -1,12 +1,18 @@
 import { expect, test } from '@playwright/test';
-import type { DogfoodLedger, DogfoodIterationResult, DogfoodOptions } from '../lib/application/dogfood';
-import type { AutoApprovalPolicy, TrustPolicy, ProposalBundle, AgentSession, AgentEvent } from '../lib/domain/types';
+import type {
+  AgentEvent,
+  AutoApprovalPolicy,
+  DogfoodLedgerProjection,
+  ImprovementLoopIteration,
+  InterventionReceipt,
+  Participant,
+  TrustPolicy,
+} from '../lib/domain/types';
 import { evaluateAutoApproval, DEFAULT_AUTO_APPROVAL_POLICY } from '../lib/domain/trust-policy';
 import {
   createAgentSessionAdapterRegistry,
   resolveAgentSessionAdapter,
 } from '../lib/application/agent-session-adapter';
-import type { AgentSessionAdapter } from '../lib/application/agent-session-adapter';
 
 // ─── Fixtures ───
 
@@ -23,7 +29,7 @@ const baseTrustPolicy: TrustPolicy = {
   forbiddenAutoHealClasses: ['dangerous-mutation'],
 };
 
-function createMockIterationResult(overrides: Partial<DogfoodIterationResult> = {}): DogfoodIterationResult {
+function createMockIterationResult(overrides: Partial<ImprovementLoopIteration> = {}): ImprovementLoopIteration {
   return {
     iteration: 1,
     scenarioIds: ['WI:1001'],
@@ -37,7 +43,7 @@ function createMockIterationResult(overrides: Partial<DogfoodIterationResult> = 
   };
 }
 
-function createMockLedger(overrides: Partial<DogfoodLedger> = {}): DogfoodLedger {
+function createMockLedger(overrides: Partial<DogfoodLedgerProjection> = {}): DogfoodLedgerProjection {
   return {
     kind: 'dogfood-ledger',
     version: 1,
@@ -54,6 +60,33 @@ function createMockLedger(overrides: Partial<DogfoodLedger> = {}): DogfoodLedger
     knowledgeHitRateDelta: 0.25,
     ...overrides,
   };
+}
+
+function createSessionInterventions(
+  participants: readonly Participant[],
+  host: 'deterministic' | 'copilot-vscode-chat',
+): readonly InterventionReceipt[] {
+  return [{
+    interventionId: 'session-1:orientation',
+    kind: 'orientation',
+    status: 'completed',
+    summary: 'Session oriented around the active scenario.',
+    participantRefs: participants.map((participant) => ({
+      participantId: participant.participantId,
+      kind: participant.kind,
+    })),
+    target: {
+      kind: 'session',
+      ref: 'session-1',
+      label: 'Session session-1',
+    },
+    effects: [],
+    startedAt: '2026-03-16T00:00:00Z',
+    completedAt: '2026-03-16T00:00:01Z',
+    payload: {
+      host,
+    },
+  }];
 }
 
 // ─── WP6 Law Tests: Dogfood Invariants ───
@@ -85,7 +118,7 @@ test('knowledge hit rate delta shows improvement across iterations', () => {
 });
 
 test('convergence reason is one of the valid enum values', () => {
-  const validReasons: DogfoodLedger['convergenceReason'][] = ['no-proposals', 'threshold-met', 'budget-exhausted', 'max-iterations', null];
+  const validReasons: DogfoodLedgerProjection['convergenceReason'][] = ['no-proposals', 'threshold-met', 'budget-exhausted', 'max-iterations', null];
 
   for (const reason of validReasons) {
     const ledger = createMockLedger({ convergenceReason: reason });
@@ -197,6 +230,8 @@ test('auto-approval blocked for ci-batch even in dogfood-like configuration', ()
 
 test('session ledger determinism: same session input → same adapter output shape', () => {
   const adapter = resolveAgentSessionAdapter('deterministic-agent-session');
+  const participants = adapter.participants({ sessionId: 'session-1', providerId: 'test' });
+  const interventions = createSessionInterventions(participants, 'deterministic');
 
   const input1 = {
     sessionId: 'session-1',
@@ -206,6 +241,9 @@ test('session ledger determinism: same session input → same adapter output sha
     completedAt: '2026-03-16T01:00:00Z',
     scenarioIds: ['WI:1001' as any],
     runIds: ['run-1'],
+    participants,
+    interventions,
+    improvementRunIds: ['improvement-run-1'],
     transcripts: adapter.transcriptRefs({ sessionId: 'session-1', adoId: 'WI:1001' as any, runId: 'run-1' }),
     events: [] as AgentEvent[],
   };
@@ -220,6 +258,9 @@ test('session ledger determinism: same session input → same adapter output sha
   expect(session1.adapterId).toBe(session2.adapterId);
   expect(session1.executionProfile).toBe(session2.executionProfile);
   expect(session1.eventCount).toBe(session2.eventCount);
+  expect(session1.participantCount).toBe(participants.length);
+  expect(session1.interventionCount).toBe(interventions.length);
+  expect(session1.improvementRunIds).toEqual(['improvement-run-1']);
 });
 
 test('provider equivalence: both adapters produce valid AgentSession schema', () => {
@@ -227,6 +268,11 @@ test('provider equivalence: both adapters produce valid AgentSession schema', ()
 
   for (const adapterId of adapters) {
     const adapter = resolveAgentSessionAdapter(adapterId);
+    const participants = adapter.participants({
+      sessionId: 'session-1',
+      providerId: 'test',
+    });
+    const interventions = createSessionInterventions(participants, adapter.host);
     const transcripts = adapter.transcriptRefs({
       sessionId: 'session-1',
       adoId: 'WI:1001' as any,
@@ -241,6 +287,9 @@ test('provider equivalence: both adapters produce valid AgentSession schema', ()
       completedAt: null,
       scenarioIds: ['WI:1001' as any],
       runIds: ['run-1'],
+      participants,
+      interventions,
+      improvementRunIds: ['improvement-run-1'],
       transcripts,
       events: [],
     });
@@ -254,5 +303,34 @@ test('provider equivalence: both adapters produce valid AgentSession schema', ()
     expect(session.executionProfile).toBe('dogfood');
     expect(typeof session.eventCount).toBe('number');
     expect(typeof session.eventTypes).toBe('object');
+    expect(session.participantCount).toBe(participants.length);
+    expect(session.interventionCount).toBe(interventions.length);
+    expect(session.improvementRunIds).toEqual(['improvement-run-1']);
   }
+});
+
+test('session summary preserves typed participants and interventions', () => {
+  const adapter = resolveAgentSessionAdapter('deterministic-agent-session');
+  const participants = adapter.participants({ sessionId: 'session-1', providerId: 'test' });
+  const interventions = createSessionInterventions(participants, 'deterministic');
+
+  const session = adapter.sessionSummary({
+    sessionId: 'session-1',
+    providerId: 'test',
+    executionProfile: 'dogfood',
+    startedAt: '2026-03-16T00:00:00Z',
+    completedAt: null,
+    scenarioIds: ['WI:1001' as any],
+    runIds: ['run-1'],
+    participants,
+    interventions,
+    improvementRunIds: ['improvement-run-1'],
+    transcripts: adapter.transcriptRefs({ sessionId: 'session-1', adoId: 'WI:1001' as any, runId: 'run-1' }),
+    events: [],
+  });
+
+  expect(session.participants.map((participant) => participant.kind).sort()).toEqual(['agent', 'system']);
+  expect(session.interventions.map((intervention) => intervention.interventionId)).toEqual(['session-1:orientation']);
+  expect(session.participantCount).toBe(session.participants.length);
+  expect(session.interventionCount).toBe(session.interventions.length);
 });

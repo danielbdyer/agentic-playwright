@@ -23,6 +23,12 @@ Prior evidence feeds overlays, translation, and the runtime agent. It is not a s
 
 The offline optimization and evaluation lane remains separate and must not contaminate the deterministic compiler core.
 
+Three architectural spines cut across those lanes:
+
+- `interface`: shared application structure, selectors, states, transitions, and provenance
+- `intervention`: participants, sessions, approvals, reruns, review actions, and codebase-touching receipts
+- `improvement`: experiments, objective vectors, scorecards, acceptance decisions, and checkpointed lineage
+
 ## Agentic surface model
 
 The backlog assumes three execution profiles that share the same pipeline and artifact surface:
@@ -31,7 +37,7 @@ The backlog assumes three execution profiles that share the same pipeline and ar
 |---------|---------------|----------|----------|
 | `ci-batch` | None. Fully deterministic. Evidence and proposals accumulate for later consumption. | Never. | CI, scheduled runs, headless regression. |
 | `interactive` | Agent consumes inbox, proposals, and hotspots from prior runs. Initiates approve/rerun workflows. | Explicit per-proposal. | VSCode extension, Copilot Chat, operator workbench. |
-| `dogfood` | Agent orchestrates discover → compile → run → propose → approve(gated) → rerun loop. | Confidence-gated auto-approval within trust-policy thresholds. | Self-hardening, benchmark, flywheel. |
+| `dogfood` | Agent orchestrates discover → compile → run → propose → approve(gated) → rerun loop. | Confidence-gated auto-approval within trust-policy thresholds. | Self-hardening, benchmark, recursive improvement. |
 
 The base case is always `ci-batch`: the full pipeline runs deterministically with no agent intervention, producing structured reports. The `interactive` and `dogfood` profiles layer agentic behavior on top without changing the compiler core.
 
@@ -135,10 +141,10 @@ Behavior:
 6. auto-approve (within trust-policy thresholds)
 7. recompile affected scenarios
 8. rerun affected scenarios
-9. emit dogfood run ledger and scorecard
+9. emit improvement run ledger, compatibility dogfood projection, and scorecard
 10. repeat steps 4-9 until convergence or budget exhaustion
 
-The orchestrator is a thin loop over existing CLI commands. It does not introduce new domain concepts. It produces a `Dogfood Run` ledger (see `docs/dogfooding-flywheel.md`) that wraps the full exposure.
+The orchestrator is a thin loop over existing CLI commands. It should now produce a canonical `ImprovementRun` plus a compatibility `Dogfood Run` projection (see `docs/dogfooding-flywheel.md`) that wraps the full exposure.
 
 Budget controls:
 
@@ -148,7 +154,7 @@ Budget controls:
 
 Success criteria:
 
-- a Claude Code session or VSCode agent can invoke the full flywheel with one command
+- a Claude Code session or VSCode agent can invoke the full recursive-improvement loop with one command
 - the ledger explains what improved, what was auto-approved, and what still needs human attention
 - the command degrades to a single compile+run+report cycle when no agent is present
 

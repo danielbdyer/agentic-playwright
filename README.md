@@ -2,7 +2,7 @@
 
 Tesseract is an interface intelligence and agent workbench system for QA intent.
 
-It still includes a deterministic preparation pipeline, a bounded translation bridge, and a knowledge-backed runtime agent, but those are now consumers of a deeper shared model: the interface graph, the selector canon, the state transition topology, the session ledger, and the learning corpus.
+It still includes a deterministic preparation pipeline, a bounded translation bridge, and a knowledge-backed runtime agent, but those are now consumers of a deeper shared model: the interface graph, the selector canon, the state transition topology, typed participants and interventions, and governed improvement lineage.
 
 Tesseract ingests Azure DevOps manual test cases, preserves their wording as canonical scenario IR, harvests application reality into a shared interpretation surface, and emits disposable Playwright object code plus review surfaces. The goal is not to hand-author tests faster. The goal is to make executable verification a transparent collaboration loop between approved knowledge, runtime interpretation, human oversight, and durable interface intelligence.
 
@@ -56,8 +56,8 @@ Every cross-lane handoff is carried as a typed envelope with `kind`, `version`, 
 Those six lanes remain the operating vocabulary. Architecturally, three cross-cutting spines now cut through them:
 
 - `interface`: shared application structure, targets, selectors, states, and transitions
-- `session`: provider-agnostic operator and agent lifecycle events
-- `learning`: replay, training, evaluation, drift, and ratchet surfaces derived from provenance
+- `intervention`: typed participants, sessions, approvals, reruns, and codebase-touching workbench receipts
+- `improvement`: experiments, objective vectors, scorecards, acceptance decisions, and checkpointed lineage
 
 ## Governance boundary
 
@@ -113,14 +113,17 @@ Runtime execution adds:
 - `.tesseract/runs/{ado_id}/{run_id}/interpretation.json`
 - `.tesseract/runs/{ado_id}/{run_id}/execution.json`
 - `.tesseract/runs/{ado_id}/{run_id}/run.json`
+- `.tesseract/runs/improvement-loop-ledger.json`
 - `.tesseract/confidence/index.json`
 - `.tesseract/interface/index.json`
 - `.tesseract/interface/selectors.json`
 - `.tesseract/sessions/{sessionId}/session.json`
 - `.tesseract/sessions/{sessionId}/events.jsonl`
 - `.tesseract/learning/manifest.json`
+- `.tesseract/benchmarks/improvement-ledger.json`
 - `.tesseract/inbox/index.json`
 - `.tesseract/policy/approvals/{proposal_id}.approval.json`
+- `.tesseract/benchmarks/{benchmark}/{run_id}.benchmark-improvement.json`
 - `.tesseract/benchmarks/{benchmark}/{run_id}.dogfood-run.json`
 
 The review artifact exists so a QA can answer:
@@ -292,14 +295,17 @@ Output policy:
 | `.tesseract/bound/{ado_id}.json` | bound scenario with provenance and governance | derived |
 | `.tesseract/tasks/{ado_id}.resolution.json` | runtime task packet and knowledge handshake | derived |
 | `.tesseract/runs/{ado_id}/{run_id}/run.json` | interpretation + execution receipts | derived |
+| `.tesseract/runs/improvement-loop-ledger.json` | canonical recursive-improvement loop ledger | derived |
 | `.tesseract/confidence/index.json` | derived confidence overlay catalog and approved-equivalent working knowledge | derived |
 | `.tesseract/interface/index.json` | derived application interface graph | derived |
 | `.tesseract/interface/selectors.json` | derived selector canon | derived |
-| `.tesseract/sessions/{sessionId}/session.json` | derived agent session ledger | derived |
-| `.tesseract/learning/manifest.json` | derived learning corpus manifest | derived |
+| `.tesseract/sessions/{sessionId}/session.json` | derived intervention/session ledger | derived |
+| `.tesseract/learning/manifest.json` | derived improvement corpora manifest | derived |
+| `.tesseract/benchmarks/improvement-ledger.json` | append-only recursive-improvement ledger | derived |
 | `.tesseract/inbox/index.json` | derived operator inbox surface | derived |
 | `.tesseract/policy/approvals/{proposal_id}.approval.json` | durable approval receipt | derived |
-| `.tesseract/benchmarks/{benchmark}/{run_id}.dogfood-run.json` | benchmark execution ledger | derived |
+| `.tesseract/benchmarks/{benchmark}/{run_id}.benchmark-improvement.json` | canonical benchmark improvement projection | derived |
+| `.tesseract/benchmarks/{benchmark}/{run_id}.dogfood-run.json` | compatibility benchmark projection over recursive-improvement runs | derived |
 | `generated/{suite}/{ado_id}.spec.ts` | executable object code | derived |
 | `generated/{suite}/{ado_id}.trace.json` | machine derivation trace | derived |
 | `generated/{suite}/{ado_id}.review.md` | QA review report | derived |

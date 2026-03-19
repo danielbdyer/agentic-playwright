@@ -29,6 +29,10 @@ export interface ExecutionContextPort {
   writeJournal(): readonly WriteJournalEntry[];
 }
 
+export interface VersionControlPort {
+  currentRevision(): Effect.Effect<string, TesseractError>;
+}
+
 export interface AdoSourcePort {
   listSnapshotIds(): Effect.Effect<AdoId[], TesseractError>;
   loadSnapshot(adoId: AdoId): Effect.Effect<unknown, TesseractError>;
@@ -60,4 +64,4 @@ export class AdoSource extends Context.Tag('tesseract/AdoSource')<AdoSource, Ado
 export class RuntimeScenarioRunner extends Context.Tag('tesseract/RuntimeScenarioRunner')<RuntimeScenarioRunner, RuntimeScenarioRunnerPort>() {}
 export class ExecutionContext extends Context.Tag('tesseract/ExecutionContext')<ExecutionContext, ExecutionContextPort>() {}
 export class PipelineConfigService extends Context.Tag('tesseract/PipelineConfig')<PipelineConfigService, { readonly config: PipelineConfig }>() {}
-
+export class VersionControl extends Context.Tag('tesseract/VersionControl')<VersionControl, VersionControlPort>() {}

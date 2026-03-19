@@ -6,7 +6,7 @@ Generated from `AGENTS.md`, `README.md`, `BACKLOG.md`, and `.github/instructions
 
 Tesseract is an interface intelligence and agent workbench system for QA intent.
 
-It still includes a deterministic preparation pipeline, a bounded translation bridge, and a knowledge-backed runtime agent, but those are now consumers of a deeper shared model: the interface graph, the selector canon, the state transition topology, the session ledger, and the learning corpus.
+It still includes a deterministic preparation pipeline, a bounded translation bridge, and a knowledge-backed runtime agent, but those are now consumers of a deeper shared model: the interface graph, the selector canon, the state transition topology, typed participants and interventions, and governed improvement lineage.
 
 Tesseract ingests Azure DevOps manual test cases, preserves their wording as canonical scenario IR, harvests application reality into a shared interpretation surface, and emits disposable Playwright object code plus review surfaces. The goal is not to hand-author tests faster. The goal is to make executable verification a transparent collaboration loop between approved knowledge, runtime interpretation, human oversight, and durable interface intelligence.
 
@@ -26,6 +26,8 @@ Operator workflows are documented in `docs/operator-handbook.md`.
 - operator workflow and approvals: [docs/operator-handbook.md](docs/operator-handbook.md)
 - planned work split by lane: [BACKLOG.md](BACKLOG.md)
 - design direction and owner decisions: [docs/direction.md](docs/direction.md)
+- implementation coding notes: [docs/coding-notes.md](docs/coding-notes.md)
+- seams, invariants, and verification: [docs/seams-and-invariants.md](docs/seams-and-invariants.md)
 
 ## Canonical Inputs
 
@@ -85,7 +87,7 @@ Operator workflows are documented in `docs/operator-handbook.md`.
 
 ## ADO Adapter Selection
 
-- Default adapter: fixture (`fixtures/ado/*.json`).
+- Default adapter: fixture (`dogfood/fixtures/ado/*.json`).
 - Live adapter: set `--ado-source live` or `TESSERACT_ADO_SOURCE=live`.
 
 Required env vars:
@@ -105,8 +107,8 @@ Optional env vars:
 | Scope | File |
 | --- | --- |
 | lib/domain/**/*.ts | `.github/instructions/domain.instructions.md` |
-| generated/**/*.ts,generated/**/*.json,generated/**/*.md,lib/generated/**/*.ts | `.github/instructions/generated.instructions.md` |
-| knowledge/**/*.yaml,knowledge/**/*.ts,scenarios/**/*.yaml | `.github/instructions/knowledge.instructions.md` |
+| dogfood/generated/**/*.ts,dogfood/generated/**/*.json,dogfood/generated/**/*.md,generated/**/*.ts,generated/**/*.json,generated/**/*.md,lib/generated/**/*.ts | `.github/instructions/generated.instructions.md` |
+| dogfood/knowledge/**/*.yaml,dogfood/knowledge/**/*.ts,dogfood/scenarios/**/*.yaml,knowledge/**/*.yaml,knowledge/**/*.ts,scenarios/**/*.yaml | `.github/instructions/knowledge.instructions.md` |
 | tests/**/*.ts,tests/**/*.spec.ts | `.github/instructions/tests.instructions.md` |
 
 ## Layer Rules

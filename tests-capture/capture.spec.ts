@@ -1,6 +1,7 @@
-﻿import path from 'path';
+import path from 'path';
 import { writeFileSync } from 'fs';
 import { computeNormalizedSnapshotHash, normalizeAriaSnapshot } from '../lib/domain/hash';
+import { createScreenId } from '../lib/domain/identity';
 import { test } from '../dogfood/fixtures/index';
 import { captureAriaYaml } from '../lib/runtime/aria';
 import { loadScreen } from '../lib/runtime/load';
@@ -13,7 +14,7 @@ test('capture requested screen section', async ({ page }, testInfo) => {
     throw new Error('TESSERACT_CAPTURE_SCREEN and TESSERACT_CAPTURE_SECTION are required');
   }
 
-  const loaded = loadScreen(screenId);
+  const loaded = loadScreen(createScreenId(screenId));
   const section = loaded.screen.sections[sectionId];
   if (!section) {
     throw new Error(`Unknown section ${sectionId} on screen ${screenId}`);
@@ -27,8 +28,8 @@ test('capture requested screen section', async ({ page }, testInfo) => {
 
   const normalized = normalizeAriaSnapshot(snapshot.value);
   const hash = computeNormalizedSnapshotHash(snapshot.value);
-  const snapshotPath = path.join(process.cwd(), 'knowledge', 'snapshots', screenId, `${sectionId}.yaml`);
-  const hashPath = path.join(process.cwd(), 'knowledge', 'snapshots', screenId, `${sectionId}.hash`);
+  const snapshotPath = path.join(process.cwd(), 'dogfood', 'knowledge', 'snapshots', screenId, `${sectionId}.yaml`);
+  const hashPath = path.join(process.cwd(), 'dogfood', 'knowledge', 'snapshots', screenId, `${sectionId}.hash`);
 
   writeFileSync(snapshotPath, `${normalized}\n`, 'utf8');
   writeFileSync(hashPath, `${hash}\n`, 'utf8');

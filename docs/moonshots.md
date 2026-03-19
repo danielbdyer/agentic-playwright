@@ -2,7 +2,7 @@
 
 Tesseract's biggest opportunity is not better Playwright generation. That is the current proving ground, not the end state. The bigger prize is a trusted memory and control plane for agents operating real enterprise UIs: a system that remembers what an application is, how it changes state, how it can be safely driven, what evidence supports that belief, and which changes still require human governance.
 
-The reason this is a credible moonshot from this repo, rather than generic AI optimism, is that the substrate already exists in partial form. The doctrine is explicit in [master-architecture](./master-architecture.md), the runtime interpretation pivot is explicit in the [ADR collapsing deterministic parsing](./adr-collapse-deterministic-parsing.md), and the operating model is explicit in the [dogfooding flywheel](./dogfooding-flywheel.md). On disk today there is already an application interface graph, a selector canon, route variants, confidence overlays, session ledgers, a learning manifest, and an operator inbox. The repo is not imagining those nouns. It is already emitting them.
+The reason this is a credible moonshot from this repo, rather than generic AI optimism, is that the substrate already exists in partial form. The doctrine is explicit in [master-architecture](./master-architecture.md), the runtime interpretation pivot is explicit in the [ADR collapsing deterministic parsing](./adr-collapse-deterministic-parsing.md), and the operating model is explicit in the [dogfooding flywheel](./dogfooding-flywheel.md). On disk today there is already an application interface graph, a selector canon, route variants, confidence overlays, intervention/session ledgers, an improvement manifest, and an operator inbox. The repo is not imagining those nouns. It is already emitting them.
 
 This memo argues for one flagship moonshot and four adjacent bets. All five would require expert implementation across runtime, provenance, governance, graph modeling, and operator surfaces. None are easy. But each one is close enough to the current architecture that success would feel like a dramatic extension of what Tesseract is already becoming, not a reinvention.
 
@@ -12,7 +12,7 @@ Three things make this a live moment rather than a vague someday aspiration.
 
 First, the architecture has already moved beyond compiler-only thinking. The shared interpretation surface in [master-architecture](./master-architecture.md) positions planning, runtime resolution, emitted tests, review artifacts, and learning systems as projections over the same model. That is the right abstraction if the system is ever going to become more than a test generator.
 
-Second, the repo now has enough real artifacts to support compounding loops. `.tesseract/interface/index.json` already carries route refs, route variants, target refs, state refs, event signatures, and transitions. `.tesseract/interface/selectors.json` already behaves like an embryonic `SelectorCanon`, with ranked probes, health, rung order, state validity, and lineage. `.tesseract/learning/manifest.json` already tracks decomposition, repair-recovery, and workflow corpora, plus replay examples across runs. `.tesseract/sessions/` already holds `AgentSessionLedger`-style records. `generated/demo/policy-search/10001.review.md` already reads like a scenario report that knows about governance, runtime failure families, state preconditions, overlays, and next commands.
+Second, the repo now has enough real artifacts to support compounding loops. `.tesseract/interface/index.json` already carries route refs, route variants, target refs, state refs, event signatures, and transitions. `.tesseract/interface/selectors.json` already behaves like an embryonic `SelectorCanon`, with ranked probes, health, rung order, state validity, and lineage. `.tesseract/learning/manifest.json` already tracks decomposition, repair-recovery, and workflow corpora, plus replay examples across runs. `.tesseract/sessions/` already holds intervention/session records. `generated/demo/policy-search/10001.review.md` already reads like a scenario report that knows about governance, runtime failure families, state preconditions, overlays, and next commands.
 
 Third, the repo already exposes the tension that matters. The operator inbox shows both `needs-human` items and approved-equivalent wins. The confidence overlay catalog shows learned aliases climbing toward trust thresholds. The interface graph already references route variants such as `route-variant:demo:policy-search:default` and `route-variant:demo:policy-search:results-with-policy`. That means Tesseract is already somewhere interesting: not a finished autonomous system, but no longer just compiling text into tests either.
 
@@ -43,8 +43,8 @@ In that model:
 - `ApplicationInterfaceGraph` is the semantic map of the app.
 - `SelectorCanon` is the ranked working memory of how to reliably touch the app.
 - `StateTransitionGraph` is the reusable model of what changes after which actions.
-- `AgentSessionLedger` is the operational memory of what the agent inspected, tried, and learned.
-- `LearningCorpus` is the replay and training surface for improving future behavior without silently mutating canon.
+- the intervention/session ledger is the operational memory of what the agent inspected, tried, and learned.
+- the improvement corpora are the replay and training surface for improving future behavior without silently mutating canon.
 
 The breakthrough use case is not merely "generate a test from ADO." It is "give a UI agent a governed memory substrate so it can execute, explain, repair, and improve work inside a complex enterprise application without rediscovering the whole interface every time."
 
@@ -79,7 +79,7 @@ The first credible proof is not a general-purpose UI copilot. It is narrower and
 
 1. Run Tesseract against one unfamiliar but structurally rich enterprise app.
 2. Ingest a sizeable manual suite and a small set of seeded routes.
-3. Have the runtime consult interface, selector, state, and session artifacts before live exploration.
+3. Have the runtime consult interface, selector, state, and intervention artifacts before live exploration.
 4. Show that later runs use materially fewer live DOM queries, fewer retries, and fewer human interventions because the memory layer improved.
 5. Show that the review surfaces still explain each success, recovery, and proposal without collapsing into opaque model behavior.
 
@@ -175,7 +175,7 @@ Let Tesseract transfer durable workflow knowledge across applications without pr
 
 ### Why Tesseract is unusually positioned
 
-The repo already separates local screen knowledge from promoted shared patterns. That is exactly the right promotion boundary for transfer learning. The learning corpus and benchmark lanes are also already part of the design, and the parsing ADR explicitly frames the knowledge layer as an API surface that future agent sessions should query before touching the DOM.
+The repo already separates local screen knowledge from promoted shared patterns. That is exactly the right promotion boundary for transfer learning. The improvement corpora and benchmark lanes are also already part of the design, and the parsing ADR explicitly frames the knowledge layer as an API surface that future agent interventions should query before touching the DOM.
 
 In other words, the architecture already has a place where local discoveries become promoted abstractions when repetition justifies it.
 
@@ -196,7 +196,7 @@ Because the "50th test costs less than the 1st" story would expand into "the sec
 The right proving sequence is not to chase all five bets at once. It is to validate the flagship through the smallest sequence that compounds.
 
 1. Stabilize the current substrate first: fix the `runtimeHandoff` and `ProposalEntry` branch breakage so the inspection and runtime surfaces are trustworthy again.
-2. Harden the flagship memory loop on one app: make runtime interpretation visibly consume interface, selector, state, overlay, and session artifacts before live exploration.
+2. Harden the flagship memory loop on one app: make runtime interpretation visibly consume interface, selector, state, overlay, and intervention artifacts before live exploration.
 3. Build semantic drift radar next: it is the fastest proof that the memory layer is doing real work rather than just storing history.
 4. Wrap the loop in a `Dogfood Run` and `Suite Slice` orchestration path for a new-app intake trial.
 5. Only then push into state-space synthesis and cross-app transfer, because both depend on the memory layer being coherent enough to generalize safely.

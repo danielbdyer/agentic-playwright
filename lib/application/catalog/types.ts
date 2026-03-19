@@ -13,6 +13,7 @@ import type {
   DiscoveryRun,
   EvidenceRecord,
   HarvestManifest,
+  ImprovementRun,
   InterpretationDriftRecord,
   ReplayExample,
   ResolutionGraphRecord,
@@ -92,6 +93,7 @@ export interface WorkspaceCatalog {
   selectorCanon: ArtifactEnvelope<SelectorCanon> | null;
   stateGraph: ArtifactEnvelope<StateTransitionGraph> | null;
   agentSessions: ArtifactEnvelope<AgentSession>[];
+  improvementRuns: ArtifactEnvelope<ImprovementRun>[];
   learningManifest: ArtifactEnvelope<TrainingCorpusManifest> | null;
   replayExamples: ArtifactEnvelope<ReplayExample>[];
   trustPolicy: ArtifactEnvelope<TrustPolicy>;

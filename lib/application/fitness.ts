@@ -8,6 +8,9 @@
  */
 
 import type {
+  ExperimentRecord,
+  ExperimentRegistry,
+  ImprovementLoopLedger,
   PipelineFailureClass,
   PipelineFailureMode,
   PipelineFitnessMetrics,
@@ -28,8 +31,6 @@ import {
   addToParetoFrontier,
   objectivesFromMetrics,
 } from '../domain/types';
-import type { ExperimentRecord, ExperimentRegistry } from '../domain/types';
-import type { DogfoodLedger } from './dogfood';
 import { foldPipelineFailureClass } from '../domain/visitors';
 import { resolutionPrecedenceLaw, type ResolutionPrecedenceRung } from '../domain/precedence';
 
@@ -93,7 +94,7 @@ function improvementTargetFor(failureClass: PipelineFailureClass): PipelineImpro
   });
 }
 
-// ─── Extraction from dogfood ledger + run records ───
+// ─── Extraction from improvement-loop ledger + run records ───
 
 interface RunStepData {
   readonly interpretation: ResolutionReceipt;
@@ -102,7 +103,7 @@ interface RunStepData {
 
 export interface FitnessInputData {
   readonly pipelineVersion: string;
-  readonly ledger: DogfoodLedger;
+  readonly ledger: ImprovementLoopLedger<string>;
   readonly runSteps: readonly RunStepData[];
   readonly proposalBundles: readonly ProposalBundle[];
   readonly experimentHistory?: readonly ExperimentRecord[] | undefined;

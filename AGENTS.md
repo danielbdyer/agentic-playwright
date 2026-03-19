@@ -1,6 +1,6 @@
 # Tesseract Agent Guide
 
-This repository is an interface intelligence and agent workbench system built around a deterministic preparation pipeline and an active canonical knowledge loop. Treat it that way.
+This repository is an interface intelligence and agent workbench system built around a deterministic preparation pipeline, typed intervention receipts, and a governed recursive-improvement loop. Treat it that way.
 
 ## Start here
 
@@ -23,8 +23,8 @@ Scoped instructions under `.github/instructions/` still apply for domain, knowle
 The six public lanes remain the operating vocabulary. The deeper architectural spines now cut across them:
 
 - `interface`
-- `session`
-- `learning`
+- `intervention`
+- `improvement`
 
 ## Non-negotiable model
 
@@ -82,7 +82,7 @@ Derived outputs. Do not hand-edit unless the task is specifically about the gene
 
 All training data — scenarios, knowledge, fixtures, controls, benchmarks, ADO sync artifacts — lives under a single `dogfood/` directory. This is the suite root.
 
-**On main**: `dogfood/` and `lib/generated/` are gitignored. The flywheel regenerates from scratch. Nothing it learns persists across clones.
+**On main**: `dogfood/` and `lib/generated/` are gitignored. The recursive-improvement loop regenerates from scratch. Nothing it learns persists across clones.
 
 **On training branches**: Remove or override the `dogfood/` gitignore line so content persists for continuity between runs. Never merge evolvable surfaces (knowledge, fixtures, generated output) back to main — only merge business logic improvements to the engine.
 

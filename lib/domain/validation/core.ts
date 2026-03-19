@@ -4,6 +4,7 @@ import type {
   AdoSnapshot,
   ApprovalReceipt,
   AssertionKind,
+  BenchmarkImprovementProjection,
   BenchmarkContext,
   BenchmarkScorecard,
   BehaviorPatternDocument,
@@ -129,7 +130,7 @@ const effectStates = ['validation-error', 'required-error', 'disabled', 'enabled
 const widgetActions = ['click', 'fill', 'clear', 'get-value'] as const;
 const widgetPreconditions = ['visible', 'enabled', 'editable'] as const;
 const widgetEffectCategories = ['mutation', 'observation', 'focus', 'navigation'] as const;
-const graphNodeKinds = ['snapshot', 'screen', 'screen-hints', 'pattern', 'confidence-overlay', 'dataset', 'resolution-control', 'runbook', 'section', 'surface', 'element', 'posture', 'capability', 'scenario', 'step', 'generated-spec', 'generated-trace', 'generated-review', 'evidence', 'policy-decision'] as const;
+const graphNodeKinds = ['snapshot', 'screen', 'screen-hints', 'pattern', 'confidence-overlay', 'dataset', 'resolution-control', 'runbook', 'section', 'surface', 'element', 'posture', 'capability', 'scenario', 'step', 'generated-spec', 'generated-trace', 'generated-review', 'evidence', 'policy-decision', 'participant', 'intervention', 'improvement-run', 'acceptance-decision'] as const;
 const graphEdgeKinds = ['derived-from', 'contains', 'references', 'uses', 'learns-from', 'affects', 'asserts', 'emits', 'observed-by', 'proposed-change-for', 'governs', 'drifts-to'] as const;
 const diagnosticSeverities = ['info', 'warn', 'error'] as const;
 const diagnosticConfidences = ['human', 'agent-verified', 'agent-proposed', 'compiler-derived', 'intent-only', 'unbound', 'mixed'] as const;
@@ -145,11 +146,17 @@ function validateWorkflowEnvelopeIds(value: unknown, path: string): WorkflowEnve
   return {
     adoId: expectOptionalId(ids.adoId, `${path}.adoId`, createAdoId) ?? null,
     suite: expectOptionalString(ids.suite, `${path}.suite`) ?? null,
+    sessionId: expectOptionalString(ids.sessionId, `${path}.sessionId`) ?? null,
     runId: expectOptionalString(ids.runId, `${path}.runId`) ?? null,
     stepIndex: ids.stepIndex === undefined || ids.stepIndex === null ? null : expectNumber(ids.stepIndex, `${path}.stepIndex`),
     dataset: expectOptionalString(ids.dataset, `${path}.dataset`) ?? null,
     runbook: expectOptionalString(ids.runbook, `${path}.runbook`) ?? null,
     resolutionControl: expectOptionalString(ids.resolutionControl, `${path}.resolutionControl`) ?? null,
+    participantIds: expectStringArray(ids.participantIds ?? [], `${path}.participantIds`),
+    interventionIds: expectStringArray(ids.interventionIds ?? [], `${path}.interventionIds`),
+    improvementRunId: expectOptionalString(ids.improvementRunId, `${path}.improvementRunId`) ?? null,
+    iteration: ids.iteration === undefined || ids.iteration === null ? null : expectNumber(ids.iteration, `${path}.iteration`),
+    parentExperimentId: expectOptionalString(ids.parentExperimentId, `${path}.parentExperimentId`) ?? null,
   };
 }
 
@@ -173,6 +180,7 @@ function validateWorkflowEnvelopeLineage(value: unknown, path: string, defaults?
     handshakes: expectArray(lineage.handshakes ?? defaults?.handshakes ?? [], `${path}.handshakes`).map((entry, index) =>
       expectEnum(entry, `${path}.handshakes[${index}]`, workflowStages),
     ) as WorkflowStage[],
+    experimentIds: expectStringArray(lineage.experimentIds ?? defaults?.experimentIds ?? [], `${path}.experimentIds`),
   };
 }
 
@@ -1617,8 +1625,18 @@ export function validateProposalBundle(value: unknown): ProposalBundle {
 export const validateSurfaceGraph: (value: unknown) => SurfaceGraph =
   schemaDecode.decoderFor<SurfaceGraph>(schemas.SurfaceGraphSchema);
 
-export const validateScreenElements: (value: unknown) => ScreenElements =
-  schemaDecode.decoderFor<ScreenElements>(schemas.ScreenElementsSchema);
+export function validateScreenElements(value: unknown): ScreenElements {
+  const decoded = schemaDecode.decoderFor<ScreenElements>(schemas.ScreenElementsSchema)(value);
+  return {
+    ...decoded,
+    elements: Object.fromEntries(
+      Object.entries(decoded.elements).map(([elementId, element]) => [
+        elementId,
+        validateElement(element, `elements.${elementId}`),
+      ]),
+    ),
+  };
+}
 
 export function validateScreenHints(value: unknown): ScreenHints {
   const decoded = schemaDecode.decoderFor<ScreenHints>(schemas.ScreenHintsSchema)(value);
@@ -2170,9 +2188,8 @@ export function validateInterpretationDriftRecord(value: unknown): Interpretatio
 export const validateBenchmarkScorecard: (value: unknown) => BenchmarkScorecard =
   schemaDecode.decoderFor<BenchmarkScorecard>(schemas.BenchmarkScorecardSchema);
 
+export const validateBenchmarkImprovementProjection: (value: unknown) => BenchmarkImprovementProjection =
+  schemaDecode.decoderFor<BenchmarkImprovementProjection>(schemas.BenchmarkImprovementProjectionSchema);
+
 export const validateDogfoodRun: (value: unknown) => DogfoodRun =
   schemaDecode.decoderFor<DogfoodRun>(schemas.DogfoodRunSchema);
-
-
-
-

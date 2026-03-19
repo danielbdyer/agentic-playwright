@@ -9,9 +9,10 @@ This document remains as a shorter owner-direction note: it captures transition 
 The most important change is conceptual:
 
 - compiler-only framing is no longer sufficient
-- `Interface Intelligence` is the durable semantic spine
-- `Agent Workbench` is the durable operational spine
-- both must share one interpretation surface
+- `Interface Intelligence` is the durable structural spine
+- `Agent Workbench` is the durable intervention spine
+- `Recursive Improvement` is the durable optimization spine
+- all three must share one interpretation surface
 
 That shift should drive future design decisions even when older implementation names still exist in code.
 
@@ -33,8 +34,8 @@ The current implementation program is:
 2. model dynamic state and event topology explicitly instead of rediscovering it ad hoc
 3. lower ADO scenarios into grounded decomposition before emission
 4. keep emitted tests readable while routing behavior through one canonical runtime interface
-5. standardize provider-agnostic session ledgers and workbench event vocabularies
-6. use replay and evaluation corpora to improve the system without weakening governance
+5. standardize provider-agnostic intervention/session ledgers and workbench event vocabularies
+6. use replay, evaluation, and recursive-improvement corpora to improve the system without weakening governance
 
 ## Composition direction
 

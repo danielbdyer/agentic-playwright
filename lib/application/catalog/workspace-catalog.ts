@@ -15,6 +15,7 @@ import type {
   DiscoveryRun,
   EvidenceRecord,
   HarvestManifest,
+  ImprovementRun,
   InterpretationDriftRecord,
   ReplayExample,
   ResolutionGraphRecord,
@@ -72,6 +73,7 @@ import { walkFiles } from '../artifacts';
 import type { ProjectPaths } from '../paths';
 import { boundPath, relativeProjectPath, snapshotPath } from '../paths';
 import { FileSystem, type FileSystemPort } from '../ports';
+import { improvementLedgerPath, loadImprovementLedger } from '../improvement';
 import { createArtifactEnvelope, upsertArtifactEnvelope } from './envelope';
 import { readJsonArtifact, readYamlArtifact } from './loaders';
 import { assembleScreenBundles } from './screen-bundles';
@@ -111,7 +113,7 @@ function readDisposableJsonArtifact<T>(
 ) {
   return readJsonArtifact(paths, absolutePath, validate, errorCode, errorMessage).pipe(
     Effect.map((envelope): ArtifactEnvelope<T> | null => envelope),
-    Effect.catchTag('TesseractError', () => Effect.succeed(null as ArtifactEnvelope<T> | null)),
+    Effect.catchAll(() => Effect.succeed(null as ArtifactEnvelope<T> | null)),
   );
 }
 
@@ -258,7 +260,7 @@ export function loadWorkspaceCatalog(options: LoadCatalogOptions) {
       evidenceRecords: loadAllJson<EvidenceRecord>(options.paths,
         walks.evidence.filter((f) => f.endsWith('.json')),
         (value) => value as EvidenceRecord, 'evidence-validation-failed', 'Evidence'),
-      agentSessions: loadAllJson<AgentSession>(options.paths,
+      agentSessions: loadAllDisposableJson<AgentSession>(options.paths,
         walks.sessions.filter((f) => path.basename(f) === 'session.json'),
         validateAgentSession, 'agent-session-validation-failed', 'Agent session'),
       replayExamples: loadAllJson<ReplayExample>(options.paths,
@@ -312,6 +314,21 @@ export function loadWorkspaceCatalog(options: LoadCatalogOptions) {
           `Training corpus manifest ${options.paths.learningManifestPath} failed validation`,
         )
       : null as ArtifactEnvelope<TrainingCorpusManifest> | null;
+
+    const improvementRuns = (() => {
+      const absolutePath = improvementLedgerPath(options.paths);
+      return fs.exists(absolutePath).pipe(
+        Effect.flatMap((exists) =>
+          exists
+            ? loadImprovementLedger(options.paths).pipe(
+                Effect.map((ledger) =>
+                  ledger.runs.map((run) => createArtifactEnvelope(options.paths, absolutePath, run)),
+                ),
+              )
+            : Effect.succeed([] as ArtifactEnvelope<ImprovementRun>[]),
+        ),
+      );
+    })();
 
     const trustPolicy = yield* readYamlArtifact(
       options.paths,
@@ -378,6 +395,7 @@ export function loadWorkspaceCatalog(options: LoadCatalogOptions) {
       selectorCanon,
       stateGraph,
       agentSessions: loaded.agentSessions,
+      improvementRuns: yield* improvementRuns,
       learningManifest,
       replayExamples: loaded.replayExamples,
       trustPolicy,

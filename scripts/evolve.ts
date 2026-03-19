@@ -57,7 +57,7 @@ function saveScorecard(scorecard: PipelineScorecard): void {
 }
 
 async function runSpeedrunWithConfig(config: PipelineConfig): Promise<SpeedrunResult> {
-  const input: SpeedrunInput = { paths, config, count, seed, maxIterations };
+  const input: SpeedrunInput = { paths, config, count, seed, maxIterations, substrate };
   return runWithLocalServices(speedrunProgram(input), rootDir, {
     posture: { interpreterMode: 'diagnostic', writeMode: 'persist', executionProfile: 'dogfood' },
     pipelineConfig: config,
@@ -98,6 +98,8 @@ function buildExperimentRecord(
     accepted: result.comparison.improved,
     tags: [tag, `epoch-${tag}`],
     parentExperimentId: parentId,
+    improvementRunId: result.improvementRun.improvementRunId,
+    improvementRun: result.improvementRun,
   };
 }
 
@@ -115,7 +117,10 @@ async function main(): Promise<void> {
     console.log('Running baseline...');
     const baseline = await runSpeedrunWithConfig(currentConfig);
     const baseRecord = buildExperimentRecord(baseline, currentConfig, {}, lastExperimentId, `evolve-epoch-${epoch}-baseline`);
-    recordExperiment(rootDir, baseRecord);
+    await runWithLocalServices(recordExperiment(paths, baseRecord), rootDir, {
+      posture: { interpreterMode: 'diagnostic', writeMode: 'persist', executionProfile: 'dogfood' },
+      pipelineConfig: currentConfig,
+    });
     lastExperimentId = baseRecord.id;
 
     console.log(`  Hit rate: ${baseline.fitnessReport.metrics.knowledgeHitRate}`);
@@ -151,7 +156,10 @@ async function main(): Promise<void> {
       console.log(`  Testing: ${candidate.label}...`);
       const result = await runSpeedrunWithConfig(candidate.config);
       const record = buildExperimentRecord(result, candidate.config, candidate.delta, lastExperimentId, `evolve-epoch-${epoch}-candidate`);
-      recordExperiment(rootDir, record);
+      await runWithLocalServices(recordExperiment(paths, record), rootDir, {
+        posture: { interpreterMode: 'diagnostic', writeMode: 'persist', executionProfile: 'dogfood' },
+        pipelineConfig: candidate.config,
+      });
 
       console.log(`    hitRate=${result.fitnessReport.metrics.knowledgeHitRate} delta=${result.comparison.knowledgeHitRateDelta > 0 ? '+' : ''}${result.comparison.knowledgeHitRateDelta}`);
 

@@ -1,7 +1,9 @@
 import type { AdoId } from '../identity';
+import type { InterventionKind, InterventionReceipt, Participant, ParticipantRef } from './intervention';
 import type { WorkflowEnvelopeIds } from './workflow';
 
-export type AgentEventType =
+export type AgentEventType = Extract<
+  InterventionKind,
   | 'orientation'
   | 'artifact-inspection'
   | 'discovery-request'
@@ -12,7 +14,8 @@ export type AgentEventType =
   | 'rerun-requested'
   | 'execution-reviewed'
   | 'benchmark-action'
-  | 'replay-action';
+  | 'replay-action'
+>;
 
 export interface TranscriptRef {
   readonly id: string;
@@ -28,9 +31,12 @@ export interface AgentEvent {
   readonly id: string;
   readonly at: string;
   readonly type: AgentEventType;
+  readonly interventionId: string;
+  readonly interventionKind: InterventionKind;
   readonly actor: 'agent' | 'human' | 'system';
   readonly summary: string;
   readonly ids?: WorkflowEnvelopeIds | undefined;
+  readonly participantRefs: readonly ParticipantRef[];
   readonly refs: {
     readonly artifactPaths: readonly string[];
     readonly graphNodeIds: readonly string[];
@@ -51,6 +57,11 @@ export interface AgentSession {
   readonly completedAt?: string | null | undefined;
   readonly scenarioIds: readonly AdoId[];
   readonly runIds: readonly string[];
+  readonly participants: readonly Participant[];
+  readonly participantCount: number;
+  readonly interventions: readonly InterventionReceipt[];
+  readonly interventionCount: number;
+  readonly improvementRunIds: readonly string[];
   readonly transcripts: readonly TranscriptRef[];
   readonly eventCount: number;
   readonly eventTypes: Readonly<Record<AgentEventType, number>>;

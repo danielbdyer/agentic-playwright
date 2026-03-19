@@ -7,6 +7,7 @@ import { buildGroundedSpecFlow } from '../domain/grounded-flow';
 import { renderReadableSpecModule } from '../domain/spec-codegen';
 import type {
   BoundScenario,
+  ImprovementRun,
   ProposalBundle,
   RunRecord,
   ScenarioInterpretationSurface,
@@ -75,6 +76,15 @@ function latestSessionsForScenario(catalog: WorkspaceCatalog, adoId: AdoId) {
     .map((entry) => entry.artifact);
 }
 
+function latestImprovementRunsForScenario(catalog: WorkspaceCatalog, adoId: AdoId): readonly ImprovementRun[] {
+  return catalog.improvementRuns
+    .filter((entry) => entry.artifact.iterations.some((iteration) => iteration.scenarioIds.includes(adoId)))
+    .sort((left, right) =>
+      (right.artifact.completedAt ?? right.artifact.startedAt).localeCompare(left.artifact.completedAt ?? left.artifact.startedAt),
+    )
+    .map((entry) => entry.artifact);
+}
+
 function createScenarioProjectionInput(input: {
   adoId: AdoId;
   boundScenario: BoundScenario;
@@ -93,6 +103,7 @@ function createScenarioProjectionInput(input: {
     selectorCanon: input.catalog.selectorCanon?.artifact ?? null,
     stateGraph: input.catalog.stateGraph?.artifact ?? null,
     sessions: latestSessionsForScenario(input.catalog, input.adoId),
+    improvementRuns: latestImprovementRunsForScenario(input.catalog, input.adoId),
     learningManifest: input.catalog.learningManifest?.artifact ?? null,
   };
 }
@@ -118,7 +129,26 @@ function renderEmitArtifacts(
       scenarioContext: relativeModule(outputPath, path.join(paths.rootDir, 'lib', 'composition', 'scenario-context.ts')).replace(/\.ts$/, ''),
     },
   });
-  const traceArtifact = explainBoundScenario(boundScenario, rendered.lifecycle, latestRun);
+  const improvementSummary = projectionInput.improvementRuns.length === 0
+    ? null
+    : (() => {
+        const latestImprovementRun = projectionInput.improvementRuns[0] ?? null;
+        const latestDecision = latestImprovementRun?.acceptanceDecisions[0] ?? null;
+        return {
+          relatedRunIds: projectionInput.improvementRuns.map((run) => run.improvementRunId),
+          latestRunId: latestImprovementRun?.improvementRunId ?? null,
+          latestAccepted: latestImprovementRun?.accepted ?? null,
+          latestVerdict: latestDecision?.verdict ?? null,
+          latestDecisionId: latestDecision?.decisionId ?? null,
+          signalCount: latestImprovementRun?.signals.length ?? 0,
+          candidateInterventionCount: latestImprovementRun?.candidateInterventions.length ?? 0,
+          checkpointRef: latestDecision?.checkpointRef ?? null,
+        };
+      })();
+  const traceArtifact = {
+    ...explainBoundScenario(boundScenario, rendered.lifecycle, latestRun),
+    improvement: improvementSummary,
+  };
   const reviewText = renderReview(traceArtifact, proposalBundle, inboxItems, latestRun, projectionInput);
 
   return {
@@ -265,6 +295,9 @@ export function emitScenario(
       ...(catalog.interfaceGraph ? [fingerprintProjectionArtifact('interface-graph', catalog.interfaceGraph.artifactPath, catalog.interfaceGraph.artifact)] : []),
       ...(catalog.selectorCanon ? [fingerprintProjectionArtifact('selector-canon', catalog.selectorCanon.artifactPath, catalog.selectorCanon.artifact)] : []),
       ...(catalog.learningManifest ? [fingerprintProjectionArtifact('learning-manifest', catalog.learningManifest.artifactPath, catalog.learningManifest.artifact)] : []),
+      ...catalog.improvementRuns
+        .filter((entry) => entry.artifact.iterations.some((iteration) => iteration.scenarioIds.includes(source.adoId)))
+        .map((entry) => fingerprintProjectionArtifact('improvement-run', entry.artifactPath, entry.artifact)),
       ...catalog.agentSessions
         .filter((entry) => entry.artifact.scenarioIds.includes(source.adoId))
         .map((entry) => fingerprintProjectionArtifact('agent-session', entry.artifactPath, entry.artifact)),

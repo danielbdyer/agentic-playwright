@@ -103,12 +103,12 @@ export function generateDriftVariants(options: GenerateDriftOptions) {
 
     // Read existing hints files
     const hintsDir = `${options.paths.rootDir}/knowledge/screens`;
-    const hintsFiles = yield* fs.listFiles(hintsDir);
-    const hintsPaths = hintsFiles.filter((f: string) => f.endsWith('.hints.yaml'));
+    const hintsFiles = yield* fs.listDir(hintsDir);
+    const hintsPaths = hintsFiles.filter((fileName) => fileName.endsWith('.hints.yaml'));
 
     for (let i = 0; i < options.driftCount; i += 1) {
       const driftKind = pick(['alias-drift', 'structure-drift', 'phrasing-drift'] as const, rng);
-      const hintsFile = pick(hintsPaths, rng);
+      const hintsFile: string = pick(hintsPaths, rng);
       const screenId = hintsFile.replace('.hints.yaml', '');
 
       if (driftKind === 'alias-drift') {

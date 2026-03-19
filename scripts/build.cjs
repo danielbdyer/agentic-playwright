@@ -6,8 +6,8 @@ const ROOT_DIR = path.resolve(__dirname, '..');
 const CONFIG_PATH = path.join(ROOT_DIR, 'tsconfig.build.json');
 const demoHarnessEntries = [
   {
-    entry: path.join(ROOT_DIR, 'fixtures', 'demo-harness', 'src', 'policy-journey.tsx'),
-    outfile: path.join(ROOT_DIR, 'fixtures', 'demo-harness', 'policy-journey.js'),
+    entry: path.join(ROOT_DIR, 'dogfood', 'fixtures', 'demo-harness', 'src', 'policy-journey.tsx'),
+    outfile: path.join(ROOT_DIR, 'dogfood', 'fixtures', 'demo-harness', 'policy-journey.js'),
   },
 ];
 

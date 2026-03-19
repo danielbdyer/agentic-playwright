@@ -87,6 +87,52 @@ test('application layer depends on domain and application-local modules, not inf
   expect(offenders).toEqual([]);
 });
 
+test('recursive-improvement application modules route filesystem and git access through ports', () => {
+  const files = [
+    'lib/application/improvement.ts',
+    'lib/application/speedrun.ts',
+    'lib/application/experiment-registry.ts',
+  ].map((relativePath) => path.join(rootDir, relativePath));
+  const forbiddenImports = ['fs', 'node:fs', 'child_process', 'node:child_process', 'simple-git'];
+  const forbiddenPatterns = [
+    /\breadFileSync\(/,
+    /\bwriteFileSync\(/,
+    /\bmkdirSync\(/,
+    /\brmSync\(/,
+    /\bexecSync\(/,
+    /\bspawnSync\(/,
+    /\bprocess\.cwd\(/,
+  ];
+
+  const offenders = files.flatMap((filePath) => {
+    const importOffenders = importsFor(filePath)
+      .filter((specifier) => forbiddenImports.includes(specifier))
+      .map((specifier) => `${relativeFile(filePath)} -> import ${specifier}`);
+    const text = fileText(filePath);
+    const patternOffenders = forbiddenPatterns
+      .filter((pattern) => pattern.test(text))
+      .map((pattern) => `${relativeFile(filePath)} -> ${pattern}`);
+    return [...importOffenders, ...patternOffenders];
+  });
+
+  expect(offenders).toEqual([]);
+});
+
+test('recursive-improvement fitness and aggregate builders do not import the dogfood orchestrator for loop contracts', () => {
+  const files = [
+    'lib/application/fitness.ts',
+    'lib/application/improvement.ts',
+  ].map((relativePath) => path.join(rootDir, relativePath));
+
+  const offenders = files.flatMap((filePath) =>
+    importsFor(filePath)
+      .filter((specifier) => specifier === './dogfood' || specifier.endsWith('/application/dogfood'))
+      .map((specifier) => `${relativeFile(filePath)} -> ${specifier}`),
+  );
+
+  expect(offenders).toEqual([]);
+});
+
 test('runtime layer remains isolated from application and infrastructure orchestration', () => {
   const forbidden = ['../application', '../infrastructure'];
   const offenders = listTsFiles('lib/runtime').flatMap((filePath) =>

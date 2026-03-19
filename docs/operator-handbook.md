@@ -153,12 +153,16 @@ tesseract scorecard --benchmark flagship-policy-journey
 
 Derived benchmark artifacts:
 
+- `.tesseract/benchmarks/{benchmark}/{run_id}.benchmark-improvement.json`
 - `.tesseract/benchmarks/{benchmark}/{run_id}.dogfood-run.json`
 - `generated/benchmarks/{benchmark}.scorecard.json`
 - `generated/benchmarks/{benchmark}.scorecard.md`
 - `generated/benchmarks/{benchmark}.variants.spec.ts`
 - `generated/benchmarks/{benchmark}.variants.trace.json`
 - `generated/benchmarks/{benchmark}.variants.review.md`
+
+The canonical benchmark history artifact is `.benchmark-improvement.json`.
+`.dogfood-run.json` remains as a compatibility projection for legacy tooling.
 
 The scorecard tracks:
 

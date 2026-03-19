@@ -17,7 +17,7 @@ If a manual test is written clearly enough for a QA to infer behavior from it, t
 - execute it with provenance-rich receipts
 - learn from the run without silently mutating canon
 
-The source program is still the Azure DevOps manual test case. The emitted object code is still Playwright. The durable value sits between them: interface intelligence, session receipts, and learning surfaces grounded in shared truth.
+The source program is still the Azure DevOps manual test case. The emitted object code is still Playwright. The durable value sits between them: interface intelligence, intervention receipts, and governed improvement surfaces grounded in shared truth.
 
 ## What remains stable
 
@@ -36,7 +36,7 @@ The task packet remains the machine handshake for one scenario. The emitted spec
 
 The old compiler-centered framing was incomplete.
 
-The durable semantic spine is now `Interface Intelligence`:
+The durable structural spine is now `Interface Intelligence`:
 
 - interface graph
 - canonical targets
@@ -44,14 +44,21 @@ The durable semantic spine is now `Interface Intelligence`:
 - state and event topology
 - discovery and provenance
 
-The durable operational spine is now `Agent Workbench`:
+The durable action spine is now `Agent Workbench`:
 
-- session ledgers
+- participant and intervention ledgers
 - provider-agnostic agent host adapters
 - replay and review surfaces
 - intervention and rerun workflows
 
-Both share one interpretation surface. That is how a generated spec, a runtime receipt, a workbench session, and a learning corpus can all agree on what the application meant.
+The durable optimization spine is now `Recursive Improvement`:
+
+- governed experiments and scorecards
+- objective vectors and classified signals
+- candidate interventions and acceptance decisions
+- checkpointed lineage across iterations
+
+All three share one interpretation surface. That is how a generated spec, a runtime receipt, a workbench intervention, and an improvement run can all agree on what the application meant.
 
 ## The operator promise
 
@@ -69,16 +76,16 @@ That is how Tesseract can realistically grow toward thousands of scenarios witho
 
 The emitted surface is standard Playwright with QA-grade narrative. It is not Gherkin and not a custom user-facing DSL.
 
-Readable tests matter because they are the human inspection layer over the same shared interpretation surface used by runtime and learning. The spec should read like a strong authored test even when every helper ultimately resolves through one canonical event-driven implementation.
+Readable tests matter because they are the human inspection layer over the same shared interpretation surface used by runtime, intervention, and improvement surfaces. The spec should read like a strong authored test even when every helper ultimately resolves through one canonical event-driven implementation.
 
-## Learning stays bounded
+## Improvement stays governed
 
 Derived layers may ratchet automatically:
 
 - selector health
 - observed transitions
-- session artifacts
-- replay and training corpora
+- intervention and session artifacts
+- replay, training, and evaluation corpora
 
 Canonical truth still requires proposals and trust-policy review.
 

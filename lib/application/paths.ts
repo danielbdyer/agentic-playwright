@@ -261,6 +261,14 @@ export function benchmarkRunDirPath(paths: ProjectPaths, benchmarkName: string):
   return resolvePathWithinRoot(paths.benchmarkRunsDir, benchmarkName, 'benchmarkName');
 }
 
+export function improvementLoopLedgerPath(paths: ProjectPaths): string {
+  return resolvePathWithinRoot(paths.runsDir, 'improvement-loop-ledger.json', 'artifact');
+}
+
+export function benchmarkImprovementProjectionPath(paths: ProjectPaths, benchmarkName: string, runId: string): string {
+  return resolvePathWithinRoot(benchmarkRunDirPath(paths, benchmarkName), `${runId}.benchmark-improvement.json`, 'runId');
+}
+
 export function benchmarkDogfoodRunPath(paths: ProjectPaths, benchmarkName: string, runId: string): string {
   return resolvePathWithinRoot(benchmarkRunDirPath(paths, benchmarkName), `${runId}.dogfood-run.json`, 'runId');
 }

@@ -5,6 +5,7 @@ export * from './interface';
 export * from './resolution';
 export * from './execution';
 export * from './projection';
+export * from './intervention';
 export * from './session';
 export * from './learning';
 export * from './trust-policy';

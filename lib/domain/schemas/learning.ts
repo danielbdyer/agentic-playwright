@@ -49,3 +49,17 @@ export const TrainingCorpusManifestSchema = Schema.Struct({
   scenarioIds: Schema.Array(AdoIdSchema),
   runIds: StringArray,
 });
+
+export const LearningScorecardSchema = Schema.Struct({
+  corpusFragmentCount: Schema.Number,
+  replayExampleCount: Schema.Number,
+  avgReproducibilityScore: Schema.Number,
+  fragmentProvenanceCompleteness: Schema.Number,
+  thinScreenCount: Schema.Number,
+  thinActionFamilyCount: Schema.Number,
+  topBottleneckScreen: Schema.NullOr(Schema.String),
+  topBottleneckImpact: Schema.Number,
+  rankedProposalCount: Schema.Number,
+  topProposalId: Schema.NullOr(Schema.String),
+  topProposalScore: Schema.Number,
+});

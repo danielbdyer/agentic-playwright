@@ -14,8 +14,80 @@ export const ConfidenceSchema = Schema.Literal(...confidences);
 export const executionProfiles = ['interactive', 'ci-batch', 'dogfood'] as const;
 export const ExecutionProfileSchema = Schema.Literal(...executionProfiles);
 
+export const participantKinds = ['agent', 'operator', 'system', 'benchmark-runner', 'reviewer', 'optimizer'] as const;
+export const ParticipantKindSchema = Schema.Literal(...participantKinds);
+
+export const participantCapabilities = [
+  'orient-workspace',
+  'inspect-artifacts',
+  'discover-surfaces',
+  'record-observations',
+  'propose-fragments',
+  'approve-proposals',
+  'reject-proposals',
+  'request-reruns',
+  'review-execution',
+  'run-benchmarks',
+  'replay-runs',
+  'optimize-pipeline',
+] as const;
+export const ParticipantCapabilitySchema = Schema.Literal(...participantCapabilities);
+
 export const resolutionModes = ['deterministic', 'translation', 'agentic'] as const;
 export const ResolutionModeSchema = Schema.Literal(...resolutionModes);
+
+export const interventionKinds = [
+  'orientation',
+  'artifact-inspection',
+  'discovery-request',
+  'observation-recorded',
+  'spec-fragment-proposed',
+  'proposal-approved',
+  'proposal-rejected',
+  'rerun-requested',
+  'execution-reviewed',
+  'benchmark-action',
+  'replay-action',
+  'operator-action',
+  'self-improvement-action',
+] as const;
+export const InterventionKindSchema = Schema.Literal(...interventionKinds);
+
+export const interventionStatuses = ['planned', 'completed', 'blocked', 'skipped'] as const;
+export const InterventionStatusSchema = Schema.Literal(...interventionStatuses);
+
+export const interventionTargetKinds = [
+  'workspace',
+  'suite',
+  'scenario',
+  'run',
+  'step',
+  'artifact',
+  'graph-node',
+  'selector',
+  'proposal',
+  'knowledge',
+  'session',
+  'benchmark',
+  'codebase',
+] as const;
+export const InterventionTargetKindSchema = Schema.Literal(...interventionTargetKinds);
+
+export const interventionEffectKinds = [
+  'artifact-inspected',
+  'artifact-written',
+  'proposal-generated',
+  'proposal-reviewed',
+  'proposal-applied',
+  'rerun-requested',
+  'benchmark-scored',
+  'replay-recorded',
+  'learning-read',
+  'execution-reviewed',
+  'signal-emitted',
+  'no-op',
+] as const;
+export const InterventionEffectKindSchema = Schema.Literal(...interventionEffectKinds);
 
 export const valueRefKinds = ['literal', 'fixture-path', 'posture-sample', 'parameter-row', 'generated-token'] as const;
 export const ValueRefKindSchema = Schema.Literal(...valueRefKinds);
@@ -53,7 +125,7 @@ export const WidgetPreconditionSchema = Schema.Literal(...widgetPreconditions);
 export const widgetEffectCategories = ['mutation', 'observation', 'focus', 'navigation'] as const;
 export const WidgetEffectCategorySchema = Schema.Literal(...widgetEffectCategories);
 
-export const graphNodeKinds = ['snapshot', 'screen', 'screen-hints', 'pattern', 'confidence-overlay', 'dataset', 'resolution-control', 'runbook', 'section', 'surface', 'element', 'posture', 'capability', 'scenario', 'step', 'generated-spec', 'generated-trace', 'generated-review', 'evidence', 'policy-decision'] as const;
+export const graphNodeKinds = ['snapshot', 'screen', 'screen-hints', 'pattern', 'confidence-overlay', 'dataset', 'resolution-control', 'runbook', 'section', 'surface', 'element', 'posture', 'capability', 'scenario', 'step', 'generated-spec', 'generated-trace', 'generated-review', 'evidence', 'policy-decision', 'participant', 'intervention', 'improvement-run', 'acceptance-decision'] as const;
 export const GraphNodeKindSchema = Schema.Literal(...graphNodeKinds);
 
 export const graphEdgeKinds = ['derived-from', 'contains', 'references', 'uses', 'learns-from', 'affects', 'asserts', 'emits', 'observed-by', 'proposed-change-for', 'governs', 'drifts-to'] as const;

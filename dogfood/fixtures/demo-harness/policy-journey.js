@@ -21724,7 +21724,7 @@
     }
   });
 
-  // fixtures/demo-harness/src/policy-journey-contracts.ts
+  // dogfood/fixtures/demo-harness/src/policy-journey-contracts.ts
   function contractProps(name) {
     const definition = definitions[name];
     return {
@@ -21743,7 +21743,7 @@
   }
   var definitions;
   var init_policy_journey_contracts = __esm({
-    "fixtures/demo-harness/src/policy-journey-contracts.ts"() {
+    "dogfood/fixtures/demo-harness/src/policy-journey-contracts.ts"() {
       "use strict";
       definitions = {
         journeyShell: {
@@ -21828,7 +21828,7 @@
     }
   });
 
-  // fixtures/demo-harness/src/policy-journey-fuzz.ts
+  // dogfood/fixtures/demo-harness/src/policy-journey-fuzz.ts
   function hashSeed(seed) {
     let hash = 2166136261;
     for (let index = 0; index < seed.length; index += 1) {
@@ -21874,7 +21874,7 @@
   }
   var badgePool;
   var init_policy_journey_fuzz = __esm({
-    "fixtures/demo-harness/src/policy-journey-fuzz.ts"() {
+    "dogfood/fixtures/demo-harness/src/policy-journey-fuzz.ts"() {
       "use strict";
       badgePool = [
         "contract-persistent",
@@ -22161,9 +22161,9 @@
     }
   });
 
-  // fixtures/demo-harness/src/policy-journey.tsx
+  // dogfood/fixtures/demo-harness/src/policy-journey.tsx
   var require_policy_journey = __commonJS({
-    "fixtures/demo-harness/src/policy-journey.tsx"() {
+    "dogfood/fixtures/demo-harness/src/policy-journey.tsx"() {
       var import_react = __toESM(require_react());
       var import_client = __toESM(require_client());
       init_policy_journey_contracts();

@@ -58,6 +58,10 @@ export const graphIds = {
   generatedReview: (adoId: AdoId): string => joinGraphId('generated-review', adoId),
   evidence: (relativePath: string): string => joinGraphId('evidence', normalizePathFragment(relativePath)),
   policyDecision: (decisionId: string): string => joinGraphId('policy-decision', decisionId),
+  participant: (participantId: string): string => joinGraphId('participant', normalizePathFragment(participantId)),
+  intervention: (interventionId: string): string => joinGraphId('intervention', normalizePathFragment(interventionId)),
+  improvementRun: (improvementRunId: string): string => joinGraphId('improvement-run', normalizePathFragment(improvementRunId)),
+  acceptanceDecision: (decisionId: string): string => joinGraphId('acceptance-decision', normalizePathFragment(decisionId)),
 };
 
 export const mcpUris = {

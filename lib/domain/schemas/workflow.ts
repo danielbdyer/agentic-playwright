@@ -36,11 +36,17 @@ import {
 export const WorkflowEnvelopeIdsSchema = Schema.Struct({
   adoId: Schema.optionalWith(NullableAdoId, { default: () => null }),
   suite: Schema.optionalWith(NullableString, { default: () => null }),
+  sessionId: Schema.optionalWith(NullableString, { default: () => null }),
   runId: Schema.optionalWith(NullableString, { default: () => null }),
   stepIndex: Schema.optionalWith(Schema.NullOr(Schema.Number), { default: () => null }),
   dataset: Schema.optionalWith(NullableString, { default: () => null }),
   runbook: Schema.optionalWith(NullableString, { default: () => null }),
   resolutionControl: Schema.optionalWith(NullableString, { default: () => null }),
+  participantIds: Schema.optionalWith(StringArray, { default: () => [] as readonly string[] }),
+  interventionIds: Schema.optionalWith(StringArray, { default: () => [] as readonly string[] }),
+  improvementRunId: Schema.optionalWith(NullableString, { default: () => null }),
+  iteration: Schema.optionalWith(Schema.NullOr(Schema.Number), { default: () => null }),
+  parentExperimentId: Schema.optionalWith(NullableString, { default: () => null }),
 });
 
 export const WorkflowEnvelopeFingerprintsSchema = Schema.Struct({
@@ -56,6 +62,7 @@ export const WorkflowEnvelopeLineageSchema = Schema.Struct({
   sources: Schema.optionalWith(StringArray, { default: () => [] as readonly string[] }),
   parents: Schema.optionalWith(StringArray, { default: () => [] as readonly string[] }),
   handshakes: Schema.optionalWith(Schema.Array(WorkflowStageSchema), { default: () => [] as readonly (typeof WorkflowStageSchema.Type)[] }),
+  experimentIds: Schema.optionalWith(StringArray, { default: () => [] as readonly string[] }),
 });
 
 export const WorkflowEnvelopeSchema = <P extends Schema.Schema.Any>(payloadSchema: P) =>

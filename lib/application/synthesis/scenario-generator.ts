@@ -169,8 +169,8 @@ interface ScreenInfo {
 }
 
 function extractScreenInfo(catalog: {
-  readonly screenElements: ReadonlyArray<{ readonly artifact: { readonly screen: string; readonly elements: Record<string, { widget?: string; required?: boolean }> } }>;
-  readonly screenHints: ReadonlyArray<{ readonly artifact: { readonly screen: string; readonly screenAliases?: readonly string[]; readonly elements?: Record<string, { aliases?: readonly string[] }> } }>;
+  readonly screenElements: ReadonlyArray<{ readonly artifact: { readonly screen: string; readonly elements: Record<string, { widget?: string | undefined; required?: boolean | undefined }> } }>;
+  readonly screenHints: ReadonlyArray<{ readonly artifact: { readonly screen: string; readonly screenAliases?: readonly string[] | undefined; readonly elements?: Record<string, { aliases?: readonly string[] | undefined }> | undefined } }>;
 }): readonly ScreenInfo[] {
   return catalog.screenElements.map((elemEntry) => {
     const screenId = elemEntry.artifact.screen;

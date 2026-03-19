@@ -3,6 +3,7 @@ import { loadWorkspaceCatalog } from './catalog';
 import { runScenarioSelection } from './run';
 import type { ProjectPaths } from './paths';
 import {
+  benchmarkImprovementProjectionPath,
   benchmarkDogfoodRunPath,
   benchmarkScorecardJsonPath,
   benchmarkScorecardMarkdownPath,
@@ -15,8 +16,11 @@ import { ExecutionContext, FileSystem } from './ports';
 import { groupBy, uniqueSorted } from '../domain/collections';
 import type {
   BenchmarkContext,
+  BenchmarkImprovementProjection,
   BenchmarkScorecard,
   DogfoodRun,
+  ImprovementProjectionSummary,
+  ImprovementRun,
   InterpretationDriftRecord,
   LearningScorecard,
   ProposalBundle,
@@ -279,7 +283,42 @@ function variantTrace(benchmark: BenchmarkContext, variants: readonly BenchmarkV
   };
 }
 
-function renderScorecardMarkdown(benchmark: BenchmarkContext, scorecard: BenchmarkScorecard, run: DogfoodRun | null): string {
+function relatedImprovementRuns(
+  runs: readonly ImprovementRun[],
+  scenarioIds: readonly string[],
+): readonly ImprovementRun[] {
+  const scenarioIdSet = new Set(scenarioIds);
+  return [...runs]
+    .filter((run) => run.iterations.some((iteration) => iteration.scenarioIds.some((scenarioId) => scenarioIdSet.has(String(scenarioId)))))
+    .sort((left, right) => (right.completedAt ?? right.startedAt).localeCompare(left.completedAt ?? left.startedAt));
+}
+
+function summarizeImprovementRuns(
+  runs: readonly ImprovementRun[],
+): ImprovementProjectionSummary | null {
+  if (runs.length === 0) {
+    return null;
+  }
+
+  const latestImprovementRun = runs[0] ?? null;
+  const latestDecision = latestImprovementRun?.acceptanceDecisions[0] ?? null;
+  return {
+    relatedRunIds: runs.map((run) => run.improvementRunId),
+    latestRunId: latestImprovementRun?.improvementRunId ?? null,
+    latestAccepted: latestImprovementRun?.accepted ?? null,
+    latestVerdict: latestDecision?.verdict ?? null,
+    latestDecisionId: latestDecision?.decisionId ?? null,
+    signalCount: latestImprovementRun?.signals.length ?? 0,
+    candidateInterventionCount: latestImprovementRun?.candidateInterventions.length ?? 0,
+    checkpointRef: latestDecision?.checkpointRef ?? null,
+  };
+}
+
+function renderScorecardMarkdown(
+  benchmark: BenchmarkContext,
+  scorecard: BenchmarkScorecard,
+  run: BenchmarkImprovementProjection | null,
+): string {
   const lines = [
     `# ${benchmark.name} scorecard`,
     '',
@@ -324,8 +363,21 @@ function renderScorecardMarkdown(benchmark: BenchmarkContext, scorecard: Benchma
       `- Top proposal score: ${scorecard.learning.topProposalScore}`,
       '',
     ] : []),
+    ...(run?.improvement ? [
+      '## Recursive Improvement',
+      '',
+      `- Related runs: ${run.improvement.relatedRunIds.join(', ') || 'none'}`,
+      `- Latest run: ${run.improvement.latestRunId ?? 'none'}`,
+      `- Latest accepted: ${run.improvement.latestAccepted === null ? 'none' : run.improvement.latestAccepted ? 'yes' : 'no'}`,
+      `- Latest verdict: ${run.improvement.latestVerdict ?? 'none'}`,
+      `- Latest decision id: ${run.improvement.latestDecisionId ?? 'none'}`,
+      `- Latest checkpoint: ${run.improvement.checkpointRef ?? 'none'}`,
+      `- Latest signal count: ${run.improvement.signalCount}`,
+      `- Latest candidate interventions: ${run.improvement.candidateInterventionCount}`,
+      '',
+    ] : []),
     ...(run ? [
-      '## Dogfood run',
+      '## Benchmark Improvement Projection',
       '',
       `- Run id: ${run.runId}`,
       `- Runbooks: ${run.runbooks.join(', ') || 'none'}`,
@@ -395,8 +447,12 @@ export function projectBenchmarkScorecard(options: {
       })),
       interpretationDriftRecords: scorecardCatalog.interpretationDriftRecords.map((entry) => entry.artifact),
     });
-    const dogfoodRun: DogfoodRun = {
-      kind: 'dogfood-run',
+    const improvementRuns = relatedImprovementRuns(
+      scorecardCatalog.improvementRuns.map((entry) => entry.artifact),
+      scenarioIds,
+    );
+    const benchmarkImprovementProjection: BenchmarkImprovementProjection = {
+      kind: 'benchmark-improvement-projection',
       version: 1,
       benchmark: benchmark.name,
       runId: new Date().toISOString().replace(/[:.]/g, '-'),
@@ -406,16 +462,22 @@ export function projectBenchmarkScorecard(options: {
       scenarioIds: scenarioIds as unknown as DogfoodRun['scenarioIds'],
       driftEventIds: benchmark.driftEvents.map((event) => event.id),
       scorecard,
+      improvement: summarizeImprovementRuns(improvementRuns),
       nextCommands: [
         `tesseract scorecard --benchmark ${benchmark.name}`,
         `tesseract inbox`,
       ],
     };
+    const dogfoodRun: DogfoodRun = {
+      ...benchmarkImprovementProjection,
+      kind: 'dogfood-run',
+    };
     const variantSpec = renderVariantSpec(benchmark, variants);
     const variantTraceArtifact = variantTrace(benchmark, variants, scorecard);
     const variantReview = renderVariantReview(benchmark, variants, scorecard);
-    const scorecardMarkdown = renderScorecardMarkdown(benchmark, scorecard, dogfoodRun);
+    const scorecardMarkdown = renderScorecardMarkdown(benchmark, scorecard, benchmarkImprovementProjection);
 
+    const benchmarkImprovementPath = benchmarkImprovementProjectionPath(options.paths, benchmark.name, benchmarkImprovementProjection.runId);
     const dogfoodPath = benchmarkDogfoodRunPath(options.paths, benchmark.name, dogfoodRun.runId);
     const scorecardJsonPath = benchmarkScorecardJsonPath(options.paths, benchmark.name);
     const scorecardMarkdownPath = benchmarkScorecardMarkdownPath(options.paths, benchmark.name);
@@ -423,6 +485,7 @@ export function projectBenchmarkScorecard(options: {
     const variantsTracePath = benchmarkVariantsTracePath(options.paths, benchmark.name);
     const variantsReviewPath = benchmarkVariantsReviewPath(options.paths, benchmark.name);
 
+    yield* fs.writeJson(benchmarkImprovementPath, benchmarkImprovementProjection);
     yield* fs.writeJson(dogfoodPath, dogfoodRun);
     yield* fs.writeJson(scorecardJsonPath, scorecard);
     yield* fs.writeText(scorecardMarkdownPath, scorecardMarkdown);
@@ -433,13 +496,16 @@ export function projectBenchmarkScorecard(options: {
     return {
       benchmark: benchmark.name,
       scorecard,
+      benchmarkImprovementProjection,
       dogfoodRun,
+      benchmarkImprovementPath,
       scorecardJsonPath,
       scorecardMarkdownPath,
       variantsSpecPath,
       variantsTracePath,
       variantsReviewPath,
       rewritten: [
+        relativeProjectPath(options.paths, benchmarkImprovementPath),
         relativeProjectPath(options.paths, dogfoodPath),
         relativeProjectPath(options.paths, scorecardJsonPath),
         relativeProjectPath(options.paths, scorecardMarkdownPath),

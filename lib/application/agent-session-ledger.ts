@@ -38,6 +38,7 @@ export function writeAgentSessionLedger(input: {
   executionProfile: AgentSession['executionProfile'];
   startedAt: string;
   completedAt: string | null;
+  improvementRunId?: string | undefined;
   surface: ScenarioInterpretationSurface;
   interfaceGraph: ApplicationInterfaceGraph | null;
   selectorCanon: SelectorCanon | null;
@@ -48,10 +49,25 @@ export function writeAgentSessionLedger(input: {
     const fs = yield* FileSystem;
     const sessionId = `${input.runId}`;
     const adapter = resolveAgentSessionAdapter(adapterForProvider(input.providerId));
+    const participants = adapter.participants({
+      sessionId,
+      providerId: input.providerId,
+    });
     const transcripts = adapter.transcriptRefs({
       sessionId,
       adoId: input.adoId,
       runId: input.runId,
+    });
+    const interventions = adapter.interventionReceipts({
+      adoId: input.adoId,
+      runId: input.runId,
+      sessionId,
+      surface: input.surface,
+      interfaceGraph: input.interfaceGraph,
+      selectorCanon: input.selectorCanon,
+      proposalBundle: input.proposalBundle,
+      learningManifest: input.learningManifest,
+      participants,
     });
     const events = adapter.eventVocabulary({
       adoId: input.adoId,
@@ -62,6 +78,8 @@ export function writeAgentSessionLedger(input: {
       selectorCanon: input.selectorCanon,
       proposalBundle: input.proposalBundle,
       learningManifest: input.learningManifest,
+      participants,
+      interventions,
     });
     const session = adapter.sessionSummary({
       sessionId,
@@ -71,6 +89,9 @@ export function writeAgentSessionLedger(input: {
       completedAt: input.completedAt,
       scenarioIds: [input.adoId],
       runIds: [input.runId],
+      participants,
+      interventions,
+      improvementRunIds: input.improvementRunId ? [input.improvementRunId] : [],
       transcripts,
       events,
     });

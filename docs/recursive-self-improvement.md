@@ -481,9 +481,9 @@ interface PipelineConfig {
 
 This makes the parameter space explicit and the speedrun harness can vary parameters without editing source files.
 
-### Medium-term: Experiment Registry
+### Medium-term: Improvement Ledger And Experiment Projection
 
-Track every experiment with its input configuration, output metrics, and whether the scorecard improved:
+Track every recursive-improvement run in the canonical improvement ledger, and project legacy `ExperimentRecord` views from it when older tooling still needs them:
 
 ```typescript
 interface ExperimentRecord {
@@ -498,6 +498,8 @@ interface ExperimentRecord {
 ```
 
 This creates a searchable history of what was tried, what worked, and what didn't — the training log.
+
+The canonical training log is `.tesseract/benchmarks/improvement-ledger.json`. `experiments.json` remains a compatibility projection for tooling that still consumes `ExperimentRecord`.
 
 ### Medium-term: Parameter Sensitivity Analysis
 
@@ -574,7 +576,7 @@ Every scorecard entry carries the `pipelineVersion` field (git short SHA). Every
 
 ### Governance Boundary
 
-The speedrun loop is an offline evaluation tool. It runs in `dogfood` execution profile with `diagnostic` interpreter mode. It does not execute against real browsers, does not push proposals to production knowledge, and does not modify the operator inbox. The only durable outputs are pipeline code changes (committed by the developer or agent) and the scorecard.
+The speedrun loop is an offline evaluation tool. It runs in `dogfood` execution profile with `diagnostic` interpreter mode. It does not execute against real browsers, does not push proposals to production knowledge, and does not modify the operator inbox. The only durable outputs are pipeline code changes (committed by the developer or agent), the scorecard, and the append-only improvement ledger.
 
 ## The North Star
 
@@ -652,11 +654,13 @@ rm -rf generated/ lib/generated/
 - `dogfood/controls/` (restored to git HEAD)
 - `.tesseract/policy/trust-policy.yaml` (governance anchor)
 - `.tesseract/benchmarks/scorecard.json` (monotonic high-water-mark)
+- `.tesseract/benchmarks/improvement-ledger.json` (canonical recursive-improvement history)
 
 **What is destroyed:**
 - All `.tesseract/` runtime directories (runs, tasks, sessions, learning, interface, graph, bound, inbox)
 - All `generated/` output
 - Any knowledge modifications from prior flywheel iterations
+- `experiments.json` compatibility projections when you want a fully clean-room history reset
 - The experiment registry (optional — keep for history, destroy for purity)
 
 ### Step 2: Generate Synthetic Scenarios
@@ -679,7 +683,7 @@ The speedrun script:
 1. Compiles scenarios through the resolution pipeline
 2. Runs the dogfood loop (auto-approve → recompile → rerun → converge)
 3. Produces a `PipelineFitnessReport` and `ScorecardComparison`
-4. Records an `ExperimentRecord` in the experiment registry
+4. Records an `ImprovementRun` in the improvement ledger and refreshes the `ExperimentRecord` compatibility projection
 
 **What the dogfood loop modifies during execution (ephemeral):**
 - Knowledge files: proposals are activated into `dogfood/knowledge/` during the loop. **These modifications are ephemeral** — they exist only for the duration of the run and are discarded in Step 5.
@@ -687,6 +691,8 @@ The speedrun script:
 - `generated/` specs: emitted tests, traces, reviews.
 
 **What the dogfood loop produces (durable outputs):**
+- `ImprovementRun` in `.tesseract/benchmarks/improvement-ledger.json`
+- `ExperimentRecord` in `experiments.json` as a compatibility projection
 - `PipelineFitnessReport` — the gradient signal
 - `ScorecardComparison` — did this beat the mark?
 - `ExperimentRecord` — the experiment log entry
@@ -721,6 +727,8 @@ rm -rf generated/ lib/generated/
 **Why:** Even if the experiment was accepted, the knowledge modifications from the dogfood loop are ephemeral. They were activations of proposals specific to *this* seed and *this* config. Keeping them would contaminate the next cycle — the next run must start from the same canonical knowledge to ensure that improvement comes from the *pipeline code change*, not from residual activated knowledge.
 
 **The only durable outputs that survive:**
+- Improvement ledger entry (appended, never deleted)
+- `experiments.json` compatibility projection when legacy tooling still consumes it
 - Pipeline code changes (committed to git if accepted)
 - Updated scorecard (committed to git if improved)
 - Experiment registry entry (appended, never deleted)
@@ -748,13 +756,13 @@ After each cycle, verify:
 | Scenario text is synthetic | Scenarios use generator phrasing templates | Scenarios contain proposal-derived text |
 | Fitness is deterministic | Re-run with same seed produces same report | Different metrics for same seed + same code |
 | Scorecard provenance | `scorecard.pipelineVersion` matches `git rev-parse --short HEAD` | Version mismatch |
-| Experiment lineage | `experimentRecord.parentExperimentId` points to a valid prior entry | Orphaned experiment with no lineage |
+| Experiment lineage | `improvementRun.parentExperimentId` points to a valid prior entry | Orphaned improvement run with no lineage |
 
-### What the Experiment Registry Keeps
+### What the Improvement Ledger Keeps
 
-The experiment registry (`.tesseract/benchmarks/experiment-registry.json`) is the *training log* of the self-improvement loop. It is append-only and persists across cycles. It records:
+The improvement ledger (`.tesseract/benchmarks/improvement-ledger.json`) is the *training log* of the self-improvement loop. It is append-only and persists across cycles. It records:
 
-- **Every experiment run**, whether accepted or rejected
+- **Every recursive-improvement run**, whether accepted or rejected
 - **The config delta** — exactly what parameter(s) were changed
 - **The resolved config** — the full config used (delta merged onto defaults)
 - **The fitness report** — full metrics and failure classification
@@ -762,9 +770,11 @@ The experiment registry (`.tesseract/benchmarks/experiment-registry.json`) is th
 - **The hypothesis** — why this experiment was tried
 - **The parent experiment ID** — lineage for tracking improvement chains
 
-The registry is a derived artifact (it lives in `.tesseract/benchmarks/`), but it is *not* wiped in Step 1 or Step 5. It accumulates across all cycles because it is the historical record that correlation computation (Phase 6) needs.
+The ledger is a derived artifact (it lives in `.tesseract/benchmarks/`), but it is *not* wiped in Step 1 or Step 5. It accumulates across all cycles because it is the historical record that correlation computation (Phase 6) needs.
 
-**Exception:** For a fully clean room start (e.g., evaluating a completely new approach), delete the registry along with everything else. This resets the training history.
+`experiments.json` can still be projected from the ledger for scripts and older views that speak in `ExperimentRecord`, but that file is compatibility output, not canonical history.
+
+**Exception:** For a fully clean room start (e.g., evaluating a completely new approach), delete the ledger along with everything else. This resets the training history.
 
 ### When to Break the Clean Room
 

@@ -1,38 +1,27 @@
 import { Effect } from 'effect';
 import { activateProposalBundle, autoApproveEligibleProposals } from './activate-proposals';
 import { loadWorkspaceCatalog } from './catalog';
-import type { ProjectPaths } from './paths';
+import { improvementLoopLedgerPath, type ProjectPaths } from './paths';
 import { refreshScenario } from './refresh';
 import { runScenarioSelection } from './run';
 import { FileSystem } from './ports';
 import { runStateMachine } from './state-machine';
 import type { AdoId } from '../domain/identity';
-import type { AutoApprovalPolicy, KnowledgePosture, ProposalBundle, TrustPolicy } from '../domain/types';
+import { asDogfoodLedgerProjection, asImprovementLoopLedger } from '../domain/types';
+import type {
+  AutoApprovalPolicy,
+  DogfoodLedgerProjection,
+  ImprovementLoopLedger,
+  ImprovementLoopConvergenceReason,
+  ImprovementLoopIteration,
+  KnowledgePosture,
+  ProposalBundle,
+  TrustPolicy,
+} from '../domain/types';
 import { DEFAULT_AUTO_APPROVAL_POLICY } from '../domain/trust-policy';
 
-export interface DogfoodIterationResult {
-  readonly iteration: number;
-  readonly scenarioIds: readonly string[];
-  readonly proposalsActivated: number;
-  readonly proposalsBlocked: number;
-  readonly knowledgeHitRate: number;
-  readonly unresolvedStepCount: number;
-  readonly totalStepCount: number;
-  readonly instructionCount: number;
-}
-
-export interface DogfoodLedger {
-  readonly kind: 'dogfood-ledger';
-  readonly version: 1;
-  readonly maxIterations: number;
-  readonly completedIterations: number;
-  readonly converged: boolean;
-  readonly convergenceReason: 'no-proposals' | 'threshold-met' | 'budget-exhausted' | 'max-iterations' | null;
-  readonly iterations: readonly DogfoodIterationResult[];
-  readonly totalProposalsActivated: number;
-  readonly totalInstructionCount: number;
-  readonly knowledgeHitRateDelta: number;
-}
+export type DogfoodIterationResult = ImprovementLoopIteration;
+export type DogfoodLedger = DogfoodLedgerProjection;
 
 export interface DogfoodOptions {
   readonly paths: ProjectPaths;
@@ -51,7 +40,7 @@ interface LoopState {
   readonly iterations: readonly DogfoodIterationResult[];
   readonly cumulativeInstructions: number;
   readonly converged: boolean;
-  readonly convergenceReason: DogfoodLedger['convergenceReason'];
+  readonly convergenceReason: ImprovementLoopConvergenceReason;
 }
 
 const INITIAL_STATE: LoopState = {
@@ -258,14 +247,14 @@ function dogfoodMachine(options: DogfoodOptions) {
   };
 }
 
-function buildLedger(state: LoopState, options: DogfoodOptions): DogfoodLedger {
+function buildLedger(state: LoopState, options: DogfoodOptions): ImprovementLoopLedger<'improvement-loop-ledger'> {
   const firstRate = state.iterations[0]?.knowledgeHitRate ?? 0;
   const lastRate = state.iterations.length > 0
     ? state.iterations[state.iterations.length - 1]!.knowledgeHitRate
     : 0;
 
   return {
-    kind: 'dogfood-ledger',
+    kind: 'improvement-loop-ledger',
     version: 1,
     maxIterations: options.maxIterations,
     completedIterations: state.iterations.length,
@@ -282,12 +271,15 @@ export function runDogfoodLoop(options: DogfoodOptions) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const finalState = yield* runStateMachine(dogfoodMachine(options));
-    const ledger = buildLedger(finalState, options);
+    const ledger = asImprovementLoopLedger(buildLedger(finalState, options));
+    const compatibilityLedger = asDogfoodLedgerProjection(ledger);
 
-    const ledgerPath = `${options.paths.rootDir}/.tesseract/runs/dogfood-ledger.json`;
-    yield* fs.ensureDir(`${options.paths.rootDir}/.tesseract/runs`);
+    const ledgerPath = improvementLoopLedgerPath(options.paths);
+    const compatibilityLedgerPath = `${options.paths.rootDir}/.tesseract/runs/dogfood-ledger.json`;
+    yield* fs.ensureDir(options.paths.runsDir);
     yield* fs.writeJson(ledgerPath, ledger);
+    yield* fs.writeJson(compatibilityLedgerPath, compatibilityLedger);
 
-    return { ledger, ledgerPath };
+    return { ledger, ledgerPath, compatibilityLedger, compatibilityLedgerPath };
   });
 }

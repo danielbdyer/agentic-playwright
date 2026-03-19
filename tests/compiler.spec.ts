@@ -3,11 +3,12 @@ import path from 'path';
 import { expect, test } from '@playwright/test';
 import { activateProposalBundle } from '../lib/application/activate-proposals';
 import { applyDriftEvents, type VarianceManifest } from '../lib/application/drift';
-import { runDogfoodLoop, type DogfoodLedger } from '../lib/application/dogfood';
+import { runDogfoodLoop } from '../lib/application/dogfood';
 import { buildDerivedGraph } from '../lib/application/graph';
 import { impactNode } from '../lib/application/impact';
 import { emitOperatorInbox } from '../lib/application/inbox';
 import { describeScenarioPaths } from '../lib/application/inspect';
+import { buildImprovementRun, improvementLedgerPath } from '../lib/application/improvement';
 import { emitScenario } from '../lib/application/emit';
 import { loadWorkspaceCatalog } from '../lib/application/catalog';
 import {
@@ -28,7 +29,13 @@ import type { ProjectionCacheMissIncremental, ProjectionIncremental } from '../l
 import { runWithLocalServices } from '../lib/composition/local-services';
 import { createAdoId, createElementId, createScreenId, createSurfaceId } from '../lib/domain/identity';
 import { graphIds } from '../lib/domain/ids';
-import type { ProposalEntry } from '../lib/domain/types';
+import {
+  DEFAULT_PIPELINE_CONFIG,
+  type DogfoodLedgerProjection,
+  type ImprovementLoopLedger,
+  type PipelineFitnessReport,
+  type ProposalEntry,
+} from '../lib/domain/types';
 import { validateDiscoveryIndex } from '../lib/domain/validation';
 import { harvestDeclaredRoutes } from '../lib/infrastructure/tooling/harvest-routes';
 import { createTestWorkspace } from './support/workspace';
@@ -60,6 +67,124 @@ function expectCacheMiss(incremental: ProjectionIncremental): ProjectionCacheMis
     throw new Error(`Expected cache-miss incremental result, received ${incremental.status}`);
   }
   return incremental;
+}
+
+function sampleImprovementRunForScenario(
+  workspace: ReturnType<typeof createTestWorkspace>,
+  adoId: ReturnType<typeof createAdoId>,
+) {
+  const fitnessReport: PipelineFitnessReport = {
+    kind: 'pipeline-fitness-report',
+    version: 1,
+    pipelineVersion: 'abc123',
+    runAt: '2026-03-19T12:00:00.000Z',
+    baseline: true,
+    metrics: {
+      knowledgeHitRate: 0.75,
+      translationPrecision: 0.8,
+      translationRecall: 0.6,
+      convergenceVelocity: 2,
+      proposalYield: 0.9,
+      resolutionByRung: [
+        { rung: 'approved-screen-knowledge', wins: 3, rate: 0.75 },
+        { rung: 'structured-translation', wins: 1, rate: 0.25 },
+      ],
+      degradedLocatorRate: 0.1,
+      recoverySuccessRate: 1,
+    },
+    failureModes: [
+      {
+        class: 'translation-threshold-miss',
+        count: 2,
+        affectedSteps: 2,
+        exampleIntents: ['search by policy number'],
+        improvementTarget: {
+          kind: 'translation',
+          detail: 'Adjust overlap score threshold or improve scoring formula',
+        },
+      },
+    ],
+    scoringEffectiveness: {
+      bottleneckWeightCorrelations: [
+        {
+          signal: 'translation-fallback-dominant',
+          weight: 0.25,
+          correlationWithImprovement: 0.1,
+        },
+      ],
+      proposalRankingAccuracy: 0.9,
+    },
+  };
+
+  return buildImprovementRun({
+    paths: workspace.paths,
+    pipelineVersion: 'abc123',
+    baselineConfig: DEFAULT_PIPELINE_CONFIG,
+    configDelta: {},
+    substrateContext: {
+      substrate: 'synthetic',
+      seed: 'graph-seed',
+      scenarioCount: 1,
+      screenCount: 1,
+      phrasingTemplateVersion: 'v1',
+    },
+    fitnessReport,
+    scorecardComparison: {
+      improved: true,
+      knowledgeHitRateDelta: 0.1,
+      translationPrecisionDelta: 0.05,
+      convergenceVelocityDelta: -1,
+    },
+    scorecardSummary: 'Accepted by governed scorecard gate.',
+    ledger: {
+      kind: 'dogfood-ledger',
+      version: 1,
+      maxIterations: 2,
+      completedIterations: 2,
+      converged: true,
+      convergenceReason: 'threshold-met',
+      iterations: [
+        {
+          iteration: 1,
+          scenarioIds: [adoId],
+          proposalsActivated: 1,
+          proposalsBlocked: 0,
+          knowledgeHitRate: 0.5,
+          unresolvedStepCount: 2,
+          totalStepCount: 4,
+          instructionCount: 4,
+        },
+        {
+          iteration: 2,
+          scenarioIds: [adoId],
+          proposalsActivated: 1,
+          proposalsBlocked: 0,
+          knowledgeHitRate: 0.75,
+          unresolvedStepCount: 1,
+          totalStepCount: 4,
+          instructionCount: 3,
+        },
+      ],
+      totalProposalsActivated: 2,
+      totalInstructionCount: 7,
+      knowledgeHitRateDelta: 0.25,
+    },
+    parentExperimentId: null,
+    tags: ['speedrun'],
+  });
+}
+
+function writeImprovementLedgerFixture(
+  workspace: ReturnType<typeof createTestWorkspace>,
+  run: ReturnType<typeof buildImprovementRun>,
+) {
+  const improvementLedgerFile = improvementLedgerPath(workspace.paths);
+  mkdirSync(path.dirname(improvementLedgerFile), { recursive: true });
+  writeFileSync(
+    improvementLedgerFile,
+    `${JSON.stringify({ kind: 'improvement-ledger', version: 1, runs: [run] }, null, 2)}\n`,
+    'utf8',
+  );
 }
 
 test('refresh recompiles the seeded scenario through graph, types, and program emission', async () => {
@@ -540,6 +665,189 @@ test('trace and impact queries operate over the derived graph without repo lore'
     expect(impact.impactedNodes.some((node) => node.id === graphIds.generatedSpec(adoId))).toBeTruthy();
     expect(impact.impactedNodes.some((node) => node.id === graphIds.step(adoId, 2))).toBeFalsy();
     expect(impact.impactedNodes.some((node) => node.id === graphIds.element(policySearchScreenId, resultsTableId))).toBeFalsy();
+  } finally {
+    workspace.cleanup();
+  }
+});
+
+test('derived graph projects recursive improvement artifacts and impact explains their lineage', async () => {
+  const workspace = createTestWorkspace('compiler-improvement-graph');
+  try {
+    const adoId = createAdoId('10001');
+    await runWithLocalServices(refreshScenario({ adoId, paths: workspace.paths }), workspace.rootDir);
+
+    const fitnessReport: PipelineFitnessReport = {
+      kind: 'pipeline-fitness-report',
+      version: 1,
+      pipelineVersion: 'abc123',
+      runAt: '2026-03-19T12:00:00.000Z',
+      baseline: true,
+      metrics: {
+        knowledgeHitRate: 0.75,
+        translationPrecision: 0.8,
+        translationRecall: 0.6,
+        convergenceVelocity: 2,
+        proposalYield: 0.9,
+        resolutionByRung: [
+          { rung: 'approved-screen-knowledge', wins: 3, rate: 0.75 },
+          { rung: 'structured-translation', wins: 1, rate: 0.25 },
+        ],
+        degradedLocatorRate: 0.1,
+        recoverySuccessRate: 1,
+      },
+      failureModes: [
+        {
+          class: 'translation-threshold-miss',
+          count: 2,
+          affectedSteps: 2,
+          exampleIntents: ['search by policy number'],
+          improvementTarget: {
+            kind: 'translation',
+            detail: 'Adjust overlap score threshold or improve scoring formula',
+          },
+        },
+      ],
+      scoringEffectiveness: {
+        bottleneckWeightCorrelations: [
+          {
+            signal: 'translation-fallback-dominant',
+            weight: 0.25,
+            correlationWithImprovement: 0.1,
+          },
+        ],
+        proposalRankingAccuracy: 0.9,
+      },
+    };
+
+    const improvementRun = buildImprovementRun({
+      paths: workspace.paths,
+      pipelineVersion: 'abc123',
+      baselineConfig: DEFAULT_PIPELINE_CONFIG,
+      configDelta: {},
+      substrateContext: {
+        substrate: 'synthetic',
+        seed: 'graph-seed',
+        scenarioCount: 1,
+        screenCount: 1,
+        phrasingTemplateVersion: 'v1',
+      },
+      fitnessReport,
+      scorecardComparison: {
+        improved: true,
+        knowledgeHitRateDelta: 0.1,
+        translationPrecisionDelta: 0.05,
+        convergenceVelocityDelta: -1,
+      },
+      scorecardSummary: 'Accepted by governed scorecard gate.',
+      ledger: {
+        kind: 'dogfood-ledger',
+        version: 1,
+        maxIterations: 2,
+        completedIterations: 2,
+        converged: true,
+        convergenceReason: 'threshold-met',
+        iterations: [
+          {
+            iteration: 1,
+            scenarioIds: [adoId],
+            proposalsActivated: 1,
+            proposalsBlocked: 0,
+            knowledgeHitRate: 0.5,
+            unresolvedStepCount: 2,
+            totalStepCount: 4,
+            instructionCount: 4,
+          },
+          {
+            iteration: 2,
+            scenarioIds: [adoId],
+            proposalsActivated: 1,
+            proposalsBlocked: 0,
+            knowledgeHitRate: 0.75,
+            unresolvedStepCount: 1,
+            totalStepCount: 4,
+            instructionCount: 3,
+          },
+        ],
+        totalProposalsActivated: 2,
+        totalInstructionCount: 7,
+        knowledgeHitRateDelta: 0.25,
+      },
+      parentExperimentId: null,
+      tags: ['speedrun'],
+    });
+
+    const improvementLedgerFile = improvementLedgerPath(workspace.paths);
+    mkdirSync(path.dirname(improvementLedgerFile), { recursive: true });
+    writeFileSync(
+      improvementLedgerFile,
+      `${JSON.stringify({ kind: 'improvement-ledger', version: 1, runs: [improvementRun] }, null, 2)}\n`,
+      'utf8',
+    );
+
+    const graphResult = await runWithLocalServices(buildDerivedGraph({ paths: workspace.paths }), workspace.rootDir);
+    const impact = await runWithLocalServices(
+      impactNode({ nodeId: graphIds.scenario(adoId), paths: workspace.paths }),
+      workspace.rootDir,
+    );
+
+    expect(graphResult.graph.nodes.some((node) => node.id === graphIds.improvementRun(improvementRun.improvementRunId))).toBeTruthy();
+    expect(graphResult.graph.nodes.some((node) => node.kind === 'participant')).toBeTruthy();
+    expect(graphResult.graph.nodes.some((node) => node.kind === 'intervention')).toBeTruthy();
+    expect(graphResult.graph.nodes.some((node) => node.kind === 'acceptance-decision')).toBeTruthy();
+    expect(
+      graphResult.graph.edges.some((edge) =>
+        edge.kind === 'derived-from'
+        && edge.from === graphIds.improvementRun(improvementRun.improvementRunId)
+        && edge.to === graphIds.scenario(adoId)),
+    ).toBeTruthy();
+    expect(impact.impactedNodes.some((node) => node.id === graphIds.improvementRun(improvementRun.improvementRunId))).toBeTruthy();
+  } finally {
+    workspace.cleanup();
+  }
+});
+
+test('emit and operator inbox surfaces project recursive improvement lineage for scenario-scoped runs', async () => {
+  const workspace = createTestWorkspace('compiler-improvement-surfaces');
+  try {
+    const adoId = createAdoId('10001');
+    const refresh = await runWithLocalServices(refreshScenario({ adoId, paths: workspace.paths }), workspace.rootDir);
+    const improvementRun = sampleImprovementRunForScenario(workspace, adoId);
+    writeImprovementLedgerFixture(workspace, improvementRun);
+
+    const emitted = await runWithLocalServices(
+      emitScenario({ paths: workspace.paths, compileSnapshot: refresh.compile.compileSnapshot }),
+      workspace.rootDir,
+    );
+    const inbox = await runWithLocalServices(
+      emitOperatorInbox({ paths: workspace.paths, filter: { adoId: '10001' } }),
+      workspace.rootDir,
+    );
+    const traceArtifact = JSON.parse(readFileSync(emitted.tracePath, 'utf8').replace(/^\uFEFF/, ''));
+    const review = readFileSync(emitted.reviewPath, 'utf8').replace(/^\uFEFF/, '');
+    const inboxReport = readFileSync(inbox.inboxReportPath, 'utf8').replace(/^\uFEFF/, '');
+    const inboxIndex = JSON.parse(readFileSync(inbox.inboxIndexPath, 'utf8').replace(/^\uFEFF/, ''));
+    const latestDecision = improvementRun.acceptanceDecisions[0] ?? null;
+
+    expect(emitted.incremental.status).toBe('cache-miss');
+    expect(traceArtifact.improvement).toEqual({
+      relatedRunIds: [improvementRun.improvementRunId],
+      latestRunId: improvementRun.improvementRunId,
+      latestAccepted: improvementRun.accepted,
+      latestVerdict: latestDecision?.verdict ?? null,
+      latestDecisionId: latestDecision?.decisionId ?? null,
+      signalCount: improvementRun.signals.length,
+      candidateInterventionCount: improvementRun.candidateInterventions.length,
+      checkpointRef: latestDecision?.checkpointRef ?? null,
+    });
+    expect(review).toContain('## Recursive Improvement');
+    expect(review).toContain(`- Latest improvement run: ${improvementRun.improvementRunId}`);
+    expect(review).toContain(`- Latest verdict: ${latestDecision?.verdict ?? 'none'}`);
+    expect(review).toContain(`- Latest checkpoint: ${latestDecision?.checkpointRef ?? 'none'}`);
+    expect(inboxReport).toContain('## Recursive improvement');
+    expect(inboxReport).toContain(improvementRun.improvementRunId);
+    expect(inboxReport).toContain(`checkpoint: ${latestDecision?.checkpointRef ?? 'none'}`);
+    expect(inboxIndex.improvementRuns).toHaveLength(1);
+    expect(inboxIndex.improvementRuns[0].improvementRunId).toBe(improvementRun.improvementRunId);
   } finally {
     workspace.cleanup();
   }
@@ -1062,13 +1370,57 @@ test('agent session adapters share one provider-agnostic event vocabulary', asyn
       learningManifest: catalog.learningManifest?.artifact ?? null,
     };
 
-    const deterministic = resolveAgentSessionAdapter('deterministic-agent-session').eventVocabulary(input);
-    const copilot = resolveAgentSessionAdapter('copilot-vscode-chat').eventVocabulary(input);
+    const deterministicAdapter = resolveAgentSessionAdapter('deterministic-agent-session');
+    const deterministicParticipants = deterministicAdapter.participants({
+      sessionId: input.sessionId,
+      providerId: 'deterministic',
+    });
+    const deterministicInterventions = deterministicAdapter.interventionReceipts({
+      ...input,
+      participants: deterministicParticipants,
+    });
+    const deterministic = deterministicAdapter.eventVocabulary({
+      ...input,
+      participants: deterministicParticipants,
+      interventions: deterministicInterventions,
+    });
+    const copilotAdapter = resolveAgentSessionAdapter('copilot-vscode-chat');
+    const copilotParticipants = copilotAdapter.participants({
+      sessionId: input.sessionId,
+      providerId: 'copilot-vscode-chat',
+    });
+    const copilotInterventions = copilotAdapter.interventionReceipts({
+      ...input,
+      participants: copilotParticipants,
+    });
+    const copilot = copilotAdapter.eventVocabulary({
+      ...input,
+      participants: copilotParticipants,
+      interventions: copilotInterventions,
+    });
     const deterministicTypes = [...new Set(deterministic.map((event) => event.type))].sort((left, right) => left.localeCompare(right));
     const copilotTypes = [...new Set(copilot.map((event) => event.type))].sort((left, right) => left.localeCompare(right));
 
     expect(deterministicTypes).toEqual(copilotTypes);
     expect(deterministicTypes).toEqual(['artifact-inspection', 'execution-reviewed', 'orientation']);
+    expect(deterministicParticipants.map((participant) => participant.kind).sort()).toEqual(['agent', 'system']);
+    expect(copilotParticipants.map((participant) => participant.kind).sort()).toEqual(['agent', 'system']);
+    expect(deterministicInterventions.map((intervention) => intervention.kind)).toEqual([
+      'orientation',
+      'artifact-inspection',
+      'execution-reviewed',
+    ]);
+    expect(copilotInterventions.map((intervention) => intervention.kind)).toEqual([
+      'orientation',
+      'artifact-inspection',
+      'execution-reviewed',
+    ]);
+    expect(deterministic.every((event) =>
+      deterministicInterventions.some((intervention) => intervention.interventionId === event.interventionId),
+    )).toBeTruthy();
+    expect(copilot.every((event) =>
+      copilotInterventions.some((intervention) => intervention.interventionId === event.interventionId),
+    )).toBeTruthy();
   } finally {
     workspace.cleanup();
   }
@@ -1109,7 +1461,18 @@ test('run scenario emits agent session and learning artifacts with replay-ready 
       runScenario({ adoId, paths: workspace.paths, interpreterMode: 'diagnostic' }),
       workspace.rootDir,
     );
-    const session = workspace.readJson<{ sessionId: string; adapterId: string; eventCount: number; eventTypes: Record<string, number>; transcripts: Array<{ kind: string }> }>(
+    const session = workspace.readJson<{
+      sessionId: string;
+      adapterId: string;
+      eventCount: number;
+      eventTypes: Record<string, number>;
+      participantCount: number;
+      interventionCount: number;
+      improvementRunIds: string[];
+      participants: Array<{ participantId: string; kind: string }>;
+      interventions: Array<{ interventionId: string; kind: string; participantRefs: Array<{ participantId: string; kind: string }> }>;
+      transcripts: Array<{ kind: string }>;
+    }>(
       '.tesseract',
       'sessions',
       run.runId,
@@ -1119,7 +1482,12 @@ test('run scenario emits agent session and learning artifacts with replay-ready 
       .trim()
       .split('\n')
       .filter((line) => line.length > 0)
-      .map((line) => JSON.parse(line) as { type: string });
+      .map((line) => JSON.parse(line) as {
+        type: string;
+        interventionId: string;
+        participantRefs: Array<{ participantId: string; kind: string }>;
+        ids?: { participantIds?: string[]; interventionIds?: string[] };
+      });
     const repair = workspace.readJson<Array<{ runtime: string }>>(
       '.tesseract',
       'learning',
@@ -1142,11 +1510,28 @@ test('run scenario emits agent session and learning artifacts with replay-ready 
     expect(session.sessionId).toBe(run.runId);
     expect(session.adapterId).toBe('deterministic-agent-session');
     expect(session.eventCount).toBe(sessionEvents.length);
+    expect(session.participantCount).toBe(session.participants.length);
+    expect(session.interventionCount).toBe(session.interventions.length);
+    expect(session.improvementRunIds).toEqual([]);
+    expect(session.participants.map((participant) => participant.kind).sort()).toEqual(['agent', 'system']);
+    expect(session.interventions.map((intervention) => intervention.kind)).toEqual([
+      'orientation',
+      'artifact-inspection',
+      'execution-reviewed',
+    ]);
     expect(session.transcripts[0]?.kind).toBe('none');
     expect(session.eventTypes.orientation).toBe(1);
     expect(session.eventTypes['artifact-inspection']).toBe(1);
     expect(session.eventTypes['execution-reviewed']).toBe(1);
     expect(sessionEvents.map((event) => event.type)).toEqual(['orientation', 'artifact-inspection', 'execution-reviewed']);
+    expect(sessionEvents.map((event) => event.interventionId)).toEqual(
+      session.interventions.map((intervention) => intervention.interventionId),
+    );
+    expect(sessionEvents.every((event) => event.participantRefs.length > 0)).toBeTruthy();
+    expect(sessionEvents.every((event) =>
+      (event.ids?.interventionIds ?? []).includes(event.interventionId),
+    )).toBeTruthy();
+    expect(session.interventions.every((intervention) => intervention.participantRefs.length > 0)).toBeTruthy();
     expect(repair.every((fragment) => fragment.runtime === 'repair-recovery')).toBeTruthy();
     expect(replay.runtime).toBe('workflow');
     expect(replay.fragmentIds.length).toBeGreaterThan(0);
@@ -1322,7 +1707,7 @@ test('dogfood loop completes two iterations and produces a legible ledger', asyn
     const adoId = createAdoId('10001');
     await runWithLocalServices(refreshScenario({ adoId, paths: workspace.paths }), workspace.rootDir);
 
-    const { ledger, ledgerPath } = await runWithLocalServices(
+    const { ledger, ledgerPath, compatibilityLedgerPath } = await runWithLocalServices(
       runDogfoodLoop({
         paths: workspace.paths,
         maxIterations: 2,
@@ -1331,7 +1716,7 @@ test('dogfood loop completes two iterations and produces a legible ledger', asyn
       workspace.rootDir,
     );
 
-    expect(ledger.kind).toBe('dogfood-ledger');
+    expect(ledger.kind).toBe('improvement-loop-ledger');
     expect(ledger.version).toBe(1);
     expect(ledger.maxIterations).toBe(2);
     expect(ledger.completedIterations).toBeGreaterThanOrEqual(1);
@@ -1351,11 +1736,14 @@ test('dogfood loop completes two iterations and produces a legible ledger', asyn
     expect(typeof ledger.iterations[0]!.instructionCount).toBe('number');
     expect(typeof ledger.iterations[0]!.unresolvedStepCount).toBe('number');
 
-    const writtenLedger = JSON.parse(readFileSync(ledgerPath, 'utf8').replace(/^\uFEFF/, '')) as DogfoodLedger;
-    expect(writtenLedger.kind).toBe('dogfood-ledger');
+    const writtenLedger = JSON.parse(readFileSync(ledgerPath, 'utf8').replace(/^\uFEFF/, '')) as ImprovementLoopLedger;
+    const compatibilityLedger = JSON.parse(readFileSync(compatibilityLedgerPath, 'utf8').replace(/^\uFEFF/, '')) as DogfoodLedgerProjection;
+    expect(writtenLedger.kind).toBe('improvement-loop-ledger');
     expect(writtenLedger.completedIterations).toBe(ledger.completedIterations);
     expect(writtenLedger.convergenceReason).toBe(ledger.convergenceReason);
     expect(writtenLedger.totalInstructionCount).toBe(ledger.totalInstructionCount);
+    expect(compatibilityLedger.kind).toBe('dogfood-ledger');
+    expect(compatibilityLedger.completedIterations).toBe(ledger.completedIterations);
   } finally {
     workspace.cleanup();
   }

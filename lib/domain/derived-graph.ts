@@ -25,6 +25,7 @@ import type {
   ResolutionControl,
   RunRecord,
   InterpretationDriftRecord,
+  ImprovementRun,
   RunbookControl,
   Scenario,
   ScenarioInterpretationSurface,
@@ -51,6 +52,7 @@ export interface ScenarioGraphArtifact extends ArtifactEnvelope<Scenario> {
 export interface BoundScenarioGraphArtifact extends ArtifactEnvelope<BoundScenario> {}
 
 export interface InterpretationSurfaceGraphArtifact extends ArtifactEnvelope<ScenarioInterpretationSurface> {}
+export interface ImprovementRunGraphArtifact extends ArtifactEnvelope<ImprovementRun> {}
 
 export interface KnowledgeSnapshotArtifact {
   readonly relativePath: SnapshotTemplateId;
@@ -94,6 +96,7 @@ export interface GraphBuildInput {
   readonly boundScenarios?: readonly BoundScenarioGraphArtifact[];
   readonly interpretationSurfaces?: readonly InterpretationSurfaceGraphArtifact[];
   readonly runRecords?: readonly ArtifactEnvelope<RunRecord>[];
+  readonly improvementRuns?: readonly ImprovementRunGraphArtifact[];
   readonly interpretationDriftRecords?: readonly ArtifactEnvelope<InterpretationDriftRecord>[];
   readonly evidence: readonly EvidenceArtifact[];
   readonly policyDecisions?: readonly PolicyDecisionArtifact[];
@@ -220,10 +223,10 @@ function buildLookups(input: GraphBuildInput): Lookups {
 
 // --- Pure phases ---
 
-const snapshotPhase: GraphPhase = (_acc, input) =>
+const snapshotPhase: GraphPhase = (acc, input) =>
   input.snapshots.reduce<GraphAccumulator>(
-    (acc, { artifact: snapshot, artifactPath }) =>
-      withNode(acc, createNode({
+    (innerAcc, { artifact: snapshot, artifactPath }) =>
+      withNode(innerAcc, createNode({
         id: graphIds.snapshot.ado(snapshot.id),
         kind: 'snapshot',
         label: snapshot.title,
@@ -238,13 +241,13 @@ const snapshotPhase: GraphPhase = (_acc, input) =>
           suite: snapshot.suitePath,
         },
       })),
-    EMPTY_GRAPH,
+    acc,
   );
 
-const knowledgeSnapshotPhase: GraphPhase = (_acc, input) =>
+const knowledgeSnapshotPhase: GraphPhase = (acc, input) =>
   input.knowledgeSnapshots.reduce<GraphAccumulator>(
-    (acc, knowledgeSnapshot) =>
-      withNode(acc, createNode({
+    (innerAcc, knowledgeSnapshot) =>
+      withNode(innerAcc, createNode({
         id: graphIds.snapshot.knowledge(knowledgeSnapshot.relativePath),
         kind: 'snapshot',
         label: basename(knowledgeSnapshot.artifactPath),
@@ -256,13 +259,13 @@ const knowledgeSnapshotPhase: GraphPhase = (_acc, input) =>
           category: 'knowledge',
         },
       })),
-    EMPTY_GRAPH,
+    acc,
   );
 
-const datasetPhase: GraphPhase = (_acc, _input, lookups) =>
+const datasetPhase: GraphPhase = (acc, _input, lookups) =>
   lookups.datasetArtifacts.reduce<GraphAccumulator>(
-    (acc, { artifact: dataset, artifactPath }) =>
-      withNode(acc, createNode({
+    (innerAcc, { artifact: dataset, artifactPath }) =>
+      withNode(innerAcc, createNode({
         id: graphIds.dataset(dataset.name),
         kind: 'dataset',
         label: dataset.name,
@@ -276,13 +279,13 @@ const datasetPhase: GraphPhase = (_acc, _input, lookups) =>
           fixtureKeys: Object.keys(dataset.fixtures ?? {}),
         },
       })),
-    EMPTY_GRAPH,
+    acc,
   );
 
-const resolutionControlPhase: GraphPhase = (_acc, _input, lookups) =>
+const resolutionControlPhase: GraphPhase = (acc, _input, lookups) =>
   lookups.resolutionControlArtifacts.reduce<GraphAccumulator>(
-    (acc, { artifact: control, artifactPath }) =>
-      withNode(acc, createNode({
+    (innerAcc, { artifact: control, artifactPath }) =>
+      withNode(innerAcc, createNode({
         id: graphIds.resolutionControl(control.name),
         kind: 'resolution-control',
         label: control.name,
@@ -295,12 +298,12 @@ const resolutionControlPhase: GraphPhase = (_acc, _input, lookups) =>
           selector: control.selector,
         },
       })),
-    EMPTY_GRAPH,
+    acc,
   );
 
-const surfaceGraphPhase: GraphPhase = (_acc, input) =>
+const surfaceGraphPhase: GraphPhase = (acc, input) =>
   input.surfaceGraphs.reduce<GraphAccumulator>(
-    (acc, { artifact: surfaceGraph, artifactPath }) => {
+    (innerAcc, { artifact: surfaceGraph, artifactPath }) => {
       const screenNode = createNode({
         id: graphIds.screen(surfaceGraph.screen),
         kind: 'screen',
@@ -377,14 +380,14 @@ const surfaceGraphPhase: GraphPhase = (_acc, input) =>
 
       const allNodes = [screenNode, ...sectionItems.flatMap((i) => i.nodes), ...surfaceItems.flatMap((i) => i.nodes)];
       const allEdges = [...sectionItems.flatMap((i) => i.edges), ...surfaceItems.flatMap((i) => i.edges)];
-      return withItems(acc, { nodes: allNodes, edges: allEdges });
+      return withItems(innerAcc, { nodes: allNodes, edges: allEdges });
     },
-    EMPTY_GRAPH,
+    acc,
   );
 
-const screenElementPhase: GraphPhase = (_acc, input, lookups) =>
+const screenElementPhase: GraphPhase = (acc, input, lookups) =>
   input.screenElements.reduce<GraphAccumulator>(
-    (acc, { artifact: elements, artifactPath }) => {
+    (innerAcc, { artifact: elements, artifactPath }) => {
       const elementItems = Object.entries(elements.elements).flatMap(([elementKey, element]) => {
         const elementId = createElementId(elementKey);
         const elementNodeId = graphIds.element(elements.screen, elementId);
@@ -439,9 +442,9 @@ const screenElementPhase: GraphPhase = (_acc, input, lookups) =>
 
       const allNodes = [...elementItems.flatMap((i) => i.nodes), ...capabilityItems.flatMap((i) => i.nodes)];
       const allEdges = [...elementItems.flatMap((i) => i.edges), ...capabilityItems.flatMap((i) => i.edges)];
-      return withItems(acc, { nodes: allNodes, edges: allEdges });
+      return withItems(innerAcc, { nodes: allNodes, edges: allEdges });
     },
-    EMPTY_GRAPH,
+    acc,
   );
 
 const screenPosturePhase: GraphPhase = (acc, input, lookups) =>
@@ -530,9 +533,9 @@ const screenHintPhase: GraphPhase = (acc, _input, lookups) =>
     acc,
   );
 
-const sharedPatternPhase: GraphPhase = (_acc, _input, lookups) =>
+const sharedPatternPhase: GraphPhase = (acc, _input, lookups) =>
   lookups.sharedPatternsArtifacts.reduce<GraphAccumulator>(
-    (acc, { artifact: patterns, artifactPath }) => {
+    (innerAcc, { artifact: patterns, artifactPath }) => {
       const rootId = patternFileNodeId(artifactPath);
       const rootNode = createNode({
         id: rootId,
@@ -584,12 +587,12 @@ const sharedPatternPhase: GraphPhase = (_acc, _input, lookups) =>
       });
 
       const allItems = [...actionItems, ...postureItems];
-      return withItems(acc, {
+      return withItems(innerAcc, {
         nodes: [rootNode, ...allItems.flatMap((i) => i.nodes)],
         edges: allItems.flatMap((i) => i.edges),
       });
     },
-    EMPTY_GRAPH,
+    acc,
   );
 
 function overlayTargetNodeId(record: ConfidenceOverlayCatalog['records'][number]): string | null {
@@ -659,9 +662,9 @@ const confidenceOverlayPhase: GraphPhase = (acc, _input, lookups) =>
     acc,
   );
 
-const runbookPhase: GraphPhase = (_acc, _input, lookups) =>
+const runbookPhase: GraphPhase = (acc, _input, lookups) =>
   lookups.runbookArtifacts.reduce<GraphAccumulator>(
-    (acc, { artifact: runbook, artifactPath }) => {
+    (innerAcc, { artifact: runbook, artifactPath }) => {
       const runbookNode = createNode({
         id: graphIds.runbook(runbook.name),
         kind: 'runbook',
@@ -695,9 +698,9 @@ const runbookPhase: GraphPhase = (_acc, _input, lookups) =>
           })]
         : [];
 
-      return withItems(acc, { nodes: [runbookNode], edges: [...datasetEdge, ...controlEdge] });
+      return withItems(innerAcc, { nodes: [runbookNode], edges: [...datasetEdge, ...controlEdge] });
     },
-    EMPTY_GRAPH,
+    acc,
   );
 
 // --- Scenario step edge sub-functions (each pure, returns readonly GraphEdge[]) ---
@@ -1187,6 +1190,233 @@ const evidencePhase: GraphPhase = (acc, input) =>
     acc,
   );
 
+function knowledgeNodeIdForArtifactPath(artifactPath: string): string | null {
+  if (artifactPath.startsWith('knowledge/snapshots/')) {
+    return graphIds.snapshot.knowledge(artifactPath.replace(/^knowledge\//, ''));
+  }
+  if (artifactPath.startsWith('knowledge/surfaces/') && artifactPath.endsWith('.surface.yaml')) {
+    return graphIds.screen(basename(artifactPath).replace('.surface.yaml', '') as ScreenId);
+  }
+  if (artifactPath.startsWith('knowledge/screens/') && artifactPath.endsWith('.elements.yaml')) {
+    return graphIds.screen(basename(artifactPath).replace('.elements.yaml', '') as ScreenId);
+  }
+  if (artifactPath.startsWith('knowledge/screens/') && artifactPath.endsWith('.postures.yaml')) {
+    return graphIds.screen(basename(artifactPath).replace('.postures.yaml', '') as ScreenId);
+  }
+  if (artifactPath.startsWith('knowledge/screens/') && artifactPath.endsWith('.hints.yaml')) {
+    return graphIds.screenHints(basename(artifactPath).replace('.hints.yaml', '') as ScreenId);
+  }
+  if (artifactPath.startsWith('knowledge/patterns/')) {
+    return patternFileNodeId(artifactPath);
+  }
+  return null;
+}
+
+function nodeIdForInterventionTarget(
+  target: ImprovementRun['interventions'][number]['target'],
+): string | null {
+  if (target.kind === 'graph-node') {
+    return target.ref;
+  }
+  if (target.kind === 'scenario' && target.ids?.adoId) {
+    return graphIds.scenario(target.ids.adoId);
+  }
+  if (target.kind === 'step' && target.ids?.adoId && target.ids.stepIndex !== null && target.ids.stepIndex !== undefined) {
+    return graphIds.step(target.ids.adoId, target.ids.stepIndex);
+  }
+  if (target.kind === 'artifact' && target.artifactPath) {
+    if (target.ids?.adoId && target.artifactPath.endsWith('.spec.ts')) {
+      return graphIds.generatedSpec(target.ids.adoId);
+    }
+    if (target.ids?.adoId && target.artifactPath.endsWith('.trace.json')) {
+      return graphIds.generatedTrace(target.ids.adoId);
+    }
+    if (target.ids?.adoId && target.artifactPath.endsWith('.review.md')) {
+      return graphIds.generatedReview(target.ids.adoId);
+    }
+    if (target.artifactPath.startsWith('.tesseract/evidence/')) {
+      return graphIds.evidence(target.artifactPath);
+    }
+    return knowledgeNodeIdForArtifactPath(target.artifactPath);
+  }
+  if (target.kind === 'knowledge' && target.artifactPath) {
+    return knowledgeNodeIdForArtifactPath(target.artifactPath);
+  }
+  return null;
+}
+
+const improvementPhase: GraphPhase = (acc, input) =>
+  (input.improvementRuns ?? []).reduce<GraphAccumulator>(
+    (outerAcc, { artifact: run, artifactPath }) => {
+      const runNodeId = graphIds.improvementRun(run.improvementRunId);
+      const runNode = createNode({
+        id: runNodeId,
+        kind: 'improvement-run',
+        label: run.improvementRunId,
+        artifactPath,
+        provenance: { knowledgePath: artifactPath },
+        payload: {
+          pipelineVersion: run.pipelineVersion,
+          accepted: run.accepted,
+          converged: run.converged,
+          convergenceReason: run.convergenceReason,
+          substrate: run.substrateContext.substrate,
+          tags: run.tags,
+        },
+      });
+
+      const withRunNode = withNode(outerAcc, runNode);
+      const scenarioEdges = [...new Set(run.iterations.flatMap((iteration) => iteration.scenarioIds))]
+        .map((adoId) => graphIds.scenario(adoId as Scenario['source']['ado_id']))
+        .filter((scenarioNodeId) => withRunNode.nodes.has(scenarioNodeId))
+        .map((scenarioNodeId) =>
+          createEdge({
+            kind: 'derived-from',
+            from: runNodeId,
+            to: scenarioNodeId,
+            provenance: { knowledgePath: artifactPath },
+          }),
+        );
+
+      const withScenarioEdges = withItems(withRunNode, { edges: scenarioEdges });
+
+      const withParticipants = run.participants.reduce<GraphAccumulator>(
+        (participantAcc, participant) => {
+          const participantNodeId = graphIds.participant(participant.participantId);
+          return withItems(participantAcc, {
+            nodes: [createNode({
+              id: participantNodeId,
+              kind: 'participant',
+              label: participant.label,
+              artifactPath,
+              provenance: { knowledgePath: artifactPath },
+              payload: {
+                kind: participant.kind,
+                providerId: participant.providerId ?? null,
+                adapterId: participant.adapterId ?? null,
+                capabilities: participant.capabilities,
+              },
+            })],
+            edges: [createEdge({
+              kind: 'uses',
+              from: runNodeId,
+              to: participantNodeId,
+              provenance: { knowledgePath: artifactPath },
+            })],
+          });
+        },
+        withScenarioEdges,
+      );
+
+      const withInterventions = run.interventions.reduce<GraphAccumulator>(
+        (interventionAcc, intervention) => {
+          const interventionNodeId = graphIds.intervention(intervention.interventionId);
+          const participantEdges = intervention.participantRefs
+            .map((participantRef) => graphIds.participant(participantRef.participantId))
+            .filter((participantNodeId) => interventionAcc.nodes.has(participantNodeId))
+            .map((participantNodeId) =>
+              createEdge({
+                kind: 'uses',
+                from: interventionNodeId,
+                to: participantNodeId,
+                provenance: { knowledgePath: artifactPath },
+              }),
+            );
+          const targetNodeId = nodeIdForInterventionTarget(intervention.target);
+          const targetEdges = targetNodeId && interventionAcc.nodes.has(targetNodeId)
+            ? [createEdge({
+                kind: 'references',
+                from: interventionNodeId,
+                to: targetNodeId,
+                provenance: { knowledgePath: artifactPath },
+                payload: { targetKind: intervention.target.kind },
+              })]
+            : [];
+
+          return withItems(interventionAcc, {
+            nodes: [createNode({
+              id: interventionNodeId,
+              kind: 'intervention',
+              label: intervention.summary,
+              artifactPath,
+              provenance: { knowledgePath: artifactPath },
+              payload: {
+                kind: intervention.kind,
+                status: intervention.status,
+                targetKind: intervention.target.kind,
+              },
+            })],
+            edges: [
+              createEdge({
+                kind: 'emits',
+                from: runNodeId,
+                to: interventionNodeId,
+                provenance: { knowledgePath: artifactPath },
+              }),
+              ...participantEdges,
+              ...targetEdges,
+            ],
+          });
+        },
+        withParticipants,
+      );
+
+      return run.acceptanceDecisions.reduce<GraphAccumulator>(
+        (decisionAcc, decision) => {
+          const decisionNodeId = graphIds.acceptanceDecision(decision.decisionId);
+          const participantNodeId = graphIds.participant(decision.decidedBy.participantId);
+          const governedTargets = run.candidateInterventions
+            .filter((candidate) => decision.candidateInterventionIds.includes(candidate.candidateId))
+            .map((candidate) => nodeIdForInterventionTarget(candidate.target))
+            .filter((targetNodeId): targetNodeId is string => targetNodeId !== null && decisionAcc.nodes.has(targetNodeId))
+            .map((targetNodeId) =>
+              createEdge({
+                kind: 'governs',
+                from: decisionNodeId,
+                to: targetNodeId,
+                provenance: { knowledgePath: artifactPath },
+                payload: { verdict: decision.verdict },
+              }),
+            );
+
+          return withItems(decisionAcc, {
+            nodes: [createNode({
+              id: decisionNodeId,
+              kind: 'acceptance-decision',
+              label: decision.verdict,
+              artifactPath,
+              provenance: { knowledgePath: artifactPath },
+              payload: {
+                verdict: decision.verdict,
+                checkpointRef: decision.checkpointRef ?? null,
+                candidateInterventionIds: decision.candidateInterventionIds,
+              },
+            })],
+            edges: [
+              createEdge({
+                kind: 'emits',
+                from: runNodeId,
+                to: decisionNodeId,
+                provenance: { knowledgePath: artifactPath },
+              }),
+              ...(decisionAcc.nodes.has(participantNodeId)
+                ? [createEdge({
+                    kind: 'uses',
+                    from: decisionNodeId,
+                    to: participantNodeId,
+                    provenance: { knowledgePath: artifactPath },
+                  })]
+                : []),
+              ...governedTargets,
+            ],
+          });
+        },
+        withInterventions,
+      );
+    },
+    acc,
+  );
+
 // --- Finalize ---
 
 function finalize(acc: GraphAccumulator): DerivedGraph {
@@ -1364,6 +1594,7 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
     policyDecisionPhase,
     driftPhase,
     evidencePhase,
+    improvementPhase,
   ];
 
   const accumulated = phases.reduce(

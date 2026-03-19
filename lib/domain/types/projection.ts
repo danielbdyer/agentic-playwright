@@ -16,6 +16,7 @@ import type {
   WorkflowStage,
 } from './workflow';
 import type { ApplicationInterfaceGraph, StateTransitionGraph } from './interface';
+import type { ImprovementRun } from './improvement';
 import type { LearningScorecard, TrainingCorpusManifest } from './learning';
 import type { StepProgram } from './intent';
 import type { BoundScenario } from './intent';
@@ -122,8 +123,18 @@ export interface BenchmarkScorecard {
   readonly learning: LearningScorecard | null;
 }
 
-export interface DogfoodRun {
-  readonly kind: 'dogfood-run';
+export interface ImprovementProjectionSummary {
+  readonly relatedRunIds: readonly string[];
+  readonly latestRunId: string | null;
+  readonly latestAccepted: boolean | null;
+  readonly latestVerdict: string | null;
+  readonly latestDecisionId: string | null;
+  readonly signalCount: number;
+  readonly candidateInterventionCount: number;
+  readonly checkpointRef: string | null;
+}
+
+export interface BenchmarkImprovementProjectionBase {
   readonly version: 1;
   readonly benchmark: string;
   readonly runId: string;
@@ -133,7 +144,16 @@ export interface DogfoodRun {
   readonly scenarioIds: readonly AdoId[];
   readonly driftEventIds: readonly string[];
   readonly scorecard: BenchmarkScorecard;
+  readonly improvement?: ImprovementProjectionSummary | null | undefined;
   readonly nextCommands: readonly string[];
+}
+
+export interface BenchmarkImprovementProjection extends BenchmarkImprovementProjectionBase {
+  readonly kind: 'benchmark-improvement-projection';
+}
+
+export interface DogfoodRun extends BenchmarkImprovementProjectionBase {
+  readonly kind: 'dogfood-run';
 }
 
 export type GraphNodeKind =
@@ -156,7 +176,11 @@ export type GraphNodeKind =
   | 'generated-trace'
   | 'generated-review'
   | 'evidence'
-  | 'policy-decision';
+  | 'policy-decision'
+  | 'participant'
+  | 'intervention'
+  | 'improvement-run'
+  | 'acceptance-decision';
 
 export type GraphEdgeKind =
   | 'derived-from'
@@ -325,6 +349,7 @@ export interface ScenarioExplanation {
   readonly diagnostics: readonly CompilerDiagnostic[];
   readonly summary: ScenarioExplanationSummary;
   readonly steps: readonly ScenarioExplanationStep[];
+  readonly improvement?: ImprovementProjectionSummary | null | undefined;
 }
 
 export interface ScenarioProjectionInput {
@@ -337,5 +362,6 @@ export interface ScenarioProjectionInput {
   readonly selectorCanon?: SelectorCanon | null | undefined;
   readonly stateGraph?: StateTransitionGraph | null | undefined;
   readonly sessions: readonly AgentSession[];
+  readonly improvementRuns: readonly ImprovementRun[];
   readonly learningManifest?: TrainingCorpusManifest | null | undefined;
 }

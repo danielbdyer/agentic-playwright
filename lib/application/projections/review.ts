@@ -19,6 +19,12 @@ interface ReviewMetadata {
   readonly selectorCanonFingerprint: string | null;
   readonly stateGraphFingerprint: string | null;
   readonly agentSessionCount: number;
+  readonly improvementRunCount: number;
+  readonly latestImprovementRunId: string | null;
+  readonly latestImprovementVerdict: string | null;
+  readonly latestImprovementDecisionId: string | null;
+  readonly latestImprovementCheckpointRef: string | null;
+  readonly latestImprovementSignalCount: number;
   readonly learningCorporaCount: number;
   readonly inboxItemIds: readonly string[];
   readonly nextCommands: readonly string[];
@@ -129,6 +135,12 @@ export function buildReviewDocument(
       selectorCanonFingerprint: projectionInput.selectorCanon?.fingerprint ?? null,
       stateGraphFingerprint: projectionInput.stateGraph?.fingerprint ?? null,
       agentSessionCount: projectionInput.sessions.length,
+      improvementRunCount: projectionInput.improvementRuns.length,
+      latestImprovementRunId: trace.improvement?.latestRunId ?? null,
+      latestImprovementVerdict: trace.improvement?.latestVerdict ?? null,
+      latestImprovementDecisionId: trace.improvement?.latestDecisionId ?? null,
+      latestImprovementCheckpointRef: trace.improvement?.checkpointRef ?? null,
+      latestImprovementSignalCount: trace.improvement?.signalCount ?? 0,
       learningCorporaCount: projectionInput.learningManifest?.corpora.length ?? 0,
       inboxItemIds: inboxItems.map((item) => item.id),
       nextCommands: uniqueNextCommands,
@@ -273,6 +285,7 @@ export function renderReviewMarkdown(doc: ReviewDocument): string {
     `- Selector canon fingerprint: ${m.selectorCanonFingerprint ?? 'none'}`,
     `- State graph fingerprint: ${m.stateGraphFingerprint ?? 'none'}`,
     `- Agent sessions: ${m.agentSessionCount}`,
+    `- Improvement runs: ${m.improvementRunCount}`,
     `- Learning corpora: ${m.learningCorporaCount}`,
     `- Inbox items: ${formatList(m.inboxItemIds)}`,
     `- Next commands: ${m.nextCommands.join(' | ')}`,
@@ -281,6 +294,15 @@ export function renderReviewMarkdown(doc: ReviewDocument): string {
     '',
     '- Preparation lane: scenario -> bound envelope -> interpretation surface',
     '- Agent lane: run plan -> interpretation receipt -> execution receipt -> evidence -> proposals',
+    '- Improvement lane: objective signals -> candidate interventions -> acceptance decision -> checkpointed lineage',
+    '',
+    '## Recursive Improvement',
+    '',
+    `- Latest improvement run: ${m.latestImprovementRunId ?? 'none'}`,
+    `- Latest verdict: ${m.latestImprovementVerdict ?? 'none'}`,
+    `- Latest decision id: ${m.latestImprovementDecisionId ?? 'none'}`,
+    `- Latest checkpoint: ${m.latestImprovementCheckpointRef ?? 'none'}`,
+    `- Latest signal count: ${m.latestImprovementSignalCount}`,
     '',
     '## Bottlenecks',
     '',

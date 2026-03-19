@@ -1,47 +1,14 @@
 /**
- * Experiment Registry — tracks every speedrun with its configuration delta,
- * fitness results, and accept/reject decision.
+ * Experiment registry compatibility projection over the canonical
+ * recursive-improvement ledger.
  *
- * This is the "training log" of the self-improving pipeline. Every experiment
- * carries its substrate context so that learning is not biased by any single
- * evaluation environment.
- *
- * See docs/recursive-self-improvement.md § Experiment Registry.
+ * The canonical training log is `ImprovementLedger`; this projection remains
+ * available for legacy tooling that still consumes `ExperimentRecord`.
  */
 
 import type { PipelineConfig } from './pipeline-config';
 import type { PipelineFitnessReport } from './fitness';
-
-// ─── Substrate Context ───
-//
-// The substrate describes the evaluation environment. Fitness metrics and
-// parameter sensitivity are substrate-dependent: a threshold that improves
-// hit rate on synthetic phrasing templates may regress on production intent.
-// By tagging every experiment with its substrate, the system can:
-//   1. Compute correlations within-substrate (avoid cross-contamination)
-//   2. Require improvement to hold across substrates before committing
-//   3. Weight production evidence higher than synthetic evidence
-
-export type ExperimentSubstrate = 'synthetic' | 'production' | 'hybrid';
-
-export interface SubstrateContext {
-  readonly substrate: ExperimentSubstrate;
-  readonly seed: string;
-  readonly scenarioCount: number;
-  readonly screenCount: number;
-  readonly phrasingTemplateVersion: string;
-}
-
-// ─── Scorecard Comparison (denormalized snapshot) ───
-
-export interface ExperimentScorecardComparison {
-  readonly improved: boolean;
-  readonly knowledgeHitRateDelta: number;
-  readonly translationPrecisionDelta: number;
-  readonly convergenceVelocityDelta: number;
-}
-
-// ─── Experiment Record ───
+import type { ExperimentScorecardComparison, ExperimentSubstrate, ImprovementRun, SubstrateContext } from './improvement';
 
 export interface ExperimentRecord {
   readonly id: string;
@@ -55,17 +22,15 @@ export interface ExperimentRecord {
   readonly accepted: boolean;
   readonly tags: readonly string[];
   readonly parentExperimentId: string | null;
+  readonly improvementRunId?: string | null | undefined;
+  readonly improvementRun?: ImprovementRun | undefined;
 }
-
-// ─── Experiment Registry ───
 
 export interface ExperimentRegistry {
   readonly kind: 'experiment-registry';
   readonly version: 1;
   readonly experiments: readonly ExperimentRecord[];
 }
-
-// ─── Pure constructors ───
 
 export function emptyExperimentRegistry(): ExperimentRegistry {
   return { kind: 'experiment-registry', version: 1, experiments: [] };

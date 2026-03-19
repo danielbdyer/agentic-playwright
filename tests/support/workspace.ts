@@ -51,6 +51,9 @@ export function createTestWorkspace(name: string): TestWorkspace {
 
   for (const seed of suiteSeeds) {
     copySeed(repoSuiteRoot, suiteRoot, seed);
+    // Keep legacy root-level test expectations working while the repo migrates
+    // toward suite-rooted canon under dogfood/.
+    copySeed(repoSuiteRoot, workspaceRoot, seed);
   }
   for (const seed of engineSeeds) {
     copySeed(repoRoot, workspaceRoot, seed);

@@ -1,6 +1,7 @@
 import { sha256, stableStringify } from '../domain/hash';
 import type { AdoId } from '../domain/identity';
 import type {
+  ImprovementRun,
   OperatorInboxItem,
   ProposalBundle,
   ProposalEntry,
@@ -282,6 +283,7 @@ export function renderOperatorInboxMarkdown(
   items: readonly OperatorInboxItem[],
   rerunPlans: readonly import('../domain/types').RerunPlan[] = [],
   hotspots: readonly WorkflowHotspot[] = [],
+  improvementRuns: readonly ImprovementRun[] = [],
 ): string {
   const lines: string[] = [
     '# Operator Inbox',
@@ -289,6 +291,22 @@ export function renderOperatorInboxMarkdown(
     `- Item count: ${items.length}`,
     '',
   ];
+
+  lines.push('## Recursive improvement');
+  lines.push('');
+  if (improvementRuns.length === 0) {
+    lines.push('- No recursive-improvement runs currently reference this inbox scope.');
+  } else {
+    for (const run of improvementRuns.slice(0, 5)) {
+      const decision = run.acceptanceDecisions[0] ?? null;
+      lines.push(
+        `- ${run.improvementRunId}: accepted=${run.accepted ? 'yes' : 'no'}, verdict=${decision?.verdict ?? 'none'}, signals=${run.signals.length}, candidates=${run.candidateInterventions.length}, scenarios=${run.iterations.flatMap((iteration) => iteration.scenarioIds).filter((value, index, all) => all.indexOf(value) === index).join(', ') || 'none'}`,
+      );
+      lines.push(`  - checkpoint: ${decision?.checkpointRef ?? 'none'}`);
+      lines.push(`  - convergence: ${run.converged ? `yes (${run.convergenceReason ?? 'none'})` : 'no'}`);
+    }
+  }
+  lines.push('');
 
   lines.push('## Hotspot suggestions');
   lines.push('');

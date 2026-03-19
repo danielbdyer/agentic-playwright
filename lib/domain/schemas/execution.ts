@@ -28,6 +28,7 @@ import {
   ExecutionPostureSchema,
   DiagnosticProvenanceSchema,
 } from './workflow';
+import { LearningScorecardSchema } from './learning';
 
 // ─── Operator Inbox ───
 
@@ -257,12 +258,23 @@ export const BenchmarkScorecardSchema = Schema.Struct({
   recoveryStrategies: Schema.Record({ key: Schema.String, value: Schema.Number }),
   budgetBreachCount: Schema.Number,
   thresholdStatus: Schema.Literal('pass', 'warn', 'fail'),
+  learning: Schema.optionalWith(Schema.NullOr(LearningScorecardSchema), { default: () => null }),
 });
 
 // ─── Dogfood Run ───
 
-export const DogfoodRunSchema = Schema.Struct({
-  kind: Schema.Literal('dogfood-run'),
+const ImprovementProjectionSummarySchema = Schema.Struct({
+  relatedRunIds: Schema.optionalWith(StringArray, { default: () => [] as readonly string[] }),
+  latestRunId: Schema.optionalWith(NullableString, { default: () => null }),
+  latestAccepted: Schema.optionalWith(Schema.NullOr(Schema.Boolean), { default: () => null }),
+  latestVerdict: Schema.optionalWith(NullableString, { default: () => null }),
+  latestDecisionId: Schema.optionalWith(NullableString, { default: () => null }),
+  signalCount: Schema.Number,
+  candidateInterventionCount: Schema.Number,
+  checkpointRef: Schema.optionalWith(NullableString, { default: () => null }),
+});
+
+const BenchmarkImprovementProjectionFields = {
   version: Schema.Literal(1),
   benchmark: Schema.String,
   runId: Schema.String,
@@ -272,5 +284,16 @@ export const DogfoodRunSchema = Schema.Struct({
   scenarioIds: Schema.Array(AdoIdSchema),
   driftEventIds: Schema.optionalWith(StringArray, { default: () => [] as readonly string[] }),
   scorecard: BenchmarkScorecardSchema,
+  improvement: Schema.optionalWith(Schema.NullOr(ImprovementProjectionSummarySchema), { default: () => null }),
   nextCommands: Schema.optionalWith(StringArray, { default: () => [] as readonly string[] }),
+} as const;
+
+export const BenchmarkImprovementProjectionSchema = Schema.Struct({
+  kind: Schema.Literal('benchmark-improvement-projection'),
+  ...BenchmarkImprovementProjectionFields,
+});
+
+export const DogfoodRunSchema = Schema.Struct({
+  kind: Schema.Literal('dogfood-run'),
+  ...BenchmarkImprovementProjectionFields,
 });
