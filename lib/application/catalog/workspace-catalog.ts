@@ -78,6 +78,7 @@ import { assembleScreenBundles } from './screen-bundles';
 import type { ArtifactEnvelope, WorkspaceCatalog } from './types';
 import type { KnowledgePosture } from '../../domain/types';
 import { postureIncludesKnowledge } from '../../domain/types';
+import { projectScenarioToTier1 } from '../../domain/scenario/tier-projection';
 
 /** Stable sort on artifactPath ensures deterministic fingerprinting regardless of load order. */
 function sortByArtifactPath<T>(envelopes: ArtifactEnvelope<T>[]): ArtifactEnvelope<T>[] {
@@ -319,10 +320,20 @@ export function loadWorkspaceCatalog(options: LoadCatalogOptions) {
       `Trust policy ${options.paths.trustPolicyPath} failed validation`,
     );
 
+    // In cold-start mode, project scenarios down to Tier 1 (problem statement only).
+    // This strips authored knowledge (screen, element, posture, resolution, override)
+    // so the self-improvement loop starts with zero prior bindings.
+    const scenarios: ArtifactEnvelope<Scenario>[] = postureIncludesKnowledge(posture)
+      ? loaded.scenarios
+      : loaded.scenarios.map((envelope) => ({
+          ...envelope,
+          artifact: projectScenarioToTier1(envelope.artifact),
+        }));
+
     return {
       paths: options.paths,
       snapshots: loaded.snapshots,
-      scenarios: loaded.scenarios,
+      scenarios,
       boundScenarios: loaded.boundScenarios,
       interpretationSurfaces: loaded.interpretationSurfaces,
       runRecords: loaded.runRecords,

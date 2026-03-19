@@ -64,6 +64,18 @@ New or changed canonical knowledge can activate immediately when it is schema-va
 
 `scenarios/**/*.scenario.yaml` is canonical IR, not generated output.
 
+A scenario carries two tiers of information:
+
+**Tier 1 — Problem statement (always loaded):**
+- `source`, `metadata`, `preconditions`, `postconditions`
+- Per-step: `index`, `intent`, `action_text`, `expected_text`
+
+**Tier 2 — Authored knowledge (gated by knowledge posture):**
+- Per-step: `screen`, `element`, `posture`, `override`, `snapshot_template`, `resolution`
+- `confidence` (when elevated beyond `intent-only`), `action` (when refined beyond `custom`)
+
+In `cold-start` mode, the catalog loader projects scenarios to Tier 1 only via `projectScenarioToTier1()`. This ensures the self-improvement loop starts with zero prior bindings and earns its resolution knowledge through the learning loop.
+
 Rules:
 
 - preserve `intent`, `action_text`, and `expected_text` from ADO

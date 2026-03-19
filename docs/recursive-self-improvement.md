@@ -617,8 +617,10 @@ Set the posture in one of three ways (highest precedence first):
 
 The suite config file approach is "set and forget" — every tool that loads the workspace catalog will respect it automatically without needing CLI flags.
 
-**Tier 1** (always present): `.ado-sync/`, `scenarios/`, `controls/`, `benchmarks/`, `fixtures/`
+**Tier 1** (always present): `.ado-sync/`, `scenarios/` (problem statement fields only), `controls/`, `benchmarks/`, `fixtures/`
 **Tier 2** (posture-gated): `knowledge/screens/`, `knowledge/patterns/`, `knowledge/surfaces/`, `knowledge/snapshots/`, `knowledge/components/`, `knowledge/routes/`
+
+**Scenario tier projection:** Scenarios straddle the tier boundary — they carry both problem statement (Tier 1: intent, action_text, expected_text) and authored knowledge (Tier 2: screen, element, posture, resolution, override). In `cold-start` mode, `projectScenarioToTier1()` strips all Tier 2 fields, resetting steps to `confidence: intent-only` and `action: custom`. This ensures the self-improvement loop starts with zero prior bindings.
 
 ### Prerequisites
 
