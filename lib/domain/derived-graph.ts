@@ -310,6 +310,408 @@ const resolutionControlPhase: GraphPhase = (_acc, _input, lookups) =>
     EMPTY_GRAPH,
   );
 
+const surfaceGraphPhase: GraphPhase = (_acc, input) =>
+  input.surfaceGraphs.reduce<GraphAccumulator>(
+    (acc, { artifact: surfaceGraph, artifactPath }) => {
+      const screenNode = createNode({
+        id: graphIds.screen(surfaceGraph.screen),
+        kind: 'screen',
+        label: surfaceGraph.screen,
+        artifactPath,
+        provenance: { knowledgePath: artifactPath },
+        payload: { url: surfaceGraph.url },
+      });
+
+      const sectionItems = Object.entries(surfaceGraph.sections).flatMap(([sectionId, section]) => {
+        const sectionNodeId = graphIds.section(surfaceGraph.screen, sectionId);
+        const sectionNode = createNode({
+          id: sectionNodeId,
+          kind: 'section',
+          label: sectionId,
+          artifactPath,
+          provenance: { knowledgePath: artifactPath },
+          payload: {
+            selector: section.selector,
+            kind: section.kind,
+            url: section.url ?? null,
+            snapshot: section.snapshot ?? null,
+          },
+        });
+        const containsEdge = createEdge({
+          kind: 'contains',
+          from: graphIds.screen(surfaceGraph.screen),
+          to: sectionNodeId,
+          provenance: { knowledgePath: artifactPath },
+        });
+        const snapshotEdges: readonly GraphEdge[] = section.snapshot
+          ? [createEdge({
+              kind: 'observed-by',
+              from: sectionNodeId,
+              to: graphIds.snapshot.knowledge(section.snapshot),
+              provenance: { knowledgePath: artifactPath },
+            })]
+          : [];
+        return { nodes: [sectionNode], edges: [containsEdge, ...snapshotEdges] };
+      });
+
+      const surfaceItems = Object.entries(surfaceGraph.surfaces).flatMap(([surfaceKey, surface]) => {
+        const surfaceId = createSurfaceId(surfaceKey);
+        const surfaceNodeId = graphIds.surface(surfaceGraph.screen, surfaceId);
+        const surfaceNode = createNode({
+          id: surfaceNodeId,
+          kind: 'surface',
+          label: surfaceId,
+          artifactPath,
+          provenance: { knowledgePath: artifactPath },
+          payload: {
+            section: surface.section,
+            selector: surface.selector,
+            kind: surface.kind,
+            assertions: surface.assertions,
+          },
+        });
+        const sectionEdge = createEdge({
+          kind: 'contains',
+          from: graphIds.section(surfaceGraph.screen, surface.section),
+          to: surfaceNodeId,
+          provenance: { knowledgePath: artifactPath },
+        });
+        const parentEdges = surface.parents.map((parentId) =>
+          createEdge({
+            kind: 'contains',
+            from: graphIds.surface(surfaceGraph.screen, parentId),
+            to: surfaceNodeId,
+            provenance: { knowledgePath: artifactPath },
+          }),
+        );
+        return { nodes: [surfaceNode], edges: [sectionEdge, ...parentEdges] };
+      });
+
+      const allNodes = [screenNode, ...sectionItems.flatMap((i) => i.nodes), ...surfaceItems.flatMap((i) => i.nodes)];
+      const allEdges = [...sectionItems.flatMap((i) => i.edges), ...surfaceItems.flatMap((i) => i.edges)];
+      return withItems(acc, { nodes: allNodes, edges: allEdges });
+    },
+    EMPTY_GRAPH,
+  );
+
+const screenElementPhase: GraphPhase = (_acc, input, lookups) =>
+  input.screenElements.reduce<GraphAccumulator>(
+    (acc, { artifact: elements, artifactPath }) => {
+      const elementItems = Object.entries(elements.elements).flatMap(([elementKey, element]) => {
+        const elementId = createElementId(elementKey);
+        const elementNodeId = graphIds.element(elements.screen, elementId);
+        const elementNode = createNode({
+          id: elementNodeId,
+          kind: 'element',
+          label: elementId,
+          artifactPath,
+          provenance: { knowledgePath: artifactPath },
+          payload: {
+            role: element.role,
+            name: element.name ?? null,
+            widget: element.widget,
+            surface: element.surface,
+            affordance: element.affordance ?? null,
+            locator: element.locator ?? null,
+          },
+        });
+        const containsEdge = createEdge({
+          kind: 'contains',
+          from: graphIds.surface(elements.screen, element.surface),
+          to: elementNodeId,
+          provenance: { knowledgePath: artifactPath },
+        });
+        return { nodes: [elementNode], edges: [containsEdge] };
+      });
+
+      const surfaceGraph = lookups.surfaceGraphs.get(elements.screen);
+      const capabilityItems = surfaceGraph
+        ? deriveCapabilities(surfaceGraph, elements).flatMap((capability) => {
+            const capNode = createNode({
+              id: capability.id,
+              kind: 'capability',
+              label: capability.target,
+              artifactPath,
+              provenance: capability.provenance,
+              payload: {
+                targetKind: capability.targetKind,
+                target: capability.target,
+                operations: capability.operations,
+              },
+            });
+            const capEdge = createEdge({
+              kind: 'contains',
+              from: capabilityTargetNodeId(elements.screen, capability),
+              to: capability.id,
+              provenance: capability.provenance,
+            });
+            return { nodes: [capNode], edges: [capEdge] };
+          })
+        : [];
+
+      const allNodes = [...elementItems.flatMap((i) => i.nodes), ...capabilityItems.flatMap((i) => i.nodes)];
+      const allEdges = [...elementItems.flatMap((i) => i.edges), ...capabilityItems.flatMap((i) => i.edges)];
+      return withItems(acc, { nodes: allNodes, edges: allEdges });
+    },
+    EMPTY_GRAPH,
+  );
+
+const screenPosturePhase: GraphPhase = (acc, input, lookups) =>
+  input.screenPostures.reduce<GraphAccumulator>(
+    (outerAcc, { artifact: postures, artifactPath }) => {
+      const surfaceGraph = lookups.surfaceGraphs.get(postures.screen);
+      const items = Object.entries(postures.postures).flatMap(([elementKey, postureSet]) => {
+        const elementId = createElementId(elementKey);
+        return Object.entries(postureSet).flatMap(([postureKey, posture]) => {
+          const postureId = createPostureId(postureKey);
+          const postureNodeId = graphIds.posture(postures.screen, elementId, postureId);
+          const postureNode = createNode({
+            id: postureNodeId,
+            kind: 'posture',
+            label: postureId,
+            artifactPath,
+            provenance: { knowledgePath: artifactPath },
+            payload: { values: posture.values },
+          });
+          const containsEdge = createEdge({
+            kind: 'contains',
+            from: graphIds.element(postures.screen, elementId),
+            to: postureNodeId,
+            provenance: { knowledgePath: artifactPath },
+          });
+          const effectEdges = posture.effects.flatMap((effect) => {
+            if (effect.target === 'self' || effect.targetKind === 'self') {
+              return [createEdge({
+                kind: 'affects',
+                from: postureNodeId,
+                to: graphIds.element(postures.screen, elementId),
+                provenance: { knowledgePath: artifactPath },
+                payload: { state: effect.state, message: effect.message ?? null },
+              })];
+            }
+            const targetKind = effect.targetKind ?? (surfaceGraph?.surfaces[effect.target] ? 'surface' : 'element');
+            const targetNodeId = targetKind === 'surface'
+              ? graphIds.surface(postures.screen, effect.target as ReturnType<typeof createSurfaceId>)
+              : graphIds.element(postures.screen, effect.target as ReturnType<typeof createElementId>);
+            return acc.nodes.has(targetNodeId)
+              ? [createEdge({
+                  kind: 'affects',
+                  from: postureNodeId,
+                  to: targetNodeId,
+                  provenance: { knowledgePath: artifactPath },
+                  payload: { state: effect.state, message: effect.message ?? null },
+                })]
+              : [];
+          });
+          return { nodes: [postureNode], edges: [containsEdge, ...effectEdges] };
+        });
+      });
+      return withItems(outerAcc, {
+        nodes: items.flatMap((i) => i.nodes),
+        edges: items.flatMap((i) => i.edges),
+      });
+    },
+    acc,
+  );
+
+const screenHintPhase: GraphPhase = (acc, _input, lookups) =>
+  lookups.screenHintsArtifacts.reduce<GraphAccumulator>(
+    (hintsAcc, { artifact: hints, artifactPath }) => {
+      const hintsNodeId = graphIds.screenHints(hints.screen);
+      const hintsNode = createNode({
+        id: hintsNodeId,
+        kind: 'screen-hints',
+        label: `${hints.screen} hints`,
+        artifactPath,
+        provenance: { knowledgePath: artifactPath },
+        payload: {
+          screenAliases: hints.screenAliases,
+          elementCount: Object.keys(hints.elements).length,
+        },
+      });
+      const containsEdge = acc.nodes.has(graphIds.screen(hints.screen))
+        ? [createEdge({
+            kind: 'contains',
+            from: graphIds.screen(hints.screen),
+            to: hintsNodeId,
+            provenance: { knowledgePath: artifactPath },
+          })]
+        : [];
+      return withItems(hintsAcc, { nodes: [hintsNode], edges: containsEdge });
+    },
+    acc,
+  );
+
+const sharedPatternPhase: GraphPhase = (_acc, _input, lookups) =>
+  lookups.sharedPatternsArtifacts.reduce<GraphAccumulator>(
+    (acc, { artifact: patterns, artifactPath }) => {
+      const rootId = patternFileNodeId(artifactPath);
+      const rootNode = createNode({
+        id: rootId,
+        kind: 'pattern',
+        label: basename(artifactPath),
+        artifactPath,
+        provenance: { knowledgePath: artifactPath },
+        payload: { category: 'registry', version: patterns.version },
+      });
+
+      const actionItems = Object.entries(patterns.actions ?? {}).map(([actionKey, descriptor]) => {
+        const actionNodeId = graphIds.pattern(descriptor.id);
+        return {
+          nodes: [createNode({
+            id: actionNodeId,
+            kind: 'pattern' as const,
+            label: descriptor.id,
+            artifactPath,
+            provenance: { knowledgePath: artifactPath },
+            payload: { category: 'action', action: actionKey, aliases: descriptor.aliases },
+          })],
+          edges: [createEdge({
+            kind: 'contains',
+            from: rootId,
+            to: actionNodeId,
+            provenance: { knowledgePath: artifactPath },
+          })],
+        };
+      });
+
+      const postureItems = Object.entries(patterns.postures ?? {}).map(([postureKey, descriptor]) => {
+        const posturePatternNodeId = graphIds.pattern(descriptor.id);
+        return {
+          nodes: [createNode({
+            id: posturePatternNodeId,
+            kind: 'pattern' as const,
+            label: descriptor.id,
+            artifactPath,
+            provenance: { knowledgePath: artifactPath },
+            payload: { category: 'posture', posture: postureKey, aliases: descriptor.aliases },
+          })],
+          edges: [createEdge({
+            kind: 'contains',
+            from: rootId,
+            to: posturePatternNodeId,
+            provenance: { knowledgePath: artifactPath },
+          })],
+        };
+      });
+
+      const allItems = [...actionItems, ...postureItems];
+      return withItems(acc, {
+        nodes: [rootNode, ...allItems.flatMap((i) => i.nodes)],
+        edges: allItems.flatMap((i) => i.edges),
+      });
+    },
+    EMPTY_GRAPH,
+  );
+
+function overlayTargetNodeId(record: ConfidenceOverlayCatalog['records'][number]): string | null {
+  return record.snapshotTemplate
+    ? graphIds.snapshot.knowledge(record.snapshotTemplate)
+    : record.posture && record.screen && record.element
+      ? graphIds.posture(record.screen, record.element, record.posture)
+      : record.element && record.screen
+        ? graphIds.element(record.screen, record.element)
+        : record.screen && record.artifactType === 'hints'
+          ? graphIds.screenHints(record.screen)
+          : record.artifactType === 'patterns'
+            ? graphIds.pattern(basenameWithoutExtension(record.artifactPath))
+            : null;
+}
+
+const confidenceOverlayPhase: GraphPhase = (acc, _input, lookups) =>
+  lookups.confidenceOverlayArtifacts.reduce<GraphAccumulator>(
+    (outerAcc, { artifact: confidenceCatalog, artifactPath }) =>
+      confidenceCatalog.records.reduce<GraphAccumulator>(
+        (innerAcc, record) => {
+          const overlayNodeId = graphIds.confidenceOverlay(record.id);
+          const overlayNode = createNode({
+            id: overlayNodeId,
+            kind: 'confidence-overlay',
+            label: record.id,
+            artifactPath,
+            provenance: { knowledgePath: artifactPath },
+            payload: {
+              artifactType: record.artifactType,
+              artifactPath: record.artifactPath,
+              score: record.score,
+              threshold: record.threshold,
+              status: record.status,
+              screen: record.screen ?? null,
+              element: record.element ?? null,
+              posture: record.posture ?? null,
+              snapshotTemplate: record.snapshotTemplate ?? null,
+              learnedAliases: record.learnedAliases,
+            },
+          });
+
+          const targetNodeId = overlayTargetNodeId(record);
+          const refEdges: readonly GraphEdge[] = targetNodeId && acc.nodes.has(targetNodeId)
+            ? [createEdge({
+                kind: 'references',
+                from: overlayNodeId,
+                to: targetNodeId,
+                provenance: { knowledgePath: artifactPath },
+                payload: { status: record.status },
+              })]
+            : [];
+
+          const evidenceEdges = record.lineage.evidenceIds.map((evidenceId) =>
+            createEdge({
+              kind: 'learns-from',
+              from: overlayNodeId,
+              to: graphIds.evidence(evidenceId),
+              provenance: { knowledgePath: artifactPath },
+            }),
+          );
+
+          return withItems(innerAcc, { nodes: [overlayNode], edges: [...refEdges, ...evidenceEdges] });
+        },
+        outerAcc,
+      ),
+    acc,
+  );
+
+const runbookPhase: GraphPhase = (_acc, _input, lookups) =>
+  lookups.runbookArtifacts.reduce<GraphAccumulator>(
+    (acc, { artifact: runbook, artifactPath }) => {
+      const runbookNode = createNode({
+        id: graphIds.runbook(runbook.name),
+        kind: 'runbook',
+        label: runbook.name,
+        artifactPath,
+        provenance: { knowledgePath: artifactPath },
+        payload: {
+          default: Boolean(runbook.default),
+          selector: runbook.selector,
+          dataset: runbook.dataset ?? null,
+          resolutionControl: runbook.resolutionControl ?? null,
+          interpreterMode: runbook.interpreterMode ?? null,
+        },
+      });
+
+      const datasetEdge: readonly GraphEdge[] = runbook.dataset
+        ? [createEdge({
+            kind: 'references',
+            from: graphIds.runbook(runbook.name),
+            to: graphIds.dataset(runbook.dataset),
+            provenance: { knowledgePath: artifactPath },
+          })]
+        : [];
+
+      const controlEdge: readonly GraphEdge[] = runbook.resolutionControl
+        ? [createEdge({
+            kind: 'references',
+            from: graphIds.runbook(runbook.name),
+            to: graphIds.resolutionControl(runbook.resolutionControl),
+            provenance: { knowledgePath: artifactPath },
+          })]
+        : [];
+
+      return withItems(acc, { nodes: [runbookNode], edges: [...datasetEdge, ...controlEdge] });
+    },
+    EMPTY_GRAPH,
+  );
+
 function createResources(): MappedMcpResource[] {
   return [
     {
@@ -461,436 +863,20 @@ export function deriveGraph(input: GraphBuildInput): DerivedGraph {
   const nodes = new Map<string, GraphNode>();
   const edges = new Map<string, GraphEdge>();
 
-  const phase1 = [snapshotPhase, knowledgeSnapshotPhase, datasetPhase, resolutionControlPhase].reduce(
+  const preScenarioPhases: readonly GraphPhase[] = [
+    snapshotPhase, surfaceGraphPhase, knowledgeSnapshotPhase, screenElementPhase,
+    screenPosturePhase, screenHintPhase, sharedPatternPhase, datasetPhase,
+    confidenceOverlayPhase, resolutionControlPhase, runbookPhase,
+  ];
+  const accumulated = preScenarioPhases.reduce(
     (acc, phase) => phase(acc, input, lookups),
     EMPTY_GRAPH,
   );
-  phase1.nodes.forEach((node) => nodes.set(node.id, node));
-  phase1.edges.forEach((edge) => edges.set(edge.id, edge));
+  accumulated.nodes.forEach((node) => nodes.set(node.id, node));
+  accumulated.edges.forEach((edge) => edges.set(edge.id, edge));
 
   // Aliases from lookups for remaining imperative phases (will be removed as phases are converted)
-  const { surfaceGraphs, screenElements, boundScenarios, interpretationSurfaces, runRecords, driftRecords,
-    screenHintsArtifacts, sharedPatternsArtifacts, confidenceOverlayArtifacts, runbookArtifacts } = lookups;
-
-  for (const { artifact: surfaceGraph, artifactPath } of input.surfaceGraphs) {
-    addNode(nodes, createNode({
-      id: graphIds.screen(surfaceGraph.screen),
-      kind: 'screen',
-      label: surfaceGraph.screen,
-      artifactPath,
-      provenance: {
-        knowledgePath: artifactPath,
-      },
-      payload: { url: surfaceGraph.url },
-    }));
-
-    for (const [sectionId, section] of Object.entries(surfaceGraph.sections)) {
-      const sectionNodeId = graphIds.section(surfaceGraph.screen, sectionId);
-      addNode(nodes, createNode({
-        id: sectionNodeId,
-        kind: 'section',
-        label: sectionId,
-        artifactPath,
-        provenance: {
-          knowledgePath: artifactPath,
-        },
-        payload: {
-          selector: section.selector,
-          kind: section.kind,
-          url: section.url ?? null,
-          snapshot: section.snapshot ?? null,
-        },
-      }));
-      addEdge(edges, createEdge({
-        kind: 'contains',
-        from: graphIds.screen(surfaceGraph.screen),
-        to: sectionNodeId,
-        provenance: {
-          knowledgePath: artifactPath,
-        },
-      }));
-
-      if (section.snapshot) {
-        addEdge(edges, createEdge({
-          kind: 'observed-by',
-          from: sectionNodeId,
-          to: graphIds.snapshot.knowledge(section.snapshot),
-          provenance: {
-            knowledgePath: artifactPath,
-          },
-        }));
-      }
-    }
-
-    for (const [surfaceKey, surface] of Object.entries(surfaceGraph.surfaces)) {
-      const surfaceId = createSurfaceId(surfaceKey);
-      const surfaceNodeId = graphIds.surface(surfaceGraph.screen, surfaceId);
-      addNode(nodes, createNode({
-        id: surfaceNodeId,
-        kind: 'surface',
-        label: surfaceId,
-        artifactPath,
-        provenance: {
-          knowledgePath: artifactPath,
-        },
-        payload: {
-          section: surface.section,
-          selector: surface.selector,
-          kind: surface.kind,
-          assertions: surface.assertions,
-        },
-      }));
-      addEdge(edges, createEdge({
-        kind: 'contains',
-        from: graphIds.section(surfaceGraph.screen, surface.section),
-        to: surfaceNodeId,
-        provenance: {
-          knowledgePath: artifactPath,
-        },
-      }));
-
-      for (const parentId of surface.parents) {
-        addEdge(edges, createEdge({
-          kind: 'contains',
-          from: graphIds.surface(surfaceGraph.screen, parentId),
-          to: surfaceNodeId,
-          provenance: {
-            knowledgePath: artifactPath,
-          },
-        }));
-      }
-    }
-  }
-
-  for (const { artifact: elements, artifactPath } of input.screenElements) {
-    for (const [elementKey, element] of Object.entries(elements.elements)) {
-      const elementId = createElementId(elementKey);
-      const elementNodeId = graphIds.element(elements.screen, elementId);
-      addNode(nodes, createNode({
-        id: elementNodeId,
-        kind: 'element',
-        label: elementId,
-        artifactPath,
-        provenance: {
-          knowledgePath: artifactPath,
-        },
-        payload: {
-          role: element.role,
-          name: element.name ?? null,
-          widget: element.widget,
-          surface: element.surface,
-          affordance: element.affordance ?? null,
-          locator: element.locator ?? null,
-        },
-      }));
-      addEdge(edges, createEdge({
-        kind: 'contains',
-        from: graphIds.surface(elements.screen, element.surface),
-        to: elementNodeId,
-        provenance: {
-          knowledgePath: artifactPath,
-        },
-      }));
-    }
-
-    const surfaceGraph = surfaceGraphs.get(elements.screen);
-    if (!surfaceGraph) {
-      continue;
-    }
-
-    for (const capability of deriveCapabilities(surfaceGraph, elements)) {
-      addNode(nodes, createNode({
-        id: capability.id,
-        kind: 'capability',
-        label: capability.target,
-        artifactPath,
-        provenance: capability.provenance,
-        payload: {
-          targetKind: capability.targetKind,
-          target: capability.target,
-          operations: capability.operations,
-        },
-      }));
-      addEdge(edges, createEdge({
-        kind: 'contains',
-        from: capabilityTargetNodeId(elements.screen, capability),
-        to: capability.id,
-        provenance: capability.provenance,
-      }));
-    }
-  }
-
-  for (const { artifact: postures, artifactPath } of input.screenPostures) {
-    const surfaceGraph = surfaceGraphs.get(postures.screen);
-    for (const [elementKey, postureSet] of Object.entries(postures.postures)) {
-      const elementId = createElementId(elementKey);
-      for (const [postureKey, posture] of Object.entries(postureSet)) {
-        const postureId = createPostureId(postureKey);
-        const postureNodeId = graphIds.posture(postures.screen, elementId, postureId);
-        addNode(nodes, createNode({
-          id: postureNodeId,
-          kind: 'posture',
-          label: postureId,
-          artifactPath,
-          provenance: {
-            knowledgePath: artifactPath,
-          },
-          payload: {
-            values: posture.values,
-          },
-        }));
-        addEdge(edges, createEdge({
-          kind: 'contains',
-          from: graphIds.element(postures.screen, elementId),
-          to: postureNodeId,
-          provenance: {
-            knowledgePath: artifactPath,
-          },
-        }));
-
-        for (const effect of posture.effects) {
-          if (effect.target === 'self' || effect.targetKind === 'self') {
-            addEdge(edges, createEdge({
-              kind: 'affects',
-              from: postureNodeId,
-              to: graphIds.element(postures.screen, elementId),
-              provenance: {
-                knowledgePath: artifactPath,
-              },
-              payload: {
-                state: effect.state,
-                message: effect.message ?? null,
-              },
-            }));
-            continue;
-          }
-
-          const targetKind = effect.targetKind ?? (surfaceGraph?.surfaces[effect.target] ? 'surface' : 'element');
-          const targetNodeId = targetKind === 'surface'
-            ? graphIds.surface(postures.screen, effect.target as ReturnType<typeof createSurfaceId>)
-            : graphIds.element(postures.screen, effect.target as ReturnType<typeof createElementId>);
-          if (!nodes.has(targetNodeId)) {
-            continue;
-          }
-
-          addEdge(edges, createEdge({
-            kind: 'affects',
-            from: postureNodeId,
-            to: targetNodeId,
-            provenance: {
-              knowledgePath: artifactPath,
-            },
-            payload: {
-              state: effect.state,
-              message: effect.message ?? null,
-            },
-          }));
-        }
-      }
-    }
-  }
-
-  for (const { artifact: hints, artifactPath } of screenHintsArtifacts) {
-    const hintsNodeId = graphIds.screenHints(hints.screen);
-    addNode(nodes, createNode({
-      id: hintsNodeId,
-      kind: 'screen-hints',
-      label: `${hints.screen} hints`,
-      artifactPath,
-      provenance: {
-        knowledgePath: artifactPath,
-      },
-      payload: {
-        screenAliases: hints.screenAliases,
-        elementCount: Object.keys(hints.elements).length,
-      },
-    }));
-
-    if (nodes.has(graphIds.screen(hints.screen))) {
-      addEdge(edges, createEdge({
-        kind: 'contains',
-        from: graphIds.screen(hints.screen),
-        to: hintsNodeId,
-        provenance: {
-          knowledgePath: artifactPath,
-        },
-      }));
-    }
-  }
-
-  for (const { artifact: patterns, artifactPath } of sharedPatternsArtifacts) {
-    const rootId = patternFileNodeId(artifactPath);
-    addNode(nodes, createNode({
-      id: rootId,
-      kind: 'pattern',
-      label: basename(artifactPath),
-      artifactPath,
-      provenance: {
-        knowledgePath: artifactPath,
-      },
-      payload: {
-        category: 'registry',
-        version: patterns.version,
-      },
-    }));
-
-    for (const [actionKey, descriptor] of Object.entries(patterns.actions ?? {})) {
-      const actionNodeId = graphIds.pattern(descriptor.id);
-      addNode(nodes, createNode({
-        id: actionNodeId,
-        kind: 'pattern',
-        label: descriptor.id,
-        artifactPath,
-        provenance: {
-          knowledgePath: artifactPath,
-        },
-        payload: {
-          category: 'action',
-          action: actionKey,
-          aliases: descriptor.aliases,
-        },
-      }));
-      addEdge(edges, createEdge({
-        kind: 'contains',
-        from: rootId,
-        to: actionNodeId,
-        provenance: {
-          knowledgePath: artifactPath,
-        },
-      }));
-    }
-
-    for (const [postureKey, descriptor] of Object.entries(patterns.postures ?? {})) {
-      const posturePatternNodeId = graphIds.pattern(descriptor.id);
-      addNode(nodes, createNode({
-        id: posturePatternNodeId,
-        kind: 'pattern',
-        label: descriptor.id,
-        artifactPath,
-        provenance: {
-          knowledgePath: artifactPath,
-        },
-        payload: {
-          category: 'posture',
-          posture: postureKey,
-          aliases: descriptor.aliases,
-        },
-      }));
-      addEdge(edges, createEdge({
-        kind: 'contains',
-        from: rootId,
-        to: posturePatternNodeId,
-        provenance: {
-          knowledgePath: artifactPath,
-        },
-      }));
-    }
-  }
-
-  for (const { artifact: confidenceCatalog, artifactPath } of confidenceOverlayArtifacts) {
-    for (const record of confidenceCatalog.records) {
-      const overlayNodeId = graphIds.confidenceOverlay(record.id);
-      addNode(nodes, createNode({
-        id: overlayNodeId,
-        kind: 'confidence-overlay',
-        label: record.id,
-        artifactPath,
-        provenance: {
-          knowledgePath: artifactPath,
-        },
-        payload: {
-          artifactType: record.artifactType,
-          artifactPath: record.artifactPath,
-          score: record.score,
-          threshold: record.threshold,
-          status: record.status,
-          screen: record.screen ?? null,
-          element: record.element ?? null,
-          posture: record.posture ?? null,
-          snapshotTemplate: record.snapshotTemplate ?? null,
-          learnedAliases: record.learnedAliases,
-        },
-      }));
-
-      const targetNodeId = record.snapshotTemplate
-        ? graphIds.snapshot.knowledge(record.snapshotTemplate)
-        : record.posture && record.screen && record.element
-          ? graphIds.posture(record.screen, record.element, record.posture)
-          : record.element && record.screen
-            ? graphIds.element(record.screen, record.element)
-            : record.screen && record.artifactType === 'hints'
-              ? graphIds.screenHints(record.screen)
-              : record.artifactType === 'patterns'
-                ? graphIds.pattern(basenameWithoutExtension(record.artifactPath))
-                : null;
-
-      if (targetNodeId && nodes.has(targetNodeId)) {
-        addEdge(edges, createEdge({
-          kind: 'references',
-          from: overlayNodeId,
-          to: targetNodeId,
-          provenance: {
-            knowledgePath: artifactPath,
-          },
-          payload: {
-            status: record.status,
-          },
-        }));
-      }
-
-      for (const evidenceId of record.lineage.evidenceIds) {
-        addEdge(edges, createEdge({
-          kind: 'learns-from',
-          from: overlayNodeId,
-          to: graphIds.evidence(evidenceId),
-          provenance: {
-            knowledgePath: artifactPath,
-          },
-        }));
-      }
-    }
-  }
-
-  for (const { artifact: runbook, artifactPath } of runbookArtifacts) {
-    addNode(nodes, createNode({
-      id: graphIds.runbook(runbook.name),
-      kind: 'runbook',
-      label: runbook.name,
-      artifactPath,
-      provenance: {
-        knowledgePath: artifactPath,
-      },
-      payload: {
-        default: Boolean(runbook.default),
-        selector: runbook.selector,
-        dataset: runbook.dataset ?? null,
-        resolutionControl: runbook.resolutionControl ?? null,
-        interpreterMode: runbook.interpreterMode ?? null,
-      },
-    }));
-
-    if (runbook.dataset) {
-      addEdge(edges, createEdge({
-        kind: 'references',
-        from: graphIds.runbook(runbook.name),
-        to: graphIds.dataset(runbook.dataset),
-        provenance: {
-          knowledgePath: artifactPath,
-        },
-      }));
-    }
-
-    if (runbook.resolutionControl) {
-      addEdge(edges, createEdge({
-        kind: 'references',
-        from: graphIds.runbook(runbook.name),
-        to: graphIds.resolutionControl(runbook.resolutionControl),
-        provenance: {
-          knowledgePath: artifactPath,
-        },
-      }));
-    }
-  }
+  const { boundScenarios, interpretationSurfaces, runRecords, driftRecords, screenElements, sharedPatternsArtifacts } = lookups;
 
   for (const scenarioArtifact of input.scenarios) {
     const { artifact: scenario, artifactPath, generatedSpecPath, generatedSpecExists, generatedTracePath, generatedTraceExists, generatedReviewPath, generatedReviewExists } = scenarioArtifact;
