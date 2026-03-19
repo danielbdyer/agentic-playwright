@@ -4,7 +4,9 @@ import type {
   ProposalEntry,
   ProposalRankingReport,
   RankedProposal,
+  RankingWeights,
 } from '../domain/types';
+import { DEFAULT_PIPELINE_CONFIG } from '../domain/types';
 import { uniqueSorted } from '../domain/collections';
 import {
   round4,
@@ -35,12 +37,16 @@ const evidenceRule: ScoringRule<ProposalContext> = {
   score: (ctx) => ctx.hasEvidence ? 0.8 : 0.3,
 };
 
-const proposalScoring = combineScoringRules<ProposalContext>(
-  weightedScoringRule(0.3, scenarioImpactRule),
-  weightedScoringRule(0.3, bottleneckReductionRule),
-  weightedScoringRule(0.2, trustWeightRule),
-  weightedScoringRule(0.2, evidenceRule),
-);
+function buildProposalScoring(weights: RankingWeights = DEFAULT_PIPELINE_CONFIG.proposalRankingWeights): ScoringRule<ProposalContext> {
+  return combineScoringRules<ProposalContext>(
+    weightedScoringRule(weights.scenarioImpact, scenarioImpactRule),
+    weightedScoringRule(weights.bottleneckReduction, bottleneckReductionRule),
+    weightedScoringRule(weights.trustPolicy, trustWeightRule),
+    weightedScoringRule(weights.evidence, evidenceRule),
+  );
+}
+
+const proposalScoring = buildProposalScoring();
 
 function pendingProposals(bundles: readonly ProposalBundle[]): ReadonlyArray<{
   readonly bundle: ProposalBundle;
@@ -118,7 +124,9 @@ export function rankProposals(input: {
   readonly proposalBundles: readonly ProposalBundle[];
   readonly bottleneckReport: KnowledgeBottleneckReport | null;
   readonly generatedAt?: string | undefined;
+  readonly rankingWeights?: RankingWeights | undefined;
 }): ProposalRankingReport {
+  const scoring = input.rankingWeights ? buildProposalScoring(input.rankingWeights) : proposalScoring;
   const pending = pendingProposals(input.proposalBundles);
 
   const scored: readonly RankedProposal[] = pending.map(({ bundle, proposal }) => {
@@ -150,7 +158,7 @@ export function rankProposals(input: {
         expectedReproducibilityDelta: round4(bottleneckReduction * 0.3),
         trustPolicyDecision: proposal.trustPolicy.decision,
       },
-      overallScore: round4(proposalScoring.score(ctx)),
+      overallScore: round4(scoring.score(ctx)),
       rationale: buildRationale(proposal, affectedScenarioCount, bottleneckReduction),
     };
   });

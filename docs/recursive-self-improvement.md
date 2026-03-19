@@ -594,3 +594,302 @@ At that point, the scorecard is the objective function for an agent operating on
 This is not general AGI. It is narrow, bounded, law-driven self-improvement within a well-defined parameter space. The invariants (clean-slate, monotonic, deterministic, provenance, governance) ensure the loop stays safe. The failure taxonomy ensures the loop stays targeted. The scorecard ensures the loop stays honest.
 
 The prize is a pipeline that gets better at resolving novel interface intent every time it runs — not because it memorized more aliases, but because its resolution, scoring, and ranking mechanics improved.
+
+## Clean Room Protocol
+
+This section is the operational runbook for executing a recursive self-improvement cycle. It answers: what do I run, what do I keep, what do I discard, and how do I know I haven't been contaminated?
+
+### Knowledge Posture
+
+Before running the clean room, choose a **knowledge posture** — this determines what the system starts with:
+
+| Posture | Tier 1 (problem statement) | Tier 2 (learned knowledge) | Use case |
+|---|---|---|---|
+| `cold-start` | Loaded | **Excluded** | "Can the system learn from scratch?" |
+| `warm-start` | Loaded | Loaded | "Does the pipeline resolve correctly given known screens?" |
+| `production` | Loaded | Loaded | Full deployment with version-controlled knowledge |
+
+Set the posture in one of three ways (highest precedence first):
+
+1. **CLI flag:** `npx tsx scripts/speedrun.ts --posture cold-start`
+2. **Suite config file:** Create `{suiteRoot}/posture.yaml` containing `posture: cold-start`
+3. **Default:** `warm-start` (backward compatible)
+
+The suite config file approach is "set and forget" — every tool that loads the workspace catalog will respect it automatically without needing CLI flags.
+
+**Tier 1** (always present): `.ado-sync/`, `scenarios/`, `controls/`, `benchmarks/`, `fixtures/`
+**Tier 2** (posture-gated): `knowledge/screens/`, `knowledge/patterns/`, `knowledge/surfaces/`, `knowledge/snapshots/`, `knowledge/components/`, `knowledge/routes/`
+
+### Prerequisites
+
+Before entering the loop:
+
+1. **Working tree is clean.** `git status` shows no modifications. The scorecard (`.tesseract/benchmarks/scorecard.json`) is committed at the current high-water-mark.
+2. **Pipeline version is known.** `git rev-parse --short HEAD` gives the `pipelineVersion` tag for this cycle.
+3. **Architecture fitness passes.** `npx playwright test tests/architecture-fitness.laws.spec.ts` is green.
+4. **Knowledge posture is set.** Either via `posture.yaml` at the suite root or via `--posture` flag.
+
+### Step 1: Wipe Synthetic State
+
+```bash
+npm run speedrun:clean
+# or manually:
+git checkout -- dogfood/
+rm -rf .tesseract/benchmarks/experiment-registry.json
+rm -rf .tesseract/runs/ .tesseract/tasks/ .tesseract/sessions/ .tesseract/learning/
+rm -rf .tesseract/bound/ .tesseract/inbox/ .tesseract/interface/ .tesseract/graph/
+rm -rf generated/ lib/generated/
+```
+
+**Why:** Every synthetic artifact from prior runs is a potential contamination vector. Knowledge files must start from `git HEAD`, not from a prior run's proposals. Generated specs, tasks, sessions, and learning fragments are disposable object code — they are regenerated from canonical inputs.
+
+**What survives the wipe:**
+- `lib/` (pipeline source code — the thing being improved)
+- `dogfood/knowledge/` (restored to git HEAD — canonical inputs)
+- `dogfood/scenarios/` (restored to git HEAD)
+- `dogfood/controls/` (restored to git HEAD)
+- `.tesseract/policy/trust-policy.yaml` (governance anchor)
+- `.tesseract/benchmarks/scorecard.json` (monotonic high-water-mark)
+
+**What is destroyed:**
+- All `.tesseract/` runtime directories (runs, tasks, sessions, learning, interface, graph, bound, inbox)
+- All `generated/` output
+- Any knowledge modifications from prior flywheel iterations
+- The experiment registry (optional — keep for history, destroy for purity)
+
+### Step 2: Generate Synthetic Scenarios
+
+```bash
+npm run speedrun:generate -- --seed <seed>
+```
+
+The scenario generator (`lib/application/synthesis/scenario-generator.ts`) walks the knowledge model and produces synthetic scenarios using 8 phrasing templates per action type. The seed controls the RNG.
+
+**Contamination check:** Synthetic scenarios must derive from the knowledge model *as it exists at git HEAD*, not from any prior run's proposals or evidence. The generator reads `dogfood/knowledge/` and produces `dogfood/scenarios/` — it never reads `.tesseract/` runtime artifacts.
+
+### Step 3: Run the Dogfood Loop
+
+```bash
+npm run speedrun -- --seed <seed> [--config <config.json>]
+```
+
+The speedrun script:
+1. Compiles scenarios through the resolution pipeline
+2. Runs the dogfood loop (auto-approve → recompile → rerun → converge)
+3. Produces a `PipelineFitnessReport` and `ScorecardComparison`
+4. Records an `ExperimentRecord` in the experiment registry
+
+**What the dogfood loop modifies during execution (ephemeral):**
+- Knowledge files: proposals are activated into `dogfood/knowledge/` during the loop. **These modifications are ephemeral** — they exist only for the duration of the run and are discarded in Step 5.
+- `.tesseract/` runtime artifacts: generated as side effects of compilation and execution.
+- `generated/` specs: emitted tests, traces, reviews.
+
+**What the dogfood loop produces (durable outputs):**
+- `PipelineFitnessReport` — the gradient signal
+- `ScorecardComparison` — did this beat the mark?
+- `ExperimentRecord` — the experiment log entry
+
+### Step 4: Evaluate
+
+Read the fitness report. The decision tree:
+
+```
+If scorecardComparison.improved:
+  → The pipeline code (or config) change improved metrics from a clean slate
+  → Accept: update scorecard, commit pipeline code + scorecard
+  → The code change is the durable output of this cycle
+
+If not improved:
+  → The change did not help (or regressed)
+  → Reject: discard the pipeline code change, keep the scorecard unchanged
+  → The experiment record is still logged for history
+```
+
+For Pareto evaluation, "improved" means the new entry is not dominated by any existing frontier entry on all four objectives (`knowledgeHitRate`, `translationPrecision`, `convergenceVelocity`, `proposalYield`).
+
+### Step 5: Restore Clean State
+
+```bash
+git checkout -- dogfood/
+rm -rf .tesseract/runs/ .tesseract/tasks/ .tesseract/sessions/ .tesseract/learning/
+rm -rf .tesseract/bound/ .tesseract/inbox/ .tesseract/interface/ .tesseract/graph/
+rm -rf generated/ lib/generated/
+```
+
+**Why:** Even if the experiment was accepted, the knowledge modifications from the dogfood loop are ephemeral. They were activations of proposals specific to *this* seed and *this* config. Keeping them would contaminate the next cycle — the next run must start from the same canonical knowledge to ensure that improvement comes from the *pipeline code change*, not from residual activated knowledge.
+
+**The only durable outputs that survive:**
+- Pipeline code changes (committed to git if accepted)
+- Updated scorecard (committed to git if improved)
+- Experiment registry entry (appended, never deleted)
+
+### Step 6: Repeat with Varied Seeds
+
+To guard against overfitting to a single seed:
+
+```bash
+for seed in 42 137 256 500 999; do
+  npm run speedrun -- --seed $seed [--config <config.json>]
+done
+```
+
+A pipeline change is robust if it improves (or at least does not regress) across 3+ seeds. If improvement holds for seed 42 but regresses for seed 137, the change is overfitting to the phrasing distribution of seed 42.
+
+### Contamination Detection Checklist
+
+After each cycle, verify:
+
+| Check | How to verify | Contaminated if |
+|---|---|---|
+| Knowledge at HEAD | `git diff dogfood/` is empty | Any knowledge file is modified |
+| No residual runtime artifacts | `.tesseract/runs/` is empty | Run records from prior cycles exist |
+| Scenario text is synthetic | Scenarios use generator phrasing templates | Scenarios contain proposal-derived text |
+| Fitness is deterministic | Re-run with same seed produces same report | Different metrics for same seed + same code |
+| Scorecard provenance | `scorecard.pipelineVersion` matches `git rev-parse --short HEAD` | Version mismatch |
+| Experiment lineage | `experimentRecord.parentExperimentId` points to a valid prior entry | Orphaned experiment with no lineage |
+
+### What the Experiment Registry Keeps
+
+The experiment registry (`.tesseract/benchmarks/experiment-registry.json`) is the *training log* of the self-improvement loop. It is append-only and persists across cycles. It records:
+
+- **Every experiment run**, whether accepted or rejected
+- **The config delta** — exactly what parameter(s) were changed
+- **The resolved config** — the full config used (delta merged onto defaults)
+- **The fitness report** — full metrics and failure classification
+- **The scorecard comparison** — whether it beat the mark
+- **The hypothesis** — why this experiment was tried
+- **The parent experiment ID** — lineage for tracking improvement chains
+
+The registry is a derived artifact (it lives in `.tesseract/benchmarks/`), but it is *not* wiped in Step 1 or Step 5. It accumulates across all cycles because it is the historical record that correlation computation (Phase 6) needs.
+
+**Exception:** For a fully clean room start (e.g., evaluating a completely new approach), delete the registry along with everything else. This resets the training history.
+
+### When to Break the Clean Room
+
+The clean room protocol is designed for *parameter tuning and algorithm improvement* (Surfaces 1-2). For *type surface changes* (Surface 3), *documentation changes* (Surface 4), and *information efficiency improvements* (Surface 5), the clean room protocol applies differently:
+
+- **Surface 3 (types)**: Type changes are verified by the compiler, not by the speedrun. Run `npx tsc --noEmit` and `npx playwright test tests/architecture-fitness.laws.spec.ts`. No clean room needed — the type system is a universal invariant checker.
+- **Surface 4 (docs)**: Documentation changes are verified by agent session effectiveness. No clean room needed — run the architecture fitness tests to ensure cross-reference completeness.
+- **Surface 5 (information efficiency)**: Information efficiency changes *do* need the clean room, because they affect runtime behavior. Follow the full protocol with multi-seed verification.
+
+## Five Tuning Surfaces
+
+The recursive improvement loop described above optimizes Surface 1 (hyperparameters). But the full optimization landscape has five surfaces, each with different granularity, feedback latency, and leverage characteristics. All five are in scope for the self-improvement system.
+
+### Surface 1: Hyperparameters (weights and thresholds)
+
+The 15 tunable constants in `PipelineConfig`. These are the traditional "model parameters" — numeric values that control scoring, ranking, translation, and convergence behavior without changing code structure. Tuning is fast (single speedrun), reversible (restore the config), and measurable (scorecard delta). This is the surface the speedrun loop already targets.
+
+**Feedback latency:** One speedrun cycle (seconds to minutes).
+**Leverage:** Moderate — bounded by the expressiveness of the algorithms that consume them.
+
+### Surface 2: Code structure (algorithms, patterns, abstractions)
+
+The resolution ladder stages, the candidate lattice algorithm, the harvest algorithm, the strategy chain composition, the scoring rule combinators — these are the *functions* that hyperparameters flow through. A better algorithm renders parameter sensitivity moot: if the resolution ladder can skip directly to the right rung because the information is preserved in a form that makes the answer obvious, the individual rung weights don't matter.
+
+Code structure improvements include:
+
+- **Visitor pattern coverage**: replacing ad-hoc switch/if chains with exhaustive typed folds (see `lib/domain/visitors.ts`). Each fold call site is a compile-time contract that new union variants cannot be silently ignored.
+- **Layer integrity**: maintaining the `domain → application → runtime → infrastructure` dependency direction. Layer violations leak side effects into pure code, making the domain untestable and the optimization surface noisy.
+- **Composable abstractions**: `ScoringRule` with `combine`/`contramap`, `PipelinePhase` with fold, `StateMachine` with pure transitions. Each abstraction decomposes a monolithic algorithm into independently tunable, independently testable components.
+- **Pure function ratio**: the percentage of domain-layer functions that are side-effect free. Higher purity means more functions are amenable to law-style testing and deterministic optimization.
+- **Envelope discipline**: the percentage of cross-boundary artifacts that carry full `WorkflowEnvelope` headers. Gaps in envelope coverage are gaps in provenance, which are gaps in the system's ability to explain itself.
+
+**Feedback latency:** One development cycle (the architecture fitness report measures structural properties).
+**Leverage:** High — a structural improvement transfers to all future parameter tuning and all future applications.
+
+### Surface 3: Knowledge representation (type surfaces, data schemas)
+
+The type system itself is a compression scheme. `CanonicalTargetRef` compresses "the policy number input on the policy-search screen" into a branded string. `LocatorStrategy` compresses three families of DOM lookup into a three-variant union. `ResolutionReceipt` compresses an entire resolution pipeline execution into a typed envelope.
+
+Type surface improvements include:
+
+- **Discriminated union completeness**: are all possible states of a concept represented as variants, or are some hidden in string fields? Every untyped string is a compression loss.
+- **Phantom brand coverage**: are governance states, confidence levels, and certification states carried at the type level, or only at runtime? Phantom brands are zero-cost compression that makes invalid states unrepresentable.
+- **Schema evolution**: when a new concept emerges (e.g., `ParetoObjectives`), does it compose with existing types or require parallel truth? Every parallel representation is information duplication.
+- **Readonly enforcement**: mutable fields are implicit state machines. Marking fields `readonly` compresses the state space by eliminating mutation as a concern.
+
+**Feedback latency:** One development cycle (type-check + law tests).
+**Leverage:** Very high — type-level improvements propagate to every consumer and every future extension. A well-typed interface prevents entire classes of bugs at compile time.
+
+### Surface 4: Documentation and authorial leverage
+
+The CLAUDE.md, `docs/coding-notes.md`, `docs/master-architecture.md`, and domain ontology are not passive references — they are *training data for agent sessions*. An agent session that correctly applies the supplement hierarchy on the first attempt (because `docs/coding-notes.md` explains it clearly) saves an entire debug cycle. An agent session that violates layer integrity (because the documentation doesn't show a concrete negative example) costs a review cycle.
+
+Documentation improvements include:
+
+- **Worked examples**: concrete before/after code samples for each coding convention. Assertions like "prefer recursive folds" are weaker than a side-by-side comparison with line-by-line annotation.
+- **Anti-pattern galleries**: explicit "do NOT do this" sections with the *specific* failure mode that results. An agent reading "avoid `let`" may comply; an agent reading "avoid `let` because it breaks determinism in the scoring fold, which causes the bottleneck detector to produce unstable rankings" understands *why*.
+- **Decision records**: when a design choice is non-obvious, a 3-sentence ADR (context, decision, consequence) prevents future agents from re-deriving the same reasoning. `docs/adr-collapse-deterministic-parsing.md` is the existing pattern.
+- **Cross-reference completeness**: every concept should be reachable from the CLAUDE.md start-here list within two hops. Orphan documentation is undiscoverable documentation, which is equivalent to absent documentation for agent sessions.
+
+**Feedback latency:** One agent session (does the agent apply the convention correctly?).
+**Leverage:** Multiplicative — documentation quality multiplies the effectiveness of every agent session, every human review, and every onboarding. It is the highest-leverage surface for systems that are primarily agent-developed.
+
+### Surface 5: Information-theoretic efficiency (lossless compression of domain signal)
+
+This is the meta-surface. Every code construct, type surface, algorithm, and documentation artifact is a compression of domain reality. The question is: how much signal survives the compression?
+
+The translation pipeline normalizes intent text into tokens — every normalization step is a lossy compression. If "navigate to the policy search page" and "go to policy search" produce different token sets, the compression is losing shared meaning. The harvest algorithm decides what to retain from DOM exploration — every discarded attribute is a compression loss. The supplement hierarchy promotes screen-local hints to shared patterns — if the promotion loses context (which screen originated the pattern, under what conditions it was observed), the compression is lossy.
+
+Information efficiency improvements include:
+
+- **Translation loss rate**: what fraction of intent text meaning is destroyed by normalization? Measured as the gap between raw phrasing diversity and post-normalization candidate set size.
+- **Supplement reuse factor**: how often is a promoted pattern actually exercised across multiple screens? Low reuse suggests premature promotion (the compression was wrong) or poor generalization (the pattern is too specific).
+- **Resolution path entropy**: how many different resolution paths lead to the same correct answer? High entropy means the system is doing redundant work. Low entropy means the compression is efficient — the right answer follows from the data structure itself.
+- **Alias redundancy rate**: what fraction of aliases are strict subsets of other aliases? Redundant aliases waste matching time and create false-match risk without adding information.
+- **Algorithm tuning surface density**: how many independently tunable parameters does each algorithm expose per unit of output variance? High density means fine-grained control. Low density means the algorithm is either well-optimized (can't improve further) or under-parameterized (can't express the right behavior).
+
+**Feedback latency:** Multiple speedrun cycles (statistical measurement over varied inputs).
+**Leverage:** Foundational — information efficiency improvements make all other surfaces more effective. A lossless compression of domain signal means parameters tune faster, code changes have clearer effects, and documentation is easier to write because the concepts are crisper.
+
+### The Overfitting Concern Across Surfaces
+
+The user correctly identified that dogfood optimization risks overfitting to synthetic data. This risk exists on all five surfaces but has different mitigation strategies:
+
+- **Surface 1** (parameters): Vary the scenario generator seed across speedrun epochs. Require improvement to hold across 3+ seeds before accepting.
+- **Surface 2** (code): Architecture fitness metrics are application-independent — layer integrity, purity, visitor coverage don't change with the test suite.
+- **Surface 3** (types): Type-level improvements are verified by the compiler, not by runtime data. They can't overfit.
+- **Surface 4** (docs): Agent session effectiveness is measurable across different tasks, not just one task type.
+- **Surface 5** (information): Information efficiency metrics require large sample sizes by definition. Widen the scenario generator's phrasing templates, increase `variantsPerField`, and diversify `driftEvents` to increase variance. The Pareto frontier (4 objectives) provides regularization — a change that helps one metric at the expense of three is rejected.
+
+The key insight: **Surfaces 2-5 are inherently more robust to overfitting than Surface 1** because they measure structural properties, not behavioral outcomes. A codebase with better layer integrity, more exhaustive type safety, clearer documentation, and more efficient information compression will perform better on *any* application, not just the current dogfood suite.
+
+### The Production-Free Advantage
+
+Without production data, we cannot overfit to production. But we can still measure generalization capacity: the ability to handle wider classes of inputs. Structural improvements (Surfaces 2-4) are testable right now because they are measured by architecture fitness, type-checking, and agent session effectiveness — none of which require production targets.
+
+Surface 5 (information efficiency) can be measured synthetically by generating adversarial scenarios: phrasings that stress normalization, drift events that stress the harvest algorithm, state topologies that stress the resolution ladder. The structured entropy harness (D1 in the backlog) is the tool for this.
+
+The architecture fitness report (`lib/domain/types/architecture-fitness.ts`) provides the measurement infrastructure for Surfaces 2-5. It measures layer violations, visitor coverage, provenance completeness, knowledge compression, purity, envelope discipline, and parameter exposure. Each metric has a direction of improvement (fewer violations, higher coverage, more completeness) that is independent of any particular application.
+
+## Architecture Fitness Report
+
+The `ArchitectureFitnessReport` is the structural analog of the `PipelineFitnessReport`. Where the pipeline report measures *how well the system resolves intent* (runtime behavior), the architecture report measures *how well the codebase supports improvement* (structural health).
+
+### Metrics
+
+| Metric | What it measures | Direction |
+|---|---|---|
+| Layer violations | Imports crossing `domain → application → runtime → infrastructure` boundaries in the wrong direction | Fewer is better |
+| Visitor coverage | % of discriminated union consumers using exhaustive fold/visitor vs raw switch/if | Higher is better |
+| Provenance completeness | % of derived artifacts carrying full lineage, fingerprints, and governance | Higher is better |
+| Knowledge compression | Ratio of scenarios served per knowledge artifact | Higher is better |
+| Domain purity | % of domain-layer functions that are pure (no `let`, no mutation, no side effects) | Higher is better |
+| Envelope discipline | % of cross-boundary artifacts using `WorkflowEnvelope` vs raw objects | Higher is better |
+| Parameter exposure | % of tunable constants surfaced in `PipelineConfig` | Higher is better |
+
+### Implementation
+
+The types live in `lib/domain/types/architecture-fitness.ts`. The report is a domain-layer data structure — it describes what was measured, not how. The measurement itself (static analysis, AST scanning, grep-based counting) can be implemented as a script or application-layer module.
+
+### Relationship to Pipeline Fitness
+
+The two reports are complementary:
+
+- **Pipeline fitness** answers: "How well does the system perform?" (loss function)
+- **Architecture fitness** answers: "How improvable is the system?" (learning rate)
+
+A system with good pipeline fitness but poor architecture fitness has hit a ceiling — it works today but is resistant to further improvement. A system with poor pipeline fitness but good architecture fitness has headroom — it doesn't work well yet, but its structure supports rapid improvement.
+
+The recursive improvement loop should optimize both: pipeline fitness is the primary objective, architecture fitness is the regularization term.

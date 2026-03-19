@@ -3,7 +3,7 @@
  *
  * Clean-slate → generate → flywheel → measure → compare → report.
  *
- * Usage: npx tsx scripts/speedrun.ts [--count N] [--seed S] [--max-iterations N]
+ * Usage: npx tsx scripts/speedrun.ts [--count N] [--seed S] [--max-iterations N] [--posture cold-start|warm-start|production]
  */
 
 import { Effect } from 'effect';
@@ -15,8 +15,11 @@ import { generateSyntheticScenarios } from '../lib/application/synthesis/scenari
 import { runDogfoodLoop } from '../lib/application/dogfood';
 import { buildFitnessReport, compareToScorecard, updateScorecard, type FitnessInputData } from '../lib/application/fitness';
 import { loadWorkspaceCatalog } from '../lib/application/catalog';
+import { recordExperiment } from '../lib/application/experiment-registry';
 import { runWithLocalServices } from '../lib/composition/local-services';
-import type { PipelineScorecard, ProposalBundle } from '../lib/domain/types';
+import { resolveKnowledgePosture } from '../lib/application/knowledge-posture';
+import type { ExperimentRecord, KnowledgePosture, PipelineConfig, PipelineScorecard, ProposalBundle, SubstrateContext } from '../lib/domain/types';
+import { DEFAULT_PIPELINE_CONFIG, mergePipelineConfig } from '../lib/domain/types';
 import type { RunRecord } from '../lib/domain/types/execution';
 
 const args = process.argv.slice(2);
@@ -28,9 +31,24 @@ function argVal(name: string, fallback: string): string {
 const count = Number(argVal('--count', '50'));
 const seed = argVal('--seed', 'speedrun-v1');
 const maxIterations = Number(argVal('--max-iterations', '5'));
+const configPath = argVal('--config', '');
+const experimentTag = argVal('--tag', '');
+const substrate = argVal('--substrate', 'synthetic') as 'synthetic' | 'production' | 'hybrid';
+const explicitPosture = args.includes('--posture') ? argVal('--posture', '') as KnowledgePosture : undefined;
+
+function loadPipelineConfig(): PipelineConfig {
+  if (!configPath) {
+    return DEFAULT_PIPELINE_CONFIG;
+  }
+  const overrides = JSON.parse(fs.readFileSync(configPath, 'utf8')) as Partial<PipelineConfig>;
+  return mergePipelineConfig(DEFAULT_PIPELINE_CONFIG, overrides);
+}
+
+const pipelineConfig = loadPipelineConfig();
 
 const rootDir = process.cwd();
 const paths = createProjectPaths(rootDir, path.join(rootDir, 'dogfood'));
+const knowledgePosture = resolveKnowledgePosture(paths.postureConfigPath, explicitPosture);
 
 function getPipelineVersion(): string {
   try {
@@ -114,14 +132,15 @@ const program = Effect.gen(function* () {
   console.log(`Generated ${genResult.scenariosGenerated} scenarios across ${genResult.screens.length} screens`);
 
   // Step 2: Run dogfood flywheel
-  console.log(`\n=== Running dogfood flywheel (max ${maxIterations} iterations) ===\n`);
+  console.log(`\n=== Running dogfood flywheel (max ${maxIterations} iterations, posture: ${knowledgePosture}) ===\n`);
   const { ledger } = yield* runDogfoodLoop({
     paths,
     maxIterations,
-    convergenceThreshold: 0.01,
+    convergenceThreshold: pipelineConfig.convergenceThreshold,
     interpreterMode: 'diagnostic',
     tag: 'synthetic',
     runbook: 'synthetic-dogfood',
+    knowledgePosture,
   });
 
   console.log(`Flywheel complete: ${ledger.completedIterations} iterations, converged=${ledger.converged} (${ledger.convergenceReason})`);
@@ -129,8 +148,8 @@ const program = Effect.gen(function* () {
     console.log(`  Iteration ${iter.iteration}: hitRate=${iter.knowledgeHitRate}, proposals=${iter.proposalsActivated}, steps=${iter.totalStepCount}`);
   }
 
-  // Step 3: Collect run data for fitness report
-  const catalog = yield* loadWorkspaceCatalog({ paths });
+  // Step 3: Collect run data for fitness report (always warm-start to read results)
+  const catalog = yield* loadWorkspaceCatalog({ paths, knowledgePosture: 'warm-start' });
   const runRecords: RunRecord[] = catalog.runRecords.map((e) => e.artifact as unknown as RunRecord);
   const runSteps = runRecords.flatMap((record) =>
     record.steps.map((step) => ({
@@ -146,6 +165,7 @@ const program = Effect.gen(function* () {
 async function main(): Promise<void> {
   const pipelineVersion = getPipelineVersion();
   console.log(`Pipeline version: ${pipelineVersion}`);
+  console.log(`Knowledge posture: ${knowledgePosture}`);
 
   // Step 0: Clean slate
   cleanSlate();
@@ -153,6 +173,7 @@ async function main(): Promise<void> {
   // Steps 1-3: Generate + flywheel + collect data
   const { ledger, runSteps, proposalBundles } = await runWithLocalServices(program, rootDir, {
     posture: { interpreterMode: 'diagnostic', writeMode: 'persist', executionProfile: 'dogfood' },
+    pipelineConfig,
   });
 
   // Step 4: Build fitness report
@@ -183,6 +204,38 @@ async function main(): Promise<void> {
   } else {
     console.log('\nScorecard unchanged — did not beat the mark.');
   }
+
+  // Step 6b: Record experiment
+  const substrateContext: SubstrateContext = {
+    substrate,
+    seed,
+    scenarioCount: count,
+    screenCount: report.metrics.resolutionByRung.length,
+    phrasingTemplateVersion: 'v1',
+  };
+  const configDelta: Partial<PipelineConfig> = configPath
+    ? JSON.parse(fs.readFileSync(configPath, 'utf8')) as Partial<PipelineConfig>
+    : {};
+  const experimentRecord: ExperimentRecord = {
+    id: new Date().toISOString().replace(/[:.]/g, '-'),
+    runAt: report.runAt,
+    pipelineVersion,
+    baselineConfig: DEFAULT_PIPELINE_CONFIG,
+    configDelta,
+    substrateContext,
+    fitnessReport: report,
+    scorecardComparison: {
+      improved: comparison.improved,
+      knowledgeHitRateDelta: comparison.knowledgeHitRateDelta,
+      translationPrecisionDelta: comparison.translationPrecisionDelta,
+      convergenceVelocityDelta: comparison.convergenceVelocityDelta,
+    },
+    accepted: comparison.improved,
+    tags: experimentTag ? [experimentTag] : [],
+    parentExperimentId: null,
+  };
+  recordExperiment(rootDir, experimentRecord);
+  console.log(`Experiment recorded: ${experimentRecord.id}`);
 
   // Step 7: Report failure modes
   if (report.failureModes.length > 0) {

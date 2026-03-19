@@ -1,11 +1,13 @@
 import type { PostureId, SnapshotTemplateId } from '../../domain/identity';
 import type {
+  ProposalConfidenceValues,
   ResolutionCandidateSummary,
   ResolutionReceipt,
   StepAction,
   StepTaskElementCandidate,
   StepTaskScreenCandidate,
 } from '../../domain/types';
+import { DEFAULT_PIPELINE_CONFIG } from '../../domain/types';
 import { requiresElement, allowedActionFallback } from './resolve-action';
 import { resolveFromDom } from './dom-fallback';
 import { proposalForSupplementGap, proposalsFromInterpretation } from './proposals';
@@ -287,7 +289,7 @@ export function tryOverlayResolution(stage: RuntimeAgentStageContext, acc: Resol
   };
 }
 
-export async function tryTranslationResolution(stage: RuntimeAgentStageContext, acc: ResolutionAccumulator): Promise<AccumulatorStageResult> {
+export async function tryTranslationResolution(stage: RuntimeAgentStageContext, acc: ResolutionAccumulator, proposalConfidence?: ProposalConfidenceValues): Promise<AccumulatorStageResult> {
   const translated = await resolveWithTranslation(stage.task, stage.context);
   const updatedAcc = { ...acc, translated };
   const observations = translated.observation ? [translated.observation] : [];
@@ -342,7 +344,7 @@ export async function tryTranslationResolution(stage: RuntimeAgentStageContext, 
             old_value: null,
             new_value: stage.task.actionText,
           },
-          confidence: 0.85,
+          confidence: (proposalConfidence ?? DEFAULT_PIPELINE_CONFIG.proposalConfidenceValues).translation,
           risk: 'low' as const,
           scope: proposal.artifactType,
         })),
@@ -372,7 +374,7 @@ export async function tryTranslationResolution(stage: RuntimeAgentStageContext, 
   };
 }
 
-export async function tryLiveDomOrFallback(stage: RuntimeAgentStageContext, acc: ResolutionAccumulator): Promise<StageResult<ResolutionReceipt>> {
+export async function tryLiveDomOrFallback(stage: RuntimeAgentStageContext, acc: ResolutionAccumulator, proposalConfidence?: ProposalConfidenceValues): Promise<StageResult<ResolutionReceipt>> {
   const domScreen = acc.translated.screen ?? acc.overlayResult.screen ?? acc.screen;
   const domResolver = stage.context.domResolver
     ?? (stage.context.page
@@ -449,7 +451,7 @@ export async function tryLiveDomOrFallback(stage: RuntimeAgentStageContext, acc:
             old_value: null,
             new_value: stage.task.actionText,
           },
-          confidence: 0.9,
+          confidence: (proposalConfidence ?? DEFAULT_PIPELINE_CONFIG.proposalConfidenceValues).dom,
           risk: 'low',
           scope: proposal.artifactType,
         })),
@@ -489,7 +491,7 @@ export async function tryLiveDomOrFallback(stage: RuntimeAgentStageContext, acc:
           old_value: null,
           new_value: candidate.element.element,
         },
-        confidence: 0.5,
+        confidence: (proposalConfidence ?? DEFAULT_PIPELINE_CONFIG.proposalConfidenceValues).domShortlist,
         risk: 'low',
         scope: 'hints',
       })),

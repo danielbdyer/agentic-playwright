@@ -7,7 +7,7 @@ import { runScenarioSelection } from './run';
 import { FileSystem } from './ports';
 import { runStateMachine } from './state-machine';
 import type { AdoId } from '../domain/identity';
-import type { AutoApprovalPolicy, ProposalBundle, TrustPolicy } from '../domain/types';
+import type { AutoApprovalPolicy, KnowledgePosture, ProposalBundle, TrustPolicy } from '../domain/types';
 import { DEFAULT_AUTO_APPROVAL_POLICY } from '../domain/trust-policy';
 
 export interface DogfoodIterationResult {
@@ -43,6 +43,8 @@ export interface DogfoodOptions {
   readonly runbook?: string | undefined;
   readonly interpreterMode?: 'dry-run' | 'diagnostic' | undefined;
   readonly autoApprovalPolicy?: AutoApprovalPolicy | undefined;
+  /** Knowledge posture for catalog loading. Defaults to 'warm-start'. */
+  readonly knowledgePosture?: KnowledgePosture | undefined;
 }
 
 interface LoopState {
@@ -165,9 +167,16 @@ function accumulateProposalTotals(
 }
 
 function runIteration(iteration: number, options: DogfoodOptions) {
+  // On iteration 1, use the configured posture (which may be cold-start).
+  // On subsequent iterations, always use warm-start — the loop has activated
+  // proposals into the knowledge directory, so we need to read them back.
+  const iterationPosture: KnowledgePosture = iteration === 1
+    ? (options.knowledgePosture ?? 'warm-start')
+    : 'warm-start';
+
   return Effect.gen(function* () {
     // Step 1: refresh all scenarios
-    const catalog = yield* loadWorkspaceCatalog({ paths: options.paths });
+    const catalog = yield* loadWorkspaceCatalog({ paths: options.paths, knowledgePosture: iterationPosture });
     const scenarioIds = catalog.scenarios.map((entry) => entry.artifact.source.ado_id);
     yield* Effect.all(
       scenarioIds.map((adoId) => refreshScenario({ adoId: adoId as AdoId, paths: options.paths })),
@@ -182,8 +191,8 @@ function runIteration(iteration: number, options: DogfoodOptions) {
       interpreterMode: options.interpreterMode ?? 'diagnostic',
     });
 
-    // Step 3: collect trace metrics
-    const postRunCatalog = yield* loadWorkspaceCatalog({ paths: options.paths });
+    // Step 3: collect trace metrics (always warm-start — need to read run results)
+    const postRunCatalog = yield* loadWorkspaceCatalog({ paths: options.paths, knowledgePosture: 'warm-start' });
     const metrics = computeTraceMetrics(postRunCatalog.runRecords as never);
 
     // Step 4: collect and activate pending proposals

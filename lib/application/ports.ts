@@ -6,6 +6,7 @@ import type { TranslationProvider } from './translation-provider';
 import type { TesseractError } from '../domain/errors';
 import type {
   ExecutionPosture,
+  PipelineConfig,
   ResolutionReceipt,
   RuntimeInterpreterMode,
   ScenarioRunPlan,
@@ -58,4 +59,5 @@ export class FileSystem extends Context.Tag('tesseract/FileSystem')<FileSystem, 
 export class AdoSource extends Context.Tag('tesseract/AdoSource')<AdoSource, AdoSourcePort>() {}
 export class RuntimeScenarioRunner extends Context.Tag('tesseract/RuntimeScenarioRunner')<RuntimeScenarioRunner, RuntimeScenarioRunnerPort>() {}
 export class ExecutionContext extends Context.Tag('tesseract/ExecutionContext')<ExecutionContext, ExecutionContextPort>() {}
+export class PipelineConfigService extends Context.Tag('tesseract/PipelineConfig')<PipelineConfigService, { readonly config: PipelineConfig }>() {}
 

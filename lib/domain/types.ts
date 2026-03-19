@@ -10,3 +10,6 @@ export * from './types/session';
 export * from './types/learning';
 export * from './types/widgets';
 export * from './types/fitness';
+export * from './types/pipeline-config';
+export * from './types/experiment';
+export * from './types/architecture-fitness';

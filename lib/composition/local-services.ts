@@ -1,15 +1,17 @@
 import { Effect, Layer } from 'effect';
-import { AdoSource, ExecutionContext, FileSystem, RuntimeScenarioRunner } from '../application/ports';
+import { AdoSource, ExecutionContext, FileSystem, PipelineConfigService, RuntimeScenarioRunner } from '../application/ports';
 import { makeLocalAdoSource } from '../infrastructure/ado/local-ado-source';
 import { makeLiveAdoSource, readLiveAdoSourceConfigFromEnv } from '../infrastructure/ado/live-ado-source';
 import { LocalFileSystem } from '../infrastructure/fs/local-fs';
 import { createRecordingWorkspaceFileSystem } from '../infrastructure/fs/recording-fs';
 import { LocalRuntimeScenarioRunner } from './local-runtime-scenario-runner';
-import type { ExecutionPosture, WriteJournalEntry } from '../domain/types';
+import type { ExecutionPosture, PipelineConfig, WriteJournalEntry } from '../domain/types';
+import { DEFAULT_PIPELINE_CONFIG } from '../domain/types';
 
 export interface LocalServiceOptions {
   readonly posture?: Partial<ExecutionPosture> | undefined;
   readonly suiteRoot?: string | undefined;
+  readonly pipelineConfig?: PipelineConfig | undefined;
 }
 
 export interface LocalServiceContext {
@@ -56,11 +58,13 @@ export function createLocalServiceContext(rootDir: string, options?: LocalServic
     writeJournal: () => [...journal],
   };
 
+  const pipelineConfig = options?.pipelineConfig ?? DEFAULT_PIPELINE_CONFIG;
   const layer = Layer.mergeAll(
     Layer.succeed(FileSystem, fileSystem),
     Layer.succeed(AdoSource, resolveAdoSource(rootDir, suiteRoot)),
     Layer.succeed(RuntimeScenarioRunner, LocalRuntimeScenarioRunner),
     Layer.succeed(ExecutionContext, executionContext),
+    Layer.succeed(PipelineConfigService, { config: pipelineConfig }),
   );
 
   return {
@@ -68,7 +72,7 @@ export function createLocalServiceContext(rootDir: string, options?: LocalServic
     writeJournal: () => executionContext.writeJournal(),
     provide<A, E, R>(program: Effect.Effect<A, E, R>): Effect.Effect<A, E, never> {
       return Effect.provide(
-        program as Effect.Effect<A, E, FileSystem | AdoSource | RuntimeScenarioRunner | ExecutionContext>,
+        program as Effect.Effect<A, E, FileSystem | AdoSource | RuntimeScenarioRunner | ExecutionContext | PipelineConfigService>,
         layer,
       ) as Effect.Effect<A, E, never>;
     },

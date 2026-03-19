@@ -1,4 +1,5 @@
-import type { CausalLink, ObservedStateSession, ResolutionEvent, ResolutionPipelineResult, ResolutionReceipt, GroundedStep } from '../../domain/types';
+import type { CausalLink, ConfidenceScaling, MemoryCapacityConfig, ObservedStateSession, ResolutionEvent, ResolutionPipelineResult, ResolutionReceipt, GroundedStep } from '../../domain/types';
+import { DEFAULT_PIPELINE_CONFIG } from '../../domain/types';
 import { resolutionPrecedenceLaw } from '../../domain/precedence';
 import { selectedControlRefs, selectedControlResolution } from './select-controls';
 import { uniqueSorted } from './shared';
@@ -18,21 +19,9 @@ import {
 
 export const RESOLUTION_PRECEDENCE = resolutionPrecedenceLaw;
 
-export interface MemoryCapacity {
-  maxActiveRefs: number;
-  stalenessTtl: number;
-  maxRecentAssertions: number;
-  screenConfidenceFloor: number;
-  maxLineageEntries: number;
-}
+export type MemoryCapacity = MemoryCapacityConfig;
 
-const DEFAULT_MEMORY_CAPACITY: MemoryCapacity = {
-  maxActiveRefs: 8,
-  stalenessTtl: 5,
-  maxRecentAssertions: 8,
-  screenConfidenceFloor: 0.35,
-  maxLineageEntries: 32,
-};
+const DEFAULT_MEMORY_CAPACITY: MemoryCapacity = DEFAULT_PIPELINE_CONFIG.memoryCapacity;
 
 export function deriveMemoryCapacity(stepCount: number, stateNodeCount: number): MemoryCapacity {
   return {
@@ -117,12 +106,12 @@ function deriveCausalLinks(stage: RuntimeAgentStageContext, receipt: ResolutionR
   return [...stage.memory.causalLinks, ...newLinks];
 }
 
-function deriveObservedStateSessionAfterResolution(stage: RuntimeAgentStageContext, receipt: ResolutionReceipt, capacity: MemoryCapacity): ObservedStateSession {
+function deriveObservedStateSessionAfterResolution(stage: RuntimeAgentStageContext, receipt: ResolutionReceipt, capacity: MemoryCapacity, scaling: ConfidenceScaling = DEFAULT_PIPELINE_CONFIG.confidenceScaling): ObservedStateSession {
   if (receipt.kind === 'needs-human') {
     return stage.memory;
   }
 
-  const confidenceScore = receipt.confidence === 'compiler-derived' ? 1 : receipt.confidence === 'agent-verified' ? 0.8 : 0.65;
+  const confidenceScore = receipt.confidence === 'compiler-derived' ? scaling.compilerDerived : receipt.confidence === 'agent-verified' ? scaling.agentVerified : scaling.agentProposed;
   const targetRef = resolvedTargetRef(stage, receipt);
   const lineage = uniqueSorted([
     ...stage.memory.lineage,

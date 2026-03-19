@@ -23,7 +23,14 @@ import type {
   ProposalBundle,
   StepExecutionReceipt,
 } from '../domain/types';
+import {
+  isAcceptedByParetoFrontier,
+  addToParetoFrontier,
+  objectivesFromMetrics,
+} from '../domain/types';
+import type { ExperimentRecord, ExperimentRegistry } from '../domain/types';
 import type { DogfoodLedger } from './dogfood';
+import { foldPipelineFailureClass } from '../domain/visitors';
 import { resolutionPrecedenceLaw, type ResolutionPrecedenceRung } from '../domain/precedence';
 
 // ─── Step-level classification ───
@@ -74,28 +81,16 @@ function classifyFailure(step: StepOutcome): PipelineFailureClass | null {
 }
 
 function improvementTargetFor(failureClass: PipelineFailureClass): PipelineImprovementTarget {
-  switch (failureClass) {
-    case 'translation-threshold-miss':
-      return { kind: 'translation', detail: 'Adjust overlap score threshold or improve scoring formula' };
-    case 'translation-normalization-gap':
-      return { kind: 'translation', detail: 'Add normalization rules for unrecognized phrasing patterns' };
-    case 'alias-coverage-gap':
-      return { kind: 'resolution', detail: 'Improve alias generation heuristics for predictable patterns' };
-    case 'resolution-rung-skip':
-      return { kind: 'resolution', detail: 'Strengthen higher-precedence rungs to resolve before fallback' };
-    case 'scoring-weight-mismatch':
-      return { kind: 'scoring', detail: 'Re-weight bottleneck scoring signals based on observed correlations' };
-    case 'recovery-strategy-miss':
-      return { kind: 'recovery', detail: 'Reorder or add recovery strategies for unhandled failure families' };
-    case 'convergence-stall':
-      return { kind: 'scoring', detail: 'Improve proposal ranking to prioritize high-yield proposals' };
-    case 'trust-policy-over-block':
-      return { kind: 'trust-policy', detail: 'Lower confidence thresholds or widen evidence requirements' };
-    default: {
-      const _exhaustive: never = failureClass;
-      return _exhaustive;
-    }
-  }
+  return foldPipelineFailureClass<PipelineImprovementTarget>(failureClass, {
+    translationThresholdMiss: () => ({ kind: 'translation', detail: 'Adjust overlap score threshold or improve scoring formula' }),
+    translationNormalizationGap: () => ({ kind: 'translation', detail: 'Add normalization rules for unrecognized phrasing patterns' }),
+    aliasCoverageGap: () => ({ kind: 'resolution', detail: 'Improve alias generation heuristics for predictable patterns' }),
+    resolutionRungSkip: () => ({ kind: 'resolution', detail: 'Strengthen higher-precedence rungs to resolve before fallback' }),
+    scoringWeightMismatch: () => ({ kind: 'scoring', detail: 'Re-weight bottleneck scoring signals based on observed correlations' }),
+    recoveryStrategyMiss: () => ({ kind: 'recovery', detail: 'Reorder or add recovery strategies for unhandled failure families' }),
+    convergenceStall: () => ({ kind: 'scoring', detail: 'Improve proposal ranking to prioritize high-yield proposals' }),
+    trustPolicyOverBlock: () => ({ kind: 'trust-policy', detail: 'Lower confidence thresholds or widen evidence requirements' }),
+  });
 }
 
 // ─── Extraction from dogfood ledger + run records ───
@@ -110,6 +105,7 @@ export interface FitnessInputData {
   readonly ledger: DogfoodLedger;
   readonly runSteps: readonly RunStepData[];
   readonly proposalBundles: readonly ProposalBundle[];
+  readonly experimentHistory?: readonly ExperimentRecord[] | undefined;
 }
 
 function extractStepOutcomes(data: FitnessInputData): readonly StepOutcome[] {
@@ -166,6 +162,83 @@ function computeRungRates(steps: readonly StepOutcome[]): readonly RungRate[] {
 
 function round4(value: number): number {
   return Number(value.toFixed(4));
+}
+
+// ─── Bottleneck Correlation Computation ───
+//
+// For each bottleneck signal, across consecutive experiment pairs within
+// the same substrate: if signal S was the top failure mode in experiment N,
+// correlation(S) = average hitRateDelta across all pairs where S was top.
+//
+// This replaces the placeholder zeros and makes bottleneck weights
+// self-calibrating: signals that actually predict improvement get higher
+// correlations, enabling the knob search to prioritize them.
+
+const BOTTLENECK_SIGNALS = [
+  { signal: 'repair-recovery-hotspot', weight: 0.3 },
+  { signal: 'translation-fallback-dominant', weight: 0.25 },
+  { signal: 'high-unresolved-rate', weight: 0.25 },
+  { signal: 'thin-screen-coverage', weight: 0.2 },
+] as const;
+
+// Maps failure classes to the bottleneck signal they most closely represent
+const FAILURE_TO_SIGNAL: Readonly<Record<string, string>> = {
+  'recovery-strategy-miss': 'repair-recovery-hotspot',
+  'translation-threshold-miss': 'translation-fallback-dominant',
+  'translation-normalization-gap': 'translation-fallback-dominant',
+  'alias-coverage-gap': 'high-unresolved-rate',
+  'resolution-rung-skip': 'thin-screen-coverage',
+  'convergence-stall': 'thin-screen-coverage',
+  'trust-policy-over-block': 'thin-screen-coverage',
+  'scoring-weight-mismatch': 'repair-recovery-hotspot',
+};
+
+function computeBottleneckCorrelations(
+  experiments: readonly ExperimentRecord[],
+): readonly import('../domain/types').BottleneckWeightCorrelation[] {
+  if (experiments.length < 2) {
+    return BOTTLENECK_SIGNALS.map(({ signal, weight }) => ({
+      signal,
+      weight,
+      correlationWithImprovement: 0,
+    }));
+  }
+
+  // Group by substrate for within-substrate correlation
+  const bySubstrate = new Map<string, readonly ExperimentRecord[]>();
+  for (const exp of experiments) {
+    const key = exp.substrateContext.substrate;
+    const existing = bySubstrate.get(key) ?? [];
+    bySubstrate.set(key, [...existing, exp]);
+  }
+
+  // Accumulate correlation signal per bottleneck signal
+  const signalDeltas = new Map<string, number[]>();
+  for (const signal of BOTTLENECK_SIGNALS) {
+    signalDeltas.set(signal.signal, []);
+  }
+
+  for (const [, subExps] of bySubstrate) {
+    const sorted = [...subExps].sort((a, b) => a.runAt.localeCompare(b.runAt));
+    for (let i = 0; i < sorted.length - 1; i++) {
+      const current = sorted[i]!;
+      const next = sorted[i + 1]!;
+      const topFailure = current.fitnessReport.failureModes[0];
+      if (!topFailure) continue;
+      const signal = FAILURE_TO_SIGNAL[topFailure.class];
+      if (!signal) continue;
+      const delta = next.fitnessReport.metrics.knowledgeHitRate - current.fitnessReport.metrics.knowledgeHitRate;
+      signalDeltas.get(signal)?.push(delta);
+    }
+  }
+
+  return BOTTLENECK_SIGNALS.map(({ signal, weight }) => {
+    const deltas = signalDeltas.get(signal) ?? [];
+    const correlation = deltas.length > 0
+      ? round4(deltas.reduce((sum, d) => sum + d, 0) / deltas.length)
+      : 0;
+    return { signal, weight, correlationWithImprovement: correlation };
+  });
 }
 
 // ─── Fitness report builder ───
@@ -259,14 +332,10 @@ export function buildFitnessReport(data: FitnessInputData): PipelineFitnessRepor
     recoverySuccessRate,
   };
 
-  // Scoring effectiveness — correlate bottleneck signals with improvement
+  // Scoring effectiveness — compute real correlations from experiment history
+  const correlations = computeBottleneckCorrelations(data.experimentHistory ?? []);
   const scoringEffectiveness: ScoringEffectiveness = {
-    bottleneckWeightCorrelations: [
-      { signal: 'repair-recovery-hotspot', weight: 0.3, correlationWithImprovement: 0 },
-      { signal: 'translation-fallback-dominant', weight: 0.25, correlationWithImprovement: 0 },
-      { signal: 'high-unresolved-rate', weight: 0.25, correlationWithImprovement: 0 },
-      { signal: 'thin-screen-coverage', weight: 0.2, correlationWithImprovement: 0 },
-    ],
+    bottleneckWeightCorrelations: correlations,
     proposalRankingAccuracy: metrics.proposalYield,
   };
 
@@ -311,12 +380,19 @@ export function compareToScorecard(
   const precisionDelta = round4(report.metrics.translationPrecision - hwm.translationPrecision);
   const velocityDelta = report.metrics.convergenceVelocity - hwm.convergenceVelocity;
 
-  // Primary improvement signal is knowledge hit rate
-  const improved = hitRateDelta > 0;
+  // Use Pareto comparison when frontier exists, fall back to single-metric
+  const candidateObjectives = objectivesFromMetrics(report.metrics);
+  const improved = scorecard.paretoFrontier
+    ? isAcceptedByParetoFrontier(scorecard.paretoFrontier, candidateObjectives)
+    : hitRateDelta > 0;
 
   const summary = improved
-    ? `Beat the mark: hit rate ${hwm.knowledgeHitRate} → ${report.metrics.knowledgeHitRate} (+${hitRateDelta})`
-    : `Did not beat the mark: hit rate ${report.metrics.knowledgeHitRate} vs high-water ${hwm.knowledgeHitRate} (${hitRateDelta})`;
+    ? scorecard.paretoFrontier
+      ? `Accepted by Pareto frontier: not dominated by any existing entry`
+      : `Beat the mark: hit rate ${hwm.knowledgeHitRate} → ${report.metrics.knowledgeHitRate} (+${hitRateDelta})`
+    : scorecard.paretoFrontier
+      ? `Rejected: dominated by existing Pareto frontier entry`
+      : `Did not beat the mark: hit rate ${report.metrics.knowledgeHitRate} vs high-water ${hwm.knowledgeHitRate} (${hitRateDelta})`;
 
   return { improved, knowledgeHitRateDelta: hitRateDelta, translationPrecisionDelta: precisionDelta, convergenceVelocityDelta: velocityDelta, summary };
 }
@@ -355,10 +431,22 @@ export function updateScorecard(
         resolutionByRung: report.metrics.resolutionByRung,
       };
 
+  // Maintain Pareto frontier
+  const existingFrontier = existing?.paretoFrontier ?? [];
+  const candidateObjectives = objectivesFromMetrics(report.metrics);
+  const paretoFrontier = comparison.improved
+    ? addToParetoFrontier(existingFrontier, {
+        pipelineVersion: report.pipelineVersion,
+        addedAt: report.runAt,
+        objectives: candidateObjectives,
+      })
+    : existingFrontier;
+
   return {
     kind: 'pipeline-scorecard',
     version: 1,
     highWaterMark,
     history: [...(existing?.history ?? []), historyEntry],
+    ...(paretoFrontier.length > 0 ? { paretoFrontier } : {}),
   };
 }
