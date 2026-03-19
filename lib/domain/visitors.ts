@@ -27,6 +27,7 @@ import type {
   ResolutionEvent,
   PipelineFailureClass,
 } from './types';
+import type { StepWinningSource } from './types/workflow';
 
 // ─── ValueRef ───
 
@@ -205,3 +206,59 @@ export function foldPipelineFailureClass<R>(cls: PipelineFailureClass, cases: Pi
     case 'trust-policy-over-block': return cases.trustPolicyOverBlock();
   }
 }
+
+// ─── StepWinningSource ───
+
+export interface StepWinningSourceCases<R> {
+  readonly scenarioExplicit: () => R;
+  readonly resolutionControl: () => R;
+  readonly runbookDataset: () => R;
+  readonly defaultDataset: () => R;
+  readonly knowledgeHint: () => R;
+  readonly postureSample: () => R;
+  readonly generatedToken: () => R;
+  readonly approvedKnowledge: () => R;
+  readonly approvedEquivalent: () => R;
+  readonly priorEvidence: () => R;
+  readonly structuredTranslation: () => R;
+  readonly liveDom: () => R;
+  readonly none: () => R;
+}
+
+export function foldStepWinningSource<R>(source: StepWinningSource, cases: StepWinningSourceCases<R>): R {
+  switch (source) {
+    case 'scenario-explicit': return cases.scenarioExplicit();
+    case 'resolution-control': return cases.resolutionControl();
+    case 'runbook-dataset': return cases.runbookDataset();
+    case 'default-dataset': return cases.defaultDataset();
+    case 'knowledge-hint': return cases.knowledgeHint();
+    case 'posture-sample': return cases.postureSample();
+    case 'generated-token': return cases.generatedToken();
+    case 'approved-knowledge': return cases.approvedKnowledge();
+    case 'approved-equivalent': return cases.approvedEquivalent();
+    case 'prior-evidence': return cases.priorEvidence();
+    case 'structured-translation': return cases.structuredTranslation();
+    case 'live-dom': return cases.liveDom();
+    case 'none': return cases.none();
+  }
+}
+
+/**
+ * Exhaustive record-based lookup for StepWinningSource to rung mapping.
+ * TypeScript enforces all variants are covered at compile time.
+ */
+export const WINNING_SOURCE_TO_RUNG: Readonly<Record<StepWinningSource, string>> = {
+  'scenario-explicit': 'explicit',
+  'resolution-control': 'control',
+  'approved-equivalent': 'approved-equivalent-overlay',
+  'structured-translation': 'structured-translation',
+  'live-dom': 'live-dom',
+  'prior-evidence': 'prior-evidence',
+  'approved-knowledge': 'approved-screen-knowledge',
+  'runbook-dataset': 'approved-screen-knowledge',
+  'default-dataset': 'approved-screen-knowledge',
+  'knowledge-hint': 'approved-screen-knowledge',
+  'posture-sample': 'approved-screen-knowledge',
+  'generated-token': 'approved-screen-knowledge',
+  'none': 'approved-screen-knowledge',
+};

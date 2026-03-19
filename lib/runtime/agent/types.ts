@@ -56,11 +56,14 @@ export const EMPTY_EFFECTS: StageEffects = {
   supplementRefs: [],
 };
 
-export function mergeEffectsIntoStage(stage: RuntimeAgentStageContext, effects: StageEffects): void {
-  stage.exhaustion = [...stage.exhaustion, ...effects.exhaustion];
-  stage.observations = [...stage.observations, ...effects.observations];
-  stage.knowledgeRefs = [...stage.knowledgeRefs, ...effects.knowledgeRefs];
-  stage.supplementRefs = [...stage.supplementRefs, ...effects.supplementRefs];
+export function mergeEffectsIntoStage(stage: RuntimeAgentStageContext, effects: StageEffects): RuntimeAgentStageContext {
+  return {
+    ...stage,
+    exhaustion: [...stage.exhaustion, ...effects.exhaustion],
+    observations: [...stage.observations, ...effects.observations],
+    knowledgeRefs: [...stage.knowledgeRefs, ...effects.knowledgeRefs],
+    supplementRefs: [...stage.supplementRefs, ...effects.supplementRefs],
+  };
 }
 
 // ─── WP3: Intent Interpretation ───

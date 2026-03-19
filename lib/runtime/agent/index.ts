@@ -171,7 +171,7 @@ function pureStrategy(
     requiresAccumulator,
     async attempt(stage, acc): Promise<StrategyAttemptResult> {
       const result = await fn(stage, acc);
-      mergeEffectsIntoStage(stage, result.effects);
+      Object.assign(stage, mergeEffectsIntoStage(stage, result.effects));
       return { receipt: result.receipt, events: effectsToEvents(result.effects) };
     },
   };
@@ -193,7 +193,7 @@ function buildPostAccumulatorStrategies(accRef: { current: import('./resolution-
       async attempt(stage): Promise<StrategyAttemptResult> {
         const result = tryOverlayResolution(stage, accRef.current);
         accRef.current = result.accumulator;
-        mergeEffectsIntoStage(stage, result.effects);
+        Object.assign(stage, mergeEffectsIntoStage(stage, result.effects));
         return { receipt: result.receipt, events: effectsToEvents(result.effects) };
       },
     },
@@ -204,7 +204,7 @@ function buildPostAccumulatorStrategies(accRef: { current: import('./resolution-
       async attempt(stage): Promise<StrategyAttemptResult> {
         const result = await tryTranslationResolution(stage, accRef.current);
         accRef.current = result.accumulator;
-        mergeEffectsIntoStage(stage, result.effects);
+        Object.assign(stage, mergeEffectsIntoStage(stage, result.effects));
         return { receipt: result.receipt, events: effectsToEvents(result.effects) };
       },
     },
@@ -280,7 +280,7 @@ export async function runResolutionPipeline(
       name: 'intent-interpretation',
       run: async (s) => {
         const interpretationResult = await interpretStepIntent(s.task, s.context);
-        mergeEffectsIntoStage(s, interpretationResult.effects);
+        Object.assign(s, mergeEffectsIntoStage(s, interpretationResult.effects));
         s.interpretation = interpretationResult.interpretation ?? undefined;
         return { receipt: null, events: effectsToEvents(interpretationResult.effects) };
       },
@@ -293,7 +293,7 @@ export async function runResolutionPipeline(
       name: 'lattice-accumulator',
       run: async (s) => {
         const latticeResult = buildLatticeAccumulator(s);
-        mergeEffectsIntoStage(s, latticeResult.effects);
+        Object.assign(s, mergeEffectsIntoStage(s, latticeResult.effects));
         accRef.current = latticeResult.accumulator;
         return { receipt: null, events: effectsToEvents(latticeResult.effects) };
       },
@@ -309,7 +309,7 @@ export async function runResolutionPipeline(
       name: 'final-fallback',
       run: async (s) => {
         const fallback = await tryLiveDomOrFallback(s, accRef.current!);
-        mergeEffectsIntoStage(s, fallback.effects);
+        Object.assign(s, mergeEffectsIntoStage(s, fallback.effects));
         return {
           receipt: fallback.receipt,
           events: [...effectsToEvents(fallback.effects), { kind: 'receipt-produced' as const, receipt: fallback.receipt }],

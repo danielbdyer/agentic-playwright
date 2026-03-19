@@ -25,21 +25,18 @@ function effectTargetSortKey(effect: PostureEffect): string {
   return [targetKind, effect.target, effect.state, message].join('|');
 }
 
-export function normalizePostureEffects(effects: PostureEffect[]): PostureEffect[] {
-  const deduped = new Map<string, PostureEffect>();
-
-  for (const effect of effects) {
+export function normalizePostureEffects(effects: readonly PostureEffect[]): readonly PostureEffect[] {
+  const entries = effects.map((effect) => {
     const normalized = normalizePostureEffectTarget({
       target: effect.target,
       targetKind: effect.targetKind,
       state: effect.state,
       message: effect.message ?? null,
     });
-
-    deduped.set(effectTargetSortKey(normalized), normalized);
-  }
-
-  return [...deduped.values()].sort((left, right) => effectTargetSortKey(left).localeCompare(effectTargetSortKey(right)));
+    return [effectTargetSortKey(normalized), normalized] as const;
+  });
+  return [...new Map(entries).values()]
+    .sort((left, right) => effectTargetSortKey(left).localeCompare(effectTargetSortKey(right)));
 }
 
 export function normalizeScreenPostures(screenPostures: ScreenPostures): ScreenPostures {

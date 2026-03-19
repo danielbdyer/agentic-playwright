@@ -125,27 +125,22 @@ function weightVectorCandidates(
 ): readonly Record<string, number>[] {
   const entries = Object.entries(weights).sort(([, a], [, b]) => a - b);
   const sum = entries.reduce((s, [, v]) => s + v, 0);
-  const candidates: Record<string, number>[] = [];
+  const delta = 0.05;
 
   // Shift 0.05 from each dimension to each other dimension
-  for (let i = 0; i < entries.length; i++) {
-    for (let j = 0; j < entries.length; j++) {
-      if (i === j) continue;
-      const delta = 0.05;
-      if (entries[i]![1] - delta < 0.05) continue; // don't go below 0.05
-      const shifted = entries.map(([key, value], k) => {
-        const newValue = k === i ? value - delta : k === j ? value + delta : value;
-        return [key, Number(newValue.toFixed(4))] as const;
-      });
-      const newSum = shifted.reduce((s, [, v]) => s + v, 0);
-      // Only include if sum is preserved (within floating point tolerance)
-      if (Math.abs(newSum - sum) < 0.001) {
-        candidates.push(Object.fromEntries(shifted));
-      }
-    }
-  }
-
-  return candidates;
+  const indices = entries.map((_, i) => i);
+  return indices.flatMap((i) =>
+    indices
+      .filter((j) => i !== j && entries[i]![1] - delta >= 0.05)
+      .flatMap((j) => {
+        const shifted = entries.map(([key, value], k) => {
+          const newValue = k === i ? value - delta : k === j ? value + delta : value;
+          return [key, Number(newValue.toFixed(4))] as const;
+        });
+        const newSum = shifted.reduce((s, [, v]) => s + v, 0);
+        return Math.abs(newSum - sum) < 0.001 ? [Object.fromEntries(shifted)] : [];
+      }),
+  );
 }
 
 export function generateCandidates(

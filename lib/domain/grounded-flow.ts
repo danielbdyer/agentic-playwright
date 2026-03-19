@@ -45,19 +45,18 @@ function deriveAggregateGovernance(steps: ReadonlyArray<GroundedFlowStep>, scena
 }
 
 function fixturesForScenario(boundScenario: BoundScenario, surface: ScenarioInterpretationSurface): ReadonlyArray<string> {
-  const fixtures = new Set<string>(boundScenario.preconditions.map((precondition) => precondition.fixture));
-  for (const step of surface.payload.steps) {
-    const overrides = [step.explicitResolution?.override, step.controlResolution?.override].filter(Boolean) as string[];
-    for (const override of overrides) {
-      const matches = override.matchAll(/\{\{\s*([A-Za-z0-9_-]+)(?:\.[^}]*)?\s*\}\}/g);
-      for (const match of matches) {
-        if (match[1]) {
-          fixtures.add(match[1]);
-        }
-      }
-    }
-  }
-  return [...fixtures].sort((left, right) => left.localeCompare(right));
+  const preconditionFixtures = boundScenario.preconditions.map((precondition) => precondition.fixture);
+  const overrideFixtures = surface.payload.steps.flatMap((step) =>
+    [step.explicitResolution?.override, step.controlResolution?.override]
+      .filter(Boolean)
+      .flatMap((override) =>
+        [...(override as string).matchAll(/\{\{\s*([A-Za-z0-9_-]+)(?:\.[^}]*)?\s*\}\}/g)]
+          .map((match) => match[1])
+          .filter((name): name is string => name != null),
+      ),
+  );
+  return [...new Set([...preconditionFixtures, ...overrideFixtures])]
+    .sort((left, right) => left.localeCompare(right));
 }
 
 function buildGroundedFlowStep(

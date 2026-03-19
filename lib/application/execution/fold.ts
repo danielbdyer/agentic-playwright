@@ -59,34 +59,35 @@ export function foldScenarioRun(input: {
   stepResults: RuntimeScenarioStepResult[];
   evidenceWrites: PersistedEvidenceArtifact[];
 }): ScenarioRunFold {
-  const byStep = new Map<number, ScenarioRunFold['byStep'] extends ReadonlyMap<number, infer T> ? T : never>();
-
-  for (const result of input.stepResults) {
-    const stepIndex = result.interpretation.stepIndex;
-    const stepEvidence = input.evidenceWrites
-      .filter((entry) => entry.stepIndex === stepIndex)
-      .map((entry) => entry.artifactPath);
-
-    byStep.set(stepIndex, {
-      stepIndex,
-      evidenceIds: stepEvidence,
-      observedStateRefs: result.execution.observedStateRefs ?? [],
-      matchedTransitionRefs: (result.execution.transitionObservations ?? [])
-        .filter((entry) => entry.classification === 'matched' && entry.transitionRef)
-        .map((entry) => entry.transitionRef!),
-      failureFamily: result.execution.failure?.family ?? 'none',
-      failureCode: result.execution.failure?.code ?? null,
-      failureMessage: result.execution.failure?.message ?? null,
-      translation: result.interpretation.translation ?? null,
-      recoveryAttempts: (result.execution.recovery?.attempts ?? []).map((entry) => entry.strategyId),
-      timing: result.execution.timing,
-      cost: result.execution.cost,
-      budgetStatus: result.execution.budget?.status ?? 'not-configured',
-      degraded: result.execution.degraded,
-      resolutionMode: result.interpretation.resolutionMode,
-      winningSource: result.interpretation.winningSource,
-    });
-  }
+  type StepEntry = ScenarioRunFold['byStep'] extends ReadonlyMap<number, infer T> ? T : never;
+  const byStep = new Map<number, StepEntry>(
+    input.stepResults.map((result) => {
+      const stepIndex = result.interpretation.stepIndex;
+      const stepEvidence = input.evidenceWrites
+        .filter((entry) => entry.stepIndex === stepIndex)
+        .map((entry) => entry.artifactPath);
+      const entry: StepEntry = {
+        stepIndex,
+        evidenceIds: stepEvidence,
+        observedStateRefs: result.execution.observedStateRefs ?? [],
+        matchedTransitionRefs: (result.execution.transitionObservations ?? [])
+          .filter((entry) => entry.classification === 'matched' && entry.transitionRef)
+          .map((entry) => entry.transitionRef!),
+        failureFamily: result.execution.failure?.family ?? 'none',
+        failureCode: result.execution.failure?.code ?? null,
+        failureMessage: result.execution.failure?.message ?? null,
+        translation: result.interpretation.translation ?? null,
+        recoveryAttempts: (result.execution.recovery?.attempts ?? []).map((entry) => entry.strategyId),
+        timing: result.execution.timing,
+        cost: result.execution.cost,
+        budgetStatus: result.execution.budget?.status ?? 'not-configured',
+        degraded: result.execution.degraded,
+        resolutionMode: result.interpretation.resolutionMode,
+        winningSource: result.interpretation.winningSource,
+      };
+      return [stepIndex, entry];
+    }),
+  );
 
   const timingTotals = [...byStep.values()].reduce((acc, step) => ({
     setupMs: acc.setupMs + (step.timing?.setupMs ?? 0),

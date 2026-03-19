@@ -195,40 +195,40 @@ export function projectLearningArtifacts(input: {
 }) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
-    const rewritten: string[] = [];
     const decomposition = decompositionFragments({ surface: input.surface });
     const workflow = workflowFragments({ surface: input.surface });
     const decompositionPath = fragmentFilePath(input.paths, 'decomposition', input.surface.payload.adoId);
     const workflowPath = fragmentFilePath(input.paths, 'workflow', input.surface.payload.adoId);
     yield* fs.writeJson(decompositionPath, decomposition);
     yield* fs.writeJson(workflowPath, workflow);
-    rewritten.push(
+    const basePaths = [
       relativeProjectPath(input.paths, decompositionPath),
       relativeProjectPath(input.paths, workflowPath),
-    );
+    ];
 
-    if (input.runRecord) {
-      const repairs = repairRecoveryFragments({
-        runRecord: input.runRecord,
-        proposalBundle: input.proposalBundle ?? null,
-      });
-      const repairPath = fragmentFilePath(input.paths, 'repair-recovery', input.surface.payload.adoId);
-      yield* fs.writeJson(repairPath, repairs);
-      rewritten.push(relativeProjectPath(input.paths, repairPath));
-      const replay = replayExample({
-        surface: input.surface,
-        runRecord: input.runRecord,
-        sessionId: input.sessionId,
-        fragments: [...decomposition, ...workflow, ...repairs],
-      });
-      const replayPath = replayFilePath(input.paths, input.surface.payload.adoId, input.runRecord.runId);
-      yield* fs.writeJson(replayPath, replay);
-      rewritten.push(relativeProjectPath(input.paths, replayPath));
-    }
+    const runRecordPaths: readonly string[] = input.runRecord
+      ? yield* Effect.gen(function* () {
+          const repairs = repairRecoveryFragments({
+            runRecord: input.runRecord!,
+            proposalBundle: input.proposalBundle ?? null,
+          });
+          const repairPath = fragmentFilePath(input.paths, 'repair-recovery', input.surface.payload.adoId);
+          yield* fs.writeJson(repairPath, repairs);
+          const replay = replayExample({
+            surface: input.surface,
+            runRecord: input.runRecord!,
+            sessionId: input.sessionId,
+            fragments: [...decomposition, ...workflow, ...repairs],
+          });
+          const replayPath = replayFilePath(input.paths, input.surface.payload.adoId, input.runRecord!.runId);
+          yield* fs.writeJson(replayPath, replay);
+          return [relativeProjectPath(input.paths, repairPath), relativeProjectPath(input.paths, replayPath)];
+        })
+      : [];
 
     const manifest = yield* rebuildManifest(fs, input.paths);
     yield* fs.writeJson(input.paths.learningManifestPath, manifest);
-    rewritten.push(relativeProjectPath(input.paths, input.paths.learningManifestPath));
+    const rewritten = [...basePaths, ...runRecordPaths, relativeProjectPath(input.paths, input.paths.learningManifestPath)];
     return {
       manifest,
       manifestPath: input.paths.learningManifestPath,

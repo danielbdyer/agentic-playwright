@@ -5,27 +5,23 @@ import { SchemaError } from '../errors';
  * Extract a dotted path from an Effect ParseError issue tree.
  * Walks nested Pointer/Composite nodes to build segments like "nodes[0].kind".
  */
-function extractPath(issue: ParseResult.ParseIssue): string | undefined {
-  const segments: Array<string | number> = [];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let current: any = issue;
-  while (current != null) {
-    if (current._tag === 'Pointer') {
-      segments.push(current.path);
-      current = current.issue;
-    } else if (current._tag === 'Composite' || current._tag === 'Transformation') {
-      const issues = current.issues;
-      if (issues != null) {
-        current = Array.isArray(issues) ? issues[0] : issues;
-      } else if (current.issue != null) {
-        current = current.issue;
-      } else {
-        break;
-      }
-    } else {
-      break;
-    }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function collectSegments(node: any, acc: ReadonlyArray<string | number> = []): ReadonlyArray<string | number> {
+  if (node == null) return acc;
+  if (node._tag === 'Pointer') {
+    return collectSegments(node.issue, [...acc, node.path]);
   }
+  if (node._tag === 'Composite' || node._tag === 'Transformation') {
+    const next = node.issues != null
+      ? (Array.isArray(node.issues) ? node.issues[0] : node.issues)
+      : node.issue;
+    return next != null ? collectSegments(next, acc) : acc;
+  }
+  return acc;
+}
+
+function extractPath(issue: ParseResult.ParseIssue): string | undefined {
+  const segments = collectSegments(issue);
   if (segments.length === 0) return undefined;
   return segments
     .map((s, i) => (typeof s === 'number' ? `[${s}]` : (i > 0 ? '.' : '') + String(s)))
