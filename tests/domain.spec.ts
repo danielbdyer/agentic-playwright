@@ -3,7 +3,15 @@ import path from 'path';
 import YAML from 'yaml';
 import { expect, test } from '@playwright/test';
 import { bindScenarioStep } from '../lib/domain/binding';
-import { deriveGraph, type GraphBuildInput } from '../lib/domain/derived-graph';
+import {
+  deriveGraph,
+  mergeAccumulators,
+  resolveConditionalEdges,
+  EMPTY_GRAPH,
+  type GraphBuildInput,
+  type GraphAccumulator,
+  type ConditionalEdge,
+} from '../lib/domain/derived-graph';
 import { deriveCapabilities, findCapability } from '../lib/domain/grammar';
 import { computeAdoContentHash, computeNormalizedSnapshotHash, normalizeAriaSnapshot } from '../lib/domain/hash';
 import {
@@ -440,4 +448,56 @@ test('parseEffectTargetRef treats dual surface/element ids without explicit targ
       target: sharedTargetId,
     },
   });
+});
+
+// --- Law-style tests for GraphAccumulator and conditional edge architecture ---
+
+test('mergeAccumulators is associative: merge(merge(a,b),c) equals merge(a,merge(b,c))', () => {
+  const nodeA = { id: 'a', kind: 'snapshot' as const, label: 'A', fingerprint: 'fa', provenance: {} };
+  const nodeB = { id: 'b', kind: 'screen' as const, label: 'B', fingerprint: 'fb', provenance: {} };
+  const nodeC = { id: 'c', kind: 'element' as const, label: 'C', fingerprint: 'fc', provenance: {} };
+  const edgeAB = { id: 'e1', kind: 'contains' as const, from: 'a', to: 'b', fingerprint: 'fe1', provenance: {} };
+  const edgeBC = { id: 'e2', kind: 'references' as const, from: 'b', to: 'c', fingerprint: 'fe2', provenance: {} };
+
+  const accA: GraphAccumulator = { nodes: new Map([['a', nodeA]]), edges: new Map([['e1', edgeAB]]) };
+  const accB: GraphAccumulator = { nodes: new Map([['b', nodeB]]), edges: new Map() };
+  const accC: GraphAccumulator = { nodes: new Map([['c', nodeC]]), edges: new Map([['e2', edgeBC]]) };
+
+  const leftAssoc = mergeAccumulators(mergeAccumulators(accA, accB), accC);
+  const rightAssoc = mergeAccumulators(accA, mergeAccumulators(accB, accC));
+
+  expect([...leftAssoc.nodes.keys()].sort()).toEqual([...rightAssoc.nodes.keys()].sort());
+  expect([...leftAssoc.edges.keys()].sort()).toEqual([...rightAssoc.edges.keys()].sort());
+});
+
+test('resolveConditionalEdges includes edges whose required nodes exist and excludes others', () => {
+  const existingNode = { id: 'existing', kind: 'snapshot' as const, label: 'X', fingerprint: 'fx', provenance: {} };
+  const allNodes = new Map([['existing', existingNode]]);
+
+  const keptEdge = { id: 'e-kept', kind: 'contains' as const, from: 'a', to: 'existing', fingerprint: 'fk', provenance: {} };
+  const droppedEdge = { id: 'e-dropped', kind: 'references' as const, from: 'a', to: 'missing', fingerprint: 'fd', provenance: {} };
+  const multiReqEdge = { id: 'e-multi', kind: 'uses' as const, from: 'existing', to: 'missing', fingerprint: 'fm', provenance: {} };
+
+  const conditionalEdges: ConditionalEdge[] = [
+    { edge: keptEdge, requiredNodeIds: ['existing'] },
+    { edge: droppedEdge, requiredNodeIds: ['missing'] },
+    { edge: multiReqEdge, requiredNodeIds: ['existing', 'missing'] },
+  ];
+
+  const resolved = resolveConditionalEdges(allNodes, conditionalEdges);
+
+  expect(resolved.has('e-kept')).toBe(true);
+  expect(resolved.has('e-dropped')).toBe(false);
+  expect(resolved.has('e-multi')).toBe(false);
+});
+
+test('mergeAccumulators has EMPTY_GRAPH as identity element', () => {
+  const nodeA = { id: 'a', kind: 'snapshot' as const, label: 'A', fingerprint: 'fa', provenance: {} };
+  const acc: GraphAccumulator = { nodes: new Map([['a', nodeA]]), edges: new Map() };
+
+  const leftId = mergeAccumulators(EMPTY_GRAPH, acc);
+  const rightId = mergeAccumulators(acc, EMPTY_GRAPH);
+
+  expect([...leftId.nodes.keys()]).toEqual([...acc.nodes.keys()]);
+  expect([...rightId.nodes.keys()]).toEqual([...acc.nodes.keys()]);
 });
