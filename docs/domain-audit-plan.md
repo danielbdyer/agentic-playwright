@@ -1,22 +1,23 @@
 # Domain Audit Architecture Plan
 
-> **Three Dragons, One Interpretation Surface**
+> **Five Surfaces, Three Spines, One Integration**
 >
 > A first-principles re-derivation of the domain ontology, master architecture,
-> and typed seam contracts — from the perspective of interface intelligence,
-> agentic intervention, and recursive self-improvement.
+> and typed seam contracts — organized around five measurable improvement
+> surfaces, three architectural spines, and their integration into a coherent
+> optimization trajectory.
 
 ---
 
 ## Table of Contents
 
 1. [Philosophical Foundation](#1-philosophical-foundation)
-2. [The Three Dragons](#2-the-three-dragons)
-3. [Cross-Dragon Protocols](#3-cross-dragon-protocols)
-4. [Dragon 1: Interface Intelligence](#4-dragon-1-interface-intelligence)
-5. [Dragon 2: Agent Workbench](#5-dragon-2-agent-workbench)
-6. [Dragon 3: Recursive Improvement](#6-dragon-3-recursive-improvement)
-7. [Meta-Dragons: Domain Alignment & Engineering Delight](#7-meta-dragons)
+2. [The Five Improvement Surfaces](#2-the-five-improvement-surfaces)
+3. [Three Architectural Spines](#3-three-architectural-spines)
+4. [Interface Intelligence (Spine)](#4-interface-intelligence)
+5. [Agent Workbench (Spine)](#5-agent-workbench)
+6. [Recursive Improvement (Spine)](#6-recursive-improvement)
+7. [Meta-Concerns: Domain Alignment & Engineering Delight](#7-meta-concerns)
 8. [External Agent Model](#8-external-agent-model)
 9. [Performance Hyper-Parameters](#9-performance-hyper-parameters)
 10. [New Type Artifacts](#10-new-type-artifacts)
@@ -57,32 +58,198 @@ agents, and the system's own improvement loop.
    its exhaustion trail, and its governance derivation. An opaque success is a
    modeling failure.
 
-### Why "Three Dragons"
+### Why Five Surfaces
 
-The compiler-only framing is insufficient. The system has three co-equal
-architectural concerns that share one interpretation surface:
+The compiler-only framing is insufficient. The system improves along five
+independent dimensions — each with its own granularity, feedback latency,
+leverage, and overfitting risk. These are not metaphors; they are the concrete
+tuning surfaces described in `docs/recursive-self-improvement.md`, derived from
+the structural correspondence between Tesseract's speedrun loop and a machine
+learning training loop.
 
-- **Dragon 1 (Interface Intelligence)**: Models what the UI IS — structure,
-  selectors, states, transitions, affordances.
-- **Dragon 2 (Agent Workbench)**: Models what operators and agents DO — discover,
-  resolve, execute, observe, propose, approve, rerun, benchmark.
-- **Dragon 3 (Recursive Improvement)**: Models how the system IMPROVES ITSELF —
-  evaluate fitness, search parameter space, accept/reject changes, checkpoint.
+The three architectural spines (interface intelligence, agent workbench,
+recursive improvement) are the *machinery* that produces improvement. The five
+surfaces are the *objectives* that improvement targets. This audit describes
+how to **integrate** the derivatives of all five surfaces into a coherent
+optimization trajectory — the accumulated area under all five improvement curves.
 
-Each dragon is a functor from a category of inputs to a category of outputs.
-The natural transformation between them is the **Interpretation Surface** — the
-shared contract all three consume and produce.
+Each surface has a measurable rate of change (its derivative). The system
+converges when all five derivatives approach zero simultaneously. The scorecard
+high-water-mark is the running maximum of the integrated improvement signal.
+The Pareto frontier enforces monotonicity: no surface regresses while another
+advances.
 
 ---
 
-## 2. The Three Dragons
+## 2. The Five Improvement Surfaces
+
+The recursive improvement loop described in `docs/recursive-self-improvement.md`
+optimizes Surface 1 (hyperparameters) directly. But the full optimization
+landscape has five surfaces. All five are in scope for the self-improvement
+system and for this domain audit.
+
+### Surface 1: Hyperparameters (weights and thresholds)
+
+The 15 tunable constants in `PipelineConfig`. These are the traditional "model
+parameters" — numeric values that control scoring, ranking, translation, and
+convergence behavior without changing code structure. Tuning is fast (single
+speedrun), reversible (restore the config), and measurable (scorecard delta).
+
+**Derivative signal**: Scorecard delta per speedrun epoch — `dS₁/dt`.
+**Feedback latency**: One speedrun cycle (seconds to minutes).
+**Leverage**: Moderate — bounded by the expressiveness of the algorithms that
+consume them.
+**Overfitting risk**: High — mitigated by varying the scenario generator seed
+across epochs and requiring improvement to hold across 3+ seeds.
+
+### Surface 2: Code structure (algorithms, patterns, abstractions)
+
+The resolution ladder stages, the candidate lattice algorithm, the harvest
+algorithm, the strategy chain composition, the scoring rule combinators — the
+*functions* that hyperparameters flow through. A better algorithm renders
+parameter sensitivity moot: if the resolution ladder can skip directly to the
+right rung because the information is preserved in a form that makes the answer
+obvious, the individual rung weights don't matter.
+
+Code structure improvements include:
+- **Visitor pattern coverage**: replacing ad-hoc switch/if chains with exhaustive
+  typed folds. Each fold call site is a compile-time contract that new union
+  variants cannot be silently ignored.
+- **Layer integrity**: maintaining `domain → application → runtime → infrastructure`
+  dependency direction.
+- **Composable abstractions**: `ScoringRule` with `combine`/`contramap`,
+  `PipelinePhase` with fold, `StateMachine` with pure transitions.
+- **Pure function ratio**: the percentage of domain-layer functions that are
+  side-effect free.
+- **Envelope discipline**: the percentage of cross-boundary artifacts with full
+  `WorkflowEnvelope` headers.
+
+**Derivative signal**: Architecture fitness report delta — `dS₂/dt`.
+**Feedback latency**: One development cycle.
+**Leverage**: High — structural improvements transfer to all future parameter
+tuning and all future applications.
+**Overfitting risk**: Low — architecture fitness metrics are application-independent.
+
+### Surface 3: Knowledge representation (type surfaces, data schemas)
+
+The type system itself is a compression scheme. `CanonicalTargetRef` compresses
+"the policy number input on the policy-search screen" into a branded string.
+`LocatorStrategy` compresses three families of DOM lookup into a three-variant
+union. `ResolutionReceipt` compresses an entire resolution pipeline execution
+into a typed envelope.
+
+Type surface improvements include:
+- **Discriminated union completeness**: are all possible states represented as
+  variants, or are some hidden in string fields?
+- **Phantom brand coverage**: are governance states carried at the type level,
+  or only at runtime?
+- **Schema evolution**: when a new concept emerges, does it compose with existing
+  types or require parallel truth?
+- **Readonly enforcement**: mutable fields are implicit state machines. Marking
+  fields `readonly` compresses the state space.
+
+**Derivative signal**: Type-check pass/fail + law test delta — `dS₃/dt`.
+**Feedback latency**: One development cycle.
+**Leverage**: Very high — type-level improvements propagate to every consumer
+and every future extension.
+**Overfitting risk**: Zero — type improvements are verified by the compiler,
+not by runtime data. They cannot overfit.
+
+### Surface 4: Documentation and authorial leverage
+
+The CLAUDE.md, `docs/coding-notes.md`, `docs/master-architecture.md`, and
+domain ontology are not passive references — they are *training data for agent
+sessions*. An agent session that correctly applies the supplement hierarchy on
+the first attempt (because `docs/coding-notes.md` explains it clearly) saves
+an entire debug cycle.
+
+Documentation improvements include:
+- **Worked examples**: concrete before/after code samples for each convention.
+- **Anti-pattern galleries**: explicit "do NOT do this" sections with the
+  *specific* failure mode that results.
+- **Decision records**: 3-sentence ADRs (context, decision, consequence).
+- **Cross-reference completeness**: every concept reachable from CLAUDE.md
+  within two hops.
+
+**Derivative signal**: Agent session first-attempt success rate — `dS₄/dt`.
+**Feedback latency**: One agent session.
+**Leverage**: Multiplicative — documentation quality multiplies the effectiveness
+of every agent session, every human review, and every onboarding. Highest
+leverage for agent-developed systems.
+**Overfitting risk**: Low — measurable across different task types.
+
+### Surface 5: Information-theoretic efficiency (lossless compression of domain signal)
+
+The meta-surface. Every code construct, type surface, algorithm, and
+documentation artifact is a compression of domain reality. The question is:
+how much signal survives the compression?
+
+Information efficiency improvements include:
+- **Translation loss rate**: what fraction of intent text meaning is destroyed
+  by normalization?
+- **Supplement reuse factor**: how often is a promoted pattern actually exercised
+  across multiple screens?
+- **Resolution path entropy**: how many different resolution paths lead to the
+  same correct answer? (`-Σ p_rung × log(p_rung)`)
+- **Alias redundancy rate**: what fraction of aliases are strict subsets of
+  other aliases?
+- **Algorithm tuning surface density**: how many independently tunable parameters
+  per unit of output variance?
+
+**Derivative signal**: Information efficiency metrics delta — `dS₅/dt`.
+**Feedback latency**: Multiple speedrun cycles (statistical measurement).
+**Leverage**: Foundational — information efficiency improvements make all other
+surfaces more effective.
+**Overfitting risk**: Moderate — mitigated by wide scenario generator phrasing
+templates and multi-objective Pareto frontier.
+
+### The Integration
+
+The `ObjectiveVector` is the integral of the five surface derivatives over
+iteration time:
+
+```
+ObjectiveVector(t) = ∫₀ᵗ (w₁·dS₁/dτ + w₂·dS₂/dτ + w₃·dS₃/dτ + w₄·dS₄/dτ + w₅·dS₅/dτ) dτ
+```
+
+Where:
+- `t` is iteration count (epochs for Surface 1, development cycles for 2-4,
+  speedrun batches for Surface 5)
+- `wᵢ` are the surface weights (currently implicit; surfacing them is a goal
+  of this audit)
+- Convergence = all five `dSᵢ/dt → 0` simultaneously
+- The scorecard high-water-mark is `max₀≤τ≤t ObjectiveVector(τ)`
+- The Pareto frontier enforces monotonicity: no accepted change may cause any
+  surface to regress (Pareto dominance across the 4 `ParetoObjectives`)
+
+### The Overfitting Concern Across Surfaces
+
+- **Surface 1** (parameters): Vary scenario generator seed. Require improvement
+  across 3+ seeds.
+- **Surface 2** (code): Architecture fitness metrics are application-independent.
+- **Surface 3** (types): Type-level improvements are compiler-verified. Cannot overfit.
+- **Surface 4** (docs): Measurable across different agent tasks.
+- **Surface 5** (information): Requires large sample sizes; Pareto frontier
+  (4 objectives) provides regularization.
+
+**Key insight**: Surfaces 2-5 are inherently more robust to overfitting than
+Surface 1 because they measure structural properties, not behavioral outcomes.
+
+---
+
+## 3. Three Architectural Spines
+
+The system has three co-equal architectural concerns — the three spines — that
+share one interpretation surface. Each spine is a functor from a category of
+inputs to a category of outputs. The natural transformation between them is
+the **Interpretation Surface**: the shared contract all three consume and produce.
 
 ### Formal Definitions
 
-Each dragon has an **aggregate root**, an **input category**, an **output
-category**, and a **lifecycle FSM**.
+Each spine has an **aggregate root**, an **input category**, an **output
+category**, and a **lifecycle**.
 
-#### Dragon 1: Interface Intelligence
+#### Spine 1: Interface Intelligence
 
 | Aspect | Value |
 |--------|-------|
@@ -91,9 +258,10 @@ category**, and a **lifecycle FSM**.
 | Output category | Normalized graph of routes, screens, surfaces, targets, selectors, states, transitions |
 | Primary types | `SurfaceGraph`, `ScreenElements`, `SelectorCanon`, `SelectorProbe`, `StateNode`, `EventSignature`, `StateTransition`, `CanonicalTargetRef` |
 | Type files | `lib/domain/types/interface.ts`, `lib/domain/derived-graph.ts` |
-| Lifecycle | harvest → normalize → derive graph → fingerprint → yield to Dragon 2 |
+| Surfaces served | **S2** (code structure via graph algorithms), **S3** (type surfaces via graph schema), **S5** (information efficiency via compression ratio) |
+| Lifecycle | harvest → normalize → derive graph → fingerprint → yield to Spine 2 |
 
-#### Dragon 2: Agent Workbench
+#### Spine 2: Agent Workbench
 
 | Aspect | Value |
 |--------|-------|
@@ -102,9 +270,10 @@ category**, and a **lifecycle FSM**.
 | Output category | `InterventionReceipt[]` + `RunRecord` + `ProposalBundle` |
 | Primary types | `Participant`, `InterventionReceipt`, `InterventionEffect`, `AgentSession`, `AgentEvent`, `ResolutionReceipt`, `StepExecutionReceipt`, `RunRecord` |
 | Type files | `lib/domain/types/intervention.ts`, `lib/domain/types/session.ts`, `lib/domain/types/execution.ts` |
-| Lifecycle | orient → inspect → resolve → execute → observe → propose → yield to Dragon 3 |
+| Surfaces served | **S2** (code structure via resolution algorithms), **S4** (documentation leverage via agent sessions) |
+| Lifecycle | orient → inspect → resolve → execute → observe → propose → yield to Spine 3 |
 
-#### Dragon 3: Recursive Improvement
+#### Spine 3: Recursive Improvement
 
 | Aspect | Value |
 |--------|-------|
@@ -113,77 +282,91 @@ category**, and a **lifecycle FSM**.
 | Output category | `PipelineConfig'` + `AcceptanceDecision` + `Checkpoint` |
 | Primary types | `ImprovementRun`, `ObjectiveVector`, `PipelineFitnessReport`, `PipelineFailureClass` (8 variants), `CandidateIntervention`, `AcceptanceDecision`, `ParetoFrontier`, `PipelineConfig` (15 tunable parameters) |
 | Type files | `lib/domain/types/improvement.ts`, `lib/domain/types/fitness.ts`, `lib/domain/types/pipeline-config.ts`, `lib/domain/types/architecture-fitness.ts` |
-| Lifecycle | classify failures → search knobs → generate candidates → accept/reject → checkpoint → yield to Dragon 1 |
+| Surfaces served | **S1** (hyperparameters — primary), orchestrates measurement for **all five** |
+| Lifecycle | classify failures → search knobs → generate candidates → accept/reject → checkpoint → yield to Spine 1 |
 
 ### The Feedback Loop
 
 ```
-Dragon 1 (Interface Intelligence)
+Spine 1 (Interface Intelligence)
   │
   │  InterfaceSnapshot: graph + selectors + state
   ▼
-Dragon 2 (Agent Workbench)
+Spine 2 (Agent Workbench)
   │
   │  FitnessSignal: classified failures + objective vector
   ▼
-Dragon 3 (Recursive Improvement)
+Spine 3 (Recursive Improvement)
   │
   │  ConfigUpdate: new pipeline config + acceptance decision
   ▼
-Dragon 1 (Interface Intelligence)  ← cycle restarts
+Spine 1 (Interface Intelligence)  ← cycle restarts
 ```
 
-Dragon 3's output (better config) improves Dragon 1's graph derivation quality,
-which improves Dragon 2's resolution hit rate, which reduces Dragon 3's error
+Spine 3's output (better config) improves Spine 1's graph derivation quality,
+which improves Spine 2's resolution hit rate, which reduces Spine 3's error
 signal. This is a discrete-time feedback controller with convergence guarantees
 (see §14).
 
----
+### The Spine-to-Surface Mapping
 
-## 3. Cross-Dragon Protocols
+Each spine serves multiple surfaces. Each surface is served by multiple spines.
+The mapping is:
 
-### The Handoff Envelope
+| Surface | Spine 1 (Interface) | Spine 2 (Workbench) | Spine 3 (Improvement) |
+|---------|:------------------:|:-------------------:|:--------------------:|
+| S1: Hyperparameters | — | — | **primary** |
+| S2: Code structure | graph algorithms | resolution algorithms | knob search |
+| S3: Type surfaces | graph schema | receipt types | fitness types |
+| S4: Documentation | — | agent session leverage | — |
+| S5: Information efficiency | compression ratio | resolution entropy | metric minimization |
 
-Every dragon-to-dragon communication is wrapped in a typed envelope that extends
-the existing `WorkflowEnvelope` discipline:
+This is the key structural insight: the three spines are not independent
+pipelines — they are three perspectives on the same five improvement objectives.
+The integration across surfaces is what makes improvement coherent rather than
+local.
+
+### Cross-Spine Protocols
+
+Every spine-to-spine communication is wrapped in the existing `WorkflowEnvelope`
+discipline:
 
 ```typescript
-interface DragonHandoff<TPayload> {
-  readonly kind: 'dragon-handoff'
-  readonly version: 1
-  readonly source: DragonKind          // which dragon emitted
-  readonly target: DragonKind          // which dragon consumes
-  readonly phase: DragonPhase          // source dragon's lifecycle phase
-  readonly fingerprint: string         // content-addressable
-  readonly lineage: readonly string[]  // source artifact refs
-  readonly governance: Governance      // max of source governance
+interface WorkflowEnvelope<TPayload> {
+  readonly kind: string
+  readonly version: number
+  readonly stage: string
+  readonly scope: string
+  readonly ids: Record<string, string>
+  readonly fingerprints: Record<string, string>
+  readonly lineage: readonly string[]
+  readonly governance: Governance
   readonly payload: TPayload
 }
 ```
 
-### The Three Handoff Points
+The three handoff points:
 
-| Handoff | Source → Target | Payload Type | Seam |
-|---------|----------------|--------------|------|
-| H1 | D1 → D2 | `InterfaceSnapshot` (graph + selectors + state graph) | Seam 2 (Knowledge → Resolution) |
-| H2 | D2 → D3 | `FitnessSignal` (classified failures + objective vector) | Seam 4 (Execution → Projection) |
-| H3 | D3 → D1 | `ConfigUpdate` (new pipeline config + acceptance decision) | Seam 5 (Projection → Knowledge) |
+| Handoff | Source → Target | Payload Type | Existing Seam |
+|---------|----------------|--------------|---------------|
+| H1 | Spine 1 → Spine 2 | `InterfaceSnapshot` (graph + selectors + state) | Seam 2 (Knowledge → Resolution) |
+| H2 | Spine 2 → Spine 3 | `FitnessSignal` (classified failures + objective vector) | Seam 4 (Execution → Projection) |
+| H3 | Spine 3 → Spine 1 | `ConfigUpdate` (new pipeline config + acceptance decision) | Seam 5 (Projection → Knowledge) |
 
-### Invariants on Handoffs
+### Invariants on Cross-Spine Communication
 
 1. **Governance monotonicity**: Governance cannot loosen through a handoff.
-   If source dragon is `review-required`, handoff is at least `review-required`.
+   If source spine is `review-required`, the handoff is at least `review-required`.
 2. **Fingerprint derivation**: Handoff fingerprint is deterministically derived
    from payload content (SHA256 of stable JSON stringify).
 3. **Lineage completeness**: Every handoff carries refs to all source artifacts
    that contributed to the payload.
-4. **Phase ordering**: Source dragon must be in `yielding` phase to emit.
-5. **Functor law**: `mapHandoffPayload(id) === id` and
-   `mapHandoffPayload(f . g) === mapHandoffPayload(f) . mapHandoffPayload(g)`.
+4. **Functor law**: `mapPayload(envelope, id) === id` and
+   `mapPayload(envelope, f . g) === mapPayload(envelope, f) . mapPayload(envelope, g)`.
 
 ---
 
-## 4. Dragon 1: Interface Intelligence
+## 4. Interface Intelligence
 
 ### What Exists Today
 
@@ -262,21 +445,24 @@ Three phases, each deepening the graph:
    the derived layer promote to canonical knowledge. Trust policy gates all
    promotions.
 
-### What This Audit Adds to Dragon 1
+### What This Audit Adds to Spine 1
 
-1. **Dragon lifecycle tracking**: Dragon 1 gets a typed `DragonState` that
-   tracks which phase of harvesting is active (dormant → ingesting → processing
-   → yielding → complete).
-2. **Handoff H1**: A typed `DragonHandoff<InterfaceSnapshot>` envelope carries
-   the graph + selectors + state to Dragon 2, replacing the implicit coupling
+1. **Surface mapping**: Spine 1 explicitly tracks which surfaces it serves —
+   **S2** (code structure via graph derivation algorithms), **S3** (type
+   surfaces via the graph schema itself), and **S5** (information efficiency
+   via the compression ratio of graph vs raw DOM).
+
+2. **Cross-spine handoff H1**: A `WorkflowEnvelope<InterfaceSnapshot>` carries
+   the graph + selectors + state to Spine 2, replacing implicit coupling
    through `WorkspaceCatalog`.
+
 3. **Graph-as-provenance**: Every graph node carries `source: 'approved-knowledge'
-   | 'discovery' | 'derived-working'` — this is already modeled but the ontology
-   document doesn't derive it from first principles.
+   | 'discovery' | 'derived-working'` — already modeled but the ontology
+   document doesn't derive it from first principles. This audit closes that gap.
 
 ---
 
-## 5. Dragon 2: Agent Workbench
+## 5. Agent Workbench
 
 ### What Exists Today
 
@@ -321,7 +507,7 @@ receipts with provenance.**
 
 ### The Resolution Ladder (Precedence Law)
 
-The core behavioral contract of Dragon 2 is the resolution precedence law:
+The core behavioral contract of Spine 2 is the resolution precedence law:
 
 ```
 1. explicit scenario fields           (highest precedence)
@@ -339,7 +525,7 @@ This is a **total ordering** that short-circuits at first match. It is
 law-tested in `tests/precedence.laws.spec.ts` using seeded Mulberry32 PRNG
 across 75-150 seeds, proving permutation invariance and exhaustion completeness.
 
-### What This Audit Adds to Dragon 2
+### What This Audit Adds to Spine 2
 
 1. **External agent participants**: Claude Code, GitHub Copilot, CI runners,
    and human operators modeled as distinct `ExternalAgentParticipant` subtypes
@@ -356,12 +542,14 @@ across 75-150 seeds, proving permutation invariance and exhaustion completeness.
    with before/after fitness reports. This closes the meta-loop: recursive
    self-improvement of the recursive self-improvement system.
 
-4. **Handoff H2**: A typed `DragonHandoff<FitnessSignal>` carries classified
-   failures + objective vector from Dragon 2 to Dragon 3.
+4. **Surface mapping**: Spine 2 explicitly tracks which surfaces it serves —
+   **S2** (code structure via resolution algorithms), **S4** (documentation
+   leverage, because agent sessions consume docs and their effectiveness
+   measures documentation quality).
 
 ---
 
-## 6. Dragon 3: Recursive Improvement
+## 6. Recursive Improvement
 
 ### What Exists Today
 
@@ -385,8 +573,8 @@ across 75-150 seeds, proving permutation invariance and exhaustion completeness.
 - **`lib/application/knob-search.ts`**: Maps `PipelineFailureClass` → tunable
   parameter perturbations. Generates `PipelineConfig` candidates.
 - **`lib/application/dogfood.ts`**: `runDogfoodLoop` — recursive fold over
-  improvement iterations with convergence detection (currently a simple
-  `converged: boolean` + `convergenceReason: string`).
+  improvement iterations with convergence detection. Four convergence branches:
+  `no-proposals`, `threshold-met`, `budget-exhausted`, `max-iterations`.
 
 ### Primitives (First-Principles Derivation)
 
@@ -433,65 +621,72 @@ converged?(ObjectiveHistory) → boolean
        └─ no  → loop with new Config
 ```
 
-### What This Audit Adds to Dragon 3
+### Convergence (Simple, Not Over-Engineered)
 
-1. **Convergence FSM**: Replace the boolean `converged` + string
-   `convergenceReason` with a proper state machine:
+The actual convergence logic in `dogfood.ts` has four branches — and that is
+the right level of complexity for a system with one actor and one experiment
+at a time:
 
-   ```
-   initial → exploring → narrowing → plateau → converged
-                ↘                      ↗
-                  diverging ──────────
-   ```
+1. **`no-proposals`**: No proposals were generated in the last iteration.
+   The system has nothing left to try. Stop.
+2. **`threshold-met`**: The improvement delta between consecutive iterations
+   fell below the convergence threshold. The system is in a local optimum. Stop.
+3. **`budget-exhausted`**: The cumulative instruction count exceeded the
+   instruction budget. Stop to prevent runaway.
+4. **`max-iterations`**: The iteration limit was reached. Stop as a safety net.
 
-   Six phases with pure transition function. The sliding window of recent
-   improvement rates is the discrete derivative of the error signal. The
-   `epsilon` parameter is the dead-band width. See §10 for types.
+This audit enriches the convergence signal with one addition: `'regression-detected'`
+as a fifth `ImprovementConvergenceReason`. This covers the case where the
+objective vector *worsens* after a parameter change — the system should stop
+and roll back, not continue iterating. This is a simple discriminant extension,
+not a full FSM.
 
-2. **Performance hyper-parameters**: Alongside the existing 15 accuracy
-   parameters, add efficiency parameters: compilation latency budget,
-   resolution timeout, memory ceiling for graph accumulation, incremental
-   rebuild threshold, parallelism degree, cache policy. These are distinct
-   from fitness parameters (which tune accuracy); performance parameters
-   tune throughput. See §9 for details.
+### What This Audit Adds to Spine 3
 
-3. **Extended objective vector**: `ExtendedObjectiveVector` adds
-   `compilationLatencyMs`, `peakMemoryMb`, `cacheHitRate` alongside the
-   existing `pipelineFitness`, `architectureFitness`, `operatorCost`. Pareto
-   dominance extends naturally to the higher-dimensional space.
+1. **Convergence enrichment**: Add `'regression-detected'` to the existing
+   `ImprovementConvergenceReason` union. No FSM, no sliding windows, no epsilon
+   dead-bands — just a fifth reason alongside the existing four.
+
+2. **Performance hyper-parameters**: Alongside the 15 accuracy parameters, add
+   efficiency parameters for throughput tuning. See §9.
+
+3. **Extended objective vector**: `ExtendedObjectiveVector` adds efficiency
+   dimensions alongside accuracy dimensions. See §9.
 
 4. **Operator-as-improver context**: When the improvement loop is driven by
-   an external agent (Claude Code doing a domain audit, a human tuning
-   parameters), that operator gets a typed `OperatorImproverContext` with
-   budget limits, fitness baseline, and intervention cap.
+   an external agent, that operator gets a typed `OperatorImproverContext` with
+   fitness baseline and target objectives.
 
-5. **Handoff H3**: A typed `DragonHandoff<ConfigUpdate>` carries the new
-   pipeline config + acceptance decision from Dragon 3 back to Dragon 1.
+5. **Surface mapping**: Spine 3 is the primary driver of **S1** (hyperparameters),
+   and orchestrates measurement for all five surfaces through the
+   `PipelineFitnessReport` (S1, S5), `ArchitectureFitnessReport` (S2, S3),
+   and agent session effectiveness tracking (S4).
 
 ---
 
-## 7. Meta-Dragons
+## 7. Meta-Concerns
 
-### Meta-Dragon A: Domain Alignment
+### Meta-Concern A: Domain Alignment
 
 **Axiom**: The ontology communicates the territory. File paths, type names,
 and package boundaries are part of the product — not incidental to it.
 
 **Measurable properties**:
 
-| Metric | Definition | Target |
-|--------|-----------|--------|
-| Ontology coverage | % of types in `lib/domain/types/` mentioned in `docs/domain-ontology.md` | 100% |
-| Path correspondence | Type name matches file path (e.g. `ImprovementRun` in `improvement.ts`) | 100% |
-| Concept density | Average LOC per domain primitive | < 50 |
-| Layer purity | Zero imports from application/infrastructure/runtime in `lib/domain/` | 0 violations |
-| Exhaustive branching | All discriminated unions have fold functions in `visitors.ts` | 100% |
+| Metric | Definition | Target | Surface |
+|--------|-----------|--------|---------|
+| Ontology coverage | % of types in `lib/domain/types/` mentioned in `docs/domain-ontology.md` | 100% | S3 |
+| Path correspondence | Type name matches file path (e.g. `ImprovementRun` in `improvement.ts`) | 100% | S3 |
+| Concept density | Average LOC per domain primitive | < 50 | S2 |
+| Layer purity | Zero imports from application/infrastructure/runtime in `lib/domain/` | 0 violations | S2 |
+| Exhaustive branching | All discriminated unions have fold functions in `visitors.ts` | 100% | S2 |
 
 **Why this matters**: A new contributor should be able to navigate from
 `domain-ontology.md` to the exact type file to the exact fold function
-without grep. The codebase IS the documentation.
+without grep. The codebase IS the documentation. This maps directly to
+**Surface 3** (type surfaces) and **Surface 4** (documentation leverage).
 
-### Meta-Dragon B: Engineering Delight
+### Meta-Concern B: Engineering Delight
 
 **Axiom**: Developing this system should be a joy, not a chore. The type
 system should prevent mistakes at compile time. The test suite should prove
@@ -499,18 +694,18 @@ properties, not just check examples.
 
 **Measurable properties** (from `ArchitectureFitnessReport`):
 
-| Metric | Definition | Target |
-|--------|-----------|--------|
-| Purity rate | % of domain functions that are pure | > 95% |
-| Visitor coverage | % of discriminated unions with exhaustive fold | 100% |
-| Envelope discipline | % of cross-boundary artifacts with standard envelope | 100% |
-| Parameter exposure | % of tunable knobs surfaced in `PipelineConfig` | > 90% |
-| Law test coverage | % of deterministic invariants with property-based tests | > 80% |
-| FP compliance | Zero `let`, `push`, `for` in `lib/domain/` (enforced by ESLint) | 0 violations |
+| Metric | Definition | Target | Surface |
+|--------|-----------|--------|---------|
+| Purity rate | % of domain functions that are pure | > 95% | S2 |
+| Visitor coverage | % of discriminated unions with exhaustive fold | 100% | S2 |
+| Envelope discipline | % of cross-boundary artifacts with standard envelope | 100% | S5 |
+| Parameter exposure | % of tunable knobs surfaced in `PipelineConfig` | > 90% | S1 |
+| Law test coverage | % of deterministic invariants with property-based tests | > 80% | S2 |
+| FP compliance | Zero `let`, `push`, `for` in `lib/domain/` (enforced by ESLint) | 0 violations | S2 |
 
 **Why this matters**: `ArchitectureFitnessReport` is already a first-class
-type in the system. Meta-Dragon B means the system measures its own
-engineering health as part of the improvement loop — Dragon 3 can propose
+type in the system. Meta-Concern B means the system measures its own
+engineering health as part of the improvement loop — Spine 3 can propose
 refactoring interventions when architecture fitness degrades.
 
 ---
@@ -640,8 +835,9 @@ interface OperatorImprovementIntervention {
 
 This means: when Claude Code edits `lib/application/knob-search.ts` to improve
 the pipeline's failure classification, that intervention is tracked with
-before/after fitness reports. Dragon 3 can analyze the delta and learn which
-kinds of operator interventions are most effective.
+before/after fitness reports. The improvement spine can analyze the delta and
+learn which kinds of operator interventions are most effective — this is the
+actor that drives integration across all five surfaces.
 
 ### Patterns Applied
 
@@ -663,8 +859,12 @@ kinds of operator interventions are most effective.
 The existing `PipelineConfig` has 15 parameters — all tuning **accuracy**
 (selector health, evidence counts, confidence thresholds, translation floors,
 decay rates). There are zero parameters tuning **efficiency** (latency, memory,
-parallelism, caching). This means Dragon 3 can optimize for quality but not
-for speed.
+parallelism, caching). This means the improvement spine can optimize for
+quality but not for speed.
+
+This section is a **Surface 1 extension**: adding efficiency knobs alongside
+the existing accuracy knobs, widening the hyperparameter surface that the
+knob search can explore.
 
 ### Performance Config
 
@@ -721,7 +921,7 @@ follows the same pattern as `validatePipelineConfig`:
 - `cacheEvictionPolicy` must be one of the three valid values
 - `effectParallelismDegree` must be ≥ 1
 
-### Integration with Dragon 3
+### Integration with the Improvement Spine
 
 The knob search expands to consider performance parameters alongside accuracy
 parameters. When the fitness report shows `timeout` failures, the knob search
@@ -729,98 +929,15 @@ can propose increasing `resolutionTimeoutMs`. When compilation latency exceeds
 budget, it can propose increasing `effectParallelismDegree` or adjusting
 `incrementalRebuildThreshold`.
 
+This is a natural extension of Surface 1: the hyperparameter space grows from
+15 accuracy knobs to 15 + 8 = 23 total knobs, with the same failure-to-parameter
+mapping discipline applied to both.
+
 ---
 
 ## 10. New Type Artifacts
 
-### Artifact 1: `lib/domain/types/dragon.ts` (NEW)
-
-```typescript
-// ── Dragon discriminant ──
-
-export type DragonKind =
-  | 'interface-intelligence'
-  | 'agent-workbench'
-  | 'recursive-improvement'
-
-// ── Dragon lifecycle FSM ──
-
-export type DragonPhase =
-  | 'dormant'      // not yet activated for this run
-  | 'ingesting'    // consuming inputs
-  | 'processing'   // executing primary computation
-  | 'yielding'     // producing outputs for other dragons
-  | 'complete'     // done for this cycle
-
-export interface DragonState {
-  readonly dragon: DragonKind
-  readonly phase: DragonPhase
-  readonly cycleNumber: number
-  readonly inputFingerprint: string | null
-  readonly outputFingerprint: string | null
-  readonly handoffsEmitted: number
-  readonly handoffsConsumed: number
-}
-
-export type DragonTransition =
-  | { readonly kind: 'activate'; readonly inputFingerprint: string }
-  | { readonly kind: 'advance' }
-  | { readonly kind: 'yield-output'; readonly outputFingerprint: string }
-  | { readonly kind: 'complete' }
-
-// Pure transition function — the FSM kernel
-export function stepDragonPhase(
-  state: DragonState,
-  transition: DragonTransition
-): DragonState {
-  // ... deterministic, law-testable, no side effects
-}
-
-// ── Cross-dragon handoff ──
-
-export interface DragonHandoff<TPayload> {
-  readonly kind: 'dragon-handoff'
-  readonly version: 1
-  readonly source: DragonKind
-  readonly target: DragonKind
-  readonly phase: DragonPhase
-  readonly fingerprint: string
-  readonly lineage: readonly string[]
-  readonly governance: Governance
-  readonly payload: TPayload
-}
-
-export function mapHandoffPayload<A, B>(
-  handoff: DragonHandoff<A>,
-  f: (a: A) => B
-): DragonHandoff<B> {
-  // Preserves functor laws: map(id) === id, map(f . g) === map(f) . map(g)
-}
-
-// ── Fold functions (exhaustive case analysis) ──
-
-export function foldDragonKind<R>(
-  kind: DragonKind,
-  cases: {
-    readonly interfaceIntelligence: () => R
-    readonly agentWorkbench: () => R
-    readonly recursiveImprovement: () => R
-  }
-): R
-
-export function foldDragonPhase<R>(
-  phase: DragonPhase,
-  cases: {
-    readonly dormant: () => R
-    readonly ingesting: () => R
-    readonly processing: () => R
-    readonly yielding: () => R
-    readonly complete: () => R
-  }
-): R
-```
-
-### Artifact 2: `lib/domain/types/external-agent.ts` (NEW)
+### Artifact 1: `lib/domain/types/external-agent.ts` (NEW)
 
 ```typescript
 export type ExternalAgentKind =
@@ -912,50 +1029,23 @@ export function foldSagaStepKind<R>(kind: SagaStepKind, cases: { ... }): R
 export function foldSagaStepStatus<R>(status: SagaStepStatus, cases: { ... }): R
 ```
 
-### Artifact 3: Extensions to `lib/domain/types/improvement.ts`
+### Artifact 2: Extensions to `lib/domain/types/improvement.ts`
 
 New types added (backward-compatible, no breaking changes):
 
 ```typescript
-// ── Convergence FSM ──
+// ── Convergence reason enrichment ──
 
-export type ConvergencePhase =
-  | 'initial'       // no iterations yet
-  | 'exploring'     // objective improving, not yet stable
-  | 'narrowing'     // improvement rate decreasing
-  | 'plateau'       // below epsilon for N consecutive iterations
-  | 'converged'     // stable; further iterations unlikely to help
-  | 'diverging'     // objective worsening
+// Extend existing ImprovementConvergenceReason with regression detection:
+export type ImprovementConvergenceReason =
+  | 'no-proposals'
+  | 'threshold-met'
+  | 'budget-exhausted'
+  | 'max-iterations'
+  | 'regression-detected'   // NEW: objective vector worsened
+  | null;
 
-export interface ConvergenceState {
-  readonly phase: ConvergencePhase
-  readonly iterationsSinceLastImprovement: number
-  readonly cumulativeImprovementRate: number
-  readonly recentImprovementRates: readonly number[]  // sliding window
-  readonly plateauLength: number
-  readonly epsilon: number                             // convergence threshold
-  readonly windowSize: number
-}
-
-export type ConvergenceEvent =
-  | { readonly kind: 'iteration-completed'; readonly improvementRate: number }
-  | { readonly kind: 'regression-detected'; readonly magnitude: number }
-  | { readonly kind: 'budget-exhausted' }
-  | { readonly kind: 'manual-stop' }
-
-export function stepConvergence(
-  state: ConvergenceState,
-  event: ConvergenceEvent
-): ConvergenceState {
-  // Pure FSM transition — deterministic, law-testable
-}
-
-export function foldConvergencePhase<R>(
-  phase: ConvergencePhase,
-  cases: { ... }
-): R
-
-// ── Performance Config ──
+// ── Performance Config (Surface 1 extension) ──
 
 export interface PerformanceConfig {
   readonly compilationLatencyBudgetMs: number
@@ -974,7 +1064,7 @@ export function validatePerformanceConfig(
   config: PerformanceConfig
 ): readonly string[]
 
-// ── Extended Objectives ──
+// ── Extended Objectives (Surface 1 efficiency dimensions) ──
 
 export interface ExtendedObjectiveVector extends ObjectiveVector {
   readonly compilationLatencyMs: number
@@ -989,12 +1079,11 @@ export interface OperatorImproverContext {
   readonly agentKind: ExternalAgentKind
   readonly currentObjectiveVector: ObjectiveVector
   readonly targetObjectiveVector: Partial<ObjectiveVector>
-  readonly interventionBudget: number
   readonly fitnessBaseline: PipelineFitnessReport
 }
 ```
 
-### Artifact 4: Extensions to `ImprovementRun`
+### Artifact 3: Extensions to `ImprovementRun`
 
 Add optional fields (backward-compatible):
 
@@ -1002,29 +1091,24 @@ Add optional fields (backward-compatible):
 interface ImprovementRun {
   // ... existing fields unchanged ...
   readonly performanceConfig?: PerformanceConfig
-  readonly convergenceState?: ConvergenceState
   readonly operatorContext?: OperatorImproverContext
 }
 ```
 
-### Artifact 5: Extensions to `lib/domain/visitors.ts`
+### Artifact 4: Extensions to `lib/domain/visitors.ts`
 
-Add fold functions for all new discriminated unions:
-- `foldDragonKind`
-- `foldDragonPhase`
+Add fold functions for new discriminated unions:
 - `foldExternalAgentKind`
 - `foldSagaStepKind`
 - `foldSagaStepStatus`
-- `foldConvergencePhase`
 
 All follow the existing pattern: exhaustive case analysis via object-of-functions,
 TypeScript compiler enforces completeness.
 
-### Artifact 6: Extensions to `lib/domain/identity.ts`
+### Artifact 5: Extensions to `lib/domain/identity.ts`
 
-New branded IDs:
+New branded ID:
 - `SagaId` — branded string for saga identification
-- `DragonHandoffId` — branded string for handoff identification
 
 ---
 
@@ -1034,21 +1118,7 @@ All law tests follow the established pattern in the codebase: seeded Mulberry32
 PRNG, 75-150 seeds, proving properties for ALL valid inputs rather than spot
 examples.
 
-### Test File 1: `tests/dragon-interaction.laws.spec.ts`
-
-**Pattern source**: `tests/precedence.laws.spec.ts`
-
-| Law | Property | Seeds |
-|-----|----------|-------|
-| Dragon phase determinism | Same `(state, transition)` → same next state | 150 |
-| Phase ordering | `dormant → ingesting → processing → yielding → complete` is the only valid forward path; no skipping | 100 |
-| Handoff functor identity | `mapHandoffPayload(x, id) === x` | 100 |
-| Handoff functor composition | `mapHandoffPayload(x, f ∘ g) === mapHandoffPayload(mapHandoffPayload(x, g), f)` | 100 |
-| Governance monotonicity | Handoff governance is ≥ source governance (cannot loosen) | 150 |
-| Cross-dragon fingerprint stability | Same inputs → same handoff fingerprint across all seeds | 150 |
-| Cycle number monotonicity | `cycleNumber` never decreases through transitions | 100 |
-
-### Test File 2: `tests/external-agent.laws.spec.ts`
+### Test File 1: `tests/external-agent.laws.spec.ts`
 
 **Pattern source**: `tests/visitors.laws.spec.ts`
 
@@ -1061,21 +1131,7 @@ examples.
 | Fold exhaustiveness | `foldExternalAgentKind`, `foldSagaStepKind`, `foldSagaStepStatus` cover all variants | 50 |
 | Operator improvement fitness consistency | If `fitnessReportAfter` dominates `fitnessReportBefore` on all objectives, verdict is `accepted` | 100 |
 
-### Test File 3: `tests/convergence-fsm.laws.spec.ts`
-
-**Pattern source**: `tests/pipeline-fitness.laws.spec.ts`
-
-| Law | Property | Seeds |
-|-----|----------|-------|
-| Phase transition determinism | Same `(state, event)` → same next state | 150 |
-| Phase reachability | Every phase is reachable from `initial` via some event sequence | 50 |
-| Convergence absorbing | Once `converged`, no transition returns to `exploring` (absorbing state) | 100 |
-| Divergence detection | Known regression sequences (negative improvement for windowSize iterations) always reach `diverging` | 100 |
-| Sliding window size | Window maintains exactly `windowSize` entries after `windowSize` iterations | 100 |
-| Plateau detection | If improvement rate < epsilon for plateauLength consecutive iterations, phase = `plateau` | 100 |
-| Fold exhaustiveness | `foldConvergencePhase` covers all 6 variants | 50 |
-
-### Test File 4: `tests/performance-config.laws.spec.ts`
+### Test File 2: `tests/performance-config.laws.spec.ts`
 
 **Pattern source**: `tests/pipeline-fitness.laws.spec.ts`
 
@@ -1087,34 +1143,25 @@ examples.
 | Extended Pareto consistency | If A dominates B on base `ObjectiveVector`, and A.perf === B.perf, then A dominates B on `ExtendedObjectiveVector` | 100 |
 | Validation round-trip | `validate(validate(x))` returns same errors as `validate(x)` | 100 |
 
+### Test File 3: `tests/surface-integration.laws.spec.ts` (NEW)
+
+**Pattern source**: `tests/pipeline-fitness.laws.spec.ts`
+
+| Law | Property | Seeds |
+|-----|----------|-------|
+| Monotonicity across surfaces | An accepted change must not cause any of the 5 surface metrics to regress (Pareto dominance) | 150 |
+| Integration additivity | ObjectiveVector(t₁+t₂) = ObjectiveVector(t₁) + ∫ₜ₁ᵗ¹⁺ᵗ² dS/dτ dτ | 100 |
+| Convergence detection | If all five surface derivatives are below epsilon for N consecutive epochs, convergence is declared | 100 |
+| High-water-mark monotonicity | The scorecard high-water-mark never decreases | 100 |
+| Surface weight positivity | All surface weights in the integration formula are positive | 50 |
+
 ---
 
 ## 12. Updated Seams and Invariants
 
-Three new seams added to the existing five in `docs/seams-and-invariants.md`.
+Two new seams added to the existing five in `docs/seams-and-invariants.md`.
 
-### Seam 6: Dragon-to-Dragon Handoffs
-
-**What crosses**: Dragon outputs wrapped in `DragonHandoff<TPayload>` envelopes.
-
-**Contract types**:
-- H1 (D1→D2): `DragonHandoff<InterfaceSnapshot>` — graph + selectors + state
-- H2 (D2→D3): `DragonHandoff<FitnessSignal>` — classified failures + objective vector
-- H3 (D3→D1): `DragonHandoff<ConfigUpdate>` — new config + acceptance decision
-
-**Invariants**:
-1. Governance monotonicity — handoff governance ≥ max(source, target) dragon governance
-2. Fingerprint derivation — deterministic from payload (SHA256 of stable JSON)
-3. Lineage completeness — every handoff carries refs to all contributing source artifacts
-4. Phase ordering — source dragon must be in `yielding` phase to emit a handoff
-5. Functor laws — `mapHandoffPayload` preserves identity and composition
-
-**Effect pattern**: Handoffs are pure values. They are created in `lib/domain/`
-and consumed in `lib/application/` via Effect-based orchestration.
-
-**Law tests**: `tests/dragon-interaction.laws.spec.ts`
-
-### Seam 7: External Agent Interventions
+### Seam 6: External Agent Interventions
 
 **What crosses**: `InterventionSaga` envelopes from external agents.
 
@@ -1136,7 +1183,7 @@ the Effect layer handles filesystem and external I/O.
 
 **Law tests**: `tests/external-agent.laws.spec.ts`
 
-### Seam 8: Performance Tuning Surface
+### Seam 7: Performance Tuning Surface
 
 **What crosses**: `PerformanceConfig` alongside `PipelineConfig` in improvement runs.
 
@@ -1158,6 +1205,27 @@ pure domain code.
 
 **Law tests**: `tests/performance-config.laws.spec.ts`
 
+### Seam 8: Surface Integration
+
+**What crosses**: Five surface derivative measurements combine into the
+`ObjectiveVector` trajectory.
+
+**Contract types**:
+- Input: Per-surface metric deltas (dS₁/dt through dS₅/dt)
+- Output: Integrated `ObjectiveVector`, convergence signal, scorecard update
+
+**Invariants**:
+1. Monotonicity — no accepted change may cause any surface to regress
+2. Additivity — integration is additive over disjoint time intervals
+3. Convergence consistency — all five derivatives below epsilon implies convergence
+4. High-water-mark monotonicity — scorecard max never decreases
+5. Weight positivity — all surface weights are strictly positive
+
+**Effect pattern**: Surface measurement is pure aggregation in `lib/domain/`.
+The integration formula is a fold over the five derivative signals.
+
+**Law tests**: `tests/surface-integration.laws.spec.ts`
+
 ---
 
 ## 13. Implementation Sequencing
@@ -1166,74 +1234,68 @@ pure domain code.
 
 | Step | File | Action | Dependencies |
 |------|------|--------|-------------|
-| A1 | `lib/domain/types/dragon.ts` | Create: DragonKind, DragonPhase, DragonState, DragonTransition, DragonHandoff, stepDragonPhase, mapHandoffPayload, foldDragonKind, foldDragonPhase | None |
-| A2 | `lib/domain/types/external-agent.ts` | Create: ExternalAgentKind, AgentToolCapability, ExternalAgentParticipant, SagaStep, InterventionSaga, OperatorImprovementIntervention, fold functions | `intervention.ts` (imports Participant, ParticipantRef) |
-| A3 | `lib/domain/visitors.ts` | Add fold functions for new discriminated unions | A1, A2 |
-| A4 | `lib/domain/identity.ts` | Add `SagaId`, `DragonHandoffId` branded types | None |
+| A1 | `lib/domain/types/external-agent.ts` | Create: ExternalAgentKind, AgentToolCapability, ExternalAgentParticipant, SagaStep, InterventionSaga, OperatorImprovementIntervention, fold functions | `intervention.ts` (imports Participant, ParticipantRef) |
+| A2 | `lib/domain/visitors.ts` | Add fold functions for new discriminated unions | A1 |
+| A3 | `lib/domain/identity.ts` | Add `SagaId` branded type | None |
 
 ### Phase B: Extend Existing Types (backward-compatible additions)
 
 | Step | File | Action | Dependencies |
 |------|------|--------|-------------|
-| B1 | `lib/domain/types/improvement.ts` | Add ConvergencePhase, ConvergenceState, ConvergenceEvent, stepConvergence, foldConvergencePhase, PerformanceConfig, DEFAULT_PERFORMANCE_CONFIG, validatePerformanceConfig, ExtendedObjectiveVector, OperatorImproverContext | A2 (imports ExternalAgentKind) |
-| B2 | `lib/domain/types/improvement.ts` | Add optional fields to ImprovementRun (performanceConfig, convergenceState, operatorContext) | B1 |
-| B3 | `lib/domain/types/index.ts` | Re-export new types from dragon.ts and external-agent.ts | A1, A2 |
+| B1 | `lib/domain/types/improvement.ts` | Add `'regression-detected'` to `ImprovementConvergenceReason`, add PerformanceConfig, DEFAULT_PERFORMANCE_CONFIG, validatePerformanceConfig, ExtendedObjectiveVector, OperatorImproverContext | A1 (imports ExternalAgentKind) |
+| B2 | `lib/domain/types/improvement.ts` | Add optional fields to ImprovementRun (performanceConfig, operatorContext) | B1 |
+| B3 | `lib/domain/types/index.ts` | Re-export new types from external-agent.ts | A1 |
 
 ### Phase C: Law Tests
 
 | Step | File | Action | Dependencies |
 |------|------|--------|-------------|
-| C1 | `tests/dragon-interaction.laws.spec.ts` | Write 7 law tests for dragon lifecycle and handoff contracts | A1 |
-| C2 | `tests/external-agent.laws.spec.ts` | Write 6 law tests for saga and capability contracts | A2 |
-| C3 | `tests/convergence-fsm.laws.spec.ts` | Write 7 law tests for convergence FSM properties | B1 |
-| C4 | `tests/performance-config.laws.spec.ts` | Write 5 law tests for performance config validation | B1 |
+| C1 | `tests/external-agent.laws.spec.ts` | Write 6 law tests for saga and capability contracts | A1 |
+| C2 | `tests/performance-config.laws.spec.ts` | Write 5 law tests for performance config validation | B1 |
+| C3 | `tests/surface-integration.laws.spec.ts` | Write 5 law tests for surface integration invariants | B1 |
 
 ### Phase D: Documentation
 
 | Step | File | Action | Dependencies |
 |------|------|--------|-------------|
-| D1 | `docs/domain-ontology.md` | Major rewrite: restructure into Three Dragons framing, re-derive all primitives from first principles, add cross-dragon concepts, add meta-dragons | A1-B3 (needs to reference new types) |
-| D2 | `docs/master-architecture.md` | Add sections: The Three Dragons, Cross-Dragon Protocols, Meta-Dragons as NFRs, Performance Tuning Surface, reframe phased program | A1-B3 |
-| D3 | `docs/seams-and-invariants.md` | Add Seams 6-8 (dragon handoffs, external agents, performance) | A1-B3, C1-C4 |
+| D1 | `docs/domain-ontology.md` | Major rewrite: restructure into five-surfaces/three-spines framing, re-derive all primitives from first principles | A1-B3 (needs to reference new types) |
+| D2 | `docs/master-architecture.md` | Add sections: Three Spines, Cross-Spine Protocols, Meta-Concerns as NFRs, Performance Tuning Surface | A1-B3 |
+| D3 | `docs/seams-and-invariants.md` | Add Seams 6-8 (external agents, performance, surface integration) | A1-B3, C1-C3 |
 
 ### Phase E: Application Layer Integration (future, after plan approval)
 
 | Step | File | Action | Dependencies |
 |------|------|--------|-------------|
-| E1 | `lib/application/speedrun.ts` | Wire `DragonState` tracking into pipeline orchestration | A1, D1-D3 |
-| E2 | `lib/application/improvement.ts` | Wire `ConvergenceState` FSM (replace boolean convergence) | B1-B2 |
-| E3 | `lib/application/dogfood.ts` | Wire `InterventionSaga` execution and `OperatorImproverContext` | A2, B1-B2 |
-| E4 | `lib/composition/layers.ts` | Add layer for `PerformanceConfig` service | B1 |
+| E1 | `lib/application/dogfood.ts` | Add `'regression-detected'` convergence branch | B1 |
+| E2 | `lib/application/dogfood.ts` | Wire `InterventionSaga` execution and `OperatorImproverContext` | A1, B1-B2 |
+| E3 | `lib/composition/layers.ts` | Add layer for `PerformanceConfig` service | B1 |
 
 ### Critical Path
 
 ```
-A1 ──┬── A3 ── B3 ── D1, D2, D3
+A1 ──┬── A2 ── B3 ── D1, D2, D3
      │
-A2 ──┤
-     │
-A4 ──┘
+A3 ──┘
 
-B1 ── B2 ── C3, C4
+B1 ── B2 ── C2, C3
 
 A1 ── C1
-A2 ── C2
 
 (D1-D3 can proceed in parallel once A1-B3 are done)
-(C1-C4 can proceed in parallel once their respective type deps are done)
-(E1-E4 are future work after approval)
+(C1-C3 can proceed in parallel once their respective type deps are done)
+(E1-E3 are future work after approval)
 ```
 
 ### Estimated Artifact Count
 
 | Category | Count |
 |----------|-------|
-| New type files | 2 (`dragon.ts`, `external-agent.ts`) |
+| New type files | 1 (`external-agent.ts`) |
 | Modified type files | 2 (`improvement.ts`, `identity.ts`) |
 | Modified support files | 2 (`visitors.ts`, `types/index.ts`) |
-| New test files | 4 |
+| New test files | 3 |
 | Modified doc files | 3 (`domain-ontology.md`, `master-architecture.md`, `seams-and-invariants.md`) |
-| **Total files touched** | **13** |
+| **Total files touched** | **11** |
 
 ---
 
@@ -1241,59 +1303,82 @@ A2 ── C2
 
 ### Category-Theoretic
 
-Each dragon is a **functor** from its input category to its output category:
+Each spine is a **functor** from its input category to its output category:
 
-- D1: `Kn → Graph` (knowledge artifacts → interface graph)
-- D2: `Graph × Part → Ledger` (graph + participant → intervention ledger)
-- D3: `Ledger × Config → Config'` (ledger + config → better config)
+- Spine 1: `Kn → Graph` (knowledge artifacts → interface graph)
+- Spine 2: `Graph × Part → Ledger` (graph + participant → intervention ledger)
+- Spine 3: `Ledger × Config → Config'` (ledger + config → better config)
 
-The **natural transformation** between dragons is the `InterpretationSurface`:
-the shared contract that makes `D2 ∘ D1` and `D3 ∘ D2 ∘ D1` coherent.
+The **natural transformation** between spines is the `InterpretationSurface`:
+the shared contract that makes `Spine2 ∘ Spine1` and `Spine3 ∘ Spine2 ∘ Spine1`
+coherent.
 
-The `DragonHandoff` envelope is a **morphism** in the category of dragons.
-The functor laws on `mapHandoffPayload` are law-testable:
+The `WorkflowEnvelope` is a **morphism** in the category of spines.
+The functor laws on `mapPayload` are law-testable:
 - Identity: `map(id) = id`
 - Composition: `map(f ∘ g) = map(f) ∘ map(g)`
 
-### Information-Theoretic
+### Information-Theoretic (Surface 5)
 
-- **Dragon 1** compresses: `|ApplicationInterfaceGraph| << |raw DOM|`
+- **Spine 1** compresses: `|ApplicationInterfaceGraph| << |raw DOM|`
   The graph is a sufficient statistic for resolution — it preserves all
   information needed for scenario binding while discarding DOM noise.
 
-- **Dragon 2** channels: Resolution path entropy =
+- **Spine 2** channels: Resolution path entropy =
   `-Σ p_rung × log(p_rung)` where `p_rung` is the fraction of steps won
   by each rung. A healthy system has low entropy (most steps resolved by
   deterministic rungs). High entropy means the system is guessing.
 
-- **Dragon 3** minimizes: The fitness report is a sufficient statistic of
+- **Spine 3** minimizes: The fitness report is a sufficient statistic of
   pipeline performance. The knob search finds the minimum description length
   encoding of "what to change" — the smallest config perturbation that
   improves the objective vector.
 
-### Control-Theoretic
+### Control-Theoretic (Simplified)
 
-Dragon 3 is a **discrete-time feedback controller**:
+Spine 3 is a **discrete-time feedback controller**:
 
 - **Plant**: the pipeline (takes config, produces fitness)
 - **Sensor**: the fitness report (measures output quality)
 - **Controller**: the knob search (maps error signal to parameter adjustment)
 - **Reference**: the target objective vector
 - **Error signal**: `ObjectiveVector_target - ObjectiveVector_actual`
-- **Stability**: convergence = error signal magnitude bounded and monotonically
-  decreasing (formalized by `ConvergencePhase` FSM)
-- **Overshoot**: `diverging` phase = error signal increased after parameter change
-- **Dead band**: `epsilon` parameter defines minimum detectable improvement
-- **BIBO stability**: bounded input (finite scenarios) produces bounded output
-  (finite fitness report with bounded metric values)
 
-The `ConvergencePhase` type encodes the controller's operating regime:
-- `initial` → system not yet characterized
-- `exploring` → error signal decreasing, rate unknown
-- `narrowing` → error signal decreasing, rate decreasing (approaching minimum)
-- `plateau` → error signal stable within dead band
-- `converged` → absorbing state, controller stops
-- `diverging` → instability detected, controller backs off
+The actual convergence logic in `dogfood.ts` implements four simple branches
+(now five with `regression-detected`). This is the right level of complexity
+for a system with one actor and one experiment at a time. The controller
+operates in discrete epochs; each epoch is a full speedrun cycle.
+
+### Calculus-Theoretic (The Integration)
+
+The five surfaces define a 5-dimensional improvement manifold. Each surface
+has a measurable derivative — its rate of improvement per epoch:
+
+- `dS₁/dt` — scorecard delta (hyperparameters)
+- `dS₂/dt` — architecture fitness delta (code structure)
+- `dS₃/dt` — type-check + law test delta (knowledge representation)
+- `dS₄/dt` — agent first-attempt success rate delta (documentation)
+- `dS₅/dt` — information efficiency metrics delta
+
+The `ObjectiveVector` at time `t` is the integral:
+
+```
+OV(t) = ∫₀ᵗ (w₁·dS₁/dτ + w₂·dS₂/dτ + w₃·dS₃/dτ + w₄·dS₄/dτ + w₅·dS₅/dτ) dτ
+```
+
+**Convergence** = all five derivatives approach zero simultaneously. The system
+has found a local optimum on every surface.
+
+**The scorecard high-water-mark** = `max₀≤τ≤t OV(τ)` — the running maximum of
+the integral. This is monotone by construction; it can only improve.
+
+**The Pareto frontier** enforces that integration is monotone *per surface*:
+no accepted change may cause any surface to regress. This prevents
+"improvement" on one surface at the expense of another.
+
+**Convergence rate** = `‖(dS₁/dt, ..., dS₅/dt)‖` — the L2 norm of the
+derivative vector. When this falls below epsilon, the system declares
+convergence. The norm captures whether *any* surface is still improving.
 
 ### Game-Theoretic
 
@@ -1332,28 +1417,28 @@ This maps naturally to how Claude Code operates:
 
 ### GoF Pattern Inventory
 
-| Pattern | Where Applied | Dragon |
-|---------|--------------|--------|
-| **Strategy** | Resolution ladder, pipeline phases, dragon projection | D2, D3 |
-| **Visitor/Fold** | All discriminated unions (`foldDragonKind`, `foldConvergencePhase`, `foldExternalAgentKind`, etc.) | All |
-| **Composite** | Scoring rules, validation rules, pipeline phases with `combine`/`contramap` | D3 |
-| **State Machine** | Dragon lifecycle, saga lifecycle, convergence FSM — all consumed by generic `StateMachine<S,E,R>` | All |
-| **Interpreter** | Compilation phases, resolution pipeline — each phase is pure input→output with provenance | D1, D2 |
-| **Envelope** | `WorkflowEnvelope`, `DragonHandoff`, `InterventionSaga` — standard header discipline | All |
-| **Saga** | `InterventionSaga` — multi-step workflow with compensation | D2 |
-| **Functor** | `mapHandoffPayload`, `mapPayload` — structure-preserving payload transformation | All |
+| Pattern | Where Applied | Spine |
+|---------|--------------|-------|
+| **Strategy** | Resolution ladder, pipeline phases, spine projection | Spine 2, Spine 3 |
+| **Visitor/Fold** | All discriminated unions (`foldExternalAgentKind`, `foldSagaStepKind`, etc.) | All |
+| **Composite** | Scoring rules, validation rules, pipeline phases with `combine`/`contramap` | Spine 3 |
+| **State Machine** | Saga lifecycle, convergence detection — consumed by generic `StateMachine<S,E,R>` | All |
+| **Interpreter** | Compilation phases, resolution pipeline — each phase is pure input→output with provenance | Spine 1, Spine 2 |
+| **Envelope** | `WorkflowEnvelope`, `InterventionSaga` — standard header discipline | All |
+| **Saga** | `InterventionSaga` — multi-step workflow with compensation | Spine 2 |
+| **Functor** | `mapPayload` — structure-preserving payload transformation | All |
 
 ### FP Technique Inventory
 
 | Technique | Where Applied |
 |-----------|--------------|
 | **Phantom branded types** | `Approved<T>`, `Blocked<T>`, `ReviewRequired<T>` — governance at type level |
-| **Recursive folds** | `stepDragonPhase`, `stepConvergence`, `runDogfoodLoop` — immutable accumulation |
+| **Recursive folds** | `runDogfoodLoop`, `stepConvergence` — immutable accumulation |
 | **ReadonlyArray/readonly fields** | All interfaces — immutability enforced at type level |
-| **Discriminated unions** | `DragonKind`, `DragonPhase`, `ExternalAgentKind`, `SagaStepKind`, `ConvergencePhase` |
+| **Discriminated unions** | `ExternalAgentKind`, `SagaStepKind`, `ImprovementConvergenceReason` |
 | **Exhaustive case analysis** | All fold functions — TypeScript compiler enforces completeness |
-| **Higher-order functions** | `mapHandoffPayload`, `mapPayload`, `foldGovernance` — behavior as parameters |
-| **Pure transition functions** | `stepDragonPhase`, `stepConvergence` — no side effects, law-testable |
+| **Higher-order functions** | `mapPayload`, `foldGovernance` — behavior as parameters |
+| **Pure transition functions** | Saga step transitions, convergence detection — no side effects, law-testable |
 | **Effect.gen + yield*** | Application-layer orchestration (not in domain) |
 | **Effect.all({})** | Structural parallelism for independent operations |
 | **Context.Tag** | Service injection (FileSystem, AdoSource, RuntimeScenarioRunner) |
@@ -1366,24 +1451,22 @@ This maps naturally to how Claude Code operates:
 
 | File | Purpose | LOC estimate |
 |------|---------|-------------|
-| `lib/domain/types/dragon.ts` | Dragon discriminant, lifecycle FSM, handoff envelope, fold functions | ~120 |
 | `lib/domain/types/external-agent.ts` | External agent model, saga types, operator-as-improver, fold functions | ~180 |
-| `tests/dragon-interaction.laws.spec.ts` | 7 property-based law tests | ~200 |
 | `tests/external-agent.laws.spec.ts` | 6 property-based law tests | ~180 |
-| `tests/convergence-fsm.laws.spec.ts` | 7 property-based law tests | ~200 |
 | `tests/performance-config.laws.spec.ts` | 5 property-based law tests | ~150 |
+| `tests/surface-integration.laws.spec.ts` | 5 property-based law tests | ~150 |
 
 ### Files to Modify
 
 | File | Change | LOC estimate |
 |------|--------|-------------|
-| `lib/domain/types/improvement.ts` | Add ConvergenceState FSM, PerformanceConfig, ExtendedObjectiveVector, OperatorImproverContext; extend ImprovementRun | ~150 added |
-| `lib/domain/identity.ts` | Add SagaId, DragonHandoffId branded types | ~10 added |
-| `lib/domain/visitors.ts` | Add 6 fold functions for new discriminated unions | ~80 added |
+| `lib/domain/types/improvement.ts` | Add `'regression-detected'`, PerformanceConfig, ExtendedObjectiveVector, OperatorImproverContext; extend ImprovementRun | ~120 added |
+| `lib/domain/identity.ts` | Add SagaId branded type | ~5 added |
+| `lib/domain/visitors.ts` | Add 3 fold functions for new discriminated unions | ~50 added |
 | `lib/domain/types/index.ts` | Re-export new modules | ~5 added |
-| `docs/domain-ontology.md` | Major rewrite with Three Dragons framing | Full rewrite |
-| `docs/master-architecture.md` | Add 4 new sections | ~300 added |
-| `docs/seams-and-invariants.md` | Add 3 new seams | ~150 added |
+| `docs/domain-ontology.md` | Major rewrite with five-surfaces/three-spines framing | Full rewrite |
+| `docs/master-architecture.md` | Add 3 new sections | ~250 added |
+| `docs/seams-and-invariants.md` | Add 3 new seams | ~120 added |
 
 ### Files NOT Modified (Guardrail)
 
@@ -1399,23 +1482,24 @@ These files are explicitly out of scope for this plan:
 
 ---
 
-## Appendix B: Glossary of New Terms
+## Appendix B: Glossary
 
-| Term | Definition | Dragon |
-|------|-----------|--------|
-| **Dragon** | One of three co-equal architectural concerns that share one interpretation surface | Meta |
-| **DragonKind** | Discriminant type: `interface-intelligence`, `agent-workbench`, `recursive-improvement` | Meta |
-| **DragonPhase** | Lifecycle FSM: dormant → ingesting → processing → yielding → complete | Meta |
-| **DragonHandoff** | Typed envelope for dragon-to-dragon communication | Meta |
-| **ExternalAgentKind** | Concrete agent subtype: claude-code, github-copilot, ci-runner, human-operator, custom-agent | D2 |
-| **AgentToolCapability** | Declared tool a participant can exercise | D2 |
-| **InterventionSaga** | Multi-step agentic workflow with compensation | D2 |
-| **SagaStep** | One step in an intervention saga | D2 |
-| **OperatorImprovementIntervention** | The meta-loop: system-improvement as a typed intervention | D2/D3 |
-| **ConvergencePhase** | Improvement loop FSM: initial → exploring → narrowing → plateau → converged (or diverging) | D3 |
-| **ConvergenceState** | Full state of the convergence controller (sliding window, epsilon, plateau length) | D3 |
-| **PerformanceConfig** | Efficiency hyper-parameters (latency, memory, parallelism, caching) | D3 |
-| **ExtendedObjectiveVector** | ObjectiveVector + performance metrics (latency, memory, cache hit rate) | D3 |
-| **OperatorImproverContext** | Context for tracking who is improving the system and their budget | D3 |
-| **Meta-Dragon A (Domain Alignment)** | The ontology communicates the territory; file paths are documentation | Meta |
-| **Meta-Dragon B (Engineering Delight)** | Developing the system is a joy; measured by architecture fitness | Meta |
+| Term | Definition | Spine / Surface |
+|------|-----------|-----------------|
+| **Surface 1** | Hyperparameters — the 15+ tunable constants in PipelineConfig and PerformanceConfig | S1 |
+| **Surface 2** | Code structure — algorithms, patterns, abstractions; measured by architecture fitness | S2 |
+| **Surface 3** | Knowledge representation — type surfaces, data schemas; measured by compiler + law tests | S3 |
+| **Surface 4** | Documentation and authorial leverage; measured by agent session effectiveness | S4 |
+| **Surface 5** | Information-theoretic efficiency — lossless compression of domain signal | S5 |
+| **Integration** | The accumulation of improvement across all five surfaces into a coherent ObjectiveVector trajectory | Meta |
+| **Spine** | One of three co-equal architectural concerns sharing one interpretation surface | Meta |
+| **ExternalAgentKind** | Concrete agent subtype: claude-code, github-copilot, ci-runner, human-operator, custom-agent | Spine 2 |
+| **AgentToolCapability** | Declared tool a participant can exercise | Spine 2 |
+| **InterventionSaga** | Multi-step agentic workflow with compensation | Spine 2 |
+| **SagaStep** | One step in an intervention saga | Spine 2 |
+| **OperatorImprovementIntervention** | The meta-loop: system-improvement as a typed intervention | Spine 2/3 |
+| **PerformanceConfig** | Efficiency hyper-parameters (latency, memory, parallelism, caching) | S1, Spine 3 |
+| **ExtendedObjectiveVector** | ObjectiveVector + performance metrics (latency, memory, cache hit rate) | S1, Spine 3 |
+| **OperatorImproverContext** | Context for tracking who is improving the system and their fitness baseline | Spine 3 |
+| **Meta-Concern A (Domain Alignment)** | The ontology communicates the territory; file paths are documentation | S3, S4 |
+| **Meta-Concern B (Engineering Delight)** | Developing the system is a joy; measured by architecture fitness | S2 |
