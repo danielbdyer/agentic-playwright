@@ -131,6 +131,22 @@ function readDisposableSingleton<T>(
   return readDisposableJsonArtifact(paths, absolutePath, validate, errorCode, `${label} ${absolutePath} failed validation`);
 }
 
+/**
+ * Controls how much of the workspace is loaded. Each scope is a strict
+ * superset of the previous one, so callers that only need compilation
+ * inputs avoid touching run records, sessions, evidence, or learning
+ * artifacts — saving significant heap and I/O at scale.
+ *
+ * - `compile`:  scenarios + knowledge + controls + bound programs + trust policy.
+ *               Skips: runs, sessions, evidence, proposals, learning, discovery,
+ *               generated, inbox, approvals, replays.
+ * - `post-run`: everything in compile + run records + proposal bundles +
+ *               interpretation surfaces + resolution graph records + drift records.
+ *               Skips: sessions, evidence, learning, discovery, replays.
+ * - `full`:     current behavior — loads everything.
+ */
+export type CatalogScope = 'full' | 'compile' | 'post-run';
+
 export interface LoadCatalogOptions {
   readonly paths: ProjectPaths;
   /**
@@ -142,6 +158,13 @@ export interface LoadCatalogOptions {
    * - `production`: Same as warm-start at runtime.
    */
   readonly knowledgePosture?: KnowledgePosture | undefined;
+  /**
+   * Controls how much of the workspace to load. Defaults to `'full'`.
+   * Use `'compile'` for pre-run catalog loads and `'post-run'` for
+   * post-run loads in the dogfood loop to avoid loading unnecessary
+   * artifacts and reduce memory pressure.
+   */
+  readonly scope?: CatalogScope | undefined;
 }
 
 /** Walk a directory if the posture includes knowledge; otherwise return empty. */
@@ -153,8 +176,21 @@ function walkKnowledgeDir(
     : Effect.succeed([] as string[]);
 }
 
+/** Walk a directory only when scope is at or above the required level. */
+function walkScopedDir(
+  fs: FileSystemPort, dir: string, scope: CatalogScope, requiredScope: CatalogScope,
+): Effect.Effect<readonly string[], unknown, unknown> {
+  const scopeLevel: Record<CatalogScope, number> = { compile: 0, 'post-run': 1, full: 2 };
+  return scopeLevel[scope] >= scopeLevel[requiredScope]
+    ? walkFiles(fs, dir)
+    : Effect.succeed([] as string[]);
+}
+
+const EMPTY_ARTIFACTS = [] as readonly string[];
+
 export function loadWorkspaceCatalog(options: LoadCatalogOptions) {
   const posture: KnowledgePosture = options.knowledgePosture ?? 'warm-start';
+  const scope: CatalogScope = options.scope ?? 'full';
 
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
@@ -162,7 +198,10 @@ export function loadWorkspaceCatalog(options: LoadCatalogOptions) {
     // Phase 1: Walk all independent directories in parallel.
     // Knowledge directories are gated by the knowledge posture —
     // cold-start returns empty arrays, forcing the system to learn from scratch.
+    // Runtime-heavy directories (runs, sessions, evidence, etc.) are gated by scope
+    // so that compile-only and post-run loads skip unnecessary I/O.
     const walks = yield* Effect.all({
+      // Always loaded (compile-scope and above)
       surfaces: walkKnowledgeDir(fs, options.paths.surfacesDir, posture),
       screens: walkKnowledgeDir(fs, path.join(options.paths.knowledgeDir, 'screens'), posture),
       patterns: walkKnowledgeDir(fs, options.paths.patternsDir, posture),
@@ -175,15 +214,19 @@ export function loadWorkspaceCatalog(options: LoadCatalogOptions) {
       scenarios: walkFiles(fs, options.paths.scenariosDir),
       bound: walkFiles(fs, options.paths.boundDir),
       tasks: walkFiles(fs, options.paths.tasksDir),
-      runs: walkFiles(fs, options.paths.runsDir),
       routes: walkKnowledgeDir(fs, options.paths.routesDir, posture),
-      discovery: walkFiles(fs, options.paths.discoveryDir),
-      generated: walkFiles(fs, options.paths.generatedDir),
-      inbox: walkFiles(fs, options.paths.inboxDir),
-      approvals: walkFiles(fs, options.paths.approvalsDir),
-      evidence: walkFiles(fs, options.paths.evidenceDir),
-      sessions: walkFiles(fs, options.paths.sessionsDir),
-      replays: walkFiles(fs, path.join(options.paths.learningDir, 'replays')),
+
+      // Post-run scope: run records, proposals, generated output, inbox, approvals
+      runs: walkScopedDir(fs, options.paths.runsDir, scope, 'post-run'),
+      generated: walkScopedDir(fs, options.paths.generatedDir, scope, 'post-run'),
+      inbox: walkScopedDir(fs, options.paths.inboxDir, scope, 'post-run'),
+      approvals: walkScopedDir(fs, options.paths.approvalsDir, scope, 'post-run'),
+
+      // Full scope only: sessions, evidence, discovery, replays
+      discovery: walkScopedDir(fs, options.paths.discoveryDir, scope, 'full'),
+      evidence: walkScopedDir(fs, options.paths.evidenceDir, scope, 'full'),
+      sessions: walkScopedDir(fs, options.paths.sessionsDir, scope, 'full'),
+      replays: walkScopedDir(fs, path.join(options.paths.learningDir, 'replays'), scope, 'full'),
     }, { concurrency: 'unbounded' });
 
     // Phase 2: Load all artifact types in parallel (each group is independent)

@@ -17,10 +17,12 @@ import { FileSystem, VersionControl } from './ports';
 import type {
   ExperimentSubstrate,
   ImprovementRun,
+  KnowledgePosture,
   PipelineConfig,
   PipelineFitnessReport,
   PipelineScorecard,
   ProposalBundle,
+  SpeedrunProgressEvent,
 } from '../domain/types';
 import { DEFAULT_PIPELINE_CONFIG } from '../domain/types';
 import type { RunRecord } from '../domain/types/execution';
@@ -34,6 +36,13 @@ export interface SpeedrunInput {
   readonly substrate?: ExperimentSubstrate | undefined;
   readonly tag?: string | undefined;
   readonly parentExperimentId?: string | null | undefined;
+  readonly knowledgePosture?: KnowledgePosture | undefined;
+  /**
+   * Fire-and-forget progress callback. Invoked after each dogfood iteration
+   * and at phase boundaries (generate, fitness, complete). The callback is a
+   * side channel for observability — it does not participate in the pipeline.
+   */
+  readonly onProgress?: ((event: SpeedrunProgressEvent) => void) | undefined;
 }
 
 export interface SpeedrunResult {
@@ -74,6 +83,18 @@ export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunRes
       seed: input.seed,
     });
 
+    // Emit generate-phase progress
+    input.onProgress?.({
+      kind: 'speedrun-progress',
+      phase: 'generate',
+      iteration: 0,
+      maxIterations: input.maxIterations,
+      metrics: null,
+      convergenceReason: null,
+      elapsed: 0,
+      seed: input.seed,
+    });
+
     const { ledger } = yield* runDogfoodLoop({
       paths: input.paths,
       maxIterations: input.maxIterations,
@@ -81,9 +102,28 @@ export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunRes
       interpreterMode: 'diagnostic',
       tag: input.tag ?? 'synthetic',
       runbook: 'synthetic-dogfood',
+      knowledgePosture: input.knowledgePosture,
+      onProgress: input.onProgress,
+      seed: input.seed,
     });
 
-    const catalog = yield* loadWorkspaceCatalog({ paths: input.paths });
+    // Emit fitness-phase progress
+    input.onProgress?.({
+      kind: 'speedrun-progress',
+      phase: 'fitness',
+      iteration: ledger.completedIterations,
+      maxIterations: input.maxIterations,
+      metrics: null,
+      convergenceReason: ledger.convergenceReason,
+      elapsed: 0,
+      seed: input.seed,
+    });
+
+    const catalog = yield* loadWorkspaceCatalog({
+      paths: input.paths,
+      knowledgePosture: 'warm-start',
+      scope: 'post-run',
+    });
     const runRecords: RunRecord[] = catalog.runRecords.map((entry) => entry.artifact as unknown as RunRecord);
     const runSteps = runRecords.flatMap((record) =>
       record.steps.map((step) => ({
@@ -119,6 +159,9 @@ export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunRes
         scenarioCount: input.count,
         screenCount: generated.screens.length,
         phrasingTemplateVersion: 'v1',
+        ...('screenDistribution' in generated
+          ? { screenDistribution: (generated as { readonly screenDistribution: ReadonlyArray<{ readonly screen: string; readonly count: number }> }).screenDistribution }
+          : {}),
       },
       fitnessReport,
       scorecardComparison: {

@@ -23,7 +23,7 @@ import { loadWorkspaceCatalog } from '../lib/application/catalog';
 import { recordExperiment } from '../lib/application/experiment-registry';
 import { runWithLocalServices } from '../lib/composition/local-services';
 import { resolveKnowledgePosture } from '../lib/application/knowledge-posture';
-import type { ExperimentRecord, KnowledgePosture, PipelineConfig, PipelineScorecard, ProposalBundle, SubstrateContext } from '../lib/domain/types';
+import type { ExperimentRecord, KnowledgePosture, PipelineConfig, PipelineScorecard, ProposalBundle, SpeedrunProgressEvent, SubstrateContext } from '../lib/domain/types';
 import { DEFAULT_PIPELINE_CONFIG, mergePipelineConfig } from '../lib/domain/types';
 import type { RunRecord } from '../lib/domain/types/execution';
 
@@ -141,7 +141,42 @@ function generateAdoFixtures(): void {
   }
 }
 
-function createProgram(currentSeed: string) {
+function formatElapsed(ms: number): string {
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return minutes > 0 ? `${minutes}m${seconds}s` : `${seconds}s`;
+}
+
+function createProgressCallback(progressPath: string): (event: SpeedrunProgressEvent) => void {
+  // Ensure the directory exists before first write
+  const dir = path.dirname(progressPath);
+  fs.mkdirSync(dir, { recursive: true });
+
+  return (event: SpeedrunProgressEvent): void => {
+    // Append as JSONL for machine consumption
+    fs.appendFileSync(progressPath, JSON.stringify(event) + '\n');
+
+    // Print human-readable summary to stderr
+    const phaseLabel = event.phase === 'iterate' && event.metrics
+      ? `[iter ${event.iteration}/${event.maxIterations}]`
+      : `[${event.phase}]`;
+
+    const metricsLabel = event.metrics
+      ? ` hitRate=${(event.metrics.knowledgeHitRate * 100).toFixed(1)}% proposals=${event.metrics.proposalsActivated} steps=${event.metrics.totalSteps} unresolved=${event.metrics.unresolvedSteps}`
+      : '';
+
+    const convergenceLabel = event.convergenceReason
+      ? ` convergence=${event.convergenceReason}`
+      : '';
+
+    process.stderr.write(
+      `${phaseLabel}${metricsLabel}${convergenceLabel} elapsed=${formatElapsed(event.elapsed)}\n`,
+    );
+  };
+}
+
+function createProgram(currentSeed: string, onProgress: (event: SpeedrunProgressEvent) => void) {
   return Effect.gen(function* () {
     // Step 1: Generate synthetic scenarios
     console.log(`\n=== Generating ${count} synthetic scenarios (seed: ${currentSeed}) ===\n`);
@@ -161,6 +196,8 @@ function createProgram(currentSeed: string) {
       tag: 'synthetic',
       runbook: 'synthetic-dogfood',
       knowledgePosture,
+      onProgress,
+      seed: currentSeed,
     });
 
     console.log(`Flywheel complete: ${ledger.completedIterations} iterations, converged=${ledger.converged} (${ledger.convergenceReason})`);
@@ -168,8 +205,8 @@ function createProgram(currentSeed: string) {
       console.log(`  Iteration ${iter.iteration}: hitRate=${iter.knowledgeHitRate}, proposals=${iter.proposalsActivated}, steps=${iter.totalStepCount}`);
     }
 
-    // Step 3: Collect run data for fitness report (always warm-start to read results)
-    const catalog = yield* loadWorkspaceCatalog({ paths, knowledgePosture: 'warm-start' });
+    // Step 3: Collect run data for fitness report (scoped to post-run artifacts only)
+    const catalog = yield* loadWorkspaceCatalog({ paths, knowledgePosture: 'warm-start', scope: 'post-run' });
     const runRecords: RunRecord[] = catalog.runRecords.map((e) => e.artifact as unknown as RunRecord);
     const runSteps = runRecords.flatMap((record) =>
       record.steps.map((step) => ({
@@ -192,8 +229,12 @@ async function runSingleSeed(currentSeed: string, pipelineVersion: string): Prom
   // Step 0: Clean slate
   cleanSlate();
 
+  // Set up progress tracking
+  const progressPath = path.join(rootDir, '.tesseract', 'runs', `speedrun-progress-${currentSeed}.jsonl`);
+  const onProgress = createProgressCallback(progressPath);
+
   // Steps 1-3: Generate + flywheel + collect data
-  const { ledger, runSteps, proposalBundles } = await runWithLocalServices(createProgram(currentSeed), rootDir, {
+  const { ledger, runSteps, proposalBundles } = await runWithLocalServices(createProgram(currentSeed, onProgress), rootDir, {
     posture: { interpreterMode: 'diagnostic', writeMode: 'persist', executionProfile: 'dogfood' },
     suiteRoot: paths.suiteRoot,
     pipelineConfig,

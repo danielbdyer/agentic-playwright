@@ -1,4 +1,5 @@
 export type { ArtifactEnvelope, ScreenBundleEntry, WorkspaceCatalog } from './types';
+export type { CatalogScope } from './workspace-catalog';
 export type { ResolutionReadModel, ControlReadModel, ProposalReadModel, EmissionReadModel } from './read-models';
 export { toResolutionReadModel, toControlReadModel, toProposalReadModel, toEmissionReadModel } from './read-models';
 export {

@@ -1,3 +1,5 @@
+import * as nodeFs from 'fs';
+import path from 'path';
 import { Effect } from 'effect';
 import { activateProposalBundle, autoApproveEligibleProposals } from './activate-proposals';
 import { loadWorkspaceCatalog } from './catalog';
@@ -16,6 +18,7 @@ import type {
   ImprovementLoopIteration,
   KnowledgePosture,
   ProposalBundle,
+  SpeedrunProgressEvent,
   TrustPolicy,
 } from '../domain/types';
 import { DEFAULT_AUTO_APPROVAL_POLICY } from '../domain/trust-policy';
@@ -34,6 +37,14 @@ export interface DogfoodOptions {
   readonly autoApprovalPolicy?: AutoApprovalPolicy | undefined;
   /** Knowledge posture for catalog loading. Defaults to 'warm-start'. */
   readonly knowledgePosture?: KnowledgePosture | undefined;
+  /**
+   * Fire-and-forget progress callback. Invoked after each iteration completes
+   * with the current metrics. The callback is a side channel for observability —
+   * it does not participate in the pipeline computation.
+   */
+  readonly onProgress?: ((event: SpeedrunProgressEvent) => void) | undefined;
+  /** Seed identifier threaded into progress events. */
+  readonly seed?: string | undefined;
 }
 
 interface LoopState {
@@ -41,14 +52,18 @@ interface LoopState {
   readonly cumulativeInstructions: number;
   readonly converged: boolean;
   readonly convergenceReason: ImprovementLoopConvergenceReason;
+  readonly startedAt: number;
 }
 
-const INITIAL_STATE: LoopState = {
-  iterations: [],
-  cumulativeInstructions: 0,
-  converged: false,
-  convergenceReason: null,
-};
+function createInitialState(): LoopState {
+  return {
+    iterations: [],
+    cumulativeInstructions: 0,
+    converged: false,
+    convergenceReason: null,
+    startedAt: Date.now(),
+  };
+}
 
 function collectPendingProposals(bundles: readonly ProposalBundle[]): readonly ProposalBundle[] {
   return bundles.filter((bundle) =>
@@ -155,6 +170,43 @@ function accumulateProposalTotals(
   });
 }
 
+/** Wipe transient artifacts between iterations to cap memory and disk growth. */
+function cleanupBetweenIterations(options: DogfoodOptions): Effect.Effect<void, never, never> {
+  return Effect.sync(() => {
+    const sessionsDir = path.join(options.paths.rootDir, '.tesseract', 'sessions');
+    const evidenceRunsDir = path.join(options.paths.rootDir, '.tesseract', 'evidence', 'runs');
+    for (const dir of [sessionsDir, evidenceRunsDir]) {
+      if (nodeFs.existsSync(dir)) {
+        nodeFs.rmSync(dir, { recursive: true, force: true });
+      }
+    }
+  });
+}
+
+/** Build a progress event from the current iteration result and loop state. */
+function buildProgressEvent(
+  result: DogfoodIterationResult,
+  convergenceReason: ImprovementLoopConvergenceReason,
+  startedAt: number,
+  options: DogfoodOptions,
+): SpeedrunProgressEvent {
+  return {
+    kind: 'speedrun-progress',
+    phase: 'iterate',
+    iteration: result.iteration,
+    maxIterations: options.maxIterations,
+    metrics: {
+      knowledgeHitRate: result.knowledgeHitRate,
+      proposalsActivated: result.proposalsActivated,
+      totalSteps: result.totalStepCount,
+      unresolvedSteps: result.unresolvedStepCount,
+    },
+    convergenceReason,
+    elapsed: Date.now() - startedAt,
+    seed: options.seed ?? '',
+  };
+}
+
 function runIteration(iteration: number, options: DogfoodOptions) {
   // On iteration 1, use the configured posture (which may be cold-start).
   // On subsequent iterations, always use warm-start — the loop has activated
@@ -164,8 +216,12 @@ function runIteration(iteration: number, options: DogfoodOptions) {
     : 'warm-start';
 
   return Effect.gen(function* () {
-    // Step 1: refresh all scenarios
-    const catalog = yield* loadWorkspaceCatalog({ paths: options.paths, knowledgePosture: iterationPosture });
+    // Step 1: refresh all scenarios (compile-scope: only scenarios + knowledge + controls)
+    const catalog = yield* loadWorkspaceCatalog({
+      paths: options.paths,
+      knowledgePosture: iterationPosture,
+      scope: 'compile',
+    });
     const scenarioIds = catalog.scenarios.map((entry) => entry.artifact.source.ado_id);
     yield* Effect.all(
       scenarioIds.map((adoId) => refreshScenario({ adoId: adoId as AdoId, paths: options.paths })),
@@ -180,8 +236,12 @@ function runIteration(iteration: number, options: DogfoodOptions) {
       interpreterMode: options.interpreterMode ?? 'diagnostic',
     });
 
-    // Step 3: collect trace metrics (always warm-start — need to read run results)
-    const postRunCatalog = yield* loadWorkspaceCatalog({ paths: options.paths, knowledgePosture: 'warm-start' });
+    // Step 3: collect trace metrics (post-run scope: includes runs + proposals, skips sessions/evidence)
+    const postRunCatalog = yield* loadWorkspaceCatalog({
+      paths: options.paths,
+      knowledgePosture: 'warm-start',
+      scope: 'post-run',
+    });
     const metrics = computeTraceMetrics(postRunCatalog.runRecords as never);
 
     // Step 4: collect and activate pending proposals
@@ -200,6 +260,9 @@ function runIteration(iteration: number, options: DogfoodOptions) {
       postRunCatalog.trustPolicy.artifact,
     );
 
+    // Step 5: cleanup transient artifacts to cap memory growth
+    yield* cleanupBetweenIterations(options);
+
     const result: DogfoodIterationResult = {
       iteration,
       scenarioIds: runResult.selection.adoIds,
@@ -217,7 +280,7 @@ function runIteration(iteration: number, options: DogfoodOptions) {
 
 function dogfoodMachine(options: DogfoodOptions) {
   return {
-    initial: INITIAL_STATE,
+    initial: createInitialState(),
     step: (state: LoopState) => Effect.gen(function* () {
       const iteration = state.iterations.length + 1;
       if (iteration > options.maxIterations) {
@@ -236,11 +299,22 @@ function dogfoodMachine(options: DogfoodOptions) {
       );
 
       const nextState: LoopState = {
+        ...state,
         iterations: [...state.iterations, result],
         cumulativeInstructions: nextCumulativeInstructions,
         converged: convergence.converged,
         convergenceReason: convergence.reason ?? state.convergenceReason,
       };
+
+      // Emit progress event after each iteration
+      if (options.onProgress) {
+        options.onProgress(buildProgressEvent(
+          result,
+          nextState.convergenceReason,
+          state.startedAt,
+          options,
+        ));
+      }
 
       return { next: nextState, done: convergence.converged || convergence.reason === 'max-iterations' };
     }),
