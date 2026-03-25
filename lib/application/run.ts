@@ -64,6 +64,7 @@ export function runScenario(options: {
         const executionStage = yield* interpretScenarioFromPlan({
           runtimeScenarioRunner,
           rootDir: options.paths.rootDir,
+          suiteRoot: options.paths.suiteRoot,
           plan,
           knowledgeFingerprint: surfaceEntry.artifact.payload.knowledgeFingerprint,
           controlsFingerprint: surfaceEntry.artifact.fingerprints.controls ?? null,

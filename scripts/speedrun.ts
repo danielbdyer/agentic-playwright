@@ -61,7 +61,7 @@ function getPipelineVersion(): string {
 
 function cleanSlate(): void {
   // Wipe synthetic scenarios
-  const syntheticDir = path.join(rootDir, 'scenarios', 'synthetic');
+  const syntheticDir = path.join(paths.scenariosDir, 'synthetic');
   if (fs.existsSync(syntheticDir)) {
     fs.rmSync(syntheticDir, { recursive: true, force: true });
   }
@@ -174,6 +174,7 @@ async function main(): Promise<void> {
   // Steps 1-3: Generate + flywheel + collect data
   const { ledger, runSteps, proposalBundles } = await runWithLocalServices(program, rootDir, {
     posture: { interpreterMode: 'diagnostic', writeMode: 'persist', executionProfile: 'dogfood' },
+    suiteRoot: paths.suiteRoot,
     pipelineConfig,
   });
 
@@ -240,6 +241,7 @@ async function main(): Promise<void> {
     rootDir,
     {
       posture: { interpreterMode: 'diagnostic', writeMode: 'persist', executionProfile: 'dogfood' },
+      suiteRoot: paths.suiteRoot,
       pipelineConfig,
     },
   );
@@ -268,6 +270,7 @@ async function main(): Promise<void> {
     rootDir,
     {
       posture: { interpreterMode: 'diagnostic', writeMode: 'persist', executionProfile: 'dogfood' },
+      suiteRoot: paths.suiteRoot,
       pipelineConfig,
     },
   );

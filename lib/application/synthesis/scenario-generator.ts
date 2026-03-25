@@ -362,7 +362,7 @@ export function generateSyntheticScenarios(options: GenerateSyntheticScenariosOp
     const rng = createRng(options.seed);
     const files: string[] = [];
     const baseId = 20000;
-    const outputDir = options.outputDir ?? `${options.paths.rootDir}/scenarios/synthetic`;
+    const outputDir = options.outputDir ?? `${options.paths.scenariosDir}/synthetic`;
 
     yield* fs.ensureDir(outputDir);
 

@@ -236,7 +236,7 @@ function scorecardForBenchmark(input: {
 function renderVariantSpec(benchmark: BenchmarkContext, variants: readonly BenchmarkVariant[]): string {
   const lines: string[] = [
     `// Benchmark variants for ${benchmark.name}`,
-    `import { literal, workflow } from '../../lib/generated/workflow-facade';`,
+    `import { literal, workflow } from '../../lib/domain/workflow-facade';`,
     '',
     'export const benchmarkVariants = [',
     ...variants.map((variant) =>

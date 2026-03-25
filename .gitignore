@@ -26,6 +26,9 @@ test-results/
 
 # Deterministic compiler output.  Regenerated as a build step.
 # Production suites will track lib/generated/ once they exist.
+# Hand-authored DSL files moved to lib/domain/ (workflow-facade.ts,
+# agent-dsl.ts); lib/generated/ now contains only auto-generated
+# output from `npm run types`.
 lib/generated/
 generated/
 
