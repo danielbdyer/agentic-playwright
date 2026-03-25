@@ -28,15 +28,15 @@ elements:
       - Pull up the member search
     acquired:
       certification: uncertified
-      activatedAt: 2026-03-25T19:58:40.489Z
+      activatedAt: 2026-03-25T20:04:26.658Z
       certifiedAt: null
       lineage:
         runIds:
-          - 2026-03-25T19-58-37-646Z
+          - 2026-03-25T20-04-23-781Z
         evidenceIds:
-          - .tesseract/evidence/runs/20057/2026-03-25T19-58-37-646Z/step-4-0.json
+          - .tesseract/evidence/runs/20076/2026-03-25T20-04-23-781Z/step-1-0.json
         sourceArtifactPaths:
-          - .tesseract/tasks/20057.resolution.json
+          - .tesseract/tasks/20076.resolution.json
           - controls/runbooks/synthetic-dogfood.runbook.yaml
           - controls/datasets/demo-default.dataset.yaml
         role: null

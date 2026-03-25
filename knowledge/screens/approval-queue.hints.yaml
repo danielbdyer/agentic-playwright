@@ -26,13 +26,13 @@ elements:
       - Access pending approvals
     acquired:
       certification: uncertified
-      activatedAt: 2026-03-25T19:21:17.519Z
+      activatedAt: 2026-03-25T20:00:07.403Z
       certifiedAt: null
       lineage:
         runIds:
-          - 2026-03-25T19-21-15-595Z
+          - 2026-03-25T20-00-04-608Z
         evidenceIds:
-          - .tesseract/evidence/runs/20062/2026-03-25T19-21-15-595Z/step-1-0.json
+          - .tesseract/evidence/runs/20062/2026-03-25T20-00-04-608Z/step-1-0.json
         sourceArtifactPaths:
           - .tesseract/tasks/20062.resolution.json
           - controls/runbooks/synthetic-dogfood.runbook.yaml
