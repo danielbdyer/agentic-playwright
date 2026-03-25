@@ -1,0 +1,91 @@
+source:
+  ado_id: "20017"
+  revision: 1
+  content_hash: sha256:synthetic-20017
+  synced_at: 2026-03-25T18:09:23.989Z
+  origin: synthetic
+metadata:
+  title: "Synthetic cross-screen scenario 17"
+  suite: synthetic/cross-screen
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Open policy details
+    action_text: Open policy details
+    expected_text: policy details loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Validate effective date is present
+    action_text: Validate effective date is present
+    expected_text: effective date is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Confirm policy number appears
+    action_text: Confirm policy number appears
+    expected_text: policy number is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Visit the policy search
+    action_text: Visit the policy search
+    expected_text: policy search loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: Observe validation summary content
+    action_text: Observe validation summary content
+    expected_text: validation summary is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 6
+    intent: Confirm search results appears
+    action_text: Confirm search results appears
+    expected_text: search results is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

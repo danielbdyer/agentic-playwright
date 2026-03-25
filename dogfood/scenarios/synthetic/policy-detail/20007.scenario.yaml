@@ -1,0 +1,79 @@
+source:
+  ado_id: "20007"
+  revision: 1
+  content_hash: sha256:synthetic-20007
+  synced_at: 2026-03-25T18:09:23.985Z
+  origin: synthetic
+metadata:
+  title: "Synthetic scenario 7: policy-detail with 5 steps"
+  suite: synthetic/policy-detail
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Load the policy detail page
+    action_text: Load the policy detail page
+    expected_text: policy detail loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Validate status badge is present
+    action_text: Validate status badge is present
+    expected_text: status badge is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Observe policy number content
+    action_text: Observe policy number content
+    expected_text: policy number is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Verify claims table is visible
+    action_text: Verify claims table is visible
+    expected_text: claims table is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: Click return to search
+    action_text: Click return to search
+    expected_text: return to search action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

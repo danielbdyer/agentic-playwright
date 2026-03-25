@@ -1,0 +1,55 @@
+source:
+  ado_id: "20048"
+  revision: 1
+  content_hash: sha256:synthetic-20048
+  synced_at: 2026-03-25T18:09:24.001Z
+  origin: synthetic
+metadata:
+  title: "Synthetic scenario 48: policy-search with 3 steps"
+  suite: synthetic/policy-detail
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Access policy search screen
+    action_text: Access policy search screen
+    expected_text: policy search screen loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Validate results table is present
+    action_text: Validate results table is present
+    expected_text: results table is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Select search
+    action_text: Select search
+    expected_text: search action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

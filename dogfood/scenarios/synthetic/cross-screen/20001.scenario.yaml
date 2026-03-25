@@ -1,0 +1,79 @@
+source:
+  ado_id: "20001"
+  revision: 1
+  content_hash: sha256:synthetic-20001
+  synced_at: 2026-03-25T18:09:23.982Z
+  origin: synthetic
+metadata:
+  title: "Synthetic cross-screen scenario 1"
+  suite: synthetic/cross-screen
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Visit the policy detail screen
+    action_text: Visit the policy detail screen
+    expected_text: policy detail screen loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: See that status badge is on screen
+    action_text: See that status badge is on screen
+    expected_text: status badge is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Open policy search screen
+    action_text: Open policy search screen
+    expected_text: policy search screen loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Click Load the policy search screen page
+    action_text: Click Load the policy search screen page
+    expected_text: Load the policy search screen page action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: Input test data in the policy number
+    action_text: Input test data in the policy number
+    expected_text: policy number accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

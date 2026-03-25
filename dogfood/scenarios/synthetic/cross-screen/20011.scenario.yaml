@@ -1,0 +1,79 @@
+source:
+  ado_id: "20011"
+  revision: 1
+  content_hash: sha256:synthetic-20011
+  synced_at: 2026-03-25T18:09:23.987Z
+  origin: synthetic
+metadata:
+  title: "Synthetic cross-screen scenario 11"
+  suite: synthetic/cross-screen
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Navigate to policy details
+    action_text: Navigate to policy details
+    expected_text: policy details loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Activate Switch to policy detail screen
+    action_text: Activate Switch to policy detail screen
+    expected_text: Switch to policy detail screen action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Verify error message is visible
+    action_text: Verify error message is visible
+    expected_text: error message is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Browse to policy search screen
+    action_text: Browse to policy search screen
+    expected_text: policy search screen loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: Tap Activate search button
+    action_text: Tap Activate search button
+    expected_text: Activate search button action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

@@ -1,0 +1,55 @@
+source:
+  ado_id: "20020"
+  revision: 1
+  content_hash: sha256:synthetic-20020
+  synced_at: 2026-03-25T18:09:23.990Z
+  origin: synthetic
+metadata:
+  title: "Synthetic scenario 20: policy-search with 3 steps"
+  suite: synthetic/policy-detail
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Open policy search
+    action_text: Open policy search
+    expected_text: policy search loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Ensure validation summary can be seen
+    action_text: Ensure validation summary can be seen
+    expected_text: validation summary is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Ensure search results can be seen
+    action_text: Ensure search results can be seen
+    expected_text: search results is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

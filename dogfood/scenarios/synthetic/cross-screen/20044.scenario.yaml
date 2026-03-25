@@ -1,0 +1,91 @@
+source:
+  ado_id: "20044"
+  revision: 1
+  content_hash: sha256:synthetic-20044
+  synced_at: 2026-03-25T18:09:23.998Z
+  origin: synthetic
+metadata:
+  title: "Synthetic cross-screen scenario 44"
+  suite: synthetic/cross-screen
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Load the policy detail screen page
+    action_text: Load the policy detail screen page
+    expected_text: policy detail screen loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Verify policy number display is visible
+    action_text: Verify policy number display is visible
+    expected_text: policy number display is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Assert claims list is shown
+    action_text: Assert claims list is shown
+    expected_text: claims list is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Access policy search screen
+    action_text: Access policy search screen
+    expected_text: policy search screen loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: See that results table is on screen
+    action_text: See that results table is on screen
+    expected_text: results table is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 6
+    intent: Put test data in search field field
+    action_text: Put test data in search field field
+    expected_text: search field accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

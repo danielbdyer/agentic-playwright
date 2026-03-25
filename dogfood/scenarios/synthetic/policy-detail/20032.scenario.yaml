@@ -1,0 +1,67 @@
+source:
+  ado_id: "20032"
+  revision: 1
+  content_hash: sha256:synthetic-20032
+  synced_at: 2026-03-25T18:09:23.994Z
+  origin: synthetic
+metadata:
+  title: "Synthetic scenario 32: policy-detail with 4 steps"
+  suite: synthetic/policy-detail
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Browse to policy detail
+    action_text: Browse to policy detail
+    expected_text: policy detail loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Assert not found error is shown
+    action_text: Assert not found error is shown
+    expected_text: not found error is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Ensure effective date can be seen
+    action_text: Ensure effective date can be seen
+    expected_text: effective date is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Confirm claims list appears
+    action_text: Confirm claims list appears
+    expected_text: claims list is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

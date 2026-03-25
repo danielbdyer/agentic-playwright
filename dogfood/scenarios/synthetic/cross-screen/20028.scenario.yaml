@@ -1,0 +1,67 @@
+source:
+  ado_id: "20028"
+  revision: 1
+  content_hash: sha256:synthetic-20028
+  synced_at: 2026-03-25T18:09:23.993Z
+  origin: synthetic
+metadata:
+  title: "Synthetic cross-screen scenario 28"
+  suite: synthetic/cross-screen
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Open policy detail screen
+    action_text: Open policy detail screen
+    expected_text: policy detail screen loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: See that claims is on screen
+    action_text: See that claims is on screen
+    expected_text: claims is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Switch to policy search
+    action_text: Switch to policy search
+    expected_text: policy search loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Confirm error summary appears
+    action_text: Confirm error summary appears
+    expected_text: error summary is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

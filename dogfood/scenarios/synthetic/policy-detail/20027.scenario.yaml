@@ -1,0 +1,55 @@
+source:
+  ado_id: "20027"
+  revision: 1
+  content_hash: sha256:synthetic-20027
+  synced_at: 2026-03-25T18:09:23.992Z
+  origin: synthetic
+metadata:
+  title: "Synthetic scenario 27: policy-detail with 3 steps"
+  suite: synthetic/policy-detail
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Browse to policy details
+    action_text: Browse to policy details
+    expected_text: policy details loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Observe claims content
+    action_text: Observe claims content
+    expected_text: claims is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Confirm policy status appears
+    action_text: Confirm policy status appears
+    expected_text: policy status is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

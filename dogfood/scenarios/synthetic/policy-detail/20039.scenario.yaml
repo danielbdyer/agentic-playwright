@@ -1,0 +1,55 @@
+source:
+  ado_id: "20039"
+  revision: 1
+  content_hash: sha256:synthetic-20039
+  synced_at: 2026-03-25T18:09:23.996Z
+  origin: synthetic
+metadata:
+  title: "Synthetic scenario 39: policy-detail with 3 steps"
+  suite: synthetic/policy-detail
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Access policy detail screen
+    action_text: Access policy detail screen
+    expected_text: policy detail screen loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Ensure date can be seen
+    action_text: Ensure date can be seen
+    expected_text: date is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Assert policy number display is shown
+    action_text: Assert policy number display is shown
+    expected_text: policy number display is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

@@ -1,0 +1,79 @@
+source:
+  ado_id: "20010"
+  revision: 1
+  content_hash: sha256:synthetic-20010
+  synced_at: 2026-03-25T18:09:23.986Z
+  origin: synthetic
+metadata:
+  title: "Synthetic scenario 10: policy-detail with 5 steps"
+  suite: synthetic/policy-detail
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Navigate to policy details
+    action_text: Navigate to policy details
+    expected_text: policy details loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Verify status badge is visible
+    action_text: Verify status badge is visible
+    expected_text: status badge is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Verify policy number display is visible
+    action_text: Verify policy number display is visible
+    expected_text: policy number display is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: See that error panel is on screen
+    action_text: See that error panel is on screen
+    expected_text: error panel is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: Assert claims is shown
+    action_text: Assert claims is shown
+    expected_text: claims is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []
