@@ -46,16 +46,13 @@ function shuffle<T>(input: readonly T[], rng: () => number): readonly T[] {
   return result;
 }
 
-// ─── Phrasing Templates ───
+// ─── Action Types ───
 
-interface PhrasingTemplate {
-  readonly navigate: readonly string[];
-  readonly input: readonly string[];
-  readonly click: readonly string[];
-  readonly assert: readonly string[];
-}
+type ActionType = 'navigate' | 'input' | 'click' | 'select' | 'assert';
 
-const PHRASING_TEMPLATES: PhrasingTemplate = {
+// ─── Phrasing Templates (16 per action for diversity) ───
+
+const PHRASING_TEMPLATES: Readonly<Record<ActionType, readonly string[]>> = {
   navigate: [
     'Navigate to {screen}',
     'Go to the {screen}',
@@ -65,6 +62,14 @@ const PHRASING_TEMPLATES: PhrasingTemplate = {
     'Visit the {screen}',
     'Browse to {screen}',
     'Switch to {screen}',
+    'Head over to {screen}',
+    'Pull up the {screen}',
+    'Jump to {screen}',
+    'Move to the {screen} page',
+    'Bring up {screen}',
+    'Go ahead and open {screen}',
+    'Get to the {screen}',
+    'Take me to {screen}',
   ],
   input: [
     'Enter {value} in {element}',
@@ -75,16 +80,50 @@ const PHRASING_TEMPLATES: PhrasingTemplate = {
     'Put {value} in {element} field',
     'Provide {value} for {element}',
     'Key in {value} at {element}',
+    'Write {value} in the {element}',
+    'Populate {element} with {value}',
+    'In the {element} field enter {value}',
+    'For {element} use {value}',
+    'Supply {value} to {element}',
+    'Fill out the {element} with {value}',
+    'Update {element} to say {value}',
+    'Place {value} into the {element} field',
   ],
   click: [
     'Click {element}',
     'Press the {element}',
     'Tap {element}',
     'Hit the {element}',
-    'Select {element}',
+    'Click on {element}',
     'Activate {element}',
     'Click on the {element}',
     'Trigger {element}',
+    'Use the {element}',
+    'Push the {element}',
+    'Press {element} button',
+    'Go ahead and click {element}',
+    'Tap on the {element}',
+    'Click the {element} button',
+    'Hit {element}',
+    'Smash that {element}',
+  ],
+  select: [
+    'Select {value} from {element}',
+    'Choose {value} in the {element}',
+    'Pick {value} from {element} dropdown',
+    'Set {element} to {value}',
+    'From {element} choose {value}',
+    'In the {element} dropdown select {value}',
+    'Change {element} to {value}',
+    'Switch {element} to {value}',
+    'Use {element} to pick {value}',
+    'Select the {value} option in {element}',
+    'From the {element} list choose {value}',
+    'Set the {element} dropdown to {value}',
+    'Pick {value} in {element}',
+    'Change the {element} to show {value}',
+    'Under {element} select {value}',
+    'Go to {element} and pick {value}',
   ],
   assert: [
     'Verify {element} is visible',
@@ -95,15 +134,63 @@ const PHRASING_TEMPLATES: PhrasingTemplate = {
     'Ensure {element} can be seen',
     'See that {element} is on screen',
     'Observe {element} content',
+    'Make sure {element} is there',
+    'Look for {element} on the page',
+    'Verify that {element} shows up',
+    'Confirm that {element} is on screen',
+    'Check {element} is present',
+    '{element} should be visible',
+    'The {element} must be displayed',
+    'Expect {element} to appear',
   ],
 } as const;
 
+// ─── Negation and compound assertion templates ───
+
+const NEGATION_ASSERT_TEMPLATES: readonly string[] = [
+  'Verify {element} is NOT visible',
+  'Confirm {element} does not appear',
+  'Check that {element} is hidden',
+  'Ensure {element} is not displayed',
+  '{element} should not be visible',
+  'Assert {element} is not shown',
+];
+
+const COMPOUND_ASSERT_TEMPLATES: readonly string[] = [
+  'Check that {element1} and {element2} are both displayed',
+  'Verify both {element1} and {element2} are visible',
+  'Confirm {element1} and {element2} appear on screen',
+  'Ensure {element1} is visible along with {element2}',
+];
+
+// ─── Colloquial/imprecise phrasing templates ───
+
+const COLLOQUIAL_NAVIGATE_TEMPLATES: readonly string[] = [
+  'Go check out the {screen}',
+  'Show me the {screen}',
+  'I want to see {screen}',
+  'Can you open {screen}',
+  'Lets look at {screen}',
+  'Find the {screen}',
+];
+
+const COLLOQUIAL_ACTION_TEMPLATES: readonly string[] = [
+  'Make sure the {element} works',
+  'Try the {element}',
+  'Use the {element} thing',
+  'Do the {element}',
+  'Interact with {element}',
+  'Look at the {element}',
+];
+
 // ─── Element Action Classification ───
 
-function classifyWidget(widget: string): 'input' | 'click' | 'assert' {
+function classifyWidget(widget: string): ActionType {
   switch (widget) {
     case 'os-input': return 'input';
+    case 'os-textarea': return 'input';
     case 'os-button': return 'click';
+    case 'os-select': return 'select';
     case 'os-table': return 'assert';
     case 'os-region': return 'assert';
     default: return 'assert';
@@ -120,19 +207,13 @@ interface SyntheticStep {
 }
 
 function generateActionText(
-  action: 'navigate' | 'input' | 'click' | 'assert',
+  action: ActionType,
   screenName: string,
   elementAlias: string | null,
   valueDesc: string,
   rng: () => number,
 ): string {
-  const templates = action === 'navigate'
-    ? PHRASING_TEMPLATES.navigate
-    : action === 'input'
-      ? PHRASING_TEMPLATES.input
-      : action === 'click'
-        ? PHRASING_TEMPLATES.click
-        : PHRASING_TEMPLATES.assert;
+  const templates = PHRASING_TEMPLATES[action];
   const template = pick(templates, rng);
   return template
     .replace('{screen}', screenName)
@@ -141,14 +222,15 @@ function generateActionText(
 }
 
 function generateExpectedText(
-  action: 'navigate' | 'input' | 'click' | 'assert',
-  screenName: string,
+  action: ActionType,
+  _screenName: string,
   elementAlias: string | null,
 ): string {
   switch (action) {
-    case 'navigate': return `${screenName} loads successfully`;
+    case 'navigate': return `${_screenName} loads successfully`;
     case 'input': return `${elementAlias ?? 'field'} accepts the input`;
     case 'click': return `${elementAlias ?? 'button'} action completes`;
+    case 'select': return `${elementAlias ?? 'dropdown'} shows the selected value`;
     case 'assert': return `${elementAlias ?? 'element'} is visible on screen`;
   }
 }
@@ -189,12 +271,65 @@ function extractScreenInfo(catalog: {
   });
 }
 
+// ─── Coverage Tracking ───
+
+interface CoverageTracker {
+  readonly elementHits: Map<string, number>;
+  readonly widgetTypeHits: Map<string, number>;
+  readonly screenPairHits: Map<string, number>;
+}
+
+function createCoverageTracker(screens: readonly ScreenInfo[]): CoverageTracker {
+  const elementHits = new Map<string, number>();
+  const widgetTypeHits = new Map<string, number>();
+  const screenPairHits = new Map<string, number>();
+
+  for (const screen of screens) {
+    for (const element of screen.elements) {
+      elementHits.set(`${screen.screenId}:${element.elementId}`, 0);
+      widgetTypeHits.set(element.widget, 0);
+    }
+  }
+  return { elementHits, widgetTypeHits, screenPairHits };
+}
+
+function recordElementUsage(
+  tracker: CoverageTracker,
+  screenId: string,
+  element: ScreenElementInfo,
+): void {
+  const key = `${screenId}:${element.elementId}`;
+  tracker.elementHits.set(key, (tracker.elementHits.get(key) ?? 0) + 1);
+  tracker.widgetTypeHits.set(element.widget, (tracker.widgetTypeHits.get(element.widget) ?? 0) + 1);
+}
+
+function recordScreenPair(tracker: CoverageTracker, from: string, to: string): void {
+  const key = `${from}->${to}`;
+  tracker.screenPairHits.set(key, (tracker.screenPairHits.get(key) ?? 0) + 1);
+}
+
+/** Pick element with preference for under-covered elements. */
+function pickCoverageAware(
+  screen: ScreenInfo,
+  tracker: CoverageTracker,
+  rng: () => number,
+): ScreenElementInfo {
+  const withCoverage = screen.elements.map((el) => ({
+    element: el,
+    hits: tracker.elementHits.get(`${screen.screenId}:${el.elementId}`) ?? 0,
+  }));
+  const minHits = Math.min(...withCoverage.map((e) => e.hits));
+  const underCovered = withCoverage.filter((e) => e.hits === minHits);
+  return pick(underCovered, rng).element;
+}
+
 // ─── Scenario Generation Strategies ───
 
 function generateSingleScreenScenario(
   screen: ScreenInfo,
   scenarioIndex: number,
   rng: () => number,
+  tracker: CoverageTracker,
 ): { readonly steps: readonly SyntheticStep[]; readonly title: string } {
   const steps: SyntheticStep[] = [];
   let stepIndex = 1;
@@ -203,7 +338,11 @@ function generateSingleScreenScenario(
   const screenAlias = screen.screenAliases.length > 0
     ? pick(screen.screenAliases, rng)
     : screen.screenId.replace(/-/g, ' ');
-  const navText = generateActionText('navigate', screenAlias, null, '', rng);
+
+  // Occasionally use colloquial navigation phrasing (20%)
+  const navText = rng() < 0.2
+    ? pick(COLLOQUIAL_NAVIGATE_TEMPLATES, rng).replace('{screen}', screenAlias)
+    : generateActionText('navigate', screenAlias, null, '', rng);
   steps.push({
     index: stepIndex,
     intent: navText,
@@ -212,25 +351,29 @@ function generateSingleScreenScenario(
   });
   stepIndex += 1;
 
-  // Interact with elements in shuffled order
-  const shuffledElements = shuffle(screen.elements, rng);
-  const elementCount = Math.min(shuffledElements.length, 2 + Math.floor(rng() * 3));
+  // Interact with elements — coverage-aware selection
+  const elementCount = Math.min(screen.elements.length, 2 + Math.floor(rng() * 4));
+  const usedElements = new Set<string>();
 
   for (let i = 0; i < elementCount; i += 1) {
-    const element = shuffledElements[i]!;
-    const action = classifyWidget(element.widget);
-    const elementAlias = element.aliases.length > 0
-      ? pick(element.aliases, rng)
-      : element.elementId.replace(/([A-Z])/g, ' $1').trim().toLowerCase();
-    const valueDesc = action === 'input' ? 'a valid value' : '';
-
-    const actionText = generateActionText(action, screenAlias, elementAlias, valueDesc, rng);
-    steps.push({
-      index: stepIndex,
-      intent: actionText,
-      action_text: actionText,
-      expected_text: generateExpectedText(action, screenAlias, elementAlias),
-    });
+    const element = pickCoverageAware(screen, tracker, rng);
+    if (usedElements.has(element.elementId) && screen.elements.length > usedElements.size) {
+      // Try to pick a different element if possible
+      const unused = screen.elements.filter((e) => !usedElements.has(e.elementId));
+      if (unused.length > 0) {
+        const altElement = pick(unused, rng);
+        usedElements.add(altElement.elementId);
+        recordElementUsage(tracker, screen.screenId, altElement);
+        const step = generateElementStep(altElement, screenAlias, stepIndex, rng);
+        steps.push(step);
+        stepIndex += 1;
+        continue;
+      }
+    }
+    usedElements.add(element.elementId);
+    recordElementUsage(tracker, screen.screenId, element);
+    const step = generateElementStep(element, screenAlias, stepIndex, rng);
+    steps.push(step);
     stepIndex += 1;
   }
 
@@ -240,15 +383,199 @@ function generateSingleScreenScenario(
   };
 }
 
-function generateCrossScreenScenario(
-  screens: readonly ScreenInfo[],
+/** Generate a step for an element interaction. */
+function generateElementStep(
+  element: ScreenElementInfo,
+  screenAlias: string,
+  stepIndex: number,
+  rng: () => number,
+): SyntheticStep {
+  const action = classifyWidget(element.widget);
+  const elementAlias = element.aliases.length > 0
+    ? pick(element.aliases, rng)
+    : element.elementId.replace(/([A-Z])/g, ' $1').trim().toLowerCase();
+
+  // Occasionally use colloquial phrasing (10%)
+  if (rng() < 0.1 && action === 'assert') {
+    const colloquialText = pick(COLLOQUIAL_ACTION_TEMPLATES, rng).replace('{element}', elementAlias);
+    return {
+      index: stepIndex,
+      intent: colloquialText,
+      action_text: colloquialText,
+      expected_text: generateExpectedText(action, screenAlias, elementAlias),
+    };
+  }
+
+  const valueDesc = action === 'input' ? 'a valid value'
+    : action === 'select' ? 'the correct option'
+    : '';
+
+  const actionText = generateActionText(action, screenAlias, elementAlias, valueDesc, rng);
+  return {
+    index: stepIndex,
+    intent: actionText,
+    action_text: actionText,
+    expected_text: generateExpectedText(action, screenAlias, elementAlias),
+  };
+}
+
+/** Generate a structured workflow: navigate → input fields → click → assert results. */
+function generateWorkflowScenario(
+  screen: ScreenInfo,
   scenarioIndex: number,
   rng: () => number,
+  tracker: CoverageTracker,
 ): { readonly steps: readonly SyntheticStep[]; readonly title: string } {
   const steps: SyntheticStep[] = [];
   let stepIndex = 1;
 
-  for (const screen of screens) {
+  const screenAlias = screen.screenAliases.length > 0
+    ? pick(screen.screenAliases, rng)
+    : screen.screenId.replace(/-/g, ' ');
+
+  // Step 1: Navigate
+  const navText = generateActionText('navigate', screenAlias, null, '', rng);
+  steps.push({
+    index: stepIndex,
+    intent: navText,
+    action_text: navText,
+    expected_text: generateExpectedText('navigate', screenAlias, null),
+  });
+  stepIndex += 1;
+
+  // Steps 2-N: Fill inputs/selects in order
+  const inputElements = screen.elements.filter((e) =>
+    classifyWidget(e.widget) === 'input' || classifyWidget(e.widget) === 'select',
+  );
+  for (const element of shuffle(inputElements, rng).slice(0, 3)) {
+    recordElementUsage(tracker, screen.screenId, element);
+    const step = generateElementStep(element, screenAlias, stepIndex, rng);
+    steps.push(step);
+    stepIndex += 1;
+  }
+
+  // Step N+1: Click action button
+  const clickElements = screen.elements.filter((e) => classifyWidget(e.widget) === 'click');
+  if (clickElements.length > 0) {
+    const clickEl = pick(clickElements, rng);
+    recordElementUsage(tracker, screen.screenId, clickEl);
+    const step = generateElementStep(clickEl, screenAlias, stepIndex, rng);
+    steps.push(step);
+    stepIndex += 1;
+  }
+
+  // Step N+2: Assert result
+  const assertElements = screen.elements.filter((e) => classifyWidget(e.widget) === 'assert');
+  if (assertElements.length > 0) {
+    const assertEl = pick(assertElements, rng);
+    recordElementUsage(tracker, screen.screenId, assertEl);
+    const step = generateElementStep(assertEl, screenAlias, stepIndex, rng);
+    steps.push(step);
+    stepIndex += 1;
+  }
+
+  return {
+    steps,
+    title: `Synthetic workflow ${scenarioIndex}: ${screen.screenId} form-fill-verify`,
+  };
+}
+
+/** Generate a negation/compound assertion scenario. */
+function generateAssertionVariantScenario(
+  screen: ScreenInfo,
+  scenarioIndex: number,
+  rng: () => number,
+  tracker: CoverageTracker,
+): { readonly steps: readonly SyntheticStep[]; readonly title: string } {
+  const steps: SyntheticStep[] = [];
+  let stepIndex = 1;
+
+  const screenAlias = screen.screenAliases.length > 0
+    ? pick(screen.screenAliases, rng)
+    : screen.screenId.replace(/-/g, ' ');
+
+  // Navigate
+  const navText = generateActionText('navigate', screenAlias, null, '', rng);
+  steps.push({
+    index: stepIndex,
+    intent: navText,
+    action_text: navText,
+    expected_text: generateExpectedText('navigate', screenAlias, null),
+  });
+  stepIndex += 1;
+
+  const assertElements = screen.elements.filter((e) => classifyWidget(e.widget) === 'assert');
+
+  // Negation assertion
+  if (assertElements.length > 0) {
+    const el = pick(assertElements, rng);
+    recordElementUsage(tracker, screen.screenId, el);
+    const alias = el.aliases.length > 0
+      ? pick(el.aliases, rng)
+      : el.elementId.replace(/([A-Z])/g, ' $1').trim().toLowerCase();
+    const negText = pick(NEGATION_ASSERT_TEMPLATES, rng).replace('{element}', alias);
+    steps.push({
+      index: stepIndex,
+      intent: negText,
+      action_text: negText,
+      expected_text: `${alias} is not visible on screen`,
+    });
+    stepIndex += 1;
+  }
+
+  // Compound assertion
+  if (assertElements.length >= 2) {
+    const shuffled = shuffle(assertElements, rng);
+    const el1 = shuffled[0]!;
+    const el2 = shuffled[1]!;
+    recordElementUsage(tracker, screen.screenId, el1);
+    recordElementUsage(tracker, screen.screenId, el2);
+    const alias1 = el1.aliases.length > 0 ? pick(el1.aliases, rng) : el1.elementId.replace(/([A-Z])/g, ' $1').trim().toLowerCase();
+    const alias2 = el2.aliases.length > 0 ? pick(el2.aliases, rng) : el2.elementId.replace(/([A-Z])/g, ' $1').trim().toLowerCase();
+    const compText = pick(COMPOUND_ASSERT_TEMPLATES, rng).replace('{element1}', alias1).replace('{element2}', alias2);
+    steps.push({
+      index: stepIndex,
+      intent: compText,
+      action_text: compText,
+      expected_text: `${alias1} and ${alias2} are both visible`,
+    });
+    stepIndex += 1;
+  }
+
+  // Regular assertions for remaining elements
+  for (const el of shuffle(assertElements, rng).slice(0, 2)) {
+    recordElementUsage(tracker, screen.screenId, el);
+    const step = generateElementStep(el, screenAlias, stepIndex, rng);
+    steps.push(step);
+    stepIndex += 1;
+  }
+
+  return {
+    steps,
+    title: `Synthetic assertion-variant ${scenarioIndex}: ${screen.screenId}`,
+  };
+}
+
+function generateCrossScreenScenario(
+  screens: readonly ScreenInfo[],
+  scenarioIndex: number,
+  rng: () => number,
+  tracker: CoverageTracker,
+): { readonly steps: readonly SyntheticStep[]; readonly title: string } {
+  const steps: SyntheticStep[] = [];
+  let stepIndex = 1;
+
+  // Pick 2-3 screens for the journey
+  const journeyLength = Math.min(screens.length, 2 + Math.floor(rng() * 2));
+  const journeyScreens = shuffle(screens, rng).slice(0, journeyLength);
+
+  let prevScreen: string | null = null;
+  for (const screen of journeyScreens) {
+    if (prevScreen !== null) {
+      recordScreenPair(tracker, prevScreen, screen.screenId);
+    }
+    prevScreen = screen.screenId;
+
     const screenAlias = screen.screenAliases.length > 0
       ? pick(screen.screenAliases, rng)
       : screen.screenId.replace(/-/g, ' ');
@@ -261,29 +588,24 @@ function generateCrossScreenScenario(
     });
     stepIndex += 1;
 
-    // Pick 1-2 elements from each screen
-    const picked = shuffle(screen.elements, rng).slice(0, 1 + Math.floor(rng() * 2));
-    for (const element of picked) {
-      const action = classifyWidget(element.widget);
-      const elementAlias = element.aliases.length > 0
-        ? pick(element.aliases, rng)
-        : element.elementId.replace(/([A-Z])/g, ' $1').trim().toLowerCase();
-      const valueDesc = action === 'input' ? 'test data' : '';
-
-      const actionText = generateActionText(action, screenAlias, elementAlias, valueDesc, rng);
-      steps.push({
-        index: stepIndex,
-        intent: actionText,
-        action_text: actionText,
-        expected_text: generateExpectedText(action, screenAlias, elementAlias),
-      });
+    // Pick 1-3 elements from each screen, coverage-aware
+    const pickCount = 1 + Math.floor(rng() * 3);
+    const usedElements = new Set<string>();
+    for (let i = 0; i < pickCount && i < screen.elements.length; i += 1) {
+      const element = pickCoverageAware(screen, tracker, rng);
+      if (usedElements.has(element.elementId)) continue;
+      usedElements.add(element.elementId);
+      recordElementUsage(tracker, screen.screenId, element);
+      const step = generateElementStep(element, screenAlias, stepIndex, rng);
+      steps.push(step);
       stepIndex += 1;
     }
   }
 
+  const screenNames = journeyScreens.map((s) => s.screenId).join(' → ');
   return {
     steps,
-    title: `Synthetic cross-screen scenario ${scenarioIndex}`,
+    title: `Synthetic cross-screen ${scenarioIndex}: ${screenNames}`,
   };
 }
 
@@ -363,15 +685,26 @@ export function generateSyntheticScenarios(options: GenerateSyntheticScenariosOp
     const files: string[] = [];
     const baseId = 20000;
     const outputDir = options.outputDir ?? `${options.paths.scenariosDir}/synthetic`;
+    const tracker = createCoverageTracker(screens);
 
     yield* fs.ensureDir(outputDir);
 
     for (let i = 0; i < options.count; i += 1) {
       const adoId = String(baseId + i);
-      const isCrossScreen = screens.length > 1 && rng() < 0.3;
+
+      // Strategy selection: 30% cross-screen, 20% workflow, 10% assertion-variant, 40% single-screen
+      const strategyRoll = rng();
+      const isCrossScreen = screens.length > 1 && strategyRoll < 0.3;
+      const isWorkflow = !isCrossScreen && strategyRoll < 0.5;
+      const isAssertionVariant = !isCrossScreen && !isWorkflow && strategyRoll < 0.6;
+
       const scenario = isCrossScreen
-        ? generateCrossScreenScenario(screens, i, rng)
-        : generateSingleScreenScenario(pick(screens, rng), i, rng);
+        ? generateCrossScreenScenario(screens, i, rng, tracker)
+        : isWorkflow
+          ? generateWorkflowScenario(pick(screens, rng), i, rng, tracker)
+          : isAssertionVariant
+            ? generateAssertionVariantScenario(pick(screens, rng), i, rng, tracker)
+            : generateSingleScreenScenario(pick(screens, rng), i, rng, tracker);
 
       const primaryScreen = screens[0]!.screenId;
       const suite = isCrossScreen

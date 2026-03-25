@@ -118,6 +118,7 @@ async function runSpeedrun(config: PipelineConfig): Promise<SpeedrunResult> {
   const input: SpeedrunInput = { paths, config, count, seed, maxIterations };
   return runWithLocalServices(speedrunProgram(input), rootDir, {
     posture: { interpreterMode: 'diagnostic', writeMode: 'persist', executionProfile: 'dogfood' },
+    suiteRoot: paths.suiteRoot,
     pipelineConfig: config,
   });
 }

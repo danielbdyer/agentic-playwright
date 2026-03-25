@@ -71,7 +71,7 @@ export function validatePatternDocument(value: unknown, path = 'pattern-document
   };
 }
 
-const EMPTY_ALIAS_SET: PatternAliasSet = { aliases: [] };
+const EMPTY_ALIAS_SET: PatternAliasSet = { id: '', aliases: [] };
 
 function emptyMergedPatterns(): MergedPatterns {
   const actions = Object.fromEntries(

@@ -1,0 +1,56 @@
+kind: screen-behavior
+version: 1
+screen: approval-queue
+aliases:
+  - approval queue behavior
+routeVariantRefs:
+  - route-variant:demo:approval-queue:default
+knowledgeRefs:
+  - knowledge/surfaces/approval-queue.surface.yaml
+  - knowledge/screens/approval-queue.elements.yaml
+  - knowledge/screens/approval-queue.hints.yaml
+  - knowledge/screens/approval-queue.postures.yaml
+stateNodes:
+  - ref: state:approval-queue:queue-loaded
+    screen: approval-queue
+    label: Approval queue is loaded
+    aliases:
+      - queue loaded
+      - queue visible
+    scope: target
+    targetRef: target:element:approval-queue:queueTable
+    routeVariantRefs:
+      - route-variant:demo:approval-queue:default
+    predicates:
+      - kind: visible
+        targetRef: target:element:approval-queue:queueTable
+    provenance: []
+  - ref: state:approval-queue:actions-enabled
+    screen: approval-queue
+    label: Approve and reject buttons are enabled
+    aliases:
+      - actions enabled
+      - buttons active
+    scope: target
+    targetRef: target:element:approval-queue:approveButton
+    routeVariantRefs:
+      - route-variant:demo:approval-queue:default
+    predicates:
+      - kind: enabled
+        targetRef: target:element:approval-queue:approveButton
+    provenance: []
+  - ref: state:approval-queue:actions-disabled
+    screen: approval-queue
+    label: Approve and reject buttons are disabled
+    aliases:
+      - actions disabled
+      - buttons greyed out
+    scope: target
+    targetRef: target:element:approval-queue:approveButton
+    routeVariantRefs: []
+    predicates:
+      - kind: disabled
+        targetRef: target:element:approval-queue:approveButton
+    provenance: []
+eventSignatures: []
+transitions: []

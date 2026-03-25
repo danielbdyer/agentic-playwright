@@ -3,7 +3,11 @@
  *
  * Clean-slate → generate → flywheel → measure → compare → report.
  *
- * Usage: npx tsx scripts/speedrun.ts [--count N] [--seed S] [--max-iterations N] [--posture cold-start|warm-start|production]
+ * Usage: npx tsx scripts/speedrun.ts [--count N] [--seed S] [--seeds S1,S2,S3] [--max-iterations N] [--posture cold-start|warm-start|production]
+ *
+ * Multi-seed mode (--seeds): runs the full speedrun for each seed and averages
+ * fitness metrics. A pipeline change only "wins" if it improves average fitness
+ * across all seeds, preventing overfitting to a single phrasing distribution.
  */
 
 import { Effect } from 'effect';
@@ -30,7 +34,9 @@ function argVal(name: string, fallback: string): string {
 }
 
 const count = Number(argVal('--count', '50'));
-const seed = argVal('--seed', 'speedrun-v1');
+const singleSeed = argVal('--seed', 'speedrun-v1');
+const multiSeeds = args.includes('--seeds') ? argVal('--seeds', '').split(',').filter(Boolean) : [];
+const seeds = multiSeeds.length > 0 ? multiSeeds : [singleSeed];
 const maxIterations = Number(argVal('--max-iterations', '5'));
 const configPath = argVal('--config', '');
 const experimentTag = argVal('--tag', '');
@@ -126,53 +132,68 @@ function saveFitnessReport(report: ReturnType<typeof buildFitnessReport>): strin
   return filePath;
 }
 
-const program = Effect.gen(function* () {
-  // Step 1: Generate synthetic scenarios
-  console.log(`\n=== Generating ${count} synthetic scenarios (seed: ${seed}) ===\n`);
-  const genResult = yield* generateSyntheticScenarios({ paths, count, seed });
-  console.log(`Generated ${genResult.scenariosGenerated} scenarios across ${genResult.screens.length} screens`);
-
-  // Step 2: Run dogfood flywheel
-  console.log(`\n=== Running dogfood flywheel (max ${maxIterations} iterations, posture: ${knowledgePosture}) ===\n`);
-  const { ledger } = yield* runDogfoodLoop({
-    paths,
-    maxIterations,
-    convergenceThreshold: pipelineConfig.convergenceThreshold,
-    interpreterMode: 'diagnostic',
-    tag: 'synthetic',
-    runbook: 'synthetic-dogfood',
-    knowledgePosture,
-  });
-
-  console.log(`Flywheel complete: ${ledger.completedIterations} iterations, converged=${ledger.converged} (${ledger.convergenceReason})`);
-  for (const iter of ledger.iterations) {
-    console.log(`  Iteration ${iter.iteration}: hitRate=${iter.knowledgeHitRate}, proposals=${iter.proposalsActivated}, steps=${iter.totalStepCount}`);
+function generateAdoFixtures(): void {
+  try {
+    execSync('npx tsx scripts/generate-ado-sync.ts', { cwd: rootDir, stdio: 'pipe' });
+    console.log('ADO fixtures generated for synthetic scenarios.');
+  } catch (err) {
+    console.warn('Warning: ADO fixture generation failed, continuing anyway.');
   }
+}
 
-  // Step 3: Collect run data for fitness report (always warm-start to read results)
-  const catalog = yield* loadWorkspaceCatalog({ paths, knowledgePosture: 'warm-start' });
-  const runRecords: RunRecord[] = catalog.runRecords.map((e) => e.artifact as unknown as RunRecord);
-  const runSteps = runRecords.flatMap((record) =>
-    record.steps.map((step) => ({
-      interpretation: step.interpretation,
-      execution: step.execution,
-    })),
-  );
-  const proposalBundles: ProposalBundle[] = catalog.proposalBundles.map((e) => e.artifact);
+function createProgram(currentSeed: string) {
+  return Effect.gen(function* () {
+    // Step 1: Generate synthetic scenarios
+    console.log(`\n=== Generating ${count} synthetic scenarios (seed: ${currentSeed}) ===\n`);
+    const genResult = yield* generateSyntheticScenarios({ paths, count, seed: currentSeed });
+    console.log(`Generated ${genResult.scenariosGenerated} scenarios across ${genResult.screens.length} screens`);
 
-  return { ledger, runSteps, proposalBundles };
-});
+    // Step 1b: Generate ADO fixtures for new scenarios
+    generateAdoFixtures();
 
-async function main(): Promise<void> {
-  const pipelineVersion = getPipelineVersion();
-  console.log(`Pipeline version: ${pipelineVersion}`);
-  console.log(`Knowledge posture: ${knowledgePosture}`);
+    // Step 2: Run dogfood flywheel
+    console.log(`\n=== Running dogfood flywheel (max ${maxIterations} iterations, posture: ${knowledgePosture}) ===\n`);
+    const { ledger } = yield* runDogfoodLoop({
+      paths,
+      maxIterations,
+      convergenceThreshold: pipelineConfig.convergenceThreshold,
+      interpreterMode: 'diagnostic',
+      tag: 'synthetic',
+      runbook: 'synthetic-dogfood',
+      knowledgePosture,
+    });
 
+    console.log(`Flywheel complete: ${ledger.completedIterations} iterations, converged=${ledger.converged} (${ledger.convergenceReason})`);
+    for (const iter of ledger.iterations) {
+      console.log(`  Iteration ${iter.iteration}: hitRate=${iter.knowledgeHitRate}, proposals=${iter.proposalsActivated}, steps=${iter.totalStepCount}`);
+    }
+
+    // Step 3: Collect run data for fitness report (always warm-start to read results)
+    const catalog = yield* loadWorkspaceCatalog({ paths, knowledgePosture: 'warm-start' });
+    const runRecords: RunRecord[] = catalog.runRecords.map((e) => e.artifact as unknown as RunRecord);
+    const runSteps = runRecords.flatMap((record) =>
+      record.steps.map((step) => ({
+        interpretation: step.interpretation,
+        execution: step.execution,
+      })),
+    );
+    const proposalBundles: ProposalBundle[] = catalog.proposalBundles.map((e) => e.artifact);
+
+    return { ledger, runSteps, proposalBundles };
+  });
+}
+
+interface SeedRunResult {
+  readonly report: ReturnType<typeof buildFitnessReport>;
+  readonly ledger: FitnessInputData['ledger'];
+}
+
+async function runSingleSeed(currentSeed: string, pipelineVersion: string): Promise<SeedRunResult> {
   // Step 0: Clean slate
   cleanSlate();
 
   // Steps 1-3: Generate + flywheel + collect data
-  const { ledger, runSteps, proposalBundles } = await runWithLocalServices(program, rootDir, {
+  const { ledger, runSteps, proposalBundles } = await runWithLocalServices(createProgram(currentSeed), rootDir, {
     posture: { interpreterMode: 'diagnostic', writeMode: 'persist', executionProfile: 'dogfood' },
     suiteRoot: paths.suiteRoot,
     pipelineConfig,
@@ -189,6 +210,112 @@ async function main(): Promise<void> {
   const report = buildFitnessReport(fitnessData);
   const reportPath = saveFitnessReport(report);
   console.log(`Fitness report saved: ${reportPath}`);
+
+  printMetrics(report);
+
+  // Restore knowledge to git HEAD (clean up activated proposals)
+  cleanSlate();
+
+  return { report, ledger };
+}
+
+function printMetrics(report: ReturnType<typeof buildFitnessReport>): void {
+  console.log('\n=== Pipeline Fitness Metrics ===\n');
+  console.log(`  Knowledge hit rate:     ${report.metrics.knowledgeHitRate}`);
+  console.log(`  Translation precision:  ${report.metrics.translationPrecision}`);
+  console.log(`  Translation recall:     ${report.metrics.translationRecall}`);
+  console.log(`  Convergence velocity:   ${report.metrics.convergenceVelocity} iterations`);
+  console.log(`  Proposal yield:         ${report.metrics.proposalYield}`);
+  console.log(`  Degraded locator rate:  ${report.metrics.degradedLocatorRate}`);
+  console.log(`  Recovery success rate:  ${report.metrics.recoverySuccessRate}`);
+
+  console.log('\n  Resolution by rung:');
+  for (const rung of report.metrics.resolutionByRung) {
+    if (rung.wins > 0) {
+      console.log(`    ${rung.rung}: ${rung.wins} wins (${(rung.rate * 100).toFixed(1)}%)`);
+    }
+  }
+
+  if (report.failureModes.length > 0) {
+    console.log('\n=== Top Pipeline Improvement Targets ===\n');
+    for (const mode of report.failureModes.slice(0, 5)) {
+      console.log(`  ${mode.class} (${mode.count} occurrences, ${mode.affectedSteps} steps)`);
+      console.log(`    Target: ${mode.improvementTarget.kind} — ${mode.improvementTarget.detail}`);
+    }
+  }
+}
+
+function averageReports(reports: readonly ReturnType<typeof buildFitnessReport>[]): ReturnType<typeof buildFitnessReport> {
+  const n = reports.length;
+  const avg = (fn: (r: ReturnType<typeof buildFitnessReport>) => number): number =>
+    Number((reports.reduce((sum, r) => sum + fn(r), 0) / n).toFixed(6));
+
+  const base = reports[0]!;
+  return {
+    ...base,
+    metrics: {
+      ...base.metrics,
+      knowledgeHitRate: avg((r) => r.metrics.knowledgeHitRate),
+      translationPrecision: avg((r) => r.metrics.translationPrecision),
+      translationRecall: avg((r) => r.metrics.translationRecall),
+      convergenceVelocity: Math.round(avg((r) => r.metrics.convergenceVelocity)),
+      proposalYield: avg((r) => r.metrics.proposalYield),
+      degradedLocatorRate: avg((r) => r.metrics.degradedLocatorRate),
+      recoverySuccessRate: avg((r) => r.metrics.recoverySuccessRate),
+    },
+    // Merge failure modes from all reports, deduplicated by class
+    failureModes: mergeFailureModes(reports.flatMap((r) => r.failureModes)),
+  };
+}
+
+function mergeFailureModes(
+  modes: readonly ReturnType<typeof buildFitnessReport>['failureModes'][number][],
+): ReturnType<typeof buildFitnessReport>['failureModes'] {
+  const byClass = new Map<string, ReturnType<typeof buildFitnessReport>['failureModes'][number]>();
+  for (const mode of modes) {
+    const existing = byClass.get(mode.class);
+    if (existing) {
+      byClass.set(mode.class, {
+        ...existing,
+        count: existing.count + mode.count,
+        affectedSteps: existing.affectedSteps + mode.affectedSteps,
+      });
+    } else {
+      byClass.set(mode.class, { ...mode });
+    }
+  }
+  return [...byClass.values()].sort((a, b) => b.count - a.count);
+}
+
+async function main(): Promise<void> {
+  const pipelineVersion = getPipelineVersion();
+  console.log(`Pipeline version: ${pipelineVersion}`);
+  console.log(`Knowledge posture: ${knowledgePosture}`);
+  console.log(`Seeds: ${seeds.join(', ')}`);
+
+  // Run for each seed
+  const results: SeedRunResult[] = [];
+  for (const currentSeed of seeds) {
+    console.log(`\n${'='.repeat(60)}`);
+    console.log(`=== Speedrun with seed: ${currentSeed} ===`);
+    console.log(`${'='.repeat(60)}`);
+    const result = await runSingleSeed(currentSeed, pipelineVersion);
+    results.push(result);
+  }
+
+  // Use averaged report for multi-seed, or single report
+  const reports = results.map((r) => r.report);
+  const report = reports.length > 1
+    ? averageReports(reports)
+    : reports[0]!;
+  const primaryLedger = results[0]!.ledger;
+
+  if (reports.length > 1) {
+    console.log(`\n${'='.repeat(60)}`);
+    console.log(`=== Averaged Metrics (${reports.length} seeds) ===`);
+    console.log(`${'='.repeat(60)}`);
+    printMetrics(report);
+  }
 
   // Step 5: Compare to scorecard
   const existingScorecard = loadScorecard();
@@ -208,12 +335,13 @@ async function main(): Promise<void> {
   }
 
   // Step 6b: Record experiment
+  const primarySeed = seeds[0]!;
   const substrateContext: SubstrateContext = {
     substrate,
-    seed,
+    seed: seeds.length > 1 ? seeds.join(',') : primarySeed,
     scenarioCount: count,
     screenCount: report.metrics.resolutionByRung.length,
-    phrasingTemplateVersion: 'v1',
+    phrasingTemplateVersion: 'v2',
   };
   const configDelta: Partial<PipelineConfig> = configPath
     ? JSON.parse(fs.readFileSync(configPath, 'utf8')) as Partial<PipelineConfig>
@@ -232,7 +360,7 @@ async function main(): Promise<void> {
       convergenceVelocityDelta: comparison.convergenceVelocityDelta,
     },
     scorecardSummary: comparison.summary,
-    ledger,
+    ledger: primaryLedger,
     parentExperimentId: null,
     tags: experimentTag ? [experimentTag] : [],
   });
@@ -276,34 +404,6 @@ async function main(): Promise<void> {
   );
   console.log(`Experiment recorded: ${experimentRecord.id}`);
 
-  // Step 7: Report failure modes
-  if (report.failureModes.length > 0) {
-    console.log('\n=== Top Pipeline Improvement Targets ===\n');
-    for (const mode of report.failureModes.slice(0, 5)) {
-      console.log(`  ${mode.class} (${mode.count} occurrences, ${mode.affectedSteps} steps)`);
-      console.log(`    Target: ${mode.improvementTarget.kind} — ${mode.improvementTarget.detail}`);
-    }
-  }
-
-  // Step 8: Summary metrics
-  console.log('\n=== Pipeline Fitness Metrics ===\n');
-  console.log(`  Knowledge hit rate:     ${report.metrics.knowledgeHitRate}`);
-  console.log(`  Translation precision:  ${report.metrics.translationPrecision}`);
-  console.log(`  Translation recall:     ${report.metrics.translationRecall}`);
-  console.log(`  Convergence velocity:   ${report.metrics.convergenceVelocity} iterations`);
-  console.log(`  Proposal yield:         ${report.metrics.proposalYield}`);
-  console.log(`  Degraded locator rate:  ${report.metrics.degradedLocatorRate}`);
-  console.log(`  Recovery success rate:  ${report.metrics.recoverySuccessRate}`);
-
-  console.log('\n  Resolution by rung:');
-  for (const rung of report.metrics.resolutionByRung) {
-    if (rung.wins > 0) {
-      console.log(`    ${rung.rung}: ${rung.wins} wins (${(rung.rate * 100).toFixed(1)}%)`);
-    }
-  }
-
-  // Restore knowledge to git HEAD (clean up activated proposals)
-  cleanSlate();
   console.log('\nSpeedrun complete. Synthetic artifacts cleaned up.');
 }
 

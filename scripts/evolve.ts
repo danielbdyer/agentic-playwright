@@ -60,6 +60,7 @@ async function runSpeedrunWithConfig(config: PipelineConfig): Promise<SpeedrunRe
   const input: SpeedrunInput = { paths, config, count, seed, maxIterations, substrate };
   return runWithLocalServices(speedrunProgram(input), rootDir, {
     posture: { interpreterMode: 'diagnostic', writeMode: 'persist', executionProfile: 'dogfood' },
+    suiteRoot: paths.suiteRoot,
     pipelineConfig: config,
   });
 }
@@ -119,6 +120,7 @@ async function main(): Promise<void> {
     const baseRecord = buildExperimentRecord(baseline, currentConfig, {}, lastExperimentId, `evolve-epoch-${epoch}-baseline`);
     await runWithLocalServices(recordExperiment(paths, baseRecord), rootDir, {
       posture: { interpreterMode: 'diagnostic', writeMode: 'persist', executionProfile: 'dogfood' },
+      suiteRoot: paths.suiteRoot,
       pipelineConfig: currentConfig,
     });
     lastExperimentId = baseRecord.id;
@@ -158,6 +160,7 @@ async function main(): Promise<void> {
       const record = buildExperimentRecord(result, candidate.config, candidate.delta, lastExperimentId, `evolve-epoch-${epoch}-candidate`);
       await runWithLocalServices(recordExperiment(paths, record), rootDir, {
         posture: { interpreterMode: 'diagnostic', writeMode: 'persist', executionProfile: 'dogfood' },
+        suiteRoot: paths.suiteRoot,
         pipelineConfig: candidate.config,
       });
 

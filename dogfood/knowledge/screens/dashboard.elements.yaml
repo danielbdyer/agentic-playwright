@@ -1,0 +1,59 @@
+screen: dashboard
+url: /dashboard.html
+elements:
+  summaryCards:
+    role: region
+    name: Summary Cards
+    testId: summary-cards
+    surface: summary-panel
+    widget: os-region
+    required: true
+  recentActivityTable:
+    role: table
+    name: Recent Activity
+    testId: recent-activity-table
+    surface: activity-grid
+    widget: os-table
+    required: true
+  alertsPanel:
+    role: region
+    name: Alerts
+    testId: alerts-panel
+    surface: alerts-surface
+    widget: os-region
+    required: false
+  quickActionsMenu:
+    role: navigation
+    name: Quick Actions
+    testId: quick-actions
+    surface: actions-panel
+    widget: os-region
+    required: true
+  dateRangeFilter:
+    role: textbox
+    name: Date Range
+    testId: date-range-filter
+    surface: filter-bar
+    widget: os-input
+    required: false
+  statusFilter:
+    role: combobox
+    name: Status Filter
+    testId: status-filter
+    surface: filter-bar
+    widget: os-select
+    required: false
+  exportButton:
+    role: button
+    name: Export
+    testId: export-button
+    surface: actions-panel
+    widget: os-button
+    required: false
+  refreshButton:
+    role: button
+    name: Refresh
+    testId: refresh-button
+    surface: actions-panel
+    widget: os-button
+    required: true

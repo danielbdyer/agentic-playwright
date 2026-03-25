@@ -1,0 +1,171 @@
+kind: screen-behavior
+version: 1
+screen: member-search
+aliases:
+  - member search behavior
+routeVariantRefs:
+  - route-variant:demo:member-search:default
+  - route-variant:demo:member-search:results-with-member
+knowledgeRefs:
+  - knowledge/surfaces/member-search.surface.yaml
+  - knowledge/screens/member-search.elements.yaml
+  - knowledge/screens/member-search.hints.yaml
+  - knowledge/screens/member-search.postures.yaml
+stateNodes:
+  - ref: state:member-search:fields-empty
+    screen: member-search
+    label: Search fields are empty
+    aliases:
+      - fields empty
+      - blank search form
+    scope: target
+    targetRef: target:element:member-search:memberIdInput
+    routeVariantRefs:
+      - route-variant:demo:member-search:default
+    predicates:
+      - kind: cleared
+        targetRef: target:element:member-search:memberIdInput
+        attribute: value
+        value: ""
+    provenance: []
+  - ref: state:member-search:fields-populated
+    screen: member-search
+    label: At least one search field has data
+    aliases:
+      - search criteria entered
+      - fields populated
+    scope: target
+    targetRef: target:element:member-search:memberIdInput
+    routeVariantRefs:
+      - route-variant:demo:member-search:default
+    predicates:
+      - kind: populated
+        targetRef: target:element:member-search:memberIdInput
+        attribute: value
+    provenance: []
+  - ref: state:member-search:results-visible
+    screen: member-search
+    label: Member results are visible
+    aliases:
+      - results visible
+      - member results shown
+    scope: target
+    targetRef: target:element:member-search:memberResultsTable
+    routeVariantRefs:
+      - route-variant:demo:member-search:results-with-member
+    predicates:
+      - kind: visible
+        targetRef: target:element:member-search:memberResultsTable
+    provenance: []
+  - ref: state:member-search:results-hidden
+    screen: member-search
+    label: Member results are hidden
+    aliases:
+      - no results visible
+      - results hidden
+    scope: target
+    targetRef: target:element:member-search:memberResultsTable
+    routeVariantRefs:
+      - route-variant:demo:member-search:default
+    predicates:
+      - kind: hidden
+        targetRef: target:element:member-search:memberResultsTable
+    provenance: []
+  - ref: state:member-search:no-results-visible
+    screen: member-search
+    label: No results message is shown
+    aliases:
+      - no results found
+      - empty results message
+    scope: target
+    targetRef: target:element:member-search:noResultsMessage
+    routeVariantRefs: []
+    predicates:
+      - kind: visible
+        targetRef: target:element:member-search:noResultsMessage
+    provenance: []
+eventSignatures:
+  - ref: event:member-search:enter-member-id
+    screen: member-search
+    targetRef: target:element:member-search:memberIdInput
+    label: Enter member ID
+    aliases:
+      - enter member id
+      - type member number
+    dispatch:
+      action: input
+      sampleValue: MEM-12345
+    requiredStateRefs: []
+    forbiddenStateRefs: []
+    effects:
+      transitionRefs:
+        - transition:member-search:populate-member-id
+      resultStateRefs:
+        - state:member-search:fields-populated
+      observableEffects:
+        - value-entry
+      assertions:
+        - Member ID field keeps the entered value
+    observationPlan:
+      timeoutMs: 1500
+      settleMs: 50
+      observeStateRefs:
+        - state:member-search:fields-populated
+    provenance: []
+  - ref: event:member-search:click-search
+    screen: member-search
+    targetRef: target:element:member-search:searchMemberButton
+    label: Click search members button
+    aliases:
+      - click search
+      - search for member
+    dispatch:
+      action: click
+    requiredStateRefs:
+      - state:member-search:fields-populated
+    forbiddenStateRefs: []
+    effects:
+      transitionRefs:
+        - transition:member-search:show-results
+      resultStateRefs:
+        - state:member-search:results-visible
+      observableEffects:
+        - result-set-visible
+      assertions:
+        - Search yields member results or a no-results message
+    observationPlan:
+      timeoutMs: 1500
+      settleMs: 50
+      observeStateRefs:
+        - state:member-search:results-visible
+        - state:member-search:no-results-visible
+    provenance: []
+transitions:
+  - ref: transition:member-search:populate-member-id
+    screen: member-search
+    label: Member ID becomes populated
+    aliases:
+      - populate member id
+    eventSignatureRef: event:member-search:enter-member-id
+    sourceStateRefs:
+      - state:member-search:fields-empty
+    targetStateRefs:
+      - state:member-search:fields-populated
+    effectKind: populate
+    observableEffects:
+      - value-entry
+    provenance: []
+  - ref: transition:member-search:show-results
+    screen: member-search
+    label: Search reveals member results
+    aliases:
+      - show member results
+    eventSignatureRef: event:member-search:click-search
+    sourceStateRefs:
+      - state:member-search:fields-populated
+    targetStateRefs:
+      - state:member-search:results-visible
+    effectKind: reveal
+    observableEffects:
+      - result-set-visible
+    provenance: []

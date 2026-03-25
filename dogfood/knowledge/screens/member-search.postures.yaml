@@ -1,0 +1,41 @@
+screen: member-search
+postures:
+  memberIdInput:
+    valid:
+      values:
+        - MEM-12345
+      effects: []
+    invalid:
+      values:
+        - BADID
+      effects:
+        - target: member-feedback
+          targetKind: surface
+          state: visible
+          message: /no members found/i
+    empty:
+      values:
+        - ""
+      effects: []
+  lastNameInput:
+    valid:
+      values:
+        - Smith
+      effects: []
+    empty:
+      values:
+        - ""
+      effects: []
+  dateOfBirthInput:
+    valid:
+      values:
+        - "1985-06-15"
+      effects: []
+    invalid:
+      values:
+        - "not-a-date"
+      effects:
+        - target: member-feedback
+          targetKind: surface
+          state: visible
+          message: /invalid date format/i

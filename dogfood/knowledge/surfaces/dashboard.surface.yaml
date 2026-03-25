@@ -1,0 +1,80 @@
+screen: dashboard
+url: /dashboard.html
+sections:
+  overview-section:
+    selector: "[data-testid='dashboard-overview']"
+    kind: details-pane
+    surfaces:
+      - summary-panel
+      - actions-panel
+      - filter-bar
+  activity-section:
+    selector: "[data-testid='activity-section']"
+    kind: result-set
+    surfaces:
+      - activity-grid
+  alerts-section:
+    selector: "[data-testid='alerts-panel']"
+    kind: validation-region
+    surfaces:
+      - alerts-surface
+surfaces:
+  summary-panel:
+    kind: details-pane
+    section: overview-section
+    selector: "[data-testid='summary-cards']"
+    parents: []
+    children: []
+    elements:
+      - summaryCards
+    assertions:
+      - state
+    required: true
+  actions-panel:
+    kind: action-cluster
+    section: overview-section
+    selector: "[data-testid='quick-actions']"
+    parents: []
+    children: []
+    elements:
+      - quickActionsMenu
+      - exportButton
+      - refreshButton
+    assertions:
+      - state
+    required: true
+  filter-bar:
+    kind: form
+    section: overview-section
+    selector: "[data-testid='filter-bar']"
+    parents: []
+    children: []
+    elements:
+      - dateRangeFilter
+      - statusFilter
+    assertions:
+      - state
+    required: false
+  activity-grid:
+    kind: result-set
+    section: activity-section
+    selector: "[data-testid='recent-activity-table']"
+    parents: []
+    children: []
+    elements:
+      - recentActivityTable
+    assertions:
+      - structure
+      - state
+    required: true
+  alerts-surface:
+    kind: validation-region
+    section: alerts-section
+    selector: "[data-testid='alerts-panel']"
+    parents: []
+    children: []
+    elements:
+      - alertsPanel
+    assertions:
+      - state
+    required: false

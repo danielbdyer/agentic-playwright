@@ -18,7 +18,13 @@ actions:
     aliases:
       - click
       - press
+      - tap
+      - hit
+      - activate
+      - trigger
       - select
+      - choose
+      - pick
   assert-snapshot:
     id: core.assert-snapshot
     aliases:
@@ -26,6 +32,10 @@ actions:
       - confirm
       - ensure
       - check
+      - assert
+      - validate
+      - see that
+      - observe
 postures:
   valid:
     id: core.posture.valid

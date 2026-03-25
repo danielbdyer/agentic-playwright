@@ -1,0 +1,54 @@
+screen: approval-queue
+screenAliases:
+  - approval queue
+  - approvals
+  - pending approvals
+  - review queue
+elements:
+  queueTable:
+    aliases:
+      - approval queue
+      - queue table
+      - pending items
+      - items to approve
+  approveButton:
+    aliases:
+      - approve
+      - approve button
+      - approve selected
+      - grant approval
+    affordance: action
+  rejectButton:
+    aliases:
+      - reject
+      - reject button
+      - deny
+      - decline
+    affordance: action
+  commentsTextarea:
+    aliases:
+      - comments
+      - approval comments
+      - notes
+      - reviewer notes
+    affordance: text-entry
+  statusFilter:
+    aliases:
+      - status filter
+      - filter by status
+      - queue filter
+    defaultValueRef: "{{queue.statusFilter}}"
+    parameter: statusFilter
+    affordance: selection
+  priorityBadge:
+    aliases:
+      - priority
+      - priority badge
+      - priority level
+      - urgency
+  itemCount:
+    aliases:
+      - item count
+      - queue count
+      - total items
+      - pending count

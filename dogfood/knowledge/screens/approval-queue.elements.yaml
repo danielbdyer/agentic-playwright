@@ -1,0 +1,52 @@
+screen: approval-queue
+url: /approval-queue.html
+elements:
+  queueTable:
+    role: table
+    name: Approval Queue
+    testId: queue-table
+    surface: queue-grid
+    widget: os-table
+    required: true
+  approveButton:
+    role: button
+    name: Approve
+    testId: approve-button
+    surface: queue-actions
+    widget: os-button
+    required: true
+  rejectButton:
+    role: button
+    name: Reject
+    testId: reject-button
+    surface: queue-actions
+    widget: os-button
+    required: true
+  commentsTextarea:
+    role: textbox
+    name: Comments
+    testId: comments-textarea
+    surface: queue-details
+    widget: os-textarea
+    required: false
+  statusFilter:
+    role: combobox
+    name: Status Filter
+    testId: queue-status-filter
+    surface: queue-filters
+    widget: os-select
+    required: false
+  priorityBadge:
+    role: text
+    name: Priority
+    testId: priority-badge
+    surface: queue-details
+    widget: os-region
+    required: false
+  itemCount:
+    role: text
+    name: Item Count
+    testId: item-count
+    surface: queue-header
+    widget: os-region
+    required: true

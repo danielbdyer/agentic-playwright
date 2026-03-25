@@ -1,0 +1,51 @@
+screen: member-search
+screenAliases:
+  - member search
+  - member search screen
+  - find member
+  - member lookup
+elements:
+  memberIdInput:
+    aliases:
+      - member id
+      - member id field
+      - member number
+    defaultValueRef: "{{member.id}}"
+    parameter: memberId
+    affordance: text-entry
+  lastNameInput:
+    aliases:
+      - last name
+      - last name field
+      - surname
+      - family name
+    defaultValueRef: "{{member.lastName}}"
+    parameter: lastName
+    affordance: text-entry
+  dateOfBirthInput:
+    aliases:
+      - date of birth
+      - dob
+      - birth date
+      - birthday
+    defaultValueRef: "{{member.dateOfBirth}}"
+    parameter: dateOfBirth
+    affordance: text-entry
+  searchMemberButton:
+    aliases:
+      - search members
+      - search button
+      - find member
+      - look up member
+    affordance: action
+  memberResultsTable:
+    aliases:
+      - member results
+      - results table
+      - search results
+      - member list
+  noResultsMessage:
+    aliases:
+      - no results
+      - no members found
+      - empty results
