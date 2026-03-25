@@ -1,0 +1,42 @@
+screen: approval-queue
+elements:
+  queueTable:
+    aliases:
+      - Browse to approval queue
+      - Jump to approval queue
+      - Take me to approval queue
+    acquired:
+      certification: uncertified
+      activatedAt: 2026-03-25T19:28:29.157Z
+      certifiedAt: null
+      lineage:
+        runIds:
+          - 2026-03-25T19-28-27-054Z
+        evidenceIds:
+          - .tesseract/evidence/runs/20096/2026-03-25T19-28-27-054Z/step-1-0.json
+        sourceArtifactPaths:
+          - .tesseract/tasks/20096.resolution.json
+          - controls/runbooks/synthetic-dogfood.runbook.yaml
+          - controls/datasets/demo-default.dataset.yaml
+        role: null
+        state: null
+        driftSeed: null
+  approveButton:
+    aliases:
+      - Access pending approvals
+    acquired:
+      certification: uncertified
+      activatedAt: 2026-03-25T19:21:17.519Z
+      certifiedAt: null
+      lineage:
+        runIds:
+          - 2026-03-25T19-21-15-595Z
+        evidenceIds:
+          - .tesseract/evidence/runs/20062/2026-03-25T19-21-15-595Z/step-1-0.json
+        sourceArtifactPaths:
+          - .tesseract/tasks/20062.resolution.json
+          - controls/runbooks/synthetic-dogfood.runbook.yaml
+          - controls/datasets/demo-default.dataset.yaml
+        role: null
+        state: null
+        driftSeed: null

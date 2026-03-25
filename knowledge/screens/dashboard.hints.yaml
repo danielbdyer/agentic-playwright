@@ -1,0 +1,40 @@
+screen: dashboard
+elements:
+  exportButton:
+    aliases:
+      - Use the export to csv
+    acquired:
+      certification: uncertified
+      activatedAt: 2026-03-25T19:25:01.369Z
+      certifiedAt: null
+      lineage:
+        runIds:
+          - 2026-03-25T19-24-59-460Z
+        evidenceIds:
+          - .tesseract/evidence/runs/20080/2026-03-25T19-24-59-460Z/step-5-0.json
+        sourceArtifactPaths:
+          - .tesseract/tasks/20080.resolution.json
+          - controls/runbooks/synthetic-dogfood.runbook.yaml
+          - controls/datasets/demo-default.dataset.yaml
+        role: null
+        state: null
+        driftSeed: null
+  alertsPanel:
+    aliases:
+      - Access home screen
+    acquired:
+      certification: uncertified
+      activatedAt: 2026-03-25T19:24:36.416Z
+      certifiedAt: null
+      lineage:
+        runIds:
+          - 2026-03-25T19-24-34-508Z
+        evidenceIds:
+          - .tesseract/evidence/runs/20078/2026-03-25T19-24-34-508Z/step-1-0.json
+        sourceArtifactPaths:
+          - .tesseract/tasks/20078.resolution.json
+          - controls/runbooks/synthetic-dogfood.runbook.yaml
+          - controls/datasets/demo-default.dataset.yaml
+        role: null
+        state: null
+        driftSeed: null
