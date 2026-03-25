@@ -34,6 +34,8 @@ export interface SpeedrunProgressEvent {
     readonly proposalsActivated: number;
     readonly totalSteps: number;
     readonly unresolvedSteps: number;
+    /** Per-iteration resolution-by-rung breakdown. Present when run records are available. */
+    readonly resolutionByRung?: readonly import('./fitness').RungRate[];
   } | null;
   readonly convergenceReason: ImprovementLoopConvergenceReason;
   readonly elapsed: number;

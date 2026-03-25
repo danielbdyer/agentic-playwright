@@ -3,6 +3,7 @@ import path from 'path';
 import { Effect } from 'effect';
 import { activateProposalBundle, autoApproveEligibleProposals } from './activate-proposals';
 import { loadWorkspaceCatalog } from './catalog';
+import { buildPartialFitnessMetrics } from './fitness';
 import { improvementLoopLedgerPath, type ProjectPaths } from './paths';
 import { refreshScenario } from './refresh';
 import { runScenarioSelection } from './run';
@@ -189,6 +190,7 @@ function buildProgressEvent(
   convergenceReason: ImprovementLoopConvergenceReason,
   startedAt: number,
   options: DogfoodOptions,
+  resolutionByRung?: readonly import('../domain/types/fitness').RungRate[],
 ): SpeedrunProgressEvent {
   return {
     kind: 'speedrun-progress',
@@ -200,6 +202,7 @@ function buildProgressEvent(
       proposalsActivated: result.proposalsActivated,
       totalSteps: result.totalStepCount,
       unresolvedSteps: result.unresolvedStepCount,
+      ...(resolutionByRung ? { resolutionByRung } : {}),
     },
     convergenceReason,
     elapsed: Date.now() - startedAt,
@@ -244,6 +247,22 @@ function runIteration(iteration: number, options: DogfoodOptions) {
     });
     const metrics = computeTraceMetrics(postRunCatalog.runRecords as never);
 
+    // Step 3b: compute per-iteration resolution-by-rung breakdown
+    const runSteps = (postRunCatalog.runRecords as unknown as ReadonlyArray<{
+      readonly artifact: {
+        readonly steps: ReadonlyArray<{
+          readonly interpretation: Record<string, unknown>;
+          readonly execution: Record<string, unknown>;
+        }>;
+      };
+    }>).flatMap((entry) =>
+      entry.artifact.steps.map((step) => ({
+        interpretation: step.interpretation,
+        execution: step.execution,
+      })),
+    );
+    const partialFitness = buildPartialFitnessMetrics({ runSteps: runSteps as never });
+
     // Step 4: collect and activate pending proposals
     const pendingBundles = collectPendingProposals(
       postRunCatalog.proposalBundles.map((entry) => entry.artifact),
@@ -274,7 +293,7 @@ function runIteration(iteration: number, options: DogfoodOptions) {
       instructionCount: metrics.totalInstructions,
     };
 
-    return result;
+    return { result, partialFitness };
   });
 }
 
@@ -287,7 +306,7 @@ function dogfoodMachine(options: DogfoodOptions) {
         return { next: state, done: true };
       }
 
-      const result = yield* runIteration(iteration, options);
+      const { result, partialFitness } = yield* runIteration(iteration, options);
       const nextCumulativeInstructions = state.cumulativeInstructions + result.instructionCount;
       const prevHitRate = state.iterations.length > 0
         ? state.iterations[state.iterations.length - 1]!.knowledgeHitRate
@@ -306,13 +325,14 @@ function dogfoodMachine(options: DogfoodOptions) {
         convergenceReason: convergence.reason ?? state.convergenceReason,
       };
 
-      // Emit progress event after each iteration
+      // Emit progress event after each iteration (with per-iteration rung breakdown)
       if (options.onProgress) {
         options.onProgress(buildProgressEvent(
           result,
           nextState.convergenceReason,
           state.startedAt,
           options,
+          partialFitness.resolutionByRung,
         ));
       }
 

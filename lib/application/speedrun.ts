@@ -1,20 +1,35 @@
 /**
- * Speedrun core - the programmatic forward pass of the self-improving loop.
+ * Speedrun core — the programmatic forward pass of the self-improving loop.
  *
- * This module extracts the speedrun pipeline into an Effect program that
- * accepts a PipelineConfig and returns a fitness report, governed comparison,
- * and unified improvement aggregate.
+ * This module owns the full speedrun pipeline as Effect programs:
+ * - Single-seed speedrun (generate → flywheel → fitness → scorecard → experiment)
+ * - Multi-seed orchestration (sequential seed runs → averaged fitness → aggregate comparison)
+ * - Scorecard loading, comparison, and conditional update
+ * - Experiment recording
+ * - Clean-slate preparation (wipe transient artifacts, restore knowledge to HEAD)
+ *
+ * Scripts are thin CLI wrappers that parse args and call these programs.
  */
 
+import path from 'path';
 import { Effect } from 'effect';
 import type { ProjectPaths } from './paths';
 import { generateSyntheticScenarios } from './synthesis/scenario-generator';
 import { runDogfoodLoop } from './dogfood';
-import { buildFitnessReport, compareToScorecard, type FitnessInputData, type ScorecardComparison } from './fitness';
+import {
+  averageFitnessReports,
+  buildFitnessReport,
+  compareToScorecard,
+  updateScorecard,
+  type FitnessInputData,
+  type ScorecardComparison,
+} from './fitness';
 import { buildImprovementRun, recordImprovementRun, scorecardPath } from './improvement';
+import { recordExperiment } from './experiment-registry';
 import { loadWorkspaceCatalog } from './catalog';
 import { FileSystem, VersionControl } from './ports';
 import type {
+  ExperimentRecord,
   ExperimentSubstrate,
   ImprovementRun,
   KnowledgePosture,
@@ -23,9 +38,12 @@ import type {
   PipelineScorecard,
   ProposalBundle,
   SpeedrunProgressEvent,
+  SubstrateContext,
 } from '../domain/types';
 import { DEFAULT_PIPELINE_CONFIG } from '../domain/types';
 import type { RunRecord } from '../domain/types/execution';
+
+// ─── Public input/result types ───
 
 export interface SpeedrunInput {
   readonly paths: ProjectPaths;
@@ -54,6 +72,32 @@ export interface SpeedrunResult {
   readonly improvementRun: ImprovementRun;
 }
 
+export interface MultiSeedInput {
+  readonly paths: ProjectPaths;
+  readonly config: PipelineConfig;
+  readonly seeds: readonly string[];
+  readonly count: number;
+  readonly maxIterations: number;
+  readonly substrate?: ExperimentSubstrate | undefined;
+  readonly tag?: string | undefined;
+  readonly knowledgePosture?: KnowledgePosture | undefined;
+  readonly onProgress?: ((event: SpeedrunProgressEvent) => void) | undefined;
+  /** Infrastructure callback to prepare a clean slate before each seed run. */
+  readonly onCleanSlate?: (() => void) | undefined;
+  /** Infrastructure callback to generate ADO fixtures after scenario generation. */
+  readonly onGenerateAdoFixtures?: (() => void) | undefined;
+}
+
+export interface MultiSeedResult {
+  readonly pipelineVersion: string;
+  readonly fitnessReport: PipelineFitnessReport;
+  readonly comparison: ScorecardComparison;
+  readonly seedResults: readonly SpeedrunResult[];
+  readonly scorecardUpdated: boolean;
+}
+
+// ─── Pure helpers ───
+
 function diffPipelineConfig(current: PipelineConfig): Partial<PipelineConfig> {
   return Object.fromEntries(
     Object.entries(current).filter(([key, value]) => {
@@ -62,6 +106,8 @@ function diffPipelineConfig(current: PipelineConfig): Partial<PipelineConfig> {
     }),
   ) as Partial<PipelineConfig>;
 }
+
+// ─── Scorecard loading/saving as Effect programs ───
 
 function loadScorecard(paths: ProjectPaths) {
   return Effect.gen(function* () {
@@ -74,6 +120,29 @@ function loadScorecard(paths: ProjectPaths) {
     return (yield* fs.readJson(artifactPath)) as PipelineScorecard;
   });
 }
+
+function saveScorecard(paths: ProjectPaths, scorecard: PipelineScorecard) {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const dir = path.dirname(scorecardPath(paths));
+    yield* fs.ensureDir(dir);
+    yield* fs.writeJson(scorecardPath(paths), scorecard);
+  });
+}
+
+function saveFitnessReport(paths: ProjectPaths, report: PipelineFitnessReport) {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const dir = path.join(paths.rootDir, '.tesseract', 'benchmarks', 'runs');
+    yield* fs.ensureDir(dir);
+    const timestamp = report.runAt.replace(/[:.]/g, '-');
+    const filePath = path.join(dir, `${timestamp}.fitness.json`);
+    yield* fs.writeJson(filePath, report);
+    return filePath;
+  });
+}
+
+// ─── Single-seed speedrun program ───
 
 export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunResult, unknown, any> {
   return Effect.gen(function* () {
@@ -185,6 +254,122 @@ export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunRes
       completedIterations: ledger.completedIterations,
       converged: ledger.converged,
       improvementRun,
+    };
+  });
+}
+
+// ─── Multi-seed speedrun program ───
+
+/**
+ * Run the full speedrun for each seed sequentially (parallel would double
+ * memory), average fitness reports, compare against the scorecard, and
+ * record the experiment. Returns the aggregate result.
+ */
+export function multiSeedSpeedrun(input: MultiSeedInput): Effect.Effect<MultiSeedResult, unknown, any> {
+  return Effect.gen(function* () {
+    const versionControl = yield* VersionControl;
+    const pipelineVersion = yield* versionControl.currentRevision().pipe(
+      Effect.catchAll(() => Effect.succeed('unknown')),
+    );
+
+    // Run each seed sequentially
+    const seedResults: SpeedrunResult[] = [];
+    for (const currentSeed of input.seeds) {
+      // Clean slate before each seed (delegated to infrastructure callback)
+      yield* Effect.sync(() => input.onCleanSlate?.());
+
+      const result = yield* speedrunProgram({
+        paths: input.paths,
+        config: input.config,
+        count: input.count,
+        seed: currentSeed,
+        maxIterations: input.maxIterations,
+        substrate: input.substrate,
+        tag: input.tag,
+        knowledgePosture: input.knowledgePosture,
+        onProgress: input.onProgress,
+      });
+
+      // Save per-seed fitness report
+      yield* saveFitnessReport(input.paths, result.fitnessReport);
+
+      // Clean slate after each seed to restore knowledge
+      yield* Effect.sync(() => input.onCleanSlate?.());
+
+      seedResults.push(result);
+    }
+
+    // Aggregate: average reports for multi-seed, use single for single
+    const reports = seedResults.map((r) => r.fitnessReport);
+    const fitnessReport = averageFitnessReports(reports);
+
+    // Compare against scorecard
+    const existingScorecard = yield* loadScorecard(input.paths);
+    const comparison = compareToScorecard(fitnessReport, existingScorecard);
+
+    // Update scorecard if improved
+    let scorecardUpdated = false;
+    if (comparison.improved) {
+      const updatedScorecard = updateScorecard(fitnessReport, existingScorecard, comparison);
+      yield* saveScorecard(input.paths, updatedScorecard);
+      scorecardUpdated = true;
+    }
+
+    // Record experiment
+    const primaryResult = seedResults[0]!;
+    const substrateContext: SubstrateContext = {
+      substrate: input.substrate ?? 'synthetic',
+      seed: input.seeds.length > 1 ? input.seeds.join(',') : input.seeds[0]!,
+      scenarioCount: input.count,
+      screenCount: fitnessReport.metrics.resolutionByRung.length,
+      phrasingTemplateVersion: 'v2',
+    };
+    const configDelta = diffPipelineConfig(input.config);
+    const experimentRecord: ExperimentRecord = {
+      id: new Date().toISOString().replace(/[:.]/g, '-'),
+      runAt: fitnessReport.runAt,
+      pipelineVersion,
+      baselineConfig: DEFAULT_PIPELINE_CONFIG,
+      configDelta,
+      substrateContext,
+      fitnessReport,
+      scorecardComparison: {
+        improved: comparison.improved,
+        knowledgeHitRateDelta: comparison.knowledgeHitRateDelta,
+        translationPrecisionDelta: comparison.translationPrecisionDelta,
+        convergenceVelocityDelta: comparison.convergenceVelocityDelta,
+      },
+      accepted: comparison.improved,
+      tags: input.tag ? [input.tag] : [],
+      parentExperimentId: null,
+      improvementRunId: primaryResult.improvementRun.improvementRunId,
+      improvementRun: primaryResult.improvementRun,
+    };
+    yield* recordExperiment(input.paths, experimentRecord);
+
+    // Emit completion progress
+    input.onProgress?.({
+      kind: 'speedrun-progress',
+      phase: 'complete',
+      iteration: primaryResult.completedIterations,
+      maxIterations: input.maxIterations,
+      metrics: {
+        knowledgeHitRate: fitnessReport.metrics.knowledgeHitRate,
+        proposalsActivated: 0,
+        totalSteps: 0,
+        unresolvedSteps: 0,
+      },
+      convergenceReason: null,
+      elapsed: 0,
+      seed: input.seeds.join(','),
+    });
+
+    return {
+      pipelineVersion,
+      fitnessReport,
+      comparison,
+      seedResults,
+      scorecardUpdated,
     };
   });
 }

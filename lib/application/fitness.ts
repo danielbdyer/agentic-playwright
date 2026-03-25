@@ -242,6 +242,49 @@ function computeBottleneckCorrelations(
   });
 }
 
+// ─── Partial (per-iteration) fitness metrics ───
+
+/**
+ * Input for lightweight per-iteration fitness estimation.
+ * Uses the same step data shape as the full fitness report but skips
+ * failure classification, scoring effectiveness, and convergence analysis.
+ */
+export interface PartialFitnessInput {
+  readonly runSteps: readonly RunStepData[];
+}
+
+/**
+ * Lightweight fitness metrics computed per dogfood iteration.
+ *
+ * This is a subset of the full fitness report — it computes
+ * resolution-by-rung breakdown and basic hit/degraded rates without
+ * failure classification or scoring effectiveness (which need the
+ * full run set across all iterations).
+ *
+ * Use case: "iteration 2 moved 12% of steps from needs-human to
+ * approved-equivalent-overlay" — exactly the signal needed to decide
+ * whether to keep iterating.
+ */
+export interface PartialFitnessMetrics {
+  readonly resolutionByRung: readonly RungRate[];
+  readonly knowledgeHitRate: number;
+  readonly degradedLocatorRate: number;
+  readonly totalSteps: number;
+}
+
+export function buildPartialFitnessMetrics(input: PartialFitnessInput): PartialFitnessMetrics {
+  const steps = extractStepOutcomes({ ...input, pipelineVersion: '', ledger: { iterations: [], completedIterations: 0, maxIterations: 0, converged: false, convergenceReason: null, kind: 'improvement-loop-ledger', version: 1, totalProposalsActivated: 0, totalInstructionCount: 0, knowledgeHitRateDelta: 0 }, proposalBundles: [] });
+  const totalSteps = steps.length;
+  const approvedKnowledge = steps.filter((s) => s.provenanceKind === 'approved-knowledge').length;
+
+  return {
+    resolutionByRung: computeRungRates(steps),
+    knowledgeHitRate: totalSteps > 0 ? round4(approvedKnowledge / totalSteps) : 0,
+    degradedLocatorRate: totalSteps > 0 ? round4(steps.filter((s) => s.degraded).length / totalSteps) : 0,
+    totalSteps,
+  };
+}
+
 // ─── Fitness report builder ───
 
 export function buildFitnessReport(data: FitnessInputData): PipelineFitnessReport {
@@ -449,5 +492,66 @@ export function updateScorecard(
     highWaterMark,
     history: [...(existing?.history ?? []), historyEntry],
     ...(paretoFrontier.length > 0 ? { paretoFrontier } : {}),
+  };
+}
+
+// ─── Multi-seed fitness averaging ───
+
+/**
+ * Merge failure modes from multiple reports, deduplicating by class
+ * and summing counts/affected steps.
+ */
+function mergeFailureModes(
+  modes: readonly PipelineFailureMode[],
+): readonly PipelineFailureMode[] {
+  const byClass = modes.reduce<ReadonlyMap<PipelineFailureClass, PipelineFailureMode>>(
+    (map, mode) => {
+      const existing = map.get(mode.class);
+      return existing
+        ? new Map([...map, [mode.class, {
+            ...existing,
+            count: existing.count + mode.count,
+            affectedSteps: existing.affectedSteps + mode.affectedSteps,
+          }]])
+        : new Map([...map, [mode.class, mode]]);
+    },
+    new Map(),
+  );
+  return [...byClass.values()].sort((a, b) => b.count - a.count);
+}
+
+/**
+ * Average multiple fitness reports (from multi-seed runs) into a single
+ * aggregate report. Numeric metrics are averaged; failure modes are merged
+ * and deduplicated by class.
+ */
+export function averageFitnessReports(
+  reports: readonly PipelineFitnessReport[],
+): PipelineFitnessReport {
+  const n = reports.length;
+  if (n === 0) {
+    throw new Error('averageFitnessReports requires at least one report');
+  }
+  if (n === 1) {
+    return reports[0]!;
+  }
+
+  const avg = (fn: (r: PipelineFitnessReport) => number): number =>
+    round4(reports.reduce((sum, r) => sum + fn(r), 0) / n);
+
+  const base = reports[0]!;
+  return {
+    ...base,
+    metrics: {
+      ...base.metrics,
+      knowledgeHitRate: avg((r) => r.metrics.knowledgeHitRate),
+      translationPrecision: avg((r) => r.metrics.translationPrecision),
+      translationRecall: avg((r) => r.metrics.translationRecall),
+      convergenceVelocity: Math.round(avg((r) => r.metrics.convergenceVelocity)),
+      proposalYield: avg((r) => r.metrics.proposalYield),
+      degradedLocatorRate: avg((r) => r.metrics.degradedLocatorRate),
+      recoverySuccessRate: avg((r) => r.metrics.recoverySuccessRate),
+    },
+    failureModes: mergeFailureModes(reports.flatMap((r) => r.failureModes)),
   };
 }
