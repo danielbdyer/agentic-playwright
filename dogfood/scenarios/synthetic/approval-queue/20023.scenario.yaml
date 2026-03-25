@@ -1,0 +1,66 @@
+source:
+  ado_id: "20023"
+  revision: 1
+  content_hash: sha256:dcf83b6053c668166e4f75b580bcf06615271eb84bd7cbe2541b62a8d3c08207
+  synced_at: 2026-03-25T19:04:08.316Z
+metadata:
+  title: "Synthetic scenario 23: dashboard with 4 steps"
+  suite: synthetic/approval-queue
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Open overview
+    action_text: Open overview
+    expected_text: overview loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: In the time period field enter a valid value
+    action_text: In the time period field enter a valid value
+    expected_text: time period accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Click on the reload
+    action_text: Click on the reload
+    expected_text: reload action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Validate overview cards is present
+    action_text: Validate overview cards is present
+    expected_text: overview cards is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

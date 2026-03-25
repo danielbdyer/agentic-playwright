@@ -1,0 +1,66 @@
+source:
+  ado_id: "20073"
+  revision: 1
+  content_hash: sha256:bb5efdf746471307d28b8a962ad12678288439dfa964e31fb67c730eda09eab0
+  synced_at: 2026-03-25T19:04:08.327Z
+metadata:
+  title: "Synthetic scenario 73: policy-detail with 4 steps"
+  suite: synthetic/approval-queue
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Visit the policy detail screen
+    action_text: Visit the policy detail screen
+    expected_text: policy detail screen loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Confirm claims appears
+    action_text: Confirm claims appears
+    expected_text: claims is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Make sure policy number display is there
+    action_text: Make sure policy number display is there
+    expected_text: policy number display is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Look at the not found error
+    action_text: Look at the not found error
+    expected_text: not found error is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

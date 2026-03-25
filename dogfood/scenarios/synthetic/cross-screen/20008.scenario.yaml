@@ -1,0 +1,150 @@
+source:
+  ado_id: "20008"
+  revision: 1
+  content_hash: sha256:84dd4ef4fdce811e29375ef46d24069886495bc55318feadcc34d57aeda3b994
+  synced_at: 2026-03-25T19:04:08.334Z
+metadata:
+  title: "Synthetic cross-screen 8: policy-detail → policy-search → approval-queue"
+  suite: synthetic/cross-screen
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Go to the policy details
+    action_text: Go to the policy details
+    expected_text: policy details loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Make sure the effective date works
+    action_text: Make sure the effective date works
+    expected_text: effective date is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Hit Access policy detail screen
+    action_text: Hit Access policy detail screen
+    expected_text: Access policy detail screen action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Bring up policy search screen
+    action_text: Bring up policy search screen
+    expected_text: policy search screen loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: Assert validation summary is shown
+    action_text: Assert validation summary is shown
+    expected_text: validation summary is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 6
+    intent: results table should be visible
+    action_text: results table should be visible
+    expected_text: results table is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 7
+    intent: Press the Load the policy search screen page
+    action_text: Press the Load the policy search screen page
+    expected_text: Load the policy search screen page action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 8
+    intent: Take me to approval queue
+    action_text: Take me to approval queue
+    expected_text: approval queue loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 9
+    intent: Set queue filter to the correct option
+    action_text: Set queue filter to the correct option
+    expected_text: queue filter shows the selected value
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 10
+    intent: Use the pending items thing
+    action_text: Use the pending items thing
+    expected_text: pending items is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 11
+    intent: Provide a valid value for notes
+    action_text: Provide a valid value for notes
+    expected_text: notes accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

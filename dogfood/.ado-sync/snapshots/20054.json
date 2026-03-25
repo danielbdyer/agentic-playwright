@@ -1,0 +1,49 @@
+{
+  "id": "20054",
+  "revision": 1,
+  "title": "Synthetic scenario 54: approval-queue with 6 steps",
+  "suitePath": "synthetic/approval-queue",
+  "areaPath": "synthetic",
+  "iterationPath": "synthetic/sprint-1",
+  "tags": [
+    "synthetic",
+    "dogfood"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Go to the approval queue</p>",
+      "expected": "<p>approval queue loads successfully</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Change filter by status to the correct option</p>",
+      "expected": "<p>filter by status shows the selected value</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Validate priority level is present</p>",
+      "expected": "<p>priority level is visible on screen</p>"
+    },
+    {
+      "index": 4,
+      "action": "<p>Enter a valid value in notes</p>",
+      "expected": "<p>notes accepts the input</p>"
+    },
+    {
+      "index": 5,
+      "action": "<p>Interact with pending count</p>",
+      "expected": "<p>pending count is visible on screen</p>"
+    },
+    {
+      "index": 6,
+      "action": "<p>Press the reject button</p>",
+      "expected": "<p>reject button action completes</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:f0431403fd52ab44e72c3c89c86415fb9570ea47ded6d0296006f8acd5687c9a",
+  "syncedAt": "2026-03-25T19:04:08.323Z"
+}

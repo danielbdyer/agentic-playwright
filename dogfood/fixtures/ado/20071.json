@@ -1,0 +1,34 @@
+{
+  "id": "20071",
+  "revision": 1,
+  "title": "Synthetic workflow 71: policy-detail form-fill-verify",
+  "suitePath": "synthetic/approval-queue",
+  "areaPath": "synthetic",
+  "iterationPath": "synthetic/sprint-1",
+  "tags": [
+    "synthetic",
+    "dogfood"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Switch to policy detail screen</p>",
+      "expected": "<p>policy detail screen loads successfully</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Click the Switch to policy detail button</p>",
+      "expected": "<p>Switch to policy detail action completes</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>claims list should be visible</p>",
+      "expected": "<p>claims list is visible on screen</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:f08cfd39eba5c474b98bffa16af9de3b2ede610a53a97fa81edc82412ccb300d",
+  "syncedAt": "2026-03-25T19:04:08.326Z"
+}

@@ -1,0 +1,44 @@
+{
+  "id": "20082",
+  "revision": 1,
+  "title": "Synthetic assertion-variant 82: policy-search",
+  "suitePath": "synthetic/approval-queue",
+  "areaPath": "synthetic",
+  "iterationPath": "synthetic/sprint-1",
+  "tags": [
+    "synthetic",
+    "dogfood"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Go to the policy search screen</p>",
+      "expected": "<p>policy search screen loads successfully</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Assert error summary is not shown</p>",
+      "expected": "<p>error summary is not visible on screen</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Verify both error summary and results table are visible</p>",
+      "expected": "<p>error summary and results table are both visible</p>"
+    },
+    {
+      "index": 4,
+      "action": "<p>Make sure validation summary is there</p>",
+      "expected": "<p>validation summary is visible on screen</p>"
+    },
+    {
+      "index": 5,
+      "action": "<p>Validate results table is present</p>",
+      "expected": "<p>results table is visible on screen</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:22026cee0b2748cdbee92fe6f4050a18572c9aca6858223146fd48f3b9967b34",
+  "syncedAt": "2026-03-25T19:04:08.329Z"
+}

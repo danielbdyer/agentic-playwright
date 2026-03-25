@@ -1,11 +1,10 @@
 source:
   ado_id: "20005"
   revision: 1
-  content_hash: sha256:synthetic-20005
-  synced_at: 2026-03-25T18:09:23.984Z
-  origin: synthetic
+  content_hash: sha256:f89a4280ebff62d607c464a602e8f6b8e5ea950514a6873596f8c60a644b007d
+  synced_at: 2026-03-17T23:21:17.891Z
 metadata:
-  title: "Synthetic cross-screen scenario 5"
+  title: Synthetic cross-screen scenario 5
   suite: synthetic/cross-screen
   tags:
     - synthetic
@@ -17,9 +16,9 @@ preconditions:
   - fixture: demoSession
 steps:
   - index: 1
-    intent: Go to the policy details
-    action_text: Go to the policy details
-    expected_text: policy details loads successfully
+    intent: Switch to policy detail screen
+    action_text: Switch to policy detail screen
+    expected_text: policy detail screen loads successfully
     action: custom
     screen: null
     element: null
@@ -29,8 +28,8 @@ steps:
     resolution: null
     confidence: intent-only
   - index: 2
-    intent: See that claims table is on screen
-    action_text: See that claims table is on screen
+    intent: Confirm claims table appears
+    action_text: Confirm claims table appears
     expected_text: claims table is visible on screen
     action: custom
     screen: null
@@ -41,9 +40,9 @@ steps:
     resolution: null
     confidence: intent-only
   - index: 3
-    intent: Confirm status appears
-    action_text: Confirm status appears
-    expected_text: status is visible on screen
+    intent: Access policy search
+    action_text: Access policy search
+    expected_text: policy search loads successfully
     action: custom
     screen: null
     element: null
@@ -53,21 +52,9 @@ steps:
     resolution: null
     confidence: intent-only
   - index: 4
-    intent: Load the policy search screen page
-    action_text: Load the policy search screen page
-    expected_text: policy search screen loads successfully
-    action: custom
-    screen: null
-    element: null
-    posture: null
-    override: null
-    snapshot_template: null
-    resolution: null
-    confidence: intent-only
-  - index: 5
-    intent: Key in test data at policy number
-    action_text: Key in test data at policy number
-    expected_text: policy number accepts the input
+    intent: Verify error summary is visible
+    action_text: Verify error summary is visible
+    expected_text: error summary is visible on screen
     action: custom
     screen: null
     element: null

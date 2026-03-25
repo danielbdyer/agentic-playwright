@@ -1,0 +1,49 @@
+{
+  "id": "20076",
+  "revision": 1,
+  "title": "Synthetic workflow 76: member-search form-fill-verify",
+  "suitePath": "synthetic/approval-queue",
+  "areaPath": "synthetic",
+  "iterationPath": "synthetic/sprint-1",
+  "tags": [
+    "synthetic",
+    "dogfood"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Pull up the member search</p>",
+      "expected": "<p>member search loads successfully</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Set member id to a valid value</p>",
+      "expected": "<p>member id accepts the input</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Fill out the birth date with a valid value</p>",
+      "expected": "<p>birth date accepts the input</p>"
+    },
+    {
+      "index": 4,
+      "action": "<p>Key in a valid value at family name</p>",
+      "expected": "<p>family name accepts the input</p>"
+    },
+    {
+      "index": 5,
+      "action": "<p>Click on search button</p>",
+      "expected": "<p>search button action completes</p>"
+    },
+    {
+      "index": 6,
+      "action": "<p>The search results must be displayed</p>",
+      "expected": "<p>search results is visible on screen</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:42a531ec8cb5eadc966af734dade96e28ca630f670cc25d58aff507f656b4ea5",
+  "syncedAt": "2026-03-25T19:04:08.328Z"
+}

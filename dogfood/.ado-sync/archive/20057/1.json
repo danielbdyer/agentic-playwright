@@ -1,0 +1,49 @@
+{
+  "id": "20057",
+  "revision": 1,
+  "title": "Synthetic cross-screen 57: dashboard → member-search",
+  "suitePath": "synthetic/cross-screen",
+  "areaPath": "synthetic",
+  "iterationPath": "synthetic/sprint-1",
+  "tags": [
+    "synthetic",
+    "dogfood"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Switch to home screen</p>",
+      "expected": "<p>home screen loads successfully</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Observe alerts content</p>",
+      "expected": "<p>alerts is visible on screen</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Hit the update dashboard</p>",
+      "expected": "<p>update dashboard action completes</p>"
+    },
+    {
+      "index": 4,
+      "action": "<p>Load the member search screen page</p>",
+      "expected": "<p>member search screen loads successfully</p>"
+    },
+    {
+      "index": 5,
+      "action": "<p>Place a valid value into the date of birth field</p>",
+      "expected": "<p>date of birth accepts the input</p>"
+    },
+    {
+      "index": 6,
+      "action": "<p>Confirm that member list is on screen</p>",
+      "expected": "<p>member list is visible on screen</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:f1889830bdb81a0e394958ddc2a7d1002a2e214bcd98d37e5711d63df8018b14",
+  "syncedAt": "2026-03-25T19:04:08.338Z"
+}

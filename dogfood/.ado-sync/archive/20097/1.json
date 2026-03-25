@@ -1,0 +1,44 @@
+{
+  "id": "20097",
+  "revision": 1,
+  "title": "Synthetic assertion-variant 97: dashboard",
+  "suitePath": "synthetic/approval-queue",
+  "areaPath": "synthetic",
+  "iterationPath": "synthetic/sprint-1",
+  "tags": [
+    "synthetic",
+    "dogfood"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Pull up the overview</p>",
+      "expected": "<p>overview loads successfully</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Verify warning alerts is NOT visible</p>",
+      "expected": "<p>warning alerts is not visible on screen</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Verify both recent activity and alerts are visible</p>",
+      "expected": "<p>recent activity and alerts are both visible</p>"
+    },
+    {
+      "index": 4,
+      "action": "<p>Verify that activity log shows up</p>",
+      "expected": "<p>activity log is visible on screen</p>"
+    },
+    {
+      "index": 5,
+      "action": "<p>action menu should be visible</p>",
+      "expected": "<p>action menu is visible on screen</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:65a2e74f25073a8911587407ce9a065763dd4bad1b25685aec487e082592df0c",
+  "syncedAt": "2026-03-25T19:04:08.333Z"
+}

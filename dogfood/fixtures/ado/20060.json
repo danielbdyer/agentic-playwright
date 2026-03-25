@@ -1,0 +1,74 @@
+{
+  "id": "20060",
+  "revision": 1,
+  "title": "Synthetic cross-screen 60: policy-search → policy-detail → claim-intake",
+  "suitePath": "synthetic/cross-screen",
+  "areaPath": "synthetic",
+  "iterationPath": "synthetic/sprint-1",
+  "tags": [
+    "synthetic",
+    "dogfood"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Jump to policy search screen</p>",
+      "expected": "<p>policy search screen loads successfully</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Populate policy number with a valid value</p>",
+      "expected": "<p>policy number accepts the input</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Click the Trigger search button button</p>",
+      "expected": "<p>Trigger search button action completes</p>"
+    },
+    {
+      "index": 4,
+      "action": "<p>Switch to policy detail</p>",
+      "expected": "<p>policy detail loads successfully</p>"
+    },
+    {
+      "index": 5,
+      "action": "<p>Push the return to search</p>",
+      "expected": "<p>return to search action completes</p>"
+    },
+    {
+      "index": 6,
+      "action": "<p>Make sure policy number is there</p>",
+      "expected": "<p>policy number is visible on screen</p>"
+    },
+    {
+      "index": 7,
+      "action": "<p>Ensure policy status can be seen</p>",
+      "expected": "<p>policy status is visible on screen</p>"
+    },
+    {
+      "index": 8,
+      "action": "<p>Switch to new claim</p>",
+      "expected": "<p>new claim loads successfully</p>"
+    },
+    {
+      "index": 9,
+      "action": "<p>Provide a valid value for claim description</p>",
+      "expected": "<p>claim description accepts the input</p>"
+    },
+    {
+      "index": 10,
+      "action": "<p>Activate attach files</p>",
+      "expected": "<p>attach files action completes</p>"
+    },
+    {
+      "index": 11,
+      "action": "<p>Go to type of claim and pick the correct option</p>",
+      "expected": "<p>type of claim shows the selected value</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:0a2ac153eef6b17b908aaf02fd7fd6f0709616f3b4ee428f33bbea758919e2d9",
+  "syncedAt": "2026-03-25T19:04:08.339Z"
+}

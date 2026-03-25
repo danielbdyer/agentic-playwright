@@ -1,0 +1,150 @@
+source:
+  ado_id: "20060"
+  revision: 1
+  content_hash: sha256:0a2ac153eef6b17b908aaf02fd7fd6f0709616f3b4ee428f33bbea758919e2d9
+  synced_at: 2026-03-25T19:04:08.339Z
+metadata:
+  title: "Synthetic cross-screen 60: policy-search → policy-detail → claim-intake"
+  suite: synthetic/cross-screen
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Jump to policy search screen
+    action_text: Jump to policy search screen
+    expected_text: policy search screen loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Populate policy number with a valid value
+    action_text: Populate policy number with a valid value
+    expected_text: policy number accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Click the Trigger search button button
+    action_text: Click the Trigger search button button
+    expected_text: Trigger search button action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Switch to policy detail
+    action_text: Switch to policy detail
+    expected_text: policy detail loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: Push the return to search
+    action_text: Push the return to search
+    expected_text: return to search action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 6
+    intent: Make sure policy number is there
+    action_text: Make sure policy number is there
+    expected_text: policy number is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 7
+    intent: Ensure policy status can be seen
+    action_text: Ensure policy status can be seen
+    expected_text: policy status is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 8
+    intent: Switch to new claim
+    action_text: Switch to new claim
+    expected_text: new claim loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 9
+    intent: Provide a valid value for claim description
+    action_text: Provide a valid value for claim description
+    expected_text: claim description accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 10
+    intent: Activate attach files
+    action_text: Activate attach files
+    expected_text: attach files action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 11
+    intent: Go to type of claim and pick the correct option
+    action_text: Go to type of claim and pick the correct option
+    expected_text: type of claim shows the selected value
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

@@ -1,0 +1,114 @@
+source:
+  ado_id: "20070"
+  revision: 1
+  content_hash: sha256:c4a753f4df53d47347516b8e0efbb53fa00acf6be72962544147165bbdc2f1eb
+  synced_at: 2026-03-25T19:04:08.339Z
+metadata:
+  title: "Synthetic cross-screen 70: policy-detail → member-search"
+  suite: synthetic/cross-screen
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Jump to policy detail screen
+    action_text: Jump to policy detail screen
+    expected_text: policy detail screen loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Look for claims list on the page
+    action_text: Look for claims list on the page
+    expected_text: claims list is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Expect not found error to appear
+    action_text: Expect not found error to appear
+    expected_text: not found error is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Check policy number display is present
+    action_text: Check policy number display is present
+    expected_text: policy number display is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: Move to the member search page
+    action_text: Move to the member search page
+    expected_text: member search loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 6
+    intent: Do the no members found
+    action_text: Do the no members found
+    expected_text: no members found is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 7
+    intent: Click the search members button
+    action_text: Click the search members button
+    expected_text: search members action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 8
+    intent: For member number use a valid value
+    action_text: For member number use a valid value
+    expected_text: member number accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

@@ -1,0 +1,54 @@
+source:
+  ado_id: "20020"
+  revision: 1
+  content_hash: sha256:53995b02d6633b2a9ca6eb4c6073f248560b0660a488e2ee2a300ab6125f2ad7
+  synced_at: 2026-03-25T19:04:08.316Z
+metadata:
+  title: "Synthetic scenario 20: approval-queue with 3 steps"
+  suite: synthetic/approval-queue
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Show me the approval queue
+    action_text: Show me the approval queue
+    expected_text: approval queue loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Hit reject
+    action_text: Hit reject
+    expected_text: reject action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Verify queue table is visible
+    action_text: Verify queue table is visible
+    expected_text: queue table is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

@@ -1,0 +1,44 @@
+{
+  "id": "20081",
+  "revision": 1,
+  "title": "Synthetic workflow 81: dashboard form-fill-verify",
+  "suitePath": "synthetic/approval-queue",
+  "areaPath": "synthetic",
+  "iterationPath": "synthetic/sprint-1",
+  "tags": [
+    "synthetic",
+    "dogfood"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Switch to main dashboard</p>",
+      "expected": "<p>main dashboard loads successfully</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Select the correct option from status dropdown</p>",
+      "expected": "<p>status dropdown shows the selected value</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Populate date range with a valid value</p>",
+      "expected": "<p>date range accepts the input</p>"
+    },
+    {
+      "index": 4,
+      "action": "<p>Go ahead and click export to csv</p>",
+      "expected": "<p>export to csv action completes</p>"
+    },
+    {
+      "index": 5,
+      "action": "<p>The recent events must be displayed</p>",
+      "expected": "<p>recent events is visible on screen</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:2f768c53c767275f67f21984d5d19b4d38aea514c407f0a22b0cdf1c1e8a9a05",
+  "syncedAt": "2026-03-25T19:04:08.329Z"
+}

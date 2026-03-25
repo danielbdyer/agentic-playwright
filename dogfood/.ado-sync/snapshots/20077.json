@@ -1,0 +1,39 @@
+{
+  "id": "20077",
+  "revision": 1,
+  "title": "Synthetic scenario 77: approval-queue with 4 steps",
+  "suitePath": "synthetic/approval-queue",
+  "areaPath": "synthetic",
+  "iterationPath": "synthetic/sprint-1",
+  "tags": [
+    "synthetic",
+    "dogfood"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Open approval queue</p>",
+      "expected": "<p>approval queue loads successfully</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Smash that deny</p>",
+      "expected": "<p>deny action completes</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Expect priority badge to appear</p>",
+      "expected": "<p>priority badge is visible on screen</p>"
+    },
+    {
+      "index": 4,
+      "action": "<p>Look for queue count on the page</p>",
+      "expected": "<p>queue count is visible on screen</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:a5a3e439a56086a2be4d85e8401a8958afe6b2b3e1f726fd2e3fbc8c66ae0502",
+  "syncedAt": "2026-03-25T19:04:08.328Z"
+}

@@ -1,0 +1,90 @@
+source:
+  ado_id: "20069"
+  revision: 1
+  content_hash: sha256:ffe35292dd0981938591ed4b9de2955c27f659727ebca5cb290ef612460c50e9
+  synced_at: 2026-03-25T19:04:08.326Z
+metadata:
+  title: "Synthetic workflow 69: member-search form-fill-verify"
+  suite: synthetic/approval-queue
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Go ahead and open member search
+    action_text: Go ahead and open member search
+    expected_text: member search loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Input a valid value in the last name field
+    action_text: Input a valid value in the last name field
+    expected_text: last name field accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Input a valid value in the member id
+    action_text: Input a valid value in the member id
+    expected_text: member id accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Provide a valid value for birthday
+    action_text: Provide a valid value for birthday
+    expected_text: birthday accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: Push the search button
+    action_text: Push the search button
+    expected_text: search button action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 6
+    intent: Observe member list content
+    action_text: Observe member list content
+    expected_text: member list is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

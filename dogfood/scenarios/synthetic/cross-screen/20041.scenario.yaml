@@ -1,0 +1,78 @@
+source:
+  ado_id: "20041"
+  revision: 1
+  content_hash: sha256:7ac7afa1ec9f566a77cd03c7702a201f5a46e3dc6f4e40d34fac8687350f9ac3
+  synced_at: 2026-03-25T19:04:08.336Z
+metadata:
+  title: "Synthetic cross-screen 41: policy-detail → policy-search"
+  suite: synthetic/cross-screen
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Go ahead and open policy details
+    action_text: Go ahead and open policy details
+    expected_text: policy details loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Verify claims table is visible
+    action_text: Verify claims table is visible
+    expected_text: claims table is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Navigate to policy search screen
+    action_text: Navigate to policy search screen
+    expected_text: policy search screen loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Push the Load the policy search screen page
+    action_text: Push the Load the policy search screen page
+    expected_text: Load the policy search screen page action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: Fill out the policy number field with a valid value
+    action_text: Fill out the policy number field with a valid value
+    expected_text: policy number field accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

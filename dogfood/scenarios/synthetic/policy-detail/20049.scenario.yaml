@@ -1,11 +1,10 @@
 source:
   ado_id: "20049"
   revision: 1
-  content_hash: sha256:synthetic-20049
-  synced_at: 2026-03-25T18:09:24.001Z
-  origin: synthetic
+  content_hash: sha256:fb99483688549089d4ffe0aa2407deb89754e2c030df74d20738cbbb4349ea50
+  synced_at: 2026-03-17T23:21:17.909Z
 metadata:
-  title: "Synthetic scenario 49: policy-search with 4 steps"
+  title: "Synthetic scenario 49: policy-detail with 4 steps"
   suite: synthetic/policy-detail
   tags:
     - synthetic
@@ -17,9 +16,9 @@ preconditions:
   - fixture: demoSession
 steps:
   - index: 1
-    intent: Go to the policy search
-    action_text: Go to the policy search
-    expected_text: policy search loads successfully
+    intent: Browse to policy detail screen
+    action_text: Browse to policy detail screen
+    expected_text: policy detail screen loads successfully
     action: custom
     screen: null
     element: null
@@ -29,9 +28,9 @@ steps:
     resolution: null
     confidence: intent-only
   - index: 2
-    intent: Validate validation summary is present
-    action_text: Validate validation summary is present
-    expected_text: validation summary is visible on screen
+    intent: Validate error message is present
+    action_text: Validate error message is present
+    expected_text: error message is visible on screen
     action: custom
     screen: null
     element: null
@@ -41,9 +40,9 @@ steps:
     resolution: null
     confidence: intent-only
   - index: 3
-    intent: Activate Load the policy search screen page
-    action_text: Activate Load the policy search screen page
-    expected_text: Load the policy search screen page action completes
+    intent: Check that effective date is displayed
+    action_text: Check that effective date is displayed
+    expected_text: effective date is visible on screen
     action: custom
     screen: null
     element: null
@@ -53,9 +52,9 @@ steps:
     resolution: null
     confidence: intent-only
   - index: 4
-    intent: Input a valid value in the policy number
-    action_text: Input a valid value in the policy number
-    expected_text: policy number accepts the input
+    intent: Click on the back link
+    action_text: Click on the back link
+    expected_text: back link action completes
     action: custom
     screen: null
     element: null

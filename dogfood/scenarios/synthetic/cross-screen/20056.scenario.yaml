@@ -1,0 +1,150 @@
+source:
+  ado_id: "20056"
+  revision: 1
+  content_hash: sha256:89022ee693fc7d7a8478dfae35d1ff1048daa9194d1f7fff0057a7fe9e69ef24
+  synced_at: 2026-03-25T19:04:08.338Z
+metadata:
+  title: "Synthetic cross-screen 56: policy-detail → claim-intake → member-search"
+  suite: synthetic/cross-screen
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Switch to policy detail
+    action_text: Switch to policy detail
+    expected_text: policy detail loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Check not found error is present
+    action_text: Check not found error is present
+    expected_text: not found error is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: See that policy number is on screen
+    action_text: See that policy number is on screen
+    expected_text: policy number is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Confirm policy status appears
+    action_text: Confirm policy status appears
+    expected_text: policy status is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: Navigate to claim intake form
+    action_text: Navigate to claim intake form
+    expected_text: claim intake form loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 6
+    intent: Click the cancel button
+    action_text: Click the cancel button
+    expected_text: cancel action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 7
+    intent: Type a valid value into the date of incident
+    action_text: Type a valid value into the date of incident
+    expected_text: date of incident accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 8
+    intent: Go ahead and open member search screen
+    action_text: Go ahead and open member search screen
+    expected_text: member search screen loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 9
+    intent: Hit the search button
+    action_text: Hit the search button
+    expected_text: search button action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 10
+    intent: Expect no members found to appear
+    action_text: Expect no members found to appear
+    expected_text: no members found is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 11
+    intent: Verify that member results shows up
+    action_text: Verify that member results shows up
+    expected_text: member results is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

@@ -1,11 +1,10 @@
 source:
   ado_id: "20010"
   revision: 1
-  content_hash: sha256:synthetic-20010
-  synced_at: 2026-03-25T18:09:23.986Z
-  origin: synthetic
+  content_hash: sha256:974eba0734540356eb46f059b49765da0ad675cce3f15a1a5982e6effb64c259
+  synced_at: 2026-03-17T23:21:17.901Z
 metadata:
-  title: "Synthetic scenario 10: policy-detail with 5 steps"
+  title: "Synthetic scenario 10: policy-search with 5 steps"
   suite: synthetic/policy-detail
   tags:
     - synthetic
@@ -17,9 +16,9 @@ preconditions:
   - fixture: demoSession
 steps:
   - index: 1
-    intent: Navigate to policy details
-    action_text: Navigate to policy details
-    expected_text: policy details loads successfully
+    intent: Navigate to policy search
+    action_text: Navigate to policy search
+    expected_text: policy search loads successfully
     action: custom
     screen: null
     element: null
@@ -29,9 +28,9 @@ steps:
     resolution: null
     confidence: intent-only
   - index: 2
-    intent: Verify status badge is visible
-    action_text: Verify status badge is visible
-    expected_text: status badge is visible on screen
+    intent: Click on the search
+    action_text: Click on the search
+    expected_text: search action completes
     action: custom
     screen: null
     element: null
@@ -41,9 +40,9 @@ steps:
     resolution: null
     confidence: intent-only
   - index: 3
-    intent: Verify policy number display is visible
-    action_text: Verify policy number display is visible
-    expected_text: policy number display is visible on screen
+    intent: Ensure validation summary can be seen
+    action_text: Ensure validation summary can be seen
+    expected_text: validation summary is visible on screen
     action: custom
     screen: null
     element: null
@@ -53,9 +52,9 @@ steps:
     resolution: null
     confidence: intent-only
   - index: 4
-    intent: See that error panel is on screen
-    action_text: See that error panel is on screen
-    expected_text: error panel is visible on screen
+    intent: Observe results table content
+    action_text: Observe results table content
+    expected_text: results table is visible on screen
     action: custom
     screen: null
     element: null
@@ -65,9 +64,9 @@ steps:
     resolution: null
     confidence: intent-only
   - index: 5
-    intent: Assert claims is shown
-    action_text: Assert claims is shown
-    expected_text: claims is visible on screen
+    intent: Provide a valid value for policy number field
+    action_text: Provide a valid value for policy number field
+    expected_text: policy number field accepts the input
     action: custom
     screen: null
     element: null

@@ -1,0 +1,66 @@
+source:
+  ado_id: "20092"
+  revision: 1
+  content_hash: sha256:95d5901ad56587ab6cea46ce0262b9996fbae2e06bf634158a26512b56629d8c
+  synced_at: 2026-03-25T19:04:08.331Z
+metadata:
+  title: "Synthetic scenario 92: policy-detail with 4 steps"
+  suite: synthetic/approval-queue
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Head over to policy detail
+    action_text: Head over to policy detail
+    expected_text: policy detail loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Confirm error panel appears
+    action_text: Confirm error panel appears
+    expected_text: error panel is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Expect claims list to appear
+    action_text: Expect claims list to appear
+    expected_text: claims list is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Interact with date
+    action_text: Interact with date
+    expected_text: date is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

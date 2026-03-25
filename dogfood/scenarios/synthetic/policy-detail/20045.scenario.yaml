@@ -1,11 +1,10 @@
 source:
   ado_id: "20045"
   revision: 1
-  content_hash: sha256:synthetic-20045
-  synced_at: 2026-03-25T18:09:23.999Z
-  origin: synthetic
+  content_hash: sha256:9d58c34ef91a0dad7eb7b94c4a8ba0c9d333a276499c882cbcd709accf34be72
+  synced_at: 2026-03-17T23:21:17.908Z
 metadata:
-  title: "Synthetic scenario 45: policy-detail with 4 steps"
+  title: "Synthetic scenario 45: policy-search with 5 steps"
   suite: synthetic/policy-detail
   tags:
     - synthetic
@@ -17,9 +16,9 @@ preconditions:
   - fixture: demoSession
 steps:
   - index: 1
-    intent: Switch to policy detail
-    action_text: Switch to policy detail
-    expected_text: policy detail loads successfully
+    intent: Navigate to policy search
+    action_text: Navigate to policy search
+    expected_text: policy search loads successfully
     action: custom
     screen: null
     element: null
@@ -29,9 +28,9 @@ steps:
     resolution: null
     confidence: intent-only
   - index: 2
-    intent: See that policy number is on screen
-    action_text: See that policy number is on screen
-    expected_text: policy number is visible on screen
+    intent: See that results table is on screen
+    action_text: See that results table is on screen
+    expected_text: results table is visible on screen
     action: custom
     screen: null
     element: null
@@ -41,9 +40,9 @@ steps:
     resolution: null
     confidence: intent-only
   - index: 3
-    intent: Validate error message is present
-    action_text: Validate error message is present
-    expected_text: error message is visible on screen
+    intent: Type a valid value into the policy number field
+    action_text: Type a valid value into the policy number field
+    expected_text: policy number field accepts the input
     action: custom
     screen: null
     element: null
@@ -53,9 +52,21 @@ steps:
     resolution: null
     confidence: intent-only
   - index: 4
-    intent: Ensure status can be seen
-    action_text: Ensure status can be seen
-    expected_text: status is visible on screen
+    intent: See that validation summary is on screen
+    action_text: See that validation summary is on screen
+    expected_text: validation summary is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: Hit the search button
+    action_text: Hit the search button
+    expected_text: search button action completes
     action: custom
     screen: null
     element: null

@@ -1,11 +1,10 @@
 source:
   ado_id: "20026"
   revision: 1
-  content_hash: sha256:synthetic-20026
-  synced_at: 2026-03-25T18:09:23.992Z
-  origin: synthetic
+  content_hash: sha256:ce245a17c5cd306ae4ee3bcd41088830d22aff4c95d53a52b073cac6a648b139
+  synced_at: 2026-03-17T23:21:17.903Z
 metadata:
-  title: "Synthetic scenario 26: policy-detail with 4 steps"
+  title: "Synthetic scenario 26: policy-search with 3 steps"
   suite: synthetic/policy-detail
   tags:
     - synthetic
@@ -17,9 +16,9 @@ preconditions:
   - fixture: demoSession
 steps:
   - index: 1
-    intent: Browse to policy detail
-    action_text: Browse to policy detail
-    expected_text: policy detail loads successfully
+    intent: Access policy search
+    action_text: Access policy search
+    expected_text: policy search loads successfully
     action: custom
     screen: null
     element: null
@@ -29,9 +28,9 @@ steps:
     resolution: null
     confidence: intent-only
   - index: 2
-    intent: Observe status content
-    action_text: Observe status content
-    expected_text: status is visible on screen
+    intent: Activate search button
+    action_text: Activate search button
+    expected_text: search button action completes
     action: custom
     screen: null
     element: null
@@ -41,21 +40,9 @@ steps:
     resolution: null
     confidence: intent-only
   - index: 3
-    intent: Verify not found error is visible
-    action_text: Verify not found error is visible
-    expected_text: not found error is visible on screen
-    action: custom
-    screen: null
-    element: null
-    posture: null
-    override: null
-    snapshot_template: null
-    resolution: null
-    confidence: intent-only
-  - index: 4
-    intent: Trigger Switch to policy detail screen
-    action_text: Trigger Switch to policy detail screen
-    expected_text: Switch to policy detail screen action completes
+    intent: Provide a valid value for policy number field
+    action_text: Provide a valid value for policy number field
+    expected_text: policy number field accepts the input
     action: custom
     screen: null
     element: null

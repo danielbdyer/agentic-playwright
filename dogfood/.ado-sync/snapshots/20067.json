@@ -1,0 +1,49 @@
+{
+  "id": "20067",
+  "revision": 1,
+  "title": "Synthetic scenario 67: dashboard with 6 steps",
+  "suitePath": "synthetic/approval-queue",
+  "areaPath": "synthetic",
+  "iterationPath": "synthetic/sprint-1",
+  "tags": [
+    "synthetic",
+    "dogfood"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Visit the overview</p>",
+      "expected": "<p>overview loads successfully</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Look at the overview cards</p>",
+      "expected": "<p>overview cards is visible on screen</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Under status dropdown select the correct option</p>",
+      "expected": "<p>status dropdown shows the selected value</p>"
+    },
+    {
+      "index": 4,
+      "action": "<p>Ensure quick actions can be seen</p>",
+      "expected": "<p>quick actions is visible on screen</p>"
+    },
+    {
+      "index": 5,
+      "action": "<p>Put a valid value in date range field</p>",
+      "expected": "<p>date range accepts the input</p>"
+    },
+    {
+      "index": 6,
+      "action": "<p>Look at the activity table</p>",
+      "expected": "<p>activity table is visible on screen</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:c441f7b3959a664ca22a2c44e94aa70cca2f71153b6013c19a3339b2fc5886f1",
+  "syncedAt": "2026-03-25T19:04:08.326Z"
+}

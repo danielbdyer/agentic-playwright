@@ -1,0 +1,90 @@
+source:
+  ado_id: "20042"
+  revision: 1
+  content_hash: sha256:7075335754c1043f642c9a191dbc97747af2ef68b33455e86c3e7ebdb40adfe5
+  synced_at: 2026-03-25T19:04:08.322Z
+metadata:
+  title: "Synthetic workflow 42: claim-intake form-fill-verify"
+  suite: synthetic/approval-queue
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Go to the file a claim
+    action_text: Go to the file a claim
+    expected_text: file a claim loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Enter a valid value in when it happened
+    action_text: Enter a valid value in when it happened
+    expected_text: when it happened accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: For description use a valid value
+    action_text: For description use a valid value
+    expected_text: description accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Place a valid value into the name of claimant field
+    action_text: Place a valid value into the name of claimant field
+    expected_text: name of claimant accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: Press the add documents
+    action_text: Press the add documents
+    expected_text: add documents action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 6
+    intent: Ensure confirmation can be seen
+    action_text: Ensure confirmation can be seen
+    expected_text: confirmation is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

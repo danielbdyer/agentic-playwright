@@ -1,0 +1,39 @@
+{
+  "id": "20092",
+  "revision": 1,
+  "title": "Synthetic scenario 92: policy-detail with 4 steps",
+  "suitePath": "synthetic/approval-queue",
+  "areaPath": "synthetic",
+  "iterationPath": "synthetic/sprint-1",
+  "tags": [
+    "synthetic",
+    "dogfood"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Head over to policy detail</p>",
+      "expected": "<p>policy detail loads successfully</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Confirm error panel appears</p>",
+      "expected": "<p>error panel is visible on screen</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Expect claims list to appear</p>",
+      "expected": "<p>claims list is visible on screen</p>"
+    },
+    {
+      "index": 4,
+      "action": "<p>Interact with date</p>",
+      "expected": "<p>date is visible on screen</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:95d5901ad56587ab6cea46ce0262b9996fbae2e06bf634158a26512b56629d8c",
+  "syncedAt": "2026-03-25T19:04:08.331Z"
+}

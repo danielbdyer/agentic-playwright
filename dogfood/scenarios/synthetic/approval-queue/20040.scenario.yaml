@@ -1,0 +1,78 @@
+source:
+  ado_id: "20040"
+  revision: 1
+  content_hash: sha256:e2e8976289a338167df2bb5568df727cf0369dbe7cba3d43737ecd1be0fe081c
+  synced_at: 2026-03-25T19:04:08.322Z
+metadata:
+  title: "Synthetic assertion-variant 40: approval-queue"
+  suite: synthetic/approval-queue
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Go ahead and open approval queue
+    action_text: Go ahead and open approval queue
+    expected_text: approval queue loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Ensure pending items is not displayed
+    action_text: Ensure pending items is not displayed
+    expected_text: pending items is not visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Ensure items to approve is visible along with total items
+    action_text: Ensure items to approve is visible along with total items
+    expected_text: items to approve and total items are both visible
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: The queue table must be displayed
+    action_text: The queue table must be displayed
+    expected_text: queue table is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: See that priority level is on screen
+    action_text: See that priority level is on screen
+    expected_text: priority level is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

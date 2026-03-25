@@ -1,0 +1,44 @@
+{
+  "id": "20080",
+  "revision": 1,
+  "title": "Synthetic scenario 80: dashboard with 5 steps",
+  "suitePath": "synthetic/approval-queue",
+  "areaPath": "synthetic",
+  "iterationPath": "synthetic/sprint-1",
+  "tags": [
+    "synthetic",
+    "dogfood"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Switch to home screen</p>",
+      "expected": "<p>home screen loads successfully</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Confirm action menu appears</p>",
+      "expected": "<p>action menu is visible on screen</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>The alerts panel must be displayed</p>",
+      "expected": "<p>alerts panel is visible on screen</p>"
+    },
+    {
+      "index": 4,
+      "action": "<p>From filter by status choose the correct option</p>",
+      "expected": "<p>filter by status shows the selected value</p>"
+    },
+    {
+      "index": 5,
+      "action": "<p>Use the export to csv</p>",
+      "expected": "<p>export to csv action completes</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:45444e3995b9efa00438e96ad869156b002e311a129bb48962ce382ee267c056",
+  "syncedAt": "2026-03-25T19:04:08.329Z"
+}

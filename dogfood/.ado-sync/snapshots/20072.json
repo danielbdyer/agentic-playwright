@@ -1,0 +1,49 @@
+{
+  "id": "20072",
+  "revision": 1,
+  "title": "Synthetic scenario 72: claim-intake with 6 steps",
+  "suitePath": "synthetic/approval-queue",
+  "areaPath": "synthetic",
+  "iterationPath": "synthetic/sprint-1",
+  "tags": [
+    "synthetic",
+    "dogfood"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Visit the new claim</p>",
+      "expected": "<p>new claim loads successfully</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Change type of claim to the correct option</p>",
+      "expected": "<p>type of claim shows the selected value</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Smash that add documents</p>",
+      "expected": "<p>add documents action completes</p>"
+    },
+    {
+      "index": 4,
+      "action": "<p>Update when it happened to say a valid value</p>",
+      "expected": "<p>when it happened accepts the input</p>"
+    },
+    {
+      "index": 5,
+      "action": "<p>Assert confirmation is shown</p>",
+      "expected": "<p>confirmation is visible on screen</p>"
+    },
+    {
+      "index": 6,
+      "action": "<p>Push the submit</p>",
+      "expected": "<p>submit action completes</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:0ffccc914bd6fa9bf3d45a8f81dba35347d53e6bd8984cc2bcbc8eb0e3628bd3",
+  "syncedAt": "2026-03-25T19:04:08.327Z"
+}

@@ -1,0 +1,78 @@
+source:
+  ado_id: "20028"
+  revision: 1
+  content_hash: sha256:bc213042b65ae834557ce3d5a4cea17184725394b5667f27cf7d2c3aef71b19b
+  synced_at: 2026-03-25T19:04:08.318Z
+metadata:
+  title: "Synthetic workflow 28: approval-queue form-fill-verify"
+  suite: synthetic/approval-queue
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Take me to approvals
+    action_text: Take me to approvals
+    expected_text: approvals loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: In the filter by status dropdown select the correct option
+    action_text: In the filter by status dropdown select the correct option
+    expected_text: filter by status shows the selected value
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Provide a valid value for notes
+    action_text: Provide a valid value for notes
+    expected_text: notes accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Hit approve selected
+    action_text: Hit approve selected
+    expected_text: approve selected action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: The priority level must be displayed
+    action_text: The priority level must be displayed
+    expected_text: priority level is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

@@ -1,0 +1,150 @@
+source:
+  ado_id: "20058"
+  revision: 1
+  content_hash: sha256:51331a739a79001ef67216e36bb87bc00d57ba53deb1bbc9aeeb010494a20c9d
+  synced_at: 2026-03-25T19:04:08.338Z
+metadata:
+  title: "Synthetic cross-screen 58: member-search → policy-detail → dashboard"
+  suite: synthetic/cross-screen
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Visit the find member
+    action_text: Visit the find member
+    expected_text: find member loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Fill out the last name field with a valid value
+    action_text: Fill out the last name field with a valid value
+    expected_text: last name field accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Type a valid value into the birthday
+    action_text: Type a valid value into the birthday
+    expected_text: birthday accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Assert no members found is shown
+    action_text: Assert no members found is shown
+    expected_text: no members found is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: Take me to policy detail screen
+    action_text: Take me to policy detail screen
+    expected_text: policy detail screen loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 6
+    intent: Verify that claims shows up
+    action_text: Verify that claims shows up
+    expected_text: claims is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 7
+    intent: Click on Access policy details
+    action_text: Click on Access policy details
+    expected_text: Access policy details action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 8
+    intent: Pull up the main dashboard
+    action_text: Pull up the main dashboard
+    expected_text: main dashboard loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 9
+    intent: Expect action menu to appear
+    action_text: Expect action menu to appear
+    expected_text: action menu is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 10
+    intent: See that recent activity is on screen
+    action_text: See that recent activity is on screen
+    expected_text: recent activity is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 11
+    intent: Tap export data
+    action_text: Tap export data
+    expected_text: export data action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

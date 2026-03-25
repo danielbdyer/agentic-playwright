@@ -1,0 +1,90 @@
+source:
+  ado_id: "20011"
+  revision: 1
+  content_hash: sha256:c494991efdcf9e137060cb3e0a5dcd180de6e6d8959adcd86fe521cfe97a8b50
+  synced_at: 2026-03-25T19:04:08.313Z
+metadata:
+  title: "Synthetic workflow 11: member-search form-fill-verify"
+  suite: synthetic/approval-queue
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Take me to find member
+    action_text: Take me to find member
+    expected_text: find member loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Populate birth date with a valid value
+    action_text: Populate birth date with a valid value
+    expected_text: birth date accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Update family name to say a valid value
+    action_text: Update family name to say a valid value
+    expected_text: family name accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Supply a valid value to member id field
+    action_text: Supply a valid value to member id field
+    expected_text: member id field accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: Hit the look up member
+    action_text: Hit the look up member
+    expected_text: look up member action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 6
+    intent: Confirm that search results is on screen
+    action_text: Confirm that search results is on screen
+    expected_text: search results is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

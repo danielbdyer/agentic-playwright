@@ -1,0 +1,54 @@
+source:
+  ado_id: "20089"
+  revision: 1
+  content_hash: sha256:6f358816dd251d3955262084a2c042c0ddd763049b6978efa19b518af6f740dd
+  synced_at: 2026-03-25T19:04:08.331Z
+metadata:
+  title: "Synthetic workflow 89: policy-detail form-fill-verify"
+  suite: synthetic/approval-queue
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Go ahead and open policy detail
+    action_text: Go ahead and open policy detail
+    expected_text: policy detail loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Click back to search
+    action_text: Click back to search
+    expected_text: back to search action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Confirm date appears
+    action_text: Confirm date appears
+    expected_text: date is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

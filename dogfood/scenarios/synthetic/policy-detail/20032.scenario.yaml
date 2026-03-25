@@ -1,9 +1,8 @@
 source:
   ado_id: "20032"
   revision: 1
-  content_hash: sha256:synthetic-20032
-  synced_at: 2026-03-25T18:09:23.994Z
-  origin: synthetic
+  content_hash: sha256:be4ec3d03660a9c885a98b436732ee1ea314610124fe41936bdac0b1359a11f3
+  synced_at: 2026-03-17T23:21:17.905Z
 metadata:
   title: "Synthetic scenario 32: policy-detail with 4 steps"
   suite: synthetic/policy-detail
@@ -17,9 +16,9 @@ preconditions:
   - fixture: demoSession
 steps:
   - index: 1
-    intent: Browse to policy detail
-    action_text: Browse to policy detail
-    expected_text: policy detail loads successfully
+    intent: Visit the policy details
+    action_text: Visit the policy details
+    expected_text: policy details loads successfully
     action: custom
     screen: null
     element: null
@@ -29,9 +28,9 @@ steps:
     resolution: null
     confidence: intent-only
   - index: 2
-    intent: Assert not found error is shown
-    action_text: Assert not found error is shown
-    expected_text: not found error is visible on screen
+    intent: Activate back link
+    action_text: Activate back link
+    expected_text: back link action completes
     action: custom
     screen: null
     element: null
@@ -41,9 +40,9 @@ steps:
     resolution: null
     confidence: intent-only
   - index: 3
-    intent: Ensure effective date can be seen
-    action_text: Ensure effective date can be seen
-    expected_text: effective date is visible on screen
+    intent: Verify error message is visible
+    action_text: Verify error message is visible
+    expected_text: error message is visible on screen
     action: custom
     screen: null
     element: null
@@ -53,9 +52,9 @@ steps:
     resolution: null
     confidence: intent-only
   - index: 4
-    intent: Confirm claims list appears
-    action_text: Confirm claims list appears
-    expected_text: claims list is visible on screen
+    intent: See that policy status is on screen
+    action_text: See that policy status is on screen
+    expected_text: policy status is visible on screen
     action: custom
     screen: null
     element: null

@@ -1,0 +1,34 @@
+{
+  "id": "20064",
+  "revision": 1,
+  "title": "Synthetic workflow 64: policy-detail form-fill-verify",
+  "suitePath": "synthetic/approval-queue",
+  "areaPath": "synthetic",
+  "iterationPath": "synthetic/sprint-1",
+  "tags": [
+    "synthetic",
+    "dogfood"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Visit the policy detail screen</p>",
+      "expected": "<p>policy detail screen loads successfully</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Hit return to search</p>",
+      "expected": "<p>return to search action completes</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Check not found error is present</p>",
+      "expected": "<p>not found error is visible on screen</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:0d89a47d28f0593d48262a324660c3db1efdff5f14763d1444ff89f5738ecd5d",
+  "syncedAt": "2026-03-25T19:04:08.325Z"
+}

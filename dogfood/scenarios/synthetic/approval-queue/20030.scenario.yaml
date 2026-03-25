@@ -1,0 +1,78 @@
+source:
+  ado_id: "20030"
+  revision: 1
+  content_hash: sha256:57acd2d7b8876c0444daf9a44aa436632c0f9372977c150150a27e087ee89f4f
+  synced_at: 2026-03-25T19:04:08.318Z
+metadata:
+  title: "Synthetic workflow 30: approval-queue form-fill-verify"
+  suite: synthetic/approval-queue
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Move to the approvals page
+    action_text: Move to the approvals page
+    expected_text: approvals loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Fill out the comments with a valid value
+    action_text: Fill out the comments with a valid value
+    expected_text: comments accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Select the the correct option option in filter by status
+    action_text: Select the the correct option option in filter by status
+    expected_text: filter by status shows the selected value
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Smash that approve button
+    action_text: Smash that approve button
+    expected_text: approve button action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: See that approval queue is on screen
+    action_text: See that approval queue is on screen
+    expected_text: approval queue is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

@@ -1,0 +1,66 @@
+source:
+  ado_id: "20024"
+  revision: 1
+  content_hash: sha256:6ff0825b1dcbadff37eb3f624557697e69d1b196e27c02ddf95c19c850abff5c
+  synced_at: 2026-03-25T19:04:08.317Z
+metadata:
+  title: "Synthetic scenario 24: policy-search with 4 steps"
+  suite: synthetic/approval-queue
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Browse to policy search screen
+    action_text: Browse to policy search screen
+    expected_text: policy search screen loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Populate policy number with a valid value
+    action_text: Populate policy number with a valid value
+    expected_text: policy number accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Expect validation summary to appear
+    action_text: Expect validation summary to appear
+    expected_text: validation summary is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Check search results is present
+    action_text: Check search results is present
+    expected_text: search results is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

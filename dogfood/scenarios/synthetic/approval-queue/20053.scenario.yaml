@@ -1,0 +1,54 @@
+source:
+  ado_id: "20053"
+  revision: 1
+  content_hash: sha256:1d1ab6a0d46dcfa02b57fde13353f16021c4440ffa162e4be0668a354fe96fb1
+  synced_at: 2026-03-25T19:04:08.323Z
+metadata:
+  title: "Synthetic scenario 53: policy-detail with 3 steps"
+  suite: synthetic/approval-queue
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Bring up policy details
+    action_text: Bring up policy details
+    expected_text: policy details loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Click the Switch to policy detail button
+    action_text: Click the Switch to policy detail button
+    expected_text: Switch to policy detail action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Use the effective date thing
+    action_text: Use the effective date thing
+    expected_text: effective date is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

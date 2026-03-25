@@ -1,0 +1,54 @@
+source:
+  ado_id: "20006"
+  revision: 1
+  content_hash: sha256:d617b2fd5b1cf639d9c3f040de074ce3280d351e50119270c9baa3b2728b3ac5
+  synced_at: 2026-03-17T23:21:17.899Z
+metadata:
+  title: "Synthetic scenario 6: policy-detail with 3 steps"
+  suite: synthetic/policy-detail
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Switch to policy detail screen
+    action_text: Switch to policy detail screen
+    expected_text: policy detail screen loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Assert policy number display is shown
+    action_text: Assert policy number display is shown
+    expected_text: policy number display is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Press the back to search
+    action_text: Press the back to search
+    expected_text: back to search action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

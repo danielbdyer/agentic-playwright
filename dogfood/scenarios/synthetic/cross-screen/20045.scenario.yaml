@@ -1,0 +1,126 @@
+source:
+  ado_id: "20045"
+  revision: 1
+  content_hash: sha256:14e5cb43b91898eb878b3368620c49598f1d40ef90b71d5ef6d485e37c83d6a1
+  synced_at: 2026-03-25T19:04:08.337Z
+metadata:
+  title: "Synthetic cross-screen 45: approval-queue → member-search → claim-intake"
+  suite: synthetic/cross-screen
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Visit the pending approvals
+    action_text: Visit the pending approvals
+    expected_text: pending approvals loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Provide a valid value for comments
+    action_text: Provide a valid value for comments
+    expected_text: comments accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Move to the member search screen page
+    action_text: Move to the member search screen page
+    expected_text: member search screen loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Fill in family name with a valid value
+    action_text: Fill in family name with a valid value
+    expected_text: family name accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: Look for member list on the page
+    action_text: Look for member list on the page
+    expected_text: member list is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 6
+    intent: Go to the file a claim
+    action_text: Go to the file a claim
+    expected_text: file a claim loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 7
+    intent: Smash that save claim
+    action_text: Smash that save claim
+    expected_text: save claim action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 8
+    intent: Populate claim amount with a valid value
+    action_text: Populate claim amount with a valid value
+    expected_text: claim amount accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 9
+    intent: Select the the correct option option in category dropdown
+    action_text: Select the the correct option option in category dropdown
+    expected_text: category dropdown shows the selected value
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

@@ -1,0 +1,90 @@
+source:
+  ado_id: "20022"
+  revision: 1
+  content_hash: sha256:aee4ab442467767f25377d020e6a08ae3efbd952f4b41819884c4d6b827a5506
+  synced_at: 2026-03-25T19:04:08.316Z
+metadata:
+  title: "Synthetic scenario 22: policy-detail with 6 steps"
+  suite: synthetic/approval-queue
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Bring up policy details
+    action_text: Bring up policy details
+    expected_text: policy details loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Assert error panel is shown
+    action_text: Assert error panel is shown
+    expected_text: error panel is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Look for status on the page
+    action_text: Look for status on the page
+    expected_text: status is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: The claims list must be displayed
+    action_text: The claims list must be displayed
+    expected_text: claims list is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: Look for effective date on the page
+    action_text: Look for effective date on the page
+    expected_text: effective date is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 6
+    intent: Ensure policy number display can be seen
+    action_text: Ensure policy number display can be seen
+    expected_text: policy number display is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

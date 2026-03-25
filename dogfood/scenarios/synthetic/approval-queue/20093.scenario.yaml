@@ -1,0 +1,78 @@
+source:
+  ado_id: "20093"
+  revision: 1
+  content_hash: sha256:4789823dc51a4381489f1ef2c428baddfa6be4a01dd30f415d49228e2ae11744
+  synced_at: 2026-03-25T19:04:08.331Z
+metadata:
+  title: "Synthetic scenario 93: approval-queue with 5 steps"
+  suite: synthetic/approval-queue
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Load the approval queue page
+    action_text: Load the approval queue page
+    expected_text: approval queue loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Hit the decline
+    action_text: Hit the decline
+    expected_text: decline action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: The approval queue must be displayed
+    action_text: The approval queue must be displayed
+    expected_text: approval queue is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Update approval comments to say a valid value
+    action_text: Update approval comments to say a valid value
+    expected_text: approval comments accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: Validate queue count is present
+    action_text: Validate queue count is present
+    expected_text: queue count is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

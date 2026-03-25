@@ -1,0 +1,34 @@
+{
+  "id": "20053",
+  "revision": 1,
+  "title": "Synthetic scenario 53: policy-detail with 3 steps",
+  "suitePath": "synthetic/approval-queue",
+  "areaPath": "synthetic",
+  "iterationPath": "synthetic/sprint-1",
+  "tags": [
+    "synthetic",
+    "dogfood"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Bring up policy details</p>",
+      "expected": "<p>policy details loads successfully</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Click the Switch to policy detail button</p>",
+      "expected": "<p>Switch to policy detail action completes</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Use the effective date thing</p>",
+      "expected": "<p>effective date is visible on screen</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:1d1ab6a0d46dcfa02b57fde13353f16021c4440ffa162e4be0668a354fe96fb1",
+  "syncedAt": "2026-03-25T19:04:08.323Z"
+}

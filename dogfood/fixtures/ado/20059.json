@@ -1,0 +1,44 @@
+{
+  "id": "20059",
+  "revision": 1,
+  "title": "Synthetic scenario 59: policy-search with 5 steps",
+  "suitePath": "synthetic/approval-queue",
+  "areaPath": "synthetic",
+  "iterationPath": "synthetic/sprint-1",
+  "tags": [
+    "synthetic",
+    "dogfood"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Jump to policy search</p>",
+      "expected": "<p>policy search loads successfully</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Go ahead and click Access policy search</p>",
+      "expected": "<p>Access policy search action completes</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Place a valid value into the policy number field</p>",
+      "expected": "<p>policy number accepts the input</p>"
+    },
+    {
+      "index": 4,
+      "action": "<p>Verify search results is visible</p>",
+      "expected": "<p>search results is visible on screen</p>"
+    },
+    {
+      "index": 5,
+      "action": "<p>Check that error summary is displayed</p>",
+      "expected": "<p>error summary is visible on screen</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:8d25e675006ea24db9e478ac7b4cfa4e54e126f3a9475310e77ed7699347f2c1",
+  "syncedAt": "2026-03-25T19:04:08.324Z"
+}

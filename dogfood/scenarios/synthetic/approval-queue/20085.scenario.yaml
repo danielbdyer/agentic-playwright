@@ -1,0 +1,66 @@
+source:
+  ado_id: "20085"
+  revision: 1
+  content_hash: sha256:92315d1078812880f1ae772a8e5dc81e7ac9d457a420751657e1ecfd49c8ca7f
+  synced_at: 2026-03-25T19:04:08.330Z
+metadata:
+  title: "Synthetic scenario 85: policy-detail with 4 steps"
+  suite: synthetic/approval-queue
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Show me the policy detail
+    action_text: Show me the policy detail
+    expected_text: policy detail loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Tap Visit the policy detail screen
+    action_text: Tap Visit the policy detail screen
+    expected_text: Visit the policy detail screen action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: See that effective date is on screen
+    action_text: See that effective date is on screen
+    expected_text: effective date is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Verify policy number is visible
+    action_text: Verify policy number is visible
+    expected_text: policy number is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

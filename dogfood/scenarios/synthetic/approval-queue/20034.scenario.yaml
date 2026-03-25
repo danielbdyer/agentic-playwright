@@ -1,0 +1,66 @@
+source:
+  ado_id: "20034"
+  revision: 1
+  content_hash: sha256:0be97629df691c5bd123016e09e7369a674779a694f3c8d52c868f4b6b6f0e2f
+  synced_at: 2026-03-25T19:04:08.319Z
+metadata:
+  title: "Synthetic scenario 34: member-search with 4 steps"
+  suite: synthetic/approval-queue
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Head over to member lookup
+    action_text: Head over to member lookup
+    expected_text: member lookup loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Make sure empty results is there
+    action_text: Make sure empty results is there
+    expected_text: empty results is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Enter a valid value in date of birth
+    action_text: Enter a valid value in date of birth
+    expected_text: date of birth accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: The member list must be displayed
+    action_text: The member list must be displayed
+    expected_text: member list is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

@@ -1,0 +1,78 @@
+source:
+  ado_id: "20038"
+  revision: 1
+  content_hash: sha256:ed5d9ca279c00f9ff71d14763d906d9960fd21d6e360b62a32764803ed8f26c2
+  synced_at: 2026-03-25T19:04:08.321Z
+metadata:
+  title: "Synthetic workflow 38: dashboard form-fill-verify"
+  suite: synthetic/approval-queue
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Browse to main dashboard
+    action_text: Browse to main dashboard
+    expected_text: main dashboard loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Under status filter select the correct option
+    action_text: Under status filter select the correct option
+    expected_text: status filter shows the selected value
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Supply a valid value to date range filter
+    action_text: Supply a valid value to date range filter
+    expected_text: date range filter accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Activate refresh data
+    action_text: Activate refresh data
+    expected_text: refresh data action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: Verify kpi cards is visible
+    action_text: Verify kpi cards is visible
+    expected_text: kpi cards is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

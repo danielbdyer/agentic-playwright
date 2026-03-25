@@ -1,0 +1,78 @@
+source:
+  ado_id: "20099"
+  revision: 1
+  content_hash: sha256:5ecfc9bd6539fa624885236efc5d6f101ca122e93f9f4595d9274f171729d9c1
+  synced_at: 2026-03-25T19:04:08.333Z
+metadata:
+  title: "Synthetic workflow 99: dashboard form-fill-verify"
+  suite: synthetic/approval-queue
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Browse to main dashboard
+    action_text: Browse to main dashboard
+    expected_text: main dashboard loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: From status filter choose the correct option
+    action_text: From status filter choose the correct option
+    expected_text: status filter shows the selected value
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Type a valid value into the date range
+    action_text: Type a valid value into the date range
+    expected_text: date range accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Tap refresh data
+    action_text: Tap refresh data
+    expected_text: refresh data action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: The shortcuts must be displayed
+    action_text: The shortcuts must be displayed
+    expected_text: shortcuts is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

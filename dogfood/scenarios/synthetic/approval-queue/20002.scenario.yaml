@@ -1,0 +1,54 @@
+source:
+  ado_id: "20002"
+  revision: 1
+  content_hash: sha256:17a52f56a94706e8e8ebad08715ce42c7014d167cb5da23757c605b149d7df00
+  synced_at: 2026-03-25T19:04:08.311Z
+metadata:
+  title: "Synthetic scenario 2: claim-intake with 3 steps"
+  suite: synthetic/approval-queue
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Go to the file a claim
+    action_text: Go to the file a claim
+    expected_text: file a claim loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Choose the correct option in the claim category
+    action_text: Choose the correct option in the claim category
+    expected_text: claim category shows the selected value
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Push the discard
+    action_text: Push the discard
+    expected_text: discard action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

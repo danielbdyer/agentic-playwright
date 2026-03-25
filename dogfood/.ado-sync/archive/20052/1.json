@@ -1,0 +1,49 @@
+{
+  "id": "20052",
+  "revision": 1,
+  "title": "Synthetic scenario 52: dashboard with 6 steps",
+  "suitePath": "synthetic/approval-queue",
+  "areaPath": "synthetic",
+  "iterationPath": "synthetic/sprint-1",
+  "tags": [
+    "synthetic",
+    "dogfood"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Open dashboard</p>",
+      "expected": "<p>dashboard loads successfully</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Verify that shortcuts shows up</p>",
+      "expected": "<p>shortcuts is visible on screen</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Trigger refresh data</p>",
+      "expected": "<p>refresh data action completes</p>"
+    },
+    {
+      "index": 4,
+      "action": "<p>Put a valid value in date range field</p>",
+      "expected": "<p>date range accepts the input</p>"
+    },
+    {
+      "index": 5,
+      "action": "<p>Check that summary cards is displayed</p>",
+      "expected": "<p>summary cards is visible on screen</p>"
+    },
+    {
+      "index": 6,
+      "action": "<p>From the filter by status list choose the correct option</p>",
+      "expected": "<p>filter by status shows the selected value</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:8da21c4111fa5b4f957c8e40320fd1327ba1565714fdc41b4f6d7b3d7c710866",
+  "syncedAt": "2026-03-25T19:04:08.323Z"
+}

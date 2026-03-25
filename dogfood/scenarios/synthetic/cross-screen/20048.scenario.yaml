@@ -1,0 +1,78 @@
+source:
+  ado_id: "20048"
+  revision: 1
+  content_hash: sha256:81e671f7e31630e9f211858dc2962d159716a9282a062091ac909f62988dd573
+  synced_at: 2026-03-25T19:04:08.337Z
+metadata:
+  title: "Synthetic cross-screen 48: approval-queue → member-search"
+  suite: synthetic/cross-screen
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Load the pending approvals page
+    action_text: Load the pending approvals page
+    expected_text: pending approvals loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Hit the deny
+    action_text: Hit the deny
+    expected_text: deny action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Verify total items is visible
+    action_text: Verify total items is visible
+    expected_text: total items is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Jump to member search screen
+    action_text: Jump to member search screen
+    expected_text: member search screen loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: Enter a valid value in member id
+    action_text: Enter a valid value in member id
+    expected_text: member id accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

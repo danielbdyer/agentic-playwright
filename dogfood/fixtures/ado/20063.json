@@ -1,0 +1,34 @@
+{
+  "id": "20063",
+  "revision": 1,
+  "title": "Synthetic scenario 63: approval-queue with 3 steps",
+  "suitePath": "synthetic/approval-queue",
+  "areaPath": "synthetic",
+  "iterationPath": "synthetic/sprint-1",
+  "tags": [
+    "synthetic",
+    "dogfood"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Load the pending approvals page</p>",
+      "expected": "<p>pending approvals loads successfully</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Supply a valid value to reviewer notes</p>",
+      "expected": "<p>reviewer notes accepts the input</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Click on the grant approval</p>",
+      "expected": "<p>grant approval action completes</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:303dd736781785329b6c0e4e0b5bc2e499691715f5b60b65862360d8c1e56076",
+  "syncedAt": "2026-03-25T19:04:08.325Z"
+}

@@ -1,0 +1,114 @@
+source:
+  ado_id: "20026"
+  revision: 1
+  content_hash: sha256:27184ac50d73f227f485c5177b776e744090f85a37d6dc28835951feaebf127f
+  synced_at: 2026-03-25T19:04:08.335Z
+metadata:
+  title: "Synthetic cross-screen 26: policy-search → claim-intake → member-search"
+  suite: synthetic/cross-screen
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Load the policy search screen page
+    action_text: Load the policy search screen page
+    expected_text: policy search screen loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Use the Access policy search
+    action_text: Use the Access policy search
+    expected_text: Access policy search action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: The error summary must be displayed
+    action_text: The error summary must be displayed
+    expected_text: error summary is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Visit the new claim
+    action_text: Visit the new claim
+    expected_text: new claim loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: Click on submit claim
+    action_text: Click on submit claim
+    expected_text: submit claim action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 6
+    intent: Write a valid value in the claimant name
+    action_text: Write a valid value in the claimant name
+    expected_text: claimant name accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 7
+    intent: Take me to member lookup
+    action_text: Take me to member lookup
+    expected_text: member lookup loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 8
+    intent: Check that member results is displayed
+    action_text: Check that member results is displayed
+    expected_text: member results is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

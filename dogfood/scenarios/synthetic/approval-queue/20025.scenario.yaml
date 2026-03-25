@@ -1,0 +1,78 @@
+source:
+  ado_id: "20025"
+  revision: 1
+  content_hash: sha256:f429a17c05b5d062f1dcb88fc15bba39af80d171a25946522e7e093dd115b0b9
+  synced_at: 2026-03-25T19:04:08.317Z
+metadata:
+  title: "Synthetic workflow 25: dashboard form-fill-verify"
+  suite: synthetic/approval-queue
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Head over to home screen
+    action_text: Head over to home screen
+    expected_text: home screen loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Pick the correct option in status filter
+    action_text: Pick the correct option in status filter
+    expected_text: status filter shows the selected value
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Key in a valid value at date range filter
+    action_text: Key in a valid value at date range filter
+    expected_text: date range filter accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Go ahead and click export data
+    action_text: Go ahead and click export data
+    expected_text: export data action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: See that recent events is on screen
+    action_text: See that recent events is on screen
+    expected_text: recent events is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

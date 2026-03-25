@@ -1,0 +1,74 @@
+{
+  "id": "20058",
+  "revision": 1,
+  "title": "Synthetic cross-screen 58: member-search → policy-detail → dashboard",
+  "suitePath": "synthetic/cross-screen",
+  "areaPath": "synthetic",
+  "iterationPath": "synthetic/sprint-1",
+  "tags": [
+    "synthetic",
+    "dogfood"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Visit the find member</p>",
+      "expected": "<p>find member loads successfully</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Fill out the last name field with a valid value</p>",
+      "expected": "<p>last name field accepts the input</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Type a valid value into the birthday</p>",
+      "expected": "<p>birthday accepts the input</p>"
+    },
+    {
+      "index": 4,
+      "action": "<p>Assert no members found is shown</p>",
+      "expected": "<p>no members found is visible on screen</p>"
+    },
+    {
+      "index": 5,
+      "action": "<p>Take me to policy detail screen</p>",
+      "expected": "<p>policy detail screen loads successfully</p>"
+    },
+    {
+      "index": 6,
+      "action": "<p>Verify that claims shows up</p>",
+      "expected": "<p>claims is visible on screen</p>"
+    },
+    {
+      "index": 7,
+      "action": "<p>Click on Access policy details</p>",
+      "expected": "<p>Access policy details action completes</p>"
+    },
+    {
+      "index": 8,
+      "action": "<p>Pull up the main dashboard</p>",
+      "expected": "<p>main dashboard loads successfully</p>"
+    },
+    {
+      "index": 9,
+      "action": "<p>Expect action menu to appear</p>",
+      "expected": "<p>action menu is visible on screen</p>"
+    },
+    {
+      "index": 10,
+      "action": "<p>See that recent activity is on screen</p>",
+      "expected": "<p>recent activity is visible on screen</p>"
+    },
+    {
+      "index": 11,
+      "action": "<p>Tap export data</p>",
+      "expected": "<p>export data action completes</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:51331a739a79001ef67216e36bb87bc00d57ba53deb1bbc9aeeb010494a20c9d",
+  "syncedAt": "2026-03-25T19:04:08.338Z"
+}

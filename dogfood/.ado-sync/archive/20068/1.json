@@ -1,0 +1,49 @@
+{
+  "id": "20068",
+  "revision": 1,
+  "title": "Synthetic workflow 68: claim-intake form-fill-verify",
+  "suitePath": "synthetic/approval-queue",
+  "areaPath": "synthetic",
+  "iterationPath": "synthetic/sprint-1",
+  "tags": [
+    "synthetic",
+    "dogfood"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Move to the file a claim page</p>",
+      "expected": "<p>file a claim loads successfully</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Provide a valid value for incident details</p>",
+      "expected": "<p>incident details accepts the input</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Put a valid value in name of claimant field</p>",
+      "expected": "<p>name of claimant accepts the input</p>"
+    },
+    {
+      "index": 4,
+      "action": "<p>Enter a valid value in amount</p>",
+      "expected": "<p>amount accepts the input</p>"
+    },
+    {
+      "index": 5,
+      "action": "<p>Push the go back</p>",
+      "expected": "<p>go back action completes</p>"
+    },
+    {
+      "index": 6,
+      "action": "<p>Look for claim submitted message on the page</p>",
+      "expected": "<p>claim submitted message is visible on screen</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:b66d6dfa9670cf0ccbc24f4b3398044e66f3e759e131a26e7c60a5ed41f04a64",
+  "syncedAt": "2026-03-25T19:04:08.326Z"
+}

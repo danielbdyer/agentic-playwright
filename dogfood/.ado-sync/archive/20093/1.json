@@ -1,0 +1,44 @@
+{
+  "id": "20093",
+  "revision": 1,
+  "title": "Synthetic scenario 93: approval-queue with 5 steps",
+  "suitePath": "synthetic/approval-queue",
+  "areaPath": "synthetic",
+  "iterationPath": "synthetic/sprint-1",
+  "tags": [
+    "synthetic",
+    "dogfood"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Load the approval queue page</p>",
+      "expected": "<p>approval queue loads successfully</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Hit the decline</p>",
+      "expected": "<p>decline action completes</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>The approval queue must be displayed</p>",
+      "expected": "<p>approval queue is visible on screen</p>"
+    },
+    {
+      "index": 4,
+      "action": "<p>Update approval comments to say a valid value</p>",
+      "expected": "<p>approval comments accepts the input</p>"
+    },
+    {
+      "index": 5,
+      "action": "<p>Validate queue count is present</p>",
+      "expected": "<p>queue count is visible on screen</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:4789823dc51a4381489f1ef2c428baddfa6be4a01dd30f415d49228e2ae11744",
+  "syncedAt": "2026-03-25T19:04:08.331Z"
+}

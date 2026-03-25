@@ -1,0 +1,90 @@
+source:
+  ado_id: "20052"
+  revision: 1
+  content_hash: sha256:8da21c4111fa5b4f957c8e40320fd1327ba1565714fdc41b4f6d7b3d7c710866
+  synced_at: 2026-03-25T19:04:08.323Z
+metadata:
+  title: "Synthetic scenario 52: dashboard with 6 steps"
+  suite: synthetic/approval-queue
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Open dashboard
+    action_text: Open dashboard
+    expected_text: dashboard loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Verify that shortcuts shows up
+    action_text: Verify that shortcuts shows up
+    expected_text: shortcuts is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Trigger refresh data
+    action_text: Trigger refresh data
+    expected_text: refresh data action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Put a valid value in date range field
+    action_text: Put a valid value in date range field
+    expected_text: date range accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: Check that summary cards is displayed
+    action_text: Check that summary cards is displayed
+    expected_text: summary cards is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 6
+    intent: From the filter by status list choose the correct option
+    action_text: From the filter by status list choose the correct option
+    expected_text: filter by status shows the selected value
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

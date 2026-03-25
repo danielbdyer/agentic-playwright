@@ -1,0 +1,78 @@
+source:
+  ado_id: "20017"
+  revision: 1
+  content_hash: sha256:e6436e72eadd080c3df49565ad6a8d00d2f4364f9a134ec3fed72311498c3c1e
+  synced_at: 2026-03-25T19:04:08.315Z
+metadata:
+  title: "Synthetic scenario 17: dashboard with 5 steps"
+  suite: synthetic/approval-queue
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Browse to dashboard
+    action_text: Browse to dashboard
+    expected_text: dashboard loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Under status filter select the correct option
+    action_text: Under status filter select the correct option
+    expected_text: status filter shows the selected value
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Click the update dashboard button
+    action_text: Click the update dashboard button
+    expected_text: update dashboard action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Click on the export to csv
+    action_text: Click on the export to csv
+    expected_text: export to csv action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: The alerts panel must be displayed
+    action_text: The alerts panel must be displayed
+    expected_text: alerts panel is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

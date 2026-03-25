@@ -1,0 +1,78 @@
+source:
+  ado_id: "20062"
+  revision: 1
+  content_hash: sha256:fab59fd89c070106139a7f30a00769a550698569c2ea4008adeca2a2340d12af
+  synced_at: 2026-03-25T19:04:08.324Z
+metadata:
+  title: "Synthetic workflow 62: approval-queue form-fill-verify"
+  suite: synthetic/approval-queue
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Access pending approvals
+    action_text: Access pending approvals
+    expected_text: pending approvals loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Input a valid value in the reviewer notes
+    action_text: Input a valid value in the reviewer notes
+    expected_text: reviewer notes accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Select the correct option from status filter
+    action_text: Select the correct option from status filter
+    expected_text: status filter shows the selected value
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Press approve selected button
+    action_text: Press approve selected button
+    expected_text: approve selected action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: Assert total items is shown
+    action_text: Assert total items is shown
+    expected_text: total items is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

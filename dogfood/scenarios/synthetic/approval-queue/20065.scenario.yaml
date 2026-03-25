@@ -1,0 +1,90 @@
+source:
+  ado_id: "20065"
+  revision: 1
+  content_hash: sha256:a94ad51d7addcdcea0ce4658bbfdc408bac1b52cff44bffc69cc00235c78c4b8
+  synced_at: 2026-03-25T19:04:08.325Z
+metadata:
+  title: "Synthetic scenario 65: dashboard with 6 steps"
+  suite: synthetic/approval-queue
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Head over to overview
+    action_text: Head over to overview
+    expected_text: overview loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Use the export to csv
+    action_text: Use the export to csv
+    expected_text: export to csv action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Check that recent activity is displayed
+    action_text: Check that recent activity is displayed
+    expected_text: recent activity is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: For date range filter use a valid value
+    action_text: For date range filter use a valid value
+    expected_text: date range filter accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: Do the notifications
+    action_text: Do the notifications
+    expected_text: notifications is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 6
+    intent: Hit the refresh
+    action_text: Hit the refresh
+    expected_text: refresh action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

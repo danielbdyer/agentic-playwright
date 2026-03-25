@@ -1,0 +1,78 @@
+source:
+  ado_id: "20083"
+  revision: 1
+  content_hash: sha256:f5e43ab22ae43f5cd2d7063f2294854378562d705cd6628439da048ba538d79f
+  synced_at: 2026-03-25T19:04:08.330Z
+metadata:
+  title: "Synthetic assertion-variant 83: policy-detail"
+  suite: synthetic/approval-queue
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Load the policy detail page
+    action_text: Load the policy detail page
+    expected_text: policy detail loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: status should not be visible
+    action_text: status should not be visible
+    expected_text: status is not visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Verify both error message and policy status are visible
+    action_text: Verify both error message and policy status are visible
+    expected_text: error message and policy status are both visible
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Make sure policy number display is there
+    action_text: Make sure policy number display is there
+    expected_text: policy number display is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: Check that claims is displayed
+    action_text: Check that claims is displayed
+    expected_text: claims is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

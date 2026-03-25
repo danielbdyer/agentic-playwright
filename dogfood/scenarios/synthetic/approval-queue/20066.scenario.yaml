@@ -1,0 +1,78 @@
+source:
+  ado_id: "20066"
+  revision: 1
+  content_hash: sha256:9e69699ce6f48c6af8a550de9234d9d7d111cc1fc584ddfaf03336ff20cf9b5e
+  synced_at: 2026-03-25T19:04:08.325Z
+metadata:
+  title: "Synthetic assertion-variant 66: policy-detail"
+  suite: synthetic/approval-queue
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Browse to policy detail screen
+    action_text: Browse to policy detail screen
+    expected_text: policy detail screen loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Assert date is not shown
+    action_text: Assert date is not shown
+    expected_text: date is not visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Verify both status and effective date are visible
+    action_text: Verify both status and effective date are visible
+    expected_text: status and effective date are both visible
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Expect date to appear
+    action_text: Expect date to appear
+    expected_text: date is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: Look for status on the page
+    action_text: Look for status on the page
+    expected_text: status is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

@@ -1,0 +1,78 @@
+source:
+  ado_id: "20016"
+  revision: 1
+  content_hash: sha256:79e512459f68323063a0649d7013846725716bc2e11f1f4ac5c5413bc5665c26
+  synced_at: 2026-03-25T19:04:08.315Z
+metadata:
+  title: "Synthetic scenario 16: member-search with 5 steps"
+  suite: synthetic/approval-queue
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Access member search screen
+    action_text: Access member search screen
+    expected_text: member search screen loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: See that empty results is on screen
+    action_text: See that empty results is on screen
+    expected_text: empty results is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Confirm that member list is on screen
+    action_text: Confirm that member list is on screen
+    expected_text: member list is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Fill in last name field with a valid value
+    action_text: Fill in last name field with a valid value
+    expected_text: last name field accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: Populate member id field with a valid value
+    action_text: Populate member id field with a valid value
+    expected_text: member id field accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

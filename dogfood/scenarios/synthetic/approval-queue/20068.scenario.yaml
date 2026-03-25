@@ -1,0 +1,90 @@
+source:
+  ado_id: "20068"
+  revision: 1
+  content_hash: sha256:b66d6dfa9670cf0ccbc24f4b3398044e66f3e759e131a26e7c60a5ed41f04a64
+  synced_at: 2026-03-25T19:04:08.326Z
+metadata:
+  title: "Synthetic workflow 68: claim-intake form-fill-verify"
+  suite: synthetic/approval-queue
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Move to the file a claim page
+    action_text: Move to the file a claim page
+    expected_text: file a claim loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Provide a valid value for incident details
+    action_text: Provide a valid value for incident details
+    expected_text: incident details accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Put a valid value in name of claimant field
+    action_text: Put a valid value in name of claimant field
+    expected_text: name of claimant accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Enter a valid value in amount
+    action_text: Enter a valid value in amount
+    expected_text: amount accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: Push the go back
+    action_text: Push the go back
+    expected_text: go back action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 6
+    intent: Look for claim submitted message on the page
+    action_text: Look for claim submitted message on the page
+    expected_text: claim submitted message is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

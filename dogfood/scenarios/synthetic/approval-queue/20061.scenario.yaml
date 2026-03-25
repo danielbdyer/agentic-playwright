@@ -1,0 +1,78 @@
+source:
+  ado_id: "20061"
+  revision: 1
+  content_hash: sha256:ff2bde0c1cee3baa97d9a35576fdb308bbacae79912b9a0c8d9fcade797e1edb
+  synced_at: 2026-03-25T19:04:08.324Z
+metadata:
+  title: "Synthetic scenario 61: approval-queue with 5 steps"
+  suite: synthetic/approval-queue
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Can you open review queue
+    action_text: Can you open review queue
+    expected_text: review queue loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Click on the approve button
+    action_text: Click on the approve button
+    expected_text: approve button action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Hit reject
+    action_text: Hit reject
+    expected_text: reject action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Make sure items to approve is there
+    action_text: Make sure items to approve is there
+    expected_text: items to approve is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: Validate priority level is present
+    action_text: Validate priority level is present
+    expected_text: priority level is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

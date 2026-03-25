@@ -1,0 +1,90 @@
+source:
+  ado_id: "20067"
+  revision: 1
+  content_hash: sha256:c441f7b3959a664ca22a2c44e94aa70cca2f71153b6013c19a3339b2fc5886f1
+  synced_at: 2026-03-25T19:04:08.326Z
+metadata:
+  title: "Synthetic scenario 67: dashboard with 6 steps"
+  suite: synthetic/approval-queue
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Visit the overview
+    action_text: Visit the overview
+    expected_text: overview loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Look at the overview cards
+    action_text: Look at the overview cards
+    expected_text: overview cards is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Under status dropdown select the correct option
+    action_text: Under status dropdown select the correct option
+    expected_text: status dropdown shows the selected value
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Ensure quick actions can be seen
+    action_text: Ensure quick actions can be seen
+    expected_text: quick actions is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: Put a valid value in date range field
+    action_text: Put a valid value in date range field
+    expected_text: date range accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 6
+    intent: Look at the activity table
+    action_text: Look at the activity table
+    expected_text: activity table is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

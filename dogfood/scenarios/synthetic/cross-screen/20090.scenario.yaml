@@ -1,0 +1,78 @@
+source:
+  ado_id: "20090"
+  revision: 1
+  content_hash: sha256:8ebb6a5b1029e3f7a9bdb924eee628afe5ec3895663bda0c8497eb71e2216eed
+  synced_at: 2026-03-25T19:04:08.340Z
+metadata:
+  title: "Synthetic cross-screen 90: policy-search → member-search"
+  suite: synthetic/cross-screen
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Switch to policy search screen
+    action_text: Switch to policy search screen
+    expected_text: policy search screen loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Click on the Load the policy search screen page
+    action_text: Click on the Load the policy search screen page
+    expected_text: Load the policy search screen page action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Open member search screen
+    action_text: Open member search screen
+    expected_text: member search screen loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Click on the search members
+    action_text: Click on the search members
+    expected_text: search members action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: Fill in member number with a valid value
+    action_text: Fill in member number with a valid value
+    expected_text: member number accepts the input
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

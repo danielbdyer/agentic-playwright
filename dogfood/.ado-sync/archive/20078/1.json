@@ -1,0 +1,44 @@
+{
+  "id": "20078",
+  "revision": 1,
+  "title": "Synthetic workflow 78: dashboard form-fill-verify",
+  "suitePath": "synthetic/approval-queue",
+  "areaPath": "synthetic",
+  "iterationPath": "synthetic/sprint-1",
+  "tags": [
+    "synthetic",
+    "dogfood"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Access home screen</p>",
+      "expected": "<p>home screen loads successfully</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>For date filter use a valid value</p>",
+      "expected": "<p>date filter accepts the input</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>From status filter choose the correct option</p>",
+      "expected": "<p>status filter shows the selected value</p>"
+    },
+    {
+      "index": 4,
+      "action": "<p>Press the refresh</p>",
+      "expected": "<p>refresh action completes</p>"
+    },
+    {
+      "index": 5,
+      "action": "<p>Confirm summary cards appears</p>",
+      "expected": "<p>summary cards is visible on screen</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:782777f7c6ef102122a98332858b77411cc32c0eeb3b7262c2cd06f90786e936",
+  "syncedAt": "2026-03-25T19:04:08.329Z"
+}

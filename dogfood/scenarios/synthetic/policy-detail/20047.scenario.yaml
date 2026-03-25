@@ -1,11 +1,10 @@
 source:
   ado_id: "20047"
   revision: 1
-  content_hash: sha256:synthetic-20047
-  synced_at: 2026-03-25T18:09:24.000Z
-  origin: synthetic
+  content_hash: sha256:b78699861233ac72e56d8480b04bb19081f6fc8b09d426afc85ccad2b06d6d34
+  synced_at: 2026-03-17T23:21:17.909Z
 metadata:
-  title: "Synthetic scenario 47: policy-search with 3 steps"
+  title: "Synthetic scenario 47: policy-detail with 5 steps"
   suite: synthetic/policy-detail
   tags:
     - synthetic
@@ -17,9 +16,9 @@ preconditions:
   - fixture: demoSession
 steps:
   - index: 1
-    intent: Open policy search screen
-    action_text: Open policy search screen
-    expected_text: policy search screen loads successfully
+    intent: Open policy detail screen
+    action_text: Open policy detail screen
+    expected_text: policy detail screen loads successfully
     action: custom
     screen: null
     element: null
@@ -29,9 +28,9 @@ steps:
     resolution: null
     confidence: intent-only
   - index: 2
-    intent: Hit the Visit the policy search screen
-    action_text: Hit the Visit the policy search screen
-    expected_text: Visit the policy search screen action completes
+    intent: See that status badge is on screen
+    action_text: See that status badge is on screen
+    expected_text: status badge is visible on screen
     action: custom
     screen: null
     element: null
@@ -41,9 +40,33 @@ steps:
     resolution: null
     confidence: intent-only
   - index: 3
-    intent: Observe validation summary content
-    action_text: Observe validation summary content
-    expected_text: validation summary is visible on screen
+    intent: Confirm claims table appears
+    action_text: Confirm claims table appears
+    expected_text: claims table is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: See that date is on screen
+    action_text: See that date is on screen
+    expected_text: date is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: Assert not found error is shown
+    action_text: Assert not found error is shown
+    expected_text: not found error is visible on screen
     action: custom
     screen: null
     element: null

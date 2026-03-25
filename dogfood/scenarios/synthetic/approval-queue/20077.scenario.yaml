@@ -1,0 +1,66 @@
+source:
+  ado_id: "20077"
+  revision: 1
+  content_hash: sha256:a5a3e439a56086a2be4d85e8401a8958afe6b2b3e1f726fd2e3fbc8c66ae0502
+  synced_at: 2026-03-25T19:04:08.328Z
+metadata:
+  title: "Synthetic scenario 77: approval-queue with 4 steps"
+  suite: synthetic/approval-queue
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Open approval queue
+    action_text: Open approval queue
+    expected_text: approval queue loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Smash that deny
+    action_text: Smash that deny
+    expected_text: deny action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Expect priority badge to appear
+    action_text: Expect priority badge to appear
+    expected_text: priority badge is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Look for queue count on the page
+    action_text: Look for queue count on the page
+    expected_text: queue count is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []

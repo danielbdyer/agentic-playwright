@@ -1,0 +1,59 @@
+{
+  "id": "20070",
+  "revision": 1,
+  "title": "Synthetic cross-screen 70: policy-detail → member-search",
+  "suitePath": "synthetic/cross-screen",
+  "areaPath": "synthetic",
+  "iterationPath": "synthetic/sprint-1",
+  "tags": [
+    "synthetic",
+    "dogfood"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Jump to policy detail screen</p>",
+      "expected": "<p>policy detail screen loads successfully</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Look for claims list on the page</p>",
+      "expected": "<p>claims list is visible on screen</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Expect not found error to appear</p>",
+      "expected": "<p>not found error is visible on screen</p>"
+    },
+    {
+      "index": 4,
+      "action": "<p>Check policy number display is present</p>",
+      "expected": "<p>policy number display is visible on screen</p>"
+    },
+    {
+      "index": 5,
+      "action": "<p>Move to the member search page</p>",
+      "expected": "<p>member search loads successfully</p>"
+    },
+    {
+      "index": 6,
+      "action": "<p>Do the no members found</p>",
+      "expected": "<p>no members found is visible on screen</p>"
+    },
+    {
+      "index": 7,
+      "action": "<p>Click the search members button</p>",
+      "expected": "<p>search members action completes</p>"
+    },
+    {
+      "index": 8,
+      "action": "<p>For member number use a valid value</p>",
+      "expected": "<p>member number accepts the input</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:c4a753f4df53d47347516b8e0efbb53fa00acf6be72962544147165bbdc2f1eb",
+  "syncedAt": "2026-03-25T19:04:08.339Z"
+}

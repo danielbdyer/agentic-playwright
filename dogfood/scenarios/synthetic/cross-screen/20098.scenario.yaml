@@ -1,0 +1,90 @@
+source:
+  ado_id: "20098"
+  revision: 1
+  content_hash: sha256:6140ef0adf4a454854c037c2af87f5ae58134dbc216d7f3158321962c635a9cd
+  synced_at: 2026-03-25T19:04:08.340Z
+metadata:
+  title: "Synthetic cross-screen 98: member-search → policy-detail"
+  suite: synthetic/cross-screen
+  tags:
+    - synthetic
+    - dogfood
+  priority: 2
+  status: active
+  status_detail: null
+preconditions:
+  - fixture: demoSession
+steps:
+  - index: 1
+    intent: Head over to member search screen
+    action_text: Head over to member search screen
+    expected_text: member search screen loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 2
+    intent: Click the search members button
+    action_text: Click the search members button
+    expected_text: search members action completes
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 3
+    intent: Switch to policy details
+    action_text: Switch to policy details
+    expected_text: policy details loads successfully
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 4
+    intent: Assert status is shown
+    action_text: Assert status is shown
+    expected_text: status is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 5
+    intent: Observe not found error content
+    action_text: Observe not found error content
+    expected_text: not found error is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+  - index: 6
+    intent: Validate claims is present
+    action_text: Validate claims is present
+    expected_text: claims is visible on screen
+    action: custom
+    screen: null
+    element: null
+    posture: null
+    override: null
+    snapshot_template: null
+    resolution: null
+    confidence: intent-only
+postconditions: []
