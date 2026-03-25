@@ -674,6 +674,71 @@ export interface GenerateSyntheticScenariosResult {
   readonly scenariosGenerated: number;
   readonly files: readonly string[];
   readonly screens: readonly string[];
+  readonly screenDistribution: ReadonlyArray<{ readonly screen: string; readonly count: number }>;
+}
+
+type ScenarioStrategy = 'single-screen' | 'cross-screen' | 'workflow' | 'assertion-variant';
+
+interface ScreenAllocation {
+  readonly screen: ScreenInfo;
+  readonly strategy: ScenarioStrategy;
+}
+
+/**
+ * Distribute scenario count across screens round-robin, then assign strategies
+ * within each screen's allocation. Cross-screen scenarios are pulled from
+ * a proportional budget rather than being assigned to a single screen.
+ *
+ * Strategy mix: 40% single-screen, 30% cross-screen, 20% workflow, 10% assertion-variant.
+ */
+function buildScreenAllocations(
+  screens: readonly ScreenInfo[],
+  count: number,
+  rng: () => number,
+): readonly ScreenAllocation[] {
+  if (screens.length === 0) {
+    return [];
+  }
+
+  // Reserve cross-screen budget (30% of total)
+  const crossScreenBudget = Math.round(count * 0.3);
+  const perScreenBudget = count - crossScreenBudget;
+
+  // Round-robin base allocation for per-screen scenarios
+  const basePerScreen = Math.floor(perScreenBudget / screens.length);
+  const remainder = perScreenBudget - basePerScreen * screens.length;
+
+  // Each screen gets basePerScreen, first `remainder` screens get +1
+  const screenCounts = screens.map((_, idx) =>
+    basePerScreen + (idx < remainder ? 1 : 0),
+  );
+
+  // Within each screen's allocation, apply strategy mix:
+  // single-screen ~57%, workflow ~29%, assertion-variant ~14%
+  // (normalized from 40/20/10 after removing cross-screen)
+  const perScreenAllocations: ScreenAllocation[] = screenCounts.flatMap(
+    (screenCount, screenIdx) => {
+      const screen = screens[screenIdx]!;
+      const workflowCount = Math.round(screenCount * (20 / 70));
+      const assertionCount = Math.round(screenCount * (10 / 70));
+      const singleCount = screenCount - workflowCount - assertionCount;
+
+      return [
+        ...Array.from({ length: singleCount }, (): ScreenAllocation => ({ screen, strategy: 'single-screen' })),
+        ...Array.from({ length: workflowCount }, (): ScreenAllocation => ({ screen, strategy: 'workflow' })),
+        ...Array.from({ length: assertionCount }, (): ScreenAllocation => ({ screen, strategy: 'assertion-variant' })),
+      ];
+    },
+  );
+
+  // Cross-screen scenarios (not bound to a single screen)
+  const crossScreenAllocations: ScreenAllocation[] = Array.from(
+    { length: crossScreenBudget },
+    (): ScreenAllocation => ({ screen: screens[0]!, strategy: 'cross-screen' }),
+  );
+
+  // Shuffle to interleave strategies and screens
+  return shuffle([...perScreenAllocations, ...crossScreenAllocations], rng);
 }
 
 export function generateSyntheticScenarios(options: GenerateSyntheticScenariosOptions) {
@@ -689,41 +754,46 @@ export function generateSyntheticScenarios(options: GenerateSyntheticScenariosOp
 
     yield* fs.ensureDir(outputDir);
 
-    for (let i = 0; i < options.count; i += 1) {
-      const adoId = String(baseId + i);
+    // Pre-allocate scenarios to screens round-robin with strategy mix
+    const allocations = buildScreenAllocations(screens, options.count, rng);
+    const screenCountMap = new Map<string, number>();
 
-      // Strategy selection: 30% cross-screen, 20% workflow, 10% assertion-variant, 40% single-screen
-      const strategyRoll = rng();
-      const isCrossScreen = screens.length > 1 && strategyRoll < 0.3;
-      const isWorkflow = !isCrossScreen && strategyRoll < 0.5;
-      const isAssertionVariant = !isCrossScreen && !isWorkflow && strategyRoll < 0.6;
+    for (let i = 0; i < allocations.length; i += 1) {
+      const adoId = String(baseId + i);
+      const allocation = allocations[i]!;
+      const isCrossScreen = allocation.strategy === 'cross-screen' && screens.length > 1;
 
       const scenario = isCrossScreen
         ? generateCrossScreenScenario(screens, i, rng, tracker)
-        : isWorkflow
-          ? generateWorkflowScenario(pick(screens, rng), i, rng, tracker)
-          : isAssertionVariant
-            ? generateAssertionVariantScenario(pick(screens, rng), i, rng, tracker)
-            : generateSingleScreenScenario(pick(screens, rng), i, rng, tracker);
+        : allocation.strategy === 'workflow'
+          ? generateWorkflowScenario(allocation.screen, i, rng, tracker)
+          : allocation.strategy === 'assertion-variant'
+            ? generateAssertionVariantScenario(allocation.screen, i, rng, tracker)
+            : generateSingleScreenScenario(allocation.screen, i, rng, tracker);
 
-      const primaryScreen = screens[0]!.screenId;
-      const suite = isCrossScreen
-        ? 'synthetic/cross-screen'
-        : `synthetic/${primaryScreen}`;
-
-      const suiteDir = `${outputDir}/${isCrossScreen ? 'cross-screen' : primaryScreen}`;
+      const screenId = isCrossScreen ? 'cross-screen' : allocation.screen.screenId;
+      const suite = `synthetic/${screenId}`;
+      const suiteDir = `${outputDir}/${screenId}`;
       yield* fs.ensureDir(suiteDir);
 
       const yaml = scenarioToYaml(adoId, scenario.title, suite, scenario.steps);
       const filePath = `${suiteDir}/${adoId}.scenario.yaml`;
       yield* fs.writeText(filePath, yaml);
       files.push(filePath);
+
+      // Track distribution
+      screenCountMap.set(screenId, (screenCountMap.get(screenId) ?? 0) + 1);
     }
+
+    const screenDistribution = [...screenCountMap.entries()]
+      .map(([screen, count]) => ({ screen, count }))
+      .sort((a, b) => b.count - a.count);
 
     return {
       scenariosGenerated: files.length,
       files,
       screens: screens.map((s) => s.screenId),
+      screenDistribution,
     } satisfies GenerateSyntheticScenariosResult;
   });
 }
