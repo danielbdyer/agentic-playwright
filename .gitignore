@@ -12,6 +12,7 @@ test-results/
 !.tesseract/policy/
 !.tesseract/policy/trust-policy.yaml
 !.tesseract/benchmarks/
+.tesseract/benchmarks/*
 !.tesseract/benchmarks/scorecard.json
 
 # ── Dogfood clean room ───────────────────────────────────────────
