@@ -14,7 +14,6 @@
  * CLI wrapper: parse args → build input → call Effect program → print results.
  */
 
-import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import { createProjectPaths } from '../lib/application/paths';
@@ -50,28 +49,6 @@ function loadPipelineConfig(): PipelineConfig {
   if (!configPath) return DEFAULT_PIPELINE_CONFIG;
   const overrides = JSON.parse(fs.readFileSync(configPath, 'utf8')) as Partial<PipelineConfig>;
   return mergePipelineConfig(DEFAULT_PIPELINE_CONFIG, overrides);
-}
-
-// ─── Clean-slate preparation (infrastructure concern — raw fs + git) ───
-
-function cleanSlate(): void {
-  const dirsToWipe = [
-    path.join(paths.scenariosDir, 'synthetic'),
-    path.join(rootDir, 'generated', 'synthetic'),
-    path.join(rootDir, '.tesseract', 'evidence', 'runs'),
-    path.join(rootDir, '.tesseract', 'learning'),
-    path.join(rootDir, '.tesseract', 'runs'),
-  ];
-  for (const dir of dirsToWipe) {
-    if (fs.existsSync(dir)) {
-      fs.rmSync(dir, { recursive: true, force: true });
-    }
-  }
-  try {
-    execSync('git checkout HEAD -- knowledge/', { cwd: rootDir, stdio: 'pipe' });
-  } catch {
-    // knowledge/ may not have changes
-  }
 }
 
 // ─── Progress callback (infrastructure concern — JSONL sidecar + stderr) ───
@@ -179,7 +156,6 @@ async function main(): Promise<void> {
       tag: experimentTag || undefined,
       knowledgePosture,
       onProgress,
-      onCleanSlate: cleanSlate,
     }),
     rootDir,
     {

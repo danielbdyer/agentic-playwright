@@ -11,5 +11,21 @@ export function makeLocalVersionControl(rootDir: string): VersionControlPort {
         'Unable to determine current git revision',
       );
     },
+
+    restoreToHead(paths) {
+      return trySync(
+        () => {
+          for (const p of paths) {
+            try {
+              execSync(`git checkout HEAD -- ${p}`, { cwd: rootDir, stdio: 'pipe' });
+            } catch {
+              // Path may not have changes or may not exist in HEAD
+            }
+          }
+        },
+        'git-restore-failed',
+        `Unable to restore paths to HEAD: ${paths.join(', ')}`,
+      );
+    },
   };
 }

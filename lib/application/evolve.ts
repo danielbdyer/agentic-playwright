@@ -19,6 +19,7 @@ import { mappingForFailureClass, generateCandidates, type CandidateConfig } from
 import { updateScorecard } from './fitness';
 import { recordExperiment } from './experiment-registry';
 import { scorecardPath } from './improvement';
+import { cleanSlateProgram } from './clean-slate';
 import { FileSystem, VersionControl } from './ports';
 import type {
   ExperimentRecord,
@@ -40,8 +41,6 @@ export interface EvolveInput {
   readonly maxIterations: number;
   readonly substrate?: ExperimentSubstrate | undefined;
   readonly onProgress?: ((event: SpeedrunProgressEvent) => void) | undefined;
-  /** Infrastructure callback to prepare a clean slate before each speedrun. */
-  readonly onCleanSlate?: (() => void) | undefined;
 }
 
 export interface EvolveEpochResult {
@@ -153,7 +152,7 @@ function runEpoch(
     };
 
     // Step 1: Run baseline
-    yield* Effect.sync(() => input.onCleanSlate?.());
+    yield* cleanSlateProgram(input.paths.rootDir, input.paths);
     const baseline = yield* speedrunProgram(baseInput);
     const baseRecord = buildExperimentRecord(baseline, {}, substrateContext, lastExperimentId, `evolve-epoch-${epoch}-baseline`);
     yield* recordExperiment(input.paths, baseRecord);
@@ -184,7 +183,7 @@ function runEpoch(
     let bestResult: SpeedrunResult | null = null;
 
     for (const candidate of candidates) {
-      yield* Effect.sync(() => input.onCleanSlate?.());
+      yield* cleanSlateProgram(input.paths.rootDir, input.paths);
       const result = yield* speedrunProgram({ ...baseInput, config: candidate.config });
       const record = buildExperimentRecord(result, candidate.delta, substrateContext, baseRecord.id, `evolve-epoch-${epoch}-candidate`);
       yield* recordExperiment(input.paths, record);

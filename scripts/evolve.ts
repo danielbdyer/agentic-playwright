@@ -8,8 +8,6 @@
  * CLI wrapper: parse args → call Effect program → print results.
  */
 
-import { execSync } from 'child_process';
-import * as fs from 'fs';
 import * as path from 'path';
 import { createProjectPaths } from '../lib/application/paths';
 import { evolveProgram, type EvolveResult } from '../lib/application/evolve';
@@ -32,28 +30,6 @@ const substrate = argVal('--substrate', 'synthetic') as 'synthetic' | 'productio
 
 const rootDir = process.cwd();
 const paths = createProjectPaths(rootDir, path.join(rootDir, 'dogfood'));
-
-// ─── Clean-slate preparation (infrastructure concern) ───
-
-function cleanSlate(): void {
-  const dirsToWipe = [
-    path.join(paths.scenariosDir, 'synthetic'),
-    path.join(rootDir, 'generated', 'synthetic'),
-    path.join(rootDir, '.tesseract', 'evidence', 'runs'),
-    path.join(rootDir, '.tesseract', 'learning'),
-    path.join(rootDir, '.tesseract', 'runs'),
-  ];
-  for (const dir of dirsToWipe) {
-    if (fs.existsSync(dir)) {
-      fs.rmSync(dir, { recursive: true, force: true });
-    }
-  }
-  try {
-    execSync('git checkout HEAD -- knowledge/', { cwd: rootDir, stdio: 'pipe' });
-  } catch {
-    // knowledge/ may not have changes
-  }
-}
 
 // ─── Display helpers ───
 
@@ -101,7 +77,6 @@ async function main(): Promise<void> {
       count,
       maxIterations,
       substrate,
-      onCleanSlate: cleanSlate,
     }),
     rootDir,
     {

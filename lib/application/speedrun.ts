@@ -27,6 +27,7 @@ import {
 import { buildImprovementRun, recordImprovementRun, scorecardPath } from './improvement';
 import { recordExperiment } from './experiment-registry';
 import { loadWorkspaceCatalog } from './catalog';
+import { cleanSlateProgram } from './clean-slate';
 import { FileSystem, VersionControl } from './ports';
 import type {
   ExperimentRecord,
@@ -82,10 +83,6 @@ export interface MultiSeedInput {
   readonly tag?: string | undefined;
   readonly knowledgePosture?: KnowledgePosture | undefined;
   readonly onProgress?: ((event: SpeedrunProgressEvent) => void) | undefined;
-  /** Infrastructure callback to prepare a clean slate before each seed run. */
-  readonly onCleanSlate?: (() => void) | undefined;
-  /** Infrastructure callback to generate ADO fixtures after scenario generation. */
-  readonly onGenerateAdoFixtures?: (() => void) | undefined;
 }
 
 export interface MultiSeedResult {
@@ -275,8 +272,8 @@ export function multiSeedSpeedrun(input: MultiSeedInput): Effect.Effect<MultiSee
     // Run each seed sequentially
     const seedResults: SpeedrunResult[] = [];
     for (const currentSeed of input.seeds) {
-      // Clean slate before each seed (delegated to infrastructure callback)
-      yield* Effect.sync(() => input.onCleanSlate?.());
+      // Clean slate before each seed
+      yield* cleanSlateProgram(input.paths.rootDir, input.paths);
 
       const result = yield* speedrunProgram({
         paths: input.paths,
@@ -294,7 +291,7 @@ export function multiSeedSpeedrun(input: MultiSeedInput): Effect.Effect<MultiSee
       yield* saveFitnessReport(input.paths, result.fitnessReport);
 
       // Clean slate after each seed to restore knowledge
-      yield* Effect.sync(() => input.onCleanSlate?.());
+      yield* cleanSlateProgram(input.paths.rootDir, input.paths);
 
       seedResults.push(result);
     }
