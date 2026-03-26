@@ -22,6 +22,15 @@ import { resolveKnowledgePosture } from '../lib/application/knowledge-posture';
 import { runWithLocalServices } from '../lib/composition/local-services';
 import type { KnowledgePosture, PipelineConfig, PipelineFitnessReport, SpeedrunProgressEvent } from '../lib/domain/types';
 import { DEFAULT_PIPELINE_CONFIG, mergePipelineConfig } from '../lib/domain/types';
+import {
+  computeAllBaselines,
+  deriveAllBudgets,
+  detectRegression,
+  extractTimingSamples,
+  formatBaselineSummary,
+  type PhaseTimingBaseline,
+  type PhaseTimingBudget,
+} from '../lib/domain/speedrun-statistics';
 
 // ─── CLI argument parsing ───
 
@@ -60,7 +69,30 @@ function formatElapsed(ms: number): string {
   return minutes > 0 ? `${minutes}m${seconds}s` : `${seconds}s`;
 }
 
+function loadPriorBaselines(progressPath: string): {
+  readonly baselines: readonly PhaseTimingBaseline[];
+  readonly budgets: readonly PhaseTimingBudget[];
+} {
+  try {
+    const raw = fs.readFileSync(progressPath, 'utf8');
+    const events = raw.trim().split('\n')
+      .filter(Boolean)
+      .map((line) => JSON.parse(line) as SpeedrunProgressEvent);
+    const samples = extractTimingSamples(events);
+    const baselines = computeAllBaselines(samples);
+    const budgets = deriveAllBudgets(baselines);
+    if (baselines.length > 0) {
+      process.stderr.write(`\n${formatBaselineSummary(baselines)}\n\n`);
+    }
+    return { baselines, budgets };
+  } catch {
+    return { baselines: [], budgets: [] };
+  }
+}
+
 function createProgressCallback(progressPath: string): (event: SpeedrunProgressEvent) => void {
+  const { baselines, budgets } = loadPriorBaselines(progressPath);
+
   return (event: SpeedrunProgressEvent): void => {
     fs.mkdirSync(path.dirname(progressPath), { recursive: true });
     fs.appendFileSync(progressPath, JSON.stringify(event) + '\n');
@@ -85,8 +117,26 @@ function createProgressCallback(progressPath: string): (event: SpeedrunProgressE
       ? ` phase=${formatElapsed(event.phaseDurationMs)}`
       : '';
 
+    // Regression detection against prior baselines
+    let regressionLabel = '';
+    if (event.phaseDurationMs !== null && event.phaseDurationMs !== undefined && baselines.length > 0) {
+      const baseline = baselines.find((b) => b.phase === event.phase);
+      if (baseline && baseline.sampleCount >= 3) {
+        const signal = detectRegression(baseline, event.phaseDurationMs);
+        if (signal.severity === 'warning') {
+          regressionLabel = ` ⚠ ${signal.zScore}σ above baseline`;
+        } else if (signal.severity === 'regression') {
+          regressionLabel = ` 🔴 REGRESSION ${signal.zScore}σ above baseline (p99=${formatElapsed(baseline.p99Ms)})`;
+        }
+      }
+      const budget = budgets.find((b) => b.phase === event.phase);
+      if (budget && event.phaseDurationMs > budget.timeoutMs) {
+        regressionLabel += ` TIMEOUT EXCEEDED (budget=${formatElapsed(budget.timeoutMs)})`;
+      }
+    }
+
     process.stderr.write(
-      `${phaseLabel}${scenarioLabel}${metricsLabel}${convergenceLabel}${durationLabel} elapsed=${formatElapsed(event.elapsed)}\n`,
+      `${phaseLabel}${scenarioLabel}${metricsLabel}${convergenceLabel}${durationLabel}${regressionLabel} elapsed=${formatElapsed(event.elapsed)}\n`,
     );
   };
 }
