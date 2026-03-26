@@ -189,11 +189,19 @@ function walkScopedDir(
 
 const EMPTY_ARTIFACTS = [] as readonly string[];
 
+/** Diagnostic counter: total loadWorkspaceCatalog calls since process start. */
+let catalogLoadCount = 0;
+/** Read the current catalog load count (for diagnostics/testing). */
+export function getCatalogLoadCount(): number { return catalogLoadCount; }
+/** Reset catalog load counter (for testing). */
+export function resetCatalogLoadCount(): void { catalogLoadCount = 0; }
+
 export function loadWorkspaceCatalog(options: LoadCatalogOptions) {
   const posture: KnowledgePosture = options.knowledgePosture ?? 'warm-start';
   const scope: CatalogScope = options.scope ?? 'full';
 
   return Effect.gen(function* () {
+    catalogLoadCount += 1;
     const fs = yield* FileSystem;
 
     // Phase 1: Walk all independent directories in parallel.
