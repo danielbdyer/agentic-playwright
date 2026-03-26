@@ -153,7 +153,7 @@ export function explainBoundScenario(boundScenario: BoundScenario, lifecycle: Sc
   }));
   const provenanceKinds = steps.reduce<Record<StepProvenanceKind, number>>(
     (counts, step) => ({ ...counts, [step.provenanceKind]: counts[step.provenanceKind] + 1 }),
-    { explicit: 0, 'approved-knowledge': 0, 'live-exploration': 0, unresolved: 0 },
+    { explicit: 0, 'approved-knowledge': 0, 'live-exploration': 0, 'agent-interpreted': 0, unresolved: 0 },
   );
   const governance = steps.reduce<Record<Governance, number>>(
     (counts, step) => ({ ...counts, [step.governance]: counts[step.governance] + 1 }),

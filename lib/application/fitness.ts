@@ -145,6 +145,7 @@ function computeRungRates(steps: readonly StepOutcome[]): readonly RungRate[] {
     'approved-equivalent': 'approved-equivalent-overlay',
     'structured-translation': 'structured-translation',
     'live-dom': 'live-dom',
+    'agent-interpreted': 'agent-interpreted',
     'none': 'needs-human',
   };
 

@@ -7,6 +7,7 @@ export const resolutionPrecedenceLaw = [
   'approved-equivalent-overlay',
   'structured-translation',
   'live-dom',
+  'agent-interpreted',
   'needs-human',
 ] as const;
 

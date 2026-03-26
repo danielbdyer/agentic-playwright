@@ -4,6 +4,7 @@ export interface CountByProvenanceKind {
   explicit: number;
   'approved-knowledge': number;
   'live-exploration': number;
+  'agent-interpreted': number;
   unresolved: number;
 }
 
@@ -22,6 +23,7 @@ const defaultProvenanceCounts = (): CountByProvenanceKind => ({
   explicit: 0,
   'approved-knowledge': 0,
   'live-exploration': 0,
+  'agent-interpreted': 0,
   unresolved: 0,
 });
 

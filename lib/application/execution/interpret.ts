@@ -50,7 +50,7 @@ function buildStepResolutionGraph(step: RuntimeScenarioStepResult, task: Grounde
     .filter((entry) => (entry.topCandidates?.length ?? 0) > 0)
     .map((entry) => ({
       concern: entry.topCandidates![0]!.concern,
-      rung: toRung(entry.stage) as Exclude<StepResolutionGraph['winner']['rung'], 'needs-human'>,
+      rung: toRung(entry.stage) as Exclude<StepResolutionGraph['winner']['rung'], 'agent-interpreted' | 'needs-human'>,
       candidates: scoreCandidates(entry.topCandidates!),
     }));
   const winnerRung = (receipt.kind === 'needs-human'

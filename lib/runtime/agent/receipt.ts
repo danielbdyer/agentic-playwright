@@ -55,6 +55,31 @@ function baseReceiptFields(stage: RuntimeAgentStageContext, pendingEffects?: Sta
   };
 }
 
+export function agentInterpretedReceipt(
+  stage: RuntimeAgentStageContext,
+  target: import('../../domain/types').ResolutionTarget,
+  rationale: string,
+  overlayRefs: string[],
+  translation: import('../../domain/types').TranslationReceipt | null,
+  pendingEffects?: StageEffects,
+): ResolutionReceipt {
+  const base = baseReceiptFields(stage, pendingEffects);
+  return {
+    ...base,
+    kind: 'agent-interpreted',
+    governance: 'review-required',
+    resolutionMode: 'agentic',
+    overlayRefs: uniqueSorted(overlayRefs),
+    winningConcern: 'resolution',
+    winningSource: 'agent-interpreted',
+    translation,
+    confidence: 'agent-proposed',
+    provenanceKind: 'agent-interpreted',
+    target,
+    rationale,
+  };
+}
+
 export function needsHumanReceipt(stage: RuntimeAgentStageContext, overlayRefs: string[], translation: import('../../domain/types').TranslationReceipt | null, pendingEffects?: StageEffects): ResolutionReceipt {
   const base = baseReceiptFields(stage, pendingEffects);
   return {

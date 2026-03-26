@@ -41,7 +41,7 @@ export function foldGovernance<T extends { governance: Governance }, R>(
   }
 }
 export type CertificationStatus = 'uncertified' | 'certified';
-export type StepProvenanceKind = 'explicit' | 'approved-knowledge' | 'live-exploration' | 'unresolved';
+export type StepProvenanceKind = 'explicit' | 'approved-knowledge' | 'live-exploration' | 'agent-interpreted' | 'unresolved';
 export type ScenarioStatus = 'stub' | 'draft' | 'active' | 'needs-repair' | 'blocked' | 'deprecated';
 export type StepAction = 'navigate' | 'input' | 'click' | 'assert-snapshot' | 'custom';
 export type DiagnosticSeverity = 'info' | 'warn' | 'error';
@@ -65,6 +65,7 @@ export type StepWinningSource =
   | 'prior-evidence'
   | 'structured-translation'
   | 'live-dom'
+  | 'agent-interpreted'
   | 'none';
 export type PatternActionName = 'navigate' | 'input' | 'click' | 'assert-snapshot';
 export type ScenarioLifecycle = 'normal' | 'fixme' | 'skip' | 'fail';

@@ -163,6 +163,7 @@ test('foldResolutionReceipt dispatches each variant', () => {
   const cases = {
     resolved: () => 'resolved',
     resolvedWithProposals: () => 'resolved-with-proposals',
+    agentInterpreted: () => 'agent-interpreted',
     needsHuman: () => 'needs-human',
   };
 

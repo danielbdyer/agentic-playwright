@@ -137,7 +137,7 @@ const diagnosticConfidences = ['human', 'agent-verified', 'agent-proposed', 'com
 const workflowStages = ['preparation', 'resolution', 'execution', 'evidence', 'proposal', 'projection'] as const;
 const workflowScopes = ['scenario', 'step', 'run', 'suite', 'workspace', 'control'] as const;
 const workflowLanes = ['intent', 'knowledge', 'control', 'resolution', 'execution', 'governance', 'projection'] as const;
-const stepWinningSources = ['scenario-explicit', 'resolution-control', 'runbook-dataset', 'default-dataset', 'knowledge-hint', 'posture-sample', 'generated-token', 'approved-knowledge', 'approved-equivalent', 'prior-evidence', 'structured-translation', 'live-dom', 'none'] as const;
+const stepWinningSources = ['scenario-explicit', 'resolution-control', 'runbook-dataset', 'default-dataset', 'knowledge-hint', 'posture-sample', 'generated-token', 'approved-knowledge', 'approved-equivalent', 'prior-evidence', 'structured-translation', 'live-dom', 'agent-interpreted', 'none'] as const;
 const statePredicateSemantics = ['visible', 'hidden', 'enabled', 'disabled', 'valid', 'invalid', 'open', 'closed', 'expanded', 'collapsed', 'populated', 'cleared', 'active-route', 'active-modal'] as const;
 const transitionEffectKinds = ['reveal', 'hide', 'enable', 'disable', 'validate', 'invalidate', 'open', 'close', 'navigate', 'return', 'expand', 'collapse', 'populate', 'clear'] as const;
 
@@ -1092,7 +1092,7 @@ function validateResolutionObservation(value: unknown, path: string) {
 function validateResolutionExhaustionEntry(value: unknown, path: string) {
   const entry = expectRecord(value, path);
   return {
-    stage: expectEnum(entry.stage, `${path}.stage`, ['explicit', 'control', 'approved-screen-knowledge', 'shared-patterns', 'prior-evidence', 'approved-equivalent-overlay', 'structured-translation', 'live-dom', 'needs-human'] as const),
+    stage: expectEnum(entry.stage, `${path}.stage`, ['explicit', 'control', 'approved-screen-knowledge', 'shared-patterns', 'prior-evidence', 'approved-equivalent-overlay', 'structured-translation', 'live-dom', 'agent-interpreted', 'needs-human'] as const),
     outcome: expectEnum(entry.outcome, `${path}.outcome`, ['attempted', 'resolved', 'skipped', 'failed'] as const),
     reason: expectString(entry.reason, `${path}.reason`),
     topCandidates: entry.topCandidates === undefined ? undefined : expectArray(entry.topCandidates, `${path}.topCandidates`).map((candidate, index) => validateResolutionCandidateSummary(candidate, `${path}.topCandidates[${index}]`)),
@@ -1251,7 +1251,7 @@ function validateResolutionReceipt(value: unknown, path: string): ResolutionRece
       ? null
       : validateTranslationReceipt(receipt.translation, `${path}.translation`),
   };
-  const kind = expectEnum(receipt.kind, `${path}.kind`, ['resolved', 'resolved-with-proposals', 'needs-human'] as const);
+  const kind = expectEnum(receipt.kind, `${path}.kind`, ['resolved', 'resolved-with-proposals', 'agent-interpreted', 'needs-human'] as const);
   if (kind === 'needs-human') {
     return {
       ...base,
@@ -1259,6 +1259,16 @@ function validateResolutionReceipt(value: unknown, path: string): ResolutionRece
       confidence: expectEnum(receipt.confidence, `${path}.confidence`, ['unbound'] as const),
       provenanceKind: expectEnum(receipt.provenanceKind, `${path}.provenanceKind`, ['unresolved'] as const),
       reason: expectString(receipt.reason, `${path}.reason`),
+    };
+  }
+  if (kind === 'agent-interpreted') {
+    return {
+      ...base,
+      kind,
+      confidence: expectEnum(receipt.confidence, `${path}.confidence`, ['agent-proposed'] as const),
+      provenanceKind: expectEnum(receipt.provenanceKind, `${path}.provenanceKind`, ['agent-interpreted'] as const),
+      target: validateResolutionTarget(receipt.target, `${path}.target`),
+      rationale: expectString(receipt.rationale ?? '', `${path}.rationale`),
     };
   }
   if (kind === 'resolved') {

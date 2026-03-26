@@ -22,6 +22,7 @@ import type {
   ResolutionReceipt,
   ResolvedReceipt,
   ResolvedWithProposalsReceipt,
+  AgentInterpretedReceipt,
   NeedsHumanReceipt,
   PipelineImprovementTarget,
   ResolutionEvent,
@@ -100,6 +101,7 @@ export function foldLocatorStrategy<R>(strategy: LocatorStrategy, cases: Locator
 export interface ResolutionReceiptCases<R> {
   readonly resolved: (receipt: ResolvedReceipt) => R;
   readonly resolvedWithProposals: (receipt: ResolvedWithProposalsReceipt) => R;
+  readonly agentInterpreted: (receipt: AgentInterpretedReceipt) => R;
   readonly needsHuman: (receipt: NeedsHumanReceipt) => R;
 }
 
@@ -107,24 +109,27 @@ export function foldResolutionReceipt<R>(receipt: ResolutionReceipt, cases: Reso
   switch (receipt.kind) {
     case 'resolved': return cases.resolved(receipt);
     case 'resolved-with-proposals': return cases.resolvedWithProposals(receipt);
+    case 'agent-interpreted': return cases.agentInterpreted(receipt);
     case 'needs-human': return cases.needsHuman(receipt);
   }
 }
 
 /**
- * Binary fold: resolved (either variant) vs needs-human.
- * Useful for the common pattern of "if resolved, use target; else handle failure".
+ * Ternary fold: resolved (deterministic or with proposals) vs agent-interpreted vs needs-human.
+ * Agent-interpreted receipts have a target and proposals but came from agentic interpretation
+ * rather than deterministic knowledge — they're "resolved with lower confidence".
  */
 export function foldResolutionOutcome<R>(
   receipt: ResolutionReceipt,
   cases: {
-    readonly resolved: (receipt: ResolvedReceipt | ResolvedWithProposalsReceipt) => R;
+    readonly resolved: (receipt: ResolvedReceipt | ResolvedWithProposalsReceipt | AgentInterpretedReceipt) => R;
     readonly needsHuman: (receipt: NeedsHumanReceipt) => R;
   },
 ): R {
   switch (receipt.kind) {
     case 'resolved': return cases.resolved(receipt);
     case 'resolved-with-proposals': return cases.resolved(receipt);
+    case 'agent-interpreted': return cases.resolved(receipt);
     case 'needs-human': return cases.needsHuman(receipt);
   }
 }
@@ -222,6 +227,7 @@ export interface StepWinningSourceCases<R> {
   readonly priorEvidence: () => R;
   readonly structuredTranslation: () => R;
   readonly liveDom: () => R;
+  readonly agentInterpreted: () => R;
   readonly none: () => R;
 }
 
@@ -239,6 +245,7 @@ export function foldStepWinningSource<R>(source: StepWinningSource, cases: StepW
     case 'prior-evidence': return cases.priorEvidence();
     case 'structured-translation': return cases.structuredTranslation();
     case 'live-dom': return cases.liveDom();
+    case 'agent-interpreted': return cases.agentInterpreted();
     case 'none': return cases.none();
   }
 }
@@ -253,6 +260,7 @@ export const WINNING_SOURCE_TO_RUNG: Readonly<Record<StepWinningSource, string>>
   'approved-equivalent': 'approved-equivalent-overlay',
   'structured-translation': 'structured-translation',
   'live-dom': 'live-dom',
+  'agent-interpreted': 'agent-interpreted',
   'prior-evidence': 'prior-evidence',
   'approved-knowledge': 'approved-screen-knowledge',
   'runbook-dataset': 'approved-screen-knowledge',
