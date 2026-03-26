@@ -7,7 +7,7 @@ export default defineConfig({
   testDir: 'tests',
   testMatch: ['**/*.spec.ts'],
   fullyParallel: true,
-  workers: Number.isFinite(defaultWorkers) ? defaultWorkers : undefined,
+  ...Number.isFinite(defaultWorkers) ? { workers: defaultWorkers } : {},
   retries: 0,
   reporter: [['list']],
   use: {
