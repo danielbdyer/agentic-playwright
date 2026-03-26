@@ -1,0 +1,48 @@
+{
+  "id": "20053",
+  "revision": 1,
+  "title": "Cross-screen: detail to amendment effective date comparison",
+  "suitePath": "synthetic/cross-screen",
+  "areaPath": "synthetic",
+  "iterationPath": "synthetic/sprint-1",
+  "tags": [
+    "synthetic",
+    "dogfood",
+    "cross-screen",
+    "amendment",
+    "ambiguous"
+  ],
+  "priority": 1,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Open the policy detail page</p>",
+      "expected": "<p>Detail screen visible</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Note the effective date</p>",
+      "expected": "<p>Effective date is shown</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Navigate to the amendment</p>",
+      "expected": "<p>Amendment screen opens</p>"
+    },
+    {
+      "index": 4,
+      "action": "<p>Verify the start date matches</p>",
+      "expected": "<p>Inception date matches policy</p>"
+    },
+    {
+      "index": 5,
+      "action": "<p>Submit the review</p>",
+      "expected": "<p>Review submitted successfully</p>"
+    }
+  ],
+  "preconditions": "Policy and amendment with same effective date",
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:50358b1b923bcaffac8742a7f1b8ad10850d07de197065b8fe85e6856b2377de",
+  "syncedAt": "2026-03-26T06:00:00.000Z"
+}

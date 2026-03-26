@@ -1,0 +1,53 @@
+screen: policy-amendment
+url: /policy-amendment.html?id=AMD-001
+sections:
+  amendment-header:
+    selector: "[data-testid='amendment-header']"
+    kind: details-pane
+    surfaces:
+      - amendment-details
+      - amendment-actions
+  claims-impact-section:
+    selector: "[data-testid='impacted-claims-table']"
+    kind: result-set
+    surfaces:
+      - claims-impact
+surfaces:
+  amendment-details:
+    kind: details-pane
+    section: amendment-header
+    selector: "[data-testid='amendment-details']"
+    parents: []
+    children:
+      - amendment-actions
+    elements:
+      - amendmentNumber
+      - amendmentStatus
+      - effectiveDate
+    assertions:
+      - state
+    required: true
+  amendment-actions:
+    kind: action-cluster
+    section: amendment-header
+    selector: "[data-testid='amendment-actions']"
+    parents:
+      - amendment-details
+    children: []
+    elements:
+      - reviewButton
+    assertions:
+      - state
+    required: true
+  claims-impact:
+    kind: result-set
+    section: claims-impact-section
+    selector: "[data-testid='impacted-claims-table']"
+    parents: []
+    children: []
+    elements:
+      - impactedClaims
+    assertions:
+      - structure
+      - state
+    required: false

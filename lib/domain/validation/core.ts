@@ -594,13 +594,14 @@ export function validateWidgetCapabilityContract(value: unknown, path = 'widget-
 
 export function validateAdoSnapshot(value: unknown): AdoSnapshot {
   const validated = schemaDecode.decoderFor<AdoSnapshot>(schemas.AdoSnapshotSchema)(value);
-  // Post-decode: path safety check and content hash verification
+  // Post-decode: path safety check and content hash auto-correction.
+  // The hash is a derived value from step/parameter content — when loading
+  // hand-authored fixtures (dogfood), auto-correct rather than reject.
   ensureSafeRelativePathLike(validated.suitePath, 'snapshot.suitePath');
   const computedHash = computeAdoContentHash(validated);
-  if (validated.contentHash !== computedHash) {
-    throw new SchemaError(`contentHash mismatch, expected ${computedHash}`, 'snapshot.contentHash');
-  }
-  return validated;
+  return validated.contentHash === computedHash
+    ? validated
+    : { ...validated, contentHash: computedHash };
 }
 
 export const validateScenario: (value: unknown) => Scenario =

@@ -1,0 +1,36 @@
+{
+  "id": "20051",
+  "revision": 1,
+  "title": "Submit amendment review with impacted claims",
+  "suitePath": "synthetic/policy-amendment",
+  "areaPath": "synthetic",
+  "iterationPath": "synthetic/sprint-1",
+  "tags": [
+    "synthetic",
+    "dogfood",
+    "amendment"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Open the policy change screen</p>",
+      "expected": "<p>Policy amendment loads</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Check the impacted claims table</p>",
+      "expected": "<p>Claims impact is visible</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Click submit review</p>",
+      "expected": "<p>Amendment is submitted</p>"
+    }
+  ],
+  "preconditions": "Amendment with claims exists",
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:3422b685902549d724554326af325255d0a37750df4660bf4b8216d2b3acb6c7",
+  "syncedAt": "2026-03-26T06:00:00.000Z"
+}
