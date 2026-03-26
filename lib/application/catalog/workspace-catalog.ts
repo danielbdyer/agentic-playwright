@@ -177,12 +177,13 @@ function walkKnowledgeDir(
     : Effect.succeed([] as string[]);
 }
 
+const SCOPE_LEVEL: Record<CatalogScope, number> = { compile: 0, 'post-run': 1, full: 2 };
+
 /** Walk a directory only when scope is at or above the required level. */
 function walkScopedDir(
   fs: FileSystemPort, dir: string, scope: CatalogScope, requiredScope: CatalogScope,
 ): Effect.Effect<readonly string[], unknown, unknown> {
-  const scopeLevel: Record<CatalogScope, number> = { compile: 0, 'post-run': 1, full: 2 };
-  return scopeLevel[scope] >= scopeLevel[requiredScope]
+  return SCOPE_LEVEL[scope] >= SCOPE_LEVEL[requiredScope]
     ? walkFiles(fs, dir)
     : Effect.succeed([] as string[]);
 }

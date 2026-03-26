@@ -61,7 +61,10 @@ function groundedStepTask(input: { step: StepTaskSeed; resolutionContext: Interf
   const screens = input.resolutionContext.screens;
   const normalized = normalizeIntentText(`${input.step.actionText} ${input.step.expectedText}`);
   const matchedScreens = screens.filter((screen) =>
-    screen.screenAliases.some((alias) => normalizeIntentText(alias).length > 0 && normalized.includes(normalizeIntentText(alias))),
+    screen.screenAliases.some((alias) => {
+      const normalizedAlias = normalizeIntentText(alias);
+      return normalizedAlias.length > 0 && normalized.includes(normalizedAlias);
+    }),
   );
   const preferredScreen = input.step.explicitResolution?.screen ?? input.step.controlResolution?.screen ?? null;
   const candidateScreens = preferredScreen
@@ -73,7 +76,10 @@ function groundedStepTask(input: { step: StepTaskSeed; resolutionContext: Interf
   const candidateElements = candidateScreens.flatMap((screen) =>
     screen.elements.filter((element) => {
       if (preferredElement) return element.element === preferredElement;
-      return element.aliases.some((alias) => normalizeIntentText(alias).length > 0 && normalized.includes(normalizeIntentText(alias)));
+      return element.aliases.some((alias) => {
+        const normalizedAlias = normalizeIntentText(alias);
+        return normalizedAlias.length > 0 && normalized.includes(normalizedAlias);
+      });
     }),
   );
   const groundedElements = preferredElement && candidateElements.length === 0
@@ -86,10 +92,11 @@ function groundedStepTask(input: { step: StepTaskSeed; resolutionContext: Interf
     ?? input.step.controlResolution?.action
     ?? (input.step.allowedActions.length === 1 ? input.step.allowedActions[0] : null);
   const targetRefs = [...new Set(groundedElements.flatMap((element) => element.targetRef ? [element.targetRef] : []))].sort((left, right) => left.localeCompare(right));
+  const targetRefSet = new Set(targetRefs);
   const stateGraph = input.resolutionContext.stateGraph ?? null;
   const eventSignatureRefs = stateGraph
     ? stateGraph.eventSignatures
-      .filter((event) => targetRefs.includes(event.targetRef) && (!exactAction || event.dispatch.action === exactAction))
+      .filter((event) => targetRefSet.has(event.targetRef) && (!exactAction || event.dispatch.action === exactAction))
       .map((event) => ({
         ref: event.ref,
         score: event.aliases.some((alias) => normalized.includes(normalizeIntentText(alias))) ? 3 : 0,
@@ -97,31 +104,16 @@ function groundedStepTask(input: { step: StepTaskSeed; resolutionContext: Interf
       .sort((left, right) => right.score - left.score || left.ref.localeCompare(right.ref))
       .map((event) => event.ref)
     : [];
-  const expectedTransitionRefs = stateGraph
-    ? [...new Set(stateGraph.eventSignatures
-      .filter((event) => eventSignatureRefs.includes(event.ref))
-      .flatMap((event) => event.effects.transitionRefs))].sort((left, right) => left.localeCompare(right))
+  const eventSignatureRefSet = new Set(eventSignatureRefs);
+  // Pre-filter matched events once instead of repeated .filter() calls
+  const matchedEvents = stateGraph
+    ? stateGraph.eventSignatures.filter((event) => eventSignatureRefSet.has(event.ref))
     : [];
-  const effectAssertions = stateGraph
-    ? [...new Set(stateGraph.eventSignatures
-      .filter((event) => eventSignatureRefs.includes(event.ref))
-      .flatMap((event) => event.effects.assertions))].sort((left, right) => left.localeCompare(right))
-    : [];
-  const requiredStateRefs = stateGraph
-    ? [...new Set(stateGraph.eventSignatures
-      .filter((event) => eventSignatureRefs.includes(event.ref))
-      .flatMap((event) => event.requiredStateRefs))].sort((left, right) => left.localeCompare(right))
-    : [];
-  const forbiddenStateRefs = stateGraph
-    ? [...new Set(stateGraph.eventSignatures
-      .filter((event) => eventSignatureRefs.includes(event.ref))
-      .flatMap((event) => event.forbiddenStateRefs))].sort((left, right) => left.localeCompare(right))
-    : [];
-  const resultStateRefs = stateGraph
-    ? [...new Set(stateGraph.eventSignatures
-      .filter((event) => eventSignatureRefs.includes(event.ref))
-      .flatMap((event) => event.effects.resultStateRefs))].sort((left, right) => left.localeCompare(right))
-    : [];
+  const expectedTransitionRefs = [...new Set(matchedEvents.flatMap((event) => event.effects.transitionRefs))].sort((left, right) => left.localeCompare(right));
+  const effectAssertions = [...new Set(matchedEvents.flatMap((event) => event.effects.assertions))].sort((left, right) => left.localeCompare(right));
+  const requiredStateRefs = [...new Set(matchedEvents.flatMap((event) => event.requiredStateRefs))].sort((left, right) => left.localeCompare(right));
+  const forbiddenStateRefs = [...new Set(matchedEvents.flatMap((event) => event.forbiddenStateRefs))].sort((left, right) => left.localeCompare(right));
+  const resultStateRefs = [...new Set(matchedEvents.flatMap((event) => event.effects.resultStateRefs))].sort((left, right) => left.localeCompare(right));
   return {
     targetRefs,
     selectorRefs: [...new Set(groundedElements.flatMap((element) => element.selectorRefs ?? []))].sort((left, right) => left.localeCompare(right)),
