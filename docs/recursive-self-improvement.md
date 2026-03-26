@@ -905,3 +905,78 @@ The two reports are complementary:
 A system with good pipeline fitness but poor architecture fitness has hit a ceiling — it works today but is resistant to further improvement. A system with poor pipeline fitness but good architecture fitness has headroom — it doesn't work well yet, but its structure supports rapid improvement.
 
 The recursive improvement loop should optimize both: pipeline fitness is the primary objective, architecture fitness is the regularization term.
+
+## Ephemeral Artifact Management
+
+This section is the authoritative reference for which artifacts persist and which are regenerated. If confused about whether something should be committed or cleaned, consult this section.
+
+### The Rule
+
+**Speedrun outputs are ephemeral. Only pipeline code and the scorecard persist.**
+
+The speedrun loop is a training loop. Its synthetic scenarios, activated knowledge, run records, sessions, evidence, proposals, and generated specs are the equivalent of training checkpoints — useful during the run, discarded after. The only durable outputs are:
+
+1. **Pipeline code changes** (committed if the scorecard improves)
+2. **The scorecard** (`.tesseract/benchmarks/scorecard.json` — monotonic high-water-mark)
+3. **Experiment records** (`.tesseract/benchmarks/runs/*.fitness.json` — audit trail)
+
+Everything else is wiped by `cleanSlateProgram` at the start of each seed run.
+
+### Artifact Lifecycle Table
+
+| Directory | Created by | Wiped by | Committed? | Why |
+|---|---|---|---|---|
+| `dogfood/scenarios/synthetic/` | scenario generator | cleanSlate | Never | Regenerated from seed each run |
+| `dogfood/knowledge/screens/*.hints.yaml` | proposal activation | cleanSlate (git restore) | Never on training branches | Ephemeral activations, not reviewed knowledge |
+| `dogfood/knowledge/patterns/*.yaml` | proposal activation | cleanSlate (git restore) | Never on training branches | Same — ephemeral activations |
+| `.tesseract/runs/` | dogfood loop | cleanSlate | Never | Run records are projections, not source of truth |
+| `.tesseract/sessions/` | execution engine | cleanSlate + inter-iteration cleanup | Never | Session transcripts, useful only for current run |
+| `.tesseract/evidence/runs/` | execution engine | cleanSlate + inter-iteration cleanup | Never | Raw evidence, captured in run records |
+| `.tesseract/learning/` | execution engine | cleanSlate | Never | Learning artifacts, ephemeral |
+| `.tesseract/translation-cache/` | translation pipeline | cleanSlate | Never | Cache, fully regenerable |
+| `generated/synthetic/` | compiler | cleanSlate | Never | Deterministic compiler output |
+| `.tesseract/benchmarks/scorecard.json` | speedrun (on improvement) | Never | Yes (governance anchor) | Monotonic high-water-mark |
+| `.tesseract/benchmarks/runs/` | speedrun | Never | Optional (audit trail) | Experiment history |
+| `.tesseract/policy/trust-policy.yaml` | Manual | Never | Yes (governance anchor) | Trust boundary definition |
+
+### Gitignore Edicts
+
+The `.gitignore` enforces these rules:
+
+- `.tesseract/*` is bulk-ignored. Only `!.tesseract/policy/` is allowlisted.
+- `dogfood/` is ignored on main. On training branches, remove the ignore line for continuity — but **never merge evolvable surfaces** (knowledge, fixtures, generated output) back to main.
+- `generated/` and `lib/generated/` are always ignored. They are deterministic compiler output.
+- `knowledge/screens/*.hints.yaml` at the repo root is ignored — these are auto-activated hints.
+
+### Clean-Slate Contract
+
+`cleanSlateProgram` (`lib/application/clean-slate.ts`) is the single authoritative cleanup function. It wipes:
+
+1. `{scenariosDir}/synthetic/` — regenerated scenarios
+2. `generated/synthetic/` — compiler output for synthetic scenarios
+3. `.tesseract/evidence/runs/` — raw evidence files
+4. `.tesseract/learning/` — learning artifacts
+5. `.tesseract/runs/` — run records
+6. `.tesseract/sessions/` — session transcripts
+7. `.tesseract/translation-cache/` — translation cache
+8. `knowledge/` — restored to git HEAD via `git checkout HEAD -- knowledge/`
+
+If a new transient directory is added to the pipeline, it **must** be added to `cleanSlateProgram`. There is no other cleanup mechanism.
+
+### Inter-Iteration Cleanup
+
+Between dogfood loop iterations, `cleanupBetweenIterations` (in `dogfood.ts`) wipes sessions and evidence runs to cap memory growth within a single speedrun. This is a subset of clean-slate — it preserves run records and proposals needed for convergence detection.
+
+### Test Workspace Isolation
+
+`createTestWorkspace` (`tests/support/workspace.ts`) copies seeded demo artifacts into a temp directory and explicitly removes `scenarios/synthetic/` to prevent accumulated on-disk synthetics from inflating test scope. Tests must never depend on synthetic scenarios existing on disk.
+
+### Common Confusion Points
+
+1. **"I see 100+ files on disk in dogfood/scenarios/synthetic/"** — These are from a prior speedrun that crashed before clean-slate ran. Safe to delete: `rm -rf dogfood/scenarios/synthetic/`. The next speedrun regenerates them.
+
+2. **"Should I commit knowledge changes?"** — Only if they are hand-authored or reviewed. Auto-activated hints from the speedrun are ephemeral and will be overwritten by the next run.
+
+3. **"The speedrun is slow / processing too many scenarios"** — Check for accumulated synthetic scenarios. The dogfood loop refreshes all tag-matching scenarios. If 100+ synthetics exist from a prior crashed run, that's 100+ refreshes per iteration.
+
+4. **"My branch has dogfood/ changes"** — On training branches, `dogfood/` is tracked for continuity. But the speedrun's `cleanSlateProgram` will wipe synthetic content at the start of each run regardless. Don't commit synthetic scenarios or auto-activated knowledge.
