@@ -12,7 +12,8 @@ import { makeLiveAdoSource, readLiveAdoSourceConfigFromEnv } from '../infrastruc
 import { LocalFileSystem } from '../infrastructure/fs/local-fs';
 import { createRecordingWorkspaceFileSystem } from '../infrastructure/fs/recording-fs';
 import { makeLocalVersionControl } from '../infrastructure/tooling/local-version-control';
-import { LocalRuntimeScenarioRunner } from './local-runtime-scenario-runner';
+import { LocalRuntimeScenarioRunner, createLocalRuntimeScenarioRunnerWithInterpreter } from './local-runtime-scenario-runner';
+import type { AgentInterpreterProvider } from '../application/agent-interpreter-provider';
 import type { ExecutionPosture, PipelineConfig, WriteJournalEntry } from '../domain/types';
 import { DEFAULT_PIPELINE_CONFIG } from '../domain/types';
 
@@ -20,6 +21,11 @@ export interface LocalServiceOptions {
   readonly posture?: Partial<ExecutionPosture> | undefined;
   readonly suiteRoot?: string | undefined;
   readonly pipelineConfig?: PipelineConfig | undefined;
+  /** Inject a custom agent interpreter. When provided, the runtime scenario runner
+   *  uses this provider at rung 9 instead of the default (env-resolved) provider.
+   *  This is the injection point for Claude Code sessions, VSCode Copilot, MCP tools,
+   *  and future dashboard integrations. */
+  readonly agentInterpreter?: AgentInterpreterProvider | undefined;
 }
 
 export interface LocalServiceContext {
@@ -67,10 +73,13 @@ export function createLocalServiceContext(rootDir: string, options?: LocalServic
   };
 
   const pipelineConfig = options?.pipelineConfig ?? DEFAULT_PIPELINE_CONFIG;
+  const runtimeScenarioRunner = options?.agentInterpreter
+    ? createLocalRuntimeScenarioRunnerWithInterpreter(options.agentInterpreter)
+    : LocalRuntimeScenarioRunner;
   const layer = Layer.mergeAll(
     Layer.succeed(FileSystem, fileSystem),
     Layer.succeed(AdoSource, resolveAdoSource(rootDir, suiteRoot)),
-    Layer.succeed(RuntimeScenarioRunner, LocalRuntimeScenarioRunner),
+    Layer.succeed(RuntimeScenarioRunner, runtimeScenarioRunner),
     Layer.succeed(ExecutionContext, executionContext),
     Layer.succeed(PipelineConfigService, { config: pipelineConfig }),
     Layer.succeed(VersionControl, makeLocalVersionControl(rootDir)),
