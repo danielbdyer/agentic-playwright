@@ -59,6 +59,14 @@ export function createTestWorkspace(name: string): TestWorkspace {
     copySeed(repoRoot, workspaceRoot, seed);
   }
 
+  // Remove ephemeral synthetic scenarios — they balloon the workspace and cause
+  // dogfood loop tests to timeout by running 150+ scenarios instead of the 4
+  // seeded demo scenarios.
+  for (const root of [suiteRoot, workspaceRoot]) {
+    const syntheticDir = path.join(root, 'scenarios', 'synthetic');
+    rmSync(syntheticDir, { recursive: true, force: true });
+  }
+
   const readUtf8 = (base: string, segments: string[]) =>
     readFileSync(path.join(base, ...segments), 'utf8').replace(/^\uFEFF/, '');
 

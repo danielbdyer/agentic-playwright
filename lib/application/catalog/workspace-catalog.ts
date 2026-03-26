@@ -82,6 +82,7 @@ import type { KnowledgePosture } from '../../domain/types';
 import { postureIncludesKnowledge } from '../../domain/types';
 import { parseSnapshotToScenario } from '../parse';
 import { fingerprintArtifact } from './envelope';
+import { projectScenarioToTier1 } from '../../domain/scenario/tier-projection';
 
 /** Stable sort on artifactPath ensures deterministic fingerprinting regardless of load order. */
 function sortByArtifactPath<T>(envelopes: ArtifactEnvelope<T>[]): ArtifactEnvelope<T>[] {
@@ -384,17 +385,26 @@ export function loadWorkspaceCatalog(options: LoadCatalogOptions) {
     // In cold-start mode, derive scenarios directly from ADO snapshots rather than
     // loading authored scenario files. The snapshot IS the Tier 1 source of truth —
     // there is no need to load a derivative and strip it back to intent-only.
+    // In warm/production posture, use authored scenarios as-is. In cold-start,
+    // derive from snapshots (Tier 1 by construction) and apply projectScenarioToTier1
+    // as a guard to ensure no Tier 2 data leaks through authored scenarios.
     const scenarios: ArtifactEnvelope<Scenario>[] = postureIncludesKnowledge(posture)
       ? loaded.scenarios
-      : loaded.snapshots.map((snapshotEnvelope) => {
-          const scenario = parseSnapshotToScenario(snapshotEnvelope.artifact);
-          return {
-            artifact: scenario,
-            artifactPath: `derived://snapshot/${snapshotEnvelope.artifact.id}`,
-            absolutePath: snapshotEnvelope.absolutePath,
-            fingerprint: fingerprintArtifact(scenario),
-          };
-        });
+      : loaded.snapshots.length > 0
+        ? loaded.snapshots.map((snapshotEnvelope) => {
+            const scenario = parseSnapshotToScenario(snapshotEnvelope.artifact);
+            return {
+              artifact: scenario,
+              artifactPath: `derived://snapshot/${snapshotEnvelope.artifact.id}`,
+              absolutePath: snapshotEnvelope.absolutePath,
+              fingerprint: fingerprintArtifact(scenario),
+            };
+          })
+        : loaded.scenarios.map((entry) => ({
+            ...entry,
+            artifact: projectScenarioToTier1(entry.artifact),
+            fingerprint: fingerprintArtifact(projectScenarioToTier1(entry.artifact)),
+          }));
 
     return {
       paths: options.paths,
