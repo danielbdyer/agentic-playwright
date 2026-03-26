@@ -60,6 +60,8 @@ export interface SpeedrunInput {
   readonly substrate?: ExperimentSubstrate | undefined;
   /** Rate [0,1] at which step text is perturbed with synonyms NOT in the knowledge base. */
   readonly perturbationRate?: number | undefined;
+  /** Fine-grained perturbation — four independent modes. */
+  readonly perturbation?: import('./synthesis/scenario-generator').PerturbationConfig | undefined;
   readonly tag?: string | undefined;
   readonly parentExperimentId?: string | null | undefined;
   readonly knowledgePosture?: KnowledgePosture | undefined;
@@ -89,6 +91,8 @@ export interface MultiSeedInput {
   readonly substrate?: ExperimentSubstrate | undefined;
   /** Rate [0,1] at which step text is perturbed with synonyms NOT in the knowledge base. */
   readonly perturbationRate?: number | undefined;
+  /** Fine-grained perturbation — four independent modes. */
+  readonly perturbation?: import('./synthesis/scenario-generator').PerturbationConfig | undefined;
   readonly tag?: string | undefined;
   readonly knowledgePosture?: KnowledgePosture | undefined;
   readonly onProgress?: ((event: SpeedrunProgressEvent) => void) | undefined;
@@ -160,6 +164,7 @@ export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunRes
       count: input.count,
       seed: input.seed,
       perturbationRate: input.perturbationRate,
+      perturbation: input.perturbation,
     });
     const generateDuration = Date.now() - generateStart;
 
@@ -314,6 +319,7 @@ export function multiSeedSpeedrun(input: MultiSeedInput): Effect.Effect<MultiSee
         maxIterations: input.maxIterations,
         substrate: input.substrate,
         perturbationRate: input.perturbationRate,
+        perturbation: input.perturbation,
         tag: input.tag,
         knowledgePosture: input.knowledgePosture,
         onProgress: input.onProgress,

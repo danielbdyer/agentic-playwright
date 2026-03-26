@@ -183,10 +183,37 @@ const COLLOQUIAL_ACTION_TEMPLATES: readonly string[] = [
   'Look at the {element}',
 ];
 
-// ─── Vocabulary Perturbation (generalization stress test) ───
-// These substitutions replace known aliases with synonyms/abbreviations
-// that do NOT exist in the knowledge base, testing whether the resolution
-// pipeline can generalize beyond memorized vocabulary.
+// ─── Multi-Signal Perturbation (generalization stress tests) ───
+//
+// Four orthogonal perturbation modes, each stressing a different bottleneck
+// signal. Modes are independent and composable — applying all four
+// simultaneously creates a realistic distribution of failure classes.
+//
+// Mode 1 (vocab):         translation-fallback-dominant signal
+// Mode 2 (alias-gap):     high-unresolved-rate signal
+// Mode 3 (cross-screen):  repair-recovery-hotspot signal
+// Mode 4 (coverage-gap):  thin-screen-coverage signal
+
+/** Perturbation configuration — all four modes are independent [0,1] rates. */
+export interface PerturbationConfig {
+  /** Replace known aliases with unseen synonyms. Stresses translation normalization. */
+  readonly vocab: number;
+  /** Randomly use the raw elementId instead of a known alias. Stresses unresolved resolution. */
+  readonly aliasGap: number;
+  /** Force cross-screen element references (use an alias from a DIFFERENT screen). Stresses repair/recovery. */
+  readonly crossScreen: number;
+  /** Skip some elements entirely, leaving coverage gaps. Stresses thin-screen detection. */
+  readonly coverageGap: number;
+}
+
+export const ZERO_PERTURBATION: PerturbationConfig = { vocab: 0, aliasGap: 0, crossScreen: 0, coverageGap: 0 };
+
+/** Build perturbation config from a single rate (backward-compatible) or a full config. */
+export function resolvePerturbation(rate?: number, config?: Partial<PerturbationConfig>): PerturbationConfig {
+  if (config) return { ...ZERO_PERTURBATION, ...config };
+  if (rate && rate > 0) return { ...ZERO_PERTURBATION, vocab: rate };
+  return ZERO_PERTURBATION;
+}
 
 const SYNONYM_SUBSTITUTIONS: ReadonlyArray<readonly [RegExp, readonly string[]]> = [
   [/\bpolicy\b/gi, ['insurance record', 'coverage', 'pol', 'acct policy']],
@@ -207,21 +234,70 @@ const SYNONYM_SUBSTITUTIONS: ReadonlyArray<readonly [RegExp, readonly string[]]>
   [/\bclaims?\b/gi, ['incidents', 'cases', 'filings']],
   [/\bstatus\b/gi, ['state', 'condition', 'disposition']],
   [/\bvalidation\b/gi, ['error', 'warning', 'alert']],
+  [/\bamendment\b/gi, ['change request', 'modification', 'revision']],
+  [/\breview\b/gi, ['approve', 'inspect', 'examine']],
 ];
 
-/** Apply random synonym substitutions to step text, introducing vocabulary
- *  the knowledge base has never seen. Returns perturbed text and a flag. */
+/** Mode 1: Synonym replacement — introduces vocabulary the knowledge base has never seen. */
+function perturbVocab(text: string, rate: number, rng: () => number): string {
+  return SYNONYM_SUBSTITUTIONS.reduce(
+    (result, [pattern, synonyms]) =>
+      rng() < rate && pattern.test(result)
+        ? result.replace(pattern, synonyms[Math.floor(rng() * synonyms.length)]!)
+        : result,
+    text,
+  );
+}
+
+/** Mode 2: Alias gap — use the raw camelCase elementId instead of a human-readable alias.
+ *  This creates steps the knowledge base can't resolve via alias matching. */
+function perturbAliasGap(
+  elementAlias: string,
+  elementId: string,
+  rate: number,
+  rng: () => number,
+): string {
+  return rng() < rate ? elementId : elementAlias;
+}
+
+/** Mode 3: Cross-screen confusion — substitute an element alias from a DIFFERENT screen.
+ *  This creates ambiguous steps that reference elements on the wrong screen. */
+function perturbCrossScreen(
+  elementAlias: string,
+  currentScreen: ScreenInfo,
+  allScreens: readonly ScreenInfo[],
+  rate: number,
+  rng: () => number,
+): string {
+  if (rng() >= rate || allScreens.length < 2) return elementAlias;
+  const otherScreens = allScreens.filter((s) => s.screenId !== currentScreen.screenId);
+  const otherScreen = pick(otherScreens, rng);
+  const otherElement = pick(otherScreen.elements, rng);
+  return otherElement.aliases.length > 0 ? pick(otherElement.aliases, rng) : otherElement.elementId;
+}
+
+/** Mode 4: Coverage gap — skip this element entirely (return null to signal omission). */
+function perturbCoverageGap(rate: number, rng: () => number): boolean {
+  return rng() < rate;
+}
+
+/** Apply all perturbation modes to a generated step. Pure function. */
+function applyPerturbations(
+  step: SyntheticStep,
+  config: PerturbationConfig,
+  rng: () => number,
+): SyntheticStep {
+  const vocabAction = config.vocab > 0 ? perturbVocab(step.action_text, config.vocab, rng) : step.action_text;
+  const vocabExpected = config.vocab > 0 ? perturbVocab(step.expected_text, config.vocab, rng) : step.expected_text;
+  return vocabAction !== step.action_text || vocabExpected !== step.expected_text
+    ? { ...step, action_text: vocabAction, expected_text: vocabExpected, intent: vocabAction }
+    : step;
+}
+
+// Backward-compatible wrapper
 function perturbStepText(text: string, perturbationRate: number, rng: () => number): { text: string; perturbed: boolean } {
-  let result = text;
-  let changed = false;
-  for (const [pattern, synonyms] of SYNONYM_SUBSTITUTIONS) {
-    if (rng() < perturbationRate && pattern.test(result)) {
-      const synonym = synonyms[Math.floor(rng() * synonyms.length)]!;
-      result = result.replace(pattern, synonym);
-      changed = true;
-    }
-  }
-  return { text: result, perturbed: changed };
+  const result = perturbVocab(text, perturbationRate, rng);
+  return { text: result, perturbed: result !== text };
 }
 
 // ─── Element Action Classification ───
@@ -713,9 +789,11 @@ export interface GenerateSyntheticScenariosOptions {
   readonly outputDir?: string;
   readonly catalog?: import('../catalog').WorkspaceCatalog | undefined;
   /** Rate [0,1] at which step text is perturbed with synonyms NOT in the knowledge base.
-   *  0 = no perturbation (default), 0.5 = ~50% of substitution opportunities applied.
-   *  Use > 0 to stress-test resolution generalization beyond memorized vocabulary. */
+   *  0 = no perturbation (default). Shorthand for { vocab: rate }. */
   readonly perturbationRate?: number | undefined;
+  /** Fine-grained perturbation control — four independent modes.
+   *  Overrides perturbationRate when provided. */
+  readonly perturbation?: Partial<PerturbationConfig> | undefined;
 }
 
 export interface GenerateSyntheticScenariosResult {
@@ -824,16 +902,15 @@ export function generateSyntheticScenarios(options: GenerateSyntheticScenariosOp
       const suiteDir = `${outputDir}/${screenId}`;
       yield* fs.ensureDir(suiteDir);
 
-      // Apply vocabulary perturbation if requested (generalization stress test)
-      const perturbRate = options.perturbationRate ?? 0;
-      const perturbedSteps = perturbRate > 0
-        ? scenario.steps.map((step) => {
-            const p1 = perturbStepText(step.action_text, perturbRate, rng);
-            const p2 = perturbStepText(step.expected_text, perturbRate, rng);
-            return p1.perturbed || p2.perturbed
-              ? { ...step, action_text: p1.text, expected_text: p2.text, intent: p1.text }
-              : step;
-          })
+      // Apply multi-signal perturbation if requested (generalization stress test).
+      // Each mode independently stresses a different bottleneck signal.
+      const perturbConfig = resolvePerturbation(options.perturbationRate, options.perturbation);
+      const hasPerturbation = perturbConfig.vocab > 0 || perturbConfig.aliasGap > 0
+        || perturbConfig.crossScreen > 0 || perturbConfig.coverageGap > 0;
+      const perturbedSteps = hasPerturbation
+        ? scenario.steps
+            .filter(() => !perturbCoverageGap(perturbConfig.coverageGap, rng))
+            .map((step) => applyPerturbations(step, perturbConfig, rng))
         : scenario.steps;
 
       const yaml = scenarioToYaml(adoId, scenario.title, suite, perturbedSteps);
