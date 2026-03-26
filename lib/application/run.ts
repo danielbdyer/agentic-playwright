@@ -26,8 +26,9 @@ import { persistEvidence } from './execution/persist-evidence';
 import { buildProposals } from './execution/build-proposals';
 import { buildRunRecord } from './execution/build-run-record';
 import { foldScenarioRun } from './execution/fold';
+import { resolveEffectConcurrency } from './concurrency';
 
-export function runScenario(options: {
+type RunScenarioOptions = {
   adoId: AdoId;
   paths: ProjectPaths;
   catalog?: WorkspaceCatalog | undefined;
@@ -37,7 +38,15 @@ export function runScenario(options: {
   disableTranslation?: boolean | undefined;
   disableTranslationCache?: boolean | undefined;
   providerId?: string | undefined;
-}) {
+};
+
+/**
+ * Core scenario run: execute, persist evidence, build proposals, write run
+ * artifacts — but skip global projections (graph, confidence, emit, inbox).
+ * Use this when running multiple scenarios concurrently; call the global
+ * projections once afterward via `runScenarioProjections`.
+ */
+export function runScenarioCore(options: RunScenarioOptions) {
   return Effect.gen(function* () {
     const stage = yield* runPipelineStage({
       name: 'run',
@@ -145,16 +154,6 @@ export function runScenario(options: {
           fs.writeJson(proposalsFile, activationStage.proposalBundle),
         ], { concurrency: 'unbounded' });
 
-        // Reload catalog once after writing all artifacts so projections see them.
-        // Previously each projection loaded its own catalog (4 loads → 1).
-        const postWriteCatalog = yield* loadWorkspaceCatalog({ paths: options.paths });
-        const { confidence, emitted, graph, inbox } = yield* Effect.all({
-          confidence: projectConfidenceOverlayCatalog({ paths: options.paths, catalog: postWriteCatalog }),
-          emitted: emitScenario({ adoId: options.adoId, paths: options.paths, catalog: postWriteCatalog }),
-          graph: buildDerivedGraph({ paths: options.paths, catalog: postWriteCatalog }),
-          inbox: emitOperatorInbox({ paths: options.paths, catalog: postWriteCatalog, filter: { adoId: options.adoId } }),
-        }, { concurrency: 'unbounded' });
-
         return {
           runId: plan.runId,
           runbook: plan.controlSelection.runbook ?? null,
@@ -169,16 +168,44 @@ export function runScenario(options: {
           blockedProposalIds: activationStage.blockedProposalIds,
           learning,
           session,
-          confidence,
-          emitted,
-          graph,
-          inbox,
           posture: plan.posture,
         };
       }),
     });
 
     return stage.computed;
+  }).pipe(Effect.withSpan('run-scenario-core', { attributes: { adoId: options.adoId } }));
+}
+
+/**
+ * Run global projections after scenario execution: graph, confidence overlay,
+ * emitted spec, and operator inbox. Call once after all scenario runs complete.
+ */
+export function runScenarioProjections(options: { adoId: AdoId; paths: ProjectPaths }) {
+  return Effect.gen(function* () {
+    const postWriteCatalog = yield* loadWorkspaceCatalog({ paths: options.paths });
+    return yield* Effect.all({
+      confidence: projectConfidenceOverlayCatalog({ paths: options.paths, catalog: postWriteCatalog }),
+      emitted: emitScenario({ adoId: options.adoId, paths: options.paths, catalog: postWriteCatalog }),
+      graph: buildDerivedGraph({ paths: options.paths, catalog: postWriteCatalog }),
+      inbox: emitOperatorInbox({ paths: options.paths, catalog: postWriteCatalog, filter: { adoId: options.adoId } }),
+    }, { concurrency: 'unbounded' });
+  });
+}
+
+/**
+ * Full scenario run: core execution + global projections.
+ * Use for single-scenario runs (tests, CLI). For batch runs,
+ * prefer `runScenarioCore` + a single `runScenarioProjections` pass.
+ */
+export function runScenario(options: RunScenarioOptions) {
+  return Effect.gen(function* () {
+    const core = yield* runScenarioCore(options);
+    const projections = yield* runScenarioProjections({ adoId: options.adoId, paths: options.paths });
+    return {
+      ...core,
+      ...projections,
+    };
   }).pipe(Effect.withSpan('run-scenario', { attributes: { adoId: options.adoId } }));
 }
 
@@ -201,45 +228,55 @@ export function runScenarioSelection(options: {
       runbookName: options.runbookName ?? null,
       tag: options.tag ?? null,
     });
-    const runs = [];
 
-    for (const adoId of selection.adoIds) {
-      const runOptions: {
-        adoId: AdoId;
-        paths: ProjectPaths;
-        catalog?: WorkspaceCatalog;
-        interpreterMode?: 'dry-run' | 'diagnostic';
-        runbookName?: string;
-        posture?: ExecutionPosture;
-        disableTranslation?: boolean;
-        disableTranslationCache?: boolean;
-        providerId?: string;
-      } = {
-        adoId: adoId as AdoId,
-        paths: options.paths,
-        catalog,
-      };
-      if (options.interpreterMode) {
-        runOptions.interpreterMode = options.interpreterMode;
-      }
-      if (options.posture) {
-        runOptions.posture = options.posture;
-      }
-      const runbookName = selection.runbook?.name ?? options.runbookName;
-      if (runbookName) {
-        runOptions.runbookName = runbookName;
-      }
-      if (options.disableTranslation) {
-        runOptions.disableTranslation = true;
-      }
-      if (options.disableTranslationCache) {
-        runOptions.disableTranslationCache = true;
-      }
-      if (options.providerId) {
-        runOptions.providerId = options.providerId;
-      }
-      runs.push(yield* runScenario(runOptions));
-    }
+    const runbookName = selection.runbook?.name ?? options.runbookName;
+    const buildRunOptions = (adoId: AdoId): RunScenarioOptions => ({
+      adoId,
+      paths: options.paths,
+      catalog,
+      ...(options.interpreterMode ? { interpreterMode: options.interpreterMode } : {}),
+      ...(options.posture ? { posture: options.posture } : {}),
+      ...(runbookName ? { runbookName } : {}),
+      ...(options.disableTranslation ? { disableTranslation: true } : {}),
+      ...(options.disableTranslationCache ? { disableTranslationCache: true } : {}),
+      ...(options.providerId ? { providerId: options.providerId } : {}),
+    });
+
+    // For a single scenario, run the full pipeline (core + projections).
+    // For multiple scenarios, run cores concurrently then project once.
+    const isSingleScenario = selection.adoIds.length <= 1;
+
+    const runs = isSingleScenario
+      ? yield* Effect.all(
+          selection.adoIds.map((adoId) => runScenario(buildRunOptions(adoId as AdoId))),
+        )
+      : yield* Effect.gen(function* () {
+          const concurrency = resolveEffectConcurrency();
+          const coreRuns = yield* Effect.all(
+            selection.adoIds.map((adoId) => runScenarioCore(buildRunOptions(adoId as AdoId))),
+            { concurrency },
+          );
+          // Single catalog reload + global projections after all runs complete
+          const postWriteCatalog = yield* loadWorkspaceCatalog({ paths: options.paths });
+          const { confidence, graph } = yield* Effect.all({
+            confidence: projectConfidenceOverlayCatalog({ paths: options.paths, catalog: postWriteCatalog }),
+            graph: buildDerivedGraph({ paths: options.paths, catalog: postWriteCatalog }),
+          }, { concurrency: 'unbounded' });
+          // Per-scenario projections (emit + inbox) can run concurrently
+          const perScenario = yield* Effect.all(
+            selection.adoIds.map((adoId) => Effect.all({
+              emitted: emitScenario({ adoId: adoId as AdoId, paths: options.paths, catalog: postWriteCatalog }),
+              inbox: emitOperatorInbox({ paths: options.paths, catalog: postWriteCatalog, filter: { adoId: adoId as AdoId } }),
+            }, { concurrency: 'unbounded' })),
+            { concurrency: 'unbounded' },
+          );
+          return coreRuns.map((core, index) => ({
+            ...core,
+            confidence,
+            graph,
+            ...perScenario[index]!,
+          }));
+        });
 
     return {
       selection: {

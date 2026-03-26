@@ -15,7 +15,10 @@ import path from 'path';
 import { Effect } from 'effect';
 import type { ProjectPaths } from './paths';
 import { generateSyntheticScenarios } from './synthesis/scenario-generator';
-import { refreshScenario } from './refresh';
+import { refreshScenarioCore } from './refresh';
+import { buildDerivedGraph } from './graph';
+import { generateTypes } from './types';
+import { resolveEffectConcurrency } from './concurrency';
 import { runDogfoodLoop } from './dogfood';
 import type { AdoId } from '../domain/identity';
 import {
@@ -456,10 +459,16 @@ export function compilePhase(input: CompilePhaseInput) {
       .filter((scenario) => !tag || scenario.metadata.tags.includes(tag))
       .map((scenario) => scenario.source.ado_id);
 
+    const compileConcurrency = resolveEffectConcurrency();
     yield* Effect.all(
-      scenarioIds.map((adoId) => refreshScenario({ adoId: adoId as AdoId, paths: input.paths, catalog })),
-      { concurrency: 1 },
+      scenarioIds.map((adoId) => refreshScenarioCore({ adoId: adoId as AdoId, paths: input.paths, catalog })),
+      { concurrency: compileConcurrency },
     );
+    // Single pass for global projections after all scenarios are compiled
+    yield* Effect.all({
+      graph: buildDerivedGraph({ paths: input.paths }),
+      generatedTypes: generateTypes({ paths: input.paths }),
+    }, { concurrency: 'unbounded' });
 
     const durationMs = Date.now() - start;
 

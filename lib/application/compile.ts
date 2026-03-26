@@ -17,7 +17,12 @@ import {
   withScenarioInWorkspaceSession,
 } from './workspace-session';
 
-export function compileScenario(options: { adoId: AdoId; paths: ProjectPaths; catalog?: import('./catalog').WorkspaceCatalog }) {
+/**
+ * Core compilation: parse, bind, project surfaces, emit — but skip global
+ * graph and types derivation. Use this when compiling multiple scenarios
+ * concurrently; call `buildDerivedGraph` and `generateTypes` once afterward.
+ */
+export function compileScenarioCore(options: { adoId: AdoId; paths: ProjectPaths; catalog?: import('./catalog').WorkspaceCatalog }) {
   return Effect.gen(function* () {
     const stage = yield* runPipelineStage({
       name: 'compile',
@@ -70,10 +75,6 @@ export function compileScenario(options: { adoId: AdoId; paths: ProjectPaths; ca
           boundPath: bound.boundPath,
         });
         const emitted = yield* emitScenario({ paths: options.paths, compileSnapshot });
-        const { graph, generatedTypes } = yield* Effect.all({
-          graph: buildDerivedGraph({ paths: options.paths }),
-          generatedTypes: generateTypes({ paths: options.paths }),
-        }, { concurrency: 'unbounded' });
         return {
           parsed,
           bound,
@@ -81,23 +82,33 @@ export function compileScenario(options: { adoId: AdoId; paths: ProjectPaths; ca
           learning,
           compileSnapshot,
           emitted,
-          graph,
-          generatedTypes,
         };
       }),
     });
 
-    const { parsed, bound, interfaceIntelligence, learning, compileSnapshot, emitted, graph, generatedTypes } = stage.computed;
     return {
-      compileSnapshot,
-      parsed,
-      bound,
-      interfaceIntelligence,
-      learning,
-      emitted,
+      ...stage.computed,
+      trustPolicy: stage.dependencies.catalog.trustPolicy.artifact,
+    };
+  }).pipe(Effect.withSpan('compile-scenario-core', { attributes: { adoId: options.adoId } }));
+}
+
+/**
+ * Full compilation: core + global graph and types derivation.
+ * Use this for single-scenario compilation (tests, CLI). For batch
+ * compilation, prefer `compileScenarioCore` + a single graph/types pass.
+ */
+export function compileScenario(options: { adoId: AdoId; paths: ProjectPaths; catalog?: import('./catalog').WorkspaceCatalog }) {
+  return Effect.gen(function* () {
+    const core = yield* compileScenarioCore(options);
+    const { graph, generatedTypes } = yield* Effect.all({
+      graph: buildDerivedGraph({ paths: options.paths }),
+      generatedTypes: generateTypes({ paths: options.paths }),
+    }, { concurrency: 'unbounded' });
+    return {
+      ...core,
       graph,
       generatedTypes,
-      trustPolicy: stage.dependencies.catalog.trustPolicy.artifact,
     };
   }).pipe(Effect.withSpan('compile-scenario', { attributes: { adoId: options.adoId } }));
 }
