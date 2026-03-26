@@ -199,8 +199,10 @@ export function projectLearningArtifacts(input: {
     const workflow = workflowFragments({ surface: input.surface });
     const decompositionPath = fragmentFilePath(input.paths, 'decomposition', input.surface.payload.adoId);
     const workflowPath = fragmentFilePath(input.paths, 'workflow', input.surface.payload.adoId);
-    yield* fs.writeJson(decompositionPath, decomposition);
-    yield* fs.writeJson(workflowPath, workflow);
+    yield* Effect.all([
+      fs.writeJson(decompositionPath, decomposition),
+      fs.writeJson(workflowPath, workflow),
+    ], { concurrency: 'unbounded' });
     const basePaths = [
       relativeProjectPath(input.paths, decompositionPath),
       relativeProjectPath(input.paths, workflowPath),
@@ -213,7 +215,6 @@ export function projectLearningArtifacts(input: {
             proposalBundle: input.proposalBundle ?? null,
           });
           const repairPath = fragmentFilePath(input.paths, 'repair-recovery', input.surface.payload.adoId);
-          yield* fs.writeJson(repairPath, repairs);
           const replay = replayExample({
             surface: input.surface,
             runRecord: input.runRecord!,
@@ -221,7 +222,10 @@ export function projectLearningArtifacts(input: {
             fragments: [...decomposition, ...workflow, ...repairs],
           });
           const replayPath = replayFilePath(input.paths, input.surface.payload.adoId, input.runRecord!.runId);
-          yield* fs.writeJson(replayPath, replay);
+          yield* Effect.all([
+            fs.writeJson(repairPath, repairs),
+            fs.writeJson(replayPath, replay),
+          ], { concurrency: 'unbounded' });
           return [relativeProjectPath(input.paths, repairPath), relativeProjectPath(input.paths, replayPath)];
         })
       : [];

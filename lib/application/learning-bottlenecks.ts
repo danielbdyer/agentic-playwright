@@ -155,19 +155,22 @@ export function projectBottlenecks(input: {
   readonly bottleneckWeights?: BottleneckWeights | undefined;
 }): KnowledgeBottleneckReport {
   const scoring = input.bottleneckWeights ? buildBottleneckScoring(input.bottleneckWeights) : bottleneckScoring;
-  const repairFragments = input.fragments.filter((f) => f.runtime === 'repair-recovery');
   const totalFragments = Math.max(input.fragments.length, 1);
   const pairs = buildScreenActionPairs(input.fragments);
 
+  // Pre-group by screen: O(n) each, then O(1) lookups per pair
+  const fragmentsByScreen = groupBy(input.fragments, (f) => screenFromGraphNodeIds(f.graphNodeIds));
+  const repairsByScreen = groupBy(
+    input.fragments.filter((f) => f.runtime === 'repair-recovery'),
+    (f) => screenFromGraphNodeIds(f.graphNodeIds),
+  );
+  const stepsByScreen = groupBy(input.runStepSummaries, (s) => s.screen);
+
   const bottlenecks: readonly KnowledgeBottleneck[] = pairs
     .map(({ screen, action }) => {
-      const screenFragments = input.fragments.filter((f) =>
-        screenFromGraphNodeIds(f.graphNodeIds) === screen,
-      );
-      const screenRepairs = repairFragments.filter((f) =>
-        screenFromGraphNodeIds(f.graphNodeIds) === screen,
-      );
-      const screenSteps = input.runStepSummaries.filter((s) => s.screen === screen);
+      const screenFragments = fragmentsByScreen[screen] ?? [];
+      const screenRepairs = repairsByScreen[screen] ?? [];
+      const screenSteps = stepsByScreen[screen] ?? [];
       const translationSteps = screenSteps.filter((s) => s.resolutionMode === 'translation');
       const unresolvedSteps = screenSteps.filter((s) => s.winningSource === 'none' || s.winningSource === 'unresolved');
 

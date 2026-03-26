@@ -60,11 +60,19 @@ function defaultFixtures(input: {
 }
 
 function taskStepsForRun(surface: ScenarioInterpretationSurface, resolutionControlName?: string | null): ScenarioInterpretationSurface['payload']['steps'] {
+  if (!resolutionControlName) {
+    return surface.payload.steps;
+  }
+  // Pre-index controls by (name, stepIndex): O(C) build, then O(1) per step
+  const controlIndex = new Map<number, string>();
+  for (const ctrl of surface.payload.resolutionContext.controls.resolutionControls) {
+    if (ctrl.name === resolutionControlName) {
+      controlIndex.set(ctrl.stepIndex, ctrl.resolution);
+    }
+  }
   return surface.payload.steps.map((step) => ({
     ...step,
-    controlResolution: resolutionControlName
-      ? (surface.payload.resolutionContext.controls.resolutionControls.find((entry) => entry.name === resolutionControlName && entry.stepIndex === step.index)?.resolution ?? step.controlResolution)
-      : step.controlResolution,
+    controlResolution: controlIndex.get(step.index) ?? step.controlResolution,
   }));
 }
 

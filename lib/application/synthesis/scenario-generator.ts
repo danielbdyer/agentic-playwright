@@ -254,9 +254,11 @@ function extractScreenInfo(catalog: {
   readonly screenElements: ReadonlyArray<{ readonly artifact: { readonly screen: string; readonly elements: Record<string, { widget?: string | undefined; required?: boolean | undefined }> } }>;
   readonly screenHints: ReadonlyArray<{ readonly artifact: { readonly screen: string; readonly screenAliases?: readonly string[] | undefined; readonly elements?: Record<string, { aliases?: readonly string[] | undefined }> | undefined } }>;
 }): readonly ScreenInfo[] {
+  // Pre-index hints by screen: O(M) build, then O(1) lookups per element entry
+  const hintsByScreen = new Map(catalog.screenHints.map((h) => [h.artifact.screen, h]));
   return catalog.screenElements.map((elemEntry) => {
     const screenId = elemEntry.artifact.screen;
-    const hintsEntry = catalog.screenHints.find((h) => h.artifact.screen === screenId);
+    const hintsEntry = hintsByScreen.get(screenId);
     const screenAliases = hintsEntry?.artifact.screenAliases ?? [];
     const elements = Object.entries(elemEntry.artifact.elements).map(([elementId, elem]) => {
       const hintAliases = hintsEntry?.artifact.elements?.[elementId]?.aliases ?? [];

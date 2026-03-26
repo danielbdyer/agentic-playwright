@@ -59,26 +59,42 @@ function pendingProposals(bundles: readonly ProposalBundle[]): ReadonlyArray<{
   );
 }
 
-function computeAffectedScenarioCount(
-  proposal: ProposalEntry,
-  bundle: ProposalBundle,
-  allBundles: readonly ProposalBundle[],
-): number {
-  const screen = proposal.targetPath.split('/').find((seg) =>
-    seg.endsWith('.elements.yaml') || seg.endsWith('.hints.yaml') || seg.endsWith('.surface.yaml'),
-  )?.replace(/\.(elements|hints|surface)\.yaml$/, '') ?? '';
-  if (screen.length === 0) {
-    return 1;
-  }
-  const affected = new Set<string>([bundle.adoId]);
-  for (const other of allBundles) {
-    for (const p of other.proposals) {
-      if (p.targetPath.includes(screen)) {
-        affected.add(other.adoId);
+/** Pre-compute a Map from screen name → Set of adoIds whose proposals touch that screen. */
+function buildScreenAffinity(allBundles: readonly ProposalBundle[]): ReadonlyMap<string, ReadonlySet<string>> {
+  const index = new Map<string, Set<string>>();
+  for (const bundle of allBundles) {
+    for (const p of bundle.proposals) {
+      const screen = extractScreenFromTargetPath(p.targetPath);
+      if (screen.length > 0) {
+        const existing = index.get(screen);
+        if (existing) {
+          existing.add(bundle.adoId);
+        } else {
+          index.set(screen, new Set([bundle.adoId]));
+        }
       }
     }
   }
-  return affected.size;
+  return index;
+}
+
+function extractScreenFromTargetPath(targetPath: string): string {
+  return targetPath.split('/').find((seg) =>
+    seg.endsWith('.elements.yaml') || seg.endsWith('.hints.yaml') || seg.endsWith('.surface.yaml'),
+  )?.replace(/\.(elements|hints|surface)\.yaml$/, '') ?? '';
+}
+
+function computeAffectedScenarioCount(
+  proposal: ProposalEntry,
+  bundle: ProposalBundle,
+  screenAffinity: ReadonlyMap<string, ReadonlySet<string>>,
+): number {
+  const screen = extractScreenFromTargetPath(proposal.targetPath);
+  if (screen.length === 0) {
+    return 1;
+  }
+  const affected = screenAffinity.get(screen);
+  return affected ? Math.max(affected.size, 1) : 1;
 }
 
 function computeBottleneckReduction(
@@ -128,9 +144,10 @@ export function rankProposals(input: {
 }): ProposalRankingReport {
   const scoring = input.rankingWeights ? buildProposalScoring(input.rankingWeights) : proposalScoring;
   const pending = pendingProposals(input.proposalBundles);
+  const screenAffinity = buildScreenAffinity(input.proposalBundles);
 
   const scored: readonly RankedProposal[] = pending.map(({ bundle, proposal }) => {
-    const affectedScenarioCount = computeAffectedScenarioCount(proposal, bundle, input.proposalBundles);
+    const affectedScenarioCount = computeAffectedScenarioCount(proposal, bundle, screenAffinity);
     const bottleneckReduction = computeBottleneckReduction(proposal, input.bottleneckReport);
     const tpWeight = trustPolicyWeight(proposal.trustPolicy.decision);
     const affectedScreens = uniqueSorted(
@@ -163,8 +180,7 @@ export function rankProposals(input: {
     };
   });
 
-  const ranked = scored
-    .slice()
+  const ranked = [...scored]
     .sort((a, b) => b.overallScore - a.overallScore || a.proposalId.localeCompare(b.proposalId))
     .map((r, i) => ({ ...r, rank: i + 1 }));
 

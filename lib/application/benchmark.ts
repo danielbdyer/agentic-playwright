@@ -422,7 +422,10 @@ export function projectBenchmarkScorecard(options: {
       );
     }
 
-    const scorecardCatalog = options.includeExecution ? yield* loadWorkspaceCatalog({ paths: options.paths }) : catalog;
+    // After execution, reload post-run scope to pick up new run records; otherwise reuse the initial catalog
+    const scorecardCatalog = options.includeExecution
+      ? yield* loadWorkspaceCatalog({ paths: options.paths, scope: 'post-run' })
+      : catalog;
     const proposalBundles = proposalsForScenarios(scorecardCatalog.proposalBundles.map((entry) => entry.artifact), scenarioIds);
     const scorecard = scorecardForBenchmark({
       benchmark,
