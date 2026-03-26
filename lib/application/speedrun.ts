@@ -143,11 +143,15 @@ function saveFitnessReport(paths: ProjectPaths, report: PipelineFitnessReport) {
 
 export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunResult, unknown, any> {
   return Effect.gen(function* () {
+    const speedrunStart = Date.now();
+
+    const generateStart = Date.now();
     const generated = yield* generateSyntheticScenarios({
       paths: input.paths,
       count: input.count,
       seed: input.seed,
     });
+    const generateDuration = Date.now() - generateStart;
 
     // Emit generate-phase progress
     input.onProgress?.({
@@ -157,8 +161,11 @@ export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunRes
       maxIterations: input.maxIterations,
       metrics: null,
       convergenceReason: null,
-      elapsed: 0,
+      elapsed: Date.now() - speedrunStart,
+      phaseDurationMs: generateDuration,
+      wallClockMs: Date.now(),
       seed: input.seed,
+      scenarioCount: generated.scenariosGenerated,
     });
 
     const { ledger } = yield* runDogfoodLoop({
@@ -173,17 +180,9 @@ export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunRes
       seed: input.seed,
     });
 
-    // Emit fitness-phase progress
-    input.onProgress?.({
-      kind: 'speedrun-progress',
-      phase: 'fitness',
-      iteration: ledger.completedIterations,
-      maxIterations: input.maxIterations,
-      metrics: null,
-      convergenceReason: ledger.convergenceReason,
-      elapsed: 0,
-      seed: input.seed,
-    });
+    const fitnessStart = Date.now();
+
+    // Emit fitness-phase progress (timing updated after computation below)
 
     const catalog = yield* loadWorkspaceCatalog({
       paths: input.paths,
@@ -211,6 +210,27 @@ export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunRes
       proposalBundles,
     };
     const fitnessReport = buildFitnessReport(fitnessData);
+    const fitnessDuration = Date.now() - fitnessStart;
+
+    // Emit fitness-phase progress
+    input.onProgress?.({
+      kind: 'speedrun-progress',
+      phase: 'fitness',
+      iteration: ledger.completedIterations,
+      maxIterations: input.maxIterations,
+      metrics: {
+        knowledgeHitRate: fitnessReport.metrics.knowledgeHitRate,
+        proposalsActivated: 0,
+        totalSteps: 0,
+        unresolvedSteps: 0,
+      },
+      convergenceReason: ledger.convergenceReason,
+      elapsed: Date.now() - speedrunStart,
+      phaseDurationMs: fitnessDuration,
+      wallClockMs: Date.now(),
+      seed: input.seed,
+    });
+
     const existingScorecard = yield* loadScorecard(input.paths);
     const comparison = compareToScorecard(fitnessReport, existingScorecard);
 
@@ -264,6 +284,7 @@ export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunRes
  */
 export function multiSeedSpeedrun(input: MultiSeedInput): Effect.Effect<MultiSeedResult, unknown, any> {
   return Effect.gen(function* () {
+    const multiStart = Date.now();
     const versionControl = yield* VersionControl;
     const pipelineVersion = yield* versionControl.currentRevision().pipe(
       Effect.catchAll(() => Effect.succeed('unknown')),
@@ -345,6 +366,7 @@ export function multiSeedSpeedrun(input: MultiSeedInput): Effect.Effect<MultiSee
     yield* recordExperiment(input.paths, experimentRecord);
 
     // Emit completion progress
+    const totalDuration = Date.now() - multiStart;
     input.onProgress?.({
       kind: 'speedrun-progress',
       phase: 'complete',
@@ -357,7 +379,9 @@ export function multiSeedSpeedrun(input: MultiSeedInput): Effect.Effect<MultiSee
         unresolvedSteps: 0,
       },
       convergenceReason: null,
-      elapsed: 0,
+      elapsed: totalDuration,
+      phaseDurationMs: totalDuration,
+      wallClockMs: Date.now(),
       seed: input.seeds.join(','),
     });
 

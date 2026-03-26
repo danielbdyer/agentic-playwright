@@ -188,6 +188,7 @@ function buildProgressEvent(
   result: DogfoodIterationResult,
   convergenceReason: ImprovementLoopConvergenceReason,
   startedAt: number,
+  iterationDurationMs: number,
   options: DogfoodOptions,
   resolutionByRung?: readonly import('../domain/types/fitness').RungRate[],
 ): SpeedrunProgressEvent {
@@ -205,7 +206,10 @@ function buildProgressEvent(
     },
     convergenceReason,
     elapsed: Date.now() - startedAt,
+    phaseDurationMs: iterationDurationMs,
+    wallClockMs: Date.now(),
     seed: options.seed ?? '',
+    scenarioCount: result.scenarioIds.length,
   };
 }
 
@@ -309,7 +313,9 @@ function dogfoodMachine(options: DogfoodOptions) {
         return { next: state, done: true };
       }
 
+      const iterationStart = Date.now();
       const { result, partialFitness } = yield* runIteration(iteration, options);
+      const iterationDuration = Date.now() - iterationStart;
       const nextCumulativeInstructions = state.cumulativeInstructions + result.instructionCount;
       const prevHitRate = state.iterations.length > 0
         ? state.iterations[state.iterations.length - 1]!.knowledgeHitRate
@@ -334,6 +340,7 @@ function dogfoodMachine(options: DogfoodOptions) {
           result,
           nextState.convergenceReason,
           state.startedAt,
+          iterationDuration,
           options,
           partialFitness.resolutionByRung,
         ));

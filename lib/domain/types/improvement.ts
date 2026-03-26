@@ -26,7 +26,7 @@ export interface SubstrateContext {
  */
 export interface SpeedrunProgressEvent {
   readonly kind: 'speedrun-progress';
-  readonly phase: 'generate' | 'iterate' | 'fitness' | 'complete';
+  readonly phase: 'generate' | 'compile' | 'iterate' | 'fitness' | 'complete';
   readonly iteration: number;
   readonly maxIterations: number;
   readonly metrics: {
@@ -38,8 +38,15 @@ export interface SpeedrunProgressEvent {
     readonly resolutionByRung?: readonly import('./fitness').RungRate[];
   } | null;
   readonly convergenceReason: ImprovementLoopConvergenceReason;
+  /** Milliseconds since the speedrun started. */
   readonly elapsed: number;
+  /** Milliseconds this specific phase took (null if not measured). */
+  readonly phaseDurationMs: number | null;
+  /** Absolute wall-clock timestamp (ms since epoch). */
+  readonly wallClockMs: number;
   readonly seed: string;
+  /** Scenario count for this phase (present for generate/compile/iterate phases). */
+  readonly scenarioCount?: number;
 }
 
 export interface ExperimentScorecardComparison {

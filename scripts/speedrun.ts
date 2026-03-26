@@ -77,8 +77,16 @@ function createProgressCallback(progressPath: string): (event: SpeedrunProgressE
       ? ` convergence=${event.convergenceReason}`
       : '';
 
+    const scenarioLabel = event.scenarioCount !== undefined
+      ? ` scenarios=${event.scenarioCount}`
+      : '';
+
+    const durationLabel = event.phaseDurationMs !== null && event.phaseDurationMs !== undefined
+      ? ` phase=${formatElapsed(event.phaseDurationMs)}`
+      : '';
+
     process.stderr.write(
-      `${phaseLabel}${metricsLabel}${convergenceLabel} elapsed=${formatElapsed(event.elapsed)}\n`,
+      `${phaseLabel}${scenarioLabel}${metricsLabel}${convergenceLabel}${durationLabel} elapsed=${formatElapsed(event.elapsed)}\n`,
     );
   };
 }
