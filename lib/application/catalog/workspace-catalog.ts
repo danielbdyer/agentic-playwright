@@ -1,5 +1,6 @@
 import path from 'path';
 import { Effect } from 'effect';
+import { resolveEffectConcurrency } from '../concurrency';
 import { createSnapshotTemplateId } from '../../domain/identity';
 import { mergePatternDocuments } from '../../domain/knowledge/patterns';
 import type {
@@ -89,11 +90,14 @@ function sortByArtifactPath<T>(envelopes: ArtifactEnvelope<T>[]): ArtifactEnvelo
   return [...envelopes].sort((a, b) => a.artifactPath.localeCompare(b.artifactPath));
 }
 
+const catalogIoConcurrency = resolveEffectConcurrency({ ceiling: 20 });
+
 function loadAllYaml<T>(
   paths: ProjectPaths, files: readonly string[], validate: (value: unknown) => T, errorCode: string, label: string,
 ) {
   return Effect.forEach(files, (filePath) =>
     readYamlArtifact(paths, filePath, validate, errorCode, `${label} ${filePath} failed validation`),
+    { concurrency: catalogIoConcurrency },
   ).pipe(Effect.map(sortByArtifactPath));
 }
 
@@ -102,6 +106,7 @@ function loadAllJson<T>(
 ) {
   return Effect.forEach(files, (filePath) =>
     readJsonArtifact(paths, filePath, validate, errorCode, `${label} ${filePath} failed validation`),
+    { concurrency: catalogIoConcurrency },
   ).pipe(Effect.map(sortByArtifactPath));
 }
 
@@ -123,6 +128,7 @@ function loadAllDisposableJson<T>(
 ) {
   return Effect.forEach(files, (filePath) =>
     readDisposableJsonArtifact(paths, filePath, validate, errorCode, `${label} ${filePath} failed validation`),
+    { concurrency: catalogIoConcurrency },
   ).pipe(Effect.map((results) => sortByArtifactPath(results.filter((entry): entry is ArtifactEnvelope<T> => entry !== null))));
 }
 

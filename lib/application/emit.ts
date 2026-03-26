@@ -58,9 +58,14 @@ function relativeModule(fromFile: string, toFile: string): string {
 }
 
 function latestRunForScenario(catalog: WorkspaceCatalog, adoId: AdoId): RunRecord | null {
-  return catalog.runRecords
-    .filter((entry) => entry.artifact.adoId === adoId)
-    .sort((left, right) => right.artifact.completedAt.localeCompare(left.artifact.completedAt))[0]?.artifact ?? null;
+  return catalog.runRecords.reduce<RunRecord | null>(
+    (latest, entry) =>
+      entry.artifact.adoId === adoId &&
+      (latest === null || entry.artifact.completedAt > latest.completedAt)
+        ? entry.artifact
+        : latest,
+    null,
+  );
 }
 
 function latestProposalBundle(catalog: WorkspaceCatalog, adoId: AdoId): ProposalBundle | null {
@@ -241,7 +246,7 @@ export function emitScenario(
 ): Effect.Effect<EmitScenarioResult, unknown, unknown> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
-    const catalog = options.catalog ?? (yield* loadWorkspaceCatalog({ paths: options.paths }));
+    const catalog = options.catalog ?? (yield* loadWorkspaceCatalog({ paths: options.paths, scope: 'post-run' }));
     const source: CompileSnapshot = 'compileSnapshot' in options
       ? options.compileSnapshot
       : yield* Effect.gen(function* () {

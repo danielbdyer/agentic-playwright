@@ -8,32 +8,32 @@ function compareNumbers(left: number, right: number): number {
 export type HotspotKind = 'translation-win' | 'agentic-fallback-win' | 'degraded-locator-rung' | 'recovery-policy-win' | 'interpretation-drift' | 'resolution-graph-needs-human';
 
 export interface HotspotSample {
-  adoId: string;
-  runId: string;
-  stepIndex: number;
-  winningSource: string;
-  resolutionMode: string;
-  locatorRung: number | null;
-  widgetContract: string | null;
-  changedFields?: string[] | undefined;
-  recoveryStrategy?: string | undefined;
-  recoveryFamily?: string | undefined;
+  readonly adoId: string;
+  readonly runId: string;
+  readonly stepIndex: number;
+  readonly winningSource: string;
+  readonly resolutionMode: string;
+  readonly locatorRung: number | null;
+  readonly widgetContract: string | null;
+  readonly changedFields?: readonly string[] | undefined;
+  readonly recoveryStrategy?: string | undefined;
+  readonly recoveryFamily?: string | undefined;
 }
 
 export interface WorkflowHotspot {
-  id: string;
-  kind: HotspotKind;
-  screen: string;
-  family: {
-    field: string;
-    action: string;
+  readonly id: string;
+  readonly kind: HotspotKind;
+  readonly screen: string;
+  readonly family: {
+    readonly field: string;
+    readonly action: string;
   };
-  occurrenceCount: number;
-  suggestions: Array<{
-    target: string;
-    reason: string;
+  readonly occurrenceCount: number;
+  readonly suggestions: ReadonlyArray<{
+    readonly target: string;
+    readonly reason: string;
   }>;
-  samples: HotspotSample[];
+  readonly samples: readonly HotspotSample[];
 }
 
 interface HotspotAccumulator {
@@ -194,17 +194,20 @@ export function buildWorkflowHotspots(runRecords: readonly RunRecord[], driftRec
     }
   }
 
-  const familyScreenSpread = new Map<string, Set<string>>();
-  for (const entry of accumulators.values()) {
+  const familyScreenSpread = [...accumulators.values()].reduce((acc, entry) => {
     const key = familyKey(entry.field, entry.action);
-    const screens = familyScreenSpread.get(key) ?? new Set<string>();
-    screens.add(entry.screen);
-    familyScreenSpread.set(key, screens);
-  }
+    const existing = acc.get(key);
+    if (existing) {
+      existing.add(entry.screen);
+    } else {
+      acc.set(key, new Set([entry.screen]));
+    }
+    return acc;
+  }, new Map<string, Set<string>>());
 
   return [...accumulators.values()]
     .map((entry) => {
-      const suggestions: WorkflowHotspot['suggestions'] = [
+      const suggestions: Array<{ readonly target: string; readonly reason: string }> = [
         {
           target: `knowledge/screens/${entry.screen}.hints.yaml`,
           reason: 'Capture deterministic aliases/defaults so this family resolves without runtime fallback.',

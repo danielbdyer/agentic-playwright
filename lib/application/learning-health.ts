@@ -109,8 +109,8 @@ export function projectCorpusHealth(input: {
     runtimeCoverage,
     screenCoverage,
     actionFamilyCoverage,
-    thinScreens: screenCoverage.filter((s) => s.thin).map((s) => s.screen),
-    thinActionFamilies: actionFamilyCoverage.filter((a) => a.thin).map((a) => a.action),
+    thinScreens: screenCoverage.flatMap((s) => s.thin ? [s.screen] : []),
+    thinActionFamilies: actionFamilyCoverage.flatMap((a) => a.thin ? [a.action] : []),
     fragmentProvenanceCompleteness: computeProvenanceCompleteness(input.fragments),
   };
 }

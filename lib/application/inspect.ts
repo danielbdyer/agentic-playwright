@@ -26,7 +26,7 @@ export function describeScenarioPaths(options: { adoId: AdoId; paths: ProjectPat
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const ado = yield* AdoSource;
-    const catalog = yield* loadWorkspaceCatalog({ paths: options.paths });
+    const catalog = yield* loadWorkspaceCatalog({ paths: options.paths, scope: 'post-run' });
     const syncedSnapshotPath = snapshotPath(options.paths, options.adoId);
     const syncedExists = yield* fs.exists(syncedSnapshotPath);
     const rawSnapshot = syncedExists ? yield* fs.readJson(syncedSnapshotPath) : yield* ado.loadSnapshot(options.adoId);
