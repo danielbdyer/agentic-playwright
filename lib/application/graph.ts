@@ -1,6 +1,7 @@
 import path from 'path';
 import { Effect } from 'effect';
 import { deriveGraph } from '../domain/derived-graph';
+import { resolveEffectConcurrency } from './concurrency';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
 import type {
   BoundScenarioGraphArtifact,
@@ -121,17 +122,22 @@ export function buildDerivedGraph(
         const generatedPath = generatedSpecPath(options.paths, entry.artifact.metadata.suite, entry.artifact.source.ado_id);
         const tracePath = generatedTracePath(options.paths, entry.artifact.metadata.suite, entry.artifact.source.ado_id);
         const reviewPath = generatedReviewPath(options.paths, entry.artifact.metadata.suite, entry.artifact.source.ado_id);
+        const [generatedSpecExists, generatedTraceExists, generatedReviewExists] = yield* Effect.all([
+          fs.exists(generatedPath),
+          fs.exists(tracePath),
+          fs.exists(reviewPath),
+        ], { concurrency: 'unbounded' });
         return {
           artifact: entry.artifact,
           artifactPath: entry.artifactPath,
           generatedSpecPath: relativeProjectPath(options.paths, generatedPath),
-          generatedSpecExists: yield* fs.exists(generatedPath),
+          generatedSpecExists,
           generatedTracePath: relativeProjectPath(options.paths, tracePath),
-          generatedTraceExists: yield* fs.exists(tracePath),
+          generatedTraceExists,
           generatedReviewPath: relativeProjectPath(options.paths, reviewPath),
-          generatedReviewExists: yield* fs.exists(reviewPath),
+          generatedReviewExists,
         };
-      }));
+      }), { concurrency: resolveEffectConcurrency({ ceiling: 20 }) });
 
     const boundScenarios: BoundScenarioGraphArtifact[] = catalog.boundScenarios.map(({ artifact, artifactPath }) => ({
       artifact,
