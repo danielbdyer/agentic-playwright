@@ -24,6 +24,10 @@ export function createPlaywrightDomResolver(page: Page): RuntimeDomResolver {
           affordance: candidate!.affordance ?? null,
         });
         const visibleCount = await resolved.locator.count().catch(() => 0);
+        // Extract ARIA attributes for richer semantic scoring
+        const ariaLabel = visibleCount >= 1
+          ? await resolved.locator.first().getAttribute('aria-label').catch(() => null)
+          : null;
         const nextCandidates = visibleCount >= 1
           ? [...acc.candidates, {
               element: candidate!,
@@ -35,6 +39,7 @@ export function createPlaywrightDomResolver(page: Page): RuntimeDomResolver {
                 widgetCompatibilityScore: 1,
                 locatorRung: resolved.strategyIndex,
                 locatorStrategy: describeLocatorStrategy(resolved.strategy),
+                ariaLabel,
               },
             }]
           : acc.candidates;

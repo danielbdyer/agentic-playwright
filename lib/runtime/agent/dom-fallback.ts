@@ -149,11 +149,19 @@ export async function resolveFromDom(
     .filter((candidate) => compatibilityScore(action, candidate.element) > 0)
     .map((candidate) => {
       const computedRoleNameScore = roleNameScore(task, candidate.element);
+      // Boost score if ARIA label matches intent (semantic signal from the DOM)
+      const ariaLabel = (candidate.evidence as { ariaLabel?: string | null }).ariaLabel;
+      const ariaBoost = ariaLabel && ariaLabel.length > 0
+        ? (task.actionText.toLowerCase().includes(ariaLabel.toLowerCase())
+          || task.expectedText.toLowerCase().includes(ariaLabel.toLowerCase())
+          ? 0.15 : 0)
+        : 0;
+      const effectiveRoleNameScore = Math.min(1, computedRoleNameScore + ariaBoost);
       return {
         ...candidate,
         score: scoreCandidate({
           visibleCount: candidate.evidence.visibleCount,
-          roleNameScore: computedRoleNameScore,
+          roleNameScore: effectiveRoleNameScore,
           locatorRung: candidate.evidence.locatorRung,
           locatorStrategyCount: Math.max(1, candidate.evidence.locatorRung + 1),
           widgetCompatibilityScore: candidate.evidence.widgetCompatibilityScore,
@@ -161,7 +169,7 @@ export async function resolveFromDom(
         }),
         evidence: {
           ...candidate.evidence,
-          roleNameScore: computedRoleNameScore,
+          roleNameScore: effectiveRoleNameScore,
         },
       } satisfies DomResolutionCandidate;
     });
