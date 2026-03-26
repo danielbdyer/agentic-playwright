@@ -15,7 +15,9 @@ import path from 'path';
 import { Effect } from 'effect';
 import type { ProjectPaths } from './paths';
 import { generateSyntheticScenarios } from './synthesis/scenario-generator';
+import { refreshScenario } from './refresh';
 import { runDogfoodLoop } from './dogfood';
+import type { AdoId } from '../domain/identity';
 import {
   averageFitnessReports,
   buildFitnessReport,
@@ -392,5 +394,226 @@ export function multiSeedSpeedrun(input: MultiSeedInput): Effect.Effect<MultiSee
       seedResults,
       scorecardUpdated,
     };
+  });
+}
+
+// ─── Segmented phase programs ───
+// Each phase reads from and writes to disk artifacts, enabling step-through execution.
+
+export interface GeneratePhaseInput {
+  readonly paths: ProjectPaths;
+  readonly count: number;
+  readonly seed: string;
+  readonly onProgress?: ((event: SpeedrunProgressEvent) => void) | undefined;
+}
+
+export function generatePhase(input: GeneratePhaseInput) {
+  return Effect.gen(function* () {
+    const start = Date.now();
+    const generated = yield* generateSyntheticScenarios({
+      paths: input.paths,
+      count: input.count,
+      seed: input.seed,
+    });
+    const durationMs = Date.now() - start;
+
+    input.onProgress?.({
+      kind: 'speedrun-progress',
+      phase: 'generate',
+      iteration: 0,
+      maxIterations: 0,
+      metrics: null,
+      convergenceReason: null,
+      elapsed: durationMs,
+      phaseDurationMs: durationMs,
+      wallClockMs: Date.now(),
+      seed: input.seed,
+      scenarioCount: generated.scenariosGenerated,
+    });
+
+    return { scenariosGenerated: generated.scenariosGenerated, screens: generated.screens, durationMs };
+  });
+}
+
+export interface CompilePhaseInput {
+  readonly paths: ProjectPaths;
+  readonly tag?: string | undefined;
+  readonly onProgress?: ((event: SpeedrunProgressEvent) => void) | undefined;
+}
+
+export function compilePhase(input: CompilePhaseInput) {
+  return Effect.gen(function* () {
+    const start = Date.now();
+    const catalog = yield* loadWorkspaceCatalog({
+      paths: input.paths,
+      knowledgePosture: 'warm-start',
+      scope: 'compile',
+    });
+
+    const tag = input.tag ?? null;
+    const scenarioIds = catalog.scenarios
+      .map((entry) => entry.artifact)
+      .filter((scenario) => !tag || scenario.metadata.tags.includes(tag))
+      .map((scenario) => scenario.source.ado_id);
+
+    yield* Effect.all(
+      scenarioIds.map((adoId) => refreshScenario({ adoId: adoId as AdoId, paths: input.paths })),
+      { concurrency: 1 },
+    );
+
+    const durationMs = Date.now() - start;
+
+    input.onProgress?.({
+      kind: 'speedrun-progress',
+      phase: 'compile',
+      iteration: 0,
+      maxIterations: 0,
+      metrics: null,
+      convergenceReason: null,
+      elapsed: durationMs,
+      phaseDurationMs: durationMs,
+      wallClockMs: Date.now(),
+      seed: '',
+      scenarioCount: scenarioIds.length,
+    });
+
+    return { scenariosCompiled: scenarioIds.length, durationMs };
+  });
+}
+
+export interface IteratePhaseInput {
+  readonly paths: ProjectPaths;
+  readonly maxIterations: number;
+  readonly convergenceThreshold?: number | undefined;
+  readonly tag?: string | undefined;
+  readonly runbook?: string | undefined;
+  readonly knowledgePosture?: KnowledgePosture | undefined;
+  readonly seed?: string | undefined;
+  readonly onProgress?: ((event: SpeedrunProgressEvent) => void) | undefined;
+}
+
+export function iteratePhase(input: IteratePhaseInput) {
+  return Effect.gen(function* () {
+    const start = Date.now();
+    const { ledger } = yield* runDogfoodLoop({
+      paths: input.paths,
+      maxIterations: input.maxIterations,
+      convergenceThreshold: input.convergenceThreshold,
+      interpreterMode: 'diagnostic',
+      tag: input.tag ?? 'synthetic',
+      runbook: input.runbook ?? 'synthetic-dogfood',
+      knowledgePosture: input.knowledgePosture,
+      onProgress: input.onProgress,
+      seed: input.seed,
+    });
+    const durationMs = Date.now() - start;
+    return { ledger, durationMs };
+  });
+}
+
+export interface FitnessPhaseInput {
+  readonly paths: ProjectPaths;
+  readonly seed?: string | undefined;
+  readonly onProgress?: ((event: SpeedrunProgressEvent) => void) | undefined;
+}
+
+export function fitnessPhase(input: FitnessPhaseInput) {
+  return Effect.gen(function* () {
+    const start = Date.now();
+    const catalog = yield* loadWorkspaceCatalog({
+      paths: input.paths,
+      knowledgePosture: 'warm-start',
+      scope: 'post-run',
+    });
+
+    const runRecords: RunRecord[] = catalog.runRecords.map((entry) => entry.artifact as unknown as RunRecord);
+    const runSteps = runRecords.flatMap((record) =>
+      record.steps.map((step) => ({
+        interpretation: step.interpretation,
+        execution: step.execution,
+      })),
+    );
+    const proposalBundles: ProposalBundle[] = catalog.proposalBundles.map((entry) => entry.artifact);
+
+    const versionControl = yield* VersionControl;
+    const pipelineVersion = yield* versionControl.currentRevision().pipe(
+      Effect.catchAll(() => Effect.succeed('unknown')),
+    );
+
+    const fitnessData: FitnessInputData = {
+      pipelineVersion,
+      ledger: null as never, // Ledger not available in standalone fitness phase
+      runSteps,
+      proposalBundles,
+    };
+    const fitnessReport = buildFitnessReport(fitnessData);
+    yield* saveFitnessReport(input.paths, fitnessReport);
+
+    const durationMs = Date.now() - start;
+
+    input.onProgress?.({
+      kind: 'speedrun-progress',
+      phase: 'fitness',
+      iteration: 0,
+      maxIterations: 0,
+      metrics: {
+        knowledgeHitRate: fitnessReport.metrics.knowledgeHitRate,
+        proposalsActivated: 0,
+        totalSteps: runSteps.length,
+        unresolvedSteps: 0,
+      },
+      convergenceReason: null,
+      elapsed: durationMs,
+      phaseDurationMs: durationMs,
+      wallClockMs: Date.now(),
+      seed: input.seed ?? '',
+    });
+
+    return { fitnessReport, durationMs };
+  });
+}
+
+export interface ReportPhaseInput {
+  readonly paths: ProjectPaths;
+}
+
+export function reportPhase(input: ReportPhaseInput) {
+  return Effect.gen(function* () {
+    const catalog = yield* loadWorkspaceCatalog({
+      paths: input.paths,
+      knowledgePosture: 'warm-start',
+      scope: 'post-run',
+    });
+
+    const runRecords: RunRecord[] = catalog.runRecords.map((entry) => entry.artifact as unknown as RunRecord);
+    const runSteps = runRecords.flatMap((record) =>
+      record.steps.map((step) => ({
+        interpretation: step.interpretation,
+        execution: step.execution,
+      })),
+    );
+    const proposalBundles: ProposalBundle[] = catalog.proposalBundles.map((entry) => entry.artifact);
+
+    const versionControl = yield* VersionControl;
+    const pipelineVersion = yield* versionControl.currentRevision().pipe(
+      Effect.catchAll(() => Effect.succeed('unknown')),
+    );
+
+    const fitnessReport = buildFitnessReport({
+      pipelineVersion,
+      ledger: null as never,
+      runSteps,
+      proposalBundles,
+    });
+
+    const existingScorecard = yield* loadScorecard(input.paths);
+    const comparison = compareToScorecard(fitnessReport, existingScorecard);
+
+    if (comparison.improved) {
+      const updatedScorecard = updateScorecard(fitnessReport, existingScorecard, comparison);
+      yield* saveScorecard(input.paths, updatedScorecard);
+    }
+
+    return { fitnessReport, comparison, scorecardUpdated: comparison.improved };
   });
 }

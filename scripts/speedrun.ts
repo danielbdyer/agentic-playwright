@@ -1,14 +1,19 @@
 /**
  * Self-improving pipeline speedrun — CLI wrapper.
  *
- * Clean-slate → generate → flywheel → measure → compare → report.
- *
- * Usage: npx tsx scripts/speedrun.ts [--count N] [--seed S] [--seeds S1,S2,S3]
+ * Full mode:
+ *   npx tsx scripts/speedrun.ts [--count N] [--seed S] [--seeds S1,S2,S3]
  *        [--max-iterations N] [--posture cold-start|warm-start|production]
  *
- * Multi-seed mode (--seeds): runs the full speedrun for each seed and averages
- * fitness metrics. A pipeline change only "wins" if it improves average fitness
- * across all seeds, preventing overfitting to a single phrasing distribution.
+ * Segmented mode (step-through individual phases):
+ *   npx tsx scripts/speedrun.ts generate  [--count N] [--seed S]
+ *   npx tsx scripts/speedrun.ts compile   [--tag TAG]
+ *   npx tsx scripts/speedrun.ts iterate   [--max-iterations N] [--posture P]
+ *   npx tsx scripts/speedrun.ts fitness   [--seed S]
+ *   npx tsx scripts/speedrun.ts report
+ *
+ * Each phase reads from and writes to disk artifacts, enabling agents
+ * and operators to inspect intermediate state between phases.
  *
  * All orchestration lives in lib/application/speedrun.ts. This script is a thin
  * CLI wrapper: parse args → build input → call Effect program → print results.
@@ -17,7 +22,15 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { createProjectPaths } from '../lib/application/paths';
-import { multiSeedSpeedrun, type MultiSeedResult } from '../lib/application/speedrun';
+import {
+  multiSeedSpeedrun,
+  generatePhase,
+  compilePhase,
+  iteratePhase,
+  fitnessPhase,
+  reportPhase,
+  type MultiSeedResult,
+} from '../lib/application/speedrun';
 import { resolveKnowledgePosture } from '../lib/application/knowledge-posture';
 import { runWithLocalServices } from '../lib/composition/local-services';
 import type { KnowledgePosture, PipelineConfig, PipelineFitnessReport, SpeedrunProgressEvent } from '../lib/domain/types';
@@ -190,9 +203,104 @@ function printResult(result: MultiSeedResult): void {
   console.log('\nSpeedrun complete.');
 }
 
-// ─── Main ───
+// ─── Subcommand detection ───
 
-async function main(): Promise<void> {
+const SUBCOMMANDS = ['generate', 'compile', 'iterate', 'fitness', 'report'] as const;
+type Subcommand = typeof SUBCOMMANDS[number];
+const subcommand: Subcommand | null =
+  args.length > 0 && SUBCOMMANDS.includes(args[0] as Subcommand) ? args[0] as Subcommand : null;
+
+const serviceOptions = {
+  posture: { interpreterMode: 'diagnostic' as const, writeMode: 'persist' as const, executionProfile: 'dogfood' as const },
+  suiteRoot: paths.suiteRoot,
+  pipelineConfig: loadPipelineConfig(),
+};
+
+// ─── Segmented phase runners ───
+
+async function runGenerate(): Promise<void> {
+  console.log(`Generating ${count} scenarios (seed: ${singleSeed})...`);
+  const progressPath = path.join(rootDir, '.tesseract', 'runs', 'speedrun-progress.jsonl');
+  const onProgress = createProgressCallback(progressPath);
+
+  const result = await runWithLocalServices(
+    generatePhase({ paths, count, seed: singleSeed, onProgress }),
+    rootDir,
+    serviceOptions,
+  );
+  console.log(`Generated ${result.scenariosGenerated} scenarios across ${result.screens.length} screens in ${(result.durationMs / 1000).toFixed(1)}s`);
+}
+
+async function runCompile(): Promise<void> {
+  console.log(`Compiling scenarios${experimentTag ? ` (tag: ${experimentTag})` : ''}...`);
+  const progressPath = path.join(rootDir, '.tesseract', 'runs', 'speedrun-progress.jsonl');
+  const onProgress = createProgressCallback(progressPath);
+
+  const result = await runWithLocalServices(
+    compilePhase({ paths, tag: experimentTag || undefined, onProgress }),
+    rootDir,
+    serviceOptions,
+  );
+  console.log(`Compiled ${result.scenariosCompiled} scenarios in ${(result.durationMs / 1000).toFixed(1)}s`);
+}
+
+async function runIterate(): Promise<void> {
+  console.log(`Running dogfood loop (max ${maxIterations} iterations, posture: ${knowledgePosture})...`);
+  const progressPath = path.join(rootDir, '.tesseract', 'runs', 'speedrun-progress.jsonl');
+  const onProgress = createProgressCallback(progressPath);
+
+  const result = await runWithLocalServices(
+    iteratePhase({
+      paths,
+      maxIterations,
+      convergenceThreshold: loadPipelineConfig().convergenceThreshold,
+      tag: experimentTag || undefined,
+      knowledgePosture,
+      seed: singleSeed,
+      onProgress,
+    }),
+    rootDir,
+    serviceOptions,
+  );
+  console.log(`\nDogfood loop: ${result.ledger.completedIterations} iterations, converged=${result.ledger.converged} (${result.ledger.convergenceReason ?? 'n/a'})`);
+  console.log(`  Knowledge hit rate delta: ${result.ledger.knowledgeHitRateDelta > 0 ? '+' : ''}${result.ledger.knowledgeHitRateDelta}`);
+  console.log(`  Total proposals activated: ${result.ledger.totalProposalsActivated}`);
+  console.log(`  Duration: ${(result.durationMs / 1000).toFixed(1)}s`);
+}
+
+async function runFitness(): Promise<void> {
+  console.log('Computing fitness report from run records...');
+  const progressPath = path.join(rootDir, '.tesseract', 'runs', 'speedrun-progress.jsonl');
+  const onProgress = createProgressCallback(progressPath);
+
+  const result = await runWithLocalServices(
+    fitnessPhase({ paths, seed: singleSeed, onProgress }),
+    rootDir,
+    serviceOptions,
+  );
+  printMetrics(result.fitnessReport);
+  console.log(`\nFitness computed in ${(result.durationMs / 1000).toFixed(1)}s`);
+}
+
+async function runReport(): Promise<void> {
+  console.log('Comparing fitness to scorecard...');
+  const result = await runWithLocalServices(
+    reportPhase({ paths }),
+    rootDir,
+    serviceOptions,
+  );
+  printMetrics(result.fitnessReport);
+  console.log(`\n=== Scorecard Comparison ===\n`);
+  console.log(result.comparison.summary);
+  console.log(`  Knowledge hit rate delta: ${result.comparison.knowledgeHitRateDelta > 0 ? '+' : ''}${result.comparison.knowledgeHitRateDelta}`);
+  console.log(result.scorecardUpdated
+    ? '\nScorecard UPDATED — new high-water-mark set.'
+    : '\nScorecard unchanged — did not beat the mark.');
+}
+
+// ─── Full speedrun (default, no subcommand) ───
+
+async function runFull(): Promise<void> {
   const pipelineConfig = loadPipelineConfig();
   const progressPath = path.join(rootDir, '.tesseract', 'runs', 'speedrun-progress.jsonl');
   const onProgress = createProgressCallback(progressPath);
@@ -216,8 +324,7 @@ async function main(): Promise<void> {
     }),
     rootDir,
     {
-      posture: { interpreterMode: 'diagnostic', writeMode: 'persist', executionProfile: 'dogfood' },
-      suiteRoot: paths.suiteRoot,
+      ...serviceOptions,
       pipelineConfig,
     },
   );
@@ -225,7 +332,19 @@ async function main(): Promise<void> {
   printResult(result);
 }
 
-main().catch((error) => {
-  console.error('Speedrun failed:', error);
+// ─── Dispatch ───
+
+const dispatch: Record<Subcommand, () => Promise<void>> = {
+  generate: runGenerate,
+  compile: runCompile,
+  iterate: runIterate,
+  fitness: runFitness,
+  report: runReport,
+};
+
+const runner = subcommand ? dispatch[subcommand] : runFull;
+
+runner().catch((error) => {
+  console.error(`Speedrun${subcommand ? ` (${subcommand})` : ''} failed:`, error);
   process.exit(1);
 });
