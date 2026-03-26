@@ -229,8 +229,9 @@ function runIteration(iteration: number, options: DogfoodOptions) {
       scope: 'compile',
     });
 
-    // Step 1b: Refresh only tag-matching scenarios. Concurrency bounded to 3
-    // to balance throughput against memory pressure from parallel compiles.
+    // Step 1b: Refresh only tag-matching scenarios. Sequential because
+    // compileScenario writes to shared artifacts (graph, types) that
+    // concurrent compiles would race on.
     const tag = options.tag ?? null;
     const scenarioIds = catalog.scenarios
       .map((entry) => entry.artifact)
@@ -238,7 +239,7 @@ function runIteration(iteration: number, options: DogfoodOptions) {
       .map((scenario) => scenario.source.ado_id);
     yield* Effect.all(
       scenarioIds.map((adoId) => refreshScenario({ adoId: adoId as AdoId, paths: options.paths })),
-      { concurrency: 3 },
+      { concurrency: 1 },
     );
 
     // Step 2: run all scenarios (runScenarioSelection loads its own fresh catalog
