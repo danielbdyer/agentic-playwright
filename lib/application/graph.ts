@@ -258,7 +258,7 @@ export function buildDerivedGraph(
             resources: graph.resources,
             resourceTemplates: graph.resourceTemplates,
           }),
-        ]);
+        ], { concurrency: 'unbounded' });
 
         return {
           result: {

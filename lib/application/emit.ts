@@ -210,7 +210,7 @@ function readPersistedEmitOutputState(artifacts: ReturnType<typeof renderEmitArt
       traceExists: fs.exists(artifacts.tracePath),
       reviewExists: fs.exists(artifacts.reviewPath),
       proposalsExist: fs.exists(artifacts.proposalsPath),
-    });
+    }, { concurrency: 'unbounded' });
     if (!specExists || !traceExists || !reviewExists || !proposalsExist) {
       return { status: 'missing-output' as const };
     }
@@ -220,7 +220,7 @@ function readPersistedEmitOutputState(artifacts: ReturnType<typeof renderEmitArt
       proposals: fs.readJson(artifacts.proposalsPath),
       spec: fs.readText(artifacts.outputPath),
       review: fs.readText(artifacts.reviewPath),
-    }).pipe(
+    }, { concurrency: 'unbounded' }).pipe(
       Effect.map(({ trace, proposals, spec, review }) => ({
         status: 'ok' as const,
         outputFingerprint: fingerprintProjectionOutput({
@@ -327,7 +327,7 @@ export function emitScenario(
           fs.writeJson(artifacts.tracePath, artifacts.traceArtifact),
           fs.writeText(artifacts.reviewPath, artifacts.reviewText),
           fs.writeJson(artifacts.proposalsPath, artifacts.proposalBundle),
-        ]);
+        ], { concurrency: 'unbounded' });
         return {
           result: {
             outputPath: artifacts.outputPath,

@@ -154,7 +154,7 @@ export function projectLearningEvaluation(options: {
       health: fs.writeJson(healthPath, healthReport),
       bottlenecks: fs.writeJson(bottlenecksPath, bottleneckReport),
       rankings: fs.writeJson(rankingsPath, rankingReport),
-    });
+    }, { concurrency: 'unbounded' });
 
     const artifactPaths = [
       relativeProjectPath(options.paths, healthPath),

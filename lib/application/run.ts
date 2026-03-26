@@ -143,15 +143,17 @@ export function runScenario(options: {
           fs.writeJson(resolutionGraphFile, executionStage.resolutionGraphOutput),
           fs.writeJson(runFile, runRecordStage.runRecord),
           fs.writeJson(proposalsFile, activationStage.proposalBundle),
-        ]);
+        ], { concurrency: 'unbounded' });
 
         // Reload catalog once after writing all artifacts so projections see them.
         // Previously each projection loaded its own catalog (4 loads → 1).
         const postWriteCatalog = yield* loadWorkspaceCatalog({ paths: options.paths });
-        const confidence = yield* projectConfidenceOverlayCatalog({ paths: options.paths, catalog: postWriteCatalog });
-        const emitted = yield* emitScenario({ adoId: options.adoId, paths: options.paths, catalog: postWriteCatalog });
-        const graph = yield* buildDerivedGraph({ paths: options.paths, catalog: postWriteCatalog });
-        const inbox = yield* emitOperatorInbox({ paths: options.paths, catalog: postWriteCatalog, filter: { adoId: options.adoId } });
+        const { confidence, emitted, graph, inbox } = yield* Effect.all({
+          confidence: projectConfidenceOverlayCatalog({ paths: options.paths, catalog: postWriteCatalog }),
+          emitted: emitScenario({ adoId: options.adoId, paths: options.paths, catalog: postWriteCatalog }),
+          graph: buildDerivedGraph({ paths: options.paths, catalog: postWriteCatalog }),
+          inbox: emitOperatorInbox({ paths: options.paths, catalog: postWriteCatalog, filter: { adoId: options.adoId } }),
+        }, { concurrency: 'unbounded' });
 
         return {
           runId: plan.runId,
