@@ -1,4 +1,5 @@
 import { compareStrings } from '../../domain/collections';
+import { humanizeIdentifier } from './shared';
 import { widgetCapabilityContracts } from '../../domain/widgets/contracts';
 import type {
   DomExplorationPolicy,
@@ -44,11 +45,13 @@ const DEFAULT_DOM_POLICY: DomExplorationPolicy = {
 function roleNameScore(task: GroundedStep, candidate: StepTaskElementCandidate): number {
   const loweredIntent = task.actionText.toLowerCase();
   const loweredExpected = task.expectedText.toLowerCase();
+  const combined = `${loweredIntent} ${loweredExpected}`;
   const aliases = candidate.aliases.map((alias) => alias.toLowerCase());
   const name = candidate.name?.toLowerCase() ?? '';
+  const humanizedName = humanizeIdentifier(candidate.name ?? '');
   const roleBoost = candidate.role === 'textbox' || candidate.role === 'button' ? 0.1 : 0;
-  const nameHit = name && (loweredIntent.includes(name) || loweredExpected.includes(name)) ? 0.45 : 0;
-  const aliasHit = aliases.some((alias) => loweredIntent.includes(alias) || loweredExpected.includes(alias)) ? 0.35 : 0;
+  const nameHit = name && (combined.includes(name) || combined.includes(humanizedName)) ? 0.45 : 0;
+  const aliasHit = aliases.some((alias) => combined.includes(alias) || combined.includes(humanizeIdentifier(alias))) ? 0.35 : 0;
   return Math.min(1, roleBoost + nameHit + aliasHit);
 }
 
