@@ -242,10 +242,16 @@ function runIteration(iteration: number, options: DogfoodOptions) {
       { concurrency: 1 },
     );
 
-    // Step 2: run all scenarios (runScenarioSelection loads its own fresh catalog
-    // to pick up any artifacts written during the refresh step above)
+    // Step 2: load a single fresh catalog after refresh, then thread it to all scenario runs.
+    // Previously each runScenario call loaded its own catalog — with N scenarios this was N+1 loads.
+    const runCatalog = yield* loadWorkspaceCatalog({
+      paths: options.paths,
+      knowledgePosture: 'warm-start',
+      scope: 'full',
+    });
     const runResult = yield* runScenarioSelection({
       paths: options.paths,
+      catalog: runCatalog,
       tag: options.tag,
       runbookName: options.runbook,
       interpreterMode: options.interpreterMode ?? 'diagnostic',

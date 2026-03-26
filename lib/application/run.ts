@@ -7,7 +7,7 @@ import { writeAgentSessionLedger } from './agent-session-ledger';
 import { emitScenario } from './emit';
 import { emitOperatorInbox } from './inbox';
 import { projectLearningArtifacts } from './learning';
-import { loadWorkspaceCatalog } from './catalog';
+import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
 import type { ProjectPaths } from './paths';
 import {
   executionPath,
@@ -30,6 +30,7 @@ import { foldScenarioRun } from './execution/fold';
 export function runScenario(options: {
   adoId: AdoId;
   paths: ProjectPaths;
+  catalog?: WorkspaceCatalog | undefined;
   interpreterMode?: 'dry-run' | 'diagnostic';
   runbookName?: string | undefined;
   posture?: ExecutionPosture | undefined;
@@ -44,7 +45,7 @@ export function runScenario(options: {
         const fs = yield* FileSystem;
         const runtimeScenarioRunner = yield* RuntimeScenarioRunner;
         const executionContext = yield* ExecutionContext;
-        const catalog = yield* loadWorkspaceCatalog({ paths: options.paths });
+        const catalog = options.catalog ?? (yield* loadWorkspaceCatalog({ paths: options.paths }));
         return { fs, runtimeScenarioRunner, executionContext, catalog };
       }),
       compute: ({ fs, runtimeScenarioRunner, executionContext, catalog }) => Effect.gen(function* () {
@@ -87,7 +88,6 @@ export function runScenario(options: {
           evidenceWrites: evidenceStage.evidenceWrites,
         });
 
-        const evidenceCatalog = yield* loadWorkspaceCatalog({ paths: options.paths });
         const proposalStage = buildProposals({
           adoId: options.adoId,
           runId: plan.runId,
@@ -95,7 +95,7 @@ export function runScenario(options: {
           surfaceArtifactPath: surfaceEntry.artifactPath,
           stepResults: executionStage.stepResults,
           evidenceWrites: evidenceStage.evidenceWrites,
-          evidenceCatalog,
+          evidenceCatalog: catalog,
         });
         const activationStage = yield* activateProposalBundle({
           paths: options.paths,
@@ -145,10 +145,13 @@ export function runScenario(options: {
           fs.writeJson(proposalsFile, activationStage.proposalBundle),
         ]);
 
-        const confidence = yield* projectConfidenceOverlayCatalog({ paths: options.paths });
-        const emitted = yield* emitScenario({ adoId: options.adoId, paths: options.paths });
-        const graph = yield* buildDerivedGraph({ paths: options.paths });
-        const inbox = yield* emitOperatorInbox({ paths: options.paths, filter: { adoId: options.adoId } });
+        // Reload catalog once after writing all artifacts so projections see them.
+        // Previously each projection loaded its own catalog (4 loads → 1).
+        const postWriteCatalog = yield* loadWorkspaceCatalog({ paths: options.paths });
+        const confidence = yield* projectConfidenceOverlayCatalog({ paths: options.paths, catalog: postWriteCatalog });
+        const emitted = yield* emitScenario({ adoId: options.adoId, paths: options.paths, catalog: postWriteCatalog });
+        const graph = yield* buildDerivedGraph({ paths: options.paths, catalog: postWriteCatalog });
+        const inbox = yield* emitOperatorInbox({ paths: options.paths, catalog: postWriteCatalog, filter: { adoId: options.adoId } });
 
         return {
           runId: plan.runId,
@@ -179,6 +182,7 @@ export function runScenario(options: {
 
 export function runScenarioSelection(options: {
   paths: ProjectPaths;
+  catalog?: WorkspaceCatalog | undefined;
   adoId?: AdoId | undefined;
   runbookName?: string | undefined;
   tag?: string | undefined;
@@ -189,7 +193,7 @@ export function runScenarioSelection(options: {
   providerId?: string | undefined;
 }) {
   return Effect.gen(function* () {
-    const catalog = yield* loadWorkspaceCatalog({ paths: options.paths });
+    const catalog = options.catalog ?? (yield* loadWorkspaceCatalog({ paths: options.paths }));
     const selection = resolveRunSelection(catalog, {
       adoId: options.adoId ?? null,
       runbookName: options.runbookName ?? null,
@@ -201,6 +205,7 @@ export function runScenarioSelection(options: {
       const runOptions: {
         adoId: AdoId;
         paths: ProjectPaths;
+        catalog?: WorkspaceCatalog;
         interpreterMode?: 'dry-run' | 'diagnostic';
         runbookName?: string;
         posture?: ExecutionPosture;
@@ -210,6 +215,7 @@ export function runScenarioSelection(options: {
       } = {
         adoId: adoId as AdoId,
         paths: options.paths,
+        catalog,
       };
       if (options.interpreterMode) {
         runOptions.interpreterMode = options.interpreterMode;

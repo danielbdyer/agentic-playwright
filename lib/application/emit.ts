@@ -237,11 +237,11 @@ function readPersistedEmitOutputState(artifacts: ReturnType<typeof renderEmitArt
 }
 
 export function emitScenario(
-  options: { adoId: AdoId; paths: ProjectPaths } | { paths: ProjectPaths; compileSnapshot: CompileSnapshot },
+  options: { adoId: AdoId; paths: ProjectPaths; catalog?: WorkspaceCatalog } | { paths: ProjectPaths; compileSnapshot: CompileSnapshot; catalog?: WorkspaceCatalog },
 ): Effect.Effect<EmitScenarioResult, unknown, unknown> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
-    const catalog = yield* loadWorkspaceCatalog({ paths: options.paths });
+    const catalog = options.catalog ?? (yield* loadWorkspaceCatalog({ paths: options.paths }));
     const source: CompileSnapshot = 'compileSnapshot' in options
       ? options.compileSnapshot
       : yield* Effect.gen(function* () {
