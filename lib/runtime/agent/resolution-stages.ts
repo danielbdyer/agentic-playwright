@@ -263,7 +263,7 @@ export function tryOverlayResolution(stage: RuntimeAgentStageContext, acc: Resol
         translation: null,
         target: {
           action: acc.action ?? allowedActionFallback(stage.task) ?? 'custom',
-          screen: overlayResult.screen!.screen,
+          screen: overlayResult.screen?.screen ?? acc.screen?.screen ?? null,
           element: overlayResult.element?.element ?? null,
           posture: overlayResult.posture ?? null,
           override: overlayOverride.override,

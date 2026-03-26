@@ -154,8 +154,13 @@ function createProgressCallback(progressPath: string): (event: SpeedrunProgressE
       }
     }
 
+    // Calibration observability
+    const calibrationLabel = event.calibration
+      ? ` drift=${event.calibration.weightDrift.toFixed(4)}${event.calibration.topCorrelation ? ` top=${event.calibration.topCorrelation.signal}(${event.calibration.topCorrelation.strength > 0 ? '+' : ''}${event.calibration.topCorrelation.strength.toFixed(3)})` : ''}`
+      : '';
+
     process.stderr.write(
-      `${phaseLabel}${scenarioLabel}${metricsLabel}${convergenceLabel}${durationLabel}${regressionLabel} elapsed=${formatElapsed(event.elapsed)}\n`,
+      `${phaseLabel}${scenarioLabel}${metricsLabel}${convergenceLabel}${calibrationLabel}${durationLabel}${regressionLabel} elapsed=${formatElapsed(event.elapsed)}\n`,
     );
   };
 }

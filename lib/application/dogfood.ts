@@ -252,15 +252,31 @@ function cleanupBetweenIterations(options: DogfoodOptions) {
   });
 }
 
+/** Compute L2 (Euclidean) distance between two weight vectors. Pure. */
+function weightDrift(a: BottleneckWeights, b: BottleneckWeights): number {
+  const keys: readonly (keyof BottleneckWeights)[] = ['repairDensity', 'translationRate', 'unresolvedRate', 'inverseFragmentShare'];
+  return round4(Math.sqrt(keys.reduce((sum, k) => sum + (a[k] - b[k]) ** 2, 0)));
+}
+
 /** Build a progress event from the current iteration result and loop state. */
 function buildProgressEvent(
   result: DogfoodIterationResult,
+  state: LoopState,
   convergenceReason: ImprovementLoopConvergenceReason,
-  startedAt: number,
   iterationDurationMs: number,
   options: DogfoodOptions,
   resolutionByRung?: readonly import('../domain/types/fitness').RungRate[],
+  correlations?: readonly import('../domain/types').BottleneckWeightCorrelation[],
 ): SpeedrunProgressEvent {
+  const prevWeights = state.iterations.length > 1
+    ? DEFAULT_PIPELINE_CONFIG.bottleneckWeights
+    : state.bottleneckWeights;
+  const topCorrelation = correlations && correlations.length > 0
+    ? correlations.reduce((best, c) =>
+        Math.abs(c.correlationWithImprovement) > Math.abs(best.correlationWithImprovement) ? c : best,
+      )
+    : null;
+
   return {
     kind: 'speedrun-progress',
     phase: 'iterate',
@@ -274,11 +290,18 @@ function buildProgressEvent(
       ...(resolutionByRung ? { resolutionByRung } : {}),
     },
     convergenceReason,
-    elapsed: Date.now() - startedAt,
+    elapsed: Date.now() - state.startedAt,
     phaseDurationMs: iterationDurationMs,
     wallClockMs: Date.now(),
     seed: options.seed ?? '',
     scenarioCount: result.scenarioIds.length,
+    calibration: {
+      weights: state.bottleneckWeights,
+      weightDrift: weightDrift(state.bottleneckWeights, prevWeights),
+      topCorrelation: topCorrelation
+        ? { signal: topCorrelation.signal, strength: topCorrelation.correlationWithImprovement }
+        : null,
+    },
   };
 }
 
@@ -431,15 +454,16 @@ function dogfoodMachine(options: DogfoodOptions) {
         bottleneckWeights: calibratedWeights,
       };
 
-      // Emit progress event after each iteration (with per-iteration rung breakdown)
+      // Emit progress event after each iteration (with calibration observability)
       if (options.onProgress) {
         options.onProgress(buildProgressEvent(
           result,
+          nextState,
           nextState.convergenceReason,
-          state.startedAt,
           iterationDuration,
           options,
           partialFitness.resolutionByRung,
+          correlations,
         ));
       }
 

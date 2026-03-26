@@ -47,6 +47,14 @@ export interface SpeedrunProgressEvent {
   readonly seed: string;
   /** Scenario count for this phase (present for generate/compile/iterate phases). */
   readonly scenarioCount?: number;
+  /** Self-calibrating bottleneck weights after this iteration (if calibration active). */
+  readonly calibration?: {
+    readonly weights: import('../types').BottleneckWeights;
+    /** L2 distance from previous iteration's weights. 0 on first iteration. */
+    readonly weightDrift: number;
+    /** Strongest correlation signal observed. */
+    readonly topCorrelation: { readonly signal: string; readonly strength: number } | null;
+  } | undefined;
 }
 
 export interface ExperimentScorecardComparison {
