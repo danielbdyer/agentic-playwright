@@ -31,6 +31,8 @@ export function cleanSlateProgram(
       path.join(rootDir, '.tesseract', 'evidence', 'runs'),
       path.join(rootDir, '.tesseract', 'learning'),
       path.join(rootDir, '.tesseract', 'runs'),
+      path.join(rootDir, '.tesseract', 'sessions'),
+      path.join(rootDir, '.tesseract', 'translation-cache'),
     ];
 
     yield* Effect.all(

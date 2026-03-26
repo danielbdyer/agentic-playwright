@@ -61,9 +61,8 @@ function formatElapsed(ms: number): string {
 }
 
 function createProgressCallback(progressPath: string): (event: SpeedrunProgressEvent) => void {
-  fs.mkdirSync(path.dirname(progressPath), { recursive: true });
-
   return (event: SpeedrunProgressEvent): void => {
+    fs.mkdirSync(path.dirname(progressPath), { recursive: true });
     fs.appendFileSync(progressPath, JSON.stringify(event) + '\n');
 
     const phaseLabel = event.phase === 'iterate' && event.metrics

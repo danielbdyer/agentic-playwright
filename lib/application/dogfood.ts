@@ -1,4 +1,3 @@
-import * as nodeFs from 'fs';
 import path from 'path';
 import { Effect } from 'effect';
 import { activateProposalBundle, autoApproveEligibleProposals } from './activate-proposals';
@@ -172,15 +171,15 @@ function accumulateProposalTotals(
 }
 
 /** Wipe transient artifacts between iterations to cap memory and disk growth. */
-function cleanupBetweenIterations(options: DogfoodOptions): Effect.Effect<void, never, never> {
-  return Effect.sync(() => {
+function cleanupBetweenIterations(options: DogfoodOptions) {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
     const sessionsDir = path.join(options.paths.rootDir, '.tesseract', 'sessions');
     const evidenceRunsDir = path.join(options.paths.rootDir, '.tesseract', 'evidence', 'runs');
-    for (const dir of [sessionsDir, evidenceRunsDir]) {
-      if (nodeFs.existsSync(dir)) {
-        nodeFs.rmSync(dir, { recursive: true, force: true });
-      }
-    }
+    yield* Effect.all(
+      [sessionsDir, evidenceRunsDir].map((dir) => fs.removeDir(dir)),
+      { concurrency: 'unbounded' },
+    );
   });
 }
 
@@ -219,13 +218,17 @@ function runIteration(iteration: number, options: DogfoodOptions) {
     : 'warm-start';
 
   return Effect.gen(function* () {
-    // Step 1: refresh all scenarios (compile-scope: only scenarios + knowledge + controls)
+    // Step 1: refresh only tag-matching scenarios (compile-scope: scenarios + knowledge + controls)
     const catalog = yield* loadWorkspaceCatalog({
       paths: options.paths,
       knowledgePosture: iterationPosture,
       scope: 'compile',
     });
-    const scenarioIds = catalog.scenarios.map((entry) => entry.artifact.source.ado_id);
+    const tag = options.tag ?? null;
+    const scenarioIds = catalog.scenarios
+      .map((entry) => entry.artifact)
+      .filter((scenario) => !tag || scenario.metadata.tags.includes(tag))
+      .map((scenario) => scenario.source.ado_id);
     yield* Effect.all(
       scenarioIds.map((adoId) => refreshScenario({ adoId: adoId as AdoId, paths: options.paths })),
       { concurrency: 1 },
