@@ -3,6 +3,7 @@ import { Effect } from 'effect';
 import { activateProposalBundle, autoApproveEligibleProposals } from './activate-proposals';
 import { loadWorkspaceCatalog } from './catalog';
 import { buildPartialFitnessMetrics } from './fitness';
+import { calibrateWeightsFromCorrelations } from './learning-bottlenecks';
 import { improvementLoopLedgerPath, type ProjectPaths } from './paths';
 import { refreshScenarioCore } from './refresh';
 import { buildDerivedGraph } from './graph';
@@ -12,10 +13,13 @@ import { runScenarioSelection } from './run';
 import { FileSystem } from './ports';
 import { runStateMachine } from './state-machine';
 import { pruneTranslationCache } from './translation-cache';
+import { round4 } from './learning-shared';
 import type { AdoId } from '../domain/identity';
-import { asDogfoodLedgerProjection, asImprovementLoopLedger } from '../domain/types';
+import { groupBy } from '../domain/collections';
+import { asDogfoodLedgerProjection, asImprovementLoopLedger, DEFAULT_PIPELINE_CONFIG } from '../domain/types';
 import type {
   AutoApprovalPolicy,
+  BottleneckWeights,
   DogfoodLedgerProjection,
   ImprovementLoopLedger,
   ImprovementLoopConvergenceReason,
@@ -57,6 +61,10 @@ interface LoopState {
   readonly converged: boolean;
   readonly convergenceReason: ImprovementLoopConvergenceReason;
   readonly startedAt: number;
+  /** Self-calibrating bottleneck weights, threaded through iterations.
+   *  Each iteration may adjust these based on observed correlation between
+   *  bottleneck signals and hit-rate improvement. Pure state transition. */
+  readonly bottleneckWeights: BottleneckWeights;
 }
 
 function createInitialState(): LoopState {
@@ -66,6 +74,7 @@ function createInitialState(): LoopState {
     converged: false,
     convergenceReason: null,
     startedAt: Date.now(),
+    bottleneckWeights: DEFAULT_PIPELINE_CONFIG.bottleneckWeights,
   };
 }
 
@@ -75,8 +84,61 @@ function collectPendingProposals(bundles: readonly ProposalBundle[]): readonly P
   );
 }
 
-function round4(value: number): number {
-  return Number(value.toFixed(4));
+/**
+ * Derive bottleneck-weight correlations from consecutive iteration pairs.
+ *
+ * For each (iteration N, iteration N+1) pair, we observe:
+ *   - Which bottleneck signal dominated in iteration N (highest unresolved rate, etc.)
+ *   - Whether hit rate improved in iteration N+1
+ *
+ * If a signal correlated with improvement, its weight should increase.
+ * If it correlated with stagnation, its weight should decrease.
+ *
+ * Pure function: (iterations) → correlations. No side effects.
+ * This is the "gradient signal" for the self-calibrating scoring rule.
+ */
+/** Extract bottleneck signal strengths from a single iteration's characteristics. */
+function iterationSignalStrengths(iteration: DogfoodIterationResult): readonly { readonly signal: string; readonly strength: number }[] {
+  const unresolvedRate = iteration.totalStepCount > 0
+    ? iteration.unresolvedStepCount / iteration.totalStepCount
+    : 0;
+  return [
+    { signal: 'high-unresolved-rate', strength: unresolvedRate },
+    { signal: 'repair-recovery-hotspot', strength: iteration.proposalsActivated > 0 ? 0.3 : 0 },
+    { signal: 'translation-fallback-dominant', strength: unresolvedRate > 0.5 ? 0.2 : 0 },
+    { signal: 'thin-screen-coverage', strength: unresolvedRate > 0.3 ? 0.1 : 0 },
+  ].filter(({ strength }) => strength > 0);
+}
+
+/** Zip consecutive iteration pairs into (current, next) tuples for fold analysis. */
+function consecutivePairs<T>(items: readonly T[]): readonly (readonly [T, T])[] {
+  return items.slice(0, -1).map((item, index) => [item, items[index + 1]!] as const);
+}
+
+function deriveIterationCorrelations(
+  iterations: readonly DogfoodIterationResult[],
+): readonly import('../domain/types').BottleneckWeightCorrelation[] {
+  if (iterations.length < 2) {
+    return [];
+  }
+
+  // Flatmap consecutive pairs into weighted signal observations,
+  // then group by signal and average the deltas. O(pairs × signals).
+  const observations = consecutivePairs(iterations).flatMap(([current, next]) => {
+    const hitRateDelta = next.knowledgeHitRate - current.knowledgeHitRate;
+    return iterationSignalStrengths(current)
+      .map(({ signal, strength }) => ({ signal, delta: hitRateDelta * strength }));
+  });
+
+  // Single-pass groupBy (O(n)) then map to averages
+  const bySignal = groupBy(observations, (o) => o.signal);
+  return Object.entries(bySignal).map(([signal, entries]) => ({
+    signal,
+    weight: 0,
+    correlationWithImprovement: round4(
+      entries.reduce((sum, e) => sum + e.delta, 0) / entries.length,
+    ),
+  }));
 }
 
 function computeTraceMetrics(runRecords: ReadonlyArray<{
@@ -350,12 +412,22 @@ function dogfoodMachine(options: DogfoodOptions) {
         prevHitRate, result.knowledgeHitRate, nextCumulativeInstructions, options,
       );
 
+      // Self-calibrate bottleneck weights from iteration history.
+      // Pure state transition: derive correlations from consecutive iteration pairs,
+      // then nudge weights in the direction of observed improvement.
+      const updatedIterations = [...state.iterations, result];
+      const correlations = deriveIterationCorrelations(updatedIterations);
+      const calibratedWeights = correlations.length > 0
+        ? calibrateWeightsFromCorrelations(state.bottleneckWeights, correlations)
+        : state.bottleneckWeights;
+
       const nextState: LoopState = {
         ...state,
-        iterations: [...state.iterations, result],
+        iterations: updatedIterations,
         cumulativeInstructions: nextCumulativeInstructions,
         converged: convergence.converged,
         convergenceReason: convergence.reason ?? state.convergenceReason,
+        bottleneckWeights: calibratedWeights,
       };
 
       // Emit progress event after each iteration (with per-iteration rung breakdown)
