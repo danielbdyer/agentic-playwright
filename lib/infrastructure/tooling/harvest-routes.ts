@@ -152,7 +152,7 @@ function fingerprintDiscoveryIndex(index: DiscoveryIndex): string {
   const stableIndex = {
     ...index,
     generatedAt: null,
-    receipts: [...index.receipts].sort((left, right) => {
+    receipts: [...index.receipts].map(({ inputFingerprint: _ip, ...rest }) => rest).sort((left, right) => {
       const routeOrder = left.routeId.localeCompare(right.routeId);
       if (routeOrder !== 0) {
         return routeOrder;
@@ -163,6 +163,31 @@ function fingerprintDiscoveryIndex(index: DiscoveryIndex): string {
   return `sha256:${sha256(stableStringify(stableIndex))}`;
 }
 
+
+/**
+ * Compute a fingerprint of the inputs that determine harvest output for a route variant.
+ * When this fingerprint matches the stored one, the browser crawl can be skipped entirely.
+ */
+function computeHarvestInputFingerprint(input: {
+  resolvedUrl: string;
+  route: HarvestRouteDefinition;
+  variant: HarvestRouteVariant;
+  catalog: WorkspaceCatalog;
+}): string {
+  const behaviorFingerprints = behaviorArtifactsForScreen(input.catalog, input.variant.screen)
+    .map((entry) => ({ path: entry.artifactPath, hash: sha256(stableStringify(entry.artifact)) }));
+  const knowledgeInputs = {
+    url: input.resolvedUrl,
+    routeId: input.route.id,
+    entryUrl: input.route.entryUrl,
+    rootSelector: input.variant.rootSelector ?? input.route.rootSelector ?? 'body',
+    variantId: input.variant.id,
+    variantUrl: input.variant.url,
+    variantScreen: input.variant.screen,
+    behaviorFingerprints,
+  };
+  return `sha256:${sha256(stableStringify(knowledgeInputs))}`;
+}
 
 function behaviorArtifactsForScreen(catalog: WorkspaceCatalog, screen: string): Array<{
   artifactPath: string;
@@ -447,6 +472,19 @@ export function harvestDeclaredRoutes(options: {
       const appIndexPath = path.join(options.paths.discoveryDir, manifest.artifact.app, 'index.json');
       const appReceipts: DiscoveryIndexEntry[] = [];
 
+      // Load existing index for incremental skip check
+      let existingIndexEntries = new Map<string, DiscoveryIndexEntry>();
+      if (yield* fs.exists(appIndexPath)) {
+        try {
+          const existingIndex = validateDiscoveryIndex(yield* fs.readJson(appIndexPath));
+          existingIndexEntries = new Map(
+            existingIndex.receipts.map((entry) => [`${entry.routeId}:${entry.variantId}`, entry]),
+          );
+        } catch {
+          // Corrupted index — will recrawl everything
+        }
+      }
+
       for (const route of manifest.artifact.routes) {
         for (const variant of route.variants) {
           try {
@@ -456,6 +494,25 @@ export function harvestDeclaredRoutes(options: {
               route,
               variant,
             });
+
+            // Incremental: skip crawl if inputs haven't changed
+            const candidateInputFingerprint = computeHarvestInputFingerprint({
+              resolvedUrl, route, variant, catalog,
+            });
+            const existingEntry = existingIndexEntries.get(`${route.id}:${variant.id}`);
+            const receiptPath = path.join(options.paths.discoveryDir, manifest.artifact.app, route.id, variant.id, 'crawl.json');
+            if (
+              existingEntry?.status === 'ok'
+              && existingEntry.inputFingerprint === candidateInputFingerprint
+              && existingEntry.contentFingerprint
+              && (yield* fs.exists(receiptPath))
+            ) {
+              // Inputs unchanged — reuse existing receipt without crawling
+              receipts.push(relativeProjectPath(options.paths, receiptPath));
+              appReceipts.push({ ...existingEntry, writeDisposition: 'reused' });
+              continue;
+            }
+
             const discovery = yield* discoverScreenScaffold({
               screen: variant.screen,
               url: resolvedUrl,
@@ -464,7 +521,6 @@ export function harvestDeclaredRoutes(options: {
             });
             const rawValue = yield* fs.readJson(discovery.crawlPath);
             const raw = rawValue as DiscoveryRun;
-            const receiptPath = path.join(options.paths.discoveryDir, manifest.artifact.app, route.id, variant.id, 'crawl.json');
             yield* fs.ensureDir(path.dirname(receiptPath));
             const routeVariantRef = `route-variant:${manifest.artifact.app}:${route.id}:${variant.id}`;
             const behaviorObservations = yield* Effect.promise(() => collectBehaviorObservations({
@@ -539,6 +595,7 @@ export function harvestDeclaredRoutes(options: {
               writeDisposition,
               resolvedUrl,
               rootSelector: receipt.rootSelector,
+              inputFingerprint: candidateInputFingerprint,
             });
           } catch (error) {
             const message = error instanceof Error ? error.message : String(error);

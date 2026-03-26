@@ -215,6 +215,9 @@ export interface DiscoveryIndexEntry {
   readonly resolvedUrl?: string | null | undefined;
   readonly rootSelector?: string | null | undefined;
   readonly message?: string | null | undefined;
+  /** Hash of inputs (URL, manifest entry, knowledge) that produced this receipt.
+   *  When present, harvest can skip the browser crawl if inputs haven't changed. */
+  readonly inputFingerprint?: string | null | undefined;
 }
 
 export interface DiscoveryIndex {

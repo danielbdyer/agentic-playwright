@@ -386,6 +386,7 @@ export function validateDiscoveryIndex(value: unknown): DiscoveryIndex {
         resolvedUrl: expectOptionalString(receipt.resolvedUrl, `discoveryIndex.receipts[${entryIndex}].resolvedUrl`) ?? null,
         rootSelector: expectOptionalString(receipt.rootSelector, `discoveryIndex.receipts[${entryIndex}].rootSelector`) ?? null,
         message: expectOptionalString(receipt.message, `discoveryIndex.receipts[${entryIndex}].message`) ?? null,
+        inputFingerprint: expectOptionalString(receipt.inputFingerprint, `discoveryIndex.receipts[${entryIndex}].inputFingerprint`) ?? null,
       };
     }),
   };
