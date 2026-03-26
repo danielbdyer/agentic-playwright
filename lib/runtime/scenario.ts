@@ -46,6 +46,7 @@ export interface RuntimeScenarioEnvironment {
   agent?: RuntimeStepAgent | undefined;
   page?: Page | undefined;
   domResolver?: RuntimeDomResolver | undefined;
+  agentInterpreter?: import('../application/agent-interpreter-provider').AgentInterpreterProvider | undefined;
   executionBudgetThresholds?: ExecutionBudgetThresholds | undefined;
   recoveryPolicy?: RecoveryPolicy | undefined;
 }
@@ -307,6 +308,7 @@ export async function runScenarioStep(
     mode: environment.mode,
     runAt,
     translate: environment.translator,
+    agentInterpreter: environment.agentInterpreter,
     controlSelection: environment.controlSelection,
   };
   const interpretation = await agent.resolve(task, agentContext);
