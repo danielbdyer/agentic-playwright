@@ -1,5 +1,5 @@
 import { Effect } from 'effect';
-import { loadWorkspaceCatalog } from './catalog';
+import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
 import { renderOperatorInboxMarkdown, buildOperatorInboxItems } from './operator';
 import { buildWorkflowHotspots } from './hotspots';
 import type { ProjectPaths } from './paths';
@@ -8,6 +8,7 @@ import { FileSystem } from './ports';
 
 export function emitOperatorInbox(options: {
   paths: ProjectPaths;
+  catalog?: WorkspaceCatalog;
   filter?: {
     adoId?: string | null | undefined;
     kind?: string | null | undefined;
@@ -16,7 +17,7 @@ export function emitOperatorInbox(options: {
 }) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
-    const catalog = yield* loadWorkspaceCatalog({ paths: options.paths });
+    const catalog = options.catalog ?? (yield* loadWorkspaceCatalog({ paths: options.paths }));
     const filteredItems = buildOperatorInboxItems(catalog)
       .filter((item) => !options.filter?.adoId || item.adoId === options.filter.adoId)
       .filter((item) => !options.filter?.kind || item.kind === options.filter.kind)

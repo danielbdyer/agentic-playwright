@@ -197,7 +197,7 @@ export function postureIncludesKnowledge(posture: KnowledgePosture): boolean {
 
 export interface WriteJournalEntry {
   readonly path: string;
-  readonly operation: 'write-text' | 'write-json' | 'ensure-dir';
+  readonly operation: 'write-text' | 'write-json' | 'ensure-dir' | 'remove-dir';
   readonly serialized: string | null;
 }
 

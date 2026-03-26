@@ -11,21 +11,21 @@ test-results/
 .tesseract/*
 !.tesseract/policy/
 !.tesseract/policy/trust-policy.yaml
-!.tesseract/benchmarks/
-!.tesseract/benchmarks/scorecard.json
-
 # ── Dogfood clean room ───────────────────────────────────────────
-# All training data lives under dogfood/.  On main, the entire
-# directory is gitignored — the flywheel regenerates from scratch.
-# On training branches, remove or override this line so dogfood/
-# content persists for continuity between runs.
-#
-# When a production suite arrives, its content lives at the repo
-# root (or a named suite directory) and is fully versioned.
-# dogfood/  # un-ignored on training branch for fixture continuity
+# All training data lives under dogfood/.  The flywheel regenerates
+# from scratch on each cold-start run.  Never merge evolvable
+# surfaces back to main — only merge business logic improvements.
+dogfood/
+
+# Auto-activated hints are ephemeral outputs of the speedrun loop.
+# They are regenerated from scratch and should not be committed.
+knowledge/screens/*.hints.yaml
 
 # Deterministic compiler output.  Regenerated as a build step.
 # Production suites will track lib/generated/ once they exist.
+# Hand-authored DSL files moved to lib/domain/ (workflow-facade.ts,
+# agent-dsl.ts); lib/generated/ now contains only auto-generated
+# output from `npm run types`.
 lib/generated/
 generated/
 

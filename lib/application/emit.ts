@@ -210,7 +210,7 @@ function readPersistedEmitOutputState(artifacts: ReturnType<typeof renderEmitArt
       traceExists: fs.exists(artifacts.tracePath),
       reviewExists: fs.exists(artifacts.reviewPath),
       proposalsExist: fs.exists(artifacts.proposalsPath),
-    });
+    }, { concurrency: 'unbounded' });
     if (!specExists || !traceExists || !reviewExists || !proposalsExist) {
       return { status: 'missing-output' as const };
     }
@@ -220,7 +220,7 @@ function readPersistedEmitOutputState(artifacts: ReturnType<typeof renderEmitArt
       proposals: fs.readJson(artifacts.proposalsPath),
       spec: fs.readText(artifacts.outputPath),
       review: fs.readText(artifacts.reviewPath),
-    }).pipe(
+    }, { concurrency: 'unbounded' }).pipe(
       Effect.map(({ trace, proposals, spec, review }) => ({
         status: 'ok' as const,
         outputFingerprint: fingerprintProjectionOutput({
@@ -237,11 +237,11 @@ function readPersistedEmitOutputState(artifacts: ReturnType<typeof renderEmitArt
 }
 
 export function emitScenario(
-  options: { adoId: AdoId; paths: ProjectPaths } | { paths: ProjectPaths; compileSnapshot: CompileSnapshot },
+  options: { adoId: AdoId; paths: ProjectPaths; catalog?: WorkspaceCatalog } | { paths: ProjectPaths; compileSnapshot: CompileSnapshot; catalog?: WorkspaceCatalog },
 ): Effect.Effect<EmitScenarioResult, unknown, unknown> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
-    const catalog = yield* loadWorkspaceCatalog({ paths: options.paths });
+    const catalog = options.catalog ?? (yield* loadWorkspaceCatalog({ paths: options.paths }));
     const source: CompileSnapshot = 'compileSnapshot' in options
       ? options.compileSnapshot
       : yield* Effect.gen(function* () {
@@ -327,7 +327,7 @@ export function emitScenario(
           fs.writeJson(artifacts.tracePath, artifacts.traceArtifact),
           fs.writeText(artifacts.reviewPath, artifacts.reviewText),
           fs.writeJson(artifacts.proposalsPath, artifacts.proposalBundle),
-        ]);
+        ], { concurrency: 'unbounded' });
         return {
           result: {
             outputPath: artifacts.outputPath,

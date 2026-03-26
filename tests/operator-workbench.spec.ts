@@ -161,7 +161,7 @@ test('operator inbox, approval receipts, and rerun plans share a stable proposal
       approveProposal({ paths: workspace.paths, proposalId: proposal.proposalId }),
       workspace.rootDir,
     );
-    const hintsText = readFileSync(workspace.suiteResolve('knowledge', 'screens', 'policy-search.hints.yaml'), 'utf8').replace(/^\uFEFF/, '');
+    const hintsText = readFileSync(workspace.resolve('knowledge', 'screens', 'policy-search.hints.yaml'), 'utf8').replace(/^\uFEFF/, '');
     const approvalText = readFileSync(approved.receiptPath, 'utf8').replace(/^\uFEFF/, '');
 
     expect(hintsText).toContain('Policy ref');

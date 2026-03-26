@@ -80,7 +80,7 @@ test('computeAdoContentHash stays stable for the seeded fixture', () => {
 
 test('normalizeAriaSnapshot canonicalizes browser-specific accessibility tree variants', () => {
   const approved = readFileSync(
-    path.join(rootDir, 'knowledge', 'snapshots', 'policy-search', 'results-with-policy.yaml'),
+    path.join(suiteRoot, 'knowledge', 'snapshots', 'policy-search', 'results-with-policy.yaml'),
     'utf8',
   ).replace(/^\uFEFF/, '');
   const currentBrowserVariant = `

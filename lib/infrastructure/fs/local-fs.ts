@@ -57,4 +57,17 @@ export const LocalFileSystem: FileSystemPort = {
   ensureDir(dirPath) {
     return tryFileSystem(() => fs.mkdir(dirPath, { recursive: true }), 'fs-mkdir-failed', `Unable to create ${dirPath}`, dirPath);
   },
+
+  removeDir(dirPath) {
+    return tryFileSystem(async () => {
+      try {
+        await fs.rm(dirPath, { recursive: true, force: true });
+      } catch (error) {
+        const maybe = error as NodeJS.ErrnoException;
+        if (maybe.code !== 'ENOENT') {
+          throw error;
+        }
+      }
+    }, 'fs-rmdir-failed', `Unable to remove ${dirPath}`, dirPath);
+  },
 };

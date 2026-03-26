@@ -44,7 +44,7 @@ function loadAllFragments(fs: { readJson(path: string): Effect.Effect<unknown, u
     );
     const fileContents = yield* Effect.all(
       fragmentFiles.map((file) => fs.readJson(file)),
-      { concurrency: 1 },
+      { concurrency: 'unbounded' },
     );
     return fileContents.flatMap((content) =>
       Array.isArray(content) ? content.filter(isGroundedFragment) : [],
@@ -83,7 +83,7 @@ export function projectLearningEvaluation(options: {
 }) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
-    const catalog = yield* loadWorkspaceCatalog({ paths: options.paths });
+    const catalog = yield* loadWorkspaceCatalog({ paths: options.paths, scope: 'post-run' });
     const manifest = catalog.learningManifest?.artifact ?? {
       kind: 'training-corpus-manifest' as const,
       version: 1 as const,
@@ -154,7 +154,7 @@ export function projectLearningEvaluation(options: {
       health: fs.writeJson(healthPath, healthReport),
       bottlenecks: fs.writeJson(bottlenecksPath, bottleneckReport),
       rankings: fs.writeJson(rankingsPath, rankingReport),
-    });
+    }, { concurrency: 'unbounded' });
 
     const artifactPaths = [
       relativeProjectPath(options.paths, healthPath),

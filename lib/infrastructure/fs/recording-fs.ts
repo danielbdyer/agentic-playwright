@@ -171,5 +171,27 @@ export function createRecordingWorkspaceFileSystem(input: {
       }
       return input.delegate.ensureDir(dirPath);
     },
+
+    removeDir(dirPath) {
+      recordWrite('remove-dir', dirPath, '');
+      if (shouldShadowWrite(dirPath)) {
+        // Evict shadow entries under this directory by rebuilding from retained entries.
+        // The shadow overlay is inherently mutable infrastructure state, but we prefer
+        // filter-and-replace over iterate-and-delete for clarity.
+        const normalizedDir = normalizePath(dirPath);
+        const retainedFiles = [...shadowFiles.entries()].filter(([key]) => !isSameOrNested(key, normalizedDir));
+        shadowFiles.clear();
+        for (const [key, value] of retainedFiles) {
+          shadowFiles.set(key, value);
+        }
+        const retainedDirs = [...shadowDirs].filter((key) => !isSameOrNested(key, normalizedDir));
+        shadowDirs.clear();
+        for (const dir of retainedDirs) {
+          shadowDirs.add(dir);
+        }
+        return Effect.void;
+      }
+      return input.delegate.removeDir(dirPath);
+    },
   };
 }

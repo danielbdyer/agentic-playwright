@@ -4,25 +4,28 @@ import type { PersistedEvidenceArtifact } from './persist-evidence';
 import { uniqueSorted } from '../../domain/collections';
 
 function computeTranslationMetrics(stepResults: RuntimeScenarioStepResult[]): TranslationRunMetrics {
-  const relevant = stepResults
-    .map((step) => step.interpretation.translation)
-    .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
-  const total = relevant.length;
-  const hits = relevant.filter((entry) => entry.cache?.status === 'hit').length;
-  const misses = relevant.filter((entry) => entry.cache?.status === 'miss').length;
-  const disabled = relevant.filter((entry) => entry.cache?.status === 'disabled').length;
-  const missReasons = relevant
-    .filter((entry) => entry.cache?.status !== 'hit')
-    .reduce<Record<string, number>>((acc, entry) => {
+  let total = 0;
+  let hits = 0;
+  let misses = 0;
+  let disabled = 0;
+  const missReasons: Record<string, number> = {};
+  const failureClasses: Record<string, number> = {};
+
+  for (const step of stepResults) {
+    const entry = step.interpretation.translation;
+    if (!entry) continue;
+    total++;
+    const status = entry.cache?.status;
+    if (status === 'hit') hits++;
+    else if (status === 'miss') misses++;
+    else if (status === 'disabled') disabled++;
+    if (status !== 'hit') {
       const reason = entry.cache?.reason ?? 'none';
-      acc[reason] = (acc[reason] ?? 0) + 1;
-      return acc;
-    }, {});
-  const failureClasses = relevant.reduce<Record<string, number>>((acc, entry) => {
+      missReasons[reason] = (missReasons[reason] ?? 0) + 1;
+    }
     const key = entry.failureClass ?? 'none';
-    acc[key] = (acc[key] ?? 0) + 1;
-    return acc;
-  }, {});
+    failureClasses[key] = (failureClasses[key] ?? 0) + 1;
+  }
 
   return {
     total,

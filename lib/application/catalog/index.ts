@@ -1,4 +1,5 @@
 export type { ArtifactEnvelope, ScreenBundleEntry, WorkspaceCatalog } from './types';
+export type { CatalogScope } from './workspace-catalog';
 export type { ResolutionReadModel, ControlReadModel, ProposalReadModel, EmissionReadModel } from './read-models';
 export { toResolutionReadModel, toControlReadModel, toProposalReadModel, toEmissionReadModel } from './read-models';
 export {
@@ -15,6 +16,8 @@ export {
 export { loadOptionalYamlArtifact, readJsonArtifact, readYamlArtifact } from './loaders';
 export { assembleScreenBundles, byScreen, createScreenBundleEntry, loadScreenBundle } from './screen-bundles';
 export {
+  getCatalogLoadCount,
+  resetCatalogLoadCount,
   loadScenarioArtifact,
   loadSnapshotArtifact,
   loadWorkspaceCatalog,

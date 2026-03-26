@@ -1,27 +1,51 @@
 /**
- * Self-improving pipeline speedrun.
+ * Self-improving pipeline speedrun — CLI wrapper.
  *
- * Clean-slate → generate → flywheel → measure → compare → report.
+ * Full mode:
+ *   npx tsx scripts/speedrun.ts [--count N] [--seed S] [--seeds S1,S2,S3]
+ *        [--max-iterations N] [--posture cold-start|warm-start|production]
  *
- * Usage: npx tsx scripts/speedrun.ts [--count N] [--seed S] [--max-iterations N] [--posture cold-start|warm-start|production]
+ * Segmented mode (step-through individual phases):
+ *   npx tsx scripts/speedrun.ts generate  [--count N] [--seed S]
+ *   npx tsx scripts/speedrun.ts compile   [--tag TAG]
+ *   npx tsx scripts/speedrun.ts iterate   [--max-iterations N] [--posture P]
+ *   npx tsx scripts/speedrun.ts fitness   [--seed S]
+ *   npx tsx scripts/speedrun.ts report
+ *
+ * Each phase reads from and writes to disk artifacts, enabling agents
+ * and operators to inspect intermediate state between phases.
+ *
+ * All orchestration lives in lib/application/speedrun.ts. This script is a thin
+ * CLI wrapper: parse args → build input → call Effect program → print results.
  */
 
-import { Effect } from 'effect';
-import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import { createProjectPaths } from '../lib/application/paths';
-import { generateSyntheticScenarios } from '../lib/application/synthesis/scenario-generator';
-import { runDogfoodLoop } from '../lib/application/dogfood';
-import { buildFitnessReport, compareToScorecard, updateScorecard, type FitnessInputData } from '../lib/application/fitness';
-import { buildImprovementRun, recordImprovementRun } from '../lib/application/improvement';
-import { loadWorkspaceCatalog } from '../lib/application/catalog';
-import { recordExperiment } from '../lib/application/experiment-registry';
-import { runWithLocalServices } from '../lib/composition/local-services';
+import {
+  multiSeedSpeedrun,
+  generatePhase,
+  compilePhase,
+  iteratePhase,
+  fitnessPhase,
+  reportPhase,
+  type MultiSeedResult,
+} from '../lib/application/speedrun';
 import { resolveKnowledgePosture } from '../lib/application/knowledge-posture';
-import type { ExperimentRecord, KnowledgePosture, PipelineConfig, PipelineScorecard, ProposalBundle, SubstrateContext } from '../lib/domain/types';
+import { runWithLocalServices } from '../lib/composition/local-services';
+import type { KnowledgePosture, PipelineConfig, PipelineFitnessReport, SpeedrunProgressEvent } from '../lib/domain/types';
 import { DEFAULT_PIPELINE_CONFIG, mergePipelineConfig } from '../lib/domain/types';
-import type { RunRecord } from '../lib/domain/types/execution';
+import {
+  computeAllBaselines,
+  deriveAllBudgets,
+  detectRegression,
+  extractTimingSamples,
+  formatBaselineSummary,
+  type PhaseTimingBaseline,
+  type PhaseTimingBudget,
+} from '../lib/domain/speedrun-statistics';
+
+// ─── CLI argument parsing ───
 
 const args = process.argv.slice(2);
 function argVal(name: string, fallback: string): string {
@@ -30,259 +54,109 @@ function argVal(name: string, fallback: string): string {
 }
 
 const count = Number(argVal('--count', '50'));
-const seed = argVal('--seed', 'speedrun-v1');
+const singleSeed = argVal('--seed', 'speedrun-v1');
+const multiSeeds = args.includes('--seeds') ? argVal('--seeds', '').split(',').filter(Boolean) : [];
+const seeds = multiSeeds.length > 0 ? multiSeeds : [singleSeed];
 const maxIterations = Number(argVal('--max-iterations', '5'));
 const configPath = argVal('--config', '');
 const experimentTag = argVal('--tag', '');
 const substrate = argVal('--substrate', 'synthetic') as 'synthetic' | 'production' | 'hybrid';
 const explicitPosture = args.includes('--posture') ? argVal('--posture', '') as KnowledgePosture : undefined;
 
-function loadPipelineConfig(): PipelineConfig {
-  if (!configPath) {
-    return DEFAULT_PIPELINE_CONFIG;
-  }
-  const overrides = JSON.parse(fs.readFileSync(configPath, 'utf8')) as Partial<PipelineConfig>;
-  return mergePipelineConfig(DEFAULT_PIPELINE_CONFIG, overrides);
-}
-
-const pipelineConfig = loadPipelineConfig();
-
 const rootDir = process.cwd();
 const paths = createProjectPaths(rootDir, path.join(rootDir, 'dogfood'));
 const knowledgePosture = resolveKnowledgePosture(paths.postureConfigPath, explicitPosture);
 
-function getPipelineVersion(): string {
+function loadPipelineConfig(): PipelineConfig {
+  if (!configPath) return DEFAULT_PIPELINE_CONFIG;
+  const overrides = JSON.parse(fs.readFileSync(configPath, 'utf8')) as Partial<PipelineConfig>;
+  return mergePipelineConfig(DEFAULT_PIPELINE_CONFIG, overrides);
+}
+
+// ─── Progress callback (infrastructure concern — JSONL sidecar + stderr) ───
+
+function formatElapsed(ms: number): string {
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return minutes > 0 ? `${minutes}m${seconds}s` : `${seconds}s`;
+}
+
+function loadPriorBaselines(progressPath: string): {
+  readonly baselines: readonly PhaseTimingBaseline[];
+  readonly budgets: readonly PhaseTimingBudget[];
+} {
   try {
-    return execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();
-  } catch {
-    return 'unknown';
-  }
-}
-
-function cleanSlate(): void {
-  // Wipe synthetic scenarios
-  const syntheticDir = path.join(rootDir, 'scenarios', 'synthetic');
-  if (fs.existsSync(syntheticDir)) {
-    fs.rmSync(syntheticDir, { recursive: true, force: true });
-  }
-
-  // Wipe generated synthetic output
-  const generatedDir = path.join(rootDir, 'generated', 'synthetic');
-  if (fs.existsSync(generatedDir)) {
-    fs.rmSync(generatedDir, { recursive: true, force: true });
-  }
-
-  // Wipe ephemeral evidence
-  const evidenceDir = path.join(rootDir, '.tesseract', 'evidence', 'runs');
-  if (fs.existsSync(evidenceDir)) {
-    fs.rmSync(evidenceDir, { recursive: true, force: true });
-  }
-
-  // Wipe learning artifacts
-  const learningDir = path.join(rootDir, '.tesseract', 'learning');
-  if (fs.existsSync(learningDir)) {
-    fs.rmSync(learningDir, { recursive: true, force: true });
-  }
-
-  // Wipe runs
-  const runsDir = path.join(rootDir, '.tesseract', 'runs');
-  if (fs.existsSync(runsDir)) {
-    fs.rmSync(runsDir, { recursive: true, force: true });
-  }
-
-  // Restore knowledge files to git HEAD state
-  try {
-    execSync('git checkout HEAD -- knowledge/', { cwd: rootDir, stdio: 'pipe' });
-  } catch {
-    // knowledge/ may not have changes, that's fine
-  }
-
-  console.log('Clean slate: all synthetic and ephemeral artifacts wiped.');
-}
-
-function loadScorecard(): PipelineScorecard | null {
-  const scorecardPath = path.join(rootDir, '.tesseract', 'benchmarks', 'scorecard.json');
-  if (!fs.existsSync(scorecardPath)) {
-    return null;
-  }
-  return JSON.parse(fs.readFileSync(scorecardPath, 'utf8')) as PipelineScorecard;
-}
-
-function saveScorecard(scorecard: PipelineScorecard): void {
-  const dir = path.join(rootDir, '.tesseract', 'benchmarks');
-  fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(
-    path.join(dir, 'scorecard.json'),
-    JSON.stringify(scorecard, null, 2) + '\n',
-  );
-}
-
-function saveFitnessReport(report: ReturnType<typeof buildFitnessReport>): string {
-  const dir = path.join(rootDir, '.tesseract', 'benchmarks', 'runs');
-  fs.mkdirSync(dir, { recursive: true });
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const filePath = path.join(dir, `${timestamp}.fitness.json`);
-  fs.writeFileSync(filePath, JSON.stringify(report, null, 2) + '\n');
-  return filePath;
-}
-
-const program = Effect.gen(function* () {
-  // Step 1: Generate synthetic scenarios
-  console.log(`\n=== Generating ${count} synthetic scenarios (seed: ${seed}) ===\n`);
-  const genResult = yield* generateSyntheticScenarios({ paths, count, seed });
-  console.log(`Generated ${genResult.scenariosGenerated} scenarios across ${genResult.screens.length} screens`);
-
-  // Step 2: Run dogfood flywheel
-  console.log(`\n=== Running dogfood flywheel (max ${maxIterations} iterations, posture: ${knowledgePosture}) ===\n`);
-  const { ledger } = yield* runDogfoodLoop({
-    paths,
-    maxIterations,
-    convergenceThreshold: pipelineConfig.convergenceThreshold,
-    interpreterMode: 'diagnostic',
-    tag: 'synthetic',
-    runbook: 'synthetic-dogfood',
-    knowledgePosture,
-  });
-
-  console.log(`Flywheel complete: ${ledger.completedIterations} iterations, converged=${ledger.converged} (${ledger.convergenceReason})`);
-  for (const iter of ledger.iterations) {
-    console.log(`  Iteration ${iter.iteration}: hitRate=${iter.knowledgeHitRate}, proposals=${iter.proposalsActivated}, steps=${iter.totalStepCount}`);
-  }
-
-  // Step 3: Collect run data for fitness report (always warm-start to read results)
-  const catalog = yield* loadWorkspaceCatalog({ paths, knowledgePosture: 'warm-start' });
-  const runRecords: RunRecord[] = catalog.runRecords.map((e) => e.artifact as unknown as RunRecord);
-  const runSteps = runRecords.flatMap((record) =>
-    record.steps.map((step) => ({
-      interpretation: step.interpretation,
-      execution: step.execution,
-    })),
-  );
-  const proposalBundles: ProposalBundle[] = catalog.proposalBundles.map((e) => e.artifact);
-
-  return { ledger, runSteps, proposalBundles };
-});
-
-async function main(): Promise<void> {
-  const pipelineVersion = getPipelineVersion();
-  console.log(`Pipeline version: ${pipelineVersion}`);
-  console.log(`Knowledge posture: ${knowledgePosture}`);
-
-  // Step 0: Clean slate
-  cleanSlate();
-
-  // Steps 1-3: Generate + flywheel + collect data
-  const { ledger, runSteps, proposalBundles } = await runWithLocalServices(program, rootDir, {
-    posture: { interpreterMode: 'diagnostic', writeMode: 'persist', executionProfile: 'dogfood' },
-    pipelineConfig,
-  });
-
-  // Step 4: Build fitness report
-  console.log('\n=== Building pipeline fitness report ===\n');
-  const fitnessData: FitnessInputData = {
-    pipelineVersion,
-    ledger,
-    runSteps,
-    proposalBundles,
-  };
-  const report = buildFitnessReport(fitnessData);
-  const reportPath = saveFitnessReport(report);
-  console.log(`Fitness report saved: ${reportPath}`);
-
-  // Step 5: Compare to scorecard
-  const existingScorecard = loadScorecard();
-  const comparison = compareToScorecard(report, existingScorecard);
-  console.log(`\n=== Scorecard Comparison ===\n`);
-  console.log(comparison.summary);
-  console.log(`  Knowledge hit rate delta: ${comparison.knowledgeHitRateDelta > 0 ? '+' : ''}${comparison.knowledgeHitRateDelta}`);
-  console.log(`  Translation precision delta: ${comparison.translationPrecisionDelta > 0 ? '+' : ''}${comparison.translationPrecisionDelta}`);
-
-  // Step 6: Update scorecard if improved
-  if (comparison.improved) {
-    const updatedScorecard = updateScorecard(report, existingScorecard, comparison);
-    saveScorecard(updatedScorecard);
-    console.log('\nScorecard UPDATED — new high-water-mark set.');
-  } else {
-    console.log('\nScorecard unchanged — did not beat the mark.');
-  }
-
-  // Step 6b: Record experiment
-  const substrateContext: SubstrateContext = {
-    substrate,
-    seed,
-    scenarioCount: count,
-    screenCount: report.metrics.resolutionByRung.length,
-    phrasingTemplateVersion: 'v1',
-  };
-  const configDelta: Partial<PipelineConfig> = configPath
-    ? JSON.parse(fs.readFileSync(configPath, 'utf8')) as Partial<PipelineConfig>
-    : {};
-  const improvementRun = buildImprovementRun({
-    paths,
-    pipelineVersion,
-    baselineConfig: DEFAULT_PIPELINE_CONFIG,
-    configDelta,
-    substrateContext,
-    fitnessReport: report,
-    scorecardComparison: {
-      improved: comparison.improved,
-      knowledgeHitRateDelta: comparison.knowledgeHitRateDelta,
-      translationPrecisionDelta: comparison.translationPrecisionDelta,
-      convergenceVelocityDelta: comparison.convergenceVelocityDelta,
-    },
-    scorecardSummary: comparison.summary,
-    ledger,
-    parentExperimentId: null,
-    tags: experimentTag ? [experimentTag] : [],
-  });
-  await runWithLocalServices(
-    recordImprovementRun({ paths, run: improvementRun }),
-    rootDir,
-    {
-      posture: { interpreterMode: 'diagnostic', writeMode: 'persist', executionProfile: 'dogfood' },
-      pipelineConfig,
-    },
-  );
-  const experimentRecord: ExperimentRecord = {
-    id: new Date().toISOString().replace(/[:.]/g, '-'),
-    runAt: report.runAt,
-    pipelineVersion,
-    baselineConfig: DEFAULT_PIPELINE_CONFIG,
-    configDelta,
-    substrateContext,
-    fitnessReport: report,
-    scorecardComparison: {
-      improved: comparison.improved,
-      knowledgeHitRateDelta: comparison.knowledgeHitRateDelta,
-      translationPrecisionDelta: comparison.translationPrecisionDelta,
-      convergenceVelocityDelta: comparison.convergenceVelocityDelta,
-    },
-    accepted: comparison.improved,
-    tags: experimentTag ? [experimentTag] : [],
-    parentExperimentId: null,
-    improvementRunId: improvementRun.improvementRunId,
-    improvementRun,
-  };
-  await runWithLocalServices(
-    recordExperiment(paths, experimentRecord),
-    rootDir,
-    {
-      posture: { interpreterMode: 'diagnostic', writeMode: 'persist', executionProfile: 'dogfood' },
-      pipelineConfig,
-    },
-  );
-  console.log(`Experiment recorded: ${experimentRecord.id}`);
-
-  // Step 7: Report failure modes
-  if (report.failureModes.length > 0) {
-    console.log('\n=== Top Pipeline Improvement Targets ===\n');
-    for (const mode of report.failureModes.slice(0, 5)) {
-      console.log(`  ${mode.class} (${mode.count} occurrences, ${mode.affectedSteps} steps)`);
-      console.log(`    Target: ${mode.improvementTarget.kind} — ${mode.improvementTarget.detail}`);
+    const raw = fs.readFileSync(progressPath, 'utf8');
+    const events = raw.trim().split('\n')
+      .filter(Boolean)
+      .map((line) => JSON.parse(line) as SpeedrunProgressEvent);
+    const samples = extractTimingSamples(events);
+    const baselines = computeAllBaselines(samples);
+    const budgets = deriveAllBudgets(baselines);
+    if (baselines.length > 0) {
+      process.stderr.write(`\n${formatBaselineSummary(baselines)}\n\n`);
     }
+    return { baselines, budgets };
+  } catch {
+    return { baselines: [], budgets: [] };
   }
+}
 
-  // Step 8: Summary metrics
+function createProgressCallback(progressPath: string): (event: SpeedrunProgressEvent) => void {
+  const { baselines, budgets } = loadPriorBaselines(progressPath);
+
+  return (event: SpeedrunProgressEvent): void => {
+    fs.mkdirSync(path.dirname(progressPath), { recursive: true });
+    fs.appendFileSync(progressPath, JSON.stringify(event) + '\n');
+
+    const phaseLabel = event.phase === 'iterate' && event.metrics
+      ? `[iter ${event.iteration}/${event.maxIterations}]`
+      : `[${event.phase}]`;
+
+    const metricsLabel = event.metrics
+      ? ` hitRate=${(event.metrics.knowledgeHitRate * 100).toFixed(1)}% proposals=${event.metrics.proposalsActivated} steps=${event.metrics.totalSteps} unresolved=${event.metrics.unresolvedSteps}`
+      : '';
+
+    const convergenceLabel = event.convergenceReason
+      ? ` convergence=${event.convergenceReason}`
+      : '';
+
+    const scenarioLabel = event.scenarioCount !== undefined
+      ? ` scenarios=${event.scenarioCount}`
+      : '';
+
+    const durationLabel = event.phaseDurationMs !== null && event.phaseDurationMs !== undefined
+      ? ` phase=${formatElapsed(event.phaseDurationMs)}`
+      : '';
+
+    // Regression detection against prior baselines
+    let regressionLabel = '';
+    if (event.phaseDurationMs !== null && event.phaseDurationMs !== undefined && baselines.length > 0) {
+      const baseline = baselines.find((b) => b.phase === event.phase);
+      if (baseline && baseline.sampleCount >= 3) {
+        const signal = detectRegression(baseline, event.phaseDurationMs);
+        if (signal.severity === 'warning') {
+          regressionLabel = ` ⚠ ${signal.zScore}σ above baseline`;
+        } else if (signal.severity === 'regression') {
+          regressionLabel = ` 🔴 REGRESSION ${signal.zScore}σ above baseline (p99=${formatElapsed(baseline.p99Ms)})`;
+        }
+      }
+      const budget = budgets.find((b) => b.phase === event.phase);
+      if (budget && event.phaseDurationMs > budget.timeoutMs) {
+        regressionLabel += ` TIMEOUT EXCEEDED (budget=${formatElapsed(budget.timeoutMs)})`;
+      }
+    }
+
+    process.stderr.write(
+      `${phaseLabel}${scenarioLabel}${metricsLabel}${convergenceLabel}${durationLabel}${regressionLabel} elapsed=${formatElapsed(event.elapsed)}\n`,
+    );
+  };
+}
+
+// ─── Display helpers ───
+
+function printMetrics(report: PipelineFitnessReport): void {
   console.log('\n=== Pipeline Fitness Metrics ===\n');
   console.log(`  Knowledge hit rate:     ${report.metrics.knowledgeHitRate}`);
   console.log(`  Translation precision:  ${report.metrics.translationPrecision}`);
@@ -299,12 +173,178 @@ async function main(): Promise<void> {
     }
   }
 
-  // Restore knowledge to git HEAD (clean up activated proposals)
-  cleanSlate();
-  console.log('\nSpeedrun complete. Synthetic artifacts cleaned up.');
+  if (report.failureModes.length > 0) {
+    console.log('\n=== Top Pipeline Improvement Targets ===\n');
+    for (const mode of report.failureModes.slice(0, 5)) {
+      console.log(`  ${mode.class} (${mode.count} occurrences, ${mode.affectedSteps} steps)`);
+      console.log(`    Target: ${mode.improvementTarget.kind} — ${mode.improvementTarget.detail}`);
+    }
+  }
 }
 
-main().catch((error) => {
-  console.error('Speedrun failed:', error);
+function printResult(result: MultiSeedResult): void {
+  if (result.seedResults.length > 1) {
+    console.log(`\n${'='.repeat(60)}`);
+    console.log(`=== Averaged Metrics (${result.seedResults.length} seeds) ===`);
+    console.log(`${'='.repeat(60)}`);
+  }
+
+  printMetrics(result.fitnessReport);
+
+  console.log(`\n=== Scorecard Comparison ===\n`);
+  console.log(result.comparison.summary);
+  console.log(`  Knowledge hit rate delta: ${result.comparison.knowledgeHitRateDelta > 0 ? '+' : ''}${result.comparison.knowledgeHitRateDelta}`);
+  console.log(`  Translation precision delta: ${result.comparison.translationPrecisionDelta > 0 ? '+' : ''}${result.comparison.translationPrecisionDelta}`);
+
+  console.log(result.scorecardUpdated
+    ? '\nScorecard UPDATED — new high-water-mark set.'
+    : '\nScorecard unchanged — did not beat the mark.');
+
+  console.log('\nSpeedrun complete.');
+}
+
+// ─── Subcommand detection ───
+
+const SUBCOMMANDS = ['generate', 'compile', 'iterate', 'fitness', 'report'] as const;
+type Subcommand = typeof SUBCOMMANDS[number];
+const subcommand: Subcommand | null =
+  args.length > 0 && SUBCOMMANDS.includes(args[0] as Subcommand) ? args[0] as Subcommand : null;
+
+const serviceOptions = {
+  posture: { interpreterMode: 'diagnostic' as const, writeMode: 'persist' as const, executionProfile: 'dogfood' as const },
+  suiteRoot: paths.suiteRoot,
+  pipelineConfig: loadPipelineConfig(),
+};
+
+// ─── Segmented phase runners ───
+
+async function runGenerate(): Promise<void> {
+  console.log(`Generating ${count} scenarios (seed: ${singleSeed})...`);
+  const progressPath = path.join(rootDir, '.tesseract', 'runs', 'speedrun-progress.jsonl');
+  const onProgress = createProgressCallback(progressPath);
+
+  const result = await runWithLocalServices(
+    generatePhase({ paths, count, seed: singleSeed, onProgress }),
+    rootDir,
+    serviceOptions,
+  );
+  console.log(`Generated ${result.scenariosGenerated} scenarios across ${result.screens.length} screens in ${(result.durationMs / 1000).toFixed(1)}s`);
+}
+
+async function runCompile(): Promise<void> {
+  console.log(`Compiling scenarios${experimentTag ? ` (tag: ${experimentTag})` : ''}...`);
+  const progressPath = path.join(rootDir, '.tesseract', 'runs', 'speedrun-progress.jsonl');
+  const onProgress = createProgressCallback(progressPath);
+
+  const result = await runWithLocalServices(
+    compilePhase({ paths, tag: experimentTag || undefined, onProgress }),
+    rootDir,
+    serviceOptions,
+  );
+  console.log(`Compiled ${result.scenariosCompiled} scenarios in ${(result.durationMs / 1000).toFixed(1)}s`);
+}
+
+async function runIterate(): Promise<void> {
+  console.log(`Running dogfood loop (max ${maxIterations} iterations, posture: ${knowledgePosture})...`);
+  const progressPath = path.join(rootDir, '.tesseract', 'runs', 'speedrun-progress.jsonl');
+  const onProgress = createProgressCallback(progressPath);
+
+  const result = await runWithLocalServices(
+    iteratePhase({
+      paths,
+      maxIterations,
+      convergenceThreshold: loadPipelineConfig().convergenceThreshold,
+      tag: experimentTag || undefined,
+      knowledgePosture,
+      seed: singleSeed,
+      onProgress,
+    }),
+    rootDir,
+    serviceOptions,
+  );
+  console.log(`\nDogfood loop: ${result.ledger.completedIterations} iterations, converged=${result.ledger.converged} (${result.ledger.convergenceReason ?? 'n/a'})`);
+  console.log(`  Knowledge hit rate delta: ${result.ledger.knowledgeHitRateDelta > 0 ? '+' : ''}${result.ledger.knowledgeHitRateDelta}`);
+  console.log(`  Total proposals activated: ${result.ledger.totalProposalsActivated}`);
+  console.log(`  Duration: ${(result.durationMs / 1000).toFixed(1)}s`);
+}
+
+async function runFitness(): Promise<void> {
+  console.log('Computing fitness report from run records...');
+  const progressPath = path.join(rootDir, '.tesseract', 'runs', 'speedrun-progress.jsonl');
+  const onProgress = createProgressCallback(progressPath);
+
+  const result = await runWithLocalServices(
+    fitnessPhase({ paths, seed: singleSeed, onProgress }),
+    rootDir,
+    serviceOptions,
+  );
+  printMetrics(result.fitnessReport);
+  console.log(`\nFitness computed in ${(result.durationMs / 1000).toFixed(1)}s`);
+}
+
+async function runReport(): Promise<void> {
+  console.log('Comparing fitness to scorecard...');
+  const result = await runWithLocalServices(
+    reportPhase({ paths }),
+    rootDir,
+    serviceOptions,
+  );
+  printMetrics(result.fitnessReport);
+  console.log(`\n=== Scorecard Comparison ===\n`);
+  console.log(result.comparison.summary);
+  console.log(`  Knowledge hit rate delta: ${result.comparison.knowledgeHitRateDelta > 0 ? '+' : ''}${result.comparison.knowledgeHitRateDelta}`);
+  console.log(result.scorecardUpdated
+    ? '\nScorecard UPDATED — new high-water-mark set.'
+    : '\nScorecard unchanged — did not beat the mark.');
+}
+
+// ─── Full speedrun (default, no subcommand) ───
+
+async function runFull(): Promise<void> {
+  const pipelineConfig = loadPipelineConfig();
+  const progressPath = path.join(rootDir, '.tesseract', 'runs', 'speedrun-progress.jsonl');
+  const onProgress = createProgressCallback(progressPath);
+
+  console.log(`Pipeline version: (resolved at runtime)`);
+  console.log(`Knowledge posture: ${knowledgePosture}`);
+  console.log(`Seeds: ${seeds.join(', ')}`);
+  console.log(`Count: ${count}, Max iterations: ${maxIterations}`);
+
+  const result = await runWithLocalServices(
+    multiSeedSpeedrun({
+      paths,
+      config: pipelineConfig,
+      seeds,
+      count,
+      maxIterations,
+      substrate,
+      tag: experimentTag || undefined,
+      knowledgePosture,
+      onProgress,
+    }),
+    rootDir,
+    {
+      ...serviceOptions,
+      pipelineConfig,
+    },
+  );
+
+  printResult(result);
+}
+
+// ─── Dispatch ───
+
+const dispatch: Record<Subcommand, () => Promise<void>> = {
+  generate: runGenerate,
+  compile: runCompile,
+  iterate: runIterate,
+  fitness: runFitness,
+  report: runReport,
+};
+
+const runner = subcommand ? dispatch[subcommand] : runFull;
+
+runner().catch((error) => {
+  console.error(`Speedrun${subcommand ? ` (${subcommand})` : ''} failed:`, error);
   process.exit(1);
 });

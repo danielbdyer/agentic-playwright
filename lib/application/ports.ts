@@ -22,6 +22,7 @@ export interface FileSystemPort {
   exists(path: string): Effect.Effect<boolean, TesseractError>;
   listDir(path: string): Effect.Effect<string[], TesseractError>;
   ensureDir(path: string): Effect.Effect<void, TesseractError>;
+  removeDir(path: string): Effect.Effect<void, TesseractError>;
 }
 
 export interface ExecutionContextPort {
@@ -31,6 +32,7 @@ export interface ExecutionContextPort {
 
 export interface VersionControlPort {
   currentRevision(): Effect.Effect<string, TesseractError>;
+  restoreToHead(paths: readonly string[]): Effect.Effect<void, TesseractError>;
 }
 
 export interface AdoSourcePort {

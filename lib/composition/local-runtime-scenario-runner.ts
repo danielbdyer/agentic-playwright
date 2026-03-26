@@ -93,6 +93,7 @@ export const LocalRuntimeScenarioRunner: RuntimeScenarioRunnerPort = {
 
       const runtimeEnvironment = createLocalRuntimeEnvironment({
         rootDir: input.rootDir,
+        suiteRoot: input.suiteRoot,
         screenIds: input.plan.screenIds,
         fixtures: input.plan.fixtures,
         mode: input.plan.mode,

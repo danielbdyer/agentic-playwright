@@ -71,9 +71,31 @@ export function validatePatternDocument(value: unknown, path = 'pattern-document
   };
 }
 
+const EMPTY_ALIAS_SET: PatternAliasSet = { id: '', aliases: [] };
+
+function emptyMergedPatterns(): MergedPatterns {
+  const actions = Object.fromEntries(
+    requiredActions.map((action) => [action, EMPTY_ALIAS_SET]),
+  ) as Record<PatternActionName, PatternAliasSet>;
+  const sources = Object.fromEntries(
+    requiredActions.map((action) => [action, 'cold-start']),
+  ) as Record<PatternActionName, string>;
+  return {
+    version: 1,
+    actions,
+    postures: {},
+    documents: [],
+    sources: { actions: sources, postures: {} },
+  };
+}
+
 export function mergePatternDocuments(
   documents: ReadonlyArray<{ artifactPath: string; artifact: PatternDocument }>,
 ): MergedPatterns {
+  if (documents.length === 0) {
+    return emptyMergedPatterns();
+  }
+
   const sorted = [...documents].sort((left, right) => left.artifactPath.localeCompare(right.artifactPath));
   const actions: Partial<Record<PatternActionName, PatternAliasSet>> = {};
   const actionSources: Partial<Record<PatternActionName, string>> = {};

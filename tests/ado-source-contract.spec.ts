@@ -6,7 +6,10 @@ import { parseSnapshotToScenario } from '../lib/application/parse';
 import { createAdoId } from '../lib/domain/identity';
 import { validateAdoSnapshot } from '../lib/domain/validation';
 
+import path from 'path';
+
 const rootDir = process.cwd();
+const suiteRoot = path.join(rootDir, 'dogfood');
 
 function mockResponse(body: unknown, status = 200): Promise<Response> {
   return Promise.resolve({
@@ -49,7 +52,7 @@ function mockedAdoFetch(input: string): Promise<Response> {
 }
 
 test('live ADO adapter produces deterministic snapshot parity with fixture flow', async () => {
-  const fixtureSource = makeLocalAdoSource(rootDir);
+  const fixtureSource = makeLocalAdoSource(suiteRoot);
   const liveSource = makeLiveAdoSource(
     {
       organizationUrl: 'https://dev.azure.com/acme',

@@ -148,7 +148,7 @@ export function applyDriftEvents(options: {
     const { elementsText, hintsText } = yield* Effect.all({
       elementsText: fs.readText(elementsPath),
       hintsText: fs.readText(hintsPath),
-    });
+    }, { concurrency: 'unbounded' });
 
     const initialElements = YAML.parse(elementsText) as Record<string, unknown>;
     const initialHints = YAML.parse(hintsText) as Record<string, unknown>;
@@ -180,7 +180,7 @@ export function applyDriftEvents(options: {
           : YAML.stringify(finalHints);
         return fs.writeText(filePath, content);
       }),
-      { concurrency: 1 },
+      { concurrency: 'unbounded' },
     );
 
     return {

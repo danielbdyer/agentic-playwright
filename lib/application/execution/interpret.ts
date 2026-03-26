@@ -63,7 +63,7 @@ function buildStepResolutionGraph(step: RuntimeScenarioStepResult, task: Grounde
     winner: {
       rung: winnerRung,
       rationale: receipt.kind === 'needs-human' ? receipt.reason : `Resolved via ${receipt.winningSource}.`,
-      losingReasons: (receipt.exhaustion.filter((entry) => entry.outcome === 'failed').map((entry) => entry.reason)),
+      losingReasons: receipt.exhaustion.flatMap((entry) => entry.outcome === 'failed' ? [entry.reason] : []),
     },
     refs: {
       controlRefs: receipt.controlRefs,
@@ -151,6 +151,7 @@ export function interpretScenarioSurface(input: {
 export function interpretScenarioFromPlan(input: {
   runtimeScenarioRunner: RuntimeScenarioRunnerPort;
   rootDir: string;
+  suiteRoot?: string | undefined;
   plan: ScenarioRunPlan;
   knowledgeFingerprint?: string | undefined;
   controlsFingerprint?: string | null | undefined;
@@ -168,6 +169,7 @@ export function interpretScenarioFromPlan(input: {
 
     const stepResults = yield* input.runtimeScenarioRunner.runSteps({
       rootDir: input.rootDir,
+      suiteRoot: input.suiteRoot,
       plan: input.plan,
       resolutionEngine,
       translationOptions: input.translationOptions,

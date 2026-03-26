@@ -25,6 +25,7 @@ export interface LocalRuntimeEnvironment {
 
 export function createLocalRuntimeEnvironment(input: {
   rootDir: string;
+  suiteRoot?: string | undefined;
   screenIds: readonly ScreenId[];
   fixtures: Record<string, unknown>;
   mode: RuntimeScenarioMode;
@@ -39,7 +40,7 @@ export function createLocalRuntimeEnvironment(input: {
   domResolver?: RuntimeDomResolver | undefined;
   recoveryPolicy?: RecoveryPolicy | undefined;
 }): LocalRuntimeEnvironment {
-  const screenLoader = createLocalScreenRegistryLoader(input.rootDir);
+  const screenLoader = createLocalScreenRegistryLoader(input.suiteRoot ?? input.rootDir);
   return {
     mode: input.mode,
     provider: input.provider,
@@ -50,6 +51,6 @@ export function createLocalRuntimeEnvironment(input: {
     domResolver: input.domResolver,
     recoveryPolicy: input.recoveryPolicy,
     screens: screenLoader.loadScreenRegistry(input.screenIds),
-    snapshotLoader: createLocalSnapshotTemplateLoader(input.rootDir),
+    snapshotLoader: createLocalSnapshotTemplateLoader(input.suiteRoot ?? input.rootDir),
   };
 }

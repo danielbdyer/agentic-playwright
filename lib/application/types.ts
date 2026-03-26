@@ -54,7 +54,7 @@ function generatedTypesManifestPath(paths: ProjectPaths): string {
 export function generateTypes(options: { paths: ProjectPaths; catalog?: WorkspaceCatalog }): Effect.Effect<TypesProjectionResult, unknown, unknown> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
-    const catalog = options.catalog ?? (yield* loadWorkspaceCatalog({ paths: options.paths }));
+    const catalog = options.catalog ?? (yield* loadWorkspaceCatalog({ paths: options.paths, scope: 'compile' }));
     const inputFingerprints: ProjectionInputFingerprint[] = [
       ...catalog.surfaces.map((entry) => fingerprintProjectionArtifact('surface', entry.artifactPath, entry.artifact)),
       ...catalog.screenElements.map((entry) => fingerprintProjectionArtifact('elements', entry.artifactPath, entry.artifact)),

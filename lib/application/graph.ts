@@ -73,7 +73,7 @@ function graphManifestPath(paths: ProjectPaths): string {
 
 export function buildDerivedGraph(
   options: { paths: ProjectPaths; catalog?: WorkspaceCatalog },
-): Effect.Effect<DerivedGraphProjectionResult, TesseractError, FileSystem> {
+) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const catalog = options.catalog ?? (yield* loadWorkspaceCatalog({ paths: options.paths }));
@@ -258,7 +258,7 @@ export function buildDerivedGraph(
             resources: graph.resources,
             resourceTemplates: graph.resourceTemplates,
           }),
-        ]);
+        ], { concurrency: 'unbounded' });
 
         return {
           result: {
@@ -300,7 +300,7 @@ export function buildDerivedGraph(
 
 export function ensureDerivedGraph(
   options: { paths: ProjectPaths },
-): Effect.Effect<EnsuredDerivedGraphResult, TesseractError, FileSystem> {
+) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const exists = yield* fs.exists(options.paths.graphIndexPath);

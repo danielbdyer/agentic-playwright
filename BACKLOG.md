@@ -290,6 +290,30 @@ Success criteria:
 - the system demonstrably hardens faster with diverse exposure than with repeated identical runs
 - variance profiles are declarative artifacts, not code changes
 
+#### D1.5. Flywheel/speedrun progress reporting
+
+Goal:
+
+- emit structured, incremental progress events during long-running flywheel and speedrun processes so that operators and agents can monitor execution without waiting for final output
+
+Currently the dogfood loop, speedrun, and evolve scripts emit output only at the start and end of a run. A 100-scenario, 5-iteration cold-start speedrun can run for 30+ minutes with no intermediate signal. Both human operators and agentic sessions need visibility into where the process is and what it has accomplished so far.
+
+Design:
+
+- define a `ProgressEvent` envelope: `{ kind: 'progress', phase, iteration, completedScenarios, totalScenarios, currentMetrics, elapsed, estimatedRemaining }`
+- emit progress events at natural milestones: iteration start/end, scenario batch completion (every 10-25 scenarios), convergence check, knowledge activation, proposal generation
+- write progress to a well-known sidecar file (e.g., `.tesseract/runs/{runId}.progress.json`) that can be tailed or polled
+- emit the same events to stderr as human-readable lines when running in a terminal
+- for multi-seed runs, report per-seed progress and aggregate progress
+- include current fitness metrics (hit rate, resolution distribution, failure mode counts) in each progress event so partial results are visible before completion
+
+Success criteria:
+
+- an agent or operator can determine the current phase, iteration, and approximate completion percentage of any running flywheel/speedrun/evolve process
+- progress events include enough metric detail to decide whether to wait, cancel, or adjust parameters
+- progress reporting adds no measurable overhead to the pipeline
+- the sidecar file is a valid JSON array that can be consumed programmatically at any point during execution
+
 #### D2. Benchmark expansion beyond the flagship slice
 
 Goal:
@@ -402,7 +426,8 @@ The primary sequencing constraint is that A1 (ADR collapse) unblocks A2 and A3, 
 | 2 | A2 — Confidence-gated auto-approval | A1 | A3 |
 | 3 | A3 — Dogfood orchestrator | A1, A2 | D1, D2 |
 | 4 | B1 — URL variant discovery | — | D1 |
-| 5 | D1 — Structured entropy harness | A3, B1 | D2, D3 |
+| 5 | D1 — Structured entropy harness | A3, B1 | D1.5, D2, D3 |
+| 5.5 | D1.5 — Flywheel/speedrun progress reporting | — | — |
 | 6 | B3 — Confidence decay | — | A2 refinement |
 | 7 | E2 — VSCode extension surface | — | interactive profile |
 | 8 | B2 — Thin-screen ergonomics | — | — |

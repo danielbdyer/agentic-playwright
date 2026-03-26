@@ -16,6 +16,37 @@ export interface SubstrateContext {
   readonly scenarioCount: number;
   readonly screenCount: number;
   readonly phrasingTemplateVersion: string;
+  readonly screenDistribution?: ReadonlyArray<{ readonly screen: string; readonly count: number }>;
+}
+
+/**
+ * Structured progress event emitted during dogfood loop iterations.
+ * Written as JSONL to a sidecar file and/or rendered to stderr for
+ * human-readable monitoring.
+ */
+export interface SpeedrunProgressEvent {
+  readonly kind: 'speedrun-progress';
+  readonly phase: 'generate' | 'compile' | 'iterate' | 'fitness' | 'complete';
+  readonly iteration: number;
+  readonly maxIterations: number;
+  readonly metrics: {
+    readonly knowledgeHitRate: number;
+    readonly proposalsActivated: number;
+    readonly totalSteps: number;
+    readonly unresolvedSteps: number;
+    /** Per-iteration resolution-by-rung breakdown. Present when run records are available. */
+    readonly resolutionByRung?: readonly import('./fitness').RungRate[];
+  } | null;
+  readonly convergenceReason: ImprovementLoopConvergenceReason;
+  /** Milliseconds since the speedrun started. */
+  readonly elapsed: number;
+  /** Milliseconds this specific phase took (null if not measured). */
+  readonly phaseDurationMs: number | null;
+  /** Absolute wall-clock timestamp (ms since epoch). */
+  readonly wallClockMs: number;
+  readonly seed: string;
+  /** Scenario count for this phase (present for generate/compile/iterate phases). */
+  readonly scenarioCount?: number;
 }
 
 export interface ExperimentScorecardComparison {

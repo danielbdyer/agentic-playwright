@@ -1,7 +1,7 @@
 import { Effect } from 'effect';
 import type { AdoId } from '../../domain/identity';
 import type { ExecutionPosture, RuntimeInterpreterMode, ScenarioRunPlan } from '../../domain/types';
-import { loadWorkspaceCatalog } from '../catalog';
+import { loadWorkspaceCatalog, type WorkspaceCatalog } from '../catalog';
 import { createProjectPaths } from '../paths';
 import { FileSystem } from '../ports';
 import { LocalFileSystem } from '../../infrastructure/fs/local-fs';
@@ -21,7 +21,7 @@ export interface LoadScenarioRunPlanInput {
  * Application-layer Effect that loads a scenario run plan.
  * Prefer this in effectful code; use loadScenarioRunPlan only at the composition root.
  */
-export function loadScenarioRunPlanEffect(input: LoadScenarioRunPlanInput): Effect.Effect<ScenarioRunPlan, unknown, FileSystem> {
+export function loadScenarioRunPlanEffect(input: LoadScenarioRunPlanInput) {
   const paths = createProjectPaths(input.rootDir, input.suiteRoot);
   return loadWorkspaceCatalog({ paths }).pipe(
     Effect.map((catalog) => {
@@ -50,7 +50,7 @@ export function loadScenarioRunPlan(input: LoadScenarioRunPlanInput): ScenarioRu
   const program = loadWorkspaceCatalog({ paths }).pipe(
     Effect.provideService(FileSystem, LocalFileSystem),
   );
-  const catalog = Effect.runSync(program);
+  const catalog = Effect.runSync(program as unknown as Effect.Effect<WorkspaceCatalog>);
   const surfaceEntry = loadScenarioInterpretationSurfaceFromCatalog(catalog, input.adoId as AdoId);
   return prepareScenarioRunPlan({
     surface: surfaceEntry.artifact,
