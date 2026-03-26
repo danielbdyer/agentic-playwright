@@ -90,6 +90,8 @@ All training data — scenarios, knowledge, fixtures, controls, benchmarks, ADO 
 
 The `.tesseract/*` runtime engine directory is bulk-gitignored regardless of suite; only governance anchors (`trust-policy.yaml`, `scorecard.json`) survive.
 
+**Ephemeral artifact confusion?** Read the authoritative artifact lifecycle table in [docs/recursive-self-improvement.md § Ephemeral Artifact Management](docs/recursive-self-improvement.md#ephemeral-artifact-management). TL;DR: speedrun outputs are ephemeral — only pipeline code and the scorecard persist. If you see 100+ files in `dogfood/scenarios/synthetic/`, they are safe to delete.
+
 ## Six workflow lanes
 
 Use this vocabulary consistently:
