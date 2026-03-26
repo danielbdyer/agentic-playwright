@@ -1,10 +1,13 @@
 import { defineConfig } from '@playwright/test';
 import { resolvePlaywrightHeadless, resolvePreferredPlaywrightChannel } from './lib/infrastructure/tooling/browser-options';
 
+const defaultWorkers = parseInt(process.env.TESSERACT_TEST_WORKERS ?? '', 10);
+
 export default defineConfig({
   testDir: 'tests',
   testMatch: ['**/*.spec.ts'],
-  fullyParallel: false,
+  fullyParallel: true,
+  workers: Number.isFinite(defaultWorkers) ? defaultWorkers : undefined,
   retries: 0,
   reporter: [['list']],
   use: {
