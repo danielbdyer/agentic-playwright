@@ -180,7 +180,7 @@ export function applyDriftEvents(options: {
           : YAML.stringify(finalHints);
         return fs.writeText(filePath, content);
       }),
-      { concurrency: 1 },
+      { concurrency: 'unbounded' },
     );
 
     return {

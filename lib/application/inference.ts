@@ -27,7 +27,7 @@ export function inferenceKnowledgeFromCatalog(catalog: WorkspaceCatalog): Infere
 
 export function loadInferenceKnowledge(options: { paths: ProjectPaths; catalog?: WorkspaceCatalog }) {
   return Effect.gen(function* () {
-    const catalog = options.catalog ?? (yield* loadWorkspaceCatalog({ paths: options.paths }));
+    const catalog = options.catalog ?? (yield* loadWorkspaceCatalog({ paths: options.paths, scope: 'compile' }));
     return inferenceKnowledgeFromCatalog(catalog);
   });
 }

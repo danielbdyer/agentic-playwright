@@ -17,11 +17,11 @@ import {
   withScenarioInWorkspaceSession,
 } from './workspace-session';
 
-export function compileScenario(options: { adoId: AdoId; paths: ProjectPaths }) {
+export function compileScenario(options: { adoId: AdoId; paths: ProjectPaths; catalog?: import('./catalog').WorkspaceCatalog }) {
   return Effect.gen(function* () {
     const stage = yield* runPipelineStage({
       name: 'compile',
-      loadDependencies: () => loadWorkspaceSession({ paths: options.paths }),
+      loadDependencies: () => loadWorkspaceSession({ paths: options.paths, ...(options.catalog ? { catalog: options.catalog } : {}) }),
       compute: (session) => Effect.gen(function* () {
         const parsed = yield* parseScenario({ ...options, session });
         const sessionWithScenario = withScenarioInWorkspaceSession({
@@ -72,7 +72,7 @@ export function compileScenario(options: { adoId: AdoId; paths: ProjectPaths }) 
         const emitted = yield* emitScenario({ paths: options.paths, compileSnapshot });
         const { graph, generatedTypes } = yield* Effect.all({
           graph: buildDerivedGraph({ paths: options.paths }),
-          generatedTypes: generateTypes({ paths: options.paths, catalog: sessionWithBound.catalog }),
+          generatedTypes: generateTypes({ paths: options.paths }),
         }, { concurrency: 'unbounded' });
         return {
           parsed,

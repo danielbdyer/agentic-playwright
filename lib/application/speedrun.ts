@@ -457,7 +457,7 @@ export function compilePhase(input: CompilePhaseInput) {
       .map((scenario) => scenario.source.ado_id);
 
     yield* Effect.all(
-      scenarioIds.map((adoId) => refreshScenario({ adoId: adoId as AdoId, paths: input.paths })),
+      scenarioIds.map((adoId) => refreshScenario({ adoId: adoId as AdoId, paths: input.paths, catalog })),
       { concurrency: 1 },
     );
 

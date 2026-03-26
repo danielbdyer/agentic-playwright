@@ -158,7 +158,7 @@ function accumulateProposalTotals(
             })
           : activateProposalBundle({ paths, proposalBundle: bundle }),
       ),
-      { concurrency: 1 },
+      { concurrency: 'unbounded' },
     );
     return results.reduce(
       (acc, result) => ({
@@ -238,7 +238,7 @@ function runIteration(iteration: number, options: DogfoodOptions) {
       .filter((scenario) => !tag || scenario.metadata.tags.includes(tag))
       .map((scenario) => scenario.source.ado_id);
     yield* Effect.all(
-      scenarioIds.map((adoId) => refreshScenario({ adoId: adoId as AdoId, paths: options.paths })),
+      scenarioIds.map((adoId) => refreshScenario({ adoId: adoId as AdoId, paths: options.paths, catalog })),
       { concurrency: 1 },
     );
 

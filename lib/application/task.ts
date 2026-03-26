@@ -316,7 +316,7 @@ export function buildInterpretationSurfaceProjection(options:
   | { paths: ProjectPaths; adoId: AdoId; catalog?: WorkspaceCatalog; interfaceGraph?: ApplicationInterfaceGraph | null | undefined; selectorCanon?: SelectorCanon | null | undefined; stateGraph?: StateTransitionGraph | null | undefined }): Effect.Effect<TaskProjectionResult, unknown, unknown> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
-    const catalog = options.catalog ?? (yield* loadWorkspaceCatalog({ paths: options.paths }));
+    const catalog = options.catalog ?? (yield* loadWorkspaceCatalog({ paths: options.paths, scope: 'compile' }));
     const compileSnapshot = 'compileSnapshot' in options
       ? options.compileSnapshot
       : (() => {

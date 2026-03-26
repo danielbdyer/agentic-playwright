@@ -43,8 +43,11 @@ export function createWorkspaceSession(catalog: WorkspaceCatalog): WorkspaceSess
   };
 }
 
-export function loadWorkspaceSession(options: { paths: ProjectPaths }) {
-  return Effect.map(loadWorkspaceCatalog({ paths: options.paths }), createWorkspaceSession);
+export function loadWorkspaceSession(options: { paths: ProjectPaths; catalog?: WorkspaceCatalog }) {
+  const catalogEffect = options.catalog
+    ? Effect.succeed(options.catalog)
+    : loadWorkspaceCatalog({ paths: options.paths });
+  return Effect.map(catalogEffect, createWorkspaceSession);
 }
 
 export function withScenarioInWorkspaceSession(input: {

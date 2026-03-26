@@ -44,7 +44,7 @@ function loadAllFragments(fs: { readJson(path: string): Effect.Effect<unknown, u
     );
     const fileContents = yield* Effect.all(
       fragmentFiles.map((file) => fs.readJson(file)),
-      { concurrency: 1 },
+      { concurrency: 'unbounded' },
     );
     return fileContents.flatMap((content) =>
       Array.isArray(content) ? content.filter(isGroundedFragment) : [],
