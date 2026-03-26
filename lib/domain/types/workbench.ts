@@ -59,14 +59,27 @@ export interface AgentWorkItem {
   readonly linkedBottlenecks: readonly string[];
 }
 
+export type WorkItemCompletionStatus = 'completed' | 'skipped' | 'blocked';
+
+export interface WorkItemCompletion {
+  readonly workItemId: string;
+  readonly status: WorkItemCompletionStatus;
+  readonly completedAt: string;
+  readonly rationale: string;
+  readonly artifactsWritten: readonly string[];
+}
+
 export interface AgentWorkbenchProjection {
   readonly kind: 'agent-workbench';
   readonly version: 1;
   readonly generatedAt: string;
   readonly iteration: number;
   readonly items: readonly AgentWorkItem[];
+  readonly completions: readonly WorkItemCompletion[];
   readonly summary: {
     readonly total: number;
+    readonly pending: number;
+    readonly completed: number;
     readonly byKind: Readonly<Record<WorkItemKind, number>>;
     readonly topPriority: AgentWorkItem | null;
   };
