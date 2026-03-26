@@ -247,10 +247,11 @@ function runIteration(iteration: number, options: DogfoodOptions) {
 
     // Step 2: load a single fresh catalog after refresh, then thread it to all scenario runs.
     // Previously each runScenario call loaded its own catalog — with N scenarios this was N+1 loads.
+    // post-run scope suffices: scenarios + knowledge + controls + bound/task + runs + proposals.
     const runCatalog = yield* loadWorkspaceCatalog({
       paths: options.paths,
       knowledgePosture: 'warm-start',
-      scope: 'full',
+      scope: 'post-run',
     });
     const runResult = yield* runScenarioSelection({
       paths: options.paths,
@@ -395,8 +396,10 @@ export function runDogfoodLoop(options: DogfoodOptions) {
     const ledgerPath = improvementLoopLedgerPath(options.paths);
     const compatibilityLedgerPath = `${options.paths.rootDir}/.tesseract/runs/dogfood-ledger.json`;
     yield* fs.ensureDir(options.paths.runsDir);
-    yield* fs.writeJson(ledgerPath, ledger);
-    yield* fs.writeJson(compatibilityLedgerPath, compatibilityLedger);
+    yield* Effect.all([
+      fs.writeJson(ledgerPath, ledger),
+      fs.writeJson(compatibilityLedgerPath, compatibilityLedger),
+    ], { concurrency: 'unbounded' });
 
     return { ledger, ledgerPath, compatibilityLedger, compatibilityLedgerPath };
   });
