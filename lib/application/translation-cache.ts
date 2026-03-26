@@ -99,3 +99,38 @@ export async function writeTranslationCache(input: {
   await nodeFs.writeFile(cacheFile, `${JSON.stringify(record, null, 2)}\n`, 'utf8');
   return record;
 }
+
+/**
+ * Prune the translation cache to at most `maxEntries` files, keeping the
+ * most recently modified entries. Returns the number of entries removed.
+ */
+export async function pruneTranslationCache(input: {
+  paths: ProjectPaths;
+  maxEntries: number;
+}): Promise<number> {
+  const dir = input.paths.translationCacheDir;
+  let entries: string[];
+  try {
+    entries = await nodeFs.readdir(dir);
+  } catch {
+    return 0;
+  }
+  const cacheFiles = entries.filter((f) => f.endsWith('.translation.json'));
+  if (cacheFiles.length <= input.maxEntries) {
+    return 0;
+  }
+
+  const withStats = await Promise.all(
+    cacheFiles.map(async (file) => {
+      const filePath = `${dir}/${file}`;
+      const stat = await nodeFs.stat(filePath);
+      return { filePath, mtimeMs: stat.mtimeMs };
+    }),
+  );
+
+  // Sort newest first, remove the tail
+  withStats.sort((a, b) => b.mtimeMs - a.mtimeMs);
+  const toRemove = withStats.slice(input.maxEntries);
+  await Promise.all(toRemove.map((entry) => nodeFs.unlink(entry.filePath)));
+  return toRemove.length;
+}

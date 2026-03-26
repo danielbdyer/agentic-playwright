@@ -8,6 +8,7 @@ import { refreshScenario } from './refresh';
 import { runScenarioSelection } from './run';
 import { FileSystem } from './ports';
 import { runStateMachine } from './state-machine';
+import { pruneTranslationCache } from './translation-cache';
 import type { AdoId } from '../domain/identity';
 import { asDogfoodLedgerProjection, asImprovementLoopLedger } from '../domain/types';
 import type {
@@ -180,6 +181,8 @@ function cleanupBetweenIterations(options: DogfoodOptions) {
       [sessionsDir, evidenceRunsDir].map((dir) => fs.removeDir(dir)),
       { concurrency: 'unbounded' },
     );
+    // Prune translation cache to keep disk bounded across iterations
+    yield* Effect.promise(() => pruneTranslationCache({ paths: options.paths, maxEntries: 200 }));
   });
 }
 
