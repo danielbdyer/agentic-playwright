@@ -97,8 +97,9 @@ function collectPendingProposals(bundles: readonly ProposalBundle[]): readonly P
  * Pure function: (iterations) → correlations. No side effects.
  * This is the "gradient signal" for the self-calibrating scoring rule.
  */
-/** Extract bottleneck signal strengths from a single iteration's characteristics. */
-function iterationSignalStrengths(iteration: DogfoodIterationResult): readonly { readonly signal: string; readonly strength: number }[] {
+/** Extract bottleneck signal strengths from a single iteration's characteristics.
+ *  Pure function: maps iteration metrics to weighted bottleneck signals. */
+export function iterationSignalStrengths(iteration: DogfoodIterationResult): readonly { readonly signal: string; readonly strength: number }[] {
   const unresolvedRate = iteration.totalStepCount > 0
     ? iteration.unresolvedStepCount / iteration.totalStepCount
     : 0;
@@ -110,12 +111,12 @@ function iterationSignalStrengths(iteration: DogfoodIterationResult): readonly {
   ].filter(({ strength }) => strength > 0);
 }
 
-/** Zip consecutive iteration pairs into (current, next) tuples for fold analysis. */
-function consecutivePairs<T>(items: readonly T[]): readonly (readonly [T, T])[] {
+/** Zip consecutive items into (current, next) tuples for fold analysis over adjacent pairs. */
+export function consecutivePairs<T>(items: readonly T[]): readonly (readonly [T, T])[] {
   return items.slice(0, -1).map((item, index) => [item, items[index + 1]!] as const);
 }
 
-function deriveIterationCorrelations(
+export function deriveIterationCorrelations(
   iterations: readonly DogfoodIterationResult[],
 ): readonly import('../domain/types').BottleneckWeightCorrelation[] {
   if (iterations.length < 2) {
