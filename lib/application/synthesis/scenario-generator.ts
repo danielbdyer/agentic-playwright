@@ -668,6 +668,7 @@ export interface GenerateSyntheticScenariosOptions {
   readonly count: number;
   readonly seed: string;
   readonly outputDir?: string;
+  readonly catalog?: import('../catalog').WorkspaceCatalog | undefined;
 }
 
 export interface GenerateSyntheticScenariosResult {
@@ -744,7 +745,7 @@ function buildScreenAllocations(
 export function generateSyntheticScenarios(options: GenerateSyntheticScenariosOptions) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
-    const catalog = yield* loadWorkspaceCatalog({ paths: options.paths });
+    const catalog = options.catalog ?? (yield* loadWorkspaceCatalog({ paths: options.paths }));
     const screens = extractScreenInfo(catalog);
     const rng = createRng(options.seed);
     const files: string[] = [];

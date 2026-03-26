@@ -83,7 +83,7 @@ export function projectLearningEvaluation(options: {
 }) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
-    const catalog = yield* loadWorkspaceCatalog({ paths: options.paths });
+    const catalog = yield* loadWorkspaceCatalog({ paths: options.paths, scope: 'post-run' });
     const manifest = catalog.learningManifest?.artifact ?? {
       kind: 'training-corpus-manifest' as const,
       version: 1 as const,
