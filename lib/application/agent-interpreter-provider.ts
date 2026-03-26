@@ -25,6 +25,8 @@
 import type { ResolutionTarget, ResolutionProposalDraft, ResolutionObservation } from '../domain/types';
 import type { StepAction } from '../domain/types';
 import type { ScreenId, ElementId, PostureId, SnapshotTemplateId } from '../domain/identity';
+import { normalizeIntentText } from '../domain/inference';
+import { bestAliasMatch, humanizeIdentifier } from '../runtime/agent/shared';
 
 // ─── Request / Response Contract ───
 
@@ -75,7 +77,7 @@ export interface AgentInterpretationResult {
 
 // ─── Provider Contract (Strategy interface) ───
 
-export type AgentInterpreterKind = 'disabled' | 'llm-api' | 'session';
+export type AgentInterpreterKind = 'disabled' | 'heuristic' | 'llm-api' | 'session';
 
 export interface AgentInterpreterProvider {
   readonly id: string;
@@ -97,6 +99,156 @@ function createDisabledProvider(): AgentInterpreterProvider {
       proposalDrafts: [],
       provider: 'disabled',
     }),
+  };
+}
+
+// ─── Provider: Heuristic (context-aware scoring, no agent) ───
+//
+// Uses the same token-Jaccard + humanized identifier matching as the
+// translation layer, but with FULL context: all screens, all elements,
+// exhaustion trail, and prior resolution. This is NOT an agent — it's
+// a richer scoring function that uses context to disambiguate.
+//
+// Useful as: baseline for A/B comparison, fallback when no agent session
+// is available, fast path for CI/batch where LLM calls are too expensive.
+
+/** Score a screen against the normalized intent. Higher = better match. */
+function scoreScreen(
+  normalized: string,
+  screen: AgentInterpretationRequest['screens'][number],
+): number {
+  const aliases = [screen.screen, ...screen.screenAliases, humanizeIdentifier(screen.screen)];
+  return bestAliasMatch(normalized, aliases)?.score ?? 0;
+}
+
+/** Score an element against the normalized intent. Higher = better match. */
+function scoreElement(
+  normalized: string,
+  element: AgentInterpretationRequest['screens'][number]['elements'][number],
+): number {
+  const aliases = [element.element, element.name ?? '', ...element.aliases, humanizeIdentifier(element.element)];
+  return bestAliasMatch(normalized, aliases)?.score ?? 0;
+}
+
+/** Infer action type from step text using keyword heuristics. */
+function inferAction(actionText: string): StepAction {
+  const lower = actionText.toLowerCase();
+  if (/\b(navigate|go to|open|load|access|visit|browse)\b/.test(lower)) return 'navigate';
+  if (/\b(enter|type|input|fill|set|provide|key in|write|populate)\b/.test(lower)) return 'input';
+  if (/\b(click|press|tap|hit|activate|submit|trigger)\b/.test(lower)) return 'click';
+  if (/\b(select|choose|pick)\b/.test(lower)) return 'click';
+  if (/\b(verify|check|confirm|assert|ensure|see|observe|validate|expect)\b/.test(lower)) return 'assert-snapshot';
+  return 'click';
+}
+
+function createHeuristicProvider(): AgentInterpreterProvider {
+  return {
+    id: 'agent-interpreter-heuristic',
+    kind: 'heuristic',
+    interpret: (request) => {
+      const normalized = normalizeIntentText(`${request.actionText} ${request.expectedText}`);
+      const action = request.inferredAction ?? inferAction(request.actionText);
+
+      // Single-pass max-finder for top screen. O(S) where S = screen count.
+      const priorScreen = request.priorTarget?.screen ?? null;
+      const topScreen = request.screens.reduce<{ screen: typeof request.screens[number]; score: number } | null>(
+        (best, screen) => {
+          const baseScore = scoreScreen(normalized, screen);
+          const contextBonus = screen.screen === priorScreen ? 2.0 : 0;
+          const score = baseScore + contextBonus;
+          return score > 0 && (!best || score > best.score) ? { screen, score } : best;
+        },
+        null,
+      );
+
+      if (!topScreen) {
+        return Promise.resolve({
+          interpreted: false,
+          target: null,
+          confidence: 0,
+          rationale: 'No screen matched the step text with sufficient confidence.',
+          proposalDrafts: [],
+          provider: 'heuristic',
+        });
+      }
+
+      // Single-pass max-finder for top element. O(E) where E = elements in winning screen.
+      const topElement = topScreen.screen.elements.reduce<{ element: typeof topScreen.screen.elements[number]; score: number } | null>(
+        (best, element) => {
+          const score = scoreElement(normalized, element);
+          return score > 0 && (!best || score > best.score) ? { element, score } : best;
+        },
+        null,
+      );
+
+      // For navigate actions, screen-only resolution is sufficient
+      const needsElement = action !== 'navigate';
+      if (needsElement && !topElement) {
+        return Promise.resolve({
+          interpreted: false,
+          target: null,
+          confidence: 0,
+          rationale: `Screen "${topScreen.screen.screen}" matched but no element matched for action "${action}".`,
+          proposalDrafts: [],
+          provider: 'heuristic',
+        });
+      }
+
+      const confidence = Math.min(1, (topScreen.score + (topElement?.score ?? 0)) / 10);
+      const target: ResolutionTarget = {
+        action,
+        screen: topScreen.screen.screen as ScreenId,
+        element: (topElement?.element.element ?? null) as ElementId | null,
+        posture: null as PostureId | null,
+        override: null,
+        snapshot_template: null as SnapshotTemplateId | null,
+      };
+
+      // Single-pass novel term detection via flatMap (collapsed from 3 chained filters)
+      const normalizedScreenId = normalizeIntentText(topScreen.screen.screen);
+      const normalizedElementId = normalizeIntentText(topElement?.element.element ?? '');
+      const matchedAliases = new Set([
+        ...(topScreen.screen.screenAliases),
+        ...(topElement?.element.aliases ?? []),
+      ].map(normalizeIntentText));
+
+      const novelTerms = normalizeIntentText(request.actionText).split(/\s+/).flatMap((token) =>
+        token.length > 3
+          && !matchedAliases.has(token)
+          && (normalizedScreenId.includes(token) || normalizedElementId.includes(token))
+          ? [token]
+          : [],
+      );
+
+      const proposalDrafts: ResolutionProposalDraft[] = novelTerms.length > 0 && topElement
+        ? [{
+            targetPath: `knowledge/screens/${topScreen.screen.screen}.hints.yaml`,
+            title: `Add alias "${novelTerms[0]}" for ${topElement.element.element}`,
+            patch: { op: 'add', path: `/elements/${topElement.element.element}/aliases/-`, value: novelTerms[0]! },
+            artifactType: 'hints' as const,
+            rationale: `Heuristic matched "${novelTerms[0]}" to ${topElement.element.element} via context-aware scoring.`,
+          }]
+        : [];
+
+      return Promise.resolve({
+        interpreted: true,
+        target,
+        confidence,
+        rationale: `Heuristic resolved: screen=${topScreen.screen.screen}(score=${topScreen.score.toFixed(1)})${topElement ? ` element=${topElement.element.element}(score=${topElement.score.toFixed(1)})` : ''} action=${action}`,
+        proposalDrafts,
+        provider: 'heuristic',
+        observation: {
+          source: 'agent-interpreted' as const,
+          summary: `Context-aware heuristic interpretation.`,
+          detail: {
+            screen: topScreen.screen.screen,
+            element: topElement?.element.element ?? '',
+            action,
+            confidence: String(confidence),
+          },
+        },
+      });
+    },
   };
 }
 
@@ -403,6 +555,8 @@ function createAgentProviderByKind(
   switch (kind) {
     case 'disabled':
       return createDisabledProvider();
+    case 'heuristic':
+      return createHeuristicProvider();
     case 'llm-api':
       return deps
         ? createLlmApiAgentProvider(config, deps)
