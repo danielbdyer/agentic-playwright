@@ -9,6 +9,7 @@ import { emitScenario } from '../emit';
 import { buildDerivedGraph } from '../graph';
 import { impactNode } from '../impact';
 import { emitOperatorInbox } from '../inbox';
+import { emitAgentWorkbench } from '../agent-workbench';
 import { describeScenarioPaths } from '../inspect';
 import { parseScenario } from '../parse';
 import { createProjectPaths, type ProjectPaths } from '../paths';
@@ -119,7 +120,8 @@ export type CommandName =
   | 'benchmark'
   | 'scorecard'
   | 'replay'
-  | 'dogfood';
+  | 'dogfood'
+  | 'workbench';
 
 export const commandNames: readonly CommandName[] = [
   'sync',
@@ -147,6 +149,7 @@ export const commandNames: readonly CommandName[] = [
   'scorecard',
   'replay',
   'dogfood',
+  'workbench',
 ] as const;
 
 const flagReaders: Record<string, (argv: string[], index: number, flags: ParsedFlags) => number> = {
@@ -694,6 +697,15 @@ const commandRegistry: Record<CommandName, CommandSpec> = {
       }),
     }),
   },
+  workbench: {
+    flags: ['--ado-id'],
+    parse: ({ flags }) => ({
+      command: 'workbench',
+      strictExitOnUnbound: false,
+      postureInput: {},
+      execute: (paths) => emitAgentWorkbench({ paths }),
+    }),
+  },
 };
 
 function parseTokensRec(
@@ -728,7 +740,7 @@ function parseTokensRec(
 export function parseCliInvocation(argv: string[]): CommandExecution {
   const [rawCommand = 'help', ...tokens] = argv;
   if (!isCommandName(rawCommand)) {
-    throw new Error('Unknown command. Expected sync, parse, bind, emit, compile, refresh, run, replay, paths, capture, discover, harvest, surface, graph, trace, impact, types, workflow, inbox, approve, certify, rerun-plan, benchmark, scorecard, or dogfood.');
+    throw new Error('Unknown command. Expected sync, parse, bind, emit, compile, refresh, run, replay, paths, capture, discover, harvest, surface, graph, trace, impact, types, workflow, inbox, approve, certify, rerun-plan, benchmark, scorecard, dogfood, or workbench.');
   }
 
   const spec = commandRegistry[rawCommand];

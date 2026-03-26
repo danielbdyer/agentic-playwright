@@ -15,6 +15,7 @@
  * and provide the LLM endpoint via environment variables.
  */
 
+import * as fs from 'fs';
 import * as path from 'path';
 import { createProjectPaths } from '../lib/application/paths';
 import { multiSeedSpeedrun } from '../lib/application/speedrun';
@@ -132,6 +133,23 @@ async function main(): Promise<void> {
   } else {
     console.log(`\n  All steps resolved — no human review needed.`);
   }
+
+  // Print workbench summary if available
+  try {
+    const workbenchPath = path.join(rootDir, '.tesseract', 'workbench', 'index.json');
+    const workbench = JSON.parse(fs.readFileSync(workbenchPath, 'utf8')) as { summary: { total: number; byKind: Record<string, number>; topPriority: { title: string; kind: string; priority: number } | null } };
+    if (workbench.summary.total > 0) {
+      console.log('\n=== Agent Workbench ===');
+      console.log(`  ${workbench.summary.total} work items:`);
+      for (const [kind, count] of Object.entries(workbench.summary.byKind)) {
+        if (count > 0) console.log(`    ${kind}: ${count}`);
+      }
+      if (workbench.summary.topPriority) {
+        console.log(`  Top priority: [${workbench.summary.topPriority.kind}] ${workbench.summary.topPriority.title} (score=${workbench.summary.topPriority.priority})`);
+      }
+      console.log(`  View: cat .tesseract/workbench/index.json | jq '.items[] | {kind, priority, title}'`);
+    }
+  } catch { /* workbench not generated yet */ }
 }
 
 main().catch((error) => {

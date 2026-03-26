@@ -4,6 +4,7 @@ import { activateProposalBundle, autoApproveEligibleProposals } from './activate
 import { loadWorkspaceCatalog } from './catalog';
 import { buildPartialFitnessMetrics } from './fitness';
 import { calibrateWeightsFromCorrelations } from './learning-bottlenecks';
+import { emitAgentWorkbench } from './agent-workbench';
 import { improvementLoopLedgerPath, type ProjectPaths } from './paths';
 import { refreshScenarioCore } from './refresh';
 import { buildDerivedGraph } from './graph';
@@ -395,6 +396,9 @@ function runIteration(iteration: number, options: DogfoodOptions) {
       resolvedAutoPolicy,
       postRunCatalog.trustPolicy.artifact,
     );
+
+    // Step 4b: emit agent workbench (structured work items for agent consumption)
+    yield* emitAgentWorkbench({ paths: options.paths, catalog: postRunCatalog, iteration });
 
     // Step 5: cleanup transient artifacts to cap memory growth
     yield* cleanupBetweenIterations(options);
