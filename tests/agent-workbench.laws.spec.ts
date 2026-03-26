@@ -71,10 +71,10 @@ test.describe('Work Item Stable IDs', () => {
     expect(a.map((i) => i.id)).toEqual(b.map((i) => i.id));
   });
 
-  test('different hotspot IDs produce different work item IDs', () => {
+  test('different screen+element produce different work item IDs', () => {
     const items = buildAgentWorkItems(emptyCatalog(), 1, [
-      mockHotspot({ id: 'h1' }),
-      mockHotspot({ id: 'h2' }),
+      mockHotspot({ id: 'h1', screen: 'policy-search', family: { field: 'searchButton', action: 'click' } }),
+      mockHotspot({ id: 'h2', screen: 'policy-detail', family: { field: 'backToSearch', action: 'click' } }),
     ]);
     const ids = items.map((i) => i.id);
     expect(new Set(ids).size).toBe(ids.length);

@@ -163,10 +163,13 @@ async function main(): Promise<void> {
       processWorkItems({
         paths,
         maxItems: maxActs,
+        reEvaluate: true,
+        onScreenGroupStart: (group) => {
+          console.log(`  ─── ${group.screen} (${group.items.length} items) ───`);
+        },
         onItemProcessed: (item, completion) => {
           const marker = completion.status === 'completed' ? '✓' : '○';
-          console.log(`  ${marker} [${item.kind}] ${item.title}`);
-          console.log(`    ${completion.rationale}`);
+          console.log(`    ${marker} ${item.title}`);
         },
       }),
       rootDir,
@@ -174,6 +177,9 @@ async function main(): Promise<void> {
     );
 
     console.log(`\n  Processed: ${actResult.processed} (${actResult.completed} completed, ${actResult.skipped} skipped)`);
+    if (actResult.transitivelyResolved > 0) {
+      console.log(`  ${actResult.transitivelyResolved} items resolved transitively.`);
+    }
     if (actResult.remaining > 0) {
       console.log(`  ${actResult.remaining} items remaining.`);
     } else {

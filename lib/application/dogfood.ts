@@ -4,7 +4,8 @@ import { activateProposalBundle, autoApproveEligibleProposals } from './activate
 import { loadWorkspaceCatalog } from './catalog';
 import { buildPartialFitnessMetrics } from './fitness';
 import { calibrateWeightsFromCorrelations } from './learning-bottlenecks';
-import { emitAgentWorkbench } from './agent-workbench';
+import { emitAgentWorkbench, processWorkItems } from './agent-workbench';
+import type { AgentWorkItem, WorkItemCompletion } from '../domain/types';
 import { improvementLoopLedgerPath, type ProjectPaths } from './paths';
 import { refreshScenarioCore } from './refresh';
 import { buildDerivedGraph } from './graph';
@@ -44,6 +45,15 @@ export interface DogfoodOptions {
   readonly runbook?: string | undefined;
   readonly interpreterMode?: 'dry-run' | 'diagnostic' | undefined;
   readonly autoApprovalPolicy?: AutoApprovalPolicy | undefined;
+  /** When provided, process work items between iterations (inter-iteration act loop).
+   *  The decider is invoked per screen group after each iteration's workbench is emitted.
+   *  This enables the agent to act on hotspots/proposals before the next iteration runs. */
+  readonly actBetweenIterations?: {
+    readonly decider?: import('./agent-workbench').WorkItemDecider;
+    readonly screenGroupDecider?: import('./agent-workbench').ScreenGroupDecider;
+    readonly maxItemsPerIteration?: number;
+    readonly onItemProcessed?: (item: AgentWorkItem, completion: WorkItemCompletion) => void;
+  } | undefined;
   /** Knowledge posture for catalog loading. Defaults to 'warm-start'. */
   readonly knowledgePosture?: KnowledgePosture | undefined;
   /**
@@ -399,6 +409,18 @@ function runIteration(iteration: number, options: DogfoodOptions) {
 
     // Step 4b: emit agent workbench (structured work items for agent consumption)
     yield* emitAgentWorkbench({ paths: options.paths, catalog: postRunCatalog, iteration });
+
+    // Step 4c: inter-iteration act loop — process work items before next iteration
+    if (options.actBetweenIterations) {
+      const actOpts = options.actBetweenIterations;
+      yield* processWorkItems({
+        paths: options.paths,
+        maxItems: actOpts.maxItemsPerIteration ?? 10,
+        ...(actOpts.decider ? { decider: actOpts.decider } : {}),
+        ...(actOpts.screenGroupDecider ? { screenGroupDecider: actOpts.screenGroupDecider } : {}),
+        ...(actOpts.onItemProcessed ? { onItemProcessed: actOpts.onItemProcessed } : {}),
+      });
+    }
 
     // Step 5: cleanup transient artifacts to cap memory growth
     yield* cleanupBetweenIterations(options);
