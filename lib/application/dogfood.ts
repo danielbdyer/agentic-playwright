@@ -270,12 +270,12 @@ function runIteration(iteration: number, options: DogfoodOptions) {
       interpreterMode: options.interpreterMode ?? 'diagnostic',
     });
 
-    // Step 3: collect trace metrics (post-run scope: includes runs + proposals, skips sessions/evidence)
-    const postRunCatalog = yield* loadWorkspaceCatalog({
+    // Step 3: collect trace metrics — reuse the post-run catalog already loaded by runScenarioSelection
+    const postRunCatalog = runResult.postRunCatalog ?? (yield* loadWorkspaceCatalog({
       paths: options.paths,
       knowledgePosture: 'warm-start',
       scope: 'post-run',
-    });
+    }));
     const metrics = computeTraceMetrics(postRunCatalog.runRecords as never);
 
     // Step 3b: compute per-iteration resolution-by-rung breakdown

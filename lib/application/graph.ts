@@ -76,7 +76,7 @@ export function buildDerivedGraph(
 ) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
-    const catalog = options.catalog ?? (yield* loadWorkspaceCatalog({ paths: options.paths }));
+    const catalog = options.catalog ?? (yield* loadWorkspaceCatalog({ paths: options.paths, scope: 'post-run' }));
     const inputFingerprints: ProjectionInputFingerprint[] = [
       fingerprintProjectionArtifact('policy', catalog.trustPolicy.artifactPath, catalog.trustPolicy.artifact),
       ...catalog.snapshots.map((entry) => fingerprintProjectionArtifact('snapshot', entry.artifactPath, entry.artifact)),

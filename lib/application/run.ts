@@ -181,15 +181,16 @@ export function runScenarioCore(options: RunScenarioOptions) {
  * Run global projections after scenario execution: graph, confidence overlay,
  * emitted spec, and operator inbox. Call once after all scenario runs complete.
  */
-export function runScenarioProjections(options: { adoId: AdoId; paths: ProjectPaths }) {
+export function runScenarioProjections(options: { adoId: AdoId; paths: ProjectPaths; catalog?: WorkspaceCatalog }) {
   return Effect.gen(function* () {
-    const postWriteCatalog = yield* loadWorkspaceCatalog({ paths: options.paths });
-    return yield* Effect.all({
+    const postWriteCatalog = options.catalog ?? (yield* loadWorkspaceCatalog({ paths: options.paths, scope: 'post-run' }));
+    const projections = yield* Effect.all({
       confidence: projectConfidenceOverlayCatalog({ paths: options.paths, catalog: postWriteCatalog }),
       emitted: emitScenario({ adoId: options.adoId, paths: options.paths, catalog: postWriteCatalog }),
       graph: buildDerivedGraph({ paths: options.paths, catalog: postWriteCatalog }),
       inbox: emitOperatorInbox({ paths: options.paths, catalog: postWriteCatalog, filter: { adoId: options.adoId } }),
     }, { concurrency: 'unbounded' });
+    return { ...projections, postRunCatalog: postWriteCatalog };
   });
 }
 
@@ -201,10 +202,11 @@ export function runScenarioProjections(options: { adoId: AdoId; paths: ProjectPa
 export function runScenario(options: RunScenarioOptions) {
   return Effect.gen(function* () {
     const core = yield* runScenarioCore(options);
-    const projections = yield* runScenarioProjections({ adoId: options.adoId, paths: options.paths });
+    const { postRunCatalog, ...projections } = yield* runScenarioProjections({ adoId: options.adoId, paths: options.paths });
     return {
       ...core,
       ...projections,
+      postRunCatalog,
     };
   }).pipe(Effect.withSpan('run-scenario', { attributes: { adoId: options.adoId } }));
 }
@@ -246,10 +248,15 @@ export function runScenarioSelection(options: {
     // For multiple scenarios, run cores concurrently then project once.
     const isSingleScenario = selection.adoIds.length <= 1;
 
-    const runs = isSingleScenario
-      ? yield* Effect.all(
-          selection.adoIds.map((adoId) => runScenario(buildRunOptions(adoId as AdoId))),
-        )
+    const { runs, postRunCatalog } = isSingleScenario
+      ? yield* Effect.gen(function* () {
+          const scenarioRuns = yield* Effect.all(
+            selection.adoIds.map((adoId) => runScenario(buildRunOptions(adoId as AdoId))),
+          );
+          // Grab the post-run catalog from the last scenario run (single-scenario path)
+          const catalog = scenarioRuns[0]?.postRunCatalog ?? null;
+          return { runs: scenarioRuns, postRunCatalog: catalog as WorkspaceCatalog | null };
+        })
       : yield* Effect.gen(function* () {
           const concurrency = resolveEffectConcurrency();
           const coreRuns = yield* Effect.all(
@@ -257,7 +264,8 @@ export function runScenarioSelection(options: {
             { concurrency },
           );
           // Single catalog reload + global projections after all runs complete
-          const postWriteCatalog = yield* loadWorkspaceCatalog({ paths: options.paths });
+          // post-run scope suffices: includes runs + proposals, skips sessions/evidence
+          const postWriteCatalog = yield* loadWorkspaceCatalog({ paths: options.paths, scope: 'post-run' });
           const { confidence, graph } = yield* Effect.all({
             confidence: projectConfidenceOverlayCatalog({ paths: options.paths, catalog: postWriteCatalog }),
             graph: buildDerivedGraph({ paths: options.paths, catalog: postWriteCatalog }),
@@ -270,12 +278,15 @@ export function runScenarioSelection(options: {
             }, { concurrency: 'unbounded' })),
             { concurrency: 'unbounded' },
           );
-          return coreRuns.map((core, index) => ({
-            ...core,
-            confidence,
-            graph,
-            ...perScenario[index]!,
-          }));
+          return {
+            runs: coreRuns.map((core, index) => ({
+              ...core,
+              confidence,
+              graph,
+              ...perScenario[index]!,
+            })),
+            postRunCatalog: postWriteCatalog as WorkspaceCatalog | null,
+          };
         });
 
     return {
@@ -285,6 +296,7 @@ export function runScenarioSelection(options: {
         tag: options.tag ?? null,
       },
       runs,
+      postRunCatalog,
     };
   });
 }
