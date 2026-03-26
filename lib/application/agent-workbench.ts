@@ -5,20 +5,16 @@
  * Each builder is a pure function; the projection is disposable and regenerated
  * per iteration.
  *
- * Work items are prioritized using the ScoringRule semigroup from learning-shared.ts,
- * with weights for urgency, impact, confidence, and kind. Occurrence count and
- * blocking status drive aggressive differentiation so the top item is clearly
- * the most valuable action.
- *
- * Completion tracking: when an agent acts on a work item, it calls
- * completeWorkItem() which persists a WorkItemCompletion to the workbench.
- * The next projection filters completed items so they don't reappear.
+ * Scoring uses the ScoringRule semigroup from learning-shared.ts.
+ * Completion tracking persists to workbenchCompletionsPath; the next projection
+ * filters completed items so they don't reappear.
  */
 
 import { Effect } from 'effect';
 import { sha256 } from '../domain/hash';
+import { foldResolutionReceipt } from '../domain/visitors';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
-import { buildWorkflowHotspots } from './hotspots';
+import { buildWorkflowHotspots, type WorkflowHotspot } from './hotspots';
 import type { ProjectPaths } from './paths';
 import { FileSystem } from './ports';
 import {
@@ -89,7 +85,7 @@ function proposalWorkItems(catalog: WorkspaceCatalog, iteration: number): readon
         priority: scoreWorkItem('approve-proposal', 0.8, 1, false),
         title: proposal.title,
         rationale: `Pending proposal for ${proposal.artifactType} at ${proposal.targetPath}. Approving will add the proposed knowledge to the canonical knowledge base.`,
-        adoId: bundle.artifact.adoId as import('../domain/identity').AdoId,
+        adoId: bundle.artifact.adoId,
         iteration,
         actions: [{
           kind: 'approve',
@@ -111,18 +107,19 @@ function proposalWorkItems(catalog: WorkspaceCatalog, iteration: number): readon
 
 function needsHumanWorkItems(catalog: WorkspaceCatalog, iteration: number): readonly AgentWorkItem[] {
   return catalog.runRecords.flatMap((record) =>
-    record.artifact.steps
-      .filter((step) => step.interpretation.kind === 'needs-human')
-      .map((step): AgentWorkItem => {
-        const target = (step.interpretation as { target?: { screen?: string; element?: string; action?: string } }).target;
-        const reason = (step.interpretation as { reason?: string }).reason ?? 'unresolved';
-        return {
+    record.artifact.steps.flatMap((step) =>
+      // Use the discriminated union's kind field for type-safe narrowing
+      foldResolutionReceipt<readonly AgentWorkItem[]>(step.interpretation, {
+        resolved: () => [],
+        resolvedWithProposals: () => [],
+        agentInterpreted: () => [],
+        needsHuman: (receipt) => [{
           id: workItemId('interpret-step', record.artifact.adoId, String(step.stepIndex)),
           kind: 'interpret-step',
           priority: scoreWorkItem('interpret-step', 0.6, 1, true),
-          title: `Step ${step.stepIndex}: ${reason.slice(0, 80)}`,
-          rationale: `This step exhausted all deterministic resolution rungs. The agent should interpret the step text and determine the correct screen, element, and action.`,
-          adoId: record.artifact.adoId as import('../domain/identity').AdoId,
+          title: `Step ${step.stepIndex}: ${receipt.reason.slice(0, 80)}`,
+          rationale: 'This step exhausted all deterministic resolution rungs. The agent should interpret the step text and determine the correct screen, element, and action.',
+          adoId: record.artifact.adoId,
           iteration,
           actions: [{
             kind: 'inspect',
@@ -130,14 +127,12 @@ function needsHumanWorkItems(catalog: WorkspaceCatalog, iteration: number): read
             params: { adoId: record.artifact.adoId, stepIndex: step.stepIndex, runId: record.artifact.runId },
           }, {
             kind: 'author',
-            target: makeTarget('knowledge', target?.screen ? `knowledge/screens/${target.screen}.hints.yaml` : 'knowledge/screens/', `Author hint for step ${step.stepIndex}`),
-            params: { screen: target?.screen, element: target?.element },
+            target: makeTarget('knowledge', 'knowledge/screens/', `Author hint for step ${step.stepIndex}`),
+            params: {},
           }],
           context: {
             stepIndex: step.stepIndex,
-            screen: target?.screen,
-            element: target?.element,
-            exhaustionTrail: (step.interpretation as { exhaustion?: ReadonlyArray<{ stage: string; outcome: string; reason: string }> }).exhaustion?.map((e) => ({
+            exhaustionTrail: receipt.exhaustion.map((e) => ({
               stage: e.stage,
               outcome: e.outcome,
               reason: e.reason,
@@ -148,49 +143,38 @@ function needsHumanWorkItems(catalog: WorkspaceCatalog, iteration: number): read
           linkedProposals: [],
           linkedHotspots: [],
           linkedBottlenecks: [],
-        };
+        }],
       }),
+    ),
   );
 }
 
-function hotspotWorkItems(catalog: WorkspaceCatalog, iteration: number): readonly AgentWorkItem[] {
-  const hotspots = buildWorkflowHotspots(
-    catalog.runRecords.map((e) => e.artifact),
-    catalog.interpretationDriftRecords.map((e) => e.artifact),
-    catalog.resolutionGraphRecords.map((e) => e.artifact),
-  );
-  return hotspots
-    .filter((h) => h.occurrenceCount >= 2)
-    .map((hotspot): AgentWorkItem => {
-      // Generate concrete action: which file to edit and what to add
+function hotspotWorkItems(hotspots: readonly WorkflowHotspot[], iteration: number): readonly AgentWorkItem[] {
+  return hotspots.flatMap((hotspot): readonly AgentWorkItem[] => {
+    if (hotspot.occurrenceCount < 2) return [];
       const primaryTarget = hotspot.suggestions[0]?.target ?? `knowledge/screens/${hotspot.screen}.hints.yaml`;
-      const field = hotspot.family.field;
-      const screen = hotspot.screen;
-
-      return {
+      return [{
         id: workItemId('investigate-hotspot', hotspot.id),
         kind: 'investigate-hotspot',
-        // Key fix: occurrence count drives differentiation
         priority: scoreWorkItem('investigate-hotspot', Math.min(1, hotspot.occurrenceCount / 5), hotspot.occurrenceCount, false),
-        title: `${hotspot.kind}: ${screen}/${field} (${hotspot.occurrenceCount}x)`,
+        title: `${hotspot.kind}: ${hotspot.screen}/${hotspot.family.field} (${hotspot.occurrenceCount}x)`,
         rationale: `This ${hotspot.kind} pattern occurred ${hotspot.occurrenceCount} times. ${hotspot.suggestions.map((s) => s.reason).join(' ')}`,
         adoId: null,
         iteration,
         actions: [{
           kind: 'author',
-          target: makeTarget('knowledge', primaryTarget, `Add deterministic knowledge for ${screen}/${field}`),
+          target: makeTarget('knowledge', primaryTarget, `Add deterministic knowledge for ${hotspot.screen}/${hotspot.family.field}`),
           params: {
             targetPath: primaryTarget,
-            screen,
-            element: field,
+            screen: hotspot.screen,
+            element: hotspot.family.field,
             occurrenceCount: hotspot.occurrenceCount,
-            // Concrete: what winning sources were involved
             winningSources: [...new Set(hotspot.samples.map((s) => s.winningSource))],
           },
         }],
         context: {
-          screen,
-          element: field,
+          screen: hotspot.screen,
+          element: hotspot.family.field,
           artifactRefs: hotspot.suggestions.map((s) => s.target),
         },
         evidence: {
@@ -200,47 +184,67 @@ function hotspotWorkItems(catalog: WorkspaceCatalog, iteration: number): readonl
         linkedProposals: [],
         linkedHotspots: [hotspot.id],
         linkedBottlenecks: [],
-      };
-    });
+      }];
+  });
 }
 
-// ─── Composition: pure builders → sorted work items ───
+// ─── Composition ───
 
-export function buildAgentWorkItems(catalog: WorkspaceCatalog, iteration: number): readonly AgentWorkItem[] {
+/** Build work items from catalog data. Pure function: catalog → sorted items.
+ *  Accepts optional pre-computed hotspots to avoid redundant computation
+ *  when the caller already built them (e.g., inbox projection). */
+export function buildAgentWorkItems(
+  catalog: WorkspaceCatalog,
+  iteration: number,
+  precomputedHotspots?: readonly WorkflowHotspot[],
+): readonly AgentWorkItem[] {
+  const hotspots = precomputedHotspots ?? buildWorkflowHotspots(
+    catalog.runRecords.map((e) => e.artifact),
+    catalog.interpretationDriftRecords.map((e) => e.artifact),
+    catalog.resolutionGraphRecords.map((e) => e.artifact),
+  );
   return [
     ...proposalWorkItems(catalog, iteration),
     ...needsHumanWorkItems(catalog, iteration),
-    ...hotspotWorkItems(catalog, iteration),
+    ...hotspotWorkItems(hotspots, iteration),
   ].sort((a, b) => b.priority - a.priority);
+}
+
+/** Filter items by completion set. Pure. */
+function excludeCompleted(
+  items: readonly AgentWorkItem[],
+  completions: readonly WorkItemCompletion[],
+): readonly AgentWorkItem[] {
+  const completedIds = new Set(completions.map((c) => c.workItemId));
+  return items.filter((item) => !completedIds.has(item.id));
 }
 
 function summarizeWorkItems(
   items: readonly AgentWorkItem[],
+  pendingItems: readonly AgentWorkItem[],
   completions: readonly WorkItemCompletion[],
 ): AgentWorkbenchProjection['summary'] {
-  const completedIds = new Set(completions.map((c) => c.workItemId));
-  const pending = items.filter((item) => !completedIds.has(item.id));
   const byKind = items.reduce<Record<WorkItemKind, number>>(
     (acc, item) => ({ ...acc, [item.kind]: (acc[item.kind] ?? 0) + 1 }),
     { 'interpret-step': 0, 'approve-proposal': 0, 'author-knowledge': 0, 'investigate-hotspot': 0, 'validate-calibration': 0, 'request-rerun': 0 },
   );
   return {
     total: items.length,
-    pending: pending.length,
+    pending: pendingItems.length,
     completed: completions.length,
     byKind,
-    topPriority: pending[0] ?? null,
+    topPriority: pendingItems[0] ?? null,
   };
 }
 
 // ─── Completion Tracking ───
 
-function loadCompletions(fs: import('./ports').FileSystemPort, paths: ProjectPaths): Effect.Effect<readonly WorkItemCompletion[], unknown, never> {
+function loadCompletions(paths: ProjectPaths) {
   return Effect.gen(function* () {
-    const completionsPath = `${paths.workbenchDir}/completions.json`;
-    const exists = yield* fs.exists(completionsPath);
+    const fs = yield* FileSystem;
+    const exists = yield* fs.exists(paths.workbenchCompletionsPath);
     if (!exists) return [];
-    const raw = yield* fs.readJson(completionsPath);
+    const raw = yield* fs.readJson(paths.workbenchCompletionsPath);
     return (Array.isArray(raw) ? raw : []) as readonly WorkItemCompletion[];
   }).pipe(Effect.catchAll(() => Effect.succeed([] as readonly WorkItemCompletion[])));
 }
@@ -251,18 +255,17 @@ export function completeWorkItem(options: {
 }) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
-    const existing = yield* loadCompletions(fs, options.paths);
+    const existing = yield* loadCompletions(options.paths);
     const updated = [...existing, options.completion];
     yield* fs.ensureDir(options.paths.workbenchDir);
-    yield* fs.writeJson(`${options.paths.workbenchDir}/completions.json`, updated);
+    yield* fs.writeJson(options.paths.workbenchCompletionsPath, updated);
     return updated;
-  });
+  }).pipe(Effect.withSpan('complete-work-item', { attributes: { workItemId: options.completion.workItemId } }));
 }
 
-// ─── Query Functions (used by CLI and agent sessions) ───
+// ─── Query Functions ───
 
-/** Load the workbench projection with completions cross-referenced.
- *  Returns pending items only (completed items filtered out). */
+/** Load the workbench projection with completions cross-referenced. */
 export function loadAgentWorkbench(options: {
   readonly paths: ProjectPaths;
 }) {
@@ -272,9 +275,8 @@ export function loadAgentWorkbench(options: {
     if (!exists) return null;
     const raw = yield* fs.readJson(options.paths.workbenchIndexPath);
     const projection = raw as AgentWorkbenchProjection;
-    const completions = yield* loadCompletions(fs, options.paths);
-    const completedIds = new Set(completions.map((c) => c.workItemId));
-    const pending = projection.items.filter((item) => !completedIds.has(item.id));
+    const completions = yield* loadCompletions(options.paths);
+    const pending = excludeCompleted(projection.items, completions);
     return {
       ...projection,
       items: pending,
@@ -285,7 +287,10 @@ export function loadAgentWorkbench(options: {
         completed: completions.length,
       },
     } satisfies AgentWorkbenchProjection;
-  }).pipe(Effect.catchAll(() => Effect.succeed(null)));
+  }).pipe(
+    Effect.catchAll(() => Effect.succeed(null)),
+    Effect.withSpan('load-agent-workbench'),
+  );
 }
 
 /** Return the highest-priority pending work item, or null if none. */
@@ -304,15 +309,14 @@ export function emitAgentWorkbench(options: {
   readonly paths: ProjectPaths;
   readonly catalog?: WorkspaceCatalog | undefined;
   readonly iteration?: number | undefined;
+  readonly hotspots?: readonly WorkflowHotspot[] | undefined;
 }) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const catalog = options.catalog ?? (yield* loadWorkspaceCatalog({ paths: options.paths, scope: 'post-run' }));
-    const completions = yield* loadCompletions(fs, options.paths);
-    const completedIds = new Set(completions.map((c) => c.workItemId));
-    const allItems = buildAgentWorkItems(catalog, options.iteration ?? 0);
-    // Filter out completed items so the workbench only shows pending work
-    const pendingItems = allItems.filter((item) => !completedIds.has(item.id));
+    const completions = yield* loadCompletions(options.paths);
+    const allItems = buildAgentWorkItems(catalog, options.iteration ?? 0, options.hotspots);
+    const pendingItems = excludeCompleted(allItems, completions);
     const projection: AgentWorkbenchProjection = {
       kind: 'agent-workbench',
       version: 1,
@@ -320,10 +324,10 @@ export function emitAgentWorkbench(options: {
       iteration: options.iteration ?? 0,
       items: pendingItems,
       completions,
-      summary: summarizeWorkItems(allItems, completions),
+      summary: summarizeWorkItems(allItems, pendingItems, completions),
     };
     yield* fs.ensureDir(options.paths.workbenchDir);
     yield* fs.writeJson(options.paths.workbenchIndexPath, projection);
     return projection;
-  });
+  }).pipe(Effect.withSpan('emit-agent-workbench'));
 }
