@@ -1,10 +1,26 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import type { FileSystemPort } from '../../application/ports';
 import { tryFileSystem } from '../../application/effect';
 
 function stripBom(value: string): string {
   return value.replace(/^\uFEFF/, '');
+}
+
+/** Atomic write: write to a temp file in the same directory, then rename.
+ *  Prevents concurrent readers from seeing partially-written content. */
+async function atomicWriteFile(filePath: string, contents: string): Promise<void> {
+  const dir = path.dirname(filePath);
+  await fs.mkdir(dir, { recursive: true });
+  const tmpPath = path.join(dir, `.tmp-${crypto.randomBytes(8).toString('hex')}-${path.basename(filePath)}`);
+  try {
+    await fs.writeFile(tmpPath, contents, 'utf8');
+    await fs.rename(tmpPath, filePath);
+  } catch (error) {
+    await fs.unlink(tmpPath).catch(() => {});
+    throw error;
+  }
 }
 
 export const LocalFileSystem: FileSystemPort = {
@@ -13,10 +29,10 @@ export const LocalFileSystem: FileSystemPort = {
   },
 
   writeText(filePath, contents) {
-    return tryFileSystem(async () => {
-      await fs.mkdir(path.dirname(filePath), { recursive: true });
-      await fs.writeFile(filePath, contents, 'utf8');
-    }, 'fs-write-failed', `Unable to write ${filePath}`, filePath);
+    return tryFileSystem(
+      () => atomicWriteFile(filePath, contents),
+      'fs-write-failed', `Unable to write ${filePath}`, filePath,
+    );
   },
 
   readJson(filePath) {
@@ -29,10 +45,10 @@ export const LocalFileSystem: FileSystemPort = {
   },
 
   writeJson(filePath, value) {
-    return tryFileSystem(async () => {
-      await fs.mkdir(path.dirname(filePath), { recursive: true });
-      await fs.writeFile(filePath, JSON.stringify(value, null, 2), 'utf8');
-    }, 'json-write-failed', `Unable to write JSON to ${filePath}`, filePath);
+    return tryFileSystem(
+      () => atomicWriteFile(filePath, JSON.stringify(value, null, 2)),
+      'json-write-failed', `Unable to write JSON to ${filePath}`, filePath,
+    );
   },
 
   exists(filePath) {
