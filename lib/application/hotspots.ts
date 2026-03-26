@@ -207,7 +207,7 @@ export function buildWorkflowHotspots(runRecords: readonly RunRecord[], driftRec
 
   return [...accumulators.values()]
     .map((entry) => {
-      const suggestions: WorkflowHotspot['suggestions'] = [
+      const suggestions: Array<{ readonly target: string; readonly reason: string }> = [
         {
           target: `knowledge/screens/${entry.screen}.hints.yaml`,
           reason: 'Capture deterministic aliases/defaults so this family resolves without runtime fallback.',

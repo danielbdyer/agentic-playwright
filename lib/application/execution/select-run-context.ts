@@ -9,6 +9,7 @@ import type {
   Scenario,
   ScenarioInterpretationSurface,
   ScenarioRunPlan,
+  StepResolution,
 } from '../../domain/types';
 import type { AdoId, ScreenId } from '../../domain/identity';
 import { uniqueSorted } from '../../domain/collections';
@@ -64,7 +65,7 @@ function taskStepsForRun(surface: ScenarioInterpretationSurface, resolutionContr
     return surface.payload.steps;
   }
   // Pre-index controls by (name, stepIndex): O(C) build, then O(1) per step
-  const controlIndex = new Map<number, string>();
+  const controlIndex = new Map<number, StepResolution>();
   for (const ctrl of surface.payload.resolutionContext.controls.resolutionControls) {
     if (ctrl.name === resolutionControlName) {
       controlIndex.set(ctrl.stepIndex, ctrl.resolution);
