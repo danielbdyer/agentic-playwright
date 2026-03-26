@@ -17,7 +17,7 @@
 
 import * as path from 'path';
 import { createProjectPaths } from '../lib/application/paths';
-import { loadAgentWorkbench } from '../lib/application/agent-workbench';
+import { loadAgentWorkbench, processWorkItems, type ActLoopResult } from '../lib/application/agent-workbench';
 import { multiSeedSpeedrun } from '../lib/application/speedrun';
 import { resolveKnowledgePosture } from '../lib/application/knowledge-posture';
 import { resolveAgentInterpreterProvider, type AgentInterpreterProvider } from '../lib/application/agent-interpreter-provider';
@@ -36,6 +36,8 @@ function argVal(name: string, fallback: string): string {
 const count = Number(argVal('--count', '30'));
 const seed = argVal('--seed', 'agent-run');
 const maxIterations = Number(argVal('--max-iterations', '3'));
+const actMode = args.includes('--act');
+const maxActs = Number(argVal('--max-acts', '20'));
 const explicitPosture = args.includes('--posture') ? argVal('--posture', '') as KnowledgePosture : undefined;
 
 const rootDir = process.cwd();
@@ -151,6 +153,32 @@ async function main(): Promise<void> {
     }
     console.log(`  Transact: npx tsx scripts/act-on-workitem.ts --next`);
     console.log(`  Or:       node dist/bin/tesseract.js workbench --next`);
+  }
+
+  // --act mode: process work items automatically
+  if (actMode && workbench && workbench.summary.pending > 0) {
+    console.log(`\n=== Act Mode: Processing up to ${maxActs} items ===\n`);
+
+    const actResult: ActLoopResult = await runWithLocalServices(
+      processWorkItems({
+        paths,
+        maxItems: maxActs,
+        onItemProcessed: (item, completion) => {
+          const marker = completion.status === 'completed' ? '✓' : '○';
+          console.log(`  ${marker} [${item.kind}] ${item.title}`);
+          console.log(`    ${completion.rationale}`);
+        },
+      }),
+      rootDir,
+      { suiteRoot: paths.suiteRoot },
+    );
+
+    console.log(`\n  Processed: ${actResult.processed} (${actResult.completed} completed, ${actResult.skipped} skipped)`);
+    if (actResult.remaining > 0) {
+      console.log(`  ${actResult.remaining} items remaining.`);
+    } else {
+      console.log('  All work items resolved.');
+    }
   }
 }
 

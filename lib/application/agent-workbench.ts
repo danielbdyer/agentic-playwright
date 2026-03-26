@@ -303,6 +303,113 @@ export function nextWorkItem(options: {
   });
 }
 
+// ─── Act Loop (recursive fold over work items) ───
+
+export interface ActLoopResult {
+  readonly processed: number;
+  readonly completed: number;
+  readonly skipped: number;
+  readonly remaining: number;
+  readonly completions: readonly WorkItemCompletion[];
+}
+
+/** Strategy for deciding how to act on a work item.
+ *  The agent (or heuristic) provides this callback.
+ *  Returns 'completed' | 'skipped' | null (stop processing). */
+export type WorkItemDecider = (item: AgentWorkItem) => Promise<{
+  readonly status: 'completed' | 'skipped';
+  readonly rationale: string;
+  readonly artifactsWritten?: readonly string[];
+} | null>;
+
+/** Default decider: auto-approves proposals, skips low-confidence hotspots. */
+export const defaultWorkItemDecider: WorkItemDecider = async (item) => {
+  switch (item.kind) {
+    case 'approve-proposal':
+      return { status: 'completed', rationale: `Auto-approved: ${item.title}` };
+    case 'investigate-hotspot':
+      return item.evidence.confidence >= 0.5
+        ? { status: 'completed', rationale: `Acknowledged hotspot: ${item.title}` }
+        : { status: 'skipped', rationale: `Low-confidence hotspot (${item.evidence.confidence.toFixed(2)}): ${item.title}` };
+    case 'interpret-step':
+      return { status: 'skipped', rationale: `Agent interpretation needed: ${item.title}` };
+    default:
+      return { status: 'skipped', rationale: `Unhandled work item kind: ${item.kind}` };
+  }
+};
+
+/** Process pending work items in priority order using the provided decider.
+ *  Recursive fold: step(remaining, completions) → step(rest, [...completions, completion]).
+ *  Stops when decider returns null, max items reached, or no items remain.
+ *
+ *  This is the agent loop harness — the decider is injected by the caller
+ *  (heuristic, LLM session, or interactive operator). */
+export function processWorkItems(options: {
+  readonly paths: ProjectPaths;
+  readonly decider?: WorkItemDecider;
+  readonly maxItems?: number;
+  readonly onItemProcessed?: (item: AgentWorkItem, completion: WorkItemCompletion) => void;
+}) {
+  return Effect.gen(function* () {
+    const decider = options.decider ?? defaultWorkItemDecider;
+    const maxItems = options.maxItems ?? 50;
+
+    const step = (
+      remaining: readonly AgentWorkItem[],
+      accCompletions: readonly WorkItemCompletion[],
+      processed: number,
+    ): Effect.Effect<ActLoopResult, unknown, unknown> =>
+      Effect.gen(function* () {
+        if (remaining.length === 0 || processed >= maxItems) {
+          return {
+            processed,
+            completed: accCompletions.filter((c) => c.status === 'completed').length,
+            skipped: accCompletions.filter((c) => c.status === 'skipped').length,
+            remaining: remaining.length,
+            completions: accCompletions,
+          };
+        }
+
+        const [item, ...rest] = remaining;
+        const decision = yield* Effect.promise(() => decider(item!));
+
+        if (!decision) {
+          // Decider signals stop
+          return {
+            processed,
+            completed: accCompletions.filter((c) => c.status === 'completed').length,
+            skipped: accCompletions.filter((c) => c.status === 'skipped').length,
+            remaining: remaining.length,
+            completions: accCompletions,
+          };
+        }
+
+        const completion: WorkItemCompletion = {
+          workItemId: item!.id,
+          status: decision.status,
+          completedAt: new Date().toISOString(),
+          rationale: decision.rationale,
+          artifactsWritten: decision.artifactsWritten ?? [],
+        };
+
+        yield* completeWorkItem({ paths: options.paths, completion });
+
+        if (options.onItemProcessed) {
+          options.onItemProcessed(item!, completion);
+        }
+
+        return yield* step(rest, [...accCompletions, completion], processed + 1);
+      });
+
+    const workbench = yield* loadAgentWorkbench({ paths: options.paths });
+    if (!workbench || workbench.items.length === 0) {
+      return { processed: 0, completed: 0, skipped: 0, remaining: 0, completions: [] } satisfies ActLoopResult;
+    }
+
+    return yield* step(workbench.items, [], 0);
+  }).pipe(Effect.withSpan('process-work-items'));
+}
+
 // ─── Effect Projection ───
 
 export function emitAgentWorkbench(options: {
