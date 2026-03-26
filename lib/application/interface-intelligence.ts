@@ -1263,10 +1263,15 @@ function buildSelectorCanon(_input: {
     summary: {
       totalTargets: entries.length,
       totalProbes: entries.reduce((total, entry) => total + entry.probes.length, 0),
-      approvedKnowledgeProbeCount: entries.reduce((total, entry) => total + entry.probes.filter((probe) => probe.source === 'approved-knowledge').length, 0),
-      discoveryProbeCount: entries.reduce((total, entry) => total + entry.probes.filter((probe) => probe.source === 'discovery').length, 0),
-      degradedProbeCount: entries.reduce((total, entry) => total + entry.probes.filter((probe) => probe.status === 'degraded').length, 0),
-      healthyProbeCount: entries.reduce((total, entry) => total + entry.probes.filter((probe) => probe.status === 'healthy').length, 0),
+      ...entries.reduce((acc, entry) =>
+        entry.probes.reduce((inner, probe) => ({
+          approvedKnowledgeProbeCount: inner.approvedKnowledgeProbeCount + (probe.source === 'approved-knowledge' ? 1 : 0),
+          discoveryProbeCount: inner.discoveryProbeCount + (probe.source === 'discovery' ? 1 : 0),
+          degradedProbeCount: inner.degradedProbeCount + (probe.status === 'degraded' ? 1 : 0),
+          healthyProbeCount: inner.healthyProbeCount + (probe.status === 'healthy' ? 1 : 0),
+        }), acc),
+        { approvedKnowledgeProbeCount: 0, discoveryProbeCount: 0, degradedProbeCount: 0, healthyProbeCount: 0 },
+      ),
     },
   };
 

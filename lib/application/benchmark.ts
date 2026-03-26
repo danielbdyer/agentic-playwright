@@ -148,14 +148,11 @@ function scorecardForBenchmark(input: {
   ).length;
   const degradedLocatorHotspotCount = uniqueSorted(
     benchmarkRuns.flatMap((record) =>
-      record.steps
-        .filter((step) => step.degraded)
-        .map(() => record.adoId),
+      record.steps.flatMap((step) => step.degraded ? [record.adoId] : []),
     ).filter((value) => value.length > 0),
   ).length;
   const interpretationDriftHotspotCount = input.interpretationDriftRecords
-    .filter((record) => input.scenarioIds.includes(record.adoId) && record.hasDrift)
-    .reduce((sum, record) => sum + record.changedStepCount, 0);
+    .reduce((sum, record) => sum + (input.scenarioIds.includes(record.adoId) && record.hasDrift ? record.changedStepCount : 0), 0);
   const overlayChurn = input.confidenceRecords.filter((record) =>
     record.failureCount > 0 && uniqueScreens.includes(record.screen ?? ''),
   ).length;
@@ -417,8 +414,7 @@ export function projectBenchmarkScorecard(options: {
     } else {
       scenarioIds = uniqueSorted(
         catalog.scenarios
-          .filter((entry) => entry.artifact.metadata.suite.startsWith(benchmark.suite))
-          .map((entry) => entry.artifact.source.ado_id),
+          .flatMap((entry) => entry.artifact.metadata.suite.startsWith(benchmark.suite) ? [entry.artifact.source.ado_id] : []),
       );
     }
 
