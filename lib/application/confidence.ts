@@ -153,14 +153,17 @@ function stepContributions(
       artifactType: 'elements' as const, artifactPath: knowledgePaths.elements(target.screen),
       screen: target.screen, element: target.element, posture: null, snapshotTemplate: null, ...base,
     }] : []),
-    ...step.interpretation.supplementRefs.filter((ref) => ref.endsWith('.hints.yaml')).map((hintRef) => ({
-      artifactType: 'hints' as const, artifactPath: hintRef,
-      screen: target.screen, element: target.element ?? null, posture: null, snapshotTemplate: null, ...base,
-    })),
-    ...step.interpretation.supplementRefs.filter((ref) => ref.includes('/patterns/')).map((patternRef) => ({
-      artifactType: 'patterns' as const, artifactPath: patternRef,
-      screen: target.screen, element: target.element ?? null, posture: null, snapshotTemplate: null, ...base,
-    })),
+    ...step.interpretation.supplementRefs.flatMap((ref): AggregateContribution[] => {
+      if (ref.endsWith('.hints.yaml')) {
+        return [{ artifactType: 'hints' as const, artifactPath: ref,
+          screen: target.screen, element: target.element ?? null, posture: null, snapshotTemplate: null, ...base }];
+      }
+      if (ref.includes('/patterns/')) {
+        return [{ artifactType: 'patterns' as const, artifactPath: ref,
+          screen: target.screen, element: target.element ?? null, posture: null, snapshotTemplate: null, ...base }];
+      }
+      return [];
+    }),
     ...(target.posture && target.element ? [{
       artifactType: 'postures' as const, artifactPath: knowledgePaths.postures(target.screen),
       screen: target.screen, element: target.element, posture: target.posture, snapshotTemplate: null, ...base,
@@ -176,11 +179,13 @@ function contributeRunArtifacts(catalog: WorkspaceCatalog): Map<string, Aggregat
   const contributions = catalog.runRecords.flatMap((runEntry) =>
     runEntry.artifact.steps.flatMap((step) => stepContributions(catalog, runEntry, step)),
   );
-  return contributions.reduce((aggregates, contribution) => {
+  const aggregates = new Map<string, AggregateRecord>();
+  for (const contribution of contributions) {
     const id = contributionId(contribution);
     const existing = aggregates.get(id) ?? emptyAggregate(contribution);
-    return new Map(aggregates).set(id, mergeContribution(existing, contribution));
-  }, new Map<string, AggregateRecord>());
+    aggregates.set(id, mergeContribution(existing, contribution));
+  }
+  return aggregates;
 }
 
 function scoreForAggregate(successCount: number, failureCount: number, evidenceCount: number): number {

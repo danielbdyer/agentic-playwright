@@ -63,7 +63,7 @@ function buildStepResolutionGraph(step: RuntimeScenarioStepResult, task: Grounde
     winner: {
       rung: winnerRung,
       rationale: receipt.kind === 'needs-human' ? receipt.reason : `Resolved via ${receipt.winningSource}.`,
-      losingReasons: (receipt.exhaustion.filter((entry) => entry.outcome === 'failed').map((entry) => entry.reason)),
+      losingReasons: receipt.exhaustion.flatMap((entry) => entry.outcome === 'failed' ? [entry.reason] : []),
     },
     refs: {
       controlRefs: receipt.controlRefs,

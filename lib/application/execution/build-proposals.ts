@@ -27,12 +27,14 @@ export function buildProposals(input: {
   evidenceWrites: PersistedEvidenceArtifact[];
   evidenceCatalog: WorkspaceCatalog;
 }): BuildProposalsResult {
-  const activeRunbook = input.plan.controlSelection.runbook
-    ? input.evidenceCatalog.runbooks.find((entry) => entry.artifact.name === input.plan.controlSelection.runbook)?.artifact ?? null
+  const runbookEntry = input.plan.controlSelection.runbook
+    ? input.evidenceCatalog.runbooks.find((entry) => entry.artifact.name === input.plan.controlSelection.runbook) ?? null
     : null;
-  const activeDataset = input.plan.controlSelection.dataset
-    ? input.evidenceCatalog.datasets.find((entry) => entry.artifact.name === input.plan.controlSelection.dataset)?.artifact ?? null
+  const datasetEntry = input.plan.controlSelection.dataset
+    ? input.evidenceCatalog.datasets.find((entry) => entry.artifact.name === input.plan.controlSelection.dataset) ?? null
     : null;
+  const activeRunbook = runbookEntry?.artifact ?? null;
+  const activeDataset = datasetEntry?.artifact ?? null;
   const proposalBundleIdentity = {
     adoId: input.adoId,
     suite: input.plan.suite,
@@ -61,8 +63,19 @@ export function buildProposals(input: {
     },
   })));
 
+  const evidenceByStep = new Map<number, string[]>();
+  for (const entry of input.evidenceWrites) {
+    const existing = evidenceByStep.get(entry.stepIndex);
+    if (existing) {
+      existing.push(entry.artifactPath);
+    } else {
+      evidenceByStep.set(entry.stepIndex, [entry.artifactPath]);
+    }
+  }
+
   const proposals = input.stepResults.flatMap((step) =>
     step.interpretation.proposalDrafts.map((proposal) => {
+      const stepEvidenceIds = evidenceByStep.get(step.interpretation.stepIndex) ?? [];
       const proposalEntry = {
         proposalId: '',
         stepIndex: step.interpretation.stepIndex,
@@ -70,9 +83,7 @@ export function buildProposals(input: {
         targetPath: proposal.targetPath,
         title: proposal.title,
         patch: proposal.patch,
-        evidenceIds: input.evidenceWrites
-          .filter((entry) => entry.stepIndex === step.interpretation.stepIndex)
-          .map((entry) => entry.artifactPath),
+        evidenceIds: stepEvidenceIds,
         impactedSteps: [step.interpretation.stepIndex],
         trustPolicy: evaluateArtifactPolicy({
           policy: input.evidenceCatalog.trustPolicy.artifact,
@@ -92,13 +103,11 @@ export function buildProposals(input: {
         },
         lineage: {
           runIds: [input.runId],
-          evidenceIds: input.evidenceWrites
-            .filter((entry) => entry.stepIndex === step.interpretation.stepIndex)
-            .map((entry) => entry.artifactPath),
+          evidenceIds: stepEvidenceIds,
           sourceArtifactPaths: [
             input.surfaceArtifactPath,
-            ...(activeRunbook ? [input.evidenceCatalog.runbooks.find((entry) => entry.artifact.name === activeRunbook.name)?.artifactPath ?? ''] : []),
-            ...(activeDataset ? [input.evidenceCatalog.datasets.find((entry) => entry.artifact.name === activeDataset.name)?.artifactPath ?? ''] : []),
+            ...(runbookEntry ? [runbookEntry.artifactPath] : []),
+            ...(datasetEntry ? [datasetEntry.artifactPath] : []),
           ],
           role: null,
           state: null,
