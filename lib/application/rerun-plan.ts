@@ -148,7 +148,7 @@ function planRerunSelection(options: {
   reason: string;
   sourceProposalId?: string | null | undefined;
   proposalLineagePaths?: string[] | undefined;
-}): Effect.Effect<RerunPlan, Error, FileSystem> {
+}) {
   return Effect.gen(function* () {
     const graph = yield* ensureDerivedGraph({ paths: options.catalog.paths });
     const graphNodesById = new Map(graph.graph.nodes.map((node) => [node.id, node] as const));

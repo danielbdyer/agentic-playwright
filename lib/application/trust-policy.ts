@@ -15,14 +15,14 @@ export interface LoadedEvidenceRecord {
   record: EvidenceRecord;
 }
 
-export function loadTrustPolicy(paths: ProjectPaths, catalog?: WorkspaceCatalog): Effect.Effect<TrustPolicy, Error, FileSystem> {
+export function loadTrustPolicy(paths: ProjectPaths, catalog?: WorkspaceCatalog) {
   return Effect.gen(function* () {
     const resolvedCatalog = catalog ?? (yield* loadWorkspaceCatalog({ paths, scope: 'compile' }));
     return resolvedCatalog.trustPolicy.artifact;
   });
 }
 
-export function loadEvidenceRecords(paths: ProjectPaths, catalog?: WorkspaceCatalog): Effect.Effect<LoadedEvidenceRecord[], Error, FileSystem> {
+export function loadEvidenceRecords(paths: ProjectPaths, catalog?: WorkspaceCatalog) {
   return Effect.gen(function* () {
     const resolvedCatalog = catalog ?? (yield* loadWorkspaceCatalog({ paths, scope: 'post-run' }));
     return resolvedCatalog.evidenceRecords.map((entry) => ({
