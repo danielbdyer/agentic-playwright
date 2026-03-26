@@ -484,6 +484,7 @@ export interface ResolutionObservation {
     | 'approved-equivalent-overlay'
     | 'structured-translation'
     | 'live-dom'
+    | 'agent-interpreted'
     | 'runtime';
   readonly summary: string;
   readonly detail?: Readonly<Record<string, string>> | undefined;
