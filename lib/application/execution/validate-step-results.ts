@@ -22,6 +22,7 @@ export function validateStepResults(input: {
     foldResolutionReceipt(receipt, {
       resolved: (r) => assertInvariant(isApproved(r), `step[${index}] resolved governance must be approved`),
       resolvedWithProposals: (r) => assertInvariant(isApproved(r), `step[${index}] resolved-with-proposals governance must be approved`),
+      agentInterpreted: (r) => assertInvariant(isReviewRequired(r), `step[${index}] agent-interpreted governance must be review-required`),
       needsHuman: (r) => assertInvariant(isReviewRequired(r), `step[${index}] needs-human governance must be review-required`),
     });
   });

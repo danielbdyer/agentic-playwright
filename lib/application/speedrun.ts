@@ -58,6 +58,8 @@ export interface SpeedrunInput {
   readonly seed: string;
   readonly maxIterations: number;
   readonly substrate?: ExperimentSubstrate | undefined;
+  /** Rate [0,1] at which step text is perturbed with synonyms NOT in the knowledge base. */
+  readonly perturbationRate?: number | undefined;
   readonly tag?: string | undefined;
   readonly parentExperimentId?: string | null | undefined;
   readonly knowledgePosture?: KnowledgePosture | undefined;
@@ -85,6 +87,8 @@ export interface MultiSeedInput {
   readonly count: number;
   readonly maxIterations: number;
   readonly substrate?: ExperimentSubstrate | undefined;
+  /** Rate [0,1] at which step text is perturbed with synonyms NOT in the knowledge base. */
+  readonly perturbationRate?: number | undefined;
   readonly tag?: string | undefined;
   readonly knowledgePosture?: KnowledgePosture | undefined;
   readonly onProgress?: ((event: SpeedrunProgressEvent) => void) | undefined;
@@ -155,6 +159,7 @@ export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunRes
       paths: input.paths,
       count: input.count,
       seed: input.seed,
+      perturbationRate: input.perturbationRate,
     });
     const generateDuration = Date.now() - generateStart;
 
@@ -308,6 +313,7 @@ export function multiSeedSpeedrun(input: MultiSeedInput): Effect.Effect<MultiSee
         seed: currentSeed,
         maxIterations: input.maxIterations,
         substrate: input.substrate,
+        perturbationRate: input.perturbationRate,
         tag: input.tag,
         knowledgePosture: input.knowledgePosture,
         onProgress: input.onProgress,

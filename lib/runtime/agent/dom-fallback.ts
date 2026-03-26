@@ -1,4 +1,5 @@
 import { compareStrings } from '../../domain/collections';
+import { humanizeIdentifier } from './shared';
 import { widgetCapabilityContracts } from '../../domain/widgets/contracts';
 import type {
   DomExplorationPolicy,
@@ -44,11 +45,13 @@ const DEFAULT_DOM_POLICY: DomExplorationPolicy = {
 function roleNameScore(task: GroundedStep, candidate: StepTaskElementCandidate): number {
   const loweredIntent = task.actionText.toLowerCase();
   const loweredExpected = task.expectedText.toLowerCase();
+  const combined = `${loweredIntent} ${loweredExpected}`;
   const aliases = candidate.aliases.map((alias) => alias.toLowerCase());
   const name = candidate.name?.toLowerCase() ?? '';
+  const humanizedName = humanizeIdentifier(candidate.name ?? '');
   const roleBoost = candidate.role === 'textbox' || candidate.role === 'button' ? 0.1 : 0;
-  const nameHit = name && (loweredIntent.includes(name) || loweredExpected.includes(name)) ? 0.45 : 0;
-  const aliasHit = aliases.some((alias) => loweredIntent.includes(alias) || loweredExpected.includes(alias)) ? 0.35 : 0;
+  const nameHit = name && (combined.includes(name) || combined.includes(humanizedName)) ? 0.45 : 0;
+  const aliasHit = aliases.some((alias) => combined.includes(alias) || combined.includes(humanizeIdentifier(alias))) ? 0.35 : 0;
   return Math.min(1, roleBoost + nameHit + aliasHit);
 }
 
@@ -146,11 +149,19 @@ export async function resolveFromDom(
     .filter((candidate) => compatibilityScore(action, candidate.element) > 0)
     .map((candidate) => {
       const computedRoleNameScore = roleNameScore(task, candidate.element);
+      // Boost score if ARIA label matches intent (semantic signal from the DOM)
+      const ariaLabel = (candidate.evidence as { ariaLabel?: string | null }).ariaLabel;
+      const ariaBoost = ariaLabel && ariaLabel.length > 0
+        ? (task.actionText.toLowerCase().includes(ariaLabel.toLowerCase())
+          || task.expectedText.toLowerCase().includes(ariaLabel.toLowerCase())
+          ? 0.15 : 0)
+        : 0;
+      const effectiveRoleNameScore = Math.min(1, computedRoleNameScore + ariaBoost);
       return {
         ...candidate,
         score: scoreCandidate({
           visibleCount: candidate.evidence.visibleCount,
-          roleNameScore: computedRoleNameScore,
+          roleNameScore: effectiveRoleNameScore,
           locatorRung: candidate.evidence.locatorRung,
           locatorStrategyCount: Math.max(1, candidate.evidence.locatorRung + 1),
           widgetCompatibilityScore: candidate.evidence.widgetCompatibilityScore,
@@ -158,7 +169,7 @@ export async function resolveFromDom(
         }),
         evidence: {
           ...candidate.evidence,
-          roleNameScore: computedRoleNameScore,
+          roleNameScore: effectiveRoleNameScore,
         },
       } satisfies DomResolutionCandidate;
     });

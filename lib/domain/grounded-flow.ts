@@ -31,7 +31,7 @@ function resolveDataValue(
     ?? null;
 }
 
-function deriveProvenanceKind(step: BoundStep): StepProvenanceKind {
+function deriveProvenanceKind(step: BoundStep): Exclude<StepProvenanceKind, 'agent-interpreted'> {
   if (step.binding.kind === 'unbound') return 'unresolved';
   if (step.binding.knowledgeRefs.length > 0) return 'approved-knowledge';
   if (step.resolution?.screen || step.resolution?.element) return 'explicit';

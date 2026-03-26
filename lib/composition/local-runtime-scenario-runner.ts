@@ -4,6 +4,7 @@ import { createProjectPaths } from '../application/paths';
 import { readTranslationCache, translationCacheKey, writeTranslationCache } from '../application/translation-cache';
 import { translateIntentToOntology } from '../application/translate';
 import type { TranslationProvider } from '../application/translation-provider';
+import { resolveAgentInterpreterProvider } from '../application/agent-interpreter-provider';
 import type { TranslationReceipt, TranslationRequest } from '../domain/types';
 import { createLocalRuntimeEnvironment } from '../infrastructure/runtime/local-runtime-environment';
 import { createScenarioRunState, runScenarioStep } from '../runtime/scenario';
@@ -91,6 +92,9 @@ export const LocalRuntimeScenarioRunner: RuntimeScenarioRunnerPort = {
           ? buildCachedTranslator(paths, cacheDisabled, externalProvider)
           : buildDefaultTranslator(paths, cacheDisabled);
 
+      // Resolve agent interpreter provider (session → llm-api → disabled)
+      const agentInterpreter = resolveAgentInterpreterProvider();
+
       const runtimeEnvironment = createLocalRuntimeEnvironment({
         rootDir: input.rootDir,
         suiteRoot: input.suiteRoot,
@@ -101,6 +105,7 @@ export const LocalRuntimeScenarioRunner: RuntimeScenarioRunnerPort = {
         controlSelection: input.plan.controlSelection,
         posture: input.plan.posture,
         translator,
+        agentInterpreter,
         recoveryPolicy: input.plan.recoveryPolicy,
       });
       const runState = createScenarioRunState();

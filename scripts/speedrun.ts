@@ -61,6 +61,7 @@ const maxIterations = Number(argVal('--max-iterations', '5'));
 const configPath = argVal('--config', '');
 const experimentTag = argVal('--tag', '');
 const substrate = argVal('--substrate', 'synthetic') as 'synthetic' | 'production' | 'hybrid';
+const perturbationRate = args.includes('--perturb') ? Number(argVal('--perturb', '0')) : 0;
 const explicitPosture = args.includes('--posture') ? argVal('--posture', '') as KnowledgePosture : undefined;
 
 const rootDir = process.cwd();
@@ -318,6 +319,7 @@ async function runFull(): Promise<void> {
       count,
       maxIterations,
       substrate,
+      perturbationRate: perturbationRate > 0 ? perturbationRate : undefined,
       tag: experimentTag || undefined,
       knowledgePosture,
       onProgress,

@@ -484,6 +484,7 @@ export interface ResolutionObservation {
     | 'approved-equivalent-overlay'
     | 'structured-translation'
     | 'live-dom'
+    | 'agent-interpreted'
     | 'runtime';
   readonly summary: string;
   readonly detail?: Readonly<Record<string, string>> | undefined;
@@ -554,7 +555,7 @@ export interface ResolutionGraphCandidate {
 
 export interface ResolutionGraphCandidateSet {
   readonly concern: ResolutionCandidateSummary['concern'];
-  readonly rung: Exclude<ResolutionPrecedenceRung, 'needs-human'>;
+  readonly rung: Exclude<ResolutionPrecedenceRung, 'agent-interpreted' | 'needs-human'>;
   readonly candidates: readonly ResolutionGraphCandidate[];
 }
 
@@ -630,6 +631,17 @@ export interface ResolvedWithProposalsReceipt extends ResolutionReceiptBase {
   readonly proposalDrafts: readonly ResolutionProposalDraft[];
 }
 
+export interface AgentInterpretedReceipt extends ResolutionReceiptBase {
+  readonly kind: 'agent-interpreted';
+  readonly confidence: 'agent-proposed';
+  readonly provenanceKind: 'agent-interpreted';
+  readonly target: ResolutionTarget;
+  readonly evidenceDrafts: readonly ResolutionEvidenceDraft[];
+  readonly proposalDrafts: readonly ResolutionProposalDraft[];
+  /** The agent's reasoning for its interpretation. */
+  readonly rationale: string;
+}
+
 export interface NeedsHumanReceipt extends ResolutionReceiptBase {
   readonly kind: 'needs-human';
   readonly confidence: 'unbound';
@@ -639,4 +651,4 @@ export interface NeedsHumanReceipt extends ResolutionReceiptBase {
   readonly proposalDrafts: readonly ResolutionProposalDraft[];
 }
 
-export type ResolutionReceipt = ResolvedReceipt | ResolvedWithProposalsReceipt | NeedsHumanReceipt;
+export type ResolutionReceipt = ResolvedReceipt | ResolvedWithProposalsReceipt | AgentInterpretedReceipt | NeedsHumanReceipt;

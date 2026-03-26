@@ -11,7 +11,8 @@ import { DEFAULT_PIPELINE_CONFIG } from '../../domain/types';
 import { requiresElement, allowedActionFallback } from './resolve-action';
 import { resolveFromDom } from './dom-fallback';
 import { proposalForSupplementGap, proposalsFromInterpretation } from './proposals';
-import { explicitResolvedReceipt, needsHumanReceipt } from './receipt';
+import { agentInterpretedReceipt, explicitResolvedReceipt, needsHumanReceipt } from './receipt';
+import type { AgentInterpretationRequest } from '../../application/agent-interpreter-provider';
 import { resolveOverride } from './resolve-target';
 import { selectedDomExplorationPolicy } from './select-controls';
 import { exhaustionEntry } from './shared';
@@ -461,10 +462,70 @@ export async function tryLiveDomOrFallback(stage: RuntimeAgentStageContext, acc:
     };
   }
 
+  // ─── Rung 9: Agent Interpretation ───
+  // Before falling to needs-human, try agent interpretation if available.
+  // The agent receives the full context of what was tried and the DOM state.
+  const agentInterpreter = stage.context.agentInterpreter;
+  if (agentInterpreter && agentInterpreter.kind !== 'disabled') {
+    const agentRequest: AgentInterpretationRequest = {
+      actionText: stage.task.actionText,
+      expectedText: stage.task.expectedText,
+      normalizedIntent: stage.task.normalizedIntent,
+      inferredAction: acc.action,
+      screens: stage.context.resolutionContext.screens.map((screen) => ({
+        screen: screen.screen,
+        screenAliases: screen.screenAliases,
+        elements: screen.elements.map((el) => ({
+          element: el.element,
+          name: el.name ?? null,
+          aliases: el.aliases,
+          widget: el.widget,
+          role: el.role,
+        })),
+      })),
+      exhaustionTrail: stage.exhaustion.map((entry) => ({
+        stage: entry.stage,
+        outcome: entry.outcome,
+        reason: entry.reason,
+      })),
+      domSnapshot: null,
+      priorTarget: stage.context.previousResolution ?? null,
+      taskFingerprint: stage.task.taskFingerprint,
+      knowledgeFingerprint: stage.context.resolutionContext.knowledgeFingerprint,
+    };
+
+    const agentResult = await agentInterpreter.interpret(agentRequest);
+    if (agentResult.interpreted && agentResult.target) {
+      const agentEffects: StageEffects = {
+        ...EMPTY_EFFECTS,
+        exhaustion: [
+          exhaustionEntry('live-dom', domResolver ? 'failed' : 'skipped', domResolver ? 'Live DOM did not produce a bounded candidate' : 'No live DOM resolver available'),
+          exhaustionEntry('agent-interpreted', 'resolved', agentResult.rationale),
+        ],
+        observations: [
+          ...domObservations,
+          ...(agentResult.observation ? [agentResult.observation] : []),
+        ],
+      };
+      const overlayRefs = [...acc.overlayResult.overlayRefs, ...acc.translated.overlayRefs];
+      return {
+        receipt: {
+          ...agentInterpretedReceipt(stage, agentResult.target, agentResult.rationale, overlayRefs, acc.translated.translation, agentEffects),
+          proposalDrafts: agentResult.proposalDrafts,
+        } as ResolutionReceipt,
+        effects: agentEffects,
+      };
+    }
+  }
+
+  // ─── Rung 10: Needs Human ───
   const fallbackEffects: StageEffects = {
     ...EMPTY_EFFECTS,
     exhaustion: [
       exhaustionEntry('live-dom', domResolver ? 'failed' : 'skipped', domResolver ? 'Live DOM did not produce a bounded executable candidate set' : 'No live DOM resolver was available'),
+      ...(agentInterpreter && agentInterpreter.kind !== 'disabled'
+        ? [exhaustionEntry('agent-interpreted', 'failed', 'Agent could not confidently interpret the step')]
+        : [exhaustionEntry('agent-interpreted', 'skipped', 'No agent interpreter available')]),
       exhaustionEntry('needs-human', 'failed', 'No safe executable interpretation remained after all machine paths were exhausted'),
     ],
     observations: domObservations,
@@ -475,7 +536,7 @@ export async function tryLiveDomOrFallback(stage: RuntimeAgentStageContext, acc:
       governance: 'review-required',
       reason: domResolved.candidates.length > 0
         ? 'Live DOM exploration produced an ambiguous shortlist that requires human selection.'
-        : 'No safe executable interpretation remained after exhausting explicit constraints, approved knowledge, prior evidence, live DOM exploration, and degraded resolution.',
+        : 'No safe executable interpretation remained after exhausting explicit constraints, approved knowledge, prior evidence, live DOM exploration, agent interpretation, and degraded resolution.',
       evidenceDrafts: domShortlist.map((candidate) => ({
         type: 'runtime-resolution-gap',
         trigger: 'live-dom-shortlist',

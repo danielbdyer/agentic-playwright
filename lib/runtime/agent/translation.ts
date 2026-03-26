@@ -1,5 +1,5 @@
 import type { ArtifactConfidenceRecord, ResolutionObservation, StepAction, GroundedStep, StepTaskElementCandidate, StepTaskScreenCandidate, TranslationReceipt } from '../../domain/types';
-import { normalizedCombined, bestAliasMatch, uniqueSorted } from './shared';
+import { normalizedCombined, bestAliasMatch, humanizeIdentifier, uniqueSorted } from './shared';
 import { requiresElement } from './resolve-action';
 import type { RuntimeStepAgentContext } from './types';
 
@@ -24,11 +24,19 @@ function translationCandidateScreens(task: GroundedStep, context: RuntimeStepAge
   const ranked = screens
     .map((screen) => ({
       screen,
-      score: bestAliasMatch(normalized, uniqueSorted([screen.screen, ...screen.screenAliases]))?.score ?? 0,
+      score: bestAliasMatch(normalized, expandAliases([screen.screen, ...screen.screenAliases]))?.score ?? 0,
     }))
     .sort((left, right) => right.score - left.score || left.screen.screen.localeCompare(right.screen.screen));
   const positive = ranked.filter((entry) => entry.score > 0).map((entry) => entry.screen);
   return (positive.length > 0 ? positive : ranked.map((entry) => entry.screen)).slice(0, 3);
+}
+
+/** Expand alias set to include humanized (camelCase → space-separated) variants. */
+function expandAliases(aliases: readonly string[]): readonly string[] {
+  return uniqueSorted(aliases.flatMap((alias) => {
+    const humanized = humanizeIdentifier(alias);
+    return humanized !== alias ? [alias, humanized] : [alias];
+  }));
 }
 
 function translationCandidateElements(task: GroundedStep, screen: StepTaskScreenCandidate): StepTaskElementCandidate[] {
@@ -46,7 +54,7 @@ function translationCandidateElements(task: GroundedStep, screen: StepTaskScreen
   const ranked = elements
     .map((element) => ({
       element,
-      score: bestAliasMatch(normalized, uniqueSorted([element.element, element.name ?? '', ...element.aliases]))?.score ?? 0,
+      score: bestAliasMatch(normalized, expandAliases([element.element, element.name ?? '', ...element.aliases]))?.score ?? 0,
     }))
     .sort((left, right) => right.score - left.score || left.element.element.localeCompare(right.element.element));
   const positive = ranked.filter((entry) => entry.score > 0).map((entry) => entry.element);

@@ -183,6 +183,47 @@ const COLLOQUIAL_ACTION_TEMPLATES: readonly string[] = [
   'Look at the {element}',
 ];
 
+// ─── Vocabulary Perturbation (generalization stress test) ───
+// These substitutions replace known aliases with synonyms/abbreviations
+// that do NOT exist in the knowledge base, testing whether the resolution
+// pipeline can generalize beyond memorized vocabulary.
+
+const SYNONYM_SUBSTITUTIONS: ReadonlyArray<readonly [RegExp, readonly string[]]> = [
+  [/\bpolicy\b/gi, ['insurance record', 'coverage', 'pol', 'acct policy']],
+  [/\bsearch\b/gi, ['find', 'lookup', 'query', 'look up']],
+  [/\bresults?\b/gi, ['outcome', 'matches', 'hits', 'findings']],
+  [/\bbutton\b/gi, ['btn', 'control', 'action']],
+  [/\bfield\b/gi, ['input', 'box', 'entry', 'textbox']],
+  [/\btable\b/gi, ['grid', 'list', 'data view']],
+  [/\benter\b/gi, ['type', 'key in', 'put', 'input']],
+  [/\bclick\b/gi, ['press', 'tap', 'hit', 'activate']],
+  [/\bnavigate\b/gi, ['go', 'proceed', 'head']],
+  [/\bscreen\b/gi, ['page', 'view', 'form']],
+  [/\bnumber\b/gi, ['num', 'no', '#', 'ID']],
+  [/\bdetail\b/gi, ['info', 'summary', 'overview']],
+  [/\bverify\b/gi, ['check', 'confirm', 'validate', 'assert']],
+  [/\bopen\b/gi, ['launch', 'pull up', 'bring up']],
+  [/\beffective date\b/gi, ['start date', 'inception date', 'eff date']],
+  [/\bclaims?\b/gi, ['incidents', 'cases', 'filings']],
+  [/\bstatus\b/gi, ['state', 'condition', 'disposition']],
+  [/\bvalidation\b/gi, ['error', 'warning', 'alert']],
+];
+
+/** Apply random synonym substitutions to step text, introducing vocabulary
+ *  the knowledge base has never seen. Returns perturbed text and a flag. */
+function perturbStepText(text: string, perturbationRate: number, rng: () => number): { text: string; perturbed: boolean } {
+  let result = text;
+  let changed = false;
+  for (const [pattern, synonyms] of SYNONYM_SUBSTITUTIONS) {
+    if (rng() < perturbationRate && pattern.test(result)) {
+      const synonym = synonyms[Math.floor(rng() * synonyms.length)]!;
+      result = result.replace(pattern, synonym);
+      changed = true;
+    }
+  }
+  return { text: result, perturbed: changed };
+}
+
 // ─── Element Action Classification ───
 
 function classifyWidget(widget: string): ActionType {
@@ -671,6 +712,10 @@ export interface GenerateSyntheticScenariosOptions {
   readonly seed: string;
   readonly outputDir?: string;
   readonly catalog?: import('../catalog').WorkspaceCatalog | undefined;
+  /** Rate [0,1] at which step text is perturbed with synonyms NOT in the knowledge base.
+   *  0 = no perturbation (default), 0.5 = ~50% of substitution opportunities applied.
+   *  Use > 0 to stress-test resolution generalization beyond memorized vocabulary. */
+  readonly perturbationRate?: number | undefined;
 }
 
 export interface GenerateSyntheticScenariosResult {
@@ -779,7 +824,19 @@ export function generateSyntheticScenarios(options: GenerateSyntheticScenariosOp
       const suiteDir = `${outputDir}/${screenId}`;
       yield* fs.ensureDir(suiteDir);
 
-      const yaml = scenarioToYaml(adoId, scenario.title, suite, scenario.steps);
+      // Apply vocabulary perturbation if requested (generalization stress test)
+      const perturbRate = options.perturbationRate ?? 0;
+      const perturbedSteps = perturbRate > 0
+        ? scenario.steps.map((step) => {
+            const p1 = perturbStepText(step.action_text, perturbRate, rng);
+            const p2 = perturbStepText(step.expected_text, perturbRate, rng);
+            return p1.perturbed || p2.perturbed
+              ? { ...step, action_text: p1.text, expected_text: p2.text, intent: p1.text }
+              : step;
+          })
+        : scenario.steps;
+
+      const yaml = scenarioToYaml(adoId, scenario.title, suite, perturbedSteps);
       const filePath = `${suiteDir}/${adoId}.scenario.yaml`;
       yield* fs.writeText(filePath, yaml);
       files.push(filePath);

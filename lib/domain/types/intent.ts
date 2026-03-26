@@ -186,7 +186,7 @@ export interface GroundedFlowStep {
   readonly confidence: Confidence;
   readonly governance: Governance;
   readonly bindingKind: StepBindingKind;
-  readonly provenanceKind: 'explicit' | 'approved-knowledge' | 'live-exploration' | 'unresolved';
+  readonly provenanceKind: 'explicit' | 'approved-knowledge' | 'live-exploration' | 'agent-interpreted' | 'unresolved';
   readonly normalizedIntent: string;
   readonly knowledgeRefs: ReadonlyArray<string>;
   readonly supplementRefs: ReadonlyArray<string>;

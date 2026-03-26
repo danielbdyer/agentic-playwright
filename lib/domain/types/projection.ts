@@ -298,7 +298,7 @@ export interface ScenarioExplanationStep {
   readonly resolutionMode: ResolutionMode;
   readonly translation?: TranslationReceipt | null | undefined;
   readonly runtime?: {
-    status: 'pending' | 'resolved' | 'resolved-with-proposals' | 'needs-human';
+    status: 'pending' | 'resolved' | 'resolved-with-proposals' | 'agent-interpreted' | 'needs-human';
     runId?: string | null | undefined;
     resolutionMode?: ResolutionMode | null | undefined;
     widgetContract?: string | null | undefined;
