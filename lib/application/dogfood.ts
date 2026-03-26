@@ -222,12 +222,15 @@ function runIteration(iteration: number, options: DogfoodOptions) {
     : 'warm-start';
 
   return Effect.gen(function* () {
-    // Step 1: refresh only tag-matching scenarios (compile-scope: scenarios + knowledge + controls)
+    // Step 1: Load catalog once for the iteration (compile-scope: scenarios + knowledge + controls)
     const catalog = yield* loadWorkspaceCatalog({
       paths: options.paths,
       knowledgePosture: iterationPosture,
       scope: 'compile',
     });
+
+    // Step 1b: Refresh only tag-matching scenarios. Concurrency bounded to 3
+    // to balance throughput against memory pressure from parallel compiles.
     const tag = options.tag ?? null;
     const scenarioIds = catalog.scenarios
       .map((entry) => entry.artifact)
@@ -235,10 +238,11 @@ function runIteration(iteration: number, options: DogfoodOptions) {
       .map((scenario) => scenario.source.ado_id);
     yield* Effect.all(
       scenarioIds.map((adoId) => refreshScenario({ adoId: adoId as AdoId, paths: options.paths })),
-      { concurrency: 1 },
+      { concurrency: 3 },
     );
 
-    // Step 2: run all scenarios
+    // Step 2: run all scenarios (runScenarioSelection loads its own fresh catalog
+    // to pick up any artifacts written during the refresh step above)
     const runResult = yield* runScenarioSelection({
       paths: options.paths,
       tag: options.tag,
