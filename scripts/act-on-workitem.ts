@@ -1,20 +1,24 @@
 /**
- * Agent work item transactor — act on individual workbench items.
+ * Agent work item transactor — thin CLI wrapper over the workbench domain.
  *
- * Usage from Claude Code:
- *   npx tsx scripts/act-on-workitem.ts --item-id <id> --action approve
- *   npx tsx scripts/act-on-workitem.ts --item-id <id> --action skip --reason "not relevant"
- *   npx tsx scripts/act-on-workitem.ts --list                    # list pending items
- *   npx tsx scripts/act-on-workitem.ts --next                    # show top-priority item
- *   npx tsx scripts/act-on-workitem.ts --complete-all-skippable  # skip all low-priority items
+ * All domain logic lives in lib/application/agent-workbench.ts.
+ * This script just parses args, calls Effect programs, and formats output.
+ *
+ * Usage:
+ *   npx tsx scripts/act-on-workitem.ts --list
+ *   npx tsx scripts/act-on-workitem.ts --next
+ *   npx tsx scripts/act-on-workitem.ts --complete <id> [--reason "..."]
+ *   npx tsx scripts/act-on-workitem.ts --skip <id> [--reason "..."]
+ *   npx tsx scripts/act-on-workitem.ts --skip-below <threshold>
+ *
+ * Prefer: npm run build && node dist/bin/tesseract.js workbench --list
  */
 
-import * as fs from 'fs';
 import * as path from 'path';
 import { createProjectPaths } from '../lib/application/paths';
-import { completeWorkItem } from '../lib/application/agent-workbench';
+import { loadAgentWorkbench, nextWorkItem, completeWorkItem } from '../lib/application/agent-workbench';
 import { runWithLocalServices } from '../lib/composition/local-services';
-import type { AgentWorkbenchProjection, AgentWorkItem, WorkItemCompletion } from '../lib/domain/types';
+import type { AgentWorkItem, WorkItemCompletion } from '../lib/domain/types';
 
 const args = process.argv.slice(2);
 function argVal(name: string, fallback: string): string {
@@ -24,37 +28,11 @@ function argVal(name: string, fallback: string): string {
 
 const rootDir = process.cwd();
 const paths = createProjectPaths(rootDir, path.join(rootDir, 'dogfood'));
-const workbenchPath = paths.workbenchIndexPath;
-
-function loadWorkbench(): AgentWorkbenchProjection | null {
-  try {
-    const projection = JSON.parse(fs.readFileSync(workbenchPath, 'utf8')) as AgentWorkbenchProjection;
-    // Cross-reference completions to filter out completed items
-    try {
-      const completions = JSON.parse(fs.readFileSync(path.join(paths.workbenchDir, 'completions.json'), 'utf8')) as WorkItemCompletion[];
-      const completedIds = new Set(completions.map((c) => c.workItemId));
-      const pending = projection.items.filter((item) => !completedIds.has(item.id));
-      return {
-        ...projection,
-        items: pending,
-        completions,
-        summary: {
-          ...projection.summary,
-          pending: pending.length,
-          completed: completions.length,
-        },
-      };
-    } catch {
-      return projection;
-    }
-  } catch {
-    return null;
-  }
-}
+const serviceOptions = { suiteRoot: paths.suiteRoot };
 
 function printItem(item: AgentWorkItem, index: number): void {
-  const status = item.priority >= 0.5 ? '!' : ' ';
-  console.log(`  ${status} [${index + 1}] ${item.kind} (${item.priority.toFixed(3)}) ${item.title}`);
+  const marker = item.priority >= 0.5 ? '!' : ' ';
+  console.log(`  ${marker} [${index + 1}] ${item.kind} (${item.priority.toFixed(3)}) ${item.title}`);
   console.log(`      id: ${item.id}`);
   if (item.context.screen) console.log(`      screen: ${item.context.screen}`);
   if (item.actions.length > 0) {
@@ -63,132 +41,74 @@ function printItem(item: AgentWorkItem, index: number): void {
 }
 
 async function main(): Promise<void> {
-  const workbench = loadWorkbench();
-  if (!workbench) {
-    console.log('No workbench found. Run agent-speedrun first.');
-    process.exit(1);
-  }
-
-  // --list: show all pending items
   if (args.includes('--list')) {
-    console.log(`Agent Workbench: ${workbench.summary.pending} pending, ${workbench.summary.completed} completed\n`);
-    workbench.items.forEach(printItem);
+    const wb = await runWithLocalServices(loadAgentWorkbench({ paths }), rootDir, serviceOptions);
+    if (!wb) { console.log('No workbench found. Run a speedrun first.'); return; }
+    console.log(`Agent Workbench: ${wb.summary.pending} pending, ${wb.summary.completed} completed\n`);
+    wb.items.forEach(printItem);
     return;
   }
 
-  // --next: show top-priority item with full context
   if (args.includes('--next')) {
-    const top = workbench.items[0];
-    if (!top) {
-      console.log('No pending work items.');
-      return;
-    }
-    console.log('Top priority work item:\n');
-    console.log(`  Kind:     ${top.kind}`);
-    console.log(`  Priority: ${top.priority.toFixed(3)}`);
-    console.log(`  Title:    ${top.title}`);
-    console.log(`  Rationale: ${top.rationale}`);
-    console.log(`  ID:       ${top.id}`);
-    if (top.context.screen) console.log(`  Screen:   ${top.context.screen}`);
-    if (top.context.element) console.log(`  Element:  ${top.context.element}`);
-    console.log(`  Evidence: confidence=${top.evidence.confidence.toFixed(2)}, sources=${top.evidence.sources.length}`);
+    const item = await runWithLocalServices(nextWorkItem({ paths }), rootDir, serviceOptions);
+    if (!item) { console.log('No pending work items.'); return; }
+    console.log(`Top priority:\n`);
+    console.log(`  Kind:     ${item.kind}`);
+    console.log(`  Priority: ${item.priority.toFixed(3)}`);
+    console.log(`  Title:    ${item.title}`);
+    console.log(`  Rationale: ${item.rationale}`);
+    console.log(`  ID:       ${item.id}`);
+    if (item.context.screen) console.log(`  Screen:   ${item.context.screen}`);
     console.log(`\n  Actions:`);
-    for (const action of top.actions) {
+    for (const action of item.actions) {
       console.log(`    ${action.kind}: ${action.target.label}`);
       if (action.params.command) console.log(`      command: ${action.params.command}`);
-      if (action.params.targetPath) console.log(`      target: ${action.params.targetPath}`);
     }
-    console.log(`\n  To act: npx tsx scripts/act-on-workitem.ts --item-id ${top.id} --action approve`);
-    console.log(`  To skip: npx tsx scripts/act-on-workitem.ts --item-id ${top.id} --action skip --reason "..."`);
     return;
   }
 
-  // --item-id + --action: complete a specific item
-  const itemId = argVal('--item-id', '');
-  const action = argVal('--action', '');
+  const completeId = args.includes('--complete') ? argVal('--complete', '') : '';
+  const skipId = args.includes('--skip') ? argVal('--skip', '') : '';
   const reason = argVal('--reason', '');
 
-  if (itemId && action) {
-    const item = workbench.items.find((i) => i.id === itemId || i.id.startsWith(itemId));
-    if (!item) {
-      console.error(`Work item not found: ${itemId}`);
-      console.log('Available items:');
-      workbench.items.forEach(printItem);
-      process.exit(1);
-    }
-
-    const status = action === 'skip' ? 'skipped' as const
-      : action === 'approve' || action === 'author' || action === 'rerun' ? 'completed' as const
-      : 'completed' as const;
-
+  if (completeId || skipId) {
+    const id = completeId || skipId;
+    const status = completeId ? 'completed' as const : 'skipped' as const;
     const completion: WorkItemCompletion = {
-      workItemId: item.id,
+      workItemId: id,
       status,
       completedAt: new Date().toISOString(),
-      rationale: reason || `Agent ${action}: ${item.title}`,
+      rationale: reason || `${status} via CLI`,
       artifactsWritten: [],
     };
-
-    await runWithLocalServices(
-      completeWorkItem({ paths, completion }),
-      rootDir,
-      { suiteRoot: paths.suiteRoot },
-    );
-
-    console.log(`${status === 'completed' ? '✓' : '○'} ${item.kind}: ${item.title}`);
-    console.log(`  Status: ${status}`);
-    console.log(`  Rationale: ${completion.rationale}`);
-
-    // Show next item
-    const remaining = workbench.items.filter((i) => i.id !== item.id);
-    if (remaining.length > 0) {
-      console.log(`\n  Next: [${remaining[0]!.kind}] ${remaining[0]!.title} (${remaining[0]!.priority.toFixed(3)})`);
-      console.log(`  ${remaining.length} items remaining.`);
-    } else {
-      console.log('\n  All work items completed!');
-    }
+    await runWithLocalServices(completeWorkItem({ paths, completion }), rootDir, serviceOptions);
+    console.log(`${status === 'completed' ? '✓' : '○'} ${id}: ${completion.rationale}`);
     return;
   }
 
-  // --complete-all-skippable: skip items below a priority threshold
-  if (args.includes('--complete-all-skippable')) {
-    const threshold = Number(argVal('--threshold', '0.4'));
-    const skippable = workbench.items.filter((i) => i.priority < threshold);
-    if (skippable.length === 0) {
-      console.log(`No items below priority ${threshold}.`);
-      return;
+  if (args.includes('--skip-below')) {
+    const threshold = Number(argVal('--skip-below', '0.4'));
+    const wb = await runWithLocalServices(loadAgentWorkbench({ paths }), rootDir, serviceOptions);
+    if (!wb) { console.log('No workbench found.'); return; }
+    const toSkip = wb.items.filter((i) => i.priority < threshold);
+    for (const item of toSkip) {
+      await runWithLocalServices(completeWorkItem({
+        paths,
+        completion: {
+          workItemId: item.id,
+          status: 'skipped',
+          completedAt: new Date().toISOString(),
+          rationale: `Auto-skipped: priority ${item.priority.toFixed(3)} below ${threshold}`,
+          artifactsWritten: [],
+        },
+      }), rootDir, serviceOptions);
+      console.log(`  ○ ${item.title} (${item.priority.toFixed(3)})`);
     }
-
-    for (const item of skippable) {
-      const completion: WorkItemCompletion = {
-        workItemId: item.id,
-        status: 'skipped',
-        completedAt: new Date().toISOString(),
-        rationale: `Auto-skipped: priority ${item.priority.toFixed(3)} below threshold ${threshold}`,
-        artifactsWritten: [],
-      };
-      await runWithLocalServices(
-        completeWorkItem({ paths, completion }),
-        rootDir,
-        { suiteRoot: paths.suiteRoot },
-      );
-      console.log(`  ○ skipped: ${item.title} (${item.priority.toFixed(3)})`);
-    }
-    console.log(`\nSkipped ${skippable.length} items. ${workbench.items.length - skippable.length} remaining.`);
+    console.log(`\nSkipped ${toSkip.length}. ${wb.items.length - toSkip.length} remaining.`);
     return;
   }
 
-  // Default: show summary
-  console.log(`Agent Workbench: ${workbench.summary.pending} pending, ${workbench.summary.completed} completed`);
-  console.log('');
-  console.log('Commands:');
-  console.log('  --list                    List all pending items');
-  console.log('  --next                    Show top-priority item with context');
-  console.log('  --item-id <id> --action <approve|skip|author>   Act on an item');
-  console.log('  --complete-all-skippable  Skip all items below threshold');
+  console.log('Usage: --list | --next | --complete <id> | --skip <id> | --skip-below <threshold>');
 }
 
-main().catch((error) => {
-  console.error('Work item transactor failed:', error);
-  process.exit(1);
-});
+main().catch((e) => { console.error(e); process.exit(1); });

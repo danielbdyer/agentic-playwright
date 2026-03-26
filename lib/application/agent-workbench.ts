@@ -259,6 +259,45 @@ export function completeWorkItem(options: {
   });
 }
 
+// ─── Query Functions (used by CLI and agent sessions) ───
+
+/** Load the workbench projection with completions cross-referenced.
+ *  Returns pending items only (completed items filtered out). */
+export function loadAgentWorkbench(options: {
+  readonly paths: ProjectPaths;
+}) {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const exists = yield* fs.exists(options.paths.workbenchIndexPath);
+    if (!exists) return null;
+    const raw = yield* fs.readJson(options.paths.workbenchIndexPath);
+    const projection = raw as AgentWorkbenchProjection;
+    const completions = yield* loadCompletions(fs, options.paths);
+    const completedIds = new Set(completions.map((c) => c.workItemId));
+    const pending = projection.items.filter((item) => !completedIds.has(item.id));
+    return {
+      ...projection,
+      items: pending,
+      completions,
+      summary: {
+        ...projection.summary,
+        pending: pending.length,
+        completed: completions.length,
+      },
+    } satisfies AgentWorkbenchProjection;
+  }).pipe(Effect.catchAll(() => Effect.succeed(null)));
+}
+
+/** Return the highest-priority pending work item, or null if none. */
+export function nextWorkItem(options: {
+  readonly paths: ProjectPaths;
+}) {
+  return Effect.gen(function* () {
+    const workbench = yield* loadAgentWorkbench(options);
+    return workbench?.items[0] ?? null;
+  });
+}
+
 // ─── Effect Projection ───
 
 export function emitAgentWorkbench(options: {

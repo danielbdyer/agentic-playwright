@@ -15,9 +15,9 @@
  * and provide the LLM endpoint via environment variables.
  */
 
-import * as fs from 'fs';
 import * as path from 'path';
 import { createProjectPaths } from '../lib/application/paths';
+import { loadAgentWorkbench } from '../lib/application/agent-workbench';
 import { multiSeedSpeedrun } from '../lib/application/speedrun';
 import { resolveKnowledgePosture } from '../lib/application/knowledge-posture';
 import { resolveAgentInterpreterProvider, type AgentInterpreterProvider } from '../lib/application/agent-interpreter-provider';
@@ -134,22 +134,24 @@ async function main(): Promise<void> {
     console.log(`\n  All steps resolved — no human review needed.`);
   }
 
-  // Print workbench summary if available
-  try {
-    const workbenchPath = path.join(rootDir, '.tesseract', 'workbench', 'index.json');
-    const workbench = JSON.parse(fs.readFileSync(workbenchPath, 'utf8')) as { summary: { total: number; byKind: Record<string, number>; topPriority: { title: string; kind: string; priority: number } | null } };
-    if (workbench.summary.total > 0) {
-      console.log('\n=== Agent Workbench ===');
-      console.log(`  ${workbench.summary.total} work items:`);
-      for (const [kind, count] of Object.entries(workbench.summary.byKind)) {
-        if (count > 0) console.log(`    ${kind}: ${count}`);
-      }
-      if (workbench.summary.topPriority) {
-        console.log(`  Top priority: [${workbench.summary.topPriority.kind}] ${workbench.summary.topPriority.title} (score=${workbench.summary.topPriority.priority})`);
-      }
-      console.log(`  View: cat .tesseract/workbench/index.json | jq '.items[] | {kind, priority, title}'`);
+  // Print workbench summary via domain function
+  const workbench = await runWithLocalServices(
+    loadAgentWorkbench({ paths }),
+    rootDir,
+    { suiteRoot: paths.suiteRoot },
+  );
+  if (workbench && workbench.summary.total > 0) {
+    console.log('\n=== Agent Workbench ===');
+    console.log(`  ${workbench.summary.pending} pending, ${workbench.summary.completed} completed:`);
+    for (const [kind, count] of Object.entries(workbench.summary.byKind)) {
+      if (count > 0) console.log(`    ${kind}: ${count}`);
     }
-  } catch { /* workbench not generated yet */ }
+    if (workbench.summary.topPriority) {
+      console.log(`  Top priority: [${workbench.summary.topPriority.kind}] ${workbench.summary.topPriority.title} (score=${workbench.summary.topPriority.priority})`);
+    }
+    console.log(`  Transact: npx tsx scripts/act-on-workitem.ts --next`);
+    console.log(`  Or:       node dist/bin/tesseract.js workbench --next`);
+  }
 }
 
 main().catch((error) => {
