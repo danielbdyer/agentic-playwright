@@ -6,7 +6,7 @@ import { buildDerivedGraph } from './graph';
 import { writeAgentSessionLedger } from './agent-session-ledger';
 import { emitScenario } from './emit';
 import { emitOperatorInbox } from './inbox';
-import { projectLearningArtifacts } from './learning';
+import { projectLearningFragments, rebuildLearningManifest } from './learning';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
 import type { ProjectPaths } from './paths';
 import {
@@ -29,15 +29,21 @@ import { foldScenarioRun } from './execution/fold';
 import { resolveEffectConcurrency } from './concurrency';
 
 type RunScenarioOptions = {
-  adoId: AdoId;
-  paths: ProjectPaths;
-  catalog?: WorkspaceCatalog | undefined;
-  interpreterMode?: 'dry-run' | 'diagnostic';
-  runbookName?: string | undefined;
-  posture?: ExecutionPosture | undefined;
-  disableTranslation?: boolean | undefined;
-  disableTranslationCache?: boolean | undefined;
-  providerId?: string | undefined;
+  readonly adoId: AdoId;
+  readonly paths: ProjectPaths;
+  readonly catalog?: WorkspaceCatalog | undefined;
+  readonly interpreterMode?: 'dry-run' | 'diagnostic';
+  readonly runbookName?: string | undefined;
+  readonly posture?: ExecutionPosture | undefined;
+  readonly disableTranslation?: boolean | undefined;
+  readonly disableTranslationCache?: boolean | undefined;
+  readonly providerId?: string | undefined;
+  /**
+   * When true, skip `activateProposalBundle` (shared knowledge file writes).
+   * Use this in batch/concurrent execution paths to avoid race conditions on
+   * shared files. The dogfood loop handles activation sequentially in Step 4.
+   */
+  readonly skipProposalActivation?: boolean | undefined;
 };
 
 /**
@@ -106,17 +112,21 @@ export function runScenarioCore(options: RunScenarioOptions) {
           evidenceWrites: evidenceStage.evidenceWrites,
           evidenceCatalog: catalog,
         });
-        const activationStage = yield* activateProposalBundle({
-          paths: options.paths,
-          proposalBundle: proposalStage.proposalBundle,
-        });
+        // In batch mode, defer activation to the sequential post-batch step
+        // to avoid race conditions on shared knowledge files.
+        const activationStage = options.skipProposalActivation
+          ? { proposalBundle: proposalStage.proposalBundle, activatedPaths: [] as readonly string[], blockedProposalIds: [] as readonly string[] }
+          : yield* activateProposalBundle({
+              paths: options.paths,
+              proposalBundle: proposalStage.proposalBundle,
+            });
         const runRecordStage = buildRunRecord({
           plan,
           fold,
           stepResults: executionStage.stepResults,
           evidenceWrites: evidenceStage.evidenceWrites,
         });
-        const learning = yield* projectLearningArtifacts({
+        const learning = yield* projectLearningFragments({
           paths: options.paths,
           boundScenario: boundScenarioEntry.artifact,
           surface: surfaceEntry.artifact,
@@ -137,7 +147,7 @@ export function runScenarioCore(options: RunScenarioOptions) {
           interfaceGraph: catalog.interfaceGraph?.artifact ?? null,
           selectorCanon: catalog.selectorCanon?.artifact ?? null,
           proposalBundle: activationStage.proposalBundle,
-          learningManifest: learning.manifest,
+          learningManifest: null,
         });
 
         const interpretationFile = interpretationPath(options.paths, options.adoId, plan.runId);
@@ -183,6 +193,8 @@ export function runScenarioCore(options: RunScenarioOptions) {
  */
 export function runScenarioProjections(options: { adoId: AdoId; paths: ProjectPaths }) {
   return Effect.gen(function* () {
+    // Rebuild learning manifest first — emit reads it from the catalog.
+    yield* rebuildLearningManifest({ paths: options.paths });
     const postWriteCatalog = yield* loadWorkspaceCatalog({ paths: options.paths });
     return yield* Effect.all({
       confidence: projectConfidenceOverlayCatalog({ paths: options.paths, catalog: postWriteCatalog }),
@@ -253,7 +265,10 @@ export function runScenarioSelection(options: {
       : yield* Effect.gen(function* () {
           const concurrency = resolveEffectConcurrency();
           const coreRuns = yield* Effect.all(
-            selection.adoIds.map((adoId) => runScenarioCore(buildRunOptions(adoId as AdoId))),
+            selection.adoIds.map((adoId) => runScenarioCore({
+              ...buildRunOptions(adoId as AdoId),
+              skipProposalActivation: true,
+            })),
             { concurrency },
           );
           // Single catalog reload + global projections after all runs complete
@@ -261,6 +276,7 @@ export function runScenarioSelection(options: {
           const { confidence, graph } = yield* Effect.all({
             confidence: projectConfidenceOverlayCatalog({ paths: options.paths, catalog: postWriteCatalog }),
             graph: buildDerivedGraph({ paths: options.paths, catalog: postWriteCatalog }),
+            learningManifest: rebuildLearningManifest({ paths: options.paths }),
           }, { concurrency: 'unbounded' });
           // Per-scenario projections (emit + inbox) can run concurrently
           const perScenario = yield* Effect.all(
@@ -278,6 +294,14 @@ export function runScenarioSelection(options: {
           }));
         });
 
+    // Load a post-run catalog after all writes complete so callers don't
+    // need a redundant reload just to read run records and proposals.
+    const postRunCatalog = yield* loadWorkspaceCatalog({
+      paths: options.paths,
+      knowledgePosture: 'warm-start',
+      scope: 'post-run',
+    });
+
     return {
       selection: {
         adoIds: selection.adoIds,
@@ -285,6 +309,8 @@ export function runScenarioSelection(options: {
         tag: options.tag ?? null,
       },
       runs,
+      /** Post-write catalog loaded after all runs complete. Reuse to avoid redundant loads. */
+      catalog: postRunCatalog,
     };
   });
 }

@@ -183,15 +183,23 @@ function rebuildManifest(fs: FileSystemPort, paths: ProjectPaths) {
   });
 }
 
-export function projectLearningArtifacts(input: {
-  paths: ProjectPaths;
-  boundScenario: BoundScenario;
-  surface: ScenarioInterpretationSurface;
-  interfaceGraph?: ApplicationInterfaceGraph | null | undefined;
-  selectorCanon?: SelectorCanon | null | undefined;
-  runRecord?: RunRecord | null | undefined;
-  proposalBundle?: ProposalBundle | null | undefined;
-  sessionId?: string | null | undefined;
+/**
+ * Write per-scenario learning fragments only — no manifest rebuild.
+ * Safe for concurrent execution across scenarios because each scenario
+ * writes to its own namespaced files.
+ *
+ * Call `rebuildLearningManifest` once after the batch to build the global
+ * manifest from all fragment files on disk.
+ */
+export function projectLearningFragments(input: {
+  readonly paths: ProjectPaths;
+  readonly boundScenario: BoundScenario;
+  readonly surface: ScenarioInterpretationSurface;
+  readonly interfaceGraph?: ApplicationInterfaceGraph | null | undefined;
+  readonly selectorCanon?: SelectorCanon | null | undefined;
+  readonly runRecord?: RunRecord | null | undefined;
+  readonly proposalBundle?: ProposalBundle | null | undefined;
+  readonly sessionId?: string | null | undefined;
 }) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
@@ -226,13 +234,50 @@ export function projectLearningArtifacts(input: {
         })
       : [];
 
+    return { artifactPaths: [...basePaths, ...runRecordPaths] };
+  });
+}
+
+/**
+ * Rebuild the global learning manifest from all fragment files on disk.
+ * Call this once after a batch of `projectLearningFragments` calls complete.
+ */
+export function rebuildLearningManifest(input: {
+  readonly paths: ProjectPaths;
+}) {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
     const manifest = yield* rebuildManifest(fs, input.paths);
     yield* fs.writeJson(input.paths.learningManifestPath, manifest);
-    const rewritten = [...basePaths, ...runRecordPaths, relativeProjectPath(input.paths, input.paths.learningManifestPath)];
     return {
       manifest,
       manifestPath: input.paths.learningManifestPath,
-      artifactPaths: rewritten,
+    };
+  });
+}
+
+/**
+ * Full learning projection: write per-scenario fragments + rebuild global
+ * manifest. Use this for single-scenario paths (tests, CLI). For batch
+ * compilation, prefer `projectLearningFragments` + `rebuildLearningManifest`.
+ */
+export function projectLearningArtifacts(input: {
+  readonly paths: ProjectPaths;
+  readonly boundScenario: BoundScenario;
+  readonly surface: ScenarioInterpretationSurface;
+  readonly interfaceGraph?: ApplicationInterfaceGraph | null | undefined;
+  readonly selectorCanon?: SelectorCanon | null | undefined;
+  readonly runRecord?: RunRecord | null | undefined;
+  readonly proposalBundle?: ProposalBundle | null | undefined;
+  readonly sessionId?: string | null | undefined;
+}) {
+  return Effect.gen(function* () {
+    const { artifactPaths } = yield* projectLearningFragments(input);
+    const { manifest, manifestPath } = yield* rebuildLearningManifest({ paths: input.paths });
+    return {
+      manifest,
+      manifestPath,
+      artifactPaths: [...artifactPaths, relativeProjectPath(input.paths, manifestPath)],
     } satisfies LearningProjectionResult;
   });
 }

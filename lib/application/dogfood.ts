@@ -6,6 +6,8 @@ import { buildPartialFitnessMetrics } from './fitness';
 import { improvementLoopLedgerPath, type ProjectPaths } from './paths';
 import { refreshScenarioCore } from './refresh';
 import { buildDerivedGraph } from './graph';
+import { projectInterfaceIntelligence } from './interface-intelligence';
+import { rebuildLearningManifest } from './learning';
 import { generateTypes } from './types';
 import { resolveEffectConcurrency } from './concurrency';
 import { runScenarioSelection } from './run';
@@ -235,7 +237,15 @@ function runIteration(iteration: number, options: DogfoodOptions) {
       scope: 'compile',
     });
 
-    // Step 1b: Refresh tag-matching scenarios. Core compilation (parse, bind,
+    // Step 1b: Project interface intelligence once (catalog-global, not
+    // scenario-specific) before the concurrent compile pass. This eliminates
+    // both redundant O(N) work and race conditions on shared interface files.
+    const interfaceIntelligence = yield* projectInterfaceIntelligence({
+      paths: options.paths,
+      catalog,
+    });
+
+    // Step 1c: Refresh tag-matching scenarios. Core compilation (parse, bind,
     // emit) runs concurrently — only the global graph+types derivation is
     // deferred to a single pass afterward.
     const tag = options.tag ?? null;
@@ -245,13 +255,21 @@ function runIteration(iteration: number, options: DogfoodOptions) {
       .map((scenario) => scenario.source.ado_id);
     const compileConcurrency = resolveEffectConcurrency();
     yield* Effect.all(
-      scenarioIds.map((adoId) => refreshScenarioCore({ adoId: adoId as AdoId, paths: options.paths, catalog })),
+      scenarioIds.map((adoId) => refreshScenarioCore({
+        adoId: adoId as AdoId,
+        paths: options.paths,
+        catalog,
+        interfaceIntelligence,
+      })),
       { concurrency: compileConcurrency },
     );
-    // Single pass for global projections after all scenarios are compiled
+    // Single pass for global projections after all scenarios are compiled.
+    // Learning manifest is rebuilt here (not per-scenario) to avoid the
+    // race condition where concurrent directory walks miss in-flight writes.
     yield* Effect.all({
       graph: buildDerivedGraph({ paths: options.paths }),
       generatedTypes: generateTypes({ paths: options.paths }),
+      learningManifest: rebuildLearningManifest({ paths: options.paths }),
     }, { concurrency: 'unbounded' });
 
     // Step 2: load a single fresh catalog after refresh, then thread it to all scenario runs.
@@ -270,12 +288,9 @@ function runIteration(iteration: number, options: DogfoodOptions) {
       interpreterMode: options.interpreterMode ?? 'diagnostic',
     });
 
-    // Step 3: collect trace metrics (post-run scope: includes runs + proposals, skips sessions/evidence)
-    const postRunCatalog = yield* loadWorkspaceCatalog({
-      paths: options.paths,
-      knowledgePosture: 'warm-start',
-      scope: 'post-run',
-    });
+    // Step 3: collect trace metrics — reuse the catalog returned from runScenarioSelection
+    // instead of loading a redundant post-run catalog.
+    const postRunCatalog = runResult.catalog;
     const metrics = computeTraceMetrics(postRunCatalog.runRecords as never);
 
     // Step 3b: compute per-iteration resolution-by-rung breakdown

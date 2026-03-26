@@ -1,7 +1,7 @@
 import { Effect } from 'effect';
 import type { AdoId } from '../domain/identity';
 import type { WorkspaceCatalog } from './catalog';
-import { compileScenario, compileScenarioCore } from './compile';
+import { compileScenario, compileScenarioCore, type InterfaceIntelligenceResult } from './compile';
 import { syncSnapshots } from './sync';
 import type { ProjectPaths } from './paths';
 
@@ -10,7 +10,12 @@ import type { ProjectPaths } from './paths';
  * Use this when refreshing multiple scenarios concurrently; call
  * `buildDerivedGraph` and `generateTypes` once afterward.
  */
-export function refreshScenarioCore(options: { adoId: AdoId; paths: ProjectPaths; catalog?: WorkspaceCatalog }) {
+export function refreshScenarioCore(options: {
+  readonly adoId: AdoId;
+  readonly paths: ProjectPaths;
+  readonly catalog?: WorkspaceCatalog | undefined;
+  readonly interfaceIntelligence?: InterfaceIntelligenceResult | undefined;
+}) {
   return Effect.gen(function* () {
     const sync = yield* syncSnapshots({ adoId: options.adoId, paths: options.paths });
     const compile = yield* compileScenarioCore(options);

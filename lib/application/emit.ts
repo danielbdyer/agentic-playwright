@@ -58,15 +58,23 @@ function relativeModule(fromFile: string, toFile: string): string {
 }
 
 function latestRunForScenario(catalog: WorkspaceCatalog, adoId: AdoId): RunRecord | null {
-  return catalog.runRecords
-    .filter((entry) => entry.artifact.adoId === adoId)
-    .sort((left, right) => right.artifact.completedAt.localeCompare(left.artifact.completedAt))[0]?.artifact ?? null;
+  return catalog.runRecords.reduce<RunRecord | null>(
+    (best, entry) =>
+      entry.artifact.adoId === adoId && (!best || entry.artifact.completedAt > best.completedAt)
+        ? entry.artifact
+        : best,
+    null,
+  );
 }
 
 function latestProposalBundle(catalog: WorkspaceCatalog, adoId: AdoId): ProposalBundle | null {
-  return catalog.proposalBundles
-    .filter((entry) => entry.artifact.adoId === adoId)
-    .sort((left, right) => right.artifact.runId.localeCompare(left.artifact.runId))[0]?.artifact ?? null;
+  return catalog.proposalBundles.reduce<ProposalBundle | null>(
+    (best, entry) =>
+      entry.artifact.adoId === adoId && (!best || entry.artifact.runId > best.runId)
+        ? entry.artifact
+        : best,
+    null,
+  );
 }
 
 function latestSessionsForScenario(catalog: WorkspaceCatalog, adoId: AdoId) {
@@ -241,7 +249,7 @@ export function emitScenario(
 ): Effect.Effect<EmitScenarioResult, unknown, unknown> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
-    const catalog = options.catalog ?? (yield* loadWorkspaceCatalog({ paths: options.paths }));
+    const catalog = options.catalog ?? (yield* loadWorkspaceCatalog({ paths: options.paths, scope: 'post-run' }));
     const source: CompileSnapshot = 'compileSnapshot' in options
       ? options.compileSnapshot
       : yield* Effect.gen(function* () {

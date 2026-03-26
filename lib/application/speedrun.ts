@@ -17,6 +17,8 @@ import type { ProjectPaths } from './paths';
 import { generateSyntheticScenarios } from './synthesis/scenario-generator';
 import { refreshScenarioCore } from './refresh';
 import { buildDerivedGraph } from './graph';
+import { projectInterfaceIntelligence } from './interface-intelligence';
+import { rebuildLearningManifest } from './learning';
 import { generateTypes } from './types';
 import { resolveEffectConcurrency } from './concurrency';
 import { runDogfoodLoop } from './dogfood';
@@ -459,15 +461,27 @@ export function compilePhase(input: CompilePhaseInput) {
       .filter((scenario) => !tag || scenario.metadata.tags.includes(tag))
       .map((scenario) => scenario.source.ado_id);
 
+    // Hoist interface intelligence once before concurrent compilation
+    const interfaceIntelligence = yield* projectInterfaceIntelligence({
+      paths: input.paths,
+      catalog,
+    });
+
     const compileConcurrency = resolveEffectConcurrency();
     yield* Effect.all(
-      scenarioIds.map((adoId) => refreshScenarioCore({ adoId: adoId as AdoId, paths: input.paths, catalog })),
+      scenarioIds.map((adoId) => refreshScenarioCore({
+        adoId: adoId as AdoId,
+        paths: input.paths,
+        catalog,
+        interfaceIntelligence,
+      })),
       { concurrency: compileConcurrency },
     );
     // Single pass for global projections after all scenarios are compiled
     yield* Effect.all({
       graph: buildDerivedGraph({ paths: input.paths }),
       generatedTypes: generateTypes({ paths: input.paths }),
+      learningManifest: rebuildLearningManifest({ paths: input.paths }),
     }, { concurrency: 'unbounded' });
 
     const durationMs = Date.now() - start;

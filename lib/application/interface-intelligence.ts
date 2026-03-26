@@ -1280,17 +1280,17 @@ export function loadDiscoveryRuns(options: { paths: ProjectPaths }) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const files = (yield* walkFiles(fs, options.paths.discoveryDir)).filter((filePath) => path.basename(filePath) === 'crawl.json');
-    const runs: ArtifactEnvelope<DiscoveryRun>[] = [];
-    for (const filePath of files) {
-      runs.push(yield* readJsonArtifact(
+    const runs = yield* Effect.all(
+      files.map((filePath) => readJsonArtifact(
         options.paths,
         filePath,
         validateDiscoveryRun,
         'discovery-run-validation-failed',
         `Discovery run ${filePath} failed validation`,
-      ));
-    }
-    return runs.sort((left, right) => left.artifact.runId.localeCompare(right.artifact.runId));
+      )),
+      { concurrency: 'unbounded' },
+    );
+    return [...runs].sort((left, right) => left.artifact.runId.localeCompare(right.artifact.runId));
   });
 }
 
