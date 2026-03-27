@@ -138,6 +138,27 @@ export function runScenarioCore(options: RunScenarioOptions) {
           { concurrency: 1 },
         );
 
+        // Emit element-escalated for resolution mode transitions (system→agent handoffs)
+        for (let i = 1; i < executionStage.stepResults.length; i++) {
+          const prev = executionStage.stepResults[i - 1]!.interpretation;
+          const curr = executionStage.stepResults[i]!.interpretation;
+          if (prev.resolutionMode !== curr.resolutionMode) {
+            const fromActor: ActorKind = prev.resolutionMode === 'agentic' ? 'agent' : 'system';
+            const toActor: ActorKind = curr.resolutionMode === 'agentic' ? 'agent' : 'system';
+            const currTarget = 'target' in curr ? (curr as { target: { element?: string; screen?: string } }).target : null;
+            yield* dashboard.emit(dashboardEvent('element-escalated', {
+              id: `esc-${options.adoId}-${plan.runId}-${i}`,
+              element: currTarget?.element ?? `step-${i}`,
+              screen: currTarget?.screen ?? 'unknown',
+              fromActor,
+              toActor,
+              reason: `Resolution mode shifted from ${prev.resolutionMode} to ${curr.resolutionMode}`,
+              governance: curr.governance,
+              boundingBox: null,
+            }));
+          }
+        }
+
         const evidenceStage = yield* persistEvidence({
           fs,
           paths: options.paths,
@@ -200,6 +221,7 @@ export function runScenarioCore(options: RunScenarioOptions) {
         const runFile = runRecordPath(options.paths, options.adoId, plan.runId);
         const proposalsFile = generatedProposalsPath(options.paths, scenarioEntry.artifact.metadata.suite, options.adoId);
 
+        const writtenFiles = [interpretationFile, executionFile, resolutionGraphFile, runFile, proposalsFile];
         yield* Effect.all([
           fs.writeJson(interpretationFile, executionStage.interpretationOutput),
           fs.writeJson(executionFile, executionStage.executionOutput),
@@ -207,6 +229,16 @@ export function runScenarioCore(options: RunScenarioOptions) {
           fs.writeJson(runFile, runRecordStage.runRecord),
           fs.writeJson(proposalsFile, activationStage.proposalBundle),
         ], { concurrency: 'unbounded' });
+
+        // Layer 3: emit artifact-written for each persisted file
+        yield* Effect.forEach(
+          writtenFiles,
+          (filePath) => dashboard.emit(dashboardEvent('artifact-written', {
+            path: filePath,
+            operation: 'write-json',
+          })),
+          { concurrency: 1 },
+        );
 
         return {
           runId: plan.runId,

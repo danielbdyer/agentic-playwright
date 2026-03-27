@@ -62,6 +62,12 @@ export type DashboardEventKind =
   | 'inbox-item-arrived'
   | 'fiber-paused'
   | 'fiber-resumed'
+  | 'rung-shift'
+  | 'calibration-update'
+  | 'proposal-activated'
+  | 'confidence-crossed'
+  | 'artifact-written'
+  | 'stage-lifecycle'
   | 'connected'
   | 'error';
 
@@ -171,6 +177,71 @@ export interface FiberPauseEvent {
 export interface FiberResumeEvent {
   readonly workItemId: string;
   readonly decision: 'completed' | 'skipped';
+}
+
+// ─── Convergence & Learning Events (Layer 2) ───
+// These events surface the self-improving loop's internal signals so the
+// dashboard can render learning trajectory, calibration dynamics, and
+// knowledge crystallization in real-time.
+
+/** Emitted after each iteration with resolution rung distribution. */
+export interface RungShiftEvent {
+  readonly iteration: number;
+  readonly distribution: readonly { readonly rung: string; readonly wins: number; readonly rate: number }[];
+  readonly knowledgeHitRate: number;
+  readonly totalSteps: number;
+}
+
+/** Emitted after each iteration with self-calibrating bottleneck weights. */
+export interface CalibrationUpdateEvent {
+  readonly iteration: number;
+  readonly weights: {
+    readonly repairDensity: number;
+    readonly translationRate: number;
+    readonly unresolvedRate: number;
+    readonly inverseFragmentShare: number;
+  };
+  readonly weightDrift: number;
+  readonly correlations: readonly { readonly signal: string; readonly strength: number }[];
+}
+
+/** Emitted when a proposal is activated or blocked by trust policy. */
+export interface ProposalActivatedEvent {
+  readonly proposalId: string;
+  readonly artifactType: string;
+  readonly targetPath: string;
+  readonly status: 'activated' | 'blocked';
+  readonly confidence: number;
+  readonly iteration: number;
+}
+
+/** Emitted when a knowledge artifact crosses a confidence threshold. */
+export interface ConfidenceCrossedEvent {
+  readonly artifactId: string;
+  readonly screen: string | null;
+  readonly element: string | null;
+  readonly previousStatus: string;
+  readonly newStatus: 'approved-equivalent' | 'needs-review' | 'learning';
+  readonly score: number;
+  readonly threshold: number;
+}
+
+// ─── Infrastructure Events (Layer 3 & 4) ───
+
+/** Emitted when an artifact is written to disk. */
+export interface ArtifactWrittenEvent {
+  readonly path: string;
+  readonly operation: 'write-text' | 'write-json' | 'ensure-dir';
+}
+
+/** Emitted when an Effect pipeline stage starts or completes. */
+export interface StageLifecycleEvent {
+  readonly stage: string;
+  readonly phase: 'start' | 'complete';
+  readonly durationMs?: number | undefined;
+  readonly adoId?: string | undefined;
+  readonly cacheStatus?: 'hit' | 'miss' | undefined;
+  readonly rewrittenFiles?: readonly string[] | undefined;
 }
 
 // ─── WebMCP Tool Definitions ───

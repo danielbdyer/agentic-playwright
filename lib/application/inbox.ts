@@ -4,7 +4,8 @@ import { renderOperatorInboxMarkdown, buildOperatorInboxItems } from './operator
 import { buildWorkflowHotspots } from './hotspots';
 import type { ProjectPaths } from './paths';
 import { relativeProjectPath } from './paths';
-import { FileSystem } from './ports';
+import { FileSystem, Dashboard } from './ports';
+import { dashboardEvent } from '../domain/types/dashboard';
 
 export function emitOperatorInbox(options: {
   paths: ProjectPaths;
@@ -51,6 +52,25 @@ export function emitOperatorInbox(options: {
       generatedAt: new Date().toISOString(),
       hotspots,
     });
+
+    // Emit inbox-item-arrived for each actionable item
+    const dashboard = yield* Dashboard;
+    const actionableItems = filteredItems.filter((item) => item.status === 'actionable');
+    if (actionableItems.length > 0) {
+      yield* Effect.forEach(
+        actionableItems,
+        (item) => dashboard.emit(dashboardEvent('inbox-item-arrived', {
+          id: item.id,
+          element: (item as unknown as Record<string, unknown>).element as string ?? item.id,
+          screen: (item as unknown as Record<string, unknown>).screen as string ?? 'unknown',
+          urgency: 'queued',
+          reason: item.summary,
+          governance: 'review-required',
+          relatedWorkItemId: null,
+        })),
+        { concurrency: 1 },
+      );
+    }
 
     return {
       itemCount: filteredItems.length,
