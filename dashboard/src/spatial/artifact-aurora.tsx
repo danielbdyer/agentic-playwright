@@ -80,8 +80,15 @@ export const ArtifactAurora = memo(function ArtifactAurora({ events, position }:
       count++;
     }
 
-    // Prune dead flashes
-    flashesRef.current = flashes.filter((f) => f.life < FLASH_DURATION);
+    // Prune dead flashes — for-loop (no closure allocation in useFrame hot path)
+    let writeIdx = 0;
+    for (let i = 0; i < flashes.length; i++) {
+      if (flashes[i]!.life < FLASH_DURATION) {
+        flashes[writeIdx] = flashes[i]!;
+        writeIdx++;
+      }
+    }
+    flashes.length = writeIdx;
 
     mesh.count = count;
     if (count > 0) mesh.instanceMatrix.needsUpdate = true;
