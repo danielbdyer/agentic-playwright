@@ -20,6 +20,13 @@ const crypto = require('crypto');
 const PORT = parseInt(process.argv.find((_, i, arr) => arr[i - 1] === '--port') ?? '3100', 10);
 const ROOT = path.resolve(__dirname, '..');
 const DASHBOARD_DIR = __dirname;
+const SPEEDRUN = process.argv.includes('--speedrun');
+
+/** Read the value of a CLI flag like --count 50. */
+function argAfter(flag) {
+  const idx = process.argv.indexOf(flag);
+  return idx >= 0 && idx + 1 < process.argv.length ? process.argv[idx + 1] : null;
+}
 
 // ─── MIME types ───
 
@@ -471,8 +478,69 @@ server.listen(PORT, () => {
   console.log(`  MCP Invoke:          POST http://localhost:${PORT}/api/mcp/call`);
   console.log(`  Capabilities:        http://localhost:${PORT}/api/capabilities`);
   console.log(`  Artifacts:           ${ROOT}/.tesseract/`);
+  if (SPEEDRUN) console.log(`  Speedrun:            active (live pipeline visualization)`);
   console.log('');
   initEffect();
   watchArtifacts();
   watchProgress();
+
+  // ─── Live speedrun mode ───
+  // Runs the real dogfood loop in-process with DashboardPort wired to WS broadcast.
+  // The dashboard is purely observational — decisions auto-skip instantly.
+  if (SPEEDRUN) {
+    startLiveSpeedrun().catch((err) => {
+      console.error('Speedrun failed:', err?.message ?? err);
+      process.exitCode = 1;
+    });
+  }
 });
+
+async function startLiveSpeedrun() {
+  if (!initEffect()) {
+    console.error('Cannot start speedrun: Effect runtime not loaded. Run npm run build first.');
+    return;
+  }
+
+  const count = parseInt(argAfter('--count') ?? '50', 10);
+  const seed = argAfter('--seed') ?? 'speedrun-v1';
+  const maxIterations = parseInt(argAfter('--max-iterations') ?? '5', 10);
+  const posture = argAfter('--posture') ?? 'warm-start';
+
+  console.log(`  Speedrun config: count=${count} seed=${seed} maxIterations=${maxIterations} posture=${posture}`);
+  console.log('');
+
+  // Create DashboardPort backed by WS broadcast.
+  // decisionTimeoutMs: 0 → auto-skip all decisions instantly (passive observation).
+  const { createWsDashboardAdapter } = require(
+    path.join(ROOT, 'dist', 'lib', 'infrastructure', 'dashboard', 'ws-dashboard-adapter.js')
+  );
+  const wsMessageHandlers = [];
+  const wsBroadcaster = {
+    broadcast: (data) => broadcast(data),
+    onMessage: (handler) => wsMessageHandlers.push(handler),
+  };
+  const dashboardPort = createWsDashboardAdapter(wsBroadcaster, { decisionTimeoutMs: 0 });
+
+  // Run the speedrun Effect program with the dashboard port injected.
+  const { speedrunProgram } = require(path.join(ROOT, 'dist', 'lib', 'application', 'speedrun.js'));
+  const { DEFAULT_PIPELINE_CONFIG } = require(path.join(ROOT, 'dist', 'lib', 'domain', 'types', 'pipeline-config.js'));
+
+  const program = speedrunProgram({
+    paths,
+    config: DEFAULT_PIPELINE_CONFIG,
+    count,
+    seed,
+    maxIterations,
+    knowledgePosture: posture,
+    onProgress: (event) => {
+      broadcast({ type: 'progress', timestamp: new Date().toISOString(), data: event });
+    },
+  });
+
+  await runWithLocalServices(program, ROOT, {
+    suiteRoot: paths.suiteRoot,
+    dashboard: dashboardPort,
+  });
+
+  console.log('\n  Speedrun complete. Dashboard remains active for inspection.\n');
+}

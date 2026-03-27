@@ -16,8 +16,9 @@ import {
   resolutionGraphPath,
   runRecordPath,
 } from './paths';
-import { ExecutionContext, FileSystem, RuntimeScenarioRunner } from './ports';
-import type { ExecutionPosture } from '../domain/types';
+import { ExecutionContext, FileSystem, RuntimeScenarioRunner, Dashboard } from './ports';
+import type { ExecutionPosture, Confidence, ActorKind, ResolutionMode } from '../domain/types';
+import { dashboardEvent } from '../domain/types/dashboard';
 import type { AdoId } from '../domain/identity';
 import { loadScenarioInterpretationSurfaceFromCatalog, prepareScenarioRunPlan } from './execution/select-run-context';
 import { runPipelineStage } from './pipeline';
@@ -27,6 +28,31 @@ import { buildProposals } from './execution/build-proposals';
 import { buildRunRecord } from './execution/build-run-record';
 import { foldScenarioRun } from './execution/fold';
 import { resolveEffectConcurrency } from './concurrency';
+
+// ─── Dashboard probe helpers (pure) ───
+
+const RUNG_ORDER: readonly string[] = [
+  'explicit', 'control', 'approved-screen-knowledge',
+  'shared-patterns', 'prior-evidence', 'approved-equivalent-overlay',
+  'structured-translation', 'live-dom', 'agent-interpreted', 'needs-human',
+];
+
+const rungToNumber = (rung: string): number => {
+  const idx = RUNG_ORDER.indexOf(rung);
+  return idx >= 0 ? idx : RUNG_ORDER.length;
+};
+
+const confidenceToNumber = (c: Confidence | string): number => {
+  switch (c) {
+    case 'human': return 1.0;
+    case 'compiler-derived': return 0.95;
+    case 'agent-verified': return 0.85;
+    case 'agent-proposed': return 0.6;
+    case 'intent-only': return 0.3;
+    case 'unbound': return 0.1;
+    default: return 0.5;
+  }
+};
 
 type RunScenarioOptions = {
   adoId: AdoId;
@@ -83,6 +109,34 @@ export function runScenarioCore(options: RunScenarioOptions) {
             disableTranslationCache: options.disableTranslationCache ?? !plan.translationCacheEnabled,
           },
         });
+
+        // Emit element-probed events for dashboard visualization.
+        // Fire-and-forget — never gates the pipeline.
+        const dashboard = yield* Dashboard;
+        yield* Effect.forEach(
+          executionStage.stepResults,
+          (step, idx) => {
+            const r = step.interpretation;
+            const actor: ActorKind = r.resolutionMode === 'agentic' ? 'agent'
+              : r.resolutionMode === 'translation' ? 'agent'
+              : 'system';
+            const target = 'target' in r ? (r as { target: { element?: string; screen?: string } }).target : null;
+            return dashboard.emit(dashboardEvent('element-probed', {
+              id: `${options.adoId}-${plan.runId}-${idx}`,
+              element: target?.element ?? `step-${idx}`,
+              screen: target?.screen ?? 'unknown',
+              boundingBox: null,
+              locatorRung: rungToNumber(r.resolutionGraph?.winner?.rung ?? 'explicit'),
+              strategy: r.winningSource,
+              found: r.kind !== 'needs-human',
+              confidence: confidenceToNumber(r.confidence),
+              actor,
+              governance: r.governance,
+              resolutionMode: r.resolutionMode,
+            }));
+          },
+          { concurrency: 1 },
+        );
 
         const evidenceStage = yield* persistEvidence({
           fs,
