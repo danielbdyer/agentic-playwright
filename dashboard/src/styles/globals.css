@@ -198,3 +198,32 @@
     @apply animate-fiber-pulse;
   }
 }
+
+/* ─── Phase 6: Decision Overlay (3D floating buttons) ─── */
+@layer components {
+  .decision-overlay {
+    @apply bg-surface/90 border-2 border-gov-review rounded-lg p-4;
+    min-width: 220px;
+    max-width: 320px;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 0 20px rgba(210, 153, 34, 0.3), 0 4px 12px rgba(0, 0, 0, 0.4);
+    animation: decision-float 2s ease-in-out infinite;
+  }
+  .decision-reason {
+    @apply text-fg-bright text-sm mb-2 leading-snug;
+  }
+  .decision-meta {
+    @apply text-fg-muted text-xs mb-3;
+  }
+  .decision-actions {
+    @apply flex gap-2;
+  }
+  .decision-actions .btn {
+    @apply flex-1 py-2 text-sm font-semibold;
+  }
+
+  @keyframes decision-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+  }
+}

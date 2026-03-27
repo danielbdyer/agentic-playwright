@@ -45,7 +45,7 @@ import type {
   RungShiftEvent, CalibrationUpdateEvent, ProposalActivatedEvent, StageLifecycleEvent,
   ArtifactWrittenEvent,
 } from './spatial/types';
-import type { Workbench, Scorecard, ProgressEvent, QueuedItem } from './types';
+import type { Workbench, Scorecard, ProgressEvent, QueuedItem, PauseContext, DecisionResult } from './types';
 
 // ─── Effect Stream Hook ───
 
@@ -56,7 +56,7 @@ function useEffectStream(url: string) {
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [capture, setCapture] = useState<ScreenCapture | null>(null);
   const [appViewport, setAppViewport] = useState<ViewportDimensions>({ width: 1280, height: 720 });
-  const [fiberPaused, setFiberPaused] = useState(false);
+  const [pauseContext, setPauseContext] = useState<PauseContext | null>(null);
 
   const probeQueue = useIngestionQueue<ProbeEvent>({ staggerMs: 60, maxBuffer: 300 });
   const escalationQueue = useIngestionQueue<ElementEscalatedEvent>({ staggerMs: 80, maxBuffer: 100 });
@@ -100,8 +100,8 @@ function useEffectStream(url: string) {
       'item-processing': dispatchItemProcessing(setProcessingId, setQueue),
       'item-completed': dispatchItemCompleted(setProcessingId, setQueue, cleanupTimersRef.current),
       'element-escalated': dispatchEscalation(escalationEnqueueRef),
-      'fiber-paused': dispatchFiberPaused(setFiberPaused),
-      'fiber-resumed': dispatchFiberResumed(setFiberPaused),
+      'fiber-paused': dispatchFiberPaused(setPauseContext),
+      'fiber-resumed': dispatchFiberResumed(setPauseContext),
       'rung-shift': (data) => convergenceRungRef.current(data as RungShiftEvent),
       'calibration-update': (data) => convergenceCalRef.current(data as CalibrationUpdateEvent),
       'iteration-start': () => iterationStartRef.current(),
@@ -126,7 +126,7 @@ function useEffectStream(url: string) {
     return () => { timers.forEach(clearTimeout); timers.clear(); };
   }, []);
 
-  return { connected, send, progress, queue, processingId, capture, appViewport, probeQueue, escalationQueue, fiberPaused, convergence, stageTracker, iterationPulse, proposalQueue, artifactQueue };
+  return { connected, send, progress, queue, processingId, capture, appViewport, probeQueue, escalationQueue, pauseContext, convergence, stageTracker, iterationPulse, proposalQueue, artifactQueue };
 }
 
 // ─── Data Hooks ───
@@ -196,7 +196,7 @@ function App() {
   const { data: workbench } = useWorkbench();
   const { data: scorecard } = useFitness();
   const { data: knowledgeNodes } = useKnowledgeNodes();
-  const { connected, send, progress, queue, capture, appViewport, probeQueue, fiberPaused, convergence, stageTracker, iterationPulse, proposalQueue, artifactQueue } = useEffectStream(`ws://${window.location.host}/ws`);
+  const { connected, send, progress, queue, capture, appViewport, probeQueue, pauseContext, convergence, stageTracker, iterationPulse, proposalQueue, artifactQueue } = useEffectStream(`ws://${window.location.host}/ws`);
   const decisionMutation = useDecision(send);
 
   const capabilities = useWebMcpCapabilities(capture?.url);
@@ -221,6 +221,34 @@ function App() {
 
   const handlePortalLoaded = useCallback(() => setPortalLoaded(true), []);
 
+  // Phase 6: decision burst state — set when approve/skip triggers, cleared when animation completes
+  const [decisionBurst, setDecisionBurst] = useState<{ readonly origin: readonly [number, number, number]; readonly result: DecisionResult } | null>(null);
+
+  const handleApprove3D = useCallback((workItemId: string) => {
+    // Find matching probe to get burst origin position
+    const probe = activeProbes.find((p) => pauseContext?.element === p.element && p.boundingBox);
+    const origin: [number, number, number] = probe?.boundingBox
+      ? [((probe.boundingBox.x + probe.boundingBox.width / 2) / appViewport.width) * 3 - 1.5 - 1.8,
+         -(((probe.boundingBox.y + probe.boundingBox.height / 2) / appViewport.height) * 2 - 1) * 1.1,
+         0.1]
+      : [-1.8, 0, 0.1];
+    setDecisionBurst({ origin, result: 'approved' });
+    handleApprove(workItemId);
+  }, [activeProbes, pauseContext, appViewport, handleApprove]);
+
+  const handleSkip3D = useCallback((workItemId: string) => {
+    const probe = activeProbes.find((p) => pauseContext?.element === p.element && p.boundingBox);
+    const origin: [number, number, number] = probe?.boundingBox
+      ? [((probe.boundingBox.x + probe.boundingBox.width / 2) / appViewport.width) * 3 - 1.5 - 1.8,
+         -(((probe.boundingBox.y + probe.boundingBox.height / 2) / appViewport.height) * 2 - 1) * 1.1,
+         0.1]
+      : [-1.8, 0, 0.1];
+    setDecisionBurst({ origin, result: 'skipped' });
+    handleSkip(workItemId);
+  }, [activeProbes, pauseContext, appViewport, handleSkip]);
+
+  const handleBurstComplete = useCallback(() => setDecisionBurst(null), []);
+
   return (
     <div className="dashboard-layout">
       <div className="spatial-viewport" role="main" aria-label="Pipeline visualization">
@@ -240,12 +268,17 @@ function App() {
             proposalEvents={activeProposals}
             artifactEvents={activeArtifacts}
             iterationTick={iterationPulse.tick}
+            pauseContext={pauseContext}
+            onApprove={handleApprove3D}
+            onSkip={handleSkip3D}
+            decisionBurst={decisionBurst}
+            onBurstComplete={handleBurstComplete}
           />
         </SceneErrorBoundary>
 
         {probeQueue.buffered > 0 && <div className="buffer-indicator">{probeQueue.buffered} buffered</div>}
         {capabilities.mcpAvailable && <div className="mcp-indicator">MCP</div>}
-        {fiberPaused && <div className="fiber-paused-indicator" aria-live="polite">AWAITING HUMAN</div>}
+        {pauseContext !== null && <div className="fiber-paused-indicator" aria-live="polite">AWAITING HUMAN</div>}
       </div>
 
       <div className="control-panel" role="complementary" aria-label="Dashboard controls">

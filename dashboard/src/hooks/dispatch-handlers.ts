@@ -75,10 +75,18 @@ export const dispatchItemCompleted = (
 export const dispatchEscalation = (enqueueRef: React.RefObject<(id: string, data: ElementEscalatedEvent) => void>) =>
   (data: unknown) => { const e = data as ElementEscalatedEvent; enqueueRef.current?.(e.id, e); };
 
-/** O(1). Sets fiber-paused state. */
-export const dispatchFiberPaused = (setFiberPaused: (paused: boolean) => void) =>
-  (_data: unknown) => setFiberPaused(true);
+/** O(1). Sets fiber-paused state with full pause context for 3D decision overlay. */
+export const dispatchFiberPaused = (setPauseContext: (ctx: import('../types').PauseContext | null) => void) =>
+  (data: unknown) => {
+    const d = data as { workItemId: string; screen: string; element: string | null; reason: string };
+    setPauseContext({
+      workItemId: d.workItemId,
+      screen: d.screen ?? 'unknown',
+      element: d.element ?? null,
+      reason: d.reason ?? '',
+    });
+  };
 
 /** O(1). Clears fiber-paused state. */
-export const dispatchFiberResumed = (setFiberPaused: (paused: boolean) => void) =>
-  (_data: unknown) => setFiberPaused(false);
+export const dispatchFiberResumed = (setPauseContext: (ctx: import('../types').PauseContext | null) => void) =>
+  (_data: unknown) => setPauseContext(null);

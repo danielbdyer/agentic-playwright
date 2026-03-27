@@ -31,12 +31,15 @@ import { memo, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import type { ProbeEvent, ScreenCapture, ViewportDimensions, KnowledgeNode, ProposalActivatedEvent, ArtifactWrittenEvent } from './types';
+import type { PauseContext, DecisionResult } from '../types';
 import { ScreenPlane } from './screen-plane';
 import { SelectorGlows } from './selector-glows';
 import { ParticleTransport } from './particle-transport';
 import { GlassPane } from './glass-pane';
 import { KnowledgeObservatory } from './knowledge-observatory';
 import { ProposalGate } from './proposal-gate';
+import { DecisionOverlay } from './decision-overlay';
+import { DecisionBurst } from './decision-burst';
 import { IterationPulse } from './iteration-pulse';
 import { ArtifactAurora } from './artifact-aurora';
 
@@ -73,6 +76,16 @@ export interface SpatialCanvasProps {
   readonly artifactEvents?: readonly ArtifactWrittenEvent[];
   /** Iteration pulse tick function from useIterationPulse. */
   readonly iterationTick?: (delta: number) => number;
+  /** Phase 6: pause context for decision overlay + glow intensification. */
+  readonly pauseContext?: PauseContext | null;
+  /** Phase 6: approve handler for the decision overlay. */
+  readonly onApprove?: (workItemId: string) => void;
+  /** Phase 6: skip handler for the decision overlay. */
+  readonly onSkip?: (workItemId: string) => void;
+  /** Phase 6: active decision burst (set when a decision was just made). */
+  readonly decisionBurst?: { readonly origin: readonly [number, number, number]; readonly result: DecisionResult } | null;
+  /** Phase 6: callback when decision burst animation completes. */
+  readonly onBurstComplete?: () => void;
 }
 
 // ─── Scene Content (separated for memo purity) ───
@@ -87,6 +100,11 @@ const SceneContent = memo(function SceneContent({
   proposalEvents = [],
   artifactEvents = [],
   iterationTick,
+  pauseContext = null,
+  onApprove,
+  onSkip,
+  decisionBurst = null,
+  onBurstComplete,
 }: SpatialCanvasProps) {
   const { screen, glass, knowledge } = SCENE_LAYOUT;
 
@@ -114,12 +132,13 @@ const SceneContent = memo(function SceneContent({
         />
       )}
 
-      {/* Bioluminescent element highlights — works on both layers */}
+      {/* Bioluminescent element highlights — Phase 6: pausedElement gets intensified glow */}
       <SelectorGlows
         probes={activeProbes}
         viewport={viewport}
         planeWidth={screen.width}
         planeHeight={screen.height}
+        pausedElement={pauseContext?.element}
       />
 
       {/* Particle arcs from DOM elements toward knowledge space */}
@@ -162,6 +181,30 @@ const SceneContent = memo(function SceneContent({
         centerX={knowledge.x}
         height={screen.height}
       />
+
+      {/* Phase 6: Floating decision buttons when fiber pauses */}
+      {pauseContext && onApprove && onSkip && (
+        <DecisionOverlay
+          pauseContext={pauseContext}
+          probes={activeProbes}
+          viewport={viewport}
+          planeWidth={screen.width}
+          planeHeight={screen.height}
+          onApprove={onApprove}
+          onSkip={onSkip}
+        />
+      )}
+
+      {/* Phase 6: Particle burst on decision (approve = green, skip = red) */}
+      {decisionBurst && (
+        <DecisionBurst
+          origin={decisionBurst.origin}
+          result={decisionBurst.result}
+          glassX={glass.x}
+          knowledgeX={knowledge.x}
+          onComplete={onBurstComplete}
+        />
+      )}
 
       {/* Bloom makes emissive materials (glows, particles) bloom outward */}
       <EffectComposer>

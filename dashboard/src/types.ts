@@ -85,3 +85,16 @@ export type DisplayStatus = 'entering' | 'pending' | 'processing' | 'completed' 
 export interface QueuedItem extends WorkItem {
   readonly displayStatus: DisplayStatus;
 }
+
+/** Context captured when the Effect fiber pauses for a human decision.
+ *  Drives the 3D decision overlay: which element to highlight, what to decide. */
+export interface PauseContext {
+  readonly workItemId: string;
+  readonly screen: string;
+  readonly element: string | null;
+  readonly reason: string;
+}
+
+/** Result of a decision burst animation (approve = green toward knowledge, skip = red scatter). */
+export type DecisionResult = 'approved' | 'skipped';
+
