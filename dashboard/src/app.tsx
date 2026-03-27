@@ -26,6 +26,12 @@ import { useStageTracker } from './hooks/use-stage-tracker';
 import { useIterationPulse } from './hooks/use-iteration-pulse';
 import { ConvergencePanel } from './organisms/convergence-panel';
 import { PipelineProgress } from './organisms/pipeline-progress';
+import { StatusBar } from './molecules/status-bar';
+import { FitnessCard } from './molecules/fitness-card';
+import { ProgressCard } from './molecules/progress-card';
+import { QueueVisualization } from './organisms/queue-visualization';
+import { WorkbenchPanel } from './organisms/workbench-panel';
+import { CompletionsPanel } from './organisms/completions-panel';
 import type {
   ProbeEvent, ScreenCapture, ViewportDimensions, ElementEscalatedEvent,
   RungShiftEvent, CalibrationUpdateEvent, ProposalActivatedEvent, StageLifecycleEvent,
@@ -298,185 +304,6 @@ const useDecision = (send: (msg: unknown) => void) => {
   });
 };
 
-// ─── Pure Components ───
-
-const RUNG_COLORS: Record<string, string> = {
-  'explicit': '#3fb950', 'control': '#2ea043', 'approved-screen-knowledge': '#56d364',
-  'shared-patterns': '#79c0ff', 'prior-evidence': '#a5d6ff',
-  'approved-equivalent-overlay': '#58a6ff', 'structured-translation': '#d29922',
-  'live-dom': '#e3b341', 'agent-interpreted': '#bc8cff', 'needs-human': '#f85149',
-};
-
-const KIND_COLORS: Record<string, string> = {
-  'interpret-step': '#f85149', 'approve-proposal': '#58a6ff', 'author-knowledge': '#3fb950',
-  'investigate-hotspot': '#d29922', 'validate-calibration': '#bc8cff', 'request-rerun': '#79c0ff',
-};
-
-const ConnectionDot = memo(function ConnectionDot({ connected }: { connected: boolean }) {
-  return <span className={`connection-dot ${connected ? 'connected' : 'disconnected'}`} />;
-});
-
-const StatusBar = memo(function StatusBar({ workbench, scorecard, connected, progress }: {
-  workbench: Workbench | null; scorecard: Scorecard | null; connected: boolean; progress: ProgressEvent | null;
-}) {
-  return (
-    <div className="status-bar">
-      <div className="status-item"><ConnectionDot connected={connected} /><span className="status-label">WS</span></div>
-      <div className="status-item"><span className="status-label">Iter:</span><span className="status-value">{workbench?.iteration ?? '—'}</span></div>
-      <div className="status-item"><span className="status-label">Queue:</span><span className="status-value">{workbench?.summary.pending ?? 0} pending / {workbench?.summary.completed ?? 0} done</span></div>
-      <div className="status-item"><span className="status-label">HWM:</span><span className="status-value">{scorecard ? `${(scorecard.highWaterMark.knowledgeHitRate * 100).toFixed(1)}%` : '—'}</span></div>
-      {progress && <div className="status-item"><span className="status-label">Live:</span><span className="status-value">[{progress.phase}] {progress.iteration}/{progress.maxIterations}</span></div>}
-    </div>
-  );
-});
-
-const FitnessCard = memo(function FitnessCard({ scorecard }: { scorecard: Scorecard | null }) {
-  if (!scorecard) return <div className="card"><h2>Fitness</h2><div className="empty">No scorecard yet.</div></div>;
-  const h = scorecard.highWaterMark;
-  const cls = (v: number) => v >= 0.8 ? 'good' : v >= 0.5 ? 'warn' : 'bad';
-  return (
-    <div className="card">
-      <h2>Fitness High-Water Mark</h2>
-      <div className="metric"><span className="metric-label">Knowledge Hit Rate</span><span className={`metric-value ${cls(h.knowledgeHitRate)}`}>{(h.knowledgeHitRate * 100).toFixed(1)}%</span></div>
-      <div className="metric"><span className="metric-label">Translation Precision</span><span className={`metric-value ${cls(h.translationPrecision)}`}>{(h.translationPrecision * 100).toFixed(1)}%</span></div>
-      <div className="metric"><span className="metric-label">Convergence</span><span className="metric-value">{h.convergenceVelocity} iter</span></div>
-      <div className="metric"><span className="metric-label">Proposal Yield</span><span className={`metric-value ${cls(h.proposalYield)}`}>{(h.proposalYield * 100).toFixed(1)}%</span></div>
-      {h.resolutionByRung && h.resolutionByRung.filter(r => r.wins > 0).length > 0 && (
-        <div className="rung-bar" style={{ marginTop: 8 }}>
-          {h.resolutionByRung.filter(r => r.wins > 0).map(r => (
-            <div key={r.rung} className="rung-segment" style={{ flex: r.wins, backgroundColor: RUNG_COLORS[r.rung] ?? '#484f58' }} title={`${r.rung}: ${r.wins}`}>{r.wins > 2 ? r.wins : ''}</div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-});
-
-const ProgressCard = memo(function ProgressCard({ progress }: { progress: ProgressEvent | null }) {
-  if (!progress) return <div className="card"><h2>Live Progress</h2><div className="empty">No active run.</div></div>;
-  const m = progress.metrics;
-  return (
-    <div className="card">
-      <h2>Live — [{progress.phase}]</h2>
-      {m && (
-        <>
-          <div className="metric"><span className="metric-label">Hit Rate</span><span className={`metric-value ${m.knowledgeHitRate >= 0.8 ? 'good' : m.knowledgeHitRate >= 0.5 ? 'warn' : 'bad'}`}>{(m.knowledgeHitRate * 100).toFixed(1)}%</span></div>
-          <div className="metric"><span className="metric-label">Steps</span><span className="metric-value">{m.totalSteps} ({m.unresolvedSteps} unresolved)</span></div>
-        </>
-      )}
-      <div className="metric"><span className="metric-label">Elapsed</span><span className="metric-value">{(progress.elapsed / 1000).toFixed(1)}s</span></div>
-      {progress.calibration && <div className="metric"><span className="metric-label">Drift</span><span className="metric-value">{progress.calibration.weightDrift.toFixed(4)}</span></div>}
-    </div>
-  );
-});
-
-// The key component: animated queue item
-const QueueItemView = memo(function QueueItemView({ item, onApprove, onSkip }: {
-  item: QueuedItem;
-  onApprove: (id: string) => void;
-  onSkip: (id: string) => void;
-}) {
-  const color = KIND_COLORS[item.kind] ?? '#484f58';
-  const isDeciding = item.displayStatus === 'processing';
-  return (
-    <div className="queue-item" data-status={item.displayStatus} style={{ position: 'relative' }}>
-      <div className="item-content">
-        <div className="item-title">
-          <span className="item-badge" style={{ background: `${color}33`, color }}>{item.kind}</span>
-          {item.title}
-        </div>
-        {isDeciding && <div className="item-detail">{item.rationale}</div>}
-        {isDeciding && item.context.screen && <div className="item-detail">Screen: {item.context.screen}{item.context.element ? ` / ${item.context.element}` : ''}</div>}
-      </div>
-      <div className="item-actions">
-        <span className="priority-score">{item.priority.toFixed(3)}</span>
-        {isDeciding && (
-          <>
-            <button className="btn btn-approve" onClick={() => onApprove(item.id)}>✓ Approve</button>
-            <button className="btn" onClick={() => onSkip(item.id)}>○ Skip</button>
-          </>
-        )}
-      </div>
-    </div>
-  );
-});
-
-// Queue visualization — the animated container
-const QueueVisualization = memo(function QueueVisualization({ queue, onApprove, onSkip }: {
-  queue: readonly QueuedItem[];
-  onApprove: (id: string) => void;
-  onSkip: (id: string) => void;
-}) {
-  if (queue.length === 0) return null;
-  return (
-    <div className="card card-full">
-      <h2>Effect Queue — {queue.length} items</h2>
-      <div className="queue-container">
-        {queue.map((item) => (
-          <QueueItemView key={item.id} item={item} onApprove={onApprove} onSkip={onSkip} />
-        ))}
-      </div>
-    </div>
-  );
-});
-
-// Static workbench (loaded from API, not the live queue)
-const WorkbenchPanel = memo(function WorkbenchPanel({ workbench, onApprove, onSkip }: {
-  workbench: Workbench | null;
-  onApprove: (id: string) => void;
-  onSkip: (id: string) => void;
-}) {
-  // Memoize screen grouping — O(n) work only when items change, not every render
-  const byScreen = useMemo(() => {
-    if (!workbench?.items.length) return [];
-    const groups = new Map<string, WorkItem[]>();
-    for (const item of workbench.items) {
-      const s = item.context.screen ?? 'unknown';
-      const group = groups.get(s);
-      if (group) group.push(item);
-      else groups.set(s, [item]);
-    }
-    return [...groups.entries()];
-  }, [workbench?.items]);
-
-  if (byScreen.length === 0) return <div className="card card-full"><h2>Workbench</h2><div className="empty">No pending items. Converged.</div></div>;
-  return (
-    <div className="card card-full">
-      <h2>Workbench — {workbench!.summary.pending} pending</h2>
-      {byScreen.map(([screen, items]) => (
-        <div key={screen} className="screen-group">
-          <div className="screen-header">{screen} ({items.length})</div>
-          {items.map((item) => (
-            <div key={item.id} className="queue-item" data-status="pending">
-              <div className="item-content">
-                <div className="item-title"><span className="item-badge" style={{ background: `${KIND_COLORS[item.kind] ?? '#484f58'}33`, color: KIND_COLORS[item.kind] ?? '#484f58' }}>{item.kind}</span> {item.title}</div>
-              </div>
-              <div className="item-actions">
-                <span className="priority-score">{item.priority.toFixed(3)}</span>
-                <button className="btn btn-approve" onClick={() => onApprove(item.id)}>✓</button>
-                <button className="btn" onClick={() => onSkip(item.id)}>○</button>
-              </div>
-            </div>
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-});
-
-const CompletionsPanel = memo(function CompletionsPanel({ workbench }: { workbench: Workbench | null }) {
-  const completions = workbench?.completions ?? [];
-  if (completions.length === 0) return null;
-  return (
-    <div className="card">
-      <h2>Completions ({completions.length})</h2>
-      {completions.slice(-8).reverse().map((c, i) => (
-        <div key={i} className="lineage-entry">{c.status === 'completed' ? '✓' : '○'} {c.workItemId.slice(0, 8)} — {c.rationale.slice(0, 50)}</div>
-      ))}
-    </div>
-  );
-});
-
 // ─── App ───
 
 function App() {
@@ -573,7 +400,7 @@ function App() {
         <QueueVisualization queue={queue} onApprove={handleApprove} onSkip={handleSkip} />
         <WorkbenchPanel workbench={workbench ?? null} onApprove={handleApprove} onSkip={handleSkip} />
         <div className="grid">
-          <CompletionsPanel workbench={workbench ?? null} />
+          <CompletionsPanel completions={workbench?.completions ?? []} />
         </div>
       </div>
     </div>
