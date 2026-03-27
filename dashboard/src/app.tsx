@@ -21,7 +21,16 @@ import { SpatialCanvas } from './spatial/canvas';
 import { LiveDomPortal, PortalLoading } from './spatial/live-dom-portal';
 import { useIngestionQueue } from './hooks/use-ingestion-queue';
 import { useWebMcpCapabilities } from './hooks/use-mcp-capabilities';
-import type { ProbeEvent, ScreenCapture, ViewportDimensions, ElementEscalatedEvent } from './spatial/types';
+import { useConvergenceState } from './hooks/use-convergence-state';
+import { useStageTracker } from './hooks/use-stage-tracker';
+import { useIterationPulse } from './hooks/use-iteration-pulse';
+import { ConvergencePanel } from './organisms/convergence-panel';
+import { PipelineProgress } from './organisms/pipeline-progress';
+import type {
+  ProbeEvent, ScreenCapture, ViewportDimensions, ElementEscalatedEvent,
+  RungShiftEvent, CalibrationUpdateEvent, ProposalActivatedEvent, StageLifecycleEvent,
+  ArtifactWrittenEvent,
+} from './spatial/types';
 
 // ─── Types (projections of domain types) ───
 
@@ -140,12 +149,23 @@ function useEffectStream(url: string) {
 
   const probeQueue = useIngestionQueue<ProbeEvent>({ staggerMs: 60, maxBuffer: 300 });
   const escalationQueue = useIngestionQueue<ElementEscalatedEvent>({ staggerMs: 80, maxBuffer: 100 });
+  const proposalQueue = useIngestionQueue<ProposalActivatedEvent>({ staggerMs: 100, maxBuffer: 200 });
+  const artifactQueue = useIngestionQueue<ArtifactWrittenEvent>({ staggerMs: 50, maxBuffer: 50 });
+
+  // Convergence, stage, and iteration hooks (Layer 2-4 visualization state)
+  const convergence = useConvergenceState();
+  const stageTracker = useStageTracker();
+  const iterationPulse = useIterationPulse();
 
   // Stable ref to enqueue — prevents WS reconnection on probeQueue reference change
   const enqueueRef = useRef(probeQueue.enqueue);
   enqueueRef.current = probeQueue.enqueue;
   const escalationEnqueueRef = useRef(escalationQueue.enqueue);
   escalationEnqueueRef.current = escalationQueue.enqueue;
+  const proposalEnqueueRef = useRef(proposalQueue.enqueue);
+  proposalEnqueueRef.current = proposalQueue.enqueue;
+  const artifactEnqueueRef = useRef(artifactQueue.enqueue);
+  artifactEnqueueRef.current = artifactQueue.enqueue;
 
   const send = useCallback((msg: unknown) => {
     wsRef.current?.readyState === WebSocket.OPEN && wsRef.current.send(JSON.stringify(msg));
@@ -164,6 +184,17 @@ function useEffectStream(url: string) {
       'element-escalated': dispatchEscalation(escalationEnqueueRef),
       'fiber-paused': dispatchFiberPaused(setFiberPaused),
       'fiber-resumed': dispatchFiberResumed(setFiberPaused),
+      // Layer 2: Convergence signals
+      'rung-shift': (data) => convergence.pushRung(data as RungShiftEvent),
+      'calibration-update': (data) => convergence.pushCalibration(data as CalibrationUpdateEvent),
+      'iteration-start': (_data) => iterationPulse.onStart(),
+      'iteration-complete': (_data) => iterationPulse.onComplete(),
+      // Layer 2: Proposal flow
+      'proposal-activated': (data) => { const e = data as ProposalActivatedEvent; proposalEnqueueRef.current?.(e.proposalId, e); },
+      // Layer 3: Artifact aurora
+      'artifact-written': (data) => { const e = data as ArtifactWrittenEvent; artifactEnqueueRef.current?.(e.path, e); },
+      // Layer 4: Stage lifecycle
+      'stage-lifecycle': (data) => stageTracker.dispatch(data as StageLifecycleEvent),
     };
   }
 
@@ -199,7 +230,7 @@ function useEffectStream(url: string) {
     return () => { clearTimeout(reconnectTimer); wsRef.current?.close(); };
   }, [url, qc]); // No probeQueue dependency — uses stable ref
 
-  return { connected, send, progress, queue, processingId, capture, appViewport, probeQueue, escalationQueue, fiberPaused };
+  return { connected, send, progress, queue, processingId, capture, appViewport, probeQueue, escalationQueue, fiberPaused, convergence, stageTracker, iterationPulse, proposalQueue, artifactQueue };
 }
 
 // ─── Data Hooks ───
@@ -452,7 +483,7 @@ function App() {
   const { data: workbench } = useWorkbench();
   const { data: scorecard } = useFitness();
   const { data: knowledgeNodes } = useKnowledgeNodes();
-  const { connected, send, progress, queue, capture, appViewport, probeQueue, fiberPaused } = useEffectStream(`ws://${window.location.host}/ws`);
+  const { connected, send, progress, queue, capture, appViewport, probeQueue, fiberPaused, convergence, stageTracker, iterationPulse, proposalQueue, artifactQueue } = useEffectStream(`ws://${window.location.host}/ws`);
   const decisionMutation = useDecision(send);
 
   // Progressive enhancement: detect available capabilities (MCP, live portal)
@@ -480,6 +511,16 @@ function App() {
 
   const handlePortalLoaded = useCallback(() => setPortalLoaded(true), []);
 
+  // Derive spatial data from ingestion queues
+  const activeProposals = useMemo(
+    () => proposalQueue.active.map((q) => q.data),
+    [proposalQueue.active],
+  );
+  const activeArtifacts = useMemo(
+    () => artifactQueue.active.map((q) => q.data),
+    [artifactQueue.active],
+  );
+
   return (
     <div className="dashboard-layout">
       {/* Spatial visualization — layered viewport */}
@@ -498,6 +539,9 @@ function App() {
           knowledgeNodes={knowledgeNodes ?? []}
           onParticleArrived={handleParticleArrived}
           portalActive={portalActive}
+          proposalEvents={activeProposals}
+          artifactEvents={activeArtifacts}
+          iterationTick={iterationPulse.tick}
         />
 
         {/* Buffer indicator */}
@@ -520,6 +564,8 @@ function App() {
       <div className="control-panel">
         <h1>Tesseract Dashboard</h1>
         <StatusBar workbench={workbench ?? null} scorecard={scorecard ?? null} connected={connected} progress={progress} />
+        <PipelineProgress stages={stageTracker.stages} activeStage={stageTracker.activeStage} />
+        <ConvergencePanel state={convergence.state} />
         <div className="grid">
           <FitnessCard scorecard={scorecard ?? null} />
           <ProgressCard progress={progress} />

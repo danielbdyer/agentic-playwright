@@ -18,6 +18,12 @@ import type {
   InboxItemEvent,
   FiberPauseEvent,
   FiberResumeEvent,
+  RungShiftEvent,
+  CalibrationUpdateEvent,
+  ProposalActivatedEvent,
+  ConfidenceCrossedEvent,
+  ArtifactWrittenEvent,
+  StageLifecycleEvent,
 } from '../../../lib/domain/types/dashboard';
 import type { Governance } from '../../../lib/domain/types/workflow';
 
@@ -28,6 +34,7 @@ export type ScreenCapture = ScreenCapturedEvent;
 export type KnowledgeNode = KnowledgeNodeProjection;
 export type { BoundingBox, ActorKind, Governance, KnowledgeNodeStatus };
 export type { ElementEscalatedEvent, InboxUrgency, InboxItemEvent, FiberPauseEvent, FiberResumeEvent };
+export type { RungShiftEvent, CalibrationUpdateEvent, ProposalActivatedEvent, ConfidenceCrossedEvent, ArtifactWrittenEvent, StageLifecycleEvent };
 
 /** Viewport dimensions for coordinate mapping between DOM and Three.js space. */
 export interface ViewportDimensions {
@@ -71,8 +78,6 @@ export const rungToIntensity = (rung: number): number =>
   Math.max(0.3, 1.0 - rung * 0.2);
 
 // ─── Actor / Governance Visual Mappings ───
-// These pure functions encode the actor and governance dimensions as
-// visual properties: hue, brightness, animation style, tint.
 
 /** Actor to particle color channel: system=cyan, agent=magenta, operator=gold. */
 export const actorToColor = (actor: ActorKind): [number, number, number] => {
@@ -100,4 +105,14 @@ export const governanceToTint = (g: Governance): [number, number, number] => {
     case 'review-required': return [1.0, 0.8, 0.2];
     case 'blocked':         return [1.0, 0.2, 0.2];
   }
+};
+
+// ─── Shared Color Constants ───
+// Extracted from app.tsx for reuse across atoms/molecules.
+
+export const RUNG_COLORS: Readonly<Record<string, string>> = {
+  'explicit': '#3fb950', 'control': '#2ea043', 'approved-screen-knowledge': '#56d364',
+  'shared-patterns': '#79c0ff', 'prior-evidence': '#a5d6ff',
+  'approved-equivalent-overlay': '#58a6ff', 'structured-translation': '#d29922',
+  'live-dom': '#e3b341', 'agent-interpreted': '#bc8cff', 'needs-human': '#f85149',
 };

@@ -3,12 +3,19 @@
  *
  * Layout (camera looking down -Z):
  *   x=-3..0  : ScreenPlane  — live DOM texture from screenshots
- *   x=-0.5   : GlassPane    — frosted separator
- *   x=0..3   : Knowledge    — (Phase 2: observatory nodes)
+ *   x=-0.5   : GlassPane    — frosted separator / proposal gate
+ *   x=0..3   : Knowledge    — observatory nodes + crystallization
  *
  * Overlaid on the ScreenPlane:
- *   - SelectorGlows   — bioluminescent highlights on probed elements
- *   - ParticleTransport — arcing particles from DOM → knowledge space
+ *   - SelectorGlows      — bioluminescent highlights on probed elements
+ *   - ParticleTransport   — arcing particles from DOM → knowledge space
+ *
+ * At the GlassPane:
+ *   - ProposalGate        — proposals split: activated through, blocked reflect
+ *   - ArtifactAurora      — brief emissive flashes on artifact writes
+ *
+ * Scene-wide:
+ *   - IterationPulse      — ambient light modulation on iteration heartbeat
  *
  * Postprocessing:
  *   - Bloom (UnrealBloomPass) for emissive glow interaction
@@ -17,17 +24,21 @@
  *   Layer 0: texture + glows + particles + glass (base)
  *   Layer 1: live DOM portal replaces texture (iframe behind canvas)
  *   Layer 2: MCP tools expose same data structurally (agent access)
+ *   Layer 3: convergence + proposals + aurora (self-improving loop)
  */
 
 import { memo, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
-import type { ProbeEvent, ScreenCapture, ViewportDimensions, KnowledgeNode } from './types';
+import type { ProbeEvent, ScreenCapture, ViewportDimensions, KnowledgeNode, ProposalActivatedEvent, ArtifactWrittenEvent } from './types';
 import { ScreenPlane } from './screen-plane';
 import { SelectorGlows } from './selector-glows';
 import { ParticleTransport } from './particle-transport';
 import { GlassPane } from './glass-pane';
 import { KnowledgeObservatory } from './knowledge-observatory';
+import { ProposalGate } from './proposal-gate';
+import { IterationPulse } from './iteration-pulse';
+import { ArtifactAurora } from './artifact-aurora';
 
 // ─── Layout Constants (pure, scene-level) ───
 
@@ -53,6 +64,12 @@ export interface SpatialCanvasProps {
   readonly onParticleArrived?: (probeId: string) => void;
   /** When true, skip ScreenPlane rendering (live portal handles the visual). */
   readonly portalActive?: boolean;
+  /** Proposal activation events for the gate visualization. */
+  readonly proposalEvents?: readonly ProposalActivatedEvent[];
+  /** Artifact write events for the aurora visualization. */
+  readonly artifactEvents?: readonly ArtifactWrittenEvent[];
+  /** Iteration pulse tick function from useIterationPulse. */
+  readonly iterationTick?: (delta: number) => number;
 }
 
 // ─── Scene Content (separated for memo purity) ───
@@ -64,6 +81,9 @@ const SceneContent = memo(function SceneContent({
   knowledgeNodes = [],
   onParticleArrived,
   portalActive = false,
+  proposalEvents = [],
+  artifactEvents = [],
+  iterationTick,
 }: SpatialCanvasProps) {
   const { screen, glass, knowledge } = SCENE_LAYOUT;
 
@@ -72,10 +92,16 @@ const SceneContent = memo(function SceneContent({
     [probes],
   );
 
+  // Identity-stable no-op tick for when no pulse is provided
+  const noopTick = useMemo(() => () => 0, []);
+
   return (
     <>
-      {/* Ambient + directional for PBR glass material */}
-      <ambientLight intensity={0.3} />
+      {/* Scene-wide ambient modulated by iteration pulse */}
+      {iterationTick
+        ? <IterationPulse tick={iterationTick} />
+        : <ambientLight intensity={0.3} />
+      }
       <directionalLight position={[2, 3, 4]} intensity={0.6} />
 
       {/* Layer 0: Screenshot texture — hidden when live portal is active */}
@@ -112,6 +138,23 @@ const SceneContent = memo(function SceneContent({
         height={glass.height}
         position={[glass.x, 0, 0.05]}
       />
+
+      {/* Layer 3: Proposal gate — particles split at glass pane */}
+      {proposalEvents.length > 0 && (
+        <ProposalGate
+          events={proposalEvents}
+          glassX={glass.x}
+          targetX={knowledge.x}
+        />
+      )}
+
+      {/* Layer 3: Artifact aurora — brief flashes at glass pane */}
+      {artifactEvents.length > 0 && (
+        <ArtifactAurora
+          events={artifactEvents}
+          position={[glass.x, 0, 0.06]}
+        />
+      )}
 
       {/* Knowledge observatory — crystallized nodes on the right */}
       <KnowledgeObservatory
