@@ -76,33 +76,16 @@ export function createRecordingWorkspaceFileSystem(input: {
     rememberDir(path.dirname(normalizedPath));
   }
 
+  /** Extract immediate child names from shadow entries under a directory. Pure projection. */
   function listShadowEntries(dirPath: string): string[] {
     const normalizedDir = normalizePath(dirPath);
-    const matches = new Set<string>();
-
-    for (const candidate of shadowDirs) {
-      if (!isSameOrNested(candidate, normalizedDir) || candidate === normalizedDir) {
-        continue;
-      }
-      const relative = path.relative(normalizedDir, candidate);
-      const next = relative.split(path.sep)[0];
-      if (next) {
-        matches.add(next);
-      }
-    }
-
-    for (const candidate of shadowFiles.keys()) {
-      if (!isSameOrNested(candidate, normalizedDir)) {
-        continue;
-      }
-      const relative = path.relative(normalizedDir, candidate);
-      const next = relative.split(path.sep)[0];
-      if (next) {
-        matches.add(next);
-      }
-    }
-
-    return uniqueSorted(matches);
+    const childName = (candidate: string): string | null => {
+      if (!isSameOrNested(candidate, normalizedDir) || candidate === normalizedDir) return null;
+      return path.relative(normalizedDir, candidate).split(path.sep)[0] ?? null;
+    };
+    const dirChildren = [...shadowDirs].flatMap((d) => { const n = childName(d); return n ? [n] : []; });
+    const fileChildren = [...shadowFiles.keys()].flatMap((f) => { const n = childName(f); return n ? [n] : []; });
+    return uniqueSorted([...dirChildren, ...fileChildren]);
   }
 
   return {
@@ -175,20 +158,15 @@ export function createRecordingWorkspaceFileSystem(input: {
     removeDir(dirPath) {
       recordWrite('remove-dir', dirPath, '');
       if (shouldShadowWrite(dirPath)) {
-        // Evict shadow entries under this directory by rebuilding from retained entries.
-        // The shadow overlay is inherently mutable infrastructure state, but we prefer
-        // filter-and-replace over iterate-and-delete for clarity.
+        // Evict shadow entries under this directory.
+        // Rebuild from retained entries (filter → new Map/Set, no imperative loop).
         const normalizedDir = normalizePath(dirPath);
-        const retainedFiles = [...shadowFiles.entries()].filter(([key]) => !isSameOrNested(key, normalizedDir));
+        const retained = new Map([...shadowFiles].filter(([key]) => !isSameOrNested(key, normalizedDir)));
         shadowFiles.clear();
-        for (const [key, value] of retainedFiles) {
-          shadowFiles.set(key, value);
-        }
-        const retainedDirs = [...shadowDirs].filter((key) => !isSameOrNested(key, normalizedDir));
+        retained.forEach((v, k) => shadowFiles.set(k, v));
+        const retainedDirSet = new Set([...shadowDirs].filter((key) => !isSameOrNested(key, normalizedDir)));
         shadowDirs.clear();
-        for (const dir of retainedDirs) {
-          shadowDirs.add(dir);
-        }
+        retainedDirSet.forEach((d) => shadowDirs.add(d));
         return Effect.void;
       }
       return input.delegate.removeDir(dirPath);

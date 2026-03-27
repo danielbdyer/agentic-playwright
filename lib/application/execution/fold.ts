@@ -3,57 +3,71 @@ import type { RuntimeScenarioStepResult } from '../ports';
 import type { PersistedEvidenceArtifact } from './persist-evidence';
 import { uniqueSorted } from '../../domain/collections';
 
+// ─── Monoid Combinators ───
+// Each has an `empty` (identity) and `combine` (associative binary op).
+// Use with .reduce(combine, empty) for type-safe accumulation.
+
+type Timing = StepExecutionReceipt['timing'];
+type Cost = StepExecutionReceipt['cost'];
+
+const emptyTiming: Timing = { setupMs: 0, resolutionMs: 0, actionMs: 0, assertionMs: 0, retriesMs: 0, teardownMs: 0, totalMs: 0 };
+
+const combineTiming = (a: Timing, b: Timing | null | undefined): Timing => ({
+  setupMs: a.setupMs + (b?.setupMs ?? 0),
+  resolutionMs: a.resolutionMs + (b?.resolutionMs ?? 0),
+  actionMs: a.actionMs + (b?.actionMs ?? 0),
+  assertionMs: a.assertionMs + (b?.assertionMs ?? 0),
+  retriesMs: a.retriesMs + (b?.retriesMs ?? 0),
+  teardownMs: a.teardownMs + (b?.teardownMs ?? 0),
+  totalMs: a.totalMs + (b?.totalMs ?? 0),
+});
+
+const emptyCost: Cost = { instructionCount: 0, diagnosticCount: 0 };
+
+const combineCost = (a: Cost, b: Cost | null | undefined): Cost => ({
+  instructionCount: a.instructionCount + (b?.instructionCount ?? 0),
+  diagnosticCount: a.diagnosticCount + (b?.diagnosticCount ?? 0),
+});
+
+/** Increment a key in a counter record. Pure — returns new object. */
+const incCounter = <K extends string>(acc: Record<K, number>, key: K): Record<K, number> =>
+  ({ ...acc, [key]: (acc[key] ?? 0) + 1 });
+
+// ─── Translation Metrics (pure fold) ───
+
+interface TranslationAcc {
+  readonly total: number;
+  readonly hits: number;
+  readonly misses: number;
+  readonly disabled: number;
+  readonly missReasons: Readonly<Record<string, number>>;
+  readonly failureClasses: Readonly<Record<string, number>>;
+}
+
+const emptyTranslationAcc: TranslationAcc = { total: 0, hits: 0, misses: 0, disabled: 0, missReasons: {}, failureClasses: {} };
+
+const foldTranslationStep = (acc: TranslationAcc, entry: NonNullable<RuntimeScenarioStepResult['interpretation']['translation']>): TranslationAcc => {
+  const status = entry.cache?.status;
+  const reason = entry.cache?.reason ?? 'none';
+  const failKey = entry.failureClass ?? 'none';
+  return {
+    total: acc.total + 1,
+    hits: acc.hits + (status === 'hit' ? 1 : 0),
+    misses: acc.misses + (status === 'miss' ? 1 : 0),
+    disabled: acc.disabled + (status === 'disabled' ? 1 : 0),
+    missReasons: status !== 'hit' ? { ...acc.missReasons, [reason]: (acc.missReasons[reason] ?? 0) + 1 } : acc.missReasons,
+    failureClasses: { ...acc.failureClasses, [failKey]: (acc.failureClasses[failKey] ?? 0) + 1 },
+  };
+};
+
 function computeTranslationMetrics(stepResults: RuntimeScenarioStepResult[]): TranslationRunMetrics {
-  let total = 0;
-  let hits = 0;
-  let misses = 0;
-  let disabled = 0;
-  const missReasons: Record<string, number> = {};
-  const failureClasses: Record<string, number> = {};
-
-  for (const step of stepResults) {
-    const entry = step.interpretation.translation;
-    if (!entry) continue;
-    total++;
-    const status = entry.cache?.status;
-    if (status === 'hit') hits++;
-    else if (status === 'miss') misses++;
-    else if (status === 'disabled') disabled++;
-    if (status !== 'hit') {
-      const reason = entry.cache?.reason ?? 'none';
-      missReasons[reason] = (missReasons[reason] ?? 0) + 1;
-    }
-    const key = entry.failureClass ?? 'none';
-    failureClasses[key] = (failureClasses[key] ?? 0) + 1;
-  }
-
+  const acc = stepResults.reduce<TranslationAcc>(
+    (a, step) => step.interpretation.translation ? foldTranslationStep(a, step.interpretation.translation) : a,
+    emptyTranslationAcc,
+  );
   return {
-    total,
-    hits,
-    misses,
-    disabled,
-    hitRate: Number((total === 0 ? 0 : hits / total).toFixed(2)),
-    missReasons,
-    failureClasses,
-  };
-}
-
-function emptyTiming(): StepExecutionReceipt['timing'] {
-  return {
-    setupMs: 0,
-    resolutionMs: 0,
-    actionMs: 0,
-    assertionMs: 0,
-    retriesMs: 0,
-    teardownMs: 0,
-    totalMs: 0,
-  };
-}
-
-function emptyCost(): StepExecutionReceipt['cost'] {
-  return {
-    instructionCount: 0,
-    diagnosticCount: 0,
+    ...acc,
+    hitRate: Number((acc.total === 0 ? 0 : acc.hits / acc.total).toFixed(2)),
   };
 }
 
@@ -95,20 +109,9 @@ export function foldScenarioRun(input: {
     }),
   );
 
-  const timingTotals = [...byStep.values()].reduce((acc, step) => ({
-    setupMs: acc.setupMs + (step.timing?.setupMs ?? 0),
-    resolutionMs: acc.resolutionMs + (step.timing?.resolutionMs ?? 0),
-    actionMs: acc.actionMs + (step.timing?.actionMs ?? 0),
-    assertionMs: acc.assertionMs + (step.timing?.assertionMs ?? 0),
-    retriesMs: acc.retriesMs + (step.timing?.retriesMs ?? 0),
-    teardownMs: acc.teardownMs + (step.timing?.teardownMs ?? 0),
-    totalMs: acc.totalMs + (step.timing?.totalMs ?? 0),
-  }), emptyTiming());
-
-  const costTotals = [...byStep.values()].reduce((acc, step) => ({
-    instructionCount: acc.instructionCount + (step.cost?.instructionCount ?? 0),
-    diagnosticCount: acc.diagnosticCount + (step.cost?.diagnosticCount ?? 0),
-  }), emptyCost());
+  const steps = [...byStep.values()];
+  const timingTotals = steps.reduce((acc, step) => combineTiming(acc, step.timing), emptyTiming);
+  const costTotals = steps.reduce((acc, step) => combineCost(acc, step.cost), emptyCost);
 
   const executionMetrics = {
     timingTotals,

@@ -13,7 +13,7 @@
  *   - Clean fiber semantics instead of raw Promise.all
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Effect, Duration } from 'effect';
 
 // ─── Types ───
@@ -90,13 +90,13 @@ const detectCapabilities = (appUrl: string | null, baseUrl: string): Effect.Effe
 export function useWebMcpCapabilities(appUrl?: string | null): McpCapabilities {
   const [capabilities, setCapabilities] = useState<McpCapabilities>(BASE_CAPABILITIES);
 
-  const detect = useCallback(async () => {
-    const baseUrl = window.location.origin;
-    const result = await Effect.runPromise(detectCapabilities(appUrl ?? null, baseUrl));
-    setCapabilities(result);
+  useEffect(() => {
+    // Effect fiber runs once per appUrl change — no useCallback needed
+    const fiber = Effect.runPromise(
+      detectCapabilities(appUrl ?? null, window.location.origin),
+    ).then(setCapabilities);
+    return () => { fiber.catch(() => {}); }; // Cleanup: ignore stale results
   }, [appUrl]);
-
-  useEffect(() => { detect(); }, [detect]);
 
   return capabilities;
 }
