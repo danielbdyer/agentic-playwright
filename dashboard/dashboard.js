@@ -6,6 +6,9 @@
   var __getOwnPropNames = Object.getOwnPropertyNames;
   var __getProtoOf = Object.getPrototypeOf;
   var __hasOwnProp = Object.prototype.hasOwnProperty;
+  var __esm = (fn, res) => function __init() {
+    return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+  };
   var __commonJS = (cb, mod) => function __require() {
     return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
   };
@@ -25,6 +28,36 @@
     isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
     mod
   ));
+  var __accessCheck = (obj, member, msg) => {
+    if (!member.has(obj))
+      throw TypeError("Cannot " + msg);
+  };
+  var __privateGet = (obj, member, getter) => {
+    __accessCheck(obj, member, "read from private field");
+    return getter ? getter.call(obj) : member.get(obj);
+  };
+  var __privateAdd = (obj, member, value) => {
+    if (member.has(obj))
+      throw TypeError("Cannot add the same private member more than once");
+    member instanceof WeakSet ? member.add(obj) : member.set(obj, value);
+  };
+  var __privateSet = (obj, member, value, setter) => {
+    __accessCheck(obj, member, "write to private field");
+    setter ? setter.call(obj, value) : member.set(obj, value);
+    return value;
+  };
+  var __privateWrapper = (obj, member, setter, getter) => ({
+    set _(value) {
+      __privateSet(obj, member, value, setter);
+    },
+    get _() {
+      return __privateGet(obj, member, getter);
+    }
+  });
+  var __privateMethod = (obj, member, method) => {
+    __accessCheck(obj, member, "access private method");
+    return method;
+  };
 
   // node_modules/react/cjs/react.development.js
   var require_react_development = __commonJS({
@@ -71,7 +104,7 @@
           this.refs = emptyObject;
           this.updater = updater || ReactNoopUpdateQueue;
         }
-        function noop() {
+        function noop2() {
         }
         function testStringCoercion(value) {
           return "" + value;
@@ -266,7 +299,7 @@
             case "rejected":
               throw thenable.reason;
             default:
-              switch ("string" === typeof thenable.status ? thenable.then(noop, noop) : (thenable.status = "pending", thenable.then(
+              switch ("string" === typeof thenable.status ? thenable.then(noop2, noop2) : (thenable.status = "pending", thenable.then(
                 function(fulfilledValue) {
                   "pending" === thenable.status && (thenable.status = "fulfilled", thenable.value = fulfilledValue);
                 },
@@ -913,7 +946,7 @@
           try {
             var returnValue = scope(), onStartTransitionFinish = ReactSharedInternals.S;
             null !== onStartTransitionFinish && onStartTransitionFinish(currentTransition, returnValue);
-            "object" === typeof returnValue && null !== returnValue && "function" === typeof returnValue.then && (ReactSharedInternals.asyncTransitions++, returnValue.then(releaseAsyncTransition, releaseAsyncTransition), returnValue.then(noop, reportGlobalError));
+            "object" === typeof returnValue && null !== returnValue && "function" === typeof returnValue.then && (ReactSharedInternals.asyncTransitions++, returnValue.then(releaseAsyncTransition, releaseAsyncTransition), returnValue.then(noop2, reportGlobalError));
           } catch (error) {
             reportGlobalError(error);
           } finally {
@@ -1308,7 +1341,7 @@
     "node_modules/react-dom/cjs/react-dom.development.js"(exports) {
       "use strict";
       (function() {
-        function noop() {
+        function noop2() {
         }
         function testStringCoercion(value) {
           return "" + value;
@@ -1353,25 +1386,25 @@
           return dispatcher;
         }
         "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(Error());
-        var React = require_react(), Internals = {
+        var React7 = require_react(), Internals = {
           d: {
-            f: noop,
+            f: noop2,
             r: function() {
               throw Error(
                 "Invalid form element. requestFormReset must be passed a form that was rendered by React."
               );
             },
-            D: noop,
-            C: noop,
-            L: noop,
-            m: noop,
-            X: noop,
-            S: noop,
-            M: noop
+            D: noop2,
+            C: noop2,
+            L: noop2,
+            m: noop2,
+            X: noop2,
+            S: noop2,
+            M: noop2
           },
           p: 0,
           findDOMNode: null
-        }, REACT_PORTAL_TYPE = Symbol.for("react.portal"), ReactSharedInternals = React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
+        }, REACT_PORTAL_TYPE = Symbol.for("react.portal"), ReactSharedInternals = React7.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
         "function" === typeof Map && null != Map.prototype && "function" === typeof Map.prototype.forEach && "function" === typeof Set && null != Set.prototype && "function" === typeof Set.prototype.clear && "function" === typeof Set.prototype.forEach || console.error(
           "React depends on Map and Set built-in types. Make sure that you load a polyfill in older browsers. https://reactjs.org/link/react-polyfills"
         );
@@ -1626,7 +1659,7 @@
             "Context can only be read while React is rendering. In classes, you can read it in the render method or getDerivedStateFromProps. In function components, you can read it directly in the function body, but not inside Hooks like useReducer() or useMemo()."
           );
         }
-        function noop() {
+        function noop2() {
         }
         function warnForMissingKey() {
         }
@@ -2943,7 +2976,7 @@
           "number" === type && getActiveElement(node.ownerDocument) === node || node.defaultValue === "" + value || (node.defaultValue = "" + value);
         }
         function validateOptionProps(element, props) {
-          null == props.value && ("object" === typeof props.children && null !== props.children ? React.Children.forEach(props.children, function(child) {
+          null == props.value && ("object" === typeof props.children && null !== props.children ? React7.Children.forEach(props.children, function(child) {
             null == child || "string" === typeof child || "number" === typeof child || "bigint" === typeof child || didWarnInvalidChild || (didWarnInvalidChild = true, console.error(
               "Cannot infer the option value of complex children. Pass a `value` prop or use a plain string as children to <option>."
             ));
@@ -8055,7 +8088,7 @@
             queue,
             pendingState,
             NotPendingTransition,
-            null === action ? noop : function() {
+            null === action ? noop2 : function() {
               requestFormReset$1(formFiber);
               return action(formData);
             }
@@ -18781,14 +18814,14 @@
           ));
         }
         "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(Error());
-        var Scheduler = require_scheduler(), React = require_react(), ReactDOM = require_react_dom(), assign = Object.assign, REACT_LEGACY_ELEMENT_TYPE = Symbol.for("react.element"), REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = Symbol.for("react.profiler"), REACT_CONSUMER_TYPE = Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = Symbol.for("react.suspense"), REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"), REACT_MEMO_TYPE = Symbol.for("react.memo"), REACT_LAZY_TYPE = Symbol.for("react.lazy");
+        var Scheduler = require_scheduler(), React7 = require_react(), ReactDOM = require_react_dom(), assign = Object.assign, REACT_LEGACY_ELEMENT_TYPE = Symbol.for("react.element"), REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = Symbol.for("react.profiler"), REACT_CONSUMER_TYPE = Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = Symbol.for("react.suspense"), REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"), REACT_MEMO_TYPE = Symbol.for("react.memo"), REACT_LAZY_TYPE = Symbol.for("react.lazy");
         Symbol.for("react.scope");
         var REACT_ACTIVITY_TYPE = Symbol.for("react.activity");
         Symbol.for("react.legacy_hidden");
         Symbol.for("react.tracing_marker");
         var REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel");
         Symbol.for("react.view_transition");
-        var MAYBE_ITERATOR_SYMBOL = Symbol.iterator, REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference"), isArrayImpl = Array.isArray, ReactSharedInternals = React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, ReactDOMSharedInternals = ReactDOM.__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, NotPending = Object.freeze({
+        var MAYBE_ITERATOR_SYMBOL = Symbol.iterator, REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference"), isArrayImpl = Array.isArray, ReactSharedInternals = React7.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, ReactDOMSharedInternals = ReactDOM.__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, NotPending = Object.freeze({
           pending: false,
           data: null,
           method: null,
@@ -21581,7 +21614,7 @@
           }
         };
         (function() {
-          var isomorphicReactPackageVersion = React.version;
+          var isomorphicReactPackageVersion = React7.version;
           if ("19.2.4" !== isomorphicReactPackageVersion)
             throw Error(
               'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' + (isomorphicReactPackageVersion + "\n  - react-dom:  19.2.4\nLearn more: https://react.dev/warnings/version-mismatch")
@@ -21718,6 +21751,2796 @@
       } else {
         module.exports = require_react_dom_client_development();
       }
+    }
+  });
+
+  // node_modules/@tanstack/query-core/build/modern/subscribable.js
+  var Subscribable;
+  var init_subscribable = __esm({
+    "node_modules/@tanstack/query-core/build/modern/subscribable.js"() {
+      Subscribable = class {
+        constructor() {
+          this.listeners = /* @__PURE__ */ new Set();
+          this.subscribe = this.subscribe.bind(this);
+        }
+        subscribe(listener) {
+          this.listeners.add(listener);
+          this.onSubscribe();
+          return () => {
+            this.listeners.delete(listener);
+            this.onUnsubscribe();
+          };
+        }
+        hasListeners() {
+          return this.listeners.size > 0;
+        }
+        onSubscribe() {
+        }
+        onUnsubscribe() {
+        }
+      };
+    }
+  });
+
+  // node_modules/@tanstack/query-core/build/modern/focusManager.js
+  var _focused, _cleanup, _setup, _a, FocusManager, focusManager;
+  var init_focusManager = __esm({
+    "node_modules/@tanstack/query-core/build/modern/focusManager.js"() {
+      init_subscribable();
+      FocusManager = (_a = class extends Subscribable {
+        constructor() {
+          super();
+          __privateAdd(this, _focused, void 0);
+          __privateAdd(this, _cleanup, void 0);
+          __privateAdd(this, _setup, void 0);
+          __privateSet(this, _setup, (onFocus) => {
+            if (typeof window !== "undefined" && window.addEventListener) {
+              const listener = () => onFocus();
+              window.addEventListener("visibilitychange", listener, false);
+              return () => {
+                window.removeEventListener("visibilitychange", listener);
+              };
+            }
+            return;
+          });
+        }
+        onSubscribe() {
+          if (!__privateGet(this, _cleanup)) {
+            this.setEventListener(__privateGet(this, _setup));
+          }
+        }
+        onUnsubscribe() {
+          var _a12;
+          if (!this.hasListeners()) {
+            (_a12 = __privateGet(this, _cleanup)) == null ? void 0 : _a12.call(this);
+            __privateSet(this, _cleanup, void 0);
+          }
+        }
+        setEventListener(setup) {
+          var _a12;
+          __privateSet(this, _setup, setup);
+          (_a12 = __privateGet(this, _cleanup)) == null ? void 0 : _a12.call(this);
+          __privateSet(this, _cleanup, setup((focused) => {
+            if (typeof focused === "boolean") {
+              this.setFocused(focused);
+            } else {
+              this.onFocus();
+            }
+          }));
+        }
+        setFocused(focused) {
+          const changed = __privateGet(this, _focused) !== focused;
+          if (changed) {
+            __privateSet(this, _focused, focused);
+            this.onFocus();
+          }
+        }
+        onFocus() {
+          const isFocused = this.isFocused();
+          this.listeners.forEach((listener) => {
+            listener(isFocused);
+          });
+        }
+        isFocused() {
+          if (typeof __privateGet(this, _focused) === "boolean") {
+            return __privateGet(this, _focused);
+          }
+          return globalThis.document?.visibilityState !== "hidden";
+        }
+      }, _focused = new WeakMap(), _cleanup = new WeakMap(), _setup = new WeakMap(), _a);
+      focusManager = new FocusManager();
+    }
+  });
+
+  // node_modules/@tanstack/query-core/build/modern/timeoutManager.js
+  function systemSetTimeoutZero(callback) {
+    setTimeout(callback, 0);
+  }
+  var defaultTimeoutProvider, _provider, _providerCalled, _a2, TimeoutManager, timeoutManager;
+  var init_timeoutManager = __esm({
+    "node_modules/@tanstack/query-core/build/modern/timeoutManager.js"() {
+      defaultTimeoutProvider = {
+        // We need the wrapper function syntax below instead of direct references to
+        // global setTimeout etc.
+        //
+        // BAD: `setTimeout: setTimeout`
+        // GOOD: `setTimeout: (cb, delay) => setTimeout(cb, delay)`
+        //
+        // If we use direct references here, then anything that wants to spy on or
+        // replace the global setTimeout (like tests) won't work since we'll already
+        // have a hard reference to the original implementation at the time when this
+        // file was imported.
+        setTimeout: (callback, delay) => setTimeout(callback, delay),
+        clearTimeout: (timeoutId) => clearTimeout(timeoutId),
+        setInterval: (callback, delay) => setInterval(callback, delay),
+        clearInterval: (intervalId) => clearInterval(intervalId)
+      };
+      TimeoutManager = (_a2 = class {
+        constructor() {
+          // We cannot have TimeoutManager<T> as we must instantiate it with a concrete
+          // type at app boot; and if we leave that type, then any new timer provider
+          // would need to support the default provider's concrete timer ID, which is
+          // infeasible across environments.
+          //
+          // We settle for type safety for the TimeoutProvider type, and accept that
+          // this class is unsafe internally to allow for extension.
+          __privateAdd(this, _provider, defaultTimeoutProvider);
+          __privateAdd(this, _providerCalled, false);
+        }
+        setTimeoutProvider(provider) {
+          if (true) {
+            if (__privateGet(this, _providerCalled) && provider !== __privateGet(this, _provider)) {
+              console.error(
+                `[timeoutManager]: Switching provider after calls to previous provider might result in unexpected behavior.`,
+                { previous: __privateGet(this, _provider), provider }
+              );
+            }
+          }
+          __privateSet(this, _provider, provider);
+          if (true) {
+            __privateSet(this, _providerCalled, false);
+          }
+        }
+        setTimeout(callback, delay) {
+          if (true) {
+            __privateSet(this, _providerCalled, true);
+          }
+          return __privateGet(this, _provider).setTimeout(callback, delay);
+        }
+        clearTimeout(timeoutId) {
+          __privateGet(this, _provider).clearTimeout(timeoutId);
+        }
+        setInterval(callback, delay) {
+          if (true) {
+            __privateSet(this, _providerCalled, true);
+          }
+          return __privateGet(this, _provider).setInterval(callback, delay);
+        }
+        clearInterval(intervalId) {
+          __privateGet(this, _provider).clearInterval(intervalId);
+        }
+      }, _provider = new WeakMap(), _providerCalled = new WeakMap(), _a2);
+      timeoutManager = new TimeoutManager();
+    }
+  });
+
+  // node_modules/@tanstack/query-core/build/modern/utils.js
+  function noop() {
+  }
+  function functionalUpdate(updater, input) {
+    return typeof updater === "function" ? updater(input) : updater;
+  }
+  function isValidTimeout(value) {
+    return typeof value === "number" && value >= 0 && value !== Infinity;
+  }
+  function timeUntilStale(updatedAt, staleTime) {
+    return Math.max(updatedAt + (staleTime || 0) - Date.now(), 0);
+  }
+  function resolveStaleTime(staleTime, query) {
+    return typeof staleTime === "function" ? staleTime(query) : staleTime;
+  }
+  function resolveEnabled(enabled, query) {
+    return typeof enabled === "function" ? enabled(query) : enabled;
+  }
+  function matchQuery(filters, query) {
+    const {
+      type = "all",
+      exact,
+      fetchStatus,
+      predicate,
+      queryKey,
+      stale
+    } = filters;
+    if (queryKey) {
+      if (exact) {
+        if (query.queryHash !== hashQueryKeyByOptions(queryKey, query.options)) {
+          return false;
+        }
+      } else if (!partialMatchKey(query.queryKey, queryKey)) {
+        return false;
+      }
+    }
+    if (type !== "all") {
+      const isActive = query.isActive();
+      if (type === "active" && !isActive) {
+        return false;
+      }
+      if (type === "inactive" && isActive) {
+        return false;
+      }
+    }
+    if (typeof stale === "boolean" && query.isStale() !== stale) {
+      return false;
+    }
+    if (fetchStatus && fetchStatus !== query.state.fetchStatus) {
+      return false;
+    }
+    if (predicate && !predicate(query)) {
+      return false;
+    }
+    return true;
+  }
+  function matchMutation(filters, mutation) {
+    const { exact, status, predicate, mutationKey } = filters;
+    if (mutationKey) {
+      if (!mutation.options.mutationKey) {
+        return false;
+      }
+      if (exact) {
+        if (hashKey(mutation.options.mutationKey) !== hashKey(mutationKey)) {
+          return false;
+        }
+      } else if (!partialMatchKey(mutation.options.mutationKey, mutationKey)) {
+        return false;
+      }
+    }
+    if (status && mutation.state.status !== status) {
+      return false;
+    }
+    if (predicate && !predicate(mutation)) {
+      return false;
+    }
+    return true;
+  }
+  function hashQueryKeyByOptions(queryKey, options) {
+    const hashFn = options?.queryKeyHashFn || hashKey;
+    return hashFn(queryKey);
+  }
+  function hashKey(queryKey) {
+    return JSON.stringify(
+      queryKey,
+      (_, val) => isPlainObject(val) ? Object.keys(val).sort().reduce((result, key) => {
+        result[key] = val[key];
+        return result;
+      }, {}) : val
+    );
+  }
+  function partialMatchKey(a, b) {
+    if (a === b) {
+      return true;
+    }
+    if (typeof a !== typeof b) {
+      return false;
+    }
+    if (a && b && typeof a === "object" && typeof b === "object") {
+      return Object.keys(b).every((key) => partialMatchKey(a[key], b[key]));
+    }
+    return false;
+  }
+  function replaceEqualDeep(a, b, depth = 0) {
+    if (a === b) {
+      return a;
+    }
+    if (depth > 500)
+      return b;
+    const array = isPlainArray(a) && isPlainArray(b);
+    if (!array && !(isPlainObject(a) && isPlainObject(b)))
+      return b;
+    const aItems = array ? a : Object.keys(a);
+    const aSize = aItems.length;
+    const bItems = array ? b : Object.keys(b);
+    const bSize = bItems.length;
+    const copy = array ? new Array(bSize) : {};
+    let equalItems = 0;
+    for (let i = 0; i < bSize; i++) {
+      const key = array ? i : bItems[i];
+      const aItem = a[key];
+      const bItem = b[key];
+      if (aItem === bItem) {
+        copy[key] = aItem;
+        if (array ? i < aSize : hasOwn.call(a, key))
+          equalItems++;
+        continue;
+      }
+      if (aItem === null || bItem === null || typeof aItem !== "object" || typeof bItem !== "object") {
+        copy[key] = bItem;
+        continue;
+      }
+      const v = replaceEqualDeep(aItem, bItem, depth + 1);
+      copy[key] = v;
+      if (v === aItem)
+        equalItems++;
+    }
+    return aSize === bSize && equalItems === aSize ? a : copy;
+  }
+  function shallowEqualObjects(a, b) {
+    if (!b || Object.keys(a).length !== Object.keys(b).length) {
+      return false;
+    }
+    for (const key in a) {
+      if (a[key] !== b[key]) {
+        return false;
+      }
+    }
+    return true;
+  }
+  function isPlainArray(value) {
+    return Array.isArray(value) && value.length === Object.keys(value).length;
+  }
+  function isPlainObject(o) {
+    if (!hasObjectPrototype(o)) {
+      return false;
+    }
+    const ctor = o.constructor;
+    if (ctor === void 0) {
+      return true;
+    }
+    const prot = ctor.prototype;
+    if (!hasObjectPrototype(prot)) {
+      return false;
+    }
+    if (!prot.hasOwnProperty("isPrototypeOf")) {
+      return false;
+    }
+    if (Object.getPrototypeOf(o) !== Object.prototype) {
+      return false;
+    }
+    return true;
+  }
+  function hasObjectPrototype(o) {
+    return Object.prototype.toString.call(o) === "[object Object]";
+  }
+  function sleep(timeout) {
+    return new Promise((resolve) => {
+      timeoutManager.setTimeout(resolve, timeout);
+    });
+  }
+  function replaceData(prevData, data, options) {
+    if (typeof options.structuralSharing === "function") {
+      return options.structuralSharing(prevData, data);
+    } else if (options.structuralSharing !== false) {
+      if (true) {
+        try {
+          return replaceEqualDeep(prevData, data);
+        } catch (error) {
+          console.error(
+            `Structural sharing requires data to be JSON serializable. To fix this, turn off structuralSharing or return JSON-serializable data from your queryFn. [${options.queryHash}]: ${error}`
+          );
+          throw error;
+        }
+      }
+      return replaceEqualDeep(prevData, data);
+    }
+    return data;
+  }
+  function addToEnd(items, item, max = 0) {
+    const newItems = [...items, item];
+    return max && newItems.length > max ? newItems.slice(1) : newItems;
+  }
+  function addToStart(items, item, max = 0) {
+    const newItems = [item, ...items];
+    return max && newItems.length > max ? newItems.slice(0, -1) : newItems;
+  }
+  function ensureQueryFn(options, fetchOptions) {
+    if (true) {
+      if (options.queryFn === skipToken) {
+        console.error(
+          `Attempted to invoke queryFn when set to skipToken. This is likely a configuration error. Query hash: '${options.queryHash}'`
+        );
+      }
+    }
+    if (!options.queryFn && fetchOptions?.initialPromise) {
+      return () => fetchOptions.initialPromise;
+    }
+    if (!options.queryFn || options.queryFn === skipToken) {
+      return () => Promise.reject(new Error(`Missing queryFn: '${options.queryHash}'`));
+    }
+    return options.queryFn;
+  }
+  function shouldThrowError(throwOnError, params) {
+    if (typeof throwOnError === "function") {
+      return throwOnError(...params);
+    }
+    return !!throwOnError;
+  }
+  function addConsumeAwareSignal(object, getSignal, onCancelled) {
+    let consumed = false;
+    let signal;
+    Object.defineProperty(object, "signal", {
+      enumerable: true,
+      get: () => {
+        signal ?? (signal = getSignal());
+        if (consumed) {
+          return signal;
+        }
+        consumed = true;
+        if (signal.aborted) {
+          onCancelled();
+        } else {
+          signal.addEventListener("abort", onCancelled, { once: true });
+        }
+        return signal;
+      }
+    });
+    return object;
+  }
+  var isServer, hasOwn, skipToken;
+  var init_utils = __esm({
+    "node_modules/@tanstack/query-core/build/modern/utils.js"() {
+      init_timeoutManager();
+      isServer = typeof window === "undefined" || "Deno" in globalThis;
+      hasOwn = Object.prototype.hasOwnProperty;
+      skipToken = /* @__PURE__ */ Symbol();
+    }
+  });
+
+  // node_modules/@tanstack/query-core/build/modern/environmentManager.js
+  var environmentManager;
+  var init_environmentManager = __esm({
+    "node_modules/@tanstack/query-core/build/modern/environmentManager.js"() {
+      init_utils();
+      environmentManager = /* @__PURE__ */ (() => {
+        let isServerFn = () => isServer;
+        return {
+          /**
+           * Returns whether the current runtime should be treated as a server environment.
+           */
+          isServer() {
+            return isServerFn();
+          },
+          /**
+           * Overrides the server check globally.
+           */
+          setIsServer(isServerValue) {
+            isServerFn = isServerValue;
+          }
+        };
+      })();
+    }
+  });
+
+  // node_modules/@tanstack/query-core/build/modern/thenable.js
+  function pendingThenable() {
+    let resolve;
+    let reject;
+    const thenable = new Promise((_resolve, _reject) => {
+      resolve = _resolve;
+      reject = _reject;
+    });
+    thenable.status = "pending";
+    thenable.catch(() => {
+    });
+    function finalize(data) {
+      Object.assign(thenable, data);
+      delete thenable.resolve;
+      delete thenable.reject;
+    }
+    thenable.resolve = (value) => {
+      finalize({
+        status: "fulfilled",
+        value
+      });
+      resolve(value);
+    };
+    thenable.reject = (reason) => {
+      finalize({
+        status: "rejected",
+        reason
+      });
+      reject(reason);
+    };
+    return thenable;
+  }
+  var init_thenable = __esm({
+    "node_modules/@tanstack/query-core/build/modern/thenable.js"() {
+    }
+  });
+
+  // node_modules/@tanstack/query-core/build/modern/notifyManager.js
+  function createNotifyManager() {
+    let queue = [];
+    let transactions = 0;
+    let notifyFn = (callback) => {
+      callback();
+    };
+    let batchNotifyFn = (callback) => {
+      callback();
+    };
+    let scheduleFn = defaultScheduler;
+    const schedule = (callback) => {
+      if (transactions) {
+        queue.push(callback);
+      } else {
+        scheduleFn(() => {
+          notifyFn(callback);
+        });
+      }
+    };
+    const flush = () => {
+      const originalQueue = queue;
+      queue = [];
+      if (originalQueue.length) {
+        scheduleFn(() => {
+          batchNotifyFn(() => {
+            originalQueue.forEach((callback) => {
+              notifyFn(callback);
+            });
+          });
+        });
+      }
+    };
+    return {
+      batch: (callback) => {
+        let result;
+        transactions++;
+        try {
+          result = callback();
+        } finally {
+          transactions--;
+          if (!transactions) {
+            flush();
+          }
+        }
+        return result;
+      },
+      /**
+       * All calls to the wrapped function will be batched.
+       */
+      batchCalls: (callback) => {
+        return (...args) => {
+          schedule(() => {
+            callback(...args);
+          });
+        };
+      },
+      schedule,
+      /**
+       * Use this method to set a custom notify function.
+       * This can be used to for example wrap notifications with `React.act` while running tests.
+       */
+      setNotifyFunction: (fn) => {
+        notifyFn = fn;
+      },
+      /**
+       * Use this method to set a custom function to batch notifications together into a single tick.
+       * By default React Query will use the batch function provided by ReactDOM or React Native.
+       */
+      setBatchNotifyFunction: (fn) => {
+        batchNotifyFn = fn;
+      },
+      setScheduler: (fn) => {
+        scheduleFn = fn;
+      }
+    };
+  }
+  var defaultScheduler, notifyManager;
+  var init_notifyManager = __esm({
+    "node_modules/@tanstack/query-core/build/modern/notifyManager.js"() {
+      init_timeoutManager();
+      defaultScheduler = systemSetTimeoutZero;
+      notifyManager = createNotifyManager();
+    }
+  });
+
+  // node_modules/@tanstack/query-core/build/modern/onlineManager.js
+  var _online, _cleanup2, _setup2, _a3, OnlineManager, onlineManager;
+  var init_onlineManager = __esm({
+    "node_modules/@tanstack/query-core/build/modern/onlineManager.js"() {
+      init_subscribable();
+      OnlineManager = (_a3 = class extends Subscribable {
+        constructor() {
+          super();
+          __privateAdd(this, _online, true);
+          __privateAdd(this, _cleanup2, void 0);
+          __privateAdd(this, _setup2, void 0);
+          __privateSet(this, _setup2, (onOnline) => {
+            if (typeof window !== "undefined" && window.addEventListener) {
+              const onlineListener = () => onOnline(true);
+              const offlineListener = () => onOnline(false);
+              window.addEventListener("online", onlineListener, false);
+              window.addEventListener("offline", offlineListener, false);
+              return () => {
+                window.removeEventListener("online", onlineListener);
+                window.removeEventListener("offline", offlineListener);
+              };
+            }
+            return;
+          });
+        }
+        onSubscribe() {
+          if (!__privateGet(this, _cleanup2)) {
+            this.setEventListener(__privateGet(this, _setup2));
+          }
+        }
+        onUnsubscribe() {
+          var _a12;
+          if (!this.hasListeners()) {
+            (_a12 = __privateGet(this, _cleanup2)) == null ? void 0 : _a12.call(this);
+            __privateSet(this, _cleanup2, void 0);
+          }
+        }
+        setEventListener(setup) {
+          var _a12;
+          __privateSet(this, _setup2, setup);
+          (_a12 = __privateGet(this, _cleanup2)) == null ? void 0 : _a12.call(this);
+          __privateSet(this, _cleanup2, setup(this.setOnline.bind(this)));
+        }
+        setOnline(online) {
+          const changed = __privateGet(this, _online) !== online;
+          if (changed) {
+            __privateSet(this, _online, online);
+            this.listeners.forEach((listener) => {
+              listener(online);
+            });
+          }
+        }
+        isOnline() {
+          return __privateGet(this, _online);
+        }
+      }, _online = new WeakMap(), _cleanup2 = new WeakMap(), _setup2 = new WeakMap(), _a3);
+      onlineManager = new OnlineManager();
+    }
+  });
+
+  // node_modules/@tanstack/query-core/build/modern/retryer.js
+  function defaultRetryDelay(failureCount) {
+    return Math.min(1e3 * 2 ** failureCount, 3e4);
+  }
+  function canFetch(networkMode) {
+    return (networkMode ?? "online") === "online" ? onlineManager.isOnline() : true;
+  }
+  function createRetryer(config) {
+    let isRetryCancelled = false;
+    let failureCount = 0;
+    let continueFn;
+    const thenable = pendingThenable();
+    const isResolved = () => thenable.status !== "pending";
+    const cancel = (cancelOptions) => {
+      if (!isResolved()) {
+        const error = new CancelledError(cancelOptions);
+        reject(error);
+        config.onCancel?.(error);
+      }
+    };
+    const cancelRetry = () => {
+      isRetryCancelled = true;
+    };
+    const continueRetry = () => {
+      isRetryCancelled = false;
+    };
+    const canContinue = () => focusManager.isFocused() && (config.networkMode === "always" || onlineManager.isOnline()) && config.canRun();
+    const canStart = () => canFetch(config.networkMode) && config.canRun();
+    const resolve = (value) => {
+      if (!isResolved()) {
+        continueFn?.();
+        thenable.resolve(value);
+      }
+    };
+    const reject = (value) => {
+      if (!isResolved()) {
+        continueFn?.();
+        thenable.reject(value);
+      }
+    };
+    const pause = () => {
+      return new Promise((continueResolve) => {
+        continueFn = (value) => {
+          if (isResolved() || canContinue()) {
+            continueResolve(value);
+          }
+        };
+        config.onPause?.();
+      }).then(() => {
+        continueFn = void 0;
+        if (!isResolved()) {
+          config.onContinue?.();
+        }
+      });
+    };
+    const run = () => {
+      if (isResolved()) {
+        return;
+      }
+      let promiseOrValue;
+      const initialPromise = failureCount === 0 ? config.initialPromise : void 0;
+      try {
+        promiseOrValue = initialPromise ?? config.fn();
+      } catch (error) {
+        promiseOrValue = Promise.reject(error);
+      }
+      Promise.resolve(promiseOrValue).then(resolve).catch((error) => {
+        if (isResolved()) {
+          return;
+        }
+        const retry = config.retry ?? (environmentManager.isServer() ? 0 : 3);
+        const retryDelay = config.retryDelay ?? defaultRetryDelay;
+        const delay = typeof retryDelay === "function" ? retryDelay(failureCount, error) : retryDelay;
+        const shouldRetry = retry === true || typeof retry === "number" && failureCount < retry || typeof retry === "function" && retry(failureCount, error);
+        if (isRetryCancelled || !shouldRetry) {
+          reject(error);
+          return;
+        }
+        failureCount++;
+        config.onFail?.(failureCount, error);
+        sleep(delay).then(() => {
+          return canContinue() ? void 0 : pause();
+        }).then(() => {
+          if (isRetryCancelled) {
+            reject(error);
+          } else {
+            run();
+          }
+        });
+      });
+    };
+    return {
+      promise: thenable,
+      status: () => thenable.status,
+      cancel,
+      continue: () => {
+        continueFn?.();
+        return thenable;
+      },
+      cancelRetry,
+      continueRetry,
+      canStart,
+      start: () => {
+        if (canStart()) {
+          run();
+        } else {
+          pause().then(run);
+        }
+        return thenable;
+      }
+    };
+  }
+  var CancelledError;
+  var init_retryer = __esm({
+    "node_modules/@tanstack/query-core/build/modern/retryer.js"() {
+      init_focusManager();
+      init_onlineManager();
+      init_thenable();
+      init_environmentManager();
+      init_utils();
+      CancelledError = class extends Error {
+        constructor(options) {
+          super("CancelledError");
+          this.revert = options?.revert;
+          this.silent = options?.silent;
+        }
+      };
+    }
+  });
+
+  // node_modules/@tanstack/query-core/build/modern/removable.js
+  var _gcTimeout, _a4, Removable;
+  var init_removable = __esm({
+    "node_modules/@tanstack/query-core/build/modern/removable.js"() {
+      init_timeoutManager();
+      init_environmentManager();
+      init_utils();
+      Removable = (_a4 = class {
+        constructor() {
+          __privateAdd(this, _gcTimeout, void 0);
+        }
+        destroy() {
+          this.clearGcTimeout();
+        }
+        scheduleGc() {
+          this.clearGcTimeout();
+          if (isValidTimeout(this.gcTime)) {
+            __privateSet(this, _gcTimeout, timeoutManager.setTimeout(() => {
+              this.optionalRemove();
+            }, this.gcTime));
+          }
+        }
+        updateGcTime(newGcTime) {
+          this.gcTime = Math.max(
+            this.gcTime || 0,
+            newGcTime ?? (environmentManager.isServer() ? Infinity : 5 * 60 * 1e3)
+          );
+        }
+        clearGcTimeout() {
+          if (__privateGet(this, _gcTimeout)) {
+            timeoutManager.clearTimeout(__privateGet(this, _gcTimeout));
+            __privateSet(this, _gcTimeout, void 0);
+          }
+        }
+      }, _gcTimeout = new WeakMap(), _a4);
+    }
+  });
+
+  // node_modules/@tanstack/query-core/build/modern/query.js
+  function fetchState(data, options) {
+    return {
+      fetchFailureCount: 0,
+      fetchFailureReason: null,
+      fetchStatus: canFetch(options.networkMode) ? "fetching" : "paused",
+      ...data === void 0 && {
+        error: null,
+        status: "pending"
+      }
+    };
+  }
+  function successState(data, dataUpdatedAt) {
+    return {
+      data,
+      dataUpdatedAt: dataUpdatedAt ?? Date.now(),
+      error: null,
+      isInvalidated: false,
+      status: "success"
+    };
+  }
+  function getDefaultState(options) {
+    const data = typeof options.initialData === "function" ? options.initialData() : options.initialData;
+    const hasData = data !== void 0;
+    const initialDataUpdatedAt = hasData ? typeof options.initialDataUpdatedAt === "function" ? options.initialDataUpdatedAt() : options.initialDataUpdatedAt : 0;
+    return {
+      data,
+      dataUpdateCount: 0,
+      dataUpdatedAt: hasData ? initialDataUpdatedAt ?? Date.now() : 0,
+      error: null,
+      errorUpdateCount: 0,
+      errorUpdatedAt: 0,
+      fetchFailureCount: 0,
+      fetchFailureReason: null,
+      fetchMeta: null,
+      isInvalidated: false,
+      status: hasData ? "success" : "pending",
+      fetchStatus: "idle"
+    };
+  }
+  var _initialState, _revertState, _cache, _client, _retryer, _defaultOptions, _abortSignalConsumed, _isInitialPausedFetch, isInitialPausedFetch_fn, _dispatch, dispatch_fn, _a5, Query;
+  var init_query = __esm({
+    "node_modules/@tanstack/query-core/build/modern/query.js"() {
+      init_utils();
+      init_notifyManager();
+      init_retryer();
+      init_removable();
+      Query = (_a5 = class extends Removable {
+        constructor(config) {
+          super();
+          __privateAdd(this, _isInitialPausedFetch);
+          __privateAdd(this, _dispatch);
+          __privateAdd(this, _initialState, void 0);
+          __privateAdd(this, _revertState, void 0);
+          __privateAdd(this, _cache, void 0);
+          __privateAdd(this, _client, void 0);
+          __privateAdd(this, _retryer, void 0);
+          __privateAdd(this, _defaultOptions, void 0);
+          __privateAdd(this, _abortSignalConsumed, void 0);
+          __privateSet(this, _abortSignalConsumed, false);
+          __privateSet(this, _defaultOptions, config.defaultOptions);
+          this.setOptions(config.options);
+          this.observers = [];
+          __privateSet(this, _client, config.client);
+          __privateSet(this, _cache, __privateGet(this, _client).getQueryCache());
+          this.queryKey = config.queryKey;
+          this.queryHash = config.queryHash;
+          __privateSet(this, _initialState, getDefaultState(this.options));
+          this.state = config.state ?? __privateGet(this, _initialState);
+          this.scheduleGc();
+        }
+        get meta() {
+          return this.options.meta;
+        }
+        get promise() {
+          return __privateGet(this, _retryer)?.promise;
+        }
+        setOptions(options) {
+          this.options = { ...__privateGet(this, _defaultOptions), ...options };
+          this.updateGcTime(this.options.gcTime);
+          if (this.state && this.state.data === void 0) {
+            const defaultState = getDefaultState(this.options);
+            if (defaultState.data !== void 0) {
+              this.setState(
+                successState(defaultState.data, defaultState.dataUpdatedAt)
+              );
+              __privateSet(this, _initialState, defaultState);
+            }
+          }
+        }
+        optionalRemove() {
+          if (!this.observers.length && this.state.fetchStatus === "idle") {
+            __privateGet(this, _cache).remove(this);
+          }
+        }
+        setData(newData, options) {
+          const data = replaceData(this.state.data, newData, this.options);
+          __privateMethod(this, _dispatch, dispatch_fn).call(this, {
+            data,
+            type: "success",
+            dataUpdatedAt: options?.updatedAt,
+            manual: options?.manual
+          });
+          return data;
+        }
+        setState(state, setStateOptions) {
+          __privateMethod(this, _dispatch, dispatch_fn).call(this, { type: "setState", state, setStateOptions });
+        }
+        cancel(options) {
+          const promise = __privateGet(this, _retryer)?.promise;
+          __privateGet(this, _retryer)?.cancel(options);
+          return promise ? promise.then(noop).catch(noop) : Promise.resolve();
+        }
+        destroy() {
+          super.destroy();
+          this.cancel({ silent: true });
+        }
+        get resetState() {
+          return __privateGet(this, _initialState);
+        }
+        reset() {
+          this.destroy();
+          this.setState(this.resetState);
+        }
+        isActive() {
+          return this.observers.some(
+            (observer) => resolveEnabled(observer.options.enabled, this) !== false
+          );
+        }
+        isDisabled() {
+          if (this.getObserversCount() > 0) {
+            return !this.isActive();
+          }
+          return this.options.queryFn === skipToken || !this.isFetched();
+        }
+        isFetched() {
+          return this.state.dataUpdateCount + this.state.errorUpdateCount > 0;
+        }
+        isStatic() {
+          if (this.getObserversCount() > 0) {
+            return this.observers.some(
+              (observer) => resolveStaleTime(observer.options.staleTime, this) === "static"
+            );
+          }
+          return false;
+        }
+        isStale() {
+          if (this.getObserversCount() > 0) {
+            return this.observers.some(
+              (observer) => observer.getCurrentResult().isStale
+            );
+          }
+          return this.state.data === void 0 || this.state.isInvalidated;
+        }
+        isStaleByTime(staleTime = 0) {
+          if (this.state.data === void 0) {
+            return true;
+          }
+          if (staleTime === "static") {
+            return false;
+          }
+          if (this.state.isInvalidated) {
+            return true;
+          }
+          return !timeUntilStale(this.state.dataUpdatedAt, staleTime);
+        }
+        onFocus() {
+          const observer = this.observers.find((x) => x.shouldFetchOnWindowFocus());
+          observer?.refetch({ cancelRefetch: false });
+          __privateGet(this, _retryer)?.continue();
+        }
+        onOnline() {
+          const observer = this.observers.find((x) => x.shouldFetchOnReconnect());
+          observer?.refetch({ cancelRefetch: false });
+          __privateGet(this, _retryer)?.continue();
+        }
+        addObserver(observer) {
+          if (!this.observers.includes(observer)) {
+            this.observers.push(observer);
+            this.clearGcTimeout();
+            __privateGet(this, _cache).notify({ type: "observerAdded", query: this, observer });
+          }
+        }
+        removeObserver(observer) {
+          if (this.observers.includes(observer)) {
+            this.observers = this.observers.filter((x) => x !== observer);
+            if (!this.observers.length) {
+              if (__privateGet(this, _retryer)) {
+                if (__privateGet(this, _abortSignalConsumed) || __privateMethod(this, _isInitialPausedFetch, isInitialPausedFetch_fn).call(this)) {
+                  __privateGet(this, _retryer).cancel({ revert: true });
+                } else {
+                  __privateGet(this, _retryer).cancelRetry();
+                }
+              }
+              this.scheduleGc();
+            }
+            __privateGet(this, _cache).notify({ type: "observerRemoved", query: this, observer });
+          }
+        }
+        getObserversCount() {
+          return this.observers.length;
+        }
+        invalidate() {
+          if (!this.state.isInvalidated) {
+            __privateMethod(this, _dispatch, dispatch_fn).call(this, { type: "invalidate" });
+          }
+        }
+        async fetch(options, fetchOptions) {
+          if (this.state.fetchStatus !== "idle" && // If the promise in the retryer is already rejected, we have to definitely
+          // re-start the fetch; there is a chance that the query is still in a
+          // pending state when that happens
+          __privateGet(this, _retryer)?.status() !== "rejected") {
+            if (this.state.data !== void 0 && fetchOptions?.cancelRefetch) {
+              this.cancel({ silent: true });
+            } else if (__privateGet(this, _retryer)) {
+              __privateGet(this, _retryer).continueRetry();
+              return __privateGet(this, _retryer).promise;
+            }
+          }
+          if (options) {
+            this.setOptions(options);
+          }
+          if (!this.options.queryFn) {
+            const observer = this.observers.find((x) => x.options.queryFn);
+            if (observer) {
+              this.setOptions(observer.options);
+            }
+          }
+          if (true) {
+            if (!Array.isArray(this.options.queryKey)) {
+              console.error(
+                `As of v4, queryKey needs to be an Array. If you are using a string like 'repoData', please change it to an Array, e.g. ['repoData']`
+              );
+            }
+          }
+          const abortController = new AbortController();
+          const addSignalProperty = (object) => {
+            Object.defineProperty(object, "signal", {
+              enumerable: true,
+              get: () => {
+                __privateSet(this, _abortSignalConsumed, true);
+                return abortController.signal;
+              }
+            });
+          };
+          const fetchFn = () => {
+            const queryFn = ensureQueryFn(this.options, fetchOptions);
+            const createQueryFnContext = () => {
+              const queryFnContext2 = {
+                client: __privateGet(this, _client),
+                queryKey: this.queryKey,
+                meta: this.meta
+              };
+              addSignalProperty(queryFnContext2);
+              return queryFnContext2;
+            };
+            const queryFnContext = createQueryFnContext();
+            __privateSet(this, _abortSignalConsumed, false);
+            if (this.options.persister) {
+              return this.options.persister(
+                queryFn,
+                queryFnContext,
+                this
+              );
+            }
+            return queryFn(queryFnContext);
+          };
+          const createFetchContext = () => {
+            const context2 = {
+              fetchOptions,
+              options: this.options,
+              queryKey: this.queryKey,
+              client: __privateGet(this, _client),
+              state: this.state,
+              fetchFn
+            };
+            addSignalProperty(context2);
+            return context2;
+          };
+          const context = createFetchContext();
+          this.options.behavior?.onFetch(context, this);
+          __privateSet(this, _revertState, this.state);
+          if (this.state.fetchStatus === "idle" || this.state.fetchMeta !== context.fetchOptions?.meta) {
+            __privateMethod(this, _dispatch, dispatch_fn).call(this, { type: "fetch", meta: context.fetchOptions?.meta });
+          }
+          __privateSet(this, _retryer, createRetryer({
+            initialPromise: fetchOptions?.initialPromise,
+            fn: context.fetchFn,
+            onCancel: (error) => {
+              if (error instanceof CancelledError && error.revert) {
+                this.setState({
+                  ...__privateGet(this, _revertState),
+                  fetchStatus: "idle"
+                });
+              }
+              abortController.abort();
+            },
+            onFail: (failureCount, error) => {
+              __privateMethod(this, _dispatch, dispatch_fn).call(this, { type: "failed", failureCount, error });
+            },
+            onPause: () => {
+              __privateMethod(this, _dispatch, dispatch_fn).call(this, { type: "pause" });
+            },
+            onContinue: () => {
+              __privateMethod(this, _dispatch, dispatch_fn).call(this, { type: "continue" });
+            },
+            retry: context.options.retry,
+            retryDelay: context.options.retryDelay,
+            networkMode: context.options.networkMode,
+            canRun: () => true
+          }));
+          try {
+            const data = await __privateGet(this, _retryer).start();
+            if (data === void 0) {
+              if (true) {
+                console.error(
+                  `Query data cannot be undefined. Please make sure to return a value other than undefined from your query function. Affected query key: ${this.queryHash}`
+                );
+              }
+              throw new Error(`${this.queryHash} data is undefined`);
+            }
+            this.setData(data);
+            __privateGet(this, _cache).config.onSuccess?.(data, this);
+            __privateGet(this, _cache).config.onSettled?.(
+              data,
+              this.state.error,
+              this
+            );
+            return data;
+          } catch (error) {
+            if (error instanceof CancelledError) {
+              if (error.silent) {
+                return __privateGet(this, _retryer).promise;
+              } else if (error.revert) {
+                if (this.state.data === void 0) {
+                  throw error;
+                }
+                return this.state.data;
+              }
+            }
+            __privateMethod(this, _dispatch, dispatch_fn).call(this, {
+              type: "error",
+              error
+            });
+            __privateGet(this, _cache).config.onError?.(
+              error,
+              this
+            );
+            __privateGet(this, _cache).config.onSettled?.(
+              this.state.data,
+              error,
+              this
+            );
+            throw error;
+          } finally {
+            this.scheduleGc();
+          }
+        }
+      }, _initialState = new WeakMap(), _revertState = new WeakMap(), _cache = new WeakMap(), _client = new WeakMap(), _retryer = new WeakMap(), _defaultOptions = new WeakMap(), _abortSignalConsumed = new WeakMap(), _isInitialPausedFetch = new WeakSet(), isInitialPausedFetch_fn = function() {
+        return this.state.fetchStatus === "paused" && this.state.status === "pending";
+      }, _dispatch = new WeakSet(), dispatch_fn = function(action) {
+        const reducer = (state) => {
+          switch (action.type) {
+            case "failed":
+              return {
+                ...state,
+                fetchFailureCount: action.failureCount,
+                fetchFailureReason: action.error
+              };
+            case "pause":
+              return {
+                ...state,
+                fetchStatus: "paused"
+              };
+            case "continue":
+              return {
+                ...state,
+                fetchStatus: "fetching"
+              };
+            case "fetch":
+              return {
+                ...state,
+                ...fetchState(state.data, this.options),
+                fetchMeta: action.meta ?? null
+              };
+            case "success":
+              const newState = {
+                ...state,
+                ...successState(action.data, action.dataUpdatedAt),
+                dataUpdateCount: state.dataUpdateCount + 1,
+                ...!action.manual && {
+                  fetchStatus: "idle",
+                  fetchFailureCount: 0,
+                  fetchFailureReason: null
+                }
+              };
+              __privateSet(this, _revertState, action.manual ? newState : void 0);
+              return newState;
+            case "error":
+              const error = action.error;
+              return {
+                ...state,
+                error,
+                errorUpdateCount: state.errorUpdateCount + 1,
+                errorUpdatedAt: Date.now(),
+                fetchFailureCount: state.fetchFailureCount + 1,
+                fetchFailureReason: error,
+                fetchStatus: "idle",
+                status: "error",
+                // flag existing data as invalidated if we get a background error
+                // note that "no data" always means stale so we can set unconditionally here
+                isInvalidated: true
+              };
+            case "invalidate":
+              return {
+                ...state,
+                isInvalidated: true
+              };
+            case "setState":
+              return {
+                ...state,
+                ...action.state
+              };
+          }
+        };
+        this.state = reducer(this.state);
+        notifyManager.batch(() => {
+          this.observers.forEach((observer) => {
+            observer.onQueryUpdate();
+          });
+          __privateGet(this, _cache).notify({ query: this, type: "updated", action });
+        });
+      }, _a5);
+    }
+  });
+
+  // node_modules/@tanstack/query-core/build/modern/queryObserver.js
+  function shouldLoadOnMount(query, options) {
+    return resolveEnabled(options.enabled, query) !== false && query.state.data === void 0 && !(query.state.status === "error" && options.retryOnMount === false);
+  }
+  function shouldFetchOnMount(query, options) {
+    return shouldLoadOnMount(query, options) || query.state.data !== void 0 && shouldFetchOn(query, options, options.refetchOnMount);
+  }
+  function shouldFetchOn(query, options, field) {
+    if (resolveEnabled(options.enabled, query) !== false && resolveStaleTime(options.staleTime, query) !== "static") {
+      const value = typeof field === "function" ? field(query) : field;
+      return value === "always" || value !== false && isStale(query, options);
+    }
+    return false;
+  }
+  function shouldFetchOptionally(query, prevQuery, options, prevOptions) {
+    return (query !== prevQuery || resolveEnabled(prevOptions.enabled, query) === false) && (!options.suspense || query.state.status !== "error") && isStale(query, options);
+  }
+  function isStale(query, options) {
+    return resolveEnabled(options.enabled, query) !== false && query.isStaleByTime(resolveStaleTime(options.staleTime, query));
+  }
+  function shouldAssignObserverCurrentProperties(observer, optimisticResult) {
+    if (!shallowEqualObjects(observer.getCurrentResult(), optimisticResult)) {
+      return true;
+    }
+    return false;
+  }
+  var _client2, _currentQuery, _currentQueryInitialState, _currentResult, _currentResultState, _currentResultOptions, _currentThenable, _selectError, _selectFn, _selectResult, _lastQueryWithDefinedData, _staleTimeoutId, _refetchIntervalId, _currentRefetchInterval, _trackedProps, _executeFetch, executeFetch_fn, _updateStaleTimeout, updateStaleTimeout_fn, _computeRefetchInterval, computeRefetchInterval_fn, _updateRefetchInterval, updateRefetchInterval_fn, _updateTimers, updateTimers_fn, _clearStaleTimeout, clearStaleTimeout_fn, _clearRefetchInterval, clearRefetchInterval_fn, _updateQuery, updateQuery_fn, _notify, notify_fn, _a6, QueryObserver;
+  var init_queryObserver = __esm({
+    "node_modules/@tanstack/query-core/build/modern/queryObserver.js"() {
+      init_focusManager();
+      init_environmentManager();
+      init_notifyManager();
+      init_query();
+      init_subscribable();
+      init_thenable();
+      init_utils();
+      init_timeoutManager();
+      QueryObserver = (_a6 = class extends Subscribable {
+        constructor(client, options) {
+          super();
+          __privateAdd(this, _executeFetch);
+          __privateAdd(this, _updateStaleTimeout);
+          __privateAdd(this, _computeRefetchInterval);
+          __privateAdd(this, _updateRefetchInterval);
+          __privateAdd(this, _updateTimers);
+          __privateAdd(this, _clearStaleTimeout);
+          __privateAdd(this, _clearRefetchInterval);
+          __privateAdd(this, _updateQuery);
+          __privateAdd(this, _notify);
+          __privateAdd(this, _client2, void 0);
+          __privateAdd(this, _currentQuery, void 0);
+          __privateAdd(this, _currentQueryInitialState, void 0);
+          __privateAdd(this, _currentResult, void 0);
+          __privateAdd(this, _currentResultState, void 0);
+          __privateAdd(this, _currentResultOptions, void 0);
+          __privateAdd(this, _currentThenable, void 0);
+          __privateAdd(this, _selectError, void 0);
+          __privateAdd(this, _selectFn, void 0);
+          __privateAdd(this, _selectResult, void 0);
+          // This property keeps track of the last query with defined data.
+          // It will be used to pass the previous data and query to the placeholder function between renders.
+          __privateAdd(this, _lastQueryWithDefinedData, void 0);
+          __privateAdd(this, _staleTimeoutId, void 0);
+          __privateAdd(this, _refetchIntervalId, void 0);
+          __privateAdd(this, _currentRefetchInterval, void 0);
+          __privateAdd(this, _trackedProps, /* @__PURE__ */ new Set());
+          this.options = options;
+          __privateSet(this, _client2, client);
+          __privateSet(this, _selectError, null);
+          __privateSet(this, _currentThenable, pendingThenable());
+          this.bindMethods();
+          this.setOptions(options);
+        }
+        bindMethods() {
+          this.refetch = this.refetch.bind(this);
+        }
+        onSubscribe() {
+          if (this.listeners.size === 1) {
+            __privateGet(this, _currentQuery).addObserver(this);
+            if (shouldFetchOnMount(__privateGet(this, _currentQuery), this.options)) {
+              __privateMethod(this, _executeFetch, executeFetch_fn).call(this);
+            } else {
+              this.updateResult();
+            }
+            __privateMethod(this, _updateTimers, updateTimers_fn).call(this);
+          }
+        }
+        onUnsubscribe() {
+          if (!this.hasListeners()) {
+            this.destroy();
+          }
+        }
+        shouldFetchOnReconnect() {
+          return shouldFetchOn(
+            __privateGet(this, _currentQuery),
+            this.options,
+            this.options.refetchOnReconnect
+          );
+        }
+        shouldFetchOnWindowFocus() {
+          return shouldFetchOn(
+            __privateGet(this, _currentQuery),
+            this.options,
+            this.options.refetchOnWindowFocus
+          );
+        }
+        destroy() {
+          this.listeners = /* @__PURE__ */ new Set();
+          __privateMethod(this, _clearStaleTimeout, clearStaleTimeout_fn).call(this);
+          __privateMethod(this, _clearRefetchInterval, clearRefetchInterval_fn).call(this);
+          __privateGet(this, _currentQuery).removeObserver(this);
+        }
+        setOptions(options) {
+          const prevOptions = this.options;
+          const prevQuery = __privateGet(this, _currentQuery);
+          this.options = __privateGet(this, _client2).defaultQueryOptions(options);
+          if (this.options.enabled !== void 0 && typeof this.options.enabled !== "boolean" && typeof this.options.enabled !== "function" && typeof resolveEnabled(this.options.enabled, __privateGet(this, _currentQuery)) !== "boolean") {
+            throw new Error(
+              "Expected enabled to be a boolean or a callback that returns a boolean"
+            );
+          }
+          __privateMethod(this, _updateQuery, updateQuery_fn).call(this);
+          __privateGet(this, _currentQuery).setOptions(this.options);
+          if (prevOptions._defaulted && !shallowEqualObjects(this.options, prevOptions)) {
+            __privateGet(this, _client2).getQueryCache().notify({
+              type: "observerOptionsUpdated",
+              query: __privateGet(this, _currentQuery),
+              observer: this
+            });
+          }
+          const mounted = this.hasListeners();
+          if (mounted && shouldFetchOptionally(
+            __privateGet(this, _currentQuery),
+            prevQuery,
+            this.options,
+            prevOptions
+          )) {
+            __privateMethod(this, _executeFetch, executeFetch_fn).call(this);
+          }
+          this.updateResult();
+          if (mounted && (__privateGet(this, _currentQuery) !== prevQuery || resolveEnabled(this.options.enabled, __privateGet(this, _currentQuery)) !== resolveEnabled(prevOptions.enabled, __privateGet(this, _currentQuery)) || resolveStaleTime(this.options.staleTime, __privateGet(this, _currentQuery)) !== resolveStaleTime(prevOptions.staleTime, __privateGet(this, _currentQuery)))) {
+            __privateMethod(this, _updateStaleTimeout, updateStaleTimeout_fn).call(this);
+          }
+          const nextRefetchInterval = __privateMethod(this, _computeRefetchInterval, computeRefetchInterval_fn).call(this);
+          if (mounted && (__privateGet(this, _currentQuery) !== prevQuery || resolveEnabled(this.options.enabled, __privateGet(this, _currentQuery)) !== resolveEnabled(prevOptions.enabled, __privateGet(this, _currentQuery)) || nextRefetchInterval !== __privateGet(this, _currentRefetchInterval))) {
+            __privateMethod(this, _updateRefetchInterval, updateRefetchInterval_fn).call(this, nextRefetchInterval);
+          }
+        }
+        getOptimisticResult(options) {
+          const query = __privateGet(this, _client2).getQueryCache().build(__privateGet(this, _client2), options);
+          const result = this.createResult(query, options);
+          if (shouldAssignObserverCurrentProperties(this, result)) {
+            __privateSet(this, _currentResult, result);
+            __privateSet(this, _currentResultOptions, this.options);
+            __privateSet(this, _currentResultState, __privateGet(this, _currentQuery).state);
+          }
+          return result;
+        }
+        getCurrentResult() {
+          return __privateGet(this, _currentResult);
+        }
+        trackResult(result, onPropTracked) {
+          return new Proxy(result, {
+            get: (target, key) => {
+              this.trackProp(key);
+              onPropTracked?.(key);
+              if (key === "promise") {
+                this.trackProp("data");
+                if (!this.options.experimental_prefetchInRender && __privateGet(this, _currentThenable).status === "pending") {
+                  __privateGet(this, _currentThenable).reject(
+                    new Error(
+                      "experimental_prefetchInRender feature flag is not enabled"
+                    )
+                  );
+                }
+              }
+              return Reflect.get(target, key);
+            }
+          });
+        }
+        trackProp(key) {
+          __privateGet(this, _trackedProps).add(key);
+        }
+        getCurrentQuery() {
+          return __privateGet(this, _currentQuery);
+        }
+        refetch({ ...options } = {}) {
+          return this.fetch({
+            ...options
+          });
+        }
+        fetchOptimistic(options) {
+          const defaultedOptions = __privateGet(this, _client2).defaultQueryOptions(options);
+          const query = __privateGet(this, _client2).getQueryCache().build(__privateGet(this, _client2), defaultedOptions);
+          return query.fetch().then(() => this.createResult(query, defaultedOptions));
+        }
+        fetch(fetchOptions) {
+          return __privateMethod(this, _executeFetch, executeFetch_fn).call(this, {
+            ...fetchOptions,
+            cancelRefetch: fetchOptions.cancelRefetch ?? true
+          }).then(() => {
+            this.updateResult();
+            return __privateGet(this, _currentResult);
+          });
+        }
+        createResult(query, options) {
+          const prevQuery = __privateGet(this, _currentQuery);
+          const prevOptions = this.options;
+          const prevResult = __privateGet(this, _currentResult);
+          const prevResultState = __privateGet(this, _currentResultState);
+          const prevResultOptions = __privateGet(this, _currentResultOptions);
+          const queryChange = query !== prevQuery;
+          const queryInitialState = queryChange ? query.state : __privateGet(this, _currentQueryInitialState);
+          const { state } = query;
+          let newState = { ...state };
+          let isPlaceholderData = false;
+          let data;
+          if (options._optimisticResults) {
+            const mounted = this.hasListeners();
+            const fetchOnMount = !mounted && shouldFetchOnMount(query, options);
+            const fetchOptionally = mounted && shouldFetchOptionally(query, prevQuery, options, prevOptions);
+            if (fetchOnMount || fetchOptionally) {
+              newState = {
+                ...newState,
+                ...fetchState(state.data, query.options)
+              };
+            }
+            if (options._optimisticResults === "isRestoring") {
+              newState.fetchStatus = "idle";
+            }
+          }
+          let { error, errorUpdatedAt, status } = newState;
+          data = newState.data;
+          let skipSelect = false;
+          if (options.placeholderData !== void 0 && data === void 0 && status === "pending") {
+            let placeholderData;
+            if (prevResult?.isPlaceholderData && options.placeholderData === prevResultOptions?.placeholderData) {
+              placeholderData = prevResult.data;
+              skipSelect = true;
+            } else {
+              placeholderData = typeof options.placeholderData === "function" ? options.placeholderData(
+                __privateGet(this, _lastQueryWithDefinedData)?.state.data,
+                __privateGet(this, _lastQueryWithDefinedData)
+              ) : options.placeholderData;
+            }
+            if (placeholderData !== void 0) {
+              status = "success";
+              data = replaceData(
+                prevResult?.data,
+                placeholderData,
+                options
+              );
+              isPlaceholderData = true;
+            }
+          }
+          if (options.select && data !== void 0 && !skipSelect) {
+            if (prevResult && data === prevResultState?.data && options.select === __privateGet(this, _selectFn)) {
+              data = __privateGet(this, _selectResult);
+            } else {
+              try {
+                __privateSet(this, _selectFn, options.select);
+                data = options.select(data);
+                data = replaceData(prevResult?.data, data, options);
+                __privateSet(this, _selectResult, data);
+                __privateSet(this, _selectError, null);
+              } catch (selectError) {
+                __privateSet(this, _selectError, selectError);
+              }
+            }
+          }
+          if (__privateGet(this, _selectError)) {
+            error = __privateGet(this, _selectError);
+            data = __privateGet(this, _selectResult);
+            errorUpdatedAt = Date.now();
+            status = "error";
+          }
+          const isFetching = newState.fetchStatus === "fetching";
+          const isPending = status === "pending";
+          const isError = status === "error";
+          const isLoading = isPending && isFetching;
+          const hasData = data !== void 0;
+          const result = {
+            status,
+            fetchStatus: newState.fetchStatus,
+            isPending,
+            isSuccess: status === "success",
+            isError,
+            isInitialLoading: isLoading,
+            isLoading,
+            data,
+            dataUpdatedAt: newState.dataUpdatedAt,
+            error,
+            errorUpdatedAt,
+            failureCount: newState.fetchFailureCount,
+            failureReason: newState.fetchFailureReason,
+            errorUpdateCount: newState.errorUpdateCount,
+            isFetched: query.isFetched(),
+            isFetchedAfterMount: newState.dataUpdateCount > queryInitialState.dataUpdateCount || newState.errorUpdateCount > queryInitialState.errorUpdateCount,
+            isFetching,
+            isRefetching: isFetching && !isPending,
+            isLoadingError: isError && !hasData,
+            isPaused: newState.fetchStatus === "paused",
+            isPlaceholderData,
+            isRefetchError: isError && hasData,
+            isStale: isStale(query, options),
+            refetch: this.refetch,
+            promise: __privateGet(this, _currentThenable),
+            isEnabled: resolveEnabled(options.enabled, query) !== false
+          };
+          const nextResult = result;
+          if (this.options.experimental_prefetchInRender) {
+            const hasResultData = nextResult.data !== void 0;
+            const isErrorWithoutData = nextResult.status === "error" && !hasResultData;
+            const finalizeThenableIfPossible = (thenable) => {
+              if (isErrorWithoutData) {
+                thenable.reject(nextResult.error);
+              } else if (hasResultData) {
+                thenable.resolve(nextResult.data);
+              }
+            };
+            const recreateThenable = () => {
+              const pending = __privateSet(this, _currentThenable, nextResult.promise = pendingThenable());
+              finalizeThenableIfPossible(pending);
+            };
+            const prevThenable = __privateGet(this, _currentThenable);
+            switch (prevThenable.status) {
+              case "pending":
+                if (query.queryHash === prevQuery.queryHash) {
+                  finalizeThenableIfPossible(prevThenable);
+                }
+                break;
+              case "fulfilled":
+                if (isErrorWithoutData || nextResult.data !== prevThenable.value) {
+                  recreateThenable();
+                }
+                break;
+              case "rejected":
+                if (!isErrorWithoutData || nextResult.error !== prevThenable.reason) {
+                  recreateThenable();
+                }
+                break;
+            }
+          }
+          return nextResult;
+        }
+        updateResult() {
+          const prevResult = __privateGet(this, _currentResult);
+          const nextResult = this.createResult(__privateGet(this, _currentQuery), this.options);
+          __privateSet(this, _currentResultState, __privateGet(this, _currentQuery).state);
+          __privateSet(this, _currentResultOptions, this.options);
+          if (__privateGet(this, _currentResultState).data !== void 0) {
+            __privateSet(this, _lastQueryWithDefinedData, __privateGet(this, _currentQuery));
+          }
+          if (shallowEqualObjects(nextResult, prevResult)) {
+            return;
+          }
+          __privateSet(this, _currentResult, nextResult);
+          const shouldNotifyListeners = () => {
+            if (!prevResult) {
+              return true;
+            }
+            const { notifyOnChangeProps } = this.options;
+            const notifyOnChangePropsValue = typeof notifyOnChangeProps === "function" ? notifyOnChangeProps() : notifyOnChangeProps;
+            if (notifyOnChangePropsValue === "all" || !notifyOnChangePropsValue && !__privateGet(this, _trackedProps).size) {
+              return true;
+            }
+            const includedProps = new Set(
+              notifyOnChangePropsValue ?? __privateGet(this, _trackedProps)
+            );
+            if (this.options.throwOnError) {
+              includedProps.add("error");
+            }
+            return Object.keys(__privateGet(this, _currentResult)).some((key) => {
+              const typedKey = key;
+              const changed = __privateGet(this, _currentResult)[typedKey] !== prevResult[typedKey];
+              return changed && includedProps.has(typedKey);
+            });
+          };
+          __privateMethod(this, _notify, notify_fn).call(this, { listeners: shouldNotifyListeners() });
+        }
+        onQueryUpdate() {
+          this.updateResult();
+          if (this.hasListeners()) {
+            __privateMethod(this, _updateTimers, updateTimers_fn).call(this);
+          }
+        }
+      }, _client2 = new WeakMap(), _currentQuery = new WeakMap(), _currentQueryInitialState = new WeakMap(), _currentResult = new WeakMap(), _currentResultState = new WeakMap(), _currentResultOptions = new WeakMap(), _currentThenable = new WeakMap(), _selectError = new WeakMap(), _selectFn = new WeakMap(), _selectResult = new WeakMap(), _lastQueryWithDefinedData = new WeakMap(), _staleTimeoutId = new WeakMap(), _refetchIntervalId = new WeakMap(), _currentRefetchInterval = new WeakMap(), _trackedProps = new WeakMap(), _executeFetch = new WeakSet(), executeFetch_fn = function(fetchOptions) {
+        __privateMethod(this, _updateQuery, updateQuery_fn).call(this);
+        let promise = __privateGet(this, _currentQuery).fetch(
+          this.options,
+          fetchOptions
+        );
+        if (!fetchOptions?.throwOnError) {
+          promise = promise.catch(noop);
+        }
+        return promise;
+      }, _updateStaleTimeout = new WeakSet(), updateStaleTimeout_fn = function() {
+        __privateMethod(this, _clearStaleTimeout, clearStaleTimeout_fn).call(this);
+        const staleTime = resolveStaleTime(
+          this.options.staleTime,
+          __privateGet(this, _currentQuery)
+        );
+        if (environmentManager.isServer() || __privateGet(this, _currentResult).isStale || !isValidTimeout(staleTime)) {
+          return;
+        }
+        const time = timeUntilStale(__privateGet(this, _currentResult).dataUpdatedAt, staleTime);
+        const timeout = time + 1;
+        __privateSet(this, _staleTimeoutId, timeoutManager.setTimeout(() => {
+          if (!__privateGet(this, _currentResult).isStale) {
+            this.updateResult();
+          }
+        }, timeout));
+      }, _computeRefetchInterval = new WeakSet(), computeRefetchInterval_fn = function() {
+        return (typeof this.options.refetchInterval === "function" ? this.options.refetchInterval(__privateGet(this, _currentQuery)) : this.options.refetchInterval) ?? false;
+      }, _updateRefetchInterval = new WeakSet(), updateRefetchInterval_fn = function(nextInterval) {
+        __privateMethod(this, _clearRefetchInterval, clearRefetchInterval_fn).call(this);
+        __privateSet(this, _currentRefetchInterval, nextInterval);
+        if (environmentManager.isServer() || resolveEnabled(this.options.enabled, __privateGet(this, _currentQuery)) === false || !isValidTimeout(__privateGet(this, _currentRefetchInterval)) || __privateGet(this, _currentRefetchInterval) === 0) {
+          return;
+        }
+        __privateSet(this, _refetchIntervalId, timeoutManager.setInterval(() => {
+          if (this.options.refetchIntervalInBackground || focusManager.isFocused()) {
+            __privateMethod(this, _executeFetch, executeFetch_fn).call(this);
+          }
+        }, __privateGet(this, _currentRefetchInterval)));
+      }, _updateTimers = new WeakSet(), updateTimers_fn = function() {
+        __privateMethod(this, _updateStaleTimeout, updateStaleTimeout_fn).call(this);
+        __privateMethod(this, _updateRefetchInterval, updateRefetchInterval_fn).call(this, __privateMethod(this, _computeRefetchInterval, computeRefetchInterval_fn).call(this));
+      }, _clearStaleTimeout = new WeakSet(), clearStaleTimeout_fn = function() {
+        if (__privateGet(this, _staleTimeoutId)) {
+          timeoutManager.clearTimeout(__privateGet(this, _staleTimeoutId));
+          __privateSet(this, _staleTimeoutId, void 0);
+        }
+      }, _clearRefetchInterval = new WeakSet(), clearRefetchInterval_fn = function() {
+        if (__privateGet(this, _refetchIntervalId)) {
+          timeoutManager.clearInterval(__privateGet(this, _refetchIntervalId));
+          __privateSet(this, _refetchIntervalId, void 0);
+        }
+      }, _updateQuery = new WeakSet(), updateQuery_fn = function() {
+        const query = __privateGet(this, _client2).getQueryCache().build(__privateGet(this, _client2), this.options);
+        if (query === __privateGet(this, _currentQuery)) {
+          return;
+        }
+        const prevQuery = __privateGet(this, _currentQuery);
+        __privateSet(this, _currentQuery, query);
+        __privateSet(this, _currentQueryInitialState, query.state);
+        if (this.hasListeners()) {
+          prevQuery?.removeObserver(this);
+          query.addObserver(this);
+        }
+      }, _notify = new WeakSet(), notify_fn = function(notifyOptions) {
+        notifyManager.batch(() => {
+          if (notifyOptions.listeners) {
+            this.listeners.forEach((listener) => {
+              listener(__privateGet(this, _currentResult));
+            });
+          }
+          __privateGet(this, _client2).getQueryCache().notify({
+            query: __privateGet(this, _currentQuery),
+            type: "observerResultsUpdated"
+          });
+        });
+      }, _a6);
+    }
+  });
+
+  // node_modules/@tanstack/query-core/build/modern/infiniteQueryBehavior.js
+  function infiniteQueryBehavior(pages) {
+    return {
+      onFetch: (context, query) => {
+        const options = context.options;
+        const direction = context.fetchOptions?.meta?.fetchMore?.direction;
+        const oldPages = context.state.data?.pages || [];
+        const oldPageParams = context.state.data?.pageParams || [];
+        let result = { pages: [], pageParams: [] };
+        let currentPage = 0;
+        const fetchFn = async () => {
+          let cancelled = false;
+          const addSignalProperty = (object) => {
+            addConsumeAwareSignal(
+              object,
+              () => context.signal,
+              () => cancelled = true
+            );
+          };
+          const queryFn = ensureQueryFn(context.options, context.fetchOptions);
+          const fetchPage = async (data, param, previous) => {
+            if (cancelled) {
+              return Promise.reject();
+            }
+            if (param == null && data.pages.length) {
+              return Promise.resolve(data);
+            }
+            const createQueryFnContext = () => {
+              const queryFnContext2 = {
+                client: context.client,
+                queryKey: context.queryKey,
+                pageParam: param,
+                direction: previous ? "backward" : "forward",
+                meta: context.options.meta
+              };
+              addSignalProperty(queryFnContext2);
+              return queryFnContext2;
+            };
+            const queryFnContext = createQueryFnContext();
+            const page = await queryFn(queryFnContext);
+            const { maxPages } = context.options;
+            const addTo = previous ? addToStart : addToEnd;
+            return {
+              pages: addTo(data.pages, page, maxPages),
+              pageParams: addTo(data.pageParams, param, maxPages)
+            };
+          };
+          if (direction && oldPages.length) {
+            const previous = direction === "backward";
+            const pageParamFn = previous ? getPreviousPageParam : getNextPageParam;
+            const oldData = {
+              pages: oldPages,
+              pageParams: oldPageParams
+            };
+            const param = pageParamFn(options, oldData);
+            result = await fetchPage(oldData, param, previous);
+          } else {
+            const remainingPages = pages ?? oldPages.length;
+            do {
+              const param = currentPage === 0 ? oldPageParams[0] ?? options.initialPageParam : getNextPageParam(options, result);
+              if (currentPage > 0 && param == null) {
+                break;
+              }
+              result = await fetchPage(result, param);
+              currentPage++;
+            } while (currentPage < remainingPages);
+          }
+          return result;
+        };
+        if (context.options.persister) {
+          context.fetchFn = () => {
+            return context.options.persister?.(
+              fetchFn,
+              {
+                client: context.client,
+                queryKey: context.queryKey,
+                meta: context.options.meta,
+                signal: context.signal
+              },
+              query
+            );
+          };
+        } else {
+          context.fetchFn = fetchFn;
+        }
+      }
+    };
+  }
+  function getNextPageParam(options, { pages, pageParams }) {
+    const lastIndex = pages.length - 1;
+    return pages.length > 0 ? options.getNextPageParam(
+      pages[lastIndex],
+      pages,
+      pageParams[lastIndex],
+      pageParams
+    ) : void 0;
+  }
+  function getPreviousPageParam(options, { pages, pageParams }) {
+    return pages.length > 0 ? options.getPreviousPageParam?.(pages[0], pages, pageParams[0], pageParams) : void 0;
+  }
+  var init_infiniteQueryBehavior = __esm({
+    "node_modules/@tanstack/query-core/build/modern/infiniteQueryBehavior.js"() {
+      init_utils();
+    }
+  });
+
+  // node_modules/@tanstack/query-core/build/modern/mutation.js
+  function getDefaultState2() {
+    return {
+      context: void 0,
+      data: void 0,
+      error: null,
+      failureCount: 0,
+      failureReason: null,
+      isPaused: false,
+      status: "idle",
+      variables: void 0,
+      submittedAt: 0
+    };
+  }
+  var _client3, _observers, _mutationCache, _retryer2, _dispatch2, dispatch_fn2, _a7, Mutation;
+  var init_mutation = __esm({
+    "node_modules/@tanstack/query-core/build/modern/mutation.js"() {
+      init_notifyManager();
+      init_removable();
+      init_retryer();
+      Mutation = (_a7 = class extends Removable {
+        constructor(config) {
+          super();
+          __privateAdd(this, _dispatch2);
+          __privateAdd(this, _client3, void 0);
+          __privateAdd(this, _observers, void 0);
+          __privateAdd(this, _mutationCache, void 0);
+          __privateAdd(this, _retryer2, void 0);
+          __privateSet(this, _client3, config.client);
+          this.mutationId = config.mutationId;
+          __privateSet(this, _mutationCache, config.mutationCache);
+          __privateSet(this, _observers, []);
+          this.state = config.state || getDefaultState2();
+          this.setOptions(config.options);
+          this.scheduleGc();
+        }
+        setOptions(options) {
+          this.options = options;
+          this.updateGcTime(this.options.gcTime);
+        }
+        get meta() {
+          return this.options.meta;
+        }
+        addObserver(observer) {
+          if (!__privateGet(this, _observers).includes(observer)) {
+            __privateGet(this, _observers).push(observer);
+            this.clearGcTimeout();
+            __privateGet(this, _mutationCache).notify({
+              type: "observerAdded",
+              mutation: this,
+              observer
+            });
+          }
+        }
+        removeObserver(observer) {
+          __privateSet(this, _observers, __privateGet(this, _observers).filter((x) => x !== observer));
+          this.scheduleGc();
+          __privateGet(this, _mutationCache).notify({
+            type: "observerRemoved",
+            mutation: this,
+            observer
+          });
+        }
+        optionalRemove() {
+          if (!__privateGet(this, _observers).length) {
+            if (this.state.status === "pending") {
+              this.scheduleGc();
+            } else {
+              __privateGet(this, _mutationCache).remove(this);
+            }
+          }
+        }
+        continue() {
+          return __privateGet(this, _retryer2)?.continue() ?? // continuing a mutation assumes that variables are set, mutation must have been dehydrated before
+          this.execute(this.state.variables);
+        }
+        async execute(variables) {
+          const onContinue = () => {
+            __privateMethod(this, _dispatch2, dispatch_fn2).call(this, { type: "continue" });
+          };
+          const mutationFnContext = {
+            client: __privateGet(this, _client3),
+            meta: this.options.meta,
+            mutationKey: this.options.mutationKey
+          };
+          __privateSet(this, _retryer2, createRetryer({
+            fn: () => {
+              if (!this.options.mutationFn) {
+                return Promise.reject(new Error("No mutationFn found"));
+              }
+              return this.options.mutationFn(variables, mutationFnContext);
+            },
+            onFail: (failureCount, error) => {
+              __privateMethod(this, _dispatch2, dispatch_fn2).call(this, { type: "failed", failureCount, error });
+            },
+            onPause: () => {
+              __privateMethod(this, _dispatch2, dispatch_fn2).call(this, { type: "pause" });
+            },
+            onContinue,
+            retry: this.options.retry ?? 0,
+            retryDelay: this.options.retryDelay,
+            networkMode: this.options.networkMode,
+            canRun: () => __privateGet(this, _mutationCache).canRun(this)
+          }));
+          const restored = this.state.status === "pending";
+          const isPaused = !__privateGet(this, _retryer2).canStart();
+          try {
+            if (restored) {
+              onContinue();
+            } else {
+              __privateMethod(this, _dispatch2, dispatch_fn2).call(this, { type: "pending", variables, isPaused });
+              if (__privateGet(this, _mutationCache).config.onMutate) {
+                await __privateGet(this, _mutationCache).config.onMutate(
+                  variables,
+                  this,
+                  mutationFnContext
+                );
+              }
+              const context = await this.options.onMutate?.(
+                variables,
+                mutationFnContext
+              );
+              if (context !== this.state.context) {
+                __privateMethod(this, _dispatch2, dispatch_fn2).call(this, {
+                  type: "pending",
+                  context,
+                  variables,
+                  isPaused
+                });
+              }
+            }
+            const data = await __privateGet(this, _retryer2).start();
+            await __privateGet(this, _mutationCache).config.onSuccess?.(
+              data,
+              variables,
+              this.state.context,
+              this,
+              mutationFnContext
+            );
+            await this.options.onSuccess?.(
+              data,
+              variables,
+              this.state.context,
+              mutationFnContext
+            );
+            await __privateGet(this, _mutationCache).config.onSettled?.(
+              data,
+              null,
+              this.state.variables,
+              this.state.context,
+              this,
+              mutationFnContext
+            );
+            await this.options.onSettled?.(
+              data,
+              null,
+              variables,
+              this.state.context,
+              mutationFnContext
+            );
+            __privateMethod(this, _dispatch2, dispatch_fn2).call(this, { type: "success", data });
+            return data;
+          } catch (error) {
+            try {
+              await __privateGet(this, _mutationCache).config.onError?.(
+                error,
+                variables,
+                this.state.context,
+                this,
+                mutationFnContext
+              );
+            } catch (e) {
+              void Promise.reject(e);
+            }
+            try {
+              await this.options.onError?.(
+                error,
+                variables,
+                this.state.context,
+                mutationFnContext
+              );
+            } catch (e) {
+              void Promise.reject(e);
+            }
+            try {
+              await __privateGet(this, _mutationCache).config.onSettled?.(
+                void 0,
+                error,
+                this.state.variables,
+                this.state.context,
+                this,
+                mutationFnContext
+              );
+            } catch (e) {
+              void Promise.reject(e);
+            }
+            try {
+              await this.options.onSettled?.(
+                void 0,
+                error,
+                variables,
+                this.state.context,
+                mutationFnContext
+              );
+            } catch (e) {
+              void Promise.reject(e);
+            }
+            __privateMethod(this, _dispatch2, dispatch_fn2).call(this, { type: "error", error });
+            throw error;
+          } finally {
+            __privateGet(this, _mutationCache).runNext(this);
+          }
+        }
+      }, _client3 = new WeakMap(), _observers = new WeakMap(), _mutationCache = new WeakMap(), _retryer2 = new WeakMap(), _dispatch2 = new WeakSet(), dispatch_fn2 = function(action) {
+        const reducer = (state) => {
+          switch (action.type) {
+            case "failed":
+              return {
+                ...state,
+                failureCount: action.failureCount,
+                failureReason: action.error
+              };
+            case "pause":
+              return {
+                ...state,
+                isPaused: true
+              };
+            case "continue":
+              return {
+                ...state,
+                isPaused: false
+              };
+            case "pending":
+              return {
+                ...state,
+                context: action.context,
+                data: void 0,
+                failureCount: 0,
+                failureReason: null,
+                error: null,
+                isPaused: action.isPaused,
+                status: "pending",
+                variables: action.variables,
+                submittedAt: Date.now()
+              };
+            case "success":
+              return {
+                ...state,
+                data: action.data,
+                failureCount: 0,
+                failureReason: null,
+                error: null,
+                status: "success",
+                isPaused: false
+              };
+            case "error":
+              return {
+                ...state,
+                data: void 0,
+                error: action.error,
+                failureCount: state.failureCount + 1,
+                failureReason: action.error,
+                isPaused: false,
+                status: "error"
+              };
+          }
+        };
+        this.state = reducer(this.state);
+        notifyManager.batch(() => {
+          __privateGet(this, _observers).forEach((observer) => {
+            observer.onMutationUpdate(action);
+          });
+          __privateGet(this, _mutationCache).notify({
+            mutation: this,
+            type: "updated",
+            action
+          });
+        });
+      }, _a7);
+    }
+  });
+
+  // node_modules/@tanstack/query-core/build/modern/mutationCache.js
+  function scopeFor(mutation) {
+    return mutation.options.scope?.id;
+  }
+  var _mutations, _scopes, _mutationId, _a8, MutationCache;
+  var init_mutationCache = __esm({
+    "node_modules/@tanstack/query-core/build/modern/mutationCache.js"() {
+      init_notifyManager();
+      init_mutation();
+      init_utils();
+      init_subscribable();
+      MutationCache = (_a8 = class extends Subscribable {
+        constructor(config = {}) {
+          super();
+          __privateAdd(this, _mutations, void 0);
+          __privateAdd(this, _scopes, void 0);
+          __privateAdd(this, _mutationId, void 0);
+          this.config = config;
+          __privateSet(this, _mutations, /* @__PURE__ */ new Set());
+          __privateSet(this, _scopes, /* @__PURE__ */ new Map());
+          __privateSet(this, _mutationId, 0);
+        }
+        build(client, options, state) {
+          const mutation = new Mutation({
+            client,
+            mutationCache: this,
+            mutationId: ++__privateWrapper(this, _mutationId)._,
+            options: client.defaultMutationOptions(options),
+            state
+          });
+          this.add(mutation);
+          return mutation;
+        }
+        add(mutation) {
+          __privateGet(this, _mutations).add(mutation);
+          const scope = scopeFor(mutation);
+          if (typeof scope === "string") {
+            const scopedMutations = __privateGet(this, _scopes).get(scope);
+            if (scopedMutations) {
+              scopedMutations.push(mutation);
+            } else {
+              __privateGet(this, _scopes).set(scope, [mutation]);
+            }
+          }
+          this.notify({ type: "added", mutation });
+        }
+        remove(mutation) {
+          if (__privateGet(this, _mutations).delete(mutation)) {
+            const scope = scopeFor(mutation);
+            if (typeof scope === "string") {
+              const scopedMutations = __privateGet(this, _scopes).get(scope);
+              if (scopedMutations) {
+                if (scopedMutations.length > 1) {
+                  const index = scopedMutations.indexOf(mutation);
+                  if (index !== -1) {
+                    scopedMutations.splice(index, 1);
+                  }
+                } else if (scopedMutations[0] === mutation) {
+                  __privateGet(this, _scopes).delete(scope);
+                }
+              }
+            }
+          }
+          this.notify({ type: "removed", mutation });
+        }
+        canRun(mutation) {
+          const scope = scopeFor(mutation);
+          if (typeof scope === "string") {
+            const mutationsWithSameScope = __privateGet(this, _scopes).get(scope);
+            const firstPendingMutation = mutationsWithSameScope?.find(
+              (m) => m.state.status === "pending"
+            );
+            return !firstPendingMutation || firstPendingMutation === mutation;
+          } else {
+            return true;
+          }
+        }
+        runNext(mutation) {
+          const scope = scopeFor(mutation);
+          if (typeof scope === "string") {
+            const foundMutation = __privateGet(this, _scopes).get(scope)?.find((m) => m !== mutation && m.state.isPaused);
+            return foundMutation?.continue() ?? Promise.resolve();
+          } else {
+            return Promise.resolve();
+          }
+        }
+        clear() {
+          notifyManager.batch(() => {
+            __privateGet(this, _mutations).forEach((mutation) => {
+              this.notify({ type: "removed", mutation });
+            });
+            __privateGet(this, _mutations).clear();
+            __privateGet(this, _scopes).clear();
+          });
+        }
+        getAll() {
+          return Array.from(__privateGet(this, _mutations));
+        }
+        find(filters) {
+          const defaultedFilters = { exact: true, ...filters };
+          return this.getAll().find(
+            (mutation) => matchMutation(defaultedFilters, mutation)
+          );
+        }
+        findAll(filters = {}) {
+          return this.getAll().filter((mutation) => matchMutation(filters, mutation));
+        }
+        notify(event) {
+          notifyManager.batch(() => {
+            this.listeners.forEach((listener) => {
+              listener(event);
+            });
+          });
+        }
+        resumePausedMutations() {
+          const pausedMutations = this.getAll().filter((x) => x.state.isPaused);
+          return notifyManager.batch(
+            () => Promise.all(
+              pausedMutations.map((mutation) => mutation.continue().catch(noop))
+            )
+          );
+        }
+      }, _mutations = new WeakMap(), _scopes = new WeakMap(), _mutationId = new WeakMap(), _a8);
+    }
+  });
+
+  // node_modules/@tanstack/query-core/build/modern/mutationObserver.js
+  var _client4, _currentResult2, _currentMutation, _mutateOptions, _updateResult, updateResult_fn, _notify2, notify_fn2, _a9, MutationObserver;
+  var init_mutationObserver = __esm({
+    "node_modules/@tanstack/query-core/build/modern/mutationObserver.js"() {
+      init_mutation();
+      init_notifyManager();
+      init_subscribable();
+      init_utils();
+      MutationObserver = (_a9 = class extends Subscribable {
+        constructor(client, options) {
+          super();
+          __privateAdd(this, _updateResult);
+          __privateAdd(this, _notify2);
+          __privateAdd(this, _client4, void 0);
+          __privateAdd(this, _currentResult2, void 0);
+          __privateAdd(this, _currentMutation, void 0);
+          __privateAdd(this, _mutateOptions, void 0);
+          __privateSet(this, _client4, client);
+          this.setOptions(options);
+          this.bindMethods();
+          __privateMethod(this, _updateResult, updateResult_fn).call(this);
+        }
+        bindMethods() {
+          this.mutate = this.mutate.bind(this);
+          this.reset = this.reset.bind(this);
+        }
+        setOptions(options) {
+          const prevOptions = this.options;
+          this.options = __privateGet(this, _client4).defaultMutationOptions(options);
+          if (!shallowEqualObjects(this.options, prevOptions)) {
+            __privateGet(this, _client4).getMutationCache().notify({
+              type: "observerOptionsUpdated",
+              mutation: __privateGet(this, _currentMutation),
+              observer: this
+            });
+          }
+          if (prevOptions?.mutationKey && this.options.mutationKey && hashKey(prevOptions.mutationKey) !== hashKey(this.options.mutationKey)) {
+            this.reset();
+          } else if (__privateGet(this, _currentMutation)?.state.status === "pending") {
+            __privateGet(this, _currentMutation).setOptions(this.options);
+          }
+        }
+        onUnsubscribe() {
+          if (!this.hasListeners()) {
+            __privateGet(this, _currentMutation)?.removeObserver(this);
+          }
+        }
+        onMutationUpdate(action) {
+          __privateMethod(this, _updateResult, updateResult_fn).call(this);
+          __privateMethod(this, _notify2, notify_fn2).call(this, action);
+        }
+        getCurrentResult() {
+          return __privateGet(this, _currentResult2);
+        }
+        reset() {
+          __privateGet(this, _currentMutation)?.removeObserver(this);
+          __privateSet(this, _currentMutation, void 0);
+          __privateMethod(this, _updateResult, updateResult_fn).call(this);
+          __privateMethod(this, _notify2, notify_fn2).call(this);
+        }
+        mutate(variables, options) {
+          __privateSet(this, _mutateOptions, options);
+          __privateGet(this, _currentMutation)?.removeObserver(this);
+          __privateSet(this, _currentMutation, __privateGet(this, _client4).getMutationCache().build(__privateGet(this, _client4), this.options));
+          __privateGet(this, _currentMutation).addObserver(this);
+          return __privateGet(this, _currentMutation).execute(variables);
+        }
+      }, _client4 = new WeakMap(), _currentResult2 = new WeakMap(), _currentMutation = new WeakMap(), _mutateOptions = new WeakMap(), _updateResult = new WeakSet(), updateResult_fn = function() {
+        const state = __privateGet(this, _currentMutation)?.state ?? getDefaultState2();
+        __privateSet(this, _currentResult2, {
+          ...state,
+          isPending: state.status === "pending",
+          isSuccess: state.status === "success",
+          isError: state.status === "error",
+          isIdle: state.status === "idle",
+          mutate: this.mutate,
+          reset: this.reset
+        });
+      }, _notify2 = new WeakSet(), notify_fn2 = function(action) {
+        notifyManager.batch(() => {
+          if (__privateGet(this, _mutateOptions) && this.hasListeners()) {
+            const variables = __privateGet(this, _currentResult2).variables;
+            const onMutateResult = __privateGet(this, _currentResult2).context;
+            const context = {
+              client: __privateGet(this, _client4),
+              meta: this.options.meta,
+              mutationKey: this.options.mutationKey
+            };
+            if (action?.type === "success") {
+              try {
+                __privateGet(this, _mutateOptions).onSuccess?.(
+                  action.data,
+                  variables,
+                  onMutateResult,
+                  context
+                );
+              } catch (e) {
+                void Promise.reject(e);
+              }
+              try {
+                __privateGet(this, _mutateOptions).onSettled?.(
+                  action.data,
+                  null,
+                  variables,
+                  onMutateResult,
+                  context
+                );
+              } catch (e) {
+                void Promise.reject(e);
+              }
+            } else if (action?.type === "error") {
+              try {
+                __privateGet(this, _mutateOptions).onError?.(
+                  action.error,
+                  variables,
+                  onMutateResult,
+                  context
+                );
+              } catch (e) {
+                void Promise.reject(e);
+              }
+              try {
+                __privateGet(this, _mutateOptions).onSettled?.(
+                  void 0,
+                  action.error,
+                  variables,
+                  onMutateResult,
+                  context
+                );
+              } catch (e) {
+                void Promise.reject(e);
+              }
+            }
+          }
+          this.listeners.forEach((listener) => {
+            listener(__privateGet(this, _currentResult2));
+          });
+        });
+      }, _a9);
+    }
+  });
+
+  // node_modules/@tanstack/query-core/build/modern/queryCache.js
+  var _queries, _a10, QueryCache;
+  var init_queryCache = __esm({
+    "node_modules/@tanstack/query-core/build/modern/queryCache.js"() {
+      init_utils();
+      init_query();
+      init_notifyManager();
+      init_subscribable();
+      QueryCache = (_a10 = class extends Subscribable {
+        constructor(config = {}) {
+          super();
+          __privateAdd(this, _queries, void 0);
+          this.config = config;
+          __privateSet(this, _queries, /* @__PURE__ */ new Map());
+        }
+        build(client, options, state) {
+          const queryKey = options.queryKey;
+          const queryHash = options.queryHash ?? hashQueryKeyByOptions(queryKey, options);
+          let query = this.get(queryHash);
+          if (!query) {
+            query = new Query({
+              client,
+              queryKey,
+              queryHash,
+              options: client.defaultQueryOptions(options),
+              state,
+              defaultOptions: client.getQueryDefaults(queryKey)
+            });
+            this.add(query);
+          }
+          return query;
+        }
+        add(query) {
+          if (!__privateGet(this, _queries).has(query.queryHash)) {
+            __privateGet(this, _queries).set(query.queryHash, query);
+            this.notify({
+              type: "added",
+              query
+            });
+          }
+        }
+        remove(query) {
+          const queryInMap = __privateGet(this, _queries).get(query.queryHash);
+          if (queryInMap) {
+            query.destroy();
+            if (queryInMap === query) {
+              __privateGet(this, _queries).delete(query.queryHash);
+            }
+            this.notify({ type: "removed", query });
+          }
+        }
+        clear() {
+          notifyManager.batch(() => {
+            this.getAll().forEach((query) => {
+              this.remove(query);
+            });
+          });
+        }
+        get(queryHash) {
+          return __privateGet(this, _queries).get(queryHash);
+        }
+        getAll() {
+          return [...__privateGet(this, _queries).values()];
+        }
+        find(filters) {
+          const defaultedFilters = { exact: true, ...filters };
+          return this.getAll().find(
+            (query) => matchQuery(defaultedFilters, query)
+          );
+        }
+        findAll(filters = {}) {
+          const queries = this.getAll();
+          return Object.keys(filters).length > 0 ? queries.filter((query) => matchQuery(filters, query)) : queries;
+        }
+        notify(event) {
+          notifyManager.batch(() => {
+            this.listeners.forEach((listener) => {
+              listener(event);
+            });
+          });
+        }
+        onFocus() {
+          notifyManager.batch(() => {
+            this.getAll().forEach((query) => {
+              query.onFocus();
+            });
+          });
+        }
+        onOnline() {
+          notifyManager.batch(() => {
+            this.getAll().forEach((query) => {
+              query.onOnline();
+            });
+          });
+        }
+      }, _queries = new WeakMap(), _a10);
+    }
+  });
+
+  // node_modules/@tanstack/query-core/build/modern/queryClient.js
+  var _queryCache, _mutationCache2, _defaultOptions2, _queryDefaults, _mutationDefaults, _mountCount, _unsubscribeFocus, _unsubscribeOnline, _a11, QueryClient;
+  var init_queryClient = __esm({
+    "node_modules/@tanstack/query-core/build/modern/queryClient.js"() {
+      init_utils();
+      init_queryCache();
+      init_mutationCache();
+      init_focusManager();
+      init_onlineManager();
+      init_notifyManager();
+      init_infiniteQueryBehavior();
+      QueryClient = (_a11 = class {
+        constructor(config = {}) {
+          __privateAdd(this, _queryCache, void 0);
+          __privateAdd(this, _mutationCache2, void 0);
+          __privateAdd(this, _defaultOptions2, void 0);
+          __privateAdd(this, _queryDefaults, void 0);
+          __privateAdd(this, _mutationDefaults, void 0);
+          __privateAdd(this, _mountCount, void 0);
+          __privateAdd(this, _unsubscribeFocus, void 0);
+          __privateAdd(this, _unsubscribeOnline, void 0);
+          __privateSet(this, _queryCache, config.queryCache || new QueryCache());
+          __privateSet(this, _mutationCache2, config.mutationCache || new MutationCache());
+          __privateSet(this, _defaultOptions2, config.defaultOptions || {});
+          __privateSet(this, _queryDefaults, /* @__PURE__ */ new Map());
+          __privateSet(this, _mutationDefaults, /* @__PURE__ */ new Map());
+          __privateSet(this, _mountCount, 0);
+        }
+        mount() {
+          __privateWrapper(this, _mountCount)._++;
+          if (__privateGet(this, _mountCount) !== 1)
+            return;
+          __privateSet(this, _unsubscribeFocus, focusManager.subscribe(async (focused) => {
+            if (focused) {
+              await this.resumePausedMutations();
+              __privateGet(this, _queryCache).onFocus();
+            }
+          }));
+          __privateSet(this, _unsubscribeOnline, onlineManager.subscribe(async (online) => {
+            if (online) {
+              await this.resumePausedMutations();
+              __privateGet(this, _queryCache).onOnline();
+            }
+          }));
+        }
+        unmount() {
+          var _a12, _b;
+          __privateWrapper(this, _mountCount)._--;
+          if (__privateGet(this, _mountCount) !== 0)
+            return;
+          (_a12 = __privateGet(this, _unsubscribeFocus)) == null ? void 0 : _a12.call(this);
+          __privateSet(this, _unsubscribeFocus, void 0);
+          (_b = __privateGet(this, _unsubscribeOnline)) == null ? void 0 : _b.call(this);
+          __privateSet(this, _unsubscribeOnline, void 0);
+        }
+        isFetching(filters) {
+          return __privateGet(this, _queryCache).findAll({ ...filters, fetchStatus: "fetching" }).length;
+        }
+        isMutating(filters) {
+          return __privateGet(this, _mutationCache2).findAll({ ...filters, status: "pending" }).length;
+        }
+        /**
+         * Imperative (non-reactive) way to retrieve data for a QueryKey.
+         * Should only be used in callbacks or functions where reading the latest data is necessary, e.g. for optimistic updates.
+         *
+         * Hint: Do not use this function inside a component, because it won't receive updates.
+         * Use `useQuery` to create a `QueryObserver` that subscribes to changes.
+         */
+        getQueryData(queryKey) {
+          const options = this.defaultQueryOptions({ queryKey });
+          return __privateGet(this, _queryCache).get(options.queryHash)?.state.data;
+        }
+        ensureQueryData(options) {
+          const defaultedOptions = this.defaultQueryOptions(options);
+          const query = __privateGet(this, _queryCache).build(this, defaultedOptions);
+          const cachedData = query.state.data;
+          if (cachedData === void 0) {
+            return this.fetchQuery(options);
+          }
+          if (options.revalidateIfStale && query.isStaleByTime(resolveStaleTime(defaultedOptions.staleTime, query))) {
+            void this.prefetchQuery(defaultedOptions);
+          }
+          return Promise.resolve(cachedData);
+        }
+        getQueriesData(filters) {
+          return __privateGet(this, _queryCache).findAll(filters).map(({ queryKey, state }) => {
+            const data = state.data;
+            return [queryKey, data];
+          });
+        }
+        setQueryData(queryKey, updater, options) {
+          const defaultedOptions = this.defaultQueryOptions({ queryKey });
+          const query = __privateGet(this, _queryCache).get(
+            defaultedOptions.queryHash
+          );
+          const prevData = query?.state.data;
+          const data = functionalUpdate(updater, prevData);
+          if (data === void 0) {
+            return void 0;
+          }
+          return __privateGet(this, _queryCache).build(this, defaultedOptions).setData(data, { ...options, manual: true });
+        }
+        setQueriesData(filters, updater, options) {
+          return notifyManager.batch(
+            () => __privateGet(this, _queryCache).findAll(filters).map(({ queryKey }) => [
+              queryKey,
+              this.setQueryData(queryKey, updater, options)
+            ])
+          );
+        }
+        getQueryState(queryKey) {
+          const options = this.defaultQueryOptions({ queryKey });
+          return __privateGet(this, _queryCache).get(
+            options.queryHash
+          )?.state;
+        }
+        removeQueries(filters) {
+          const queryCache = __privateGet(this, _queryCache);
+          notifyManager.batch(() => {
+            queryCache.findAll(filters).forEach((query) => {
+              queryCache.remove(query);
+            });
+          });
+        }
+        resetQueries(filters, options) {
+          const queryCache = __privateGet(this, _queryCache);
+          return notifyManager.batch(() => {
+            queryCache.findAll(filters).forEach((query) => {
+              query.reset();
+            });
+            return this.refetchQueries(
+              {
+                type: "active",
+                ...filters
+              },
+              options
+            );
+          });
+        }
+        cancelQueries(filters, cancelOptions = {}) {
+          const defaultedCancelOptions = { revert: true, ...cancelOptions };
+          const promises = notifyManager.batch(
+            () => __privateGet(this, _queryCache).findAll(filters).map((query) => query.cancel(defaultedCancelOptions))
+          );
+          return Promise.all(promises).then(noop).catch(noop);
+        }
+        invalidateQueries(filters, options = {}) {
+          return notifyManager.batch(() => {
+            __privateGet(this, _queryCache).findAll(filters).forEach((query) => {
+              query.invalidate();
+            });
+            if (filters?.refetchType === "none") {
+              return Promise.resolve();
+            }
+            return this.refetchQueries(
+              {
+                ...filters,
+                type: filters?.refetchType ?? filters?.type ?? "active"
+              },
+              options
+            );
+          });
+        }
+        refetchQueries(filters, options = {}) {
+          const fetchOptions = {
+            ...options,
+            cancelRefetch: options.cancelRefetch ?? true
+          };
+          const promises = notifyManager.batch(
+            () => __privateGet(this, _queryCache).findAll(filters).filter((query) => !query.isDisabled() && !query.isStatic()).map((query) => {
+              let promise = query.fetch(void 0, fetchOptions);
+              if (!fetchOptions.throwOnError) {
+                promise = promise.catch(noop);
+              }
+              return query.state.fetchStatus === "paused" ? Promise.resolve() : promise;
+            })
+          );
+          return Promise.all(promises).then(noop);
+        }
+        fetchQuery(options) {
+          const defaultedOptions = this.defaultQueryOptions(options);
+          if (defaultedOptions.retry === void 0) {
+            defaultedOptions.retry = false;
+          }
+          const query = __privateGet(this, _queryCache).build(this, defaultedOptions);
+          return query.isStaleByTime(
+            resolveStaleTime(defaultedOptions.staleTime, query)
+          ) ? query.fetch(defaultedOptions) : Promise.resolve(query.state.data);
+        }
+        prefetchQuery(options) {
+          return this.fetchQuery(options).then(noop).catch(noop);
+        }
+        fetchInfiniteQuery(options) {
+          options.behavior = infiniteQueryBehavior(options.pages);
+          return this.fetchQuery(options);
+        }
+        prefetchInfiniteQuery(options) {
+          return this.fetchInfiniteQuery(options).then(noop).catch(noop);
+        }
+        ensureInfiniteQueryData(options) {
+          options.behavior = infiniteQueryBehavior(options.pages);
+          return this.ensureQueryData(options);
+        }
+        resumePausedMutations() {
+          if (onlineManager.isOnline()) {
+            return __privateGet(this, _mutationCache2).resumePausedMutations();
+          }
+          return Promise.resolve();
+        }
+        getQueryCache() {
+          return __privateGet(this, _queryCache);
+        }
+        getMutationCache() {
+          return __privateGet(this, _mutationCache2);
+        }
+        getDefaultOptions() {
+          return __privateGet(this, _defaultOptions2);
+        }
+        setDefaultOptions(options) {
+          __privateSet(this, _defaultOptions2, options);
+        }
+        setQueryDefaults(queryKey, options) {
+          __privateGet(this, _queryDefaults).set(hashKey(queryKey), {
+            queryKey,
+            defaultOptions: options
+          });
+        }
+        getQueryDefaults(queryKey) {
+          const defaults = [...__privateGet(this, _queryDefaults).values()];
+          const result = {};
+          defaults.forEach((queryDefault) => {
+            if (partialMatchKey(queryKey, queryDefault.queryKey)) {
+              Object.assign(result, queryDefault.defaultOptions);
+            }
+          });
+          return result;
+        }
+        setMutationDefaults(mutationKey, options) {
+          __privateGet(this, _mutationDefaults).set(hashKey(mutationKey), {
+            mutationKey,
+            defaultOptions: options
+          });
+        }
+        getMutationDefaults(mutationKey) {
+          const defaults = [...__privateGet(this, _mutationDefaults).values()];
+          const result = {};
+          defaults.forEach((queryDefault) => {
+            if (partialMatchKey(mutationKey, queryDefault.mutationKey)) {
+              Object.assign(result, queryDefault.defaultOptions);
+            }
+          });
+          return result;
+        }
+        defaultQueryOptions(options) {
+          if (options._defaulted) {
+            return options;
+          }
+          const defaultedOptions = {
+            ...__privateGet(this, _defaultOptions2).queries,
+            ...this.getQueryDefaults(options.queryKey),
+            ...options,
+            _defaulted: true
+          };
+          if (!defaultedOptions.queryHash) {
+            defaultedOptions.queryHash = hashQueryKeyByOptions(
+              defaultedOptions.queryKey,
+              defaultedOptions
+            );
+          }
+          if (defaultedOptions.refetchOnReconnect === void 0) {
+            defaultedOptions.refetchOnReconnect = defaultedOptions.networkMode !== "always";
+          }
+          if (defaultedOptions.throwOnError === void 0) {
+            defaultedOptions.throwOnError = !!defaultedOptions.suspense;
+          }
+          if (!defaultedOptions.networkMode && defaultedOptions.persister) {
+            defaultedOptions.networkMode = "offlineFirst";
+          }
+          if (defaultedOptions.queryFn === skipToken) {
+            defaultedOptions.enabled = false;
+          }
+          return defaultedOptions;
+        }
+        defaultMutationOptions(options) {
+          if (options?._defaulted) {
+            return options;
+          }
+          return {
+            ...__privateGet(this, _defaultOptions2).mutations,
+            ...options?.mutationKey && this.getMutationDefaults(options.mutationKey),
+            ...options,
+            _defaulted: true
+          };
+        }
+        clear() {
+          __privateGet(this, _queryCache).clear();
+          __privateGet(this, _mutationCache2).clear();
+        }
+      }, _queryCache = new WeakMap(), _mutationCache2 = new WeakMap(), _defaultOptions2 = new WeakMap(), _queryDefaults = new WeakMap(), _mutationDefaults = new WeakMap(), _mountCount = new WeakMap(), _unsubscribeFocus = new WeakMap(), _unsubscribeOnline = new WeakMap(), _a11);
+    }
+  });
+
+  // node_modules/@tanstack/query-core/build/modern/types.js
+  var init_types = __esm({
+    "node_modules/@tanstack/query-core/build/modern/types.js"() {
+    }
+  });
+
+  // node_modules/@tanstack/query-core/build/modern/index.js
+  var init_modern = __esm({
+    "node_modules/@tanstack/query-core/build/modern/index.js"() {
+      init_environmentManager();
+      init_mutationObserver();
+      init_notifyManager();
+      init_queryClient();
+      init_queryObserver();
+      init_utils();
+      init_types();
+    }
+  });
+
+  // node_modules/@tanstack/react-query/build/modern/types.js
+  var init_types2 = __esm({
+    "node_modules/@tanstack/react-query/build/modern/types.js"() {
     }
   });
 
@@ -21941,18 +24764,18 @@
         function isValidElement(object) {
           return "object" === typeof object && null !== object && object.$$typeof === REACT_ELEMENT_TYPE;
         }
-        var React = require_react(), REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = Symbol.for("react.profiler"), REACT_CONSUMER_TYPE = Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = Symbol.for("react.suspense"), REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"), REACT_MEMO_TYPE = Symbol.for("react.memo"), REACT_LAZY_TYPE = Symbol.for("react.lazy"), REACT_ACTIVITY_TYPE = Symbol.for("react.activity"), REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference"), ReactSharedInternals = React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, hasOwnProperty = Object.prototype.hasOwnProperty, isArrayImpl = Array.isArray, createTask = console.createTask ? console.createTask : function() {
+        var React7 = require_react(), REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = Symbol.for("react.profiler"), REACT_CONSUMER_TYPE = Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = Symbol.for("react.suspense"), REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"), REACT_MEMO_TYPE = Symbol.for("react.memo"), REACT_LAZY_TYPE = Symbol.for("react.lazy"), REACT_ACTIVITY_TYPE = Symbol.for("react.activity"), REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference"), ReactSharedInternals = React7.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, hasOwnProperty = Object.prototype.hasOwnProperty, isArrayImpl = Array.isArray, createTask = console.createTask ? console.createTask : function() {
           return null;
         };
-        React = {
+        React7 = {
           react_stack_bottom_frame: function(callStackForError) {
             return callStackForError();
           }
         };
         var specialPropKeyWarningShown;
         var didWarnAboutElementRef = {};
-        var unknownOwnerDebugStack = React.react_stack_bottom_frame.bind(
-          React,
+        var unknownOwnerDebugStack = React7.react_stack_bottom_frame.bind(
+          React7,
           UnknownOwner
         )();
         var unknownOwnerDebugTask = createTask(getTaskName(UnknownOwner));
@@ -21996,140 +24819,571 @@
     }
   });
 
+  // node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js
+  var React, import_jsx_runtime, QueryClientContext, useQueryClient, QueryClientProvider;
+  var init_QueryClientProvider = __esm({
+    "node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js"() {
+      "use client";
+      React = __toESM(require_react(), 1);
+      import_jsx_runtime = __toESM(require_jsx_runtime(), 1);
+      QueryClientContext = React.createContext(
+        void 0
+      );
+      useQueryClient = (queryClient) => {
+        const client = React.useContext(QueryClientContext);
+        if (queryClient) {
+          return queryClient;
+        }
+        if (!client) {
+          throw new Error("No QueryClient set, use QueryClientProvider to set one");
+        }
+        return client;
+      };
+      QueryClientProvider = ({
+        client,
+        children
+      }) => {
+        React.useEffect(() => {
+          client.mount();
+          return () => {
+            client.unmount();
+          };
+        }, [client]);
+        return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(QueryClientContext.Provider, { value: client, children });
+      };
+    }
+  });
+
+  // node_modules/@tanstack/react-query/build/modern/IsRestoringProvider.js
+  var React2, IsRestoringContext, useIsRestoring, IsRestoringProvider;
+  var init_IsRestoringProvider = __esm({
+    "node_modules/@tanstack/react-query/build/modern/IsRestoringProvider.js"() {
+      "use client";
+      React2 = __toESM(require_react(), 1);
+      IsRestoringContext = React2.createContext(false);
+      useIsRestoring = () => React2.useContext(IsRestoringContext);
+      IsRestoringProvider = IsRestoringContext.Provider;
+    }
+  });
+
+  // node_modules/@tanstack/react-query/build/modern/QueryErrorResetBoundary.js
+  function createValue() {
+    let isReset = false;
+    return {
+      clearReset: () => {
+        isReset = false;
+      },
+      reset: () => {
+        isReset = true;
+      },
+      isReset: () => {
+        return isReset;
+      }
+    };
+  }
+  var React3, import_jsx_runtime2, QueryErrorResetBoundaryContext, useQueryErrorResetBoundary;
+  var init_QueryErrorResetBoundary = __esm({
+    "node_modules/@tanstack/react-query/build/modern/QueryErrorResetBoundary.js"() {
+      "use client";
+      React3 = __toESM(require_react(), 1);
+      import_jsx_runtime2 = __toESM(require_jsx_runtime(), 1);
+      QueryErrorResetBoundaryContext = React3.createContext(createValue());
+      useQueryErrorResetBoundary = () => React3.useContext(QueryErrorResetBoundaryContext);
+    }
+  });
+
+  // node_modules/@tanstack/react-query/build/modern/errorBoundaryUtils.js
+  var React4, ensurePreventErrorBoundaryRetry, useClearResetErrorBoundary, getHasError;
+  var init_errorBoundaryUtils = __esm({
+    "node_modules/@tanstack/react-query/build/modern/errorBoundaryUtils.js"() {
+      "use client";
+      React4 = __toESM(require_react(), 1);
+      init_modern();
+      ensurePreventErrorBoundaryRetry = (options, errorResetBoundary, query) => {
+        const throwOnError = query?.state.error && typeof options.throwOnError === "function" ? shouldThrowError(options.throwOnError, [query.state.error, query]) : options.throwOnError;
+        if (options.suspense || options.experimental_prefetchInRender || throwOnError) {
+          if (!errorResetBoundary.isReset()) {
+            options.retryOnMount = false;
+          }
+        }
+      };
+      useClearResetErrorBoundary = (errorResetBoundary) => {
+        React4.useEffect(() => {
+          errorResetBoundary.clearReset();
+        }, [errorResetBoundary]);
+      };
+      getHasError = ({
+        result,
+        errorResetBoundary,
+        throwOnError,
+        query,
+        suspense
+      }) => {
+        return result.isError && !errorResetBoundary.isReset() && !result.isFetching && query && (suspense && result.data === void 0 || shouldThrowError(throwOnError, [result.error, query]));
+      };
+    }
+  });
+
+  // node_modules/@tanstack/react-query/build/modern/suspense.js
+  var ensureSuspenseTimers, willFetch, shouldSuspend, fetchOptimistic;
+  var init_suspense = __esm({
+    "node_modules/@tanstack/react-query/build/modern/suspense.js"() {
+      ensureSuspenseTimers = (defaultedOptions) => {
+        if (defaultedOptions.suspense) {
+          const MIN_SUSPENSE_TIME_MS = 1e3;
+          const clamp = (value) => value === "static" ? value : Math.max(value ?? MIN_SUSPENSE_TIME_MS, MIN_SUSPENSE_TIME_MS);
+          const originalStaleTime = defaultedOptions.staleTime;
+          defaultedOptions.staleTime = typeof originalStaleTime === "function" ? (...args) => clamp(originalStaleTime(...args)) : clamp(originalStaleTime);
+          if (typeof defaultedOptions.gcTime === "number") {
+            defaultedOptions.gcTime = Math.max(
+              defaultedOptions.gcTime,
+              MIN_SUSPENSE_TIME_MS
+            );
+          }
+        }
+      };
+      willFetch = (result, isRestoring) => result.isLoading && result.isFetching && !isRestoring;
+      shouldSuspend = (defaultedOptions, result) => defaultedOptions?.suspense && result.isPending;
+      fetchOptimistic = (defaultedOptions, observer, errorResetBoundary) => observer.fetchOptimistic(defaultedOptions).catch(() => {
+        errorResetBoundary.clearReset();
+      });
+    }
+  });
+
+  // node_modules/@tanstack/react-query/build/modern/useBaseQuery.js
+  function useBaseQuery(options, Observer, queryClient) {
+    if (true) {
+      if (typeof options !== "object" || Array.isArray(options)) {
+        throw new Error(
+          'Bad argument type. Starting with v5, only the "Object" form is allowed when calling query related functions. Please use the error stack to find the culprit call. More info here: https://tanstack.com/query/latest/docs/react/guides/migrating-to-v5#supports-a-single-signature-one-object'
+        );
+      }
+    }
+    const isRestoring = useIsRestoring();
+    const errorResetBoundary = useQueryErrorResetBoundary();
+    const client = useQueryClient(queryClient);
+    const defaultedOptions = client.defaultQueryOptions(options);
+    client.getDefaultOptions().queries?._experimental_beforeQuery?.(
+      defaultedOptions
+    );
+    const query = client.getQueryCache().get(defaultedOptions.queryHash);
+    if (true) {
+      if (!defaultedOptions.queryFn) {
+        console.error(
+          `[${defaultedOptions.queryHash}]: No queryFn was passed as an option, and no default queryFn was found. The queryFn parameter is only optional when using a default queryFn. More info here: https://tanstack.com/query/latest/docs/framework/react/guides/default-query-function`
+        );
+      }
+    }
+    defaultedOptions._optimisticResults = isRestoring ? "isRestoring" : "optimistic";
+    ensureSuspenseTimers(defaultedOptions);
+    ensurePreventErrorBoundaryRetry(defaultedOptions, errorResetBoundary, query);
+    useClearResetErrorBoundary(errorResetBoundary);
+    const isNewCacheEntry = !client.getQueryCache().get(defaultedOptions.queryHash);
+    const [observer] = React5.useState(
+      () => new Observer(
+        client,
+        defaultedOptions
+      )
+    );
+    const result = observer.getOptimisticResult(defaultedOptions);
+    const shouldSubscribe = !isRestoring && options.subscribed !== false;
+    React5.useSyncExternalStore(
+      React5.useCallback(
+        (onStoreChange) => {
+          const unsubscribe = shouldSubscribe ? observer.subscribe(notifyManager.batchCalls(onStoreChange)) : noop;
+          observer.updateResult();
+          return unsubscribe;
+        },
+        [observer, shouldSubscribe]
+      ),
+      () => observer.getCurrentResult(),
+      () => observer.getCurrentResult()
+    );
+    React5.useEffect(() => {
+      observer.setOptions(defaultedOptions);
+    }, [defaultedOptions, observer]);
+    if (shouldSuspend(defaultedOptions, result)) {
+      throw fetchOptimistic(defaultedOptions, observer, errorResetBoundary);
+    }
+    if (getHasError({
+      result,
+      errorResetBoundary,
+      throwOnError: defaultedOptions.throwOnError,
+      query,
+      suspense: defaultedOptions.suspense
+    })) {
+      throw result.error;
+    }
+    ;
+    client.getDefaultOptions().queries?._experimental_afterQuery?.(
+      defaultedOptions,
+      result
+    );
+    if (defaultedOptions.experimental_prefetchInRender && !environmentManager.isServer() && willFetch(result, isRestoring)) {
+      const promise = isNewCacheEntry ? (
+        // Fetch immediately on render in order to ensure `.promise` is resolved even if the component is unmounted
+        fetchOptimistic(defaultedOptions, observer, errorResetBoundary)
+      ) : (
+        // subscribe to the "cache promise" so that we can finalize the currentThenable once data comes in
+        query?.promise
+      );
+      promise?.catch(noop).finally(() => {
+        observer.updateResult();
+      });
+    }
+    return !defaultedOptions.notifyOnChangeProps ? observer.trackResult(result) : result;
+  }
+  var React5;
+  var init_useBaseQuery = __esm({
+    "node_modules/@tanstack/react-query/build/modern/useBaseQuery.js"() {
+      "use client";
+      React5 = __toESM(require_react(), 1);
+      init_modern();
+      init_QueryClientProvider();
+      init_QueryErrorResetBoundary();
+      init_errorBoundaryUtils();
+      init_IsRestoringProvider();
+      init_suspense();
+    }
+  });
+
+  // node_modules/@tanstack/react-query/build/modern/useQuery.js
+  function useQuery(options, queryClient) {
+    return useBaseQuery(options, QueryObserver, queryClient);
+  }
+  var init_useQuery = __esm({
+    "node_modules/@tanstack/react-query/build/modern/useQuery.js"() {
+      "use client";
+      init_modern();
+      init_useBaseQuery();
+    }
+  });
+
+  // node_modules/@tanstack/react-query/build/modern/useMutation.js
+  function useMutation(options, queryClient) {
+    const client = useQueryClient(queryClient);
+    const [observer] = React6.useState(
+      () => new MutationObserver(
+        client,
+        options
+      )
+    );
+    React6.useEffect(() => {
+      observer.setOptions(options);
+    }, [observer, options]);
+    const result = React6.useSyncExternalStore(
+      React6.useCallback(
+        (onStoreChange) => observer.subscribe(notifyManager.batchCalls(onStoreChange)),
+        [observer]
+      ),
+      () => observer.getCurrentResult(),
+      () => observer.getCurrentResult()
+    );
+    const mutate = React6.useCallback(
+      (variables, mutateOptions) => {
+        observer.mutate(variables, mutateOptions).catch(noop);
+      },
+      [observer]
+    );
+    if (result.error && shouldThrowError(observer.options.throwOnError, [result.error])) {
+      throw result.error;
+    }
+    return { ...result, mutate, mutateAsync: result.mutate };
+  }
+  var React6;
+  var init_useMutation = __esm({
+    "node_modules/@tanstack/react-query/build/modern/useMutation.js"() {
+      "use client";
+      React6 = __toESM(require_react(), 1);
+      init_modern();
+      init_QueryClientProvider();
+    }
+  });
+
+  // node_modules/@tanstack/react-query/build/modern/index.js
+  var init_modern2 = __esm({
+    "node_modules/@tanstack/react-query/build/modern/index.js"() {
+      init_modern();
+      init_types2();
+      init_useQuery();
+      init_QueryClientProvider();
+      init_useMutation();
+    }
+  });
+
   // dashboard/src/app.tsx
   var require_app = __commonJS({
     "dashboard/src/app.tsx"() {
       var import_react = __toESM(require_react());
       var import_client = __toESM(require_client());
-      var import_jsx_runtime = __toESM(require_jsx_runtime());
-      async function loadJson(path) {
-        try {
-          const response = await fetch(path);
-          if (!response.ok)
-            return null;
-          return await response.json();
-        } catch {
-          return null;
-        }
+      init_modern2();
+      var import_jsx_runtime3 = __toESM(require_jsx_runtime());
+      function useWebSocket(url) {
+        const wsRef = (0, import_react.useRef)(null);
+        const qc = useQueryClient();
+        const [connected, setConnected] = (0, import_react.useState)(false);
+        const [lastProgress, setLastProgress] = (0, import_react.useState)(null);
+        (0, import_react.useEffect)(() => {
+          function connect() {
+            const ws = new WebSocket(url);
+            wsRef.current = ws;
+            ws.onopen = () => setConnected(true);
+            ws.onclose = () => {
+              setConnected(false);
+              setTimeout(connect, 3e3);
+            };
+            ws.onerror = () => ws.close();
+            ws.onmessage = (event) => {
+              try {
+                const msg = JSON.parse(event.data);
+                if (msg.type === "workbench-updated") {
+                  qc.setQueryData(["workbench"], msg.data);
+                } else if (msg.type === "fitness-updated") {
+                  qc.setQueryData(["fitness"], msg.data);
+                } else if (msg.type === "speedrun-progress") {
+                  setLastProgress(msg.data);
+                } else if (msg.type === "work-item-completed") {
+                  qc.invalidateQueries({ queryKey: ["workbench"] });
+                }
+              } catch {
+              }
+            };
+          }
+          connect();
+          return () => {
+            wsRef.current?.close();
+          };
+        }, [url, qc]);
+        const send = (0, import_react.useCallback)((msg) => {
+          if (wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify(msg));
+          }
+        }, []);
+        return { connected, send, lastProgress };
       }
-      function StatusBar({ workbench, scorecard }) {
-        return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "status-bar", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "status-item", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "status-label", children: "Iteration:" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "status-value", children: workbench?.iteration ?? "\u2014" })
+      function useWorkbench() {
+        return useQuery({
+          queryKey: ["workbench"],
+          queryFn: async () => {
+            const res = await fetch("/api/workbench");
+            return res.ok ? res.json() : null;
+          },
+          refetchInterval: 1e4,
+          staleTime: 3e3
+        });
+      }
+      function useFitness() {
+        return useQuery({
+          queryKey: ["fitness"],
+          queryFn: async () => {
+            const res = await fetch("/api/fitness");
+            return res.ok ? res.json() : null;
+          },
+          refetchInterval: 15e3,
+          staleTime: 5e3
+        });
+      }
+      function useCompleteItem() {
+        const qc = useQueryClient();
+        return useMutation({
+          mutationFn: async (input) => {
+            const res = await fetch("/api/workbench/complete", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                completion: {
+                  workItemId: input.workItemId,
+                  status: input.status,
+                  completedAt: (/* @__PURE__ */ new Date()).toISOString(),
+                  rationale: input.rationale,
+                  artifactsWritten: []
+                }
+              })
+            });
+            return res.json();
+          },
+          onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ["workbench"] });
+          }
+        });
+      }
+      function ConnectionBadge({ connected }) {
+        return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: connected ? "#3fb950" : "#f85149", marginRight: 8 } });
+      }
+      function StatusBar({ workbench, scorecard, connected, progress }) {
+        return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "status-bar", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "status-item", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ConnectionBadge, { connected }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "status-label", children: "WS" })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "status-item", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "status-label", children: "Work Items:" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "status-value", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "status-item", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "status-label", children: "Iteration:" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "status-value", children: workbench?.iteration ?? "\u2014" })
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "status-item", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "status-label", children: "Items:" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "status-value", children: [
               workbench?.summary.pending ?? 0,
               " pending / ",
               workbench?.summary.completed ?? 0,
-              " completed"
+              " done"
             ] })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "status-item", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "status-label", children: "Hit Rate HWM:" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "status-value", children: scorecard ? `${(scorecard.highWaterMark.knowledgeHitRate * 100).toFixed(1)}%` : "\u2014" })
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "status-item", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "status-label", children: "HWM:" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "status-value", children: scorecard ? `${(scorecard.highWaterMark.knowledgeHitRate * 100).toFixed(1)}%` : "\u2014" })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "status-item", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "status-label", children: "Last Updated:" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "status-value", children: workbench ? new Date(workbench.generatedAt).toLocaleTimeString() : "\u2014" })
+          progress && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "status-item", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "status-label", children: "Live:" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "status-value", children: [
+              "[",
+              progress.phase,
+              "] iter ",
+              progress.iteration,
+              "/",
+              progress.maxIterations,
+              progress.calibration ? ` drift=${progress.calibration.weightDrift.toFixed(4)}` : ""
+            ] })
           ] })
         ] });
       }
       function FitnessCard({ scorecard }) {
         if (!scorecard)
-          return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "card", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", { children: "Fitness Scorecard" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "empty", children: "No scorecard found. Run a speedrun first." })
+          return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "card", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h2", { children: "Fitness" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "empty", children: "No scorecard. Run a speedrun first." })
           ] });
-        const hwm = scorecard.highWaterMark;
-        const rateClass = (v) => v >= 0.8 ? "good" : v >= 0.5 ? "warn" : "bad";
-        return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "card", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", { children: "Fitness Scorecard" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "metric", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "metric-label", children: "Knowledge Hit Rate" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: `metric-value ${rateClass(hwm.knowledgeHitRate)}`, children: [
-              (hwm.knowledgeHitRate * 100).toFixed(1),
+        const h = scorecard.highWaterMark;
+        const cls = (v) => v >= 0.8 ? "good" : v >= 0.5 ? "warn" : "bad";
+        return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "card", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h2", { children: "Fitness High-Water Mark" }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "metric", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "metric-label", children: "Knowledge Hit Rate" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: `metric-value ${cls(h.knowledgeHitRate)}`, children: [
+              (h.knowledgeHitRate * 100).toFixed(1),
               "%"
             ] })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "metric", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "metric-label", children: "Translation Precision" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: `metric-value ${rateClass(hwm.translationPrecision)}`, children: [
-              (hwm.translationPrecision * 100).toFixed(1),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "metric", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "metric-label", children: "Translation Precision" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: `metric-value ${cls(h.translationPrecision)}`, children: [
+              (h.translationPrecision * 100).toFixed(1),
               "%"
             ] })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "metric", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "metric-label", children: "Convergence Velocity" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "metric-value", children: [
-              hwm.convergenceVelocity,
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "metric", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "metric-label", children: "Convergence" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "metric-value", children: [
+              h.convergenceVelocity,
               " iterations"
             ] })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "metric", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "metric-label", children: "Proposal Yield" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: `metric-value ${rateClass(hwm.proposalYield)}`, children: [
-              (hwm.proposalYield * 100).toFixed(1),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "metric", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "metric-label", children: "Proposal Yield" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: `metric-value ${cls(h.proposalYield)}`, children: [
+              (h.proposalYield * 100).toFixed(1),
               "%"
             ] })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "metric", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "metric-label", children: "Scorecard Entries" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "metric-value", children: scorecard.history.length })
+          h.resolutionByRung && h.resolutionByRung.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h2", { style: { marginTop: 12 }, children: "Resolution by Rung" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "rung-bar", children: h.resolutionByRung.filter((r) => r.wins > 0).map((r) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "rung-segment", style: { flex: r.wins, backgroundColor: rungColor(r.rung) }, title: `${r.rung}: ${r.wins} (${(r.rate * 100).toFixed(0)}%)`, children: r.wins > 2 ? r.wins : "" }, r.rung)) }),
+            h.resolutionByRung.filter((r) => r.wins > 0).map((r) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "metric", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "metric-label", style: { color: rungColor(r.rung) }, children: r.rung }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "metric-value", children: [
+                r.wins,
+                " (",
+                (r.rate * 100).toFixed(0),
+                "%)"
+              ] })
+            ] }, r.rung))
           ] })
         ] });
       }
-      function WorkItemCard({ item }) {
-        const badgeClass = item.kind === "approve-proposal" ? "badge-proposal" : item.kind === "interpret-step" ? "badge-interpret" : "badge-hotspot";
-        const priorityClass = item.priority >= 0.5 ? "high" : "low";
-        return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: `work-item ${priorityClass}`, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "item-title", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: `item-badge ${badgeClass}`, children: item.kind }),
+      var RUNG_COLORS = {
+        "explicit": "#3fb950",
+        "control": "#2ea043",
+        "approved-screen-knowledge": "#56d364",
+        "shared-patterns": "#79c0ff",
+        "prior-evidence": "#a5d6ff",
+        "approved-equivalent-overlay": "#58a6ff",
+        "structured-translation": "#d29922",
+        "live-dom": "#e3b341",
+        "agent-interpreted": "#bc8cff",
+        "needs-human": "#f85149"
+      };
+      function rungColor(rung) {
+        return RUNG_COLORS[rung] ?? "#484f58";
+      }
+      function WorkItemRow({ item, onAction }) {
+        const [showDetail, setShowDetail] = (0, import_react.useState)(false);
+        const badgeColor = item.kind === "approve-proposal" ? "#1f6feb" : item.kind === "interpret-step" ? "#f85149" : "#d29922";
+        return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: `work-item ${item.priority >= 0.5 ? "high" : "low"}`, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { flex: 1, cursor: "pointer" }, onClick: () => setShowDetail(!showDetail), children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "item-badge", style: { background: `${badgeColor}33`, color: badgeColor }, children: item.kind }),
             " ",
-            item.title
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "item-title", children: item.title }),
+            showDetail && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { fontSize: 12, color: "#8b949e", marginTop: 8, paddingLeft: 8 }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { children: item.rationale }),
+              item.context.screen && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
+                "Screen: ",
+                item.context.screen
+              ] }),
+              item.context.element && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
+                "Element: ",
+                item.context.element
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
+                "Confidence: ",
+                item.evidence.confidence.toFixed(2),
+                " | Sources: ",
+                item.evidence.sources.length
+              ] })
+            ] })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "priority-score", children: item.priority.toFixed(3) })
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", gap: 6, alignItems: "center" }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "priority-score", children: item.priority.toFixed(3) }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { className: "btn btn-primary", onClick: () => onAction(item.id, "completed", `Dashboard approved: ${item.title}`), children: "\u2713" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { className: "btn", onClick: () => onAction(item.id, "skipped", `Dashboard skipped: ${item.title}`), children: "\u25CB" })
+          ] })
         ] });
       }
-      function WorkbenchCard({ workbench }) {
+      function WorkbenchPanel({ workbench, onAction }) {
         if (!workbench || workbench.items.length === 0) {
-          return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "card card-full", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", { children: "Agent Workbench" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "empty", children: "No pending work items. System is converged." })
+          return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "card card-full", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h2", { children: "Agent Workbench" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "empty", children: "No pending work items. System is converged." })
           ] });
         }
         const byScreen = /* @__PURE__ */ new Map();
         for (const item of workbench.items) {
           const screen = item.context.screen ?? "unknown";
-          const existing = byScreen.get(screen) ?? [];
-          byScreen.set(screen, [...existing, item]);
+          byScreen.set(screen, [...byScreen.get(screen) ?? [], item]);
         }
-        return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "card card-full", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h2", { children: [
+        return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "card card-full", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("h2", { children: [
             "Agent Workbench \u2014 ",
             workbench.summary.pending,
             " pending"
           ] }),
-          [...byScreen.entries()].map(([screen, items]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "screen-group", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "screen-header", children: [
+          [...byScreen.entries()].map(([screen, items]) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "screen-group", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "screen-header", children: [
               screen,
               " (",
               items.length,
               " items)"
             ] }),
-            items.map((item) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(WorkItemCard, { item }, item.id))
+            items.map((item) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(WorkItemRow, { item, onAction }, item.id))
           ] }, screen))
         ] });
       }
       function KindDistribution({ workbench }) {
         if (!workbench)
           return null;
-        const kinds = Object.entries(workbench.summary.byKind).filter(([, count]) => count > 0);
+        const kinds = Object.entries(workbench.summary.byKind).filter(([, c]) => c > 0);
         if (kinds.length === 0)
           return null;
-        const total = kinds.reduce((sum, [, count]) => sum + count, 0);
+        const total = kinds.reduce((s, [, c]) => s + c, 0);
         const colors = {
           "interpret-step": "#f85149",
           "approve-proposal": "#58a6ff",
@@ -22138,64 +25392,31 @@
           "validate-calibration": "#bc8cff",
           "request-rerun": "#79c0ff"
         };
-        return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "card", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", { children: "Work Item Distribution" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "rung-bar", children: kinds.map(([kind, count]) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-            "div",
-            {
-              className: "rung-segment",
-              style: { flex: count, backgroundColor: colors[kind] ?? "#484f58" },
-              title: `${kind}: ${count}`,
-              children: count > 0 ? count : ""
-            },
-            kind
-          )) }),
-          kinds.map(([kind, count]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "metric", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "metric-label", style: { color: colors[kind] ?? "#8b949e" }, children: kind }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "metric-value", children: [
-              count,
+        return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "card", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h2", { children: "Distribution" }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "rung-bar", children: kinds.map(([k, c]) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "rung-segment", style: { flex: c, backgroundColor: colors[k] ?? "#484f58" }, title: `${k}: ${c}`, children: c }, k)) }),
+          kinds.map(([k, c]) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "metric", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "metric-label", style: { color: colors[k] }, children: k }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "metric-value", children: [
+              c,
               " (",
-              (count / total * 100).toFixed(0),
+              (c / total * 100).toFixed(0),
               "%)"
             ] })
-          ] }, kind))
+          ] }, k))
         ] });
       }
-      function LineageCard({ lineage }) {
-        if (lineage.length === 0)
-          return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "card", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", { children: "Intervention Lineage" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "empty", children: "No interventions recorded yet." })
-          ] });
-        return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "card", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h2", { children: [
-            "Intervention Lineage (",
-            lineage.length,
-            " entries)"
-          ] }),
-          lineage.slice(-10).reverse().map((entry, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "lineage-entry", children: [
-            "iter ",
-            entry.iteration,
-            " \u2014 ",
-            entry.completionStatus ?? "pending",
-            " \u2014 ",
-            entry.workItemId?.slice(0, 8) ?? "\u2014",
-            " \u2014 ",
-            new Date(entry.timestamp).toLocaleTimeString()
-          ] }, i))
-        ] });
-      }
-      function CompletionsCard({ workbench }) {
+      function CompletionsPanel({ workbench }) {
         const completions = workbench?.completions ?? [];
         if (completions.length === 0)
           return null;
-        return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "card", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h2", { children: [
+        return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "card", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("h2", { children: [
             "Recent Completions (",
             completions.length,
             ")"
           ] }),
-          completions.slice(-8).reverse().map((c, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "lineage-entry", children: [
+          completions.slice(-10).reverse().map((c, i) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "lineage-entry", children: [
             c.status === "completed" ? "\u2713" : "\u25CB",
             " ",
             c.workItemId.slice(0, 8),
@@ -22204,47 +25425,100 @@
           ] }, i))
         ] });
       }
-      function App() {
-        const [workbench, setWorkbench] = (0, import_react.useState)(null);
-        const [scorecard, setScorecard] = (0, import_react.useState)(null);
-        const [lineage, setLineage] = (0, import_react.useState)([]);
-        const [loading, setLoading] = (0, import_react.useState)(true);
-        const refresh = (0, import_react.useCallback)(async () => {
-          setLoading(true);
-          const [wb, sc, lin] = await Promise.all([
-            loadJson(".tesseract/workbench/index.json"),
-            loadJson(".tesseract/benchmarks/scorecard.json"),
-            loadJson(".tesseract/workbench/lineage.json")
-          ]);
-          setWorkbench(wb);
-          setScorecard(sc);
-          setLineage(lin?.entries ?? []);
-          setLoading(false);
-        }, []);
-        (0, import_react.useEffect)(() => {
-          refresh();
-        }, [refresh]);
-        (0, import_react.useEffect)(() => {
-          const interval = setInterval(refresh, 5e3);
-          return () => clearInterval(interval);
-        }, [refresh]);
-        return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "container", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h1", { children: [
-            "Tesseract Dashboard",
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "btn refresh-btn", onClick: refresh, disabled: loading, children: loading ? "..." : "\u21BB Refresh" })
+      function ProgressPanel({ progress }) {
+        if (!progress)
+          return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "card", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h2", { children: "Live Progress" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "empty", children: "No active speedrun. Start one to see real-time progress." })
+          ] });
+        const m = progress.metrics;
+        return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "card", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("h2", { children: [
+            "Live Progress \u2014 [",
+            progress.phase,
+            "]"
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(StatusBar, { workbench, scorecard }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "grid", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FitnessCard, { scorecard }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(KindDistribution, { workbench }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CompletionsCard, { workbench }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LineageCard, { lineage })
+          m && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "metric", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "metric-label", children: "Hit Rate" }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: `metric-value ${m.knowledgeHitRate >= 0.8 ? "good" : m.knowledgeHitRate >= 0.5 ? "warn" : "bad"}`, children: [
+                (m.knowledgeHitRate * 100).toFixed(1),
+                "%"
+              ] })
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "metric", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "metric-label", children: "Steps" }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "metric-value", children: [
+                m.totalSteps,
+                " (",
+                m.unresolvedSteps,
+                " unresolved)"
+              ] })
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "metric", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "metric-label", children: "Proposals" }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "metric-value", children: m.proposalsActivated })
+            ] })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(WorkbenchCard, { workbench })
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "metric", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "metric-label", children: "Elapsed" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "metric-value", children: [
+              (progress.elapsed / 1e3).toFixed(1),
+              "s"
+            ] })
+          ] }),
+          progress.convergenceReason && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "metric", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "metric-label", children: "Convergence" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "metric-value", children: progress.convergenceReason })
+          ] }),
+          progress.calibration && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "metric", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "metric-label", children: "Weight Drift" }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "metric-value", children: progress.calibration.weightDrift.toFixed(4) })
+            ] }),
+            progress.calibration.topCorrelation && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "metric", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "metric-label", children: "Top Signal" }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "metric-value", children: [
+                progress.calibration.topCorrelation.signal,
+                " (",
+                progress.calibration.topCorrelation.strength > 0 ? "+" : "",
+                progress.calibration.topCorrelation.strength.toFixed(3),
+                ")"
+              ] })
+            ] })
+          ] })
         ] });
       }
+      function App() {
+        const { data: workbench } = useWorkbench();
+        const { data: scorecard } = useFitness();
+        const completeMutation = useCompleteItem();
+        const { connected, lastProgress } = useWebSocket(`ws://${window.location.host}/ws`);
+        const handleAction = (0, import_react.useCallback)((id, status, rationale) => {
+          completeMutation.mutate({ workItemId: id, status, rationale });
+        }, [completeMutation]);
+        return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "container", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h1", { children: "Tesseract Dashboard" }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(StatusBar, { workbench: workbench ?? null, scorecard: scorecard ?? null, connected, progress: lastProgress }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "grid", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(FitnessCard, { scorecard: scorecard ?? null }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ProgressPanel, { progress: lastProgress }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(KindDistribution, { workbench: workbench ?? null }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(CompletionsPanel, { workbench: workbench ?? null })
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(WorkbenchPanel, { workbench: workbench ?? null, onAction: handleAction })
+        ] });
+      }
+      var queryClient = new QueryClient({
+        defaultOptions: {
+          queries: { retry: 1, refetchOnWindowFocus: true },
+          mutations: { retry: 0 }
+        }
+      });
       var root = (0, import_client.createRoot)(document.getElementById("root"));
-      root.render(/* @__PURE__ */ (0, import_jsx_runtime.jsx)(App, {}));
+      root.render(
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(QueryClientProvider, { client: queryClient, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(App, {}) })
+      );
     }
   });
   require_app();
