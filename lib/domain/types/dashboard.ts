@@ -152,6 +152,45 @@ export const dashboardMcpTools: readonly McpToolDefinition[] = [
     description: 'Get current iteration number, phase, elapsed time, and convergence metrics.',
     inputSchema: { type: 'object', properties: {} },
   },
+  // Browser tools — Playwright Page interaction (progressive enhancement, headed mode only)
+  // Available when PlaywrightBridge is injected. Read-only tools are always safe.
+  // Write tools (click, fill, navigate) are safe during fiber pause.
+  {
+    name: 'browser_screenshot',
+    category: 'observe',
+    description: 'Capture current page screenshot via Playwright. Available in headed mode.',
+    inputSchema: { type: 'object', properties: { fullPage: { type: 'boolean' } } },
+  },
+  {
+    name: 'browser_query',
+    category: 'observe',
+    description: 'Get bounding box of an element via Playwright locator. Available in headed mode.',
+    inputSchema: { type: 'object', properties: { selector: { type: 'string' } }, required: ['selector'] },
+  },
+  {
+    name: 'browser_aria_snapshot',
+    category: 'observe',
+    description: 'Get ARIA accessibility tree snapshot of the current page.',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'browser_click',
+    category: 'control',
+    description: 'Click an element on the page via Playwright. Only safe during fiber pause.',
+    inputSchema: { type: 'object', properties: { selector: { type: 'string' } }, required: ['selector'] },
+  },
+  {
+    name: 'browser_fill',
+    category: 'control',
+    description: 'Fill an input field via Playwright. Only safe during fiber pause.',
+    inputSchema: { type: 'object', properties: { selector: { type: 'string' }, value: { type: 'string' } }, required: ['selector', 'value'] },
+  },
+  {
+    name: 'browser_navigate',
+    category: 'control',
+    description: 'Navigate the browser to a URL via Playwright. Only safe during fiber pause.',
+    inputSchema: { type: 'object', properties: { url: { type: 'string' } }, required: ['url'] },
+  },
 ] as const;
 
 // ─── Headed Runtime Capability ───

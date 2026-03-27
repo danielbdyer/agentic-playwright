@@ -77,7 +77,10 @@ const pendingDecisions = new Map();
 /** Latest screenshot cache for MCP get_screen_capture tool. */
 let lastScreenshot = null;
 
-/** MCP tool catalog — same tools the spatial canvas renders visually. */
+/** Playwright bridge reference for browser_* MCP tools. Set when headed mode is active. */
+let playwrightBridge = null;
+
+/** MCP tool catalog — observation + decision + browser tools. */
 const MCP_TOOLS = [
   { name: 'list_probed_elements', category: 'observe', description: 'List all elements currently probed in the resolution pipeline.' },
   { name: 'get_screen_capture', category: 'observe', description: 'Get the latest screenshot of the application under test.' },
@@ -86,11 +89,18 @@ const MCP_TOOLS = [
   { name: 'get_fitness_metrics', category: 'observe', description: 'Get current fitness scorecard.' },
   { name: 'approve_work_item', category: 'decide', description: 'Approve a pending work item, resuming the paused Effect fiber.' },
   { name: 'skip_work_item', category: 'decide', description: 'Skip a pending work item.' },
+  // Browser tools — progressive enhancement, available in headed mode with Playwright
+  { name: 'browser_screenshot', category: 'observe', description: 'Capture page screenshot via Playwright (headed mode).' },
+  { name: 'browser_query', category: 'observe', description: 'Get bounding box of element via Playwright (headed mode).' },
+  { name: 'browser_aria_snapshot', category: 'observe', description: 'Get ARIA accessibility tree (headed mode).' },
+  { name: 'browser_click', category: 'control', description: 'Click element via Playwright (headed mode, fiber pause only).' },
+  { name: 'browser_fill', category: 'control', description: 'Fill input via Playwright (headed mode, fiber pause only).' },
+  { name: 'browser_navigate', category: 'control', description: 'Navigate to URL via Playwright (headed mode, fiber pause only).' },
   { name: 'get_iteration_status', category: 'control', description: 'Get current iteration number, phase, and convergence metrics.' },
 ];
 
-/** Route an MCP tool call to the appropriate handler. Pure dispatch. */
-function handleMcpToolCall(tool, args) {
+/** Route an MCP tool call to the appropriate handler. */
+async function handleMcpToolCall(tool, args) {
   switch (tool) {
     case 'list_probed_elements': {
       const wb = readJsonFile('.tesseract/workbench/index.json');
@@ -149,9 +159,43 @@ function handleMcpToolCall(tool, args) {
       try { return JSON.parse(lines[lines.length - 1]); }
       catch { return { phase: 'unknown' }; }
     }
+    // ─── Browser tools (Playwright, headed mode only) ───
+    case 'browser_screenshot':
+    case 'browser_query':
+    case 'browser_aria_snapshot':
+    case 'browser_click':
+    case 'browser_fill':
+    case 'browser_navigate':
+      return handleBrowserTool(tool, args);
     default:
       return { error: `Unknown tool: ${tool}`, isError: true };
   }
+}
+
+/** Route browser_* MCP tools through the Playwright bridge.
+ *  Progressive enhancement: returns error when bridge unavailable.
+ *  The bridge is an AsyncPlaywrightBridge (plain async, no Effect). */
+async function handleBrowserTool(tool, args) {
+  if (!playwrightBridge) {
+    return { error: 'Playwright bridge not available (start with --headed)', isError: true, available: false };
+  }
+  const actionMap = {
+    'browser_screenshot': { kind: 'screenshot' },
+    'browser_query': { kind: 'query', selector: args.selector },
+    'browser_aria_snapshot': { kind: 'aria-snapshot' },
+    'browser_click': { kind: 'click', selector: args.selector },
+    'browser_fill': { kind: 'fill', selector: args.selector, value: args.value },
+    'browser_navigate': { kind: 'navigate', url: args.url },
+  };
+  const action = actionMap[tool];
+  if (!action) return { error: `Unknown browser tool: ${tool}`, isError: true };
+  return playwrightBridge.execute(action);
+}
+
+/** Set the Playwright bridge for browser_* tools. Called when headed mode is activated. */
+function setPlaywrightBridge(bridge) {
+  playwrightBridge = bridge;
+  console.log('  Playwright bridge: connected (browser_* MCP tools available)');
 }
 
 // ─── WebSocket (minimal implementation, no deps) ───
@@ -343,10 +387,10 @@ function handleRequest(req, res) {
   if (url.pathname === '/api/mcp/call' && req.method === 'POST') {
     let body = '';
     req.on('data', (chunk) => { body += chunk; });
-    req.on('end', () => {
+    req.on('end', async () => {
       try {
         const { tool, arguments: args } = JSON.parse(body);
-        const result = handleMcpToolCall(tool, args ?? {});
+        const result = await handleMcpToolCall(tool, args ?? {});
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ tool, result, isError: !!result?.isError }));
       } catch (err) {
@@ -361,10 +405,10 @@ function handleRequest(req, res) {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
       screenshotStream: true,
-      liveDomPortal: false,
+      liveDomPortal: !!playwrightBridge,
       mcpServer: true,
       mcpEndpoint: `http://localhost:${PORT}/api/mcp`,
-      playwrightMcp: false,
+      playwrightMcp: !!playwrightBridge,
       version: '1.0',
     }));
     return;
