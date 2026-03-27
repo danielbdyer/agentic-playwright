@@ -1,9 +1,21 @@
+/**
+ * Hotspot Detection — identifies recurring resolution patterns that
+ * suggest knowledge improvements.
+ *
+ * Architecture: three data sources (runs, drift records, resolution graphs)
+ * are flatMapped into a uniform stream of HotspotEntry records, then
+ * folded into an immutable Map via a single reduce pass.
+ *
+ * No .push(), no mutable Map, no imperative loops.
+ * Pure: data sources in, sorted hotspots out.
+ */
+
 import type { InterpretationDriftRecord, ResolutionGraphRecord, RunRecord } from '../domain/types';
 import { compareStrings } from '../domain/collections';
 
-function compareNumbers(left: number, right: number): number {
-  return left - right;
-}
+const compareNumbers = (left: number, right: number): number => left - right;
+
+// ─── Types ───
 
 export type HotspotKind = 'translation-win' | 'agentic-fallback-win' | 'degraded-locator-rung' | 'recovery-policy-win' | 'interpretation-drift' | 'resolution-graph-needs-human';
 
@@ -24,254 +36,206 @@ export interface WorkflowHotspot {
   readonly id: string;
   readonly kind: HotspotKind;
   readonly screen: string;
-  readonly family: {
-    readonly field: string;
-    readonly action: string;
-  };
+  readonly family: { readonly field: string; readonly action: string };
   readonly occurrenceCount: number;
-  readonly suggestions: ReadonlyArray<{
-    readonly target: string;
-    readonly reason: string;
-  }>;
+  readonly suggestions: ReadonlyArray<{ readonly target: string; readonly reason: string }>;
   readonly samples: readonly HotspotSample[];
 }
 
-interface HotspotAccumulator {
-  id: string;
-  kind: HotspotKind;
-  screen: string;
-  field: string;
-  action: string;
-  samples: HotspotSample[];
+// ─── Internal: uniform entry for the fold ───
+
+interface HotspotEntry {
+  readonly kind: HotspotKind;
+  readonly screen: string;
+  readonly field: string;
+  readonly action: string;
+  readonly sample: HotspotSample;
 }
 
-function familyKey(field: string, action: string): string {
-  return `${field}|${action}`;
-}
+// ─── Pure Helpers ───
 
-function hotspotId(kind: HotspotKind, screen: string, field: string, action: string): string {
-  return `${kind}:${screen}:${field}:${action}`;
-}
+const familyKey = (field: string, action: string): string => `${field}|${action}`;
 
-function sortedLatestRuns(runRecords: readonly RunRecord[]): RunRecord[] {
-  const byAdo = new Map<string, RunRecord>();
-  const sorted = [...runRecords].sort((left, right) => compareStrings(right.completedAt, left.completedAt));
-  for (const run of sorted) {
-    if (!byAdo.has(run.adoId)) {
-      byAdo.set(run.adoId, run);
-    }
-  }
-  return [...byAdo.values()].sort((left, right) => compareStrings(left.runId, right.runId));
-}
+const hotspotId = (kind: HotspotKind, screen: string, field: string, action: string): string =>
+  `${kind}:${screen}:${field}:${action}`;
 
-function pushAccumulator(
-  map: Map<string, HotspotAccumulator>,
-  input: {
-    kind: HotspotKind;
-    screen: string;
-    field: string;
-    action: string;
-    sample: HotspotSample;
-  },
-): void {
-  const id = hotspotId(input.kind, input.screen, input.field, input.action);
-  const existing = map.get(id);
-  if (existing) {
-    existing.samples.push(input.sample);
-    return;
-  }
+/** Keep only the latest run per ADO ID, sorted by runId. Pure. */
+const sortedLatestRuns = (runRecords: readonly RunRecord[]): readonly RunRecord[] => {
+  const sorted = [...runRecords].sort((a, b) => compareStrings(b.completedAt, a.completedAt));
+  const seen = new Set<string>();
+  return sorted
+    .filter((run) => { if (seen.has(run.adoId)) return false; seen.add(run.adoId); return true; })
+    .sort((a, b) => compareStrings(a.runId, b.runId));
+};
 
-  map.set(id, {
-    id,
-    kind: input.kind,
-    screen: input.screen,
-    field: input.field,
-    action: input.action,
-    samples: [input.sample],
-  });
-}
+// ─── Source Extractors: data source → HotspotEntry[] ───
+// Each extractor is a pure function that flatMaps a source into entries.
 
-function proceduralSuggestionNeeded(action: string, samples: readonly HotspotSample[]): boolean {
-  return action === 'custom' || samples.some((sample) => Boolean(sample.widgetContract));
-}
-
-export function buildWorkflowHotspots(runRecords: readonly RunRecord[], driftRecords: readonly InterpretationDriftRecord[] = [], resolutionGraphs: readonly ResolutionGraphRecord[] = []): WorkflowHotspot[] {
-  const accumulators = new Map<string, HotspotAccumulator>();
-
-  for (const run of sortedLatestRuns(runRecords)) {
-    for (const step of run.steps) {
-      if (step.interpretation.kind === 'needs-human') {
-        continue;
-      }
-      const target = step.interpretation.target;
-      const screen = target.screen;
-      const field = target.element ?? target.posture ?? target.snapshot_template ?? 'screen';
-      const action = target.action;
+/** Extract hotspot entries from run records. Pure. */
+const entriesFromRuns = (runRecords: readonly RunRecord[]): readonly HotspotEntry[] =>
+  sortedLatestRuns(runRecords).flatMap((run) =>
+    run.steps.flatMap((step): readonly HotspotEntry[] => {
+      if (step.interpretation.kind === 'needs-human') return [];
+      const { screen, action } = step.interpretation.target;
+      const field = step.interpretation.target.element
+        ?? step.interpretation.target.posture
+        ?? step.interpretation.target.snapshot_template
+        ?? 'screen';
       const sample: HotspotSample = {
-        adoId: run.adoId,
-        runId: run.runId,
-        stepIndex: step.stepIndex,
+        adoId: run.adoId, runId: run.runId, stepIndex: step.stepIndex,
         winningSource: step.interpretation.winningSource,
         resolutionMode: step.interpretation.resolutionMode,
         locatorRung: step.execution.locatorRung ?? null,
         widgetContract: step.execution.widgetContract ?? null,
       };
 
-      if (step.interpretation.winningSource === 'structured-translation' && step.execution.execution.status === 'ok') {
-        pushAccumulator(accumulators, { kind: 'translation-win', screen, field, action, sample });
-      }
+      const recoveredAttempt = step.execution.recovery?.attempts?.find((e) => e.result === 'recovered') ?? null;
 
-      if (step.interpretation.resolutionMode === 'agentic'
-          && step.interpretation.winningSource !== 'none'
-          && step.execution.execution.status === 'ok') {
-        pushAccumulator(accumulators, { kind: 'agentic-fallback-win', screen, field, action, sample });
-      }
+      return [
+        ...(step.interpretation.winningSource === 'structured-translation' && step.execution.execution.status === 'ok'
+          ? [{ kind: 'translation-win' as const, screen, field, action, sample }] : []),
+        ...(step.interpretation.resolutionMode === 'agentic' && step.interpretation.winningSource !== 'none' && step.execution.execution.status === 'ok'
+          ? [{ kind: 'agentic-fallback-win' as const, screen, field, action, sample }] : []),
+        ...(step.execution.degraded
+          ? [{ kind: 'degraded-locator-rung' as const, screen, field, action, sample }] : []),
+        ...(recoveredAttempt
+          ? [{ kind: 'recovery-policy-win' as const, screen, field, action, sample: { ...sample, recoveryStrategy: recoveredAttempt.strategyId, recoveryFamily: recoveredAttempt.family } }] : []),
+      ];
+    }),
+  );
 
-      if (step.execution.degraded) {
-        pushAccumulator(accumulators, { kind: 'degraded-locator-rung', screen, field, action, sample });
-      }
-
-
-      const recoveredAttempt = step.execution.recovery?.attempts?.find((entry) => entry.result === 'recovered') ?? null;
-      if (recoveredAttempt) {
-        pushAccumulator(accumulators, {
-          kind: 'recovery-policy-win',
-          screen,
-          field,
-          action,
-          sample: {
-            ...sample,
-            recoveryStrategy: recoveredAttempt.strategyId,
-            recoveryFamily: recoveredAttempt.family,
-          },
-        });
-      }
-    }
-  }
-
-
-  for (const drift of driftRecords) {
-    for (const step of drift.steps.filter((entry) => entry.changed)) {
-      const field = step.after.target;
-      pushAccumulator(accumulators, {
+/** Extract hotspot entries from drift records. Pure. */
+const entriesFromDrift = (driftRecords: readonly InterpretationDriftRecord[]): readonly HotspotEntry[] =>
+  driftRecords.flatMap((drift) =>
+    drift.steps
+      .filter((entry) => entry.changed)
+      .map((step): HotspotEntry => ({
         kind: 'interpretation-drift',
         screen: drift.adoId,
-        field,
+        field: step.after.target,
         action: step.after.winningSource,
         sample: {
-          adoId: drift.adoId,
-          runId: drift.runId,
-          stepIndex: step.stepIndex,
-          winningSource: step.after.winningSource,
-          resolutionMode: 'agentic',
-          locatorRung: null,
-          widgetContract: null,
-          changedFields: step.changes.map((change) => change.field),
+          adoId: drift.adoId, runId: drift.runId, stepIndex: step.stepIndex,
+          winningSource: step.after.winningSource, resolutionMode: 'agentic',
+          locatorRung: null, widgetContract: null,
+          changedFields: step.changes.map((c) => c.field),
         },
-      });
-    }
-  }
+      })),
+  );
 
-
-  for (const graph of resolutionGraphs) {
-    for (const step of graph.steps.filter((entry) => entry.graph.winner.rung === 'needs-human')) {
-      pushAccumulator(accumulators, {
+/** Extract hotspot entries from resolution graphs. Pure. */
+const entriesFromGraphs = (graphs: readonly ResolutionGraphRecord[]): readonly HotspotEntry[] =>
+  graphs.flatMap((graph) =>
+    graph.steps
+      .filter((entry) => entry.graph.winner.rung === 'needs-human')
+      .map((step): HotspotEntry => ({
         kind: 'resolution-graph-needs-human',
         screen: graph.adoId,
         field: 'winner-rung',
         action: 'needs-human',
         sample: {
-          adoId: graph.adoId,
-          runId: graph.runId,
-          stepIndex: step.stepIndex,
-          winningSource: 'none',
-          resolutionMode: 'agentic',
-          locatorRung: null,
-          widgetContract: null,
+          adoId: graph.adoId, runId: graph.runId, stepIndex: step.stepIndex,
+          winningSource: 'none', resolutionMode: 'agentic',
+          locatorRung: null, widgetContract: null,
           changedFields: ['resolution-graph'],
         },
-      });
-    }
-  }
+      })),
+  );
 
-  const familyScreenSpread = [...accumulators.values()].reduce((acc, entry) => {
-    const key = familyKey(entry.field, entry.action);
-    const existing = acc.get(key);
-    if (existing) {
-      existing.add(entry.screen);
-    } else {
-      acc.set(key, new Set([entry.screen]));
-    }
-    return acc;
-  }, new Map<string, Set<string>>());
+// ─── Immutable Fold: entries → accumulated Map ───
 
-  return [...accumulators.values()]
-    .map((entry) => {
-      const suggestions: Array<{ readonly target: string; readonly reason: string }> = [
-        {
-          target: `knowledge/screens/${entry.screen}.hints.yaml`,
-          reason: 'Capture deterministic aliases/defaults so this family resolves without runtime fallback.',
-        },
+interface AccEntry {
+  readonly id: string;
+  readonly kind: HotspotKind;
+  readonly screen: string;
+  readonly field: string;
+  readonly action: string;
+  readonly samples: readonly HotspotSample[];
+}
+
+/** Fold a stream of entries into an immutable accumulator map. Pure. */
+const foldEntries = (entries: readonly HotspotEntry[]): ReadonlyMap<string, AccEntry> =>
+  entries.reduce<ReadonlyMap<string, AccEntry>>((acc, entry) => {
+    const id = hotspotId(entry.kind, entry.screen, entry.field, entry.action);
+    const existing = acc.get(id);
+    return new Map([...acc, [id, existing
+      ? { ...existing, samples: [...existing.samples, entry.sample] }
+      : { id, kind: entry.kind, screen: entry.screen, field: entry.field, action: entry.action, samples: [entry.sample] },
+    ]]);
+  }, new Map());
+
+// ─── Suggestion Derivation: pure function of accumulator entry ───
+
+const proceduralSuggestionNeeded = (action: string, samples: readonly HotspotSample[]): boolean =>
+  action === 'custom' || samples.some((s) => Boolean(s.widgetContract));
+
+const deriveSuggestions = (
+  entry: AccEntry,
+  familyScreenSpread: ReadonlyMap<string, ReadonlySet<string>>,
+): ReadonlyArray<{ readonly target: string; readonly reason: string }> => [
+  { target: `knowledge/screens/${entry.screen}.hints.yaml`, reason: 'Capture deterministic aliases/defaults so this family resolves without runtime fallback.' },
+  ...((familyScreenSpread.get(familyKey(entry.field, entry.action))?.size ?? 0) > 1
+    ? [{ target: 'knowledge/patterns/*.yaml', reason: 'This field/action family appears across screens; promote shared aliases and locator ladders.' }] : []),
+  ...(proceduralSuggestionNeeded(entry.action, entry.samples)
+    ? [{ target: 'knowledge/components/*.ts', reason: 'Procedural widget choreography is recurring; codify a reusable widget contract.' }] : []),
+];
+
+// ─── Public API ───
+
+export function buildWorkflowHotspots(
+  runRecords: readonly RunRecord[],
+  driftRecords: readonly InterpretationDriftRecord[] = [],
+  resolutionGraphs: readonly ResolutionGraphRecord[] = [],
+): WorkflowHotspot[] {
+  // 1. Flatten all sources into uniform entry stream
+  const entries = [
+    ...entriesFromRuns(runRecords),
+    ...entriesFromDrift(driftRecords),
+    ...entriesFromGraphs(resolutionGraphs),
+  ];
+
+  // 2. Fold into immutable accumulator map
+  const accumulated = foldEntries(entries);
+
+  // 3. Derive family screen spread (which families appear on multiple screens)
+  const familyScreenSpread = [...accumulated.values()].reduce<ReadonlyMap<string, ReadonlySet<string>>>(
+    (acc, entry) => {
+      const key = familyKey(entry.field, entry.action);
+      const existing = acc.get(key) ?? new Set<string>();
+      return new Map([...acc, [key, new Set([...existing, entry.screen])]]);
+    },
+    new Map(),
+  );
+
+  // 4. Project into sorted WorkflowHotspot[]
+  return [...accumulated.values()]
+    .map((entry): WorkflowHotspot => ({
+      id: entry.id,
+      kind: entry.kind,
+      screen: entry.screen,
+      family: { field: entry.field, action: entry.action },
+      occurrenceCount: entry.samples.length,
+      suggestions: deriveSuggestions(entry, familyScreenSpread),
+      samples: [...entry.samples].sort((a, b) =>
+        compareStrings(a.runId, b.runId) || compareNumbers(a.stepIndex, b.stepIndex) || compareStrings(a.adoId, b.adoId)),
+    }))
+    .sort((a, b) =>
+      compareNumbers(b.occurrenceCount, a.occurrenceCount) || compareStrings(a.screen, b.screen)
+      || compareStrings(a.family.field, b.family.field) || compareStrings(a.family.action, b.family.action)
+      || compareStrings(a.kind, b.kind));
+}
+
+export const renderHotspotMarkdown = (hotspots: readonly WorkflowHotspot[]): readonly string[] =>
+  hotspots.length === 0
+    ? ['## Hotspot suggestions', '', '- No repeated translation/agentic/degraded wins detected in the latest run per scenario.', '']
+    : [
+        '## Hotspot suggestions', '',
+        ...hotspots.flatMap((h) => [
+          `### ${h.kind} · ${h.screen} · ${h.family.field} · ${h.family.action}`, '',
+          `- Occurrences: ${h.occurrenceCount}`,
+          `- Samples: ${h.samples.slice(0, 3).map((s) => `${s.runId}#${s.stepIndex}`).join(', ')}`,
+          '- Suggested targets:',
+          ...h.suggestions.map((s) => `  - ${s.target} — ${s.reason}`),
+          '',
+        ]),
       ];
-      const sharedScreens = familyScreenSpread.get(familyKey(entry.field, entry.action));
-      if ((sharedScreens?.size ?? 0) > 1) {
-        suggestions.push({
-          target: 'knowledge/patterns/*.yaml',
-          reason: 'This field/action family appears across screens; promote shared aliases and locator ladders.',
-        });
-      }
-      if (proceduralSuggestionNeeded(entry.action, entry.samples)) {
-        suggestions.push({
-          target: 'knowledge/components/*.ts',
-          reason: 'Procedural widget choreography is recurring; codify a reusable widget contract.',
-        });
-      }
-
-      return {
-        id: entry.id,
-        kind: entry.kind,
-        screen: entry.screen,
-        family: {
-          field: entry.field,
-          action: entry.action,
-        },
-        occurrenceCount: entry.samples.length,
-        suggestions,
-        samples: [...entry.samples].sort((left, right) =>
-          compareStrings(left.runId, right.runId)
-          || compareNumbers(left.stepIndex, right.stepIndex)
-          || compareStrings(left.adoId, right.adoId)),
-      } satisfies WorkflowHotspot;
-    })
-    .sort((left, right) =>
-      compareNumbers(right.occurrenceCount, left.occurrenceCount)
-      || compareStrings(left.screen, right.screen)
-      || compareStrings(left.family.field, right.family.field)
-      || compareStrings(left.family.action, right.family.action)
-      || compareStrings(left.kind, right.kind));
-}
-
-export function renderHotspotMarkdown(hotspots: readonly WorkflowHotspot[]): string[] {
-  const lines: string[] = [];
-  lines.push('## Hotspot suggestions');
-  lines.push('');
-  if (hotspots.length === 0) {
-    lines.push('- No repeated translation/agentic/degraded wins detected in the latest run per scenario.');
-    lines.push('');
-    return lines;
-  }
-
-  for (const hotspot of hotspots) {
-    lines.push(`### ${hotspot.kind} · ${hotspot.screen} · ${hotspot.family.field} · ${hotspot.family.action}`);
-    lines.push('');
-    lines.push(`- Occurrences: ${hotspot.occurrenceCount}`);
-    lines.push(`- Samples: ${hotspot.samples.slice(0, 3).map((sample) => `${sample.runId}#${sample.stepIndex}`).join(', ')}`);
-    lines.push('- Suggested targets:');
-    for (const suggestion of hotspot.suggestions) {
-      lines.push(`  - ${suggestion.target} — ${suggestion.reason}`);
-    }
-    lines.push('');
-  }
-
-  return lines;
-}
