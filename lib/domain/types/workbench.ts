@@ -13,6 +13,7 @@
 import type { AdoId, ScreenId } from '../identity';
 import type { InterventionTarget } from './intervention';
 import type { StepTaskScreenCandidate } from './knowledge';
+import type { ResolutionTarget } from './workflow';
 
 export type WorkItemKind =
   | 'interpret-step'
@@ -79,6 +80,39 @@ export interface ScreenGroupContext {
   readonly screen: StepTaskScreenCandidate;
   readonly workItems: readonly AgentWorkItem[];
   readonly totalOccurrences: number;
+}
+
+/** Agent observation persisted as evidence for future runs and confidence scoring. */
+export interface AgentObservationRecord {
+  readonly kind: 'agent-observation';
+  readonly version: 1;
+  readonly adoId: string;
+  readonly runId: string;
+  readonly stepIndex: number;
+  readonly provider: string;
+  readonly target: ResolutionTarget;
+  readonly rationale: string;
+  readonly confidence: number;
+  readonly observedAt: string;
+}
+
+/** Cross-iteration intervention lineage — tracks the feedback arc from
+ *  proposal → activation → completion → rerun → resolution. */
+export interface InterventionLineageEntry {
+  readonly kind: 'intervention-lineage-entry';
+  readonly iteration: number;
+  readonly proposalId: string | null;
+  readonly workItemId: string | null;
+  readonly completionStatus: WorkItemCompletionStatus | null;
+  readonly rerunPlanId: string | null;
+  readonly artifactsWritten: readonly string[];
+  readonly timestamp: string;
+}
+
+export interface InterventionLineageEnvelope {
+  readonly kind: 'intervention-lineage';
+  readonly version: 1;
+  readonly entries: readonly InterventionLineageEntry[];
 }
 
 /** Envelope for persisted completions (not JSONL — uses standard envelope pattern). */

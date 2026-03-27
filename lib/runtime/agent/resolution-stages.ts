@@ -492,6 +492,35 @@ export async function tryLiveDomOrFallback(stage: RuntimeAgentStageContext, acc:
       priorTarget: stage.context.previousResolution ?? null,
       taskFingerprint: stage.task.taskFingerprint,
       knowledgeFingerprint: stage.context.resolutionContext.knowledgeFingerprint,
+      // Enriched context: what prior rungs learned, structural constraints, observed state
+      topCandidates: {
+        screens: acc.screenLattice.ranked.slice(0, 3).flatMap((c) =>
+          c.value ? [{ screen: c.value.screen, score: c.score }] : [],
+        ),
+        elements: acc.elementLattice.ranked.slice(0, 3).flatMap((c) =>
+          c.value ? [{ element: c.value.element, screen: acc.screen?.screen ?? '', score: c.score }] : [],
+        ),
+      },
+      grounding: {
+        targetRefs: [...stage.task.grounding.targetRefs],
+        requiredStateRefs: [...stage.task.grounding.requiredStateRefs],
+        forbiddenStateRefs: [...stage.task.grounding.forbiddenStateRefs],
+        allowedActions: [...stage.task.allowedActions],
+      },
+      observedState: {
+        currentScreen: stage.memory.currentScreen?.screen ?? null,
+        activeStateRefs: [...stage.memory.activeStateRefs],
+        lastSuccessfulLocatorRung: stage.memory.lastSuccessfulLocatorRung,
+      },
+      confidenceHints: stage.context.resolutionContext.confidenceOverlays
+        .filter((r) => r.score > 0.3)
+        .slice(0, 5)
+        .map((r) => ({
+          screen: r.screen ?? '',
+          element: r.element ?? undefined,
+          status: r.status,
+          score: r.score,
+        })),
     };
 
     const agentResult = await agentInterpreter.interpret(agentRequest);

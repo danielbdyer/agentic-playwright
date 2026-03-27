@@ -63,6 +63,43 @@ export interface AgentInterpretationRequest {
   readonly taskFingerprint: string;
   /** Knowledge fingerprint for cache invalidation. */
   readonly knowledgeFingerprint: string;
+
+  // ─── Enriched context (Gap 1: agent sees what prior rungs learned) ───
+
+  /** Top-3 ranked candidates from prior rungs. Enables confidence calibration —
+   *  if all screens scored < 0.2, agent should decline. If screen #1 scored 0.95
+   *  and #2 scored 0.94, agent knows it's a near-tie. */
+  readonly topCandidates?: {
+    readonly screens: ReadonlyArray<{ readonly screen: string; readonly score: number }>;
+    readonly elements: ReadonlyArray<{ readonly element: string; readonly screen: string; readonly score: number }>;
+  } | undefined;
+
+  /** Structural grounding from the compiled step. Constrains search space:
+   *  targetRefs narrow candidates, requiredStateRefs validate preconditions,
+   *  forbiddenStateRefs reject unsafe targets, allowedActions filter inference. */
+  readonly grounding?: {
+    readonly targetRefs: readonly string[];
+    readonly requiredStateRefs: readonly string[];
+    readonly forbiddenStateRefs: readonly string[];
+    readonly allowedActions: readonly StepAction[];
+  } | undefined;
+
+  /** Current observed state from working memory. Enables filtering candidates
+   *  to visible/enabled elements on the current screen. */
+  readonly observedState?: {
+    readonly currentScreen: string | null;
+    readonly activeStateRefs: readonly string[];
+    readonly lastSuccessfulLocatorRung: number | null;
+  } | undefined;
+
+  /** Per-artifact confidence status for top overlays. Agent knows whether
+   *  targets are trusted (approved-equivalent) or exploratory (learning). */
+  readonly confidenceHints?: ReadonlyArray<{
+    readonly screen: string;
+    readonly element?: string | undefined;
+    readonly status: 'approved-equivalent' | 'learning' | 'needs-review';
+    readonly score: number;
+  }> | undefined;
 }
 
 export interface AgentInterpretationResult {
@@ -147,10 +184,17 @@ function createHeuristicProvider(): AgentInterpreterProvider {
     kind: 'heuristic',
     interpret: (request) => {
       const normalized = normalizeIntentText(`${request.actionText} ${request.expectedText}`);
-      const action = request.inferredAction ?? inferAction(request.actionText);
+      // Use grounding's allowedActions to constrain, falling back to keyword heuristic
+      const allowedActions = request.grounding?.allowedActions;
+      const action = request.inferredAction
+        ?? (allowedActions && allowedActions.length === 1 ? allowedActions[0]! : null)
+        ?? inferAction(request.actionText);
 
       // Single-pass max-finder for top screen. O(S) where S = screen count.
-      const priorScreen = request.priorTarget?.screen ?? null;
+      // Use observedState.currentScreen for stronger disambiguation than priorTarget alone
+      const priorScreen = request.observedState?.currentScreen
+        ?? request.priorTarget?.screen
+        ?? null;
       const topScreen = request.screens.reduce<{ screen: typeof request.screens[number]; score: number } | null>(
         (best, screen) => {
           const baseScore = scoreScreen(normalized, screen);

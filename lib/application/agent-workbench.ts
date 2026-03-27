@@ -458,6 +458,53 @@ export function processWorkItems(options: {
   }).pipe(Effect.withSpan('process-work-items'));
 }
 
+// ─── Intervention Lineage ───
+
+/** Emit intervention lineage artifact — records the feedback arc from
+ *  work item completion back to the next iteration. Pure projection. */
+export function emitInterventionLineage(options: {
+  readonly paths: ProjectPaths;
+  readonly iteration: number;
+  readonly completions: readonly WorkItemCompletion[];
+  readonly workItems: readonly AgentWorkItem[];
+}) {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const entries: import('../domain/types').InterventionLineageEntry[] = options.completions.map((completion) => {
+      const item = options.workItems.find((w) => w.id === completion.workItemId);
+      return {
+        kind: 'intervention-lineage-entry' as const,
+        iteration: options.iteration,
+        proposalId: item?.context.proposalId ?? null,
+        workItemId: completion.workItemId,
+        completionStatus: completion.status,
+        rerunPlanId: null,
+        artifactsWritten: [...completion.artifactsWritten],
+        timestamp: completion.completedAt,
+      };
+    });
+
+    // Load existing lineage and append
+    const lineagePath = `${options.paths.workbenchDir}/lineage.json`;
+    const existing = yield* Effect.gen(function* () {
+      const exists = yield* fs.exists(lineagePath);
+      if (!exists) return [];
+      const raw = yield* fs.readJson(lineagePath);
+      const envelope = raw as import('../domain/types').InterventionLineageEnvelope;
+      return envelope.kind === 'intervention-lineage' ? [...envelope.entries] : [];
+    }).pipe(Effect.catchAll(() => Effect.succeed([] as import('../domain/types').InterventionLineageEntry[])));
+
+    const envelope: import('../domain/types').InterventionLineageEnvelope = {
+      kind: 'intervention-lineage',
+      version: 1,
+      entries: [...existing, ...entries],
+    };
+    yield* fs.ensureDir(options.paths.workbenchDir);
+    yield* fs.writeJson(lineagePath, envelope);
+    return envelope;
+  }).pipe(Effect.withSpan('emit-intervention-lineage'));
+}
+
 // ─── Effect Projection ───
 
 export function emitAgentWorkbench(options: {

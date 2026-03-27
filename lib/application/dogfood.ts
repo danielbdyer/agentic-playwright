@@ -4,7 +4,7 @@ import { activateProposalBundle, autoApproveEligibleProposals } from './activate
 import { loadWorkspaceCatalog } from './catalog';
 import { buildPartialFitnessMetrics } from './fitness';
 import { calibrateWeightsFromCorrelations } from './learning-bottlenecks';
-import { emitAgentWorkbench, processWorkItems } from './agent-workbench';
+import { emitAgentWorkbench, processWorkItems, emitInterventionLineage } from './agent-workbench';
 import type { AgentWorkItem, WorkItemCompletion } from '../domain/types';
 import { improvementLoopLedgerPath, type ProjectPaths } from './paths';
 import { refreshScenarioCore } from './refresh';
@@ -413,13 +413,23 @@ function runIteration(iteration: number, options: DogfoodOptions) {
     // Step 4c: inter-iteration act loop — process work items before next iteration
     if (options.actBetweenIterations) {
       const actOpts = options.actBetweenIterations;
-      yield* processWorkItems({
+      const actResult = yield* processWorkItems({
         paths: options.paths,
         maxItems: actOpts.maxItemsPerIteration ?? 10,
         ...(actOpts.decider ? { decider: actOpts.decider } : {}),
         ...(actOpts.screenGroupDecider ? { screenGroupDecider: actOpts.screenGroupDecider } : {}),
         ...(actOpts.onItemProcessed ? { onItemProcessed: actOpts.onItemProcessed } : {}),
       });
+
+      // Step 4d: emit intervention lineage (cross-iteration feedback arc)
+      if (actResult.completions.length > 0) {
+        yield* emitInterventionLineage({
+          paths: options.paths,
+          iteration,
+          completions: actResult.completions,
+          workItems: [],
+        });
+      }
     }
 
     // Step 5: cleanup transient artifacts to cap memory growth
