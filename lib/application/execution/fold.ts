@@ -63,16 +63,11 @@ export function foldScenarioRun(input: {
   evidenceWrites: PersistedEvidenceArtifact[];
 }): ScenarioRunFold {
   type StepEntry = ScenarioRunFold['byStep'] extends ReadonlyMap<number, infer T> ? T : never;
-  // Pre-index evidence by stepIndex: O(E) build, then O(1) per step
-  const evidenceByStep = new Map<number, string[]>();
-  for (const entry of input.evidenceWrites) {
-    const existing = evidenceByStep.get(entry.stepIndex);
-    if (existing) {
-      existing.push(entry.artifactPath);
-    } else {
-      evidenceByStep.set(entry.stepIndex, [entry.artifactPath]);
-    }
-  }
+  // Pre-index evidence by stepIndex: O(E) build via reduce, then O(1) per step
+  const evidenceByStep = input.evidenceWrites.reduce<ReadonlyMap<number, readonly string[]>>(
+    (acc, entry) => new Map([...acc, [entry.stepIndex, [...(acc.get(entry.stepIndex) ?? []), entry.artifactPath]]]),
+    new Map(),
+  );
   const byStep = new Map<number, StepEntry>(
     input.stepResults.map((result) => {
       const stepIndex = result.interpretation.stepIndex;
@@ -119,38 +114,18 @@ export function foldScenarioRun(input: {
     timingTotals,
     costTotals,
     budgetBreaches: [...byStep.values()].filter((step) => step.budgetStatus === 'over-budget').length,
-    failureFamilies: [...byStep.values()].reduce<Record<StepExecutionReceipt['failure']['family'], number>>((acc, step) => {
-      acc[step.failureFamily] += 1;
-      return acc;
-    }, {
-      none: 0,
-      'precondition-failure': 0,
-      'locator-degradation-failure': 0,
-      'environment-runtime-failure': 0,
-    }),
-    recoveryFamilies: input.stepResults.reduce<Record<Exclude<StepExecutionReceipt['failure']['family'], 'none'>, number>>((acc, step) => {
-      for (const attempt of step.execution.recovery?.attempts ?? []) {
-        acc[attempt.family] += 1;
-      }
-      return acc;
-    }, {
-      'precondition-failure': 0,
-      'locator-degradation-failure': 0,
-      'environment-runtime-failure': 0,
-    }),
-    recoveryStrategies: input.stepResults.reduce<Record<StepExecutionReceipt['recovery']['attempts'][number]['strategyId'], number>>((acc, step) => {
-      for (const attempt of step.execution.recovery?.attempts ?? []) {
-        acc[attempt.strategyId] += 1;
-      }
-      return acc;
-    }, {
-      'verify-prerequisites': 0,
-      'execute-prerequisite-actions': 0,
-      'force-alternate-locator-rungs': 0,
-      'snapshot-guided-reresolution': 0,
-      'bounded-retry-with-backoff': 0,
-      'refresh-runtime': 0,
-    }),
+    failureFamilies: [...byStep.values()].reduce<Record<StepExecutionReceipt['failure']['family'], number>>(
+      (acc, step) => ({ ...acc, [step.failureFamily]: acc[step.failureFamily] + 1 }),
+      { none: 0, 'precondition-failure': 0, 'locator-degradation-failure': 0, 'environment-runtime-failure': 0 },
+    ),
+    recoveryFamilies: input.stepResults.flatMap((step) => step.execution.recovery?.attempts ?? []).reduce<Record<Exclude<StepExecutionReceipt['failure']['family'], 'none'>, number>>(
+      (acc, attempt) => ({ ...acc, [attempt.family]: (acc[attempt.family] ?? 0) + 1 }),
+      { 'precondition-failure': 0, 'locator-degradation-failure': 0, 'environment-runtime-failure': 0 },
+    ),
+    recoveryStrategies: input.stepResults.flatMap((step) => step.execution.recovery?.attempts ?? []).reduce<Record<StepExecutionReceipt['recovery']['attempts'][number]['strategyId'], number>>(
+      (acc, attempt) => ({ ...acc, [attempt.strategyId]: (acc[attempt.strategyId] ?? 0) + 1 }),
+      { 'verify-prerequisites': 0, 'execute-prerequisite-actions': 0, 'force-alternate-locator-rungs': 0, 'snapshot-guided-reresolution': 0, 'bounded-retry-with-backoff': 0, 'refresh-runtime': 0 },
+    ),
   };
 
   return {

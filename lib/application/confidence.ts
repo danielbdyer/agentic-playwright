@@ -188,8 +188,12 @@ function contributeRunArtifacts(catalog: WorkspaceCatalog): Map<string, Aggregat
   return aggregates;
 }
 
-function scoreForAggregate(successCount: number, failureCount: number, evidenceCount: number): number {
-  const score = 0.35 + successCount * 0.2 + Math.min(evidenceCount, 3) * 0.05 - failureCount * 0.25;
+function scoreForAggregate(successCount: number, failureCount: number, evidenceCount: number, approvalCount: number = 0): number {
+  const score = 0.35
+    + successCount * 0.2
+    + Math.min(evidenceCount, 3) * 0.05
+    + Math.min(approvalCount, 2) * 0.15
+    - failureCount * 0.25;
   return Math.max(0, Math.min(0.99, round(score)));
 }
 
@@ -209,7 +213,8 @@ export function buildConfidenceOverlayCatalog(catalog: WorkspaceCatalog): Confid
     .map(([id, aggregate]) => {
       const evidence = evidenceCountForArtifact(catalog, aggregate.artifactPath, aggregate.artifactType);
       const threshold = thresholdForArtifact(catalog, aggregate.artifactType);
-      const score = scoreForAggregate(aggregate.successCount, aggregate.failureCount, evidence.count);
+      const approvalCount = catalog.approvalReceipts.filter((r) => r.artifact.targetPath === aggregate.artifactPath).length;
+      const score = scoreForAggregate(aggregate.successCount, aggregate.failureCount, evidence.count, approvalCount);
       return {
         id,
         artifactType: aggregate.artifactType,

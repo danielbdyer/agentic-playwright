@@ -11,6 +11,11 @@
       "type": "stdio",
       "command": "npx",
       "args": ["-y", "@azure-devops/mcp", "${input:ado_org}"]
+    },
+    "tesseract-dashboard": {
+      "type": "http",
+      "url": "http://localhost:3100/api/mcp",
+      "description": "Tesseract Dashboard — observation + decision tools for the spatial visualization. Start with: npm run dashboard"
     }
   }
 }

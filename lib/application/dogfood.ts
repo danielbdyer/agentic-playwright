@@ -3,6 +3,12 @@ import { Effect } from 'effect';
 import { activateProposalBundle, autoApproveEligibleProposals } from './activate-proposals';
 import { loadWorkspaceCatalog } from './catalog';
 import { buildPartialFitnessMetrics } from './fitness';
+import { calibrateWeightsFromCorrelations } from './learning-bottlenecks';
+import { emitAgentWorkbench, processWorkItems, emitInterventionLineage } from './agent-workbench';
+import { createDashboardDecider } from './dashboard-decider';
+import { createDualModeDecider, createAgentDecider } from './agent-decider';
+import type { AgentWorkItem, WorkItemCompletion } from '../domain/types';
+import type { DashboardPort } from './ports';
 import { improvementLoopLedgerPath, type ProjectPaths } from './paths';
 import { refreshScenarioCore } from './refresh';
 import { buildDerivedGraph } from './graph';
@@ -12,10 +18,13 @@ import { runScenarioSelection } from './run';
 import { FileSystem } from './ports';
 import { runStateMachine } from './state-machine';
 import { pruneTranslationCache } from './translation-cache';
+import { round4 } from './learning-shared';
 import type { AdoId } from '../domain/identity';
-import { asDogfoodLedgerProjection, asImprovementLoopLedger } from '../domain/types';
+import { groupBy } from '../domain/collections';
+import { asDogfoodLedgerProjection, asImprovementLoopLedger, DEFAULT_PIPELINE_CONFIG } from '../domain/types';
 import type {
   AutoApprovalPolicy,
+  BottleneckWeights,
   DogfoodLedgerProjection,
   ImprovementLoopLedger,
   ImprovementLoopConvergenceReason,
@@ -39,6 +48,23 @@ export interface DogfoodOptions {
   readonly runbook?: string | undefined;
   readonly interpreterMode?: 'dry-run' | 'diagnostic' | undefined;
   readonly autoApprovalPolicy?: AutoApprovalPolicy | undefined;
+  /** When provided, process work items between iterations (inter-iteration act loop).
+   *  The decider is invoked per screen group after each iteration's workbench is emitted.
+   *  This enables the agent to act on hotspots/proposals before the next iteration runs. */
+  readonly actBetweenIterations?: {
+    readonly decider?: import('./agent-workbench').WorkItemDecider;
+    readonly screenGroupDecider?: import('./agent-workbench').ScreenGroupDecider;
+    readonly maxItemsPerIteration?: number;
+    readonly onItemProcessed?: (item: AgentWorkItem, completion: WorkItemCompletion) => void;
+  } | undefined;
+  /** Dashboard port for dual-mode decider integration.
+   *  When provided alongside mcpInvokeTool, creates a dual-mode decider:
+   *  agent handles routine decisions (>=0.8 confidence), human handles ambiguous ones. */
+  readonly dashboard?: DashboardPort | undefined;
+  /** MCP tool invocation callback for the agent decider.
+   *  When provided alongside dashboard, enables the outer agent to make decisions
+   *  via structured MCP tools instead of human clicks. */
+  readonly mcpInvokeTool?: ((toolName: string, args: Record<string, unknown>) => Promise<unknown>) | undefined;
   /** Knowledge posture for catalog loading. Defaults to 'warm-start'. */
   readonly knowledgePosture?: KnowledgePosture | undefined;
   /**
@@ -57,6 +83,10 @@ interface LoopState {
   readonly converged: boolean;
   readonly convergenceReason: ImprovementLoopConvergenceReason;
   readonly startedAt: number;
+  /** Self-calibrating bottleneck weights, threaded through iterations.
+   *  Each iteration may adjust these based on observed correlation between
+   *  bottleneck signals and hit-rate improvement. Pure state transition. */
+  readonly bottleneckWeights: BottleneckWeights;
 }
 
 function createInitialState(): LoopState {
@@ -66,6 +96,7 @@ function createInitialState(): LoopState {
     converged: false,
     convergenceReason: null,
     startedAt: Date.now(),
+    bottleneckWeights: DEFAULT_PIPELINE_CONFIG.bottleneckWeights,
   };
 }
 
@@ -75,8 +106,62 @@ function collectPendingProposals(bundles: readonly ProposalBundle[]): readonly P
   );
 }
 
-function round4(value: number): number {
-  return Number(value.toFixed(4));
+/**
+ * Derive bottleneck-weight correlations from consecutive iteration pairs.
+ *
+ * For each (iteration N, iteration N+1) pair, we observe:
+ *   - Which bottleneck signal dominated in iteration N (highest unresolved rate, etc.)
+ *   - Whether hit rate improved in iteration N+1
+ *
+ * If a signal correlated with improvement, its weight should increase.
+ * If it correlated with stagnation, its weight should decrease.
+ *
+ * Pure function: (iterations) → correlations. No side effects.
+ * This is the "gradient signal" for the self-calibrating scoring rule.
+ */
+/** Extract bottleneck signal strengths from a single iteration's characteristics.
+ *  Pure function: maps iteration metrics to weighted bottleneck signals. */
+export function iterationSignalStrengths(iteration: DogfoodIterationResult): readonly { readonly signal: string; readonly strength: number }[] {
+  const unresolvedRate = iteration.totalStepCount > 0
+    ? iteration.unresolvedStepCount / iteration.totalStepCount
+    : 0;
+  return [
+    { signal: 'high-unresolved-rate', strength: unresolvedRate },
+    { signal: 'repair-recovery-hotspot', strength: iteration.proposalsActivated > 0 ? 0.3 : 0 },
+    { signal: 'translation-fallback-dominant', strength: unresolvedRate > 0.5 ? 0.2 : 0 },
+    { signal: 'thin-screen-coverage', strength: unresolvedRate > 0.3 ? 0.1 : 0 },
+  ].filter(({ strength }) => strength > 0);
+}
+
+/** Zip consecutive items into (current, next) tuples for fold analysis over adjacent pairs. */
+export function consecutivePairs<T>(items: readonly T[]): readonly (readonly [T, T])[] {
+  return items.slice(0, -1).map((item, index) => [item, items[index + 1]!] as const);
+}
+
+export function deriveIterationCorrelations(
+  iterations: readonly DogfoodIterationResult[],
+): readonly import('../domain/types').BottleneckWeightCorrelation[] {
+  if (iterations.length < 2) {
+    return [];
+  }
+
+  // Flatmap consecutive pairs into weighted signal observations,
+  // then group by signal and average the deltas. O(pairs × signals).
+  const observations = consecutivePairs(iterations).flatMap(([current, next]) => {
+    const hitRateDelta = next.knowledgeHitRate - current.knowledgeHitRate;
+    return iterationSignalStrengths(current)
+      .map(({ signal, strength }) => ({ signal, delta: hitRateDelta * strength }));
+  });
+
+  // Single-pass groupBy (O(n)) then map to averages
+  const bySignal = groupBy(observations, (o) => o.signal);
+  return Object.entries(bySignal).map(([signal, entries]) => ({
+    signal,
+    weight: 0,
+    correlationWithImprovement: round4(
+      entries.reduce((sum, e) => sum + e.delta, 0) / entries.length,
+    ),
+  }));
 }
 
 function computeTraceMetrics(runRecords: ReadonlyArray<{
@@ -189,15 +274,31 @@ function cleanupBetweenIterations(options: DogfoodOptions) {
   });
 }
 
+/** Compute L2 (Euclidean) distance between two weight vectors. Pure. */
+function weightDrift(a: BottleneckWeights, b: BottleneckWeights): number {
+  const keys: readonly (keyof BottleneckWeights)[] = ['repairDensity', 'translationRate', 'unresolvedRate', 'inverseFragmentShare'];
+  return round4(Math.sqrt(keys.reduce((sum, k) => sum + (a[k] - b[k]) ** 2, 0)));
+}
+
 /** Build a progress event from the current iteration result and loop state. */
 function buildProgressEvent(
   result: DogfoodIterationResult,
+  state: LoopState,
   convergenceReason: ImprovementLoopConvergenceReason,
-  startedAt: number,
   iterationDurationMs: number,
   options: DogfoodOptions,
   resolutionByRung?: readonly import('../domain/types/fitness').RungRate[],
+  correlations?: readonly import('../domain/types').BottleneckWeightCorrelation[],
 ): SpeedrunProgressEvent {
+  const prevWeights = state.iterations.length > 1
+    ? DEFAULT_PIPELINE_CONFIG.bottleneckWeights
+    : state.bottleneckWeights;
+  const topCorrelation = correlations && correlations.length > 0
+    ? correlations.reduce((best, c) =>
+        Math.abs(c.correlationWithImprovement) > Math.abs(best.correlationWithImprovement) ? c : best,
+      )
+    : null;
+
   return {
     kind: 'speedrun-progress',
     phase: 'iterate',
@@ -211,11 +312,18 @@ function buildProgressEvent(
       ...(resolutionByRung ? { resolutionByRung } : {}),
     },
     convergenceReason,
-    elapsed: Date.now() - startedAt,
+    elapsed: Date.now() - state.startedAt,
     phaseDurationMs: iterationDurationMs,
     wallClockMs: Date.now(),
     seed: options.seed ?? '',
     scenarioCount: result.scenarioIds.length,
+    calibration: {
+      weights: state.bottleneckWeights,
+      weightDrift: weightDrift(state.bottleneckWeights, prevWeights),
+      topCorrelation: topCorrelation
+        ? { signal: topCorrelation.signal, strength: topCorrelation.correlationWithImprovement }
+        : null,
+    },
   };
 }
 
@@ -310,6 +418,42 @@ function runIteration(iteration: number, options: DogfoodOptions) {
       postRunCatalog.trustPolicy.artifact,
     );
 
+    // Step 4b: emit agent workbench (structured work items for agent consumption)
+    yield* emitAgentWorkbench({ paths: options.paths, catalog: postRunCatalog, iteration });
+
+    // Step 4c: inter-iteration act loop — process work items before next iteration
+    // Resolve decider: dual-mode (agent + human) > explicit > none
+    const resolvedDecider = options.actBetweenIterations?.decider
+      ?? (options.dashboard && options.mcpInvokeTool
+        ? createDualModeDecider({
+            humanDecider: createDashboardDecider(options.dashboard),
+            agentDecider: createAgentDecider({ invokeTool: options.mcpInvokeTool }),
+          })
+        : options.dashboard
+          ? createDashboardDecider(options.dashboard)
+          : undefined);
+
+    if (options.actBetweenIterations || resolvedDecider) {
+      const actOpts = options.actBetweenIterations ?? {};
+      const actResult = yield* processWorkItems({
+        paths: options.paths,
+        maxItems: actOpts.maxItemsPerIteration ?? 10,
+        ...(resolvedDecider ? { decider: resolvedDecider } : {}),
+        ...(actOpts.screenGroupDecider ? { screenGroupDecider: actOpts.screenGroupDecider } : {}),
+        ...(actOpts.onItemProcessed ? { onItemProcessed: actOpts.onItemProcessed } : {}),
+      });
+
+      // Step 4d: emit intervention lineage (cross-iteration feedback arc)
+      if (actResult.completions.length > 0) {
+        yield* emitInterventionLineage({
+          paths: options.paths,
+          iteration,
+          completions: actResult.completions,
+          workItems: [],
+        });
+      }
+    }
+
     // Step 5: cleanup transient artifacts to cap memory growth
     yield* cleanupBetweenIterations(options);
 
@@ -350,23 +494,34 @@ function dogfoodMachine(options: DogfoodOptions) {
         prevHitRate, result.knowledgeHitRate, nextCumulativeInstructions, options,
       );
 
+      // Self-calibrate bottleneck weights from iteration history.
+      // Pure state transition: derive correlations from consecutive iteration pairs,
+      // then nudge weights in the direction of observed improvement.
+      const updatedIterations = [...state.iterations, result];
+      const correlations = deriveIterationCorrelations(updatedIterations);
+      const calibratedWeights = correlations.length > 0
+        ? calibrateWeightsFromCorrelations(state.bottleneckWeights, correlations)
+        : state.bottleneckWeights;
+
       const nextState: LoopState = {
         ...state,
-        iterations: [...state.iterations, result],
+        iterations: updatedIterations,
         cumulativeInstructions: nextCumulativeInstructions,
         converged: convergence.converged,
         convergenceReason: convergence.reason ?? state.convergenceReason,
+        bottleneckWeights: calibratedWeights,
       };
 
-      // Emit progress event after each iteration (with per-iteration rung breakdown)
+      // Emit progress event after each iteration (with calibration observability)
       if (options.onProgress) {
         options.onProgress(buildProgressEvent(
           result,
+          nextState,
           nextState.convergenceReason,
-          state.startedAt,
           iterationDuration,
           options,
           partialFitness.resolutionByRung,
+          correlations,
         ));
       }
 

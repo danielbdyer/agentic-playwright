@@ -4,7 +4,7 @@ import { createProjectPaths } from '../application/paths';
 import { readTranslationCache, translationCacheKey, writeTranslationCache } from '../application/translation-cache';
 import { translateIntentToOntology } from '../application/translate';
 import type { TranslationProvider } from '../application/translation-provider';
-import { resolveAgentInterpreterProvider } from '../application/agent-interpreter-provider';
+import { resolveAgentInterpreterProvider, type AgentInterpreterProvider } from '../application/agent-interpreter-provider';
 import type { TranslationReceipt, TranslationRequest } from '../domain/types';
 import { createLocalRuntimeEnvironment } from '../infrastructure/runtime/local-runtime-environment';
 import { createScenarioRunState, runScenarioStep } from '../runtime/scenario';
@@ -78,22 +78,24 @@ function buildDefaultTranslator(
   }));
 }
 
-export const LocalRuntimeScenarioRunner: RuntimeScenarioRunnerPort = {
-  runSteps(input) {
-    return Effect.gen(function* () {
-      const paths = createProjectPaths(input.rootDir, input.suiteRoot);
-      const translationDisabled = Boolean(input.translationOptions?.disableTranslation);
-      const cacheDisabled = Boolean(input.translationOptions?.disableTranslationCache);
-      const externalProvider = input.translationOptions?.translationProvider;
+/** Create a RuntimeScenarioRunnerPort with a specific agent interpreter provider.
+ *  This is the injection point for agent sessions, Copilot, and dashboard integrations. */
+function buildRunnerWithInterpreter(interpreterOverride?: AgentInterpreterProvider | undefined): RuntimeScenarioRunnerPort {
+  return {
+    runSteps(input) {
+      return Effect.gen(function* () {
+        const paths = createProjectPaths(input.rootDir, input.suiteRoot);
+        const translationDisabled = Boolean(input.translationOptions?.disableTranslation);
+        const cacheDisabled = Boolean(input.translationOptions?.disableTranslationCache);
+        const externalProvider = input.translationOptions?.translationProvider;
 
-      const translator = translationDisabled
-        ? undefined
-        : externalProvider
-          ? buildCachedTranslator(paths, cacheDisabled, externalProvider)
-          : buildDefaultTranslator(paths, cacheDisabled);
+        const translator = translationDisabled
+          ? undefined
+          : externalProvider
+            ? buildCachedTranslator(paths, cacheDisabled, externalProvider)
+            : buildDefaultTranslator(paths, cacheDisabled);
 
-      // Resolve agent interpreter provider (session → llm-api → disabled)
-      const agentInterpreter = resolveAgentInterpreterProvider();
+        const agentInterpreter = interpreterOverride ?? resolveAgentInterpreterProvider();
 
       const runtimeEnvironment = createLocalRuntimeEnvironment({
         rootDir: input.rootDir,
@@ -124,4 +126,14 @@ export const LocalRuntimeScenarioRunner: RuntimeScenarioRunnerPort = {
       return [...results];
     });
   },
-};
+  };
+}
+
+/** Default runner: resolves agent interpreter from environment (TESSERACT_AGENT_PROVIDER). */
+export const LocalRuntimeScenarioRunner: RuntimeScenarioRunnerPort = buildRunnerWithInterpreter();
+
+/** Factory: create a runner with a specific agent interpreter injected.
+ *  Used by composition layer when an agent session provides its own interpreter. */
+export const createLocalRuntimeScenarioRunnerWithInterpreter = (
+  interpreter: AgentInterpreterProvider,
+): RuntimeScenarioRunnerPort => buildRunnerWithInterpreter(interpreter);

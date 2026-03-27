@@ -176,3 +176,36 @@ export interface PipelineScorecard {
   readonly history: readonly ScorecardHistoryEntry[];
   readonly paretoFrontier?: readonly ParetoFrontierEntry[];
 }
+
+// ─── Generalization Metrics (held-out validation) ───
+
+/** Metrics comparing training and validation performance to detect overfitting.
+ *  The generalization gap is the difference between training and held-out hit rates.
+ *  A small gap (< 0.15) indicates genuine improvement; a large gap indicates memorization. */
+export interface GeneralizationMetrics {
+  readonly kind: 'generalization-metrics';
+  readonly version: 1;
+  readonly trainingMetrics: {
+    readonly knowledgeHitRate: number;
+    readonly translationPrecision: number;
+    readonly convergenceVelocity: number;
+    readonly proposalYield: number;
+    readonly degradedLocatorRate: number;
+  };
+  readonly validationMetrics: {
+    readonly knowledgeHitRate: number;
+    readonly translationPrecision: number;
+    readonly degradedLocatorRate: number;
+  };
+  readonly gaps: {
+    readonly hitRateGap: number;
+    readonly precisionGap: number;
+    readonly degradationGap: number;
+  };
+  readonly passes: {
+    readonly noOverfitting: boolean;
+    readonly validationSignificant: boolean;
+    readonly robustness: boolean;
+  };
+  readonly verdict: 'pass' | 'warn' | 'fail';
+}

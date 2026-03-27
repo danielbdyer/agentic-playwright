@@ -25,6 +25,8 @@
 import type { ResolutionTarget, ResolutionProposalDraft, ResolutionObservation } from '../domain/types';
 import type { StepAction } from '../domain/types';
 import type { ScreenId, ElementId, PostureId, SnapshotTemplateId } from '../domain/identity';
+import { normalizeIntentText } from '../domain/inference';
+import { bestAliasMatch, humanizeIdentifier } from '../runtime/agent/shared';
 
 // ─── Request / Response Contract ───
 
@@ -61,6 +63,43 @@ export interface AgentInterpretationRequest {
   readonly taskFingerprint: string;
   /** Knowledge fingerprint for cache invalidation. */
   readonly knowledgeFingerprint: string;
+
+  // ─── Enriched context (Gap 1: agent sees what prior rungs learned) ───
+
+  /** Top-3 ranked candidates from prior rungs. Enables confidence calibration —
+   *  if all screens scored < 0.2, agent should decline. If screen #1 scored 0.95
+   *  and #2 scored 0.94, agent knows it's a near-tie. */
+  readonly topCandidates?: {
+    readonly screens: ReadonlyArray<{ readonly screen: string; readonly score: number }>;
+    readonly elements: ReadonlyArray<{ readonly element: string; readonly screen: string; readonly score: number }>;
+  } | undefined;
+
+  /** Structural grounding from the compiled step. Constrains search space:
+   *  targetRefs narrow candidates, requiredStateRefs validate preconditions,
+   *  forbiddenStateRefs reject unsafe targets, allowedActions filter inference. */
+  readonly grounding?: {
+    readonly targetRefs: readonly string[];
+    readonly requiredStateRefs: readonly string[];
+    readonly forbiddenStateRefs: readonly string[];
+    readonly allowedActions: readonly StepAction[];
+  } | undefined;
+
+  /** Current observed state from working memory. Enables filtering candidates
+   *  to visible/enabled elements on the current screen. */
+  readonly observedState?: {
+    readonly currentScreen: string | null;
+    readonly activeStateRefs: readonly string[];
+    readonly lastSuccessfulLocatorRung: number | null;
+  } | undefined;
+
+  /** Per-artifact confidence status for top overlays. Agent knows whether
+   *  targets are trusted (approved-equivalent) or exploratory (learning). */
+  readonly confidenceHints?: ReadonlyArray<{
+    readonly screen: string;
+    readonly element?: string | undefined;
+    readonly status: 'approved-equivalent' | 'learning' | 'needs-review';
+    readonly score: number;
+  }> | undefined;
 }
 
 export interface AgentInterpretationResult {
@@ -75,7 +114,7 @@ export interface AgentInterpretationResult {
 
 // ─── Provider Contract (Strategy interface) ───
 
-export type AgentInterpreterKind = 'disabled' | 'llm-api' | 'session';
+export type AgentInterpreterKind = 'disabled' | 'heuristic' | 'llm-api' | 'session';
 
 export interface AgentInterpreterProvider {
   readonly id: string;
@@ -97,6 +136,163 @@ function createDisabledProvider(): AgentInterpreterProvider {
       proposalDrafts: [],
       provider: 'disabled',
     }),
+  };
+}
+
+// ─── Provider: Heuristic (context-aware scoring, no agent) ───
+//
+// Uses the same token-Jaccard + humanized identifier matching as the
+// translation layer, but with FULL context: all screens, all elements,
+// exhaustion trail, and prior resolution. This is NOT an agent — it's
+// a richer scoring function that uses context to disambiguate.
+//
+// Useful as: baseline for A/B comparison, fallback when no agent session
+// is available, fast path for CI/batch where LLM calls are too expensive.
+
+/** Score a screen against the normalized intent. Higher = better match. */
+function scoreScreen(
+  normalized: string,
+  screen: AgentInterpretationRequest['screens'][number],
+): number {
+  const aliases = [screen.screen, ...screen.screenAliases, humanizeIdentifier(screen.screen)];
+  return bestAliasMatch(normalized, aliases)?.score ?? 0;
+}
+
+/** Score an element against the normalized intent. Higher = better match. */
+function scoreElement(
+  normalized: string,
+  element: AgentInterpretationRequest['screens'][number]['elements'][number],
+): number {
+  const aliases = [element.element, element.name ?? '', ...element.aliases, humanizeIdentifier(element.element)];
+  return bestAliasMatch(normalized, aliases)?.score ?? 0;
+}
+
+/** Infer action type from step text using keyword heuristics. */
+function inferAction(actionText: string): StepAction {
+  const lower = actionText.toLowerCase();
+  if (/\b(navigate|go to|open|load|access|visit|browse)\b/.test(lower)) return 'navigate';
+  if (/\b(enter|type|input|fill|set|provide|key in|write|populate)\b/.test(lower)) return 'input';
+  if (/\b(click|press|tap|hit|activate|submit|trigger)\b/.test(lower)) return 'click';
+  if (/\b(select|choose|pick)\b/.test(lower)) return 'click';
+  if (/\b(verify|check|confirm|assert|ensure|see|observe|validate|expect)\b/.test(lower)) return 'assert-snapshot';
+  return 'click';
+}
+
+function createHeuristicProvider(): AgentInterpreterProvider {
+  return {
+    id: 'agent-interpreter-heuristic',
+    kind: 'heuristic',
+    interpret: (request) => {
+      const normalized = normalizeIntentText(`${request.actionText} ${request.expectedText}`);
+      // Use grounding's allowedActions to constrain, falling back to keyword heuristic
+      const allowedActions = request.grounding?.allowedActions;
+      const action = request.inferredAction
+        ?? (allowedActions && allowedActions.length === 1 ? allowedActions[0]! : null)
+        ?? inferAction(request.actionText);
+
+      // Single-pass max-finder for top screen. O(S) where S = screen count.
+      // Use observedState.currentScreen for stronger disambiguation than priorTarget alone
+      const priorScreen = request.observedState?.currentScreen
+        ?? request.priorTarget?.screen
+        ?? null;
+      const topScreen = request.screens.reduce<{ screen: typeof request.screens[number]; score: number } | null>(
+        (best, screen) => {
+          const baseScore = scoreScreen(normalized, screen);
+          const contextBonus = screen.screen === priorScreen ? 2.0 : 0;
+          const score = baseScore + contextBonus;
+          return score > 0 && (!best || score > best.score) ? { screen, score } : best;
+        },
+        null,
+      );
+
+      if (!topScreen) {
+        return Promise.resolve({
+          interpreted: false,
+          target: null,
+          confidence: 0,
+          rationale: 'No screen matched the step text with sufficient confidence.',
+          proposalDrafts: [],
+          provider: 'heuristic',
+        });
+      }
+
+      // Single-pass max-finder for top element. O(E) where E = elements in winning screen.
+      const topElement = topScreen.screen.elements.reduce<{ element: typeof topScreen.screen.elements[number]; score: number } | null>(
+        (best, element) => {
+          const score = scoreElement(normalized, element);
+          return score > 0 && (!best || score > best.score) ? { element, score } : best;
+        },
+        null,
+      );
+
+      // For navigate actions, screen-only resolution is sufficient
+      const needsElement = action !== 'navigate';
+      if (needsElement && !topElement) {
+        return Promise.resolve({
+          interpreted: false,
+          target: null,
+          confidence: 0,
+          rationale: `Screen "${topScreen.screen.screen}" matched but no element matched for action "${action}".`,
+          proposalDrafts: [],
+          provider: 'heuristic',
+        });
+      }
+
+      const confidence = Math.min(1, (topScreen.score + (topElement?.score ?? 0)) / 10);
+      const target: ResolutionTarget = {
+        action,
+        screen: topScreen.screen.screen as ScreenId,
+        element: (topElement?.element.element ?? null) as ElementId | null,
+        posture: null as PostureId | null,
+        override: null,
+        snapshot_template: null as SnapshotTemplateId | null,
+      };
+
+      // Single-pass novel term detection via flatMap (collapsed from 3 chained filters)
+      const normalizedScreenId = normalizeIntentText(topScreen.screen.screen);
+      const normalizedElementId = normalizeIntentText(topElement?.element.element ?? '');
+      const matchedAliases = new Set([
+        ...(topScreen.screen.screenAliases),
+        ...(topElement?.element.aliases ?? []),
+      ].map(normalizeIntentText));
+
+      const novelTerms = normalizeIntentText(request.actionText).split(/\s+/).flatMap((token) =>
+        token.length > 3
+          && !matchedAliases.has(token)
+          && (normalizedScreenId.includes(token) || normalizedElementId.includes(token))
+          ? [token]
+          : [],
+      );
+
+      const proposalDrafts: ResolutionProposalDraft[] = novelTerms.length > 0 && topElement
+        ? [{
+            targetPath: `knowledge/screens/${topScreen.screen.screen}.hints.yaml`,
+            title: `Add alias "${novelTerms[0]}" for ${topElement.element.element}`,
+            patch: { op: 'add', path: `/elements/${topElement.element.element}/aliases/-`, value: novelTerms[0]! },
+            artifactType: 'hints' as const,
+            rationale: `Heuristic matched "${novelTerms[0]}" to ${topElement.element.element} via context-aware scoring.`,
+          }]
+        : [];
+
+      return Promise.resolve({
+        interpreted: true,
+        target,
+        confidence,
+        rationale: `Heuristic resolved: screen=${topScreen.screen.screen}(score=${topScreen.score.toFixed(1)})${topElement ? ` element=${topElement.element.element}(score=${topElement.score.toFixed(1)})` : ''} action=${action}`,
+        proposalDrafts,
+        provider: 'heuristic',
+        observation: {
+          source: 'agent-interpreted' as const,
+          summary: `Context-aware heuristic interpretation.`,
+          detail: {
+            screen: topScreen.screen.screen,
+            element: topElement?.element.element ?? '',
+            action,
+            confidence: String(confidence),
+          },
+        },
+      });
+    },
   };
 }
 
@@ -143,6 +339,47 @@ function buildAgentSystemPrompt(request: AgentInterpretationRequest): string {
     .map((entry) => `  ${entry.stage}: ${entry.outcome} — ${entry.reason}`)
     .join('\n');
 
+  // Enriched context sections (only included when present)
+  const candidatesSection = request.topCandidates
+    ? [
+        '',
+        'Prior rung rankings (confidence calibration):',
+        ...request.topCandidates.screens.map((c) => `  screen "${c.screen}" scored ${c.score.toFixed(2)}`),
+        ...request.topCandidates.elements.map((c) => `  element "${c.element}" on "${c.screen}" scored ${c.score.toFixed(2)}`),
+      ]
+    : [];
+
+  const groundingSection = request.grounding
+    ? [
+        '',
+        'Structural constraints:',
+        ...(request.grounding.targetRefs.length > 0 ? [`  Target refs: ${request.grounding.targetRefs.join(', ')}`] : []),
+        ...(request.grounding.requiredStateRefs.length > 0 ? [`  Required state: ${request.grounding.requiredStateRefs.join(', ')}`] : []),
+        ...(request.grounding.forbiddenStateRefs.length > 0 ? [`  Forbidden state: ${request.grounding.forbiddenStateRefs.join(', ')}`] : []),
+        `  Allowed actions: ${request.grounding.allowedActions.join(', ')}`,
+      ]
+    : [];
+
+  const stateSection = request.observedState
+    ? [
+        '',
+        'Current observed state:',
+        ...(request.observedState.currentScreen ? [`  Active screen: ${request.observedState.currentScreen}`] : []),
+        ...(request.observedState.activeStateRefs.length > 0 ? [`  Active states: ${request.observedState.activeStateRefs.join(', ')}`] : []),
+        ...(request.observedState.lastSuccessfulLocatorRung !== null ? [`  Last successful locator rung: ${request.observedState.lastSuccessfulLocatorRung}`] : []),
+      ]
+    : [];
+
+  const confidenceSection = request.confidenceHints && request.confidenceHints.length > 0
+    ? [
+        '',
+        'Confidence overlay status:',
+        ...request.confidenceHints.map((h) =>
+          `  ${h.screen}${h.element ? `.${h.element}` : ''} → ${h.status} (${h.score.toFixed(2)})`,
+        ),
+      ]
+    : [];
+
   return [
     'You are an intent interpretation agent for UI test automation.',
     'A QA tester wrote a test step. The deterministic resolution pipeline could not',
@@ -161,6 +398,10 @@ function buildAgentSystemPrompt(request: AgentInterpretationRequest): string {
     '',
     'Resolution attempts so far:',
     exhaustionSummary || '  (none)',
+    ...candidatesSection,
+    ...groundingSection,
+    ...stateSection,
+    ...confidenceSection,
     '',
     'Respond with a JSON object:',
     '{',
@@ -403,6 +644,8 @@ function createAgentProviderByKind(
   switch (kind) {
     case 'disabled':
       return createDisabledProvider();
+    case 'heuristic':
+      return createHeuristicProvider();
     case 'llm-api':
       return deps
         ? createLlmApiAgentProvider(config, deps)

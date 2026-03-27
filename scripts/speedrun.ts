@@ -62,6 +62,11 @@ const configPath = argVal('--config', '');
 const experimentTag = argVal('--tag', '');
 const substrate = argVal('--substrate', 'synthetic') as 'synthetic' | 'production' | 'hybrid';
 const perturbationRate = args.includes('--perturb') ? Number(argVal('--perturb', '0')) : 0;
+const perturbVocab = args.includes('--perturb-vocab') ? Number(argVal('--perturb-vocab', '0')) : 0;
+const perturbAliasGap = args.includes('--perturb-alias-gap') ? Number(argVal('--perturb-alias-gap', '0')) : 0;
+const perturbCrossScreen = args.includes('--perturb-cross-screen') ? Number(argVal('--perturb-cross-screen', '0')) : 0;
+const perturbCoverageGap = args.includes('--perturb-coverage-gap') ? Number(argVal('--perturb-coverage-gap', '0')) : 0;
+const hasFineGrainedPerturb = perturbVocab > 0 || perturbAliasGap > 0 || perturbCrossScreen > 0 || perturbCoverageGap > 0;
 const explicitPosture = args.includes('--posture') ? argVal('--posture', '') as KnowledgePosture : undefined;
 
 const rootDir = process.cwd();
@@ -149,8 +154,13 @@ function createProgressCallback(progressPath: string): (event: SpeedrunProgressE
       }
     }
 
+    // Calibration observability
+    const calibrationLabel = event.calibration
+      ? ` drift=${event.calibration.weightDrift.toFixed(4)}${event.calibration.topCorrelation ? ` top=${event.calibration.topCorrelation.signal}(${event.calibration.topCorrelation.strength > 0 ? '+' : ''}${event.calibration.topCorrelation.strength.toFixed(3)})` : ''}`
+      : '';
+
     process.stderr.write(
-      `${phaseLabel}${scenarioLabel}${metricsLabel}${convergenceLabel}${durationLabel}${regressionLabel} elapsed=${formatElapsed(event.elapsed)}\n`,
+      `${phaseLabel}${scenarioLabel}${metricsLabel}${convergenceLabel}${calibrationLabel}${durationLabel}${regressionLabel} elapsed=${formatElapsed(event.elapsed)}\n`,
     );
   };
 }
@@ -320,6 +330,7 @@ async function runFull(): Promise<void> {
       maxIterations,
       substrate,
       perturbationRate: perturbationRate > 0 ? perturbationRate : undefined,
+      perturbation: hasFineGrainedPerturb ? { vocab: perturbVocab, aliasGap: perturbAliasGap, crossScreen: perturbCrossScreen, coverageGap: perturbCoverageGap } : undefined,
       tag: experimentTag || undefined,
       knowledgePosture,
       onProgress,

@@ -556,3 +556,50 @@ export function averageFitnessReports(
     failureModes: mergeFailureModes(reports.flatMap((r) => r.failureModes)),
   };
 }
+
+// ─── Generalization Metrics (held-out validation) ───
+
+/** Compare training and validation fitness reports to detect overfitting.
+ *  Pure function: two reports → generalization metrics. */
+export function computeGeneralizationMetrics(
+  trainingReport: PipelineFitnessReport,
+  validationReport: PipelineFitnessReport,
+): import('../domain/types').GeneralizationMetrics {
+  const tm = trainingReport.metrics;
+  const vm = validationReport.metrics;
+
+  const gaps = {
+    hitRateGap: round4(tm.knowledgeHitRate - vm.knowledgeHitRate),
+    precisionGap: round4(tm.translationPrecision - vm.translationPrecision),
+    degradationGap: round4(vm.degradedLocatorRate - tm.degradedLocatorRate),
+  };
+
+  const passes = {
+    noOverfitting: Math.abs(gaps.hitRateGap) < 0.15,
+    validationSignificant: vm.knowledgeHitRate > 0.4,
+    robustness: gaps.degradationGap < 0.1,
+  };
+
+  const allPass = passes.noOverfitting && passes.validationSignificant && passes.robustness;
+  const anyPass = passes.noOverfitting || passes.validationSignificant || passes.robustness;
+
+  return {
+    kind: 'generalization-metrics',
+    version: 1,
+    trainingMetrics: {
+      knowledgeHitRate: tm.knowledgeHitRate,
+      translationPrecision: tm.translationPrecision,
+      convergenceVelocity: tm.convergenceVelocity,
+      proposalYield: tm.proposalYield,
+      degradedLocatorRate: tm.degradedLocatorRate,
+    },
+    validationMetrics: {
+      knowledgeHitRate: vm.knowledgeHitRate,
+      translationPrecision: vm.translationPrecision,
+      degradedLocatorRate: vm.degradedLocatorRate,
+    },
+    gaps,
+    passes,
+    verdict: allPass ? 'pass' : anyPass ? 'warn' : 'fail',
+  };
+}

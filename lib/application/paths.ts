@@ -38,6 +38,9 @@ export interface ProjectPaths {
   readonly inboxIndexPath: string;
   readonly inboxReportPath: string;
   readonly hotspotIndexPath: string;
+  readonly workbenchDir: string;
+  readonly workbenchIndexPath: string;
+  readonly workbenchCompletionsPath: string;
   readonly benchmarkRunsDir: string;
   readonly evidenceDir: string;
   readonly confidenceDir: string;
@@ -97,6 +100,9 @@ export function createProjectPaths(rootDir: string, suiteRoot?: string): Project
     inboxDir: path.join(rootDir, '.tesseract', 'inbox'),
     inboxIndexPath: path.join(rootDir, '.tesseract', 'inbox', 'index.json'),
     inboxReportPath: path.join(rootDir, 'generated', 'operator', 'inbox.md'),
+    workbenchDir: path.join(rootDir, '.tesseract', 'workbench'),
+    workbenchIndexPath: path.join(rootDir, '.tesseract', 'workbench', 'index.json'),
+    workbenchCompletionsPath: path.join(rootDir, '.tesseract', 'workbench', 'completions.json'),
     hotspotIndexPath: path.join(rootDir, '.tesseract', 'inbox', 'hotspots.json'),
     benchmarkRunsDir: path.join(rootDir, '.tesseract', 'benchmarks'),
     evidenceDir: path.join(rootDir, '.tesseract', 'evidence'),

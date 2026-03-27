@@ -15,3 +15,5 @@ export * from './types/pipeline-config';
 export * from './types/improvement';
 export * from './types/experiment';
 export * from './types/architecture-fitness';
+export * from './types/workbench';
+export * from './types/dashboard';

@@ -12,7 +12,10 @@ import { makeLiveAdoSource, readLiveAdoSourceConfigFromEnv } from '../infrastruc
 import { LocalFileSystem } from '../infrastructure/fs/local-fs';
 import { createRecordingWorkspaceFileSystem } from '../infrastructure/fs/recording-fs';
 import { makeLocalVersionControl } from '../infrastructure/tooling/local-version-control';
-import { LocalRuntimeScenarioRunner } from './local-runtime-scenario-runner';
+import { LocalRuntimeScenarioRunner, createLocalRuntimeScenarioRunnerWithInterpreter } from './local-runtime-scenario-runner';
+import type { AgentInterpreterProvider } from '../application/agent-interpreter-provider';
+import { Dashboard, DisabledDashboard, McpServer, DisabledMcpServer } from '../application/ports';
+import { PlaywrightBridge, DisabledPlaywrightBridge } from '../infrastructure/mcp/playwright-mcp-bridge';
 import type { ExecutionPosture, PipelineConfig, WriteJournalEntry } from '../domain/types';
 import { DEFAULT_PIPELINE_CONFIG } from '../domain/types';
 
@@ -20,6 +23,21 @@ export interface LocalServiceOptions {
   readonly posture?: Partial<ExecutionPosture> | undefined;
   readonly suiteRoot?: string | undefined;
   readonly pipelineConfig?: PipelineConfig | undefined;
+  /** Inject a custom agent interpreter. When provided, the runtime scenario runner
+   *  uses this provider at rung 9 instead of the default (env-resolved) provider.
+   *  This is the injection point for Claude Code sessions, VSCode Copilot, MCP tools,
+   *  and future dashboard integrations. */
+  readonly agentInterpreter?: AgentInterpreterProvider | undefined;
+  /** Inject a dashboard port for Effect-driven real-time visualization.
+   *  When provided, the fiber emits events and pauses for human decisions. */
+  readonly dashboard?: import('../application/ports').DashboardPort | undefined;
+  /** Inject an MCP server port for WebMCP / Playwright MCP integration.
+   *  Progressive enhancement: when available, agents get structured tool
+   *  access to the same observables the spatial dashboard renders. */
+  readonly mcpServer?: import('../application/ports').McpServerPort | undefined;
+  /** Inject a Playwright bridge for headed browser interaction.
+   *  Progressive enhancement: when available, agents get direct DOM access. */
+  readonly playwrightBridge?: import('../infrastructure/mcp/playwright-mcp-bridge').PlaywrightBridgePort | undefined;
 }
 
 export interface LocalServiceContext {
@@ -67,13 +85,19 @@ export function createLocalServiceContext(rootDir: string, options?: LocalServic
   };
 
   const pipelineConfig = options?.pipelineConfig ?? DEFAULT_PIPELINE_CONFIG;
+  const runtimeScenarioRunner = options?.agentInterpreter
+    ? createLocalRuntimeScenarioRunnerWithInterpreter(options.agentInterpreter)
+    : LocalRuntimeScenarioRunner;
   const layer = Layer.mergeAll(
     Layer.succeed(FileSystem, fileSystem),
     Layer.succeed(AdoSource, resolveAdoSource(rootDir, suiteRoot)),
-    Layer.succeed(RuntimeScenarioRunner, LocalRuntimeScenarioRunner),
+    Layer.succeed(RuntimeScenarioRunner, runtimeScenarioRunner),
     Layer.succeed(ExecutionContext, executionContext),
     Layer.succeed(PipelineConfigService, { config: pipelineConfig }),
     Layer.succeed(VersionControl, makeLocalVersionControl(rootDir)),
+    Layer.succeed(Dashboard, options?.dashboard ?? DisabledDashboard),
+    Layer.succeed(McpServer, options?.mcpServer ?? DisabledMcpServer),
+    Layer.succeed(PlaywrightBridge, options?.playwrightBridge ?? DisabledPlaywrightBridge),
   );
 
   return {
@@ -81,7 +105,7 @@ export function createLocalServiceContext(rootDir: string, options?: LocalServic
     writeJournal: () => executionContext.writeJournal(),
     provide<A, E, R>(program: Effect.Effect<A, E, R>): Effect.Effect<A, E, never> {
       return Effect.provide(
-        program as Effect.Effect<A, E, FileSystem | AdoSource | RuntimeScenarioRunner | ExecutionContext | PipelineConfigService | VersionControl>,
+        program as Effect.Effect<A, E, FileSystem | AdoSource | RuntimeScenarioRunner | ExecutionContext | PipelineConfigService | VersionControl | Dashboard | McpServer | PlaywrightBridge>,
         layer,
       ) as Effect.Effect<A, E, never>;
     },

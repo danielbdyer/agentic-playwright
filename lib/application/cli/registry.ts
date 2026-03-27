@@ -9,6 +9,13 @@ import { emitScenario } from '../emit';
 import { buildDerivedGraph } from '../graph';
 import { impactNode } from '../impact';
 import { emitOperatorInbox } from '../inbox';
+import { emitAgentWorkbench, loadAgentWorkbench, nextWorkItem, completeWorkItem } from '../agent-workbench';
+import { evolveProgram } from '../evolve';
+import { DEFAULT_PIPELINE_CONFIG } from '../../domain/types';
+import { loadExperimentRegistry } from '../experiment-registry';
+import { filterExperiments, type ExperimentRecord } from '../../domain/types';
+import { generateSyntheticScenarios } from '../synthesis/scenario-generator';
+import { multiSeedSpeedrun } from '../speedrun';
 import { describeScenarioPaths } from '../inspect';
 import { parseScenario } from '../parse';
 import { createProjectPaths, type ProjectPaths } from '../paths';
@@ -69,6 +76,21 @@ interface ParsedFlags {
   maxIterations?: number;
   convergenceThreshold?: number;
   maxCost?: number;
+  complete?: string;
+  skip?: string;
+  reason?: string;
+  skipBelow?: number;
+  list?: boolean;
+  next?: boolean;
+  count?: number;
+  seed?: string;
+  seeds?: string;
+  substrate?: string;
+  maxEpochs?: number;
+  accepted?: boolean;
+  top?: number;
+  perturb?: number;
+  autoEvolve?: boolean;
 }
 
 interface ParseContext {
@@ -119,7 +141,12 @@ export type CommandName =
   | 'benchmark'
   | 'scorecard'
   | 'replay'
-  | 'dogfood';
+  | 'dogfood'
+  | 'workbench'
+  | 'speedrun'
+  | 'evolve'
+  | 'experiments'
+  | 'generate';
 
 export const commandNames: readonly CommandName[] = [
   'sync',
@@ -147,6 +174,11 @@ export const commandNames: readonly CommandName[] = [
   'scorecard',
   'replay',
   'dogfood',
+  'workbench',
+  'speedrun',
+  'evolve',
+  'experiments',
+  'generate',
 ] as const;
 
 const flagReaders: Record<string, (argv: string[], index: number, flags: ParsedFlags) => number> = {
@@ -239,6 +271,66 @@ const flagReaders: Record<string, (argv: string[], index: number, flags: ParsedF
   '--proposal-id': (argv, index, flags) => {
     flags.proposalId = readFlagValue('--proposal-id', argv[index + 1]);
     return index + 1;
+  },
+  '--complete': (argv, index, flags) => {
+    flags.complete = readFlagValue('--complete', argv[index + 1]);
+    return index + 1;
+  },
+  '--skip': (argv, index, flags) => {
+    flags.skip = readFlagValue('--skip', argv[index + 1]);
+    return index + 1;
+  },
+  '--reason': (argv, index, flags) => {
+    flags.reason = readFlagValue('--reason', argv[index + 1]);
+    return index + 1;
+  },
+  '--skip-below': (argv, index, flags) => {
+    flags.skipBelow = Number(readFlagValue('--skip-below', argv[index + 1]));
+    return index + 1;
+  },
+  '--list': (_argv, index, flags) => {
+    flags.list = true;
+    return index;
+  },
+  '--next': (_argv, index, flags) => {
+    flags.next = true;
+    return index;
+  },
+  '--count': (argv, index, flags) => {
+    flags.count = Number(readFlagValue('--count', argv[index + 1]));
+    return index + 1;
+  },
+  '--seed': (argv, index, flags) => {
+    flags.seed = readFlagValue('--seed', argv[index + 1]);
+    return index + 1;
+  },
+  '--seeds': (argv, index, flags) => {
+    flags.seeds = readFlagValue('--seeds', argv[index + 1]);
+    return index + 1;
+  },
+  '--substrate': (argv, index, flags) => {
+    flags.substrate = readFlagValue('--substrate', argv[index + 1]);
+    return index + 1;
+  },
+  '--max-epochs': (argv, index, flags) => {
+    flags.maxEpochs = Number(readFlagValue('--max-epochs', argv[index + 1]));
+    return index + 1;
+  },
+  '--accepted': (_argv, index, flags) => {
+    flags.accepted = true;
+    return index;
+  },
+  '--top': (argv, index, flags) => {
+    flags.top = Number(readFlagValue('--top', argv[index + 1]));
+    return index + 1;
+  },
+  '--perturb': (argv, index, flags) => {
+    flags.perturb = Number(readFlagValue('--perturb', argv[index + 1]));
+    return index + 1;
+  },
+  '--auto-evolve': (_argv, index, flags) => {
+    flags.autoEvolve = true;
+    return index;
   },
   '--benchmark': (argv, index, flags) => {
     flags.benchmark = readFlagValue('--benchmark', argv[index + 1]);
@@ -694,6 +786,175 @@ const commandRegistry: Record<CommandName, CommandSpec> = {
       }),
     }),
   },
+  workbench: {
+    flags: ['--list', '--next', '--complete', '--skip', '--reason', '--skip-below'],
+    parse: ({ flags }) => {
+      const hasListFlag = Boolean(flags.list);
+      const hasNextFlag = Boolean(flags.next);
+      const completionId = flags.complete as string | undefined;
+      const skipId = flags.skip as string | undefined;
+      const reason = (flags.reason as string | undefined) ?? '';
+      const skipBelow = flags.skipBelow as number | undefined;
+
+      return {
+        command: 'workbench',
+        strictExitOnUnbound: false,
+        postureInput: {},
+        execute: (paths) => {
+          // --next: return top-priority item
+          if (hasNextFlag) {
+            return nextWorkItem({ paths }).pipe(
+              Effect.map((item) => item ?? { message: 'No pending work items.' }),
+            );
+          }
+          // --complete <id>: mark item as completed
+          if (completionId) {
+            return completeWorkItem({
+              paths,
+              completion: {
+                workItemId: completionId,
+                status: 'completed',
+                completedAt: new Date().toISOString(),
+                rationale: reason || `Completed via CLI`,
+                artifactsWritten: [],
+              },
+            });
+          }
+          // --skip <id>: mark item as skipped
+          if (skipId) {
+            return completeWorkItem({
+              paths,
+              completion: {
+                workItemId: skipId,
+                status: 'skipped',
+                completedAt: new Date().toISOString(),
+                rationale: reason || `Skipped via CLI`,
+                artifactsWritten: [],
+              },
+            });
+          }
+          // --skip-below <threshold>: bulk skip low-priority items
+          if (skipBelow !== undefined) {
+            return loadAgentWorkbench({ paths }).pipe(
+              Effect.flatMap((wb) => {
+                if (!wb) return Effect.succeed([]);
+                const toSkip = wb.items.filter((item) => item.priority < skipBelow);
+                return Effect.all(
+                  toSkip.map((item) => completeWorkItem({
+                    paths,
+                    completion: {
+                      workItemId: item.id,
+                      status: 'skipped',
+                      completedAt: new Date().toISOString(),
+                      rationale: `Auto-skipped: priority ${item.priority.toFixed(3)} below threshold ${skipBelow}`,
+                      artifactsWritten: [],
+                    },
+                  })),
+                  { concurrency: 1 },
+                );
+              }),
+            );
+          }
+          // --list: load and return workbench
+          if (hasListFlag) {
+            return loadAgentWorkbench({ paths }).pipe(
+              Effect.map((wb) => wb ?? { message: 'No workbench found. Run a speedrun first.' }),
+            );
+          }
+          // default: emit (regenerate) workbench projection
+          return emitAgentWorkbench({ paths });
+        },
+      };
+    },
+  },
+  speedrun: {
+    flags: ['--count', '--seed', '--seeds', '--max-iterations', '--tag', '--substrate', '--perturb', '--posture', '--auto-evolve', '--max-epochs'],
+    parse: ({ flags }) => ({
+      command: 'speedrun',
+      strictExitOnUnbound: false,
+      postureInput: withDefinedValues({
+        interpreterMode: 'diagnostic' as InterpreterMode,
+        executionProfile: 'dogfood' as ExecutionProfile,
+      }),
+      execute: (paths) => {
+        const seeds = flags.seeds ? (flags.seeds as string).split(',').filter(Boolean) : [flags.seed ?? 'speedrun-v1'];
+        const speedrun = multiSeedSpeedrun({
+          paths,
+          config: DEFAULT_PIPELINE_CONFIG,
+          seeds,
+          count: flags.count ?? 50,
+          maxIterations: flags.maxIterations ?? 5,
+          ...(flags.substrate ? { substrate: flags.substrate as 'synthetic' | 'production' | 'hybrid' } : {}),
+          ...(flags.perturb ? { perturbationRate: flags.perturb } : {}),
+          ...(flags.tag ? { tag: flags.tag } : {}),
+        });
+        // If --auto-evolve: chain evolveProgram after speedrun completes
+        return flags.autoEvolve
+          ? speedrun.pipe(Effect.flatMap((result) =>
+              evolveProgram({
+                paths,
+                maxEpochs: flags.maxEpochs ?? 3,
+                seed: flags.seed ?? 'evolve-v1',
+                count: flags.count ?? 30,
+                maxIterations: flags.maxIterations ?? 3,
+                substrate: (flags.substrate ?? 'synthetic') as 'synthetic' | 'production' | 'hybrid',
+              }).pipe(Effect.map((evolveResult) => ({ speedrun: result, evolve: evolveResult }))),
+            ))
+          : speedrun;
+      },
+    }),
+  },
+  evolve: {
+    flags: ['--max-epochs', '--seed', '--count', '--max-iterations', '--substrate'],
+    parse: ({ flags }) => ({
+      command: 'evolve',
+      strictExitOnUnbound: false,
+      postureInput: withDefinedValues({
+        interpreterMode: 'diagnostic' as InterpreterMode,
+        executionProfile: 'dogfood' as ExecutionProfile,
+      }),
+      execute: (paths) => evolveProgram({
+        paths,
+        maxEpochs: flags.maxEpochs ?? 3,
+        seed: flags.seed ?? 'evolve-v1',
+        count: flags.count ?? 30,
+        maxIterations: flags.maxIterations ?? 3,
+        substrate: (flags.substrate ?? 'synthetic') as 'synthetic' | 'production' | 'hybrid',
+      }),
+    }),
+  },
+  experiments: {
+    flags: ['--accepted', '--tag', '--substrate', '--top'],
+    parse: ({ flags }) => ({
+      command: 'experiments',
+      strictExitOnUnbound: false,
+      postureInput: {},
+      execute: (paths) => loadExperimentRegistry(paths).pipe(
+        Effect.map((registry) => {
+          const filtered = filterExperiments(registry, (r: ExperimentRecord) =>
+            (!flags.accepted || r.accepted)
+            && (!flags.tag || r.tags.includes(flags.tag))
+            && (!flags.substrate || r.substrateContext.substrate === flags.substrate),
+          );
+          return { ...registry, experiments: filtered.slice(0, flags.top ?? 20) };
+        }),
+      ),
+    }),
+  },
+  generate: {
+    flags: ['--count', '--seed', '--perturb'],
+    parse: ({ flags }) => ({
+      command: 'generate',
+      strictExitOnUnbound: false,
+      postureInput: {},
+      execute: (paths) => generateSyntheticScenarios({
+        paths,
+        count: flags.count ?? 50,
+        seed: flags.seed ?? 'generate-v1',
+        ...(flags.perturb ? { perturbationRate: flags.perturb } : {}),
+      }),
+    }),
+  },
 };
 
 function parseTokensRec(
@@ -728,7 +989,7 @@ function parseTokensRec(
 export function parseCliInvocation(argv: string[]): CommandExecution {
   const [rawCommand = 'help', ...tokens] = argv;
   if (!isCommandName(rawCommand)) {
-    throw new Error('Unknown command. Expected sync, parse, bind, emit, compile, refresh, run, replay, paths, capture, discover, harvest, surface, graph, trace, impact, types, workflow, inbox, approve, certify, rerun-plan, benchmark, scorecard, or dogfood.');
+    throw new Error('Unknown command. Expected sync, parse, bind, emit, compile, refresh, run, replay, paths, capture, discover, harvest, surface, graph, trace, impact, types, workflow, inbox, approve, certify, rerun-plan, benchmark, scorecard, dogfood, workbench, speedrun, evolve, experiments, or generate.');
   }
 
   const spec = commandRegistry[rawCommand];

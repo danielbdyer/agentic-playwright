@@ -1,0 +1,38 @@
+screen: policy-amendment
+url: /policy-amendment.html?id=AMD-001
+elements:
+  amendmentNumber:
+    role: text
+    name: Amendment Number
+    testId: amendment-number
+    surface: amendment-details
+    widget: os-region
+    required: true
+  amendmentStatus:
+    role: text
+    name: Amendment Status
+    testId: amendment-status
+    surface: amendment-details
+    widget: os-region
+    required: true
+  effectiveDate:
+    role: text
+    name: Effective Date
+    testId: effective-date
+    surface: amendment-details
+    widget: os-region
+    required: true
+  impactedClaims:
+    role: table
+    name: Impacted Claims
+    testId: impacted-claims-table
+    surface: claims-impact
+    widget: os-table
+    required: false
+  reviewButton:
+    role: button
+    name: Submit Review
+    testId: review-button
+    surface: amendment-actions
+    widget: os-button
+    required: true

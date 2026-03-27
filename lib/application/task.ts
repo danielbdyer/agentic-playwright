@@ -96,11 +96,9 @@ function groundedStepTask(input: { step: StepTaskSeed; resolutionContext: Interf
   const stateGraph = input.resolutionContext.stateGraph ?? null;
   const eventSignatureRefs = stateGraph
     ? stateGraph.eventSignatures
-      .filter((event) => targetRefSet.has(event.targetRef) && (!exactAction || event.dispatch.action === exactAction))
-      .map((event) => ({
-        ref: event.ref,
-        score: event.aliases.some((alias) => normalized.includes(normalizeIntentText(alias))) ? 3 : 0,
-      }))
+      .flatMap((event) => targetRefSet.has(event.targetRef) && (!exactAction || event.dispatch.action === exactAction)
+        ? [{ ref: event.ref, score: event.aliases.some((alias) => normalized.includes(normalizeIntentText(alias))) ? 3 : 0 }]
+        : [])
       .sort((left, right) => right.score - left.score || left.ref.localeCompare(right.ref))
       .map((event) => event.ref)
     : [];
@@ -151,16 +149,13 @@ function buildKnowledgeSlice(input: {
     screenRefs,
     targetRefs,
     stateRefs: input.stateGraph.states
-      .filter((state) => screenRefs.includes(state.screen))
-      .map((state) => state.ref)
+      .flatMap((state) => screenRefs.includes(state.screen) ? [state.ref] : [])
       .sort((left, right) => left.localeCompare(right)),
     eventSignatureRefs: input.stateGraph.eventSignatures
-      .filter((event) => screenRefs.includes(event.screen))
-      .map((event) => event.ref)
+      .flatMap((event) => screenRefs.includes(event.screen) ? [event.ref] : [])
       .sort((left, right) => left.localeCompare(right)),
     transitionRefs: input.stateGraph.transitions
-      .filter((transition) => screenRefs.includes(transition.screen))
-      .map((transition) => transition.ref)
+      .flatMap((transition) => screenRefs.includes(transition.screen) ? [transition.ref] : [])
       .sort((left, right) => left.localeCompare(right)),
     evidenceRefs: input.resolutionContext.evidenceRefs,
     controlRefs,

@@ -44,6 +44,10 @@ const demoHarnessEntries = [
     entry: path.join(ROOT_DIR, 'dogfood', 'fixtures', 'demo-harness', 'src', 'policy-journey.tsx'),
     outfile: path.join(ROOT_DIR, 'dogfood', 'fixtures', 'demo-harness', 'policy-journey.js'),
   },
+  {
+    entry: path.join(ROOT_DIR, 'dashboard', 'src', 'app.tsx'),
+    outfile: path.join(ROOT_DIR, 'dashboard', 'dashboard.js'),
+  },
 ];
 
 function host() {
@@ -96,7 +100,7 @@ async function buildDemoHarness() {
       entryPoints: [entry],
       outfile,
       bundle: true,
-      format: 'iife',
+      format: 'esm',
       jsx: 'automatic',
       minify: false,
       platform: 'browser',

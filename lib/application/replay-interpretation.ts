@@ -18,30 +18,7 @@ interface InterpretationRecord {
   steps: Array<{ stepIndex: number; interpretation: ResolutionReceipt }>;
 }
 
-function targetKey(receipt: ResolutionReceipt): string {
-  if (receipt.kind === 'needs-human') {
-    return 'needs-human';
-  }
-  return JSON.stringify(receipt.target);
-}
-
-function exhaustionPath(receipt: ResolutionReceipt): string[] {
-  return receipt.exhaustion.map((entry) => `${entry.stage}:${entry.outcome}`);
-}
-
-
-function resolutionGraphDigest(receipt: ResolutionReceipt): string {
-  const graph = receipt.resolutionGraph;
-  if (!graph) {
-    return 'none';
-  }
-  return JSON.stringify({
-    traversal: graph.precedenceTraversal.map((entry) => `${entry.rung}:${entry.outcome}`),
-    winner: graph.winner,
-    refs: graph.refs,
-    links: graph.links,
-  });
-}
+import { targetKey, exhaustionPath, resolutionGraphDigest } from '../domain/comparison-rules';
 
 function createDriftRecord(input: {
   adoId: AdoId;

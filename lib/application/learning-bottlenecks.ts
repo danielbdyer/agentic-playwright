@@ -77,19 +77,18 @@ export function calibrateWeightsFromCorrelations(
     return baseWeights;
   }
 
-  // Compute adjustment factors: positive correlation → increase weight
-  const adjustments = new Map<keyof BottleneckWeights, number>();
-  for (const corr of correlations) {
-    const weightKey = SIGNAL_TO_WEIGHT_KEY[corr.signal];
-    if (weightKey) {
-      // Nudge weight in the direction of the correlation
-      adjustments.set(weightKey, corr.correlationWithImprovement * learningRate);
-    }
-  }
+  // Compute adjustment factors via reduce (no mutable Map)
+  const adjustments = correlations.reduce<Readonly<Record<string, number>>>(
+    (acc, corr) => {
+      const weightKey = SIGNAL_TO_WEIGHT_KEY[corr.signal];
+      return weightKey ? { ...acc, [weightKey]: corr.correlationWithImprovement * learningRate } : acc;
+    },
+    {},
+  );
 
   // Apply adjustments and normalize to preserve sum
   const keys: readonly (keyof BottleneckWeights)[] = ['repairDensity', 'translationRate', 'unresolvedRate', 'inverseFragmentShare'];
-  const raw = keys.map((k) => Math.max(0.05, baseWeights[k] + (adjustments.get(k) ?? 0)));
+  const raw = keys.map((k) => Math.max(0.05, baseWeights[k] + (adjustments[k] ?? 0)));
   const sum = raw.reduce((s, v) => s + v, 0);
   const normalized = raw.map((v) => round4(v / sum));
 

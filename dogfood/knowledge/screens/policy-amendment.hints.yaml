@@ -1,0 +1,40 @@
+screen: policy-amendment
+screenAliases:
+  - amendment
+  - policy amendment
+  - policy change
+  - amendment screen
+elements:
+  amendmentNumber:
+    aliases:
+      - amendment number
+      - change number
+      - amendment ID
+      - amendment reference
+    affordance: read-only
+  amendmentStatus:
+    aliases:
+      - amendment status
+      - change status
+      - amendment state
+    affordance: read-only
+  effectiveDate:
+    aliases:
+      - effective date
+      - start date
+      - inception date
+      - amendment date
+    affordance: read-only
+  impactedClaims:
+    aliases:
+      - impacted claims
+      - affected claims
+      - claims impact
+      - amendment claims
+  reviewButton:
+    aliases:
+      - review
+      - submit review
+      - review changes
+      - submit amendment
+      - approve amendment

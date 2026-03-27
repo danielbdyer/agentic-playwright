@@ -9,17 +9,30 @@ function stripBom(value: string): string {
 }
 
 /** Atomic write: write to a temp file in the same directory, then rename.
- *  Prevents concurrent readers from seeing partially-written content. */
+ *  Prevents concurrent readers from seeing partially-written content.
+ *  Retries mkdir+write once if the directory is removed between mkdir and write
+ *  (can happen when cleanup runs concurrently with the next iteration's writes). */
 async function atomicWriteFile(filePath: string, contents: string): Promise<void> {
   const dir = path.dirname(filePath);
-  await fs.mkdir(dir, { recursive: true });
-  const tmpPath = path.join(dir, `.tmp-${crypto.randomBytes(8).toString('hex')}-${path.basename(filePath)}`);
+  const attempt = async (): Promise<void> => {
+    await fs.mkdir(dir, { recursive: true });
+    const tmpPath = path.join(dir, `.tmp-${crypto.randomBytes(8).toString('hex')}-${path.basename(filePath)}`);
+    try {
+      await fs.writeFile(tmpPath, contents, 'utf8');
+      await fs.rename(tmpPath, filePath);
+    } catch (error) {
+      await fs.unlink(tmpPath).catch(() => {});
+      throw error;
+    }
+  };
   try {
-    await fs.writeFile(tmpPath, contents, 'utf8');
-    await fs.rename(tmpPath, filePath);
-  } catch (error) {
-    await fs.unlink(tmpPath).catch(() => {});
-    throw error;
+    await attempt();
+  } catch (error: unknown) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      await attempt();
+    } else {
+      throw error;
+    }
   }
 }
 
