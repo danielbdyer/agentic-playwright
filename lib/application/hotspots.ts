@@ -153,16 +153,18 @@ interface AccEntry {
   readonly samples: readonly HotspotSample[];
 }
 
-/** Fold a stream of entries into an immutable accumulator map. Pure. */
-const foldEntries = (entries: readonly HotspotEntry[]): ReadonlyMap<string, AccEntry> =>
-  entries.reduce<ReadonlyMap<string, AccEntry>>((acc, entry) => {
+/** Fold entries into an accumulated map. O(N) — mutable build, frozen at boundary. */
+const foldEntries = (entries: readonly HotspotEntry[]): ReadonlyMap<string, AccEntry> => {
+  const map = new Map<string, AccEntry>();
+  for (const entry of entries) {
     const id = hotspotId(entry.kind, entry.screen, entry.field, entry.action);
-    const existing = acc.get(id);
-    return new Map([...acc, [id, existing
+    const existing = map.get(id);
+    map.set(id, existing
       ? { ...existing, samples: [...existing.samples, entry.sample] }
-      : { id, kind: entry.kind, screen: entry.screen, field: entry.field, action: entry.action, samples: [entry.sample] },
-    ]]);
-  }, new Map());
+      : { id, kind: entry.kind, screen: entry.screen, field: entry.field, action: entry.action, samples: [entry.sample] });
+  }
+  return map;
+};
 
 // ─── Suggestion Derivation: pure function of accumulator entry ───
 
@@ -197,15 +199,17 @@ export function buildWorkflowHotspots(
   // 2. Fold into immutable accumulator map
   const accumulated = foldEntries(entries);
 
-  // 3. Derive family screen spread (which families appear on multiple screens)
-  const familyScreenSpread = [...accumulated.values()].reduce<ReadonlyMap<string, ReadonlySet<string>>>(
-    (acc, entry) => {
+  // 3. Derive family screen spread — O(N) mutable build, frozen at boundary
+  const familyScreenSpread: ReadonlyMap<string, ReadonlySet<string>> = (() => {
+    const map = new Map<string, Set<string>>();
+    for (const entry of accumulated.values()) {
       const key = familyKey(entry.field, entry.action);
-      const existing = acc.get(key) ?? new Set<string>();
-      return new Map([...acc, [key, new Set([...existing, entry.screen])]]);
-    },
-    new Map(),
-  );
+      const existing = map.get(key);
+      if (existing) existing.add(entry.screen);
+      else map.set(key, new Set([entry.screen]));
+    }
+    return map;
+  })();
 
   // 4. Project into sorted WorkflowHotspot[]
   return [...accumulated.values()]

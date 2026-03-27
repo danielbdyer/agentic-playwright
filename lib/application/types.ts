@@ -32,20 +32,9 @@ function toSortedUnique(values: string[]): string[] {
 
 const fixtureReferencePattern = /\{\{\s*([A-Za-z0-9_-]+)(?:\.[^}]*)?\s*\}\}/g;
 
-function fixtureIdsFromOverride(override: string | null | undefined): string[] {
-  if (!override) {
-    return [];
-  }
-
-  const fixtureIds: string[] = [];
-  for (const match of override.matchAll(fixtureReferencePattern)) {
-    const fixtureId = match[1];
-    if (fixtureId) {
-      fixtureIds.push(fixtureId);
-    }
-  }
-  return fixtureIds;
-}
+/** Extract fixture IDs from a template override string. Pure. */
+const fixtureIdsFromOverride = (override: string | null | undefined): readonly string[] =>
+  override ? [...override.matchAll(fixtureReferencePattern)].flatMap((m) => m[1] ? [m[1]] : []) : [];
 
 function generatedTypesManifestPath(paths: ProjectPaths): string {
   return path.join(paths.generatedTypesDir, 'tesseract-knowledge.metadata.json');
@@ -62,71 +51,51 @@ export function generateTypes(options: { paths: ProjectPaths; catalog?: Workspac
       ...catalog.screenPostures.map((entry) => fingerprintProjectionArtifact('postures', entry.artifactPath, entry.artifact)),
       ...catalog.scenarios.map((entry) => fingerprintProjectionArtifact('scenario', entry.artifactPath, entry.artifact)),
     ];
-    const screens = new Set<string>();
-    const surfacesByScreen: Record<string, string[]> = {};
+    // Derive all collection data via flatMap — no mutable accumulators
+    const sortKeys = (obj: Record<string, unknown>) => Object.keys(obj).sort((a, b) => a.localeCompare(b));
+
+    const surfacesByScreen: Record<string, string[]> = Object.fromEntries(
+      catalog.surfaces.map((e) => [e.artifact.screen, sortKeys(e.artifact.surfaces)]),
+    );
+    const elementsByScreen: Record<string, string[]> = Object.fromEntries(
+      catalog.screenElements.map((e) => [e.artifact.screen, sortKeys(e.artifact.elements)]),
+    );
+    const posturesByScreen: Record<string, Record<string, string[]>> = Object.fromEntries(
+      catalog.screenPostures.map((e) => [e.artifact.screen, Object.fromEntries(
+        Object.entries(e.artifact.postures).sort(([a], [b]) => a.localeCompare(b)).map(([id, vals]) => [id, sortKeys(vals)]),
+      )]),
+    );
     const surfaceActionsByScreen: Record<string, Record<string, readonly string[]>> = {};
-    const elementsByScreen: Record<string, string[]> = {};
-    const posturesByScreen: Record<string, Record<string, string[]>> = {};
-    const snapshotTemplates: string[] = [];
-    const fixtureIds: string[] = [];
 
-    for (const entry of catalog.surfaces) {
-      screens.add(entry.artifact.screen);
-      surfacesByScreen[entry.artifact.screen] = Object.keys(entry.artifact.surfaces).sort((left, right) => left.localeCompare(right));
-      for (const section of Object.values(entry.artifact.sections)) {
-        if (section.snapshot) {
-          snapshotTemplates.push(section.snapshot);
-        }
-      }
-    }
+    const screens = new Set([
+      ...catalog.surfaces.map((e) => e.artifact.screen),
+      ...catalog.screenElements.map((e) => e.artifact.screen),
+      ...catalog.screenPostures.map((e) => e.artifact.screen),
+    ]);
 
-    for (const entry of catalog.screenElements) {
-      screens.add(entry.artifact.screen);
-      elementsByScreen[entry.artifact.screen] = Object.keys(entry.artifact.elements).sort((left, right) => left.localeCompare(right));
-    }
+    // Snapshot templates: flatMap across surfaces + scenarios + postconditions
+    const snapshotTemplates = [
+      ...catalog.surfaces.flatMap((e) => Object.values(e.artifact.sections).flatMap((s) => s.snapshot ? [s.snapshot] : [])),
+      ...catalog.scenarios.flatMap((e) => [
+        ...e.artifact.steps.flatMap((s) => s.snapshot_template ? [s.snapshot_template] : []),
+        ...e.artifact.postconditions.flatMap((p) => p.snapshot_template ? [p.snapshot_template] : []),
+      ]),
+    ];
 
-    for (const entry of catalog.screenHints) {
-      for (const hint of Object.values(entry.artifact.elements)) {
-        fixtureIds.push(...fixtureIdsFromOverride(hint.defaultValueRef));
-      }
-    }
-
-    for (const entry of catalog.screenPostures) {
-      screens.add(entry.artifact.screen);
-      posturesByScreen[entry.artifact.screen] = Object.fromEntries(
-        Object.entries(entry.artifact.postures)
-          .sort(([left], [right]) => left.localeCompare(right))
-          .map(([elementId, values]) => [elementId, Object.keys(values).sort((left, right) => left.localeCompare(right))]),
-      );
-    }
-
-    for (const entry of catalog.scenarios) {
-      for (const precondition of entry.artifact.preconditions) {
-        fixtureIds.push(precondition.fixture);
-      }
-      for (const step of entry.artifact.steps) {
-        if (step.snapshot_template) {
-          snapshotTemplates.push(step.snapshot_template);
-        }
-        fixtureIds.push(...fixtureIdsFromOverride(step.override));
-      }
-      for (const postcondition of entry.artifact.postconditions) {
-        if (postcondition.snapshot_template) {
-          snapshotTemplates.push(postcondition.snapshot_template);
-        }
-        fixtureIds.push(...fixtureIdsFromOverride(postcondition.override));
-      }
-    }
-
-    for (const entry of catalog.datasets) {
-      fixtureIds.push(...Object.keys(entry.artifact.fixtures));
-      if (Object.keys(entry.artifact.defaults?.generatedTokens ?? {}).length > 0) {
-        fixtureIds.push('generatedTokens');
-      }
-      for (const value of Object.values(entry.artifact.defaults?.elements ?? {})) {
-        fixtureIds.push(...fixtureIdsFromOverride(value));
-      }
-    }
+    // Fixture IDs: flatMap across hints, scenarios, datasets
+    const fixtureIds = [
+      ...catalog.screenHints.flatMap((e) => Object.values(e.artifact.elements).flatMap((h) => fixtureIdsFromOverride(h.defaultValueRef))),
+      ...catalog.scenarios.flatMap((e) => [
+        ...e.artifact.preconditions.map((p) => p.fixture),
+        ...e.artifact.steps.flatMap((s) => fixtureIdsFromOverride(s.override)),
+        ...e.artifact.postconditions.flatMap((p) => fixtureIdsFromOverride(p.override)),
+      ]),
+      ...catalog.datasets.flatMap((e) => [
+        ...Object.keys(e.artifact.fixtures),
+        ...(Object.keys(e.artifact.defaults?.generatedTokens ?? {}).length > 0 ? ['generatedTokens'] : []),
+        ...Object.values(e.artifact.defaults?.elements ?? {}).flatMap((v) => fixtureIdsFromOverride(v)),
+      ]),
+    ];
 
     const screensList = [...screens].sort((left, right) => left.localeCompare(right));
     for (const screen of screensList) {
