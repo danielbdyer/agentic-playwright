@@ -36,12 +36,14 @@ export const CalibrationRadar = memo(function CalibrationRadar({ calibration }: 
   // React Compiler auto-memoizes this derivation
   const entries: readonly WeightEntry[] = (() => {
     if (!calibration) return [];
-    const correlationMap = new Map(calibration.correlations.map((c) => [c.signal, c.strength]));
+    const correlationLookup: Readonly<Record<string, number>> = Object.fromEntries(
+      calibration.correlations.map((c) => [c.signal, c.strength]),
+    );
     return WEIGHT_LABELS.flatMap(({ label, key, signal }) => [{
       label,
       key,
       value: calibration.weights[key],
-      correlation: correlationMap.get(signal) ?? 0,
+      correlation: correlationLookup[signal] ?? 0,
     }]);
   })();
 

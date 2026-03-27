@@ -14,11 +14,12 @@
  * opacity). No animation library. 60fps via will-change + translate3d.
  */
 
-import { useState, useEffect, useCallback, useRef, memo, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { SpatialCanvas } from './spatial/canvas';
 import { LiveDomPortal, PortalLoading } from './spatial/live-dom-portal';
+import { SceneErrorBoundary } from './atoms/error-boundary';
 import { useIngestionQueue } from './hooks/use-ingestion-queue';
 import { useWebMcpCapabilities } from './hooks/use-mcp-capabilities';
 import { useConvergenceState } from './hooks/use-convergence-state';
@@ -84,8 +85,8 @@ type DisplayStatus = 'entering' | 'pending' | 'processing' | 'completed' | 'skip
 interface QueuedItem extends WorkItem { readonly displayStatus: DisplayStatus }
 
 // ─── Pure Message Dispatch ───
-// Extracted from the hook so the WS handler is a pure router with no closure overhead.
 // Each handler is a higher-order function: (deps) → (data) → void.
+// All use the ref pattern (.current) for closure stability.
 
 const dispatchProgress = (setProgress: (p: ProgressEvent) => void) =>
   (data: unknown) => setProgress(data as ProgressEvent);
@@ -120,15 +121,21 @@ const dispatchItemProcessing = (
   setQueue((prev) => prev.map((q) => q.id === workItemId ? { ...q, displayStatus: 'processing' } : q));
 };
 
+/** Dispatch with tracked timeout cleanup to prevent memory leaks at scale. */
 const dispatchItemCompleted = (
   setProcessingId: React.Dispatch<React.SetStateAction<string | null>>,
   setQueue: React.Dispatch<React.SetStateAction<readonly QueuedItem[]>>,
+  cleanupTimers: Set<ReturnType<typeof setTimeout>>,
 ) => (data: unknown) => {
   const { workItemId, status } = data as { workItemId: string; status: string };
   const exitStatus: DisplayStatus = status === 'completed' ? 'completed' : 'skipped';
   setQueue((prev) => prev.map((q) => q.id === workItemId ? { ...q, displayStatus: exitStatus } : q));
   setProcessingId((prev) => prev === workItemId ? null : prev);
-  setTimeout(() => setQueue((prev) => prev.filter((q) => q.id !== workItemId)), 400);
+  const timer = setTimeout(() => {
+    setQueue((prev) => prev.filter((q) => q.id !== workItemId));
+    cleanupTimers.delete(timer);
+  }, 400);
+  cleanupTimers.add(timer);
 };
 
 const dispatchEscalation = (enqueueRef: React.RefObject<(id: string, data: ElementEscalatedEvent) => void>) =>
@@ -163,7 +170,12 @@ function useEffectStream(url: string) {
   const stageTracker = useStageTracker();
   const iterationPulse = useIterationPulse();
 
-  // Stable ref to enqueue — prevents WS reconnection on probeQueue reference change
+  // Timer cleanup set for dispatchItemCompleted (prevents memory leak at scale)
+  const cleanupTimersRef = useRef(new Set<ReturnType<typeof setTimeout>>());
+
+  // ─── Stable refs for all dispatch targets ───
+  // The dispatch table is built once and captures these refs.
+  // The refs are synced every render so the table always calls the latest version.
   const enqueueRef = useRef(probeQueue.enqueue);
   enqueueRef.current = probeQueue.enqueue;
   const escalationEnqueueRef = useRef(escalationQueue.enqueue);
@@ -172,12 +184,24 @@ function useEffectStream(url: string) {
   proposalEnqueueRef.current = proposalQueue.enqueue;
   const artifactEnqueueRef = useRef(artifactQueue.enqueue);
   artifactEnqueueRef.current = artifactQueue.enqueue;
+  // Fix: convergence/iteration/stage handlers also use the ref pattern
+  // to avoid stale closures in the dispatch table.
+  const convergenceRungRef = useRef(convergence.pushRung);
+  convergenceRungRef.current = convergence.pushRung;
+  const convergenceCalRef = useRef(convergence.pushCalibration);
+  convergenceCalRef.current = convergence.pushCalibration;
+  const iterationStartRef = useRef(iterationPulse.onStart);
+  iterationStartRef.current = iterationPulse.onStart;
+  const iterationCompleteRef = useRef(iterationPulse.onComplete);
+  iterationCompleteRef.current = iterationPulse.onComplete;
+  const stageDispatchRef = useRef(stageTracker.dispatch);
+  stageDispatchRef.current = stageTracker.dispatch;
 
   const send = useCallback((msg: unknown) => {
     wsRef.current?.readyState === WebSocket.OPEN && wsRef.current.send(JSON.stringify(msg));
   }, []);
 
-  // Build dispatch table once — stable refs, no closure recreation per message
+  // Build dispatch table once — all handlers use refs for closure stability.
   const dispatchRef = useRef<Record<string, (data: unknown) => void> | null>(null);
   if (!dispatchRef.current) {
     dispatchRef.current = {
@@ -186,28 +210,29 @@ function useEffectStream(url: string) {
       'screen-captured': dispatchCapture(setCapture, setAppViewport),
       'item-pending': dispatchItemPending(setQueue),
       'item-processing': dispatchItemProcessing(setProcessingId, setQueue),
-      'item-completed': dispatchItemCompleted(setProcessingId, setQueue),
+      'item-completed': dispatchItemCompleted(setProcessingId, setQueue, cleanupTimersRef.current),
       'element-escalated': dispatchEscalation(escalationEnqueueRef),
       'fiber-paused': dispatchFiberPaused(setFiberPaused),
       'fiber-resumed': dispatchFiberResumed(setFiberPaused),
-      // Layer 2: Convergence signals
-      'rung-shift': (data) => convergence.pushRung(data as RungShiftEvent),
-      'calibration-update': (data) => convergence.pushCalibration(data as CalibrationUpdateEvent),
-      'iteration-start': (_data) => iterationPulse.onStart(),
-      'iteration-complete': (_data) => iterationPulse.onComplete(),
+      // Layer 2: Convergence signals — via refs to avoid stale closures
+      'rung-shift': (data) => convergenceRungRef.current(data as RungShiftEvent),
+      'calibration-update': (data) => convergenceCalRef.current(data as CalibrationUpdateEvent),
+      'iteration-start': () => iterationStartRef.current(),
+      'iteration-complete': () => iterationCompleteRef.current(),
       // Layer 2: Proposal flow
       'proposal-activated': (data) => { const e = data as ProposalActivatedEvent; proposalEnqueueRef.current?.(e.proposalId, e); },
       // Layer 3: Artifact aurora
       'artifact-written': (data) => { const e = data as ArtifactWrittenEvent; artifactEnqueueRef.current?.(e.path, e); },
       // Layer 4: Stage lifecycle
-      'stage-lifecycle': (data) => stageTracker.dispatch(data as StageLifecycleEvent),
+      'stage-lifecycle': (data) => stageDispatchRef.current(data as StageLifecycleEvent),
     };
   }
 
   useEffect(() => {
     const dispatch = dispatchRef.current!;
+    const timers = cleanupTimersRef.current;
     let reconnectTimer: ReturnType<typeof setTimeout>;
-    let reconnectDelay = 1000; // Exponential backoff: 1s → 2s → 4s → 8s (capped)
+    let reconnectDelay = 1000;
 
     function connect() {
       const ws = new WebSocket(url);
@@ -224,8 +249,9 @@ function useEffectStream(url: string) {
       ws.onmessage = (event) => {
         try {
           const msg = JSON.parse(event.data);
+          if (typeof msg?.type !== 'string') return; // Guard: must have string type
           const handler = dispatch[msg.type];
-          if (handler) handler(msg.data);
+          if (handler && msg.data != null) handler(msg.data); // Guard: data must exist
           else if (msg.type === 'workbench-updated') qc.setQueryData(['workbench'], msg.data);
           else if (msg.type === 'fitness-updated') qc.setQueryData(['fitness'], msg.data);
         } catch { /* ignore malformed */ }
@@ -233,8 +259,13 @@ function useEffectStream(url: string) {
     }
 
     connect();
-    return () => { clearTimeout(reconnectTimer); wsRef.current?.close(); };
-  }, [url, qc]); // No probeQueue dependency — uses stable ref
+    return () => {
+      clearTimeout(reconnectTimer);
+      wsRef.current?.close();
+      timers.forEach(clearTimeout);
+      timers.clear();
+    };
+  }, [url, qc]);
 
   return { connected, send, progress, queue, processingId, capture, appViewport, probeQueue, escalationQueue, fiberPaused, convergence, stageTracker, iterationPulse, proposalQueue, artifactQueue };
 }
@@ -266,7 +297,6 @@ const useKnowledgeNodes = () => useQuery<readonly import('./spatial/types').Know
     });
     if (!r.ok) return [];
     const result = await r.json();
-    // Map graph nodes to KnowledgeNode shape
     const nodes = result?.result?.nodes ?? [];
     return nodes.flatMap((n: Record<string, unknown>) => {
       const id = String(n.id ?? '');
@@ -291,9 +321,7 @@ const useDecision = (send: (msg: unknown) => void) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: { workItemId: string; status: 'completed' | 'skipped'; rationale: string }) => {
-      // Send decision over WebSocket — this resumes the Effect fiber
       send({ type: 'decision', ...input });
-      // Also POST for persistence (server handles both paths)
       await fetch('/api/workbench/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -313,7 +341,6 @@ function App() {
   const { connected, send, progress, queue, capture, appViewport, probeQueue, fiberPaused, convergence, stageTracker, iterationPulse, proposalQueue, artifactQueue } = useEffectStream(`ws://${window.location.host}/ws`);
   const decisionMutation = useDecision(send);
 
-  // Progressive enhancement: detect available capabilities (MCP, live portal)
   const capabilities = useWebMcpCapabilities(capture?.url);
   const [portalLoaded, setPortalLoaded] = useState(false);
   const portalActive = capabilities.liveDomPortal && portalLoaded;
@@ -326,9 +353,10 @@ function App() {
     decisionMutation.mutate({ workItemId: id, status: 'skipped', rationale: `Dashboard skipped` });
   }, [decisionMutation]);
 
-  // Derive probe events from the staggered ingestion queue
-  // React Compiler auto-memoizes this derivation
+  // Derive spatial data — React Compiler auto-memoizes
   const activeProbes = probeQueue.active.map((q) => q.data);
+  const activeProposals = proposalQueue.active.map((q) => q.data);
+  const activeArtifacts = artifactQueue.active.map((q) => q.data);
 
   const handleParticleArrived = useCallback((probeId: string) => {
     probeQueue.retire(probeId);
@@ -336,51 +364,43 @@ function App() {
 
   const handlePortalLoaded = useCallback(() => setPortalLoaded(true), []);
 
-  // Derive spatial data from ingestion queues — compiler auto-memoizes
-  const activeProposals = proposalQueue.active.map((q) => q.data);
-  const activeArtifacts = artifactQueue.active.map((q) => q.data);
-
   return (
     <div className="dashboard-layout">
       {/* Spatial visualization — layered viewport */}
-      <div className="spatial-viewport">
-        {/* Layer 1: Live DOM portal (iframe, behind canvas) — progressive enhancement */}
+      <div className="spatial-viewport" role="main" aria-label="Pipeline visualization">
         {capabilities.liveDomPortal && capabilities.appUrl && (
           <LiveDomPortal appUrl={capabilities.appUrl} onLoad={handlePortalLoaded} />
         )}
         <PortalLoading visible={capabilities.liveDomPortal && !portalLoaded} />
 
-        {/* Layer 0/1: R3F canvas (transparent when portal active) */}
-        <SpatialCanvas
-          probes={activeProbes}
-          capture={portalActive ? null : capture}
-          viewport={appViewport}
-          knowledgeNodes={knowledgeNodes ?? []}
-          onParticleArrived={handleParticleArrived}
-          portalActive={portalActive}
-          proposalEvents={activeProposals}
-          artifactEvents={activeArtifacts}
-          iterationTick={iterationPulse.tick}
-        />
+        {/* R3F canvas with error boundary for WebGL/shader failures */}
+        <SceneErrorBoundary>
+          <SpatialCanvas
+            probes={activeProbes}
+            capture={portalActive ? null : capture}
+            viewport={appViewport}
+            knowledgeNodes={knowledgeNodes ?? []}
+            onParticleArrived={handleParticleArrived}
+            portalActive={portalActive}
+            proposalEvents={activeProposals}
+            artifactEvents={activeArtifacts}
+            iterationTick={iterationPulse.tick}
+          />
+        </SceneErrorBoundary>
 
-        {/* Buffer indicator */}
         {probeQueue.buffered > 0 && (
           <div className="buffer-indicator">{probeQueue.buffered} buffered</div>
         )}
-
-        {/* MCP indicator */}
         {capabilities.mcpAvailable && (
           <div className="mcp-indicator">MCP</div>
         )}
-
-        {/* Fiber pause indicator */}
         {fiberPaused && (
-          <div className="fiber-paused-indicator">AWAITING HUMAN</div>
+          <div className="fiber-paused-indicator" aria-live="polite">AWAITING HUMAN</div>
         )}
       </div>
 
       {/* Control panel — scrollable sidebar */}
-      <div className="control-panel">
+      <div className="control-panel" role="complementary" aria-label="Dashboard controls">
         <h1>Tesseract Dashboard</h1>
         <StatusBar workbench={workbench ?? null} scorecard={scorecard ?? null} connected={connected} progress={progress} />
         <PipelineProgress stages={stageTracker.stages} activeStage={stageTracker.activeStage} />

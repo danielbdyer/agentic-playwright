@@ -40,8 +40,8 @@ export const QueueItemView = memo(function QueueItemView({
         <span className="priority-score">{priority.toFixed(3)}</span>
         {isDeciding && (
           <>
-            <button className="btn btn-approve" onClick={() => onApprove(id)}>Approve</button>
-            <button className="btn" onClick={() => onSkip(id)}>Skip</button>
+            <button className="btn btn-approve" onClick={() => onApprove(id)} aria-label={`Approve ${kind} work item`}>Approve</button>
+            <button className="btn" onClick={() => onSkip(id)} aria-label={`Skip ${kind} work item`}>Skip</button>
           </>
         )}
       </div>
