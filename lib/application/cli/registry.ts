@@ -10,6 +10,12 @@ import { buildDerivedGraph } from '../graph';
 import { impactNode } from '../impact';
 import { emitOperatorInbox } from '../inbox';
 import { emitAgentWorkbench, loadAgentWorkbench, nextWorkItem, completeWorkItem } from '../agent-workbench';
+import { evolveProgram } from '../evolve';
+import { DEFAULT_PIPELINE_CONFIG } from '../../domain/types';
+import { loadExperimentRegistry } from '../experiment-registry';
+import { filterExperiments, type ExperimentRecord } from '../../domain/types';
+import { generateSyntheticScenarios } from '../synthesis/scenario-generator';
+import { multiSeedSpeedrun } from '../speedrun';
 import { describeScenarioPaths } from '../inspect';
 import { parseScenario } from '../parse';
 import { createProjectPaths, type ProjectPaths } from '../paths';
@@ -76,6 +82,14 @@ interface ParsedFlags {
   skipBelow?: number;
   list?: boolean;
   next?: boolean;
+  count?: number;
+  seed?: string;
+  seeds?: string;
+  substrate?: string;
+  maxEpochs?: number;
+  accepted?: boolean;
+  top?: number;
+  perturb?: number;
 }
 
 interface ParseContext {
@@ -127,7 +141,11 @@ export type CommandName =
   | 'scorecard'
   | 'replay'
   | 'dogfood'
-  | 'workbench';
+  | 'workbench'
+  | 'speedrun'
+  | 'evolve'
+  | 'experiments'
+  | 'generate';
 
 export const commandNames: readonly CommandName[] = [
   'sync',
@@ -156,6 +174,10 @@ export const commandNames: readonly CommandName[] = [
   'replay',
   'dogfood',
   'workbench',
+  'speedrun',
+  'evolve',
+  'experiments',
+  'generate',
 ] as const;
 
 const flagReaders: Record<string, (argv: string[], index: number, flags: ParsedFlags) => number> = {
@@ -272,6 +294,38 @@ const flagReaders: Record<string, (argv: string[], index: number, flags: ParsedF
   '--next': (_argv, index, flags) => {
     flags.next = true;
     return index;
+  },
+  '--count': (argv, index, flags) => {
+    flags.count = Number(readFlagValue('--count', argv[index + 1]));
+    return index + 1;
+  },
+  '--seed': (argv, index, flags) => {
+    flags.seed = readFlagValue('--seed', argv[index + 1]);
+    return index + 1;
+  },
+  '--seeds': (argv, index, flags) => {
+    flags.seeds = readFlagValue('--seeds', argv[index + 1]);
+    return index + 1;
+  },
+  '--substrate': (argv, index, flags) => {
+    flags.substrate = readFlagValue('--substrate', argv[index + 1]);
+    return index + 1;
+  },
+  '--max-epochs': (argv, index, flags) => {
+    flags.maxEpochs = Number(readFlagValue('--max-epochs', argv[index + 1]));
+    return index + 1;
+  },
+  '--accepted': (_argv, index, flags) => {
+    flags.accepted = true;
+    return index;
+  },
+  '--top': (argv, index, flags) => {
+    flags.top = Number(readFlagValue('--top', argv[index + 1]));
+    return index + 1;
+  },
+  '--perturb': (argv, index, flags) => {
+    flags.perturb = Number(readFlagValue('--perturb', argv[index + 1]));
+    return index + 1;
   },
   '--benchmark': (argv, index, flags) => {
     flags.benchmark = readFlagValue('--benchmark', argv[index + 1]);
@@ -808,6 +862,81 @@ const commandRegistry: Record<CommandName, CommandSpec> = {
       };
     },
   },
+  speedrun: {
+    flags: ['--count', '--seed', '--seeds', '--max-iterations', '--tag', '--substrate', '--perturb', '--posture'],
+    parse: ({ flags }) => ({
+      command: 'speedrun',
+      strictExitOnUnbound: false,
+      postureInput: withDefinedValues({
+        interpreterMode: 'diagnostic' as InterpreterMode,
+        executionProfile: 'dogfood' as ExecutionProfile,
+      }),
+      execute: (paths) => {
+        const seeds = flags.seeds ? (flags.seeds as string).split(',').filter(Boolean) : [flags.seed ?? 'speedrun-v1'];
+        return multiSeedSpeedrun({
+          paths,
+          config: DEFAULT_PIPELINE_CONFIG,
+          seeds,
+          count: flags.count ?? 50,
+          maxIterations: flags.maxIterations ?? 5,
+          ...(flags.substrate ? { substrate: flags.substrate as 'synthetic' | 'production' | 'hybrid' } : {}),
+          ...(flags.perturb ? { perturbationRate: flags.perturb } : {}),
+          ...(flags.tag ? { tag: flags.tag } : {}),
+        });
+      },
+    }),
+  },
+  evolve: {
+    flags: ['--max-epochs', '--seed', '--count', '--max-iterations', '--substrate'],
+    parse: ({ flags }) => ({
+      command: 'evolve',
+      strictExitOnUnbound: false,
+      postureInput: withDefinedValues({
+        interpreterMode: 'diagnostic' as InterpreterMode,
+        executionProfile: 'dogfood' as ExecutionProfile,
+      }),
+      execute: (paths) => evolveProgram({
+        paths,
+        maxEpochs: flags.maxEpochs ?? 3,
+        seed: flags.seed ?? 'evolve-v1',
+        count: flags.count ?? 30,
+        maxIterations: flags.maxIterations ?? 3,
+        substrate: (flags.substrate ?? 'synthetic') as 'synthetic' | 'production' | 'hybrid',
+      }),
+    }),
+  },
+  experiments: {
+    flags: ['--accepted', '--tag', '--substrate', '--top'],
+    parse: ({ flags }) => ({
+      command: 'experiments',
+      strictExitOnUnbound: false,
+      postureInput: {},
+      execute: (paths) => loadExperimentRegistry(paths).pipe(
+        Effect.map((registry) => {
+          const filtered = filterExperiments(registry, (r: ExperimentRecord) =>
+            (!flags.accepted || r.accepted)
+            && (!flags.tag || r.tags.includes(flags.tag))
+            && (!flags.substrate || r.substrateContext.substrate === flags.substrate),
+          );
+          return { ...registry, experiments: filtered.slice(0, flags.top ?? 20) };
+        }),
+      ),
+    }),
+  },
+  generate: {
+    flags: ['--count', '--seed', '--perturb'],
+    parse: ({ flags }) => ({
+      command: 'generate',
+      strictExitOnUnbound: false,
+      postureInput: {},
+      execute: (paths) => generateSyntheticScenarios({
+        paths,
+        count: flags.count ?? 50,
+        seed: flags.seed ?? 'generate-v1',
+        ...(flags.perturb ? { perturbationRate: flags.perturb } : {}),
+      }),
+    }),
+  },
 };
 
 function parseTokensRec(
@@ -842,7 +971,7 @@ function parseTokensRec(
 export function parseCliInvocation(argv: string[]): CommandExecution {
   const [rawCommand = 'help', ...tokens] = argv;
   if (!isCommandName(rawCommand)) {
-    throw new Error('Unknown command. Expected sync, parse, bind, emit, compile, refresh, run, replay, paths, capture, discover, harvest, surface, graph, trace, impact, types, workflow, inbox, approve, certify, rerun-plan, benchmark, scorecard, dogfood, or workbench.');
+    throw new Error('Unknown command. Expected sync, parse, bind, emit, compile, refresh, run, replay, paths, capture, discover, harvest, surface, graph, trace, impact, types, workflow, inbox, approve, certify, rerun-plan, benchmark, scorecard, dogfood, workbench, speedrun, evolve, experiments, or generate.');
   }
 
   const spec = commandRegistry[rawCommand];
