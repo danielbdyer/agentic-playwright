@@ -10,7 +10,136 @@
 
 ### Findings
 
-*Awaiting research...*
+#### Eight Major Algebraic Structures, All Unnamed
+
+After reading every referenced file and tracing every structural pattern, this analysis identifies **8 algebraic structures** that the codebase implements without naming. The code is doing sophisticated mathematics. It just doesn't know it.
+
+#### A. The Governance Lattice (Bounded, Three-Element, Phantom)
+
+**Structure**: A bounded three-element lattice with phantom type enforcement that collapses at runtime.
+
+**Where**: `lib/domain/types/workflow.ts:4-14`, `lib/domain/visitors.ts:33-42`, `lib/domain/binding.ts:76-84`
+
+The governance type `{approved, review-required, blocked}` forms a **bounded distributive lattice**:
+
+```
+      approved        (top — least restrictive)
+          |
+   review-required    (middle)
+          |
+      blocked          (bottom — most restrictive)
+```
+
+The **meet** operation (more restrictive wins): `approved ∧ review-required = review-required`, `review-required ∧ blocked = blocked`. This operation is used implicitly in `governanceForBinding` (binding.ts:76-84) and in `validate-step-results.ts` but is never declared as a lattice operation. No `meet()` or `join()` function exists.
+
+The phantom brands (`Approved<T>`, `Blocked<T>`, `ReviewRequired<T>`) are the type-level encoding of lattice elements. `foldGovernance` is the catamorphism over this lattice. Both have **0 production call sites**. The lattice exists at the type level but collapses to string comparison at runtime.
+
+**What formalization unlocks**: A `mergeGovernance` function implementing lattice meet. Compile-time proof that governance can only flow downward (approved → review-required → blocked), never upward without explicit promotion. The `requireApproved` function (which exists but is never called) becomes a lattice-element assertion.
+
+#### B. The Resolution Cascade as Prioritized Coproduct
+
+**Structure**: A 10-rung prioritized sum type with a total order and a monotone valuation function.
+
+**Where**: `lib/domain/precedence.ts:1-55`, `lib/domain/visitors.ts:99-135`
+
+The resolution precedence law is a **coproduct** (disjoint sum) with an attached **total ordering**:
+
+```
+Resolution = Explicit | Control | ApprovedScreenKnowledge | ... | NeedsHuman
+```
+
+`chooseByPrecedence` (precedence.ts:33-45) is a **catamorphism** (fold) over the law array: given candidates tagged by rung, pick the first non-null value by precedence. `precedenceWeight` (precedence.ts:47-54) is a **monotone valuation**: `rung1 > rung2 ⟹ weight(rung1) > weight(rung2)`.
+
+Neither the coproduct, the total order, nor the monotonicity property are named. The code calls it a "precedence law" — correct, but the mathematical structure (a well-ordered set with a monotone function to the naturals) is richer than the name suggests.
+
+**What formalization unlocks**: Proof that `chooseByPrecedence` always picks the globally optimal candidate (by transitivity). Early-exit optimization when a weight exceeds a threshold. Composition of precedence laws via product orders.
+
+#### C. Catamorphic Fold Functions (F-Algebras Without Awareness)
+
+**Structure**: 8 textbook F-algebra catamorphisms over discriminated unions.
+
+**Where**: `lib/domain/visitors.ts:1-273` (entire file)
+
+| Function | Type | Variants |
+|----------|------|----------|
+| `foldValueRef` | `ValueRef` | 5 |
+| `foldStepInstruction` | `StepInstruction` | 5 |
+| `foldLocatorStrategy` | `LocatorStrategy` | 3 |
+| `foldResolutionReceipt` | `ResolutionReceipt` | 4 |
+| `foldResolutionOutcome` | `ResolutionReceipt` | 2 (ternary collapse) |
+| `foldImprovementTarget` | `PipelineImprovementTarget` | 5 |
+| `foldResolutionEvent` | `ResolutionEvent` | 5 |
+| `foldPipelineFailureClass` | `PipelineFailureClass` | 8 |
+| `foldStepWinningSource` | `StepWinningSource` | 14 |
+
+Each fold has the form: `cata : (F-algebra<R>) → (μF → R)` — an F-algebra (a record of handlers per variant) applied to a fixed-point type (the union). TypeScript enforces exhaustiveness at compile time.
+
+Critically, `WINNING_SOURCE_TO_RUNG` (visitors.ts:257-272) is a **second fold function** disguised as a record lookup — it maps `StepWinningSource → ResolutionPrecedenceRung` but isn't written using `foldStepWinningSource`. It could be.
+
+**What formalization unlocks**: Automatic derivation of folds from type definitions. Catamorphism fusion (composing consecutive folds into a single pass). Detection of "union type consumed without exhaustive fold" as a compile-time warning.
+
+#### D. The Pipeline as Kleisli Composition
+
+**Structure**: Pipeline stages form Kleisli arrows in the Effect monad, composed via `yield*` (monadic bind).
+
+**Where**: `lib/application/pipeline/stage.ts:21-84`, `lib/application/pipeline/incremental.ts:67-141`, `lib/application/dogfood.ts:504-605`
+
+Each `PipelineStage<D, C, P, E, R>` is a Kleisli arrow: `D → Effect<C, E, R>`. The `runPipelineStage` function chains `loadDependencies → compute → persist` via `yield*`, which IS Kleisli bind (`>>=`). The `runIncrementalStage` wrapper is a **natural transformation** (monad transformer) lifting caching semantics onto Effect.
+
+The dogfood loop's `step: (state: LoopState) → Effect<LoopState>` is a **Kleisli state monad** — Kleisli composition of state transitions: `(s₀ → M<s₁>) ∘ (s₁ → M<s₂>) ∘ ... ∘ (sₙ₋₁ → M<sₙ>)`.
+
+**What formalization unlocks**: Formal Kleisli laws (left/right identity, associativity) stated and verifiable. Proof that stage composition respects error handling and resource cleanup. Stage fusion optimization.
+
+#### E. The Convergence Loop as Fixed-Point Iteration
+
+**Structure**: The dogfood loop is a fixed-point iteration on a partially ordered metric space, with ad hoc convergence detection that could be formalized as a Lyapunov function.
+
+**Where**: `lib/application/dogfood.ts:206-231` (convergence), `lib/application/dogfood.ts:533-549` (self-calibration), `lib/domain/speedrun-statistics.ts:1-256`
+
+The iteration `state(n+1) = F(state(n))` embeds: run scenarios → activate proposals → recalibrate weights. Convergence is declared when: no proposals activated (local minimum), hit rate delta < threshold (diminishing returns), budget exhausted, or max iterations.
+
+The self-calibrating bottleneck weights (learning-bottlenecks.ts:69-101) are a **contractive mapping** on the unit simplex: `|calibrated - base| ≤ learningRate × max(|correlations|)`, with normalization ensuring weights sum to 1. This is equivalent to **projected gradient descent** with learning rate 0.1.
+
+**What formalization unlocks**: A Lyapunov function `Φ(state) = -knowledgeHitRate` proving convergence (Φ decreases monotonically until it stagnates). Termination bounds (how many iterations until `Φ(s) ≤ ε`). Adaptive learning rates for the calibration step.
+
+#### F. The Trust Policy as Galois Connection
+
+**Structure**: The relationship between `ProposedChangeMetadata` and `TrustPolicyDecision` is a Galois connection between two ordered sets.
+
+**Where**: `lib/domain/trust-policy.ts:62-83` (evaluation), `lib/domain/trust-policy.ts:108-154` (auto-approval)
+
+Two ordered sets: `P = ProposedChangeMetadata` (ordered by confidence) and `D = TrustPolicyDecision` (ordered `allow > review > deny`). The evaluation function is the **lower adjoint** `f: P → D`. The auto-approval function applies the connection in reverse: given a decision, verify all gates pass.
+
+The `decisionForReasons` function (trust-policy.ts:50-60) is a **monotone function**: more reasons → stricter decision. The 6-gate auto-approval chain is composition of proof obligations in the Galois adjunction.
+
+**What formalization unlocks**: Formal verification of the adjunction property: `f(x) ⊑ y ⟺ x ⊑ g(y)`. Optimization by using adjoint properties to reduce redundant gate checks.
+
+#### G. Bottleneck Weights as Commutative Monoid on the Unit Simplex
+
+**Structure**: The weight system is a commutative monoid under normalized addition on Δ³ (the 4-dimensional unit simplex).
+
+**Where**: `lib/application/learning-bottlenecks.ts:38-101`, `lib/application/learning-shared.ts:18-34`
+
+`BottleneckWeights ≅ Δ³ = {(r,t,u,i) ∈ ℝ⁴ : r+t+u+i=1, all ≥ 0}`. The `combineScoringRules` function (learning-shared.ts:18-34) forms monoid homomorphisms: each `ScoringRule<T>` is `T → ℝ`, combined via direct sum, scaled by simplex weights. The final score is `Σᵢ(wᵢ × ruleᵢ(input))` — a linear functional parameterized by a monoid element.
+
+**What formalization unlocks**: Equational reasoning about weight combination. Proof that calibration preserves the simplex invariant. Convergence analysis of online learning on the simplex.
+
+#### H. Hidden Monoids Across the Codebase
+
+Three additional implicit monoids detected:
+
+1. **Resolution receipt accumulation**: Multiple receipts could combine via a semigroup where `needs-human` absorbs everything (like `blocked` in the governance lattice)
+2. **Fitness metrics averaging**: `reduce((sum, m) => sum + m.knowledgeHitRate, 0) / length` is a normalized monoid operation
+3. **Workflow envelope lineage**: `sources`, `parents`, `handshakes` combine via array concatenation — a free monoid
+
+#### The Meta-Insight
+
+The codebase is **saturated with algebraic structure** — lattices, coproducts, catamorphisms, Kleisli arrows, fixed-point iterations, Galois connections, monoids. None are named. The code implements the algebra correctly but without awareness. Formalizing these structures would unlock:
+
+- **Stronger type safety** (phantom types with enforcement, lattice-aware merging)
+- **Automated verification** (lattice laws, fixed-point convergence, Galois properties)
+- **Optimization** (catamorphism fusion, Kleisli simplification, early-exit via monotonicity)
+- **Self-documentation** (algebraic names carry proof obligations that English names don't)
 
 ---
 
