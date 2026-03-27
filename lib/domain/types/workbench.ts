@@ -10,8 +10,9 @@
  * produces an InterventionReceipt that feeds back into the next iteration.
  */
 
-import type { AdoId } from '../identity';
+import type { AdoId, ScreenId } from '../identity';
 import type { InterventionTarget } from './intervention';
+import type { StepTaskScreenCandidate } from './knowledge';
 
 export type WorkItemKind =
   | 'interpret-step'
@@ -67,6 +68,24 @@ export interface WorkItemCompletion {
   readonly completedAt: string;
   readonly rationale: string;
   readonly artifactsWritten: readonly string[];
+}
+
+/** A group of work items sharing the same screen context.
+ *  Convergence point: the deterministic pipeline's StepTaskScreenCandidate
+ *  IS the screen model — the workbench extends it with work items.
+ *  The agent observes the screen once (via Playwright MCP / Chrome MCP),
+ *  receives full element/alias/selector context, and decides on all items. */
+export interface ScreenGroupContext {
+  readonly screen: StepTaskScreenCandidate;
+  readonly workItems: readonly AgentWorkItem[];
+  readonly totalOccurrences: number;
+}
+
+/** Envelope for persisted completions (not JSONL — uses standard envelope pattern). */
+export interface WorkbenchCompletionsEnvelope {
+  readonly kind: 'workbench-completions';
+  readonly version: 1;
+  readonly entries: readonly WorkItemCompletion[];
 }
 
 export interface AgentWorkbenchProjection {

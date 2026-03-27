@@ -17,7 +17,7 @@
 
 import * as path from 'path';
 import { createProjectPaths } from '../lib/application/paths';
-import { loadAgentWorkbench, processWorkItems, type ActLoopResult } from '../lib/application/agent-workbench';
+import { loadAgentWorkbench, processWorkItems, type ActLoopResult, type ScreenGroupContext } from '../lib/application/agent-workbench';
 import { multiSeedSpeedrun } from '../lib/application/speedrun';
 import { resolveKnowledgePosture } from '../lib/application/knowledge-posture';
 import { resolveAgentInterpreterProvider, type AgentInterpreterProvider } from '../lib/application/agent-interpreter-provider';
@@ -164,8 +164,10 @@ async function main(): Promise<void> {
         paths,
         maxItems: maxActs,
         reEvaluate: true,
-        onScreenGroupStart: (group) => {
-          console.log(`  ─── ${group.screen} (${group.items.length} items) ───`);
+        onScreenGroupStart: (group: ScreenGroupContext) => {
+          const aliasCount = group.screen.screenAliases.length;
+          const elementCount = group.screen.elements.length;
+          console.log(`  ─── ${group.screen.screen} (${group.workItems.length} items, ${elementCount} elements, ${aliasCount} aliases) ───`);
         },
         onItemProcessed: (item, completion) => {
           const marker = completion.status === 'completed' ? '✓' : '○';
