@@ -123,3 +123,39 @@ export const DisabledDashboard: DashboardPort = {
 };
 
 export class Dashboard extends Context.Tag('tesseract/Dashboard')<Dashboard, DashboardPort>() {}
+
+// ─── MCP Tool Server (WebMCP / Playwright MCP progressive enhancement) ───
+//
+// The MCP port exposes Tesseract's observation and action surface as
+// structured tools that agents can invoke. This is representationally
+// coherent with the spatial dashboard — same data, structured access.
+//
+// Progressive enhancement: when no MCP server is available, the dashboard
+// falls back to screenshot textures + WS events. When MCP is available,
+// agents get structured tool access to the same observables.
+
+export interface McpToolInvocation {
+  readonly tool: string;
+  readonly arguments: Record<string, unknown>;
+}
+
+export interface McpToolResult {
+  readonly tool: string;
+  readonly result: unknown;
+  readonly isError: boolean;
+}
+
+export interface McpServerPort {
+  /** Handle an incoming MCP tool invocation. Returns the tool result. */
+  readonly handleToolCall: (invocation: McpToolInvocation) => Effect.Effect<McpToolResult, TesseractError>;
+  /** List available tools (for MCP catalog negotiation). */
+  readonly listTools: () => Effect.Effect<readonly import('../domain/types').McpToolDefinition[], never, never>;
+}
+
+/** Disabled MCP server for environments without MCP support. */
+export const DisabledMcpServer: McpServerPort = {
+  handleToolCall: (inv) => Effect.succeed({ tool: inv.tool, result: { error: 'MCP server not available' }, isError: true }),
+  listTools: () => Effect.succeed([]),
+};
+
+export class McpServer extends Context.Tag('tesseract/McpServer')<McpServer, McpServerPort>() {}

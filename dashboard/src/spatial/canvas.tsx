@@ -27,6 +27,7 @@ import { ScreenPlane } from './screen-plane';
 import { SelectorGlows } from './selector-glows';
 import { ParticleTransport } from './particle-transport';
 import { GlassPane } from './glass-pane';
+import type { McpCapabilities } from '../hooks/use-mcp-capabilities';
 
 // ─── Layout Constants (pure, scene-level) ───
 
@@ -48,6 +49,8 @@ export interface SpatialCanvasProps {
   readonly viewport: ViewportDimensions;
   /** Callback when a particle arrives at knowledge space. */
   readonly onParticleArrived?: (probeId: string) => void;
+  /** Progressive enhancement: detected MCP capabilities. */
+  readonly capabilities?: McpCapabilities;
 }
 
 // ─── Scene Content (separated for memo purity) ───
