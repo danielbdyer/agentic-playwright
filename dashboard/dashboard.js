@@ -25118,110 +25118,135 @@
       var import_client = __toESM(require_client());
       init_modern2();
       var import_jsx_runtime3 = __toESM(require_jsx_runtime());
-      function useWebSocket(url) {
+      function useEffectStream(url) {
         const wsRef = (0, import_react.useRef)(null);
         const qc = useQueryClient();
         const [connected, setConnected] = (0, import_react.useState)(false);
-        const [lastProgress, setLastProgress] = (0, import_react.useState)(null);
+        const [progress, setProgress] = (0, import_react.useState)(null);
+        const [queue, setQueue] = (0, import_react.useState)([]);
+        const [processingId, setProcessingId] = (0, import_react.useState)(null);
+        const send = (0, import_react.useCallback)((msg) => {
+          wsRef.current?.readyState === WebSocket.OPEN && wsRef.current.send(JSON.stringify(msg));
+        }, []);
         (0, import_react.useEffect)(() => {
+          let reconnectTimer;
           function connect() {
             const ws = new WebSocket(url);
             wsRef.current = ws;
             ws.onopen = () => setConnected(true);
             ws.onclose = () => {
               setConnected(false);
-              setTimeout(connect, 3e3);
+              reconnectTimer = setTimeout(connect, 3e3);
             };
             ws.onerror = () => ws.close();
             ws.onmessage = (event) => {
               try {
                 const msg = JSON.parse(event.data);
-                if (msg.type === "workbench-updated") {
-                  qc.setQueryData(["workbench"], msg.data);
-                } else if (msg.type === "fitness-updated") {
-                  qc.setQueryData(["fitness"], msg.data);
-                } else if (msg.type === "speedrun-progress") {
-                  setLastProgress(msg.data);
-                } else if (msg.type === "work-item-completed") {
-                  qc.invalidateQueries({ queryKey: ["workbench"] });
-                }
+                const { type, data } = msg;
+                if (type === "progress")
+                  setProgress(data);
+                else if (type === "item-pending") {
+                  const item = data;
+                  setQueue((prev) => [...prev, { ...item, displayStatus: "entering" }]);
+                  requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                      setQueue((prev) => prev.map((q) => q.id === item.id ? { ...q, displayStatus: "pending" } : q));
+                    });
+                  });
+                } else if (type === "item-processing") {
+                  setProcessingId(data.workItemId);
+                  setQueue((prev) => prev.map((q) => q.id === data.workItemId ? { ...q, displayStatus: "processing" } : q));
+                } else if (type === "item-completed") {
+                  const decision = data;
+                  const exitStatus = decision.status === "completed" ? "completed" : "skipped";
+                  setQueue((prev) => prev.map((q) => q.id === decision.workItemId ? { ...q, displayStatus: exitStatus } : q));
+                  setProcessingId((prev) => prev === decision.workItemId ? null : prev);
+                  setTimeout(() => {
+                    setQueue((prev) => prev.filter((q) => q.id !== decision.workItemId));
+                  }, 400);
+                } else if (type === "workbench-updated")
+                  qc.setQueryData(["workbench"], data);
+                else if (type === "fitness-updated")
+                  qc.setQueryData(["fitness"], data);
               } catch {
               }
             };
           }
           connect();
           return () => {
+            clearTimeout(reconnectTimer);
             wsRef.current?.close();
           };
         }, [url, qc]);
-        const send = (0, import_react.useCallback)((msg) => {
-          if (wsRef.current?.readyState === WebSocket.OPEN) {
-            wsRef.current.send(JSON.stringify(msg));
-          }
-        }, []);
-        return { connected, send, lastProgress };
+        return { connected, send, progress, queue, processingId };
       }
-      function useWorkbench() {
-        return useQuery({
-          queryKey: ["workbench"],
-          queryFn: async () => {
-            const res = await fetch("/api/workbench");
-            return res.ok ? res.json() : null;
-          },
-          refetchInterval: 1e4,
-          staleTime: 3e3
-        });
-      }
-      function useFitness() {
-        return useQuery({
-          queryKey: ["fitness"],
-          queryFn: async () => {
-            const res = await fetch("/api/fitness");
-            return res.ok ? res.json() : null;
-          },
-          refetchInterval: 15e3,
-          staleTime: 5e3
-        });
-      }
-      function useCompleteItem() {
+      var useWorkbench = () => useQuery({
+        queryKey: ["workbench"],
+        queryFn: async () => {
+          const r = await fetch("/api/workbench");
+          return r.ok ? r.json() : null;
+        },
+        refetchInterval: 15e3,
+        staleTime: 5e3
+      });
+      var useFitness = () => useQuery({
+        queryKey: ["fitness"],
+        queryFn: async () => {
+          const r = await fetch("/api/fitness");
+          return r.ok ? r.json() : null;
+        },
+        refetchInterval: 3e4,
+        staleTime: 1e4
+      });
+      var useDecision = (send) => {
         const qc = useQueryClient();
         return useMutation({
           mutationFn: async (input) => {
-            const res = await fetch("/api/workbench/complete", {
+            send({ type: "decision", ...input });
+            await fetch("/api/workbench/complete", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                completion: {
-                  workItemId: input.workItemId,
-                  status: input.status,
-                  completedAt: (/* @__PURE__ */ new Date()).toISOString(),
-                  rationale: input.rationale,
-                  artifactsWritten: []
-                }
-              })
+              body: JSON.stringify({ completion: { ...input, completedAt: (/* @__PURE__ */ new Date()).toISOString(), artifactsWritten: [] } })
             });
-            return res.json();
           },
-          onSuccess: () => {
-            qc.invalidateQueries({ queryKey: ["workbench"] });
-          }
+          onSuccess: () => qc.invalidateQueries({ queryKey: ["workbench"] })
         });
-      }
-      function ConnectionBadge({ connected }) {
-        return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: connected ? "#3fb950" : "#f85149", marginRight: 8 } });
-      }
-      function StatusBar({ workbench, scorecard, connected, progress }) {
+      };
+      var RUNG_COLORS = {
+        "explicit": "#3fb950",
+        "control": "#2ea043",
+        "approved-screen-knowledge": "#56d364",
+        "shared-patterns": "#79c0ff",
+        "prior-evidence": "#a5d6ff",
+        "approved-equivalent-overlay": "#58a6ff",
+        "structured-translation": "#d29922",
+        "live-dom": "#e3b341",
+        "agent-interpreted": "#bc8cff",
+        "needs-human": "#f85149"
+      };
+      var KIND_COLORS = {
+        "interpret-step": "#f85149",
+        "approve-proposal": "#58a6ff",
+        "author-knowledge": "#3fb950",
+        "investigate-hotspot": "#d29922",
+        "validate-calibration": "#bc8cff",
+        "request-rerun": "#79c0ff"
+      };
+      var ConnectionDot = (0, import_react.memo)(function ConnectionDot2({ connected }) {
+        return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: `connection-dot ${connected ? "connected" : "disconnected"}` });
+      });
+      var StatusBar = (0, import_react.memo)(function StatusBar2({ workbench, scorecard, connected, progress }) {
         return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "status-bar", children: [
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "status-item", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ConnectionBadge, { connected }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ConnectionDot, { connected }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "status-label", children: "WS" })
           ] }),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "status-item", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "status-label", children: "Iteration:" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "status-label", children: "Iter:" }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "status-value", children: workbench?.iteration ?? "\u2014" })
           ] }),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "status-item", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "status-label", children: "Items:" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "status-label", children: "Queue:" }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "status-value", children: [
               workbench?.summary.pending ?? 0,
               " pending / ",
@@ -25238,20 +25263,19 @@
             /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "status-value", children: [
               "[",
               progress.phase,
-              "] iter ",
+              "] ",
               progress.iteration,
               "/",
-              progress.maxIterations,
-              progress.calibration ? ` drift=${progress.calibration.weightDrift.toFixed(4)}` : ""
+              progress.maxIterations
             ] })
           ] })
         ] });
-      }
-      function FitnessCard({ scorecard }) {
+      });
+      var FitnessCard = (0, import_react.memo)(function FitnessCard2({ scorecard }) {
         if (!scorecard)
           return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "card", children: [
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h2", { children: "Fitness" }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "empty", children: "No scorecard. Run a speedrun first." })
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "empty", children: "No scorecard yet." })
           ] });
         const h = scorecard.highWaterMark;
         const cls = (v) => v >= 0.8 ? "good" : v >= 0.5 ? "warn" : "bad";
@@ -25275,7 +25299,7 @@
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "metric-label", children: "Convergence" }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "metric-value", children: [
               h.convergenceVelocity,
-              " iterations"
+              " iter"
             ] })
           ] }),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "metric", children: [
@@ -25285,156 +25309,19 @@
               "%"
             ] })
           ] }),
-          h.resolutionByRung && h.resolutionByRung.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h2", { style: { marginTop: 12 }, children: "Resolution by Rung" }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "rung-bar", children: h.resolutionByRung.filter((r) => r.wins > 0).map((r) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "rung-segment", style: { flex: r.wins, backgroundColor: rungColor(r.rung) }, title: `${r.rung}: ${r.wins} (${(r.rate * 100).toFixed(0)}%)`, children: r.wins > 2 ? r.wins : "" }, r.rung)) }),
-            h.resolutionByRung.filter((r) => r.wins > 0).map((r) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "metric", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "metric-label", style: { color: rungColor(r.rung) }, children: r.rung }),
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "metric-value", children: [
-                r.wins,
-                " (",
-                (r.rate * 100).toFixed(0),
-                "%)"
-              ] })
-            ] }, r.rung))
-          ] })
+          h.resolutionByRung && h.resolutionByRung.filter((r) => r.wins > 0).length > 0 && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "rung-bar", style: { marginTop: 8 }, children: h.resolutionByRung.filter((r) => r.wins > 0).map((r) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "rung-segment", style: { flex: r.wins, backgroundColor: RUNG_COLORS[r.rung] ?? "#484f58" }, title: `${r.rung}: ${r.wins}`, children: r.wins > 2 ? r.wins : "" }, r.rung)) })
         ] });
-      }
-      var RUNG_COLORS = {
-        "explicit": "#3fb950",
-        "control": "#2ea043",
-        "approved-screen-knowledge": "#56d364",
-        "shared-patterns": "#79c0ff",
-        "prior-evidence": "#a5d6ff",
-        "approved-equivalent-overlay": "#58a6ff",
-        "structured-translation": "#d29922",
-        "live-dom": "#e3b341",
-        "agent-interpreted": "#bc8cff",
-        "needs-human": "#f85149"
-      };
-      function rungColor(rung) {
-        return RUNG_COLORS[rung] ?? "#484f58";
-      }
-      function WorkItemRow({ item, onAction }) {
-        const [showDetail, setShowDetail] = (0, import_react.useState)(false);
-        const badgeColor = item.kind === "approve-proposal" ? "#1f6feb" : item.kind === "interpret-step" ? "#f85149" : "#d29922";
-        return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: `work-item ${item.priority >= 0.5 ? "high" : "low"}`, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { flex: 1, cursor: "pointer" }, onClick: () => setShowDetail(!showDetail), children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "item-badge", style: { background: `${badgeColor}33`, color: badgeColor }, children: item.kind }),
-            " ",
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "item-title", children: item.title }),
-            showDetail && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { fontSize: 12, color: "#8b949e", marginTop: 8, paddingLeft: 8 }, children: [
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { children: item.rationale }),
-              item.context.screen && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
-                "Screen: ",
-                item.context.screen
-              ] }),
-              item.context.element && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
-                "Element: ",
-                item.context.element
-              ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
-                "Confidence: ",
-                item.evidence.confidence.toFixed(2),
-                " | Sources: ",
-                item.evidence.sources.length
-              ] })
-            ] })
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", gap: 6, alignItems: "center" }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "priority-score", children: item.priority.toFixed(3) }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { className: "btn btn-primary", onClick: () => onAction(item.id, "completed", `Dashboard approved: ${item.title}`), children: "\u2713" }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { className: "btn", onClick: () => onAction(item.id, "skipped", `Dashboard skipped: ${item.title}`), children: "\u25CB" })
-          ] })
-        ] });
-      }
-      function WorkbenchPanel({ workbench, onAction }) {
-        if (!workbench || workbench.items.length === 0) {
-          return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "card card-full", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h2", { children: "Agent Workbench" }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "empty", children: "No pending work items. System is converged." })
-          ] });
-        }
-        const byScreen = /* @__PURE__ */ new Map();
-        for (const item of workbench.items) {
-          const screen = item.context.screen ?? "unknown";
-          byScreen.set(screen, [...byScreen.get(screen) ?? [], item]);
-        }
-        return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "card card-full", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("h2", { children: [
-            "Agent Workbench \u2014 ",
-            workbench.summary.pending,
-            " pending"
-          ] }),
-          [...byScreen.entries()].map(([screen, items]) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "screen-group", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "screen-header", children: [
-              screen,
-              " (",
-              items.length,
-              " items)"
-            ] }),
-            items.map((item) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(WorkItemRow, { item, onAction }, item.id))
-          ] }, screen))
-        ] });
-      }
-      function KindDistribution({ workbench }) {
-        if (!workbench)
-          return null;
-        const kinds = Object.entries(workbench.summary.byKind).filter(([, c]) => c > 0);
-        if (kinds.length === 0)
-          return null;
-        const total = kinds.reduce((s, [, c]) => s + c, 0);
-        const colors = {
-          "interpret-step": "#f85149",
-          "approve-proposal": "#58a6ff",
-          "author-knowledge": "#3fb950",
-          "investigate-hotspot": "#d29922",
-          "validate-calibration": "#bc8cff",
-          "request-rerun": "#79c0ff"
-        };
-        return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "card", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h2", { children: "Distribution" }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "rung-bar", children: kinds.map(([k, c]) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "rung-segment", style: { flex: c, backgroundColor: colors[k] ?? "#484f58" }, title: `${k}: ${c}`, children: c }, k)) }),
-          kinds.map(([k, c]) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "metric", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "metric-label", style: { color: colors[k] }, children: k }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "metric-value", children: [
-              c,
-              " (",
-              (c / total * 100).toFixed(0),
-              "%)"
-            ] })
-          ] }, k))
-        ] });
-      }
-      function CompletionsPanel({ workbench }) {
-        const completions = workbench?.completions ?? [];
-        if (completions.length === 0)
-          return null;
-        return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "card", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("h2", { children: [
-            "Recent Completions (",
-            completions.length,
-            ")"
-          ] }),
-          completions.slice(-10).reverse().map((c, i) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "lineage-entry", children: [
-            c.status === "completed" ? "\u2713" : "\u25CB",
-            " ",
-            c.workItemId.slice(0, 8),
-            " \u2014 ",
-            c.rationale.slice(0, 60)
-          ] }, i))
-        ] });
-      }
-      function ProgressPanel({ progress }) {
+      });
+      var ProgressCard = (0, import_react.memo)(function ProgressCard2({ progress }) {
         if (!progress)
           return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "card", children: [
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h2", { children: "Live Progress" }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "empty", children: "No active speedrun. Start one to see real-time progress." })
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "empty", children: "No active run." })
           ] });
         const m = progress.metrics;
         return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "card", children: [
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("h2", { children: [
-            "Live Progress \u2014 [",
+            "Live \u2014 [",
             progress.phase,
             "]"
           ] }),
@@ -25454,10 +25341,6 @@
                 m.unresolvedSteps,
                 " unresolved)"
               ] })
-            ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "metric", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "metric-label", children: "Proposals" }),
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "metric-value", children: m.proposalsActivated })
             ] })
           ] }),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "metric", children: [
@@ -25467,56 +25350,134 @@
               "s"
             ] })
           ] }),
-          progress.convergenceReason && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "metric", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "metric-label", children: "Convergence" }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "metric-value", children: progress.convergenceReason })
-          ] }),
-          progress.calibration && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "metric", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "metric-label", children: "Weight Drift" }),
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "metric-value", children: progress.calibration.weightDrift.toFixed(4) })
+          progress.calibration && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "metric", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "metric-label", children: "Drift" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "metric-value", children: progress.calibration.weightDrift.toFixed(4) })
+          ] })
+        ] });
+      });
+      var QueueItemView = (0, import_react.memo)(function QueueItemView2({ item, onApprove, onSkip }) {
+        const color = KIND_COLORS[item.kind] ?? "#484f58";
+        const isDeciding = item.displayStatus === "processing";
+        return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "queue-item", "data-status": item.displayStatus, style: { position: "relative" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "item-content", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "item-title", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "item-badge", style: { background: `${color}33`, color }, children: item.kind }),
+              item.title
             ] }),
-            progress.calibration.topCorrelation && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "metric", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "metric-label", children: "Top Signal" }),
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "metric-value", children: [
-                progress.calibration.topCorrelation.signal,
-                " (",
-                progress.calibration.topCorrelation.strength > 0 ? "+" : "",
-                progress.calibration.topCorrelation.strength.toFixed(3),
-                ")"
-              ] })
+            isDeciding && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "item-detail", children: item.rationale }),
+            isDeciding && item.context.screen && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "item-detail", children: [
+              "Screen: ",
+              item.context.screen,
+              item.context.element ? ` / ${item.context.element}` : ""
+            ] })
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "item-actions", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "priority-score", children: item.priority.toFixed(3) }),
+            isDeciding && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { className: "btn btn-approve", onClick: () => onApprove(item.id), children: "\u2713 Approve" }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { className: "btn", onClick: () => onSkip(item.id), children: "\u25CB Skip" })
             ] })
           ] })
         ] });
-      }
+      });
+      var QueueVisualization = (0, import_react.memo)(function QueueVisualization2({ queue, onApprove, onSkip }) {
+        if (queue.length === 0)
+          return null;
+        return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "card card-full", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("h2", { children: [
+            "Effect Queue \u2014 ",
+            queue.length,
+            " items"
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "queue-container", children: queue.map((item) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(QueueItemView, { item, onApprove, onSkip }, item.id)) })
+        ] });
+      });
+      var WorkbenchPanel = (0, import_react.memo)(function WorkbenchPanel2({ workbench, onApprove, onSkip }) {
+        if (!workbench || workbench.items.length === 0)
+          return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "card card-full", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h2", { children: "Workbench" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "empty", children: "No pending items. Converged." })
+          ] });
+        const byScreen = /* @__PURE__ */ new Map();
+        for (const item of workbench.items) {
+          const s = item.context.screen ?? "unknown";
+          byScreen.set(s, [...byScreen.get(s) ?? [], item]);
+        }
+        return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "card card-full", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("h2", { children: [
+            "Workbench \u2014 ",
+            workbench.summary.pending,
+            " pending"
+          ] }),
+          [...byScreen.entries()].map(([screen, items]) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "screen-group", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "screen-header", children: [
+              screen,
+              " (",
+              items.length,
+              ")"
+            ] }),
+            items.map((item) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "queue-item", "data-status": "pending", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "item-content", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "item-title", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "item-badge", style: { background: `${KIND_COLORS[item.kind] ?? "#484f58"}33`, color: KIND_COLORS[item.kind] ?? "#484f58" }, children: item.kind }),
+                " ",
+                item.title
+              ] }) }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "item-actions", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "priority-score", children: item.priority.toFixed(3) }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { className: "btn btn-approve", onClick: () => onApprove(item.id), children: "\u2713" }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { className: "btn", onClick: () => onSkip(item.id), children: "\u25CB" })
+              ] })
+            ] }, item.id))
+          ] }, screen))
+        ] });
+      });
+      var CompletionsPanel = (0, import_react.memo)(function CompletionsPanel2({ workbench }) {
+        const completions = workbench?.completions ?? [];
+        if (completions.length === 0)
+          return null;
+        return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "card", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("h2", { children: [
+            "Completions (",
+            completions.length,
+            ")"
+          ] }),
+          completions.slice(-8).reverse().map((c, i) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "lineage-entry", children: [
+            c.status === "completed" ? "\u2713" : "\u25CB",
+            " ",
+            c.workItemId.slice(0, 8),
+            " \u2014 ",
+            c.rationale.slice(0, 50)
+          ] }, i))
+        ] });
+      });
       function App() {
         const { data: workbench } = useWorkbench();
         const { data: scorecard } = useFitness();
-        const completeMutation = useCompleteItem();
-        const { connected, lastProgress } = useWebSocket(`ws://${window.location.host}/ws`);
-        const handleAction = (0, import_react.useCallback)((id, status, rationale) => {
-          completeMutation.mutate({ workItemId: id, status, rationale });
-        }, [completeMutation]);
+        const { connected, send, progress, queue } = useEffectStream(`ws://${window.location.host}/ws`);
+        const decisionMutation = useDecision(send);
+        const handleApprove = (0, import_react.useCallback)((id) => {
+          decisionMutation.mutate({ workItemId: id, status: "completed", rationale: `Dashboard approved` });
+        }, [decisionMutation]);
+        const handleSkip = (0, import_react.useCallback)((id) => {
+          decisionMutation.mutate({ workItemId: id, status: "skipped", rationale: `Dashboard skipped` });
+        }, [decisionMutation]);
         return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "container", children: [
           /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h1", { children: "Tesseract Dashboard" }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(StatusBar, { workbench: workbench ?? null, scorecard: scorecard ?? null, connected, progress: lastProgress }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(StatusBar, { workbench: workbench ?? null, scorecard: scorecard ?? null, connected, progress }),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "grid", children: [
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(FitnessCard, { scorecard: scorecard ?? null }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ProgressPanel, { progress: lastProgress }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(KindDistribution, { workbench: workbench ?? null }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(CompletionsPanel, { workbench: workbench ?? null })
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ProgressCard, { progress })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(WorkbenchPanel, { workbench: workbench ?? null, onAction: handleAction })
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(QueueVisualization, { queue, onApprove: handleApprove, onSkip: handleSkip }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(WorkbenchPanel, { workbench: workbench ?? null, onApprove: handleApprove, onSkip: handleSkip }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "grid", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(CompletionsPanel, { workbench: workbench ?? null }) })
         ] });
       }
       var queryClient = new QueryClient({
-        defaultOptions: {
-          queries: { retry: 1, refetchOnWindowFocus: true },
-          mutations: { retry: 0 }
-        }
+        defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: true }, mutations: { retry: 0 } }
       });
-      var root = (0, import_client.createRoot)(document.getElementById("root"));
-      root.render(
+      (0, import_client.createRoot)(document.getElementById("root")).render(
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(QueryClientProvider, { client: queryClient, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(App, {}) })
       );
     }

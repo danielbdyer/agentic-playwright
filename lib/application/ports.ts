@@ -101,3 +101,25 @@ export const DisabledScreenObserver: ScreenObservationPort = {
 };
 
 export class ScreenObserver extends Context.Tag('tesseract/ScreenObserver')<ScreenObserver, ScreenObservationPort>() {}
+
+// ─── Dashboard (Effect fiber → React view) ───
+
+export interface DashboardPort {
+  /** Fire-and-forget: emit event to all connected dashboard clients. */
+  readonly emit: (event: import('../domain/types').DashboardEvent) => Effect.Effect<void, never, never>;
+  /** Fiber pause: send work item to dashboard, await human decision.
+   *  The fiber suspends until the human clicks approve/skip in the UI. */
+  readonly awaitDecision: (item: import('../domain/types').AgentWorkItem) => Effect.Effect<import('../domain/types').WorkItemDecision, never, never>;
+}
+
+/** Disabled dashboard for CI/batch — auto-skips all decisions. */
+export const DisabledDashboard: DashboardPort = {
+  emit: () => Effect.succeed(undefined),
+  awaitDecision: (item) => Effect.succeed({
+    workItemId: item.id,
+    status: 'skipped' as const,
+    rationale: 'No dashboard connected',
+  }),
+};
+
+export class Dashboard extends Context.Tag('tesseract/Dashboard')<Dashboard, DashboardPort>() {}
