@@ -48,7 +48,9 @@
     "speedrun": "npm run build && npx tsx scripts/speedrun.ts",
     "experiments": "npx tsx scripts/experiments.ts",
     "sensitivity": "npx tsx scripts/sensitivity.ts",
-    "evolve": "npx tsx scripts/evolve.ts"
+    "evolve": "npx tsx scripts/evolve.ts",
+    "dashboard": "npm run build && node dashboard/server.cjs",
+    "dashboard:build": "node scripts/build.cjs --demo-harness-only"
   },
   "dependencies": {
     "@playwright/test": "^1.39.0",

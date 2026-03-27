@@ -44,6 +44,10 @@ const demoHarnessEntries = [
     entry: path.join(ROOT_DIR, 'dogfood', 'fixtures', 'demo-harness', 'src', 'policy-journey.tsx'),
     outfile: path.join(ROOT_DIR, 'dogfood', 'fixtures', 'demo-harness', 'policy-journey.js'),
   },
+  {
+    entry: path.join(ROOT_DIR, 'dashboard', 'src', 'app.tsx'),
+    outfile: path.join(ROOT_DIR, 'dashboard', 'dashboard.js'),
+  },
 ];
 
 function host() {
