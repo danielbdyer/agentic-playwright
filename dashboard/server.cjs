@@ -507,21 +507,55 @@ async function startLiveSpeedrun() {
   const posture = argAfter('--posture') ?? 'warm-start';
 
   console.log(`  Speedrun config: count=${count} seed=${seed} maxIterations=${maxIterations} posture=${posture}`);
-  console.log('');
 
-  // Create DashboardPort backed by WS broadcast.
-  // decisionTimeoutMs: 0 → auto-skip all decisions instantly (passive observation).
-  const { createWsDashboardAdapter } = require(
-    path.join(ROOT, 'dist', 'lib', 'infrastructure', 'dashboard', 'ws-dashboard-adapter.js')
-  );
-  const wsMessageHandlers = [];
-  const wsBroadcaster = {
-    broadcast: (data) => broadcast(data),
-    onMessage: (handler) => wsMessageHandlers.push(handler),
-  };
-  const dashboardPort = createWsDashboardAdapter(wsBroadcaster, { decisionTimeoutMs: 0 });
+  // ─── Pipeline Event Bus (Effect PubSub + SharedArrayBuffer) ───
+  // The event bus is the canonical event source. The PubSub distributes to:
+  //   1. SharedArrayBuffer ring (zero-copy in-process visualization)
+  //   2. WS broadcast (remote browser access)
+  const { Effect: Eff } = require('effect');
+  let dashboardPort;
+  let eventBusFiber;
 
-  // Run the speedrun Effect program with the dashboard port injected.
+  try {
+    const { createPipelineEventBus, subscribeWsBroadcaster } = require(
+      path.join(ROOT, 'dist', 'lib', 'infrastructure', 'dashboard', 'pipeline-event-bus.js')
+    );
+
+    // Create and start the event bus within an Effect runtime
+    const busProgram = Eff.gen(function* () {
+      const bus = yield* createPipelineEventBus({ bufferCapacity: 2048, decisionTimeoutMs: 0 });
+
+      // Start buffer writer subscriber
+      const bufferFiber = yield* bus.start();
+
+      // Subscribe WS broadcast as second consumer
+      const wsFiber = yield* subscribeWsBroadcaster(bus.pubsub, (data) => broadcast(data));
+
+      console.log(`  Event bus: SharedArrayBuffer ring (${2048} slots, ${2048 * 18 * 8} bytes)`);
+      console.log(`  Subscribers: buffer-writer + ws-broadcast`);
+      console.log('');
+
+      return bus.dashboardPort;
+    });
+
+    dashboardPort = await Eff.runPromise(busProgram);
+  } catch (err) {
+    // Fallback to WS-only adapter if event bus fails
+    console.log('  Event bus: unavailable, falling back to WS adapter');
+    console.log(`  Reason: ${err?.message ?? err}`);
+    console.log('');
+
+    const { createWsDashboardAdapter } = require(
+      path.join(ROOT, 'dist', 'lib', 'infrastructure', 'dashboard', 'ws-dashboard-adapter.js')
+    );
+    const wsBroadcaster = {
+      broadcast: (data) => broadcast(data),
+      onMessage: (_handler) => {},
+    };
+    dashboardPort = createWsDashboardAdapter(wsBroadcaster, { decisionTimeoutMs: 0 });
+  }
+
+  // Run the speedrun Effect program with the event bus dashboard port.
   const { speedrunProgram } = require(path.join(ROOT, 'dist', 'lib', 'application', 'speedrun.js'));
   const { DEFAULT_PIPELINE_CONFIG } = require(path.join(ROOT, 'dist', 'lib', 'domain', 'types', 'pipeline-config.js'));
 

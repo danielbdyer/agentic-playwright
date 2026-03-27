@@ -49,8 +49,8 @@
     "experiments": "npx tsx scripts/experiments.ts",
     "sensitivity": "npx tsx scripts/sensitivity.ts",
     "evolve": "npx tsx scripts/evolve.ts",
-    "dashboard": "npm run build && node dashboard/server.cjs",
-    "dashboard:live": "npm run build && node dashboard/server.cjs --speedrun --count 50 --max-iterations 5",
+    "dashboard": "npm run build && npx tsx dashboard/server.ts",
+    "dashboard:live": "npm run build && npx tsx dashboard/server.ts --speedrun --count 50 --max-iterations 5",
     "dashboard:build": "node scripts/build.cjs --demo-harness-only"
   },
   "dependencies": {
