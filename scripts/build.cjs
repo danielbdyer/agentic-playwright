@@ -100,7 +100,7 @@ async function buildDemoHarness() {
       entryPoints: [entry],
       outfile,
       bundle: true,
-      format: 'iife',
+      format: 'esm',
       jsx: 'automatic',
       minify: false,
       platform: 'browser',

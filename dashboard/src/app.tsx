@@ -14,9 +14,12 @@
  * opacity). No animation library. 60fps via will-change + translate3d.
  */
 
-import { useState, useEffect, useCallback, useRef, memo } from 'react';
+import { useState, useEffect, useCallback, useRef, memo, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { SpatialCanvas } from './spatial/canvas';
+import { useIngestionQueue } from './hooks/use-ingestion-queue';
+import type { ProbeEvent, ScreenCapture, ViewportDimensions } from './spatial/types';
 
 // ─── Types (projections of domain types) ───
 
@@ -72,6 +75,11 @@ function useEffectStream(url: string) {
   const [progress, setProgress] = useState<ProgressEvent | null>(null);
   const [queue, setQueue] = useState<readonly QueuedItem[]>([]);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [capture, setCapture] = useState<ScreenCapture | null>(null);
+  const [appViewport, setAppViewport] = useState<ViewportDimensions>({ width: 1280, height: 720 });
+
+  // Ingestion queue: buffers bursty probe events for smooth 60fps emission
+  const probeQueue = useIngestionQueue<ProbeEvent>({ staggerMs: 60, maxBuffer: 300 });
 
   const send = useCallback((msg: unknown) => {
     wsRef.current?.readyState === WebSocket.OPEN && wsRef.current.send(JSON.stringify(msg));
@@ -93,8 +101,18 @@ function useEffectStream(url: string) {
 
           // Effect fiber events drive React state
           if (type === 'progress') setProgress(data);
+          else if (type === 'element-probed') {
+            // Spatial: buffer probe event for staggered emission to Three.js
+            const probe = data as ProbeEvent;
+            probeQueue.enqueue(probe.id, probe);
+          }
+          else if (type === 'screen-captured') {
+            // Spatial: update the live screenshot texture
+            const cap = data as ScreenCapture;
+            setCapture(cap);
+            setAppViewport({ width: cap.width, height: cap.height });
+          }
           else if (type === 'item-pending') {
-            // Item enters queue — start with 'entering', animate to 'pending'
             const item = data as WorkItem;
             setQueue((prev) => [...prev, { ...item, displayStatus: 'entering' }]);
             requestAnimationFrame(() => {
@@ -112,7 +130,6 @@ function useEffectStream(url: string) {
             const exitStatus: DisplayStatus = decision.status === 'completed' ? 'completed' : 'skipped';
             setQueue((prev) => prev.map((q) => q.id === decision.workItemId ? { ...q, displayStatus: exitStatus } : q));
             setProcessingId((prev) => prev === decision.workItemId ? null : prev);
-            // Remove from DOM after animation completes
             setTimeout(() => {
               setQueue((prev) => prev.filter((q) => q.id !== decision.workItemId));
             }, 400);
@@ -124,9 +141,9 @@ function useEffectStream(url: string) {
     }
     connect();
     return () => { clearTimeout(reconnectTimer); wsRef.current?.close(); };
-  }, [url, qc]);
+  }, [url, qc, probeQueue]);
 
-  return { connected, send, progress, queue, processingId };
+  return { connected, send, progress, queue, processingId, capture, appViewport, probeQueue };
 }
 
 // ─── Data Hooks ───
@@ -338,7 +355,7 @@ const CompletionsPanel = memo(function CompletionsPanel({ workbench }: { workben
 function App() {
   const { data: workbench } = useWorkbench();
   const { data: scorecard } = useFitness();
-  const { connected, send, progress, queue } = useEffectStream(`ws://${window.location.host}/ws`);
+  const { connected, send, progress, queue, capture, appViewport, probeQueue } = useEffectStream(`ws://${window.location.host}/ws`);
   const decisionMutation = useDecision(send);
 
   const handleApprove = useCallback((id: string) => {
@@ -349,20 +366,44 @@ function App() {
     decisionMutation.mutate({ workItemId: id, status: 'skipped', rationale: `Dashboard skipped` });
   }, [decisionMutation]);
 
+  // Derive probe events from the staggered ingestion queue
+  const activeProbes = useMemo(
+    () => probeQueue.active.map((q) => q.data),
+    [probeQueue.active],
+  );
+
+  const handleParticleArrived = useCallback((probeId: string) => {
+    probeQueue.retire(probeId);
+  }, [probeQueue]);
+
   return (
-    <div className="container">
-      <h1>Tesseract Dashboard</h1>
-      <StatusBar workbench={workbench ?? null} scorecard={scorecard ?? null} connected={connected} progress={progress} />
-      <div className="grid">
-        <FitnessCard scorecard={scorecard ?? null} />
-        <ProgressCard progress={progress} />
+    <div className="dashboard-layout">
+      {/* Spatial visualization — full-height R3F canvas */}
+      <div className="spatial-viewport">
+        <SpatialCanvas
+          probes={activeProbes}
+          capture={capture}
+          viewport={appViewport}
+          onParticleArrived={handleParticleArrived}
+        />
+        {probeQueue.buffered > 0 && (
+          <div className="buffer-indicator">{probeQueue.buffered} buffered</div>
+        )}
       </div>
-      {/* Live animated queue — items flow from Effect fiber */}
-      <QueueVisualization queue={queue} onApprove={handleApprove} onSkip={handleSkip} />
-      {/* Static workbench — loaded from disk artifacts */}
-      <WorkbenchPanel workbench={workbench ?? null} onApprove={handleApprove} onSkip={handleSkip} />
-      <div className="grid">
-        <CompletionsPanel workbench={workbench ?? null} />
+
+      {/* Control panel — scrollable sidebar */}
+      <div className="control-panel">
+        <h1>Tesseract Dashboard</h1>
+        <StatusBar workbench={workbench ?? null} scorecard={scorecard ?? null} connected={connected} progress={progress} />
+        <div className="grid">
+          <FitnessCard scorecard={scorecard ?? null} />
+          <ProgressCard progress={progress} />
+        </div>
+        <QueueVisualization queue={queue} onApprove={handleApprove} onSkip={handleSkip} />
+        <WorkbenchPanel workbench={workbench ?? null} onApprove={handleApprove} onSkip={handleSkip} />
+        <div className="grid">
+          <CompletionsPanel workbench={workbench ?? null} />
+        </div>
       </div>
     </div>
   );
