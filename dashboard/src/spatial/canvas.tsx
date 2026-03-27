@@ -40,6 +40,9 @@ import { ProposalGate } from './proposal-gate';
 import { IterationPulse } from './iteration-pulse';
 import { ArtifactAurora } from './artifact-aurora';
 
+/** Module-level no-op tick — stable identity without useMemo. */
+const noopTick = (): number => 0;
+
 // ─── Layout Constants (pure, scene-level) ───
 
 export const SCENE_LAYOUT = {
@@ -92,8 +95,7 @@ const SceneContent = memo(function SceneContent({
     [probes],
   );
 
-  // Identity-stable no-op tick for when no pulse is provided
-  const noopTick = useMemo(() => () => 0, []);
+  // noopTick is module-level (stable identity without useMemo)
 
   return (
     <>
