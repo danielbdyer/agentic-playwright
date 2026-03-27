@@ -15,7 +15,7 @@ import { useMemo, memo, useCallback } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { ProbeEvent, ViewportDimensions } from './types';
-import { domToWorld, confidenceToColor } from './types';
+import { domToWorld, actorToColor } from './types';
 import {
   useParticleSimulation,
   interpolatePosition,
@@ -24,6 +24,14 @@ import {
 } from '../hooks/use-particle-simulation';
 
 // ─── Pure Factories ───
+
+/** Blend actor hue with confidence brightness. Pure.
+ *  Actor provides the base hue (cyan/magenta/gold), confidence scales intensity. */
+const probeColor = (probe: ProbeEvent): [number, number, number] => {
+  const [r, g, b] = actorToColor(probe.actor);
+  const brightness = 0.4 + probe.confidence * 0.6;
+  return [r * brightness, g * brightness, b * brightness];
+};
 
 /** Create a particle from a probe event. Pure factory. */
 const probeToParticle = (
@@ -39,7 +47,7 @@ const probeToParticle = (
     id: probe.id,
     origin: [world.x, world.y, world.z],
     target: [targetX, world.y * 0.5, 0],
-    color: confidenceToColor(probe.confidence),
+    color: probeColor(probe),
     life: 0,
   };
 };

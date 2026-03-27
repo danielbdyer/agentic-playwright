@@ -21,7 +21,7 @@ import { SpatialCanvas } from './spatial/canvas';
 import { LiveDomPortal, PortalLoading } from './spatial/live-dom-portal';
 import { useIngestionQueue } from './hooks/use-ingestion-queue';
 import { useWebMcpCapabilities } from './hooks/use-mcp-capabilities';
-import type { ProbeEvent, ScreenCapture, ViewportDimensions } from './spatial/types';
+import type { ProbeEvent, ScreenCapture, ViewportDimensions, ElementEscalatedEvent } from './spatial/types';
 
 // ─── Types (projections of domain types) ───
 
@@ -116,6 +116,15 @@ const dispatchItemCompleted = (
   setTimeout(() => setQueue((prev) => prev.filter((q) => q.id !== workItemId)), 400);
 };
 
+const dispatchEscalation = (enqueueRef: React.RefObject<(id: string, data: ElementEscalatedEvent) => void>) =>
+  (data: unknown) => { const e = data as ElementEscalatedEvent; enqueueRef.current?.(e.id, e); };
+
+const dispatchFiberPaused = (setFiberPaused: (paused: boolean) => void) =>
+  (_data: unknown) => setFiberPaused(true);
+
+const dispatchFiberResumed = (setFiberPaused: (paused: boolean) => void) =>
+  (_data: unknown) => setFiberPaused(false);
+
 // ─── WebSocket Hook ───
 
 function useEffectStream(url: string) {
@@ -127,12 +136,16 @@ function useEffectStream(url: string) {
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [capture, setCapture] = useState<ScreenCapture | null>(null);
   const [appViewport, setAppViewport] = useState<ViewportDimensions>({ width: 1280, height: 720 });
+  const [fiberPaused, setFiberPaused] = useState(false);
 
   const probeQueue = useIngestionQueue<ProbeEvent>({ staggerMs: 60, maxBuffer: 300 });
+  const escalationQueue = useIngestionQueue<ElementEscalatedEvent>({ staggerMs: 80, maxBuffer: 100 });
 
   // Stable ref to enqueue — prevents WS reconnection on probeQueue reference change
   const enqueueRef = useRef(probeQueue.enqueue);
   enqueueRef.current = probeQueue.enqueue;
+  const escalationEnqueueRef = useRef(escalationQueue.enqueue);
+  escalationEnqueueRef.current = escalationQueue.enqueue;
 
   const send = useCallback((msg: unknown) => {
     wsRef.current?.readyState === WebSocket.OPEN && wsRef.current.send(JSON.stringify(msg));
@@ -148,6 +161,9 @@ function useEffectStream(url: string) {
       'item-pending': dispatchItemPending(setQueue),
       'item-processing': dispatchItemProcessing(setProcessingId, setQueue),
       'item-completed': dispatchItemCompleted(setProcessingId, setQueue),
+      'element-escalated': dispatchEscalation(escalationEnqueueRef),
+      'fiber-paused': dispatchFiberPaused(setFiberPaused),
+      'fiber-resumed': dispatchFiberResumed(setFiberPaused),
     };
   }
 
@@ -183,7 +199,7 @@ function useEffectStream(url: string) {
     return () => { clearTimeout(reconnectTimer); wsRef.current?.close(); };
   }, [url, qc]); // No probeQueue dependency — uses stable ref
 
-  return { connected, send, progress, queue, processingId, capture, appViewport, probeQueue };
+  return { connected, send, progress, queue, processingId, capture, appViewport, probeQueue, escalationQueue, fiberPaused };
 }
 
 // ─── Data Hooks ───
@@ -224,7 +240,9 @@ const useKnowledgeNodes = () => useQuery<readonly import('./spatial/types').Know
         element: parts.slice(1).join('/'),
         confidence: typeof n.confidence === 'number' ? n.confidence : 0.5,
         aliases: Array.isArray(n.aliases) ? n.aliases : [],
-        status: (n.status as 'approved-equivalent' | 'learning' | 'needs-review') ?? 'learning',
+        status: (n.status as import('./spatial/types').KnowledgeNodeStatus) ?? 'learning',
+        lastActor: (n.lastActor as import('./spatial/types').ActorKind) ?? 'system',
+        governance: (n.governance as import('./spatial/types').Governance) ?? 'approved',
       }];
     });
   },
@@ -434,7 +452,7 @@ function App() {
   const { data: workbench } = useWorkbench();
   const { data: scorecard } = useFitness();
   const { data: knowledgeNodes } = useKnowledgeNodes();
-  const { connected, send, progress, queue, capture, appViewport, probeQueue } = useEffectStream(`ws://${window.location.host}/ws`);
+  const { connected, send, progress, queue, capture, appViewport, probeQueue, fiberPaused } = useEffectStream(`ws://${window.location.host}/ws`);
   const decisionMutation = useDecision(send);
 
   // Progressive enhancement: detect available capabilities (MCP, live portal)
@@ -490,6 +508,11 @@ function App() {
         {/* MCP indicator */}
         {capabilities.mcpAvailable && (
           <div className="mcp-indicator">MCP</div>
+        )}
+
+        {/* Fiber pause indicator */}
+        {fiberPaused && (
+          <div className="fiber-paused-indicator">AWAITING HUMAN</div>
         )}
       </div>
 

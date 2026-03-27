@@ -18,7 +18,7 @@ import { useRef, useMemo, memo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { ProbeEvent, ViewportDimensions } from './types';
-import { domToWorld, confidenceToColor, rungToIntensity } from './types';
+import { rungToIntensity, governanceToTint, governanceToGlowStyle } from './types';
 
 interface SelectorGlowsProps {
   readonly probes: readonly ProbeEvent[];
@@ -94,7 +94,15 @@ export const SelectorGlows = memo(function SelectorGlows({
 
       const scaleX = (box.width / vw) * planeWidth * 1.1;
       const scaleY = (box.height / vh) * planeHeight * 1.1;
-      const pulse = 1.0 + Math.sin(time * 3 + i * 0.5) * 0.08;
+
+      // Governance drives glow animation style:
+      //   approved → solid (gentle pulse), review-required → faster pulse, blocked → flicker
+      const glowStyle = governanceToGlowStyle(probe.governance);
+      const pulse = glowStyle === 'flicker'
+        ? 1.0 + Math.sin(time * 12 + i * 0.3) * 0.2
+        : glowStyle === 'pulse'
+          ? 1.0 + Math.sin(time * 5 + i * 0.5) * 0.15
+          : 1.0 + Math.sin(time * 3 + i * 0.5) * 0.08;
 
       // Write matrix directly to mesh — no clone, no intermediate array
       _obj.position.set(worldX, worldY, 0.01);
@@ -102,14 +110,12 @@ export const SelectorGlows = memo(function SelectorGlows({
       _obj.updateMatrix();
       mesh.setMatrixAt(i, _obj.matrix);
 
-      // Write color directly to shared buffer
+      // Color from governance tint modulated by rung intensity
       const intensity = rungToIntensity(probe.locatorRung);
-      const confidence = probe.confidence;
-      const g = Math.min(1, confidence * 1.2) * intensity;
-      const b = Math.max(0, 1 - confidence * 1.5) * intensity;
-      _colors[i * 3] = 0.2 * intensity;
-      _colors[i * 3 + 1] = g;
-      _colors[i * 3 + 2] = b;
+      const [tr, tg, tb] = governanceToTint(probe.governance);
+      _colors[i * 3] = tr * intensity;
+      _colors[i * 3 + 1] = tg * intensity;
+      _colors[i * 3 + 2] = tb * intensity;
     }
 
     mesh.instanceMatrix.needsUpdate = true;

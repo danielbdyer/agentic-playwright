@@ -18,6 +18,7 @@ import { useRef, useMemo, memo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { KnowledgeNode } from './types';
+import { governanceToTint, actorToColor } from './types';
 
 // ─── Types ───
 
@@ -32,13 +33,18 @@ interface KnowledgeObservatoryProps {
 
 // ─── Pure Layout ───
 
-/** Status to color: learning (cyan-blue) → approved (green) → needs-review (amber). Pure. */
-const statusToColor = (status: KnowledgeNode['status'], confidence: number): [number, number, number] => {
-  switch (status) {
-    case 'approved-equivalent': return [0.1, 0.8 + confidence * 0.2, 0.2];
-    case 'learning': return [0.2, 0.4 + confidence * 0.4, 0.9];
-    case 'needs-review': return [0.9, 0.6, 0.1];
-  }
+/** Node color: blend governance tint with actor hue, modulated by confidence. Pure.
+ *  Governance provides the base (green/amber/red), actor shifts the hue. */
+const nodeColor = (node: KnowledgeNode): [number, number, number] => {
+  const [gr, gg, gb] = governanceToTint(node.governance);
+  const [ar, ag, ab] = actorToColor(node.lastActor);
+  const blend = 0.7; // governance-dominant blend
+  const brightness = 0.5 + node.confidence * 0.5;
+  return [
+    (gr * blend + ar * (1 - blend)) * brightness,
+    (gg * blend + ag * (1 - blend)) * brightness,
+    (gb * blend + ab * (1 - blend)) * brightness,
+  ];
 };
 
 /** Confidence to sphere radius: higher confidence = larger node. Pure. */
@@ -143,18 +149,20 @@ export const KnowledgeObservatory = memo(function KnowledgeObservatory({
 
       // Gentle pulse: breathe based on time + index offset
       const pulse = 1.0 + Math.sin(time * 2 + i * 0.7) * 0.1;
-      // Crystallization effect: newly learning nodes shimmer faster
+      // Crystallization effect: learning nodes shimmer faster, blocked nodes flicker
       const shimmer = node.status === 'learning'
         ? 1.0 + Math.sin(time * 5 + i * 1.3) * 0.15
-        : 1.0;
+        : node.status === 'blocked'
+          ? 1.0 + Math.sin(time * 10 + i * 0.9) * 0.2
+          : 1.0;
 
       _obj.position.set(pos.x, pos.y, pos.z);
       _obj.scale.set(radius * pulse * shimmer, radius * pulse * shimmer, radius * pulse * shimmer);
       _obj.updateMatrix();
       mesh.setMatrixAt(i, _obj.matrix);
 
-      // Color from status + confidence
-      const [r, g, b] = statusToColor(node.status, node.confidence);
+      // Color from governance + actor blend
+      const [r, g, b] = nodeColor(node);
       const emission = confidenceToEmission(node.confidence);
       _colors[i * 3] = r * emission;
       _colors[i * 3 + 1] = g * emission;
