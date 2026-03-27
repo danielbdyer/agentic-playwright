@@ -72,186 +72,94 @@ export function proposalIdForEntry(
 export function buildOperatorInboxItems(catalog: WorkspaceCatalog): OperatorInboxItem[] {
   const approvals = new Set(catalog.approvalReceipts.map((entry) => entry.artifact.proposalId));
   const latestRunByAdo = latestRuns(catalog);
-  const items: OperatorInboxItem[] = [];
   const seenProposalIds = new Set<string>();
 
-  for (const bundleEntry of [...catalog.proposalBundles].sort((left, right) => right.artifact.runId.localeCompare(left.artifact.runId))) {
-    const bundle = bundleEntry.artifact;
-    const run = latestRunByAdo.get(bundle.adoId) ?? null;
-    for (const proposal of bundle.proposals) {
-      const stableProposalId = proposal.proposalId || proposalId(bundle, proposal);
-      if (seenProposalIds.has(stableProposalId)) {
-        continue;
-      }
-      seenProposalIds.add(stableProposalId);
-      const metadata = runStepMetadata(run, proposal.stepIndex);
-      const kind = proposal.activation.status === 'blocked' ? 'blocked-policy' : 'proposal';
-      items.push({
-        id: inboxItemId({
+  // Source 1: proposal bundles → proposal + blocked-policy items
+  const proposalItems = [...catalog.proposalBundles]
+    .sort((a, b) => b.artifact.runId.localeCompare(a.artifact.runId))
+    .flatMap((bundleEntry) => {
+      const bundle = bundleEntry.artifact;
+      const run = latestRunByAdo.get(bundle.adoId) ?? null;
+      return bundle.proposals.flatMap((proposal): readonly OperatorInboxItem[] => {
+        const stableProposalId = proposal.proposalId || proposalId(bundle, proposal);
+        if (seenProposalIds.has(stableProposalId)) return [];
+        seenProposalIds.add(stableProposalId);
+        const metadata = runStepMetadata(run, proposal.stepIndex);
+        const kind = proposal.activation.status === 'blocked' ? 'blocked-policy' as const : 'proposal' as const;
+        return [{
+          id: inboxItemId({ kind, adoId: bundle.adoId, runId: bundle.runId, proposalId: stableProposalId, stepIndex: proposal.stepIndex, targetPath: proposal.targetPath }),
           kind,
-          adoId: bundle.adoId,
-          runId: bundle.runId,
-          proposalId: stableProposalId,
-          stepIndex: proposal.stepIndex,
-          targetPath: proposal.targetPath,
-        }),
-        kind,
-        status: proposal.activation.status === 'blocked'
-          ? 'blocked'
-          : proposal.certification === 'certified' || approvals.has(stableProposalId)
-            ? 'approved'
-            : 'actionable',
-        title: proposal.title,
-        summary: proposal.activation.status === 'blocked'
-          ? `Active-canon activation failed for ${proposal.artifactType} at ${proposal.targetPath}: ${proposal.activation.reason ?? 'unknown reason'}.`
-          : proposal.certification === 'certified'
-            ? `Certified canon is active for ${proposal.artifactType} at ${proposal.targetPath}.`
-            : `Active canon is live for ${proposal.artifactType} at ${proposal.targetPath} and remains uncertified.`,
-        adoId: bundle.adoId,
-        suite: bundle.suite,
-        runId: bundle.runId,
-        stepIndex: proposal.stepIndex,
-        proposalId: stableProposalId,
-        artifactPath: bundleEntry.artifactPath,
-        targetPath: proposal.targetPath,
-        winningConcern: metadata.winningConcern,
-        winningSource: metadata.winningSource,
-        resolutionMode: metadata.resolutionMode,
-        nextCommands: proposal.activation.status === 'blocked'
-          ? uniqueSorted([
-              `tesseract workflow --ado-id ${bundle.adoId}`,
-              `tesseract inbox`,
-            ])
-          : uniqueSorted([
-              `tesseract certify --proposal-id ${stableProposalId}`,
-              `tesseract approve --proposal-id ${stableProposalId}`,
-              `tesseract rerun-plan --proposal-id ${stableProposalId}`,
-              `tesseract workflow --ado-id ${bundle.adoId}`,
-            ]),
+          status: proposal.activation.status === 'blocked' ? 'blocked'
+            : proposal.certification === 'certified' || approvals.has(stableProposalId) ? 'approved' : 'actionable',
+          title: proposal.title,
+          summary: proposal.activation.status === 'blocked'
+            ? `Active-canon activation failed for ${proposal.artifactType} at ${proposal.targetPath}: ${proposal.activation.reason ?? 'unknown reason'}.`
+            : proposal.certification === 'certified'
+              ? `Certified canon is active for ${proposal.artifactType} at ${proposal.targetPath}.`
+              : `Active canon is live for ${proposal.artifactType} at ${proposal.targetPath} and remains uncertified.`,
+          adoId: bundle.adoId, suite: bundle.suite, runId: bundle.runId, stepIndex: proposal.stepIndex,
+          proposalId: stableProposalId, artifactPath: bundleEntry.artifactPath, targetPath: proposal.targetPath,
+          winningConcern: metadata.winningConcern, winningSource: metadata.winningSource, resolutionMode: metadata.resolutionMode,
+          nextCommands: proposal.activation.status === 'blocked'
+            ? uniqueSorted([`tesseract workflow --ado-id ${bundle.adoId}`, `tesseract inbox`])
+            : uniqueSorted([`tesseract certify --proposal-id ${stableProposalId}`, `tesseract approve --proposal-id ${stableProposalId}`, `tesseract rerun-plan --proposal-id ${stableProposalId}`, `tesseract workflow --ado-id ${bundle.adoId}`]),
+        }];
       });
-    }
-  }
+    });
 
-
-  for (const graphEntry of catalog.resolutionGraphRecords) {
+  // Source 2: resolution graphs → needs-human items
+  const graphItems = catalog.resolutionGraphRecords.flatMap((graphEntry): readonly OperatorInboxItem[] => {
     const graph = graphEntry.artifact;
-    const liveDomWins = graph.steps.filter((step) => step.graph.winner.rung === 'live-dom').length;
-    const needsHumanWins = graph.steps.filter((step) => step.graph.winner.rung === 'needs-human').length;
-    if (liveDomWins === 0 && needsHumanWins === 0) {
-      continue;
-    }
-    items.push({
+    const liveDomWins = graph.steps.filter((s) => s.graph.winner.rung === 'live-dom').length;
+    const needsHumanWins = graph.steps.filter((s) => s.graph.winner.rung === 'needs-human').length;
+    if (liveDomWins === 0 && needsHumanWins === 0) return [];
+    return [{
       id: inboxItemId({ kind: 'needs-human', adoId: graph.adoId, runId: graph.runId, stepIndex: null }),
-      kind: 'needs-human',
-      status: needsHumanWins > 0 ? 'actionable' : 'informational',
+      kind: 'needs-human', status: needsHumanWins > 0 ? 'actionable' : 'informational',
       title: `Resolution graph hotspot for run ${graph.runId}`,
       summary: `Resolution graph winners include live-dom=${liveDomWins}, needs-human=${needsHumanWins}.`,
-      adoId: graph.adoId,
-      suite: null,
-      runId: graph.runId,
-      stepIndex: null,
-      proposalId: null,
-      artifactPath: null,
-      targetPath: null,
-      winningConcern: 'resolution',
-      winningSource: needsHumanWins > 0 ? 'none' : 'live-dom',
-      resolutionMode: 'agentic',
-      nextCommands: uniqueSorted([
-        `tesseract replay-interpretation --ado-id ${graph.adoId}`,
-        `tesseract inbox`,
-      ]),
-    });
-  }
+      adoId: graph.adoId, suite: null, runId: graph.runId, stepIndex: null,
+      proposalId: null, artifactPath: null, targetPath: null,
+      winningConcern: 'resolution', winningSource: needsHumanWins > 0 ? 'none' : 'live-dom', resolutionMode: 'agentic',
+      nextCommands: uniqueSorted([`tesseract replay-interpretation --ado-id ${graph.adoId}`, `tesseract inbox`]),
+    }];
+  });
 
-  for (const run of latestRunByAdo.values()) {
-    for (const step of run.steps) {
-      if (step.execution.degraded) {
-        items.push({
-          id: inboxItemId({
-            kind: 'degraded-locator',
-            adoId: run.adoId,
-            runId: run.runId,
-            stepIndex: step.stepIndex,
-          }),
-          kind: 'degraded-locator',
-          status: 'actionable',
+  // Source 3: run steps → degraded-locator + needs-human + approved-equivalent items
+  const stepItems = [...latestRunByAdo.values()].flatMap((run) =>
+    run.steps.flatMap((step): readonly OperatorInboxItem[] => {
+      const base = {
+        adoId: run.adoId, suite: run.suite, runId: run.runId, stepIndex: step.stepIndex,
+        artifactPath: null as string | null, targetPath: null as string | null,
+        winningConcern: step.interpretation.winningConcern, winningSource: step.interpretation.winningSource,
+        resolutionMode: step.interpretation.resolutionMode,
+        nextCommands: uniqueSorted([`tesseract workflow --ado-id ${run.adoId}`, `tesseract inbox`]),
+      };
+      return [
+        ...(step.execution.degraded ? [{
+          ...base, id: inboxItemId({ kind: 'degraded-locator' as const, adoId: run.adoId, runId: run.runId, stepIndex: step.stepIndex }),
+          kind: 'degraded-locator' as const, status: 'actionable' as const, proposalId: null as string | null,
           title: `Degraded locator on step ${step.stepIndex}`,
           summary: `Runtime resolved step ${step.stepIndex} with a degraded locator strategy.`,
-          adoId: run.adoId,
-          suite: run.suite,
-          runId: run.runId,
-          stepIndex: step.stepIndex,
-          artifactPath: null,
-          targetPath: null,
-          winningConcern: step.interpretation.winningConcern,
-          winningSource: step.interpretation.winningSource,
-          resolutionMode: step.interpretation.resolutionMode,
-          nextCommands: uniqueSorted([
-            `tesseract workflow --ado-id ${run.adoId}`,
-            `tesseract inbox`,
-          ]),
-        });
-      }
-
-      if (step.interpretation.kind === 'needs-human') {
-        items.push({
-          id: inboxItemId({
-            kind: 'needs-human',
-            adoId: run.adoId,
-            runId: run.runId,
-            stepIndex: step.stepIndex,
-          }),
-          kind: 'needs-human',
-          status: 'actionable',
+        }] : []),
+        ...(step.interpretation.kind === 'needs-human' ? [{
+          ...base, id: inboxItemId({ kind: 'needs-human' as const, adoId: run.adoId, runId: run.runId, stepIndex: step.stepIndex }),
+          kind: 'needs-human' as const, status: 'actionable' as const, proposalId: null as string | null,
           title: `Needs human on step ${step.stepIndex}`,
           summary: `Runtime exhausted approved knowledge and live DOM resolution for step ${step.stepIndex}.`,
-          adoId: run.adoId,
-          suite: run.suite,
-          runId: run.runId,
-          stepIndex: step.stepIndex,
-          artifactPath: null,
-          targetPath: null,
-          winningConcern: step.interpretation.winningConcern,
-          winningSource: step.interpretation.winningSource,
-          resolutionMode: step.interpretation.resolutionMode,
-          nextCommands: uniqueSorted([
-            `tesseract workflow --ado-id ${run.adoId}`,
-            `tesseract inbox`,
-          ]),
-        });
-      }
-
-      if (step.interpretation.winningSource === 'approved-equivalent' && step.execution.execution.status === 'ok') {
-        items.push({
-          id: inboxItemId({
-            kind: 'approved-equivalent',
-            adoId: run.adoId,
-            runId: run.runId,
-            stepIndex: step.stepIndex,
-          }),
-          kind: 'approved-equivalent',
-          status: 'informational',
+        }] : []),
+        ...(step.interpretation.winningSource === 'approved-equivalent' && step.execution.execution.status === 'ok' ? [{
+          ...base, id: inboxItemId({ kind: 'approved-equivalent' as const, adoId: run.adoId, runId: run.runId, stepIndex: step.stepIndex }),
+          kind: 'approved-equivalent' as const, status: 'informational' as const, proposalId: null as string | null,
           title: `Approved-equivalent overlay on step ${step.stepIndex}`,
           summary: `Step ${step.stepIndex} executed green using derived confidence overlays instead of approved canon.`,
-          adoId: run.adoId,
-          suite: run.suite,
-          runId: run.runId,
-          stepIndex: step.stepIndex,
-          artifactPath: null,
           targetPath: step.interpretation.overlayRefs[0] ?? null,
-          winningConcern: step.interpretation.winningConcern,
-          winningSource: step.interpretation.winningSource,
-          resolutionMode: step.interpretation.resolutionMode,
-          nextCommands: uniqueSorted([
-            `tesseract workflow --ado-id ${run.adoId}`,
-            `tesseract inbox`,
-          ]),
-        });
-      }
-    }
-  }
+        }] : []),
+      ];
+    }),
+  );
 
-  return items.sort((left, right) => compareStrings(left.id, right.id));
+  return [...proposalItems, ...graphItems, ...stepItems].sort((a, b) => compareStrings(a.id, b.id));
 }
 
 export function operatorInboxItemsForScenario(items: readonly OperatorInboxItem[], adoId: AdoId): OperatorInboxItem[] {
@@ -265,101 +173,78 @@ export function findProposalById(catalog: WorkspaceCatalog, proposalIdValue: str
   proposal: ProposalEntry;
   artifactPath: string;
 } | null {
-  for (const bundleEntry of catalog.proposalBundles) {
-    for (const proposal of bundleEntry.artifact.proposals) {
-      if (proposal.proposalId === proposalIdValue || proposalId(bundleEntry.artifact, proposal) === proposalIdValue) {
-        return {
-          bundle: bundleEntry.artifact,
-          proposal,
-          artifactPath: bundleEntry.artifactPath,
-        };
-      }
-    }
-  }
-  return null;
+  return catalog.proposalBundles
+    .flatMap((entry) => entry.artifact.proposals.map((p) => ({ bundle: entry.artifact, proposal: p, artifactPath: entry.artifactPath })))
+    .find(({ bundle, proposal }) => proposal.proposalId === proposalIdValue || proposalId(bundle, proposal) === proposalIdValue)
+    ?? null;
 }
 
+// ─── Markdown Section Renderers (pure: data → string[]) ───
+
+const renderImprovementSection = (runs: readonly ImprovementRun[]): readonly string[] => [
+  '## Recursive improvement', '',
+  ...(runs.length === 0
+    ? ['- No recursive-improvement runs currently reference this inbox scope.']
+    : runs.slice(0, 5).flatMap((run) => {
+        const d = run.acceptanceDecisions[0] ?? null;
+        const scenarios = run.iterations.flatMap((i) => i.scenarioIds).filter((v, i, a) => a.indexOf(v) === i).join(', ') || 'none';
+        return [
+          `- ${run.improvementRunId}: accepted=${run.accepted ? 'yes' : 'no'}, verdict=${d?.verdict ?? 'none'}, signals=${run.signals.length}, candidates=${run.candidateInterventions.length}, scenarios=${scenarios}`,
+          `  - checkpoint: ${d?.checkpointRef ?? 'none'}`,
+          `  - convergence: ${run.converged ? `yes (${run.convergenceReason ?? 'none'})` : 'no'}`,
+        ];
+      })),
+  '',
+];
+
+const renderHotspotSection = (hotspots: readonly WorkflowHotspot[]): readonly string[] => [
+  '## Hotspot suggestions', '',
+  ...(hotspots.length === 0
+    ? ['- No repeated translation/agentic/degraded wins detected in the latest run per scenario.']
+    : hotspots.flatMap((h) => [
+        `- ${h.kind} :: ${h.screen} :: ${h.family.field}/${h.family.action} (${h.occurrenceCount})`,
+        ...h.suggestions.map((s) => `  - ${s.target}: ${s.reason}`),
+      ])),
+  '',
+];
+
+const renderRerunSection = (plans: readonly import('../domain/types').RerunPlan[]): readonly string[] =>
+  plans.length === 0 ? [] : [
+    '## Rerun plans', '',
+    ...plans.flatMap((plan) => [
+      `- ${plan.planId}: scenarios=${plan.impactedScenarioIds.length}, runbooks=${plan.impactedRunbooks.length}, projections=${plan.impactedProjections.join(', ') || 'none'}`,
+      ...plan.selection.scenarios.map((s) => `  - scenario ${s.id}: ${s.why.join(' | ') || 'n/a'}`),
+      ...plan.selection.runbooks.map((r) => `  - runbook ${r.name}: ${r.why.join(' | ') || 'n/a'}`),
+      ...plan.selection.projections.map((p) => `  - projection ${p.name}: ${p.why.join(' | ') || 'n/a'}`),
+      ...plan.selection.confidenceRecords.map((c) => `  - confidence ${c.id}: ${c.why.join(' | ') || 'n/a'}`),
+    ]),
+    '',
+  ];
+
+const renderItemSection = (item: OperatorInboxItem): readonly string[] => [
+  `## ${item.title}`, '',
+  `- Inbox id: ${item.id}`, `- Kind: ${item.kind}`, `- Status: ${item.status}`,
+  `- Summary: ${item.summary}`, `- Scenario: ${item.adoId ?? 'n/a'}`,
+  `- Run: ${item.runId ?? 'n/a'}`, `- Step: ${item.stepIndex ?? 'n/a'}`,
+  `- Proposal id: ${item.proposalId ?? 'n/a'}`, `- Target: ${item.targetPath ?? 'n/a'}`,
+  `- Winning concern: ${item.winningConcern ?? 'n/a'}`, `- Winning source: ${item.winningSource ?? 'n/a'}`,
+  `- Resolution mode: ${item.resolutionMode ?? 'n/a'}`,
+  `- Next commands: ${item.nextCommands.length > 0 ? item.nextCommands.join(' | ') : 'n/a'}`,
+  '',
+];
+
+/** Render the full operator inbox as markdown. Pure composition of section renderers. */
 export function renderOperatorInboxMarkdown(
   items: readonly OperatorInboxItem[],
   rerunPlans: readonly import('../domain/types').RerunPlan[] = [],
   hotspots: readonly WorkflowHotspot[] = [],
   improvementRuns: readonly ImprovementRun[] = [],
 ): string {
-  const lines: string[] = [
-    '# Operator Inbox',
-    '',
-    `- Item count: ${items.length}`,
-    '',
-  ];
-
-  lines.push('## Recursive improvement');
-  lines.push('');
-  if (improvementRuns.length === 0) {
-    lines.push('- No recursive-improvement runs currently reference this inbox scope.');
-  } else {
-    for (const run of improvementRuns.slice(0, 5)) {
-      const decision = run.acceptanceDecisions[0] ?? null;
-      lines.push(
-        `- ${run.improvementRunId}: accepted=${run.accepted ? 'yes' : 'no'}, verdict=${decision?.verdict ?? 'none'}, signals=${run.signals.length}, candidates=${run.candidateInterventions.length}, scenarios=${run.iterations.flatMap((iteration) => iteration.scenarioIds).filter((value, index, all) => all.indexOf(value) === index).join(', ') || 'none'}`,
-      );
-      lines.push(`  - checkpoint: ${decision?.checkpointRef ?? 'none'}`);
-      lines.push(`  - convergence: ${run.converged ? `yes (${run.convergenceReason ?? 'none'})` : 'no'}`);
-    }
-  }
-  lines.push('');
-
-  lines.push('## Hotspot suggestions');
-  lines.push('');
-  if (hotspots.length === 0) {
-    lines.push('- No repeated translation/agentic/degraded wins detected in the latest run per scenario.');
-  }
-  for (const hotspot of hotspots) {
-    lines.push(`- ${hotspot.kind} :: ${hotspot.screen} :: ${hotspot.family.field}/${hotspot.family.action} (${hotspot.occurrenceCount})`);
-    for (const suggestion of hotspot.suggestions) {
-      lines.push(`  - ${suggestion.target}: ${suggestion.reason}`);
-    }
-  }
-  lines.push('');
-
-  if (rerunPlans.length > 0) {
-    lines.push('## Rerun plans');
-    lines.push('');
-    for (const plan of rerunPlans) {
-      lines.push(`- ${plan.planId}: scenarios=${plan.impactedScenarioIds.length}, runbooks=${plan.impactedRunbooks.length}, projections=${plan.impactedProjections.join(', ') || 'none'}`);
-      for (const scenario of plan.selection.scenarios) {
-        lines.push(`  - scenario ${scenario.id}: ${scenario.why.join(' | ') || 'n/a'}`);
-      }
-      for (const runbook of plan.selection.runbooks) {
-        lines.push(`  - runbook ${runbook.name}: ${runbook.why.join(' | ') || 'n/a'}`);
-      }
-      for (const projection of plan.selection.projections) {
-        lines.push(`  - projection ${projection.name}: ${projection.why.join(' | ') || 'n/a'}`);
-      }
-      for (const record of plan.selection.confidenceRecords) {
-        lines.push(`  - confidence ${record.id}: ${record.why.join(' | ') || 'n/a'}`);
-      }
-    }
-    lines.push('');
-  }
-
-  for (const item of items) {
-    lines.push(`## ${item.title}`);
-    lines.push('');
-    lines.push(`- Inbox id: ${item.id}`);
-    lines.push(`- Kind: ${item.kind}`);
-    lines.push(`- Status: ${item.status}`);
-    lines.push(`- Summary: ${item.summary}`);
-    lines.push(`- Scenario: ${item.adoId ?? 'n/a'}`);
-    lines.push(`- Run: ${item.runId ?? 'n/a'}`);
-    lines.push(`- Step: ${item.stepIndex ?? 'n/a'}`);
-    lines.push(`- Proposal id: ${item.proposalId ?? 'n/a'}`);
-    lines.push(`- Target: ${item.targetPath ?? 'n/a'}`);
-    lines.push(`- Winning concern: ${item.winningConcern ?? 'n/a'}`);
-    lines.push(`- Winning source: ${item.winningSource ?? 'n/a'}`);
-    lines.push(`- Resolution mode: ${item.resolutionMode ?? 'n/a'}`);
-    lines.push(`- Next commands: ${item.nextCommands.length > 0 ? item.nextCommands.join(' | ') : 'n/a'}`);
-    lines.push('');
-  }
-
-  return `${lines.join('\n').trim()}\n`;
+  return [
+    '# Operator Inbox', '', `- Item count: ${items.length}`, '',
+    ...renderImprovementSection(improvementRuns),
+    ...renderHotspotSection(hotspots),
+    ...renderRerunSection(rerunPlans),
+    ...items.flatMap(renderItemSection),
+  ].join('\n').trim() + '\n';
 }
