@@ -735,7 +735,9 @@ function scenarioToYaml(
   title: string,
   suite: string,
   steps: readonly SyntheticStep[],
+  extraTags: readonly string[] = [],
 ): string {
+  const allTags = ['synthetic', 'dogfood', ...extraTags];
   const lines: string[] = [
     'source:',
     `  ado_id: "${adoId}"`,
@@ -747,8 +749,7 @@ function scenarioToYaml(
     `  title: "${title.replace(/"/g, '\\"')}"`,
     `  suite: ${suite}`,
     '  tags:',
-    '    - synthetic',
-    '    - dogfood',
+    ...allTags.map((tag) => `    - ${tag}`),
     '  priority: 2',
     '  status: active',
     '  status_detail: null',
@@ -794,6 +795,9 @@ export interface GenerateSyntheticScenariosOptions {
   /** Fine-grained perturbation control — four independent modes.
    *  Overrides perturbationRate when provided. */
   readonly perturbation?: Partial<PerturbationConfig> | undefined;
+  /** Fraction of scenarios tagged as 'validation-heldout' (0.0-1.0).
+   *  Remaining scenarios tagged as 'training'. Default 0 (all training). */
+  readonly validationSplit?: number | undefined;
 }
 
 export interface GenerateSyntheticScenariosResult {
@@ -913,7 +917,10 @@ export function generateSyntheticScenarios(options: GenerateSyntheticScenariosOp
             .map((step) => applyPerturbations(step, perturbConfig, rng))
         : scenario.steps;
 
-      const yaml = scenarioToYaml(adoId, scenario.title, suite, perturbedSteps);
+      // Tag-based train/validation partition for held-out validation
+      const splitRate = options.validationSplit ?? 0;
+      const partitionTag = splitRate > 0 && rng() < splitRate ? 'validation-heldout' : 'training';
+      const yaml = scenarioToYaml(adoId, scenario.title, suite, perturbedSteps, splitRate > 0 ? [partitionTag] : []);
       const filePath = `${suiteDir}/${adoId}.scenario.yaml`;
       yield* fs.writeText(filePath, yaml);
       files.push(filePath);

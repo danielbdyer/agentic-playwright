@@ -339,6 +339,47 @@ function buildAgentSystemPrompt(request: AgentInterpretationRequest): string {
     .map((entry) => `  ${entry.stage}: ${entry.outcome} — ${entry.reason}`)
     .join('\n');
 
+  // Enriched context sections (only included when present)
+  const candidatesSection = request.topCandidates
+    ? [
+        '',
+        'Prior rung rankings (confidence calibration):',
+        ...request.topCandidates.screens.map((c) => `  screen "${c.screen}" scored ${c.score.toFixed(2)}`),
+        ...request.topCandidates.elements.map((c) => `  element "${c.element}" on "${c.screen}" scored ${c.score.toFixed(2)}`),
+      ]
+    : [];
+
+  const groundingSection = request.grounding
+    ? [
+        '',
+        'Structural constraints:',
+        ...(request.grounding.targetRefs.length > 0 ? [`  Target refs: ${request.grounding.targetRefs.join(', ')}`] : []),
+        ...(request.grounding.requiredStateRefs.length > 0 ? [`  Required state: ${request.grounding.requiredStateRefs.join(', ')}`] : []),
+        ...(request.grounding.forbiddenStateRefs.length > 0 ? [`  Forbidden state: ${request.grounding.forbiddenStateRefs.join(', ')}`] : []),
+        `  Allowed actions: ${request.grounding.allowedActions.join(', ')}`,
+      ]
+    : [];
+
+  const stateSection = request.observedState
+    ? [
+        '',
+        'Current observed state:',
+        ...(request.observedState.currentScreen ? [`  Active screen: ${request.observedState.currentScreen}`] : []),
+        ...(request.observedState.activeStateRefs.length > 0 ? [`  Active states: ${request.observedState.activeStateRefs.join(', ')}`] : []),
+        ...(request.observedState.lastSuccessfulLocatorRung !== null ? [`  Last successful locator rung: ${request.observedState.lastSuccessfulLocatorRung}`] : []),
+      ]
+    : [];
+
+  const confidenceSection = request.confidenceHints && request.confidenceHints.length > 0
+    ? [
+        '',
+        'Confidence overlay status:',
+        ...request.confidenceHints.map((h) =>
+          `  ${h.screen}${h.element ? `.${h.element}` : ''} → ${h.status} (${h.score.toFixed(2)})`,
+        ),
+      ]
+    : [];
+
   return [
     'You are an intent interpretation agent for UI test automation.',
     'A QA tester wrote a test step. The deterministic resolution pipeline could not',
@@ -357,6 +398,10 @@ function buildAgentSystemPrompt(request: AgentInterpretationRequest): string {
     '',
     'Resolution attempts so far:',
     exhaustionSummary || '  (none)',
+    ...candidatesSection,
+    ...groundingSection,
+    ...stateSection,
+    ...confidenceSection,
     '',
     'Respond with a JSON object:',
     '{',

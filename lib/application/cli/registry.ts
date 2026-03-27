@@ -90,6 +90,7 @@ interface ParsedFlags {
   accepted?: boolean;
   top?: number;
   perturb?: number;
+  autoEvolve?: boolean;
 }
 
 interface ParseContext {
@@ -326,6 +327,10 @@ const flagReaders: Record<string, (argv: string[], index: number, flags: ParsedF
   '--perturb': (argv, index, flags) => {
     flags.perturb = Number(readFlagValue('--perturb', argv[index + 1]));
     return index + 1;
+  },
+  '--auto-evolve': (_argv, index, flags) => {
+    flags.autoEvolve = true;
+    return index;
   },
   '--benchmark': (argv, index, flags) => {
     flags.benchmark = readFlagValue('--benchmark', argv[index + 1]);
@@ -863,7 +868,7 @@ const commandRegistry: Record<CommandName, CommandSpec> = {
     },
   },
   speedrun: {
-    flags: ['--count', '--seed', '--seeds', '--max-iterations', '--tag', '--substrate', '--perturb', '--posture'],
+    flags: ['--count', '--seed', '--seeds', '--max-iterations', '--tag', '--substrate', '--perturb', '--posture', '--auto-evolve', '--max-epochs'],
     parse: ({ flags }) => ({
       command: 'speedrun',
       strictExitOnUnbound: false,
@@ -873,7 +878,7 @@ const commandRegistry: Record<CommandName, CommandSpec> = {
       }),
       execute: (paths) => {
         const seeds = flags.seeds ? (flags.seeds as string).split(',').filter(Boolean) : [flags.seed ?? 'speedrun-v1'];
-        return multiSeedSpeedrun({
+        const speedrun = multiSeedSpeedrun({
           paths,
           config: DEFAULT_PIPELINE_CONFIG,
           seeds,
@@ -883,6 +888,19 @@ const commandRegistry: Record<CommandName, CommandSpec> = {
           ...(flags.perturb ? { perturbationRate: flags.perturb } : {}),
           ...(flags.tag ? { tag: flags.tag } : {}),
         });
+        // If --auto-evolve: chain evolveProgram after speedrun completes
+        return flags.autoEvolve
+          ? speedrun.pipe(Effect.flatMap((result) =>
+              evolveProgram({
+                paths,
+                maxEpochs: flags.maxEpochs ?? 3,
+                seed: flags.seed ?? 'evolve-v1',
+                count: flags.count ?? 30,
+                maxIterations: flags.maxIterations ?? 3,
+                substrate: (flags.substrate ?? 'synthetic') as 'synthetic' | 'production' | 'hybrid',
+              }).pipe(Effect.map((evolveResult) => ({ speedrun: result, evolve: evolveResult }))),
+            ))
+          : speedrun;
       },
     }),
   },
