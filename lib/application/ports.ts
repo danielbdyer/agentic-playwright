@@ -103,22 +103,39 @@ export const DisabledScreenObserver: ScreenObservationPort = {
 export class ScreenObserver extends Context.Tag('tesseract/ScreenObserver')<ScreenObserver, ScreenObservationPort>() {}
 
 // ─── Dashboard (Effect fiber → React view) ───
+//
+// ARCHITECTURAL INVARIANT: The dashboard is a projection, never a dependency.
+//
+//   1. Observation events (emit) flow freely — fire-and-forget, never block the fiber.
+//   2. Decision gates (awaitDecision) are OPT-IN and always have a timeout fallback.
+//   3. The pipeline runs identically with DisabledDashboard (headless default).
+//   4. The frontend is a progressive enhancement layer — toggling it on/off
+//      must not change pipeline behavior or output.
+//   5. Any decision the dashboard can make, an agent or heuristic can also make.
+//      The dashboard is one consumer of the DashboardPort interface, not the only one.
+//
+// The DisabledDashboard auto-skips all decisions instantly. The pipeline event bus
+// defaults to decisionTimeoutMs: 0 (instant auto-skip). The WS adapter's 60s timeout
+// is only active when a human explicitly opts into interactive mode.
 
 export interface DashboardPort {
-  /** Fire-and-forget: emit event to all connected dashboard clients. */
+  /** Fire-and-forget: emit event to all connected dashboard clients.
+   *  Never blocks the fiber. O(1) — publish to PubSub or no-op. */
   readonly emit: (event: import('../domain/types').DashboardEvent) => Effect.Effect<void, never, never>;
-  /** Fiber pause: send work item to dashboard, await human decision.
-   *  The fiber suspends until the human clicks approve/skip in the UI. */
+  /** Opt-in fiber pause: send work item to dashboard, await decision.
+   *  Always has a timeout fallback — never blocks indefinitely.
+   *  DisabledDashboard auto-skips instantly (no pause). */
   readonly awaitDecision: (item: import('../domain/types').AgentWorkItem) => Effect.Effect<import('../domain/types').WorkItemDecision, never, never>;
 }
 
-/** Disabled dashboard for CI/batch — auto-skips all decisions. */
+/** Disabled dashboard for CI/batch — auto-skips all decisions instantly.
+ *  This is the default. The pipeline runs identically headless. */
 export const DisabledDashboard: DashboardPort = {
   emit: () => Effect.succeed(undefined),
   awaitDecision: (item) => Effect.succeed({
     workItemId: item.id,
     status: 'skipped' as const,
-    rationale: 'No dashboard connected',
+    rationale: 'No dashboard connected — headless auto-skip',
   }),
 };
 
