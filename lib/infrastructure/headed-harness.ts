@@ -120,7 +120,7 @@ export interface AsyncPlaywrightBridge {
 }
 
 /** Create a plain async bridge from a Playwright Page.
- *  Used by dashboard/server.cjs which can't import Effect directly. */
+ *  Used by dashboard/server.ts for headed mode browser tool access. */
 export function createAsyncPlaywrightBridge(page: {
   readonly click: (selector: string) => Promise<void>;
   readonly fill: (selector: string, value: string) => Promise<void>;

@@ -1,17 +1,18 @@
 /**
- * Tesseract Dashboard — Effect-driven React view with queue animation.
+ * Tesseract Dashboard — Effect-driven React view.
  *
- * The Effect fiber IS the source of truth. This React app is a service
- * consumer that renders the fiber's state. The fiber pushes events over
- * WebSocket; the React app renders them. When the fiber pauses for a
- * human decision, this app renders the decision UI and sends the response.
- *
- * Architecture:
- *   Effect fiber → DashboardPort → WS adapter → WebSocket → React
- *   React (human click) → WebSocket → WS adapter → fiber resumes
- *
- * Animation: CSS-only transitions on GPU-composited properties (transform,
- * opacity). No animation library. 60fps via will-change + translate3d.
+ * This is a thin composition shell. All concerns are decomposed:
+ *   - Types:      dashboard/src/types.ts
+ *   - Dispatch:   dashboard/src/hooks/dispatch-handlers.ts
+ *   - WebSocket:  dashboard/src/hooks/use-web-socket.ts
+ *   - Queues:     dashboard/src/hooks/use-ingestion-queue.ts
+ *   - Convergence: dashboard/src/hooks/use-convergence-state.ts
+ *   - Stages:     dashboard/src/hooks/use-stage-tracker.ts
+ *   - Pulse:      dashboard/src/hooks/use-iteration-pulse.ts
+ *   - Atoms:      dashboard/src/atoms/
+ *   - Molecules:  dashboard/src/molecules/
+ *   - Organisms:  dashboard/src/organisms/
+ *   - Spatial:    dashboard/src/spatial/
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -26,6 +27,11 @@ import { useWebMcpCapabilities } from './hooks/use-mcp-capabilities';
 import { useConvergenceState } from './hooks/use-convergence-state';
 import { useStageTracker } from './hooks/use-stage-tracker';
 import { useIterationPulse } from './hooks/use-iteration-pulse';
+import {
+  dispatchProgress, dispatchProbe, dispatchCapture,
+  dispatchItemPending, dispatchItemProcessing, dispatchItemCompleted,
+  dispatchEscalation, dispatchFiberPaused, dispatchFiberResumed,
+} from './hooks/dispatch-handlers';
 import { ConvergencePanel } from './organisms/convergence-panel';
 import { PipelineProgress } from './organisms/pipeline-progress';
 import { StatusBar } from './molecules/status-bar';
@@ -39,116 +45,9 @@ import type {
   RungShiftEvent, CalibrationUpdateEvent, ProposalActivatedEvent, StageLifecycleEvent,
   ArtifactWrittenEvent,
 } from './spatial/types';
+import type { Workbench, Scorecard, ProgressEvent, QueuedItem } from './types';
 
-// ─── Types (projections of domain types) ───
-
-interface WorkItem {
-  readonly id: string;
-  readonly kind: string;
-  readonly priority: number;
-  readonly title: string;
-  readonly rationale: string;
-  readonly context: { readonly screen?: string; readonly element?: string; readonly proposalId?: string; readonly artifactRefs: readonly string[] };
-  readonly evidence: { readonly confidence: number; readonly sources: readonly string[] };
-}
-
-interface Completion {
-  readonly workItemId: string;
-  readonly status: string;
-  readonly completedAt: string;
-  readonly rationale: string;
-}
-
-interface Workbench {
-  readonly generatedAt: string;
-  readonly iteration: number;
-  readonly items: readonly WorkItem[];
-  readonly completions: readonly Completion[];
-  readonly summary: { readonly total: number; readonly pending: number; readonly completed: number; readonly byKind: Readonly<Record<string, number>>; readonly topPriority: WorkItem | null };
-}
-
-interface Scorecard {
-  readonly highWaterMark: { readonly knowledgeHitRate: number; readonly translationPrecision: number; readonly convergenceVelocity: number; readonly proposalYield: number; readonly resolutionByRung?: ReadonlyArray<{ readonly rung: string; readonly wins: number; readonly rate: number }> };
-}
-
-interface ProgressEvent {
-  readonly phase: string;
-  readonly iteration: number;
-  readonly maxIterations: number;
-  readonly metrics: { readonly knowledgeHitRate: number; readonly proposalsActivated: number; readonly totalSteps: number; readonly unresolvedSteps: number } | null;
-  readonly convergenceReason: string | null;
-  readonly elapsed: number;
-  readonly calibration?: { readonly weightDrift: number; readonly topCorrelation: { readonly signal: string; readonly strength: number } | null } | null;
-}
-
-// Queue item extends WorkItem with animation display status
-type DisplayStatus = 'entering' | 'pending' | 'processing' | 'completed' | 'skipped';
-interface QueuedItem extends WorkItem { readonly displayStatus: DisplayStatus }
-
-// ─── Pure Message Dispatch ───
-// Each handler is a higher-order function: (deps) → (data) → void.
-// All use the ref pattern (.current) for closure stability.
-
-const dispatchProgress = (setProgress: (p: ProgressEvent) => void) =>
-  (data: unknown) => setProgress(data as ProgressEvent);
-
-const dispatchProbe = (enqueueRef: React.RefObject<(id: string, data: ProbeEvent) => void>) =>
-  (data: unknown) => { const p = data as ProbeEvent; enqueueRef.current?.(p.id, p); };
-
-const dispatchCapture = (
-  setCapture: (c: ScreenCapture) => void,
-  setViewport: (v: ViewportDimensions) => void,
-) => (data: unknown) => {
-  const cap = data as ScreenCapture;
-  setCapture(cap);
-  setViewport({ width: cap.width, height: cap.height });
-};
-
-const dispatchItemPending = (setQueue: React.Dispatch<React.SetStateAction<readonly QueuedItem[]>>) =>
-  (data: unknown) => {
-    const item = data as WorkItem;
-    setQueue((prev) => [...prev, { ...item, displayStatus: 'entering' }]);
-    requestAnimationFrame(() => requestAnimationFrame(() =>
-      setQueue((prev) => prev.map((q) => q.id === item.id ? { ...q, displayStatus: 'pending' } : q)),
-    ));
-  };
-
-const dispatchItemProcessing = (
-  setProcessingId: (id: string | null) => void,
-  setQueue: React.Dispatch<React.SetStateAction<readonly QueuedItem[]>>,
-) => (data: unknown) => {
-  const { workItemId } = data as { workItemId: string };
-  setProcessingId(workItemId);
-  setQueue((prev) => prev.map((q) => q.id === workItemId ? { ...q, displayStatus: 'processing' } : q));
-};
-
-/** Dispatch with tracked timeout cleanup to prevent memory leaks at scale. */
-const dispatchItemCompleted = (
-  setProcessingId: React.Dispatch<React.SetStateAction<string | null>>,
-  setQueue: React.Dispatch<React.SetStateAction<readonly QueuedItem[]>>,
-  cleanupTimers: Set<ReturnType<typeof setTimeout>>,
-) => (data: unknown) => {
-  const { workItemId, status } = data as { workItemId: string; status: string };
-  const exitStatus: DisplayStatus = status === 'completed' ? 'completed' : 'skipped';
-  setQueue((prev) => prev.map((q) => q.id === workItemId ? { ...q, displayStatus: exitStatus } : q));
-  setProcessingId((prev) => prev === workItemId ? null : prev);
-  const timer = setTimeout(() => {
-    setQueue((prev) => prev.filter((q) => q.id !== workItemId));
-    cleanupTimers.delete(timer);
-  }, 400);
-  cleanupTimers.add(timer);
-};
-
-const dispatchEscalation = (enqueueRef: React.RefObject<(id: string, data: ElementEscalatedEvent) => void>) =>
-  (data: unknown) => { const e = data as ElementEscalatedEvent; enqueueRef.current?.(e.id, e); };
-
-const dispatchFiberPaused = (setFiberPaused: (paused: boolean) => void) =>
-  (_data: unknown) => setFiberPaused(true);
-
-const dispatchFiberResumed = (setFiberPaused: (paused: boolean) => void) =>
-  (_data: unknown) => setFiberPaused(false);
-
-// ─── WebSocket Hook ───
+// ─── Effect Stream Hook ───
 
 function useEffectStream(url: string) {
   const qc = useQueryClient();
@@ -164,17 +63,13 @@ function useEffectStream(url: string) {
   const proposalQueue = useIngestionQueue<ProposalActivatedEvent>({ staggerMs: 100, maxBuffer: 200 });
   const artifactQueue = useIngestionQueue<ArtifactWrittenEvent>({ staggerMs: 50, maxBuffer: 50 });
 
-  // Convergence, stage, and iteration hooks (Layer 2-4 visualization state)
   const convergence = useConvergenceState();
   const stageTracker = useStageTracker();
   const iterationPulse = useIterationPulse();
 
-  // Timer cleanup set for dispatchItemCompleted (prevents memory leak at scale)
   const cleanupTimersRef = useRef(new Set<ReturnType<typeof setTimeout>>());
 
   // ─── Stable refs for all dispatch targets ───
-  // The dispatch table is built once and captures these refs.
-  // The refs are synced every render so the table always calls the latest version.
   const enqueueRef = useRef(probeQueue.enqueue);
   enqueueRef.current = probeQueue.enqueue;
   const escalationEnqueueRef = useRef(escalationQueue.enqueue);
@@ -183,8 +78,6 @@ function useEffectStream(url: string) {
   proposalEnqueueRef.current = proposalQueue.enqueue;
   const artifactEnqueueRef = useRef(artifactQueue.enqueue);
   artifactEnqueueRef.current = artifactQueue.enqueue;
-  // Fix: convergence/iteration/stage handlers also use the ref pattern
-  // to avoid stale closures in the dispatch table.
   const convergenceRungRef = useRef(convergence.pushRung);
   convergenceRungRef.current = convergence.pushRung;
   const convergenceCalRef = useRef(convergence.pushCalibration);
@@ -196,7 +89,7 @@ function useEffectStream(url: string) {
   const stageDispatchRef = useRef(stageTracker.dispatch);
   stageDispatchRef.current = stageTracker.dispatch;
 
-  // Build dispatch table once — all handlers use refs for closure stability.
+  // ─── Dispatch table (built once, all handlers use refs) ───
   const dispatchRef = useRef<Record<string, (data: unknown) => void> | null>(null);
   if (!dispatchRef.current) {
     dispatchRef.current = {
@@ -209,22 +102,16 @@ function useEffectStream(url: string) {
       'element-escalated': dispatchEscalation(escalationEnqueueRef),
       'fiber-paused': dispatchFiberPaused(setFiberPaused),
       'fiber-resumed': dispatchFiberResumed(setFiberPaused),
-      // Layer 2: Convergence signals — via refs to avoid stale closures
       'rung-shift': (data) => convergenceRungRef.current(data as RungShiftEvent),
       'calibration-update': (data) => convergenceCalRef.current(data as CalibrationUpdateEvent),
       'iteration-start': () => iterationStartRef.current(),
       'iteration-complete': () => iterationCompleteRef.current(),
-      // Layer 2: Proposal flow
       'proposal-activated': (data) => { const e = data as ProposalActivatedEvent; proposalEnqueueRef.current?.(e.proposalId, e); },
-      // Layer 3: Artifact aurora
       'artifact-written': (data) => { const e = data as ArtifactWrittenEvent; artifactEnqueueRef.current?.(e.path, e); },
-      // Layer 4: Stage lifecycle
       'stage-lifecycle': (data) => stageDispatchRef.current(data as StageLifecycleEvent),
     };
   }
 
-  // WebSocket lifecycle — extracted to useWebSocket for clean separation.
-  // The message handler routes through the dispatch table + React Query cache.
   const handleMessage = useCallback((msg: { readonly type: string; readonly data: unknown }) => {
     const handler = dispatchRef.current?.[msg.type];
     if (handler && msg.data != null) handler(msg.data);
@@ -234,7 +121,6 @@ function useEffectStream(url: string) {
 
   const { connected, send } = useWebSocket(url, handleMessage);
 
-  // Cleanup timers on unmount
   useEffect(() => {
     const timers = cleanupTimersRef.current;
     return () => { timers.forEach(clearTimeout); timers.clear(); };
@@ -259,7 +145,6 @@ const useFitness = () => useQuery<Scorecard | null>({
   staleTime: 10000,
 });
 
-/** Fetch knowledge graph nodes for the observatory via MCP tool. */
 const useKnowledgeNodes = () => useQuery<readonly import('./spatial/types').KnowledgeNode[]>({
   queryKey: ['knowledge-nodes'],
   queryFn: async () => {
@@ -326,7 +211,6 @@ function App() {
     decisionMutation.mutate({ workItemId: id, status: 'skipped', rationale: `Dashboard skipped` });
   }, [decisionMutation]);
 
-  // Derive spatial data — React Compiler auto-memoizes
   const activeProbes = probeQueue.active.map((q) => q.data);
   const activeProposals = proposalQueue.active.map((q) => q.data);
   const activeArtifacts = artifactQueue.active.map((q) => q.data);
@@ -339,14 +223,12 @@ function App() {
 
   return (
     <div className="dashboard-layout">
-      {/* Spatial visualization — layered viewport */}
       <div className="spatial-viewport" role="main" aria-label="Pipeline visualization">
         {capabilities.liveDomPortal && capabilities.appUrl && (
           <LiveDomPortal appUrl={capabilities.appUrl} onLoad={handlePortalLoaded} />
         )}
         <PortalLoading visible={capabilities.liveDomPortal && !portalLoaded} />
 
-        {/* R3F canvas with error boundary for WebGL/shader failures */}
         <SceneErrorBoundary>
           <SpatialCanvas
             probes={activeProbes}
@@ -361,18 +243,11 @@ function App() {
           />
         </SceneErrorBoundary>
 
-        {probeQueue.buffered > 0 && (
-          <div className="buffer-indicator">{probeQueue.buffered} buffered</div>
-        )}
-        {capabilities.mcpAvailable && (
-          <div className="mcp-indicator">MCP</div>
-        )}
-        {fiberPaused && (
-          <div className="fiber-paused-indicator" aria-live="polite">AWAITING HUMAN</div>
-        )}
+        {probeQueue.buffered > 0 && <div className="buffer-indicator">{probeQueue.buffered} buffered</div>}
+        {capabilities.mcpAvailable && <div className="mcp-indicator">MCP</div>}
+        {fiberPaused && <div className="fiber-paused-indicator" aria-live="polite">AWAITING HUMAN</div>}
       </div>
 
-      {/* Control panel — scrollable sidebar */}
       <div className="control-panel" role="complementary" aria-label="Dashboard controls">
         <h1>Tesseract Dashboard</h1>
         <StatusBar workbench={workbench ?? null} scorecard={scorecard ?? null} connected={connected} progress={progress} />
