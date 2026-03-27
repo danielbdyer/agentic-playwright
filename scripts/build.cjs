@@ -94,6 +94,19 @@ function runTypeScriptBuild() {
   return true;
 }
 
+async function buildTailwindCSS() {
+  const { execSync } = require('child_process');
+  try {
+    execSync(
+      `npx @tailwindcss/cli -i dashboard/src/styles/globals.css -o dashboard/styles.css --minify`,
+      { cwd: ROOT_DIR, stdio: 'pipe' },
+    );
+  } catch {
+    // Tailwind not available — skip (CSS falls back to index.html inline styles)
+    process.stderr.write('tailwind: skipped (not installed or config missing)\n');
+  }
+}
+
 async function buildDemoHarness() {
   await Promise.all(demoHarnessEntries.map(({ entry, outfile }) =>
     esbuild.build({
@@ -116,7 +129,7 @@ async function main() {
     return;
   }
 
-  await buildDemoHarness();
+  await Promise.all([buildDemoHarness(), buildTailwindCSS()]);
   process.stdout.write('build ok\n');
 }
 
