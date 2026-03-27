@@ -114,14 +114,13 @@ function computeBottleneckReduction(
     : 0;
 }
 
-function trustPolicyWeight(decision: string): number {
-  switch (decision) {
-    case 'allow': return 1.0;
-    case 'review': return 0.6;
-    case 'block': return 0.1;
-    default: return 0.5;
-  }
-}
+/** Trust policy decision → scoring weight. Strategy record instead of switch. */
+const TRUST_POLICY_WEIGHTS: Readonly<Record<string, number>> = {
+  allow: 1.0, review: 0.6, block: 0.1,
+};
+
+const trustPolicyWeight = (decision: string): number =>
+  TRUST_POLICY_WEIGHTS[decision] ?? 0.5;
 
 function buildRationale(
   proposal: ProposalEntry,

@@ -2,15 +2,12 @@
  * Screen Plane — renders the live application DOM as a textured plane
  * in the Three.js scene.
  *
- * The texture updates from screenshots streamed via WebSocket
- * ('screen-captured' events). When no screenshot is available,
- * renders a subtle gradient placeholder.
- *
- * Pure: screenshot data in, textured plane out.
- * Texture updates happen in useFrame to avoid React re-renders.
+ * Performance: texture decode happens in an effect (not useFrame).
+ * useFrame only swaps the texture reference — zero decode per frame.
+ * Base64 → Image decode is async and fires only when capture changes.
  */
 
-import { useRef, useMemo, memo } from 'react';
+import { useRef, useMemo, useEffect, memo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { ScreenCapture } from './types';
@@ -29,9 +26,9 @@ const createPlaceholder = (w: number, h: number): THREE.DataTexture => {
     for (let x = 0; x < w; x++) {
       const i = (y * w + x) * 4;
       const t = y / h;
-      data[i] = Math.floor(13 + t * 8);     // R: dark gradient
-      data[i + 1] = Math.floor(17 + t * 10); // G
-      data[i + 2] = Math.floor(23 + t * 12); // B
+      data[i] = Math.floor(13 + t * 8);
+      data[i + 1] = Math.floor(17 + t * 10);
+      data[i + 2] = Math.floor(23 + t * 12);
       data[i + 3] = 255;
     }
   }
@@ -47,41 +44,54 @@ export const ScreenPlane = memo(function ScreenPlane({
   capture,
 }: ScreenPlaneProps) {
   const materialRef = useRef<THREE.MeshBasicMaterial>(null);
-  const lastCaptureRef = useRef<string | null>(null);
-  const textureRef = useRef<THREE.Texture | null>(null);
+  const pendingTextureRef = useRef<THREE.Texture | null>(null);
+  const currentTextureRef = useRef<THREE.Texture | null>(null);
+  const lastBase64Ref = useRef<string | null>(null);
 
-  // Placeholder texture when no capture available
   const placeholder = useMemo(() => createPlaceholder(256, 256), []);
 
-  // Update texture from capture data (in useFrame to avoid React re-renders)
+  // Decode base64 in a useEffect — NOT in useFrame.
+  // This fires only when capture changes (not 60x/sec).
+  // The decoded texture is stored in pendingTextureRef for useFrame to swap.
+  useEffect(() => {
+    if (!capture || capture.imageBase64 === lastBase64Ref.current) return;
+    lastBase64Ref.current = capture.imageBase64;
+
+    const img = new Image();
+    img.onload = () => {
+      const tex = new THREE.Texture(img);
+      tex.needsUpdate = true;
+      tex.colorSpace = THREE.SRGBColorSpace;
+      // Store in pending ref — useFrame will swap it in
+      pendingTextureRef.current = tex;
+    };
+    img.src = `data:image/png;base64,${capture.imageBase64}`;
+
+    // Cleanup on unmount or capture change
+    return () => { img.onload = null; };
+  }, [capture]);
+
+  // useFrame only swaps texture refs — zero decode, zero allocation
   useFrame(() => {
     const mat = materialRef.current;
     if (!mat) return;
 
-    if (!capture) {
-      if (mat.map !== placeholder) {
-        mat.map = placeholder;
-        mat.needsUpdate = true;
-      }
+    // Swap in pending texture if available
+    const pending = pendingTextureRef.current;
+    if (pending) {
+      pendingTextureRef.current = null;
+      if (currentTextureRef.current) currentTextureRef.current.dispose();
+      currentTextureRef.current = pending;
+      mat.map = pending;
+      mat.needsUpdate = true;
       return;
     }
 
-    // Only update if the capture changed
-    if (capture.imageBase64 === lastCaptureRef.current) return;
-    lastCaptureRef.current = capture.imageBase64;
-
-    // Decode base64 to image, then to texture
-    const img = new Image();
-    img.onload = () => {
-      if (textureRef.current) textureRef.current.dispose();
-      const tex = new THREE.Texture(img);
-      tex.needsUpdate = true;
-      tex.colorSpace = THREE.SRGBColorSpace;
-      textureRef.current = tex;
-      mat.map = tex;
+    // Fallback to placeholder if no capture
+    if (!capture && mat.map !== placeholder) {
+      mat.map = placeholder;
       mat.needsUpdate = true;
-    };
-    img.src = `data:image/png;base64,${capture.imageBase64}`;
+    }
   });
 
   return (

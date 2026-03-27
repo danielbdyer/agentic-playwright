@@ -6,15 +6,10 @@ import type {
   ReplayStepResult,
   ResolutionReceipt,
 } from '../domain/types';
+import { targetKey, driftFields as computeDriftFields } from '../domain/comparison-rules';
 import { round4 } from './learning-shared';
 
-function targetKey(receipt: ResolutionReceipt): string {
-  if (receipt.kind === 'needs-human') {
-    return 'needs-human';
-  }
-  return JSON.stringify(receipt.target);
-}
-
+/** Compare two resolution receipts at a step. Pure. Uses shared comparison rules. */
 function compareStep(
   stepIndex: number,
   original: ResolutionReceipt | null,
@@ -24,13 +19,7 @@ function compareStep(
   const replaySource = replay?.winningSource ?? 'none';
   const originalTarget = original ? targetKey(original) : 'none';
   const replayTarget = replay ? targetKey(replay) : 'none';
-
-  const driftFields = [
-    ...(originalSource !== replaySource ? ['winningSource'] : []),
-    ...(originalTarget !== replayTarget ? ['target'] : []),
-    ...((original?.governance ?? 'approved') !== (replay?.governance ?? 'approved') ? ['governance'] : []),
-    ...((original?.confidence ?? 'unbound') !== (replay?.confidence ?? 'unbound') ? ['confidence'] : []),
-  ];
+  const drift = computeDriftFields(original, replay);
 
   return {
     stepIndex,
@@ -38,8 +27,8 @@ function compareStep(
     replayWinningSource: replaySource,
     originalTarget,
     replayTarget,
-    matched: driftFields.length === 0,
-    driftFields,
+    matched: drift.length === 0,
+    driftFields: drift as string[],
   };
 }
 

@@ -377,16 +377,24 @@ const WorkbenchPanel = memo(function WorkbenchPanel({ workbench, onApprove, onSk
   onApprove: (id: string) => void;
   onSkip: (id: string) => void;
 }) {
-  if (!workbench || workbench.items.length === 0) return <div className="card card-full"><h2>Workbench</h2><div className="empty">No pending items. Converged.</div></div>;
-  const byScreen = new Map<string, WorkItem[]>();
-  for (const item of workbench.items) {
-    const s = item.context.screen ?? 'unknown';
-    byScreen.set(s, [...(byScreen.get(s) ?? []), item]);
-  }
+  // Memoize screen grouping — O(n) work only when items change, not every render
+  const byScreen = useMemo(() => {
+    if (!workbench?.items.length) return [];
+    const groups = new Map<string, WorkItem[]>();
+    for (const item of workbench.items) {
+      const s = item.context.screen ?? 'unknown';
+      const group = groups.get(s);
+      if (group) group.push(item);
+      else groups.set(s, [item]);
+    }
+    return [...groups.entries()];
+  }, [workbench?.items]);
+
+  if (byScreen.length === 0) return <div className="card card-full"><h2>Workbench</h2><div className="empty">No pending items. Converged.</div></div>;
   return (
     <div className="card card-full">
-      <h2>Workbench — {workbench.summary.pending} pending</h2>
-      {[...byScreen.entries()].map(([screen, items]) => (
+      <h2>Workbench — {workbench!.summary.pending} pending</h2>
+      {byScreen.map(([screen, items]) => (
         <div key={screen} className="screen-group">
           <div className="screen-header">{screen} ({items.length})</div>
           {items.map((item) => (
