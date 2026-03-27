@@ -98,36 +98,38 @@ interface ParticleTransportProps {
   readonly onArrived?: (probeId: string) => void;
 }
 
-/** Write particle state to GPU buffers. Imperative (required by Three.js). */
+/** Write particle state to GPU buffers. Imperative (required by Three.js).
+ *  Uses for-loop (no closure allocation) and shared interpolation buffer. */
 const writeToBuffers = (
   particles: readonly Particle[],
   geometry: THREE.BufferGeometry,
   physics: ParticlePhysics,
   max: number,
 ): void => {
-  const posAttr = geometry.attributes.position!;
-  const lifeAttr = geometry.attributes.aLife!;
-  const colorAttr = geometry.attributes.aColor!;
-  const posArr = posAttr.array as Float32Array;
-  const lifeArr = lifeAttr.array as Float32Array;
-  const colorArr = colorAttr.array as Float32Array;
+  const posArr = (geometry.attributes.position!).array as Float32Array;
+  const lifeArr = (geometry.attributes.aLife!).array as Float32Array;
+  const colorArr = (geometry.attributes.aColor!).array as Float32Array;
+  const count = Math.min(particles.length, max);
+  const { easing, arcHeight } = physics;
 
-  particles.forEach((p, i) => {
-    if (i >= max) return;
-    const [x, y, z] = interpolatePosition(p, physics.easing, physics.arcHeight);
-    posArr[i * 3] = x;
-    posArr[i * 3 + 1] = y;
-    posArr[i * 3 + 2] = z;
+  for (let i = 0; i < count; i++) {
+    const p = particles[i]!;
+    // interpolatePosition writes to shared _pos buffer — read immediately
+    const pos = interpolatePosition(p, easing, arcHeight);
+    const i3 = i * 3;
+    posArr[i3] = pos[0];
+    posArr[i3 + 1] = pos[1];
+    posArr[i3 + 2] = pos[2];
     lifeArr[i] = p.life;
-    colorArr[i * 3] = p.color[0];
-    colorArr[i * 3 + 1] = p.color[1];
-    colorArr[i * 3 + 2] = p.color[2];
-  });
+    colorArr[i3] = p.color[0];
+    colorArr[i3 + 1] = p.color[1];
+    colorArr[i3 + 2] = p.color[2];
+  }
 
-  posAttr.needsUpdate = true;
-  lifeAttr.needsUpdate = true;
-  colorAttr.needsUpdate = true;
-  geometry.setDrawRange(0, Math.min(particles.length, max));
+  geometry.attributes.position!.needsUpdate = true;
+  geometry.attributes.aLife!.needsUpdate = true;
+  geometry.attributes.aColor!.needsUpdate = true;
+  geometry.setDrawRange(0, count);
 };
 
 export const ParticleTransport = memo(function ParticleTransport({
@@ -174,7 +176,9 @@ export const ParticleTransport = memo(function ParticleTransport({
     const { current, died } = step(delta, spawns);
 
     // Fire arrival callbacks for particles that completed their journey
-    died.forEach((p) => onArrived?.(p.id));
+    if (onArrived && died.length > 0) {
+      for (let i = 0; i < died.length; i++) onArrived(died[i]!.id);
+    }
 
     // Write to GPU buffers (the only imperative part — required by Three.js)
     writeToBuffers(current, geometry, physics, physics.maxParticles);

@@ -68,7 +68,55 @@ interface ProgressEvent {
 type DisplayStatus = 'entering' | 'pending' | 'processing' | 'completed' | 'skipped';
 interface QueuedItem extends WorkItem { readonly displayStatus: DisplayStatus }
 
-// ─── WebSocket Hook (Effect-driven event stream) ───
+// ─── Pure Message Dispatch ───
+// Extracted from the hook so the WS handler is a pure router with no closure overhead.
+// Each handler is a higher-order function: (deps) → (data) → void.
+
+const dispatchProgress = (setProgress: (p: ProgressEvent) => void) =>
+  (data: unknown) => setProgress(data as ProgressEvent);
+
+const dispatchProbe = (enqueueRef: React.RefObject<(id: string, data: ProbeEvent) => void>) =>
+  (data: unknown) => { const p = data as ProbeEvent; enqueueRef.current?.(p.id, p); };
+
+const dispatchCapture = (
+  setCapture: (c: ScreenCapture) => void,
+  setViewport: (v: ViewportDimensions) => void,
+) => (data: unknown) => {
+  const cap = data as ScreenCapture;
+  setCapture(cap);
+  setViewport({ width: cap.width, height: cap.height });
+};
+
+const dispatchItemPending = (setQueue: React.Dispatch<React.SetStateAction<readonly QueuedItem[]>>) =>
+  (data: unknown) => {
+    const item = data as WorkItem;
+    setQueue((prev) => [...prev, { ...item, displayStatus: 'entering' }]);
+    requestAnimationFrame(() => requestAnimationFrame(() =>
+      setQueue((prev) => prev.map((q) => q.id === item.id ? { ...q, displayStatus: 'pending' } : q)),
+    ));
+  };
+
+const dispatchItemProcessing = (
+  setProcessingId: (id: string | null) => void,
+  setQueue: React.Dispatch<React.SetStateAction<readonly QueuedItem[]>>,
+) => (data: unknown) => {
+  const { workItemId } = data as { workItemId: string };
+  setProcessingId(workItemId);
+  setQueue((prev) => prev.map((q) => q.id === workItemId ? { ...q, displayStatus: 'processing' } : q));
+};
+
+const dispatchItemCompleted = (
+  setProcessingId: React.Dispatch<React.SetStateAction<string | null>>,
+  setQueue: React.Dispatch<React.SetStateAction<readonly QueuedItem[]>>,
+) => (data: unknown) => {
+  const { workItemId, status } = data as { workItemId: string; status: string };
+  const exitStatus: DisplayStatus = status === 'completed' ? 'completed' : 'skipped';
+  setQueue((prev) => prev.map((q) => q.id === workItemId ? { ...q, displayStatus: exitStatus } : q));
+  setProcessingId((prev) => prev === workItemId ? null : prev);
+  setTimeout(() => setQueue((prev) => prev.filter((q) => q.id !== workItemId)), 400);
+};
+
+// ─── WebSocket Hook ───
 
 function useEffectStream(url: string) {
   const wsRef = useRef<WebSocket | null>(null);
@@ -80,70 +128,60 @@ function useEffectStream(url: string) {
   const [capture, setCapture] = useState<ScreenCapture | null>(null);
   const [appViewport, setAppViewport] = useState<ViewportDimensions>({ width: 1280, height: 720 });
 
-  // Ingestion queue: buffers bursty probe events for smooth 60fps emission
   const probeQueue = useIngestionQueue<ProbeEvent>({ staggerMs: 60, maxBuffer: 300 });
+
+  // Stable ref to enqueue — prevents WS reconnection on probeQueue reference change
+  const enqueueRef = useRef(probeQueue.enqueue);
+  enqueueRef.current = probeQueue.enqueue;
 
   const send = useCallback((msg: unknown) => {
     wsRef.current?.readyState === WebSocket.OPEN && wsRef.current.send(JSON.stringify(msg));
   }, []);
 
+  // Build dispatch table once — stable refs, no closure recreation per message
+  const dispatchRef = useRef<Record<string, (data: unknown) => void> | null>(null);
+  if (!dispatchRef.current) {
+    dispatchRef.current = {
+      'progress': dispatchProgress(setProgress),
+      'element-probed': dispatchProbe(enqueueRef),
+      'screen-captured': dispatchCapture(setCapture, setAppViewport),
+      'item-pending': dispatchItemPending(setQueue),
+      'item-processing': dispatchItemProcessing(setProcessingId, setQueue),
+      'item-completed': dispatchItemCompleted(setProcessingId, setQueue),
+    };
+  }
+
   useEffect(() => {
+    const dispatch = dispatchRef.current!;
     let reconnectTimer: ReturnType<typeof setTimeout>;
+    let reconnectDelay = 1000; // Exponential backoff: 1s → 2s → 4s → 8s (capped)
+
     function connect() {
       const ws = new WebSocket(url);
       wsRef.current = ws;
-      ws.onopen = () => setConnected(true);
-      ws.onclose = () => { setConnected(false); reconnectTimer = setTimeout(connect, 3000); };
+
+      ws.onopen = () => { setConnected(true); reconnectDelay = 1000; };
+      ws.onclose = () => {
+        setConnected(false);
+        reconnectTimer = setTimeout(connect, reconnectDelay);
+        reconnectDelay = Math.min(reconnectDelay * 2, 8000);
+      };
       ws.onerror = () => ws.close();
 
       ws.onmessage = (event) => {
         try {
           const msg = JSON.parse(event.data);
-          const { type, data } = msg;
-
-          // Effect fiber events drive React state
-          if (type === 'progress') setProgress(data);
-          else if (type === 'element-probed') {
-            // Spatial: buffer probe event for staggered emission to Three.js
-            const probe = data as ProbeEvent;
-            probeQueue.enqueue(probe.id, probe);
-          }
-          else if (type === 'screen-captured') {
-            // Spatial: update the live screenshot texture
-            const cap = data as ScreenCapture;
-            setCapture(cap);
-            setAppViewport({ width: cap.width, height: cap.height });
-          }
-          else if (type === 'item-pending') {
-            const item = data as WorkItem;
-            setQueue((prev) => [...prev, { ...item, displayStatus: 'entering' }]);
-            requestAnimationFrame(() => {
-              requestAnimationFrame(() => {
-                setQueue((prev) => prev.map((q) => q.id === item.id ? { ...q, displayStatus: 'pending' } : q));
-              });
-            });
-          }
-          else if (type === 'item-processing') {
-            setProcessingId(data.workItemId);
-            setQueue((prev) => prev.map((q) => q.id === data.workItemId ? { ...q, displayStatus: 'processing' } : q));
-          }
-          else if (type === 'item-completed') {
-            const decision = data as { workItemId: string; status: string };
-            const exitStatus: DisplayStatus = decision.status === 'completed' ? 'completed' : 'skipped';
-            setQueue((prev) => prev.map((q) => q.id === decision.workItemId ? { ...q, displayStatus: exitStatus } : q));
-            setProcessingId((prev) => prev === decision.workItemId ? null : prev);
-            setTimeout(() => {
-              setQueue((prev) => prev.filter((q) => q.id !== decision.workItemId));
-            }, 400);
-          }
-          else if (type === 'workbench-updated') qc.setQueryData(['workbench'], data);
-          else if (type === 'fitness-updated') qc.setQueryData(['fitness'], data);
+          const handler = dispatch[msg.type];
+          if (handler) handler(msg.data);
+          else if (msg.type === 'workbench-updated') qc.setQueryData(['workbench'], msg.data);
+          else if (msg.type === 'fitness-updated') qc.setQueryData(['fitness'], msg.data);
         } catch { /* ignore malformed */ }
       };
     }
+
     connect();
     return () => { clearTimeout(reconnectTimer); wsRef.current?.close(); };
-  }, [url, qc, probeQueue]);
+  }, [url, qc]); // No probeQueue dependency — uses stable ref
 
   return { connected, send, progress, queue, processingId, capture, appViewport, probeQueue };
 }
