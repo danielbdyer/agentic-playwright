@@ -9,7 +9,7 @@
  * Molecule: composes WeightIndicator + DriftMeter atoms. Memo-wrapped.
  */
 
-import { memo, useMemo } from 'react';
+import { memo } from 'react';
 import type { CalibrationUpdateEvent } from '../spatial/types';
 import { WeightIndicator } from '../atoms/weight-indicator';
 import { DriftMeter } from '../atoms/drift-meter';
@@ -33,7 +33,8 @@ const WEIGHT_LABELS: readonly { readonly label: string; readonly key: keyof Cali
 ];
 
 export const CalibrationRadar = memo(function CalibrationRadar({ calibration }: CalibrationRadarProps) {
-  const entries: readonly WeightEntry[] = useMemo(() => {
+  // React Compiler auto-memoizes this derivation
+  const entries: readonly WeightEntry[] = (() => {
     if (!calibration) return [];
     const correlationMap = new Map(calibration.correlations.map((c) => [c.signal, c.strength]));
     return WEIGHT_LABELS.flatMap(({ label, key, signal }) => [{
@@ -42,7 +43,7 @@ export const CalibrationRadar = memo(function CalibrationRadar({ calibration }: 
       value: calibration.weights[key],
       correlation: correlationMap.get(signal) ?? 0,
     }]);
-  }, [calibration]);
+  })();
 
   if (!calibration) {
     return <div className="empty" style={{ padding: 8, fontSize: 12 }}>Awaiting calibration…</div>;

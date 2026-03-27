@@ -7,7 +7,7 @@
  * Molecule: composes StageDot atoms. Memo-wrapped.
  */
 
-import { memo, useMemo } from 'react';
+import { memo } from 'react';
 import type { StageState } from '../hooks/use-stage-tracker';
 import { StageDot } from '../atoms/stage-dot';
 
@@ -17,10 +17,8 @@ interface StagePipelineProps {
 
 export const StagePipeline = memo(function StagePipeline({ stages }: StagePipelineProps) {
   // Map insertion order is stable — reflects first-seen pipeline order.
-  const entries = useMemo(
-    () => [...stages.values()],
-    [stages],
-  );
+  // React Compiler auto-memoizes this spread
+  const entries = [...stages.values()];
 
   if (entries.length === 0) {
     return <div className="empty" style={{ padding: 8, fontSize: 12 }}>Awaiting pipeline…</div>;

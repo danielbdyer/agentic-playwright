@@ -14,7 +14,7 @@
  *   - for-loop instead of .forEach() — avoids closure allocation
  */
 
-import { useRef, useMemo, memo } from 'react';
+import { useRef, memo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { ProbeEvent, ViewportDimensions } from './types';
@@ -61,10 +61,8 @@ export const SelectorGlows = memo(function SelectorGlows({
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const timeRef = useRef(0);
 
-  const visibleProbes = useMemo(
-    () => probes.filter((p) => p.boundingBox !== null),
-    [probes],
-  );
+  // React Compiler auto-memoizes this filter
+  const visibleProbes = probes.filter((p) => p.boundingBox !== null);
 
   // Per-frame update: write directly to InstancedMesh buffers.
   // Zero allocations: no new arrays, no matrix clones, no closures.

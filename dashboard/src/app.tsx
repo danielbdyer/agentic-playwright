@@ -327,10 +327,8 @@ function App() {
   }, [decisionMutation]);
 
   // Derive probe events from the staggered ingestion queue
-  const activeProbes = useMemo(
-    () => probeQueue.active.map((q) => q.data),
-    [probeQueue.active],
-  );
+  // React Compiler auto-memoizes this derivation
+  const activeProbes = probeQueue.active.map((q) => q.data);
 
   const handleParticleArrived = useCallback((probeId: string) => {
     probeQueue.retire(probeId);
@@ -338,15 +336,9 @@ function App() {
 
   const handlePortalLoaded = useCallback(() => setPortalLoaded(true), []);
 
-  // Derive spatial data from ingestion queues
-  const activeProposals = useMemo(
-    () => proposalQueue.active.map((q) => q.data),
-    [proposalQueue.active],
-  );
-  const activeArtifacts = useMemo(
-    () => artifactQueue.active.map((q) => q.data),
-    [artifactQueue.active],
-  );
+  // Derive spatial data from ingestion queues — compiler auto-memoizes
+  const activeProposals = proposalQueue.active.map((q) => q.data);
+  const activeArtifacts = artifactQueue.active.map((q) => q.data);
 
   return (
     <div className="dashboard-layout">

@@ -90,10 +90,8 @@ const SceneContent = memo(function SceneContent({
 }: SpatialCanvasProps) {
   const { screen, glass, knowledge } = SCENE_LAYOUT;
 
-  const activeProbes = useMemo(
-    () => probes.filter((p) => p.found && p.boundingBox !== null),
-    [probes],
-  );
+  // React Compiler auto-memoizes this filter derivation
+  const activeProbes = probes.filter((p) => p.found && p.boundingBox !== null);
 
   // noopTick is module-level (stable identity without useMemo)
 

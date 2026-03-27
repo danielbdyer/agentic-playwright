@@ -14,7 +14,7 @@
  * Pure: knowledge state in, glowing nodes out.
  */
 
-import { useRef, useMemo, memo } from 'react';
+import { useRef, memo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { KnowledgeNode } from './types';
@@ -121,11 +121,8 @@ export const KnowledgeObservatory = memo(function KnowledgeObservatory({
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const timeRef = useRef(0);
 
-  // Memoize layout — only recomputes when nodes change
-  const positions = useMemo(
-    () => layoutNodes(nodes, centerX, height),
-    [nodes, centerX, height],
-  );
+  // React Compiler auto-memoizes this O(n) layout computation
+  const positions = layoutNodes(nodes, centerX, height);
 
   // Per-frame update: pulse animation + color writes
   useFrame((_, delta) => {

@@ -3,7 +3,7 @@
  * FP: immutable groupBy via reduce (no mutable Map + push).
  * Organism. Memo-wrapped.
  */
-import { memo, useMemo } from 'react';
+import { memo } from 'react';
 import { KIND_COLORS } from '../atoms/colors';
 
 interface WorkItem {
@@ -35,10 +35,8 @@ const groupByScreen = (items: readonly WorkItem[]): readonly (readonly [string, 
   );
 
 export const WorkbenchPanel = memo(function WorkbenchPanel({ workbench, onApprove, onSkip }: WorkbenchPanelProps) {
-  const byScreen = useMemo(
-    () => workbench?.items.length ? groupByScreen(workbench.items) : [],
-    [workbench?.items],
-  );
+  // React Compiler auto-memoizes this grouping derivation
+  const byScreen = workbench?.items.length ? groupByScreen(workbench.items) : [];
 
   if (byScreen.length === 0) return <div className="card card-full"><h2>Workbench</h2><div className="empty">No pending items. Converged.</div></div>;
   return (
