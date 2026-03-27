@@ -202,6 +202,36 @@ const useFitness = () => useQuery<Scorecard | null>({
   staleTime: 10000,
 });
 
+/** Fetch knowledge graph nodes for the observatory via MCP tool. */
+const useKnowledgeNodes = () => useQuery<readonly import('./spatial/types').KnowledgeNode[]>({
+  queryKey: ['knowledge-nodes'],
+  queryFn: async () => {
+    const r = await fetch('/api/mcp/call', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tool: 'get_knowledge_state', arguments: {} }),
+    });
+    if (!r.ok) return [];
+    const result = await r.json();
+    // Map graph nodes to KnowledgeNode shape
+    const nodes = result?.result?.nodes ?? [];
+    return nodes.flatMap((n: Record<string, unknown>) => {
+      const id = String(n.id ?? '');
+      const parts = id.split('/');
+      if (parts.length < 2) return [];
+      return [{
+        screen: parts[0] ?? 'unknown',
+        element: parts.slice(1).join('/'),
+        confidence: typeof n.confidence === 'number' ? n.confidence : 0.5,
+        aliases: Array.isArray(n.aliases) ? n.aliases : [],
+        status: (n.status as 'approved-equivalent' | 'learning' | 'needs-review') ?? 'learning',
+      }];
+    });
+  },
+  refetchInterval: 20000,
+  staleTime: 10000,
+});
+
 const useDecision = (send: (msg: unknown) => void) => {
   const qc = useQueryClient();
   return useMutation({
@@ -395,6 +425,7 @@ const CompletionsPanel = memo(function CompletionsPanel({ workbench }: { workben
 function App() {
   const { data: workbench } = useWorkbench();
   const { data: scorecard } = useFitness();
+  const { data: knowledgeNodes } = useKnowledgeNodes();
   const { connected, send, progress, queue, capture, appViewport, probeQueue } = useEffectStream(`ws://${window.location.host}/ws`);
   const decisionMutation = useDecision(send);
 
@@ -438,6 +469,7 @@ function App() {
           probes={activeProbes}
           capture={portalActive ? null : capture}
           viewport={appViewport}
+          knowledgeNodes={knowledgeNodes ?? []}
           onParticleArrived={handleParticleArrived}
           portalActive={portalActive}
         />

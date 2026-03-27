@@ -5,7 +5,10 @@ import { loadWorkspaceCatalog } from './catalog';
 import { buildPartialFitnessMetrics } from './fitness';
 import { calibrateWeightsFromCorrelations } from './learning-bottlenecks';
 import { emitAgentWorkbench, processWorkItems, emitInterventionLineage } from './agent-workbench';
+import { createDashboardDecider } from './dashboard-decider';
+import { createDualModeDecider, createAgentDecider } from './agent-decider';
 import type { AgentWorkItem, WorkItemCompletion } from '../domain/types';
+import type { DashboardPort } from './ports';
 import { improvementLoopLedgerPath, type ProjectPaths } from './paths';
 import { refreshScenarioCore } from './refresh';
 import { buildDerivedGraph } from './graph';
@@ -54,6 +57,14 @@ export interface DogfoodOptions {
     readonly maxItemsPerIteration?: number;
     readonly onItemProcessed?: (item: AgentWorkItem, completion: WorkItemCompletion) => void;
   } | undefined;
+  /** Dashboard port for dual-mode decider integration.
+   *  When provided alongside mcpInvokeTool, creates a dual-mode decider:
+   *  agent handles routine decisions (>=0.8 confidence), human handles ambiguous ones. */
+  readonly dashboard?: DashboardPort | undefined;
+  /** MCP tool invocation callback for the agent decider.
+   *  When provided alongside dashboard, enables the outer agent to make decisions
+   *  via structured MCP tools instead of human clicks. */
+  readonly mcpInvokeTool?: ((toolName: string, args: Record<string, unknown>) => Promise<unknown>) | undefined;
   /** Knowledge posture for catalog loading. Defaults to 'warm-start'. */
   readonly knowledgePosture?: KnowledgePosture | undefined;
   /**
@@ -411,12 +422,23 @@ function runIteration(iteration: number, options: DogfoodOptions) {
     yield* emitAgentWorkbench({ paths: options.paths, catalog: postRunCatalog, iteration });
 
     // Step 4c: inter-iteration act loop — process work items before next iteration
-    if (options.actBetweenIterations) {
-      const actOpts = options.actBetweenIterations;
+    // Resolve decider: dual-mode (agent + human) > explicit > none
+    const resolvedDecider = options.actBetweenIterations?.decider
+      ?? (options.dashboard && options.mcpInvokeTool
+        ? createDualModeDecider({
+            humanDecider: createDashboardDecider(options.dashboard),
+            agentDecider: createAgentDecider({ invokeTool: options.mcpInvokeTool }),
+          })
+        : options.dashboard
+          ? createDashboardDecider(options.dashboard)
+          : undefined);
+
+    if (options.actBetweenIterations || resolvedDecider) {
+      const actOpts = options.actBetweenIterations ?? {};
       const actResult = yield* processWorkItems({
         paths: options.paths,
         maxItems: actOpts.maxItemsPerIteration ?? 10,
-        ...(actOpts.decider ? { decider: actOpts.decider } : {}),
+        ...(resolvedDecider ? { decider: resolvedDecider } : {}),
         ...(actOpts.screenGroupDecider ? { screenGroupDecider: actOpts.screenGroupDecider } : {}),
         ...(actOpts.onItemProcessed ? { onItemProcessed: actOpts.onItemProcessed } : {}),
       });

@@ -15,6 +15,7 @@ import { makeLocalVersionControl } from '../infrastructure/tooling/local-version
 import { LocalRuntimeScenarioRunner, createLocalRuntimeScenarioRunnerWithInterpreter } from './local-runtime-scenario-runner';
 import type { AgentInterpreterProvider } from '../application/agent-interpreter-provider';
 import { Dashboard, DisabledDashboard, McpServer, DisabledMcpServer } from '../application/ports';
+import { PlaywrightBridge, DisabledPlaywrightBridge } from '../infrastructure/mcp/playwright-mcp-bridge';
 import type { ExecutionPosture, PipelineConfig, WriteJournalEntry } from '../domain/types';
 import { DEFAULT_PIPELINE_CONFIG } from '../domain/types';
 
@@ -34,6 +35,9 @@ export interface LocalServiceOptions {
    *  Progressive enhancement: when available, agents get structured tool
    *  access to the same observables the spatial dashboard renders. */
   readonly mcpServer?: import('../application/ports').McpServerPort | undefined;
+  /** Inject a Playwright bridge for headed browser interaction.
+   *  Progressive enhancement: when available, agents get direct DOM access. */
+  readonly playwrightBridge?: import('../infrastructure/mcp/playwright-mcp-bridge').PlaywrightBridgePort | undefined;
 }
 
 export interface LocalServiceContext {
@@ -93,6 +97,7 @@ export function createLocalServiceContext(rootDir: string, options?: LocalServic
     Layer.succeed(VersionControl, makeLocalVersionControl(rootDir)),
     Layer.succeed(Dashboard, options?.dashboard ?? DisabledDashboard),
     Layer.succeed(McpServer, options?.mcpServer ?? DisabledMcpServer),
+    Layer.succeed(PlaywrightBridge, options?.playwrightBridge ?? DisabledPlaywrightBridge),
   );
 
   return {
@@ -100,7 +105,7 @@ export function createLocalServiceContext(rootDir: string, options?: LocalServic
     writeJournal: () => executionContext.writeJournal(),
     provide<A, E, R>(program: Effect.Effect<A, E, R>): Effect.Effect<A, E, never> {
       return Effect.provide(
-        program as Effect.Effect<A, E, FileSystem | AdoSource | RuntimeScenarioRunner | ExecutionContext | PipelineConfigService | VersionControl | Dashboard | McpServer>,
+        program as Effect.Effect<A, E, FileSystem | AdoSource | RuntimeScenarioRunner | ExecutionContext | PipelineConfigService | VersionControl | Dashboard | McpServer | PlaywrightBridge>,
         layer,
       ) as Effect.Effect<A, E, never>;
     },

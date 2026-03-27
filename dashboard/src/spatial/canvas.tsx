@@ -22,11 +22,12 @@
 import { memo, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
-import type { ProbeEvent, ScreenCapture, ViewportDimensions } from './types';
+import type { ProbeEvent, ScreenCapture, ViewportDimensions, KnowledgeNode } from './types';
 import { ScreenPlane } from './screen-plane';
 import { SelectorGlows } from './selector-glows';
 import { ParticleTransport } from './particle-transport';
 import { GlassPane } from './glass-pane';
+import { KnowledgeObservatory } from './knowledge-observatory';
 
 // ─── Layout Constants (pure, scene-level) ───
 
@@ -46,6 +47,8 @@ export interface SpatialCanvasProps {
   readonly capture: ScreenCapture | null;
   /** Viewport dimensions of the application under test. */
   readonly viewport: ViewportDimensions;
+  /** Knowledge nodes for the observatory (right side of glass). */
+  readonly knowledgeNodes?: readonly KnowledgeNode[];
   /** Callback when a particle arrives at knowledge space. */
   readonly onParticleArrived?: (probeId: string) => void;
   /** When true, skip ScreenPlane rendering (live portal handles the visual). */
@@ -58,6 +61,7 @@ const SceneContent = memo(function SceneContent({
   probes,
   capture,
   viewport,
+  knowledgeNodes = [],
   onParticleArrived,
   portalActive = false,
 }: SpatialCanvasProps) {
@@ -107,6 +111,13 @@ const SceneContent = memo(function SceneContent({
         width={glass.width}
         height={glass.height}
         position={[glass.x, 0, 0.05]}
+      />
+
+      {/* Knowledge observatory — crystallized nodes on the right */}
+      <KnowledgeObservatory
+        nodes={knowledgeNodes}
+        centerX={knowledge.x}
+        height={screen.height}
       />
 
       {/* Bloom makes emissive materials (glows, particles) bloom outward */}
