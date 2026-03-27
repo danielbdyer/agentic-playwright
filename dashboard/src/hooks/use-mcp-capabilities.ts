@@ -6,11 +6,15 @@
  *   Layer 1: Live DOM portal (app URL reachable)
  *   Layer 2: WebMCP / standalone MCP server
  *
- * Uses Effect for:
- *   - Parallel probing with Effect.all (structured concurrency)
- *   - Effect.timeout on each probe (no hung requests)
- *   - Effect.catchAll for graceful degradation
- *   - Clean fiber semantics instead of raw Promise.all
+ * Complexity:
+ *   probeUrl:           O(1) — single HEAD request with 5s timeout
+ *   probeMcpEndpoint:   O(1) — single GET request with 3s timeout
+ *   detectCapabilities: O(3) — three parallel probes (constant, not per-item)
+ *   detectWebMcp:       O(1) — synchronous window property check
+ *
+ * Uses Effect for structured concurrency (Effect.all), timeouts, and
+ * graceful degradation (Effect.catchAll). useSyncExternalStore is NOT
+ * appropriate here — this is a one-shot detection, not a subscription.
  */
 
 import { useState, useEffect } from 'react';
@@ -36,7 +40,7 @@ const BASE_CAPABILITIES: McpCapabilities = {
 
 // ─── Pure Effect Programs (composable probes) ───
 
-/** Probe whether a URL is reachable. Effect.timeout ensures no hung requests. */
+/** O(1). Probe whether a URL is reachable. Effect.timeout prevents hung requests. */
 const probeUrl = (url: string): Effect.Effect<boolean, never, never> =>
   Effect.tryPromise({
     try: () => fetch(url, { method: 'HEAD', mode: 'no-cors' }),
@@ -48,7 +52,7 @@ const probeUrl = (url: string): Effect.Effect<boolean, never, never> =>
     Effect.catchAll(() => Effect.succeed(false)),
   );
 
-/** Check if the dashboard server exposes an MCP endpoint. */
+/** O(1). Check if the dashboard server exposes an MCP endpoint. */
 const probeMcpEndpoint = (baseUrl: string): Effect.Effect<string | null, never, never> =>
   Effect.tryPromise({
     try: () => fetch(`${baseUrl}/api/mcp/tools`),
@@ -64,12 +68,12 @@ const probeMcpEndpoint = (baseUrl: string): Effect.Effect<string | null, never, 
     Effect.catchAll(() => Effect.succeed(null)),
   );
 
-/** Check if Chrome WebMCP API is available. Synchronous — Effect.sync. */
+/** O(1). Check if Chrome WebMCP API is available. Synchronous — Effect.sync. */
 const detectWebMcp: Effect.Effect<boolean, never, never> = Effect.sync(() =>
   typeof window !== 'undefined' && 'ai' in window && 'mcpServer' in (window as unknown as Record<string, unknown>),
 );
 
-/** Detect all capabilities in parallel. Structured concurrency via Effect.all. */
+/** O(3). Detect all capabilities in parallel. Structured concurrency via Effect.all. */
 const detectCapabilities = (appUrl: string | null, baseUrl: string): Effect.Effect<McpCapabilities, never, never> =>
   Effect.all({
     domReachable: appUrl ? probeUrl(appUrl) : Effect.succeed(false),
@@ -91,11 +95,10 @@ export function useWebMcpCapabilities(appUrl?: string | null): McpCapabilities {
   const [capabilities, setCapabilities] = useState<McpCapabilities>(BASE_CAPABILITIES);
 
   useEffect(() => {
-    // Effect fiber runs once per appUrl change — no useCallback needed
     const fiber = Effect.runPromise(
       detectCapabilities(appUrl ?? null, window.location.origin),
     ).then(setCapabilities);
-    return () => { fiber.catch(() => {}); }; // Cleanup: ignore stale results
+    return () => { fiber.catch(() => {}); };
   }, [appUrl]);
 
   return capabilities;
