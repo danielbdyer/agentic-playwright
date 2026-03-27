@@ -14,9 +14,9 @@
  *   - Bloom (UnrealBloomPass) for emissive glow interaction
  *
  * Progressive enhancement layers (composable, non-breaking):
- *   - Base: texture + glows + particles + glass (this file)
- *   - WebMCP: live DOM portal replacing texture (when available)
- *   - Observatory: knowledge graph nodes in 3D (Phase 2)
+ *   Layer 0: texture + glows + particles + glass (base)
+ *   Layer 1: live DOM portal replaces texture (iframe behind canvas)
+ *   Layer 2: MCP tools expose same data structurally (agent access)
  */
 
 import { memo, useMemo } from 'react';
@@ -27,11 +27,10 @@ import { ScreenPlane } from './screen-plane';
 import { SelectorGlows } from './selector-glows';
 import { ParticleTransport } from './particle-transport';
 import { GlassPane } from './glass-pane';
-import type { McpCapabilities } from '../hooks/use-mcp-capabilities';
 
 // ─── Layout Constants (pure, scene-level) ───
 
-const SCENE_LAYOUT = {
+export const SCENE_LAYOUT = {
   screen: { x: -1.8, width: 3, height: 2.2 },
   glass: { x: -0.1, width: 0.3, height: 2.4 },
   knowledge: { x: 1.8 },
@@ -43,14 +42,14 @@ const SCENE_LAYOUT = {
 export interface SpatialCanvasProps {
   /** Active probe events from the ingestion queue. */
   readonly probes: readonly ProbeEvent[];
-  /** Latest screen capture for the texture plane. */
+  /** Latest screen capture for the texture plane (Layer 0). Null if portal active. */
   readonly capture: ScreenCapture | null;
   /** Viewport dimensions of the application under test. */
   readonly viewport: ViewportDimensions;
   /** Callback when a particle arrives at knowledge space. */
   readonly onParticleArrived?: (probeId: string) => void;
-  /** Progressive enhancement: detected MCP capabilities. */
-  readonly capabilities?: McpCapabilities;
+  /** When true, skip ScreenPlane rendering (live portal handles the visual). */
+  readonly portalActive?: boolean;
 }
 
 // ─── Scene Content (separated for memo purity) ───
@@ -60,10 +59,10 @@ const SceneContent = memo(function SceneContent({
   capture,
   viewport,
   onParticleArrived,
+  portalActive = false,
 }: SpatialCanvasProps) {
-  const { screen, glass, knowledge, } = SCENE_LAYOUT;
+  const { screen, glass, knowledge } = SCENE_LAYOUT;
 
-  // Derive probe-dependent values without re-creating the scene
   const activeProbes = useMemo(
     () => probes.filter((p) => p.found && p.boundingBox !== null),
     [probes],
@@ -75,15 +74,17 @@ const SceneContent = memo(function SceneContent({
       <ambientLight intensity={0.3} />
       <directionalLight position={[2, 3, 4]} intensity={0.6} />
 
-      {/* Live application DOM as textured plane */}
-      <ScreenPlane
-        width={screen.width}
-        height={screen.height}
-        position={[screen.x, 0, 0]}
-        capture={capture}
-      />
+      {/* Layer 0: Screenshot texture — hidden when live portal is active */}
+      {!portalActive && (
+        <ScreenPlane
+          width={screen.width}
+          height={screen.height}
+          position={[screen.x, 0, 0]}
+          capture={capture}
+        />
+      )}
 
-      {/* Bioluminescent element highlights overlaid on screen plane */}
+      {/* Bioluminescent element highlights — works on both layers */}
       <SelectorGlows
         probes={activeProbes}
         viewport={viewport}
@@ -130,7 +131,11 @@ export const SpatialCanvas = memo(function SpatialCanvas(props: SpatialCanvasPro
     <Canvas
       camera={{ position: [...camera.position], fov: camera.fov }}
       gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
-      style={{ position: 'absolute', inset: 0 }}
+      style={{
+        position: 'absolute',
+        inset: 0,
+        zIndex: 1, // Above iframe portal, below UI controls
+      }}
       dpr={[1, 2]}
     >
       <SceneContent {...props} />

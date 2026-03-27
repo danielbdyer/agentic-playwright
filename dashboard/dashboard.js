@@ -69232,7 +69232,7 @@ var require_use_sync_external_store_shim_development = __commonJS({
             "The result of getSnapshot should be cached to avoid an infinite loop"
           ), didWarnUncachedGetSnapshot = true);
         }
-        cachedValue = useState8({
+        cachedValue = useState10({
           inst: { value, getSnapshot }
         });
         var inst = cachedValue[0].inst, forceUpdate = cachedValue[1];
@@ -69244,7 +69244,7 @@ var require_use_sync_external_store_shim_development = __commonJS({
           },
           [subscribe, value, getSnapshot]
         );
-        useEffect9(
+        useEffect10(
           function() {
             checkIfSnapshotChanged(inst) && forceUpdate({ inst });
             return subscribe(function() {
@@ -69270,7 +69270,7 @@ var require_use_sync_external_store_shim_development = __commonJS({
         return getSnapshot();
       }
       "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(Error());
-      var React10 = require_react(), objectIs = "function" === typeof Object.is ? Object.is : is2, useState8 = React10.useState, useEffect9 = React10.useEffect, useLayoutEffect3 = React10.useLayoutEffect, useDebugValue = React10.useDebugValue, didWarnOld18Alpha = false, didWarnUncachedGetSnapshot = false, shim = "undefined" === typeof window || "undefined" === typeof window.document || "undefined" === typeof window.document.createElement ? useSyncExternalStore$1 : useSyncExternalStore$2;
+      var React10 = require_react(), objectIs = "function" === typeof Object.is ? Object.is : is2, useState10 = React10.useState, useEffect10 = React10.useEffect, useLayoutEffect3 = React10.useLayoutEffect, useDebugValue = React10.useDebugValue, didWarnOld18Alpha = false, didWarnUncachedGetSnapshot = false, shim = "undefined" === typeof window || "undefined" === typeof window.document || "undefined" === typeof window.document.createElement ? useSyncExternalStore$1 : useSyncExternalStore$2;
       exports.useSyncExternalStore = void 0 !== React10.useSyncExternalStore ? React10.useSyncExternalStore : shim;
       "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop(Error());
     })();
@@ -69298,7 +69298,7 @@ var require_with_selector_development = __commonJS({
         return x2 === y && (0 !== x2 || 1 / x2 === 1 / y) || x2 !== x2 && y !== y;
       }
       "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(Error());
-      var React10 = require_react(), shim = require_shim(), objectIs = "function" === typeof Object.is ? Object.is : is2, useSyncExternalStore3 = shim.useSyncExternalStore, useRef8 = React10.useRef, useEffect9 = React10.useEffect, useMemo8 = React10.useMemo, useDebugValue = React10.useDebugValue;
+      var React10 = require_react(), shim = require_shim(), objectIs = "function" === typeof Object.is ? Object.is : is2, useSyncExternalStore3 = shim.useSyncExternalStore, useRef8 = React10.useRef, useEffect10 = React10.useEffect, useMemo8 = React10.useMemo, useDebugValue = React10.useDebugValue;
       exports.useSyncExternalStoreWithSelector = function(subscribe, getSnapshot, getServerSnapshot, selector, isEqual) {
         var instRef = useRef8(null);
         if (null === instRef.current) {
@@ -69342,7 +69342,7 @@ var require_with_selector_development = __commonJS({
           [getSnapshot, getServerSnapshot, selector, isEqual]
         );
         var value = useSyncExternalStore3(subscribe, instRef[0], instRef[1]);
-        useEffect9(
+        useEffect10(
           function() {
             inst.hasValue = true;
             inst.value = value;
@@ -85748,7 +85748,8 @@ var init_canvas = __esm({
       probes,
       capture,
       viewport,
-      onParticleArrived
+      onParticleArrived,
+      portalActive = false
     }) {
       const { screen: screen2, glass, knowledge } = SCENE_LAYOUT;
       const activeProbes = (0, import_react10.useMemo)(
@@ -85758,7 +85759,7 @@ var init_canvas = __esm({
       return /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(import_jsx_runtime10.Fragment, { children: [
         /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("ambientLight", { intensity: 0.3 }),
         /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("directionalLight", { position: [2, 3, 4], intensity: 0.6 }),
-        /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+        !portalActive && /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
           ScreenPlane,
           {
             width: screen2.width,
@@ -85813,7 +85814,12 @@ var init_canvas = __esm({
         {
           camera: { position: [...camera.position], fov: camera.fov },
           gl: { antialias: true, alpha: true, powerPreference: "high-performance" },
-          style: { position: "absolute", inset: 0 },
+          style: {
+            position: "absolute",
+            inset: 0,
+            zIndex: 1
+            // Above iframe portal, below UI controls
+          },
           dpr: [1, 2],
           children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(SceneContent, { ...props })
         }
@@ -85822,16 +85828,77 @@ var init_canvas = __esm({
   }
 });
 
+// dashboard/src/spatial/live-dom-portal.tsx
+var import_react11, import_jsx_runtime11, LiveDomPortal, PortalLoading;
+var init_live_dom_portal = __esm({
+  "dashboard/src/spatial/live-dom-portal.tsx"() {
+    "use strict";
+    import_react11 = __toESM(require_react());
+    import_jsx_runtime11 = __toESM(require_jsx_runtime());
+    LiveDomPortal = (0, import_react11.memo)(function LiveDomPortal2({
+      appUrl,
+      interactive = false,
+      onLoad
+    }) {
+      const [loaded, setLoaded] = (0, import_react11.useState)(false);
+      const handleLoad = (0, import_react11.useCallback)(() => {
+        setLoaded(true);
+        onLoad?.();
+      }, [onLoad]);
+      return /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
+        "iframe",
+        {
+          src: appUrl,
+          onLoad: handleLoad,
+          title: "Application Under Test",
+          sandbox: "allow-same-origin allow-scripts allow-forms allow-modals allow-popups",
+          style: {
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            border: "none",
+            zIndex: 0,
+            pointerEvents: interactive ? "auto" : "none",
+            opacity: loaded ? 1 : 0,
+            transition: "opacity 400ms ease-out",
+            // GPU layer promotion for smooth compositing
+            willChange: "opacity",
+            transform: "translateZ(0)"
+          }
+        }
+      );
+    });
+    PortalLoading = (0, import_react11.memo)(function PortalLoading2({ visible }) {
+      if (!visible)
+        return null;
+      return /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { style: {
+        position: "absolute",
+        inset: 0,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 3,
+        pointerEvents: "none",
+        color: "#58a6ff",
+        fontSize: 13,
+        fontFamily: "-apple-system, sans-serif",
+        opacity: 0.7
+      }, children: "Loading live portal..." });
+    });
+  }
+});
+
 // dashboard/src/hooks/use-ingestion-queue.ts
 function useIngestionQueue(options = {}) {
   const staggerMs = options.staggerMs ?? 80;
   const maxBuffer = options.maxBuffer ?? 200;
-  const bufferRef = (0, import_react11.useRef)([]);
-  const [active, setActive] = (0, import_react11.useState)([]);
-  const [buffered, setBuffered] = (0, import_react11.useState)(0);
-  const rafRef = (0, import_react11.useRef)(null);
-  const lastEmitRef = (0, import_react11.useRef)(0);
-  (0, import_react11.useEffect)(() => {
+  const bufferRef = (0, import_react12.useRef)([]);
+  const [active, setActive] = (0, import_react12.useState)([]);
+  const [buffered, setBuffered] = (0, import_react12.useState)(0);
+  const rafRef = (0, import_react12.useRef)(null);
+  const lastEmitRef = (0, import_react12.useRef)(0);
+  (0, import_react12.useEffect)(() => {
     const drain = (now) => {
       if (bufferRef.current.length > 0 && now - lastEmitRef.current >= staggerMs) {
         const next = bufferRef.current.shift();
@@ -85847,49 +85914,108 @@ function useIngestionQueue(options = {}) {
         cancelAnimationFrame(rafRef.current);
     };
   }, [staggerMs]);
-  const enqueue = (0, import_react11.useCallback)((id, data) => {
+  const enqueue = (0, import_react12.useCallback)((id, data) => {
     const buf = bufferRef.current;
     buf.push({ id, data, queuedAt: performance.now() });
     while (buf.length > maxBuffer)
       buf.shift();
     setBuffered(buf.length);
   }, [maxBuffer]);
-  const retire = (0, import_react11.useCallback)((id) => {
+  const retire = (0, import_react12.useCallback)((id) => {
     setActive((prev) => prev.filter((e2) => e2.id !== id));
   }, []);
   return { active, buffered, enqueue, retire };
 }
-var import_react11;
+var import_react12;
 var init_use_ingestion_queue = __esm({
   "dashboard/src/hooks/use-ingestion-queue.ts"() {
     "use strict";
-    import_react11 = __toESM(require_react());
+    import_react12 = __toESM(require_react());
+  }
+});
+
+// dashboard/src/hooks/use-mcp-capabilities.ts
+function useWebMcpCapabilities(appUrl) {
+  const [capabilities, setCapabilities] = (0, import_react13.useState)(BASE_CAPABILITIES);
+  const detect = (0, import_react13.useCallback)(async () => {
+    const baseUrl = window.location.origin;
+    const [domReachable, mcpEndpoint] = await Promise.all([
+      appUrl ? probeUrl(appUrl) : Promise.resolve(false),
+      probeMcpEndpoint(baseUrl)
+    ]);
+    const webMcpAvailable = detectWebMcp();
+    setCapabilities({
+      screenshotStream: true,
+      liveDomPortal: domReachable,
+      mcpAvailable: webMcpAvailable || mcpEndpoint !== null,
+      appUrl: domReachable ? appUrl ?? null : null,
+      mcpEndpoint
+    });
+  }, [appUrl]);
+  (0, import_react13.useEffect)(() => {
+    detect();
+  }, [detect]);
+  return capabilities;
+}
+var import_react13, BASE_CAPABILITIES, probeUrl, probeMcpEndpoint, detectWebMcp;
+var init_use_mcp_capabilities = __esm({
+  "dashboard/src/hooks/use-mcp-capabilities.ts"() {
+    "use strict";
+    import_react13 = __toESM(require_react());
+    BASE_CAPABILITIES = {
+      screenshotStream: true,
+      liveDomPortal: false,
+      mcpAvailable: false,
+      appUrl: null,
+      mcpEndpoint: null
+    };
+    probeUrl = async (url) => {
+      try {
+        const response = await fetch(url, { method: "HEAD", mode: "no-cors" });
+        return response.type === "opaque" || response.ok;
+      } catch {
+        return false;
+      }
+    };
+    probeMcpEndpoint = async (baseUrl) => {
+      try {
+        const response = await fetch(`${baseUrl}/api/mcp/tools`);
+        if (response.ok)
+          return `${baseUrl}/api/mcp`;
+        return null;
+      } catch {
+        return null;
+      }
+    };
+    detectWebMcp = () => typeof window !== "undefined" && "ai" in window && "mcpServer" in window;
   }
 });
 
 // dashboard/src/app.tsx
 var require_app = __commonJS({
   "dashboard/src/app.tsx"() {
-    var import_react12 = __toESM(require_react());
+    var import_react14 = __toESM(require_react());
     var import_client = __toESM(require_client());
     init_modern2();
     init_canvas();
+    init_live_dom_portal();
     init_use_ingestion_queue();
-    var import_jsx_runtime11 = __toESM(require_jsx_runtime());
+    init_use_mcp_capabilities();
+    var import_jsx_runtime12 = __toESM(require_jsx_runtime());
     function useEffectStream(url) {
-      const wsRef = (0, import_react12.useRef)(null);
+      const wsRef = (0, import_react14.useRef)(null);
       const qc = useQueryClient();
-      const [connected, setConnected] = (0, import_react12.useState)(false);
-      const [progress, setProgress] = (0, import_react12.useState)(null);
-      const [queue, setQueue] = (0, import_react12.useState)([]);
-      const [processingId, setProcessingId] = (0, import_react12.useState)(null);
-      const [capture, setCapture] = (0, import_react12.useState)(null);
-      const [appViewport, setAppViewport] = (0, import_react12.useState)({ width: 1280, height: 720 });
+      const [connected, setConnected] = (0, import_react14.useState)(false);
+      const [progress, setProgress] = (0, import_react14.useState)(null);
+      const [queue, setQueue] = (0, import_react14.useState)([]);
+      const [processingId, setProcessingId] = (0, import_react14.useState)(null);
+      const [capture, setCapture] = (0, import_react14.useState)(null);
+      const [appViewport, setAppViewport] = (0, import_react14.useState)({ width: 1280, height: 720 });
       const probeQueue = useIngestionQueue({ staggerMs: 60, maxBuffer: 300 });
-      const send = (0, import_react12.useCallback)((msg) => {
+      const send = (0, import_react14.useCallback)((msg) => {
         wsRef.current?.readyState === WebSocket.OPEN && wsRef.current.send(JSON.stringify(msg));
       }, []);
-      (0, import_react12.useEffect)(() => {
+      (0, import_react14.useEffect)(() => {
         let reconnectTimer;
         function connect() {
           const ws = new WebSocket(url);
@@ -86000,35 +86126,35 @@ var require_app = __commonJS({
       "validate-calibration": "#bc8cff",
       "request-rerun": "#79c0ff"
     };
-    var ConnectionDot = (0, import_react12.memo)(function ConnectionDot2({ connected }) {
-      return /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: `connection-dot ${connected ? "connected" : "disconnected"}` });
+    var ConnectionDot = (0, import_react14.memo)(function ConnectionDot2({ connected }) {
+      return /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: `connection-dot ${connected ? "connected" : "disconnected"}` });
     });
-    var StatusBar = (0, import_react12.memo)(function StatusBar2({ workbench, scorecard, connected, progress }) {
-      return /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "status-bar", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "status-item", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(ConnectionDot, { connected }),
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: "status-label", children: "WS" })
+    var StatusBar = (0, import_react14.memo)(function StatusBar2({ workbench, scorecard, connected, progress }) {
+      return /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "status-bar", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "status-item", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(ConnectionDot, { connected }),
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "status-label", children: "WS" })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "status-item", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: "status-label", children: "Iter:" }),
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: "status-value", children: workbench?.iteration ?? "\u2014" })
+        /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "status-item", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "status-label", children: "Iter:" }),
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "status-value", children: workbench?.iteration ?? "\u2014" })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "status-item", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: "status-label", children: "Queue:" }),
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("span", { className: "status-value", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "status-item", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "status-label", children: "Queue:" }),
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("span", { className: "status-value", children: [
             workbench?.summary.pending ?? 0,
             " pending / ",
             workbench?.summary.completed ?? 0,
             " done"
           ] })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "status-item", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: "status-label", children: "HWM:" }),
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: "status-value", children: scorecard ? `${(scorecard.highWaterMark.knowledgeHitRate * 100).toFixed(1)}%` : "\u2014" })
+        /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "status-item", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "status-label", children: "HWM:" }),
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "status-value", children: scorecard ? `${(scorecard.highWaterMark.knowledgeHitRate * 100).toFixed(1)}%` : "\u2014" })
         ] }),
-        progress && /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "status-item", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: "status-label", children: "Live:" }),
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("span", { className: "status-value", children: [
+        progress && /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "status-item", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "status-label", children: "Live:" }),
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("span", { className: "status-value", children: [
             "[",
             progress.phase,
             "] ",
@@ -86039,71 +86165,71 @@ var require_app = __commonJS({
         ] })
       ] });
     });
-    var FitnessCard = (0, import_react12.memo)(function FitnessCard2({ scorecard }) {
+    var FitnessCard = (0, import_react14.memo)(function FitnessCard2({ scorecard }) {
       if (!scorecard)
-        return /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "card", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("h2", { children: "Fitness" }),
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { className: "empty", children: "No scorecard yet." })
+        return /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "card", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("h2", { children: "Fitness" }),
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "empty", children: "No scorecard yet." })
         ] });
       const h2 = scorecard.highWaterMark;
       const cls = (v) => v >= 0.8 ? "good" : v >= 0.5 ? "warn" : "bad";
-      return /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "card", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("h2", { children: "Fitness High-Water Mark" }),
-        /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "metric", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: "metric-label", children: "Knowledge Hit Rate" }),
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("span", { className: `metric-value ${cls(h2.knowledgeHitRate)}`, children: [
+      return /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "card", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("h2", { children: "Fitness High-Water Mark" }),
+        /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "metric", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "metric-label", children: "Knowledge Hit Rate" }),
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("span", { className: `metric-value ${cls(h2.knowledgeHitRate)}`, children: [
             (h2.knowledgeHitRate * 100).toFixed(1),
             "%"
           ] })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "metric", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: "metric-label", children: "Translation Precision" }),
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("span", { className: `metric-value ${cls(h2.translationPrecision)}`, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "metric", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "metric-label", children: "Translation Precision" }),
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("span", { className: `metric-value ${cls(h2.translationPrecision)}`, children: [
             (h2.translationPrecision * 100).toFixed(1),
             "%"
           ] })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "metric", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: "metric-label", children: "Convergence" }),
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("span", { className: "metric-value", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "metric", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "metric-label", children: "Convergence" }),
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("span", { className: "metric-value", children: [
             h2.convergenceVelocity,
             " iter"
           ] })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "metric", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: "metric-label", children: "Proposal Yield" }),
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("span", { className: `metric-value ${cls(h2.proposalYield)}`, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "metric", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "metric-label", children: "Proposal Yield" }),
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("span", { className: `metric-value ${cls(h2.proposalYield)}`, children: [
             (h2.proposalYield * 100).toFixed(1),
             "%"
           ] })
         ] }),
-        h2.resolutionByRung && h2.resolutionByRung.filter((r2) => r2.wins > 0).length > 0 && /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { className: "rung-bar", style: { marginTop: 8 }, children: h2.resolutionByRung.filter((r2) => r2.wins > 0).map((r2) => /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { className: "rung-segment", style: { flex: r2.wins, backgroundColor: RUNG_COLORS[r2.rung] ?? "#484f58" }, title: `${r2.rung}: ${r2.wins}`, children: r2.wins > 2 ? r2.wins : "" }, r2.rung)) })
+        h2.resolutionByRung && h2.resolutionByRung.filter((r2) => r2.wins > 0).length > 0 && /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "rung-bar", style: { marginTop: 8 }, children: h2.resolutionByRung.filter((r2) => r2.wins > 0).map((r2) => /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "rung-segment", style: { flex: r2.wins, backgroundColor: RUNG_COLORS[r2.rung] ?? "#484f58" }, title: `${r2.rung}: ${r2.wins}`, children: r2.wins > 2 ? r2.wins : "" }, r2.rung)) })
       ] });
     });
-    var ProgressCard = (0, import_react12.memo)(function ProgressCard2({ progress }) {
+    var ProgressCard = (0, import_react14.memo)(function ProgressCard2({ progress }) {
       if (!progress)
-        return /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "card", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("h2", { children: "Live Progress" }),
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { className: "empty", children: "No active run." })
+        return /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "card", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("h2", { children: "Live Progress" }),
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "empty", children: "No active run." })
         ] });
       const m2 = progress.metrics;
-      return /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "card", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("h2", { children: [
+      return /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "card", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("h2", { children: [
           "Live \u2014 [",
           progress.phase,
           "]"
         ] }),
-        m2 && /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)(import_jsx_runtime11.Fragment, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "metric", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: "metric-label", children: "Hit Rate" }),
-            /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("span", { className: `metric-value ${m2.knowledgeHitRate >= 0.8 ? "good" : m2.knowledgeHitRate >= 0.5 ? "warn" : "bad"}`, children: [
+        m2 && /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(import_jsx_runtime12.Fragment, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "metric", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "metric-label", children: "Hit Rate" }),
+            /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("span", { className: `metric-value ${m2.knowledgeHitRate >= 0.8 ? "good" : m2.knowledgeHitRate >= 0.5 ? "warn" : "bad"}`, children: [
               (m2.knowledgeHitRate * 100).toFixed(1),
               "%"
             ] })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "metric", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: "metric-label", children: "Steps" }),
-            /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("span", { className: "metric-value", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "metric", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "metric-label", children: "Steps" }),
+            /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("span", { className: "metric-value", children: [
               m2.totalSteps,
               " (",
               m2.unresolvedSteps,
@@ -86111,106 +86237,106 @@ var require_app = __commonJS({
             ] })
           ] })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "metric", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: "metric-label", children: "Elapsed" }),
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("span", { className: "metric-value", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "metric", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "metric-label", children: "Elapsed" }),
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("span", { className: "metric-value", children: [
             (progress.elapsed / 1e3).toFixed(1),
             "s"
           ] })
         ] }),
-        progress.calibration && /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "metric", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: "metric-label", children: "Drift" }),
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: "metric-value", children: progress.calibration.weightDrift.toFixed(4) })
+        progress.calibration && /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "metric", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "metric-label", children: "Drift" }),
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "metric-value", children: progress.calibration.weightDrift.toFixed(4) })
         ] })
       ] });
     });
-    var QueueItemView = (0, import_react12.memo)(function QueueItemView2({ item, onApprove, onSkip }) {
+    var QueueItemView = (0, import_react14.memo)(function QueueItemView2({ item, onApprove, onSkip }) {
       const color2 = KIND_COLORS[item.kind] ?? "#484f58";
       const isDeciding = item.displayStatus === "processing";
-      return /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "queue-item", "data-status": item.displayStatus, style: { position: "relative" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "item-content", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "item-title", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: "item-badge", style: { background: `${color2}33`, color: color2 }, children: item.kind }),
+      return /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "queue-item", "data-status": item.displayStatus, style: { position: "relative" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "item-content", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "item-title", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "item-badge", style: { background: `${color2}33`, color: color2 }, children: item.kind }),
             item.title
           ] }),
-          isDeciding && /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { className: "item-detail", children: item.rationale }),
-          isDeciding && item.context.screen && /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "item-detail", children: [
+          isDeciding && /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "item-detail", children: item.rationale }),
+          isDeciding && item.context.screen && /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "item-detail", children: [
             "Screen: ",
             item.context.screen,
             item.context.element ? ` / ${item.context.element}` : ""
           ] })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "item-actions", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: "priority-score", children: item.priority.toFixed(3) }),
-          isDeciding && /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)(import_jsx_runtime11.Fragment, { children: [
-            /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("button", { className: "btn btn-approve", onClick: () => onApprove(item.id), children: "\u2713 Approve" }),
-            /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("button", { className: "btn", onClick: () => onSkip(item.id), children: "\u25CB Skip" })
+        /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "item-actions", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "priority-score", children: item.priority.toFixed(3) }),
+          isDeciding && /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(import_jsx_runtime12.Fragment, { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("button", { className: "btn btn-approve", onClick: () => onApprove(item.id), children: "\u2713 Approve" }),
+            /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("button", { className: "btn", onClick: () => onSkip(item.id), children: "\u25CB Skip" })
           ] })
         ] })
       ] });
     });
-    var QueueVisualization = (0, import_react12.memo)(function QueueVisualization2({ queue, onApprove, onSkip }) {
+    var QueueVisualization = (0, import_react14.memo)(function QueueVisualization2({ queue, onApprove, onSkip }) {
       if (queue.length === 0)
         return null;
-      return /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "card card-full", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("h2", { children: [
+      return /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "card card-full", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("h2", { children: [
           "Effect Queue \u2014 ",
           queue.length,
           " items"
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { className: "queue-container", children: queue.map((item) => /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(QueueItemView, { item, onApprove, onSkip }, item.id)) })
+        /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "queue-container", children: queue.map((item) => /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(QueueItemView, { item, onApprove, onSkip }, item.id)) })
       ] });
     });
-    var WorkbenchPanel = (0, import_react12.memo)(function WorkbenchPanel2({ workbench, onApprove, onSkip }) {
+    var WorkbenchPanel = (0, import_react14.memo)(function WorkbenchPanel2({ workbench, onApprove, onSkip }) {
       if (!workbench || workbench.items.length === 0)
-        return /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "card card-full", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("h2", { children: "Workbench" }),
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { className: "empty", children: "No pending items. Converged." })
+        return /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "card card-full", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("h2", { children: "Workbench" }),
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "empty", children: "No pending items. Converged." })
         ] });
       const byScreen = /* @__PURE__ */ new Map();
       for (const item of workbench.items) {
         const s = item.context.screen ?? "unknown";
         byScreen.set(s, [...byScreen.get(s) ?? [], item]);
       }
-      return /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "card card-full", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("h2", { children: [
+      return /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "card card-full", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("h2", { children: [
           "Workbench \u2014 ",
           workbench.summary.pending,
           " pending"
         ] }),
-        [...byScreen.entries()].map(([screen2, items]) => /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "screen-group", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "screen-header", children: [
+        [...byScreen.entries()].map(([screen2, items]) => /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "screen-group", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "screen-header", children: [
             screen2,
             " (",
             items.length,
             ")"
           ] }),
-          items.map((item) => /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "queue-item", "data-status": "pending", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { className: "item-content", children: /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "item-title", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: "item-badge", style: { background: `${KIND_COLORS[item.kind] ?? "#484f58"}33`, color: KIND_COLORS[item.kind] ?? "#484f58" }, children: item.kind }),
+          items.map((item) => /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "queue-item", "data-status": "pending", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "item-content", children: /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "item-title", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "item-badge", style: { background: `${KIND_COLORS[item.kind] ?? "#484f58"}33`, color: KIND_COLORS[item.kind] ?? "#484f58" }, children: item.kind }),
               " ",
               item.title
             ] }) }),
-            /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "item-actions", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: "priority-score", children: item.priority.toFixed(3) }),
-              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("button", { className: "btn btn-approve", onClick: () => onApprove(item.id), children: "\u2713" }),
-              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("button", { className: "btn", onClick: () => onSkip(item.id), children: "\u25CB" })
+            /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "item-actions", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "priority-score", children: item.priority.toFixed(3) }),
+              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("button", { className: "btn btn-approve", onClick: () => onApprove(item.id), children: "\u2713" }),
+              /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("button", { className: "btn", onClick: () => onSkip(item.id), children: "\u25CB" })
             ] })
           ] }, item.id))
         ] }, screen2))
       ] });
     });
-    var CompletionsPanel = (0, import_react12.memo)(function CompletionsPanel2({ workbench }) {
+    var CompletionsPanel = (0, import_react14.memo)(function CompletionsPanel2({ workbench }) {
       const completions = workbench?.completions ?? [];
       if (completions.length === 0)
         return null;
-      return /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "card", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("h2", { children: [
+      return /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "card", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("h2", { children: [
           "Completions (",
           completions.length,
           ")"
         ] }),
-        completions.slice(-8).reverse().map((c2, i3) => /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "lineage-entry", children: [
+        completions.slice(-8).reverse().map((c2, i3) => /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "lineage-entry", children: [
           c2.status === "completed" ? "\u2713" : "\u25CB",
           " ",
           c2.workItemId.slice(0, 8),
@@ -86224,45 +86350,53 @@ var require_app = __commonJS({
       const { data: scorecard } = useFitness();
       const { connected, send, progress, queue, capture, appViewport, probeQueue } = useEffectStream(`ws://${window.location.host}/ws`);
       const decisionMutation = useDecision(send);
-      const handleApprove = (0, import_react12.useCallback)((id) => {
+      const capabilities = useWebMcpCapabilities(capture?.url);
+      const [portalLoaded, setPortalLoaded] = (0, import_react14.useState)(false);
+      const portalActive = capabilities.liveDomPortal && portalLoaded;
+      const handleApprove = (0, import_react14.useCallback)((id) => {
         decisionMutation.mutate({ workItemId: id, status: "completed", rationale: `Dashboard approved` });
       }, [decisionMutation]);
-      const handleSkip = (0, import_react12.useCallback)((id) => {
+      const handleSkip = (0, import_react14.useCallback)((id) => {
         decisionMutation.mutate({ workItemId: id, status: "skipped", rationale: `Dashboard skipped` });
       }, [decisionMutation]);
-      const activeProbes = (0, import_react12.useMemo)(
+      const activeProbes = (0, import_react14.useMemo)(
         () => probeQueue.active.map((q) => q.data),
         [probeQueue.active]
       );
-      const handleParticleArrived = (0, import_react12.useCallback)((probeId) => {
+      const handleParticleArrived = (0, import_react14.useCallback)((probeId) => {
         probeQueue.retire(probeId);
       }, [probeQueue]);
-      return /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "dashboard-layout", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "spatial-viewport", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
+      const handlePortalLoaded = (0, import_react14.useCallback)(() => setPortalLoaded(true), []);
+      return /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "dashboard-layout", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "spatial-viewport", children: [
+          capabilities.liveDomPortal && capabilities.appUrl && /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(LiveDomPortal, { appUrl: capabilities.appUrl, onLoad: handlePortalLoaded }),
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(PortalLoading, { visible: capabilities.liveDomPortal && !portalLoaded }),
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
             SpatialCanvas,
             {
               probes: activeProbes,
-              capture,
+              capture: portalActive ? null : capture,
               viewport: appViewport,
-              onParticleArrived: handleParticleArrived
+              onParticleArrived: handleParticleArrived,
+              portalActive
             }
           ),
-          probeQueue.buffered > 0 && /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "buffer-indicator", children: [
+          probeQueue.buffered > 0 && /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "buffer-indicator", children: [
             probeQueue.buffered,
             " buffered"
-          ] })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "control-panel", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("h1", { children: "Tesseract Dashboard" }),
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(StatusBar, { workbench: workbench ?? null, scorecard: scorecard ?? null, connected, progress }),
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "grid", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(FitnessCard, { scorecard: scorecard ?? null }),
-            /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(ProgressCard, { progress })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(QueueVisualization, { queue, onApprove: handleApprove, onSkip: handleSkip }),
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(WorkbenchPanel, { workbench: workbench ?? null, onApprove: handleApprove, onSkip: handleSkip }),
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { className: "grid", children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(CompletionsPanel, { workbench: workbench ?? null }) })
+          capabilities.mcpAvailable && /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "mcp-indicator", children: "MCP" })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "control-panel", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("h1", { children: "Tesseract Dashboard" }),
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(StatusBar, { workbench: workbench ?? null, scorecard: scorecard ?? null, connected, progress }),
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "grid", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(FitnessCard, { scorecard: scorecard ?? null }),
+            /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(ProgressCard, { progress })
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(QueueVisualization, { queue, onApprove: handleApprove, onSkip: handleSkip }),
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(WorkbenchPanel, { workbench: workbench ?? null, onApprove: handleApprove, onSkip: handleSkip }),
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "grid", children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(CompletionsPanel, { workbench: workbench ?? null }) })
         ] })
       ] });
     }
@@ -86270,7 +86404,7 @@ var require_app = __commonJS({
       defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: true }, mutations: { retry: 0 } }
     });
     (0, import_client.createRoot)(document.getElementById("root")).render(
-      /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(QueryClientProvider, { client: queryClient, children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(App, {}) })
+      /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(QueryClientProvider, { client: queryClient, children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(App, {}) })
     );
   }
 });

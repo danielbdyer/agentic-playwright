@@ -18,7 +18,9 @@ import { useState, useEffect, useCallback, useRef, memo, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { SpatialCanvas } from './spatial/canvas';
+import { LiveDomPortal, PortalLoading } from './spatial/live-dom-portal';
 import { useIngestionQueue } from './hooks/use-ingestion-queue';
+import { useWebMcpCapabilities } from './hooks/use-mcp-capabilities';
 import type { ProbeEvent, ScreenCapture, ViewportDimensions } from './spatial/types';
 
 // ─── Types (projections of domain types) ───
@@ -358,6 +360,11 @@ function App() {
   const { connected, send, progress, queue, capture, appViewport, probeQueue } = useEffectStream(`ws://${window.location.host}/ws`);
   const decisionMutation = useDecision(send);
 
+  // Progressive enhancement: detect available capabilities (MCP, live portal)
+  const capabilities = useWebMcpCapabilities(capture?.url);
+  const [portalLoaded, setPortalLoaded] = useState(false);
+  const portalActive = capabilities.liveDomPortal && portalLoaded;
+
   const handleApprove = useCallback((id: string) => {
     decisionMutation.mutate({ workItemId: id, status: 'completed', rationale: `Dashboard approved` });
   }, [decisionMutation]);
@@ -376,18 +383,35 @@ function App() {
     probeQueue.retire(probeId);
   }, [probeQueue]);
 
+  const handlePortalLoaded = useCallback(() => setPortalLoaded(true), []);
+
   return (
     <div className="dashboard-layout">
-      {/* Spatial visualization — full-height R3F canvas */}
+      {/* Spatial visualization — layered viewport */}
       <div className="spatial-viewport">
+        {/* Layer 1: Live DOM portal (iframe, behind canvas) — progressive enhancement */}
+        {capabilities.liveDomPortal && capabilities.appUrl && (
+          <LiveDomPortal appUrl={capabilities.appUrl} onLoad={handlePortalLoaded} />
+        )}
+        <PortalLoading visible={capabilities.liveDomPortal && !portalLoaded} />
+
+        {/* Layer 0/1: R3F canvas (transparent when portal active) */}
         <SpatialCanvas
           probes={activeProbes}
-          capture={capture}
+          capture={portalActive ? null : capture}
           viewport={appViewport}
           onParticleArrived={handleParticleArrived}
+          portalActive={portalActive}
         />
+
+        {/* Buffer indicator */}
         {probeQueue.buffered > 0 && (
           <div className="buffer-indicator">{probeQueue.buffered} buffered</div>
+        )}
+
+        {/* MCP indicator */}
+        {capabilities.mcpAvailable && (
+          <div className="mcp-indicator">MCP</div>
         )}
       </div>
 

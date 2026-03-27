@@ -1,13 +1,15 @@
 /**
- * Tesseract Dashboard Server — WebSocket + REST + Effect integration.
+ * Tesseract Dashboard Server — WebSocket + REST + MCP + Effect integration.
  *
  * Architecture:
- *   HTTP :3100 — static files + REST API + WebSocket upgrade
+ *   HTTP :3100 — static files + REST API + MCP tools + WebSocket upgrade
  *   REST  /api/workbench, /api/fitness, /api/workbench/complete
+ *   MCP   /api/mcp/tools, /api/mcp/call, /api/capabilities
  *   WS    /ws — bidirectional streaming (progress, updates, decisions)
  *
  * Effect programs are called via runWithLocalServices for mutations.
  * WebSocket broadcasts updates to all connected clients in real-time.
+ * MCP tools expose the same observables the spatial canvas renders.
  */
 
 const http = require('http');
@@ -60,6 +62,96 @@ async function runEffect(programFn) {
 function readJsonFile(filePath) {
   try { return JSON.parse(fs.readFileSync(path.join(ROOT, filePath), 'utf8')); }
   catch { return null; }
+}
+
+function readTextFile(filePath) {
+  try { return fs.readFileSync(path.join(ROOT, filePath), 'utf8'); }
+  catch { return null; }
+}
+
+// ─── MCP State (shared with WS adapter for decision routing) ───
+
+/** Pending decisions: workItemId → resolver callback. Shared between WS and MCP. */
+const pendingDecisions = new Map();
+
+/** Latest screenshot cache for MCP get_screen_capture tool. */
+let lastScreenshot = null;
+
+/** MCP tool catalog — same tools the spatial canvas renders visually. */
+const MCP_TOOLS = [
+  { name: 'list_probed_elements', category: 'observe', description: 'List all elements currently probed in the resolution pipeline.' },
+  { name: 'get_screen_capture', category: 'observe', description: 'Get the latest screenshot of the application under test.' },
+  { name: 'get_knowledge_state', category: 'observe', description: 'Get current knowledge graph state.' },
+  { name: 'get_queue_items', category: 'observe', description: 'List pending work items in the decision queue.' },
+  { name: 'get_fitness_metrics', category: 'observe', description: 'Get current fitness scorecard.' },
+  { name: 'approve_work_item', category: 'decide', description: 'Approve a pending work item, resuming the paused Effect fiber.' },
+  { name: 'skip_work_item', category: 'decide', description: 'Skip a pending work item.' },
+  { name: 'get_iteration_status', category: 'control', description: 'Get current iteration number, phase, and convergence metrics.' },
+];
+
+/** Route an MCP tool call to the appropriate handler. Pure dispatch. */
+function handleMcpToolCall(tool, args) {
+  switch (tool) {
+    case 'list_probed_elements': {
+      const wb = readJsonFile('.tesseract/workbench/index.json');
+      if (!wb || !wb.items) return { elements: [], count: 0 };
+      const screen = args.screen;
+      const items = screen ? wb.items.filter(i => i.context?.screen === screen) : wb.items;
+      return {
+        elements: items.map(i => ({
+          id: i.id, element: i.context?.element ?? null, screen: i.context?.screen ?? null,
+          confidence: i.evidence?.confidence ?? 0, kind: i.kind, priority: i.priority,
+        })),
+        count: items.length,
+      };
+    }
+    case 'get_screen_capture':
+      return lastScreenshot ?? { error: 'No screenshot available yet', available: false };
+
+    case 'get_knowledge_state': {
+      const graph = readJsonFile('.tesseract/graph/index.json');
+      if (!graph) return { nodes: [], totalNodes: 0 };
+      const nodes = graph.nodes ?? [];
+      const filtered = args.screen ? nodes.filter(n => String(n.id ?? '').includes(args.screen)) : nodes;
+      return { nodes: filtered.slice(0, 100), totalNodes: filtered.length, totalEdges: (graph.edges ?? []).length };
+    }
+    case 'get_queue_items': {
+      const wb = readJsonFile('.tesseract/workbench/index.json');
+      if (!wb || !wb.items) return { items: [], count: 0 };
+      return { items: wb.items, count: wb.items.length, summary: wb.summary ?? null };
+    }
+    case 'get_fitness_metrics': {
+      const sc = readJsonFile('.tesseract/benchmarks/scorecard.json');
+      return sc?.highWaterMark ?? { error: 'No scorecard available yet' };
+    }
+    case 'approve_work_item': {
+      const resolver = pendingDecisions.get(args.workItemId);
+      if (!resolver) return { error: `No pending decision for ${args.workItemId}`, isError: true };
+      const decision = { workItemId: args.workItemId, status: 'completed', rationale: args.rationale ?? 'Approved via MCP' };
+      pendingDecisions.delete(args.workItemId);
+      resolver(decision);
+      broadcast({ type: 'item-completed', timestamp: new Date().toISOString(), data: decision });
+      return { ok: true, workItemId: args.workItemId, status: 'completed' };
+    }
+    case 'skip_work_item': {
+      const resolver = pendingDecisions.get(args.workItemId);
+      if (!resolver) return { error: `No pending decision for ${args.workItemId}`, isError: true };
+      const decision = { workItemId: args.workItemId, status: 'skipped', rationale: args.rationale ?? 'Skipped via MCP' };
+      pendingDecisions.delete(args.workItemId);
+      resolver(decision);
+      broadcast({ type: 'item-completed', timestamp: new Date().toISOString(), data: decision });
+      return { ok: true, workItemId: args.workItemId, status: 'skipped' };
+    }
+    case 'get_iteration_status': {
+      const text = readTextFile('.tesseract/runs/speedrun-progress.jsonl');
+      if (!text) return { phase: 'idle', error: 'No progress data' };
+      const lines = text.trim().split('\n');
+      try { return JSON.parse(lines[lines.length - 1]); }
+      catch { return { phase: 'unknown' }; }
+    }
+    default:
+      return { error: `Unknown tool: ${tool}`, isError: true };
+  }
 }
 
 // ─── WebSocket (minimal implementation, no deps) ───
@@ -240,6 +332,44 @@ function handleRequest(req, res) {
     return;
   }
 
+  // ─── MCP Tool Endpoints ───
+
+  if (url.pathname === '/api/mcp/tools') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ tools: MCP_TOOLS }));
+    return;
+  }
+
+  if (url.pathname === '/api/mcp/call' && req.method === 'POST') {
+    let body = '';
+    req.on('data', (chunk) => { body += chunk; });
+    req.on('end', () => {
+      try {
+        const { tool, arguments: args } = JSON.parse(body);
+        const result = handleMcpToolCall(tool, args ?? {});
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ tool, result, isError: !!result?.isError }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: String(err) }));
+      }
+    });
+    return;
+  }
+
+  if (url.pathname === '/api/capabilities') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      screenshotStream: true,
+      liveDomPortal: false,
+      mcpServer: true,
+      mcpEndpoint: `http://localhost:${PORT}/api/mcp`,
+      playwrightMcp: false,
+      version: '1.0',
+    }));
+    return;
+  }
+
   if (url.pathname === '/api/lineage') {
     const data = readJsonFile('.tesseract/workbench/lineage.json');
     res.writeHead(data ? 200 : 404, { 'Content-Type': 'application/json' });
@@ -293,6 +423,9 @@ server.listen(PORT, () => {
   console.log(`\n  Tesseract Dashboard: http://localhost:${PORT}`);
   console.log(`  WebSocket:           ws://localhost:${PORT}/ws`);
   console.log(`  REST API:            http://localhost:${PORT}/api/workbench`);
+  console.log(`  MCP Tools:           http://localhost:${PORT}/api/mcp/tools`);
+  console.log(`  MCP Invoke:          POST http://localhost:${PORT}/api/mcp/call`);
+  console.log(`  Capabilities:        http://localhost:${PORT}/api/capabilities`);
   console.log(`  Artifacts:           ${ROOT}/.tesseract/`);
   console.log('');
   initEffect();
