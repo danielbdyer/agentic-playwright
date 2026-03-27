@@ -8,7 +8,9 @@ import { emitAgentWorkbench, processWorkItems, emitInterventionLineage } from '.
 import { createDashboardDecider } from './dashboard-decider';
 import { createDualModeDecider, createAgentDecider } from './agent-decider';
 import type { AgentWorkItem, WorkItemCompletion } from '../domain/types';
+import { dashboardEvent } from '../domain/types/dashboard';
 import type { DashboardPort } from './ports';
+import { Dashboard } from './ports';
 import { improvementLoopLedgerPath, type ProjectPaths } from './paths';
 import { refreshScenarioCore } from './refresh';
 import { buildDerivedGraph } from './graph';
@@ -249,13 +251,40 @@ function accumulateProposalTotals(
       ),
       { concurrency: 'unbounded' },
     );
-    return results.reduce(
+    const totals = results.reduce(
       (acc, result) => ({
         activated: acc.activated + result.activatedPaths.length,
         blocked: acc.blocked + result.blockedProposalIds.length,
       }),
       { activated: 0, blocked: 0 },
     );
+
+    // Layer 2: emit proposal-activated for each bundle's results
+    const dashboard = yield* Dashboard;
+    for (const result of results) {
+      for (const activatedPath of result.activatedPaths) {
+        yield* dashboard.emit(dashboardEvent('proposal-activated', {
+          proposalId: activatedPath,
+          artifactType: 'elements',
+          targetPath: activatedPath,
+          status: 'activated',
+          confidence: 0.8,
+          iteration: 0,
+        }));
+      }
+      for (const blockedId of result.blockedProposalIds) {
+        yield* dashboard.emit(dashboardEvent('proposal-activated', {
+          proposalId: blockedId,
+          artifactType: 'elements',
+          targetPath: blockedId,
+          status: 'blocked',
+          confidence: 0,
+          iteration: 0,
+        }));
+      }
+    }
+
+    return totals;
   });
 }
 
@@ -481,6 +510,13 @@ function dogfoodMachine(options: DogfoodOptions) {
         return { next: state, done: true };
       }
 
+      const dashboard = yield* Dashboard;
+
+      // Emit iteration-start
+      yield* dashboard.emit(dashboardEvent('iteration-start', {
+        iteration, maxIterations: options.maxIterations,
+      }));
+
       const iterationStart = Date.now();
       const { result, partialFitness } = yield* runIteration(iteration, options);
       const iterationDuration = Date.now() - iterationStart;
@@ -524,6 +560,45 @@ function dogfoodMachine(options: DogfoodOptions) {
           correlations,
         ));
       }
+
+      // ─── Dashboard events: iteration lifecycle + convergence signals ───
+
+      // Layer 1: iteration-complete
+      yield* dashboard.emit(dashboardEvent('iteration-complete', {
+        iteration,
+        durationMs: iterationDuration,
+        knowledgeHitRate: result.knowledgeHitRate,
+        proposalsActivated: result.proposalsActivated,
+        proposalsBlocked: result.proposalsBlocked,
+        converged: convergence.converged,
+        convergenceReason: convergence.reason,
+      }));
+
+      // Layer 1: fitness-updated
+      yield* dashboard.emit(dashboardEvent('fitness-updated', {
+        iteration,
+        knowledgeHitRate: result.knowledgeHitRate,
+        unresolvedStepCount: result.unresolvedStepCount,
+        totalStepCount: result.totalStepCount,
+      }));
+
+      // Layer 2: rung-shift — resolution distribution for learning trajectory visualization
+      if (partialFitness.resolutionByRung.length > 0) {
+        yield* dashboard.emit(dashboardEvent('rung-shift', {
+          iteration,
+          distribution: partialFitness.resolutionByRung,
+          knowledgeHitRate: result.knowledgeHitRate,
+          totalSteps: result.totalStepCount,
+        }));
+      }
+
+      // Layer 2: calibration-update — self-calibrating bottleneck weights
+      yield* dashboard.emit(dashboardEvent('calibration-update', {
+        iteration,
+        weights: calibratedWeights,
+        weightDrift: weightDrift(state.bottleneckWeights, calibratedWeights),
+        correlations: correlations.map((c) => ({ signal: c.signal, strength: c.correlationWithImprovement })),
+      }));
 
       return { next: nextState, done: convergence.converged || convergence.reason === 'max-iterations' };
     }),

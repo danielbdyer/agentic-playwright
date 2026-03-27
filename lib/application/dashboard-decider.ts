@@ -24,10 +24,28 @@ export function createDashboardDecider(dashboard: DashboardPort): WorkItemDecide
       dashboard.emit(dashboardEvent('item-processing', { workItemId: item.id })),
     );
 
-    // 2. Await human decision — fiber pauses until the human clicks
+    // 2. Emit 'fiber-paused' — dashboard shows pause indicator
+    await Effect.runPromise(
+      dashboard.emit(dashboardEvent('fiber-paused', {
+        workItemId: item.id,
+        reason: item.rationale,
+        screen: item.context?.screen ?? 'unknown',
+        element: item.context?.element ?? null,
+      })),
+    );
+
+    // 3. Await human decision — fiber pauses until the human clicks (or auto-skips)
     const decision = await Effect.runPromise(dashboard.awaitDecision(item));
 
-    // 3. Return the decision to the processWorkItems loop
+    // 4. Emit 'fiber-resumed' — dashboard clears pause indicator
+    await Effect.runPromise(
+      dashboard.emit(dashboardEvent('fiber-resumed', {
+        workItemId: item.id,
+        decision: decision.status,
+      })),
+    );
+
+    // 5. Return the decision to the processWorkItems loop
     return {
       status: decision.status,
       rationale: decision.rationale,

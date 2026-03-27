@@ -33,7 +33,7 @@ import { buildImprovementRun, recordImprovementRun, scorecardPath } from './impr
 import { recordExperiment } from './experiment-registry';
 import { loadWorkspaceCatalog } from './catalog';
 import { cleanSlateProgram } from './clean-slate';
-import { FileSystem, VersionControl } from './ports';
+import { Dashboard, FileSystem, VersionControl } from './ports';
 import type {
   ExperimentRecord,
   ExperimentSubstrate,
@@ -183,6 +183,9 @@ export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunRes
       scenarioCount: generated.scenariosGenerated,
     });
 
+    // Thread dashboard port for live visualization (passive — never gates the pipeline)
+    const dashboard = yield* Dashboard;
+
     const { ledger } = yield* runDogfoodLoop({
       paths: input.paths,
       maxIterations: input.maxIterations,
@@ -193,6 +196,7 @@ export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunRes
       knowledgePosture: input.knowledgePosture,
       onProgress: input.onProgress,
       seed: input.seed,
+      dashboard,
     });
 
     const fitnessStart = Date.now();
@@ -516,6 +520,7 @@ export interface IteratePhaseInput {
 export function iteratePhase(input: IteratePhaseInput) {
   return Effect.gen(function* () {
     const start = Date.now();
+    const dashboard = yield* Dashboard;
     const { ledger } = yield* runDogfoodLoop({
       paths: input.paths,
       maxIterations: input.maxIterations,
@@ -526,6 +531,7 @@ export function iteratePhase(input: IteratePhaseInput) {
       knowledgePosture: input.knowledgePosture,
       onProgress: input.onProgress,
       seed: input.seed,
+      dashboard,
     });
     const durationMs = Date.now() - start;
     return { ledger, durationMs };

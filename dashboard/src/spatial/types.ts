@@ -2,42 +2,39 @@
  * Spatial domain types — the contract between the WebSocket event stream
  * and the Three.js visualization layer.
  *
- * These are projections of the backend domain types, kept lightweight
- * for the render loop. No domain logic here — just shapes.
+ * These are re-exports of the backend domain types (single source of truth)
+ * plus spatial-only projection helpers for the render loop.
  */
 
-export interface BoundingBox {
-  readonly x: number;
-  readonly y: number;
-  readonly width: number;
-  readonly height: number;
-}
+import type {
+  ActorKind,
+  BoundingBox,
+  ElementProbedEvent,
+  ElementEscalatedEvent,
+  ScreenCapturedEvent,
+  KnowledgeNodeProjection,
+  KnowledgeNodeStatus,
+  InboxUrgency,
+  InboxItemEvent,
+  FiberPauseEvent,
+  FiberResumeEvent,
+  RungShiftEvent,
+  CalibrationUpdateEvent,
+  ProposalActivatedEvent,
+  ConfidenceCrossedEvent,
+  ArtifactWrittenEvent,
+  StageLifecycleEvent,
+} from '../../../lib/domain/types/dashboard';
+import type { Governance } from '../../../lib/domain/types/workflow';
 
-export interface ProbeEvent {
-  readonly id: string;
-  readonly element: string;
-  readonly screen: string;
-  readonly boundingBox: BoundingBox | null;
-  readonly locatorRung: number;
-  readonly strategy: string;
-  readonly found: boolean;
-  readonly confidence: number;
-}
-
-export interface ScreenCapture {
-  readonly imageBase64: string;
-  readonly width: number;
-  readonly height: number;
-  readonly url: string;
-}
-
-export interface KnowledgeNode {
-  readonly screen: string;
-  readonly element: string;
-  readonly confidence: number;
-  readonly aliases: readonly string[];
-  readonly status: 'approved-equivalent' | 'learning' | 'needs-review';
-}
+// Re-export domain types as the spatial contract.
+// Aliased names preserve backward compatibility with existing components.
+export type ProbeEvent = ElementProbedEvent;
+export type ScreenCapture = ScreenCapturedEvent;
+export type KnowledgeNode = KnowledgeNodeProjection;
+export type { BoundingBox, ActorKind, Governance, KnowledgeNodeStatus };
+export type { ElementEscalatedEvent, InboxUrgency, InboxItemEvent, FiberPauseEvent, FiberResumeEvent };
+export type { RungShiftEvent, CalibrationUpdateEvent, ProposalActivatedEvent, ConfidenceCrossedEvent, ArtifactWrittenEvent, StageLifecycleEvent };
 
 /** Viewport dimensions for coordinate mapping between DOM and Three.js space. */
 export interface ViewportDimensions {
@@ -79,3 +76,43 @@ export const confidenceToColor = (confidence: number): [number, number, number] 
 /** Rung to glow intensity: higher rung = dimmer (more degraded). Pure. */
 export const rungToIntensity = (rung: number): number =>
   Math.max(0.3, 1.0 - rung * 0.2);
+
+// ─── Actor / Governance Visual Mappings ───
+
+/** Actor to particle color channel: system=cyan, agent=magenta, operator=gold. */
+export const actorToColor = (actor: ActorKind): [number, number, number] => {
+  switch (actor) {
+    case 'system':   return [0.2, 0.8, 1.0];
+    case 'agent':    return [0.8, 0.2, 1.0];
+    case 'operator': return [1.0, 0.85, 0.2];
+  }
+};
+
+/** Governance to glow style: approved=solid, review-required=pulse, blocked=flicker. */
+export type GlowStyle = 'solid' | 'pulse' | 'flicker';
+export const governanceToGlowStyle = (g: Governance): GlowStyle => {
+  switch (g) {
+    case 'approved':        return 'solid';
+    case 'review-required': return 'pulse';
+    case 'blocked':         return 'flicker';
+  }
+};
+
+/** Governance to color tint overlay. */
+export const governanceToTint = (g: Governance): [number, number, number] => {
+  switch (g) {
+    case 'approved':        return [0.2, 1.0, 0.3];
+    case 'review-required': return [1.0, 0.8, 0.2];
+    case 'blocked':         return [1.0, 0.2, 0.2];
+  }
+};
+
+// ─── Shared Color Constants ───
+// Extracted from app.tsx for reuse across atoms/molecules.
+
+export const RUNG_COLORS: Readonly<Record<string, string>> = {
+  'explicit': '#3fb950', 'control': '#2ea043', 'approved-screen-knowledge': '#56d364',
+  'shared-patterns': '#79c0ff', 'prior-evidence': '#a5d6ff',
+  'approved-equivalent-overlay': '#58a6ff', 'structured-translation': '#d29922',
+  'live-dom': '#e3b341', 'agent-interpreted': '#bc8cff', 'needs-human': '#f85149',
+};

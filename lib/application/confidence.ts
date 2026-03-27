@@ -8,6 +8,8 @@ import type {
   TrustPolicyArtifactType,
 } from '../domain/types';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
+import { Dashboard } from './ports';
+import { dashboardEvent } from '../domain/types/dashboard';
 import type { ProjectPaths } from './paths';
 import { relativeProjectPath } from './paths';
 import { FileSystem } from './ports';
@@ -259,12 +261,37 @@ export function buildConfidenceOverlayCatalog(catalog: WorkspaceCatalog): Confid
   };
 }
 
-export function projectConfidenceOverlayCatalog(options: { paths: ProjectPaths; catalog?: WorkspaceCatalog }) {
+export function projectConfidenceOverlayCatalog(options: {
+  paths: ProjectPaths;
+  catalog?: WorkspaceCatalog;
+  previousCatalog?: ConfidenceOverlayCatalog | undefined;
+}) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const catalog = options.catalog ?? (yield* loadWorkspaceCatalog({ paths: options.paths }));
     const confidenceCatalog = buildConfidenceOverlayCatalog(catalog);
     yield* fs.writeJson(options.paths.confidenceIndexPath, confidenceCatalog);
+
+    // Layer 2: Emit confidence-crossed events for artifacts that changed status
+    if (options.previousCatalog) {
+      const dashboard = yield* Dashboard;
+      const prevMap = new Map(options.previousCatalog.records.map((r) => [r.id, r]));
+      for (const record of confidenceCatalog.records) {
+        const prev = prevMap.get(record.id);
+        if (prev && prev.status !== record.status) {
+          yield* dashboard.emit(dashboardEvent('confidence-crossed', {
+            artifactId: record.id,
+            screen: record.screen,
+            element: record.element,
+            previousStatus: prev.status,
+            newStatus: record.status,
+            score: record.score,
+            threshold: record.threshold,
+          }));
+        }
+      }
+    }
+
     return {
       confidenceCatalog,
       outputPath: options.paths.confidenceIndexPath,

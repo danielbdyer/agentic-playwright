@@ -1,9 +1,12 @@
 node_modules/
 dist/
+dashboard/dashboard.js
+dashboard/styles.css
 playwright-report/
 test-results/
 .npm-cache
 .tools
+.claude/worktrees/
 
 # ── Runtime engine (.tesseract) ──────────────────────────────────
 # Bulk-ignore everything under .tesseract/; the engine recreates it.

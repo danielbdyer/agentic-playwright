@@ -15,6 +15,7 @@ import { makeLocalVersionControl } from '../infrastructure/tooling/local-version
 import { LocalRuntimeScenarioRunner, createLocalRuntimeScenarioRunnerWithInterpreter } from './local-runtime-scenario-runner';
 import type { AgentInterpreterProvider } from '../application/agent-interpreter-provider';
 import { Dashboard, DisabledDashboard, McpServer, DisabledMcpServer } from '../application/ports';
+import { setStageTracerDashboard } from '../application/pipeline/stage';
 import { PlaywrightBridge, DisabledPlaywrightBridge } from '../infrastructure/mcp/playwright-mcp-bridge';
 import type { ExecutionPosture, PipelineConfig, WriteJournalEntry } from '../domain/types';
 import { DEFAULT_PIPELINE_CONFIG } from '../domain/types';
@@ -88,6 +89,9 @@ export function createLocalServiceContext(rootDir: string, options?: LocalServic
   const runtimeScenarioRunner = options?.agentInterpreter
     ? createLocalRuntimeScenarioRunnerWithInterpreter(options.agentInterpreter)
     : LocalRuntimeScenarioRunner;
+  // Wire stage-lifecycle tracer to the dashboard port (Layer 4)
+  setStageTracerDashboard(options?.dashboard ?? DisabledDashboard);
+
   const layer = Layer.mergeAll(
     Layer.succeed(FileSystem, fileSystem),
     Layer.succeed(AdoSource, resolveAdoSource(rootDir, suiteRoot)),

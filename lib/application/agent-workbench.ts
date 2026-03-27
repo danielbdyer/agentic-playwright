@@ -17,7 +17,8 @@ import { groupBy } from '../domain/collections';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
 import { buildWorkflowHotspots, type WorkflowHotspot } from './hotspots';
 import type { ProjectPaths } from './paths';
-import { FileSystem } from './ports';
+import { FileSystem, Dashboard } from './ports';
+import { dashboardEvent } from '../domain/types/dashboard';
 import {
   combineScoringRules,
   weightedScoringRule,
@@ -530,6 +531,11 @@ export function emitAgentWorkbench(options: {
     };
     yield* fs.ensureDir(options.paths.workbenchDir);
     yield* fs.writeJson(options.paths.workbenchIndexPath, projection);
+
+    // Emit workbench-updated so the dashboard can refresh in real-time
+    const dashboard = yield* Dashboard;
+    yield* dashboard.emit(dashboardEvent('workbench-updated', projection));
+
     return projection;
   }).pipe(Effect.withSpan('emit-agent-workbench'));
 }

@@ -44,11 +44,12 @@ const demoHarnessEntries = [
     entry: path.join(ROOT_DIR, 'dogfood', 'fixtures', 'demo-harness', 'src', 'policy-journey.tsx'),
     outfile: path.join(ROOT_DIR, 'dogfood', 'fixtures', 'demo-harness', 'policy-journey.js'),
   },
-  {
-    entry: path.join(ROOT_DIR, 'dashboard', 'src', 'app.tsx'),
-    outfile: path.join(ROOT_DIR, 'dashboard', 'dashboard.js'),
-  },
 ];
+
+const dashboardEntry = {
+  entry: path.join(ROOT_DIR, 'dashboard', 'src', 'app.tsx'),
+  outfile: path.join(ROOT_DIR, 'dashboard', 'dashboard.js'),
+};
 
 function host() {
   return {
@@ -94,6 +95,19 @@ function runTypeScriptBuild() {
   return true;
 }
 
+async function buildTailwindCSS() {
+  const { execSync } = require('child_process');
+  try {
+    execSync(
+      `npx @tailwindcss/cli -i dashboard/src/styles/globals.css -o dashboard/styles.css --minify`,
+      { cwd: ROOT_DIR, stdio: 'pipe' },
+    );
+  } catch {
+    // Tailwind not available — skip (CSS falls back to index.html inline styles)
+    process.stderr.write('tailwind: skipped (not installed or config missing)\n');
+  }
+}
+
 async function buildDemoHarness() {
   await Promise.all(demoHarnessEntries.map(({ entry, outfile }) =>
     esbuild.build({
@@ -110,13 +124,58 @@ async function buildDemoHarness() {
     })));
 }
 
+/** Build dashboard with React Compiler via esbuild-plugin-babel.
+ *  Falls back to plain esbuild if babel plugin is unavailable. */
+async function buildDashboard() {
+  const esbuildOptions = {
+    entryPoints: [dashboardEntry.entry],
+    outfile: dashboardEntry.outfile,
+    bundle: true,
+    format: 'esm',
+    jsx: 'automatic',
+    minify: false,
+    platform: 'browser',
+    sourcemap: false,
+    target: ['es2020'],
+    logLevel: 'silent',
+  };
+
+  let useCompiler = false;
+  try {
+    require.resolve('babel-plugin-react-compiler');
+    require.resolve('@babel/core');
+    useCompiler = true;
+  } catch { /* React Compiler not installed — skip */ }
+
+  if (useCompiler) {
+    const babelCore = require('@babel/core');
+    const reactCompilerPlugin = {
+      name: 'react-compiler',
+      setup(build) {
+        build.onLoad({ filter: /dashboard\/src\/.*\.tsx?$/ }, async (args) => {
+          const source = await fs.promises.readFile(args.path, 'utf8');
+          const result = babelCore.transformSync(source, {
+            filename: args.path,
+            presets: [['@babel/preset-typescript', { isTSX: true, allExtensions: true }]],
+            plugins: [['babel-plugin-react-compiler', {}]],
+          });
+          return { contents: result.code, loader: 'jsx' };
+        });
+      },
+    };
+    await esbuild.build({ ...esbuildOptions, plugins: [reactCompilerPlugin] });
+  } else {
+    await esbuild.build(esbuildOptions);
+  }
+}
+
 async function main() {
   ensureGeneratedKnowledgeStub();
   if (!shouldSkipTypeScript(process.argv.slice(2)) && !runTypeScriptBuild()) {
     return;
   }
 
-  await buildDemoHarness();
+  await Promise.all([buildDemoHarness(), buildDashboard(), buildTailwindCSS()]);
   process.stdout.write('build ok\n');
 }
 

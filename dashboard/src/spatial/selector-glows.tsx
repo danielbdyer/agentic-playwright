@@ -14,17 +14,19 @@
  *   - for-loop instead of .forEach() — avoids closure allocation
  */
 
-import { useRef, useMemo, memo } from 'react';
+import { useRef, memo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { ProbeEvent, ViewportDimensions } from './types';
-import { domToWorld, confidenceToColor, rungToIntensity } from './types';
+import { rungToIntensity, governanceToTint, governanceToGlowStyle } from './types';
 
 interface SelectorGlowsProps {
   readonly probes: readonly ProbeEvent[];
   readonly viewport: ViewportDimensions;
   readonly planeWidth: number;
   readonly planeHeight: number;
+  /** Element ID being decided (Phase 6). Matching probe gets intensified glow. */
+  readonly pausedElement?: string | null;
 }
 
 // ─── Shared Resources (module-level, zero allocation per frame) ───
@@ -57,14 +59,13 @@ export const SelectorGlows = memo(function SelectorGlows({
   viewport,
   planeWidth,
   planeHeight,
+  pausedElement = null,
 }: SelectorGlowsProps) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const timeRef = useRef(0);
 
-  const visibleProbes = useMemo(
-    () => probes.filter((p) => p.boundingBox !== null),
-    [probes],
-  );
+  // React Compiler auto-memoizes this filter
+  const visibleProbes = probes.filter((p) => p.boundingBox !== null);
 
   // Per-frame update: write directly to InstancedMesh buffers.
   // Zero allocations: no new arrays, no matrix clones, no closures.
@@ -94,7 +95,20 @@ export const SelectorGlows = memo(function SelectorGlows({
 
       const scaleX = (box.width / vw) * planeWidth * 1.1;
       const scaleY = (box.height / vh) * planeHeight * 1.1;
-      const pulse = 1.0 + Math.sin(time * 3 + i * 0.5) * 0.08;
+
+      // Phase 6: element being decided gets intensified amber pulse
+      const isPausedElement = pausedElement !== null && probe.element === pausedElement;
+
+      // Governance drives glow animation style:
+      //   paused → intense amber pulse, approved → solid, review → pulse, blocked → flicker
+      const glowStyle = governanceToGlowStyle(probe.governance);
+      const pulse = isPausedElement
+        ? 1.5 + Math.sin(time * 8 + i * 0.3) * 0.4  // Decision pending: intense pulse
+        : glowStyle === 'flicker'
+          ? 1.0 + Math.sin(time * 12 + i * 0.3) * 0.2
+          : glowStyle === 'pulse'
+            ? 1.0 + Math.sin(time * 5 + i * 0.5) * 0.15
+            : 1.0 + Math.sin(time * 3 + i * 0.5) * 0.08;
 
       // Write matrix directly to mesh — no clone, no intermediate array
       _obj.position.set(worldX, worldY, 0.01);
@@ -102,14 +116,18 @@ export const SelectorGlows = memo(function SelectorGlows({
       _obj.updateMatrix();
       mesh.setMatrixAt(i, _obj.matrix);
 
-      // Write color directly to shared buffer
+      // Color: paused element → bright amber, otherwise → governance tint × rung intensity
       const intensity = rungToIntensity(probe.locatorRung);
-      const confidence = probe.confidence;
-      const g = Math.min(1, confidence * 1.2) * intensity;
-      const b = Math.max(0, 1 - confidence * 1.5) * intensity;
-      _colors[i * 3] = 0.2 * intensity;
-      _colors[i * 3 + 1] = g;
-      _colors[i * 3 + 2] = b;
+      if (isPausedElement) {
+        _colors[i * 3] = 1.0 * pulse;     // Bright amber R
+        _colors[i * 3 + 1] = 0.75 * pulse; // Bright amber G
+        _colors[i * 3 + 2] = 0.1;          // Minimal B
+      } else {
+        const [tr, tg, tb] = governanceToTint(probe.governance);
+        _colors[i * 3] = tr * intensity;
+        _colors[i * 3 + 1] = tg * intensity;
+        _colors[i * 3 + 2] = tb * intensity;
+      }
     }
 
     mesh.instanceMatrix.needsUpdate = true;

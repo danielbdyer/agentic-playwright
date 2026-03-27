@@ -49,7 +49,8 @@
     "experiments": "npx tsx scripts/experiments.ts",
     "sensitivity": "npx tsx scripts/sensitivity.ts",
     "evolve": "npx tsx scripts/evolve.ts",
-    "dashboard": "npm run build && node dashboard/server.cjs",
+    "dashboard": "npm run build && npx tsx dashboard/server.ts",
+    "dashboard:live": "npm run build && npx tsx dashboard/server.ts --speedrun --count 50 --max-iterations 5",
     "dashboard:build": "node scripts/build.cjs --demo-harness-only"
   },
   "dependencies": {
@@ -59,9 +60,13 @@
     "yaml": "^2.8.2"
   },
   "devDependencies": {
+    "@babel/core": "^7.29.0",
+    "@babel/plugin-syntax-jsx": "^7.28.6",
+    "@babel/preset-typescript": "^7.28.5",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.5.0",
     "@react-three/postprocessing": "^3.0.4",
+    "@tailwindcss/cli": "^4.2.2",
     "@tanstack/react-query": "^5.95.2",
     "@types/node": "^20.17.57",
     "@types/react": "^19.2.14",
@@ -69,12 +74,16 @@
     "@types/three": "^0.183.1",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
+    "babel-plugin-react-compiler": "^1.0.0",
     "esbuild": "^0.19.12",
+    "esbuild-plugin-babel": "^0.2.3",
     "eslint": "^8.57.1",
     "knip": "^5.86.0",
     "postprocessing": "^6.39.0",
     "react": "^19.2.4",
+    "react-compiler-runtime": "^1.0.0",
     "react-dom": "^19.2.4",
+    "tailwindcss": "^4.2.2",
     "three": "^0.183.2"
   }
 }

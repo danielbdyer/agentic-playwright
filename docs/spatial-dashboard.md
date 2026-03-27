@@ -16,6 +16,16 @@ Both connected by **particle transport** — elements harvested from the live vi
 
 ## Architecture
 
+### Invariant: Projection, Never Dependency
+
+The dashboard is a viewport into the pipeline, not a command center.
+
+1. **Observation events flow freely** — `emit()` is fire-and-forget, never blocks the fiber.
+2. **Decision gates are opt-in** — `awaitDecision()` always has a timeout fallback (default: instant auto-skip). The pipeline runs identically headless via `DisabledDashboard`.
+3. **Toggling the frontend on/off must not change pipeline behavior or output.** The dashboard is a progressive enhancement layer.
+4. **Any decision the dashboard can make, an agent or heuristic can also make.** The `DashboardPort` interface has multiple implementations: `DisabledDashboard` (headless), `WsDashboardAdapter` (human), `AgentDecider` (MCP agent), `DualModeDecider` (agent + human fallback). The dashboard is one consumer, not the only one.
+5. **The frontend must not create adverse dependencies** that prevent the system from being operated entirely by agents or system heuristics.
+
 ### Effect Fiber Is the Source of Truth
 
 The Effect fiber drives everything. It emits events as it processes:

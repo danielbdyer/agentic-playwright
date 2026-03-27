@@ -1,0 +1,42 @@
+/**
+ * useConvergenceState — accumulates rung-shift and calibration-update events
+ * into a bounded immutable history for convergence visualization.
+ *
+ * Complexity: O(1) append, O(k) bounded copy where k = maxHistory (default 20).
+ * Uses useTransition for non-urgent state updates — convergence metrics
+ * should never block particle rendering.
+ */
+
+import { useState, useCallback, useTransition } from 'react';
+import type { RungShiftEvent, CalibrationUpdateEvent } from '../spatial/types';
+
+export interface ConvergenceState {
+  readonly rungHistory: readonly RungShiftEvent[];
+  readonly calibration: CalibrationUpdateEvent | null;
+  readonly iterationCount: number;
+}
+
+const INITIAL: ConvergenceState = { rungHistory: [], calibration: null, iterationCount: 0 };
+
+export function useConvergenceState(maxHistory = 20) {
+  const [state, setState] = useState<ConvergenceState>(INITIAL);
+  const [, startTransition] = useTransition();
+
+  const pushRung = useCallback((event: RungShiftEvent) => {
+    startTransition(() => {
+      setState((prev) => ({
+        ...prev,
+        rungHistory: [...prev.rungHistory.slice(-(maxHistory - 1)), event],
+        iterationCount: event.iteration,
+      }));
+    });
+  }, [maxHistory, startTransition]);
+
+  const pushCalibration = useCallback((event: CalibrationUpdateEvent) => {
+    startTransition(() => {
+      setState((prev) => ({ ...prev, calibration: event, iterationCount: event.iteration }));
+    });
+  }, [startTransition]);
+
+  return { state, pushRung, pushCalibration } as const;
+}

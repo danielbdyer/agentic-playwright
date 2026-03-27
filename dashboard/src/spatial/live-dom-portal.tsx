@@ -41,10 +41,11 @@ export const LiveDomPortal = memo(function LiveDomPortal({
 }: LiveDomPortalProps) {
   const [loaded, setLoaded] = useState(false);
 
-  const handleLoad = useCallback(() => {
+  // React Compiler auto-memoizes this handler
+  const handleLoad = () => {
     setLoaded(true);
     onLoad?.();
-  }, [onLoad]);
+  };
 
   return (
     <iframe

@@ -37,6 +37,9 @@ const createPlaceholder = (w: number, h: number): THREE.DataTexture => {
   return tex;
 };
 
+/** Module-level placeholder texture — stable identity without useMemo. */
+const PLACEHOLDER = createPlaceholder(256, 256);
+
 export const ScreenPlane = memo(function ScreenPlane({
   width,
   height,
@@ -48,7 +51,7 @@ export const ScreenPlane = memo(function ScreenPlane({
   const currentTextureRef = useRef<THREE.Texture | null>(null);
   const lastBase64Ref = useRef<string | null>(null);
 
-  const placeholder = useMemo(() => createPlaceholder(256, 256), []);
+  const placeholder = PLACEHOLDER;
 
   // Decode base64 in a useEffect — NOT in useFrame.
   // This fires only when capture changes (not 60x/sec).

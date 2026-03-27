@@ -23,6 +23,28 @@
 
 import type { AgentWorkItem, WorkItemCompletion, ScreenGroupContext } from './workbench';
 import type { SpeedrunProgressEvent } from './improvement';
+import type { Governance, ResolutionMode } from './workflow';
+
+// ─── Actor Model ───
+// Three-value subset of ParticipantKind scoped to the dashboard observation surface.
+// The full ParticipantKind includes benchmark-runner/reviewer/optimizer — the
+// visualization only needs the three actors that touch the DOM under test.
+
+export type ActorKind = 'system' | 'agent' | 'operator';
+
+// ─── Shared Geometry ───
+
+export interface BoundingBox {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+// ─── Inbox / Pause Semantics ───
+
+/** Whether a human-required item blocks the fiber or is queued for later review. */
+export type InboxUrgency = 'blocking' | 'queued';
 
 export type DashboardEventKind =
   | 'iteration-start'
@@ -36,6 +58,16 @@ export type DashboardEventKind =
   | 'fitness-updated'
   | 'element-probed'
   | 'screen-captured'
+  | 'element-escalated'
+  | 'inbox-item-arrived'
+  | 'fiber-paused'
+  | 'fiber-resumed'
+  | 'rung-shift'
+  | 'calibration-update'
+  | 'proposal-activated'
+  | 'confidence-crossed'
+  | 'artifact-written'
+  | 'stage-lifecycle'
   | 'connected'
   | 'error';
 
@@ -60,16 +92,24 @@ export function dashboardEvent(type: DashboardEventKind, data: unknown): Dashboa
 // These events bridge the resolution pipeline → spatial dashboard.
 // They are the same data that WebMCP would expose as structured tools.
 
-/** Emitted when the resolution pipeline probes a DOM element. */
+/** Emitted when the resolution pipeline probes a DOM element.
+ *  Carries actor provenance so the visualization can distinguish
+ *  deterministic pipeline triage, agent MCP exploration, and human override. */
 export interface ElementProbedEvent {
   readonly id: string;
   readonly element: string;
   readonly screen: string;
-  readonly boundingBox: { readonly x: number; readonly y: number; readonly width: number; readonly height: number } | null;
+  readonly boundingBox: BoundingBox | null;
   readonly locatorRung: number;
   readonly strategy: string;
   readonly found: boolean;
   readonly confidence: number;
+  /** Which actor initiated this probe. */
+  readonly actor: ActorKind;
+  /** Current governance state of the resolved element. */
+  readonly governance: Governance;
+  /** How the element was resolved (deterministic, translation, or agentic). */
+  readonly resolutionMode: ResolutionMode;
 }
 
 /** Emitted when a page screenshot is captured during execution. */
@@ -78,6 +118,130 @@ export interface ScreenCapturedEvent {
   readonly width: number;
   readonly height: number;
   readonly url: string;
+}
+
+// ─── Knowledge Node Projection ───
+// Shared type for the knowledge observatory. Dashboard imports this directly
+// instead of maintaining a parallel KnowledgeNode interface.
+
+export type KnowledgeNodeStatus = 'approved' | 'learning' | 'needs-review' | 'blocked';
+
+export interface KnowledgeNodeProjection {
+  readonly screen: string;
+  readonly element: string;
+  readonly confidence: number;
+  readonly aliases: readonly string[];
+  readonly status: KnowledgeNodeStatus;
+  /** Which actor last touched this node. */
+  readonly lastActor: ActorKind;
+  /** Current governance state. */
+  readonly governance: Governance;
+}
+
+// ─── Resolution Flow Events ───
+// These events model element handoffs between actors and inbox semantics,
+// enabling the visualization to render escalation arcs and pause indicators.
+
+/** Emitted when an element transitions from one actor's domain to another. */
+export interface ElementEscalatedEvent {
+  readonly id: string;
+  readonly element: string;
+  readonly screen: string;
+  readonly fromActor: ActorKind;
+  readonly toActor: ActorKind;
+  readonly reason: string;
+  readonly governance: Governance;
+  readonly boundingBox: BoundingBox | null;
+}
+
+/** Emitted when a decision point lands in the human operator's inbox. */
+export interface InboxItemEvent {
+  readonly id: string;
+  readonly element: string;
+  readonly screen: string;
+  readonly urgency: InboxUrgency;
+  readonly reason: string;
+  readonly governance: Governance;
+  readonly relatedWorkItemId: string | null;
+}
+
+/** Emitted when the Effect fiber pauses, waiting for human engagement. */
+export interface FiberPauseEvent {
+  readonly workItemId: string;
+  readonly reason: string;
+  readonly screen: string;
+  readonly element: string | null;
+}
+
+/** Emitted when the Effect fiber resumes after human decision. */
+export interface FiberResumeEvent {
+  readonly workItemId: string;
+  readonly decision: 'completed' | 'skipped';
+}
+
+// ─── Convergence & Learning Events (Layer 2) ───
+// These events surface the self-improving loop's internal signals so the
+// dashboard can render learning trajectory, calibration dynamics, and
+// knowledge crystallization in real-time.
+
+/** Emitted after each iteration with resolution rung distribution. */
+export interface RungShiftEvent {
+  readonly iteration: number;
+  readonly distribution: readonly { readonly rung: string; readonly wins: number; readonly rate: number }[];
+  readonly knowledgeHitRate: number;
+  readonly totalSteps: number;
+}
+
+/** Emitted after each iteration with self-calibrating bottleneck weights. */
+export interface CalibrationUpdateEvent {
+  readonly iteration: number;
+  readonly weights: {
+    readonly repairDensity: number;
+    readonly translationRate: number;
+    readonly unresolvedRate: number;
+    readonly inverseFragmentShare: number;
+  };
+  readonly weightDrift: number;
+  readonly correlations: readonly { readonly signal: string; readonly strength: number }[];
+}
+
+/** Emitted when a proposal is activated or blocked by trust policy. */
+export interface ProposalActivatedEvent {
+  readonly proposalId: string;
+  readonly artifactType: string;
+  readonly targetPath: string;
+  readonly status: 'activated' | 'blocked';
+  readonly confidence: number;
+  readonly iteration: number;
+}
+
+/** Emitted when a knowledge artifact crosses a confidence threshold. */
+export interface ConfidenceCrossedEvent {
+  readonly artifactId: string;
+  readonly screen: string | null;
+  readonly element: string | null;
+  readonly previousStatus: string;
+  readonly newStatus: 'approved-equivalent' | 'needs-review' | 'learning';
+  readonly score: number;
+  readonly threshold: number;
+}
+
+// ─── Infrastructure Events (Layer 3 & 4) ───
+
+/** Emitted when an artifact is written to disk. */
+export interface ArtifactWrittenEvent {
+  readonly path: string;
+  readonly operation: 'write-text' | 'write-json' | 'ensure-dir';
+}
+
+/** Emitted when an Effect pipeline stage starts or completes. */
+export interface StageLifecycleEvent {
+  readonly stage: string;
+  readonly phase: 'start' | 'complete';
+  readonly durationMs?: number | undefined;
+  readonly adoId?: string | undefined;
+  readonly cacheStatus?: 'hit' | 'miss' | undefined;
+  readonly rewrittenFiles?: readonly string[] | undefined;
 }
 
 // ─── WebMCP Tool Definitions ───
