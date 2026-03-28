@@ -72,11 +72,12 @@ test('single phase aggregates correctly', () => {
   const result = aggregatePhaseCosts(costs);
 
   expect(result).toHaveLength(1);
-  expect(result[0].phase).toBe('bind');
-  expect(result[0].totalTokens).toBe(500);
-  expect(result[0].totalLatencyMs).toBe(120);
-  expect(result[0].totalRetries).toBe(1);
-  expect(result[0].totalApiCalls).toBe(2);
+  const first = result[0]!;
+  expect(first.phase).toBe('bind');
+  expect(first.totalTokens).toBe(500);
+  expect(first.totalLatencyMs).toBe(120);
+  expect(first.totalRetries).toBe(1);
+  expect(first.totalApiCalls).toBe(2);
 });
 
 test('multi-phase costs aggregate independently', () => {
