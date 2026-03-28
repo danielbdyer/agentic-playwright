@@ -20,7 +20,7 @@ import {
   fingerprintBuildResult,
   type GraphNodeCollection,
 } from '../lib/application/concurrent-graph-builder';
-import { mulberry32, randomWord, randomInt } from './support/random';
+import { mulberry32, randomWord } from './support/random';
 
 // ─── Helpers ───
 
@@ -32,7 +32,7 @@ function randomBuilders(next: () => number, count: number): Record<string, Effec
   const builders: Record<string, Effect.Effect<GraphNodeCollection<string>, never, never>> = {};
   for (let i = 0; i < count; i++) {
     const kind = `kind-${i}-${randomWord(next)}`;
-    const nodeCount = randomInt(next, 0, 20);
+    const nodeCount = Math.floor(next() * 20);
     const nodes = Array.from({ length: nodeCount }, () => randomWord(next));
     builders[kind] = makeBuilder(kind, nodes);
   }
@@ -44,7 +44,7 @@ function randomBuilders(next: () => number, count: number): Record<string, Effec
 test('Law 1: concurrent and sequential produce identical node collections (150 seeds)', async () => {
   for (let seed = 1; seed <= 150; seed++) {
     const next = mulberry32(seed);
-    const builders = randomBuilders(next, randomInt(next, 1, 8));
+    const builders = randomBuilders(next, (1 + Math.floor(next() * 7)));
 
     const concurrent = await Effect.runPromise(buildNodesConcurrently(builders));
     const sequential = await Effect.runPromise(buildNodesSequentially(builders));
@@ -69,7 +69,7 @@ test('Law 1: concurrent and sequential produce identical node collections (150 s
 test('Law 2: every builder key appears in result (150 seeds)', async () => {
   for (let seed = 1; seed <= 150; seed++) {
     const next = mulberry32(seed);
-    const builders = randomBuilders(next, randomInt(next, 1, 10));
+    const builders = randomBuilders(next, (1 + Math.floor(next() * 9)));
     const builderKeys = Object.keys(builders).sort();
 
     const result = await Effect.runPromise(buildNodesConcurrently(builders));
@@ -84,7 +84,7 @@ test('Law 2: every builder key appears in result (150 seeds)', async () => {
 test('Law 3: fingerprint is build-order independent (150 seeds)', async () => {
   for (let seed = 1; seed <= 150; seed++) {
     const next = mulberry32(seed);
-    const builders = randomBuilders(next, randomInt(next, 1, 8));
+    const builders = randomBuilders(next, (1 + Math.floor(next() * 7)));
 
     const concurrent = await Effect.runPromise(buildNodesConcurrently(builders));
     const sequential = await Effect.runPromise(buildNodesSequentially(builders));
@@ -107,7 +107,7 @@ test('Law 5: single builder matches direct call (150 seeds)', async () => {
   for (let seed = 1; seed <= 150; seed++) {
     const next = mulberry32(seed);
     const kind = `single-${randomWord(next)}`;
-    const nodes = Array.from({ length: randomInt(next, 1, 15) }, () => randomWord(next));
+    const nodes = Array.from({ length: (1 + Math.floor(next() * 14)) }, () => randomWord(next));
     const builder = makeBuilder(kind, nodes);
 
     const result = await Effect.runPromise(buildNodesConcurrently({ [kind]: builder }));
