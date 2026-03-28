@@ -34,8 +34,7 @@ export function loadEvidenceRecords(paths: ProjectPaths, catalog?: WorkspaceCata
 
 export function evidenceDescriptorsForArtifactType(records: LoadedEvidenceRecord[], artifactType: ProposedChangeMetadata['artifactType']): EvidenceDescriptor[] {
   return records
-    .filter((entry) => entry.record.evidence.scope === artifactType)
-    .map((entry) => ({ kind: entry.record.evidence.type }));
+    .flatMap((entry) => entry.record.evidence.scope === artifactType ? [{ kind: entry.record.evidence.type }] : []);
 }
 
 export function evaluateArtifactPolicy(input: {
