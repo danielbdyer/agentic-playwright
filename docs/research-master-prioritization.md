@@ -6,7 +6,7 @@
 
 ## Executive Summary
 
-Twenty research perspectives across five rounds identified **~80 actionable improvements** that cluster into **4 execution waves**. The critical insight: **the system is ~60% of its own specification** — the types and documentation describe a more complete system than the runtime implements. Closing the gap requires no architectural redesign, only wiring, enforcement, and verification.
+Twenty research perspectives across five rounds identified **~80 actionable improvements**, refined to **56 prioritized items** across **4 execution waves**. The critical insight: **the system is ~60% of its own specification** — the types and documentation describe a more complete system than the runtime implements. Closing the gap requires no architectural redesign, only wiring, enforcement, and verification.
 
 The recommended sequence prioritizes three principles:
 1. **Foundations first**: Governance enforcement and verification infrastructure unlock everything else
@@ -344,8 +344,63 @@ Track these across waves to measure progress:
 
 ---
 
+## Appendix A: Items Caught in Final Audit
+
+A cross-check of all 20 perspectives against this document surfaced **12 additional items** that were missing or underrepresented. They are incorporated here by wave, with the original perspective cited.
+
+### Added to Wave 2
+
+| ID | Item | Effort | Readiness | Origin | Unlocks |
+|----|------|--------|-----------|--------|---------|
+| W2.16 | **Cross-iteration rejection memory ("iteration journal")** — Persist reasoning across dogfood iterations: why a proposal was generated, why it was rejected, what alternative was tried. Without this, the loop is vulnerable to proposal thrashing — reconsidering and rejecting the same proposals repeatedly | M | 🟡 | P3 | Stable convergence; prevents thrashing in dogfood loop |
+| W2.17 | **Knowledge promotion governance contract laws** — Law tests for the proposal → canonical transition: what state transitions are valid (proposed → approved → canonical), what preconditions are required (evidence count, confidence threshold, human review), what is forbidden (direct skip from proposed → canonical without evaluation) | M | 🟡 | P6 | Trust boundary formalization; W2.8 completion |
+| W2.18 | **Evidence sufficiency laws** — Law tests for when evidence is "sufficient" to promote a proposal. Certification state machine transitions: `uncertified → sufficient-evidence → certified` must be monotone and auditable | S | 🟡 | P6 | Certification contract completeness |
+| W2.19 | **Selector canon ranking laws** — Law tests for specificity ordering and determinism under alias expansion in the `SelectorCanon`. Incorrect ranking could cause stale selectors to be preferred over fresh ones | S | 🟡 | P6 | Resolution precedence correctness |
+
+### Added to Wave 3
+
+| ID | Item | Effort | Readiness | Origin | Unlocks |
+|----|------|--------|-----------|--------|---------|
+| W3.12 | **Fixture-backed data emission** — Emit dataset references or posture-variant parameterization instead of hardcoded literals in generated specs. Currently data values resolve to single hardcoded strings, blocking spec reuse across data combinations | M | 🟡 | P5 | Parameterized specs; QA adoption |
+| W3.13 | **Deferred-step visual rendering distinction** — Intent-only steps should be visually distinct in emitted code (e.g., `// [intent-only]` markers or distinct function wrappers). QA reading the spec currently can't tell grounded from deferred without checking annotations | S | 🟢 | P5 | Spec readability and operator trust |
+| W3.14 | **Component knowledge maturation from runtime evidence** — As runtime accumulates evidence of successful widget interactions, propose component knowledge updates (e.g., "this combobox requires: click, type, wait, select based on 47 observations"). Distinct from screen-level discovery (W2.8) — this targets `knowledge/components/*.ts` | L | 🟡 | P4 | Procedural knowledge growth |
+| W3.15 | **Cross-screen transition state preservation laws** — Law tests verifying state topology invariants when navigating between screens: route-variant application preserves expected state refs, no silent state loss during transition | M | 🟡 | P6 | Navigation correctness |
+| W3.16 | **Agent workbench wiring** — Connect the scored work-item queue (interpret-step, approve-proposal, investigate-hotspot, author-knowledge, validate-calibration) as a consumable surface for external agents via MCP. The workbench types exist; the consumption path doesn't | M | 🟡 | P3 | External agent integration; W4.7 foundation |
+
+### Added to Wave 4
+
+| ID | Item | Effort | Readiness | Origin | Unlocks |
+|----|------|--------|-----------|--------|---------|
+| W4.12 | **Runtime screen identification from DOM + interface graph** — Runtime identifies which screen it's on by inspecting the DOM against the interface graph, rather than relying on compile-time screen resolution. Structural shift from pre-resolved to runtime-discovered screen context | L | 🟡 | P2 | True runtime screen awareness |
+| W4.13 | **Phantom type enforcement beyond emission** — Extend `Approved<T>` enforcement beyond just `emit()` to bind, proposal, and approval stages. Governance enforcement is only as strong as its weakest boundary; emission-only leaves proposal/approval stages untyped | M | 🟡 | P7 | Full-pipeline type-safe governance |
+
+### Revised Item Count
+
+With the audit additions, the master plan now contains:
+
+| Wave | Original Items | Added Items | Total |
+|------|---------------|-------------|-------|
+| Wave 1 | 8 | 0 | 8 |
+| Wave 2 | 15 | 4 | 19 |
+| Wave 3 | 11 | 5 | 16 |
+| Wave 4 | 11 | 2 | 13 |
+| **Total** | **45** | **11** | **56** |
+
+---
+
 ## Final Note
 
-This document is itself a projection — derived from 20 canonical research perspectives. It should be treated as a living plan: update priorities as items ship, collapse completed waves, and promote Wave 4 items when their prerequisites are met.
+This document is itself a projection — derived from 20 canonical research perspectives, cross-checked by 5 analytical agents, and audited for completeness against every source document. It should be treated as a living plan: update priorities as items ship, collapse completed waves, and promote Wave 4 items when their prerequisites are met.
 
-The single most important takeaway: **the system already knows what it should be**. The types are 90% there. The runtime wiring is 40% there. The gap is the work — and it's well-defined work, not open-ended research.
+The single most important takeaway: **the system already knows what it should be**. The types are 90% there. The runtime wiring is 40% there. The gap is the work — and it's 56 well-defined items, not open-ended research.
+
+### Document Lineage
+
+| Artifact | Content | Status |
+|----------|---------|--------|
+| `docs/research-next-directions.md` | Round 1: Interface graph, runtime interpreter, dogfood loop, knowledge density (P1-P4) | Complete |
+| `docs/research-next-directions-round2.md` | Round 2: Emission surface, law tests, governance boundary, dual graphs (P5-P8) | Complete |
+| `docs/research-next-directions-round3.md` | Round 3: Execution engine, Effect boundary, schema validation, infrastructure ports (P9-P12) | Complete |
+| `docs/research-next-directions-round4.md` | Round 4: Domain purity, agent interpreter, pipeline/CLI, dashboard (P13-P16) | Complete |
+| `docs/research-next-directions-round5.md` | Round 5: Algebra, self-verification, invisible architecture, information theory (P17-P20) | Complete |
+| `docs/research-master-prioritization.md` | **This document** — 56 items across 4 waves, dependency graph, risk matrix, metrics | Complete |
