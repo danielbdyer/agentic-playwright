@@ -184,39 +184,38 @@ export function rankActionCandidates(task: GroundedStep, controlResolution: Step
   }
 
   const normalized = normalizeIntentText(task.actionText);
-  const entries: Array<LatticeCandidate<StepAction>> = [];
-  for (const action of task.allowedActions) {
+  const entries: Array<LatticeCandidate<StepAction>> = task.allowedActions.flatMap((action) => {
     if (action === 'custom') {
-      continue;
+      return [];
     }
     const aliases = resolutionContext.sharedPatterns.actions[action]?.aliases ?? [];
     const match = bestAliasMatch(normalized, aliases);
     if (!match) {
-      continue;
+      return [];
     }
-    entries.push(candidate({
+    return [candidate({
       concern: 'action',
       source: 'shared-patterns',
       value: action,
       summary: `Action matched shared pattern alias "${match.alias}".`,
       refs: [knowledgePaths.patterns()],
       featureScores: { explicit: 0, control: 0, approvedKnowledge: 80, overlay: 0, translation: 0, dom: 0, alias: match.score, fallback: 0, carry: 0 },
-    }));
-  }
+    })];
+  });
 
   const fallback = allowedActionFallback(task);
-  if (entries.length === 0 && fallback) {
-    entries.push(candidate({
-      concern: 'action',
-      source: 'shared-patterns',
-      value: fallback,
-      summary: 'Action inferred from deterministic fallback grammar.',
-      refs: [],
-      featureScores: { explicit: 0, control: 0, approvedKnowledge: 20, overlay: 0, translation: 0, dom: 0, alias: 0, fallback: 8, carry: 0 },
-    }));
-  }
+  const entriesWithFallback = entries.length === 0 && fallback
+    ? [...entries, candidate({
+        concern: 'action',
+        source: 'shared-patterns',
+        value: fallback,
+        summary: 'Action inferred from deterministic fallback grammar.',
+        refs: [],
+        featureScores: { explicit: 0, control: 0, approvedKnowledge: 20, overlay: 0, translation: 0, dom: 0, alias: 0, fallback: 8, carry: 0 },
+      })]
+    : entries;
 
-  return asRanked(entries);
+  return asRanked(entriesWithFallback);
 }
 
 export function rankScreenCandidates(
@@ -241,46 +240,46 @@ export function rankScreenCandidates(
   }
 
   const normalized = normalizedCombined(task);
-  const entries: Array<LatticeCandidate<StepTaskScreenCandidate>> = [];
-  for (const screen of groundedScreens(task, resolutionContext)) {
+  const entries: Array<LatticeCandidate<StepTaskScreenCandidate>> = groundedScreens(task, resolutionContext).flatMap((screen) => {
     const aliases = uniqueSorted([screen.screen, humanizeIdentifier(screen.screen), ...screen.screenAliases]);
     const match = bestAliasMatch(normalized, aliases);
     if (!match) {
-      continue;
+      return [];
     }
     const memoryCarry = observedStateSession?.currentScreen?.screen === screen.screen
       ? Math.max(0, Math.round(observedStateSession.currentScreen.confidence * 12))
       : 0;
-    entries.push(candidate({
+    return [candidate({
       concern: 'screen',
       source: 'approved-screen-knowledge',
       value: screen,
       summary: `Screen matched approved aliases via "${match.alias}".${memoryCarry > 0 ? ' Working-memory prior reinforced same-screen continuation.' : ''}`,
       refs: [...screen.knowledgeRefs, ...screen.supplementRefs],
       featureScores: { explicit: 0, control: 0, approvedKnowledge: 80, overlay: 0, translation: 0, dom: 0, alias: match.score, fallback: 0, carry: memoryCarry },
-    }));
-  }
+    })];
+  });
 
-  if (entries.length === 0 && action !== 'navigate' && previousResolution?.screen) {
-    const carried = groundedScreens(task, resolutionContext).find((screen) => screen.screen === previousResolution.screen) ?? null;
-    if (carried) {
-      const memoryCarry = observedStateSession?.currentScreen?.screen === carried.screen
-        ? Math.max(0, Math.round(observedStateSession.currentScreen.confidence * 10))
-        : 0;
-      entries.push(candidate({
-        concern: 'screen',
-        source: 'approved-screen-knowledge',
-        value: carried,
-        summary: memoryCarry > 0
-          ? 'Screen carried forward from previous deterministic resolution and reinforced by working memory.'
-          : 'Screen carried forward from previous deterministic resolution.',
-        refs: [...carried.knowledgeRefs, ...carried.supplementRefs],
-        featureScores: { explicit: 0, control: 0, approvedKnowledge: 15, overlay: 0, translation: 0, dom: 0, alias: 0, fallback: 0, carry: 6 + memoryCarry },
-      }));
-    }
-  }
+  const entriesWithCarry = entries.length === 0 && action !== 'navigate' && previousResolution?.screen
+    ? (() => {
+        const carried = groundedScreens(task, resolutionContext).find((screen) => screen.screen === previousResolution.screen) ?? null;
+        if (!carried) return entries;
+        const memoryCarry = observedStateSession?.currentScreen?.screen === carried.screen
+          ? Math.max(0, Math.round(observedStateSession.currentScreen.confidence * 10))
+          : 0;
+        return [...entries, candidate({
+          concern: 'screen',
+          source: 'approved-screen-knowledge',
+          value: carried,
+          summary: memoryCarry > 0
+            ? 'Screen carried forward from previous deterministic resolution and reinforced by working memory.'
+            : 'Screen carried forward from previous deterministic resolution.',
+          refs: [...carried.knowledgeRefs, ...carried.supplementRefs],
+          featureScores: { explicit: 0, control: 0, approvedKnowledge: 15, overlay: 0, translation: 0, dom: 0, alias: 0, fallback: 0, carry: 6 + memoryCarry },
+        })];
+      })()
+    : entries;
 
-  return asRanked(entries);
+  return asRanked(entriesWithCarry);
 }
 
 export function rankElementCandidates(task: GroundedStep, screen: StepTaskScreenCandidate | null, controlResolution: StepResolution | null, observedStateSession?: ObservedStateSession | undefined): RankedLattice<StepTaskElementCandidate> {
@@ -298,24 +297,23 @@ export function rankElementCandidates(task: GroundedStep, screen: StepTaskScreen
 
   const normalized = normalizedCombined(task);
   const entries = groundedElements(task, screen)
-    .map((element) => {
+    .flatMap((element) => {
       const aliases = uniqueSorted([element.element, humanizeIdentifier(element.element), element.name ?? '', ...element.aliases]);
       const match = bestAliasMatch(normalized, aliases);
       if (!match) {
-        return null;
+        return [];
       }
       const targetSeen = observedStateSession?.activeTargetRefs.includes(element.targetRef) ?? false;
       const memoryCarry = targetSeen ? 10 : 0;
-      return candidate({
+      return [candidate({
         concern: 'element',
         source: 'approved-screen-knowledge',
         value: element,
         summary: `Element matched local hints via "${match.alias}".${targetSeen ? ' Observed-state session preserved a prior target match.' : ''}`,
         refs: screen.supplementRefs,
         featureScores: { explicit: 0, control: 0, approvedKnowledge: 80, overlay: 0, translation: 0, dom: 0, alias: match.score, fallback: 0, carry: memoryCarry },
-      });
-    })
-    .filter((entry): entry is LatticeCandidate<StepTaskElementCandidate> => Boolean(entry));
+      })];
+    });
 
   return asRanked(entries);
 }
@@ -329,34 +327,33 @@ export function rankPostureCandidates(task: GroundedStep, element: StepTaskEleme
   }
 
   const normalized = normalizedCombined(task);
-  const entries: Array<LatticeCandidate<ReturnType<typeof createPostureId>>> = [];
-  for (const [postureId, descriptor] of Object.entries(resolutionContext.sharedPatterns.postures)) {
+  const entries: Array<LatticeCandidate<ReturnType<typeof createPostureId>>> = Object.entries(resolutionContext.sharedPatterns.postures).flatMap(([postureId, descriptor]) => {
     const match = bestAliasMatch(normalized, descriptor.aliases);
     if (!match) {
-      continue;
+      return [];
     }
-    entries.push(candidate({
+    return [candidate({
       concern: 'posture',
       source: 'shared-patterns',
       value: createPostureId(postureId),
       summary: `Posture matched shared pattern alias "${match.alias}".`,
       refs: [knowledgePaths.patterns()],
       featureScores: { explicit: 0, control: 0, approvedKnowledge: 80, overlay: 0, translation: 0, dom: 0, alias: match.score, fallback: 0, carry: 0 },
-    }));
-  }
+    })];
+  });
 
-  if (entries.length === 0 && element?.postures.some((posture) => posture === createPostureId('valid'))) {
-    entries.push(candidate({
-      concern: 'posture',
-      source: 'approved-screen-knowledge',
-      value: createPostureId('valid'),
-      summary: 'Posture defaulted to valid posture advertised by element.',
-      refs: [],
-      featureScores: { explicit: 0, control: 0, approvedKnowledge: 20, overlay: 0, translation: 0, dom: 0, alias: 0, fallback: 4, carry: 0 },
-    }));
-  }
+  const entriesWithDefault = entries.length === 0 && element?.postures.some((posture) => posture === createPostureId('valid'))
+    ? [...entries, candidate({
+        concern: 'posture',
+        source: 'approved-screen-knowledge',
+        value: createPostureId('valid'),
+        summary: 'Posture defaulted to valid posture advertised by element.',
+        refs: [],
+        featureScores: { explicit: 0, control: 0, approvedKnowledge: 20, overlay: 0, translation: 0, dom: 0, alias: 0, fallback: 4, carry: 0 },
+      })]
+    : entries;
 
-  return asRanked(entries);
+  return asRanked(entriesWithDefault);
 }
 
 export function rankSnapshotCandidates(task: GroundedStep, screen: StepTaskScreenCandidate | null, element: StepTaskElementCandidate | null, controlResolution: StepResolution | null): RankedLattice<ReturnType<typeof createSnapshotTemplateId>> {
@@ -368,34 +365,33 @@ export function rankSnapshotCandidates(task: GroundedStep, screen: StepTaskScree
   }
 
   const normalized = normalizedCombined(task);
-  const entries: Array<LatticeCandidate<ReturnType<typeof createSnapshotTemplateId>>> = [];
-  for (const [snapshotTemplate, aliases] of Object.entries(element?.snapshotAliases ?? {})) {
+  const entries: Array<LatticeCandidate<ReturnType<typeof createSnapshotTemplateId>>> = Object.entries(element?.snapshotAliases ?? {}).flatMap(([snapshotTemplate, aliases]) => {
     const match = bestAliasMatch(normalized, aliases);
     if (!match) {
-      continue;
+      return [];
     }
-    entries.push(candidate({
+    return [candidate({
       concern: 'snapshot',
       source: 'approved-screen-knowledge',
       value: createSnapshotTemplateId(snapshotTemplate),
       summary: `Snapshot template matched alias "${match.alias}".`,
       refs: screen?.supplementRefs ?? [],
       featureScores: { explicit: 0, control: 0, approvedKnowledge: 80, overlay: 0, translation: 0, dom: 0, alias: match.score, fallback: 0, carry: 0 },
-    }));
-  }
+    })];
+  });
 
-  if (entries.length === 0 && (screen?.sectionSnapshots.length ?? 0) === 1) {
-    entries.push(candidate({
-      concern: 'snapshot',
-      source: 'approved-screen-knowledge',
-      value: screen?.sectionSnapshots[0] ?? null,
-      summary: 'Snapshot template defaulted from single section snapshot.',
-      refs: [],
-      featureScores: { explicit: 0, control: 0, approvedKnowledge: 20, overlay: 0, translation: 0, dom: 0, alias: 0, fallback: 4, carry: 0 },
-    }));
-  }
+  const entriesWithDefault = entries.length === 0 && (screen?.sectionSnapshots.length ?? 0) === 1
+    ? [...entries, candidate({
+        concern: 'snapshot',
+        source: 'approved-screen-knowledge',
+        value: screen?.sectionSnapshots[0] ?? null,
+        summary: 'Snapshot template defaulted from single section snapshot.',
+        refs: [],
+        featureScores: { explicit: 0, control: 0, approvedKnowledge: 20, overlay: 0, translation: 0, dom: 0, alias: 0, fallback: 4, carry: 0 },
+      })]
+    : entries;
 
-  return asRanked(entries);
+  return asRanked(entriesWithDefault);
 }
 
 export function candidateConfidence(c: LatticeCandidate<unknown> | null): 'compiler-derived' | 'agent-verified' | 'agent-proposed' | 'unbound' {

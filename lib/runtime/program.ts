@@ -182,21 +182,26 @@ async function runInstruction(
 export const playwrightStepProgramInterpreter: StepProgramInterpreter<PlaywrightEnvironment> = {
   mode: 'playwright',
   async run(program: StepProgram, environment: PlaywrightEnvironment, context?: StepProgramDiagnosticContext): Promise<StepProgramExecutionResult> {
-    const outcomes: StepProgramInstructionOutcome[] = [];
-
-    for (const [index, instruction] of program.instructions.entries()) {
+    const step = async (
+      remaining: readonly [number, (typeof program.instructions)[number]][],
+      priorOutcomes: readonly StepProgramInstructionOutcome[],
+    ): Promise<StepProgramExecutionResult> => {
+      if (remaining.length === 0) {
+        return { ok: true, value: { mode: this.mode, outcomes: [...priorOutcomes] } };
+      }
+      const [[index, instruction], ...rest] = remaining;
       const result = await runInstruction(environment, instruction);
       if (!result.ok) {
         const failure: ProgramFailure = result.error;
-        outcomes.push({
+        const outcomes = [...priorOutcomes, {
           instructionIndex: index,
           instructionKind: instruction.kind,
           expectedEffects: [instruction.kind],
-          observedEffects: [],
-          status: 'failed',
+          observedEffects: [] as string[],
+          status: 'failed' as const,
           diagnostics: [{ code: failure.code, message: failure.message, context: failure.context }],
           failureCode: failure.code,
-        });
+        }];
         return {
           ok: false,
           error: failure,
@@ -204,20 +209,20 @@ export const playwrightStepProgramInterpreter: StepProgramInterpreter<Playwright
           diagnostic: context ? runtimeFailureDiagnostic(failure, context as RuntimeDiagnosticContext) : undefined,
         };
       }
-      outcomes.push({
+      const outcomes = [...priorOutcomes, {
         instructionIndex: index,
         instructionKind: instruction.kind,
         expectedEffects: [instruction.kind],
         observedEffects: result.value.observedEffects,
-        status: 'ok',
+        status: 'ok' as const,
         diagnostics: [] as StepInterpreterDiagnostic[],
         locatorStrategy: result.value.locatorStrategy,
         locatorRung: result.value.locatorRung,
         widgetContract: result.value.widgetContract,
-      });
-    }
-
-    return { ok: true, value: { mode: this.mode, outcomes } };
+      }];
+      return step(rest, outcomes);
+    };
+    return step([...program.instructions.entries()], []);
   },
 };
 

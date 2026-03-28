@@ -27,7 +27,7 @@ function translationCandidateScreens(task: GroundedStep, context: RuntimeStepAge
       score: bestAliasMatch(normalized, expandAliases([screen.screen, ...screen.screenAliases]))?.score ?? 0,
     }))
     .sort((left, right) => right.score - left.score || left.screen.screen.localeCompare(right.screen.screen));
-  const positive = ranked.filter((entry) => entry.score > 0).map((entry) => entry.screen);
+  const positive = ranked.flatMap((entry) => entry.score > 0 ? [entry.screen] : []);
   return (positive.length > 0 ? positive : ranked.map((entry) => entry.screen)).slice(0, 3);
 }
 
@@ -57,7 +57,7 @@ function translationCandidateElements(task: GroundedStep, screen: StepTaskScreen
       score: bestAliasMatch(normalized, expandAliases([element.element, element.name ?? '', ...element.aliases]))?.score ?? 0,
     }))
     .sort((left, right) => right.score - left.score || left.element.element.localeCompare(right.element.element));
-  const positive = ranked.filter((entry) => entry.score > 0).map((entry) => entry.element);
+  const positive = ranked.flatMap((entry) => entry.score > 0 ? [entry.element] : []);
   return (positive.length > 0 ? positive : ranked.map((entry) => entry.element)).slice(0, 8);
 }
 
@@ -83,10 +83,12 @@ export function resolveWithConfidenceOverlay(
   let screen = approvedScreen;
   if (!screen) {
     const matchedScreen = overlays
-      .filter((record) => record.screen)
-      .map((record) => ({ record, match: bestAliasMatch(normalized, overlayAliases(record)) }))
-      .filter((entry) => entry.match !== null)
-      .sort((left, right) => right.match!.score - left.match!.score)[0];
+      .flatMap((record) => record.screen ? [record] : [])
+      .flatMap((record) => {
+        const match = bestAliasMatch(normalized, overlayAliases(record));
+        return match !== null ? [{ record, match }] : [];
+      })
+      .sort((left, right) => right.match.score - left.match.score)[0];
     if (matchedScreen?.record.screen) {
       screen = context.resolutionContext.screens.find((candidate) => candidate.screen === matchedScreen.record.screen) ?? null;
       overlayRefIds.add(matchedScreen.record.id);
@@ -96,10 +98,12 @@ export function resolveWithConfidenceOverlay(
   let element = approvedElement;
   if (screen && !element && requiresElement(action)) {
     const matchedElement = overlays
-      .filter((record) => record.screen === screen?.screen && record.element)
-      .map((record) => ({ record, match: bestAliasMatch(normalized, overlayAliases(record)) }))
-      .filter((entry) => entry.match !== null)
-      .sort((left, right) => right.match!.score - left.match!.score)[0];
+      .flatMap((record) => record.screen === screen?.screen && record.element ? [record] : [])
+      .flatMap((record) => {
+        const match = bestAliasMatch(normalized, overlayAliases(record));
+        return match !== null ? [{ record, match }] : [];
+      })
+      .sort((left, right) => right.match.score - left.match.score)[0];
     if (matchedElement?.record.element) {
       element = screen.elements.find((candidate) => candidate.element === matchedElement.record.element) ?? null;
       overlayRefIds.add(matchedElement.record.id);

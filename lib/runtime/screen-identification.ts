@@ -64,17 +64,18 @@ function extractByPattern(
 ): readonly string[] {
   const regex = new RegExp(pattern.source, pattern.flags);
   return [...html.matchAll(regex)]
-    .map((m) => (m[1] ?? '').trim())
-    .filter((v) => v.length > 0)
-    .map((v) => `${prefix}:${v.toLowerCase()}`);
+    .flatMap((m) => {
+      const v = (m[1] ?? '').trim();
+      return v.length > 0 ? [`${prefix}:${v.toLowerCase()}`] : [];
+    });
 }
 
 function extractSemanticTags(html: string): readonly string[] {
   const SEMANTIC_TAGS = ['nav', 'header', 'footer', 'main', 'aside', 'form', 'section', 'article'] as const;
-  return SEMANTIC_TAGS.filter((tag) => {
+  return SEMANTIC_TAGS.flatMap((tag) => {
     const pattern = new RegExp(`<${tag}[\\s>]`, 'i');
-    return pattern.test(html);
-  }).map((tag) => `semantic:${tag}`);
+    return pattern.test(html) ? [`semantic:${tag}`] : [];
+  });
 }
 
 // ─── Graph matching ───
@@ -117,7 +118,7 @@ function buildScreenChildLabels(
 ): ReadonlyMap<string, readonly string[]> {
   // Find edges from screen nodes to their children
   const screenNodeIds = new Set(
-    graph.nodes.filter((n) => n.kind === 'screen').map((n) => n.id),
+    graph.nodes.flatMap((n) => n.kind === 'screen' ? [n.id] : []),
   );
 
   // Collect child node IDs for each screen via 'contains' edges
@@ -138,9 +139,10 @@ function buildScreenChildLabels(
     [...screenToChildIds.entries()].map(([screenId, childIds]) => [
       screenId,
       childIds
-        .map((cid) => nodeById.get(cid))
-        .filter((n): n is InterfaceGraphNode => n !== undefined)
-        .map((n) => n.label.toLowerCase()),
+        .flatMap((cid) => {
+          const n = nodeById.get(cid);
+          return n !== undefined ? [n.label.toLowerCase()] : [];
+        }),
     ]),
   );
 }

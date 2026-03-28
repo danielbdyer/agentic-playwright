@@ -108,8 +108,7 @@ export function extractDomSignals(
     return [];
   }
   return SIGNAL_EXTRACTORS
-    .filter((extractor) => extractor.test(ariaSnapshot, elementHint))
-    .map((extractor) => extractor.name);
+    .flatMap((extractor) => extractor.test(ariaSnapshot, elementHint) ? [extractor.name] : []);
 }
 
 /**

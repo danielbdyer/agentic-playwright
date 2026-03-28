@@ -158,8 +158,7 @@ export function observePostExecution(
   );
   const matchedTransitionRefs = uniqueSorted(
     transitionObservations
-      .filter((entry) => entry.classification === 'matched' && entry.transitionRef)
-      .map((entry) => entry.transitionRef!),
+      .flatMap((entry) => entry.classification === 'matched' && entry.transitionRef ? [entry.transitionRef] : []),
   );
 
   return {

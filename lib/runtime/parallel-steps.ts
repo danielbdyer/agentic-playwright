@@ -137,8 +137,7 @@ export function findIndependentSteps(
   const maxLevel = Math.max(...levels.values());
   return Array.from({ length: maxLevel + 1 }, (_, level) =>
     [...levels.entries()]
-      .filter(([, l]) => l === level)
-      .map(([idx]) => idx),
+      .flatMap(([idx, l]) => l === level ? [idx] : []),
   );
 }
 

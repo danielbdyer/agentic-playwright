@@ -216,18 +216,28 @@ async function executeRecoveryAttempts(input: {
     return { policyProfile: input.policy.profile, attempts: [], recovered: false };
   }
 
-  const attempts: RecoveryAttempt[] = [];
-  for (const strategy of config.strategies.filter((entry) => entry.enabled)) {
+  const enabledStrategies = config.strategies.flatMap((entry) => entry.enabled ? [entry] : []);
+  const tryStrategy = async (
+    remainingStrategies: readonly typeof enabledStrategies[number][],
+    priorAttempts: readonly RecoveryAttempt[],
+  ): Promise<{ policyProfile: string; attempts: RecoveryAttempt[]; recovered: boolean }> => {
+    if (remainingStrategies.length === 0) {
+      return { policyProfile: input.policy.profile, attempts: [...priorAttempts], recovered: false };
+    }
+    const [strategy, ...restStrategies] = remainingStrategies;
     const maxAttempts = Math.max(1, strategy.maxAttempts ?? 1);
-    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-      if (attempts.length >= config.budget.maxAttempts) {
-        break;
+    const tryAttempt = async (
+      attempt: number,
+      accumulated: readonly RecoveryAttempt[],
+    ): Promise<{ policyProfile: string; attempts: RecoveryAttempt[]; recovered: boolean }> => {
+      if (attempt > maxAttempts || accumulated.length >= config.budget.maxAttempts) {
+        return tryStrategy(restStrategies, accumulated);
       }
       const started = Date.now();
       const startedAt = new Date(started).toISOString();
       const result = recoveryAttemptResult(strategy, input);
       const durationMs = Math.max(0, Date.now() - started);
-      attempts.push({
+      const updated = [...accumulated, {
         strategyId: strategy.id,
         family: input.family as Exclude<StepExecutionReceipt['failure']['family'], 'none'>,
         attempt,
@@ -235,18 +245,19 @@ async function executeRecoveryAttempts(input: {
         durationMs,
         result,
         diagnostics: recoveryDiagnostics(strategy, input),
-      });
+      }];
       if (result === 'recovered') {
-        return { policyProfile: input.policy.profile, attempts, recovered: true };
+        return { policyProfile: input.policy.profile, attempts: updated, recovered: true };
       }
       const backoff = strategy.backoffMs ?? config.budget.backoffMs;
       if (backoff > 0) {
         await wait(backoff);
       }
-    }
-  }
-
-  return { policyProfile: input.policy.profile, attempts, recovered: false };
+      return tryAttempt(attempt + 1, updated);
+    };
+    return tryAttempt(1, priorAttempts);
+  };
+  return tryStrategy(enabledStrategies, []);
 }
 
 function recoveryDiagnostics(strategy: RecoveryStrategy, input: {
@@ -410,8 +421,7 @@ export async function runScenarioStep(
         stateRefs: observedRelevantStateRefs,
         activeRouteVariantRefs: activeVariants,
       }))
-        .filter((entry) => entry.observed)
-        .map((entry) => entry.stateRef)
+        .flatMap((entry) => entry.observed ? [entry.stateRef] : [])
     : state.observedStateSession.activeStateRefs.filter((ref) => observedRelevantStateRefs.includes(ref));
   const beforeSet = new Set(beforeObservedStateRefs);
   const skipStatePreconditions = interpretation.target.action === 'navigate';
@@ -556,8 +566,7 @@ export async function runScenarioStep(
       ? executionDiagnosticsFromError(result.diagnostic.code, result.diagnostic.message)
       : executionDiagnosticsFromError(result.error.code, result.error.message, result.error.context);
   const preconditionFailures = diagnostics
-    .filter((diagnostic) => diagnostic.code === 'runtime-widget-precondition-failed')
-    .map((diagnostic) => diagnostic.message);
+    .flatMap((diagnostic) => diagnostic.code === 'runtime-widget-precondition-failed' ? [diagnostic.message] : []);
   const completedAt = Date.now();
   const timing = {
     ...emptyExecutionTiming(),
@@ -611,8 +620,7 @@ export async function runScenarioStep(
   const observedStateRefs = uniqueSorted(transitionObservations.flatMap((entry) => entry.observedStateRefs));
   const matchedTransitionRefs = uniqueSorted(
     transitionObservations
-      .filter((entry) => entry.classification === 'matched' && entry.transitionRef)
-      .map((entry) => entry.transitionRef!)
+      .flatMap((entry) => entry.classification === 'matched' && entry.transitionRef ? [entry.transitionRef] : [])
   );
   if (runtimeSucceeded) {
     if (interpretation.kind === 'resolved-with-proposals') {
