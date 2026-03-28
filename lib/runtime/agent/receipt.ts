@@ -1,17 +1,19 @@
 import { knowledgePaths } from '../../domain/ids';
-import type { ResolutionReceipt } from '../../domain/types';
+import type { ResolutionReceipt, StepWinningSource } from '../../domain/types';
+import { buildReasonChain } from '../../domain/reason-chain';
 import { mintApproved, mintReviewRequired } from '../../domain/types/workflow';
 import { selectedDataset, selectedRunbook } from './select-controls';
 import type { RuntimeAgentStageContext, StageEffects } from './types';
 import { uniqueSorted } from './shared';
 
-function baseReceiptFields(stage: RuntimeAgentStageContext, pendingEffects?: StageEffects) {
+function baseReceiptFields(stage: RuntimeAgentStageContext, pendingEffects?: StageEffects, winningSource?: StepWinningSource) {
   const { task, context } = stage;
   const handshakes: import('../../domain/types').WorkflowStage[] = ['preparation', 'resolution'];
   const exhaustion = [...stage.exhaustion, ...(pendingEffects?.exhaustion ?? [])];
   const observations = [...stage.observations, ...(pendingEffects?.observations ?? [])];
   const knowledgeRefs = uniqueSorted([...stage.knowledgeRefs, ...(pendingEffects?.knowledgeRefs ?? [])]);
   const supplementRefs = uniqueSorted([...stage.supplementRefs, ...(pendingEffects?.supplementRefs ?? [])]);
+  const reasonChain = buildReasonChain(exhaustion, winningSource ?? 'none');
   return {
     version: 1 as const,
     stage: 'resolution' as const,
@@ -50,6 +52,7 @@ function baseReceiptFields(stage: RuntimeAgentStageContext, pendingEffects?: Sta
     evidenceRefs: stage.evidenceRefs,
     observations,
     exhaustion,
+    reasonChain,
     handshakes,
     evidenceDrafts: [],
     proposalDrafts: [],
@@ -64,7 +67,7 @@ export function agentInterpretedReceipt(
   translation: import('../../domain/types').TranslationReceipt | null,
   pendingEffects?: StageEffects,
 ): ResolutionReceipt {
-  const base = baseReceiptFields(stage, pendingEffects);
+  const base = baseReceiptFields(stage, pendingEffects, 'agent-interpreted');
   return {
     ...base,
     kind: 'agent-interpreted',
@@ -82,7 +85,7 @@ export function agentInterpretedReceipt(
 }
 
 export function needsHumanReceipt(stage: RuntimeAgentStageContext, overlayRefs: string[], translation: import('../../domain/types').TranslationReceipt | null, pendingEffects?: StageEffects): ResolutionReceipt {
-  const base = baseReceiptFields(stage, pendingEffects);
+  const base = baseReceiptFields(stage, pendingEffects, 'none');
   return {
     ...base,
     kind: 'needs-human',
@@ -103,13 +106,14 @@ export function explicitResolvedReceipt(stage: RuntimeAgentStageContext, pending
   if (!explicit?.action || !explicit.screen) {
     throw new Error('explicitResolvedReceipt requires explicit action and screen');
   }
+  const explicitBase = baseReceiptFields(stage, pendingEffects, 'scenario-explicit');
   return {
-    ...baseReceiptFields(stage, pendingEffects),
+    ...explicitBase,
     kind: 'resolved',
     governance: mintApproved(),
     resolutionMode: 'deterministic',
     fingerprints: {
-      ...baseReceiptFields(stage, pendingEffects).fingerprints,
+      ...explicitBase.fingerprints,
       controls: null,
     },
     knowledgeRefs: [knowledgePaths.surface(explicit.screen), knowledgePaths.elements(explicit.screen)],

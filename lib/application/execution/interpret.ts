@@ -58,12 +58,25 @@ function buildStepResolutionGraph(step: RuntimeScenarioStepResult, task: Grounde
     ? 'needs-human'
     : WINNING_SOURCE_TO_RUNG[receipt.winningSource]) as StepResolutionGraph['winner']['rung'];
 
+  // Build enriched winner rationale from reason chain if available, otherwise fall back to basic.
+  const reasonChainSummary = receipt.reasonChain && receipt.reasonChain.length > 0
+    ? receipt.reasonChain
+        .filter((step) => step.verdict !== 'passed')
+        .map((step) => `${step.rung}: ${step.verdict} — ${step.reason}`)
+        .join('; ')
+    : null;
+  const defaultRationale = receipt.kind === 'needs-human'
+    ? receipt.reason
+    : `Resolved via ${receipt.winningSource}.`;
+
   return {
     precedenceTraversal: traversal,
     candidateSets,
     winner: {
       rung: winnerRung,
-      rationale: receipt.kind === 'needs-human' ? receipt.reason : `Resolved via ${receipt.winningSource}.`,
+      rationale: reasonChainSummary
+        ? `${defaultRationale} Decision trail: ${reasonChainSummary}`
+        : defaultRationale,
       losingReasons: receipt.exhaustion.flatMap((entry) => entry.outcome === 'failed' ? [entry.reason] : []),
     },
     refs: {

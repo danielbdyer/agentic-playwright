@@ -122,6 +122,7 @@ module.exports = [
       }],
       'no-restricted-syntax': ['error',
         { selector: "ThrowStatement > NewExpression[callee.name='Error']", message: 'Use structured domain/runtime errors instead of throwing Error in application/runtime code.' },
+        { selector: "CallExpression[callee.property.name='push']", message: 'Prefer spread, concat, or reduce over Array.push.' },
         { selector: 'ForStatement', message: 'Prefer map/filter/reduce/flatMap over imperative for loops.' },
         { selector: 'ForInStatement', message: 'Prefer Object.entries().map() over for...in.' },
       ],
@@ -136,10 +137,10 @@ module.exports = [
           { group: ['../infrastructure', '../infrastructure/*', '../infrastructure/**'], message: 'Runtime must stay isolated from infrastructure orchestration.' },
         ],
       }],
-      'no-restricted-syntax': ['error', {
-        selector: "ThrowStatement > NewExpression[callee.name='Error']",
-        message: 'Use structured domain/runtime errors instead of throwing Error in application/runtime code.',
-      }],
+      'no-restricted-syntax': ['error',
+        { selector: "ThrowStatement > NewExpression[callee.name='Error']", message: 'Use structured domain/runtime errors instead of throwing Error in application/runtime code.' },
+        { selector: "CallExpression[callee.property.name='push']", message: 'Prefer spread, concat, or reduce over Array.push.' },
+      ],
     },
   },
   {
