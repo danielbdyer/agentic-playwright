@@ -42,6 +42,7 @@ import { DecisionOverlay } from './decision-overlay';
 import { DecisionBurst } from './decision-burst';
 import { IterationPulse } from './iteration-pulse';
 import { ArtifactAurora } from './artifact-aurora';
+import { FrameBudgetInstrumentation, type FrameBudgetSample } from './frame-budget-instrumentation';
 
 /** Module-level no-op tick — stable identity without useMemo. */
 const noopTick = (): number => 0;
@@ -86,6 +87,8 @@ export interface SpatialCanvasProps {
   readonly decisionBurst?: { readonly origin: readonly [number, number, number]; readonly result: DecisionResult } | null;
   /** Phase 6: callback when decision burst animation completes. */
   readonly onBurstComplete?: () => void;
+  /** Frame-budget telemetry sample callback for diagnostics HUD. */
+  readonly onFrameBudgetSample?: (sample: FrameBudgetSample) => void;
 }
 
 // ─── Scene Content (separated for memo purity) ───
@@ -105,6 +108,7 @@ const SceneContent = memo(function SceneContent({
   onSkip,
   decisionBurst = null,
   onBurstComplete,
+  onFrameBudgetSample,
 }: SpatialCanvasProps) {
   const { screen, glass, knowledge } = SCENE_LAYOUT;
 
@@ -215,6 +219,8 @@ const SceneContent = memo(function SceneContent({
           mipmapBlur
         />
       </EffectComposer>
+
+      <FrameBudgetInstrumentation onSample={onFrameBudgetSample} />
     </>
   );
 });
