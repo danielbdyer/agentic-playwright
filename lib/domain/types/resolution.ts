@@ -674,3 +674,37 @@ export interface NeedsHumanReceipt extends ResolutionReceiptBase {
 }
 
 export type ResolutionReceipt = ResolvedReceipt | ResolvedWithProposalsReceipt | AgentInterpretedReceipt | NeedsHumanReceipt;
+
+// ─── Rung Stress Test (N1.6) ───
+
+export interface ResolutionRungOverride {
+  readonly forceRung: ResolutionPrecedenceRung;
+  readonly skipRungs?: readonly ResolutionPrecedenceRung[];
+}
+
+// ─── Intent Clarification Protocol (N1.2) ───
+
+export type ClarificationCategory = 'locator' | 'navigation' | 'data' | 'precondition' | 'affordance';
+
+export interface ClarificationRequest {
+  readonly kind: 'clarification-request';
+  readonly stepIndex: number;
+  readonly failedRungs: readonly ResolutionPrecedenceRung[];
+  readonly questions: readonly ClarificationQuestion[];
+  readonly context: ClarificationContext;
+}
+
+export interface ClarificationQuestion {
+  readonly id: string;
+  readonly category: ClarificationCategory;
+  readonly question: string;
+  readonly suggestedActions: readonly string[];
+}
+
+export interface ClarificationContext {
+  readonly actionText: string;
+  readonly screenId: string | null;
+  readonly attemptedStrategies: readonly string[];
+  readonly nearestCandidates: readonly string[];
+  readonly consoleErrors: readonly string[];
+}
