@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test';
+import { attachConsoleSentinel } from './console-sentinel';
 import { uniqueSorted } from '../domain/collections';
 import type { AdoId, StateNodeRef, TransitionRef } from '../domain/identity';
 import type { ExecutionBudgetThresholds } from '../domain/execution/telemetry';
@@ -525,6 +526,11 @@ export async function runScenarioStep(
         },
       }
     : undefined;
+  // Console sentinel: capture browser console errors/warnings during step execution.
+  const consoleSentinel = environment.mode === 'playwright' && environment.page
+    ? attachConsoleSentinel(environment.page as Page)
+    : null;
+
   const result = environment.mode === 'playwright'
     ? await playwrightStepProgramInterpreter.run(program, {
         page: environment.page as Page,
@@ -540,6 +546,8 @@ export async function runScenarioStep(
         diagnosticContext,
         environment.snapshotLoader,
       );
+
+  const consoleMessages = consoleSentinel?.detach() ?? [];
 
   const firstOutcome = result.value.outcomes[0];
   const diagnostics = result.ok
@@ -682,17 +690,20 @@ export async function runScenarioStep(
           status: 'ok',
           observedEffects: firstOutcome?.observedEffects ?? [],
           diagnostics: [],
+          ...(consoleMessages.length > 0 ? { consoleMessages } : {}),
         }
       : recovery.recovered
         ? {
           status: 'ok',
           observedEffects: [...(firstOutcome?.observedEffects ?? []), 'recovery-succeeded'],
           diagnostics: [],
+          ...(consoleMessages.length > 0 ? { consoleMessages } : {}),
         }
         : {
           status: 'failed',
           observedEffects: firstOutcome?.observedEffects ?? [],
           diagnostics,
+          ...(consoleMessages.length > 0 ? { consoleMessages } : {}),
         },
   };
 

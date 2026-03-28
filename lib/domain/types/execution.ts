@@ -112,10 +112,18 @@ export interface ExecutionDiagnostic {
   readonly context?: Readonly<Record<string, string>> | undefined;
 }
 
+export interface ConsoleEntry {
+  readonly level: 'log' | 'warn' | 'error' | 'info' | 'debug';
+  readonly text: string;
+  readonly timestamp: string;
+  readonly url?: string | undefined;
+}
+
 export interface ExecutionObservation {
   readonly status: 'ok' | 'failed' | 'skipped';
   readonly observedEffects: readonly string[];
   readonly diagnostics: readonly ExecutionDiagnostic[];
+  readonly consoleMessages?: readonly ConsoleEntry[] | undefined;
 }
 
 export interface StepExecutionReceipt {
