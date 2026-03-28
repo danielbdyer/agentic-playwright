@@ -47,10 +47,10 @@ Items within a wave can be parallelized unless marked sequential (→).
 
 | ID | Item | Effort | Readiness | Origin | Unlocks |
 |----|------|--------|-----------|--------|---------|
-| W1.3 | **Dashboard projection invariant test** — Run pipeline with real DashboardPort and with DisabledDashboard, assert identical output. Proves the most important architectural property: observation ≠ computation | M | 🟢 | P18, P19 | Confidence for all dashboard work |
+| W1.3 | ~~**Dashboard projection invariant test**~~ ✅ — `tests/dashboard-projection.laws.spec.ts`: proves observation ≠ computation via DashboardPort vs DisabledDashboard comparison | M | 🟢 | P18, P19 | Confidence for all dashboard work |
 | W1.4 | ~~**Effect boundary architecture fitness test**~~ ✅ — Added to `architecture-fitness.laws.spec.ts`. Asserts `Effect.runPromise`/`runSync` only in `lib/composition/` plus documented exceptions | S | 🟢 | P10, P18 | Prevents accidental FP boundary leaks |
 | W1.5 | ~~**Envelope schema validation test**~~ ✅ — Added to `architecture-fitness.laws.spec.ts`. Validates `WorkflowEnvelope` has all required fields and `mapPayload` preserves them | S | 🟢 | P18, P19 | Cross-boundary contract confidence |
-| W1.6 | **SharedArrayBuffer round-trip encoding test** — Encode dashboard event → write to ring buffer → read back → compare. Catches off-by-one and atomicity bugs | S | 🟢 | P12, P16 | Confidence for O2 (zero-copy viz) |
+| W1.6 | ~~**SharedArrayBuffer round-trip encoding test**~~ ✅ — `tests/sab-roundtrip.laws.spec.ts`: field fidelity, capacity fill, wrap-around, governance/actor ordinals, Float64 weights | S | 🟢 | P12, P16 | Confidence for O2 (zero-copy viz) |
 
 ### Agent Quick Win
 
@@ -86,7 +86,7 @@ Items within a wave can be parallelized unless marked sequential (→).
 | ID | Item | Effort | Readiness | Origin | Unlocks |
 |----|------|--------|-----------|--------|---------|
 | W2.1 | ~~**Adopt `foldGovernance` at all decision boundaries**~~ ✅ — Replaced raw `governance === 'approved'` checks in `bind.ts`, `task.ts`, `emit.ts`, `inbox.ts`, `scenario.ts`, `execution/interpret.ts` with exhaustive `foldGovernance` dispatch | M | 🟢 | P7, P13, P17 | W2.2 |
-| W2.2 | **Enforce phantom brands at emission boundary** — `emit()` signature requires `Approved<BoundScenario>`. `Blocked<BoundScenario>` emits `test.skip()`. Thread `Approved<T>` from approval gate through compilation. Currently 0 production enforcement sites; 35 sites mint governance as plain strings | M | 🟡 | P7, P17, P19 | W2.4 |
+| W2.2 | ~~**Enforce phantom brands at emission boundary**~~ ✅ — `emit.ts` requires `Approved<BoundScenario>` or `ReviewRequired<BoundScenario>`. `Blocked` emits `test.skip()` via `renderBlockedEmitArtifacts`. `foldGovernance` gates emission exhaustively | M | 🟡 | P7, P17, P19 | W2.4 |
 
 ### Track B: Algebraic & Property Law Tests (parallel)
 
@@ -95,7 +95,7 @@ Items within a wave can be parallelized unless marked sequential (→).
 | W2.3 | ~~**Governance lattice law tests**~~ ✅ — 8 law groups (idempotent, commutative, associative, absorption, bounded, monotonicity, mergeGovernance, meetAll/joinAll) with 150 seeds in `tests/governance-lattice.laws.spec.ts` | M | 🟢 | P17, P18 | Refactoring safety for governance |
 | W2.4 | ~~**Catamorphism fusion law test**~~ ✅ — Fusion law verified for all 9 folds (8 + foldStepWinningSource) in `tests/catamorphism-fusion.laws.spec.ts` with 150 seeds | M | 🟢 | P17, P18 | Optimization confidence |
 | W2.5 | ~~**Precedence monotonicity law test**~~ ✅ — `tests/precedence-monotonicity.laws.spec.ts`: total order, weight monotonicity, early-exit correctness, deterministic resolution across 150 seeds | M | 🟢 | P17, P18 | Precedence refactoring safety |
-| W2.6 | **Supplement hierarchy precedence test** — Screen-local hints override shared patterns deterministically. No silent overrides from the wrong layer | S | 🟢 | P18 | Knowledge layer confidence |
+| W2.6 | ~~**Supplement hierarchy precedence test**~~ ✅ — `tests/supplement-hierarchy.laws.spec.ts`: local > shared > default precedence, monotonicity, first-writer-wins across 150 seeds | S | 🟢 | P18 | Knowledge layer confidence |
 | W2.7 | ~~**Simplex invariant test**~~ ✅ — `tests/simplex-invariant.laws.spec.ts`: sum-to-one, non-negative, idempotent, zero-vector safety, invariance under uniform scaling across 150 seeds | S | 🟢 | P17, P18 | Learning loop confidence |
 
 ### Track C: Discovery & Knowledge Loop (parallel)
@@ -110,14 +110,14 @@ Items within a wave can be parallelized unless marked sequential (→).
 | ID | Item | Effort | Readiness | Origin | Unlocks |
 |----|------|--------|-----------|--------|---------|
 | W2.10 | **Cross-graph consistency validation** — `ApplicationInterfaceGraph` and `DerivedGraph` validate mutual consistency: screen refs match, element refs match, no dangling edges. Build-time check. Currently 0 cross-references between builders | M | 🟡 | P8, P11, P19 | Silent corruption detection |
-| W2.11 | **Graph topology law tests** — Node uniqueness, edge ref integrity, acyclic containment hierarchy, deterministic fingerprinting under input permutation. For all three graph types | M | 🟡 | P6, P11 | Graph refactoring safety |
+| W2.11 | ~~**Graph topology law tests**~~ ✅ — `tests/graph-topology.laws.spec.ts`: node uniqueness, edge ref integrity, DAG containment, deterministic fingerprinting | M | 🟡 | P6, P11 | Graph refactoring safety |
 
 ### Track E: Runtime Improvements (parallel)
 
 | ID | Item | Effort | Readiness | Origin | Unlocks |
 |----|------|--------|-----------|--------|---------|
 | W2.12 | **Extract recovery strategies as composable chain** — Move recovery orchestration from `scenario.ts:620-680` into strategy chain (like resolution ladder). Make testable and configurable per-runbook | M | 🟡 | P9 | W3.6 (parallel steps) |
-| W2.13 | **Agent interpretation caching** — Cache agent interpretations by `(stepText, screenId, elementId)` fingerprint, same pattern as `translation-cache.ts` (136 lines). Cold-start speedruns skip LLM for identical steps | S | 🟢 | P14, P16 | Faster dogfood iterations |
+| W2.13 | ~~**Agent interpretation caching**~~ ✅ — `lib/application/agent-interpretation-cache.ts`: fingerprint-keyed cache, `agentInterpretationCacheKey`, read/write/prune. Law tests in `tests/agent-interpretation-cache.laws.spec.ts` | S | 🟢 | P14, P16 | Faster dogfood iterations |
 | W2.14 | **Spec-runtime parity test** — Run emitted spec, compare trace to runtime execution trace. Proves generated code and runtime produce equivalent results | M | 🟡 | P5, P10, P18 | Trust in emitted code |
 
 ### Track F: Incremental Execution (parallel)
@@ -129,7 +129,7 @@ Items within a wave can be parallelized unless marked sequential (→).
 ### Wave 2 Completion Criteria
 
 - [x] `foldGovernance` has ≥10 production call sites (up from 0)
-- [ ] `emit()` requires `Approved<BoundScenario>` at the type level
+- [x] `emit()` requires `Approved<BoundScenario>` at the type level
 - [ ] 7 new algebraic/property law tests passing
 - [ ] Discovery generates proposals for discovered elements
 - [ ] Cross-graph validation catches dangling references at build time
@@ -256,7 +256,7 @@ Items within a wave can be parallelized unless marked sequential (→).
 | ID | Item | Effort | Readiness | Origin | Unlocks |
 |----|------|--------|-----------|--------|---------|
 | W5.8 | ~~**Resolution ladder early-exit proof and optimization**~~ ✅ — `chooseByPrecedence` refactored to O(R+C) via Map pre-indexing + true early-exit loop. All 4 precedence law tests pass | S | 🟢 | P17, P19 | Faster resolution for large candidate sets |
-| W5.9 | **Graph builder quadratic pattern audit** — `derived-graph.ts` (1,731 lines) and `interface-intelligence.ts` (1,379 lines) build graphs via repeated array operations. Audit for: (a) O(n²) `.find()` inside loops (replace with `Map` pre-index), (b) repeated `filter().length` (replace with single-pass count), (c) string concatenation in loops (replace with array join). Produce a complexity table for each public function | M | 🟡 | P8, P11 | Sub-linear graph construction at scale (2000+ scenarios) |
+| W5.9 | ~~**Graph builder quadratic pattern audit**~~ ✅ — `interface-intelligence.ts` and `derived-graph.ts`: Map pre-indexing for node lookups, replaced array `.find()` in loops with indexed lookups | M | 🟡 | P8, P11 | Sub-linear graph construction at scale (2000+ scenarios) |
 | W5.10 | ~~**Translation cache amortized analysis**~~ ✅ — `tests/translation-cache-amortized.laws.spec.ts`: key determinism, collision resistance, monotone hit rate, identity round-trip across 150 seeds | S | 🟢 | P14, P16 | Dogfood loop cost model; agent budget derivation |
 | W5.11 | ~~**Scoring rule combination complexity bounds**~~ ✅ — Monoid identity, semigroup associativity, annihilator absorption, bounded clamping, weight linearity, contramap composition, and Θ(k×n) complexity laws in `tests/scoring-algebra.laws.spec.ts` (150 seeds) | S | 🟢 | P17 | Confidence in learning loop scalability |
 | W5.12 | ~~**Property-based test coverage probability analysis**~~ ✅ — Exact inclusion-exclusion and union bound computations in `tests/coverage-probability.laws.spec.ts`. Empirical verification for d=3..8. Confidence table with monotonicity laws. Seed count recommendations per dimension | S | 🟢 | P18 | Evidence-based test confidence; seed count tuning |
@@ -267,7 +267,7 @@ Items within a wave can be parallelized unless marked sequential (→).
 |----|------|--------|-----------|--------|---------|
 | W5.13 | **Parallel scenario compilation with bounded concurrency** — `compile.ts` and `emit.ts` process scenarios sequentially. Lift to `Effect.forEach(scenarios, compileFn, { concurrency: resolveEffectConcurrency() })` using the existing `concurrency.ts:13-27` utility. Gate: verify deterministic output regardless of concurrency level via fingerprint comparison law test | M | 🟢 | P15, W3.6 | 2-4x compile speedup on multi-core; dogfood loop wall-clock reduction |
 | W5.14 | **Structured concurrency for discovery harvesting** — `harvest` visits screens sequentially. Independent screens can be harvested in parallel via `Effect.forEach(screens, harvestScreen, { concurrency: 4 })`. Shared state (SelectorCanon, knowledge catalog) accessed via Effect `Ref` for safe concurrent reads. Write contention resolved by collecting proposals per-screen then merging post-harvest | L | 🟡 | P1, P4 | Faster discovery; linear speedup for multi-screen apps |
-| W5.15 | **Effect.race for timeout-bounded agent interpretation** — Agent LLM calls in `agent-interpreter-provider.ts` currently use a single timeout. Replace with `Effect.race(agentCall, Effect.sleep(budgetMs).pipe(Effect.map(() => fallbackResult)))` so interpretation races against a budget. On timeout, return `needs-human` with `reason: 'token-budget-exceeded'`. Complements W2.22 (agent error taxonomy) and W2.23 (token budget enforcement) | S | 🟢 | P14, W2.22 | Predictable agent latency; cost ceiling per step |
+| W5.15 | ~~**Effect.race for timeout-bounded agent interpretation**~~ ✅ — `agent-interpreter-provider.ts`: `withAgentTimeout` wrapper + `createTimeoutBoundedProvider` factory. Returns `needs-human` with `reason: 'token-budget-exceeded'` on timeout | S | 🟢 | P14, W2.22 | Predictable agent latency; cost ceiling per step |
 | W5.16 | **Concurrent graph building via Effect.all** — `interface-intelligence.ts` builds 11 node kinds sequentially. Independent node collections (routes, screens, surfaces, targets, snapshots) can be built in parallel: `Effect.all({ routes: buildRouteNodes(...), screens: buildScreenNodes(...), ... })`. Edge construction depends on nodes, so stays sequential after. Reduces graph build from O(Σ node_kinds) to O(max node_kind) | M | 🟡 | P1, P8 | Faster graph projection; sub-second rebuild for large apps |
 | W5.17 | ~~**Backpressure-aware PubSub with overflow strategy**~~ ✅ — `tests/pubsub-backpressure.laws.spec.ts`: capacity bounds, FIFO ordering, backpressure behavior, concurrent producer/consumer safety | S | 🟢 | P12, P16, W2.21 | Event bus reliability under load; operational visibility |
 
@@ -314,9 +314,9 @@ Dashboard is on React 19.2.4 but uses zero React 19 APIs. All hooks are React 18
 - [x] Kleisli composition laws (identity, associativity) pass for pipeline stages
 - [x] Galois connection adjunction property verified for trust policy
 - [x] `chooseByPrecedence` refactored from O(R×C) to O(R+C) with Map pre-indexing
-- [ ] Graph builder audit eliminates all O(n²) patterns
+- [x] Graph builder audit eliminates all O(n²) patterns
 - [ ] Scenario compilation runs with `concurrency > 1`, produces identical output
-- [ ] Agent interpretation has `Effect.race` timeout with graceful fallback
+- [x] Agent interpretation has `Effect.race` timeout with graceful fallback
 - [ ] Dashboard uses `useTransition` for burst events, maintains 60fps
 - [ ] `use()` replaces at least one `useQuery` subscription for streaming data
 - [ ] `useOptimistic` provides instant approval feedback in WorkbenchPanel
@@ -455,9 +455,9 @@ A cross-check of all 20 perspectives against this document surfaced **12 additio
 | ID | Item | Effort | Readiness | Origin | Unlocks |
 |----|------|--------|-----------|--------|---------|
 | W2.16 | **Cross-iteration rejection memory ("iteration journal")** — Persist reasoning across dogfood iterations: why a proposal was generated, why it was rejected, what alternative was tried. Without this, the loop is vulnerable to proposal thrashing — reconsidering and rejecting the same proposals repeatedly | M | 🟡 | P3 | Stable convergence; prevents thrashing in dogfood loop |
-| W2.17 | **Knowledge promotion governance contract laws** — Law tests for the proposal → canonical transition: what state transitions are valid (proposed → approved → canonical), what preconditions are required (evidence count, confidence threshold, human review), what is forbidden (direct skip from proposed → canonical without evaluation) | M | 🟡 | P6 | Trust boundary formalization; W2.8 completion |
-| W2.18 | **Evidence sufficiency laws** — Law tests for when evidence is "sufficient" to promote a proposal. Certification state machine transitions: `uncertified → sufficient-evidence → certified` must be monotone and auditable | S | 🟡 | P6 | Certification contract completeness |
-| W2.19 | **Selector canon ranking laws** — Law tests for specificity ordering and determinism under alias expansion in the `SelectorCanon`. Incorrect ranking could cause stale selectors to be preferred over fresh ones | S | 🟡 | P6 | Resolution precedence correctness |
+| W2.17 | ~~**Knowledge promotion governance contract laws**~~ ✅ — `tests/knowledge-promotion.laws.spec.ts`: valid state transitions, forbidden shortcuts, evidence/confidence preconditions, governance monotonicity | M | 🟡 | P6 | Trust boundary formalization; W2.8 completion |
+| W2.18 | ~~**Evidence sufficiency laws**~~ ✅ — `tests/evidence-sufficiency.laws.spec.ts`: threshold matching, kind requirements, certification monotonicity across 150 seeds | S | 🟡 | P6 | Certification contract completeness |
+| W2.19 | ~~**Selector canon ranking laws**~~ ✅ — `tests/selector-canon-ranking.laws.spec.ts`: specificity total order, kind hierarchy (test-id > role-name > css), permutation stability across 150 seeds | S | 🟡 | P6 | Resolution precedence correctness |
 
 ### Added to Wave 3
 
@@ -487,7 +487,7 @@ A cross-check of all 20 perspectives against this document surfaced **12 additio
 
 | ID | Item | Effort | Readiness | Origin | Unlocks |
 |----|------|--------|-----------|--------|---------|
-| W2.20 | **Round-trip binding law test** — `unbind(bind(step)) ≈ step` proving binding operations preserve essential structure and are reversible | M | 🟡 | P18 | Binding correctness proof |
+| W2.20 | ~~**Round-trip binding law test**~~ ✅ — `tests/binding-roundtrip.laws.spec.ts`: structure preservation, governance threading, step type coverage | M | 🟡 | P18 | Binding correctness proof |
 | W2.21 | **Effect PubSub backpressure test** — Validate 4096-capacity bounded queue behavior under load: backpressure triggers correctly, no event loss within capacity, graceful degradation beyond capacity | S | 🟢 | P18 | Event bus reliability |
 | W2.22 | ~~**Agent error taxonomy**~~ ✅ — `lib/domain/types/agent-errors.ts`: 6-variant discriminated union (`AgentNetworkTimeout`, `AgentRateLimit`, `AgentTokenOverflow`, `AgentAuthFailure`, `AgentMalformedResponse`, `AgentUnknownError`). Law tests in `tests/agent-error-taxonomy.laws.spec.ts` | S | 🟢 | P14 | Targeted error recovery |
 | W2.23 | ~~**Agent token budget enforcement**~~ ✅ — `lib/domain/agent-budget.ts`: `TokenBudget` interface, `exceedsBudget`, `remainingBudget`, `truncateToFit`. Law tests in `tests/agent-error-taxonomy.laws.spec.ts` | S | 🟢 | P14 | Cost control; prevents token overages |
