@@ -359,6 +359,26 @@ export interface ProposalBundle {
   readonly proposals: readonly ProposalEntry[];
 }
 
+// ─── Execution Tempo Awareness (N1.4) ───
+
+export interface ScreenTempoProfile {
+  readonly screenId: string;
+  readonly observedDurationsMs: readonly number[];
+  readonly p50Ms: number;
+  readonly p95Ms: number;
+  readonly recommendedTimeoutMs: number;
+  readonly sampleCount: number;
+  readonly lastUpdated: string;
+}
+
+export interface TempoAdaptationResult {
+  readonly screenId: string;
+  readonly previousTimeoutMs: number;
+  readonly adaptedTimeoutMs: number;
+  readonly confidence: 'high' | 'medium' | 'low';
+  readonly reason: string;
+}
+
 // ─── Rung Stress Test (N1.6) ───
 
 export interface StressTestConfig {
