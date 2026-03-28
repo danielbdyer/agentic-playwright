@@ -343,6 +343,19 @@ export interface CaptureResult {
   readonly snapshot: string;
 }
 
+// ─── N1.8: Knowledge Coverage as Scorecard Metric ───
+
+export interface KnowledgeCoverageMetrics {
+  readonly totalScreens: number;
+  readonly coveredScreens: number;
+  readonly thinScreens: number;
+  readonly screenCoverageRate: number;
+  readonly totalActionFamilies: number;
+  readonly coveredActionFamilies: number;
+  readonly thinActionFamilies: number;
+  readonly actionFamilyCoverageRate: number;
+}
+
 export interface ResolutionTarget {
   readonly action: StepAction;
   readonly screen: ScreenId;

@@ -1,14 +1,84 @@
 /**
- * Knowledge Coverage as Scorecard Metric (W3.9)
+ * Knowledge Coverage as Scorecard Metric (W3.9 + N1.8)
  *
- * Adds thin-screen / thin-action hotspots to convergence criteria.
+ * W3.9: Adds thin-screen / thin-action hotspots to convergence criteria.
  * The dogfood loop should not stop while thin screens remain.
  *
  * Coverage score per screen is a weighted mean of element, hint, and
  * posture density — bounded [0, 1]. Aggregate coverage is the weighted
  * mean across all screens (weighted by element count to avoid empty
  * screens inflating the average).
+ *
+ * N1.8: Adds binary screen/action-family coverage metrics as convergence
+ * criteria. A screen is "covered" if it has hints OR patterns OR snapshots.
+ * An action family is "covered" if it has component knowledge OR patterns.
  */
+
+import type { KnowledgeCoverageMetrics } from './types/workflow';
+
+// ─── N1.8: Screen & Action Family Coverage Inputs ───
+
+export interface ScreenCoverageInput {
+  readonly screenId: string;
+  readonly hasHints: boolean;
+  readonly hasPatterns: boolean;
+  readonly hasSnapshots: boolean;
+}
+
+export interface ActionFamilyCoverageInput {
+  readonly family: string;
+  readonly hasComponentKnowledge: boolean;
+  readonly hasPatterns: boolean;
+}
+
+// ─── N1.8: Pure Computation ───
+
+/**
+ * Compute binary knowledge coverage metrics for screens and action families.
+ *
+ * A screen is "covered" if it has hints OR patterns OR snapshots.
+ * An action family is "covered" if it has component knowledge OR patterns.
+ * Thin counts are total - covered.
+ * Coverage rates are covered / total, or 0 when total is 0.
+ */
+export function computeKnowledgeCoverage(
+  screens: readonly ScreenCoverageInput[],
+  actionFamilies: readonly ActionFamilyCoverageInput[],
+): KnowledgeCoverageMetrics {
+  const coveredScreens = screens.filter(
+    (s) => s.hasHints || s.hasPatterns || s.hasSnapshots,
+  ).length;
+  const coveredActionFamilies = actionFamilies.filter(
+    (a) => a.hasComponentKnowledge || a.hasPatterns,
+  ).length;
+  return {
+    totalScreens: screens.length,
+    coveredScreens,
+    thinScreens: screens.length - coveredScreens,
+    screenCoverageRate: screens.length === 0 ? 0 : coveredScreens / screens.length,
+    totalActionFamilies: actionFamilies.length,
+    coveredActionFamilies,
+    thinActionFamilies: actionFamilies.length - coveredActionFamilies,
+    actionFamilyCoverageRate: actionFamilies.length === 0 ? 0 : coveredActionFamilies / actionFamilies.length,
+  };
+}
+
+/**
+ * Check whether knowledge coverage meets the convergence thresholds.
+ * Both screen coverage rate and action family coverage rate must meet
+ * or exceed their respective thresholds.
+ */
+export function isKnowledgeConverged(
+  metrics: KnowledgeCoverageMetrics,
+  thresholds: { readonly screenCoverage: number; readonly actionFamilyCoverage: number },
+): boolean {
+  return (
+    metrics.screenCoverageRate >= thresholds.screenCoverage &&
+    metrics.actionFamilyCoverageRate >= thresholds.actionFamilyCoverage
+  );
+}
+
+// ─── W3.9: Knowledge Coverage (legacy) ───
 
 // ─── Knowledge Coverage ───
 
