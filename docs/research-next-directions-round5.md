@@ -36,7 +36,7 @@ The phantom brands (`Approved<T>`, `Blocked<T>`, `ReviewRequired<T>`) are the ty
 
 **What formalization unlocks**: A `mergeGovernance` function implementing lattice meet. Compile-time proof that governance can only flow downward (approved → review-required → blocked), never upward without explicit promotion. The `requireApproved` function (which exists but is never called) becomes a lattice-element assertion.
 
-#### B. The Resolution Cascade as Prioritized Coproduct
+#### B. The Resolution Cascade as Prioritized Coproduct ✅
 
 **Structure**: A 10-rung prioritized sum type with a total order and a monotone valuation function.
 
@@ -78,7 +78,7 @@ Critically, `WINNING_SOURCE_TO_RUNG` (visitors.ts:257-272) is a **second fold fu
 
 **What formalization unlocks**: Automatic derivation of folds from type definitions. Catamorphism fusion (composing consecutive folds into a single pass). Detection of "union type consumed without exhaustive fold" as a compile-time warning.
 
-#### D. The Pipeline as Kleisli Composition
+#### D. The Pipeline as Kleisli Composition ✅
 
 **Structure**: Pipeline stages form Kleisli arrows in the Effect monad, composed via `yield*` (monadic bind).
 
@@ -143,7 +143,7 @@ The codebase is **saturated with algebraic structure** — lattices, coproducts,
 
 ---
 
-## Perspective 18: The Self-Verifying Compiler
+## Perspective 18: The Self-Verifying Compiler ✅
 
 **Researcher focus**: Tesseract compiles human intent into executable tests and declares architectural doctrine in CLAUDE.md. But the gap between "declared invariant" and "tested invariant" is vast. What if Tesseract could compile its own doctrine into self-verification tests? What's the delta between the current law tests and full self-verification?
 
@@ -206,7 +206,7 @@ CLAUDE.md and the architecture docs declare **at least 47 testable invariants**.
 | **Idempotent compilation** | compiler-harvest-idempotence.spec.ts exists | **EXISTS** — This is tested, but only for harvest, not for the full `compile` pipeline |
 | **Round-trip binding** | binding.ts | **UNTESTED** — No test verifies `unbind(bind(step)) ≈ step` |
 
-#### C. The Self-Verifying Compiler Vision
+#### C. The Self-Verifying Compiler Vision ✅
 
 If Tesseract could compile CLAUDE.md into self-verification tests, the result would look like this:
 
@@ -248,7 +248,7 @@ The codebase verifies its structural properties well (Level 1 is nearly complete
 
 **The gap between doctrine and verification is ~60%.** The codebase knows what it should be (CLAUDE.md is remarkably precise). It just can't yet prove it is what it says.
 
-#### E. The Path to a Self-Verifying Compiler
+#### E. The Path to a Self-Verifying Compiler ✅
 
 Three moves would close most of the gap:
 
@@ -421,7 +421,7 @@ The agent at Rung 9 receives a carefully structured prompt (`lib/application/age
 
 Everything else is marginal: prior target, state context, confidence scores, and grounding context help in edge cases but the exhaustion trail already encodes most of what they would provide.
 
-#### C. The DOM Snapshot Gap
+#### C. The DOM Snapshot Gap ✅
 
 The prompt template handles a `domSnapshot` field (`line 393: request.domSnapshot ? '4. The current DOM state (ARIA snapshot)' : ''`), and the user message includes `request.domSnapshot.slice(0, 2000)` if present. But in practice, `domSnapshot` is **always null** at Rung 9 invocation.
 
@@ -535,7 +535,7 @@ After 5 rounds and 20 perspectives, these are the 5 moves with the highest expec
 | 1 | **Enforce governance phantom brands at all 35 mint sites** | 17 (lattice), 18 (verification), 19 (gap B1) | Closes the largest accidental gap; makes the governance lattice real instead of ornamental |
 | 2 | **Add algebraic law tests (lattice meet, catamorphism fusion, monotonicity)** | 17 (all structures), 18 (Level 2 verification) | Raises verification coverage from 40% to ~65%; makes refactoring provably safe |
 | 3 | **Wire all 22 dashboard events to consumers** | 19 (gap B4), 20 (observation surface) | Completes the observation loop; enables the spatial dashboard to show calibration, proposals, and convergence |
-| 4 | **Add Rung 8 (LLM-assisted DOM exploration)** | 19 (gap B2/B6), 20 (DOM snapshot gap) | Closes the DOM snapshot gap; gives the agent structural + semantic interpretation |
+| 4 | **Add Rung 8 (LLM-assisted DOM exploration)** ✅ | 19 (gap B2/B6), 20 (DOM snapshot gap) | Closes the DOM snapshot gap; gives the agent structural + semantic interpretation |
 | 5 | **Dashboard projection invariant test** | 18 (Level 3), 19 (load-bearing gap proof) | Single test proving the most important architectural property: `result(with_dashboard) = result(without_dashboard)` |
 
 ### Final Observation

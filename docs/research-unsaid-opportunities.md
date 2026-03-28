@@ -166,6 +166,7 @@ This is a universal recursive Effect executor parameterized by state type. The d
 
 Currently the system has several implicit state machines that could be made explicit using this abstraction:
 
+- **Convergence detection** ✅: `lib/domain/convergence-fsm.ts` — typed FSM with four states (`exploring → narrowing → plateau → converged`), pure transition function, absorbing converged state. Replaces implicit convergence logic.
 - **Discovery crawl**: `exploring → found-surfaces → harvested-elements → proposed-knowledge → done`
 - **Proposal lifecycle**: `draft → evaluated → approved | rejected → activated | discarded`
 - **Selector health**: `healthy → degraded → broken → repaired → healthy`
@@ -233,11 +234,13 @@ This isn't decoration. Spatial pattern recognition is one of the fastest human c
 
 ## Part 6: Elegant refactors that create new capabilities
 
-### 6.1 The envelope as a monad
+### 6.1 The envelope as a monad ✅ (algebraic foundation)
 
 Every cross-boundary artifact carries a `WorkflowEnvelope` with `kind`, `version`, `stage`, `scope`, `ids`, `fingerprints`, `lineage`, `governance`, and `payload`. The `mapPayload` function transforms the payload while preserving the envelope.
 
 This is a functor. `mapPayload(envelope, f)` is `fmap f envelope`. If you add `flatMapPayload` (where the function returns a new envelope and the lineage is concatenated), you get a monad. If you add `apPayload` (applying an envelope of functions to an envelope of values, merging governance by lattice meet), you get an applicative.
+
+> **Status**: The algebraic building blocks are now implemented: `lib/domain/algebra/lattice.ts` (GovernanceLattice with O(1) meet/join), `lib/domain/algebra/lineage.ts` (lineage product monoid), `lib/domain/algebra/scoring.ts` (ScoringRule semigroup/monoid with identity and annihilator), `lib/domain/algebra/kleisli.ts` (Kleisli arrow composition with category laws). The `flatMapPayload`/`apPayload` surface refactor remains.
 
 **Why this matters**: monadic envelope composition would let you express multi-step derivations as chains:
 
@@ -255,9 +258,9 @@ Each step preserves lineage, merges governance, and threads fingerprints. The pr
 
 This is not hypothetical — the pipeline already does this imperatively. The refactor makes it composable and gives you free provenance tracking for any new pipeline you build.
 
-### 6.2 Resolution as a search problem with pruning
+### 6.2 Resolution as a search problem with pruning ✅ (scoring algebra + strategy registry)
 
-The resolution ladder currently runs stages sequentially: explicit → control → approved-knowledge → confidence-overlay → translation → live-dom → agent → needs-human. Each stage either resolves or passes to the next.
+The resolution ladder currently runs stages sequentially: explicit → control → approved-knowledge → confidence-overlay → translation → live-dom → agent → needs-human. Each stage either resolves or passes to the next. The `ScoringRule` semigroup/monoid is now a first-class algebra in `lib/domain/algebra/scoring.ts` (with identity, annihilator, bounded clamping, and contramap). The `lib/runtime/agent/strategy-registry.ts` provides O(1) rung lookup and total-function verification. `lib/runtime/agent/rung8-llm-dom.ts` adds a new LLM-assisted DOM exploration rung between structural and semantic agent resolution.
 
 But the `candidate-lattice.ts` already ranks candidates within a rung. The lattice has `rankScreenCandidates`, `rankElementCandidates`, `rankActionCandidates`, `rankPostureCandidates`, `rankSnapshotCandidates`. This is a multi-dimensional ranking.
 
@@ -317,15 +320,15 @@ The `impact.ts` module already computes impacted subgraphs for a node ID. The `r
 
 ## Part 8: Moonshots that the architecture uniquely enables
 
-### 8.1 The app as a formal language
+### 8.1 The app as a formal language ✅ (graph queries)
 
 The `StateTransitionGraph` + `EventSignature` contracts define a formal language: the set of all valid action sequences the application accepts. Each `StateNode` is a state in a finite automaton. Each `StateTransition` is a labeled edge. The language accepted by this automaton is the set of all valid user journeys.
 
 This enables:
 
-- **Completeness checking**: is every reachable state covered by at least one scenario? Are there dead states (reachable but never tested)?
+- **Completeness checking** ✅: `lib/domain/graph-queries.ts` — `queryReachableScreens` computes the full reachable set from any screen; dead-state detection follows directly
 - **Equivalence testing**: do two versions of the app accept the same language? If not, what sequences are newly accepted or newly rejected?
-- **Minimal test suite generation**: compute the shortest set of paths that achieves full transition coverage (Chinese Postman problem on the state graph)
+- **Minimal test suite generation** ✅: `queryShortestPath` (BFS) computes shortest paths between screens; combined with `queryAvailableTransitions` enables transition-coverage path planning
 - **Property-based journey generation**: instead of hand-writing scenarios, generate random walks through the automaton and check that the app accepts them
 
 The `graph-query.ts` module already supports graph traversal. The state transition graph already has the topology. The formal language interpretation is a view, not a rebuild.
