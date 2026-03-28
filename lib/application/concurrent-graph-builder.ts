@@ -52,11 +52,18 @@ export function buildNodesSequentially<T, E, R>(
   builders: Readonly<Record<string, Effect.Effect<GraphNodeCollection<T>, E, R>>>,
 ): Effect.Effect<ConcurrentBuildResult<T>, E, R> {
   return Effect.gen(function* () {
-    const entries: Array<readonly [string, GraphNodeCollection<T>]> = [];
-    for (const [kind, builder] of Object.entries(builders)) {
-      const result = yield* builder;
-      entries.push([kind, result] as const);
-    }
+    const builderEntries = Object.entries(builders);
+    const step = (
+      remaining: readonly (readonly [string, Effect.Effect<GraphNodeCollection<T>, E, R>])[],
+      acc: readonly (readonly [string, GraphNodeCollection<T>])[],
+    ): Effect.Effect<readonly (readonly [string, GraphNodeCollection<T>])[], E, R> =>
+      Effect.gen(function* () {
+        if (remaining.length === 0) return acc;
+        const [[kind, builder], ...rest] = remaining;
+        const result = yield* builder!;
+        return yield* step(rest, [...acc, [kind!, result] as const]);
+      });
+    const entries = yield* step(builderEntries, []);
     const collections = Object.fromEntries(entries) as Record<string, GraphNodeCollection<T>>;
     const buildOrder = entries.map(([kind]) => kind);
     return { collections, buildOrder } as ConcurrentBuildResult<T>;

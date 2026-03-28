@@ -69,7 +69,7 @@ function elementCandidatesForScreen(input: {
   screen: ScreenId;
 }): StepTaskElementCandidate[] {
   return input.interfaceGraph.nodes
-    .filter((node) => node.kind === 'target' && node.screen === input.screen && node.element)
+    .flatMap((node) => node.kind === 'target' && node.screen === input.screen && node.element ? [node] : [])
     .map((node) => {
       const payload = targetPayload(node);
       const probes = probesForTarget(input.selectorCanon, node.targetRef ?? null);
@@ -101,7 +101,7 @@ function screenCandidates(input: {
 }): StepTaskScreenCandidate[] {
   const allowedScreens = input.screenRefs ? new Set(input.screenRefs) : null;
   return input.interfaceGraph.nodes
-    .filter((node) => node.kind === 'screen' && node.screen && (!allowedScreens || allowedScreens.has(node.screen)))
+    .flatMap((node) => node.kind === 'screen' && node.screen && (!allowedScreens || allowedScreens.has(node.screen)) ? [node] : [])
     .map((node) => {
       const payload = screenPayload(node);
       return {
@@ -143,7 +143,7 @@ export function buildInterfaceResolutionContext(input: {
   // Apply freshness decay to confidence overlays. Each record's score is
   // decayed based on how many runs have passed since it was last exercised.
   const confidenceOverlays = (input.catalog.confidenceCatalog?.artifact.records ?? [])
-    .filter((record) => record.status === 'approved-equivalent')
+    .flatMap((record) => record.status === 'approved-equivalent' ? [record] : [])
     .map((record): ArtifactConfidenceRecord => {
       const lastExercisedRun = record.lineage.runIds.length;
       const runsSinceExercised = Math.max(0, completedRuns - lastExercisedRun);

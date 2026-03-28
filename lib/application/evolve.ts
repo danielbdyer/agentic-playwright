@@ -65,8 +65,7 @@ export interface EvolveResult {
 function diffConfigs(base: PipelineConfig, current: PipelineConfig): Record<string, unknown> {
   return Object.fromEntries(
     (Object.keys(base) as (keyof PipelineConfig)[])
-      .filter((key) => JSON.stringify(base[key]) !== JSON.stringify(current[key]))
-      .map((key) => [key, current[key]]),
+      .flatMap((key) => JSON.stringify(base[key]) !== JSON.stringify(current[key]) ? [[key, current[key]]] : []),
   );
 }
 
@@ -225,23 +224,27 @@ function runEpoch(
 export function evolveProgram(input: EvolveInput): Effect.Effect<EvolveResult, unknown, any> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
-    const epochs: EvolveEpochResult[] = [];
-    let currentConfig: PipelineConfig = DEFAULT_PIPELINE_CONFIG;
-    let lastExperimentId: string | null = null;
 
-    for (let epoch = 1; epoch <= input.maxEpochs; epoch++) {
-      const epochOutput: { readonly epochResult: EvolveEpochResult; readonly nextConfig: PipelineConfig; readonly nextExperimentId: string } = yield* runEpoch(
-        epoch, currentConfig, lastExperimentId, input,
-      );
-      epochs.push(epochOutput.epochResult);
-      currentConfig = epochOutput.nextConfig;
-      lastExperimentId = epochOutput.nextExperimentId;
+    const runEpochs = (
+      epoch: number,
+      acc: readonly EvolveEpochResult[],
+      config: PipelineConfig,
+      prevExperimentId: string | null,
+    ): Effect.Effect<{ readonly epochs: readonly EvolveEpochResult[]; readonly finalConfig: PipelineConfig }, unknown, any> =>
+      Effect.gen(function* () {
+        if (epoch > input.maxEpochs) return { epochs: acc, finalConfig: config };
+        const epochOutput: { readonly epochResult: EvolveEpochResult; readonly nextConfig: PipelineConfig; readonly nextExperimentId: string } = yield* runEpoch(
+          epoch, config, prevExperimentId, input,
+        );
+        const nextAcc = [...acc, epochOutput.epochResult];
+        // Stop if no failure modes or no candidate accepted
+        if (!epochOutput.epochResult.topFailureClass || (!epochOutput.epochResult.accepted && epochOutput.epochResult.candidatesTested > 0)) {
+          return { epochs: nextAcc, finalConfig: epochOutput.nextConfig };
+        }
+        return yield* runEpochs(epoch + 1, nextAcc, epochOutput.nextConfig, epochOutput.nextExperimentId);
+      });
 
-      // Stop if no failure modes or no candidate accepted
-      if (!epochOutput.epochResult.topFailureClass || (!epochOutput.epochResult.accepted && epochOutput.epochResult.candidatesTested > 0)) {
-        break;
-      }
-    }
+    const { epochs, finalConfig: currentConfig } = yield* runEpochs(1, [], DEFAULT_PIPELINE_CONFIG, null);
 
     // Save evolved config
     const configOutPath = path.join(input.paths.rootDir, '.tesseract', 'benchmarks', 'evolved-config.json');

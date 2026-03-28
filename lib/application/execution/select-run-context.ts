@@ -122,13 +122,12 @@ export function prepareScenarioRunPlan(input: {
     ...steps.flatMap((step) =>
         input.surface.payload.resolutionContext.screens.flatMap((screen) =>
           screen.elements
-            .map((element) => fixtureIdFromTemplateValue(element.defaultValueRef))
-            .filter((value): value is string => value !== null),
+            .flatMap((element) => { const r = fixtureIdFromTemplateValue(element.defaultValueRef); return r !== null ? [r] : []; }),
       ),
     ),
   ].filter((value) => value.length > 0));
   const screenIds = uniqueSorted(
-    input.surface.payload.resolutionContext.screens.map((screen) => screen.screen).filter((value) => value.length > 0),
+    input.surface.payload.resolutionContext.screens.flatMap((screen) => screen.screen.length > 0 ? [screen.screen] : []),
   ) as ScreenId[];
 
   return {

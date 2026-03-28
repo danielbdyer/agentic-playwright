@@ -328,12 +328,11 @@ export function loadWorkspaceCatalog(options: LoadCatalogOptions) {
     }, { concurrency: 'unbounded' });
 
     const knowledgeSnapshots = walks.knowledgeSnapshots
-      .filter((filePath) => filePath.endsWith('.yaml'))
-      .map((filePath) => ({
+      .flatMap((filePath) => filePath.endsWith('.yaml') ? [{
         relativePath: createSnapshotTemplateId(relativeProjectPath(options.paths, filePath).replace(/^knowledge\//, '')),
         artifactPath: relativeProjectPath(options.paths, filePath),
         absolutePath: filePath,
-      }));
+      }] : []);
 
     // Phase 3: Load optional singletons (conditional on existence)
     const confidenceCatalog = (yield* fs.exists(options.paths.confidenceIndexPath))

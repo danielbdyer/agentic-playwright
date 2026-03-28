@@ -105,8 +105,7 @@ function hintProposals(
   elements: readonly DiscoveryObservedElement[],
 ): readonly DiscoveryProposal[] {
   return elements
-    .map((element) => hintProposalForElement(screen, discoveryRunId, element))
-    .filter((proposal): proposal is DiscoveryProposal => proposal !== null);
+    .flatMap((element) => { const r = hintProposalForElement(screen, discoveryRunId, element); return r !== null ? [r] : []; });
 }
 
 // ─── Behavior proposals ───

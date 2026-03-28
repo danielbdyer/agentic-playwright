@@ -273,7 +273,7 @@ function extractAliasOutcomes(
 ): readonly AliasOutcome[] {
   return bundles
     .flatMap((bundle) => bundle.proposals)
-    .filter((proposal) => proposal.activation.status === 'activated')
+    .flatMap((proposal) => proposal.activation.status === 'activated' ? [proposal] : [])
     .map((proposal): AliasOutcome => ({
       aliasId: proposal.proposalId,
       screenId: proposal.targetPath,
@@ -433,9 +433,7 @@ function runIteration(iteration: number, options: DogfoodOptions) {
     // graph/types derivation in a single call.
     const tag = options.tag ?? null;
     const scenarioIds = catalog.scenarios
-      .map((entry) => entry.artifact)
-      .filter((scenario) => !tag || scenario.metadata.tags.includes(tag))
-      .map((scenario) => scenario.source.ado_id) as readonly AdoId[];
+      .flatMap((entry) => !tag || entry.artifact.metadata.tags.includes(tag) ? [entry.artifact.source.ado_id] : []) as readonly AdoId[];
     yield* compileScenariosParallel({
       scenarioIds,
       paths: options.paths,

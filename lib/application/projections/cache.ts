@@ -46,8 +46,7 @@ function normalizeProjectionValue(value: unknown): unknown {
   if (value && typeof value === 'object') {
     return Object.fromEntries(
       Object.entries(value as Record<string, unknown>)
-        .filter(([, entry]) => entry !== undefined)
-        .map(([key, entry]) => [key, normalizeProjectionValue(entry)]),
+        .flatMap(([key, entry]) => entry !== undefined ? [[key, normalizeProjectionValue(entry)]] : []),
     );
   }
 
@@ -63,10 +62,8 @@ export function diffProjectionInputs(inputs: ProjectionInputFingerprint[], previ
   return {
     sortedInputs: sorted,
     changedInputs: sorted
-      .filter((entry) => previousManifest?.inputs.find((candidate) => candidate.kind === entry.kind && candidate.path === entry.path)?.fingerprint !== entry.fingerprint)
-      .map((entry) => `${entry.kind}:${entry.path}`),
+      .flatMap((entry) => previousManifest?.inputs.find((candidate) => candidate.kind === entry.kind && candidate.path === entry.path)?.fingerprint !== entry.fingerprint ? [`${entry.kind}:${entry.path}`] : []),
     removedInputs: (previousManifest?.inputs ?? [])
-      .filter((entry) => !sorted.some((candidate) => candidate.kind === entry.kind && candidate.path === entry.path))
-      .map((entry) => `${entry.kind}:${entry.path}`),
+      .flatMap((entry) => !sorted.some((candidate) => candidate.kind === entry.kind && candidate.path === entry.path) ? [`${entry.kind}:${entry.path}`] : []),
   };
 }

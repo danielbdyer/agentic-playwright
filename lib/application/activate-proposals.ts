@@ -88,12 +88,10 @@ export function activateProposalBundle(options: {
 
     const proposals = results.map((result) => result.proposal);
     const activatedPaths = results
-      .filter((result): result is typeof result & { activatedPath: string } => result.activatedPath !== null)
-      .map((result) => result.activatedPath)
+      .flatMap((result): string[] => result.activatedPath !== null ? [result.activatedPath as string] : [])
       .sort((left, right) => left.localeCompare(right));
     const blockedProposalIds = results
-      .filter((result) => result.blocked)
-      .map((result) => (result as { proposalId: string }).proposalId);
+      .flatMap((result) => result.blocked ? [(result as { proposalId: string }).proposalId] : []);
 
     const proposalGovernances = proposals.map((p) =>
       p.activation.status === 'blocked' ? 'blocked' as const : 'approved' as const,
@@ -212,12 +210,10 @@ export function autoApproveEligibleProposals(options: {
 
     const proposals = results.map((result) => result.proposal);
     const activatedPaths = results
-      .filter((result) => result.activatedPath !== null)
-      .map((result) => result.activatedPath!)
+      .flatMap((result) => result.activatedPath !== null ? [result.activatedPath!] : [])
       .sort((left, right) => left.localeCompare(right));
     const blockedProposalIds = results
-      .filter((result) => result.blocked)
-      .map((result) => result.proposal.proposalId);
+      .flatMap((result) => result.blocked ? [result.proposal.proposalId] : []);
 
     const proposalGovernances = proposals.map((p) =>
       p.activation.status === 'blocked' ? 'blocked' as const : 'approved' as const,

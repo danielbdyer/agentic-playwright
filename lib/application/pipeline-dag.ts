@@ -63,8 +63,7 @@ export function topologicalSort(nodes: readonly PipelineNode[]): readonly string
 
   // Initial frontier: nodes with in-degree 0
   const initialFrontier = nodes
-    .filter((n) => (inDegree.get(n.id) ?? 0) === 0)
-    .map((n) => n.id);
+    .flatMap((n) => (inDegree.get(n.id) ?? 0) === 0 ? [n.id] : []);
 
   // Recursive fold: process frontier, accumulate sorted order, update in-degrees
   const step = (
@@ -156,8 +155,7 @@ export function findParallelGroups(
       const node = nodeMap.get(nodeId);
       if (!node) return acc;
       const depDepths = node.dependencies
-        .filter((dep) => nodeIds.has(dep))
-        .map((dep) => acc.get(dep) ?? 0);
+        .flatMap((dep) => nodeIds.has(dep) ? [acc.get(dep) ?? 0] : []);
       const depth = depDepths.length === 0 ? 0 : Math.max(...depDepths) + 1;
       return mapWithEntry(acc, nodeId, depth);
     },
@@ -192,8 +190,7 @@ export function validateDAG(dag: PipelineDAG): readonly string[] {
 
   // Check for duplicate node IDs
   const duplicates = dag.nodes
-    .map((n) => n.id)
-    .filter((id, index, all) => all.indexOf(id) !== index);
+    .flatMap((n, index, all) => all.findIndex((other) => other.id === n.id) !== index ? [n.id] : []);
   const duplicateDiags = Array.from(new Set(duplicates)).map(
     (id) => `Duplicate node ID: ${id}`,
   );
@@ -201,14 +198,12 @@ export function validateDAG(dag: PipelineDAG): readonly string[] {
   // Check for missing dependencies
   const missingDeps = dag.nodes.flatMap((node) =>
     node.dependencies
-      .filter((dep) => !nodeIds.has(dep))
-      .map((dep) => `Node '${node.id}' depends on missing node '${dep}'`),
+      .flatMap((dep) => !nodeIds.has(dep) ? [`Node '${node.id}' depends on missing node '${dep}'`] : []),
   );
 
   // Check for self-dependencies
   const selfDeps = dag.nodes
-    .filter((node) => node.dependencies.includes(node.id))
-    .map((node) => `Node '${node.id}' depends on itself`);
+    .flatMap((node) => node.dependencies.includes(node.id) ? [`Node '${node.id}' depends on itself`] : []);
 
   // Check for cycles by attempting topological sort
   const cycleDiags: readonly string[] = (() => {

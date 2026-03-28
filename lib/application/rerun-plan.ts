@@ -68,32 +68,33 @@ function dependentNodesForEdge(edge: GraphEdge, nodes: Map<string, GraphNode>, c
 
 function buildImpactPaths(graph: { nodes: readonly GraphNode[]; edges: readonly GraphEdge[] }, sourceNodeId: string): Map<string, string[]> {
   const nodesById = new Map(graph.nodes.map((node) => [node.id, node] as const));
-  const queue: string[] = [sourceNodeId];
-  const pathByNode = new Map<string, string[]>([[sourceNodeId, [sourceNodeId]]]);
 
-  while (queue.length > 0) {
-    const current = queue.shift();
-    if (!current) {
-      continue;
-    }
-    const currentPath = pathByNode.get(current);
-    if (!currentPath) {
-      continue;
-    }
+  const step = (
+    frontier: readonly string[],
+    visited: ReadonlyMap<string, string[]>,
+  ): ReadonlyMap<string, string[]> => {
+    if (frontier.length === 0) return visited;
+    const [current, ...rest] = frontier;
+    const currentPath = visited.get(current!);
+    if (!current || !currentPath) return step(rest, visited);
 
     const dependents = uniqueSorted(
       graph.edges.flatMap((edge) => dependentNodesForEdge(edge, nodesById, current)),
     );
-    for (const dependent of dependents) {
-      if (pathByNode.has(dependent)) {
-        continue;
-      }
-      pathByNode.set(dependent, [...currentPath, dependent]);
-      queue.push(dependent);
-    }
-  }
+    const { nextFrontier, nextVisited } = dependents.reduce(
+      (acc, dependent) => {
+        if (acc.nextVisited.has(dependent)) return acc;
+        return {
+          nextFrontier: [...acc.nextFrontier, dependent],
+          nextVisited: new Map([...acc.nextVisited, [dependent, [...currentPath, dependent]]]),
+        };
+      },
+      { nextFrontier: [...rest] as string[], nextVisited: new Map(visited) },
+    );
+    return step(nextFrontier, nextVisited);
+  };
 
-  return pathByNode;
+  return new Map(step([sourceNodeId], new Map([[sourceNodeId, [sourceNodeId]]])));
 }
 
 function scenariosReferencingArtifact(catalog: WorkspaceCatalog, artifactPath: string): string[] {

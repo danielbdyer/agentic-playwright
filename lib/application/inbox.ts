@@ -25,9 +25,9 @@ export function emitOperatorInbox(options: {
       .filter((item) => !options.filter?.kind || item.kind === options.filter.kind)
       .filter((item) => !options.filter?.status || item.status === options.filter.status);
     const filteredImprovementRuns = catalog.improvementRuns
-      .map((entry) => entry.artifact)
-      .filter((run) =>
-        !options.filter?.adoId || run.iterations.some((iteration) => iteration.scenarioIds.some((scenarioId) => String(scenarioId) === options.filter!.adoId)),
+      .flatMap((entry) =>
+        !options.filter?.adoId || entry.artifact.iterations.some((iteration) => iteration.scenarioIds.some((scenarioId) => String(scenarioId) === options.filter!.adoId))
+          ? [entry.artifact] : [],
       )
       .sort((left, right) => (right.completedAt ?? right.startedAt).localeCompare(left.completedAt ?? left.startedAt));
     const rerunPlans = catalog.rerunPlans.map((entry) => entry.artifact);

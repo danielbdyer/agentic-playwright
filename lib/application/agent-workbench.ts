@@ -85,7 +85,7 @@ function makeTarget(kind: InterventionTarget['kind'], ref: string, label: string
 function proposalWorkItems(catalog: WorkspaceCatalog, iteration: number): readonly AgentWorkItem[] {
   return catalog.proposalBundles.flatMap((bundle) =>
     bundle.artifact.proposals
-      .filter((p) => p.activation.status === 'pending')
+      .flatMap((p) => p.activation.status === 'pending' ? [p] : [])
       .map((proposal): AgentWorkItem => {
         const screen = proposal.targetPath.split('/').find((seg) => seg.endsWith('.hints.yaml'))?.replace('.hints.yaml', '') ?? '';
         return {
@@ -376,13 +376,17 @@ export const defaultWorkItemDecider: WorkItemDecider = async (item) => {
 
 function liftToScreenGroupDecider(decider: WorkItemDecider): ScreenGroupDecider {
   return async (group) => {
-    const decisions: { workItemId: string; status: 'completed' | 'skipped'; rationale: string; artifactsWritten?: readonly string[] }[] = [];
-    for (const item of group.workItems) {
-      const decision = await decider(item);
-      if (!decision) break;
-      decisions.push({ workItemId: item.id, ...decision });
-    }
-    return decisions;
+    const step = async (
+      remaining: readonly AgentWorkItem[],
+      acc: readonly { workItemId: string; status: 'completed' | 'skipped'; rationale: string; artifactsWritten?: readonly string[] }[],
+    ): Promise<readonly { workItemId: string; status: 'completed' | 'skipped'; rationale: string; artifactsWritten?: readonly string[] }[]> => {
+      if (remaining.length === 0) return acc;
+      const [item, ...rest] = remaining;
+      const decision = await decider(item!);
+      if (!decision) return acc;
+      return step(rest, [...acc, { workItemId: item!.id, ...decision }]);
+    };
+    return [...await step(group.workItems, [])];
   };
 }
 
@@ -407,40 +411,46 @@ export function processWorkItems(options: {
     const maxItems = options.maxItems ?? 50;
     const sgDecider = options.screenGroupDecider ?? liftToScreenGroupDecider(options.decider ?? defaultWorkItemDecider);
     const groups = groupByScreenWithContext(workbench.items, options.resolutionContext);
-    const allCompletions: WorkItemCompletion[] = [];
-    let processed = 0;
 
-    for (const group of groups) {
-      if (processed >= maxItems) break;
-      const budgetedGroup: ScreenGroupContext = {
-        ...group,
-        workItems: group.workItems.slice(0, maxItems - processed),
-      };
-      if (options.onScreenGroupStart) options.onScreenGroupStart(budgetedGroup);
+    const processGroups = (
+      remaining: readonly ScreenGroupContext[],
+      acc: readonly WorkItemCompletion[],
+      processedSoFar: number,
+    ): Effect.Effect<readonly WorkItemCompletion[], never, FileSystem> =>
+      Effect.gen(function* () {
+        if (remaining.length === 0 || processedSoFar >= maxItems) return acc;
+        const [group, ...rest] = remaining;
+        const budgetedGroup: ScreenGroupContext = {
+          ...group!,
+          workItems: group!.workItems.slice(0, maxItems - processedSoFar),
+        };
+        if (options.onScreenGroupStart) options.onScreenGroupStart(budgetedGroup);
 
-      const decisions = yield* Effect.promise(() => sgDecider(budgetedGroup));
-      const batchCompletions: WorkItemCompletion[] = decisions.map((d) => ({
-        workItemId: d.workItemId,
-        status: d.status,
-        completedAt: new Date().toISOString(),
-        rationale: d.rationale,
-        artifactsWritten: d.artifactsWritten ?? [],
-      }));
+        const decisions = yield* Effect.promise(() => sgDecider(budgetedGroup));
+        const batchCompletions: readonly WorkItemCompletion[] = decisions.map((d) => ({
+          workItemId: d.workItemId,
+          status: d.status,
+          completedAt: new Date().toISOString(),
+          rationale: d.rationale,
+          artifactsWritten: d.artifactsWritten ?? [],
+        }));
 
-      if (batchCompletions.length > 0) {
-        yield* completeWorkItems({ paths: options.paths, completions: batchCompletions });
-      }
-
-      if (options.onItemProcessed) {
-        for (const completion of batchCompletions) {
-          const item = budgetedGroup.workItems.find((i) => i.id === completion.workItemId);
-          if (item) options.onItemProcessed(item, completion);
+        if (batchCompletions.length > 0) {
+          yield* completeWorkItems({ paths: options.paths, completions: batchCompletions });
         }
-      }
 
-      allCompletions.push(...batchCompletions);
-      processed += batchCompletions.length;
-    }
+        if (options.onItemProcessed) {
+          batchCompletions.forEach((completion) => {
+            const item = budgetedGroup.workItems.find((i) => i.id === completion.workItemId);
+            if (item) options.onItemProcessed!(item, completion);
+          });
+        }
+
+        return yield* processGroups(rest, [...acc, ...batchCompletions], processedSoFar + batchCompletions.length);
+      });
+
+    const allCompletions = yield* processGroups(groups, [], 0);
+    const processed = allCompletions.length;
 
     let transitivelyResolved = 0;
     if (options.reEvaluate !== false && allCompletions.length > 0) {
