@@ -53,6 +53,9 @@ export const interventionKinds = [
 ] as const;
 export const InterventionKindSchema = Schema.Literal(...interventionKinds);
 
+export const interventionCommandActionKinds = ['approve-proposal', 'promote-pattern', 'rerun-scope', 'suppress-hotspot'] as const;
+export const InterventionCommandActionKindSchema = Schema.Literal(...interventionCommandActionKinds);
+
 export const interventionStatuses = ['planned', 'completed', 'blocked', 'skipped'] as const;
 export const InterventionStatusSchema = Schema.Literal(...interventionStatuses);
 

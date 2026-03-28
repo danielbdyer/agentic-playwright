@@ -121,3 +121,56 @@ export interface InterventionReceipt {
   readonly completedAt?: string | null | undefined;
   readonly payload: Readonly<Record<string, unknown>>;
 }
+
+export type InterventionCommandActionKind =
+  | 'approve-proposal'
+  | 'promote-pattern'
+  | 'rerun-scope'
+  | 'suppress-hotspot';
+
+export interface InterventionActionDependency {
+  readonly actionId: string;
+  readonly required: boolean;
+  readonly reason: string;
+}
+
+export interface ReversibleMetadata {
+  readonly reversible: boolean;
+  readonly rollbackCommand?: string | null | undefined;
+  readonly rollbackRef?: string | null | undefined;
+}
+
+export interface InterventionCommandAction {
+  readonly actionId: string;
+  readonly kind: InterventionCommandActionKind;
+  readonly summary: string;
+  readonly governance: Governance;
+  readonly target: InterventionTarget;
+  readonly prerequisites: readonly InterventionActionDependency[];
+  readonly reversible: ReversibleMetadata;
+  readonly payload: Readonly<Record<string, unknown>>;
+}
+
+export interface InterventionCommandBatch {
+  readonly batchId: string;
+  readonly summary: string;
+  readonly actions: readonly InterventionCommandAction[];
+  readonly continueOnFailure: boolean;
+}
+
+export interface InterventionLineageProjection {
+  readonly kind: 'intervention-lineage-projection';
+  readonly version: 1;
+  readonly batchId: string;
+  readonly generatedAt: string;
+  readonly entries: readonly {
+    readonly actionId: string;
+    readonly kind: InterventionCommandActionKind;
+    readonly status: InterventionStatus;
+    readonly dependsOn: readonly string[];
+    readonly downstream: {
+      readonly scorecardDelta?: Readonly<Record<string, number>> | null | undefined;
+      readonly runOutcomes?: readonly string[] | null | undefined;
+    };
+  }[];
+}

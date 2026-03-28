@@ -3,6 +3,7 @@ import {
   DiagnosticSeveritySchema,
   GovernanceSchema,
   InterventionEffectKindSchema,
+  InterventionCommandActionKindSchema,
   InterventionKindSchema,
   InterventionStatusSchema,
   InterventionTargetKindSchema,
@@ -64,4 +65,36 @@ export const InterventionReceiptSchema = Schema.Struct({
   startedAt: Schema.String,
   completedAt: Schema.optionalWith(NullableString, { default: () => null }),
   payload: Schema.Record({ key: Schema.String, value: Schema.Unknown }),
+});
+
+export const InterventionActionDependencySchema = Schema.Struct({
+  actionId: Schema.String,
+  required: Schema.Boolean,
+  reason: Schema.String,
+});
+
+export const ReversibleMetadataSchema = Schema.Struct({
+  reversible: Schema.Boolean,
+  rollbackCommand: Schema.optionalWith(NullableString, { default: () => null }),
+  rollbackRef: Schema.optionalWith(NullableString, { default: () => null }),
+});
+
+export const InterventionCommandActionSchema = Schema.Struct({
+  actionId: Schema.String,
+  kind: InterventionCommandActionKindSchema,
+  summary: Schema.String,
+  governance: GovernanceSchema,
+  target: InterventionTargetSchema,
+  prerequisites: Schema.optionalWith(Schema.Array(InterventionActionDependencySchema), {
+    default: () => [] as readonly (typeof InterventionActionDependencySchema.Type)[],
+  }),
+  reversible: ReversibleMetadataSchema,
+  payload: Schema.Record({ key: Schema.String, value: Schema.Unknown }),
+});
+
+export const InterventionCommandBatchSchema = Schema.Struct({
+  batchId: Schema.String,
+  summary: Schema.String,
+  actions: Schema.Array(InterventionCommandActionSchema),
+  continueOnFailure: Schema.Boolean,
 });

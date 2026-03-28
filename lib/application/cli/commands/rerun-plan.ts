@@ -1,4 +1,4 @@
-import { buildRerunPlan } from '../../rerun-plan';
+import { executeRerunScopeIntervention } from '../../rerun-plan';
 import type { CommandSpec } from '../shared';
 import { requireProposalId } from '../shared';
 
@@ -8,7 +8,7 @@ export const rerunPlanCommand: CommandSpec = {
     command: 'rerun-plan',
     strictExitOnUnbound: false,
     postureInput: {},
-    execute: (paths) => buildRerunPlan({
+    execute: (paths) => executeRerunScopeIntervention({
       paths,
       proposalId: requireProposalId(flags.proposalId),
     }),
