@@ -106,8 +106,7 @@ export function generateTypes(options: { paths: ProjectPaths; catalog?: Workspac
       }
 
       const capabilities = deriveCapabilities(entry.bundle.surfaceGraph, entry.elements.artifact)
-        .filter((candidate) => candidate.targetKind === 'surface')
-        .map((candidate) => [candidate.target, candidate.operations] as const)
+        .flatMap((candidate) => candidate.targetKind === 'surface' ? [[candidate.target, candidate.operations] as const] : [])
         .sort(([left], [right]) => left.localeCompare(right));
       surfaceActionsByScreen[screen] = Object.fromEntries(capabilities);
     }
