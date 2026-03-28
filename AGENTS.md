@@ -17,6 +17,7 @@ Read the doc that matches your task:
 - design direction and owner decisions: [docs/direction.md](docs/direction.md)
 - implementation coding notes: [docs/coding-notes.md](docs/coding-notes.md)
 - seams, invariants, and verification: [docs/seams-and-invariants.md](docs/seams-and-invariants.md)
+- doctrine invariants (auto-verified): [docs/doctrine-invariants.md](docs/doctrine-invariants.md)
 
 Scoped instructions under `.github/instructions/` still apply for domain, knowledge, generated files, and tests.
 
