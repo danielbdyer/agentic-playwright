@@ -196,7 +196,7 @@ These are the moonshots. Each one is technically challenging, architecturally gr
 
 **Why it's brilliant**: Because it would turn UI drift — the single most expensive maintenance burden in enterprise test automation — into something you can *see approaching*. A team running 2000 scenarios against a changing application would see the terrain deforming in real-time after a deployment, immediately identify which screens are affected, and watch the system's repair mechanisms fill the valleys back in. If the valleys persist, that's where human attention is needed. This is not a dashboard widget. It is a *weather map for software change*.
 
-**Architectural anchor**: Moonshot #3 (Semantic Drift Radar) from `docs/moonshots.md`. The selector canon provides per-target health. The confidence overlay catalog provides per-artifact trust. The interface graph provides the spatial coordinates. The improvement ledger provides the temporal axis.
+**Architectural anchor**: Moonshot #3 (Semantic Drift Radar and Repair Autopilot) already defined in `docs/moonshots.md`. The selector canon provides per-target health. The confidence overlay catalog provides per-artifact trust. The interface graph provides the spatial coordinates. The improvement ledger provides the temporal axis.
 
 ### 3. The Decision Theater: Collaborative Human-Agent Governance in Shared 3D Space
 
