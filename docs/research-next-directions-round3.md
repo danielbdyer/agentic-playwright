@@ -53,9 +53,9 @@ The execution engine is a **7-phase step lifecycle** orchestrated by `scenario.t
 
 ### Where it should go
 
-- **Recovery strategy extensibility**: The recovery policy is embedded in scenario.ts. Extracting it as a composable strategy chain (like the resolution pipeline) would make it testable and configurable per-runbook.
-- **Observation as a first-class phase**: `observe/index.ts` is currently 3 lines (re-exports). The observation logic lives inside scenario.ts. Extracting it would make the observation phase independently testable and reusable for discovery.
-- **Parallel step execution**: Steps execute sequentially via `Effect.forEach(..., { concurrency: 1 })`. For independent steps (e.g., assertions on different screens), parallel execution could reduce wall-clock time.
+- **Recovery strategy extensibility** ✅: The recovery policy is embedded in scenario.ts. Extracting it as a composable strategy chain (like the resolution pipeline) would make it testable and configurable per-runbook.
+- **Observation as a first-class phase** ✅: `observe/index.ts` is currently 3 lines (re-exports). The observation logic lives inside scenario.ts. Extracting it would make the observation phase independently testable and reusable for discovery.
+- **Parallel step execution** ✅: Steps execute sequentially via `Effect.forEach(..., { concurrency: 1 })`. For independent steps (e.g., assertions on different screens), parallel execution could reduce wall-clock time.
 
 ---
 
@@ -100,8 +100,8 @@ The composition boundary is **clean and well-enforced**, with a small number of 
 
 ### Where it should go
 
-1. **Formalize the leakage exceptions**: The 8 `Effect.run*` calls outside composition are principled but undocumented. An architecture fitness test asserting "Effect.runPromise/runSync only in composition/ + documented exceptions" would prevent accidental leakage.
-2. **The scenario-context bridge deserves a law test**: `createScenarioContext` is the seam between codegen and runtime. A test verifying that the emitted spec's `executeStep` calls produce the same receipts as the application-layer `interpretScenarioFromPlan` would close the spec-runtime parity gap identified in Round 2.
+1. **Formalize the leakage exceptions** ✅: The 8 `Effect.run*` calls outside composition are principled but undocumented. An architecture fitness test asserting "Effect.runPromise/runSync only in composition/ + documented exceptions" would prevent accidental leakage.
+2. **The scenario-context bridge deserves a law test** ✅: `createScenarioContext` is the seam between codegen and runtime. A test verifying that the emitted spec's `executeStep` calls produce the same receipts as the application-layer `interpretScenarioFromPlan` would close the spec-runtime parity gap identified in Round 2.
 3. **Extract the dashboard-decider bridge pattern**: Three files (`dashboard-decider.ts`, `agent-decider.ts`, `load-run-plan.ts`) all bridge Effect ↔ Promise at callback boundaries. A shared `effectCallback()` utility would standardize this pattern and make the boundaries explicit.
 
 ---
@@ -149,8 +149,8 @@ The validation layer is **comprehensive at the type level but sparse at the sema
 
 ### Where it should go
 
-1. **Cross-artifact reference validation**: Add a `validateWorkspaceConsistency(catalog)` function that checks all references resolve — step.screen exists in ScreenElements, resolution.control exists in ResolutionControls, etc. This catches silent corruption during transformations.
-2. **Graph topology validators for all three graphs**: Extend the ScreenBehavior topology checks to ApplicationInterfaceGraph (node uniqueness, edge ref integrity, acyclic containment) and StateTransitionGraph (reachability, determinism).
+1. **Cross-artifact reference validation** ✅: Add a `validateWorkspaceConsistency(catalog)` function that checks all references resolve — step.screen exists in ScreenElements, resolution.control exists in ResolutionControls, etc. This catches silent corruption during transformations.
+2. **Graph topology validators for all three graphs** ✅: Extend the ScreenBehavior topology checks to ApplicationInterfaceGraph (node uniqueness, edge ref integrity, acyclic containment) and StateTransitionGraph (reachability, determinism).
 3. **Complete the Effect Schema migration**: The 50+ custom validators in `core.ts` should migrate to Effect Schema with `Schema.filter()` for semantic checks. This would unify the validation surface and make schema-level invariants composable.
 
 ---
@@ -220,7 +220,7 @@ The infrastructure layer is **exemplary hexagonal architecture** — 14 adapters
 
 ### Where it should go
 
-1. **Test the Live ADO adapter**: XML step extraction and content hashing are the most complex adapter logic. A fixture-based test with real ADO API responses would catch parsing regressions.
+1. **Test the Live ADO adapter** ✅: XML step extraction and content hashing are the most complex adapter logic. A fixture-based test with real ADO API responses would catch parsing regressions.
 2. **Test the event bus encoding**: The SharedArrayBuffer slot encoding is clever but fragile — off-by-one in numeric slots would produce silent corruption. A round-trip test (encode → decode → compare) would be cheap insurance.
 3. **Expand the MCP tool surface**: 8 tools is a minimal viable surface. Adding `decide_work_item` (the agent decider already uses this name), `get_scenario_trace`, and `get_proposal_detail` would make the MCP server sufficient for a fully agentic VSCode integration.
 

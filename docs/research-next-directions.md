@@ -21,7 +21,7 @@ The interface graph infrastructure is **architecturally complete and actively us
 
 ### Where it should go
 
-1. **Runtime graph queries at execution time.** The graph is built at compile/project time and consumed statically. The runtime interpreter receives `InterfaceResolutionContext` with pre-materialized screen candidates, but doesn't query the graph dynamically. Making the graph queryable at runtime (e.g., "given I'm on screen X with state Y, what transitions are available?") would turn it from a compile-time projection into a live navigation oracle.
+1. **Runtime graph queries at execution time.** ✅ The graph is built at compile/project time and consumed statically. The runtime interpreter receives `InterfaceResolutionContext` with pre-materialized screen candidates, but doesn't query the graph dynamically. Making the graph queryable at runtime (e.g., "given I'm on screen X with state Y, what transitions are available?") would turn it from a compile-time projection into a live navigation oracle.
 
 2. **Cross-screen transition modeling.** State transitions are currently screen-scoped. The graph has routes and route-variants but doesn't model cross-screen flows (e.g., "submitting the search form transitions to the results screen"). This is the gap between "interface graph" and "application topology."
 
@@ -84,7 +84,7 @@ The dogfood infrastructure is the most production-ready part of the system:
 
 3. **Graduated autonomy profiles.** The trust policy is binary per artifact type. A graduated model — e.g., "auto-approve element knowledge for screens with >5 successful runs, require review for novel screens" — would let the system earn trust incrementally.
 
-4. **Parallel scenario execution.** The loop runs scenarios sequentially. For large suites, parallel execution with shared knowledge accumulation would dramatically reduce wall-clock time.
+4. **Parallel scenario execution.** ✅ The loop runs scenarios sequentially. For large suites, parallel execution with shared knowledge accumulation would dramatically reduce wall-clock time.
 
 ---
 
@@ -129,9 +129,9 @@ The proposal system exists and works for *runtime evidence* (when execution prod
 
 2. **Route knowledge persistence (B1).** The `HarvestManifest` is manually authored. When the system navigates to URLs and discovers route variants (query parameters → distinct UX outcomes), those discoveries should be proposed as `knowledge/routes/` entries. The type system is ready (`lib/domain/types/routes.ts`) but the feedback loop isn't closed.
 
-3. **Knowledge decay and freshness.** `ArtifactConfidenceRecord` tracks success/failure counts and `lastSuccessAt`/`lastFailureAt`. But there's no time-based decay (B3). Knowledge that hasn't been exercised in N runs should lose confidence, triggering re-verification. This prevents stale knowledge from silently drifting.
+3. **Knowledge decay and freshness.** ✅ `ArtifactConfidenceRecord` tracks success/failure counts and `lastSuccessAt`/`lastFailureAt`. But there's no time-based decay (B3). Knowledge that hasn't been exercised in N runs should lose confidence, triggering re-verification. This prevents stale knowledge from silently drifting.
 
-4. **Component knowledge maturation.** `knowledge/components/*.ts` holds widget choreography (procedural knowledge). Today these are hand-authored TypeScript. As the system accumulates runtime evidence of successful widget interactions, it could propose component knowledge updates — e.g., "this combobox requires a click, type, wait-for-options, select sequence based on 47 successful observations."
+4. **Component knowledge maturation.** ✅ `knowledge/components/*.ts` holds widget choreography (procedural knowledge). Today these are hand-authored TypeScript. As the system accumulates runtime evidence of successful widget interactions, it could propose component knowledge updates — e.g., "this combobox requires a click, type, wait-for-options, select sequence based on 47 successful observations."
 
 5. **Knowledge coverage as a first-class scorecard metric.** The `CorpusHealthReport` identifies thin screens and thin action families. Elevating these into the dogfood loop's convergence criteria — "don't stop iterating while there are thin screens that discovery could populate" — would make the loop actively seek coverage rather than just passively measuring it.
 
@@ -146,6 +146,6 @@ Across all four research perspectives, the same structural pattern emerges: **th
 | 1 | **Discovery-to-proposal bridge** | discovery → proposal → knowledge | Self-sustaining knowledge growth without human authoring |
 | 2 | **Runtime intent interpreter** (minimal A1 slice) | step text → DOM → resolution receipt | Novel ADO phrasing works without alias tending |
 | 3 | **Structured entropy injection** (D1) | variance profiles → dogfood loop → scorecard | Knowledge hardens faster through diverse exposure |
-| 4 | **Runtime graph queries** | interface graph → execution-time navigation | The graph becomes a live oracle, not just a compile-time projection |
+| 4 | **Runtime graph queries** ✅ | interface graph → execution-time navigation | The graph becomes a live oracle, not just a compile-time projection |
 
 The common theme: **close the loops**. The types are defined, the envelopes are standardized, the governance model is principled. What remains is wiring the subsystems so knowledge flows autonomously from discovery through execution back into canon, with human oversight at governance boundaries rather than at every step.
