@@ -197,6 +197,12 @@
     @apply bg-gov-review/20 text-gov-review text-sm font-bold tracking-widest pointer-events-none z-3;
     @apply animate-fiber-pulse;
   }
+  .diagnostics-panel {
+    @apply absolute top-3 left-3 max-w-[340px] p-3 rounded-lg border border-surface-border bg-surface/85 text-xs z-3;
+    backdrop-filter: blur(6px);
+  }
+  .diagnostics-panel .metric { @apply py-1; }
+  .diagnostics-panel .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 11px; }
 }
 
 /* ─── Phase 6: Decision Overlay (3D floating buttons) ─── */

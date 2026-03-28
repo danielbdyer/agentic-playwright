@@ -98,3 +98,29 @@ export interface PauseContext {
 /** Result of a decision burst animation (approve = green toward knowledge, skip = red scatter). */
 export type DecisionResult = 'approved' | 'skipped';
 
+/** Flywheel act identifier used for replay policy and diagnostics. */
+export type FlywheelAct = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+
+/** Lightweight ingestion and rendering diagnostics for tuning. */
+export interface DiagnosticsProjection {
+  readonly throughputPerSecond: number;
+  readonly coalescingRatio: number;
+  readonly avgFrameTimeMs: number;
+  readonly lagMs: number;
+  readonly droppedFrames: number;
+  readonly queueDepthByAct: Readonly<Record<FlywheelAct, number>>;
+}
+
+/** Replay-friendly snapshot of scene state for seek/jump acceleration. */
+export interface SceneStateSnapshot {
+  readonly sequenceNumber: number;
+  readonly timestamp: string;
+  readonly iteration: number;
+  readonly act: FlywheelAct;
+  readonly knowledgeNodeCount: number;
+  readonly activeProbeCount: number;
+  readonly activeProposalCount: number;
+  readonly activeArtifactCount: number;
+  readonly throughputPerSecond: number;
+  readonly queueDepthByAct: Readonly<Record<FlywheelAct, number>>;
+}

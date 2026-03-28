@@ -28,6 +28,8 @@ import { useConvergenceState } from './hooks/use-convergence-state';
 import { useStageTracker } from './hooks/use-stage-tracker';
 import { useIterationPulse } from './hooks/use-iteration-pulse';
 import { useSabBridge } from './hooks/use-sab-bridge';
+import { useFlywheelAct } from './hooks/use-flywheel-act';
+import { useSceneStateSnapshots } from './hooks/use-scene-state-snapshots';
 import {
   dispatchProgress, dispatchProbe, dispatchCapture,
   dispatchItemPending, dispatchItemProcessing, dispatchItemCompleted,
@@ -41,12 +43,15 @@ import { ProgressCard } from './molecules/progress-card';
 import { QueueVisualization } from './organisms/queue-visualization';
 import { WorkbenchPanel } from './organisms/workbench-panel';
 import { CompletionsPanel } from './organisms/completions-panel';
+import { DiagnosticsPanel } from './organisms/diagnostics-panel';
 import type {
   ProbeEvent, ScreenCapture, ViewportDimensions, ElementEscalatedEvent,
   RungShiftEvent, CalibrationUpdateEvent, ProposalActivatedEvent, StageLifecycleEvent,
   ArtifactWrittenEvent,
 } from './spatial/types';
 import type { Workbench, Scorecard, ProgressEvent, QueuedItem, PauseContext, DecisionResult } from './types';
+import type { DiagnosticsProjection } from './types';
+import type { FrameBudgetSample } from './spatial/frame-budget-instrumentation';
 
 // ─── W3.2: SharedArrayBuffer global (set by in-process server when same-origin) ───
 
@@ -67,14 +72,41 @@ function useEffectStream(url: string) {
   const [appViewport, setAppViewport] = useState<ViewportDimensions>({ width: 1280, height: 720 });
   const [pauseContext, setPauseContext] = useState<PauseContext | null>(null);
 
-  const probeQueue = useIngestionQueue<ProbeEvent>({ staggerMs: 60, maxBuffer: 300 });
-  const escalationQueue = useIngestionQueue<ElementEscalatedEvent>({ staggerMs: 80, maxBuffer: 100 });
-  const proposalQueue = useIngestionQueue<ProposalActivatedEvent>({ staggerMs: 100, maxBuffer: 200 });
-  const artifactQueue = useIngestionQueue<ArtifactWrittenEvent>({ staggerMs: 50, maxBuffer: 50 });
-
   const convergence = useConvergenceState();
   const stageTracker = useStageTracker();
   const iterationPulse = useIterationPulse();
+  const playbackSpeed = 1;
+  const act = useFlywheelAct(stageTracker.activeStage, progress?.phase ?? null);
+  const throughputRef = useRef({ windowStart: performance.now(), eventsInWindow: 0 });
+  const [throughputPerSecond, setThroughputPerSecond] = useState(0);
+
+  const probeQueue = useIngestionQueue<ProbeEvent>({
+    staggerMs: 60,
+    maxBuffer: 300,
+    act,
+    playbackSpeed,
+    maxBatchPerFrame: 2,
+    semanticKey: (probe) => `${probe.screen}::${probe.element}`,
+    onStateDelta: () => {
+      throughputRef.current.eventsInWindow += 1;
+      const elapsed = performance.now() - throughputRef.current.windowStart;
+      if (elapsed >= 1000) {
+        setThroughputPerSecond(throughputRef.current.eventsInWindow / (elapsed / 1000));
+        throughputRef.current.windowStart = performance.now();
+        throughputRef.current.eventsInWindow = 0;
+      }
+    },
+  });
+  const escalationQueue = useIngestionQueue<ElementEscalatedEvent>({ staggerMs: 80, maxBuffer: 100, act, playbackSpeed, maxBatchPerFrame: 2 });
+  const proposalQueue = useIngestionQueue<ProposalActivatedEvent>({
+    staggerMs: 100,
+    maxBuffer: 200,
+    act,
+    playbackSpeed,
+    maxBatchPerFrame: 2,
+    semanticKey: (proposal) => `${proposal.iteration}::${proposal.targetPath}`,
+  });
+  const artifactQueue = useIngestionQueue<ArtifactWrittenEvent>({ staggerMs: 50, maxBuffer: 50, act, playbackSpeed, maxBatchPerFrame: 3 });
 
   // W5.18: useTransition for non-blocking high-frequency event dispatch.
   // element-probed, rung-shift, and calibration-update yield to user interactions
@@ -169,7 +201,26 @@ function useEffectStream(url: string) {
     return () => { timers.forEach(clearTimeout); timers.clear(); };
   }, []);
 
-  return { connected: connected || sabBridge.connected, send, progress, queue, processingId, capture, appViewport, probeQueue, escalationQueue, pauseContext, convergence, stageTracker, iterationPulse, proposalQueue, artifactQueue };
+  return {
+    connected: connected || sabBridge.connected,
+    send,
+    progress,
+    queue,
+    processingId,
+    capture,
+    appViewport,
+    probeQueue,
+    escalationQueue,
+    pauseContext,
+    convergence,
+    stageTracker,
+    iterationPulse,
+    proposalQueue,
+    artifactQueue,
+    act,
+    playbackSpeed,
+    throughputPerSecond,
+  };
 }
 
 // ─── Data Hooks ───
@@ -247,7 +298,23 @@ function App() {
   // fitnessPromiseRef holds the current promise; refreshed on WebSocket 'fitness-updated'.
   const fitnessPromiseRef = useRef(createFitnessPromise());
   const { data: knowledgeNodes } = useKnowledgeNodes();
-  const { connected, send, progress, queue, capture, appViewport, probeQueue, pauseContext, convergence, stageTracker, iterationPulse, proposalQueue, artifactQueue } = useEffectStream(`ws://${window.location.host}/ws`);
+  const {
+    connected,
+    send,
+    progress,
+    queue,
+    capture,
+    appViewport,
+    probeQueue,
+    pauseContext,
+    convergence,
+    stageTracker,
+    iterationPulse,
+    proposalQueue,
+    artifactQueue,
+    act,
+    throughputPerSecond,
+  } = useEffectStream(`ws://${window.location.host}/ws`);
   const decisionMutation = useDecision(send);
 
   // W5.19: refresh fitness promise when WebSocket pushes 'fitness-updated'
@@ -270,12 +337,23 @@ function App() {
   const activeProbes = probeQueue.active.map((q) => q.data);
   const activeProposals = proposalQueue.active.map((q) => q.data);
   const activeArtifacts = artifactQueue.active.map((q) => q.data);
+  const [frameSample, setFrameSample] = useState<FrameBudgetSample>({ avgFrameTimeMs: 16.67, droppedFrames: 0 });
+  const [lastEventLagMs, setLastEventLagMs] = useState(0);
 
   const handleParticleArrived = useCallback((probeId: string) => {
     probeQueue.retire(probeId);
   }, [probeQueue]);
 
   const handlePortalLoaded = useCallback(() => setPortalLoaded(true), []);
+  const handleFrameBudgetSample = useCallback((sample: FrameBudgetSample) => {
+    setFrameSample(sample);
+  }, []);
+
+  useEffect(() => {
+    const lastProbe = probeQueue.active[probeQueue.active.length - 1];
+    if (!lastProbe || lastProbe.emittedAt == null) return;
+    setLastEventLagMs(Math.max(0, performance.now() - lastProbe.queuedAt));
+  }, [probeQueue.active]);
 
   // Phase 6: decision burst state — set when approve/skip triggers, cleared when animation completes
   const [decisionBurst, setDecisionBurst] = useState<{ readonly origin: readonly [number, number, number]; readonly result: DecisionResult } | null>(null);
@@ -304,6 +382,32 @@ function App() {
   }, [activeProbes, pauseContext, appViewport, handleSkip]);
 
   const handleBurstComplete = useCallback(() => setDecisionBurst(null), []);
+  const coalescingRatio = probeQueue.diagnostics.ingestedCount === 0
+    ? 0
+    : probeQueue.diagnostics.coalescedCount / probeQueue.diagnostics.ingestedCount;
+  const diagnostics: DiagnosticsProjection = {
+    throughputPerSecond,
+    coalescingRatio,
+    avgFrameTimeMs: frameSample.avgFrameTimeMs,
+    lagMs: lastEventLagMs,
+    droppedFrames: Math.max(frameSample.droppedFrames, probeQueue.diagnostics.droppedFrames),
+    queueDepthByAct: probeQueue.diagnostics.queueDepthByAct,
+  };
+
+  const snapshotState = useSceneStateSnapshots({
+    enabled: true,
+    everyNEvents: 1000,
+    everyMs: 5000,
+    eventSequence: probeQueue.diagnostics.ingestedCount,
+    iteration: progress?.iteration ?? 0,
+    act,
+    knowledgeNodeCount: (knowledgeNodes ?? []).length,
+    activeProbeCount: activeProbes.length,
+    activeProposalCount: activeProposals.length,
+    activeArtifactCount: activeArtifacts.length,
+    throughputPerSecond,
+    queueDepthByAct: probeQueue.diagnostics.queueDepthByAct,
+  });
 
   return (
     <div className="dashboard-layout">
@@ -329,12 +433,19 @@ function App() {
             onSkip={handleSkip3D}
             decisionBurst={decisionBurst}
             onBurstComplete={handleBurstComplete}
+            onFrameBudgetSample={handleFrameBudgetSample}
           />
         </SceneErrorBoundary>
 
+        <DiagnosticsPanel diagnostics={diagnostics} />
         {probeQueue.buffered > 0 && <div className="buffer-indicator">{probeQueue.buffered} buffered</div>}
         {capabilities.mcpAvailable && <div className="mcp-indicator">MCP</div>}
         {pauseContext !== null && <div className="fiber-paused-indicator" aria-live="polite">AWAITING HUMAN</div>}
+        {snapshotState.snapshots.length > 0 && (
+          <div className="buffer-indicator" style={{ bottom: 36 }}>
+            snapshots: {snapshotState.snapshots.length}
+          </div>
+        )}
       </div>
 
       <div className="control-panel" role="complementary" aria-label="Dashboard controls">
