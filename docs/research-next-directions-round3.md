@@ -221,8 +221,8 @@ The infrastructure layer is **exemplary hexagonal architecture** — 14 adapters
 ### Where it should go
 
 1. **Test the Live ADO adapter** ✅: XML step extraction and content hashing are the most complex adapter logic. A fixture-based test with real ADO API responses would catch parsing regressions.
-2. **Test the event bus encoding**: The SharedArrayBuffer slot encoding is clever but fragile — off-by-one in numeric slots would produce silent corruption. A round-trip test (encode → decode → compare) would be cheap insurance.
-3. **Expand the MCP tool surface**: 8 tools is a minimal viable surface. Adding `decide_work_item` (the agent decider already uses this name), `get_scenario_trace`, and `get_proposal_detail` would make the MCP server sufficient for a fully agentic VSCode integration.
+2. **Test the event bus encoding** ✅: The SharedArrayBuffer slot encoding is clever but fragile — off-by-one in numeric slots would produce silent corruption. A round-trip test (encode → decode → compare) would be cheap insurance.
+3. **Expand the MCP tool surface** ✅: 8 tools is a minimal viable surface. Adding `decide_work_item` (the agent decider already uses this name), `get_scenario_trace`, and `get_proposal_detail` would make the MCP server sufficient for a fully agentic VSCode integration.
 
 ---
 
@@ -253,9 +253,9 @@ Twelve perspectives. 44,500 lines of TypeScript. One system.
 | 2 | Minimal A1 runtime interpreter | R1 | Novel phrasing works without alias tending |
 | 3 | Adopt `foldGovernance` at emission boundary | R2 | Governance becomes real, not aspirational |
 | 4 | Structured entropy injection | R1 | Knowledge hardens faster |
-| 5 | Cross-artifact reference validation | R3 | Silent corruption caught at boundaries |
+| 5 | Cross-artifact reference validation ✅ | R3 | Silent corruption caught at boundaries |
 | 6 | Governance phantom type law tests | R2 | Specification covers the safety contract |
-| 7 | Architecture fitness test for Effect boundary | R3 | Prevents composition leakage |
-| 8 | Spec-runtime parity test | R2+R3 | Closes the trust gap between emitted code and actual execution |
+| 7 | Architecture fitness test for Effect boundary ✅ | R3 | Prevents composition leakage |
+| 8 | Spec-runtime parity test ✅ | R2+R3 | Closes the trust gap between emitted code and actual execution |
 
 The system is at an inflection point. The machinery is built. The contracts are typed. The architecture is sound. What remains is closing the loops (R1), enforcing the governance boundary (R2), and validating the execution surface (R3). None of these require architectural changes — they require wiring, adoption, and testing of infrastructure that already exists.
