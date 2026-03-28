@@ -1,6 +1,7 @@
 import { Effect, Match, pipe } from 'effect';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
 import { ensureDerivedGraph } from './graph';
+import { executeInterventionBatch } from './intervention-kernel';
 import { findProposalById } from './operator';
 import type { ProjectPaths } from './paths';
 import { relativeProjectPath, rerunPlanPath } from './paths';
@@ -382,6 +383,46 @@ export function buildRerunPlan(options: {
       artifactPath: located.artifactPath,
       relativeOutputPath: relativeProjectPath(options.paths, outputPath),
     };
+  });
+}
+
+export function executeRerunScopeIntervention(options: {
+  paths: ProjectPaths;
+  proposalId: string;
+  reason?: string | undefined;
+}) {
+  const now = () => new Date().toISOString();
+  return executeInterventionBatch({
+    batch: {
+      batchId: `rerun-${options.proposalId}`,
+      summary: `Build rerun plan for ${options.proposalId}.`,
+      continueOnFailure: false,
+      actions: [{
+        actionId: `rerun:${options.proposalId}`,
+        kind: 'rerun-scope',
+        summary: `Build rerun plan for ${options.proposalId}`,
+        governance: 'approved',
+        target: { kind: 'run', ref: options.proposalId, label: `rerun-${options.proposalId}` },
+        prerequisites: [],
+        reversible: { reversible: false, rollbackCommand: null, rollbackRef: null },
+        payload: { proposalId: options.proposalId },
+      }],
+    },
+    paths: options.paths,
+    now,
+    kernel: {
+      executeAction: () =>
+        buildRerunPlan({
+          paths: options.paths,
+          proposalId: options.proposalId,
+          reason: options.reason,
+        }).pipe(
+          Effect.map((result) => ({
+            summary: `Built rerun plan ${result.plan.planId}`,
+            payload: { runOutcomes: [result.plan.planId] },
+          })),
+        ),
+    },
   });
 }
 

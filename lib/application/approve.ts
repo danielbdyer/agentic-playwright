@@ -6,6 +6,7 @@ import { loadWorkspaceCatalog } from './catalog';
 import { emitOperatorInbox } from './inbox';
 import { buildOperatorInboxItems, findProposalById } from './operator';
 import { applyProposalPatch, parseProposalArtifact, serializeProposalArtifact, validatePatchedProposalArtifact } from './proposal-patches';
+import { executeInterventionBatch } from './intervention-kernel';
 import { buildRerunPlan } from './rerun-plan';
 import type { ProjectPaths } from './paths';
 import { approvalReceiptPath, relativeProjectPath } from './paths';
@@ -33,40 +34,101 @@ export function approveProposal(options: {
       ),
     );
 
-    const approvedAt = new Date().toISOString();
-    const certifiedProposal: ProposalEntry = {
-      ...located.proposal,
-      certification: 'certified',
-      activation: {
-        status: 'activated',
-        activatedAt: located.proposal.activation.activatedAt ?? approvedAt,
-        certifiedAt: approvedAt,
-        reason: 'canon certified by operator',
-      },
+    const now = () => new Date().toISOString();
+    let approvedAt = '';
+    let targetAbsolutePath = '';
+    let rerun: { readonly plan: import('../domain/types').RerunPlan; readonly outputPath: string } | null = null;
+    const interventionBatch = {
+      batchId: `approve-${options.proposalId}`,
+      summary: `Approve proposal ${options.proposalId} and prepare rerun.`,
+      continueOnFailure: false,
+      actions: [
+        {
+          actionId: `approve:${options.proposalId}`,
+          kind: 'approve-proposal' as const,
+          summary: `Approve proposal ${options.proposalId}`,
+          governance: 'approved' as const,
+          target: { kind: 'proposal' as const, ref: options.proposalId, label: options.proposalId },
+          prerequisites: [],
+          reversible: { reversible: true, rollbackCommand: `git checkout -- ${located.proposal.targetPath}`, rollbackRef: located.proposal.targetPath },
+          payload: { proposalId: options.proposalId, targetPath: located.proposal.targetPath },
+        },
+        {
+          actionId: `rerun:${options.proposalId}`,
+          kind: 'rerun-scope' as const,
+          summary: `Build rerun plan for ${options.proposalId}`,
+          governance: 'approved' as const,
+          target: { kind: 'run' as const, ref: options.proposalId, label: `rerun-${options.proposalId}` },
+          prerequisites: [{ actionId: `approve:${options.proposalId}`, required: true, reason: 'Rerun should follow approval.' }],
+          reversible: { reversible: false, rollbackCommand: null, rollbackRef: null },
+          payload: { proposalId: options.proposalId },
+        },
+      ],
     };
-    const targetAbsolutePath = path.join(options.paths.rootDir, located.proposal.targetPath);
-    const currentRaw = yield* fs.readText(targetAbsolutePath).pipe(
-      Effect.catchTag('FileSystemError', () => Effect.succeed('{}')),
-    );
-    const nextArtifact = applyProposalPatch(parseProposalArtifact(currentRaw, located.proposal.targetPath), certifiedProposal);
-    validatePatchedProposalArtifact(located.proposal.targetPath, certifiedProposal, nextArtifact);
-    yield* fs.writeText(targetAbsolutePath, serializeProposalArtifact(located.proposal.targetPath, nextArtifact));
-
-    const bundleAbsolutePath = path.join(options.paths.rootDir, located.artifactPath);
-    const replaceProposal = (proposals: readonly ProposalEntry[]) =>
-      proposals.map((proposal) =>
-        proposal.proposalId === certifiedProposal.proposalId ? certifiedProposal : proposal);
-    const nextBundle = {
-      ...mapPayload(located.bundle, (payload) => ({ ...payload, proposals: replaceProposal(payload.proposals) })),
-      proposals: replaceProposal(located.bundle.proposals),
-    };
-    yield* fs.writeJson(bundleAbsolutePath, nextBundle);
-
-    const rerun = yield* buildRerunPlan({
+    const run = yield* executeInterventionBatch({
+      batch: interventionBatch,
       paths: options.paths,
-      proposalId: options.proposalId,
-      reason: `Approved proposal ${options.proposalId}`,
+      now,
+      kernel: {
+        executeAction: ({ action }) => {
+          if (action.kind === 'approve-proposal') {
+            return Effect.gen(function* () {
+              approvedAt = now();
+              const certifiedProposal: ProposalEntry = {
+                ...located.proposal,
+                certification: 'certified',
+                activation: {
+                  status: 'activated',
+                  activatedAt: located.proposal.activation.activatedAt ?? approvedAt,
+                  certifiedAt: approvedAt,
+                  reason: 'canon certified by operator',
+                },
+              };
+              targetAbsolutePath = path.join(options.paths.rootDir, located.proposal.targetPath);
+              const currentRaw = yield* fs.readText(targetAbsolutePath).pipe(
+                Effect.catchTag('FileSystemError', () => Effect.succeed('{}')),
+              );
+              const nextArtifact = applyProposalPatch(parseProposalArtifact(currentRaw, located.proposal.targetPath), certifiedProposal);
+              validatePatchedProposalArtifact(located.proposal.targetPath, certifiedProposal, nextArtifact);
+              yield* fs.writeText(targetAbsolutePath, serializeProposalArtifact(located.proposal.targetPath, nextArtifact));
+
+              const bundleAbsolutePath = path.join(options.paths.rootDir, located.artifactPath);
+              const replaceProposal = (proposals: readonly ProposalEntry[]) =>
+                proposals.map((proposal) =>
+                  proposal.proposalId === certifiedProposal.proposalId ? certifiedProposal : proposal);
+              const nextBundle = {
+                ...mapPayload(located.bundle, (payload) => ({ ...payload, proposals: replaceProposal(payload.proposals) })),
+                proposals: replaceProposal(located.bundle.proposals),
+              };
+              yield* fs.writeJson(bundleAbsolutePath, nextBundle);
+              return {
+                summary: `Approved proposal ${options.proposalId}`,
+                payload: { runOutcomes: ['proposal-certified'] },
+              };
+            });
+          }
+          if (action.kind === 'rerun-scope') {
+            return Effect.gen(function* () {
+              const built = yield* buildRerunPlan({
+                paths: options.paths,
+                proposalId: options.proposalId,
+                reason: `Approved proposal ${options.proposalId}`,
+              });
+              rerun = { plan: built.plan as import('../domain/types').RerunPlan, outputPath: built.outputPath };
+              return {
+                summary: `Built rerun plan ${built.plan.planId}`,
+                payload: { runOutcomes: [built.plan.planId] },
+              };
+            });
+          }
+          return Effect.fail(new TesseractError('intervention-unsupported-action', `Unsupported action ${action.kind}`));
+        },
+      },
     });
+    if (!rerun || approvedAt.length === 0) {
+      return yield* Effect.fail(new TesseractError('approval-failed', `Failed to approve proposal ${options.proposalId}`));
+    }
+    const ensuredRerun = rerun;
     const inboxItem = buildOperatorInboxItems(catalog).find((item) => item.proposalId === options.proposalId) ?? null;
     const receipt: ApprovalReceipt = {
       kind: 'approval-receipt',
@@ -77,7 +139,7 @@ export function approveProposal(options: {
       artifactType: located.proposal.artifactType,
       targetPath: located.proposal.targetPath,
       receiptPath: relativeProjectPath(options.paths, approvalReceiptPath(options.paths, options.proposalId)),
-      rerunPlanId: rerun.plan.planId,
+      rerunPlanId: ensuredRerun.plan.planId,
     };
     const receiptPath = approvalReceiptPath(options.paths, options.proposalId);
     yield* fs.writeJson(receiptPath, receipt);
@@ -88,8 +150,9 @@ export function approveProposal(options: {
       targetPath: targetAbsolutePath,
       receipt,
       receiptPath,
-      rerunPlan: rerun.plan,
-      rerunPlanPath: rerun.outputPath,
+      rerunPlan: ensuredRerun.plan,
+      rerunPlanPath: ensuredRerun.outputPath,
+      intervention: run,
       inbox,
     };
   });
