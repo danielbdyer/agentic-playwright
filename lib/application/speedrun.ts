@@ -347,11 +347,10 @@ export function multiSeedSpeedrun(input: MultiSeedInput): Effect.Effect<MultiSee
     const comparison = compareToScorecard(fitnessReport, existingScorecard);
 
     // Update scorecard if improved
-    let scorecardUpdated = false;
-    if (comparison.improved) {
+    const scorecardUpdated = comparison.improved;
+    if (scorecardUpdated) {
       const updatedScorecard = updateScorecard(fitnessReport, existingScorecard, comparison);
       yield* saveScorecard(input.paths, updatedScorecard);
-      scorecardUpdated = true;
     }
 
     // Record experiment

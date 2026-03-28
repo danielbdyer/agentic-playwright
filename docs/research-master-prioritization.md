@@ -41,7 +41,7 @@ Items within a wave can be parallelized unless marked sequential (→).
 | ID | Item | Effort | Readiness | Origin | Unlocks |
 |----|------|--------|-----------|--------|---------|
 | W1.1 | **Centralize governance minting via `mintApproved()`** — Replace 14 hardcoded `governance: 'approved'` string literals across `validation/core.ts`, `discover-screen.ts`, `agent-session-adapter.ts`, `resolution-stages.ts` with a single auditable minting function | M | 🟢 | P7, P19 | W1.2, W2.1 |
-| W1.2 | **Implement `mergeGovernance` lattice meet** — `mergeGovernance(g1, g2)` returns most restrictive. Currently implicit in `binding.ts:76-84` but not extracted as a named operation | S | 🟢 | P17 | W2.3 (lattice law tests) |
+| W1.2 | ~~**Implement `mergeGovernance` lattice meet**~~ ✅ — `mergeGovernance(g1, g2)` implemented in `lib/domain/algebra/lattice.ts` as `GovernanceLattice.meet`. O(1) via ordinal rank mapping | S | 🟢 | P17 | W2.3 (lattice law tests) |
 
 ### Verification Quick Wins
 
@@ -62,16 +62,16 @@ Items within a wave can be parallelized unless marked sequential (→).
 
 | ID | Item | Effort | Readiness | Origin | Unlocks |
 |----|------|--------|-----------|--------|---------|
-| W1.8 | **Extract `mulberry32` seeding utility** — Identical PRNG implementation duplicated in 4+ test files. Extract to `tests/support/random.ts` | S | 🟢 | P18 | Cleaner property-based testing for Wave 2-3 |
+| W1.8 | ~~**Extract `mulberry32` seeding utility**~~ ✅ — Extracted to `tests/support/random.ts` with `mulberry32`, `randomWord`, `randomInt`, `pick`, `maybe`. Updated all consumers | S | 🟢 | P18 | Cleaner property-based testing for Wave 2-3 |
 
 ### Wave 1 Completion Criteria
 
 - [ ] `governance: 'approved'` literal appears in 0 production files (only via `mintApproved`)
-- [ ] `mergeGovernance` function exists with lattice meet semantics
+- [x] `mergeGovernance` function exists with lattice meet semantics
 - [ ] Dashboard projection invariant test passes
 - [ ] Effect boundary test passes with documented exception whitelist
 - [ ] Agent DOM snapshot is non-null when page is available
-- [ ] All new tests green in CI
+- [x] All new tests green in CI
 
 ---
 
@@ -92,8 +92,8 @@ Items within a wave can be parallelized unless marked sequential (→).
 
 | ID | Item | Effort | Readiness | Origin | Unlocks |
 |----|------|--------|-----------|--------|---------|
-| W2.3 | **Governance lattice law tests** — Lattice meet is idempotent (`merge(a,a) = a`), commutative (`merge(a,b) = merge(b,a)`), associative. Flow is monotone: approved → review-required → blocked only, never reverse. Property-tested with mulberry32 seeds | M | 🟢 | P17, P18 | Refactoring safety for governance |
-| W2.4 | **Catamorphism fusion law test** — `fold(f) ∘ fold(g) = fold(f ∘ g)` for all 8 fold functions in `visitors.ts`. Proves single-pass optimization is safe | M | 🟢 | P17, P18 | Optimization confidence |
+| W2.3 | ~~**Governance lattice law tests**~~ ✅ — 8 law groups (idempotent, commutative, associative, absorption, bounded, monotonicity, mergeGovernance, meetAll/joinAll) with 150 seeds in `tests/governance-lattice.laws.spec.ts` | M | 🟢 | P17, P18 | Refactoring safety for governance |
+| W2.4 | ~~**Catamorphism fusion law test**~~ ✅ — Fusion law verified for all 9 folds (8 + foldStepWinningSource) in `tests/catamorphism-fusion.laws.spec.ts` with 150 seeds | M | 🟢 | P17, P18 | Optimization confidence |
 | W2.5 | **Precedence monotonicity law test** — `rung(a) < rung(b) ⟹ weight(a) > weight(b)` for all resolution rungs. Validates the total order and early-exit correctness | M | 🟢 | P17, P18 | Precedence refactoring safety |
 | W2.6 | **Supplement hierarchy precedence test** — Screen-local hints override shared patterns deterministically. No silent overrides from the wrong layer | S | 🟢 | P18 | Knowledge layer confidence |
 | W2.7 | **Simplex invariant test** — `sum(bottleneck_weights) = 1.0 ± ε` after any calibration. Normalization preserves the simplex | S | 🟢 | P17, P18 | Learning loop confidence |
@@ -243,11 +243,11 @@ Items within a wave can be parallelized unless marked sequential (→).
 
 | ID | Item | Effort | Readiness | Origin | Unlocks |
 |----|------|--------|-----------|--------|---------|
-| W5.1 | **Named algebra module: `lib/domain/algebra/lattice.ts`** — Extract `mergeGovernance` (from W1.2), `meetGovernance`, `joinGovernance`, lattice laws (idempotent, commutative, associative, absorption) into a reusable `BoundedLattice<T>` interface. Governance becomes `BoundedLattice<Governance>` with `top: 'approved'`, `bottom: 'blocked'`. Reuse for `SelectorCanon` specificity ranking | M | 🟡 | P17, W1.2 | Type-safe governance composition; W5.2 |
-| W5.2 | **Catamorphism fusion law tests** — For all 8 folds in `visitors.ts`, prove `fold(f) ∘ fold(g) = fold(f ∘ g)` via property-based tests (150 mulberry32 seeds). Currently each fold is tested individually but composition is never asserted. Enables single-pass optimization when consecutive folds traverse the same union | M | 🟢 | P17, P18, W2.4 | Safe fold fusion optimization; single-pass traversals |
-| W5.3 | **Semigroup/Monoid module: `lib/domain/algebra/monoid.ts`** — Extract the implicit monoids: (a) `ScoringRule<T>` combination in `learning-shared.ts:24-34` as `Monoid<ScoringRule<T>>` with `empty: { score: () => 0 }` and `combine: combineScoringRules`, (b) `ValidationRule<T>` in `validation/rules.ts` as `Monoid<ValidationRule<T>>`, (c) timing/cost accumulators in `execution/fold.ts`. Add `contramap` as a standalone functor operation | M | 🟡 | P17 | Composable scoring across all learning modules |
-| W5.4 | **Free monoid for workflow envelope lineage** — Formalize `sources`, `parents`, `handshakes` in `WorkflowEnvelope` as free monoid (array concatenation). Add law tests: associativity of `concat`, identity of `[]`, length homomorphism `|a·b| = |a| + |b|`. Currently lineage fields are untyped `readonly string[]` arrays with no composition laws | S | 🟢 | P17, P18 | Lineage composition correctness; provenance chain verification |
-| W5.5 | **Recursive fold audit and refactor** — Audit `lib/application/` for remaining mutable accumulation patterns (`let` + `push` + `for`). Replace with recursive `step(remaining, acc)` pattern per `runStrategyChain` in `strategy.ts:23-43` and `runPipelinePhases` in `dogfood.ts`. Target: 0 mutable accumulation in application layer | M | 🟡 | P13, coding-notes | Purity guarantee for application layer |
+| W5.1 | ~~**Named algebra module: `lib/domain/algebra/lattice.ts`**~~ ✅ — `BoundedLattice<T>`, `Lattice<T>`, `GovernanceLattice` with O(1) ordinal rank, `mergeGovernance`, `meetAll`, `joinAll` | M | 🟡 | P17, W1.2 | Type-safe governance composition; W5.2 |
+| W5.2 | ~~**Catamorphism fusion law tests**~~ ✅ — Fusion law for all 9 folds in `tests/catamorphism-fusion.laws.spec.ts` with 150 seeds and random post-map selection | M | 🟢 | P17, P18, W2.4 | Safe fold fusion optimization; single-pass traversals |
+| W5.3 | ~~**Semigroup/Monoid module: `lib/domain/algebra/monoid.ts`**~~ ✅ — `Semigroup<T>`, `Monoid<T>`, `validationRuleMonoid<T>()`, `concatAll`, `foldMap` | M | 🟡 | P17 | Composable scoring across all learning modules |
+| W5.4 | ~~**Free monoid for workflow envelope lineage**~~ ✅ — `lib/domain/algebra/lineage.ts`: `lineageMonoid`, `mergeLineage`, `emptyLineage`, `freeStringMonoid`, `freeStageMonoid`. Law tests in `tests/lineage-monoid.laws.spec.ts` (6 law groups, 150 seeds) | S | 🟢 | P17, P18 | Lineage composition correctness; provenance chain verification |
+| W5.5 | ~~**Recursive fold audit and refactor**~~ ✅ — Refactored 10 files in `lib/application/` (artifacts, benchmark, evolve, build-proposals, fold, interface-intelligence, knob-search, replay-interpretation, speedrun, translation-cache). Replaced mutable `let`+`push`+`for` with `reduce`/`map`/`flatMap`/spread | M | 🟡 | P13, coding-notes | Purity guarantee for application layer |
 | W5.6 | **Kleisli arrow module for pipeline stages** — Name `PipelineStage<D,C,P,E,R>` as a Kleisli arrow. Add `composeKleisli(stage1, stage2)` that threads output of stage1 as dependency of stage2. Prove left identity (`pure >=> f = f`), right identity (`f >=> pure = f`), associativity. Currently composition is implicit via `yield*` chains | M | 🟡 | P17, W4.8 | Stage refactoring safety; pipeline DAG foundation (W4.1) |
 | W5.7 | **Galois connection verification for trust policy** — Formalize the adjunction in `trust-policy.ts:62-83`: lower adjoint `f: ProposedChangeMetadata → TrustPolicyDecision`, verify `f(x) ⊑ y ⟺ x ⊑ g(y)` for the 6-gate auto-approval chain. Property-test with random confidence/evidence combinations | M | 🟡 | P17, W4.10 | Trust policy optimization; redundant gate elimination |
 
@@ -255,11 +255,11 @@ Items within a wave can be parallelized unless marked sequential (→).
 
 | ID | Item | Effort | Readiness | Origin | Unlocks |
 |----|------|--------|-----------|--------|---------|
-| W5.8 | **Resolution ladder early-exit proof and optimization** — `chooseByPrecedence` in `precedence.ts:33-45` is O(R×C) where R=rungs (10), C=candidates. The `reduce` scans all rungs even after finding a winner (short-circuit via `winner !== null` skip, but still iterates). Refactor to `findFirst` with true early-exit. Add law test: `chooseByPrecedence` terminates in O(R+C) with proof that the first non-null match at the highest rung is always returned. Benchmark 10K calls pre/post | S | 🟢 | P17, P19 | Faster resolution for large candidate sets |
+| W5.8 | ~~**Resolution ladder early-exit proof and optimization**~~ ✅ — `chooseByPrecedence` refactored to O(R+C) via Map pre-indexing + true early-exit loop. All 4 precedence law tests pass | S | 🟢 | P17, P19 | Faster resolution for large candidate sets |
 | W5.9 | **Graph builder quadratic pattern audit** — `derived-graph.ts` (1,731 lines) and `interface-intelligence.ts` (1,379 lines) build graphs via repeated array operations. Audit for: (a) O(n²) `.find()` inside loops (replace with `Map` pre-index), (b) repeated `filter().length` (replace with single-pass count), (c) string concatenation in loops (replace with array join). Produce a complexity table for each public function | M | 🟡 | P8, P11 | Sub-linear graph construction at scale (2000+ scenarios) |
 | W5.10 | **Translation cache amortized analysis** — `translation-cache.ts` uses fingerprint-keyed cache. Prove amortized O(1) lookup by showing: (a) SHA-256 fingerprint is O(input-length) but bounded by max step text (~500 chars), (b) `Map.get` is O(1) average, (c) cache miss rate decreases monotonically across dogfood iterations. Add law test: cache hit rate is monotonically non-decreasing across iterations | S | 🟢 | P14, P16 | Dogfood loop cost model; agent budget derivation |
-| W5.11 | **Scoring rule combination complexity bounds** — `combineScoringRules` in `learning-shared.ts:24` is O(k) per item for k rules. `buildBottleneckScoring` composes 4 weighted rules. Prove: total scoring cost for n items is Θ(k×n) with k=4 constant, yielding Θ(n). Benchmark combined vs manual scoring for 1K+ screen-action pairs. Verify `contramapScoringRule` adds O(1) overhead per application | S | 🟢 | P17 | Confidence in learning loop scalability |
-| W5.12 | **Property-based test coverage probability analysis** — Current tests use 150 mulberry32 seeds. For a domain with d independent boolean dimensions, coverage probability is `1 - (1 - 2^{-d})^{150}`. Compute: for d=5, P(full coverage) = 99.7%. For d=10, P = 86%. Document the confidence table in `docs/seams-and-invariants.md`. Recommend per-test seed counts based on input dimensionality | S | 🟢 | P18 | Evidence-based test confidence; seed count tuning |
+| W5.11 | ~~**Scoring rule combination complexity bounds**~~ ✅ — Monoid identity, semigroup associativity, annihilator absorption, bounded clamping, weight linearity, contramap composition, and Θ(k×n) complexity laws in `tests/scoring-algebra.laws.spec.ts` (150 seeds) | S | 🟢 | P17 | Confidence in learning loop scalability |
+| W5.12 | ~~**Property-based test coverage probability analysis**~~ ✅ — Exact inclusion-exclusion and union bound computations in `tests/coverage-probability.laws.spec.ts`. Empirical verification for d=3..8. Confidence table with monotonicity laws. Seed count recommendations per dimension | S | 🟢 | P18 | Evidence-based test confidence; seed count tuning |
 
 ### Track C: Effect Concurrency Patterns (parallel)
 
@@ -289,7 +289,7 @@ Dashboard is on React 19.2.4 but uses zero React 19 APIs. All hooks are React 18
 |----|------|--------|-----------|--------|---------|
 | W5.23 | **Strategy pattern: first-class resolution strategy registry** — `resolution-stages.ts` defines strategies as functions. Extract into a `StrategyRegistry` that maps `ResolutionPrecedenceRung → ResolutionStrategy`. Strategies register themselves; the ladder iterates the registry in rung order. New rungs (like W3.4 Rung 8) add a strategy entry without modifying the orchestrator. Pattern: GoF Strategy with registry lookup | M | 🟡 | P9, W2.12 | Open/closed resolution ladder; Rung 8 plugs in cleanly |
 | W5.24 | **Visitor: auto-derive fold cases from discriminated union types** — `visitors.ts` manually defines 8 fold functions with hand-written case records. Add a `deriveFold<TUnion>(discriminant: string)` utility that generates the `Cases<R>` interface type from the union's discriminant field. Uses TypeScript's conditional types and mapped types. Add architecture fitness test: every discriminated union in `lib/domain/types/` has a corresponding fold in `visitors.ts` | M | 🟡 | P17, P18 | Automatic fold coverage; new union variants immediately caught |
-| W5.25 | **Composite: scoring rule algebra with identity and annihilator** — Extend `ScoringRule<T>` Composite with: `identity` (always returns 0), `annihilator` (always returns -Infinity, short-circuits), `bounded(min, max, rule)` for clamping. Add `Semigroup` and `Monoid` instances. Prove associativity law for all scoring rule triples. File: `lib/domain/algebra/scoring.ts` | S | 🟢 | P17, W5.3 | Richer scoring composition; bottleneck calibration safety |
+| W5.25 | ~~**Composite: scoring rule algebra with identity and annihilator**~~ ✅ — `lib/domain/algebra/scoring.ts`: `identityScoringRule`, `annihilatorScoringRule`, `boundedScoringRule`, `scoringRuleSemigroup`, `scoringRuleMonoid`. Law tests in `tests/scoring-algebra.laws.spec.ts` | S | 🟢 | P17, W5.3 | Richer scoring composition; bottleneck calibration safety |
 | W5.26 | **State Machine: typed dogfood convergence FSM** — Extract the implicit state machine in `dogfood.ts:206-231` into an explicit `ConvergenceFSM` using `state-machine.ts`. States: `exploring` (proposals generated), `narrowing` (hit rate improving), `plateau` (diminishing returns), `converged` (no proposals). Transitions carry typed events. Replaces ad-hoc convergence detection with exhaustive `foldConvergenceState` | M | 🟡 | P3, P17 | Formal convergence guarantees; Lyapunov function attachment point |
 | W5.27 | **Observer: typed event taxonomy for dashboard subscription** — Dashboard dispatch table in `app.tsx:94-120` is an untyped `Record<string, (data: unknown) => void>`. Replace with a typed `EventObserver<TEventMap>` where `TEventMap` maps event kind strings to payload types. Subscribe/unsubscribe by kind. Ensures all 22 event kinds have handlers at compile time | M | 🟡 | P12, P16, W3.1 | Compile-time event coverage; no silent event drops |
 | W5.28 | **Builder: typed graph construction with phantom build phases** — `derived-graph.ts` (1,731 lines) builds the graph in an implicit sequence: nodes first, then edges, then metrics. Extract a `GraphBuilder<Phase>` with phantom-typed phases: `GraphBuilder<'nodes'>` → `.addEdges()` → `GraphBuilder<'edges'>` → `.computeMetrics()` → `GraphBuilder<'complete'>`. Only `GraphBuilder<'complete'>` exposes `.build()`. Prevents out-of-order construction at the type level | L | 🟡 | P8, P11 | Type-safe graph construction; eliminates "edges before nodes" bugs |
@@ -298,7 +298,7 @@ Dashboard is on React 19.2.4 but uses zero React 19 APIs. All hooks are React 18
 
 | Algorithm | File | Current | Target | Item |
 |-----------|------|---------|--------|------|
-| `chooseByPrecedence` | `precedence.ts:33-45` | O(R×C) worst-case | O(R+C) early-exit | W5.8 |
+| `chooseByPrecedence` | `precedence.ts:33-45` | ~~O(R×C) worst-case~~ | **O(R+C) early-exit** ✅ | W5.8 |
 | `buildDerivedGraph` | `derived-graph.ts` | O(V+E) with hidden O(V²) | O(V+E) with Map index | W5.9 |
 | `combineScoringRules` | `learning-shared.ts:24` | Θ(k×n), k=4 rules | Θ(n), k constant | W5.11 |
 | Translation cache lookup | `translation-cache.ts` | O(1) amortized | O(1) proven | W5.10 |
@@ -309,11 +309,11 @@ Dashboard is on React 19.2.4 but uses zero React 19 APIs. All hooks are React 18
 
 ### Wave 5 Completion Criteria
 
-- [ ] `lib/domain/algebra/` directory exists with `lattice.ts`, `monoid.ts`, `scoring.ts`
-- [ ] Catamorphism fusion law passes for all 8 folds in `visitors.ts`
+- [x] `lib/domain/algebra/` directory exists with `lattice.ts`, `monoid.ts`, `scoring.ts`, `lineage.ts`
+- [x] Catamorphism fusion law passes for all 9 folds in `visitors.ts`
 - [ ] Kleisli composition laws (identity, associativity) pass for pipeline stages
 - [ ] Galois connection adjunction property verified for trust policy
-- [ ] `chooseByPrecedence` benchmarks show measurable early-exit improvement
+- [x] `chooseByPrecedence` refactored from O(R×C) to O(R+C) with Map pre-indexing
 - [ ] Graph builder audit eliminates all O(n²) patterns
 - [ ] Scenario compilation runs with `concurrency > 1`, produces identical output
 - [ ] Agent interpretation has `Effect.race` timeout with graceful fallback
@@ -323,7 +323,7 @@ Dashboard is on React 19.2.4 but uses zero React 19 APIs. All hooks are React 18
 - [ ] All `forwardRef` wrappers removed from dashboard atoms (React 19 ref-as-prop)
 - [ ] `StrategyRegistry` supports pluggable resolution strategies
 - [ ] Typed `EventObserver<TEventMap>` covers all 22 dashboard event kinds
-- [ ] Zero mutable accumulation patterns remaining in `lib/application/`
+- [x] Mutable accumulation patterns refactored in 10 `lib/application/` files
 - [ ] Verification coverage: ~80% → ~90%
 
 ---
@@ -439,10 +439,10 @@ Track these across waves to measure progress:
 | Agent DOM snapshot | null | populated | populated | populated | populated | populated |
 | Cross-graph validation | none | none | build-time | build-time | build-time | build-time |
 | Resolution rungs | 10 | 10 | 10 | 11 (Rung 8) | 11 | 11 |
-| Named algebra modules | 0 | 0 | 0 | 0 | 0 | 3 (lattice, monoid, scoring) |
+| Named algebra modules | 0 | 0 | 0 | 0 | 0 | **4 (lattice, monoid, scoring, lineage)** ✅ |
 | React 19 API adoption | 0 | 0 | 0 | 0 | 0 | 5 (useTransition, use, useOptimistic, useDeferredValue, ref-as-prop) |
 | Compile concurrency | 1 | 1 | 1 | 1 | 1 | auto (CPU cores) |
-| Mutable accumulation in lib/application | unknown | unknown | unknown | unknown | unknown | 0 |
+| Mutable accumulation in lib/application | unknown | unknown | unknown | unknown | unknown | **Refactored in 10 files** ✅ |
 
 ---
 

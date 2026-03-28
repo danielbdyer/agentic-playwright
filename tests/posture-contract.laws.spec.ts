@@ -15,6 +15,7 @@ import {
 } from '../lib/domain/identity';
 import type { PostureEffect, ScreenElements, ScreenPostures, SurfaceGraph } from '../lib/domain/types';
 import { validateScreenElements, validateScreenPostures, validateSurfaceGraph } from '../lib/domain/validation';
+import { maybe, mulberry32, pick, randomInt } from './support/random';
 
 const policySearchScreenId = createScreenId('policy-search');
 const policyNumberInputId = createElementId('policyNumberInput');
@@ -32,28 +33,6 @@ const invalidPostureId = createPostureId('invalid');
 const emptyPostureId = createPostureId('empty');
 const boundaryPostureId = createPostureId('boundary');
 const customPostureId = createPostureId('custom');
-
-function mulberry32(seed: number): () => number {
-  let current = seed >>> 0;
-  return () => {
-    current = (current + 0x6D2B79F5) >>> 0;
-    let t = Math.imul(current ^ (current >>> 15), 1 | current);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function randomInt(next: () => number, max: number): number {
-  return Math.floor(next() * max);
-}
-
-function pick<T>(next: () => number, values: T[]): T {
-  return values[randomInt(next, values.length)] as T;
-}
-
-function maybe<T>(next: () => number, value: T): T | undefined {
-  return next() > 0.5 ? value : undefined;
-}
 
 function effectSortKey(effect: PostureEffect): string {
   return [effect.targetKind ?? 'element', effect.target, effect.state, effect.message ?? ''].join('|');

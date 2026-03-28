@@ -1,21 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { groupBy, sortByStringKey, uniqueSorted } from '../lib/domain/collections';
-
-function mulberry32(seed: number): () => number {
-  let current = seed >>> 0;
-  return () => {
-    current = (current + 0x6D2B79F5) >>> 0;
-    let value = Math.imul(current ^ (current >>> 15), 1 | current);
-    value = (value + Math.imul(value ^ (value >>> 7), 61 | value)) ^ value;
-    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function randomWord(next: () => number): string {
-  const alphabet = 'abcxyz';
-  const length = 1 + Math.floor(next() * 6);
-  return Array.from({ length }, () => alphabet[Math.floor(next() * alphabet.length)]).join('');
-}
+import { mulberry32, randomWord } from './support/random';
 
 test('uniqueSorted is deterministic and idempotent across random string sets', () => {
   for (let seed = 1; seed <= 150; seed += 1) {

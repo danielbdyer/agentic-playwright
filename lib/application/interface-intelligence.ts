@@ -1128,24 +1128,20 @@ function buildSelectorCanon(_input: {
   const descriptors = new Map<CanonicalTargetRef, TargetDescriptor>(
     targetDescriptors({ catalog: input.catalog, discoveryRuns: input.discoveryRuns }).map((entry) => [entry.targetRef, entry]),
   );
-  const seeds: SelectorProbeSeed[] = [];
-
-  for (const surfaceEntry of input.catalog.surfaces) {
-    for (const [sectionId, section] of Object.entries(surfaceEntry.artifact.sections)) {
-      if (!section.snapshot) continue;
-      const snapshotTemplate = createSnapshotTemplateId(section.snapshot);
-      seeds.push({
-        targetRef: snapshotTargetRef(surfaceEntry.artifact.screen, snapshotTemplate),
+  const surfaceSeeds: SelectorProbeSeed[] = input.catalog.surfaces.flatMap((surfaceEntry) => [
+    ...Object.entries(surfaceEntry.artifact.sections)
+      .filter(([, section]) => section.snapshot)
+      .map(([, section]): SelectorProbeSeed => ({
+        targetRef: snapshotTargetRef(surfaceEntry.artifact.screen, createSnapshotTemplateId(section.snapshot!)),
         screen: surfaceEntry.artifact.screen,
         kind: 'snapshot-anchor',
         source: 'approved-knowledge',
         strategy: { kind: 'css', value: section.selector },
         rung: 0,
         artifactPath: surfaceEntry.artifactPath,
-      });
-    }
-    for (const [surfaceId, surface] of Object.entries(surfaceEntry.artifact.surfaces)) {
-      seeds.push({
+      })),
+    ...Object.entries(surfaceEntry.artifact.surfaces)
+      .map(([surfaceId, surface]): SelectorProbeSeed => ({
         targetRef: surfaceTargetRef(surfaceEntry.artifact.screen, createSurfaceId(surfaceId)),
         screen: surfaceEntry.artifact.screen,
         kind: 'surface',
@@ -1153,70 +1149,66 @@ function buildSelectorCanon(_input: {
         strategy: { kind: 'css', value: surface.selector },
         rung: 0,
         artifactPath: surfaceEntry.artifactPath,
-      });
-    }
-  }
+      })),
+  ]);
 
-  for (const elementsEntry of input.catalog.screenElements) {
-    for (const [elementId, element] of Object.entries(elementsEntry.artifact.elements)) {
+  const elementSeeds: SelectorProbeSeed[] = input.catalog.screenElements.flatMap((elementsEntry) =>
+    Object.entries(elementsEntry.artifact.elements).flatMap(([elementId, element]) => {
       const confidenceRecord = matchingConfidenceRecord({
         catalog: input.catalog,
         screen: elementsEntry.artifact.screen,
         element: createElementId(elementId),
       });
-      (element.locator ?? []).forEach((strategy, rung) => {
-        seeds.push({
-          targetRef: elementTargetRef(elementsEntry.artifact.screen, createElementId(elementId)),
-          screen: elementsEntry.artifact.screen,
-          kind: 'element',
-          source: 'approved-knowledge',
-          strategy,
-          rung,
-          artifactPath: elementsEntry.artifactPath,
-          successCount: confidenceRecord?.successCount ?? 0,
-          failureCount: confidenceRecord?.failureCount ?? 0,
-          lastUsedAt: confidenceRecord?.lastSuccessAt ?? null,
-          evidenceRefs: confidenceRecord?.lineage.evidenceIds ?? [],
-          lineage: {
-            sourceArtifactPaths: [elementsEntry.artifactPath],
-            discoveryRunIds: [],
-            evidenceRefs: confidenceRecord?.lineage.evidenceIds ?? [],
-          },
-        });
-      });
-    }
-  }
-
-  for (const discoveryEntry of input.discoveryRuns) {
-    for (const probe of discoveryEntry.artifact.selectorProbes) {
-      seeds.push({
-        targetRef: probe.targetRef,
-        screen: probe.screen,
-        kind: probe.element ? 'element' : probe.section ? 'surface' : 'discovered',
-        source: 'discovery',
-        strategy: probe.strategy,
-        rung: 0,
-        artifactPath: discoveryEntry.artifactPath,
-        variantRefs: [probe.variantRef],
-        discoveredFrom: discoveryEntry.artifact.runId,
-        validWhenStateRefs: probe.validWhenStateRefs,
-        invalidWhenStateRefs: probe.invalidWhenStateRefs,
+      return (element.locator ?? []).map((strategy, rung): SelectorProbeSeed => ({
+        targetRef: elementTargetRef(elementsEntry.artifact.screen, createElementId(elementId)),
+        screen: elementsEntry.artifact.screen,
+        kind: 'element',
+        source: 'approved-knowledge',
+        strategy,
+        rung,
+        artifactPath: elementsEntry.artifactPath,
+        successCount: confidenceRecord?.successCount ?? 0,
+        failureCount: confidenceRecord?.failureCount ?? 0,
+        lastUsedAt: confidenceRecord?.lastSuccessAt ?? null,
+        evidenceRefs: confidenceRecord?.lineage.evidenceIds ?? [],
         lineage: {
-          sourceArtifactPaths: [discoveryEntry.artifactPath],
-          discoveryRunIds: [discoveryEntry.artifact.runId],
-          evidenceRefs: [],
+          sourceArtifactPaths: [elementsEntry.artifactPath],
+          discoveryRunIds: [],
+          evidenceRefs: confidenceRecord?.lineage.evidenceIds ?? [],
         },
-      });
-    }
-  }
+      }));
+    }),
+  );
 
-  const grouped = new Map<CanonicalTargetRef, SelectorProbe[]>();
-  for (const seed of seeds) {
+  const discoverySeeds: SelectorProbeSeed[] = input.discoveryRuns.flatMap((discoveryEntry) =>
+    discoveryEntry.artifact.selectorProbes.map((probe): SelectorProbeSeed => ({
+      targetRef: probe.targetRef,
+      screen: probe.screen,
+      kind: probe.element ? 'element' : probe.section ? 'surface' : 'discovered',
+      source: 'discovery',
+      strategy: probe.strategy,
+      rung: 0,
+      artifactPath: discoveryEntry.artifactPath,
+      variantRefs: [probe.variantRef],
+      discoveredFrom: discoveryEntry.artifact.runId,
+      validWhenStateRefs: probe.validWhenStateRefs,
+      invalidWhenStateRefs: probe.invalidWhenStateRefs,
+      lineage: {
+        sourceArtifactPaths: [discoveryEntry.artifactPath],
+        discoveryRunIds: [discoveryEntry.artifact.runId],
+        evidenceRefs: [],
+      },
+    })),
+  );
+
+  const seeds: readonly SelectorProbeSeed[] = [...surfaceSeeds, ...elementSeeds, ...discoverySeeds];
+
+  const seedToProbe = (seed: SelectorProbeSeed): SelectorProbe => {
     const descriptor = descriptors.get(seed.targetRef);
     const confidenceRecord = descriptor?.kind === 'element'
       ? matchingConfidenceRecord({ catalog: input.catalog, screen: descriptor.screen, element: descriptor.element ?? null })
       : null;
-    const probe: SelectorProbe = {
+    return {
       id: selectorProbeId(seed.targetRef, seed.strategy, seed.rung),
       selectorRef: selectorRefForProbe(seed.targetRef, seed.strategy, seed.rung),
       strategy: seed.strategy,
@@ -1234,12 +1226,15 @@ function buildSelectorCanon(_input: {
       lastUsedAt: seed.lastUsedAt ?? null,
       lineage: seed.lineage ?? { sourceArtifactPaths: [seed.artifactPath], discoveryRunIds: [], evidenceRefs: [] },
     };
-    const existing = grouped.get(seed.targetRef) ?? [];
-    if (!existing.some((entry) => entry.id === probe.id)) {
-      existing.push(probe);
-      grouped.set(seed.targetRef, existing);
-    }
-  }
+  };
+
+  const grouped = seeds.reduce((acc, seed) => {
+    const probe = seedToProbe(seed);
+    const existing = acc.get(seed.targetRef) ?? [];
+    return existing.some((entry) => entry.id === probe.id)
+      ? acc
+      : acc.set(seed.targetRef, [...existing, probe]);
+  }, new Map<CanonicalTargetRef, SelectorProbe[]>());
 
   const entries: SelectorCanonEntry[] = [...grouped.entries()].map(([targetRef, probes]) => {
     const descriptor = descriptors.get(targetRef);

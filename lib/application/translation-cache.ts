@@ -109,12 +109,8 @@ export async function pruneTranslationCache(input: {
   maxEntries: number;
 }): Promise<number> {
   const dir = input.paths.translationCacheDir;
-  let entries: string[];
-  try {
-    entries = await nodeFs.readdir(dir);
-  } catch {
-    return 0;
-  }
+  const entries = await nodeFs.readdir(dir).catch(() => null);
+  if (!entries) return 0;
   const cacheFiles = entries.filter((f) => f.endsWith('.translation.json'));
   if (cacheFiles.length <= input.maxEntries) {
     return 0;

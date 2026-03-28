@@ -63,15 +63,10 @@ export function buildProposals(input: {
     },
   })));
 
-  const evidenceByStep = new Map<number, string[]>();
-  for (const entry of input.evidenceWrites) {
-    const existing = evidenceByStep.get(entry.stepIndex);
-    if (existing) {
-      existing.push(entry.artifactPath);
-    } else {
-      evidenceByStep.set(entry.stepIndex, [entry.artifactPath]);
-    }
-  }
+  const evidenceByStep = input.evidenceWrites.reduce(
+    (acc, entry) => acc.set(entry.stepIndex, [...(acc.get(entry.stepIndex) ?? []), entry.artifactPath]),
+    new Map<number, string[]>(),
+  );
 
   const proposals = input.stepResults.flatMap((step) =>
     step.interpretation.proposalDrafts.map((proposal) => {

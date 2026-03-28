@@ -147,35 +147,34 @@ export function generateCandidates(
   baseline: PipelineConfig,
   mapping: FailureParameterMapping,
 ): readonly CandidateConfig[] {
-  const candidates: CandidateConfig[] = [];
-
-  for (const param of mapping.implicatedParameters) {
+  const candidates: readonly CandidateConfig[] = mapping.implicatedParameters.flatMap((param) => {
     const baseValue = baseline[param];
 
     if (typeof baseValue === 'number') {
-      const values = scalarCandidates(baseValue, mapping.direction);
-      for (const value of values) {
+      return scalarCandidates(baseValue, mapping.direction).map((value) => {
         const delta = { [param]: value } as Partial<PipelineConfig>;
-        candidates.push({
+        return {
           label: `${param}=${value}`,
           config: mergePipelineConfig(baseline, delta),
           delta,
           rationale: `${mapping.rationale} Trying ${param}=${value} (was ${baseValue}).`,
-        });
-      }
+        };
+      });
     } else if (typeof baseValue === 'object' && baseValue !== null) {
-      const vectorCandidates = weightVectorCandidates(baseValue as unknown as Record<string, number>);
-      for (const weights of vectorCandidates.slice(0, 6)) { // limit to 6 candidates per vector
-        const delta = { [param]: weights } as unknown as Partial<PipelineConfig>;
-        candidates.push({
-          label: `${param}=${JSON.stringify(weights)}`,
-          config: mergePipelineConfig(baseline, delta),
-          delta,
-          rationale: `${mapping.rationale} Redistributing ${param} weights.`,
+      return weightVectorCandidates(baseValue as unknown as Record<string, number>)
+        .slice(0, 6) // limit to 6 candidates per vector
+        .map((weights) => {
+          const delta = { [param]: weights } as unknown as Partial<PipelineConfig>;
+          return {
+            label: `${param}=${JSON.stringify(weights)}`,
+            config: mergePipelineConfig(baseline, delta),
+            delta,
+            rationale: `${mapping.rationale} Redistributing ${param} weights.`,
+          };
         });
-      }
     }
-  }
+    return [];
+  });
 
   return candidates;
 }
