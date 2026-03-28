@@ -184,8 +184,10 @@ function slugify(value: string): string {
 function camelize(value: string): string {
   const parts = value
     .split(/[^A-Za-z0-9]+/)
-    .map((part) => part.trim())
-    .filter((part) => part.length > 0);
+    .flatMap((part) => {
+      const trimmed = part.trim();
+      return trimmed.length > 0 ? [trimmed] : [];
+    });
 
   if (parts.length === 0) {
     return 'discoveredItem';
@@ -367,8 +369,7 @@ export function buildDiscoveryArtifacts(input: DiscoveryInput): DiscoveryArtifac
   );
 
   const rootSurfaceId = normalizedSurfaces
-    .filter((surface) => surface.parentSelector === null)
-    .map((surface) => surfaceIdsBySelector.get(surface.selector))
+    .flatMap((surface) => surface.parentSelector === null ? [surfaceIdsBySelector.get(surface.selector)] : [])
     .find((value) => value !== undefined)
     ?? normalizedSurfaces
       .map((surface) => surfaceIdsBySelector.get(surface.selector))
@@ -446,13 +447,12 @@ export function buildDiscoveryArtifacts(input: DiscoveryInput): DiscoveryArtifac
   );
 
   const surfaceNotes: DiscoveryReviewNote[] = surfaceReports
-    .filter((surface) => !surface.name && !surface.testId)
-    .map((surface) => ({
+    .flatMap((surface) => !surface.name && !surface.testId ? [{
       code: 'missing-accessible-name' as const,
       message: `Surface ${surface.id} has no accessible name or test id; review selector quality before promotion.`,
       targetId: surface.id,
       targetKind: 'surface' as const,
-    }));
+    }] : []);
 
   const elementNotes: DiscoveryReviewNote[] = elementReports.flatMap((element) => [
     ...(!element.name && !element.testId
@@ -485,8 +485,7 @@ export function buildDiscoveryArtifacts(input: DiscoveryInput): DiscoveryArtifac
   const notes: ReadonlyArray<DiscoveryReviewNote> = [...surfaceNotes, ...elementNotes, ...clickExplorationNote];
 
   const topLevelSurfaceIds = surfaceReports
-    .filter((surface) => surface.parentSurfaceId === null)
-    .map((surface) => surface.id);
+    .flatMap((surface) => surface.parentSurfaceId === null ? [surface.id] : []);
 
   const surfaceScaffold: DiscoveryArtifacts['surfaceScaffold'] = {
     screen: input.screen,
@@ -671,7 +670,8 @@ export function buildDiscoveryArtifacts(input: DiscoveryInput): DiscoveryArtifac
 export function deriveScreenIdFromUrl(url: string): string {
   try {
     const parsed = new URL(url);
-    const fromPath = slugify(parsed.pathname.split('/').filter((segment) => segment.length > 0).pop() ?? '');
+    const segments = parsed.pathname.split('/').filter((segment) => segment.length > 0);
+    const fromPath = slugify(segments.at(-1) ?? '');
     if (fromPath.length > 0) {
       return fromPath.replace(/-html$/, '');
     }

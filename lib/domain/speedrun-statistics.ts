@@ -78,8 +78,7 @@ export function computePhaseBaseline(
   samples: readonly PhaseTimingSample[],
 ): PhaseTimingBaseline {
   const phaseSamples = samples
-    .filter((s) => s.phase === phase)
-    .map((s) => s.durationMs);
+    .flatMap((s) => s.phase === phase ? [s.durationMs] : []);
 
   return {
     phase,
@@ -97,8 +96,10 @@ export function computeAllBaselines(
 ): readonly PhaseTimingBaseline[] {
   const phases: readonly SpeedrunPhase[] = ['generate', 'compile', 'iterate', 'fitness', 'complete'];
   return phases
-    .map((phase) => computePhaseBaseline(phase, samples))
-    .filter((baseline) => baseline.sampleCount > 0);
+    .flatMap((phase) => {
+      const baseline = computePhaseBaseline(phase, samples);
+      return baseline.sampleCount > 0 ? [baseline] : [];
+    });
 }
 
 // ─── Budget derivation ───
@@ -203,8 +204,10 @@ export function detectAllRegressions(
   thresholds: RegressionThresholds = DEFAULT_REGRESSION_THRESHOLDS,
 ): readonly RegressionSignal[] {
   return baselines
-    .filter((baseline) => currentTimings.has(baseline.phase))
-    .map((baseline) => detectRegression(baseline, currentTimings.get(baseline.phase)!, thresholds));
+    .flatMap((baseline) => {
+      const timing = currentTimings.get(baseline.phase);
+      return timing !== undefined ? [detectRegression(baseline, timing, thresholds)] : [];
+    });
 }
 
 // ─── JSONL sample extraction ───
@@ -220,15 +223,16 @@ export function extractTimingSamples(
   }[],
 ): readonly PhaseTimingSample[] {
   return events
-    .filter((event): event is typeof event & { readonly phaseDurationMs: number } =>
-      event.phaseDurationMs !== null && event.phaseDurationMs !== undefined)
-    .map((event): PhaseTimingSample => ({
-      phase: event.phase,
-      durationMs: event.phaseDurationMs,
-      ...(event.iteration !== undefined ? { iteration: event.iteration } : {}),
+    .flatMap((event): readonly PhaseTimingSample[] => {
+      if (event.phaseDurationMs === null || event.phaseDurationMs === undefined) return [];
+      return [{
+        phase: event.phase,
+        durationMs: event.phaseDurationMs,
+        ...(event.iteration !== undefined ? { iteration: event.iteration } : {}),
       seed: event.seed,
       wallClockMs: event.wallClockMs,
-    }));
+    }];
+    });
 }
 
 // ─── Summary formatting ───

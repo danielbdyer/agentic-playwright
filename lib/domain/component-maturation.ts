@@ -112,8 +112,10 @@ export function matureComponentKnowledge(
 ): readonly ComponentProposal[] {
   const merged = mergeEvidence(evidence);
   return merged
-    .map(matureSingle)
-    .filter((proposal): proposal is ComponentProposal => proposal !== null)
+    .flatMap((evidence) => {
+      const proposal = matureSingle(evidence);
+      return proposal !== null ? [proposal] : [];
+    })
     .sort((a, b) => {
       const confidenceOrder = b.confidence - a.confidence;
       return confidenceOrder !== 0

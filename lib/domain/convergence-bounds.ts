@@ -135,8 +135,10 @@ export function estimateRateOfDecrease(values: readonly number[]): number {
   if (values.length < 2) return 0;
   const decreases = values
     .slice(1)
-    .map((v, i) => values[i]! - v)
-    .filter((d) => d > 0);
+    .flatMap((v, i) => {
+      const d = values[i]! - v;
+      return d > 0 ? [d] : [];
+    });
   return decreases.length === 0
     ? 0
     : decreases.reduce((sum, d) => sum + d, 0) / decreases.length;

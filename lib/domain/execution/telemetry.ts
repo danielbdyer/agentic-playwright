@@ -72,8 +72,7 @@ export function evaluateExecutionBudget(input: {
     { field: 'diagnosticCount', threshold: thresholds.maxDiagnosticCount, actual: input.cost.diagnosticCount },
   ];
   const breaches = budgetChecks
-    .filter((check) => check.threshold !== undefined && check.actual > check.threshold)
-    .map((check) => check.field);
+    .flatMap((check) => check.threshold !== undefined && check.actual > check.threshold ? [check.field] : []);
   return {
     thresholds,
     status: breaches.length > 0 ? 'over-budget' : 'within-budget',

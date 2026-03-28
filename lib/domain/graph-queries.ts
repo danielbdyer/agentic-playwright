@@ -49,8 +49,7 @@ function buildIndex(graph: DerivedGraph): GraphIndex {
   const nodeById = new Map<string, GraphNode>(graph.nodes.map((n) => [n.id, n]));
   const screenNodes = new Map<string, GraphNode>(
     graph.nodes
-      .filter((n) => n.kind === 'screen')
-      .map((n) => [n.id, n]),
+      .flatMap((n) => n.kind === 'screen' ? [[n.id, n] as const] : []),
   );
   const edgesByFrom = graph.edges.reduce<Map<string, GraphEdge[]>>(
     (acc, e) => {
@@ -68,8 +67,7 @@ function buildIndex(graph: DerivedGraph): GraphIndex {
   );
   const containedBy = new Map<string, string>(
     graph.edges
-      .filter((e) => e.kind === 'contains')
-      .map((e) => [e.to, e.from]),
+      .flatMap((e) => e.kind === 'contains' ? [[e.to, e.from] as const] : []),
   );
   return { nodeById, screenNodes, edgesByFrom, edgesByTo, containedBy };
 }
@@ -101,21 +99,17 @@ export function queryAvailableTransitions(
   const outEdges = idx.edgesByFrom.get(sourceId) ?? [];
 
   return outEdges
-    .filter(
-      (edge) =>
-        navigationEdgeKinds.has(edge.kind) &&
-        idx.screenNodes.has(edge.to),
-    )
-    .map((edge) => {
+    .flatMap((edge) => {
+      if (!navigationEdgeKinds.has(edge.kind) || !idx.screenNodes.has(edge.to)) return [];
       const targetNode = idx.nodeById.get(edge.to);
       const toId = edge.to.replace(/^screen:/, '') as ScreenId;
-      return {
+      return [{
         edgeId: edge.id,
         fromScreenId: screenId,
         toScreenId: toId,
         edgeKind: edge.kind,
         label: targetNode?.label ?? edge.to,
-      };
+      }];
     });
 }
 
@@ -143,13 +137,13 @@ export function queryReachableScreens(
     const nextFrontier = frontier.flatMap((nodeId) => {
       const outEdges = idx.edgesByFrom.get(nodeId) ?? [];
       return outEdges
-        .filter(
-          (edge) =>
-            navigationEdgeKinds.has(edge.kind) &&
-            idx.screenNodes.has(edge.to) &&
-            !visited.has(edge.to),
-        )
-        .map((edge) => edge.to);
+        .flatMap((edge) =>
+          navigationEdgeKinds.has(edge.kind) &&
+          idx.screenNodes.has(edge.to) &&
+          !visited.has(edge.to)
+            ? [edge.to]
+            : [],
+        );
     });
 
     const dedupSet = new Set(nextFrontier);
@@ -163,8 +157,7 @@ export function queryReachableScreens(
   const reachable = step([startId], new Set([startId]), 0);
 
   return Array.from(reachable)
-    .filter((id) => id !== startId)
-    .map((id) => id.replace(/^screen:/, '') as ScreenId);
+    .flatMap((id) => id !== startId ? [id.replace(/^screen:/, '') as ScreenId] : []);
 }
 
 // ─── Shortest path (BFS) ───
@@ -195,24 +188,22 @@ export function queryShortestPath(
     const nextEntries: readonly (readonly [string, string])[] = frontier.flatMap((nodeId) => {
       const outEdges = idx.edgesByFrom.get(nodeId) ?? [];
       return outEdges
-        .filter(
-          (edge) =>
-            navigationEdgeKinds.has(edge.kind) &&
-            idx.screenNodes.has(edge.to) &&
-            !parentMap.has(edge.to),
-        )
-        .map((edge) => [edge.to, nodeId] as const);
+        .flatMap((edge) =>
+          navigationEdgeKinds.has(edge.kind) &&
+          idx.screenNodes.has(edge.to) &&
+          !parentMap.has(edge.to)
+            ? [[edge.to, nodeId] as const]
+            : [],
+        );
     });
 
     // Deduplicate by target (first occurrence wins)
-    const seen = new Set<string>();
-    const uniqueEntries: Array<readonly [string, string]> = [];
-    for (const entry of nextEntries) {
-      if (!seen.has(entry[0])) {
-        seen.add(entry[0]);
-        uniqueEntries.push(entry);
-      }
-    }
+    const uniqueEntries = nextEntries.reduce<{ readonly seen: ReadonlySet<string>; readonly entries: readonly (readonly [string, string])[] }>(
+      (acc, entry) => acc.seen.has(entry[0])
+        ? acc
+        : { seen: new Set([...acc.seen, entry[0]]), entries: [...acc.entries, entry] },
+      { seen: new Set<string>(), entries: [] },
+    ).entries;
 
     const nextParentMap = new Map<string, string>(Array.from(parentMap));
     uniqueEntries.forEach(([target, parent]) => nextParentMap.set(target, parent));
@@ -255,28 +246,27 @@ export function queryScreenElements(
   const outEdges = idx.edgesByFrom.get(sid) ?? [];
 
   const elementNodeIds = outEdges
-    .filter((edge) => edge.kind === 'contains')
-    .map((edge) => edge.to);
+    .flatMap((edge) => edge.kind === 'contains' ? [edge.to] : []);
 
   // Also check for elements that reference the screen
   const inEdges = idx.edgesByTo.get(sid) ?? [];
   const referencingElementIds = inEdges
-    .filter((edge) => edge.kind === 'references' || edge.kind === 'uses')
-    .map((edge) => edge.from)
-    .filter((id) => {
-      const node = idx.nodeById.get(id);
-      return node?.kind === 'element';
+    .flatMap((edge) => {
+      if (edge.kind !== 'references' && edge.kind !== 'uses') return [];
+      const node = idx.nodeById.get(edge.from);
+      return node?.kind === 'element' ? [edge.from] : [];
     });
 
   const allElementIds = Array.from(new Set(elementNodeIds.concat(referencingElementIds)));
 
   return allElementIds
-    .map((id) => idx.nodeById.get(id))
-    .filter((node): node is GraphNode => node !== undefined)
-    .map((node) => ({
-      nodeId: node.id,
-      label: node.label,
-      kind: node.kind,
-      payload: node.payload,
-    }));
+    .flatMap((id) => {
+      const node = idx.nodeById.get(id);
+      return node !== undefined ? [{
+        nodeId: node.id,
+        label: node.label,
+        kind: node.kind,
+        payload: node.payload,
+      }] : [];
+    });
 }

@@ -82,8 +82,10 @@ const TYPE_FIELD_PATTERN: PatternMatcher = {
     const fields = fieldsRaw
       .replace(/[.]/g, '')
       .split(/[,]\s*/)
-      .map((f) => f.replace(/`/g, '').replace(/\s+and\s+/, '').trim())
-      .filter((f) => f.length > 0);
+      .flatMap((f) => {
+        const trimmed = f.replace(/`/g, '').replace(/\s+and\s+/, '').trim();
+        return trimmed.length > 0 ? [trimmed] : [];
+      });
     return fields.length > 0
       ? {
           id: ruleId('type-must-have-field', lineIndex),
@@ -183,11 +185,12 @@ export function parseDoctrineRules(markdown: string): readonly DoctrineRule[] {
   const lines = markdown.split('\n');
   const rules = lines.flatMap((line, lineIndex) =>
     ALL_MATCHERS
-      .map((matcher) => {
+      .flatMap((matcher) => {
         const match = line.match(matcher.regex);
-        return match ? matcher.extract(match, lineIndex) : null;
-      })
-      .filter((rule): rule is DoctrineRule => rule !== null),
+        if (!match) return [];
+        const rule = matcher.extract(match, lineIndex);
+        return rule !== null ? [rule] : [];
+      }),
   );
   return deduplicateRules(rules);
 }
