@@ -224,7 +224,8 @@ async function executeRecoveryAttempts(input: {
     if (remainingStrategies.length === 0) {
       return { policyProfile: input.policy.profile, attempts: [...priorAttempts], recovered: false };
     }
-    const [strategy, ...restStrategies] = remainingStrategies;
+    const [head, ...restStrategies] = remainingStrategies;
+    const strategy = head!;
     const maxAttempts = Math.max(1, strategy.maxAttempts ?? 1);
     const tryAttempt = async (
       attempt: number,

@@ -189,7 +189,8 @@ export const playwrightStepProgramInterpreter: StepProgramInterpreter<Playwright
       if (remaining.length === 0) {
         return { ok: true, value: { mode: this.mode, outcomes: [...priorOutcomes] } };
       }
-      const [[index, instruction], ...rest] = remaining;
+      const [head, ...rest] = remaining;
+      const [index, instruction] = head!;
       const result = await runInstruction(environment, instruction);
       if (!result.ok) {
         const failure: ProgramFailure = result.error;
