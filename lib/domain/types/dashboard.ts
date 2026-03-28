@@ -68,6 +68,20 @@ export type DashboardEventKind =
   | 'confidence-crossed'
   | 'artifact-written'
   | 'stage-lifecycle'
+  | 'surface-discovered'
+  | 'route-navigated'
+  | 'aria-tree-captured'
+  | 'suite-slice-selected'
+  | 'scenario-prioritized'
+  | 'step-bound'
+  | 'scenario-compiled'
+  | 'step-executing'
+  | 'step-resolved'
+  | 'scenario-executed'
+  | 'trust-policy-evaluated'
+  | 'knowledge-activated'
+  | 'convergence-evaluated'
+  | 'iteration-summary'
   | 'diagnostics'
   | 'connected'
   | 'error';
@@ -243,6 +257,149 @@ export interface StageLifecycleEvent {
   readonly adoId?: string | undefined;
   readonly cacheStatus?: 'hit' | 'miss' | undefined;
   readonly rewrittenFiles?: readonly string[] | undefined;
+}
+
+// ─── Flywheel Visualization Events (Part II) ───
+
+export interface SurfaceDiscoveredEvent {
+  readonly screen: string;
+  readonly region: string;
+  readonly role: string;
+  readonly boundingBox: BoundingBox;
+  readonly childCount: number;
+}
+
+export interface RouteNavigatedEvent {
+  readonly url: string;
+  readonly screenId: string | null;
+  readonly isSeeded: boolean;
+}
+
+export interface AriaTreeCapturedEvent {
+  readonly screen: string;
+  readonly nodeCount: number;
+  readonly landmarkCount: number;
+  readonly interactableCount: number;
+}
+
+export interface SuiteSliceSelectedEvent {
+  readonly selectedCount: number;
+  readonly totalCount: number;
+  readonly estimatedCoverage: number;
+  readonly topScreens: readonly string[];
+  readonly sharedKnowledgeDensity: number;
+  readonly costBudget: number;
+}
+
+export interface ScenarioPrioritizedEvent {
+  readonly adoId: string;
+  readonly priority: number;
+  readonly rank: number;
+  readonly inSlice: boolean;
+  readonly sharedScreens: number;
+  readonly sharedElements: number;
+  readonly decompositionConfidence: number;
+}
+
+export interface StepBoundEvent {
+  readonly adoId: string;
+  readonly stepIndex: number;
+  readonly stepText: string;
+  readonly bindingKind: 'bound' | 'deferred' | 'unbound';
+  readonly confidence: number;
+  readonly targetRef: string | null;
+  readonly screen: string | null;
+  readonly element: string | null;
+  readonly resolutionRung: number | null;
+}
+
+export interface ScenarioCompiledEvent {
+  readonly adoId: string;
+  readonly totalSteps: number;
+  readonly boundSteps: number;
+  readonly deferredSteps: number;
+  readonly unboundSteps: number;
+  readonly specPath: string;
+  readonly tracePath: string;
+}
+
+export interface StepExecutingEvent {
+  readonly adoId: string;
+  readonly stepIndex: number;
+  readonly screen: string | null;
+  readonly element: string | null;
+  readonly resolutionMode: ResolutionMode;
+}
+
+export interface StepResolvedEvent {
+  readonly adoId: string;
+  readonly stepIndex: number;
+  readonly success: boolean;
+  readonly actualRung: number;
+  readonly durationMs: number;
+  readonly failureClass: string | null;
+  readonly proposalDrafted: boolean;
+  readonly evidenceRecorded: boolean;
+}
+
+export interface ScenarioExecutedEvent {
+  readonly adoId: string;
+  readonly passed: boolean;
+  readonly resolutionDistribution: readonly {
+    readonly rung: number;
+    readonly count: number;
+  }[];
+}
+
+export interface TrustPolicyEvaluatedEvent {
+  readonly proposalId: string;
+  readonly artifactType: string;
+  readonly confidence: number;
+  readonly threshold: number;
+  readonly decision: 'approved' | 'review-required' | 'blocked';
+  readonly reasons: readonly string[];
+  readonly trustPolicyRule: string;
+}
+
+export interface KnowledgeActivatedEvent {
+  readonly proposalId: string;
+  readonly screen: string;
+  readonly element: string | null;
+  readonly artifactPath: string;
+  readonly previousConfidence: number;
+  readonly newConfidence: number;
+  readonly activatedAliases: readonly string[];
+}
+
+export interface ConvergenceEvaluatedEvent {
+  readonly iteration: number;
+  readonly converged: boolean;
+  readonly reason: string;
+  readonly knowledgeHitRate: number;
+  readonly previousHitRate: number;
+  readonly delta: number;
+  readonly proposalsRemaining: number;
+  readonly budgetRemaining: {
+    readonly iterations: number;
+    readonly tokens: number | null;
+  };
+}
+
+export interface IterationSummaryEvent {
+  readonly iteration: number;
+  readonly scenariosExecuted: number;
+  readonly scenariosPassed: number;
+  readonly scenariosFailed: number;
+  readonly stepsResolved: number;
+  readonly stepsDeferred: number;
+  readonly stepsUnresolved: number;
+  readonly proposalsGenerated: number;
+  readonly proposalsActivated: number;
+  readonly proposalsBlocked: number;
+  readonly knowledgeNodesCreated: number;
+  readonly knowledgeNodesUpdated: number;
+  readonly wallClockMs: number;
+  readonly tokenEstimate: number | null;
 }
 
 // ─── WebMCP Tool Definitions ───

@@ -4,7 +4,7 @@
  * Replaces the untyped `Record<string, (data: unknown) => void>` dispatch table
  * with an `EventObserver<TEventMap>` that maps each DashboardEventKind to its
  * payload type. Subscribe/unsubscribe by kind. Compile-time exhaustiveness
- * ensures all 22 event kinds have handlers.
+ * ensures all DashboardEventKind variants have handlers.
  *
  * Design: Strategy pattern — each event kind dispatches to a typed handler.
  * All types are readonly. No mutation.
@@ -24,6 +24,20 @@ import type {
   ConfidenceCrossedEvent,
   ArtifactWrittenEvent,
   StageLifecycleEvent,
+  SurfaceDiscoveredEvent,
+  RouteNavigatedEvent,
+  AriaTreeCapturedEvent,
+  SuiteSliceSelectedEvent,
+  ScenarioPrioritizedEvent,
+  StepBoundEvent,
+  ScenarioCompiledEvent,
+  StepExecutingEvent,
+  StepResolvedEvent,
+  ScenarioExecutedEvent,
+  TrustPolicyEvaluatedEvent,
+  KnowledgeActivatedEvent,
+  ConvergenceEvaluatedEvent,
+  IterationSummaryEvent,
 } from '../../../lib/domain/types/dashboard';
 import type { ProgressEvent, QueuedItem, Workbench, Scorecard } from '../types';
 
@@ -55,6 +69,21 @@ export interface DashboardEventMap {
   readonly 'confidence-crossed': ConfidenceCrossedEvent;
   readonly 'artifact-written': ArtifactWrittenEvent;
   readonly 'stage-lifecycle': StageLifecycleEvent;
+  readonly 'surface-discovered': SurfaceDiscoveredEvent;
+  readonly 'route-navigated': RouteNavigatedEvent;
+  readonly 'aria-tree-captured': AriaTreeCapturedEvent;
+  readonly 'suite-slice-selected': SuiteSliceSelectedEvent;
+  readonly 'scenario-prioritized': ScenarioPrioritizedEvent;
+  readonly 'step-bound': StepBoundEvent;
+  readonly 'scenario-compiled': ScenarioCompiledEvent;
+  readonly 'step-executing': StepExecutingEvent;
+  readonly 'step-resolved': StepResolvedEvent;
+  readonly 'scenario-executed': ScenarioExecutedEvent;
+  readonly 'trust-policy-evaluated': TrustPolicyEvaluatedEvent;
+  readonly 'knowledge-activated': KnowledgeActivatedEvent;
+  readonly 'convergence-evaluated': ConvergenceEvaluatedEvent;
+  readonly 'iteration-summary': IterationSummaryEvent;
+  readonly 'diagnostics': DiagnosticsPayload;
   readonly 'connected': ConnectedPayload;
   readonly 'error': ErrorPayload;
 }
@@ -104,6 +133,11 @@ export interface ItemCompletedPayload {
 
 export interface ConnectedPayload {
   readonly sessionId?: string;
+}
+
+export interface DiagnosticsPayload {
+  readonly message: string;
+  readonly details?: Record<string, unknown>;
 }
 
 export interface ErrorPayload {
@@ -244,7 +278,7 @@ export function createEventObserver(): EventObserver {
   return { subscribe, dispatch, subscriberCount, deadLetters, clear };
 }
 
-// ─── All 22 Event Kinds (exported constant for tests and validation) ───
+// ─── All Dashboard Event Kinds (exported constant for tests and validation) ───
 
 export const ALL_DASHBOARD_EVENT_KINDS: readonly DashboardEventKind[] = [
   'iteration-start',
@@ -268,6 +302,21 @@ export const ALL_DASHBOARD_EVENT_KINDS: readonly DashboardEventKind[] = [
   'confidence-crossed',
   'artifact-written',
   'stage-lifecycle',
+  'surface-discovered',
+  'route-navigated',
+  'aria-tree-captured',
+  'suite-slice-selected',
+  'scenario-prioritized',
+  'step-bound',
+  'scenario-compiled',
+  'step-executing',
+  'step-resolved',
+  'scenario-executed',
+  'trust-policy-evaluated',
+  'knowledge-activated',
+  'convergence-evaluated',
+  'iteration-summary',
+  'diagnostics',
   'connected',
   'error',
 ] as const;

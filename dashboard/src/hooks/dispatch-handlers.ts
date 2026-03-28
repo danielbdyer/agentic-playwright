@@ -18,7 +18,8 @@ import type {
   InboxItemEvent,
 } from '../spatial/types';
 import type { WorkItem, QueuedItem, DisplayStatus, ProgressEvent, Workbench, Scorecard } from '../types';
-import type { DashboardEventMap, EventHandler, ScreenGroupStartPayload, IterationStartPayload, IterationCompletePayload, ConnectedPayload, ErrorPayload } from '../types/events';
+import type { DashboardEventKind } from '../../../lib/domain/types/dashboard';
+import type { DashboardEventMap, EventHandler, ScreenGroupStartPayload, ConnectedPayload, ErrorPayload } from '../types/events';
 import type { QueryClient } from '@tanstack/react-query';
 
 /** O(1). Routes progress events to state setter. */
@@ -95,6 +96,14 @@ export const dispatchFiberPaused = (setPauseContext: (ctx: import('../types').Pa
 /** O(1). Clears fiber-paused state. */
 export const dispatchFiberResumed = (setPauseContext: (ctx: import('../types').PauseContext | null) => void) =>
   (_data: unknown) => setPauseContext(null);
+
+
+/** O(1). Explicit no-op routing for currently unrendered event kinds. */
+export const dispatchDeadLetter = <K extends DashboardEventKind>(
+  kind: K,
+  onDeadLetter?: (event: { readonly kind: K; readonly data: DashboardEventMap[K] }) => void,
+): EventHandler<K> =>
+  (data) => onDeadLetter?.({ kind, data });
 
 // ─── Typed dispatch handlers for previously unconsumed events ───
 

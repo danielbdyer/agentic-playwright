@@ -31,7 +31,7 @@ import { useSabBridge } from './hooks/use-sab-bridge';
 import {
   dispatchProgress, dispatchProbe, dispatchCapture,
   dispatchItemPending, dispatchItemProcessing, dispatchItemCompleted,
-  dispatchEscalation, dispatchFiberPaused, dispatchFiberResumed,
+  dispatchEscalation, dispatchFiberPaused, dispatchFiberResumed, dispatchDeadLetter,
 } from './hooks/dispatch-handlers';
 import { ConvergencePanel } from './organisms/convergence-panel';
 import { PipelineProgress } from './organisms/pipeline-progress';
@@ -102,6 +102,10 @@ function useEffectStream(url: string) {
   iterationCompleteRef.current = iterationPulse.onComplete;
   const stageDispatchRef = useRef(stageTracker.dispatch);
   stageDispatchRef.current = stageTracker.dispatch;
+  const deadLetterRef = useRef((eventType: string) => {
+    console.debug('[dashboard] flywheel event dead-lettered', eventType);
+  });
+
 
   // ─── Dispatch table (built once, all handlers use refs) ───
   const dispatchRef = useRef<Record<string, (data: unknown) => void> | null>(null);
@@ -124,6 +128,21 @@ function useEffectStream(url: string) {
       'proposal-activated': (data) => { const e = data as ProposalActivatedEvent; proposalEnqueueRef.current?.(e.proposalId, e); },
       'artifact-written': (data) => { const e = data as ArtifactWrittenEvent; artifactEnqueueRef.current?.(e.path, e); },
       'stage-lifecycle': (data) => stageDispatchRef.current(data as StageLifecycleEvent),
+      'surface-discovered': dispatchDeadLetter('surface-discovered', ({ kind }) => deadLetterRef.current(kind)),
+      'route-navigated': dispatchDeadLetter('route-navigated', ({ kind }) => deadLetterRef.current(kind)),
+      'aria-tree-captured': dispatchDeadLetter('aria-tree-captured', ({ kind }) => deadLetterRef.current(kind)),
+      'suite-slice-selected': dispatchDeadLetter('suite-slice-selected', ({ kind }) => deadLetterRef.current(kind)),
+      'scenario-prioritized': dispatchDeadLetter('scenario-prioritized', ({ kind }) => deadLetterRef.current(kind)),
+      'step-bound': dispatchDeadLetter('step-bound', ({ kind }) => deadLetterRef.current(kind)),
+      'scenario-compiled': dispatchDeadLetter('scenario-compiled', ({ kind }) => deadLetterRef.current(kind)),
+      'step-executing': dispatchDeadLetter('step-executing', ({ kind }) => deadLetterRef.current(kind)),
+      'step-resolved': dispatchDeadLetter('step-resolved', ({ kind }) => deadLetterRef.current(kind)),
+      'scenario-executed': dispatchDeadLetter('scenario-executed', ({ kind }) => deadLetterRef.current(kind)),
+      'trust-policy-evaluated': dispatchDeadLetter('trust-policy-evaluated', ({ kind }) => deadLetterRef.current(kind)),
+      'knowledge-activated': dispatchDeadLetter('knowledge-activated', ({ kind }) => deadLetterRef.current(kind)),
+      'convergence-evaluated': dispatchDeadLetter('convergence-evaluated', ({ kind }) => deadLetterRef.current(kind)),
+      'iteration-summary': dispatchDeadLetter('iteration-summary', ({ kind }) => deadLetterRef.current(kind)),
+      'diagnostics': dispatchDeadLetter('diagnostics', ({ kind }) => deadLetterRef.current(kind)),
     };
   }
 
