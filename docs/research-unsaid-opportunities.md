@@ -69,9 +69,9 @@ This is a training loop. The document `recursive-self-improvement.md` already sa
 The 15 tunable parameters are currently all resolution-pipeline knobs: translation thresholds, scoring weights, confidence floors, staleness TTLs. But the `PipelineConfig` type and the `FailureParameterMapping` structure are generic enough to accommodate:
 
 - **Emission strategy parameters** — how aggressively to inline assertions vs. extract helpers, how to batch navigation steps, when to emit explicit waits vs. auto-waiting
-- **Knowledge promotion thresholds** — trust policy confidence floors are already parameter #13, but the promotion velocity, decay rates, and contradiction sensitivity could all be tunable
+- **Knowledge promotion thresholds** ✅ — decay rates and freshness now tunable via `knowledge-freshness.ts` (exponential decay with configurable `decayRate`, `maxRunsWithoutExercise`, `minimumConfidence`); contradiction sensitivity remains open
 - **Agent orchestration parameters** — working memory depth, screen confidence floor, max active refs — these are already parameters #4-6 but they're not yet wired into the evolve loop
-- **Discovery strategy parameters** — crawl depth, surface extraction aggressiveness, snapshot granularity
+- **Discovery strategy parameters** ✅ — `entropy-injection.ts` (deterministic variant generation with tunable `VarianceProfile`) and `parallel-harvest.ts` (bounded-concurrency harvesting with configurable concurrency)
 
 The failure classification taxonomy (`PipelineFailureClass`) would need new categories. But `knob-search.ts` already has the `FailureParameterMapping` pattern — adding new mappings is a data change, not an architecture change.
 
@@ -111,7 +111,7 @@ This is not just test infrastructure. This is a machine-readable model of the ap
 **Novel use cases for the interface graph**:
 
 - **Onboarding accelerator**: new developers get a queryable map of the app's states, transitions, and entry points instead of reading code
-- **Change impact analysis**: before deploying a PR, query which `StateTransition` edges and `EventSignature` contracts are affected by the changed selectors
+- **Change impact analysis** ✅: `lib/application/impact.ts` + `lib/domain/graph-query.ts` — query impacted subgraph by node ID, exposed as `npm run impact`
 - **Design system drift detector**: compare the `SelectorCanon` against the intended design system tokens and flag components that diverge
 - **Product analytics grounding**: map analytics event names to `CanonicalTargetRef` identities so product and QA share a vocabulary
 - **Contractual API between frontend teams**: the `EventSignature` contracts define what actions are legal in which states — this is an executable interface contract
@@ -223,8 +223,8 @@ The `usePipelineBuffer` hook already has the SharedArrayBuffer zero-copy path. T
 The particle transport system (`particle-transport.tsx`) already animates arcs from DOM space to knowledge space. Extend this:
 
 - **Resolution particles**: when a step resolves, a particle traces the winning path through the rung ladder — bright and direct for `compiler-derived`, wandering and exploratory for `live-dom`, red and pulsing for `needs-human`
-- **Convergence waves**: each dogfood iteration sends a radial pulse outward from the center; the pulses get tighter as convergence approaches
-- **Knowledge crystallization**: when a proposal activates, the receiving knowledge node grows a new facet — literally crystallizing
+- **Convergence waves** ✅: `iteration-pulse.tsx` modulates ambient scene lighting per iteration cycle; `convergence-ribbon.tsx` shows rung distribution tightening over time
+- **Knowledge crystallization** ✅: `decision-burst.tsx` fires green particle arcs through glass pane on approval; `knowledge-observatory.tsx` grows node sphere radius and brightness with confidence
 - **Failure constellations**: cluster `needs-human` steps spatially by their failure fingerprint; similar failures drift together
 
 This isn't decoration. Spatial pattern recognition is one of the fastest human cognitive channels. An operator who sees a cluster of red particles in one region of the screen knows *instantly* where the bottleneck is — faster than reading any log.
@@ -385,7 +385,7 @@ The `Interpretation Surface` — defined in `master-architecture.md` as the sing
 
 The spec is a human-readable projection. The review markdown is a QA-facing projection. The dashboard is a spatial projection. The inbox is an operator-facing projection. The MCP tools are an agent-facing projection.
 
-**The unsaid opportunity**: every new consumer of the interpretation surface creates a new product surface without requiring new computation. A Slack integration that posts bottleneck summaries, a Jira integration that creates tickets for `needs-human` steps, a Grafana datasource that exposes fitness metrics, a VS Code extension that highlights selector health inline — these are all projections, and the projection framework (`projections/runner.ts` + `projections/cache.ts`) already handles incremental recomputation and fingerprint-based invalidation.
+**The unsaid opportunity**: every new consumer of the interpretation surface creates a new product surface without requiring new computation. A Slack integration that posts bottleneck summaries, a Jira integration that creates tickets for `needs-human` steps, a Grafana datasource that exposes fitness metrics, a VS Code extension that highlights selector health inline ✅ (`vscode/task-provider.ts`, `problem-matcher.ts`, `copilot-participant.ts`) — these are all projections, and the projection framework (`projections/runner.ts` + `projections/cache.ts`) already handles incremental recomputation and fingerprint-based invalidation.
 
 The system's value grows linearly with each new projection, but the cost of each projection is constant — they all read from the same interpretation surface.
 
@@ -399,7 +399,7 @@ If I had to pick five items from this document that I find most compelling, in o
 
 2. **The "what would break" simulator** (7.3) — query the interface graph with hypothetical DOM changes and see which scenarios degrade. The impact analysis and rerun planner are already 80% of this.
 
-3. **Speedrun spectator mode** (7.1) — wire the progress events to the dashboard's spatial canvas and let operators watch the system improve itself. The data path exists; the visualization primitives exist; the connection doesn't.
+3. **Speedrun spectator mode** (7.1) ✅ — `pipeline-event-bus.ts` (Effect PubSub + SAB ring buffer) wires progress events to the dashboard; `convergence-ribbon.tsx`, `fitness-card.tsx`, and `iteration-pulse.tsx` render live.
 
 4. **The app as a formal language** (8.1) — treat the state transition graph as a finite automaton and derive coverage properties, minimal test suites, and completeness checks. The graph is there; the formal interpretation is free.
 
