@@ -1,365 +1,200 @@
-# Next Prioritization: From 140 Remaining Items to Executable Sequence
+# Next Prioritization: From 140 Remaining Items to What Actually Matters
 
-*Synthesized from all 10 research documents after completing 93/93 original items plus ~66 cross-doc checkoffs. This prioritization covers the ~140 remaining actionable items across expanded arcs (RX), theoretical deep-dives (T3), next-directions (R1-R5), unsaid opportunities, and dashboard vision. March 28, 2026.*
+*Critical synthesis of all 10 research documents after completing 93/93 original items. Filtered through a hard question: does this change real behavior, or is it architecture tourism? March 28, 2026.*
 
 ---
 
 ## Executive Summary
 
-With the original 93-item roadmap complete, the system has crossed a threshold: **governance is enforced, algebraic foundations are verified, knowledge lifecycle is active, and the MCP surface is operational**. The remaining ~140 items fall into a different character than the first 93 — they are less about "closing gaps" and more about **compounding the system's unique advantages**.
+The 93-item sprint produced strong foundations — governance enforcement, algebraic building blocks, knowledge lifecycle types, MCP surface — but an honest audit reveals a gap: **12 of 13 new modules have zero production imports**. They're tested, algebraically sound, and completely disconnected from the running pipeline.
 
-The recommended sequence prioritizes four principles:
-1. **Compound what's unique**: Items that leverage Tesseract's distinctive architecture (governed knowledge lifecycle, algebraic receipts, typed state machines) over generic improvements
-2. **Close feedback loops before adding features**: The highest-leverage remaining work is wiring subsystems so knowledge flows autonomously
-3. **Cheap unlocks before expensive moonshots**: Several S/M items gate entire capability families
-4. **Observable before autonomous**: Make the system's behavior transparent before making it self-directed
+The remaining ~140 items from the research corpus split into three buckets:
+1. **~12 integration tasks** that wire existing orphan modules into production (the actual highest-leverage work)
+2. **~10 features** that directly reduce `needs-human` rate or unlock new product surfaces
+3. **~118 items** that range from nice-to-have to intellectual tourism
 
-**Timeline estimate**: 6 waves across ~14-18 weeks. Waves 1-3 are high-confidence delivery; Waves 4-6 are increasingly speculative.
+This document sequences the first two buckets honestly and names the third explicitly so it doesn't keep generating roadmap gravity.
 
----
-
-## How to Read This Document
-
-Each item carries:
-- **ID**: `N1.3` = Next Wave 1, item 3
-- **Source**: Which research doc(s) surfaced it (RX = expanded arcs, T3 = v3 theory, R1-R5 = next-directions rounds, U = unsaid, DV = dashboard vision)
-- **Effort**: S (hours), M (1-2 days), L (3-5 days), XL (1-2 weeks)
-- **Readiness**: 🟢 (wire existing pieces), 🟡 (partial, needs design), 🔴 (new architecture)
-- **Unlocks**: What becomes possible after this ships
-
-Items within a wave can be parallelized unless marked sequential (→).
+**Timeline estimate**: 3 phases across ~6-8 weeks for the real work. Everything else is backlog, not "Wave 4-6."
 
 ---
 
-## Wave 1: Loop Closure & Explainability (Week 1-2)
+## Phase 0: The Integration Debt (Week 1)
 
-**Goal**: Close the three most valuable remaining feedback loops and make every major decision explainable. These are the highest-leverage items in the entire remaining backlog — each one wires existing subsystems together to create autonomous knowledge flow.
+**The uncomfortable truth**: The following modules were built, law-tested, and marked ✅ across research docs — but have zero callers in the production pipeline. Until they're wired in, they're dead code with good test coverage.
 
-**Wall-clock time**: ~8 days. All tracks parallel.
+| Module | Lines | Production imports | What wiring means |
+|--------|-------|-------------------|-------------------|
+| `lib/domain/algebra/lattice.ts` | 56 | 0 | `mergeGovernance()` called at every governance merge point in bind/emit/task |
+| `lib/domain/algebra/lineage.ts` | 65 | 0 | `mergeLineage()` called in envelope handoffs instead of manual spread |
+| `lib/domain/algebra/kleisli.ts` | 55 | 0 | Composition used in pipeline phase chaining — **or deleted if not needed** |
+| `lib/domain/convergence-fsm.ts` | 128 | 0 | FSM replaces ad-hoc convergence detection in dogfood loop |
+| `lib/domain/knowledge-freshness.ts` | 66 | 0 | `computeDecayedConfidence()` called during resolution to downweight stale knowledge |
+| `lib/domain/component-maturation.ts` | 123 | 0 | `matureComponentKnowledge()` called after successful widget interactions |
+| `lib/domain/proposal-quality.ts` | 166 | 0 | `classifyAlias()` called during proposal evaluation |
+| `lib/domain/graph-queries.ts` | 282 | 0 | Graph queries available in `InterfaceResolutionContext` at runtime |
+| `lib/application/agent-ab-testing.ts` | 179 | 0 | `assignVariant()` called in agent interpreter provider |
+| `lib/application/pipeline-dag.ts` | 224 | 0 | DAG replaces sequential command dispatch in dogfood loop |
+| `lib/runtime/agent/rung8-llm-dom.ts` | 198 | 0 | Rung 8 registered in resolution stages between Rung 7 and Rung 9 |
+| `lib/runtime/agent/strategy-registry.ts` | 96 | 0 | Registry replaces hardcoded rung dispatch in resolution |
 
-### Track A: Explain Everything (the trust multiplier)
+**One module is already wired**: `lib/domain/algebra/scoring.ts` (41 lines) → imported by `learning-shared.ts` → used by `agent-workbench.ts`. This is the model for what the other 12 need.
 
-| ID | Item | Effort | Readiness | Source | Unlocks |
-|----|------|--------|-----------|--------|---------|
-| N1.1 | **Explain-Your-Choice Receipts** — every fallback, escalation, and rung selection emits a concise machine-readable reason chain attached to the resolution receipt | S | 🟢 | RX2.5, R1 | N2.3 (One-Click "Why"), N3.1 (narrative reports). Transforms debugging from "read the trace" to "read the reason" |
-| N1.2 | **Knowledge Half-Life Calculator** — compute empirical half-life per knowledge artifact from run history; surface in scorecard | S | 🟢 | T3.1.6 | N2.1 (contradiction detector), N3.5 (knowledge archaeology). Cheap metric that makes freshness policy evidence-based |
-| N1.3 | **Console Sentinel** — monitor browser console during execution, classify messages (error/warning/info), attach to step receipts | S | 🟢 | T3.5.2 | N2.6 (multi-sensory observation). Low-effort signal source that catches app-level errors invisible to DOM inspection |
+### Phase 0 Completion Criteria
 
-### Track B: Close the Knowledge Loop
-
-| ID | Item | Effort | Readiness | Source | Unlocks |
-|----|------|--------|-----------|--------|---------|
-| N1.4 | **Route Knowledge Persistence** — when harvest discovers route variants (query params → distinct UX), propose `knowledge/routes/` entries automatically | M | 🟡 | R1, BACKLOG-B1 | N2.2 (cross-screen transitions). Closes the last gap in discovery→canon flow |
-| N1.5 | **Knowledge Coverage as Scorecard Metric** — elevate thin-screen and thin-action-family counts from `CorpusHealthReport` into dogfood convergence criteria | S | 🟢 | R1 | Loop actively seeks coverage instead of passively measuring it. Changes convergence behavior |
-| N1.6 | **Cross-Iteration Learning Memory** — record why proposals were generated/accepted/rejected across iterations to prevent repetition and guide strategy | M | 🟡 | R1 | N3.4 (autonomous experiment mode prereq). Prevents the loop from re-discovering what it already knows |
-
-### Track C: Artifact Safety
-
-| ID | Item | Effort | Readiness | Source | Unlocks |
-|----|------|--------|-----------|--------|---------|
-| N1.7 | **Artifact Firewall** — enforce canonical/derived write boundaries with policy-aware FS adapter that prevents accidental corruption of canonical files by derived output | M | 🟡 | RX1.3 | N2.5 (replay capsule). Trust-preserving evolution — the system can't accidentally corrupt its own source of truth |
-| N1.8 | **Governance Escape Analysis** — static analysis verifying no code path bypasses governance checks; produce coverage map of all governance decision points | M | 🟡 | T3.2.4 | Confidence that governance is real, not aspirational. Pairs with existing `foldGovernance` adoption |
-
-### Track D: Intent Clarification
-
-| ID | Item | Effort | Readiness | Source | Unlocks |
-|----|------|--------|-----------|--------|---------|
-| N1.9 | **Intent Clarification Protocol** — when resolution is stuck, emit structured clarification request with context before escalating to `needs-human` | S | 🟡 | T3.4.6 | Reduces `needs-human` rate by giving operators actionable questions instead of opaque failures |
-| N1.10 | **Performance Budget per Screen** — collect Core Web Vitals per-screen baseline during runs, alert on deviations in receipts | S | 🟢 | T3.5.5 | Free performance regression detection as a side-effect of existing test runs |
-
-### Wave 1 Completion Criteria
-
-- [ ] Every resolution receipt carries a reason chain (not just a rung number)
-- [ ] Knowledge artifacts have empirical half-life metrics
-- [ ] Route discoveries flow through proposal pipeline to canon
-- [ ] Scorecard convergence considers knowledge coverage gaps
-- [ ] Canonical files are write-protected from derived output paths
-- [ ] `needs-human` escalations include structured clarification context
+- [ ] Every module above has ≥1 production call site (or is deleted with justification)
+- [ ] Dogfood loop uses `ConvergenceFSM` for convergence detection
+- [ ] Resolution stages use `StrategyRegistry` for rung dispatch
+- [ ] Knowledge freshness decay affects resolution scoring
+- [ ] Pipeline DAG orders phase execution
+- [ ] `kleisli.ts` is either used in phase composition or removed
 
 ---
 
-## Wave 2: Cognitive Runtime & Contradiction Detection (Weeks 3-5)
+## Phase 1: Reduce `needs-human` Rate (Weeks 2-4)
 
-**Goal**: Make the runtime cognitively adaptive — able to detect contradictions in its own knowledge, produce multiple execution plans, and explain its choices through a causal chain. This wave builds on Wave 1's explainability foundation.
+**The metric that matters.** Every item here directly reduces the rate at which the system gives up and asks for help, or directly improves operator response time when it does.
 
-**Wall-clock time**: ~12 days. 4 parallel tracks; critical path is N2.1 → N2.2 → N2.3.
+### Track A: Better Failure Modes
 
-### Track A: Knowledge Integrity (sequential: N2.1 → N2.2)
+| ID | Item | Effort | Readiness | Source | Why it's real |
+|----|------|--------|-----------|--------|---------------|
+| N1.1 | **Explain-Your-Choice Receipts** — every rung selection and fallback emits a machine-readable reason chain | S | 🟢 | RX2.5 | Debugging goes from "read the trace" to "read the reason." Requires strategy-registry wiring from Phase 0 |
+| N1.2 | **Intent Clarification Protocol** — when stuck, emit structured clarification request with context before escalating to `needs-human` | S | 🟡 | T3.4.6 | Directly reduces `needs-human` by giving operators actionable questions instead of opaque failures |
+| N1.3 | **Console Sentinel** — capture browser console errors/warnings per step, attach to receipts | S | 🟢 | T3.5.2 | Catches app-level errors invisible to DOM. Zero dependencies, immediate signal |
 
-| ID | Item | Effort | Readiness | Source | Unlocks |
-|----|------|--------|-----------|--------|---------|
-| N2.1 | **Knowledge Contradiction Detector** — detect conflicting hints/routes/patterns; emit conflict receipts with evidence from both sides; block promotion of contradictory knowledge | M | 🟡 | RX3.3, R1 | N2.2. Prevents silent knowledge erosion — the #1 risk to long-term system reliability |
-| N2.2 | **Cross-Screen Transition Modeling** — extend state transition graph from screen-scoped to cross-screen flows; model "submit search form → results screen" as first-class edges | L | 🟡 | R1 | N4.1 (UI digital twin prereq), N3.6 (app-as-formal-language). Turns the interface graph into an application topology |
+### Track B: Better Resolution
 
-### Track B: Multi-Plan Execution
+| ID | Item | Effort | Readiness | Source | Why it's real |
+|----|------|--------|-----------|--------|---------------|
+| N1.4 | **Execution Tempo Awareness** — detect per-screen response tempo, adapt timeouts automatically | M | 🟡 | T3.4.5 | Directly reduces flaky failures from timing mismatches. Static timeouts are the #1 source of false `needs-human` |
+| N1.5 | **Input Affordance Detector** — query element affordances (focusable, role, constraints) before interaction | M | 🟡 | T3.5.6 | Replaces tag-name guessing with semantic affordance matching. More robust widget interaction |
+| N1.6 | **Resolution Rung Stress Test** — force execution from each rung individually; measure marginal value | S | 🟢 | T3.2.5 | Data-driven rung tuning. Reveals which rungs earn their compute cost. Informs whether Rung 8 should even exist |
 
-| ID | Item | Effort | Readiness | Source | Unlocks |
-|----|------|--------|-----------|--------|---------|
-| N2.3 | **Multi-Plan Resolver** — produce `Fast`, `Safe`, and `Insightful` execution plans per scenario with explicit tradeoff annotations (cost, confidence, latency) | L | 🟡 | RX2.1 | N3.2 (what-if panel), N4.3 (counterfactual runner). The single most transformative runtime change — turns execution from "one path" to "choose your adventure" |
-| N2.4 | **Execution Tempo Awareness** — detect app response tempo per-screen, adapt timeouts automatically instead of using static waits | M | 🟡 | T3.4.5 | Reduces flaky failures from timing mismatches. Pairs naturally with multi-plan resolver (fast plan uses aggressive timeouts) |
+### Track C: Better Knowledge Flow
 
-### Track C: Observation Expansion
+| ID | Item | Effort | Readiness | Source | Why it's real |
+|----|------|--------|-----------|--------|---------------|
+| N1.7 | **Route Knowledge Persistence** — when harvest discovers route variants, propose `knowledge/routes/` entries automatically | M | 🟡 | R1 | Closes the last gap in discovery→canon flow. Routes are discovered and then forgotten |
+| N1.8 | **Knowledge Coverage as Scorecard Metric** — thin-screen and thin-action-family counts become convergence criteria | S | 🟢 | R1 | Loop actively seeks coverage instead of passively measuring. Changes convergence behavior with one metric |
+| N1.9 | **Graduated Autonomy Profiles** — "auto-approve for screens with >5 successful runs, require review for novel" | M | 🟡 | R1 | Reduces operator burden as confidence grows. The binary trust policy is the main adoption friction |
 
-| ID | Item | Effort | Readiness | Source | Unlocks |
-|----|------|--------|-----------|--------|---------|
-| N2.5 | **Universal Replay Capsule** — package run inputs, envelopes, key events, and knowledge snapshot into a portable replay bundle that reproduces results on another machine | M | 🟡 | RX1.4 | N4.3 (counterfactual runner needs replay). Debugging and audits become portable |
-| N2.6 | **Network Conversation Tracker** — intercept API calls triggered by user actions via CDP, produce per-step `NetworkConversation` attached to receipts | M | 🟡 | T3.5.1 | N3.6 (app-as-formal-language — API calls reveal state transitions invisible in DOM). Rich signal for agent reasoning |
-| N2.7 | **Accessibility Tree Differ** — snapshot a11y tree before/after each step, compute semantic diff, attach to receipts | M | 🟡 | T3.5.3 | N3.3 (semantic snapshot diffing). Catches accessibility regressions that DOM inspection misses |
+### Track D: Knowledge Integrity
 
-### Track D: Resolution Enhancement
+| ID | Item | Effort | Readiness | Source | Why it's real |
+|----|------|--------|-----------|--------|---------------|
+| N1.10 | **Knowledge Contradiction Detector** — detect conflicting hints/routes/patterns; emit conflict receipts; block contradictory promotion | M | 🟡 | RX3.3 | The #1 long-term reliability risk. Contradictions silently erode resolution quality. Requires freshness wiring from Phase 0 |
 
-| ID | Item | Effort | Readiness | Source | Unlocks |
-|----|------|--------|-----------|--------|---------|
-| N2.8 | **Resolution Rung Stress Test** — force execution from each rung individually across a scenario corpus; measure marginal value per rung | S | 🟢 | T3.2.5 | Data-driven rung tuning. Reveals which rungs actually earn their compute cost |
-| N2.9 | **Input Affordance Detector** — query element affordances (focusable, role, constraints) before interaction; replace tag-name guessing with semantic affordance matching | M | 🟡 | T3.5.6 | More robust widget interaction. Feeds into component knowledge maturation |
+### Phase 1 Completion Criteria
 
-### Wave 2 Completion Criteria
-
-- [ ] Contradictory knowledge is detected before promotion with conflict receipts
-- [ ] State transition graph models cross-screen flows
-- [ ] Runtime can produce 3 execution plans per scenario with cost/confidence tradeoffs
-- [ ] Replay capsule reproduces results on a clean machine
-- [ ] Network API calls are captured per-step in receipts
-- [ ] Each resolution rung has measured marginal value data
+- [ ] `needs-human` rate decreases measurably on dogfood suite
+- [ ] Every resolution receipt carries a reason chain
+- [ ] Route discoveries flow through proposal pipeline
+- [ ] Contradictory knowledge is detected before promotion
+- [ ] Scorecard convergence considers coverage gaps
+- [ ] Rung marginal value data exists for tuning decisions
 
 ---
 
-## Wave 3: Operator Experience & Cost Intelligence (Weeks 6-8)
+## Phase 2: Product Surface Expansion (Weeks 5-8)
 
-**Goal**: Make the system joyful to operate and economically transparent. This wave delivers the "operator delight" vision — operators can explain any event in 60 seconds, preview impact before execution, and understand cost tradeoffs.
+**Three real bets on what Tesseract becomes next.** Each one changes the product's identity, not just its implementation. Only pursue these after Phase 0-1 are solid.
 
-**Wall-clock time**: ~10 days. 3 parallel tracks.
+### Bet A: Operator Intelligence
 
-### Track A: Operator Intelligence
+| ID | Item | Effort | Readiness | Source | Why it's a real bet |
+|----|------|--------|-----------|--------|---------------------|
+| N2.1 | **One-Click "Why"** — click any failure/event/proposal in dashboard to view condensed causal chain | M | 🟡 | RX4.2 | Requires N1.1 reason chains. The single most requested operator feature. Root-cause in <60 seconds |
+| N2.2 | **"What Would Break" Simulator** — query interface graph with hypothetical DOM changes; show which scenarios degrade | M | 🟡 | U | 80% of the data exists in `impact.ts` and `rerun-plan.ts`. Pre-deployment risk assessment is a real use case |
+| N2.3 | **Cold-Start Accelerator** — bootstrap mode with curated seed packs and sparse-discovery strategy | M | 🟡 | RX5.4 | The adoption gate. New suites take too long to reach useful baseline. This is a product problem, not a research problem |
 
-| ID | Item | Effort | Readiness | Source | Unlocks |
-|----|------|--------|-----------|--------|---------|
-| N3.1 | **Narrative Run Reports** — auto-generate "what changed / why it matters" summaries for stakeholders from run receipts and reason chains (requires N1.1) | S | 🟢 | RX4.5 | Executive visibility without technical literacy. Changes adoption dynamics |
-| N3.2 | **What-If Panel** — interactive controls for posture, budget, and strategy that preview expected impact using multi-plan resolver output (requires N2.3) | M | 🟡 | RX4.3, U | Operators plan before execution. Dramatic reduction in wasted runs |
-| N3.3 | **One-Click "Why"** — click any failure/event/proposal in dashboard to view condensed causal chain (requires N1.1 reason chains) | M | 🟡 | RX4.2 | Root-cause lookup in <60 seconds. The single most requested operator feature |
+### Bet B: Multi-Target Emission
 
-### Track B: Cost & Scale
+| ID | Item | Effort | Readiness | Source | Why it's a real bet |
+|----|------|--------|-----------|--------|---------------------|
+| N2.4 | **Decouple emission backend from Playwright** — the IR (`GroundedSpecFlow`) and `CanonicalTargetRef` are target-agnostic; only `spec-codegen.ts` is Playwright-specific | L | 🟡 | U | Transforms identity from "Playwright tool" to "verification compiler." The unsaid-opportunities doc is right: the last 200 lines of `spec-codegen.ts` are the only coupling. This is the highest-leverage product pivot available |
 
-| ID | Item | Effort | Readiness | Source | Unlocks |
-|----|------|--------|-----------|--------|---------|
-| N3.4 | **Cost OS** — unified accounting for tokens, latency, retries, and compute across all pipeline phases; surface in scorecard and receipts | M | 🟡 | RX5.1 | N3.2 (what-if panel shows cost impact), N4.6 (energy-aware scheduling). Budget-aware planning |
-| N3.5 | **Cold-Start Accelerator** — bootstrap mode using curated seed packs and sparse-discovery strategy for new suites | M | 🟡 | RX5.4 | Faster time-to-first-value for new applications. Key adoption driver |
-| N3.6 | **Tiered Storage Strategy** — hot/warm/cold artifact retention with replay guarantees; auto-archive old runs while preserving replay capability | M | 🟡 | RX5.5 | Scalable storage economics. Required before production deployment at scale |
+### Bet C: Cost Transparency
 
-### Track C: Knowledge Architecture
+| ID | Item | Effort | Readiness | Source | Why it's a real bet |
+|----|------|--------|-----------|--------|---------------------|
+| N2.5 | **Cost OS** — unified accounting for tokens, latency, retries per pipeline phase; surface in scorecard | M | 🟡 | RX5.1 | If Rung 8/9 use LLM calls, cost visibility is table stakes. Without this, you can't make informed decisions about agent vs. deterministic resolution |
 
-| ID | Item | Effort | Readiness | Source | Unlocks |
-|----|------|--------|-----------|--------|---------|
-| N3.7 | **Auto-Refactor Suggestions for Knowledge** — detect overgrown pattern files and suggest merges/splits based on usage patterns and co-occurrence | L | 🟡 | RX3.4 | Maintainable knowledge architecture at scale. Prevents knowledge entropy |
-| N3.8 | **Knowledge Archaeology Mode** — query "why does this screen have this alias?" and traverse the full evidence chain: discovery → proposal → activation → validation | M | 🟡 | U | Trust through transparency. Makes the knowledge lifecycle tangible to operators |
-| N3.9 | **Graduated Autonomy Profiles** — replace binary trust policy with graduated model: "auto-approve for screens with >5 successful runs, require review for novel screens" | M | 🟡 | R1 | System earns trust incrementally. Reduces operator burden as confidence grows |
+### Phase 2 Completion Criteria
 
-### Track D: Algebraic Completion
-
-| ID | Item | Effort | Readiness | Source | Unlocks |
-|----|------|--------|-----------|--------|---------|
-| N3.10 | **Envelope as Functor** — formalize `mapPayload` as genuine functor with identity and composition laws; replace ~15 manual spread operations | S | 🟢 | T3.6.1, U | N4.4 (monadic envelope). Small refactor with large composability payoff |
-| N3.11 | **Resolution Ladder as Catamorphism** — rewrite resolution cascade as genuine catamorphism using standard fold operations | S | 🟢 | T3.6.2 | Cleaner resolution code. Pairs with existing scoring algebra |
-
-### Wave 3 Completion Criteria
-
-- [ ] Stakeholders receive narrative run summaries without reading traces
-- [ ] Operators can explain any major event within 60 seconds via One-Click "Why"
-- [ ] Cost per scenario is visible in scorecard
+- [ ] Operators can explain any major failure in <60 seconds
+- [ ] "What would break if we change X?" is answerable before deployment
 - [ ] New suite reaches useful baseline in materially fewer iterations
-- [ ] Knowledge evolution is queryable via archaeology mode
-- [ ] Trust policy supports graduated autonomy per screen
+- [ ] At least one non-Playwright emission target produces valid output
+- [ ] Token/compute cost per scenario is visible in scorecard
 
 ---
 
-## Wave 4: Temporal Intelligence & Semantic Execution (Weeks 9-12)
+## The Backlog (not sequenced, not promised)
 
-**Goal**: Add the time dimension to the system's intelligence and make execution semantically aware. This wave transforms Tesseract from "understands apps now" to "understands how apps change over time."
+Everything below is legitimate work that doesn't justify a wave number or timeline. It lives here so it stops generating roadmap pressure.
 
-**Wall-clock time**: ~15 days. 3 parallel tracks.
+### Worth doing if the need becomes concrete
 
-### Track A: Temporal Intelligence
+| Item | Source | Trigger condition |
+|------|--------|-------------------|
+| **Artifact Firewall** (canonical/derived write boundaries) | RX1.3 | When someone actually corrupts canonical files by accident |
+| **Narrative Run Reports** (auto-generated stakeholder summaries) | RX4.5 | When there are stakeholders who need summaries |
+| **Universal Replay Capsule** (portable run bundles) | RX1.4 | When someone needs to reproduce a run on a different machine |
+| **Cross-Screen Transition Modeling** | R1 | When the state graph's screen-scoped model actually limits resolution |
+| **Run Archaeology Index** (temporal fingerprint history) | T3.1.1 | When there are enough runs to need temporal queries |
+| **Regression Canary System** | T3.1.2 | When regressions are a real problem, not a theoretical risk |
+| **Generative Scenario Forge** | RX6.6 | When existing scenario coverage is provably insufficient |
+| **Knowledge Archaeology Mode** (evidence chain queries) | U | When operators actually ask "why does this alias exist?" |
+| **Auto-Refactor for Knowledge** (merge/split overgrown files) | RX3.4 | When knowledge files are actually overgrown |
+| **Tiered Storage** (hot/warm/cold artifacts) | RX5.5 | When storage is actually expensive |
 
-| ID | Item | Effort | Readiness | Source | Unlocks |
-|----|------|--------|-----------|--------|---------|
-| N4.1 | **Run Archaeology Index** — temporal index over `.tesseract/runs/` mapping fingerprints to first-seen, last-seen, mutation history | M | 🟡 | T3.1.1 | N4.2, N4.3. The foundation for all temporal reasoning |
-| N4.2 | **Regression Canary System** — diff resolution receipt distribution against baseline; alert on rung degradation or knowledge artifacts stopping contribution | M | 🟡 | T3.1.2 | Early warning before failures compound. Pairs with knowledge half-life (N1.2) |
-| N4.3 | **Counterfactual Runner** — simulate alternate action paths post-run without touching live target; uses replay capsule (N2.5) and run archaeology (N4.1) | M | 🟡 | RX2.3 | N5.2 (autonomous experiment mode). "What if we'd used the other plan?" — comparative learning |
-| N4.4 | **Time-Travel Trace Comparator** — structural diff between two runs: which steps changed strategy, which knowledge changed, which receipts diverged | L | 🟡 | T3.1.4 | Debugging across time. "Why did this scenario break between Tuesday and Wednesday?" |
+### Interesting but premature
 
-### Track B: Semantic Execution
+| Item | Source | Why not now |
+|------|--------|-------------|
+| **Multi-Plan Resolver** (Fast/Safe/Insightful plans) | RX2.1 | The existing precedence ladder works. Three plans per scenario is 3x complexity for unclear benefit. Build this when single-plan resolution demonstrably fails |
+| **Counterfactual Runner** | RX2.3 | Depends on replay capsule + run archaeology + multi-plan. Three prereqs that don't exist yet |
+| **Autonomous Experiment Mode** | RX6.2 | The evolve loop already does this with a human in the loop. Full automation is XL effort for uncertain value. Ship it when the evolve loop is in daily use |
+| **Network Conversation Tracker** (CDP API interception) | T3.5.1 | More data in receipts ≠ better. CDP interception adds fragility. Build this when agent resolution needs API-level signal |
+| **Accessibility Tree Differ** | T3.5.3 | Not core to test automation. Build this if/when accessibility testing becomes a product surface |
+| **Adversarial Hardening** (knockout trials, chaos injection) | T3.2.1-3 | Validates governance robustness. Build when governance is actually load-bearing (i.e., after Phase 0) |
 
-| ID | Item | Effort | Readiness | Source | Unlocks |
-|----|------|--------|-----------|--------|---------|
-| N4.5 | **Negotiated Navigation** — navigate → observe → compare to expected → consult alternatives if wrong, instead of hoping the URL resolves correctly | M | 🟡 | T3.4.1 | More robust navigation. Reduces `needs-human` for route-dependent scenarios |
-| N4.6 | **Conversational Step Decomposition** — break complex steps ("Add claim for $500 with effective date tomorrow") into micro-conversation with receipt per sub-step | M | 🟡 | T3.4.3 | Finer-grained receipts. Better error localization for complex interactions |
-| N4.7 | **Application State Assertions as Dialogue** — assert *meaning* ("policy is active") not literals, resolve semantically against knowledge vocabulary | M | 🟡 | T3.4.4 | Assertions survive UI text changes. More resilient verification |
-| N4.8 | **Speculative Execution with Rollback** — execute most likely interpretation while preparing second-most-likely for instant rollback on failure | L | 🔴 | T3.4.2 | Dramatic latency reduction for uncertain resolutions. Requires multi-plan resolver (N2.3) |
+### Cut (not worth building)
 
-### Track C: Monadic Pipeline & State Machines
-
-| ID | Item | Effort | Readiness | Source | Unlocks |
-|----|------|--------|-----------|--------|---------|
-| N4.9 | **Monadic Envelope Composition** — add `flatMapPayload` and `apPayload` for chained derivations with automatic lineage/governance threading (requires N3.10) | M | 🟡 | U, T3.6.1 | Pipeline refactor into `flatMapPayload(parse) |> flatMapPayload(bind) |> flatMapPayload(emit)`. Free provenance for any new pipeline |
-| N4.10 | **Pipeline Phases as Free Monad** — define dogfood pipeline as free monad interpretable by real/dry-run/cost-estimator/dependency-extractor interpreters | L | 🔴 | T3.6.4 | Multiple interpreters over same pipeline description. Cost estimation without execution |
-| N4.11 | **Explicit State Machines for Discovery & Proposal Lifecycle** — make discovery crawl and proposal lifecycle explicit using `StateMachine<S,E,R>` abstraction | M | 🟡 | U | Free visualization, replay, and composition. Dashboard can show live state machine hierarchy |
-
-### Wave 4 Completion Criteria
-
-- [ ] Run history is temporally indexed and queryable
-- [ ] Regression canary alerts before failures compound
-- [ ] Counterfactual analysis shows "what would have happened" for alternate plans
-- [ ] Complex steps decompose into micro-conversations with per-sub-step receipts
-- [ ] Pipeline can be interpreted in dry-run mode without execution
-- [ ] Discovery and proposal lifecycle are explicit, composable state machines
-
----
-
-## Wave 5: Robustness & Knowledge Federation (Weeks 13-16)
-
-**Goal**: Harden the system through adversarial testing and enable cross-suite knowledge sharing. This wave prepares Tesseract for multi-team, multi-application deployment.
-
-**Wall-clock time**: ~15 days. 3 parallel tracks.
-
-### Track A: Adversarial Hardening
-
-| ID | Item | Effort | Readiness | Source | Unlocks |
-|----|------|--------|-----------|--------|---------|
-| N5.1 | **Knowledge Knockout Trials** — systematically remove knowledge artifacts, re-run, measure cascading failures; produce criticality map showing which artifacts are load-bearing | L | 🟡 | T3.2.1 | Identifies single points of failure in knowledge base. Informs backup and redundancy strategy |
-| N5.2 | **Chaos Knowledge Injection** — introduce subtly wrong knowledge and measure governance system's immune response time and accuracy | M | 🟡 | T3.2.3 | Validates that governance actually catches bad knowledge. Trust through adversarial proof |
-| N5.3 | **Assumption Inverter** — generate "what if the opposite" binding variants to reveal brittleness in resolution assumptions | M | 🟡 | T3.2.2 | Finds hidden assumptions the test suite doesn't cover |
-| N5.4 | **Adversarial Scenario Generator** — synthesize scenarios that maximize `needs-human` probability to stress-test resolution coverage | L | 🟡 | T3.2.6 | N6.1 (generative scenario forge). Active weakness discovery |
-
-### Track B: Knowledge Federation
-
-| ID | Item | Effort | Readiness | Source | Unlocks |
-|----|------|--------|-----------|--------|---------|
-| N5.5 | **Cross-Suite Pattern Diffusion** — detect when two suites independently discover same pattern, propose extraction to shared layer | M | 🟡 | T3.3.2, RX3.5 | N5.7 (knowledge package manager). Compounding benefit across suites |
-| N5.6 | **Portable Confidence Overlays** — allow confidence earned in Suite A to bootstrap Suite B at reduced weight | M | 🟡 | T3.3.3 | Faster onboarding for related applications |
-| N5.7 | **Knowledge Package Manager** — define `tesseract-pack` format for versioned, signed knowledge bundles (like npm for app understanding) | L | 🔴 | T3.3.1 | Organizational knowledge sharing. The "npm for interface understanding" vision |
-| N5.8 | **Governance Treaty Protocol** — define how importing suites treat foreign governance designations | S | 🟡 | T3.3.6 | Required for N5.7 to work across trust boundaries |
-| N5.9 | **Federated Scorecard** — aggregate scorecards across multiple suites into organizational intelligence view | L | 🟡 | T3.3.7 | Executive-level visibility across the entire testing portfolio |
-
-### Track C: Dashboard Enrichment
-
-| ID | Item | Effort | Readiness | Source | Unlocks |
-|----|------|--------|-----------|--------|---------|
-| N5.10 | **Delight Features** — animated confidence transitions, milestone badges, quality improvement "streaks" | S | 🟢 | RX4.6 | Sustained adoption through joy. Not cosmetic — drives engagement |
-| N5.11 | **Failure Constellation View** — cluster similar failures visually by fingerprint family; spatial pattern recognition for bottleneck identification | M | 🟡 | DV, U | Instant visual bottleneck identification faster than any log |
-| N5.12 | **Confidence Weather Map** — heatmap of screens/routes by confidence volatility | M | 🟡 | DV | At-a-glance system health. Shows where attention is needed |
-| N5.13 | **Evolution Scrapbook** — timeline of key knowledge promotions with before/after impact | M | 🟡 | DV | Makes the system's learning visible and celebratable |
-
-### Wave 5 Completion Criteria
-
-- [ ] Knowledge base has a criticality map from knockout trials
-- [ ] Governance immune response validated through chaos injection
-- [ ] Two suites can share patterns through diffusion
-- [ ] Knowledge packs can be exported, signed, and imported
-- [ ] Dashboard shows failure constellations and confidence weather
+| Item | Source | Why not |
+|------|--------|---------|
+| **Envelope as Functor / Resolution as Catamorphism** | T3.6.1-2 | Renaming working code with category theory vocabulary. `mapPayload` works. Calling it a functor doesn't make it work better |
+| **Monadic Envelope Composition** (`flatMapPayload`) | U | The pipeline works imperatively. Monadifying it adds abstraction without changing behavior. The `kleisli.ts` module (0 imports) is the proof |
+| **Pipeline Phases as Free Monad** | T3.6.4 | Academic exercise. The pipeline doesn't need multiple interpreters. Cost estimation doesn't require a free monad; it requires a cost counter |
+| **Knowledge Federation** (package manager, treaty protocol, federated scorecard) | T3.3.1-7 | There is ONE suite. Building npm-for-knowledge for a single consumer is speculative infrastructure |
+| **Proof-Carrying Runs** | RX6.4 | Who checks the proofs? Regulated environments have their own assurance frameworks |
+| **UI Digital Twin** | RX6.3 | XL effort, 🔴 readiness. A PhD thesis, not a backlog item |
+| **App as Formal Language / Chinese Postman** | U | Cool graph theory. Not a product feature |
+| **Execution Choreography Language** (widget DSL) | T3.7.5 | DSLs are maintenance burdens. Component knowledge in TypeScript is fine |
+| **Multi-Agent Debate Resolution** | T3.7.3 | 3x cost for marginal quality improvement over single-agent |
+| **Speculative Execution with Rollback** | T3.4.2 | 2x cost, 🔴 readiness, for latency reduction that's not the bottleneck |
+| **Time-Travel Trace Comparator** | T3.1.4 | Diffing two JSON run files. `git diff` on the receipts directory works fine |
+| **Explicit State Machines for Everything** | U | The `StateMachine<S,E,R>` abstraction is elegant. Making everything a state machine is abstraction for its own sake |
+| **Delight Features** (badges, streaks, animations) | RX4.6 | Fun, but the dashboard isn't in production use. Polish what's used |
+| **Confidence Weather Map / Evolution Scrapbook / Failure Constellations** | DV | Dashboard visualization features for a dashboard that needs users first |
+| **Seasonal Pattern Detector** | T3.1.5 | Requires years of run history to detect seasonality |
+| **Execution Deja Vu** (predictive failure trajectory) | T3.1.7 | Requires deep run history + ML. Premature |
+| **Performance Budget per Screen** | T3.5.5 | Scope creep. Tesseract is test automation, not performance monitoring |
+| **Self-Authoring Test Suites** | T3.7.1 | "Give me a URL and make a test suite" is a product, not a feature. Build the product when the engine is proven |
+| **What-If Panel** (posture/budget preview) | RX4.3 | Depends on multi-plan resolver, which is itself questionable |
+| **Conversational Step Decomposition** | T3.4.3 | Complex steps should be decomposed at scenario authoring time, not runtime |
+| **Application State Assertions as Dialogue** | T3.4.4 | The resolution ladder already handles semantic matching |
+| **Governance Escape Analysis** | T3.2.4 | Architecture fitness tests already check this. Defense-in-depth for a solved problem |
+| **Cross-Iteration Learning Memory** | R1 | Sounds smart. But the scorecard's monotonic high-water-mark already prevents regression. What would "remembering why a proposal was rejected" actually change? |
+| **Knowledge Half-Life Calculator** | T3.1.6 | `knowledge-freshness.ts` already has configurable decay. Computing a "half-life" metric is a number you'd look at once |
 
 ---
 
-## Wave 6: Moonshots & Autonomous Intelligence (Weeks 17+)
+## The Meta-Observation
 
-**Goal**: The speculative frontier — items that could be category-defining but carry high risk. Each moonshot runs in an isolated evaluation lane with strict promotion gates. No moonshot bypasses governance.
+The research corpus (10 documents, ~140 items) has generated more roadmap than the system has production users. The 93-item sprint built strong type-level foundations but left most of them unconnected. The highest-leverage next step isn't item 94 — it's making items 1-93 load-bearing.
 
-**Wall-clock time**: Ongoing. Each item is independently scoped.
+**Phase 0** is integration debt. **Phase 1** is the product metric that matters. **Phase 2** is three honest bets on product direction. **Everything else** is backlog that should earn its place through concrete need, not roadmap momentum.
 
-### Tier A: High-Value Moonshots (justified by existing architecture)
-
-| ID | Item | Effort | Readiness | Source | Unlocks |
-|----|------|--------|-----------|--------|---------|
-| N6.1 | **Generative Scenario Forge** — synthesize edge-case scenarios from known weak signals, failure motifs, and adversarial patterns (requires N5.4) | L | 🟡 | RX6.6, T3.2.6 | Finds bugs humans didn't think to write. Leverages existing failure fingerprints |
-| N6.2 | **Autonomous Experiment Mode** — bounded self-experimentation with safety rails: the system proposes config changes, runs them in isolation, promotes winners via evidence + review | XL | 🔴 | RX6.2 | Compounding optimization without constant prompting. The "evolve loop evolves itself" vision |
-| N6.3 | **Multi-Agent Debate Resolution** — spawn 3 micro-agents with different biases (precision, recall, speed), select best resolution via deterministic arbiter | L | 🟡 | T3.7.3 | Quality improvement through diversity. Leverages existing A/B testing infrastructure |
-| N6.4 | **The "What Would Break" Simulator** — query the interface graph with hypothetical DOM changes; show which scenarios degrade, which selectors fall to lower rungs | M | 🟡 | U | Pre-deployment risk assessment. 80% of the data already exists in impact analysis |
-| N6.5 | **App as Formal Language** — treat state transition graph as finite automaton; derive coverage properties, minimal test suites (Chinese Postman), completeness checks | L | 🟡 | U | Provably complete test suites. Requires cross-screen transitions (N2.2) |
-
-### Tier B: Ambitious Moonshots (require new architecture)
-
-| ID | Item | Effort | Readiness | Source | Unlocks |
-|----|------|--------|-----------|--------|---------|
-| N6.6 | **Intent-to-Playbook Synthesis** — generate candidate runbooks from plain-language goals + prior evidence | XL | 🔴 | RX6.1 | Collapses authoring time dramatically. The "describe what you want, get a test suite" dream |
-| N6.7 | **UI Digital Twin** — synthesize offline simulacrum of app from accumulated knowledge for planning and predictive execution | XL | 🔴 | RX6.3, T3.7.2 | Changes execution from reactive to anticipatory. Requires deep state transition model |
-| N6.8 | **Proof-Carrying Runs** — each run ships lightweight machine-checkable proof of key invariants held | XL | 🔴 | RX6.4, T3.7.4 | Trust upgrade for regulated environments. The "verified QA" positioning |
-| N6.9 | **Self-Authoring Test Suites** — given only URL + goal, discover app → build knowledge → synthesize → compile → run → iterate to stable suite | XL | 🔴 | T3.7.1 | The ultimate expression of the system's identity. Requires most of Waves 1-5 |
-| N6.10 | **Multi-Target Emission** — decouple the last mile; same intent surface targets Playwright, Cypress, Selenium, Detox, or accessibility APIs | L | 🟡 | U | Transforms Tesseract from "Playwright tool" to "verification compiler." The IR is ready |
-| N6.11 | **Execution Choreography Language** — DSL for widget interaction that compiles to Playwright operations | L | 🔴 | T3.7.5 | Declarative widget choreography. Replaces procedural component knowledge |
-
-### Moonshot Guardrails
-
-- Moonshots only run in isolated evaluation lanes
-- No moonshot bypasses governance policy
-- Promotion from moonshot lane requires evidence + review contracts
-- 70/20/10 capacity split: core reliability / high-value features / moonshots
-
-### Wave 6 Completion Criteria
-
-- [ ] At least one moonshot completes evaluation with measurable impact data
-- [ ] Autonomous experiment mode operates within safety rails for >100 iterations
-- [ ] "What would break" simulator answers DOM-change queries in <5 seconds
-
----
-
-## Dependency Graph (Critical Paths)
-
-```
-Wave 1                    Wave 2                   Wave 3                Wave 4              Wave 5           Wave 6
-───────                   ───────                  ───────               ───────             ───────          ───────
-N1.1 (explain) ──────────────────────────→ N3.3 (one-click why)
-                          N2.3 (multi-plan) ─────→ N3.2 (what-if panel)
-N1.7 (artifact FW) ─────→ N2.5 (replay capsule) ─────────────────────→ N4.3 (counterfactual)
-                                                                        N4.1 (run archaeology) → N4.2 (canary) ──→ N5.1 (knockout)
-N1.4 (route knowledge) ─→ N2.2 (cross-screen) ──────────────────────→ N4.5 (negotiated nav) ──────────────→ N6.5 (formal lang)
-N1.2 (half-life) ────────→ N2.1 (contradiction) ─→ N3.7 (auto-refactor)
-N1.5 (coverage metric) ──────────────────────────→ N3.9 (graduated autonomy)
-                                                   N3.10 (functor) ───→ N4.9 (monadic envelope) → N4.10 (free monad)
-                                                                                                    N5.5 (diffusion) → N5.7 (pkg mgr)
-                                                                        N5.4 (adversarial gen) ──→ N6.1 (scenario forge)
-                                                                                                    N6.2 (autonomous experiments)
-```
-
----
-
-## Strategic Themes
-
-### Theme 1: "The Loops Must Close" (Waves 1-2)
-The highest-leverage remaining work. Every subsystem produces data that another subsystem could consume but doesn't. Route discovery → knowledge proposals. Failure reasons → operator clarity. Run history → temporal intelligence. Closing these loops transforms the system from "pipeline with good types" to "intelligence accumulator."
-
-### Theme 2: "Trust Through Transparency" (Waves 1-3)
-Explain-your-choice receipts → one-click why → narrative reports → knowledge archaeology. This is a single thread: make every decision legible. The system already *makes* good decisions. It needs to *explain* them.
-
-### Theme 3: "Economics of Intelligence" (Waves 3-4)
-Cost OS → what-if panel → energy-aware scheduling. The system currently optimizes for correctness. Adding cost-awareness turns it into an economic agent that can reason about tradeoff frontiers.
-
-### Theme 4: "Hardening Through Adversity" (Wave 5)
-Knowledge knockout → chaos injection → adversarial scenarios. Trust through proof, not hope. The governance system claims to catch bad knowledge — validate that claim.
-
-### Theme 5: "The Compiler Becomes the Product" (Wave 6)
-Multi-target emission → self-authoring suites → UI digital twin. The deepest architectural insight from `research-unsaid-opportunities.md`: Tesseract is a compiler for *understanding*, not for *tests*. Wave 6 fully realizes that identity.
-
----
-
-## Item Cross-Reference to Source Documents
-
-| Wave | Items | RX (Expanded) | T3 (Theory) | R1-R5 (Directions) | U (Unsaid) | DV (Dashboard) |
-|------|-------|----------------|-------------|---------------------|-------------|----------------|
-| W1 | 10 | RX1.3, RX2.5 | T3.1.6, T3.2.4, T3.4.6, T3.5.2, T3.5.5 | R1 ×3 | — | — |
-| W2 | 9 | RX1.4, RX2.1, RX2.3, RX3.3 | T3.2.5, T3.4.5, T3.5.1, T3.5.3, T3.5.6 | R1 | U | — |
-| W3 | 11 | RX3.4, RX4.2, RX4.3, RX4.5, RX5.1, RX5.4, RX5.5 | T3.6.1, T3.6.2 | R1 | U | — |
-| W4 | 11 | RX2.3 | T3.1.1-4, T3.4.1-4, T3.6.4 | — | U | — |
-| W5 | 13 | RX3.5, RX4.6 | T3.2.1-3, T3.2.6, T3.3.1-3, T3.3.6-7 | — | U | DV ×4 |
-| W6 | 11 | RX6.1-4, RX6.6 | T3.7.1-5 | — | U ×3 | — |
-| **Total** | **65** | **19** | **29** | **4** | **8** | **4** |
-
-*Note: 65 items are explicitly sequenced above. The remaining ~75 items from the full inventory are either subsumed by these (e.g., R2-R5 items already completed or covered by RX equivalents), are dashboard visualization details (DV features that compose naturally once their data sources exist), or are lower-priority variants of sequenced items. They are not dropped — they become implementation details within the sequenced items or follow-on work within a wave.*
-
----
-
-## Closing Note
-
-The first 93 items built the skeleton. These 65 items grow the nervous system.
-
-The skeleton is about correctness: types check, governance enforces, receipts flow. The nervous system is about intelligence: knowledge compounds, failures explain themselves, the system learns from its own history, and operators *enjoy* using it.
-
-The most important insight from the research corpus is this: **Tesseract already does sophisticated things. The remaining work is making those things legible, composable, and self-improving.** Every wave above serves that goal.
+The next document to write isn't another prioritization. It's a production deployment log.
