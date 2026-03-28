@@ -6,7 +6,7 @@
 
 ## Executive Summary
 
-Twenty research perspectives across five rounds identified **~80 actionable improvements**, refined to **56 prioritized items** across **4 execution waves**. The critical insight: **the system is ~60% of its own specification** — the types and documentation describe a more complete system than the runtime implements. Closing the gap requires no architectural redesign, only wiring, enforcement, and verification.
+Twenty research perspectives across five rounds identified **~80 actionable improvements**, refined to **65 prioritized items** across **4 execution waves**. The critical insight: **the system is ~60% of its own specification** — the types and documentation describe a more complete system than the runtime implements. Closing the gap requires no architectural redesign, only wiring, enforcement, and verification.
 
 The recommended sequence prioritizes three principles:
 1. **Foundations first**: Governance enforcement and verification infrastructure unlock everything else
@@ -374,17 +374,46 @@ A cross-check of all 20 perspectives against this document surfaced **12 additio
 | W4.12 | **Runtime screen identification from DOM + interface graph** — Runtime identifies which screen it's on by inspecting the DOM against the interface graph, rather than relying on compile-time screen resolution. Structural shift from pre-resolved to runtime-discovered screen context | L | 🟡 | P2 | True runtime screen awareness |
 | W4.13 | **Phantom type enforcement beyond emission** — Extend `Approved<T>` enforcement beyond just `emit()` to bind, proposal, and approval stages. Governance enforcement is only as strong as its weakest boundary; emission-only leaves proposal/approval stages untyped | M | 🟡 | P7 | Full-pipeline type-safe governance |
 
+### Added to Wave 1
+
+| ID | Item | Effort | Readiness | Origin | Unlocks |
+|----|------|--------|-----------|--------|---------|
+| W1.9 | **Live ADO adapter fixture test** — Fixture-based test with real ADO API XML responses. Catches parsing regressions in step extraction, content hashing, and entity mapping | S | 🟢 | P12 | Parsing regression safety |
+| W1.10 | **MCP tool catalog completeness test** — Verify all 15 defined MCP tools have corresponding handlers. Currently no test validates this contract | S | 🟢 | P18 | Tool surface reliability |
+
+### Additional Wave 2 Items
+
+| ID | Item | Effort | Readiness | Origin | Unlocks |
+|----|------|--------|-----------|--------|---------|
+| W2.20 | **Round-trip binding law test** — `unbind(bind(step)) ≈ step` proving binding operations preserve essential structure and are reversible | M | 🟡 | P18 | Binding correctness proof |
+| W2.21 | **Effect PubSub backpressure test** — Validate 4096-capacity bounded queue behavior under load: backpressure triggers correctly, no event loss within capacity, graceful degradation beyond capacity | S | 🟢 | P18 | Event bus reliability |
+| W2.22 | **Agent error taxonomy** — Distinguish network timeout, rate limiting, token overflow, and auth failure in `agent-interpreter-provider.ts:546-555`. Currently a single broad catch-all. Different error types need different retry strategies | S | 🟢 | P14 | Targeted error recovery |
+| W2.23 | **Agent token budget enforcement** — Validate response against `maxTokensPerStep`. Use for prompt truncation when context exceeds budget. Currently budget is passed to LLM but not enforced client-side | S | 🟢 | P14 | Cost control; prevents token overages |
+
+### Additional Wave 3 Items
+
+| ID | Item | Effort | Readiness | Origin | Unlocks |
+|----|------|--------|-----------|--------|---------|
+| W3.17 | **Extract observation as first-class phase** — Move observation logic from `scenario.ts:117-150` into independently testable `lib/runtime/observe/execute.ts`. Currently `observe/index.ts` is only 3 lines (re-export). Observation is read-only, zero risk to extract | S | 🟢 | P9 | Observation testability; reusable for discovery |
+
+### Additional Wave 4 Items
+
+| ID | Item | Effort | Readiness | Origin | Unlocks |
+|----|------|--------|-----------|--------|---------|
+| W4.14 | **Agent provider A/B testing infrastructure** — Route subsets of novel steps to alternate providers (heuristic vs LLM). Track proposal quality divergence. Enables data-driven comparison of resolution strategies | M | 🟡 | P14 | Evidence-based provider selection |
+| W4.15 | **Proposal quality metrics in agent→alias feedback loop** — Track which agent-suggested aliases cause misdirection on future runs. Identify low-quality aliases before they accumulate in knowledge. Closes the information-theoretic bottleneck identified in P20 | M | 🟡 | P20 | Feedback loop quality assurance |
+
 ### Revised Item Count
 
-With the audit additions, the master plan now contains:
+With both audit passes, the master plan now contains:
 
-| Wave | Original Items | Added Items | Total |
-|------|---------------|-------------|-------|
-| Wave 1 | 8 | 0 | 8 |
-| Wave 2 | 15 | 4 | 19 |
-| Wave 3 | 11 | 5 | 16 |
-| Wave 4 | 11 | 2 | 13 |
-| **Total** | **45** | **11** | **56** |
+| Wave | Original Items | Audit 1 | Audit 2 | Total |
+|------|---------------|---------|---------|-------|
+| Wave 1 | 8 | 0 | 2 | 10 |
+| Wave 2 | 15 | 4 | 4 | 23 |
+| Wave 3 | 11 | 5 | 1 | 17 |
+| Wave 4 | 11 | 2 | 2 | 15 |
+| **Total** | **45** | **11** | **9** | **65** |
 
 ---
 
@@ -392,7 +421,7 @@ With the audit additions, the master plan now contains:
 
 This document is itself a projection — derived from 20 canonical research perspectives, cross-checked by 5 analytical agents, and audited for completeness against every source document. It should be treated as a living plan: update priorities as items ship, collapse completed waves, and promote Wave 4 items when their prerequisites are met.
 
-The single most important takeaway: **the system already knows what it should be**. The types are 90% there. The runtime wiring is 40% there. The gap is the work — and it's 56 well-defined items, not open-ended research.
+The single most important takeaway: **the system already knows what it should be**. The types are 90% there. The runtime wiring is 40% there. The gap is the work — and it's 65 well-defined items, not open-ended research.
 
 ### Document Lineage
 
