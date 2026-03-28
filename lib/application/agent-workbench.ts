@@ -416,7 +416,7 @@ export function processWorkItems(options: {
       remaining: readonly ScreenGroupContext[],
       acc: readonly WorkItemCompletion[],
       processedSoFar: number,
-    ): Effect.Effect<readonly WorkItemCompletion[], never, FileSystem> =>
+    ): Effect.Effect<readonly WorkItemCompletion[], unknown, FileSystem> =>
       Effect.gen(function* () {
         if (remaining.length === 0 || processedSoFar >= maxItems) return acc;
         const [group, ...rest] = remaining;

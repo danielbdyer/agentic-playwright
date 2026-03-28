@@ -62,7 +62,7 @@ export function syncSnapshots(options: { adoId?: AdoId; all?: boolean; paths: Pr
     };
 
     const syncStep = (
-      remaining: readonly string[],
+      remaining: readonly AdoId[],
       acc: SyncAcc,
     ): Effect.Effect<SyncAcc, unknown, any> =>
       Effect.gen(function* () {
