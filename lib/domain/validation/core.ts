@@ -1361,6 +1361,24 @@ function validateStepExecutionReceipt(value: unknown, path: string): StepExecuti
         detail: observation.detail === undefined ? undefined : expectStringRecord(observation.detail, `${path}.transitionObservations[${index}].detail`),
       };
     }),
+    semanticConsistency: (() => {
+      const semantic = expectRecord(receipt.semanticConsistency ?? {}, `${path}.semanticConsistency`);
+      const signals = expectStringArray(semantic.signals ?? [], `${path}.semanticConsistency.signals`);
+      return {
+        labelRoleMismatch: expectBoolean(semantic.labelRoleMismatch ?? false, `${path}.semanticConsistency.labelRoleMismatch`),
+        accessibleNameSemanticsChanged: expectBoolean(semantic.accessibleNameSemanticsChanged ?? false, `${path}.semanticConsistency.accessibleNameSemanticsChanged`),
+        unexpectedStateTransitionEffects: expectBoolean(semantic.unexpectedStateTransitionEffects ?? false, `${path}.semanticConsistency.unexpectedStateTransitionEffects`),
+        assertionTargetAmbiguity: expectBoolean(semantic.assertionTargetAmbiguity ?? false, `${path}.semanticConsistency.assertionTargetAmbiguity`),
+        signals: signals.map((signal, index) =>
+          expectEnum(signal, `${path}.semanticConsistency.signals[${index}]`, [
+            'degraded-locator',
+            'label-role-mismatch',
+            'accessible-name-semantics-changed',
+            'unexpected-state-transition-effects',
+            'assertion-target-ambiguity',
+          ] as const)),
+      };
+    })(),
     durationMs: expectNumber(receipt.durationMs ?? 0, `${path}.durationMs`),
     timing: (() => {
       const timing = expectRecord(receipt.timing ?? {}, `${path}.timing`);

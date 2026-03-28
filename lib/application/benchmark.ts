@@ -113,6 +113,7 @@ function scorecardForBenchmark(input: {
       resolutionMode: 'deterministic' | 'translation' | 'agentic';
       winningSource: string;
       degraded: boolean;
+      semanticSignals: readonly string[];
     }>;
   }>;
   confidenceRecords: Array<{
@@ -151,6 +152,11 @@ function scorecardForBenchmark(input: {
       record.steps.flatMap((step) => step.degraded ? [record.adoId] : []),
     ).filter((value) => value.length > 0),
   ).length;
+  const semanticDriftHotspotCount = uniqueSorted(
+    benchmarkRuns.flatMap((record) =>
+      record.steps.flatMap((step) => step.semanticSignals.length > 0 ? [record.adoId] : []),
+    ).filter((value) => value.length > 0),
+  ).length;
   const interpretationDriftHotspotCount = input.interpretationDriftRecords
     .reduce((sum, record) => sum + (input.scenarioIds.includes(record.adoId) && record.hasDrift ? record.changedStepCount : 0), 0);
   const overlayChurn = input.confidenceRecords.filter((record) =>
@@ -175,6 +181,10 @@ function scorecardForBenchmark(input: {
     }
     return acc;
   }, {});
+  const runtimeFailureClasses = {
+    'degraded-locator': benchmarkRuns.reduce((sum, run) => sum + run.steps.filter((step) => step.degraded).length, 0),
+    'semantic-drift': benchmarkRuns.reduce((sum, run) => sum + run.steps.filter((step) => step.semanticSignals.length > 0).length, 0),
+  } as const;
   const recoveryFamilies = benchmarkRuns.reduce<Record<string, number>>((acc, run) => {
     for (const [family, count] of Object.entries(run.executionMetrics.recoveryFamilies ?? {})) {
       acc[family] = (acc[family] ?? 0) + count;
@@ -217,11 +227,13 @@ function scorecardForBenchmark(input: {
     approvedEquivalentCount,
     thinKnowledgeScreenCount,
     degradedLocatorHotspotCount,
+    semanticDriftHotspotCount,
     interpretationDriftHotspotCount,
     overlayChurn,
     executionTimingTotalsMs: timingTotals,
     executionCostTotals,
     executionFailureFamilies,
+    runtimeFailureClasses,
     recoveryFamilies,
     recoveryStrategies,
     budgetBreachCount,
@@ -332,11 +344,13 @@ function renderScorecardMarkdown(
     `- Approved-equivalent count: ${scorecard.approvedEquivalentCount}`,
     `- Thin-knowledge screens: ${scorecard.thinKnowledgeScreenCount}`,
     `- Degraded locator hotspots: ${scorecard.degradedLocatorHotspotCount}`,
+    `- Semantic drift hotspots: ${scorecard.semanticDriftHotspotCount}`,
     `- Interpretation drift hotspots: ${scorecard.interpretationDriftHotspotCount}`,
     `- Overlay churn: ${scorecard.overlayChurn}`,
     `- Execution timing totals (ms): ${JSON.stringify(scorecard.executionTimingTotalsMs)}`,
     `- Execution cost totals: ${JSON.stringify(scorecard.executionCostTotals)}`,
     `- Execution failure families: ${JSON.stringify(scorecard.executionFailureFamilies)}`,
+    `- Runtime failure classes: ${JSON.stringify(scorecard.runtimeFailureClasses)}`,
     `- Recovery families: ${JSON.stringify(scorecard.recoveryFamilies)}`,
     `- Recovery strategies: ${JSON.stringify(scorecard.recoveryStrategies)}`,
     `- Budget breach count: ${scorecard.budgetBreachCount}`,
@@ -430,12 +444,13 @@ export function projectBenchmarkScorecard(options: {
       runRecords: scorecardCatalog.runRecords.map((entry) => ({
         adoId: entry.artifact.adoId,
         executionMetrics: entry.artifact.executionMetrics,
-        steps: entry.artifact.steps.map((step) => ({
-          resolutionMode: step.interpretation.resolutionMode,
-          winningSource: step.interpretation.winningSource,
-          degraded: step.execution.degraded,
+          steps: entry.artifact.steps.map((step) => ({
+            resolutionMode: step.interpretation.resolutionMode,
+            winningSource: step.interpretation.winningSource,
+            degraded: step.execution.degraded,
+            semanticSignals: step.execution.semanticConsistency?.signals ?? [],
+          })),
         })),
-      })),
       confidenceRecords: (scorecardCatalog.confidenceCatalog?.artifact.records ?? []).map((record) => ({
         id: record.id,
         status: record.status,

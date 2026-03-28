@@ -181,6 +181,16 @@ const TrustPolicyBaseSchema = Schema.Struct({
   version: Schema.Literal(1),
   artifactTypes: Schema.Record({ key: TrustPolicyArtifactTypeSchema, value: TrustPolicyArtifactRuleSchema }),
   forbiddenAutoHealClasses: Schema.optionalWith(StringArray, { default: () => [] as readonly string[] }),
+  confidenceDecay: Schema.optional(Schema.Struct({
+    artifactTypes: Schema.Record({
+      key: TrustPolicyArtifactTypeSchema,
+      value: Schema.Struct({
+        rates: Schema.Record({ key: Schema.String, value: Schema.Number }),
+        minimumFloor: Schema.Number,
+        suppressionWindowRuns: Schema.Number,
+      }),
+    }),
+  })),
 });
 
 /**
@@ -203,7 +213,18 @@ export const TrustPolicySemanticSchema = TrustPolicyBaseSchema.pipe(
         (rule) => rule.requiredEvidence.minCount >= 0,
       );
       const noDuplicates = new Set(policy.forbiddenAutoHealClasses).size === policy.forbiddenAutoHealClasses.length;
-      return confidenceValid && evidenceValid && noDuplicates;
+      const decayRules = Object.values(policy.confidenceDecay?.artifactTypes ?? {}) as ReadonlyArray<{
+        readonly rates: Readonly<Record<string, number>>;
+        readonly minimumFloor: number;
+        readonly suppressionWindowRuns: number;
+      }>;
+      const decayValid = decayRules.every((rule) =>
+        rule.minimumFloor >= 0
+        && rule.minimumFloor <= 1
+        && rule.suppressionWindowRuns >= 0
+        && Object.values(rule.rates).every((rate) => rate >= 0 && rate <= 1),
+      );
+      return confidenceValid && evidenceValid && noDuplicates && decayValid;
     },
     {
       message: () => 'TrustPolicy semantic validation failed: check confidence bounds, evidence counts, and no duplicate forbidden classes',

@@ -299,6 +299,65 @@ function recoveryAttemptResult(strategy: RecoveryStrategy, input: {
   return 'failed';
 }
 
+function parseRoleNameLocator(locatorStrategy?: string | null): { role: string | null; name: string | null } {
+  if (!locatorStrategy || !locatorStrategy.startsWith('role:')) {
+    return { role: null, name: null };
+  }
+  const roleMatch = /^role:([^\[]+)/.exec(locatorStrategy);
+  const nameMatch = /\[name=(.+)\]$/.exec(locatorStrategy);
+  return {
+    role: roleMatch?.[1]?.trim() ?? null,
+    name: nameMatch?.[1]?.trim() ?? null,
+  };
+}
+
+function normalizeSemanticLabel(value: string | null | undefined): string {
+  return (value ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function semanticConsistencySignals(input: {
+  task: GroundedStep;
+  interpretation: ResolutionReceipt;
+  interfaceResolutionContext: InterfaceResolutionContext;
+  locatorStrategy?: string | null;
+  transitionObservations: readonly TransitionObservation[];
+}): StepExecutionReceipt['semanticConsistency'] {
+  const resolvedTarget = input.interpretation.kind === 'needs-human' ? null : input.interpretation.target;
+  const elementCandidate = resolvedTarget?.element
+    ? input.interfaceResolutionContext.screens
+      .find((screen) => screen.screen === resolvedTarget.screen)
+      ?.elements.find((element) => element.element === resolvedTarget.element)
+    : null;
+  const parsedLocator = parseRoleNameLocator(input.locatorStrategy ?? null);
+  const labelRoleMismatch = Boolean(
+    elementCandidate?.role
+    && parsedLocator.role
+    && normalizeSemanticLabel(elementCandidate.role) !== normalizeSemanticLabel(parsedLocator.role),
+  );
+  const accessibleNameSemanticsChanged = Boolean(
+    elementCandidate?.name
+    && parsedLocator.name
+    && normalizeSemanticLabel(elementCandidate.name) !== normalizeSemanticLabel(parsedLocator.name),
+  );
+  const unexpectedStateTransitionEffects = input.transitionObservations.some((entry) => entry.classification === 'unexpected-effects');
+  const assertionTargetAmbiguity = input.transitionObservations.some((entry) => entry.classification === 'ambiguous-match')
+    || (input.task.grounding.effectAssertions.length > 0
+      && input.transitionObservations.filter((entry) => entry.classification === 'matched').length > 1);
+  const signals = uniqueSorted([
+    ...(labelRoleMismatch ? ['label-role-mismatch' as const] : []),
+    ...(accessibleNameSemanticsChanged ? ['accessible-name-semantics-changed' as const] : []),
+    ...(unexpectedStateTransitionEffects ? ['unexpected-state-transition-effects' as const] : []),
+    ...(assertionTargetAmbiguity ? ['assertion-target-ambiguity' as const] : []),
+  ]);
+  return {
+    labelRoleMismatch,
+    accessibleNameSemanticsChanged,
+    unexpectedStateTransitionEffects,
+    assertionTargetAmbiguity,
+    signals,
+  };
+}
+
 export async function runScenarioStep(
   task: GroundedStep,
   environment: RuntimeScenarioEnvironment,
@@ -374,6 +433,13 @@ export async function runScenarioStep(
         expectedTransitionRefs: task.grounding.expectedTransitionRefs,
         observedStateRefs: [],
         transitionObservations: [],
+        semanticConsistency: {
+          labelRoleMismatch: false,
+          accessibleNameSemanticsChanged: false,
+          unexpectedStateTransitionEffects: false,
+          assertionTargetAmbiguity: false,
+          signals: [],
+        },
         durationMs: 0,
         timing: {
           ...emptyExecutionTiming(),
@@ -490,6 +556,13 @@ export async function runScenarioStep(
         expectedTransitionRefs: task.grounding.expectedTransitionRefs,
         observedStateRefs: beforeObservedStateRefs,
         transitionObservations: [],
+        semanticConsistency: {
+          labelRoleMismatch: false,
+          accessibleNameSemanticsChanged: false,
+          unexpectedStateTransitionEffects: false,
+          assertionTargetAmbiguity: false,
+          signals: [],
+        },
         durationMs: 0,
         timing,
         cost: {
@@ -680,6 +753,13 @@ export async function runScenarioStep(
     expectedTransitionRefs: task.grounding.expectedTransitionRefs,
     observedStateRefs,
     transitionObservations,
+    semanticConsistency: semanticConsistencySignals({
+      task,
+      interpretation,
+      interfaceResolutionContext,
+      locatorStrategy: firstOutcome?.locatorStrategy ?? null,
+      transitionObservations,
+    }),
     durationMs: completedAt - startedAt,
     timing,
     cost,

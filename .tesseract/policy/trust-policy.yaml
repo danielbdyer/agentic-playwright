@@ -39,3 +39,59 @@ artifactTypes:
 forbiddenAutoHealClasses:
   - assertion-mismatch
   - structural-mismatch
+confidenceDecay:
+  artifactTypes:
+    elements:
+      rates:
+        degraded-locator: 0.06
+        label-role-mismatch: 0.1
+        accessible-name-semantics-changed: 0.09
+        unexpected-state-transition-effects: 0.12
+        assertion-target-ambiguity: 0.08
+      minimumFloor: 0.2
+      suppressionWindowRuns: 1
+    postures:
+      rates:
+        degraded-locator: 0.05
+        label-role-mismatch: 0.08
+        accessible-name-semantics-changed: 0.07
+        unexpected-state-transition-effects: 0.1
+        assertion-target-ambiguity: 0.06
+      minimumFloor: 0.25
+      suppressionWindowRuns: 1
+    surface:
+      rates:
+        degraded-locator: 0.05
+        label-role-mismatch: 0.08
+        accessible-name-semantics-changed: 0.07
+        unexpected-state-transition-effects: 0.1
+        assertion-target-ambiguity: 0.06
+      minimumFloor: 0.25
+      suppressionWindowRuns: 1
+    snapshot:
+      rates:
+        degraded-locator: 0.04
+        label-role-mismatch: 0.07
+        accessible-name-semantics-changed: 0.07
+        unexpected-state-transition-effects: 0.11
+        assertion-target-ambiguity: 0.09
+      minimumFloor: 0.3
+      suppressionWindowRuns: 1
+    hints:
+      rates:
+        degraded-locator: 0.05
+        label-role-mismatch: 0.08
+        accessible-name-semantics-changed: 0.08
+        unexpected-state-transition-effects: 0.1
+        assertion-target-ambiguity: 0.07
+      minimumFloor: 0.2
+      suppressionWindowRuns: 1
+    patterns:
+      rates:
+        degraded-locator: 0.04
+        label-role-mismatch: 0.07
+        accessible-name-semantics-changed: 0.06
+        unexpected-state-transition-effects: 0.09
+        assertion-target-ambiguity: 0.06
+      minimumFloor: 0.25
+      suppressionWindowRuns: 2

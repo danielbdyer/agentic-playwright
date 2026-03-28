@@ -125,7 +125,7 @@ export function buildOperatorInboxItems(catalog: WorkspaceCatalog): OperatorInbo
     }];
   });
 
-  // Source 3: run steps → degraded-locator + needs-human + approved-equivalent items
+  // Source 3: run steps → degraded-locator + semantic-drift + needs-human + approved-equivalent items
   const stepItems = [...latestRunByAdo.values()].flatMap((run) =>
     run.steps.flatMap((step): readonly OperatorInboxItem[] => {
       const base = {
@@ -141,6 +141,12 @@ export function buildOperatorInboxItems(catalog: WorkspaceCatalog): OperatorInbo
           kind: 'degraded-locator' as const, status: 'actionable' as const, proposalId: null as string | null,
           title: `Degraded locator on step ${step.stepIndex}`,
           summary: `Runtime resolved step ${step.stepIndex} with a degraded locator strategy.`,
+        }] : []),
+        ...((step.execution.semanticConsistency?.signals.length ?? 0) > 0 ? [{
+          ...base, id: inboxItemId({ kind: 'semantic-drift' as const, adoId: run.adoId, runId: run.runId, stepIndex: step.stepIndex }),
+          kind: 'semantic-drift' as const, status: 'actionable' as const, proposalId: null as string | null,
+          title: `Semantic drift on step ${step.stepIndex}`,
+          summary: `Runtime observed semantic consistency drift (${step.execution.semanticConsistency!.signals.join(', ')}) on step ${step.stepIndex}.`,
         }] : []),
         ...(step.interpretation.kind === 'needs-human' ? [{
           ...base, id: inboxItemId({ kind: 'needs-human' as const, adoId: run.adoId, runId: run.runId, stepIndex: step.stepIndex }),
@@ -200,7 +206,7 @@ const renderImprovementSection = (runs: readonly ImprovementRun[]): readonly str
 const renderHotspotSection = (hotspots: readonly WorkflowHotspot[]): readonly string[] => [
   '## Hotspot suggestions', '',
   ...(hotspots.length === 0
-    ? ['- No repeated translation/agentic/degraded wins detected in the latest run per scenario.']
+    ? ['- No repeated translation/agentic/degraded/semantic-drift signals detected in the latest run per scenario.']
     : hotspots.flatMap((h) => [
         `- ${h.kind} :: ${h.screen} :: ${h.family.field}/${h.family.action} (${h.occurrenceCount})`,
         ...h.suggestions.map((s) => `  - ${s.target}: ${s.reason}`),

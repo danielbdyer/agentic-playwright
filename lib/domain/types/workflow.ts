@@ -217,6 +217,12 @@ export type LocatorStrategy =
 
 export type TrustPolicyArtifactType = 'elements' | 'postures' | 'surface' | 'snapshot' | 'hints' | 'patterns';
 export type TrustPolicyDecision = 'allow' | 'review' | 'deny';
+export type ConfidenceDriftSignal =
+  | 'degraded-locator'
+  | 'label-role-mismatch'
+  | 'accessible-name-semantics-changed'
+  | 'unexpected-state-transition-effects'
+  | 'assertion-target-ambiguity';
 
 export interface TrustPolicyEvidenceRule {
   readonly minCount: number;
@@ -228,10 +234,21 @@ export interface TrustPolicyArtifactRule {
   readonly requiredEvidence: TrustPolicyEvidenceRule;
 }
 
+export interface TrustPolicyDecayRule {
+  readonly rates: Readonly<Record<ConfidenceDriftSignal, number>>;
+  readonly minimumFloor: number;
+  readonly suppressionWindowRuns: number;
+}
+
+export interface TrustPolicyConfidenceDecay {
+  readonly artifactTypes: Readonly<Record<TrustPolicyArtifactType, TrustPolicyDecayRule>>;
+}
+
 export interface TrustPolicy {
   readonly version: 1;
   readonly artifactTypes: Readonly<Record<TrustPolicyArtifactType, TrustPolicyArtifactRule>>;
   readonly forbiddenAutoHealClasses: readonly string[];
+  readonly confidenceDecay?: TrustPolicyConfidenceDecay | undefined;
 }
 
 export interface ProposedChangeMetadata {

@@ -176,6 +176,7 @@ test('execution validator round-trips canonical benchmark improvement and compat
     approvedEquivalentCount: 0,
     thinKnowledgeScreenCount: 0,
     degradedLocatorHotspotCount: 0,
+    semanticDriftHotspotCount: 0,
     interpretationDriftHotspotCount: 0,
     overlayChurn: 0,
     executionTimingTotalsMs: {
@@ -192,6 +193,10 @@ test('execution validator round-trips canonical benchmark improvement and compat
       diagnosticCount: 1,
     },
     executionFailureFamilies: {},
+    runtimeFailureClasses: {
+      'degraded-locator': 0,
+      'semantic-drift': 0,
+    },
     recoveryFamilies: {},
     recoveryStrategies: {},
     budgetBreachCount: 0,

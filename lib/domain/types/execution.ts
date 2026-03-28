@@ -152,6 +152,13 @@ export interface StepExecutionReceipt {
   readonly expectedTransitionRefs?: readonly TransitionRef[] | undefined;
   readonly observedStateRefs?: readonly StateNodeRef[] | undefined;
   readonly transitionObservations?: readonly TransitionObservation[] | undefined;
+  readonly semanticConsistency?: {
+    readonly labelRoleMismatch: boolean;
+    readonly accessibleNameSemanticsChanged: boolean;
+    readonly unexpectedStateTransitionEffects: boolean;
+    readonly assertionTargetAmbiguity: boolean;
+    readonly signals: readonly import('./workflow').ConfidenceDriftSignal[];
+  } | undefined;
   readonly durationMs: number;
   readonly timing: {
     readonly setupMs: number;

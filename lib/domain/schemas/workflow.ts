@@ -114,10 +114,27 @@ export const TrustPolicyArtifactRuleSchema = Schema.Struct({
   requiredEvidence: TrustPolicyEvidenceRuleSchema,
 });
 
+const ConfidenceDriftSignalSchema = Schema.Literal(
+  'degraded-locator',
+  'label-role-mismatch',
+  'accessible-name-semantics-changed',
+  'unexpected-state-transition-effects',
+  'assertion-target-ambiguity',
+);
+
+const TrustPolicyDecayRuleSchema = Schema.Struct({
+  rates: Schema.Record({ key: ConfidenceDriftSignalSchema, value: Schema.Number }),
+  minimumFloor: Schema.Number,
+  suppressionWindowRuns: Schema.Number,
+});
+
 export const TrustPolicySchema = Schema.Struct({
   version: Schema.Literal(1),
   artifactTypes: Schema.Record({ key: TrustPolicyArtifactTypeSchema, value: TrustPolicyArtifactRuleSchema }),
   forbiddenAutoHealClasses: Schema.optionalWith(StringArray, { default: () => [] as readonly string[] }),
+  confidenceDecay: Schema.optional(Schema.Struct({
+    artifactTypes: Schema.Record({ key: TrustPolicyArtifactTypeSchema, value: TrustPolicyDecayRuleSchema }),
+  })),
 });
 
 export const TrustPolicyEvaluationReasonSchema = Schema.Struct({

@@ -14,6 +14,7 @@ import type { ProjectPaths } from './paths';
 import { relativeProjectPath } from './paths';
 import { FileSystem } from './ports';
 import { compareStrings, uniqueSorted } from '../domain/collections';
+import { evaluateDriftDecayForArtifact } from './drift-evaluator';
 
 function round(value: number): number {
   return Number(value.toFixed(2));
@@ -217,13 +218,28 @@ export function buildConfidenceOverlayCatalog(catalog: WorkspaceCatalog): Confid
       const threshold = thresholdForArtifact(catalog, aggregate.artifactType);
       const approvalCount = catalog.approvalReceipts.filter((r) => r.artifact.targetPath === aggregate.artifactPath).length;
       const score = scoreForAggregate(aggregate.successCount, aggregate.failureCount, evidence.count, approvalCount);
+      const decay = evaluateDriftDecayForArtifact({
+        catalog,
+        artifactType: aggregate.artifactType,
+        runIds: uniqueSorted(aggregate.runIds),
+        stepMatchesRunAndTarget: (runId, stepIndex) =>
+          catalog.runRecords
+            .find((entry) => entry.artifact.runId === runId)
+            ?.artifact.steps.some((step) =>
+              step.stepIndex === stepIndex
+              && step.interpretation.kind !== 'needs-human'
+              && step.interpretation.target.screen === aggregate.screen
+              && (aggregate.element ? step.interpretation.target.element === aggregate.element : true),
+            ) ?? false,
+      });
+      const decayedScore = Math.max(decay.floor, round(score - decay.totalDecay));
       return {
         id,
         artifactType: aggregate.artifactType,
         artifactPath: aggregate.artifactPath,
-        score,
+        score: decayedScore,
         threshold,
-        status: statusForRecord(score, threshold, aggregate.failureCount),
+        status: statusForRecord(decayedScore, threshold, aggregate.failureCount),
         successCount: aggregate.successCount,
         failureCount: aggregate.failureCount,
         evidenceCount: evidence.count,
@@ -238,6 +254,12 @@ export function buildConfidenceOverlayCatalog(catalog: WorkspaceCatalog): Confid
           runIds: uniqueSorted(aggregate.runIds),
           evidenceIds: evidence.evidenceIds,
           sourceArtifactPaths: uniqueSorted(aggregate.sourceArtifactPaths),
+          decay: {
+            total: decay.totalDecay,
+            floor: decay.floor,
+            suppressedSignalCount: decay.suppressedSignalCount,
+            appliedSignals: decay.appliedSignals,
+          },
         },
       } satisfies ArtifactConfidenceRecord;
     })

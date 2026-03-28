@@ -78,6 +78,19 @@ export interface ArtifactConfidenceRecord {
     readonly runIds: readonly string[];
     readonly evidenceIds: readonly string[];
     readonly sourceArtifactPaths: readonly string[];
+    readonly decay?: {
+      readonly total: number;
+      readonly floor: number;
+      readonly suppressedSignalCount: number;
+      readonly appliedSignals: ReadonlyArray<{
+        readonly runId: string;
+        readonly stepIndex: number;
+        readonly signal: import('./workflow').ConfidenceDriftSignal;
+        readonly artifactType: TrustPolicyArtifactType;
+        readonly decayRate: number;
+        readonly threshold: string;
+      }>;
+    } | undefined;
   };
 }
 

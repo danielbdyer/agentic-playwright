@@ -17,7 +17,7 @@ const compareNumbers = (left: number, right: number): number => left - right;
 
 // ─── Types ───
 
-export type HotspotKind = 'translation-win' | 'agentic-fallback-win' | 'degraded-locator-rung' | 'recovery-policy-win' | 'interpretation-drift' | 'resolution-graph-needs-human';
+export type HotspotKind = 'translation-win' | 'agentic-fallback-win' | 'degraded-locator-rung' | 'semantic-drift' | 'recovery-policy-win' | 'interpretation-drift' | 'resolution-graph-needs-human';
 
 export interface HotspotSample {
   readonly adoId: string;
@@ -98,6 +98,8 @@ const entriesFromRuns = (runRecords: readonly RunRecord[]): readonly HotspotEntr
           ? [{ kind: 'agentic-fallback-win' as const, screen, field, action, sample }] : []),
         ...(step.execution.degraded
           ? [{ kind: 'degraded-locator-rung' as const, screen, field, action, sample }] : []),
+        ...((step.execution.semanticConsistency?.signals.length ?? 0) > 0
+          ? [{ kind: 'semantic-drift' as const, screen, field, action: step.execution.semanticConsistency!.signals.join(','), sample }] : []),
         ...(recoveredAttempt
           ? [{ kind: 'recovery-policy-win' as const, screen, field, action, sample: { ...sample, recoveryStrategy: recoveredAttempt.strategyId, recoveryFamily: recoveredAttempt.family } }] : []),
       ];
@@ -231,7 +233,7 @@ export function buildWorkflowHotspots(
 
 export const renderHotspotMarkdown = (hotspots: readonly WorkflowHotspot[]): readonly string[] =>
   hotspots.length === 0
-    ? ['## Hotspot suggestions', '', '- No repeated translation/agentic/degraded wins detected in the latest run per scenario.', '']
+    ? ['## Hotspot suggestions', '', '- No repeated translation/agentic/degraded/semantic-drift signals detected in the latest run per scenario.', '']
     : [
         '## Hotspot suggestions', '',
         ...hotspots.flatMap((h) => [

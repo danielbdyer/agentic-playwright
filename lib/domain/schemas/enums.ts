@@ -193,5 +193,5 @@ export const failureFamilies = ['precondition-failure', 'locator-degradation-fai
 export const FailureFamilySchema = Schema.Literal(...failureFamilies);
 
 // Operator inbox
-export const operatorInboxItemKinds = ['proposal', 'degraded-locator', 'needs-human', 'blocked-policy', 'approved-equivalent', 'recovery'] as const;
+export const operatorInboxItemKinds = ['proposal', 'degraded-locator', 'semantic-drift', 'needs-human', 'blocked-policy', 'approved-equivalent', 'recovery'] as const;
 export const OperatorInboxItemKindSchema = Schema.Literal(...operatorInboxItemKinds);

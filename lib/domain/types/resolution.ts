@@ -368,7 +368,7 @@ export interface RuntimeControlSession {
   readonly runbooks: readonly RuntimeRunbookControl[];
 }
 
-export type OperatorInboxItemKind = 'proposal' | 'degraded-locator' | 'needs-human' | 'blocked-policy' | 'approved-equivalent' | 'recovery';
+export type OperatorInboxItemKind = 'proposal' | 'degraded-locator' | 'semantic-drift' | 'needs-human' | 'blocked-policy' | 'approved-equivalent' | 'recovery';
 
 export interface OperatorInboxItem {
   readonly id: string;

@@ -48,7 +48,7 @@ import { mulberry32, pick, randomInt, randomWord } from './support/random';
 // ─── Constants ───
 
 const ALL_STATUSES = ['actionable', 'approved', 'blocked', 'informational'] as const;
-const ALL_KINDS = ['proposal', 'degraded-locator', 'needs-human', 'blocked-policy', 'approved-equivalent', 'recovery'] as const;
+const ALL_KINDS = ['proposal', 'degraded-locator', 'semantic-drift', 'needs-human', 'blocked-policy', 'approved-equivalent', 'recovery'] as const;
 const ALL_GOVERNANCES = ['approved', 'review-required', 'blocked'] as const;
 const ALL_CERTIFICATIONS = ['uncertified', 'certified'] as const;
 const ALL_ARTIFACT_TYPES = ['elements', 'postures', 'surface', 'snapshot', 'hints', 'patterns'] as const;

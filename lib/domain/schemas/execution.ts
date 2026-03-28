@@ -238,6 +238,7 @@ export const BenchmarkScorecardSchema = Schema.Struct({
   approvedEquivalentCount: Schema.Number,
   thinKnowledgeScreenCount: Schema.Number,
   degradedLocatorHotspotCount: Schema.Number,
+  semanticDriftHotspotCount: Schema.Number,
   interpretationDriftHotspotCount: Schema.Number,
   overlayChurn: Schema.Number,
   executionTimingTotalsMs: Schema.Struct({
@@ -254,6 +255,10 @@ export const BenchmarkScorecardSchema = Schema.Struct({
     diagnosticCount: Schema.Number,
   }),
   executionFailureFamilies: Schema.Record({ key: Schema.String, value: Schema.Number }),
+  runtimeFailureClasses: Schema.Struct({
+    'degraded-locator': Schema.Number,
+    'semantic-drift': Schema.Number,
+  }),
   recoveryFamilies: Schema.Record({ key: Schema.String, value: Schema.Number }),
   recoveryStrategies: Schema.Record({ key: Schema.String, value: Schema.Number }),
   budgetBreachCount: Schema.Number,

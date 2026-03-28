@@ -100,6 +100,7 @@ export interface BenchmarkScorecard {
   readonly approvedEquivalentCount: number;
   readonly thinKnowledgeScreenCount: number;
   readonly degradedLocatorHotspotCount: number;
+  readonly semanticDriftHotspotCount: number;
   readonly interpretationDriftHotspotCount: number;
   readonly overlayChurn: number;
   readonly executionTimingTotalsMs: {
@@ -116,6 +117,7 @@ export interface BenchmarkScorecard {
     diagnosticCount: number;
   };
   readonly executionFailureFamilies: Readonly<Record<string, number>>;
+  readonly runtimeFailureClasses: Readonly<Record<'degraded-locator' | 'semantic-drift', number>>;
   readonly recoveryFamilies: Readonly<Record<string, number>>;
   readonly recoveryStrategies: Readonly<Record<string, number>>;
   readonly budgetBreachCount: number;
