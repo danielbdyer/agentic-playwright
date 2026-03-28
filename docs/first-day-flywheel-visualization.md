@@ -524,3 +524,568 @@ During the first-day flywheel, event throughput varies dramatically by act:
 | 7 (Measurement) | 5-10 | Iteration-level summaries | No staggering needed |
 
 The existing `useIngestionQueue` hook with configurable `staggerMs` and `maxBuffer` handles the high-throughput acts. The flywheel visualization may need to configure multiple ingestion queues with act-specific stagger rates.
+
+---
+
+## Part III: The Time-Lapse and Recording System
+
+The flywheel visualization has two temporal modes: **live mode** (events arrive in real-time from the pipeline fiber) and **time-lapse mode** (recorded events are replayed at variable speed). Both modes must render through the same spatial components — the only difference is the event source and playback rate.
+
+### Why Time-Lapse Matters
+
+A first-day intake can take 30 minutes to several hours depending on suite size, application complexity, and iteration count. No operator will watch the full process in real-time. But watching a 2-hour bootstrap compressed into a 3-minute time-lapse — with the knowledge observatory visibly growing from empty to dense, the pass rate climbing from 0% to 87%, and the convergence landscape forming its plateau — is one of the most compelling demonstrations of Tesseract's value. The time-lapse is not a convenience feature. It is potentially the primary consumption mode of the flywheel visualization.
+
+### Recording Infrastructure
+
+#### Event Journal
+
+Every `DashboardEvent` emitted during a flywheel run must be persisted to an append-only journal file with precise timestamps. This journal is the recording medium for time-lapse playback.
+
+```
+Path: .tesseract/runs/{runId}/dashboard-events.jsonl
+Format: JSON Lines (one DashboardEvent per line)
+Ordering: Strictly chronological by emission timestamp
+Size estimate: 50-200 KB per iteration (mostly element-probed and step-resolved events)
+Total for 5-iteration run: 250 KB - 1 MB
+```
+
+The journal is written by a new `PipelineEventBus` subscriber — a `JournalWriter` fiber that consumes events from the PubSub and appends them to the JSONL file. This subscriber is architecturally identical to the existing `SharedArrayBuffer` writer and `WebSocket` broadcaster subscribers.
+
+```typescript
+// New subscriber added to PipelineEventBus
+interface JournalWriterConfig {
+  readonly journalPath: string;
+  readonly flushIntervalMs: number;  // default: 1000 (batch writes for performance)
+  readonly maxFileSizeBytes: number; // default: 10MB (safety cap)
+}
+```
+
+The journal writer batches events and flushes periodically rather than writing per-event, to avoid filesystem overhead during high-throughput acts (Act 5 can produce 1000+ events/second).
+
+#### Event Journal Schema
+
+Each line in the journal is a self-contained `DashboardEvent`:
+
+```typescript
+interface JournaledEvent {
+  readonly type: DashboardEventKind;
+  readonly timestamp: string;           // ISO 8601 — original emission time
+  readonly sequenceNumber: number;      // monotonic counter for ordering stability
+  readonly iteration: number;           // which flywheel iteration produced this event
+  readonly act: FlyWheelAct;            // which act this event belongs to (derived)
+  readonly data: unknown;               // typed per event kind
+}
+
+type FlyWheelAct = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+```
+
+The `act` field is derived at journal-write time from the event type and pipeline phase. It enables efficient seeking during time-lapse playback (jump to Act 3 of iteration 2).
+
+#### Journal Index
+
+A companion index file enables efficient random access into the journal:
+
+```
+Path: .tesseract/runs/{runId}/dashboard-events.index.json
+```
+
+```typescript
+interface JournalIndex {
+  readonly kind: 'dashboard-event-journal-index';
+  readonly version: 1;
+  readonly runId: string;
+  readonly totalEvents: number;
+  readonly totalDurationMs: number;
+  readonly iterations: readonly {
+    readonly iteration: number;
+    readonly startOffset: number;      // byte offset in JSONL
+    readonly endOffset: number;
+    readonly startTimestamp: string;
+    readonly endTimestamp: string;
+    readonly eventCount: number;
+    readonly acts: readonly {
+      readonly act: FlyWheelAct;
+      readonly startOffset: number;
+      readonly endOffset: number;
+      readonly startTimestamp: string;
+      readonly endTimestamp: string;
+      readonly eventCount: number;
+    }[];
+  }[];
+}
+```
+
+The index is written once at the end of the run (or updated incrementally if the journal is still being written). It enables the playback system to seek to any iteration/act boundary without scanning the full journal.
+
+### Playback System
+
+#### Playback Controller
+
+The playback system is a React hook that reads from the journal and emits events through the same dispatch pathway as the live WebSocket connection:
+
+```typescript
+interface PlaybackController {
+  /** Current playback state */
+  readonly state: 'idle' | 'playing' | 'paused' | 'seeking' | 'complete';
+  
+  /** Current playback speed (1.0 = real-time) */
+  readonly speed: number;
+  
+  /** Current playback position as fraction of total duration [0, 1] */
+  readonly position: number;
+  
+  /** Current iteration and act */
+  readonly currentIteration: number;
+  readonly currentAct: FlyWheelAct;
+  
+  /** Total duration of the recorded run */
+  readonly totalDurationMs: number;
+  
+  /** Controls */
+  readonly play: () => void;
+  readonly pause: () => void;
+  readonly setSpeed: (speed: number) => void;    // 0.5x to 100x
+  readonly seekToPosition: (fraction: number) => void;
+  readonly seekToIteration: (iteration: number) => void;
+  readonly seekToAct: (iteration: number, act: FlyWheelAct) => void;
+  readonly stepForward: () => void;               // advance one event
+  readonly stepBackward: () => void;              // rewind one event
+}
+```
+
+#### Playback Speed Tiers
+
+The time-lapse mode supports predefined speed tiers optimized for different viewing intentions:
+
+| Speed | Label | Use Case | Event Processing |
+|-------|-------|----------|-----------------|
+| 0.5× | Slow motion | Detailed analysis of specific moments | Full stagger timing preserved |
+| 1× | Real-time | Reliving the actual experience | Normal event timing |
+| 5× | Quick review | Watching one iteration at 1/5 time | Stagger timing compressed 5× |
+| 10× | Summary | Watching full run in ~6-12 minutes | Stagger timing compressed, minor events batched |
+| 25× | Overview | Watching full run in ~2-5 minutes | Most events batched, only act transitions rendered individually |
+| 50× | Fast-forward | Scanning for specific moments | Only iteration boundaries and scorecard updates rendered |
+| 100× | Sprint | Maximum compression | Only convergence events and final scorecard rendered |
+
+At high playback speeds (25×+), the visualization must batch events rather than rendering each one individually. The batching strategy:
+
+1. **Below 10×**: All events rendered individually with compressed stagger timing
+2. **10×–25×**: `element-probed` events batched per screen (one composite glow per screen per batch). `step-resolved` events batched per scenario. All other events rendered individually.
+3. **25×–50×**: Only act-transition events, `iteration-summary`, `convergence-evaluated`, and `fitness-updated` rendered individually. All probe/step/proposal events contribute to aggregate visual state but are not animated individually.
+4. **Above 50×**: Only iteration boundaries rendered. The observatory and scorecard update in discrete jumps per iteration. Particle transport is disabled. The visualization becomes a slide show of iteration snapshots with smooth interpolation between them.
+
+#### Scrubber UI
+
+The playback UI is a horizontal timeline control docked at the bottom of the viewport:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│ ◀◀  ▶  ▶▶  │ 0:23 / 47:12  │  ════════●══════════════  │  10×  ▼ │
+│             │               │  ↑ Act markers + iteration │         │
+│             │               │    boundaries visible      │         │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+- **Scrub bar**: Shows the full timeline with act markers (colored segments) and iteration boundaries (vertical lines)
+- **Act markers**: Each act segment is colored according to its dominant visual character (blue for capture, green for generation, red-amber for execution, gold for gating, white for measurement)
+- **Iteration boundaries**: Vertical lines with iteration number labels
+- **Hover preview**: Hovering over the scrub bar shows a tooltip with the iteration, act, timestamp, and key metric at that point (knowledge hit rate)
+- **Click-to-seek**: Clicking anywhere on the scrub bar seeks to that position
+- **Keyboard shortcuts**: Space = play/pause, Left/Right = step, Shift+Left/Right = seek to previous/next act boundary, Up/Down = speed tier
+
+### Bookmark System
+
+The time-lapse mode includes a bookmark system for marking and returning to significant moments:
+
+#### Auto-Bookmarks
+
+The system automatically bookmarks these moments during recording:
+
+| Moment | Trigger | Label |
+|--------|---------|-------|
+| First element discovered | First `element-probed` event | "First discovery" |
+| First scenario compiled | First `scenario-compiled` event | "First compilation" |
+| First test passed | First `scenario-executed` with `passed: true` | "First green test" |
+| First proposal activated | First `proposal-activated` with `status: 'activated'` | "First knowledge activation" |
+| First human decision | First `fiber-paused` event | "First human intervention" |
+| Each iteration boundary | Each `iteration-start` event | "Iteration N start" |
+| Convergence achieved | `convergence-evaluated` with `converged: true` | "Convergence" |
+| Largest hit-rate jump | Iteration with max `delta` in `convergence-evaluated` | "Biggest improvement" |
+
+#### Manual Bookmarks
+
+The operator can create manual bookmarks during live or playback viewing by pressing `B` or clicking a bookmark button. Each bookmark stores the current position, a user-provided label, and the current scene state snapshot (camera position, active probes, knowledge node count).
+
+### Recording as Artifact
+
+The event journal and index are standard Tesseract artifacts. They are:
+
+- Written to `.tesseract/runs/{runId}/` alongside other run artifacts
+- Included in the `DogfoodRun` ledger reference
+- Available for replay through the dashboard server's REST API
+- Consumable by the same MCP tool endpoints that serve live data
+
+The dashboard server exposes a playback API:
+
+```
+GET /api/runs                              → list available recorded runs
+GET /api/runs/{runId}/journal              → stream journal JSONL
+GET /api/runs/{runId}/journal/index        → get journal index
+GET /api/runs/{runId}/journal/seek?offset= → seek to byte offset
+```
+
+This enables the playback controller to load journals on demand without pre-loading the entire file into memory.
+
+---
+
+## Part IV: Camera Choreography and Scene Transitions
+
+The flywheel visualization is a continuous spatial narrative. The camera is the narrator's eye. Its position, field of view, and movement determine what the operator sees at each moment and how the seven acts flow into each other.
+
+### Camera States
+
+The camera operates in seven named states, each associated with one or more acts:
+
+| State | Position | FOV | Target | Acts | Character |
+|-------|----------|-----|--------|------|-----------|
+| `void` | `[0, 0, 6]` | 40 | `[0, 0, 0]` | 1 (start) | Pulled back, wide view of forming context |
+| `harvest` | `[0, 0, 4]` | 50 | `[-1.8, 0, 0]` | 2, 5 | Standard position, focused on screen plane |
+| `slice` | `[-0.5, 0, 4.5]` | 55 | `[-2, 0, 0]` | 3 | Shifted left to see scenario list + screen |
+| `compile` | `[0, 0, 4]` | 50 | `[0, 0, 0]` | 4 | Centered, seeing both screen and observatory |
+| `gate` | `[0.3, 0, 3.5]` | 45 | `[-0.1, 0, 0]` | 6 | Shifted right and closer to glass pane |
+| `measure` | `[0, 0.3, 4.5]` | 55 | `[0, -0.5, 0]` | 7 | Pulled back + up, seeing full scene + timeline |
+| `summary` | `[0, 0, 5]` | 50 | `[0, 0, 0]` | Final | Centered, balanced view of complete scene |
+
+### Transition Choreography
+
+Each act transition involves a camera move plus scene element changes. Transitions should take 1.5–3 seconds and use cubic ease-in-out interpolation for both position and FOV.
+
+#### Transition 1→2: Void to Harvest
+
+```
+Duration: 2.5 seconds
+Camera: [0,0,6] → [0,0,4], FOV 40 → 50
+Scene:
+  - Scenario cloud compresses to left, fades to 20% opacity
+  - Screen plane fades in from 0% to 100% opacity
+  - Seed route lines brighten and connect to screen plane
+  - Glass pane appears at 90% transparency
+  - Observatory space becomes visible (empty)
+```
+
+#### Transition 2→3: Harvest to Slice
+
+```
+Duration: 1.5 seconds
+Camera: [0,0,4] → [-0.5,0,4.5], FOV 50 → 55
+Scene:
+  - Screen plane dims to 70% opacity
+  - Scenario cloud drifts forward from background
+  - Scenarios reorganize into ranked vertical list at x=-2.5
+  - Selection boundary line appears at top of list
+```
+
+#### Transition 3→4: Slice to Compile
+
+```
+Duration: 2 seconds
+Camera: [-0.5,0,4.5] → [0,0,4], FOV 55 → 50
+Scene:
+  - Deferred scenarios dissolve
+  - Selected scenarios compress into queue at top-left
+  - Screen plane brightens to 100% opacity
+  - Pipeline timeline fades in at bottom
+  - Glass pane frosts slightly (transmission 0.7)
+```
+
+#### Transition 4→5: Compile to Execute
+
+```
+Duration: 1.5 seconds
+Camera: [0,0,4] → [0,0,4] (no move, slight zoom via FOV 50 → 48)
+Scene:
+  - Pipeline timeline shifts to execution mode
+  - Step overlays clear from screen plane
+  - "Run" indicator pulses at screen plane top edge
+  - Calibration radar appears in corner
+```
+
+#### Transition 5→6: Execute to Gate
+
+```
+Duration: 2 seconds
+Camera: [0,0,4] → [0.3,0,3.5], FOV 48 → 45
+Scene:
+  - Screen plane dims to 60% opacity
+  - Failure fragments coalesce near glass pane
+  - Glass pane frosts heavily (transmission 0.3)
+  - Proposal cluster forms at x=-0.5
+  - Workbench queue appears at bottom
+```
+
+#### Transition 6→7: Gate to Measure
+
+```
+Duration: 2 seconds
+Camera: [0.3,0,3.5] → [0,0.3,4.5], FOV 45 → 55
+Scene:
+  - Glass pane returns to semi-transparent (transmission 0.6)
+  - Pipeline timeline shifts to iteration mode
+  - Scorecard panel materializes at center-bottom
+  - Fitness gauges appear
+  - Observatory settles (node positions stabilize)
+```
+
+#### Transition 7→4 (Loop): Measure to Compile (next iteration)
+
+```
+Duration: 2.5 seconds
+Camera: [0,0.3,4.5] → [0,0,4], FOV 55 → 50
+Scene:
+  - Scorecard panel shrinks to a compact form and docks at top-right
+  - Iteration timeline advances (new column appears)
+  - Observatory nodes pulse once (acknowledging new knowledge)
+  - Scenario queue repopulates with re-prioritized slice
+  - Screen plane brightens to 100%
+  - Ambient light intensity increases by 5% (cumulative per iteration)
+  - Glass pane frosts slightly
+```
+
+#### Convergence Finale
+
+```
+Duration: 4 seconds
+Camera: current → [0,0,5], FOV → 50
+Scene:
+  - Green pulse radiates outward from observatory center
+  - All knowledge nodes solidify (stop pulsing)
+  - Glass pane becomes fully transparent
+  - Particle transport ceases (no more flow needed)
+  - Scorecard expands to full-size summary panel
+  - Ambient light reaches maximum brightness
+  - Bloom intensity increases to 1.2 (everything glows slightly)
+```
+
+### Camera Override: Operator Control
+
+During both live and playback modes, the operator can override the automated camera choreography:
+
+- **Mouse drag**: Orbit camera around the scene center
+- **Scroll wheel**: Zoom in/out (FOV adjustment)
+- **Double-click on element**: Snap camera to focus on that element's position
+- **Double-click on knowledge node**: Snap camera to focus on observatory region
+- **Press `Home`**: Return to automated choreography position for current act
+- **Press `1`–`7`**: Jump camera to the named state for that act number
+
+When the operator overrides the camera, automated choreography pauses. It resumes when the operator presses `Home` or when an act transition occurs (with a smooth blend from the operator's current position to the transition target).
+
+---
+
+## Part V: The Narration Layer
+
+The flywheel visualization tells a story. The spatial scene provides the visual narrative. The narration layer provides the textual companion — brief, contextual captions that explain what the operator is seeing without being intrusive.
+
+### Design Principles for Narration
+
+1. **Show, don't tell, whenever possible.** If the visual is clear, the caption is unnecessary. Narration fills gaps that the spatial scene cannot communicate alone — motivations, statistics, and strategy.
+
+2. **No scrolling text walls.** Every caption is a single sentence or a short metric cluster. If it takes more than 3 seconds to read, it is too long.
+
+3. **Contextual, not instructional.** Captions describe what the system is doing and why, not what the operator should do. The operator is an observer (in autopilot mode) or a decision-maker (in intervention mode), never a student being lectured.
+
+4. **Fade, don't persist.** Captions appear, remain for 4–6 seconds, and fade. They do not accumulate. The scene is the persistent visual — captions are ephemeral annotations.
+
+5. **Narration is optional.** The visualization must be fully comprehensible without narration for experienced operators. A toggle (`N` key or settings) disables all captions.
+
+### Caption Catalog
+
+#### Act 1: Context Intake
+
+| Trigger | Caption | Position | Duration |
+|---------|---------|----------|----------|
+| First scenario card appears | "Ingesting {count} scenarios from Azure DevOps" | Top center | 5s |
+| Scenario clustering begins | "Organizing by shared screen affinity" | Center | 4s |
+| Seed routes appear | "{count} seed routes provided" | Left edge | 4s |
+| Context Pack complete | "Context Pack ready — {count} scenarios, {screenCount} screens referenced" | Center | 5s |
+
+#### Act 2: ARIA-First Capture
+
+| Trigger | Caption | Position | Duration |
+|---------|---------|----------|----------|
+| First screen navigation | "Navigating to {url}" | Screen plane top | 4s |
+| ARIA tree captured | "ARIA tree: {nodeCount} nodes, {landmarkCount} landmarks" | Screen plane bottom | 4s |
+| Element probe wave begins | "Discovering elements on {screen}" | Screen plane center | 3s |
+| Each screen complete | "{screen}: {elementCount} elements found" | Observatory near new node | 4s |
+| All screens captured | "Baseline harvest complete — {totalElements} elements across {screenCount} screens" | Center | 5s |
+
+#### Act 3: Suite Slicing
+
+| Trigger | Caption | Position | Duration |
+|---------|---------|----------|----------|
+| Prioritization begins | "Prioritizing {totalCount} scenarios by learning value" | Top center | 4s |
+| Selection boundary settles | "Suite Slice: {selectedCount} of {totalCount} scenarios selected" | Near boundary line | 5s |
+| Top screen revealed | "Top screens: {topScreens.join(', ')}" | Near scenario list | 4s |
+
+#### Act 4: Deterministic Generation
+
+| Trigger | Caption | Position | Duration |
+|---------|---------|----------|----------|
+| First scenario compiling | "Compiling first scenario: {title}" | Pipeline timeline | 4s |
+| High bind rate | "{boundSteps}/{totalSteps} steps bound deterministically" | Screen plane corner | 4s |
+| Many deferrals | "{deferredSteps} steps deferred to runtime interpretation" | Screen plane corner | 4s |
+| All scenarios compiled | "Compilation complete — {boundRate}% bound, {deferredRate}% deferred" | Center | 5s |
+
+#### Act 5: Execution & Failure
+
+| Trigger | Caption | Position | Duration |
+|---------|---------|----------|----------|
+| First scenario executing | "Executing: {title}" | Screen plane top | 4s |
+| First resolution ladder walk | "Resolving deferred step via {strategy}" | Near element | 3s |
+| First test passes | "✓ First green test: {title}" | Center (larger font) | 6s |
+| First test fails | "✗ {title} — {failureClass}" | Near failure location | 4s |
+| Needs-human escalation | "Awaiting human decision: {reason}" | Near decision overlay | Persistent until resolved |
+| Execution complete | "{passedCount}/{totalCount} scenarios passed" | Center | 5s |
+
+#### Act 6: Hardening & Gating
+
+| Trigger | Caption | Position | Duration |
+|---------|---------|----------|----------|
+| Proposals approaching glass | "{proposalCount} proposals generated from failures" | Near proposal cluster | 4s |
+| First proposal passes through | "Knowledge activated: {description}" | Near glass pane | 4s |
+| Proposal reflected | "Review required: {description}" | Near workbench queue | 4s |
+| Proposal blocked | "Blocked by trust policy: {reason}" | Near glass pane | 4s |
+| Gating complete | "{activatedCount} activated, {reviewCount} need review, {blockedCount} blocked" | Center | 5s |
+
+#### Act 7: Meta-Measurement
+
+| Trigger | Caption | Position | Duration |
+|---------|---------|----------|----------|
+| Scorecard appears | "Iteration {n} complete" | Scorecard panel top | 4s |
+| Hit rate reported | "Knowledge hit rate: {rate}% (Δ{delta}%)" | Scorecard panel | 5s |
+| Convergence not met | "Not converged — iterating. {budgetRemaining} iterations remaining" | Center | 4s |
+| Convergence achieved | "Converged at iteration {n} — {hitRate}% knowledge hit rate" | Center (larger font) | 8s |
+
+### Narration Rendering
+
+Captions are rendered as HTML overlays positioned absolutely over the Three.js canvas. They are not part of the Three.js scene — they exist in the DOM layer above the WebGL context. This avoids the complexity and performance cost of 3D text rendering while keeping captions crisp at any resolution.
+
+```typescript
+interface NarrationCaption {
+  readonly id: string;
+  readonly text: string;
+  readonly position: 'top-center' | 'center' | 'bottom-center' 
+    | 'screen-plane-top' | 'screen-plane-bottom' | 'screen-plane-center'
+    | 'observatory' | 'glass-pane' | 'pipeline-timeline' | 'workbench';
+  readonly durationMs: number;
+  readonly emphasis: 'normal' | 'highlight' | 'milestone';
+  readonly fadeInMs: number;   // default: 300
+  readonly fadeOutMs: number;  // default: 500
+}
+```
+
+Milestone captions (first green test, convergence achieved) use a larger font, longer duration, and subtle glow effect. Normal captions use a standard font with a semi-transparent dark background for readability against the Three.js scene.
+
+---
+
+## Part VI: Operator Controls and Interaction Model
+
+The flywheel visualization supports two interaction modes: **autopilot** (observation) and **intervention** (steering). The operator can switch between them at any time. The visualization adapts its behavior but never changes the underlying pipeline — it is always a projection.
+
+### Autopilot Mode (Default)
+
+In autopilot mode, the operator watches. The camera follows the automated choreography. Narration captions provide context. The pipeline runs without pausing for human decisions — the `DisabledDashboard` or `AgentDecider` handles all decision gates automatically.
+
+#### Controls Available in Autopilot Mode
+
+| Control | Input | Effect |
+|---------|-------|--------|
+| Camera orbit | Mouse drag | Override automated camera position |
+| Zoom | Scroll wheel | Adjust FOV |
+| Reset camera | `Home` key | Return to automated choreography |
+| Jump to act camera | `1`–`7` keys | Snap to named camera state |
+| Toggle narration | `N` key | Show/hide narration captions |
+| Toggle scorecard | `S` key | Show/hide persistent scorecard panel |
+| Toggle pipeline timeline | `T` key | Show/hide pipeline stage visualization |
+| Focus element | Double-click on glow | Zoom to element, show detail card |
+| Focus knowledge node | Double-click on observatory node | Zoom to node, show knowledge detail |
+| Open workbench | `W` key | Open workbench panel (read-only in autopilot) |
+| Screenshot | `P` key | Capture current viewport as PNG |
+| Toggle bloom | `B` key | Enable/disable bloom postprocessing |
+| Toggle glass pane | `G` key | Show/hide glass pane for clearer view |
+
+#### Playback Controls (Time-Lapse Mode Only)
+
+| Control | Input | Effect |
+|---------|-------|--------|
+| Play/pause | `Space` | Toggle playback |
+| Speed up | `]` or `+` | Next speed tier |
+| Speed down | `[` or `-` | Previous speed tier |
+| Step forward | `Right arrow` | Advance one event |
+| Step backward | `Left arrow` | Rewind one event |
+| Next act | `Shift+Right` | Seek to next act boundary |
+| Previous act | `Shift+Left` | Seek to previous act boundary |
+| Next iteration | `Ctrl+Right` | Seek to next iteration boundary |
+| Previous iteration | `Ctrl+Left` | Seek to previous iteration boundary |
+| Seek | Click on scrub bar | Jump to position |
+| Bookmark | `M` key | Create bookmark at current position |
+| Go to bookmark | `Ctrl+1`–`Ctrl+9` | Jump to bookmark N |
+
+### Intervention Mode
+
+In intervention mode, the operator can make decisions that affect the pipeline. This requires the `WsDashboardAdapter` or `DualModeDecider` implementation of `DashboardPort` — the Effect fiber actually pauses and waits for the operator's response.
+
+#### Decision Overlay
+
+When the fiber pauses for a decision, the flywheel visualization activates the decision overlay:
+
+1. The camera smoothly transitions to focus on the relevant element or knowledge node
+2. The relevant element's glow intensifies (2× normal brightness, slower pulse)
+3. The decision overlay appears as a floating panel near the element with:
+   - The work item title and rationale
+   - The evidence confidence score and sources
+   - The proposed action and its expected impact
+   - **Approve** button (green) and **Skip** button (red)
+4. The narration layer shows a persistent caption: "Awaiting human decision: {reason}"
+5. All other animations continue but at 50% speed (the scene feels "held in suspension")
+
+When the operator clicks Approve or Skip:
+
+1. The decision burst animation fires (green particles toward observatory for approve, red scatter for skip)
+2. The camera returns to the automated choreography position
+3. The fiber resumes
+4. The narration caption updates: "Decision: {approved/skipped} — {rationale}"
+
+#### Batch Decision Surface
+
+During Act 6 (Hardening & Gating), multiple proposals may require human review. The workbench panel can operate in batch mode:
+
+1. All pending work items are listed with priority, confidence, and type
+2. The operator can select multiple items and approve/skip them as a batch
+3. Each batch decision triggers a rapid sequence of decision burst animations
+4. The narration layer summarizes: "Batch decision: {approvedCount} approved, {skippedCount} skipped"
+
+#### Impact Preview (Future Enhancement)
+
+Before making a decision, the operator can preview the projected impact:
+
+- **Approve preview**: "If approved, {N} additional steps will resolve in the next iteration. Estimated hit-rate improvement: +{delta}%."
+- **Skip preview**: "If skipped, {N} steps remain deferred. No immediate impact on hit rate."
+
+This preview is computed by the pipeline's fitness projector (which already exists in `lib/application/fitness.ts`) and displayed as a tooltip on the Approve/Skip buttons.
+
+### Settings Panel
+
+A settings panel (toggled by `Esc` or gear icon) allows the operator to configure:
+
+| Setting | Default | Range | Effect |
+|---------|---------|-------|--------|
+| Narration enabled | `true` | boolean | Show/hide narration captions |
+| Narration verbosity | `normal` | `minimal` / `normal` / `verbose` | Caption frequency and detail |
+| Bloom intensity | `0.8` | 0.0–2.0 | Postprocessing glow strength |
+| Particle density | `1.0` | 0.25–2.0 | Multiplier on particle count (for performance) |
+| Glass pane visible | `true` | boolean | Show/hide glass pane |
+| Ambient brightness | `0.3` | 0.1–1.0 | Base ambient light intensity |
+| Camera speed | `1.0` | 0.5–3.0 | Transition animation speed multiplier |
+| Auto-camera | `true` | boolean | Enable/disable automated choreography |
+| Decision timeout | `0` (infinite) | 0–300 seconds | Auto-skip decisions after timeout |
+| Time-lapse speed | `10×` | 0.5×–100× | Default playback speed tier |
