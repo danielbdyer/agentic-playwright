@@ -124,7 +124,7 @@ function scorecardForBenchmark(input: {
   interpretationDriftRecords: InterpretationDriftRecord[];
   learningScorecard?: LearningScorecard | null | undefined;
 }): BenchmarkScorecard {
-  const uniqueScreens = uniqueSorted(input.benchmark.fieldCatalog.map((field) => field.screen).filter((value) => value.length > 0));
+  const uniqueScreens = uniqueSorted(input.benchmark.fieldCatalog.flatMap((field) => field.screen.length > 0 ? [field.screen] : []));
   const driftCount = input.benchmark.driftEvents.length;
   const locatorDriftCount = input.benchmark.driftEvents.filter((event) => event.kind === 'locator-degradation').length;
   const widgetDriftCount = input.benchmark.driftEvents.filter((event) => event.kind === 'widget-swap').length;

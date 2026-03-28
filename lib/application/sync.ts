@@ -53,60 +53,77 @@ export function syncSnapshots(options: { adoId?: AdoId; all?: boolean; paths: Pr
       ),
     );
 
-    const nextEntries = { ...manifest.entries };
-    const snapshots: import('../domain/types/intent').AdoSnapshot[] = [];
-    const diagnostics: import('../domain/types/workflow').CompilerDiagnostic[] = [];
-
     yield* fs.ensureDir(options.paths.snapshotDir);
 
-    for (const adoId of ids) {
-      const rawSnapshot = yield* ado.loadSnapshot(adoId);
-      const snapshot = yield* trySync(
-        () => validateAdoSnapshot(rawSnapshot),
-        'snapshot-validation-failed',
-        `Snapshot ${adoId} failed validation`,
-      );
-      const targetPath = snapshotPath(options.paths, snapshot.id);
-      const exists = yield* fs.exists(targetPath);
-      const previousEntry = nextEntries[snapshot.id];
+    type SyncAcc = {
+      readonly entries: typeof manifest.entries;
+      readonly snapshots: readonly import('../domain/types/intent').AdoSnapshot[];
+      readonly diagnostics: readonly import('../domain/types/workflow').CompilerDiagnostic[];
+    };
 
-      if (exists) {
-        const previousRaw = yield* fs.readJson(targetPath);
-        const previousSnapshot = yield* trySync(
-          () => validateAdoSnapshot(previousRaw),
+    const syncStep = (
+      remaining: readonly AdoId[],
+      acc: SyncAcc,
+    ): Effect.Effect<SyncAcc, unknown, any> =>
+      Effect.gen(function* () {
+        if (remaining.length === 0) return acc;
+        const [adoId, ...rest] = remaining;
+        const rawSnapshot = yield* ado.loadSnapshot(adoId!);
+        const snapshot = yield* trySync(
+          () => validateAdoSnapshot(rawSnapshot),
           'snapshot-validation-failed',
-          `Existing snapshot ${snapshot.id} failed validation`,
+          `Snapshot ${adoId} failed validation`,
         );
+        const targetPath = snapshotPath(options.paths, snapshot.id);
+        const exists = yield* fs.exists(targetPath);
+        const previousEntry = acc.entries[snapshot.id];
 
-        if (hasSnapshotDrift(previousEntry, snapshot)) {
-          yield* fs.writeJson(archiveSnapshotPath(options.paths, snapshot.id, previousSnapshot.revision), previousSnapshot);
+        if (exists) {
+          const previousRaw = yield* fs.readJson(targetPath);
+          const previousSnapshot = yield* trySync(
+            () => validateAdoSnapshot(previousRaw),
+            'snapshot-validation-failed',
+            `Existing snapshot ${snapshot.id} failed validation`,
+          );
+
+          if (hasSnapshotDrift(previousEntry, snapshot)) {
+            yield* fs.writeJson(archiveSnapshotPath(options.paths, snapshot.id, previousSnapshot.revision), previousSnapshot);
+          }
         }
-      }
 
-      yield* fs.writeJson(targetPath, snapshot);
-      nextEntries[snapshot.id] = {
-        adoId: snapshot.id,
-        revision: snapshot.revision,
-        contentHash: snapshot.contentHash,
-        syncedAt: snapshot.syncedAt,
-        sourcePath: relativeProjectPath(options.paths, targetPath),
-      };
-      snapshots.push(snapshot);
-      diagnostics.push(
-        createDiagnostic({
-          code: exists && hasSnapshotDrift(previousEntry, snapshot) ? 'snapshot-updated' : exists ? 'snapshot-unchanged' : 'snapshot-created',
-          severity: 'info',
-          message: `Synced snapshot ${snapshot.id}`,
-          adoId: snapshot.id,
-          artifactPath: relativeProjectPath(options.paths, targetPath),
-          provenance: {
-            contentHash: snapshot.contentHash,
-            snapshotPath: relativeProjectPath(options.paths, targetPath),
-            sourceRevision: snapshot.revision,
+        yield* fs.writeJson(targetPath, snapshot);
+        const nextAcc: SyncAcc = {
+          entries: {
+            ...acc.entries,
+            [snapshot.id]: {
+              adoId: snapshot.id,
+              revision: snapshot.revision,
+              contentHash: snapshot.contentHash,
+              syncedAt: snapshot.syncedAt,
+              sourcePath: relativeProjectPath(options.paths, targetPath),
+            },
           },
-        }),
-      );
-    }
+          snapshots: [...acc.snapshots, snapshot],
+          diagnostics: [...acc.diagnostics, createDiagnostic({
+            code: exists && hasSnapshotDrift(previousEntry, snapshot) ? 'snapshot-updated' : exists ? 'snapshot-unchanged' : 'snapshot-created',
+            severity: 'info',
+            message: `Synced snapshot ${snapshot.id}`,
+            adoId: snapshot.id,
+            artifactPath: relativeProjectPath(options.paths, targetPath),
+            provenance: {
+              contentHash: snapshot.contentHash,
+              snapshotPath: relativeProjectPath(options.paths, targetPath),
+              sourceRevision: snapshot.revision,
+            },
+          })],
+        };
+        return yield* syncStep(rest, nextAcc);
+      });
+
+    const syncResult = yield* syncStep(ids, { entries: { ...manifest.entries }, snapshots: [], diagnostics: [] });
+    const nextEntries = syncResult.entries;
+    const snapshots = syncResult.snapshots;
+    const diagnostics = syncResult.diagnostics;
 
     const nextManifest = { entries: nextEntries };
     yield* fs.writeJson(options.paths.manifestPath, nextManifest);

@@ -146,8 +146,8 @@ export async function resolveFromDom(
 
   const resolved = await effectiveResolver.resolve({ task, screen, action, policy: effectivePolicy });
   const candidates = resolved.candidates
-    .filter((candidate) => compatibilityScore(action, candidate.element) > 0)
-    .map((candidate) => {
+    .flatMap((candidate) => {
+      if (compatibilityScore(action, candidate.element) <= 0) return [];
       const computedRoleNameScore = roleNameScore(task, candidate.element);
       // Boost score if ARIA label matches intent (semantic signal from the DOM)
       const ariaLabel = (candidate.evidence as { ariaLabel?: string | null }).ariaLabel;
@@ -157,7 +157,7 @@ export async function resolveFromDom(
           ? 0.15 : 0)
         : 0;
       const effectiveRoleNameScore = Math.min(1, computedRoleNameScore + ariaBoost);
-      return {
+      return [{
         ...candidate,
         score: scoreCandidate({
           visibleCount: candidate.evidence.visibleCount,
@@ -171,7 +171,7 @@ export async function resolveFromDom(
           ...candidate.evidence,
           roleNameScore: effectiveRoleNameScore,
         },
-      } satisfies DomResolutionCandidate;
+      } satisfies DomResolutionCandidate];
     });
   const probes = resolved.probes;
 

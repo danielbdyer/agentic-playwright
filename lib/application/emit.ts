@@ -401,11 +401,9 @@ export function emitScenario(
       ...(catalog.selectorCanon ? [fingerprintProjectionArtifact('selector-canon', catalog.selectorCanon.artifactPath, catalog.selectorCanon.artifact)] : []),
       ...(catalog.learningManifest ? [fingerprintProjectionArtifact('learning-manifest', catalog.learningManifest.artifactPath, catalog.learningManifest.artifact)] : []),
       ...catalog.improvementRuns
-        .filter((entry) => entry.artifact.iterations.some((iteration) => iteration.scenarioIds.includes(source.adoId)))
-        .map((entry) => fingerprintProjectionArtifact('improvement-run', entry.artifactPath, entry.artifact)),
+        .flatMap((entry) => entry.artifact.iterations.some((iteration) => iteration.scenarioIds.includes(source.adoId)) ? [fingerprintProjectionArtifact('improvement-run', entry.artifactPath, entry.artifact)] : []),
       ...catalog.agentSessions
-        .filter((entry) => entry.artifact.scenarioIds.includes(source.adoId))
-        .map((entry) => fingerprintProjectionArtifact('agent-session', entry.artifactPath, entry.artifact)),
+        .flatMap((entry) => entry.artifact.scenarioIds.includes(source.adoId) ? [fingerprintProjectionArtifact('agent-session', entry.artifactPath, entry.artifact)] : []),
       fingerprintProjectionArtifact(
         'proposal-bundle',
         relativeProjectPath(options.paths, catalog.proposalBundles.find((entry) => entry.artifact.runId === artifacts.proposalBundle.runId)?.absolutePath ?? artifacts.proposalsPath),

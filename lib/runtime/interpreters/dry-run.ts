@@ -105,16 +105,22 @@ const dryRunDispatch = pipe(
 export const dryRunInterpreter: StepProgramInterpreter<InterpreterEnvironment> = {
   mode: 'dry-run',
   async run(program: StepProgram, environment: InterpreterEnvironment, context?: StepProgramDiagnosticContext): Promise<StepProgramExecutionResult> {
-    const outcomes: ReturnType<typeof interpreterOutcome>[] = [];
-
-    for (const [index, instruction] of program.instructions.entries()) {
+    const step = (
+      remaining: readonly [number, (typeof program.instructions)[number]][],
+      priorOutcomes: readonly ReturnType<typeof interpreterOutcome>[],
+    ): StepProgramExecutionResult => {
+      if (remaining.length === 0) {
+        return { ok: true, value: { mode: this.mode, outcomes: [...priorOutcomes] } };
+      }
+      const [head, ...rest] = remaining;
+      const [index, instruction] = head!;
       const result = dryRunDispatch(instruction)(environment, index);
-      outcomes.push(result.outcome);
+      const outcomes = [...priorOutcomes, result.outcome];
       if (!result.cont) {
         return failResult(this.mode, outcomes, result.error, context);
       }
-    }
-
-    return { ok: true, value: { mode: this.mode, outcomes } };
+      return step(rest, outcomes);
+    };
+    return step([...program.instructions.entries()], []);
   },
 };

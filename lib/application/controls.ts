@@ -79,8 +79,7 @@ export function runtimeControlsForScenario(catalog: WorkspaceCatalog, scenario: 
     datasets: catalog.datasets.map((entry) => runtimeDatasetBinding(entry)),
     resolutionControls: runtimeResolutionControls(catalog.resolutionControls, scenario),
     runbooks: catalog.runbooks
-      .filter((entry) => entry.artifact.default || selectorMatchesScenario(entry.artifact.selector, scenario))
-      .map((entry) => runtimeRunbook(entry))
+      .flatMap((entry) => entry.artifact.default || selectorMatchesScenario(entry.artifact.selector, scenario) ? [runtimeRunbook(entry)] : [])
       .sort((left, right) => compareStrings(left.name, right.name)),
   };
 }
@@ -126,17 +125,12 @@ export function resolveRunSelection(
   const runbook = findRunbook(catalog, { runbookName: options.runbookName ?? null, scenario: null });
   const tag = options.tag ?? null;
   const selected = catalog.scenarios
-    .map((entry) => entry.artifact)
-    .filter((scenario) => {
-      if (tag && !scenario.metadata.tags.includes(tag)) {
-        return false;
-      }
-      if (runbook && !selectorMatchesScenario(runbook.selector, scenario)) {
-        return false;
-      }
-      return true;
-    })
-    .map((scenario) => scenario.source.ado_id);
+    .flatMap((entry) => {
+      const scenario = entry.artifact;
+      if (tag && !scenario.metadata.tags.includes(tag)) return [];
+      if (runbook && !selectorMatchesScenario(runbook.selector, scenario)) return [];
+      return [scenario.source.ado_id];
+    });
 
   return {
     adoIds: uniqueSorted(selected),

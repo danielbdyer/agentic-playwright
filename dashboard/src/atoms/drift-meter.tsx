@@ -4,21 +4,23 @@
  * Semantic: amber = active learning (high drift). Green = converged (drift → 0).
  * Shows "Converged" label when drift < 0.005.
  *
+ * W5.22: React 19 ref-as-prop — ref is a regular prop, no forwardRef wrapper.
  * Pure atom. Memo-wrapped.
  */
 
-import { memo } from 'react';
+import { memo, type Ref } from 'react';
 
 interface DriftMeterProps {
   readonly drift: number;
   readonly maxDrift?: number;
+  readonly ref?: Ref<HTMLDivElement>;
 }
 
-export const DriftMeter = memo(function DriftMeter({ drift, maxDrift = 0.1 }: DriftMeterProps) {
+export const DriftMeter = memo(function DriftMeter({ drift, maxDrift = 0.1, ref }: DriftMeterProps) {
   const pct = Math.min(100, (drift / maxDrift) * 100);
   const converged = drift < 0.005;
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+    <div ref={ref} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <span className="metric-label" style={{ minWidth: 36 }}>Drift</span>
       <div className="drift-meter" style={{ flex: 1 }}>
         <div

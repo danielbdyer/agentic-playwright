@@ -68,6 +68,7 @@ export type DashboardEventKind =
   | 'confidence-crossed'
   | 'artifact-written'
   | 'stage-lifecycle'
+  | 'diagnostics'
   | 'connected'
   | 'error';
 
@@ -354,6 +355,49 @@ export const dashboardMcpTools: readonly McpToolDefinition[] = [
     category: 'control',
     description: 'Navigate the browser to a URL via Playwright. Only safe during fiber pause.',
     inputSchema: { type: 'object', properties: { url: { type: 'string' } }, required: ['url'] },
+  },
+  // Resource-backed observation tools (W3.3 MCP resource expansion)
+  {
+    name: 'get_proposal',
+    category: 'observe',
+    description: 'Get details of a specific proposal by ID, including patch, rationale, and activation status.',
+    inputSchema: { type: 'object', properties: { proposalId: { type: 'string', description: 'The proposal ID to look up' } }, required: ['proposalId'] },
+  },
+  {
+    name: 'list_proposals',
+    category: 'observe',
+    description: 'List all proposals with optional status filter. Returns proposal IDs, artifact types, and activation status.',
+    inputSchema: { type: 'object', properties: { status: { type: 'string', enum: ['pending', 'activated', 'blocked', 'all'] }, screen: { type: 'string' } } },
+  },
+  {
+    name: 'get_bottleneck',
+    category: 'observe',
+    description: 'Get bottleneck analysis for a specific screen: unresolved elements, resolution failure rates, and calibration weights.',
+    inputSchema: { type: 'object', properties: { screen: { type: 'string', description: 'The screen ID to analyze' } }, required: ['screen'] },
+  },
+  {
+    name: 'get_run',
+    category: 'observe',
+    description: 'Get details of a specific run by ID. Includes timing, pass/fail counts, and convergence metrics.',
+    inputSchema: { type: 'object', properties: { runId: { type: 'string', description: 'The run ID to look up' } }, required: ['runId'] },
+  },
+  {
+    name: 'get_resolution_graph',
+    category: 'observe',
+    description: 'Get the resolution graph with optional screen filter. Returns nodes, edges, and summary statistics.',
+    inputSchema: { type: 'object', properties: { screen: { type: 'string', description: 'Filter by screen ID' } } },
+  },
+  {
+    name: 'get_task_resolution',
+    category: 'observe',
+    description: 'Get resolution details for a specific task/ADO ID, including winning source and confidence.',
+    inputSchema: { type: 'object', properties: { taskId: { type: 'string', description: 'The task/ADO ID' } }, required: ['taskId'] },
+  },
+  {
+    name: 'list_screens',
+    category: 'observe',
+    description: 'List all screens with element counts, confidence summaries, and governance status.',
+    inputSchema: { type: 'object', properties: {} },
   },
 ] as const;
 

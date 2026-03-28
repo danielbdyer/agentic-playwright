@@ -197,8 +197,7 @@ export function resolveConditionalEdges(
 ): ReadonlyMap<string, GraphEdge> {
   return new Map(
     conditionalEdges
-      .filter((ce) => ce.requiredNodeIds.every((id) => allNodes.has(id)))
-      .map((ce) => [ce.edge.id, ce.edge] as const),
+      .flatMap((ce) => ce.requiredNodeIds.every((id) => allNodes.has(id)) ? [[ce.edge.id, ce.edge] as const] : []),
   );
 }
 
@@ -933,8 +932,10 @@ function stepSnapshotEdges(ctx: StepEdgeContext): readonly ConditionalEdge[] {
 function stepKnowledgeRefEdges(ctx: StepEdgeContext): readonly ConditionalEdge[] {
   const binding = stepBinding(ctx.stepContext);
   return (binding?.knowledgeRefs ?? [])
-    .map((ref) => ({ ref, targetNodeId: mapKnowledgePathToNodeId(ref, ctx.stepContext) }))
-    .filter((entry): entry is { ref: string; targetNodeId: string } => entry.targetNodeId !== null)
+    .flatMap((ref) => {
+      const targetNodeId = mapKnowledgePathToNodeId(ref, ctx.stepContext);
+      return targetNodeId !== null ? [{ ref, targetNodeId }] : [];
+    })
     .map(({ ref, targetNodeId }) =>
       conditionalEdge(
         createEdge({
@@ -952,8 +953,10 @@ function stepKnowledgeRefEdges(ctx: StepEdgeContext): readonly ConditionalEdge[]
 function stepSupplementEdges(ctx: StepEdgeContext, lookups: Lookups): readonly ConditionalEdge[] {
   const binding = stepBinding(ctx.stepContext);
   const supplementFromRefs = (binding?.supplementRefs ?? [])
-    .map((ref) => mapKnowledgePathToNodeId(ref, ctx.stepContext))
-    .filter((id): id is string => id !== null);
+    .flatMap((ref) => {
+      const id = mapKnowledgePathToNodeId(ref, ctx.stepContext);
+      return id !== null ? [id] : [];
+    });
   const supplementFromPatterns = patternIdsForStep(ctx.stepContext, lookups.sharedPatternsArtifacts);
   const uniqueIds = [...new Set([...supplementFromRefs, ...supplementFromPatterns])];
   return uniqueIds.map((targetNodeId) =>
@@ -1244,10 +1247,10 @@ function policyDecisionPhase(input: GraphBuildInput): PhaseResult {
 function driftPhase(lookups: Lookups): PhaseResult {
   const conditional = lookups.driftRecords.flatMap(({ artifact: drift }) =>
     drift.steps
-      .filter((step) => step.changed)
-      .map((step) => {
+      .flatMap((step) => {
+        if (!step.changed) return [];
         const stepNodeId = graphIds.step(drift.adoId, step.stepIndex);
-        return conditionalEdge(
+        return [conditionalEdge(
           createEdge({
             kind: 'drifts-to',
             from: graphIds.scenario(drift.adoId),
@@ -1266,7 +1269,7 @@ function driftPhase(lookups: Lookups): PhaseResult {
             },
           }),
           stepNodeId,
-        );
+        )];
       }),
   );
 
@@ -1475,9 +1478,11 @@ function improvementPhase(input: GraphBuildInput): PhaseResult {
       // Use Set for O(1) membership check instead of O(k) array.includes
       const candidateIdSet = new Set(decision.candidateInterventionIds);
       const governedTargetConditional = run.candidateInterventions
-        .filter((candidate) => candidateIdSet.has(candidate.candidateId))
-        .map((candidate) => nodeIdForInterventionTarget(candidate.target))
-        .filter((targetNodeId): targetNodeId is string => targetNodeId !== null)
+        .flatMap((candidate) => {
+          if (!candidateIdSet.has(candidate.candidateId)) return [];
+          const targetNodeId = nodeIdForInterventionTarget(candidate.target);
+          return targetNodeId !== null ? [targetNodeId] : [];
+        })
         .map((targetNodeId) =>
           conditionalEdge(
             createEdge({
@@ -1623,7 +1628,8 @@ function basenameWithoutExtension(value: string): string {
 }
 
 function basename(value: string): string {
-  return value.split(/[\\/]/).pop() ?? value;
+  const parts = value.split(/[\\/]/);
+  return parts.at(-1) ?? value;
 }
 
 function patternFileNodeId(artifactPath: string): string {
@@ -1692,9 +1698,10 @@ function patternIdsForStep(stepContext: StepGraphContext, sharedPatternsArtifact
 
   const postureIds = stepContext.step.posture
     ? sharedPatternsArtifacts
-        .map((entry) => entry.artifact.postures?.[stepContext.step.posture!]?.id)
-        .filter((id): id is string => id !== undefined && id !== null)
-        .map((id) => graphIds.pattern(id))
+        .flatMap((entry) => {
+          const id = entry.artifact.postures?.[stepContext.step.posture!]?.id;
+          return id !== undefined && id !== null ? [graphIds.pattern(id)] : [];
+        })
     : [];
 
   return [...new Set([...bindingIds, ...postureIds])].sort((left, right) => left.localeCompare(right));
@@ -1702,8 +1709,10 @@ function patternIdsForStep(stepContext: StepGraphContext, sharedPatternsArtifact
 
 function bestAliasMatches(normalizedIntent: string, aliases: string[]): string[] {
   const matches = aliases
-    .map((alias) => normalizeIntentText(alias))
-    .filter((alias) => alias.length > 0 && normalizedIntent.includes(alias));
+    .flatMap((alias) => {
+      const normalized = normalizeIntentText(alias);
+      return normalized.length > 0 && normalizedIntent.includes(normalized) ? [normalized] : [];
+    });
   if (matches.length === 0) {
     return [];
   }

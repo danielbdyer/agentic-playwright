@@ -171,8 +171,10 @@ export function explainBoundScenario(boundScenario: BoundScenario, lifecycle: Sc
   const translationHits = steps.filter((step) => step.resolutionMode === 'translation').length;
 
   const translationCacheEntries = steps
-    .map((step) => step.translation?.cache)
-    .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
+    .flatMap((step) => {
+      const entry = step.translation?.cache;
+      return entry ? [entry] : [];
+    });
   const translationCacheHits = translationCacheEntries.filter((entry) => entry.status === 'hit').length;
   const translationMissReasons = translationCacheEntries
     .filter((entry) => entry.status !== 'hit')

@@ -39,7 +39,7 @@ The emission layer is **sophisticated and structurally sound**:
 
 ### Where it should go
 
-- **Fixture-backed data emission**: Currently data values resolve to hardcoded literals. Emitting dataset references or posture-variant parameterization would make specs work across data combinations.
+- **Fixture-backed data emission** ✅: Currently data values resolve to hardcoded literals. Emitting dataset references or posture-variant parameterization would make specs work across data combinations.
 - **Parity proof**: No explicit test verifies that the readable spec and the runtime execution produce equivalent results. Adding a "spec replay" test that runs the emitted spec and compares its trace to the runtime's trace would close this gap.
 - **Richer deferred-step rendering**: Intent-only steps look identical to resolved steps in the emitted code. A QA reading the spec can't tell which steps are grounded and which are deferred without checking annotations.
 
@@ -90,8 +90,8 @@ The law tests are a **genuine specification layer** — a mix of property-based 
 
 ### Where it should go
 
-- **Add governance phantom type laws**: Test that `Approved<T>` values can only be created through approved code paths, not by direct construction with `governance: 'approved'` strings.
-- **Add graph construction laws**: Acyclicity, ref integrity, node uniqueness, deterministic fingerprinting under input permutation.
+- **Add governance phantom type laws** ✅: Test that `Approved<T>` values can only be created through approved code paths, not by direct construction with `governance: 'approved'` strings.
+- **Add graph construction laws** ✅: Acyclicity, ref integrity, node uniqueness, deterministic fingerprinting under input permutation.
 - **Promote the law suite to a named specification**: If these tests are the migration spec for A1, name them as such and fill the gaps before the migration begins.
 
 ---
@@ -135,13 +135,13 @@ The governance model is **well-designed at the type level but under-adopted in p
 
 ### Where it should go
 
-1. **Adopt `foldGovernance` at decision boundaries.** The 10 raw string checks in `bind.ts`, `task.ts`, etc. should use `foldGovernance` for exhaustive case analysis. This is low-effort, high-value — it ensures new governance states (if ever added) produce compile errors at every branching site.
+1. **Adopt `foldGovernance` at decision boundaries** ✅**.** The 10 raw string checks in `bind.ts`, `task.ts`, etc. should use `foldGovernance` for exhaustive case analysis. This is low-effort, high-value — it ensures new governance states (if ever added) produce compile errors at every branching site.
 
-2. **Activate phantom types at one critical boundary.** Pick the highest-value boundary — e.g., the `emit` stage should require `Approved<BoundScenario>` to generate a spec, `Blocked<BoundScenario>` to emit `test.skip()`. This would make governance a compile-time guarantee at the spec generation boundary, not just a runtime check.
+2. **Activate phantom types at one critical boundary** ✅**.** Pick the highest-value boundary — e.g., the `emit` stage should require `Approved<BoundScenario>` to generate a spec, `Blocked<BoundScenario>` to emit `test.skip()`. This would make governance a compile-time guarantee at the spec generation boundary, not just a runtime check.
 
-3. **Centralize governance minting.** The 14 hardcoded `governance: 'approved'` literals across 7 files are forgeable — any code can claim approval. A `mintApproved(artifact, evidence)` function that requires evidence provenance would make governance creation auditable and centralized.
+3. **Centralize governance minting** ✅**.** The 14 hardcoded `governance: 'approved'` literals across 7 files are forgeable — any code can claim approval. A `mintApproved(artifact, evidence)` function that requires evidence provenance would make governance creation auditable and centralized.
 
-4. **Add governance law tests.** The architecture fitness tests verify that `foldGovernance` is exported and covers three cases, but no test verifies that governance flows correctly through the pipeline. A law test asserting "blocked input → blocked output at every pipeline stage" would catch governance leaks.
+4. **Add governance law tests** ✅**.** The architecture fitness tests verify that `foldGovernance` is exported and covers three cases, but no test verifies that governance flows correctly through the pipeline. A law test asserting "blocked input → blocked output at every pipeline stage" would catch governance leaks.
 
 ---
 
@@ -195,9 +195,9 @@ This is the **E2 VSCode extension surface** foundation. The MCP resources let a 
 
 ### Where it should go
 
-1. **Cross-graph references**: The DerivedGraph's `screen` and `element` nodes could carry explicit references to ApplicationInterfaceGraph `targetRef` values. Today they're implicitly connected by shared `ScreenId` / `ElementId` values but not structurally linked. Adding cross-graph edges (or at least stable reference fields) would let impact queries traverse from "this scenario failed" to "this selector is unhealthy" without joining by string ID.
+1. **Cross-graph references** ✅: The DerivedGraph's `screen` and `element` nodes could carry explicit references to ApplicationInterfaceGraph `targetRef` values. Today they're implicitly connected by shared `ScreenId` / `ElementId` values but not structurally linked. Adding cross-graph edges (or at least stable reference fields) would let impact queries traverse from "this scenario failed" to "this selector is unhealthy" without joining by string ID.
 
-2. **MCP resource expansion**: The four current MCP URIs are a minimal viable surface. Adding `tesseract://proposal/{proposalId}`, `tesseract://bottleneck/{screen}`, and `tesseract://run/{runId}` would make the agent workbench fully queryable from VSCode.
+2. **MCP resource expansion** ✅: The four current MCP URIs are a minimal viable surface. Adding `tesseract://proposal/{proposalId}`, `tesseract://bottleneck/{screen}`, and `tesseract://run/{runId}` would make the agent workbench fully queryable from VSCode.
 
 3. **DerivedGraph as the operator cockpit backing model**: The E1 backlog item (operator cockpit) could be built entirely as a consumer of DerivedGraph + its MCP URIs. The graph already carries the right provenance relationships — what's missing is a rendering layer, not a data model.
 

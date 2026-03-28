@@ -48,7 +48,6 @@ export function selectedDataset(task: GroundedStep, context: RuntimeStepAgentCon
 }
 
 export function selectedControlRefs(task: GroundedStep, context: RuntimeStepAgentContext): string[] {
-  const refs: string[] = [];
   const runbook = selectedRunbook(task, context);
   const dataset = selectedDataset(task, context);
   const resolutionControlName = context.controlSelection?.resolutionControl ?? runbook?.resolutionControl ?? null;
@@ -56,15 +55,11 @@ export function selectedControlRefs(task: GroundedStep, context: RuntimeStepAgen
     ? context.resolutionContext.controls.resolutionControls.find((entry) => entry.name === resolutionControlName)
     : null;
 
-  if (runbook) {
-    refs.push(runbook.artifactPath);
-  }
-  if (dataset) {
-    refs.push(dataset.artifactPath);
-  }
-  if (resolutionControl) {
-    refs.push(resolutionControl.artifactPath);
-  }
+  const refs = [
+    ...(runbook ? [runbook.artifactPath] : []),
+    ...(dataset ? [dataset.artifactPath] : []),
+    ...(resolutionControl ? [resolutionControl.artifactPath] : []),
+  ];
 
   return uniqueSorted(refs);
 }

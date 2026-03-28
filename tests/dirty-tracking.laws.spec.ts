@@ -169,12 +169,17 @@ test('Law 6: cross-stage dependency — emit detects when bind output changes (1
     // Emit is fresh when bind output hasn't changed
     expect(afterEmit.isStale('emit', emitInputFingerprint)).toBe(false);
 
-    // Simulate bind re-running with different output
-    const newBindOutputFingerprint = computeStageFingerprint([randomWord(next)]);
+    // Simulate bind re-running with different output — ensure the new
+    // fingerprint actually differs (tiny alphabet can collide on rare seeds)
+    const newBindWord = randomWord(next);
+    const newBindOutputFingerprint = computeStageFingerprint([newBindWord]);
     const newEmitInputFingerprint = computeStageFingerprint([newBindOutputFingerprint, ...emitExtraInputs]);
 
-    // Emit is now stale because bind output changed
-    expect(afterEmit.isStale('emit', newEmitInputFingerprint)).toBe(true);
+    // Only assert staleness when the bind output genuinely changed
+    if (newBindOutputFingerprint !== bindOutputFingerprint) {
+      expect(newEmitInputFingerprint).not.toBe(emitInputFingerprint);
+      expect(afterEmit.isStale('emit', newEmitInputFingerprint)).toBe(true);
+    }
   }
 });
 

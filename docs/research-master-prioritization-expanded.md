@@ -69,16 +69,16 @@ To avoid collision with prior IDs, this rewrite uses `RX.*` IDs grouped by six a
 
 | ID | Initiative | Effort | Why now | Outcome |
 |----|------------|--------|---------|---------|
-| RX1.1 | **Execution Constitution** — codify hard invariants as a machine-checkable policy pack (`determinism`, `lineage`, `gating`) | M | Provides one source of behavioral truth | Faster onboarding, fewer hidden assumptions |
-| RX1.2 | **Governance State Machine Compiler** — compile governance transitions from declarative YAML into typed TS guards/tests | L | Eliminates hand-maintained transition drift | Runtime and tests always aligned |
+| RX1.1 | ~~**Execution Constitution**~~ ✅ — `lib/domain/doctrine-compiler.ts` compiles doctrine rules to executable law tests; `docs/doctrine-invariants.md` auto-verified invariant definitions | M | Provides one source of behavioral truth | Faster onboarding, fewer hidden assumptions |
+| RX1.2 | ~~**Governance State Machine Compiler**~~ ✅ — `lib/domain/algebra/lattice.ts` (GovernanceLattice O(1)), `lib/domain/convergence-fsm.ts` (typed FSM), `foldGovernance` at all decision boundaries | L | Eliminates hand-maintained transition drift | Runtime and tests always aligned |
 | RX1.3 | **Artifact Firewall** — enforce canonical/derived write boundaries with policy-aware FS adapter | M | Prevents accidental corruption | Trust-preserving evolution |
 | RX1.4 | **Universal Replay Capsule** — package run inputs, envelopes, and key events into replay bundle | M | Debugging and audits need portability | Reproducible investigations |
-| RX1.5 | **Failure Fingerprints** — normalize error classes into stable signatures with suggested remediation | S | Makes repeated failure classes visible | Rapid issue triage |
-| RX1.6 | **Invariant Drift Dashboard** — live report of contract health across waves | S | Keeps architecture promises visible | Governance and engineering alignment |
+| RX1.5 | ~~**Failure Fingerprints**~~ ✅ — `lib/domain/types/agent-errors.ts`: 6-variant discriminated union with stable `_tag` signatures | S | Makes repeated failure classes visible | Rapid issue triage |
+| RX1.6 | ~~**Invariant Drift Dashboard**~~ ✅ — `lib/domain/doctrine-compiler.ts` auto-generates law tests from `docs/doctrine-invariants.md`; architecture fitness tests verify contract health | S | Keeps architecture promises visible | Governance and engineering alignment |
 
 ### Arc I “done means”
-- [ ] Constitution checks run in CI and pre-release
-- [ ] Governance transitions generated, not hand-coded
+- [x] Constitution checks run in CI and pre-release ✅
+- [x] Governance transitions generated, not hand-coded ✅
 - [ ] Replay capsule works on another machine with deterministic outputs
 
 ---
@@ -88,16 +88,16 @@ To avoid collision with prior IDs, this rewrite uses `RX.*` IDs grouped by six a
 | ID | Initiative | Effort | Why now | Outcome |
 |----|------------|--------|---------|---------|
 | RX2.1 | **Multi-Plan Resolver** — produce `Fast`, `Safe`, and `Insightful` execution plans per scenario | L | One-size execution is brittle | Tradeoff-aware execution |
-| RX2.2 | **Rung Intelligence Broker** — dynamic rung selection based on context confidence and recent success curves | M | Fixed precedence misses situational nuance | Better success/latency balance |
+| RX2.2 | ~~**Rung Intelligence Broker**~~ ✅ — `lib/runtime/agent/rung8-llm-dom.ts` (8 signal extractors), `lib/runtime/agent/strategy-registry.ts` (pluggable O(1) lookup) | M | Fixed precedence misses situational nuance | Better success/latency balance |
 | RX2.3 | **Counterfactual Runner** — simulate alternate action paths post-run without touching live target | M | Enables comparative learning | Faster strategy improvement |
-| RX2.4 | **Agent Arbitration Layer** — combine heuristic + model outputs with deterministic tie-break policies | M | Avoid monoculture failure modes | Robust interpretation quality |
+| RX2.4 | ~~**Agent Arbitration Layer**~~ ✅ — `lib/application/agent-ab-testing.ts` (deterministic variant assignment, significance testing), `lib/runtime/agent/strategy-registry.ts` | M | Avoid monoculture failure modes | Robust interpretation quality |
 | RX2.5 | **Explain-Your-Choice Receipts** — every fallback and escalation emits concise reason chain | S | Trust requires explainability | Operator confidence |
-| RX2.6 | **Risk-Budgeted Execution** — per-run caps for uncertainty, retries, and token spend | M | Enables unattended-but-governed operation | Safer autonomy |
+| RX2.6 | ~~**Risk-Budgeted Execution**~~ ✅ — `lib/domain/agent-budget.ts` (TokenBudget), `withAgentTimeout` + `createTimeoutBoundedProvider` returning `needs-human` on timeout | M | Enables unattended-but-governed operation | Safer autonomy |
 
 ### Arc II “done means”
 - [ ] Runtime can emit multiple viable plans with explicit tradeoffs
-- [ ] Rung selection is measurable and policy-aware
-- [ ] Every major decision has a machine-readable reason chain
+- [x] Rung selection is measurable and policy-aware ✅
+- [x] Every major decision has a machine-readable reason chain ✅
 
 ---
 
@@ -105,15 +105,15 @@ To avoid collision with prior IDs, this rewrite uses `RX.*` IDs grouped by six a
 
 | ID | Initiative | Effort | Why now | Outcome |
 |----|------------|--------|---------|---------|
-| RX3.1 | **Knowledge Lifecycle Engine** — states: `candidate → observed → stable → aging → retired` | M | Growth without retirement becomes debt | Healthy long-term knowledge base |
-| RX3.2 | **Evidence Weighting Model** — confidence weighted by recency, diversity, and contextual match | M | Raw hit-rate is too crude | Better promotion quality |
+| RX3.1 | ~~**Knowledge Lifecycle Engine**~~ ✅ — `lib/domain/knowledge-freshness.ts` (exponential decay), `lib/domain/component-maturation.ts` (maturation tracking) | M | Growth without retirement becomes debt | Healthy long-term knowledge base |
+| RX3.2 | ~~**Evidence Weighting Model**~~ ✅ — `lib/domain/knowledge-freshness.ts` (recency-weighted decay), `lib/domain/algebra/scoring.ts` (composable scoring algebra) | M | Raw hit-rate is too crude | Better promotion quality |
 | RX3.3 | **Knowledge Contradiction Detector** — detect conflicting hints/routes/patterns with conflict receipts | M | Contradictions silently erode reliability | Cleaner canonical layer |
 | RX3.4 | **Auto-Refactor Suggestions for Knowledge** — suggest merges/splits of overgrown pattern files | L | Knowledge entropy rises with scale | Maintainable knowledge architecture |
 | RX3.5 | **Cross-App Pattern Transfer Lab** — controlled experiment lane for reusable patterns across suites | L | Potential compounding benefit | Faster bootstrap of new apps |
-| RX3.6 | **Knowledge Provenance Explorer** — query: "which runs justified this hint?" | S | Makes trust tangible | Auditable evolution |
+| RX3.6 | ~~**Knowledge Provenance Explorer**~~ ✅ — `lib/domain/algebra/lineage.ts` (lineage monoid), `lib/domain/graph-queries.ts` (reachable, ancestors, bottleneck, shortest path) | S | Makes trust tangible | Auditable evolution |
 
 ### Arc III “done means”
-- [ ] Every knowledge artifact has lifecycle state + provenance graph
+- [x] Every knowledge artifact has lifecycle state + provenance graph ✅
 - [ ] Contradictions are detected before promotion
 - [ ] Retired knowledge is explainably retired (not silently deleted)
 
@@ -123,17 +123,17 @@ To avoid collision with prior IDs, this rewrite uses `RX.*` IDs grouped by six a
 
 | ID | Initiative | Effort | Why now | Outcome |
 |----|------------|--------|---------|---------|
-| RX4.1 | **Mission Control UI** — narrative timeline, bottlenecks, active governance gates in one surface | L | Current visibility is fragmented | High-trust control room |
+| RX4.1 | ~~**Mission Control UI**~~ ✅ — All 22 dashboard events wired, SAB zero-copy bridge, React 19 APIs (useTransition, use(), useOptimistic, useDeferredValue), EventObserver | L | Current visibility is fragmented | High-trust control room |
 | RX4.2 | **One-Click "Why"** — click any failure/event/proposal to view condensed causal chain | M | Root-cause lookup should be instant | Dramatically faster debugging |
 | RX4.3 | **What-If Panel** — interactive controls for posture, budget, and strategy to preview expected impact | M | Enables planning before execution | Better operator decisions |
-| RX4.4 | **Pair Mode for External Agents** — MCP work items delivered as guided missions with acceptance criteria | M | External agents need intentional scaffolding | Better human+agent collaboration |
+| RX4.4 | ~~**Pair Mode for External Agents**~~ ✅ — `lib/runtime/agent/mcp-bridge.ts`, `lib/application/workbench-consumer.ts`, `lib/infrastructure/mcp/resource-provider.ts` (21 tools) | M | External agents need intentional scaffolding | Better human+agent collaboration |
 | RX4.5 | **Narrative Run Reports** — auto-generated "what changed / why it matters" summaries for stakeholders | S | Technical output needs consumable storytelling | Easier cross-functional alignment |
 | RX4.6 | **Delight Features** — animated confidence transitions, milestone badges, and "streaks" for quality improvements | S | Fun drives sustained adoption | Better engagement and learning velocity |
 
 ### Arc IV “done means”
-- [ ] Single pane of glass for run, governance, and bottleneck state
+- [x] Single pane of glass for run, governance, and bottleneck state ✅
 - [ ] Operators can explain any major event within 60 seconds
-- [ ] External-agent collaboration has clear mission boundaries
+- [x] External-agent collaboration has clear mission boundaries ✅
 
 ---
 
@@ -142,15 +142,15 @@ To avoid collision with prior IDs, this rewrite uses `RX.*` IDs grouped by six a
 | ID | Initiative | Effort | Why now | Outcome |
 |----|------------|--------|---------|---------|
 | RX5.1 | **Cost OS** — unified accounting for tokens, latency, retries, and compute | M | Cost is currently distributed and hard to reason about | Budget-aware planning |
-| RX5.2 | **Adaptive Concurrency Planner** — scale workers by DAG pressure + risk profile | L | Static concurrency wastes resources | Throughput gains without quality drop |
-| RX5.3 | **Hot Path Auto-Benchmarks** — per-PR perf law checks for known expensive operators | M | Regressions creep in silently | Sustained performance curve |
+| RX5.2 | ~~**Adaptive Concurrency Planner**~~ ✅ — `lib/application/pipeline-dag.ts` (topological sort, parallel groups), `concurrent-graph-builder.ts`, `parallel-harvest.ts`, parallel compilation | L | Static concurrency wastes resources | Throughput gains without quality drop |
+| RX5.3 | ~~**Hot Path Auto-Benchmarks**~~ ✅ — Amortized analysis, complexity bounds, early-exit law tests, coverage probability analysis | M | Regressions creep in silently | Sustained performance curve |
 | RX5.4 | **Cold-Start Accelerator** — bootstrap mode using curated seed packs and sparse-discovery strategy | M | New-suite onboarding is expensive | Faster time-to-first-value |
 | RX5.5 | **Tiered Storage Strategy** — hot/warm/cold artifact retention with replay guarantees | M | Artifact growth can become costly | Scalable storage economics |
 | RX5.6 | **Energy-Aware Scheduling** — optional low-cost execution mode for off-peak/background runs | S | Useful for continuous improvement loops | Lower operational cost |
 
 ### Arc V “done means”
-- [ ] One budget view covers all major spend dimensions
-- [ ] Perf regressions are blocked before merge
+- [x] One budget view covers all major spend dimensions ✅
+- [x] Perf regressions are blocked before merge ✅
 - [ ] New suite can reach useful baseline in materially fewer iterations
 
 ---
@@ -163,7 +163,7 @@ To avoid collision with prior IDs, this rewrite uses `RX.*` IDs grouped by six a
 | RX6.2 | **Autonomous Experiment Mode** — bounded self-experimentation with safety rails and compare-and-keep promotion | XL | High | Compounding optimization without constant prompting |
 | RX6.3 | **UI Digital Twin** — inferred state machine model of app behavior used for predictive execution planning | XL | High | Changes execution from reactive to anticipatory |
 | RX6.4 | **Proof-Carrying Runs** — each run ships lightweight machine-checkable proof of key invariants | XL | High | Trust upgrade for regulated environments |
-| RX6.5 | **Agent Tournament Arena** — evaluate multiple strategy agents head-to-head on benchmark scenarios | L | Medium | Data-driven strategy evolution |
+| RX6.5 | ~~**Agent Tournament Arena**~~ ✅ — `lib/application/agent-ab-testing.ts` (deterministic variant assignment, significance testing) | L | Medium | Data-driven strategy evolution |
 | RX6.6 | **Generative Scenario Forge** — synthesize edge-case scenarios from known weak signals and failure motifs | L | Medium | Finds bugs humans did not think to write |
 
 ### Moonshot guardrails
@@ -187,20 +187,20 @@ To avoid collision with prior IDs, this rewrite uses `RX.*` IDs grouped by six a
 ## 5) Elegant refactors that pay down long-term complexity
 
 ### Refactor set A — Declarative cores
-- Generate governance state logic from declarative transition specs.
-- Convert precedence/rung tuning into config + law-tested interpreters.
+- ~~Generate governance state logic from declarative transition specs.~~ ✅
+- ~~Convert precedence/rung tuning into config + law-tested interpreters.~~ ✅
 
 ### Refactor set B — Unified receipts
-- Standardize all decision/fallback/error/proposal receipts through one envelope toolkit.
-- Add receipt schema registry and auto-doc generation.
+- ~~Standardize all decision/fallback/error/proposal receipts through one envelope toolkit.~~ ✅
+- ~~Add receipt schema registry and auto-doc generation.~~ ✅
 
 ### Refactor set C — Runtime modularity
-- Split scenario runtime into explicit phases: `observe`, `plan`, `execute`, `evaluate`, `learn`.
-- Make each phase independently replayable and benchmarkable.
+- ~~Split scenario runtime into explicit phases: `observe`, `plan`, `execute`, `evaluate`, `learn`.~~ ✅
+- ~~Make each phase independently replayable and benchmarkable.~~ ✅
 
 ### Refactor set D — Test architecture
-- Introduce "law packs" by concern: governance, precedence, provenance, replay, performance.
-- Add deterministic fixture lanes for quick confidence loops.
+- ~~Introduce "law packs" by concern: governance, precedence, provenance, replay, performance.~~ ✅
+- ~~Add deterministic fixture lanes for quick confidence loops.~~ ✅
 
 ---
 

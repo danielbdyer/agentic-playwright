@@ -1,7 +1,7 @@
 /**
  * Dispatch handler factories — pure higher-order functions for WebSocket event routing.
  *
- * Each factory captures React state setters and returns a (data: unknown) => void handler.
+ * Each factory captures React state setters and returns a typed handler.
  * All use the ref pattern (.current) for closure stability — the dispatch table
  * captures these at build time and never needs to be rebuilt.
  *
@@ -13,8 +13,13 @@
 import type React from 'react';
 import type {
   ProbeEvent, ScreenCapture, ViewportDimensions, ElementEscalatedEvent,
+  RungShiftEvent, CalibrationUpdateEvent, ProposalActivatedEvent,
+  ConfidenceCrossedEvent, ArtifactWrittenEvent, StageLifecycleEvent,
+  InboxItemEvent,
 } from '../spatial/types';
-import type { WorkItem, QueuedItem, DisplayStatus, ProgressEvent } from '../types';
+import type { WorkItem, QueuedItem, DisplayStatus, ProgressEvent, Workbench, Scorecard } from '../types';
+import type { DashboardEventMap, EventHandler, ScreenGroupStartPayload, IterationStartPayload, IterationCompletePayload, ConnectedPayload, ErrorPayload } from '../types/events';
+import type { QueryClient } from '@tanstack/react-query';
 
 /** O(1). Routes progress events to state setter. */
 export const dispatchProgress = (setProgress: (p: ProgressEvent) => void) =>
@@ -90,3 +95,90 @@ export const dispatchFiberPaused = (setPauseContext: (ctx: import('../types').Pa
 /** O(1). Clears fiber-paused state. */
 export const dispatchFiberResumed = (setPauseContext: (ctx: import('../types').PauseContext | null) => void) =>
   (_data: unknown) => setPauseContext(null);
+
+// ─── Typed dispatch handlers for previously unconsumed events ───
+
+/** O(1). Routes rung-shift events to convergence state via stable ref. */
+export const dispatchRungShift = (
+  pushRungRef: React.RefObject<(event: RungShiftEvent) => void>,
+): EventHandler<'rung-shift'> =>
+  (data) => pushRungRef.current?.(data);
+
+/** O(1). Routes calibration-update events to convergence state via stable ref. */
+export const dispatchCalibrationUpdate = (
+  pushCalRef: React.RefObject<(event: CalibrationUpdateEvent) => void>,
+): EventHandler<'calibration-update'> =>
+  (data) => pushCalRef.current?.(data);
+
+/** O(1). Routes proposal-activated events to ingestion queue via stable ref. */
+export const dispatchProposalActivated = (
+  enqueueRef: React.RefObject<(id: string, data: ProposalActivatedEvent) => void>,
+): EventHandler<'proposal-activated'> =>
+  (data) => enqueueRef.current?.(data.proposalId, data);
+
+/** O(1). Routes confidence-crossed events to ingestion queue via stable ref. */
+export const dispatchConfidenceCrossed = (
+  enqueueRef: React.RefObject<(id: string, data: ConfidenceCrossedEvent) => void>,
+): EventHandler<'confidence-crossed'> =>
+  (data) => enqueueRef.current?.(data.artifactId, data);
+
+/** O(1). Routes artifact-written events to ingestion queue via stable ref. */
+export const dispatchArtifactWritten = (
+  enqueueRef: React.RefObject<(id: string, data: ArtifactWrittenEvent) => void>,
+): EventHandler<'artifact-written'> =>
+  (data) => enqueueRef.current?.(data.path, data);
+
+/** O(1). Signals iteration start via stable ref. */
+export const dispatchIterationStart = (
+  onStartRef: React.RefObject<() => void>,
+): EventHandler<'iteration-start'> =>
+  (_data) => onStartRef.current?.();
+
+/** O(1). Signals iteration complete via stable ref. */
+export const dispatchIterationComplete = (
+  onCompleteRef: React.RefObject<() => void>,
+): EventHandler<'iteration-complete'> =>
+  (_data) => onCompleteRef.current?.();
+
+/** O(1). Routes workbench-updated events to React Query cache. */
+export const dispatchWorkbenchUpdated = (
+  qc: QueryClient,
+): EventHandler<'workbench-updated'> =>
+  (data) => qc.setQueryData(['workbench'], data);
+
+/** O(1). Routes fitness-updated events to React Query cache. */
+export const dispatchFitnessUpdated = (
+  qc: QueryClient,
+): EventHandler<'fitness-updated'> =>
+  (data) => qc.setQueryData(['fitness'], data);
+
+/** O(1). Routes stage-lifecycle events to stage tracker via stable ref. */
+export const dispatchStageLifecycle = (
+  stageDispatchRef: React.RefObject<(event: StageLifecycleEvent) => void>,
+): EventHandler<'stage-lifecycle'> =>
+  (data) => stageDispatchRef.current?.(data);
+
+/** O(n). Appends inbox item to bounded feed via state setter. */
+export const dispatchInboxItemArrived = (
+  setInboxItems: React.Dispatch<React.SetStateAction<readonly InboxItemEvent[]>>,
+  maxItems = 50,
+): EventHandler<'inbox-item-arrived'> =>
+  (data) => setInboxItems((prev) => [...prev.slice(-(maxItems - 1)), data]);
+
+/** O(1). Routes screen-group-start to state setter. */
+export const dispatchScreenGroupStart = (
+  setScreenGroup: (group: ScreenGroupStartPayload | null) => void,
+): EventHandler<'screen-group-start'> =>
+  (data) => setScreenGroup(data);
+
+/** O(1). Routes connected event. Typically a no-op beyond logging. */
+export const dispatchConnected = (
+  onConnected?: (payload: ConnectedPayload) => void,
+): EventHandler<'connected'> =>
+  (data) => onConnected?.(data);
+
+/** O(1). Routes error event to state setter. */
+export const dispatchError = (
+  setLastError: React.Dispatch<React.SetStateAction<ErrorPayload | null>>,
+): EventHandler<'error'> =>
+  (data) => setLastError(data);

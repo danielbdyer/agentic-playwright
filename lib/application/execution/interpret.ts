@@ -48,22 +48,33 @@ function buildStepResolutionGraph(step: RuntimeScenarioStepResult, task: Grounde
   const traversal = receipt.exhaustion
     .map((entry) => ({ rung: toRung(entry.stage), outcome: entry.outcome, reason: entry.reason }));
   const candidateSets = receipt.exhaustion
-    .filter((entry) => (entry.topCandidates?.length ?? 0) > 0)
-    .map((entry) => ({
+    .flatMap((entry) => (entry.topCandidates?.length ?? 0) > 0 ? [{
       concern: entry.topCandidates![0]!.concern,
       rung: toRung(entry.stage) as Exclude<StepResolutionGraph['winner']['rung'], 'agent-interpreted' | 'needs-human'>,
       candidates: scoreCandidates(entry.topCandidates!),
-    }));
+    }] : []);
   const winnerRung = (receipt.kind === 'needs-human'
     ? 'needs-human'
     : WINNING_SOURCE_TO_RUNG[receipt.winningSource]) as StepResolutionGraph['winner']['rung'];
+
+  // Build enriched winner rationale from reason chain if available, otherwise fall back to basic.
+  const reasonChainSummary = receipt.reasonChain && receipt.reasonChain.length > 0
+    ? receipt.reasonChain
+        .flatMap((step) => step.verdict !== 'passed' ? [`${step.rung}: ${step.verdict} — ${step.reason}`] : [])
+        .join('; ')
+    : null;
+  const defaultRationale = receipt.kind === 'needs-human'
+    ? receipt.reason
+    : `Resolved via ${receipt.winningSource}.`;
 
   return {
     precedenceTraversal: traversal,
     candidateSets,
     winner: {
       rung: winnerRung,
-      rationale: receipt.kind === 'needs-human' ? receipt.reason : `Resolved via ${receipt.winningSource}.`,
+      rationale: reasonChainSummary
+        ? `${defaultRationale} Decision trail: ${reasonChainSummary}`
+        : defaultRationale,
       losingReasons: receipt.exhaustion.flatMap((entry) => entry.outcome === 'failed' ? [entry.reason] : []),
     },
     refs: {

@@ -48,17 +48,17 @@ export function proposalsFromInterpretation(
     return [];
   }
 
-  const proposals: ResolutionProposalDraft[] = [];
   const rationale = RATIONALE_BY_SOURCE[interpretation.source];
 
   // Propose hint alias when element was interpreted
-  if (interpretation.interpretedElement) {
+  const elementProposal: ResolutionProposalDraft[] = (() => {
+    if (!interpretation.interpretedElement) return [];
     const element = screen.elements.find(
       (entry) => entry.element === interpretation.interpretedElement,
     );
     if (element && !element.aliases.includes(task.actionText)) {
-      proposals.push({
-        artifactType: 'hints',
+      return [{
+        artifactType: 'hints' as const,
         targetPath: knowledgePaths.hints(screen.screen),
         title: `Add alias from ${interpretation.source} interpretation (step ${task.index})`,
         patch: {
@@ -68,19 +68,21 @@ export function proposalsFromInterpretation(
           source: interpretation.source,
         },
         rationale,
-      });
+      }];
     }
-  }
+    return [];
+  })();
 
   // Propose screen alias when screen was interpreted but not via approved knowledge
-  if (interpretation.source !== 'knowledge-heuristic') {
+  const screenAliasProposal: ResolutionProposalDraft[] = (() => {
+    if (interpretation.source === 'knowledge-heuristic') return [];
     const screenAliasCandidate = task.actionText.toLowerCase().trim();
     const existingScreenAliases = [screen.screen, ...screen.screenAliases].map(
       (alias) => alias.toLowerCase(),
     );
     if (!existingScreenAliases.includes(screenAliasCandidate)) {
-      proposals.push({
-        artifactType: 'hints',
+      return [{
+        artifactType: 'hints' as const,
         targetPath: knowledgePaths.hints(screen.screen),
         title: `Add screen alias from ${interpretation.source} interpretation (step ${task.index})`,
         patch: {
@@ -89,9 +91,12 @@ export function proposalsFromInterpretation(
           source: interpretation.source,
         },
         rationale,
-      });
+      }];
     }
-  }
+    return [];
+  })();
+
+  const proposals: ResolutionProposalDraft[] = [...elementProposal, ...screenAliasProposal];
 
   return proposals;
 }

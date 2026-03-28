@@ -14,7 +14,8 @@ import type {
   WorkflowEnvelopeIds,
   WorkflowEnvelopeLineage,
 } from './workflow';
-import type { ResolutionReceipt, StepResolutionGraph, TranslationReceipt } from './resolution';
+import type { ResolutionReceipt, ResolutionRungOverride, StepResolutionGraph, TranslationReceipt } from './resolution';
+import type { ResolutionPrecedenceRung } from '../precedence';
 import type { TransitionObservation } from './interface';
 
 
@@ -112,10 +113,18 @@ export interface ExecutionDiagnostic {
   readonly context?: Readonly<Record<string, string>> | undefined;
 }
 
+export interface ConsoleEntry {
+  readonly level: 'log' | 'warn' | 'error' | 'info' | 'debug';
+  readonly text: string;
+  readonly timestamp: string;
+  readonly url?: string | undefined;
+}
+
 export interface ExecutionObservation {
   readonly status: 'ok' | 'failed' | 'skipped';
   readonly observedEffects: readonly string[];
   readonly diagnostics: readonly ExecutionDiagnostic[];
+  readonly consoleMessages?: readonly ConsoleEntry[] | undefined;
 }
 
 export interface StepExecutionReceipt {
@@ -348,4 +357,58 @@ export interface ProposalBundle {
   readonly title: string;
   readonly suite: string;
   readonly proposals: readonly ProposalEntry[];
+}
+
+// ─── Execution Tempo Awareness (N1.4) ───
+
+export interface ScreenTempoProfile {
+  readonly screenId: string;
+  readonly observedDurationsMs: readonly number[];
+  readonly p50Ms: number;
+  readonly p95Ms: number;
+  readonly recommendedTimeoutMs: number;
+  readonly sampleCount: number;
+  readonly lastUpdated: string;
+}
+
+export interface TempoAdaptationResult {
+  readonly screenId: string;
+  readonly previousTimeoutMs: number;
+  readonly adaptedTimeoutMs: number;
+  readonly confidence: 'high' | 'medium' | 'low';
+  readonly reason: string;
+}
+
+// ─── Rung Stress Test (N1.6) ───
+
+export interface StressTestConfig {
+  readonly kind: 'rung-isolation';
+  readonly version: 1;
+  readonly rungOverride: ResolutionRungOverride;
+  readonly baselineRunId?: string;
+}
+
+export interface RungStressStepResult {
+  readonly stepIndex: number;
+  readonly resolvedWithForce: boolean;
+  readonly resolvedWithBaseline: boolean;
+  readonly degradedFromBaseline: boolean;
+  readonly rungConfidence: number;
+}
+
+export interface RungMarginalValue {
+  readonly rung: ResolutionPrecedenceRung;
+  readonly resolutionRate: number;
+  readonly degradationRate: number;
+  readonly avgConfidence: number;
+  readonly uniqueResolutions: number;
+  readonly verdict: 'essential' | 'valuable' | 'marginal' | 'redundant';
+}
+
+export interface RungStressTestReceipt {
+  readonly kind: 'rung-stress-test-receipt';
+  readonly version: 1;
+  readonly rung: ResolutionPrecedenceRung;
+  readonly stepResults: readonly RungStressStepResult[];
+  readonly marginalValue: RungMarginalValue;
 }

@@ -15,7 +15,7 @@
  *   - Spatial:    dashboard/src/spatial/
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useTransition, Suspense, use, useDeferredValue, useOptimistic } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { SpatialCanvas } from './spatial/canvas';
@@ -27,6 +27,7 @@ import { useWebMcpCapabilities } from './hooks/use-mcp-capabilities';
 import { useConvergenceState } from './hooks/use-convergence-state';
 import { useStageTracker } from './hooks/use-stage-tracker';
 import { useIterationPulse } from './hooks/use-iteration-pulse';
+import { useSabBridge } from './hooks/use-sab-bridge';
 import {
   dispatchProgress, dispatchProbe, dispatchCapture,
   dispatchItemPending, dispatchItemProcessing, dispatchItemCompleted,
@@ -47,6 +48,14 @@ import type {
 } from './spatial/types';
 import type { Workbench, Scorecard, ProgressEvent, QueuedItem, PauseContext, DecisionResult } from './types';
 
+// ─── W3.2: SharedArrayBuffer global (set by in-process server when same-origin) ───
+
+declare global {
+  interface Window {
+    readonly __PIPELINE_SAB?: SharedArrayBuffer | undefined;
+  }
+}
+
 // ─── Effect Stream Hook ───
 
 function useEffectStream(url: string) {
@@ -66,6 +75,11 @@ function useEffectStream(url: string) {
   const convergence = useConvergenceState();
   const stageTracker = useStageTracker();
   const iterationPulse = useIterationPulse();
+
+  // W5.18: useTransition for non-blocking high-frequency event dispatch.
+  // element-probed, rung-shift, and calibration-update yield to user interactions
+  // so the 3D spatial canvas stays at 60fps during burst events.
+  const [, startTransition] = useTransition();
 
   const cleanupTimersRef = useRef(new Set<ReturnType<typeof setTimeout>>());
 
@@ -94,7 +108,8 @@ function useEffectStream(url: string) {
   if (!dispatchRef.current) {
     dispatchRef.current = {
       'progress': dispatchProgress(setProgress),
-      'element-probed': dispatchProbe(enqueueRef),
+      // W5.18: high-frequency events wrapped in startTransition to yield to user interactions
+      'element-probed': (data) => startTransition(() => dispatchProbe(enqueueRef)(data)),
       'screen-captured': dispatchCapture(setCapture, setAppViewport),
       'item-pending': dispatchItemPending(setQueue),
       'item-processing': dispatchItemProcessing(setProcessingId, setQueue),
@@ -102,8 +117,8 @@ function useEffectStream(url: string) {
       'element-escalated': dispatchEscalation(escalationEnqueueRef),
       'fiber-paused': dispatchFiberPaused(setPauseContext),
       'fiber-resumed': dispatchFiberResumed(setPauseContext),
-      'rung-shift': (data) => convergenceRungRef.current(data as RungShiftEvent),
-      'calibration-update': (data) => convergenceCalRef.current(data as CalibrationUpdateEvent),
+      'rung-shift': (data) => startTransition(() => convergenceRungRef.current(data as RungShiftEvent)),
+      'calibration-update': (data) => startTransition(() => convergenceCalRef.current(data as CalibrationUpdateEvent)),
       'iteration-start': () => iterationStartRef.current(),
       'iteration-complete': () => iterationCompleteRef.current(),
       'proposal-activated': (data) => { const e = data as ProposalActivatedEvent; proposalEnqueueRef.current?.(e.proposalId, e); },
@@ -121,12 +136,21 @@ function useEffectStream(url: string) {
 
   const { connected, send } = useWebSocket(url, handleMessage);
 
+  // W3.2: Wire SharedArrayBuffer zero-copy path for high-frequency events.
+  // When the pipeline runs in-process, window.__PIPELINE_SAB is set and the
+  // SAB bridge dispatches events through the same handleMessage path — no
+  // JSON serialization, no WebSocket overhead, no GC pressure.
+  const sabBridge = useSabBridge({
+    sab: (typeof window !== 'undefined' ? window.__PIPELINE_SAB : undefined) ?? null,
+    onMessage: handleMessage,
+  });
+
   useEffect(() => {
     const timers = cleanupTimersRef.current;
     return () => { timers.forEach(clearTimeout); timers.clear(); };
   }, []);
 
-  return { connected, send, progress, queue, processingId, capture, appViewport, probeQueue, escalationQueue, pauseContext, convergence, stageTracker, iterationPulse, proposalQueue, artifactQueue };
+  return { connected: connected || sabBridge.connected, send, progress, queue, processingId, capture, appViewport, probeQueue, escalationQueue, pauseContext, convergence, stageTracker, iterationPulse, proposalQueue, artifactQueue };
 }
 
 // ─── Data Hooks ───
@@ -138,12 +162,18 @@ const useWorkbench = () => useQuery<Workbench | null>({
   staleTime: 5000,
 });
 
-const useFitness = () => useQuery<Scorecard | null>({
-  queryKey: ['fitness'],
-  queryFn: async () => { const r = await fetch('/api/fitness'); return r.ok ? r.json() : null; },
-  refetchInterval: 30000,
-  staleTime: 10000,
-});
+/** W5.19: Streaming fitness data via use() hook.
+ *  Creates a promise that resolves with scorecard data, replacing the polling pattern.
+ *  The promise is cached and refreshed on WebSocket push ('fitness-updated'). */
+const createFitnessPromise = (): Promise<Scorecard | null> =>
+  fetch('/api/fitness').then((r) => r.ok ? r.json() as Promise<Scorecard | null> : null).catch(() => null);
+
+/** W5.19: SuspenseFitnessCard reads scorecard via use() instead of useQuery polling.
+ *  Paired with <Suspense> boundary for non-blocking loading states. */
+function SuspenseFitnessCard({ fitnessPromise }: { readonly fitnessPromise: Promise<Scorecard | null> }) {
+  const scorecard = use(fitnessPromise);
+  return <FitnessCard scorecard={scorecard} />;
+}
 
 const useKnowledgeNodes = () => useQuery<readonly import('./spatial/types').KnowledgeNode[]>({
   queryKey: ['knowledge-nodes'],
@@ -194,10 +224,17 @@ const useDecision = (send: (msg: unknown) => void) => {
 
 function App() {
   const { data: workbench } = useWorkbench();
-  const { data: scorecard } = useFitness();
+  // W5.19: fitness data loaded via use() + Suspense instead of useQuery polling.
+  // fitnessPromiseRef holds the current promise; refreshed on WebSocket 'fitness-updated'.
+  const fitnessPromiseRef = useRef(createFitnessPromise());
   const { data: knowledgeNodes } = useKnowledgeNodes();
   const { connected, send, progress, queue, capture, appViewport, probeQueue, pauseContext, convergence, stageTracker, iterationPulse, proposalQueue, artifactQueue } = useEffectStream(`ws://${window.location.host}/ws`);
   const decisionMutation = useDecision(send);
+
+  // W5.19: refresh fitness promise when WebSocket pushes 'fitness-updated'
+  const refreshFitness = useCallback(() => {
+    fitnessPromiseRef.current = createFitnessPromise();
+  }, []);
 
   const capabilities = useWebMcpCapabilities(capture?.url);
   const [portalLoaded, setPortalLoaded] = useState(false);
@@ -283,11 +320,14 @@ function App() {
 
       <div className="control-panel" role="complementary" aria-label="Dashboard controls">
         <h1>Tesseract Dashboard</h1>
-        <StatusBar workbench={workbench ?? null} scorecard={scorecard ?? null} connected={connected} progress={progress} />
+        <StatusBar workbench={workbench ?? null} scorecard={null} connected={connected} progress={progress} />
         <PipelineProgress stages={stageTracker.stages} activeStage={stageTracker.activeStage} />
         <ConvergencePanel state={convergence.state} />
         <div className="grid">
-          <FitnessCard scorecard={scorecard ?? null} />
+          {/* W5.19: use() + Suspense replaces useQuery polling for fitness data */}
+          <Suspense fallback={<FitnessCard scorecard={null} />}>
+            <SuspenseFitnessCard fitnessPromise={fitnessPromiseRef.current} />
+          </Suspense>
           <ProgressCard progress={progress} />
         </div>
         <QueueVisualization queue={queue} onApprove={handleApprove} onSkip={handleSkip} />

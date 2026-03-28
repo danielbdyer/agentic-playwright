@@ -33,43 +33,33 @@ function danglingEdgeViolations(
   nodeIds: ReadonlySet<string>,
   edges: readonly { readonly id: string; readonly from: string; readonly to: string }[],
 ): readonly ConsistencyViolation[] {
-  return edges.flatMap((edge): readonly ConsistencyViolation[] => {
-    const violations: ConsistencyViolation[] = [];
-    if (!nodeIds.has(edge.from)) {
-      violations.push({
-        kind: 'dangling-edge-from',
-        graph: graphLabel,
-        nodeId: edge.from,
-        edgeId: edge.id,
-        message: `Edge "${edge.id}" references non-existent source node "${edge.from}" in ${graphLabel} graph`,
-      });
-    }
-    if (!nodeIds.has(edge.to)) {
-      violations.push({
-        kind: 'dangling-edge-to',
-        graph: graphLabel,
-        nodeId: edge.to,
-        edgeId: edge.id,
-        message: `Edge "${edge.id}" references non-existent target node "${edge.to}" in ${graphLabel} graph`,
-      });
-    }
-    return violations;
-  });
+  return edges.flatMap((edge): readonly ConsistencyViolation[] => [
+    ...(!nodeIds.has(edge.from) ? [{
+      kind: 'dangling-edge-from' as const,
+      graph: graphLabel,
+      nodeId: edge.from,
+      edgeId: edge.id,
+      message: `Edge "${edge.id}" references non-existent source node "${edge.from}" in ${graphLabel} graph`,
+    }] : []),
+    ...(!nodeIds.has(edge.to) ? [{
+      kind: 'dangling-edge-to' as const,
+      graph: graphLabel,
+      nodeId: edge.to,
+      edgeId: edge.id,
+      message: `Edge "${edge.id}" references non-existent target node "${edge.to}" in ${graphLabel} graph`,
+    }] : []),
+  ]);
 }
 
 function extractScreenIds(nodes: readonly { readonly id: string; readonly kind: string }[]): ReadonlySet<string> {
   return new Set(
-    nodes
-      .filter((n) => n.kind === 'screen')
-      .map((n) => n.id),
+    nodes.flatMap((n) => n.kind === 'screen' ? [n.id] : []),
   );
 }
 
 function extractElementIds(nodes: readonly { readonly id: string; readonly kind: string }[]): ReadonlySet<string> {
   return new Set(
-    nodes
-      .filter((n) => n.kind === 'element')
-      .map((n) => n.id),
+    nodes.flatMap((n) => n.kind === 'element' ? [n.id] : []),
   );
 }
 
@@ -82,17 +72,13 @@ function extractElementIds(nodes: readonly { readonly id: string; readonly kind:
  */
 function interfaceScreenNodeIds(nodes: readonly InterfaceGraphNode[]): ReadonlySet<string> {
   return new Set(
-    nodes
-      .filter((n) => n.kind === 'screen')
-      .map((n) => n.id),
+    nodes.flatMap((n) => n.kind === 'screen' ? [n.id] : []),
   );
 }
 
 function interfaceElementNodeIds(nodes: readonly InterfaceGraphNode[]): ReadonlySet<string> {
   return new Set(
-    nodes
-      .filter((n) => n.kind === 'target' && n.element != null)
-      .map((n) => n.id),
+    nodes.flatMap((n) => n.kind === 'target' && n.element != null ? [n.id] : []),
   );
 }
 
@@ -127,22 +113,20 @@ export function validateGraphConsistency(
   const interfaceScreenIds = interfaceScreenNodeIds(appGraph.nodes);
 
   const screensMissingInInterface: readonly ConsistencyViolation[] = [...derivedScreenIds]
-    .filter((id) => !interfaceScreenIds.has(id))
-    .map((id) => ({
+    .flatMap((id) => !interfaceScreenIds.has(id) ? [{
       kind: 'screen-missing-in-interface-graph' as const,
       graph: 'cross' as const,
       nodeId: id,
       message: `Screen node "${id}" exists in DerivedGraph but not in ApplicationInterfaceGraph`,
-    }));
+    }] : []);
 
   const screensMissingInDerived: readonly ConsistencyViolation[] = [...interfaceScreenIds]
-    .filter((id) => !derivedScreenIds.has(id))
-    .map((id) => ({
+    .flatMap((id) => !derivedScreenIds.has(id) ? [{
       kind: 'screen-missing-in-derived-graph' as const,
       graph: 'cross' as const,
       nodeId: id,
       message: `Screen node "${id}" exists in ApplicationInterfaceGraph but not in DerivedGraph`,
-    }));
+    }] : []);
 
   // 3. Cross-graph element consistency
   //    DerivedGraph element nodes use graphIds.element(screen, elementId) => "element:{screen}:{elementId}"
@@ -163,13 +147,12 @@ export function validateGraphConsistency(
 
   // Elements in DerivedGraph whose parent screen doesn't exist in InterfaceGraph
   const elementsMissingInInterface: readonly ConsistencyViolation[] = [...derivedElementScreenScoped.entries()]
-    .filter(([_elementId, screenId]) => !interfaceScreenIds.has(screenId))
-    .map(([elementId, screenId]) => ({
+    .flatMap(([elementId, screenId]) => !interfaceScreenIds.has(screenId) ? [{
       kind: 'element-missing-in-interface-graph' as const,
       graph: 'cross' as const,
       nodeId: elementId,
       message: `Element node "${elementId}" belongs to screen "${screenId}" which is absent from ApplicationInterfaceGraph`,
-    }));
+    }] : []);
 
   return [
     ...derivedDangling,

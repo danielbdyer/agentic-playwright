@@ -108,7 +108,7 @@ const entriesFromRuns = (runRecords: readonly RunRecord[]): readonly HotspotEntr
 const entriesFromDrift = (driftRecords: readonly InterpretationDriftRecord[]): readonly HotspotEntry[] =>
   driftRecords.flatMap((drift) =>
     drift.steps
-      .filter((entry) => entry.changed)
+      .flatMap((entry) => entry.changed ? [entry] : [])
       .map((step): HotspotEntry => ({
         kind: 'interpretation-drift',
         screen: drift.adoId,
@@ -127,7 +127,7 @@ const entriesFromDrift = (driftRecords: readonly InterpretationDriftRecord[]): r
 const entriesFromGraphs = (graphs: readonly ResolutionGraphRecord[]): readonly HotspotEntry[] =>
   graphs.flatMap((graph) =>
     graph.steps
-      .filter((entry) => entry.graph.winner.rung === 'needs-human')
+      .flatMap((entry) => entry.graph.winner.rung === 'needs-human' ? [entry] : [])
       .map((step): HotspotEntry => ({
         kind: 'resolution-graph-needs-human',
         screen: graph.adoId,

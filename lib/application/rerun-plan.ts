@@ -68,32 +68,33 @@ function dependentNodesForEdge(edge: GraphEdge, nodes: Map<string, GraphNode>, c
 
 function buildImpactPaths(graph: { nodes: readonly GraphNode[]; edges: readonly GraphEdge[] }, sourceNodeId: string): Map<string, string[]> {
   const nodesById = new Map(graph.nodes.map((node) => [node.id, node] as const));
-  const queue: string[] = [sourceNodeId];
-  const pathByNode = new Map<string, string[]>([[sourceNodeId, [sourceNodeId]]]);
 
-  while (queue.length > 0) {
-    const current = queue.shift();
-    if (!current) {
-      continue;
-    }
-    const currentPath = pathByNode.get(current);
-    if (!currentPath) {
-      continue;
-    }
+  const step = (
+    frontier: readonly string[],
+    visited: ReadonlyMap<string, string[]>,
+  ): ReadonlyMap<string, string[]> => {
+    if (frontier.length === 0) return visited;
+    const [current, ...rest] = frontier;
+    const currentPath = visited.get(current!);
+    if (!current || !currentPath) return step(rest, visited);
 
     const dependents = uniqueSorted(
       graph.edges.flatMap((edge) => dependentNodesForEdge(edge, nodesById, current)),
     );
-    for (const dependent of dependents) {
-      if (pathByNode.has(dependent)) {
-        continue;
-      }
-      pathByNode.set(dependent, [...currentPath, dependent]);
-      queue.push(dependent);
-    }
-  }
+    const { nextFrontier, nextVisited } = dependents.reduce(
+      (acc, dependent) => {
+        if (acc.nextVisited.has(dependent)) return acc;
+        return {
+          nextFrontier: [...acc.nextFrontier, dependent],
+          nextVisited: new Map([...acc.nextVisited, [dependent, [...currentPath, dependent]]]),
+        };
+      },
+      { nextFrontier: [...rest] as string[], nextVisited: new Map(visited) },
+    );
+    return step(nextFrontier, nextVisited);
+  };
 
-  return pathByNode;
+  return new Map(step([sourceNodeId], new Map([[sourceNodeId, [sourceNodeId]]])));
 }
 
 function scenariosReferencingArtifact(catalog: WorkspaceCatalog, artifactPath: string): string[] {
@@ -165,18 +166,19 @@ function planRerunSelection(options: {
       for (const [nodeId, dependencyPath] of paths.entries()) {
         const node = graphNodesById.get(nodeId);
         if (node?.kind === 'scenario') {
-          const adoIdValue = node.id.split(':').pop() ?? '';
+          const adoIdValue = node.id.split(':').at(-1) ?? '';
           if (adoIdValue.length === 0) {
             continue;
           }
           const adoId = createAdoId(adoIdValue);
-          const entry = scenarioExplanations.get(adoId) ?? [];
-          entry.push({
-            triggeringChange: `graph-node ${sourceLabel}`,
-            dependencyPath,
-            requiredBecause: 'Scenario is transitively dependent on changed lineage in .tesseract/graph/index.json.',
-          });
-          scenarioExplanations.set(adoId, entry);
+          scenarioExplanations.set(adoId, [
+            ...(scenarioExplanations.get(adoId) ?? []),
+            {
+              triggeringChange: `graph-node ${sourceLabel}`,
+              dependencyPath,
+              requiredBecause: 'Scenario is transitively dependent on changed lineage in .tesseract/graph/index.json.',
+            },
+          ]);
 
           const reasons = scenarioReasonSummary.get(adoId) ?? new Set<string>();
           reasons.add(`graph-lineage from ${sourceLabel}`);
@@ -194,13 +196,14 @@ function planRerunSelection(options: {
 
     for (const changedArtifactPath of changedArtifactPaths) {
       for (const scenarioId of scenariosReferencingArtifact(options.catalog, changedArtifactPath)) {
-        const entry = scenarioExplanations.get(scenarioId) ?? [];
-        entry.push({
-          triggeringChange: `artifact ${changedArtifactPath}`,
-          dependencyPath: [changedArtifactPath, scenarioNodeId(createAdoId(scenarioId))],
-          requiredBecause: 'Scenario runtime/binding references the changed artifact or proposal lineage source.',
-        });
-        scenarioExplanations.set(scenarioId, entry);
+        scenarioExplanations.set(scenarioId, [
+          ...(scenarioExplanations.get(scenarioId) ?? []),
+          {
+            triggeringChange: `artifact ${changedArtifactPath}`,
+            dependencyPath: [changedArtifactPath, scenarioNodeId(createAdoId(scenarioId))],
+            requiredBecause: 'Scenario runtime/binding references the changed artifact or proposal lineage source.',
+          },
+        ]);
 
         const reasons = scenarioReasonSummary.get(scenarioId) ?? new Set<string>();
         reasons.add(`artifact-reference ${changedArtifactPath}`);
@@ -229,11 +232,10 @@ function planRerunSelection(options: {
     const impactedScenarioIds = uniqueSorted([...scenarioExplanations.keys()].map((id) => createAdoId(id)));
     const impactedRunbooks = uniqueSorted(
       options.catalog.runbooks
-        .filter((entry) => options.catalog.scenarios.some((scenarioEntry) =>
+        .flatMap((entry) => options.catalog.scenarios.some((scenarioEntry) =>
           impactedScenarioIds.includes(scenarioEntry.artifact.source.ado_id)
           && selectorMatchesScenario(entry.artifact.selector, scenarioEntry.artifact),
-        ))
-        .map((entry) => entry.artifact.name),
+        ) ? [entry.artifact.name] : []),
     );
     const impactedConfidenceRecords = uniqueSorted([...confidenceReasons.keys()]);
 
@@ -261,9 +263,11 @@ function planRerunSelection(options: {
       runbooks: impactedRunbooks.map((name) => {
         const runbook = options.catalog.runbooks.find((entry) => entry.artifact.name === name);
         const matchingScenarios = options.catalog.scenarios
-          .filter((entry) => impactedScenarioIds.includes(entry.artifact.source.ado_id))
-          .filter((entry) => (runbook ? selectorMatchesScenario(runbook.artifact.selector, entry.artifact) : false))
-          .map((entry) => entry.artifact.source.ado_id);
+          .flatMap((entry) =>
+            impactedScenarioIds.includes(entry.artifact.source.ado_id)
+            && (runbook ? selectorMatchesScenario(runbook.artifact.selector, entry.artifact) : false)
+              ? [entry.artifact.source.ado_id] : [],
+          );
         return {
           name,
           why: uniqueSorted(matchingScenarios.map((adoId) => `selected-by-scenario ${adoId}`)),

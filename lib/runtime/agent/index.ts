@@ -5,6 +5,8 @@ import { selectedControlRefs, selectedControlResolution } from './select-control
 import { uniqueSorted } from './shared';
 import type { ResolutionStrategy, StrategyAttemptResult } from './strategy';
 import { runStrategyChain } from './strategy';
+import { createStrategyRegistry } from './strategy-registry';
+import { buildPipelineDAG, validateDAG } from '../../application/pipeline-dag';
 import type { RuntimeAgentStageContext, RuntimeStepAgentContext, StageEffects } from './types';
 import { mergeEffectsIntoStage, EMPTY_EFFECTS } from './types';
 import { interpretStepIntent } from './interpret-intent';
@@ -208,7 +210,7 @@ function buildPostAccumulatorStrategies(accRef: { current: import('./resolution-
         return { receipt: result.receipt, events: effectsToEvents(result.effects) };
       },
     },
-    pureStrategy('live-dom-fallback', ['live-dom', 'needs-human'], true,
+    pureStrategy('live-dom-fallback', ['live-dom', 'agent-interpreted', 'needs-human'], true,
       async (stage) => tryLiveDomOrFallback(stage, accRef.current)),
   ];
 }
@@ -222,6 +224,17 @@ async function runPipelinePhases(
   phases: readonly PipelinePhase[],
   stage: RuntimeAgentStageContext,
 ): Promise<import('./strategy').StrategyChainResult> {
+  // Validate phase chain as a linear DAG: each phase depends on its predecessor.
+  const dagStages = phases.map((phase, index) => ({
+    name: phase.name,
+    dependencies: index > 0 ? [phases[index - 1]!.name] : [],
+  }));
+  const dag = buildPipelineDAG(dagStages);
+  const diagnostics = validateDAG(dag);
+  if (diagnostics.length > 0) {
+    throw new Error(`Pipeline phase DAG invalid: ${diagnostics.join('; ')}`);
+  }
+
   const step = async (
     remaining: readonly PipelinePhase[],
     priorEvents: readonly ResolutionEvent[],
@@ -302,7 +315,12 @@ export async function runResolutionPipeline(
       name: 'post-accumulator',
       run: (s) => {
         const postStrategies = buildPostAccumulatorStrategies(accRef as { current: import('./resolution-stages').ResolutionAccumulator });
-        return runStrategyChain(postStrategies, s, accRef.current);
+        const registry = createStrategyRegistry([...preAccumulatorStrategies, ...postStrategies]);
+        const missingRungs = resolutionPrecedenceLaw.filter((rung) => !registry.lookup(rung));
+        if (missingRungs.length > 0) {
+          throw new Error(`Strategy registry not total — missing rungs: ${missingRungs.join(', ')}`);
+        }
+        return runStrategyChain(registry.strategiesInOrder().filter((s) => s.requiresAccumulator), s, accRef.current);
       },
     },
     {

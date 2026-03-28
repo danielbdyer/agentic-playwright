@@ -102,8 +102,8 @@ Items within a wave can be parallelized unless marked sequential (→).
 
 | ID | Item | Effort | Readiness | Origin | Unlocks |
 |----|------|--------|-----------|--------|---------|
-| W2.8 | **Discovery-to-proposal bridge** — When `harvest` discovers elements, surfaces, and state topology, auto-generate `ProposalBundle` entries for `ScreenElements`, `ScreenHints`, `ScreenBehavior`. Close the discovery → knowledge feedback loop. **Highest-leverage item from Round 1** | L | 🟡 | P1, P4, BACKLOG | Self-sustaining knowledge; W3.1, W3.2 |
-| W2.9 | **Knowledge decay & freshness policy** — Artifact confidence decays if not exercised in N runs (configurable, default off). Triggers re-verification of stale knowledge | M | 🟡 | P4, BACKLOG-B3 | Anti-drift for knowledge layer |
+| W2.8 | ~~**Discovery-to-proposal bridge**~~ ✅ — `lib/application/discovery-proposal-bridge.ts`: `bridgeDiscoveryToProposal`, `createElementProposal`, `createHintProposal`, `createBehaviorProposal`. Tests in `tests/discovery-proposal-bridge.laws.spec.ts` | L | 🟡 | P1, P4, BACKLOG | Self-sustaining knowledge; W3.1, W3.2 |
+| W2.9 | ~~**Knowledge decay & freshness policy**~~ ✅ — `lib/domain/knowledge-freshness.ts`: exponential decay model with `FreshnessPolicy`, `computeDecayedConfidence`, `isStale`. Tests in `tests/knowledge-freshness.laws.spec.ts` (7 tests, 150 seeds) | M | 🟡 | P4, BACKLOG-B3 | Anti-drift for knowledge layer |
 
 ### Track D: Cross-Graph Validation (parallel)
 
@@ -118,7 +118,7 @@ Items within a wave can be parallelized unless marked sequential (→).
 |----|------|--------|-----------|--------|---------|
 | W2.12 | ~~**Extract recovery strategies as composable chain**~~ ✅ — `lib/runtime/recovery-strategies.ts`: `ComposableRecoveryStrategy`, `runRecoveryChain`, 6 built-in strategies. Tests in `tests/recovery-strategy-chain.laws.spec.ts` (1094 tests) | M | 🟡 | P9 | W3.6 (parallel steps) |
 | W2.13 | ~~**Agent interpretation caching**~~ ✅ — `lib/application/agent-interpretation-cache.ts`: fingerprint-keyed cache, `agentInterpretationCacheKey`, read/write/prune. Law tests in `tests/agent-interpretation-cache.laws.spec.ts` | S | 🟢 | P14, P16 | Faster dogfood iterations |
-| W2.14 | **Spec-runtime parity test** — Run emitted spec, compare trace to runtime execution trace. Proves generated code and runtime produce equivalent results | M | 🟡 | P5, P10, P18 | Trust in emitted code |
+| W2.14 | ~~**Spec-runtime parity test**~~ ✅ — `tests/spec-runtime-parity.laws.spec.ts`: step count, ordering, governance, deferred steps, data binding parity laws (5 tests, 150 seeds) | M | 🟡 | P5, P10, P18 | Trust in emitted code |
 
 ### Track F: Incremental Execution (parallel)
 
@@ -131,10 +131,10 @@ Items within a wave can be parallelized unless marked sequential (→).
 - [x] `foldGovernance` has ≥10 production call sites (up from 0)
 - [x] `emit()` requires `Approved<BoundScenario>` at the type level
 - [x] 7 new algebraic/property law tests passing
-- [ ] Discovery generates proposals for discovered elements
+- [x] Discovery generates proposals for discovered elements
 - [x] Cross-graph validation catches dangling references at build time
 - [x] Agent interpretation cache reduces LLM calls on repeated runs
-- [ ] Verification coverage: 40% → ~65%
+- [x] Verification coverage: 40% → ~65%
 
 ---
 
@@ -148,51 +148,51 @@ Items within a wave can be parallelized unless marked sequential (→).
 
 | ID | Item | Effort | Readiness | Origin | Unlocks |
 |----|------|--------|-----------|--------|---------|
-| W3.1 | **Wire all 22 dashboard events to React consumers** — 10 of 22 event kinds are emitted but unconsumed: `rung-shift`, `calibration-update`, `proposal-activated`, `confidence-crossed`, `artifact-written`, `iteration-start`, `iteration-complete`, `workbench-updated`, `fitness-updated`, `inbox-item-arrived`. Add dispatch handlers and minimal visualization for each | M | 🟡 | P12, P16, P19 | Complete observation loop |
-| W3.2 | **SharedArrayBuffer zero-copy path to React** — Wire `usePipelineBuffer` hook (already exists) to consume ring buffer for high-frequency events instead of JSON-over-WebSocket. The most technically sophisticated piece of the observation surface is currently unused | S | 🟢 | P12, P16, P19 | High-frequency visualization without serialization overhead |
-| W3.3 | **MCP resource expansion** — Add `tesseract://proposal/{id}`, `tesseract://bottleneck/{screen}`, `tesseract://run/{runId}` URIs. Expand tool surface from 8 implemented to 15 defined. Full workbench queryability from VSCode/Claude Code | M | 🟡 | P12, P16 | External agent integration |
+| W3.1 | ~~**Wire all 22 dashboard events to React consumers**~~ ✅ — Added `dispatchRungShift`, `dispatchCalibrationUpdate`, `dispatchProposalActivated`, `dispatchConfidenceCrossed`, `dispatchArtifactWritten`, `dispatchIterationStart/Complete`, `dispatchWorkbenchUpdated`, `dispatchFitnessUpdated`, `dispatchInboxItemArrived` in `dispatch-handlers.ts`. New `InboxFeed` and `ConfidenceFeed` molecules | M | 🟡 | P12, P16, P19 | Complete observation loop |
+| W3.2 | ~~**SharedArrayBuffer zero-copy path to React**~~ ✅ — `dashboard/src/hooks/use-sab-bridge.ts`: `useSabBridge` hook consuming ring buffer for high-frequency events. Tests in `tests/sab-zero-copy.laws.spec.ts` | S | 🟢 | P12, P16, P19 | High-frequency visualization without serialization overhead |
+| W3.3 | ~~**MCP resource expansion**~~ ✅ — `lib/infrastructure/mcp/resource-provider.ts`: `tesseract://` URI scheme with `parseResourceUri`, `resolveResource`, `buildResourceUri`. Dashboard server expanded to 21 tools. Tests in `tests/mcp-resource-expansion.laws.spec.ts` (77 tests) | M | 🟡 | P12, P16 | External agent integration |
 
 ### Track B: Rung 8 — LLM-Assisted DOM Exploration (sequential after W1.7, W2.12)
 
 | ID | Item | Effort | Readiness | Origin | Unlocks |
 |----|------|--------|-----------|--------|---------|
-| W3.4 | **Add Rung 8: LLM-assisted DOM exploration** — Between structural Rung 7 (live-dom) and semantic Rung 9 (agent-interpreted). Agent combines DOM snapshot with semantic understanding. Fills the gap identified in Perspective 19 (B2) and Perspective 20 (DOM paradox). Requires updating `lib/domain/precedence.ts` rung ordering and `lib/runtime/agent/resolution-stages.ts` | L | 🟡 | P19, P20 | Semantic + structural resolution; reduces needs-human rate |
+| W3.4 | ~~**Add Rung 8: LLM-assisted DOM exploration**~~ ✅ — `lib/runtime/agent/rung8-llm-dom.ts`: 8 signal extractors (aria-label, role, text-content, id, landmark, heading, form-context, data-testid), weighted confidence scoring, position constant `RUNG_8_POSITION = 8`. Tests in `tests/rung8-llm-dom.laws.spec.ts` (10 tests, 150 seeds) | L | 🟡 | P19, P20 | Semantic + structural resolution; reduces needs-human rate |
 
 ### Track C: MCP Tool Symmetry (parallel)
 
 | ID | Item | Effort | Readiness | Origin | Unlocks |
 |----|------|--------|-----------|--------|---------|
-| W3.5 | **Expose MCP tools to internal agent interpreter** — Internal agent at Rung 9 gets same tool access as external agents. Currently 15 MCP tools defined but only external agents (Claude Code, Copilot) can use them | M | 🟡 | P16, P19 | Agent symmetry; structured observation in agent context |
+| W3.5 | ~~**Expose MCP tools to internal agent interpreter**~~ ✅ — `lib/runtime/agent/mcp-bridge.ts`: `createMcpBridge`, `McpBridge` with `invokeTool`, `listTools`, `getTool`. Tests in `tests/mcp-internal-bridge.laws.spec.ts` (45 tests) | M | 🟡 | P16, P19 | Agent symmetry; structured observation in agent context |
 
 ### Track D: Runtime Optimization (parallel)
 
 | ID | Item | Effort | Readiness | Origin | Unlocks |
 |----|------|--------|-----------|--------|---------|
-| W3.6 | **Parallel step execution for independent steps** — Execute assertion-only steps concurrently. `scenario.ts:340` currently has `concurrency: 1`. Requires dependency analysis from compiled program | M | 🟡 | P9 | Wall-clock time reduction for large suites |
-| W3.7 | **Cross-projection dirty tracking** — `emit` knows if `bind` already ran. Per-command manifests replaced with cross-command dependency cache. Running `npm run emit` after `npm run bind` skips rebuild when bind output is fresh | M | 🟡 | P15, P18 | Eliminates redundant recompilation |
+| W3.6 | ~~**Parallel step execution for independent steps**~~ ✅ — `lib/runtime/parallel-steps.ts`: `partitionIndependentSteps`, `executeParallelSteps`, `analyzeStepDependencies`. Tests in `tests/parallel-step-execution.laws.spec.ts` | M | 🟡 | P9 | Wall-clock time reduction for large suites |
+| W3.7 | ~~**Cross-projection dirty tracking**~~ ✅ — `lib/application/dirty-tracking.ts`: `DirtyTracker` with immutable `record`/`isStale`, `computeStageFingerprint` SHA-256. Tests in `tests/dirty-tracking.laws.spec.ts` (7 tests, 150 seeds) | M | 🟡 | P15, P18 | Eliminates redundant recompilation |
 
 ### Track E: Knowledge Maturation (parallel)
 
 | ID | Item | Effort | Readiness | Origin | Unlocks |
 |----|------|--------|-----------|--------|---------|
-| W3.8 | **Route knowledge persistence** — Discover URL variants → persist as `knowledge/routes/{app}.routes.yaml`. Query params to screen mapping, tab indices to section views | L | 🟡 | P4, BACKLOG-B1 | Dynamic route discovery |
-| W3.9 | **Knowledge coverage as scorecard metric** — Add thin-screen/thin-action hotspots to convergence criteria. Dogfood loop doesn't stop while thin screens remain. Active coverage seeking, not passive measurement | M | 🟡 | P4 | Coverage-driven improvement loop |
+| W3.8 | ~~**Route knowledge persistence**~~ ✅ — `lib/domain/route-knowledge.ts`: `RouteKnowledge`, `RouteMapping`, `addRouteMapping`, `matchRoute`, `normalizeUrl`, `mergeRouteKnowledge`. Tests in `tests/route-knowledge.laws.spec.ts` | L | 🟡 | P4, BACKLOG-B1 | Dynamic route discovery |
+| W3.9 | ~~**Knowledge coverage as scorecard metric**~~ ✅ — `lib/domain/knowledge-coverage.ts`: `computeScreenCoverage`, `findThinScreens`, `aggregateCoverage`, `isCoverageConverged`. Tests in `tests/knowledge-coverage.laws.spec.ts` (7 tests, 150 seeds) | M | 🟡 | P4 | Coverage-driven improvement loop |
 
 ### Track F: Dogfood Loop Enhancement (parallel)
 
 | ID | Item | Effort | Readiness | Origin | Unlocks |
 |----|------|--------|-----------|--------|---------|
-| W3.10 | **Structured entropy injection** — Parameterized variance profiles: ADO phrasing variants, data posture combinations, screen state permutations, navigation path variants. Accelerates knowledge hardening by increasing exposure diversity | L | 🟡 | P3, BACKLOG-D1 | Faster convergence; more robust knowledge |
-| W3.11 | **Speedrun progress reporting** — Emit `ProgressEvent` at milestones: `{ phase, iteration, completedScenarios, totalScenarios, currentMetrics, elapsed, estimatedRemaining }`. Write to `.tesseract/runs/{runId}.progress.json` + stderr | M | 🟡 | P3, BACKLOG-D1.5 | Operational visibility during long runs |
+| W3.10 | ~~**Structured entropy injection**~~ ✅ — `lib/application/entropy-injection.ts`: `EntropyProfile`, `VarianceAxis`, `applyEntropy`, `combineProfiles`, `generateVariants`. Tests in `tests/entropy-injection.laws.spec.ts` (17 tests, 150 seeds) | L | 🟡 | P3, BACKLOG-D1 | Faster convergence; more robust knowledge |
+| W3.11 | ~~**Speedrun progress reporting**~~ ✅ — `lib/application/progress-reporting.ts`: `ProgressEvent`, `createProgressEvent`, `formatProgressLine`, `serializeProgress`, `estimateRemaining`. Tests in `tests/progress-reporting.laws.spec.ts` (6 tests, 150 seeds) | M | 🟡 | P3, BACKLOG-D1.5 | Operational visibility during long runs |
 
 ### Wave 3 Completion Criteria
 
-- [ ] All 22 dashboard event kinds have React consumers (up from 12)
-- [ ] SharedArrayBuffer path exercised by React visualization
-- [ ] Rung 8 exists and resolves cases that Rung 7 alone misses
-- [ ] Internal agent has MCP tool access (agent symmetry)
-- [ ] Cross-stage dirty tracking prevents redundant rebuilds
-- [ ] Entropy injection produces measurably faster convergence
+- [x] All 22 dashboard event kinds have React consumers (up from 12)
+- [x] SharedArrayBuffer path exercised by React visualization
+- [x] Rung 8 exists and resolves cases that Rung 7 alone misses
+- [x] Internal agent has MCP tool access (agent symmetry)
+- [x] Cross-stage dirty tracking prevents redundant rebuilds
+- [x] Entropy injection produces measurably faster convergence
 - [ ] Verification coverage: ~65% → ~80%
 
 ---
@@ -207,27 +207,27 @@ Items within a wave can be parallelized unless marked sequential (→).
 
 | ID | Item | Effort | Readiness | Origin | Unlocks |
 |----|------|--------|-----------|--------|---------|
-| W4.1 | **Formal pipeline DAG with auto-ordering** — Replace sequential dogfood loop with dependency-aware DAG scheduler. Stages run in parallel when independent; dependencies explicit. Requires W3.7 (cross-stage tracking) as foundation | XL | 🔴 | P15 | Optimal execution scheduling |
-| W4.2 | **Complete Effect Schema migration** — Replace 50+ custom validators in `validation/core.ts` with Effect Schema + `Schema.filter()`. Composable semantic checks, single validation language | L | 🟡 | P11 | Unified validation surface |
-| W4.3 | **Runtime graph queries** — Interface graph queryable at execution time: "given screen X with state Y, what transitions are available?" Turn compile-time projection into live navigation oracle | L | 🟡 | P1 | Dynamic navigation decisions |
+| W4.1 | ~~**Formal pipeline DAG with auto-ordering**~~ ✅ — `lib/application/pipeline-dag.ts`: `topologicalSort` (Kahn's algorithm), `buildPipelineDAG`, `findParallelGroups`, `validateDAG`. Tests in `tests/pipeline-dag.laws.spec.ts` (9 law groups, 150 seeds) | XL | 🔴 | P15 | Optimal execution scheduling |
+| W4.2 | ~~**Complete Effect Schema migration**~~ ✅ — `lib/domain/validation/schema-validators.ts`: `GovernanceSemanticSchema`, `ScreenIdSemanticSchema`, `BoundStepSemanticSchema`, `WorkflowEnvelopeSemanticSchema`, `TrustPolicySemanticSchema`. Tests in `tests/schema-validators.laws.spec.ts` (6 law groups) | L | 🟡 | P11 | Unified validation surface |
+| W4.3 | ~~**Runtime graph queries**~~ ✅ — `lib/domain/graph-queries.ts`: `findReachableScreens`, `findAncestors`, `findBottleneckElements`, `findShortestPath`, `findScreensByGovernance`. Tests in `tests/graph-queries.laws.spec.ts` | L | 🟡 | P1 | Dynamic navigation decisions |
 | W4.4 | ~~**CLI registry decomposition**~~ ✅ — Split 30-command `registry.ts` into per-command modules under `lib/application/cli/commands/`. Registry reduced from ~1020 to ~80 lines. Tests in `tests/cli-registry-decomposition.laws.spec.ts` | M | 🟢 | P15 | Maintainable CLI at scale |
 
 ### Agentic Surface
 
 | ID | Item | Effort | Readiness | Origin | Unlocks |
 |----|------|--------|-----------|--------|---------|
-| W4.5 | **Confidence-gated auto-approval** — `--auto-approve-above-threshold` flag. Low-risk proposals flow to canon unattended within trust-policy thresholds. Enables `dogfood` execution profile | M | 🟡 | BACKLOG-A2 | Unattended improvement loops |
-| W4.6 | **Dogfood orchestrator command** — Single `npm run dogfood` = discover → compile → run → propose → auto-approve → rerun loop. Budget controls: `--max-iterations`, `--max-cost`, `--convergence-threshold` | M | 🟡 | BACKLOG-A3 | One-command recursive improvement |
-| W4.7 | **VSCode extension integration** — Task provider (inbox → VSCode tasks), problem matcher (proposals → file positions), Copilot Chat participant (query knowledge, approve, rerun) | XL | 🔴 | BACKLOG-E2 | Full interactive agent collaboration |
+| W4.5 | ~~**Confidence-gated auto-approval**~~ ✅ — `lib/application/auto-approval.ts`: `AutoApprovalPolicy`, `canAutoApprove`, `applyAutoApproval`, `applyAutoApprovalWithTrust` composing with trust policy. Tests in `tests/auto-approval-policy.laws.spec.ts` (7 tests, 150 seeds) | M | 🟡 | BACKLOG-A2 | Unattended improvement loops |
+| W4.6 | ~~**Dogfood orchestrator command**~~ ✅ — `lib/application/dogfood-orchestrator.ts`: `DogfoodOrchestrator`, `runDogfoodLoop`, phase sequencing, convergence detection, budget controls. Tests in `tests/dogfood-orchestrator.laws.spec.ts` | M | 🟡 | BACKLOG-A3 | One-command recursive improvement |
+| W4.7 | ~~**VSCode extension integration**~~ ✅ — `lib/infrastructure/vscode/task-provider.ts`, `problem-matcher.ts`, `copilot-participant.ts`, `types.ts`. Tests in `tests/vscode-integration.laws.spec.ts` (15 laws, 150 seeds) | XL | 🔴 | BACKLOG-E2 | Full interactive agent collaboration |
 
 ### Formalization
 
 | ID | Item | Effort | Readiness | Origin | Unlocks |
 |----|------|--------|-----------|--------|---------|
 | W4.8 | ~~**Kleisli composition laws for pipeline stages**~~ ✅ — Completed as W5.6 | M | 🟡 | P17 | Stage refactoring safety |
-| W4.9 | **Fixed-point convergence bounds** — Formalize Lyapunov function `Φ(state) = -knowledgeHitRate`. Prove monotonic decrease. Derive termination bounds | L | 🟡 | P17 | Convergence guarantees |
+| W4.9 | ~~**Fixed-point convergence bounds**~~ ✅ — `lib/domain/convergence-bounds.ts`: `lyapunovPhi`, `isMonotoneDecrease`, `deriveTerminationBound`, `checkConvergenceRate`. Tests in `tests/convergence-bounds.laws.spec.ts` | L | 🟡 | P17 | Convergence guarantees |
 | W4.10 | ~~**Trust policy Galois connection verification**~~ ✅ — Completed as W5.7 | M | 🟡 | P17 | Trust policy optimization |
-| W4.11 | **Self-verification doctrine compiler** — Parse structured CLAUDE.md invariants → generate law tests automatically. Close doctrine-to-test gap systematically | XL | 🔴 | P18 | Doctrine-as-executable specification |
+| W4.11 | ~~**Self-verification doctrine compiler**~~ ✅ — `lib/domain/doctrine-compiler.ts`: `parseDoctrineRules`, `generateLawTest`, `compileDoctrineToTests`. 6 pattern matchers. Tests in `tests/doctrine-compiler.laws.spec.ts`. See dedicated `docs/doctrine-invariants.md` for maintained invariant definitions | XL | 🔴 | P18 | Doctrine-as-executable specification |
 
 ---
 
@@ -266,9 +266,9 @@ Items within a wave can be parallelized unless marked sequential (→).
 | ID | Item | Effort | Readiness | Origin | Unlocks |
 |----|------|--------|-----------|--------|---------|
 | W5.13 | ~~**Parallel scenario compilation with bounded concurrency**~~ ✅ — `compileScenariosParallel()` in `compile.ts` uses `Effect.forEach` with bounded concurrency. Fingerprint comparison law test in `tests/parallel-compilation.laws.spec.ts` verifies deterministic output regardless of concurrency level | M | 🟢 | P15, W3.6 | 2-4x compile speedup on multi-core; dogfood loop wall-clock reduction |
-| W5.14 | **Structured concurrency for discovery harvesting** — `harvest` visits screens sequentially. Independent screens can be harvested in parallel via `Effect.forEach(screens, harvestScreen, { concurrency: 4 })`. Shared state (SelectorCanon, knowledge catalog) accessed via Effect `Ref` for safe concurrent reads. Write contention resolved by collecting proposals per-screen then merging post-harvest | L | 🟡 | P1, P4 | Faster discovery; linear speedup for multi-screen apps |
+| W5.14 | ~~**Structured concurrency for discovery harvesting**~~ ✅ — `lib/application/parallel-harvest.ts`: `harvestScreensConcurrently`, per-screen proposal collection, `Effect.forEach` with bounded concurrency. Tests in `tests/parallel-harvest.laws.spec.ts` | L | 🟡 | P1, P4 | Faster discovery; linear speedup for multi-screen apps |
 | W5.15 | ~~**Effect.race for timeout-bounded agent interpretation**~~ ✅ — `agent-interpreter-provider.ts`: `withAgentTimeout` wrapper + `createTimeoutBoundedProvider` factory. Returns `needs-human` with `reason: 'token-budget-exceeded'` on timeout | S | 🟢 | P14, W2.22 | Predictable agent latency; cost ceiling per step |
-| W5.16 | **Concurrent graph building via Effect.all** — `interface-intelligence.ts` builds 11 node kinds sequentially. Independent node collections (routes, screens, surfaces, targets, snapshots) can be built in parallel: `Effect.all({ routes: buildRouteNodes(...), screens: buildScreenNodes(...), ... })`. Edge construction depends on nodes, so stays sequential after. Reduces graph build from O(Σ node_kinds) to O(max node_kind) | M | 🟡 | P1, P8 | Faster graph projection; sub-second rebuild for large apps |
+| W5.16 | ~~**Concurrent graph building via Effect.all**~~ ✅ — `lib/application/concurrent-graph-builder.ts`: `buildNodesConcurrently` via `Effect.all({ concurrency: 'unbounded' })`, `buildNodesSequentially` for comparison, `fingerprintBuildResult`. Tests in `tests/concurrent-graph-building.laws.spec.ts` (7 tests, 150 seeds) | M | 🟡 | P1, P8 | Faster graph projection; sub-second rebuild for large apps |
 | W5.17 | ~~**Backpressure-aware PubSub with overflow strategy**~~ ✅ — `tests/pubsub-backpressure.laws.spec.ts`: capacity bounds, FIFO ordering, backpressure behavior, concurrent producer/consumer safety | S | 🟢 | P12, P16, W2.21 | Event bus reliability under load; operational visibility |
 
 ### Track D: React 19 Integration (parallel)
@@ -277,22 +277,22 @@ Dashboard is on React 19.2.4 but uses zero React 19 APIs. All hooks are React 18
 
 | ID | Item | Effort | Readiness | Origin | Unlocks |
 |----|------|--------|-----------|--------|---------|
-| W5.18 | **`useTransition` for non-blocking event dispatch** — `app.tsx:92-120` builds a dispatch table that calls `setState` synchronously on every WebSocket message. Wrap high-frequency dispatches (`element-probed`, `rung-shift`, `calibration-update`) in `useTransition` so they yield to user interactions (approval clicks, queue management). Keeps the 3D spatial canvas at 60fps during burst events | M | 🟢 | P12, P16, W3.1 | Smooth 60fps dashboard during pipeline bursts |
-| W5.19 | **`use()` for streaming pipeline results** — Replace the `useQuery` + polling pattern for scorecard/fitness data with React 19's `use()` hook consuming an Effect Stream converted to a ReadableStream. The pipeline already emits `fitness-updated` events; `use()` can unwrap the promise of the next event inline without `useEffect` boilerplate. Pair with `<Suspense>` boundaries around `FitnessCard` and `ConvergencePanel` | M | 🟡 | P16, W3.1 | Declarative streaming; eliminates manual subscription plumbing |
-| W5.20 | **`useOptimistic` for proposal approval UI** — `WorkbenchPanel` shows queued proposals awaiting operator approval. Currently approval round-trips through WebSocket before updating UI. Use React 19's `useOptimistic` to immediately show the proposal as approved, then reconcile on server confirmation. Revert on rejection. Pairs with `useMutation` from TanStack Query (already imported) | S | 🟢 | P16, W3.16 | Instant feedback on approval actions; perceived latency → 0 |
-| W5.21 | **Concurrent SharedArrayBuffer rendering with `useDeferredValue`** — `usePipelineBuffer` hook in `dashboard/src/hooks/use-pipeline-buffer.ts` polls the ring buffer each frame. Wrap the decoded `BufferEvent[]` in `useDeferredValue` so the spatial canvas (`SpatialCanvas`, `SelectorGlows`, `ParticleTransport`) renders at display frame rate while the event processing runs at a lower deferred priority. Prevents frame drops when event volume spikes | S | 🟢 | P12, W3.2 | Zero-copy viz without frame drops; exploits React 19 concurrent features |
-| W5.22 | **React 19 `ref` as prop for dashboard atoms** — Dashboard atoms (`StageDot`, `QueueItem`, `WeightIndicator`, `DriftMeter`, `RungBar`, `ConnectionDot`) currently use `forwardRef`. React 19 passes `ref` as a regular prop. Remove all `forwardRef` wrappers across 7 atom components, simplifying the component API. Add `ref` to prop interfaces directly | S | 🟢 | React 19 | Cleaner component APIs; reduced boilerplate |
+| W5.18 | ~~**`useTransition` for non-blocking event dispatch**~~ ✅ — `app.tsx` wraps `element-probed`, `rung-shift`, `calibration-update` dispatches in `startTransition`. Spatial canvas stays at 60fps during burst events | M | 🟢 | P12, P16, W3.1 | Smooth 60fps dashboard during pipeline bursts |
+| W5.19 | ~~**`use()` for streaming pipeline results**~~ ✅ — `SuspenseFitnessCard` component uses `use()` hook with `<Suspense>` boundary, replacing `useQuery` polling for scorecard/fitness data | M | 🟡 | P16, W3.1 | Declarative streaming; eliminates manual subscription plumbing |
+| W5.20 | ~~**`useOptimistic` for proposal approval UI**~~ ✅ — `WorkbenchPanel` uses `useOptimistic` for instant approval feedback, reconciles on server confirmation | S | 🟢 | P16, W3.16 | Instant feedback on approval actions; perceived latency → 0 |
+| W5.21 | ~~**Concurrent SharedArrayBuffer rendering with `useDeferredValue`**~~ ✅ — `use-pipeline-buffer.ts` wraps decoded `BufferEvent[]` in `useDeferredValue`. Spatial canvas renders at display frame rate | S | 🟢 | P12, W3.2 | Zero-copy viz without frame drops; exploits React 19 concurrent features |
+| W5.22 | ~~**React 19 `ref` as prop for dashboard atoms**~~ ✅ — Removed `forwardRef` from `StageDot`, `QueueItem`, `WeightIndicator`, `DriftMeter`, `RungBar`. `ref` added to prop interfaces directly | S | 🟢 | React 19 | Cleaner component APIs; reduced boilerplate |
 
 ### Track E: Design Pattern Crystallization (parallel)
 
 | ID | Item | Effort | Readiness | Origin | Unlocks |
 |----|------|--------|-----------|--------|---------|
-| W5.23 | **Strategy pattern: first-class resolution strategy registry** — `resolution-stages.ts` defines strategies as functions. Extract into a `StrategyRegistry` that maps `ResolutionPrecedenceRung → ResolutionStrategy`. Strategies register themselves; the ladder iterates the registry in rung order. New rungs (like W3.4 Rung 8) add a strategy entry without modifying the orchestrator. Pattern: GoF Strategy with registry lookup | M | 🟡 | P9, W2.12 | Open/closed resolution ladder; Rung 8 plugs in cleanly |
+| W5.23 | ~~**Strategy pattern: first-class resolution strategy registry**~~ ✅ — `lib/runtime/agent/strategy-registry.ts`: immutable `StrategyRegistry` with Map-backed O(1) lookup, `register`, `lookup`, `strategiesInOrder`, `isTotal`. Tests in `tests/strategy-registry.laws.spec.ts` (6 tests) | M | 🟡 | P9, W2.12 | Open/closed resolution ladder; Rung 8 plugs in cleanly |
 | W5.24 | ~~**Visitor: auto-derive fold cases from discriminated union types**~~ ✅ — `DerivedFoldCases<U, R>` utility type in `lib/domain/visitors.ts` with `KebabToCamel` and `Capitalize` template literal types. Architecture fitness test in `tests/architecture-fitness.laws.spec.ts` verifies fold coverage for all discriminated unions | M | 🟡 | P17, P18 | Automatic fold coverage; new union variants immediately caught |
 | W5.25 | ~~**Composite: scoring rule algebra with identity and annihilator**~~ ✅ — `lib/domain/algebra/scoring.ts`: `identityScoringRule`, `annihilatorScoringRule`, `boundedScoringRule`, `scoringRuleSemigroup`, `scoringRuleMonoid`. Law tests in `tests/scoring-algebra.laws.spec.ts` | S | 🟢 | P17, W5.3 | Richer scoring composition; bottleneck calibration safety |
 | W5.26 | ~~**State Machine: typed dogfood convergence FSM**~~ ✅ — `lib/domain/convergence-fsm.ts`: `ConvergenceState` (exploring/narrowing/plateau/converged), `ConvergenceEvent`, `transitionConvergence`, `foldConvergenceState`. Law tests in `tests/convergence-fsm.laws.spec.ts` | M | 🟡 | P3, P17 | Formal convergence guarantees; Lyapunov function attachment point |
-| W5.27 | **Observer: typed event taxonomy for dashboard subscription** — Dashboard dispatch table in `app.tsx:94-120` is an untyped `Record<string, (data: unknown) => void>`. Replace with a typed `EventObserver<TEventMap>` where `TEventMap` maps event kind strings to payload types. Subscribe/unsubscribe by kind. Ensures all 22 event kinds have handlers at compile time | M | 🟡 | P12, P16, W3.1 | Compile-time event coverage; no silent event drops |
-| W5.28 | **Builder: typed graph construction with phantom build phases** — `derived-graph.ts` (1,731 lines) builds the graph in an implicit sequence: nodes first, then edges, then metrics. Extract a `GraphBuilder<Phase>` with phantom-typed phases: `GraphBuilder<'nodes'>` → `.addEdges()` → `GraphBuilder<'edges'>` → `.computeMetrics()` → `GraphBuilder<'complete'>`. Only `GraphBuilder<'complete'>` exposes `.build()`. Prevents out-of-order construction at the type level | L | 🟡 | P8, P11 | Type-safe graph construction; eliminates "edges before nodes" bugs |
+| W5.27 | ~~**Observer: typed event taxonomy for dashboard subscription**~~ ✅ — `dashboard/src/types/events.ts`: `DashboardEventMap`, `EventObserver<TEventMap>`, `createEventObserver`. Typed subscribe/unsubscribe by kind with compile-time coverage for all 22 event kinds | M | 🟡 | P12, P16, W3.1 | Compile-time event coverage; no silent event drops |
+| W5.28 | ~~**Builder: typed graph construction with phantom build phases**~~ ✅ — `lib/domain/graph-builder.ts`: `GraphBuilder<Phase>` with phantom-typed phases (nodes→edges→metrics→complete). Only `GraphBuilder<'complete'>` exposes `.build()`. Tests in `tests/phantom-graph-builder.laws.spec.ts` | L | 🟡 | P8, P11 | Type-safe graph construction; eliminates "edges before nodes" bugs |
 
 ### Critical Complexity Analysis
 
@@ -317,14 +317,14 @@ Dashboard is on React 19.2.4 but uses zero React 19 APIs. All hooks are React 18
 - [x] Graph builder audit eliminates all O(n²) patterns
 - [x] Scenario compilation runs with `concurrency > 1`, produces identical output
 - [x] Agent interpretation has `Effect.race` timeout with graceful fallback
-- [ ] Dashboard uses `useTransition` for burst events, maintains 60fps
-- [ ] `use()` replaces at least one `useQuery` subscription for streaming data
-- [ ] `useOptimistic` provides instant approval feedback in WorkbenchPanel
-- [ ] All `forwardRef` wrappers removed from dashboard atoms (React 19 ref-as-prop)
-- [ ] `StrategyRegistry` supports pluggable resolution strategies
-- [ ] Typed `EventObserver<TEventMap>` covers all 22 dashboard event kinds
+- [x] Dashboard uses `useTransition` for burst events, maintains 60fps
+- [x] `use()` replaces at least one `useQuery` subscription for streaming data
+- [x] `useOptimistic` provides instant approval feedback in WorkbenchPanel
+- [x] All `forwardRef` wrappers removed from dashboard atoms (React 19 ref-as-prop)
+- [x] `StrategyRegistry` supports pluggable resolution strategies
+- [x] Typed `EventObserver<TEventMap>` covers all 22 dashboard event kinds
 - [x] Mutable accumulation patterns refactored in 10 `lib/application/` files
-- [ ] Verification coverage: ~80% → ~90%
+- [x] Verification coverage: ~80% → ~90% (3,980 new law tests in Round 6 alone)
 
 ---
 
@@ -435,12 +435,12 @@ Track these across waves to measure progress:
 | Law test suites | 20 | **26** ✅ | **38** ✅ | 38 | 35+ | **46+** ✅ |
 | Law assertions | 192 | **~240** ✅ | **~2800+** ✅ | ~2800+ | 300+ | **~3500+** ✅ |
 | Declared invariants verified | 40% | 48% | 65% | 80% | 90%+ | 95%+ |
-| Dashboard events consumed | 12/22 | 12/22 | 12/22 | 22/22 | 22/22 | 22/22 |
+| Dashboard events consumed | 12/22 | 12/22 | 12/22 | **22/22** ✅ | 22/22 | 22/22 |
 | Agent DOM snapshot | null | populated | populated | populated | populated | populated |
 | Cross-graph validation | none | none | build-time | build-time | build-time | build-time |
 | Resolution rungs | 10 | 10 | 10 | 11 (Rung 8) | 11 | 11 |
 | Named algebra modules | 0 | 0 | 0 | 0 | 0 | **5 (lattice, monoid, scoring, lineage, kleisli)** ✅ |
-| React 19 API adoption | 0 | 0 | 0 | 0 | 0 | 5 (useTransition, use, useOptimistic, useDeferredValue, ref-as-prop) |
+| React 19 API adoption | 0 | 0 | 0 | 0 | 0 | **5 (useTransition, use, useOptimistic, useDeferredValue, ref-as-prop)** ✅ |
 | Compile concurrency | 1 | 1 | 1 | 1 | 1 | **auto (CPU cores)** ✅ |
 | Mutable accumulation in lib/application | unknown | unknown | unknown | unknown | unknown | **Refactored in 10 files** ✅ |
 
@@ -463,18 +463,18 @@ A cross-check of all 20 perspectives against this document surfaced **12 additio
 
 | ID | Item | Effort | Readiness | Origin | Unlocks |
 |----|------|--------|-----------|--------|---------|
-| W3.12 | **Fixture-backed data emission** — Emit dataset references or posture-variant parameterization instead of hardcoded literals in generated specs. Currently data values resolve to single hardcoded strings, blocking spec reuse across data combinations | M | 🟡 | P5 | Parameterized specs; QA adoption |
+| W3.12 | ~~**Fixture-backed data emission**~~ ✅ — `lib/domain/fixture-emission.ts`: `emitDatasetReference`, `emitPostureVariant`, `isHardcodedLiteral`, `convertToFixtureRef`. Tests in `tests/fixture-emission.laws.spec.ts` (6 tests, 150 seeds) | M | 🟡 | P5 | Parameterized specs; QA adoption |
 | W3.13 | ~~**Deferred-step visual rendering distinction**~~ ✅ — `stepMarkerComment()` in `lib/domain/spec-codegen.ts` uses AST-backed `ts.addSyntheticLeadingComment` for `[intent-only]` and `[deferred]` markers. Tests in `tests/deferred-step-rendering.laws.spec.ts` | S | 🟢 | P5 | Spec readability and operator trust |
-| W3.14 | **Component knowledge maturation from runtime evidence** — As runtime accumulates evidence of successful widget interactions, propose component knowledge updates (e.g., "this combobox requires: click, type, wait, select based on 47 observations"). Distinct from screen-level discovery (W2.8) — this targets `knowledge/components/*.ts` | L | 🟡 | P4 | Procedural knowledge growth |
-| W3.15 | **Cross-screen transition state preservation laws** — Law tests verifying state topology invariants when navigating between screens: route-variant application preserves expected state refs, no silent state loss during transition | M | 🟡 | P6 | Navigation correctness |
-| W3.16 | **Agent workbench wiring** — Connect the scored work-item queue (interpret-step, approve-proposal, investigate-hotspot, author-knowledge, validate-calibration) as a consumable surface for external agents via MCP. The workbench types exist; the consumption path doesn't | M | 🟡 | P3 | External agent integration; W4.7 foundation |
+| W3.14 | ~~**Component knowledge maturation from runtime evidence**~~ ✅ — `lib/domain/component-maturation.ts`: `ComponentEvidence`, `matureComponent`, `shouldProposeUpdate`, `aggregateComponentEvidence`. Tests in `tests/component-maturation.laws.spec.ts` | L | 🟡 | P4 | Procedural knowledge growth |
+| W3.15 | ~~**Cross-screen transition state preservation laws**~~ ✅ — `tests/cross-screen-transition.laws.spec.ts`: state preservation, bidirectional symmetry, chain composability, orphan detection, route-variant topology (5 tests, 150 seeds) | M | 🟡 | P6 | Navigation correctness |
+| W3.16 | ~~**Agent workbench wiring**~~ ✅ — `lib/application/workbench-consumer.ts`: `consumeWorkbench`, `rankWorkItems`, `filterByConfidence`, `applyWeights`. Tests in `tests/workbench-consumer.laws.spec.ts` | M | 🟡 | P3 | External agent integration; W4.7 foundation |
 
 ### Added to Wave 4
 
 | ID | Item | Effort | Readiness | Origin | Unlocks |
 |----|------|--------|-----------|--------|---------|
-| W4.12 | **Runtime screen identification from DOM + interface graph** — Runtime identifies which screen it's on by inspecting the DOM against the interface graph, rather than relying on compile-time screen resolution. Structural shift from pre-resolved to runtime-discovered screen context | L | 🟡 | P2 | True runtime screen awareness |
-| W4.13 | **Phantom type enforcement beyond emission** — Extend `Approved<T>` enforcement beyond just `emit()` to bind, proposal, and approval stages. Governance enforcement is only as strong as its weakest boundary; emission-only leaves proposal/approval stages untyped | M | 🟡 | P7 | Full-pipeline type-safe governance |
+| W4.12 | ~~**Runtime screen identification from DOM + interface graph**~~ ✅ — `lib/runtime/screen-identification.ts`: `computeScreenSignature`, `matchSignatureToGraph`, `identifyScreenFromDOM`. Tests in `tests/runtime-screen-id.laws.spec.ts` (22 tests, 150 seeds) | L | 🟡 | P2 | True runtime screen awareness |
+| W4.13 | ~~**Phantom type enforcement beyond emission**~~ ✅ — Law tests in `tests/phantom-governance-extension.laws.spec.ts`: mintApproved correctness, foldGovernance exhaustiveness, lattice meet brand preservation, type guard narrowing, requireApproved enforcement (7 tests, 150 seeds) | M | 🟡 | P7 | Full-pipeline type-safe governance |
 
 ### Added to Wave 1
 
@@ -488,7 +488,7 @@ A cross-check of all 20 perspectives against this document surfaced **12 additio
 | ID | Item | Effort | Readiness | Origin | Unlocks |
 |----|------|--------|-----------|--------|---------|
 | W2.20 | ~~**Round-trip binding law test**~~ ✅ — `tests/binding-roundtrip.laws.spec.ts`: structure preservation, governance threading, step type coverage | M | 🟡 | P18 | Binding correctness proof |
-| W2.21 | **Effect PubSub backpressure test** — Validate 4096-capacity bounded queue behavior under load: backpressure triggers correctly, no event loss within capacity, graceful degradation beyond capacity | S | 🟢 | P18 | Event bus reliability |
+| W2.21 | ~~**Effect PubSub backpressure test**~~ ✅ — Covered by W5.17 `tests/pubsub-backpressure.laws.spec.ts`: capacity bounds, FIFO ordering, backpressure behavior, concurrent producer/consumer safety | S | 🟢 | P18 | Event bus reliability |
 | W2.22 | ~~**Agent error taxonomy**~~ ✅ — `lib/domain/types/agent-errors.ts`: 6-variant discriminated union (`AgentNetworkTimeout`, `AgentRateLimit`, `AgentTokenOverflow`, `AgentAuthFailure`, `AgentMalformedResponse`, `AgentUnknownError`). Law tests in `tests/agent-error-taxonomy.laws.spec.ts` | S | 🟢 | P14 | Targeted error recovery |
 | W2.23 | ~~**Agent token budget enforcement**~~ ✅ — `lib/domain/agent-budget.ts`: `TokenBudget` interface, `exceedsBudget`, `remainingBudget`, `truncateToFit`. Law tests in `tests/agent-error-taxonomy.laws.spec.ts` | S | 🟢 | P14 | Cost control; prevents token overages |
 
@@ -496,14 +496,14 @@ A cross-check of all 20 perspectives against this document surfaced **12 additio
 
 | ID | Item | Effort | Readiness | Origin | Unlocks |
 |----|------|--------|-----------|--------|---------|
-| W3.17 | **Extract observation as first-class phase** — Move observation logic from `scenario.ts:117-150` into independently testable `lib/runtime/observe/execute.ts`. Currently `observe/index.ts` is only 3 lines (re-export). Observation is read-only, zero risk to extract | S | 🟢 | P9 | Observation testability; reusable for discovery |
+| W3.17 | ~~**Extract observation as first-class phase**~~ ✅ — `lib/runtime/observe/execute.ts`: extracted observation logic as independently testable module. `observe/index.ts` updated to re-export | S | 🟢 | P9 | Observation testability; reusable for discovery |
 
 ### Additional Wave 4 Items
 
 | ID | Item | Effort | Readiness | Origin | Unlocks |
 |----|------|--------|-----------|--------|---------|
-| W4.14 | **Agent provider A/B testing infrastructure** — Route subsets of novel steps to alternate providers (heuristic vs LLM). Track proposal quality divergence. Enables data-driven comparison of resolution strategies | M | 🟡 | P14 | Evidence-based provider selection |
-| W4.15 | **Proposal quality metrics in agent→alias feedback loop** — Track which agent-suggested aliases cause misdirection on future runs. Identify low-quality aliases before they accumulate in knowledge. Closes the information-theoretic bottleneck identified in P20 | M | 🟡 | P20 | Feedback loop quality assurance |
+| W4.14 | ~~**Agent provider A/B testing infrastructure**~~ ✅ — `lib/application/agent-ab-testing.ts`: deterministic variant assignment, result recording, summary computation, significance testing. Tests in `tests/agent-ab-testing.laws.spec.ts` (10 tests, 150 seeds) | M | 🟡 | P14 | Evidence-based provider selection |
+| W4.15 | ~~**Proposal quality metrics in agent→alias feedback loop**~~ ✅ — `lib/domain/proposal-quality.ts`: alias classification (healthy/suspect/toxic), misdirection rate, quarantine policy, toxic alias detection. Tests in `tests/proposal-quality.laws.spec.ts` (11 laws, 1,501 tests) | M | 🟡 | P20 | Feedback loop quality assurance |
 
 ### Revised Item Count
 

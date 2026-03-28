@@ -1,9 +1,10 @@
 /**
  * WorkbenchPanel — static workbench inbox grouped by screen.
  * FP: immutable groupBy via reduce (no mutable Map + push).
+ * W5.20: useOptimistic provides instant visual feedback on approve/skip.
  * Organism. Memo-wrapped.
  */
-import { memo } from 'react';
+import { memo, useOptimistic, useCallback } from 'react';
 import { KIND_COLORS } from '../atoms/colors';
 
 interface WorkItem {
@@ -25,6 +26,19 @@ interface WorkbenchPanelProps {
   readonly onSkip: (id: string) => void;
 }
 
+/** Optimistic decision applied before server confirms. */
+interface OptimisticDecision {
+  readonly id: string;
+  readonly result: 'approved' | 'skipped';
+}
+
+/** Apply optimistic decisions to the item list. Pure reducer. */
+const applyOptimisticDecision = (
+  items: readonly WorkItem[],
+  decision: OptimisticDecision,
+): readonly WorkItem[] =>
+  items.filter((item) => item.id !== decision.id);
+
 /** Group items by screen via immutable reduce. O(n). */
 const groupByScreen = (items: readonly WorkItem[]): readonly (readonly [string, readonly WorkItem[]])[] =>
   Object.entries(
@@ -35,13 +49,30 @@ const groupByScreen = (items: readonly WorkItem[]): readonly (readonly [string, 
   );
 
 export const WorkbenchPanel = memo(function WorkbenchPanel({ workbench, onApprove, onSkip }: WorkbenchPanelProps) {
+  // W5.20: useOptimistic for instant proposal approval/skip feedback.
+  // Items disappear immediately; reconciled when server confirms via WebSocket.
+  const [optimisticItems, addOptimisticDecision] = useOptimistic(
+    workbench?.items ?? [],
+    applyOptimisticDecision,
+  );
+
+  const handleApprove = useCallback((id: string) => {
+    addOptimisticDecision({ id, result: 'approved' });
+    onApprove(id);
+  }, [addOptimisticDecision, onApprove]);
+
+  const handleSkip = useCallback((id: string) => {
+    addOptimisticDecision({ id, result: 'skipped' });
+    onSkip(id);
+  }, [addOptimisticDecision, onSkip]);
+
   // React Compiler auto-memoizes this grouping derivation
-  const byScreen = workbench?.items.length ? groupByScreen(workbench.items) : [];
+  const byScreen = optimisticItems.length > 0 ? groupByScreen(optimisticItems) : [];
 
   if (byScreen.length === 0) return <div className="card card-full"><h2>Workbench</h2><div className="empty">No pending items. Converged.</div></div>;
   return (
     <div className="card card-full">
-      <h2>Workbench — {workbench!.summary.pending} pending</h2>
+      <h2>Workbench — {optimisticItems.length} pending</h2>
       {byScreen.map(([screen, items]) => (
         <div key={screen} className="screen-group">
           <div className="screen-header">{screen} ({items.length})</div>
@@ -52,8 +83,8 @@ export const WorkbenchPanel = memo(function WorkbenchPanel({ workbench, onApprov
               </div>
               <div className="item-actions">
                 <span className="priority-score">{item.priority.toFixed(3)}</span>
-                <button className="btn btn-approve" onClick={() => onApprove(item.id)}>Approve</button>
-                <button className="btn" onClick={() => onSkip(item.id)}>Skip</button>
+                <button className="btn btn-approve" onClick={() => handleApprove(item.id)}>Approve</button>
+                <button className="btn" onClick={() => handleSkip(item.id)}>Skip</button>
               </div>
             </div>
           ))}

@@ -17,6 +17,8 @@ import type { McpServerPort, McpToolInvocation, McpToolResult } from '../../appl
 import type { McpToolDefinition, WorkItemDecision, ScreenCapturedEvent } from '../../domain/types';
 import { dashboardMcpTools, dashboardEvent } from '../../domain/types/dashboard';
 import type { TesseractError } from '../../domain/errors';
+import { resolveResource, buildResourceUri } from './resource-provider';
+import type { ResourceArtifactReader } from './resource-provider';
 
 // ─── Configuration ───
 
@@ -162,6 +164,91 @@ const getIterationStatus: ToolHandler = (_args, options) => {
   catch { return { error: 'Could not parse progress data', phase: 'unknown' }; }
 };
 
+// ─── Resource-backed Tool Handlers (W3.3) ───
+
+const asReader = (options: DashboardMcpServerOptions): ResourceArtifactReader => ({
+  readArtifact: options.readArtifact,
+});
+
+const getProposal: ToolHandler = (args, options) => {
+  const id = (args.proposalId ?? args.id) as string;
+  if (!id) return { error: 'proposalId is required', isError: true };
+  const response = resolveResource(buildResourceUri('proposal', id), asReader(options));
+  return response.found ? response.data : { ...response.data, isError: true };
+};
+
+const listProposalsHandler: ToolHandler = (args, options) => {
+  const reader = asReader(options);
+  const proposals = reader.readArtifact('.tesseract/learning/proposals.json') as {
+    readonly proposals?: readonly Record<string, unknown>[];
+  } | null;
+  const indexProposals = reader.readArtifact('.tesseract/learning/proposals/index.json') as {
+    readonly proposals?: readonly Record<string, unknown>[];
+  } | null;
+  const all = [
+    ...(proposals?.proposals ?? []),
+    ...(indexProposals?.proposals ?? []),
+  ];
+  const statusFilter = (args.status as string) ?? 'all';
+  const filtered = statusFilter === 'all'
+    ? all
+    : all.filter((p) => (p.status as string) === statusFilter);
+  return { proposals: filtered, count: filtered.length };
+};
+
+const getBottleneck: ToolHandler = (args, options) => {
+  const screen = args.screen as string;
+  if (!screen) return { error: 'screen is required', isError: true };
+  const response = resolveResource(buildResourceUri('bottleneck', screen), asReader(options));
+  return response.data;
+};
+
+const getRun: ToolHandler = (args, options) => {
+  const runId = args.runId as string;
+  if (!runId) return { error: 'runId is required', isError: true };
+  const response = resolveResource(buildResourceUri('run', runId), asReader(options));
+  return response.found ? response.data : { ...response.data as object, isError: true };
+};
+
+const getResolutionGraph: ToolHandler = (args, options) => {
+  const graph = options.readArtifact('.tesseract/graph/index.json') as {
+    readonly nodes?: readonly Record<string, unknown>[];
+    readonly edges?: readonly Record<string, unknown>[];
+  } | null;
+  if (!graph) return { nodes: [], edges: [], totalNodes: 0, totalEdges: 0 };
+  const screenFilter = args.screen as string | undefined;
+  const nodes = graph.nodes ?? [];
+  const edges = graph.edges ?? [];
+  const filteredNodes = screenFilter
+    ? nodes.filter((n) => (n.screen as string) === screenFilter)
+    : nodes;
+  return { nodes: filteredNodes, edges, totalNodes: filteredNodes.length, totalEdges: edges.length };
+};
+
+const getTaskResolution: ToolHandler = (args, options) => {
+  const taskId = args.taskId as string;
+  if (!taskId) return { error: 'taskId is required', isError: true };
+  const resolution = options.readArtifact(`.tesseract/tasks/${taskId}.resolution.json`);
+  return resolution ?? { error: `Resolution for ${taskId} not found`, isError: true };
+};
+
+const listScreens: ToolHandler = (_args, options) => {
+  const graph = options.readArtifact('.tesseract/graph/index.json') as {
+    readonly nodes?: readonly Record<string, unknown>[];
+  } | null;
+  if (!graph?.nodes) return { screens: [], count: 0 };
+  const screenMap = new Map<string, number>();
+  for (const node of graph.nodes) {
+    const screen = (node.screen as string) ?? 'unknown';
+    screenMap.set(screen, (screenMap.get(screen) ?? 0) + 1);
+  }
+  const screens = Array.from(screenMap.entries()).map(([screen, elementCount]) => ({
+    screen,
+    elementCount,
+  }));
+  return { screens, count: screens.length };
+};
+
 // ─── Tool Router (pure dispatch) ───
 
 const toolHandlers: Readonly<Record<string, ToolHandler>> = {
@@ -173,6 +260,13 @@ const toolHandlers: Readonly<Record<string, ToolHandler>> = {
   'approve_work_item': approveWorkItem,
   'skip_work_item': skipWorkItem,
   'get_iteration_status': getIterationStatus,
+  'get_proposal': getProposal,
+  'list_proposals': listProposalsHandler,
+  'get_bottleneck': getBottleneck,
+  'get_run': getRun,
+  'get_resolution_graph': getResolutionGraph,
+  'get_task_resolution': getTaskResolution,
+  'list_screens': listScreens,
 };
 
 const routeToolCall = (

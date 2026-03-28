@@ -450,9 +450,6 @@ function generateSingleScreenScenario(
   rng: () => number,
   tracker: CoverageTracker,
 ): { readonly steps: readonly SyntheticStep[]; readonly title: string } {
-  const steps: SyntheticStep[] = [];
-  let stepIndex = 1;
-
   // Navigate to screen
   const screenAlias = screen.screenAliases.length > 0
     ? pick(screen.screenAliases, rng)
@@ -462,39 +459,40 @@ function generateSingleScreenScenario(
   const navText = rng() < 0.2
     ? pick(COLLOQUIAL_NAVIGATE_TEMPLATES, rng).replace('{screen}', screenAlias)
     : generateActionText('navigate', screenAlias, null, '', rng);
-  steps.push({
-    index: stepIndex,
+  const navStep: SyntheticStep = {
+    index: 1,
     intent: navText,
     action_text: navText,
     expected_text: generateExpectedText('navigate', screenAlias, null),
-  });
-  stepIndex += 1;
+  };
 
   // Interact with elements — coverage-aware selection
   const elementCount = Math.min(screen.elements.length, 2 + Math.floor(rng() * 4));
-  const usedElements = new Set<string>();
 
-  for (let i = 0; i < elementCount; i += 1) {
+  const buildElementSteps = (
+    remaining: number,
+    acc: readonly SyntheticStep[],
+    used: ReadonlySet<string>,
+    nextIndex: number,
+  ): readonly SyntheticStep[] => {
+    if (remaining <= 0) return acc;
     const element = pickCoverageAware(screen, tracker, rng);
-    if (usedElements.has(element.elementId) && screen.elements.length > usedElements.size) {
-      // Try to pick a different element if possible
-      const unused = screen.elements.filter((e) => !usedElements.has(e.elementId));
+    if (element.elementId && used.has(element.elementId) && screen.elements.length > used.size) {
+      const unused = screen.elements.filter((e) => !used.has(e.elementId));
       if (unused.length > 0) {
         const altElement = pick(unused, rng);
-        usedElements.add(altElement.elementId);
         recordElementUsage(tracker, screen.screenId, altElement);
-        const step = generateElementStep(altElement, screenAlias, stepIndex, rng);
-        steps.push(step);
-        stepIndex += 1;
-        continue;
+        const step = generateElementStep(altElement, screenAlias, nextIndex, rng);
+        return buildElementSteps(remaining - 1, [...acc, step], new Set([...used, altElement.elementId]), nextIndex + 1);
       }
     }
-    usedElements.add(element.elementId);
     recordElementUsage(tracker, screen.screenId, element);
-    const step = generateElementStep(element, screenAlias, stepIndex, rng);
-    steps.push(step);
-    stepIndex += 1;
-  }
+    const step = generateElementStep(element, screenAlias, nextIndex, rng);
+    return buildElementSteps(remaining - 1, [...acc, step], new Set([...used, element.elementId]), nextIndex + 1);
+  };
+
+  const elementSteps = buildElementSteps(elementCount, [], new Set<string>(), 2);
+  const steps = [navStep, ...elementSteps];
 
   return {
     steps,
@@ -545,53 +543,45 @@ function generateWorkflowScenario(
   rng: () => number,
   tracker: CoverageTracker,
 ): { readonly steps: readonly SyntheticStep[]; readonly title: string } {
-  const steps: SyntheticStep[] = [];
-  let stepIndex = 1;
-
   const screenAlias = screen.screenAliases.length > 0
     ? pick(screen.screenAliases, rng)
     : screen.screenId.replace(/-/g, ' ');
 
   // Step 1: Navigate
   const navText = generateActionText('navigate', screenAlias, null, '', rng);
-  steps.push({
-    index: stepIndex,
+  const navStep: SyntheticStep = {
+    index: 1,
     intent: navText,
     action_text: navText,
     expected_text: generateExpectedText('navigate', screenAlias, null),
-  });
-  stepIndex += 1;
+  };
 
   // Steps 2-N: Fill inputs/selects in order
   const inputElements = screen.elements.filter((e) =>
     classifyWidget(e.widget) === 'input' || classifyWidget(e.widget) === 'select',
   );
-  for (const element of shuffle(inputElements, rng).slice(0, 3)) {
+  const inputSteps = shuffle(inputElements, rng).slice(0, 3).map((element, i) => {
     recordElementUsage(tracker, screen.screenId, element);
-    const step = generateElementStep(element, screenAlias, stepIndex, rng);
-    steps.push(step);
-    stepIndex += 1;
-  }
+    return generateElementStep(element, screenAlias, 2 + i, rng);
+  });
 
   // Step N+1: Click action button
   const clickElements = screen.elements.filter((e) => classifyWidget(e.widget) === 'click');
-  if (clickElements.length > 0) {
+  const clickSteps = clickElements.length > 0 ? (() => {
     const clickEl = pick(clickElements, rng);
     recordElementUsage(tracker, screen.screenId, clickEl);
-    const step = generateElementStep(clickEl, screenAlias, stepIndex, rng);
-    steps.push(step);
-    stepIndex += 1;
-  }
+    return [generateElementStep(clickEl, screenAlias, 2 + inputSteps.length, rng)];
+  })() : [];
 
   // Step N+2: Assert result
   const assertElements = screen.elements.filter((e) => classifyWidget(e.widget) === 'assert');
-  if (assertElements.length > 0) {
+  const assertSteps = assertElements.length > 0 ? (() => {
     const assertEl = pick(assertElements, rng);
     recordElementUsage(tracker, screen.screenId, assertEl);
-    const step = generateElementStep(assertEl, screenAlias, stepIndex, rng);
-    steps.push(step);
-    stepIndex += 1;
-  }
+    return [generateElementStep(assertEl, screenAlias, 2 + inputSteps.length + clickSteps.length, rng)];
+  })() : [];
+
+  const steps = [navStep, ...inputSteps, ...clickSteps, ...assertSteps];
 
   return {
     steps,
@@ -606,44 +596,42 @@ function generateAssertionVariantScenario(
   rng: () => number,
   tracker: CoverageTracker,
 ): { readonly steps: readonly SyntheticStep[]; readonly title: string } {
-  const steps: SyntheticStep[] = [];
-  let stepIndex = 1;
-
   const screenAlias = screen.screenAliases.length > 0
     ? pick(screen.screenAliases, rng)
     : screen.screenId.replace(/-/g, ' ');
 
   // Navigate
   const navText = generateActionText('navigate', screenAlias, null, '', rng);
-  steps.push({
-    index: stepIndex,
+  const navStep: SyntheticStep = {
+    index: 1,
     intent: navText,
     action_text: navText,
     expected_text: generateExpectedText('navigate', screenAlias, null),
-  });
-  stepIndex += 1;
+  };
 
   const assertElements = screen.elements.filter((e) => classifyWidget(e.widget) === 'assert');
+  let nextIndex = 2;
 
   // Negation assertion
-  if (assertElements.length > 0) {
+  const negationSteps: readonly SyntheticStep[] = assertElements.length > 0 ? (() => {
     const el = pick(assertElements, rng);
     recordElementUsage(tracker, screen.screenId, el);
     const alias = el.aliases.length > 0
       ? pick(el.aliases, rng)
       : el.elementId.replace(/([A-Z])/g, ' $1').trim().toLowerCase();
     const negText = pick(NEGATION_ASSERT_TEMPLATES, rng).replace('{element}', alias);
-    steps.push({
-      index: stepIndex,
+    const step: SyntheticStep = {
+      index: nextIndex,
       intent: negText,
       action_text: negText,
       expected_text: `${alias} is not visible on screen`,
-    });
-    stepIndex += 1;
-  }
+    };
+    nextIndex += 1;
+    return [step];
+  })() : [];
 
   // Compound assertion
-  if (assertElements.length >= 2) {
+  const compoundSteps: readonly SyntheticStep[] = assertElements.length >= 2 ? (() => {
     const shuffled = shuffle(assertElements, rng);
     const el1 = shuffled[0]!;
     const el2 = shuffled[1]!;
@@ -652,22 +640,25 @@ function generateAssertionVariantScenario(
     const alias1 = el1.aliases.length > 0 ? pick(el1.aliases, rng) : el1.elementId.replace(/([A-Z])/g, ' $1').trim().toLowerCase();
     const alias2 = el2.aliases.length > 0 ? pick(el2.aliases, rng) : el2.elementId.replace(/([A-Z])/g, ' $1').trim().toLowerCase();
     const compText = pick(COMPOUND_ASSERT_TEMPLATES, rng).replace('{element1}', alias1).replace('{element2}', alias2);
-    steps.push({
-      index: stepIndex,
+    const step: SyntheticStep = {
+      index: nextIndex,
       intent: compText,
       action_text: compText,
       expected_text: `${alias1} and ${alias2} are both visible`,
-    });
-    stepIndex += 1;
-  }
+    };
+    nextIndex += 1;
+    return [step];
+  })() : [];
 
   // Regular assertions for remaining elements
-  for (const el of shuffle(assertElements, rng).slice(0, 2)) {
+  const regularSteps = shuffle(assertElements, rng).slice(0, 2).map((el) => {
     recordElementUsage(tracker, screen.screenId, el);
-    const step = generateElementStep(el, screenAlias, stepIndex, rng);
-    steps.push(step);
-    stepIndex += 1;
-  }
+    const step = generateElementStep(el, screenAlias, nextIndex, rng);
+    nextIndex += 1;
+    return step;
+  });
+
+  const steps = [navStep, ...negationSteps, ...compoundSteps, ...regularSteps];
 
   return {
     steps,
@@ -681,45 +672,53 @@ function generateCrossScreenScenario(
   rng: () => number,
   tracker: CoverageTracker,
 ): { readonly steps: readonly SyntheticStep[]; readonly title: string } {
-  const steps: SyntheticStep[] = [];
-  let stepIndex = 1;
-
   // Pick 2-3 screens for the journey
   const journeyLength = Math.min(screens.length, 2 + Math.floor(rng() * 2));
   const journeyScreens = shuffle(screens, rng).slice(0, journeyLength);
 
-  let prevScreen: string | null = null;
-  for (const screen of journeyScreens) {
-    if (prevScreen !== null) {
-      recordScreenPair(tracker, prevScreen, screen.screenId);
-    }
-    prevScreen = screen.screenId;
+  const buildScreenElementSteps = (
+    count: number,
+    screen: ScreenInfo,
+    screenAlias: string,
+    startIndex: number,
+    used: ReadonlySet<string>,
+  ): readonly SyntheticStep[] => {
+    if (count <= 0 || used.size >= screen.elements.length) return [];
+    const element = pickCoverageAware(screen, tracker, rng);
+    if (used.has(element.elementId)) return buildScreenElementSteps(count - 1, screen, screenAlias, startIndex, used);
+    recordElementUsage(tracker, screen.screenId, element);
+    const step = generateElementStep(element, screenAlias, startIndex, rng);
+    return [step, ...buildScreenElementSteps(count - 1, screen, screenAlias, startIndex + 1, new Set([...used, element.elementId]))];
+  };
 
-    const screenAlias = screen.screenAliases.length > 0
-      ? pick(screen.screenAliases, rng)
-      : screen.screenId.replace(/-/g, ' ');
+  const processScreens = (
+    remaining: readonly ScreenInfo[],
+    acc: readonly SyntheticStep[],
+    nextIndex: number,
+    prev: string | null,
+  ): readonly SyntheticStep[] => {
+    if (remaining.length === 0) return acc;
+    const [screen, ...rest] = remaining;
+    if (prev !== null) recordScreenPair(tracker, prev, screen!.screenId);
+
+    const screenAlias = screen!.screenAliases.length > 0
+      ? pick(screen!.screenAliases, rng)
+      : screen!.screenId.replace(/-/g, ' ');
     const navText = generateActionText('navigate', screenAlias, null, '', rng);
-    steps.push({
-      index: stepIndex,
+    const navStep: SyntheticStep = {
+      index: nextIndex,
       intent: navText,
       action_text: navText,
       expected_text: generateExpectedText('navigate', screenAlias, null),
-    });
-    stepIndex += 1;
+    };
 
-    // Pick 1-3 elements from each screen, coverage-aware
     const pickCount = 1 + Math.floor(rng() * 3);
-    const usedElements = new Set<string>();
-    for (let i = 0; i < pickCount && i < screen.elements.length; i += 1) {
-      const element = pickCoverageAware(screen, tracker, rng);
-      if (usedElements.has(element.elementId)) continue;
-      usedElements.add(element.elementId);
-      recordElementUsage(tracker, screen.screenId, element);
-      const step = generateElementStep(element, screenAlias, stepIndex, rng);
-      steps.push(step);
-      stepIndex += 1;
-    }
-  }
+    const elSteps = buildScreenElementSteps(pickCount, screen!, screenAlias, nextIndex + 1, new Set<string>());
+
+    return processScreens(rest, [...acc, navStep, ...elSteps], nextIndex + 1 + elSteps.length, screen!.screenId);
+  };
+
+  const steps = processScreens(journeyScreens, [], 1, null);
 
   const screenNames = journeyScreens.map((s) => s.screenId).join(' → ');
   return {
@@ -738,7 +737,9 @@ function scenarioToYaml(
   extraTags: readonly string[] = [],
 ): string {
   const allTags = ['synthetic', 'dogfood', ...extraTags];
-  const lines: string[] = [
+  const q = (s: string): string => s.includes(':') ? `"${s.replace(/"/g, '\\"')}"` : s;
+
+  const lines = [
     'source:',
     `  ado_id: "${adoId}"`,
     '  revision: 1',
@@ -756,12 +757,7 @@ function scenarioToYaml(
     'preconditions:',
     '  - fixture: demoSession',
     'steps:',
-  ];
-
-  const q = (s: string): string => s.includes(':') ? `"${s.replace(/"/g, '\\"')}"` : s;
-
-  for (const step of steps) {
-    lines.push(
+    ...steps.flatMap((step) => [
       `  - index: ${step.index}`,
       `    intent: ${q(step.intent)}`,
       `    action_text: ${q(step.action_text)}`,
@@ -774,10 +770,9 @@ function scenarioToYaml(
       '    snapshot_template: null',
       '    resolution: null',
       '    confidence: intent-only',
-    );
-  }
-
-  lines.push('postconditions: []');
+    ]),
+    'postconditions: []',
+  ];
   return lines.join('\n') + '\n';
 }
 
@@ -877,7 +872,6 @@ export function generateSyntheticScenarios(options: GenerateSyntheticScenariosOp
     const catalog = options.catalog ?? (yield* loadWorkspaceCatalog({ paths: options.paths }));
     const screens = extractScreenInfo(catalog);
     const rng = createRng(options.seed);
-    const files: string[] = [];
     const baseId = 20000;
     const outputDir = options.outputDir ?? `${options.paths.scenariosDir}/synthetic`;
     const tracker = createCoverageTracker(screens);
@@ -886,56 +880,65 @@ export function generateSyntheticScenarios(options: GenerateSyntheticScenariosOp
 
     // Pre-allocate scenarios to screens round-robin with strategy mix
     const allocations = buildScreenAllocations(screens, options.count, rng);
-    const screenCountMap = new Map<string, number>();
 
-    for (let i = 0; i < allocations.length; i += 1) {
-      const adoId = String(baseId + i);
-      const allocation = allocations[i]!;
-      const isCrossScreen = allocation.strategy === 'cross-screen' && screens.length > 1;
+    type GenAcc = {
+      readonly files: readonly string[];
+      readonly screenCounts: ReadonlyMap<string, number>;
+    };
 
-      const scenario = isCrossScreen
-        ? generateCrossScreenScenario(screens, i, rng, tracker)
-        : allocation.strategy === 'workflow'
-          ? generateWorkflowScenario(allocation.screen, i, rng, tracker)
-          : allocation.strategy === 'assertion-variant'
-            ? generateAssertionVariantScenario(allocation.screen, i, rng, tracker)
-            : generateSingleScreenScenario(allocation.screen, i, rng, tracker);
+    const genStep = (
+      idx: number,
+      acc: GenAcc,
+    ): Effect.Effect<GenAcc, unknown, FileSystem> =>
+      Effect.gen(function* () {
+        if (idx >= allocations.length) return acc;
+        const adoId = String(baseId + idx);
+        const allocation = allocations[idx]!;
+        const isCrossScreen = allocation.strategy === 'cross-screen' && screens.length > 1;
 
-      const screenId = isCrossScreen ? 'cross-screen' : allocation.screen.screenId;
-      const suite = `synthetic/${screenId}`;
-      const suiteDir = `${outputDir}/${screenId}`;
-      yield* fs.ensureDir(suiteDir);
+        const scenario = isCrossScreen
+          ? generateCrossScreenScenario(screens, idx, rng, tracker)
+          : allocation.strategy === 'workflow'
+            ? generateWorkflowScenario(allocation.screen, idx, rng, tracker)
+            : allocation.strategy === 'assertion-variant'
+              ? generateAssertionVariantScenario(allocation.screen, idx, rng, tracker)
+              : generateSingleScreenScenario(allocation.screen, idx, rng, tracker);
 
-      // Apply multi-signal perturbation if requested (generalization stress test).
-      // Each mode independently stresses a different bottleneck signal.
-      const perturbConfig = resolvePerturbation(options.perturbationRate, options.perturbation);
-      const hasPerturbation = perturbConfig.vocab > 0 || perturbConfig.aliasGap > 0
-        || perturbConfig.crossScreen > 0 || perturbConfig.coverageGap > 0;
-      const perturbedSteps = hasPerturbation
-        ? scenario.steps
-            .filter(() => !perturbCoverageGap(perturbConfig.coverageGap, rng))
-            .map((step) => applyPerturbations(step, perturbConfig, rng))
-        : scenario.steps;
+        const screenId = isCrossScreen ? 'cross-screen' : allocation.screen.screenId;
+        const suite = `synthetic/${screenId}`;
+        const suiteDir = `${outputDir}/${screenId}`;
+        yield* fs.ensureDir(suiteDir);
 
-      // Tag-based train/validation partition for held-out validation
-      const splitRate = options.validationSplit ?? 0;
-      const partitionTag = splitRate > 0 && rng() < splitRate ? 'validation-heldout' : 'training';
-      const yaml = scenarioToYaml(adoId, scenario.title, suite, perturbedSteps, splitRate > 0 ? [partitionTag] : []);
-      const filePath = `${suiteDir}/${adoId}.scenario.yaml`;
-      yield* fs.writeText(filePath, yaml);
-      files.push(filePath);
+        // Apply multi-signal perturbation if requested (generalization stress test).
+        const perturbConfig = resolvePerturbation(options.perturbationRate, options.perturbation);
+        const hasPerturbation = perturbConfig.vocab > 0 || perturbConfig.aliasGap > 0
+          || perturbConfig.crossScreen > 0 || perturbConfig.coverageGap > 0;
+        const perturbedSteps = hasPerturbation
+          ? scenario.steps
+              .flatMap((step) => perturbCoverageGap(perturbConfig.coverageGap, rng) ? [] : [applyPerturbations(step, perturbConfig, rng)])
+          : scenario.steps;
 
-      // Track distribution
-      screenCountMap.set(screenId, (screenCountMap.get(screenId) ?? 0) + 1);
-    }
+        const splitRate = options.validationSplit ?? 0;
+        const partitionTag = splitRate > 0 && rng() < splitRate ? 'validation-heldout' : 'training';
+        const yaml = scenarioToYaml(adoId, scenario.title, suite, perturbedSteps, splitRate > 0 ? [partitionTag] : []);
+        const filePath = `${suiteDir}/${adoId}.scenario.yaml`;
+        yield* fs.writeText(filePath, yaml);
 
-    const screenDistribution = [...screenCountMap.entries()]
+        return yield* genStep(idx + 1, {
+          files: [...acc.files, filePath],
+          screenCounts: new Map([...acc.screenCounts, [screenId, (acc.screenCounts.get(screenId) ?? 0) + 1]]),
+        });
+      });
+
+    const genResult = yield* genStep(0, { files: [], screenCounts: new Map() });
+
+    const screenDistribution = [...genResult.screenCounts.entries()]
       .map(([screen, count]) => ({ screen, count }))
       .sort((a, b) => b.count - a.count);
 
     return {
-      scenariosGenerated: files.length,
-      files,
+      scenariosGenerated: genResult.files.length,
+      files: [...genResult.files],
       screens: screens.map((s) => s.screenId),
       screenDistribution,
     } satisfies GenerateSyntheticScenariosResult;

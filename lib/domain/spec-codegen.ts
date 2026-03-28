@@ -39,8 +39,8 @@ function titleWithTags(title: string, tags: ReadonlyArray<string>): string {
 
 function annotationStatements(flow: GroundedSpecFlow): ReadonlyArray<ts.Statement> {
   const { metadata } = flow;
-  const deferredSteps = flow.steps.filter((step) => step.bindingKind === 'deferred').map((step) => step.index);
-  const unboundSteps = flow.steps.filter((step) => step.bindingKind === 'unbound').map((step) => step.index);
+  const deferredSteps = flow.steps.flatMap((step) => step.bindingKind === 'deferred' ? [step.index] : []);
+  const unboundSteps = flow.steps.flatMap((step) => step.bindingKind === 'unbound' ? [step.index] : []);
   const confidence = typeof metadata.confidence === 'string' ? metadata.confidence : 'mixed';
 
   const baseAnnotations: ReadonlyArray<{ readonly type: string; readonly description: string }> = [
@@ -247,8 +247,7 @@ export function renderReadableSpecModule(
 
   const facadeDeclarations: ReadonlyArray<ts.Statement> = emitSteps
     ? screenOrder
-        .filter((s) => s !== '__global__')
-        .map((screenId) => screenFacadeDeclaration(screenId, methodsByScreen.get(screenId) ?? []))
+        .flatMap((s) => s !== '__global__' ? [screenFacadeDeclaration(s, methodsByScreen.get(s) ?? [])] : [])
     : [];
 
   const stepStatements: ReadonlyArray<ts.Statement> = emitSteps

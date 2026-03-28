@@ -13,13 +13,11 @@ export function inferenceKnowledgeFromCatalog(catalog: WorkspaceCatalog): Infere
     ),
     screenHints: Object.fromEntries(
       Object.values(catalog.screenBundles)
-        .filter((entry) => entry.hints)
-        .map((entry) => [entry.bundle.screen, entry.hints!.artifact]),
+        .flatMap((entry) => entry.hints ? [[entry.bundle.screen, entry.hints.artifact]] : []),
     ),
     screenPostures: Object.fromEntries(
       Object.values(catalog.screenBundles)
-        .filter((entry) => entry.postures)
-        .map((entry) => [entry.bundle.screen, entry.postures!.artifact]),
+        .flatMap((entry) => entry.postures ? [[entry.bundle.screen, entry.postures.artifact]] : []),
     ),
     sharedPatterns: catalog.mergedPatterns,
   } satisfies InferenceKnowledge;

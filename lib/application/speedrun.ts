@@ -306,34 +306,41 @@ export function multiSeedSpeedrun(input: MultiSeedInput): Effect.Effect<MultiSee
       Effect.catchAll(() => Effect.succeed('unknown')),
     );
 
-    // Run each seed sequentially
-    const seedResults: SpeedrunResult[] = [];
-    for (const currentSeed of input.seeds) {
-      // Clean slate before each seed
-      yield* cleanSlateProgram(input.paths.rootDir, input.paths);
+    // Run each seed sequentially via recursive fold
+    const runSeeds = (
+      remaining: readonly string[],
+      acc: readonly SpeedrunResult[],
+    ): Effect.Effect<readonly SpeedrunResult[], unknown, any> =>
+      Effect.gen(function* () {
+        if (remaining.length === 0) return acc;
+        const [currentSeed, ...rest] = remaining;
+        // Clean slate before each seed
+        yield* cleanSlateProgram(input.paths.rootDir, input.paths);
 
-      const result = yield* speedrunProgram({
-        paths: input.paths,
-        config: input.config,
-        count: input.count,
-        seed: currentSeed,
-        maxIterations: input.maxIterations,
-        substrate: input.substrate,
-        perturbationRate: input.perturbationRate,
-        perturbation: input.perturbation,
-        tag: input.tag,
-        knowledgePosture: input.knowledgePosture,
-        onProgress: input.onProgress,
+        const result = yield* speedrunProgram({
+          paths: input.paths,
+          config: input.config,
+          count: input.count,
+          seed: currentSeed!,
+          maxIterations: input.maxIterations,
+          substrate: input.substrate,
+          perturbationRate: input.perturbationRate,
+          perturbation: input.perturbation,
+          tag: input.tag,
+          knowledgePosture: input.knowledgePosture,
+          onProgress: input.onProgress,
+        });
+
+        // Save per-seed fitness report
+        yield* saveFitnessReport(input.paths, result.fitnessReport);
+
+        // Clean slate after each seed to restore knowledge
+        yield* cleanSlateProgram(input.paths.rootDir, input.paths);
+
+        return yield* runSeeds(rest, [...acc, result]);
       });
 
-      // Save per-seed fitness report
-      yield* saveFitnessReport(input.paths, result.fitnessReport);
-
-      // Clean slate after each seed to restore knowledge
-      yield* cleanSlateProgram(input.paths.rootDir, input.paths);
-
-      seedResults.push(result);
-    }
+    const seedResults = yield* runSeeds(input.seeds, []);
 
     // Aggregate: average reports for multi-seed, use single for single
     const reports = seedResults.map((r) => r.fitnessReport);
@@ -467,9 +474,7 @@ export function compilePhase(input: CompilePhaseInput) {
 
     const tag = input.tag ?? null;
     const scenarioIds = catalog.scenarios
-      .map((entry) => entry.artifact)
-      .filter((scenario) => !tag || scenario.metadata.tags.includes(tag))
-      .map((scenario) => scenario.source.ado_id) as readonly AdoId[];
+      .flatMap((entry) => !tag || entry.artifact.metadata.tags.includes(tag) ? [entry.artifact.source.ado_id] : []) as readonly AdoId[];
 
     yield* compileScenariosParallel({
       scenarioIds,

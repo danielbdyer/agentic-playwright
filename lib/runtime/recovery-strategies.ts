@@ -140,20 +140,31 @@ export function runRecoveryChain(
   budget: RecoveryBudget,
   policyProfile: string,
 ): RecoveryChainResult {
-  const attempts: RecoveryAttempt[] = [];
-
-  for (const strategy of chain) {
+  const tryStrategy = (
+    remainingStrategies: readonly ComposableRecoveryStrategy[],
+    priorAttempts: readonly RecoveryAttempt[],
+  ): RecoveryChainResult => {
+    if (remainingStrategies.length === 0) {
+      return { policyProfile, attempts: [...priorAttempts], recovered: false };
+    }
+    const [head, ...restStrategies] = remainingStrategies;
+    const strategy = head!;
     if (!strategy.canRecover(context)) {
-      continue;
+      return tryStrategy(restStrategies, priorAttempts);
     }
     const maxAttempts = Math.max(1, strategy.maxAttempts);
-    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-      if (attempts.length >= budget.maxAttempts) {
-        return { policyProfile, attempts, recovered: false };
+    const tryAttempt = (
+      attempt: number,
+      accumulated: readonly RecoveryAttempt[],
+    ): RecoveryChainResult => {
+      if (attempt > maxAttempts || accumulated.length >= budget.maxAttempts) {
+        return accumulated.length >= budget.maxAttempts
+          ? { policyProfile, attempts: [...accumulated], recovered: false }
+          : tryStrategy(restStrategies, accumulated);
       }
       const startedAt = new Date().toISOString();
       const outcome = strategy.recover(context, attempt);
-      attempts.push({
+      const updated = [...accumulated, {
         strategyId: strategy.id,
         family: context.family,
         attempt,
@@ -161,14 +172,15 @@ export function runRecoveryChain(
         durationMs: 0,
         result: outcome.result,
         diagnostics: [...outcome.diagnostics],
-      });
+      }];
       if (outcome.result === 'recovered') {
-        return { policyProfile, attempts, recovered: true };
+        return { policyProfile, attempts: updated, recovered: true };
       }
-    }
-  }
-
-  return { policyProfile, attempts, recovered: false };
+      return tryAttempt(attempt + 1, updated);
+    };
+    return tryAttempt(1, priorAttempts);
+  };
+  return tryStrategy([...chain], []);
 }
 
 /**

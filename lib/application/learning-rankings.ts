@@ -54,8 +54,7 @@ function pendingProposals(bundles: readonly ProposalBundle[]): ReadonlyArray<{
 }> {
   return bundles.flatMap((bundle) =>
     bundle.proposals
-      .filter((p) => p.activation.status === 'pending')
-      .map((proposal) => ({ bundle, proposal })),
+      .flatMap((p) => p.activation.status === 'pending' ? [{ bundle, proposal: p }] : []),
   );
 }
 
@@ -151,8 +150,7 @@ export function rankProposals(input: {
     const tpWeight = trustPolicyWeight(proposal.trustPolicy.decision);
     const affectedScreens = uniqueSorted(
       proposal.targetPath.split('/')
-        .filter((seg) => seg.endsWith('.yaml'))
-        .map((seg) => seg.replace(/\.(elements|hints|surface|postures|behavior)\.yaml$/, '')),
+        .flatMap((seg) => seg.endsWith('.yaml') ? [seg.replace(/\.(elements|hints|surface|postures|behavior)\.yaml$/, '')] : []),
     );
 
     const ctx: ProposalContext = {

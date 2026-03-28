@@ -128,11 +128,11 @@ The agent sits at Rung 9 — invoked **only after all deterministic rungs (1-6),
 
 #### Key Gaps Identified
 
-1. **DOM snapshot always null** (line 491): The field exists in the request contract but is never populated. Agents can't resolve by layout position.
+1. **DOM snapshot always null** (line 491): The field exists in the request contract but is never populated. Agents can't resolve by layout position. ✅
 2. **No caching of agent interpretations**: Only proposals are cached downstream. Every cold run re-runs the agent if prior rungs fail.
 3. **Token budget unenforced**: `maxTokensPerStep` is passed to the LLM but not validated on response or used for prompt truncation.
 4. **Broad error catch-all** (lines 546-555): No distinction between network timeout, rate limiting, token overflow, or auth failure.
-5. **No A/B testing infrastructure**: Can't easily compare heuristic vs LLM quality or route subsets of steps to alternate providers.
+5. **No A/B testing infrastructure**: Can't easily compare heuristic vs LLM quality or route subsets of steps to alternate providers. ✅
 6. **Prompt inflation risk**: No progressive context truncation — high-context scenarios could approach token limits with the 9-section system prompt.
 
 #### Heuristic Provider: A Hidden Gem
@@ -245,7 +245,7 @@ The posture system composes cleanly: `--baseline` sets `noWrite=true + interpret
 
 #### Key Insights
 
-1. **No pipeline orchestrator exists**: Commands are independent Effect programs. The `dogfood` loop calls them sequentially, but there's no formal DAG scheduler. Each command loads its own dependencies from the Layer.
+1. **No pipeline orchestrator exists**: Commands are independent Effect programs. The `dogfood` loop calls them sequentially, but there's no formal DAG scheduler. Each command loads its own dependencies from the Layer. ✅
 
 2. **Incremental execution is per-projection, not per-command**: The `graph` and `types` projections track their own manifests. There's no cross-command dirty tracking — running `emit` after `bind` doesn't know if `bind` already ran.
 
@@ -430,14 +430,14 @@ After examining the codebase from 16 different angles, these are the **highest-l
 
 | Priority | Move | Unlocks | Risk |
 |----------|------|---------|------|
-| **1** | Enforce governance phantom types in production | Type-safe approval gates everywhere, not just in types | Medium — requires ~14 minting site changes |
-| **2** | Populate agent DOM snapshot (currently null) | Agent can resolve by layout position, reducing needs-human rate | Low — plumbing change |
+| **1** | Enforce governance phantom types in production ✅ | Type-safe approval gates everywhere, not just in types | Medium — requires ~14 minting site changes |
+| **2** | Populate agent DOM snapshot (currently null) ✅ | Agent can resolve by layout position, reducing needs-human rate | Low — plumbing change |
 | **3** | Add cross-projection dirty tracking to CLI | `emit` knows `bind` already ran, skips redundant work | Medium — new manifest layer |
 | **4** | Add agent interpretation caching | Cold-start speedruns avoid re-running LLM for identical steps | Low — fingerprint-based cache alongside translation cache |
-| **5** | Build semantic cross-artifact validation | Catch reference integrity issues at compile time, not runtime | High — new validation pass |
+| **5** | Build semantic cross-artifact validation ✅ | Catch reference integrity issues at compile time, not runtime | High — new validation pass |
 | **6** | Extract CLI registry into per-command modules | Prevents registry from growing unbounded as commands are added | Low — pure refactor |
 | **7** | Wire SharedArrayBuffer path into React dashboard | Zero-copy visualization for high-frequency events | Low — consumer-side change |
-| **8** | Formalize pipeline DAG for automatic stage ordering | Replace sequential dogfood loop with dependency-aware execution | High — architectural change |
+| **8** | Formalize pipeline DAG for automatic stage ordering ✅ | Replace sequential dogfood loop with dependency-aware execution | High — architectural change |
 
 ### The Codebase's Core Strength
 

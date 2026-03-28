@@ -1,44 +1,57 @@
-import { uniqueSorted } from '../../domain/collections';
-import type { StateNodeRef } from '../../domain/identity';
+/**
+ * Observation phase — read-only, zero side-effects on scenario state.
+ *
+ * Extracted from scenario.ts to be independently testable.
+ * This module observes state refs before and after execution, and
+ * checks state preconditions. All functions are pure: they return
+ * new data rather than mutating inputs.
+ */
+
+import type { StateNodeRef, TransitionRef } from '../../domain/identity';
 import type {
   GroundedStep,
   InterfaceResolutionContext,
   ObservedStateSession,
   ResolutionReceipt,
+  ResolutionTarget,
   TransitionObservation,
 } from '../../domain/types';
+import { uniqueSorted } from '../../domain/collections';
 
-// ─── Observation Phase ───
-//
-// The observation phase is read-only: it inspects the current state of the
-// scenario environment without mutating scenario state or resolution state.
-// It produces an ObservationResult that downstream phases consume.
-//
-// Extracting observation as a first-class phase makes it independently
-// testable and composable with the execution phase.
+// ─── Types ───────────────────────────────────────────────────────────────
 
-/** Input to the observation phase — everything needed to observe pre-step state. */
 export interface ObservationInput {
   readonly task: GroundedStep;
-  readonly interpretation: ResolutionReceipt;
-  readonly observedStateSession: ObservedStateSession;
   readonly activeRouteVariantRefs: readonly string[];
+  readonly observedStateSession: ObservedStateSession;
 }
 
-/** The pure result of the observation phase — no side effects. */
-export interface ObservationResult {
-  readonly relevantStateRefs: readonly StateNodeRef[];
-  readonly beforeObservedStateRefs: readonly StateNodeRef[];
+export interface PreExecutionObservation {
+  readonly observedStateRefs: readonly StateNodeRef[];
   readonly missingRequiredStates: readonly StateNodeRef[];
   readonly forbiddenActiveStates: readonly StateNodeRef[];
-  readonly preconditionsSatisfied: boolean;
+  readonly preconditionsMet: boolean;
 }
 
+export interface PostExecutionObservation {
+  readonly observedStateRefs: readonly StateNodeRef[];
+  readonly matchedTransitionRefs: readonly TransitionRef[];
+  readonly transitionObservations: readonly TransitionObservation[];
+}
+
+export interface TransitionInferenceInput {
+  readonly task: GroundedStep;
+  readonly interpretation: Exclude<ResolutionReceipt, { kind: 'needs-human' }>;
+  readonly success: boolean;
+}
+
+// ─── Pure observation functions ──────────────────────────────────────────
+
 /**
- * Compute the union of required, forbidden, and result state refs for a step.
- * Pure function — no side effects.
+ * Compute the relevant state refs for a task by combining required, forbidden,
+ * and result state refs into a unique sorted set.
  */
-export function computeRelevantStateRefs(task: GroundedStep): readonly StateNodeRef[] {
+export function relevantStateRefs(task: GroundedStep): readonly StateNodeRef[] {
   return uniqueSorted([
     ...task.grounding.requiredStateRefs,
     ...task.grounding.forbiddenStateRefs,
@@ -47,10 +60,10 @@ export function computeRelevantStateRefs(task: GroundedStep): readonly StateNode
 }
 
 /**
- * Determine which route variant refs to use based on session state.
- * Pure function — prefers session-observed variants, falls back to task grounding.
+ * Derive the active route variant refs: prefer the observed session's refs
+ * if non-empty, otherwise fall back to the task's grounding refs.
  */
-export function computeActiveRouteVariantRefs(
+export function activeRouteVariantRefs(
   session: ObservedStateSession,
   task: GroundedStep,
 ): readonly string[] {
@@ -60,72 +73,52 @@ export function computeActiveRouteVariantRefs(
 }
 
 /**
- * Evaluate pre-step state preconditions against observed state refs.
- * Pure function: takes the set of observed state refs and the task grounding,
- * returns which preconditions are violated.
- *
- * Navigate actions skip state preconditions (the page is about to change).
+ * Pre-execution observation: given observed state refs (from page or session),
+ * check state preconditions. Pure — no page interaction.
  */
-export function evaluateStatePreconditions(
+export function observePreExecution(
   task: GroundedStep,
-  beforeObservedStateRefs: readonly StateNodeRef[],
-  action: string,
-): Pick<ObservationResult, 'missingRequiredStates' | 'forbiddenActiveStates' | 'preconditionsSatisfied'> {
-  const skipStatePreconditions = action === 'navigate';
-  const beforeSet = new Set(beforeObservedStateRefs);
+  observedStateRefs: readonly StateNodeRef[],
+  target: ResolutionTarget,
+): PreExecutionObservation {
+  const beforeSet = new Set(observedStateRefs);
+  const skipStatePreconditions = target.action === 'navigate';
+
   const missingRequiredStates = skipStatePreconditions
     ? []
     : task.grounding.requiredStateRefs.filter((ref) => !beforeSet.has(ref));
+
   const forbiddenActiveStates = skipStatePreconditions
     ? []
     : task.grounding.forbiddenStateRefs.filter((ref) => beforeSet.has(ref));
+
   return {
+    observedStateRefs,
     missingRequiredStates,
     forbiddenActiveStates,
-    preconditionsSatisfied: missingRequiredStates.length === 0 && forbiddenActiveStates.length === 0,
+    preconditionsMet: missingRequiredStates.length === 0 && forbiddenActiveStates.length === 0,
   };
 }
 
 /**
- * Execute the full observation phase using only in-memory state (no live page).
- * Pure function: filters the session's active state refs against the relevant set.
+ * Fallback observation when no live page is available: filter the session's
+ * active state refs to those relevant for the current task.
  */
-export function executeStaticObservation(input: ObservationInput): ObservationResult {
-  if (input.interpretation.kind === 'needs-human') {
-    return {
-      relevantStateRefs: computeRelevantStateRefs(input.task),
-      beforeObservedStateRefs: [],
-      missingRequiredStates: [],
-      forbiddenActiveStates: [],
-      preconditionsSatisfied: false,
-    };
-  }
-
-  const relevantStateRefs = computeRelevantStateRefs(input.task);
-  const beforeObservedStateRefs = input.observedStateSession.activeStateRefs
-    .filter((ref) => relevantStateRefs.includes(ref));
-  const preconditions = evaluateStatePreconditions(
-    input.task,
-    beforeObservedStateRefs,
-    input.interpretation.target.action,
-  );
-
-  return {
-    relevantStateRefs,
-    beforeObservedStateRefs,
-    ...preconditions,
-  };
+export function observeStateRefsFromSession(
+  session: ObservedStateSession,
+  stateRefs: readonly StateNodeRef[],
+): readonly StateNodeRef[] {
+  const relevant = new Set(stateRefs);
+  return session.activeStateRefs.filter((ref) => relevant.has(ref));
 }
 
 /**
- * Infer transition observations from step execution results.
- * Pure function: no page interaction, deterministic output.
+ * Infer transition observations from static information (no live page).
+ * Pure derivation based on grounding and execution success.
  */
-export function inferTransitionObservations(input: {
-  readonly task: GroundedStep;
-  readonly interpretation: Exclude<ResolutionReceipt, { kind: 'needs-human' }>;
-  readonly success: boolean;
-}): readonly TransitionObservation[] {
+export function inferTransitionObservations(
+  input: TransitionInferenceInput,
+): readonly TransitionObservation[] {
   if (input.task.grounding.expectedTransitionRefs.length === 0) {
     return [];
   }
@@ -150,4 +143,27 @@ export function inferTransitionObservations(input: {
       result: input.success ? 'ok' : 'failed',
     },
   }];
+}
+
+/**
+ * Post-execution observation: derive observed state refs and matched transition
+ * refs from transition observations. Pure.
+ */
+export function observePostExecution(
+  transitionObservations: readonly TransitionObservation[],
+  task: GroundedStep,
+): PostExecutionObservation {
+  const observedStateRefs = uniqueSorted(
+    transitionObservations.flatMap((entry) => entry.observedStateRefs),
+  );
+  const matchedTransitionRefs = uniqueSorted(
+    transitionObservations
+      .flatMap((entry) => entry.classification === 'matched' && entry.transitionRef ? [entry.transitionRef] : []),
+  );
+
+  return {
+    observedStateRefs,
+    matchedTransitionRefs,
+    transitionObservations,
+  };
 }

@@ -65,13 +65,10 @@ function rankHeuristicCandidates(
 
     // Score each element within this screen
     const elementCandidates = screen.elements
-      .map((element) => ({
-        screen,
-        element,
-        score: screenScore + scoreElementMatch(normalized, element),
-        knowledgeRefs: [...knowledgeRefs],
-      }))
-      .filter((candidate) => candidate.score > 0);
+      .flatMap((element) => {
+        const score = screenScore + scoreElementMatch(normalized, element);
+        return score > 0 ? [{ screen, element, score, knowledgeRefs: [...knowledgeRefs] }] : [];
+      });
 
     // Also include screen-only candidate (no element)
     const screenOnlyCandidate: HeuristicCandidate = {

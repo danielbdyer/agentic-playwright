@@ -53,8 +53,10 @@ export function inspectWorkflow(options: { paths: ProjectPaths; adoId?: AdoId | 
     const inboxItems = scenario ? operatorInboxItemsForScenario(buildOperatorInboxItems(catalog), scenario.artifact.source.ado_id) : [];
 
     const rerunPlans = catalog.rerunPlans
-      .map((entry) => entry.artifact)
-      .filter((plan) => !scenario || plan.impactedScenarioIds.includes(scenario.artifact.source.ado_id));
+      .flatMap((entry) => {
+        const plan = entry.artifact;
+        return !scenario || plan.impactedScenarioIds.includes(scenario.artifact.source.ado_id) ? [plan] : [];
+      });
 
     const hotspots = buildWorkflowHotspots(
       catalog.runRecords.map((entry) => entry.artifact),

@@ -18,6 +18,12 @@ import { FileSystem } from './ports';
 import { runStateMachine } from './state-machine';
 import { pruneTranslationCache } from './translation-cache';
 import { round4 } from './learning-shared';
+import {
+  type ConvergenceState,
+  initialConvergenceState,
+  isTerminal,
+  transitionConvergence,
+} from '../domain/convergence-fsm';
 import type { AdoId } from '../domain/identity';
 import { groupBy } from '../domain/collections';
 import { asDogfoodLedgerProjection, asImprovementLoopLedger, DEFAULT_PIPELINE_CONFIG } from '../domain/types';
@@ -34,6 +40,8 @@ import type {
   TrustPolicy,
 } from '../domain/types';
 import { DEFAULT_AUTO_APPROVAL_POLICY } from '../domain/trust-policy';
+import { matureComponentKnowledge, type ComponentEvidence, type ComponentProposal } from '../domain/component-maturation';
+import { aggregateQualityMetrics, classifyAlias, type AliasOutcome, type ProposalQualityMetrics } from '../domain/proposal-quality';
 
 export type DogfoodIterationResult = ImprovementLoopIteration;
 export type DogfoodLedger = DogfoodLedgerProjection;
@@ -86,6 +94,8 @@ interface LoopState {
    *  Each iteration may adjust these based on observed correlation between
    *  bottleneck signals and hit-rate improvement. Pure state transition. */
   readonly bottleneckWeights: BottleneckWeights;
+  /** Typed convergence FSM state, threaded through iterations. */
+  readonly convergenceFsm: ConvergenceState;
 }
 
 function createInitialState(): LoopState {
@@ -96,6 +106,7 @@ function createInitialState(): LoopState {
     convergenceReason: null,
     startedAt: Date.now(),
     bottleneckWeights: DEFAULT_PIPELINE_CONFIG.bottleneckWeights,
+    convergenceFsm: initialConvergenceState(),
   };
 }
 
@@ -200,31 +211,79 @@ function computeTraceMetrics(runRecords: ReadonlyArray<{
   return { avgHitRate: round4(avgHitRate), totalUnresolved, totalSteps, totalInstructions };
 }
 
-function determineConvergenceReason(
-  iteration: number,
-  maxIterations: number,
-  proposalsActivated: number,
-  prevHitRate: number | null,
-  currentHitRate: number,
-  cumulativeInstructions: number,
-  options: DogfoodOptions,
-): { readonly converged: boolean; readonly reason: DogfoodLedger['convergenceReason'] } {
-  if (proposalsActivated === 0 && iteration > 1) {
-    return { converged: true, reason: 'no-proposals' };
-  }
-  if (options.convergenceThreshold !== undefined && prevHitRate !== null) {
-    const delta = currentHitRate - prevHitRate;
-    if (delta < options.convergenceThreshold && iteration > 1) {
-      return { converged: true, reason: 'threshold-met' };
-    }
-  }
-  if (options.maxInstructionCount !== undefined && cumulativeInstructions >= options.maxInstructionCount) {
-    return { converged: true, reason: 'budget-exhausted' };
-  }
-  if (iteration >= maxIterations) {
-    return { converged: false, reason: 'max-iterations' };
-  }
-  return { converged: false, reason: null };
+/**
+ * Extract component evidence from run steps for maturation analysis.
+ *
+ * Maps (widgetContract, action, failure.family) from each step's execution
+ * and interpretation receipts into ComponentEvidence records.
+ *
+ * Pure function: run records in, evidence list out.
+ */
+function extractComponentEvidence(runRecords: ReadonlyArray<{
+  readonly artifact: {
+    readonly steps: ReadonlyArray<{
+      readonly interpretation: { readonly target?: { readonly action?: string | null } | null };
+      readonly execution: {
+        readonly widgetContract?: string | null;
+        readonly failure: { readonly family: string };
+      };
+    }>;
+  };
+}>): readonly ComponentEvidence[] {
+  const evidenceMap = runRecords
+    .flatMap((entry) => entry.artifact.steps)
+    .filter((step) => step.execution.widgetContract)
+    .reduce<ReadonlyMap<string, ComponentEvidence>>(
+      (acc, step) => {
+        const componentType = step.execution.widgetContract!;
+        const action = step.interpretation.target?.action ?? 'unknown';
+        const isSuccess = step.execution.failure.family === 'none';
+        const existing = acc.get(componentType);
+        return new Map([...acc, [componentType, existing
+          ? {
+              componentType,
+              actions: [...new Set([...existing.actions, action])].sort(),
+              successCount: existing.successCount + (isSuccess ? 1 : 0),
+              totalAttempts: existing.totalAttempts + 1,
+            }
+          : {
+              componentType,
+              actions: [action],
+              successCount: isSuccess ? 1 : 0,
+              totalAttempts: 1,
+            },
+        ]]);
+      },
+      new Map(),
+    );
+  return [...evidenceMap.values()];
+}
+
+/**
+ * Extract alias outcomes from proposal bundles for quality classification.
+ *
+ * Maps activated proposals with their cross-run success/failure data into
+ * AliasOutcome records for quality analysis (healthy/suspect/toxic).
+ *
+ * Pure function: bundles + run records in, alias outcomes out.
+ */
+function extractAliasOutcomes(
+  bundles: readonly ProposalBundle[],
+  runCount: number,
+): readonly AliasOutcome[] {
+  return bundles
+    .flatMap((bundle) => bundle.proposals)
+    .flatMap((proposal) => proposal.activation.status === 'activated' ? [proposal] : [])
+    .map((proposal): AliasOutcome => ({
+      aliasId: proposal.proposalId,
+      screenId: proposal.targetPath,
+      elementId: proposal.title,
+      proposedBy: proposal.artifactType,
+      suggestedAt: proposal.activation.activatedAt ?? '',
+      usedInRuns: runCount,
+      misdirectionCount: proposal.certification === 'uncertified' ? 1 : 0,
+      successCount: proposal.certification === 'certified' ? runCount : 0,
+    }));
 }
 
 function accumulateProposalTotals(
@@ -374,9 +433,7 @@ function runIteration(iteration: number, options: DogfoodOptions) {
     // graph/types derivation in a single call.
     const tag = options.tag ?? null;
     const scenarioIds = catalog.scenarios
-      .map((entry) => entry.artifact)
-      .filter((scenario) => !tag || scenario.metadata.tags.includes(tag))
-      .map((scenario) => scenario.source.ado_id) as readonly AdoId[];
+      .flatMap((entry) => !tag || entry.artifact.metadata.tags.includes(tag) ? [entry.artifact.source.ado_id] : []) as readonly AdoId[];
     yield* compileScenariosParallel({
       scenarioIds,
       paths: options.paths,
@@ -423,6 +480,15 @@ function runIteration(iteration: number, options: DogfoodOptions) {
     );
     const partialFitness = buildPartialFitnessMetrics({ runSteps: runSteps as never });
 
+    // Step 3c: component maturation — extract widget interaction evidence and produce proposals
+    const componentEvidence = extractComponentEvidence(postRunCatalog.runRecords as never);
+    const componentProposals = matureComponentKnowledge(componentEvidence);
+
+    // Step 3d: proposal quality metrics — classify alias outcomes across runs
+    const allBundles = postRunCatalog.proposalBundles.map((entry) => entry.artifact);
+    const aliasOutcomes = extractAliasOutcomes(allBundles, iteration);
+    const proposalQuality = aggregateQualityMetrics(aliasOutcomes);
+
     // Step 4: collect and activate pending proposals
     const pendingBundles = collectPendingProposals(
       postRunCatalog.proposalBundles.map((entry) => entry.artifact),
@@ -438,6 +504,27 @@ function runIteration(iteration: number, options: DogfoodOptions) {
       resolvedAutoPolicy,
       postRunCatalog.trustPolicy.artifact,
     );
+
+    // Step 4a½: emit component maturation and proposal quality diagnostics
+    const iterationDashboard = yield* Dashboard;
+    if (componentProposals.length > 0 || proposalQuality.toxicCount > 0) {
+      yield* iterationDashboard.emit(dashboardEvent('diagnostics', {
+        phase: 'component-maturation',
+        iteration,
+        componentProposals: componentProposals.map((p) => ({
+          componentType: p.componentType,
+          suggestedActions: p.suggestedActions,
+          confidence: round4(p.confidence),
+        })),
+        proposalQuality: {
+          totalAliases: proposalQuality.totalAliases,
+          healthyCount: proposalQuality.healthyCount,
+          suspectCount: proposalQuality.suspectCount,
+          toxicCount: proposalQuality.toxicCount,
+          misdirectionRate: round4(proposalQuality.misdirectionRate),
+        },
+      }));
+    }
 
     // Step 4b: emit agent workbench (structured work items for agent consumption)
     yield* emitAgentWorkbench({ paths: options.paths, catalog: postRunCatalog, iteration });
@@ -517,10 +604,29 @@ function dogfoodMachine(options: DogfoodOptions) {
         ? state.iterations[state.iterations.length - 1]!.knowledgeHitRate
         : null;
 
-      const convergence = determineConvergenceReason(
-        iteration, options.maxIterations, result.proposalsActivated,
-        prevHitRate, result.knowledgeHitRate, nextCumulativeInstructions, options,
-      );
+      // Drive the convergence FSM with typed events from this iteration.
+      const hitRateDelta = prevHitRate !== null ? result.knowledgeHitRate - prevHitRate : result.knowledgeHitRate;
+      const afterIteration = transitionConvergence(state.convergenceFsm, {
+        kind: 'iteration-complete',
+        proposalsActivated: result.proposalsActivated,
+        hitRateDelta,
+        ...(options.convergenceThreshold !== undefined ? { convergenceThreshold: options.convergenceThreshold } : {}),
+      });
+      const afterBudget = options.maxInstructionCount !== undefined
+        ? transitionConvergence(afterIteration, {
+            kind: 'budget-check',
+            instructionsUsed: nextCumulativeInstructions,
+            maxInstructions: options.maxInstructionCount,
+          })
+        : afterIteration;
+      const nextFsm = transitionConvergence(afterBudget, {
+        kind: 'iteration-limit',
+        current: iteration,
+        max: options.maxIterations,
+      });
+      const convergence = isTerminal(nextFsm)
+        ? { converged: true, reason: nextFsm.reason as ImprovementLoopConvergenceReason }
+        : { converged: false, reason: null as ImprovementLoopConvergenceReason };
 
       // Self-calibrate bottleneck weights from iteration history.
       // Pure state transition: derive correlations from consecutive iteration pairs,
@@ -538,6 +644,7 @@ function dogfoodMachine(options: DogfoodOptions) {
         converged: convergence.converged,
         convergenceReason: convergence.reason ?? state.convergenceReason,
         bottleneckWeights: calibratedWeights,
+        convergenceFsm: nextFsm,
       };
 
       // Emit progress event after each iteration (with calibration observability)

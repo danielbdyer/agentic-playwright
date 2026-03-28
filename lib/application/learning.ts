@@ -93,7 +93,7 @@ function repairRecoveryFragments(input: {
   proposalBundle: ProposalBundle | null;
 }): GroundedSpecFragment[] {
   return input.runRecord.steps
-    .filter((step) => step.execution.execution.status !== 'ok' || step.interpretation.kind === 'resolved-with-proposals')
+    .flatMap((step) => step.execution.execution.status !== 'ok' || step.interpretation.kind === 'resolved-with-proposals' ? [step] : [])
     .map((step) => ({
       id: `repair-recovery:${input.runRecord.adoId}:${input.runRecord.runId}:${step.stepIndex}`,
       runtime: 'repair-recovery',
@@ -158,13 +158,11 @@ function rebuildManifest(fs: FileSystemPort, paths: ProjectPaths) {
     const replayArtifacts = artifactPaths.filter((artifactPath) => artifactPath.includes('/replays/'));
     const scenarioIds = sortStrings(
       artifactPaths
-        .map((artifactPath) => artifactPath.match(/([0-9]+)(?:\.|\.fragments)/)?.[1] ?? '')
-        .filter((value) => value.length > 0),
+        .flatMap((artifactPath) => { const r = artifactPath.match(/([0-9]+)(?:\.|\.fragments)/)?.[1] ?? ''; return r.length > 0 ? [r] : []; }),
     ) as AdoId[];
     const runIds = sortStrings(
       replayArtifacts
-        .map((artifactPath) => artifactPath.split('.').slice(-2, -1)[0] ?? '')
-        .filter((value) => value.length > 0),
+        .flatMap((artifactPath) => { const r = artifactPath.split('.').slice(-2, -1)[0] ?? ''; return r.length > 0 ? [r] : []; }),
     );
     return {
       kind: 'training-corpus-manifest' as const,

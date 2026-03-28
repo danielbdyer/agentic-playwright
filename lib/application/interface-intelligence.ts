@@ -347,18 +347,19 @@ function buildCatalogScreenIndex(catalog: WorkspaceCatalog, routes: readonly Rou
     catalog.screenPostures.map((entry) => [entry.artifact.screen, entry] as const),
   );
   // Pre-compute route variant refs per screen: avoids O(R*V) scan per call
-  const variantAccumulator = new Map<ScreenId, string[]>();
-  for (const binding of routes) {
-    for (const variant of binding.variants) {
-      const existing = variantAccumulator.get(variant.screen) ?? [];
-      existing.push(routeVariantRef(binding.app, binding.routeId, variant.variantId));
-      variantAccumulator.set(variant.screen, existing);
-    }
-  }
-  const routeVariantsByScreen = new Map<ScreenId, readonly string[]>();
-  for (const [screen, refs] of variantAccumulator) {
-    routeVariantsByScreen.set(screen, sortStrings(refs));
-  }
+  const unsortedVariants = routes.reduce(
+    (acc, binding) => binding.variants.reduce(
+      (innerAcc, variant) => {
+        const existing = innerAcc.get(variant.screen) ?? [];
+        return new Map([...innerAcc, [variant.screen, [...existing, routeVariantRef(binding.app, binding.routeId, variant.variantId)]]]);
+      },
+      acc,
+    ),
+    new Map<ScreenId, readonly string[]>(),
+  );
+  const routeVariantsByScreen = new Map<ScreenId, readonly string[]>(
+    [...unsortedVariants.entries()].map(([screen, refs]) => [screen, sortStrings([...refs])]),
+  );
   // Pre-index confidence records by screen:element key: O(1) lookup instead of O(R) scan
   const confidenceByKey = new Map<string, ArtifactConfidenceRecord>();
   for (const record of catalog.confidenceCatalog?.artifact.records ?? []) {
@@ -414,8 +415,7 @@ function screenSectionSnapshots(idx: CatalogScreenIndex, screen: ScreenId): Snap
     return [];
   }
   return [...new Set(Object.values(surfaceEntry.artifact.sections)
-    .map((section) => section.snapshot)
-    .filter((value): value is SnapshotTemplateId => value !== null && value !== undefined))]
+    .flatMap((section) => section.snapshot !== null && section.snapshot !== undefined ? [section.snapshot] : []))]
     .sort((left, right) => left.localeCompare(right));
 }
 
@@ -1232,8 +1232,8 @@ function buildSelectorCanon(_input: {
   const stateApplicabilityIndex = buildStateApplicabilityIndex(input.stateGraph);
   const surfaceSeeds: SelectorProbeSeed[] = input.catalog.surfaces.flatMap((surfaceEntry) => [
     ...Object.entries(surfaceEntry.artifact.sections)
-      .filter(([, section]) => section.snapshot)
-      .map(([, section]): SelectorProbeSeed => ({
+      .flatMap(([, section]) => section.snapshot ? [section] : [])
+      .map((section): SelectorProbeSeed => ({
         targetRef: snapshotTargetRef(surfaceEntry.artifact.screen, createSnapshotTemplateId(section.snapshot!)),
         screen: surfaceEntry.artifact.screen,
         kind: 'snapshot-anchor',

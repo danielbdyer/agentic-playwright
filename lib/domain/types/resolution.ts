@@ -500,6 +500,27 @@ export interface ResolutionExhaustionEntry {
   readonly rejectedCandidates?: readonly ResolutionCandidateSummary[] | undefined;
 }
 
+// ─── Reason Chain ───
+//
+// Machine-readable decision trail explaining why a resolution outcome was chosen.
+// Each step records what a rung tried, what it decided, and why.
+// Built from the exhaustion entries + final outcome during receipt construction.
+
+export interface ResolutionReasonStep {
+  /** Which rung in the precedence ladder. */
+  readonly rung: ResolutionPrecedenceRung;
+  /** What the rung decided: proceed (pass to next), resolve (terminate), or fail. */
+  readonly verdict: 'passed' | 'resolved' | 'failed';
+  /** Human-readable explanation of the verdict. */
+  readonly reason: string;
+  /** How many candidates were evaluated (0 if rung was skipped). */
+  readonly candidatesEvaluated: number;
+  /** Top candidate score if available, for confidence comparison across rungs. */
+  readonly topScore?: number | undefined;
+}
+
+export type ResolutionReasonChain = readonly ResolutionReasonStep[];
+
 export type ResolutionEvent =
   | { readonly kind: 'exhaustion-recorded'; readonly entry: ResolutionExhaustionEntry }
   | { readonly kind: 'observation-recorded'; readonly observation: ResolutionObservation }
@@ -601,6 +622,7 @@ interface ResolutionReceiptBase {
   readonly overlayRefs: readonly string[];
   readonly observations: readonly ResolutionObservation[];
   readonly exhaustion: readonly ResolutionExhaustionEntry[];
+  readonly reasonChain?: ResolutionReasonChain | undefined;
   readonly handshakes: readonly WorkflowStage[];
   readonly winningConcern: WorkflowLane;
   readonly winningSource: StepWinningSource;
@@ -652,3 +674,37 @@ export interface NeedsHumanReceipt extends ResolutionReceiptBase {
 }
 
 export type ResolutionReceipt = ResolvedReceipt | ResolvedWithProposalsReceipt | AgentInterpretedReceipt | NeedsHumanReceipt;
+
+// ─── Rung Stress Test (N1.6) ───
+
+export interface ResolutionRungOverride {
+  readonly forceRung: ResolutionPrecedenceRung;
+  readonly skipRungs?: readonly ResolutionPrecedenceRung[];
+}
+
+// ─── Intent Clarification Protocol (N1.2) ───
+
+export type ClarificationCategory = 'locator' | 'navigation' | 'data' | 'precondition' | 'affordance';
+
+export interface ClarificationRequest {
+  readonly kind: 'clarification-request';
+  readonly stepIndex: number;
+  readonly failedRungs: readonly ResolutionPrecedenceRung[];
+  readonly questions: readonly ClarificationQuestion[];
+  readonly context: ClarificationContext;
+}
+
+export interface ClarificationQuestion {
+  readonly id: string;
+  readonly category: ClarificationCategory;
+  readonly question: string;
+  readonly suggestedActions: readonly string[];
+}
+
+export interface ClarificationContext {
+  readonly actionText: string;
+  readonly screenId: string | null;
+  readonly attemptedStrategies: readonly string[];
+  readonly nearestCandidates: readonly string[];
+  readonly consoleErrors: readonly string[];
+}

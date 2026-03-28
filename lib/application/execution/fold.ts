@@ -91,8 +91,7 @@ export function foldScenarioRun(input: {
         evidenceIds: stepEvidence,
         observedStateRefs: result.execution.observedStateRefs ?? [],
         matchedTransitionRefs: (result.execution.transitionObservations ?? [])
-          .filter((entry) => entry.classification === 'matched' && entry.transitionRef)
-          .map((entry) => entry.transitionRef!),
+          .flatMap((entry) => entry.classification === 'matched' && entry.transitionRef ? [entry.transitionRef] : []),
         failureFamily: result.execution.failure?.family ?? 'none',
         failureCode: result.execution.failure?.code ?? null,
         failureMessage: result.execution.failure?.message ?? null,

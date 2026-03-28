@@ -51,8 +51,7 @@ function fixturesForScenario(boundScenario: BoundScenario, surface: ScenarioInte
       .filter(Boolean)
       .flatMap((override) =>
         [...(override as string).matchAll(/\{\{\s*([A-Za-z0-9_-]+)(?:\.[^}]*)?\s*\}\}/g)]
-          .map((match) => match[1])
-          .filter((name): name is string => name != null),
+          .flatMap((match) => match[1] != null ? [match[1]] : []),
       ),
   );
   return [...new Set([...preconditionFixtures, ...overrideFixtures])]

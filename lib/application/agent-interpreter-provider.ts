@@ -28,6 +28,7 @@ import type { StepAction } from '../domain/types';
 import type { ScreenId, ElementId, PostureId, SnapshotTemplateId } from '../domain/identity';
 import { normalizeIntentText } from '../domain/inference';
 import { bestAliasMatch, humanizeIdentifier } from '../runtime/agent/shared';
+import { assignVariant, type ABTestConfig } from './agent-ab-testing';
 
 // ─── Request / Response Contract ───
 
@@ -757,6 +758,7 @@ function createAgentProviderByKind(
 export function resolveAgentInterpreterProvider(
   config?: AgentInterpreterConfig | undefined,
   deps?: AgentLlmApiDependencies | undefined,
+  abTestConfig?: ABTestConfig | undefined,
 ): AgentInterpreterProvider {
   const effectiveConfig = config ?? DEFAULT_AGENT_INTERPRETER_CONFIG;
 
@@ -777,7 +779,54 @@ export function resolveAgentInterpreterProvider(
     ? createTimeoutBoundedProvider(rawFallback, effectiveConfig)
     : rawFallback;
 
-  return fallback
+  const resolved = fallback
     ? createCompositeAgentProvider(primary, fallback)
     : primary;
+
+  // When A/B test config is provided, wrap in a variant-assigning provider.
+  // The control variant uses the heuristic provider; treatment uses the
+  // resolved (possibly LLM-backed) provider. Assignment is deterministic
+  // per step index via the hash seed in ABTestConfig.
+  return abTestConfig
+    ? createABTestingProvider(resolved, abTestConfig, effectiveConfig, deps)
+    : resolved;
+}
+
+// ─── A/B Testing Provider ───
+
+/**
+ * Create a provider that routes per-step to control or treatment based on
+ * deterministic variant assignment. Control uses heuristic; treatment uses
+ * the provided primary provider. This enables controlled comparison of
+ * resolution quality between provider strategies.
+ */
+function createABTestingProvider(
+  treatmentProvider: AgentInterpreterProvider,
+  abTestConfig: ABTestConfig,
+  config: AgentInterpreterConfig,
+  _deps?: AgentLlmApiDependencies,
+): AgentInterpreterProvider {
+  const controlProvider = createAgentProviderByKind(
+    abTestConfig.controlProvider as AgentInterpreterKind,
+    config,
+  );
+
+  return {
+    id: `ab-test-${abTestConfig.testId}`,
+    kind: treatmentProvider.kind,
+    interpret: async (request) => {
+      // Use step index extracted from task fingerprint for deterministic routing.
+      // The request doesn't directly expose stepIndex, so we hash the fingerprint.
+      const stepHash = request.taskFingerprint
+        .split('')
+        .reduce((acc, ch) => ((acc << 5) - acc + ch.charCodeAt(0)) | 0, 0);
+      const variant = assignVariant(Math.abs(stepHash), abTestConfig);
+      const provider = variant === 'treatment' ? treatmentProvider : controlProvider;
+      const result = await provider.interpret(request);
+      return {
+        ...result,
+        provider: `${result.provider}:${variant}`,
+      };
+    },
+  };
 }
