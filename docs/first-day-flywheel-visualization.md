@@ -1089,3 +1089,608 @@ A settings panel (toggled by `Esc` or gear icon) allows the operator to configur
 | Auto-camera | `true` | boolean | Enable/disable automated choreography |
 | Decision timeout | `0` (infinite) | 0–300 seconds | Auto-skip decisions after timeout |
 | Time-lapse speed | `10×` | 0.5×–100× | Default playback speed tier |
+
+---
+
+## Part VII: Architectural Constraints and Performance Budget
+
+The flywheel visualization is the most demanding mode of the Tesseract dashboard. It renders more scene elements, processes more events per second, and maintains more visual state than steady-state operation. Yet it must respect every architectural constraint that governs the dashboard.
+
+### Non-Negotiable Architectural Invariants
+
+These invariants are inherited from `docs/dashboard-vision.md` and `docs/spatial-dashboard.md`. They apply without exception:
+
+#### 1. Projection, Never Dependency
+
+The flywheel visualization observes the pipeline. It never drives it. Specifically:
+
+- `DashboardPort.emit()` is fire-and-forget. If the visualization is slow, events are dropped by the ingestion queue — they never create backpressure on the Effect fiber.
+- `DashboardPort.awaitDecision()` always has a timeout fallback. If the operator does not respond within the configured timeout (or if the dashboard is not connected), the decision auto-skips.
+- Toggling the flywheel visualization on or off, switching between live and time-lapse mode, or adjusting any visual setting never changes the pipeline's behavior, output artifacts, or convergence characteristics.
+- The event journal writer (`JournalWriter` fiber) is a PubSub subscriber — it cannot block event production. If it falls behind, events are dropped from the subscriber's queue, not from the PubSub.
+
+**Test**: Run the same speedrun with `--speedrun` and without `--speedrun` (the dashboard flag). The resulting `.tesseract/` artifacts, `generated/` files, and scorecard must be bit-identical (modulo timestamps).
+
+#### 2. Event Vocabulary Discipline
+
+All new events follow the existing `DashboardEvent` contract: `{ type: DashboardEventKind, timestamp: string, data: unknown }`. New event kinds are added to the `DashboardEventKind` union type in `lib/domain/types/dashboard.ts`. Each new event kind has a corresponding typed payload interface in the same file.
+
+New events must not duplicate information that existing events already carry. For example, `step-bound` carries binding outcome per step — it does not re-carry the full `ElementProbedEvent` data, which arrives through the separate `element-probed` event.
+
+**Test**: Every event kind in `DashboardEventKind` has a corresponding Zod schema (or equivalent) that validates its payload. The journal writer validates events before writing. Invalid events are dropped with a diagnostic.
+
+#### 3. Progressive Enhancement
+
+The flywheel visualization composes as layers on top of the existing dashboard. It does not replace or break existing components:
+
+- Layer 0 (base): ScreenPlane + SelectorGlows + ParticleTransport + GlassPane — unchanged
+- Layer 1 (live portal): LiveDomPortal replaces ScreenPlane texture — unchanged
+- Layer 2 (MCP): MCP tool endpoints — unchanged
+- Layer 3 (convergence): ConvergencePanel + ProposalGate + ArtifactAurora — unchanged
+- **Layer 4 (flywheel)**: Act choreography + camera automation + narration + time-lapse — NEW
+
+Layer 4 can be enabled/disabled independently. When disabled, the dashboard operates in its existing steady-state mode with no behavioral changes.
+
+#### 4. Same Data, Multiple Consumers
+
+The flywheel visualization consumes the same events and REST data as the existing dashboard components. It introduces new React hooks and components but does not modify existing ones. The MCP tool endpoints serve the same data to agents as the visualization consumes from the WebSocket.
+
+### Performance Budget
+
+The dashboard targets 60fps on a mid-range laptop GPU (Intel Iris or equivalent). The existing performance budget from `docs/spatial-dashboard.md` allocates approximately 15ms per frame. The flywheel visualization must fit within this budget.
+
+#### Per-Frame Budget Allocation
+
+| Component | Budget (ms) | Notes |
+|-----------|------------|-------|
+| InstancedMesh (particles + nodes) | 1.5 | Up to 8K instances across particles, glows, knowledge nodes |
+| Texture update (screen plane) | 5.0 | Base64 decode happens outside render loop; swap is O(1) |
+| Bloom postprocessing | 5.0 | UnrealBloomPass with mipmapBlur |
+| Glass pane transmission | 1.0 | MeshPhysicalMaterial with transmission |
+| Resolution probe rings | 1.0 | InstancedMesh with animated radius |
+| Narration overlay (DOM) | 0.5 | CSS transitions, not Three.js |
+| Camera interpolation | 0.2 | Lerp on position, FOV |
+| React reconciliation | 1.0 | Minimal — most state is in Three.js buffers |
+| **Total** | **15.2** | Just within 16.67ms budget |
+
+#### High-Throughput Mitigations
+
+During Act 5 (Execution), event throughput can reach 1000+ events/second. The following mitigations prevent frame drops:
+
+1. **Ingestion queue staggering**: Events are buffered and released at configurable rates (40-100ms per event type). The render loop never processes more than ~15 events per frame.
+
+2. **Particle pooling**: The `ParticleTransport` and `DecisionBurst` components use a fixed-size particle pool (InstancedMesh with pre-allocated capacity). New particles reuse expired slots rather than allocating. Pool sizes:
+   - Probe particles: 500 slots
+   - Transport particles: 200 slots
+   - Decision burst particles: 100 slots
+   - Resolution ring instances: 50 slots
+
+3. **Knowledge node LOD**: The KnowledgeObservatory uses level-of-detail rendering. Nodes beyond 2.0 world units from the camera are rendered as simple points (no mesh geometry, no labels). Nodes within 1.0 units are rendered with full geometry and floating text labels.
+
+4. **Event batching at high playback speeds**: In time-lapse mode above 10×, events are batched per frame rather than individually animated. See Part III for batching strategy by speed tier.
+
+5. **Narration throttling**: No more than 2 captions are visible simultaneously. If a new caption would exceed this limit, the oldest caption fades immediately.
+
+#### Memory Budget
+
+| Resource | Allocation | Notes |
+|----------|-----------|-------|
+| Three.js scene graph | ~20 MB | Meshes, materials, textures |
+| Screen plane texture | ~5 MB | Single 1280×720 or 1920×1080 RGBA texture |
+| InstancedMesh buffers | ~3 MB | Float32 attribute arrays for all particle pools |
+| Event journal (if recording) | ~1 MB per iteration | JSONL on disk, streamed via REST for playback |
+| React state | ~2 MB | Ingestion queues, convergence history, stage tracker |
+| WebSocket buffer | ~100 KB | In-flight events |
+| **Total** | **~31 MB** | Well within browser tab limits |
+
+### Graceful Degradation
+
+If the visualization cannot maintain 60fps, it degrades gracefully:
+
+1. **First degradation** (below 45fps): Disable bloom postprocessing. Saves ~5ms per frame.
+2. **Second degradation** (below 30fps): Reduce particle pool sizes by 50%. Increase ingestion stagger by 2×.
+3. **Third degradation** (below 20fps): Disable glass pane transmission effect. Replace with simple semi-transparent mesh.
+4. **Fourth degradation** (below 15fps): Switch to 2D fallback mode — flat panels instead of 3D scene. This preserves all data but abandons the spatial narrative.
+
+The degradation controller monitors `requestAnimationFrame` timing and applies these thresholds automatically. The operator can also force a degradation level through the settings panel.
+
+---
+
+## Part VIII: Component Inventory and Data Flow
+
+This section provides a complete inventory of the React components and hooks required by the flywheel visualization, categorized by new (must be built) versus existing (reused from the current dashboard).
+
+### Existing Components (Reused Without Modification)
+
+These components form the spatial foundation. The flywheel visualization composes on top of them:
+
+| Component | Path | Role in Flywheel |
+|-----------|------|-----------------|
+| `SpatialCanvas` | `spatial/canvas.tsx` | Root R3F scene — hosts all spatial content |
+| `ScreenPlane` | `spatial/screen-plane.tsx` | Live application texture (Acts 2, 4, 5) |
+| `SelectorGlows` | `spatial/selector-glows.tsx` | Bioluminescent element highlights (Acts 2, 4, 5) |
+| `ParticleTransport` | `spatial/particle-transport.tsx` | Particles from DOM to observatory (Acts 2, 4, 5, 6) |
+| `GlassPane` | `spatial/glass-pane.tsx` | Governance boundary (Acts 4, 5, 6) |
+| `KnowledgeObservatory` | `spatial/knowledge-observatory.tsx` | Knowledge graph (Acts 2–7) |
+| `ProposalGate` | `spatial/proposal-gate.tsx` | Proposal flow at glass (Act 6) |
+| `ArtifactAurora` | `spatial/artifact-aurora.tsx` | Write-flash effect (Acts 4, 6) |
+| `IterationPulse` | `spatial/iteration-pulse.tsx` | Ambient light modulation (Acts 5, 7) |
+| `DecisionOverlay` | `spatial/decision-overlay.tsx` | Human decision UI (Acts 5, 6) |
+| `DecisionBurst` | `spatial/decision-burst.tsx` | Decision animation (Acts 5, 6) |
+| `LiveDomPortal` | `spatial/live-dom-portal.tsx` | Iframe portal (Act 2, 5 when available) |
+| `StatusBar` | `molecules/status-bar.tsx` | Connection and progress status |
+| `FitnessCard` | `molecules/fitness-card.tsx` | Scorecard high-water marks (Act 7) |
+| `ProgressCard` | `molecules/progress-card.tsx` | Iteration progress metrics (Acts 4–7) |
+| `ConvergencePanel` | `organisms/convergence-panel.tsx` | Rung history and convergence (Acts 5, 7) |
+| `PipelineProgress` | `organisms/pipeline-progress.tsx` | Stage lifecycle (Acts 4, 5) |
+| `QueueVisualization` | `organisms/queue-visualization.tsx` | Work item queue (Acts 5, 6) |
+| `WorkbenchPanel` | `organisms/workbench-panel.tsx` | Work items for decisions (Acts 5, 6) |
+| `CompletionsPanel` | `organisms/completions-panel.tsx` | Decision audit trail (Acts 5, 6, 7) |
+| `SceneErrorBoundary` | `atoms/error-boundary.tsx` | Graceful WebGL error recovery |
+
+### Existing Hooks (Reused Without Modification)
+
+| Hook | Path | Role in Flywheel |
+|------|------|-----------------|
+| `useWebSocket` | `hooks/use-web-socket.ts` | WebSocket connection lifecycle |
+| `useIngestionQueue` | `hooks/use-ingestion-queue.ts` | Staggered event playback |
+| `useConvergenceState` | `hooks/use-convergence-state.ts` | Rung and calibration tracking |
+| `useStageTracker` | `hooks/use-stage-tracker.ts` | Pipeline stage lifecycle |
+| `useIterationPulse` | `hooks/use-iteration-pulse.ts` | Ambient light modulation |
+| `useWebMcpCapabilities` | `hooks/use-mcp-capabilities.ts` | MCP feature detection |
+| `useParticleSimulation` | `hooks/use-particle-simulation.ts` | Particle physics for transport |
+
+### New Components (Must Be Built)
+
+#### Spatial Components
+
+| Component | Proposed Path | Act(s) | Description |
+|-----------|--------------|--------|-------------|
+| `ScenarioCloud` | `spatial/scenario-cloud.tsx` | 1, 3 | 3D cloud of scenario cards with affinity clustering and ranked list mode |
+| `SurfaceOverlay` | `spatial/surface-overlay.tsx` | 2 | ARIA landmark region outlines overlaid on screen plane |
+| `ProbeDataCard` | `spatial/probe-data-card.tsx` | 2 | Floating element metadata card near probed elements |
+| `ResolutionRings` | `spatial/resolution-rings.tsx` | 5 | Concentric rings visualizing resolution ladder walk |
+| `FailureFragments` | `spatial/failure-fragments.tsx` | 5, 6 | Shattered particles from failed steps, coalescing into proposal cluster |
+| `ProposalCluster` | `spatial/proposal-cluster.tsx` | 6 | Particle cluster approaching glass pane with proposal metadata |
+| `ConvergenceFinale` | `spatial/convergence-finale.tsx` | 7 | Green pulse radiating from observatory on convergence |
+| `ScorecardPanel3D` | `spatial/scorecard-panel.tsx` | 7 | Floating 3D panel showing iteration scorecard metrics |
+
+#### Organism Components
+
+| Component | Proposed Path | Description |
+|-----------|--------------|-------------|
+| `FlywheelChoreographer` | `organisms/flywheel-choreographer.tsx` | Act sequencing, transition triggers, camera state machine |
+| `PlaybackControls` | `organisms/playback-controls.tsx` | Scrubber, speed selector, bookmark navigation |
+| `NarrationOverlay` | `organisms/narration-overlay.tsx` | Caption rendering and lifecycle management |
+| `IterationTimeline` | `organisms/iteration-timeline.tsx` | Multi-iteration horizontal timeline with act segments |
+| `BatchDecisionPanel` | `organisms/batch-decision-panel.tsx` | Multi-select work item approval (Act 6 intervention) |
+| `DegradationController` | `organisms/degradation-controller.tsx` | FPS monitor and automatic quality reduction |
+
+#### Molecule Components
+
+| Component | Proposed Path | Description |
+|-----------|--------------|-------------|
+| `ActIndicator` | `molecules/act-indicator.tsx` | Current act number and name badge |
+| `SliceMetrics` | `molecules/slice-metrics.tsx` | Suite Slice selection summary |
+| `BindingDistribution` | `molecules/binding-distribution.tsx` | Stacked bar for bound/deferred/unbound steps |
+| `ConvergenceArrow` | `molecules/convergence-arrow.tsx` | Trend arrow (up/horizontal/down) for hit-rate velocity |
+| `SpeedTierSelector` | `molecules/speed-tier-selector.tsx` | Playback speed dropdown/selector |
+| `BookmarkChip` | `molecules/bookmark-chip.tsx` | Individual bookmark indicator on timeline |
+
+### New Hooks (Must Be Built)
+
+| Hook | Proposed Path | Description |
+|------|--------------|-------------|
+| `useFlywheelAct` | `hooks/use-flywheel-act.ts` | Tracks current act based on stage-lifecycle events. Returns `{ act, actName, iteration, transitionProgress }` |
+| `usePlaybackController` | `hooks/use-playback-controller.ts` | Journal loading, seek, speed, play/pause. Returns `PlaybackController` interface |
+| `useCameraChoreography` | `hooks/use-camera-choreography.ts` | Automated camera position interpolation. Returns `{ position, fov, target, overrideActive }` |
+| `useNarrationQueue` | `hooks/use-narration-queue.ts` | Caption lifecycle management. Returns `{ activeCaption, queueCaption }` |
+| `useActTransition` | `hooks/use-act-transition.ts` | Transition animation state. Returns `{ transitioning, fromAct, toAct, progress }` |
+| `useDegradation` | `hooks/use-degradation.ts` | FPS monitoring and quality tier. Returns `{ tier, bloomEnabled, particleDensity }` |
+| `useEventJournal` | `hooks/use-event-journal.ts` | Journal write subscription (live mode) and read stream (playback mode) |
+
+### Data Flow Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         Effect Fiber                                │
+│  (speedrun/dogfood loop with DashboardPort.emit() calls)            │
+└───────────────────────────────┬─────────────────────────────────────┘
+                                │ DashboardEvent
+                                ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                      PipelineEventBus                               │
+│  Effect.PubSub → SharedArrayBuffer ring + WebSocket broadcast       │
+│                                  + JournalWriter (NEW)              │
+└───────┬──────────────┬──────────────────┬───────────────────────────┘
+        │              │                  │
+        ▼              ▼                  ▼
+  ┌──────────┐  ┌──────────────┐  ┌───────────────────┐
+  │ WS Broad │  │ Buffer Ring  │  │ Event Journal      │
+  │ (remote) │  │ (in-process) │  │ (.jsonl on disk)   │
+  └────┬─────┘  └──────────────┘  └────────┬──────────┘
+       │                                    │
+       ▼                                    ▼
+┌──────────────────┐              ┌───────────────────────┐
+│  useWebSocket()  │              │  usePlaybackController │
+│  (live events)   │              │  (recorded events)     │
+└────────┬─────────┘              └────────┬──────────────┘
+         │                                 │
+         ▼                                 ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                    Dispatch Handlers                                 │
+│  dispatchProgress, dispatchProbe, dispatchCapture, ...              │
+│  + NEW: dispatchStepBound, dispatchSurfaceDiscovered, ...           │
+└───────────────────────────────┬─────────────────────────────────────┘
+                                │
+         ┌──────────────────────┼──────────────────────┐
+         ▼                      ▼                      ▼
+  ┌──────────────┐   ┌──────────────────┐   ┌──────────────────────┐
+  │ Ingestion    │   │ useFlywheelAct() │   │ useCameraChoreography│
+  │ Queues       │   │ Act tracking     │   │ Camera interpolation │
+  │ (staggered)  │   │ + transitions    │   │ + override state     │
+  └──────┬───────┘   └────────┬─────────┘   └────────┬────────────┘
+         │                    │                       │
+         ▼                    ▼                       ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                      FlywheelChoreographer                          │
+│  Composes all spatial and DOM components based on act state         │
+│  Orchestrates transitions, narration, camera, degradation           │
+└───────────────────────────────┬─────────────────────────────────────┘
+                                │
+    ┌───────────┬───────────┬───┴────────┬───────────┬───────────┐
+    ▼           ▼           ▼            ▼           ▼           ▼
+ Spatial     Spatial    Organisms    Molecules   Narration   Playback
+ (R3F)       (new)     (existing    (new)       Overlay     Controls
+ existing    comps      + new)
+```
+
+---
+
+## Part IX: The Convergence Finale and Summary View
+
+The most emotionally important moment in the flywheel visualization is convergence — the moment the system has learned enough to stop iterating. This section describes the finale in detail, because getting it right is the difference between "the visualization ended" and "the visualization *landed*."
+
+### The Convergence Moment
+
+Convergence is detected when the `convergence-evaluated` event arrives with `converged: true`. The convergence reason determines the visual character:
+
+#### `threshold-met` — The Best Case
+
+The system achieved its target knowledge hit rate. This is a triumph.
+
+1. **The Observatory Crystallizes** (0–2 seconds): All knowledge nodes stop pulsing and solidify. Their governance tints shift to full green. The node positions lock — no more force-directed layout drift. The observatory looks *permanent*, like a completed constellation chart.
+
+2. **The Glass Pane Dissolves** (1–3 seconds): The glass pane's transmission increases from its current value to 1.0 (fully transparent). It then fades in opacity from 1.0 to 0.0. The governance boundary disappears — the system's knowledge is now trusted. The space between harvest and observatory becomes unified.
+
+3. **The Green Wave** (2–4 seconds): A radial pulse of green light originates from the observatory center and radiates outward, passing through the dissolved glass pane and across the screen plane. Every element on the screen plane glows green briefly as the wave passes. This visualizes the reach of the system's understanding — it has *touched every part of the application*.
+
+4. **The Ambient Crescendo** (2–5 seconds): The ambient light intensity smoothly increases to 1.5× its current value. The bloom intensity increases to 1.2. The entire scene becomes brighter and warmer. The system has moved from the darkness of ignorance to the light of understanding.
+
+5. **The Narration Milestone**: A centered, large-font caption appears: "Converged at iteration {n}. {hitRate}% knowledge hit rate. {passedScenarios}/{totalScenarios} scenarios green." Duration: 8 seconds. Emphasis: `milestone`.
+
+#### `no-proposals` — Graceful Completion
+
+The system activated everything it could. No more proposals remain. This is satisfactory but not a triumph.
+
+1. Steps 1–4 from `threshold-met`, but with amber tinting instead of green
+2. The glass pane thins but does not fully dissolve (transmission 0.8)
+3. The narration reads: "No further proposals. {hitRate}% knowledge hit rate. {remainingGaps} knowledge gaps remain."
+
+#### `budget-exhausted` or `max-iterations` — Honest Stopping
+
+The system ran out of time or iterations. This is informational, not celebratory.
+
+1. The observatory stabilizes but does not crystallize (nodes still pulse gently)
+2. The glass pane remains at its current frost level
+3. The ambient light does not change
+4. The narration reads: "Budget exhausted after {n} iterations. {hitRate}% knowledge hit rate. {proposalsPending} proposals still pending."
+
+### The Summary View
+
+After the convergence moment (regardless of reason), the visualization transitions to a persistent summary view. This is the view an operator will screenshot, share with colleagues, and use to evaluate whether the first-day intake was successful.
+
+#### Summary Layout
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        Summary View                                 │
+│                                                                     │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │            Iteration Timeline (full width)                   │    │
+│  │  ┌───┐ ┌───┐ ┌───┐ ┌───┐ ┌───┐ ┌───┐                      │    │
+│  │  │ 1 │ │ 2 │ │ 3 │ │ 4 │ │ 5 │ │ ✓ │  Hit Rate Curve     │    │
+│  │  │   │ │   │ │   │ │   │ │   │ │   │  ────────────────    │    │
+│  │  │47%│ │62%│ │71%│ │79%│ │85%│ │89%│  ___________/¯¯¯    │    │
+│  │  └───┘ └───┘ └───┘ └───┘ └───┘ └───┘                      │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+│                                                                     │
+│  ┌───────────────────────┐  ┌───────────────────────────────────┐  │
+│  │   Final Scorecard     │  │   Knowledge Observatory            │  │
+│  │                       │  │   (miniaturized, interactive)      │  │
+│  │  Hit Rate:     89%    │  │                                    │  │
+│  │  Pass Rate:    84%    │  │   ○ policy-search (0.94)           │  │
+│  │  Bind Coverage: 91%   │  │   ○ claims-review (0.87)          │  │
+│  │  Proposals:    47     │  │   ○ eligibility-check (0.78)      │  │
+│  │  Activated:    38     │  │   ○ enrollment (0.65)              │  │
+│  │  Blocked:       2     │  │                                    │  │
+│  │  Iterations:    6     │  │   [Click screen to expand]         │  │
+│  │  Duration:   47:12    │  │                                    │  │
+│  │  Human Decisions: 4   │  │                                    │  │
+│  └───────────────────────┘  └───────────────────────────────────┘  │
+│                                                                     │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │   Resolution Distribution (stacked bar)                      │    │
+│  │   ██████████████░░░░░▓▓▓▓░░                                 │    │
+│  │   ▲ explicit  ▲ knowledge  ▲ translation  ▲ deferred        │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+│                                                                     │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │   Remaining Gaps                                             │    │
+│  │   • 7 steps needs-human across 3 scenarios                  │    │
+│  │   • 2 proposals blocked by trust policy                     │    │
+│  │   • 4 screens with < 70% element coverage                   │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+│                                                                     │
+│  [ Replay ▶ ]  [ Export PDF ]  [ Open Workbench ]  [ New Run ]     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+#### Summary Interactions
+
+- **Click on iteration column**: Seek to that iteration in time-lapse mode
+- **Click on observatory screen node**: Expand to show per-element knowledge detail
+- **Click on remaining gap**: Navigate to the relevant work item in the workbench
+- **Replay button**: Enter time-lapse mode from the beginning
+- **Export PDF**: Generate a static report (future capability — uses the same scorecard data)
+- **Open Workbench**: Switch to the standard workbench view for manual work
+- **New Run**: Start a fresh flywheel run (navigates to run configuration)
+
+### The "Before and After" Comparison
+
+The summary view includes a powerful comparison feature: the "Before and After" toggle. When activated, the view splits:
+
+- **Left half**: The knowledge observatory as it appeared at the start of iteration 1 (empty or near-empty)
+- **Right half**: The knowledge observatory in its final converged state
+
+The operator sees the full journey compressed into a single frame: darkness on the left, crystallized understanding on the right. This is the image that communicates Tesseract's value in a single screenshot.
+
+The comparison state is computed from the event journal — the first and last `knowledge-updated` events for each node provide the "before" and "after" snapshots.
+
+---
+
+## Part X: What Makes This Hard
+
+This section is deliberately honest about the technical and design challenges. The flywheel visualization is a moonshot because each of these challenges is individually manageable but their *composition* is formidable.
+
+### Challenge 1: Seven Visual Languages in One Scene
+
+Each act has its own dominant visual metaphor: crystallization (Act 1), bioluminescent discovery (Act 2), prioritization cascade (Act 3), compilation lattice (Act 4), resolution ladder walk (Act 5), governance gate (Act 6), convergence landscape (Act 7). Individually, each is a well-understood visualization pattern. Together, they must feel like one continuous experience rather than seven slide decks stapled together.
+
+**What makes it hard**: The transitions. A smooth camera move is easy. Making the scene elements morph coherently — scenario cards becoming queue entries, probe glows becoming transport particles, failure fragments becoming proposal clusters — requires each visual element to have a *lifecycle* that spans multiple acts. Elements cannot simply appear and disappear at act boundaries; they must transform.
+
+**Mitigation path**: Design a unified particle system where all visual elements (scenario cards, probe glows, transport particles, proposal clusters, failure fragments) are instances of a common `FlywheelEntity` with phase-dependent visual properties. The entity's appearance changes based on the current act, but its identity (which scenario? which element? which proposal?) persists across transitions.
+
+### Challenge 2: Time-Lapse Event Batching
+
+At 100× playback speed, a 2-hour run compresses into ~72 seconds. That is approximately 50,000-100,000 events replayed in slightly over a minute — around 1,000 events per second of playback time. Even with batching, each frame must process ~60 events and update the scene state accordingly.
+
+**What makes it hard**: The batching must be semantically aware. You cannot simply skip events — the scene state must be consistent at every frame. Skipping an `element-probed` event means the knowledge node it would have brightened stays dim. Skipping a `proposal-activated` event means the knowledge state is wrong. Every event must either be rendered or its effect must be applied as a state delta without animation.
+
+**Mitigation path**: Implement a `SceneStateAccumulator` that processes events in two modes: *animated* (each event triggers a visual) and *accumulated* (each event updates a state snapshot but does not trigger a visual). At high playback speeds, events within a batching window are accumulated, and a single frame renders the accumulated state delta. The accumulator must handle every event kind and produce a consistent scene state snapshot.
+
+### Challenge 3: Scene State Consistency During Seek
+
+When the operator scrubs the timeline to a specific position, the visualization must reconstruct the scene state at that moment. This means: which knowledge nodes exist, what are their confidence levels, what is the current iteration, which scenarios have been compiled, which have been executed, what is the pass rate, what proposals are pending.
+
+**What makes it hard**: The event journal is a forward-only append log. Reconstructing state at an arbitrary position requires replaying all events from the beginning of the journal up to the seek target. For a 100,000-event journal, this could take several seconds.
+
+**Mitigation path**: The journal index includes periodic state snapshots (every 1,000 events or at every iteration boundary). A snapshot captures the full `SceneState`: knowledge node list with confidence levels, iteration count, cumulative metrics, proposal status map, scenario compilation/execution status. Seeking to a position first loads the nearest preceding snapshot, then replays only the events between the snapshot and the target position.
+
+```typescript
+interface SceneStateSnapshot {
+  readonly sequenceNumber: number;
+  readonly timestamp: string;
+  readonly iteration: number;
+  readonly act: FlyWheelAct;
+  readonly knowledgeNodes: readonly KnowledgeNodeProjection[];
+  readonly metrics: {
+    readonly knowledgeHitRate: number;
+    readonly passRate: number;
+    readonly proposalsActivated: number;
+    readonly proposalsPending: number;
+  };
+  readonly scenarioStatus: ReadonlyMap<string, 'pending' | 'compiled' | 'executed' | 'passed' | 'failed'>;
+  readonly activeProposals: readonly string[];
+  readonly cumulativeTokens: number | null;
+  readonly wallClockMs: number;
+}
+```
+
+### Challenge 4: The First-Time Discovery Visual Language
+
+Act 2 introduces a visual distinction between "the system just met this element" (first-day capture) and "the system knows this element" (steady-state probing). This distinction must be subtle enough to not look like a bug, but clear enough that an experienced operator can instantly tell whether they are watching a first encounter or a re-visit.
+
+**What makes it hard**: The distinction relies on the *temporal context* of each probe event, not just its payload. A probe event for element X on screen Y during the first-ever visit to that screen should look different from the same probe event during iteration 3 when the system has already seen that element twice. But the probe event's payload is identical in both cases — the temporal context lives in the scene state, not the event.
+
+**Mitigation path**: The `FlywheelChoreographer` maintains a `SeenElements` set. When an `element-probed` event arrives, the choreographer checks whether `(screen, element)` is in the set. If not, it is a first encounter — the probe is rendered with the first-time visual language (wider glow, lower intensity, blue-white shift). After rendering, the element is added to the set. On subsequent encounters (including in later iterations), the standard visual language applies.
+
+### Challenge 5: Emotional Pacing
+
+The flywheel visualization is not a data visualization. It is a *narrative*. Narratives have pacing — moments of tension, release, discovery, and triumph. The seven acts have natural emotional arcs (curiosity in Act 2, tension in Act 5, relief in Act 6, satisfaction in Act 7), but making those arcs *felt* requires careful control of animation timing, ambient light, sound design (if audio is ever added), and narration.
+
+**What makes it hard**: Pacing is subjective and depends on the operator's familiarity with the system. A first-time viewer needs more narration, slower transitions, and more explicit visual guidance. An experienced operator wants faster pacing and minimal narration. The same visualization must serve both audiences.
+
+**Mitigation path**: The narration verbosity setting (`minimal` / `normal` / `verbose`) controls not just the text content but the entire pacing profile:
+
+| Setting | Transition duration | Narration frequency | Ambient ramp rate | Target audience |
+|---------|-------------------|--------------------|--------------------|----------------|
+| `minimal` | 1.0 second | Milestones only | Fast | Experienced operators |
+| `normal` | 2.0 seconds | Per-act + milestones | Medium | Regular use |
+| `verbose` | 3.0 seconds | Per-act + per-phase + milestones | Slow | First-time viewers, demos |
+
+### Challenge 6: Multi-Screen Application Discovery
+
+During Act 2, the system navigates to multiple screens. Each screen navigation replaces the screen plane texture and triggers a new wave of discovery glows. But the *previous* screen's discoveries are now invisible — they exist only in the knowledge observatory.
+
+**What makes it hard**: The operator loses context when the screen plane changes. They saw elements being discovered on Screen A, but now they are looking at Screen B. When a later step references an element on Screen A, the operator has to mentally reconstruct which screen that element was on.
+
+**Mitigation path**: Two complementary approaches:
+
+1. **Screen thumbnail strip**: A horizontal strip of miniature screen thumbnails at the bottom of the screen plane. Each thumbnail shows a previously-visited screen with its discovery glows baked in. Clicking a thumbnail replaces the main screen plane texture with that screen's capture. This provides spatial memory across screen transitions.
+
+2. **Observatory-anchored screen cards**: In the knowledge observatory, each screen node doubles as a miniature reference card. Hovering over a screen node in the observatory shows a tooltip with the screen's thumbnail and its key metrics (element count, confidence range, last visit time).
+
+### Challenge 7: Composing with Existing Dashboard State
+
+The flywheel visualization must compose cleanly with the existing dashboard architecture. The `App` component in `dashboard/src/app.tsx` currently orchestrates all hooks, state, and component composition. The flywheel visualization adds significant new state (act tracking, camera choreography, narration queue, playback controller, event journal) and new components (8 spatial, 6 organism, 6 molecule).
+
+**What makes it hard**: The existing `App` component is already a complex composition shell with 15+ hooks and 10+ components. Adding the flywheel layer without making `App` unwieldy requires careful decomposition. The flywheel components need access to the same shared state (progress, probes, convergence, workbench) as existing components, plus their own flywheel-specific state.
+
+**Mitigation path**: Introduce a `FlywheelProvider` context that wraps the flywheel-specific hooks (`useFlywheelAct`, `useCameraChoreography`, `useNarrationQueue`, `usePlaybackController`). The `FlywheelChoreographer` organism consumes this context and conditionally renders flywheel-specific components. The existing `App` component gains a single `<FlywheelProvider>` wrapper and a `<FlywheelChoreographer>` child — no other changes needed.
+
+```typescript
+// New composition pattern
+function App() {
+  // ... existing hooks unchanged ...
+  
+  return (
+    <FlywheelProvider enabled={flywheelMode} journalUrl={journalUrl}>
+      <div className="dashboard-layout">
+        {/* Existing spatial viewport — unchanged */}
+        <div className="spatial-viewport">
+          <FlywheelChoreographer>
+            {/* Choreographer wraps SpatialCanvas and adds flywheel layers */}
+            <SpatialCanvas {...existingProps} />
+          </FlywheelChoreographer>
+        </div>
+        {/* Existing control panel — unchanged */}
+        <div className="control-panel">
+          {/* ... existing panels ... */}
+          <PlaybackControls />  {/* Only visible in time-lapse mode */}
+        </div>
+      </div>
+    </FlywheelProvider>
+  );
+}
+```
+
+---
+
+## Part XI: Open Questions and Future Extensions
+
+These are decisions that cannot be resolved in a requirements document. They require prototyping, user testing, and architectural experimentation.
+
+### Open Questions
+
+**Q1: Should the flywheel visualization be a separate route or a mode of the main dashboard?**
+
+Option A: Separate route (`/flywheel`). Clean separation of concerns. Flywheel components are loaded lazily. No risk of impacting the main dashboard.
+
+Option B: Mode of the main dashboard (toggle switch). Unified experience. The operator can switch between steady-state monitoring and flywheel replay without navigating. More complex composition.
+
+Recommendation: Start with Option A for isolation. Migrate to Option B once the flywheel components are stable and the composition pattern is proven.
+
+**Q2: How should the flywheel visualization handle multiple concurrent scenarios in Act 5?**
+
+If the runbook configures parallel scenario execution (e.g., 4 concurrent browsers), Act 5 receives interleaved events from multiple scenarios. The screen plane can only show one application view at a time.
+
+Option A: Show one scenario at a time, with a selector to switch between concurrent scenarios. Simple but loses the "parallel progress" narrative.
+
+Option B: Split the screen plane into quadrants, each showing one concurrent scenario. Visually dense but communicates parallelism.
+
+Option C: Show one scenario on the screen plane and indicate the others as small status badges (pass/fail indicators with scenario ID) floating near the top edge.
+
+Recommendation: Option C for the initial implementation. It preserves the screen plane's visual clarity while communicating parallelism. Option B could be a future enhancement for operators who want full parallel visibility.
+
+**Q3: Should the time-lapse mode support backward playback?**
+
+Backward playback (scrubbing backward through the timeline) requires reversing event effects on the scene state. Some effects are reversible (knowledge node confidence can be decremented). Some are not (particle animations cannot be meaningfully reversed).
+
+Recommendation: Support backward seeking (jump to a previous position via snapshot + replay) but not backward playback (smooth reverse animation). The seek approach is simpler and meets the same use case — reviewing a specific moment.
+
+**Q4: What should the flywheel visualization do when there is no convergence?**
+
+Some first-day intakes will not converge. The application is too complex, the test suite is too large, or the knowledge layer is too thin. The visualization must handle this gracefully.
+
+Recommendation: After the maximum iteration count, show the summary view with honest metrics. No green wave. No crystallization. The narration reads: "Maximum iterations reached. {hitRate}% knowledge hit rate. {gapsRemaining} knowledge gaps remain. Consider manual knowledge authoring or a focused re-run."
+
+**Q5: Should the flywheel visualization integrate with the DSPy/GEPA offline optimization lane?**
+
+The offline optimization lane (from `docs/dogfooding-flywheel.md`) produces proposal rankings and sensitivity analyses. These could inform the flywheel visualization — e.g., highlighting which proposals have the highest predicted impact according to the optimization model.
+
+Recommendation: Out of scope for the initial implementation. The flywheel visualization should be a pure consumer of pipeline events, not a consumer of offline optimization outputs. Integration with the optimization lane is a future enhancement that would require defining a stable interface between the optimization lane and the visualization.
+
+### Future Extensions
+
+**F1: Audio Design**
+
+The flywheel visualization is a narrative. Narratives benefit from audio. Ambient generative audio — low tones during capture, rising tones during convergence, a clear chime on first green test — would deepen the emotional impact. This is a significant design and implementation effort (Web Audio API, generative synthesis) but would be transformative for demo contexts.
+
+**F2: Multi-Run Comparison Flywheel**
+
+Instead of watching one first-day intake, watch two side-by-side: the same suite against the same application, but with different configurations (different trust-policy thresholds, different iteration budgets, different knowledge postures). The operator sees which configuration converges faster, produces more proposals, or achieves higher hit rates. This extends the flywheel visualization from a narrative tool to an A/B testing surface.
+
+**F3: Collaborative Viewing**
+
+Multiple operators watch the same flywheel visualization simultaneously — each with their own camera position but sharing the same event stream and decision surface. When one operator makes a decision, all viewers see the decision burst. This requires WebSocket-based cursor and camera synchronization — a significant infrastructure extension.
+
+**F4: Presentation Mode**
+
+A curated version of the flywheel visualization designed for non-technical audiences: slower transitions, more narration, simplified metrics, larger text, no keyboard shortcuts. Optimized for projector display and conference presentation. This is a styling and pacing variant, not a functional variant — the same components, different configuration.
+
+**F5: Exportable Recording**
+
+Export the event journal plus the Three.js scene as a standalone HTML file that can be opened in any browser without a running server. This would use an embedded playback controller and a bundled Three.js scene. The exported file would be shareable — a self-contained demonstration of the system's first-day intake. Implementation requires serializing the scene graph and embedding the event journal as an inline data block.
+
+---
+
+## Part XII: Relationship to Other Dashboard Moonshots
+
+The flywheel visualization does not exist in isolation. It connects to and benefits from the four other moonshots described in `docs/dashboard-vision.md`:
+
+### Moonshot #1: The Temporal Observatory (Time-Travel Through Knowledge Evolution)
+
+The flywheel visualization's time-lapse mode is a simpler form of temporal navigation. If the Temporal Observatory is built first (scrubbable knowledge state across iterations), the flywheel visualization reuses its temporal indexing and state reconstruction infrastructure. Conversely, if the flywheel visualization is built first, its event journal and `SceneStateSnapshot` system become the foundation for the Temporal Observatory.
+
+**Dependency**: Shared infrastructure. Build order is flexible.
+
+### Moonshot #2: The Semantic Drift Radar (Topographic Confidence Map)
+
+The flywheel visualization's Act 7 scorecard shows flat metrics. The Drift Radar would replace the flat scorecard with a topographic confidence landscape — a 3D heightfield where the X axis is the application's screen space, the Y axis is iteration time, and the Z axis is confidence. This landscape would appear during Act 7 and persist into the summary view, giving the operator a spatial understanding of where confidence is high and where gaps remain.
+
+**Dependency**: The Drift Radar is an enhancement to Act 7 and the summary view. It does not affect Acts 1–6.
+
+### Moonshot #3: The Decision Theater (Collaborative Human-Agent Governance)
+
+The flywheel visualization's intervention mode (decision overlay with approve/skip) is a single-participant version of the Decision Theater. If the Decision Theater is built — with the agent's analysis visible as spatial annotations alongside the human's decision UI — the flywheel visualization would inherit that richer decision surface for Acts 5 and 6.
+
+**Dependency**: The Decision Theater is an enhancement to the intervention mode. It does not affect autopilot mode.
+
+### Moonshot #4: Execution Déjà Vu (Predictive Run Trajectory)
+
+The flywheel visualization's Act 5 shows execution in real-time. Déjà Vu would add a predictive layer — showing the current run's trajectory alongside historical trajectories, with early warning when the current run is converging toward a known failure pattern. This would appear as ghosted trajectory lines in the Pipeline Theater view during Act 5.
+
+**Dependency**: Déjà Vu requires a temporal index of historical runs. The flywheel visualization's event journal provides the raw material for building that index. If Déjà Vu is built, the flywheel visualization gains a powerful predictive layer for Act 5.
+
+---
+
+## Epilogue: What This Document Makes Possible
+
+This document does not solve for the implementation of the First-Day Intake Flywheel Visualization. It describes it in sufficient detail that:
+
+1. **A builder knows what to build.** The seven acts, the event contracts, the component inventory, the camera choreography, the narration catalog, the performance budget, and the data flow diagram provide a complete specification.
+
+2. **An architect knows what constraints to respect.** The non-negotiable invariants (projection-never-dependency, event vocabulary discipline, progressive enhancement, same-data-multiple-consumers) define the boundary between what is allowed and what is forbidden.
+
+3. **A designer knows what it should feel like.** The visual language descriptions (first-time discovery glows, resolution ladder rings, glass pane physics, convergence finale) define the aesthetic intent without prescribing pixel-level details.
+
+4. **A product owner knows what it achieves.** The summary view, the before-and-after comparison, the time-lapse mode, and the narration layer define the value delivered to operators, stakeholders, and demo audiences.
+
+5. **A pragmatist knows what is hard.** The seven technical challenges, the open questions, and the mitigation paths define where the risk is and what the escape hatches look like.
+
+The flywheel visualization is a moonshot. But it is a moonshot with a detailed flight plan — the trajectory is plotted, the waypoints are named, the fuel budget is calculated, and the landing zone is identified. The only thing left is to build the rocket.
+
+---
+
+*This document is a companion to `docs/dashboard-vision.md`. It expands moonshot #5 into a complete requirements specification. For the broader dashboard vision, see that document. For the dogfooding flywheel operating model, see `docs/dogfooding-flywheel.md`. For the first-day autopilot moonshot, see `docs/moonshots.md` § 2.*
