@@ -89,7 +89,7 @@ Imagine the evolve loop maintaining a Pareto frontier across:
 
 A candidate config that improves hit rate at the cost of 10x token spend would be visible as a Pareto tradeoff, not silently accepted or rejected. The operator could choose their position on the frontier.
 
-The `ScoringRule` semigroup in `learning-shared.ts` already supports weighted combination with `combineScoringRules` and `contramapScoringRule`. A Pareto frontier is just a different composition strategy for the same algebraic structure.
+The `ScoringRule` semigroup ✅ is now a first-class algebra in `lib/domain/algebra/scoring.ts` — promoted from `learning-shared.ts` with full monoid (identity + annihilator), bounded clamping, contramap, and law-verifiable semigroup/monoid instances. A Pareto frontier is just a different composition strategy for the same algebraic structure.
 
 ---
 
@@ -174,9 +174,9 @@ Currently the system has several implicit state machines that could be made expl
 
 Making these explicit gets you free visualization in the dashboard, free replay/debugging, and free composition — run a discovery state machine *inside* the dogfood state machine inside the evolve state machine, each with its own convergence criterion and checkpoint policy.
 
-### 4.3 Hierarchical state machines for complex workflows
+### 4.3 Hierarchical state machines for complex workflows ✅ (pipeline DAG + concurrent graph builder)
 
-The 15-line abstraction supports nesting naturally because `step` returns an `Effect`. One machine's step can run an entire inner machine:
+The 15-line abstraction supports nesting naturally because `step` returns an `Effect`. One machine's step can run an entire inner machine. The `lib/application/pipeline-dag.ts` formalizes pipeline execution as a dependency-aware DAG with topological sort (Kahn's algorithm), parallel group discovery, and cycle validation. The `lib/application/concurrent-graph-builder.ts` uses `Effect.all` to parallelize independent node-kind collection builds while keeping edge construction sequential.
 
 ```
 evolve-loop
@@ -207,7 +207,7 @@ With `SelectorGlows` highlighting probed elements, `ParticleTransport` arcing fr
 
 This is already beautiful. But it's currently a visualization *of* the pipeline. It could become a visualization *as* the pipeline — an interactive control surface where the operator sees computation happening in space and can intervene mid-flight.
 
-### 5.2 The spatial canvas as an operator control room
+### 5.2 The spatial canvas as an operator control room ✅ (MCP tool surface)
 
 Imagine extending the spatial layout:
 
@@ -217,7 +217,7 @@ Imagine extending the spatial layout:
 - **Rotate the KnowledgeObservatory** to see knowledge nodes colored by lifecycle state (candidate → observed → stable → aging → retired)
 - **Watch the IterationPulse** slow down as convergence approaches, like a heartbeat calming
 
-The `usePipelineBuffer` hook already has the SharedArrayBuffer zero-copy path. The MCP tools already expose structural data. The `WorkbenchPanel` already has the approval workflow. The pieces exist — the interaction layer is the missing skin.
+The `usePipelineBuffer` hook already has the SharedArrayBuffer zero-copy path. The MCP tools already expose structural data — `lib/infrastructure/mcp/dashboard-mcp-server.ts` implements a 21-tool dashboard server and `lib/infrastructure/mcp/resource-provider.ts` adds `tesseract://` URI resource access. The `WorkbenchPanel` already has the approval workflow. The `lib/application/workbench-consumer.ts` exposes scored work-item consumption for external agents. The pieces exist — the interaction layer is the missing skin.
 
 ### 5.3 Computation as choreography
 
@@ -298,13 +298,13 @@ Wire them together and you get a live spectator view of the system improving its
 
 This is fun to watch. It is also the single most effective way to build intuition about the system's behavior. An operator who has watched 50 speedruns understands the pipeline better than one who has read every line of documentation.
 
-### 7.2 Knowledge archaeology
+### 7.2 Knowledge archaeology ✅ (lineage monoid + proposal quality + component maturation)
 
 The provenance chain tracks which runs justified which hints, which discoveries led to which proposals, which proposals were activated or rejected. Over time this builds a rich history.
 
 **Knowledge archaeology mode**: query the system with "why does this screen have this alias?" and get back the full evidence chain — the discovery run that first observed the element, the phrasing variants that triggered translation misses, the proposal that added the alias, the speedrun that validated it improved hit rate.
 
-The `lineage` field in the envelope already carries `sources`, `parents`, and `handshakes`. The graph already has provenance edges. The archaeology tool is a traversal query, not a new system.
+The `lineage` field in the envelope already carries `sources`, `parents`, and `handshakes`. The graph already has provenance edges. The archaeology tool is a traversal query, not a new system. The building blocks are now richer: `lib/domain/algebra/lineage.ts` (product monoid for lineage concatenation), `lib/domain/proposal-quality.ts` (alias outcome tracking with misdirection detection and quarantine), `lib/domain/component-maturation.ts` (component knowledge maturation from runtime evidence with confidence scoring).
 
 ### 7.3 The "what would break" simulator
 
@@ -333,15 +333,15 @@ This enables:
 
 The `graph-query.ts` module already supports graph traversal. The state transition graph already has the topology. The formal language interpretation is a view, not a rebuild.
 
-### 8.2 Collaborative multi-agent resolution
+### 8.2 Collaborative multi-agent resolution ✅ (A/B testing + strategy registry + MCP bridge)
 
 The current architecture has one agent per step resolution. But the `AgentInterpretationRequest` type and the provider abstraction (`agent-interpreter-provider.ts`) are clean enough to support multiple agents collaborating:
 
-- **Specialist agents**: one agent knows forms, another knows tables, another knows modals. Route steps to the specialist based on the `CanonicalTargetRef` type
-- **Adversarial verification**: two agents resolve independently; if they agree, high confidence; if they disagree, flag for human review
+- **Specialist agents** ✅: `lib/runtime/agent/strategy-registry.ts` — O(1) rung-to-strategy lookup with immutable registration and total-function verification; new rungs compose as new strategy entries
+- **Adversarial verification** ✅: `lib/application/agent-ab-testing.ts` — deterministic traffic splitting between control/treatment providers, per-variant result recording, and quality-delta summarization
 - **Teacher-student**: a high-capability agent resolves and explains; a lightweight agent learns from the explanation and attempts similar steps solo
 
-The `provider-registry.ts` already supports registering multiple providers. The `agent-decider.ts` already has dual-mode logic (agent vs. human). Extend to N-mode with routing.
+The `provider-registry.ts` already supports registering multiple providers. The `agent-decider.ts` already has dual-mode logic (agent vs. human). The `lib/runtime/agent/mcp-bridge.ts` gives the internal agent interpreter the same tool access as external MCP agents, enabling hybrid agent topologies.
 
 ### 8.3 Cross-application knowledge transfer
 
@@ -353,11 +353,11 @@ The `knowledge/patterns/` layer carries reusable intent phrases, posture aliases
 
 A **pattern marketplace** where teams share and consume universal patterns would let a new application start with 80% of its resolution pipeline pre-trained. The `knowledge-posture.ts` system already gates what knowledge is available. A `shared-patterns` posture that loads community patterns before falling back to local knowledge is a natural extension.
 
-### 8.4 The system as its own documentation
+### 8.4 The system as its own documentation ✅ (doctrine compiler)
 
 The review artifacts (`generated/{suite}/{ado_id}.review.md`) already explain what the compiler derived, what the runtime did, and where governance intervention is needed. Extend this:
 
-- **Living architecture documentation**: generate `docs/` content from the interface graph, showing the app's screens, transitions, and target inventory — always in sync with reality
+- **Living architecture documentation** ✅: `lib/domain/doctrine-compiler.ts` — extracts structured invariants from CLAUDE.md-style markdown and compiles them into executable law-style tests (6 pattern types: `file-must-not-import`, `function-must-exist`, `type-must-have-field`, `directory-structure`, `prefer-pattern`, `prohibit-pattern`)
 - **Runbook authoring from observation**: after N successful runs with consistent resolution paths, auto-generate a `controls/runbooks/` file that codifies the observed pattern
 - **Test plan projection**: given the state transition graph and current scenario coverage, project a "recommended test plan" showing which transitions are uncovered and what scenarios would cover them
 
@@ -382,7 +382,7 @@ These artifacts compose into something that doesn't have a standard name yet. It
 
 The test is just the proof that the understanding is correct.
 
-### 9.2 The real product is the interpretation surface
+### 9.2 The real product is the interpretation surface ✅ (MCP projection + VS Code + dashboard server)
 
 The `Interpretation Surface` — defined in `master-architecture.md` as the single machine boundary shared by planning, runtime, review, intervention, and improvement — is the actual product. Everything else is a projection.
 
@@ -404,9 +404,9 @@ If I had to pick five items from this document that I find most compelling, in o
 
 3. **Speedrun spectator mode** (7.1) ✅ — `pipeline-event-bus.ts` (Effect PubSub + SAB ring buffer) wires progress events to the dashboard; `convergence-ribbon.tsx`, `fitness-card.tsx`, and `iteration-pulse.tsx` render live.
 
-4. **The app as a formal language** (8.1) — treat the state transition graph as a finite automaton and derive coverage properties, minimal test suites, and completeness checks. The graph is there; the formal interpretation is free.
+4. **The app as a formal language** (8.1) ✅ (graph queries) — `lib/domain/graph-queries.ts` provides reachable-screen computation, shortest-path (BFS), transition enumeration, and screen-element queries. Completeness checking and path-coverage planning follow directly.
 
-5. **Monadic envelope composition** (6.1) — refactor the pipeline into a chain of `flatMapPayload` operations that automatically thread lineage, governance, and fingerprints. This is the "makes everything else easier" refactor.
+5. **Monadic envelope composition** (6.1) ✅ (algebra foundation) — the algebraic building blocks (`lattice.ts`, `lineage.ts`, `scoring.ts`, `kleisli.ts`) are implemented; the surface refactor into `flatMapPayload` chains remains.
 
 ---
 
