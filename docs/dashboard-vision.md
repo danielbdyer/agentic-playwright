@@ -9,10 +9,10 @@
 Before dreaming, let's ground ourselves. As of today, the Tesseract dashboard is already far more than a status page:
 
 - **A spatial visualization** powered by React 19 + react-three-fiber, with a Three.js scene that renders a live screen plane, bioluminescent selector glows, particle transport arcs, a frosted glass pane separating the DOM world from the knowledge world, and a crystallized knowledge observatory.
-- **A real-time event-driven view** fed by an Effect-native server with PubSub event bus, SharedArrayBuffer ring buffer, and zero-dependency WebSocket broadcast. 22 event types stream from the pipeline fiber into the scene.
-- **A human-in-the-loop decision surface** where the Effect fiber can pause, present a decision overlay in 3D space, and resume when the operator approves or skips — with particle burst animations that carry the decision result toward the knowledge side of the glass.
-- **An MCP-integrated viewport** exposing structured tool endpoints so agents can observe the same data the visual layer consumes.
-- **An atomic design system** with Tailwind v4 semantic governance tokens, 16 spatial components, convergence panels, pipeline progress, fitness cards, workbench panels, and queue visualizations.
+- ✅ **A real-time event-driven view** fed by an Effect-native server with PubSub event bus, SharedArrayBuffer ring buffer, and zero-dependency WebSocket broadcast. 22 event types stream from the pipeline fiber into the scene.
+- ✅ **A human-in-the-loop decision surface** where the Effect fiber can pause, present a decision overlay in 3D space, and resume when the operator approves or skips — with particle burst animations that carry the decision result toward the knowledge side of the glass.
+- ✅ **An MCP-integrated viewport** exposing structured tool endpoints so agents can observe the same data the visual layer consumes.
+- ✅ **An atomic design system** with Tailwind v4 semantic governance tokens, 16 spatial components, convergence panels, pipeline progress, fitness cards, workbench panels, and queue visualizations.
 
 This is not a dashboard bolted onto a test generator. This is the beginnings of a *visual consciousness* for an interface intelligence system. The fiber is the mind. The dashboard is the eyes.
 
@@ -131,7 +131,7 @@ The remote control mode should feel like operating a rover on another planet. Yo
 
 3. **Human-in-the-loop decision surfaces.** Approval, skip, batch operations, and contextual investigation of proposals, hotspots, and needs-human items.
 
-4. **Agent-equivalent access.** Every capability the dashboard provides to a human must also be accessible through the MCP tool endpoints. The dashboard is one consumer of the `DashboardPort` interface, not the only one. `DisabledDashboard`, `AgentDecider`, and `DualModeDecider` are equally valid.
+4. ✅ **Agent-equivalent access.** Every capability the dashboard provides to a human must also be accessible through the MCP tool endpoints. The dashboard is one consumer of the `DashboardPort` interface, not the only one. `DisabledDashboard`, `AgentDecider`, and `DualModeDecider` are equally valid.
 
 5. **Progressive enhancement layers.** The dashboard adds capability without creating dependency. Toggling it on or off must never change pipeline behavior or output. Layer 0 (texture + glows + particles) through Layer 3 (convergence + proposals + aurora) compose cleanly and degrade gracefully.
 
@@ -240,7 +240,7 @@ These are the moonshots. Each one is technically challenging, architecturally gr
 
 4. **Time is a first-class dimension.** The dashboard should not only show what is happening now, but what happened before and what is likely to happen next. Temporal awareness is what turns observation into intelligence.
 
-5. **Decisions are events, not buttons.** Every operator action in the dashboard produces a typed event that enters the same event vocabulary as system events and agent events. The workbench panel is not a separate UI. It is a view into the intervention ledger that happens to include action affordances.
+5. ✅ **Decisions are events, not buttons.** Every operator action in the dashboard produces a typed event that enters the same event vocabulary as system events and agent events. The workbench panel is not a separate UI. It is a view into the intervention ledger that happens to include action affordances.
 
 6. **Aesthetic quality is a feature.** The bioluminescent glows, the particle transport arcs, the glass pane, the bloom postprocessing — these are not decorations. They are what make the dashboard *compelling enough to watch*. A system that needs to be monitored for hours should be beautiful. Beauty is a feature of sustained attention.
 
