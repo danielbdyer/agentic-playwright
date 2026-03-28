@@ -104,6 +104,17 @@ type RouteBinding = {
     screen: ScreenId;
     url: string;
     rootSelector: string | null;
+    urlPattern?: string | null;
+    dimensions?: readonly ('query' | 'hash' | 'tab' | 'segment')[];
+    expectedEntryState?: {
+      requiredStateRefs: readonly string[];
+      forbiddenStateRefs: readonly string[];
+    } | undefined;
+    historicalSuccess?: {
+      successCount: number;
+      failureCount: number;
+      lastSuccessAt?: string | null | undefined;
+    } | undefined;
   }>;
   sourceArtifacts: string[];
 };
@@ -295,6 +306,17 @@ function routeBindings(catalog: WorkspaceCatalog): RouteBinding[] {
           screen: variant.screen,
           url: variant.url,
           rootSelector: variant.rootSelector ?? route.rootSelector ?? null,
+          urlPattern: variant.urlPattern ?? null,
+          dimensions: variant.dimensions ?? [],
+          expectedEntryState: {
+            requiredStateRefs: variant.expectedEntryState?.requiredStateRefs ?? [],
+            forbiddenStateRefs: variant.expectedEntryState?.forbiddenStateRefs ?? [],
+          },
+          historicalSuccess: {
+            successCount: variant.historicalSuccess?.successCount ?? 0,
+            failureCount: variant.historicalSuccess?.failureCount ?? 0,
+            lastSuccessAt: variant.historicalSuccess?.lastSuccessAt ?? null,
+          },
         })),
         sourceArtifacts: [entry.artifactPath],
       })),
@@ -330,6 +352,14 @@ interface CatalogScreenIndex {
   readonly hints: ReadonlyMap<ScreenId, HintsCatalogEntry>;
   readonly postures: ReadonlyMap<ScreenId, PosturesCatalogEntry>;
   readonly routeVariantsByScreen: ReadonlyMap<ScreenId, readonly string[]>;
+  readonly routeVariantDetailsByScreen: ReadonlyMap<ScreenId, ReadonlyArray<{
+    routeVariantRef: string;
+    url: string;
+    urlPattern: string | null;
+    dimensions: readonly ('query' | 'hash' | 'tab' | 'segment')[];
+    expectedEntryStateRefs: readonly string[];
+    historicalSuccess: { successCount: number; failureCount: number; lastSuccessAt: string | null };
+  }>>;
   readonly confidenceByKey: ReadonlyMap<string, ArtifactConfidenceRecord>;
 }
 
@@ -360,6 +390,33 @@ function buildCatalogScreenIndex(catalog: WorkspaceCatalog, routes: readonly Rou
   const routeVariantsByScreen = new Map<ScreenId, readonly string[]>(
     [...unsortedVariants.entries()].map(([screen, refs]) => [screen, sortStrings([...refs])]),
   );
+  const routeVariantDetailsByScreen = routes.reduce(
+    (acc, binding) => binding.variants.reduce((inner, variant) => {
+      const ref = routeVariantRef(binding.app, binding.routeId, variant.variantId);
+      const existing = inner.get(variant.screen) ?? [];
+      const payload = {
+        routeVariantRef: ref,
+        url: variant.url,
+        urlPattern: (variant as { urlPattern?: string | null }).urlPattern ?? null,
+        dimensions: ((variant as { dimensions?: readonly ('query' | 'hash' | 'tab' | 'segment')[] }).dimensions ?? []) as readonly ('query' | 'hash' | 'tab' | 'segment')[],
+        expectedEntryStateRefs: (((variant as { expectedEntryState?: { requiredStateRefs?: readonly string[] } }).expectedEntryState?.requiredStateRefs) ?? []) as readonly string[],
+        historicalSuccess: {
+          successCount: ((variant as { historicalSuccess?: { successCount?: number } }).historicalSuccess?.successCount) ?? 0,
+          failureCount: ((variant as { historicalSuccess?: { failureCount?: number } }).historicalSuccess?.failureCount) ?? 0,
+          lastSuccessAt: ((variant as { historicalSuccess?: { lastSuccessAt?: string | null } }).historicalSuccess?.lastSuccessAt) ?? null,
+        },
+      };
+      return new Map([...inner, [variant.screen, [...existing, payload]]]);
+    }, acc),
+    new Map<ScreenId, ReadonlyArray<{
+      routeVariantRef: string;
+      url: string;
+      urlPattern: string | null;
+      dimensions: readonly ('query' | 'hash' | 'tab' | 'segment')[];
+      expectedEntryStateRefs: readonly string[];
+      historicalSuccess: { successCount: number; failureCount: number; lastSuccessAt: string | null };
+    }>>(),
+  );
   // Pre-index confidence records by screen:element key: O(1) lookup instead of O(R) scan
   const confidenceByKey = new Map<string, ArtifactConfidenceRecord>();
   for (const record of catalog.confidenceCatalog?.artifact.records ?? []) {
@@ -367,11 +424,22 @@ function buildCatalogScreenIndex(catalog: WorkspaceCatalog, routes: readonly Rou
       confidenceByKey.set(`${record.screen}:${record.element}`, record);
     }
   }
-  return { surfaces, elements, hints, postures, routeVariantsByScreen, confidenceByKey };
+  return { surfaces, elements, hints, postures, routeVariantsByScreen, routeVariantDetailsByScreen, confidenceByKey };
 }
 
 function routeVariantRefsForScreen(idx: CatalogScreenIndex, screen: ScreenId): readonly string[] {
   return idx.routeVariantsByScreen.get(screen) ?? [];
+}
+
+function routeVariantDetailsForScreen(idx: CatalogScreenIndex, screen: ScreenId): readonly {
+  routeVariantRef: string;
+  url: string;
+  urlPattern: string | null;
+  dimensions: readonly ('query' | 'hash' | 'tab' | 'segment')[];
+  expectedEntryStateRefs: readonly string[];
+  historicalSuccess: { successCount: number; failureCount: number; lastSuccessAt: string | null };
+}[] {
+  return idx.routeVariantDetailsByScreen.get(screen) ?? [];
 }
 
 function surfaceEntryForScreen(idx: CatalogScreenIndex, screen: ScreenId): SurfaceCatalogEntry | null {
@@ -881,6 +949,10 @@ function buildApplicationInterfaceGraph(_input: {
         payload: {
           app: binding.app,
           url: variant.url,
+          urlPattern: variant.urlPattern ?? variant.url,
+          dimensions: variant.dimensions ?? [],
+          expectedEntryState: variant.expectedEntryState ?? { requiredStateRefs: [], forbiddenStateRefs: [] },
+          historicalSuccess: variant.historicalSuccess ?? { successCount: 0, failureCount: 0, lastSuccessAt: null },
           routeVariantRef: routeVariantRef(binding.app, binding.routeId, variant.variantId),
           rootSelector: variant.rootSelector,
         },
@@ -914,6 +986,7 @@ function buildApplicationInterfaceGraph(_input: {
         url: surfaceGraph.url,
         aliases: screenAliases(index, surfaceGraph.screen),
         routeVariantRefs: routeVariantRefsForScreen(index, surfaceGraph.screen),
+        routeVariants: routeVariantDetailsForScreen(index, surfaceGraph.screen),
         knowledgeRefs: screenKnowledgeRefs(input.index, surfaceGraph.screen),
         supplementRefs: screenSupplementRefs(input.index, surfaceGraph.screen),
         sectionSnapshots: screenSectionSnapshots(index, surfaceGraph.screen),

@@ -363,4 +363,8 @@ export interface ResolutionTarget {
   readonly posture?: PostureId | null | undefined;
   readonly override?: string | null | undefined;
   readonly snapshot_template?: SnapshotTemplateId | null | undefined;
+  /** Semantic destination hint for navigate actions (e.g., "policy search / tab=open"). */
+  readonly semanticDestination?: string | null | undefined;
+  /** Route variant ref selected during route planning, if available. */
+  readonly routeVariantRef?: string | null | undefined;
 }

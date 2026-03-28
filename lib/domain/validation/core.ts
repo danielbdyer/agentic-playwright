@@ -683,6 +683,26 @@ function validateStepTaskScreenCandidate(value: unknown, path: string) {
     screen: expectId(candidate.screen, `${path}.screen`, createScreenId),
     url: expectString(candidate.url, `${path}.url`),
     routeVariantRefs: expectStringArray(candidate.routeVariantRefs ?? [], `${path}.routeVariantRefs`),
+    routeVariants: expectArray(candidate.routeVariants ?? [], `${path}.routeVariants`).map((entry, index) => {
+      const variant = expectRecord(entry, `${path}.routeVariants[${index}]`);
+      const historical = expectRecord(variant.historicalSuccess ?? {}, `${path}.routeVariants[${index}].historicalSuccess`);
+      return {
+        routeVariantRef: expectString(variant.routeVariantRef, `${path}.routeVariants[${index}].routeVariantRef`),
+        url: expectString(variant.url, `${path}.routeVariants[${index}].url`),
+        urlPattern: expectOptionalString(variant.urlPattern, `${path}.routeVariants[${index}].urlPattern`) ?? null,
+        dimensions: expectArray(variant.dimensions ?? [], `${path}.routeVariants[${index}].dimensions`).map((dimension, dimensionIndex) =>
+          expectEnum(dimension, `${path}.routeVariants[${index}].dimensions[${dimensionIndex}]`, ['query', 'hash', 'tab', 'segment'] as const),
+        ),
+        expectedEntryStateRefs: expectArray(variant.expectedEntryStateRefs ?? [], `${path}.routeVariants[${index}].expectedEntryStateRefs`).map((stateRef, stateRefIndex) =>
+          expectId(stateRef, `${path}.routeVariants[${index}].expectedEntryStateRefs[${stateRefIndex}]`, createStateNodeRef),
+        ),
+        historicalSuccess: {
+          successCount: expectNumber(historical.successCount ?? 0, `${path}.routeVariants[${index}].historicalSuccess.successCount`),
+          failureCount: expectNumber(historical.failureCount ?? 0, `${path}.routeVariants[${index}].historicalSuccess.failureCount`),
+          lastSuccessAt: expectOptionalString(historical.lastSuccessAt, `${path}.routeVariants[${index}].historicalSuccess.lastSuccessAt`) ?? null,
+        },
+      };
+    }),
     screenAliases: expectStringArray(candidate.screenAliases ?? [], `${path}.screenAliases`),
     knowledgeRefs: expectStringArray(candidate.knowledgeRefs ?? [], `${path}.knowledgeRefs`),
     supplementRefs: expectStringArray(candidate.supplementRefs ?? [], `${path}.supplementRefs`),
@@ -1141,6 +1161,8 @@ function validateResolutionTarget(value: unknown, path: string) {
     posture: expectOptionalId(target.posture, `${path}.posture`, createPostureId) ?? null,
     override: expectOptionalString(target.override, `${path}.override`) ?? null,
     snapshot_template: expectOptionalId(target.snapshot_template, `${path}.snapshot_template`, createSnapshotTemplateId) ?? null,
+    semanticDestination: expectOptionalString(target.semanticDestination, `${path}.semanticDestination`) ?? null,
+    routeVariantRef: expectOptionalString(target.routeVariantRef, `${path}.routeVariantRef`) ?? null,
   };
 }
 
@@ -1361,6 +1383,26 @@ function validateStepExecutionReceipt(value: unknown, path: string): StepExecuti
         detail: observation.detail === undefined ? undefined : expectStringRecord(observation.detail, `${path}.transitionObservations[${index}].detail`),
       };
     }),
+    navigation: (() => {
+      if (receipt.navigation === undefined || receipt.navigation === null) {
+        return undefined;
+      }
+      const navigation = expectRecord(receipt.navigation, `${path}.navigation`);
+      return {
+        selectedRouteVariantRef: expectOptionalString(navigation.selectedRouteVariantRef, `${path}.navigation.selectedRouteVariantRef`) ?? null,
+        selectedRouteUrl: expectOptionalString(navigation.selectedRouteUrl, `${path}.navigation.selectedRouteUrl`) ?? null,
+        semanticDestination: expectOptionalString(navigation.semanticDestination, `${path}.navigation.semanticDestination`) ?? null,
+        expectedEntryStateRefs: expectArray(navigation.expectedEntryStateRefs ?? [], `${path}.navigation.expectedEntryStateRefs`).map((entry, index) =>
+          expectId(entry, `${path}.navigation.expectedEntryStateRefs[${index}]`, createStateNodeRef),
+        ),
+        observedEntryStateRefs: expectArray(navigation.observedEntryStateRefs ?? [], `${path}.navigation.observedEntryStateRefs`).map((entry, index) =>
+          expectId(entry, `${path}.navigation.observedEntryStateRefs[${index}]`, createStateNodeRef),
+        ),
+        fallbackRoutePath: expectStringArray(navigation.fallbackRoutePath ?? [], `${path}.navigation.fallbackRoutePath`),
+        mismatch: expectBoolean(navigation.mismatch ?? false, `${path}.navigation.mismatch`),
+        rationale: expectOptionalString(navigation.rationale, `${path}.navigation.rationale`) ?? null,
+      };
+    })(),
     durationMs: expectNumber(receipt.durationMs ?? 0, `${path}.durationMs`),
     timing: (() => {
       const timing = expectRecord(receipt.timing ?? {}, `${path}.timing`);

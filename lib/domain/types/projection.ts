@@ -334,6 +334,16 @@ export interface ScenarioExplanationStep {
       family: 'none' | 'precondition-failure' | 'locator-degradation-failure' | 'environment-runtime-failure';
       code?: string | null | undefined;
     } | undefined;
+    navigation?: {
+      selectedRouteVariantRef: string | null;
+      selectedRouteUrl: string | null;
+      semanticDestination: string | null;
+      expectedEntryStateRefs: readonly StateNodeRef[];
+      observedEntryStateRefs: readonly StateNodeRef[];
+      fallbackRoutePath: readonly string[];
+      mismatch: boolean;
+      rationale?: string | null | undefined;
+    } | undefined;
     exhaustion?: readonly ResolutionExhaustionEntry[] | undefined;
   } | undefined;
 }

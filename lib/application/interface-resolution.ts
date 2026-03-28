@@ -9,6 +9,7 @@ import type {
   StepTaskElementCandidate,
   StepTaskScreenCandidate,
 } from '../domain/types';
+import { createStateNodeRef } from '../domain/identity';
 import type { CanonicalTargetRef, PostureId, ScreenId, SelectorRef, SnapshotTemplateId } from '../domain/identity';
 import { computeDecayedConfidence, type FreshnessPolicy, defaultFreshnessPolicy } from '../domain/knowledge-freshness';
 import type { WorkspaceCatalog } from './catalog';
@@ -17,6 +18,14 @@ interface GraphScreenPayload {
   url?: string | null;
   aliases?: string[];
   routeVariantRefs?: string[];
+  routeVariants?: Array<{
+    routeVariantRef: string;
+    url: string;
+    urlPattern?: string | null;
+    dimensions?: Array<'query' | 'hash' | 'tab' | 'segment'>;
+    expectedEntryStateRefs?: string[];
+    historicalSuccess?: { successCount: number; failureCount: number; lastSuccessAt?: string | null };
+  }>;
   knowledgeRefs?: string[];
   supplementRefs?: string[];
   sectionSnapshots?: SnapshotTemplateId[];
@@ -108,6 +117,20 @@ function screenCandidates(input: {
         screen: node.screen!,
         url: payload.url ?? '',
         routeVariantRefs: sortStrings(payload.routeVariantRefs ?? []),
+        routeVariants: (payload.routeVariants ?? []).map((variant) => ({
+          routeVariantRef: variant.routeVariantRef,
+          url: variant.url,
+          urlPattern: variant.urlPattern ?? null,
+          dimensions: sortStrings((variant.dimensions ?? []) as Array<'query' | 'hash' | 'tab' | 'segment'>),
+          expectedEntryStateRefs: sortStrings((variant.expectedEntryStateRefs ?? []) as string[]).map((ref) => createStateNodeRef(ref)),
+          historicalSuccess: variant.historicalSuccess
+            ? {
+              successCount: variant.historicalSuccess.successCount ?? 0,
+              failureCount: variant.historicalSuccess.failureCount ?? 0,
+              lastSuccessAt: variant.historicalSuccess.lastSuccessAt ?? null,
+            }
+            : undefined,
+        })),
         screenAliases: sortStrings([node.screen!, ...(payload.aliases ?? [])]),
         knowledgeRefs: sortStrings(payload.knowledgeRefs ?? []),
         supplementRefs: sortStrings(payload.supplementRefs ?? []),

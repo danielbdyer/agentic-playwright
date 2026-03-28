@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { extractRoutePatterns, proposeRouteKnowledge } from '../lib/domain/route-knowledge';
+import { extractRoutePatterns, proposeRouteKnowledge, rankRouteVariants } from '../lib/domain/route-knowledge';
 import type { ObservedRoute } from '../lib/domain/types/route-knowledge';
 
 function makeRoute(overrides: Partial<ObservedRoute> & Pick<ObservedRoute, 'url' | 'screenId'>): ObservedRoute {
@@ -137,4 +137,38 @@ test('multiple screens produce distinct patterns sorted by screenId', () => {
   expect(patterns[0]!.screenId).toBe('dashboard');
   expect(patterns[1]!.screenId).toBe('order-detail');
   expect(patterns[1]!.pattern).toBe('/orders/{orderId}');
+});
+
+test('rankRouteVariants prefers specific semantic match with stronger historical success', () => {
+  const ranked = rankRouteVariants(
+    [
+      {
+        routeVariantRef: 'route-variant:app:orders:orders-open',
+        screenId: 'orders',
+        url: '/orders?tab=open',
+        urlPattern: '/orders?tab={tab}',
+        dimensions: ['query', 'tab'],
+        expectedEntryStateRefs: ['state:orders:list'],
+        historicalSuccess: { successCount: 18, failureCount: 2, lastSuccessAt: '2026-02-01T00:00:00Z' },
+      },
+      {
+        routeVariantRef: 'route-variant:app:orders:orders-default',
+        screenId: 'orders',
+        url: '/orders',
+        urlPattern: '/orders',
+        dimensions: [],
+        expectedEntryStateRefs: [],
+        historicalSuccess: { successCount: 2, failureCount: 8, lastSuccessAt: '2026-01-01T00:00:00Z' },
+      },
+    ],
+    {
+      screenId: 'orders',
+      semanticDestination: 'orders open tab',
+      expectedEntryStateRefs: ['state:orders:list'],
+    },
+  );
+
+  expect(ranked).toHaveLength(2);
+  expect(ranked[0]!.variant.routeVariantRef).toBe('route-variant:app:orders:orders-open');
+  expect(ranked[0]!.score).toBeGreaterThan(ranked[1]!.score);
 });

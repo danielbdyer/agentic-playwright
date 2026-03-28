@@ -152,6 +152,16 @@ export interface StepExecutionReceipt {
   readonly expectedTransitionRefs?: readonly TransitionRef[] | undefined;
   readonly observedStateRefs?: readonly StateNodeRef[] | undefined;
   readonly transitionObservations?: readonly TransitionObservation[] | undefined;
+  readonly navigation?: {
+    readonly selectedRouteVariantRef: string | null;
+    readonly selectedRouteUrl: string | null;
+    readonly semanticDestination: string | null;
+    readonly expectedEntryStateRefs: readonly StateNodeRef[];
+    readonly observedEntryStateRefs: readonly StateNodeRef[];
+    readonly fallbackRoutePath: readonly string[];
+    readonly mismatch: boolean;
+    readonly rationale?: string | null | undefined;
+  } | undefined;
   readonly durationMs: number;
   readonly timing: {
     readonly setupMs: number;

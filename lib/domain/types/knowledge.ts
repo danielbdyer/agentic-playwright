@@ -47,6 +47,18 @@ export interface StepTaskScreenCandidate {
   readonly screen: ScreenId;
   readonly url: string;
   readonly routeVariantRefs: readonly string[];
+  readonly routeVariants?: ReadonlyArray<{
+    readonly routeVariantRef: string;
+    readonly url: string;
+    readonly urlPattern?: string | null | undefined;
+    readonly dimensions?: readonly ('query' | 'hash' | 'tab' | 'segment')[];
+    readonly expectedEntryStateRefs?: readonly StateNodeRef[];
+    readonly historicalSuccess?: {
+      readonly successCount: number;
+      readonly failureCount: number;
+      readonly lastSuccessAt?: string | null | undefined;
+    } | undefined;
+  }> | undefined;
   readonly screenAliases: readonly string[];
   readonly knowledgeRefs: readonly string[];
   readonly supplementRefs: readonly string[];
