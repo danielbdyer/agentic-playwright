@@ -22,3 +22,35 @@ export interface RouteKnowledgeProposal {
   readonly reason: string;
   readonly suggestedPath: string;
 }
+
+export type RouteVariantDimension = 'query' | 'hash' | 'tab' | 'segment';
+
+export interface RouteVariantKnowledge {
+  readonly routeVariantRef: string;
+  readonly screenId: string;
+  readonly url: string;
+  readonly urlPattern: string;
+  readonly dimensions: readonly RouteVariantDimension[];
+  readonly expectedEntryStateRefs: readonly string[];
+  readonly historicalSuccess: {
+    readonly successCount: number;
+    readonly failureCount: number;
+    readonly lastSuccessAt?: string | null | undefined;
+  };
+}
+
+export interface RouteVariantSelectionInput {
+  readonly screenId: string;
+  readonly semanticDestination: string;
+  readonly expectedEntryStateRefs: readonly string[];
+}
+
+export interface RankedRouteVariant {
+  readonly variant: RouteVariantKnowledge;
+  readonly specificityScore: number;
+  readonly historicalSuccessScore: number;
+  readonly semanticScore: number;
+  readonly entryStateScore: number;
+  readonly score: number;
+  readonly rationale: string;
+}

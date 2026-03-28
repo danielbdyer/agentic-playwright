@@ -13,6 +13,30 @@ export const HarvestRouteVariantSchema = Schema.Struct({
   url: Schema.String,
   screen: ScreenIdSchema,
   rootSelector: Schema.optionalWith(NullableString, { default: () => null }),
+  urlPattern: Schema.optionalWith(NullableString, { default: () => null }),
+  dimensions: Schema.optionalWith(Schema.Array(Schema.Literal('query', 'hash', 'tab', 'segment')), {
+    default: () => [] as const,
+  }),
+  expectedEntryState: Schema.optionalWith(Schema.Struct({
+    requiredStateRefs: Schema.optionalWith(Schema.Array(Schema.String), { default: () => [] as const }),
+    forbiddenStateRefs: Schema.optionalWith(Schema.Array(Schema.String), { default: () => [] as const }),
+  }), {
+    default: () => ({
+      requiredStateRefs: [] as const,
+      forbiddenStateRefs: [] as const,
+    }),
+  }),
+  historicalSuccess: Schema.optionalWith(Schema.Struct({
+    successCount: Schema.Number,
+    failureCount: Schema.Number,
+    lastSuccessAt: Schema.optionalWith(NullableString, { default: () => null }),
+  }), {
+    default: () => ({
+      successCount: 0,
+      failureCount: 0,
+      lastSuccessAt: null,
+    }),
+  }),
 });
 
 export const HarvestRouteDefinitionSchema = Schema.Struct({

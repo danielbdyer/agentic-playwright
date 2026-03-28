@@ -131,6 +131,8 @@ export function explicitResolvedReceipt(stage: RuntimeAgentStageContext, pending
       posture: explicit.posture ?? null,
       override: explicit.override ?? null,
       snapshot_template: explicit.snapshot_template ?? null,
+      semanticDestination: explicit.action === 'navigate' ? stage.task.normalizedIntent : null,
+      routeVariantRef: null,
     },
   };
 }

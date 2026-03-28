@@ -88,6 +88,18 @@ function runtimeStatusForStep(run: RunRecord | null | undefined, stepIndex: numb
       family: runStep.execution.failure.family,
       code: runStep.execution.failure.code ?? null,
     },
+    navigation: runStep.execution.navigation
+      ? {
+        selectedRouteVariantRef: runStep.execution.navigation.selectedRouteVariantRef,
+        selectedRouteUrl: runStep.execution.navigation.selectedRouteUrl,
+        semanticDestination: runStep.execution.navigation.semanticDestination,
+        expectedEntryStateRefs: runStep.execution.navigation.expectedEntryStateRefs,
+        observedEntryStateRefs: runStep.execution.navigation.observedEntryStateRefs,
+        fallbackRoutePath: runStep.execution.navigation.fallbackRoutePath,
+        mismatch: runStep.execution.navigation.mismatch,
+        rationale: runStep.execution.navigation.rationale ?? null,
+      }
+      : undefined,
     exhaustion: runStep.interpretation.exhaustion,
   };
 }

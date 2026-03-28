@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { attachConsoleSentinel } from './console-sentinel';
 import { uniqueSorted } from '../domain/collections';
+import { rankRouteVariants } from '../domain/route-knowledge';
 import type { AdoId, StateNodeRef, TransitionRef } from '../domain/identity';
 import type { ExecutionBudgetThresholds } from '../domain/execution/telemetry';
 import { defaultRecoveryPolicy, recoveryFamilyConfig, type RecoveryAttempt, type RecoveryPolicy, type RecoveryStrategy } from '../domain/execution/recovery-policy';
@@ -24,6 +25,7 @@ import type {
   TranslationRequest,
   TranslationReceipt,
 } from '../domain/types';
+import type { RouteVariantKnowledge } from '../domain/types/route-knowledge';
 import { runStaticInterpreter } from './interpreters/execute';
 import type { InterpreterMode, InterpreterScreenRegistry } from './interpreters/types';
 import { playwrightStepProgramInterpreter } from './program';
@@ -114,6 +116,68 @@ function relevantStateRefs(task: GroundedStep): readonly StateNodeRef[] {
     ...task.grounding.forbiddenStateRefs,
     ...task.grounding.resultStateRefs,
   ]);
+}
+
+interface RouteSelection {
+  readonly selectedRouteVariantRef: string | null;
+  readonly selectedRouteUrl: string | null;
+  readonly semanticDestination: string | null;
+  readonly fallbackRoutePath: readonly string[];
+  readonly rationale: string | null;
+}
+
+function routeVariantsForScreen(
+  context: InterfaceResolutionContext,
+  screen: string,
+): readonly RouteVariantKnowledge[] {
+  const screenEntry = context.screens.find((candidate) => candidate.screen === screen);
+  return (screenEntry?.routeVariants ?? []).map((variant) => ({
+    routeVariantRef: variant.routeVariantRef,
+    screenId: screen,
+    url: variant.url,
+    urlPattern: variant.urlPattern ?? variant.url,
+    dimensions: variant.dimensions ?? [],
+    expectedEntryStateRefs: variant.expectedEntryStateRefs ?? [],
+    historicalSuccess: {
+      successCount: variant.historicalSuccess?.successCount ?? 0,
+      failureCount: variant.historicalSuccess?.failureCount ?? 0,
+      lastSuccessAt: variant.historicalSuccess?.lastSuccessAt ?? null,
+    },
+  }));
+}
+
+function selectRouteForNavigate(input: {
+  context: InterfaceResolutionContext;
+  task: GroundedStep;
+  interpretation: Exclude<ResolutionReceipt, { kind: 'needs-human' }>;
+}): RouteSelection {
+  if (input.interpretation.target.action !== 'navigate') {
+    return {
+      selectedRouteVariantRef: null,
+      selectedRouteUrl: null,
+      semanticDestination: null,
+      fallbackRoutePath: [],
+      rationale: null,
+    };
+  }
+  const semanticDestination = input.interpretation.target.semanticDestination
+    ?? `${input.task.normalizedIntent} ${input.task.actionText}`.trim();
+  const ranked = rankRouteVariants(
+    routeVariantsForScreen(input.context, input.interpretation.target.screen),
+    {
+      screenId: input.interpretation.target.screen,
+      semanticDestination,
+      expectedEntryStateRefs: input.task.grounding.resultStateRefs,
+    },
+  );
+  const selected = ranked[0] ?? null;
+  return {
+    selectedRouteVariantRef: selected?.variant.routeVariantRef ?? input.interpretation.target.routeVariantRef ?? null,
+    selectedRouteUrl: selected?.variant.url ?? null,
+    semanticDestination,
+    fallbackRoutePath: ranked.slice(1, 4).map((entry) => entry.variant.routeVariantRef),
+    rationale: selected?.rationale ?? null,
+  };
 }
 
 function inferTransitionObservations(input: {
@@ -327,6 +391,19 @@ export async function runScenarioStep(
   };
   const interpretation = await agent.resolve(task, agentContext);
   state.observedStateSession = agentContext.observedStateSession ?? state.observedStateSession;
+  const routeSelection = interpretation.kind === 'needs-human'
+    ? {
+      selectedRouteVariantRef: null,
+      selectedRouteUrl: null,
+      semanticDestination: null,
+      fallbackRoutePath: [] as readonly string[],
+      rationale: null,
+    }
+    : selectRouteForNavigate({
+      context: interfaceResolutionContext,
+      task,
+      interpretation,
+    });
 
   if (interpretation.kind === 'needs-human') {
     return {
@@ -545,14 +622,43 @@ export async function runScenarioStep(
   const result = environment.mode === 'playwright'
     ? await playwrightStepProgramInterpreter.run(program, {
         page: environment.page as Page,
-        screens: environment.screens as never,
+        screens: (() => {
+          if (interpretation.target.action !== 'navigate' || !routeSelection.selectedRouteUrl) {
+            return environment.screens as never;
+          }
+          const current = environment.screens[interpretation.target.screen];
+          if (!current) {
+            return environment.screens as never;
+          }
+          return {
+            ...environment.screens,
+            [interpretation.target.screen]: {
+              ...current,
+              screen: {
+                ...current.screen,
+                url: routeSelection.selectedRouteUrl,
+              },
+            },
+          } as never;
+        })(),
         fixtures: environment.fixtures,
         snapshotLoader: environment.snapshotLoader,
       }, diagnosticContext)
     : await runStaticInterpreter(
         environment.mode,
         program,
-        environment.screens,
+        interpretation.target.action === 'navigate' && routeSelection.selectedRouteUrl
+          ? {
+            ...environment.screens,
+            [interpretation.target.screen]: {
+              ...environment.screens[interpretation.target.screen]!,
+              screen: {
+                ...environment.screens[interpretation.target.screen]!.screen,
+                url: routeSelection.selectedRouteUrl,
+              },
+            },
+          }
+          : environment.screens,
         environment.fixtures,
         diagnosticContext,
         environment.snapshotLoader,
@@ -619,6 +725,9 @@ export async function runScenarioStep(
           success: runtimeSucceeded,
         });
   const observedStateRefs = uniqueSorted(transitionObservations.flatMap((entry) => entry.observedStateRefs));
+  const navigationMismatch = interpretation.target.action === 'navigate'
+    && task.grounding.resultStateRefs.length > 0
+    && task.grounding.resultStateRefs.some((ref) => !observedStateRefs.includes(ref));
   const matchedTransitionRefs = uniqueSorted(
     transitionObservations
       .flatMap((entry) => entry.classification === 'matched' && entry.transitionRef ? [entry.transitionRef] : [])
@@ -680,6 +789,18 @@ export async function runScenarioStep(
     expectedTransitionRefs: task.grounding.expectedTransitionRefs,
     observedStateRefs,
     transitionObservations,
+    navigation: interpretation.target.action === 'navigate'
+      ? {
+        selectedRouteVariantRef: routeSelection.selectedRouteVariantRef,
+        selectedRouteUrl: routeSelection.selectedRouteUrl,
+        semanticDestination: routeSelection.semanticDestination,
+        expectedEntryStateRefs: task.grounding.resultStateRefs,
+        observedEntryStateRefs: observedStateRefs,
+        fallbackRoutePath: navigationMismatch ? routeSelection.fallbackRoutePath : [],
+        mismatch: navigationMismatch,
+        rationale: routeSelection.rationale,
+      }
+      : undefined,
     durationMs: completedAt - startedAt,
     timing,
     cost,
