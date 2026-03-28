@@ -2,6 +2,7 @@ import { sha256, stableStringify } from '../../domain/hash';
 import type { AdoId } from '../../domain/identity';
 import type { ProposalBundle, RunRecord, ScenarioRunStep } from '../../domain/types';
 import type { Governance, WorkflowEnvelopeFingerprints, WorkflowEnvelopeIds, WorkflowEnvelopeLineage } from '../../domain/types/workflow';
+import { GovernanceLattice } from '../../domain/algebra/lattice';
 import type { ProjectPaths } from '../paths';
 import { relativeProjectPath } from '../paths';
 import type { ArtifactEnvelope } from './types';
@@ -82,15 +83,25 @@ export function createEnvelopeLineage(input: {
   };
 }
 
+/**
+ * Derive aggregate governance from boolean flags.
+ * Implemented as a lattice meet: start with top (approved), meet with
+ * each observed governance state. This is equivalent to the prior
+ * if/else chain but uses the algebraic structure.
+ */
 export function deriveGovernanceState(input: {
   hasBlocked: boolean;
   hasReviewRequired: boolean;
 }): Governance {
-  return input.hasBlocked
-    ? 'blocked'
-    : input.hasReviewRequired
-      ? 'review-required'
-      : 'approved';
+  const { meet } = GovernanceLattice;
+  const base: Governance = 'approved';
+  const afterBlocked = input.hasBlocked ? meet(base, 'blocked') : base;
+  return input.hasReviewRequired ? meet(afterBlocked, 'review-required') : afterBlocked;
+}
+
+/** Fold an array of governance values to the most restrictive (lattice meet). */
+export function mergeGovernanceValues(values: readonly Governance[]): Governance {
+  return values.reduce(GovernanceLattice.meet, GovernanceLattice.top);
 }
 
 export function createRunRecordEnvelope(input: {

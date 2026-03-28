@@ -23,7 +23,7 @@ export type ConvergenceReason = 'no-proposals' | 'threshold-met' | 'budget-exhau
 // ─── Events ───
 
 export type ConvergenceEvent =
-  | { readonly kind: 'iteration-complete'; readonly proposalsActivated: number; readonly hitRateDelta: number }
+  | { readonly kind: 'iteration-complete'; readonly proposalsActivated: number; readonly hitRateDelta: number; readonly convergenceThreshold?: number }
   | { readonly kind: 'budget-check'; readonly instructionsUsed: number; readonly maxInstructions: number }
   | { readonly kind: 'iteration-limit'; readonly current: number; readonly max: number };
 
@@ -61,17 +61,19 @@ export function transitionConvergence(
 
   // Non-terminal transitions for iteration-complete events
   if (event.kind === 'iteration-complete') {
-    // No proposals activated → converged
-    if (event.proposalsActivated === 0) {
+    // No proposals activated after exploration → converged.
+    // In exploring state (first iteration), no-proposals just means nothing to learn yet.
+    if (event.proposalsActivated === 0 && state.kind !== 'exploring') {
       return { kind: 'converged', reason: 'no-proposals' };
     }
 
-    // Hit rate improving → narrowing
-    if (event.hitRateDelta > 0) {
+    // Hit rate improving above threshold → narrowing
+    const threshold = event.convergenceThreshold ?? 0;
+    if (event.hitRateDelta >= threshold && event.hitRateDelta > 0) {
       return { kind: 'narrowing', hitRateImproving: true, delta: event.hitRateDelta };
     }
 
-    // Hit rate stalled or declining
+    // Hit rate stalled, declining, or improving below threshold
     return foldConvergenceState<ConvergenceState>(state, {
       exploring: (): ConvergenceState =>
         ({ kind: 'plateau', stalledIterations: 1 }),

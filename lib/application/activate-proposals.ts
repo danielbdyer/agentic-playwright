@@ -1,6 +1,7 @@
 import path from 'path';
 import { Effect } from 'effect';
 import type { AutoApprovalPolicy, ProposalBundle, ProposalEntry, TrustPolicy } from '../domain/types';
+import { GovernanceLattice } from '../domain/algebra/lattice';
 import type { ProjectPaths } from './paths';
 import { FileSystem } from './ports';
 import { trySync } from './effect';
@@ -94,10 +95,12 @@ export function activateProposalBundle(options: {
       .filter((result) => result.blocked)
       .map((result) => (result as { proposalId: string }).proposalId);
 
-    const hasBlocked = proposals.some((proposal) => proposal.activation.status === 'blocked');
+    const proposalGovernances = proposals.map((p) =>
+      p.activation.status === 'blocked' ? 'blocked' as const : 'approved' as const,
+    );
     const proposalBundle: ProposalBundle = {
       ...options.proposalBundle,
-      governance: hasBlocked ? 'blocked' : 'approved',
+      governance: proposalGovernances.reduce(GovernanceLattice.meet, GovernanceLattice.top),
       payload: {
         ...options.proposalBundle.payload,
         proposals,
@@ -216,10 +219,12 @@ export function autoApproveEligibleProposals(options: {
       .filter((result) => result.blocked)
       .map((result) => result.proposal.proposalId);
 
-    const hasBlocked = proposals.some((proposal) => proposal.activation.status === 'blocked');
+    const proposalGovernances = proposals.map((p) =>
+      p.activation.status === 'blocked' ? 'blocked' as const : 'approved' as const,
+    );
     const proposalBundle: ProposalBundle = {
       ...options.proposalBundle,
-      governance: hasBlocked ? 'blocked' : 'approved',
+      governance: proposalGovernances.reduce(GovernanceLattice.meet, GovernanceLattice.top),
       payload: {
         ...options.proposalBundle.payload,
         proposals,

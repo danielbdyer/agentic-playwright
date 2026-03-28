@@ -30,6 +30,7 @@ import {
   type RankedLattice,
 } from './candidate-lattice';
 import { createPlaywrightDomResolver } from '../adapters/playwright-dom-resolver';
+import { isRung8Applicable, attemptRung8Resolution } from './rung8-llm-dom';
 
 /** Maximum characters for the DOM snapshot passed to the agent interpreter. */
 const DOM_SNAPSHOT_MAX_CHARS = 2048;
@@ -491,6 +492,43 @@ export async function tryLiveDomOrFallback(stage: RuntimeAgentStageContext, acc:
       } as ResolutionReceipt,
       effects: resolvedEffects,
     };
+  }
+
+  // ─── Rung 8: LLM-DOM Semantic Resolution ───
+  // Between structural DOM (Rung 7) and full agent interpretation (Rung 9),
+  // attempt lightweight semantic matching using the ARIA snapshot.
+  const rung8Snapshot = await captureTruncatedAriaSnapshot(stage.context.page);
+  const rung8ElementHint = acc.element?.element ?? stage.task.actionText ?? '';
+  const rung8ElementId: import('../../domain/identity').ElementId = acc.element?.element ?? (rung8ElementHint as import('../../domain/identity').ElementId);
+  if (isRung8Applicable(rung8Snapshot, rung8ElementHint)) {
+    const rung8Result = attemptRung8Resolution(rung8Snapshot!, rung8ElementHint);
+    if (rung8Result.resolved && rung8Result.selector && acc.action && domScreen) {
+      const rung8Effects: StageEffects = {
+        ...EMPTY_EFFECTS,
+        exhaustion: [exhaustionEntry('live-dom', 'resolved', `Rung 8 LLM-DOM resolved via semantic snapshot matching (confidence: ${rung8Result.confidence.toFixed(3)})`)],
+        observations: domObservations,
+      };
+      return {
+        receipt: {
+          ...needsHumanReceipt(stage, acc.overlayResult.overlayRefs, null, rung8Effects),
+          kind: 'resolved-with-proposals',
+          governance: mintApproved(),
+          lineage: { sources: [], parents: [stage.task.taskFingerprint], handshakes: ['preparation', 'resolution'] },
+          winningSource: 'live-dom',
+          confidence: 'agent-proposed',
+          provenanceKind: 'live-exploration',
+          target: {
+            action: acc.action,
+            screen: domScreen.screen,
+            element: rung8ElementId,
+            posture: acc.posture,
+            override: resolveOverride(stage.task, domScreen, acc.element, acc.posture, stage.controlResolution, stage.context).override,
+            snapshot_template: acc.snapshotTemplate,
+          },
+        } as ResolutionReceipt,
+        effects: rung8Effects,
+      };
+    }
   }
 
   // ─── Rung 9: Agent Interpretation ───

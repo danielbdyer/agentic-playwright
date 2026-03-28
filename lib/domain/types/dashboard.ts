@@ -68,6 +68,7 @@ export type DashboardEventKind =
   | 'confidence-crossed'
   | 'artifact-written'
   | 'stage-lifecycle'
+  | 'diagnostics'
   | 'connected'
   | 'error';
 

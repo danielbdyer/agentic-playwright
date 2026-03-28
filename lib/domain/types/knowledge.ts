@@ -108,6 +108,8 @@ export interface InterfaceResolutionContext {
   readonly confidenceOverlays: readonly ArtifactConfidenceRecord[];
   readonly controls: RuntimeControlSession;
   readonly stateGraph?: import('./interface').StateTransitionGraph | null | undefined;
+  /** DerivedGraph reference for runtime graph queries (transitions, reachability). */
+  readonly derivedGraph?: import('./projection').DerivedGraph | null | undefined;
 }
 
 export interface SurfaceSection {

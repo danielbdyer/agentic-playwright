@@ -1,4 +1,5 @@
 import type {
+  ArtifactConfidenceRecord,
   ApplicationInterfaceGraph,
   InterfaceResolutionContext,
   LocatorStrategy,
@@ -9,6 +10,7 @@ import type {
   StepTaskScreenCandidate,
 } from '../domain/types';
 import type { CanonicalTargetRef, PostureId, ScreenId, SelectorRef, SnapshotTemplateId } from '../domain/identity';
+import { computeDecayedConfidence, type FreshnessPolicy, defaultFreshnessPolicy } from '../domain/knowledge-freshness';
 import type { WorkspaceCatalog } from './catalog';
 
 interface GraphScreenPayload {
@@ -129,9 +131,27 @@ export function buildInterfaceResolutionContext(input: {
   selectorCanon: SelectorCanon;
   stateGraph: StateTransitionGraph;
   screenRefs?: readonly ScreenId[] | undefined;
+  freshnessPolicy?: FreshnessPolicy | undefined;
+  /** Total completed runs so far (used for freshness decay calculation). */
+  completedRunCount?: number | undefined;
+  /** DerivedGraph for runtime graph queries. */
+  derivedGraph?: import('../domain/types/projection').DerivedGraph | null | undefined;
 }): InterfaceResolutionContext {
+  const policy = input.freshnessPolicy ?? defaultFreshnessPolicy();
+  const completedRuns = input.completedRunCount ?? 0;
+
+  // Apply freshness decay to confidence overlays. Each record's score is
+  // decayed based on how many runs have passed since it was last exercised.
   const confidenceOverlays = (input.catalog.confidenceCatalog?.artifact.records ?? [])
-    .filter((record) => record.status === 'approved-equivalent');
+    .filter((record) => record.status === 'approved-equivalent')
+    .map((record): ArtifactConfidenceRecord => {
+      const lastExercisedRun = record.lineage.runIds.length;
+      const runsSinceExercised = Math.max(0, completedRuns - lastExercisedRun);
+      const decayedScore = computeDecayedConfidence(record.score, runsSinceExercised, policy);
+      return decayedScore === record.score
+        ? record
+        : { ...record, score: decayedScore };
+    });
 
   return {
     knowledgeFingerprint: input.knowledgeFingerprint,
@@ -152,5 +172,6 @@ export function buildInterfaceResolutionContext(input: {
     confidenceOverlays,
     controls: input.runtimeControls,
     stateGraph: input.stateGraph,
+    derivedGraph: input.derivedGraph ?? null,
   };
 }
