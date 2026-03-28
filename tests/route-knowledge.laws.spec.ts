@@ -1,193 +1,140 @@
-/**
- * W3.8 — Route Knowledge Law Tests
- *
- * Laws verified:
- * 1. Round-trip serialization: parse(serialize(k)) ~ k
- * 2. URL parsing: query params are extracted and sorted
- * 3. Screen mapping: explicit mappings take precedence over derived IDs
- * 4. Determinism: same input always produces the same output
- * 5. Empty input: no URLs produce empty routes
- * 6. Duplicate URL collapse: duplicate pathnames merge query params
- * 7. Query param sorting: params are always alphabetically sorted
- */
-
 import { expect, test } from '@playwright/test';
-import {
-  discoverRouteVariants,
-  serializeRouteKnowledge,
-  parseRouteKnowledge,
-  type RouteKnowledge,
-  type RouteEntry,
-} from '../lib/domain/route-knowledge';
-import { mulberry32, pick, randomWord, randomInt } from './support/random';
+import { extractRoutePatterns, proposeRouteKnowledge } from '../lib/domain/route-knowledge';
+import type { ObservedRoute } from '../lib/domain/types/route-knowledge';
 
-// ─── Helpers ───
-
-const SEEDS = 150;
-
-function randomUrl(next: () => number): string {
-  const host = pick(next, ['https://app.example.com', 'https://portal.test.io', 'https://dashboard.local']);
-  const pathSegments = randomInt(next, 3) + 1;
-  const path = Array.from({ length: pathSegments }, () => randomWord(next)).join('/');
-  const paramCount = randomInt(next, 4);
-  const params = Array.from({ length: paramCount }, () => `${randomWord(next)}=${randomWord(next)}`).join('&');
-  return params.length > 0 ? `${host}/${path}?${params}` : `${host}/${path}`;
-}
-
-function randomRouteEntry(next: () => number): RouteEntry {
+function makeRoute(overrides: Partial<ObservedRoute> & Pick<ObservedRoute, 'url' | 'screenId'>): ObservedRoute {
   return {
-    url: `/${randomWord(next)}/${randomWord(next)}`,
-    screenId: `screen-${randomWord(next)}`,
-    queryParams: Array.from(
-      new Set(Array.from({ length: randomInt(next, 4) }, () => randomWord(next))),
-    ).sort(),
-    ...(next() > 0.5 ? { tabIndex: randomInt(next, 10) } : {}),
+    observedAt: '2026-01-01T00:00:00Z',
+    stepIndex: 0,
+    navigationAction: 'goto',
+    ...overrides,
   };
 }
 
-function randomRouteKnowledge(next: () => number): RouteKnowledge {
-  const routeCount = randomInt(next, 6) + 1;
-  return {
-    app: `app-${randomWord(next)}`,
-    routes: Array.from({ length: routeCount }, () => randomRouteEntry(next)),
-  };
-}
+test('two URLs differing by numeric ID yield a single pattern with parameter', () => {
+  const routes: readonly ObservedRoute[] = [
+    makeRoute({ url: 'https://app.test/users/123/profile', screenId: 'user-profile' }),
+    makeRoute({ url: 'https://app.test/users/456/profile', screenId: 'user-profile' }),
+  ];
 
-function routeKnowledgeEqual(a: RouteKnowledge, b: RouteKnowledge): boolean {
-  if (a.app !== b.app) return false;
-  if (a.routes.length !== b.routes.length) return false;
-  return a.routes.every((route, i) => {
-    const other = b.routes[i]!;
-    return route.url === other.url
-      && route.screenId === other.screenId
-      && JSON.stringify(route.queryParams) === JSON.stringify(other.queryParams)
-      && route.tabIndex === other.tabIndex;
+  const patterns = extractRoutePatterns(routes);
+
+  expect(patterns).toHaveLength(1);
+  expect(patterns[0]!.pattern).toBe('/users/{userId}/profile');
+  expect(patterns[0]!.parameterNames).toEqual(['userId']);
+  expect(patterns[0]!.screenId).toBe('user-profile');
+  expect(patterns[0]!.exampleUrls).toEqual([
+    'https://app.test/users/123/profile',
+    'https://app.test/users/456/profile',
+  ]);
+});
+
+test('UUID segments are detected as parameters', () => {
+  const routes: readonly ObservedRoute[] = [
+    makeRoute({
+      url: 'https://app.test/items/a1b2c3d4-e5f6-7890-abcd-ef1234567890/detail',
+      screenId: 'item-detail',
+    }),
+  ];
+
+  const patterns = extractRoutePatterns(routes);
+
+  expect(patterns).toHaveLength(1);
+  expect(patterns[0]!.pattern).toBe('/items/{itemId}/detail');
+  expect(patterns[0]!.parameterNames).toEqual(['itemId']);
+});
+
+test('same URL observed twice yields observationCount = 2', () => {
+  const routes: readonly ObservedRoute[] = [
+    makeRoute({ url: 'https://app.test/dashboard', screenId: 'dashboard', stepIndex: 0 }),
+    makeRoute({ url: 'https://app.test/dashboard', screenId: 'dashboard', stepIndex: 5 }),
+  ];
+
+  const patterns = extractRoutePatterns(routes);
+
+  expect(patterns).toHaveLength(1);
+  expect(patterns[0]!.observationCount).toBe(2);
+  expect(patterns[0]!.exampleUrls).toEqual(['https://app.test/dashboard']);
+});
+
+test('already-known route pattern is not proposed', () => {
+  const patterns = [
+    {
+      pattern: '/users/{userId}/profile',
+      screenId: 'user-profile',
+      parameterNames: ['userId'] as readonly string[],
+      exampleUrls: ['https://app.test/users/123/profile'] as readonly string[],
+      observationCount: 5,
+    },
+  ];
+
+  const proposals = proposeRouteKnowledge(patterns, ['/users/{userId}/profile']);
+
+  expect(proposals).toHaveLength(0);
+});
+
+test('confidence is high for 3+ observations, medium for 2, low for 1', () => {
+  const makePattern = (observationCount: number, screenId: string) => ({
+    pattern: `/${screenId}`,
+    screenId,
+    parameterNames: [] as readonly string[],
+    exampleUrls: [`https://app.test/${screenId}`] as readonly string[],
+    observationCount,
   });
-}
 
-// ─── Law 1: Round-trip serialization ───
+  const proposals = proposeRouteKnowledge(
+    [makePattern(5, 'high-screen'), makePattern(2, 'med-screen'), makePattern(1, 'low-screen')],
+    [],
+  );
 
-test.describe('Law 1: parse(serialize(knowledge)) preserves structure', () => {
-  for (let seed = 0; seed < SEEDS; seed++) {
-    test(`seed=${seed}`, () => {
-      const next = mulberry32(seed);
-      const knowledge = randomRouteKnowledge(next);
-      const yaml = serializeRouteKnowledge(knowledge);
-      const restored = parseRouteKnowledge(yaml);
-      expect(routeKnowledgeEqual(knowledge, restored)).toBe(true);
-    });
-  }
+  expect(proposals).toHaveLength(3);
+  expect(proposals[0]!.confidence).toBe('high');
+  expect(proposals[1]!.confidence).toBe('medium');
+  expect(proposals[2]!.confidence).toBe('low');
 });
 
-// ─── Law 2: Query param extraction ───
+test('static URLs with no varying segments yield literal URL pattern', () => {
+  const routes: readonly ObservedRoute[] = [
+    makeRoute({ url: 'https://app.test/settings', screenId: 'settings' }),
+    makeRoute({ url: 'https://app.test/settings', screenId: 'settings' }),
+  ];
 
-test.describe('Law 2: Query params are extracted from URLs', () => {
-  for (let seed = 0; seed < SEEDS; seed++) {
-    test(`seed=${seed}`, () => {
-      const next = mulberry32(seed);
-      const urls = Array.from({ length: randomInt(next, 5) + 1 }, () => randomUrl(next));
-      const result = discoverRouteVariants(urls, new Map());
+  const patterns = extractRoutePatterns(routes);
 
-      for (const route of result.routes) {
-        // All query params in the result should be sorted
-        const sorted = [...route.queryParams].sort();
-        expect(route.queryParams).toEqual(sorted);
-      }
-    });
-  }
+  expect(patterns).toHaveLength(1);
+  expect(patterns[0]!.pattern).toBe('/settings');
+  expect(patterns[0]!.parameterNames).toEqual([]);
 });
 
-// ─── Law 3: Screen mappings take precedence ───
+test('proposal suggestedPath follows knowledge/routes/{screenId}.routes.yaml convention', () => {
+  const patterns = [
+    {
+      pattern: '/dashboard',
+      screenId: 'main-dashboard',
+      parameterNames: [] as readonly string[],
+      exampleUrls: ['https://app.test/dashboard'] as readonly string[],
+      observationCount: 3,
+    },
+  ];
 
-test.describe('Law 3: Explicit screen mappings override derived IDs', () => {
-  for (let seed = 0; seed < SEEDS; seed++) {
-    test(`seed=${seed}`, () => {
-      const next = mulberry32(seed);
-      const pathname = `/${randomWord(next)}/${randomWord(next)}`;
-      const fullUrl = `https://app.example.com${pathname}`;
-      const expectedScreenId = `mapped-${randomWord(next)}`;
-      const mappings = new Map([[pathname, expectedScreenId]]);
+  const proposals = proposeRouteKnowledge(patterns, []);
 
-      const result = discoverRouteVariants([fullUrl], mappings);
-
-      expect(result.routes.length).toBeGreaterThanOrEqual(1);
-      const matchingRoute = result.routes.find((r) => r.screenId === expectedScreenId);
-      expect(matchingRoute).toBeDefined();
-    });
-  }
+  expect(proposals).toHaveLength(1);
+  expect(proposals[0]!.kind).toBe('route-knowledge-proposal');
+  expect(proposals[0]!.suggestedPath).toBe('knowledge/routes/main-dashboard.routes.yaml');
 });
 
-// ─── Law 4: Determinism ───
+test('multiple screens produce distinct patterns sorted by screenId', () => {
+  const routes: readonly ObservedRoute[] = [
+    makeRoute({ url: 'https://app.test/orders/99', screenId: 'order-detail' }),
+    makeRoute({ url: 'https://app.test/orders/42', screenId: 'order-detail' }),
+    makeRoute({ url: 'https://app.test/dashboard', screenId: 'dashboard' }),
+  ];
 
-test.describe('Law 4: Same input always produces same output', () => {
-  for (let seed = 0; seed < SEEDS; seed++) {
-    test(`seed=${seed}`, () => {
-      const next1 = mulberry32(seed);
-      const next2 = mulberry32(seed);
-      const urls1 = Array.from({ length: randomInt(next1, 5) + 1 }, () => randomUrl(next1));
-      const urls2 = Array.from({ length: randomInt(next2, 5) + 1 }, () => randomUrl(next2));
-      const mappings = new Map<string, string>();
+  const patterns = extractRoutePatterns(routes);
 
-      const result1 = discoverRouteVariants(urls1, mappings);
-      const result2 = discoverRouteVariants(urls2, mappings);
-
-      expect(routeKnowledgeEqual(result1, result2)).toBe(true);
-    });
-  }
-});
-
-// ─── Law 5: Empty input produces empty routes ───
-
-test.describe('Law 5: Empty URL list produces empty routes', () => {
-  for (let seed = 0; seed < SEEDS; seed++) {
-    test(`seed=${seed}`, () => {
-      const result = discoverRouteVariants([], new Map());
-      expect(result.routes.length).toBe(0);
-    });
-  }
-});
-
-// ─── Law 6: Duplicate pathnames merge query params ───
-
-test.describe('Law 6: Duplicate pathnames collapse and merge query params', () => {
-  for (let seed = 0; seed < SEEDS; seed++) {
-    test(`seed=${seed}`, () => {
-      const next = mulberry32(seed);
-      const base = `https://app.example.com/${randomWord(next)}`;
-      const param1 = randomWord(next);
-      const param2 = randomWord(next);
-      const urls = [
-        `${base}?${param1}=1`,
-        `${base}?${param2}=2`,
-      ];
-
-      const result = discoverRouteVariants(urls, new Map());
-
-      // Same pathname should collapse into one route with merged params
-      const matchingRoutes = result.routes;
-      expect(matchingRoutes.length).toBe(1);
-
-      const route = matchingRoutes[0]!;
-      const expectedParams = [...new Set([param1, param2])].sort();
-      expect(route.queryParams).toEqual(expectedParams);
-    });
-  }
-});
-
-// ─── Law 7: Query params always sorted ───
-
-test.describe('Law 7: Query params are always alphabetically sorted', () => {
-  for (let seed = 0; seed < SEEDS; seed++) {
-    test(`seed=${seed}`, () => {
-      const next = mulberry32(seed);
-      const knowledge = randomRouteKnowledge(next);
-      const yaml = serializeRouteKnowledge(knowledge);
-      const restored = parseRouteKnowledge(yaml);
-
-      for (const route of restored.routes) {
-        const sorted = [...route.queryParams].sort();
-        expect(route.queryParams).toEqual(sorted);
-      }
-    });
-  }
+  expect(patterns).toHaveLength(2);
+  expect(patterns[0]!.screenId).toBe('dashboard');
+  expect(patterns[1]!.screenId).toBe('order-detail');
+  expect(patterns[1]!.pattern).toBe('/orders/{orderId}');
 });

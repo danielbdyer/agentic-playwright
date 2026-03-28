@@ -1,158 +1,155 @@
-/**
- * W3.8: Route knowledge persistence
- *
- * Pure domain module for route knowledge — mapping URLs to screen IDs,
- * with round-trip YAML serialization.
- */
+import type {
+  ObservedRoute,
+  RouteKnowledgeProposal,
+  RoutePattern,
+} from './types/route-knowledge';
 
-import YAML from 'yaml';
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const NUMERIC_ID_PATTERN = /^\d+$/;
 
-// ─── Domain types ───
-
-export interface RouteEntry {
-  readonly url: string;
-  readonly screenId: string;
-  readonly queryParams: readonly string[];
-  readonly tabIndex?: number | undefined;
+function isParameterSegment(segment: string): boolean {
+  return UUID_PATTERN.test(segment) || NUMERIC_ID_PATTERN.test(segment);
 }
 
-export interface RouteKnowledge {
-  readonly app: string;
-  readonly routes: readonly RouteEntry[];
+function deriveParameterName(segments: readonly string[], index: number): string {
+  const preceding = index > 0 ? segments[index - 1] : undefined;
+  const base = preceding ?? 'id';
+  // Singularize naive trailing 's' for common REST patterns
+  const singular = base.endsWith('s') && base.length > 1 ? base.slice(0, -1) : base;
+  return `${singular}Id`;
 }
 
-// ─── Discovery ───
-
-function extractQueryParams(url: string): readonly string[] {
-  try {
-    const parsed = new URL(url);
-    return [...new Set([...parsed.searchParams.keys()])].sort();
-  } catch {
-    return [];
-  }
+interface SegmentAnalysis {
+  readonly pattern: string;
+  readonly parameterNames: readonly string[];
 }
 
-function extractPathname(url: string): string {
+function analyzeSegments(
+  urlPaths: readonly string[],
+): SegmentAnalysis {
+  const splitPaths = urlPaths.map((p) => p.split('/'));
+  const maxLen = splitPaths.reduce((max, segs) => Math.max(max, segs.length), 0);
+
+  const result = Array.from({ length: maxLen }, (_, i) => {
+    const segmentsAtPosition = splitPaths
+      .flatMap((segs) => (i < segs.length ? [segs[i]!] : []));
+    const uniqueValues = [...new Set(segmentsAtPosition)];
+    const allAreParams = uniqueValues.length > 1 || uniqueValues.some((s) => isParameterSegment(s));
+
+    if (allAreParams && uniqueValues.length > 0) {
+      // Use the first path's segments for naming context
+      const referenceSegments = splitPaths[0] ?? [];
+      return {
+        segment: `{${deriveParameterName(referenceSegments, i)}}`,
+        paramName: deriveParameterName(referenceSegments, i),
+      };
+    }
+
+    return {
+      segment: uniqueValues[0] ?? '',
+      paramName: null as string | null,
+    };
+  });
+
+  return {
+    pattern: result.map((r) => r.segment).join('/'),
+    parameterNames: result
+      .flatMap((r) => (r.paramName !== null ? [r.paramName] : [])),
+  };
+}
+
+function extractUrlPath(url: string): string {
   try {
     return new URL(url).pathname;
   } catch {
-    return url;
+    // If not a full URL, treat as path
+    return url.startsWith('/') ? url : `/${url}`;
   }
 }
 
+function uniqueStrings(values: readonly string[]): readonly string[] {
+  return [...new Set(values)];
+}
+
 /**
- * Group URLs by pathname, assign screen IDs from the provided mapping,
- * and collect query-param variants for each route.
- *
- * Pure function: URLs + mapping in, RouteKnowledge out.
+ * Extract route patterns from observed routes by grouping by screenId
+ * and detecting parameter segments that vary across observations.
  */
-export function discoverRouteVariants(
-  urls: readonly string[],
-  screenMappings: ReadonlyMap<string, string>,
-): RouteKnowledge {
-  const routeMap = urls.reduce<ReadonlyMap<string, { readonly screenId: string; readonly queryParams: ReadonlySet<string>; readonly tabIndex: number | undefined }>>(
-    (acc, url, index) => {
-      const pathname = extractPathname(url);
-      const screenId = screenMappings.get(pathname)
-        ?? screenMappings.get(url)
-        ?? defaultScreenId(pathname);
-      const queryParams = extractQueryParams(url);
-      const existing = acc.get(pathname);
-      const mergedParams = existing
-        ? new Set([...existing.queryParams, ...queryParams])
-        : new Set(queryParams);
-      const tabIndex = existing?.tabIndex ?? (index > 0 ? index : undefined);
-      return new Map([...acc, [pathname, {
-        screenId,
-        queryParams: mergedParams,
-        tabIndex,
-      }]]);
-    },
-    new Map(),
+export function extractRoutePatterns(
+  routes: readonly ObservedRoute[],
+): readonly RoutePattern[] {
+  const grouped = routes.reduce<Record<string, readonly ObservedRoute[]>>(
+    (acc, route) => ({
+      ...acc,
+      [route.screenId]: [...(acc[route.screenId] ?? []), route],
+    }),
+    {},
   );
 
-  const routes: readonly RouteEntry[] = [...routeMap.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([pathname, entry]) => ({
-      url: pathname,
-      screenId: entry.screenId,
-      queryParams: [...entry.queryParams].sort(),
-      ...(entry.tabIndex !== undefined ? { tabIndex: entry.tabIndex } : {}),
-    }));
+  return Object.entries(grouped)
+    .map(([screenId, screenRoutes]) => {
+      const urls = screenRoutes.map((r) => r.url);
+      const uniqueUrls = uniqueStrings(urls);
+      const paths = uniqueUrls.map(extractUrlPath);
 
-  return {
-    app: deriveAppName(urls),
-    routes,
-  };
+      const { pattern, parameterNames } = analyzeSegments(paths);
+
+      return {
+        pattern,
+        screenId,
+        parameterNames,
+        exampleUrls: uniqueUrls,
+        observationCount: screenRoutes.length,
+      } satisfies RoutePattern;
+    })
+    .sort((a, b) => a.screenId.localeCompare(b.screenId));
 }
 
-function defaultScreenId(pathname: string): string {
-  const segments = pathname.split('/').filter((s) => s.length > 0);
-  const last = segments[segments.length - 1] ?? 'home';
-  return last
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+function confidenceFromCount(count: number): 'high' | 'medium' | 'low' {
+  return count >= 3 ? 'high' : count === 2 ? 'medium' : 'low';
 }
 
-function deriveAppName(urls: readonly string[]): string {
-  try {
-    const first = urls[0];
-    return first ? new URL(first).hostname : 'unknown';
-  } catch {
-    return 'unknown';
-  }
-}
+function reasonFromConfidence(
+  confidence: 'high' | 'medium' | 'low',
+  observationCount: number,
+  parameterCount: number,
+): string {
+  const paramDesc =
+    parameterCount > 0
+      ? ` with ${parameterCount} parameter${parameterCount > 1 ? 's' : ''}`
+      : ' as static route';
 
-// ─── Serialization ───
-
-interface SerializedRouteEntry {
-  url: string;
-  screenId: string;
-  queryParams: string[];
-  tabIndex?: number;
-}
-
-interface SerializedRouteKnowledge {
-  app: string;
-  routes: SerializedRouteEntry[];
+  return confidence === 'high'
+    ? `Observed ${observationCount} times${paramDesc} — high confidence`
+    : confidence === 'medium'
+      ? `Observed ${observationCount} times${paramDesc} — medium confidence`
+      : `Observed ${observationCount} time${paramDesc} — low confidence, may need verification`;
 }
 
 /**
- * Serialize RouteKnowledge to YAML format.
- * Pure function: knowledge in, YAML string out.
+ * Propose route knowledge entries for patterns not already known.
  */
-export function serializeRouteKnowledge(knowledge: RouteKnowledge): string {
-  const serializable: SerializedRouteKnowledge = {
-    app: knowledge.app,
-    routes: knowledge.routes.map((route) => ({
-      url: route.url,
-      screenId: route.screenId,
-      queryParams: [...route.queryParams],
-      ...(route.tabIndex !== undefined ? { tabIndex: route.tabIndex } : {}),
-    })),
-  };
-  return YAML.stringify(serializable, { indent: 2 });
-}
+export function proposeRouteKnowledge(
+  patterns: readonly RoutePattern[],
+  existingRoutes: readonly string[],
+): readonly RouteKnowledgeProposal[] {
+  const existingSet = new Set(existingRoutes);
 
-/**
- * Parse RouteKnowledge from a YAML string.
- * Pure function: YAML string in, RouteKnowledge out.
- */
-export function parseRouteKnowledge(yaml: string): RouteKnowledge {
-  const parsed = YAML.parse(yaml) as SerializedRouteKnowledge;
-  if (!parsed || typeof parsed.app !== 'string' || !Array.isArray(parsed.routes)) {
-    throw new Error('Invalid RouteKnowledge YAML: missing app or routes');
-  }
-  return {
-    app: parsed.app,
-    routes: parsed.routes.map((route) => ({
-      url: typeof route.url === 'string' ? route.url : '',
-      screenId: typeof route.screenId === 'string' ? route.screenId : '',
-      queryParams: Array.isArray(route.queryParams)
-        ? route.queryParams.filter((p): p is string => typeof p === 'string').sort()
-        : [],
-      ...(typeof route.tabIndex === 'number' ? { tabIndex: route.tabIndex } : {}),
-    })),
-  };
+  return patterns
+    .flatMap((pattern) => {
+      if (existingSet.has(pattern.pattern)) return [];
+      const confidence = confidenceFromCount(pattern.observationCount);
+      return [{
+        kind: 'route-knowledge-proposal' as const,
+        screenId: pattern.screenId,
+        pattern,
+        confidence,
+        reason: reasonFromConfidence(
+          confidence,
+          pattern.observationCount,
+          pattern.parameterNames.length,
+        ),
+        suggestedPath: `knowledge/routes/${pattern.screenId}.routes.yaml`,
+      } satisfies RouteKnowledgeProposal];
+    });
 }
