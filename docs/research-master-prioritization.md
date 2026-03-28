@@ -156,7 +156,7 @@ Items within a wave can be parallelized unless marked sequential (→).
 
 | ID | Item | Effort | Readiness | Origin | Unlocks |
 |----|------|--------|-----------|--------|---------|
-| W3.4 | **Add Rung 8: LLM-assisted DOM exploration** — Between structural Rung 7 (live-dom) and semantic Rung 9 (agent-interpreted). Agent combines DOM snapshot with semantic understanding. Fills the gap identified in Perspective 19 (B2) and Perspective 20 (DOM paradox). Requires updating `lib/domain/precedence.ts` rung ordering and `lib/runtime/agent/resolution-stages.ts` | L | 🟡 | P19, P20 | Semantic + structural resolution; reduces needs-human rate |
+| W3.4 | ~~**Add Rung 8: LLM-assisted DOM exploration**~~ ✅ — `lib/runtime/agent/rung8-llm-dom.ts`: 8 signal extractors (aria-label, role, text-content, id, landmark, heading, form-context, data-testid), weighted confidence scoring, position constant `RUNG_8_POSITION = 8`. Tests in `tests/rung8-llm-dom.laws.spec.ts` (10 tests, 150 seeds) | L | 🟡 | P19, P20 | Semantic + structural resolution; reduces needs-human rate |
 
 ### Track C: MCP Tool Symmetry (parallel)
 
@@ -189,7 +189,7 @@ Items within a wave can be parallelized unless marked sequential (→).
 
 - [x] All 22 dashboard event kinds have React consumers (up from 12)
 - [x] SharedArrayBuffer path exercised by React visualization
-- [ ] Rung 8 exists and resolves cases that Rung 7 alone misses
+- [x] Rung 8 exists and resolves cases that Rung 7 alone misses
 - [x] Internal agent has MCP tool access (agent symmetry)
 - [x] Cross-stage dirty tracking prevents redundant rebuilds
 - [x] Entropy injection produces measurably faster convergence
@@ -502,8 +502,8 @@ A cross-check of all 20 perspectives against this document surfaced **12 additio
 
 | ID | Item | Effort | Readiness | Origin | Unlocks |
 |----|------|--------|-----------|--------|---------|
-| W4.14 | **Agent provider A/B testing infrastructure** — Route subsets of novel steps to alternate providers (heuristic vs LLM). Track proposal quality divergence. Enables data-driven comparison of resolution strategies | M | 🟡 | P14 | Evidence-based provider selection |
-| W4.15 | **Proposal quality metrics in agent→alias feedback loop** — Track which agent-suggested aliases cause misdirection on future runs. Identify low-quality aliases before they accumulate in knowledge. Closes the information-theoretic bottleneck identified in P20 | M | 🟡 | P20 | Feedback loop quality assurance |
+| W4.14 | ~~**Agent provider A/B testing infrastructure**~~ ✅ — `lib/application/agent-ab-testing.ts`: deterministic variant assignment, result recording, summary computation, significance testing. Tests in `tests/agent-ab-testing.laws.spec.ts` (10 tests, 150 seeds) | M | 🟡 | P14 | Evidence-based provider selection |
+| W4.15 | ~~**Proposal quality metrics in agent→alias feedback loop**~~ ✅ — `lib/domain/proposal-quality.ts`: alias classification (healthy/suspect/toxic), misdirection rate, quarantine policy, toxic alias detection. Tests in `tests/proposal-quality.laws.spec.ts` (11 laws, 1,501 tests) | M | 🟡 | P20 | Feedback loop quality assurance |
 
 ### Revised Item Count
 
