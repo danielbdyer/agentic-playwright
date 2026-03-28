@@ -30,6 +30,13 @@ function runtimeStatusForStep(run: RunRecord | null | undefined, stepIndex: numb
       locatorRung: null,
       degraded: false,
       preconditionFailures: [],
+      planning: {
+        status: 'not-applicable',
+        requiredPreconditions: [],
+        forbiddenPreconditions: [],
+        chosenTransitionPath: [],
+        chosenEventSignaturePath: [],
+      },
       requiredStateRefs: [],
       forbiddenStateRefs: [],
       effectAssertions: [],
@@ -68,6 +75,21 @@ function runtimeStatusForStep(run: RunRecord | null | undefined, stepIndex: numb
     locatorRung: runStep.execution.locatorRung ?? null,
     degraded: runStep.execution.degraded,
     preconditionFailures: runStep.execution.preconditionFailures,
+    planning: runStep.execution.planning
+      ? {
+        status: runStep.execution.planning.status,
+        requiredPreconditions: runStep.execution.planning.requiredPreconditions,
+        forbiddenPreconditions: runStep.execution.planning.forbiddenPreconditions,
+        chosenTransitionPath: runStep.execution.planning.chosenTransitionPath.map((entry) => entry.transitionRef),
+        chosenEventSignaturePath: runStep.execution.planning.chosenTransitionPath.map((entry) => entry.eventSignatureRef),
+      }
+      : {
+        status: 'not-applicable',
+        requiredPreconditions: [],
+        forbiddenPreconditions: [],
+        chosenTransitionPath: [],
+        chosenEventSignaturePath: [],
+      },
     requiredStateRefs: runStep.execution.requiredStateRefs ?? [],
     forbiddenStateRefs: runStep.execution.forbiddenStateRefs ?? [],
     effectAssertions: runStep.execution.effectAssertions ?? [],

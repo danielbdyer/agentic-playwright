@@ -306,6 +306,13 @@ export interface ScenarioExplanationStep {
     locatorRung?: number | null | undefined;
     degraded?: boolean | undefined;
     preconditionFailures?: readonly string[] | undefined;
+    planning?: {
+      status: 'already-satisfied' | 'path-found' | 'no-path' | 'not-applicable';
+      requiredPreconditions: readonly StateNodeRef[];
+      forbiddenPreconditions: readonly StateNodeRef[];
+      chosenTransitionPath: readonly TransitionRef[];
+      chosenEventSignaturePath: readonly EventSignatureRef[];
+    } | undefined;
     requiredStateRefs?: readonly StateNodeRef[] | undefined;
     forbiddenStateRefs?: readonly StateNodeRef[] | undefined;
     eventSignatureRefs?: readonly EventSignatureRef[] | undefined;

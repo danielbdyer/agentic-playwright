@@ -1344,6 +1344,63 @@ function validateStepExecutionReceipt(value: unknown, path: string): StepExecuti
       : expectNumber(receipt.locatorRung, `${path}.locatorRung`),
     degraded: expectBoolean(receipt.degraded, `${path}.degraded`),
     preconditionFailures: expectStringArray(receipt.preconditionFailures ?? [], `${path}.preconditionFailures`),
+    planning: receipt.planning === undefined
+      ? undefined
+      : (() => {
+        const planning = expectRecord(receipt.planning, `${path}.planning`);
+        const planningFailure = planning.failure === undefined ? undefined : expectRecord(planning.failure, `${path}.planning.failure`);
+        return {
+          requiredPreconditions: expectArray(planning.requiredPreconditions ?? [], `${path}.planning.requiredPreconditions`).map((ref, index) =>
+            expectId(ref, `${path}.planning.requiredPreconditions[${index}]`, createStateNodeRef),
+          ),
+          forbiddenPreconditions: expectArray(planning.forbiddenPreconditions ?? [], `${path}.planning.forbiddenPreconditions`).map((ref, index) =>
+            expectId(ref, `${path}.planning.forbiddenPreconditions[${index}]`, createStateNodeRef),
+          ),
+          availableTransitions: expectArray(planning.availableTransitions ?? [], `${path}.planning.availableTransitions`).map((entry, index) => {
+            const candidate = expectRecord(entry, `${path}.planning.availableTransitions[${index}]`);
+            return {
+              transitionRef: expectId(candidate.transitionRef, `${path}.planning.availableTransitions[${index}].transitionRef`, createTransitionRef),
+              eventSignatureRef: expectId(candidate.eventSignatureRef, `${path}.planning.availableTransitions[${index}].eventSignatureRef`, createEventSignatureRef),
+              sourceStateRefs: expectArray(candidate.sourceStateRefs ?? [], `${path}.planning.availableTransitions[${index}].sourceStateRefs`).map((ref, refIndex) =>
+                expectId(ref, `${path}.planning.availableTransitions[${index}].sourceStateRefs[${refIndex}]`, createStateNodeRef),
+              ),
+              targetStateRefs: expectArray(candidate.targetStateRefs ?? [], `${path}.planning.availableTransitions[${index}].targetStateRefs`).map((ref, refIndex) =>
+                expectId(ref, `${path}.planning.availableTransitions[${index}].targetStateRefs[${refIndex}]`, createStateNodeRef),
+              ),
+            };
+          }),
+          chosenTransitionPath: expectArray(planning.chosenTransitionPath ?? [], `${path}.planning.chosenTransitionPath`).map((entry, index) => {
+            const step = expectRecord(entry, `${path}.planning.chosenTransitionPath[${index}]`);
+            return {
+              depth: expectNumber(step.depth, `${path}.planning.chosenTransitionPath[${index}].depth`),
+              transitionRef: expectId(step.transitionRef, `${path}.planning.chosenTransitionPath[${index}].transitionRef`, createTransitionRef),
+              eventSignatureRef: expectId(step.eventSignatureRef, `${path}.planning.chosenTransitionPath[${index}].eventSignatureRef`, createEventSignatureRef),
+              fromStateRefs: expectArray(step.fromStateRefs ?? [], `${path}.planning.chosenTransitionPath[${index}].fromStateRefs`).map((ref, refIndex) =>
+                expectId(ref, `${path}.planning.chosenTransitionPath[${index}].fromStateRefs[${refIndex}]`, createStateNodeRef),
+              ),
+              toStateRefs: expectArray(step.toStateRefs ?? [], `${path}.planning.chosenTransitionPath[${index}].toStateRefs`).map((ref, refIndex) =>
+                expectId(ref, `${path}.planning.chosenTransitionPath[${index}].toStateRefs[${refIndex}]`, createStateNodeRef),
+              ),
+            };
+          }),
+          projectedSatisfiedStateRefs: expectArray(planning.projectedSatisfiedStateRefs ?? [], `${path}.planning.projectedSatisfiedStateRefs`).map((ref, index) =>
+            expectId(ref, `${path}.planning.projectedSatisfiedStateRefs[${index}]`, createStateNodeRef),
+          ),
+          status: expectEnum(planning.status, `${path}.planning.status`, ['already-satisfied', 'path-found', 'no-path', 'not-applicable'] as const),
+          failure: planningFailure === undefined
+            ? undefined
+            : {
+              code: expectEnum(planningFailure.code, `${path}.planning.failure.code`, ['runtime-state-precondition-unreachable'] as const),
+              message: expectString(planningFailure.message, `${path}.planning.failure.message`),
+              missingRequiredStates: expectArray(planningFailure.missingRequiredStates ?? [], `${path}.planning.failure.missingRequiredStates`).map((ref, index) =>
+                expectId(ref, `${path}.planning.failure.missingRequiredStates[${index}]`, createStateNodeRef),
+              ),
+              forbiddenActiveStates: expectArray(planningFailure.forbiddenActiveStates ?? [], `${path}.planning.failure.forbiddenActiveStates`).map((ref, index) =>
+                expectId(ref, `${path}.planning.failure.forbiddenActiveStates[${index}]`, createStateNodeRef),
+              ),
+            },
+        };
+      })(),
     requiredStateRefs: expectArray(receipt.requiredStateRefs ?? [], `${path}.requiredStateRefs`).map((entry, index) =>
       expectId(entry, `${path}.requiredStateRefs[${index}]`, createStateNodeRef),
     ),

@@ -33,6 +33,7 @@ import { deterministicRuntimeStepAgent, type RuntimeStepAgent } from './agent';
 import { applyProposalDraftsToRuntimeContext } from './agent/proposals';
 import type { RuntimeDomResolver } from '../domain/types';
 import { observeStateRefsOnPage, observeTransitionOnPage } from '../playwright/state-topology';
+import { planExecutionStep } from '../application/execution/planner';
 
 export interface RuntimeScenarioEnvironment {
   mode: InterpreterMode;
@@ -501,21 +502,25 @@ export async function runScenarioStep(
       }))
         .flatMap((entry) => entry.observed ? [entry.stateRef] : [])
     : state.observedStateSession.activeStateRefs.filter((ref) => observedRelevantStateRefs.includes(ref));
-  const beforeSet = new Set(beforeObservedStateRefs);
   const skipStatePreconditions = interpretation.target.action === 'navigate';
-  const missingRequiredStates = skipStatePreconditions
-    ? []
-    : task.grounding.requiredStateRefs.filter((ref) => !beforeSet.has(ref));
-  const forbiddenActiveStates = skipStatePreconditions
-    ? []
-    : task.grounding.forbiddenStateRefs.filter((ref) => beforeSet.has(ref));
-  if (missingRequiredStates.length > 0 || forbiddenActiveStates.length > 0) {
+  const planning = planExecutionStep({
+    stateGraph: interfaceResolutionContext.stateGraph,
+    activeStateRefs: beforeObservedStateRefs,
+    requiredStateRefs: task.grounding.requiredStateRefs,
+    forbiddenStateRefs: task.grounding.forbiddenStateRefs,
+    skipPreconditions: skipStatePreconditions,
+  });
+  const missingRequiredStates = planning.failure?.missingRequiredStates ?? [];
+  const forbiddenActiveStates = planning.failure?.forbiddenActiveStates ?? [];
+  if (planning.status === 'no-path' || planning.status === 'not-applicable') {
     const diagnostics = executionDiagnosticsFromError(
-      'runtime-state-precondition-failed',
-      `State preconditions failed for step ${task.index}`,
+      'runtime-state-precondition-unreachable',
+      `State preconditions are unreachable for step ${task.index}`,
       {
         missingRequiredStates: missingRequiredStates.join(','),
         forbiddenActiveStates: forbiddenActiveStates.join(','),
+        plannerStatus: planning.status,
+        plannedTransitionRefs: planning.chosenTransitionPath.map((entry) => entry.transitionRef).join(','),
       },
     );
     const timing = {
@@ -561,6 +566,7 @@ export async function runScenarioStep(
         locatorRung: null,
         degraded: false,
         preconditionFailures: diagnostics.map((entry) => entry.message),
+        planning,
         requiredStateRefs: task.grounding.requiredStateRefs,
         forbiddenStateRefs: task.grounding.forbiddenStateRefs,
         eventSignatureRefs: task.grounding.eventSignatureRefs,
@@ -782,6 +788,7 @@ export async function runScenarioStep(
     locatorRung: firstOutcome?.locatorRung ?? null,
     degraded: Boolean(firstOutcome?.observedEffects.includes('degraded-locator')),
     preconditionFailures,
+    planning,
     requiredStateRefs: task.grounding.requiredStateRefs,
     forbiddenStateRefs: task.grounding.forbiddenStateRefs,
     effectAssertions: task.grounding.effectAssertions,

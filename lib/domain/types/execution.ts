@@ -127,6 +127,37 @@ export interface ExecutionObservation {
   readonly consoleMessages?: readonly ConsoleEntry[] | undefined;
 }
 
+
+
+export interface PlannedTransitionEdgeReceipt {
+  readonly transitionRef: TransitionRef;
+  readonly eventSignatureRef: EventSignatureRef;
+  readonly sourceStateRefs: readonly StateNodeRef[];
+  readonly targetStateRefs: readonly StateNodeRef[];
+}
+
+export interface PlannedTransitionPathStepReceipt {
+  readonly depth: number;
+  readonly transitionRef: TransitionRef;
+  readonly eventSignatureRef: EventSignatureRef;
+  readonly fromStateRefs: readonly StateNodeRef[];
+  readonly toStateRefs: readonly StateNodeRef[];
+}
+
+export interface PlannedExecutionStepReceipt {
+  readonly requiredPreconditions: readonly StateNodeRef[];
+  readonly forbiddenPreconditions: readonly StateNodeRef[];
+  readonly availableTransitions: readonly PlannedTransitionEdgeReceipt[];
+  readonly chosenTransitionPath: readonly PlannedTransitionPathStepReceipt[];
+  readonly projectedSatisfiedStateRefs: readonly StateNodeRef[];
+  readonly status: 'already-satisfied' | 'path-found' | 'no-path' | 'not-applicable';
+  readonly failure?: {
+    readonly code: 'runtime-state-precondition-unreachable';
+    readonly message: string;
+    readonly missingRequiredStates: readonly StateNodeRef[];
+    readonly forbiddenActiveStates: readonly StateNodeRef[];
+  } | undefined;
+}
 export interface StepExecutionReceipt {
   readonly version: 1;
   readonly stage: 'execution';
@@ -145,6 +176,7 @@ export interface StepExecutionReceipt {
   readonly locatorRung?: number | null | undefined;
   readonly degraded: boolean;
   readonly preconditionFailures: readonly string[];
+  readonly planning?: PlannedExecutionStepReceipt | undefined;
   readonly requiredStateRefs?: readonly StateNodeRef[] | undefined;
   readonly forbiddenStateRefs?: readonly StateNodeRef[] | undefined;
   readonly effectAssertions?: readonly string[] | undefined;
