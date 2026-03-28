@@ -114,6 +114,12 @@ function stableValueKey(value: unknown): string {
   if (value === null || value === undefined) {
     return '';
   }
+  if (typeof value === 'object' && 'screen' in value) {
+    return String((value as { screen: string }).screen);
+  }
+  if (typeof value === 'object' && 'element' in value) {
+    return String((value as { element: string }).element);
+  }
   return String(value);
 }
 
