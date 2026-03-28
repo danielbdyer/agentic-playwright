@@ -156,11 +156,13 @@ test('added input changes input-set fingerprint', () => {
 test('stableStringify key ordering is deterministic regardless of insertion order', () => {
   for (let seed = 1; seed <= 150; seed += 1) {
     const next = mulberry32(seed);
-    const keys = Array.from({ length: 4 }, () => randomWord(next));
+    // Use unique keys to avoid duplicate-key collisions in Object.fromEntries
+    const keys = Array.from({ length: 4 }, (_, i) => `key_${i}_${randomWord(next)}`);
     const values = Array.from({ length: 4 }, () => randomWord(next));
 
-    const obj1 = Object.fromEntries(keys.map((k, i) => [k, values[i]]));
-    const obj2 = Object.fromEntries([...keys].reverse().map((k, i) => [k, values[keys.length - 1 - i]]));
+    const pairs = keys.map((k, i) => [k, values[i]] as const);
+    const obj1 = Object.fromEntries(pairs);
+    const obj2 = Object.fromEntries([...pairs].reverse());
 
     // Same key-value pairs in different insertion order produce same stringification
     expect(stableStringify(obj1)).toBe(stableStringify(obj2));

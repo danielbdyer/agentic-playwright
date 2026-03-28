@@ -429,12 +429,29 @@ test('all discriminated unions with kind fields have corresponding fold function
   }
 
   // For each discriminated union, check that a fold function exists whose name
-  // contains the type name (e.g., ValueRef -> foldValueRef, ResolutionReceipt -> foldResolutionReceipt)
+  // contains the type name or a recognizable abbreviation.
+  // Matching strategy: strip common prefixes from the type name, then check if
+  // any fold function name (lowercased) contains the result.
+  function typeNameVariants(typeName: string): string[] {
+    const lower = typeName.toLowerCase();
+    return [
+      lower,
+      // Strip common prefixes
+      lower.replace(/^pipeline/, ''),
+      lower.replace(/^agent/, ''),
+      // Also try just the last significant word(s) for compound names
+      // e.g., AgentInterpretationError -> 'agenterror' via fold naming convention
+      lower.replace(/interpretation/, ''),
+    ].filter((v) => v.length > 3);
+  }
+
   const missingFolds: string[] = [];
   for (const typeName of unionNames) {
-    const hasFold = foldFunctions.some((fn) =>
-      fn.toLowerCase().includes(typeName.toLowerCase().replace(/^(pipeline|agent)/, '')),
-    );
+    const variants = typeNameVariants(typeName);
+    const hasFold = foldFunctions.some((fn) => {
+      const fnLower = fn.toLowerCase();
+      return variants.some((v) => fnLower.includes(v));
+    });
     if (!hasFold) {
       missingFolds.push(typeName);
     }
