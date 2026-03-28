@@ -10,6 +10,42 @@
  * and side-effect free. They operate on the union types defined in ./types/.
  */
 
+// ─── Utility types for auto-deriving fold case records ───
+
+/**
+ * Convert a kebab-case kind literal to a camelCase handler name.
+ * E.g., `'resolved-with-proposals'` becomes `'resolvedWithProposals'`.
+ *
+ * Works for up to four segments (e.g., `'a-b-c-d'`).
+ */
+type Capitalize<S extends string> = S extends `${infer F}${infer R}` ? `${Uppercase<F>}${R}` : S;
+
+type KebabToCamel<S extends string> =
+  S extends `${infer A}-${infer B}-${infer C}-${infer D}`
+    ? `${A}${Capitalize<B>}${Capitalize<C>}${Capitalize<D>}`
+    : S extends `${infer A}-${infer B}-${infer C}`
+      ? `${A}${Capitalize<B>}${Capitalize<C>}`
+      : S extends `${infer A}-${infer B}`
+        ? `${A}${Capitalize<B>}`
+        : S;
+
+/**
+ * Auto-derive a fold Cases record from a discriminated union keyed on `kind`.
+ *
+ * Given a union `U` where each variant has `{ kind: K; ... }`, this produces:
+ * ```
+ * { readonly [camelCase(K)]: (variant: Extract<U, { kind: K }>) => R }
+ * ```
+ *
+ * Usage:
+ * ```ts
+ * type MyCases<R> = DerivedFoldCases<MyUnion, R>;
+ * ```
+ */
+export type DerivedFoldCases<U extends { readonly kind: string }, R> = {
+  readonly [K in U['kind'] as KebabToCamel<K>]: (variant: Extract<U, { readonly kind: K }>) => R;
+};
+
 import type {
   ValueRef,
   ValueRefLiteral,

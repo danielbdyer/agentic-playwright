@@ -15,10 +15,7 @@ import path from 'path';
 import { Effect } from 'effect';
 import type { ProjectPaths } from './paths';
 import { generateSyntheticScenarios } from './synthesis/scenario-generator';
-import { refreshScenarioCore } from './refresh';
-import { buildDerivedGraph } from './graph';
-import { generateTypes } from './types';
-import { resolveEffectConcurrency } from './concurrency';
+import { compileScenariosParallel } from './compile';
 import { runDogfoodLoop } from './dogfood';
 import type { AdoId } from '../domain/identity';
 import {
@@ -472,18 +469,13 @@ export function compilePhase(input: CompilePhaseInput) {
     const scenarioIds = catalog.scenarios
       .map((entry) => entry.artifact)
       .filter((scenario) => !tag || scenario.metadata.tags.includes(tag))
-      .map((scenario) => scenario.source.ado_id);
+      .map((scenario) => scenario.source.ado_id) as readonly AdoId[];
 
-    const compileConcurrency = resolveEffectConcurrency();
-    yield* Effect.all(
-      scenarioIds.map((adoId) => refreshScenarioCore({ adoId: adoId as AdoId, paths: input.paths, catalog })),
-      { concurrency: compileConcurrency },
-    );
-    // Single pass for global projections after all scenarios are compiled
-    yield* Effect.all({
-      graph: buildDerivedGraph({ paths: input.paths }),
-      generatedTypes: generateTypes({ paths: input.paths }),
-    }, { concurrency: 'unbounded' });
+    yield* compileScenariosParallel({
+      scenarioIds,
+      paths: input.paths,
+      catalog,
+    });
 
     const durationMs = Date.now() - start;
 

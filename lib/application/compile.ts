@@ -2,6 +2,8 @@ import { Effect } from 'effect';
 import type { AdoId } from '../domain/identity';
 import { bindScenario } from './bind';
 import { createCompileSnapshot } from './compile-snapshot';
+import type { WorkspaceCatalog } from './catalog';
+import { resolveEffectConcurrency } from './concurrency';
 import { emitScenario } from './emit';
 import { buildDerivedGraph } from './graph';
 import { projectInterfaceIntelligence } from './interface-intelligence';
@@ -9,6 +11,7 @@ import { projectLearningArtifacts } from './learning';
 import { parseScenario } from './parse';
 import { runPipelineStage } from './pipeline';
 import type { ProjectPaths } from './paths';
+import { refreshScenarioCore } from './refresh';
 import { buildInterpretationSurfaceProjection, type TaskProjectionResult } from './task';
 import { generateTypes } from './types';
 import {
@@ -111,4 +114,58 @@ export function compileScenario(options: { adoId: AdoId; paths: ProjectPaths; ca
       generatedTypes,
     };
   }).pipe(Effect.withSpan('compile-scenario', { attributes: { adoId: options.adoId } }));
+}
+
+/**
+ * Batch-compile an ordered list of scenarios with bounded concurrency.
+ *
+ * Each scenario is independently compiled via `refreshScenarioCore` (parse →
+ * bind → emit). After all per-scenario work completes, a single pass builds
+ * the global derived graph and type projections.
+ *
+ * Output is deterministic regardless of concurrency level because:
+ * - Each scenario compilation is side-effect-isolated (writes only to its
+ *   own artifact paths).
+ * - The global graph / types pass runs after all compilations finish.
+ * - `Effect.forEach` preserves input ordering in its result array.
+ *
+ * @param options.scenarioIds - ordered list of ADO IDs to compile
+ * @param options.paths       - project path context
+ * @param options.catalog     - pre-loaded workspace catalog (avoids N re-loads)
+ * @param options.concurrency - explicit concurrency override; defaults to
+ *                              `resolveEffectConcurrency()` (CPU-derived).
+ */
+export function compileScenariosParallel(options: {
+  readonly scenarioIds: readonly AdoId[];
+  readonly paths: ProjectPaths;
+  readonly catalog?: WorkspaceCatalog | undefined;
+  readonly concurrency?: number | undefined;
+}) {
+  return Effect.gen(function* () {
+    const concurrency = options.concurrency ?? resolveEffectConcurrency();
+
+    const perScenarioResults = yield* Effect.forEach(
+      options.scenarioIds,
+      (adoId) => refreshScenarioCore({
+        adoId,
+        paths: options.paths,
+        ...(options.catalog ? { catalog: options.catalog } : {}),
+      }),
+      { concurrency },
+    );
+
+    // Single pass for global projections after all scenarios are compiled
+    const globals = yield* Effect.all({
+      graph: buildDerivedGraph({ paths: options.paths }),
+      generatedTypes: generateTypes({ paths: options.paths }),
+    }, { concurrency: 'unbounded' });
+
+    return {
+      perScenarioResults,
+      graph: globals.graph,
+      generatedTypes: globals.generatedTypes,
+    };
+  }).pipe(Effect.withSpan('compile-scenarios-parallel', {
+    attributes: { count: options.scenarioIds.length },
+  }));
 }

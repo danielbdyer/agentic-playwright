@@ -12,10 +12,7 @@ import { dashboardEvent } from '../domain/types/dashboard';
 import type { DashboardPort } from './ports';
 import { Dashboard } from './ports';
 import { improvementLoopLedgerPath, type ProjectPaths } from './paths';
-import { refreshScenarioCore } from './refresh';
-import { buildDerivedGraph } from './graph';
-import { generateTypes } from './types';
-import { resolveEffectConcurrency } from './concurrency';
+import { compileScenariosParallel } from './compile';
 import { runScenarioSelection } from './run';
 import { FileSystem } from './ports';
 import { runStateMachine } from './state-machine';
@@ -372,24 +369,19 @@ function runIteration(iteration: number, options: DogfoodOptions) {
       scope: 'compile',
     });
 
-    // Step 1b: Refresh tag-matching scenarios. Core compilation (parse, bind,
-    // emit) runs concurrently — only the global graph+types derivation is
-    // deferred to a single pass afterward.
+    // Step 1b: Refresh tag-matching scenarios with bounded concurrency.
+    // compileScenariosParallel handles per-scenario compilation + global
+    // graph/types derivation in a single call.
     const tag = options.tag ?? null;
     const scenarioIds = catalog.scenarios
       .map((entry) => entry.artifact)
       .filter((scenario) => !tag || scenario.metadata.tags.includes(tag))
-      .map((scenario) => scenario.source.ado_id);
-    const compileConcurrency = resolveEffectConcurrency();
-    yield* Effect.all(
-      scenarioIds.map((adoId) => refreshScenarioCore({ adoId: adoId as AdoId, paths: options.paths, catalog })),
-      { concurrency: compileConcurrency },
-    );
-    // Single pass for global projections after all scenarios are compiled
-    yield* Effect.all({
-      graph: buildDerivedGraph({ paths: options.paths }),
-      generatedTypes: generateTypes({ paths: options.paths }),
-    }, { concurrency: 'unbounded' });
+      .map((scenario) => scenario.source.ado_id) as readonly AdoId[];
+    yield* compileScenariosParallel({
+      scenarioIds,
+      paths: options.paths,
+      catalog,
+    });
 
     // Step 2: load a single fresh catalog after refresh, then thread it to all scenario runs.
     // Previously each runScenario call loaded its own catalog — with N scenarios this was N+1 loads.

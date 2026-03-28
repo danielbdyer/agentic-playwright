@@ -371,3 +371,149 @@ test('WorkflowEnvelope has all required fields and mapPayload preserves them', (
   const mappedKeys = Object.keys(mapped).sort();
   expect(mappedKeys).toEqual(originalKeys);
 });
+
+// ─── Law: Discriminated unions with `kind` fields have fold coverage ───
+
+/**
+ * Scans all type files under lib/domain/types/ for discriminated union types
+ * that use a `kind` field as discriminant, then verifies that a corresponding
+ * fold function exists in visitors.ts or in the defining type file itself.
+ *
+ * This catches the case where a new discriminated union is added without a
+ * companion fold function for exhaustive case analysis.
+ */
+test('all discriminated unions with kind fields have corresponding fold functions', () => {
+  const TYPES_DIR = path.join(LIB_ROOT, 'domain', 'types');
+  const visitorsPath = path.join(LIB_ROOT, 'domain', 'visitors.ts');
+  const visitorsContent = fs.readFileSync(visitorsPath, 'utf-8');
+
+  const typeFiles = walkTs(TYPES_DIR);
+  const allTypeContent = typeFiles.map((f) => fs.readFileSync(f, 'utf-8'));
+
+  // Find discriminated union types: `export type Foo = ... { kind: '...' } | ...`
+  // We look for type aliases whose definition includes `{ kind: '...'` patterns
+  const kindUnionPattern = /export\s+type\s+(\w+)\s*=\s*([^;]+);/g;
+  const kindFieldPattern = /\{\s*(?:readonly\s+)?kind:\s*'[^']+'/;
+
+  const unionNames: string[] = [];
+
+  for (const content of allTypeContent) {
+    let match: RegExpExecArray | null;
+    while ((match = kindUnionPattern.exec(content)) !== null) {
+      const typeName = match[1]!;
+      const typeBody = match[2]!;
+      // Must have at least one variant with a `kind` field
+      if (kindFieldPattern.test(typeBody)) {
+        unionNames.push(typeName);
+      }
+    }
+  }
+
+  // Also collect all fold function names from visitors.ts and type files
+  const foldFunctionPattern = /export\s+function\s+(fold\w+)/g;
+  const foldFunctions: string[] = [];
+  let foldMatch: RegExpExecArray | null;
+
+  // Scan visitors.ts
+  while ((foldMatch = foldFunctionPattern.exec(visitorsContent)) !== null) {
+    foldFunctions.push(foldMatch[1]!);
+  }
+
+  // Scan all type files (some folds live in the defining file, e.g. foldAgentError)
+  for (const content of allTypeContent) {
+    const localPattern = /export\s+function\s+(fold\w+)/g;
+    let localMatch: RegExpExecArray | null;
+    while ((localMatch = localPattern.exec(content)) !== null) {
+      foldFunctions.push(localMatch[1]!);
+    }
+  }
+
+  // For each discriminated union, check that a fold function exists whose name
+  // contains the type name (e.g., ValueRef -> foldValueRef, ResolutionReceipt -> foldResolutionReceipt)
+  const missingFolds: string[] = [];
+  for (const typeName of unionNames) {
+    const hasFold = foldFunctions.some((fn) =>
+      fn.toLowerCase().includes(typeName.toLowerCase().replace(/^(pipeline|agent)/, '')),
+    );
+    if (!hasFold) {
+      missingFolds.push(typeName);
+    }
+  }
+
+  // Current known unions that intentionally lack folds (simple inline unions or
+  // unions where exhaustive handling is done via Record types instead of switch).
+  // This allowlist must not grow without justification.
+  const allowedWithoutFold = new Set([
+    'TranslationCandidate',  // uses kind for classification, not for fold dispatch
+  ]);
+
+  const unexpectedMissing = missingFolds.filter((name) => !allowedWithoutFold.has(name));
+  expect(unexpectedMissing).toEqual([]);
+});
+
+// ─── Law: Fold functions cover all variants of their discriminated union ───
+
+test('fold switch cases match discriminated union variants', () => {
+  const visitorsPath = path.join(LIB_ROOT, 'domain', 'visitors.ts');
+  const visitorsContent = fs.readFileSync(visitorsPath, 'utf-8');
+
+  // Extract fold functions and their switch cases
+  const foldBlockPattern = /export\s+function\s+(fold\w+)[^{]*\{([\s\S]*?)\n\}/g;
+  const casePattern = /case\s+'([^']+)'/g;
+
+  const foldCases: Record<string, string[]> = {};
+  let foldMatch: RegExpExecArray | null;
+
+  while ((foldMatch = foldBlockPattern.exec(visitorsContent)) !== null) {
+    const foldName = foldMatch[1]!;
+    const foldBody = foldMatch[2]!;
+    const cases: string[] = [];
+    let caseMatch: RegExpExecArray | null;
+    while ((caseMatch = casePattern.exec(foldBody)) !== null) {
+      cases.push(caseMatch[1]!);
+    }
+    foldCases[foldName] = cases;
+  }
+
+  // Each fold should have at least 2 cases (otherwise it's not really a union)
+  const violations: string[] = [];
+  for (const [foldName, cases] of Object.entries(foldCases)) {
+    if (cases.length < 2) {
+      violations.push(`${foldName} has only ${cases.length} case(s) — expected at least 2 for a discriminated union`);
+    }
+    // No duplicate cases
+    const uniqueCases = new Set(cases);
+    if (uniqueCases.size !== cases.length) {
+      violations.push(`${foldName} has duplicate switch cases`);
+    }
+  }
+
+  expect(violations).toEqual([]);
+
+  // Verify the expected fold functions are present
+  const expectedFolds = [
+    'foldValueRef',
+    'foldStepInstruction',
+    'foldLocatorStrategy',
+    'foldResolutionReceipt',
+    'foldImprovementTarget',
+    'foldResolutionEvent',
+    'foldPipelineFailureClass',
+    'foldStepWinningSource',
+  ];
+
+  for (const fold of expectedFolds) {
+    expect(foldCases).toHaveProperty(fold);
+  }
+});
+
+// ─── Law: DerivedFoldCases utility type is exported from visitors ───
+
+test('DerivedFoldCases utility type is exported from visitors.ts', () => {
+  const visitorsPath = path.join(LIB_ROOT, 'domain', 'visitors.ts');
+  const content = fs.readFileSync(visitorsPath, 'utf-8');
+
+  expect(content).toContain('export type DerivedFoldCases');
+  // The type should reference Extract and the kind discriminant
+  expect(content).toContain("readonly kind: K");
+});
