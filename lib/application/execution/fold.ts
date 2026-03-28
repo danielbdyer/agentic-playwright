@@ -78,15 +78,10 @@ export function foldScenarioRun(input: {
 }): ScenarioRunFold {
   type StepEntry = ScenarioRunFold['byStep'] extends ReadonlyMap<number, infer T> ? T : never;
   // Pre-index evidence by stepIndex: O(E) build, then O(1) per step
-  const evidenceByStep: ReadonlyMap<number, readonly string[]> = (() => {
-    const map = new Map<number, string[]>();
-    for (const entry of input.evidenceWrites) {
-      const existing = map.get(entry.stepIndex);
-      if (existing) existing.push(entry.artifactPath);
-      else map.set(entry.stepIndex, [entry.artifactPath]);
-    }
-    return map;
-  })();
+  const evidenceByStep: ReadonlyMap<number, readonly string[]> = input.evidenceWrites.reduce(
+    (acc, entry) => acc.set(entry.stepIndex, [...(acc.get(entry.stepIndex) ?? []), entry.artifactPath]),
+    new Map<number, string[]>(),
+  );
   const byStep = new Map<number, StepEntry>(
     input.stepResults.map((result) => {
       const stepIndex = result.interpretation.stepIndex;

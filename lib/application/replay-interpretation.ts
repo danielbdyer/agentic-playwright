@@ -36,28 +36,29 @@ function createDriftRecord(input: {
     const next = step.interpretation;
     const beforeExhaustion = prior ? exhaustionPath(prior) : [];
     const afterExhaustion = exhaustionPath(next);
-    const changes: InterpretationDriftChange[] = [];
     const beforeGraphDigest = prior ? resolutionGraphDigest(prior) : 'none';
     const afterGraphDigest = resolutionGraphDigest(next);
 
-    if ((prior?.winningSource ?? 'none') !== next.winningSource) {
-      changes.push({ field: 'winningSource', before: prior?.winningSource ?? 'none', after: next.winningSource });
-    }
-    if ((prior ? targetKey(prior) : 'none') !== targetKey(next)) {
-      changes.push({ field: 'target', before: prior ? targetKey(prior) : 'none', after: targetKey(next) });
-    }
-    if ((prior?.governance ?? 'approved') !== next.governance) {
-      changes.push({ field: 'governance', before: prior?.governance ?? 'approved', after: next.governance });
-    }
-    if ((prior?.confidence ?? 'unbound') !== next.confidence) {
-      changes.push({ field: 'confidence', before: prior?.confidence ?? 'unbound', after: next.confidence });
-    }
-    if (JSON.stringify(beforeExhaustion) !== JSON.stringify(afterExhaustion)) {
-      changes.push({ field: 'exhaustion-path', before: beforeExhaustion, after: afterExhaustion });
-    }
-    if (beforeGraphDigest !== afterGraphDigest) {
-      changes.push({ field: 'resolution-graph', before: beforeGraphDigest, after: afterGraphDigest });
-    }
+    const changes: InterpretationDriftChange[] = ([
+      (prior?.winningSource ?? 'none') !== next.winningSource
+        ? { field: 'winningSource' as const, before: prior?.winningSource ?? 'none', after: next.winningSource }
+        : null,
+      (prior ? targetKey(prior) : 'none') !== targetKey(next)
+        ? { field: 'target' as const, before: prior ? targetKey(prior) : 'none', after: targetKey(next) }
+        : null,
+      (prior?.governance ?? 'approved') !== next.governance
+        ? { field: 'governance' as const, before: prior?.governance ?? 'approved', after: next.governance }
+        : null,
+      (prior?.confidence ?? 'unbound') !== next.confidence
+        ? { field: 'confidence' as const, before: prior?.confidence ?? 'unbound', after: next.confidence }
+        : null,
+      JSON.stringify(beforeExhaustion) !== JSON.stringify(afterExhaustion)
+        ? { field: 'exhaustion-path' as const, before: beforeExhaustion, after: afterExhaustion }
+        : null,
+      beforeGraphDigest !== afterGraphDigest
+        ? { field: 'resolution-graph' as const, before: beforeGraphDigest, after: afterGraphDigest }
+        : null,
+    ] as const).filter((entry): entry is InterpretationDriftChange => entry !== null);
 
     return {
       stepIndex: step.stepIndex,

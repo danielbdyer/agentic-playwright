@@ -22,6 +22,7 @@
  *   - `disabled` when no agent capability is available (ci-batch profile)
  */
 
+import { Effect, Duration } from 'effect';
 import type { ResolutionTarget, ResolutionProposalDraft, ResolutionObservation } from '../domain/types';
 import type { StepAction } from '../domain/types';
 import type { ScreenId, ElementId, PostureId, SnapshotTemplateId } from '../domain/identity';
@@ -616,6 +617,91 @@ function createSessionProvider(
   };
 }
 
+// ─── W5.15: Effect.race Timeout for Agent Interpretation ───
+
+/** Default timeout for agent interpretation calls (milliseconds). */
+const DEFAULT_AGENT_TIMEOUT_MS = 30_000;
+
+/** Fallback result returned when an agent call exceeds the token budget timeout. */
+function timeoutFallbackResult(provider: string, budgetMs: number): AgentInterpretationResult {
+  return {
+    interpreted: false,
+    target: null,
+    confidence: 0,
+    rationale: `Agent interpretation timed out after ${budgetMs}ms. Escalating to needs-human.`,
+    proposalDrafts: [],
+    provider,
+    observation: {
+      source: 'agent-interpreted' as const,
+      summary: `Token budget exceeded: agent call did not complete within ${budgetMs}ms.`,
+      detail: {
+        reason: 'token-budget-exceeded',
+        timeoutMs: String(budgetMs),
+      },
+    },
+  };
+}
+
+/**
+ * Wrap an agent interpretation call with Effect.race timeout.
+ *
+ * The agent LLM call races against a sleep timer. On timeout, returns a
+ * `needs-human` result with `reason: 'token-budget-exceeded'`. Uses Effect
+ * fiber interruption semantics — no leaked timers.
+ *
+ * Can be composed around any `AgentInterpreterProvider.interpret` call.
+ */
+export function withAgentTimeout(
+  interpret: (request: AgentInterpretationRequest) => Promise<AgentInterpretationResult>,
+  options?: { readonly budgetMs?: number; readonly provider?: string },
+): (request: AgentInterpretationRequest) => Promise<AgentInterpretationResult> {
+  const budgetMs = options?.budgetMs ?? DEFAULT_AGENT_TIMEOUT_MS;
+  const providerId = options?.provider ?? 'agent-timeout-wrapper';
+
+  return (request) => {
+    const agentCall = Effect.tryPromise({
+      try: () => interpret(request),
+      catch: (err) => err instanceof Error ? err : new Error(String(err)),
+    });
+
+    const timeoutSignal = Effect.sleep(Duration.millis(budgetMs)).pipe(
+      Effect.map(() => timeoutFallbackResult(providerId, budgetMs)),
+    );
+
+    const raced = Effect.race(agentCall, timeoutSignal).pipe(
+      Effect.catchAll(() => Effect.succeed(timeoutFallbackResult(providerId, budgetMs))),
+    );
+
+    return Effect.runPromise(raced);
+  };
+}
+
+/**
+ * Create a timeout-bounded agent interpreter provider.
+ *
+ * Wraps an existing provider so that every `interpret` call races against
+ * the configured budget. The budget defaults to the provider config's
+ * `maxTokensPerStep * 8` ms (heuristic: ~8ms per token for typical LLM
+ * latency) or 30 seconds, whichever is smaller.
+ */
+export function createTimeoutBoundedProvider(
+  provider: AgentInterpreterProvider,
+  config?: AgentInterpreterConfig,
+): AgentInterpreterProvider {
+  const budgetMs = config
+    ? Math.min(config.budget.maxTokensPerStep * 8, DEFAULT_AGENT_TIMEOUT_MS)
+    : DEFAULT_AGENT_TIMEOUT_MS;
+
+  return {
+    id: `timeout-${provider.id}`,
+    kind: provider.kind,
+    interpret: withAgentTimeout(
+      (request) => provider.interpret(request),
+      { budgetMs, provider: provider.id },
+    ),
+  };
+}
+
 // ─── Composite Provider (session → llm-api fallback) ───
 
 function createCompositeAgentProvider(
@@ -678,10 +764,18 @@ export function resolveAgentInterpreterProvider(
   const providerKind = envOverride ?? effectiveConfig.provider;
   const fallbackKind = effectiveConfig.fallback;
 
-  const primary = createAgentProviderByKind(providerKind, effectiveConfig, deps);
-  const fallback = providerKind !== fallbackKind
+  const rawPrimary = createAgentProviderByKind(providerKind, effectiveConfig, deps);
+  const rawFallback = providerKind !== fallbackKind
     ? createAgentProviderByKind(fallbackKind, effectiveConfig, deps)
     : null;
+
+  // Apply timeout bounds to non-disabled providers (W5.15)
+  const primary = rawPrimary.kind !== 'disabled'
+    ? createTimeoutBoundedProvider(rawPrimary, effectiveConfig)
+    : rawPrimary;
+  const fallback = rawFallback && rawFallback.kind !== 'disabled'
+    ? createTimeoutBoundedProvider(rawFallback, effectiveConfig)
+    : rawFallback;
 
   return fallback
     ? createCompositeAgentProvider(primary, fallback)

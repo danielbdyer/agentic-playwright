@@ -192,16 +192,33 @@ function screenFacadeDeclaration(
   );
 }
 
-function stepCallStatement(m: ResolvedScreenMethod): ts.Statement {
-  const target = m.screenId === '__global__'
-    ? identifier('scenario')
-    : identifier(screenVarName(m.screenId));
+interface StepRenderContext {
+  readonly method: ResolvedScreenMethod;
+  readonly bindingKind: import('./types/workflow').StepBindingKind;
+  readonly confidence: import('./types/workflow').Confidence;
+}
 
-  return statementFromExpression(
+function stepMarkerComment(ctx: StepRenderContext): string | null {
+  if (ctx.confidence === 'intent-only') return ' [intent-only]';
+  if (ctx.bindingKind === 'deferred') return ' [deferred]';
+  return null;
+}
+
+function stepCallStatement(ctx: StepRenderContext): ts.Statement {
+  const target = ctx.method.screenId === '__global__'
+    ? identifier('scenario')
+    : identifier(screenVarName(ctx.method.screenId));
+
+  const statement = statementFromExpression(
     awaitExpression(
-      callExpression(property(target, m.methodName), []),
+      callExpression(property(target, ctx.method.methodName), []),
     ),
   );
+
+  const marker = stepMarkerComment(ctx);
+  return marker
+    ? ts.addSyntheticLeadingComment(statement, ts.SyntaxKind.SingleLineCommentTrivia, marker, true)
+    : statement;
 }
 
 /**
@@ -235,7 +252,11 @@ export function renderReadableSpecModule(
     : [];
 
   const stepStatements: ReadonlyArray<ts.Statement> = emitSteps
-    ? resolvedMethods.map(stepCallStatement)
+    ? resolvedMethods.map((method, i) => stepCallStatement({
+        method,
+        bindingKind: steps[i]?.bindingKind ?? 'bound',
+        confidence: steps[i]?.confidence ?? 'compiler-derived',
+      }))
     : [];
 
   const testBody: ReadonlyArray<ts.Statement> = [

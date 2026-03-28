@@ -30,18 +30,28 @@ export type ResolutionPrecedenceRung = (typeof resolutionPrecedenceLaw)[number];
 export type DataResolutionPrecedenceRung = (typeof dataResolutionPrecedenceLaw)[number];
 export type RunSelectionPrecedenceRung = (typeof runSelectionPrecedenceLaw)[number];
 
+/**
+ * Select the highest-precedence candidate value according to a rung law.
+ *
+ * Complexity: O(R+C) where R = rungs, C = candidates.
+ * Candidates are pre-indexed into a Map (O(C) setup), then rungs are walked
+ * in order with O(1) lookups and true early-exit on first hit.
+ */
 export function chooseByPrecedence<TEntry, TRung extends string>(
   candidates: ReadonlyArray<{ rung: TRung; value: TEntry | null | undefined }>,
   law: ReadonlyArray<TRung>,
 ): TEntry | null {
-  return law.reduce<TEntry | null>(
-    (winner, rung) => {
-      if (winner !== null) return winner;
-      const match = candidates.find((candidate) => candidate.rung === rung);
-      return match?.value !== null && match?.value !== undefined ? match.value : null;
-    },
-    null,
-  );
+  const indexed = new Map<TRung, TEntry>();
+  for (const candidate of candidates) {
+    if (candidate.value !== null && candidate.value !== undefined && !indexed.has(candidate.rung)) {
+      indexed.set(candidate.rung, candidate.value);
+    }
+  }
+  for (const rung of law) {
+    const value = indexed.get(rung);
+    if (value !== undefined) return value;
+  }
+  return null;
 }
 
 export function precedenceWeight<TRung extends string>(

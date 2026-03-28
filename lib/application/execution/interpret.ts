@@ -2,6 +2,7 @@ import { Effect } from 'effect';
 import type { AdoId } from '../../domain/identity';
 import type { ResolutionGraphRecord, ResolutionReceipt, ScenarioRunPlan, ScenarioInterpretationSurface, StepResolutionGraph, GroundedStep } from '../../domain/types';
 import { WINNING_SOURCE_TO_RUNG } from '../../domain/visitors';
+import { isApproved, mintApproved, mintReviewRequired } from '../../domain/types/workflow';
 import type { RuntimeScenarioRunnerPort, RuntimeScenarioStepResult } from '../ports';
 import { resolveResolutionEngine } from '../provider-registry';
 import { validateStepResults } from './validate-step-results';
@@ -232,7 +233,7 @@ export function interpretScenarioFromPlan(input: {
           parents: [input.plan.surfaceFingerprint],
           handshakes: ['preparation', 'resolution'],
         },
-        governance: stepResults.some((step) => step.interpretation.governance !== 'approved') ? 'review-required' : 'approved',
+        governance: stepResults.some((step) => !isApproved(step.interpretation)) ? mintReviewRequired() : mintApproved(),
         adoId: input.plan.adoId,
         runId: input.plan.runId,
         providerId: resolutionEngine.id,

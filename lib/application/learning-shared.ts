@@ -17,9 +17,8 @@ export function actionFamilyOf(action: string): string {
 
 // ─── Composable Scoring Rules ───
 
-export interface ScoringRule<T> {
-  readonly score: (input: T) => number;
-}
+export type { ScoringRule } from '../domain/algebra/scoring';
+import type { ScoringRule } from '../domain/algebra/scoring';
 
 export function combineScoringRules<T>(...rules: readonly ScoringRule<T>[]): ScoringRule<T> {
   return { score: (input) => rules.reduce((total, rule) => total + rule.score(input), 0) };

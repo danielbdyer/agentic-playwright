@@ -16,6 +16,7 @@ import type {
   StepResolution,
   StepGrounding,
 } from '../domain/types';
+import { isBlocked, isReviewRequired } from '../domain/types/workflow';
 import { controlResolutionForStep, runtimeControlsForScenario } from './controls';
 import type { CompileSnapshot } from './compile-snapshot';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
@@ -221,8 +222,8 @@ export function buildScenarioInterpretationSurface(input: {
   });
 
   const governance = deriveGovernanceState({
-    hasBlocked: input.compileSnapshot.boundScenario.steps.some((step) => step.binding.governance === 'blocked'),
-    hasReviewRequired: input.compileSnapshot.boundScenario.steps.some((step) => step.binding.governance === 'review-required'),
+    hasBlocked: input.compileSnapshot.boundScenario.steps.some((step) => isBlocked(step.binding)),
+    hasReviewRequired: input.compileSnapshot.boundScenario.steps.some((step) => isReviewRequired(step.binding)),
   });
   const payload: ScenarioInterpretationSurface['payload'] = {
     adoId: input.compileSnapshot.adoId,

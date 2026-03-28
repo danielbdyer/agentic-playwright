@@ -14,19 +14,17 @@ export function walkFiles(
     }
 
     const entries = yield* fs.listDir(dirPath);
-    const matches: string[] = [];
+    const nested = yield* Effect.all(
+      entries.map((entry) => {
+        const fullPath = path.join(dirPath, entry);
+        return entry.includes('.')
+          ? Effect.succeed([fullPath])
+          : walkFiles(fs, fullPath);
+      }),
+      { concurrency: 1 },
+    );
 
-    for (const entry of entries) {
-      const fullPath = path.join(dirPath, entry);
-      if (entry.includes('.')) {
-        matches.push(fullPath);
-      } else {
-        const nested = yield* walkFiles(fs, fullPath);
-        matches.push(...nested);
-      }
-    }
-
-    return matches.sort((left, right) => left.localeCompare(right));
+    return nested.flat().sort((left, right) => left.localeCompare(right));
   });
 }
 

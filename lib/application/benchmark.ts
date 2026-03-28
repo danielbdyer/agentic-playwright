@@ -246,7 +246,7 @@ function renderVariantSpec(benchmark: BenchmarkContext, variants: readonly Bench
 }
 
 function renderVariantReview(benchmark: BenchmarkContext, variants: readonly BenchmarkVariant[], scorecard: BenchmarkScorecard): string {
-  const lines: string[] = [
+  const header: string[] = [
     `# ${benchmark.name} benchmark`,
     '',
     `- Field awareness count: ${scorecard.uniqueFieldAwarenessCount}`,
@@ -256,17 +256,17 @@ function renderVariantReview(benchmark: BenchmarkContext, variants: readonly Ben
     '',
   ];
 
-  for (const variant of variants) {
-    lines.push(`## ${variant.id}`);
-    lines.push('');
-    lines.push(`- Field: ${variant.fieldId}`);
-    lines.push(`- Screen: ${variant.screen}`);
-    lines.push(`- Element: ${variant.element}`);
-    lines.push(`- Posture: ${variant.posture}`);
-    lines.push('');
-  }
+  const variantLines = variants.flatMap((variant) => [
+    `## ${variant.id}`,
+    '',
+    `- Field: ${variant.fieldId}`,
+    `- Screen: ${variant.screen}`,
+    `- Element: ${variant.element}`,
+    `- Posture: ${variant.posture}`,
+    '',
+  ]);
 
-  return `${lines.join('\n').trim()}\n`;
+  return `${[...header, ...variantLines].join('\n').trim()}\n`;
 }
 
 function variantTrace(benchmark: BenchmarkContext, variants: readonly BenchmarkVariant[], scorecard: BenchmarkScorecard) {
@@ -397,26 +397,24 @@ export function projectBenchmarkScorecard(options: {
     const benchmark = benchmarkByName(catalog.benchmarks.map((entry) => entry.artifact), options.benchmarkName);
     const variants = variantsForBenchmark(benchmark);
 
-    let scenarioIds: string[] = [];
-    if (options.includeExecution) {
-      for (const runbook of benchmark.benchmarkRunbooks) {
-        const selection = yield* runScenarioSelection({
-          paths: options.paths,
-          runbookName: runbook.runbook,
-          tag: runbook.tag ?? undefined,
-          interpreterMode: executionContext.posture.interpreterMode === 'playwright'
-            ? 'diagnostic'
-            : executionContext.posture.interpreterMode,
-          posture: executionContext.posture,
-        });
-        scenarioIds = uniqueSorted([...scenarioIds, ...selection.selection.adoIds]);
-      }
-    } else {
-      scenarioIds = uniqueSorted(
+    const scenarioIds: string[] = options.includeExecution
+      ? yield* Effect.reduce(benchmark.benchmarkRunbooks, [] as string[], (acc, runbook) =>
+        Effect.map(
+          runScenarioSelection({
+            paths: options.paths,
+            runbookName: runbook.runbook,
+            tag: runbook.tag ?? undefined,
+            interpreterMode: executionContext.posture.interpreterMode === 'playwright'
+              ? 'diagnostic'
+              : executionContext.posture.interpreterMode,
+            posture: executionContext.posture,
+          }),
+          (selection) => uniqueSorted([...acc, ...selection.selection.adoIds]),
+        ))
+      : uniqueSorted(
         catalog.scenarios
           .flatMap((entry) => entry.artifact.metadata.suite.startsWith(benchmark.suite) ? [entry.artifact.source.ado_id] : []),
       );
-    }
 
     // After execution, reload post-run scope to pick up new run records; otherwise reuse the initial catalog
     const scorecardCatalog = options.includeExecution

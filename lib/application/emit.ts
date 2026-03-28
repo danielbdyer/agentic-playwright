@@ -5,6 +5,8 @@ import { TesseractError } from '../domain/errors';
 import type { AdoId } from '../domain/identity';
 import { buildGroundedSpecFlow } from '../domain/grounded-flow';
 import { renderReadableSpecModule } from '../domain/spec-codegen';
+import { foldGovernance, mintApproved } from '../domain/types/workflow';
+import type { Approved, Blocked, ReviewRequired } from '../domain/types/workflow';
 import type {
   BoundScenario,
   ImprovementRun,
@@ -38,15 +40,26 @@ import { type ProjectionIncremental } from './projections/runner';
 import { runIncrementalStage } from './pipeline';
 
 export interface EmitProjectionResult {
-  outputPath: string;
-  tracePath: string;
-  reviewPath: string;
-  proposalsPath: string;
-  lifecycle: 'normal' | 'fixme' | 'skip' | 'fail';
-  incremental: ProjectionIncremental;
+  readonly outputPath: string;
+  readonly tracePath: string;
+  readonly reviewPath: string;
+  readonly proposalsPath: string;
+  readonly lifecycle: 'normal' | 'fixme' | 'skip' | 'fail';
+  readonly incremental: ProjectionIncremental;
 }
 
 export type EmitScenarioResult = EmitProjectionResult;
+
+/**
+ * Governance-branded bound scenario types for the emission boundary.
+ * `emitScenario` uses `foldGovernance` to classify before emission:
+ *   - Approved: emit normally
+ *   - ReviewRequired: emit normally (review state is orthogonal to emission)
+ *   - Blocked: force lifecycle to 'skip' (emits test.skip())
+ */
+export type ApprovedBoundScenario = Approved<BoundScenario>;
+export type BlockedBoundScenario = Blocked<BoundScenario>;
+export type ReviewRequiredBoundScenario = ReviewRequired<BoundScenario>;
 
 function toPosix(value: string): string {
   return value.replace(/\\/g, '/');
@@ -115,7 +128,7 @@ function createScenarioProjectionInput(input: {
 
 function renderEmitArtifacts(
   paths: ProjectPaths,
-  boundScenario: BoundScenario,
+  boundScenario: Approved<BoundScenario> | ReviewRequired<BoundScenario>,
   surface: ScenarioInterpretationSurface,
   latestRun: RunRecord | null,
   proposalBundle: ProposalBundle | null,
@@ -184,7 +197,7 @@ function renderEmitArtifacts(
         parents: [],
         handshakes: ['preparation', 'resolution', 'execution', 'evidence', 'proposal'],
       },
-      governance: 'approved',
+      governance: mintApproved(),
       payload: {
         adoId: boundScenario.source.ado_id,
         runId: latestRun?.runId ?? 'pending',
@@ -198,7 +211,87 @@ function renderEmitArtifacts(
   };
 }
 
-function emitOutputFingerprint(artifacts: ReturnType<typeof renderEmitArtifacts>): string {
+/**
+ * Blocked scenarios emit test.skip() — governance blocks execution.
+ * Produces the same artifact shape but forces lifecycle to 'skip'.
+ */
+function renderBlockedEmitArtifacts(
+  paths: ProjectPaths,
+  boundScenario: Blocked<BoundScenario>,
+  surface: ScenarioInterpretationSurface,
+  latestRun: RunRecord | null,
+  proposalBundle: ProposalBundle | null,
+  inboxItems: ReturnType<typeof operatorInboxItemsForScenario>,
+  projectionInput: ScenarioProjectionInput,
+) {
+  const outputPath = generatedSpecPath(paths, boundScenario.metadata.suite, boundScenario.source.ado_id);
+  const tracePath = generatedTracePath(paths, boundScenario.metadata.suite, boundScenario.source.ado_id);
+  const reviewPath = generatedReviewPath(paths, boundScenario.metadata.suite, boundScenario.source.ado_id);
+  const proposalsPath = generatedProposalsPath(paths, boundScenario.metadata.suite, boundScenario.source.ado_id);
+  const manifestPath = emitManifestPath(paths, boundScenario.metadata.suite, boundScenario.source.ado_id);
+  const flow = buildGroundedSpecFlow(boundScenario, surface);
+  // Force lifecycle to 'skip' for blocked scenarios — governance overrides status-derived lifecycle
+  const blockedFlow = {
+    ...flow,
+    metadata: { ...flow.metadata, lifecycle: 'skip' as const, governance: 'blocked' as const },
+  };
+  const rendered = renderReadableSpecModule(blockedFlow, {
+    imports: {
+      fixtures: relativeModule(outputPath, path.join(paths.rootDir, 'fixtures', 'index.ts')).replace(/\.ts$/, ''),
+      scenarioContext: relativeModule(outputPath, path.join(paths.rootDir, 'lib', 'composition', 'scenario-context.ts')).replace(/\.ts$/, ''),
+    },
+  });
+  const traceArtifact = {
+    ...explainBoundScenario(boundScenario, 'skip', latestRun),
+    improvement: null,
+  };
+  const reviewText = renderReview(traceArtifact, proposalBundle, inboxItems, latestRun, projectionInput);
+
+  return {
+    outputPath,
+    tracePath,
+    reviewPath,
+    proposalsPath,
+    manifestPath,
+    rendered: { ...rendered, lifecycle: 'skip' as const },
+    traceArtifact,
+    reviewText,
+    proposalBundle: proposalBundle ?? createProposalBundleEnvelope({
+      ids: createScenarioEnvelopeIds({
+        adoId: boundScenario.source.ado_id,
+        suite: boundScenario.metadata.suite,
+        runId: latestRun?.runId ?? 'pending',
+      }),
+      fingerprints: createScenarioEnvelopeFingerprints({
+        artifact: latestRun?.runId ?? 'pending',
+        content: boundScenario.source.content_hash,
+        knowledge: null,
+        controls: null,
+        task: null,
+        run: latestRun?.runId ?? 'pending',
+      }),
+      lineage: {
+        sources: [],
+        parents: [],
+        handshakes: ['preparation', 'resolution', 'execution', 'evidence', 'proposal'],
+      },
+      governance: mintApproved(),
+      payload: {
+        adoId: boundScenario.source.ado_id,
+        runId: latestRun?.runId ?? 'pending',
+        revision: boundScenario.source.revision,
+        title: boundScenario.metadata.title,
+        suite: boundScenario.metadata.suite,
+        proposals: [],
+      },
+      proposals: [],
+    }),
+  };
+}
+
+type EmitArtifacts = ReturnType<typeof renderEmitArtifacts> | ReturnType<typeof renderBlockedEmitArtifacts>;
+
+function emitOutputFingerprint(artifacts: EmitArtifacts): string {
   return fingerprintProjectionOutput({
     spec: artifacts.rendered.code,
     trace: artifacts.traceArtifact,
@@ -207,7 +300,7 @@ function emitOutputFingerprint(artifacts: ReturnType<typeof renderEmitArtifacts>
   });
 }
 
-function readPersistedEmitOutputState(artifacts: ReturnType<typeof renderEmitArtifacts>) {
+function readPersistedEmitOutputState(artifacts: EmitArtifacts) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const { specExists, traceExists, reviewExists, proposalsExist } = yield* Effect.all({
@@ -284,15 +377,22 @@ export function emitScenario(
       proposalBundle,
       catalog,
     });
-    const artifacts = renderEmitArtifacts(
-      options.paths,
-      source.boundScenario,
-      surfaceEntry.artifact,
-      latestRun,
-      proposalBundle,
-      inboxItems,
-      projectionInput,
-    );
+    // Governance gate: classify the bound scenario using phantom brands.
+    // Approved/ReviewRequired emit normally; Blocked forces test.skip().
+    const artifacts: EmitArtifacts = foldGovernance(source.boundScenario, {
+      approved: (approved) => renderEmitArtifacts(
+        options.paths, approved, surfaceEntry.artifact,
+        latestRun, proposalBundle, inboxItems, projectionInput,
+      ),
+      reviewRequired: (reviewRequired) => renderEmitArtifacts(
+        options.paths, reviewRequired, surfaceEntry.artifact,
+        latestRun, proposalBundle, inboxItems, projectionInput,
+      ),
+      blocked: (blocked) => renderBlockedEmitArtifacts(
+        options.paths, blocked, surfaceEntry.artifact,
+        latestRun, proposalBundle, inboxItems, projectionInput,
+      ),
+    });
     const inputFingerprints: ProjectionInputFingerprint[] = [
       fingerprintProjectionArtifact('bound', relativeProjectPath(options.paths, source.boundPath), source.boundScenario),
       fingerprintProjectionArtifact('task', relativeProjectPath(options.paths, source.surfacePath), source.surface),

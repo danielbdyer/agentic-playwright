@@ -6,6 +6,7 @@ import type { ProjectPaths } from './paths';
 import { relativeProjectPath } from './paths';
 import { FileSystem, Dashboard } from './ports';
 import { dashboardEvent } from '../domain/types/dashboard';
+import { mintReviewRequired } from '../domain/types/workflow';
 
 export function emitOperatorInbox(options: {
   paths: ProjectPaths;
@@ -65,7 +66,7 @@ export function emitOperatorInbox(options: {
           screen: (item as unknown as Record<string, unknown>).screen as string ?? 'unknown',
           urgency: 'queued',
           reason: item.summary,
-          governance: 'review-required',
+          governance: mintReviewRequired(),
           relatedWorkItemId: null,
         })),
         { concurrency: 1 },

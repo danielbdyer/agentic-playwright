@@ -1,5 +1,6 @@
 import { knowledgePaths } from '../../domain/ids';
 import type { ResolutionReceipt } from '../../domain/types';
+import { mintApproved, mintReviewRequired } from '../../domain/types/workflow';
 import { selectedDataset, selectedRunbook } from './select-controls';
 import type { RuntimeAgentStageContext, StageEffects } from './types';
 import { uniqueSorted } from './shared';
@@ -67,7 +68,7 @@ export function agentInterpretedReceipt(
   return {
     ...base,
     kind: 'agent-interpreted',
-    governance: 'review-required',
+    governance: mintReviewRequired(),
     resolutionMode: 'agentic',
     overlayRefs: uniqueSorted(overlayRefs),
     winningConcern: 'resolution',
@@ -85,7 +86,7 @@ export function needsHumanReceipt(stage: RuntimeAgentStageContext, overlayRefs: 
   return {
     ...base,
     kind: 'needs-human',
-    governance: 'review-required',
+    governance: mintReviewRequired(),
     resolutionMode: 'agentic',
     overlayRefs: uniqueSorted(overlayRefs),
     winningConcern: 'resolution',
@@ -105,7 +106,7 @@ export function explicitResolvedReceipt(stage: RuntimeAgentStageContext, pending
   return {
     ...baseReceiptFields(stage, pendingEffects),
     kind: 'resolved',
-    governance: 'approved',
+    governance: mintApproved(),
     resolutionMode: 'deterministic',
     fingerprints: {
       ...baseReceiptFields(stage, pendingEffects).fingerprints,

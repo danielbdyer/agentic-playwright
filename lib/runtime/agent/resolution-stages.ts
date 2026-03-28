@@ -8,6 +8,7 @@ import type {
   StepTaskScreenCandidate,
 } from '../../domain/types';
 import { DEFAULT_PIPELINE_CONFIG } from '../../domain/types';
+import { mintApproved, mintReviewRequired } from '../../domain/types/workflow';
 import { requiresElement, allowedActionFallback } from './resolve-action';
 import { resolveFromDom } from './dom-fallback';
 import { proposalForSupplementGap, proposalsFromInterpretation } from './proposals';
@@ -29,6 +30,36 @@ import {
   type RankedLattice,
 } from './candidate-lattice';
 import { createPlaywrightDomResolver } from '../adapters/playwright-dom-resolver';
+
+/** Maximum characters for the DOM snapshot passed to the agent interpreter. */
+const DOM_SNAPSHOT_MAX_CHARS = 2048;
+
+/**
+ * Capture a truncated ARIA/accessibility snapshot from a live Playwright page.
+ * Returns null when no page is available or when capture fails.
+ * Pure truncation: slices to `maxChars` without splitting mid-line when possible.
+ */
+export async function captureTruncatedAriaSnapshot(
+  page: unknown,
+  maxChars: number = DOM_SNAPSHOT_MAX_CHARS,
+): Promise<string | null> {
+  if (!page) return null;
+  try {
+    const p = page as import('@playwright/test').Page;
+    const snapshot = await p.accessibility.snapshot({ interestingOnly: true });
+    if (!snapshot) return null;
+    const text = JSON.stringify(snapshot, null, 2);
+    if (text.length <= maxChars) return text;
+    // Truncate at the last newline boundary within maxChars to avoid mid-line cuts
+    const truncated = text.slice(0, maxChars);
+    const lastNewline = truncated.lastIndexOf('\n');
+    return lastNewline > maxChars * 0.5
+      ? truncated.slice(0, lastNewline) + '\n...'
+      : truncated + '...';
+  } catch {
+    return null;
+  }
+}
 
 export interface ResolutionAccumulator {
   action: StepAction | null;
@@ -210,7 +241,7 @@ export function tryApprovedKnowledgeResolution(stage: RuntimeAgentStageContext, 
       receipt: {
         ...needsHumanReceipt(stage, [], null, effects),
         kind: 'resolved',
-        governance: 'approved',
+        governance: mintApproved(),
         resolutionMode: 'deterministic',
         overlayRefs: [],
         winningConcern: 'knowledge',
@@ -252,7 +283,7 @@ export function tryOverlayResolution(stage: RuntimeAgentStageContext, acc: Resol
       receipt: {
         ...needsHumanReceipt(stage, [], null, resolvedEffects),
         kind: 'resolved',
-        governance: 'approved',
+        governance: mintApproved(),
         resolutionMode: 'deterministic',
         lineage: { sources: [...stage.controlRefs, ...stage.evidenceRefs, ...overlayResult.overlayRefs], parents: [stage.task.taskFingerprint], handshakes: ['preparation', 'resolution'] },
         overlayRefs: overlayResult.overlayRefs,
@@ -312,7 +343,7 @@ export async function tryTranslationResolution(stage: RuntimeAgentStageContext, 
     const baseReceipt = {
       ...needsHumanReceipt(stage, [], null, resolvedEffects),
       kind: hasProposals ? 'resolved-with-proposals' as const : 'resolved' as const,
-      governance: 'approved' as const,
+      governance: mintApproved(),
       resolutionMode: 'translation' as const,
       lineage: { sources: [...stage.controlRefs, ...stage.evidenceRefs], parents: [stage.task.taskFingerprint], handshakes: ['preparation', 'resolution'] },
       overlayRefs: translated.overlayRefs,
@@ -424,7 +455,7 @@ export async function tryLiveDomOrFallback(stage: RuntimeAgentStageContext, acc:
       receipt: {
         ...needsHumanReceipt(stage, [...acc.overlayResult.overlayRefs, ...acc.translated.overlayRefs], acc.translated.translation, resolvedEffects),
         kind: 'resolved-with-proposals',
-        governance: 'approved',
+        governance: mintApproved(),
         lineage: { sources: [], parents: [stage.task.taskFingerprint], handshakes: ['preparation', 'resolution'] },
         winningSource: 'live-dom',
         confidence: 'agent-proposed',
@@ -467,6 +498,7 @@ export async function tryLiveDomOrFallback(stage: RuntimeAgentStageContext, acc:
   // The agent receives the full context of what was tried and the DOM state.
   const agentInterpreter = stage.context.agentInterpreter;
   if (agentInterpreter && agentInterpreter.kind !== 'disabled') {
+    const domSnapshot = await captureTruncatedAriaSnapshot(stage.context.page);
     const agentRequest: AgentInterpretationRequest = {
       actionText: stage.task.actionText,
       expectedText: stage.task.expectedText,
@@ -488,7 +520,7 @@ export async function tryLiveDomOrFallback(stage: RuntimeAgentStageContext, acc:
         outcome: entry.outcome,
         reason: entry.reason,
       })),
-      domSnapshot: null,
+      domSnapshot,
       priorTarget: stage.context.previousResolution ?? null,
       taskFingerprint: stage.task.taskFingerprint,
       knowledgeFingerprint: stage.context.resolutionContext.knowledgeFingerprint,
@@ -562,7 +594,7 @@ export async function tryLiveDomOrFallback(stage: RuntimeAgentStageContext, acc:
   return {
     receipt: {
       ...needsHumanReceipt(stage, [...acc.overlayResult.overlayRefs, ...acc.translated.overlayRefs], acc.translated.translation, fallbackEffects),
-      governance: 'review-required',
+      governance: mintReviewRequired(),
       reason: domResolved.candidates.length > 0
         ? 'Live DOM exploration produced an ambiguous shortlist that requires human selection.'
         : 'No safe executable interpretation remained after exhausting explicit constraints, approved knowledge, prior evidence, live DOM exploration, agent interpretation, and degraded resolution.',

@@ -6,6 +6,7 @@ import type { AdoId } from '../domain/identity';
 import { compileStepProgram } from '../domain/program';
 import type { BoundScenario, CompilerDiagnostic } from '../domain/types';
 import { validateBoundScenario } from '../domain/validation';
+import { isBlocked, isReviewRequired } from '../domain/types/workflow';
 import { loadWorkspaceCatalog } from './catalog';
 import { deriveGovernanceState } from './catalog/envelope';
 import { trySync } from './effect';
@@ -124,8 +125,8 @@ export function bindScenario(options: { adoId: AdoId; paths: ProjectPaths; sessi
         handshakes: ['preparation'],
       },
       governance: deriveGovernanceState({
-        hasBlocked: boundSteps.some((step) => step.binding.governance === 'blocked'),
-        hasReviewRequired: boundSteps.some((step) => step.binding.governance === 'review-required'),
+        hasBlocked: boundSteps.some((step) => isBlocked(step.binding)),
+        hasReviewRequired: boundSteps.some((step) => isReviewRequired(step.binding)),
       }),
       payload: {
         source: scenario.source,

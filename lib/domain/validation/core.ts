@@ -1,5 +1,6 @@
 ﻿import * as schemaDecode from '../schemas/decode';
 import * as schemas from '../schemas';
+import { mintApproved } from '../types/workflow';
 import type {
   AdoSnapshot,
   ApprovalReceipt,
@@ -871,7 +872,7 @@ export function validateScenarioInterpretationSurface(value: unknown): ScenarioI
   const header = validateWorkflowEnvelopeHeader(surface, 'scenarioInterpretationSurface', {
     stage: 'preparation',
     scope: 'scenario',
-    governance: 'approved',
+    governance: mintApproved(),
     artifactFingerprint: expectOptionalString(surface.surfaceFingerprint, 'scenarioInterpretationSurface.surfaceFingerprint') ?? 'scenario-interpretation-surface',
     ids: {
       adoId: expectOptionalId(surface.ids && typeof surface.ids === 'object' ? (surface.ids as Record<string, unknown>).adoId : undefined, 'scenarioInterpretationSurface.ids.adoId', createAdoId) ?? null,
@@ -975,7 +976,7 @@ export function validateScenarioTaskPacket(value: unknown): ScenarioTaskPacket {
   const header = validateWorkflowEnvelopeHeader(packet, 'scenarioTaskPacket', {
     stage: 'preparation',
     scope: 'scenario',
-    governance: 'approved',
+    governance: mintApproved(),
     artifactFingerprint: expectOptionalString(packet.taskFingerprint, 'scenarioTaskPacket.taskFingerprint') ?? 'scenario-task-packet',
     ids: {
       adoId: expectOptionalId(packet.ids && typeof packet.ids === 'object' ? (packet.ids as Record<string, unknown>).adoId : undefined, 'scenarioTaskPacket.ids.adoId', createAdoId) ?? null,
@@ -1202,7 +1203,7 @@ function validateResolutionReceipt(value: unknown, path: string): ResolutionRece
   const header = validateWorkflowEnvelopeHeader(receipt, path, {
     stage: 'resolution',
     scope: 'step',
-    governance: 'approved',
+    governance: mintApproved(),
     artifactFingerprint: expectOptionalString(receipt.taskFingerprint, `${path}.taskFingerprint`) ?? `${path}:resolution`,
     ids: {
       stepIndex: receipt.stepIndex === undefined ? null : expectNumber(receipt.stepIndex, `${path}.stepIndex`),

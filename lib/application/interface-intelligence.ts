@@ -1,3 +1,19 @@
+/**
+ * Complexity audit (W5.9)
+ *
+ * | Function                        | Before          | After   | Change                                                       |
+ * |---------------------------------|-----------------|---------|--------------------------------------------------------------|
+ * | surfaceEntryForScreen           | O(S)            | O(1)    | Pre-indexed Map<ScreenId, entry> via buildCatalogScreenIndex |
+ * | elementsEntryForScreen          | O(S)            | O(1)    | Pre-indexed Map<ScreenId, entry> via buildCatalogScreenIndex |
+ * | hintsEntryForScreen             | O(S)            | O(1)    | Pre-indexed Map<ScreenId, entry> via buildCatalogScreenIndex |
+ * | posturesEntryForScreen          | O(S)            | O(1)    | Pre-indexed Map<ScreenId, entry> via buildCatalogScreenIndex |
+ * | targetDescriptors (discovery)   | O(T*E + T*S)    | O(T)    | Pre-index discovery elements/surfaces by targetRef per run   |
+ * | matchingConfidenceRecord        | O(R)            | O(1)    | Pre-indexed Map<screen:element, record> via confidence index |
+ * | routeVariantRefsForScreen       | O(R*V)          | O(1)    | Pre-indexed Map<ScreenId, string[]> via route variant index  |
+ * | selectorStateApplicability      | O(N_states)     | O(1)    | Pre-indexed Map<TargetRef, applicability> built once          |
+ * | buildSelectorCanon (seedToProbe)| O(seeds*states) | O(seeds)| Uses pre-indexed state applicability and confidence maps     |
+ * | predicate kind check            | O(k) array      | O(1)    | Replaced array.includes with Set.has for predicate kinds     |
+ */
 import path from 'path';
 import { Effect } from 'effect';
 import { SchemaError, TesseractError } from '../domain/errors';
@@ -301,51 +317,99 @@ function routeBindings(catalog: WorkspaceCatalog): RouteBinding[] {
   })).sort((left, right) => left.entryUrl.localeCompare(right.entryUrl));
 }
 
-function routeVariantRefsForScreen(routes: readonly RouteBinding[], screen: ScreenId): string[] {
-  return sortStrings(routes.flatMap((binding) =>
-    binding.variants
-      .filter((variant) => variant.screen === screen)
-      .map((variant) => routeVariantRef(binding.app, binding.routeId, variant.variantId)),
-  ));
+// --- Pre-indexed catalog lookups: O(1) per screen instead of O(S) linear scan ---
+
+type SurfaceCatalogEntry = WorkspaceCatalog['surfaces'][number];
+type ElementsCatalogEntry = WorkspaceCatalog['screenElements'][number];
+type HintsCatalogEntry = WorkspaceCatalog['screenHints'][number];
+type PosturesCatalogEntry = WorkspaceCatalog['screenPostures'][number];
+
+interface CatalogScreenIndex {
+  readonly surfaces: ReadonlyMap<ScreenId, SurfaceCatalogEntry>;
+  readonly elements: ReadonlyMap<ScreenId, ElementsCatalogEntry>;
+  readonly hints: ReadonlyMap<ScreenId, HintsCatalogEntry>;
+  readonly postures: ReadonlyMap<ScreenId, PosturesCatalogEntry>;
+  readonly routeVariantsByScreen: ReadonlyMap<ScreenId, readonly string[]>;
+  readonly confidenceByKey: ReadonlyMap<string, ArtifactConfidenceRecord>;
 }
 
-function surfaceEntryForScreen(catalog: WorkspaceCatalog, screen: ScreenId) {
-  return catalog.surfaces.find((entry) => entry.artifact.screen === screen) ?? null;
+function buildCatalogScreenIndex(catalog: WorkspaceCatalog, routes: readonly RouteBinding[]): CatalogScreenIndex {
+  const surfaces = new Map<ScreenId, SurfaceCatalogEntry>(
+    catalog.surfaces.map((entry) => [entry.artifact.screen, entry] as const),
+  );
+  const elements = new Map<ScreenId, ElementsCatalogEntry>(
+    catalog.screenElements.map((entry) => [entry.artifact.screen, entry] as const),
+  );
+  const hints = new Map<ScreenId, HintsCatalogEntry>(
+    catalog.screenHints.map((entry) => [entry.artifact.screen, entry] as const),
+  );
+  const postures = new Map<ScreenId, PosturesCatalogEntry>(
+    catalog.screenPostures.map((entry) => [entry.artifact.screen, entry] as const),
+  );
+  // Pre-compute route variant refs per screen: avoids O(R*V) scan per call
+  const variantAccumulator = new Map<ScreenId, string[]>();
+  for (const binding of routes) {
+    for (const variant of binding.variants) {
+      const existing = variantAccumulator.get(variant.screen) ?? [];
+      existing.push(routeVariantRef(binding.app, binding.routeId, variant.variantId));
+      variantAccumulator.set(variant.screen, existing);
+    }
+  }
+  const routeVariantsByScreen = new Map<ScreenId, readonly string[]>();
+  for (const [screen, refs] of variantAccumulator) {
+    routeVariantsByScreen.set(screen, sortStrings(refs));
+  }
+  // Pre-index confidence records by screen:element key: O(1) lookup instead of O(R) scan
+  const confidenceByKey = new Map<string, ArtifactConfidenceRecord>();
+  for (const record of catalog.confidenceCatalog?.artifact.records ?? []) {
+    if (record.screen && record.element) {
+      confidenceByKey.set(`${record.screen}:${record.element}`, record);
+    }
+  }
+  return { surfaces, elements, hints, postures, routeVariantsByScreen, confidenceByKey };
 }
 
-function elementsEntryForScreen(catalog: WorkspaceCatalog, screen: ScreenId) {
-  return catalog.screenElements.find((entry) => entry.artifact.screen === screen) ?? null;
+function routeVariantRefsForScreen(idx: CatalogScreenIndex, screen: ScreenId): readonly string[] {
+  return idx.routeVariantsByScreen.get(screen) ?? [];
 }
 
-function hintsEntryForScreen(catalog: WorkspaceCatalog, screen: ScreenId) {
-  return catalog.screenHints.find((entry) => entry.artifact.screen === screen) ?? null;
+function surfaceEntryForScreen(idx: CatalogScreenIndex, screen: ScreenId): SurfaceCatalogEntry | null {
+  return idx.surfaces.get(screen) ?? null;
 }
 
-function posturesEntryForScreen(catalog: WorkspaceCatalog, screen: ScreenId) {
-  return catalog.screenPostures.find((entry) => entry.artifact.screen === screen) ?? null;
+function elementsEntryForScreen(idx: CatalogScreenIndex, screen: ScreenId): ElementsCatalogEntry | null {
+  return idx.elements.get(screen) ?? null;
 }
 
-function screenAliases(catalog: WorkspaceCatalog, screen: ScreenId): string[] {
-  const hints = hintsEntryForScreen(catalog, screen);
-  return sortStrings([screen, ...(hints?.artifact.screenAliases ?? [])]);
+function hintsEntryForScreen(idx: CatalogScreenIndex, screen: ScreenId): HintsCatalogEntry | null {
+  return idx.hints.get(screen) ?? null;
 }
 
-function screenKnowledgeRefs(catalog: WorkspaceCatalog, screen: ScreenId): string[] {
+function posturesEntryForScreen(idx: CatalogScreenIndex, screen: ScreenId): PosturesCatalogEntry | null {
+  return idx.postures.get(screen) ?? null;
+}
+
+function screenAliases(idx: CatalogScreenIndex, screen: ScreenId): string[] {
+  const hintsEntry = hintsEntryForScreen(idx, screen);
+  return sortStrings([screen, ...(hintsEntry?.artifact.screenAliases ?? [])]);
+}
+
+function screenKnowledgeRefs(idx: CatalogScreenIndex, screen: ScreenId): string[] {
   return sortStrings([
-    surfaceEntryForScreen(catalog, screen)?.artifactPath ?? '',
-    elementsEntryForScreen(catalog, screen)?.artifactPath ?? '',
+    surfaceEntryForScreen(idx, screen)?.artifactPath ?? '',
+    elementsEntryForScreen(idx, screen)?.artifactPath ?? '',
   ].filter((value) => value.length > 0));
 }
 
-function screenSupplementRefs(catalog: WorkspaceCatalog, screen: ScreenId): string[] {
+function screenSupplementRefs(idx: CatalogScreenIndex, screen: ScreenId): string[] {
   return sortStrings([
-    hintsEntryForScreen(catalog, screen)?.artifactPath ?? '',
-    posturesEntryForScreen(catalog, screen)?.artifactPath ?? '',
+    hintsEntryForScreen(idx, screen)?.artifactPath ?? '',
+    posturesEntryForScreen(idx, screen)?.artifactPath ?? '',
   ].filter((value) => value.length > 0));
 }
 
-function screenSectionSnapshots(catalog: WorkspaceCatalog, screen: ScreenId): SnapshotTemplateId[] {
-  const surfaceEntry = surfaceEntryForScreen(catalog, screen);
+function screenSectionSnapshots(idx: CatalogScreenIndex, screen: ScreenId): SnapshotTemplateId[] {
+  const surfaceEntry = surfaceEntryForScreen(idx, screen);
   if (!surfaceEntry) {
     return [];
   }
@@ -357,6 +421,7 @@ function screenSectionSnapshots(catalog: WorkspaceCatalog, screen: ScreenId): Sn
 
 function targetDescriptors(input: {
   catalog: WorkspaceCatalog;
+  index: CatalogScreenIndex;
   discoveryRuns: readonly ArtifactEnvelope<DiscoveryRun>[];
 }): TargetDescriptor[] {
   const descriptors = new Map<CanonicalTargetRef, TargetDescriptor>();
@@ -377,8 +442,8 @@ function targetDescriptors(input: {
           section: sectionId,
           selector: section.selector,
           aliases: [section.snapshot],
-          knowledgeRefs: screenKnowledgeRefs(input.catalog, surfaceEntry.artifact.screen),
-          supplementRefs: screenSupplementRefs(input.catalog, surfaceEntry.artifact.screen),
+          knowledgeRefs: screenKnowledgeRefs(input.index, surfaceEntry.artifact.screen),
+          supplementRefs: screenSupplementRefs(input.index, surfaceEntry.artifact.screen),
         },
       });
     }
@@ -396,8 +461,8 @@ function targetDescriptors(input: {
           selector: surface.selector,
           assertions: surface.assertions,
           aliases: [surfaceId],
-          knowledgeRefs: screenKnowledgeRefs(input.catalog, surfaceEntry.artifact.screen),
-          supplementRefs: screenSupplementRefs(input.catalog, surfaceEntry.artifact.screen),
+          knowledgeRefs: screenKnowledgeRefs(input.index, surfaceEntry.artifact.screen),
+          supplementRefs: screenSupplementRefs(input.index, surfaceEntry.artifact.screen),
         },
       });
     }
@@ -405,8 +470,8 @@ function targetDescriptors(input: {
 
   for (const elementsEntry of input.catalog.screenElements) {
     for (const [elementId, element] of Object.entries(elementsEntry.artifact.elements)) {
-      const hintsEntry = hintsEntryForScreen(input.catalog, elementsEntry.artifact.screen);
-      const posturesEntry = posturesEntryForScreen(input.catalog, elementsEntry.artifact.screen);
+      const hintsEntry = hintsEntryForScreen(input.index, elementsEntry.artifact.screen);
+      const posturesEntry = posturesEntryForScreen(input.index, elementsEntry.artifact.screen);
       const hint = hintsEntry?.artifact.elements[elementId];
       const postures = posturesEntry?.artifact.postures[elementId]
         ? Object.keys(posturesEntry.artifact.postures[elementId]).sort((left, right) => left.localeCompare(right)) as PostureId[]
@@ -432,14 +497,21 @@ function targetDescriptors(input: {
           defaultValueRef: hint?.defaultValueRef ?? null,
           parameter: hint?.parameter ?? null,
           snapshotAliases: hint?.snapshotAliases ?? {},
-          knowledgeRefs: screenKnowledgeRefs(input.catalog, elementsEntry.artifact.screen),
-          supplementRefs: screenSupplementRefs(input.catalog, elementsEntry.artifact.screen),
+          knowledgeRefs: screenKnowledgeRefs(input.index, elementsEntry.artifact.screen),
+          supplementRefs: screenSupplementRefs(input.index, elementsEntry.artifact.screen),
         },
       });
     }
   }
 
   for (const discoveryEntry of input.discoveryRuns) {
+    // Pre-index discovery elements/surfaces by targetRef: O(1) lookup instead of O(E) linear scan
+    const discoveryElementsByTargetRef = new Map(
+      discoveryEntry.artifact.elements.map((entry) => [entry.targetRef, entry] as const),
+    );
+    const discoverySurfacesByTargetRef = new Map(
+      discoveryEntry.artifact.surfaces.map((entry) => [entry.targetRef, entry] as const),
+    );
     for (const target of discoveryEntry.artifact.targets) {
       const targetRef = target.kind === 'surface' && target.surface
         ? surfaceTargetRef(target.screen, target.surface)
@@ -449,8 +521,8 @@ function targetDescriptors(input: {
             ? snapshotTargetRef(target.screen, target.snapshotTemplate)
             : discoveredTargetRef(target.screen, target.kind, target.graphNodeId);
       const existing = descriptors.get(targetRef);
-      const discoveryElement = discoveryEntry.artifact.elements.find((entry) => entry.targetRef === targetRef) ?? null;
-      const discoverySurface = discoveryEntry.artifact.surfaces.find((entry) => entry.targetRef === targetRef) ?? null;
+      const discoveryElement = discoveryElementsByTargetRef.get(targetRef) ?? null;
+      const discoverySurface = discoverySurfacesByTargetRef.get(targetRef) ?? null;
       descriptors.set(targetRef, {
         targetRef,
         screen: target.screen,
@@ -700,14 +772,13 @@ function buildStateTransitionGraph(input: {
 }
 
 function matchingConfidenceRecord(input: {
-  catalog: WorkspaceCatalog;
+  index: CatalogScreenIndex;
   screen: ScreenId;
   element?: ElementId | null | undefined;
 }): ArtifactConfidenceRecord | null {
   if (!input.element) return null;
-  return input.catalog.confidenceCatalog?.artifact.records.find((entry) =>
-    entry.screen === input.screen && entry.element === input.element,
-  ) ?? null;
+  // O(1) lookup via pre-indexed Map instead of O(R) linear scan
+  return input.index.confidenceByKey.get(`${input.screen}:${input.element}`) ?? null;
 }
 
 function selectorStatus(input: { confidenceRecord: ArtifactConfidenceRecord | null; strategy: LocatorStrategy }): SelectorProbe['status'] {
@@ -715,38 +786,66 @@ function selectorStatus(input: { confidenceRecord: ArtifactConfidenceRecord | nu
   return input.strategy.kind === 'css' ? 'unverified' : 'healthy';
 }
 
-function selectorStateApplicability(stateGraph: StateTransitionGraph, targetRef: CanonicalTargetRef) {
-  const valid = new Set<StateNodeRef>();
-  const invalid = new Set<StateNodeRef>();
+// Pre-computed Sets for predicate classification: O(1) per check instead of O(k) array scan
+const VALID_PREDICATE_KINDS: ReadonlySet<string> = new Set([
+  'visible', 'enabled', 'open', 'expanded', 'active-route', 'active-modal', 'populated', 'valid',
+]);
+const INVALID_PREDICATE_KINDS: ReadonlySet<string> = new Set([
+  'hidden', 'disabled', 'closed', 'collapsed', 'cleared', 'invalid',
+]);
+
+type StateApplicability = {
+  readonly validWhenStateRefs: readonly StateNodeRef[];
+  readonly invalidWhenStateRefs: readonly StateNodeRef[];
+};
+
+// Pre-index state applicability for all target refs: O(states) total instead of O(seeds * states)
+function buildStateApplicabilityIndex(
+  stateGraph: StateTransitionGraph,
+): ReadonlyMap<CanonicalTargetRef, StateApplicability> {
+  const validAccumulator = new Map<CanonicalTargetRef, Set<StateNodeRef>>();
+  const invalidAccumulator = new Map<CanonicalTargetRef, Set<StateNodeRef>>();
   for (const state of stateGraph.states) {
-    if (state.targetRef !== targetRef) {
-      continue;
-    }
+    if (!state.targetRef) continue;
     for (const predicate of state.predicates) {
-      if (['visible', 'enabled', 'open', 'expanded', 'active-route', 'active-modal', 'populated', 'valid'].includes(predicate.kind)) {
-        valid.add(state.ref);
+      if (VALID_PREDICATE_KINDS.has(predicate.kind)) {
+        const set = validAccumulator.get(state.targetRef) ?? new Set();
+        set.add(state.ref);
+        validAccumulator.set(state.targetRef, set);
       }
-      if (['hidden', 'disabled', 'closed', 'collapsed', 'cleared', 'invalid'].includes(predicate.kind)) {
-        invalid.add(state.ref);
+      if (INVALID_PREDICATE_KINDS.has(predicate.kind)) {
+        const set = invalidAccumulator.get(state.targetRef) ?? new Set();
+        set.add(state.ref);
+        invalidAccumulator.set(state.targetRef, set);
       }
     }
   }
-  return {
-    validWhenStateRefs: [...valid].sort((left, right) => left.localeCompare(right)),
-    invalidWhenStateRefs: [...invalid].sort((left, right) => left.localeCompare(right)),
-  };
+  const result = new Map<CanonicalTargetRef, StateApplicability>();
+  const allTargetRefs = new Set([...validAccumulator.keys(), ...invalidAccumulator.keys()]);
+  for (const targetRef of allTargetRefs) {
+    result.set(targetRef, {
+      validWhenStateRefs: [...(validAccumulator.get(targetRef) ?? [])].sort((left, right) => left.localeCompare(right)),
+      invalidWhenStateRefs: [...(invalidAccumulator.get(targetRef) ?? [])].sort((left, right) => left.localeCompare(right)),
+    });
+  }
+  return result;
 }
+
+const EMPTY_STATE_APPLICABILITY: StateApplicability = { validWhenStateRefs: [], invalidWhenStateRefs: [] };
 
 function buildApplicationInterfaceGraph(_input: {
   catalog: WorkspaceCatalog;
+  index: CatalogScreenIndex;
+  routes: readonly RouteBinding[];
   discoveryRuns: readonly ArtifactEnvelope<DiscoveryRun>[];
   stateGraph: StateTransitionGraph;
 }): ApplicationInterfaceGraph {
   const input = _input;
   const nodes = new Map<string, InterfaceGraphNode>();
   const edges = new Map<string, InterfaceGraphEdge>();
-  const routes = routeBindings(input.catalog);
-  const targets = targetDescriptors(input);
+  const routes = input.routes;
+  const index = input.index;
+  const targets = targetDescriptors({ catalog: input.catalog, index, discoveryRuns: input.discoveryRuns });
   const targetRefs = new Set<CanonicalTargetRef>(targets.map((entry) => entry.targetRef));
 
   for (const binding of routes) {
@@ -813,11 +912,11 @@ function buildApplicationInterfaceGraph(_input: {
       screen: surfaceGraph.screen,
       payload: {
         url: surfaceGraph.url,
-        aliases: screenAliases(input.catalog, surfaceGraph.screen),
-        routeVariantRefs: routeVariantRefsForScreen(routes, surfaceGraph.screen),
-        knowledgeRefs: screenKnowledgeRefs(input.catalog, surfaceGraph.screen),
-        supplementRefs: screenSupplementRefs(input.catalog, surfaceGraph.screen),
-        sectionSnapshots: screenSectionSnapshots(input.catalog, surfaceGraph.screen),
+        aliases: screenAliases(index, surfaceGraph.screen),
+        routeVariantRefs: routeVariantRefsForScreen(index, surfaceGraph.screen),
+        knowledgeRefs: screenKnowledgeRefs(input.index, surfaceGraph.screen),
+        supplementRefs: screenSupplementRefs(input.index, surfaceGraph.screen),
+        sectionSnapshots: screenSectionSnapshots(index, surfaceGraph.screen),
       },
     }));
 
@@ -912,8 +1011,8 @@ function buildApplicationInterfaceGraph(_input: {
       targetRef: target.targetRef,
       payload: {
         kind: target.kind,
-        routeVariantRefs: routeVariantRefsForScreen(routes, target.screen),
-        sectionSnapshots: screenSectionSnapshots(input.catalog, target.screen),
+        routeVariantRefs: routeVariantRefsForScreen(index, target.screen),
+        sectionSnapshots: screenSectionSnapshots(index, target.screen),
         ...(target.payload ?? {}),
       },
     }));
@@ -1120,32 +1219,31 @@ function buildApplicationInterfaceGraph(_input: {
 
 function buildSelectorCanon(_input: {
   catalog: WorkspaceCatalog;
+  index: CatalogScreenIndex;
   discoveryRuns: readonly ArtifactEnvelope<DiscoveryRun>[];
   interfaceGraph: ApplicationInterfaceGraph;
   stateGraph: StateTransitionGraph;
 }): SelectorCanon {
   const input = _input;
   const descriptors = new Map<CanonicalTargetRef, TargetDescriptor>(
-    targetDescriptors({ catalog: input.catalog, discoveryRuns: input.discoveryRuns }).map((entry) => [entry.targetRef, entry]),
+    targetDescriptors({ catalog: input.catalog, index: input.index, discoveryRuns: input.discoveryRuns }).map((entry) => [entry.targetRef, entry]),
   );
-  const seeds: SelectorProbeSeed[] = [];
-
-  for (const surfaceEntry of input.catalog.surfaces) {
-    for (const [sectionId, section] of Object.entries(surfaceEntry.artifact.sections)) {
-      if (!section.snapshot) continue;
-      const snapshotTemplate = createSnapshotTemplateId(section.snapshot);
-      seeds.push({
-        targetRef: snapshotTargetRef(surfaceEntry.artifact.screen, snapshotTemplate),
+  // Pre-index state applicability: O(states) total instead of O(seeds * states)
+  const stateApplicabilityIndex = buildStateApplicabilityIndex(input.stateGraph);
+  const surfaceSeeds: SelectorProbeSeed[] = input.catalog.surfaces.flatMap((surfaceEntry) => [
+    ...Object.entries(surfaceEntry.artifact.sections)
+      .filter(([, section]) => section.snapshot)
+      .map(([, section]): SelectorProbeSeed => ({
+        targetRef: snapshotTargetRef(surfaceEntry.artifact.screen, createSnapshotTemplateId(section.snapshot!)),
         screen: surfaceEntry.artifact.screen,
         kind: 'snapshot-anchor',
         source: 'approved-knowledge',
         strategy: { kind: 'css', value: section.selector },
         rung: 0,
         artifactPath: surfaceEntry.artifactPath,
-      });
-    }
-    for (const [surfaceId, surface] of Object.entries(surfaceEntry.artifact.surfaces)) {
-      seeds.push({
+      })),
+    ...Object.entries(surfaceEntry.artifact.surfaces)
+      .map(([surfaceId, surface]): SelectorProbeSeed => ({
         targetRef: surfaceTargetRef(surfaceEntry.artifact.screen, createSurfaceId(surfaceId)),
         screen: surfaceEntry.artifact.screen,
         kind: 'surface',
@@ -1153,70 +1251,68 @@ function buildSelectorCanon(_input: {
         strategy: { kind: 'css', value: surface.selector },
         rung: 0,
         artifactPath: surfaceEntry.artifactPath,
-      });
-    }
-  }
+      })),
+  ]);
 
-  for (const elementsEntry of input.catalog.screenElements) {
-    for (const [elementId, element] of Object.entries(elementsEntry.artifact.elements)) {
+  const elementSeeds: SelectorProbeSeed[] = input.catalog.screenElements.flatMap((elementsEntry) =>
+    Object.entries(elementsEntry.artifact.elements).flatMap(([elementId, element]) => {
       const confidenceRecord = matchingConfidenceRecord({
-        catalog: input.catalog,
+        index: input.index,
         screen: elementsEntry.artifact.screen,
         element: createElementId(elementId),
       });
-      (element.locator ?? []).forEach((strategy, rung) => {
-        seeds.push({
-          targetRef: elementTargetRef(elementsEntry.artifact.screen, createElementId(elementId)),
-          screen: elementsEntry.artifact.screen,
-          kind: 'element',
-          source: 'approved-knowledge',
-          strategy,
-          rung,
-          artifactPath: elementsEntry.artifactPath,
-          successCount: confidenceRecord?.successCount ?? 0,
-          failureCount: confidenceRecord?.failureCount ?? 0,
-          lastUsedAt: confidenceRecord?.lastSuccessAt ?? null,
-          evidenceRefs: confidenceRecord?.lineage.evidenceIds ?? [],
-          lineage: {
-            sourceArtifactPaths: [elementsEntry.artifactPath],
-            discoveryRunIds: [],
-            evidenceRefs: confidenceRecord?.lineage.evidenceIds ?? [],
-          },
-        });
-      });
-    }
-  }
-
-  for (const discoveryEntry of input.discoveryRuns) {
-    for (const probe of discoveryEntry.artifact.selectorProbes) {
-      seeds.push({
-        targetRef: probe.targetRef,
-        screen: probe.screen,
-        kind: probe.element ? 'element' : probe.section ? 'surface' : 'discovered',
-        source: 'discovery',
-        strategy: probe.strategy,
-        rung: 0,
-        artifactPath: discoveryEntry.artifactPath,
-        variantRefs: [probe.variantRef],
-        discoveredFrom: discoveryEntry.artifact.runId,
-        validWhenStateRefs: probe.validWhenStateRefs,
-        invalidWhenStateRefs: probe.invalidWhenStateRefs,
+      return (element.locator ?? []).map((strategy, rung): SelectorProbeSeed => ({
+        targetRef: elementTargetRef(elementsEntry.artifact.screen, createElementId(elementId)),
+        screen: elementsEntry.artifact.screen,
+        kind: 'element',
+        source: 'approved-knowledge',
+        strategy,
+        rung,
+        artifactPath: elementsEntry.artifactPath,
+        successCount: confidenceRecord?.successCount ?? 0,
+        failureCount: confidenceRecord?.failureCount ?? 0,
+        lastUsedAt: confidenceRecord?.lastSuccessAt ?? null,
+        evidenceRefs: confidenceRecord?.lineage.evidenceIds ?? [],
         lineage: {
-          sourceArtifactPaths: [discoveryEntry.artifactPath],
-          discoveryRunIds: [discoveryEntry.artifact.runId],
-          evidenceRefs: [],
+          sourceArtifactPaths: [elementsEntry.artifactPath],
+          discoveryRunIds: [],
+          evidenceRefs: confidenceRecord?.lineage.evidenceIds ?? [],
         },
-      });
-    }
-  }
+      }));
+    }),
+  );
 
-  const grouped = new Map<CanonicalTargetRef, SelectorProbe[]>();
-  for (const seed of seeds) {
+  const discoverySeeds: SelectorProbeSeed[] = input.discoveryRuns.flatMap((discoveryEntry) =>
+    discoveryEntry.artifact.selectorProbes.map((probe): SelectorProbeSeed => ({
+      targetRef: probe.targetRef,
+      screen: probe.screen,
+      kind: probe.element ? 'element' : probe.section ? 'surface' : 'discovered',
+      source: 'discovery',
+      strategy: probe.strategy,
+      rung: 0,
+      artifactPath: discoveryEntry.artifactPath,
+      variantRefs: [probe.variantRef],
+      discoveredFrom: discoveryEntry.artifact.runId,
+      validWhenStateRefs: probe.validWhenStateRefs,
+      invalidWhenStateRefs: probe.invalidWhenStateRefs,
+      lineage: {
+        sourceArtifactPaths: [discoveryEntry.artifactPath],
+        discoveryRunIds: [discoveryEntry.artifact.runId],
+        evidenceRefs: [],
+      },
+    })),
+  );
+
+  const seeds: readonly SelectorProbeSeed[] = [...surfaceSeeds, ...elementSeeds, ...discoverySeeds];
+
+  const seedToProbe = (seed: SelectorProbeSeed): SelectorProbe => {
     const descriptor = descriptors.get(seed.targetRef);
     const confidenceRecord = descriptor?.kind === 'element'
-      ? matchingConfidenceRecord({ catalog: input.catalog, screen: descriptor.screen, element: descriptor.element ?? null })
+      ? matchingConfidenceRecord({ index: input.index, screen: descriptor.screen, element: descriptor.element ?? null })
       : null;
-    const probe: SelectorProbe = {
+    // O(1) lookup via pre-indexed state applicability map instead of O(states) per seed
+    const applicability = stateApplicabilityIndex.get(seed.targetRef) ?? EMPTY_STATE_APPLICABILITY;
+    return {
       id: selectorProbeId(seed.targetRef, seed.strategy, seed.rung),
       selectorRef: selectorRefForProbe(seed.targetRef, seed.strategy, seed.rung),
       strategy: seed.strategy,
@@ -1225,8 +1321,8 @@ function buildSelectorCanon(_input: {
       rung: seed.rung,
       artifactPath: seed.artifactPath,
       variantRefs: sortStrings(seed.variantRefs ?? []),
-      validWhenStateRefs: sortStrings(seed.validWhenStateRefs ?? selectorStateApplicability(input.stateGraph, seed.targetRef).validWhenStateRefs) as StateNodeRef[],
-      invalidWhenStateRefs: sortStrings(seed.invalidWhenStateRefs ?? selectorStateApplicability(input.stateGraph, seed.targetRef).invalidWhenStateRefs) as StateNodeRef[],
+      validWhenStateRefs: sortStrings(seed.validWhenStateRefs ?? applicability.validWhenStateRefs) as StateNodeRef[],
+      invalidWhenStateRefs: sortStrings(seed.invalidWhenStateRefs ?? applicability.invalidWhenStateRefs) as StateNodeRef[],
       discoveredFrom: seed.discoveredFrom ?? null,
       evidenceRefs: sortStrings(seed.evidenceRefs ?? []),
       successCount: seed.successCount ?? 0,
@@ -1234,12 +1330,15 @@ function buildSelectorCanon(_input: {
       lastUsedAt: seed.lastUsedAt ?? null,
       lineage: seed.lineage ?? { sourceArtifactPaths: [seed.artifactPath], discoveryRunIds: [], evidenceRefs: [] },
     };
-    const existing = grouped.get(seed.targetRef) ?? [];
-    if (!existing.some((entry) => entry.id === probe.id)) {
-      existing.push(probe);
-      grouped.set(seed.targetRef, existing);
-    }
-  }
+  };
+
+  const grouped = seeds.reduce((acc, seed) => {
+    const probe = seedToProbe(seed);
+    const existing = acc.get(seed.targetRef) ?? [];
+    return existing.some((entry) => entry.id === probe.id)
+      ? acc
+      : acc.set(seed.targetRef, [...existing, probe]);
+  }, new Map<CanonicalTargetRef, SelectorProbe[]>());
 
   const entries: SelectorCanonEntry[] = [...grouped.entries()].map(([targetRef, probes]) => {
     const descriptor = descriptors.get(targetRef);
@@ -1319,8 +1418,10 @@ export function projectInterfaceIntelligence(options: { paths: ProjectPaths; cat
       ...discoveryRuns.map((entry) => fingerprintProjectionArtifact('discovery-run', entry.artifactPath, entry.artifact)),
     ];
     const stateGraph = buildStateTransitionGraph({ catalog, discoveryRuns });
-    const interfaceGraph = buildApplicationInterfaceGraph({ catalog, discoveryRuns, stateGraph });
-    const selectorCanon = buildSelectorCanon({ catalog, discoveryRuns, interfaceGraph, stateGraph });
+    const routes = routeBindings(catalog);
+    const catalogIndex = buildCatalogScreenIndex(catalog, routes);
+    const interfaceGraph = buildApplicationInterfaceGraph({ catalog, index: catalogIndex, routes, discoveryRuns, stateGraph });
+    const selectorCanon = buildSelectorCanon({ catalog, index: catalogIndex, discoveryRuns, interfaceGraph, stateGraph });
     const outputFingerprint = fingerprintProjectionOutput({ interfaceGraph, selectorCanon, stateGraph });
 
     return yield* runProjection({

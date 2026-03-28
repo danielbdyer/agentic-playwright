@@ -63,13 +63,11 @@ export interface EvolveResult {
 // ─── Pure helpers ───
 
 function diffConfigs(base: PipelineConfig, current: PipelineConfig): Record<string, unknown> {
-  const diff: Record<string, unknown> = {};
-  for (const key of Object.keys(base) as (keyof PipelineConfig)[]) {
-    if (JSON.stringify(base[key]) !== JSON.stringify(current[key])) {
-      diff[key] = current[key];
-    }
-  }
-  return diff;
+  return Object.fromEntries(
+    (Object.keys(base) as (keyof PipelineConfig)[])
+      .filter((key) => JSON.stringify(base[key]) !== JSON.stringify(current[key]))
+      .map((key) => [key, current[key]]),
+  );
 }
 
 function buildSubstrateContext(input: EvolveInput): SubstrateContext {
