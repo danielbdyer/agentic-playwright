@@ -7,6 +7,7 @@ import { emptyExecutionTiming, evaluateExecutionBudget, normalizeFailureFamily }
 import { compileStepProgram } from '../domain/program';
 import type { SnapshotTemplateLoader } from '../domain/runtime-loaders';
 import { RuntimeError } from '../domain/errors';
+import { mintBlocked } from '../domain/types/workflow';
 import type {
   ExecutionPosture,
   ExecutionDiagnostic,
@@ -343,7 +344,7 @@ export async function runScenarioStep(
           parents: [task.taskFingerprint],
           handshakes: ['preparation', 'resolution', 'execution'],
         },
-        governance: 'blocked',
+        governance: mintBlocked(),
         stepIndex: task.index,
         taskFingerprint: task.taskFingerprint,
         knowledgeFingerprint: agentContext.resolutionContext.knowledgeFingerprint,
@@ -460,7 +461,7 @@ export async function runScenarioStep(
           parents: [task.taskFingerprint],
           handshakes: ['preparation', 'resolution', 'execution'],
         },
-        governance: 'blocked',
+        governance: mintBlocked(),
         stepIndex: task.index,
         taskFingerprint: task.taskFingerprint,
         knowledgeFingerprint: interfaceResolutionContext.knowledgeFingerprint,

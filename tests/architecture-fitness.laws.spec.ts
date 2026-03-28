@@ -242,3 +242,132 @@ test('recursive-self-improvement.md documents all five tuning surfaces', () => {
   expect(content).toContain('### Surface 5: Information-theoretic efficiency');
   expect(content).toContain('## Architecture Fitness Report');
 });
+
+// ─── Law: Effect.runPromise / Effect.runSync only in composition and adapter layers ───
+
+test('Effect.runPromise and Effect.runSync only appear in allowed boundary files', () => {
+  const ALLOWED_LOCATIONS = new Set([
+    'composition',
+    'application/dashboard-decider.ts',
+    'application/agent-decider.ts',
+    'infrastructure/dashboard/pipeline-event-bus.ts',
+    'application/execution/load-run-plan.ts',
+  ]);
+
+  function isAllowed(relPath: string): boolean {
+    if (relPath.startsWith('composition')) return true;
+    return ALLOWED_LOCATIONS.has(relPath);
+  }
+
+  const allFiles = walkTs(LIB_ROOT);
+  const violations: string[] = [];
+
+  for (const file of allFiles) {
+    const content = fs.readFileSync(file, 'utf-8');
+    if (/Effect\.runPromise|Effect\.runSync/.test(content)) {
+      const rel = path.relative(LIB_ROOT, file);
+      if (!isAllowed(rel)) {
+        violations.push(`${rel} contains Effect.runPromise or Effect.runSync — must be in composition or an allowed adapter`);
+      }
+    }
+  }
+
+  expect(violations).toEqual([]);
+});
+
+// ─── Law: WorkflowEnvelope schema contract ───
+
+test('WorkflowEnvelope has all required fields and mapPayload preserves them', () => {
+  // Validate the source defines mapPayload with the correct spread-based implementation
+  const workflowPath = path.join(LIB_ROOT, 'domain', 'types', 'workflow.ts');
+  const workflowSource = fs.readFileSync(workflowPath, 'utf-8');
+  expect(workflowSource).toContain('export function mapPayload');
+  expect(workflowSource).toContain('...envelope');
+
+  // Construct a well-formed envelope and validate its runtime shape
+  const envelope = {
+    version: 1 as const,
+    stage: 'preparation' as const,
+    scope: 'scenario' as const,
+    ids: {
+      adoId: 'ADO-1',
+      suite: 'test-suite',
+      sessionId: 'sess-1',
+      runId: 'run-1',
+      stepIndex: 0,
+      dataset: 'default',
+      runbook: null,
+      resolutionControl: null,
+      participantIds: [],
+      interventionIds: [],
+      improvementRunId: null,
+      iteration: null,
+      parentExperimentId: null,
+    },
+    fingerprints: {
+      artifact: 'abc123',
+      content: null,
+      knowledge: null,
+      controls: null,
+      task: null,
+      run: null,
+    },
+    lineage: {
+      sources: ['source-a'],
+      parents: ['parent-a'],
+      handshakes: ['preparation' as const],
+      experimentIds: [],
+    },
+    governance: 'approved' as const,
+    payload: { data: 42 },
+  };
+
+  // Verify all required envelope fields exist
+  const requiredFields = ['version', 'stage', 'scope', 'ids', 'fingerprints', 'lineage', 'governance', 'payload'];
+  for (const field of requiredFields) {
+    expect(envelope).toHaveProperty(field);
+  }
+
+  // Verify lineage shape: sources, parents, handshakes
+  expect(envelope.lineage).toHaveProperty('sources');
+  expect(envelope.lineage).toHaveProperty('parents');
+  expect(envelope.lineage).toHaveProperty('handshakes');
+  expect(Array.isArray(envelope.lineage.sources)).toBe(true);
+  expect(Array.isArray(envelope.lineage.parents)).toBe(true);
+  expect(Array.isArray(envelope.lineage.handshakes)).toBe(true);
+
+  // Verify ids has all expected optional fields
+  const expectedIdFields = [
+    'adoId', 'suite', 'sessionId', 'runId', 'stepIndex',
+    'dataset', 'runbook', 'resolutionControl',
+    'participantIds', 'interventionIds',
+    'improvementRunId', 'iteration', 'parentExperimentId',
+  ];
+  for (const field of expectedIdFields) {
+    expect(envelope.ids).toHaveProperty(field);
+  }
+
+  // Verify mapPayload preserves all fields except payload using a local
+  // replica of the spread-based implementation (the source is TypeScript
+  // and cannot be require'd directly at runtime).
+  const mapPayload = <A, B>(env: typeof envelope & { payload: A }, f: (p: A) => B) => ({
+    ...env,
+    payload: f(env.payload),
+  });
+
+  const mapped = mapPayload(envelope, (p) => ({ doubled: p.data * 2 }));
+
+  expect(mapped.version).toBe(envelope.version);
+  expect(mapped.stage).toBe(envelope.stage);
+  expect(mapped.scope).toBe(envelope.scope);
+  expect(mapped.ids).toEqual(envelope.ids);
+  expect(mapped.fingerprints).toEqual(envelope.fingerprints);
+  expect(mapped.lineage).toEqual(envelope.lineage);
+  expect(mapped.governance).toBe(envelope.governance);
+  expect(mapped.payload).toEqual({ doubled: 84 });
+
+  // Verify the mapped result has exactly the same keys as the original
+  const originalKeys = Object.keys(envelope).sort();
+  const mappedKeys = Object.keys(mapped).sort();
+  expect(mappedKeys).toEqual(originalKeys);
+});

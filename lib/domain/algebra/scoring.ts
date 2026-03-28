@@ -1,7 +1,9 @@
-import type { ScoringRule } from '../../application/learning-shared';
 import type { Semigroup, Monoid } from './monoid';
 
-export type { ScoringRule };
+/** A composable scoring rule: maps an input to a numeric score. */
+export interface ScoringRule<T> {
+  readonly score: (input: T) => number;
+}
 
 // ─── Algebraic Constants ───
 

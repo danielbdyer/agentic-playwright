@@ -8,6 +8,7 @@ import type {
   StepTaskScreenCandidate,
 } from '../../domain/types';
 import { DEFAULT_PIPELINE_CONFIG } from '../../domain/types';
+import { mintApproved, mintReviewRequired } from '../../domain/types/workflow';
 import { requiresElement, allowedActionFallback } from './resolve-action';
 import { resolveFromDom } from './dom-fallback';
 import { proposalForSupplementGap, proposalsFromInterpretation } from './proposals';
@@ -210,7 +211,7 @@ export function tryApprovedKnowledgeResolution(stage: RuntimeAgentStageContext, 
       receipt: {
         ...needsHumanReceipt(stage, [], null, effects),
         kind: 'resolved',
-        governance: 'approved',
+        governance: mintApproved(),
         resolutionMode: 'deterministic',
         overlayRefs: [],
         winningConcern: 'knowledge',
@@ -252,7 +253,7 @@ export function tryOverlayResolution(stage: RuntimeAgentStageContext, acc: Resol
       receipt: {
         ...needsHumanReceipt(stage, [], null, resolvedEffects),
         kind: 'resolved',
-        governance: 'approved',
+        governance: mintApproved(),
         resolutionMode: 'deterministic',
         lineage: { sources: [...stage.controlRefs, ...stage.evidenceRefs, ...overlayResult.overlayRefs], parents: [stage.task.taskFingerprint], handshakes: ['preparation', 'resolution'] },
         overlayRefs: overlayResult.overlayRefs,
@@ -312,7 +313,7 @@ export async function tryTranslationResolution(stage: RuntimeAgentStageContext, 
     const baseReceipt = {
       ...needsHumanReceipt(stage, [], null, resolvedEffects),
       kind: hasProposals ? 'resolved-with-proposals' as const : 'resolved' as const,
-      governance: 'approved' as const,
+      governance: mintApproved(),
       resolutionMode: 'translation' as const,
       lineage: { sources: [...stage.controlRefs, ...stage.evidenceRefs], parents: [stage.task.taskFingerprint], handshakes: ['preparation', 'resolution'] },
       overlayRefs: translated.overlayRefs,
@@ -424,7 +425,7 @@ export async function tryLiveDomOrFallback(stage: RuntimeAgentStageContext, acc:
       receipt: {
         ...needsHumanReceipt(stage, [...acc.overlayResult.overlayRefs, ...acc.translated.overlayRefs], acc.translated.translation, resolvedEffects),
         kind: 'resolved-with-proposals',
-        governance: 'approved',
+        governance: mintApproved(),
         lineage: { sources: [], parents: [stage.task.taskFingerprint], handshakes: ['preparation', 'resolution'] },
         winningSource: 'live-dom',
         confidence: 'agent-proposed',
@@ -562,7 +563,7 @@ export async function tryLiveDomOrFallback(stage: RuntimeAgentStageContext, acc:
   return {
     receipt: {
       ...needsHumanReceipt(stage, [...acc.overlayResult.overlayRefs, ...acc.translated.overlayRefs], acc.translated.translation, fallbackEffects),
-      governance: 'review-required',
+      governance: mintReviewRequired(),
       reason: domResolved.candidates.length > 0
         ? 'Live DOM exploration produced an ambiguous shortlist that requires human selection.'
         : 'No safe executable interpretation remained after exhausting explicit constraints, approved knowledge, prior evidence, live DOM exploration, agent interpretation, and degraded resolution.',

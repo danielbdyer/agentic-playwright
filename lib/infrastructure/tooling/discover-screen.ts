@@ -19,6 +19,7 @@ import { tryAsync } from '../../application/effect';
 import { captureAriaYaml } from '../../playwright/aria';
 import { resolvePlaywrightHeadless, resolvePreferredPlaywrightChannel } from './browser-options';
 import type { DiscoveryRun, LocatorStrategy } from '../../domain/types';
+import { mintApproved } from '../../domain/types/workflow';
 
 interface BrowserDiscoveryPayload {
   title: string;
@@ -434,7 +435,7 @@ export function discoverScreenScaffold(options: {
         version: 2,
         stage: 'preparation',
         scope: 'workspace',
-        governance: 'approved',
+        governance: mintApproved(),
         app: 'discover',
         routeId,
         variantId,

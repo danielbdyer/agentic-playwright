@@ -5,6 +5,7 @@ import { TesseractError } from '../domain/errors';
 import type { AdoId } from '../domain/identity';
 import { buildGroundedSpecFlow } from '../domain/grounded-flow';
 import { renderReadableSpecModule } from '../domain/spec-codegen';
+import { mintApproved } from '../domain/types/workflow';
 import type {
   BoundScenario,
   ImprovementRun,
@@ -184,7 +185,7 @@ function renderEmitArtifacts(
         parents: [],
         handshakes: ['preparation', 'resolution', 'execution', 'evidence', 'proposal'],
       },
-      governance: 'approved',
+      governance: mintApproved(),
       payload: {
         adoId: boundScenario.source.ado_id,
         runId: latestRun?.runId ?? 'pending',

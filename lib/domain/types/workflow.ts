@@ -30,6 +30,14 @@ export function requireApproved<T extends { governance: Governance }>(item: T, l
   }
 }
 
+/** Auditable governance minting — all governance assignment must flow through these functions. */
+export function mintGovernance<G extends Governance>(governance: G): G {
+  return governance;
+}
+export function mintApproved(): 'approved' { return 'approved'; }
+export function mintReviewRequired(): 'review-required' { return 'review-required'; }
+export function mintBlocked(): 'blocked' { return 'blocked'; }
+
 export function foldGovernance<T extends { governance: Governance }, R>(
   item: T,
   cases: { approved: (item: Approved<T>) => R; reviewRequired: (item: ReviewRequired<T>) => R; blocked: (item: Blocked<T>) => R },

@@ -11,6 +11,7 @@ import type {
   TrainingCorpusManifest,
   TranscriptRef,
 } from '../domain/types';
+import { mintApproved } from '../domain/types/workflow';
 import type { AdoId } from '../domain/identity';
 
 export type AgentSessionAdapterId = string;
@@ -214,7 +215,7 @@ function baseInterventions(input: {
       },
       plan: {
         summary: `Orient the session around scenario ${input.adoId} and its active task packet.`,
-        governance: 'approved',
+        governance: mintApproved(),
         target: {
           kind: 'scenario',
           ref: input.adoId,
@@ -271,7 +272,7 @@ function baseInterventions(input: {
       },
       plan: {
         summary: `Inspect grounded task inputs, graph references, and selector references for scenario ${input.adoId}.`,
-        governance: 'approved',
+        governance: mintApproved(),
         target: {
           kind: 'scenario',
           ref: input.adoId,
@@ -329,7 +330,7 @@ function baseInterventions(input: {
       },
       plan: {
         summary: `Review the execution-ready packet, selector canon, and learning surfaces for run ${input.runId}.`,
-        governance: 'approved',
+        governance: mintApproved(),
         target: {
           kind: 'run',
           ref: input.runId,
