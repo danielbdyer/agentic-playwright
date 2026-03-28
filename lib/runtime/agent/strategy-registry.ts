@@ -1,102 +1,96 @@
-import type { ResolutionPrecedenceRung } from '../../domain/precedence';
-import { resolutionPrecedenceLaw } from '../../domain/precedence';
+/**
+ * Strategy Registry — GoF Strategy with registry lookup.
+ *
+ * Maps `ResolutionPrecedenceRung → ResolutionStrategy` so that:
+ * - the resolution ladder iterates the registry in rung order;
+ * - new rungs add a strategy entry without modifying the orchestrator;
+ * - lookup is O(1) via `ReadonlyMap`;
+ * - registration returns a new registry (immutable).
+ */
+
+import {
+  resolutionPrecedenceLaw,
+  type ResolutionPrecedenceRung,
+} from '../../domain/precedence';
 import type { ResolutionStrategy } from './strategy';
 
-/**
- * Immutable registry that maps ResolutionPrecedenceRung → ResolutionStrategy.
- *
- * GoF Strategy pattern with registry lookup: strategies register themselves,
- * and the resolution ladder iterates the registry in rung order.
- * New rungs add a strategy entry without modifying the orchestrator.
- *
- * Invariants:
- *   - Registry is a total function over all valid rungs (every rung has a strategy)
- *   - Rung ordering is always preserved (iteration follows resolutionPrecedenceLaw)
- *   - Registration returns a new registry (immutability)
- *   - Lookup is O(1) via Map
- */
+// ─── Public interface ────────────────────────────────────────────────────
+
 export interface StrategyRegistry {
-  /** O(1) lookup of the strategy for a given rung. */
+  /** O(1) lookup by rung. */
   readonly lookup: (rung: ResolutionPrecedenceRung) => ResolutionStrategy | undefined;
-  /** All entries in precedence order. */
-  readonly entries: () => ReadonlyArray<StrategyRegistryEntry>;
-  /** The set of rungs that have registered strategies. */
-  readonly registeredRungs: () => ReadonlyArray<ResolutionPrecedenceRung>;
-  /** True when every rung in the precedence law has an entry. */
+
+  /** Strategies in precedence order (explicit → needs-human). */
+  readonly strategiesInOrder: () => readonly ResolutionStrategy[];
+
+  /** All rungs that have a registered strategy. */
+  readonly registeredRungs: () => readonly ResolutionPrecedenceRung[];
+
+  /** Total function check: true when every rung in the precedence law has a strategy. */
   readonly isTotal: () => boolean;
-  /** Number of registered strategies. */
-  readonly size: number;
+
+  /** Return a new registry with `strategy` registered for each of its declared rungs. */
+  readonly register: (strategy: ResolutionStrategy) => StrategyRegistry;
 }
 
-export interface StrategyRegistryEntry {
-  readonly rung: ResolutionPrecedenceRung;
-  readonly strategy: ResolutionStrategy;
-}
+// ─── Construction ────────────────────────────────────────────────────────
 
 /**
- * Create a new StrategyRegistry by registering a strategy for the given rung.
- * Returns a fresh registry — the original is never mutated.
- */
-export function registerStrategy(
-  registry: StrategyRegistry,
-  rung: ResolutionPrecedenceRung,
-  strategy: ResolutionStrategy,
-): StrategyRegistry {
-  const updatedMap = new Map(
-    registry.entries().map((entry) => [entry.rung, entry.strategy] as const),
-  );
-  updatedMap.set(rung, strategy);
-  return createRegistryFromMap(updatedMap);
-}
-
-/**
- * Create a StrategyRegistry from an array of (rung, strategy) pairs.
- * Duplicate rungs: last writer wins.
+ * Build a registry from the canonical precedence law and an initial set of
+ * strategies. Each strategy declares the rungs it covers via `strategy.rungs`.
  */
 export function createStrategyRegistry(
-  entries: ReadonlyArray<readonly [ResolutionPrecedenceRung, ResolutionStrategy]>,
+  strategies: readonly ResolutionStrategy[] = [],
 ): StrategyRegistry {
-  const map = new Map<ResolutionPrecedenceRung, ResolutionStrategy>();
-  for (const [rung, strategy] of entries) {
-    map.set(rung, strategy);
-  }
-  return createRegistryFromMap(map);
+  const rungMap: ReadonlyMap<ResolutionPrecedenceRung, ResolutionStrategy> =
+    strategies.reduce(
+      (acc, strategy) =>
+        strategy.rungs.reduce(
+          (inner, rung) => new Map([...inner, [rung, strategy]]),
+          acc,
+        ),
+      new Map<ResolutionPrecedenceRung, ResolutionStrategy>(),
+    );
+
+  return buildRegistry(rungMap);
 }
 
-/** Create an empty StrategyRegistry. */
-export function emptyStrategyRegistry(): StrategyRegistry {
-  return createRegistryFromMap(new Map());
-}
+// ─── Internal ────────────────────────────────────────────────────────────
 
-/**
- * Internal constructor: builds a frozen StrategyRegistry from a Map.
- * The Map is defensively copied so callers cannot mutate internal state.
- */
-function createRegistryFromMap(
-  source: ReadonlyMap<ResolutionPrecedenceRung, ResolutionStrategy>,
+function buildRegistry(
+  rungMap: ReadonlyMap<ResolutionPrecedenceRung, ResolutionStrategy>,
 ): StrategyRegistry {
-  const internal = new Map(source);
-  return {
-    lookup: (rung) => internal.get(rung),
-    entries: () =>
-      resolutionPrecedenceLaw
-        .filter((rung) => internal.has(rung))
-        .map((rung) => ({ rung, strategy: internal.get(rung)! })),
-    registeredRungs: () =>
-      resolutionPrecedenceLaw.filter((rung) => internal.has(rung)),
-    isTotal: () =>
-      resolutionPrecedenceLaw.every((rung) => internal.has(rung)),
-    size: internal.size,
+  const lookup = (rung: ResolutionPrecedenceRung): ResolutionStrategy | undefined =>
+    rungMap.get(rung);
+
+  const strategiesInOrder = (): readonly ResolutionStrategy[] => {
+    const seen = new Set<string>();
+    return resolutionPrecedenceLaw.reduce<readonly ResolutionStrategy[]>(
+      (acc, rung) => {
+        const strategy = rungMap.get(rung);
+        if (strategy && !seen.has(strategy.name)) {
+          seen.add(strategy.name);
+          return [...acc, strategy];
+        }
+        return acc;
+      },
+      [],
+    );
   };
-}
 
-/**
- * Iterate the registry in precedence order, yielding only rungs with strategies.
- * This is the primary consumption API: the resolution ladder calls this
- * instead of hard-coding the strategy list.
- */
-export function strategiesInPrecedenceOrder(
-  registry: StrategyRegistry,
-): ReadonlyArray<ResolutionStrategy> {
-  return registry.entries().map((entry) => entry.strategy);
+  const registeredRungs = (): readonly ResolutionPrecedenceRung[] =>
+    resolutionPrecedenceLaw.filter((rung) => rungMap.has(rung));
+
+  const isTotal = (): boolean =>
+    resolutionPrecedenceLaw.every((rung) => rungMap.has(rung));
+
+  const register = (strategy: ResolutionStrategy): StrategyRegistry => {
+    const updated = strategy.rungs.reduce(
+      (acc, rung) => new Map([...acc, [rung, strategy]]),
+      new Map(rungMap),
+    );
+    return buildRegistry(updated);
+  };
+
+  return { lookup, strategiesInOrder, registeredRungs, isTotal, register };
 }

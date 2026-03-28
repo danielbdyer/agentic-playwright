@@ -17,7 +17,7 @@
  * Falls back gracefully when no SharedArrayBuffer is available (remote browser).
  */
 
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useState, useDeferredValue } from 'react';
 
 // ─── Buffer layout (must match pipeline-event-bus.ts) ───
 
@@ -158,4 +158,37 @@ export function usePipelineBuffer(sab: SharedArrayBuffer | null, capacity = 1024
   }, []);
 
   return { poll, read, totalEvents, connected: sab !== null } as const;
+}
+
+// ─── W5.21: Deferred buffer events for spatial canvas rendering ───
+
+/** Decoded event snapshot for React state (immutable copy, not the shared _event buffer). */
+const cloneEvent = (e: BufferEvent): BufferEvent => ({ ...e });
+
+interface DeferredPipelineBuffer {
+  /** The deferred event list — renders at display frame rate without blocking interactions. */
+  readonly deferredEvents: readonly BufferEvent[];
+  /** Call from useFrame to collect new events into React state. */
+  readonly collectFrame: () => void;
+  /** The underlying buffer handle for direct low-level access. */
+  readonly handle: PipelineBufferHandle;
+}
+
+/** W5.21: useDeferredValue wraps decoded BufferEvent[] so the spatial canvas
+ *  renders at display frame rate. High-frequency buffer writes yield to user
+ *  interactions; React defers the re-render of downstream consumers. */
+export function useDeferredPipelineBuffer(sab: SharedArrayBuffer | null, capacity = 1024): DeferredPipelineBuffer {
+  const handle = usePipelineBuffer(sab, capacity);
+  const [events, setEvents] = useState<readonly BufferEvent[]>([]);
+  const deferredEvents = useDeferredValue(events);
+
+  const collectFrame = useCallback(() => {
+    const count = handle.poll();
+    if (count === 0) return;
+    const batch: readonly BufferEvent[] = Array.from({ length: count }, (_, i) => cloneEvent(handle.read(i)));
+    handle.totalEvents(); // advance cursor
+    setEvents(batch);
+  }, [handle]);
+
+  return { deferredEvents, collectFrame, handle } as const;
 }

@@ -4,18 +4,20 @@
  * Semantic: green rungs (left) = deterministic knowledge. Red rungs (right) = unresolved.
  * Width of each segment encodes proportion. Zero-win rungs are elided via flatMap.
  *
+ * W5.22: React 19 ref-as-prop — ref is a regular prop, no forwardRef wrapper.
  * Pure atom: distribution in, styled segments out. Memo-wrapped.
  */
 
-import { memo } from 'react';
+import { memo, type Ref } from 'react';
 import { RUNG_COLORS } from '../spatial/types';
 
 interface RungBarProps {
   readonly distribution: readonly { readonly rung: string; readonly wins: number; readonly rate: number }[];
   readonly compact?: boolean;
+  readonly ref?: Ref<HTMLDivElement>;
 }
 
-export const RungBar = memo(function RungBar({ distribution, compact = false }: RungBarProps) {
+export const RungBar = memo(function RungBar({ distribution, compact = false, ref }: RungBarProps) {
   const segments = distribution.flatMap((entry) =>
     entry.wins > 0
       ? [{

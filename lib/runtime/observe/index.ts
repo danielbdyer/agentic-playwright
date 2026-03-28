@@ -1,13 +1,14 @@
 export { hasSnapshotTemplate, readSnapshotTemplate } from '../snapshots';
 export { describeValueRef, resolveDataValue } from '../data';
 export {
-  computeRelevantStateRefs,
-  computeActiveRouteVariantRefs,
-  evaluateStatePreconditions,
-  executeStaticObservation,
+  activeRouteVariantRefs,
   inferTransitionObservations,
-} from './execute';
-export type {
-  ObservationInput,
-  ObservationResult,
+  observePostExecution,
+  observePreExecution,
+  observeStateRefsFromSession,
+  relevantStateRefs,
+  type ObservationInput,
+  type PostExecutionObservation,
+  type PreExecutionObservation,
+  type TransitionInferenceInput,
 } from './execute';

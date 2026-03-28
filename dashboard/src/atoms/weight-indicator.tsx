@@ -4,23 +4,25 @@
  * Semantic: bar length = weight magnitude. Color = whether this signal helps
  * (green = positively correlated with improvement, red = anti-correlated).
  *
+ * W5.22: React 19 ref-as-prop — ref is a regular prop, no forwardRef wrapper.
  * Pure atom. Memo-wrapped.
  */
 
-import { memo } from 'react';
+import { memo, type Ref } from 'react';
 
 interface WeightIndicatorProps {
   readonly label: string;
   readonly value: number;
   readonly correlation: number;
+  readonly ref?: Ref<HTMLDivElement>;
 }
 
 const correlationColor = (c: number): string =>
   c > 0.1 ? '#3fb950' : c < -0.1 ? '#f85149' : '#8b949e';
 
-export const WeightIndicator = memo(function WeightIndicator({ label, value, correlation }: WeightIndicatorProps) {
+export const WeightIndicator = memo(function WeightIndicator({ label, value, correlation, ref }: WeightIndicatorProps) {
   return (
-    <div className="weight-row">
+    <div ref={ref} className="weight-row">
       <span className="metric-label">{label}</span>
       <div style={{ flex: 1, marginLeft: 8, height: 6, borderRadius: 3, background: '#21262d', overflow: 'hidden' }}>
         <div style={{
