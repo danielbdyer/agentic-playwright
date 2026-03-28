@@ -1,0 +1,190 @@
+/**
+ * W2.8: Discovery-to-proposal bridge
+ *
+ * Pure function that transforms a DiscoveryRun into a set of ProposalBundles,
+ * bridging the discovery (interface) lane into the proposal (improvement) lane.
+ *
+ * For each discovered element  -> ScreenElements proposal
+ * For each discovered hint     -> ScreenHints proposal
+ * For each discovered behavior -> ScreenBehavior proposal
+ */
+
+import { knowledgePaths } from '../domain/ids';
+import type { DiscoveryRun, DiscoveryObservedElement, DiscoveryObservedSurface } from '../domain/types/interface';
+import type { TrustPolicyArtifactType } from '../domain/types/workflow';
+import type { ScreenId } from '../domain/identity';
+
+// ─── Output types ───
+
+export interface DiscoveryProposal {
+  readonly proposalKind: 'screen-elements' | 'screen-hints' | 'screen-behavior';
+  readonly artifactType: TrustPolicyArtifactType;
+  readonly targetPath: string;
+  readonly title: string;
+  readonly patch: Readonly<Record<string, unknown>>;
+  readonly rationale: string;
+  readonly sourceElementId: string | null;
+  readonly sourceSurfaceId: string | null;
+  readonly discoveryRunId: string;
+}
+
+export interface ProposalBundle {
+  readonly screen: ScreenId;
+  readonly discoveryRunId: string;
+  readonly proposals: readonly DiscoveryProposal[];
+}
+
+// ─── Element proposals ───
+
+function elementProposal(
+  screen: ScreenId,
+  discoveryRunId: string,
+  element: DiscoveryObservedElement,
+): DiscoveryProposal {
+  return {
+    proposalKind: 'screen-elements',
+    artifactType: 'elements',
+    targetPath: knowledgePaths.elements(screen),
+    title: `Add discovered element ${element.id} to ${screen}`,
+    patch: {
+      screen,
+      element: element.id,
+      role: element.role,
+      name: element.name,
+      testId: element.testId,
+      widget: element.widget,
+      required: element.required,
+      locatorCandidates: element.locatorCandidates,
+    },
+    rationale: `Discovery run ${discoveryRunId} found element ${element.id} (${element.role}) on screen ${screen}.`,
+    sourceElementId: element.id,
+    sourceSurfaceId: null,
+    discoveryRunId,
+  };
+}
+
+function elementProposals(
+  screen: ScreenId,
+  discoveryRunId: string,
+  elements: readonly DiscoveryObservedElement[],
+): readonly DiscoveryProposal[] {
+  return elements.map((element) => elementProposal(screen, discoveryRunId, element));
+}
+
+// ─── Hint proposals ───
+
+function hintProposalForElement(
+  screen: ScreenId,
+  discoveryRunId: string,
+  element: DiscoveryObservedElement,
+): DiscoveryProposal | null {
+  return element.name
+    ? {
+        proposalKind: 'screen-hints',
+        artifactType: 'hints',
+        targetPath: knowledgePaths.hints(screen),
+        title: `Add hint alias for ${element.id} on ${screen}`,
+        patch: {
+          screen,
+          element: element.id,
+          alias: element.name,
+          locatorHint: element.locatorHint,
+          source: 'discovery',
+        },
+        rationale: `Discovery run ${discoveryRunId} found accessible name "${element.name}" for element ${element.id}.`,
+        sourceElementId: element.id,
+        sourceSurfaceId: null,
+        discoveryRunId,
+      }
+    : null;
+}
+
+function hintProposals(
+  screen: ScreenId,
+  discoveryRunId: string,
+  elements: readonly DiscoveryObservedElement[],
+): readonly DiscoveryProposal[] {
+  return elements
+    .map((element) => hintProposalForElement(screen, discoveryRunId, element))
+    .filter((proposal): proposal is DiscoveryProposal => proposal !== null);
+}
+
+// ─── Behavior proposals ───
+
+function behaviorProposalForSurface(
+  screen: ScreenId,
+  discoveryRunId: string,
+  surface: DiscoveryObservedSurface,
+): DiscoveryProposal {
+  return {
+    proposalKind: 'screen-behavior',
+    artifactType: 'surface',
+    targetPath: knowledgePaths.surface(screen),
+    title: `Add surface behavior for ${surface.id} on ${screen}`,
+    patch: {
+      screen,
+      surface: surface.id,
+      kind: surface.kind,
+      role: surface.role,
+      name: surface.name,
+      assertions: surface.assertions,
+    },
+    rationale: `Discovery run ${discoveryRunId} observed surface ${surface.id} (${surface.kind}) on screen ${screen}.`,
+    sourceElementId: null,
+    sourceSurfaceId: surface.id,
+    discoveryRunId,
+  };
+}
+
+function behaviorProposals(
+  screen: ScreenId,
+  discoveryRunId: string,
+  surfaces: readonly DiscoveryObservedSurface[],
+): readonly DiscoveryProposal[] {
+  return surfaces.map((surface) => behaviorProposalForSurface(screen, discoveryRunId, surface));
+}
+
+// ─── Deduplication ───
+
+function proposalKey(proposal: DiscoveryProposal): string {
+  return `${proposal.proposalKind}:${proposal.targetPath}:${proposal.sourceElementId ?? ''}:${proposal.sourceSurfaceId ?? ''}`;
+}
+
+function deduplicateProposals(proposals: readonly DiscoveryProposal[]): readonly DiscoveryProposal[] {
+  const seen = new Set<string>();
+  return proposals.filter((proposal) => {
+    const key = proposalKey(proposal);
+    return seen.has(key) ? false : (seen.add(key), true);
+  });
+}
+
+// ─── Public API ───
+
+/**
+ * Pure function: discovery run in, proposal bundles out.
+ *
+ * Generates one ProposalBundle per DiscoveryRun, containing:
+ * - One ScreenElements proposal per discovered element
+ * - One ScreenHints proposal per element with an accessible name
+ * - One ScreenBehavior proposal per discovered surface
+ */
+export function generateProposalsFromDiscovery(
+  discovery: DiscoveryRun,
+): readonly ProposalBundle[] {
+  const screen = discovery.screen;
+  const runId = discovery.runId;
+
+  const allProposals = deduplicateProposals([
+    ...elementProposals(screen, runId, discovery.elements),
+    ...hintProposals(screen, runId, discovery.elements),
+    ...behaviorProposals(screen, runId, discovery.surfaces),
+  ]);
+
+  return allProposals.length > 0
+    ? [{
+        screen,
+        discoveryRunId: runId,
+        proposals: allProposals,
+      }]
+    : [];
+}
