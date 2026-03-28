@@ -1,3 +1,12 @@
+/**
+ * Complexity audit (W5.9)
+ *
+ * | Function                          | Before            | After     | Change                                                    |
+ * |-----------------------------------|-------------------|-----------|-----------------------------------------------------------|
+ * | scenarioPhase (boundStep lookup)  | O(steps^2)        | O(steps)  | Pre-indexed Map<index, boundStep> per scenario            |
+ * | scenarioPhase (taskStep lookup)   | O(steps^2)        | O(steps)  | Pre-indexed Map<index, taskStep> per scenario             |
+ * | decisionItems (candidateId check) | O(decisions*cands)| O(decisions)| Replaced array.includes with Set.has per decision       |
+ */
 import { sortByStringKey } from './collections';
 import { deriveCapabilities } from './grammar';
 import { normalizeIntentText } from './inference';
@@ -1150,11 +1159,19 @@ function scenarioPhase(input: GraphBuildInput, lookups: Lookups): PhaseResult {
     );
     const scenarioNodeId = graphIds.scenario(scenario.source.ado_id);
 
+    // Pre-index bound steps and task steps by index: O(1) per step instead of O(steps) linear scan
+    const boundStepsByIndex = new Map(
+      (boundScenario?.steps ?? []).map((candidate) => [candidate.index, candidate] as const),
+    );
+    const taskStepsByIndex = new Map(
+      (surface?.payload.steps ?? []).map((candidate) => [candidate.index, candidate] as const),
+    );
+
     const stepItems = scenario.steps.map((step) => {
-      const boundStep = boundScenario?.steps.find((candidate) => candidate.index === step.index) ?? null;
+      const boundStep = boundStepsByIndex.get(step.index) ?? null;
       const explanation = explanationByStepIndex.get(step.index);
       const stepContext: StepGraphContext = { step, boundStep };
-      const taskStep = surface?.payload.steps.find((candidate) => candidate.index === step.index) ?? null;
+      const taskStep = taskStepsByIndex.get(step.index) ?? null;
       const program = explanation?.program ?? compileStepProgram(step);
       const trace = traceStepProgram(program);
       const stepNodeId = graphIds.step(scenario.source.ado_id, step.index);
@@ -1455,8 +1472,10 @@ function improvementPhase(input: GraphBuildInput): PhaseResult {
     const decisionItems = run.acceptanceDecisions.map((decision) => {
       const decisionNodeId = graphIds.acceptanceDecision(decision.decisionId);
       const participantNodeId = graphIds.participant(decision.decidedBy.participantId);
+      // Use Set for O(1) membership check instead of O(k) array.includes
+      const candidateIdSet = new Set(decision.candidateInterventionIds);
       const governedTargetConditional = run.candidateInterventions
-        .filter((candidate) => decision.candidateInterventionIds.includes(candidate.candidateId))
+        .filter((candidate) => candidateIdSet.has(candidate.candidateId))
         .map((candidate) => nodeIdForInterventionTarget(candidate.target))
         .filter((targetNodeId): targetNodeId is string => targetNodeId !== null)
         .map((targetNodeId) =>

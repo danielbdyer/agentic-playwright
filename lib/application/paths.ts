@@ -52,6 +52,7 @@ export interface ProjectPaths {
   readonly trustPolicyPath: string;
   readonly approvalsDir: string;
   readonly translationCacheDir: string;
+  readonly agentInterpretationCacheDir: string;
 }
 
 /**
@@ -115,6 +116,7 @@ export function createProjectPaths(rootDir: string, suiteRoot?: string): Project
     trustPolicyPath: path.join(rootDir, '.tesseract', 'policy', 'trust-policy.yaml'),
     approvalsDir: path.join(rootDir, '.tesseract', 'policy', 'approvals'),
     translationCacheDir: path.join(rootDir, '.tesseract', 'translation-cache'),
+    agentInterpretationCacheDir: path.join(rootDir, '.tesseract', 'agent-interpretation-cache'),
   };
 }
 
@@ -350,4 +352,8 @@ export function relativeProjectPath(paths: ProjectPaths, absolutePath: string): 
 
 export function translationCachePath(paths: ProjectPaths, key: string): string {
   return resolvePathWithinRoot(paths.translationCacheDir, `${key}.translation.json`, 'key');
+}
+
+export function agentInterpretationCachePath(paths: ProjectPaths, key: string): string {
+  return resolvePathWithinRoot(paths.agentInterpretationCacheDir, `${key}.agent-interpretation.json`, 'key');
 }
