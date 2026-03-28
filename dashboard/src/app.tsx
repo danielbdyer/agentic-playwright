@@ -27,6 +27,7 @@ import { useWebMcpCapabilities } from './hooks/use-mcp-capabilities';
 import { useConvergenceState } from './hooks/use-convergence-state';
 import { useStageTracker } from './hooks/use-stage-tracker';
 import { useIterationPulse } from './hooks/use-iteration-pulse';
+import { useSabBridge } from './hooks/use-sab-bridge';
 import {
   dispatchProgress, dispatchProbe, dispatchCapture,
   dispatchItemPending, dispatchItemProcessing, dispatchItemCompleted,
@@ -46,6 +47,14 @@ import type {
   ArtifactWrittenEvent,
 } from './spatial/types';
 import type { Workbench, Scorecard, ProgressEvent, QueuedItem, PauseContext, DecisionResult } from './types';
+
+// ─── W3.2: SharedArrayBuffer global (set by in-process server when same-origin) ───
+
+declare global {
+  interface Window {
+    readonly __PIPELINE_SAB?: SharedArrayBuffer | undefined;
+  }
+}
 
 // ─── Effect Stream Hook ───
 
@@ -127,12 +136,21 @@ function useEffectStream(url: string) {
 
   const { connected, send } = useWebSocket(url, handleMessage);
 
+  // W3.2: Wire SharedArrayBuffer zero-copy path for high-frequency events.
+  // When the pipeline runs in-process, window.__PIPELINE_SAB is set and the
+  // SAB bridge dispatches events through the same handleMessage path — no
+  // JSON serialization, no WebSocket overhead, no GC pressure.
+  const sabBridge = useSabBridge({
+    sab: (typeof window !== 'undefined' ? window.__PIPELINE_SAB : undefined) ?? null,
+    onMessage: handleMessage,
+  });
+
   useEffect(() => {
     const timers = cleanupTimersRef.current;
     return () => { timers.forEach(clearTimeout); timers.clear(); };
   }, []);
 
-  return { connected, send, progress, queue, processingId, capture, appViewport, probeQueue, escalationQueue, pauseContext, convergence, stageTracker, iterationPulse, proposalQueue, artifactQueue };
+  return { connected: connected || sabBridge.connected, send, progress, queue, processingId, capture, appViewport, probeQueue, escalationQueue, pauseContext, convergence, stageTracker, iterationPulse, proposalQueue, artifactQueue };
 }
 
 // ─── Data Hooks ───
