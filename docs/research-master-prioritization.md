@@ -6,14 +6,14 @@
 
 ## Executive Summary
 
-Twenty research perspectives across five rounds identified **~80 actionable improvements**, refined to **65 prioritized items** across **4 execution waves**. The critical insight: **the system is ~60% of its own specification** — the types and documentation describe a more complete system than the runtime implements. Closing the gap requires no architectural redesign, only wiring, enforcement, and verification.
+Twenty research perspectives across five rounds identified **~80 actionable improvements**, refined to **93 prioritized items** across **5 execution waves**. The critical insight: **the system is ~60% of its own specification** — the types and documentation describe a more complete system than the runtime implements. Closing the gap requires no architectural redesign, only wiring, enforcement, and verification.
 
 The recommended sequence prioritizes three principles:
 1. **Foundations first**: Governance enforcement and verification infrastructure unlock everything else
 2. **Cheap unlocks before expensive features**: Quick wins that unblock parallel tracks
 3. **Proof before expansion**: Verify what exists before building what's next
 
-**Timeline estimate**: 4 waves across ~6-8 weeks (parallelizable to ~4 weeks with 2-3 contributors).
+**Timeline estimate**: 5 waves across ~9-11 weeks (parallelizable to ~5-6 weeks with 2-3 contributors). Wave 5 adds algebraic formalization, Big O analysis, Effect concurrency, React 19 adoption, and GoF pattern crystallization.
 
 ---
 
@@ -231,6 +231,103 @@ Items within a wave can be parallelized unless marked sequential (→).
 
 ---
 
+## Wave 5: Algebraic Foundations, Concurrency, and Modern React (Weeks 7-9)
+
+**Goal**: Formalize the algebraic structures hiding in the architecture, exploit Effect's concurrency model for parallel compilation/discovery, adopt React 19 APIs for the dashboard, and crystallize GoF patterns already implicit in the code. This wave turns unnamed mathematical structure into named, tested, and optimized infrastructure.
+
+**Wall-clock time**: ~12 days. 5 parallel tracks with minimal cross-dependencies.
+
+**Prerequisites from earlier waves**: W1.2 (mergeGovernance), W1.8 (mulberry32), W2.1 (foldGovernance), W2.3-W2.7 (algebraic laws), W2.12 (recovery chain), W3.1 (wire events), W3.2 (SAB zero-copy), W3.6 (parallel steps).
+
+### Track A: Functional Programming Formalization (parallel)
+
+| ID | Item | Effort | Readiness | Origin | Unlocks |
+|----|------|--------|-----------|--------|---------|
+| W5.1 | **Named algebra module: `lib/domain/algebra/lattice.ts`** — Extract `mergeGovernance` (from W1.2), `meetGovernance`, `joinGovernance`, lattice laws (idempotent, commutative, associative, absorption) into a reusable `BoundedLattice<T>` interface. Governance becomes `BoundedLattice<Governance>` with `top: 'approved'`, `bottom: 'blocked'`. Reuse for `SelectorCanon` specificity ranking | M | 🟡 | P17, W1.2 | Type-safe governance composition; W5.2 |
+| W5.2 | **Catamorphism fusion law tests** — For all 8 folds in `visitors.ts`, prove `fold(f) ∘ fold(g) = fold(f ∘ g)` via property-based tests (150 mulberry32 seeds). Currently each fold is tested individually but composition is never asserted. Enables single-pass optimization when consecutive folds traverse the same union | M | 🟢 | P17, P18, W2.4 | Safe fold fusion optimization; single-pass traversals |
+| W5.3 | **Semigroup/Monoid module: `lib/domain/algebra/monoid.ts`** — Extract the implicit monoids: (a) `ScoringRule<T>` combination in `learning-shared.ts:24-34` as `Monoid<ScoringRule<T>>` with `empty: { score: () => 0 }` and `combine: combineScoringRules`, (b) `ValidationRule<T>` in `validation/rules.ts` as `Monoid<ValidationRule<T>>`, (c) timing/cost accumulators in `execution/fold.ts`. Add `contramap` as a standalone functor operation | M | 🟡 | P17 | Composable scoring across all learning modules |
+| W5.4 | **Free monoid for workflow envelope lineage** — Formalize `sources`, `parents`, `handshakes` in `WorkflowEnvelope` as free monoid (array concatenation). Add law tests: associativity of `concat`, identity of `[]`, length homomorphism `|a·b| = |a| + |b|`. Currently lineage fields are untyped `readonly string[]` arrays with no composition laws | S | 🟢 | P17, P18 | Lineage composition correctness; provenance chain verification |
+| W5.5 | **Recursive fold audit and refactor** — Audit `lib/application/` for remaining mutable accumulation patterns (`let` + `push` + `for`). Replace with recursive `step(remaining, acc)` pattern per `runStrategyChain` in `strategy.ts:23-43` and `runPipelinePhases` in `dogfood.ts`. Target: 0 mutable accumulation in application layer | M | 🟡 | P13, coding-notes | Purity guarantee for application layer |
+| W5.6 | **Kleisli arrow module for pipeline stages** — Name `PipelineStage<D,C,P,E,R>` as a Kleisli arrow. Add `composeKleisli(stage1, stage2)` that threads output of stage1 as dependency of stage2. Prove left identity (`pure >=> f = f`), right identity (`f >=> pure = f`), associativity. Currently composition is implicit via `yield*` chains | M | 🟡 | P17, W4.8 | Stage refactoring safety; pipeline DAG foundation (W4.1) |
+| W5.7 | **Galois connection verification for trust policy** — Formalize the adjunction in `trust-policy.ts:62-83`: lower adjoint `f: ProposedChangeMetadata → TrustPolicyDecision`, verify `f(x) ⊑ y ⟺ x ⊑ g(y)` for the 6-gate auto-approval chain. Property-test with random confidence/evidence combinations | M | 🟡 | P17, W4.10 | Trust policy optimization; redundant gate elimination |
+
+### Track B: Big O & Algorithmic Complexity (parallel)
+
+| ID | Item | Effort | Readiness | Origin | Unlocks |
+|----|------|--------|-----------|--------|---------|
+| W5.8 | **Resolution ladder early-exit proof and optimization** — `chooseByPrecedence` in `precedence.ts:33-45` is O(R×C) where R=rungs (10), C=candidates. The `reduce` scans all rungs even after finding a winner (short-circuit via `winner !== null` skip, but still iterates). Refactor to `findFirst` with true early-exit. Add law test: `chooseByPrecedence` terminates in O(R+C) with proof that the first non-null match at the highest rung is always returned. Benchmark 10K calls pre/post | S | 🟢 | P17, P19 | Faster resolution for large candidate sets |
+| W5.9 | **Graph builder quadratic pattern audit** — `derived-graph.ts` (1,731 lines) and `interface-intelligence.ts` (1,379 lines) build graphs via repeated array operations. Audit for: (a) O(n²) `.find()` inside loops (replace with `Map` pre-index), (b) repeated `filter().length` (replace with single-pass count), (c) string concatenation in loops (replace with array join). Produce a complexity table for each public function | M | 🟡 | P8, P11 | Sub-linear graph construction at scale (2000+ scenarios) |
+| W5.10 | **Translation cache amortized analysis** — `translation-cache.ts` uses fingerprint-keyed cache. Prove amortized O(1) lookup by showing: (a) SHA-256 fingerprint is O(input-length) but bounded by max step text (~500 chars), (b) `Map.get` is O(1) average, (c) cache miss rate decreases monotonically across dogfood iterations. Add law test: cache hit rate is monotonically non-decreasing across iterations | S | 🟢 | P14, P16 | Dogfood loop cost model; agent budget derivation |
+| W5.11 | **Scoring rule combination complexity bounds** — `combineScoringRules` in `learning-shared.ts:24` is O(k) per item for k rules. `buildBottleneckScoring` composes 4 weighted rules. Prove: total scoring cost for n items is Θ(k×n) with k=4 constant, yielding Θ(n). Benchmark combined vs manual scoring for 1K+ screen-action pairs. Verify `contramapScoringRule` adds O(1) overhead per application | S | 🟢 | P17 | Confidence in learning loop scalability |
+| W5.12 | **Property-based test coverage probability analysis** — Current tests use 150 mulberry32 seeds. For a domain with d independent boolean dimensions, coverage probability is `1 - (1 - 2^{-d})^{150}`. Compute: for d=5, P(full coverage) = 99.7%. For d=10, P = 86%. Document the confidence table in `docs/seams-and-invariants.md`. Recommend per-test seed counts based on input dimensionality | S | 🟢 | P18 | Evidence-based test confidence; seed count tuning |
+
+### Track C: Effect Concurrency Patterns (parallel)
+
+| ID | Item | Effort | Readiness | Origin | Unlocks |
+|----|------|--------|-----------|--------|---------|
+| W5.13 | **Parallel scenario compilation with bounded concurrency** — `compile.ts` and `emit.ts` process scenarios sequentially. Lift to `Effect.forEach(scenarios, compileFn, { concurrency: resolveEffectConcurrency() })` using the existing `concurrency.ts:13-27` utility. Gate: verify deterministic output regardless of concurrency level via fingerprint comparison law test | M | 🟢 | P15, W3.6 | 2-4x compile speedup on multi-core; dogfood loop wall-clock reduction |
+| W5.14 | **Structured concurrency for discovery harvesting** — `harvest` visits screens sequentially. Independent screens can be harvested in parallel via `Effect.forEach(screens, harvestScreen, { concurrency: 4 })`. Shared state (SelectorCanon, knowledge catalog) accessed via Effect `Ref` for safe concurrent reads. Write contention resolved by collecting proposals per-screen then merging post-harvest | L | 🟡 | P1, P4 | Faster discovery; linear speedup for multi-screen apps |
+| W5.15 | **Effect.race for timeout-bounded agent interpretation** — Agent LLM calls in `agent-interpreter-provider.ts` currently use a single timeout. Replace with `Effect.race(agentCall, Effect.sleep(budgetMs).pipe(Effect.map(() => fallbackResult)))` so interpretation races against a budget. On timeout, return `needs-human` with `reason: 'token-budget-exceeded'`. Complements W2.22 (agent error taxonomy) and W2.23 (token budget enforcement) | S | 🟢 | P14, W2.22 | Predictable agent latency; cost ceiling per step |
+| W5.16 | **Concurrent graph building via Effect.all** — `interface-intelligence.ts` builds 11 node kinds sequentially. Independent node collections (routes, screens, surfaces, targets, snapshots) can be built in parallel: `Effect.all({ routes: buildRouteNodes(...), screens: buildScreenNodes(...), ... })`. Edge construction depends on nodes, so stays sequential after. Reduces graph build from O(Σ node_kinds) to O(max node_kind) | M | 🟡 | P1, P8 | Faster graph projection; sub-second rebuild for large apps |
+| W5.17 | **Backpressure-aware PubSub with overflow strategy** — `pipeline-event-bus.ts` uses a 4096-capacity bounded queue. Add law test for backpressure behavior: (a) events within capacity are never lost, (b) beyond capacity, oldest events are dropped (sliding window), (c) consumer lag metric exposed via `Effect.Metric.gauge`. Wire the lag metric to dashboard as a health indicator | S | 🟢 | P12, P16, W2.21 | Event bus reliability under load; operational visibility |
+
+### Track D: React 19 Integration (parallel)
+
+Dashboard is on React 19.2.4 but uses zero React 19 APIs. All hooks are React 18-era (`useState`, `useEffect`, `useCallback`, `useRef`). The dashboard has a rich spatial/3D layer (React Three Fiber) with atoms/molecules/organisms decomposition and a SharedArrayBuffer zero-copy path that is currently unused by React.
+
+| ID | Item | Effort | Readiness | Origin | Unlocks |
+|----|------|--------|-----------|--------|---------|
+| W5.18 | **`useTransition` for non-blocking event dispatch** — `app.tsx:92-120` builds a dispatch table that calls `setState` synchronously on every WebSocket message. Wrap high-frequency dispatches (`element-probed`, `rung-shift`, `calibration-update`) in `useTransition` so they yield to user interactions (approval clicks, queue management). Keeps the 3D spatial canvas at 60fps during burst events | M | 🟢 | P12, P16, W3.1 | Smooth 60fps dashboard during pipeline bursts |
+| W5.19 | **`use()` for streaming pipeline results** — Replace the `useQuery` + polling pattern for scorecard/fitness data with React 19's `use()` hook consuming an Effect Stream converted to a ReadableStream. The pipeline already emits `fitness-updated` events; `use()` can unwrap the promise of the next event inline without `useEffect` boilerplate. Pair with `<Suspense>` boundaries around `FitnessCard` and `ConvergencePanel` | M | 🟡 | P16, W3.1 | Declarative streaming; eliminates manual subscription plumbing |
+| W5.20 | **`useOptimistic` for proposal approval UI** — `WorkbenchPanel` shows queued proposals awaiting operator approval. Currently approval round-trips through WebSocket before updating UI. Use React 19's `useOptimistic` to immediately show the proposal as approved, then reconcile on server confirmation. Revert on rejection. Pairs with `useMutation` from TanStack Query (already imported) | S | 🟢 | P16, W3.16 | Instant feedback on approval actions; perceived latency → 0 |
+| W5.21 | **Concurrent SharedArrayBuffer rendering with `useDeferredValue`** — `usePipelineBuffer` hook in `dashboard/src/hooks/use-pipeline-buffer.ts` polls the ring buffer each frame. Wrap the decoded `BufferEvent[]` in `useDeferredValue` so the spatial canvas (`SpatialCanvas`, `SelectorGlows`, `ParticleTransport`) renders at display frame rate while the event processing runs at a lower deferred priority. Prevents frame drops when event volume spikes | S | 🟢 | P12, W3.2 | Zero-copy viz without frame drops; exploits React 19 concurrent features |
+| W5.22 | **React 19 `ref` as prop for dashboard atoms** — Dashboard atoms (`StageDot`, `QueueItem`, `WeightIndicator`, `DriftMeter`, `RungBar`, `ConnectionDot`) currently use `forwardRef`. React 19 passes `ref` as a regular prop. Remove all `forwardRef` wrappers across 7 atom components, simplifying the component API. Add `ref` to prop interfaces directly | S | 🟢 | React 19 | Cleaner component APIs; reduced boilerplate |
+
+### Track E: Design Pattern Crystallization (parallel)
+
+| ID | Item | Effort | Readiness | Origin | Unlocks |
+|----|------|--------|-----------|--------|---------|
+| W5.23 | **Strategy pattern: first-class resolution strategy registry** — `resolution-stages.ts` defines strategies as functions. Extract into a `StrategyRegistry` that maps `ResolutionPrecedenceRung → ResolutionStrategy`. Strategies register themselves; the ladder iterates the registry in rung order. New rungs (like W3.4 Rung 8) add a strategy entry without modifying the orchestrator. Pattern: GoF Strategy with registry lookup | M | 🟡 | P9, W2.12 | Open/closed resolution ladder; Rung 8 plugs in cleanly |
+| W5.24 | **Visitor: auto-derive fold cases from discriminated union types** — `visitors.ts` manually defines 8 fold functions with hand-written case records. Add a `deriveFold<TUnion>(discriminant: string)` utility that generates the `Cases<R>` interface type from the union's discriminant field. Uses TypeScript's conditional types and mapped types. Add architecture fitness test: every discriminated union in `lib/domain/types/` has a corresponding fold in `visitors.ts` | M | 🟡 | P17, P18 | Automatic fold coverage; new union variants immediately caught |
+| W5.25 | **Composite: scoring rule algebra with identity and annihilator** — Extend `ScoringRule<T>` Composite with: `identity` (always returns 0), `annihilator` (always returns -Infinity, short-circuits), `bounded(min, max, rule)` for clamping. Add `Semigroup` and `Monoid` instances. Prove associativity law for all scoring rule triples. File: `lib/domain/algebra/scoring.ts` | S | 🟢 | P17, W5.3 | Richer scoring composition; bottleneck calibration safety |
+| W5.26 | **State Machine: typed dogfood convergence FSM** — Extract the implicit state machine in `dogfood.ts:206-231` into an explicit `ConvergenceFSM` using `state-machine.ts`. States: `exploring` (proposals generated), `narrowing` (hit rate improving), `plateau` (diminishing returns), `converged` (no proposals). Transitions carry typed events. Replaces ad-hoc convergence detection with exhaustive `foldConvergenceState` | M | 🟡 | P3, P17 | Formal convergence guarantees; Lyapunov function attachment point |
+| W5.27 | **Observer: typed event taxonomy for dashboard subscription** — Dashboard dispatch table in `app.tsx:94-120` is an untyped `Record<string, (data: unknown) => void>`. Replace with a typed `EventObserver<TEventMap>` where `TEventMap` maps event kind strings to payload types. Subscribe/unsubscribe by kind. Ensures all 22 event kinds have handlers at compile time | M | 🟡 | P12, P16, W3.1 | Compile-time event coverage; no silent event drops |
+| W5.28 | **Builder: typed graph construction with phantom build phases** — `derived-graph.ts` (1,731 lines) builds the graph in an implicit sequence: nodes first, then edges, then metrics. Extract a `GraphBuilder<Phase>` with phantom-typed phases: `GraphBuilder<'nodes'>` → `.addEdges()` → `GraphBuilder<'edges'>` → `.computeMetrics()` → `GraphBuilder<'complete'>`. Only `GraphBuilder<'complete'>` exposes `.build()`. Prevents out-of-order construction at the type level | L | 🟡 | P8, P11 | Type-safe graph construction; eliminates "edges before nodes" bugs |
+
+### Critical Complexity Analysis
+
+| Algorithm | File | Current | Target | Item |
+|-----------|------|---------|--------|------|
+| `chooseByPrecedence` | `precedence.ts:33-45` | O(R×C) worst-case | O(R+C) early-exit | W5.8 |
+| `buildDerivedGraph` | `derived-graph.ts` | O(V+E) with hidden O(V²) | O(V+E) with Map index | W5.9 |
+| `combineScoringRules` | `learning-shared.ts:24` | Θ(k×n), k=4 rules | Θ(n), k constant | W5.11 |
+| Translation cache lookup | `translation-cache.ts` | O(1) amortized | O(1) proven | W5.10 |
+| Scenario compilation | `compile.ts` | O(S) sequential | O(S/P), P=cores | W5.13 |
+| Discovery harvesting | harvest pipeline | O(screens) sequential | O(screens/4) parallel | W5.14 |
+| Graph node building | `interface-intelligence.ts` | O(Σ node_kinds) | O(max node_kind) | W5.16 |
+| Ring buffer read | `use-pipeline-buffer.ts` | O(1) amortized/frame | O(1) already optimal | W5.21 |
+
+### Wave 5 Completion Criteria
+
+- [ ] `lib/domain/algebra/` directory exists with `lattice.ts`, `monoid.ts`, `scoring.ts`
+- [ ] Catamorphism fusion law passes for all 8 folds in `visitors.ts`
+- [ ] Kleisli composition laws (identity, associativity) pass for pipeline stages
+- [ ] Galois connection adjunction property verified for trust policy
+- [ ] `chooseByPrecedence` benchmarks show measurable early-exit improvement
+- [ ] Graph builder audit eliminates all O(n²) patterns
+- [ ] Scenario compilation runs with `concurrency > 1`, produces identical output
+- [ ] Agent interpretation has `Effect.race` timeout with graceful fallback
+- [ ] Dashboard uses `useTransition` for burst events, maintains 60fps
+- [ ] `use()` replaces at least one `useQuery` subscription for streaming data
+- [ ] `useOptimistic` provides instant approval feedback in WorkbenchPanel
+- [ ] All `forwardRef` wrappers removed from dashboard atoms (React 19 ref-as-prop)
+- [ ] `StrategyRegistry` supports pluggable resolution strategies
+- [ ] Typed `EventObserver<TEventMap>` covers all 22 dashboard event kinds
+- [ ] Zero mutable accumulation patterns remaining in `lib/application/`
+- [ ] Verification coverage: ~80% → ~90%
+
+---
+
 ## Critical Path Analysis
 
 The shortest chain to "system enforces what it declares":
@@ -313,15 +410,16 @@ These are the items that appear most frequently across perspectives, have the be
 
 ## Mapping to BACKLOG.md Lanes
 
-| BACKLOG Lane | Wave 1 | Wave 2 | Wave 3 | Wave 4 |
-|-------------|--------|--------|--------|--------|
-| **A — Agentic core** | W1.7 (DOM snapshot) | W2.13 (agent cache) | W3.4 (Rung 8), W3.5 (MCP symmetry) | W4.5 (auto-approval), W4.6 (dogfood cmd) |
-| **B — Knowledge** | — | W2.8 (discovery→proposal), W2.9 (decay) | W3.8 (routes), W3.9 (coverage metric) | — |
-| **C — Resolution/execution** | — | W2.12 (recovery chain), W2.14 (parity test) | W3.6 (parallel steps) | W4.3 (runtime graph) |
-| **D — Dogfooding** | — | — | W3.10 (entropy), W3.11 (progress) | W4.6 (orchestrator) |
-| **E — Projection** | W1.3 (dashboard test) | W2.10 (cross-graph) | W3.1 (events), W3.2 (SAB), W3.3 (MCP) | W4.7 (VSCode) |
-| **Governance** | W1.1, W1.2 | W2.1, W2.2, W2.3 | — | — |
-| **Verification** | W1.4-W1.6, W1.8 | W2.3-W2.7, W2.11, W2.15 | — | W4.8-W4.11 |
+| BACKLOG Lane | Wave 1 | Wave 2 | Wave 3 | Wave 4 | Wave 5 |
+|-------------|--------|--------|--------|--------|--------|
+| **A — Agentic core** | W1.7 (DOM snapshot) | W2.13 (agent cache) | W3.4 (Rung 8), W3.5 (MCP symmetry) | W4.5 (auto-approval), W4.6 (dogfood cmd) | W5.15 (race timeout), W5.23 (strategy registry) |
+| **B — Knowledge** | — | W2.8 (discovery→proposal), W2.9 (decay) | W3.8 (routes), W3.9 (coverage metric) | — | W5.14 (parallel harvest) |
+| **C — Resolution/execution** | — | W2.12 (recovery chain), W2.14 (parity test) | W3.6 (parallel steps) | W4.3 (runtime graph) | W5.8 (early-exit), W5.13 (parallel compile) |
+| **D — Dogfooding** | — | — | W3.10 (entropy), W3.11 (progress) | W4.6 (orchestrator) | W5.26 (convergence FSM) |
+| **E — Projection** | W1.3 (dashboard test) | W2.10 (cross-graph) | W3.1 (events), W3.2 (SAB), W3.3 (MCP) | W4.7 (VSCode) | W5.18-W5.22 (React 19), W5.27 (Observer), W5.28 (Builder) |
+| **Governance** | W1.1, W1.2 | W2.1, W2.2, W2.3 | — | — | W5.1 (lattice), W5.7 (Galois) |
+| **Verification** | W1.4-W1.6, W1.8 | W2.3-W2.7, W2.11, W2.15 | — | W4.8-W4.11 | W5.2 (fusion), W5.4 (free monoid), W5.6 (Kleisli), W5.11-W5.12 (bounds) |
+| **FP Formalization** | — | — | — | — | W5.1, W5.3, W5.5 (algebra modules, monoids, fold audit) |
 
 ---
 
@@ -329,18 +427,22 @@ These are the items that appear most frequently across perspectives, have the be
 
 Track these across waves to measure progress:
 
-| Metric | Before | After Wave 1 | After Wave 2 | After Wave 3 | After Wave 4 |
-|--------|--------|-------------|-------------|-------------|-------------|
-| Governance mint sites (untyped) | 35 | 0 | 0 | 0 | 0 |
-| `foldGovernance` production call sites | 0 | 0 | ≥10 | ≥10 | ≥10 |
-| Phantom brand enforcement sites | 1 | 1 | ≥3 | ≥3 | ≥5 |
-| Law test suites | 20 | 24 | 31 | 31 | 35+ |
-| Law assertions | 192 | 210 | 260 | 260 | 300+ |
-| Declared invariants verified | 40% | 48% | 65% | 80% | 90%+ |
-| Dashboard events consumed | 12/22 | 12/22 | 12/22 | 22/22 | 22/22 |
-| Agent DOM snapshot | null | populated | populated | populated | populated |
-| Cross-graph validation | none | none | build-time | build-time | build-time |
-| Resolution rungs | 10 | 10 | 10 | 11 (Rung 8) | 11 |
+| Metric | Before | After Wave 1 | After Wave 2 | After Wave 3 | After Wave 4 | After Wave 5 |
+|--------|--------|-------------|-------------|-------------|-------------|-------------|
+| Governance mint sites (untyped) | 35 | 0 | 0 | 0 | 0 | 0 |
+| `foldGovernance` production call sites | 0 | 0 | ≥10 | ≥10 | ≥10 | ≥10 |
+| Phantom brand enforcement sites | 1 | 1 | ≥3 | ≥3 | ≥5 | ≥8 |
+| Law test suites | 20 | 24 | 31 | 31 | 35+ | 45+ |
+| Law assertions | 192 | 210 | 260 | 260 | 300+ | 380+ |
+| Declared invariants verified | 40% | 48% | 65% | 80% | 90%+ | 95%+ |
+| Dashboard events consumed | 12/22 | 12/22 | 12/22 | 22/22 | 22/22 | 22/22 |
+| Agent DOM snapshot | null | populated | populated | populated | populated | populated |
+| Cross-graph validation | none | none | build-time | build-time | build-time | build-time |
+| Resolution rungs | 10 | 10 | 10 | 11 (Rung 8) | 11 | 11 |
+| Named algebra modules | 0 | 0 | 0 | 0 | 0 | 3 (lattice, monoid, scoring) |
+| React 19 API adoption | 0 | 0 | 0 | 0 | 0 | 5 (useTransition, use, useOptimistic, useDeferredValue, ref-as-prop) |
+| Compile concurrency | 1 | 1 | 1 | 1 | 1 | auto (CPU cores) |
+| Mutable accumulation in lib/application | unknown | unknown | unknown | unknown | unknown | 0 |
 
 ---
 
@@ -407,13 +509,14 @@ A cross-check of all 20 perspectives against this document surfaced **12 additio
 
 With both audit passes, the master plan now contains:
 
-| Wave | Original Items | Audit 1 | Audit 2 | Total |
-|------|---------------|---------|---------|-------|
-| Wave 1 | 8 | 0 | 2 | 10 |
-| Wave 2 | 15 | 4 | 4 | 23 |
-| Wave 3 | 11 | 5 | 1 | 17 |
-| Wave 4 | 11 | 2 | 2 | 15 |
-| **Total** | **45** | **11** | **9** | **65** |
+| Wave | Original Items | Audit 1 | Audit 2 | Wave 5 | Total |
+|------|---------------|---------|---------|--------|-------|
+| Wave 1 | 8 | 0 | 2 | — | 10 |
+| Wave 2 | 15 | 4 | 4 | — | 23 |
+| Wave 3 | 11 | 5 | 1 | — | 17 |
+| Wave 4 | 11 | 2 | 2 | — | 15 |
+| Wave 5 | — | — | — | 28 | 28 |
+| **Total** | **45** | **11** | **9** | **28** | **93** |
 
 ---
 
@@ -421,7 +524,7 @@ With both audit passes, the master plan now contains:
 
 This document is itself a projection — derived from 20 canonical research perspectives, cross-checked by 5 analytical agents, and audited for completeness against every source document. It should be treated as a living plan: update priorities as items ship, collapse completed waves, and promote Wave 4 items when their prerequisites are met.
 
-The single most important takeaway: **the system already knows what it should be**. The types are 90% there. The runtime wiring is 40% there. The gap is the work — and it's 65 well-defined items, not open-ended research.
+The single most important takeaway: **the system already knows what it should be**. The types are 90% there. The runtime wiring is 40% there. The gap is the work — and it's 93 well-defined items across 5 waves, not open-ended research.
 
 ### Document Lineage
 
@@ -432,4 +535,4 @@ The single most important takeaway: **the system already knows what it should be
 | `docs/research-next-directions-round3.md` | Round 3: Execution engine, Effect boundary, schema validation, infrastructure ports (P9-P12) | Complete |
 | `docs/research-next-directions-round4.md` | Round 4: Domain purity, agent interpreter, pipeline/CLI, dashboard (P13-P16) | Complete |
 | `docs/research-next-directions-round5.md` | Round 5: Algebra, self-verification, invisible architecture, information theory (P17-P20) | Complete |
-| `docs/research-master-prioritization.md` | **This document** — 56 items across 4 waves, dependency graph, risk matrix, metrics | Complete |
+| `docs/research-master-prioritization.md` | **This document** — 93 items across 5 waves, dependency graph, risk matrix, metrics | Complete |
