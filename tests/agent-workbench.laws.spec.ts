@@ -6,7 +6,7 @@
 
 import { expect, test } from '@playwright/test';
 import { buildAgentWorkItems, defaultWorkItemDecider } from '../lib/application/agent-workbench';
-import type { WorkflowHotspot, HotspotSample } from '../lib/application/hotspots';
+import type { WorkflowHotspot } from '../lib/application/hotspots';
 import type { AgentWorkItem, WorkItemKind } from '../lib/domain/types';
 
 // ─── Mock Factories ───

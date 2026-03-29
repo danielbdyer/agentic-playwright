@@ -5,7 +5,6 @@ import {
 import {
   directionArrow,
   directionColor,
-  type ConvergenceDirection,
 } from '../lib/domain/iteration-timeline';
 
 test.describe('ConvergenceArrow laws', () => {

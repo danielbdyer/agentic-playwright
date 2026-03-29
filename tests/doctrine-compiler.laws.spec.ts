@@ -95,12 +95,12 @@ function randomDoctrineMarkdown(next: () => number): string {
 
 // ─── Known fixture fragments ───
 
-const IMPORT_FRAGMENT = '`lib/domain` must stay pure and side-effect free.';
-const PREFER_FRAGMENT = 'Prefer `const` over `let`';
-const PROHIBIT_FRAGMENT = '**`Array.push()`** — use spread instead';
+const _IMPORT_FRAGMENT = '`lib/domain` must stay pure and side-effect free.';
+const _PREFER_FRAGMENT = 'Prefer `const` over `let`';
+const _PROHIBIT_FRAGMENT = '**`Array.push()`** — use spread instead';
 const ENVELOPE_FRAGMENT =
   'Every cross-lane handoff should expose the same envelope header: `kind`, `version`, `stage`, `scope`, `ids`, `fingerprints`, `lineage`, `governance`, and `payload`.';
-const DIRECTORY_FRAGMENT = '`lib/domain` must stay pure and side-effect free.';
+const _DIRECTORY_FRAGMENT = '`lib/domain` must stay pure and side-effect free.';
 
 // ─── Law 1: parseDoctrineRules returns readonly array (150 seeds) ───
 

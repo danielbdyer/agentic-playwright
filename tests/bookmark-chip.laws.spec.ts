@@ -2,7 +2,6 @@ import { expect, test } from '@playwright/test';
 import {
   bookmarkColor,
   shortcutHint,
-  type BookmarkKind,
 } from '../dashboard/src/molecules/bookmark-chip';
 
 test.describe('BookmarkChip laws', () => {

@@ -18,7 +18,6 @@ import {
   shouldProposeUpdate,
   matureComponentKnowledge,
   type ComponentEvidence,
-  type ComponentProposal,
 } from '../lib/domain/component-maturation';
 import { mulberry32, pick, randomWord, randomInt } from './support/random';
 

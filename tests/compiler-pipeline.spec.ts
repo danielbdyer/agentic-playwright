@@ -25,7 +25,6 @@ import {
 import { createTestWorkspace } from './support/workspace';
 import {
   policySearchScreenId,
-  policyNumberInputId,
   searchButtonId,
   resultsTableId,
   resultsGridId,

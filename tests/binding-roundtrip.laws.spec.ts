@@ -11,7 +11,6 @@
 import { expect, test } from '@playwright/test';
 import { bindScenarioStep, type StepBindingContext } from '../lib/domain/binding';
 import {
-  createAdoId,
   createElementId,
   createPostureId,
   createScreenId,
@@ -19,7 +18,7 @@ import {
   createSurfaceId,
 } from '../lib/domain/identity';
 import type { BoundStep, ScenarioStep, ScreenElements, ScreenPostures, SurfaceGraph } from '../lib/domain/types';
-import { mulberry32, pick, randomWord, randomInt } from './support/random';
+import { mulberry32, pick, randomWord } from './support/random';
 
 // ─── Factories ───
 

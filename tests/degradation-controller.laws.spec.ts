@@ -4,7 +4,6 @@ import {
   formatFps,
   TIER_LABELS,
   TIER_COLORS,
-  type DegradationTier,
 } from '../dashboard/src/organisms/degradation-controller';
 
 test.describe('DegradationController laws', () => {
@@ -43,7 +42,7 @@ test.describe('DegradationController laws', () => {
   });
 
   test('Law 7: tier 1 disables bloom', () => {
-    const state = computeDegradationState(60, 1);
+    const _state = computeDegradationState(60, 1);
     // Tier 1 at 60fps should recover to 0
     // But at 50fps (hysteresis), stays at 1
     const stateAt50 = computeDegradationState(50, 1);
