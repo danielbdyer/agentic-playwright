@@ -18,6 +18,7 @@ import type { McpToolDefinition, WorkItemDecision, ScreenCapturedEvent } from '.
 import { dashboardMcpTools, dashboardEvent } from '../../domain/types/dashboard';
 import { resolveResource, buildResourceUri } from './resource-provider';
 import type { ResourceArtifactReader } from './resource-provider';
+import type { PlaywrightBridgePort, BrowserAction } from './playwright-mcp-bridge';
 
 // ─── Configuration ───
 
@@ -30,6 +31,8 @@ export interface DashboardMcpServerOptions {
   readonly pendingDecisions: ReadonlyMap<string, (decision: WorkItemDecision) => void>;
   /** Broadcast an event to all connected WS clients. */
   readonly broadcast: (event: unknown) => void;
+  /** Optional Playwright bridge for live browser interaction (headed mode). */
+  readonly playwrightBridge?: PlaywrightBridgePort;
 }
 
 // ─── Pure Tool Handlers ───
@@ -248,6 +251,46 @@ const listScreens: ToolHandler = (_args, options) => {
   return { screens, count: screens.length };
 };
 
+// ─── Browser Tool Handlers (Playwright MCP bridge) ───
+// These delegate to the PlaywrightBridgePort when available.
+// When no bridge is injected, they return a structured error.
+
+const executeBrowserAction = (
+  action: BrowserAction,
+  options: DashboardMcpServerOptions,
+): unknown => {
+  const bridge = options.playwrightBridge;
+  if (!bridge) return { error: 'Playwright bridge not available (headless mode)', available: false };
+  // Run the Effect synchronously since MCP handlers are sync.
+  // The bridge's execute returns an Effect — we use runSync via a simple promise-free path.
+  let result: unknown = null;
+  Effect.runSync(
+    bridge.execute(action).pipe(
+      Effect.tap((r) => Effect.sync(() => { result = r; })),
+      Effect.catchAll((err) => Effect.sync(() => { result = { error: String(err), success: false }; })),
+    ),
+  );
+  return result;
+};
+
+const browserScreenshot: ToolHandler = (_args, options) =>
+  executeBrowserAction({ kind: 'screenshot' }, options);
+
+const browserQuery: ToolHandler = (args, options) =>
+  executeBrowserAction({ kind: 'query', selector: args.selector as string }, options);
+
+const browserAriaSnapshot: ToolHandler = (_args, options) =>
+  executeBrowserAction({ kind: 'aria-snapshot' }, options);
+
+const browserClick: ToolHandler = (args, options) =>
+  executeBrowserAction({ kind: 'click', selector: args.selector as string }, options);
+
+const browserFill: ToolHandler = (args, options) =>
+  executeBrowserAction({ kind: 'fill', selector: args.selector as string, value: args.value as string }, options);
+
+const browserNavigate: ToolHandler = (args, options) =>
+  executeBrowserAction({ kind: 'navigate', url: args.url as string }, options);
+
 // ─── Tool Router (pure dispatch) ───
 
 const toolHandlers: Readonly<Record<string, ToolHandler>> = {
@@ -266,6 +309,12 @@ const toolHandlers: Readonly<Record<string, ToolHandler>> = {
   'get_resolution_graph': getResolutionGraph,
   'get_task_resolution': getTaskResolution,
   'list_screens': listScreens,
+  'browser_screenshot': browserScreenshot,
+  'browser_query': browserQuery,
+  'browser_aria_snapshot': browserAriaSnapshot,
+  'browser_click': browserClick,
+  'browser_fill': browserFill,
+  'browser_navigate': browserNavigate,
 };
 
 const routeToolCall = (
