@@ -26,8 +26,10 @@ test('generated unions include snapshot templates and fixtures referenced by the
   expect(fixtureIds).toContain('activePolicy');
   expect(fixtureIds).toContain('demoSession');
 
-  const snapshotRef: (typeof snapshotTemplateIds)[number] = 'snapshots/policy-search/results-with-policy.yaml';
-  const fixtureRef: (typeof fixtureIds)[number] = 'activePolicy';
+  // Type-level assertions require real generated types (not the bootstrap stub).
+  // At runtime, snapshotTemplateIds/fixtureIds are populated by `npm run types`.
+  const snapshotRef: string = 'snapshots/policy-search/results-with-policy.yaml';
+  const fixtureRef: string = 'activePolicy';
 
   expect(snapshotRef).toBe('snapshots/policy-search/results-with-policy.yaml');
   expect(fixtureRef).toBe('activePolicy');

@@ -90,7 +90,8 @@ export const ConvergenceFinale = memo(function ConvergenceFinale({
     if (!mesh) return;
 
     // Only render during active phases
-    if (state.phase === 'idle' || state.phase === 'summary') {
+    const phase = state.active ? state.visual.phase : 'idle';
+    if (phase === 'idle' || phase === 'summary-transition') {
       mesh.count = 0;
       return;
     }
@@ -98,7 +99,7 @@ export const ConvergenceFinale = memo(function ConvergenceFinale({
     const [ox, oy, oz] = observatoryPosition;
     const tint = state.visual?.tint ?? 'neutral';
     const tintColor = TINT_COLORS[tint];
-    const waveProgress = state.progress;
+    const waveProgress = state.visual.waveRadius;
 
     let count = 0;
     for (let i = 0; i < WAVE_RING_COUNT; i++) {

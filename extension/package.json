@@ -1,0 +1,109 @@
+{
+  "name": "tesseract-vscode",
+  "displayName": "Tesseract",
+  "description": "Interface intelligence and agent workbench for Tesseract QA",
+  "version": "0.1.0",
+  "publisher": "tesseract",
+  "license": "UNLICENSED",
+  "private": true,
+  "engines": {
+    "vscode": "^1.93.0"
+  },
+  "categories": [
+    "Testing"
+  ],
+  "activationEvents": [
+    "workspaceContains:.tesseract"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "tesseract.refresh",
+        "title": "Tesseract: Refresh Inbox & Diagnostics"
+      },
+      {
+        "command": "tesseract.approve",
+        "title": "Tesseract: Approve Proposal"
+      },
+      {
+        "command": "tesseract.rerun",
+        "title": "Tesseract: Rerun Scenario"
+      }
+    ],
+    "taskDefinitions": [
+      {
+        "type": "tesseract",
+        "required": [
+          "inboxItemId"
+        ],
+        "properties": {
+          "inboxItemId": {
+            "type": "string",
+            "description": "The inbox item ID"
+          },
+          "kind": {
+            "type": "string",
+            "description": "Inbox item kind"
+          },
+          "status": {
+            "type": "string",
+            "description": "Inbox item status"
+          }
+        }
+      }
+    ],
+    "problemMatchers": [
+      {
+        "name": "tesseract",
+        "owner": "tesseract",
+        "fileLocation": [
+          "relative",
+          "${workspaceFolder}"
+        ],
+        "pattern": [
+          {
+            "regexp": "^\\[(.+)\\]\\s+(.+)$",
+            "file": 1,
+            "message": 2
+          }
+        ]
+      }
+    ],
+    "chatParticipants": [
+      {
+        "id": "tesseract.participant",
+        "name": "tesseract",
+        "fullName": "Tesseract QA",
+        "description": "Query inbox, approve proposals, and rerun scenarios",
+        "isSticky": false,
+        "commands": [
+          {
+            "name": "inbox",
+            "description": "Show current inbox items"
+          },
+          {
+            "name": "approve",
+            "description": "Approve a proposal by ID"
+          },
+          {
+            "name": "rerun",
+            "description": "Rerun a scenario by ADO ID"
+          },
+          {
+            "name": "hotspots",
+            "description": "Show knowledge hotspots"
+          }
+        ]
+      }
+    ]
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "watch": "tsc -watch -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.93.0",
+    "typescript": "^5.5.0"
+  }
+}

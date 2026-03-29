@@ -197,40 +197,27 @@ When a concept starts to cross those boundaries, model the boundary explicitly i
 
 ## Strong preferences
 
-Read `docs/coding-notes.md` thoroughly before writing code. It contains authoritative guidance on FP style, Effect patterns, design pattern vocabulary, and testability conventions that govern all contributions.
+Read [`docs/coding-notes.md`](docs/coding-notes.md) thoroughly before writing code. It is the authoritative source for FP style, Effect patterns, design pattern vocabulary (GoF), and testability conventions. Do not deviate.
 
-### Functional programming
+Key principles (detail and examples in coding-notes.md):
 
-- Prefer pure functions and immutable data. Return new objects instead of mutating parameters. Avoid `let`, `Array.push`, and mutable accumulation patterns.
-- Prefer `const` bindings, ternary expressions, and higher-order functions (`map`, `filter`, `reduce`, `flatMap`) over imperative loops and mutable state.
-- Prefer recursive folds over mutable accumulation with early return. When a sequential process short-circuits on success and accumulates events, model it as a recursive `step(remaining, priorEvents)` function. See `runStrategyChain`, `runPipelinePhases`, and `runDogfoodLoop`.
-- Mark all exported interface fields as `readonly`. Use `ReadonlyArray<T>` and `readonly T[]` for array fields in public interfaces.
+- **Functional programming**: pure functions, immutable data, `const` bindings, recursive folds over mutable accumulation, `readonly` on all exported interface fields.
+- **Effect-forward orchestration**: `Effect.gen` with `yield*`, `Effect.all` for independent operations, `Effect.catchTag` over manual discrimination, no `runPromise`/`runSync` outside `lib/composition/`.
+- **Design patterns**: Strategy (resolution ladder), Visitor/Fold (exhaustive case analysis), Composite (scoring rules), State Machine (convergence), Interpreter (compilation phases), Envelope (`mapPayload`).
+- **Governance**: phantom branded types (`Approved<T>`, `Blocked<T>`), `foldGovernance` for exhaustive analysis, value objects over protocol strings.
+- **Testing**: law-style tests for determinism, precedence, normalization, and round-trips. Provenance-rich outputs over opaque success paths.
+- **Code generation**: AST-backed emission over source-string splicing. Pure derivations over parallel truth.
 
-### Effect-forward orchestration
+## Scoped guidance
 
-- Prefer `Effect.gen` with `yield*` for sequential orchestration. Never use `Effect.runPromise`/`Effect.runSync` outside `lib/composition/`.
-- Prefer `Effect.all({...})` over sequential `yield*` chains for structurally independent operations. This makes independence explicit at the type level even without runtime concurrency. See `loadWorkspaceCatalog`.
-- Prefer `Effect.catchTag` over `Effect.either` + manual `_tag` discrimination. Use `Effect.catchAll` when recovering uniformly from any failure.
-- Thread immutable state through recursive Effect steps rather than mutating closed-over `let` bindings. See `docs/coding-notes.md` § Effect-Forward Patterns.
-- Use `Effect.succeed`/`Effect.fail` for pure lifts. Never throw inside `Effect.gen`.
+Lane-specific instructions live in `.github/instructions/`:
 
-### Design patterns (Gang of Four vocabulary)
-
-- **Strategy**: resolution ladder, pipeline phase chains. New behaviors compose as new strategies, not as branches in existing strategies.
-- **Visitor/Fold**: exhaustive case analysis for discriminated unions. Use typed switch or `foldGovernance` — never unchecked `if` chains.
-- **Composite**: scoring rules, validation rules, pipeline phases. Use `combine`/`contramap`. Small semigroups compose; hardcoded formulas don't.
-- **State Machine**: convergence detection, lifecycle management. Pure state transitions separate from loop bodies.
-- **Interpreter**: compilation phases, resolution pipeline. Each phase is a pure function from typed input to typed output with provenance.
-- **Envelope**: every cross-boundary artifact carries a standard envelope. Use `mapPayload(envelope, f)` — never manual spread-and-reassemble.
-
-### Other strong preferences
-
-- Prefer phantom branded types (`Approved<T>`, `Blocked<T>`) at governance boundaries over runtime-only checks. Type guards (`isApproved`, `isBlocked`) and assertions (`requireApproved`) narrow at the type level. Use `foldGovernance` for exhaustive case analysis.
-- Prefer value objects over protocol strings.
-- Prefer pure derivations over storing parallel truth.
-- Prefer AST-backed code generation over source-string splicing.
-- Prefer law-style tests for determinism, precedence, normalization, and round-trips.
-- Prefer provenance-rich outputs over opaque success paths.
+- `domain.instructions.md` — domain modeling rules and type conventions
+- `knowledge.instructions.md` — knowledge authoring and screen/surface/hint rules
+- `tests.instructions.md` — test structure, naming, and property-based testing patterns
+- `scripts.instructions.md` — CLI scripts, build, and automation
+- `generated.instructions.md` — generated artifact handling
+- `dogfood.instructions.md` — dogfood content and training data
 
 ## Review surface contract
 

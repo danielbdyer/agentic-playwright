@@ -106,7 +106,7 @@ test('intervention kernel replay resumes completed actions idempotently', async 
       rootDir,
     );
 
-    expect(replay.resumedActionIds.sort()).toEqual(batch.actions.map((action) => action.actionId).sort());
+    expect([...replay.resumedActionIds].sort()).toEqual(batch.actions.map((action) => action.actionId).sort());
     expect(replay.receipts).toEqual(first.receipts);
   } finally {
     rmSync(rootDir, { recursive: true, force: true });

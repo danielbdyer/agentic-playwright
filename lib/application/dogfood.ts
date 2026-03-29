@@ -490,9 +490,8 @@ function runIteration(iteration: number, options: DogfoodOptions) {
     const proposalQuality = aggregateQualityMetrics(aliasOutcomes);
 
     // Step 4: collect and activate pending proposals
-    const pendingBundles = collectPendingProposals(
-      postRunCatalog.proposalBundles.map((entry) => entry.artifact),
-    );
+    const proposalsGenerated = allBundles.reduce((sum, bundle) => sum + bundle.proposals.length, 0);
+    const pendingBundles = collectPendingProposals(allBundles);
     const resolvedAutoPolicy = options.autoApprovalPolicy ?? {
       ...DEFAULT_AUTO_APPROVAL_POLICY,
       enabled: true,
@@ -568,6 +567,7 @@ function runIteration(iteration: number, options: DogfoodOptions) {
     const result: DogfoodIterationResult = {
       iteration,
       scenarioIds: runResult.selection.adoIds,
+      proposalsGenerated,
       proposalsActivated: proposalTotals.activated,
       proposalsBlocked: proposalTotals.blocked,
       knowledgeHitRate: metrics.avgHitRate,
@@ -608,6 +608,7 @@ function dogfoodMachine(options: DogfoodOptions) {
       const hitRateDelta = prevHitRate !== null ? result.knowledgeHitRate - prevHitRate : result.knowledgeHitRate;
       const afterIteration = transitionConvergence(state.convergenceFsm, {
         kind: 'iteration-complete',
+        proposalsGenerated: result.proposalsGenerated,
         proposalsActivated: result.proposalsActivated,
         hitRateDelta,
         ...(options.convergenceThreshold !== undefined ? { convergenceThreshold: options.convergenceThreshold } : {}),

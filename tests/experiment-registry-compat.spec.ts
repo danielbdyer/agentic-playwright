@@ -91,6 +91,7 @@ test('experiment registry loads recursive-improvement history from the improveme
           {
             iteration: 1,
             scenarioIds: ['10001'],
+            proposalsGenerated: 1,
             proposalsActivated: 1,
             proposalsBlocked: 0,
             knowledgeHitRate: 0.5,
@@ -101,6 +102,7 @@ test('experiment registry loads recursive-improvement history from the improveme
           {
             iteration: 2,
             scenarioIds: ['10001'],
+            proposalsGenerated: 1,
             proposalsActivated: 1,
             proposalsBlocked: 0,
             knowledgeHitRate: 0.75,

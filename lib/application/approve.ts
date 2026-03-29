@@ -11,7 +11,8 @@ import { buildRerunPlan } from './rerun-plan';
 import type { ProjectPaths } from './paths';
 import { approvalReceiptPath, relativeProjectPath } from './paths';
 import { ExecutionContext, FileSystem } from './ports';
-import type { ApprovalReceipt, ProposalEntry } from '../domain/types';
+import type { ApprovalReceipt, ProposalEntry, RerunPlan } from '../domain/types';
+import type { ActionExecutionResult } from './intervention-kernel';
 
 export function approveProposal(options: {
   paths: ProjectPaths;
@@ -37,7 +38,7 @@ export function approveProposal(options: {
     const now = () => new Date().toISOString();
     let approvedAt = '';
     let targetAbsolutePath = '';
-    let rerun: { readonly plan: import('../domain/types').RerunPlan; readonly outputPath: string } | null = null;
+    let rerun: { readonly plan: RerunPlan; readonly outputPath: string } | null = null;
     const interventionBatch = {
       batchId: `approve-${options.proposalId}`,
       summary: `Approve proposal ${options.proposalId} and prepare rerun.`,
@@ -71,6 +72,7 @@ export function approveProposal(options: {
       now,
       kernel: {
         executeAction: ({ action }) => {
+          type KernelEffect = Effect.Effect<ActionExecutionResult, unknown>;
           if (action.kind === 'approve-proposal') {
             return Effect.gen(function* () {
               approvedAt = now();
@@ -104,8 +106,8 @@ export function approveProposal(options: {
               return {
                 summary: `Approved proposal ${options.proposalId}`,
                 payload: { runOutcomes: ['proposal-certified'] },
-              };
-            });
+              } as ActionExecutionResult;
+            }) as unknown as KernelEffect;
           }
           if (action.kind === 'rerun-scope') {
             return Effect.gen(function* () {
@@ -114,12 +116,12 @@ export function approveProposal(options: {
                 proposalId: options.proposalId,
                 reason: `Approved proposal ${options.proposalId}`,
               });
-              rerun = { plan: built.plan as import('../domain/types').RerunPlan, outputPath: built.outputPath };
+              rerun = { plan: built.plan as RerunPlan, outputPath: built.outputPath };
               return {
                 summary: `Built rerun plan ${built.plan.planId}`,
                 payload: { runOutcomes: [built.plan.planId] },
-              };
-            });
+              } as ActionExecutionResult;
+            }) as unknown as KernelEffect;
           }
           return Effect.fail(new TesseractError('intervention-unsupported-action', `Unsupported action ${action.kind}`));
         },
@@ -128,7 +130,9 @@ export function approveProposal(options: {
     if (!rerun || approvedAt.length === 0) {
       return yield* Effect.fail(new TesseractError('approval-failed', `Failed to approve proposal ${options.proposalId}`));
     }
-    const ensuredRerun = rerun;
+    // TS can't trace the mutation inside the Effect callback, so rerun narrows to never.
+    // The runtime guard above ensures this is safe.
+    const ensuredRerun = rerun as { readonly plan: RerunPlan; readonly outputPath: string };
     const inboxItem = buildOperatorInboxItems(catalog).find((item) => item.proposalId === options.proposalId) ?? null;
     const receipt: ApprovalReceipt = {
       kind: 'approval-receipt',

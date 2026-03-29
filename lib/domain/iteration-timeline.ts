@@ -20,6 +20,7 @@
  */
 
 import type { FlywheelAct } from './scene-state-accumulator';
+export type { FlywheelAct } from './scene-state-accumulator';
 
 // ─── Types ───
 

@@ -71,6 +71,15 @@ The contract surface is the artifact envelope, not the agent runtime.
 
 Reference: `docs/adr-collapse-deterministic-parsing.md`
 
+**Status (2026-03-29): Partially complete.** The runtime interpretation pipeline is wired end-to-end:
+- `lib/domain/binding.ts` populates `knowledgeRefs` and `supplementRefs` on bound steps so the resolution context carries per-step knowledge paths.
+- `lib/runtime/agent/resolution-stages.ts` executes the full resolution ladder (explicit → control → approved-knowledge → patterns → translation → live-DOM → needs-human).
+- `lib/runtime/agent/proposals.ts` generates `proposalDrafts` at the `needs-human` fallback with properly-structured `{ screen, element, alias }` patches.
+- `lib/application/execution/build-proposals.ts` extracts proposal drafts from step receipts and `activate-proposals.ts` applies them as YAML knowledge updates.
+- `tests/playwright-execution.spec.ts` exercises the real `playwrightStepProgramInterpreter` against the demo harness.
+
+**Remaining work:** Synthetic scenario alias coverage (~32% hit rate) needs improvement. The alias matching path in `candidate-lattice.ts` works but the scenario generator's phrasing templates don't always align with existing aliases. The Level 0 knowledge accumulation loop is the designed mechanism for closing this gap, but the speedrun convergence FSM's proposal counting may need tuning to avoid premature `no-proposals` termination.
+
 Goal:
 
 - move step-text → intent interpretation from compile-time alias matching to runtime resolution grounded in the live DOM and knowledge priors
@@ -96,11 +105,11 @@ Scaffolding constraint:
 
 Success criteria:
 
-- novel ADO test cases produce executable (if degraded) runs without requiring alias authoring first
-- the knowledge system grows from agent execution, not from human synonym curation
-- the review surface explains runtime interpretation with the same fidelity as compile-time inference
-- agent sessions become measurably cheaper over time as the knowledge layer matures
-- the pipeline degrades to structured reporting when no agent is available
+- novel ADO test cases produce executable (if degraded) runs without requiring alias authoring first ✅ (degraded runs work; proposals accumulate)
+- the knowledge system grows from agent execution, not from human synonym curation ✅ (proposals generate at needs-human and activate into hints YAML)
+- the review surface explains runtime interpretation with the same fidelity as compile-time inference ✅ (receipts carry provenance, proposals carry rationale)
+- agent sessions become measurably cheaper over time as the knowledge layer matures (partially — activation works, convergence measurement needs tuning)
+- the pipeline degrades to structured reporting when no agent is available ✅
 
 #### A2. Confidence-gated auto-approval
 

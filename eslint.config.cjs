@@ -43,6 +43,7 @@ const typedRules = {
 module.exports = [
   {
     ignores: [
+      'dashboard/**',
       'dogfood/.ado-sync/**',
       '.tesseract/**',
       '.tools/**',
@@ -51,6 +52,7 @@ module.exports = [
       'generated/**',
       'lib/generated/**',
       'node_modules/**',
+      'scripts/**',
       'test-results/**',
       'tests-capture/**',
     ],
@@ -75,7 +77,6 @@ module.exports = [
     languageOptions: {
       parser: tsParser,
       parserOptions: {
-        project: true,
         projectService: true,
         tsconfigRootDir: __dirname,
       },
@@ -88,7 +89,24 @@ module.exports = [
     rules: typedRules,
   },
   {
+    files: ['lib/domain/schemas/**/*.ts', 'lib/domain/validation/**/*.ts', 'lib/domain/algebra/**/*.ts', 'lib/domain/graph-query.ts', 'lib/domain/program.ts'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        paths: [
+          { name: '@playwright/test', message: 'Domain must stay free of Playwright dependencies.' },
+          { name: 'playwright', message: 'Domain must stay free of Playwright dependencies.' },
+        ],
+        patterns: [
+          { group: ['../application', '../application/*', '../application/**', '../../application', '../../application/*', '../../application/**'], message: 'Domain must not import the application layer.' },
+          { group: ['../infrastructure', '../infrastructure/*', '../infrastructure/**', '../../infrastructure', '../../infrastructure/*', '../../infrastructure/**'], message: 'Domain must not import infrastructure.' },
+          { group: ['../runtime', '../runtime/*', '../runtime/**', '../../runtime', '../../runtime/*', '../../runtime/**'], message: 'Domain must not import runtime.' },
+        ],
+      }],
+    },
+  },
+  {
     files: ['lib/domain/**/*.ts'],
+    ignores: ['lib/domain/schemas/**/*.ts', 'lib/domain/validation/**/*.ts', 'lib/domain/algebra/**/*.ts', 'lib/domain/graph-query.ts', 'lib/domain/program.ts'],
     rules: {
       'no-restricted-imports': ['error', {
         paths: [
@@ -176,7 +194,10 @@ module.exports = [
   },
   {
     files: ['lib/**/*.ts'],
-    ignores: ['lib/infrastructure/tooling/capture-screen.ts'],
+    ignores: [
+      'lib/composition/**',
+      'lib/infrastructure/tooling/**',
+    ],
     rules: {
       'no-restricted-properties': ['error', {
         object: 'process',

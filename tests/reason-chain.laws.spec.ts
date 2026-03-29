@@ -40,11 +40,11 @@ test('candidatesEvaluated counts top + rejected candidates', () => {
     outcome: 'attempted',
     reason: 'test',
     topCandidates: [
-      { concern: 'screen', source: 'approved-screen-knowledge', value: 'screen-a', score: 0.9 },
-      { concern: 'screen', source: 'approved-screen-knowledge', value: 'screen-b', score: 0.8 },
+      { concern: 'screen', source: 'approved-screen-knowledge', value: 'screen-a', score: 0.9, reason: 'test' },
+      { concern: 'screen', source: 'approved-screen-knowledge', value: 'screen-b', score: 0.8, reason: 'test' },
     ],
     rejectedCandidates: [
-      { concern: 'screen', source: 'approved-screen-knowledge', value: 'screen-c', score: 0.2 },
+      { concern: 'screen', source: 'approved-screen-knowledge', value: 'screen-c', score: 0.2, reason: 'test' },
     ],
   };
   const chain = buildReasonChain([entry], 'approved-knowledge');

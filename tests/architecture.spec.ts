@@ -226,7 +226,7 @@ test('bounded workflow packages expose explicit seam files instead of hidden lan
     'lib/application/intake/index.ts',
     'lib/application/preparation/index.ts',
     'lib/application/execution/index.ts',
-    'lib/application/projection/index.ts',
+    'lib/application/projections/runner.ts',
     'lib/application/inspection/index.ts',
     'lib/runtime/resolve/index.ts',
     'lib/runtime/execute/index.ts',

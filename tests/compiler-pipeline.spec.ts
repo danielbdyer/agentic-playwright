@@ -462,6 +462,7 @@ test('derived graph projects recursive improvement artifacts and impact explains
           {
             iteration: 1,
             scenarioIds: [adoId],
+            proposalsGenerated: 1,
             proposalsActivated: 1,
             proposalsBlocked: 0,
             knowledgeHitRate: 0.5,
@@ -472,6 +473,7 @@ test('derived graph projects recursive improvement artifacts and impact explains
           {
             iteration: 2,
             scenarioIds: [adoId],
+            proposalsGenerated: 1,
             proposalsActivated: 1,
             proposalsBlocked: 0,
             knowledgeHitRate: 0.75,

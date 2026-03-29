@@ -133,7 +133,7 @@ test.describe('Keyboard shortcut controller laws', () => {
       const bindings = getBindingsForMode(mode);
       const seen = new Set<string>();
       bindings.forEach((b) => {
-        const signature = `${b.key}+${b.modifiers.sort().join(',')}`;
+        const signature = `${b.key}+${[...b.modifiers].sort().join(',')}`;
         expect(seen.has(signature), `Duplicate binding in ${mode}: ${signature}`).toBe(false);
         seen.add(signature);
       });

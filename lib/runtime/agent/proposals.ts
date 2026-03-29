@@ -101,6 +101,78 @@ export function proposalsFromInterpretation(
   return proposals;
 }
 
+/**
+ * Generate proposals when a step falls to needs-human.
+ *
+ * Describes the knowledge gap that prevented deterministic resolution:
+ * - If screen was matched but element wasn't → propose element alias on first element
+ * - If screen wasn't matched → propose screen alias
+ * - Always propose the action-text-to-element mapping when both are known
+ *
+ * Proposals must use the standard patch format: `{ screen, element, alias }` for hints,
+ * so that `applyHintsPatch` can apply them correctly during activation.
+ */
+export function proposalsForNeedsHuman(
+  task: GroundedStep,
+  screen: StepTaskScreenCandidate | null,
+  element: StepTaskElementCandidate | null,
+  resolutionContext: InterfaceResolutionContext,
+): ResolutionProposalDraft[] {
+  const proposals: ResolutionProposalDraft[] = [];
+
+  if (screen && !element && screen.elements.length > 0) {
+    // Screen matched but element didn't — propose alias on the first element as a candidate.
+    // The activation pipeline can apply this; the operator reviews which element is correct.
+    const candidateElement = screen.elements[0]!;
+    proposals.push({
+      artifactType: 'hints',
+      targetPath: knowledgePaths.hints(screen.screen),
+      title: `Add element alias for unresolved step ${task.index}`,
+      patch: {
+        screen: screen.screen,
+        element: candidateElement.element,
+        alias: task.actionText,
+      },
+      rationale: `Screen "${screen.screen}" was matched but no element alias matched the action text "${task.actionText}". Proposing alias on candidate element "${candidateElement.element}".`,
+    });
+  } else if (!screen && resolutionContext.screens.length > 0) {
+    // No screen matched — propose element alias on the first screen's first element.
+    // This creates an activatable proposal that the operator can review.
+    const candidateScreen = resolutionContext.screens[0]!;
+    if (candidateScreen.elements.length > 0) {
+      const candidateElement = candidateScreen.elements[0]!;
+      proposals.push({
+        artifactType: 'hints',
+        targetPath: knowledgePaths.hints(candidateScreen.screen),
+        title: `Add alias for unresolved step ${task.index} (no screen matched)`,
+        patch: {
+          screen: candidateScreen.screen,
+          element: candidateElement.element,
+          alias: task.actionText,
+        },
+        rationale: `No screen alias matched the action text "${task.actionText}". Proposing alias on screen "${candidateScreen.screen}" element "${candidateElement.element}" as a starting point.`,
+      });
+    }
+  }
+
+  if (screen && element) {
+    // Both matched but something else failed (e.g., snapshot) — propose alias for traceability
+    proposals.push({
+      artifactType: 'hints',
+      targetPath: knowledgePaths.hints(screen.screen),
+      title: `Capture phrasing gap for step ${task.index}`,
+      patch: {
+        screen: screen.screen,
+        element: element.element,
+        alias: task.actionText,
+      },
+      rationale: `Screen and element matched but resolution was incomplete. Action text: "${task.actionText}".`,
+    });
+  }
+
+  return proposals;
+}
+
 export function applyProposalDraftsToRuntimeContext(
   resolutionContext: InterfaceResolutionContext,
   proposalDrafts: readonly ResolutionProposalDraft[],

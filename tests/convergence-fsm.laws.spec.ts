@@ -14,7 +14,7 @@ test('converged state is absorbing — any event keeps it converged', () => {
   const terminal: ConvergenceState = { kind: 'converged', reason: 'no-proposals' };
 
   const events: readonly ConvergenceEvent[] = [
-    { kind: 'iteration-complete', proposalsActivated: 5, hitRateDelta: 0.1 },
+    { kind: 'iteration-complete', proposalsGenerated: 5, proposalsActivated: 5, hitRateDelta: 0.1 },
     { kind: 'budget-check', instructionsUsed: 10, maxInstructions: 100 },
     { kind: 'iteration-limit', current: 1, max: 10 },
   ];
@@ -28,7 +28,7 @@ test('converged state is absorbing — any event keeps it converged', () => {
 
 test('converged with every reason is absorbing', () => {
   const reasons = ['no-proposals', 'threshold-met', 'budget-exhausted', 'max-iterations'] as const;
-  const event: ConvergenceEvent = { kind: 'iteration-complete', proposalsActivated: 10, hitRateDelta: 0.5 };
+  const event: ConvergenceEvent = { kind: 'iteration-complete', proposalsGenerated: 10, proposalsActivated: 10, hitRateDelta: 0.5 };
 
   for (const reason of reasons) {
     const terminal: ConvergenceState = { kind: 'converged', reason };
@@ -46,6 +46,7 @@ test('happy-path sequence: exploring → narrowing → plateau → converged', (
   // Improving hit rate → narrowing
   const s1 = transitionConvergence(s0, {
     kind: 'iteration-complete',
+    proposalsGenerated: 3,
     proposalsActivated: 3,
     hitRateDelta: 0.15,
   });
@@ -54,6 +55,7 @@ test('happy-path sequence: exploring → narrowing → plateau → converged', (
   // Hit rate stalls → plateau
   const s2 = transitionConvergence(s1, {
     kind: 'iteration-complete',
+    proposalsGenerated: 2,
     proposalsActivated: 2,
     hitRateDelta: 0,
   });
@@ -62,6 +64,7 @@ test('happy-path sequence: exploring → narrowing → plateau → converged', (
   // Stalled again → converged with threshold-met
   const s3 = transitionConvergence(s2, {
     kind: 'iteration-complete',
+    proposalsGenerated: 1,
     proposalsActivated: 1,
     hitRateDelta: -0.01,
   });
@@ -117,11 +120,11 @@ test('budget exhaustion overrides plateau state', () => {
 
 test('state ordinal never decreases through a typical sequence', () => {
   const events: readonly ConvergenceEvent[] = [
-    { kind: 'iteration-complete', proposalsActivated: 5, hitRateDelta: 0.2 },
-    { kind: 'iteration-complete', proposalsActivated: 3, hitRateDelta: 0.1 },
-    { kind: 'iteration-complete', proposalsActivated: 2, hitRateDelta: 0 },
-    { kind: 'iteration-complete', proposalsActivated: 1, hitRateDelta: -0.05 },
-    { kind: 'iteration-complete', proposalsActivated: 1, hitRateDelta: 0.01 },
+    { kind: 'iteration-complete', proposalsGenerated: 5, proposalsActivated: 5, hitRateDelta: 0.2 },
+    { kind: 'iteration-complete', proposalsGenerated: 3, proposalsActivated: 3, hitRateDelta: 0.1 },
+    { kind: 'iteration-complete', proposalsGenerated: 2, proposalsActivated: 2, hitRateDelta: 0 },
+    { kind: 'iteration-complete', proposalsGenerated: 1, proposalsActivated: 1, hitRateDelta: -0.05 },
+    { kind: 'iteration-complete', proposalsGenerated: 1, proposalsActivated: 1, hitRateDelta: 0.01 },
   ];
 
   let state = initialConvergenceState();
@@ -154,12 +157,13 @@ test('isTerminal returns true for converged states', () => {
   expect(isTerminal(state)).toBe(true);
 });
 
-// ─── Law: No proposals → converged immediately ───
+// ─── Law: No proposals generated → converged immediately ───
 
-test('no proposals activated converges with no-proposals reason', () => {
+test('no proposals generated converges with no-proposals reason', () => {
   const state: ConvergenceState = { kind: 'narrowing', hitRateImproving: true, delta: 0.1 };
   const next = transitionConvergence(state, {
     kind: 'iteration-complete',
+    proposalsGenerated: 0,
     proposalsActivated: 0,
     hitRateDelta: 0,
   });
@@ -167,6 +171,20 @@ test('no proposals activated converges with no-proposals reason', () => {
   if (next.kind === 'converged') {
     expect(next.reason).toBe('no-proposals');
   }
+});
+
+// ─── Law: Proposals generated but already processed → NOT converged ───
+
+test('proposals generated but zero activated does not trigger no-proposals convergence', () => {
+  const state: ConvergenceState = { kind: 'narrowing', hitRateImproving: true, delta: 0.1 };
+  const next = transitionConvergence(state, {
+    kind: 'iteration-complete',
+    proposalsGenerated: 5,
+    proposalsActivated: 0,
+    hitRateDelta: 0,
+  });
+  // Should NOT converge — proposals exist, they're just already processed
+  expect(next.kind).not.toBe('converged');
 });
 
 // ─── Law: Iteration limit converges with max-iterations ───
