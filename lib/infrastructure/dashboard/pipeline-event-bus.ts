@@ -29,7 +29,7 @@
  */
 
 import type { Fiber, Scope } from 'effect';
-import { Effect, PubSub, Queue, Runtime } from 'effect';
+import { Effect, PubSub, Queue } from 'effect';
 import type { DashboardPort } from '../../application/ports';
 import type { DashboardEvent, WorkItemDecision } from '../../domain/types';
 import { dashboardEvent } from '../../domain/types';

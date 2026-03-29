@@ -71,7 +71,7 @@ export function analyzeStepDependencies(
   // Track the last mutating step index per screen
   const lastMutatingByScreen = new Map<string, number>();
   // Track the last mutating step index overall (for screen-less steps)
-  const result = new Map<number, readonly number[]>();
+  const _result = new Map<number, readonly number[]>();
 
   return steps.reduce((acc, step, idx) => {
     const screen = step.screen ?? step.resolution?.screen ?? null;
