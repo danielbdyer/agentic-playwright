@@ -151,8 +151,9 @@ export function useEventJournal(options?: EventJournalOptions): EventJournalStat
       data,
     };
 
-    // Append to event log
-    eventsRef.current = [...eventsRef.current, envelope];
+    // Append to event log (mutate ref directly for O(1) hot-path performance)
+    // eslint-disable-next-line no-restricted-syntax -- ref-local mutable array; perf-critical hot path
+    eventsRef.current.push(envelope);
 
     // Accumulate scene state
     const newState = accumulate(sceneStateRef.current, envelope);

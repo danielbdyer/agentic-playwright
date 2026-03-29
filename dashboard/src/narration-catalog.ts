@@ -353,6 +353,9 @@ export const NARRATED_EVENT_KINDS: readonly DashboardEventKind[] = Object.keys(C
 
 // ─── Helpers ───
 
+const MAX_URL_DISPLAY_LENGTH = 40;
+const TRUNCATED_URL_SUFFIX_LENGTH = 3; // "..."
+
 /** Truncate a URL to host + first path segment for display. Pure. */
 function truncateUrl(url: string): string {
   try {
@@ -363,7 +366,9 @@ function truncateUrl(url: string): string {
       : parsed.pathname;
     return `${parsed.hostname}${shortPath}`;
   } catch {
-    // If URL parsing fails, truncate to 40 chars
-    return url.length > 40 ? `${url.slice(0, 37)}...` : url;
+    // If URL parsing fails, truncate to max display length
+    return url.length > MAX_URL_DISPLAY_LENGTH
+      ? `${url.slice(0, MAX_URL_DISPLAY_LENGTH - TRUNCATED_URL_SUFFIX_LENGTH)}...`
+      : url;
   }
 }

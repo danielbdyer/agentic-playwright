@@ -347,13 +347,15 @@ export function assignBookmarkSlots(state: BookmarkDetectionState): BookmarkDete
     'Biggest improvement',
   ];
 
+  const LOWEST_PRIORITY = PRIORITY_LABELS.length;
+
   const sorted = [...state.bookmarks]
     .filter((b) => b.slotIndex === null)
     .sort((a, b) => {
       const aIdx = PRIORITY_LABELS.indexOf(a.label);
       const bIdx = PRIORITY_LABELS.indexOf(b.label);
-      const aPri = aIdx >= 0 ? aIdx : PRIORITY_LABELS.length;
-      const bPri = bIdx >= 0 ? bIdx : PRIORITY_LABELS.length;
+      const aPri = aIdx >= 0 ? aIdx : LOWEST_PRIORITY;
+      const bPri = bIdx >= 0 ? bIdx : LOWEST_PRIORITY;
       return aPri !== bPri ? aPri - bPri : a.sequenceNumber - b.sequenceNumber;
     });
 

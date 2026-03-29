@@ -52,7 +52,12 @@ const ROOT = path.resolve(__dirname, '..');
 const DASHBOARD_DIR = __dirname;
 const SPEEDRUN = process.argv.includes('--speedrun');
 const JOURNAL = process.argv.includes('--journal') || SPEEDRUN;
-const JOURNAL_RUN_ID = argAfter('--run-id') ?? `run-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}`;
+
+/** Generate a filesystem-safe run ID from the current timestamp. */
+function generateRunId(): string {
+  return `run-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}`;
+}
+const JOURNAL_RUN_ID = argAfter('--run-id') ?? generateRunId();
 
 // ─── MIME + File Helpers ───
 

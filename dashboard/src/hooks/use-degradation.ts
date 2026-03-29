@@ -127,6 +127,7 @@ export function tierToSettings(tier: DegradationTier): Omit<DegradationState, 'c
 // ─── EMA FPS Computation ───
 
 const EMA_ALPHA = 0.1; // smoothing factor (lower = smoother, slower to react)
+const FPS_DISPLAY_UPDATE_INTERVAL_MS = 250; // Update React state at 4 Hz to avoid re-render pressure
 
 /** Compute exponential moving average. Pure. */
 export function emaFps(prevEma: number, frameDeltaMs: number): number {
@@ -210,7 +211,7 @@ export function useDegradation(options?: DegradationOptions): DegradationState {
         emaRef.current = emaFps(emaRef.current, delta);
 
         // Only update React state at 4 Hz to avoid re-render pressure
-        if (Math.floor(now / 250) !== Math.floor(last / 250)) {
+        if (Math.floor(now / FPS_DISPLAY_UPDATE_INTERVAL_MS) !== Math.floor(last / FPS_DISPLAY_UPDATE_INTERVAL_MS)) {
           setFps(Math.round(emaRef.current));
         }
 

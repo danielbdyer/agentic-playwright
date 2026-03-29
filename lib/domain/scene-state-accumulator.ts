@@ -215,12 +215,15 @@ function accumulateElementProbed(state: SceneState, data: Record<string, unknown
   // Update or create knowledge node
   const nodeKey = key;
   const existing = state.knowledgeNodes.get(nodeKey);
-  const confidence = typeof data.confidence === 'number' ? data.confidence : (existing?.confidence ?? 0);
+  const priorConfidence = existing?.confidence ?? 0;
+  const incomingConfidence = typeof data.confidence === 'number' ? data.confidence : 0;
+  const bestConfidence = Math.max(priorConfidence, incomingConfidence);
+
   const newNodes = new Map(state.knowledgeNodes);
   newNodes.set(nodeKey, {
     screen,
     element,
-    confidence: Math.max(existing?.confidence ?? 0, confidence),
+    confidence: bestConfidence,
     status: existing?.status ?? 'learning',
     aliasCount: existing?.aliasCount ?? 0,
   });
