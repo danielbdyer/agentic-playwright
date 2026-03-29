@@ -154,12 +154,26 @@ The following modules were removed as dead code (zero imports, zero references):
 
 Their tests were also removed: `tests/camera-choreography.laws.spec.ts`, `tests/emotional-pacing.laws.spec.ts`, `tests/breakage-simulator.laws.spec.ts`.
 
+### VSCode extension (BACKLOG-E2)
+
+The extension package at `extension/` bridges Tesseract artifacts to the VSCode UI:
+
+- **`extension/src/extension.ts`** — entry point, registers task provider, diagnostics, Copilot Chat participant, commands, and file watchers
+- **`extension/src/artifact-loader.ts`** — reads `.tesseract/inbox/index.json` and `generated/{suite}/*.proposals.json` from disk
+- **`extension/src/task-bridge.ts`** — maps domain `VSCodeTask` values to real `vscode.Task` instances
+- **`extension/src/diagnostic-bridge.ts`** — maps domain `VSCodeDiagnostic` values to real `vscode.Diagnostic` instances
+- **`extension/src/copilot-bridge.ts`** — registers `@tesseract` Copilot Chat participant with `/inbox`, `/approve`, `/rerun`, `/hotspots` commands
+
+The extension introduces no domain logic — all business logic stays in `lib/infrastructure/vscode/` as pure functions. The extension only does registration and API bridging. It degrades gracefully when Copilot Chat is unavailable.
+
+Commands: `tesseract.refresh`, `tesseract.approve`, `tesseract.rerun`. File watchers auto-refresh on `.tesseract/**/*.json` and `generated/**/*.proposals.json` changes.
+
 ### Where to look next
 
 - **A1 (ADR collapse)**: Partially complete. Runtime interpretation works, proposals generate, activation applies. The remaining work is improving alias coverage so synthetic scenarios resolve at higher rungs more often.
 - **A2 (Confidence-gated auto-approval)**: Unblocked by A1 progress. Trust policy thresholds exist; the gating logic needs wiring.
-- **A3 (Dogfood orchestrator)**: The `npm run dogfood` / speedrun commands work. Convergence detection may need tuning (see speedrun convergence caveat above).
-- **Speedrun proposal counting**: The convergence FSM's proposal detection is the most impactful near-term fix for the improvement loop.
+- **A3 (Dogfood orchestrator)**: The `npm run dogfood` / speedrun commands work. Convergence detection fixed (proposalsGenerated vs proposalsActivated).
+- **E2 (VSCode extension)**: Extension package exists at `extension/`. Pure handlers tested (15 laws). Bridge modules compile against `@types/vscode`. Next: publish to marketplace or install locally for testing.
 
 ## Current Priorities
 
