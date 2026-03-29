@@ -1,4 +1,4 @@
-import { Effect } from 'effect';
+import type { Effect } from 'effect';
 import type { ProjectPaths } from '../paths';
 import type { ExecutionPosture, RuntimeInterpreterMode } from '../../domain/types';
 
