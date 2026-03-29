@@ -9,7 +9,7 @@ import type {
   GroundedStep,
 } from '../../domain/types';
 import type { ElementId, PostureId, ScreenId } from '../../domain/identity';
-import type { AgentInterpreterProvider } from '../../application/agent-interpreter-provider';
+import type { AgentInterpreterProvider } from '../../domain/types/agent-interpreter';
 import type { ResolutionTarget, TranslationReceipt, TranslationRequest } from '../../domain/types';
 
 export interface RuntimeStepAgentContext {

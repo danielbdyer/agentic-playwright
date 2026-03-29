@@ -14,7 +14,7 @@ import { Effect } from 'effect';
 import type { Page } from '@playwright/test';
 import type { ScreenObservationPort, ScreenObservationResult } from '../../application/ports';
 import type { LocatorStrategy, ElementSig } from '../../domain/types';
-import { resolveLocator, describeLocatorStrategy } from '../../runtime/locate';
+import { resolveLocator, describeLocatorStrategy } from '../../playwright/locate';
 import { captureAriaYaml } from '../../playwright/aria';
 import { TesseractError } from '../../domain/errors';
 

@@ -33,8 +33,8 @@ import { deterministicRuntimeStepAgent, type RuntimeStepAgent } from './agent';
 import { applyProposalDraftsToRuntimeContext } from './agent/proposals';
 import type { RuntimeDomResolver } from '../domain/types';
 import { observeStateRefsOnPage, observeTransitionOnPage } from '../playwright/state-topology';
-import { planExecutionStep } from '../application/execution/planner';
-import type { AgentInterpreterProvider } from '../application/agent-interpreter-provider';
+import { planExecutionStep } from '../domain/execution-planner';
+import type { AgentInterpreterProvider } from '../domain/types/agent-interpreter';
 
 export interface RuntimeScenarioEnvironment {
   mode: InterpreterMode;
