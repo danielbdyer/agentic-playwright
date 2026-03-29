@@ -25,7 +25,6 @@ import {
   shouldQuarantine,
   defaultQualityThresholds,
   type AliasOutcome,
-  type QualityThresholds,
 } from '../lib/domain/proposal-quality';
 import { mulberry32, randomInt, randomWord, pick } from './support/random';
 

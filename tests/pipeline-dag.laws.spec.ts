@@ -24,7 +24,7 @@ import {
   validateDAG,
 } from '../lib/application/pipeline-dag';
 import type { PipelineNode, PipelineDAG } from '../lib/application/pipeline-dag';
-import { mulberry32, pick, randomWord, randomInt } from './support/random';
+import { mulberry32, randomWord, randomInt } from './support/random';
 
 // ─── Helpers ───
 
@@ -32,7 +32,7 @@ function node(id: string, dependencies: readonly string[] = []): PipelineNode {
   return { id, stage: id, dependencies };
 }
 
-function dagFromNodes(nodes: readonly PipelineNode[]): PipelineDAG {
+function _dagFromNodes(nodes: readonly PipelineNode[]): PipelineDAG {
   return { nodes, topologicalOrder: topologicalSort(nodes) };
 }
 

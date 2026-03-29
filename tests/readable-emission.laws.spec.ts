@@ -4,7 +4,7 @@ import { readFileSync } from 'fs';
 import { createAdoId, createElementId, createScreenId } from '../lib/domain/identity';
 import { buildGroundedSpecFlow } from '../lib/domain/grounded-flow';
 import { renderReadableSpecModule } from '../lib/domain/spec-codegen';
-import type { BoundScenario, GroundedSpecFlow, ScenarioInterpretationSurface } from '../lib/domain/types';
+import type { BoundScenario, ScenarioInterpretationSurface } from '../lib/domain/types';
 import { refreshScenario } from '../lib/application/refresh';
 import { runWithLocalServices } from '../lib/composition/local-services';
 import { createTestWorkspace } from './support/workspace';

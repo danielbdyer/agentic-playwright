@@ -5,7 +5,6 @@ import { RESOLUTION_PRECEDENCE, runResolutionPipeline, type RuntimeStepAgentCont
 import { createScenarioRunState, runScenarioStep } from '../lib/runtime/scenario';
 import { resolveFromDom } from '../lib/runtime/agent/dom-fallback';
 import {
-  cloneJson,
   createAgentContext,
   createInterfaceResolutionContext,
   createPolicySearchElement,

@@ -15,7 +15,7 @@
  */
 
 import { expect, test } from '@playwright/test';
-import { mulberry32, pick } from './support/random';
+import { mulberry32 } from './support/random';
 import {
   resolutionPrecedenceLaw,
   dataResolutionPrecedenceLaw,

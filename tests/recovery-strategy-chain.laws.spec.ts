@@ -16,11 +16,8 @@ import {
   selectRecoveryChain,
   defaultRecoveryChains,
   verifyPrerequisites,
-  executePrerequisiteActions,
   forceAlternateLocatorRungs,
-  snapshotGuidedReresolution,
   boundedRetryWithBackoff,
-  refreshRuntime,
 } from '../lib/runtime/recovery-strategies';
 import type { ComposableRecoveryStrategy, RecoveryContext, RecoveryAttemptOutcome } from '../lib/runtime/recovery-strategies';
 import type { RecoveryBudget, RecoveryFailureFamily } from '../lib/domain/execution/recovery-policy';
