@@ -218,7 +218,7 @@ Items within a wave can be parallelized unless marked sequential (→).
 |----|------|--------|-----------|--------|---------|
 | W4.5 | ~~**Confidence-gated auto-approval**~~ ✅ — `lib/application/auto-approval.ts`: `AutoApprovalPolicy`, `canAutoApprove`, `applyAutoApproval`, `applyAutoApprovalWithTrust` composing with trust policy. Tests in `tests/auto-approval-policy.laws.spec.ts` (7 tests, 150 seeds) | M | 🟡 | BACKLOG-A2 | Unattended improvement loops |
 | W4.6 | ~~**Dogfood orchestrator command**~~ ✅ — `lib/application/dogfood-orchestrator.ts`: `DogfoodOrchestrator`, `runDogfoodLoop`, phase sequencing, convergence detection, budget controls. Tests in `tests/dogfood-orchestrator.laws.spec.ts` | M | 🟡 | BACKLOG-A3 | One-command recursive improvement |
-| W4.7 | ~~**VSCode extension integration**~~ ✅ — `lib/infrastructure/vscode/task-provider.ts`, `problem-matcher.ts`, `copilot-participant.ts`, `types.ts`. Tests in `tests/vscode-integration.laws.spec.ts` (15 laws, 150 seeds) | XL | 🔴 | BACKLOG-E2 | Full interactive agent collaboration |
+| W4.7 | ~~**VSCode extension integration**~~ ✅ — `lib/infrastructure/vscode/task-provider.ts`, `problem-matcher.ts`, `types.ts`. **Note:** `copilot-participant.ts` and `tests/vscode-integration.laws.spec.ts` were removed as dead code (2026-03-29). | XL | 🔴 | BACKLOG-E2 | Full interactive agent collaboration |
 
 ### Formalization
 

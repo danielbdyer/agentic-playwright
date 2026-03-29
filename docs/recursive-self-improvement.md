@@ -16,6 +16,14 @@ run scenarios → generate proposals → activate into knowledge files → measu
 
 The dogfood loop (`lib/application/dogfood.ts`) runs scenarios, observes where the pipeline falls back to lower-precedence resolution rungs, generates proposals for knowledge changes (new aliases, element hints, pattern entries), activates them, and re-runs. Each iteration, the knowledge hit rate rises until convergence. The durable output is **knowledge files**: `knowledge/screens/*.hints.yaml`, `knowledge/patterns/*.yaml`.
 
+Proposal generation happens at two points in the resolution ladder:
+- **Rungs 5-8** (translation, live-DOM, agent interpretation): When a step is resolved through a non-deterministic path, `proposalsFromInterpretation()` generates hint alias proposals to make future resolution deterministic.
+- **Rung 10** (needs-human fallback): When a step cannot be resolved at all, `proposalsForNeedsHuman()` generates proposals describing the knowledge gap — the specific screen/element/alias that would have resolved the step. These proposals use the standard `{ screen, element, alias }` patch format so `applyHintsPatch` can activate them directly.
+
+Proposals flow through `build-proposals.ts` (extraction from step receipts) → `activate-proposals.ts` (trust-policy gating and YAML patch application). The binding step at `lib/domain/binding.ts` populates `knowledgeRefs` and `supplementRefs` on each `BoundStep` so the resolution context carries the right knowledge paths per step.
+
+**Known caveat:** The convergence FSM in the speedrun counts `proposalsActivated` within a single iteration via `accumulateProposalTotals`. When proposals are generated and activated in the same iteration, the counter may report 0 for the *next* iteration (because the newly-activated aliases now resolve deterministically, producing fewer proposals). This can trigger premature `no-proposals` convergence termination before the hit rate improvement is measured.
+
 This loop improves the system's familiarity with a particular application surface. It does not improve the pipeline's ability to resolve novel intent text, score candidates, or rank proposals. It is not transferable to a new application without re-running the loop.
 
 ### Level 1: Pipeline Improvement (speedrun loop)

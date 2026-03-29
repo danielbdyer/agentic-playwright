@@ -117,5 +117,52 @@ Optional env vars:
 - application depends on domain and application-local support only
 - runtime does not depend on application or infrastructure orchestration
 
+## Current State (as of 2026-03-29)
+
+### What works end-to-end
+
+1. **Resolution pipeline**: The full resolution ladder (explicit → control → approved-knowledge → patterns → translation → live-DOM → needs-human) is wired and exercised. `lib/runtime/agent/resolution-stages.ts` orchestrates all rungs.
+
+2. **Knowledge routing in binding**: `lib/domain/binding.ts` populates `knowledgeRefs` (surface, elements) and `supplementRefs` (hints) on every `BoundStep` when a screen is referenced. The resolution context carries per-step knowledge paths so the runtime agent knows which knowledge files to consult.
+
+3. **Proposal generation at needs-human**: When a step reaches the `needs-human` fallback (rung 10), `proposalsForNeedsHuman()` in `lib/runtime/agent/proposals.ts` generates properly-structured `ResolutionProposalDraft` entries with `{ screen, element, alias }` patches. These flow through `build-proposals.ts` → `activate-proposals.ts` → `applyHintsPatch` → knowledge YAML updates.
+
+4. **Playwright interpreter**: `lib/runtime/program.ts` (lines 67-228) has a fully implemented `playwrightStepProgramInterpreter` with handlers for navigate, enter, invoke, and observe-structure. It is exercised in `tests/playwright-execution.spec.ts` (4 tests against the demo harness HTML).
+
+5. **Dogfood loop**: `lib/application/dogfood.ts` runs scenarios, collects proposals, activates them into knowledge files, and re-runs. The activation pipeline works: proposals accumulate during runs and feed into `activate-proposals.ts` for YAML updates.
+
+6. **Speedrun/fitness**: `scripts/speedrun.ts` runs clean-slate flywheel cycles, generates fitness reports, and gates pipeline changes through the scorecard. 15 tunable parameters are documented in `docs/recursive-self-improvement.md`.
+
+### Known gaps and caveats
+
+- **Demo scenario 10001**: Achieves 100% knowledge hit rate via control resolution files (`controls/resolution/demo-policy-search.resolution.yaml`), not via alias matching. This exercises the explicit-fields and control-resolution rungs but not the alias-matching path.
+
+- **Synthetic scenario hit rate**: ~32% via alias matching. The gap is that the scenario generator's phrasing templates don't always match the existing alias vocabulary. This is the intended target for the Level 0 knowledge accumulation loop.
+
+- **Speedrun convergence metric**: The `proposalsActivated` counter in `accumulateProposalTotals` may report 0 even when proposals were generated and activated, because it counts within a single iteration rather than cumulatively. The convergence FSM can trigger `no-proposals` early termination before the system has a chance to benefit from activated proposals. This is a reporting/counting issue, not a functional gap in the pipeline.
+
+- **Pre-existing test failures**: 27 tests fail before and after these changes. Root causes: `lib/domain/doctrine-compiler.ts` and `lib/domain/emission-backends.ts` import from `@playwright/test` and `node:fs`/`node:path`, violating domain purity architecture tests. These are pre-existing and tracked.
+
+### Deleted modules (no longer in codebase)
+
+The following modules were removed as dead code (zero imports, zero references):
+
+- `lib/domain/camera-choreography.ts` — unused spatial choreography model
+- `lib/domain/emotional-pacing.ts` — unused pacing model
+- `lib/domain/breakage-simulator.ts` — unused breakage simulation
+- `lib/infrastructure/vscode/copilot-participant.ts` — unused Copilot Chat participant stub
+- `lib/application/projection/index.ts` — dead 3-line barrel re-export (the real implementation is at `lib/application/projections/`)
+
+Their tests were also removed: `tests/camera-choreography.laws.spec.ts`, `tests/emotional-pacing.laws.spec.ts`, `tests/breakage-simulator.laws.spec.ts`, `tests/vscode-integration.laws.spec.ts`.
+
+Some research documents (`docs/research-master-prioritization.md`, `docs/first-day-flywheel-visualization.md`) still reference these modules historically — those references are stale but the documents are explicitly marked as research/exploratory.
+
+### Where to look next
+
+- **A1 (ADR collapse)**: Partially complete. Runtime interpretation works, proposals generate, activation applies. The remaining work is improving alias coverage so synthetic scenarios resolve at higher rungs more often.
+- **A2 (Confidence-gated auto-approval)**: Unblocked by A1 progress. Trust policy thresholds exist; the gating logic needs wiring.
+- **A3 (Dogfood orchestrator)**: The `npm run dogfood` / speedrun commands work. Convergence detection may need tuning (see speedrun convergence caveat above).
+- **Speedrun proposal counting**: The convergence FSM's proposal detection is the most impactful near-term fix for the improvement loop.
+
 ## Current Priorities
 
