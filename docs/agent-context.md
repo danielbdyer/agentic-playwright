@@ -150,12 +150,9 @@ The following modules were removed as dead code (zero imports, zero references):
 - `lib/domain/camera-choreography.ts` — unused spatial choreography model
 - `lib/domain/emotional-pacing.ts` — unused pacing model
 - `lib/domain/breakage-simulator.ts` — unused breakage simulation
-- `lib/infrastructure/vscode/copilot-participant.ts` — unused Copilot Chat participant stub
 - `lib/application/projection/index.ts` — dead 3-line barrel re-export (the real implementation is at `lib/application/projections/`)
 
-Their tests were also removed: `tests/camera-choreography.laws.spec.ts`, `tests/emotional-pacing.laws.spec.ts`, `tests/breakage-simulator.laws.spec.ts`, `tests/vscode-integration.laws.spec.ts`.
-
-Some research documents (`docs/research-master-prioritization.md`, `docs/first-day-flywheel-visualization.md`) still reference these modules historically — those references are stale but the documents are explicitly marked as research/exploratory.
+Their tests were also removed: `tests/camera-choreography.laws.spec.ts`, `tests/emotional-pacing.laws.spec.ts`, `tests/breakage-simulator.laws.spec.ts`.
 
 ### Where to look next
 
