@@ -385,7 +385,7 @@ test.describe('SharedArrayBuffer round-trip encoding laws', () => {
   // ─── Law 6: Governance/Actor/Mode ordinal encoding round-trips ───
 
   test('Law 6: all governance ordinals encode and decode correctly', () => {
-    const buffer = createPipelineBuffer(8);
+    const _buffer = createPipelineBuffer(8);
     const governanceValues = ['approved', 'review-required', 'blocked'] as const;
 
     for (const gov of governanceValues) {

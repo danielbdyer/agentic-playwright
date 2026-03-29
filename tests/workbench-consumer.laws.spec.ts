@@ -15,7 +15,6 @@ import {
   canHandle,
   consumeNextWorkItem,
   DEFAULT_CAPABILITIES,
-  DEFAULT_SCORE_WEIGHTS,
   type AgentCapabilities,
   type ScoreWeights,
 } from '../lib/application/workbench-consumer';

@@ -3,7 +3,8 @@ import path from 'path';
 import { expect } from '@playwright/test';
 import { buildImprovementRun, improvementLedgerPath } from '../../lib/application/improvement';
 import type { ProjectionCacheMissIncremental, ProjectionIncremental } from '../../lib/application/projections/runner';
-import { createAdoId, createElementId, createScreenId, createSurfaceId } from '../../lib/domain/identity';
+import { createElementId, createScreenId, createSurfaceId } from '../../lib/domain/identity';
+import type { createAdoId } from '../../lib/domain/identity';
 import {
   DEFAULT_PIPELINE_CONFIG,
   type PipelineFitnessReport,

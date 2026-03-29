@@ -24,7 +24,7 @@ import {
 } from '../lib/domain/precedence';
 import { mergeScreenElementsWithHints } from '../lib/domain/knowledge/screen-bundle';
 import type { ScreenElements, ScreenHints, ScreenElementHint, ElementSig } from '../lib/domain/types';
-import { createElementId, createScreenId, createSurfaceId, createWidgetId } from '../lib/domain/identity';
+import { createScreenId, createSurfaceId, createWidgetId } from '../lib/domain/identity';
 import { mulberry32, pick, randomWord } from './support/random';
 
 // ─── Supplement hierarchy rungs ───
@@ -36,7 +36,7 @@ const SUPPLEMENT_RUNGS: readonly ResolutionPrecedenceRung[] = [
 
 type SupplementLayer = 'screen-local' | 'shared' | 'default';
 
-function supplementRungFor(layer: SupplementLayer): ResolutionPrecedenceRung | null {
+function _supplementRungFor(layer: SupplementLayer): ResolutionPrecedenceRung | null {
   switch (layer) {
     case 'screen-local': return 'approved-screen-knowledge';
     case 'shared': return 'shared-patterns';

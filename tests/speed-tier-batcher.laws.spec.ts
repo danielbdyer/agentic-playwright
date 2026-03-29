@@ -7,8 +7,6 @@ import {
   computeStaggerDelay,
   changeSpeedTier,
   BASE_STAGGER_DELAYS,
-  type BatchingLevel,
-  type EventImportance,
 } from '../lib/domain/speed-tier-batcher';
 
 test.describe('SpeedTierBatcher laws', () => {
