@@ -207,15 +207,18 @@ export function finalizeIndex(state: IndexBuilderState): JournalIndex {
       : null;
 
     // Find all acts in this iteration
-    const actsInIter: FlywheelAct[] = [];
-    let eventCount = 0;
-    for (const [key, count] of state.actEventCounts) {
-      const [iterStr, actStr] = key.split(':');
-      if (parseInt(iterStr!, 10) === iter) {
-        actsInIter[actsInIter.length] = parseInt(actStr!, 10) as FlywheelAct;
-        eventCount += count;
-      }
-    }
+    const { actsInIter, eventCount } = [...state.actEventCounts].reduce<{
+      readonly actsInIter: readonly FlywheelAct[];
+      readonly eventCount: number;
+    }>(
+      (acc, [key, count]) => {
+        const [iterStr, actStr] = key.split(':');
+        return parseInt(iterStr!, 10) === iter
+          ? { actsInIter: [...acc.actsInIter, parseInt(actStr!, 10) as FlywheelAct], eventCount: acc.eventCount + count }
+          : acc;
+      },
+      { actsInIter: [], eventCount: 0 },
+    );
 
     return {
       iteration: iter,
@@ -226,7 +229,7 @@ export function finalizeIndex(state: IndexBuilderState): JournalIndex {
       startTimestamp: start.timestamp,
       endTimestamp: nextIter ? nextIter.timestamp : (state.lastTimestamp ?? start.timestamp),
       eventCount,
-      actsPresent: actsInIter.sort((a, b) => a - b),
+      actsPresent: [...actsInIter].sort((a, b) => a - b),
     };
   });
 

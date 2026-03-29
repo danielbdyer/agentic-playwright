@@ -78,8 +78,7 @@ function tokenizeDestination(value: string): readonly string[] {
   return value
     .toLowerCase()
     .split(/[^a-z0-9]+/g)
-    .map((token) => token.trim())
-    .filter((token) => token.length > 0);
+    .flatMap((token) => { const t = token.trim(); return t.length > 0 ? [t] : []; });
 }
 
 function normalizeRoutePattern(urlOrPattern: string): string {

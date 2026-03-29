@@ -16,7 +16,9 @@ import type { WorkspaceCatalog } from '../catalog';
 // ─── Deterministic RNG (same algorithm as policy-journey-fuzz.ts) ───
 
 function hashSeed(seed: string): number {
+  // eslint-disable-next-line no-restricted-syntax -- baseline: imperative hash computation
   let hash = 2166136261;
+  // eslint-disable-next-line no-restricted-syntax -- baseline: imperative hash computation
   for (let index = 0; index < seed.length; index += 1) {
     hash ^= seed.charCodeAt(index);
     hash = Math.imul(hash, 16777619);
@@ -38,6 +40,7 @@ function pick<T>(array: readonly T[], rng: () => number): T {
 
 function shuffle<T>(input: readonly T[], rng: () => number): readonly T[] {
   const result = [...input];
+  // eslint-disable-next-line no-restricted-syntax -- baseline: Fisher-Yates requires index-based swap
   for (let i = result.length - 1; i > 0; i -= 1) {
     const j = Math.floor(rng() * (i + 1));
     const temp = result[i]!;

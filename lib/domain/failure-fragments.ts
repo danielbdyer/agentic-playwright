@@ -218,27 +218,30 @@ function detectCoalescing(
   fragments: readonly FailureFragment[],
   config: FragmentPhysicsConfig,
 ): { readonly active: readonly FailureFragment[]; readonly coalesced: number } {
-  let coalescedCount = 0;
-  const result = fragments.map((frag) => {
-    const distToGlass = Math.abs(frag.position[0] - config.glassPaneX);
-    if (distToGlass < config.coalesceRadius && frag.age > 1000) {
-      coalescedCount++;
-      return { ...frag, coalesced: true };
-    }
-    return frag;
-  });
+  const { active, coalesced } = fragments.reduce<{
+    readonly active: readonly FailureFragment[];
+    readonly coalesced: number;
+  }>(
+    (acc, frag) => {
+      const distToGlass = Math.abs(frag.position[0] - config.glassPaneX);
+      const shouldCoalesce = distToGlass < config.coalesceRadius && frag.age > 1000;
+      return shouldCoalesce
+        ? { active: acc.active, coalesced: acc.coalesced + 1 }
+        : { active: [...acc.active, frag], coalesced: acc.coalesced };
+    },
+    { active: [], coalesced: 0 },
+  );
 
-  return {
-    active: result.filter((f) => !f.coalesced),
-    coalesced: coalescedCount,
-  };
+  return { active, coalesced };
 }
 
 // ─── Utility ───
 
 /** Simple deterministic hash from string → number. */
 function simpleHash(str: string): number {
+  // eslint-disable-next-line no-restricted-syntax -- baseline: imperative hash computation
   let hash = 0;
+  // eslint-disable-next-line no-restricted-syntax -- baseline: imperative hash computation
   for (let i = 0; i < str.length; i++) {
     const char = str.charCodeAt(i);
     hash = ((hash << 5) - hash) + char;
@@ -260,14 +263,11 @@ export function activeFragmentCount(state: FragmentSystemState): number {
 export function fragmentsByElement(
   state: FragmentSystemState,
 ): ReadonlyMap<string, readonly FailureFragment[]> {
-  const map = new Map<string, FailureFragment[]>();
-  for (const frag of state.fragments) {
-    const existing = map.get(frag.sourceElementId);
-    if (existing) {
-      existing.push(frag);
-    } else {
-      map.set(frag.sourceElementId, [frag]);
-    }
-  }
-  return map;
+  return state.fragments.reduce<Map<string, FailureFragment[]>>(
+    (map, frag) => {
+      const existing = map.get(frag.sourceElementId);
+      return map.set(frag.sourceElementId, existing ? [...existing, frag] : [frag]);
+    },
+    new Map(),
+  );
 }

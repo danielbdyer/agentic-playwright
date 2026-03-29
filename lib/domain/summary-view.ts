@@ -203,27 +203,18 @@ export interface ObservatorySnapshot {
 export function computeObservatorySnapshot(
   knowledgeNodes: ReadonlyMap<string, { readonly status: string; readonly confidence: number; readonly screen: string | null }>,
 ): ObservatorySnapshot {
-  const screens = new Set<string>();
-  let approvedCount = 0;
-  let learningCount = 0;
-  let blockedCount = 0;
-  let totalConfidence = 0;
+  const nodes = [...knowledgeNodes.values()];
+  const screens = new Set(nodes.flatMap((n) => n.screen !== null ? [n.screen] : []));
 
-  for (const [, node] of knowledgeNodes) {
-    if (node.screen) screens.add(node.screen);
-    totalConfidence += node.confidence;
-
-    switch (node.status) {
-      case 'approved':
-        approvedCount++;
-        break;
-      case 'blocked':
-        blockedCount++;
-        break;
-      default:
-        learningCount++;
-    }
-  }
+  const { approvedCount, learningCount, blockedCount, totalConfidence } = nodes.reduce(
+    (acc, node) => ({
+      approvedCount: acc.approvedCount + (node.status === 'approved' ? 1 : 0),
+      learningCount: acc.learningCount + (node.status !== 'approved' && node.status !== 'blocked' ? 1 : 0),
+      blockedCount: acc.blockedCount + (node.status === 'blocked' ? 1 : 0),
+      totalConfidence: acc.totalConfidence + node.confidence,
+    }),
+    { approvedCount: 0, learningCount: 0, blockedCount: 0, totalConfidence: 0 },
+  );
 
   return {
     nodeCount: knowledgeNodes.size,

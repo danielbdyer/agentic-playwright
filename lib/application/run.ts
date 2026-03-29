@@ -139,10 +139,11 @@ export function runScenarioCore(options: RunScenarioOptions) {
         );
 
         // Emit element-escalated for resolution mode transitions (system→agent handoffs)
-        for (let i = 1; i < executionStage.stepResults.length; i++) {
-          const prev = executionStage.stepResults[i - 1]!.interpretation;
-          const curr = executionStage.stepResults[i]!.interpretation;
+        for (const [idx, result] of executionStage.stepResults.slice(1).entries()) {
+          const prev = executionStage.stepResults[idx]!.interpretation;
+          const curr = result.interpretation;
           if (prev.resolutionMode !== curr.resolutionMode) {
+            const i = idx + 1;
             const fromActor: ActorKind = prev.resolutionMode === 'agentic' ? 'agent' : 'system';
             const toActor: ActorKind = curr.resolutionMode === 'agentic' ? 'agent' : 'system';
             const currTarget = 'target' in curr ? (curr as { target: { element?: string; screen?: string } }).target : null;

@@ -287,25 +287,19 @@ export function advanceFinale(state: FinaleState, currentMs: number): FinaleStat
 // ─── Visual State Computation ───
 
 function computeVisualState(schedule: FinaleSchedule, elapsedMs: number): FinaleVisualState {
-  const activePhases = new Set<FinalePhase>();
-  let latestPhase: FinalePhase = 'idle';
+  const activePhases = new Set<FinalePhase>(
+    schedule.phases
+      .flatMap((t) => elapsedMs >= t.startMs && elapsedMs < t.endMs ? [t.phase] : []),
+  );
 
-  for (const timing of schedule.phases) {
-    if (elapsedMs >= timing.startMs && elapsedMs < timing.endMs) {
-      activePhases.add(timing.phase);
-      latestPhase = timing.phase;
-    }
-  }
+  const latestActivePhase = schedule.phases
+    .filter((t) => elapsedMs >= t.startMs && elapsedMs < t.endMs)
+    .at(-1)?.phase;
 
-  // If no phase is active but we haven't finished, we're between phases
-  if (activePhases.size === 0 && elapsedMs < schedule.totalDurationMs) {
-    // Find the last started phase
-    for (const timing of schedule.phases) {
-      if (elapsedMs >= timing.endMs) {
-        latestPhase = timing.phase;
-      }
-    }
-  }
+  const latestPhase: FinalePhase = latestActivePhase
+    ?? (activePhases.size === 0 && elapsedMs < schedule.totalDurationMs
+      ? schedule.phases.filter((t) => elapsedMs >= t.endMs).at(-1)?.phase ?? 'idle'
+      : 'idle');
 
   const isTriumph = schedule.reason === 'threshold-met';
   const isGrace = schedule.reason === 'no-proposals';
