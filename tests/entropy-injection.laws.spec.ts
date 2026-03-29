@@ -25,8 +25,6 @@ import type {
   ScenarioSeed,
   ScenarioSeedStep,
   VarianceProfile,
-  ScenarioVariant,
-  VariantMutation,
 } from '../lib/application/entropy-injection';
 import { mulberry32, pick, randomInt } from './support/random';
 
@@ -82,7 +80,7 @@ function randomScenario(next: () => number): ScenarioSeed {
   };
 }
 
-function randomProfile(next: () => number): VarianceProfile {
+function _randomProfile(next: () => number): VarianceProfile {
   return {
     adoPhrasingVariants: randomInt(next, 5),
     dataPostureCombinations: randomInt(next, 4),

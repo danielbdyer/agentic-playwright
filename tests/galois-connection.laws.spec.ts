@@ -19,7 +19,6 @@ import type {
   TrustPolicy,
   TrustPolicyDecision,
   TrustPolicyArtifactType,
-  ProposedChangeMetadata,
   EvidenceDescriptor,
 } from '../lib/domain/types';
 

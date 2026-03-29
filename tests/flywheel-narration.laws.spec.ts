@@ -5,8 +5,6 @@ import {
   NARRATED_EVENT_KINDS,
   CAPTION_FACTORIES,
   type CaptionContext,
-  type CaptionDescriptor,
-  type NarrationVerbosity,
 } from '../dashboard/src/narration-catalog';
 import type { DashboardEventKind } from '../lib/domain/types/dashboard';
 
