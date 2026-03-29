@@ -199,6 +199,64 @@ const handleRequest = (req: http.IncomingMessage, res: http.ServerResponse): voi
     return;
   }
 
+  // ─── Playback API ───
+
+  if (url.pathname === '/api/runs') {
+    const runsDir = path.join(ROOT, '.tesseract', 'runs');
+    try {
+      const entries = fs.readdirSync(runsDir, { withFileTypes: true });
+      const runs = entries
+        .filter((e) => e.isDirectory())
+        .map((e) => {
+          const journalPath = path.join(runsDir, e.name, 'dashboard-events.jsonl');
+          try {
+            fs.statSync(journalPath);
+          } catch {
+            return null;
+          }
+          const index = readJsonFile(path.join('.tesseract', 'runs', e.name, 'dashboard-events.index.json')) as { totalEvents?: number; totalDurationMs?: number } | null;
+          return {
+            runId: e.name,
+            journalPath: `/api/runs/${encodeURIComponent(e.name)}/journal`,
+            indexPath: `/api/runs/${encodeURIComponent(e.name)}/journal/index`,
+            eventCount: index?.totalEvents ?? 0,
+            durationMs: index?.totalDurationMs ?? 0,
+          };
+        })
+        .filter((r): r is NonNullable<typeof r> => r !== null);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ runs }));
+    } catch {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ runs: [] }));
+    }
+    return;
+  }
+  if (url.pathname.startsWith('/api/runs/') && url.pathname.endsWith('/journal/index')) {
+    const segments = url.pathname.split('/');
+    const runId = decodeURIComponent(segments[3] ?? '');
+    if (!runId) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'missing runId' })); return; }
+    const rel = path.relative(path.join(ROOT, '.tesseract', 'runs'), path.join(ROOT, '.tesseract', 'runs', runId));
+    if (rel.startsWith('..') || path.isAbsolute(rel)) { res.writeHead(403); res.end(); return; }
+    const data = readTextFile(path.join('.tesseract', 'runs', runId, 'dashboard-events.index.json'));
+    if (!data) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'index not found' })); return; }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(data);
+    return;
+  }
+  if (url.pathname.startsWith('/api/runs/') && url.pathname.endsWith('/journal')) {
+    const segments = url.pathname.split('/');
+    const runId = decodeURIComponent(segments[3] ?? '');
+    if (!runId) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'missing runId' })); return; }
+    const rel = path.relative(path.join(ROOT, '.tesseract', 'runs'), path.join(ROOT, '.tesseract', 'runs', runId));
+    if (rel.startsWith('..') || path.isAbsolute(rel)) { res.writeHead(403); res.end(); return; }
+    const data = readTextFile(path.join('.tesseract', 'runs', runId, 'dashboard-events.jsonl'));
+    if (!data) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'journal not found' })); return; }
+    res.writeHead(200, { 'Content-Type': 'application/x-ndjson' });
+    res.end(data);
+    return;
+  }
+
   // Static file serving
   let filePath: string;
   if (url.pathname === '/' || url.pathname === '/index.html') filePath = path.join(DASHBOARD_DIR, 'index.html');
