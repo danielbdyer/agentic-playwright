@@ -21,8 +21,6 @@ import { expect, test } from '@playwright/test';
 import {
   createInternalMCPBridge,
   createDisabledToolProvider,
-  type AgentTool,
-  type AgentToolResult,
   type AgentToolProvider,
   type McpToolInvoker,
 } from '../lib/runtime/agent/mcp-bridge';

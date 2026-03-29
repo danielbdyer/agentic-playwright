@@ -1,13 +1,8 @@
 import { expect, test } from '@playwright/test';
 import type {
-  CorpusHealthReport,
   GroundedSpecFragment,
-  KnowledgeBottleneckReport,
-  LearningRuntime,
   ProposalBundle,
-  ProposalRankingReport,
   ReplayEvaluationResult,
-  ReplayEvaluationSummary,
   ReplayExample,
   ResolutionReceipt,
   TrainingCorpusManifest,
