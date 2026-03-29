@@ -1,9 +1,5 @@
 import { Schema } from 'effect';
 import {
-  StepActionSchema,
-  ConfidenceSchema,
-} from './enums';
-import {
   AdoIdSchema,
   NullableString,
   StringArray,

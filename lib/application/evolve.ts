@@ -20,7 +20,7 @@ import { updateScorecard } from './fitness';
 import { recordExperiment } from './experiment-registry';
 import { scorecardPath } from './improvement';
 import { cleanSlateProgram } from './clean-slate';
-import { FileSystem, VersionControl } from './ports';
+import { FileSystem } from './ports';
 import type {
   ExperimentRecord,
   ExperimentSubstrate,

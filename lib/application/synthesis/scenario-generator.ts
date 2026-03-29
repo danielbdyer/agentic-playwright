@@ -251,7 +251,7 @@ function perturbVocab(text: string, rate: number, rng: () => number): string {
 
 /** Mode 2: Alias gap — use the raw camelCase elementId instead of a human-readable alias.
  *  This creates steps the knowledge base can't resolve via alias matching. */
-function perturbAliasGap(
+function _perturbAliasGap(
   elementAlias: string,
   elementId: string,
   rate: number,
@@ -262,7 +262,7 @@ function perturbAliasGap(
 
 /** Mode 3: Cross-screen confusion — substitute an element alias from a DIFFERENT screen.
  *  This creates ambiguous steps that reference elements on the wrong screen. */
-function perturbCrossScreen(
+function _perturbCrossScreen(
   elementAlias: string,
   currentScreen: ScreenInfo,
   allScreens: readonly ScreenInfo[],
@@ -295,7 +295,7 @@ function applyPerturbations(
 }
 
 // Backward-compatible wrapper
-function perturbStepText(text: string, perturbationRate: number, rng: () => number): { text: string; perturbed: boolean } {
+function _perturbStepText(text: string, perturbationRate: number, rng: () => number): { text: string; perturbed: boolean } {
   const result = perturbVocab(text, perturbationRate, rng);
   return { text: result, perturbed: result !== text };
 }

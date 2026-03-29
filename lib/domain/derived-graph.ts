@@ -1707,7 +1707,7 @@ function patternIdsForStep(stepContext: StepGraphContext, sharedPatternsArtifact
   return [...new Set([...bindingIds, ...postureIds])].sort((left, right) => left.localeCompare(right));
 }
 
-function bestAliasMatches(normalizedIntent: string, aliases: string[]): string[] {
+function _bestAliasMatches(normalizedIntent: string, aliases: string[]): string[] {
   const matches = aliases
     .flatMap((alias) => {
       const normalized = normalizeIntentText(alias);

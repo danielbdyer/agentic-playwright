@@ -61,7 +61,7 @@ export function bindScenario(options: { adoId: AdoId; paths: ProjectPaths; sessi
 
     const scenarioFile = scenarioArtifact.absolutePath;
     const scenario = scenarioArtifact.artifact;
-    const snapshot = snapshotArtifact.artifact;
+    const _snapshot = snapshotArtifact.artifact;
     const screenElementsByScreen = options.session?.screenIndexes.screenElements
       ?? new Map(catalog.screenElements.map((entry) => [entry.artifact.screen, entry.artifact] as const));
     const screenPosturesByScreen = options.session?.screenIndexes.screenPostures

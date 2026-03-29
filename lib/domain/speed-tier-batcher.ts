@@ -21,8 +21,6 @@
  * @see docs/first-day-flywheel-visualization.md Part III: Batching Strategy
  */
 
-import type { FlywheelAct } from '../../lib/domain/scene-state-accumulator';
-
 // ─── Speed Tiers ───
 
 export interface SpeedTier {

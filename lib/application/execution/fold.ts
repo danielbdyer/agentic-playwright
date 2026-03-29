@@ -29,10 +29,6 @@ const combineCost = (a: Cost, b: Cost | null | undefined): Cost => ({
   diagnosticCount: a.diagnosticCount + (b?.diagnosticCount ?? 0),
 });
 
-/** Increment a key in a counter record. Pure — returns new object. */
-const incCounter = <K extends string>(acc: Record<K, number>, key: K): Record<K, number> =>
-  ({ ...acc, [key]: (acc[key] ?? 0) + 1 });
-
 // ─── Translation Metrics (pure fold) ───
 
 interface TranslationAcc {

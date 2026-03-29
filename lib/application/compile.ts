@@ -72,7 +72,7 @@ export function compileScenarioCore(options: { adoId: AdoId; paths: ProjectPaths
           interfaceGraph: interfaceIntelligence.interfaceGraph,
           selectorCanon: interfaceIntelligence.selectorCanon,
         });
-        const sessionWithBound = withBoundScenarioInWorkspaceSession({
+        const _sessionWithBound = withBoundScenarioInWorkspaceSession({
           session: sessionWithScenario,
           boundScenario: bound.boundScenario,
           boundPath: bound.boundPath,

@@ -9,18 +9,15 @@ import {
   StatePredicateSemanticSchema,
   TransitionEffectKindSchema,
   PatternActionNameSchema,
-  CertificationStatusSchema,
 } from './enums';
 import {
   ScreenIdSchema,
   SectionIdSchema,
   SurfaceIdSchema,
   ElementIdSchema,
-  PostureIdSchema,
   SnapshotTemplateIdSchema,
   WidgetIdSchema,
   CanonicalTargetRefSchema,
-  SelectorRefSchema,
   StateNodeRefSchema,
   EventSignatureRefSchema,
   TransitionRefSchema,

@@ -5,7 +5,6 @@ import { commandRegistry } from './commands/index';
 import {
   type CommandExecution,
   type CommandName,
-  type CommandSpec,
   type ParsedFlags,
   commandNames,
   flagReaders,

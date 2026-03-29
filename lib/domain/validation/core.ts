@@ -23,7 +23,6 @@ import type {
   LocatorStrategy,
   DogfoodRun,
   Manifest,
-  MergedPatterns,
   OperatorInboxItem,
   PatternDocument,
   Posture,
@@ -117,7 +116,7 @@ import {
 const scenarioStatuses = ['stub', 'draft', 'active', 'needs-repair', 'blocked', 'deprecated'] as const;
 const stepActions = ['navigate', 'input', 'click', 'assert-snapshot', 'custom'] as const;
 const confidences = ['human', 'agent-verified', 'agent-proposed', 'compiler-derived', 'intent-only', 'unbound'] as const;
-const executionProfiles = ['interactive', 'ci-batch', 'dogfood'] as const;
+const _executionProfiles = ['interactive', 'ci-batch', 'dogfood'] as const;
 const resolutionModes = ['deterministic', 'translation', 'agentic'] as const;
 const valueRefKinds = ['literal', 'fixture-path', 'posture-sample', 'parameter-row', 'generated-token'] as const;
 const stepInstructionKinds = ['navigate', 'enter', 'invoke', 'observe-structure', 'custom-escape-hatch'] as const;
@@ -128,9 +127,9 @@ const governanceStates = ['approved', 'review-required', 'blocked'] as const;
 const certificationStates = ['uncertified', 'certified'] as const;
 const locatorStrategyKinds = ['test-id', 'role-name', 'css'] as const;
 const effectStates = ['validation-error', 'required-error', 'disabled', 'enabled', 'visible', 'hidden'] as const;
-const widgetActions = ['click', 'fill', 'clear', 'get-value'] as const;
-const widgetPreconditions = ['visible', 'enabled', 'editable'] as const;
-const widgetEffectCategories = ['mutation', 'observation', 'focus', 'navigation'] as const;
+const _widgetActions = ['click', 'fill', 'clear', 'get-value'] as const;
+const _widgetPreconditions = ['visible', 'enabled', 'editable'] as const;
+const _widgetEffectCategories = ['mutation', 'observation', 'focus', 'navigation'] as const;
 const graphNodeKinds = ['snapshot', 'screen', 'screen-hints', 'pattern', 'confidence-overlay', 'dataset', 'resolution-control', 'runbook', 'section', 'surface', 'element', 'posture', 'capability', 'scenario', 'step', 'generated-spec', 'generated-trace', 'generated-review', 'evidence', 'policy-decision', 'participant', 'intervention', 'improvement-run', 'acceptance-decision'] as const;
 const graphEdgeKinds = ['derived-from', 'contains', 'references', 'uses', 'learns-from', 'affects', 'asserts', 'emits', 'observed-by', 'proposed-change-for', 'governs', 'drifts-to'] as const;
 const diagnosticSeverities = ['info', 'warn', 'error'] as const;
@@ -231,7 +230,7 @@ function validateCanonicalLineage(value: unknown, path: string) {
   };
 }
 
-function validateCanonicalKnowledgeMetadata(value: unknown, path: string) {
+function _validateCanonicalKnowledgeMetadata(value: unknown, path: string) {
   const metadata = expectRecord(value, path);
   return {
     certification: expectEnum(metadata.certification, `${path}.certification`, certificationStates),
@@ -258,7 +257,7 @@ function validateRefPath(value: unknown, path: string): RefPath {
   };
 }
 
-function validateScenarioSource(value: unknown): ScenarioSource {
+function _validateScenarioSource(value: unknown): ScenarioSource {
   const source = expectRecord(value, 'source');
   return {
     ado_id: expectId(source.ado_id, 'source.ado_id', createAdoId),
@@ -268,7 +267,7 @@ function validateScenarioSource(value: unknown): ScenarioSource {
   };
 }
 
-function validateScenarioMetadata(value: unknown): ScenarioMetadata {
+function _validateScenarioMetadata(value: unknown): ScenarioMetadata {
   const metadata = expectRecord(value, 'metadata');
   return {
     title: expectString(metadata.title, 'metadata.title'),
@@ -280,7 +279,7 @@ function validateScenarioMetadata(value: unknown): ScenarioMetadata {
   };
 }
 
-function validatePrecondition(value: unknown, path: string): ScenarioPrecondition {
+function _validatePrecondition(value: unknown, path: string): ScenarioPrecondition {
   const precondition = expectRecord(value, path);
   return {
     fixture: expectId(precondition.fixture, `${path}.fixture`, createFixtureId),
@@ -402,7 +401,7 @@ function validateStepBase(value: unknown, path: string): ScenarioStep {
   };
 }
 
-function validatePostcondition(value: unknown, path: string): ScenarioPostcondition {
+function _validatePostcondition(value: unknown, path: string): ScenarioPostcondition {
   const post = expectRecord(value, path);
   return {
     action: validateAction(post.action, `${path}.action`),
@@ -461,7 +460,7 @@ function validateBoundStep(value: unknown, path: string): BoundStep {
   };
 }
 
-function validateSection(value: unknown, path: string): SurfaceSection {
+function _validateSection(value: unknown, path: string): SurfaceSection {
   const section = expectRecord(value, path);
   return {
     selector: expectString(section.selector, `${path}.selector`),
@@ -472,7 +471,7 @@ function validateSection(value: unknown, path: string): SurfaceSection {
   };
 }
 
-function validateSurfaceDefinition(value: unknown, path: string): SurfaceDefinition {
+function _validateSurfaceDefinition(value: unknown, path: string): SurfaceDefinition {
   const surface = expectRecord(value, path);
   return {
     kind: expectEnum(surface.kind, `${path}.kind`, surfaceKinds),
@@ -566,7 +565,7 @@ function validateEffect(value: unknown, path: string): PostureEffect {
   };
 }
 
-function validatePosture(value: unknown, path: string): Posture {
+function _validatePosture(value: unknown, path: string): Posture {
   const posture = expectRecord(value, path);
   return {
     values: expectStringArray(posture.values ?? [], `${path}.values`),
@@ -1873,7 +1872,7 @@ function validateObservationPredicate(value: unknown, path: string) {
   };
 }
 
-function validateStateNode(value: unknown, path: string): StateNode {
+function _validateStateNode(value: unknown, path: string): StateNode {
   const node = expectRecord(value, path);
   return {
     ref: expectId(node.ref, `${path}.ref`, createStateNodeRef),
@@ -1890,7 +1889,7 @@ function validateStateNode(value: unknown, path: string): StateNode {
   };
 }
 
-function validateEventSignature(value: unknown, path: string): EventSignature {
+function _validateEventSignature(value: unknown, path: string): EventSignature {
   const event = expectRecord(value, path);
   const dispatch = expectRecord(event.dispatch ?? {}, `${path}.dispatch`);
   const effects = expectRecord(event.effects ?? {}, `${path}.effects`);
@@ -1932,7 +1931,7 @@ function validateEventSignature(value: unknown, path: string): EventSignature {
   };
 }
 
-function validateStateTransition(value: unknown, path: string): StateTransition {
+function _validateStateTransition(value: unknown, path: string): StateTransition {
   const transition = expectRecord(value, path);
   return {
     ref: expectId(transition.ref, `${path}.ref`, createTransitionRef),
@@ -2028,7 +2027,7 @@ export function validateBehaviorPatternDocument(value: unknown): BehaviorPattern
 export const validateManifest: (value: unknown) => Manifest =
   schemaDecode.decoderFor<Manifest>(schemas.ManifestSchema);
 
-function validateGraphNode(value: unknown, path: string) {
+function _validateGraphNode(value: unknown, path: string) {
   const node = expectRecord(value, path);
   const provenance = node.provenance ? expectRecord(node.provenance, `${path}.provenance`) : {};
   return {
@@ -2052,7 +2051,7 @@ function validateGraphNode(value: unknown, path: string) {
   };
 }
 
-function validateGraphEdge(value: unknown, path: string) {
+function _validateGraphEdge(value: unknown, path: string) {
   const edge = expectRecord(value, path);
   const provenance = edge.provenance ? expectRecord(edge.provenance, `${path}.provenance`) : {};
   return {
@@ -2084,7 +2083,7 @@ function validateTrustPolicyArtifactType(value: unknown, path: string): TrustPol
   return expectEnum(value, path, ['elements', 'postures', 'surface', 'snapshot', 'hints', 'patterns'] as const);
 }
 
-function validateTrustPolicyEvaluationReason(value: unknown, path: string): TrustPolicyEvaluationReason {
+function _validateTrustPolicyEvaluationReason(value: unknown, path: string): TrustPolicyEvaluationReason {
   const record = expectRecord(value, path);
   return {
     code: expectEnum(record.code, `${path}.code`, ['minimum-confidence', 'required-evidence', 'forbidden-auto-heal'] as const),

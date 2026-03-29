@@ -10,7 +10,6 @@
 import type { StateNodeRef, TransitionRef } from '../../domain/identity';
 import type {
   GroundedStep,
-  InterfaceResolutionContext,
   ObservedStateSession,
   ResolutionReceipt,
   ResolutionTarget,

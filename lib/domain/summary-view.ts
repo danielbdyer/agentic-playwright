@@ -17,7 +17,7 @@
  * @see docs/first-day-flywheel-visualization.md Part IX: Summary View
  */
 
-import type { SceneState, SceneMetrics } from './scene-state-accumulator';
+import type { SceneMetrics } from './scene-state-accumulator';
 import type { ConvergenceReason, ConvergenceMetrics } from './convergence-finale';
 
 // ─── Iteration Timeline ───

@@ -9,7 +9,6 @@
 
 import type {
   ExperimentRecord,
-  ExperimentRegistry,
   ImprovementLoopLedger,
   PipelineFailureClass,
   PipelineFailureMode,

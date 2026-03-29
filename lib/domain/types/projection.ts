@@ -6,7 +6,6 @@ import type {
   DiagnosticProvenance,
   ExecutionPosture,
   Governance,
-  Manifest,
   ResolutionMode,
   ScenarioLifecycle,
   StepAction,

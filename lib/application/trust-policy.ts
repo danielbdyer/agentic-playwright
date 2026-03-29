@@ -8,7 +8,6 @@ import { graphIds } from '../domain/ids';
 import type { EvidenceDescriptor, EvidenceRecord, ProposedChangeMetadata, TrustPolicy, TrustPolicyEvaluation } from '../domain/types';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
 import type { ProjectPaths } from './paths';
-import type { FileSystem } from './ports';
 
 export interface LoadedEvidenceRecord {
   artifactPath: string;

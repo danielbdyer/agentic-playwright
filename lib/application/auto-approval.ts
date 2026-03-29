@@ -3,7 +3,6 @@ import type {
   EvidenceDescriptor,
   ProposedChangeMetadata,
   TrustPolicy,
-  TrustPolicyArtifactType,
 } from '../domain/types/workflow';
 
 // ─── Auto-Approval Policy ───

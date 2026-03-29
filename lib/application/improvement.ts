@@ -14,7 +14,6 @@ import type {
   ImprovementLineageEntry,
   ImprovementRun,
   ImprovementSignal,
-  ImprovementSignalKind,
   InterventionReceipt,
   InterventionTarget,
   ObjectiveVector,

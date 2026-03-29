@@ -40,8 +40,8 @@ import type {
   TrustPolicy,
 } from '../domain/types';
 import { DEFAULT_AUTO_APPROVAL_POLICY } from '../domain/trust-policy';
-import { matureComponentKnowledge, type ComponentEvidence, type ComponentProposal } from '../domain/component-maturation';
-import { aggregateQualityMetrics, classifyAlias, type AliasOutcome, type ProposalQualityMetrics } from '../domain/proposal-quality';
+import { matureComponentKnowledge, type ComponentEvidence } from '../domain/component-maturation';
+import { aggregateQualityMetrics, type AliasOutcome } from '../domain/proposal-quality';
 
 export type DogfoodIterationResult = ImprovementLoopIteration;
 export type DogfoodLedger = DogfoodLedgerProjection;

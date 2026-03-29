@@ -13,7 +13,7 @@
  */
 
 import type { PipelineConfig, PipelineFailureClass } from '../domain/types';
-import { DEFAULT_PIPELINE_CONFIG, mergePipelineConfig } from '../domain/types';
+import { mergePipelineConfig } from '../domain/types';
 
 // ─── Failure-to-Parameter Mapping ───
 

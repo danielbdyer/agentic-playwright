@@ -8,7 +8,7 @@ import { runStrategyChain } from './strategy';
 import { createStrategyRegistry } from './strategy-registry';
 import { buildPipelineDAG, validateDAG } from '../../application/pipeline-dag';
 import type { RuntimeAgentStageContext, RuntimeStepAgentContext, StageEffects } from './types';
-import { mergeEffectsIntoStage, EMPTY_EFFECTS } from './types';
+import { mergeEffectsIntoStage } from './types';
 import { interpretStepIntent } from './interpret-intent';
 import {
   tryExplicitResolution,

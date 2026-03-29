@@ -21,8 +21,6 @@
  * structured interaction affordances.
  */
 
-import type { AgentWorkItem, WorkItemCompletion, ScreenGroupContext } from './workbench';
-import type { SpeedrunProgressEvent } from './improvement';
 import type { Governance, ResolutionMode } from './workflow';
 
 // ─── Actor Model ───

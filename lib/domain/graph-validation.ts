@@ -6,7 +6,7 @@
  */
 
 import type { ApplicationInterfaceGraph, InterfaceGraphNode } from './types/interface';
-import type { DerivedGraph, GraphNode, GraphEdge } from './types/projection';
+import type { DerivedGraph } from './types/projection';
 
 // ─── Violation types ───
 
@@ -76,7 +76,7 @@ function interfaceScreenNodeIds(nodes: readonly InterfaceGraphNode[]): ReadonlyS
   );
 }
 
-function interfaceElementNodeIds(nodes: readonly InterfaceGraphNode[]): ReadonlySet<string> {
+function _interfaceElementNodeIds(nodes: readonly InterfaceGraphNode[]): ReadonlySet<string> {
   return new Set(
     nodes.flatMap((n) => n.kind === 'target' && n.element != null ? [n.id] : []),
   );
@@ -132,7 +132,7 @@ export function validateGraphConsistency(
   //    DerivedGraph element nodes use graphIds.element(screen, elementId) => "element:{screen}:{elementId}"
   //    InterfaceGraph uses "target:{targetRef}" for elements — different ID convention.
   //    We compare by extracting the element semantic IDs from both graphs.
-  const derivedElementIds = extractElementIds(derivedGraph.nodes);
+  const _derivedElementIds = extractElementIds(derivedGraph.nodes);
   const derivedElementScreenScoped = new Map<string, string>();
   for (const node of derivedGraph.nodes) {
     if (node.kind === 'element') {
