@@ -13,6 +13,7 @@ import type {
 } from '../domain/types';
 import { mintApproved } from '../domain/types/workflow';
 import type { AdoId } from '../domain/identity';
+import { TesseractError } from '../domain/errors';
 
 export type AgentSessionAdapterId = string;
 
@@ -605,7 +606,7 @@ export function resolveAgentSessionAdapter(
   const selected = adapterId ?? 'deterministic-agent-session';
   const adapter = (registry ?? defaultRegistry).get(selected);
   if (!adapter) {
-    throw new Error(`Unknown agent session adapter "${selected}".`);
+    throw new TesseractError('invalid-config', `Unknown agent session adapter "${selected}".`);
   }
   return adapter;
 }

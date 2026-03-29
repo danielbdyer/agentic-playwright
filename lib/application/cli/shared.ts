@@ -1,6 +1,7 @@
 import type { Effect } from 'effect';
 import type { ProjectPaths } from '../paths';
 import type { ExecutionPosture, RuntimeInterpreterMode } from '../../domain/types';
+import { TesseractError } from '../../domain/errors';
 
 export const interpreterModes = ['playwright', 'dry-run', 'diagnostic'] as const;
 export const executionProfiles = ['interactive', 'ci-batch'] as const;
@@ -155,7 +156,7 @@ export function withDefinedValues<TValue extends Record<string, unknown>>(value:
 
 export function readFlagValue(flag: string, value: string | undefined): string {
   if (!value || value.startsWith('--')) {
-    throw new Error(`Missing required ${flag}`);
+    throw new TesseractError('invalid-argument', `Missing required ${flag}`);
   }
   return value;
 }
@@ -169,54 +170,54 @@ export function parseEnum<TValue extends readonly string[]>(
   if ((validValues as readonly string[]).includes(raw)) {
     return raw as TValue[number];
   }
-  throw new Error(`Invalid ${flag}: ${raw}`);
+  throw new TesseractError('invalid-argument', `Invalid ${flag}: ${raw}`);
 }
 
 export function requireAdoId(value: string | undefined): string {
   if (!value) {
-    throw new Error('Missing required --ado-id');
+    throw new TesseractError('invalid-argument', 'Missing required --ado-id');
   }
   return value;
 }
 
 export function requireProposalId(value: string | undefined): string {
   if (!value) {
-    throw new Error('Missing required --proposal-id');
+    throw new TesseractError('invalid-argument', 'Missing required --proposal-id');
   }
   return value;
 }
 
 export function requireBenchmark(value: string | undefined): string {
   if (!value) {
-    throw new Error('Missing required --benchmark');
+    throw new TesseractError('invalid-argument', 'Missing required --benchmark');
   }
   return value;
 }
 
 export function requireScreen(value: string | undefined): string {
   if (!value) {
-    throw new Error('Missing required --screen');
+    throw new TesseractError('invalid-argument', 'Missing required --screen');
   }
   return value;
 }
 
 export function requireSection(value: string | undefined): string {
   if (!value) {
-    throw new Error('Missing required --section');
+    throw new TesseractError('invalid-argument', 'Missing required --section');
   }
   return value;
 }
 
 export function requireUrl(value: string | undefined): string {
   if (!value) {
-    throw new Error('Missing required --url');
+    throw new TesseractError('invalid-argument', 'Missing required --url');
   }
   return value;
 }
 
 export function requireNode(value: string | undefined): string {
   if (!value) {
-    throw new Error('Missing required --node');
+    throw new TesseractError('invalid-argument', 'Missing required --node');
   }
   return value;
 }

@@ -1,4 +1,5 @@
 import type { ResolutionEngineCapabilities, RuntimeInterpreterMode, ResolutionReceipt, GroundedStep } from '../domain/types';
+import { TesseractError } from '../domain/errors';
 
 export type ResolutionEngineId = string;
 
@@ -47,14 +48,14 @@ export function resolveResolutionEngine(input: {
   const registry = input.registry ?? defaultRegistry;
   const engine = registry.get(providerId);
   if (!engine) {
-    throw new Error(`Unknown resolution engine "${providerId}".`);
+    throw new TesseractError('resolution-error', `Unknown resolution engine "${providerId}".`);
   }
   const incompatibility = engineCompatibilityError(engine, input.mode);
   if (incompatibility) {
-    throw new Error(incompatibility);
+    throw new TesseractError('resolution-error', incompatibility);
   }
   if (input.translationEnabled && !engine.capabilities.supportsTranslation) {
-    throw new Error(`Resolution engine "${engine.id}" does not support translation.`);
+    throw new TesseractError('resolution-error', `Resolution engine "${engine.id}" does not support translation.`);
   }
   return engine;
 }

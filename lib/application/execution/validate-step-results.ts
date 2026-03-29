@@ -1,10 +1,11 @@
 import { isApproved, isReviewRequired } from '../../domain/types/workflow';
 import { foldResolutionReceipt } from '../../domain/visitors';
 import type { RuntimeScenarioStepResult } from '../ports';
+import { TesseractError } from '../../domain/errors';
 
 function assertInvariant(condition: boolean, message: string): asserts condition {
   if (!condition) {
-    throw new Error(`Resolution receipt invariant failed: ${message}`);
+    throw new TesseractError('validation-error', `Resolution receipt invariant failed: ${message}`);
   }
 }
 

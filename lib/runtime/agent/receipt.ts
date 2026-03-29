@@ -11,6 +11,7 @@ import { mintApproved, mintReviewRequired } from '../../domain/types/workflow';
 import { selectedDataset, selectedRunbook } from './select-controls';
 import type { RuntimeAgentStageContext, StageEffects } from './types';
 import { uniqueSorted } from './shared';
+import { TesseractError } from '../../domain/errors';
 
 function baseReceiptFields(stage: RuntimeAgentStageContext, pendingEffects?: StageEffects, winningSource?: StepWinningSource) {
   const { task, context } = stage;
@@ -110,7 +111,7 @@ export function needsHumanReceipt(stage: RuntimeAgentStageContext, overlayRefs: 
 export function explicitResolvedReceipt(stage: RuntimeAgentStageContext, pendingEffects?: StageEffects): ResolutionReceipt {
   const explicit = stage.task.explicitResolution;
   if (!explicit?.action || !explicit.screen) {
-    throw new Error('explicitResolvedReceipt requires explicit action and screen');
+    throw new TesseractError('missing-required', 'explicitResolvedReceipt requires explicit action and screen');
   }
   const explicitBase = baseReceiptFields(stage, pendingEffects, 'scenario-explicit');
   return {

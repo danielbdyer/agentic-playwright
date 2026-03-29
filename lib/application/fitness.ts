@@ -7,6 +7,7 @@
  * the scorecard comparison is the "beat-the-mark" gate.
  */
 
+import { TesseractError } from '../domain/errors';
 import type {
   ExperimentRecord,
   ImprovementLoopLedger,
@@ -531,7 +532,7 @@ export function averageFitnessReports(
 ): PipelineFitnessReport {
   const n = reports.length;
   if (n === 0) {
-    throw new Error('averageFitnessReports requires at least one report');
+    throw new TesseractError('validation-error', 'averageFitnessReports requires at least one report');
   }
   if (n === 1) {
     return reports[0]!;

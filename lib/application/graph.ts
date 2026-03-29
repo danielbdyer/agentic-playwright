@@ -35,7 +35,7 @@ import {
 import { type ProjectionIncremental } from './projections/runner';
 import { runIncrementalStage } from './pipeline';
 import { evaluateArtifactPolicy, policyDecisionGraphTarget } from './trust-policy';
-import type { TesseractError } from '../domain/errors';
+import { TesseractError } from '../domain/errors';
 
 export interface DerivedGraphProjectionResult {
   graph: DerivedGraph;
@@ -285,7 +285,7 @@ export function buildDerivedGraph(
       withCacheHit: (incremental): DerivedGraphProjectionResult => {
         const graph = cachedGraphForHit;
         if (!graph) {
-          throw new Error('Cache hit requested without validated graph state');
+          throw new TesseractError('assertion-error', 'Cache hit requested without validated graph state');
         }
         return {
           graph,

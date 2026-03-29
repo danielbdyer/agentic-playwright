@@ -13,6 +13,7 @@ import {
   relativeProjectPath,
 } from './paths';
 import { ExecutionContext, FileSystem } from './ports';
+import { TesseractError } from '../domain/errors';
 import { groupBy, uniqueSorted } from '../domain/collections';
 import type {
   BenchmarkContext,
@@ -42,7 +43,7 @@ function round(value: number): number {
 function benchmarkByName(benchmarks: readonly BenchmarkContext[], name: string): BenchmarkContext {
   const benchmark = benchmarks.find((entry) => entry.name === name) ?? null;
   if (!benchmark) {
-    throw new Error(`Unknown benchmark ${name}`);
+    throw new TesseractError('missing-required', `Unknown benchmark ${name}`);
   }
   return benchmark;
 }

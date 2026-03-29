@@ -7,6 +7,7 @@ import type { ResolutionStrategy, StrategyAttemptResult, StrategyChainResult } f
 import { runStrategyChain } from './strategy';
 import { createStrategyRegistry } from './strategy-registry';
 import { buildPipelineDAG, validateDAG } from '../../application/pipeline-dag';
+import { TesseractError } from '../../domain/errors';
 import type { RuntimeAgentStageContext, RuntimeStepAgentContext, StageEffects } from './types';
 import { mergeEffectsIntoStage } from './types';
 import { interpretStepIntent } from './interpret-intent';
@@ -233,7 +234,7 @@ async function runPipelinePhases(
   const dag = buildPipelineDAG(dagStages);
   const diagnostics = validateDAG(dag);
   if (diagnostics.length > 0) {
-    throw new Error(`Pipeline phase DAG invalid: ${diagnostics.join('; ')}`);
+    throw new TesseractError('validation-error', `Pipeline phase DAG invalid: ${diagnostics.join('; ')}`);
   }
 
   const step = async (
@@ -319,7 +320,7 @@ export async function runResolutionPipeline(
         const registry = createStrategyRegistry([...preAccumulatorStrategies, ...postStrategies]);
         const missingRungs = resolutionPrecedenceLaw.filter((rung) => !registry.lookup(rung));
         if (missingRungs.length > 0) {
-          throw new Error(`Strategy registry not total — missing rungs: ${missingRungs.join(', ')}`);
+          throw new TesseractError('assertion-error', `Strategy registry not total — missing rungs: ${missingRungs.join(', ')}`);
         }
         return runStrategyChain(registry.strategiesInOrder().filter((s) => s.requiresAccumulator), s, accRef.current);
       },
