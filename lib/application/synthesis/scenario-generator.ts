@@ -11,6 +11,7 @@ import { Effect } from 'effect';
 import { FileSystem } from '../ports';
 import { loadWorkspaceCatalog } from '../catalog';
 import type { ProjectPaths } from '../paths';
+import type { WorkspaceCatalog } from '../catalog';
 
 // ─── Deterministic RNG (same algorithm as policy-journey-fuzz.ts) ───
 
@@ -783,7 +784,7 @@ export interface GenerateSyntheticScenariosOptions {
   readonly count: number;
   readonly seed: string;
   readonly outputDir?: string;
-  readonly catalog?: import('../catalog').WorkspaceCatalog | undefined;
+  readonly catalog?: WorkspaceCatalog | undefined;
   /** Rate [0,1] at which step text is perturbed with synonyms NOT in the knowledge base.
    *  0 = no perturbation (default). Shorthand for { vocab: rate }. */
   readonly perturbationRate?: number | undefined;

@@ -12,6 +12,7 @@ import type {
 import type { WorkspaceCatalog } from './catalog';
 import { compareStrings, uniqueSorted } from '../domain/collections';
 import type { WorkflowHotspot } from './hotspots';
+import type { RerunPlan } from '../domain/types';
 
 function latestRuns(catalog: WorkspaceCatalog): Map<AdoId, RunRecord> {
   return new Map(
@@ -208,7 +209,7 @@ const renderHotspotSection = (hotspots: readonly WorkflowHotspot[]): readonly st
   '',
 ];
 
-const renderRerunSection = (plans: readonly import('../domain/types').RerunPlan[]): readonly string[] =>
+const renderRerunSection = (plans: readonly RerunPlan[]): readonly string[] =>
   plans.length === 0 ? [] : [
     '## Rerun plans', '',
     ...plans.flatMap((plan) => [
@@ -236,7 +237,7 @@ const renderItemSection = (item: OperatorInboxItem): readonly string[] => [
 /** Render the full operator inbox as markdown. Pure composition of section renderers. */
 export function renderOperatorInboxMarkdown(
   items: readonly OperatorInboxItem[],
-  rerunPlans: readonly import('../domain/types').RerunPlan[] = [],
+  rerunPlans: readonly RerunPlan[] = [],
   hotspots: readonly WorkflowHotspot[] = [],
   improvementRuns: readonly ImprovementRun[] = [],
 ): string {

@@ -1,5 +1,11 @@
 import { knowledgePaths } from '../../domain/ids';
-import type { ResolutionReceipt, StepWinningSource } from '../../domain/types';
+import type {
+  ResolutionReceipt,
+  ResolutionTarget,
+  StepWinningSource,
+  TranslationReceipt,
+  WorkflowStage,
+} from '../../domain/types';
 import { buildReasonChain } from '../../domain/reason-chain';
 import { mintApproved, mintReviewRequired } from '../../domain/types/workflow';
 import { selectedDataset, selectedRunbook } from './select-controls';
@@ -8,7 +14,7 @@ import { uniqueSorted } from './shared';
 
 function baseReceiptFields(stage: RuntimeAgentStageContext, pendingEffects?: StageEffects, winningSource?: StepWinningSource) {
   const { task, context } = stage;
-  const handshakes: import('../../domain/types').WorkflowStage[] = ['preparation', 'resolution'];
+  const handshakes: WorkflowStage[] = ['preparation', 'resolution'];
   const exhaustion = [...stage.exhaustion, ...(pendingEffects?.exhaustion ?? [])];
   const observations = [...stage.observations, ...(pendingEffects?.observations ?? [])];
   const knowledgeRefs = uniqueSorted([...stage.knowledgeRefs, ...(pendingEffects?.knowledgeRefs ?? [])]);
@@ -61,10 +67,10 @@ function baseReceiptFields(stage: RuntimeAgentStageContext, pendingEffects?: Sta
 
 export function agentInterpretedReceipt(
   stage: RuntimeAgentStageContext,
-  target: import('../../domain/types').ResolutionTarget,
+  target: ResolutionTarget,
   rationale: string,
   overlayRefs: string[],
-  translation: import('../../domain/types').TranslationReceipt | null,
+  translation: TranslationReceipt | null,
   pendingEffects?: StageEffects,
 ): ResolutionReceipt {
   const base = baseReceiptFields(stage, pendingEffects, 'agent-interpreted');
@@ -84,7 +90,7 @@ export function agentInterpretedReceipt(
   };
 }
 
-export function needsHumanReceipt(stage: RuntimeAgentStageContext, overlayRefs: string[], translation: import('../../domain/types').TranslationReceipt | null, pendingEffects?: StageEffects): ResolutionReceipt {
+export function needsHumanReceipt(stage: RuntimeAgentStageContext, overlayRefs: string[], translation: TranslationReceipt | null, pendingEffects?: StageEffects): ResolutionReceipt {
   const base = baseReceiptFields(stage, pendingEffects, 'none');
   return {
     ...base,

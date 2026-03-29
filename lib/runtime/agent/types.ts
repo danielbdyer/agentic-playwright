@@ -9,18 +9,20 @@ import type {
   GroundedStep,
 } from '../../domain/types';
 import type { ElementId, PostureId, ScreenId } from '../../domain/identity';
+import type { AgentInterpreterProvider } from '../../application/agent-interpreter-provider';
+import type { ResolutionTarget, TranslationReceipt, TranslationRequest } from '../../domain/types';
 
 export interface RuntimeStepAgentContext {
   resolutionContext: InterfaceResolutionContext;
   domResolver?: RuntimeDomResolver | undefined;
   page?: unknown;
-  previousResolution?: import('../../domain/types').ResolutionTarget | null | undefined;
+  previousResolution?: ResolutionTarget | null | undefined;
   observedStateSession?: ObservedStateSession | undefined;
   provider: string;
   mode: string;
   runAt: string;
-  translate?: ((request: import('../../domain/types').TranslationRequest) => Promise<import('../../domain/types').TranslationReceipt>) | undefined;
-  agentInterpreter?: import('../../application/agent-interpreter-provider').AgentInterpreterProvider | undefined;
+  translate?: ((request: TranslationRequest) => Promise<TranslationReceipt>) | undefined;
+  agentInterpreter?: AgentInterpreterProvider | undefined;
   controlSelection?: {
     runbook?: string | null | undefined;
     dataset?: string | null | undefined;

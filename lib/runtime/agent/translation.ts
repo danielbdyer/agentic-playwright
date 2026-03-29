@@ -2,6 +2,7 @@ import type { ArtifactConfidenceRecord, ResolutionObservation, StepAction, Groun
 import { normalizedCombined, bestAliasMatch, humanizeIdentifier, uniqueSorted } from './shared';
 import { requiresElement } from './resolve-action';
 import type { RuntimeStepAgentContext } from './types';
+import type { PostureId, SnapshotTemplateId } from '../../domain/identity';
 
 function overlayAliases(record: ArtifactConfidenceRecord): string[] {
   return uniqueSorted([
@@ -67,12 +68,12 @@ export function resolveWithConfidenceOverlay(
   action: StepAction | null,
   approvedScreen: StepTaskScreenCandidate | null,
   approvedElement: StepTaskElementCandidate | null,
-  snapshotTemplate: import('../../domain/identity').SnapshotTemplateId | null,
+  snapshotTemplate: SnapshotTemplateId | null,
 ): {
   screen: StepTaskScreenCandidate | null;
   element: StepTaskElementCandidate | null;
-  posture: import('../../domain/identity').PostureId | null;
-  snapshotTemplate: import('../../domain/identity').SnapshotTemplateId | null;
+  posture: PostureId | null;
+  snapshotTemplate: SnapshotTemplateId | null;
   overlayRefs: string[];
   observation?: ResolutionObservation | undefined;
 } {

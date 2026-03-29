@@ -32,6 +32,7 @@ import {
 } from '../domain/types';
 import { foldPipelineFailureClass } from '../domain/visitors';
 import { resolutionPrecedenceLaw, type ResolutionPrecedenceRung } from '../domain/precedence';
+import type { BottleneckWeightCorrelation, GeneralizationMetrics } from '../domain/types';
 
 // ─── Step-level classification ───
 
@@ -196,7 +197,7 @@ const FAILURE_TO_SIGNAL: Readonly<Record<string, string>> = {
 
 function computeBottleneckCorrelations(
   experiments: readonly ExperimentRecord[],
-): readonly import('../domain/types').BottleneckWeightCorrelation[] {
+): readonly BottleneckWeightCorrelation[] {
   if (experiments.length < 2) {
     return BOTTLENECK_SIGNALS.map(({ signal, weight }) => ({
       signal,
@@ -563,7 +564,7 @@ export function averageFitnessReports(
 export function computeGeneralizationMetrics(
   trainingReport: PipelineFitnessReport,
   validationReport: PipelineFitnessReport,
-): import('../domain/types').GeneralizationMetrics {
+): GeneralizationMetrics {
   const tm = trainingReport.metrics;
   const vm = validationReport.metrics;
 

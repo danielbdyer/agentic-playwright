@@ -1,4 +1,4 @@
-import type { PostureId, SnapshotTemplateId } from '../../domain/identity';
+import type { ElementId, PostureId, SnapshotTemplateId } from '../../domain/identity';
 import type {
   ProposalConfidenceValues,
   ResolutionCandidateSummary,
@@ -31,6 +31,7 @@ import {
 } from './candidate-lattice';
 import { createPlaywrightDomResolver } from '../adapters/playwright-dom-resolver';
 import { isRung8Applicable, attemptRung8Resolution } from './rung8-llm-dom';
+import type { Page } from '@playwright/test';
 
 /** Maximum characters for the DOM snapshot passed to the agent interpreter. */
 const DOM_SNAPSHOT_MAX_CHARS = 2048;
@@ -46,7 +47,7 @@ export async function captureTruncatedAriaSnapshot(
 ): Promise<string | null> {
   if (!page) return null;
   try {
-    const p = page as import('@playwright/test').Page;
+    const p = page as Page;
     const snapshot = await p.accessibility.snapshot({ interestingOnly: true });
     if (!snapshot) return null;
     const text = JSON.stringify(snapshot, null, 2);
@@ -499,7 +500,7 @@ export async function tryLiveDomOrFallback(stage: RuntimeAgentStageContext, acc:
   // attempt lightweight semantic matching using the ARIA snapshot.
   const rung8Snapshot = await captureTruncatedAriaSnapshot(stage.context.page);
   const rung8ElementHint = acc.element?.element ?? stage.task.actionText ?? '';
-  const rung8ElementId: import('../../domain/identity').ElementId = acc.element?.element ?? (rung8ElementHint as import('../../domain/identity').ElementId);
+  const rung8ElementId: ElementId = acc.element?.element ?? (rung8ElementHint as ElementId);
   if (isRung8Applicable(rung8Snapshot, rung8ElementHint)) {
     const rung8Result = attemptRung8Resolution(rung8Snapshot!, rung8ElementHint);
     if (rung8Result.resolved && rung8Result.selector && acc.action && domScreen) {

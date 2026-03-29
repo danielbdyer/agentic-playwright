@@ -4,12 +4,17 @@ import type { ResolutionEngine } from './resolution-engine';
 import type { TranslationProvider } from './translation-provider';
 import type { TesseractError } from '../domain/errors';
 import type {
+  AgentWorkItem,
+  DashboardEvent,
   ExecutionPosture,
+  LocatorStrategy,
+  McpToolDefinition,
   PipelineConfig,
   ResolutionReceipt,
   RuntimeInterpreterMode,
   ScenarioRunPlan,
   StepExecutionReceipt,
+  WorkItemDecision,
   WriteJournalEntry,
 } from '../domain/types';
 
@@ -88,7 +93,7 @@ export interface ScreenObservationPort {
     readonly url: string;
     readonly elements: ReadonlyArray<{
       readonly element: string;
-      readonly locator: readonly import('../domain/types').LocatorStrategy[];
+      readonly locator: readonly LocatorStrategy[];
       readonly role: string;
       readonly name: string | null;
     }>;
@@ -121,11 +126,11 @@ export class ScreenObserver extends Context.Tag('tesseract/ScreenObserver')<Scre
 export interface DashboardPort {
   /** Fire-and-forget: emit event to all connected dashboard clients.
    *  Never blocks the fiber. O(1) — publish to PubSub or no-op. */
-  readonly emit: (event: import('../domain/types').DashboardEvent) => Effect.Effect<void, never, never>;
+  readonly emit: (event: DashboardEvent) => Effect.Effect<void, never, never>;
   /** Opt-in fiber pause: send work item to dashboard, await decision.
    *  Always has a timeout fallback — never blocks indefinitely.
    *  DisabledDashboard auto-skips instantly (no pause). */
-  readonly awaitDecision: (item: import('../domain/types').AgentWorkItem) => Effect.Effect<import('../domain/types').WorkItemDecision, never, never>;
+  readonly awaitDecision: (item: AgentWorkItem) => Effect.Effect<WorkItemDecision, never, never>;
 }
 
 /** Disabled dashboard for CI/batch — auto-skips all decisions instantly.
@@ -166,7 +171,7 @@ export interface McpServerPort {
   /** Handle an incoming MCP tool invocation. Returns the tool result. */
   readonly handleToolCall: (invocation: McpToolInvocation) => Effect.Effect<McpToolResult, TesseractError>;
   /** List available tools (for MCP catalog negotiation). */
-  readonly listTools: () => Effect.Effect<readonly import('../domain/types').McpToolDefinition[], never, never>;
+  readonly listTools: () => Effect.Effect<readonly McpToolDefinition[], never, never>;
 }
 
 /** Disabled MCP server for environments without MCP support. */

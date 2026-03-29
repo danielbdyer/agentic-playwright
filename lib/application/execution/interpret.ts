@@ -1,11 +1,20 @@
 import { Effect } from 'effect';
-import type { AdoId } from '../../domain/identity';
-import type { ResolutionGraphRecord, ResolutionReceipt, ScenarioRunPlan, ScenarioInterpretationSurface, StepResolutionGraph, GroundedStep } from '../../domain/types';
+import type { AdoId, ScreenId } from '../../domain/identity';
+import type {
+  ExecutionPosture,
+  GroundedStep,
+  ResolutionGraphRecord,
+  ResolutionReceipt,
+  ScenarioInterpretationSurface,
+  ScenarioRunPlan,
+  StepResolutionGraph,
+} from '../../domain/types';
 import { WINNING_SOURCE_TO_RUNG } from '../../domain/visitors';
 import { isApproved, mintApproved, mintReviewRequired } from '../../domain/types/workflow';
 import type { RuntimeScenarioRunnerPort, RuntimeScenarioStepResult } from '../ports';
 import { resolveResolutionEngine } from '../provider-registry';
 import { validateStepResults } from './validate-step-results';
+import type { RecoveryPolicy } from '../../domain/execution/recovery-policy';
 
 export interface InterpretScenarioResult {
   stepResults: RuntimeScenarioStepResult[];
@@ -100,7 +109,7 @@ export function interpretScenarioSurface(input: {
   surface: ScenarioInterpretationSurface;
   mode: 'dry-run' | 'diagnostic' | 'playwright';
   providerId: string;
-  screenIds: readonly import('../../domain/identity').ScreenId[];
+  screenIds: readonly ScreenId[];
   fixtures: Record<string, unknown>;
   controlSelection?: {
     runbook?: string | null | undefined;
@@ -113,14 +122,14 @@ export function interpretScenarioSurface(input: {
     revision?: number | undefined;
     contentHash?: string | undefined;
   } | undefined;
-  posture?: import('../../domain/types').ExecutionPosture | undefined;
+  posture?: ExecutionPosture | undefined;
   translationOptions?: {
     disableTranslation?: boolean | undefined;
     disableTranslationCache?: boolean | undefined;
   } | undefined;
   steps?: readonly GroundedStep[] | undefined;
   resolutionContext: ScenarioRunPlan['resolutionContext'];
-  recoveryPolicy?: import('../../domain/execution/recovery-policy').RecoveryPolicy | undefined;
+  recoveryPolicy?: RecoveryPolicy | undefined;
 }) {
   const plan: ScenarioRunPlan = {
     kind: 'scenario-run-plan',

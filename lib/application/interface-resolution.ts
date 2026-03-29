@@ -13,6 +13,7 @@ import { createStateNodeRef } from '../domain/identity';
 import type { CanonicalTargetRef, PostureId, ScreenId, SelectorRef, SnapshotTemplateId } from '../domain/identity';
 import { computeDecayedConfidence, type FreshnessPolicy, defaultFreshnessPolicy } from '../domain/knowledge-freshness';
 import type { WorkspaceCatalog } from './catalog';
+import type { DerivedGraph } from '../domain/types/projection';
 
 interface GraphScreenPayload {
   url?: string | null;
@@ -158,7 +159,7 @@ export function buildInterfaceResolutionContext(input: {
   /** Total completed runs so far (used for freshness decay calculation). */
   completedRunCount?: number | undefined;
   /** DerivedGraph for runtime graph queries. */
-  derivedGraph?: import('../domain/types/projection').DerivedGraph | null | undefined;
+  derivedGraph?: DerivedGraph | null | undefined;
 }): InterfaceResolutionContext {
   const policy = input.freshnessPolicy ?? defaultFreshnessPolicy();
   const completedRuns = input.completedRunCount ?? 0;

@@ -7,7 +7,7 @@ import { calibrateWeightsFromCorrelations } from './learning-bottlenecks';
 import { emitAgentWorkbench, processWorkItems, emitInterventionLineage } from './agent-workbench';
 import { createDashboardDecider } from './dashboard-decider';
 import { createDualModeDecider, createAgentDecider } from './agent-decider';
-import type { AgentWorkItem, WorkItemCompletion } from '../domain/types';
+import type { AgentWorkItem, BottleneckWeightCorrelation, WorkItemCompletion } from '../domain/types';
 import { dashboardEvent } from '../domain/types/dashboard';
 import type { DashboardPort } from './ports';
 import { Dashboard } from './ports';
@@ -42,6 +42,8 @@ import type {
 import { DEFAULT_AUTO_APPROVAL_POLICY } from '../domain/trust-policy';
 import { matureComponentKnowledge, type ComponentEvidence } from '../domain/component-maturation';
 import { aggregateQualityMetrics, type AliasOutcome } from '../domain/proposal-quality';
+import type { RungRate } from '../domain/types/fitness';
+import type { ScreenGroupDecider, WorkItemDecider } from './agent-workbench';
 
 export type DogfoodIterationResult = ImprovementLoopIteration;
 export type DogfoodLedger = DogfoodLedgerProjection;
@@ -59,8 +61,8 @@ export interface DogfoodOptions {
    *  The decider is invoked per screen group after each iteration's workbench is emitted.
    *  This enables the agent to act on hotspots/proposals before the next iteration runs. */
   readonly actBetweenIterations?: {
-    readonly decider?: import('./agent-workbench').WorkItemDecider;
-    readonly screenGroupDecider?: import('./agent-workbench').ScreenGroupDecider;
+    readonly decider?: WorkItemDecider;
+    readonly screenGroupDecider?: ScreenGroupDecider;
     readonly maxItemsPerIteration?: number;
     readonly onItemProcessed?: (item: AgentWorkItem, completion: WorkItemCompletion) => void;
   } | undefined;
@@ -150,7 +152,7 @@ export function consecutivePairs<T>(items: readonly T[]): readonly (readonly [T,
 
 export function deriveIterationCorrelations(
   iterations: readonly DogfoodIterationResult[],
-): readonly import('../domain/types').BottleneckWeightCorrelation[] {
+): readonly BottleneckWeightCorrelation[] {
   if (iterations.length < 2) {
     return [];
   }
@@ -372,8 +374,8 @@ function buildProgressEvent(
   convergenceReason: ImprovementLoopConvergenceReason,
   iterationDurationMs: number,
   options: DogfoodOptions,
-  resolutionByRung?: readonly import('../domain/types/fitness').RungRate[],
-  correlations?: readonly import('../domain/types').BottleneckWeightCorrelation[],
+  resolutionByRung?: readonly RungRate[],
+  correlations?: readonly BottleneckWeightCorrelation[],
 ): SpeedrunProgressEvent {
   const prevWeights = state.iterations.length > 1
     ? DEFAULT_PIPELINE_CONFIG.bottleneckWeights

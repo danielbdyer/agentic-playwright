@@ -1,4 +1,5 @@
 import type { AdoId, ElementId, PostureId, ScreenId, SnapshotTemplateId, SurfaceId } from '../identity';
+import type { AdoSnapshot } from './intent';
 
 export type Confidence = 'human' | 'agent-verified' | 'agent-proposed' | 'compiler-derived' | 'intent-only' | 'unbound';
 export type Governance = 'approved' | 'review-required' | 'blocked';
@@ -332,7 +333,7 @@ export interface Manifest {
 
 export interface SyncResult {
   readonly manifest: Manifest;
-  readonly snapshots: readonly import('./intent').AdoSnapshot[];
+  readonly snapshots: readonly AdoSnapshot[];
   readonly diagnostics: readonly CompilerDiagnostic[];
 }
 

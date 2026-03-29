@@ -3,13 +3,14 @@ import { DEFAULT_PIPELINE_CONFIG } from '../../domain/types';
 import { resolutionPrecedenceLaw } from '../../domain/precedence';
 import { selectedControlRefs, selectedControlResolution } from './select-controls';
 import { uniqueSorted } from './shared';
-import type { ResolutionStrategy, StrategyAttemptResult } from './strategy';
+import type { ResolutionStrategy, StrategyAttemptResult, StrategyChainResult } from './strategy';
 import { runStrategyChain } from './strategy';
 import { createStrategyRegistry } from './strategy-registry';
 import { buildPipelineDAG, validateDAG } from '../../application/pipeline-dag';
 import type { RuntimeAgentStageContext, RuntimeStepAgentContext, StageEffects } from './types';
 import { mergeEffectsIntoStage } from './types';
 import { interpretStepIntent } from './interpret-intent';
+import type { ResolutionAccumulator } from './resolution-stages';
 import {
   tryExplicitResolution,
   buildLatticeAccumulator,
@@ -165,7 +166,7 @@ function pureStrategy(
   name: string,
   rungs: ResolutionStrategy['rungs'],
   requiresAccumulator: boolean,
-  fn: (stage: RuntimeAgentStageContext, acc: import('./resolution-stages').ResolutionAccumulator | null) => { receipt: ResolutionReceipt | null; effects: StageEffects } | Promise<{ receipt: ResolutionReceipt | null; effects: StageEffects }>,
+  fn: (stage: RuntimeAgentStageContext, acc: ResolutionAccumulator | null) => { receipt: ResolutionReceipt | null; effects: StageEffects } | Promise<{ receipt: ResolutionReceipt | null; effects: StageEffects }>,
 ): ResolutionStrategy {
   return {
     name,
@@ -184,7 +185,7 @@ const preAccumulatorStrategies: readonly ResolutionStrategy[] = [
     (stage) => tryExplicitResolution(stage)),
 ];
 
-function buildPostAccumulatorStrategies(accRef: { current: import('./resolution-stages').ResolutionAccumulator }): readonly ResolutionStrategy[] {
+function buildPostAccumulatorStrategies(accRef: { current: ResolutionAccumulator }): readonly ResolutionStrategy[] {
   return [
     pureStrategy('approved-knowledge', ['approved-screen-knowledge', 'shared-patterns', 'prior-evidence'], true,
       (stage) => tryApprovedKnowledgeResolution(stage, accRef.current)),
@@ -217,13 +218,13 @@ function buildPostAccumulatorStrategies(accRef: { current: import('./resolution-
 
 export interface PipelinePhase {
   readonly name: string;
-  run(stage: RuntimeAgentStageContext): Promise<import('./strategy').StrategyChainResult>;
+  run(stage: RuntimeAgentStageContext): Promise<StrategyChainResult>;
 }
 
 async function runPipelinePhases(
   phases: readonly PipelinePhase[],
   stage: RuntimeAgentStageContext,
-): Promise<import('./strategy').StrategyChainResult> {
+): Promise<StrategyChainResult> {
   // Validate phase chain as a linear DAG: each phase depends on its predecessor.
   const dagStages = phases.map((phase, index) => ({
     name: phase.name,
@@ -238,7 +239,7 @@ async function runPipelinePhases(
   const step = async (
     remaining: readonly PipelinePhase[],
     priorEvents: readonly ResolutionEvent[],
-  ): Promise<import('./strategy').StrategyChainResult> => {
+  ): Promise<StrategyChainResult> => {
     const [head, ...tail] = remaining;
     if (!head) {
       return { receipt: null, events: [...priorEvents] };
@@ -286,7 +287,7 @@ export async function runResolutionPipeline(
     ...(stage.evidenceRefs.length > 0 ? [{ kind: 'refs-collected' as const, refKind: 'evidence' as const, refs: [...stage.evidenceRefs] }] : []),
   ];
 
-  const accRef = { current: null as import('./resolution-stages').ResolutionAccumulator | null };
+  const accRef = { current: null as ResolutionAccumulator | null };
 
   const phases: readonly PipelinePhase[] = [
     {
@@ -314,7 +315,7 @@ export async function runResolutionPipeline(
     {
       name: 'post-accumulator',
       run: (s) => {
-        const postStrategies = buildPostAccumulatorStrategies(accRef as { current: import('./resolution-stages').ResolutionAccumulator });
+        const postStrategies = buildPostAccumulatorStrategies(accRef as { current: ResolutionAccumulator });
         const registry = createStrategyRegistry([...preAccumulatorStrategies, ...postStrategies]);
         const missingRungs = resolutionPrecedenceLaw.filter((rung) => !registry.lookup(rung));
         if (missingRungs.length > 0) {
