@@ -14,6 +14,7 @@ import type { AdoId } from '../domain/identity';
 import { createAdoId } from '../domain/identity';
 import type { GraphEdge, GraphNode, RerunPlan, RunbookControl, Scenario } from '../domain/types';
 import { compareStrings, uniqueSorted } from '../domain/collections';
+import type { ActionExecutionResult } from './intervention-kernel';
 
 interface SelectionExplanation {
   triggeringChange: string;
@@ -417,11 +418,11 @@ export function executeRerunScopeIntervention(options: {
           proposalId: options.proposalId,
           reason: options.reason,
         }).pipe(
-          Effect.map((result) => ({
+          Effect.map((result): ActionExecutionResult => ({
             summary: `Built rerun plan ${result.plan.planId}`,
             payload: { runOutcomes: [result.plan.planId] },
           })),
-        ),
+        ) as unknown as Effect.Effect<ActionExecutionResult, unknown>,
     },
   });
 }

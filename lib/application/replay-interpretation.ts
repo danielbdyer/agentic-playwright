@@ -58,7 +58,7 @@ function createDriftRecord(input: {
       beforeGraphDigest !== afterGraphDigest
         ? { field: 'resolution-graph' as const, before: beforeGraphDigest, after: afterGraphDigest }
         : null,
-    ] as const).filter((entry): entry is InterpretationDriftChange => entry !== null);
+    ] as Array<InterpretationDriftChange | null>).filter((entry): entry is InterpretationDriftChange => entry !== null);
 
     return {
       stepIndex: step.stepIndex,

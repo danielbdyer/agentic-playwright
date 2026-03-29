@@ -92,5 +92,129 @@ stateNodes:
       - kind: hidden
         targetRef: target:element:policy-detail:errorPanel
     provenance: []
-eventSignatures: []
-transitions: []
+eventSignatures:
+  - ref: event:policy-detail:navigate-to-detail
+    screen: policy-detail
+    targetRef: target:element:policy-detail:policyNumber
+    label: Navigate to policy detail screen
+    aliases:
+      - navigate to policy detail
+      - open policy detail
+      - click policy number link
+      - policy detail screen loads
+    dispatch:
+      action: navigate
+      sampleValue: /policy-detail.html?id=POL-001
+    requiredStateRefs: []
+    forbiddenStateRefs: []
+    effects:
+      transitionRefs:
+        - transition:policy-detail:show-detail
+        - transition:policy-detail:show-claims
+        - transition:policy-detail:hide-error
+      resultStateRefs:
+        - state:policy-detail:detail-loaded
+        - state:policy-detail:claims-visible
+        - state:policy-detail:error-hidden
+      observableEffects:
+        - detail-panel-visible
+        - claims-table-visible
+      assertions:
+        - Policy number and status are displayed
+        - Claims table is visible with claim entries
+    observationPlan:
+      timeoutMs: 2000
+      settleMs: 100
+      observeStateRefs:
+        - state:policy-detail:detail-loaded
+        - state:policy-detail:claims-visible
+        - state:policy-detail:error-hidden
+    provenance: []
+  - ref: event:policy-detail:click-back-to-search
+    screen: policy-detail
+    targetRef: target:element:policy-detail:backToSearch
+    label: Click back to search link
+    aliases:
+      - click back to search
+      - return to search
+      - back to policy search
+    dispatch:
+      action: click
+    requiredStateRefs:
+      - state:policy-detail:detail-loaded
+    forbiddenStateRefs: []
+    effects:
+      transitionRefs:
+        - transition:policy-detail:hide-detail
+      resultStateRefs:
+        - state:policy-detail:detail-hidden
+      observableEffects:
+        - navigation-back
+      assertions:
+        - Navigation returns to policy search screen
+    observationPlan:
+      timeoutMs: 1500
+      settleMs: 50
+      observeStateRefs:
+        - state:policy-detail:detail-hidden
+    provenance: []
+transitions:
+  - ref: transition:policy-detail:show-detail
+    screen: policy-detail
+    label: Policy detail panel becomes visible
+    aliases:
+      - show policy detail
+      - load detail panel
+    eventSignatureRef: event:policy-detail:navigate-to-detail
+    sourceStateRefs:
+      - state:policy-detail:detail-hidden
+    targetStateRefs:
+      - state:policy-detail:detail-loaded
+    effectKind: reveal
+    observableEffects:
+      - detail-panel-visible
+    provenance: []
+  - ref: transition:policy-detail:show-claims
+    screen: policy-detail
+    label: Claims table becomes visible on load
+    aliases:
+      - show claims
+      - load claims table
+    eventSignatureRef: event:policy-detail:navigate-to-detail
+    sourceStateRefs:
+      - state:policy-detail:claims-hidden
+    targetStateRefs:
+      - state:policy-detail:claims-visible
+    effectKind: reveal
+    observableEffects:
+      - claims-table-visible
+    provenance: []
+  - ref: transition:policy-detail:hide-error
+    screen: policy-detail
+    label: Error panel hides on successful load
+    aliases:
+      - hide error on load
+    eventSignatureRef: event:policy-detail:navigate-to-detail
+    sourceStateRefs:
+      - state:policy-detail:error-visible
+    targetStateRefs:
+      - state:policy-detail:error-hidden
+    effectKind: hide
+    observableEffects:
+      - error-hidden
+    provenance: []
+  - ref: transition:policy-detail:hide-detail
+    screen: policy-detail
+    label: Policy detail hides on back navigation
+    aliases:
+      - hide detail panel
+      - navigate away from detail
+    eventSignatureRef: event:policy-detail:click-back-to-search
+    sourceStateRefs:
+      - state:policy-detail:detail-loaded
+    targetStateRefs:
+      - state:policy-detail:detail-hidden
+    effectKind: hide
+    observableEffects:
+      - navigation-back
+    provenance: []

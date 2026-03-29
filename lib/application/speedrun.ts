@@ -34,6 +34,7 @@ import { Dashboard, FileSystem, VersionControl } from './ports';
 import type {
   ExperimentRecord,
   ExperimentSubstrate,
+  ImprovementLoopLedger,
   ImprovementRun,
   KnowledgePosture,
   PipelineConfig,
@@ -45,6 +46,7 @@ import type {
 } from '../domain/types';
 import { DEFAULT_PIPELINE_CONFIG } from '../domain/types';
 import type { RunRecord } from '../domain/types/execution';
+import type { PerturbationConfig } from './synthesis/scenario-generator';
 
 // ─── Public input/result types ───
 
@@ -58,7 +60,7 @@ export interface SpeedrunInput {
   /** Rate [0,1] at which step text is perturbed with synonyms NOT in the knowledge base. */
   readonly perturbationRate?: number | undefined;
   /** Fine-grained perturbation — four independent modes. */
-  readonly perturbation?: import('./synthesis/scenario-generator').PerturbationConfig | undefined;
+  readonly perturbation?: PerturbationConfig | undefined;
   readonly tag?: string | undefined;
   readonly parentExperimentId?: string | null | undefined;
   readonly knowledgePosture?: KnowledgePosture | undefined;
@@ -89,7 +91,7 @@ export interface MultiSeedInput {
   /** Rate [0,1] at which step text is perturbed with synonyms NOT in the knowledge base. */
   readonly perturbationRate?: number | undefined;
   /** Fine-grained perturbation — four independent modes. */
-  readonly perturbation?: import('./synthesis/scenario-generator').PerturbationConfig | undefined;
+  readonly perturbation?: PerturbationConfig | undefined;
   readonly tag?: string | undefined;
   readonly knowledgePosture?: KnowledgePosture | undefined;
   readonly onProgress?: ((event: SpeedrunProgressEvent) => void) | undefined;
@@ -563,9 +565,17 @@ export function fitnessPhase(input: FitnessPhaseInput) {
       Effect.catchAll(() => Effect.succeed('unknown')),
     );
 
+    const fs = yield* FileSystem;
+    const ledgerPath = path.join(input.paths.runsDir, 'improvement-loop-ledger.json');
+    const rawLedger: unknown = yield* fs.readJson(ledgerPath).pipe(
+      Effect.catchAll(() => Effect.succeed(null)),
+    );
+    const emptyLedger: ImprovementLoopLedger<string> = { kind: 'improvement-loop-ledger', version: 1, maxIterations: 0, completedIterations: 0, converged: false, convergenceReason: null, iterations: [], totalProposalsActivated: 0, totalInstructionCount: 0, knowledgeHitRateDelta: 0 };
+    const ledger: ImprovementLoopLedger<string> = rawLedger != null ? rawLedger as ImprovementLoopLedger<string> : emptyLedger;
+
     const fitnessData: FitnessInputData = {
       pipelineVersion,
-      ledger: null as never, // Ledger not available in standalone fitness phase
+      ledger,
       runSteps,
       proposalBundles,
     };
@@ -622,9 +632,17 @@ export function reportPhase(input: ReportPhaseInput) {
       Effect.catchAll(() => Effect.succeed('unknown')),
     );
 
+    const fs = yield* FileSystem;
+    const reportLedgerPath = path.join(input.paths.runsDir, 'improvement-loop-ledger.json');
+    const rawReportLedger: unknown = yield* fs.readJson(reportLedgerPath).pipe(
+      Effect.catchAll(() => Effect.succeed(null)),
+    );
+    const reportEmptyLedger: ImprovementLoopLedger<string> = { kind: 'improvement-loop-ledger', version: 1, maxIterations: 0, completedIterations: 0, converged: false, convergenceReason: null, iterations: [], totalProposalsActivated: 0, totalInstructionCount: 0, knowledgeHitRateDelta: 0 };
+    const reportLedger: ImprovementLoopLedger<string> = rawReportLedger != null ? rawReportLedger as ImprovementLoopLedger<string> : reportEmptyLedger;
+
     const fitnessReport = buildFitnessReport({
       pipelineVersion,
-      ledger: null as never,
+      ledger: reportLedger,
       runSteps,
       proposalBundles,
     });

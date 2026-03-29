@@ -13,7 +13,6 @@ import {
   incomingOpacity,
   iterationLabel,
   allActMetadata,
-  type FlywheelAct,
 } from '../lib/domain/act-indicator';
 
 test.describe('ActIndicator laws', () => {

@@ -16,7 +16,6 @@ import { Effect } from 'effect';
 import type { McpServerPort, McpToolInvocation, McpToolResult } from '../../application/ports';
 import type { McpToolDefinition, WorkItemDecision, ScreenCapturedEvent } from '../../domain/types';
 import { dashboardMcpTools, dashboardEvent } from '../../domain/types/dashboard';
-import type { TesseractError } from '../../domain/errors';
 import { resolveResource, buildResourceUri } from './resource-provider';
 import type { ResourceArtifactReader } from './resource-provider';
 
@@ -174,7 +173,7 @@ const getProposal: ToolHandler = (args, options) => {
   const id = (args.proposalId ?? args.id) as string;
   if (!id) return { error: 'proposalId is required', isError: true };
   const response = resolveResource(buildResourceUri('proposal', id), asReader(options));
-  return response.found ? response.data : { ...response.data, isError: true };
+  return response.found ? response.data : { ...(response.data as Record<string, unknown>), isError: true };
 };
 
 const listProposalsHandler: ToolHandler = (args, options) => {

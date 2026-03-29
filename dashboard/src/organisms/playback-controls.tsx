@@ -119,8 +119,8 @@ export const PlaybackControls = memo(function PlaybackControls({
         speedLabel={speedLabel(speed)}
         onSeek={onSeek}
         onTogglePlay={onTogglePlay}
-        onPreview={onPreview}
-        compact={isCompact}
+        {...(onPreview ? { onPreview } : {})}
+        {...(isCompact ? { compact: true } : {})}
       />
 
       {/* Bottom bar: speed + bookmarks */}

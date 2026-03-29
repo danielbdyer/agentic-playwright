@@ -141,7 +141,7 @@ test.describe('SurfaceOverlay laws', () => {
   test('Law 12: regionsForScreen filters correctly', () => {
     let state = addRegion(INITIAL_OVERLAY_STATE, 'home', 'main', 'M',
       { x: 0, y: 0, width: 100, height: 100 }, 1, 1);
-    state = addRegion(state, 'home', 'nav', 'N',
+    state = addRegion(state, 'home', 'navigation', 'N',
       { x: 0, y: 0, width: 100, height: 50 }, 2, 2);
     state = addRegion(state, 'search', 'form', 'F',
       { x: 0, y: 0, width: 200, height: 100 }, 1, 3);
@@ -160,7 +160,7 @@ test.describe('SurfaceOverlay laws', () => {
   test('Law 14: screenCount tracks unique screens', () => {
     let state = addRegion(INITIAL_OVERLAY_STATE, 'home', 'main', 'M',
       { x: 0, y: 0, width: 100, height: 100 }, 1, 1);
-    state = addRegion(state, 'home', 'nav', 'N',
+    state = addRegion(state, 'home', 'navigation', 'N',
       { x: 0, y: 0, width: 100, height: 50 }, 2, 2);
     state = addRegion(state, 'search', 'form', 'F',
       { x: 0, y: 0, width: 200, height: 100 }, 1, 3);
