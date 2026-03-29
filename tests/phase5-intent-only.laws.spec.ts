@@ -2,12 +2,13 @@ import { expect, test } from '@playwright/test';
 import { bindScenarioStep } from '../lib/domain/binding';
 import { parseSnapshotToScenario } from '../lib/application/parse';
 import type { AdoSnapshot, ExecutionProfile } from '../lib/domain/types';
+import type { AdoId } from '../lib/domain/identity';
 
 // ─── WP1 Law Tests: Intent-Only Steps + Dogfood Profile ───
 
 function createMinimalSnapshot(overrides: Partial<AdoSnapshot> = {}): AdoSnapshot {
   return {
-    id: '99999' as import('../lib/domain/identity').AdoId,
+    id: '99999' as AdoId,
     revision: 1,
     title: 'Novel ADO test case',
     suitePath: 'demo',
