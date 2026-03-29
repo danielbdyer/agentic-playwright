@@ -23,7 +23,7 @@ export type ConvergenceReason = 'no-proposals' | 'threshold-met' | 'budget-exhau
 // ─── Events ───
 
 export type ConvergenceEvent =
-  | { readonly kind: 'iteration-complete'; readonly proposalsActivated: number; readonly hitRateDelta: number; readonly convergenceThreshold?: number }
+  | { readonly kind: 'iteration-complete'; readonly proposalsGenerated: number; readonly proposalsActivated: number; readonly hitRateDelta: number; readonly convergenceThreshold?: number }
   | { readonly kind: 'budget-check'; readonly instructionsUsed: number; readonly maxInstructions: number }
   | { readonly kind: 'iteration-limit'; readonly current: number; readonly max: number };
 
@@ -61,9 +61,12 @@ export function transitionConvergence(
 
   // Non-terminal transitions for iteration-complete events
   if (event.kind === 'iteration-complete') {
-    // No proposals activated after exploration → converged.
+    // No proposals generated after exploration → converged.
     // In exploring state (first iteration), no-proposals just means nothing to learn yet.
-    if (event.proposalsActivated === 0 && state.kind !== 'exploring') {
+    // We check proposalsGenerated (not proposalsActivated) because proposals from a
+    // prior iteration may already be activated — the run still produced proposals,
+    // meaning there are still knowledge gaps to close in future iterations.
+    if (event.proposalsGenerated === 0 && state.kind !== 'exploring') {
       return { kind: 'converged', reason: 'no-proposals' };
     }
 

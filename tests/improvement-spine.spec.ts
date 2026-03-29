@@ -22,6 +22,7 @@ function sampleLedger(): DogfoodLedgerProjection {
       {
         iteration: 1,
         scenarioIds: ['10001'],
+        proposalsGenerated: 1,
         proposalsActivated: 1,
         proposalsBlocked: 0,
         knowledgeHitRate: 0.5,
@@ -32,6 +33,7 @@ function sampleLedger(): DogfoodLedgerProjection {
       {
         iteration: 2,
         scenarioIds: ['10001'],
+        proposalsGenerated: 1,
         proposalsActivated: 1,
         proposalsBlocked: 0,
         knowledgeHitRate: 0.75,

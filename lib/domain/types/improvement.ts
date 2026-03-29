@@ -67,6 +67,7 @@ export interface ExperimentScorecardComparison {
 export interface ImprovementLoopIteration {
   readonly iteration: number;
   readonly scenarioIds: readonly string[];
+  readonly proposalsGenerated: number;
   readonly proposalsActivated: number;
   readonly proposalsBlocked: number;
   readonly knowledgeHitRate: number;

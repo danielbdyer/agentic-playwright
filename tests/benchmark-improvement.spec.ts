@@ -90,6 +90,7 @@ test('benchmark scorecard projects related recursive-improvement lineage into co
           {
             iteration: 1,
             scenarioIds: [adoId],
+            proposalsGenerated: 1,
             proposalsActivated: 1,
             proposalsBlocked: 0,
             knowledgeHitRate: 0.5,
@@ -100,6 +101,7 @@ test('benchmark scorecard projects related recursive-improvement lineage into co
           {
             iteration: 2,
             scenarioIds: [adoId],
+            proposalsGenerated: 1,
             proposalsActivated: 1,
             proposalsBlocked: 0,
             knowledgeHitRate: 0.75,

@@ -19,6 +19,7 @@ function createMockIteration(overrides: Partial<DogfoodIterationResult> = {}): D
   return {
     iteration: 1,
     scenarioIds: ['20001'],
+    proposalsGenerated: 2,
     proposalsActivated: 2,
     proposalsBlocked: 0,
     knowledgeHitRate: 0.75,

@@ -117,6 +117,7 @@ export function sampleImprovementRunForScenario(
         {
           iteration: 1,
           scenarioIds: [adoId],
+          proposalsGenerated: 1,
           proposalsActivated: 1,
           proposalsBlocked: 0,
           knowledgeHitRate: 0.5,
@@ -127,6 +128,7 @@ export function sampleImprovementRunForScenario(
         {
           iteration: 2,
           scenarioIds: [adoId],
+          proposalsGenerated: 1,
           proposalsActivated: 1,
           proposalsBlocked: 0,
           knowledgeHitRate: 0.75,

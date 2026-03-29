@@ -123,7 +123,7 @@ export function proposalsForNeedsHuman(
   if (screen && !element && screen.elements.length > 0) {
     // Screen matched but element didn't — propose alias on the first element as a candidate.
     // The activation pipeline can apply this; the operator reviews which element is correct.
-    const candidateElement = screen.elements[0];
+    const candidateElement = screen.elements[0]!;
     proposals.push({
       artifactType: 'hints',
       targetPath: knowledgePaths.hints(screen.screen),
@@ -138,9 +138,9 @@ export function proposalsForNeedsHuman(
   } else if (!screen && resolutionContext.screens.length > 0) {
     // No screen matched — propose element alias on the first screen's first element.
     // This creates an activatable proposal that the operator can review.
-    const candidateScreen = resolutionContext.screens[0];
+    const candidateScreen = resolutionContext.screens[0]!;
     if (candidateScreen.elements.length > 0) {
-      const candidateElement = candidateScreen.elements[0];
+      const candidateElement = candidateScreen.elements[0]!;
       proposals.push({
         artifactType: 'hints',
         targetPath: knowledgePaths.hints(candidateScreen.screen),

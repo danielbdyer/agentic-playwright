@@ -4,7 +4,7 @@
  * fill inputs, click buttons, and observe DOM structure.
  */
 import { expect, test } from '@playwright/test';
-import { createElementId, createScreenId, createSurfaceId, createWidgetId } from '../lib/domain/identity';
+import { createElementId, createScreenId, createSectionId, createSurfaceId, createWidgetId } from '../lib/domain/identity';
 import type { LoadedScreen, ScreenRegistry } from '../lib/domain/runtime-loaders';
 import type { StepProgram, ValueRef } from '../lib/domain/types';
 import { playwrightStepProgramInterpreter } from '../lib/runtime/program';
@@ -18,33 +18,33 @@ function buildPolicySearchScreen(): LoadedScreen {
         'search-form': {
           selector: '#search-form',
           kind: 'form',
-          surfaces: ['search-form'],
+          surfaces: [createSurfaceId('search-form')],
         },
         'results-section': {
           selector: '#results-wrapper',
           kind: 'result-set',
-          surfaces: ['results-section'],
+          surfaces: [createSurfaceId('results-section')],
         },
       },
     },
     surfaces: {
       'search-form': {
         kind: 'form',
-        section: 'search-form',
+        section: createSectionId('search-form'),
         selector: '#search-form',
         parents: [],
         children: [],
-        elements: ['policyNumberInput', 'searchButton', 'validationSummary'],
+        elements: [createElementId('policyNumberInput'), createElementId('searchButton'), createElementId('validationSummary')],
         assertions: ['state'],
         required: true,
       },
       'results-section': {
         kind: 'result-set',
-        section: 'results-section',
+        section: createSectionId('results-section'),
         selector: '#results-wrapper',
         parents: [],
         children: [],
-        elements: ['resultsTable'],
+        elements: [createElementId('resultsTable')],
         assertions: ['structure', 'state'],
         required: false,
       },
@@ -136,8 +136,8 @@ test.describe('Playwright interpreter against demo harness', () => {
     expect(result.ok).toBe(true);
     expect(result.value.mode).toBe('playwright');
     expect(result.value.outcomes).toHaveLength(1);
-    expect(result.value.outcomes[0].status).toBe('ok');
-    expect(result.value.outcomes[0].observedEffects).toContain('effect-applied');
+    expect(result.value.outcomes[0]!.status).toBe('ok');
+    expect(result.value.outcomes[0]!.observedEffects).toContain('effect-applied');
     await expect(page).toHaveTitle('Policy Search');
   });
 
@@ -165,7 +165,7 @@ test.describe('Playwright interpreter against demo harness', () => {
     });
 
     expect(enterResult.ok).toBe(true);
-    expect(enterResult.value.outcomes[0].status).toBe('ok');
+    expect(enterResult.value.outcomes[0]!.status).toBe('ok');
 
     // Verify the input was filled
     const inputValue = await page.locator('[data-testid="policy-number-input"]').inputValue();
@@ -192,7 +192,7 @@ test.describe('Playwright interpreter against demo harness', () => {
     });
 
     expect(clickResult.ok).toBe(true);
-    expect(clickResult.value.outcomes[0].status).toBe('ok');
+    expect(clickResult.value.outcomes[0]!.status).toBe('ok');
 
     // Results table should be visible
     await expect(page.locator('[data-testid="search-results-table"]')).toBeVisible();
@@ -273,7 +273,7 @@ test.describe('Playwright interpreter against demo harness', () => {
     expect(resultText).toBe('POL-001');
 
     // Verify invoke (click) receipt has locator strategy and widget contract
-    const clickOutcome = clickResult.value.outcomes[0];
+    const clickOutcome = clickResult.value.outcomes[0]!;
     expect(clickOutcome.locatorStrategy).toBeDefined();
     expect(clickOutcome.locatorRung).toBeDefined();
     expect(clickOutcome.widgetContract).toBeDefined();

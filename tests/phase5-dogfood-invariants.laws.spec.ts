@@ -33,6 +33,7 @@ function createMockIterationResult(overrides: Partial<ImprovementLoopIteration> 
   return {
     iteration: 1,
     scenarioIds: ['WI:1001'],
+    proposalsGenerated: 2,
     proposalsActivated: 2,
     proposalsBlocked: 0,
     knowledgeHitRate: 0.75,
