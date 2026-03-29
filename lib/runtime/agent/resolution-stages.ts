@@ -11,7 +11,7 @@ import { DEFAULT_PIPELINE_CONFIG } from '../../domain/types';
 import { mintApproved, mintReviewRequired } from '../../domain/types/workflow';
 import { requiresElement, allowedActionFallback } from './resolve-action';
 import { resolveFromDom } from './dom-fallback';
-import { proposalForSupplementGap, proposalsFromInterpretation } from './proposals';
+import { proposalForSupplementGap, proposalsFromInterpretation, proposalsForNeedsHuman } from './proposals';
 import { agentInterpretedReceipt, explicitResolvedReceipt, needsHumanReceipt } from './receipt';
 import type { AgentInterpretationRequest } from '../../application/agent-interpreter-provider';
 import { resolveOverride } from './resolve-target';
@@ -618,6 +618,7 @@ export async function tryLiveDomOrFallback(stage: RuntimeAgentStageContext, acc:
   }
 
   // ─── Rung 10: Needs Human ───
+  const needsHumanProposals = proposalsForNeedsHuman(stage.task, acc.screen, acc.element, stage.context.resolutionContext);
   const fallbackEffects: StageEffects = {
     ...EMPTY_EFFECTS,
     exhaustion: [
@@ -632,6 +633,7 @@ export async function tryLiveDomOrFallback(stage: RuntimeAgentStageContext, acc:
   return {
     receipt: {
       ...needsHumanReceipt(stage, [...acc.overlayResult.overlayRefs, ...acc.translated.overlayRefs], acc.translated.translation, fallbackEffects),
+      kind: 'needs-human' as const,
       governance: mintReviewRequired(),
       reason: domResolved.candidates.length > 0
         ? 'Live DOM exploration produced an ambiguous shortlist that requires human selection.'
@@ -655,6 +657,7 @@ export async function tryLiveDomOrFallback(stage: RuntimeAgentStageContext, acc:
         risk: 'low',
         scope: 'hints',
       })),
+      proposalDrafts: needsHumanProposals,
     } as ResolutionReceipt,
     effects: fallbackEffects,
   };

@@ -1,6 +1,7 @@
 import { deriveCapabilities, findCapability } from './grammar';
 import { normalizeIntentText } from './inference';
-import type { SnapshotTemplateId } from './identity';
+import type { ScreenId, SnapshotTemplateId } from './identity';
+import { knowledgePaths } from './ids';
 import { capabilityForInstruction, compileStepProgram, type StepProgram } from './program';
 import type { PostureContractIssueCode } from './posture-contract';
 import { validatePostureContract } from './posture-contract';
@@ -73,6 +74,19 @@ function normalizedIntentForStep(step: ScenarioStep): string {
   return uniqueSorted([normalizeIntentText(step.action_text), normalizeIntentText(step.expected_text)]).join(' => ');
 }
 
+function knowledgeRefsForScreen(screen: ScreenId | null | undefined, context: StepBindingContext): readonly string[] {
+  if (!screen) return [];
+  const refs: string[] = [];
+  if (context.surfaceGraph) refs.push(knowledgePaths.surface(screen));
+  if (context.screenElements) refs.push(knowledgePaths.elements(screen));
+  return uniqueSorted(refs);
+}
+
+function supplementRefsForScreen(screen: ScreenId | null | undefined): readonly string[] {
+  if (!screen) return [];
+  return uniqueSorted([knowledgePaths.hints(screen)]);
+}
+
 function governanceForBinding(kind: BoundStep['binding']['kind'], step: ScenarioStep): Governance {
   if (kind === 'unbound') {
     return 'blocked';
@@ -98,8 +112,8 @@ export function bindScenarioStep(
         reasons: [],
         ruleId: null,
         normalizedIntent: normalizedIntentForStep(step),
-        knowledgeRefs: [],
-        supplementRefs: [],
+        knowledgeRefs: knowledgeRefsForScreen(referencedScreen, context),
+        supplementRefs: supplementRefsForScreen(referencedScreen),
         evidenceIds: [],
         governance: governanceForBinding('deferred', step),
         reviewReasons: [],
@@ -175,8 +189,8 @@ export function bindScenarioStep(
       reasons: uniqueReasons,
       ruleId: null,
       normalizedIntent: normalizedIntentForStep(step),
-      knowledgeRefs: [],
-      supplementRefs: [],
+      knowledgeRefs: knowledgeRefsForScreen(referencedScreen, context),
+      supplementRefs: supplementRefsForScreen(referencedScreen),
       evidenceIds: [],
       governance: governanceForBinding(bindingKind, step),
       reviewReasons,
