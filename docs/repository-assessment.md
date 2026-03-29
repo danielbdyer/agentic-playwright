@@ -89,7 +89,7 @@ The clarity breaks down at the application/runtime boundary. The application lay
 
 The documentation quantity (41 docs, 15K+ lines) creates a paradox: the system is thoroughly documented, but the sheer volume means newcomers must navigate significant material before they can contribute. Several docs reference each other in a web that requires multiple passes to absorb. The `docs/agent-context.md` is auto-generated to address this, but it compresses nuance into a brief that may oversimplify.
 
-AGENTS.md, CLAUDE.md, and CODEX.md appear to contain identical or near-identical content — the relationship between these files is unclear and adds to the cognitive load.
+AGENTS.md, CLAUDE.md, and CODEX.md are byte-for-byte identical (md5 `ff6df6c5...`). This is an intentional convention: CLAUDE.md and CODEX.md exist so each coding agent platform auto-loads the same instructions. This is pragmatic but could be clarified with a one-line header in each file explaining the relationship.
 
 **Clarity score: 8/10** — The conceptual model is genuinely clear and well-expressed. The domain layer is exemplary. The application/runtime boundary and documentation volume introduce friction.
 
