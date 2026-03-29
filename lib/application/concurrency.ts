@@ -13,11 +13,12 @@ import os from 'os';
 export function resolveEffectConcurrency(options?: {
   readonly ceiling?: number | undefined;
   readonly explicit?: number | undefined;
+  readonly envConcurrency?: number | undefined;
 }): number {
   if (options?.explicit !== undefined && options.explicit > 0) {
     return options.explicit;
   }
-  const envOverride = parseInt(process.env.TESSERACT_CONCURRENCY ?? '', 10);
+  const envOverride = options?.envConcurrency ?? NaN;
   if (Number.isFinite(envOverride) && envOverride > 0) {
     return envOverride;
   }

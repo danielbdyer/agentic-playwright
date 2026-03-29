@@ -674,11 +674,11 @@ export function resolveAgentInterpreterProvider(
   config?: AgentInterpreterConfig | undefined,
   deps?: AgentLlmApiDependencies | undefined,
   abTestConfig?: ABTestConfig | undefined,
+  providerOverride?: AgentInterpreterKind | undefined,
 ): AgentInterpreterProvider {
   const effectiveConfig = config ?? DEFAULT_AGENT_INTERPRETER_CONFIG;
 
-  const envOverride = process.env.TESSERACT_AGENT_PROVIDER as AgentInterpreterKind | undefined;
-  const providerKind = envOverride ?? effectiveConfig.provider;
+  const providerKind = providerOverride ?? effectiveConfig.provider;
   const fallbackKind = effectiveConfig.fallback;
 
   const rawPrimary = createAgentProviderByKind(providerKind, effectiveConfig, deps);
