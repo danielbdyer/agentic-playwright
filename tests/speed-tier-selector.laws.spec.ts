@@ -37,9 +37,8 @@ test.describe('SpeedTierSelector laws', () => {
   });
 
   test('Law 7: SPEED_TIERS is sorted by speed ascending', () => {
-    for (let i = 1; i < SPEED_TIERS.length; i++) {
-      expect(SPEED_TIERS[i]!.speed).toBeGreaterThan(SPEED_TIERS[i - 1]!.speed);
-    }
+    const isSorted = SPEED_TIERS.slice(1).every((tier, i) => tier.speed > SPEED_TIERS[i]!.speed);
+    expect(isSorted).toBe(true);
   });
 
   test('Law 8: each tier has a label', () => {
