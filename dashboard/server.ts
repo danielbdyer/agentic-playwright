@@ -31,6 +31,10 @@ import {
   subscribeWsBroadcaster,
   type PipelineEventBus,
 } from '../lib/infrastructure/dashboard/pipeline-event-bus';
+import {
+  subscribeJournalWriter,
+  journalWriterConfig,
+} from '../lib/infrastructure/dashboard/journal-writer';
 import { createProjectPaths, type ProjectPaths } from '../lib/application/paths';
 import { runWithLocalServices, type LocalServiceOptions } from '../lib/composition/local-services';
 import { speedrunProgram } from '../lib/application/speedrun';
@@ -47,6 +51,8 @@ const PORT = parseInt(argAfter('--port') ?? '3100', 10);
 const ROOT = path.resolve(__dirname, '..');
 const DASHBOARD_DIR = __dirname;
 const SPEEDRUN = process.argv.includes('--speedrun');
+const JOURNAL = process.argv.includes('--journal') || SPEEDRUN;
+const JOURNAL_RUN_ID = argAfter('--run-id') ?? `run-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}`;
 
 // ─── MIME + File Helpers ───
 
@@ -320,6 +326,19 @@ const main = Effect.gen(function* () {
   // 3. Start WS broadcast subscriber fiber
   const wsFiber = yield* subscribeWsBroadcaster(bus.pubsub, broadcast);
 
+  // 3b. Start journal writer fiber (records events for time-lapse replay)
+  if (JOURNAL) {
+    const journalDir = path.join(ROOT, '.tesseract', 'runs', JOURNAL_RUN_ID);
+    const journalPath = path.join(journalDir, 'dashboard-events.jsonl');
+    const config = journalWriterConfig({
+      journalPath,
+      flushIntervalMs: 1000,
+      maxFileSizeBytes: 50_000_000, // 50 MB
+    });
+    const journalFiber = yield* subscribeJournalWriter(bus.pubsub, config);
+    console.log(`  Journal:    ${journalPath}`);
+  }
+
   // 4. Start HTTP server
   const server = http.createServer(handleRequest);
   server.on('upgrade', (req, socket) => { if (req.url === '/ws') acceptWebSocket(req, socket as import('net').Socket); else (socket as import('net').Socket).destroy(); });
@@ -330,6 +349,7 @@ const main = Effect.gen(function* () {
       console.log(`  Event bus:  Effect.PubSub → SharedArrayBuffer (${2048} slots)`);
       console.log(`  WebSocket:  ws://localhost:${PORT}/ws`);
       console.log(`  MCP Tools:  http://localhost:${PORT}/api/mcp/tools`);
+      if (JOURNAL) console.log(`  Journal:    .tesseract/runs/${JOURNAL_RUN_ID}/dashboard-events.jsonl`);
       if (SPEEDRUN) console.log(`  Speedrun:   active`);
       console.log('');
       resume(Effect.void);
