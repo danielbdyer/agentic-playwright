@@ -6,9 +6,11 @@ import { commandRegistry } from './commands/index';
 import {
   type CommandExecution,
   type CommandName,
+  type FlagName,
   type ParsedFlags,
   commandNames,
-  flagReaders,
+  flagDecoders,
+  flagDescriptorTable,
 } from './shared';
 import { withExecutionContext } from '../context/execution-context';
 
@@ -20,7 +22,7 @@ function parseTokensRec(
   tokens: ReadonlyArray<string>,
   index: number,
   flags: ParsedFlags,
-  spec: { readonly flags: ReadonlyArray<string> },
+  spec: { readonly flags: ReadonlyArray<FlagName> },
   command: string,
 ): ParsedFlags {
   if (index >= tokens.length) {
@@ -32,17 +34,17 @@ function parseTokensRec(
     return parseTokensRec(tokens, index + 1, flags, spec, command);
   }
 
-  if (!spec.flags.includes(token)) {
+  if (!spec.flags.includes(token as FlagName)) {
     throw new TesseractError('invalid-argument', `Unknown flag for ${command}: ${token}`);
   }
 
-  const reader = flagReaders[token];
-  if (!reader) {
+  if (!(token in flagDescriptorTable)) {
     throw new TesseractError('invalid-argument', `Unsupported flag reader for ${token}`);
   }
 
-  const nextIndex = reader(tokens as string[], index, flags);
-  return parseTokensRec(tokens, nextIndex + 1, flags, spec, command);
+  const decoder = flagDecoders[token as FlagName];
+  const parsed = decoder(tokens, index, flags);
+  return parseTokensRec(tokens, parsed.nextIndex + 1, parsed.flags, spec, command);
 }
 
 function isCommandName(value: string): value is CommandName {

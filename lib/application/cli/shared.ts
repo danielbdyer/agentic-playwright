@@ -59,10 +59,68 @@ export interface ParsedFlags {
   top?: number;
   perturb?: number;
   autoEvolve?: boolean;
+  posture?: string;
 }
 
-export interface ParseContext {
-  readonly flags: ParsedFlags;
+export type FlagName = keyof typeof flagDescriptorTable;
+type FlagToParsedKey = {
+  '--all': 'all';
+  '--strict': 'strict';
+  '--headed': 'headed';
+  '--no-write': 'noWrite';
+  '--baseline': 'baseline' | 'noWrite' | 'interpreterMode';
+  '--ado-id': 'adoId';
+  '--ado-source': 'adoSource';
+  '--ado-org-url': 'adoOrgUrl';
+  '--ado-project': 'adoProject';
+  '--ado-pat': 'adoPat';
+  '--ado-suite-path': 'adoSuitePath';
+  '--ado-area-path': 'adoAreaPath';
+  '--ado-iteration-path': 'adoIterationPath';
+  '--ado-tag-filter': 'adoTagFilter';
+  '--screen': 'screen';
+  '--runbook': 'runbook';
+  '--provider': 'provider';
+  '--max-iterations': 'maxIterations';
+  '--convergence-threshold': 'convergenceThreshold';
+  '--max-cost': 'maxCost';
+  '--tag': 'tag';
+  '--proposal-id': 'proposalId';
+  '--complete': 'complete';
+  '--skip': 'skip';
+  '--reason': 'reason';
+  '--skip-below': 'skipBelow';
+  '--list': 'list';
+  '--next': 'next';
+  '--count': 'count';
+  '--seed': 'seed';
+  '--seeds': 'seeds';
+  '--substrate': 'substrate';
+  '--max-epochs': 'maxEpochs';
+  '--accepted': 'accepted';
+  '--top': 'top';
+  '--perturb': 'perturb';
+  '--auto-evolve': 'autoEvolve';
+  '--benchmark': 'benchmark';
+  '--kind': 'kind';
+  '--status': 'status';
+  '--url': 'url';
+  '--root-selector': 'rootSelector';
+  '--routes': 'routes';
+  '--section': 'section';
+  '--interpreter-mode': 'interpreterMode';
+  '--ci-batch': 'executionProfile';
+  '--execution-profile': 'executionProfile';
+  '--node': 'nodeId';
+  '--disable-translation': 'disableTranslation';
+  '--disable-translation-cache': 'disableTranslationCache';
+  '--posture': 'posture';
+};
+type ParsedFlagKeys<TFlags extends readonly FlagName[]> = FlagToParsedKey[TFlags[number]];
+export type ParsedFlagsFor<TFlags extends readonly FlagName[]> = Partial<Pick<ParsedFlags, ParsedFlagKeys<TFlags>>>;
+
+export interface ParseContext<TFlags extends ParsedFlags = ParsedFlags> {
+  readonly flags: TFlags;
 }
 
 export interface CommandExecution {
@@ -80,9 +138,16 @@ export interface CommandExecution {
   execute(paths: ProjectPaths, posture: ExecutionPosture): Effect.Effect<unknown, unknown, unknown>;
 }
 
-export interface CommandSpec {
-  readonly flags: readonly string[];
-  readonly parse: (context: ParseContext) => CommandExecution;
+export interface CommandSpec<TFlags extends ParsedFlags = ParsedFlags> {
+  readonly flags: readonly FlagName[];
+  readonly parse: (context: ParseContext<TFlags>) => CommandExecution;
+}
+
+export function createCommandSpec<const TFlags extends readonly FlagName[]>(spec: {
+  readonly flags: TFlags;
+  readonly parse: (context: ParseContext<ParsedFlagsFor<TFlags>>) => CommandExecution;
+}): CommandSpec<ParsedFlagsFor<TFlags>> {
+  return spec;
 }
 
 export type CommandName =
@@ -223,207 +288,123 @@ export function requireNode(value: string | undefined): string {
   return value;
 }
 
-export const flagReaders: Record<string, (argv: string[], index: number, flags: ParsedFlags) => number> = {
-  '--all': (_argv, index, flags) => {
-    flags.all = true;
-    return index;
-  },
-  '--strict': (_argv, index, flags) => {
-    flags.strict = true;
-    return index;
-  },
-  '--headed': (_argv, index, flags) => {
-    flags.headed = true;
-    return index;
-  },
-  '--no-write': (_argv, index, flags) => {
-    flags.noWrite = true;
-    return index;
-  },
-  '--baseline': (_argv, index, flags) => {
-    flags.baseline = true;
-    flags.noWrite = true;
-    flags.interpreterMode = 'dry-run';
-    return index;
-  },
-  '--ado-id': (argv, index, flags) => {
-    flags.adoId = readFlagValue('--ado-id', argv[index + 1]);
-    return index + 1;
-  },
-  '--ado-source': (argv, index, flags) => {
-    flags.adoSource = parseEnum('--ado-source', argv[index + 1], ['fixture', 'live'] as const);
-    return index + 1;
-  },
-  '--ado-org-url': (argv, index, flags) => {
-    flags.adoOrgUrl = readFlagValue('--ado-org-url', argv[index + 1]);
-    return index + 1;
-  },
-  '--ado-project': (argv, index, flags) => {
-    flags.adoProject = readFlagValue('--ado-project', argv[index + 1]);
-    return index + 1;
-  },
-  '--ado-pat': (argv, index, flags) => {
-    flags.adoPat = readFlagValue('--ado-pat', argv[index + 1]);
-    return index + 1;
-  },
-  '--ado-suite-path': (argv, index, flags) => {
-    flags.adoSuitePath = readFlagValue('--ado-suite-path', argv[index + 1]);
-    return index + 1;
-  },
-  '--ado-area-path': (argv, index, flags) => {
-    flags.adoAreaPath = readFlagValue('--ado-area-path', argv[index + 1]);
-    return index + 1;
-  },
-  '--ado-iteration-path': (argv, index, flags) => {
-    flags.adoIterationPath = readFlagValue('--ado-iteration-path', argv[index + 1]);
-    return index + 1;
-  },
-  '--ado-tag-filter': (argv, index, flags) => {
-    flags.adoTagFilter = readFlagValue('--ado-tag-filter', argv[index + 1]);
-    return index + 1;
-  },
-  '--screen': (argv, index, flags) => {
-    flags.screen = readFlagValue('--screen', argv[index + 1]);
-    return index + 1;
-  },
-  '--runbook': (argv, index, flags) => {
-    flags.runbook = readFlagValue('--runbook', argv[index + 1]);
-    return index + 1;
-  },
-  '--provider': (argv, index, flags) => {
-    flags.provider = readFlagValue('--provider', argv[index + 1]);
-    return index + 1;
-  },
-  '--max-iterations': (argv, index, flags) => {
-    flags.maxIterations = Number(readFlagValue('--max-iterations', argv[index + 1]));
-    return index + 1;
-  },
-  '--convergence-threshold': (argv, index, flags) => {
-    flags.convergenceThreshold = Number(readFlagValue('--convergence-threshold', argv[index + 1]));
-    return index + 1;
-  },
-  '--max-cost': (argv, index, flags) => {
-    flags.maxCost = Number(readFlagValue('--max-cost', argv[index + 1]));
-    return index + 1;
-  },
-  '--tag': (argv, index, flags) => {
-    flags.tag = readFlagValue('--tag', argv[index + 1]);
-    return index + 1;
-  },
-  '--proposal-id': (argv, index, flags) => {
-    flags.proposalId = readFlagValue('--proposal-id', argv[index + 1]);
-    return index + 1;
-  },
-  '--complete': (argv, index, flags) => {
-    flags.complete = readFlagValue('--complete', argv[index + 1]);
-    return index + 1;
-  },
-  '--skip': (argv, index, flags) => {
-    flags.skip = readFlagValue('--skip', argv[index + 1]);
-    return index + 1;
-  },
-  '--reason': (argv, index, flags) => {
-    flags.reason = readFlagValue('--reason', argv[index + 1]);
-    return index + 1;
-  },
-  '--skip-below': (argv, index, flags) => {
-    flags.skipBelow = Number(readFlagValue('--skip-below', argv[index + 1]));
-    return index + 1;
-  },
-  '--list': (_argv, index, flags) => {
-    flags.list = true;
-    return index;
-  },
-  '--next': (_argv, index, flags) => {
-    flags.next = true;
-    return index;
-  },
-  '--count': (argv, index, flags) => {
-    flags.count = Number(readFlagValue('--count', argv[index + 1]));
-    return index + 1;
-  },
-  '--seed': (argv, index, flags) => {
-    flags.seed = readFlagValue('--seed', argv[index + 1]);
-    return index + 1;
-  },
-  '--seeds': (argv, index, flags) => {
-    flags.seeds = readFlagValue('--seeds', argv[index + 1]);
-    return index + 1;
-  },
-  '--substrate': (argv, index, flags) => {
-    flags.substrate = readFlagValue('--substrate', argv[index + 1]);
-    return index + 1;
-  },
-  '--max-epochs': (argv, index, flags) => {
-    flags.maxEpochs = Number(readFlagValue('--max-epochs', argv[index + 1]));
-    return index + 1;
-  },
-  '--accepted': (_argv, index, flags) => {
-    flags.accepted = true;
-    return index;
-  },
-  '--top': (argv, index, flags) => {
-    flags.top = Number(readFlagValue('--top', argv[index + 1]));
-    return index + 1;
-  },
-  '--perturb': (argv, index, flags) => {
-    flags.perturb = Number(readFlagValue('--perturb', argv[index + 1]));
-    return index + 1;
-  },
-  '--auto-evolve': (_argv, index, flags) => {
-    flags.autoEvolve = true;
-    return index;
-  },
-  '--benchmark': (argv, index, flags) => {
-    flags.benchmark = readFlagValue('--benchmark', argv[index + 1]);
-    return index + 1;
-  },
-  '--kind': (argv, index, flags) => {
-    flags.kind = readFlagValue('--kind', argv[index + 1]);
-    return index + 1;
-  },
-  '--status': (argv, index, flags) => {
-    flags.status = readFlagValue('--status', argv[index + 1]);
-    return index + 1;
-  },
-  '--url': (argv, index, flags) => {
-    flags.url = readFlagValue('--url', argv[index + 1]);
-    return index + 1;
-  },
-  '--root-selector': (argv, index, flags) => {
-    flags.rootSelector = readFlagValue('--root-selector', argv[index + 1]);
-    return index + 1;
-  },
-  '--routes': (argv, index, flags) => {
-    flags.routes = readFlagValue('--routes', argv[index + 1]);
-    return index + 1;
-  },
-  '--section': (argv, index, flags) => {
-    flags.section = readFlagValue('--section', argv[index + 1]);
-    return index + 1;
-  },
-  '--interpreter-mode': (argv, index, flags) => {
-    flags.interpreterMode = parseEnum('--interpreter-mode', argv[index + 1], interpreterModes);
-    return index + 1;
-  },
-  '--ci-batch': (_argv, index, flags) => {
-    flags.executionProfile = 'ci-batch';
-    return index;
-  },
-  '--execution-profile': (argv, index, flags) => {
-    flags.executionProfile = parseEnum('--execution-profile', argv[index + 1], executionProfiles);
-    return index + 1;
-  },
-  '--node': (argv, index, flags) => {
-    flags.nodeId = readFlagValue('--node', argv[index + 1]);
-    return index + 1;
-  },
-  '--disable-translation': (_argv, index, flags) => {
-    flags.disableTranslation = true;
-    return index;
-  },
-  '--disable-translation-cache': (_argv, index, flags) => {
-    flags.disableTranslationCache = true;
-    return index;
-  },
+type FlagArity = 0 | 1;
+type FlagDecoder<TValue> = (value: string | undefined) => TValue;
+type FlagDescriptor<TKey extends keyof ParsedFlags> = {
+  readonly name: `--${string}`;
+  readonly arity: FlagArity;
+  readonly decoder: FlagDecoder<ParsedFlags[TKey]>;
+  readonly merge: (flags: ParsedFlags, decoded: ParsedFlags[TKey]) => ParsedFlags;
 };
+
+const mergeFlag = <TKey extends keyof ParsedFlags>(key: TKey) =>
+  (flags: ParsedFlags, decoded: ParsedFlags[TKey]): ParsedFlags => ({ ...flags, [key]: decoded });
+
+const booleanDescriptor = <TKey extends keyof ParsedFlags>(
+  name: `--${string}`,
+  key: TKey,
+  options?: { readonly merge?: (flags: ParsedFlags, decoded: true) => ParsedFlags },
+): FlagDescriptor<TKey> => ({
+  name,
+  arity: 0,
+  decoder: () => true as ParsedFlags[TKey],
+  merge: options?.merge as FlagDescriptor<TKey>['merge'] ?? (mergeFlag(key) as FlagDescriptor<TKey>['merge']),
+});
+
+const valueDescriptor = <TKey extends keyof ParsedFlags>(
+  name: `--${string}`,
+  key: TKey,
+  decoder: FlagDecoder<ParsedFlags[TKey]>,
+): FlagDescriptor<TKey> => ({
+  name,
+  arity: 1,
+  decoder,
+  merge: mergeFlag(key),
+});
+
+export const flagDescriptorTable = {
+  '--all': booleanDescriptor('--all', 'all'),
+  '--strict': booleanDescriptor('--strict', 'strict'),
+  '--headed': booleanDescriptor('--headed', 'headed'),
+  '--no-write': booleanDescriptor('--no-write', 'noWrite'),
+  '--baseline': booleanDescriptor('--baseline', 'baseline', {
+    merge: (flags) => ({ ...flags, baseline: true, noWrite: true, interpreterMode: 'dry-run' }),
+  }),
+  '--ado-id': valueDescriptor('--ado-id', 'adoId', (value) => readFlagValue('--ado-id', value)),
+  '--ado-source': valueDescriptor('--ado-source', 'adoSource', (value) => parseEnum('--ado-source', value, ['fixture', 'live'] as const)),
+  '--ado-org-url': valueDescriptor('--ado-org-url', 'adoOrgUrl', (value) => readFlagValue('--ado-org-url', value)),
+  '--ado-project': valueDescriptor('--ado-project', 'adoProject', (value) => readFlagValue('--ado-project', value)),
+  '--ado-pat': valueDescriptor('--ado-pat', 'adoPat', (value) => readFlagValue('--ado-pat', value)),
+  '--ado-suite-path': valueDescriptor('--ado-suite-path', 'adoSuitePath', (value) => readFlagValue('--ado-suite-path', value)),
+  '--ado-area-path': valueDescriptor('--ado-area-path', 'adoAreaPath', (value) => readFlagValue('--ado-area-path', value)),
+  '--ado-iteration-path': valueDescriptor('--ado-iteration-path', 'adoIterationPath', (value) => readFlagValue('--ado-iteration-path', value)),
+  '--ado-tag-filter': valueDescriptor('--ado-tag-filter', 'adoTagFilter', (value) => readFlagValue('--ado-tag-filter', value)),
+  '--screen': valueDescriptor('--screen', 'screen', (value) => readFlagValue('--screen', value)),
+  '--runbook': valueDescriptor('--runbook', 'runbook', (value) => readFlagValue('--runbook', value)),
+  '--provider': valueDescriptor('--provider', 'provider', (value) => readFlagValue('--provider', value)),
+  '--max-iterations': valueDescriptor('--max-iterations', 'maxIterations', (value) => Number(readFlagValue('--max-iterations', value))),
+  '--convergence-threshold': valueDescriptor('--convergence-threshold', 'convergenceThreshold', (value) => Number(readFlagValue('--convergence-threshold', value))),
+  '--max-cost': valueDescriptor('--max-cost', 'maxCost', (value) => Number(readFlagValue('--max-cost', value))),
+  '--tag': valueDescriptor('--tag', 'tag', (value) => readFlagValue('--tag', value)),
+  '--proposal-id': valueDescriptor('--proposal-id', 'proposalId', (value) => readFlagValue('--proposal-id', value)),
+  '--complete': valueDescriptor('--complete', 'complete', (value) => readFlagValue('--complete', value)),
+  '--skip': valueDescriptor('--skip', 'skip', (value) => readFlagValue('--skip', value)),
+  '--reason': valueDescriptor('--reason', 'reason', (value) => readFlagValue('--reason', value)),
+  '--skip-below': valueDescriptor('--skip-below', 'skipBelow', (value) => Number(readFlagValue('--skip-below', value))),
+  '--list': booleanDescriptor('--list', 'list'),
+  '--next': booleanDescriptor('--next', 'next'),
+  '--count': valueDescriptor('--count', 'count', (value) => Number(readFlagValue('--count', value))),
+  '--seed': valueDescriptor('--seed', 'seed', (value) => readFlagValue('--seed', value)),
+  '--seeds': valueDescriptor('--seeds', 'seeds', (value) => readFlagValue('--seeds', value)),
+  '--substrate': valueDescriptor('--substrate', 'substrate', (value) => readFlagValue('--substrate', value)),
+  '--max-epochs': valueDescriptor('--max-epochs', 'maxEpochs', (value) => Number(readFlagValue('--max-epochs', value))),
+  '--accepted': booleanDescriptor('--accepted', 'accepted'),
+  '--top': valueDescriptor('--top', 'top', (value) => Number(readFlagValue('--top', value))),
+  '--perturb': valueDescriptor('--perturb', 'perturb', (value) => Number(readFlagValue('--perturb', value))),
+  '--auto-evolve': booleanDescriptor('--auto-evolve', 'autoEvolve'),
+  '--benchmark': valueDescriptor('--benchmark', 'benchmark', (value) => readFlagValue('--benchmark', value)),
+  '--kind': valueDescriptor('--kind', 'kind', (value) => readFlagValue('--kind', value)),
+  '--status': valueDescriptor('--status', 'status', (value) => readFlagValue('--status', value)),
+  '--url': valueDescriptor('--url', 'url', (value) => readFlagValue('--url', value)),
+  '--root-selector': valueDescriptor('--root-selector', 'rootSelector', (value) => readFlagValue('--root-selector', value)),
+  '--routes': valueDescriptor('--routes', 'routes', (value) => readFlagValue('--routes', value)),
+  '--section': valueDescriptor('--section', 'section', (value) => readFlagValue('--section', value)),
+  '--interpreter-mode': valueDescriptor('--interpreter-mode', 'interpreterMode', (value) => parseEnum('--interpreter-mode', value, interpreterModes)),
+  '--ci-batch': booleanDescriptor('--ci-batch', 'executionProfile', {
+    merge: (flags) => ({ ...flags, executionProfile: 'ci-batch' }),
+  }),
+  '--execution-profile': valueDescriptor('--execution-profile', 'executionProfile', (value) => parseEnum('--execution-profile', value, executionProfiles)),
+  '--node': valueDescriptor('--node', 'nodeId', (value) => readFlagValue('--node', value)),
+  '--disable-translation': booleanDescriptor('--disable-translation', 'disableTranslation'),
+  '--disable-translation-cache': booleanDescriptor('--disable-translation-cache', 'disableTranslationCache'),
+  '--posture': valueDescriptor('--posture', 'posture', (value) => readFlagValue('--posture', value)),
+} as const;
+
+export type FlagDecodeResult = {
+  readonly nextIndex: number;
+  readonly flags: ParsedFlags;
+};
+
+function decodeFlagWithDescriptor<TKey extends keyof ParsedFlags>(
+  descriptor: FlagDescriptor<TKey>,
+  tokens: ReadonlyArray<string>,
+  index: number,
+  flags: ParsedFlags,
+): FlagDecodeResult {
+  const rawValue = descriptor.arity === 0 ? undefined : tokens[index + 1];
+  const decoded = descriptor.decoder(rawValue) as ParsedFlags[TKey];
+  return {
+    nextIndex: descriptor.arity === 0 ? index : index + 1,
+    flags: descriptor.merge(flags, decoded),
+  };
+}
+
+export const flagDecoders: Record<FlagName, (tokens: ReadonlyArray<string>, index: number, flags: ParsedFlags) => FlagDecodeResult> =
+  (Object.entries(flagDescriptorTable) as ReadonlyArray<[FlagName, (typeof flagDescriptorTable)[FlagName]]>).reduce(
+    (acc, [name, descriptor]) => ({
+      ...acc,
+      [name]: (tokens: ReadonlyArray<string>, index: number, flags: ParsedFlags) =>
+        decodeFlagWithDescriptor(descriptor as FlagDescriptor<keyof ParsedFlags>, tokens, index, flags),
+    }),
+    {} as Record<FlagName, (tokens: ReadonlyArray<string>, index: number, flags: ParsedFlags) => FlagDecodeResult>,
+  );

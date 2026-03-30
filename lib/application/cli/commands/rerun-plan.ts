@@ -1,8 +1,8 @@
 import { executeRerunScopeIntervention } from '../../rerun-plan';
-import type { CommandSpec } from '../shared';
+import { createCommandSpec } from '../shared';
 import { requireProposalId } from '../shared';
 
-export const rerunPlanCommand: CommandSpec = {
+export const rerunPlanCommand = createCommandSpec({
   flags: ['--proposal-id'],
   parse: ({ flags }) => ({
     command: 'rerun-plan',
@@ -13,4 +13,4 @@ export const rerunPlanCommand: CommandSpec = {
       proposalId: requireProposalId(flags.proposalId),
     }),
   }),
-};
+});

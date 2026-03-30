@@ -1,8 +1,8 @@
 import { Effect } from 'effect';
 import { emitAgentWorkbench, loadAgentWorkbench, nextWorkItem, completeWorkItem } from '../../agent-workbench';
-import type { CommandSpec } from '../shared';
+import { createCommandSpec } from '../shared';
 
-export const workbenchCommand: CommandSpec = {
+export const workbenchCommand = createCommandSpec({
   flags: ['--list', '--next', '--complete', '--skip', '--reason', '--skip-below'],
   parse: ({ flags }) => {
     const hasListFlag = Boolean(flags.list);
@@ -82,4 +82,4 @@ export const workbenchCommand: CommandSpec = {
       },
     };
   },
-};
+});

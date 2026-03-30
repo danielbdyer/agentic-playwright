@@ -1,9 +1,9 @@
 import { syncSnapshots } from '../../sync';
 import { createAdoId } from '../../../domain/identity';
-import type { CommandSpec } from '../shared';
+import { createCommandSpec } from '../shared';
 import { withDefinedValues } from '../shared';
 
-export const syncCommand: CommandSpec = {
+export const syncCommand = createCommandSpec({
   flags: ['--all', '--ado-id', '--ado-source', '--ado-org-url', '--ado-project', '--ado-pat', '--ado-suite-path', '--ado-area-path', '--ado-iteration-path', '--ado-tag-filter'],
   parse: ({ flags }) => ({
     command: 'sync',
@@ -25,4 +25,4 @@ export const syncCommand: CommandSpec = {
       ...(flags.all ? { all: true } : {}),
     }),
   }),
-};
+});

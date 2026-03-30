@@ -1,8 +1,8 @@
 import { runDogfoodLoop } from '../../dogfood';
-import type { CommandSpec } from '../shared';
+import { createCommandSpec } from '../shared';
 import { withDefinedValues } from '../shared';
 
-export const dogfoodCommand: CommandSpec = {
+export const dogfoodCommand = createCommandSpec({
   flags: ['--max-iterations', '--convergence-threshold', '--max-cost', '--tag', '--runbook', '--interpreter-mode'],
   parse: ({ flags }) => ({
     command: 'dogfood',
@@ -20,4 +20,4 @@ export const dogfoodCommand: CommandSpec = {
       interpreterMode: (flags.interpreterMode === 'playwright' ? 'diagnostic' : flags.interpreterMode) as 'dry-run' | 'diagnostic' | undefined,
     }),
   }),
-};
+});

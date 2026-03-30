@@ -1,9 +1,9 @@
 import { bindScenario } from '../../bind';
 import { createAdoId } from '../../../domain/identity';
-import type { CommandSpec } from '../shared';
+import { createCommandSpec } from '../shared';
 import { requireAdoId } from '../shared';
 
-export const bindCommand: CommandSpec = {
+export const bindCommand = createCommandSpec({
   flags: ['--ado-id', '--strict'],
   parse: ({ flags }) => ({
     command: 'bind',
@@ -11,4 +11,4 @@ export const bindCommand: CommandSpec = {
     postureInput: {},
     execute: (paths) => bindScenario({ adoId: createAdoId(requireAdoId(flags.adoId)), paths }),
   }),
-};
+});

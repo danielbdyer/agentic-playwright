@@ -1,7 +1,7 @@
 import { emitOperatorInbox } from '../../inbox';
-import type { CommandSpec } from '../shared';
+import { createCommandSpec } from '../shared';
 
-export const inboxCommand: CommandSpec = {
+export const inboxCommand = createCommandSpec({
   flags: ['--ado-id', '--kind', '--status'],
   parse: ({ flags }) => ({
     command: 'inbox',
@@ -16,4 +16,4 @@ export const inboxCommand: CommandSpec = {
       },
     }),
   }),
-};
+});

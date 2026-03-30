@@ -1,8 +1,8 @@
 import { impactNode } from '../../impact';
-import type { CommandSpec } from '../shared';
+import { createCommandSpec } from '../shared';
 import { requireNode } from '../shared';
 
-export const impactCommand: CommandSpec = {
+export const impactCommand = createCommandSpec({
   flags: ['--node'],
   parse: ({ flags }) => ({
     command: 'impact',
@@ -10,4 +10,4 @@ export const impactCommand: CommandSpec = {
     postureInput: {},
     execute: (paths) => impactNode({ nodeId: requireNode(flags.nodeId), paths }),
   }),
-};
+});

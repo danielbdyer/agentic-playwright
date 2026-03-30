@@ -1,9 +1,9 @@
 import { Effect } from 'effect';
 import { loadExperimentRegistry } from '../../experiment-registry';
 import { filterExperiments, type ExperimentRecord } from '../../../domain/types';
-import type { CommandSpec } from '../shared';
+import { createCommandSpec } from '../shared';
 
-export const experimentsCommand: CommandSpec = {
+export const experimentsCommand = createCommandSpec({
   flags: ['--accepted', '--tag', '--substrate', '--top'],
   parse: ({ flags }) => ({
     command: 'experiments',
@@ -20,4 +20,4 @@ export const experimentsCommand: CommandSpec = {
       }),
     ),
   }),
-};
+});

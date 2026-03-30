@@ -1,9 +1,9 @@
 import { parseScenario } from '../../parse';
 import { createAdoId } from '../../../domain/identity';
-import type { CommandSpec } from '../shared';
+import { createCommandSpec } from '../shared';
 import { requireAdoId } from '../shared';
 
-export const parseCommand: CommandSpec = {
+export const parseCommand = createCommandSpec({
   flags: ['--ado-id'],
   parse: ({ flags }) => ({
     command: 'parse',
@@ -11,4 +11,4 @@ export const parseCommand: CommandSpec = {
     postureInput: {},
     execute: (paths) => parseScenario({ adoId: createAdoId(requireAdoId(flags.adoId)), paths }),
   }),
-};
+});

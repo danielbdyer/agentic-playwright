@@ -1,7 +1,7 @@
 import { generateSyntheticScenarios } from '../../synthesis/scenario-generator';
-import type { CommandSpec } from '../shared';
+import { createCommandSpec } from '../shared';
 
-export const generateCommand: CommandSpec = {
+export const generateCommand = createCommandSpec({
   flags: ['--count', '--seed', '--perturb'],
   parse: ({ flags }) => ({
     command: 'generate',
@@ -14,4 +14,4 @@ export const generateCommand: CommandSpec = {
       ...(flags.perturb ? { perturbationRate: flags.perturb } : {}),
     }),
   }),
-};
+});
