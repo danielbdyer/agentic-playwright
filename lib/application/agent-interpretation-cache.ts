@@ -10,9 +10,9 @@
  * so that knowledge changes automatically invalidate stale entries.
  */
 
-import { promises as nodeFs } from 'fs';
 import { sha256, stableStringify } from '../domain/hash';
 import type { AgentInterpretationResult } from './agent-interpreter-provider';
+import { readJsonCacheRecord, writeJsonCacheRecord, pruneCacheFiles } from './cache/file-cache';
 import type { ProjectPaths } from './paths';
 import { agentInterpretationCachePath } from './paths';
 
@@ -38,6 +38,10 @@ export interface AgentInterpretationCacheRecord {
   readonly payload: {
     readonly result: AgentInterpretationResult;
   };
+}
+
+function isAgentInterpretationCacheRecord(value: unknown): value is AgentInterpretationCacheRecord {
+  return typeof value === 'object' && value !== null && (value as { kind?: unknown }).kind === 'agent-interpretation-cache-record';
 }
 
 // ─── Fingerprinting ───
@@ -76,28 +80,23 @@ export function agentInterpretationCacheKey(input: AgentInterpretationCacheKeyIn
 
 // ─── Read / Write ───
 
-export async function readAgentInterpretationCache(input: {
+export function readAgentInterpretationCache(input: {
   readonly paths: ProjectPaths;
   readonly request: AgentInterpretationCacheKeyInput;
-}): Promise<AgentInterpretationCacheRecord | null> {
+}) {
   const key = agentInterpretationCacheKey(input.request);
-  const cacheFile = agentInterpretationCachePath(input.paths, key);
-  try {
-    const value = JSON.parse(await nodeFs.readFile(cacheFile, 'utf8')) as AgentInterpretationCacheRecord;
-    if (value?.kind !== 'agent-interpretation-cache-record' || value.cacheKey !== key) {
-      return null;
-    }
-    return value;
-  } catch {
-    return null;
-  }
+  return readJsonCacheRecord<AgentInterpretationCacheRecord>({
+    filePath: agentInterpretationCachePath(input.paths, key),
+    cacheKey: key,
+    isRecord: isAgentInterpretationCacheRecord,
+  });
 }
 
-export async function writeAgentInterpretationCache(input: {
+export function writeAgentInterpretationCache(input: {
   readonly paths: ProjectPaths;
   readonly request: AgentInterpretationCacheKeyInput;
   readonly result: AgentInterpretationResult;
-}): Promise<AgentInterpretationCacheRecord> {
+}) {
   const key = agentInterpretationCacheKey(input.request);
   const cacheFile = agentInterpretationCachePath(input.paths, key);
   const fingerprint = requestFingerprint(input.request);
@@ -123,38 +122,24 @@ export async function writeAgentInterpretationCache(input: {
     },
   };
 
-  await nodeFs.mkdir(input.paths.agentInterpretationCacheDir, { recursive: true });
-  await nodeFs.writeFile(cacheFile, `${JSON.stringify(record, null, 2)}\n`, 'utf8');
-  return record;
+  return writeJsonCacheRecord({
+    dirPath: input.paths.agentInterpretationCacheDir,
+    filePath: cacheFile,
+    record,
+  });
 }
 
 /**
  * Prune the agent interpretation cache to at most `maxEntries` files,
  * keeping the most recently modified entries. Returns the number removed.
  */
-export async function pruneAgentInterpretationCache(input: {
+export function pruneAgentInterpretationCache(input: {
   readonly paths: ProjectPaths;
   readonly maxEntries: number;
-}): Promise<number> {
-  const dir = input.paths.agentInterpretationCacheDir;
-  const entries = await nodeFs.readdir(dir).catch(() => null);
-  if (!entries) return 0;
-  const cacheFiles = entries.filter((f) => f.endsWith('.agent-interpretation.json'));
-  if (cacheFiles.length <= input.maxEntries) {
-    return 0;
-  }
-
-  const withStats = await Promise.all(
-    cacheFiles.map(async (file) => {
-      const filePath = `${dir}/${file}`;
-      const stat = await nodeFs.stat(filePath);
-      return { filePath, mtimeMs: stat.mtimeMs };
-    }),
-  );
-
-  // Sort newest first, remove the tail
-  withStats.sort((a, b) => b.mtimeMs - a.mtimeMs);
-  const toRemove = withStats.slice(input.maxEntries);
-  await Promise.all(toRemove.map((entry) => nodeFs.unlink(entry.filePath)));
-  return toRemove.length;
+}) {
+  return pruneCacheFiles({
+    dirPath: input.paths.agentInterpretationCacheDir,
+    maxEntries: input.maxEntries,
+    includeFile: (fileName) => fileName.endsWith('.agent-interpretation.json'),
+  });
 }

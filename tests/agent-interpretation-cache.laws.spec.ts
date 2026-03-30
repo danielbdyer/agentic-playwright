@@ -8,16 +8,22 @@
  */
 
 import { expect, test } from '@playwright/test';
+import { Effect } from 'effect';
 import { agentInterpretationCacheKey, readAgentInterpretationCache, writeAgentInterpretationCache } from '../lib/application/agent-interpretation-cache';
 import type { AgentInterpretationCacheKeyInput } from '../lib/application/agent-interpretation-cache';
 import type { AgentInterpretationResult } from '../lib/application/agent-interpreter-provider';
 import { createProjectPaths } from '../lib/application/paths';
+import { FileSystem } from '../lib/application/ports';
+import { LocalFileSystem } from '../lib/infrastructure/fs/local-fs';
 import { mulberry32, randomWord } from './support/random';
 import { promises as nodeFs } from 'fs';
 import path from 'path';
 import os from 'os';
 
 // ─── Helpers ───
+function withFileSystem<A>(program: Effect.Effect<A, never, FileSystem>): Promise<A> {
+  return Effect.runPromise(program.pipe(Effect.provideService(FileSystem, LocalFileSystem)));
+}
 
 function baseInput(): AgentInterpretationCacheKeyInput {
   return {
@@ -119,11 +125,11 @@ test('round-trip: write then read returns original result', async () => {
     const request = baseInput();
     const result = baseResult();
 
-    const written = await writeAgentInterpretationCache({ paths, request, result });
+    const written = await withFileSystem(writeAgentInterpretationCache({ paths, request, result }));
     expect(written.kind).toBe('agent-interpretation-cache-record');
     expect(written.payload.result).toEqual(result);
 
-    const read = await readAgentInterpretationCache({ paths, request });
+    const read = await withFileSystem(readAgentInterpretationCache({ paths, request }));
     expect(read).not.toBeNull();
     expect(read!.payload.result).toEqual(result);
     expect(read!.cacheKey).toBe(written.cacheKey);
@@ -139,7 +145,7 @@ test('round-trip: read returns null for missing key', async () => {
   try {
     const paths = createProjectPaths(tmpDir);
     const request = baseInput();
-    const read = await readAgentInterpretationCache({ paths, request });
+    const read = await withFileSystem(readAgentInterpretationCache({ paths, request }));
     expect(read).toBeNull();
   } finally {
     await nodeFs.rm(tmpDir, { recursive: true, force: true });
@@ -153,10 +159,10 @@ test('round-trip: different knowledge fingerprint does not return stale entry', 
     const request = baseInput();
     const result = baseResult();
 
-    await writeAgentInterpretationCache({ paths, request, result });
+    await withFileSystem(writeAgentInterpretationCache({ paths, request, result }));
 
     const staleRequest = { ...request, knowledgeFingerprint: 'sha256:updated-knowledge' };
-    const read = await readAgentInterpretationCache({ paths, request: staleRequest });
+    const read = await withFileSystem(readAgentInterpretationCache({ paths, request: staleRequest }));
     expect(read).toBeNull();
   } finally {
     await nodeFs.rm(tmpDir, { recursive: true, force: true });

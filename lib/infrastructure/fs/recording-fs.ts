@@ -126,6 +126,14 @@ export function createRecordingWorkspaceFileSystem(input: {
       return input.delegate.writeJson(filePath, value);
     },
 
+    stat(filePath) {
+      const normalizedPath = normalizePath(filePath);
+      if (shadowFiles.has(normalizedPath)) {
+        return Effect.succeed({ mtimeMs: 0 });
+      }
+      return input.delegate.stat(filePath);
+    },
+
     exists(filePath) {
       const normalizedPath = normalizePath(filePath);
       if (shadowFiles.has(normalizedPath) || shadowDirs.has(normalizedPath)) {
@@ -135,6 +143,15 @@ export function createRecordingWorkspaceFileSystem(input: {
         return Effect.succeed(true);
       }
       return input.delegate.exists(filePath);
+    },
+
+    removeFile(filePath) {
+      const normalizedPath = normalizePath(filePath);
+      if (shouldShadowWrite(filePath)) {
+        shadowFiles.delete(normalizedPath);
+        return Effect.void;
+      }
+      return input.delegate.removeFile(filePath);
     },
 
     listDir(dirPath) {

@@ -1,4 +1,5 @@
 import { Effect } from 'effect';
+import { FileSystem } from '../application/ports';
 import type { RuntimeScenarioRunnerPort } from '../application/ports';
 import { createProjectPaths } from '../application/paths';
 import { readTranslationCache, translationCacheKey, writeTranslationCache } from '../application/translation-cache';
@@ -6,6 +7,7 @@ import { translateIntentToOntology } from '../application/translate';
 import type { TranslationProvider } from '../application/translation-provider';
 import { resolveAgentInterpreterProvider, type AgentInterpreterProvider } from '../application/agent-interpreter-provider';
 import type { TranslationReceipt, TranslationRequest } from '../domain/types';
+import { LocalFileSystem } from '../infrastructure/fs/local-fs';
 import { createLocalRuntimeEnvironment } from '../infrastructure/runtime/local-runtime-environment';
 import { createScenarioRunState, runScenarioStep } from '../runtime/scenario';
 
@@ -15,9 +17,9 @@ function buildCachedTranslator(
   provider: TranslationProvider,
 ): (request: TranslationRequest) => Promise<TranslationReceipt> {
   return (request) => Effect.runPromise(Effect.gen(function* () {
-    const cacheKey = translationCacheKey(request);
-    if (!cacheDisabled) {
-      const cached = yield* Effect.promise(() => readTranslationCache({ paths, request }));
+      const cacheKey = translationCacheKey(request);
+      if (!cacheDisabled) {
+      const cached = yield* readTranslationCache({ paths, request });
       if (cached) {
         return {
           ...cached.payload.receipt,
@@ -39,10 +41,10 @@ function buildCachedTranslator(
       failureClass: translated.failureClass ?? (translated.matched ? 'none' as const : 'no-candidate' as const),
     };
     if (!cacheDisabled) {
-      yield* Effect.promise(() => writeTranslationCache({ paths, request, receipt: computed }));
+      yield* writeTranslationCache({ paths, request, receipt: computed });
     }
     return computed;
-  }));
+  }).pipe(Effect.provideService(FileSystem, LocalFileSystem)));
 }
 
 function buildDefaultTranslator(
@@ -52,7 +54,7 @@ function buildDefaultTranslator(
   return (request) => Effect.runPromise(Effect.gen(function* () {
     const cacheKey = translationCacheKey(request);
     if (!cacheDisabled) {
-      const cached = yield* Effect.promise(() => readTranslationCache({ paths, request }));
+      const cached = yield* readTranslationCache({ paths, request });
       if (cached) {
         return {
           ...cached.payload.receipt,
@@ -72,10 +74,10 @@ function buildDefaultTranslator(
       failureClass: translated.matched ? 'none' as const : 'no-candidate' as const,
     };
     if (!cacheDisabled) {
-      yield* Effect.promise(() => writeTranslationCache({ paths, request, receipt: computed }));
+      yield* writeTranslationCache({ paths, request, receipt: computed });
     }
     return computed;
-  }));
+  }).pipe(Effect.provideService(FileSystem, LocalFileSystem)));
 }
 
 /** Create a RuntimeScenarioRunnerPort with a specific agent interpreter provider.

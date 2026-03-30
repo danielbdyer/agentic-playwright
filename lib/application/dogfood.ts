@@ -357,7 +357,7 @@ function cleanupBetweenIterations(options: DogfoodOptions) {
       { concurrency: 'unbounded' },
     );
     // Prune translation cache to keep disk bounded across iterations
-    yield* Effect.promise(() => pruneTranslationCache({ paths: options.paths, maxEntries: 200 }));
+    yield* pruneTranslationCache({ paths: options.paths, maxEntries: 200 });
   });
 }
 

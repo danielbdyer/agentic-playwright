@@ -64,6 +64,18 @@ export const LocalFileSystem: FileSystemPort = {
     );
   },
 
+  stat(filePath) {
+    return tryFileSystem(
+      async () => {
+        const info = await fs.stat(filePath);
+        return { mtimeMs: info.mtimeMs };
+      },
+      'fs-stat-failed',
+      `Unable to stat ${filePath}`,
+      filePath,
+    );
+  },
+
   exists(filePath) {
     return tryFileSystem(async () => {
       try {
@@ -77,6 +89,19 @@ export const LocalFileSystem: FileSystemPort = {
         throw error;
       }
     }, 'fs-access-failed', `Unable to inspect ${filePath}`, filePath);
+  },
+
+  removeFile(filePath) {
+    return tryFileSystem(async () => {
+      try {
+        await fs.unlink(filePath);
+      } catch (error) {
+        const maybe = error as NodeJS.ErrnoException;
+        if (maybe.code !== 'ENOENT') {
+          throw error;
+        }
+      }
+    }, 'fs-unlink-failed', `Unable to remove file ${filePath}`, filePath);
   },
 
   listDir(dirPath) {
