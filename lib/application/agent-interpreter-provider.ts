@@ -28,7 +28,6 @@ import type { StepAction } from '../domain/types';
 import type { ScreenId, ElementId, PostureId, SnapshotTemplateId } from '../domain/identity';
 import { normalizeIntentText, bestAliasMatch, humanizeIdentifier } from '../domain/inference';
 import { assignVariant, type ABTestConfig } from './agent-ab-testing';
-import { runEffectPromiseBoundary } from './effect-boundary';
 
 // Re-export type interfaces from domain layer for backwards compatibility
 export type {
@@ -598,7 +597,7 @@ export function withAgentTimeout(
     options,
   );
 
-  return (request) => runEffectPromiseBoundary(timedInterpret(request));
+  return (request) => Effect.runPromise(timedInterpret(request));
 }
 
 /**

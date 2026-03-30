@@ -5,7 +5,7 @@ const ROOT_DIR = path.resolve(__dirname, '..');
 const LIB_DIR = path.join(ROOT_DIR, 'lib');
 
 const ALLOWED_FILES = new Set([
-  'application/effect-boundary.ts',
+  'application/agent-interpreter-provider.ts',
   'infrastructure/mcp/effect-boundary.ts',
 ]);
 
