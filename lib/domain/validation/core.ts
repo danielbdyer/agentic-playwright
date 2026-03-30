@@ -204,7 +204,7 @@ function validateWorkflowEnvelopeHeader<Stage extends WorkflowStage, Scope exten
   lineage: WorkflowEnvelopeLineage;
   governance: Governance;
 } {
-  return {
+  const decoded = {
     version: value.version === undefined ? 1 : expectNumber(value.version, `${path}.version`) as 1,
     stage: value.stage === undefined ? defaults.stage : expectEnum(value.stage, `${path}.stage`, workflowStages) as Stage,
     scope: value.scope === undefined ? defaults.scope : expectEnum(value.scope, `${path}.scope`, workflowScopes) as Scope,
@@ -216,6 +216,15 @@ function validateWorkflowEnvelopeHeader<Stage extends WorkflowStage, Scope exten
     lineage: validateWorkflowEnvelopeLineage(value.lineage, `${path}.lineage`, defaults.lineage),
     governance: value.governance === undefined ? defaults.governance : expectEnum(value.governance, `${path}.governance`, governanceStates),
   };
+  return schemaDecode.decoderFor<{
+    version: 1;
+    stage: Stage;
+    scope: Scope;
+    ids: WorkflowEnvelopeIds;
+    fingerprints: WorkflowEnvelopeFingerprints;
+    lineage: WorkflowEnvelopeLineage;
+    governance: Governance;
+  }>(schemas.WorkflowEnvelopeHeaderSchema)(decoded);
 }
 
 function validateCanonicalLineage(value: unknown, path: string) {
@@ -435,25 +444,8 @@ function validateDiagnostic(value: unknown, path: string): CompilerDiagnostic {
   };
 }
 
-function validateBoundStep(value: unknown, path: string): BoundStep {
-  const step = validateStepBase(value, path);
-  const rawStep = expectRecord(value, path);
-  const binding = expectRecord(rawStep.binding, `${path}.binding`);
-  return {
-    ...step,
-    binding: {
-      kind: expectEnum(binding.kind, `${path}.binding.kind`, ['bound', 'deferred', 'unbound'] as const) as StepBindingKind,
-      reasons: expectStringArray(binding.reasons ?? [], `${path}.binding.reasons`),
-      ruleId: expectOptionalString(binding.ruleId, `${path}.binding.ruleId`) ?? null,
-      normalizedIntent: expectString(binding.normalizedIntent ?? '', `${path}.binding.normalizedIntent`),
-      knowledgeRefs: expectStringArray(binding.knowledgeRefs ?? [], `${path}.binding.knowledgeRefs`),
-      supplementRefs: expectStringArray(binding.supplementRefs ?? [], `${path}.binding.supplementRefs`),
-      evidenceIds: expectStringArray(binding.evidenceIds ?? [], `${path}.binding.evidenceIds`),
-      governance: expectEnum(binding.governance, `${path}.binding.governance`, governanceStates),
-      reviewReasons: expectStringArray(binding.reviewReasons ?? [], `${path}.binding.reviewReasons`),
-    },
-    program: rawStep.program ? validateStepProgram(rawStep.program, `${path}.program`) : undefined,
-  };
+function validateBoundStep(value: unknown, _path: string): BoundStep {
+  return schemaDecode.decoderFor<BoundStep>(schemas.BoundStepSchema)(value);
 }
 
 function _validateSection(value: unknown, path: string): SurfaceSection {

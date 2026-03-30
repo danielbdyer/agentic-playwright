@@ -43,7 +43,10 @@ export const WorkflowEnvelopeIdsSchema = Schema.Struct({
 });
 
 export const WorkflowEnvelopeFingerprintsSchema = Schema.Struct({
-  artifact: Schema.String,
+  artifact: Schema.String.pipe(
+    Schema.trimmed(),
+    Schema.minLength(1, { message: () => 'fingerprints.artifact must be a non-empty string' }),
+  ),
   content: Schema.optionalWith(NullableString, { default: () => null }),
   knowledge: Schema.optionalWith(NullableString, { default: () => null }),
   controls: Schema.optionalWith(NullableString, { default: () => null }),
@@ -57,6 +60,28 @@ export const WorkflowEnvelopeLineageSchema = Schema.Struct({
   handshakes: Schema.optionalWith(Schema.Array(WorkflowStageSchema), { default: () => [] as readonly (typeof WorkflowStageSchema.Type)[] }),
   experimentIds: Schema.optionalWith(StringArray, { default: () => [] as readonly string[] }),
 });
+
+export const WorkflowEnvelopeHeaderSchema = Schema.Struct({
+  version: Schema.Literal(1),
+  stage: WorkflowStageSchema,
+  scope: WorkflowScopeSchema,
+  ids: WorkflowEnvelopeIdsSchema,
+  fingerprints: WorkflowEnvelopeFingerprintsSchema,
+  lineage: WorkflowEnvelopeLineageSchema,
+  governance: GovernanceSchema,
+}).pipe(
+  Schema.filter(
+    (envelope) =>
+      !(
+        envelope.governance === 'blocked'
+        && (envelope.stage === 'execution' || envelope.stage === 'projection')
+      ),
+    {
+      identifier: 'WorkflowEnvelopeGovernanceStageDiscipline',
+      message: () => 'blocked governance is not allowed for execution or projection stages',
+    },
+  ),
+);
 
 export const WorkflowEnvelopeSchema = <P extends Schema.Schema.Any>(payloadSchema: P) =>
   Schema.Struct({
@@ -98,12 +123,16 @@ export const ProposalActivationSchema = Schema.Struct({
 // ─── Trust Policy ───
 
 export const TrustPolicyEvidenceRuleSchema = Schema.Struct({
-  minCount: Schema.Number,
+  minCount: Schema.Number.pipe(
+    Schema.nonNegative({ message: () => 'requiredEvidence.minCount must be >= 0' }),
+  ),
   kinds: StringArray,
 });
 
 export const TrustPolicyArtifactRuleSchema = Schema.Struct({
-  minimumConfidence: Schema.Number,
+  minimumConfidence: Schema.Number.pipe(
+    Schema.between(0, 1, { message: () => 'minimumConfidence must be between 0 and 1' }),
+  ),
   requiredEvidence: TrustPolicyEvidenceRuleSchema,
 });
 
@@ -111,7 +140,15 @@ export const TrustPolicySchema = Schema.Struct({
   version: Schema.Literal(1),
   artifactTypes: Schema.Record({ key: TrustPolicyArtifactTypeSchema, value: TrustPolicyArtifactRuleSchema }),
   forbiddenAutoHealClasses: Schema.optionalWith(StringArray, { default: () => [] as readonly string[] }),
-});
+}).pipe(
+  Schema.filter(
+    (policy) => new Set(policy.forbiddenAutoHealClasses).size === policy.forbiddenAutoHealClasses.length,
+    {
+      identifier: 'TrustPolicyUniqueForbiddenAutoHealClasses',
+      message: () => 'forbiddenAutoHealClasses must not contain duplicates',
+    },
+  ),
+);
 
 export const TrustPolicyEvaluationReasonSchema = Schema.Struct({
   code: Schema.Literal('minimum-confidence', 'required-evidence', 'forbidden-auto-heal'),

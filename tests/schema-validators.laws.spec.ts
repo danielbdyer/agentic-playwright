@@ -62,6 +62,8 @@ function makeValidBoundStep(next: () => number) {
     posture: null,
     override: null,
     snapshot_template: null,
+    resolution: null,
+    confidence: 'compiler-derived' as const,
     binding: {
       kind,
       reasons: [`reason-${randomWord(next)}`],
