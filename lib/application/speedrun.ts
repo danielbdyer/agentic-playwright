@@ -12,7 +12,7 @@
  */
 
 import path from 'path';
-import { Effect } from 'effect';
+import { Effect, Either, Schema } from 'effect';
 import type { ProjectPaths } from './paths';
 import { generateSyntheticScenarios } from './synthesis/scenario-generator';
 import { compileScenariosParallel } from './compile';
@@ -31,6 +31,8 @@ import { recordExperiment } from './experiment-registry';
 import { loadWorkspaceCatalog } from './catalog';
 import { cleanSlateProgram } from './clean-slate';
 import { Dashboard, FileSystem, VersionControl } from './ports';
+import { validateRunRecord } from '../domain/validation';
+import { decodeUnknownEither } from '../domain/schemas/decode';
 import type {
   ExperimentRecord,
   ExperimentSubstrate,
@@ -47,6 +49,7 @@ import type {
 import { DEFAULT_PIPELINE_CONFIG } from '../domain/types';
 import type { RunRecord } from '../domain/types/execution';
 import type { PerturbationConfig } from './synthesis/scenario-generator';
+import { TesseractError } from '../domain/errors';
 
 // ─── Public input/result types ───
 
@@ -130,6 +133,64 @@ function loadScorecard(paths: ProjectPaths) {
   });
 }
 
+const ImprovementLoopIterationSchema = Schema.Struct({
+  iteration: Schema.Number,
+  scenarioIds: Schema.Array(Schema.String),
+  proposalsGenerated: Schema.Number,
+  proposalsActivated: Schema.Number,
+  proposalsBlocked: Schema.Number,
+  knowledgeHitRate: Schema.Number,
+  unresolvedStepCount: Schema.Number,
+  totalStepCount: Schema.Number,
+  instructionCount: Schema.Number,
+});
+
+const ImprovementLoopLedgerSchema = Schema.Struct({
+  kind: Schema.String,
+  version: Schema.Literal(1),
+  maxIterations: Schema.Number,
+  completedIterations: Schema.Number,
+  converged: Schema.Boolean,
+  convergenceReason: Schema.NullOr(Schema.Literal('no-proposals', 'threshold-met', 'budget-exhausted', 'max-iterations')),
+  iterations: Schema.Array(ImprovementLoopIterationSchema),
+  totalProposalsActivated: Schema.Number,
+  totalInstructionCount: Schema.Number,
+  knowledgeHitRateDelta: Schema.Number,
+});
+
+const decodeImprovementLoopLedger = decodeUnknownEither<
+  typeof ImprovementLoopLedgerSchema.Type,
+  typeof ImprovementLoopLedgerSchema.Encoded,
+  ImprovementLoopLedger<string>
+>(ImprovementLoopLedgerSchema);
+
+function decodeRunRecords(records: ReadonlyArray<unknown>, provenance: string): RunRecord[] {
+  return records.map((record, index) => {
+    try {
+      return validateRunRecord(record);
+    } catch (error) {
+      throw new TesseractError(
+        'run-record-validation-failed',
+        `${provenance}.runRecords[${index}] failed validation`,
+        error,
+      );
+    }
+  });
+}
+
+function decodeLedgerOrThrow(value: unknown, provenance: string): ImprovementLoopLedger<string> {
+  return Either.match(decodeImprovementLoopLedger(value), {
+    onLeft: (error) => {
+      throw new TesseractError(
+        'speedrun-ledger-validation-failed',
+        `${provenance} failed validation${error.path ? ` at ${error.path}` : ''}`,
+        error,
+      );
+    },
+    onRight: (ledger) => ledger,
+  });
+}
+
 function saveScorecard(paths: ProjectPaths, scorecard: PipelineScorecard) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
@@ -207,7 +268,10 @@ export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunRes
       knowledgePosture: 'warm-start',
       scope: 'post-run',
     });
-    const runRecords: RunRecord[] = catalog.runRecords.map((entry) => entry.artifact as unknown as RunRecord);
+    const runRecords = decodeRunRecords(
+      catalog.runRecords.map((entry) => entry.artifact),
+      'speedrunProgram(post-run catalog)',
+    );
     const runSteps = runRecords.flatMap((record) =>
       record.steps.map((step) => ({
         interpretation: step.interpretation,
@@ -551,7 +615,10 @@ export function fitnessPhase(input: FitnessPhaseInput) {
       scope: 'post-run',
     });
 
-    const runRecords: RunRecord[] = catalog.runRecords.map((entry) => entry.artifact as unknown as RunRecord);
+    const runRecords = decodeRunRecords(
+      catalog.runRecords.map((entry) => entry.artifact),
+      'fitnessPhase(post-run catalog)',
+    );
     const runSteps = runRecords.flatMap((record) =>
       record.steps.map((step) => ({
         interpretation: step.interpretation,
@@ -571,7 +638,9 @@ export function fitnessPhase(input: FitnessPhaseInput) {
       Effect.catchAll(() => Effect.succeed(null)),
     );
     const emptyLedger: ImprovementLoopLedger<string> = { kind: 'improvement-loop-ledger', version: 1, maxIterations: 0, completedIterations: 0, converged: false, convergenceReason: null, iterations: [], totalProposalsActivated: 0, totalInstructionCount: 0, knowledgeHitRateDelta: 0 };
-    const ledger: ImprovementLoopLedger<string> = rawLedger != null ? rawLedger as ImprovementLoopLedger<string> : emptyLedger;
+    const ledger: ImprovementLoopLedger<string> = rawLedger != null
+      ? decodeLedgerOrThrow(rawLedger, `fitnessPhase(${ledgerPath})`)
+      : emptyLedger;
 
     const fitnessData: FitnessInputData = {
       pipelineVersion,
@@ -618,7 +687,10 @@ export function reportPhase(input: ReportPhaseInput) {
       scope: 'post-run',
     });
 
-    const runRecords: RunRecord[] = catalog.runRecords.map((entry) => entry.artifact as unknown as RunRecord);
+    const runRecords = decodeRunRecords(
+      catalog.runRecords.map((entry) => entry.artifact),
+      'reportPhase(post-run catalog)',
+    );
     const runSteps = runRecords.flatMap((record) =>
       record.steps.map((step) => ({
         interpretation: step.interpretation,
@@ -638,7 +710,9 @@ export function reportPhase(input: ReportPhaseInput) {
       Effect.catchAll(() => Effect.succeed(null)),
     );
     const reportEmptyLedger: ImprovementLoopLedger<string> = { kind: 'improvement-loop-ledger', version: 1, maxIterations: 0, completedIterations: 0, converged: false, convergenceReason: null, iterations: [], totalProposalsActivated: 0, totalInstructionCount: 0, knowledgeHitRateDelta: 0 };
-    const reportLedger: ImprovementLoopLedger<string> = rawReportLedger != null ? rawReportLedger as ImprovementLoopLedger<string> : reportEmptyLedger;
+    const reportLedger: ImprovementLoopLedger<string> = rawReportLedger != null
+      ? decodeLedgerOrThrow(rawReportLedger, `reportPhase(${reportLedgerPath})`)
+      : reportEmptyLedger;
 
     const fitnessReport = buildFitnessReport({
       pipelineVersion,

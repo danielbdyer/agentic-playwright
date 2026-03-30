@@ -1,4 +1,4 @@
-import { Effect } from 'effect';
+import { Effect, Either, Schema } from 'effect';
 import { loadWorkspaceCatalog } from './catalog';
 import { runScenarioSelection } from './run';
 import type { ProjectPaths } from './paths';
@@ -29,6 +29,12 @@ import type {
   LearningScorecard,
   ProposalBundle,
 } from '../domain/types';
+import { createAdoId } from '../domain/identity';
+import { decodeUnknownEither } from '../domain/schemas/decode';
+
+const decodeScenarioIds = decodeUnknownEither(
+  Schema.Array(Schema.String),
+);
 
 
 
@@ -116,8 +122,8 @@ function proposalsForScenarios(bundles: readonly ProposalBundle[], scenarioIds: 
 export function collectRunbookScenarioIds(options: {
   readonly runbooks: readonly BenchmarkRunbookSelection[];
   readonly concurrency: number;
-  readonly selectRunbook: (runbook: BenchmarkRunbookSelection) => Effect.Effect<readonly string[]>;
-}): Effect.Effect<string[]> {
+  readonly selectRunbook: (runbook: BenchmarkRunbookSelection) => Effect.Effect<readonly string[], unknown, unknown>;
+}): Effect.Effect<string[], unknown, unknown> {
   return Effect.gen(function* () {
     const selections = yield* Effect.forEach(options.runbooks, options.selectRunbook, {
       concurrency: options.concurrency,
@@ -497,6 +503,16 @@ export function projectBenchmarkScorecard(options: {
       scorecardCatalog.improvementRuns.map((entry) => entry.artifact),
       scenarioIds,
     );
+    const typedScenarioIds = Either.match(decodeScenarioIds(scenarioIds), {
+      onLeft: (error) => {
+        throw new TesseractError(
+          'benchmark-scenario-ids-decode-failed',
+          `benchmark ${benchmark.name} scenarioIds decode failed${error.path ? ` at ${error.path}` : ''}`,
+          error,
+        );
+      },
+      onRight: (value) => value.map((scenarioId) => createAdoId(scenarioId)),
+    });
     const benchmarkImprovementProjection: BenchmarkImprovementProjection = {
       kind: 'benchmark-improvement-projection',
       version: 1,
@@ -505,7 +521,7 @@ export function projectBenchmarkScorecard(options: {
       executedAt: new Date().toISOString(),
       posture: executionContext.posture,
       runbooks: benchmark.benchmarkRunbooks.map((entry) => entry.runbook),
-      scenarioIds: scenarioIds as unknown as DogfoodRun['scenarioIds'],
+      scenarioIds: typedScenarioIds,
       driftEventIds: benchmark.driftEvents.map((event) => event.id),
       scorecard,
       improvement: summarizeImprovementRuns(improvementRuns),

@@ -7,27 +7,21 @@ import type { RuntimeResult} from './result';
 import { runtimeErr, runtimeOk } from './result';
 
 async function assertPrecondition(locator: Locator, precondition: WidgetPrecondition): Promise<RuntimeResult<void>> {
-  const target = locator as unknown as {
-    isVisible?: () => Promise<boolean>;
-    isEnabled?: () => Promise<boolean>;
-    isEditable?: () => Promise<boolean>;
-  };
-
   switch (precondition) {
     case 'visible':
-      if (typeof target.isVisible === 'function' && !(await target.isVisible())) {
+      if (!(await locator.isVisible())) {
         const error = widgetPreconditionError(precondition);
         return runtimeErr('runtime-widget-precondition-failed', error.message, error.context, error);
       }
       return runtimeOk(undefined);
     case 'enabled':
-      if (typeof target.isEnabled === 'function' && !(await target.isEnabled())) {
+      if (!(await locator.isEnabled())) {
         const error = widgetPreconditionError(precondition);
         return runtimeErr('runtime-widget-precondition-failed', error.message, error.context, error);
       }
       return runtimeOk(undefined);
     case 'editable':
-      if (typeof target.isEditable === 'function' && !(await target.isEditable())) {
+      if (!(await locator.isEditable())) {
         const error = widgetPreconditionError(precondition);
         return runtimeErr('runtime-widget-precondition-failed', error.message, error.context, error);
       }

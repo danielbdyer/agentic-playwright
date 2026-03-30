@@ -1,4 +1,4 @@
-import { Effect } from 'effect';
+import { Effect, Either, Schema } from 'effect';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
 import { renderOperatorInboxMarkdown, buildOperatorInboxItems } from './operator';
 import { buildWorkflowHotspots } from './hotspots';
@@ -7,6 +7,15 @@ import { relativeProjectPath } from './paths';
 import { FileSystem, Dashboard } from './ports';
 import { dashboardEvent } from '../domain/types/dashboard';
 import { mintReviewRequired } from '../domain/types/workflow';
+import { decodeUnknownEither } from '../domain/schemas/decode';
+import { TesseractError } from '../domain/errors';
+
+const OperatorInboxDashboardEventDataSchema = Schema.Struct({
+  element: Schema.optionalWith(Schema.NullOr(Schema.String), { default: () => null }),
+  screen: Schema.optionalWith(Schema.NullOr(Schema.String), { default: () => null }),
+});
+
+const decodeOperatorInboxDashboardEventData = decodeUnknownEither(OperatorInboxDashboardEventDataSchema);
 
 export function emitOperatorInbox(options: {
   paths: ProjectPaths;
@@ -60,15 +69,27 @@ export function emitOperatorInbox(options: {
     if (actionableItems.length > 0) {
       yield* Effect.forEach(
         actionableItems,
-        (item) => dashboard.emit(dashboardEvent('inbox-item-arrived', {
-          id: item.id,
-          element: (item as unknown as Record<string, unknown>).element as string ?? item.id,
-          screen: (item as unknown as Record<string, unknown>).screen as string ?? 'unknown',
-          urgency: 'queued',
-          reason: item.summary,
-          governance: mintReviewRequired(),
-          relatedWorkItemId: null,
-        })),
+        (item) => {
+          const eventData = Either.match(decodeOperatorInboxDashboardEventData(item), {
+            onLeft: (error) => {
+              throw new TesseractError(
+                'operator-inbox-dashboard-event-decode-failed',
+                `emitOperatorInbox action item ${item.id} failed event decode${error.path ? ` at ${error.path}` : ''}`,
+                error,
+              );
+            },
+            onRight: (value) => value,
+          });
+          return dashboard.emit(dashboardEvent('inbox-item-arrived', {
+            id: item.id,
+            element: eventData.element ?? item.id,
+            screen: eventData.screen ?? 'unknown',
+            urgency: 'queued',
+            reason: item.summary,
+            governance: mintReviewRequired(),
+            relatedWorkItemId: null,
+          }));
+        },
         { concurrency: 1 },
       );
     }

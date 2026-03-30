@@ -40,6 +40,10 @@ export interface TaskProjectionResult {
 }
 
 type StepTaskSeed = Omit<GroundedStep, 'grounding' | 'stepFingerprint' | 'taskFingerprint'>;
+type CompileSnapshotInput = Pick<
+  CompileSnapshot,
+  'adoId' | 'scenario' | 'scenarioPath' | 'boundScenario' | 'boundPath' | 'hasUnbound'
+>;
 
 function taskManifestPath(paths: ProjectPaths, adoId: AdoId): string {
   return path.join(paths.tasksDir, `${adoId}.manifest.json`);
@@ -165,7 +169,7 @@ function buildKnowledgeSlice(input: {
 
 export function buildScenarioInterpretationSurface(input: {
   paths: ProjectPaths;
-  compileSnapshot: CompileSnapshot;
+  compileSnapshot: CompileSnapshotInput;
   catalog: WorkspaceCatalog;
   interfaceGraph?: ApplicationInterfaceGraph | null | undefined;
   selectorCanon?: SelectorCanon | null | undefined;
@@ -305,7 +309,7 @@ export function buildInterpretationSurfaceProjection(options:
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const catalog = options.catalog ?? (yield* loadWorkspaceCatalog({ paths: options.paths, scope: 'compile' }));
-    const compileSnapshot = 'compileSnapshot' in options
+    const compileSnapshot: CompileSnapshotInput = 'compileSnapshot' in options
       ? options.compileSnapshot
       : (() => {
           const scenario = catalog.scenarios.find((entry) => entry.artifact.source.ado_id === options.adoId);
@@ -322,10 +326,8 @@ export function buildInterpretationSurfaceProjection(options:
             scenarioPath: scenario.absolutePath,
             boundScenario: boundScenario.artifact,
             boundPath: boundScenario.absolutePath,
-            surface: null as unknown as ScenarioInterpretationSurface,
-            surfacePath: '',
             hasUnbound: boundScenario.artifact.steps.some((step) => step.binding.kind === 'unbound'),
-          } satisfies CompileSnapshot;
+          } satisfies CompileSnapshotInput;
         })();
 
     const packetPath = taskPacketPath(options.paths, compileSnapshot.adoId);
