@@ -72,13 +72,13 @@ const parseAgentResponse = (result: unknown): { readonly status: 'completed' | '
 export function createAgentDecider(options: AgentDeciderOptions): WorkItemDecider {
   const timeout = options.timeout ?? Duration.seconds(30);
 
-  return async (item) => {
+  return (item) => {
     if (options.shouldHandle && !options.shouldHandle(item)) {
-      return { status: 'skipped', rationale: 'Agent filter: item not in scope' };
+      return Effect.succeed({ status: 'skipped', rationale: 'Agent filter: item not in scope' });
     }
 
     // Effect program: invoke tool with timeout, catch all errors
-    const program = Effect.tryPromise({
+    return Effect.tryPromise({
       try: () => options.invokeTool('decide_work_item', workItemToToolArgs(item)),
       catch: (err) => err instanceof Error ? err : new Error(String(err)),
     }).pipe(
@@ -90,8 +90,6 @@ export function createAgentDecider(options: AgentDeciderOptions): WorkItemDecide
         rationale: `Agent error: ${err instanceof Error ? err.message : String(err)}`,
       })),
     );
-
-    return Effect.runPromise(program);
   };
 }
 
@@ -102,14 +100,13 @@ export function createAgentDecider(options: AgentDeciderOptions): WorkItemDecide
 export function createDualModeDecider(options: DualModeDeciderOptions): WorkItemDecider {
   const shouldEscalate = options.shouldEscalate ?? defaultEscalationHeuristic;
 
-  return async (item) => {
-    if (shouldEscalate(item)) return options.humanDecider(item);
-
-    const agentResult = await options.agentDecider(item);
-
-    // Fall back to human if agent declined or errored
-    return (!agentResult || agentResult.rationale.startsWith('Agent error:') || agentResult.rationale.startsWith('Agent filter:'))
+  return (item) =>
+    shouldEscalate(item)
       ? options.humanDecider(item)
-      : agentResult;
-  };
+      : options.agentDecider(item).pipe(
+          Effect.flatMap((agentResult) =>
+            (!agentResult || agentResult.rationale.startsWith('Agent error:') || agentResult.rationale.startsWith('Agent filter:'))
+              ? options.humanDecider(item)
+              : Effect.succeed(agentResult)),
+        );
 }

@@ -5,6 +5,7 @@
  */
 
 import { expect, test } from '@playwright/test';
+import { Effect } from 'effect';
 import { buildAgentWorkItems, defaultWorkItemDecider } from '../lib/application/agent-workbench';
 import type { WorkflowHotspot } from '../lib/application/hotspots';
 import type { AgentWorkItem, WorkItemKind } from '../lib/domain/types';
@@ -142,25 +143,25 @@ test.describe('Evidence Confidence Scaling', () => {
 test.describe('Default Work Item Decider', () => {
   test('approves proposals', async () => {
     const item = { kind: 'approve-proposal' as WorkItemKind, title: 'test' } as AgentWorkItem;
-    const result = await defaultWorkItemDecider(item);
+    const result = await Effect.runPromise(defaultWorkItemDecider(item));
     expect(result?.status).toBe('completed');
   });
 
   test('acknowledges high-confidence hotspots', async () => {
     const item = { kind: 'investigate-hotspot' as WorkItemKind, title: 'test', evidence: { confidence: 0.8, sources: [] } } as unknown as AgentWorkItem;
-    const result = await defaultWorkItemDecider(item);
+    const result = await Effect.runPromise(defaultWorkItemDecider(item));
     expect(result?.status).toBe('completed');
   });
 
   test('skips low-confidence hotspots', async () => {
     const item = { kind: 'investigate-hotspot' as WorkItemKind, title: 'test', evidence: { confidence: 0.3, sources: [] } } as unknown as AgentWorkItem;
-    const result = await defaultWorkItemDecider(item);
+    const result = await Effect.runPromise(defaultWorkItemDecider(item));
     expect(result?.status).toBe('skipped');
   });
 
   test('skips interpret-step items (needs real agent)', async () => {
     const item = { kind: 'interpret-step' as WorkItemKind, title: 'test' } as AgentWorkItem;
-    const result = await defaultWorkItemDecider(item);
+    const result = await Effect.runPromise(defaultWorkItemDecider(item));
     expect(result?.status).toBe('skipped');
   });
 });

@@ -258,21 +258,30 @@ export function createPipelineEventBus(options?: {
     // Create bounded PubSub — backpressure propagates to publishers if all
     // subscribers are slow. Dropping strategy would lose events silently.
     const pubsub = yield* PubSub.bounded<DashboardEvent>(4096);
+    const publishQueue = yield* Queue.unbounded<DashboardEvent>();
+    yield* Effect.fork(
+      Effect.forever(
+        Effect.gen(function* () {
+          const event = yield* Queue.take(publishQueue);
+          yield* PubSub.publish(pubsub, event);
+        }),
+      ),
+    );
 
     // Pending decisions bridge for awaitDecision
     const pendingDecisions = new Map<string, (decision: WorkItemDecision) => void>();
 
     const dashboardPort: DashboardPort = {
       emit: (event) => Effect.gen(function* () {
-        yield* PubSub.publish(pubsub, event);
+        yield* Queue.offer(publishQueue, event);
       }),
 
       awaitDecision: (item) => Effect.async<WorkItemDecision, never, never>((resume) => {
         // Publish item-pending to all subscribers
-        Effect.runSync(PubSub.publish(pubsub, dashboardEvent('item-pending', item)));
+        Queue.unsafeOffer(publishQueue, dashboardEvent('item-pending', item));
 
         pendingDecisions.set(item.id, (decision) => {
-          Effect.runSync(PubSub.publish(pubsub, dashboardEvent('item-completed', decision)));
+          Queue.unsafeOffer(publishQueue, dashboardEvent('item-completed', decision));
           resume(Effect.succeed(decision));
         });
 
@@ -285,7 +294,7 @@ export function createPipelineEventBus(options?: {
               status: 'skipped',
               rationale: `Auto-skip (${timeoutMs}ms)`,
             };
-            Effect.runSync(PubSub.publish(pubsub, dashboardEvent('item-completed', d)));
+            Queue.unsafeOffer(publishQueue, dashboardEvent('item-completed', d));
             resume(Effect.succeed(d));
           }
         }, timeoutMs);

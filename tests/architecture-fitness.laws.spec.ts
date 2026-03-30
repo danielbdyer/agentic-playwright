@@ -248,10 +248,9 @@ test('recursive-self-improvement.md documents all five tuning surfaces', () => {
 test('Effect.runPromise and Effect.runSync only appear in allowed boundary files', () => {
   const ALLOWED_LOCATIONS = new Set([
     'composition',
-    'application/dashboard-decider.ts',
-    'application/agent-decider.ts',
-    'infrastructure/dashboard/pipeline-event-bus.ts',
-    'application/execution/load-run-plan.ts',
+    'application/agent-interpreter-provider.ts',
+    'infrastructure/mcp/dashboard-mcp-server.ts',
+    'runtime/agent/mcp-bridge.ts',
   ]);
 
   function isAllowed(relPath: string): boolean {

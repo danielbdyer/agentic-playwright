@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test';
 import { test } from '@playwright/test';
 import type { AdoId } from '../domain/identity';
 import type { RuntimeInterpreterMode, WriteMode } from '../domain/types/workflow';
-import { loadScenarioRunPlan } from '../application/execution/load-run-plan';
+import { loadScenarioRunPlan } from './load-run-plan';
 import { createLocalRuntimeEnvironment } from '../infrastructure/runtime/local-runtime-environment';
 import {
   createScenarioRunState,

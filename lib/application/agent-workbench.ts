@@ -346,20 +346,22 @@ export interface ActLoopResult {
   readonly transitivelyResolved: number;
 }
 
-export type WorkItemDecider = (item: AgentWorkItem) => Promise<{
+export type WorkItemDecisionResult = {
   readonly status: 'completed' | 'skipped';
   readonly rationale: string;
   readonly artifactsWritten?: readonly string[];
-} | null>;
+} | null;
+
+export type WorkItemDecider = (item: AgentWorkItem) => Effect.Effect<WorkItemDecisionResult>;
 
 /** Strategy for deciding on an entire screen group at once.
  *  Receives the full StepTaskScreenCandidate — all elements, aliases, selectors.
  *  The agent observes the screen once, gets full context, decides on all items. */
-export type ScreenGroupDecider = (group: ScreenGroupContext) => Promise<
+export type ScreenGroupDecider = (group: ScreenGroupContext) => Effect.Effect<
   readonly { readonly workItemId: string; readonly status: 'completed' | 'skipped'; readonly rationale: string; readonly artifactsWritten?: readonly string[] }[]
 >;
 
-export const defaultWorkItemDecider: WorkItemDecider = async (item) => {
+export const defaultWorkItemDecider: WorkItemDecider = (item) => Effect.succeed((() => {
   switch (item.kind) {
     case 'approve-proposal':
       return { status: 'completed', rationale: `Auto-approved: ${item.title}` };
@@ -376,21 +378,24 @@ export const defaultWorkItemDecider: WorkItemDecider = async (item) => {
     case 'request-rerun':
       return { status: 'skipped', rationale: `Rerun requested: ${item.title}` };
   }
-};
+})());
 
 function liftToScreenGroupDecider(decider: WorkItemDecider): ScreenGroupDecider {
-  return async (group) => {
-    const step = async (
+  return (group) => {
+    const step = (
       remaining: readonly AgentWorkItem[],
       acc: readonly { workItemId: string; status: 'completed' | 'skipped'; rationale: string; artifactsWritten?: readonly string[] }[],
-    ): Promise<readonly { workItemId: string; status: 'completed' | 'skipped'; rationale: string; artifactsWritten?: readonly string[] }[]> => {
-      if (remaining.length === 0) return acc;
+    ): Effect.Effect<readonly { workItemId: string; status: 'completed' | 'skipped'; rationale: string; artifactsWritten?: readonly string[] }[]> => {
+      if (remaining.length === 0) return Effect.succeed(acc);
       const [item, ...rest] = remaining;
-      const decision = await decider(item!);
-      if (!decision) return acc;
-      return step(rest, [...acc, { workItemId: item!.id, ...decision }]);
+      return decider(item!).pipe(
+        Effect.flatMap((decision) => {
+          if (!decision) return Effect.succeed(acc);
+          return step(rest, [...acc, { workItemId: item!.id, ...decision }]);
+        }),
+      );
     };
-    return [...await step(group.workItems, [])];
+    return step(group.workItems, []).pipe(Effect.map((decisions) => [...decisions]));
   };
 }
 
@@ -430,7 +435,7 @@ export function processWorkItems(options: {
         };
         if (options.onScreenGroupStart) options.onScreenGroupStart(budgetedGroup);
 
-        const decisions = yield* Effect.promise(() => sgDecider(budgetedGroup));
+        const decisions = yield* sgDecider(budgetedGroup);
         const batchCompletions: readonly WorkItemCompletion[] = decisions.map((d) => ({
           workItemId: d.workItemId,
           status: d.status,
