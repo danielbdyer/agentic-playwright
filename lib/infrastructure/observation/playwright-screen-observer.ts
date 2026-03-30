@@ -104,9 +104,30 @@ async function observeScreen(
  *  Reuses existing locator resolution, ARIA capture, and strategy matching. */
 export function createPlaywrightScreenObserver(page: Page): ScreenObservationPort {
   return {
-    observe: (input) => Effect.tryPromise({
-      try: () => observeScreen(page, input),
-      catch: (error) => new TesseractError('screen-observation-failed', `Screen observation failed: ${error}`, error),
-    }).pipe(Effect.withSpan('playwright-screen-observation')),
+    observe: (input) => Effect.scoped(Effect.gen(function* () {
+      const pageState = { closed: false };
+
+      const onClose = () => {
+        pageState.closed = true;
+      };
+
+      yield* Effect.acquireRelease(
+        Effect.sync(() => {
+          page.on('close', onClose);
+        }),
+        () => Effect.sync(() => {
+          page.off('close', onClose);
+        }),
+      );
+
+      if (pageState.closed) {
+        return yield* Effect.fail(new TesseractError('screen-observation-failed', 'Screen observation failed: page already closed.'));
+      }
+
+      return yield* Effect.tryPromise({
+        try: () => observeScreen(page, input),
+        catch: (error) => new TesseractError('screen-observation-failed', `Screen observation failed: ${error}`, error),
+      });
+    })).pipe(Effect.withSpan('playwright-screen-observation')),
   };
 }

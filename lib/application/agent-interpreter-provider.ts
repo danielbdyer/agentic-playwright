@@ -22,7 +22,7 @@
  *   - `disabled` when no agent capability is available (ci-batch profile)
  */
 
-import { Effect, Duration } from 'effect';
+import { Effect, Duration, Fiber } from 'effect';
 import type { ResolutionTarget, ResolutionProposalDraft } from '../domain/types';
 import type { StepAction } from '../domain/types';
 import type { ScreenId, ElementId, PostureId, SnapshotTemplateId } from '../domain/identity';
@@ -609,13 +609,13 @@ export function withAgentTimeout(
   const budgetMs = options?.budgetMs ?? DEFAULT_AGENT_TIMEOUT_MS;
   const providerId = options?.provider ?? 'agent-timeout-wrapper';
 
-  return (request) => Effect.runPromise(withAgentTimeoutEffect(
+  return (request) => Effect.runPromise(Effect.scoped(withAgentTimeoutEffect(
     Effect.tryPromise({
       try: () => interpret(request),
       catch: (err) => err instanceof Error ? err : new Error(String(err)),
     }),
     { budgetMs, provider: providerId },
-  ));
+  )));
 }
 
 export function withAgentTimeoutEffect(
@@ -624,11 +624,24 @@ export function withAgentTimeoutEffect(
 ): Effect.Effect<AgentInterpretationResult, never, never> {
   const budgetMs = options?.budgetMs ?? DEFAULT_AGENT_TIMEOUT_MS;
   const providerId = options?.provider ?? 'agent-timeout-wrapper';
-  return interpretEffect.pipe(
-    Effect.timeout(Duration.millis(budgetMs)),
-    Effect.map((result) => result ?? timeoutFallbackResult(providerId, budgetMs)),
-    Effect.catchAll(() => Effect.succeed(timeoutFallbackResult(providerId, budgetMs))),
-  );
+  return Effect.scoped(Effect.gen(function* () {
+    const interpretationFiber = yield* Effect.forkScoped(
+      interpretEffect.pipe(
+        Effect.map((result) => ({ kind: 'result' as const, result })),
+      ),
+    );
+
+    const outcome = yield* Effect.raceFirst(
+      Fiber.join(interpretationFiber),
+      Effect.sleep(Duration.millis(budgetMs)).pipe(Effect.as({ kind: 'timeout' as const })),
+    ).pipe(
+      Effect.catchAll(() => Effect.succeed({ kind: 'timeout' as const })),
+    );
+
+    return outcome.kind === 'result'
+      ? outcome.result
+      : timeoutFallbackResult(providerId, budgetMs);
+  }));
 }
 
 /**

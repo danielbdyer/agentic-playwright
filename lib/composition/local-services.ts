@@ -121,10 +121,10 @@ export function createLocalServiceContext(rootDir: string, options?: LocalServic
     posture,
     writeJournal: () => executionContext.writeJournal(),
     provide<A, E, R>(program: Effect.Effect<A, E, R>): Effect.Effect<A, E, never> {
-      return Effect.provide(
+      return Effect.scoped(Effect.provide(
         program as Effect.Effect<A, E, FileSystem | AdoSource | RuntimeScenarioRunner | ExecutionContext | PipelineConfigService | VersionControl | Dashboard | StageTracer | McpServer | PlaywrightBridge>,
         layer,
-      ) as Effect.Effect<A, E, never>;
+      )) as Effect.Effect<A, E, never>;
     },
   };
 }

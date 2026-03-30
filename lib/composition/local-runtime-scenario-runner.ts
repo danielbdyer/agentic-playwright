@@ -85,7 +85,7 @@ function buildDefaultTranslator(
 function buildRunnerWithInterpreter(interpreterOverride?: AgentInterpreterProvider | undefined): RuntimeScenarioRunnerPort {
   return {
     runSteps(input) {
-      return Effect.gen(function* () {
+      return Effect.scoped(Effect.gen(function* () {
         const paths = createProjectPaths(input.rootDir, input.suiteRoot);
         const translationDisabled = Boolean(input.translationOptions?.disableTranslation);
         const cacheDisabled = Boolean(input.translationOptions?.disableTranslationCache);
@@ -126,7 +126,7 @@ function buildRunnerWithInterpreter(interpreterOverride?: AgentInterpreterProvid
       );
 
       return [...results];
-    });
+    }));
   },
   };
 }
