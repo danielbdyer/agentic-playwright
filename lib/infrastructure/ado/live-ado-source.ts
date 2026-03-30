@@ -1,7 +1,9 @@
 import type { AdoSourcePort } from '../../application/ports';
-import { tryAsync } from '../../application/effect';
+import { Effect } from 'effect';
 import { computeAdoContentHash, normalizeHtmlText } from '../../domain/hash';
 import { createAdoId } from '../../domain/identity';
+import { TesseractError, toTesseractError } from '../../domain/errors';
+import { RETRY_POLICIES, retryScheduleForTaggedErrors } from '../../application/resilience/schedules';
 
 export interface LiveAdoSourceConfig {
   organizationUrl: string;
@@ -26,6 +28,24 @@ interface WorkItemResponse {
 
 interface FetchLike {
   (input: string, init?: RequestInit): Promise<Response>;
+}
+
+class AdoTransientError extends TesseractError {
+  override readonly _tag = 'AdoTransientError' as const;
+
+  constructor(message: string, cause?: unknown) {
+    super('ado-transient', message, cause);
+    this.name = 'AdoTransientError';
+  }
+}
+
+function isAdoTransient(cause: unknown): boolean {
+  if (!(cause instanceof Error)) {
+    return false;
+  }
+  return cause.name === 'AbortError'
+    || /timed?\s*out/i.test(cause.message)
+    || /network/i.test(cause.message);
 }
 
 function splitTags(value: unknown): string[] {
@@ -182,27 +202,48 @@ export function makeLiveAdoSource(config: LiveAdoSourceConfig, dependencies?: { 
   const fetchImpl = dependencies?.fetchImpl ?? fetch;
   const apiVersion = config.apiVersion ?? '7.1';
   const baseUrl = `${config.organizationUrl.replace(/\/$/, '')}/${encodeURIComponent(config.project)}`;
+  const retryPolicy = RETRY_POLICIES.adoTransient;
 
   return {
     listSnapshotIds() {
-      return tryAsync(async () => {
-        const wiqlUrl = `${baseUrl}/_apis/wit/wiql?api-version=${encodeURIComponent(apiVersion)}`;
-        const wiqlResponse = await fetchJson(fetchImpl, wiqlUrl, config.token, 'POST', { query: buildWiql(config) }) as {
-          workItems?: WorkItemReference[];
-        };
-        return (wiqlResponse.workItems ?? [])
-          .map((entry) => createAdoId(String(entry.id)))
-          .sort((left, right) => left.localeCompare(right));
-      }, 'ado-live-list-failed', 'Unable to list ADO work items from live source');
+      return Effect.tryPromise({
+        try: async () => {
+          const wiqlUrl = `${baseUrl}/_apis/wit/wiql?api-version=${encodeURIComponent(apiVersion)}`;
+          const wiqlResponse = await fetchJson(fetchImpl, wiqlUrl, config.token, 'POST', { query: buildWiql(config) }) as {
+            workItems?: WorkItemReference[];
+          };
+          return (wiqlResponse.workItems ?? [])
+            .map((entry) => createAdoId(String(entry.id)))
+            .sort((left, right) => left.localeCompare(right));
+        },
+        catch: (cause) => isAdoTransient(cause)
+          ? new AdoTransientError('Transient failure while listing ADO snapshots', cause)
+          : toTesseractError(cause, 'ado-live-list-failed', 'Unable to list ADO work items from live source'),
+      }).pipe(
+        Effect.retryOrElse(
+          retryScheduleForTaggedErrors(retryPolicy, (error) => error._tag === 'AdoTransientError'),
+          (error) => Effect.fail(error),
+        ),
+      );
     },
 
     loadSnapshot(adoId) {
-      return tryAsync(async () => {
-        const workItemUrl = `${baseUrl}/_apis/wit/workitems/${adoId}?$expand=fields&api-version=${encodeURIComponent(apiVersion)}`;
-        const workItem = await fetchJson(fetchImpl, workItemUrl, config.token) as WorkItemResponse;
-        const syncedAt = (dependencies?.now ?? (() => new Date()))().toISOString();
-        return buildSnapshot(config, workItem, syncedAt);
-      }, 'ado-live-read-failed', `Unable to load ADO snapshot ${adoId} from live source`);
+      return Effect.tryPromise({
+        try: async () => {
+          const workItemUrl = `${baseUrl}/_apis/wit/workitems/${adoId}?$expand=fields&api-version=${encodeURIComponent(apiVersion)}`;
+          const workItem = await fetchJson(fetchImpl, workItemUrl, config.token) as WorkItemResponse;
+          const syncedAt = (dependencies?.now ?? (() => new Date()))().toISOString();
+          return buildSnapshot(config, workItem, syncedAt);
+        },
+        catch: (cause) => isAdoTransient(cause)
+          ? new AdoTransientError(`Transient failure while loading ADO snapshot ${adoId}`, cause)
+          : toTesseractError(cause, 'ado-live-read-failed', `Unable to load ADO snapshot ${adoId} from live source`),
+      }).pipe(
+        Effect.retryOrElse(
+          retryScheduleForTaggedErrors(retryPolicy, (error) => error._tag === 'AdoTransientError'),
+          (error) => Effect.fail(error),
+        ),
+      );
     },
   };
 }

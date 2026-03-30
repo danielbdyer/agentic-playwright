@@ -22,7 +22,8 @@
 
 import { Effect } from 'effect';
 import { Context } from 'effect';
-import type { TesseractError } from '../../domain/errors';
+import { TesseractError } from '../../domain/errors';
+import { RETRY_POLICIES, retryScheduleForTaggedErrors } from '../../application/resilience/schedules';
 
 // ─── Port Interface ───
 
@@ -71,6 +72,22 @@ export const DisabledPlaywrightBridge: PlaywrightBridgePort = {
 
 export class PlaywrightBridge extends Context.Tag('tesseract/PlaywrightBridge')<PlaywrightBridge, PlaywrightBridgePort>() {}
 
+class PlaywrightBridgeTransientError extends TesseractError {
+  override readonly _tag = 'PlaywrightBridgeTransientError' as const;
+
+  constructor(message: string, cause?: unknown) {
+    super('playwright-bridge-transient', message, cause);
+    this.name = 'PlaywrightBridgeTransientError';
+  }
+}
+
+function isPlaywrightTransient(cause: unknown): boolean {
+  if (!(cause instanceof Error)) {
+    return false;
+  }
+  return /timeout|closed|disconnected|target page/i.test(cause.message);
+}
+
 // ─── Live Adapter Factory (for headed mode with Playwright Page) ───
 // This factory is called when a Playwright Page is available.
 // It wraps Page methods in the BrowserAction/BrowserActionResult interface.
@@ -99,17 +116,17 @@ export function createPlaywrightBridge(page: {
       try: async () => {
         switch (action.kind) {
           case 'click':
-            if (!action.selector) return { success: false, action: 'click', data: null, error: 'selector required' };
+            if (!action.selector) return { success: false, action: 'click' as const, data: null, error: 'selector required' };
             await page.click(action.selector);
             return { success: true, action: 'click' as const, data: { selector: action.selector } };
 
           case 'fill':
-            if (!action.selector || action.value === undefined) return { success: false, action: 'fill', data: null, error: 'selector and value required' };
+            if (!action.selector || action.value === undefined) return { success: false, action: 'fill' as const, data: null, error: 'selector and value required' };
             await page.fill(action.selector, action.value);
             return { success: true, action: 'fill' as const, data: { selector: action.selector, value: action.value } };
 
           case 'navigate':
-            if (!action.url) return { success: false, action: 'navigate', data: null, error: 'url required' };
+            if (!action.url) return { success: false, action: 'navigate' as const, data: null, error: 'url required' };
             await page.goto(action.url);
             return { success: true, action: 'navigate' as const, data: { url: action.url } };
 
@@ -119,7 +136,7 @@ export function createPlaywrightBridge(page: {
           }
 
           case 'query': {
-            if (!action.selector) return { success: false, action: 'query', data: null, error: 'selector required' };
+            if (!action.selector) return { success: false, action: 'query' as const, data: null, error: 'selector required' };
             const box = await page.locator(action.selector).boundingBox();
             return { success: true, action: 'query' as const, data: { boundingBox: box } };
           }
@@ -130,11 +147,21 @@ export function createPlaywrightBridge(page: {
           }
 
           default:
-            return { success: false, action: action.kind, data: null, error: `Unknown action: ${action.kind}` };
+            return { success: false, action: action.kind as BrowserAction['kind'], data: null, error: `Unknown action: ${action.kind}` };
         }
       },
-      catch: (err) => ({ _tag: 'TesseractError' as const, message: String(err) }) as TesseractError,
-    }),
+      catch: (err) => isPlaywrightTransient(err)
+        ? new PlaywrightBridgeTransientError('Transient Playwright bridge failure', err)
+        : new TesseractError('playwright-bridge-failed', String(err), err),
+    }).pipe(
+      Effect.retryOrElse(
+        retryScheduleForTaggedErrors(
+          RETRY_POLICIES.playwrightBridgeTransient,
+          (error) => error._tag === 'PlaywrightBridgeTransientError',
+        ),
+        (error) => Effect.fail(error),
+      ),
+    ),
 
     currentUrl: () => Effect.sync(() => page.url()),
     release: () => Effect.void,

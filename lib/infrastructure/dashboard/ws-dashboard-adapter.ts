@@ -15,12 +15,40 @@ import type { DashboardPort } from '../../application/ports';
 import type { DashboardEvent, WorkItemDecision } from '../../domain/types';
 import type { AgentWorkItem } from '../../domain/types';
 import { dashboardEvent } from '../../domain/types';
+import { TesseractError } from '../../domain/errors';
+import { RETRY_POLICIES, retryScheduleForTaggedErrors } from '../../application/resilience/schedules';
 
 export interface WsBroadcaster {
   /** Send a JSON message to all connected WebSocket clients. */
   readonly broadcast: (data: unknown) => void;
   /** Register a handler for incoming WS messages from any client. */
   readonly onMessage: (handler: (msg: Record<string, unknown>) => void) => void;
+}
+
+class DashboardBridgeTransientError extends TesseractError {
+  override readonly _tag = 'DashboardBridgeTransientError' as const;
+
+  constructor(message: string, cause?: unknown) {
+    super('dashboard-bridge-transient', message, cause);
+    this.name = 'DashboardBridgeTransientError';
+  }
+}
+
+function withBroadcastRetry(
+  ws: WsBroadcaster,
+  event: unknown,
+): Effect.Effect<void, DashboardBridgeTransientError, never> {
+  return Effect.try({
+    try: () => {
+      ws.broadcast(event);
+    },
+    catch: (cause) => new DashboardBridgeTransientError('Dashboard websocket broadcast failed', cause),
+  }).pipe(
+    Effect.retryOrElse(
+      retryScheduleForTaggedErrors(RETRY_POLICIES.dashboardTransient, (error) => error._tag === 'DashboardBridgeTransientError'),
+      (error) => Effect.fail(error),
+    ),
+  );
 }
 
 /** Create a DashboardPort backed by WebSocket broadcast + request-response.
@@ -61,9 +89,9 @@ export function createWsDashboardAdapter(
 
     if (!deferred) return;
     yield* Deferred.succeed(deferred, decision);
-    yield* Effect.sync(() => {
-      ws.broadcast(dashboardEvent('item-completed', decision));
-    });
+    yield* withBroadcastRetry(ws, dashboardEvent('item-completed', decision)).pipe(
+      Effect.catchTag('DashboardBridgeTransientError', () => Effect.void),
+    );
   });
 
   // Register WS message handler for decision responses
@@ -72,9 +100,9 @@ export function createWsDashboardAdapter(
   });
 
   return {
-    emit: (event: DashboardEvent) => Effect.sync(() => {
-      ws.broadcast(event);
-    }),
+    emit: (event: DashboardEvent) => withBroadcastRetry(ws, event).pipe(
+      Effect.catchTag('DashboardBridgeTransientError', () => Effect.void),
+    ),
 
     awaitDecision: (item: AgentWorkItem) => Effect.gen(function* () {
       const timeoutDecision: WorkItemDecision = {
@@ -83,19 +111,19 @@ export function createWsDashboardAdapter(
         rationale: `Dashboard timeout (${timeoutMs / 1000}s)`,
       };
 
-      yield* Effect.sync(() => {
-        ws.broadcast(dashboardEvent('item-pending', item));
-      });
+      yield* withBroadcastRetry(ws, dashboardEvent('item-pending', item)).pipe(
+        Effect.catchTag('DashboardBridgeTransientError', () => Effect.void),
+      );
 
       const deferred = yield* Deferred.make<WorkItemDecision>();
       yield* Ref.update(pendingDecisions, (map) => new Map([...map, [item.id, deferred]]));
 
       return yield* Deferred.await(deferred).pipe(
         Effect.timeout(Duration.millis(timeoutMs)),
-        Effect.catchTag('TimeoutException', () => Effect.sync(() => {
-            ws.broadcast(dashboardEvent('item-completed', timeoutDecision));
-            return timeoutDecision;
-          })),
+        Effect.catchTag('TimeoutException', () => withBroadcastRetry(ws, dashboardEvent('item-completed', timeoutDecision)).pipe(
+          Effect.catchTag('DashboardBridgeTransientError', () => Effect.void),
+          Effect.as(timeoutDecision),
+        )),
         Effect.ensuring(removePending(item.id)),
       );
     }),

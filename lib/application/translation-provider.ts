@@ -24,6 +24,12 @@ import {
   type TranslationProviderParseError,
   type TranslationProviderTimeoutError,
 } from '../domain/errors';
+import {
+  RETRY_POLICIES,
+  formatRetryMetadata,
+  retryMetadata,
+  retryScheduleForTaggedErrors,
+} from './resilience/schedules';
 
 // ─── Provider Contract (Strategy interface) ───
 
@@ -190,6 +196,32 @@ function translationProviderFailureReceipt(rationale: string): TranslationReceip
   };
 }
 
+function withTranslationRetries(
+  providerId: string,
+  run: () => Promise<string>,
+): Effect.Effect<string, ReturnType<typeof translationProviderError>> {
+  const startedAt = Date.now();
+  let attempts = 0;
+  const retryPolicy = RETRY_POLICIES.translationTimeout;
+  return Effect.tryPromise({
+    try: async () => {
+      attempts += 1;
+      return run();
+    },
+    catch: (cause) => translationProviderError(cause, providerId),
+  }).pipe(
+    Effect.retryOrElse(
+      retryScheduleForTaggedErrors(retryPolicy, (error) => error._tag === 'TranslationProviderTimeoutError'),
+      (error) => Effect.fail(error),
+    ),
+    Effect.catchTag('TranslationProviderTimeoutError', (error: TranslationProviderTimeoutError) =>
+      Effect.fail(translationProviderError(
+        new Error(`${error.message} (${formatRetryMetadata(retryMetadata(retryPolicy, attempts, startedAt, true))})`),
+        providerId,
+      ))),
+  );
+}
+
 function createLlmApiProvider(
   config: TranslationConfig,
   deps: LlmApiProviderDependencies,
@@ -198,18 +230,19 @@ function createLlmApiProvider(
     id: `llm-api-${config.model}`,
     kind: 'llm-api',
     translate: (request) => Effect.runPromise(
-      Effect.tryPromise({
-        try: () => deps.createChatCompletion({
+      withTranslationRetries(
+        `llm-api-${config.model}`,
+        () => deps.createChatCompletion({
           model: config.model,
           maxTokens: config.budget.maxTokensPerStep,
           systemPrompt: buildTranslationSystemPrompt(request),
           userMessage: buildTranslationUserMessage(request),
         }),
-        catch: (cause) => cause,
-      }).pipe(
-        Effect.mapError((cause) => translationProviderError(cause, `llm-api-${config.model}`)),
-        Effect.map((raw) => parseLlmResponse(raw, request)),
-        Effect.mapError((cause) => translationProviderError(cause, `llm-api-${config.model}`)),
+      ).pipe(
+        Effect.flatMap((raw) => Effect.try({
+          try: () => parseLlmResponse(raw, request),
+          catch: (cause) => translationProviderError(cause, `llm-api-${config.model}`),
+        })),
         Effect.catchTag('TranslationProviderTimeoutError', (error: TranslationProviderTimeoutError) =>
           Effect.succeed(translationProviderFailureReceipt(
             `LLM API timed out (${error.message}). Degrading to next resolution rung.`,
@@ -262,18 +295,19 @@ function createCopilotProvider(
     id: 'copilot-vscode',
     kind: 'copilot',
     translate: (request) => Effect.runPromise(
-      Effect.tryPromise({
-        try: () => deps.createChatCompletion({
+      withTranslationRetries(
+        'copilot',
+        () => deps.createChatCompletion({
           model: 'copilot',
           maxTokens: 2000,
           systemPrompt: buildTranslationSystemPrompt(request),
           userMessage: buildTranslationUserMessage(request),
         }),
-        catch: (cause) => cause,
-      }).pipe(
-        Effect.mapError((cause) => translationProviderError(cause, 'copilot')),
-        Effect.map((raw) => parseLlmResponse(raw, request)),
-        Effect.mapError((cause) => translationProviderError(cause, 'copilot')),
+      ).pipe(
+        Effect.flatMap((raw) => Effect.try({
+          try: () => parseLlmResponse(raw, request),
+          catch: (cause) => translationProviderError(cause, 'copilot'),
+        })),
         Effect.catchTag('TranslationProviderTimeoutError', (error: TranslationProviderTimeoutError) =>
           Effect.succeed(translationProviderFailureReceipt(
             `Copilot API timed out (${error.message}). Degrading to next resolution rung.`,

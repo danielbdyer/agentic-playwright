@@ -19,6 +19,7 @@ import { dashboardMcpTools, dashboardEvent } from '../../domain/types/dashboard'
 import { resolveResource, buildResourceUri } from './resource-provider';
 import type { ResourceArtifactReader } from './resource-provider';
 import type { PlaywrightBridgePort, BrowserAction } from './playwright-mcp-bridge';
+import { RETRY_POLICIES, formatRetryMetadata, retryMetadata, retryScheduleForTaggedErrors } from '../../application/resilience/schedules';
 
 // ─── Configuration ───
 
@@ -261,13 +262,31 @@ const executeBrowserAction = (
 ): unknown => {
   const bridge = options.playwrightBridge;
   if (!bridge) return { error: 'Playwright bridge not available (headless mode)', available: false };
-  // Run the Effect synchronously since MCP handlers are sync.
-  // The bridge's execute returns an Effect — we use runSync via a simple promise-free path.
+  const startedAt = Date.now();
+  let attempts = 0;
   let result: unknown = null;
   Effect.runSync(
-    bridge.execute(action).pipe(
+    Effect.suspend(() => {
+      attempts += 1;
+      return bridge.execute(action);
+    }).pipe(
+      Effect.retryOrElse(
+        retryScheduleForTaggedErrors(
+          RETRY_POLICIES.playwrightBridgeTransient,
+          (error) => error._tag === 'PlaywrightBridgeTransientError',
+        ),
+        (error) => Effect.fail(error),
+      ),
       Effect.tap((r) => Effect.sync(() => { result = r; })),
-      Effect.catchAll((err) => Effect.sync(() => { result = { error: String(err), success: false }; })),
+      Effect.catchAll((err) => Effect.sync(() => {
+        result = {
+          error: String(err),
+          success: false,
+          retry: formatRetryMetadata(
+            retryMetadata(RETRY_POLICIES.playwrightBridgeTransient, attempts, startedAt, true),
+          ),
+        };
+      })),
     ),
   );
   return result;
