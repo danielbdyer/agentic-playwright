@@ -23,6 +23,8 @@
  */
 
 import { Effect, Duration } from 'effect';
+import { TesseractError, toTesseractError } from '../domain/errors';
+import { retryWithBackoffResult } from './effect';
 import type { ResolutionTarget, ResolutionProposalDraft } from '../domain/types';
 import type { StepAction } from '../domain/types';
 import type { ScreenId, ElementId, PostureId, SnapshotTemplateId } from '../domain/identity';
@@ -38,6 +40,65 @@ export type {
 } from '../domain/types/agent-interpreter';
 
 import type { AgentInterpretationRequest, AgentInterpretationResult, AgentInterpreterKind, AgentInterpreterProvider } from '../domain/types/agent-interpreter';
+
+
+function isDeterministicValidationError(error: unknown): boolean {
+  return error instanceof TesseractError && error.code === 'validation-error';
+}
+
+function isTransientAgentProviderError(error: unknown): boolean {
+  if (isDeterministicValidationError(error)) {
+    return false;
+  }
+
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const maybeErrno = error as NodeJS.ErrnoException;
+  const errnoCode = maybeErrno.code ?? '';
+  if (['ECONNRESET', 'ETIMEDOUT', 'ECONNREFUSED', 'EAI_AGAIN', 'ENOTFOUND'].includes(errnoCode)) {
+    return true;
+  }
+
+  const message = error.message.toLowerCase();
+  return message.includes('timeout')
+    || message.includes('temporarily unavailable')
+    || message.includes('rate limit')
+    || message.includes('429')
+    || message.includes('502')
+    || message.includes('503')
+    || message.includes('504');
+}
+
+function addRetryDetail(
+  result: AgentInterpretationResult,
+  retryAttempts: number,
+): AgentInterpretationResult {
+  if (retryAttempts === 0) {
+    return result;
+  }
+
+  return {
+    ...result,
+    rationale: `${result.rationale} Retry attempts: ${retryAttempts}.`,
+    observation: result.observation
+      ? {
+          ...result.observation,
+          detail: {
+            ...result.observation.detail,
+            retryAttempts: String(retryAttempts),
+          },
+        }
+      : {
+          source: 'agent-interpreted' as const,
+          summary: 'Agent interpretation required retries.',
+          detail: {
+            retryAttempts: String(retryAttempts),
+          },
+        },
+  };
+}
 
 // ─── Provider: Disabled (stub, always available) ───
 
@@ -455,24 +516,42 @@ function createLlmApiAgentProvider(
     id: `agent-llm-api-${config.model}`,
     kind: 'llm-api',
     interpret: async (request) => {
-      try {
-        const raw = await deps.createChatCompletion({
-          model: config.model,
-          maxTokens: config.budget.maxTokensPerStep,
-          systemPrompt: buildAgentSystemPrompt(request),
-          userMessage: buildAgentUserMessage(request),
-        });
-        return parseAgentResponse(raw, request, `llm-api-${config.model}`);
-      } catch {
+      const completion = await Effect.runPromise(retryWithBackoffResult(
+        () => Effect.tryPromise({
+          try: () => deps.createChatCompletion({
+            model: config.model,
+            maxTokens: config.budget.maxTokensPerStep,
+            systemPrompt: buildAgentSystemPrompt(request),
+            userMessage: buildAgentUserMessage(request),
+          }),
+          catch: (cause) => toTesseractError(cause, 'agent-llm-api-failed', 'Agent LLM API call failed.'),
+        }),
+        {
+          baseDelayMs: 200,
+          maxRecurs: 2,
+          shouldRetry: isTransientAgentProviderError,
+        },
+      ));
+
+      if (!completion.ok) {
         return {
           interpreted: false,
           target: null,
           confidence: 0,
-          rationale: 'Agent LLM API call failed. Escalating to needs-human.',
+          rationale: `Agent LLM API call failed. Escalating to needs-human. Retry attempts: ${completion.retryAttempts}.`,
           proposalDrafts: [],
           provider: `llm-api-${config.model}`,
+          observation: {
+            source: 'agent-interpreted' as const,
+            summary: 'Agent LLM API call failed after retries.',
+            detail: {
+              retryAttempts: String(completion.retryAttempts),
+            },
+          },
         };
       }
+
+      return addRetryDetail(parseAgentResponse(completion.value, request, `llm-api-${config.model}`), completion.retryAttempts);
     },
   };
 }
@@ -530,24 +609,42 @@ function createSessionProvider(
     id: 'agent-session-active',
     kind: 'session',
     interpret: async (request) => {
-      try {
-        const raw = await deps.createChatCompletion({
-          model: 'session',
-          maxTokens: 4000,
-          systemPrompt: buildAgentSystemPrompt(request),
-          userMessage: buildAgentUserMessage(request),
-        });
-        return parseAgentResponse(raw, request, 'session-agent');
-      } catch {
+      const completion = await Effect.runPromise(retryWithBackoffResult(
+        () => Effect.tryPromise({
+          try: () => deps.createChatCompletion({
+            model: 'session',
+            maxTokens: 4000,
+            systemPrompt: buildAgentSystemPrompt(request),
+            userMessage: buildAgentUserMessage(request),
+          }),
+          catch: (cause) => toTesseractError(cause, 'agent-session-failed', 'Agent session call failed.'),
+        }),
+        {
+          baseDelayMs: 200,
+          maxRecurs: 2,
+          shouldRetry: isTransientAgentProviderError,
+        },
+      ));
+
+      if (!completion.ok) {
         return {
           interpreted: false,
           target: null,
           confidence: 0,
-          rationale: 'Agent session call failed. Escalating to needs-human.',
+          rationale: `Agent session call failed. Escalating to needs-human. Retry attempts: ${completion.retryAttempts}.`,
           proposalDrafts: [],
           provider: 'session-agent',
+          observation: {
+            source: 'agent-interpreted' as const,
+            summary: 'Agent session call failed after retries.',
+            detail: {
+              retryAttempts: String(completion.retryAttempts),
+            },
+          },
         };
       }
+
+      return addRetryDetail(parseAgentResponse(completion.value, request, 'session-agent'), completion.retryAttempts);
     },
   };
 }

@@ -17,6 +17,23 @@ import type { LocatorStrategy, ElementSig } from '../../domain/types';
 import { resolveLocator, describeLocatorStrategy } from '../../playwright/locate';
 import { captureAriaYaml } from '../../playwright/aria';
 import { TesseractError } from '../../domain/errors';
+import { retryWithBackoff } from '../../application/effect';
+
+function isTransientObservationError(error: TesseractError): boolean {
+  if (error.code === 'validation-error') {
+    return false;
+  }
+
+  if (!(error.cause instanceof Error)) {
+    return false;
+  }
+
+  const message = error.cause.message.toLowerCase();
+  return message.includes('timeout')
+    || message.includes('navigation')
+    || message.includes('execution context was destroyed')
+    || message.includes('temporarily unavailable');
+}
 
 /** Observe a single element by trying its locator strategies in order. Pure async. */
 async function observeElement(
@@ -107,6 +124,13 @@ export function createPlaywrightScreenObserver(page: Page): ScreenObservationPor
     observe: (input) => Effect.tryPromise({
       try: () => observeScreen(page, input),
       catch: (error) => new TesseractError('screen-observation-failed', `Screen observation failed: ${error}`, error),
-    }).pipe(Effect.withSpan('playwright-screen-observation')),
+    }).pipe(
+      retryWithBackoff({
+        baseDelayMs: 120,
+        maxRecurs: 1,
+        shouldRetry: isTransientObservationError,
+      }),
+      Effect.withSpan('playwright-screen-observation'),
+    ),
   };
 }

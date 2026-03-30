@@ -14,9 +14,12 @@
  * and never touch this code. Rung 6 (live-dom) is a separate concern.
  */
 
+import { Effect } from 'effect';
 import { translateIntentToOntology } from './translate';
 import type { TranslationReceipt, TranslationRequest, ExecutionProfile } from '../domain/types';
 import type { ElementId, ScreenId } from '../domain/identity';
+import { TesseractError, toTesseractError } from '../domain/errors';
+import { retryWithBackoffResult } from './effect';
 
 // ─── Provider Contract (Strategy interface) ───
 
@@ -114,6 +117,42 @@ interface LlmTranslationResponse {
   readonly rationale: string;
 }
 
+
+function isDeterministicValidationError(error: unknown): boolean {
+  return error instanceof TesseractError && error.code === 'validation-error';
+}
+
+function isTransientProviderError(error: unknown): boolean {
+  if (isDeterministicValidationError(error)) {
+    return false;
+  }
+
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const maybeErrno = error as NodeJS.ErrnoException;
+  const errnoCode = maybeErrno.code ?? '';
+  if (['ECONNRESET', 'ETIMEDOUT', 'ECONNREFUSED', 'EAI_AGAIN', 'ENOTFOUND'].includes(errnoCode)) {
+    return true;
+  }
+
+  const message = error.message.toLowerCase();
+  return message.includes('timeout')
+    || message.includes('temporarily unavailable')
+    || message.includes('rate limit')
+    || message.includes('429')
+    || message.includes('502')
+    || message.includes('503')
+    || message.includes('504');
+}
+
+function withRetryMetadataRationale(rationale: string, retryAttempts: number): string {
+  return retryAttempts > 0
+    ? `${rationale} Retry attempts: ${retryAttempts}.`
+    : rationale;
+}
+
 function parseLlmResponse(raw: string, request: TranslationRequest): TranslationReceipt {
   try {
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
@@ -200,15 +239,24 @@ function createLlmApiProvider(
     id: `llm-api-${config.model}`,
     kind: 'llm-api',
     translate: async (request) => {
-      try {
-        const raw = await deps.createChatCompletion({
-          model: config.model,
-          maxTokens: config.budget.maxTokensPerStep,
-          systemPrompt: buildTranslationSystemPrompt(request),
-          userMessage: buildTranslationUserMessage(request),
-        });
-        return parseLlmResponse(raw, request);
-      } catch {
+      const completion = await Effect.runPromise(retryWithBackoffResult(
+        () => Effect.tryPromise({
+          try: () => deps.createChatCompletion({
+            model: config.model,
+            maxTokens: config.budget.maxTokensPerStep,
+            systemPrompt: buildTranslationSystemPrompt(request),
+            userMessage: buildTranslationUserMessage(request),
+          }),
+          catch: (cause) => toTesseractError(cause, 'translation-llm-failed', 'LLM API call failed.'),
+        }),
+        {
+          baseDelayMs: 150,
+          maxRecurs: 2,
+          shouldRetry: isTransientProviderError,
+        },
+      ));
+
+      if (!completion.ok) {
         return {
           kind: 'translation-receipt',
           version: 1,
@@ -216,10 +264,16 @@ function createLlmApiProvider(
           matched: false,
           selected: null,
           candidates: [],
-          rationale: 'LLM API call failed. Degrading to next resolution rung.',
+          rationale: withRetryMetadataRationale('LLM API call failed. Degrading to next resolution rung.', completion.retryAttempts),
           failureClass: 'translator-error',
         };
       }
+
+      const parsed = parseLlmResponse(completion.value, request);
+      return {
+        ...parsed,
+        rationale: withRetryMetadataRationale(parsed.rationale, completion.retryAttempts),
+      };
     },
   };
 }
@@ -259,15 +313,24 @@ function createCopilotProvider(
     id: 'copilot-vscode',
     kind: 'copilot',
     translate: async (request) => {
-      try {
-        const raw = await deps.createChatCompletion({
-          model: 'copilot',
-          maxTokens: 2000,
-          systemPrompt: buildTranslationSystemPrompt(request),
-          userMessage: buildTranslationUserMessage(request),
-        });
-        return parseLlmResponse(raw, request);
-      } catch {
+      const completion = await Effect.runPromise(retryWithBackoffResult(
+        () => Effect.tryPromise({
+          try: () => deps.createChatCompletion({
+            model: 'copilot',
+            maxTokens: 2000,
+            systemPrompt: buildTranslationSystemPrompt(request),
+            userMessage: buildTranslationUserMessage(request),
+          }),
+          catch: (cause) => toTesseractError(cause, 'translation-copilot-failed', 'Copilot API call failed.'),
+        }),
+        {
+          baseDelayMs: 150,
+          maxRecurs: 2,
+          shouldRetry: isTransientProviderError,
+        },
+      ));
+
+      if (!completion.ok) {
         return {
           kind: 'translation-receipt' as const,
           version: 1 as const,
@@ -275,10 +338,16 @@ function createCopilotProvider(
           matched: false,
           selected: null,
           candidates: [],
-          rationale: 'Copilot API call failed. Degrading to next resolution rung.',
+          rationale: withRetryMetadataRationale('Copilot API call failed. Degrading to next resolution rung.', completion.retryAttempts),
           failureClass: 'translator-error' as const,
         };
       }
+
+      const parsed = parseLlmResponse(completion.value, request);
+      return {
+        ...parsed,
+        rationale: withRetryMetadataRationale(parsed.rationale, completion.retryAttempts),
+      };
     },
   };
 }
