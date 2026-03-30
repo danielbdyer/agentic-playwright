@@ -6,7 +6,7 @@ locator resolution, recovery strategies, and ARIA snapshot handling.
 ## Boundary Rules
 
 - **May import** from `lib/domain/` only.
-- **Must not import** from `lib/application/` or `lib/infrastructure/` (one known baseline violation in `scenario.ts`).
+- **Must not import** from `lib/application/` or `lib/infrastructure/` (one known baseline violation: `scenario.ts` imports an application-layer type for execution context — tracked for refactoring).
 - Direct Playwright API usage is concentrated here and in `lib/playwright/`.
 
 ## What Lives Here

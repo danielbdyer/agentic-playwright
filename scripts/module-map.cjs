@@ -80,17 +80,23 @@ function collectTsFiles(dir) {
 
 /**
  * Extract the first meaningful comment from a TypeScript file.
- * Looks for JSDoc (/** ... * /), line comments (//), or the first export name.
+ * Looks for JSDoc (/** ... * /), line comments (//), or block comments.
+ * For multi-line JSDoc, extracts the first non-tag line.
  */
 function extractPurpose(filePath) {
   const content = normalize(fs.readFileSync(filePath, 'utf8'));
   const lines = content.split('\n');
 
-  // Try JSDoc block comment first
-  const jsdocMatch = content.match(/\/\*\*\s*\n?\s*\*?\s*(.+?)(?:\n|\*\/)/);
+  // Try JSDoc block comment first — capture all lines between /** and */
+  const jsdocMatch = content.match(/\/\*\*[\s\S]*?\*\//);
   if (jsdocMatch) {
-    const text = jsdocMatch[1].replace(/^\s*\*\s*/, '').trim();
-    if (text.length > 10 && !text.startsWith('@') && !text.startsWith('import')) {
+    const block = jsdocMatch[0];
+    const docLines = block
+      .split('\n')
+      .map((line) => line.replace(/^\s*\/?\*+\/?/, '').trim())
+      .filter((line) => line.length > 0 && !line.startsWith('@'));
+    const text = docLines[0] || '';
+    if (text.length > 10 && !text.startsWith('import')) {
       return truncate(text, 120);
     }
   }
@@ -115,15 +121,6 @@ function extractPurpose(filePath) {
     // Stop after first non-comment, non-import line
     if (!trimmed.startsWith('/*') && !trimmed.startsWith('*')) {
       break;
-    }
-  }
-
-  // Try block comment (non-JSDoc)
-  const blockMatch = content.match(/\/\*[^*]\s*\n?\s*\*?\s*(.+?)(?:\n|\*\/)/);
-  if (blockMatch) {
-    const text = blockMatch[1].replace(/^\s*\*\s*/, '').trim();
-    if (text.length > 10) {
-      return truncate(text, 120);
     }
   }
 

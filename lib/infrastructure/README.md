@@ -6,7 +6,7 @@ in the domain or application layer, with concrete implementations here.
 ## Boundary Rules
 
 - **May import** from `lib/domain/` and `lib/application/`.
-- **Must not import** from `lib/runtime/` (one known baseline violation in `observation/playwright-screen-observer.ts`).
+- **Must not import** from `lib/runtime/` (one known baseline violation: `observation/playwright-screen-observer.ts` imports a runtime type for DOM observation — tracked for refactoring).
 - Each adapter should implement a port (interface) defined elsewhere.
 
 ## What Lives Here

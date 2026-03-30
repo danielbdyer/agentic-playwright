@@ -148,19 +148,17 @@ function countTsFiles(dir) {
     return 0;
   }
 
-  let count = 0;
-  const walk = (current) => {
-    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
-      const full = path.join(current, entry.name);
-      if (entry.isDirectory()) {
-        walk(full);
-      } else if (entry.name.endsWith('.ts') && !entry.name.endsWith('.d.ts')) {
-        count += 1;
-      }
+  const entries = fs.readdirSync(absDir, { withFileTypes: true });
+  return entries.reduce((sum, entry) => {
+    const full = path.join(absDir, entry.name);
+    if (entry.isDirectory()) {
+      return sum + countTsFiles(path.relative(ROOT_DIR, full));
     }
-  };
-  walk(absDir);
-  return count;
+    if (entry.name.endsWith('.ts') && !entry.name.endsWith('.d.ts')) {
+      return sum + 1;
+    }
+    return sum;
+  }, 0);
 }
 
 /**

@@ -24,13 +24,14 @@ test('generated module map advertises layers, dependency rules, and quick refere
   expect(actual).toContain('**Playwright**');
 });
 
-test('each lib layer has a README.md', () => {
+test('each lib layer has a README.md with expected structure', () => {
   const layers = ['domain', 'application', 'runtime', 'infrastructure', 'composition'];
 
   for (const layer of layers) {
     const readmePath = path.join(rootDir, 'lib', layer, 'README.md');
     const content = readFileSync(readmePath, 'utf8');
+    expect(content).toContain(`# ${layer.charAt(0).toUpperCase() + layer.slice(1)}`);
     expect(content).toContain('## Entry Points for Common Tasks');
-    expect(content.length).toBeGreaterThan(100);
+    expect(content.length).toBeGreaterThan(500);
   }
 });

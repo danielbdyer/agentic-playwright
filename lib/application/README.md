@@ -6,7 +6,7 @@ reports, improvement loops, and workspace catalog management.
 ## Boundary Rules
 
 - **May import** from `lib/domain/` only.
-- **Must not import** from `lib/runtime/` or `lib/infrastructure/` (one known baseline violation in `agent-interpreter-provider.ts`).
+- **Must not import** from `lib/runtime/` or `lib/infrastructure/` (one known baseline violation: `agent-interpreter-provider.ts` imports a runtime type for the pluggable interpreter strategy — tracked for refactoring).
 - All side effects are modeled through **Effect** services and layers.
 
 ## What Lives Here

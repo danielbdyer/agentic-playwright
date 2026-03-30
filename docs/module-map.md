@@ -97,7 +97,7 @@ Pure, side-effect-free domain logic. No imports from other layers. No filesystem
 | `hash.ts` | — | 6 |
 | `identity.ts` | — | 33 |
 | `ids.ts` | — | 4 |
-| `inference.ts` | Split text into word-boundary tokens, filtering empties. | 5 |
+| `inference.ts` | Split text into word-boundary tokens, filtering empties. */ | 5 |
 | `iteration-timeline.ts` | IterationTimeline — pure domain module for multi-iteration timeline. | 19 |
 | `journal-index.ts` | JournalIndex — pure domain module for journal index generation and O(1) seek. | 14 |
 | `knowledge-coverage.ts` | Knowledge Coverage as Scorecard Metric (W3.9 + N1.8) | 9 |
@@ -194,7 +194,7 @@ Effect-based orchestration layer. CLI commands, execution pipelines, fitness rep
 | `inference.ts` | — | 2 |
 | `inspect.ts` | — | 1 |
 | `interface-intelligence.ts` | Complexity audit (W5.9) | 3 |
-| `interface-resolution.ts` | Total completed runs so far (used for freshness decay calculation). | 1 |
+| `interface-resolution.ts` | Total completed runs so far (used for freshness decay calculation). */ | 1 |
 | `intervention-kernel.ts` | — | 5 |
 | `iteration-journal.ts` | Iteration Journal (W2.16) | 11 |
 | `knob-search.ts` | Knob Search — maps pipeline failure modes to tunable parameters and | 5 |
@@ -202,20 +202,20 @@ Effect-based orchestration layer. CLI commands, execution pipelines, fitness rep
 | `learning-bottlenecks.ts` | — | 2 |
 | `learning-evaluation.ts` | — | 2 |
 | `learning-health.ts` | — | 1 |
-| `learning-rankings.ts` | Pre-compute a Map from screen name → Set of adoIds whose proposals touch that screen. | 1 |
+| `learning-rankings.ts` | Pre-compute a Map from screen name → Set of adoIds whose proposals touch that screen. */ | 1 |
 | `learning-shared.ts` | Shared pure utilities for Phase 6 learning evaluation modules. | 7 |
 | `learning.ts` | — | 2 |
-| `operator.ts` | Render the full operator inbox as markdown. Pure composition of section renderers. | 5 |
+| `operator.ts` | Render the full operator inbox as markdown. Pure composition of section renderers. */ | 5 |
 | `parallel-harvest.ts` | Structured Concurrency for Discovery Harvesting (W5.14) | 11 |
 | `parse.ts` | — | 2 |
 | `paths.ts` | Suite root: where content/training data lives. | 56 |
 | `pipeline-dag.ts` | Formal pipeline DAG with auto-ordering (W4.1) | 7 |
-| `ports.ts` | Disabled observer for CI/batch — returns empty observations. | 28 |
+| `ports.ts` | Disabled observer for CI/batch — returns empty observations. */ | 28 |
 | `progress-reporting.ts` | A structured progress event emitted at phase boundaries and after | 5 |
-| `proposal-patches.ts` | Deep merge two records. Pure recursive fold — no mutation. | 4 |
+| `proposal-patches.ts` | Deep merge two records. Pure recursive fold — no mutation. */ | 4 |
 | `provider-registry.ts` | — | 2 |
 | `refresh.ts` | Core refresh: sync snapshots + compile without global graph/types. | 2 |
-| `replay-evaluation.ts` | Compare two resolution receipts at a step. Pure. Uses shared comparison rules. | 2 |
+| `replay-evaluation.ts` | Compare two resolution receipts at a step. Pure. Uses shared comparison rules. */ | 2 |
 | `replay-interpretation.ts` | — | 1 |
 | `rerun-plan.ts` | — | 3 |
 | `resolution-engine.ts` | — | 4 |
@@ -231,9 +231,9 @@ Effect-based orchestration layer. CLI commands, execution pipelines, fitness rep
 | `translation-cache.ts` | Prune the translation cache to at most `maxEntries` files, keeping the | 5 |
 | `translation-provider.ts` | TranslationProvider — Strategy pattern for pluggable translation backends. | 8 |
 | `trust-policy.ts` | — | 7 |
-| `types.ts` | Extract fixture IDs from a template override string. Pure. | 3 |
+| `types.ts` | Extract fixture IDs from a template override string. Pure. */ | 3 |
 | `workbench-consumer.ts` | W3.16: Agent Workbench Consumer — scored work-item queue as consumable surface. | 9 |
-| `workflow.ts` | interpretation.json'], | 1 |
+| `workflow.ts` | — | 1 |
 | `workspace-session.ts` | — | 6 |
 
 ## Runtime Layer — `lib/runtime/`
