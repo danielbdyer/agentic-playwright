@@ -2,6 +2,7 @@ import { Effect } from 'effect';
 import type { DashboardPort } from '../ports';
 import { DisabledDashboard } from '../ports';
 import { dashboardEvent } from '../../domain/types/dashboard';
+import { elapsedSince, nowMillis } from '../time';
 
 // Module-level mutable ref — set once by the pipeline composition layer.
 // Avoids polluting the generic StageRequirements with Dashboard.
@@ -51,7 +52,7 @@ export function runPipelineStage<
   stage: PipelineStage<StageDependencies, StageComputed, StagePersisted, StageError, StageRequirements>,
 ): Effect.Effect<PipelineStageRunResult<StageDependencies, StageComputed, StagePersisted>, StageError, StageRequirements> {
   return Effect.gen(function* () {
-    const stageStart = Date.now();
+    const stageStart = yield* nowMillis;
 
     yield* emitStageDashboard({ stage: stage.name, phase: 'start' });
 
@@ -66,7 +67,7 @@ export function runPipelineStage<
     yield* emitStageDashboard({
       stage: stage.name,
       phase: 'complete',
-      durationMs: Date.now() - stageStart,
+      durationMs: yield* elapsedSince(stageStart),
       rewrittenFiles: persisted?.rewritten,
     });
 

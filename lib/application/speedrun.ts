@@ -28,6 +28,7 @@ import {
 } from './fitness';
 import { buildImprovementRun, recordImprovementRun, scorecardPath } from './improvement';
 import { recordExperiment } from './experiment-registry';
+import { elapsedSince, nowMillis } from './time';
 import { loadWorkspaceCatalog } from './catalog';
 import { cleanSlateProgram } from './clean-slate';
 import { Dashboard, FileSystem, VersionControl } from './ports';
@@ -155,9 +156,9 @@ function saveFitnessReport(paths: ProjectPaths, report: PipelineFitnessReport) {
 
 export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunResult, unknown, any> {
   return Effect.gen(function* () {
-    const speedrunStart = Date.now();
+    const speedrunStart = yield* nowMillis;
 
-    const generateStart = Date.now();
+    const generateStart = yield* nowMillis;
     const generated = yield* generateSyntheticScenarios({
       paths: input.paths,
       count: input.count,
@@ -165,7 +166,7 @@ export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunRes
       perturbationRate: input.perturbationRate,
       perturbation: input.perturbation,
     });
-    const generateDuration = Date.now() - generateStart;
+    const generateDuration = yield* elapsedSince(generateStart);
 
     // Emit generate-phase progress
     input.onProgress?.({
@@ -175,9 +176,9 @@ export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunRes
       maxIterations: input.maxIterations,
       metrics: null,
       convergenceReason: null,
-      elapsed: Date.now() - speedrunStart,
+      elapsed: yield* elapsedSince(speedrunStart),
       phaseDurationMs: generateDuration,
-      wallClockMs: Date.now(),
+      wallClockMs: yield* nowMillis,
       seed: input.seed,
       scenarioCount: generated.scenariosGenerated,
     });
@@ -198,7 +199,7 @@ export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunRes
       dashboard,
     });
 
-    const fitnessStart = Date.now();
+    const fitnessStart = yield* nowMillis;
 
     // Emit fitness-phase progress (timing updated after computation below)
 
@@ -228,7 +229,7 @@ export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunRes
       proposalBundles,
     };
     const fitnessReport = buildFitnessReport(fitnessData);
-    const fitnessDuration = Date.now() - fitnessStart;
+    const fitnessDuration = yield* elapsedSince(fitnessStart);
 
     // Emit fitness-phase progress
     input.onProgress?.({
@@ -243,9 +244,9 @@ export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunRes
         unresolvedSteps: 0,
       },
       convergenceReason: ledger.convergenceReason,
-      elapsed: Date.now() - speedrunStart,
+      elapsed: yield* elapsedSince(speedrunStart),
       phaseDurationMs: fitnessDuration,
-      wallClockMs: Date.now(),
+      wallClockMs: yield* nowMillis,
       seed: input.seed,
     });
 
@@ -302,7 +303,7 @@ export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunRes
  */
 export function multiSeedSpeedrun(input: MultiSeedInput): Effect.Effect<MultiSeedResult, unknown, any> {
   return Effect.gen(function* () {
-    const multiStart = Date.now();
+    const multiStart = yield* nowMillis;
     const versionControl = yield* VersionControl;
     const pipelineVersion = yield* versionControl.currentRevision().pipe(
       Effect.catchAll(() => Effect.succeed('unknown')),
@@ -392,7 +393,7 @@ export function multiSeedSpeedrun(input: MultiSeedInput): Effect.Effect<MultiSee
     yield* recordExperiment(input.paths, experimentRecord);
 
     // Emit completion progress
-    const totalDuration = Date.now() - multiStart;
+    const totalDuration = yield* elapsedSince(multiStart);
     input.onProgress?.({
       kind: 'speedrun-progress',
       phase: 'complete',
@@ -407,7 +408,7 @@ export function multiSeedSpeedrun(input: MultiSeedInput): Effect.Effect<MultiSee
       convergenceReason: null,
       elapsed: totalDuration,
       phaseDurationMs: totalDuration,
-      wallClockMs: Date.now(),
+      wallClockMs: yield* nowMillis,
       seed: input.seeds.join(','),
     });
 
@@ -433,13 +434,13 @@ export interface GeneratePhaseInput {
 
 export function generatePhase(input: GeneratePhaseInput) {
   return Effect.gen(function* () {
-    const start = Date.now();
+    const start = yield* nowMillis;
     const generated = yield* generateSyntheticScenarios({
       paths: input.paths,
       count: input.count,
       seed: input.seed,
     });
-    const durationMs = Date.now() - start;
+    const durationMs = yield* elapsedSince(start);
 
     input.onProgress?.({
       kind: 'speedrun-progress',
@@ -450,7 +451,7 @@ export function generatePhase(input: GeneratePhaseInput) {
       convergenceReason: null,
       elapsed: durationMs,
       phaseDurationMs: durationMs,
-      wallClockMs: Date.now(),
+      wallClockMs: yield* nowMillis,
       seed: input.seed,
       scenarioCount: generated.scenariosGenerated,
     });
@@ -467,7 +468,7 @@ export interface CompilePhaseInput {
 
 export function compilePhase(input: CompilePhaseInput) {
   return Effect.gen(function* () {
-    const start = Date.now();
+    const start = yield* nowMillis;
     const catalog = yield* loadWorkspaceCatalog({
       paths: input.paths,
       knowledgePosture: 'warm-start',
@@ -484,7 +485,7 @@ export function compilePhase(input: CompilePhaseInput) {
       catalog,
     });
 
-    const durationMs = Date.now() - start;
+    const durationMs = yield* elapsedSince(start);
 
     input.onProgress?.({
       kind: 'speedrun-progress',
@@ -495,7 +496,7 @@ export function compilePhase(input: CompilePhaseInput) {
       convergenceReason: null,
       elapsed: durationMs,
       phaseDurationMs: durationMs,
-      wallClockMs: Date.now(),
+      wallClockMs: yield* nowMillis,
       seed: '',
       scenarioCount: scenarioIds.length,
     });
@@ -517,7 +518,7 @@ export interface IteratePhaseInput {
 
 export function iteratePhase(input: IteratePhaseInput) {
   return Effect.gen(function* () {
-    const start = Date.now();
+    const start = yield* nowMillis;
     const dashboard = yield* Dashboard;
     const { ledger } = yield* runDogfoodLoop({
       paths: input.paths,
@@ -531,7 +532,7 @@ export function iteratePhase(input: IteratePhaseInput) {
       seed: input.seed,
       dashboard,
     });
-    const durationMs = Date.now() - start;
+    const durationMs = yield* elapsedSince(start);
     return { ledger, durationMs };
   });
 }
@@ -544,7 +545,7 @@ export interface FitnessPhaseInput {
 
 export function fitnessPhase(input: FitnessPhaseInput) {
   return Effect.gen(function* () {
-    const start = Date.now();
+    const start = yield* nowMillis;
     const catalog = yield* loadWorkspaceCatalog({
       paths: input.paths,
       knowledgePosture: 'warm-start',
@@ -582,7 +583,7 @@ export function fitnessPhase(input: FitnessPhaseInput) {
     const fitnessReport = buildFitnessReport(fitnessData);
     yield* saveFitnessReport(input.paths, fitnessReport);
 
-    const durationMs = Date.now() - start;
+    const durationMs = yield* elapsedSince(start);
 
     input.onProgress?.({
       kind: 'speedrun-progress',
@@ -598,7 +599,7 @@ export function fitnessPhase(input: FitnessPhaseInput) {
       convergenceReason: null,
       elapsed: durationMs,
       phaseDurationMs: durationMs,
-      wallClockMs: Date.now(),
+      wallClockMs: yield* nowMillis,
       seed: input.seed ?? '',
     });
 

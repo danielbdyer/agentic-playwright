@@ -18,6 +18,7 @@ import { FileSystem } from './ports';
 import { runStateMachine } from './state-machine';
 import { pruneTranslationCache } from './translation-cache';
 import { round4 } from './learning-shared';
+import { elapsedSince, nowMillis } from './time';
 import {
   type ConvergenceState,
   initialConvergenceState,
@@ -100,13 +101,13 @@ interface LoopState {
   readonly convergenceFsm: ConvergenceState;
 }
 
-function createInitialState(): LoopState {
+function createInitialState(startedAt: number): LoopState {
   return {
     iterations: [],
     cumulativeInstructions: 0,
     converged: false,
     convergenceReason: null,
-    startedAt: Date.now(),
+    startedAt,
     bottleneckWeights: DEFAULT_PIPELINE_CONFIG.bottleneckWeights,
     convergenceFsm: initialConvergenceState(),
   };
@@ -376,42 +377,46 @@ function buildProgressEvent(
   options: DogfoodOptions,
   resolutionByRung?: readonly RungRate[],
   correlations?: readonly BottleneckWeightCorrelation[],
-): SpeedrunProgressEvent {
-  const prevWeights = state.iterations.length > 1
-    ? DEFAULT_PIPELINE_CONFIG.bottleneckWeights
-    : state.bottleneckWeights;
-  const topCorrelation = correlations && correlations.length > 0
-    ? correlations.reduce((best, c) =>
-        Math.abs(c.correlationWithImprovement) > Math.abs(best.correlationWithImprovement) ? c : best,
-      )
-    : null;
+): Effect.Effect<SpeedrunProgressEvent> {
+  return Effect.gen(function* () {
+    const elapsed = yield* elapsedSince(state.startedAt);
+    const wallClockMs = yield* nowMillis;
+    const prevWeights = state.iterations.length > 1
+      ? DEFAULT_PIPELINE_CONFIG.bottleneckWeights
+      : state.bottleneckWeights;
+    const topCorrelation = correlations && correlations.length > 0
+      ? correlations.reduce((best, c) =>
+          Math.abs(c.correlationWithImprovement) > Math.abs(best.correlationWithImprovement) ? c : best,
+        )
+      : null;
 
-  return {
-    kind: 'speedrun-progress',
-    phase: 'iterate',
-    iteration: result.iteration,
-    maxIterations: options.maxIterations,
-    metrics: {
-      knowledgeHitRate: result.knowledgeHitRate,
-      proposalsActivated: result.proposalsActivated,
-      totalSteps: result.totalStepCount,
-      unresolvedSteps: result.unresolvedStepCount,
-      ...(resolutionByRung ? { resolutionByRung } : {}),
-    },
-    convergenceReason,
-    elapsed: Date.now() - state.startedAt,
-    phaseDurationMs: iterationDurationMs,
-    wallClockMs: Date.now(),
-    seed: options.seed ?? '',
-    scenarioCount: result.scenarioIds.length,
-    calibration: {
-      weights: state.bottleneckWeights,
-      weightDrift: weightDrift(state.bottleneckWeights, prevWeights),
-      topCorrelation: topCorrelation
-        ? { signal: topCorrelation.signal, strength: topCorrelation.correlationWithImprovement }
-        : null,
-    },
-  };
+    return {
+      kind: 'speedrun-progress',
+      phase: 'iterate',
+      iteration: result.iteration,
+      maxIterations: options.maxIterations,
+      metrics: {
+        knowledgeHitRate: result.knowledgeHitRate,
+        proposalsActivated: result.proposalsActivated,
+        totalSteps: result.totalStepCount,
+        unresolvedSteps: result.unresolvedStepCount,
+        ...(resolutionByRung ? { resolutionByRung } : {}),
+      },
+      convergenceReason,
+      elapsed,
+      phaseDurationMs: iterationDurationMs,
+      wallClockMs,
+      seed: options.seed ?? '',
+      scenarioCount: result.scenarioIds.length,
+      calibration: {
+        weights: state.bottleneckWeights,
+        weightDrift: weightDrift(state.bottleneckWeights, prevWeights),
+        topCorrelation: topCorrelation
+          ? { signal: topCorrelation.signal, strength: topCorrelation.correlationWithImprovement }
+          : null,
+      },
+    };
+  });
 }
 
 function runIteration(iteration: number, options: DogfoodOptions) {
@@ -582,9 +587,9 @@ function runIteration(iteration: number, options: DogfoodOptions) {
   });
 }
 
-function dogfoodMachine(options: DogfoodOptions) {
+function dogfoodMachine(options: DogfoodOptions, startedAt: number) {
   return {
-    initial: createInitialState(),
+    initial: createInitialState(startedAt),
     step: (state: LoopState) => Effect.gen(function* () {
       const iteration = state.iterations.length + 1;
       if (iteration > options.maxIterations) {
@@ -598,9 +603,9 @@ function dogfoodMachine(options: DogfoodOptions) {
         iteration, maxIterations: options.maxIterations,
       }));
 
-      const iterationStart = Date.now();
+      const iterationStart = yield* nowMillis;
       const { result, partialFitness } = yield* runIteration(iteration, options);
-      const iterationDuration = Date.now() - iterationStart;
+      const iterationDuration = yield* elapsedSince(iterationStart);
       const nextCumulativeInstructions = state.cumulativeInstructions + result.instructionCount;
       const prevHitRate = state.iterations.length > 0
         ? state.iterations[state.iterations.length - 1]!.knowledgeHitRate
@@ -652,7 +657,7 @@ function dogfoodMachine(options: DogfoodOptions) {
 
       // Emit progress event after each iteration (with calibration observability)
       if (options.onProgress) {
-        options.onProgress(buildProgressEvent(
+        const progressEvent = yield* buildProgressEvent(
           result,
           nextState,
           nextState.convergenceReason,
@@ -660,7 +665,8 @@ function dogfoodMachine(options: DogfoodOptions) {
           options,
           partialFitness.resolutionByRung,
           correlations,
-        ));
+        );
+        options.onProgress(progressEvent);
       }
 
       // ─── Dashboard events: iteration lifecycle + convergence signals ───
@@ -730,7 +736,8 @@ function buildLedger(state: LoopState, options: DogfoodOptions): ImprovementLoop
 export function runDogfoodLoop(options: DogfoodOptions) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
-    const finalState = yield* runStateMachine(dogfoodMachine(options));
+    const startedAt = yield* nowMillis;
+    const finalState = yield* runStateMachine(dogfoodMachine(options, startedAt));
     const ledger = asImprovementLoopLedger(buildLedger(finalState, options));
     const compatibilityLedger = asDogfoodLedgerProjection(ledger);
 

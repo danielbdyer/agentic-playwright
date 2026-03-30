@@ -25,8 +25,10 @@ import type { DashboardEvent, DashboardEventKind, WorkItemDecision } from '../li
 import { dashboardEvent } from '../lib/domain/types/dashboard';
 import type { AgentWorkItem, WorkItemKind } from '../lib/domain/types/workbench';
 import { runPipelineStage } from '../lib/application/pipeline';
+import { setStageTracerDashboard } from '../lib/application/pipeline/stage';
 import { mulberry32, pick, randomInt } from './support/random';
 import type { AdoId } from '../lib/domain/identity';
+import { makeDeterministicTestClock } from './support/test-clock';
 
 // ─── Recording Dashboard ───
 
@@ -244,6 +246,34 @@ test.describe('Dashboard projection invariant laws', () => {
     expect(resultA.persisted).toEqual(resultB.persisted);
     expect(resultA.rewritten).toEqual(resultB.rewritten);
     expect(resultA.fingerprints).toEqual(resultB.fingerprints);
+  });
+
+  test('Law 3c: runPipelineStage duration uses injected clock deterministically', async () => {
+    const recorder = createRecordingDashboard();
+    const clock = makeDeterministicTestClock(10_000);
+    setStageTracerDashboard(recorder);
+
+    const stage = {
+      name: 'timed-stage',
+      compute: () => Effect.gen(function* () {
+        yield* clock.advanceBy(25);
+        return pureCompute({ values: [1, 2, 3], label: 'clocked' });
+      }),
+    };
+
+    await Effect.runPromise(
+      runPipelineStage(stage).pipe(Effect.withClock(clock.clock)),
+    );
+
+    const completeEvent = recorder.events.find((event) =>
+      event.type === 'stage-lifecycle'
+      && (event.data as { readonly phase?: string }).phase === 'complete',
+    );
+
+    expect(completeEvent).toBeDefined();
+    expect((completeEvent!.data as { readonly durationMs: number }).durationMs).toBe(25);
+
+    setStageTracerDashboard(DisabledDashboard);
   });
 
   // ─── Law 4: Dashboard emit failures are silently absorbed ───
