@@ -28,11 +28,12 @@
  *   subscribe: O(1) — register fiber with PubSub
  */
 
-import { Effect, PubSub, Queue, Fiber, Runtime, Scope } from 'effect';
+import { Effect, PubSub, Fiber, Runtime, Scope } from 'effect';
 import type { DashboardPort } from '../../application/ports';
 import type { DashboardEvent, WorkItemDecision, DashboardEventKind } from '../../domain/types';
 import type { AgentWorkItem } from '../../domain/types';
 import { dashboardEvent } from '../../domain/types';
+import { subscribePubSubStreamConsumer } from './pubsub-stream-consumer';
 
 // ─── Event Encoding ───
 // Dashboard events are encoded as fixed-size numeric slots in the
@@ -299,18 +300,15 @@ export function createPipelineEventBus(options?: {
 
     // Start the buffer writer: subscribes to PubSub, writes each event
     // to the SharedArrayBuffer ring + string channel. Runs as a fiber.
-    const start = () => Effect.gen(function* () {
-      const subscription = yield* PubSub.subscribe(pubsub);
-      return yield* Effect.fork(
-        Effect.forever(
-          Effect.gen(function* () {
-            const event = yield* Queue.take(subscription);
-            writeEvent(buffer, event);
-            writeStringChannel(strings, event);
-          }),
-        ),
-      );
-    });
+    const start = () => subscribePubSubStreamConsumer(
+      pubsub,
+      {
+        onEvent: (event) => Effect.sync(() => {
+          writeEvent(buffer, event);
+          writeStringChannel(strings, event);
+        }),
+      },
+    );
 
     return { pubsub, buffer, strings, dashboardPort, start };
   });
@@ -322,15 +320,8 @@ export function subscribeWsBroadcaster(
   pubsub: PubSub.PubSub<DashboardEvent>,
   broadcast: (data: unknown) => void,
 ): Effect.Effect<Fiber.RuntimeFiber<void, never>, never, Scope.Scope> {
-  return Effect.gen(function* () {
-    const subscription = yield* PubSub.subscribe(pubsub);
-    return yield* Effect.fork(
-      Effect.forever(
-        Effect.gen(function* () {
-          const event = yield* Queue.take(subscription);
-          broadcast(event);
-        }),
-      ),
-    );
-  });
+  return subscribePubSubStreamConsumer(
+    pubsub,
+    { onEvent: (event) => Effect.sync(() => broadcast(event)) },
+  );
 }

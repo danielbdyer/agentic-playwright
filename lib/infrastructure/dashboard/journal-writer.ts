@@ -26,9 +26,10 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { Effect, PubSub, Queue, Fiber, Schedule } from 'effect';
+import { Effect, PubSub, Fiber } from 'effect';
 import type { Scope } from 'effect';
 import type { DashboardEvent, DashboardEventKind } from '../../domain/types';
+import { subscribePubSubStreamConsumer } from './pubsub-stream-consumer';
 
 // ─── FlywheelAct (server-side mirror of dashboard/src/types.ts) ───
 // Duplicated here to avoid cross-boundary import from the React frontend.
@@ -333,8 +334,8 @@ function indexPathFor(journalPath: string): string {
  *  Events are buffered in memory and flushed to disk periodically.
  *  A companion .index.json is written alongside the JSONL for seek support.
  *
- *  Follows the same Effect.gen + PubSub.subscribe + Queue.take + Effect.fork
- *  pattern as subscribeWsBroadcaster.
+ *  Follows Stream.fromQueue-based pubsub consumer composition with
+ *  shared filtering/batching/error handling behavior.
  *
  *  @param pubsub  The pipeline event bus PubSub.
  *  @param config  Journal writer configuration.
@@ -344,80 +345,49 @@ export function subscribeJournalWriter(
   pubsub: PubSub.PubSub<DashboardEvent>,
   config: JournalWriterConfig,
 ): Effect.Effect<Fiber.RuntimeFiber<void, never>, never, Scope.Scope> {
-  return Effect.gen(function* () {
-    // Ensure output directory exists before subscribing
-    ensureDirectory(config.journalPath);
+  // Ensure output directory exists before subscribing
+  ensureDirectory(config.journalPath);
 
-    // Mutable state scoped to this fiber — not exported, not shared.
-    // eslint-disable-next-line no-restricted-syntax -- fiber-local buffer; perf-critical hot path
-    const buffer: JournaledEvent[] = [];
-    const acc = createIndexAccumulator(
-      path.basename(config.journalPath, path.extname(config.journalPath)),
-    );
-    // eslint-disable-next-line no-restricted-syntax -- fiber-local mutable counter
-    let sequenceNumber = 0;
-    // eslint-disable-next-line no-restricted-syntax -- fiber-local mutable tracker
-    let currentIteration = 0;
+  const acc = createIndexAccumulator(
+    path.basename(config.journalPath, path.extname(config.journalPath)),
+  );
+  // eslint-disable-next-line no-restricted-syntax -- fiber-local mutable counter
+  let sequenceNumber = 0;
+  // eslint-disable-next-line no-restricted-syntax -- fiber-local mutable tracker
+  let currentIteration = 0;
 
-    /** Flush buffered events to disk and update the index file. */
-    const flush = (): void => {
-      if (buffer.length === 0) return;
+  const flushBatch = (events: ReadonlyArray<DashboardEvent>): void => {
+    if (events.length === 0) return;
 
-      // Safety cap: stop writing if file exceeds limit
-      const currentSize = getFileSize(config.journalPath);
-      if (currentSize >= config.maxFileSizeBytes) return;
+    // Safety cap: stop writing if file exceeds limit
+    const currentSize = getFileSize(config.journalPath);
+    if (currentSize >= config.maxFileSizeBytes) return;
 
-      const lines = buffer.map(toJsonLine).join('\n') + '\n';
-      fs.appendFileSync(config.journalPath, lines, 'utf-8');
+    const entries = events.map((event) => {
+      currentIteration = extractIteration(event, currentIteration);
+      sequenceNumber = sequenceNumber + 1;
+      const entry = toJournaledEvent(event, sequenceNumber, currentIteration);
+      accumulateEvent(acc, entry);
+      return entry;
+    });
 
-      // Write companion index (overwrite — always reflects full journal)
-      const index = snapshotIndex(acc);
-      fs.writeFileSync(indexPathFor(config.journalPath), JSON.stringify(index, null, 2), 'utf-8');
+    const lines = entries.map(toJsonLine).join('\n') + '\n';
+    fs.appendFileSync(config.journalPath, lines, 'utf-8');
 
-      // eslint-disable-next-line no-restricted-syntax -- fiber-local buffer clear; preserves reference
-      buffer.splice(0, buffer.length);
-    };
+    // Write companion index (overwrite — always reflects full journal)
+    const index = snapshotIndex(acc);
+    fs.writeFileSync(indexPathFor(config.journalPath), JSON.stringify(index, null, 2), 'utf-8');
+  };
 
-    const subscription = yield* PubSub.subscribe(pubsub);
-
-    // Fork the periodic flush timer as a separate fiber
-    const flushFiber = yield* Effect.fork(
-      Effect.repeat(
-        Effect.sync(() => flush()),
-        Schedule.spaced(config.flushIntervalMs),
-      ),
-    );
-
-    // Fork the event intake loop — takes events, enriches, buffers
-    const intakeFiber = yield* Effect.fork(
-      Effect.forever(
-        Effect.gen(function* () {
-          const event = yield* Queue.take(subscription);
-
-          // Track iteration transitions
-          currentIteration = extractIteration(event, currentIteration);
-
-          // Enrich and buffer
-          sequenceNumber = sequenceNumber + 1;
-          const entry = toJournaledEvent(event, sequenceNumber, currentIteration);
-          accumulateEvent(acc, entry);
-          // eslint-disable-next-line no-restricted-syntax -- fiber-local buffer append
-          buffer.push(entry);
-        }),
-      ),
-    );
-
-    // Return a combined fiber that represents both intake and flush.
-    // When the scope closes, both fibers are interrupted, and we do a
-    // final flush to capture any remaining buffered events.
-    return yield* Effect.fork(
-      Effect.ensuring(
-        Fiber.join(intakeFiber),
-        Effect.gen(function* () {
-          flush();
-          yield* Fiber.interrupt(flushFiber);
-        }),
-      ),
-    );
-  });
+  return subscribePubSubStreamConsumer(
+    pubsub,
+    {
+      batching: {
+        maxBatchSize: 2048,
+        flushIntervalMs: config.flushIntervalMs,
+      },
+      onBatch: (events) => Effect.sync(() => flushBatch(events)),
+      onError: (error) => Effect.logError(error),
+    },
+  );
 }
