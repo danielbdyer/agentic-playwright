@@ -28,11 +28,12 @@
  *   subscribe: O(1) — register fiber with PubSub
  */
 
-import type { Fiber, Scope } from 'effect';
-import { Effect, PubSub, Queue } from 'effect';
+import type { Scope } from 'effect';
+import { Effect, Fiber, PubSub, Queue } from 'effect';
 import type { DashboardPort } from '../../application/ports';
 import type { DashboardEvent, WorkItemDecision } from '../../domain/types';
 import { dashboardEvent } from '../../domain/types';
+import { runForkFromRuntimeBoundary } from './runtime-boundary';
 
 // ─── Event Encoding ───
 // Dashboard events are encoded as fixed-size numeric slots in the
@@ -239,6 +240,35 @@ export interface PipelineEventBus {
   readonly start: () => Effect.Effect<Fiber.RuntimeFiber<void, never>, never, Scope.Scope>;
 }
 
+export type TelemetryOverflowPolicy = 'backpressure' | 'dropping' | 'sliding';
+
+const createTelemetryQueue = <A>(
+  capacity: number,
+  policy: TelemetryOverflowPolicy,
+): Effect.Effect<Queue.Queue<A>> => {
+  if (policy === 'dropping') return Queue.dropping(capacity);
+  if (policy === 'sliding') return Queue.sliding(capacity);
+  return Queue.bounded(capacity);
+};
+
+const spawnScopedSubscriber = <A>(
+  pubsub: PubSub.PubSub<A>,
+  consume: (value: A) => Effect.Effect<void, never, never>,
+): Effect.Effect<Fiber.RuntimeFiber<void, never>, never, Scope.Scope> =>
+  Effect.acquireRelease(
+    PubSub.subscribe(pubsub),
+    (subscription) => Queue.shutdown(subscription),
+  ).pipe(
+    Effect.flatMap((subscription) =>
+      Effect.forkScoped(
+        Effect.forever(
+          Queue.take(subscription).pipe(
+            Effect.flatMap((event) => consume(event)),
+          ),
+        ),
+      )),
+  );
+
 /** Create a pipeline event bus with Effect PubSub + SharedArrayBuffer.
  *
  *  The PubSub is the canonical event source (Effect-native).
@@ -248,9 +278,15 @@ export interface PipelineEventBus {
 export function createPipelineEventBus(options?: {
   readonly bufferCapacity?: number;
   readonly decisionTimeoutMs?: number;
+  readonly telemetryQueueCapacity?: number;
+  readonly decisionQueueCapacity?: number;
+  readonly telemetryOverflowPolicy?: TelemetryOverflowPolicy;
 }): Effect.Effect<PipelineEventBus> {
   const capacity = options?.bufferCapacity ?? 1024;
   const timeoutMs = options?.decisionTimeoutMs ?? 0;
+  const telemetryQueueCapacity = options?.telemetryQueueCapacity ?? 1024;
+  const decisionQueueCapacity = options?.decisionQueueCapacity ?? 256;
+  const telemetryOverflowPolicy = options?.telemetryOverflowPolicy ?? 'dropping';
   const buffer = createPipelineBuffer(capacity);
   const strings = createStringChannel();
 
@@ -258,30 +294,37 @@ export function createPipelineEventBus(options?: {
     // Create bounded PubSub — backpressure propagates to publishers if all
     // subscribers are slow. Dropping strategy would lose events silently.
     const pubsub = yield* PubSub.bounded<DashboardEvent>(4096);
-    const publishQueue = yield* Queue.unbounded<DashboardEvent>();
-    yield* Effect.fork(
-      Effect.forever(
-        Effect.gen(function* () {
-          const event = yield* Queue.take(publishQueue);
-          yield* PubSub.publish(pubsub, event);
-        }),
+    const telemetryBridge = yield* createTelemetryQueue<DashboardEvent>(
+      telemetryQueueCapacity,
+      telemetryOverflowPolicy,
+    );
+    const decisionBridge = yield* Queue.bounded<DashboardEvent>(decisionQueueCapacity);
+
+    const publishTelemetry = Effect.forever(
+      Queue.take(telemetryBridge).pipe(
+        Effect.flatMap((event) => PubSub.publish(pubsub, event)),
+      ),
+    );
+    const publishDecisions = Effect.forever(
+      Queue.take(decisionBridge).pipe(
+        Effect.flatMap((event) => PubSub.publish(pubsub, event)),
       ),
     );
 
     // Pending decisions bridge for awaitDecision
     const pendingDecisions = new Map<string, (decision: WorkItemDecision) => void>();
+    const offerTelemetry = (event: DashboardEvent) => Queue.offer(telemetryBridge, event).pipe(Effect.asVoid);
+    const offerDecision = (event: DashboardEvent) => Queue.offer(decisionBridge, event).pipe(Effect.asVoid);
 
     const dashboardPort: DashboardPort = {
-      emit: (event) => Effect.gen(function* () {
-        yield* Queue.offer(publishQueue, event);
-      }),
+      emit: (event) => offerTelemetry(event),
 
       awaitDecision: (item) => Effect.async<WorkItemDecision, never, never>((resume) => {
         // Publish item-pending to all subscribers
-        Queue.unsafeOffer(publishQueue, dashboardEvent('item-pending', item));
+        runForkFromRuntimeBoundary(offerDecision(dashboardEvent('item-pending', item)));
 
         pendingDecisions.set(item.id, (decision) => {
-          Queue.unsafeOffer(publishQueue, dashboardEvent('item-completed', decision));
+          runForkFromRuntimeBoundary(offerDecision(dashboardEvent('item-completed', decision)));
           resume(Effect.succeed(decision));
         });
 
@@ -294,7 +337,7 @@ export function createPipelineEventBus(options?: {
               status: 'skipped',
               rationale: `Auto-skip (${timeoutMs}ms)`,
             };
-            Queue.unsafeOffer(publishQueue, dashboardEvent('item-completed', d));
+            runForkFromRuntimeBoundary(offerDecision(dashboardEvent('item-completed', d)));
             resume(Effect.succeed(d));
           }
         }, timeoutMs);
@@ -309,14 +352,16 @@ export function createPipelineEventBus(options?: {
     // Start the buffer writer: subscribes to PubSub, writes each event
     // to the SharedArrayBuffer ring + string channel. Runs as a fiber.
     const start = () => Effect.gen(function* () {
-      const subscription = yield* PubSub.subscribe(pubsub);
-      return yield* Effect.fork(
-        Effect.forever(
-          Effect.gen(function* () {
-            const event = yield* Queue.take(subscription);
-            writeEvent(buffer, event);
-            writeStringChannel(strings, event);
-          }),
+      const telemetryFiber = yield* Effect.forkScoped(publishTelemetry);
+      const decisionFiber = yield* Effect.forkScoped(publishDecisions);
+      const bufferFiber = yield* spawnScopedSubscriber(pubsub, (event) => Effect.sync(() => {
+        writeEvent(buffer, event);
+        writeStringChannel(strings, event);
+      }));
+      return yield* Effect.forkScoped(
+        Fiber.join(bufferFiber).pipe(
+          Effect.ensuring(Fiber.interrupt(telemetryFiber)),
+          Effect.ensuring(Fiber.interrupt(decisionFiber)),
         ),
       );
     });
@@ -331,15 +376,7 @@ export function subscribeWsBroadcaster(
   pubsub: PubSub.PubSub<DashboardEvent>,
   broadcast: (data: unknown) => void,
 ): Effect.Effect<Fiber.RuntimeFiber<void, never>, never, Scope.Scope> {
-  return Effect.gen(function* () {
-    const subscription = yield* PubSub.subscribe(pubsub);
-    return yield* Effect.fork(
-      Effect.forever(
-        Effect.gen(function* () {
-          const event = yield* Queue.take(subscription);
-          broadcast(event);
-        }),
-      ),
-    );
-  });
+  return spawnScopedSubscriber(pubsub, (event) => Effect.sync(() => {
+    broadcast(event);
+  }));
 }

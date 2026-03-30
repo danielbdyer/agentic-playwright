@@ -14,11 +14,13 @@
  */
 
 import { expect, test } from '@playwright/test';
+import { Duration, Effect, Fiber, PubSub, Queue } from 'effect';
 import {
   createPipelineBuffer,
   readEventCount,
   readSlot,
   createStringChannel,
+  createPipelineEventBus,
 } from '../lib/infrastructure/dashboard/pipeline-event-bus';
 import type { PipelineBuffer } from '../lib/infrastructure/dashboard/pipeline-event-bus';
 import type { DashboardEvent } from '../lib/domain/types/dashboard';
@@ -305,5 +307,73 @@ test.describe('PubSub backpressure laws', () => {
     expect(slot.eventType).toBe(0);
     expect(slot.confidence).toBe(0);
     expect(slot.iteration).toBe(0);
+  });
+
+  test('Law 7: telemetry bridge honors dropping overflow policy', async () => {
+    const published: DashboardEvent[] = [];
+
+    await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
+      const bus = yield* createPipelineEventBus({
+        telemetryQueueCapacity: 1,
+        telemetryOverflowPolicy: 'dropping',
+      });
+      const startFiber = yield* bus.start();
+      const subscription = yield* PubSub.subscribe(bus.pubsub);
+      const captureFiber = yield* Effect.forkScoped(Effect.forever(Effect.gen(function* () {
+          const event = yield* Queue.take(subscription);
+          published.push(event);
+      })));
+
+      yield* Effect.all([
+        bus.dashboardPort.emit(makeEvent('progress', 0.1, 1)),
+        bus.dashboardPort.emit(makeEvent('progress', 0.2, 2)),
+        bus.dashboardPort.emit(makeEvent('progress', 0.3, 3)),
+        bus.dashboardPort.emit(makeEvent('progress', 0.4, 4)),
+        bus.dashboardPort.emit(makeEvent('progress', 0.5, 5)),
+      ], { concurrency: 'unbounded' });
+
+      yield* Effect.sleep(Duration.millis(25));
+      yield* Fiber.interrupt(captureFiber);
+      yield* Fiber.interrupt(startFiber);
+    })));
+
+    expect(published.length).toBeLessThan(5);
+    expect(published.length).toBeGreaterThan(0);
+  });
+
+  test('Law 8: decision flow is lossless under pressure', async () => {
+    const received: DashboardEvent[] = [];
+
+    await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
+      const bus = yield* createPipelineEventBus({
+        decisionTimeoutMs: 1,
+        decisionQueueCapacity: 1,
+        telemetryQueueCapacity: 1,
+        telemetryOverflowPolicy: 'dropping',
+      });
+      const startFiber = yield* bus.start();
+      const subscriber = yield* PubSub.subscribe(bus.pubsub);
+      const captureFiber = yield* Effect.forkScoped(Effect.forever(Effect.gen(function* () {
+        const event = yield* Queue.take(subscriber);
+        if (event.type === 'item-pending' || event.type === 'item-completed') {
+          received.push(event);
+        }
+      })));
+
+      yield* Effect.all([
+        bus.dashboardPort.awaitDecision({ id: 'item-1', title: 'a', description: 'a' } as never),
+        bus.dashboardPort.awaitDecision({ id: 'item-2', title: 'b', description: 'b' } as never),
+        bus.dashboardPort.awaitDecision({ id: 'item-3', title: 'c', description: 'c' } as never),
+      ], { concurrency: 'unbounded' });
+
+      yield* Effect.sleep(Duration.millis(30));
+      yield* Fiber.interrupt(captureFiber);
+      yield* Fiber.interrupt(startFiber);
+    })));
+
+    const pending = received.filter((event) => event.type === 'item-pending');
+    const completed = received.filter((event) => event.type === 'item-completed');
+    expect(pending.length).toBe(3);
+    expect(completed.length).toBe(3);
   });
 });
