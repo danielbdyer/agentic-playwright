@@ -34,6 +34,12 @@ import type { StepAction } from '../domain/types';
 import type { ScreenId, ElementId, PostureId, SnapshotTemplateId } from '../domain/identity';
 import { normalizeIntentText, bestAliasMatch, humanizeIdentifier } from '../domain/inference';
 import { assignVariant, type ABTestConfig } from './agent-ab-testing';
+import {
+  RETRY_POLICIES,
+  formatRetryMetadata,
+  retryMetadata,
+  retryScheduleForTaggedErrors,
+} from './resilience/schedules';
 
 // Re-export type interfaces from domain layer for backwards compatibility
 export type {
@@ -446,6 +452,32 @@ function agentProviderFailureResult(provider: string, rationale: string): AgentI
   };
 }
 
+function withAgentRetries(
+  providerId: string,
+  run: () => Promise<string>,
+): Effect.Effect<string, ReturnType<typeof agentInterpreterProviderError>> {
+  const startedAt = Date.now();
+  let attempts = 0;
+  const retryPolicy = RETRY_POLICIES.agentInterpreterTimeout;
+  return Effect.tryPromise({
+    try: async () => {
+      attempts += 1;
+      return run();
+    },
+    catch: (cause) => agentInterpreterProviderError(cause, providerId),
+  }).pipe(
+    Effect.retryOrElse(
+      retryScheduleForTaggedErrors(retryPolicy, (error) => error._tag === 'AgentInterpreterTimeoutError'),
+      (error) => Effect.fail(error),
+    ),
+    Effect.catchTag('AgentInterpreterTimeoutError', (error: AgentInterpreterTimeoutError) =>
+      Effect.fail(agentInterpreterProviderError(
+        new Error(`${error.message} (${formatRetryMetadata(retryMetadata(retryPolicy, attempts, startedAt, true))})`),
+        providerId,
+      ))),
+  );
+}
+
 function createLlmApiAgentProvider(
   config: AgentInterpreterConfig,
   deps: AgentLlmApiDependencies,
@@ -454,18 +486,19 @@ function createLlmApiAgentProvider(
     id: `agent-llm-api-${config.model}`,
     kind: 'llm-api',
     interpret: (request) => Effect.runPromise(
-      Effect.tryPromise({
-        try: () => deps.createChatCompletion({
+      withAgentRetries(
+        `llm-api-${config.model}`,
+        () => deps.createChatCompletion({
           model: config.model,
           maxTokens: config.budget.maxTokensPerStep,
           systemPrompt: buildAgentSystemPrompt(request),
           userMessage: buildAgentUserMessage(request),
         }),
-        catch: (cause) => cause,
-      }).pipe(
-        Effect.mapError((cause) => agentInterpreterProviderError(cause, `llm-api-${config.model}`)),
-        Effect.map((raw) => parseAgentResponse(raw, request, `llm-api-${config.model}`)),
-        Effect.mapError((cause) => agentInterpreterProviderError(cause, `llm-api-${config.model}`)),
+      ).pipe(
+        Effect.flatMap((raw) => Effect.try({
+          try: () => parseAgentResponse(raw, request, `llm-api-${config.model}`),
+          catch: (cause) => agentInterpreterProviderError(cause, `llm-api-${config.model}`),
+        })),
         Effect.catchTag('AgentInterpreterTimeoutError', (error: AgentInterpreterTimeoutError) =>
           Effect.succeed(agentProviderFailureResult(
             `llm-api-${config.model}`,
@@ -539,18 +572,19 @@ function createSessionProvider(
     id: 'agent-session-active',
     kind: 'session',
     interpret: (request) => Effect.runPromise(
-      Effect.tryPromise({
-        try: () => deps.createChatCompletion({
+      withAgentRetries(
+        'session-agent',
+        () => deps.createChatCompletion({
           model: 'session',
           maxTokens: 4000,
           systemPrompt: buildAgentSystemPrompt(request),
           userMessage: buildAgentUserMessage(request),
         }),
-        catch: (cause) => cause,
-      }).pipe(
-        Effect.mapError((cause) => agentInterpreterProviderError(cause, 'session-agent')),
-        Effect.map((raw) => parseAgentResponse(raw, request, 'session-agent')),
-        Effect.mapError((cause) => agentInterpreterProviderError(cause, 'session-agent')),
+      ).pipe(
+        Effect.flatMap((raw) => Effect.try({
+          try: () => parseAgentResponse(raw, request, 'session-agent'),
+          catch: (cause) => agentInterpreterProviderError(cause, 'session-agent'),
+        })),
         Effect.catchTag('AgentInterpreterTimeoutError', (error: AgentInterpreterTimeoutError) =>
           Effect.succeed(agentProviderFailureResult(
             'session-agent',
