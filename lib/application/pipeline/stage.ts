@@ -1,22 +1,5 @@
 import { Effect } from 'effect';
-import type { DashboardPort } from '../ports';
-import { DisabledDashboard } from '../ports';
-import { dashboardEvent } from '../../domain/types/dashboard';
-
-// Module-level mutable ref — set once by the pipeline composition layer.
-// Avoids polluting the generic StageRequirements with Dashboard.
-let _dashboardRef: DashboardPort = DisabledDashboard;
-
-/** Set the dashboard port for stage-lifecycle emission. Called once at startup. */
-export function setStageTracerDashboard(dashboard: DashboardPort): void {
-  _dashboardRef = dashboard;
-}
-
-/** Best-effort stage-lifecycle emission via module-level ref. Never fails. */
-const emitStageDashboard = (data: unknown): Effect.Effect<void> =>
-  _dashboardRef.emit(dashboardEvent('stage-lifecycle', data)).pipe(
-    Effect.catchAll(() => Effect.void),
-  );
+import { StageTracer } from '../ports';
 
 export interface PipelineStage<StageDependencies, StageComputed, StagePersisted, StageError, StageRequirements> {
   name: string;
@@ -49,11 +32,12 @@ export function runPipelineStage<
   StageRequirements = never,
 >(
   stage: PipelineStage<StageDependencies, StageComputed, StagePersisted, StageError, StageRequirements>,
-): Effect.Effect<PipelineStageRunResult<StageDependencies, StageComputed, StagePersisted>, StageError, StageRequirements> {
+): Effect.Effect<PipelineStageRunResult<StageDependencies, StageComputed, StagePersisted>, StageError, StageRequirements | StageTracer> {
   return Effect.gen(function* () {
     const stageStart = Date.now();
+    const stageTracer = yield* StageTracer;
 
-    yield* emitStageDashboard({ stage: stage.name, phase: 'start' });
+    yield* stageTracer.emitStageStart({ stage: stage.name, phase: 'start' });
 
     const dependencies = stage.loadDependencies
       ? yield* stage.loadDependencies()
@@ -63,7 +47,7 @@ export function runPipelineStage<
       ? yield* stage.persist(dependencies, computed)
       : null;
 
-    yield* emitStageDashboard({
+    yield* stageTracer.emitStageComplete({
       stage: stage.name,
       phase: 'complete',
       durationMs: Date.now() - stageStart,

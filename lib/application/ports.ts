@@ -146,6 +146,21 @@ export const DisabledDashboard: DashboardPort = {
 
 export class Dashboard extends Context.Tag('tesseract/Dashboard')<Dashboard, DashboardPort>() {}
 
+// ─── Stage Tracer (pipeline stage lifecycle projection) ───
+
+export interface StageTracerPort {
+  readonly emitStageStart: (data: unknown) => Effect.Effect<void, never, never>;
+  readonly emitStageComplete: (data: unknown) => Effect.Effect<void, never, never>;
+}
+
+/** Disabled stage tracer for CI/batch — emits nothing. */
+export const DisabledStageTracer: StageTracerPort = {
+  emitStageStart: () => Effect.succeed(undefined),
+  emitStageComplete: () => Effect.succeed(undefined),
+};
+
+export class StageTracer extends Context.Tag('tesseract/StageTracer')<StageTracer, StageTracerPort>() {}
+
 // ─── MCP Tool Server (WebMCP / Playwright MCP progressive enhancement) ───
 //
 // The MCP port exposes Tesseract's observation and action surface as

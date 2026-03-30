@@ -19,7 +19,7 @@
 
 import { expect, test } from '@playwright/test';
 import { Effect } from 'effect';
-import { DisabledDashboard } from '../lib/application/ports';
+import { DisabledDashboard, DisabledStageTracer, StageTracer } from '../lib/application/ports';
 import type { DashboardPort } from '../lib/application/ports';
 import type { DashboardEvent, DashboardEventKind, WorkItemDecision } from '../lib/domain/types/dashboard';
 import { dashboardEvent } from '../lib/domain/types/dashboard';
@@ -224,8 +224,8 @@ test.describe('Dashboard projection invariant laws', () => {
   });
 
   test('Law 3b: runPipelineStage output identical with recording vs disabled dashboard', async () => {
-    // Test at the actual runPipelineStage level — the stage emits dashboard events
-    // internally via the module-level ref, but the computation is unchanged.
+    // Test at the actual runPipelineStage level — the stage emits lifecycle events
+    // through the injected StageTracer, but the computation is unchanged.
     const input: ComputationInput = {
       values: [10, 20, 30],
       label: 'stage-test',
@@ -237,8 +237,12 @@ test.describe('Dashboard projection invariant laws', () => {
     });
 
     // Run the same stage twice — results must be structurally identical
-    const resultA = await Effect.runPromise(runPipelineStage(makeStage()));
-    const resultB = await Effect.runPromise(runPipelineStage(makeStage()));
+    const resultA = await Effect.runPromise(
+      runPipelineStage(makeStage()).pipe(Effect.provideService(StageTracer, DisabledStageTracer)),
+    );
+    const resultB = await Effect.runPromise(
+      runPipelineStage(makeStage()).pipe(Effect.provideService(StageTracer, DisabledStageTracer)),
+    );
 
     expect(resultA.computed).toEqual(resultB.computed);
     expect(resultA.persisted).toEqual(resultB.persisted);

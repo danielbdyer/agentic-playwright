@@ -1,10 +1,16 @@
 import { Effect, Layer } from 'effect';
 import {
   AdoSource,
+  Dashboard,
+  DisabledDashboard,
+  DisabledMcpServer,
+  DisabledStageTracer,
   ExecutionContext,
   FileSystem,
+  McpServer,
   PipelineConfigService,
   RuntimeScenarioRunner,
+  StageTracer,
   VersionControl,
 } from '../application/ports';
 import { makeLocalAdoSource } from '../infrastructure/ado/local-ado-source';
@@ -14,12 +20,11 @@ import { createRecordingWorkspaceFileSystem } from '../infrastructure/fs/recordi
 import { makeLocalVersionControl } from '../infrastructure/tooling/local-version-control';
 import { LocalRuntimeScenarioRunner, createLocalRuntimeScenarioRunnerWithInterpreter } from './local-runtime-scenario-runner';
 import type { AgentInterpreterProvider } from '../application/agent-interpreter-provider';
-import { Dashboard, DisabledDashboard, McpServer, DisabledMcpServer } from '../application/ports';
-import { setStageTracerDashboard } from '../application/pipeline/stage';
 import { PlaywrightBridge, DisabledPlaywrightBridge } from '../infrastructure/mcp/playwright-mcp-bridge';
+import { dashboardEvent } from '../domain/types/dashboard';
 import type { ExecutionPosture, PipelineConfig, WriteJournalEntry } from '../domain/types';
 import { DEFAULT_PIPELINE_CONFIG } from '../domain/types';
-import type { DashboardPort, McpServerPort } from '../application/ports';
+import type { DashboardPort, McpServerPort, StageTracerPort } from '../application/ports';
 import type { PlaywrightBridgePort } from '../infrastructure/mcp/playwright-mcp-bridge';
 
 export interface LocalServiceOptions {
@@ -91,8 +96,13 @@ export function createLocalServiceContext(rootDir: string, options?: LocalServic
   const runtimeScenarioRunner = options?.agentInterpreter
     ? createLocalRuntimeScenarioRunnerWithInterpreter(options.agentInterpreter)
     : LocalRuntimeScenarioRunner;
-  // Wire stage-lifecycle tracer to the dashboard port (Layer 4)
-  setStageTracerDashboard(options?.dashboard ?? DisabledDashboard);
+  const dashboard = options?.dashboard ?? DisabledDashboard;
+  const stageTracer: StageTracerPort = options?.dashboard
+    ? {
+      emitStageStart: (data: unknown) => dashboard.emit(dashboardEvent('stage-lifecycle', data)).pipe(Effect.catchAll(() => Effect.void)),
+      emitStageComplete: (data: unknown) => dashboard.emit(dashboardEvent('stage-lifecycle', data)).pipe(Effect.catchAll(() => Effect.void)),
+    }
+    : DisabledStageTracer;
 
   const layer = Layer.mergeAll(
     Layer.succeed(FileSystem, fileSystem),
@@ -101,7 +111,8 @@ export function createLocalServiceContext(rootDir: string, options?: LocalServic
     Layer.succeed(ExecutionContext, executionContext),
     Layer.succeed(PipelineConfigService, { config: pipelineConfig }),
     Layer.succeed(VersionControl, makeLocalVersionControl(rootDir)),
-    Layer.succeed(Dashboard, options?.dashboard ?? DisabledDashboard),
+    Layer.succeed(Dashboard, dashboard),
+    Layer.succeed(StageTracer, stageTracer),
     Layer.succeed(McpServer, options?.mcpServer ?? DisabledMcpServer),
     Layer.succeed(PlaywrightBridge, options?.playwrightBridge ?? DisabledPlaywrightBridge),
   );
@@ -111,7 +122,7 @@ export function createLocalServiceContext(rootDir: string, options?: LocalServic
     writeJournal: () => executionContext.writeJournal(),
     provide<A, E, R>(program: Effect.Effect<A, E, R>): Effect.Effect<A, E, never> {
       return Effect.provide(
-        program as Effect.Effect<A, E, FileSystem | AdoSource | RuntimeScenarioRunner | ExecutionContext | PipelineConfigService | VersionControl | Dashboard | McpServer | PlaywrightBridge>,
+        program as Effect.Effect<A, E, FileSystem | AdoSource | RuntimeScenarioRunner | ExecutionContext | PipelineConfigService | VersionControl | Dashboard | StageTracer | McpServer | PlaywrightBridge>,
         layer,
       ) as Effect.Effect<A, E, never>;
     },
