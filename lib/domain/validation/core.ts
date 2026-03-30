@@ -295,7 +295,7 @@ function validateConfidence(value: unknown, path: string): Confidence {
   return expectEnum(value, path, confidences);
 }
 
-function validateStepResolution(value: unknown, path: string): StepResolution {
+function validateStepResolution(value: unknown, _path: string): StepResolution {
   const decoded = schemaDecode.decoderFor<StepResolution>(schemas.StepResolutionSchema)(value);
   return {
     ...decoded,

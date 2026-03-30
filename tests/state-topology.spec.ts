@@ -604,3 +604,28 @@ test('observeTransitionOnPage emits deterministic detail envelopes after concurr
   expect({ ...first, observationId: 'normalized' }).toEqual({ ...second, observationId: 'normalized' });
   expect(Object.keys(first.detail ?? {})).toEqual([...(Object.keys(first.detail ?? {}))].sort((left, right) => left.localeCompare(right)));
 });
+
+test('observeStateRefsOnPage returns deterministic detail for unresolved targets', async () => {
+  const context = createSyntheticObservationContext(1);
+  const brokenContext: PlaywrightStateObservationContext = {
+    ...context,
+    screens: context.screens.map((screen) => ({ ...screen, elements: [] })),
+  };
+  const page = createDelayedMockPage({
+    delayMs: 1,
+    valuesByTestId: {},
+  });
+
+  const result = await observeStateRefsOnPage({
+    page,
+    context: brokenContext,
+    stateRefs: brokenContext.stateGraph.stateRefs,
+    activeRouteVariantRefs: ['route-variant:demo:synthetic:default'],
+  });
+
+  expect(result).toEqual([{
+    stateRef: 'state:synthetic:00',
+    observed: false,
+    detail: { unresolved: 'missing-target' },
+  }]);
+});

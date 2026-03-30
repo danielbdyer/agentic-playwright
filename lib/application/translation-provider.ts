@@ -14,15 +14,12 @@
  * and never touch this code. Rung 6 (live-dom) is a separate concern.
  */
 
-import { Effect } from 'effect';
 import { translateIntentToOntology } from './translate';
 import type { TranslationReceipt, TranslationRequest, ExecutionProfile } from '../domain/types';
 import type { ElementId, ScreenId } from '../domain/identity';
 import {
   translationProviderError,
   translationProviderParseError,
-  type TranslationProviderParseError,
-  type TranslationProviderTimeoutError,
 } from '../domain/errors';
 
 // ─── Provider Contract (Strategy interface) ───
@@ -190,6 +187,37 @@ function translationProviderFailureReceipt(rationale: string): TranslationReceip
   };
 }
 
+async function translateViaCompletion(input: {
+  readonly providerId: string;
+  readonly request: TranslationRequest;
+  readonly createChatCompletion: () => Promise<string>;
+  readonly timeoutMessagePrefix: string;
+  readonly parseMessagePrefix: string;
+  readonly failureMessagePrefix: string;
+}): Promise<TranslationReceipt> {
+  try {
+    const raw = await input.createChatCompletion().catch((cause: unknown) => {
+      throw translationProviderError(cause, input.providerId);
+    });
+    return parseLlmResponse(raw, input.request);
+  } catch (error: unknown) {
+    const providerError = translationProviderError(error, input.providerId);
+    if (providerError._tag === 'TranslationProviderTimeoutError') {
+      return translationProviderFailureReceipt(
+        `${input.timeoutMessagePrefix} (${providerError.message}). Degrading to next resolution rung.`,
+      );
+    }
+    if (providerError._tag === 'TranslationProviderParseError') {
+      return translationProviderFailureReceipt(
+        `${input.parseMessagePrefix} (${providerError.message}). Degrading to next resolution rung.`,
+      );
+    }
+    return translationProviderFailureReceipt(
+      `${input.failureMessagePrefix} (${providerError.message}). Degrading to next resolution rung.`,
+    );
+  }
+}
+
 function createLlmApiProvider(
   config: TranslationConfig,
   deps: LlmApiProviderDependencies,
@@ -197,33 +225,19 @@ function createLlmApiProvider(
   return {
     id: `llm-api-${config.model}`,
     kind: 'llm-api',
-    translate: (request) => Effect.runPromise(
-      Effect.tryPromise({
-        try: () => deps.createChatCompletion({
+    translate: (request) => translateViaCompletion({
+      providerId: `llm-api-${config.model}`,
+      request,
+      createChatCompletion: () => deps.createChatCompletion({
           model: config.model,
           maxTokens: config.budget.maxTokensPerStep,
           systemPrompt: buildTranslationSystemPrompt(request),
           userMessage: buildTranslationUserMessage(request),
-        }),
-        catch: (cause) => cause,
-      }).pipe(
-        Effect.mapError((cause) => translationProviderError(cause, `llm-api-${config.model}`)),
-        Effect.map((raw) => parseLlmResponse(raw, request)),
-        Effect.mapError((cause) => translationProviderError(cause, `llm-api-${config.model}`)),
-        Effect.catchTag('TranslationProviderTimeoutError', (error: TranslationProviderTimeoutError) =>
-          Effect.succeed(translationProviderFailureReceipt(
-            `LLM API timed out (${error.message}). Degrading to next resolution rung.`,
-          ))),
-        Effect.catchTag('TranslationProviderParseError', (error: TranslationProviderParseError) =>
-          Effect.succeed(translationProviderFailureReceipt(
-            `LLM response parse failed (${error.message}). Degrading to next resolution rung.`,
-          ))),
-        Effect.catchAll((error) =>
-          Effect.succeed(translationProviderFailureReceipt(
-            `LLM API call failed (${String(error)}). Degrading to next resolution rung.`,
-          ))),
-      ),
-    ),
+      }),
+      timeoutMessagePrefix: 'LLM API timed out',
+      parseMessagePrefix: 'LLM response parse failed',
+      failureMessagePrefix: 'LLM API call failed',
+    }),
   };
 }
 
@@ -261,33 +275,19 @@ function createCopilotProvider(
   return {
     id: 'copilot-vscode',
     kind: 'copilot',
-    translate: (request) => Effect.runPromise(
-      Effect.tryPromise({
-        try: () => deps.createChatCompletion({
+    translate: (request) => translateViaCompletion({
+      providerId: 'copilot',
+      request,
+      createChatCompletion: () => deps.createChatCompletion({
           model: 'copilot',
           maxTokens: 2000,
           systemPrompt: buildTranslationSystemPrompt(request),
           userMessage: buildTranslationUserMessage(request),
-        }),
-        catch: (cause) => cause,
-      }).pipe(
-        Effect.mapError((cause) => translationProviderError(cause, 'copilot')),
-        Effect.map((raw) => parseLlmResponse(raw, request)),
-        Effect.mapError((cause) => translationProviderError(cause, 'copilot')),
-        Effect.catchTag('TranslationProviderTimeoutError', (error: TranslationProviderTimeoutError) =>
-          Effect.succeed(translationProviderFailureReceipt(
-            `Copilot API timed out (${error.message}). Degrading to next resolution rung.`,
-          ))),
-        Effect.catchTag('TranslationProviderParseError', (error: TranslationProviderParseError) =>
-          Effect.succeed(translationProviderFailureReceipt(
-            `Copilot response parse failed (${error.message}). Degrading to next resolution rung.`,
-          ))),
-        Effect.catchAll((error) =>
-          Effect.succeed(translationProviderFailureReceipt(
-            `Copilot API call failed (${String(error)}). Degrading to next resolution rung.`,
-          ))),
-      ),
-    ),
+      }),
+      timeoutMessagePrefix: 'Copilot API timed out',
+      parseMessagePrefix: 'Copilot response parse failed',
+      failureMessagePrefix: 'Copilot API call failed',
+    }),
   };
 }
 

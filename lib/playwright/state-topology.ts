@@ -35,6 +35,15 @@ export interface StateObservationResult {
   detail?: Record<string, string> | undefined;
 }
 
+interface PredicateOutcome {
+  observed: boolean;
+  detail?: Record<string, string> | undefined;
+}
+
+function hasDetail(entry: StateObservationResult): entry is StateObservationResult & { detail: Record<string, string> } {
+  return entry.detail !== undefined;
+}
+
 interface ResolvedObservationLocator {
   locator: Locator;
   strategy: LocatorStrategy;
@@ -192,6 +201,12 @@ function normalizeDetailRecord(detail: Record<string, string> | undefined): Reco
   return Object.fromEntries(Object.entries(detail).sort(([left], [right]) => left.localeCompare(right)));
 }
 
+function mergeDetailRecords(details: readonly (Record<string, string> | undefined)[]): Record<string, string> | undefined {
+  return normalizeDetailRecord(Object.fromEntries(
+    details.flatMap((detail) => Object.entries(detail ?? {})),
+  ));
+}
+
 async function mapWithConcurrency<T, R>(
   items: readonly T[],
   mapper: (item: T, index: number) => Promise<R>,
@@ -216,7 +231,7 @@ async function evaluateStateNode(
   state: StateNode,
   activeRouteVariantRefs: readonly string[],
 ): Promise<StateObservationResult> {
-  const predicateOutcomes = await mapWithConcurrency(state.predicates, async (predicate) => {
+  const predicateOutcomes = await mapWithConcurrency(state.predicates, async (predicate): Promise<PredicateOutcome> => {
     if (predicate.kind === 'active-route') {
       const matched = observedRouteMatch(predicate.routeVariantRef ?? null, activeRouteVariantRefs, page, predicate.value ?? null);
       return {
@@ -285,10 +300,7 @@ async function evaluateStateNode(
   }, { concurrency: browserObservationConcurrency });
 
   const observed = predicateOutcomes.every((outcome) => outcome.observed);
-  const detail = normalizeDetailRecord(predicateOutcomes.reduce<Record<string, string>>(
-    (acc, outcome) => ({ ...acc, ...outcome.detail }),
-    {},
-  ));
+  const detail = mergeDetailRecords(predicateOutcomes.map((outcome) => outcome.detail));
 
   return {
     stateRef: state.ref,
@@ -479,8 +491,11 @@ export async function observeTransitionOnPage(input: {
 
   const detail = Object.fromEntries(
     afterObservations
-      .filter((entry) => entry.detail)
-      .map((entry) => [entry.stateRef, JSON.stringify(normalizeDetailRecord(entry.detail))])
+      .filter(hasDetail)
+      .map((entry): readonly [StateNodeRef, string] => {
+        const normalizedDetail = normalizeDetailRecord(entry.detail);
+        return [entry.stateRef, normalizedDetail ? JSON.stringify(normalizedDetail) : '{}'];
+      })
       .sort(([left], [right]) => left.localeCompare(right)),
   );
 
