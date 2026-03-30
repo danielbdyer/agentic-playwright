@@ -15,6 +15,8 @@ import {
 import { ExecutionContext, FileSystem } from './ports';
 import { TesseractError } from '../domain/errors';
 import { groupBy, uniqueSorted } from '../domain/collections';
+import { concatAll } from '../domain/algebra/monoid';
+import { numberRecordSumMonoid, structMonoid, sumMonoid } from '../domain/algebra/envelope-mergers';
 import type {
   BenchmarkContext,
   BenchmarkImprovementProjection,
@@ -26,6 +28,38 @@ import type {
   LearningScorecard,
   ProposalBundle,
 } from '../domain/types';
+
+
+
+type TimingTotals = {
+  setup: number;
+  resolution: number;
+  action: number;
+  assertion: number;
+  retries: number;
+  teardown: number;
+  total: number;
+};
+
+const timingTotalsMonoid = structMonoid<TimingTotals>({
+  setup: sumMonoid,
+  resolution: sumMonoid,
+  action: sumMonoid,
+  assertion: sumMonoid,
+  retries: sumMonoid,
+  teardown: sumMonoid,
+  total: sumMonoid,
+});
+
+type ExecutionCostTotals = {
+  instructionCount: number;
+  diagnosticCount: number;
+};
+
+const executionCostTotalsMonoid = structMonoid<ExecutionCostTotals>({
+  instructionCount: sumMonoid,
+  diagnosticCount: sumMonoid,
+});
 
 interface BenchmarkVariant {
   id: string;
@@ -157,38 +191,29 @@ function scorecardForBenchmark(input: {
   const overlayChurn = input.confidenceRecords.filter((record) =>
     record.failureCount > 0 && uniqueScreens.includes(record.screen ?? ''),
   ).length;
-  const timingTotals = benchmarkRuns.reduce((acc, run) => ({
-    setup: acc.setup + run.executionMetrics.timingTotals.setupMs,
-    resolution: acc.resolution + run.executionMetrics.timingTotals.resolutionMs,
-    action: acc.action + run.executionMetrics.timingTotals.actionMs,
-    assertion: acc.assertion + run.executionMetrics.timingTotals.assertionMs,
-    retries: acc.retries + run.executionMetrics.timingTotals.retriesMs,
-    teardown: acc.teardown + run.executionMetrics.timingTotals.teardownMs,
-    total: acc.total + run.executionMetrics.timingTotals.totalMs,
-  }), { setup: 0, resolution: 0, action: 0, assertion: 0, retries: 0, teardown: 0, total: 0 });
-  const executionCostTotals = benchmarkRuns.reduce((acc, run) => ({
-    instructionCount: acc.instructionCount + run.executionMetrics.costTotals.instructionCount,
-    diagnosticCount: acc.diagnosticCount + run.executionMetrics.costTotals.diagnosticCount,
-  }), { instructionCount: 0, diagnosticCount: 0 });
-  const executionFailureFamilies = benchmarkRuns.reduce<Record<string, number>>((acc, run) => {
-    for (const [family, count] of Object.entries(run.executionMetrics.failureFamilies)) {
-      acc[family] = (acc[family] ?? 0) + count;
-    }
-    return acc;
-  }, {});
-  const recoveryFamilies = benchmarkRuns.reduce<Record<string, number>>((acc, run) => {
-    for (const [family, count] of Object.entries(run.executionMetrics.recoveryFamilies ?? {})) {
-      acc[family] = (acc[family] ?? 0) + count;
-    }
-    return acc;
-  }, {});
-  const recoveryStrategies = benchmarkRuns.reduce<Record<string, number>>((acc, run) => {
-    for (const [strategy, count] of Object.entries(run.executionMetrics.recoveryStrategies ?? {})) {
-      acc[strategy] = (acc[strategy] ?? 0) + count;
-    }
-    return acc;
-  }, {});
-  const budgetBreachCount = benchmarkRuns.reduce((sum, run) => sum + run.executionMetrics.budgetBreaches, 0);
+  const timingTotals = concatAll(
+    timingTotalsMonoid,
+    benchmarkRuns.map((run) => ({
+      setup: run.executionMetrics.timingTotals.setupMs,
+      resolution: run.executionMetrics.timingTotals.resolutionMs,
+      action: run.executionMetrics.timingTotals.actionMs,
+      assertion: run.executionMetrics.timingTotals.assertionMs,
+      retries: run.executionMetrics.timingTotals.retriesMs,
+      teardown: run.executionMetrics.timingTotals.teardownMs,
+      total: run.executionMetrics.timingTotals.totalMs,
+    })),
+  );
+  const executionCostTotals = concatAll(
+    executionCostTotalsMonoid,
+    benchmarkRuns.map((run) => ({
+      instructionCount: run.executionMetrics.costTotals.instructionCount,
+      diagnosticCount: run.executionMetrics.costTotals.diagnosticCount,
+    })),
+  );
+  const executionFailureFamilies = concatAll(numberRecordSumMonoid, benchmarkRuns.map((run) => run.executionMetrics.failureFamilies));
+  const recoveryFamilies = concatAll(numberRecordSumMonoid, benchmarkRuns.map((run) => run.executionMetrics.recoveryFamilies ?? {}));
+  const recoveryStrategies = concatAll(numberRecordSumMonoid, benchmarkRuns.map((run) => run.executionMetrics.recoveryStrategies ?? {}));
+  const budgetBreachCount = concatAll(sumMonoid, benchmarkRuns.map((run) => run.executionMetrics.budgetBreaches));
   const thresholds = input.benchmark.fieldAwarenessThresholds;
   const thresholdStatus = uniqueFieldAwarenessCount < thresholds.minFieldAwarenessCount
     || firstPassScreenResolutionRate < thresholds.minFirstPassScreenResolutionRate
