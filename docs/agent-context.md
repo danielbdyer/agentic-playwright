@@ -17,6 +17,7 @@ Operator workflows are documented in `docs/operator-handbook.md`.
 ## Fast Start
 
 - Run `npm run context` to print this brief from live repository sources.
+- Run `npm run map` to print the full module map from live repository sources.
 - Use `npm run paths`, `npm run trace`, `npm run impact`, and `npm run surface` before editing scenario-specific files.
 - operational overview: [README.md](README.md)
 - authoritative architecture doctrine: [docs/master-architecture.md](docs/master-architecture.md)
@@ -28,6 +29,23 @@ Operator workflows are documented in `docs/operator-handbook.md`.
 - design direction and owner decisions: [docs/direction.md](docs/direction.md)
 - implementation coding notes: [docs/coding-notes.md](docs/coding-notes.md)
 - seams, invariants, and verification: [docs/seams-and-invariants.md](docs/seams-and-invariants.md)
+- doctrine invariants (auto-verified): [docs/doctrine-invariants.md](docs/doctrine-invariants.md)
+
+## Codebase Structure
+
+| Layer | Directory | Files | Description |
+| --- | --- | --- | --- |
+| **Domain** | `lib/domain/` | 176 | Pure domain logic — types, validation, graph derivation, code generation |
+| **Application** | `lib/application/` | 145 | Effect orchestration — CLI commands, execution pipelines, fitness, improvement |
+| **Runtime** | `lib/runtime/` | 46 | Playwright execution — scenario steps, agent resolution, screen identification |
+| **Infrastructure** | `lib/infrastructure/` | 28 | Ports and adapters — ADO, filesystem, dashboard, MCP, VSCode |
+| **Composition** | `lib/composition/` | 6 | Dependency injection — Effect Layers, service wiring |
+| **Playwright** | `lib/playwright/` | 3 | ARIA capture, locator resolution, state topology |
+
+**Total**: 404 TypeScript modules across 6 layers.
+
+Each layer has a `README.md` with detailed module inventory and entry points.
+Run `npm run map` for the full auto-generated module map, or see [`docs/module-map.md`](module-map.md).
 
 ## Canonical Inputs
 
@@ -106,9 +124,11 @@ Optional env vars:
 
 | Scope | File |
 | --- | --- |
+| unspecified | `.github/instructions/dogfood.instructions.md` |
 | lib/domain/**/*.ts | `.github/instructions/domain.instructions.md` |
 | dogfood/generated/**/*.ts,dogfood/generated/**/*.json,dogfood/generated/**/*.md,generated/**/*.ts,generated/**/*.json,generated/**/*.md,lib/generated/**/*.ts | `.github/instructions/generated.instructions.md` |
 | dogfood/knowledge/**/*.yaml,dogfood/knowledge/**/*.ts,dogfood/scenarios/**/*.yaml,knowledge/**/*.yaml,knowledge/**/*.ts,scenarios/**/*.yaml | `.github/instructions/knowledge.instructions.md` |
+| scripts/**/*.ts,scripts/**/*.cjs | `.github/instructions/scripts.instructions.md` |
 | tests/**/*.ts,tests/**/*.spec.ts | `.github/instructions/tests.instructions.md` |
 
 ## Layer Rules
@@ -116,64 +136,6 @@ Optional env vars:
 - domain does not depend on application, infrastructure, or runtime
 - application depends on domain and application-local support only
 - runtime does not depend on application or infrastructure orchestration
-
-## Current State (as of 2026-03-29)
-
-### What works end-to-end
-
-1. **Resolution pipeline**: The full resolution ladder (explicit → control → approved-knowledge → patterns → translation → live-DOM → needs-human) is wired and exercised. `lib/runtime/agent/resolution-stages.ts` orchestrates all rungs.
-
-2. **Knowledge routing in binding**: `lib/domain/binding.ts` populates `knowledgeRefs` (surface, elements) and `supplementRefs` (hints) on every `BoundStep` when a screen is referenced. The resolution context carries per-step knowledge paths so the runtime agent knows which knowledge files to consult.
-
-3. **Proposal generation at needs-human**: When a step reaches the `needs-human` fallback (rung 10), `proposalsForNeedsHuman()` in `lib/runtime/agent/proposals.ts` generates properly-structured `ResolutionProposalDraft` entries with `{ screen, element, alias }` patches. These flow through `build-proposals.ts` → `activate-proposals.ts` → `applyHintsPatch` → knowledge YAML updates.
-
-4. **Playwright interpreter**: `lib/runtime/program.ts` (lines 67-228) has a fully implemented `playwrightStepProgramInterpreter` with handlers for navigate, enter, invoke, and observe-structure. It is exercised in `tests/playwright-execution.spec.ts` (4 tests against the demo harness HTML).
-
-5. **Dogfood loop**: `lib/application/dogfood.ts` runs scenarios, collects proposals, activates them into knowledge files, and re-runs. The activation pipeline works: proposals accumulate during runs and feed into `activate-proposals.ts` for YAML updates.
-
-6. **Speedrun/fitness**: `scripts/speedrun.ts` runs clean-slate flywheel cycles, generates fitness reports, and gates pipeline changes through the scorecard. 15 tunable parameters are documented in `docs/recursive-self-improvement.md`.
-
-### Known gaps and caveats
-
-- **Demo scenario 10001**: Achieves 100% knowledge hit rate via control resolution files (`controls/resolution/demo-policy-search.resolution.yaml`), not via alias matching. This exercises the explicit-fields and control-resolution rungs but not the alias-matching path.
-
-- **Synthetic scenario hit rate**: ~32% via alias matching. The gap is that the scenario generator's phrasing templates don't always match the existing alias vocabulary. This is the intended target for the Level 0 knowledge accumulation loop.
-
-- **Speedrun convergence metric**: The `proposalsActivated` counter in `accumulateProposalTotals` may report 0 even when proposals were generated and activated, because it counts within a single iteration rather than cumulatively. The convergence FSM can trigger `no-proposals` early termination before the system has a chance to benefit from activated proposals. This is a reporting/counting issue, not a functional gap in the pipeline.
-
-- **Pre-existing test failures**: 27 tests fail before and after these changes. Root causes: `lib/domain/doctrine-compiler.ts` and `lib/domain/emission-backends.ts` import from `@playwright/test` and `node:fs`/`node:path`, violating domain purity architecture tests. These are pre-existing and tracked.
-
-### Deleted modules (no longer in codebase)
-
-The following modules were removed as dead code (zero imports, zero references):
-
-- `lib/domain/camera-choreography.ts` — unused spatial choreography model
-- `lib/domain/emotional-pacing.ts` — unused pacing model
-- `lib/domain/breakage-simulator.ts` — unused breakage simulation
-- `lib/application/projection/index.ts` — dead 3-line barrel re-export (the real implementation is at `lib/application/projections/`)
-
-Their tests were also removed: `tests/camera-choreography.laws.spec.ts`, `tests/emotional-pacing.laws.spec.ts`, `tests/breakage-simulator.laws.spec.ts`.
-
-### VSCode extension (BACKLOG-E2)
-
-The extension package at `extension/` bridges Tesseract artifacts to the VSCode UI:
-
-- **`extension/src/extension.ts`** — entry point, registers task provider, diagnostics, Copilot Chat participant, commands, and file watchers
-- **`extension/src/artifact-loader.ts`** — reads `.tesseract/inbox/index.json` and `generated/{suite}/*.proposals.json` from disk
-- **`extension/src/task-bridge.ts`** — maps domain `VSCodeTask` values to real `vscode.Task` instances
-- **`extension/src/diagnostic-bridge.ts`** — maps domain `VSCodeDiagnostic` values to real `vscode.Diagnostic` instances
-- **`extension/src/copilot-bridge.ts`** — registers `@tesseract` Copilot Chat participant with `/inbox`, `/approve`, `/rerun`, `/hotspots` commands
-
-The extension introduces no domain logic — all business logic stays in `lib/infrastructure/vscode/` as pure functions. The extension only does registration and API bridging. It degrades gracefully when Copilot Chat is unavailable.
-
-Commands: `tesseract.refresh`, `tesseract.approve`, `tesseract.rerun`. File watchers auto-refresh on `.tesseract/**/*.json` and `generated/**/*.proposals.json` changes.
-
-### Where to look next
-
-- **A1 (ADR collapse)**: Partially complete. Runtime interpretation works, proposals generate, activation applies. The remaining work is improving alias coverage so synthetic scenarios resolve at higher rungs more often.
-- **A2 (Confidence-gated auto-approval)**: Unblocked by A1 progress. Trust policy thresholds exist; the gating logic needs wiring.
-- **A3 (Dogfood orchestrator)**: The `npm run dogfood` / speedrun commands work. Convergence detection fixed (proposalsGenerated vs proposalsActivated).
-- **E2 (VSCode extension)**: Extension package exists at `extension/`. Pure handlers tested (15 laws). Bridge modules compile against `@types/vscode`. Next: publish to marketplace or install locally for testing.
 
 ## Current Priorities
 

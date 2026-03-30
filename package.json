@@ -13,6 +13,8 @@
   "scripts": {
     "context": "node scripts/agent-context.cjs",
     "agent:sync": "node scripts/agent-context.cjs --write",
+    "map": "node scripts/module-map.cjs",
+    "map:write": "node scripts/module-map.cjs --write",
     "build": "node scripts/build.cjs",
     "typecheck": "node scripts/typecheck.cjs",
     "sync": "npm run build && node dist/bin/tesseract.js sync --all",
