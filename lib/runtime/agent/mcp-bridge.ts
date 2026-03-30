@@ -16,6 +16,7 @@
  * The agent interpreter selects its tool provider at composition time.
  */
 
+import { Effect } from 'effect';
 import type { McpToolDefinition } from '../../domain/types';
 import type { McpToolInvocation, McpToolResult } from '../../application/ports';
 
@@ -49,6 +50,8 @@ export interface AgentToolProvider {
   readonly invoke: (name: string, args: Record<string, unknown>) => Promise<AgentToolResult>;
   /** Number of available tools. */
   readonly toolCount: number;
+  /** Optional release hook for lifecycle-managed providers. */
+  readonly release?: (() => Promise<void>) | undefined;
 }
 
 // ─── Tool Invocation Adapter ───
@@ -59,6 +62,10 @@ export interface AgentToolProvider {
  * depend on a specific MCP server implementation.
  */
 export type McpToolInvoker = (invocation: McpToolInvocation) => Promise<McpToolResult>;
+
+export interface McpBridgeLifecycle {
+  readonly release?: (() => Promise<void>) | undefined;
+}
 
 // ─── Bridge Factory ───
 
@@ -104,6 +111,7 @@ function createAgentTool(
 export function createInternalMCPBridge(
   tools: readonly McpToolDefinition[],
   invoker: McpToolInvoker,
+  lifecycle?: McpBridgeLifecycle,
 ): AgentToolProvider {
   const agentTools = tools.map((def) => createAgentTool(def, invoker));
   const toolIndex = new Map(agentTools.map((t) => [t.name, t]));
@@ -125,7 +133,44 @@ export function createInternalMCPBridge(
         ? tool.invoke(args)
         : notFoundResult(name);
     },
+    release: lifecycle?.release,
   };
+}
+
+/**
+ * Scoped internal MCP bridge constructor.
+ * Ensures bridge-level cleanup executes on scope close and disables usage after release.
+ */
+export function createScopedInternalMCPBridge(
+  tools: readonly McpToolDefinition[],
+  invoker: McpToolInvoker,
+  lifecycle?: McpBridgeLifecycle,
+){
+  return Effect.acquireRelease(
+    Effect.sync(() => {
+      const bridge = createInternalMCPBridge(tools, invoker, lifecycle);
+      const state: { closed: boolean } = { closed: false };
+      return {
+        ...bridge,
+        getTool: (name: string) => (state.closed ? undefined : bridge.getTool(name)),
+        invoke: (name: string, args: Record<string, unknown>) => state.closed
+          ? Promise.resolve({
+              tool: name,
+              result: { error: 'MCP bridge handle is closed' },
+              isError: true,
+              source: 'mcp-bridge' as const,
+            })
+          : bridge.invoke(name, args),
+        release: async () => {
+          state.closed = true;
+          await bridge.release?.();
+        },
+      };
+    }),
+    (bridge) => bridge.release
+      ? Effect.promise(() => bridge.release!()).pipe(Effect.catchAll(() => Effect.void))
+      : Effect.void,
+  );
 }
 
 /**

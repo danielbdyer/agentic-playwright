@@ -50,6 +50,8 @@ export interface PlaywrightBridgePort {
   readonly execute: (action: BrowserAction) => Effect.Effect<BrowserActionResult, TesseractError>;
   /** Get the current page URL. */
   readonly currentUrl: () => Effect.Effect<string | null, never, never>;
+  /** Optional release hook for lifecycle-managed bridge handles. */
+  readonly release?: () => Effect.Effect<void, never, never>;
 }
 
 // ─── Disabled Adapter (no Playwright available) ───
@@ -135,5 +137,30 @@ export function createPlaywrightBridge(page: {
     }),
 
     currentUrl: () => Effect.sync(() => page.url()),
+    release: () => Effect.void,
   };
+}
+
+/**
+ * Scoped constructor for Playwright bridge handles.
+ * Places page/session cleanup in the release action.
+ */
+export function createScopedPlaywrightBridge(
+  page: {
+    readonly click: (selector: string) => Promise<void>;
+    readonly fill: (selector: string, value: string) => Promise<void>;
+    readonly goto: (url: string) => Promise<unknown>;
+    readonly screenshot: (options?: { fullPage?: boolean }) => Promise<Buffer>;
+    readonly locator: (selector: string) => { boundingBox: () => Promise<{ x: number; y: number; width: number; height: number } | null> };
+    readonly url: () => string;
+    readonly content: () => Promise<string>;
+    readonly close?: () => Promise<void>;
+  },
+){
+  return Effect.acquireRelease(
+    Effect.succeed(createPlaywrightBridge(page)),
+    () => page.close
+      ? Effect.promise(() => page.close!()).pipe(Effect.catchAll(() => Effect.void))
+      : Effect.void,
+  );
 }

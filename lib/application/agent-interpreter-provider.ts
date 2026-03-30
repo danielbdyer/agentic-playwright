@@ -221,7 +221,10 @@ export interface AgentLlmApiDependencies {
     readonly maxTokens: number;
     readonly systemPrompt: string;
     readonly userMessage: string;
+    readonly signal?: AbortSignal | undefined;
   }) => Promise<string>;
+  /** Optional release hook for session-style clients (MCP sockets, SDK clients). */
+  readonly release?: (() => Promise<void>) | undefined;
 }
 
 export interface AgentInterpreterConfig {
@@ -474,6 +477,22 @@ function createLlmApiAgentProvider(
   };
 }
 
+/**
+ * Scoped constructor for LLM-backed providers.
+ * Acquires provider dependencies and guarantees release on scope exit.
+ */
+export function createScopedLlmApiAgentProvider(
+  config: AgentInterpreterConfig,
+  deps: AgentLlmApiDependencies,
+){
+  return Effect.acquireRelease(
+    Effect.succeed(createLlmApiAgentProvider(config, deps)),
+    () => deps.release
+      ? Effect.promise(() => deps.release!()).pipe(Effect.catchAll(() => Effect.void))
+      : Effect.void,
+  );
+}
+
 // ─── Provider: Session (Claude Code CLI / VSCode Copilot / MCP) ───
 
 /**
@@ -533,6 +552,22 @@ function createSessionProvider(
   };
 }
 
+/**
+ * Scoped constructor for session-backed providers.
+ * Use when session clients (CLI, MCP, editor agents) must be disposed.
+ */
+export function createScopedSessionProvider(
+  deps?: AgentLlmApiDependencies | undefined,
+){
+  const provider = createSessionProvider(deps);
+  return Effect.acquireRelease(
+    Effect.succeed(provider),
+    () => deps?.release
+      ? Effect.promise(() => deps.release!()).pipe(Effect.catchAll(() => Effect.void))
+      : Effect.void,
+  );
+}
+
 // ─── W5.15: Effect.race Timeout for Agent Interpretation ───
 
 /** Default timeout for agent interpretation calls (milliseconds). */
@@ -574,22 +609,26 @@ export function withAgentTimeout(
   const budgetMs = options?.budgetMs ?? DEFAULT_AGENT_TIMEOUT_MS;
   const providerId = options?.provider ?? 'agent-timeout-wrapper';
 
-  return (request) => {
-    const agentCall = Effect.tryPromise({
+  return (request) => Effect.runPromise(withAgentTimeoutEffect(
+    Effect.tryPromise({
       try: () => interpret(request),
       catch: (err) => err instanceof Error ? err : new Error(String(err)),
-    });
+    }),
+    { budgetMs, provider: providerId },
+  ));
+}
 
-    const timeoutSignal = Effect.sleep(Duration.millis(budgetMs)).pipe(
-      Effect.map(() => timeoutFallbackResult(providerId, budgetMs)),
-    );
-
-    const raced = Effect.race(agentCall, timeoutSignal).pipe(
-      Effect.catchAll(() => Effect.succeed(timeoutFallbackResult(providerId, budgetMs))),
-    );
-
-    return Effect.runPromise(raced);
-  };
+export function withAgentTimeoutEffect(
+  interpretEffect: Effect.Effect<AgentInterpretationResult, unknown, never>,
+  options?: { readonly budgetMs?: number; readonly provider?: string },
+): Effect.Effect<AgentInterpretationResult, never, never> {
+  const budgetMs = options?.budgetMs ?? DEFAULT_AGENT_TIMEOUT_MS;
+  const providerId = options?.provider ?? 'agent-timeout-wrapper';
+  return interpretEffect.pipe(
+    Effect.timeout(Duration.millis(budgetMs)),
+    Effect.map((result) => result ?? timeoutFallbackResult(providerId, budgetMs)),
+    Effect.catchAll(() => Effect.succeed(timeoutFallbackResult(providerId, budgetMs))),
+  );
 }
 
 /**
