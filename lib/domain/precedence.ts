@@ -26,9 +26,24 @@ export const runSelectionPrecedenceLaw = [
   'repo-default',
 ] as const;
 
+/**
+ * Route navigation precedence law:
+ * 1) explicit scenario URL / route-state request
+ * 2) runbook route binding
+ * 3) approved route knowledge variants
+ * 4) screen canonical url fallback
+ */
+export const routeSelectionPrecedenceLaw = [
+  'explicit-url',
+  'runbook-binding',
+  'route-knowledge',
+  'screen-default',
+] as const;
+
 export type ResolutionPrecedenceRung = (typeof resolutionPrecedenceLaw)[number];
 export type DataResolutionPrecedenceRung = (typeof dataResolutionPrecedenceLaw)[number];
 export type RunSelectionPrecedenceRung = (typeof runSelectionPrecedenceLaw)[number];
+export type RouteSelectionPrecedenceRung = (typeof routeSelectionPrecedenceLaw)[number];
 
 /**
  * Select the highest-precedence candidate value according to a rung law.

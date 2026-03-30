@@ -59,6 +59,7 @@ function stepResolution(step: CompileSnapshot['boundScenario']['steps'][number])
     posture: step.posture ?? null,
     override: step.override ?? null,
     snapshot_template: step.snapshot_template ?? null,
+    route_state: step.route_state ?? null,
   };
 }
 

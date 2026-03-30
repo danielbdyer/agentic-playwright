@@ -150,6 +150,7 @@ export const StepResolutionSchema = Schema.Struct({
   posture: Schema.optionalWith(NullablePostureId, { default: () => null }),
   override: Schema.optionalWith(NullableString, { default: () => null }),
   snapshot_template: Schema.optionalWith(NullableSnapshotTemplateId, { default: () => null }),
+  route_state: Schema.optionalWith(Schema.NullOr(Schema.Record({ key: Schema.String, value: Schema.String })), { default: () => null }),
 });
 
 export const ScenarioStepSchema = Schema.Struct({
@@ -163,6 +164,7 @@ export const ScenarioStepSchema = Schema.Struct({
   posture: Schema.optionalWith(NullablePostureId, { default: () => null }),
   override: Schema.optionalWith(NullableString, { default: () => null }),
   snapshot_template: Schema.optionalWith(NullableSnapshotTemplateId, { default: () => null }),
+  route_state: Schema.optionalWith(Schema.NullOr(Schema.Record({ key: Schema.String, value: Schema.String })), { default: () => null }),
   resolution: Schema.optionalWith(Schema.NullOr(StepResolutionSchema), { default: () => null }),
   confidence: ConfidenceSchema,
 });
@@ -217,6 +219,7 @@ export const BoundStepSchema = Schema.Struct({
   posture: Schema.optionalWith(NullablePostureId, { default: () => null }),
   override: Schema.optionalWith(NullableString, { default: () => null }),
   snapshot_template: Schema.optionalWith(NullableSnapshotTemplateId, { default: () => null }),
+  route_state: Schema.optionalWith(Schema.NullOr(Schema.Record({ key: Schema.String, value: Schema.String })), { default: () => null }),
   resolution: Schema.optionalWith(Schema.NullOr(StepResolutionSchema), { default: () => null }),
   confidence: ConfidenceSchema,
   binding: BoundStepBindingSchema,

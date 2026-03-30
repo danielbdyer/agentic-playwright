@@ -216,7 +216,7 @@ export type LocatorStrategy =
   | { kind: 'role-name'; role: string; name?: string | null | undefined }
   | { kind: 'css'; value: string };
 
-export type TrustPolicyArtifactType = 'elements' | 'postures' | 'surface' | 'snapshot' | 'hints' | 'patterns';
+export type TrustPolicyArtifactType = 'elements' | 'postures' | 'surface' | 'snapshot' | 'hints' | 'patterns' | 'routes';
 export type TrustPolicyDecision = 'allow' | 'review' | 'deny';
 
 export interface TrustPolicyEvidenceRule {
@@ -368,4 +368,6 @@ export interface ResolutionTarget {
   readonly semanticDestination?: string | null | undefined;
   /** Route variant ref selected during route planning, if available. */
   readonly routeVariantRef?: string | null | undefined;
+  /** Optional route-state request used for pre-navigation (tab/query/hash/etc). */
+  readonly routeState?: Readonly<Record<string, string>> | null | undefined;
 }

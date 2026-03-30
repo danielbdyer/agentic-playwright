@@ -23,6 +23,12 @@ interface GraphScreenPayload {
   routeVariants?: Array<{
     routeVariantRef: string;
     url: string;
+    pathTemplate?: string | null;
+    query?: Record<string, string>;
+    hash?: string | null;
+    tab?: string | null;
+    state?: Record<string, string>;
+    mappedScreens?: ScreenId[];
     urlPattern?: string | null;
     dimensions?: Array<'query' | 'hash' | 'tab' | 'segment'>;
     expectedEntryStateRefs?: string[];
@@ -122,6 +128,12 @@ function screenCandidates(input: {
         routeVariants: (payload.routeVariants ?? []).map((variant) => ({
           routeVariantRef: variant.routeVariantRef,
           url: variant.url,
+          pathTemplate: variant.pathTemplate ?? null,
+          query: variant.query ?? {},
+          hash: variant.hash ?? null,
+          tab: variant.tab ?? null,
+          state: variant.state ?? {},
+          mappedScreens: sortStrings((variant.mappedScreens ?? []) as ScreenId[]),
           urlPattern: variant.urlPattern ?? null,
           dimensions: sortStrings((variant.dimensions ?? []) as Array<'query' | 'hash' | 'tab' | 'segment'>),
           expectedEntryStateRefs: sortStrings((variant.expectedEntryStateRefs ?? []) as string[]).map((ref) => createStateNodeRef(ref)),
