@@ -269,6 +269,7 @@ test('trust-policy validator round-trips trust policy fixture and keeps error pa
       snapshot: rule,
       hints: rule,
       patterns: rule,
+      routes: rule,
     },
     forbiddenAutoHealClasses: [],
   };
