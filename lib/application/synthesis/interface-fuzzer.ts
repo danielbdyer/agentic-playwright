@@ -11,31 +11,7 @@
 import { Effect } from 'effect';
 import { FileSystem } from '../ports';
 import type { ProjectPaths } from '../paths';
-
-// ─── Deterministic RNG ───
-
-function hashSeed(seed: string): number {
-  // eslint-disable-next-line no-restricted-syntax -- baseline: imperative hash computation
-  let hash = 2166136261;
-  // eslint-disable-next-line no-restricted-syntax -- baseline: imperative hash computation
-  for (let index = 0; index < seed.length; index += 1) {
-    hash ^= seed.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-  return hash >>> 0;
-}
-
-function createRng(seed: string): () => number {
-  let state = hashSeed(seed) || 1;
-  return () => {
-    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
-    return state / 4294967296;
-  };
-}
-
-function pick<T>(array: readonly T[], rng: () => number): T {
-  return array[Math.floor(rng() * array.length)]!;
-}
+import { createSeededRng, pick } from '../../domain/random';
 
 // ─── Drift Event Types ───
 
@@ -99,7 +75,7 @@ export interface GenerateDriftResult {
 export function generateDriftVariants(options: GenerateDriftOptions) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
-    const rng = createRng(options.seed);
+    const rng = createSeededRng(options.seed);
     // Read existing hints files
     const hintsDir = `${options.paths.rootDir}/knowledge/screens`;
     const hintsFiles = yield* fs.listDir(hintsDir);
