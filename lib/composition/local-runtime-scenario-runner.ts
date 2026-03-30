@@ -11,12 +11,12 @@ import { LocalFileSystem } from '../infrastructure/fs/local-fs';
 import { createLocalRuntimeEnvironment, type LocalRuntimeAgentInterpreter } from '../infrastructure/runtime/local-runtime-environment';
 import { createScenarioRunState, runScenarioStep } from '../runtime/scenario';
 
-function buildCachedTranslator(
+export function buildCachedTranslator(
   paths: ReturnType<typeof createProjectPaths>,
   cacheDisabled: boolean,
   provider: TranslationProvider,
-): (request: TranslationRequest) => Promise<TranslationReceipt> {
-  return (request) => Effect.runPromise(Effect.gen(function* () {
+): (request: TranslationRequest) => Effect.Effect<TranslationReceipt, never, never> {
+  return (request) => Effect.gen(function* () {
       const cacheKey = translationCacheKey(request);
       if (!cacheDisabled) {
       const cached = yield* readTranslationCache({ paths, request });
@@ -44,14 +44,14 @@ function buildCachedTranslator(
       yield* writeTranslationCache({ paths, request, receipt: computed });
     }
     return computed;
-  }).pipe(Effect.provideService(FileSystem, LocalFileSystem)));
+  }).pipe(Effect.provideService(FileSystem, LocalFileSystem));
 }
 
-function buildDefaultTranslator(
+export function buildDefaultTranslator(
   paths: ReturnType<typeof createProjectPaths>,
   cacheDisabled: boolean,
-): (request: TranslationRequest) => Promise<TranslationReceipt> {
-  return (request) => Effect.runPromise(Effect.gen(function* () {
+): (request: TranslationRequest) => Effect.Effect<TranslationReceipt, never, never> {
+  return (request) => Effect.gen(function* () {
     const cacheKey = translationCacheKey(request);
     if (!cacheDisabled) {
       const cached = yield* readTranslationCache({ paths, request });
@@ -77,10 +77,10 @@ function buildDefaultTranslator(
       yield* writeTranslationCache({ paths, request, receipt: computed });
     }
     return computed;
-  }).pipe(Effect.provideService(FileSystem, LocalFileSystem)));
+  }).pipe(Effect.provideService(FileSystem, LocalFileSystem));
 }
 
-function bridgeAgentInterpreterForRuntime(provider: AgentInterpreterProvider): LocalRuntimeAgentInterpreter {
+export function bridgeAgentInterpreterForRuntime(provider: AgentInterpreterProvider): LocalRuntimeAgentInterpreter {
   return {
     id: provider.id,
     kind: provider.kind,
@@ -105,6 +105,10 @@ function buildRunnerWithInterpreter(interpreterOverride?: AgentInterpreterProvid
             ? buildCachedTranslator(paths, cacheDisabled, externalProvider)
             : buildDefaultTranslator(paths, cacheDisabled);
 
+        const runtimeTranslator = translator
+          ? ((request: TranslationRequest) => Effect.runPromise(translator(request)))
+          : undefined;
+
         const agentInterpreter = bridgeAgentInterpreterForRuntime(
           interpreterOverride ?? resolveAgentInterpreterProvider(),
         );
@@ -118,7 +122,7 @@ function buildRunnerWithInterpreter(interpreterOverride?: AgentInterpreterProvid
         provider: input.resolutionEngine.id,
         controlSelection: input.plan.controlSelection,
         posture: input.plan.posture,
-        translator,
+        translator: runtimeTranslator,
         agentInterpreter,
         recoveryPolicy: input.plan.recoveryPolicy,
       });

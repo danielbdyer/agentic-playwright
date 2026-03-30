@@ -93,5 +93,5 @@ export interface AgentInterpreterProvider {
   readonly kind: AgentInterpreterKind;
   readonly interpret: (
     request: AgentInterpretationRequest,
-  ) => Effect<AgentInterpretationResult, never, never>;
+  ) => Effect.Effect<AgentInterpretationResult, never, never>;
 }
