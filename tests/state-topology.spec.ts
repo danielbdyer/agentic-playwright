@@ -1,5 +1,6 @@
 import { existsSync } from 'fs';
 import { chromium, expect, test } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import {
   createCanonicalTargetRef,
   createElementId,
@@ -20,11 +21,7 @@ import {
 } from '../lib/playwright/state-topology';
 
 const chromiumExecutablePath = chromium.executablePath();
-
-test.skip(
-  !existsSync(chromiumExecutablePath),
-  `Chromium executable not installed at ${chromiumExecutablePath}`,
-);
+const hasChromiumInstalled = existsSync(chromiumExecutablePath);
 
 function createPolicySearchObservationContext(): PlaywrightStateObservationContext {
   const screen = createScreenId('policy-search');
@@ -309,7 +306,135 @@ function observedStateRefs(results: Array<{ stateRef: string; observed: boolean 
   return results.filter((entry) => entry.observed).map((entry) => entry.stateRef).sort((left, right) => left.localeCompare(right));
 }
 
-test('state topology observes the policy search input transition on the real page', async ({ page }) => {
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function createDelayedMockPage(options: {
+  readonly delayMs: number;
+  readonly valuesByTestId: Readonly<Record<string, string>>;
+}): Page {
+  const createLocator = (testId: string): Locator => ({
+    count: async () => {
+      await wait(options.delayMs);
+      return options.valuesByTestId[testId] !== undefined ? 1 : 0;
+    },
+    isVisible: async () => {
+      await wait(options.delayMs);
+      return options.valuesByTestId[testId] !== undefined;
+    },
+    isEnabled: async () => {
+      await wait(options.delayMs);
+      return true;
+    },
+    textContent: async () => {
+      await wait(options.delayMs);
+      return options.valuesByTestId[testId] ?? null;
+    },
+    inputValue: async () => {
+      await wait(options.delayMs);
+      return options.valuesByTestId[testId] ?? '';
+    },
+    getAttribute: async () => {
+      await wait(options.delayMs);
+      return null;
+    },
+  } as unknown as Locator);
+
+  return {
+    getByTestId: (testId: string) => createLocator(testId),
+    getByRole: () => createLocator(''),
+    locator: () => createLocator(''),
+    url: () => 'https://example.test/policy-search',
+  } as unknown as Page;
+}
+
+function createSyntheticObservationContext(stateCount: number): PlaywrightStateObservationContext {
+  const screen = createScreenId('synthetic-screen');
+  const stateRefs = Array.from({ length: stateCount }, (_, index) => createStateNodeRef(`state:synthetic:${String(index).padStart(2, '0')}`));
+  const eventRef = createEventSignatureRef('event:synthetic:noop');
+  const transitionRef = createTransitionRef('transition:synthetic:visible');
+  const sharedRouteVariantRef = 'route-variant:demo:synthetic:default';
+
+  return {
+    stateGraph: {
+      kind: 'state-transition-graph',
+      version: 1,
+      generatedAt: '2026-03-30T00:00:00.000Z',
+      fingerprint: 'sha256:synthetic',
+      stateRefs,
+      eventSignatureRefs: [eventRef],
+      transitionRefs: [transitionRef],
+      states: stateRefs.map((stateRef, index) => {
+        const targetRef = createCanonicalTargetRef(`target:element:synthetic:field-${index}`);
+        return {
+          ref: stateRef,
+          screen,
+          label: `Synthetic state ${index}`,
+          aliases: [],
+          scope: 'target',
+          targetRef,
+          routeVariantRefs: [sharedRouteVariantRef],
+          predicates: [{ kind: 'visible', targetRef }],
+          provenance: ['tests/state-topology.spec.ts'],
+        };
+      }),
+      eventSignatures: [{
+        ref: eventRef,
+        screen,
+        targetRef: createCanonicalTargetRef('target:element:synthetic:field-0'),
+        label: 'Synthetic noop event',
+        aliases: [],
+        dispatch: { action: 'custom' },
+        requiredStateRefs: [],
+        forbiddenStateRefs: [],
+        effects: {
+          transitionRefs: [transitionRef],
+          resultStateRefs: [stateRefs[0]!],
+          observableEffects: ['synthetic-visible'],
+          assertions: ['first synthetic state remains visible'],
+        },
+        observationPlan: {
+          timeoutMs: 500,
+          settleMs: 0,
+          observeStateRefs: [stateRefs[0]!],
+        },
+        provenance: ['tests/state-topology.spec.ts'],
+      }],
+      transitions: [{
+        ref: transitionRef,
+        screen,
+        label: 'Synthetic visible transition',
+        aliases: [],
+        eventSignatureRef: eventRef,
+        sourceStateRefs: [],
+        targetStateRefs: [stateRefs[0]!],
+        effectKind: 'reveal',
+        observableEffects: ['synthetic-visible'],
+        provenance: ['tests/state-topology.spec.ts'],
+      }],
+      observations: [],
+    },
+    screens: [{
+      screen,
+      routeVariantRefs: [sharedRouteVariantRef],
+      elements: stateRefs.map((_, index) => ({
+        element: createElementId(`field-${index}`),
+        targetRef: createCanonicalTargetRef(`target:element:synthetic:field-${index}`),
+        role: 'textbox',
+        name: `Field ${index}`,
+        locator: [{ kind: 'test-id', value: `field-${index}` }],
+        widget: createWidgetId('os-input'),
+        surface: createSurfaceId('synthetic-surface'),
+      })),
+    }],
+  };
+}
+
+test.describe('real page state topology', () => {
+  test.skip(!hasChromiumInstalled, `Chromium executable not installed at ${chromiumExecutablePath}`);
+
+  test('state topology observes the policy search input transition on the real page', async ({ page }) => {
   const context = createPolicySearchObservationContext();
   const enterPolicyNumber = context.stateGraph.eventSignatures.find((event) => event.ref === 'event:policy-search:enter-policy-number');
 
@@ -354,9 +479,9 @@ test('state topology observes the policy search input transition on the real pag
   expect(observation.classification).toBe('matched');
   expect(observation.transitionRef).toBe('transition:policy-search:populate-policy-number');
   expect(observation.observedStateRefs).toContain('state:policy-search:policy-number-populated');
-});
+  });
 
-test('state topology primes required states and classifies the search result transition', async ({ page }) => {
+  test('state topology primes required states and classifies the search result transition', async ({ page }) => {
   const context = createPolicySearchObservationContext();
   const clickSearch = context.stateGraph.eventSignatures.find((event) => event.ref === 'event:policy-search:click-search');
 
@@ -412,4 +537,70 @@ test('state topology primes required states and classifies the search result tra
     'state:policy-search:results-visible',
     'state:policy-search:validation-hidden',
   ]));
+  });
+});
+
+test('observeStateRefsOnPage is deterministic and bounded-concurrent on larger state sets', async () => {
+  const stateCount = 12;
+  const perCallDelayMs = 20;
+  const context = createSyntheticObservationContext(stateCount);
+  const page = createDelayedMockPage({
+    delayMs: perCallDelayMs,
+    valuesByTestId: Object.fromEntries(Array.from({ length: stateCount }, (_, index) => [`field-${index}`, `value-${index}`])),
+  });
+
+  const startedAt = Date.now();
+  const firstRun = await observeStateRefsOnPage({
+    page,
+    context,
+    stateRefs: context.stateGraph.stateRefs,
+    activeRouteVariantRefs: ['route-variant:demo:synthetic:default'],
+  });
+  const durationMs = Date.now() - startedAt;
+  const secondRun = await observeStateRefsOnPage({
+    page,
+    context,
+    stateRefs: context.stateGraph.stateRefs,
+    activeRouteVariantRefs: ['route-variant:demo:synthetic:default'],
+  });
+
+  expect(firstRun).toEqual(secondRun);
+  expect(firstRun.map((entry) => entry.stateRef)).toEqual([...firstRun.map((entry) => entry.stateRef)].sort((left, right) => left.localeCompare(right)));
+
+  const sequentialLowerBoundMs = stateCount * perCallDelayMs * 4;
+  expect(durationMs).toBeLessThan(sequentialLowerBoundMs * 0.8);
+});
+
+test('observeTransitionOnPage emits deterministic detail envelopes after concurrent observations', async () => {
+  const context = createSyntheticObservationContext(8);
+  const page = createDelayedMockPage({
+    delayMs: 10,
+    valuesByTestId: Object.fromEntries(Array.from({ length: 8 }, (_, index) => [`field-${index}`, `value-${index}`])),
+  });
+  const event = context.stateGraph.eventSignatures[0]!;
+  const expectedTransitionRefs = context.stateGraph.transitions.map((transition) => transition.ref);
+
+  const first = await observeTransitionOnPage({
+    page,
+    context,
+    screen: createScreenId('synthetic-screen'),
+    eventSignatureRef: event.ref,
+    expectedTransitionRefs,
+    source: 'runtime',
+    actor: 'runtime-execution',
+    observationId: 'test:synthetic:transition:first',
+  });
+  const second = await observeTransitionOnPage({
+    page,
+    context,
+    screen: createScreenId('synthetic-screen'),
+    eventSignatureRef: event.ref,
+    expectedTransitionRefs,
+    source: 'runtime',
+    actor: 'runtime-execution',
+    observationId: 'test:synthetic:transition:second',
+  });
+
+  expect({ ...first, observationId: 'normalized' }).toEqual({ ...second, observationId: 'normalized' });
+  expect(Object.keys(first.detail ?? {})).toEqual([...(Object.keys(first.detail ?? {}))].sort((left, right) => left.localeCompare(right)));
 });

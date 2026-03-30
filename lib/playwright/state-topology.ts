@@ -13,6 +13,7 @@ import type {
 import type { CanonicalTargetRef, EventSignatureRef, StateNodeRef, TransitionRef } from '../domain/identity';
 import { uniqueSorted } from '../domain/collections';
 import { foldLocatorStrategy } from '../domain/visitors';
+import { resolveEffectConcurrency } from '../application/concurrency';
 
 export interface ObservationContextScreen {
   screen: StepTaskScreenCandidate['screen'];
@@ -40,6 +41,8 @@ interface ResolvedObservationLocator {
   strategyIndex: number;
   degraded: boolean;
 }
+
+const browserObservationConcurrency = resolveEffectConcurrency({ ceiling: 4 });
 
 function fallbackLocatorStrategy(candidate: Pick<StepTaskElementCandidate, 'role' | 'name'>): LocatorStrategy {
   return {
@@ -182,28 +185,52 @@ function observedRouteMatch(
   return activeRouteVariantRefs.length > 0;
 }
 
+function normalizeDetailRecord(detail: Record<string, string> | undefined): Record<string, string> | undefined {
+  if (!detail || Object.keys(detail).length === 0) {
+    return undefined;
+  }
+  return Object.fromEntries(Object.entries(detail).sort(([left], [right]) => left.localeCompare(right)));
+}
+
+async function mapWithConcurrency<T, R>(
+  items: readonly T[],
+  mapper: (item: T, index: number) => Promise<R>,
+  options?: { readonly concurrency?: number | undefined },
+): Promise<R[]> {
+  const concurrency = Math.max(1, Math.min(options?.concurrency ?? browserObservationConcurrency, items.length || 1));
+  const runBatch = async (start: number): Promise<R[]> => {
+    if (start >= items.length) {
+      return [];
+    }
+    const batch = items.slice(start, start + concurrency);
+    const batchResults = await Promise.all(batch.map((item, batchIndex) => mapper(item, start + batchIndex)));
+    const remainder = await runBatch(start + concurrency);
+    return [...batchResults, ...remainder];
+  };
+  return runBatch(0);
+}
+
 async function evaluateStateNode(
   page: Page,
   context: PlaywrightStateObservationContext,
   state: StateNode,
   activeRouteVariantRefs: readonly string[],
 ): Promise<StateObservationResult> {
-  const details: Record<string, string> = {};
-  let observed = true;
-
-  for (const predicate of state.predicates) {
+  const predicateOutcomes = await mapWithConcurrency(state.predicates, async (predicate) => {
     if (predicate.kind === 'active-route') {
       const matched = observedRouteMatch(predicate.routeVariantRef ?? null, activeRouteVariantRefs, page, predicate.value ?? null);
-      details.route = matched ? 'active' : 'inactive';
-      observed &&= matched;
-      continue;
+      return {
+        observed: matched,
+        detail: { route: matched ? 'active' : 'inactive' },
+      };
     }
 
     const candidate = candidateForTargetRef(context, predicate.targetRef ?? state.targetRef ?? null);
     if (!candidate) {
-      details.unresolved = 'missing-target';
-      observed = false;
-      continue;
+      return {
+        observed: false,
+        detail: { unresolved: 'missing-target' },
+      };
     }
 
     const resolved = await resolveObservationLocator(page, candidate);
@@ -211,65 +238,62 @@ async function evaluateStateNode(
     const visible = await locator.isVisible().catch(() => false);
     const enabled = await locator.isEnabled().catch(() => false);
     const attributeValue = await readLocatorAttribute(locator, predicate.attribute ?? null);
-    details.locator = describeLocatorStrategy(resolved.strategy);
-    details.locatorRung = String(resolved.strategyIndex + 1);
-    if (attributeValue !== null && attributeValue !== undefined) {
-      details[predicate.attribute ?? 'value'] = attributeValue;
-    }
-
     const expected = predicate.value ?? null;
     const normalizedValue = (attributeValue ?? '').trim();
     const matchesExpected = expected === null
       ? normalizedValue.length > 0
       : normalizedValue === expected;
 
-    let predicateObserved = false;
-    switch (predicate.kind) {
-      case 'visible':
-      case 'open':
-      case 'expanded':
-      case 'active-modal':
-        predicateObserved = visible;
-        break;
-      case 'hidden':
-      case 'closed':
-      case 'collapsed':
-        predicateObserved = !visible;
-        break;
-      case 'enabled':
-        predicateObserved = enabled;
-        break;
-      case 'disabled':
-        predicateObserved = !enabled;
-        break;
-      case 'populated':
-        predicateObserved = expected === null ? normalizedValue.length > 0 : matchesExpected;
-        break;
-      case 'cleared':
-        predicateObserved = expected === null ? normalizedValue.length === 0 : matchesExpected;
-        break;
-      case 'valid': {
-        const validity = predicate.attribute ? matchesExpected : normalizedValue !== 'true';
-        predicateObserved = predicate.attribute ? validity : (attributeValue ?? 'false') !== 'true';
-        break;
+    const predicateObserved = (() => {
+      switch (predicate.kind) {
+        case 'visible':
+        case 'open':
+        case 'expanded':
+        case 'active-modal':
+          return visible;
+        case 'hidden':
+        case 'closed':
+        case 'collapsed':
+          return !visible;
+        case 'enabled':
+          return enabled;
+        case 'disabled':
+          return !enabled;
+        case 'populated':
+          return expected === null ? normalizedValue.length > 0 : matchesExpected;
+        case 'cleared':
+          return expected === null ? normalizedValue.length === 0 : matchesExpected;
+        case 'valid':
+          return predicate.attribute ? matchesExpected : (attributeValue ?? 'false') !== 'true';
+        case 'invalid':
+          return predicate.attribute ? matchesExpected : (attributeValue ?? 'false') === 'true';
+        default:
+          return false;
       }
-      case 'invalid': {
-        const invalidity = predicate.attribute ? matchesExpected : normalizedValue === 'true';
-        predicateObserved = predicate.attribute ? invalidity : (attributeValue ?? 'false') === 'true';
-        break;
-      }
-      default:
-        predicateObserved = false;
-        break;
-    }
+    })();
 
-    observed &&= predicateObserved;
-  }
+    const detail = {
+      locator: describeLocatorStrategy(resolved.strategy),
+      locatorRung: String(resolved.strategyIndex + 1),
+      ...(attributeValue !== null && attributeValue !== undefined ? { [predicate.attribute ?? 'value']: attributeValue } : {}),
+    };
+
+    return {
+      observed: predicateObserved,
+      detail,
+    };
+  }, { concurrency: browserObservationConcurrency });
+
+  const observed = predicateOutcomes.every((outcome) => outcome.observed);
+  const detail = normalizeDetailRecord(predicateOutcomes.reduce<Record<string, string>>(
+    (acc, outcome) => ({ ...acc, ...outcome.detail }),
+    {},
+  ));
 
   return {
     stateRef: state.ref,
     observed,
-    detail: Object.keys(details).length > 0 ? details : undefined,
+    detail,
   };
 }
 
@@ -285,11 +309,12 @@ export async function observeStateRefsOnPage(input: {
   const stateRefs = uniqueSorted(input.stateRefs);
   const activeRouteVariantRefs = input.activeRouteVariantRefs ?? [];
   const states = context.stateGraph.states.filter((state) => stateRefs.includes(state.ref));
-  const results: StateObservationResult[] = [];
-  for (const state of states) {
-    results.push(await evaluateStateNode(input.page, context, state, activeRouteVariantRefs));
-  }
-  return results.sort((left, right) => left.stateRef.localeCompare(right.stateRef));
+  const results = await mapWithConcurrency(states, (state) => evaluateStateNode(input.page, context, state, activeRouteVariantRefs), {
+    concurrency: browserObservationConcurrency,
+  });
+  return results
+    .map((entry) => ({ ...entry, detail: normalizeDetailRecord(entry.detail) }))
+    .sort((left, right) => left.stateRef.localeCompare(right.stateRef));
 }
 
 function eventByRef(stateGraph: StateTransitionGraph, ref: EventSignatureRef | null | undefined): EventSignature | null {
@@ -452,6 +477,13 @@ export async function observeTransitionOnPage(input: {
       ? 'unexpected-effects'
       : 'missing-expected';
 
+  const detail = Object.fromEntries(
+    afterObservations
+      .filter((entry) => entry.detail)
+      .map((entry) => [entry.stateRef, JSON.stringify(normalizeDetailRecord(entry.detail))])
+      .sort(([left], [right]) => left.localeCompare(right)),
+  );
+
   return {
     observationId: input.observationId,
     source: input.source,
@@ -464,10 +496,6 @@ export async function observeTransitionOnPage(input: {
     unexpectedStateRefs: uniqueSorted(unexpectedStateRefs),
     confidence: 'observed',
     classification,
-    detail: Object.fromEntries(
-      afterObservations
-        .filter((entry) => entry.detail)
-        .map((entry) => [entry.stateRef, JSON.stringify(entry.detail)]),
-    ),
+    detail,
   };
 }
