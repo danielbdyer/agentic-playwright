@@ -1,13 +1,12 @@
+import { Data, Effect } from 'effect';
 import type { CausalLink, ConfidenceScaling, MemoryCapacityConfig, ObservedStateSession, ResolutionEvent, ResolutionPipelineResult, ResolutionReceipt, GroundedStep } from '../../domain/types';
 import { DEFAULT_PIPELINE_CONFIG } from '../../domain/types';
-import { resolutionPrecedenceLaw } from '../../domain/precedence';
+import { resolutionPrecedenceLaw, type ResolutionPrecedenceRung } from '../../domain/precedence';
 import { selectedControlRefs, selectedControlResolution } from './select-controls';
 import { uniqueSorted } from './shared';
-import type { ResolutionStrategy, StrategyAttemptResult } from './strategy';
-import { runStrategyChain } from './strategy';
 import { createStrategyRegistry } from './strategy-registry';
 import { buildPipelineDAG, validateDAG } from '../../application/pipeline-dag';
-import type { RuntimeAgentStageContext, RuntimeStepAgentContext, StageEffects } from './types';
+import type { RuntimeAgentStageContext, RuntimeStepAgentContext, StageEffects, IntentInterpretation } from './types';
 import { mergeEffectsIntoStage, EMPTY_EFFECTS } from './types';
 import { interpretStepIntent } from './interpret-intent';
 import {
@@ -17,6 +16,7 @@ import {
   tryOverlayResolution,
   tryTranslationResolution,
   tryLiveDomOrFallback,
+  type ResolutionAccumulator,
 } from './resolution-stages';
 
 export const RESOLUTION_PRECEDENCE = resolutionPrecedenceLaw;
@@ -24,6 +24,30 @@ export const RESOLUTION_PRECEDENCE = resolutionPrecedenceLaw;
 export type MemoryCapacity = MemoryCapacityConfig;
 
 const DEFAULT_MEMORY_CAPACITY: MemoryCapacity = DEFAULT_PIPELINE_CONFIG.memoryCapacity;
+
+export class PipelineDagValidationError extends Data.TaggedError('PipelineDagValidationError')<{
+  readonly diagnostics: readonly string[];
+}> {}
+
+export class StrategyTotalityError extends Data.TaggedError('StrategyTotalityError')<{
+  readonly missingRungs: readonly ResolutionPrecedenceRung[];
+}> {}
+
+interface PipelineState {
+  readonly stage: RuntimeAgentStageContext;
+  readonly accumulator: ResolutionAccumulator | null;
+  readonly emittedEvents: readonly ResolutionEvent[];
+}
+
+interface PipelineProgress {
+  readonly state: PipelineState;
+  readonly receipt: ResolutionReceipt | null;
+}
+
+interface PipelinePhase {
+  readonly name: string;
+  readonly run: (progress: PipelineProgress) => Effect.Effect<PipelineProgress, StrategyTotalityError>;
+}
 
 export function deriveMemoryCapacity(stepCount: number, stateNodeCount: number): MemoryCapacity {
   return {
@@ -161,70 +185,49 @@ function effectsToEvents(effects: StageEffects): ResolutionEvent[] {
   ];
 }
 
-function pureStrategy(
-  name: string,
-  rungs: ResolutionStrategy['rungs'],
-  requiresAccumulator: boolean,
-  fn: (stage: RuntimeAgentStageContext, acc: import('./resolution-stages').ResolutionAccumulator | null) => { receipt: ResolutionReceipt | null; effects: StageEffects } | Promise<{ receipt: ResolutionReceipt | null; effects: StageEffects }>,
-): ResolutionStrategy {
+function mergeStage(state: PipelineState, effects: StageEffects): PipelineState {
   return {
-    name,
-    rungs,
-    requiresAccumulator,
-    async attempt(stage, acc): Promise<StrategyAttemptResult> {
-      const result = await fn(stage, acc);
-      Object.assign(stage, mergeEffectsIntoStage(stage, result.effects));
-      return { receipt: result.receipt, events: effectsToEvents(result.effects) };
+    ...state,
+    stage: mergeEffectsIntoStage(state.stage, effects),
+    emittedEvents: [...state.emittedEvents, ...effectsToEvents(effects)],
+  };
+}
+
+function withInterpretation(state: PipelineState, interpretation: IntentInterpretation | null): PipelineState {
+  return {
+    ...state,
+    stage: {
+      ...state.stage,
+      interpretation: interpretation ?? undefined,
     },
   };
 }
 
-const preAccumulatorStrategies: readonly ResolutionStrategy[] = [
-  pureStrategy('explicit-resolution', ['explicit', 'control'], false,
-    (stage) => tryExplicitResolution(stage)),
-];
-
-function buildPostAccumulatorStrategies(accRef: { current: import('./resolution-stages').ResolutionAccumulator }): readonly ResolutionStrategy[] {
-  return [
-    pureStrategy('approved-knowledge', ['approved-screen-knowledge', 'shared-patterns', 'prior-evidence'], true,
-      (stage) => tryApprovedKnowledgeResolution(stage, accRef.current)),
-    {
-      name: 'confidence-overlay',
-      rungs: ['approved-equivalent-overlay'],
-      requiresAccumulator: true,
-      async attempt(stage): Promise<StrategyAttemptResult> {
-        const result = tryOverlayResolution(stage, accRef.current);
-        accRef.current = result.accumulator;
-        Object.assign(stage, mergeEffectsIntoStage(stage, result.effects));
-        return { receipt: result.receipt, events: effectsToEvents(result.effects) };
-      },
-    },
-    {
-      name: 'structured-translation',
-      rungs: ['structured-translation'],
-      requiresAccumulator: true,
-      async attempt(stage): Promise<StrategyAttemptResult> {
-        const result = await tryTranslationResolution(stage, accRef.current);
-        accRef.current = result.accumulator;
-        Object.assign(stage, mergeEffectsIntoStage(stage, result.effects));
-        return { receipt: result.receipt, events: effectsToEvents(result.effects) };
-      },
-    },
-    pureStrategy('live-dom-fallback', ['live-dom', 'agent-interpreted', 'needs-human'], true,
-      async (stage) => tryLiveDomOrFallback(stage, accRef.current)),
-  ];
+function appendReceiptEvent(state: PipelineState, receipt: ResolutionReceipt): PipelineState {
+  return { ...state, emittedEvents: [...state.emittedEvents, { kind: 'receipt-produced', receipt }] };
 }
 
-export interface PipelinePhase {
-  readonly name: string;
-  run(stage: RuntimeAgentStageContext): Promise<import('./strategy').StrategyChainResult>;
+function runStrategies(
+  state: PipelineState,
+  attempts: readonly ((s: PipelineState) => Effect.Effect<{ readonly state: PipelineState; readonly receipt: ResolutionReceipt | null }, never>)[],
+): Effect.Effect<{ readonly state: PipelineState; readonly receipt: ResolutionReceipt | null }, never> {
+  return Effect.reduce(
+    attempts,
+    { state, receipt: null as ResolutionReceipt | null },
+    (progress, attempt) => progress.receipt
+      ? Effect.succeed(progress)
+      : attempt(progress.state).pipe(
+          Effect.map((result) => result.receipt
+            ? { state: appendReceiptEvent(result.state, result.receipt), receipt: result.receipt }
+            : result),
+        ),
+  );
 }
 
-async function runPipelinePhases(
+function runPipelinePhases(
   phases: readonly PipelinePhase[],
-  stage: RuntimeAgentStageContext,
-): Promise<import('./strategy').StrategyChainResult> {
-  // Validate phase chain as a linear DAG: each phase depends on its predecessor.
+  initial: PipelineProgress,
+): Effect.Effect<PipelineProgress, PipelineDagValidationError | StrategyTotalityError> {
   const dagStages = phases.map((phase, index) => ({
     name: phase.name,
     dependencies: index > 0 ? [phases[index - 1]!.name] : [],
@@ -232,37 +235,25 @@ async function runPipelinePhases(
   const dag = buildPipelineDAG(dagStages);
   const diagnostics = validateDAG(dag);
   if (diagnostics.length > 0) {
-    throw new Error(`Pipeline phase DAG invalid: ${diagnostics.join('; ')}`);
+    return Effect.fail(new PipelineDagValidationError({ diagnostics }));
   }
 
-  const step = async (
-    remaining: readonly PipelinePhase[],
-    priorEvents: readonly ResolutionEvent[],
-  ): Promise<import('./strategy').StrategyChainResult> => {
-    const [head, ...tail] = remaining;
-    if (!head) {
-      return { receipt: null, events: [...priorEvents] };
-    }
-    const result = await head.run(stage);
-    const accumulated = [...priorEvents, ...result.events];
-    return result.receipt
-      ? { receipt: result.receipt, events: accumulated }
-      : step(tail, accumulated);
-  };
-  return step(phases, []);
+  return Effect.reduce(
+    phases,
+    initial,
+    (progress, phase) => progress.receipt ? Effect.succeed(progress) : phase.run(progress),
+  );
 }
 
-export async function runResolutionPipeline(
+export function runResolutionPipeline(
   task: GroundedStep,
   context: RuntimeStepAgentContext,
   capacity: MemoryCapacity = DEFAULT_MEMORY_CAPACITY,
-): Promise<ResolutionPipelineResult> {
+): Effect.Effect<ResolutionPipelineResult, PipelineDagValidationError | StrategyTotalityError> {
   const memory = normalizeObservedStateSession(task, context.observedStateSession ?? createEmptyObservedStateSession(), capacity);
-  context.observedStateSession = memory;
-
   const stage: RuntimeAgentStageContext = {
     task,
-    context,
+    context: { ...context, observedStateSession: memory },
     memory,
     controlResolution: selectedControlResolution(task, context),
     controlRefs: selectedControlRefs(task, context),
@@ -274,72 +265,114 @@ export async function runResolutionPipeline(
     memoryLineage: memory.lineage,
   };
 
-  const applyMemory = (receipt: ResolutionReceipt): ResolutionEvent => {
-    const updated = deriveObservedStateSessionAfterResolution(stage, receipt, capacity);
-    context.observedStateSession = updated;
-    stage.memoryLineage = updated.lineage;
-    return { kind: 'memory-updated', session: updated };
-  };
-
   const seedEvents: ResolutionEvent[] = [
     ...(stage.controlRefs.length > 0 ? [{ kind: 'refs-collected' as const, refKind: 'control' as const, refs: [...stage.controlRefs] }] : []),
     ...(stage.evidenceRefs.length > 0 ? [{ kind: 'refs-collected' as const, refKind: 'evidence' as const, refs: [...stage.evidenceRefs] }] : []),
   ];
 
-  const accRef = { current: null as import('./resolution-stages').ResolutionAccumulator | null };
-
   const phases: readonly PipelinePhase[] = [
     {
       name: 'intent-interpretation',
-      run: async (s) => {
-        const interpretationResult = await interpretStepIntent(s.task, s.context);
-        Object.assign(s, mergeEffectsIntoStage(s, interpretationResult.effects));
-        s.interpretation = interpretationResult.interpretation ?? undefined;
-        return { receipt: null, events: effectsToEvents(interpretationResult.effects) };
-      },
+      run: (progress) => Effect.promise(() => interpretStepIntent(progress.state.stage.task, progress.state.stage.context)).pipe(
+        Effect.map((interpretationResult) => ({
+          ...progress,
+          state: withInterpretation(mergeStage(progress.state, interpretationResult.effects), interpretationResult.interpretation),
+        })),
+      ),
     },
     {
       name: 'pre-accumulator',
-      run: (s) => runStrategyChain(preAccumulatorStrategies, s, null),
+      run: (progress) => runStrategies(progress.state, [
+        (state) => Effect.sync(() => {
+          const result = tryExplicitResolution(state.stage);
+          return { state: mergeStage(state, result.effects), receipt: result.receipt };
+        }),
+      ]).pipe(Effect.map((result) => ({ state: result.state, receipt: result.receipt }))),
     },
     {
       name: 'lattice-accumulator',
-      run: async (s) => {
-        const latticeResult = buildLatticeAccumulator(s);
-        Object.assign(s, mergeEffectsIntoStage(s, latticeResult.effects));
-        accRef.current = latticeResult.accumulator;
-        return { receipt: null, events: effectsToEvents(latticeResult.effects) };
-      },
+      run: (progress) => Effect.sync(() => {
+        const latticeResult = buildLatticeAccumulator(progress.state.stage);
+        return {
+          ...progress,
+          state: { ...mergeStage(progress.state, latticeResult.effects), accumulator: latticeResult.accumulator },
+        };
+      }),
     },
     {
       name: 'post-accumulator',
-      run: (s) => {
-        const postStrategies = buildPostAccumulatorStrategies(accRef as { current: import('./resolution-stages').ResolutionAccumulator });
-        const registry = createStrategyRegistry([...preAccumulatorStrategies, ...postStrategies]);
-        const missingRungs = resolutionPrecedenceLaw.filter((rung) => !registry.lookup(rung));
-        if (missingRungs.length > 0) {
-          throw new Error(`Strategy registry not total — missing rungs: ${missingRungs.join(', ')}`);
+      run: (progress) => {
+        if (!progress.state.accumulator) {
+          return Effect.succeed(progress);
         }
-        return runStrategyChain(registry.strategiesInOrder().filter((s) => s.requiresAccumulator), s, accRef.current);
+
+        const strategyRegistry = createStrategyRegistry([
+          { name: 'explicit-resolution', rungs: ['explicit', 'control'], requiresAccumulator: false, attempt: async () => ({ receipt: null, events: [] }) },
+          { name: 'approved-knowledge', rungs: ['approved-screen-knowledge', 'shared-patterns', 'prior-evidence'], requiresAccumulator: true, attempt: async () => ({ receipt: null, events: [] }) },
+          { name: 'confidence-overlay', rungs: ['approved-equivalent-overlay'], requiresAccumulator: true, attempt: async () => ({ receipt: null, events: [] }) },
+          { name: 'structured-translation', rungs: ['structured-translation'], requiresAccumulator: true, attempt: async () => ({ receipt: null, events: [] }) },
+          { name: 'live-dom-fallback', rungs: ['live-dom', 'agent-interpreted', 'needs-human'], requiresAccumulator: true, attempt: async () => ({ receipt: null, events: [] }) },
+        ]);
+        const missingRungs = resolutionPrecedenceLaw.filter((rung) => !strategyRegistry.lookup(rung));
+        if (missingRungs.length > 0) {
+          return Effect.fail(new StrategyTotalityError({ missingRungs }));
+        }
+
+        const attempts = [
+          (state: PipelineState) => Effect.sync(() => {
+            const result = tryApprovedKnowledgeResolution(state.stage, state.accumulator!);
+            return { state: mergeStage(state, result.effects), receipt: result.receipt };
+          }),
+          (state: PipelineState) => Effect.sync(() => {
+            const result = tryOverlayResolution(state.stage, state.accumulator!);
+            return {
+              state: { ...mergeStage(state, result.effects), accumulator: result.accumulator },
+              receipt: result.receipt,
+            };
+          }),
+          (state: PipelineState) => Effect.promise(() => tryTranslationResolution(state.stage, state.accumulator!)).pipe(
+            Effect.map((result) => ({
+              state: { ...mergeStage(state, result.effects), accumulator: result.accumulator },
+              receipt: result.receipt,
+            })),
+          ),
+          (state: PipelineState) => Effect.promise(() => tryLiveDomOrFallback(state.stage, state.accumulator!)).pipe(
+            Effect.map((result) => ({
+              state: mergeStage(state, result.effects),
+              receipt: result.receipt,
+            })),
+          ),
+        ] as const;
+
+        return runStrategies(progress.state, attempts).pipe(
+          Effect.map((result) => ({ state: result.state, receipt: result.receipt })),
+        );
       },
     },
     {
       name: 'final-fallback',
-      run: async (s) => {
-        const fallback = await tryLiveDomOrFallback(s, accRef.current!);
-        Object.assign(s, mergeEffectsIntoStage(s, fallback.effects));
-        return {
-          receipt: fallback.receipt,
-          events: [...effectsToEvents(fallback.effects), { kind: 'receipt-produced' as const, receipt: fallback.receipt }],
-        };
-      },
+      run: (progress) => !progress.state.accumulator
+        ? Effect.succeed(progress)
+        : Effect.promise(() => tryLiveDomOrFallback(progress.state.stage, progress.state.accumulator!)).pipe(
+            Effect.map((fallback) => {
+              const nextState = appendReceiptEvent(mergeStage(progress.state, fallback.effects), fallback.receipt);
+              return { state: nextState, receipt: fallback.receipt };
+            }),
+          ),
     },
   ];
 
-  const result = await runPipelinePhases(phases, stage);
-  const receipt = result.receipt!;
-  const memoryEvent = applyMemory(receipt);
-  return { receipt, events: [...seedEvents, ...result.events, memoryEvent] };
+  const initial: PipelineProgress = { state: { stage, accumulator: null, emittedEvents: [] }, receipt: null };
+
+  return runPipelinePhases(phases, initial).pipe(
+    Effect.map(({ state, receipt }) => {
+      const resolvedReceipt = receipt!;
+      const updated = deriveObservedStateSessionAfterResolution(state.stage, resolvedReceipt, capacity);
+      const memoryEvent: ResolutionEvent = { kind: 'memory-updated', session: updated };
+      context.observedStateSession = updated;
+      return { receipt: resolvedReceipt, events: [...seedEvents, ...state.emittedEvents, memoryEvent] };
+    }),
+  );
 }
 
 export type { RuntimeStepAgentContext } from './types';

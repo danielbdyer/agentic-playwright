@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { Effect } from 'effect';
 import { createScreenId } from '../lib/domain/identity';
 import { rankActionCandidates } from '../lib/runtime/agent/candidate-lattice';
 import { selectedControlResolution } from '../lib/runtime/agent/select-controls';
@@ -99,7 +100,7 @@ test('needs-human is emitted only after machine rungs are exhausted', async () =
     },
   }, resolutionContext);
 
-  const { receipt } = await runResolutionPipeline(task, createAgentContext(resolutionContext));
+  const { receipt } = await Effect.runPromise(runResolutionPipeline(task, createAgentContext(resolutionContext)));
 
   expect(receipt.kind).toBe('needs-human');
   const stages = receipt.exhaustion.map((entry) => entry.stage);

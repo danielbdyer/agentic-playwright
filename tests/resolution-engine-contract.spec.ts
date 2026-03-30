@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { Effect } from 'effect';
 import { createResolutionEngineRegistry, resolveResolutionEngine, type ResolutionEngine } from '../lib/application/resolution-engine';
 import { validateStepResults } from '../lib/application/execution/validate-step-results';
 import { runResolutionPipeline } from '../lib/runtime/agent';
@@ -31,7 +32,7 @@ test('provider capability negotiation rejects incompatible mode', () => {
       supportsProposalDrafts: true,
       deterministicMode: false,
     },
-    resolveStep: async (task, context) => (await runResolutionPipeline(task, context as RuntimeStepAgentContext)).receipt,
+    resolveStep: async (task, context) => (await Effect.runPromise(runResolutionPipeline(task, context as RuntimeStepAgentContext))).receipt,
   };
   const registry = createResolutionEngineRegistry([provider]);
 
@@ -45,9 +46,9 @@ test('provider capability negotiation rejects incompatible mode', () => {
 
 test('post-provider validation enforces governance invariants', async () => {
   const { task, resolutionContext } = baseFixture(true);
-  const { receipt: interpretation } = await runResolutionPipeline(task, createAgentContext(resolutionContext, {
+  const { receipt: interpretation } = await Effect.runPromise(runResolutionPipeline(task, createAgentContext(resolutionContext, {
     provider: 'deterministic-runtime-step-agent',
-  }));
+  })));
   const execution: StepExecutionReceipt = {
     version: 1 as const,
     stage: 'execution' as const,

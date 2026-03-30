@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { Effect } from 'effect';
 import {
   createInterfaceResolutionContext,
   createGroundedStep,
@@ -238,7 +239,7 @@ test('interpretation is recorded on stage context during pipeline execution', as
   }, resolutionContext);
   const context = createAgentContext(resolutionContext);
 
-  const result = await runResolutionPipeline(step, context);
+  const result = await Effect.runPromise(runResolutionPipeline(step, context));
 
   // Pipeline should complete — interpretation is an enrichment phase, not a blocker
   expect(result.receipt).not.toBeNull();
@@ -254,7 +255,7 @@ test('interpretation provenance appears in pipeline resolution events', async ()
   }, resolutionContext);
   const context = createAgentContext(resolutionContext);
 
-  const result = await runResolutionPipeline(step, context);
+  const result = await Effect.runPromise(runResolutionPipeline(step, context));
 
   // The pipeline should have exhaustion events from the interpretation phase
   const exhaustionEvents = result.events.filter(
@@ -274,7 +275,7 @@ test('intent-only step without knowledge falls through to later pipeline stages'
   }, resolutionContext);
   const context = createAgentContext(resolutionContext);
 
-  const result = await runResolutionPipeline(step, context);
+  const result = await Effect.runPromise(runResolutionPipeline(step, context));
 
   // Pipeline should still produce a receipt — even if it's needs-human
   expect(result.receipt).not.toBeNull();
@@ -298,8 +299,8 @@ test('runtime interpreter produces same receipt types regardless of interpretati
     normalizedIntent: 'completely novel action xyz => unprecedented',
   }, resolutionContext);
 
-  const knownResult = await runResolutionPipeline(knownStep, createAgentContext(resolutionContext));
-  const unknownResult = await runResolutionPipeline(unknownStep, createAgentContext(resolutionContext));
+  const knownResult = await Effect.runPromise(runResolutionPipeline(knownStep, createAgentContext(resolutionContext)));
+  const unknownResult = await Effect.runPromise(runResolutionPipeline(unknownStep, createAgentContext(resolutionContext)));
 
   // Both should produce valid receipts with the same structural shape
   expect(knownResult.receipt).not.toBeNull();
