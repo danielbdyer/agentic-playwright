@@ -8,9 +8,15 @@ import type {
   StepResolution,
   GroundedStep,
 } from '../../domain/types';
+import type { AgentInterpretationRequest, AgentInterpretationResult } from '../../domain/types/agent-interpreter';
 import type { ElementId, PostureId, ScreenId } from '../../domain/identity';
-import type { AgentInterpreterProvider } from '../../domain/types/agent-interpreter';
 import type { ResolutionTarget, TranslationReceipt, TranslationRequest } from '../../domain/types';
+
+export interface RuntimeAgentInterpreter {
+  readonly id: string;
+  readonly kind: string;
+  readonly interpret: (request: AgentInterpretationRequest) => Promise<AgentInterpretationResult>;
+}
 
 export interface RuntimeStepAgentContext {
   resolutionContext: InterfaceResolutionContext;
@@ -22,7 +28,7 @@ export interface RuntimeStepAgentContext {
   mode: string;
   runAt: string;
   translate?: ((request: TranslationRequest) => Promise<TranslationReceipt>) | undefined;
-  agentInterpreter?: AgentInterpreterProvider | undefined;
+  agentInterpreter?: RuntimeAgentInterpreter | undefined;
   controlSelection?: {
     runbook?: string | null | undefined;
     dataset?: string | null | undefined;

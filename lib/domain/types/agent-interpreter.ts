@@ -1,6 +1,7 @@
 // Agent interpreter port types — pure domain interfaces with no Effect or Playwright dependencies.
 // Extracted from lib/application/agent-interpreter-provider.ts for cross-layer type sharing.
 
+import type { Effect } from 'effect';
 import type { ResolutionTarget, ResolutionProposalDraft, ResolutionObservation, StepAction } from '../types';
 
 export interface AgentInterpretationRequest {
@@ -90,5 +91,7 @@ export type AgentInterpreterKind = 'disabled' | 'heuristic' | 'llm-api' | 'sessi
 export interface AgentInterpreterProvider {
   readonly id: string;
   readonly kind: AgentInterpreterKind;
-  readonly interpret: (request: AgentInterpretationRequest) => Promise<AgentInterpretationResult>;
+  readonly interpret: (
+    request: AgentInterpretationRequest,
+  ) => Effect<AgentInterpretationResult, never, never>;
 }

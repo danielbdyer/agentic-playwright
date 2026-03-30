@@ -106,7 +106,7 @@ module.exports = [
   },
   {
     files: ['lib/domain/**/*.ts'],
-    ignores: ['lib/domain/schemas/**/*.ts', 'lib/domain/validation/**/*.ts', 'lib/domain/algebra/**/*.ts', 'lib/domain/graph-query.ts', 'lib/domain/program.ts'],
+    ignores: ['lib/domain/schemas/**/*.ts', 'lib/domain/validation/**/*.ts', 'lib/domain/algebra/**/*.ts', 'lib/domain/graph-query.ts', 'lib/domain/program.ts', 'lib/domain/types/agent-interpreter.ts'],
     rules: {
       'no-restricted-imports': ['error', {
         paths: [
@@ -134,6 +134,22 @@ module.exports = [
         { selector: 'ForStatement', message: 'Prefer map/filter/reduce/flatMap over imperative for loops.' },
         { selector: 'ForInStatement', message: 'Prefer Object.entries().map() over for...in.' },
       ],
+    },
+  },
+  {
+    files: ['lib/domain/types/agent-interpreter.ts'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        paths: [
+          { name: '@playwright/test', message: 'Domain must stay free of Playwright dependencies.' },
+          { name: 'playwright', message: 'Domain must stay free of Playwright dependencies.' },
+        ],
+        patterns: [
+          { group: ['../application', '../application/*', '../application/**'], message: 'Domain must not import the application layer.' },
+          { group: ['../infrastructure', '../infrastructure/*', '../infrastructure/**'], message: 'Domain must not import infrastructure.' },
+          { group: ['../runtime', '../runtime/*', '../runtime/**'], message: 'Domain must not import runtime.' },
+        ],
+      }],
     },
   },
   {
@@ -204,6 +220,12 @@ module.exports = [
         property: 'env',
         message: 'Read environment variables only at explicit boundary modules.',
       }],
+      'no-restricted-syntax': ['error',
+        {
+          selector: "CallExpression[callee.object.name='Effect'][callee.property.name='runPromise']",
+          message: 'Use Effect.runPromise only in lib/composition adapters.',
+        },
+      ],
     },
   },
   {
