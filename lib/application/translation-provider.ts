@@ -14,9 +14,16 @@
  * and never touch this code. Rung 6 (live-dom) is a separate concern.
  */
 
+import { Effect } from 'effect';
 import { translateIntentToOntology } from './translate';
 import type { TranslationReceipt, TranslationRequest, ExecutionProfile } from '../domain/types';
 import type { ElementId, ScreenId } from '../domain/identity';
+import {
+  translationProviderError,
+  translationProviderParseError,
+  type TranslationProviderParseError,
+  type TranslationProviderTimeoutError,
+} from '../domain/errors';
 
 // ─── Provider Contract (Strategy interface) ───
 
@@ -115,70 +122,13 @@ interface LlmTranslationResponse {
 }
 
 function parseLlmResponse(raw: string, request: TranslationRequest): TranslationReceipt {
-  try {
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      return {
-        kind: 'translation-receipt',
-        version: 1,
-        mode: 'structured-translation',
-        matched: false,
-        selected: null,
-        candidates: [],
-        rationale: 'No structured JSON found in LLM response.',
-        failureClass: 'translator-error',
-      };
-    }
-    const parsed = JSON.parse(jsonMatch[0]) as Partial<LlmTranslationResponse>;
+  const jsonMatch = raw.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    throw translationProviderParseError(new Error('No structured JSON found in LLM response.'), 'llm-api');
+  }
+  const parsed = JSON.parse(jsonMatch[0]) as Partial<LlmTranslationResponse>;
 
-    if (!parsed.matched || !parsed.screen) {
-      return {
-        kind: 'translation-receipt',
-        version: 1,
-        mode: 'structured-translation',
-        matched: false,
-        selected: null,
-        candidates: [],
-        rationale: parsed.rationale ?? 'LLM could not match the step to a known target.',
-        failureClass: 'no-candidate',
-      };
-    }
-
-    const screen = request.screens.find((s) => s.screen === parsed.screen);
-    const element = parsed.element
-      ? screen?.elements.find((e) => e.element === parsed.element)
-      : null;
-
-    const candidate = element
-      ? {
-          kind: 'element' as const,
-          target: `${parsed.screen}.${parsed.element}`,
-          screen: parsed.screen as ScreenId,
-          element: parsed.element as ElementId,
-          aliases: element.aliases,
-          score: Math.min(1, Math.max(0, parsed.score ?? 0.5)),
-          sourceRefs: request.overlayRefs,
-        }
-      : {
-          kind: 'screen' as const,
-          target: parsed.screen,
-          screen: parsed.screen as ScreenId,
-          aliases: screen?.aliases ?? [],
-          score: Math.min(1, Math.max(0, parsed.score ?? 0.5)),
-          sourceRefs: request.overlayRefs,
-        };
-
-    return {
-      kind: 'translation-receipt',
-      version: 1,
-      mode: 'structured-translation',
-      matched: true,
-      selected: candidate,
-      candidates: [candidate],
-      rationale: parsed.rationale ?? 'LLM matched the step to a known target.',
-      failureClass: 'none',
-    };
-  } catch {
+  if (!parsed.matched || !parsed.screen) {
     return {
       kind: 'translation-receipt',
       version: 1,
@@ -186,10 +136,58 @@ function parseLlmResponse(raw: string, request: TranslationRequest): Translation
       matched: false,
       selected: null,
       candidates: [],
-      rationale: 'Failed to parse LLM response.',
-      failureClass: 'translator-error',
+      rationale: parsed.rationale ?? 'LLM could not match the step to a known target.',
+      failureClass: 'no-candidate',
     };
   }
+
+  const screen = request.screens.find((s) => s.screen === parsed.screen);
+  const element = parsed.element
+    ? screen?.elements.find((e) => e.element === parsed.element)
+    : null;
+
+  const candidate = element
+    ? {
+        kind: 'element' as const,
+        target: `${parsed.screen}.${parsed.element}`,
+        screen: parsed.screen as ScreenId,
+        element: parsed.element as ElementId,
+        aliases: element.aliases,
+        score: Math.min(1, Math.max(0, parsed.score ?? 0.5)),
+        sourceRefs: request.overlayRefs,
+      }
+    : {
+        kind: 'screen' as const,
+        target: parsed.screen,
+        screen: parsed.screen as ScreenId,
+        aliases: screen?.aliases ?? [],
+        score: Math.min(1, Math.max(0, parsed.score ?? 0.5)),
+        sourceRefs: request.overlayRefs,
+      };
+
+  return {
+    kind: 'translation-receipt',
+    version: 1,
+    mode: 'structured-translation',
+    matched: true,
+    selected: candidate,
+    candidates: [candidate],
+    rationale: parsed.rationale ?? 'LLM matched the step to a known target.',
+    failureClass: 'none',
+  };
+}
+
+function translationProviderFailureReceipt(rationale: string): TranslationReceipt {
+  return {
+    kind: 'translation-receipt',
+    version: 1,
+    mode: 'structured-translation',
+    matched: false,
+    selected: null,
+    candidates: [],
+    rationale,
+    failureClass: 'translator-error',
+  };
 }
 
 function createLlmApiProvider(
@@ -199,28 +197,33 @@ function createLlmApiProvider(
   return {
     id: `llm-api-${config.model}`,
     kind: 'llm-api',
-    translate: async (request) => {
-      try {
-        const raw = await deps.createChatCompletion({
+    translate: (request) => Effect.runPromise(
+      Effect.tryPromise({
+        try: () => deps.createChatCompletion({
           model: config.model,
           maxTokens: config.budget.maxTokensPerStep,
           systemPrompt: buildTranslationSystemPrompt(request),
           userMessage: buildTranslationUserMessage(request),
-        });
-        return parseLlmResponse(raw, request);
-      } catch {
-        return {
-          kind: 'translation-receipt',
-          version: 1,
-          mode: 'structured-translation',
-          matched: false,
-          selected: null,
-          candidates: [],
-          rationale: 'LLM API call failed. Degrading to next resolution rung.',
-          failureClass: 'translator-error',
-        };
-      }
-    },
+        }),
+        catch: (cause) => cause,
+      }).pipe(
+        Effect.mapError((cause) => translationProviderError(cause, `llm-api-${config.model}`)),
+        Effect.map((raw) => parseLlmResponse(raw, request)),
+        Effect.mapError((cause) => translationProviderError(cause, `llm-api-${config.model}`)),
+        Effect.catchTag('TranslationProviderTimeoutError', (error: TranslationProviderTimeoutError) =>
+          Effect.succeed(translationProviderFailureReceipt(
+            `LLM API timed out (${error.message}). Degrading to next resolution rung.`,
+          ))),
+        Effect.catchTag('TranslationProviderParseError', (error: TranslationProviderParseError) =>
+          Effect.succeed(translationProviderFailureReceipt(
+            `LLM response parse failed (${error.message}). Degrading to next resolution rung.`,
+          ))),
+        Effect.catchAll((error) =>
+          Effect.succeed(translationProviderFailureReceipt(
+            `LLM API call failed (${String(error)}). Degrading to next resolution rung.`,
+          ))),
+      ),
+    ),
   };
 }
 
@@ -258,28 +261,33 @@ function createCopilotProvider(
   return {
     id: 'copilot-vscode',
     kind: 'copilot',
-    translate: async (request) => {
-      try {
-        const raw = await deps.createChatCompletion({
+    translate: (request) => Effect.runPromise(
+      Effect.tryPromise({
+        try: () => deps.createChatCompletion({
           model: 'copilot',
           maxTokens: 2000,
           systemPrompt: buildTranslationSystemPrompt(request),
           userMessage: buildTranslationUserMessage(request),
-        });
-        return parseLlmResponse(raw, request);
-      } catch {
-        return {
-          kind: 'translation-receipt' as const,
-          version: 1 as const,
-          mode: 'structured-translation' as const,
-          matched: false,
-          selected: null,
-          candidates: [],
-          rationale: 'Copilot API call failed. Degrading to next resolution rung.',
-          failureClass: 'translator-error' as const,
-        };
-      }
-    },
+        }),
+        catch: (cause) => cause,
+      }).pipe(
+        Effect.mapError((cause) => translationProviderError(cause, 'copilot')),
+        Effect.map((raw) => parseLlmResponse(raw, request)),
+        Effect.mapError((cause) => translationProviderError(cause, 'copilot')),
+        Effect.catchTag('TranslationProviderTimeoutError', (error: TranslationProviderTimeoutError) =>
+          Effect.succeed(translationProviderFailureReceipt(
+            `Copilot API timed out (${error.message}). Degrading to next resolution rung.`,
+          ))),
+        Effect.catchTag('TranslationProviderParseError', (error: TranslationProviderParseError) =>
+          Effect.succeed(translationProviderFailureReceipt(
+            `Copilot response parse failed (${error.message}). Degrading to next resolution rung.`,
+          ))),
+        Effect.catchAll((error) =>
+          Effect.succeed(translationProviderFailureReceipt(
+            `Copilot API call failed (${String(error)}). Degrading to next resolution rung.`,
+          ))),
+      ),
+    ),
   };
 }
 

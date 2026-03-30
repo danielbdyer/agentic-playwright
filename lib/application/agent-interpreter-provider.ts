@@ -23,6 +23,12 @@
  */
 
 import { Effect, Duration } from 'effect';
+import {
+  agentInterpreterParseError,
+  agentInterpreterProviderError,
+  type AgentInterpreterParseError,
+  type AgentInterpreterTimeoutError,
+} from '../domain/errors';
 import type { ResolutionTarget, ResolutionProposalDraft } from '../domain/types';
 import type { StepAction } from '../domain/types';
 import type { ScreenId, ElementId, PostureId, SnapshotTemplateId } from '../domain/identity';
@@ -364,87 +370,80 @@ interface AgentLlmResponse {
 }
 
 function parseAgentResponse(raw: string, request: AgentInterpretationRequest, providerId: string): AgentInterpretationResult {
-  try {
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      return {
-        interpreted: false,
-        target: null,
-        confidence: 0,
-        rationale: 'No structured JSON found in agent response.',
-        proposalDrafts: [],
-        provider: providerId,
-      };
-    }
-    const parsed = JSON.parse(jsonMatch[0]) as Partial<AgentLlmResponse>;
+  const jsonMatch = raw.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    throw agentInterpreterParseError(new Error('No structured JSON found in agent response.'), providerId);
+  }
+  const parsed = JSON.parse(jsonMatch[0]) as Partial<AgentLlmResponse>;
 
-    if (!parsed.interpreted || !parsed.screen) {
-      return {
-        interpreted: false,
-        target: null,
-        confidence: 0,
-        rationale: parsed.rationale ?? 'Agent could not interpret the step.',
-        proposalDrafts: [],
-        provider: providerId,
-      };
-    }
-
-    const target: ResolutionTarget = {
-      action: (parsed.action ?? request.inferredAction ?? 'click') as StepAction,
-      screen: parsed.screen as ScreenId,
-      element: (parsed.element ?? null) as ElementId | null,
-      posture: (parsed.posture ?? null) as PostureId | null,
-      override: null,
-      snapshot_template: null as SnapshotTemplateId | null,
-    };
-
-    // Build proposal drafts for suggested aliases (feeds forward into knowledge)
-    const proposalDrafts: ResolutionProposalDraft[] = (parsed.suggestedAliases ?? []).map((alias) => ({
-      targetPath: parsed.screen && parsed.element
-        ? `knowledge/screens/${parsed.screen}.hints.yaml`
-        : parsed.screen
-          ? `knowledge/screens/${parsed.screen}.hints.yaml`
-          : '',
-      title: `Add alias "${alias}" for ${parsed.element ?? parsed.screen}`,
-      patch: {
-        op: 'add' as const,
-        path: parsed.element
-          ? `/elements/${parsed.element}/aliases/-`
-          : '/screenAliases/-',
-        value: alias,
-      },
-      artifactType: 'hints' as const,
-      rationale: `Agent interpretation suggested alias "${alias}" to improve future deterministic resolution.`,
-    }));
-
-    return {
-      interpreted: true,
-      target,
-      confidence: Math.min(1, Math.max(0, parsed.confidence ?? 0.5)),
-      rationale: parsed.rationale ?? 'Agent interpreted the step.',
-      proposalDrafts,
-      provider: providerId,
-      observation: {
-        source: 'agent-interpreted' as const,
-        summary: parsed.rationale ?? 'Agent interpreted the step.',
-        detail: {
-          action: target.action,
-          screen: target.screen,
-          element: target.element ?? '',
-          confidence: String(parsed.confidence ?? 0.5),
-        },
-      },
-    };
-  } catch {
+  if (!parsed.interpreted || !parsed.screen) {
     return {
       interpreted: false,
       target: null,
       confidence: 0,
-      rationale: 'Failed to parse agent response.',
+      rationale: parsed.rationale ?? 'Agent could not interpret the step.',
       proposalDrafts: [],
       provider: providerId,
     };
   }
+
+  const target: ResolutionTarget = {
+    action: (parsed.action ?? request.inferredAction ?? 'click') as StepAction,
+    screen: parsed.screen as ScreenId,
+    element: (parsed.element ?? null) as ElementId | null,
+    posture: (parsed.posture ?? null) as PostureId | null,
+    override: null,
+    snapshot_template: null as SnapshotTemplateId | null,
+  };
+
+  // Build proposal drafts for suggested aliases (feeds forward into knowledge)
+  const proposalDrafts: ResolutionProposalDraft[] = (parsed.suggestedAliases ?? []).map((alias) => ({
+    targetPath: parsed.screen && parsed.element
+      ? `knowledge/screens/${parsed.screen}.hints.yaml`
+      : parsed.screen
+        ? `knowledge/screens/${parsed.screen}.hints.yaml`
+        : '',
+    title: `Add alias "${alias}" for ${parsed.element ?? parsed.screen}`,
+    patch: {
+      op: 'add' as const,
+      path: parsed.element
+        ? `/elements/${parsed.element}/aliases/-`
+        : '/screenAliases/-',
+      value: alias,
+    },
+    artifactType: 'hints' as const,
+    rationale: `Agent interpretation suggested alias "${alias}" to improve future deterministic resolution.`,
+  }));
+
+  return {
+    interpreted: true,
+    target,
+    confidence: Math.min(1, Math.max(0, parsed.confidence ?? 0.5)),
+    rationale: parsed.rationale ?? 'Agent interpreted the step.',
+    proposalDrafts,
+    provider: providerId,
+    observation: {
+      source: 'agent-interpreted' as const,
+      summary: parsed.rationale ?? 'Agent interpreted the step.',
+      detail: {
+        action: target.action,
+        screen: target.screen,
+        element: target.element ?? '',
+        confidence: String(parsed.confidence ?? 0.5),
+      },
+    },
+  };
+}
+
+function agentProviderFailureResult(provider: string, rationale: string): AgentInterpretationResult {
+  return {
+    interpreted: false,
+    target: null,
+    confidence: 0,
+    rationale,
+    proposalDrafts: [],
+    provider,
+  };
 }
 
 function createLlmApiAgentProvider(
@@ -454,26 +453,36 @@ function createLlmApiAgentProvider(
   return {
     id: `agent-llm-api-${config.model}`,
     kind: 'llm-api',
-    interpret: async (request) => {
-      try {
-        const raw = await deps.createChatCompletion({
+    interpret: (request) => Effect.runPromise(
+      Effect.tryPromise({
+        try: () => deps.createChatCompletion({
           model: config.model,
           maxTokens: config.budget.maxTokensPerStep,
           systemPrompt: buildAgentSystemPrompt(request),
           userMessage: buildAgentUserMessage(request),
-        });
-        return parseAgentResponse(raw, request, `llm-api-${config.model}`);
-      } catch {
-        return {
-          interpreted: false,
-          target: null,
-          confidence: 0,
-          rationale: 'Agent LLM API call failed. Escalating to needs-human.',
-          proposalDrafts: [],
-          provider: `llm-api-${config.model}`,
-        };
-      }
-    },
+        }),
+        catch: (cause) => cause,
+      }).pipe(
+        Effect.mapError((cause) => agentInterpreterProviderError(cause, `llm-api-${config.model}`)),
+        Effect.map((raw) => parseAgentResponse(raw, request, `llm-api-${config.model}`)),
+        Effect.mapError((cause) => agentInterpreterProviderError(cause, `llm-api-${config.model}`)),
+        Effect.catchTag('AgentInterpreterTimeoutError', (error: AgentInterpreterTimeoutError) =>
+          Effect.succeed(agentProviderFailureResult(
+            `llm-api-${config.model}`,
+            `Agent LLM API timed out (${error.message}). Escalating to needs-human.`,
+          ))),
+        Effect.catchTag('AgentInterpreterParseError', (error: AgentInterpreterParseError) =>
+          Effect.succeed(agentProviderFailureResult(
+            `llm-api-${config.model}`,
+            `Agent LLM response parse failed (${error.message}). Escalating to needs-human.`,
+          ))),
+        Effect.catchAll((error) =>
+          Effect.succeed(agentProviderFailureResult(
+            `llm-api-${config.model}`,
+            `Agent LLM API call failed (${String(error)}). Escalating to needs-human.`,
+          ))),
+      ),
+    ),
   };
 }
 
@@ -529,26 +538,36 @@ function createSessionProvider(
   return {
     id: 'agent-session-active',
     kind: 'session',
-    interpret: async (request) => {
-      try {
-        const raw = await deps.createChatCompletion({
+    interpret: (request) => Effect.runPromise(
+      Effect.tryPromise({
+        try: () => deps.createChatCompletion({
           model: 'session',
           maxTokens: 4000,
           systemPrompt: buildAgentSystemPrompt(request),
           userMessage: buildAgentUserMessage(request),
-        });
-        return parseAgentResponse(raw, request, 'session-agent');
-      } catch {
-        return {
-          interpreted: false,
-          target: null,
-          confidence: 0,
-          rationale: 'Agent session call failed. Escalating to needs-human.',
-          proposalDrafts: [],
-          provider: 'session-agent',
-        };
-      }
-    },
+        }),
+        catch: (cause) => cause,
+      }).pipe(
+        Effect.mapError((cause) => agentInterpreterProviderError(cause, 'session-agent')),
+        Effect.map((raw) => parseAgentResponse(raw, request, 'session-agent')),
+        Effect.mapError((cause) => agentInterpreterProviderError(cause, 'session-agent')),
+        Effect.catchTag('AgentInterpreterTimeoutError', (error: AgentInterpreterTimeoutError) =>
+          Effect.succeed(agentProviderFailureResult(
+            'session-agent',
+            `Agent session timed out (${error.message}). Escalating to needs-human.`,
+          ))),
+        Effect.catchTag('AgentInterpreterParseError', (error: AgentInterpreterParseError) =>
+          Effect.succeed(agentProviderFailureResult(
+            'session-agent',
+            `Agent session response parse failed (${error.message}). Escalating to needs-human.`,
+          ))),
+        Effect.catchAll((error) =>
+          Effect.succeed(agentProviderFailureResult(
+            'session-agent',
+            `Agent session call failed (${String(error)}). Escalating to needs-human.`,
+          ))),
+      ),
+    ),
   };
 }
 

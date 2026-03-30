@@ -1,11 +1,21 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { Effect } from 'effect';
 import type { FileSystemPort } from '../../application/ports';
-import { tryFileSystem } from '../../application/effect';
+import { FileSystemError, toFileSystemError, toFileSystemOperationError } from '../../domain/errors';
 
 function stripBom(value: string): string {
   return value.replace(/^\uFEFF/, '');
+}
+
+function attemptFs<A>(operation: string, filePath: string, thunk: () => Promise<A>): Effect.Effect<A, FileSystemError> {
+  return Effect.tryPromise({
+    try: thunk,
+    catch: (cause) => cause,
+  }).pipe(
+    Effect.mapError((cause) => toFileSystemOperationError(cause, operation, filePath)),
+  );
 }
 
 /** Atomic write: write to a temp file in the same directory, then rename.
@@ -38,90 +48,63 @@ async function atomicWriteFile(filePath: string, contents: string): Promise<void
 
 export const LocalFileSystem: FileSystemPort = {
   readText(filePath) {
-    return tryFileSystem(async () => stripBom(await fs.readFile(filePath, 'utf8')), 'fs-read-failed', `Unable to read ${filePath}`, filePath);
+    return attemptFs('read', filePath, async () => stripBom(await fs.readFile(filePath, 'utf8')));
   },
 
   writeText(filePath, contents) {
-    return tryFileSystem(
-      () => atomicWriteFile(filePath, contents),
-      'fs-write-failed', `Unable to write ${filePath}`, filePath,
-    );
+    return attemptFs('write', filePath, () => atomicWriteFile(filePath, contents));
   },
 
   readJson(filePath) {
-    return tryFileSystem(
-      async () => JSON.parse(stripBom(await fs.readFile(filePath, 'utf8'))),
-      'json-read-failed',
-      `Unable to read JSON from ${filePath}`,
-      filePath,
-    );
+    return attemptFs('read-json', filePath, async () => JSON.parse(stripBom(await fs.readFile(filePath, 'utf8'))));
   },
 
   writeJson(filePath, value) {
-    return tryFileSystem(
-      () => atomicWriteFile(filePath, JSON.stringify(value, null, 2)),
-      'json-write-failed', `Unable to write JSON to ${filePath}`, filePath,
-    );
+    return attemptFs('write-json', filePath, () => atomicWriteFile(filePath, JSON.stringify(value, null, 2)));
   },
 
   stat(filePath) {
-    return tryFileSystem(
-      async () => {
-        const info = await fs.stat(filePath);
-        return { mtimeMs: info.mtimeMs };
-      },
-      'fs-stat-failed',
-      `Unable to stat ${filePath}`,
-      filePath,
-    );
+    return attemptFs('stat', filePath, async () => {
+      const info = await fs.stat(filePath);
+      return { mtimeMs: info.mtimeMs };
+    });
   },
 
   exists(filePath) {
-    return tryFileSystem(async () => {
-      try {
-        await fs.access(filePath);
-        return true;
-      } catch (error) {
-        const maybe = error as NodeJS.ErrnoException;
-        if (maybe.code === 'ENOENT') {
-          return false;
+    return attemptFs('access', filePath, () => fs.access(filePath)).pipe(
+      Effect.as(true),
+      Effect.catchTag('FileSystemError', (error: FileSystemError) => {
+        if ((error.cause as NodeJS.ErrnoException | undefined)?.code === 'ENOENT') {
+          return Effect.succeed(false);
         }
-        throw error;
-      }
-    }, 'fs-access-failed', `Unable to inspect ${filePath}`, filePath);
+        return Effect.fail(error);
+      }),
+    );
   },
 
   removeFile(filePath) {
-    return tryFileSystem(async () => {
-      try {
-        await fs.unlink(filePath);
-      } catch (error) {
-        const maybe = error as NodeJS.ErrnoException;
-        if (maybe.code !== 'ENOENT') {
-          throw error;
-        }
-      }
-    }, 'fs-unlink-failed', `Unable to remove file ${filePath}`, filePath);
+    return attemptFs('unlink', filePath, () => fs.unlink(filePath)).pipe(
+      Effect.catchTag('FileSystemError', (error: FileSystemError) =>
+        (error.cause as NodeJS.ErrnoException | undefined)?.code === 'ENOENT'
+          ? Effect.void
+          : Effect.fail(error)),
+    );
   },
 
   listDir(dirPath) {
-    return tryFileSystem(() => fs.readdir(dirPath), 'fs-list-failed', `Unable to list ${dirPath}`, dirPath);
+    return attemptFs('list', dirPath, () => fs.readdir(dirPath));
   },
 
   ensureDir(dirPath) {
-    return tryFileSystem(() => fs.mkdir(dirPath, { recursive: true }), 'fs-mkdir-failed', `Unable to create ${dirPath}`, dirPath);
+    return attemptFs('mkdir', dirPath, () => fs.mkdir(dirPath, { recursive: true }));
   },
 
   removeDir(dirPath) {
-    return tryFileSystem(async () => {
-      try {
-        await fs.rm(dirPath, { recursive: true, force: true });
-      } catch (error) {
-        const maybe = error as NodeJS.ErrnoException;
-        if (maybe.code !== 'ENOENT') {
-          throw error;
-        }
-      }
-    }, 'fs-rmdir-failed', `Unable to remove ${dirPath}`, dirPath);
+    return attemptFs('rmdir', dirPath, () => fs.rm(dirPath, { recursive: true, force: true })).pipe(
+      Effect.catchTag('FileSystemError', (error: FileSystemError) =>
+        (error.cause as NodeJS.ErrnoException | undefined)?.code === 'ENOENT'
+          ? Effect.void
+          : Effect.fail(error)),
+    );
   },
 };
