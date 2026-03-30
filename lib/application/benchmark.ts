@@ -12,6 +12,7 @@ import {
   benchmarkVariantsTracePath,
   relativeProjectPath,
 } from './paths';
+import { resolveEffectConcurrency } from './concurrency';
 import { ExecutionContext, FileSystem } from './ports';
 import { TesseractError } from '../domain/errors';
 import { groupBy, uniqueSorted } from '../domain/collections';
@@ -34,6 +35,11 @@ interface BenchmarkVariant {
   element: string;
   posture: string;
   sourceRuleIndex: number;
+}
+
+interface BenchmarkRunbookSelection {
+  readonly runbook: string;
+  readonly tag?: string | null | undefined;
 }
 
 function round(value: number): number {
@@ -71,6 +77,19 @@ function variantsForBenchmark(benchmark: BenchmarkContext): BenchmarkVariant[] {
 
 function proposalsForScenarios(bundles: readonly ProposalBundle[], scenarioIds: readonly string[]): ProposalBundle[] {
   return bundles.filter((bundle) => scenarioIds.includes(bundle.adoId));
+}
+
+export function collectRunbookScenarioIds(options: {
+  readonly runbooks: readonly BenchmarkRunbookSelection[];
+  readonly concurrency: number;
+  readonly selectRunbook: (runbook: BenchmarkRunbookSelection) => Effect.Effect<readonly string[]>;
+}): Effect.Effect<string[]> {
+  return Effect.gen(function* () {
+    const selections = yield* Effect.forEach(options.runbooks, options.selectRunbook, {
+      concurrency: options.concurrency,
+    });
+    return uniqueSorted(selections.flatMap((selection) => selection));
+  });
 }
 
 function knowledgeChurnForBundles(bundles: readonly ProposalBundle[]): Record<string, number> {
@@ -399,19 +418,23 @@ export function projectBenchmarkScorecard(options: {
     const variants = variantsForBenchmark(benchmark);
 
     const scenarioIds: string[] = options.includeExecution
-      ? yield* Effect.reduce(benchmark.benchmarkRunbooks, [] as string[], (acc, runbook) =>
-        Effect.map(
-          runScenarioSelection({
-            paths: options.paths,
-            runbookName: runbook.runbook,
-            tag: runbook.tag ?? undefined,
-            interpreterMode: executionContext.posture.interpreterMode === 'playwright'
-              ? 'diagnostic'
-              : executionContext.posture.interpreterMode,
-            posture: executionContext.posture,
-          }),
-          (selection) => uniqueSorted([...acc, ...selection.selection.adoIds]),
-        ))
+      ? yield* collectRunbookScenarioIds({
+        runbooks: benchmark.benchmarkRunbooks,
+        concurrency: resolveEffectConcurrency({ ceiling: 4 }),
+        selectRunbook: (runbook) =>
+          Effect.map(
+            runScenarioSelection({
+              paths: options.paths,
+              runbookName: runbook.runbook,
+              tag: runbook.tag ?? undefined,
+              interpreterMode: executionContext.posture.interpreterMode === 'playwright'
+                ? 'diagnostic'
+                : executionContext.posture.interpreterMode,
+              posture: executionContext.posture,
+            }),
+            (selection) => selection.selection.adoIds,
+          ),
+      })
       : uniqueSorted(
         catalog.scenarios
           .flatMap((entry) => entry.artifact.metadata.suite.startsWith(benchmark.suite) ? [entry.artifact.source.ado_id] : []),
