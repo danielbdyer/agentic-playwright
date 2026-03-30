@@ -18,6 +18,7 @@
  */
 
 import { expect, test } from '@playwright/test';
+import { Effect } from 'effect';
 import {
   createInternalMCPBridge,
   createDisabledToolProvider,
@@ -40,7 +41,7 @@ function mockToolDefinition(name: string, overrides: Partial<McpToolDefinition> 
 }
 
 function mockInvoker(responses: Readonly<Record<string, unknown>> = {}): McpToolInvoker {
-  return async (invocation: McpToolInvocation): Promise<McpToolResult> => ({
+  return (invocation: McpToolInvocation): Effect.Effect<McpToolResult> => Effect.succeed({
     tool: invocation.tool,
     result: responses[invocation.tool] ?? { echo: invocation.arguments },
     isError: false,
@@ -48,7 +49,7 @@ function mockInvoker(responses: Readonly<Record<string, unknown>> = {}): McpTool
 }
 
 function errorInvoker(errorMessage: string): McpToolInvoker {
-  return async (invocation: McpToolInvocation): Promise<McpToolResult> => ({
+  return (invocation: McpToolInvocation): Effect.Effect<McpToolResult> => Effect.succeed({
     tool: invocation.tool,
     result: { error: errorMessage },
     isError: true,
@@ -144,13 +145,13 @@ test.describe('Tool Lookup', () => {
 test.describe('Tool Invocation', () => {
   test('invoke routes to the MCP invoker', async () => {
     const invocations: McpToolInvocation[] = [];
-    const capturingInvoker: McpToolInvoker = async (inv) => {
+    const capturingInvoker: McpToolInvoker = (inv) => Effect.sync(() => {
       invocations.push(inv);
       return { tool: inv.tool, result: { ok: true }, isError: false };
-    };
+    });
     const bridge = createInternalMCPBridge(standardTools, capturingInvoker);
 
-    await bridge.invoke('list_probed_elements', { screen: 'login' });
+    await Effect.runPromise(bridge.invoke('list_probed_elements', { screen: 'login' }));
 
     expect(invocations.length).toBe(1);
     expect(invocations[0]!.tool).toBe('list_probed_elements');
@@ -159,22 +160,22 @@ test.describe('Tool Invocation', () => {
 
   test('invoke passes arguments through to MCP invoker', async () => {
     const bridge = createInternalMCPBridge(standardTools, mockInvoker());
-    const result = await bridge.invoke('get_knowledge_state', { screen: 'policy-search' });
+    const result = await Effect.runPromise(bridge.invoke('get_knowledge_state', { screen: 'policy-search' }));
     expect(result.isError).toBe(false);
     expect((result.result as { echo: Record<string, unknown> }).echo).toEqual({ screen: 'policy-search' });
   });
 
   test('invoke with empty arguments works', async () => {
     const bridge = standardBridge();
-    const result = await bridge.invoke('get_fitness_metrics', {});
+    const result = await Effect.runPromise(bridge.invoke('get_fitness_metrics', {}));
     expect(result.isError).toBe(false);
   });
 
   test('individual tool invoke works the same as provider invoke', async () => {
     const bridge = standardBridge();
     const tool = bridge.getTool('list_probed_elements')!;
-    const directResult = await tool.invoke({ screen: 'login' });
-    const providerResult = await bridge.invoke('list_probed_elements', { screen: 'login' });
+    const directResult = await Effect.runPromise(tool.invoke({ screen: 'login' }));
+    const providerResult = await Effect.runPromise(bridge.invoke('list_probed_elements', { screen: 'login' }));
     expect(directResult.tool).toBe(providerResult.tool);
     expect(directResult.isError).toBe(providerResult.isError);
     expect(directResult.source).toBe(providerResult.source);
@@ -186,7 +187,7 @@ test.describe('Tool Invocation', () => {
 test.describe('Result Format', () => {
   test('successful result has tool, result, isError=false, source=mcp-bridge', async () => {
     const bridge = standardBridge();
-    const result = await bridge.invoke('list_probed_elements', {});
+    const result = await Effect.runPromise(bridge.invoke('list_probed_elements', {}));
     expect(result.tool).toBe('list_probed_elements');
     expect(result.result).toBeDefined();
     expect(result.isError).toBe(false);
@@ -195,14 +196,14 @@ test.describe('Result Format', () => {
 
   test('error result from invoker preserves isError=true', async () => {
     const bridge = createInternalMCPBridge(standardTools, errorInvoker('test error'));
-    const result = await bridge.invoke('list_probed_elements', {});
+    const result = await Effect.runPromise(bridge.invoke('list_probed_elements', {}));
     expect(result.isError).toBe(true);
     expect(result.source).toBe('mcp-bridge');
   });
 
   test('not-found result has isError=true and source=mcp-bridge', async () => {
     const bridge = standardBridge();
-    const result = await bridge.invoke('nonexistent', {});
+    const result = await Effect.runPromise(bridge.invoke('nonexistent', {}));
     expect(result.isError).toBe(true);
     expect(result.source).toBe('mcp-bridge');
   });
@@ -210,7 +211,7 @@ test.describe('Result Format', () => {
   test('result tool field matches requested tool name', async () => {
     const bridge = standardBridge();
     for (const def of standardTools) {
-      const result = await bridge.invoke(def.name, {});
+      const result = await Effect.runPromise(bridge.invoke(def.name, {}));
       expect(result.tool).toBe(def.name);
     }
   });
@@ -221,7 +222,7 @@ test.describe('Result Format', () => {
 test.describe('Missing Tool Error', () => {
   test('invoke with unknown tool returns typed error', async () => {
     const bridge = standardBridge();
-    const result = await bridge.invoke('this_tool_does_not_exist', {});
+    const result = await Effect.runPromise(bridge.invoke('this_tool_does_not_exist', {}));
     expect(result.isError).toBe(true);
     expect(result.tool).toBe('this_tool_does_not_exist');
     expect((result.result as { error: string }).error).toContain('not found');
@@ -229,7 +230,7 @@ test.describe('Missing Tool Error', () => {
 
   test('error message lists available tools', async () => {
     const bridge = standardBridge();
-    const result = await bridge.invoke('missing', {});
+    const result = await Effect.runPromise(bridge.invoke('missing', {}));
     const errorMsg = (result.result as { error: string }).error;
     expect(errorMsg).toContain('list_probed_elements');
     expect(errorMsg).toContain('get_knowledge_state');
@@ -253,7 +254,7 @@ test.describe('Disabled Provider', () => {
 
   test('invoke always returns error result', async () => {
     const provider = createDisabledToolProvider();
-    const result = await provider.invoke('list_probed_elements', {});
+    const result = await Effect.runPromise(provider.invoke('list_probed_elements', {}));
     expect(result.isError).toBe(true);
     expect(result.source).toBe('mcp-bridge');
     expect((result.result as { error: string }).error).toContain('disabled');
@@ -263,7 +264,7 @@ test.describe('Disabled Provider', () => {
     const provider = createDisabledToolProvider();
     const names = ['list_probed_elements', 'get_proposal', 'random_tool'];
     for (const name of names) {
-      const result = await provider.invoke(name, {});
+      const result = await Effect.runPromise(provider.invoke(name, {}));
       expect(result.isError).toBe(true);
     }
   });
@@ -310,8 +311,8 @@ test.describe('Determinism', () => {
 
   test('same invocation produces same result structure', async () => {
     const bridge = standardBridge();
-    const a = await bridge.invoke('list_probed_elements', { screen: 'login' });
-    const b = await bridge.invoke('list_probed_elements', { screen: 'login' });
+    const a = await Effect.runPromise(bridge.invoke('list_probed_elements', { screen: 'login' }));
+    const b = await Effect.runPromise(bridge.invoke('list_probed_elements', { screen: 'login' }));
     expect(a.tool).toBe(b.tool);
     expect(a.isError).toBe(b.isError);
     expect(a.source).toBe(b.source);
@@ -353,7 +354,7 @@ test.describe('Provenance', () => {
   test('all results have source=mcp-bridge', async () => {
     const bridge = standardBridge();
     for (const tool of standardTools) {
-      const result = await bridge.invoke(tool.name, {});
+      const result = await Effect.runPromise(bridge.invoke(tool.name, {}));
       expect(result.source).toBe('mcp-bridge');
     }
   });
@@ -361,20 +362,20 @@ test.describe('Provenance', () => {
   test('error results have source=mcp-bridge', async () => {
     const bridge = createInternalMCPBridge(standardTools, errorInvoker('fail'));
     for (const tool of standardTools) {
-      const result = await bridge.invoke(tool.name, {});
+      const result = await Effect.runPromise(bridge.invoke(tool.name, {}));
       expect(result.source).toBe('mcp-bridge');
     }
   });
 
   test('not-found results have source=mcp-bridge', async () => {
     const bridge = standardBridge();
-    const result = await bridge.invoke('missing', {});
+    const result = await Effect.runPromise(bridge.invoke('missing', {}));
     expect(result.source).toBe('mcp-bridge');
   });
 
   test('disabled provider results have source=mcp-bridge', async () => {
     const provider = createDisabledToolProvider();
-    const result = await provider.invoke('anything', {});
+    const result = await Effect.runPromise(provider.invoke('anything', {}));
     expect(result.source).toBe('mcp-bridge');
   });
 });
@@ -398,7 +399,7 @@ test.describe('Full Catalog Integration', () => {
   test('all dashboard tools can be invoked', async () => {
     const bridge = createInternalMCPBridge(dashboardMcpTools, mockInvoker());
     for (const tool of dashboardMcpTools) {
-      const result = await bridge.invoke(tool.name, {});
+      const result = await Effect.runPromise(bridge.invoke(tool.name, {}));
       expect(result.tool).toBe(tool.name);
       expect(result.source).toBe('mcp-bridge');
     }
@@ -409,7 +410,7 @@ test.describe('Full Catalog Integration', () => {
 
 test.describe('Concurrent Invocations', () => {
   test('multiple concurrent invocations return correct results', async () => {
-    const invoker: McpToolInvoker = async (inv) => ({
+    const invoker: McpToolInvoker = (inv) => Effect.succeed({
       tool: inv.tool,
       result: { toolName: inv.tool },
       isError: false,
@@ -417,7 +418,7 @@ test.describe('Concurrent Invocations', () => {
     const bridge = createInternalMCPBridge(standardTools, invoker);
 
     const results = await Promise.all(
-      standardTools.map((t) => bridge.invoke(t.name, {})),
+      standardTools.map((t) => Effect.runPromise(bridge.invoke(t.name, {}))),
     );
 
     for (let i = 0; i < standardTools.length; i++) {
@@ -430,13 +431,13 @@ test.describe('Concurrent Invocations', () => {
 // ─── Law 13: Invoker Exception Handling ───
 
 test.describe('Invoker Exception Handling', () => {
-  test('invoker that throws is propagated (caller handles)', async () => {
-    const throwingInvoker: McpToolInvoker = async () => {
-      throw new Error('invoker exploded');
-    };
+  test('invoker failure is captured as typed error result', async () => {
+    const throwingInvoker: McpToolInvoker = () => Effect.fail(new Error('invoker exploded'));
     const bridge = createInternalMCPBridge(standardTools, throwingInvoker);
 
-    await expect(bridge.invoke('list_probed_elements', {})).rejects.toThrow('invoker exploded');
+    const result = await Effect.runPromise(bridge.invoke('list_probed_elements', {}));
+    expect(result.isError).toBe(true);
+    expect((result.result as { error: string }).error).toContain('invoker exploded');
   });
 });
 
@@ -479,7 +480,7 @@ test.describe('Immutability', () => {
     const bridge = standardBridge();
     const args = { screen: 'login' };
     const argsCopy = { ...args };
-    await bridge.invoke('get_knowledge_state', args);
+    await Effect.runPromise(bridge.invoke('get_knowledge_state', args));
     expect(args).toEqual(argsCopy);
   });
 });

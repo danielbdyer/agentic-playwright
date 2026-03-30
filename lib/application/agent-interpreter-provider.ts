@@ -28,6 +28,7 @@ import type { StepAction } from '../domain/types';
 import type { ScreenId, ElementId, PostureId, SnapshotTemplateId } from '../domain/identity';
 import { normalizeIntentText, bestAliasMatch, humanizeIdentifier } from '../domain/inference';
 import { assignVariant, type ABTestConfig } from './agent-ab-testing';
+import { runEffectPromiseBoundary } from './effect-boundary';
 
 // Re-export type interfaces from domain layer for backwards compatibility
 export type {
@@ -567,29 +568,37 @@ function timeoutFallbackResult(provider: string, budgetMs: number): AgentInterpr
  *
  * Can be composed around any `AgentInterpreterProvider.interpret` call.
  */
-export function withAgentTimeout(
-  interpret: (request: AgentInterpretationRequest) => Promise<AgentInterpretationResult>,
+function withAgentTimeoutEffect(
+  interpret: (request: AgentInterpretationRequest) => Effect.Effect<AgentInterpretationResult, unknown>,
   options?: { readonly budgetMs?: number; readonly provider?: string },
-): (request: AgentInterpretationRequest) => Promise<AgentInterpretationResult> {
+): (request: AgentInterpretationRequest) => Effect.Effect<AgentInterpretationResult> {
   const budgetMs = options?.budgetMs ?? DEFAULT_AGENT_TIMEOUT_MS;
   const providerId = options?.provider ?? 'agent-timeout-wrapper';
 
   return (request) => {
-    const agentCall = Effect.tryPromise({
-      try: () => interpret(request),
-      catch: (err) => err instanceof Error ? err : new Error(String(err)),
-    });
-
     const timeoutSignal = Effect.sleep(Duration.millis(budgetMs)).pipe(
       Effect.map(() => timeoutFallbackResult(providerId, budgetMs)),
     );
 
-    const raced = Effect.race(agentCall, timeoutSignal).pipe(
+    return Effect.race(interpret(request), timeoutSignal).pipe(
       Effect.catchAll(() => Effect.succeed(timeoutFallbackResult(providerId, budgetMs))),
     );
-
-    return Effect.runPromise(raced);
   };
+}
+
+export function withAgentTimeout(
+  interpret: (request: AgentInterpretationRequest) => Promise<AgentInterpretationResult>,
+  options?: { readonly budgetMs?: number; readonly provider?: string },
+): (request: AgentInterpretationRequest) => Promise<AgentInterpretationResult> {
+  const timedInterpret = withAgentTimeoutEffect(
+    (request) => Effect.tryPromise({
+      try: () => interpret(request),
+      catch: (err) => err instanceof Error ? err : new Error(String(err)),
+    }),
+    options,
+  );
+
+  return (request) => runEffectPromiseBoundary(timedInterpret(request));
 }
 
 /**

@@ -13,6 +13,7 @@
  */
 
 import { Effect } from 'effect';
+import { runEffectSyncBoundary } from './effect-boundary';
 import type { McpServerPort, McpToolInvocation, McpToolResult } from '../../application/ports';
 import type { McpToolDefinition, WorkItemDecision, ScreenCapturedEvent } from '../../domain/types';
 import { dashboardMcpTools, dashboardEvent } from '../../domain/types/dashboard';
@@ -264,7 +265,7 @@ const executeBrowserAction = (
   // Run the Effect synchronously since MCP handlers are sync.
   // The bridge's execute returns an Effect — we use runSync via a simple promise-free path.
   let result: unknown = null;
-  Effect.runSync(
+  runEffectSyncBoundary(
     bridge.execute(action).pipe(
       Effect.tap((r) => Effect.sync(() => { result = r; })),
       Effect.catchAll((err) => Effect.sync(() => { result = { error: String(err), success: false }; })),

@@ -5,9 +5,8 @@ const ROOT_DIR = path.resolve(__dirname, '..');
 const LIB_DIR = path.join(ROOT_DIR, 'lib');
 
 const ALLOWED_FILES = new Set([
-  'application/agent-interpreter-provider.ts',
-  'infrastructure/mcp/dashboard-mcp-server.ts',
-  'runtime/agent/mcp-bridge.ts',
+  'application/effect-boundary.ts',
+  'infrastructure/mcp/effect-boundary.ts',
 ]);
 
 function walkTs(dir) {
@@ -30,7 +29,7 @@ function main() {
     const relativePath = path.relative(LIB_DIR, file).replace(/\\/g, '/');
     return isAllowed(relativePath)
       ? []
-      : [`${relativePath}: Effect.runPromise / Effect.runSync must remain in lib/composition (or approved adapters).`];
+      : [`${relativePath}: Effect.runPromise / Effect.runSync must remain in lib/composition (or dedicated effect boundary modules).`];
   });
 
   if (violations.length > 0) {

@@ -16,6 +16,7 @@
  * The agent interpreter selects its tool provider at composition time.
  */
 
+import { Effect } from 'effect';
 import type { McpToolDefinition } from '../../domain/types';
 import type { McpToolInvocation, McpToolResult } from '../../application/ports';
 
@@ -27,7 +28,7 @@ export interface AgentTool {
   readonly category: string;
   readonly description: string;
   readonly inputSchema: Record<string, unknown>;
-  readonly invoke: (args: Record<string, unknown>) => Promise<AgentToolResult>;
+  readonly invoke: (args: Record<string, unknown>) => Effect.Effect<AgentToolResult>;
 }
 
 /** Result of an agent tool invocation. */
@@ -46,7 +47,7 @@ export interface AgentToolProvider {
   /** Look up a tool by name. Returns undefined if not found. */
   readonly getTool: (name: string) => AgentTool | undefined;
   /** Invoke a tool by name with arguments. */
-  readonly invoke: (name: string, args: Record<string, unknown>) => Promise<AgentToolResult>;
+  readonly invoke: (name: string, args: Record<string, unknown>) => Effect.Effect<AgentToolResult>;
   /** Number of available tools. */
   readonly toolCount: number;
 }
@@ -58,7 +59,7 @@ export interface AgentToolProvider {
  * This is injected at composition time so the bridge does not
  * depend on a specific MCP server implementation.
  */
-export type McpToolInvoker = (invocation: McpToolInvocation) => Promise<McpToolResult>;
+export type McpToolInvoker = (invocation: McpToolInvocation) => Effect.Effect<McpToolResult, unknown>;
 
 // ─── Bridge Factory ───
 
@@ -75,31 +76,26 @@ function createAgentTool(
     category: definition.category,
     description: definition.description,
     inputSchema: definition.inputSchema,
-    invoke: async (args) => {
-      const mcpResult = await invoker({ tool: definition.name, arguments: args });
-      return {
-        tool: mcpResult.tool,
-        result: mcpResult.result,
-        isError: mcpResult.isError,
-        source: 'mcp-bridge' as const,
-      };
-    },
+    invoke: (args) =>
+      invoker({ tool: definition.name, arguments: args }).pipe(
+        Effect.map((mcpResult): AgentToolResult => ({
+          tool: mcpResult.tool,
+          result: mcpResult.result,
+          isError: mcpResult.isError,
+          source: 'mcp-bridge' as const,
+        })),
+        Effect.catchAll((err) => Effect.succeed({
+          tool: definition.name,
+          result: { error: String(err) },
+          isError: true,
+          source: 'mcp-bridge' as const,
+        })),
+      ),
   };
 }
 
 /**
  * Create an AgentToolProvider that bridges MCP tools to the internal agent.
- *
- * The bridge maps each MCP tool definition to a callable AgentTool.
- * Tool invocations are routed through the provided invoker function,
- * which typically calls the dashboard MCP server's handleToolCall.
- *
- * Usage:
- *   const mcpServer = createDashboardMcpServer(options);
- *   const tools = await Effect.runPromise(mcpServer.listTools());
- *   const invoker = async (inv) => Effect.runPromise(mcpServer.handleToolCall(inv));
- *   const provider = createInternalMCPBridge(tools, invoker);
- *   // Agent can now call provider.invoke('get_knowledge_state', { screen: 'login' })
  */
 export function createInternalMCPBridge(
   tools: readonly McpToolDefinition[],
@@ -119,11 +115,11 @@ export function createInternalMCPBridge(
     tools: agentTools,
     toolCount: agentTools.length,
     getTool: (name) => toolIndex.get(name),
-    invoke: async (name, args) => {
+    invoke: (name, args) => {
       const tool = toolIndex.get(name);
       return tool
         ? tool.invoke(args)
-        : notFoundResult(name);
+        : Effect.succeed(notFoundResult(name));
     },
   };
 }
@@ -137,7 +133,7 @@ export function createDisabledToolProvider(): AgentToolProvider {
     tools: [],
     toolCount: 0,
     getTool: () => undefined,
-    invoke: async (name) => ({
+    invoke: (name) => Effect.succeed({
       tool: name,
       result: { error: 'MCP bridge is disabled — no tools available' },
       isError: true,
