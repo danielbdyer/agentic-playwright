@@ -12,7 +12,7 @@
  */
 
 import path from 'path';
-import { Effect } from 'effect';
+import { Effect, Either, Option } from 'effect';
 import type { ProjectPaths } from './paths';
 import { speedrunProgram, type SpeedrunInput, type SpeedrunResult } from './speedrun';
 import { mappingForFailureClass, generateCandidates, type CandidateConfig } from './knob-search';
@@ -30,6 +30,7 @@ import type {
   SubstrateContext,
 } from '../domain/types';
 import { DEFAULT_PIPELINE_CONFIG } from '../domain/types';
+import { TesseractError } from '../domain/errors';
 
 // ─── Public types ───
 
@@ -61,6 +62,58 @@ export interface EvolveResult {
 }
 
 // ─── Pure helpers ───
+
+export type CandidateDecision =
+  | {
+    readonly accepted: true;
+    readonly bestCandidate: CandidateConfig;
+    readonly bestResult: SpeedrunResult;
+    readonly nextConfig: PipelineConfig;
+  }
+  | {
+    readonly accepted: false;
+    readonly bestCandidate: null;
+    readonly bestResult: null;
+    readonly nextConfig: PipelineConfig;
+  };
+
+export function foldTopFailureClass<A>(
+  topFailureClass: Option.Option<string>,
+  branches: {
+    readonly onMissing: () => A;
+    readonly onPresent: (failureClass: string) => A;
+  },
+): A {
+  return Option.match(topFailureClass, {
+    onNone: branches.onMissing,
+    onSome: branches.onPresent,
+  });
+}
+
+export function decideCandidate(
+  bestCandidate: Option.Option<CandidateConfig>,
+  bestResult: Option.Option<SpeedrunResult>,
+  currentConfig: PipelineConfig,
+): Either.Either<CandidateDecision, TesseractError> {
+  const candidatePresent = Option.isSome(bestCandidate);
+  const resultPresent = Option.isSome(bestResult);
+  if (candidatePresent !== resultPresent) {
+    return Either.left(new TesseractError('validation-error', 'Candidate/result invariant mismatch: expected both present or both absent.'));
+  }
+  return candidatePresent && resultPresent
+    ? Either.right({
+      accepted: true,
+      bestCandidate: bestCandidate.value,
+      bestResult: bestResult.value,
+      nextConfig: bestCandidate.value.config,
+    })
+    : Either.right({
+      accepted: false,
+      bestCandidate: null,
+      bestResult: null,
+      nextConfig: currentConfig,
+    });
+}
 
 function diffConfigs(base: PipelineConfig, current: PipelineConfig): Record<string, unknown> {
   return Object.fromEntries(
@@ -155,8 +208,10 @@ function runEpoch(
     yield* recordExperiment(input.paths, baseRecord);
 
     // Step 2: Read top failure mode
-    const topFailure = baseline.fitnessReport.failureModes[0] ?? null;
-    if (!topFailure) {
+    const topFailure = Option.fromNullable(baseline.fitnessReport.failureModes[0]);
+    const topFailureClass = Option.map(topFailure, (failure) => failure.class);
+    const hasTopFailure = Option.isSome(topFailure);
+    if (!hasTopFailure) {
       return {
         epochResult: { epoch, baseline, topFailureClass: null, candidatesTested: 0, bestCandidate: null, bestResult: null, accepted: false },
         nextConfig: currentConfig,
@@ -165,10 +220,21 @@ function runEpoch(
     }
 
     // Step 3: Map to parameters
-    const mapping = mappingForFailureClass(topFailure.class);
+    const mapping = mappingForFailureClass(topFailure.value.class);
     if (mapping.implicatedParameters.length === 0) {
       return {
-        epochResult: { epoch, baseline, topFailureClass: topFailure.class, candidatesTested: 0, bestCandidate: null, bestResult: null, accepted: false },
+        epochResult: {
+          epoch,
+          baseline,
+          topFailureClass: foldTopFailureClass(topFailureClass, {
+            onMissing: () => null,
+            onPresent: (failureClass) => failureClass,
+          }),
+          candidatesTested: 0,
+          bestCandidate: null,
+          bestResult: null,
+          accepted: false,
+        },
         nextConfig: currentConfig,
         nextExperimentId: baseRecord.id,
       };
@@ -176,8 +242,8 @@ function runEpoch(
 
     // Step 4: Generate and test candidates
     const candidates = generateCandidates(currentConfig, mapping);
-    let bestCandidate: CandidateConfig | null = null;
-    let bestResult: SpeedrunResult | null = null;
+    let bestCandidate = Option.none<CandidateConfig>();
+    let bestResult = Option.none<SpeedrunResult>();
 
     for (const candidate of candidates) {
       yield* cleanSlateProgram(input.paths.rootDir, input.paths);
@@ -186,20 +252,27 @@ function runEpoch(
       yield* recordExperiment(input.paths, record);
 
       if (result.comparison.improved) {
-        if (!bestResult || result.fitnessReport.metrics.knowledgeHitRate > bestResult.fitnessReport.metrics.knowledgeHitRate) {
-          bestCandidate = candidate;
-          bestResult = result;
+        const shouldReplaceBest = Option.match(bestResult, {
+          onNone: () => true,
+          onSome: (existingBest) => result.fitnessReport.metrics.knowledgeHitRate > existingBest.fitnessReport.metrics.knowledgeHitRate,
+        });
+        if (shouldReplaceBest) {
+          bestCandidate = Option.some(candidate);
+          bestResult = Option.some(result);
         }
       }
     }
 
     // Step 5: Accept or reject
-    const accepted = bestCandidate !== null && bestResult !== null;
-    const nextConfig = accepted ? bestCandidate!.config : currentConfig;
+    const decisionEither = decideCandidate(bestCandidate, bestResult, currentConfig);
+    if (Either.isLeft(decisionEither)) {
+      return yield* Effect.fail(decisionEither.left);
+    }
+    const decision = decisionEither.right;
 
-    if (accepted) {
+    if (decision.accepted) {
       const existingScorecard = yield* loadScorecard(input.paths);
-      const updatedScorecard = updateScorecard(bestResult!.fitnessReport, existingScorecard, bestResult!.comparison);
+      const updatedScorecard = updateScorecard(decision.bestResult.fitnessReport, existingScorecard, decision.bestResult.comparison);
       yield* saveScorecard(input.paths, updatedScorecard);
     }
 
@@ -207,13 +280,16 @@ function runEpoch(
       epochResult: {
         epoch,
         baseline,
-        topFailureClass: topFailure.class,
+        topFailureClass: foldTopFailureClass(topFailureClass, {
+          onMissing: () => null,
+          onPresent: (failureClass) => failureClass,
+        }),
         candidatesTested: candidates.length,
-        bestCandidate,
-        bestResult,
-        accepted,
+        bestCandidate: decision.bestCandidate,
+        bestResult: decision.bestResult,
+        accepted: decision.accepted,
       },
-      nextConfig,
+      nextConfig: decision.nextConfig,
       nextExperimentId: baseRecord.id,
     };
   });

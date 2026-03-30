@@ -1,4 +1,4 @@
-import { Effect } from 'effect';
+import { Effect, Either, Option } from 'effect';
 import { projectConfidenceOverlayCatalog } from './confidence';
 import { resolveRunSelection } from './controls';
 import { activateProposalBundle } from './activate-proposals';
@@ -28,6 +28,7 @@ import { buildProposals } from './execution/build-proposals';
 import { buildRunRecord } from './execution/build-run-record';
 import { foldScenarioRun } from './execution/fold';
 import { resolveEffectConcurrency } from './concurrency';
+import { TesseractError } from '../domain/errors';
 
 // ─── Dashboard probe helpers (pure) ───
 
@@ -53,6 +54,19 @@ const confidenceToNumber = (c: Confidence | string): number => {
     default: return 0.5;
   }
 };
+
+export const getRequiredCatalogEntry = <T>(
+  entry: T | undefined,
+  onMissing: () => TesseractError,
+): Either.Either<T, TesseractError> => Either.fromNullable(entry, onMissing);
+
+export const foldOptionalProjection = <T, A>(
+  projection: Option.Option<T>,
+  branches: {
+    readonly onMissing: () => A;
+    readonly onPresent: (value: T) => A;
+  },
+): A => Option.match(projection, { onNone: branches.onMissing, onSome: branches.onPresent });
 
 type RunScenarioOptions = {
   adoId: AdoId;
@@ -95,8 +109,22 @@ export function runScenarioCore(options: RunScenarioOptions) {
           ...(options.providerId ? { providerId: options.providerId } : {}),
           executionContextPosture: executionContext.posture,
         });
-        const scenarioEntry = catalog.scenarios.find((entry) => entry.artifact.source.ado_id === options.adoId)!;
-        const boundScenarioEntry = catalog.boundScenarios.find((entry) => entry.artifact.source.ado_id === options.adoId)!;
+        const scenarioEntryEither = getRequiredCatalogEntry(
+          catalog.scenarios.find((entry) => entry.artifact.source.ado_id === options.adoId),
+          () => new TesseractError('run-plan-missing-scenario', `Missing scenario for ${options.adoId}`),
+        );
+        if (Either.isLeft(scenarioEntryEither)) {
+          return yield* Effect.fail(scenarioEntryEither.left);
+        }
+        const scenarioEntry = scenarioEntryEither.right;
+        const boundScenarioEntryEither = getRequiredCatalogEntry(
+          catalog.boundScenarios.find((entry) => entry.artifact.source.ado_id === options.adoId),
+          () => new TesseractError('run-plan-missing-scenario', `Missing bound scenario for ${options.adoId}`),
+        );
+        if (Either.isLeft(boundScenarioEntryEither)) {
+          return yield* Effect.fail(boundScenarioEntryEither.left);
+        }
+        const boundScenarioEntry = boundScenarioEntryEither.right;
         const executionStage = yield* interpretScenarioFromPlan({
           runtimeScenarioRunner,
           rootDir: options.paths.rootDir,
@@ -196,8 +224,14 @@ export function runScenarioCore(options: RunScenarioOptions) {
           paths: options.paths,
           boundScenario: boundScenarioEntry.artifact,
           surface: surfaceEntry.artifact,
-          interfaceGraph: catalog.interfaceGraph?.artifact ?? null,
-          selectorCanon: catalog.selectorCanon?.artifact ?? null,
+          interfaceGraph: foldOptionalProjection(Option.fromNullable(catalog.interfaceGraph), {
+            onMissing: () => null,
+            onPresent: (interfaceGraph) => interfaceGraph.artifact,
+          }),
+          selectorCanon: foldOptionalProjection(Option.fromNullable(catalog.selectorCanon), {
+            onMissing: () => null,
+            onPresent: (selectorCanon) => selectorCanon.artifact,
+          }),
           runRecord: runRecordStage.runRecord,
           proposalBundle: activationStage.proposalBundle,
         });
@@ -210,8 +244,14 @@ export function runScenarioCore(options: RunScenarioOptions) {
           startedAt: runRecordStage.runRecord.startedAt,
           completedAt: runRecordStage.runRecord.completedAt,
           surface: surfaceEntry.artifact,
-          interfaceGraph: catalog.interfaceGraph?.artifact ?? null,
-          selectorCanon: catalog.selectorCanon?.artifact ?? null,
+          interfaceGraph: foldOptionalProjection(Option.fromNullable(catalog.interfaceGraph), {
+            onMissing: () => null,
+            onPresent: (interfaceGraph) => interfaceGraph.artifact,
+          }),
+          selectorCanon: foldOptionalProjection(Option.fromNullable(catalog.selectorCanon), {
+            onMissing: () => null,
+            onPresent: (selectorCanon) => selectorCanon.artifact,
+          }),
           proposalBundle: activationStage.proposalBundle,
           learningManifest: learning.manifest,
         });
@@ -341,8 +381,11 @@ export function runScenarioSelection(options: {
             selection.adoIds.map((adoId) => runScenario(buildRunOptions(adoId as AdoId))),
           );
           // Grab the post-run catalog from the last scenario run (single-scenario path)
-          const catalog = scenarioRuns[0]?.postRunCatalog ?? null;
-          return { runs: scenarioRuns, postRunCatalog: catalog as WorkspaceCatalog | null };
+          const postRunCatalog = foldOptionalProjection(Option.fromNullable(scenarioRuns[0]), {
+            onMissing: () => null,
+            onPresent: (scenarioRun) => scenarioRun.postRunCatalog,
+          });
+          return { runs: scenarioRuns, postRunCatalog: postRunCatalog as WorkspaceCatalog | null };
         })
       : yield* Effect.gen(function* () {
           const concurrency = resolveEffectConcurrency();
