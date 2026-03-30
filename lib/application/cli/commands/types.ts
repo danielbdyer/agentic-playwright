@@ -1,7 +1,7 @@
 import { generateTypes } from '../../types';
-import type { CommandSpec } from '../shared';
+import { createCommandSpec } from '../shared';
 
-export const typesCommand: CommandSpec = {
+export const typesCommand = createCommandSpec({
   flags: [],
   parse: () => ({
     command: 'types',
@@ -9,4 +9,4 @@ export const typesCommand: CommandSpec = {
     postureInput: {},
     execute: (paths) => generateTypes({ paths }),
   }),
-};
+});

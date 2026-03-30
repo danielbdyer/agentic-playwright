@@ -1,9 +1,9 @@
 import { replayInterpretation } from '../../replay-interpretation';
 import { createAdoId } from '../../../domain/identity';
-import type { CommandSpec } from '../shared';
+import { createCommandSpec } from '../shared';
 import { requireAdoId, withDefinedValues } from '../shared';
 
-export const replayCommand: CommandSpec = {
+export const replayCommand = createCommandSpec({
   flags: ['--ado-id', '--runbook', '--provider', '--interpreter-mode'],
   parse: ({ flags }) => ({
     command: 'replay',
@@ -21,4 +21,4 @@ export const replayCommand: CommandSpec = {
       paths,
     }),
   }),
-};
+});

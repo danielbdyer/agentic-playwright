@@ -1,9 +1,9 @@
 import { runScenarioSelection } from '../../run';
 import { createAdoId } from '../../../domain/identity';
-import type { CommandSpec } from '../shared';
+import { createCommandSpec } from '../shared';
 import { withDefinedValues } from '../shared';
 
-export const runCommand: CommandSpec = {
+export const runCommand = createCommandSpec({
   flags: ['--ado-id', '--runbook', '--provider', '--tag', '--interpreter-mode', '--execution-profile', '--ci-batch', '--headed', '--no-write', '--baseline', '--disable-translation', '--disable-translation-cache'],
   parse: ({ flags }) => ({
     command: 'run',
@@ -29,4 +29,4 @@ export const runCommand: CommandSpec = {
       disableTranslationCache: Boolean(flags.disableTranslationCache),
     }),
   }),
-};
+});

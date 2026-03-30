@@ -1,9 +1,9 @@
 import { refreshScenario } from '../../refresh';
 import { createAdoId } from '../../../domain/identity';
-import type { CommandSpec } from '../shared';
+import { createCommandSpec } from '../shared';
 import { requireAdoId } from '../shared';
 
-export const refreshCommand: CommandSpec = {
+export const refreshCommand = createCommandSpec({
   flags: ['--ado-id'],
   parse: ({ flags }) => ({
     command: 'refresh',
@@ -11,4 +11,4 @@ export const refreshCommand: CommandSpec = {
     postureInput: {},
     execute: (paths) => refreshScenario({ adoId: createAdoId(requireAdoId(flags.adoId)), paths }),
   }),
-};
+});

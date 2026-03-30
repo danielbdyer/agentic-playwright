@@ -1,9 +1,9 @@
 import { traceScenario } from '../../trace';
 import { createAdoId } from '../../../domain/identity';
-import type { CommandSpec } from '../shared';
+import { createCommandSpec } from '../shared';
 import { requireAdoId } from '../shared';
 
-export const traceCommand: CommandSpec = {
+export const traceCommand = createCommandSpec({
   flags: ['--ado-id'],
   parse: ({ flags }) => ({
     command: 'trace',
@@ -11,4 +11,4 @@ export const traceCommand: CommandSpec = {
     postureInput: {},
     execute: (paths) => traceScenario({ adoId: createAdoId(requireAdoId(flags.adoId)), paths }),
   }),
-};
+});

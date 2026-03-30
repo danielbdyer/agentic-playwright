@@ -1,8 +1,8 @@
 import { inspectWorkflow } from '../../workflow';
 import { createAdoId } from '../../../domain/identity';
-import type { CommandSpec } from '../shared';
+import { createCommandSpec } from '../shared';
 
-export const workflowCommand: CommandSpec = {
+export const workflowCommand = createCommandSpec({
   flags: ['--ado-id', '--runbook'],
   parse: ({ flags }) => ({
     command: 'workflow',
@@ -14,4 +14,4 @@ export const workflowCommand: CommandSpec = {
       ...(flags.runbook ? { runbookName: flags.runbook } : {}),
     }),
   }),
-};
+});

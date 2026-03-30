@@ -1,9 +1,9 @@
 import { describeScenarioPaths } from '../../inspect';
 import { createAdoId } from '../../../domain/identity';
-import type { CommandSpec } from '../shared';
+import { createCommandSpec } from '../shared';
 import { requireAdoId } from '../shared';
 
-export const pathsCommand: CommandSpec = {
+export const pathsCommand = createCommandSpec({
   flags: ['--ado-id'],
   parse: ({ flags }) => ({
     command: 'paths',
@@ -11,4 +11,4 @@ export const pathsCommand: CommandSpec = {
     postureInput: {},
     execute: (paths) => describeScenarioPaths({ adoId: createAdoId(requireAdoId(flags.adoId)), paths }),
   }),
-};
+});

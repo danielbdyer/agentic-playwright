@@ -1,8 +1,9 @@
 import { evolveProgram } from '../../evolve';
-import type { CommandSpec, ExecutionProfile, InterpreterMode } from '../shared';
+import type { ExecutionProfile, InterpreterMode } from '../shared';
+import { createCommandSpec } from '../shared';
 import { withDefinedValues } from '../shared';
 
-export const evolveCommand: CommandSpec = {
+export const evolveCommand = createCommandSpec({
   flags: ['--max-epochs', '--seed', '--count', '--max-iterations', '--substrate'],
   parse: ({ flags }) => ({
     command: 'evolve',
@@ -20,4 +21,4 @@ export const evolveCommand: CommandSpec = {
       substrate: (flags.substrate ?? 'synthetic') as 'synthetic' | 'production' | 'hybrid',
     }),
   }),
-};
+});

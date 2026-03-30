@@ -1,8 +1,8 @@
 import { renderBenchmarkScorecard } from '../../scorecard';
-import type { CommandSpec } from '../shared';
+import { createCommandSpec } from '../shared';
 import { requireBenchmark } from '../shared';
 
-export const scorecardCommand: CommandSpec = {
+export const scorecardCommand = createCommandSpec({
   flags: ['--benchmark'],
   parse: ({ flags }) => ({
     command: 'scorecard',
@@ -13,4 +13,4 @@ export const scorecardCommand: CommandSpec = {
       benchmarkName: requireBenchmark(flags.benchmark),
     }),
   }),
-};
+});

@@ -1,9 +1,9 @@
 import { inspectSurface } from '../../surface';
 import { createScreenId } from '../../../domain/identity';
-import type { CommandSpec } from '../shared';
+import { createCommandSpec } from '../shared';
 import { requireScreen } from '../shared';
 
-export const surfaceCommand: CommandSpec = {
+export const surfaceCommand = createCommandSpec({
   flags: ['--screen'],
   parse: ({ flags }) => ({
     command: 'surface',
@@ -11,4 +11,4 @@ export const surfaceCommand: CommandSpec = {
     postureInput: {},
     execute: (paths) => inspectSurface({ screen: createScreenId(requireScreen(flags.screen)), paths }),
   }),
-};
+});

@@ -1,7 +1,7 @@
 import { buildDerivedGraph } from '../../graph';
-import type { CommandSpec } from '../shared';
+import { createCommandSpec } from '../shared';
 
-export const graphCommand: CommandSpec = {
+export const graphCommand = createCommandSpec({
   flags: [],
   parse: () => ({
     command: 'graph',
@@ -9,4 +9,4 @@ export const graphCommand: CommandSpec = {
     postureInput: {},
     execute: (paths) => buildDerivedGraph({ paths }),
   }),
-};
+});

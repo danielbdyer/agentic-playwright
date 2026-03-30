@@ -1,8 +1,8 @@
 import { discoverScreenScaffold } from '../../../infrastructure/tooling/discover-screen';
-import type { CommandSpec } from '../shared';
+import { createCommandSpec } from '../shared';
 import { requireUrl } from '../shared';
 
-export const discoverCommand: CommandSpec = {
+export const discoverCommand = createCommandSpec({
   flags: ['--screen', '--url', '--root-selector'],
   parse: ({ flags }) => ({
     command: 'discover',
@@ -15,4 +15,4 @@ export const discoverCommand: CommandSpec = {
       paths,
     }),
   }),
-};
+});

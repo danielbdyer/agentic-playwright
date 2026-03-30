@@ -1,9 +1,9 @@
 import { captureScreenSection } from '../../../infrastructure/tooling/capture-screen';
 import { createScreenId } from '../../../domain/identity';
-import type { CommandSpec } from '../shared';
+import { createCommandSpec } from '../shared';
 import { requireScreen, requireSection } from '../shared';
 
-export const captureCommand: CommandSpec = {
+export const captureCommand = createCommandSpec({
   flags: ['--screen', '--section'],
   parse: ({ flags }) => ({
     command: 'capture',
@@ -15,4 +15,4 @@ export const captureCommand: CommandSpec = {
       paths,
     }),
   }),
-};
+});

@@ -2,10 +2,11 @@ import { Effect } from 'effect';
 import { multiSeedSpeedrun } from '../../speedrun';
 import { evolveProgram } from '../../evolve';
 import { DEFAULT_PIPELINE_CONFIG } from '../../../domain/types';
-import type { CommandSpec, ExecutionProfile, InterpreterMode } from '../shared';
+import type { ExecutionProfile, InterpreterMode } from '../shared';
+import { createCommandSpec } from '../shared';
 import { withDefinedValues } from '../shared';
 
-export const speedrunCommand: CommandSpec = {
+export const speedrunCommand = createCommandSpec({
   flags: ['--count', '--seed', '--seeds', '--max-iterations', '--tag', '--substrate', '--perturb', '--posture', '--auto-evolve', '--max-epochs'],
   parse: ({ flags }) => ({
     command: 'speedrun',
@@ -41,4 +42,4 @@ export const speedrunCommand: CommandSpec = {
         : speedrun;
     },
   }),
-};
+});

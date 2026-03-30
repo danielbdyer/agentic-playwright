@@ -1,8 +1,8 @@
 import { approveProposal } from '../../approve';
-import type { CommandSpec } from '../shared';
+import { createCommandSpec } from '../shared';
 import { requireProposalId } from '../shared';
 
-export const approveCommand: CommandSpec = {
+export const approveCommand = createCommandSpec({
   flags: ['--proposal-id'],
   parse: ({ flags }) => ({
     command: 'approve',
@@ -13,4 +13,4 @@ export const approveCommand: CommandSpec = {
       proposalId: requireProposalId(flags.proposalId),
     }),
   }),
-};
+});
