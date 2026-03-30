@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import type { RuntimeDomResolver } from '../../domain/types';
+import type { RuntimeDomCandidate, RuntimeDomResolver } from '../../domain/types';
 import { describeLocatorStrategy, resolveLocator } from '../locate';
 
 export function createPlaywrightDomResolver(page: Page): RuntimeDomResolver {
@@ -7,7 +7,7 @@ export function createPlaywrightDomResolver(page: Page): RuntimeDomResolver {
     async resolve(input) {
       const probe = async (
         remaining: typeof input.screen.elements,
-        acc: { readonly candidates: readonly { element: typeof input.screen.elements[number]; score: number; evidence: { visibleCount: number; roleNameScore: number; locatorQualityScore: number; widgetCompatibilityScore: number; locatorRung: number; locatorStrategy: string } }[]; readonly probes: number },
+        acc: { candidates: RuntimeDomCandidate[]; probes: number },
       ): Promise<typeof acc> => {
         if (remaining.length === 0 || acc.probes >= input.policy.maxProbes || acc.candidates.length >= input.policy.maxCandidates) {
           return acc;
@@ -48,8 +48,8 @@ export function createPlaywrightDomResolver(page: Page): RuntimeDomResolver {
 
       const result = await probe([...input.screen.elements], { candidates: [], probes: 0 });
       return {
-        candidates: result.candidates as any,
-        topCandidate: (result.candidates[0] ?? null) as any,
+        candidates: result.candidates,
+        topCandidate: result.candidates[0] ?? null,
         probes: result.probes,
       };
     },

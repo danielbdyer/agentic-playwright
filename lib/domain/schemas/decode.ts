@@ -1,4 +1,5 @@
 import { ParseResult, Schema } from 'effect';
+import { Either } from 'effect';
 import { SchemaError } from '../errors';
 
 /**
@@ -63,6 +64,35 @@ export function decodeUnknownSync<A, I, Target = A>(schema: Schema.Schema<A, I>)
       throw e;
     }
   };
+}
+
+export function decodeUnknownEither<A, I, Target = A>(
+  schema: Schema.Schema<A, I>,
+): (input: unknown) => Either.Either<Target, SchemaError> {
+  const decode = decodeUnknownSync<A, I, Target>(schema);
+  return (input: unknown) => {
+    try {
+      return Either.right(decode(input));
+    } catch (error) {
+      if (error instanceof SchemaError) {
+        return Either.left(error);
+      }
+      throw error;
+    }
+  };
+}
+
+export function decodeUnknownEitherOrThrow<A, I, Target = A>(
+  schema: Schema.Schema<A, I>,
+): (input: unknown) => Target {
+  const decode = decodeUnknownEither<A, I, Target>(schema);
+  return (input: unknown) =>
+    Either.match(decode(input), {
+      onLeft: (error) => {
+        throw error;
+      },
+      onRight: (value) => value,
+    });
 }
 
 export function encodeSync<A, I>(schema: Schema.Schema<A, I>): (value: A) => I {
