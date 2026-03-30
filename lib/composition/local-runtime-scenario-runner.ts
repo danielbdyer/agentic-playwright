@@ -8,7 +8,7 @@ import type { TranslationProvider } from '../application/translation-provider';
 import { resolveAgentInterpreterProvider, type AgentInterpreterProvider } from '../application/agent-interpreter-provider';
 import type { TranslationReceipt, TranslationRequest } from '../domain/types';
 import { LocalFileSystem } from '../infrastructure/fs/local-fs';
-import { createLocalRuntimeEnvironment } from '../infrastructure/runtime/local-runtime-environment';
+import { createLocalRuntimeEnvironment, type LocalRuntimeAgentInterpreter } from '../infrastructure/runtime/local-runtime-environment';
 import { createScenarioRunState, runScenarioStep } from '../runtime/scenario';
 
 function buildCachedTranslator(
@@ -29,7 +29,7 @@ function buildCachedTranslator(
       }
     }
 
-    const translated = yield* Effect.promise(() => provider.translate(request));
+    const translated = yield* provider.translate(request);
     const computed = {
       ...translated,
       translationProvider: provider.id,
@@ -80,6 +80,14 @@ function buildDefaultTranslator(
   }).pipe(Effect.provideService(FileSystem, LocalFileSystem)));
 }
 
+function bridgeAgentInterpreterForRuntime(provider: AgentInterpreterProvider): LocalRuntimeAgentInterpreter {
+  return {
+    id: provider.id,
+    kind: provider.kind,
+    interpret: (request) => Effect.runPromise(provider.interpret(request)),
+  };
+}
+
 /** Create a RuntimeScenarioRunnerPort with a specific agent interpreter provider.
  *  This is the injection point for agent sessions, Copilot, and dashboard integrations. */
 function buildRunnerWithInterpreter(interpreterOverride?: AgentInterpreterProvider | undefined): RuntimeScenarioRunnerPort {
@@ -97,7 +105,9 @@ function buildRunnerWithInterpreter(interpreterOverride?: AgentInterpreterProvid
             ? buildCachedTranslator(paths, cacheDisabled, externalProvider)
             : buildDefaultTranslator(paths, cacheDisabled);
 
-        const agentInterpreter = interpreterOverride ?? resolveAgentInterpreterProvider();
+        const agentInterpreter = bridgeAgentInterpreterForRuntime(
+          interpreterOverride ?? resolveAgentInterpreterProvider(),
+        );
 
       const runtimeEnvironment = createLocalRuntimeEnvironment({
         rootDir: input.rootDir,

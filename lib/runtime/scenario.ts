@@ -32,10 +32,10 @@ import type { InterpreterMode, InterpreterScreenRegistry } from './interpreters/
 import { playwrightStepProgramInterpreter } from './program';
 import { deterministicRuntimeStepAgent, type RuntimeStepAgent } from './agent';
 import { applyProposalDraftsToRuntimeContext } from './agent/proposals';
+import type { RuntimeAgentInterpreter } from './agent/types';
 import type { RuntimeDomResolver } from '../domain/types';
 import { observeStateRefsOnPage, observeTransitionOnPage } from '../playwright/state-topology';
 import { planExecutionStep } from '../domain/execution-planner';
-import type { AgentInterpreterProvider } from '../domain/types/agent-interpreter';
 
 export interface RuntimeScenarioEnvironment {
   mode: InterpreterMode;
@@ -53,7 +53,7 @@ export interface RuntimeScenarioEnvironment {
   agent?: RuntimeStepAgent | undefined;
   page?: Page | undefined;
   domResolver?: RuntimeDomResolver | undefined;
-  agentInterpreter?: AgentInterpreterProvider | undefined;
+  agentInterpreter?: RuntimeAgentInterpreter | undefined;
   executionBudgetThresholds?: ExecutionBudgetThresholds | undefined;
   recoveryPolicy?: RecoveryPolicy | undefined;
 }

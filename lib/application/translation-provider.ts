@@ -38,7 +38,7 @@ export type TranslationProviderKind = 'deterministic' | 'llm-api' | 'copilot';
 export interface TranslationProvider {
   readonly id: string;
   readonly kind: TranslationProviderKind;
-  readonly translate: (request: TranslationRequest) => Promise<TranslationReceipt>;
+  readonly translate: (request: TranslationRequest) => Effect.Effect<TranslationReceipt, never, never>;
 }
 
 // ─── Translation Configuration ───
@@ -73,7 +73,7 @@ function createDeterministicProvider(): TranslationProvider {
   return {
     id: 'deterministic-token-overlap',
     kind: 'deterministic',
-    translate: (request) => Promise.resolve(translateIntentToOntology(request)),
+    translate: (request) => Effect.succeed(translateIntentToOntology(request)),
   };
 }
 
@@ -229,8 +229,7 @@ function createLlmApiProvider(
   return {
     id: `llm-api-${config.model}`,
     kind: 'llm-api',
-    translate: (request) => Effect.runPromise(
-      withTranslationRetries(
+    translate: (request) => withTranslationRetries(
         `llm-api-${config.model}`,
         () => deps.createChatCompletion({
           model: config.model,
@@ -256,7 +255,6 @@ function createLlmApiProvider(
             `LLM API call failed (${String(error)}). Degrading to next resolution rung.`,
           ))),
       ),
-    ),
   };
 }
 
@@ -278,7 +276,7 @@ function createCopilotProvider(
     return {
       id: 'copilot-stub',
       kind: 'copilot',
-      translate: () => Promise.resolve({
+      translate: () => Effect.succeed({
         kind: 'translation-receipt' as const,
         version: 1 as const,
         mode: 'structured-translation' as const,
@@ -294,8 +292,7 @@ function createCopilotProvider(
   return {
     id: 'copilot-vscode',
     kind: 'copilot',
-    translate: (request) => Effect.runPromise(
-      withTranslationRetries(
+    translate: (request) => withTranslationRetries(
         'copilot',
         () => deps.createChatCompletion({
           model: 'copilot',
@@ -321,7 +318,6 @@ function createCopilotProvider(
             `Copilot API call failed (${String(error)}). Degrading to next resolution rung.`,
           ))),
       ),
-    ),
   };
 }
 
@@ -334,12 +330,12 @@ function createHybridProvider(
   return {
     id: `hybrid-${primary.id}-${fallback.id}`,
     kind: fallback.kind,
-    translate: async (request) => {
-      const primaryResult = await primary.translate(request);
+    translate: (request) => Effect.gen(function* () {
+      const primaryResult = yield* primary.translate(request);
       return primaryResult.matched
         ? primaryResult
-        : fallback.translate(request);
-    },
+        : yield* fallback.translate(request);
+    }),
   };
 }
 

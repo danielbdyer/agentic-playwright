@@ -57,7 +57,7 @@ function createDisabledProvider(): AgentInterpreterProvider {
   return {
     id: 'agent-interpreter-disabled',
     kind: 'disabled',
-    interpret: () => Promise.resolve({
+    interpret: () => Effect.succeed({
       interpreted: false,
       target: null,
       confidence: 0,
@@ -135,7 +135,7 @@ function createHeuristicProvider(): AgentInterpreterProvider {
       );
 
       if (!topScreen) {
-        return Promise.resolve({
+        return Effect.succeed({
           interpreted: false,
           target: null,
           confidence: 0,
@@ -157,7 +157,7 @@ function createHeuristicProvider(): AgentInterpreterProvider {
       // For navigate actions, screen-only resolution is sufficient
       const needsElement = action !== 'navigate';
       if (needsElement && !topElement) {
-        return Promise.resolve({
+        return Effect.succeed({
           interpreted: false,
           target: null,
           confidence: 0,
@@ -203,7 +203,7 @@ function createHeuristicProvider(): AgentInterpreterProvider {
           }]
         : [];
 
-      return Promise.resolve({
+      return Effect.succeed({
         interpreted: true,
         target,
         confidence,
@@ -485,8 +485,7 @@ function createLlmApiAgentProvider(
   return {
     id: `agent-llm-api-${config.model}`,
     kind: 'llm-api',
-    interpret: (request) => Effect.runPromise(
-      withAgentRetries(
+    interpret: (request) => withAgentRetries(
         `llm-api-${config.model}`,
         () => deps.createChatCompletion({
           model: config.model,
@@ -515,7 +514,6 @@ function createLlmApiAgentProvider(
             `Agent LLM API call failed (${String(error)}). Escalating to needs-human.`,
           ))),
       ),
-    ),
   };
 }
 
@@ -557,7 +555,7 @@ function createSessionProvider(
     return {
       id: 'agent-session-stub',
       kind: 'session',
-      interpret: () => Promise.resolve({
+      interpret: () => Effect.succeed({
         interpreted: false,
         target: null,
         confidence: 0,
@@ -571,8 +569,7 @@ function createSessionProvider(
   return {
     id: 'agent-session-active',
     kind: 'session',
-    interpret: (request) => Effect.runPromise(
-      withAgentRetries(
+    interpret: (request) => withAgentRetries(
         'session-agent',
         () => deps.createChatCompletion({
           model: 'session',
@@ -601,7 +598,6 @@ function createSessionProvider(
             `Agent session call failed (${String(error)}). Escalating to needs-human.`,
           ))),
       ),
-    ),
   };
 }
 
@@ -656,19 +652,13 @@ function timeoutFallbackResult(provider: string, budgetMs: number): AgentInterpr
  * Can be composed around any `AgentInterpreterProvider.interpret` call.
  */
 export function withAgentTimeout(
-  interpret: (request: AgentInterpretationRequest) => Promise<AgentInterpretationResult>,
+  interpret: (request: AgentInterpretationRequest) => Effect.Effect<AgentInterpretationResult, never, never>,
   options?: { readonly budgetMs?: number; readonly provider?: string },
-): (request: AgentInterpretationRequest) => Promise<AgentInterpretationResult> {
+): (request: AgentInterpretationRequest) => Effect.Effect<AgentInterpretationResult, never, never> {
   const budgetMs = options?.budgetMs ?? DEFAULT_AGENT_TIMEOUT_MS;
   const providerId = options?.provider ?? 'agent-timeout-wrapper';
 
-  return (request) => Effect.runPromise(withAgentTimeoutEffect(
-    Effect.tryPromise({
-      try: () => interpret(request),
-      catch: (err) => err instanceof Error ? err : new Error(String(err)),
-    }),
-    { budgetMs, provider: providerId },
-  ));
+  return (request) => withAgentTimeoutEffect(interpret(request), { budgetMs, provider: providerId });
 }
 
 export function withAgentTimeoutEffect(
@@ -719,12 +709,12 @@ function createCompositeAgentProvider(
   return {
     id: `composite-${primary.id}-${fallback.id}`,
     kind: primary.kind,
-    interpret: async (request) => {
-      const primaryResult = await primary.interpret(request);
+    interpret: (request) => Effect.gen(function* () {
+      const primaryResult = yield* primary.interpret(request);
       return primaryResult.interpreted
         ? primaryResult
-        : fallback.interpret(request);
-    },
+        : yield* fallback.interpret(request);
+    }),
   };
 }
 
@@ -821,7 +811,7 @@ function createABTestingProvider(
   return {
     id: `ab-test-${abTestConfig.testId}`,
     kind: treatmentProvider.kind,
-    interpret: async (request) => {
+    interpret: (request) => Effect.gen(function* () {
       // Use step index extracted from task fingerprint for deterministic routing.
       // The request doesn't directly expose stepIndex, so we hash the fingerprint.
       const stepHash = request.taskFingerprint
@@ -829,11 +819,11 @@ function createABTestingProvider(
         .reduce((acc, ch) => ((acc << 5) - acc + ch.charCodeAt(0)) | 0, 0);
       const variant = assignVariant(Math.abs(stepHash), abTestConfig);
       const provider = variant === 'treatment' ? treatmentProvider : controlProvider;
-      const result = await provider.interpret(request);
+      const result = yield* provider.interpret(request);
       return {
         ...result,
         provider: `${result.provider}:${variant}`,
       };
-    },
+    }),
   };
 }
