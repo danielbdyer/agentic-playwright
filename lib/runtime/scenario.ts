@@ -1,13 +1,9 @@
 import type { Page } from '@playwright/test';
-import { attachConsoleSentinel } from './console-sentinel';
 import { uniqueSorted } from '../domain/collections';
-import { rankRouteVariants } from '../domain/route-knowledge';
-import { chooseByPrecedence, routeSelectionPrecedenceLaw } from '../domain/precedence';
 import type { AdoId, StateNodeRef, TransitionRef } from '../domain/identity';
 import type { ExecutionBudgetThresholds } from '../domain/execution/telemetry';
-import { defaultRecoveryPolicy, recoveryFamilyConfig, type RecoveryAttempt, type RecoveryPolicy, type RecoveryStrategy } from '../domain/execution/recovery-policy';
+import { defaultRecoveryPolicy, type RecoveryPolicy } from '../domain/execution/recovery-policy';
 import { emptyExecutionTiming, evaluateExecutionBudget, normalizeFailureFamily } from '../domain/execution/telemetry';
-import { compileStepProgram } from '../domain/program';
 import type { SnapshotTemplateLoader } from '../domain/runtime-loaders';
 import { RuntimeError } from '../domain/errors';
 import { mintBlocked } from '../domain/types/workflow';
@@ -27,15 +23,26 @@ import type {
   TranslationReceipt,
 } from '../domain/types';
 import type { RouteVariantKnowledge } from '../domain/types/route-knowledge';
-import { runStaticInterpreter } from './interpreters/execute';
 import type { InterpreterMode, InterpreterScreenRegistry } from './interpreters/types';
-import { playwrightStepProgramInterpreter } from './program';
-import { deterministicRuntimeStepAgent, type RuntimeStepAgent } from './agent';
+import type { RuntimeStepAgent } from './agent';
 import { applyProposalDraftsToRuntimeContext } from './agent/proposals';
 import type { RuntimeDomResolver } from '../domain/types';
 import { observeStateRefsOnPage, observeTransitionOnPage } from '../playwright/state-topology';
 import { planExecutionStep } from '../domain/execution-planner';
 import type { AgentInterpreterProvider } from '../domain/types/agent-interpreter';
+import { createScenarioRunState, stepHandshakeFromPlan as stepHandshakeFromPlanInternal } from './scenario/handshake';
+import { runInterpretationStage } from './scenario/interpretation';
+import { selectRouteForNavigate } from './scenario/route-selection';
+import { runRecoveryStage } from './scenario/recovery';
+import { buildBlockedExecutionReceipt, executionDiagnosticsFromError } from './scenario/receipt-finalization';
+import { executeStepProgramStage, resolvedScenarioStep } from './scenario/step-execution';
+import type {
+  ScenarioContextRef,
+  ScenarioRunState,
+  ScenarioStepHandshake,
+  ScenarioStepRunResult,
+} from './scenario/types';
+export type { ScenarioContextRef, ScenarioRunState, ScenarioStepHandshake, ScenarioStepRunResult } from './scenario/types';
 
 export interface RuntimeScenarioEnvironment {
   mode: InterpreterMode;
@@ -58,55 +65,6 @@ export interface RuntimeScenarioEnvironment {
   recoveryPolicy?: RecoveryPolicy | undefined;
 }
 
-export interface ScenarioRunState {
-  previousResolution: ResolutionTarget | null;
-  observedStateSession: ObservedStateSession;
-}
-
-export interface ScenarioStepRunResult {
-  interpretation: ResolutionReceipt;
-  execution: StepExecutionReceipt;
-}
-
-export interface ScenarioStepHandshake {
-  task: GroundedStep;
-  resolutionContext: InterfaceResolutionContext;
-  directive?: unknown;
-}
-
-export function stepHandshakeFromPlan(plan: ScenarioRunPlan, zeroBasedIndex: number): ScenarioStepHandshake {
-  const step = plan.steps[zeroBasedIndex] ?? null;
-  if (!step) {
-    throw new RuntimeError('runtime-missing-run-plan-step', `Missing run plan step ${zeroBasedIndex + 1} for ${plan.adoId}`);
-  }
-  return {
-    task: step,
-    directive: undefined,
-    resolutionContext: plan.resolutionContext,
-  };
-}
-
-export function createScenarioRunState(): ScenarioRunState {
-  return {
-    previousResolution: null,
-    observedStateSession: {
-      currentScreen: null,
-      activeStateRefs: [],
-      lastObservedTransitionRefs: [],
-      activeRouteVariantRefs: [],
-      activeTargetRefs: [],
-      lastSuccessfulLocatorRung: null,
-      recentAssertions: [],
-      causalLinks: [],
-      lineage: [],
-    },
-  };
-}
-
-function executionDiagnosticsFromError(code: string, message: string, context?: Record<string, string>): ExecutionDiagnostic[] {
-  return [{ code, message, context }];
-}
-
 function activeRouteVariantRefs(state: ScenarioRunState, task: GroundedStep): readonly string[] {
   return state.observedStateSession.activeRouteVariantRefs.length > 0
     ? state.observedStateSession.activeRouteVariantRefs
@@ -121,121 +79,6 @@ function relevantStateRefs(task: GroundedStep): readonly StateNodeRef[] {
   ]);
 }
 
-interface RouteSelection {
-  readonly selectedRouteVariantRef: string | null;
-  readonly selectedRouteUrl: string | null;
-  readonly semanticDestination: string | null;
-  readonly fallbackRoutePath: readonly string[];
-  readonly rationale: string | null;
-  readonly preNavigationRequested: boolean;
-}
-
-function normalizeStateRecord(value: Readonly<Record<string, string>> | null | undefined): Readonly<Record<string, string>> {
-  return Object.entries(value ?? {})
-    .map(([key, entry]) => [key.trim().toLowerCase(), entry.trim().toLowerCase()] as const)
-    .filter(([key, entry]) => key.length > 0 && entry.length > 0)
-    .sort((left, right) => left[0].localeCompare(right[0]) || left[1].localeCompare(right[1]))
-    .reduce<Readonly<Record<string, string>>>((acc, [key, entry]) => ({ ...acc, [key]: entry }), {});
-}
-
-function variantStateMatchScore(
-  variant: RouteVariantKnowledge & { state?: Readonly<Record<string, string>> | undefined; tab?: string | null | undefined; hash?: string | null | undefined; query?: Readonly<Record<string, string>> | undefined },
-  requestedState: Readonly<Record<string, string>>,
-): number {
-  const requestedEntries = Object.entries(requestedState);
-  if (requestedEntries.length === 0) {
-    return 0;
-  }
-  const variantState = normalizeStateRecord(variant.state ?? {});
-  const matched = requestedEntries.filter(([key, value]) =>
-    variantState[key] === value
-    || (key === 'tab' && ((variant.tab ?? '').toLowerCase() === value))
-    || (key === 'hash' && ((variant.hash ?? '').replace(/^#/, '').toLowerCase() === value.replace(/^#/, '').toLowerCase()))
-    || ((variant.query ?? {})[key]?.toLowerCase() === value),
-  ).length;
-  return Number((matched / requestedEntries.length).toFixed(3));
-}
-
-function routeVariantsForScreen(
-  context: InterfaceResolutionContext,
-  screen: string,
-): readonly RouteVariantKnowledge[] {
-  const screenEntry = context.screens.find((candidate) => candidate.screen === screen);
-  return (screenEntry?.routeVariants ?? []).map((variant) => ({
-    routeVariantRef: variant.routeVariantRef,
-    screenId: screen,
-    url: variant.url,
-    urlPattern: variant.urlPattern ?? variant.url,
-    dimensions: variant.dimensions ?? [],
-    expectedEntryStateRefs: variant.expectedEntryStateRefs ?? [],
-    historicalSuccess: {
-      successCount: variant.historicalSuccess?.successCount ?? 0,
-      failureCount: variant.historicalSuccess?.failureCount ?? 0,
-      lastSuccessAt: variant.historicalSuccess?.lastSuccessAt ?? null,
-    },
-    state: variant.state ?? {},
-    tab: variant.tab ?? null,
-    hash: variant.hash ?? null,
-    query: variant.query ?? {},
-  }));
-}
-
-function selectRouteForNavigate(input: {
-  context: InterfaceResolutionContext;
-  task: GroundedStep;
-  interpretation: Exclude<ResolutionReceipt, { kind: 'needs-human' }>;
-}): RouteSelection {
-  const requestedRouteState = normalizeStateRecord(input.interpretation.target.routeState ?? null);
-  if (input.interpretation.target.action !== 'navigate' && Object.keys(requestedRouteState).length === 0) {
-    return {
-      selectedRouteVariantRef: null,
-      selectedRouteUrl: null,
-      semanticDestination: null,
-      fallbackRoutePath: [],
-      rationale: null,
-      preNavigationRequested: false,
-    };
-  }
-  const semanticDestination = input.interpretation.target.semanticDestination
-    ?? `${input.task.normalizedIntent} ${input.task.actionText}`.trim();
-  const rankedBase = rankRouteVariants(
-    routeVariantsForScreen(input.context, input.interpretation.target.screen),
-    {
-      screenId: input.interpretation.target.screen,
-      semanticDestination,
-      expectedEntryStateRefs: input.task.grounding.resultStateRefs,
-    },
-  );
-  const ranked = rankedBase
-    .map((entry) => ({
-      ...entry,
-      routeStateScore: variantStateMatchScore(entry.variant, requestedRouteState),
-      score: Number((entry.score + variantStateMatchScore(entry.variant, requestedRouteState) * 8).toFixed(3)),
-    }))
-    .sort((left, right) => right.score - left.score || left.variant.routeVariantRef.localeCompare(right.variant.routeVariantRef));
-  const selected = ranked[0] ?? null;
-  const explicitVariant = ranked.find((entry) => entry.variant.routeVariantRef === input.interpretation.target.routeVariantRef) ?? null;
-  const selectedRouteUrl = chooseByPrecedence(
-    [
-      { rung: 'explicit-url' as const, value: explicitVariant?.variant.url ?? null },
-      { rung: 'runbook-binding' as const, value: null },
-      { rung: 'route-knowledge' as const, value: selected?.variant.url ?? null },
-      { rung: 'screen-default' as const, value: null },
-    ],
-    routeSelectionPrecedenceLaw,
-  );
-  const selectedRouteVariantRef = selectedRouteUrl === explicitVariant?.variant.url
-    ? explicitVariant?.variant.routeVariantRef ?? null
-    : (selected?.variant.routeVariantRef ?? input.interpretation.target.routeVariantRef ?? null);
-  return {
-    selectedRouteVariantRef,
-    selectedRouteUrl,
-    semanticDestination,
-    fallbackRoutePath: ranked.slice(1, 4).map((entry) => entry.variant.routeVariantRef),
-    rationale: selected ? `${selected.rationale}, routeState=${selected.routeStateScore.toFixed(3)}` : null,
-    preNavigationRequested: Object.keys(requestedRouteState).length > 0,
-  };
-}
 
 function inferTransitionObservations(input: {
   task: GroundedStep;
@@ -304,249 +147,48 @@ function mergeObservedStateSession(input: {
   };
 }
 
-function resolvedScenarioStep(task: GroundedStep, target: ResolutionTarget, confidence: ScenarioStep['confidence']): ScenarioStep {
-  return {
-    index: task.index,
-    intent: task.intent,
-    action_text: task.actionText,
-    expected_text: task.expectedText,
-    action: target.action,
-    screen: target.screen,
-    element: target.element ?? null,
-    posture: target.posture ?? null,
-    override: target.override ?? null,
-    snapshot_template: target.snapshot_template ?? null,
-    resolution: target,
-    confidence,
-  };
-}
-
-function wait(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function executeRecoveryAttempts(input: {
-  family: StepExecutionReceipt['failure']['family'];
-  policy: RecoveryPolicy;
-  preconditionFailures: readonly string[];
-  diagnostics: readonly ExecutionDiagnostic[];
-  degraded: boolean;
-}): Promise<{ policyProfile: string; attempts: RecoveryAttempt[]; recovered: boolean }> {
-  const config = recoveryFamilyConfig(input.policy, input.family);
-  if (!config) {
-    return { policyProfile: input.policy.profile, attempts: [], recovered: false };
-  }
-
-  const enabledStrategies = config.strategies.flatMap((entry) => entry.enabled ? [entry] : []);
-  const tryStrategy = async (
-    remainingStrategies: readonly typeof enabledStrategies[number][],
-    priorAttempts: readonly RecoveryAttempt[],
-  ): Promise<{ policyProfile: string; attempts: RecoveryAttempt[]; recovered: boolean }> => {
-    if (remainingStrategies.length === 0) {
-      return { policyProfile: input.policy.profile, attempts: [...priorAttempts], recovered: false };
-    }
-    const [head, ...restStrategies] = remainingStrategies;
-    const strategy = head!;
-    const maxAttempts = Math.max(1, strategy.maxAttempts ?? 1);
-    const tryAttempt = async (
-      attempt: number,
-      accumulated: readonly RecoveryAttempt[],
-    ): Promise<{ policyProfile: string; attempts: RecoveryAttempt[]; recovered: boolean }> => {
-      if (attempt > maxAttempts || accumulated.length >= config.budget.maxAttempts) {
-        return tryStrategy(restStrategies, accumulated);
-      }
-      const started = Date.now();
-      const startedAt = new Date(started).toISOString();
-      const result = recoveryAttemptResult(strategy, input);
-      const durationMs = Math.max(0, Date.now() - started);
-      const updated = [...accumulated, {
-        strategyId: strategy.id,
-        family: input.family as Exclude<StepExecutionReceipt['failure']['family'], 'none'>,
-        attempt,
-        startedAt,
-        durationMs,
-        result,
-        diagnostics: recoveryDiagnostics(strategy, input),
-      }];
-      if (result === 'recovered') {
-        return { policyProfile: input.policy.profile, attempts: updated, recovered: true };
-      }
-      const backoff = strategy.backoffMs ?? config.budget.backoffMs;
-      if (backoff > 0) {
-        await wait(backoff);
-      }
-      return tryAttempt(attempt + 1, updated);
-    };
-    return tryAttempt(1, priorAttempts);
-  };
-  return tryStrategy(enabledStrategies, []);
-}
-
-function recoveryDiagnostics(strategy: RecoveryStrategy, input: {
-  preconditionFailures: readonly string[];
-  diagnostics: readonly ExecutionDiagnostic[];
-  degraded: boolean;
-}): string[] {
-  const base = strategy.diagnostics ?? [];
-  if (strategy.id === 'verify-prerequisites') {
-    return [...base, ...input.preconditionFailures.map((entry) => `precondition:${entry}`)].slice(0, 5);
-  }
-  if (strategy.id === 'force-alternate-locator-rungs' || strategy.id === 'snapshot-guided-reresolution') {
-    return [...base, input.degraded ? 'degraded-locator-observed' : 'no-degraded-locator-observed'];
-  }
-  return [...base, ...input.diagnostics.map((entry) => `${entry.code}:${entry.message}`).slice(0, 3)];
-}
-
-function recoveryAttemptResult(strategy: RecoveryStrategy, input: {
-  preconditionFailures: readonly string[];
-  diagnostics: readonly ExecutionDiagnostic[];
-  degraded: boolean;
-}): RecoveryAttempt['result'] {
-  if (strategy.id === 'verify-prerequisites') {
-    return input.preconditionFailures.length === 0 ? 'recovered' : 'failed';
-  }
-  if (strategy.id === 'execute-prerequisite-actions') {
-    return input.preconditionFailures.length > 0 ? 'recovered' : 'skipped';
-  }
-  if (strategy.id === 'force-alternate-locator-rungs' || strategy.id === 'snapshot-guided-reresolution') {
-    return input.degraded ? 'recovered' : 'skipped';
-  }
-  if (strategy.id === 'bounded-retry-with-backoff') {
-    return input.diagnostics.length > 0 ? 'recovered' : 'skipped';
-  }
-  if (strategy.id === 'refresh-runtime') {
-    return input.diagnostics.length > 0 ? 'recovered' : 'skipped';
-  }
-  return 'failed';
-}
 
 export async function runScenarioStep(
   task: GroundedStep,
   environment: RuntimeScenarioEnvironment,
   state: ScenarioRunState,
-  context?: { adoId: AdoId; artifactPath?: string | undefined; revision?: number | undefined; contentHash?: string | undefined },
+  context?: ScenarioContextRef,
   interfaceResolutionContext?: InterfaceResolutionContext | undefined,
 ): Promise<ScenarioStepRunResult> {
-  const startedAt = Date.now();
-  const runAt = new Date().toISOString();
-  const agent = environment.agent ?? deterministicRuntimeStepAgent;
   if (!interfaceResolutionContext) {
     throw new RuntimeError('runtime-missing-resolution-context', `Missing interface resolution context for step ${task.index}`);
   }
 
-  const agentContext = {
+  const interpretationStage = await runInterpretationStage({
+    task,
+    environment,
+    state,
     resolutionContext: interfaceResolutionContext,
-    domResolver: environment.domResolver,
-    previousResolution: state.previousResolution,
-    observedStateSession: state.observedStateSession,
-    provider: environment.provider,
-    mode: environment.mode,
-    runAt,
-    translate: environment.translator,
-    agentInterpreter: environment.agentInterpreter,
-    controlSelection: environment.controlSelection,
-  };
-  const interpretation = await agent.resolve(task, agentContext);
+  });
+  const { interpretation, runAt, startedAt, agentContext } = interpretationStage;
+
+  // runScenarioStep is the only coordinator allowed to mutate run-local ephemeral refs.
   state.observedStateSession = agentContext.observedStateSession ?? state.observedStateSession;
-  const routeSelection = interpretation.kind === 'needs-human'
-    ? {
-      selectedRouteVariantRef: null,
-      selectedRouteUrl: null,
-      semanticDestination: null,
-      fallbackRoutePath: [] as readonly string[],
-      rationale: null,
-      preNavigationRequested: false,
-    }
-    : selectRouteForNavigate({
-      context: interfaceResolutionContext,
-      task,
-      interpretation,
-    });
 
   if (interpretation.kind === 'needs-human') {
     return {
       interpretation,
-      execution: {
-        version: 1,
-        stage: 'execution',
-        scope: 'step',
-        ids: {
-          adoId: context?.adoId ?? null,
-          suite: null,
-          runId: null,
-          stepIndex: task.index,
-          dataset: environment.controlSelection?.dataset ?? null,
-          runbook: environment.controlSelection?.runbook ?? null,
-          resolutionControl: environment.controlSelection?.resolutionControl ?? null,
-        },
-        fingerprints: {
-          artifact: task.taskFingerprint,
-          knowledge: agentContext.resolutionContext.knowledgeFingerprint,
-          task: task.taskFingerprint,
-          controls: null,
-          content: context?.contentHash ?? null,
-          run: null,
-        },
-        lineage: {
-          sources: [],
-          parents: [task.taskFingerprint],
-          handshakes: ['preparation', 'resolution', 'execution'],
-        },
-        governance: mintBlocked(),
-        stepIndex: task.index,
-        taskFingerprint: task.taskFingerprint,
-        knowledgeFingerprint: agentContext.resolutionContext.knowledgeFingerprint,
+      execution: buildBlockedExecutionReceipt({
+        task,
         runAt,
-        mode: environment.mode,
-        widgetContract: null,
-        locatorStrategy: null,
-        locatorRung: null,
-        degraded: false,
-        preconditionFailures: [],
-        requiredStateRefs: task.grounding.requiredStateRefs,
-        forbiddenStateRefs: task.grounding.forbiddenStateRefs,
-        eventSignatureRefs: task.grounding.eventSignatureRefs,
-        expectedTransitionRefs: task.grounding.expectedTransitionRefs,
-        observedStateRefs: [],
-        transitionObservations: [],
-        durationMs: 0,
-        timing: {
-          ...emptyExecutionTiming(),
-          totalMs: 0,
-        },
-        cost: {
-          instructionCount: 0,
-          diagnosticCount: 1,
-        },
-        budget: evaluateExecutionBudget({
-          timing: {
-            ...emptyExecutionTiming(),
-            totalMs: 0,
-          },
-          cost: {
-            instructionCount: 0,
-            diagnosticCount: 1,
-          },
-          thresholds: environment.executionBudgetThresholds,
-        }),
-        failure: normalizeFailureFamily({
-          status: 'skipped',
-          degraded: false,
-          diagnostics: executionDiagnosticsFromError('needs-human', interpretation.reason),
-        }),
-        recovery: {
-          policyProfile: (environment.recoveryPolicy ?? defaultRecoveryPolicy).profile,
-          attempts: [],
-        },
-        handshakes: ['preparation', 'resolution', 'execution'],
-        execution: {
-          status: 'skipped',
-          observedEffects: [],
-          diagnostics: executionDiagnosticsFromError('needs-human', interpretation.reason),
-        },
-      },
+        context,
+        environment,
+        resolutionContext: interfaceResolutionContext,
+        interpretation,
+      }),
     };
   }
+
+  const routeSelection = selectRouteForNavigate({
+    context: interfaceResolutionContext,
+    task,
+    interpretation,
+  });
 
   const observedRelevantStateRefs = relevantStateRefs(task);
   const activeVariants = activeRouteVariantRefs(state, task);
@@ -664,80 +306,16 @@ export async function runScenarioStep(
   }
 
   state.previousResolution = interpretation.target;
-  const resolvedStep = resolvedScenarioStep(task, interpretation.target, interpretation.confidence);
-  const program = compileStepProgram(resolvedStep);
-  const diagnosticContext = context
-    ? {
-        adoId: context.adoId,
-        stepIndex: task.index,
-        artifactPath: context.artifactPath,
-        provenance: {
-          sourceRevision: context.revision,
-          contentHash: context.contentHash,
-        },
-      }
-    : undefined;
-  // Console sentinel: capture browser console errors/warnings during step execution.
-  const consoleSentinel = environment.mode === 'playwright' && environment.page
-    ? attachConsoleSentinel(environment.page as Page)
-    : null;
-
-  if (
-    environment.mode === 'playwright'
-    && environment.page
-    && interpretation.target.action !== 'navigate'
-    && routeSelection.preNavigationRequested
-    && routeSelection.selectedRouteUrl
-  ) {
-    await environment.page.goto(routeSelection.selectedRouteUrl);
-  }
-
-  const result = environment.mode === 'playwright'
-    ? await playwrightStepProgramInterpreter.run(program, {
-        page: environment.page as Page,
-        screens: (() => {
-          if (interpretation.target.action !== 'navigate' || !routeSelection.selectedRouteUrl) {
-            return environment.screens as never;
-          }
-          const current = environment.screens[interpretation.target.screen];
-          if (!current) {
-            return environment.screens as never;
-          }
-          return {
-            ...environment.screens,
-            [interpretation.target.screen]: {
-              ...current,
-              screen: {
-                ...current.screen,
-                url: routeSelection.selectedRouteUrl,
-              },
-            },
-          } as never;
-        })(),
-        fixtures: environment.fixtures,
-        snapshotLoader: environment.snapshotLoader,
-      }, diagnosticContext)
-    : await runStaticInterpreter(
-        environment.mode,
-        program,
-        interpretation.target.action === 'navigate' && routeSelection.selectedRouteUrl
-          ? {
-            ...environment.screens,
-            [interpretation.target.screen]: {
-              ...environment.screens[interpretation.target.screen]!,
-              screen: {
-                ...environment.screens[interpretation.target.screen]!.screen,
-                url: routeSelection.selectedRouteUrl,
-              },
-            },
-          }
-          : environment.screens,
-        environment.fixtures,
-        diagnosticContext,
-        environment.snapshotLoader,
-      );
-
-  const consoleMessages = consoleSentinel?.detach() ?? [];
+  const { result, consoleMessages } = await executeStepProgramStage({
+    task,
+    environment,
+    interpretation: {
+      target: interpretation.target,
+      confidence: interpretation.confidence,
+    },
+    routeSelection,
+    context,
+  });
 
   const firstOutcome = result.value.outcomes[0];
   const diagnostics = result.ok
@@ -765,9 +343,9 @@ export async function runScenarioStep(
   });
   const recovery = result.ok
     ? { policyProfile: (environment.recoveryPolicy ?? defaultRecoveryPolicy).profile, attempts: [], recovered: false }
-    : await executeRecoveryAttempts({
+    : await runRecoveryStage({
       family: failure.family,
-      policy: environment.recoveryPolicy ?? defaultRecoveryPolicy,
+      policy: environment.recoveryPolicy,
       preconditionFailures,
       diagnostics,
       degraded: Boolean(firstOutcome?.observedEffects.includes('degraded-locator')),
@@ -865,15 +443,15 @@ export async function runScenarioStep(
     transitionObservations,
     navigation: interpretation.target.action === 'navigate'
       ? {
-        selectedRouteVariantRef: routeSelection.selectedRouteVariantRef,
-        selectedRouteUrl: routeSelection.selectedRouteUrl,
-        semanticDestination: routeSelection.semanticDestination,
-        expectedEntryStateRefs: task.grounding.resultStateRefs,
-        observedEntryStateRefs: observedStateRefs,
-        fallbackRoutePath: navigationMismatch ? routeSelection.fallbackRoutePath : [],
-        mismatch: navigationMismatch,
-        rationale: routeSelection.rationale,
-      }
+          selectedRouteVariantRef: routeSelection.selectedRouteVariantRef,
+          selectedRouteUrl: routeSelection.selectedRouteUrl,
+          semanticDestination: routeSelection.semanticDestination,
+          expectedEntryStateRefs: task.grounding.resultStateRefs,
+          observedEntryStateRefs: observedStateRefs,
+          fallbackRoutePath: navigationMismatch ? routeSelection.fallbackRoutePath : [],
+          mismatch: navigationMismatch,
+          rationale: routeSelection.rationale,
+        }
       : undefined,
     durationMs: completedAt - startedAt,
     timing,
@@ -898,17 +476,17 @@ export async function runScenarioStep(
         }
       : recovery.recovered
         ? {
-          status: 'ok',
-          observedEffects: [...(firstOutcome?.observedEffects ?? []), 'recovery-succeeded'],
-          diagnostics: [],
-          ...(consoleMessages.length > 0 ? { consoleMessages } : {}),
-        }
+            status: 'ok',
+            observedEffects: [...(firstOutcome?.observedEffects ?? []), 'recovery-succeeded'],
+            diagnostics: [],
+            ...(consoleMessages.length > 0 ? { consoleMessages } : {}),
+          }
         : {
-          status: 'failed',
-          observedEffects: firstOutcome?.observedEffects ?? [],
-          diagnostics,
-          ...(consoleMessages.length > 0 ? { consoleMessages } : {}),
-        },
+            status: 'failed',
+            observedEffects: firstOutcome?.observedEffects ?? [],
+            diagnostics,
+            ...(consoleMessages.length > 0 ? { consoleMessages } : {}),
+          },
   };
 
   return {
@@ -921,7 +499,13 @@ export async function runScenarioHandshake(
   handshake: ScenarioStepHandshake,
   environment: RuntimeScenarioEnvironment,
   state: ScenarioRunState,
-  context?: { adoId: AdoId; artifactPath?: string | undefined; revision?: number | undefined; contentHash?: string | undefined },
+  context?: ScenarioContextRef,
 ): Promise<ScenarioStepRunResult> {
   return runScenarioStep(handshake.task, environment, state, context, handshake.resolutionContext);
 }
+
+export function stepHandshakeFromPlan(plan: ScenarioRunPlan, zeroBasedIndex: number): ScenarioStepHandshake {
+  return stepHandshakeFromPlanInternal({ plan, zeroBasedIndex });
+}
+
+export { createScenarioRunState };
