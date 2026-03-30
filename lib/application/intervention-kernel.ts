@@ -1,5 +1,7 @@
 import { Effect } from 'effect';
 import { TesseractError } from '../domain/errors';
+import { foldGovernance } from '../domain/types/workflow';
+import type { Approved } from '../domain/types/workflow';
 import type {
   InterventionCommandAction,
   InterventionCommandBatch,
@@ -11,7 +13,7 @@ import type { ProjectPaths } from './paths';
 import { FileSystem } from './ports';
 
 interface ActionExecutionContext {
-  readonly action: InterventionCommandAction;
+  readonly action: Approved<InterventionCommandAction>;
   readonly paths: ProjectPaths;
   readonly dependencyReceipts: readonly InterventionReceipt[];
 }
@@ -40,6 +42,19 @@ export interface InterventionKernelRunInput {
   readonly participantRefs?: readonly InterventionReceipt['participantRefs'][number][] | undefined;
   readonly resumeFrom?: ReadonlyMap<string, InterventionReceipt> | undefined;
   readonly now?: () => string;
+}
+
+export function executeApprovedInterventionAction(input: {
+  readonly kernel: InterventionKernel;
+  readonly action: Approved<InterventionCommandAction>;
+  readonly paths: ProjectPaths;
+  readonly dependencyReceipts: readonly InterventionReceipt[];
+}) {
+  return input.kernel.executeAction({
+    action: input.action,
+    paths: input.paths,
+    dependencyReceipts: input.dependencyReceipts,
+  });
 }
 
 const DEFAULT_NOW = (): string => new Date().toISOString();
@@ -80,16 +95,6 @@ function actionKindToInterventionKind(action: InterventionCommandAction): Interv
     case 'suppress-hotspot':
       return 'operator-action';
   }
-}
-
-function validateGovernance(action: InterventionCommandAction): TesseractError | null {
-  if (action.governance === 'blocked') {
-    return new TesseractError('intervention-blocked', `Action ${action.actionId} is blocked by governance.`);
-  }
-  if (action.governance === 'review-required') {
-    return new TesseractError('intervention-review-required', `Action ${action.actionId} requires operator review.`);
-  }
-  return null;
 }
 
 function topologicalOrder(actions: readonly InterventionCommandAction[]): readonly string[] {
@@ -184,75 +189,97 @@ export function executeInterventionBatch(input: InterventionKernelRunInput) {
         return step(rest, [...receipts, resumedReceipt], [...resumed, action.actionId]);
       }
 
-      const governanceError = validateGovernance(action);
-      if (governanceError) {
-        const blocked = receiptForBlocked(action, now(), governanceError.message);
-        if (!input.batch.continueOnFailure) {
-          return Effect.succeed({ receipts: [...receipts, blocked], resumed });
-        }
-        return step(rest, [...receipts, blocked], resumed);
-      }
+      return foldGovernance(action, {
+        approved: (approvedAction) => {
+          const dependencyReceipts = receipts.filter((receipt) =>
+            approvedAction.prerequisites.some((dep) => dep.actionId === receipt.interventionId));
+          const requiredDepsCompleted = approvedAction.prerequisites
+            .filter((dep) => dep.required)
+            .every((dep) => dependencyReceipts.some((receipt) => receipt.interventionId === dep.actionId && receipt.status === 'completed'));
 
-      const dependencyReceipts = receipts.filter((receipt) =>
-        action.prerequisites.some((dep) => dep.actionId === receipt.interventionId));
-      const requiredDepsCompleted = action.prerequisites
-        .filter((dep) => dep.required)
-        .every((dep) => dependencyReceipts.some((receipt) => receipt.interventionId === dep.actionId && receipt.status === 'completed'));
+          if (!requiredDepsCompleted) {
+            const blocked = receiptForBlocked(approvedAction, now(), 'Required prerequisite did not complete successfully.');
+            if (!input.batch.continueOnFailure) {
+              return Effect.succeed({ receipts: [...receipts, blocked], resumed });
+            }
+            return step(rest, [...receipts, blocked], resumed);
+          }
 
-      if (!requiredDepsCompleted) {
-        const blocked = receiptForBlocked(action, now(), 'Required prerequisite did not complete successfully.');
-        if (!input.batch.continueOnFailure) {
-          return Effect.succeed({ receipts: [...receipts, blocked], resumed });
-        }
-        return step(rest, [...receipts, blocked], resumed);
-      }
-
-      const startedAt = now();
-      return input.kernel.executeAction({ action, paths: input.paths, dependencyReceipts }).pipe(
-        Effect.map((result): InterventionReceipt => ({
-          interventionId: action.actionId,
-          kind: actionKindToInterventionKind(action),
-          status: 'completed',
-          summary: result.summary ?? action.summary,
-          participantRefs: input.participantRefs ?? [],
-          target: action.target,
-          effects: result.effects ?? [{
-            kind: 'no-op',
-            severity: 'info',
-            summary: 'No explicit effects recorded by action handler.',
-            target: action.target,
-            payload: {},
-          }],
-          startedAt,
-          completedAt: now(),
-          payload: {
-            ...action.payload,
-            ...(result.payload ?? {}),
-            reversible: action.reversible,
-          },
-        })),
-        Effect.catchAll((error) => {
-          const normalizedError = error instanceof TesseractError
-            ? error
-            : new TesseractError('intervention-action-failed', String(error));
-          const failedReceipt: InterventionReceipt = {
-            interventionId: action.actionId,
-            kind: actionKindToInterventionKind(action),
-            status: 'blocked',
-            summary: `${action.summary} (failed)`,
-            participantRefs: input.participantRefs ?? [],
-            target: action.target,
-            effects: [{ kind: 'signal-emitted', severity: 'error', summary: normalizedError.message, target: action.target, payload: { error: normalizedError.code } }],
-            startedAt,
-            completedAt: now(),
-            payload: { ...action.payload, error: normalizedError.code, reversible: action.reversible },
-          };
-          return input.batch.continueOnFailure
-            ? Effect.succeed(failedReceipt)
-            : Effect.fail(normalizedError);
-        }),
-        Effect.flatMap((receipt) => step(rest, [...receipts, receipt], resumed)),
-      );
+          const startedAt = now();
+          return executeApprovedInterventionAction({
+            kernel: input.kernel,
+            action: approvedAction,
+            paths: input.paths,
+            dependencyReceipts,
+          }).pipe(
+            Effect.map((result): InterventionReceipt => ({
+              interventionId: approvedAction.actionId,
+              kind: actionKindToInterventionKind(approvedAction),
+              status: 'completed',
+              summary: result.summary ?? approvedAction.summary,
+              participantRefs: input.participantRefs ?? [],
+              target: approvedAction.target,
+              effects: result.effects ?? [{
+                kind: 'no-op',
+                severity: 'info',
+                summary: 'No explicit effects recorded by action handler.',
+                target: approvedAction.target,
+                payload: {},
+              }],
+              startedAt,
+              completedAt: now(),
+              payload: {
+                ...approvedAction.payload,
+                ...(result.payload ?? {}),
+                reversible: approvedAction.reversible,
+              },
+            })),
+            Effect.catchAll((error) => {
+              const normalizedError = error instanceof TesseractError
+                ? error
+                : new TesseractError('intervention-action-failed', String(error));
+              const failedReceipt: InterventionReceipt = {
+                interventionId: approvedAction.actionId,
+                kind: actionKindToInterventionKind(approvedAction),
+                status: 'blocked',
+                summary: `${approvedAction.summary} (failed)`,
+                participantRefs: input.participantRefs ?? [],
+                target: approvedAction.target,
+                effects: [{ kind: 'signal-emitted', severity: 'error', summary: normalizedError.message, target: approvedAction.target, payload: { error: normalizedError.code } }],
+                startedAt,
+                completedAt: now(),
+                payload: { ...approvedAction.payload, error: normalizedError.code, reversible: approvedAction.reversible },
+              };
+              return input.batch.continueOnFailure
+                ? Effect.succeed(failedReceipt)
+                : Effect.fail(normalizedError);
+            }),
+            Effect.flatMap((receipt) => step(rest, [...receipts, receipt], resumed)),
+          );
+        },
+        reviewRequired: (reviewRequiredAction) => {
+          const blocked = receiptForBlocked(
+            reviewRequiredAction,
+            now(),
+            `Action ${reviewRequiredAction.actionId} requires operator review.`,
+          );
+          if (!input.batch.continueOnFailure) {
+            return Effect.succeed({ receipts: [...receipts, blocked], resumed });
+          }
+          return step(rest, [...receipts, blocked], resumed);
+        },
+        blocked: (blockedAction) => {
+          const blocked = receiptForBlocked(
+            blockedAction,
+            now(),
+            `Action ${blockedAction.actionId} is blocked by governance.`,
+          );
+          if (!input.batch.continueOnFailure) {
+            return Effect.succeed({ receipts: [...receipts, blocked], resumed });
+          }
+          return step(rest, [...receipts, blocked], resumed);
+        },
+      });
     };
 
     const state = yield* step(order, [], []);
