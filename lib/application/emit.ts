@@ -126,9 +126,9 @@ function createScenarioProjectionInput(input: {
   };
 }
 
-function renderEmitArtifacts(
+function renderExecutableEmitArtifacts(
   paths: ProjectPaths,
-  boundScenario: Approved<BoundScenario> | ReviewRequired<BoundScenario>,
+  boundScenario: BoundScenario,
   surface: ScenarioInterpretationSurface,
   latestRun: RunRecord | null,
   proposalBundle: ProposalBundle | null,
@@ -211,6 +211,66 @@ function renderEmitArtifacts(
   };
 }
 
+function renderApprovedEmitArtifacts(
+  paths: ProjectPaths,
+  boundScenario: Approved<BoundScenario>,
+  surface: ScenarioInterpretationSurface,
+  latestRun: RunRecord | null,
+  proposalBundle: ProposalBundle | null,
+  inboxItems: ReturnType<typeof operatorInboxItemsForScenario>,
+  projectionInput: ScenarioProjectionInput,
+) {
+  return renderExecutableEmitArtifacts(
+    paths,
+    boundScenario,
+    surface,
+    latestRun,
+    proposalBundle,
+    inboxItems,
+    projectionInput,
+  );
+}
+
+export function emitApprovedScenarioArtifacts(input: {
+  readonly paths: ProjectPaths;
+  readonly boundScenario: Approved<BoundScenario>;
+  readonly surface: ScenarioInterpretationSurface;
+  readonly latestRun: RunRecord | null;
+  readonly proposalBundle: ProposalBundle | null;
+  readonly inboxItems: ReturnType<typeof operatorInboxItemsForScenario>;
+  readonly projectionInput: ScenarioProjectionInput;
+}) {
+  return renderApprovedEmitArtifacts(
+    input.paths,
+    input.boundScenario,
+    input.surface,
+    input.latestRun,
+    input.proposalBundle,
+    input.inboxItems,
+    input.projectionInput,
+  );
+}
+
+function renderReviewRequiredEmitArtifacts(
+  paths: ProjectPaths,
+  boundScenario: ReviewRequired<BoundScenario>,
+  surface: ScenarioInterpretationSurface,
+  latestRun: RunRecord | null,
+  proposalBundle: ProposalBundle | null,
+  inboxItems: ReturnType<typeof operatorInboxItemsForScenario>,
+  projectionInput: ScenarioProjectionInput,
+) {
+  return renderExecutableEmitArtifacts(
+    paths,
+    boundScenario,
+    surface,
+    latestRun,
+    proposalBundle,
+    inboxItems,
+    projectionInput,
+  );
+}
+
 /**
  * Blocked scenarios emit test.skip() — governance blocks execution.
  * Produces the same artifact shape but forces lifecycle to 'skip'.
@@ -289,7 +349,7 @@ function renderBlockedEmitArtifacts(
   };
 }
 
-type EmitArtifacts = ReturnType<typeof renderEmitArtifacts> | ReturnType<typeof renderBlockedEmitArtifacts>;
+type EmitArtifacts = ReturnType<typeof renderApprovedEmitArtifacts> | ReturnType<typeof renderReviewRequiredEmitArtifacts> | ReturnType<typeof renderBlockedEmitArtifacts>;
 
 function emitOutputFingerprint(artifacts: EmitArtifacts): string {
   return fingerprintProjectionOutput({
@@ -380,11 +440,11 @@ export function emitScenario(
     // Governance gate: classify the bound scenario using phantom brands.
     // Approved/ReviewRequired emit normally; Blocked forces test.skip().
     const artifacts: EmitArtifacts = foldGovernance(source.boundScenario, {
-      approved: (approved) => renderEmitArtifacts(
+      approved: (approved) => renderApprovedEmitArtifacts(
         options.paths, approved, surfaceEntry.artifact,
         latestRun, proposalBundle, inboxItems, projectionInput,
       ),
-      reviewRequired: (reviewRequired) => renderEmitArtifacts(
+      reviewRequired: (reviewRequired) => renderReviewRequiredEmitArtifacts(
         options.paths, reviewRequired, surfaceEntry.artifact,
         latestRun, proposalBundle, inboxItems, projectionInput,
       ),
