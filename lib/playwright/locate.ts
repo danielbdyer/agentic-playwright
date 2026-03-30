@@ -47,23 +47,12 @@ function locatorForStrategy(page: Page, strategy: LocatorStrategy): Locator {
 }
 
 async function strategyMatches(locator: Locator): Promise<boolean> {
-  const probe = locator as unknown as {
-    count?: () => Promise<number>;
-    isVisible?: () => Promise<boolean>;
-  };
-
-  if (typeof probe.count === 'function') {
-    const count = await probe.count().catch(() => 0);
-    if (count > 0) {
-      return true;
-    }
+  const count = await locator.count().catch(() => 0);
+  if (count > 0) {
+    return true;
   }
 
-  if (typeof probe.isVisible === 'function') {
-    return probe.isVisible().catch(() => false);
-  }
-
-  return false;
+  return locator.isVisible().catch(() => false);
 }
 
 export function locate(page: Page, element: ElementSig): Locator {
