@@ -10,6 +10,7 @@ import {
   commandNames,
   flagReaders,
 } from './shared';
+import { withExecutionContext } from '../context/execution-context';
 
 // Re-export public API so existing consumers are unaffected
 export { commandNames } from './shared';
@@ -48,6 +49,16 @@ function isCommandName(value: string): value is CommandName {
   return (commandNames as readonly string[]).includes(value);
 }
 
+
+function deriveCliExecutionContext(command: CommandName, flags: ParsedFlags) {
+  return {
+    adoId: flags.adoId,
+    runId: flags.runbook,
+    workItemId: flags.proposalId,
+    stage: `cli:${command}`,
+  } as const;
+}
+
 export function parseCliInvocation(argv: string[]): CommandExecution {
   const [rawCommand = 'help', ...tokens] = argv;
   if (!isCommandName(rawCommand)) {
@@ -56,8 +67,14 @@ export function parseCliInvocation(argv: string[]): CommandExecution {
 
   const spec = commandRegistry[rawCommand];
   const flags = parseTokensRec(tokens, 0, {}, spec, rawCommand);
+  const parsedExecution = spec.parse({ flags });
 
-  return spec.parse({ flags });
+  return {
+    ...parsedExecution,
+    execute: (paths, posture) => withExecutionContext(deriveCliExecutionContext(rawCommand, flags))(
+      parsedExecution.execute(paths, posture),
+    ),
+  };
 }
 
 export function resolveExecutionPosture(input: CommandExecution['postureInput']): ExecutionPosture {

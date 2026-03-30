@@ -1,4 +1,5 @@
 import { Effect } from 'effect';
+import { enrichEventDataWithExecutionContext, withExecutionContext } from '../context/execution-context';
 import { StageTracer } from '../ports';
 
 export interface PipelineStage<StageDependencies, StageComputed, StagePersisted, StageError, StageRequirements> {
@@ -33,11 +34,14 @@ export function runPipelineStage<
 >(
   stage: PipelineStage<StageDependencies, StageComputed, StagePersisted, StageError, StageRequirements>,
 ): Effect.Effect<PipelineStageRunResult<StageDependencies, StageComputed, StagePersisted>, StageError, StageRequirements | StageTracer> {
-  return Effect.gen(function* () {
+  return withExecutionContext({ stage: stage.name })(Effect.gen(function* () {
     const stageStart = Date.now();
     const stageTracer = yield* StageTracer;
 
-    yield* stageTracer.emitStageStart({ stage: stage.name, phase: 'start' });
+    yield* Effect.flatMap(
+      enrichEventDataWithExecutionContext({ stage: stage.name, phase: 'start' }),
+      (data) => stageTracer.emitStageStart(data),
+    );
 
     const dependencies = stage.loadDependencies
       ? yield* stage.loadDependencies()
@@ -47,12 +51,15 @@ export function runPipelineStage<
       ? yield* stage.persist(dependencies, computed)
       : null;
 
-    yield* stageTracer.emitStageComplete({
-      stage: stage.name,
-      phase: 'complete',
-      durationMs: Date.now() - stageStart,
-      rewrittenFiles: persisted?.rewritten,
-    });
+    yield* Effect.flatMap(
+      enrichEventDataWithExecutionContext({
+        stage: stage.name,
+        phase: 'complete',
+        durationMs: Date.now() - stageStart,
+        rewrittenFiles: persisted?.rewritten,
+      }),
+      (data) => stageTracer.emitStageComplete(data),
+    );
 
     return {
       dependencies,
@@ -64,5 +71,5 @@ export function runPipelineStage<
         output: stage.fingerprintOutput?.(dependencies, computed) ?? null,
       },
     };
-  });
+  }));
 }

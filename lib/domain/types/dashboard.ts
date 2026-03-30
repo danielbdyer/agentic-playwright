@@ -253,6 +253,9 @@ export interface StageLifecycleEvent {
   readonly phase: 'start' | 'complete';
   readonly durationMs?: number | undefined;
   readonly adoId?: string | undefined;
+  readonly runId?: string | undefined;
+  readonly iteration?: number | undefined;
+  readonly workItemId?: string | undefined;
   readonly cacheStatus?: 'hit' | 'miss' | undefined;
   readonly rewrittenFiles?: readonly string[] | undefined;
 }
