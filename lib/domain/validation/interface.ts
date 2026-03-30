@@ -12,6 +12,8 @@ import {
   createSurfaceId,
   createTransitionRef,
 } from '../identity';
+import * as schemaDecode from '../schemas/decode';
+import * as schemas from '../schemas';
 import type {
   ApplicationInterfaceGraph,
   DiscoveryIndex,
@@ -393,26 +395,5 @@ export function validateDiscoveryIndex(value: unknown): DiscoveryIndex {
 }
 
 export function validateStateTransitionGraph(value: unknown): StateTransitionGraph {
-  const graph = expectRecord(value, 'stateTransitionGraph');
-  return {
-    kind: expectEnum(graph.kind, 'stateTransitionGraph.kind', ['state-transition-graph'] as const),
-    version: expectNumber(graph.version, 'stateTransitionGraph.version') as 1,
-    generatedAt: expectString(graph.generatedAt, 'stateTransitionGraph.generatedAt'),
-    fingerprint: expectString(graph.fingerprint, 'stateTransitionGraph.fingerprint'),
-    stateRefs: expectArray(graph.stateRefs ?? [], 'stateTransitionGraph.stateRefs').map((entry, index) =>
-      expectId(entry, `stateTransitionGraph.stateRefs[${index}]`, createStateNodeRef),
-    ),
-    eventSignatureRefs: expectArray(graph.eventSignatureRefs ?? [], 'stateTransitionGraph.eventSignatureRefs').map((entry, index) =>
-      expectId(entry, `stateTransitionGraph.eventSignatureRefs[${index}]`, createEventSignatureRef),
-    ),
-    transitionRefs: expectArray(graph.transitionRefs ?? [], 'stateTransitionGraph.transitionRefs').map((entry, index) =>
-      expectId(entry, `stateTransitionGraph.transitionRefs[${index}]`, createTransitionRef),
-    ),
-    states: expectArray(graph.states ?? [], 'stateTransitionGraph.states').map((entry, index) => expectRecord(entry, `stateTransitionGraph.states[${index}]`) as any),
-    eventSignatures: expectArray(graph.eventSignatures ?? [], 'stateTransitionGraph.eventSignatures').map((entry, index) => expectRecord(entry, `stateTransitionGraph.eventSignatures[${index}]`) as any),
-    transitions: expectArray(graph.transitions ?? [], 'stateTransitionGraph.transitions').map((entry, index) => expectRecord(entry, `stateTransitionGraph.transitions[${index}]`) as any),
-    observations: expectArray(graph.observations ?? [], 'stateTransitionGraph.observations').map((entry, index) =>
-      validateTransitionObservation(entry, `stateTransitionGraph.observations[${index}]`),
-    ),
-  };
+  return schemaDecode.decoderFor<StateTransitionGraph>(schemas.StateTransitionGraphSchema)(value);
 }

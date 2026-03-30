@@ -296,14 +296,10 @@ function validateConfidence(value: unknown, path: string): Confidence {
 }
 
 function validateStepResolution(value: unknown, path: string): StepResolution {
-  const resolution = expectRecord(value, path);
+  const decoded = schemaDecode.decoderFor<StepResolution>(schemas.StepResolutionSchema)(value);
   return {
-    action: resolution.action === undefined ? undefined : validateAction(resolution.action, `${path}.action`),
-    screen: expectOptionalId(resolution.screen, `${path}.screen`, createScreenId) ?? null,
-    element: expectOptionalId(resolution.element, `${path}.element`, createElementId) ?? null,
-    posture: expectOptionalId(resolution.posture, `${path}.posture`, createPostureId) ?? null,
-    override: expectOptionalString(resolution.override, `${path}.override`) ?? null,
-    snapshot_template: expectOptionalId(resolution.snapshot_template, `${path}.snapshot_template`, createSnapshotTemplateId) ?? null,
+    ...decoded,
+    action: decoded.action ?? undefined,
   };
 }
 

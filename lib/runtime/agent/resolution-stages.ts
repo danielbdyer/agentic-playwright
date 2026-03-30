@@ -31,10 +31,14 @@ import {
 } from './candidate-lattice';
 import { createPlaywrightDomResolver } from '../adapters/playwright-dom-resolver';
 import { isRung8Applicable, attemptRung8Resolution } from './rung8-llm-dom';
-import type { Page } from '@playwright/test';
 
 /** Maximum characters for the DOM snapshot passed to the agent interpreter. */
 const DOM_SNAPSHOT_MAX_CHARS = 2048;
+type PlaywrightPageLike = Parameters<typeof createPlaywrightDomResolver>[0];
+
+function isPlaywrightPageLike(page: unknown): page is PlaywrightPageLike {
+  return typeof page === 'object' && page !== null && 'accessibility' in page && 'locator' in page;
+}
 
 /**
  * Capture a truncated ARIA/accessibility snapshot from a live Playwright page.
@@ -45,10 +49,9 @@ export async function captureTruncatedAriaSnapshot(
   page: unknown,
   maxChars: number = DOM_SNAPSHOT_MAX_CHARS,
 ): Promise<string | null> {
-  if (!page) return null;
+  if (!isPlaywrightPageLike(page)) return null;
   try {
-    const p = page as Page;
-    const snapshot = await p.accessibility.snapshot({ interestingOnly: true });
+    const snapshot = await page.accessibility.snapshot({ interestingOnly: true });
     if (!snapshot) return null;
     const text = JSON.stringify(snapshot, null, 2);
     if (text.length <= maxChars) return text;
@@ -411,8 +414,8 @@ export async function tryTranslationResolution(stage: RuntimeAgentStageContext, 
 export async function tryLiveDomOrFallback(stage: RuntimeAgentStageContext, acc: ResolutionAccumulator, proposalConfidence?: ProposalConfidenceValues): Promise<StageResult<ResolutionReceipt>> {
   const domScreen = acc.translated.screen ?? acc.overlayResult.screen ?? acc.screen;
   const domResolver = stage.context.domResolver
-    ?? (stage.context.page
-      ? createPlaywrightDomResolver(stage.context.page as any)
+    ?? (isPlaywrightPageLike(stage.context.page)
+      ? createPlaywrightDomResolver(stage.context.page)
       : undefined);
   const domPolicy = selectedDomExplorationPolicy(stage.task, stage.context);
   const domResolved = await resolveFromDom(domResolver, stage.task, domScreen, acc.action, domPolicy);

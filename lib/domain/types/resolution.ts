@@ -300,6 +300,7 @@ export interface RuntimeDomCandidate {
     readonly widgetCompatibilityScore: number;
     readonly locatorRung: number;
     readonly locatorStrategy: string;
+    readonly ariaLabel?: string | null | undefined;
   };
 }
 

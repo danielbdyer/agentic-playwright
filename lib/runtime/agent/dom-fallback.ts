@@ -15,6 +15,12 @@ import { DEFAULT_PIPELINE_CONFIG } from '../../domain/types';
 import type { RuntimeDomResolver } from '../../domain/types';
 import { createPlaywrightDomResolver } from '../adapters/playwright-dom-resolver';
 
+type PlaywrightPageLike = Parameters<typeof createPlaywrightDomResolver>[0];
+
+function isPlaywrightPageLike(value: unknown): value is PlaywrightPageLike {
+  return typeof value === 'object' && value !== null && 'locator' in value && typeof (value as { locator?: unknown }).locator === 'function';
+}
+
 export interface DomResolutionCandidate {
   element: StepTaskElementCandidate;
   score: number;
@@ -25,6 +31,7 @@ export interface DomResolutionCandidate {
     widgetCompatibilityScore: number;
     locatorRung: number;
     locatorStrategy: string;
+    ariaLabel?: string | null | undefined;
   };
 }
 
@@ -127,8 +134,8 @@ export async function resolveFromDom(
   const effectivePolicy = policy ?? DEFAULT_DOM_POLICY;
   const effectiveResolver = typeof (domResolver as { resolve?: unknown } | undefined)?.resolve === 'function'
     ? domResolver as RuntimeDomResolver
-    : domResolver
-      ? createPlaywrightDomResolver(domResolver as any)
+    : isPlaywrightPageLike(domResolver)
+      ? createPlaywrightDomResolver(domResolver)
       : undefined;
   if (!effectiveResolver || !screen || !action) {
     return { candidates: [], topCandidate: null, probes: 0, policy: effectivePolicy };
@@ -152,7 +159,7 @@ export async function resolveFromDom(
       if (compatibilityScore(action, candidate.element) <= 0) return [];
       const computedRoleNameScore = roleNameScore(task, candidate.element);
       // Boost score if ARIA label matches intent (semantic signal from the DOM)
-      const ariaLabel = (candidate.evidence as { ariaLabel?: string | null }).ariaLabel;
+      const ariaLabel = candidate.evidence.ariaLabel;
       const ariaBoost = ariaLabel && ariaLabel.length > 0
         ? (task.actionText.toLowerCase().includes(ariaLabel.toLowerCase())
           || task.expectedText.toLowerCase().includes(ariaLabel.toLowerCase())
