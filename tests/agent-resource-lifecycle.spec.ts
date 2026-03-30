@@ -12,20 +12,23 @@ import type { McpToolDefinition } from '../lib/domain/types';
 test.describe('agent resource lifecycle stress tests', () => {
   test('timeout wrapper returns deterministic fallback across repeated retries', async () => {
     const callCount = { value: 0 };
-    const wrapped = withAgentTimeout(async () => {
+    const wrapped = withAgentTimeout(() => Effect.gen(function* () {
       callCount.value += 1;
-      await new Promise<void>((resolve) => setTimeout(resolve, 40));
-      return {
+      yield* Effect.sleep(Duration.millis(40));
+      return yield* Effect.succeed({
         interpreted: true,
         target: null,
         confidence: 1,
         rationale: 'unexpected completion',
         proposalDrafts: [],
         provider: 'test-provider',
-      };
-    }, { budgetMs: 5, provider: 'stress-timeout' });
+      });
+    }), { budgetMs: 5, provider: 'stress-timeout' });
 
-    const results = await Promise.all(Array.from({ length: 25 }, () => wrapped({} as never)));
+    const results = await Effect.runPromise(Effect.all(
+      Array.from({ length: 25 }, () => wrapped({} as never)),
+      { concurrency: 'unbounded' },
+    ));
     expect(callCount.value).toBe(25);
     expect(results.every((entry) =>
       entry.interpreted === false
@@ -70,7 +73,16 @@ test.describe('agent resource lifecycle stress tests', () => {
     await Effect.runPromise(Effect.all(
       Array.from({ length: 20 }, () => Effect.scoped(Effect.gen(function* () {
         const provider = yield* createScopedSessionProvider(deps);
-        const response = yield* Effect.promise(() => provider.interpret({} as never));
+        const response = yield* provider.interpret({} as never).pipe(
+          Effect.catchTag('translator-error', () => Effect.succeed({
+            interpreted: false,
+            target: null,
+            confidence: 0,
+            rationale: 'translator-error',
+            proposalDrafts: [],
+            provider: 'session-agent',
+          })),
+        );
         expect(response.provider === 'session-agent' || response.provider === 'session-stub').toBe(true);
       }))),
       { concurrency: 'unbounded' },

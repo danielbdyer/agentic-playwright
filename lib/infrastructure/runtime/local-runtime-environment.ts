@@ -1,8 +1,8 @@
 import type { RuntimeScenarioMode } from '../../application/ports';
-import type { AgentInterpreterProvider } from '../../application/agent-interpreter-provider';
 import type { ScreenId } from '../../domain/identity';
 import type { ScreenRegistry, SnapshotTemplateLoader } from '../../domain/runtime-loaders';
 import type { ExecutionPosture, RuntimeDomResolver, TranslationRequest, TranslationReceipt } from '../../domain/types';
+import type { AgentInterpreterProvider } from '../../domain/types/agent-interpreter';
 import type { RecoveryPolicy } from '../../domain/execution/recovery-policy';
 import { createLocalScreenRegistryLoader } from '../screen-registry/local-screen-registry-loader';
 import { createLocalSnapshotTemplateLoader } from '../snapshots/local-snapshot-template-loader';

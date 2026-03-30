@@ -4,12 +4,26 @@ import type { RuntimeScenarioRunnerPort } from '../application/ports';
 import { createProjectPaths } from '../application/paths';
 import { readTranslationCache, translationCacheKey, writeTranslationCache } from '../application/translation-cache';
 import { translateIntentToOntology } from '../application/translate';
-import type { TranslationProvider } from '../application/translation-provider';
+import type { TranslationProvider, TranslationProviderError } from '../application/translation-provider';
 import { resolveAgentInterpreterProvider, type AgentInterpreterProvider } from '../application/agent-interpreter-provider';
 import type { TranslationReceipt, TranslationRequest } from '../domain/types';
+import type { AgentInterpreterProvider as RuntimeAgentInterpreterProvider } from '../domain/types/agent-interpreter';
 import { LocalFileSystem } from '../infrastructure/fs/local-fs';
 import { createLocalRuntimeEnvironment } from '../infrastructure/runtime/local-runtime-environment';
 import { createScenarioRunState, runScenarioStep } from '../runtime/scenario';
+
+function translationErrorFallback(error: TranslationProviderError): TranslationReceipt {
+  return {
+    kind: 'translation-receipt',
+    version: 1,
+    mode: 'structured-translation',
+    matched: false,
+    selected: null,
+    candidates: [],
+    rationale: error.message,
+    failureClass: error._tag === 'provider-unavailable' ? 'runtime-disabled' : 'translator-error',
+  };
+}
 
 function buildCachedTranslator(
   paths: ReturnType<typeof createProjectPaths>,
@@ -29,7 +43,12 @@ function buildCachedTranslator(
       }
     }
 
-    const translated = yield* Effect.promise(() => provider.translate(request));
+    const translated = yield* provider.translate(request).pipe(
+      Effect.catchTags({
+        'provider-unavailable': (error) => Effect.succeed(translationErrorFallback(error)),
+        'translator-error': (error) => Effect.succeed(translationErrorFallback(error)),
+      }),
+    );
     const computed = {
       ...translated,
       translationProvider: provider.id,
@@ -97,7 +116,12 @@ function buildRunnerWithInterpreter(interpreterOverride?: AgentInterpreterProvid
             ? buildCachedTranslator(paths, cacheDisabled, externalProvider)
             : buildDefaultTranslator(paths, cacheDisabled);
 
-        const agentInterpreter = interpreterOverride ?? resolveAgentInterpreterProvider();
+        const agentInterpreterProvider = interpreterOverride ?? resolveAgentInterpreterProvider();
+        const agentInterpreter: RuntimeAgentInterpreterProvider = {
+          id: agentInterpreterProvider.id,
+          kind: agentInterpreterProvider.kind,
+          interpret: (request) => Effect.runPromise(agentInterpreterProvider.interpret(request)),
+        };
 
       const runtimeEnvironment = createLocalRuntimeEnvironment({
         rootDir: input.rootDir,

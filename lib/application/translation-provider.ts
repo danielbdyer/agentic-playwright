@@ -14,6 +14,7 @@
  * and never touch this code. Rung 6 (live-dom) is a separate concern.
  */
 
+import { Effect } from 'effect';
 import { translateIntentToOntology } from './translate';
 import type { TranslationReceipt, TranslationRequest, ExecutionProfile } from '../domain/types';
 import type { ElementId, ScreenId } from '../domain/identity';
@@ -22,10 +23,14 @@ import type { ElementId, ScreenId } from '../domain/identity';
 
 export type TranslationProviderKind = 'deterministic' | 'llm-api' | 'copilot';
 
+export type TranslationProviderError =
+  | { readonly _tag: 'translator-error'; readonly message: string; readonly cause?: unknown }
+  | { readonly _tag: 'provider-unavailable'; readonly message: string };
+
 export interface TranslationProvider {
   readonly id: string;
   readonly kind: TranslationProviderKind;
-  readonly translate: (request: TranslationRequest) => Promise<TranslationReceipt>;
+  readonly translate: (request: TranslationRequest) => Effect.Effect<TranslationReceipt, TranslationProviderError, never>;
 }
 
 // ─── Translation Configuration ───
@@ -60,7 +65,7 @@ function createDeterministicProvider(): TranslationProvider {
   return {
     id: 'deterministic-token-overlap',
     kind: 'deterministic',
-    translate: (request) => Promise.resolve(translateIntentToOntology(request)),
+    translate: (request) => Effect.succeed(translateIntentToOntology(request)),
   };
 }
 
@@ -199,28 +204,19 @@ function createLlmApiProvider(
   return {
     id: `llm-api-${config.model}`,
     kind: 'llm-api',
-    translate: async (request) => {
-      try {
-        const raw = await deps.createChatCompletion({
+    translate: (request) => Effect.tryPromise({
+      try: () => deps.createChatCompletion({
           model: config.model,
           maxTokens: config.budget.maxTokensPerStep,
           systemPrompt: buildTranslationSystemPrompt(request),
           userMessage: buildTranslationUserMessage(request),
-        });
-        return parseLlmResponse(raw, request);
-      } catch {
-        return {
-          kind: 'translation-receipt',
-          version: 1,
-          mode: 'structured-translation',
-          matched: false,
-          selected: null,
-          candidates: [],
-          rationale: 'LLM API call failed. Degrading to next resolution rung.',
-          failureClass: 'translator-error',
-        };
-      }
-    },
+      }),
+      catch: (cause): TranslationProviderError => ({
+        _tag: 'translator-error',
+        message: 'LLM API call failed.',
+        cause,
+      }),
+    }).pipe(Effect.map((raw) => parseLlmResponse(raw, request))),
   };
 }
 
@@ -242,15 +238,9 @@ function createCopilotProvider(
     return {
       id: 'copilot-stub',
       kind: 'copilot',
-      translate: () => Promise.resolve({
-        kind: 'translation-receipt' as const,
-        version: 1 as const,
-        mode: 'structured-translation' as const,
-        matched: false,
-        selected: null,
-        candidates: [],
-        rationale: 'Copilot provider not available outside VSCode.',
-        failureClass: 'runtime-disabled' as const,
+      translate: () => Effect.fail({
+        _tag: 'provider-unavailable' as const,
+        message: 'Copilot provider not available outside VSCode.',
       }),
     };
   }
@@ -258,28 +248,19 @@ function createCopilotProvider(
   return {
     id: 'copilot-vscode',
     kind: 'copilot',
-    translate: async (request) => {
-      try {
-        const raw = await deps.createChatCompletion({
+    translate: (request) => Effect.tryPromise({
+      try: () => deps.createChatCompletion({
           model: 'copilot',
           maxTokens: 2000,
           systemPrompt: buildTranslationSystemPrompt(request),
           userMessage: buildTranslationUserMessage(request),
-        });
-        return parseLlmResponse(raw, request);
-      } catch {
-        return {
-          kind: 'translation-receipt' as const,
-          version: 1 as const,
-          mode: 'structured-translation' as const,
-          matched: false,
-          selected: null,
-          candidates: [],
-          rationale: 'Copilot API call failed. Degrading to next resolution rung.',
-          failureClass: 'translator-error' as const,
-        };
-      }
-    },
+      }),
+      catch: (cause): TranslationProviderError => ({
+        _tag: 'translator-error',
+        message: 'Copilot API call failed.',
+        cause,
+      }),
+    }).pipe(Effect.map((raw) => parseLlmResponse(raw, request))),
   };
 }
 
@@ -292,12 +273,11 @@ function createHybridProvider(
   return {
     id: `hybrid-${primary.id}-${fallback.id}`,
     kind: fallback.kind,
-    translate: async (request) => {
-      const primaryResult = await primary.translate(request);
-      return primaryResult.matched
-        ? primaryResult
-        : fallback.translate(request);
-    },
+    translate: (request) => primary.translate(request).pipe(
+      Effect.flatMap((primaryResult) => primaryResult.matched
+        ? Effect.succeed(primaryResult)
+        : fallback.translate(request)),
+    ),
   };
 }
 

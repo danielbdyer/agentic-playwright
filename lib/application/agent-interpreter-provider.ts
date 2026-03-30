@@ -29,15 +29,21 @@ import type { ScreenId, ElementId, PostureId, SnapshotTemplateId } from '../doma
 import { normalizeIntentText, bestAliasMatch, humanizeIdentifier } from '../domain/inference';
 import { assignVariant, type ABTestConfig } from './agent-ab-testing';
 
-// Re-export type interfaces from domain layer for backwards compatibility
-export type {
-  AgentInterpretationRequest,
-  AgentInterpretationResult,
-  AgentInterpreterKind,
-  AgentInterpreterProvider,
-} from '../domain/types/agent-interpreter';
+import type { AgentInterpretationRequest, AgentInterpretationResult, AgentInterpreterKind } from '../domain/types/agent-interpreter';
+export type { AgentInterpretationRequest, AgentInterpretationResult, AgentInterpreterKind } from '../domain/types/agent-interpreter';
 
-import type { AgentInterpretationRequest, AgentInterpretationResult, AgentInterpreterKind, AgentInterpreterProvider } from '../domain/types/agent-interpreter';
+export type AgentInterpreterError =
+  | { readonly _tag: 'provider-unavailable'; readonly message: string }
+  | { readonly _tag: 'timeout'; readonly message: string; readonly budgetMs: number }
+  | { readonly _tag: 'translator-error'; readonly message: string; readonly cause?: unknown };
+
+export interface AgentInterpreterProvider {
+  readonly id: string;
+  readonly kind: AgentInterpreterKind;
+  readonly interpret: (
+    request: AgentInterpretationRequest,
+  ) => Effect.Effect<AgentInterpretationResult, AgentInterpreterError, never>;
+}
 
 // ─── Provider: Disabled (stub, always available) ───
 
@@ -45,14 +51,47 @@ function createDisabledProvider(): AgentInterpreterProvider {
   return {
     id: 'agent-interpreter-disabled',
     kind: 'disabled',
-    interpret: () => Promise.resolve({
-      interpreted: false,
-      target: null,
-      confidence: 0,
-      rationale: 'Agent interpretation is disabled. Escalating to needs-human.',
-      proposalDrafts: [],
-      provider: 'disabled',
+    interpret: () => Effect.fail({
+      _tag: 'provider-unavailable',
+      message: 'Agent interpretation is disabled.',
     }),
+  };
+}
+
+function unavailableAgentResult(provider: string, rationale: string): AgentInterpretationResult {
+  return {
+    interpreted: false,
+    target: null,
+    confidence: 0,
+    rationale,
+    proposalDrafts: [],
+    provider,
+  };
+}
+
+function unavailableToResult(provider: string) {
+  return (error: AgentInterpreterError): AgentInterpretationResult => ({
+    ...unavailableAgentResult(provider, error.message),
+    observation: {
+      source: 'agent-interpreted',
+      summary: error.message,
+      detail: {
+        reason: error._tag,
+      },
+    },
+  });
+}
+
+function createDisabledProviderWithFallback(): AgentInterpreterProvider {
+  const provider = createDisabledProvider();
+  return {
+    ...provider,
+    interpret: (request) => provider.interpret(request).pipe(
+      Effect.catchTag('provider-unavailable', () => Effect.succeed(unavailableAgentResult(
+        'disabled',
+        'Agent interpretation is disabled. Escalating to needs-human.',
+      ))),
+    ),
   };
 }
 
@@ -99,7 +138,7 @@ function createHeuristicProvider(): AgentInterpreterProvider {
   return {
     id: 'agent-interpreter-heuristic',
     kind: 'heuristic',
-    interpret: (request) => {
+    interpret: (request) => Effect.sync(() => {
       const normalized = normalizeIntentText(`${request.actionText} ${request.expectedText}`);
       // Use grounding's allowedActions to constrain, falling back to keyword heuristic
       const allowedActions = request.grounding?.allowedActions;
@@ -123,14 +162,14 @@ function createHeuristicProvider(): AgentInterpreterProvider {
       );
 
       if (!topScreen) {
-        return Promise.resolve({
+        return {
           interpreted: false,
           target: null,
           confidence: 0,
           rationale: 'No screen matched the step text with sufficient confidence.',
           proposalDrafts: [],
           provider: 'heuristic',
-        });
+        };
       }
 
       // Single-pass max-finder for top element. O(E) where E = elements in winning screen.
@@ -145,14 +184,14 @@ function createHeuristicProvider(): AgentInterpreterProvider {
       // For navigate actions, screen-only resolution is sufficient
       const needsElement = action !== 'navigate';
       if (needsElement && !topElement) {
-        return Promise.resolve({
+        return {
           interpreted: false,
           target: null,
           confidence: 0,
           rationale: `Screen "${topScreen.screen.screen}" matched but no element matched for action "${action}".`,
           proposalDrafts: [],
           provider: 'heuristic',
-        });
+        };
       }
 
       const confidence = Math.min(1, (topScreen.score + (topElement?.score ?? 0)) / 10);
@@ -191,7 +230,7 @@ function createHeuristicProvider(): AgentInterpreterProvider {
           }]
         : [];
 
-      return Promise.resolve({
+      return {
         interpreted: true,
         target,
         confidence,
@@ -208,8 +247,8 @@ function createHeuristicProvider(): AgentInterpreterProvider {
             confidence: String(confidence),
           },
         },
-      });
-    },
+      };
+    }),
   };
 }
 
@@ -454,26 +493,19 @@ function createLlmApiAgentProvider(
   return {
     id: `agent-llm-api-${config.model}`,
     kind: 'llm-api',
-    interpret: async (request) => {
-      try {
-        const raw = await deps.createChatCompletion({
+    interpret: (request) => Effect.tryPromise({
+      try: () => deps.createChatCompletion({
           model: config.model,
           maxTokens: config.budget.maxTokensPerStep,
           systemPrompt: buildAgentSystemPrompt(request),
           userMessage: buildAgentUserMessage(request),
-        });
-        return parseAgentResponse(raw, request, `llm-api-${config.model}`);
-      } catch {
-        return {
-          interpreted: false,
-          target: null,
-          confidence: 0,
-          rationale: 'Agent LLM API call failed. Escalating to needs-human.',
-          proposalDrafts: [],
-          provider: `llm-api-${config.model}`,
-        };
-      }
-    },
+      }),
+      catch: (cause): AgentInterpreterError => ({
+        _tag: 'translator-error',
+        message: 'Agent LLM API call failed. Escalating to needs-human.',
+        cause,
+      }),
+    }).pipe(Effect.map((raw) => parseAgentResponse(raw, request, `llm-api-${config.model}`))),
   };
 }
 
@@ -488,7 +520,7 @@ export function createScopedLlmApiAgentProvider(
   return Effect.acquireRelease(
     Effect.succeed(createLlmApiAgentProvider(config, deps)),
     () => deps.release
-      ? Effect.promise(() => deps.release!()).pipe(Effect.catchAll(() => Effect.void))
+      ? Effect.tryPromise(() => deps.release!()).pipe(Effect.catchAll(() => Effect.void))
       : Effect.void,
   );
 }
@@ -515,13 +547,9 @@ function createSessionProvider(
     return {
       id: 'agent-session-stub',
       kind: 'session',
-      interpret: () => Promise.resolve({
-        interpreted: false,
-        target: null,
-        confidence: 0,
-        rationale: 'No interactive agent session available. Escalating to needs-human.',
-        proposalDrafts: [],
-        provider: 'session-stub',
+      interpret: () => Effect.fail({
+        _tag: 'provider-unavailable',
+        message: 'No interactive agent session available. Escalating to needs-human.',
       }),
     };
   }
@@ -529,26 +557,19 @@ function createSessionProvider(
   return {
     id: 'agent-session-active',
     kind: 'session',
-    interpret: async (request) => {
-      try {
-        const raw = await deps.createChatCompletion({
+    interpret: (request) => Effect.tryPromise({
+      try: () => deps.createChatCompletion({
           model: 'session',
           maxTokens: 4000,
           systemPrompt: buildAgentSystemPrompt(request),
           userMessage: buildAgentUserMessage(request),
-        });
-        return parseAgentResponse(raw, request, 'session-agent');
-      } catch {
-        return {
-          interpreted: false,
-          target: null,
-          confidence: 0,
-          rationale: 'Agent session call failed. Escalating to needs-human.',
-          proposalDrafts: [],
-          provider: 'session-agent',
-        };
-      }
-    },
+      }),
+      catch: (cause): AgentInterpreterError => ({
+        _tag: 'translator-error',
+        message: 'Agent session call failed. Escalating to needs-human.',
+        cause,
+      }),
+    }).pipe(Effect.map((raw) => parseAgentResponse(raw, request, 'session-agent'))),
   };
 }
 
@@ -563,7 +584,7 @@ export function createScopedSessionProvider(
   return Effect.acquireRelease(
     Effect.succeed(provider),
     () => deps?.release
-      ? Effect.promise(() => deps.release!()).pipe(Effect.catchAll(() => Effect.void))
+      ? Effect.tryPromise(() => deps.release!()).pipe(Effect.catchAll(() => Effect.void))
       : Effect.void,
   );
 }
@@ -603,31 +624,45 @@ function timeoutFallbackResult(provider: string, budgetMs: number): AgentInterpr
  * Can be composed around any `AgentInterpreterProvider.interpret` call.
  */
 export function withAgentTimeout(
-  interpret: (request: AgentInterpretationRequest) => Promise<AgentInterpretationResult>,
+  interpret: (request: AgentInterpretationRequest) => Effect.Effect<AgentInterpretationResult, AgentInterpreterError, never>,
   options?: { readonly budgetMs?: number; readonly provider?: string },
-): (request: AgentInterpretationRequest) => Promise<AgentInterpretationResult> {
+): (request: AgentInterpretationRequest) => Effect.Effect<AgentInterpretationResult, never, never> {
   const budgetMs = options?.budgetMs ?? DEFAULT_AGENT_TIMEOUT_MS;
   const providerId = options?.provider ?? 'agent-timeout-wrapper';
 
-  return (request) => Effect.runPromise(withAgentTimeoutEffect(
-    Effect.tryPromise({
-      try: () => interpret(request),
-      catch: (err) => err instanceof Error ? err : new Error(String(err)),
-    }),
-    { budgetMs, provider: providerId },
-  ));
+  return (request) => withAgentTimeoutEffect(interpret(request), { budgetMs, provider: providerId });
 }
 
 export function withAgentTimeoutEffect(
-  interpretEffect: Effect.Effect<AgentInterpretationResult, unknown, never>,
+  interpretEffect: Effect.Effect<AgentInterpretationResult, AgentInterpreterError, never>,
   options?: { readonly budgetMs?: number; readonly provider?: string },
 ): Effect.Effect<AgentInterpretationResult, never, never> {
   const budgetMs = options?.budgetMs ?? DEFAULT_AGENT_TIMEOUT_MS;
   const providerId = options?.provider ?? 'agent-timeout-wrapper';
+  const timeoutError: AgentInterpreterError = {
+    _tag: 'timeout',
+    message: `Agent interpretation timed out after ${budgetMs}ms.`,
+    budgetMs,
+  };
   return interpretEffect.pipe(
-    Effect.timeout(Duration.millis(budgetMs)),
-    Effect.map((result) => result ?? timeoutFallbackResult(providerId, budgetMs)),
-    Effect.catchAll(() => Effect.succeed(timeoutFallbackResult(providerId, budgetMs))),
+    Effect.raceFirst(
+      Effect.sleep(Duration.millis(budgetMs)).pipe(Effect.flatMap(() => Effect.fail(timeoutError))),
+    ),
+    Effect.catchTag('timeout', () => Effect.succeed(timeoutFallbackResult(providerId, budgetMs))),
+    Effect.catchTag('provider-unavailable', (error) => Effect.succeed(unavailableToResult(providerId)(error))),
+    Effect.catchTag('translator-error', () => Effect.succeed({
+      interpreted: false,
+      target: null,
+      confidence: 0,
+      rationale: 'Agent call failed. Escalating to needs-human.',
+      proposalDrafts: [],
+      provider: providerId,
+      observation: {
+        source: 'agent-interpreted' as const,
+        summary: 'Agent call failed.',
+        detail: { reason: 'translator-error' },
+      },
+    })),
   );
 }
 
@@ -650,10 +685,7 @@ export function createTimeoutBoundedProvider(
   return {
     id: `timeout-${provider.id}`,
     kind: provider.kind,
-    interpret: withAgentTimeout(
-      (request) => provider.interpret(request),
-      { budgetMs, provider: provider.id },
-    ),
+    interpret: withAgentTimeout((request) => provider.interpret(request), { budgetMs, provider: provider.id }),
   };
 }
 
@@ -666,12 +698,11 @@ function createCompositeAgentProvider(
   return {
     id: `composite-${primary.id}-${fallback.id}`,
     kind: primary.kind,
-    interpret: async (request) => {
-      const primaryResult = await primary.interpret(request);
-      return primaryResult.interpreted
-        ? primaryResult
-        : fallback.interpret(request);
-    },
+    interpret: (request) => primary.interpret(request).pipe(
+      Effect.flatMap((primaryResult) => primaryResult.interpreted
+        ? Effect.succeed(primaryResult)
+        : fallback.interpret(request)),
+    ),
   };
 }
 
@@ -684,13 +715,13 @@ function createAgentProviderByKind(
 ): AgentInterpreterProvider {
   switch (kind) {
     case 'disabled':
-      return createDisabledProvider();
+      return createDisabledProviderWithFallback();
     case 'heuristic':
       return createHeuristicProvider();
     case 'llm-api':
       return deps
         ? createLlmApiAgentProvider(config, deps)
-        : createDisabledProvider();
+        : createDisabledProviderWithFallback();
     case 'session':
       return createSessionProvider(deps);
   }
@@ -768,7 +799,7 @@ function createABTestingProvider(
   return {
     id: `ab-test-${abTestConfig.testId}`,
     kind: treatmentProvider.kind,
-    interpret: async (request) => {
+    interpret: (request) => {
       // Use step index extracted from task fingerprint for deterministic routing.
       // The request doesn't directly expose stepIndex, so we hash the fingerprint.
       const stepHash = request.taskFingerprint
@@ -776,11 +807,12 @@ function createABTestingProvider(
         .reduce((acc, ch) => ((acc << 5) - acc + ch.charCodeAt(0)) | 0, 0);
       const variant = assignVariant(Math.abs(stepHash), abTestConfig);
       const provider = variant === 'treatment' ? treatmentProvider : controlProvider;
-      const result = await provider.interpret(request);
-      return {
-        ...result,
-        provider: `${result.provider}:${variant}`,
-      };
+      return provider.interpret(request).pipe(
+        Effect.map((result) => ({
+          ...result,
+          provider: `${result.provider}:${variant}`,
+        })),
+      );
     },
   };
 }
