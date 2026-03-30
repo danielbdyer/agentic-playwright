@@ -9,7 +9,7 @@
  */
 
 import { expect, test } from '@playwright/test';
-import { mulberry32, randomWord, randomInt, pick } from './support/random';
+import { mulberry32, randomWord, randomInt } from './support/random';
 
 // --- Synthetic Topology Model ---
 
@@ -75,7 +75,7 @@ function randomTopology(next: () => number): ScreenTopology {
 
 // --- Helpers ---
 
-function findTransition(topology: ScreenTopology, from: string, to: string): ScreenTransition | undefined {
+function _findTransition(topology: ScreenTopology, from: string, to: string): ScreenTransition | undefined {
   return topology.transitions.find((t) => t.from === from && t.to === to);
 }
 

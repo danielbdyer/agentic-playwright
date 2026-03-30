@@ -1,5 +1,6 @@
 import type { PipelineConfig } from './pipeline-config';
-import type { PipelineFitnessReport } from './fitness';
+import type { PipelineFitnessReport, RungRate } from './fitness';
+import type { BottleneckWeights } from '../types';
 import type {
   InterventionKind,
   InterventionReceipt,
@@ -35,7 +36,7 @@ export interface SpeedrunProgressEvent {
     readonly totalSteps: number;
     readonly unresolvedSteps: number;
     /** Per-iteration resolution-by-rung breakdown. Present when run records are available. */
-    readonly resolutionByRung?: readonly import('./fitness').RungRate[];
+    readonly resolutionByRung?: readonly RungRate[];
   } | null;
   readonly convergenceReason: ImprovementLoopConvergenceReason;
   /** Milliseconds since the speedrun started. */
@@ -49,7 +50,7 @@ export interface SpeedrunProgressEvent {
   readonly scenarioCount?: number;
   /** Self-calibrating bottleneck weights after this iteration (if calibration active). */
   readonly calibration?: {
-    readonly weights: import('../types').BottleneckWeights;
+    readonly weights: BottleneckWeights;
     /** L2 distance from previous iteration's weights. 0 on first iteration. */
     readonly weightDrift: number;
     /** Strongest correlation signal observed. */

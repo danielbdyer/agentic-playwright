@@ -1,5 +1,4 @@
 import { expect, test } from '@playwright/test';
-import { createScreenId } from '../lib/domain/identity';
 import { rankActionCandidates } from '../lib/runtime/agent/candidate-lattice';
 import { selectedControlResolution } from '../lib/runtime/agent/select-controls';
 import { runResolutionPipeline } from '../lib/runtime/agent';

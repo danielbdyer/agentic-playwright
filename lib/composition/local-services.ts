@@ -19,6 +19,8 @@ import { setStageTracerDashboard } from '../application/pipeline/stage';
 import { PlaywrightBridge, DisabledPlaywrightBridge } from '../infrastructure/mcp/playwright-mcp-bridge';
 import type { ExecutionPosture, PipelineConfig, WriteJournalEntry } from '../domain/types';
 import { DEFAULT_PIPELINE_CONFIG } from '../domain/types';
+import type { DashboardPort, McpServerPort } from '../application/ports';
+import type { PlaywrightBridgePort } from '../infrastructure/mcp/playwright-mcp-bridge';
 
 export interface LocalServiceOptions {
   readonly posture?: Partial<ExecutionPosture> | undefined;
@@ -31,14 +33,14 @@ export interface LocalServiceOptions {
   readonly agentInterpreter?: AgentInterpreterProvider | undefined;
   /** Inject a dashboard port for Effect-driven real-time visualization.
    *  When provided, the fiber emits events and pauses for human decisions. */
-  readonly dashboard?: import('../application/ports').DashboardPort | undefined;
+  readonly dashboard?: DashboardPort | undefined;
   /** Inject an MCP server port for WebMCP / Playwright MCP integration.
    *  Progressive enhancement: when available, agents get structured tool
    *  access to the same observables the spatial dashboard renders. */
-  readonly mcpServer?: import('../application/ports').McpServerPort | undefined;
+  readonly mcpServer?: McpServerPort | undefined;
   /** Inject a Playwright bridge for headed browser interaction.
    *  Progressive enhancement: when available, agents get direct DOM access. */
-  readonly playwrightBridge?: import('../infrastructure/mcp/playwright-mcp-bridge').PlaywrightBridgePort | undefined;
+  readonly playwrightBridge?: PlaywrightBridgePort | undefined;
 }
 
 export interface LocalServiceContext {

@@ -3,7 +3,6 @@ import {
   ACT_SCENE_STATES,
   ACT_TRANSITION_DURATIONS,
   interpolateSceneState,
-  type TransitionSceneState,
 } from '../dashboard/src/hooks/use-act-transition';
 import type { FlywheelAct } from '../dashboard/src/types';
 

@@ -1,15 +1,10 @@
 import { expect, test } from '@playwright/test';
 import {
-  subscribeJournalWriter,
   journalWriterConfig,
   deriveAct,
-  type JournalWriterConfig,
-  type JournaledEvent,
-  type JournalIndex,
 } from '../lib/infrastructure/dashboard/journal-writer';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as os from 'node:os';
 
 test.describe('Journal writer server integration laws', () => {
 

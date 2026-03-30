@@ -20,11 +20,9 @@ import {
   createElementId,
   createPostureId,
   createScreenId,
-  createSnapshotTemplateId,
   createSurfaceId,
 } from '../lib/domain/identity';
-import type { AdoSnapshot, BoundScenario, Scenario, SurfaceGraph, ScreenElements, ScreenPostures } from '../lib/domain/types';
-import { mulberry32, randomWord, randomInt } from './support/random';
+import type { AdoSnapshot, Scenario, SurfaceGraph, ScreenElements, ScreenPostures } from '../lib/domain/types';
 
 // --- Factories ---
 

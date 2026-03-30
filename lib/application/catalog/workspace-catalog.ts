@@ -194,8 +194,6 @@ function walkScopedDir(
     : Effect.succeed([] as string[]);
 }
 
-const EMPTY_ARTIFACTS = [] as readonly string[];
-
 /** Diagnostic counter: total loadWorkspaceCatalog calls since process start. */
 let catalogLoadCount = 0;
 /** Read the current catalog load count (for diagnostics/testing). */

@@ -10,7 +10,6 @@ import {
   INITIAL_CLUSTER_STATE,
   type ArtifactType,
   type ClusterPhase,
-  type TrustDecision,
 } from '../lib/domain/proposal-cluster';
 
 const ALL_ARTIFACT_TYPES: readonly ArtifactType[] = [
@@ -91,7 +90,7 @@ test.describe('ProposalCluster laws', () => {
       state = stepClusterPhysics(state, 200);
     }
     state = applyDecision(state, 'p1', 'approved');
-    const hasPassingOrComplete = state.clusters.some(
+    const _hasPassingOrComplete = state.clusters.some(
       (c) => c.phase === 'passing' || c.decision === 'approved',
     );
     expect(state.totalApproved).toBe(1);

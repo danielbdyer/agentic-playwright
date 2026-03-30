@@ -13,6 +13,7 @@ import type {
 import { precedenceWeight, resolutionPrecedenceLaw } from '../../domain/precedence';
 import { allowedActionFallback } from './resolve-action';
 import { bestAliasMatch, humanizeIdentifier, normalizedCombined, uniqueSorted } from './shared';
+import type { ResolutionTarget } from '../../domain/types';
 
 export type LatticeSource =
   | 'explicit'
@@ -222,7 +223,7 @@ export function rankScreenCandidates(
   task: GroundedStep,
   action: StepAction | null,
   controlResolution: StepResolution | null,
-  previousResolution: import('../../domain/types').ResolutionTarget | null | undefined,
+  previousResolution: ResolutionTarget | null | undefined,
   resolutionContext: InterfaceResolutionContext,
   observedStateSession?: ObservedStateSession | undefined,
 ): RankedLattice<StepTaskScreenCandidate> {

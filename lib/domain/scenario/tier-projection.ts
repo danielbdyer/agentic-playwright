@@ -47,7 +47,7 @@ function projectStepToTier1(step: ScenarioStep): ScenarioStep {
  * Project a postcondition down to Tier 1.
  * Postconditions carry the same Tier 2 fields as steps.
  */
-function projectPostconditionToTier1(pc: ScenarioPostcondition): ScenarioPostcondition {
+function projectPostconditionToTier1(_pc: ScenarioPostcondition): ScenarioPostcondition {
   return {
     action: 'custom',
     screen: null,

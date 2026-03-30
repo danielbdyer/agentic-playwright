@@ -13,11 +13,10 @@
 import { expect, test } from '@playwright/test';
 import {
   validateGraphConsistency,
-  type ConsistencyViolation,
 } from '../lib/domain/graph-validation';
 import type { ApplicationInterfaceGraph, InterfaceGraphNode, InterfaceGraphEdge } from '../lib/domain/types/interface';
 import type { DerivedGraph, GraphNode, GraphEdge } from '../lib/domain/types/projection';
-import { mulberry32, randomWord, randomInt, pick } from './support/random';
+import { mulberry32, randomWord, randomInt } from './support/random';
 
 // ─── Factories ───
 

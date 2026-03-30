@@ -4,7 +4,6 @@ import {
   createGroundedStep,
   createAgentContext,
   createPolicySearchScreen,
-  createPolicySearchElement,
 } from './support/interface-fixtures';
 import {
   interpretStepIntent,
@@ -14,9 +13,8 @@ import {
   meetsThreshold,
   inferActionFromText,
 } from '../lib/runtime/agent/interpret-intent';
-import type { IntentInterpretation } from '../lib/runtime/agent/types';
 import { runResolutionPipeline } from '../lib/runtime/agent/index';
-import { createScreenId, createElementId } from '../lib/domain/identity';
+import { createScreenId } from '../lib/domain/identity';
 
 // ─── Fixtures ───
 

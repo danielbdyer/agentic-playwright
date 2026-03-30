@@ -1,6 +1,6 @@
-import { Effect } from 'effect';
+import type { Effect } from 'effect';
 import type { TesseractError } from '../../domain/errors';
-import { FileSystem } from '../ports';
+import type { FileSystem } from '../ports';
 import { runIncrementalStage } from '../pipeline';
 import {
   sortProjectionInputs,

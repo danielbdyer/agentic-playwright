@@ -25,7 +25,7 @@ import {
  * graph and types derivation. Use this when compiling multiple scenarios
  * concurrently; call `buildDerivedGraph` and `generateTypes` once afterward.
  */
-export function compileScenarioCore(options: { adoId: AdoId; paths: ProjectPaths; catalog?: import('./catalog').WorkspaceCatalog }) {
+export function compileScenarioCore(options: { adoId: AdoId; paths: ProjectPaths; catalog?: WorkspaceCatalog }) {
   return Effect.gen(function* () {
     const stage = yield* runPipelineStage({
       name: 'compile',
@@ -72,7 +72,7 @@ export function compileScenarioCore(options: { adoId: AdoId; paths: ProjectPaths
           interfaceGraph: interfaceIntelligence.interfaceGraph,
           selectorCanon: interfaceIntelligence.selectorCanon,
         });
-        const sessionWithBound = withBoundScenarioInWorkspaceSession({
+        const _sessionWithBound = withBoundScenarioInWorkspaceSession({
           session: sessionWithScenario,
           boundScenario: bound.boundScenario,
           boundPath: bound.boundPath,
@@ -101,7 +101,7 @@ export function compileScenarioCore(options: { adoId: AdoId; paths: ProjectPaths
  * Use this for single-scenario compilation (tests, CLI). For batch
  * compilation, prefer `compileScenarioCore` + a single graph/types pass.
  */
-export function compileScenario(options: { adoId: AdoId; paths: ProjectPaths; catalog?: import('./catalog').WorkspaceCatalog }) {
+export function compileScenario(options: { adoId: AdoId; paths: ProjectPaths; catalog?: WorkspaceCatalog }) {
   return Effect.gen(function* () {
     const core = yield* compileScenarioCore(options);
     const { graph, generatedTypes } = yield* Effect.all({

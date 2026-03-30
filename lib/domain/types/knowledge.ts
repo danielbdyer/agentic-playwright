@@ -24,6 +24,8 @@ import type {
 } from './workflow';
 import type { StepResolution } from './intent';
 import type { RuntimeControlSession } from './resolution';
+import type { StateTransitionGraph } from './interface';
+import type { DerivedGraph } from './projection';
 
 export interface StepTaskElementCandidate {
   readonly element: ElementId;
@@ -119,9 +121,9 @@ export interface InterfaceResolutionContext {
   readonly evidenceRefs: readonly string[];
   readonly confidenceOverlays: readonly ArtifactConfidenceRecord[];
   readonly controls: RuntimeControlSession;
-  readonly stateGraph?: import('./interface').StateTransitionGraph | null | undefined;
+  readonly stateGraph?: StateTransitionGraph | null | undefined;
   /** DerivedGraph reference for runtime graph queries (transitions, reachability). */
-  readonly derivedGraph?: import('./projection').DerivedGraph | null | undefined;
+  readonly derivedGraph?: DerivedGraph | null | undefined;
 }
 
 export interface SurfaceSection {

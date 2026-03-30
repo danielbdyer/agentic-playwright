@@ -24,15 +24,11 @@ import {
   identifyScreenFromDOM,
 } from '../lib/runtime/screen-identification';
 import type {
-  ScreenIdentification,
-  ScreenCandidate,
-} from '../lib/runtime/screen-identification';
-import type {
   ApplicationInterfaceGraph,
   InterfaceGraphNode,
   InterfaceGraphEdge,
 } from '../lib/domain/types/interface';
-import { mulberry32, pick, randomInt, randomWord } from './support/random';
+import { mulberry32, pick, randomInt } from './support/random';
 
 // ─── Helpers ───
 
@@ -406,7 +402,7 @@ test.describe('Law 10: Signal coverage — all extraction paths exercised', () =
 
   test('signal count scales with DOM richness across 150 seeds', () => {
     for (let seed = 1; seed <= SEEDS; seed += 1) {
-      const next = mulberry32(seed);
+      const _next = mulberry32(seed);
       const simpleDom = makeDom({ title: 'Page' });
       const richDom = makeDom({
         title: 'Page',

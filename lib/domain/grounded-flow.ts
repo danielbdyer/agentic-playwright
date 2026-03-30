@@ -7,7 +7,7 @@ import type {
   ScenarioInterpretationSurface,
   StepResolution,
 } from './types';
-import type { Confidence, Governance, StepProvenanceKind } from './types/workflow';
+import type { Governance, StepProvenanceKind } from './types/workflow';
 import { isBlocked, isReviewRequired } from './types/workflow';
 import { lifecycleForScenario, aggregateConfidence } from './status';
 

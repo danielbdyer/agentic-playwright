@@ -13,6 +13,8 @@ import { createStateNodeRef } from '../domain/identity';
 import type { CanonicalTargetRef, PostureId, ScreenId, SelectorRef, SnapshotTemplateId } from '../domain/identity';
 import { computeDecayedConfidence, type FreshnessPolicy, defaultFreshnessPolicy } from '../domain/knowledge-freshness';
 import type { WorkspaceCatalog } from './catalog';
+import { TesseractError } from '../domain/errors';
+import type { DerivedGraph } from '../domain/types/projection';
 
 interface GraphScreenPayload {
   url?: string | null;
@@ -87,7 +89,7 @@ function elementCandidatesForScreen(input: {
         targetRef: node.targetRef!,
         role: payload.role ?? 'region',
         name: payload.name ?? null,
-        surface: node.surface ?? (() => { throw new Error(`Missing surface for target ${node.id}`); })(),
+        surface: node.surface ?? (() => { throw new TesseractError('missing-required', `Missing surface for target ${node.id}`); })(),
         widget: (payload.widget ?? 'os-region') as StepTaskElementCandidate['widget'],
         affordance: payload.affordance ?? null,
         aliases: sortStrings([node.element!, ...(payload.aliases ?? [])]),
@@ -158,7 +160,7 @@ export function buildInterfaceResolutionContext(input: {
   /** Total completed runs so far (used for freshness decay calculation). */
   completedRunCount?: number | undefined;
   /** DerivedGraph for runtime graph queries. */
-  derivedGraph?: import('../domain/types/projection').DerivedGraph | null | undefined;
+  derivedGraph?: DerivedGraph | null | undefined;
 }): InterfaceResolutionContext {
   const policy = input.freshnessPolicy ?? defaultFreshnessPolicy();
   const completedRuns = input.completedRunCount ?? 0;

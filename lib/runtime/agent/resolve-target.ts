@@ -1,6 +1,14 @@
 import { createPostureId } from '../../domain/identity';
 import { knowledgePaths } from '../../domain/ids';
-import type { ResolutionTarget, StepAction, StepResolution, GroundedStep, StepTaskElementCandidate, StepTaskScreenCandidate } from '../../domain/types';
+import type {
+  GroundedStep,
+  ResolutionTarget,
+  StepAction,
+  StepResolution,
+  StepTaskElementCandidate,
+  StepTaskScreenCandidate,
+  StepWinningSource,
+} from '../../domain/types';
 import { bestAliasMatch, humanizeIdentifier, normalizedCombined, uniqueSorted } from './shared';
 import { selectedDataset, selectedRunbook } from './select-controls';
 import type { RuntimeStepAgentContext } from './types';
@@ -96,7 +104,7 @@ export function resolveOverride(
   posture: ReturnType<typeof createPostureId> | null,
   controlResolution: StepResolution | null,
   context: RuntimeStepAgentContext,
-): { override: string | null; source: import('../../domain/types').StepWinningSource } {
+): { override: string | null; source: StepWinningSource } {
   if (task.explicitResolution?.override !== undefined) {
     return { override: task.explicitResolution.override ?? null, source: 'scenario-explicit' };
   }

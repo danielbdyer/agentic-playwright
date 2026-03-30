@@ -6,7 +6,6 @@ import type {
   DiagnosticProvenance,
   ExecutionPosture,
   Governance,
-  Manifest,
   ResolutionMode,
   ScenarioLifecycle,
   StepAction,
@@ -24,6 +23,7 @@ import type { SelectorCanon } from './interface';
 import type { ResolutionExhaustionEntry, TranslationReceipt } from './resolution';
 import type { ProposalBundle, RunRecord } from './execution';
 import type { ScenarioInterpretationSurface } from './resolution';
+import type { WorkflowLane } from './workflow';
 
 export interface BenchmarkField {
   readonly id: string;
@@ -293,7 +293,7 @@ export interface ScenarioExplanationStep {
   evidenceIds: readonly string[];
   program: StepProgram | null;
   handshakes: readonly WorkflowStage[];
-  readonly winningConcern: import('./workflow').WorkflowLane;
+  readonly winningConcern: WorkflowLane;
   readonly winningSource: StepWinningSource;
   readonly resolutionMode: ResolutionMode;
   readonly translation?: TranslationReceipt | null | undefined;

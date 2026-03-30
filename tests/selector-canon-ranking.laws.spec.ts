@@ -20,7 +20,7 @@
 import { expect, test } from '@playwright/test';
 import type { LocatorStrategy, LocatorStrategyKind } from '../lib/domain/types/workflow';
 import type { SelectorProbe, SelectorCanonEntry } from '../lib/domain/types/interface';
-import type { CanonicalTargetRef, SelectorRef, StateNodeRef } from '../lib/domain/identity';
+import type { CanonicalTargetRef, SelectorRef } from '../lib/domain/identity';
 import { mulberry32, pick, randomWord, randomInt } from './support/random';
 
 // ─── Specificity order ───
@@ -82,7 +82,7 @@ function makeProbe(overrides: {
   };
 }
 
-function makeEntry(probes: readonly SelectorProbe[]): SelectorCanonEntry {
+function _makeEntry(probes: readonly SelectorProbe[]): SelectorCanonEntry {
   return {
     targetRef: 'target:element:screen:field' as CanonicalTargetRef,
     screen: 'test-screen' as any,

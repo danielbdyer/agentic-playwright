@@ -14,22 +14,22 @@ import type { DerivedGraph, GraphEdge, GraphNode, MappedMcpResource, MappedMcpTe
 
 // ─── Phantom Phase Brands ───
 
-declare const NodePhaseBrand: unique symbol;
-declare const EdgePhaseBrand: unique symbol;
-declare const MetricPhaseBrand: unique symbol;
-declare const CompletePhaseBrand: unique symbol;
+declare const _NodePhaseBrand: unique symbol;
+declare const _EdgePhaseBrand: unique symbol;
+declare const _MetricPhaseBrand: unique symbol;
+declare const _CompletePhaseBrand: unique symbol;
 
 /** Phantom brand for the node-accumulation phase. */
-export type NodePhase = 'nodes' & { readonly __brand: typeof NodePhaseBrand };
+export type NodePhase = 'nodes' & { readonly __brand: typeof _NodePhaseBrand };
 
 /** Phantom brand for the edge-accumulation phase. */
-export type EdgePhase = 'edges' & { readonly __brand: typeof EdgePhaseBrand };
+export type EdgePhase = 'edges' & { readonly __brand: typeof _EdgePhaseBrand };
 
 /** Phantom brand for the metrics-computation phase. */
-export type MetricPhase = 'metrics' & { readonly __brand: typeof MetricPhaseBrand };
+export type MetricPhase = 'metrics' & { readonly __brand: typeof _MetricPhaseBrand };
 
 /** Phantom brand for the completed-build phase. */
-export type CompletePhase = 'complete' & { readonly __brand: typeof CompletePhaseBrand };
+export type CompletePhase = 'complete' & { readonly __brand: typeof _CompletePhaseBrand };
 
 /** All valid build phases. */
 export type BuildPhase = NodePhase | EdgePhase | MetricPhase | CompletePhase;

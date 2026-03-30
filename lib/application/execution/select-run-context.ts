@@ -119,7 +119,7 @@ export function prepareScenarioRunPlan(input: {
   const steps = taskStepsForRun(input.surface, activeRunbook?.resolutionControl ?? null);
   const fixtureIds = uniqueSorted([
     ...scenarioEntry.artifact.preconditions.map((precondition) => precondition.fixture),
-    ...steps.flatMap((step) =>
+    ...steps.flatMap((_step) =>
         input.surface.payload.resolutionContext.screens.flatMap((screen) =>
           screen.elements
             .flatMap((element) => { const r = fixtureIdFromTemplateValue(element.defaultValueRef); return r !== null ? [r] : []; }),

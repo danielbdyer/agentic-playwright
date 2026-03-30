@@ -341,7 +341,11 @@ export async function performSafeActiveEvent(input: {
     case 'click':
       await resolved.locator.click();
       break;
-    default:
+    case undefined:
+    case null:
+    case 'navigate':
+    case 'assert-snapshot':
+    case 'custom':
       return { performed: false, detail: { ...detail, reason: 'unsupported-action' } };
   }
 

@@ -8,12 +8,13 @@ import type {
   StepProgramInstructionOutcome,
 } from '../../domain/program';
 import { interpreterOutcome } from './types';
+import type { ProgramFailureCode, StepInterpreterDiagnostic } from '../../domain/program';
 
 export interface InstructionOutcome {
   status: 'ok' | 'failed';
   observedEffects: string[];
-  diagnostics?: import('../../domain/program').StepInterpreterDiagnostic[];
-  failureCode?: import('../../domain/program').ProgramFailureCode;
+  diagnostics?: StepInterpreterDiagnostic[];
+  failureCode?: ProgramFailureCode;
   locatorStrategy?: string;
   locatorRung?: number;
   widgetContract?: string;

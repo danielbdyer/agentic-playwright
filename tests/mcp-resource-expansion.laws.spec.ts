@@ -29,7 +29,6 @@ import {
   buildResourceUri,
   type McpResourceUri,
   type ResourceArtifactReader,
-  type McpResourceResponse,
   type McpResourceKind,
 } from '../lib/infrastructure/mcp/resource-provider';
 import { dashboardMcpTools } from '../lib/domain/types/dashboard';

@@ -33,8 +33,8 @@ export function buildProposals(input: {
   const datasetEntry = input.plan.controlSelection.dataset
     ? input.evidenceCatalog.datasets.find((entry) => entry.artifact.name === input.plan.controlSelection.dataset) ?? null
     : null;
-  const activeRunbook = runbookEntry?.artifact ?? null;
-  const activeDataset = datasetEntry?.artifact ?? null;
+  const _activeRunbook = runbookEntry?.artifact ?? null;
+  const _activeDataset = datasetEntry?.artifact ?? null;
   const proposalBundleIdentity = {
     adoId: input.adoId,
     suite: input.plan.suite,

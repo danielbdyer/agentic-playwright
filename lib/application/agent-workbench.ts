@@ -36,7 +36,7 @@ import type {
   InterfaceResolutionContext,
 } from '../domain/types';
 import type { ScreenId } from '../domain/identity';
-import type { InterventionTarget } from '../domain/types';
+import type { InterventionLineageEntry, InterventionLineageEnvelope, InterventionTarget } from '../domain/types';
 
 // ─── Work Item Scoring (Composite ScoringRule semigroup) ───
 
@@ -369,8 +369,12 @@ export const defaultWorkItemDecider: WorkItemDecider = async (item) => {
         : { status: 'skipped', rationale: `Low-confidence (${item.evidence.confidence.toFixed(2)}): ${item.title}` };
     case 'interpret-step':
       return { status: 'skipped', rationale: `Agent interpretation needed: ${item.title}` };
-    default:
-      return { status: 'skipped', rationale: `Unhandled kind: ${item.kind}` };
+    case 'author-knowledge':
+      return { status: 'skipped', rationale: `Knowledge authoring needed: ${item.title}` };
+    case 'validate-calibration':
+      return { status: 'skipped', rationale: `Calibration validation needed: ${item.title}` };
+    case 'request-rerun':
+      return { status: 'skipped', rationale: `Rerun requested: ${item.title}` };
   }
 };
 
@@ -481,7 +485,7 @@ export function emitInterventionLineage(options: {
 }) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
-    const entries: import('../domain/types').InterventionLineageEntry[] = options.completions.map((completion) => {
+    const entries: InterventionLineageEntry[] = options.completions.map((completion) => {
       const item = options.workItems.find((w) => w.id === completion.workItemId);
       return {
         kind: 'intervention-lineage-entry' as const,
@@ -501,11 +505,11 @@ export function emitInterventionLineage(options: {
       const exists = yield* fs.exists(lineagePath);
       if (!exists) return [];
       const raw = yield* fs.readJson(lineagePath);
-      const envelope = raw as import('../domain/types').InterventionLineageEnvelope;
+      const envelope = raw as InterventionLineageEnvelope;
       return envelope.kind === 'intervention-lineage' ? [...envelope.entries] : [];
-    }).pipe(Effect.catchAll(() => Effect.succeed([] as import('../domain/types').InterventionLineageEntry[])));
+    }).pipe(Effect.catchAll(() => Effect.succeed([] as InterventionLineageEntry[])));
 
-    const envelope: import('../domain/types').InterventionLineageEnvelope = {
+    const envelope: InterventionLineageEnvelope = {
       kind: 'intervention-lineage',
       version: 1,
       entries: [...existing, ...entries],

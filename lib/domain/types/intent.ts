@@ -10,6 +10,7 @@ import type {
   CompilerDiagnostic,
   Confidence,
   Governance,
+  ScenarioStatus,
   StepAction,
   StepBindingKind,
   WorkflowEnvelopeFingerprints,
@@ -61,7 +62,7 @@ export interface ScenarioMetadata {
   readonly suite: string;
   readonly tags: readonly string[];
   readonly priority: number;
-  readonly status: import('./workflow').ScenarioStatus;
+  readonly status: ScenarioStatus;
   readonly status_detail: string | null;
 }
 

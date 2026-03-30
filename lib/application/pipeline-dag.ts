@@ -8,6 +8,8 @@
  * All functions are pure: no mutation, no side effects.
  */
 
+import { TesseractError } from '../domain/errors';
+
 // ─── Types ───
 
 export interface PipelineNode {
@@ -102,7 +104,8 @@ export function topologicalSort(nodes: readonly PipelineNode[]): readonly string
   const result = step(initialFrontier, [], inDegree);
 
   if (result.length !== nodes.length) {
-    throw new Error(
+    throw new TesseractError(
+      'validation-error',
       `Cycle detected in pipeline DAG: processed ${result.length} of ${nodes.length} nodes`,
     );
   }

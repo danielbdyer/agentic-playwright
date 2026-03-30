@@ -1,11 +1,11 @@
 import path from 'path';
 import { createProjectPaths, type ProjectPaths } from '../paths';
 import type { ExecutionPosture } from '../../domain/types';
+import { TesseractError } from '../../domain/errors';
 import { commandRegistry } from './commands/index';
 import {
   type CommandExecution,
   type CommandName,
-  type CommandSpec,
   type ParsedFlags,
   commandNames,
   flagReaders,
@@ -32,12 +32,12 @@ function parseTokensRec(
   }
 
   if (!spec.flags.includes(token)) {
-    throw new Error(`Unknown flag for ${command}: ${token}`);
+    throw new TesseractError('invalid-argument', `Unknown flag for ${command}: ${token}`);
   }
 
   const reader = flagReaders[token];
   if (!reader) {
-    throw new Error(`Unsupported flag reader for ${token}`);
+    throw new TesseractError('invalid-argument', `Unsupported flag reader for ${token}`);
   }
 
   const nextIndex = reader(tokens as string[], index, flags);
@@ -51,7 +51,7 @@ function isCommandName(value: string): value is CommandName {
 export function parseCliInvocation(argv: string[]): CommandExecution {
   const [rawCommand = 'help', ...tokens] = argv;
   if (!isCommandName(rawCommand)) {
-    throw new Error('Unknown command. Expected sync, parse, bind, emit, compile, refresh, run, replay, paths, capture, discover, harvest, surface, graph, trace, impact, types, workflow, inbox, approve, certify, rerun-plan, benchmark, scorecard, dogfood, workbench, speedrun, evolve, experiments, or generate.');
+    throw new TesseractError('invalid-argument', 'Unknown command. Expected sync, parse, bind, emit, compile, refresh, run, replay, paths, capture, discover, harvest, surface, graph, trace, impact, types, workflow, inbox, approve, certify, rerun-plan, benchmark, scorecard, dogfood, workbench, speedrun, evolve, experiments, or generate.');
   }
 
   const spec = commandRegistry[rawCommand];
@@ -61,7 +61,7 @@ export function parseCliInvocation(argv: string[]): CommandExecution {
 }
 
 export function resolveExecutionPosture(input: CommandExecution['postureInput']): ExecutionPosture {
-  const executionProfile = input.executionProfile ?? (process.env.CI ? 'ci-batch' : 'interactive');
+  const executionProfile = input.executionProfile ?? (input.isCI ? 'ci-batch' : 'interactive');
   const interpreterMode = input.baseline ? 'dry-run' : (input.interpreterMode ?? 'diagnostic');
   const writeMode = input.noWrite || input.baseline ? 'no-write' : 'persist';
   return {

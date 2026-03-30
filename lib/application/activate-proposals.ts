@@ -7,6 +7,7 @@ import { FileSystem } from './ports';
 import { trySync } from './effect';
 import { applyProposalPatch, parseProposalArtifact, serializeProposalArtifact, validatePatchedProposalArtifact } from './proposal-patches';
 import { evaluateAutoApproval } from '../domain/trust-policy';
+import type { FileSystemPort } from './ports';
 
 function certificationForProposal(proposal: ProposalEntry): ProposalEntry['certification'] {
   return proposal.trustPolicy.decision === 'allow' ? 'certified' : 'uncertified';
@@ -47,7 +48,7 @@ export interface ActivateProposalBundleResult {
   blockedProposalIds: string[];
 }
 
-function tryActivateProposal(fsPort: import('./ports').FileSystemPort, rootDir: string, proposal: ProposalEntry, activatedAt: string) {
+function tryActivateProposal(fsPort: FileSystemPort, rootDir: string, proposal: ProposalEntry, activatedAt: string) {
   const candidate = activatedProposal(proposal, activatedAt);
   const absoluteTargetPath = path.join(rootDir, proposal.targetPath);
 

@@ -12,7 +12,7 @@ import {
   type TranslationConfig,
 } from '../lib/application/translation-provider';
 import { translateIntentToOntology } from '../lib/application/translate';
-import type { TranslationRequest, ExecutionProfile } from '../lib/domain/types';
+import type { TranslationRequest } from '../lib/domain/types';
 import { createScreenId, createElementId } from '../lib/domain/identity';
 
 // ─── Fixtures ───

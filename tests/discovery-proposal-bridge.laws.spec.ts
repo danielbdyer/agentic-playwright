@@ -34,7 +34,7 @@ function makeSurfaceId(next: () => number): SurfaceId {
   return createSurfaceId(`surface-${randomWord(next)}`);
 }
 
-function makeElementId(next: () => number): ElementId {
+function _makeElementId(next: () => number): ElementId {
   return createElementId(`element-${randomWord(next)}`);
 }
 

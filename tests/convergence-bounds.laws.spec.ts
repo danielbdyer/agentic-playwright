@@ -22,7 +22,6 @@ import {
   isFixedPoint,
   estimateRateOfDecrease,
   type ConvergenceMetrics,
-  type LyapunovFunction,
 } from '../lib/domain/convergence-bounds';
 
 // ─── Fixtures ───

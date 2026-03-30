@@ -16,16 +16,16 @@ import {
   EMPTY_GRAPH,
   type GraphBuildInput,
 } from '../lib/domain/derived-graph';
+import type { ConditionalEdge, GraphAccumulator } from '../lib/domain/derived-graph';
 import {
   createAdoId,
   createElementId,
   createPostureId,
   createScreenId,
-  createSnapshotTemplateId,
   createSurfaceId,
 } from '../lib/domain/identity';
 import type { AdoSnapshot, Scenario, SurfaceGraph, ScreenElements, ScreenPostures } from '../lib/domain/types';
-import { mulberry32, randomWord, pick, randomInt } from './support/random';
+import { mulberry32, randomWord, randomInt } from './support/random';
 
 // ─── Factories ───
 
@@ -310,7 +310,7 @@ test.describe('Graph topology: edge referential integrity', () => {
 
   test('conditional edges are only resolved when required nodes exist', () => {
     const nodes = new Map([['a', { id: 'a' } as any]]);
-    const conditionalEdges: readonly import('../lib/domain/derived-graph').ConditionalEdge[] = [
+    const conditionalEdges: readonly ConditionalEdge[] = [
       { edge: { id: 'e1', kind: 'contains', from: 'a', to: 'b', fingerprint: 'f1', provenance: {} } as any, requiredNodeIds: ['a', 'b'] },
       { edge: { id: 'e2', kind: 'contains', from: 'a', to: 'a', fingerprint: 'f2', provenance: {} } as any, requiredNodeIds: ['a'] },
     ];
@@ -442,11 +442,11 @@ test.describe('Graph topology: deterministic fingerprinting', () => {
   });
 
   test('mergeAccumulators is commutative for node/edge identity', () => {
-    const a: import('../lib/domain/derived-graph').GraphAccumulator = {
+    const a: GraphAccumulator = {
       nodes: new Map([['n1', { id: 'n1', kind: 'screen', label: 'A', fingerprint: 'fa', provenance: {} } as any]]),
       edges: new Map([['e1', { id: 'e1', kind: 'contains', from: 'n1', to: 'n2', fingerprint: 'fe1', provenance: {} } as any]]),
     };
-    const b: import('../lib/domain/derived-graph').GraphAccumulator = {
+    const b: GraphAccumulator = {
       nodes: new Map([['n2', { id: 'n2', kind: 'section', label: 'B', fingerprint: 'fb', provenance: {} } as any]]),
       edges: new Map([['e2', { id: 'e2', kind: 'contains', from: 'n2', to: 'n3', fingerprint: 'fe2', provenance: {} } as any]]),
     };
@@ -459,7 +459,7 @@ test.describe('Graph topology: deterministic fingerprinting', () => {
   });
 
   test('EMPTY_GRAPH is identity for mergeAccumulators', () => {
-    const a: import('../lib/domain/derived-graph').GraphAccumulator = {
+    const a: GraphAccumulator = {
       nodes: new Map([['n1', { id: 'n1', kind: 'screen', label: 'A', fingerprint: 'fa', provenance: {} } as any]]),
       edges: new Map(),
     };

@@ -208,7 +208,7 @@ export function dispatchCopilotRequest(
  * Create a CopilotParticipant bound to a context.
  * Pure function — the returned participant is a record of pure functions.
  */
-export function createCopilotParticipant(context: {
+export function createCopilotParticipant(_context: {
   readonly inbox: readonly OperatorInboxItem[];
   readonly proposals: readonly ProposalBundle[];
 }): CopilotParticipant {

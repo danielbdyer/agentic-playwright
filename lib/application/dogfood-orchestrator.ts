@@ -10,7 +10,6 @@
  * delegated to the existing speedrun/dogfood infrastructure.
  */
 
-import type { ConvergenceMetrics, LyapunovFunction } from '../domain/convergence-bounds';
 import {
   knowledgeHitRateLyapunov,
   deriveTerminationBound,
@@ -69,7 +68,7 @@ export function shouldContinueLoop(
   if (metrics.knowledgeHitRate >= config.convergenceThreshold) return false;
 
   // Lyapunov fixed-point detection on energy history
-  const lyapunov = knowledgeHitRateLyapunov();
+  const _lyapunov = knowledgeHitRateLyapunov();
   const energyHistory = metrics.energyHistory;
   if (energyHistory.length >= 3) {
     const window = energyHistory.slice(-3);

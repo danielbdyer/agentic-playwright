@@ -4,7 +4,6 @@ import {
   activeEntityTypes,
   entityPoolSize,
   type EntityType,
-  type EntityPhase,
 } from '../lib/domain/flywheel-entity';
 
 const ALL_TYPES: readonly EntityType[] = [
@@ -45,7 +44,7 @@ test.describe('FlywheelEntity laws', () => {
   });
 
   test('Law 5: actor color blends with base color', () => {
-    const base = computeEntityVisuals('probe-particle', 'active', {});
+    const _base = computeEntityVisuals('probe-particle', 'active', {});
     const system = computeEntityVisuals('probe-particle', 'active', { actor: 'system' });
     const agent = computeEntityVisuals('probe-particle', 'active', { actor: 'agent' });
 

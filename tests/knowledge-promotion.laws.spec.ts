@@ -69,7 +69,7 @@ function createProposalActivation(status: ProposalActivation['status'], opts?: P
   };
 }
 
-function createProposalEntry(overrides?: Partial<ProposalEntry>): ProposalEntry {
+function _createProposalEntry(overrides?: Partial<ProposalEntry>): ProposalEntry {
   return {
     proposalId: 'prop-001',
     stepIndex: 0,

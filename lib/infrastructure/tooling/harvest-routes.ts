@@ -2,7 +2,6 @@ import path from 'path';
 import { pathToFileURL } from 'url';
 import { chromium } from '@playwright/test';
 import { Effect } from 'effect';
-import { uniqueSorted } from '../../domain/collections';
 import { sha256, stableStringify } from '../../domain/hash';
 import { createCanonicalTargetRef, createElementId } from '../../domain/identity';
 import type {

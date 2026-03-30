@@ -6,8 +6,9 @@
 
 import { expect, test } from '@playwright/test';
 import { buildAgentWorkItems, defaultWorkItemDecider } from '../lib/application/agent-workbench';
-import type { WorkflowHotspot, HotspotSample } from '../lib/application/hotspots';
+import type { WorkflowHotspot } from '../lib/application/hotspots';
 import type { AgentWorkItem, WorkItemKind } from '../lib/domain/types';
+import type { WorkspaceCatalog } from '../lib/application/catalog';
 
 // ─── Mock Factories ───
 
@@ -31,7 +32,7 @@ function emptyCatalog() {
     runRecords: [],
     interpretationDriftRecords: [],
     resolutionGraphRecords: [],
-  } as unknown as import('../lib/application/catalog').WorkspaceCatalog;
+  } as unknown as WorkspaceCatalog;
 }
 
 // ─── Invariant 1: Priority Ordering ───

@@ -10,7 +10,6 @@ import {
   BUDGET_EXHAUSTED_SCHEDULE,
   type ConvergenceReason,
   type ConvergenceMetrics,
-  type FinaleState,
 } from '../lib/domain/convergence-finale';
 
 // ─── Helpers ───

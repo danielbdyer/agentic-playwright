@@ -2,7 +2,6 @@ import { expect, test } from '@playwright/test';
 import {
   createInterfaceResolutionContext,
   createGroundedStep,
-  createAgentContext,
   createPolicySearchScreen,
   createPolicySearchElement,
 } from './support/interface-fixtures';

@@ -218,8 +218,8 @@ test('severity ordering is commutative (150 seeds)', () => {
 
   for (let seed = 1; seed <= 150; seed += 1) {
     const next = mulberry32(seed);
-    const a = pick(next, severities);
-    const b = pick(next, severities);
+    const _a = pick(next, severities);
+    const _b = pick(next, severities);
 
     // We test commutativity through the problem matcher by constructing
     // two bundles with swapped governance/certification and checking

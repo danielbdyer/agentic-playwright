@@ -230,16 +230,13 @@ export function regionsForScreen(
 export function regionsByRole(
   state: SurfaceOverlayState,
 ): ReadonlyMap<AriaRole, readonly SurfaceRegion[]> {
-  const map = new Map<AriaRole, SurfaceRegion[]>();
-  for (const region of state.regions) {
-    const existing = map.get(region.role);
-    if (existing) {
-      existing.push(region);
-    } else {
-      map.set(region.role, [region]);
-    }
-  }
-  return map;
+  return state.regions.reduce<Map<AriaRole, SurfaceRegion[]>>(
+    (map, region) => {
+      const existing = map.get(region.role);
+      return map.set(region.role, existing ? [...existing, region] : [region]);
+    },
+    new Map(),
+  );
 }
 
 /**

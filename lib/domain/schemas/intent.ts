@@ -3,7 +3,6 @@ import {
   ScenarioStatusSchema,
   StepActionSchema,
   ConfidenceSchema,
-  StepBindingKindSchema,
 } from './enums';
 import {
   AdoIdSchema,

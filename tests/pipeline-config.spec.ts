@@ -5,7 +5,6 @@ import {
   paretoDominates,
   isAcceptedByParetoFrontier,
   addToParetoFrontier,
-  objectivesFromMetrics,
   emptyExperimentRegistry,
   appendExperiment,
   acceptedExperiments,

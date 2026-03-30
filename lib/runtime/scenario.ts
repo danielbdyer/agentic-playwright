@@ -33,7 +33,8 @@ import { deterministicRuntimeStepAgent, type RuntimeStepAgent } from './agent';
 import { applyProposalDraftsToRuntimeContext } from './agent/proposals';
 import type { RuntimeDomResolver } from '../domain/types';
 import { observeStateRefsOnPage, observeTransitionOnPage } from '../playwright/state-topology';
-import { planExecutionStep } from '../application/execution/planner';
+import { planExecutionStep } from '../domain/execution-planner';
+import type { AgentInterpreterProvider } from '../domain/types/agent-interpreter';
 
 export interface RuntimeScenarioEnvironment {
   mode: InterpreterMode;
@@ -51,7 +52,7 @@ export interface RuntimeScenarioEnvironment {
   agent?: RuntimeStepAgent | undefined;
   page?: Page | undefined;
   domResolver?: RuntimeDomResolver | undefined;
-  agentInterpreter?: import('../application/agent-interpreter-provider').AgentInterpreterProvider | undefined;
+  agentInterpreter?: AgentInterpreterProvider | undefined;
   executionBudgetThresholds?: ExecutionBudgetThresholds | undefined;
   recoveryPolicy?: RecoveryPolicy | undefined;
 }

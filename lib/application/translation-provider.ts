@@ -16,6 +16,7 @@
 
 import { translateIntentToOntology } from './translate';
 import type { TranslationReceipt, TranslationRequest, ExecutionProfile } from '../domain/types';
+import type { ElementId, ScreenId } from '../domain/identity';
 
 // ─── Provider Contract (Strategy interface) ───
 
@@ -152,8 +153,8 @@ function parseLlmResponse(raw: string, request: TranslationRequest): Translation
       ? {
           kind: 'element' as const,
           target: `${parsed.screen}.${parsed.element}`,
-          screen: parsed.screen as import('../domain/identity').ScreenId,
-          element: parsed.element as import('../domain/identity').ElementId,
+          screen: parsed.screen as ScreenId,
+          element: parsed.element as ElementId,
           aliases: element.aliases,
           score: Math.min(1, Math.max(0, parsed.score ?? 0.5)),
           sourceRefs: request.overlayRefs,
@@ -161,7 +162,7 @@ function parseLlmResponse(raw: string, request: TranslationRequest): Translation
       : {
           kind: 'screen' as const,
           target: parsed.screen,
-          screen: parsed.screen as import('../domain/identity').ScreenId,
+          screen: parsed.screen as ScreenId,
           aliases: screen?.aliases ?? [],
           score: Math.min(1, Math.max(0, parsed.score ?? 0.5)),
           sourceRefs: request.overlayRefs,

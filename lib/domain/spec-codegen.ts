@@ -1,6 +1,6 @@
 import * as ts from 'typescript';
 import type { GroundedFlowStep, GroundedSpecFlow } from './types';
-import type { ScenarioLifecycle } from './types/workflow';
+import type { Confidence, ScenarioLifecycle, StepBindingKind } from './types/workflow';
 import { deriveMethodName, deduplicateMethodNames } from './method-name';
 import {
   awaitExpression,
@@ -194,8 +194,8 @@ function screenFacadeDeclaration(
 
 interface StepRenderContext {
   readonly method: ResolvedScreenMethod;
-  readonly bindingKind: import('./types/workflow').StepBindingKind;
-  readonly confidence: import('./types/workflow').Confidence;
+  readonly bindingKind: StepBindingKind;
+  readonly confidence: Confidence;
 }
 
 function stepMarkerComment(ctx: StepRenderContext): string | null {

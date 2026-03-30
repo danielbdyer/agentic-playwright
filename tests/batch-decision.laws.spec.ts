@@ -1,7 +1,6 @@
 import { expect, test } from '@playwright/test';
 import {
   INITIAL_BATCH_STATE,
-  DEFAULT_TIMEOUT_SECONDS,
   AUTO_APPROVAL_THRESHOLD,
   STATUS_COLORS,
   addItem,

@@ -1,11 +1,10 @@
 import { expect, test } from '@playwright/test';
 import { createAdoId, createCanonicalTargetRef, createElementId, createScreenId, createSurfaceId, createWidgetId } from '../lib/domain/identity';
-import type { GroundedStep } from '../lib/domain/types';
+import type { GroundedStep, StepAction, ResolutionReceipt } from '../lib/domain/types';
 import { RESOLUTION_PRECEDENCE, runResolutionPipeline, type RuntimeStepAgentContext } from '../lib/runtime/agent';
 import { createScenarioRunState, runScenarioStep } from '../lib/runtime/scenario';
 import { resolveFromDom } from '../lib/runtime/agent/dom-fallback';
 import {
-  cloneJson,
   createAgentContext,
   createInterfaceResolutionContext,
   createPolicySearchElement,
@@ -287,7 +286,7 @@ test('runScenarioStep activates live-dom hint proposals into the shared runtime 
         confidence: 'agent-proposed' as const,
         provenanceKind: 'live-exploration' as const,
         target: {
-          action: 'click' as import('../lib/domain/types').StepAction,
+          action: 'click' as StepAction,
           screen: createScreenId('policy-search'),
           element: createElementId('searchButton'),
           posture: null,
@@ -306,7 +305,7 @@ test('runScenarioStep activates live-dom hint proposals into the shared runtime 
           },
           rationale: 'prove same-run alias activation',
         }],
-      }) as import('../lib/domain/types').ResolutionReceipt,
+      }) as ResolutionReceipt,
     },
   };
 

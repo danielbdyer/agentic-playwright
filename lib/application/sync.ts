@@ -1,7 +1,7 @@
 ﻿import { Effect } from 'effect';
 import { createDiagnostic } from '../domain/diagnostics';
 import type { AdoId } from '../domain/identity';
-import type { Manifest, SyncResult } from '../domain/types';
+import type { Manifest } from '../domain/types';
 import { validateAdoSnapshot, validateManifest } from '../domain/validation';
 import { AdoSource, FileSystem } from './ports';
 import type {
@@ -13,6 +13,8 @@ import {
 } from './paths';
 import { hasSnapshotDrift } from './diff';
 import { trySync } from './effect';
+import type { AdoSnapshot } from '../domain/types/intent';
+import type { CompilerDiagnostic } from '../domain/types/workflow';
 
 function emptyManifest(): Manifest {
   return { entries: {} };
@@ -57,8 +59,8 @@ export function syncSnapshots(options: { adoId?: AdoId; all?: boolean; paths: Pr
 
     type SyncAcc = {
       readonly entries: typeof manifest.entries;
-      readonly snapshots: readonly import('../domain/types/intent').AdoSnapshot[];
-      readonly diagnostics: readonly import('../domain/types/workflow').CompilerDiagnostic[];
+      readonly snapshots: readonly AdoSnapshot[];
+      readonly diagnostics: readonly CompilerDiagnostic[];
     };
 
     const syncStep = (

@@ -17,9 +17,6 @@ import {
   computeGraphMetrics,
   type GraphBuilder,
   type NodePhase,
-  type EdgePhase,
-  type MetricPhase,
-  type CompletePhase,
 } from '../lib/domain/graph-builder';
 import type { GraphNode, GraphEdge, DerivedGraph } from '../lib/domain/types';
 import { sha256, stableStringify } from '../lib/domain/hash';

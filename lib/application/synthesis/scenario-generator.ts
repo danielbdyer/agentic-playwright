@@ -11,11 +11,14 @@ import { Effect } from 'effect';
 import { FileSystem } from '../ports';
 import { loadWorkspaceCatalog } from '../catalog';
 import type { ProjectPaths } from '../paths';
+import type { WorkspaceCatalog } from '../catalog';
 
 // ─── Deterministic RNG (same algorithm as policy-journey-fuzz.ts) ───
 
 function hashSeed(seed: string): number {
+  // eslint-disable-next-line no-restricted-syntax -- baseline: imperative hash computation
   let hash = 2166136261;
+  // eslint-disable-next-line no-restricted-syntax -- baseline: imperative hash computation
   for (let index = 0; index < seed.length; index += 1) {
     hash ^= seed.charCodeAt(index);
     hash = Math.imul(hash, 16777619);
@@ -37,6 +40,7 @@ function pick<T>(array: readonly T[], rng: () => number): T {
 
 function shuffle<T>(input: readonly T[], rng: () => number): readonly T[] {
   const result = [...input];
+  // eslint-disable-next-line no-restricted-syntax -- baseline: Fisher-Yates requires index-based swap
   for (let i = result.length - 1; i > 0; i -= 1) {
     const j = Math.floor(rng() * (i + 1));
     const temp = result[i]!;
@@ -251,7 +255,7 @@ function perturbVocab(text: string, rate: number, rng: () => number): string {
 
 /** Mode 2: Alias gap — use the raw camelCase elementId instead of a human-readable alias.
  *  This creates steps the knowledge base can't resolve via alias matching. */
-function perturbAliasGap(
+function _perturbAliasGap(
   elementAlias: string,
   elementId: string,
   rate: number,
@@ -262,7 +266,7 @@ function perturbAliasGap(
 
 /** Mode 3: Cross-screen confusion — substitute an element alias from a DIFFERENT screen.
  *  This creates ambiguous steps that reference elements on the wrong screen. */
-function perturbCrossScreen(
+function _perturbCrossScreen(
   elementAlias: string,
   currentScreen: ScreenInfo,
   allScreens: readonly ScreenInfo[],
@@ -295,7 +299,7 @@ function applyPerturbations(
 }
 
 // Backward-compatible wrapper
-function perturbStepText(text: string, perturbationRate: number, rng: () => number): { text: string; perturbed: boolean } {
+function _perturbStepText(text: string, perturbationRate: number, rng: () => number): { text: string; perturbed: boolean } {
   const result = perturbVocab(text, perturbationRate, rng);
   return { text: result, perturbed: result !== text };
 }
@@ -783,7 +787,7 @@ export interface GenerateSyntheticScenariosOptions {
   readonly count: number;
   readonly seed: string;
   readonly outputDir?: string;
-  readonly catalog?: import('../catalog').WorkspaceCatalog | undefined;
+  readonly catalog?: WorkspaceCatalog | undefined;
   /** Rate [0,1] at which step text is perturbed with synonyms NOT in the knowledge base.
    *  0 = no perturbation (default). Shorthand for { vocab: rate }. */
   readonly perturbationRate?: number | undefined;

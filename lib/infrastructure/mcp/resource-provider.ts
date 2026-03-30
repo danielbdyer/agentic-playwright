@@ -14,8 +14,6 @@
  * dashboard tools.
  */
 
-import { Effect } from 'effect';
-import type { TesseractError } from '../../domain/errors';
 import type { McpToolDefinition } from '../../domain/types/dashboard';
 
 // ─── URI Parsing ───

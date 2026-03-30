@@ -18,7 +18,6 @@ import {
   formatBaselineSummary,
   formatRegressionReport,
   DEFAULT_BUDGET_MULTIPLIERS,
-  DEFAULT_REGRESSION_THRESHOLDS,
   type PhaseTimingSample,
   type PhaseTimingBaseline,
 } from '../lib/domain/speedrun-statistics';

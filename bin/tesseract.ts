@@ -24,7 +24,7 @@ function logIncrementalStatus(command: string, result: unknown): void {
 
 async function main(): Promise<void> {
   const invocation = parseCliInvocation(process.argv.slice(2));
-  const posture = resolveExecutionPosture(invocation.postureInput);
+  const posture = resolveExecutionPosture({ ...invocation.postureInput, isCI: Boolean(process.env.CI) });
   const rootDir = process.cwd();
   const paths = createCliPaths(rootDir);
   const baseProgram = invocation.execute(paths, posture);

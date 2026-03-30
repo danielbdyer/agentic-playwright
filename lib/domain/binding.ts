@@ -76,10 +76,10 @@ function normalizedIntentForStep(step: ScenarioStep): string {
 
 function knowledgeRefsForScreen(screen: ScreenId | null | undefined, context: StepBindingContext): readonly string[] {
   if (!screen) return [];
-  const refs: string[] = [];
-  if (context.surfaceGraph) refs.push(knowledgePaths.surface(screen));
-  if (context.screenElements) refs.push(knowledgePaths.elements(screen));
-  return uniqueSorted(refs);
+  return uniqueSorted([
+    ...(context.surfaceGraph ? [knowledgePaths.surface(screen)] : []),
+    ...(context.screenElements ? [knowledgePaths.elements(screen)] : []),
+  ]);
 }
 
 function supplementRefsForScreen(screen: ScreenId | null | undefined): readonly string[] {

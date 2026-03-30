@@ -12,7 +12,7 @@
 
 import { promises as nodeFs } from 'fs';
 import { sha256, stableStringify } from '../domain/hash';
-import type { AgentInterpretationRequest, AgentInterpretationResult } from './agent-interpreter-provider';
+import type { AgentInterpretationResult } from './agent-interpreter-provider';
 import type { ProjectPaths } from './paths';
 import { agentInterpretationCachePath } from './paths';
 

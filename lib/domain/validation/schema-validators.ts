@@ -16,7 +16,6 @@ import {
   WorkflowStageSchema,
   WorkflowScopeSchema,
   TrustPolicyArtifactTypeSchema,
-  ConfidenceSchema,
 } from '../schemas/enums';
 import {
   ScreenIdSchema as BaseScreenIdSchema,
@@ -26,13 +25,11 @@ import {
   NullableSnapshotTemplateId,
   NullableString,
   StringArray,
-  NullableAdoId,
 } from '../schemas/primitives';
 import {
   WorkflowEnvelopeIdsSchema,
   WorkflowEnvelopeFingerprintsSchema,
   WorkflowEnvelopeLineageSchema,
-  TrustPolicyEvidenceRuleSchema,
   TrustPolicyArtifactRuleSchema,
 } from '../schemas/workflow';
 import {

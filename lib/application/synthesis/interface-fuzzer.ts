@@ -15,7 +15,9 @@ import type { ProjectPaths } from '../paths';
 // ─── Deterministic RNG ───
 
 function hashSeed(seed: string): number {
+  // eslint-disable-next-line no-restricted-syntax -- baseline: imperative hash computation
   let hash = 2166136261;
+  // eslint-disable-next-line no-restricted-syntax -- baseline: imperative hash computation
   for (let index = 0; index < seed.length; index += 1) {
     hash ^= seed.charCodeAt(index);
     hash = Math.imul(hash, 16777619);

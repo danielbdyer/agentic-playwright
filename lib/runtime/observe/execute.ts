@@ -10,7 +10,6 @@
 import type { StateNodeRef, TransitionRef } from '../../domain/identity';
 import type {
   GroundedStep,
-  InterfaceResolutionContext,
   ObservedStateSession,
   ResolutionReceipt,
   ResolutionTarget,
@@ -151,7 +150,7 @@ export function inferTransitionObservations(
  */
 export function observePostExecution(
   transitionObservations: readonly TransitionObservation[],
-  task: GroundedStep,
+  _task: GroundedStep,
 ): PostExecutionObservation {
   const observedStateRefs = uniqueSorted(
     transitionObservations.flatMap((entry) => entry.observedStateRefs),

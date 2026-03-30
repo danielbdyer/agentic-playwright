@@ -21,7 +21,6 @@ import {
   harvestScreensConcurrently,
   type HarvestResult,
   type HarvestProposal,
-  type MergedHarvestResult,
   type HarvestSharedState,
 } from '../lib/application/parallel-harvest';
 import { createScreenId, type ScreenId } from '../lib/domain/identity';

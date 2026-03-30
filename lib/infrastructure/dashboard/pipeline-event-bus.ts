@@ -28,10 +28,10 @@
  *   subscribe: O(1) — register fiber with PubSub
  */
 
-import { Effect, PubSub, Queue, Fiber, Runtime, Scope } from 'effect';
+import type { Fiber, Scope } from 'effect';
+import { Effect, PubSub, Queue } from 'effect';
 import type { DashboardPort } from '../../application/ports';
-import type { DashboardEvent, WorkItemDecision, DashboardEventKind } from '../../domain/types';
-import type { AgentWorkItem } from '../../domain/types';
+import type { DashboardEvent, WorkItemDecision } from '../../domain/types';
 import { dashboardEvent } from '../../domain/types';
 
 // ─── Event Encoding ───

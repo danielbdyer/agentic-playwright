@@ -21,8 +21,6 @@
  * @see docs/first-day-flywheel-visualization.md Part III: Batching Strategy
  */
 
-import type { FlywheelAct } from '../../lib/domain/scene-state-accumulator';
-
 // ─── Speed Tiers ───
 
 export interface SpeedTier {
@@ -194,8 +192,11 @@ export function batchEvents(
   if (events.length === 0) return [];
 
   const batches: EventBatch[] = [];
+  // eslint-disable-next-line no-restricted-syntax -- baseline: inherently stateful batching algorithm
   let currentBatch: BatchedEvent[] = [];
+  // eslint-disable-next-line no-restricted-syntax -- baseline: inherently stateful batching algorithm
   let batchScreen: string | null = null;
+  // eslint-disable-next-line no-restricted-syntax -- baseline: inherently stateful batching algorithm
   let batchScenario: string | null = null;
 
   const flushBatch = () => {
