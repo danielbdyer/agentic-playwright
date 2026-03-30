@@ -25,6 +25,7 @@ import { dashboardEvent } from '../domain/types/dashboard';
 import type { ExecutionPosture, PipelineConfig, WriteJournalEntry } from '../domain/types';
 import { DEFAULT_PIPELINE_CONFIG } from '../domain/types';
 import type { DashboardPort, McpServerPort, StageTracerPort } from '../application/ports';
+import { enrichEventDataWithExecutionContext } from '../application/context/execution-context';
 import type { PlaywrightBridgePort } from '../infrastructure/mcp/playwright-mcp-bridge';
 
 export interface LocalServiceOptions {
@@ -99,8 +100,14 @@ export function createLocalServiceContext(rootDir: string, options?: LocalServic
   const dashboard = options?.dashboard ?? DisabledDashboard;
   const stageTracer: StageTracerPort = options?.dashboard
     ? {
-      emitStageStart: (data: unknown) => dashboard.emit(dashboardEvent('stage-lifecycle', data)).pipe(Effect.catchAll(() => Effect.void)),
-      emitStageComplete: (data: unknown) => dashboard.emit(dashboardEvent('stage-lifecycle', data)).pipe(Effect.catchAll(() => Effect.void)),
+      emitStageStart: (data: unknown) => Effect.flatMap(
+        enrichEventDataWithExecutionContext(data),
+        (enriched) => dashboard.emit(dashboardEvent('stage-lifecycle', enriched)),
+      ).pipe(Effect.catchAll(() => Effect.void)),
+      emitStageComplete: (data: unknown) => Effect.flatMap(
+        enrichEventDataWithExecutionContext(data),
+        (enriched) => dashboard.emit(dashboardEvent('stage-lifecycle', enriched)),
+      ).pipe(Effect.catchAll(() => Effect.void)),
     }
     : DisabledStageTracer;
 

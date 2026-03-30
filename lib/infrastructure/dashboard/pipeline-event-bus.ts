@@ -34,6 +34,7 @@ import type { DashboardPort } from '../../application/ports';
 import type { DashboardEvent, WorkItemDecision } from '../../domain/types';
 import { dashboardEvent } from '../../domain/types';
 import { runForkFromRuntimeBoundary } from './runtime-boundary';
+import { enrichEventDataWithExecutionContext } from '../../application/context/execution-context';
 
 // ─── Event Encoding ───
 // Dashboard events are encoded as fixed-size numeric slots in the
@@ -316,15 +317,31 @@ export function createPipelineEventBus(options?: {
     const offerTelemetry = (event: DashboardEvent) => Queue.offer(telemetryBridge, event).pipe(Effect.asVoid);
     const offerDecision = (event: DashboardEvent) => Queue.offer(decisionBridge, event).pipe(Effect.asVoid);
 
+    const enrichEventFromContext = (event: DashboardEvent): Effect.Effect<DashboardEvent> =>
+      Effect.map(
+        enrichEventDataWithExecutionContext(event.data),
+        (enrichedData) => ({ ...event, data: enrichedData }),
+      );
+
     const dashboardPort: DashboardPort = {
-      emit: (event) => offerTelemetry(event),
+      emit: (event) => Effect.flatMap(enrichEventFromContext(event), (enrichedEvent) => offerTelemetry(enrichedEvent)),
 
       awaitDecision: (item) => Effect.async<WorkItemDecision, never, never>((resume) => {
         // Publish item-pending to all subscribers
-        runForkFromRuntimeBoundary(offerDecision(dashboardEvent('item-pending', item)));
+        runForkFromRuntimeBoundary(
+          Effect.flatMap(
+            enrichEventFromContext(dashboardEvent('item-pending', item)),
+            (enrichedEvent) => offerDecision(enrichedEvent),
+          ),
+        );
 
         pendingDecisions.set(item.id, (decision) => {
-          runForkFromRuntimeBoundary(offerDecision(dashboardEvent('item-completed', decision)));
+          runForkFromRuntimeBoundary(
+            Effect.flatMap(
+              enrichEventFromContext(dashboardEvent('item-completed', decision)),
+              (enrichedEvent) => offerDecision(enrichedEvent),
+            ),
+          );
           resume(Effect.succeed(decision));
         });
 
@@ -337,7 +354,12 @@ export function createPipelineEventBus(options?: {
               status: 'skipped',
               rationale: `Auto-skip (${timeoutMs}ms)`,
             };
-            runForkFromRuntimeBoundary(offerDecision(dashboardEvent('item-completed', d)));
+            runForkFromRuntimeBoundary(
+              Effect.flatMap(
+                enrichEventFromContext(dashboardEvent('item-completed', d)),
+                (enrichedEvent) => offerDecision(enrichedEvent),
+              ),
+            );
             resume(Effect.succeed(d));
           }
         }, timeoutMs);
