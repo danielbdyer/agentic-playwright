@@ -3,6 +3,8 @@ import {
   ScenarioStatusSchema,
   StepActionSchema,
   ConfidenceSchema,
+  StepBindingKindSchema,
+  GovernanceSchema,
 } from './enums';
 import {
   AdoIdSchema,
@@ -181,3 +183,57 @@ export const ScenarioSchema = Schema.Struct({
   steps: Schema.Array(ScenarioStepSchema),
   postconditions: Schema.Array(ScenarioPostconditionSchema),
 });
+
+// ─── Bound Step (migration target for semantic validation) ───
+
+const BoundStepBindingSchema = Schema.Struct({
+  kind: StepBindingKindSchema,
+  reasons: Schema.optionalWith(StringArray, { default: () => [] as readonly string[] }),
+  ruleId: Schema.optionalWith(NullableString, { default: () => null }),
+  normalizedIntent: Schema.String,
+  knowledgeRefs: Schema.optionalWith(StringArray, { default: () => [] as readonly string[] }),
+  supplementRefs: Schema.optionalWith(StringArray, { default: () => [] as readonly string[] }),
+  evidenceIds: Schema.optionalWith(StringArray, { default: () => [] as readonly string[] }),
+  governance: GovernanceSchema,
+  reviewReasons: Schema.optionalWith(StringArray, { default: () => [] as readonly string[] }),
+}).pipe(
+  Schema.filter(
+    (binding) => binding.governance !== 'review-required' || binding.reviewReasons.length > 0,
+    {
+      identifier: 'BoundStepBindingGovernanceConsistency',
+      message: () => 'binding.reviewReasons must be non-empty when binding.governance is review-required',
+    },
+  ),
+);
+
+export const BoundStepSchema = Schema.Struct({
+  index: Schema.Number.pipe(Schema.nonNegative()),
+  intent: Schema.String.pipe(Schema.trimmed(), Schema.minLength(1)),
+  action_text: Schema.String,
+  expected_text: Schema.String,
+  action: StepActionSchema,
+  screen: Schema.optionalWith(NullableScreenId, { default: () => null }),
+  element: Schema.optionalWith(NullableElementId, { default: () => null }),
+  posture: Schema.optionalWith(NullablePostureId, { default: () => null }),
+  override: Schema.optionalWith(NullableString, { default: () => null }),
+  snapshot_template: Schema.optionalWith(NullableSnapshotTemplateId, { default: () => null }),
+  resolution: Schema.optionalWith(Schema.NullOr(StepResolutionSchema), { default: () => null }),
+  confidence: ConfidenceSchema,
+  binding: BoundStepBindingSchema,
+  program: Schema.optional(StepProgramSchema),
+}).pipe(
+  Schema.filter(
+    (step) => !(step.binding.kind === 'bound' && step.binding.governance === 'blocked'),
+    {
+      identifier: 'BoundStepGovernanceDiscipline',
+      message: () => 'binding.governance cannot be blocked when binding.kind is bound',
+    },
+  ),
+  Schema.filter(
+    (step) => step.binding.kind !== 'unbound' || (step.screen === null && step.element === null),
+    {
+      identifier: 'BoundStepTargetConsistency',
+      message: () => 'screen and element must both be null when binding.kind is unbound',
+    },
+  ),
+);

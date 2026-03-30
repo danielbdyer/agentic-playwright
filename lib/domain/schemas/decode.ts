@@ -8,17 +8,17 @@ import { SchemaError } from '../errors';
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function collectSegments(node: any, acc: ReadonlyArray<string | number> = []): ReadonlyArray<string | number> {
-  if (node == null) return acc;
-  if (node._tag === 'Pointer') {
-    return collectSegments(node.issue, [...acc, node.path]);
+  if (node == null || typeof node !== 'object') return acc;
+  const nextAcc = Object.prototype.hasOwnProperty.call(node, 'path') ? [...acc, node.path] : acc;
+  if (Object.prototype.hasOwnProperty.call(node, 'issue')) {
+    return collectSegments(node.issue, nextAcc);
   }
-  if (node._tag === 'Composite' || node._tag === 'Transformation') {
-    const next = node.issues != null
-      ? (Array.isArray(node.issues) ? node.issues[0] : node.issues)
-      : node.issue;
-    return next != null ? collectSegments(next, acc) : acc;
+  if (Object.prototype.hasOwnProperty.call(node, 'issues')) {
+    const issues = Array.isArray(node.issues) ? node.issues : [node.issues];
+    const first = issues.find((issue: unknown) => issue != null);
+    return first != null ? collectSegments(first, nextAcc) : nextAcc;
   }
-  return acc;
+  return nextAcc;
 }
 
 function extractPath(issue: ParseResult.ParseIssue): string | undefined {

@@ -4,7 +4,15 @@ import { Schema } from 'effect';
 // Each produces a branded string type compatible with the existing Brand<string, Name> pattern.
 
 export const AdoIdSchema = Schema.String.pipe(Schema.brand('AdoId'));
-export const ScreenIdSchema = Schema.String.pipe(Schema.brand('ScreenId'));
+export const ScreenIdSchema = Schema.String.pipe(
+  Schema.trimmed(),
+  Schema.minLength(1),
+  Schema.filter((value) => !value.startsWith('/') && !value.startsWith('\\') && !value.includes('..') && !/^[a-zA-Z]:/.test(value), {
+    identifier: 'ScreenIdPathSafety',
+    message: () => 'ScreenId must be relative and must not include path traversal',
+  }),
+  Schema.brand('ScreenId'),
+);
 export const RouteIdSchema = Schema.String.pipe(Schema.brand('RouteId'));
 export const RouteVariantIdSchema = Schema.String.pipe(Schema.brand('RouteVariantId'));
 export const SectionIdSchema = Schema.String.pipe(Schema.brand('SectionId'));
