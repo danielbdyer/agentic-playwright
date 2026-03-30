@@ -9,7 +9,8 @@
 import { Effect, Ref } from 'effect';
 import type { ScreenId } from '../domain/identity';
 import type { SelectorCanon } from '../domain/types';
-import { sortByStringKey } from '../domain/collections';
+import { concatAll, type Monoid } from '../domain/algebra/monoid';
+import { sortedReadonlyArrayMonoid, structMonoid, sumMonoid } from '../domain/algebra/envelope-mergers';
 import { resolveEffectConcurrency } from './concurrency';
 
 // ─── Types ───
@@ -52,37 +53,28 @@ export interface HarvestSharedState {
 
 // ─── Merge (pure, associative) ───
 
+export const mergedHarvestResultMonoid: Monoid<MergedHarvestResult> = structMonoid<MergedHarvestResult>({
+  screens: sortedReadonlyArrayMonoid((screen) => screen as string),
+  proposals: sortedReadonlyArrayMonoid((proposal) => `${proposal.screen}:${proposal.targetRef}:${proposal.kind}`),
+  totalElementsDiscovered: sumMonoid,
+  totalSurfacesDiscovered: sumMonoid,
+  totalDurationMs: sumMonoid,
+  errorCount: sumMonoid,
+  errors: sortedReadonlyArrayMonoid((error) => `${error.screen}:${error.message}`),
+});
+
 /** Empty harvest result — identity element for merge. */
-export const EMPTY_MERGED_HARVEST: MergedHarvestResult = {
-  screens: [],
-  proposals: [],
-  totalElementsDiscovered: 0,
-  totalSurfacesDiscovered: 0,
-  totalDurationMs: 0,
-  errorCount: 0,
-  errors: [],
-};
+export const EMPTY_MERGED_HARVEST: MergedHarvestResult = mergedHarvestResultMonoid.empty;
 
 /**
  * Merge two MergedHarvestResults. This operation is associative:
  *   merge(merge(a, b), c) === merge(a, merge(b, c))
- *
- * Screens and proposals are sorted deterministically after merge to ensure
- * identical output regardless of concurrency order.
  */
 export function mergeTwoHarvestResults(
   a: MergedHarvestResult,
   b: MergedHarvestResult,
 ): MergedHarvestResult {
-  return {
-    screens: sortByStringKey([...a.screens, ...b.screens], (s) => s as string),
-    proposals: sortByStringKey([...a.proposals, ...b.proposals], (p) => `${p.screen}:${p.targetRef}:${p.kind}`),
-    totalElementsDiscovered: a.totalElementsDiscovered + b.totalElementsDiscovered,
-    totalSurfacesDiscovered: a.totalSurfacesDiscovered + b.totalSurfacesDiscovered,
-    totalDurationMs: a.totalDurationMs + b.totalDurationMs,
-    errorCount: a.errorCount + b.errorCount,
-    errors: sortByStringKey([...a.errors, ...b.errors], (e) => e.screen as string),
-  };
+  return mergedHarvestResultMonoid.combine(a, b);
 }
 
 /**
@@ -110,9 +102,7 @@ export function liftHarvestResult(result: HarvestResult): MergedHarvestResult {
 export function mergeHarvestResults(
   results: readonly HarvestResult[],
 ): MergedHarvestResult {
-  return results
-    .map(liftHarvestResult)
-    .reduce(mergeTwoHarvestResults, EMPTY_MERGED_HARVEST);
+  return concatAll(mergedHarvestResultMonoid, results.map(liftHarvestResult));
 }
 
 // ─── Concurrent Harvesting ───
