@@ -217,15 +217,18 @@ test.describe('Law 4: No duplicate proposals within a bundle', () => {
   }
 });
 
-// ─── Law 5: Empty discovery produces no bundles ───
+// ─── Law 5: Empty discovery still produces route proposal ───
 
-test.describe('Law 5: Empty discovery produces no bundles', () => {
+test.describe('Law 5: Empty discovery still emits route knowledge proposal', () => {
   for (let seed = 0; seed < SEEDS; seed++) {
     test(`seed=${seed}`, () => {
       const next = mulberry32(seed);
       const run = makeDiscoveryRun(next, { elements: [], surfaces: [] });
       const bundles = generateProposalsFromDiscovery(run);
-      expect(bundles.length).toBe(0);
+      expect(bundles.length).toBe(1);
+      const proposals = allProposals(bundles);
+      expect(proposals).toHaveLength(1);
+      expect(proposals[0]!.proposalKind).toBe('route-knowledge');
     });
   }
 });
@@ -271,4 +274,15 @@ test.describe('Law 7: Deterministic output for identical input', () => {
       }
     });
   }
+});
+
+test('Law 8: Route proposal includes confidence, evidence, and impacted screens', () => {
+  const next = mulberry32(7);
+  const run = makeDiscoveryRun(next);
+  const proposals = allProposals(generateProposalsFromDiscovery(run));
+  const routeProposal = proposals.find((proposal) => proposal.proposalKind === 'route-knowledge');
+  expect(routeProposal).toBeTruthy();
+  expect(routeProposal!.confidence).toBe('low');
+  expect(routeProposal!.evidenceIds).toContain(`discovery-run:${run.runId}`);
+  expect(routeProposal!.impactedScreens).toEqual([run.screen]);
 });

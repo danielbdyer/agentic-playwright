@@ -1,7 +1,7 @@
 import { Effect } from 'effect';
 import type { InferenceKnowledge } from '../domain/inference';
 import type { ScreenId } from '../domain/identity';
-import type { BoundScenario, Scenario, ScreenElements, ScreenHints, ScreenPostures, SurfaceGraph } from '../domain/types';
+import type { BoundScenario, HarvestManifest, Scenario, ScreenElements, ScreenHints, ScreenPostures, SurfaceGraph } from '../domain/types';
 import {
   loadWorkspaceCatalog,
   type WorkspaceCatalog,
@@ -16,6 +16,7 @@ export interface WorkspaceScreenIndexes {
   screenElements: Map<ScreenId, ScreenElements>;
   screenHints: Map<ScreenId, ScreenHints>;
   screenPostures: Map<ScreenId, ScreenPostures>;
+  routeKnowledge: Map<ScreenId, ReadonlyArray<HarvestManifest['routes'][number]['variants'][number]>>;
 }
 
 export interface WorkspaceSession {
@@ -23,23 +24,44 @@ export interface WorkspaceSession {
   catalog: WorkspaceCatalog;
   inferenceKnowledge: InferenceKnowledge;
   screenIndexes: WorkspaceScreenIndexes;
+  routeKnowledgeFingerprint: string;
 }
 
 function createWorkspaceScreenIndexes(catalog: WorkspaceCatalog): WorkspaceScreenIndexes {
+  const routeKnowledge = catalog.routeManifests
+    .flatMap((entry) => entry.artifact.routes.map((route) => ({ screen: route.screen, variants: route.variants })))
+    .sort((left, right) => left.screen.localeCompare(right.screen))
+    .reduce<Map<ScreenId, ReadonlyArray<HarvestManifest['routes'][number]['variants'][number]>>>(
+      (acc, route) => new Map([
+        ...acc,
+        [
+          route.screen,
+          [...(acc.get(route.screen) ?? []), ...route.variants]
+            .sort((left, right) => left.id.localeCompare(right.id)),
+        ],
+      ]),
+      new Map(),
+    );
   return {
     surfaceGraphs: new Map(catalog.surfaces.map((entry) => [entry.artifact.screen, entry.artifact] as const)),
     screenElements: new Map(catalog.screenElements.map((entry) => [entry.artifact.screen, entry.artifact] as const)),
     screenHints: new Map(catalog.screenHints.map((entry) => [entry.artifact.screen, entry.artifact] as const)),
     screenPostures: new Map(catalog.screenPostures.map((entry) => [entry.artifact.screen, entry.artifact] as const)),
+    routeKnowledge,
   };
 }
 
 export function createWorkspaceSession(catalog: WorkspaceCatalog): WorkspaceSession {
+  const routeKnowledgeFingerprint = catalog.routeManifests
+    .map((entry) => `${entry.artifactPath}:${entry.fingerprint}`)
+    .sort((left, right) => left.localeCompare(right))
+    .join('|');
   return {
     paths: catalog.paths,
     catalog,
     inferenceKnowledge: inferenceKnowledgeFromCatalog(catalog),
     screenIndexes: createWorkspaceScreenIndexes(catalog),
+    routeKnowledgeFingerprint,
   };
 }
 

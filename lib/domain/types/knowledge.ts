@@ -52,6 +52,12 @@ export interface StepTaskScreenCandidate {
   readonly routeVariants?: ReadonlyArray<{
     readonly routeVariantRef: string;
     readonly url: string;
+    readonly pathTemplate?: string | null | undefined;
+    readonly query?: Readonly<Record<string, string>> | undefined;
+    readonly hash?: string | null | undefined;
+    readonly tab?: string | null | undefined;
+    readonly state?: Readonly<Record<string, string>> | undefined;
+    readonly mappedScreens?: readonly ScreenId[] | undefined;
     readonly urlPattern?: string | null | undefined;
     readonly dimensions?: readonly ('query' | 'hash' | 'tab' | 'segment')[];
     readonly expectedEntryStateRefs?: readonly StateNodeRef[];

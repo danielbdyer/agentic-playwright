@@ -140,6 +140,7 @@ export function explicitResolvedReceipt(stage: RuntimeAgentStageContext, pending
       snapshot_template: explicit.snapshot_template ?? null,
       semanticDestination: explicit.action === 'navigate' ? stage.task.normalizedIntent : null,
       routeVariantRef: null,
+      routeState: explicit.route_state ?? null,
     },
   };
 }

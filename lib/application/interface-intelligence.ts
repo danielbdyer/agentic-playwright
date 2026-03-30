@@ -103,6 +103,12 @@ type RouteBinding = {
     variantId: RouteVariantId;
     screen: ScreenId;
     url: string;
+    pathTemplate?: string | null;
+    query?: Readonly<Record<string, string>>;
+    hash?: string | null;
+    tab?: string | null;
+    state?: Readonly<Record<string, string>>;
+    mappedScreens?: readonly ScreenId[];
     rootSelector: string | null;
     urlPattern?: string | null;
     dimensions?: readonly ('query' | 'hash' | 'tab' | 'segment')[];
@@ -305,6 +311,12 @@ function routeBindings(catalog: WorkspaceCatalog): RouteBinding[] {
           variantId: variant.id,
           screen: variant.screen,
           url: variant.url,
+          pathTemplate: variant.pathTemplate ?? null,
+          query: variant.query ?? {},
+          hash: variant.hash ?? null,
+          tab: variant.tab ?? null,
+          state: variant.state ?? {},
+          mappedScreens: variant.mappedScreens ?? [variant.screen],
           rootSelector: variant.rootSelector ?? route.rootSelector ?? null,
           urlPattern: variant.urlPattern ?? null,
           dimensions: variant.dimensions ?? [],
@@ -333,6 +345,12 @@ function routeBindings(catalog: WorkspaceCatalog): RouteBinding[] {
       variantId: createRouteVariantId('default'),
       screen: entry.artifact.screen,
       url: entry.artifact.url,
+      pathTemplate: null,
+      query: {},
+      hash: null,
+      tab: null,
+      state: {},
+      mappedScreens: [entry.artifact.screen],
       rootSelector: null,
     }],
     sourceArtifacts: [entry.artifactPath],
@@ -355,6 +373,12 @@ interface CatalogScreenIndex {
   readonly routeVariantDetailsByScreen: ReadonlyMap<ScreenId, ReadonlyArray<{
     routeVariantRef: string;
     url: string;
+    pathTemplate: string | null;
+    query: Readonly<Record<string, string>>;
+    hash: string | null;
+    tab: string | null;
+    state: Readonly<Record<string, string>>;
+    mappedScreens: readonly ScreenId[];
     urlPattern: string | null;
     dimensions: readonly ('query' | 'hash' | 'tab' | 'segment')[];
     expectedEntryStateRefs: readonly string[];
@@ -397,6 +421,12 @@ function buildCatalogScreenIndex(catalog: WorkspaceCatalog, routes: readonly Rou
       const payload = {
         routeVariantRef: ref,
         url: variant.url,
+        pathTemplate: (variant.pathTemplate ?? null) as string | null,
+        query: (variant.query ?? {}) as Readonly<Record<string, string>>,
+        hash: (variant.hash ?? null) as string | null,
+        tab: (variant.tab ?? null) as string | null,
+        state: (variant.state ?? {}) as Readonly<Record<string, string>>,
+        mappedScreens: (variant.mappedScreens ?? [variant.screen]) as readonly ScreenId[],
         urlPattern: (variant as { urlPattern?: string | null }).urlPattern ?? null,
         dimensions: ((variant as { dimensions?: readonly ('query' | 'hash' | 'tab' | 'segment')[] }).dimensions ?? []) as readonly ('query' | 'hash' | 'tab' | 'segment')[],
         expectedEntryStateRefs: (((variant as { expectedEntryState?: { requiredStateRefs?: readonly string[] } }).expectedEntryState?.requiredStateRefs) ?? []) as readonly string[],
@@ -411,6 +441,12 @@ function buildCatalogScreenIndex(catalog: WorkspaceCatalog, routes: readonly Rou
     new Map<ScreenId, ReadonlyArray<{
       routeVariantRef: string;
       url: string;
+      pathTemplate: string | null;
+      query: Readonly<Record<string, string>>;
+      hash: string | null;
+      tab: string | null;
+      state: Readonly<Record<string, string>>;
+      mappedScreens: readonly ScreenId[];
       urlPattern: string | null;
       dimensions: readonly ('query' | 'hash' | 'tab' | 'segment')[];
       expectedEntryStateRefs: readonly string[];
@@ -949,6 +985,12 @@ function buildApplicationInterfaceGraph(_input: {
         payload: {
           app: binding.app,
           url: variant.url,
+          pathTemplate: variant.pathTemplate ?? null,
+          query: variant.query ?? {},
+          hash: variant.hash ?? null,
+          tab: variant.tab ?? null,
+          state: variant.state ?? {},
+          mappedScreens: variant.mappedScreens ?? [variant.screen],
           urlPattern: variant.urlPattern ?? variant.url,
           dimensions: variant.dimensions ?? [],
           expectedEntryState: variant.expectedEntryState ?? { requiredStateRefs: [], forbiddenStateRefs: [] },

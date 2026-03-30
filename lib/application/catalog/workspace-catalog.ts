@@ -90,6 +90,25 @@ function sortByArtifactPath<T>(envelopes: ArtifactEnvelope<T>[]): ArtifactEnvelo
   return [...envelopes].sort((a, b) => a.artifactPath.localeCompare(b.artifactPath));
 }
 
+function normalizeRouteManifest(manifest: HarvestManifest): HarvestManifest {
+  return {
+    ...manifest,
+    routes: [...manifest.routes]
+      .map((route) => ({
+        ...route,
+        variants: [...route.variants]
+          .map((variant) => ({
+            ...variant,
+            query: Object.fromEntries(Object.entries(variant.query ?? {}).sort((left, right) => left[0].localeCompare(right[0]))),
+            state: Object.fromEntries(Object.entries(variant.state ?? {}).sort((left, right) => left[0].localeCompare(right[0]))),
+            mappedScreens: [...new Set(variant.mappedScreens ?? [variant.screen])].sort((left, right) => left.localeCompare(right)),
+          }))
+          .sort((left, right) => left.id.localeCompare(right.id)),
+      }))
+      .sort((left, right) => left.id.localeCompare(right.id)),
+  };
+}
+
 const catalogIoConcurrency = resolveEffectConcurrency({ ceiling: 20 });
 
 function loadAllYaml<T>(
@@ -430,7 +449,14 @@ export function loadWorkspaceCatalog(options: LoadCatalogOptions) {
       rerunPlans: loaded.rerunPlans,
       datasets: loaded.datasets,
       benchmarks: loaded.benchmarks,
-      routeManifests: loaded.routeManifests,
+      routeManifests: loaded.routeManifests.map((entry) => {
+        const normalized = normalizeRouteManifest(entry.artifact);
+        return {
+          ...entry,
+          artifact: normalized,
+          fingerprint: fingerprintArtifact(normalized),
+        };
+      }),
       resolutionControls: loaded.resolutionControls,
       runbooks: loaded.runbooks,
       surfaces: loaded.surfaces,

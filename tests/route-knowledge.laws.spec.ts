@@ -172,3 +172,66 @@ test('rankRouteVariants prefers specific semantic match with stronger historical
   expect(ranked[0]!.variant.routeVariantRef).toBe('route-variant:app:orders:orders-open');
   expect(ranked[0]!.score).toBeGreaterThan(ranked[1]!.score);
 });
+
+test('route variant ranking is deterministic under input permutation (replay reproducibility)', () => {
+  const variants = [
+    {
+      routeVariantRef: 'route-variant:app:claims:list',
+      screenId: 'claims',
+      url: '/claims?mode=list',
+      urlPattern: '/claims?mode={mode}',
+      dimensions: ['query'],
+      expectedEntryStateRefs: ['state:claims:list'],
+      historicalSuccess: { successCount: 6, failureCount: 1, lastSuccessAt: '2026-02-01T00:00:00Z' },
+    },
+    {
+      routeVariantRef: 'route-variant:app:claims:grid',
+      screenId: 'claims',
+      url: '/claims?mode=grid',
+      urlPattern: '/claims?mode={mode}',
+      dimensions: ['query'],
+      expectedEntryStateRefs: ['state:claims:grid'],
+      historicalSuccess: { successCount: 6, failureCount: 1, lastSuccessAt: '2026-02-01T00:00:00Z' },
+    },
+  ] as const;
+  const input = {
+    screenId: 'claims',
+    semanticDestination: 'claims list mode',
+    expectedEntryStateRefs: ['state:claims:list'],
+  } as const;
+  const left = rankRouteVariants(variants, input);
+  const right = rankRouteVariants([variants[1]!, variants[0]!], input);
+  expect(left.map((entry) => entry.variant.routeVariantRef)).toEqual(right.map((entry) => entry.variant.routeVariantRef));
+  expect(left.map((entry) => entry.score)).toEqual(right.map((entry) => entry.score));
+});
+
+test('route conflicts resolve stably by routeVariantRef when scores tie', () => {
+  const ranked = rankRouteVariants(
+    [
+      {
+        routeVariantRef: 'route-variant:app:orders:a',
+        screenId: 'orders',
+        url: '/orders',
+        urlPattern: '/orders',
+        dimensions: [],
+        expectedEntryStateRefs: [],
+        historicalSuccess: { successCount: 0, failureCount: 0, lastSuccessAt: null },
+      },
+      {
+        routeVariantRef: 'route-variant:app:orders:b',
+        screenId: 'orders',
+        url: '/orders',
+        urlPattern: '/orders',
+        dimensions: [],
+        expectedEntryStateRefs: [],
+        historicalSuccess: { successCount: 0, failureCount: 0, lastSuccessAt: null },
+      },
+    ],
+    {
+      screenId: 'orders',
+      semanticDestination: '',
+      expectedEntryStateRefs: [],
+    },
+  );
+  expect(ranked[0]!.variant.routeVariantRef).toBe('route-variant:app:orders:a');
+});

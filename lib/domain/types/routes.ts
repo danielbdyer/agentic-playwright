@@ -1,4 +1,5 @@
 import type { RouteId, RouteVariantId, ScreenId } from '../identity';
+import type { Governance } from './workflow';
 
 export type RouteVariantDimension = 'query' | 'hash' | 'tab' | 'segment';
 
@@ -17,6 +18,14 @@ export interface HarvestRouteVariant {
   readonly id: RouteVariantId;
   readonly url: string;
   readonly screen: ScreenId;
+  /** Canonical normalized path template used for deterministic matching. */
+  readonly pathTemplate?: string | null | undefined;
+  /** Required query-parameter discriminators for this variant. */
+  readonly query?: Readonly<Record<string, string>> | undefined;
+  /** Required hash discriminator for this variant. */
+  readonly hash?: string | null | undefined;
+  /** Canonical tab discriminator for this variant. */
+  readonly tab?: string | null | undefined;
   readonly rootSelector?: string | null | undefined;
   /** Canonical semantic pattern used for route-intent matching. */
   readonly urlPattern?: string | null | undefined;
@@ -26,6 +35,13 @@ export interface HarvestRouteVariant {
   readonly expectedEntryState?: RouteVariantExpectedEntryState | undefined;
   /** Runtime-derived historical success summary for tie-breaking. */
   readonly historicalSuccess?: RouteVariantHistoricalSuccess | undefined;
+  /**
+   * Canonical route-state discriminators used for runtime pre-navigation.
+   * Keys are normalized lower-case state names (for example: "tab", "mode").
+   */
+  readonly state?: Readonly<Record<string, string>> | undefined;
+  /** Additional screen IDs this variant can map to (for shared routes). */
+  readonly mappedScreens?: readonly ScreenId[] | undefined;
 }
 
 export interface HarvestRouteDefinition {
@@ -37,8 +53,9 @@ export interface HarvestRouteDefinition {
 }
 
 export interface HarvestManifest {
-  readonly kind: 'harvest-manifest';
+  readonly kind: 'harvest-manifest' | 'route-knowledge';
   readonly version: 1;
+  readonly governance?: Governance | undefined;
   readonly app: string;
   readonly baseUrl?: string | null | undefined;
   readonly routes: readonly HarvestRouteDefinition[];

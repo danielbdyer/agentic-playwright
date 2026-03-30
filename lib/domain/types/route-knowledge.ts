@@ -30,6 +30,10 @@ export interface RouteVariantKnowledge {
   readonly screenId: string;
   readonly url: string;
   readonly urlPattern: string;
+  readonly query?: Readonly<Record<string, string>> | undefined;
+  readonly hash?: string | null | undefined;
+  readonly tab?: string | null | undefined;
+  readonly state?: Readonly<Record<string, string>> | undefined;
   readonly dimensions: readonly RouteVariantDimension[];
   readonly expectedEntryStateRefs: readonly string[];
   readonly historicalSuccess: {

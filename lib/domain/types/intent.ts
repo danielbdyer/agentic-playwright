@@ -125,6 +125,7 @@ export interface StepResolution {
   readonly posture?: PostureId | null | undefined;
   readonly override?: string | null | undefined;
   readonly snapshot_template?: SnapshotTemplateId | null | undefined;
+  readonly route_state?: Readonly<Record<string, string>> | null | undefined;
 }
 
 export interface ScenarioStep {
@@ -138,6 +139,7 @@ export interface ScenarioStep {
   readonly posture?: PostureId | null | undefined;
   readonly override?: string | null | undefined;
   readonly snapshot_template?: SnapshotTemplateId | null | undefined;
+  readonly route_state?: Readonly<Record<string, string>> | null | undefined;
   readonly resolution?: StepResolution | null | undefined;
   readonly confidence: Confidence;
 }

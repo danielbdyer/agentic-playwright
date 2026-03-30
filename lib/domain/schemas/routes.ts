@@ -5,6 +5,7 @@ import {
   ScreenIdSchema,
   NullableString,
 } from './primitives';
+import { GovernanceSchema } from './enums';
 
 // ─── Harvest Route ───
 
@@ -12,6 +13,10 @@ export const HarvestRouteVariantSchema = Schema.Struct({
   id: RouteVariantIdSchema,
   url: Schema.String,
   screen: ScreenIdSchema,
+  pathTemplate: Schema.optionalWith(NullableString, { default: () => null }),
+  query: Schema.optionalWith(Schema.Record({ key: Schema.String, value: Schema.String }), { default: () => ({}) }),
+  hash: Schema.optionalWith(NullableString, { default: () => null }),
+  tab: Schema.optionalWith(NullableString, { default: () => null }),
   rootSelector: Schema.optionalWith(NullableString, { default: () => null }),
   urlPattern: Schema.optionalWith(NullableString, { default: () => null }),
   dimensions: Schema.optionalWith(Schema.Array(Schema.Literal('query', 'hash', 'tab', 'segment')), {
@@ -37,6 +42,8 @@ export const HarvestRouteVariantSchema = Schema.Struct({
       lastSuccessAt: null,
     }),
   }),
+  state: Schema.optionalWith(Schema.Record({ key: Schema.String, value: Schema.String }), { default: () => ({}) }),
+  mappedScreens: Schema.optionalWith(Schema.Array(ScreenIdSchema), { default: () => [] as const }),
 });
 
 export const HarvestRouteDefinitionSchema = Schema.Struct({
@@ -48,8 +55,9 @@ export const HarvestRouteDefinitionSchema = Schema.Struct({
 });
 
 export const HarvestManifestSchema = Schema.Struct({
-  kind: Schema.Literal('harvest-manifest'),
+  kind: Schema.Literal('harvest-manifest', 'route-knowledge'),
   version: Schema.Literal(1),
+  governance: Schema.optionalWith(GovernanceSchema, { default: () => 'approved' }),
   app: Schema.String,
   baseUrl: Schema.optionalWith(NullableString, { default: () => null }),
   routes: Schema.Array(HarvestRouteDefinitionSchema),

@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import { rankActionCandidates } from '../lib/runtime/agent/candidate-lattice';
 import { selectedControlResolution } from '../lib/runtime/agent/select-controls';
 import { runResolutionPipeline } from '../lib/runtime/agent';
+import { chooseByPrecedence, routeSelectionPrecedenceLaw } from '../lib/domain/precedence';
 import { cloneJson, createAgentContext, createInterfaceResolutionContext, createGroundedStep } from './support/interface-fixtures';
 
 function buildContextWithControls() {
@@ -134,4 +135,17 @@ test('deterministic ordering stability holds under candidate permutation', () =>
 
   expect(leftRank.selected?.value).toBe(rightRank.selected?.value);
   expect(leftRank.ranked.map((entry) => entry.value)).toEqual(rightRank.ranked.map((entry) => entry.value));
+});
+
+test('route selection precedence: explicit URL outranks runbook and route knowledge', () => {
+  const selected = chooseByPrecedence(
+    [
+      { rung: 'route-knowledge', value: '/orders?tab=open' },
+      { rung: 'runbook-binding', value: '/orders?tab=all' },
+      { rung: 'explicit-url', value: '/orders?tab=assigned' },
+      { rung: 'screen-default', value: '/orders' },
+    ],
+    routeSelectionPrecedenceLaw,
+  );
+  expect(selected).toBe('/orders?tab=assigned');
 });

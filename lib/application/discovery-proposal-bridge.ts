@@ -17,7 +17,7 @@ import type { ScreenId } from '../domain/identity';
 // ─── Output types ───
 
 export interface DiscoveryProposal {
-  readonly proposalKind: 'screen-elements' | 'screen-hints' | 'screen-behavior';
+  readonly proposalKind: 'screen-elements' | 'screen-hints' | 'screen-behavior' | 'route-knowledge';
   readonly artifactType: TrustPolicyArtifactType;
   readonly targetPath: string;
   readonly title: string;
@@ -26,6 +26,9 @@ export interface DiscoveryProposal {
   readonly sourceElementId: string | null;
   readonly sourceSurfaceId: string | null;
   readonly discoveryRunId: string;
+  readonly confidence: 'high' | 'medium' | 'low';
+  readonly evidenceIds: readonly string[];
+  readonly impactedScreens: readonly ScreenId[];
 }
 
 export interface ProposalBundle {
@@ -60,6 +63,9 @@ function elementProposal(
     sourceElementId: element.id,
     sourceSurfaceId: null,
     discoveryRunId,
+    confidence: 'medium',
+    evidenceIds: [`discovery-run:${discoveryRunId}`],
+    impactedScreens: [screen],
   };
 }
 
@@ -95,6 +101,9 @@ function hintProposalForElement(
         sourceElementId: element.id,
         sourceSurfaceId: null,
         discoveryRunId,
+        confidence: 'medium',
+        evidenceIds: [`discovery-run:${discoveryRunId}`],
+        impactedScreens: [screen],
       }
     : null;
 }
@@ -132,6 +141,9 @@ function behaviorProposalForSurface(
     sourceElementId: null,
     sourceSurfaceId: surface.id,
     discoveryRunId,
+    confidence: 'medium',
+    evidenceIds: [`discovery-run:${discoveryRunId}`],
+    impactedScreens: [screen],
   };
 }
 
@@ -141,6 +153,66 @@ function behaviorProposals(
   surfaces: readonly DiscoveryObservedSurface[],
 ): readonly DiscoveryProposal[] {
   return surfaces.map((surface) => behaviorProposalForSurface(screen, discoveryRunId, surface));
+}
+
+function routeProposal(input: {
+  screen: ScreenId;
+  discoveryRunId: string;
+  routeId: string;
+  variantId: string;
+  url: string;
+}): DiscoveryProposal {
+  const parsed = (() => {
+    try {
+      const value = new URL(input.url);
+      return {
+        pathTemplate: value.pathname,
+        query: Object.fromEntries([...value.searchParams.entries()].sort((left, right) => left[0].localeCompare(right[0]))),
+        hash: value.hash.length > 0 ? value.hash.slice(1) : null,
+      };
+    } catch {
+      return {
+        pathTemplate: input.url,
+        query: {},
+        hash: null,
+      };
+    }
+  })();
+  return {
+    proposalKind: 'route-knowledge',
+    artifactType: 'routes',
+    targetPath: `knowledge/routes/${input.screen}.routes.yaml`,
+    title: `Add or update route variant ${input.routeId}:${input.variantId} for ${input.screen}`,
+    patch: {
+      kind: 'route-knowledge',
+      version: 1,
+      governance: 'review-required',
+      app: 'discover',
+      routes: [{
+        id: input.routeId,
+        screen: input.screen,
+        entryUrl: input.url,
+        variants: [{
+          id: input.variantId,
+          screen: input.screen,
+          url: input.url,
+          pathTemplate: parsed.pathTemplate,
+          query: parsed.query,
+          hash: parsed.hash,
+          tab: parsed.query.tab ?? null,
+          state: parsed.query.mode ? { mode: parsed.query.mode } : {},
+          mappedScreens: [input.screen],
+        }],
+      }],
+    },
+    rationale: `Discovery run ${input.discoveryRunId} observed route ${input.url} for screen ${input.screen}.`,
+    sourceElementId: null,
+    sourceSurfaceId: null,
+    discoveryRunId: input.discoveryRunId,
+    confidence: 'low',
+    evidenceIds: [`discovery-run:${input.discoveryRunId}`, `route-variant:${input.routeId}:${input.variantId}`],
+    impactedScreens: [input.screen],
+  };
 }
 
 // ─── Deduplication ───
@@ -177,6 +249,13 @@ export function generateProposalsFromDiscovery(
     ...elementProposals(screen, runId, discovery.elements),
     ...hintProposals(screen, runId, discovery.elements),
     ...behaviorProposals(screen, runId, discovery.surfaces),
+    routeProposal({
+      screen,
+      discoveryRunId: runId,
+      routeId: discovery.routeId,
+      variantId: discovery.variantId,
+      url: discovery.url,
+    }),
   ]);
 
   return allProposals.length > 0
