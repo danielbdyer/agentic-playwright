@@ -107,6 +107,11 @@ async function main() {
       args: ['-e', loadFileScript(path.join(ROOT_DIR, 'scripts', 'lint.cjs'), ['--format', 'compact'])],
     },
     {
+      name: 'effect-runners',
+      command: NODE,
+      args: [path.join(ROOT_DIR, 'scripts', 'check-effect-runners.cjs')],
+    },
+    {
       name: 'test',
       command: NODE,
       args: ['-e', loadFileScript(path.join(ROOT_DIR, 'node_modules', '@playwright', 'test', 'cli.js'), ['test', '--reporter=line'])],
