@@ -23,7 +23,9 @@ export interface FileSystemPort {
   writeText(path: string, contents: string): Effect.Effect<void, TesseractError>;
   readJson(path: string): Effect.Effect<unknown, TesseractError>;
   writeJson(path: string, value: unknown): Effect.Effect<void, TesseractError>;
+  stat(path: string): Effect.Effect<{ readonly mtimeMs: number }, TesseractError>;
   exists(path: string): Effect.Effect<boolean, TesseractError>;
+  removeFile(path: string): Effect.Effect<void, TesseractError>;
   listDir(path: string): Effect.Effect<string[], TesseractError>;
   ensureDir(path: string): Effect.Effect<void, TesseractError>;
   removeDir(path: string): Effect.Effect<void, TesseractError>;
