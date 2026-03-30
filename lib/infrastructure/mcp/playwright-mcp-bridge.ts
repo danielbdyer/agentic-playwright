@@ -23,6 +23,7 @@
 import { Effect } from 'effect';
 import { Context } from 'effect';
 import type { TesseractError } from '../../domain/errors';
+import { McpBridgeError } from '../../domain/errors';
 
 // ─── Port Interface ───
 
@@ -47,7 +48,7 @@ export interface PlaywrightBridgePort {
   /** Whether a live browser session is available. */
   readonly isAvailable: () => Effect.Effect<boolean, never, never>;
   /** Execute a browser action. Returns result or error. */
-  readonly execute: (action: BrowserAction) => Effect.Effect<BrowserActionResult, TesseractError>;
+  readonly execute: (action: BrowserAction) => Effect.Effect<BrowserActionResult, McpBridgeError | TesseractError>;
   /** Get the current page URL. */
   readonly currentUrl: () => Effect.Effect<string | null, never, never>;
 }
@@ -131,7 +132,11 @@ export function createPlaywrightBridge(page: {
             return { success: false, action: action.kind, data: null, error: `Unknown action: ${action.kind}` };
         }
       },
-      catch: (err) => ({ _tag: 'TesseractError' as const, message: String(err) }) as TesseractError,
+      catch: (err) => new McpBridgeError(
+        err instanceof Error ? err.message : String(err),
+        action.kind,
+        err,
+      ) as TesseractError,
     }),
 
     currentUrl: () => Effect.sync(() => page.url()),

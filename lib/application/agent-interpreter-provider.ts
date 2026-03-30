@@ -28,6 +28,7 @@ import type { StepAction } from '../domain/types';
 import type { ScreenId, ElementId, PostureId, SnapshotTemplateId } from '../domain/identity';
 import { normalizeIntentText, bestAliasMatch, humanizeIdentifier } from '../domain/inference';
 import { assignVariant, type ABTestConfig } from './agent-ab-testing';
+import { AgentTimeoutError, ToolInvocationError } from '../domain/errors';
 
 // Re-export type interfaces from domain layer for backwards compatibility
 export type {
@@ -577,14 +578,28 @@ export function withAgentTimeout(
   return (request) => {
     const agentCall = Effect.tryPromise({
       try: () => interpret(request),
-      catch: (err) => err instanceof Error ? err : new Error(String(err)),
+      catch: (err) => new ToolInvocationError(providerId, err instanceof Error ? err.message : String(err), err),
     });
 
-    const timeoutSignal = Effect.sleep(Duration.millis(budgetMs)).pipe(
-      Effect.map(() => timeoutFallbackResult(providerId, budgetMs)),
-    );
-
-    const raced = Effect.race(agentCall, timeoutSignal).pipe(
+    const raced = agentCall.pipe(
+      Effect.timeoutFail({
+        duration: Duration.millis(budgetMs),
+        onTimeout: () => new AgentTimeoutError(providerId, budgetMs),
+      }),
+      Effect.catchTag('AgentTimeoutError', () => Effect.succeed(timeoutFallbackResult(providerId, budgetMs))),
+      Effect.catchTag('ToolInvocationError', () => Effect.succeed({
+        interpreted: false,
+        target: null,
+        confidence: 0,
+        rationale: `Agent interpretation failed for provider "${providerId}". Escalating to needs-human.`,
+        proposalDrafts: [],
+        provider: providerId,
+        observation: {
+          source: 'agent-interpreted' as const,
+          summary: `Provider ${providerId} invocation failed.`,
+          detail: { reason: 'provider-failure' },
+        },
+      })),
       Effect.catchAll(() => Effect.succeed(timeoutFallbackResult(providerId, budgetMs))),
     );
 

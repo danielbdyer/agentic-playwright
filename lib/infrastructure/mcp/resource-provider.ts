@@ -15,6 +15,7 @@
  */
 
 import type { McpToolDefinition } from '../../domain/types/dashboard';
+import { ToolInvocationError } from '../../domain/errors';
 
 // ─── URI Parsing ───
 
@@ -415,6 +416,10 @@ export function routeExpandedToolCall(
       : false;
     return { result, isError };
   } catch (err) {
-    return { result: { error: String(err) }, isError: true };
+    const typed = new ToolInvocationError(tool, err instanceof Error ? err.message : String(err), err);
+    return {
+      result: { error: typed.message, errorTag: typed._tag, toolName: typed.toolName },
+      isError: true,
+    };
   }
 }

@@ -19,6 +19,7 @@ import { dashboardMcpTools, dashboardEvent } from '../../domain/types/dashboard'
 import { resolveResource, buildResourceUri } from './resource-provider';
 import type { ResourceArtifactReader } from './resource-provider';
 import type { PlaywrightBridgePort, BrowserAction } from './playwright-mcp-bridge';
+import { McpBridgeError, ToolInvocationError } from '../../domain/errors';
 
 // ─── Configuration ───
 
@@ -267,7 +268,15 @@ const executeBrowserAction = (
   Effect.runSync(
     bridge.execute(action).pipe(
       Effect.tap((r) => Effect.sync(() => { result = r; })),
-      Effect.catchAll((err) => Effect.sync(() => { result = { error: String(err), success: false }; })),
+      Effect.catchTag('McpBridgeError', (err) => Effect.sync(() => {
+        result = { error: err.message, success: false, errorTag: err._tag, action: err.action ?? action.kind };
+      })),
+      Effect.catchTag('TesseractError', (err) => Effect.sync(() => {
+        result = { error: err.message, success: false, errorTag: err._tag };
+      })),
+      Effect.catchAll((err) => Effect.sync(() => {
+        result = { error: String(err), success: false, errorTag: 'UnexpectedError' };
+      })),
     ),
   );
   return result;
@@ -329,7 +338,12 @@ const routeToolCall = (
     const result = handler(invocation.arguments, options);
     return { tool: invocation.tool, result, isError: false };
   } catch (err) {
-    return { tool: invocation.tool, result: { error: String(err) }, isError: true };
+    const typed = new ToolInvocationError(invocation.tool, err instanceof Error ? err.message : String(err), err);
+    return {
+      tool: invocation.tool,
+      result: { error: typed.message, errorTag: typed._tag, toolName: typed.toolName },
+      isError: true,
+    };
   }
 };
 

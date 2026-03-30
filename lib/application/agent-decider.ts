@@ -11,6 +11,7 @@
 import { Effect, Duration } from 'effect';
 import type { AgentWorkItem } from '../domain/types';
 import type { WorkItemDecider } from './agent-workbench';
+import { AgentTimeoutError, ToolInvocationError } from '../domain/errors';
 
 // ─── Types ───
 
@@ -71,6 +72,7 @@ const parseAgentResponse = (result: unknown): { readonly status: 'completed' | '
  *  Uses Effect.timeout for clean fiber interruption — no leaked timers. */
 export function createAgentDecider(options: AgentDeciderOptions): WorkItemDecider {
   const timeout = options.timeout ?? Duration.seconds(30);
+  const timeoutMs = Duration.toMillis(timeout);
 
   return (item) => {
     if (options.shouldHandle && !options.shouldHandle(item)) {
@@ -80,14 +82,24 @@ export function createAgentDecider(options: AgentDeciderOptions): WorkItemDecide
     // Effect program: invoke tool with timeout, catch all errors
     return Effect.tryPromise({
       try: () => options.invokeTool('decide_work_item', workItemToToolArgs(item)),
-      catch: (err) => err instanceof Error ? err : new Error(String(err)),
+      catch: (err) => new ToolInvocationError('decide_work_item', err instanceof Error ? err.message : String(err), err),
     }).pipe(
       Effect.map(parseAgentResponse),
       Effect.timeout(timeout),
-      Effect.map((opt) => opt ?? { status: 'skipped' as const, rationale: `Agent timeout (${Duration.toMillis(timeout)}ms)` }),
+      Effect.flatMap((opt) => opt
+        ? Effect.succeed(opt)
+        : Effect.fail(new AgentTimeoutError('decide_work_item', timeoutMs))),
+      Effect.catchTag('AgentTimeoutError', (err) => Effect.succeed({
+        status: 'skipped' as const,
+        rationale: `Agent timeout (${err.timeoutMs}ms)`,
+      })),
+      Effect.catchTag('ToolInvocationError', (err) => Effect.succeed({
+        status: 'skipped' as const,
+        rationale: `Agent tool error (${err.toolName}): ${err.message}`,
+      })),
       Effect.catchAll((err) => Effect.succeed({
         status: 'skipped' as const,
-        rationale: `Agent error: ${err instanceof Error ? err.message : String(err)}`,
+        rationale: `Agent unexpected error: ${err instanceof Error ? err.message : String(err)}`,
       })),
     );
   };
@@ -105,7 +117,10 @@ export function createDualModeDecider(options: DualModeDeciderOptions): WorkItem
       ? options.humanDecider(item)
       : options.agentDecider(item).pipe(
           Effect.flatMap((agentResult) =>
-            (!agentResult || agentResult.rationale.startsWith('Agent error:') || agentResult.rationale.startsWith('Agent filter:'))
+            (!agentResult
+              || agentResult.rationale.startsWith('Agent unexpected error:')
+              || agentResult.rationale.startsWith('Agent tool error (')
+              || agentResult.rationale.startsWith('Agent filter:'))
               ? options.humanDecider(item)
               : Effect.succeed(agentResult)),
         );

@@ -8,6 +8,7 @@ import { trySync } from './effect';
 import { applyProposalPatch, parseProposalArtifact, serializeProposalArtifact, validatePatchedProposalArtifact } from './proposal-patches';
 import { evaluateAutoApproval } from '../domain/trust-policy';
 import type { FileSystemPort } from './ports';
+import type { FileSystemError, TesseractError } from '../domain/errors';
 
 function certificationForProposal(proposal: ProposalEntry): ProposalEntry['certification'] {
   return proposal.trustPolicy.decision === 'allow' ? 'certified' : 'uncertified';
@@ -48,7 +49,16 @@ export interface ActivateProposalBundleResult {
   blockedProposalIds: string[];
 }
 
-function tryActivateProposal(fsPort: FileSystemPort, rootDir: string, proposal: ProposalEntry, activatedAt: string) {
+function tryActivateProposal(
+  fsPort: FileSystemPort,
+  rootDir: string,
+  proposal: ProposalEntry,
+  activatedAt: string,
+): Effect.Effect<
+  { proposal: ProposalEntry; activatedPath: string | null; blocked: boolean; proposalId?: string },
+  FileSystemError | TesseractError,
+  never
+> {
   const candidate = activatedProposal(proposal, activatedAt);
   const absoluteTargetPath = path.join(rootDir, proposal.targetPath);
 
@@ -65,6 +75,18 @@ function tryActivateProposal(fsPort: FileSystemPort, rootDir: string, proposal: 
     yield* fsPort.writeText(absoluteTargetPath, serializeProposalArtifact(proposal.targetPath, nextArtifact));
     return { proposal: candidate, activatedPath: absoluteTargetPath, blocked: false as const };
   }).pipe(
+    Effect.catchTag('FileSystemError', (error) => Effect.succeed({
+      proposal: blockedProposal(proposal, error.message),
+      activatedPath: null,
+      blocked: true as const,
+      proposalId: proposal.proposalId,
+    })),
+    Effect.catchTag('TesseractError', (error) => Effect.succeed({
+      proposal: blockedProposal(proposal, error.message),
+      activatedPath: null,
+      blocked: true as const,
+      proposalId: proposal.proposalId,
+    })),
     Effect.catchAll((error) => Effect.succeed({
       proposal: blockedProposal(proposal, error instanceof Error ? error.message : 'proposal activation failed'),
       activatedPath: null,
@@ -77,7 +99,7 @@ function tryActivateProposal(fsPort: FileSystemPort, rootDir: string, proposal: 
 export function activateProposalBundle(options: {
   paths: ProjectPaths;
   proposalBundle: ProposalBundle;
-}) {
+}): Effect.Effect<ActivateProposalBundleResult, never, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const activatedAt = new Date().toISOString();
@@ -166,7 +188,7 @@ export function autoApproveEligibleProposals(options: {
   readonly proposalBundle: ProposalBundle;
   readonly autoApprovalPolicy: AutoApprovalPolicy;
   readonly trustPolicy: TrustPolicy;
-}): Effect.Effect<ActivateProposalBundleResult, unknown, unknown> {
+}): Effect.Effect<ActivateProposalBundleResult, never, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const activatedAt = new Date().toISOString();

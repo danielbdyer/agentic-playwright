@@ -66,6 +66,83 @@ export class PipelineError extends TesseractError {
   }
 }
 
+export class AgentError extends TesseractError {
+  override readonly _tag: string = 'AgentError';
+  readonly provider?: string | undefined;
+
+  constructor(code: string, message: string, provider?: string, cause?: unknown) {
+    super(code, message, cause);
+    this.name = 'AgentError';
+    this.provider = provider;
+  }
+}
+
+export class ToolInvocationError extends AgentError {
+  override readonly _tag = 'ToolInvocationError' as const;
+  readonly toolName: string;
+
+  constructor(toolName: string, message: string, cause?: unknown) {
+    super('agent-tool-invocation-failed', message, toolName, cause);
+    this.name = 'ToolInvocationError';
+    this.toolName = toolName;
+  }
+}
+
+export class AgentTimeoutError extends AgentError {
+  override readonly _tag = 'AgentTimeoutError' as const;
+  readonly timeoutMs: number;
+
+  constructor(provider: string, timeoutMs: number) {
+    super('agent-timeout', `Agent timeout after ${timeoutMs}ms`, provider);
+    this.name = 'AgentTimeoutError';
+    this.timeoutMs = timeoutMs;
+  }
+}
+
+export class ActivationError extends TesseractError {
+  override readonly _tag = 'ActivationError' as const;
+  readonly targetPath: string;
+
+  constructor(targetPath: string, message: string, cause?: unknown) {
+    super('activation-failed', message, cause);
+    this.name = 'ActivationError';
+    this.targetPath = targetPath;
+  }
+}
+
+export class EmitError extends TesseractError {
+  override readonly _tag = 'EmitError' as const;
+  readonly adoId?: string | undefined;
+
+  constructor(message: string, adoId?: string, cause?: unknown) {
+    super('emit-failed', message, cause);
+    this.name = 'EmitError';
+    this.adoId = adoId;
+  }
+}
+
+export class CatalogLoadError extends TesseractError {
+  override readonly _tag = 'CatalogLoadError' as const;
+  readonly catalogPath?: string | undefined;
+
+  constructor(message: string, catalogPath?: string, cause?: unknown) {
+    super('catalog-load-failed', message, cause);
+    this.name = 'CatalogLoadError';
+    this.catalogPath = catalogPath;
+  }
+}
+
+export class McpBridgeError extends TesseractError {
+  override readonly _tag = 'McpBridgeError' as const;
+  readonly action?: string | undefined;
+
+  constructor(message: string, action?: string, cause?: unknown) {
+    super('mcp-bridge-failed', message, cause);
+    this.name = 'McpBridgeError';
+    this.action = action;
+  }
+}
+
 export function unknownScreenError(screenId: string): RuntimeError {
   return new RuntimeError('runtime-unknown-screen', `Unknown screen ${screenId}`, { screenId });
 }
