@@ -63,7 +63,9 @@ function widgetActionForStepAction(action: StepAction | null): 'fill' | 'click' 
       return 'click';
     case 'assert-snapshot':
       return 'get-value';
-    default:
+    case 'navigate':
+    case 'custom':
+    case null:
       return null;
   }
 }

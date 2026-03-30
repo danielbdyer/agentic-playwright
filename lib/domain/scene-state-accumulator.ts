@@ -195,7 +195,35 @@ export function accumulate(state: SceneState, event: EventEnvelope): SceneState 
     case 'step-executing':
       return accumulateStepExecuting(base, data);
 
-    default:
+    case 'artifact-written':
+    case 'error':
+    case 'iteration-start':
+    case 'iteration-complete':
+    case 'progress':
+    case 'screen-group-start':
+    case 'item-pending':
+    case 'item-processing':
+    case 'item-completed':
+    case 'workbench-updated':
+    case 'fitness-updated':
+    case 'screen-captured':
+    case 'element-escalated':
+    case 'inbox-item-arrived':
+    case 'fiber-paused':
+    case 'fiber-resumed':
+    case 'rung-shift':
+    case 'calibration-update':
+    case 'proposal-activated':
+    case 'confidence-crossed':
+    case 'stage-lifecycle':
+    case 'surface-discovered':
+    case 'route-navigated':
+    case 'aria-tree-captured':
+    case 'suite-slice-selected':
+    case 'scenario-prioritized':
+    case 'step-bound':
+    case 'diagnostics':
+    case 'connected':
       return base;
   }
 }

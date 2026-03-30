@@ -369,8 +369,12 @@ export const defaultWorkItemDecider: WorkItemDecider = async (item) => {
         : { status: 'skipped', rationale: `Low-confidence (${item.evidence.confidence.toFixed(2)}): ${item.title}` };
     case 'interpret-step':
       return { status: 'skipped', rationale: `Agent interpretation needed: ${item.title}` };
-    default:
-      return { status: 'skipped', rationale: `Unhandled kind: ${item.kind}` };
+    case 'author-knowledge':
+      return { status: 'skipped', rationale: `Knowledge authoring needed: ${item.title}` };
+    case 'validate-calibration':
+      return { status: 'skipped', rationale: `Calibration validation needed: ${item.title}` };
+    case 'request-rerun':
+      return { status: 'skipped', rationale: `Rerun requested: ${item.title}` };
   }
 };
 

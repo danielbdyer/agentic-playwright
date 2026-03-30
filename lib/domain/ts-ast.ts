@@ -52,6 +52,10 @@ export function expressionFromLiteral(value: unknown): ts.Expression {
         ),
         true,
       );
+    case 'bigint':
+    case 'symbol':
+    case 'undefined':
+    case 'function':
     default:
       return stringLiteral(String(value));
   }

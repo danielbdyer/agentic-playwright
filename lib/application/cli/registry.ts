@@ -61,7 +61,7 @@ export function parseCliInvocation(argv: string[]): CommandExecution {
 }
 
 export function resolveExecutionPosture(input: CommandExecution['postureInput']): ExecutionPosture {
-  const executionProfile = input.executionProfile ?? (process.env.CI ? 'ci-batch' : 'interactive');
+  const executionProfile = input.executionProfile ?? (input.isCI ? 'ci-batch' : 'interactive');
   const interpreterMode = input.baseline ? 'dry-run' : (input.interpreterMode ?? 'diagnostic');
   const writeMode = input.noWrite || input.baseline ? 'no-write' : 'persist';
   return {

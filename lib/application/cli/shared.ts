@@ -75,6 +75,7 @@ export interface CommandExecution {
     headed?: boolean;
     noWrite?: boolean;
     baseline?: boolean;
+    isCI?: boolean;
   };
   execute(paths: ProjectPaths, posture: ExecutionPosture): Effect.Effect<unknown, unknown, unknown>;
 }

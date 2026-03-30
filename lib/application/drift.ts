@@ -95,7 +95,7 @@ function applyDriftToElements(
         ...doc,
         elements: addElement(elements, event.mutation as ElementAdditionMutation),
       };
-    default:
+    case 'alias-removal':
       return doc;
   }
 }
