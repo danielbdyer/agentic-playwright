@@ -1,4 +1,5 @@
-import type { ResolutionEngineCapabilities, RuntimeInterpreterMode, ResolutionReceipt, GroundedStep } from '../domain/types';
+import type { ResolutionEngineCapabilities, RuntimeInterpreterMode, GroundedStep } from '../domain/types';
+import type { ResolutionStepOutcome } from '../runtime/agent';
 import { TesseractError } from '../domain/errors';
 
 export type ResolutionEngineId = string;
@@ -6,7 +7,7 @@ export type ResolutionEngineId = string;
 export interface ResolutionEngine {
   id: ResolutionEngineId;
   capabilities: ResolutionEngineCapabilities;
-  resolveStep(task: GroundedStep, context: unknown): Promise<ResolutionReceipt>;
+  resolveStep(task: GroundedStep, context: unknown): Promise<ResolutionStepOutcome>;
 }
 
 function deterministicEngine(): ResolutionEngine {

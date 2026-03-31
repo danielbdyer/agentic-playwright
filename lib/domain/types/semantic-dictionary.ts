@@ -63,6 +63,9 @@ export interface SemanticDictionaryEntry {
   /** How many times a reuse led to a failure. */
   readonly failureCount: number;
 
+  /** Consecutive failures without an intervening success. Reset to 0 on success. */
+  readonly consecutiveFailures: number;
+
   // ─── Lineage ───
 
   readonly createdAt: string;

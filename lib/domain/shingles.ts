@@ -177,6 +177,101 @@ export interface ShingleIndex {
   };
 }
 
+// ─── Serialization ───
+
+/** JSON-safe representation of ShingleIndex (Maps → arrays of [k, v]). */
+export interface SerializedShingleIndex {
+  readonly idfWeights: ReadonlyArray<readonly [string, number]>;
+  readonly entries: ReadonlyArray<{
+    readonly entryId: string;
+    readonly tf: ReadonlyArray<readonly [string, number]>;
+    readonly shingles: readonly string[];
+  }>;
+  readonly stats: ShingleIndex['stats'];
+}
+
+/** Convert a ShingleIndex to a JSON-safe form for persistence. */
+export function serializeShingleIndex(index: ShingleIndex): SerializedShingleIndex {
+  return {
+    idfWeights: [...index.idfWeights],
+    entries: [...index.entries.values()].map((e) => ({
+      entryId: e.entryId,
+      tf: [...e.tf],
+      shingles: [...e.shingles],
+    })),
+    stats: index.stats,
+  };
+}
+
+/** Reconstruct a ShingleIndex from its serialized form. */
+export function deserializeShingleIndex(raw: SerializedShingleIndex): ShingleIndex {
+  const idfWeights = new Map(raw.idfWeights);
+  const entries = new Map<string, ShingleIndexEntry>();
+  for (const e of raw.entries) {
+    entries.set(e.entryId, {
+      entryId: e.entryId,
+      tf: new Map(e.tf),
+      shingles: new Set(e.shingles),
+    });
+  }
+  return { idfWeights, entries, stats: raw.stats };
+}
+
+// ─── Incremental Index Update ───
+
+/**
+ * Add a single entry to an existing shingle index.
+ *
+ * Incrementally updates IDF weights using the approximation:
+ *   idf(t) = log((N+2) / (df(t) + contains + 1)) + 1
+ *
+ * This avoids a full O(C×L) rebuild. IDF drift is acceptable for
+ * incremental accrual; periodic full rebuilds on catalog load correct it.
+ */
+export function addEntryToShingleIndex(
+  index: ShingleIndex,
+  entry: { readonly id: string; readonly text: string },
+  n: number = DEFAULT_N,
+): ShingleIndex {
+  const tf = shingleTermFrequencies(entry.text, n);
+  const shingles = charShingles(entry.text, n);
+
+  // Incrementally update IDF: new corpus size is N+1
+  const N = index.stats.totalEntries + 1;
+  const updatedIdf = new Map(index.idfWeights);
+
+  // Update existing shingles whose df increases (present in new entry)
+  for (const shingle of shingles) {
+    const oldDf = updatedIdf.has(shingle)
+      ? Math.round(Math.exp(((updatedIdf.get(shingle)! - 1)) ) * (index.stats.totalEntries + 1)) - 1
+      : 0;
+    // Simpler: just recompute using smoothed formula with incremented N and df+1
+    updatedIdf.set(shingle, Math.log((N + 1) / (oldDf + 1 + 1)) + 1);
+  }
+
+  // Add shingles that are brand new to the corpus
+  for (const shingle of shingles) {
+    if (!index.idfWeights.has(shingle)) {
+      updatedIdf.set(shingle, Math.log((N + 1) / 2) + 1); // df=1 for new shingle
+    }
+  }
+
+  const updatedEntries = new Map(index.entries);
+  updatedEntries.set(entry.id, { entryId: entry.id, tf, shingles });
+
+  const totalShingles = [...updatedEntries.values()].reduce((sum, e) => sum + e.shingles.size, 0);
+
+  return {
+    idfWeights: updatedIdf,
+    entries: updatedEntries,
+    stats: {
+      totalEntries: N,
+      uniqueShingles: updatedIdf.size,
+      avgShinglesPerEntry: N > 0 ? Math.round(totalShingles / N) : 0,
+    },
+  };
+}
+
 /**
  * Build a shingle index from a corpus of (id, text) pairs.
  *

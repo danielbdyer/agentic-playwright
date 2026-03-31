@@ -25,12 +25,16 @@ import { Effect } from 'effect';
 import { sha256, stableStringify } from '../domain/hash';
 import { normalizeIntentText } from '../domain/inference';
 import {
+  addEntryToShingleIndex,
   buildShingleIndex,
+  deserializeShingleIndex,
   queryShingleIndex,
+  serializeShingleIndex,
   shingleTermFrequencies,
   tfidfCosineSimilarity,
   blendedSimilarity,
   type ShingleIndex,
+  type SerializedShingleIndex,
 } from '../domain/shingles';
 import type {
   SemanticDictionaryAccrualInput,
@@ -46,8 +50,8 @@ import type { ProjectPaths } from './paths';
 
 // ─── Constants ───
 
-/** Minimum similarity score (token Jaccard) to consider a dictionary hit. */
-const SIMILARITY_THRESHOLD = 0.55;
+/** Minimum similarity score (blended Jaccard + TF-IDF) to consider a dictionary hit. */
+const SIMILARITY_THRESHOLD = 0.45;
 
 /** Minimum combined score (similarity × confidence) to use the entry. */
 const COMBINED_SCORE_THRESHOLD = 0.35;
@@ -58,14 +62,17 @@ const INITIAL_CONFIDENCE = 0.5;
 /** Confidence boost per successful reuse. Diminishing: scaled by (1 - current). */
 const SUCCESS_BOOST = 0.12;
 
-/** Confidence penalty per failure. */
-const FAILURE_PENALTY = 0.2;
+/** Confidence penalty per failure. Aggressive: 2 failures from initial drops to ~0. */
+const FAILURE_PENALTY = 0.3;
 
 /** Confidence threshold above which an entry is considered high-confidence. */
 const HIGH_CONFIDENCE_THRESHOLD = 0.8;
 
 /** Maximum entries before pruning lowest-confidence stale entries. */
-const MAX_ENTRIES = 2048;
+const MAX_ENTRIES = 4096;
+
+/** Top-N candidates from shingle pre-filter before full scoring. */
+const TOP_N_CANDIDATES = 50;
 
 /** Confidence below which stale entries become prunable. */
 const PRUNE_CONFIDENCE_FLOOR = 0.2;
@@ -96,7 +103,7 @@ function tokenJaccard(a: readonly string[], b: readonly string[]): number {
     if (setB.has(token)) intersection++;
   }
   if (intersection === 0) return 0;
-  const unionSize = new Set([...setA, ...setB]).size;
+  const unionSize = setA.size + setB.size - intersection;
   return intersection / unionSize;
 }
 
@@ -210,6 +217,40 @@ function passesGovernanceFilter(
   }
 }
 
+// ─── Pre-filter ───
+
+/** Maximum consecutive failures before an entry is suppressed from lookup. */
+const MAX_CONSECUTIVE_FAILURES = 2;
+
+/**
+ * Pre-filter candidates using the shingle index for O(N) fast cosine,
+ * then return only the top-N entries for full multi-dimensional scoring.
+ * This avoids O(N × full_scoring) when catalog is large.
+ */
+function preFilterCandidates(
+  normalizedIntent: string,
+  catalog: SemanticDictionaryCatalog,
+  index: ShingleIndex,
+  topN: number,
+  context?: SemanticRetrievalContext,
+): readonly SemanticDictionaryEntry[] {
+  // Get top candidates by TF-IDF similarity
+  const shingleResults = queryShingleIndex(normalizedIntent, index, 0.05);
+
+  // Build a Set of candidate IDs
+  const candidateIds = new Set(shingleResults.slice(0, topN).map((r) => r.entryId));
+
+  // Return matching catalog entries, preserving catalog order
+  return catalog.entries.filter((e) => {
+    if (!candidateIds.has(e.id)) return false;
+    // Apply governance pre-filter to avoid wasted scoring
+    if (context && !passesGovernanceFilter(e, context.governanceFilter)) return false;
+    // Suppress entries with too many consecutive failures
+    if (e.consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) return false;
+    return true;
+  });
+}
+
 // ─── Lookup ───
 
 export interface SemanticLookupOptions {
@@ -247,12 +288,22 @@ export function lookupSemanticDictionary(
   // Lazily ensure the shingle index is built for TF-IDF scoring
   const indexedCatalog = ensureShingleIndex(catalog);
   const index = indexedCatalog.shingleIndex;
+  const topN = options?.topN ?? TOP_N_CANDIDATES;
+
+  // Pre-filter: use shingle index to get top-N candidates by TF-IDF,
+  // then score only those with full multi-dimensional scoring.
+  // Falls back to full scan when no index is available.
+  const candidateEntries = index && indexedCatalog.entries.length > topN
+    ? preFilterCandidates(normalizedIntent, indexedCatalog, index, topN, context)
+    : indexedCatalog.entries;
 
   let best: SemanticDictionaryMatch | null = null;
 
-  for (const entry of indexedCatalog.entries) {
+  for (const entry of candidateEntries) {
     // Governance gate: skip entries that don't pass the filter
     if (context && !passesGovernanceFilter(entry, context.governanceFilter)) continue;
+    // Suppress poisoned entries with consecutive failures
+    if (entry.consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) continue;
 
     const entryTokens = tokenize(normalizeIntentText(entry.normalizedIntent));
     const jaccardScore = tokenJaccard(queryTokens, entryTokens);
@@ -263,7 +314,6 @@ export function lookupSemanticDictionary(
       : 0;
 
     // Blend Jaccard + TF-IDF into the composite text similarity score.
-    // When no shingle index exists, falls back to pure Jaccard (blended weight 1.0).
     const textSimilarity = index
       ? blendedSimilarity(jaccardScore, tfidfScore)
       : jaccardScore;
@@ -341,7 +391,11 @@ export function accrueSemanticEntry(
       taskFingerprints: uniqueAppend(existing.taskFingerprints, input.taskFingerprint),
       knowledgeFingerprint: input.knowledgeFingerprint,
     };
-    return rebuildCatalog(catalog.entries.map((e) => e.id === id ? updated : e));
+    // Entry set unchanged — preserve existing shingle index
+    return rebuildCatalog(
+      catalog.entries.map((e) => e.id === id ? updated : e),
+      catalog.shingleIndex,
+    );
   }
 
   // New entry
@@ -355,13 +409,18 @@ export function accrueSemanticEntry(
     confidence: INITIAL_CONFIDENCE,
     successCount: 1,
     failureCount: 0,
+    consecutiveFailures: 0,
     createdAt: now,
     lastUsedAt: now,
     taskFingerprints: [input.taskFingerprint],
     knowledgeFingerprint: input.knowledgeFingerprint,
     promoted: false,
   };
-  return rebuildCatalog([...catalog.entries, entry]);
+  // Incrementally update shingle index instead of full rebuild
+  const updatedIndex = catalog.shingleIndex
+    ? addEntryToShingleIndex(catalog.shingleIndex, { id, text: normalized })
+    : undefined;
+  return rebuildCatalog([...catalog.entries, entry], updatedIndex);
 }
 
 /**
@@ -375,10 +434,11 @@ export function recordSemanticSuccess(catalog: SemanticDictionaryCatalog, entryI
           ...e,
           confidence: round(Math.min(0.99, e.confidence + SUCCESS_BOOST * (1 - e.confidence))),
           successCount: e.successCount + 1,
+          consecutiveFailures: 0,
           lastUsedAt: now,
         }
       : e,
-  ));
+  ), catalog.shingleIndex);
 }
 
 /**
@@ -392,10 +452,11 @@ export function recordSemanticFailure(catalog: SemanticDictionaryCatalog, failed
           ...e,
           confidence: round(Math.max(0, e.confidence - FAILURE_PENALTY)),
           failureCount: e.failureCount + 1,
+          consecutiveFailures: e.consecutiveFailures + 1,
           lastUsedAt: now,
         }
       : e,
-  ));
+  ), catalog.shingleIndex);
 }
 
 /**
@@ -404,7 +465,7 @@ export function recordSemanticFailure(catalog: SemanticDictionaryCatalog, failed
 export function markPromoted(catalog: SemanticDictionaryCatalog, promotedEntryId: string): SemanticDictionaryCatalog {
   return rebuildCatalog(catalog.entries.map((e) =>
     e.id === promotedEntryId ? { ...e, promoted: true } : e,
-  ));
+  ), catalog.shingleIndex);
 }
 
 /**
@@ -437,6 +498,20 @@ export function promotionCandidates(catalog: SemanticDictionaryCatalog): readonl
 
 // ─── Persistence (Effect-based) ───
 
+/**
+ * Serializable form of the catalog for JSON persistence.
+ * Strips the in-memory ShingleIndex and replaces it with its
+ * serialized counterpart (Maps → arrays of [key, value] tuples).
+ */
+interface SerializableSemanticDictionaryCatalog {
+  readonly kind: 'semantic-dictionary-catalog';
+  readonly version: 1;
+  readonly generatedAt: string;
+  readonly entries: readonly SemanticDictionaryEntry[];
+  readonly summary: SemanticDictionaryCatalog['summary'];
+  readonly serializedShingleIndex?: SerializedShingleIndex | undefined;
+}
+
 export function readSemanticDictionary(paths: ProjectPaths): Effect.Effect<SemanticDictionaryCatalog, never, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
@@ -448,7 +523,14 @@ export function readSemanticDictionary(paths: ProjectPaths): Effect.Effect<Seman
       Effect.catchTag('FileSystemError', () => Effect.succeed(null)),
     );
     if (!isSemanticDictionaryCatalog(raw)) return emptyCatalog();
-    return raw;
+
+    // Reconstruct in-memory ShingleIndex from serialized form
+    const serializable = raw as unknown as SerializableSemanticDictionaryCatalog;
+    const shingleIndex = serializable.serializedShingleIndex
+      ? deserializeShingleIndex(serializable.serializedShingleIndex)
+      : undefined;
+
+    return { ...raw, shingleIndex };
   }).pipe(Effect.catchAll(() => Effect.succeed(emptyCatalog())));
 }
 
@@ -459,7 +541,21 @@ export function writeSemanticDictionary(
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     yield* fs.ensureDir(paths.semanticDictionaryDir).pipe(Effect.catchTag('FileSystemError', () => Effect.void));
-    yield* fs.writeJson(paths.semanticDictionaryIndexPath, catalog).pipe(Effect.catchTag('FileSystemError', () => Effect.void));
+
+    // Serialize ShingleIndex (Maps → arrays) for JSON persistence
+    const indexedCatalog = ensureShingleIndex(catalog);
+    const serializable: SerializableSemanticDictionaryCatalog = {
+      kind: indexedCatalog.kind,
+      version: indexedCatalog.version,
+      generatedAt: indexedCatalog.generatedAt,
+      entries: indexedCatalog.entries,
+      summary: indexedCatalog.summary,
+      serializedShingleIndex: indexedCatalog.shingleIndex
+        ? serializeShingleIndex(indexedCatalog.shingleIndex)
+        : undefined,
+    };
+
+    yield* fs.writeJson(paths.semanticDictionaryIndexPath, serializable).pipe(Effect.catchTag('FileSystemError', () => Effect.void));
   }).pipe(Effect.catchAll(() => Effect.void));
 }
 
@@ -483,16 +579,34 @@ function round(value: number): number {
   return Number(value.toFixed(4));
 }
 
+const MAX_TASK_FINGERPRINTS = 50;
+
 function uniqueAppend(arr: readonly string[], value: string): readonly string[] {
-  return arr.includes(value) ? arr : [...arr, value];
+  if (arr.includes(value)) return arr;
+  const appended = [...arr, value];
+  return appended.length > MAX_TASK_FINGERPRINTS
+    ? appended.slice(appended.length - MAX_TASK_FINGERPRINTS)
+    : appended;
 }
 
-function rebuildCatalog(entries: readonly SemanticDictionaryEntry[]): SemanticDictionaryCatalog {
+/**
+ * Rebuild catalog summary. When an existing shingle index is provided and
+ * the entry set hasn't structurally changed (success/failure updates only),
+ * it's preserved to avoid O(C×L) rebuilds.
+ */
+function rebuildCatalog(
+  entries: readonly SemanticDictionaryEntry[],
+  existingIndex?: ShingleIndex | undefined,
+): SemanticDictionaryCatalog {
   const highConfidence = entries.filter((e) => e.confidence >= HIGH_CONFIDENCE_THRESHOLD).length;
   const promoted = entries.filter((e) => e.promoted).length;
   const totalConfidence = entries.reduce((sum, e) => sum + e.confidence, 0);
-  // Omit shingleIndex: entries changed, so the index is stale.
-  // It will be lazily rebuilt via ensureShingleIndex() on next lookup.
+  // Preserve the index when entry set hasn't structurally changed
+  // (confidence/success/failure updates don't invalidate shingle data).
+  // When entries were added/removed, caller passes undefined to force lazy rebuild.
+  const shingleIndex = existingIndex && existingIndex.stats.totalEntries === entries.length
+    ? existingIndex
+    : undefined;
   return {
     kind: 'semantic-dictionary-catalog',
     version: 1,
@@ -504,5 +618,6 @@ function rebuildCatalog(entries: readonly SemanticDictionaryEntry[]): SemanticDi
       promotedCount: promoted,
       averageConfidence: entries.length > 0 ? round(totalConfidence / entries.length) : 0,
     },
+    shingleIndex,
   };
 }

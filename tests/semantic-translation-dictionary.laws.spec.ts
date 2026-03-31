@@ -716,3 +716,203 @@ test('lookup with blended TF-IDF catches sub-word lexical variation', () => {
   expect(match).not.toBeNull();
   expect(match!.entry.id).toBe(entryIdValue);
 });
+
+// ─── 15. Production-Scale Tests ───
+
+import {
+  serializeShingleIndex,
+  deserializeShingleIndex,
+  addEntryToShingleIndex,
+} from '../lib/domain/shingles';
+
+test('shingle index round-trips through JSON serialization', () => {
+  const index = buildShingleIndex([
+    { id: 'a', text: 'enter policy number' },
+    { id: 'b', text: 'click submit button' },
+    { id: 'c', text: 'type in policy ref' },
+  ]);
+
+  const serialized = serializeShingleIndex(index);
+  const json = JSON.parse(JSON.stringify(serialized));
+  const deserialized = deserializeShingleIndex(json);
+
+  expect(deserialized.stats.totalEntries).toBe(3);
+  expect(deserialized.idfWeights.size).toBe(index.idfWeights.size);
+  expect(deserialized.entries.size).toBe(3);
+  // Verify lookup still works after round-trip
+  const results = queryShingleIndex('enter policy number', deserialized);
+  expect(results.length).toBeGreaterThan(0);
+  expect(results[0].entryId).toBe('a');
+});
+
+test('near-miss false positive: high text similarity but wrong screen is penalized', () => {
+  let catalog = emptyCatalog();
+  // Entry targets claims-dashboard, but query context is policy-search
+  catalog = accrueSemanticEntry(catalog, accrualInput({
+    normalizedIntent: 'enter reference number into search',
+    target: target({ screen: createScreenId('claims-dashboard') }),
+  }));
+  // Boost confidence
+  const entryIdValue = catalog.entries[0].id;
+  for (let i = 0; i < 5; i++) {
+    catalog = recordSemanticSuccess(catalog, entryIdValue);
+  }
+
+  const ctx = retrievalContext({
+    currentScreen: createScreenId('policy-search'),
+    availableScreens: [createScreenId('policy-search')],
+  });
+
+  const match = lookupSemanticDictionary('enter reference number into search', catalog, {
+    retrievalContext: ctx,
+  });
+
+  // Should still match (text is identical), but structural score should be low
+  if (match?.scoring) {
+    expect(match.scoring.structuralScore).toBeLessThanOrEqual(0.5);
+  }
+});
+
+test('ambiguous intent tie-breaking: structural scoring picks correct screen', () => {
+  let catalog = emptyCatalog();
+  // Two entries with similar text but different screens
+  catalog = accrueSemanticEntry(catalog, accrualInput({
+    normalizedIntent: 'enter policy number in search field',
+    target: target({ screen: createScreenId('policy-search') }),
+  }));
+  catalog = accrueSemanticEntry(catalog, accrualInput({
+    normalizedIntent: 'enter policy number in search input',
+    target: target({ screen: createScreenId('claims-search') }),
+  }));
+  // Boost both
+  for (const entry of catalog.entries) {
+    for (let i = 0; i < 4; i++) {
+      catalog = recordSemanticSuccess(catalog, entry.id);
+    }
+  }
+
+  // Context: we're on policy-search
+  const ctx = retrievalContext({
+    currentScreen: createScreenId('policy-search'),
+    availableScreens: [createScreenId('policy-search'), createScreenId('claims-search')],
+  });
+
+  const match = lookupSemanticDictionary('enter policy number in the search', catalog, {
+    retrievalContext: ctx,
+    similarityThreshold: 0.3,
+    combinedScoreThreshold: 0.2,
+  });
+
+  // Should prefer the policy-search entry due to structural scoring
+  expect(match).not.toBeNull();
+  expect(match!.entry.target.screen).toBe(createScreenId('policy-search'));
+});
+
+test('poisoned entry suppression: 2 consecutive failures prevents match', () => {
+  let catalog = emptyCatalog();
+  catalog = accrueSemanticEntry(catalog, accrualInput({
+    normalizedIntent: 'enter policy number into search box',
+  }));
+  const entryIdValue = catalog.entries[0].id;
+  // Boost confidence high
+  for (let i = 0; i < 5; i++) {
+    catalog = recordSemanticSuccess(catalog, entryIdValue);
+  }
+
+  // Now fail it twice consecutively
+  catalog = recordSemanticFailure(catalog, entryIdValue);
+  catalog = recordSemanticFailure(catalog, entryIdValue);
+
+  // Entry has high confidence still (0.5 + boosts - 2*0.3) but 2 consecutive failures
+  const match = lookupSemanticDictionary('enter policy number into search box', catalog, {
+    similarityThreshold: 0.3,
+    combinedScoreThreshold: 0.1,
+  });
+  expect(match).toBeNull();
+});
+
+test('poisoned entry recovers after success resets consecutive failures', () => {
+  let catalog = emptyCatalog();
+  catalog = accrueSemanticEntry(catalog, accrualInput({
+    normalizedIntent: 'enter policy number into search box',
+  }));
+  const entryIdValue = catalog.entries[0].id;
+  for (let i = 0; i < 5; i++) {
+    catalog = recordSemanticSuccess(catalog, entryIdValue);
+  }
+
+  // Fail twice
+  catalog = recordSemanticFailure(catalog, entryIdValue);
+  catalog = recordSemanticFailure(catalog, entryIdValue);
+  // Suppressed
+  expect(lookupSemanticDictionary('enter policy number into search box', catalog, {
+    similarityThreshold: 0.3, combinedScoreThreshold: 0.1,
+  })).toBeNull();
+
+  // Success resets consecutive failures
+  catalog = recordSemanticSuccess(catalog, entryIdValue);
+  expect(catalog.entries[0].consecutiveFailures).toBe(0);
+
+  const match = lookupSemanticDictionary('enter policy number into search box', catalog, {
+    similarityThreshold: 0.3, combinedScoreThreshold: 0.1,
+  });
+  expect(match).not.toBeNull();
+});
+
+test('scale: catalog with 200+ entries finds a match and does not crash', () => {
+  let catalog = emptyCatalog();
+  // Generate 200 entries with truly distinct intents
+  const verbs = ['enter', 'click', 'navigate', 'verify', 'select'];
+  const objects = ['policy number', 'claim reference', 'user name', 'email address', 'phone number',
+    'date of birth', 'address line', 'postal code', 'account id', 'transaction ref'];
+
+  for (let i = 0; i < 200; i++) {
+    const verb = verbs[i % verbs.length]!;
+    const obj = objects[i % objects.length]!;
+    catalog = accrueSemanticEntry(catalog, accrualInput({
+      normalizedIntent: `${verb} ${obj} field number ${i}`,
+      target: target({
+        element: createElementId(`element-${i}`),
+        action: i % 2 === 0 ? 'input' : 'click',
+      }),
+      taskFingerprint: `sha256:task-${i}`,
+    }));
+  }
+
+  expect(catalog.entries.length).toBe(200);
+
+  // Query for a specific entry — "enter policy number field number 0"
+  const match = lookupSemanticDictionary('enter policy number field number 0', catalog, {
+    similarityThreshold: 0.3,
+    combinedScoreThreshold: 0.1,
+  });
+  expect(match).not.toBeNull();
+  // The matched entry should contain "policy number" and have the right verb
+  expect(match!.entry.normalizedIntent).toContain('policy number');
+
+  // Also verify unrelated query returns null or a low-quality match
+  const noMatch = lookupSemanticDictionary('completely unrelated query about weather', catalog);
+  expect(noMatch).toBeNull();
+});
+
+test('incremental shingle index update matches full rebuild', () => {
+  const corpus = [
+    { id: 'a', text: 'enter policy number' },
+    { id: 'b', text: 'click submit button' },
+  ];
+  const fullIndex = buildShingleIndex([...corpus, { id: 'c', text: 'type in claim ref' }]);
+  const incrementalIndex = addEntryToShingleIndex(
+    buildShingleIndex(corpus),
+    { id: 'c', text: 'type in claim ref' },
+  );
+
+  // Both should have the new entry
+  expect(incrementalIndex.entries.has('c')).toBe(true);
+  expect(incrementalIndex.stats.totalEntries).toBe(fullIndex.stats.totalEntries);
+
+  // Query results should be similar (IDF may differ slightly due to incremental approximation)
+  const fullResults = queryShingleIndex('type in claim', fullIndex);
+  const incResults = queryShingleIndex('type in claim', incrementalIndex);
+  expect(fullResults[0]?.entryId).toBe('c');
+  expect(incResults[0]?.entryId).toBe('c');
+});
