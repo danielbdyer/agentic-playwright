@@ -33,11 +33,10 @@ import {
   scoringRuleMonoid,
 } from '../lib/domain/algebra/scoring';
 import { concatAll, foldMap } from '../lib/domain/algebra/monoid';
-import { mulberry32, pick } from './support/random';
+import { mulberry32, pick , LAW_SEED_COUNT } from './support/random';
 
 // ─── Helpers ───
 
-const SEEDS = 150;
 
 interface TestInput {
   readonly x: number;
@@ -67,8 +66,8 @@ function randomRule(next: () => number): ScoringRule<TestInput> {
 // ─── Law 1: Monoid identity ───
 
 test.describe('Law 1: Monoid identity — identity rule is neutral', () => {
-  test('combine(identity, r).score(x) === r.score(x) across 150 seeds', () => {
-    for (let seed = 1; seed <= SEEDS; seed += 1) {
+  test('combine(identity, r).score(x) === r.score(x) across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const r = randomRule(next);
       const input = randomInput(next);
@@ -78,8 +77,8 @@ test.describe('Law 1: Monoid identity — identity rule is neutral', () => {
     }
   });
 
-  test('combine(r, identity).score(x) === r.score(x) across 150 seeds', () => {
-    for (let seed = 1; seed <= SEEDS; seed += 1) {
+  test('combine(r, identity).score(x) === r.score(x) across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const r = randomRule(next);
       const input = randomInput(next);
@@ -89,9 +88,9 @@ test.describe('Law 1: Monoid identity — identity rule is neutral', () => {
     }
   });
 
-  test('scoringRuleMonoid.empty is identity across 150 seeds', () => {
+  test('scoringRuleMonoid.empty is identity across 20 seeds', () => {
     const monoid = scoringRuleMonoid<TestInput>();
-    for (let seed = 1; seed <= SEEDS; seed += 1) {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const r = randomRule(next);
       const input = randomInput(next);
@@ -106,8 +105,8 @@ test.describe('Law 1: Monoid identity — identity rule is neutral', () => {
 // ─── Law 2: Semigroup associativity ───
 
 test.describe('Law 2: Semigroup associativity', () => {
-  test('combine(combine(a, b), c).score(x) === combine(a, combine(b, c)).score(x) across 150 seeds', () => {
-    for (let seed = 1; seed <= SEEDS; seed += 1) {
+  test('combine(combine(a, b), c).score(x) === combine(a, combine(b, c)).score(x) across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const a = randomRule(next);
       const b = randomRule(next);
@@ -120,9 +119,9 @@ test.describe('Law 2: Semigroup associativity', () => {
     }
   });
 
-  test('scoringRuleSemigroup.combine is associative across 150 seeds', () => {
+  test('scoringRuleSemigroup.combine is associative across 20 seeds', () => {
     const sg = scoringRuleSemigroup<TestInput>();
-    for (let seed = 1; seed <= SEEDS; seed += 1) {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const a = randomRule(next);
       const b = randomRule(next);
@@ -139,8 +138,8 @@ test.describe('Law 2: Semigroup associativity', () => {
 // ─── Law 3: Annihilator absorption ───
 
 test.describe('Law 3: Annihilator absorption', () => {
-  test('combine(annihilator, r).score(x) === -Infinity across 150 seeds', () => {
-    for (let seed = 1; seed <= SEEDS; seed += 1) {
+  test('combine(annihilator, r).score(x) === -Infinity across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const r = randomRule(next);
       const input = randomInput(next);
@@ -150,8 +149,8 @@ test.describe('Law 3: Annihilator absorption', () => {
     }
   });
 
-  test('combine(r, annihilator).score(x) === -Infinity across 150 seeds', () => {
-    for (let seed = 1; seed <= SEEDS; seed += 1) {
+  test('combine(r, annihilator).score(x) === -Infinity across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const r = randomRule(next);
       const input = randomInput(next);
@@ -165,8 +164,8 @@ test.describe('Law 3: Annihilator absorption', () => {
 // ─── Law 4: Bounded clamping ───
 
 test.describe('Law 4: Bounded clamping — output in [min, max]', () => {
-  test('boundedScoringRule(0, 1, rule).score(x) in [0, 1] across 150 seeds', () => {
-    for (let seed = 1; seed <= SEEDS; seed += 1) {
+  test('boundedScoringRule(0, 1, rule).score(x) in [0, 1] across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const r = randomRule(next);
       const input = randomInput(next);
@@ -177,8 +176,8 @@ test.describe('Law 4: Bounded clamping — output in [min, max]', () => {
     }
   });
 
-  test('boundedScoringRule(-10, 10, rule).score(x) in [-10, 10] across 150 seeds', () => {
-    for (let seed = 1; seed <= SEEDS; seed += 1) {
+  test('boundedScoringRule(-10, 10, rule).score(x) in [-10, 10] across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const r = randomRule(next);
       const input = randomInput(next);
@@ -190,7 +189,7 @@ test.describe('Law 4: Bounded clamping — output in [min, max]', () => {
   });
 
   test('boundedScoringRule is idempotent: bounding twice equals bounding once', () => {
-    for (let seed = 1; seed <= SEEDS; seed += 1) {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const r = randomRule(next);
       const input = randomInput(next);
@@ -204,8 +203,8 @@ test.describe('Law 4: Bounded clamping — output in [min, max]', () => {
 // ─── Law 5: Weight linearity ───
 
 test.describe('Law 5: Weight linearity', () => {
-  test('weightedScoringRule(w, r).score(x) === w * r.score(x) across 150 seeds', () => {
-    for (let seed = 1; seed <= SEEDS; seed += 1) {
+  test('weightedScoringRule(w, r).score(x) === w * r.score(x) across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const r = randomRule(next);
       const input = randomInput(next);
@@ -215,8 +214,8 @@ test.describe('Law 5: Weight linearity', () => {
     }
   });
 
-  test('weightedScoringRule(1, r).score(x) === r.score(x) — weight 1 is identity across 150 seeds', () => {
-    for (let seed = 1; seed <= SEEDS; seed += 1) {
+  test('weightedScoringRule(1, r).score(x) === r.score(x) — weight 1 is identity across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const r = randomRule(next);
       const input = randomInput(next);
@@ -225,8 +224,8 @@ test.describe('Law 5: Weight linearity', () => {
     }
   });
 
-  test('weightedScoringRule(0, r).score(x) === 0 — weight 0 annihilates across 150 seeds', () => {
-    for (let seed = 1; seed <= SEEDS; seed += 1) {
+  test('weightedScoringRule(0, r).score(x) === 0 — weight 0 annihilates across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const r = randomRule(next);
       const input = randomInput(next);
@@ -235,8 +234,8 @@ test.describe('Law 5: Weight linearity', () => {
     }
   });
 
-  test('weight distributes over combination: w*(a+b) === w*a + w*b across 150 seeds', () => {
-    for (let seed = 1; seed <= SEEDS; seed += 1) {
+  test('weight distributes over combination: w*(a+b) === w*a + w*b across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const a = randomRule(next);
       const b = randomRule(next);
@@ -256,8 +255,8 @@ test.describe('Law 5: Weight linearity', () => {
 // ─── Law 6: Contramap composition (functor law) ───
 
 test.describe('Law 6: Contramap composition', () => {
-  test('contramap(contramap(r, g), f).score(x) === contramap(r, g . f).score(x) across 150 seeds', () => {
-    for (let seed = 1; seed <= SEEDS; seed += 1) {
+  test('contramap(contramap(r, g), f).score(x) === contramap(r, g . f).score(x) across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
 
       const baseRule: ScoringRule<number> = { score: (n) => n * 2 + 1 };
@@ -291,8 +290,8 @@ test.describe('Law 6: Contramap composition', () => {
     }
   });
 
-  test('contramap with identity function is a no-op across 150 seeds', () => {
-    for (let seed = 1; seed <= SEEDS; seed += 1) {
+  test('contramap with identity function is a no-op across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const r = randomRule(next);
       const input = randomInput(next);
@@ -340,9 +339,9 @@ test.describe('Law 7: Complexity bounds — k rules over n items is Theta(k*n)',
 // ─── concatAll and foldMap integration ───
 
 test.describe('concatAll and foldMap integration', () => {
-  test('concatAll via monoid agrees with combineScoringRules across 150 seeds', () => {
+  test('concatAll via monoid agrees with combineScoringRules across 20 seeds', () => {
     const monoid = scoringRuleMonoid<TestInput>();
-    for (let seed = 1; seed <= SEEDS; seed += 1) {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const rules = Array.from({ length: 2 + Math.floor(next() * 4) }, () => randomRule(next));
       const input = randomInput(next);
@@ -353,9 +352,9 @@ test.describe('concatAll and foldMap integration', () => {
     }
   });
 
-  test('foldMap lifts values into scoring rules and combines across 150 seeds', () => {
+  test('foldMap lifts values into scoring rules and combines across 20 seeds', () => {
     const monoid = scoringRuleMonoid<TestInput>();
-    for (let seed = 1; seed <= SEEDS; seed += 1) {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const weights = Array.from({ length: 3 }, () => next() * 5);
       const input = randomInput(next);

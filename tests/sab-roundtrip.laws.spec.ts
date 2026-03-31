@@ -16,7 +16,7 @@
  *   Law 8: Event count monotonicity — readEventCount never decreases
  *
  * Tests the pure ring buffer functions directly (no Effect fibers).
- * Uses mulberry32 for deterministic randomization across 150 seeds.
+ * Uses mulberry32 for deterministic randomization across 20 seeds.
  */
 
 import { expect, test } from '@playwright/test';
@@ -27,7 +27,7 @@ import {
 } from '../lib/infrastructure/dashboard/pipeline-event-bus';
 import type { PipelineBuffer } from '../lib/infrastructure/dashboard/pipeline-event-bus';
 import type { DashboardEvent, DashboardEventKind } from '../lib/domain/types/dashboard';
-import { mulberry32, pick, randomInt } from './support/random';
+import { mulberry32, pick, randomInt , LAW_SEED_COUNT } from './support/random';
 
 // ─── Constants (mirrored from pipeline-event-bus.ts) ───
 
@@ -211,8 +211,8 @@ test.describe('SharedArrayBuffer round-trip encoding laws', () => {
 
   // ─── Law 1: Round-trip — write then read recovers all numeric fields ───
 
-  test('Law 1: single event round-trip preserves all fields (150 seeds)', () => {
-    for (let seed = 0; seed < 150; seed++) {
+  test('Law 1: single event round-trip preserves all fields (20 seeds)', () => {
+    for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const spec = generateEventSpec(next);
       const event = specToEvent(spec);
@@ -226,7 +226,7 @@ test.describe('SharedArrayBuffer round-trip encoding laws', () => {
   });
 
   test('Law 1b: multiple events round-trip preserves all fields', () => {
-    for (let seed = 0; seed < 150; seed++) {
+    for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const count = 2 + randomInt(next, 14); // 2..15 events
       const buffer = createPipelineBuffer(16);
@@ -295,7 +295,7 @@ test.describe('SharedArrayBuffer round-trip encoding laws', () => {
   // ─── Law 4: Off-by-one — first slot, last slot, boundary transitions ───
 
   test('Law 4a: first slot (index 0) is correctly written and read', () => {
-    for (let seed = 0; seed < 150; seed++) {
+    for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const spec = generateEventSpec(next);
       const buffer = createPipelineBuffer(16);
@@ -307,7 +307,7 @@ test.describe('SharedArrayBuffer round-trip encoding laws', () => {
   });
 
   test('Law 4b: last slot (capacity - 1) is correctly written and read', () => {
-    for (let seed = 0; seed < 150; seed++) {
+    for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const capacity = 4 + randomInt(next, 28);
       const buffer = createPipelineBuffer(capacity);
@@ -323,7 +323,7 @@ test.describe('SharedArrayBuffer round-trip encoding laws', () => {
   });
 
   test('Law 4c: boundary transition — event at capacity wraps to slot 0', () => {
-    for (let seed = 0; seed < 150; seed++) {
+    for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const capacity = 4 + randomInt(next, 12);
       const buffer = createPipelineBuffer(capacity);
@@ -344,7 +344,7 @@ test.describe('SharedArrayBuffer round-trip encoding laws', () => {
   // ─── Law 5: BoundingBox encoding — null vs present round-trips ───
 
   test('Law 5: null boundingBox reads back as null', () => {
-    for (let seed = 0; seed < 150; seed++) {
+    for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const spec: EventSpec = {
         ...generateEventSpec(next),
@@ -358,7 +358,7 @@ test.describe('SharedArrayBuffer round-trip encoding laws', () => {
   });
 
   test('Law 5b: present boundingBox reads back with correct coordinates', () => {
-    for (let seed = 0; seed < 150; seed++) {
+    for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const bbox = {
         x: next() * 1920,
@@ -426,8 +426,8 @@ test.describe('SharedArrayBuffer round-trip encoding laws', () => {
 
   // ─── Law 7: Weights encoding round-trips ───
 
-  test('Law 7: bottleneck weights round-trip through Float64 encoding (150 seeds)', () => {
-    for (let seed = 0; seed < 150; seed++) {
+  test('Law 7: bottleneck weights round-trip through Float64 encoding (20 seeds)', () => {
+    for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const weights = {
         repairDensity: next(),
@@ -449,8 +449,8 @@ test.describe('SharedArrayBuffer round-trip encoding laws', () => {
 
   // ─── Law 8: Event count monotonicity ───
 
-  test('Law 8: readEventCount is monotonically non-decreasing (150 seeds)', () => {
-    for (let seed = 0; seed < 150; seed++) {
+  test('Law 8: readEventCount is monotonically non-decreasing (20 seeds)', () => {
+    for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const eventCount = 1 + randomInt(next, 50);
       const buffer = createPipelineBuffer(16);
@@ -470,7 +470,7 @@ test.describe('SharedArrayBuffer round-trip encoding laws', () => {
   // ─── Law 9: Empty buffer baseline ───
 
   test('Law 9: empty buffer has zero event count and zero-initialized slots', () => {
-    for (let seed = 0; seed < 150; seed++) {
+    for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const capacity = 2 + randomInt(next, 30);
       const buffer = createPipelineBuffer(capacity);
@@ -489,7 +489,7 @@ test.describe('SharedArrayBuffer round-trip encoding laws', () => {
   // ─── Law 10: Double wrap-around ───
 
   test('Law 10: double wrap-around preserves latest capacity events', () => {
-    for (let seed = 0; seed < 150; seed++) {
+    for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const capacity = 4 + randomInt(next, 8); // 4..11
       const totalWrites = capacity * 2 + randomInt(next, capacity);

@@ -18,6 +18,7 @@ import {
 import { tryAsync } from '../../application/effect';
 import { captureAriaYaml } from '../../playwright/aria';
 import { resolvePlaywrightHeadless, resolvePreferredPlaywrightChannel } from './browser-options';
+import type { Browser } from '@playwright/test';
 import type { DiscoveryRun, LocatorStrategy } from '../../domain/types';
 import { mintApproved } from '../../domain/types/workflow';
 
@@ -51,19 +52,21 @@ export function discoverScreenScaffold(options: {
   url: string;
   rootSelector?: string;
   paths: ProjectPaths;
+  sharedBrowser?: Browser;
 }) {
   return tryAsync(async () => {
+    const ownsBrowser = !options.sharedBrowser;
     const environment = process.env;
     const channel = resolvePreferredPlaywrightChannel(environment);
-    const browser = await chromium.launch({
+    const browser = options.sharedBrowser ?? await chromium.launch({
       headless: resolvePlaywrightHeadless(environment),
       ...(channel ? { channel } : {}),
     });
 
     try {
       const page = await browser.newPage();
+      page.setDefaultTimeout(2_000);
       await page.goto(options.url, { waitUntil: 'load' });
-      await page.waitForLoadState('networkidle').catch(() => undefined);
 
       const rootSelector = options.rootSelector ?? 'body';
       const root = page.locator(rootSelector).first();
@@ -510,7 +513,9 @@ export function discoverScreenScaffold(options: {
         reviewNotes: artifacts.report.reviewNotes,
       };
     } finally {
-      await browser.close();
+      if (ownsBrowser) {
+        await browser.close();
+      }
     }
   }, 'discover-command-failed', `Unable to discover scaffolds for ${options.url}`);
 }

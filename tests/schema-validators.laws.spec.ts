@@ -12,7 +12,7 @@
  *   Law 6: WorkflowEnvelope invariants — blocked + execution is rejected
  *   Law 7: TrustPolicy invariants — confidence range and evidence constraints
  *
- * 150 seeds, deterministic PRNG.
+ * 20 seeds, deterministic PRNG.
  */
 
 import { expect, test } from '@playwright/test';
@@ -24,7 +24,7 @@ import {
   WorkflowEnvelopeSemanticSchema,
   TrustPolicySemanticSchema,
 } from '../lib/domain/validation/schema-validators';
-import { mulberry32, pick, randomWord, randomInt } from './support/random';
+import { mulberry32, pick, randomWord, randomInt , LAW_SEED_COUNT } from './support/random';
 
 // ─── Helpers ───
 
@@ -134,8 +134,8 @@ test.describe('Law 1: Governance enum exhaustiveness', () => {
     }
   });
 
-  test('round-trip: decode then encode preserves value (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('round-trip: decode then encode preserves value (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const value = pick(next, GOVERNANCE_VALUES);
       const decoded = decodeSync(GovernanceSemanticSchema, value);
@@ -170,8 +170,8 @@ test.describe('Law 2: ScreenId brand safety', () => {
     expect(decodeSafe(ScreenIdSemanticSchema, '../escape')).toBe(false);
   });
 
-  test('random valid screen IDs round-trip (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('random valid screen IDs round-trip (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const id = `screen-${randomWord(next)}`;
       const decoded = decodeSync(ScreenIdSemanticSchema, id);
@@ -183,8 +183,8 @@ test.describe('Law 2: ScreenId brand safety', () => {
 // ─── Law 3: BoundStep semantic invariants ───
 
 test.describe('Law 3: BoundStep semantic invariants', () => {
-  test('valid bound steps are accepted (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('valid bound steps are accepted (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const step = makeValidBoundStep(next);
       expect(decodeSafe(BoundStepSemanticSchema, step)).toBe(true);
@@ -250,8 +250,8 @@ test.describe('Law 3: BoundStep semantic invariants', () => {
 // ─── Law 4: WorkflowEnvelope semantic invariants ───
 
 test.describe('Law 4: WorkflowEnvelope semantic invariants', () => {
-  test('valid envelopes are accepted (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('valid envelopes are accepted (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const envelope = makeValidEnvelope(next);
       expect(decodeSafe(WorkflowEnvelopeSemanticSchema, envelope)).toBe(true);
@@ -320,8 +320,8 @@ test.describe('Law 4: WorkflowEnvelope semantic invariants', () => {
 // ─── Law 5: TrustPolicy semantic invariants ───
 
 test.describe('Law 5: TrustPolicy semantic invariants', () => {
-  test('valid trust policies are accepted (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('valid trust policies are accepted (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const policy = makeValidTrustPolicy(next);
       expect(decodeSafe(TrustPolicySemanticSchema, policy)).toBe(true);

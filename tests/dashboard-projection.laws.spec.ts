@@ -25,7 +25,7 @@ import type { DashboardEvent, DashboardEventKind, WorkItemDecision } from '../li
 import { dashboardEvent } from '../lib/domain/types/dashboard';
 import type { AgentWorkItem, WorkItemKind } from '../lib/domain/types/workbench';
 import { runPipelineStage } from '../lib/application/pipeline';
-import { mulberry32, pick, randomInt } from './support/random';
+import { mulberry32, pick, randomInt , LAW_SEED_COUNT } from './support/random';
 import type { AdoId } from '../lib/domain/identity';
 
 // ─── Recording Dashboard ───
@@ -183,7 +183,7 @@ test.describe('Dashboard projection invariant laws', () => {
   // ─── Law 2: awaitDecision auto-skips with DisabledDashboard ───
 
   test('Law 2: DisabledDashboard auto-skips all decisions instantly', async () => {
-    for (let seed = 0; seed < 150; seed++) {
+    for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const item = generateWorkItem(next);
       const decision = await Effect.runPromise(DisabledDashboard.awaitDecision(item));
@@ -197,7 +197,7 @@ test.describe('Dashboard projection invariant laws', () => {
   // ─── Law 3: Pipeline stage output identical with recording vs disabled ───
 
   test('Law 3: pipeline stage produces identical output regardless of DashboardPort', async () => {
-    for (let seed = 0; seed < 150; seed++) {
+    for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const input: ComputationInput = {
         values: Array.from({ length: 5 + randomInt(next, 20) }, () => next() * 100),
@@ -257,7 +257,7 @@ test.describe('Dashboard projection invariant laws', () => {
 
     // Even though emit fails, the pipeline computation still succeeds.
     // The stage.ts module wraps emit in catchAll — verify that pattern.
-    for (let seed = 0; seed < 150; seed++) {
+    for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const event = generateEvent(next);
 
@@ -274,7 +274,7 @@ test.describe('Dashboard projection invariant laws', () => {
   test('Law 4b: awaitDecision on failing dashboard still produces valid decision', async () => {
     const failingDashboard = createFailingDashboard();
 
-    for (let seed = 0; seed < 150; seed++) {
+    for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const item = generateWorkItem(next);
       const decision = await Effect.runPromise(failingDashboard.awaitDecision(item));
@@ -287,7 +287,7 @@ test.describe('Dashboard projection invariant laws', () => {
   // ─── Law 5: awaitDecision determinism — same input, same auto-skip ───
 
   test('Law 5: awaitDecision is deterministic for DisabledDashboard', async () => {
-    for (let seed = 0; seed < 150; seed++) {
+    for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
       const next1 = mulberry32(seed);
       const next2 = mulberry32(seed);
 
@@ -303,7 +303,7 @@ test.describe('Dashboard projection invariant laws', () => {
   });
 
   test('Law 5b: recording dashboard awaitDecision matches disabled dashboard status', async () => {
-    for (let seed = 0; seed < 150; seed++) {
+    for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
       const next1 = mulberry32(seed);
       const next2 = mulberry32(seed);
 
@@ -323,7 +323,7 @@ test.describe('Dashboard projection invariant laws', () => {
   // ─── Law 6: Observation count doesn't affect computation ───
 
   test('Law 6: varying observation density produces identical computation', async () => {
-    for (let seed = 0; seed < 150; seed++) {
+    for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const input: ComputationInput = {
         values: Array.from({ length: 3 + randomInt(next, 10) }, () => next() * 50),

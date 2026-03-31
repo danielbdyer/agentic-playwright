@@ -3,7 +3,7 @@
  *
  * Computes and verifies the probability that n seeds cover all
  * 2^d cells of a d-dimensional boolean domain. This validates
- * whether our 150-seed property tests achieve adequate coverage.
+ * whether our property tests achieve adequate coverage.
  *
  * The probability of full coverage after n independent uniform samples
  * from a d-dimensional boolean space (2^d cells) is given by the
@@ -23,6 +23,9 @@
 
 import { expect, test } from '@playwright/test';
 import { mulberry32, randomInt } from './support/random';
+
+/** This file validates coverage for a specific seed count — NOT COVERAGE_SEEDS. */
+const COVERAGE_SEEDS = 150;
 
 // ─── Mathematical helpers ───
 
@@ -144,7 +147,7 @@ test.describe('Law 2: For d=5 (32 cells), n=150: uniform model yields P > 0.75',
     // This passes because correlated 5-bit generation is more efficient
     // than the uniform cell model assumes — the theory is conservative
     const covered = new Set<number>();
-    for (let seed = 1; seed <= 150; seed += 1) {
+    for (let seed = 1; seed <= COVERAGE_SEEDS; seed += 1) {
       const next = mulberry32(seed);
       const bits = Array.from({ length: 5 }, () => (next() > 0.5 ? 1 : 0));
       const cell = bits.reduce<number>((acc, bit, i) => acc | (bit << i), 0);
@@ -210,7 +213,7 @@ test.describe('Law 5: Empirical verification — d=5 boolean domain with 150 see
   test('150 seeds cover all 32 cells of a 5-dimensional boolean domain', () => {
     const covered = new Set<number>();
 
-    for (let seed = 1; seed <= 150; seed += 1) {
+    for (let seed = 1; seed <= COVERAGE_SEEDS; seed += 1) {
       const next = mulberry32(seed);
       const bits = Array.from({ length: 5 }, () => (next() > 0.5 ? 1 : 0));
       const cell = bits.reduce<number>((acc, bit, i) => acc | (bit << i), 0);
@@ -322,7 +325,7 @@ test.describe('Law 6: Confidence table — coverage probability for various (d, 
       const trials = 200;
       const fullCoverageCount = Array.from({ length: trials }, (_, trial) => {
         const covered = new Set<number>();
-        for (let seed = 1; seed <= 150; seed += 1) {
+        for (let seed = 1; seed <= COVERAGE_SEEDS; seed += 1) {
           const next = mulberry32(trial * 1000 + seed);
           const cell = randomInt(next, m);
           covered.add(cell);
@@ -346,7 +349,7 @@ test.describe('Domain coverage: 3-element governance set with 150 seeds', () => 
     const elements = [0, 1, 2];
     const coveredPairs = new Set<string>();
 
-    for (let seed = 1; seed <= 150; seed += 1) {
+    for (let seed = 1; seed <= COVERAGE_SEEDS; seed += 1) {
       const next = mulberry32(seed);
       const a = elements[Math.floor(next() * 3)];
       const b = elements[Math.floor(next() * 3)];
@@ -360,7 +363,7 @@ test.describe('Domain coverage: 3-element governance set with 150 seeds', () => 
     const elements = [0, 1, 2];
     const coveredTriples = new Set<string>();
 
-    for (let seed = 1; seed <= 150; seed += 1) {
+    for (let seed = 1; seed <= COVERAGE_SEEDS; seed += 1) {
       const next = mulberry32(seed);
       const a = elements[Math.floor(next() * 3)];
       const b = elements[Math.floor(next() * 3)];

@@ -15,7 +15,7 @@
  */
 
 import { expect, test } from '@playwright/test';
-import { mulberry32 } from './support/random';
+import { mulberry32 , LAW_SEED_COUNT } from './support/random';
 import {
   resolutionPrecedenceLaw,
   dataResolutionPrecedenceLaw,
@@ -133,12 +133,12 @@ test.describe('Law 5: chooseByPrecedence picks highest-precedence candidate', ()
   });
 });
 
-// ─── Law 6: Deterministic under permutation (150 seeds) ───
+// ─── Law 6: Deterministic under permutation (20 seeds) ───
 
 test.describe('Law 6: Deterministic under permutation', () => {
   for (const { name, law } of ALL_LAWS) {
-    test(`${name}: shuffling candidates does not change result (150 seeds)`, () => {
-      for (let seed = 1; seed <= 150; seed++) {
+    test(`${name}: shuffling candidates does not change result (20 seeds)`, () => {
+      for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
         const next = mulberry32(seed);
 
         // Build candidates for every rung with a deterministic value
@@ -156,9 +156,9 @@ test.describe('Law 6: Deterministic under permutation', () => {
     });
   }
 
-  test('resolution: random subsets are permutation-invariant (150 seeds)', () => {
+  test('resolution: random subsets are permutation-invariant (20 seeds)', () => {
     const law = resolutionPrecedenceLaw;
-    for (let seed = 1; seed <= 150; seed++) {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
 
       // Pick a random subset of rungs

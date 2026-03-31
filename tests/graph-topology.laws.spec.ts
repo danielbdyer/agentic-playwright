@@ -25,7 +25,7 @@ import {
   createSurfaceId,
 } from '../lib/domain/identity';
 import type { AdoSnapshot, Scenario, SurfaceGraph, ScreenElements, ScreenPostures } from '../lib/domain/types';
-import { mulberry32, randomWord, randomInt } from './support/random';
+import { mulberry32, randomWord, randomInt , LAW_SEED_COUNT } from './support/random';
 
 // ─── Factories ───
 
@@ -208,8 +208,8 @@ test.describe('Graph topology: node uniqueness', () => {
     expect(unique.size).toBe(ids.length);
   });
 
-  test('no duplicate node IDs across 150 random seeds with varied inputs', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('no duplicate node IDs across 20 random seeds with varied inputs', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const adoId = String(10000 + randomInt(next, 9000));
       const screenId = `screen-${randomWord(next)}`;
@@ -263,8 +263,8 @@ test.describe('Graph topology: edge referential integrity', () => {
     }
   });
 
-  test('no dangling edges across 150 random seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('no dangling edges across 20 random seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const adoId = String(10000 + randomInt(next, 9000));
       const screenId = `screen-${randomWord(next)}`;

@@ -26,11 +26,10 @@ import {
   defaultQualityThresholds,
   type AliasOutcome,
 } from '../lib/domain/proposal-quality';
-import { mulberry32, randomInt, randomWord, pick } from './support/random';
+import { mulberry32, randomInt, randomWord, pick , LAW_SEED_COUNT } from './support/random';
 
 // ─── Helpers ───
 
-const SEEDS = 150;
 
 function randomOutcome(next: () => number): AliasOutcome {
   const usedInRuns = randomInt(next, 30);
@@ -57,7 +56,7 @@ function randomOutcomeList(next: () => number): readonly AliasOutcome[] {
 // ─── Law 1: Classification determinism ───
 
 test.describe('Law 1: Classification determinism', () => {
-  for (let seed = 0; seed < SEEDS; seed++) {
+  for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
     test(`seed=${seed}`, () => {
       const next = mulberry32(seed);
       const outcome = randomOutcome(next);
@@ -71,7 +70,7 @@ test.describe('Law 1: Classification determinism', () => {
 // ─── Law 2: Misdirection rate bounds [0, 1] ───
 
 test.describe('Law 2: Misdirection rate in [0, 1]', () => {
-  for (let seed = 0; seed < SEEDS; seed++) {
+  for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
     test(`seed=${seed}`, () => {
       const next = mulberry32(seed);
       const outcome = randomOutcome(next);
@@ -85,7 +84,7 @@ test.describe('Law 2: Misdirection rate in [0, 1]', () => {
 // ─── Law 3: Success rate bounds [0, 1] ───
 
 test.describe('Law 3: Success rate in [0, 1]', () => {
-  for (let seed = 0; seed < SEEDS; seed++) {
+  for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
     test(`seed=${seed}`, () => {
       const next = mulberry32(seed);
       const outcome = randomOutcome(next);
@@ -99,7 +98,7 @@ test.describe('Law 3: Success rate in [0, 1]', () => {
 // ─── Law 4: Misdirection + success rates <= 1 when counts are valid ───
 
 test.describe('Law 4: Misdirection + success rates <= 1', () => {
-  for (let seed = 0; seed < SEEDS; seed++) {
+  for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
     test(`seed=${seed}`, () => {
       const next = mulberry32(seed);
       const outcome = randomOutcome(next);
@@ -113,7 +112,7 @@ test.describe('Law 4: Misdirection + success rates <= 1', () => {
 // ─── Law 5: Insufficient data for aliases below minimum runs ───
 
 test.describe('Law 5: Insufficient data below minimum runs', () => {
-  for (let seed = 0; seed < SEEDS; seed++) {
+  for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
     test(`seed=${seed}`, () => {
       const next = mulberry32(seed);
       const thresholds = defaultQualityThresholds();
@@ -136,7 +135,7 @@ test.describe('Law 5: Insufficient data below minimum runs', () => {
 // ─── Law 6: Toxic aliases are subset of all aliases ───
 
 test.describe('Law 6: Toxic aliases subset of all aliases', () => {
-  for (let seed = 0; seed < SEEDS; seed++) {
+  for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
     test(`seed=${seed}`, () => {
       const next = mulberry32(seed);
       const outcomes = randomOutcomeList(next);
@@ -153,7 +152,7 @@ test.describe('Law 6: Toxic aliases subset of all aliases', () => {
 // ─── Law 7: Aggregation counts sum correctly ───
 
 test.describe('Law 7: Aggregation counts sum correctly', () => {
-  for (let seed = 0; seed < SEEDS; seed++) {
+  for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
     test(`seed=${seed}`, () => {
       const next = mulberry32(seed);
       const outcomes = randomOutcomeList(next);
@@ -185,7 +184,7 @@ test('Law 8: Empty outcomes produce zero metrics', () => {
 // ─── Law 9: Quarantine implies toxic classification ───
 
 test.describe('Law 9: Quarantine implies toxic classification', () => {
-  for (let seed = 0; seed < SEEDS; seed++) {
+  for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
     test(`seed=${seed}`, () => {
       const next = mulberry32(seed);
       const outcome = randomOutcome(next);
@@ -203,7 +202,7 @@ test.describe('Law 9: Quarantine implies toxic classification', () => {
 // ─── Law 10: findToxicAliases sorted by misdirection rate descending ───
 
 test.describe('Law 10: Toxic aliases sorted by misdirection rate descending', () => {
-  for (let seed = 0; seed < SEEDS; seed++) {
+  for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
     test(`seed=${seed}`, () => {
       const next = mulberry32(seed);
       const outcomes = randomOutcomeList(next);
@@ -222,7 +221,7 @@ test.describe('Law 10: Toxic aliases sorted by misdirection rate descending', ()
 // ─── Law 11: Pure function property — same input same output ───
 
 test.describe('Law 11: Pure function property', () => {
-  for (let seed = 0; seed < SEEDS; seed++) {
+  for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
     test(`seed=${seed}`, () => {
       const next = mulberry32(seed);
       const outcomes = randomOutcomeList(next);

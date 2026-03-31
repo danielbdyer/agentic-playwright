@@ -34,3 +34,17 @@ function isMsedgeAvailable(): boolean {
   }
   return msedgeProbeResult;
 }
+
+/**
+ * Launch a shared Chromium browser that can be reused across multiple
+ * operations to avoid paying the ~2-5s Chromium startup cost repeatedly.
+ */
+export async function launchSharedBrowser(): Promise<import('@playwright/test').Browser> {
+  const { chromium } = await import('@playwright/test');
+  const environment = process.env;
+  const channel = resolvePreferredPlaywrightChannel(environment);
+  return chromium.launch({
+    headless: resolvePlaywrightHeadless(environment),
+    ...(channel ? { channel } : {}),
+  });
+}

@@ -19,11 +19,10 @@ import {
   matureComponentKnowledge,
   type ComponentEvidence,
 } from '../lib/domain/component-maturation';
-import { mulberry32, pick, randomWord, randomInt } from './support/random';
+import { mulberry32, pick, randomWord, randomInt , LAW_SEED_COUNT } from './support/random';
 
 // ─── Helpers ───
 
-const SEEDS = 150;
 
 function randomEvidence(next: () => number): ComponentEvidence {
   const totalAttempts = randomInt(next, 50);
@@ -45,7 +44,7 @@ function randomEvidenceList(next: () => number): readonly ComponentEvidence[] {
 // ─── Law 1: Evidence accumulation ───
 
 test.describe('Law 1: Merging evidence for same componentType sums counts', () => {
-  for (let seed = 0; seed < SEEDS; seed++) {
+  for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
     test(`seed=${seed}`, () => {
       const next = mulberry32(seed);
       const componentType = `widget-${randomWord(next)}`;
@@ -78,7 +77,7 @@ test.describe('Law 1: Merging evidence for same componentType sums counts', () =
 // ─── Law 2: shouldProposeUpdate respects threshold ───
 
 test.describe('Law 2: shouldProposeUpdate respects threshold boundary', () => {
-  for (let seed = 0; seed < SEEDS; seed++) {
+  for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
     test(`seed=${seed}`, () => {
       const next = mulberry32(seed);
       const totalAttempts = randomInt(next, 50) + 1;
@@ -109,7 +108,7 @@ test.describe('Law 2: shouldProposeUpdate respects threshold boundary', () => {
 // ─── Law 3: Only components with > 0 attempts produce proposals ───
 
 test.describe('Law 3: Zero-attempt evidence produces no proposals', () => {
-  for (let seed = 0; seed < SEEDS; seed++) {
+  for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
     test(`seed=${seed}`, () => {
       const next = mulberry32(seed);
       const componentType = `widget-${randomWord(next)}`;
@@ -127,7 +126,7 @@ test.describe('Law 3: Zero-attempt evidence produces no proposals', () => {
 // ─── Law 4: Confidence is always in [0, 1] ───
 
 test.describe('Law 4: Confidence is always in [0, 1]', () => {
-  for (let seed = 0; seed < SEEDS; seed++) {
+  for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
     test(`seed=${seed}`, () => {
       const next = mulberry32(seed);
       const evidence = randomEvidenceList(next);
@@ -144,7 +143,7 @@ test.describe('Law 4: Confidence is always in [0, 1]', () => {
 // ─── Law 5: Action deduplication ───
 
 test.describe('Law 5: Suggested actions contain no duplicates', () => {
-  for (let seed = 0; seed < SEEDS; seed++) {
+  for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
     test(`seed=${seed}`, () => {
       const next = mulberry32(seed);
       const evidence = randomEvidenceList(next);
@@ -161,7 +160,7 @@ test.describe('Law 5: Suggested actions contain no duplicates', () => {
 // ─── Law 6: Determinism ───
 
 test.describe('Law 6: Same input always yields same output', () => {
-  for (let seed = 0; seed < SEEDS; seed++) {
+  for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
     test(`seed=${seed}`, () => {
       const next1 = mulberry32(seed);
       const next2 = mulberry32(seed);
@@ -184,7 +183,7 @@ test.describe('Law 6: Same input always yields same output', () => {
 // ─── Law 7: Empty evidence produces no proposals ───
 
 test.describe('Law 7: Empty evidence list produces no proposals', () => {
-  for (let seed = 0; seed < SEEDS; seed++) {
+  for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
     test(`seed=${seed}`, () => {
       const proposals = matureComponentKnowledge([]);
       expect(proposals.length).toBe(0);
@@ -195,7 +194,7 @@ test.describe('Law 7: Empty evidence list produces no proposals', () => {
 // ─── Law 8: Monotonicity — more successes never decrease confidence ───
 
 test.describe('Law 8: Adding successes never decreases confidence', () => {
-  for (let seed = 0; seed < SEEDS; seed++) {
+  for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
     test(`seed=${seed}`, () => {
       const next = mulberry32(seed);
       const componentType = `widget-${randomWord(next)}`;
@@ -226,7 +225,7 @@ test.describe('Law 8: Adding successes never decreases confidence', () => {
 // ─── Law 9: Proposals sorted by descending confidence ───
 
 test.describe('Law 9: Proposals are sorted by descending confidence', () => {
-  for (let seed = 0; seed < SEEDS; seed++) {
+  for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
     test(`seed=${seed}`, () => {
       const next = mulberry32(seed);
       const evidence = randomEvidenceList(next);

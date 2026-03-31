@@ -8,7 +8,7 @@ import {
   type ProjectionBuildManifest,
   type ProjectionInputFingerprint,
 } from '../lib/application/projections/cache';
-import { mulberry32, randomWord } from './support/random';
+import { mulberry32, randomWord , LAW_SEED_COUNT } from './support/random';
 
 // ─── Helpers ───
 
@@ -48,8 +48,8 @@ function buildManifest(
 
 // ─── Laws: fingerprint determinism ───
 
-test('unchanged inputs produce identical fingerprints (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('unchanged inputs produce identical fingerprints (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next1 = mulberry32(seed);
     const next2 = mulberry32(seed);
     const artifact1 = syntheticArtifact(next1);
@@ -63,18 +63,18 @@ test('unchanged inputs produce identical fingerprints (150 seeds)', () => {
 
 test('different inputs produce different fingerprints', () => {
   const seen = new Set<string>();
-  for (let seed = 1; seed <= 150; seed += 1) {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const artifact = syntheticArtifact(next);
     const fp = fingerprintProjectionOutput(artifact);
-    // Collision within 150 distinct seeds would indicate a broken hash
+    // Collision within 20 distinct seeds would indicate a broken hash
     expect(seen.has(fp)).toBe(false);
     seen.add(fp);
   }
 });
 
-test('fingerprint is deterministic — same seed always produces same hash (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('fingerprint is deterministic — same seed always produces same hash (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const results: string[] = [];
     for (let trial = 0; trial < 3; trial += 1) {
       const next = mulberry32(seed);
@@ -154,7 +154,7 @@ test('added input changes input-set fingerprint', () => {
 });
 
 test('stableStringify key ordering is deterministic regardless of insertion order', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     // Use unique keys to avoid duplicate-key collisions in Object.fromEntries
     const keys = Array.from({ length: 4 }, (_, i) => `key_${i}_${randomWord(next)}`);

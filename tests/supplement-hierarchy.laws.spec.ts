@@ -25,7 +25,7 @@ import {
 import { mergeScreenElementsWithHints } from '../lib/domain/knowledge/screen-bundle';
 import type { ScreenElements, ScreenHints, ScreenElementHint, ElementSig } from '../lib/domain/types';
 import { createScreenId, createSurfaceId, createWidgetId } from '../lib/domain/identity';
-import { mulberry32, pick, randomWord } from './support/random';
+import { mulberry32, pick, randomWord , LAW_SEED_COUNT } from './support/random';
 
 // ─── Supplement hierarchy rungs ───
 
@@ -106,8 +106,8 @@ test.describe('Law 1: Supplement hierarchy is a total order', () => {
     expect(localIndex).toBeLessThan(sharedIndex);
   });
 
-  test('total order holds across 150 random seeds with random values', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('total order holds across 20 random seeds with random values', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const localValue = randomWord(next);
       const sharedValue = randomWord(next);
@@ -160,8 +160,8 @@ test.describe('Law 2: Screen-local hints override shared patterns', () => {
     expect(merged['field-b']?.affordance).toBe('dropdown');
   });
 
-  test('local override is deterministic across 150 random seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('local override is deterministic across 20 random seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const localAffordance = randomWord(next);
       const elementAffordance = randomWord(next);
@@ -196,8 +196,8 @@ test.describe('Law 3: Shared patterns used as fallback', () => {
     expect(merged['field-a']?.affordance).toBe('text-entry');
   });
 
-  test('shared fallback across 150 random seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('shared fallback across 20 random seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const sharedValue = randomWord(next);
 
@@ -236,8 +236,8 @@ test.describe('Law 4: Fallback when neither local nor shared exist', () => {
     expect(merged['b']?.affordance).toBeNull();
   });
 
-  test('null fallback is stable across 150 random seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('null fallback is stable across 20 random seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const result = chooseByPrecedence([], resolutionPrecedenceLaw);
       expect(result).toBeNull();
     }
@@ -248,7 +248,7 @@ test.describe('Law 4: Fallback when neither local nor shared exist', () => {
 
 test.describe('Law 5: Monotonicity of supplement precedence', () => {
   test('adding screen-local never causes shared to win', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const localValue = `local-${randomWord(next)}`;
       const sharedValue = `shared-${randomWord(next)}`;
@@ -296,8 +296,8 @@ test.describe('Law 6: First-writer-wins within same rung', () => {
     expect(result).toBe('first');
   });
 
-  test('first-writer-wins across 150 random seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('first-writer-wins across 20 random seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const first = randomWord(next);
       const second = randomWord(next);

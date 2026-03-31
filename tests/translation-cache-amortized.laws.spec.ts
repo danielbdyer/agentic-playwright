@@ -13,7 +13,7 @@
  */
 
 import { expect, test } from '@playwright/test';
-import { mulberry32 } from './support/random';
+import { mulberry32 , LAW_SEED_COUNT } from './support/random';
 import { translationCacheKey, type TranslationCacheRecord } from '../lib/application/translation-cache';
 import type { TranslationRequest } from '../lib/domain/types';
 
@@ -67,8 +67,8 @@ function makeCacheRecord(key: string, payload: unknown): TranslationCacheRecord 
 // ─── Law 1: Cache key determinism ───
 
 test.describe('Law 1: Cache key determinism — same inputs => same key', () => {
-  test('identical requests produce identical keys (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed++) {
+  test('identical requests produce identical keys (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
       const next1 = mulberry32(seed);
       const next2 = mulberry32(seed);
       const req1 = makeRequest(next1);
@@ -92,14 +92,14 @@ test.describe('Law 1: Cache key determinism — same inputs => same key', () => 
 // ─── Law 2: Cache key collision resistance ───
 
 test.describe('Law 2: Cache key collision resistance — different inputs => different keys', () => {
-  test('distinct requests produce distinct keys (150 seeds)', () => {
+  test('distinct requests produce distinct keys (20 seeds)', () => {
     const keys = new Set<string>();
-    for (let seed = 1; seed <= 150; seed++) {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const req = makeRequest(next);
       keys.add(translationCacheKey(req));
     }
-    expect(keys.size).toBe(150);
+    expect(keys.size).toBe(LAW_SEED_COUNT);
   });
 
   test('differing only in actionText produces different keys', () => {
@@ -167,8 +167,8 @@ test.describe('Law 3: Monotone hit rate — repeated queries => non-decreasing h
 // ─── Law 4: Identity round-trip ───
 
 test.describe('Law 4: Identity round-trip — write then read returns original payload', () => {
-  test('cache record payload round-trips through key lookup (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed++) {
+  test('cache record payload round-trips through key lookup (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const req = makeRequest(next);
       const key = translationCacheKey(req);

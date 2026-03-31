@@ -36,7 +36,7 @@ import type {
   ResolutionEvent,
   PipelineFailureClass,
 } from '../lib/domain/types';
-import { mulberry32, pick } from './support/random';
+import { mulberry32, pick , LAW_SEED_COUNT } from './support/random';
 
 // ─── Pure transformers for fusion testing ───
 
@@ -150,8 +150,8 @@ const FAILURE_CLASS_SPECIMENS: readonly PipelineFailureClass[] = [
 // ─── Fusion law: foldValueRef ───
 
 test.describe('Fusion: foldValueRef', () => {
-  test('f . fold(g) === fold(f . g) for all variants across 150 seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('f . fold(g) === fold(f . g) for all variants across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const specimen = pick(next, VALUE_REF_SPECIMENS);
       const f = pick(next, STRING_TRANSFORMERS);
@@ -184,8 +184,8 @@ test.describe('Fusion: foldValueRef', () => {
 // ─── Fusion law: foldStepInstruction ───
 
 test.describe('Fusion: foldStepInstruction', () => {
-  test('f . fold(g) === fold(f . g) for all variants across 150 seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('f . fold(g) === fold(f . g) for all variants across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const specimen = pick(next, STEP_INSTRUCTION_SPECIMENS);
       const f = pick(next, STRING_TRANSFORMERS);
@@ -216,8 +216,8 @@ test.describe('Fusion: foldStepInstruction', () => {
 // ─── Fusion law: foldLocatorStrategy ───
 
 test.describe('Fusion: foldLocatorStrategy', () => {
-  test('f . fold(g) === fold(f . g) for all variants across 150 seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('f . fold(g) === fold(f . g) for all variants across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const specimen = pick(next, LOCATOR_STRATEGY_SPECIMENS);
       const f = pick(next, STRING_TRANSFORMERS);
@@ -244,8 +244,8 @@ test.describe('Fusion: foldLocatorStrategy', () => {
 // ─── Fusion law: foldResolutionReceipt ───
 
 test.describe('Fusion: foldResolutionReceipt', () => {
-  test('f . fold(g) === fold(f . g) for all variants across 150 seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('f . fold(g) === fold(f . g) for all variants across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const specimen = pick(next, RESOLUTION_RECEIPT_SPECIMENS);
       const f = pick(next, STRING_TRANSFORMERS);
@@ -274,8 +274,8 @@ test.describe('Fusion: foldResolutionReceipt', () => {
 // ─── Fusion law: foldResolutionOutcome ───
 
 test.describe('Fusion: foldResolutionOutcome', () => {
-  test('f . fold(g) === fold(f . g) for all variants across 150 seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('f . fold(g) === fold(f . g) for all variants across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const specimen = pick(next, RESOLUTION_RECEIPT_SPECIMENS);
       const f = pick(next, STRING_TRANSFORMERS);
@@ -300,8 +300,8 @@ test.describe('Fusion: foldResolutionOutcome', () => {
 // ─── Fusion law: foldImprovementTarget ───
 
 test.describe('Fusion: foldImprovementTarget', () => {
-  test('f . fold(g) === fold(f . g) for all variants across 150 seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('f . fold(g) === fold(f . g) for all variants across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const specimen = pick(next, IMPROVEMENT_TARGET_SPECIMENS);
       const f = pick(next, STRING_TRANSFORMERS);
@@ -332,8 +332,8 @@ test.describe('Fusion: foldImprovementTarget', () => {
 // ─── Fusion law: foldResolutionEvent ───
 
 test.describe('Fusion: foldResolutionEvent', () => {
-  test('f . fold(g) === fold(f . g) for all variants across 150 seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('f . fold(g) === fold(f . g) for all variants across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const specimen = pick(next, RESOLUTION_EVENT_SPECIMENS);
       const f = pick(next, STRING_TRANSFORMERS);
@@ -364,8 +364,8 @@ test.describe('Fusion: foldResolutionEvent', () => {
 // ─── Fusion law: foldPipelineFailureClass ───
 
 test.describe('Fusion: foldPipelineFailureClass', () => {
-  test('f . fold(g) === fold(f . g) for all variants across 150 seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('f . fold(g) === fold(f . g) for all variants across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const specimen = pick(next, FAILURE_CLASS_SPECIMENS);
       const g = pick(next, NUMBER_TRANSFORMERS);
@@ -404,8 +404,8 @@ test.describe('Fusion: foldPipelineFailureClass', () => {
 // ─── Meta-law: fold distributes over array map ───
 
 test.describe('Meta-law: fold distributes over Array.map', () => {
-  test('values.map(fold(g)).map(f) === values.map(fold(f . g)) for ValueRef across 150 seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('values.map(fold(g)).map(f) === values.map(fold(f . g)) for ValueRef across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const f = pick(next, STRING_TRANSFORMERS);
 

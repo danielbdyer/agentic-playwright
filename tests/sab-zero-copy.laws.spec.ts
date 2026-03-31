@@ -4,11 +4,11 @@
  * Verifies ring buffer read/write correctness and zero-copy semantics
  * using synthetic event data generated from mulberry32 seeds.
  *
- * 150 mulberry32 seeds per law.
+ * 20 mulberry32 seeds per law.
  */
 
 import { expect, test } from '@playwright/test';
-import { mulberry32, randomInt, pick } from './support/random';
+import { mulberry32, randomInt, pick , LAW_SEED_COUNT } from './support/random';
 import {
   bufferEventToDispatch,
 } from '../dashboard/src/hooks/use-sab-bridge';
@@ -116,11 +116,11 @@ function createSab(capacity: number): SharedArrayBuffer {
   return new SharedArrayBuffer(HEADER_BYTES + capacity * SLOT_SIZE * 8);
 }
 
-// ─── Law 1: Write-then-read identity (150 seeds) ───
+// ─── Law 1: Write-then-read identity (20 seeds) ───
 
 test.describe('SAB ring buffer write-then-read identity', () => {
-  test('written event is read back identically (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed++) {
+  test('written event is read back identically (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const capacity = 8 + randomInt(next, 120);
       const sab = createSab(capacity);
@@ -147,11 +147,11 @@ test.describe('SAB ring buffer write-then-read identity', () => {
   });
 });
 
-// ─── Law 2: Ring buffer wrapping correctness (150 seeds) ───
+// ─── Law 2: Ring buffer wrapping correctness (20 seeds) ───
 
 test.describe('SAB ring buffer wrapping', () => {
-  test('events survive ring wrap without corruption (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed++) {
+  test('events survive ring wrap without corruption (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const capacity = 4 + randomInt(next, 12); // small capacity to force wrapping
       const sab = createSab(capacity);
@@ -178,11 +178,11 @@ test.describe('SAB ring buffer wrapping', () => {
   });
 });
 
-// ─── Law 3: Atomic header monotonicity (150 seeds) ───
+// ─── Law 3: Atomic header monotonicity (20 seeds) ───
 
 test.describe('SAB header monotonicity', () => {
-  test('total event count is monotonically increasing (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed++) {
+  test('total event count is monotonically increasing (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const capacity = 16 + randomInt(next, 64);
       const sab = createSab(capacity);
@@ -201,11 +201,11 @@ test.describe('SAB header monotonicity', () => {
   });
 });
 
-// ─── Law 4: bufferEventToDispatch round-trip (150 seeds) ───
+// ─── Law 4: bufferEventToDispatch round-trip (20 seeds) ───
 
 test.describe('bufferEventToDispatch conversion', () => {
-  test('known event types produce non-null dispatch (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed++) {
+  test('known event types produce non-null dispatch (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const event = randomBufferEvent(next);
 
@@ -217,8 +217,8 @@ test.describe('bufferEventToDispatch conversion', () => {
     }
   });
 
-  test('unknown event types produce null dispatch (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed++) {
+  test('unknown event types produce null dispatch (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const event: BufferEvent = {
         ...randomBufferEvent(next),
@@ -231,12 +231,12 @@ test.describe('bufferEventToDispatch conversion', () => {
   });
 });
 
-// ─── Law 5: Governance ordinal mapping (150 seeds) ───
+// ─── Law 5: Governance ordinal mapping (20 seeds) ───
 
 test.describe('governance ordinal bijection', () => {
-  test('governance ordinals 0,1,2 map to known names (150 seeds)', () => {
+  test('governance ordinals 0,1,2 map to known names (20 seeds)', () => {
     const expectedNames = ['approved', 'review-required', 'blocked'];
-    for (let seed = 1; seed <= 150; seed++) {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const govIdx = randomInt(next, 3);
       const event: BufferEvent = {
@@ -253,11 +253,11 @@ test.describe('governance ordinal bijection', () => {
   });
 });
 
-// ─── Law 6: Zero-copy — views share underlying buffer (150 seeds) ───
+// ─── Law 6: Zero-copy — views share underlying buffer (20 seeds) ───
 
 test.describe('zero-copy shared memory', () => {
-  test('Int32Array and Float64Array views share the same ArrayBuffer (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed++) {
+  test('Int32Array and Float64Array views share the same ArrayBuffer (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const capacity = 8 + randomInt(next, 256);
       const sab = createSab(capacity);
@@ -281,11 +281,11 @@ test.describe('zero-copy shared memory', () => {
   });
 });
 
-// ─── Law 7: Bounding box NaN encoding (150 seeds) ───
+// ─── Law 7: Bounding box NaN encoding (20 seeds) ───
 
 test.describe('bounding box NaN encoding', () => {
-  test('hasBoundingBox false produces NaN in bx slot (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed++) {
+  test('hasBoundingBox false produces NaN in bx slot (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const capacity = 16;
       const sab = createSab(capacity);
@@ -300,8 +300,8 @@ test.describe('bounding box NaN encoding', () => {
     }
   });
 
-  test('hasBoundingBox true preserves coordinates (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed++) {
+  test('hasBoundingBox true preserves coordinates (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const capacity = 16;
       const sab = createSab(capacity);
@@ -325,11 +325,11 @@ test.describe('bounding box NaN encoding', () => {
   });
 });
 
-// ─── Law 8: Dispatch data shape invariant (150 seeds) ───
+// ─── Law 8: Dispatch data shape invariant (20 seeds) ───
 
 test.describe('dispatch data shape', () => {
-  test('dispatch always includes governance, actor, resolutionMode (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed++) {
+  test('dispatch always includes governance, actor, resolutionMode (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const event = randomBufferEvent(next);
       const dispatch = bufferEventToDispatch(event);

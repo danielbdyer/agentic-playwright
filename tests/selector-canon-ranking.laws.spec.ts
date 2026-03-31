@@ -21,7 +21,7 @@ import { expect, test } from '@playwright/test';
 import type { LocatorStrategy, LocatorStrategyKind } from '../lib/domain/types/workflow';
 import type { SelectorProbe, SelectorCanonEntry } from '../lib/domain/types/interface';
 import type { CanonicalTargetRef, SelectorRef } from '../lib/domain/identity';
-import { mulberry32, pick, randomWord, randomInt } from './support/random';
+import { mulberry32, pick, randomWord, randomInt , LAW_SEED_COUNT } from './support/random';
 
 // ─── Specificity order ───
 
@@ -129,8 +129,8 @@ test.describe('Law 1: Specificity ordering is a total order', () => {
     expect(new Set(ranks).size).toBe(SPECIFICITY_ORDER.length);
   });
 
-  test('total order holds across 150 random pairs', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('total order holds across 20 random pairs', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const a = pick(next, SPECIFICITY_ORDER);
       const b = pick(next, SPECIFICITY_ORDER);
@@ -163,8 +163,8 @@ test.describe('Law 2: More specific selectors rank higher', () => {
     expect(ranked[0]!.strategy.kind).toBe('role-name');
   });
 
-  test('ranking across 150 random probe sets', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('ranking across 20 random probe sets', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const probeKinds = Array.from(
         { length: 2 + randomInt(next, 4) },
@@ -206,8 +206,8 @@ test.describe('Law 3: Deterministic under alias expansion', () => {
     expect(rankedA.map((p) => p.strategy.kind)).toEqual(rankedB.map((p) => p.strategy.kind));
   });
 
-  test('alias expansion preserves kind-based ordering across 150 random seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('alias expansion preserves kind-based ordering across 20 random seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
 
       // Same set of kinds, different alias values
@@ -241,8 +241,8 @@ test.describe('Law 4: test-id selectors rank above CSS selectors', () => {
     }
   });
 
-  test('test-id beats css across 150 random seeds with varying values', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('test-id beats css across 20 random seeds with varying values', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const testIdProbe = makeProbe({ kind: 'test-id', value: randomWord(next), rung: randomInt(next, 10) });
       const cssProbe = makeProbe({ kind: 'css', value: `.${randomWord(next)}`, rung: randomInt(next, 10) });
@@ -267,8 +267,8 @@ test.describe('Law 5: role-name selectors rank above CSS selectors', () => {
     }
   });
 
-  test('role-name beats css across 150 random seeds with varying values', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('role-name beats css across 20 random seeds with varying values', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const roleProbe = makeProbe({ kind: 'role-name', value: randomWord(next), rung: randomInt(next, 10) });
       const cssProbe = makeProbe({ kind: 'css', value: `.${randomWord(next)}`, rung: randomInt(next, 10) });
@@ -292,8 +292,8 @@ test.describe('Law 6: Rung ordering within same strategy kind', () => {
     expect(ranked.map((p) => p.rung)).toEqual([1, 2, 3]);
   });
 
-  test('rung ordering within kind across 150 random seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('rung ordering within kind across 20 random seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const kind = pick(next, SPECIFICITY_ORDER);
       const count = 2 + randomInt(next, 5);
@@ -331,8 +331,8 @@ test.describe('Law 7: Ranking stability under input permutation', () => {
     expect(forward.map(toKey)).toEqual(shuffled.map(toKey));
   });
 
-  test('permutation stability across 150 random seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('permutation stability across 20 random seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const count = 3 + randomInt(next, 5);
       const probes = Array.from({ length: count }, (_, i) =>

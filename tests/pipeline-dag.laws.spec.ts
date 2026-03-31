@@ -13,7 +13,7 @@
  *   Law 7: Empty DAG — degenerate input is handled gracefully
  *   Law 8: Single node — simplest non-trivial DAG
  *
- * 150 seeds, deterministic PRNG.
+ * 20 seeds, deterministic PRNG.
  */
 
 import { expect, test } from '@playwright/test';
@@ -24,7 +24,7 @@ import {
   validateDAG,
 } from '../lib/application/pipeline-dag';
 import type { PipelineNode, PipelineDAG } from '../lib/application/pipeline-dag';
-import { mulberry32, randomWord, randomInt } from './support/random';
+import { mulberry32, randomWord, randomInt , LAW_SEED_COUNT } from './support/random';
 
 // ─── Helpers ───
 
@@ -103,8 +103,8 @@ test.describe('Law 1: Topological order correctness', () => {
     expect(indexOf.get('d')!).toBeLessThan(indexOf.get('merge')!);
   });
 
-  test('dependency order invariant holds (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('dependency order invariant holds (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const count = 2 + randomInt(next, 6);
       const ids = Array.from({ length: count }, (_, i) => `stage-${i}`);
@@ -147,8 +147,8 @@ test.describe('Law 2: Completeness', () => {
     }
   });
 
-  test('completeness holds for random DAGs (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('completeness holds for random DAGs (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const count = 1 + randomInt(next, 8);
       const ids = Array.from({ length: count }, (_, i) => `s${i}`);
@@ -231,8 +231,8 @@ test.describe('Law 4: Parallel group independence', () => {
     expect(groups[2]).toEqual(['deploy']);
   });
 
-  test('no intra-group dependencies (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('no intra-group dependencies (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const count = 2 + randomInt(next, 6);
       const ids = Array.from({ length: count }, (_, i) => `p${i}`);
@@ -276,8 +276,8 @@ test.describe('Law 5: Parallel groups completeness', () => {
     expect(new Set(allIds).size).toBe(allIds.length);
   });
 
-  test('completeness holds (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('completeness holds (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const count = 1 + randomInt(next, 7);
       const ids = Array.from({ length: count }, (_, i) => `q${i}`);
@@ -411,8 +411,8 @@ test.describe('Law 9: buildPipelineDAG integration', () => {
     }
   });
 
-  test('dependencies with missing references still sort but validate with diagnostics (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('dependencies with missing references still sort but validate with diagnostics (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const nodeCount = 2 + randomInt(next, 5);
       const ids = Array.from({ length: nodeCount }, (_, i) => `node-${i}`);

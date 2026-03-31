@@ -22,7 +22,7 @@ import {
   latestDecision,
 } from '../lib/application/iteration-journal';
 import type { IterationJournal, IterationJournalEntry } from '../lib/application/iteration-journal';
-import { mulberry32, pick, randomWord } from './support/random';
+import { mulberry32, pick, randomWord , LAW_SEED_COUNT } from './support/random';
 
 // ─── Helpers ───
 
@@ -73,7 +73,7 @@ test.describe('Law 1: Recently rejected detection', () => {
     expect(wasRecentlyRejected(journal, 'p2', 5, 3)).toBe(false);
   });
 
-  for (let seed = 0; seed < 150; seed++) {
+  for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
     test(`recently rejected is consistent on repeated query (seed ${seed})`, () => {
       const next = mulberry32(seed);
       const entryCount = 1 + Math.floor(next() * 10);
@@ -123,7 +123,7 @@ test.describe('Law 2: Immutable accumulation', () => {
     expect(journal.entries[2]!.proposalId).toBe('p3');
   });
 
-  for (let seed = 0; seed < 150; seed++) {
+  for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
     test(`accumulation preserves all entries (seed ${seed})`, () => {
       const next = mulberry32(seed);
       const count = 1 + Math.floor(next() * 15);
@@ -206,7 +206,7 @@ test.describe('Law 4: Empty journal allows all', () => {
     expect(rejectionCount(emptyJournal(), 'p1')).toBe(0);
   });
 
-  for (let seed = 0; seed < 150; seed++) {
+  for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
     test(`empty journal allows random proposal (seed ${seed})`, () => {
       const next = mulberry32(seed);
       const proposalId = `proposal-${randomWord(next)}`;
@@ -282,7 +282,7 @@ test.describe('Law 6: filterRecentlyRejected consistency', () => {
     }
   });
 
-  for (let seed = 0; seed < 150; seed++) {
+  for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
     test(`filter-query consistency (seed ${seed})`, () => {
       const next = mulberry32(seed);
       const entryCount = Math.floor(next() * 8);

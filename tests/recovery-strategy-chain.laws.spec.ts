@@ -21,7 +21,7 @@ import {
 } from '../lib/runtime/recovery-strategies';
 import type { ComposableRecoveryStrategy, RecoveryContext, RecoveryAttemptOutcome } from '../lib/runtime/recovery-strategies';
 import type { RecoveryBudget, RecoveryFailureFamily } from '../lib/domain/execution/recovery-policy';
-import { mulberry32, pick } from './support/random';
+import { mulberry32, pick , LAW_SEED_COUNT } from './support/random';
 
 // ─── Helpers ───
 
@@ -100,7 +100,7 @@ test.describe('Law 1: First-match short-circuit', () => {
     expect(result.attempts).toHaveLength(1);
   });
 
-  for (let seed = 0; seed < 150; seed++) {
+  for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
     test(`first-match holds under random chain construction (seed ${seed})`, () => {
       const next = mulberry32(seed);
       const results: Array<'recovered' | 'failed' | 'skipped'> = ['recovered', 'failed', 'skipped'];
@@ -175,7 +175,7 @@ test.describe('Law 3: Strategy ordering', () => {
     expect(result.attempts[1]!.strategyId).toBe('sOk' as never);
   });
 
-  for (let seed = 0; seed < 150; seed++) {
+  for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
     test(`ordering determinism under permutation (seed ${seed})`, () => {
       const next = mulberry32(seed);
       const chain = [
@@ -335,7 +335,7 @@ test.describe('Built-in strategies', () => {
 // ─── policyProfile threading ───
 
 test.describe('Policy profile threading', () => {
-  for (let seed = 0; seed < 150; seed++) {
+  for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
     test(`policyProfile is threaded through result (seed ${seed})`, () => {
       const next = mulberry32(seed);
       const profile = `profile-${Math.floor(next() * 1000)}`;

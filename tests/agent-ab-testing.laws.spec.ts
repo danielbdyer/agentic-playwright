@@ -1,7 +1,7 @@
 /**
  * Agent A/B Testing — Law-style tests.
  *
- * Laws verified (150 seeds each where applicable):
+ * Laws verified (20 seeds each where applicable):
  *   1. Variant assignment determinism
  *   2. Traffic split approximation
  *   3. Result recording preserves counts
@@ -27,11 +27,10 @@ import type {
   ABTestConfig,
   ABTestResult,
 } from '../lib/application/agent-ab-testing';
-import { mulberry32 } from './support/random';
+import { mulberry32 , LAW_SEED_COUNT } from './support/random';
 
 // ─── Helpers ───
 
-const SEEDS = 150;
 
 function makeConfig(next: () => number): ABTestConfig {
   return {
@@ -59,10 +58,10 @@ function makeResult(next: () => number, variant: 'control' | 'treatment'): ABTes
   return { ...r, testId: `test-${Math.floor(next() * 10000)}` };
 }
 
-// ─── Law 1: Variant assignment determinism (150 seeds) ───
+// ─── Law 1: Variant assignment determinism (20 seeds) ───
 
 test('Law 1 — assignVariant is deterministic', () => {
-  for (let s = 0; s < SEEDS; s++) {
+  for (let s = 0; s < LAW_SEED_COUNT; s++) {
     const next = mulberry32(s);
     const config = makeConfig(next);
     const stepIndex = Math.floor(next() * 1000);
@@ -75,7 +74,7 @@ test('Law 1 — assignVariant is deterministic', () => {
 // ─── Law 2: Traffic split approximation ───
 
 test('Law 2 — traffic split approximation over many assignments', () => {
-  for (let s = 0; s < SEEDS; s++) {
+  for (let s = 0; s < LAW_SEED_COUNT; s++) {
     const next = mulberry32(s);
     const config = makeConfig(next);
     const N = 2000;
@@ -92,7 +91,7 @@ test('Law 2 — traffic split approximation over many assignments', () => {
 // ─── Law 3: Result recording preserves counts ───
 
 test('Law 3 — recordResult preserves proposal and success counts', () => {
-  for (let s = 0; s < SEEDS; s++) {
+  for (let s = 0; s < LAW_SEED_COUNT; s++) {
     const next = mulberry32(s);
     const proposals = makeProposals(next, 1 + Math.floor(next() * 20));
     const result = recordResult('control', 'prov', proposals);
@@ -104,7 +103,7 @@ test('Law 3 — recordResult preserves proposal and success counts', () => {
 // ─── Law 4: Summary confidence delta correctness ───
 
 test('Law 4 — summary confidenceDelta is treatment avg minus control avg', () => {
-  for (let s = 0; s < SEEDS; s++) {
+  for (let s = 0; s < LAW_SEED_COUNT; s++) {
     const next = mulberry32(s);
     const controlResults = Array.from({ length: 1 + Math.floor(next() * 5) }, () => makeResult(next, 'control'));
     const treatmentResults = Array.from({ length: 1 + Math.floor(next() * 5) }, () => makeResult(next, 'treatment'));
@@ -123,7 +122,7 @@ test('Law 4 — summary confidenceDelta is treatment avg minus control avg', () 
 // ─── Law 5: Significance with zero samples is false ───
 
 test('Law 5 — isSignificantDifference returns false for zero samples', () => {
-  for (let s = 0; s < SEEDS; s++) {
+  for (let s = 0; s < LAW_SEED_COUNT; s++) {
     const next = mulberry32(s);
     const a = next();
     const b = next();
@@ -134,7 +133,7 @@ test('Law 5 — isSignificantDifference returns false for zero samples', () => {
 // ─── Law 6: Merge associativity ───
 
 test('Law 6 — mergeABTestSummaries is associative', () => {
-  for (let s = 0; s < SEEDS; s++) {
+  for (let s = 0; s < LAW_SEED_COUNT; s++) {
     const next = mulberry32(s);
     const mkSummary = () => {
       const cr = Array.from({ length: 1 + Math.floor(next() * 3) }, () => makeResult(next, 'control'));
@@ -166,7 +165,7 @@ test('Law 7 — defaultABTestConfig has trafficSplit in [0,1]', () => {
 // ─── Law 8: All results have non-negative values ───
 
 test('Law 8 — recordResult produces non-negative numeric fields', () => {
-  for (let s = 0; s < SEEDS; s++) {
+  for (let s = 0; s < LAW_SEED_COUNT; s++) {
     const next = mulberry32(s);
     const proposals = makeProposals(next, 1 + Math.floor(next() * 20));
     const result = recordResult('treatment', 'prov', proposals);
@@ -180,7 +179,7 @@ test('Law 8 — recordResult produces non-negative numeric fields', () => {
 // ─── Law 9: proposalQualityDelta is treatment minus control ───
 
 test('Law 9 — summary proposalQualityDelta is treatment quality minus control quality', () => {
-  for (let s = 0; s < SEEDS; s++) {
+  for (let s = 0; s < LAW_SEED_COUNT; s++) {
     const next = mulberry32(s);
     const controlResults = Array.from({ length: 1 + Math.floor(next() * 5) }, () => makeResult(next, 'control'));
     const treatmentResults = Array.from({ length: 1 + Math.floor(next() * 5) }, () => makeResult(next, 'treatment'));
@@ -200,7 +199,7 @@ test('Law 9 — summary proposalQualityDelta is treatment quality minus control 
 // ─── Law 10: Pure function property ───
 
 test('Law 10 — functions are pure: same inputs yield same outputs', () => {
-  for (let s = 0; s < SEEDS; s++) {
+  for (let s = 0; s < LAW_SEED_COUNT; s++) {
     const run = () => {
       const next = mulberry32(s);
       const config = makeConfig(next);

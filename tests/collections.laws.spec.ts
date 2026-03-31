@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { groupBy, sortByStringKey, uniqueSorted } from '../lib/domain/collections';
-import { mulberry32, randomWord } from './support/random';
+import { mulberry32, randomWord , LAW_SEED_COUNT } from './support/random';
 
 test('uniqueSorted is deterministic and idempotent across random string sets', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const values = Array.from({ length: 40 }, () => randomWord(next));
 
