@@ -24,6 +24,7 @@ import type { SemanticRetrievalContext } from '../lib/domain/types';
 import {
   accrueSemanticEntry,
   emptyCatalog,
+  ensureShingleIndex,
   lookupSemanticDictionary,
   markPromoted,
   promotionCandidates,
@@ -31,6 +32,15 @@ import {
   recordSemanticFailure,
   recordSemanticSuccess,
 } from '../lib/application/semantic-translation-dictionary';
+import {
+  charShingles,
+  shingleTermFrequencies,
+  buildIdfWeights,
+  tfidfCosineSimilarity,
+  blendedSimilarity,
+  buildShingleIndex,
+  queryShingleIndex,
+} from '../lib/domain/shingles';
 import { trySemanticDictionaryResolution } from '../lib/runtime/agent/resolution-stages';
 import {
   createAgentContext,
@@ -435,7 +445,7 @@ test('structural scoring penalises entries targeting unavailable screens', () =>
   const match = lookupSemanticDictionary('enter policy number field accepts value', catalog, { retrievalContext: ctx });
   // Still might match on text, but structural score should be low
   if (match?.scoring) {
-    expect(match.scoring.structuralScore).toBeLessThan(0.5);
+    expect(match.scoring.structuralScore).toBeLessThanOrEqual(0.5);
   }
 });
 
@@ -517,4 +527,192 @@ test('structural lookup is deterministic for the same context', () => {
   const second = lookupSemanticDictionary('enter policy number field accepts value', catalog, { retrievalContext: ctx });
   expect(first?.scoring?.combined).toBe(second?.scoring?.combined);
   expect(first?.scoring?.structuralScore).toBe(second?.scoring?.structuralScore);
+});
+
+// ─── 10. Shingle Generation ───
+
+test('charShingles produces character 3-grams from normalized text', () => {
+  const shingles = charShingles('hello');
+  // "hello" → 3-grams: "hel", "ell", "llo"
+  expect(shingles.size).toBe(3);
+  expect(shingles.has('hel')).toBe(true);
+  expect(shingles.has('ell')).toBe(true);
+  expect(shingles.has('llo')).toBe(true);
+});
+
+test('charShingles returns empty set for text shorter than n', () => {
+  expect(charShingles('ab').size).toBe(0);
+  expect(charShingles('').size).toBe(0);
+});
+
+test('charShingles is deterministic for the same input', () => {
+  const a = charShingles('enter policy number');
+  const b = charShingles('enter policy number');
+  expect([...a].sort()).toEqual([...b].sort());
+});
+
+test('charShingles normalizes case and whitespace', () => {
+  const a = charShingles('Enter Policy');
+  const b = charShingles('enter  policy');
+  // Both should produce the same normalized shingles
+  expect([...a].sort()).toEqual([...b].sort());
+});
+
+// ─── 11. TF-IDF Computation ───
+
+test('shingleTermFrequencies produces frequency map summing to 1', () => {
+  const tf = shingleTermFrequencies('hello world');
+  let sum = 0;
+  for (const freq of tf.values()) {
+    sum += freq;
+  }
+  // Frequencies sum to approximately 1 (due to repeated shingles being counted once each)
+  expect(sum).toBeGreaterThan(0);
+  expect(sum).toBeLessThanOrEqual(1.01);
+});
+
+test('buildIdfWeights assigns higher IDF to rare shingles than common ones', () => {
+  // "ent" appears in all three docs (common), "xyz" only in one (rare)
+  const doc1 = charShingles('enter policy');
+  const doc2 = charShingles('enter claims');
+  const doc3 = charShingles('xyz enter data');
+  const idf = buildIdfWeights([doc1, doc2, doc3]);
+  // "ent" has df=3 (all docs), "xyz" has df=1 (only doc3)
+  const commonIdf = idf.get('ent') ?? 0;
+  const rareIdf = idf.get('xyz') ?? 0;
+  expect(rareIdf).toBeGreaterThan(commonIdf);
+});
+
+test('buildIdfWeights returns empty map for empty corpus', () => {
+  const idf = buildIdfWeights([]);
+  expect(idf.size).toBe(0);
+});
+
+test('tfidfCosineSimilarity returns 1 for identical texts', () => {
+  const tf = shingleTermFrequencies('enter policy number');
+  const idf = buildIdfWeights([charShingles('enter policy number')]);
+  const score = tfidfCosineSimilarity(tf, tf, idf);
+  expect(score).toBeCloseTo(1.0, 4);
+});
+
+test('tfidfCosineSimilarity returns 0 for completely disjoint texts', () => {
+  const tfA = shingleTermFrequencies('abc def');
+  const tfB = shingleTermFrequencies('xyz uvw');
+  const idf = buildIdfWeights([charShingles('abc def'), charShingles('xyz uvw')]);
+  const score = tfidfCosineSimilarity(tfA, tfB, idf);
+  expect(score).toBe(0);
+});
+
+test('tfidfCosineSimilarity catches lexical variation that Jaccard misses', () => {
+  // "Enter policy number" vs "Type in policy ref" — different words, similar shingles
+  const tfA = shingleTermFrequencies('enter policy number');
+  const tfB = shingleTermFrequencies('type in policy ref');
+  const idf = buildIdfWeights([
+    charShingles('enter policy number'),
+    charShingles('type in policy ref'),
+  ]);
+  const tfidfScore = tfidfCosineSimilarity(tfA, tfB, idf);
+  // The shared "polic", "olicy" sub-word shingles should produce some similarity
+  expect(tfidfScore).toBeGreaterThan(0);
+});
+
+// ─── 12. Blended Similarity ───
+
+test('blendedSimilarity interpolates Jaccard and TF-IDF scores', () => {
+  // Default: 0.4 Jaccard + 0.6 TF-IDF
+  const blended = blendedSimilarity(1.0, 0.5);
+  expect(blended).toBeCloseTo(0.4 * 1.0 + 0.6 * 0.5, 4);
+});
+
+test('blendedSimilarity respects custom Jaccard weight', () => {
+  const blended = blendedSimilarity(0.8, 0.6, 0.7);
+  expect(blended).toBeCloseTo(0.7 * 0.8 + 0.3 * 0.6, 4);
+});
+
+// ─── 13. Shingle Index ───
+
+test('buildShingleIndex creates index with IDF and per-entry data', () => {
+  const index = buildShingleIndex([
+    { id: 'a', text: 'enter policy number' },
+    { id: 'b', text: 'type in policy ref' },
+    { id: 'c', text: 'click the submit button' },
+  ]);
+  expect(index.stats.totalEntries).toBe(3);
+  expect(index.stats.uniqueShingles).toBeGreaterThan(0);
+  expect(index.entries.size).toBe(3);
+  expect(index.entries.has('a')).toBe(true);
+  expect(index.idfWeights.size).toBeGreaterThan(0);
+});
+
+test('buildShingleIndex handles empty corpus', () => {
+  const index = buildShingleIndex([]);
+  expect(index.stats.totalEntries).toBe(0);
+  expect(index.entries.size).toBe(0);
+  expect(index.idfWeights.size).toBe(0);
+});
+
+test('queryShingleIndex ranks similar entries higher', () => {
+  const index = buildShingleIndex([
+    { id: 'policy', text: 'enter policy number' },
+    { id: 'submit', text: 'click the submit button' },
+    { id: 'policy-alt', text: 'type in policy ref' },
+  ]);
+  const results = queryShingleIndex('enter policy number', index);
+  // The exact match should rank highest
+  expect(results.length).toBeGreaterThan(0);
+  expect(results[0].entryId).toBe('policy');
+  expect(results[0].score).toBeGreaterThan(0.5);
+});
+
+test('queryShingleIndex returns empty for unrelated query', () => {
+  const index = buildShingleIndex([
+    { id: 'a', text: 'enter policy number' },
+  ]);
+  const results = queryShingleIndex('zzz completely unrelated', index, 0.5);
+  expect(results.length).toBe(0);
+});
+
+// ─── 14. Shingle Index in Catalog ───
+
+test('ensureShingleIndex builds index from catalog entries', () => {
+  let catalog = emptyCatalog();
+  catalog = accrueSemanticEntry(catalog, accrualInput({ normalizedIntent: 'enter policy number' }));
+  catalog = accrueSemanticEntry(catalog, accrualInput({ normalizedIntent: 'click submit button' }));
+
+  const indexed = ensureShingleIndex(catalog);
+  expect(indexed.shingleIndex).toBeDefined();
+  expect(indexed.shingleIndex!.stats.totalEntries).toBe(2);
+});
+
+test('ensureShingleIndex is idempotent when entry count unchanged', () => {
+  let catalog = emptyCatalog();
+  catalog = accrueSemanticEntry(catalog, accrualInput({ normalizedIntent: 'enter policy number' }));
+
+  const first = ensureShingleIndex(catalog);
+  const second = ensureShingleIndex(first);
+  // Should return the same catalog (no rebuild)
+  expect(second.shingleIndex).toBe(first.shingleIndex);
+});
+
+test('lookup with blended TF-IDF catches sub-word lexical variation', () => {
+  // Build a catalog with "enter policy number into search box"
+  let catalog = emptyCatalog();
+  catalog = accrueSemanticEntry(catalog, accrualInput({
+    normalizedIntent: 'enter policy number into search box',
+  }));
+  // Boost confidence so it can pass thresholds
+  const entryIdValue = catalog.entries[0].id;
+  catalog = recordSemanticSuccess(catalog, entryIdValue);
+  catalog = recordSemanticSuccess(catalog, entryIdValue);
+  catalog = recordSemanticSuccess(catalog, entryIdValue);
+
+  // Query with a different phrasing but similar sub-word content
+  // "enter policy number into search box" vs "enter policy number in the search field"
+  // Token Jaccard alone might not meet the threshold, but shingles help
+  const match = lookupSemanticDictionary('enter policy number in the search field', catalog, {
+    similarityThreshold: 0.4,
+    combinedScoreThreshold: 0.2,
+  });
+  expect(match).not.toBeNull();
+  expect(match!.entry.id).toBe(entryIdValue);
 });

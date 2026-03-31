@@ -24,6 +24,14 @@
 import { Effect } from 'effect';
 import { sha256, stableStringify } from '../domain/hash';
 import { normalizeIntentText } from '../domain/inference';
+import {
+  buildShingleIndex,
+  queryShingleIndex,
+  shingleTermFrequencies,
+  tfidfCosineSimilarity,
+  blendedSimilarity,
+  type ShingleIndex,
+} from '../domain/shingles';
 import type {
   SemanticDictionaryAccrualInput,
   SemanticDictionaryCatalog,
@@ -90,6 +98,40 @@ function tokenJaccard(a: readonly string[], b: readonly string[]): number {
   if (intersection === 0) return 0;
   const unionSize = new Set([...setA, ...setB]).size;
   return intersection / unionSize;
+}
+
+// ─── Shingle Index ───
+
+/**
+ * Ensure the catalog has a built shingle index.
+ * If the index is already present, returns the catalog as-is.
+ * Otherwise, builds the index from entry intents and attaches it.
+ *
+ * Call this after loading the catalog from disk (Maps don't survive JSON
+ * serialization) and before the first lookup in a resolution session.
+ */
+export function ensureShingleIndex(catalog: SemanticDictionaryCatalog): SemanticDictionaryCatalog {
+  if (catalog.shingleIndex && catalog.shingleIndex.stats.totalEntries === catalog.entries.length) {
+    return catalog;
+  }
+  const corpus = catalog.entries.map((e) => ({ id: e.id, text: e.normalizedIntent }));
+  const shingleIndex = buildShingleIndex(corpus);
+  return { ...catalog, shingleIndex };
+}
+
+/**
+ * Compute TF-IDF shingle similarity between a query and a specific entry,
+ * using the catalog's shingle index.
+ */
+function shingleSimilarity(
+  queryText: string,
+  entryId: string,
+  index: ShingleIndex,
+): number {
+  const entryData = index.entries.get(entryId);
+  if (!entryData) return 0;
+  const queryTf = shingleTermFrequencies(queryText);
+  return tfidfCosineSimilarity(queryTf, entryData.tf, index.idfWeights);
 }
 
 // ─── Scoring Weights ───
@@ -202,14 +244,29 @@ export function lookupSemanticDictionary(
   const queryTokens = tokenize(normalizeIntentText(normalizedIntent));
   if (queryTokens.length === 0) return null;
 
+  // Lazily ensure the shingle index is built for TF-IDF scoring
+  const indexedCatalog = ensureShingleIndex(catalog);
+  const index = indexedCatalog.shingleIndex;
+
   let best: SemanticDictionaryMatch | null = null;
 
-  for (const entry of catalog.entries) {
+  for (const entry of indexedCatalog.entries) {
     // Governance gate: skip entries that don't pass the filter
     if (context && !passesGovernanceFilter(entry, context.governanceFilter)) continue;
 
     const entryTokens = tokenize(normalizeIntentText(entry.normalizedIntent));
-    const textSimilarity = tokenJaccard(queryTokens, entryTokens);
+    const jaccardScore = tokenJaccard(queryTokens, entryTokens);
+
+    // Compute TF-IDF shingle similarity when index is available
+    const tfidfScore = index
+      ? shingleSimilarity(normalizedIntent, entry.id, index)
+      : 0;
+
+    // Blend Jaccard + TF-IDF into the composite text similarity score.
+    // When no shingle index exists, falls back to pure Jaccard (blended weight 1.0).
+    const textSimilarity = index
+      ? blendedSimilarity(jaccardScore, tfidfScore)
+      : jaccardScore;
 
     if (textSimilarity < simThreshold) continue;
 
@@ -434,6 +491,8 @@ function rebuildCatalog(entries: readonly SemanticDictionaryEntry[]): SemanticDi
   const highConfidence = entries.filter((e) => e.confidence >= HIGH_CONFIDENCE_THRESHOLD).length;
   const promoted = entries.filter((e) => e.promoted).length;
   const totalConfidence = entries.reduce((sum, e) => sum + e.confidence, 0);
+  // Omit shingleIndex: entries changed, so the index is stale.
+  // It will be lazily rebuilt via ensureShingleIndex() on next lookup.
   return {
     kind: 'semantic-dictionary-catalog',
     version: 1,

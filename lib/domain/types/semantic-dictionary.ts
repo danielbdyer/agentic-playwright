@@ -16,6 +16,7 @@
 
 import type { ElementId, PostureId, ScreenId, SnapshotTemplateId } from '../identity';
 import type { StepAction, StepWinningSource } from './workflow';
+import type { ShingleIndex } from '../shingles';
 
 // ─── Dictionary Entry ───
 
@@ -90,6 +91,12 @@ export interface SemanticDictionaryCatalog {
     readonly promotedCount: number;
     readonly averageConfidence: number;
   };
+  /**
+   * In-memory shingle index for TF-IDF similarity lookup.
+   * Not serialized to JSON (Maps don't round-trip). Rebuilt on catalog load
+   * via `ensureShingleIndex()`. Undefined until first lookup or explicit build.
+   */
+  readonly shingleIndex?: ShingleIndex | undefined;
 }
 
 // ─── Retrieval Context ───
