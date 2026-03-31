@@ -6,16 +6,24 @@ import { chooseByPrecedence, routeSelectionPrecedenceLaw } from '../domain/prece
 import type { AdoId, StateNodeRef, TransitionRef } from '../domain/identity';
 import type { ExecutionBudgetThresholds } from '../domain/execution/telemetry';
 import { defaultRecoveryPolicy, recoveryFamilyConfig, type RecoveryAttempt, type RecoveryPolicy, type RecoveryStrategy } from '../domain/execution/recovery-policy';
-import { emptyExecutionTiming, evaluateExecutionBudget, normalizeFailureFamily } from '../domain/execution/telemetry';
+import { emptyExecutionTiming, normalizeFailureFamily } from '../domain/execution/telemetry';
 import { compileStepProgram } from '../domain/program';
 import type { SnapshotTemplateLoader } from '../domain/runtime-loaders';
 import { RuntimeError } from '../domain/errors';
 import { mintBlocked } from '../domain/types/shared-context';
+import {
+  advanceScenarioRunState,
+  createScenarioRunState as createScenarioRunStateAggregate,
+  inferTransitionObservations,
+  type ScenarioRunState,
+} from '../domain/aggregates/runtime-scenario-run';
+import { evaluateExecutionBudgetHandoff } from '../domain/scenario/policies/execution-budget-handoff';
+import { buildRecoveryStrategyEnvelope } from '../domain/scenario/policies/recovery-envelope';
+import { decideSemanticAccrual } from '../domain/scenario/policies/semantic-accrual';
 import type {
   ExecutionPosture,
   ExecutionDiagnostic,
   InterfaceResolutionContext,
-  ObservedStateSession,
   ResolutionReceipt,
   ScenarioRunPlan,
   ResolutionTarget,
@@ -61,10 +69,7 @@ export interface RuntimeScenarioEnvironment {
   semanticDictionary?: import('../domain/types').SemanticDictionaryCatalog | undefined;
 }
 
-export interface ScenarioRunState {
-  previousResolution: ResolutionTarget | null;
-  observedStateSession: ObservedStateSession;
-}
+export type { ScenarioRunState };
 
 export interface ScenarioStepRunResult {
   interpretation: ResolutionReceipt;
@@ -93,22 +98,7 @@ export function stepHandshakeFromPlan(plan: ScenarioRunPlan, zeroBasedIndex: num
   };
 }
 
-export function createScenarioRunState(): ScenarioRunState {
-  return {
-    previousResolution: null,
-    observedStateSession: {
-      currentScreen: null,
-      activeStateRefs: [],
-      lastObservedTransitionRefs: [],
-      activeRouteVariantRefs: [],
-      activeTargetRefs: [],
-      lastSuccessfulLocatorRung: null,
-      recentAssertions: [],
-      causalLinks: [],
-      lineage: [],
-    },
-  };
-}
+export const createScenarioRunState = createScenarioRunStateAggregate;
 
 function executionDiagnosticsFromError(code: string, message: string, context?: Record<string, string>): ExecutionDiagnostic[] {
   return [{ code, message, context }];
@@ -244,73 +234,6 @@ function selectRouteForNavigate(input: {
   };
 }
 
-function inferTransitionObservations(input: {
-  task: GroundedStep;
-  interpretation: Exclude<ResolutionReceipt, { kind: 'needs-human' }>;
-  success: boolean;
-}): TransitionObservation[] {
-  if (input.task.grounding.expectedTransitionRefs.length === 0) {
-    return [];
-  }
-
-  const observedStateRefs = input.success ? input.task.grounding.resultStateRefs : [];
-  return [{
-    observationId: `runtime:${input.task.index}:${input.interpretation.target.action}`,
-    source: 'runtime',
-    actor: 'runtime-execution',
-    screen: input.interpretation.target.screen,
-    eventSignatureRef: input.task.grounding.eventSignatureRefs[0] ?? null,
-    transitionRef: input.task.grounding.expectedTransitionRefs.length === 1 ? input.task.grounding.expectedTransitionRefs[0]! : null,
-    expectedTransitionRefs: input.task.grounding.expectedTransitionRefs,
-    observedStateRefs,
-    unexpectedStateRefs: [],
-    confidence: input.success ? 'inferred' : 'missing',
-    classification: input.success ? 'matched' : 'missing-expected',
-    detail: {
-      mode: 'static-inference',
-      result: input.success ? 'ok' : 'failed',
-    },
-  }];
-}
-
-function mergeObservedStateSession(input: {
-  state: ScenarioRunState;
-  task: GroundedStep;
-  interpretation: Exclude<ResolutionReceipt, { kind: 'needs-human' }>;
-  observedStateRefs: readonly StateNodeRef[];
-  transitionRefs: readonly TransitionRef[];
-}) {
-  const relevant = new Set(relevantStateRefs(input.task));
-  input.state.observedStateSession = {
-    ...input.state.observedStateSession,
-    currentScreen: {
-      screen: input.interpretation.target.screen,
-      confidence: input.interpretation.confidence === 'compiler-derived' ? 1 : 0.8,
-      observedAtStep: input.task.index,
-    },
-    activeStateRefs: uniqueSorted([
-      ...input.state.observedStateSession.activeStateRefs.filter((ref) => !relevant.has(ref)),
-      ...input.observedStateRefs,
-    ]),
-    lastObservedTransitionRefs: uniqueSorted(input.transitionRefs),
-    activeRouteVariantRefs: uniqueSorted([
-      ...input.state.observedStateSession.activeRouteVariantRefs,
-      ...input.task.grounding.routeVariantRefs,
-    ]),
-    activeTargetRefs: uniqueSorted([
-      ...input.state.observedStateSession.activeTargetRefs,
-      ...input.task.grounding.targetRefs,
-    ]),
-    lineage: uniqueSorted([
-      ...input.state.observedStateSession.lineage,
-      `step:${input.task.index}`,
-      `screen:${input.interpretation.target.screen}`,
-      ...input.transitionRefs.map((ref) => `transition:${ref}`),
-      ...input.observedStateRefs.map((ref) => `state:${ref}`),
-    ]).slice(-48),
-  };
-}
-
 function resolvedScenarioStep(task: GroundedStep, target: ResolutionTarget, confidence: ScenarioStep['confidence']): ScenarioStep {
   return {
     index: task.index,
@@ -434,6 +357,7 @@ export async function runScenarioStep(
   context?: { adoId: AdoId; artifactPath?: string | undefined; revision?: number | undefined; contentHash?: string | undefined },
   interfaceResolutionContext?: InterfaceResolutionContext | undefined,
 ): Promise<ScenarioStepRunResult> {
+  let runState = state;
   const startedAt = Date.now();
   const runAt = new Date().toISOString();
   const agent = environment.agent ?? deterministicRuntimeStepAgent;
@@ -444,8 +368,8 @@ export async function runScenarioStep(
   const agentContext = {
     resolutionContext: interfaceResolutionContext,
     domResolver: environment.domResolver,
-    previousResolution: state.previousResolution,
-    observedStateSession: state.observedStateSession,
+    previousResolution: runState.previousResolution,
+    observedStateSession: runState.observedStateSession,
     provider: environment.provider,
     mode: environment.mode,
     runAt,
@@ -456,7 +380,10 @@ export async function runScenarioStep(
   };
   const outcome = await agent.resolve(task, agentContext);
   const interpretation = outcome.receipt;
-  state.observedStateSession = agentContext.observedStateSession ?? state.observedStateSession;
+  runState = {
+    ...runState,
+    observedStateSession: agentContext.observedStateSession ?? runState.observedStateSession,
+  };
   const routeSelection = interpretation.kind === 'needs-human'
     ? {
       selectedRouteVariantRef: null,
@@ -527,7 +454,7 @@ export async function runScenarioStep(
           instructionCount: 0,
           diagnosticCount: 1,
         },
-        budget: evaluateExecutionBudget({
+        budget: evaluateExecutionBudgetHandoff({
           timing: {
             ...emptyExecutionTiming(),
             totalMs: 0,
@@ -558,7 +485,7 @@ export async function runScenarioStep(
   }
 
   const observedRelevantStateRefs = relevantStateRefs(task);
-  const activeVariants = activeRouteVariantRefs(state, task);
+  const activeVariants = activeRouteVariantRefs(runState, task);
   const beforeObservedStateRefs = environment.page && interfaceResolutionContext.stateGraph
     ? (await observeStateRefsOnPage({
         page: environment.page,
@@ -567,7 +494,7 @@ export async function runScenarioStep(
         activeRouteVariantRefs: activeVariants,
       }))
         .flatMap((entry) => entry.observed ? [entry.stateRef] : [])
-    : state.observedStateSession.activeStateRefs.filter((ref) => observedRelevantStateRefs.includes(ref));
+    : runState.observedStateSession.activeStateRefs.filter((ref) => observedRelevantStateRefs.includes(ref));
   const skipStatePreconditions = interpretation.target.action === 'navigate';
   const planning = planExecutionStep({
     stateGraph: interfaceResolutionContext.stateGraph,
@@ -645,7 +572,7 @@ export async function runScenarioStep(
           instructionCount: 0,
           diagnosticCount: diagnostics.length,
         },
-        budget: evaluateExecutionBudget({
+        budget: evaluateExecutionBudgetHandoff({
           timing,
           cost: {
             instructionCount: 0,
@@ -672,7 +599,10 @@ export async function runScenarioStep(
     };
   }
 
-  state.previousResolution = interpretation.target;
+  runState = {
+    ...runState,
+    previousResolution: interpretation.target,
+  };
   const resolvedStep = resolvedScenarioStep(task, interpretation.target, interpretation.confidence);
   const program = compileStepProgram(resolvedStep);
   const diagnosticContext = context
@@ -774,13 +704,15 @@ export async function runScenarioStep(
   });
   const recovery = result.ok
     ? { policyProfile: (environment.recoveryPolicy ?? defaultRecoveryPolicy).profile, attempts: [], recovered: false }
-    : await executeRecoveryAttempts({
-      family: failure.family,
-      policy: environment.recoveryPolicy ?? defaultRecoveryPolicy,
-      preconditionFailures,
-      diagnostics,
-      degraded: Boolean(firstOutcome?.observedEffects.includes('degraded-locator')),
-    });
+    : await executeRecoveryAttempts(
+      buildRecoveryStrategyEnvelope({
+        family: failure.family,
+        policy: environment.recoveryPolicy ?? defaultRecoveryPolicy,
+        preconditionFailures,
+        diagnostics,
+        degraded: Boolean(firstOutcome?.observedEffects.includes('degraded-locator')),
+      }),
+    );
   const runtimeSucceeded = result.ok || recovery.recovered;
   const transitionObservations = task.grounding.expectedTransitionRefs.length === 0
     ? []
@@ -818,14 +750,16 @@ export async function runScenarioStep(
     if (interpretation.kind === 'resolved-with-proposals') {
       applyProposalDraftsToRuntimeContext(interfaceResolutionContext, interpretation.proposalDrafts);
     }
-    mergeObservedStateSession({
-      state,
+    runState = advanceScenarioRunState({
+      state: runState,
       task,
       interpretation,
       observedStateRefs: observedStateRefs.length > 0 ? observedStateRefs : task.grounding.resultStateRefs,
       transitionRefs: matchedTransitionRefs,
     });
   }
+  state.previousResolution = runState.previousResolution;
+  state.observedStateSession = runState.observedStateSession;
 
   const execution: StepExecutionReceipt = {
     version: 1,
@@ -887,7 +821,7 @@ export async function runScenarioStep(
     durationMs: completedAt - startedAt,
     timing,
     cost,
-    budget: evaluateExecutionBudget({
+    budget: evaluateExecutionBudgetHandoff({
       timing,
       cost,
       thresholds: environment.executionBudgetThresholds,
@@ -920,11 +854,18 @@ export async function runScenarioStep(
         },
   };
 
+  const semanticDecision = decideSemanticAccrual({
+    interpretation,
+    executionStatus: execution.execution.status,
+    semanticAccrual: outcome.semanticAccrual,
+    semanticDictionaryHitId: outcome.semanticDictionaryHitId,
+  });
+
   return {
     interpretation,
     execution,
-    semanticAccrual: outcome.semanticAccrual,
-    semanticDictionaryHitId: outcome.semanticDictionaryHitId,
+    semanticAccrual: semanticDecision.semanticAccrual,
+    semanticDictionaryHitId: semanticDecision.semanticDictionaryHitId,
   };
 }
 
