@@ -91,10 +91,9 @@ test.describe('navigation phrase generation laws', () => {
   });
 
   test('navigation phrases contain domain vocabulary', () => {
-    const rng = createSeededRng('nav-domain');
-    // Generate several to check variety
-    const phrases = Array.from({ length: 10 }, () =>
-      generateNavPhrase('policy-detail', 'policy detail', createSeededRng(`nav-${Math.floor(rng() * 10000)}`)),
+    // Use deterministic seeds for each phrase
+    const phrases = Array.from({ length: 10 }, (_, i) =>
+      generateNavPhrase('policy-detail', 'policy detail', createSeededRng(`nav-domain-${i}`)),
     );
 
     const allText = phrases.map((p) => p.text.toLowerCase()).join(' ');

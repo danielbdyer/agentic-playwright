@@ -63,7 +63,6 @@ const maxIterations = Number(argVal('--max-iterations', '5'));
 const configPath = argVal('--config', '');
 const experimentTag = argVal('--tag', '');
 const substrate = argVal('--substrate', 'synthetic') as 'synthetic' | 'production' | 'hybrid';
-const perturbationRate = args.includes('--lexical-gap') ? Number(argVal('--lexical-gap', '0')) : 0;
 const lexicalGap = args.includes('--lexical-gap') ? Number(argVal('--lexical-gap', '0')) : 0;
 const dataVariation = args.includes('--data-var') ? Number(argVal('--data-var', '0')) : 0;
 const coverageGap = args.includes('--coverage-gap') ? Number(argVal('--coverage-gap', '0')) : 0;
@@ -334,7 +333,7 @@ async function runFull(): Promise<void> {
       count,
       maxIterations,
       substrate,
-      perturbationRate: perturbationRate > 0 ? perturbationRate : undefined,
+      perturbationRate: lexicalGap > 0 ? lexicalGap : undefined,
       perturbation: hasFineGrainedPerturb ? { lexicalGap, dataVariation, coverageGap, crossScreen } : undefined,
       tag: experimentTag || undefined,
       knowledgePosture,

@@ -132,6 +132,7 @@ export function generateHeldOutPhrases(
 ): readonly GapPhrase[] {
   const words = splitIdentifier(elementId);
   const screenWords = splitIdentifier(screenId);
+  const knownAlias = words.join(' ');
 
   // Strategy 1: Domain synonym substitution on element words
   const synonymPhrases = words.length > 0
@@ -142,7 +143,7 @@ export function generateHeldOutPhrases(
       });
       return {
         text: substituted.join(' '),
-        anchor: { screenId, elementId, knownAlias: words.join(' '), gapKind: 'domain-synonym' as const },
+        anchor: { screenId, elementId, knownAlias, gapKind: 'domain-synonym' as const },
       };
     })
     : [];
@@ -156,7 +157,7 @@ export function generateHeldOutPhrases(
       : screenWords.join(' ');
     return {
       text: `${verb} the ${target}`,
-      anchor: { screenId, elementId, knownAlias: words.join(' '), gapKind: 'affordance-rephrase' as const },
+      anchor: { screenId, elementId, knownAlias, gapKind: 'affordance-rephrase' as const },
     };
   });
 
@@ -168,7 +169,7 @@ export function generateHeldOutPhrases(
     const pattern = pick(ASSERTION_PATTERNS, rng);
     return {
       text: pattern.replace('{subject}', subject),
-      anchor: { screenId, elementId, knownAlias: words.join(' '), gapKind: 'natural-language' as const },
+      anchor: { screenId, elementId, knownAlias, gapKind: 'natural-language' as const },
     };
   });
 
@@ -189,7 +190,6 @@ export function generateNavPhrase(
     .join(' ');
 
   const navText = pick(NAV_PATTERNS, rng).replace('{screen}', heldOutScreen);
-  const expectedText = pick(NAV_EXPECTATION_PATTERNS, rng).replace('{screen}', heldOutScreen);
 
   return {
     text: navText,
@@ -222,13 +222,14 @@ export function selectAtGapDistance(
   heldOutPhrases: readonly GapPhrase[],
   distance: number,
   rng: SeededRng,
+  screenId = '',
+  elementId: string | null = null,
 ): GapPhrase {
+  const identityAnchor = { screenId, elementId, knownAlias, gapKind: 'identity' as const };
+
   // distance=0: return the known alias verbatim
   if (distance <= 0 || heldOutPhrases.length === 0) {
-    return {
-      text: knownAlias,
-      anchor: { screenId: '', elementId: null, knownAlias, gapKind: 'identity' },
-    };
+    return { text: knownAlias, anchor: identityAnchor };
   }
 
   // distance=1: pick from held-out vocabulary (maximum gap)
@@ -240,8 +241,5 @@ export function selectAtGapDistance(
   // Use the distance as probability of picking held-out vs known
   return rng() < distance
     ? pick(heldOutPhrases, rng)
-    : {
-      text: knownAlias,
-      anchor: { screenId: '', elementId: null, knownAlias, gapKind: 'identity' },
-    };
+    : { text: knownAlias, anchor: identityAnchor };
 }

@@ -1,6 +1,6 @@
 import { type SeededRng, pick, shuffle } from '../random';
 import type { ScreenElementPlanInput, ScreenPlanInput } from './scenario-plan';
-import { generateHeldOutPhrases, generateNavPhrase, generateNavExpectation, selectAtGapDistance, type GapPhrase } from './translation-gap';
+import { generateHeldOutPhrases, generateNavPhrase, generateNavExpectation, selectAtGapDistance } from './translation-gap';
 
 // ─── Archetype types ───
 
@@ -27,16 +27,18 @@ export interface ArchetypeContext {
 
 // ─── Archetype implementations ───
 
-/**
- * Classify elements by their widget affordance for archetype composition.
- */
-const classifyElements = (elements: readonly ScreenElementPlanInput[]): {
+interface ClassifiedElements {
   readonly inputs: readonly ScreenElementPlanInput[];
   readonly buttons: readonly ScreenElementPlanInput[];
   readonly readOnly: readonly ScreenElementPlanInput[];
   readonly tables: readonly ScreenElementPlanInput[];
   readonly selects: readonly ScreenElementPlanInput[];
-} => ({
+}
+
+/**
+ * Classify elements by their widget affordance for archetype composition.
+ */
+const classifyElements = (elements: readonly ScreenElementPlanInput[]): ClassifiedElements => ({
   inputs: elements.filter((e) => e.widget === 'os-input' || e.widget === 'os-textarea'),
   buttons: elements.filter((e) => e.widget === 'os-button'),
   readOnly: elements.filter((e) => e.widget === 'os-region'),
@@ -70,7 +72,7 @@ const phraseForElement = (
     : element.elementId.replace(/([A-Z])/g, ' $1').replace(/-/g, ' ').trim().toLowerCase();
 
   const heldOut = generateHeldOutPhrases(element.elementId, element.widget, screen.screenId, rng);
-  const selected = selectAtGapDistance(knownAlias, heldOut, lexicalGap, rng);
+  const selected = selectAtGapDistance(knownAlias, heldOut, lexicalGap, rng, screen.screenId, element.elementId);
   return selected.text;
 };
 
@@ -87,9 +89,7 @@ const searchVerify = (ctx: ArchetypeContext): readonly ArchetypeStep[] => {
     ? generateNavExpectation(primaryScreen.screenId, rng)
     : `${screenAlias} loads successfully`;
 
-  const steps: readonly ArchetypeStep[] = [
-    { intent: navAction, actionText: navAction, expectedText: navExpected },
-  ];
+  const navStep: ArchetypeStep = { intent: navAction, actionText: navAction, expectedText: navExpected };
 
   // Enter search criteria
   const inputSteps = inputs.length > 0
@@ -132,7 +132,7 @@ const searchVerify = (ctx: ArchetypeContext): readonly ArchetypeStep[] => {
     })
     : [];
 
-  return [...steps, ...inputSteps, ...buttonSteps, ...verifySteps];
+  return [navStep, ...inputSteps, ...buttonSteps, ...verifySteps];
 };
 
 // ─── detail-inspect: Navigate → verify multiple fields ───
@@ -148,9 +148,7 @@ const detailInspect = (ctx: ArchetypeContext): readonly ArchetypeStep[] => {
     ? generateNavExpectation(primaryScreen.screenId, rng)
     : `${screenAlias} loads successfully`;
 
-  const steps: readonly ArchetypeStep[] = [
-    { intent: navAction, actionText: navAction, expectedText: navExpected },
-  ];
+  const navStep: ArchetypeStep = { intent: navAction, actionText: navAction, expectedText: navExpected };
 
   // Inspect multiple fields
   const inspectTargets = shuffle([...readOnly, ...tables], rng).slice(0, Math.min(3, readOnly.length + tables.length));
@@ -164,7 +162,7 @@ const detailInspect = (ctx: ArchetypeContext): readonly ArchetypeStep[] => {
     };
   });
 
-  return [...steps, ...inspectSteps];
+  return [navStep, ...inspectSteps];
 };
 
 // ─── cross-screen-journey: Navigate A → interact → navigate B → verify ───
