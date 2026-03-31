@@ -322,7 +322,7 @@ async function collectBehaviorObservations(input: {
     // Local file:// pages load instantly — 5s is generous for any selector
     // resolution. Without this, each non-matching locator waits 30s (the
     // Playwright default), which cascades across multiple states/events.
-    baselinePage.setDefaultTimeout(5_000);
+    baselinePage.setDefaultTimeout(2_000);
     await baselinePage.goto(input.url, { waitUntil: 'load' });
     const baselineObservations = await observeStateRefsOnPage({
       page: baselinePage,
@@ -352,12 +352,12 @@ async function collectBehaviorObservations(input: {
       }))
       .sort((left, right) => left.eventSignatureRef.localeCompare(right.eventSignatureRef));
 
-    const transitionObservations: Array<DiscoveryRun['transitionObservations'][number]> = [];
-    const observationDiffs: Array<DiscoveryRun['observationDiffs'][number]> = [];
-
-    for (const event of stateGraph.eventSignatures.filter((entry) => entry.screen === input.screen)) {
+    // Process events concurrently — each event gets its own page, so they
+    // are independent and can run in parallel within the shared browser.
+    const screenEvents = stateGraph.eventSignatures.filter((entry) => entry.screen === input.screen);
+    const eventResults = await Promise.all(screenEvents.map(async (event) => {
       const page = await browser.newPage();
-      page.setDefaultTimeout(5_000);
+      page.setDefaultTimeout(2_000);
       await page.goto(input.url, { waitUntil: 'load' });
 
       await primeRequiredStatesOnPage({
@@ -393,21 +393,15 @@ async function collectBehaviorObservations(input: {
         actor: 'safe-active-harvest',
         observationId: `harvest:${input.routeVariantRef}:${event.ref}`,
       });
-      transitionObservations.push({
-        ...observation,
-        detail: {
-          ...(observation.detail ?? {}),
-          ...dispatched.detail,
-        },
-      });
 
       const afterObservedSet = new Set(observation.observedStateRefs);
       const beforeObservedSet = new Set(beforeObservedRefs);
+      const diffs: Array<DiscoveryRun['observationDiffs'][number]> = [];
       for (const stateRef of stateGraph.stateRefs) {
         if (afterObservedSet.has(stateRef) === beforeObservedSet.has(stateRef)) {
           continue;
         }
-        observationDiffs.push({
+        diffs.push({
           beforeStateRef: beforeObservedSet.has(stateRef) ? stateRef : null,
           afterStateRef: afterObservedSet.has(stateRef) ? stateRef : null,
           eventSignatureRef: event.ref,
@@ -422,7 +416,29 @@ async function collectBehaviorObservations(input: {
         stateRefs: stateGraph.stateRefs,
         activeRouteVariantRefs: [input.routeVariantRef],
       });
-      for (const state of afterObservations) {
+
+      await page.close();
+
+      return {
+        transitionObservation: {
+          ...observation,
+          detail: {
+            ...(observation.detail ?? {}),
+            ...dispatched.detail,
+          },
+        },
+        diffs,
+        afterObservations,
+      };
+    }));
+
+    // Merge parallel results
+    const transitionObservations: Array<DiscoveryRun['transitionObservations'][number]> = [];
+    const observationDiffs: Array<DiscoveryRun['observationDiffs'][number]> = [];
+    for (const result of eventResults) {
+      transitionObservations.push(result.transitionObservation);
+      observationDiffs.push(...result.diffs);
+      for (const state of result.afterObservations) {
         stateObservationMap.set(`active-harvest:${state.stateRef}`, {
           stateRef: state.stateRef,
           source: 'active-harvest',
@@ -430,8 +446,6 @@ async function collectBehaviorObservations(input: {
           detail: state.detail,
         });
       }
-
-      await page.close();
     }
 
     return {
@@ -495,144 +509,174 @@ export function harvestDeclaredRoutes(options: {
         }
       }
 
+      // Group variants by screen so that variants sharing a screen directory
+      // are processed sequentially (discoverScreenScaffold writes to a shared
+      // {discoveryDir}/{screen}/ path), while independent screens run in parallel.
+      const variantsByScreen = new Map<string, Array<{ route: HarvestRouteDefinition; variant: HarvestRouteVariant }>>();
       for (const route of manifest.artifact.routes) {
         for (const variant of route.variants) {
-          try {
-            const resolvedUrl = resolveHarvestUrl({
-              paths: options.paths,
-              manifest: manifest.artifact,
-              route,
-              variant,
-            });
+          const group = variantsByScreen.get(variant.screen) ?? [];
+          group.push({ route, variant });
+          variantsByScreen.set(variant.screen, group);
+        }
+      }
 
-            // Incremental: skip crawl if inputs haven't changed
-            const candidateInputFingerprint = computeHarvestInputFingerprint({
-              resolvedUrl, route, variant, catalog,
-            });
-            const existingEntry = existingIndexEntries.get(`${route.id}:${variant.id}`);
-            const receiptPath = path.join(options.paths.discoveryDir, manifest.artifact.app, route.id, variant.id, 'crawl.json');
-            if (
-              existingEntry?.status === 'ok'
-              && existingEntry.inputFingerprint === candidateInputFingerprint
-              && existingEntry.contentFingerprint
-              && (yield* fs.exists(receiptPath))
-            ) {
-              // Inputs unchanged — reuse existing receipt without crawling
-              receipts.push(relativeProjectPath(options.paths, receiptPath));
-              appReceipts.push({ ...existingEntry, writeDisposition: 'reused' });
-              continue;
-            }
+      const screenGroupResults = yield* Effect.all(
+        [...variantsByScreen.entries()].map(([_screen, variants]) =>
+          Effect.gen(function* () {
+            const groupReceipts: string[] = [];
+            const groupAppReceipts: DiscoveryIndexEntry[] = [];
+            const groupFailures: HarvestRoutesResult['failures'] = [];
 
-            const discovery = yield* discoverScreenScaffold({
-              screen: variant.screen,
-              url: resolvedUrl,
-              rootSelector: variant.rootSelector ?? route.rootSelector ?? 'body',
-              paths: options.paths,
-              sharedBrowser,
-            });
-            const rawValue = yield* fs.readJson(discovery.crawlPath);
-            const raw = rawValue as DiscoveryRun;
-            yield* fs.ensureDir(path.dirname(receiptPath));
-            const routeVariantRef = `route-variant:${manifest.artifact.app}:${route.id}:${variant.id}`;
-            const behaviorObservations = yield* Effect.promise(() => collectBehaviorObservations({
-              catalog,
-              paths: options.paths,
-              screen: variant.screen,
-              routeVariantRef,
-              url: resolvedUrl,
-              sharedBrowser,
-            }));
-            const receiptId = createDiscoveryReceiptId({
-              app: manifest.artifact.app,
-              routeId: route.id,
-              variantId: variant.id,
-              snapshotHash: raw.snapshotHash,
-            });
-            const candidateReceipt = validateDiscoveryRun(normalizeDiscoveryRun({
-              ...raw,
-              app: manifest.artifact.app,
-              routeId: route.id,
-              variantId: variant.id,
-              routeVariantRef,
-              runId: receiptId,
-              url: resolvedUrl,
-              artifactPath: relativeProjectPath(options.paths, receiptPath),
-              rootSelector: variant.rootSelector ?? route.rootSelector ?? raw.rootSelector,
-              selectorProbes: raw.selectorProbes.map((probe) => ({
-                ...probe,
-                variantRef: routeVariantRef,
-              })),
-              stateObservations: behaviorObservations.stateObservations,
-              eventCandidates: behaviorObservations.eventCandidates,
-              transitionObservations: behaviorObservations.transitionObservations,
-              observationDiffs: behaviorObservations.observationDiffs,
-              graphDeltas: raw.graphDeltas ?? {
-                nodeIds: raw.targets.map((target: DiscoveryRun['targets'][number]) => target.graphNodeId),
-                edgeIds: [],
-              },
-            }));
-            const candidateFingerprint = fingerprintDiscoveryRun(candidateReceipt);
-            let existingReceipt: DiscoveryRun | null = null;
-            if (yield* fs.exists(receiptPath)) {
+            for (const { route, variant } of variants) {
               try {
-                existingReceipt = validateDiscoveryRun(yield* fs.readJson(receiptPath));
-              } catch {
-                existingReceipt = null;
+                const resolvedUrl = resolveHarvestUrl({
+                  paths: options.paths,
+                  manifest: manifest.artifact,
+                  route,
+                  variant,
+                });
+
+                // Incremental: skip crawl if inputs haven't changed
+                const candidateInputFingerprint = computeHarvestInputFingerprint({
+                  resolvedUrl, route, variant, catalog,
+                });
+                const existingEntry = existingIndexEntries.get(`${route.id}:${variant.id}`);
+                const receiptPath = path.join(options.paths.discoveryDir, manifest.artifact.app, route.id, variant.id, 'crawl.json');
+                if (
+                  existingEntry?.status === 'ok'
+                  && existingEntry.inputFingerprint === candidateInputFingerprint
+                  && existingEntry.contentFingerprint
+                  && (yield* fs.exists(receiptPath))
+                ) {
+                  // Inputs unchanged — reuse existing receipt without crawling
+                  groupReceipts.push(relativeProjectPath(options.paths, receiptPath));
+                  groupAppReceipts.push({ ...existingEntry, writeDisposition: 'reused' });
+                  continue;
+                }
+
+                const discovery = yield* discoverScreenScaffold({
+                  screen: variant.screen,
+                  url: resolvedUrl,
+                  rootSelector: variant.rootSelector ?? route.rootSelector ?? 'body',
+                  paths: options.paths,
+                  sharedBrowser,
+                });
+                const rawValue = yield* fs.readJson(discovery.crawlPath);
+                const raw = rawValue as DiscoveryRun;
+                yield* fs.ensureDir(path.dirname(receiptPath));
+                const routeVariantRef = `route-variant:${manifest.artifact.app}:${route.id}:${variant.id}`;
+                const behaviorObservations = yield* Effect.promise(() => collectBehaviorObservations({
+                  catalog,
+                  paths: options.paths,
+                  screen: variant.screen,
+                  routeVariantRef,
+                  url: resolvedUrl,
+                  sharedBrowser,
+                }));
+                const receiptId = createDiscoveryReceiptId({
+                  app: manifest.artifact.app,
+                  routeId: route.id,
+                  variantId: variant.id,
+                  snapshotHash: raw.snapshotHash,
+                });
+                const candidateReceipt = validateDiscoveryRun(normalizeDiscoveryRun({
+                  ...raw,
+                  app: manifest.artifact.app,
+                  routeId: route.id,
+                  variantId: variant.id,
+                  routeVariantRef,
+                  runId: receiptId,
+                  url: resolvedUrl,
+                  artifactPath: relativeProjectPath(options.paths, receiptPath),
+                  rootSelector: variant.rootSelector ?? route.rootSelector ?? raw.rootSelector,
+                  selectorProbes: raw.selectorProbes.map((probe) => ({
+                    ...probe,
+                    variantRef: routeVariantRef,
+                  })),
+                  stateObservations: behaviorObservations.stateObservations,
+                  eventCandidates: behaviorObservations.eventCandidates,
+                  transitionObservations: behaviorObservations.transitionObservations,
+                  observationDiffs: behaviorObservations.observationDiffs,
+                  graphDeltas: raw.graphDeltas ?? {
+                    nodeIds: raw.targets.map((target: DiscoveryRun['targets'][number]) => target.graphNodeId),
+                    edgeIds: [],
+                  },
+                }));
+                const candidateFingerprint = fingerprintDiscoveryRun(candidateReceipt);
+                let existingReceipt: DiscoveryRun | null = null;
+                if (yield* fs.exists(receiptPath)) {
+                  try {
+                    existingReceipt = validateDiscoveryRun(yield* fs.readJson(receiptPath));
+                  } catch {
+                    existingReceipt = null;
+                  }
+                }
+                const existingFingerprint = existingReceipt ? fingerprintDiscoveryRun(existingReceipt) : null;
+                const writeDisposition = existingFingerprint === candidateFingerprint ? 'reused' : 'rewritten';
+                const receipt = writeDisposition === 'reused'
+                  ? existingReceipt
+                  : {
+                    ...candidateReceipt,
+                    discoveredAt: new Date().toISOString(),
+                  };
+                if (!receipt) {
+                  throw new Error(`Unable to resolve receipt for ${manifest.artifact.app}/${route.id}/${variant.id}`);
+                }
+                if (writeDisposition === 'rewritten') {
+                  yield* fs.writeJson(receiptPath, receipt);
+                }
+                groupReceipts.push(relativeProjectPath(options.paths, receiptPath));
+                groupAppReceipts.push({
+                  routeId: route.id,
+                  variantId: variant.id,
+                  routeVariantRef,
+                  screen: variant.screen,
+                  status: 'ok',
+                  receiptId: receipt.runId,
+                  receiptPath: relativeProjectPath(options.paths, receiptPath),
+                  contentFingerprint: candidateFingerprint,
+                  writeDisposition,
+                  resolvedUrl,
+                  rootSelector: receipt.rootSelector,
+                  inputFingerprint: candidateInputFingerprint,
+                });
+              } catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                groupFailures.push({
+                  app: manifest.artifact.app,
+                  routeId: route.id,
+                  variantId: variant.id,
+                  message,
+                });
+                groupAppReceipts.push({
+                  routeId: route.id,
+                  variantId: variant.id,
+                  routeVariantRef: `route-variant:${manifest.artifact.app}:${route.id}:${variant.id}`,
+                  screen: variant.screen,
+                  status: 'failed',
+                  receiptId: null,
+                  receiptPath: null,
+                  contentFingerprint: null,
+                  writeDisposition: 'failed',
+                  resolvedUrl: null,
+                  rootSelector: variant.rootSelector ?? route.rootSelector ?? null,
+                  message,
+                });
               }
             }
-            const existingFingerprint = existingReceipt ? fingerprintDiscoveryRun(existingReceipt) : null;
-            const writeDisposition = existingFingerprint === candidateFingerprint ? 'reused' : 'rewritten';
-            const receipt = writeDisposition === 'reused'
-              ? existingReceipt
-              : {
-                ...candidateReceipt,
-                discoveredAt: new Date().toISOString(),
-              };
-            if (!receipt) {
-              throw new Error(`Unable to resolve receipt for ${manifest.artifact.app}/${route.id}/${variant.id}`);
-            }
-            if (writeDisposition === 'rewritten') {
-              yield* fs.writeJson(receiptPath, receipt);
-            }
-            receipts.push(relativeProjectPath(options.paths, receiptPath));
-            appReceipts.push({
-              routeId: route.id,
-              variantId: variant.id,
-              routeVariantRef,
-              screen: variant.screen,
-              status: 'ok',
-              receiptId: receipt.runId,
-              receiptPath: relativeProjectPath(options.paths, receiptPath),
-              contentFingerprint: candidateFingerprint,
-              writeDisposition,
-              resolvedUrl,
-              rootSelector: receipt.rootSelector,
-              inputFingerprint: candidateInputFingerprint,
-            });
-          } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            failures.push({
-              app: manifest.artifact.app,
-              routeId: route.id,
-              variantId: variant.id,
-              message,
-            });
-            appReceipts.push({
-              routeId: route.id,
-              variantId: variant.id,
-              routeVariantRef: `route-variant:${manifest.artifact.app}:${route.id}:${variant.id}`,
-              screen: variant.screen,
-              status: 'failed',
-              receiptId: null,
-              receiptPath: null,
-              contentFingerprint: null,
-              writeDisposition: 'failed',
-              resolvedUrl: null,
-              rootSelector: variant.rootSelector ?? route.rootSelector ?? null,
-              message,
-            });
-          }
-        }
+
+            return { groupReceipts, groupAppReceipts, groupFailures };
+          }),
+        ),
+        { concurrency: 'unbounded' },
+      );
+
+      // Merge screen-group results
+      for (const { groupReceipts, groupAppReceipts, groupFailures } of screenGroupResults) {
+        receipts.push(...groupReceipts);
+        appReceipts.push(...groupAppReceipts);
+        failures.push(...groupFailures);
       }
 
       yield* fs.ensureDir(path.dirname(appIndexPath));

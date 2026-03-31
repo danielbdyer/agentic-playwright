@@ -65,7 +65,7 @@ export function discoverScreenScaffold(options: {
 
     try {
       const page = await browser.newPage();
-      page.setDefaultTimeout(5_000);
+      page.setDefaultTimeout(2_000);
       await page.goto(options.url, { waitUntil: 'load' });
 
       const rootSelector = options.rootSelector ?? 'body';
