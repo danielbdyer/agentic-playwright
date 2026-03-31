@@ -7,7 +7,7 @@ import {
   validateScenario as validateScenarioLegacy,
   validateScreenElements as validateScreenElementsLegacy,
   validateTrustPolicy as validateTrustPolicyLegacy,
-} from '../../../lib/domain/validation/core';
+} from '../../../lib/domain/validation/core/legacy-core-validator';
 import { validateBenchmarkImprovementProjection } from '../../../lib/domain/validation/execution';
 import { validateScenario } from '../../../lib/domain/validation/intent';
 import { validateScreenElements } from '../../../lib/domain/validation/knowledge';

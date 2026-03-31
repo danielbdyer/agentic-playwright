@@ -33,8 +33,8 @@ import type {
   TrustPolicyEvaluation,
   WidgetCapabilityContract,
 } from '../types';
-import { validateDatasetControlArtifact, validateResolutionControlArtifact, validateRunbookControlArtifact } from './core/controls';
-import { validateConfidenceOverlayCatalogArtifact, validateDerivedGraphArtifact, validateSurfaceGraphArtifact } from './core/graph';
+import { validateDatasetControlArtifact, validateResolutionControlArtifact, validateRunbookControlArtifact } from './core/resolution-validator';
+import { validateConfidenceOverlayCatalogArtifact, validateDerivedGraphArtifact, validateSurfaceGraphArtifact } from './core/graph-validator';
 import {
   validateBenchmarkContextArtifact,
   validateBenchmarkImprovementProjectionArtifact,
@@ -43,14 +43,14 @@ import {
   validateInterpretationDriftRecordArtifact,
   validateResolutionGraphRecordArtifact,
   validateRunRecordArtifact,
-} from './core/runtime-receipts';
+} from './core/execution-validator';
 import {
   validateAdoSnapshotArtifact,
   validateBoundScenarioArtifact,
   validateScenarioArtifact,
   validateScenarioInterpretationSurfaceArtifact,
   validateScenarioTaskPacketArtifact,
-} from './core/scenario';
+} from './core/intent-validator';
 import {
   validateApprovalReceiptArtifact,
   validateOperatorInboxItemArtifact,
@@ -58,7 +58,7 @@ import {
   validateRerunPlanArtifact,
   validateTrustPolicyArtifact,
   validateTrustPolicyEvaluationArtifact,
-} from './core/trust-policy';
+} from './core/governance-validator';
 import {
   validateBehaviorPatternDocumentArtifact,
   validateManifestArtifact,
@@ -69,7 +69,7 @@ import {
   validateScreenPosturesArtifact,
   validateSharedPatternsArtifact,
   validateWidgetCapabilityContractArtifact,
-} from './core/workflow-envelope';
+} from './core/knowledge-validator';
 import type { ArtifactValidationKind } from './shared/enums';
 
 export type ValidatorResultByKind = {

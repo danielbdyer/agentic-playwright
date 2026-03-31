@@ -71,6 +71,22 @@ These modules power the spatial dashboard's time-lapse replay:
 - **Change code emission**: edit `spec-codegen.ts`
 - **Understand governance**: start with `governance/` + `types/workflow.ts`
 
+
+## Validation Ownership Map (Bounded Contexts)
+
+Validation composition is intentionally split by context under `validation/core/`, with `validation/core.ts` as the thin compatibility facade.
+
+| Context | Entrypoint | Representative validators |
+| --- | --- | --- |
+| `intent` | `validation/core/intent-validator.ts` | `validateScenarioArtifact`, `validateBoundScenarioArtifact`, `validateAdoSnapshotArtifact` |
+| `knowledge` | `validation/core/knowledge-validator.ts` | `validateScreenElementsArtifact`, `validatePatternDocumentArtifact`, `validateManifestArtifact` |
+| `resolution` | `validation/core/resolution-validator.ts` | `validateResolutionControlArtifact`, `validateDatasetControlArtifact`, `validateRunbookControlArtifact` |
+| `execution` | `validation/core/execution-validator.ts` | `validateRunRecordArtifact`, `validateBenchmarkContextArtifact`, `validateBenchmarkImprovementProjectionArtifact` |
+| `governance` | `validation/core/governance-validator.ts` | `validateTrustPolicyArtifact`, `validateApprovalReceiptArtifact`, `validateProposalBundleArtifact` |
+| `graph` | `validation/core/graph-validator.ts` | `validateDerivedGraphArtifact`, `validateSurfaceGraphArtifact`, `validateConfidenceOverlayCatalogArtifact` |
+
+When adding a new validator, attach it to the owning context entrypoint first, then expose it through `validation/core.ts` only for compatibility.
+
 ## Domain Type Ownership Map (Bounded Contexts)
 
 The root barrel `lib/domain/types.ts` is now intentionally thin. It only re-exports bounded context barrels and shared value objects:
