@@ -1,5 +1,7 @@
 ﻿# Tesseract Authoring Guide
 
+> Canonical — knowledge authoring guide
+
 This document explains how to add or change approved knowledge without collapsing the preparation pipeline or runtime agent into ad hoc code.
 
 For a fast generated repo brief, read `docs/agent-context.md`. For the operational entrypoint, read `README.md`. For the product model, read `VISION.md`. For operator loops and approval/rerun flow, read `docs/operator-handbook.md`.

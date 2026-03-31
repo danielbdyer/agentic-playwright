@@ -1,5 +1,7 @@
 # The First-Day Intake Flywheel Visualization: Comprehensive Requirements
 
+> Active design — spatial dashboard requirements
+
 *A complete requirements specification for Tesseract's most ambitious visual experience — watching the system bootstrap itself on a new application from blank slate to first green tests, rendered as a continuous spatial narrative.*
 
 ---

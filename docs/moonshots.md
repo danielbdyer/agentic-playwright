@@ -1,5 +1,7 @@
 # Tesseract Moonshots: The Big Swings That Might Actually Work
 
+> Active design — strategic feature roadmap
+
 Tesseract's biggest opportunity is not better Playwright generation. That is the current proving ground, not the end state. The bigger prize is a trusted memory and control plane for agents operating real enterprise UIs: a system that remembers what an application is, how it changes state, how it can be safely driven, what evidence supports that belief, and which changes still require human governance.
 
 The reason this is a credible moonshot from this repo, rather than generic AI optimism, is that the substrate already exists in partial form. The doctrine is explicit in [master-architecture](./master-architecture.md), the runtime interpretation pivot is explicit in the [ADR collapsing deterministic parsing](./adr-collapse-deterministic-parsing.md), and the operating model is explicit in the [dogfooding flywheel](./dogfooding-flywheel.md). On disk today there is already an application interface graph, a selector canon, route variants, confidence overlays, intervention/session ledgers, an improvement manifest, and an operator inbox. The repo is not imagining those nouns. It is already emitting them.

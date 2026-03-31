@@ -6,7 +6,6 @@ This repository is an interface intelligence and agent workbench system built ar
 
 Read the doc that matches your task:
 
-- fast repo brief: [docs/agent-context.md](docs/agent-context.md)
 - operational overview: [README.md](README.md)
 - authoritative architecture doctrine: [docs/master-architecture.md](docs/master-architecture.md)
 - product model and QA workflow: [VISION.md](VISION.md)
@@ -14,10 +13,15 @@ Read the doc that matches your task:
 - authorship and knowledge design: [docs/authoring.md](docs/authoring.md)
 - operator workflow and approvals: [docs/operator-handbook.md](docs/operator-handbook.md)
 - planned work split by lane: [BACKLOG.md](BACKLOG.md)
-- design direction and owner decisions: [docs/direction.md](docs/direction.md)
 - implementation coding notes: [docs/coding-notes.md](docs/coding-notes.md)
 - seams, invariants, and verification: [docs/seams-and-invariants.md](docs/seams-and-invariants.md)
-- doctrine invariants (auto-verified): [docs/doctrine-invariants.md](docs/doctrine-invariants.md)
+- code navigation (6-layer architecture): [lib/README.md](lib/README.md)
+- auto-generated repo brief: [docs/agent-context.md](docs/agent-context.md) *(skip if you already read this file)*
+- auto-generated module map: [docs/module-map.md](docs/module-map.md) *(or run `npm run map`)*
+- auto-generated doctrine invariants: [docs/doctrine-invariants.md](docs/doctrine-invariants.md) *(consumed by compiler, not for direct reading)*
+
+Every doc in `docs/` has a `> Status:` line after its heading — use it to decide whether to read or skip.
+Historical research and assessments live in `docs/archive/` and can be ignored on first encounter.
 
 Scoped instructions under `.github/instructions/` still apply for domain, knowledge, generated files, and tests.
 

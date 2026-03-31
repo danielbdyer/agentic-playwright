@@ -1,5 +1,7 @@
 # Tesseract: Next Capabilities Reference
 
+> Active design — incremental capability roadmap
+
 Seven capabilities are now architecturally ready to build. Each one has its injection points, domain types, and Effect programs already in place. This document is the authoritative reference for building them.
 
 ---

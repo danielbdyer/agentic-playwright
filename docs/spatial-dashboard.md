@@ -1,5 +1,7 @@
 # Tesseract Spatial Dashboard — Forward-Looking Reference
 
+> Active design — spatial visualization specification
+
 ## Vision
 
 A spatial interface where the user watches their application being understood in real-time. Elements glow as the system discovers them. Knowledge particles flow from the DOM into a growing library. Confidence overlays shimmer with iridescent indicators. The entire recursive improvement loop is visible as a living, breathing visualization — not a static report.

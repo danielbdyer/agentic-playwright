@@ -1,5 +1,7 @@
 # The Tesseract Dashboard: A Vision for the Visual Intelligence Layer
 
+> Active design — dashboard moonshots and act framework
+
 *A sweeping, opinionated, reality-grounded vision for what the Tesseract dashboard is, what it should become, and what it would look like if we built the best version of it that we can imagine.*
 
 ---

@@ -1,5 +1,7 @@
 # Glossary
 
+> Canonical — term definitions
+
 Quick-reference for Tesseract's domain vocabulary. Each term links to the authoritative section where it is defined.
 
 ---

@@ -1,5 +1,7 @@
 # Tesseract Domain Ontology
 
+> Canonical — typed domain model
+
 This document is the reference for Tesseract's domain primitives, invariants, and architecture seams. It exists so a human or agent can understand what the system is optimizing and where each concern belongs without relying on repo lore.
 
 For the product model, read `VISION.md`. For operational use, read `README.md`. For authoring guidance, read `docs/authoring.md`.

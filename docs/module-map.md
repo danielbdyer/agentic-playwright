@@ -1,5 +1,7 @@
 # Module Map
 
+> Auto-generated — run `npm run map` to refresh
+
 Auto-generated structural inventory of the codebase. Do not hand-edit; run `npm run map`.
 Last generated: 2026-03-30.
 
