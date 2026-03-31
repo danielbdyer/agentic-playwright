@@ -1,5 +1,7 @@
 # Recursive Self-Improvement
 
+> Active design — Level 1 improvement loop specification
+
 This document describes how Tesseract enters a recursive self-improvement loop. It is the Level 1 doctrine: where [dogfooding-flywheel.md](./dogfooding-flywheel.md) describes the Level 0 loop (accumulate knowledge), this document describes how synthetic runs produce gradient signal that improves the pipeline code itself.
 
 Use this document for the self-improvement model. Use [dogfooding-flywheel.md](./dogfooding-flywheel.md) for the operating model. Use [direction.md](./direction.md) for composition direction. Use [master-architecture.md](./master-architecture.md) for the north-star doctrine.

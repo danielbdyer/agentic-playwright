@@ -1,5 +1,7 @@
 # Coding Notes
 
+> Canonical — implementation style and patterns reference
+
 These notes are opinionated. They exist because the master architecture is precise but dense, and an implementer mid-flight needs the throughline — not another index, but a lens that makes every subsequent design decision feel obvious.
 
 If something here contradicts `docs/master-architecture.md`, the master architecture wins.

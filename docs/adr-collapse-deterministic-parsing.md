@@ -1,5 +1,7 @@
 # ADR: Collapse the Deterministic Parsing Edge
 
+> Reference — ADR collapse architecture decision
+
 Status: proposed
 
 ## Context

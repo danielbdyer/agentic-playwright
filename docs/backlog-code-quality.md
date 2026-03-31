@@ -1,5 +1,7 @@
 # Code Quality Backlog
 
+> Reference — code quality backlog items
+
 Deferred items from the dogfood clean-room review. These are real violations of the codebase's FP/Effect/DDD conventions that were noted during the suite-root restructuring but are out of scope for that branch.
 
 ## CQ1. Effect-forward translation provider interface

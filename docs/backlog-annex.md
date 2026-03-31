@@ -1,5 +1,7 @@
 # Backlog Annex
 
+> Reference — extended backlog detail
+
 This annex is the traceability ledger for [BACKLOG.md](../BACKLOG.md).
 
 `BACKLOG.md` is the canonical execution order. This file exists to show how the order was derived, which sources were weighted most heavily, which duplicates were collapsed, and how the older lane-first backlog maps into the new stage-based program.

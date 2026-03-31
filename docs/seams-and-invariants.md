@@ -1,5 +1,7 @@
 # Seams and Invariants
 
+> Canonical — boundary contracts and law-testing philosophy
+
 The coding notes explain what the architecture is and why it works. This document explains what must *stay true* as you implement it — the typed seams between stages, the invariants that hold at each boundary, the law tests that enforce them, and the composition patterns that wire the system together.
 
 If you break an invariant during implementation, the architecture hasn't changed. You've introduced a bug.

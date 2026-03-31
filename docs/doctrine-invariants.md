@@ -1,5 +1,7 @@
 # Doctrine Invariants
 
+> Auto-generated — consumed by doctrine compiler, not for direct reading
+
 *Structured invariants extracted from CLAUDE.md and master architecture. Consumed by the doctrine compiler (`lib/domain/doctrine-compiler.ts`) to auto-generate verification tests.*
 
 ---

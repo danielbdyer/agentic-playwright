@@ -1,5 +1,7 @@
 # Tesseract Dogfooding Flywheel
 
+> Active design — dogfood loop specification
+
 This document describes the long-horizon operating model for using Tesseract on itself: expose the system to new contexts, observe where it slows down or fails, harden the knowledge layer, and keep the entire loop legible enough for an agent and a human reviewer to reason about.
 
 Use this document for the operating model. Use `VISION.md` for product intent and `BACKLOG.md` for execution order.

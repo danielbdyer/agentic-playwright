@@ -228,6 +228,8 @@ function generateAgentContext() {
   const lines = [
     '# Agent Context',
     '',
+    '> Auto-generated — run `npm run agent:sync` to refresh. Skip if you already read AGENTS.md.',
+    '',
     'Generated from `AGENTS.md`, `README.md`, `BACKLOG.md`, and `.github/instructions/`. Do not hand-edit; run `npm run agent:sync`.',
     '',
     '## Purpose',

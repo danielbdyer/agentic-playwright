@@ -1,5 +1,7 @@
 # Tesseract Master Architecture
 
+> Canonical — authoritative architecture doctrine
+
 This document is the authoritative architecture doctrine for Tesseract. It supersedes the older compiler-only framing in `VISION.md` and the directional notes in `docs/direction.md`.
 
 Tesseract is an interface intelligence and agent workbench system that compiles executable QA projections from a shared model of application reality.

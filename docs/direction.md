@@ -1,5 +1,7 @@
 # Tesseract Direction
 
+> Canonical — owner direction (see master-architecture.md for full doctrine)
+
 `docs/master-architecture.md` is now the authoritative architecture specification.
 
 This document remains as a shorter owner-direction note: it captures transition decisions, sequencing, and non-negotiable implementation bias while the repo moves toward the master architecture.

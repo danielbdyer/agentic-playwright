@@ -1,5 +1,7 @@
 # Semantic Dictionary
 
+> Canonical — rung 6 technical reference
+
 The semantic dictionary is a learning flywheel that accumulates successful resolution decisions and replays them for semantically similar future intents — without an LLM call.
 
 It lives at **rung 6** of the resolution ladder, between prior-evidence (rung 5) and approved-equivalent overlays (rung 7). This positioning means it only gets traffic when approved screen knowledge (rung 3) and shared patterns (rung 4) don't already cover the intent.

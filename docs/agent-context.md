@@ -1,5 +1,7 @@
 # Agent Context
 
+> Auto-generated — run `npm run agent:sync` to refresh. Skip if you already read AGENTS.md.
+
 Generated from `AGENTS.md`, `README.md`, `BACKLOG.md`, and `.github/instructions/`. Do not hand-edit; run `npm run agent:sync`.
 
 ## Purpose
@@ -26,23 +28,24 @@ Operator workflows are documented in `docs/operator-handbook.md`.
 - authorship and knowledge design: [docs/authoring.md](docs/authoring.md)
 - operator workflow and approvals: [docs/operator-handbook.md](docs/operator-handbook.md)
 - planned work split by lane: [BACKLOG.md](BACKLOG.md)
-- design direction and owner decisions: [docs/direction.md](docs/direction.md)
 - implementation coding notes: [docs/coding-notes.md](docs/coding-notes.md)
 - seams, invariants, and verification: [docs/seams-and-invariants.md](docs/seams-and-invariants.md)
-- doctrine invariants (auto-verified): [docs/doctrine-invariants.md](docs/doctrine-invariants.md)
+- code navigation (6-layer architecture): [lib/README.md](lib/README.md)
+- auto-generated module map: [docs/module-map.md](docs/module-map.md) *(or run `npm run map`)*
+- auto-generated doctrine invariants: [docs/doctrine-invariants.md](docs/doctrine-invariants.md) *(consumed by compiler, not for direct reading)*
 
 ## Codebase Structure
 
 | Layer | Directory | Files | Description |
 | --- | --- | --- | --- |
-| **Domain** | `lib/domain/` | 134 | Pure domain logic — types, validation, graph derivation, code generation |
+| **Domain** | `lib/domain/` | 163 | Pure domain logic — types, validation, graph derivation, code generation |
 | **Application** | `lib/application/` | 145 | Effect orchestration — CLI commands, execution pipelines, fitness, improvement |
 | **Runtime** | `lib/runtime/` | 46 | Playwright execution — scenario steps, agent resolution, screen identification |
 | **Infrastructure** | `lib/infrastructure/` | 28 | Ports and adapters — ADO, filesystem, dashboard, MCP, VSCode |
 | **Composition** | `lib/composition/` | 6 | Dependency injection — Effect Layers, service wiring |
 | **Playwright** | `lib/playwright/` | 3 | ARIA capture, locator resolution, state topology |
 
-**Total**: 362 TypeScript modules across 6 layers.
+**Total**: 391 TypeScript modules across 6 layers.
 
 Each layer has a `README.md` with detailed module inventory and entry points.
 Run `npm run map` for the full auto-generated module map, or see [`docs/module-map.md`](module-map.md).

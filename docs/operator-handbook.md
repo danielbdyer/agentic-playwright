@@ -1,5 +1,7 @@
 # Operator Handbook
 
+> Canonical — operator workflows and approvals
+
 This is the primary operator surface for Tesseract. Use it when you need to baseline a run, inspect a repair queue, approve canonical knowledge updates, or evaluate the synthetic benchmark lane.
 
 ## Core loop
