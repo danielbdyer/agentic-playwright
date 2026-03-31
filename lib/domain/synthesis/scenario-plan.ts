@@ -3,11 +3,18 @@ import { sha256, stableStringify } from '../hash';
 
 type ActionType = 'navigate' | 'input' | 'click' | 'select' | 'assert';
 
+export interface PostureValue {
+  readonly posture: string;
+  readonly values: readonly string[];
+}
+
 export interface ScreenElementPlanInput {
   readonly elementId: string;
   readonly widget: string;
   readonly aliases: readonly string[];
   readonly required: boolean;
+  /** Posture-driven values for data variation (e.g. valid, invalid, empty). */
+  readonly postureValues?: readonly PostureValue[];
 }
 
 export interface ScreenPlanInput {
@@ -25,9 +32,16 @@ export interface PerturbationConfig {
   readonly aliasGap: number;
   readonly crossScreen: number;
   readonly coverageGap: number;
+  /** Probability of using posture-driven values instead of generic placeholders. */
+  readonly dataVariation: number;
+  /** Probability of generating richer assertion expectations. */
+  readonly assertionVariation: number;
 }
 
-export const ZERO_PERTURBATION: PerturbationConfig = { vocab: 0, aliasGap: 0, crossScreen: 0, coverageGap: 0 };
+export const ZERO_PERTURBATION: PerturbationConfig = {
+  vocab: 0, aliasGap: 0, crossScreen: 0, coverageGap: 0,
+  dataVariation: 0, assertionVariation: 0,
+};
 
 export function resolvePerturbation(rate?: number, config?: Partial<PerturbationConfig>): PerturbationConfig {
   return config
@@ -82,18 +96,46 @@ export interface ScenarioPlanningResult {
 }
 
 const TEMPLATES: Readonly<Record<ActionType, readonly string[]>> = {
-  navigate: ['Navigate to {screen}', 'Open {screen}', 'Go to {screen}'],
-  input: ['Enter {value} in {element}', 'Type {value} into {element}'],
-  click: ['Click {element}', 'Press {element}'],
-  select: ['Select {value} from {element}', 'Choose {value} in {element}'],
-  assert: ['Verify {element} is visible', 'Check {element} is displayed'],
+  navigate: [
+    'Navigate to {screen}', 'Open {screen}', 'Go to {screen}',
+    'Switch to {screen}', 'Browse to {screen}', 'Load {screen}',
+    'Visit {screen}', 'Access {screen}',
+  ],
+  input: [
+    'Enter {value} in {element}', 'Type {value} into {element}',
+    'Fill in {element} with {value}', 'Set {element} to {value}',
+    'Input {value} in the {element}', 'Provide {value} for {element}',
+  ],
+  click: [
+    'Click {element}', 'Press {element}',
+    'Activate {element}', 'Trigger {element}',
+    'Tap {element}', 'Hit {element}',
+  ],
+  select: [
+    'Select {value} from {element}', 'Choose {value} in {element}',
+    'Pick {value} from {element}', 'Set {element} to {value}',
+  ],
+  assert: [
+    'Verify {element} is visible', 'Check {element} is displayed',
+    'Confirm {element} is present', 'Assert {element} is shown',
+    'Validate {element} appears on screen', 'Ensure {element} is rendered',
+  ],
 } as const;
 
 const SYNONYM_SUBSTITUTIONS: ReadonlyArray<readonly [RegExp, readonly string[]]> = [
-  [/\bsearch\b/gi, ['find', 'lookup']],
-  [/\bresults?\b/gi, ['matches', 'outcome']],
-  [/\bfield\b/gi, ['input', 'box']],
-  [/\bbutton\b/gi, ['control', 'trigger']],
+  [/\bsearch\b/gi, ['find', 'lookup', 'query', 'look up']],
+  [/\bresults?\b/gi, ['matches', 'outcome', 'records', 'listings', 'items']],
+  [/\bfield\b/gi, ['input', 'box', 'entry', 'text area', 'control']],
+  [/\bbutton\b/gi, ['control', 'trigger', 'action', 'link']],
+  [/\bpolicy\b/gi, ['insurance policy', 'account', 'policy record']],
+  [/\bdetail\b/gi, ['information', 'overview', 'summary', 'specifics']],
+  [/\btable\b/gi, ['grid', 'list', 'listing', 'data view']],
+  [/\bnavigate\b/gi, ['go', 'browse', 'proceed', 'move']],
+  [/\bscreen\b/gi, ['page', 'view', 'panel', 'section']],
+  [/\bverify\b/gi, ['check', 'confirm', 'validate', 'assert']],
+  [/\bvisible\b/gi, ['displayed', 'shown', 'present', 'rendered']],
+  [/\benter\b/gi, ['type', 'input', 'fill in', 'provide']],
+  [/\bstatus\b/gi, ['state', 'condition', 'current status']],
 ];
 
 const actionForWidget = (widget: string): ActionType =>
@@ -114,6 +156,66 @@ const perturbVocab = (text: string, rate: number, rng: SeededRng): string =>
       : result),
     text,
   );
+
+// ─── Data value pools for realistic input generation ───
+
+const GENERIC_INPUT_VALUES: readonly string[] = [
+  'a valid value', 'test data', 'sample input', 'example text',
+  'John Doe', 'jane.doe@example.com', '555-0100', '12345',
+  'POL-999', 'CLM-001', 'AMD-100', '2025-01-15',
+];
+
+const GENERIC_SELECT_VALUES: readonly string[] = [
+  'the correct option', 'the first option', 'an available option',
+  'Active', 'Pending', 'Closed', 'In Review', 'Approved',
+];
+
+/**
+ * Select a data value for an input step, considering posture data and perturbation settings.
+ * Falls back through: posture values → generic pools → hardcoded placeholder.
+ */
+const pickDataValue = (
+  element: ScreenElementPlanInput,
+  action: ActionType,
+  perturbation: PerturbationConfig,
+  rng: SeededRng,
+): string => {
+  if (action !== 'input' && action !== 'select') return '';
+
+  // Data variation: use posture-driven values or generic pool
+  if (perturbation.dataVariation > 0 && rng() < perturbation.dataVariation) {
+    const postures = element.postureValues ?? [];
+    const allValues = postures.flatMap((p) => p.values).filter((v) => v.length > 0);
+    if (allValues.length > 0) return pick(allValues, rng);
+    return action === 'input' ? pick(GENERIC_INPUT_VALUES, rng) : pick(GENERIC_SELECT_VALUES, rng);
+  }
+
+  // Default placeholders
+  return action === 'input' ? 'a valid value' : action === 'select' ? 'the correct option' : '';
+};
+
+// ─── Assertion expectation generation ───
+
+const RICH_ASSERTIONS: readonly string[] = [
+  '{element} is visible on screen',
+  '{element} shows expected content',
+  '{element} displays correct information',
+  '{element} is present and readable',
+  '{element} content matches expected value',
+  '{element} renders without errors',
+  '{element} is accessible and visible',
+];
+
+const pickAssertionText = (
+  alias: string,
+  perturbation: PerturbationConfig,
+  rng: SeededRng,
+): string => {
+  if (perturbation.assertionVariation > 0 && rng() < perturbation.assertionVariation) {
+    return pick(RICH_ASSERTIONS, rng).replace('{element}', alias);
+  }
+  return `${alias} handled`;
+};
 
 const deterministicSyncedAt = (seed: string): string => {
   const days = hashSeed(seed) % 3650;
@@ -180,19 +282,24 @@ const generateStep = (
     })()
     : baseAlias;
   const alias = perturbation.aliasGap > 0 && rng() < perturbation.aliasGap ? element.elementId : crossAlias;
-  const value = action === 'input' ? 'a valid value' : action === 'select' ? 'the correct option' : '';
+  const value = pickDataValue(element, action, perturbation, rng);
   const template = pick(TEMPLATES[action], rng)
     .replace('{screen}', screen.screenAliases[0] ?? humanize(screen.screenId))
     .replace('{element}', alias)
     .replace('{value}', value);
   const actionText = perturbation.vocab > 0 ? perturbVocab(template, perturbation.vocab, rng) : template;
+  const expectedText = pickAssertionText(alias, perturbation, rng);
   return {
     index: stepIndex,
     intent: actionText,
     action_text: actionText,
-    expected_text: `${alias} handled`,
+    expected_text: expectedText,
   };
 };
+
+const NAV_EXPECTATIONS: readonly string[] = [
+  'loads successfully', 'is displayed', 'becomes visible', 'opens correctly', 'renders on screen',
+];
 
 const generateScenario = (
   screen: ScreenPlanInput,
@@ -209,7 +316,10 @@ const generateScenario = (
   const navSteps = selectedScreens.map((selected, idx) => {
     const alias = selected.screenAliases[0] ?? humanize(selected.screenId);
     const navText = pick(TEMPLATES.navigate, rng).replace('{screen}', alias);
-    return { index: idx + 1, intent: navText, action_text: navText, expected_text: `${alias} loads successfully` } satisfies SyntheticStep;
+    const expectedText = perturbation.assertionVariation > 0 && rng() < perturbation.assertionVariation
+      ? `${alias} ${pick(NAV_EXPECTATIONS, rng)}`
+      : `${alias} loads successfully`;
+    return { index: idx + 1, intent: navText, action_text: navText, expected_text: expectedText } satisfies SyntheticStep;
   });
 
   const stepSeed = navSteps.length + 1;

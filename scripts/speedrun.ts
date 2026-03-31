@@ -4,6 +4,9 @@
  * Full mode:
  *   npx tsx scripts/speedrun.ts [--count N] [--seed S] [--seeds S1,S2,S3]
  *        [--max-iterations N] [--posture cold-start|warm-start|production]
+ *        [--perturb-vocab V] [--perturb-alias-gap A] [--perturb-cross-screen C]
+ *        [--perturb-coverage-gap G] [--perturb-data-var D] [--perturb-assertion-var R]
+ *        [--drift-count N]
  *
  * Segmented mode (step-through individual phases):
  *   npx tsx scripts/speedrun.ts generate  [--count N] [--seed S]
@@ -66,7 +69,10 @@ const perturbVocab = args.includes('--perturb-vocab') ? Number(argVal('--perturb
 const perturbAliasGap = args.includes('--perturb-alias-gap') ? Number(argVal('--perturb-alias-gap', '0')) : 0;
 const perturbCrossScreen = args.includes('--perturb-cross-screen') ? Number(argVal('--perturb-cross-screen', '0')) : 0;
 const perturbCoverageGap = args.includes('--perturb-coverage-gap') ? Number(argVal('--perturb-coverage-gap', '0')) : 0;
-const hasFineGrainedPerturb = perturbVocab > 0 || perturbAliasGap > 0 || perturbCrossScreen > 0 || perturbCoverageGap > 0;
+const perturbDataVar = args.includes('--perturb-data-var') ? Number(argVal('--perturb-data-var', '0')) : 0;
+const perturbAssertionVar = args.includes('--perturb-assertion-var') ? Number(argVal('--perturb-assertion-var', '0')) : 0;
+const hasFineGrainedPerturb = perturbVocab > 0 || perturbAliasGap > 0 || perturbCrossScreen > 0 || perturbCoverageGap > 0 || perturbDataVar > 0 || perturbAssertionVar > 0;
+const driftCount = args.includes('--drift-count') ? Number(argVal('--drift-count', '0')) : 0;
 const explicitPosture = args.includes('--posture') ? argVal('--posture', '') as KnowledgePosture : undefined;
 
 const rootDir = process.cwd();
@@ -320,6 +326,7 @@ async function runFull(): Promise<void> {
   console.log(`Knowledge posture: ${knowledgePosture}`);
   console.log(`Seeds: ${seeds.join(', ')}`);
   console.log(`Count: ${count}, Max iterations: ${maxIterations}`);
+  if (driftCount > 0) console.log(`Drift mutations: ${driftCount}`);
 
   const result = await runWithLocalServices(
     multiSeedSpeedrun({
@@ -330,9 +337,10 @@ async function runFull(): Promise<void> {
       maxIterations,
       substrate,
       perturbationRate: perturbationRate > 0 ? perturbationRate : undefined,
-      perturbation: hasFineGrainedPerturb ? { vocab: perturbVocab, aliasGap: perturbAliasGap, crossScreen: perturbCrossScreen, coverageGap: perturbCoverageGap } : undefined,
+      perturbation: hasFineGrainedPerturb ? { vocab: perturbVocab, aliasGap: perturbAliasGap, crossScreen: perturbCrossScreen, coverageGap: perturbCoverageGap, dataVariation: perturbDataVar, assertionVariation: perturbAssertionVar } : undefined,
       tag: experimentTag || undefined,
       knowledgePosture,
+      driftCount: driftCount > 0 ? driftCount : undefined,
       onProgress,
     }),
     rootDir,

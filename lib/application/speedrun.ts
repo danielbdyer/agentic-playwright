@@ -15,6 +15,7 @@ import path from 'path';
 import { Effect, Either, Schema } from 'effect';
 import type { ProjectPaths } from './paths';
 import { generateSyntheticScenarios } from './synthesis/scenario-generator';
+import { generateDriftVariants } from './synthesis/interface-fuzzer';
 import { compileScenariosParallel } from './compile';
 import { runDogfoodLoop } from './dogfood';
 import type { AdoId } from '../domain/identity';
@@ -62,11 +63,13 @@ export interface SpeedrunInput {
   readonly substrate?: ExperimentSubstrate | undefined;
   /** Rate [0,1] at which step text is perturbed with synonyms NOT in the knowledge base. */
   readonly perturbationRate?: number | undefined;
-  /** Fine-grained perturbation — four independent modes. */
+  /** Fine-grained perturbation — six independent modes. */
   readonly perturbation?: PerturbationConfig | undefined;
   readonly tag?: string | undefined;
   readonly parentExperimentId?: string | null | undefined;
   readonly knowledgePosture?: KnowledgePosture | undefined;
+  /** Number of knowledge drift mutations to apply before scenario generation. 0 = no drift. */
+  readonly driftCount?: number | undefined;
   /**
    * Fire-and-forget progress callback. Invoked after each dogfood iteration
    * and at phase boundaries (generate, fitness, complete). The callback is a
@@ -93,10 +96,12 @@ export interface MultiSeedInput {
   readonly substrate?: ExperimentSubstrate | undefined;
   /** Rate [0,1] at which step text is perturbed with synonyms NOT in the knowledge base. */
   readonly perturbationRate?: number | undefined;
-  /** Fine-grained perturbation — four independent modes. */
+  /** Fine-grained perturbation — six independent modes. */
   readonly perturbation?: PerturbationConfig | undefined;
   readonly tag?: string | undefined;
   readonly knowledgePosture?: KnowledgePosture | undefined;
+  /** Number of knowledge drift mutations to apply before scenario generation. 0 = no drift. */
+  readonly driftCount?: number | undefined;
   readonly onProgress?: ((event: SpeedrunProgressEvent) => void) | undefined;
 }
 
@@ -217,6 +222,15 @@ function saveFitnessReport(paths: ProjectPaths, report: PipelineFitnessReport) {
 export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunResult, unknown, any> {
   return Effect.gen(function* () {
     const speedrunStart = Date.now();
+
+    // Apply knowledge drift mutations before generation (simulates real UI drift)
+    if (input.driftCount && input.driftCount > 0) {
+      yield* generateDriftVariants({
+        paths: input.paths,
+        seed: input.seed,
+        driftCount: input.driftCount,
+      });
+    }
 
     const generateStart = Date.now();
     const generated = yield* generateSyntheticScenarios({
@@ -394,6 +408,7 @@ export function multiSeedSpeedrun(input: MultiSeedInput): Effect.Effect<MultiSee
           perturbation: input.perturbation,
           tag: input.tag,
           knowledgePosture: input.knowledgePosture,
+          driftCount: input.driftCount,
           onProgress: input.onProgress,
         });
 
