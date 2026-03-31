@@ -81,11 +81,31 @@ class PlaywrightBridgeTransientError extends TesseractError {
   }
 }
 
+/** Hardened transient detection: explicit error codes + message patterns. */
 function isPlaywrightTransient(cause: unknown): boolean {
   if (!(cause instanceof Error)) {
     return false;
   }
-  return /timeout|closed|disconnected|target page/i.test(cause.message);
+  // Check for known Playwright error class names (version-resilient)
+  const name = cause.name ?? '';
+  if (name === 'TimeoutError' || name === 'NavigationTimedoutError') return true;
+  // Pattern matching on message as fallback — covers network and lifecycle errors
+  return /timeout|timed?\s*out|closed|disconnected|target page|target closed|session closed|connection refused|ECONNRESET|ECONNREFUSED|net::ERR_/i.test(cause.message);
+}
+
+/**
+ * Simple in-process action queue for serializing Playwright page operations.
+ * Prevents concurrent click/fill/navigate calls from corrupting page state.
+ */
+function createActionQueue() {
+  let pending: Promise<unknown> = Promise.resolve();
+  return {
+    enqueue<T>(fn: () => Promise<T>): Promise<T> {
+      const next = pending.then(fn, fn);
+      pending = next.then(() => {}, () => {});
+      return next;
+    },
+  };
 }
 
 // ─── Live Adapter Factory (for headed mode with Playwright Page) ───
@@ -109,11 +129,14 @@ export function createPlaywrightBridge(page: {
   readonly url: () => string;
   readonly content: () => Promise<string>;
 }): PlaywrightBridgePort {
+  // Action queue serializes all page operations to prevent concurrent corruption
+  const queue = createActionQueue();
+
   return {
     isAvailable: () => Effect.succeed(true),
 
     execute: (action) => Effect.tryPromise({
-      try: async () => {
+      try: () => queue.enqueue(async () => {
         switch (action.kind) {
           case 'click':
             if (!action.selector) return { success: false, action: 'click' as const, data: null, error: 'selector required' };
@@ -132,7 +155,12 @@ export function createPlaywrightBridge(page: {
 
           case 'screenshot': {
             const buffer = await page.screenshot({ fullPage: false });
-            return { success: true, action: 'screenshot' as const, data: { imageBase64: buffer.toString('base64') } };
+            // Cap screenshot payload at 5MB to prevent oversized JSON-RPC frames
+            const MAX_SCREENSHOT_BYTES = 5 * 1024 * 1024;
+            if (buffer.length > MAX_SCREENSHOT_BYTES) {
+              return { success: true, action: 'screenshot' as const, data: { error: `Screenshot too large (${buffer.length} bytes, max ${MAX_SCREENSHOT_BYTES})`, truncated: true, sizeBytes: buffer.length } };
+            }
+            return { success: true, action: 'screenshot' as const, data: { imageBase64: buffer.toString('base64'), sizeBytes: buffer.length } };
           }
 
           case 'query': {
@@ -149,7 +177,7 @@ export function createPlaywrightBridge(page: {
           default:
             return { success: false, action: action.kind as BrowserAction['kind'], data: null, error: `Unknown action: ${action.kind}` };
         }
-      },
+      }),
       catch: (err) => isPlaywrightTransient(err)
         ? new PlaywrightBridgeTransientError('Transient Playwright bridge failure', err)
         : new TesseractError('playwright-bridge-failed', String(err), err),

@@ -68,35 +68,56 @@ function dependentNodesForEdge(edge: GraphEdge, nodes: Map<string, GraphNode>, c
   );
 }
 
+/** Maximum nodes to visit during impact traversal to prevent runaway expansion. */
+const MAX_IMPACT_NODES = 10_000;
+
+/**
+ * Build an adjacency index from edges for O(1) lookup of edges by node ID.
+ * Avoids O(E) scan per frontier node during traversal.
+ */
+function buildEdgeIndex(edges: readonly GraphEdge[]): ReadonlyMap<string, readonly GraphEdge[]> {
+  const index = new Map<string, GraphEdge[]>();
+  for (const edge of edges) {
+    // Index by both endpoints so dependentNodesForEdge can match on either
+    for (const nodeId of [edge.from, edge.to]) {
+      let list = index.get(nodeId);
+      if (!list) {
+        list = [];
+        index.set(nodeId, list);
+      }
+      list.push(edge);
+    }
+  }
+  return index;
+}
+
 function buildImpactPaths(graph: { nodes: readonly GraphNode[]; edges: readonly GraphEdge[] }, sourceNodeId: string): Map<string, string[]> {
   const nodesById = new Map(graph.nodes.map((node) => [node.id, node] as const));
+  const edgeIndex = buildEdgeIndex(graph.edges);
 
-  const step = (
-    frontier: readonly string[],
-    visited: ReadonlyMap<string, string[]>,
-  ): ReadonlyMap<string, string[]> => {
-    if (frontier.length === 0) return visited;
-    const [current, ...rest] = frontier;
-    const currentPath = visited.get(current!);
-    if (!current || !currentPath) return step(rest, visited);
+  // Iterative BFS with early termination at MAX_IMPACT_NODES
+  const visited = new Map<string, string[]>([[sourceNodeId, [sourceNodeId]]]);
+  const frontier: string[] = [sourceNodeId];
 
+  while (frontier.length > 0 && visited.size < MAX_IMPACT_NODES) {
+    const current = frontier.shift()!;
+    const currentPath = visited.get(current);
+    if (!currentPath) continue;
+
+    // Use edge index for O(degree) lookup instead of O(E) full scan
+    const relevantEdges = edgeIndex.get(current) ?? [];
     const dependents = uniqueSorted(
-      graph.edges.flatMap((edge) => dependentNodesForEdge(edge, nodesById, current)),
+      relevantEdges.flatMap((edge) => dependentNodesForEdge(edge, nodesById, current)),
     );
-    const { nextFrontier, nextVisited } = dependents.reduce(
-      (acc, dependent) => {
-        if (acc.nextVisited.has(dependent)) return acc;
-        return {
-          nextFrontier: [...acc.nextFrontier, dependent],
-          nextVisited: new Map([...acc.nextVisited, [dependent, [...currentPath, dependent]]]),
-        };
-      },
-      { nextFrontier: [...rest] as string[], nextVisited: new Map(visited) },
-    );
-    return step(nextFrontier, nextVisited);
-  };
 
-  return new Map(step([sourceNodeId], new Map([[sourceNodeId, [sourceNodeId]]])));
+    for (const dependent of dependents) {
+      if (visited.has(dependent)) continue;
+      visited.set(dependent, [...currentPath, dependent]);
+      frontier.push(dependent);
+    }
+  }
+
+  return visited;
 }
 
 function scenariosReferencingArtifact(catalog: WorkspaceCatalog, artifactPath: string): string[] {

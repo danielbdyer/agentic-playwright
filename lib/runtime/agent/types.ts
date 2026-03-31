@@ -4,6 +4,7 @@ import type {
   ResolutionExhaustionEntry,
   ResolutionObservation,
   RuntimeDomResolver,
+  SemanticDictionaryCatalog,
   StepAction,
   StepResolution,
   GroundedStep,
@@ -34,6 +35,7 @@ export interface RuntimeStepAgentContext {
     dataset?: string | null | undefined;
     resolutionControl?: string | null | undefined;
   } | undefined;
+  semanticDictionary?: SemanticDictionaryCatalog | undefined;
 }
 
 export interface RuntimeAgentStageContext {

@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "tesseract-dashboard": {
+      "command": "node",
+      "args": ["dist/bin/tesseract-mcp.js"],
+      "env": {
+        "TESSERACT_ROOT": "."
+      }
+    }
+  }
+}

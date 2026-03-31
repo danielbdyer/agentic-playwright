@@ -2,7 +2,7 @@ import path from 'path';
 import { Effect } from 'effect';
 import { TesseractError } from '../domain/errors';
 import { mapPayload } from '../domain/types/workflow';
-import { loadWorkspaceCatalog } from './catalog';
+import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
 import { emitOperatorInbox } from './inbox';
 import { buildOperatorInboxItems, findProposalById } from './operator';
 import { applyProposalPatch, parseProposalArtifact, serializeProposalArtifact, validatePatchedProposalArtifact } from './proposal-patches';
@@ -17,6 +17,8 @@ import type { ActionExecutionResult } from './intervention-kernel';
 export function approveProposal(options: {
   paths: ProjectPaths;
   proposalId: string;
+  /** Pre-loaded catalog for batch approvals — avoids redundant disk I/O. */
+  catalog?: WorkspaceCatalog;
 }) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
@@ -27,7 +29,7 @@ export function approveProposal(options: {
         () => new TesseractError('approval-disabled', 'Approvals are disabled in ci-batch execution profile'),
       ),
     );
-    const catalog = yield* loadWorkspaceCatalog({ paths: options.paths });
+    const catalog = options.catalog ?? (yield* loadWorkspaceCatalog({ paths: options.paths }));
     const located = yield* Effect.succeed(findProposalById(catalog, options.proposalId)).pipe(
       Effect.filterOrFail(
         (result): result is NonNullable<typeof result> => result != null,

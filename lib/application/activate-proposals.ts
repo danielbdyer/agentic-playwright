@@ -82,10 +82,27 @@ export function activateProposalBundle(options: {
     const fs = yield* FileSystem;
     const activatedAt = new Date().toISOString();
 
-    const results = yield* Effect.forEach(
-      options.proposalBundle.proposals,
-      (proposal) => tryActivateProposal(fs, options.paths.rootDir, proposal, activatedAt),
+    // Group proposals by targetPath to serialize writes to the same file,
+    // preventing race conditions on overlapping targets.
+    const byTarget = new Map<string, ProposalEntry[]>();
+    for (const proposal of options.proposalBundle.proposals) {
+      const group = byTarget.get(proposal.targetPath) ?? [];
+      group.push(proposal);
+      byTarget.set(proposal.targetPath, group);
+    }
+
+    // Process each target-group sequentially (same-file writes serialized),
+    // but different target groups concurrently (capped at 10).
+    const groupResults = yield* Effect.forEach(
+      [...byTarget.values()],
+      (group) => Effect.forEach(
+        group,
+        (proposal) => tryActivateProposal(fs, options.paths.rootDir, proposal, activatedAt),
+        { concurrency: 1 },
+      ),
+      { concurrency: 10 },
     );
+    const results = groupResults.flat();
 
     const proposals = results.map((result) => result.proposal);
     const activatedPaths = results
@@ -133,7 +150,7 @@ export function backupBeforeActivation(options: {
           Effect.map((originalContent): CompensationBackup => ({ filePath: absoluteTargetPath, originalContent })),
           Effect.catchTag('FileSystemError', () => Effect.succeed(null)),
         );
-      }));
+      }), { concurrency: 10 });
     return all.filter((entry): entry is CompensationBackup => entry !== null);
   });
 }
@@ -141,7 +158,7 @@ export function backupBeforeActivation(options: {
 export function deactivateProposals(backups: CompensationBackup[]) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
-    yield* Effect.forEach(backups, (backup) => fs.writeText(backup.filePath, backup.originalContent));
+    yield* Effect.forEach(backups, (backup) => fs.writeText(backup.filePath, backup.originalContent), { concurrency: 10 });
   });
 }
 
@@ -207,6 +224,7 @@ export function autoApproveEligibleProposals(options: {
           })),
         );
       },
+      { concurrency: 10 },
     );
 
     const proposals = results.map((result) => result.proposal);

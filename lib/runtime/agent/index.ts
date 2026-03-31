@@ -16,10 +16,12 @@ import {
   tryExplicitResolution,
   buildLatticeAccumulator,
   tryApprovedKnowledgeResolution,
+  trySemanticDictionaryResolution,
   tryOverlayResolution,
   tryTranslationResolution,
   tryLiveDomOrFallback,
 } from './resolution-stages';
+import type { SemanticDictionaryAccrualInput, SemanticDictionaryMatch } from '../../domain/types';
 
 export const RESOLUTION_PRECEDENCE = resolutionPrecedenceLaw;
 
@@ -186,10 +188,16 @@ const preAccumulatorStrategies: readonly ResolutionStrategy[] = [
     (stage) => tryExplicitResolution(stage)),
 ];
 
-function buildPostAccumulatorStrategies(accRef: { current: ResolutionAccumulator }): readonly ResolutionStrategy[] {
+function buildPostAccumulatorStrategies(accRef: { current: ResolutionAccumulator }, semanticMatchRef: { current: SemanticDictionaryMatch | null }): readonly ResolutionStrategy[] {
   return [
     pureStrategy('approved-knowledge', ['approved-screen-knowledge', 'shared-patterns', 'prior-evidence'], true,
       (stage) => tryApprovedKnowledgeResolution(stage, accRef.current)),
+    pureStrategy('semantic-dictionary', ['semantic-dictionary'], true,
+      (stage) => {
+        const result = trySemanticDictionaryResolution(stage, accRef.current);
+        semanticMatchRef.current = result.match;
+        return result;
+      }),
     {
       name: 'confidence-overlay',
       rungs: ['approved-equivalent-overlay'],
@@ -289,6 +297,7 @@ export async function runResolutionPipeline(
   ];
 
   const accRef = { current: null as ResolutionAccumulator | null };
+  const semanticMatchRef = { current: null as SemanticDictionaryMatch | null };
 
   const phases: readonly PipelinePhase[] = [
     {
@@ -316,7 +325,7 @@ export async function runResolutionPipeline(
     {
       name: 'post-accumulator',
       run: (s) => {
-        const postStrategies = buildPostAccumulatorStrategies(accRef as { current: ResolutionAccumulator });
+        const postStrategies = buildPostAccumulatorStrategies(accRef as { current: ResolutionAccumulator }, semanticMatchRef);
         const registry = createStrategyRegistry([...preAccumulatorStrategies, ...postStrategies]);
         const missingRungs = resolutionPrecedenceLaw.filter((rung) => !registry.lookup(rung));
         if (missingRungs.length > 0) {
@@ -341,7 +350,47 @@ export async function runResolutionPipeline(
   const result = await runPipelinePhases(phases, stage);
   const receipt = result.receipt!;
   const memoryEvent = applyMemory(receipt);
-  return { receipt, events: [...seedEvents, ...result.events, memoryEvent] };
+
+  // ─── Semantic Dictionary: derive accrual input ───
+  // When a later rung (translation, DOM, agent) resolved, the decision is
+  // worth accruing so the next run benefits from the semantic dictionary.
+  // When the semantic dictionary itself resolved, surface its entry ID for
+  // success/failure tracking by the caller.
+  const accrualSources: ReadonlySet<string> = new Set([
+    'structured-translation', 'live-dom', 'agent-interpreted',
+  ]);
+  const semanticAccrual: SemanticDictionaryAccrualInput | null =
+    receipt.kind !== 'needs-human'
+    && accrualSources.has(receipt.winningSource)
+    && receipt.target.screen
+      ? {
+          normalizedIntent: `${task.actionText} ${task.expectedText}`.trim(),
+          target: {
+            action: receipt.target.action,
+            screen: receipt.target.screen,
+            element: receipt.target.element ?? null,
+            posture: receipt.target.posture ?? null,
+            snapshotTemplate: receipt.target.snapshot_template ?? null,
+          },
+          provenance: receipt.winningSource === 'structured-translation' ? 'translation'
+            : receipt.winningSource === 'agent-interpreted' ? 'agent-interpreted'
+            : 'dom-exploration',
+          winningSource: receipt.winningSource,
+          taskFingerprint: task.taskFingerprint,
+          knowledgeFingerprint: context.resolutionContext.knowledgeFingerprint,
+        }
+      : null;
+
+  const semanticDictionaryHitId = receipt.winningSource === 'semantic-dictionary'
+    ? semanticMatchRef.current?.entry.id ?? null
+    : null;
+
+  return {
+    receipt,
+    events: [...seedEvents, ...result.events, memoryEvent],
+    semanticAccrual,
+    semanticDictionaryHitId,
+  };
 }
 
 export type { RuntimeStepAgentContext } from './types';

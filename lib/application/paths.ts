@@ -53,6 +53,8 @@ export interface ProjectPaths {
   readonly approvalsDir: string;
   readonly translationCacheDir: string;
   readonly agentInterpretationCacheDir: string;
+  readonly semanticDictionaryDir: string;
+  readonly semanticDictionaryIndexPath: string;
 }
 
 /**
@@ -117,6 +119,8 @@ export function createProjectPaths(rootDir: string, suiteRoot?: string): Project
     approvalsDir: path.join(rootDir, '.tesseract', 'policy', 'approvals'),
     translationCacheDir: path.join(rootDir, '.tesseract', 'translation-cache'),
     agentInterpretationCacheDir: path.join(rootDir, '.tesseract', 'agent-interpretation-cache'),
+    semanticDictionaryDir: path.join(rootDir, '.tesseract', 'semantic-dictionary'),
+    semanticDictionaryIndexPath: path.join(rootDir, '.tesseract', 'semantic-dictionary', 'index.json'),
   };
 }
 

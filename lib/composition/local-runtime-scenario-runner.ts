@@ -3,10 +3,17 @@ import { FileSystem } from '../application/ports';
 import type { RuntimeScenarioRunnerPort } from '../application/ports';
 import { createProjectPaths } from '../application/paths';
 import { readTranslationCache, translationCacheKey, writeTranslationCache } from '../application/translation-cache';
+import {
+  accrueSemanticEntry,
+  readSemanticDictionary,
+  recordSemanticFailure,
+  recordSemanticSuccess,
+  writeSemanticDictionary,
+} from '../application/semantic-translation-dictionary';
 import { translateIntentToOntology } from '../application/translate';
 import type { TranslationProvider } from '../application/translation-provider';
 import { resolveAgentInterpreterProvider, type AgentInterpreterProvider } from '../application/agent-interpreter-provider';
-import type { TranslationReceipt, TranslationRequest } from '../domain/types';
+import type { SemanticDictionaryCatalog, TranslationReceipt, TranslationRequest } from '../domain/types';
 import { LocalFileSystem } from '../infrastructure/fs/local-fs';
 import { createLocalRuntimeEnvironment, type LocalRuntimeAgentInterpreter } from '../infrastructure/runtime/local-runtime-environment';
 import { createScenarioRunState, runScenarioStep } from '../runtime/scenario';
@@ -113,6 +120,13 @@ function buildRunnerWithInterpreter(interpreterOverride?: AgentInterpreterProvid
           interpreterOverride ?? resolveAgentInterpreterProvider(),
         );
 
+      // ─── Semantic Dictionary: load once per run ───
+      const semanticDictionary: SemanticDictionaryCatalog = yield* readSemanticDictionary(paths).pipe(
+        Effect.provideService(FileSystem, LocalFileSystem),
+      );
+      let catalog = semanticDictionary;
+      let catalogDirty = false;
+
       const runtimeEnvironment = createLocalRuntimeEnvironment({
         rootDir: input.rootDir,
         suiteRoot: input.suiteRoot,
@@ -133,11 +147,42 @@ function buildRunnerWithInterpreter(interpreterOverride?: AgentInterpreterProvid
 
       const results = yield* Effect.forEach(
         input.plan.steps,
-        (step) => Effect.promise(() =>
-          runScenarioStep(step, { ...runtimeEnvironment, agent }, runState, input.plan.context, input.plan.resolutionContext),
-        ),
+        (step) => Effect.gen(function* () {
+          // Inject the latest catalog into the environment for each step
+          const stepResult = yield* Effect.promise(() =>
+            runScenarioStep(
+              step,
+              { ...runtimeEnvironment, agent, semanticDictionary: catalog },
+              runState,
+              input.plan.context,
+              input.plan.resolutionContext,
+            ),
+          );
+
+          // ─── Semantic Dictionary: accrue + track success/failure ───
+          if (stepResult.semanticAccrual) {
+            catalog = accrueSemanticEntry(catalog, stepResult.semanticAccrual);
+            catalogDirty = true;
+          }
+          const stepSucceeded = stepResult.execution.execution.status === 'ok';
+          if (stepResult.semanticDictionaryHitId) {
+            catalog = stepSucceeded
+              ? recordSemanticSuccess(catalog, stepResult.semanticDictionaryHitId)
+              : recordSemanticFailure(catalog, stepResult.semanticDictionaryHitId);
+            catalogDirty = true;
+          }
+
+          return stepResult;
+        }),
         { concurrency: 1 },
       );
+
+      // ─── Semantic Dictionary: persist once at end of run ───
+      if (catalogDirty) {
+        yield* writeSemanticDictionary(paths, catalog).pipe(
+          Effect.provideService(FileSystem, LocalFileSystem),
+        );
+      }
 
       return [...results];
     });

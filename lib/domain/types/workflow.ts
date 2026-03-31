@@ -72,6 +72,7 @@ export type StepWinningSource =
   | 'approved-knowledge'
   | 'approved-equivalent'
   | 'prior-evidence'
+  | 'semantic-dictionary'
   | 'structured-translation'
   | 'live-dom'
   | 'agent-interpreted'

@@ -261,6 +261,7 @@ export interface StepWinningSourceCases<R> {
   readonly approvedKnowledge: () => R;
   readonly approvedEquivalent: () => R;
   readonly priorEvidence: () => R;
+  readonly semanticDictionary: () => R;
   readonly structuredTranslation: () => R;
   readonly liveDom: () => R;
   readonly agentInterpreted: () => R;
@@ -279,6 +280,7 @@ export function foldStepWinningSource<R>(source: StepWinningSource, cases: StepW
     case 'approved-knowledge': return cases.approvedKnowledge();
     case 'approved-equivalent': return cases.approvedEquivalent();
     case 'prior-evidence': return cases.priorEvidence();
+    case 'semantic-dictionary': return cases.semanticDictionary();
     case 'structured-translation': return cases.structuredTranslation();
     case 'live-dom': return cases.liveDom();
     case 'agent-interpreted': return cases.agentInterpreted();
@@ -294,6 +296,7 @@ export const WINNING_SOURCE_TO_RUNG: Readonly<Record<StepWinningSource, string>>
   'scenario-explicit': 'explicit',
   'resolution-control': 'control',
   'approved-equivalent': 'approved-equivalent-overlay',
+  'semantic-dictionary': 'semantic-dictionary',
   'structured-translation': 'structured-translation',
   'live-dom': 'live-dom',
   'agent-interpreted': 'agent-interpreted',

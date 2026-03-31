@@ -20,6 +20,7 @@ import type {
   ScenarioRunPlan,
   ResolutionTarget,
   ScenarioStep,
+  SemanticDictionaryAccrualInput,
   StepExecutionReceipt,
   GroundedStep,
   TransitionObservation,
@@ -30,7 +31,7 @@ import type { RouteVariantKnowledge } from '../domain/types/route-knowledge';
 import { runStaticInterpreter } from './interpreters/execute';
 import type { InterpreterMode, InterpreterScreenRegistry } from './interpreters/types';
 import { playwrightStepProgramInterpreter } from './program';
-import { deterministicRuntimeStepAgent, type RuntimeStepAgent } from './agent';
+import { deterministicRuntimeStepAgent, type RuntimeStepAgent, type ResolutionStepOutcome } from './agent';
 import { applyProposalDraftsToRuntimeContext } from './agent/proposals';
 import type { RuntimeAgentInterpreter } from './agent/types';
 import type { RuntimeDomResolver } from '../domain/types';
@@ -56,6 +57,8 @@ export interface RuntimeScenarioEnvironment {
   agentInterpreter?: RuntimeAgentInterpreter | undefined;
   executionBudgetThresholds?: ExecutionBudgetThresholds | undefined;
   recoveryPolicy?: RecoveryPolicy | undefined;
+  /** Semantic dictionary catalog, loaded once per run and injected for all steps. */
+  semanticDictionary?: import('../domain/types').SemanticDictionaryCatalog | undefined;
 }
 
 export interface ScenarioRunState {
@@ -66,6 +69,10 @@ export interface ScenarioRunState {
 export interface ScenarioStepRunResult {
   interpretation: ResolutionReceipt;
   execution: StepExecutionReceipt;
+  /** Semantic dictionary learning signal: accrual input when a later rung resolved. */
+  semanticAccrual?: SemanticDictionaryAccrualInput | null | undefined;
+  /** Entry ID of the dictionary entry that was used, for success/failure tracking. */
+  semanticDictionaryHitId?: string | null | undefined;
 }
 
 export interface ScenarioStepHandshake {
@@ -445,8 +452,10 @@ export async function runScenarioStep(
     translate: environment.translator,
     agentInterpreter: environment.agentInterpreter,
     controlSelection: environment.controlSelection,
+    semanticDictionary: environment.semanticDictionary,
   };
-  const interpretation = await agent.resolve(task, agentContext);
+  const outcome = await agent.resolve(task, agentContext);
+  const interpretation = outcome.receipt;
   state.observedStateSession = agentContext.observedStateSession ?? state.observedStateSession;
   const routeSelection = interpretation.kind === 'needs-human'
     ? {
@@ -914,6 +923,8 @@ export async function runScenarioStep(
   return {
     interpretation,
     execution,
+    semanticAccrual: outcome.semanticAccrual,
+    semanticDictionaryHitId: outcome.semanticDictionaryHitId,
   };
 }
 
