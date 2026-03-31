@@ -1,7 +1,8 @@
-import { hashSeed, createSeededRng, pick, shuffle, type SeededRng } from '../random';
+import { hashSeed, createSeededRng, pick, type SeededRng } from '../random';
 import { sha256, stableStringify } from '../hash';
+import { selectArchetype, composeWorkflowSteps, type ArchetypeId } from './workflow-archetype';
 
-type ActionType = 'navigate' | 'input' | 'click' | 'select' | 'assert';
+// ─── Public types ───
 
 export interface PostureValue {
   readonly posture: string;
@@ -27,68 +28,41 @@ export interface SyntheticCatalogPlanInput {
   readonly screens: readonly ScreenPlanInput[];
 }
 
+// ─── Perturbation config ───
+//
+// Controls the calibrated gap between generated step text and the knowledge model's
+// alias pools. Higher values produce text that is harder for the translation pipeline
+// to resolve, which tests genuine generalization rather than echo-chamber matching.
+
 export interface PerturbationConfig {
-  readonly vocab: number;
-  readonly aliasGap: number;
-  readonly crossScreen: number;
-  readonly coverageGap: number;
-  /** Probability of using posture-driven values instead of generic placeholders. */
+  /**
+   * Lexical gap distance [0, 1].
+   * - 0: Use known aliases verbatim (echo chamber — should always resolve)
+   * - 1: Use fully held-out domain vocabulary (maximum gap — tests generalization)
+   * - 0.3–0.7: The interesting range where pipeline quality is differentiated
+   */
+  readonly lexicalGap: number;
+  /** Probability of using posture-driven data values instead of generic placeholders [0, 1]. */
   readonly dataVariation: number;
-  /** Probability of generating richer assertion expectations. */
-  readonly assertionVariation: number;
+  /** Probability of omitting optional steps [0, 1]. */
+  readonly coverageGap: number;
+  /** Controls cross-screen journey probability [0, 1]. */
+  readonly crossScreen: number;
 }
 
 export const ZERO_PERTURBATION: PerturbationConfig = {
-  vocab: 0, aliasGap: 0, crossScreen: 0, coverageGap: 0,
-  dataVariation: 0, assertionVariation: 0,
+  lexicalGap: 0, dataVariation: 0, coverageGap: 0, crossScreen: 0,
 };
 
 export function resolvePerturbation(rate?: number, config?: Partial<PerturbationConfig>): PerturbationConfig {
   return config
     ? { ...ZERO_PERTURBATION, ...config }
-    : rate && rate > 0
-      ? { ...ZERO_PERTURBATION, vocab: rate }
+    : rate !== undefined && rate > 0
+      ? { ...ZERO_PERTURBATION, lexicalGap: rate }
       : ZERO_PERTURBATION;
 }
 
-// ─── Phrasing provider abstraction ───
-//
-// The PhrasingProvider is the extension point for how step text is generated.
-// The deterministic template approach is the fallback. An agentic implementation
-// uses an LLM to produce diverse, realistic QA phrasing that genuinely challenges
-// the translation layer — text that is semantically valid but lexically distant
-// from any alias in the knowledge model. See docs/recursive-self-improvement.md.
-
-/** Structured intent for a single step, used by PhrasingProvider to generate text. */
-export interface PhrasingRequest {
-  readonly action: ActionType;
-  readonly screenId: string;
-  readonly screenAlias: string;
-  readonly elementId: string | null;
-  readonly elementAlias: string | null;
-  readonly value: string;
-}
-
-/** Result of phrasing a step — the natural-language text and its provenance. */
-export interface PhrasingResult {
-  readonly actionText: string;
-  readonly expectedText: string;
-  readonly source: 'template' | 'agentic';
-}
-
-/**
- * Produces natural-language step text from a structured intent.
- *
- * - **template**: Deterministic, fast, CI-safe. Uses finite template pool with
- *   optional synonym substitution. Tests lexical matching breadth.
- * - **agentic**: LLM-backed, produces phrasing that a real QA tester would write.
- *   Tests semantic understanding and forces the translation pipeline to fall through
- *   to lower rungs, which drives genuine proposal generation and knowledge accumulation.
- *
- * The planner accepts this as an optional input. When absent, falls back to
- * `templatePhrasing` (the deterministic path).
- */
-export type PhrasingProvider = (request: PhrasingRequest, rng: SeededRng) => PhrasingResult;
+// ─── Internal types ───
 
 interface SyntheticStep {
   readonly index: number;
@@ -96,8 +70,6 @@ interface SyntheticStep {
   readonly action_text: string;
   readonly expected_text: string;
 }
-
-type Strategy = 'single-screen' | 'cross-screen' | 'workflow';
 
 interface ScenarioPlanInternal {
   readonly adoId: string;
@@ -126,11 +98,6 @@ export interface ScenarioPlanningInput {
   readonly perturbationRate?: number;
   readonly perturbation?: Partial<PerturbationConfig>;
   readonly validationSplit?: number;
-  /**
-   * Optional phrasing provider. When absent, uses deterministic template phrasing.
-   * Supply an agentic provider to generate diverse, realistic QA phrasing via LLM.
-   */
-  readonly phrasingProvider?: PhrasingProvider;
 }
 
 export interface ScenarioPlanningResult {
@@ -139,127 +106,7 @@ export interface ScenarioPlanningResult {
   readonly screenDistribution: ReadonlyArray<{ readonly screen: string; readonly count: number }>;
 }
 
-const TEMPLATES: Readonly<Record<ActionType, readonly string[]>> = {
-  navigate: [
-    'Navigate to {screen}', 'Open {screen}', 'Go to {screen}',
-    'Switch to {screen}', 'Browse to {screen}', 'Load {screen}',
-    'Visit {screen}', 'Access {screen}',
-  ],
-  input: [
-    'Enter {value} in {element}', 'Type {value} into {element}',
-    'Fill in {element} with {value}', 'Set {element} to {value}',
-    'Input {value} in the {element}', 'Provide {value} for {element}',
-  ],
-  click: [
-    'Click {element}', 'Press {element}',
-    'Activate {element}', 'Trigger {element}',
-    'Tap {element}', 'Hit {element}',
-  ],
-  select: [
-    'Select {value} from {element}', 'Choose {value} in {element}',
-    'Pick {value} from {element}', 'Set {element} to {value}',
-  ],
-  assert: [
-    'Verify {element} is visible', 'Check {element} is displayed',
-    'Confirm {element} is present', 'Assert {element} is shown',
-    'Validate {element} appears on screen', 'Ensure {element} is rendered',
-  ],
-} as const;
-
-const SYNONYM_SUBSTITUTIONS: ReadonlyArray<readonly [RegExp, readonly string[]]> = [
-  [/\bsearch\b/gi, ['find', 'lookup', 'query', 'look up']],
-  [/\bresults?\b/gi, ['matches', 'outcome', 'records', 'listings', 'items']],
-  [/\bfield\b/gi, ['input', 'box', 'entry', 'text area', 'control']],
-  [/\bbutton\b/gi, ['control', 'trigger', 'action', 'link']],
-  [/\bpolicy\b/gi, ['insurance policy', 'account', 'policy record']],
-  [/\bdetail\b/gi, ['information', 'overview', 'summary', 'specifics']],
-  [/\btable\b/gi, ['grid', 'list', 'listing', 'data view']],
-  [/\bnavigate\b/gi, ['go', 'browse', 'proceed', 'move']],
-  [/\bscreen\b/gi, ['page', 'view', 'panel', 'section']],
-  [/\bverify\b/gi, ['check', 'confirm', 'validate', 'assert']],
-  [/\bvisible\b/gi, ['displayed', 'shown', 'present', 'rendered']],
-  [/\benter\b/gi, ['type', 'input', 'fill in', 'provide']],
-  [/\bstatus\b/gi, ['state', 'condition', 'current status']],
-];
-
-const actionForWidget = (widget: string): ActionType =>
-  widget === 'os-input' || widget === 'os-textarea'
-    ? 'input'
-    : widget === 'os-button'
-      ? 'click'
-      : widget === 'os-select'
-        ? 'select'
-        : 'assert';
-
-const humanize = (value: string): string => value.replace(/([A-Z])/g, ' $1').replace(/-/g, ' ').trim().toLowerCase();
-
-const perturbVocab = (text: string, rate: number, rng: SeededRng): string =>
-  SYNONYM_SUBSTITUTIONS.reduce(
-    (result, [pattern, synonyms]) => (rng() < rate && pattern.test(result)
-      ? result.replace(pattern, pick(synonyms, rng))
-      : result),
-    text,
-  );
-
-// ─── Data value pools for realistic input generation ───
-
-const GENERIC_INPUT_VALUES: readonly string[] = [
-  'a valid value', 'test data', 'sample input', 'example text',
-  'John Doe', 'jane.doe@example.com', '555-0100', '12345',
-  'POL-999', 'CLM-001', 'AMD-100', '2025-01-15',
-];
-
-const GENERIC_SELECT_VALUES: readonly string[] = [
-  'the correct option', 'the first option', 'an available option',
-  'Active', 'Pending', 'Closed', 'In Review', 'Approved',
-];
-
-/**
- * Select a data value for an input step, considering posture data and perturbation settings.
- * Falls back through: posture values → generic pools → hardcoded placeholder.
- */
-const pickDataValue = (
-  element: ScreenElementPlanInput,
-  action: ActionType,
-  perturbation: PerturbationConfig,
-  rng: SeededRng,
-): string => {
-  if (action !== 'input' && action !== 'select') return '';
-
-  // Data variation: use posture-driven values or generic pool
-  if (perturbation.dataVariation > 0 && rng() < perturbation.dataVariation) {
-    const postures = element.postureValues ?? [];
-    const allValues = postures.flatMap((p) => p.values).filter((v) => v.length > 0);
-    if (allValues.length > 0) return pick(allValues, rng);
-    return action === 'input' ? pick(GENERIC_INPUT_VALUES, rng) : pick(GENERIC_SELECT_VALUES, rng);
-  }
-
-  // Default placeholders
-  return action === 'input' ? 'a valid value' : action === 'select' ? 'the correct option' : '';
-};
-
-// ─── Assertion expectation generation ───
-
-const RICH_ASSERTIONS: readonly string[] = [
-  '{element} is visible on screen',
-  '{element} shows expected content',
-  '{element} displays correct information',
-  '{element} is present and readable',
-  '{element} content matches expected value',
-  '{element} renders without errors',
-  '{element} is accessible and visible',
-];
-
-const pickAssertionText = (
-  alias: string,
-  perturbation: PerturbationConfig,
-  rng: SeededRng,
-): string => {
-  if (perturbation.assertionVariation > 0 && rng() < perturbation.assertionVariation) {
-    return pick(RICH_ASSERTIONS, rng).replace('{element}', alias);
-  }
-  return `${alias} handled`;
-};
+// ─── YAML rendering ───
 
 const deterministicSyncedAt = (seed: string): string => {
   const days = hashSeed(seed) % 3650;
@@ -305,148 +152,57 @@ const renderYaml = (plan: ScenarioPlanInternal, syncedAt: string): string => {
   ].join('\n') + '\n';
 };
 
-// ─── Default template phrasing (deterministic fallback) ───
+// ─── Scenario composition via workflow archetypes ───
 //
-// Tests lexical matching breadth: synonym substitution and template variety.
-// Does NOT produce semantically novel phrasing — for that, use an agentic provider.
-
-export const templatePhrasing: PhrasingProvider = (request, rng) => {
-  const { action, screenAlias, elementAlias, value } = request;
-
-  if (action === 'navigate') {
-    const navText = pick(TEMPLATES.navigate, rng).replace('{screen}', screenAlias);
-    return { actionText: navText, expectedText: `${screenAlias} loads successfully`, source: 'template' };
-  }
-
-  const alias = elementAlias ?? screenAlias;
-  const template = pick(TEMPLATES[action], rng)
-    .replace('{screen}', screenAlias)
-    .replace('{element}', alias)
-    .replace('{value}', value);
-  return { actionText: template, expectedText: `${alias} handled`, source: 'template' };
-};
-
-const generateStep = (
-  element: ScreenElementPlanInput,
-  screen: ScreenPlanInput,
-  stepIndex: number,
-  allScreens: readonly ScreenPlanInput[],
-  perturbation: PerturbationConfig,
-  rng: SeededRng,
-  phrasing: PhrasingProvider,
-): SyntheticStep | null => {
-  if (rng() < perturbation.coverageGap) return null;
-  const action = actionForWidget(element.widget);
-  const baseAlias = element.aliases.length > 0 ? pick(element.aliases, rng) : humanize(element.elementId);
-  const crossAlias = perturbation.crossScreen > 0 && rng() < perturbation.crossScreen && allScreens.length > 1
-    ? (() => {
-      const alternatives = allScreens
-        .filter((candidate) => candidate.screenId !== screen.screenId)
-        .flatMap((candidate) => candidate.elements)
-        .map((candidate) => (candidate.aliases.length > 0 ? pick(candidate.aliases, rng) : humanize(candidate.elementId)));
-      return alternatives.length > 0 ? pick(alternatives, rng) : baseAlias;
-    })()
-    : baseAlias;
-  const alias = perturbation.aliasGap > 0 && rng() < perturbation.aliasGap ? element.elementId : crossAlias;
-  const value = pickDataValue(element, action, perturbation, rng);
-
-  const phrasingResult = phrasing({
-    action,
-    screenId: screen.screenId,
-    screenAlias: screen.screenAliases[0] ?? humanize(screen.screenId),
-    elementId: element.elementId,
-    elementAlias: alias,
-    value,
-  }, rng);
-
-  // Apply vocab perturbation on template-sourced text (agentic text is already diverse)
-  const actionText = phrasingResult.source === 'template' && perturbation.vocab > 0
-    ? perturbVocab(phrasingResult.actionText, perturbation.vocab, rng)
-    : phrasingResult.actionText;
-
-  // Apply assertion variation on template-sourced text
-  const expectedText = phrasingResult.source === 'template'
-    ? pickAssertionText(alias, perturbation, rng)
-    : phrasingResult.expectedText;
-
-  return {
-    index: stepIndex,
-    intent: actionText,
-    action_text: actionText,
-    expected_text: expectedText,
-  };
-};
-
-const NAV_EXPECTATIONS: readonly string[] = [
-  'loads successfully', 'is displayed', 'becomes visible', 'opens correctly', 'renders on screen',
-];
+// Instead of randomly picking elements and applying templates from the alias pool
+// (echo chamber), scenarios are composed as coherent QA workflows. Each workflow
+// archetype represents a real testing pattern (search-verify, detail-inspect, etc.)
+// and generates step text at a calibrated lexical gap distance from known aliases.
+//
+// At lexicalGap=0 the text uses known aliases (baseline, should always resolve).
+// At lexicalGap=1 the text uses held-out domain vocabulary (maximum gap, tests generalization).
+// The translation pipeline's quality is measured by how well it bridges this gap.
 
 const generateScenario = (
   screen: ScreenPlanInput,
-  strategy: Strategy,
   scenarioIndex: number,
   screens: readonly ScreenPlanInput[],
   perturbation: PerturbationConfig,
   rng: SeededRng,
-  phrasing: PhrasingProvider,
 ): ScenarioPlanInternal => {
-  const selectedScreens = strategy === 'cross-screen'
-    ? shuffle(screens, rng).slice(0, Math.min(2, screens.length))
-    : [screen];
+  const archetypeId = selectArchetype(screen, screens, rng);
+  const isCrossScreen = archetypeId === 'cross-screen-journey';
 
-  const navSteps = selectedScreens.map((selected, idx) => {
-    const alias = selected.screenAliases[0] ?? humanize(selected.screenId);
-    const phrasingResult = phrasing({
-      action: 'navigate' as ActionType,
-      screenId: selected.screenId,
-      screenAlias: alias,
-      elementId: null,
-      elementAlias: null,
-      value: '',
-    }, rng);
-
-    // Apply vocab perturbation on template-sourced nav text
-    const navText = phrasingResult.source === 'template' && perturbation.vocab > 0
-      ? perturbVocab(phrasingResult.actionText, perturbation.vocab, rng)
-      : phrasingResult.actionText;
-
-    // Apply assertion variation on template-sourced nav expectations
-    const expectedText = phrasingResult.source === 'template' && perturbation.assertionVariation > 0 && rng() < perturbation.assertionVariation
-      ? `${alias} ${pick(NAV_EXPECTATIONS, rng)}`
-      : phrasingResult.expectedText;
-
-    return { index: idx + 1, intent: navText, action_text: navText, expected_text: expectedText } satisfies SyntheticStep;
+  const archetypeSteps = composeWorkflowSteps(archetypeId, {
+    screens,
+    primaryScreen: screen,
+    lexicalGap: perturbation.lexicalGap,
+    dataVariation: perturbation.dataVariation,
+    rng,
   });
 
-  const stepSeed = navSteps.length + 1;
-  const interactionSteps = selectedScreens.flatMap((selected, screenIdx) =>
-    shuffle(selected.elements, rng)
-      .slice(0, strategy === 'workflow' ? 3 : 2)
-      .flatMap((element, elementIdx) => {
-        const generated = generateStep(
-          element,
-          selected,
-          stepSeed + screenIdx * 3 + elementIdx,
-          screens,
-          perturbation,
-          rng,
-          phrasing,
-        );
-        return generated ? [generated] : [];
-      }),
-  );
+  // Apply coverage gap — probabilistically omit non-navigation steps
+  const steps = archetypeSteps
+    .filter((_, idx) => idx === 0 || rng() >= perturbation.coverageGap)
+    .map((step, idx) => ({
+      index: idx + 1,
+      intent: step.intent,
+      action_text: step.actionText,
+      expected_text: step.expectedText,
+    }));
 
-  const steps = [...navSteps, ...interactionSteps].map((step, index) => ({ ...step, index: index + 1 }));
-  const primary = selectedScreens[0]?.screenId ?? screen.screenId;
+  const primary = screen.screenId;
   return {
-    adoId: String((20000) + scenarioIndex),
-    screenId: strategy === 'cross-screen' ? 'cross-screen' : primary,
-    title: `Synthetic ${strategy} ${scenarioIndex}: ${selectedScreens.map((item) => item.screenId).join(' -> ')}`,
-    suite: `synthetic/${strategy === 'cross-screen' ? 'cross-screen' : primary}`,
+    adoId: String(20000 + scenarioIndex),
+    screenId: isCrossScreen ? 'cross-screen' : primary,
+    title: `Synthetic ${archetypeId} ${scenarioIndex}: ${primary}`,
+    suite: `synthetic/${isCrossScreen ? 'cross-screen' : primary}`,
     tags: [],
     steps,
   };
 };
+
+// ─── Main entry point ───
 
 export function planSyntheticScenarios(input: ScenarioPlanningInput): ScenarioPlanningResult {
   const rng = createSeededRng(input.seed);
@@ -454,19 +210,17 @@ export function planSyntheticScenarios(input: ScenarioPlanningInput): ScenarioPl
   const screens = input.catalog.screens;
   const syncedAt = deterministicSyncedAt(input.seed);
   const baseId = input.baseId ?? 20000;
-  const phrasing = input.phrasingProvider ?? templatePhrasing;
 
-  const allocations = Array.from({ length: input.count }, (_, index) => ({
-    screen: screens[index % Math.max(screens.length, 1)] ?? { screenId: 'empty', screenAliases: ['empty'], elements: [] },
-    strategy: pick((['single-screen', 'workflow', 'cross-screen'] as const), rng),
-    index,
-  }));
+  const plans = Array.from({ length: input.count }, (_, index) => {
+    const screen = screens[index % Math.max(screens.length, 1)]
+      ?? { screenId: 'empty', screenAliases: ['empty'], elements: [] };
 
-  const plans = allocations.map(({ screen, strategy, index }) => {
-    const scenario = generateScenario(screen, strategy, index, screens, perturbation, rng, phrasing);
+    const scenario = generateScenario(screen, index, screens, perturbation, rng);
     const adoId = String(baseId + index);
     const materialized = { ...scenario, adoId };
-    const split = input.validationSplit && input.validationSplit > 0 && rng() < input.validationSplit ? ['validation-heldout'] : ['training'];
+    const split = input.validationSplit && input.validationSplit > 0 && rng() < input.validationSplit
+      ? ['validation-heldout']
+      : ['training'];
     const yaml = renderYaml({ ...materialized, tags: split }, syncedAt);
     return {
       adoId,

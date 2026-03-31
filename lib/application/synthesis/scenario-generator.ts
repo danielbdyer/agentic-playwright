@@ -6,17 +6,13 @@ import type { WorkspaceCatalog } from '../catalog';
 import {
   planSyntheticScenarios,
   resolvePerturbation,
-  templatePhrasing,
   ZERO_PERTURBATION,
   type PerturbationConfig,
-  type PhrasingProvider,
-  type PhrasingRequest,
-  type PhrasingResult,
   type SyntheticCatalogPlanInput,
 } from '../../domain/synthesis/scenario-plan';
 
-export { resolvePerturbation, templatePhrasing, ZERO_PERTURBATION };
-export type { PerturbationConfig, PhrasingProvider, PhrasingRequest, PhrasingResult };
+export { resolvePerturbation, ZERO_PERTURBATION };
+export type { PerturbationConfig };
 
 import type { ScreenPostures } from '../../domain/types/knowledge';
 import type { PostureValue } from '../../domain/synthesis/scenario-plan';
@@ -59,8 +55,6 @@ export interface GenerateSyntheticScenariosOptions {
   readonly perturbationRate?: number | undefined;
   readonly perturbation?: Partial<PerturbationConfig> | undefined;
   readonly validationSplit?: number | undefined;
-  /** Optional phrasing provider for agentic step text generation. */
-  readonly phrasingProvider?: PhrasingProvider | undefined;
 }
 
 export interface GenerateSyntheticScenariosResult {
@@ -83,7 +77,6 @@ export function generateSyntheticScenarios(options: GenerateSyntheticScenariosOp
       ...(options.perturbationRate !== undefined ? { perturbationRate: options.perturbationRate } : {}),
       ...(options.perturbation !== undefined ? { perturbation: options.perturbation } : {}),
       ...(options.validationSplit !== undefined ? { validationSplit: options.validationSplit } : {}),
-      ...(options.phrasingProvider !== undefined ? { phrasingProvider: options.phrasingProvider } : {}),
     });
 
     const writes = planned.plans.map((plan) => {

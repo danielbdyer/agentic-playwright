@@ -61,9 +61,9 @@ export interface SpeedrunInput {
   readonly seed: string;
   readonly maxIterations: number;
   readonly substrate?: ExperimentSubstrate | undefined;
-  /** Rate [0,1] at which step text is perturbed with synonyms NOT in the knowledge base. */
+  /** Lexical gap rate [0,1] — probability of using held-out vocabulary instead of known aliases. */
   readonly perturbationRate?: number | undefined;
-  /** Fine-grained perturbation — six independent modes. */
+  /** Fine-grained perturbation config (lexicalGap, dataVariation, coverageGap, crossScreen). */
   readonly perturbation?: PerturbationConfig | undefined;
   readonly tag?: string | undefined;
   readonly parentExperimentId?: string | null | undefined;
@@ -94,9 +94,9 @@ export interface MultiSeedInput {
   readonly count: number;
   readonly maxIterations: number;
   readonly substrate?: ExperimentSubstrate | undefined;
-  /** Rate [0,1] at which step text is perturbed with synonyms NOT in the knowledge base. */
+  /** Lexical gap rate [0,1] — probability of using held-out vocabulary instead of known aliases. */
   readonly perturbationRate?: number | undefined;
-  /** Fine-grained perturbation — six independent modes. */
+  /** Fine-grained perturbation config (lexicalGap, dataVariation, coverageGap, crossScreen). */
   readonly perturbation?: PerturbationConfig | undefined;
   readonly tag?: string | undefined;
   readonly knowledgePosture?: KnowledgePosture | undefined;

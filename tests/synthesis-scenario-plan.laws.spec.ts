@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { planSyntheticScenarios, templatePhrasing, type PhrasingProvider, type PhrasingResult } from '../lib/domain/synthesis/scenario-plan';
+import { planSyntheticScenarios } from '../lib/domain/synthesis/scenario-plan';
 
 const CATALOG = {
   screens: [
@@ -7,15 +7,29 @@ const CATALOG = {
       screenId: 'policy-search',
       screenAliases: ['policy search'],
       elements: [
-        { elementId: 'policyNumber', widget: 'os-input', aliases: ['policy number'], required: true },
-        { elementId: 'searchButton', widget: 'os-button', aliases: ['search button'], required: true },
+        { elementId: 'policyNumberInput', widget: 'os-input', aliases: ['policy number', 'policy number field', 'search field'], required: true },
+        { elementId: 'searchButton', widget: 'os-button', aliases: ['search button', 'search'], required: true },
+        { elementId: 'resultsTable', widget: 'os-table', aliases: ['search results', 'results table'], required: false },
+        { elementId: 'validationSummary', widget: 'os-region', aliases: ['validation summary', 'error summary'], required: false },
       ],
     },
     {
       screenId: 'policy-detail',
       screenAliases: ['policy detail'],
       elements: [
-        { elementId: 'status', widget: 'os-region', aliases: ['status'], required: false },
+        { elementId: 'policyNumber', widget: 'os-region', aliases: ['policy number', 'policy number display'], required: false },
+        { elementId: 'policyStatus', widget: 'os-region', aliases: ['policy status', 'status', 'status badge'], required: false },
+        { elementId: 'effectiveDate', widget: 'os-region', aliases: ['effective date', 'date'], required: false },
+        { elementId: 'claimsTable', widget: 'os-table', aliases: ['claims table', 'claims', 'claims list'], required: false },
+      ],
+    },
+    {
+      screenId: 'policy-amendment',
+      screenAliases: ['amendment', 'policy amendment'],
+      elements: [
+        { elementId: 'amendmentStatus', widget: 'os-region', aliases: ['amendment status'], required: false },
+        { elementId: 'reviewButton', widget: 'os-button', aliases: ['review', 'submit review', 'review changes'], required: true },
+        { elementId: 'inceptionDate', widget: 'os-region', aliases: ['inception date', 'effective date'], required: false },
       ],
     },
   ],
@@ -28,7 +42,7 @@ const CATALOG_WITH_POSTURES = {
       screenAliases: ['policy search'],
       elements: [
         {
-          elementId: 'policyNumber',
+          elementId: 'policyNumberInput',
           widget: 'os-input',
           aliases: ['policy number'],
           required: true,
@@ -38,17 +52,21 @@ const CATALOG_WITH_POSTURES = {
           ],
         },
         { elementId: 'searchButton', widget: 'os-button', aliases: ['search button'], required: true },
+        { elementId: 'resultsTable', widget: 'os-table', aliases: ['search results'], required: false },
       ],
     },
     {
       screenId: 'policy-detail',
       screenAliases: ['policy detail'],
       elements: [
-        { elementId: 'status', widget: 'os-region', aliases: ['status'], required: false },
+        { elementId: 'policyNumber', widget: 'os-region', aliases: ['policy number'], required: false },
+        { elementId: 'effectiveDate', widget: 'os-region', aliases: ['effective date'], required: false },
       ],
     },
   ],
 } as const;
+
+// --- Determinism laws ---
 
 test.describe('scenario planner determinism laws', () => {
   test('identical tuple yields identical fingerprints and yaml payloads', () => {
@@ -56,7 +74,7 @@ test.describe('scenario planner determinism laws', () => {
       catalog: CATALOG,
       seed: 'law-seed',
       count: 6,
-      perturbation: { vocab: 0.2, aliasGap: 0.1, crossScreen: 0.15, coverageGap: 0.05 },
+      perturbation: { lexicalGap: 0.3 },
       validationSplit: 0.25,
     } as const;
 
@@ -75,57 +93,103 @@ test.describe('scenario planner determinism laws', () => {
   });
 });
 
-test.describe('data variation perturbation laws', () => {
-  test('dataVariation=0 always produces default placeholder values', () => {
+// --- Lexical gap laws ---
+
+test.describe('lexical gap laws', () => {
+  test('lexicalGap=0 produces text using known aliases', () => {
     const result = planSyntheticScenarios({
-      catalog: CATALOG_WITH_POSTURES,
-      seed: 'data-var-off',
+      catalog: CATALOG,
+      seed: 'gap-zero',
       count: 20,
-      perturbation: { dataVariation: 0 },
     });
 
-    const inputSteps = result.plans.flatMap((plan) => {
+    const knownAliases = new Set(
+      CATALOG.screens.flatMap((screen) => [
+        ...screen.screenAliases,
+        ...screen.elements.flatMap((e) => e.aliases),
+      ]).map((a) => a.toLowerCase()),
+    );
+
+    const allIntents = result.plans.flatMap((plan) => {
       const lines = plan.yaml.split('\n');
       return lines
         .filter((line) => line.includes('intent:'))
-        .map((line) => line.replace(/^\s*intent:\s*/, '').replace(/^"/, '').replace(/"$/, ''))
-        .filter((intent) => intent.match(/\b(Enter|Type|Fill in|Set|Input|Provide)\b/));
+        .map((line) => line.replace(/^\s*intent:\s*/, '').replace(/^"/, '').replace(/"$/, '').toLowerCase());
     });
 
-    // With dataVariation=0, all input steps should use "a valid value"
-    for (const intent of inputSteps) {
-      expect(intent).toContain('a valid value');
-    }
+    const containsKnownAlias = allIntents.filter((intent) =>
+      [...knownAliases].some((alias) => intent.includes(alias)),
+    );
+
+    expect(containsKnownAlias.length / allIntents.length).toBeGreaterThan(0.6);
   });
 
-  test('dataVariation=1 uses posture-driven or generic values, never just "a valid value"', () => {
+  test('lexicalGap=1 produces text with domain synonyms NOT in alias pool', () => {
     const result = planSyntheticScenarios({
-      catalog: CATALOG_WITH_POSTURES,
-      seed: 'data-var-full',
+      catalog: CATALOG,
+      seed: 'gap-max',
       count: 30,
-      perturbation: { dataVariation: 1.0 },
+      perturbation: { lexicalGap: 1.0 },
     });
 
-    const inputSteps = result.plans.flatMap((plan) => {
+    const heldOutTerms = [
+      'coverage', 'plan', 'insurance', 'account', 'contract',
+      'incident', 'loss', 'endorsement', 'modification', 'rider',
+      'identifier', 'reference', 'code',
+      'look up', 'locate', 'retrieve', 'pull up', 'bring up',
+      'confirm', 'make sure', 'validate', 'see that',
+    ].map((t) => t.toLowerCase());
+
+    const allIntents = result.plans.flatMap((plan) => {
       const lines = plan.yaml.split('\n');
       return lines
         .filter((line) => line.includes('intent:'))
-        .map((line) => line.replace(/^\s*intent:\s*/, '').replace(/^"/, '').replace(/"$/, ''))
-        .filter((intent) => intent.match(/\b(Enter|Type|Fill in|Set|Input|Provide)\b/));
+        .map((line) => line.replace(/^\s*intent:\s*/, '').replace(/^"/, '').replace(/"$/, '').toLowerCase());
     });
 
-    // With posture values available and dataVariation=1.0, at least some steps
-    // should use posture-driven values (POL-001, POL-002, NOTAPOLICY) or generic pool
-    const usesVariedData = inputSteps.some((intent) => !intent.includes('a valid value'));
-    expect(usesVariedData).toBe(true);
+    const allText = allIntents.join(' ');
+    const heldOutMatches = heldOutTerms.filter((term) => allText.includes(term));
+
+    expect(heldOutMatches.length).toBeGreaterThan(0);
   });
 
-  test('dataVariation determinism: same seed produces same values', () => {
+  test('lexicalGap=0.5 produces a mix of known and held-out vocabulary', () => {
+    const result = planSyntheticScenarios({
+      catalog: CATALOG,
+      seed: 'gap-half',
+      count: 40,
+      perturbation: { lexicalGap: 0.5 },
+    });
+
+    const knownAliases = new Set(
+      CATALOG.screens.flatMap((screen) => [
+        ...screen.screenAliases,
+        ...screen.elements.flatMap((e) => e.aliases),
+      ]).map((a) => a.toLowerCase()),
+    );
+
+    const allIntents = result.plans.flatMap((plan) => {
+      const lines = plan.yaml.split('\n');
+      return lines
+        .filter((line) => line.includes('intent:'))
+        .map((line) => line.replace(/^\s*intent:\s*/, '').replace(/^"/, '').replace(/"$/, '').toLowerCase());
+    });
+
+    const withKnown = allIntents.filter((intent) =>
+      [...knownAliases].some((alias) => intent.includes(alias)),
+    );
+
+    const knownRatio = withKnown.length / allIntents.length;
+    expect(knownRatio).toBeGreaterThan(0.15);
+    expect(knownRatio).toBeLessThan(0.95);
+  });
+
+  test('lexicalGap determinism: same gap + seed = same output', () => {
     const config = {
-      catalog: CATALOG_WITH_POSTURES,
-      seed: 'data-determinism',
+      catalog: CATALOG,
+      seed: 'gap-determinism',
       count: 10,
-      perturbation: { dataVariation: 0.8 },
+      perturbation: { lexicalGap: 0.7 },
     } as const;
 
     const first = planSyntheticScenarios(config);
@@ -135,216 +199,147 @@ test.describe('data variation perturbation laws', () => {
   });
 });
 
-test.describe('assertion variation perturbation laws', () => {
-  test('assertionVariation=0 always produces "{alias} handled" expectations', () => {
+// --- Workflow archetype laws ---
+
+test.describe('workflow archetype laws', () => {
+  test('every scenario starts with a navigation step', () => {
     const result = planSyntheticScenarios({
       catalog: CATALOG,
-      seed: 'assert-off',
-      count: 10,
+      seed: 'nav-first',
+      count: 20,
     });
 
-    const expectedTexts = result.plans.flatMap((plan) => {
+    for (const plan of result.plans) {
       const lines = plan.yaml.split('\n');
-      return lines
-        .filter((line) => line.includes('expected_text:'))
-        .map((line) => line.replace(/^\s*expected_text:\s*/, '').replace(/^"/, '').replace(/"$/, ''));
-    });
+      const firstIntent = lines
+        .filter((line) => line.includes('intent:'))
+        .map((line) => line.replace(/^\s*intent:\s*/, '').replace(/^"/, '').replace(/"$/, '').toLowerCase())[0];
 
-    // Without assertionVariation, non-nav expected_text should end with "handled"
-    // or be navigation expectations ("loads successfully")
-    for (const text of expectedTexts) {
-      const isNav = text.includes('loads successfully');
-      const isDefault = text.includes('handled');
-      expect(isNav || isDefault).toBe(true);
+      const isNav = firstIntent !== undefined && (
+        firstIntent.includes('navigate') ||
+        firstIntent.includes('open') ||
+        firstIntent.includes('go to') ||
+        firstIntent.includes('pull up') ||
+        firstIntent.includes('access') ||
+        firstIntent.includes('load') ||
+        firstIntent.includes('visit') ||
+        firstIntent.includes('bring up')
+      );
+      expect(isNav).toBe(true);
     }
   });
 
-  test('assertionVariation=1 produces varied assertion expectations', () => {
+  test('scenarios have coherent multi-step structure', () => {
     const result = planSyntheticScenarios({
       catalog: CATALOG,
-      seed: 'assert-varied',
-      count: 30,
-      perturbation: { assertionVariation: 1.0 },
+      seed: 'coherent',
+      count: 10,
     });
 
-    const expectedTexts = result.plans.flatMap((plan) => {
+    for (const plan of result.plans) {
       const lines = plan.yaml.split('\n');
-      return lines
-        .filter((line) => line.includes('expected_text:'))
-        .map((line) => line.replace(/^\s*expected_text:\s*/, '').replace(/^"/, '').replace(/"$/, ''));
+      const intents = lines
+        .filter((line) => line.includes('intent:'))
+        .map((line) => line.replace(/^\s*intent:\s*/, '').replace(/^"/, '').replace(/"$/, '').toLowerCase());
+
+      expect(intents.length).toBeGreaterThanOrEqual(2);
+
+      // Steps after the first should be either interactions, verifications, or mid-scenario navigation
+      const subsequentSteps = intents.slice(1);
+      for (const step of subsequentSteps) {
+        const isValid = step.match(
+          /enter|type|click|press|tap|hit|activate|submit|verify|check|confirm|select|choose|pick|navigate|open|go to|pull up|access|load|visit|bring up/,
+        );
+        expect(isValid).toBeTruthy();
+      }
+    }
+  });
+
+  test('screen distribution covers all catalog screens', () => {
+    const result = planSyntheticScenarios({
+      catalog: CATALOG,
+      seed: 'distribution',
+      count: 30,
     });
 
-    // With full assertion variation, at least some should use rich assertion templates
-    const hasRichAssertions = expectedTexts.some((text) =>
-      text.includes('is visible on screen') ||
-      text.includes('shows expected content') ||
-      text.includes('displays correct information') ||
-      text.includes('is present and readable') ||
-      text.includes('content matches expected value') ||
-      text.includes('renders without errors') ||
-      text.includes('is accessible and visible'),
-    );
-    expect(hasRichAssertions).toBe(true);
-
-    // Navigation steps should also show variation
-    const navTexts = expectedTexts.filter((text) =>
-      text.includes('is displayed') ||
-      text.includes('becomes visible') ||
-      text.includes('opens correctly') ||
-      text.includes('renders on screen'),
-    );
-    expect(navTexts.length).toBeGreaterThan(0);
+    const screenIds = new Set(result.screenDistribution.map((d) => d.screen));
+    expect(screenIds.size).toBeGreaterThanOrEqual(CATALOG.screens.length);
   });
 });
 
-test.describe('expanded phrasing template laws', () => {
-  test('scenarios use expanded navigation templates beyond original three', () => {
+// --- Data variation laws ---
+
+test.describe('data variation laws', () => {
+  test('dataVariation=0 uses generic placeholder values', () => {
     const result = planSyntheticScenarios({
-      catalog: CATALOG,
-      seed: 'nav-templates-expanded',
-      count: 50,
+      catalog: CATALOG_WITH_POSTURES,
+      seed: 'data-off',
+      count: 20,
     });
 
-    const navIntents = result.plans.flatMap((plan) => {
+    const inputSteps = result.plans.flatMap((plan) => {
       const lines = plan.yaml.split('\n');
       return lines
         .filter((line) => line.includes('intent:'))
         .map((line) => line.replace(/^\s*intent:\s*/, '').replace(/^"/, '').replace(/"$/, ''))
-        .filter((intent) =>
-          intent.match(/^(Navigate|Open|Go|Switch|Browse|Load|Visit|Access)\b/),
-        );
+        .filter((intent) => intent.match(/\b(Enter|Type|Fill in|Set|Input|Provide|Supply|Key in|Put in)\b/));
     });
 
-    // Should use some of the new templates (Switch, Browse, Load, Visit, Access)
-    const usesNewTemplates = navIntents.some((intent) =>
-      intent.startsWith('Switch') ||
-      intent.startsWith('Browse') ||
-      intent.startsWith('Load') ||
-      intent.startsWith('Visit') ||
-      intent.startsWith('Access'),
-    );
-    expect(usesNewTemplates).toBe(true);
-  });
-
-  test('vocab perturbation uses expanded synonym vocabulary', () => {
-    const result = planSyntheticScenarios({
-      catalog: CATALOG,
-      seed: 'vocab-expanded',
-      count: 80,
-      perturbation: { vocab: 1.0 },
-    });
-
-    const allIntents = result.plans.flatMap((plan) => {
-      const lines = plan.yaml.split('\n');
-      return lines
-        .filter((line) => line.includes('intent:'))
-        .map((line) => line.replace(/^\s*intent:\s*/, '').replace(/^"/, '').replace(/"$/, ''));
-    });
-
-    const allText = allIntents.join(' ');
-
-    // Should contain at least some of the new synonym families
-    const newSynonymMatches = [
-      /\bquery\b/i, /\blook up\b/i,           // search synonyms
-      /\brecords\b/i, /\blistings\b/i,         // results synonyms
-      /\binsurance policy\b/i, /\baccount\b/i,  // policy synonyms
-      /\binformation\b/i, /\boverview\b/i,      // detail synonyms
-      /\bgrid\b/i, /\bdata view\b/i,           // table synonyms
-    ].filter((pattern) => pattern.test(allText));
-
-    expect(newSynonymMatches.length).toBeGreaterThan(0);
-  });
-});
-
-test.describe('PhrasingProvider contract laws', () => {
-  test('custom PhrasingProvider replaces template text in generated scenarios', () => {
-    const agenticPhrasing: PhrasingProvider = (request): PhrasingResult => ({
-      actionText: `AGENTIC: ${request.action} on ${request.screenAlias}/${request.elementAlias ?? 'screen'}`,
-      expectedText: `AGENTIC: verified ${request.elementAlias ?? request.screenAlias}`,
-      source: 'agentic',
-    });
-
-    const result = planSyntheticScenarios({
-      catalog: CATALOG,
-      seed: 'phrasing-provider',
-      count: 5,
-      phrasingProvider: agenticPhrasing,
-    });
-
-    const allIntents = result.plans.flatMap((plan) => {
-      const lines = plan.yaml.split('\n');
-      return lines
-        .filter((line) => line.includes('intent:'))
-        .map((line) => line.replace(/^\s*intent:\s*/, '').replace(/^"/, '').replace(/"$/, ''));
-    });
-
-    // Every step should use the agentic phrasing
-    expect(allIntents.length).toBeGreaterThan(0);
-    for (const intent of allIntents) {
-      expect(intent).toContain('AGENTIC:');
+    for (const intent of inputSteps) {
+      expect(intent).toContain('a valid value');
     }
   });
 
-  test('templatePhrasing is used by default and produces template-sourced results', () => {
-    const result = templatePhrasing(
-      { action: 'click', screenId: 'test-screen', screenAlias: 'test', elementId: 'btn', elementAlias: 'submit button', value: '' },
-      () => 0.5,
-    );
-
-    expect(result.source).toBe('template');
-    expect(result.actionText).toContain('submit button');
-    expect(result.expectedText).toContain('submit button');
-  });
-
-  test('vocab perturbation is skipped for agentic-sourced text', () => {
-    const agenticPhrasing: PhrasingProvider = (request): PhrasingResult => ({
-      actionText: `Make sure the search results load properly for ${request.elementAlias ?? 'screen'}`,
-      expectedText: `search results are visible`,
-      source: 'agentic',
-    });
-
+  test('dataVariation=1 uses posture-driven values', () => {
     const result = planSyntheticScenarios({
-      catalog: CATALOG,
-      seed: 'agentic-no-vocab',
-      count: 10,
-      perturbation: { vocab: 1.0 },
-      phrasingProvider: agenticPhrasing,
+      catalog: CATALOG_WITH_POSTURES,
+      seed: 'data-full',
+      count: 30,
+      perturbation: { dataVariation: 1.0 },
     });
 
-    // Agentic text should NOT have vocab substitutions applied
-    const allIntents = result.plans.flatMap((plan) => {
+    const inputSteps = result.plans.flatMap((plan) => {
       const lines = plan.yaml.split('\n');
       return lines
         .filter((line) => line.includes('intent:'))
-        .map((line) => line.replace(/^\s*intent:\s*/, '').replace(/^"/, '').replace(/"$/, ''));
+        .map((line) => line.replace(/^\s*intent:\s*/, '').replace(/^"/, '').replace(/"$/, ''))
+        .filter((intent) => intent.match(/\b(Enter|Type|Fill in|Set|Input|Provide|Supply|Key in|Put in)\b/));
     });
 
-    // The word "search" should remain — not be replaced with "find", "lookup", etc.
-    const searchSteps = allIntents.filter((intent) => intent.includes('search'));
-    expect(searchSteps.length).toBeGreaterThan(0);
+    const usesPostureData = inputSteps.some((intent) =>
+      intent.includes('POL-001') || intent.includes('POL-002') || intent.includes('NOTAPOLICY'),
+    );
+    expect(usesPostureData).toBe(true);
   });
+});
 
-  test('PhrasingProvider determinism: same provider + seed = same output', () => {
-    const customPhrasing: PhrasingProvider = (request, rng): PhrasingResult => {
-      const variants = ['Version A', 'Version B', 'Version C'];
-      const idx = Math.floor(rng() * variants.length);
-      return {
-        actionText: `${variants[idx]} ${request.action} ${request.elementAlias ?? request.screenAlias}`,
-        expectedText: `${variants[idx]} verified`,
-        source: 'agentic',
-      };
-    };
+// --- Coverage gap laws ---
 
-    const config = {
+test.describe('coverage gap laws', () => {
+  test('coverageGap reduces step count compared to baseline', () => {
+    const resultNoCovGap = planSyntheticScenarios({
       catalog: CATALOG,
-      seed: 'determinism-test',
-      count: 8,
-      phrasingProvider: customPhrasing,
-    } as const;
+      seed: 'cov-zero',
+      count: 10,
+    });
 
-    const first = planSyntheticScenarios(config);
-    const second = planSyntheticScenarios(config);
+    const resultHighCovGap = planSyntheticScenarios({
+      catalog: CATALOG,
+      seed: 'cov-zero',
+      count: 10,
+      perturbation: { coverageGap: 0.8 },
+    });
 
-    expect(first.plans.map((plan) => plan.fingerprint)).toEqual(second.plans.map((plan) => plan.fingerprint));
+    const avgStepsNoCovGap = resultNoCovGap.plans.reduce((sum, plan) => {
+      const stepCount = plan.yaml.split('\n').filter((l) => l.includes('intent:')).length;
+      return sum + stepCount;
+    }, 0) / resultNoCovGap.plans.length;
+
+    const avgStepsHighCovGap = resultHighCovGap.plans.reduce((sum, plan) => {
+      const stepCount = plan.yaml.split('\n').filter((l) => l.includes('intent:')).length;
+      return sum + stepCount;
+    }, 0) / resultHighCovGap.plans.length;
+
+    expect(avgStepsNoCovGap).toBeGreaterThan(avgStepsHighCovGap);
   });
 });

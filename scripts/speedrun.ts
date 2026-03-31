@@ -4,8 +4,7 @@
  * Full mode:
  *   npx tsx scripts/speedrun.ts [--count N] [--seed S] [--seeds S1,S2,S3]
  *        [--max-iterations N] [--posture cold-start|warm-start|production]
- *        [--perturb-vocab V] [--perturb-alias-gap A] [--perturb-cross-screen C]
- *        [--perturb-coverage-gap G] [--perturb-data-var D] [--perturb-assertion-var R]
+ *        [--lexical-gap G] [--data-var D] [--coverage-gap G] [--cross-screen C]
  *        [--drift-count N]
  *
  * Segmented mode (step-through individual phases):
@@ -64,14 +63,12 @@ const maxIterations = Number(argVal('--max-iterations', '5'));
 const configPath = argVal('--config', '');
 const experimentTag = argVal('--tag', '');
 const substrate = argVal('--substrate', 'synthetic') as 'synthetic' | 'production' | 'hybrid';
-const perturbationRate = args.includes('--perturb') ? Number(argVal('--perturb', '0')) : 0;
-const perturbVocab = args.includes('--perturb-vocab') ? Number(argVal('--perturb-vocab', '0')) : 0;
-const perturbAliasGap = args.includes('--perturb-alias-gap') ? Number(argVal('--perturb-alias-gap', '0')) : 0;
-const perturbCrossScreen = args.includes('--perturb-cross-screen') ? Number(argVal('--perturb-cross-screen', '0')) : 0;
-const perturbCoverageGap = args.includes('--perturb-coverage-gap') ? Number(argVal('--perturb-coverage-gap', '0')) : 0;
-const perturbDataVar = args.includes('--perturb-data-var') ? Number(argVal('--perturb-data-var', '0')) : 0;
-const perturbAssertionVar = args.includes('--perturb-assertion-var') ? Number(argVal('--perturb-assertion-var', '0')) : 0;
-const hasFineGrainedPerturb = perturbVocab > 0 || perturbAliasGap > 0 || perturbCrossScreen > 0 || perturbCoverageGap > 0 || perturbDataVar > 0 || perturbAssertionVar > 0;
+const perturbationRate = args.includes('--lexical-gap') ? Number(argVal('--lexical-gap', '0')) : 0;
+const lexicalGap = args.includes('--lexical-gap') ? Number(argVal('--lexical-gap', '0')) : 0;
+const dataVariation = args.includes('--data-var') ? Number(argVal('--data-var', '0')) : 0;
+const coverageGap = args.includes('--coverage-gap') ? Number(argVal('--coverage-gap', '0')) : 0;
+const crossScreen = args.includes('--cross-screen') ? Number(argVal('--cross-screen', '0')) : 0;
+const hasFineGrainedPerturb = lexicalGap > 0 || dataVariation > 0 || coverageGap > 0 || crossScreen > 0;
 const driftCount = args.includes('--drift-count') ? Number(argVal('--drift-count', '0')) : 0;
 const explicitPosture = args.includes('--posture') ? argVal('--posture', '') as KnowledgePosture : undefined;
 
@@ -326,6 +323,7 @@ async function runFull(): Promise<void> {
   console.log(`Knowledge posture: ${knowledgePosture}`);
   console.log(`Seeds: ${seeds.join(', ')}`);
   console.log(`Count: ${count}, Max iterations: ${maxIterations}`);
+  if (lexicalGap > 0) console.log(`Lexical gap: ${lexicalGap}`);
   if (driftCount > 0) console.log(`Drift mutations: ${driftCount}`);
 
   const result = await runWithLocalServices(
@@ -337,7 +335,7 @@ async function runFull(): Promise<void> {
       maxIterations,
       substrate,
       perturbationRate: perturbationRate > 0 ? perturbationRate : undefined,
-      perturbation: hasFineGrainedPerturb ? { vocab: perturbVocab, aliasGap: perturbAliasGap, crossScreen: perturbCrossScreen, coverageGap: perturbCoverageGap, dataVariation: perturbDataVar, assertionVariation: perturbAssertionVar } : undefined,
+      perturbation: hasFineGrainedPerturb ? { lexicalGap, dataVariation, coverageGap, crossScreen } : undefined,
       tag: experimentTag || undefined,
       knowledgePosture,
       driftCount: driftCount > 0 ? driftCount : undefined,
