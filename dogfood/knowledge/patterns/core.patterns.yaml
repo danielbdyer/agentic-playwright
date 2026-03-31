@@ -1,0 +1,54 @@
+version: 1
+actions:
+  click:
+    id: core.click
+    aliases:
+      - press
+      - tap
+      - select
+      - hit
+      - click on
+  input:
+    id: core.input
+    aliases:
+      - enter
+      - type
+      - fill
+      - provide
+  navigate:
+    id: core.navigate
+    aliases:
+      - go to
+      - open
+      - visit
+      - browse to
+      - navigate to
+  assert-snapshot:
+    id: core.assert-snapshot
+    aliases:
+      - verify snapshot
+      - check snapshot
+      - compare snapshot
+postures:
+  valid:
+    id: core.valid
+    aliases:
+      - valid
+      - correct
+      - proper
+      - accepted
+  invalid:
+    id: core.invalid
+    aliases:
+      - invalid
+      - incorrect
+      - wrong
+      - rejected
+      - bad
+  empty:
+    id: core.empty
+    aliases:
+      - empty
+      - blank
+      - cleared
+      - no value

@@ -22,13 +22,6 @@ elements:
     surface: detail-fields
     widget: os-region
     required: true
-  underwriter:
-    role: text
-    name: Underwriter
-    testId: underwriter
-    surface: detail-fields
-    widget: os-region
-    required: false
   claimsTable:
     role: table
     name: Claims Table

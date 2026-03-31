@@ -17,3 +17,4 @@ export * from './types/experiment';
 export * from './types/workbench';
 export * from './types/dashboard';
 export * from './types/semantic-dictionary';
+export * from './types/architecture-fitness';

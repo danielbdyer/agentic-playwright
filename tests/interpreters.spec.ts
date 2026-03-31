@@ -19,6 +19,15 @@ function createHarness(widget: WidgetId = osButtonWidgetId) {
     },
     or: () => locator,
     locator: () => locator,
+    count: async () => 1,
+    isVisible: async () => true,
+    isEnabled: async () => true,
+    first: () => locator,
+    getAttribute: async () => null,
+    fill: async () => undefined,
+    selectOption: async () => undefined,
+    check: async () => undefined,
+    uncheck: async () => undefined,
   };
   const page = {
     locator: () => locator,

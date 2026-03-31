@@ -113,6 +113,7 @@ function makeValidTrustPolicy(next: () => number) {
       snapshot: makeRule(),
       hints: makeRule(),
       patterns: makeRule(),
+      routes: makeRule(),
     },
     forbiddenAutoHealClasses: next() > 0.5 ? [`class-${randomWord(next)}`] : [],
   };

@@ -30,7 +30,7 @@ export function charShingles(text: string, n: number = DEFAULT_N): ReadonlySet<s
   const normalized = normalizeIntentText(text);
   if (normalized.length < n) return new Set();
   const shingles = new Set<string>();
-  for (let i = 0; i <= normalized.length - n; i++) {
+  for (const i of Array.from({ length: normalized.length - n + 1 }, (_, k) => k)) {
     shingles.add(normalized.slice(i, i + n));
   }
   return shingles;
@@ -45,7 +45,7 @@ export function shingleTermFrequencies(text: string, n: number = DEFAULT_N): Rea
   if (normalized.length < n) return new Map();
   const counts = new Map<string, number>();
   const total = normalized.length - n + 1;
-  for (let i = 0; i < total; i++) {
+  for (const i of Array.from({ length: total }, (_, k) => k)) {
     const shingle = normalized.slice(i, i + n);
     counts.set(shingle, (counts.get(shingle) ?? 0) + 1);
   }
@@ -108,32 +108,26 @@ export function tfidfCosineSimilarity(
 ): number {
   if (queryTf.size === 0 || entryTf.size === 0) return 0;
 
-  // Collect the union of shingles present in both
-  let dotProduct = 0;
-  let queryNorm = 0;
-  let entryNorm = 0;
-
-  // Query vector magnitude and dot product contribution
-  for (const [shingle, tf] of queryTf) {
+  // Query vector: compute dot product and query norm in one pass
+  const queryAcc = [...queryTf].reduce((acc, [shingle, tf]) => {
     const idf = idfWeights.get(shingle) ?? 0;
     const qWeight = tf * idf;
-    queryNorm += qWeight * qWeight;
-
     const eTf = entryTf.get(shingle);
-    if (eTf !== undefined) {
-      dotProduct += qWeight * (eTf * idf);
-    }
-  }
+    return {
+      dot: acc.dot + (eTf !== undefined ? qWeight * (eTf * idf) : 0),
+      qNorm: acc.qNorm + qWeight * qWeight,
+    };
+  }, { dot: 0, qNorm: 0 });
 
   // Entry vector magnitude (full pass needed for norm)
-  for (const [shingle, tf] of entryTf) {
+  const entryNorm = [...entryTf].reduce((acc, [shingle, tf]) => {
     const idf = idfWeights.get(shingle) ?? 0;
     const eWeight = tf * idf;
-    entryNorm += eWeight * eWeight;
-  }
+    return acc + eWeight * eWeight;
+  }, 0);
 
-  if (queryNorm === 0 || entryNorm === 0) return 0;
-  return dotProduct / (Math.sqrt(queryNorm) * Math.sqrt(entryNorm));
+  if (queryAcc.qNorm === 0 || entryNorm === 0) return 0;
+  return queryAcc.dot / (Math.sqrt(queryAcc.qNorm) * Math.sqrt(entryNorm));
 }
 
 // ─── Composite Similarity ───
@@ -232,12 +226,12 @@ function buildInvertedIndex(entries: ReadonlyMap<string, ShingleIndexEntry>): Re
   const inverted = new Map<string, Set<string>>();
   for (const [entryId, entryData] of entries) {
     for (const shingle of entryData.shingles) {
-      let ids = inverted.get(shingle);
-      if (!ids) {
-        ids = new Set();
-        inverted.set(shingle, ids);
+      const existing = inverted.get(shingle);
+      if (existing) {
+        existing.add(entryId);
+      } else {
+        inverted.set(shingle, new Set([entryId]));
       }
-      ids.add(entryId);
     }
   }
   return inverted;
@@ -291,12 +285,12 @@ export function addEntryToShingleIndex(
     updatedInverted.set(shingle, new Set(ids));
   }
   for (const shingle of shingles) {
-    let ids = updatedInverted.get(shingle);
-    if (!ids) {
-      ids = new Set();
-      updatedInverted.set(shingle, ids);
+    const existing = updatedInverted.get(shingle);
+    if (existing) {
+      existing.add(entry.id);
+    } else {
+      updatedInverted.set(shingle, new Set([entry.id]));
     }
-    ids.add(entry.id);
   }
 
   const totalShingles = [...updatedEntries.values()].reduce((sum, e) => sum + e.shingles.size, 0);
@@ -348,11 +342,10 @@ export function buildShingleIndex(
 
   // Index by entry ID
   const entries = new Map<string, ShingleIndexEntry>();
-  let totalShingles = 0;
   for (const entry of entryData) {
     entries.set(entry.entryId, entry);
-    totalShingles += entry.shingles.size;
   }
+  const totalShingles = entryData.reduce((sum, e) => sum + e.shingles.size, 0);
 
   // Build inverted index for O(Q) candidate lookup
   const invertedIndex = buildInvertedIndex(entries);

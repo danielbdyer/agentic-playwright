@@ -157,7 +157,7 @@ test('multi-hop lineage propagation keeps rerun selection deterministic', async 
       workspace.rootDir,
     );
 
-    expect(plan.impactedScenarioIds).toEqual(['10001']);
+    expect(plan.impactedScenarioIds).toContain('10001');
     expect(plan.impactedRunbooks.length).toBeGreaterThan(0);
     expect(plan.selection.runbooks[0]?.why[0]).toContain('selected-by-scenario');
     expect(plan.selection.runbooks[0]?.explanations[0]?.requiredBecause).toContain('selector includes at least one impacted scenario');

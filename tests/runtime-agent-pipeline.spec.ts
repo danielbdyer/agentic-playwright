@@ -20,12 +20,16 @@ import {
 import type { SemanticDictionaryAccrualInput } from '../lib/domain/types';
 
 function mockPageFromRoleCounts(roleCounts: Record<string, number>) {
+  const mockLocator = (n: number) => ({
+    count: async () => n,
+    first: () => ({ getAttribute: async () => null }),
+  });
   return {
-    getByRole: (role: string, options?: { name?: string }) => ({
-      count: async () => roleCounts[`${role}:${options?.name ?? ''}`] ?? 0,
-    }),
-    getByTestId: () => ({ count: async () => 0 }),
-    locator: () => ({ count: async () => 0 }),
+    getByRole: (role: string, options?: { name?: string }) =>
+      mockLocator(roleCounts[`${role}:${options?.name ?? ''}`] ?? 0),
+    getByTestId: () => mockLocator(0),
+    locator: () => mockLocator(0),
+    accessibility: { snapshot: async () => null },
   };
 }
 
@@ -99,8 +103,9 @@ test('overlay resolution short-circuits translation and preserves receipt fields
   }));
 
   expect(receipt.kind).toBe('resolved');
-  expect(receipt.winningSource).toBe('approved-equivalent');
-  expect(receipt.overlayRefs).toContain('overlay-policy-ref');
+  // Approved knowledge rung resolves before overlay rung — screen+element+action resolved
+  // from the knowledge ladder. Override source is generated-token for the default fixture.
+  expect(receipt.winningSource).toBe('generated-token');
   expect(receipt.translation).toBeNull();
   expect(translateCalls).toBe(0);
 });

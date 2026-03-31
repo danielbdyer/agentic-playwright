@@ -15,6 +15,7 @@ const validBoundStep = {
   posture: null,
   override: null,
   snapshot_template: null,
+  route_state: null,
   resolution: null,
   confidence: 'compiler-derived' as const,
   binding: {
