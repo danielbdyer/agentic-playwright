@@ -29,7 +29,7 @@ import {
   generatedTracePath,
   relativeProjectPath,
 } from './paths';
-import { FileSystem } from './ports';
+import { FileSystem } from './ports/infrastructure-ports';
 import {
   fingerprintProjectionArtifact,
   fingerprintProjectionOutput,

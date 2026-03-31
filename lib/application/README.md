@@ -73,3 +73,15 @@ fold.ts             → Result folding and aggregation
 - **Scenario execution**: `run.ts` → `execution/` pipeline
 - **Inspection**: `paths.ts`, `surface.ts`, `workflow.ts`, `trace.ts`, `impact.ts`
 - **Improvement**: `dogfood.ts`, `speedrun.ts`, `benchmark.ts`, `fitness.ts`
+
+## Port Ownership
+
+Application ports are organized by bounded context under `lib/application/ports/`:
+
+- **Execution context** (`execution-ports.ts`): `ExecutionContext`, `ExecutionScenarioRunner`, and execution step result/mode contracts.
+- **Intervention context** (`intervention-ports.ts`): `Dashboard` and `StageTracer` decision/projection ports.
+- **Observation context** (`observation-ports.ts`): `ScreenObserver`, `McpServer`, and MCP invocation/result contracts.
+- **Governance context** (`governance-ports.ts`): `VersionControl` governance/reset boundary.
+- **Infrastructure context** (`infrastructure-ports.ts`): `FileSystem`, `AdoSource`, and `PipelineConfigService` host/environment boundaries.
+
+`lib/application/ports.ts` remains a thin compatibility barrel that re-exports each context module.

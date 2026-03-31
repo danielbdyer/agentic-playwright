@@ -45,7 +45,7 @@ import type {
   SemanticDictionaryTarget,
   SemanticRetrievalContext,
 } from '../domain/types';
-import { FileSystem } from './ports';
+import { FileSystem } from './ports/infrastructure-ports';
 import type { ProjectPaths } from './paths';
 
 // ─── Constants ───

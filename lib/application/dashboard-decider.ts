@@ -1,5 +1,5 @@
 import { Effect } from 'effect';
-import type { DashboardPort } from './ports';
+import type { DashboardPort } from './ports/intervention-ports';
 import type { WorkItemDecider } from './agent-workbench';
 import { dashboardEvent } from '../domain/types';
 

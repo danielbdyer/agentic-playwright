@@ -3,7 +3,7 @@ import { createDiagnostic } from '../domain/diagnostics';
 import type { AdoId } from '../domain/identity';
 import type { Manifest } from '../domain/types';
 import { validateAdoSnapshot, validateManifest } from '../domain/validation';
-import { AdoSource, FileSystem } from './ports';
+import { AdoSource, FileSystem } from './ports/infrastructure-ports';
 import type {
   ProjectPaths} from './paths';
 import {

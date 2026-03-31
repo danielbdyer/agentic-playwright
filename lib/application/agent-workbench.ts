@@ -17,7 +17,8 @@ import { groupBy } from '../domain/collections';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
 import { buildWorkflowHotspots, type WorkflowHotspot } from './hotspots';
 import type { ProjectPaths } from './paths';
-import { FileSystem, Dashboard } from './ports';
+import { FileSystem } from './ports/infrastructure-ports';
+import { Dashboard } from './ports/intervention-ports';
 import { dashboardEvent } from '../domain/types/intervention-context';
 import {
   combineScoringRules,

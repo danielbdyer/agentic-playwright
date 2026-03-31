@@ -1,6 +1,6 @@
 import { Effect } from 'effect';
-import { FileSystem } from '../application/ports';
-import type { RuntimeScenarioRunnerPort } from '../application/ports';
+import { FileSystem } from '../application/ports/infrastructure-ports';
+import type { ExecutionScenarioRunnerPort } from '../application/ports/execution-ports';
 import { createProjectPaths, type ProjectPaths } from '../application/paths';
 import { readTranslationCache, translationCacheKey, writeTranslationCache } from '../application/translation-cache';
 import {
@@ -95,9 +95,9 @@ export function bridgeAgentInterpreterForRuntime(provider: AgentInterpreterProvi
   };
 }
 
-/** Create a RuntimeScenarioRunnerPort with a specific agent interpreter provider.
+/** Create a ExecutionScenarioRunnerPort with a specific agent interpreter provider.
  *  This is the injection point for agent sessions, Copilot, and dashboard integrations. */
-function buildRunnerWithInterpreter(interpreterOverride?: AgentInterpreterProvider | undefined): RuntimeScenarioRunnerPort {
+function buildRunnerWithInterpreter(interpreterOverride?: AgentInterpreterProvider | undefined): ExecutionScenarioRunnerPort {
   return {
     runSteps(input) {
       return Effect.gen(function* () {
@@ -191,10 +191,10 @@ function buildRunnerWithInterpreter(interpreterOverride?: AgentInterpreterProvid
 }
 
 /** Default runner: resolves agent interpreter from environment (TESSERACT_AGENT_PROVIDER). */
-export const LocalRuntimeScenarioRunner: RuntimeScenarioRunnerPort = buildRunnerWithInterpreter();
+export const LocalRuntimeScenarioRunner: ExecutionScenarioRunnerPort = buildRunnerWithInterpreter();
 
 /** Factory: create a runner with a specific agent interpreter injected.
  *  Used by composition layer when an agent session provides its own interpreter. */
 export const createLocalRuntimeScenarioRunnerWithInterpreter = (
   interpreter: AgentInterpreterProvider,
-): RuntimeScenarioRunnerPort => buildRunnerWithInterpreter(interpreter);
+): ExecutionScenarioRunnerPort => buildRunnerWithInterpreter(interpreter);

@@ -8,7 +8,7 @@ import { renderGeneratedKnowledgeModule } from '../domain/typegen';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
 import type { ProjectPaths } from './paths';
 import { generatedKnowledgePath, relativeProjectPath } from './paths';
-import { FileSystem } from './ports';
+import { FileSystem } from './ports/infrastructure-ports';
 import {
   fingerprintProjectionArtifact,
   type ProjectionInputFingerprint,

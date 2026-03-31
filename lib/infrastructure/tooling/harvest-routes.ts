@@ -21,7 +21,7 @@ import { validateDiscoveryIndex, validateDiscoveryRun } from '../../domain/valid
 import { relativeProjectPath, type ProjectPaths } from '../../application/paths';
 import { loadWorkspaceCatalog } from '../../application/catalog';
 import type { WorkspaceCatalog } from '../../application/catalog';
-import { FileSystem } from '../../application/ports';
+import { FileSystem } from '../../application/ports/infrastructure-ports';
 import {
   observeStateRefsOnPage,
   observeTransitionOnPage,

@@ -11,7 +11,7 @@
  */
 
 import { Deferred, Duration, Effect, Ref } from 'effect';
-import type { DashboardPort } from '../../application/ports';
+import type { DashboardPort } from '../../application/ports/intervention-ports';
 import type { DashboardEvent, WorkItemDecision } from '../../domain/types';
 import type { AgentWorkItem } from '../../domain/types';
 import { dashboardEvent } from '../../domain/types';

@@ -8,7 +8,8 @@
 import path from 'path';
 import { Effect } from 'effect';
 import type { ProjectPaths } from './paths';
-import { FileSystem, VersionControl } from './ports';
+import { FileSystem } from './ports/infrastructure-ports';
+import { VersionControl } from './ports/governance-ports';
 
 /**
  * Wipe transient directories and restore knowledge to HEAD.

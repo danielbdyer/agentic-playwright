@@ -24,7 +24,7 @@ import { deriveGovernanceState } from './catalog/envelope';
 import { buildInterfaceResolutionContext } from './interface-resolution';
 import type { ProjectPaths } from './paths';
 import { relativeProjectPath, taskPacketPath } from './paths';
-import { FileSystem } from './ports';
+import { FileSystem } from './ports/infrastructure-ports';
 import {
   fingerprintProjectionArtifact,
   fingerprintProjectionOutput,

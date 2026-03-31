@@ -10,7 +10,7 @@ import type {
   InterventionStatus,
 } from '../domain/types';
 import type { ProjectPaths } from './paths';
-import { FileSystem } from './ports';
+import { FileSystem } from './ports/infrastructure-ports';
 
 interface ActionExecutionContext {
   readonly action: Approved<InterventionCommandAction>;

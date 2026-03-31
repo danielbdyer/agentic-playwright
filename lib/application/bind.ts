@@ -12,7 +12,7 @@ import { deriveGovernanceState } from './catalog/envelope';
 import { trySync } from './effect';
 import type { ProjectPaths } from './paths';
 import { boundPath, relativeProjectPath } from './paths';
-import { FileSystem } from './ports';
+import { FileSystem } from './ports/infrastructure-ports';
 import type { WorkspaceSession } from './workspace-session';
 
 function createStepDiagnostics(options: {

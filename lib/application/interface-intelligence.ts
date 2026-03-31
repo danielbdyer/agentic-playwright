@@ -63,7 +63,7 @@ import { readJsonArtifact } from './catalog/loaders';
 import type { ArtifactEnvelope, WorkspaceCatalog } from './catalog/types';
 import type { ProjectPaths } from './paths';
 import { relativeProjectPath } from './paths';
-import { FileSystem } from './ports';
+import { FileSystem } from './ports/infrastructure-ports';
 import {
   fingerprintProjectionArtifact,
   fingerprintProjectionOutput,

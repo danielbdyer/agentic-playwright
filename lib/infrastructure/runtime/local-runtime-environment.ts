@@ -1,4 +1,4 @@
-import type { RuntimeScenarioMode } from '../../application/ports';
+import type { RuntimeScenarioMode } from '../../application/ports/execution-ports';
 import type { ScreenId } from '../../domain/identity';
 import type { ScreenRegistry, SnapshotTemplateLoader } from '../../domain/runtime-loaders';
 import type { ExecutionPosture, RuntimeDomResolver, TranslationRequest, TranslationReceipt } from '../../domain/types';

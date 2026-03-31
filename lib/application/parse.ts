@@ -9,7 +9,7 @@ import { validateAdoSnapshot } from '../domain/validation';
 import { trySync } from './effect';
 import type { ProjectPaths} from './paths';
 import { relativeProjectPath, scenarioPath, snapshotPath } from './paths';
-import { FileSystem } from './ports';
+import { FileSystem } from './ports/infrastructure-ports';
 import type { WorkspaceSession } from './workspace-session';
 
 const fixtureReferencePattern = /\{\{\s*([A-Za-z0-9_-]+)(?:\.[^}]*)?\s*\}\}/g;

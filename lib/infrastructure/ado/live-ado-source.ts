@@ -1,4 +1,4 @@
-import type { AdoSourcePort } from '../../application/ports';
+import type { AdoSourcePort } from '../../application/ports/infrastructure-ports';
 import { Effect } from 'effect';
 import { computeAdoContentHash, normalizeHtmlText } from '../../domain/hash';
 import { createAdoId } from '../../domain/identity';

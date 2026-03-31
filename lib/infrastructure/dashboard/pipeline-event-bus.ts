@@ -30,7 +30,7 @@
 
 import type { Scope } from 'effect';
 import { Effect, Fiber, PubSub, Queue } from 'effect';
-import type { DashboardPort } from '../../application/ports';
+import type { DashboardPort } from '../../application/ports/intervention-ports';
 import type { DashboardEvent, WorkItemDecision } from '../../domain/types';
 import { dashboardEvent } from '../../domain/types';
 import { runForkFromRuntimeBoundary } from './runtime-boundary';

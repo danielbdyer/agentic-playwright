@@ -10,7 +10,8 @@ import { executeInterventionBatch } from './intervention-kernel';
 import { buildRerunPlan } from './rerun-plan';
 import type { ProjectPaths } from './paths';
 import { approvalReceiptPath, relativeProjectPath } from './paths';
-import { ExecutionContext, FileSystem } from './ports';
+import { ExecutionContext } from './ports/execution-ports';
+import { FileSystem } from './ports/infrastructure-ports';
 import type { ApprovalReceipt, ProposalEntry, RerunPlan } from '../domain/types';
 import type { ActionExecutionResult } from './intervention-kernel';
 

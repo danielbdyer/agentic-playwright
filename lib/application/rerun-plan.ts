@@ -5,7 +5,7 @@ import { executeInterventionBatch } from './intervention-kernel';
 import { findProposalById } from './operator';
 import type { ProjectPaths } from './paths';
 import { relativeProjectPath, rerunPlanPath } from './paths';
-import { FileSystem } from './ports';
+import { FileSystem } from './ports/infrastructure-ports';
 import { policyDecisionGraphTarget } from './trust-policy';
 import { TesseractError } from '../domain/errors';
 import { sha256, stableStringify } from '../domain/hash';

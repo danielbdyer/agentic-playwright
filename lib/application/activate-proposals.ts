@@ -3,11 +3,11 @@ import { Effect } from 'effect';
 import type { AutoApprovalPolicy, ProposalBundle, ProposalEntry, TrustPolicy } from '../domain/types';
 import { GovernanceLattice } from '../domain/algebra/lattice';
 import type { ProjectPaths } from './paths';
-import { FileSystem } from './ports';
+import { FileSystem } from './ports/infrastructure-ports';
 import { trySync } from './effect';
 import { applyProposalPatch, parseProposalArtifact, serializeProposalArtifact, validatePatchedProposalArtifact } from './proposal-patches';
 import { evaluateAutoApproval } from '../domain/trust-policy';
-import type { FileSystemPort } from './ports';
+import type { FileSystemPort } from './ports/infrastructure-ports';
 
 function certificationForProposal(proposal: ProposalEntry): ProposalEntry['certification'] {
   return proposal.trustPolicy.decision === 'allow' ? 'certified' : 'uncertified';

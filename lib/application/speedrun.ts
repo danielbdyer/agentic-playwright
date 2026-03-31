@@ -31,7 +31,9 @@ import { buildImprovementRun, recordImprovementRun, scorecardPath } from './impr
 import { recordExperiment } from './experiment-registry';
 import { loadWorkspaceCatalog } from './catalog';
 import { cleanSlateProgram } from './clean-slate';
-import { Dashboard, FileSystem, VersionControl } from './ports';
+import { Dashboard } from './ports/intervention-ports';
+import { FileSystem } from './ports/infrastructure-ports';
+import { VersionControl } from './ports/governance-ports';
 import { validateRunRecord } from '../domain/validation';
 import { decodeUnknownEither } from '../domain/schemas/decode';
 import type {
