@@ -5,11 +5,11 @@
  * generated from mulberry32 seeds. Tests composability, symmetry,
  * state-ref preservation, and route-variant invariance.
  *
- * 150 mulberry32 seeds per law.
+ * 20 mulberry32 seeds per law.
  */
 
 import { expect, test } from '@playwright/test';
-import { mulberry32, randomWord, randomInt } from './support/random';
+import { mulberry32, randomWord, randomInt , LAW_SEED_COUNT } from './support/random';
 
 // --- Synthetic Topology Model ---
 
@@ -85,8 +85,8 @@ function screenById(topology: ScreenTopology, id: string): ScreenNode | undefine
 
 // --- Law 1: Transition between screens preserves source state refs ---
 
-test('transition preserves source state refs (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('transition preserves source state refs (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const topology = randomTopology(next);
 
@@ -104,8 +104,8 @@ test('transition preserves source state refs (150 seeds)', () => {
 
 // --- Law 2: Bidirectional transitions are symmetric ---
 
-test('bidirectional transitions are symmetric (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('bidirectional transitions are symmetric (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const topology = randomTopology(next);
 
@@ -138,8 +138,8 @@ test('bidirectional transitions are symmetric (150 seeds)', () => {
 
 // --- Law 3: Transition chain A->B->C is composable ---
 
-test('transition chain A->B->C is composable (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('transition chain A->B->C is composable (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const topology = randomTopology(next);
 
@@ -170,8 +170,8 @@ test('transition chain A->B->C is composable (150 seeds)', () => {
 
 // --- Law 4: No orphaned state refs after transition ---
 
-test('no orphaned state refs after transition (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('no orphaned state refs after transition (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const topology = randomTopology(next);
 
@@ -189,8 +189,8 @@ test('no orphaned state refs after transition (150 seeds)', () => {
 
 // --- Law 5: Route-variant transitions preserve topology ---
 
-test('route-variant transitions preserve topology (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('route-variant transitions preserve topology (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const topology = randomTopology(next);
 

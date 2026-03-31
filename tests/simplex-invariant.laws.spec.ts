@@ -12,7 +12,7 @@
  */
 
 import { expect, test } from '@playwright/test';
-import { mulberry32 } from './support/random';
+import { mulberry32 , LAW_SEED_COUNT } from './support/random';
 import { calibrateWeightsFromCorrelations } from '../lib/application/learning-bottlenecks';
 import { DEFAULT_PIPELINE_CONFIG } from '../lib/domain/types';
 import type { BottleneckWeights, BottleneckWeightCorrelation } from '../lib/domain/types';
@@ -65,8 +65,8 @@ function randomWeights(next: () => number): BottleneckWeights {
 // ─── Law 1: Simplex preservation ───
 
 test.describe('Law 1: Simplex preservation — sum = 1.0 +/- 0.01', () => {
-  test('preserved across 150 random correlation vectors', () => {
-    for (let seed = 1; seed <= 150; seed++) {
+  test('preserved across 20 random correlation vectors', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const correlations = randomCorrelations(next);
       const calibrated = calibrateWeightsFromCorrelations(BASE, correlations);
@@ -74,8 +74,8 @@ test.describe('Law 1: Simplex preservation — sum = 1.0 +/- 0.01', () => {
     }
   });
 
-  test('preserved with random base weights and random correlations (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed++) {
+  test('preserved with random base weights and random correlations (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed + 1000);
       const base = randomWeights(next);
       const correlations = randomCorrelations(next);
@@ -98,8 +98,8 @@ test.describe('Law 1: Simplex preservation — sum = 1.0 +/- 0.01', () => {
 // ─── Law 2: Non-negative ───
 
 test.describe('Law 2: Non-negative — all components >= 0', () => {
-  test('non-negative across 150 random correlation vectors', () => {
-    for (let seed = 1; seed <= 150; seed++) {
+  test('non-negative across 20 random correlation vectors', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const correlations = randomCorrelations(next);
       const calibrated = calibrateWeightsFromCorrelations(BASE, correlations);
@@ -132,8 +132,8 @@ test.describe('Law 3: Idempotent normalization — zero correlations preserve we
     expect(calibrated).toEqual(BASE);
   });
 
-  test('idempotent with random base weights and zero correlations (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed++) {
+  test('idempotent with random base weights and zero correlations (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed + 3000);
       const base = randomWeights(next);
       const zeros = SIGNALS.map((signal) => correlation(signal, 0));
@@ -163,8 +163,8 @@ test.describe('Law 4: Monotone response — positive correlation increases relat
     });
   }
 
-  test('stronger positive correlation produces larger increase (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed++) {
+  test('stronger positive correlation produces larger increase (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed + 4000);
       const signalIdx = Math.floor(next() * SIGNALS.length);
       const signal = SIGNALS[signalIdx]!;

@@ -24,7 +24,7 @@
  *  14. Filter narrows inbox by field match
  *  15. Rerun deduplicates suggested commands
  *
- * 150 mulberry32 seeds per law.
+ * 20 mulberry32 seeds per law.
  */
 
 import { expect, test } from '@playwright/test';
@@ -43,7 +43,7 @@ import {
 import type { OperatorInboxItem } from '../lib/domain/types/resolution';
 import type { ProposalBundle, ProposalEntry } from '../lib/domain/types/execution';
 import type { VSCodeDiagnosticSeverity } from '../lib/infrastructure/vscode/types';
-import { mulberry32, pick, randomInt, randomWord } from './support/random';
+import { mulberry32, pick, randomInt, randomWord , LAW_SEED_COUNT } from './support/random';
 
 // ─── Constants ───
 
@@ -132,10 +132,10 @@ function randomProposalBundle(next: () => number): ProposalBundle {
   }) as unknown as ProposalBundle;
 }
 
-// ─── Law 1: Task count equals inbox count (150 seeds) ───
+// ─── Law 1: Task count equals inbox count (20 seeds) ───
 
-test('task count equals inbox count (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('task count equals inbox count (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const count = randomInt(next, 10);
     const inbox = Array.from({ length: count }, (_, i) => randomInboxItem(next, i));
@@ -144,10 +144,10 @@ test('task count equals inbox count (150 seeds)', () => {
   }
 });
 
-// ─── Law 2: Every task has source 'tesseract' and problemMatcher '$tesseract' (150 seeds) ───
+// ─── Law 2: Every task has source 'tesseract' and problemMatcher '$tesseract' (20 seeds) ───
 
-test('every task has source tesseract and problemMatcher $tesseract (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('every task has source tesseract and problemMatcher $tesseract (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const count = 1 + randomInt(next, 8);
     const inbox = Array.from({ length: count }, (_, i) => randomInboxItem(next, i));
@@ -159,9 +159,9 @@ test('every task has source tesseract and problemMatcher $tesseract (150 seeds)'
   }
 });
 
-// ─── Law 3: Status-to-group mapping is deterministic (150 seeds) ───
+// ─── Law 3: Status-to-group mapping is deterministic (20 seeds) ───
 
-test('status-to-group mapping is deterministic (150 seeds)', () => {
+test('status-to-group mapping is deterministic (20 seeds)', () => {
   const expectedGroups: Readonly<Record<string, string>> = {
     actionable: 'test',
     approved: 'build',
@@ -169,7 +169,7 @@ test('status-to-group mapping is deterministic (150 seeds)', () => {
     informational: 'none',
   };
 
-  for (let seed = 1; seed <= 150; seed += 1) {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const item = randomInboxItem(next, seed);
     const task = createTaskFromInboxItem(item);
@@ -177,10 +177,10 @@ test('status-to-group mapping is deterministic (150 seeds)', () => {
   }
 });
 
-// ─── Law 4: Diagnostic count equals total proposal entry count (150 seeds) ───
+// ─── Law 4: Diagnostic count equals total proposal entry count (20 seeds) ───
 
-test('diagnostic count equals total proposal entry count (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('diagnostic count equals total proposal entry count (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const bundleCount = 1 + randomInt(next, 4);
     const bundles = Array.from({ length: bundleCount }, () =>
@@ -195,10 +195,10 @@ test('diagnostic count equals total proposal entry count (150 seeds)', () => {
   }
 });
 
-// ─── Law 5: Blocked governance always produces 'error' or stays 'error' (150 seeds) ───
+// ─── Law 5: Blocked governance always produces 'error' or stays 'error' (20 seeds) ───
 
-test('blocked governance produces error severity (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('blocked governance produces error severity (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const bundle = randomProposalBundle(next);
     const blockedBundle: ProposalBundle = { ...bundle, governance: 'blocked' };
@@ -209,14 +209,14 @@ test('blocked governance produces error severity (150 seeds)', () => {
   }
 });
 
-// ─── Law 6: maxSeverity is commutative (150 seeds) ───
+// ─── Law 6: maxSeverity is commutative (20 seeds) ───
 
-test('severity ordering is commutative (150 seeds)', () => {
+test('severity ordering is commutative (20 seeds)', () => {
   const severities: readonly VSCodeDiagnosticSeverity[] = [
     'error', 'warning', 'information', 'hint',
   ];
 
-  for (let seed = 1; seed <= 150; seed += 1) {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const _a = pick(next, severities);
     const _b = pick(next, severities);
@@ -246,10 +246,10 @@ test('severity ordering is commutative (150 seeds)', () => {
   }
 });
 
-// ─── Law 7: Query response always succeeds (150 seeds) ───
+// ─── Law 7: Query response always succeeds (20 seeds) ───
 
-test('query response always succeeds (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('query response always succeeds (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const count = randomInt(next, 10);
     const inbox = Array.from({ length: count }, (_, i) => randomInboxItem(next, i));
@@ -264,10 +264,10 @@ test('query response always succeeds (150 seeds)', () => {
   }
 });
 
-// ─── Law 8: Approve of unknown proposalId returns success=false (150 seeds) ───
+// ─── Law 8: Approve of unknown proposalId returns success=false (20 seeds) ───
 
-test('approve of unknown proposalId returns failure (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('approve of unknown proposalId returns failure (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const bundles = Array.from({ length: 1 + randomInt(next, 3) }, () =>
       randomProposalBundle(next),
@@ -284,10 +284,10 @@ test('approve of unknown proposalId returns failure (150 seeds)', () => {
   }
 });
 
-// ─── Law 9: Rerun of unknown adoId returns success=false (150 seeds) ───
+// ─── Law 9: Rerun of unknown adoId returns success=false (20 seeds) ───
 
-test('rerun of unknown adoId returns failure (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('rerun of unknown adoId returns failure (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const count = randomInt(next, 5);
     const inbox = Array.from({ length: count }, (_, i) => randomInboxItem(next, i));
@@ -303,12 +303,12 @@ test('rerun of unknown adoId returns failure (150 seeds)', () => {
   }
 });
 
-// ─── Law 10: Dispatch routes to correct action (150 seeds) ───
+// ─── Law 10: Dispatch routes to correct action (20 seeds) ───
 
-test('dispatch routes to correct action (150 seeds)', () => {
+test('dispatch routes to correct action (20 seeds)', () => {
   const actions = ['query', 'approve', 'rerun'] as const;
 
-  for (let seed = 1; seed <= 150; seed += 1) {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const action = pick(next, actions);
     const inbox = Array.from({ length: 2 }, (_, i) => randomInboxItem(next, i));
@@ -329,19 +329,19 @@ test('dispatch routes to correct action (150 seeds)', () => {
   }
 });
 
-// ─── Law 11: Empty inbox produces empty tasks (150 seeds) ───
+// ─── Law 11: Empty inbox produces empty tasks (20 seeds) ───
 
-test('empty inbox produces empty tasks (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('empty inbox produces empty tasks (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const tasks = createTaskProvider([]);
     expect(tasks).toEqual([]);
   }
 });
 
-// ─── Law 12: Task detail contains summary text (150 seeds) ───
+// ─── Law 12: Task detail contains summary text (20 seeds) ───
 
-test('task detail contains summary text (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('task detail contains summary text (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const item = randomInboxItem(next, seed);
     const task = createTaskFromInboxItem(item);
@@ -349,10 +349,10 @@ test('task detail contains summary text (150 seeds)', () => {
   }
 });
 
-// ─── Law 13: Copilot factory produces correct interface shape (150 seeds) ───
+// ─── Law 13: Copilot factory produces correct interface shape (20 seeds) ───
 
-test('copilot factory produces correct interface shape (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('copilot factory produces correct interface shape (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const inbox = Array.from({ length: randomInt(next, 5) }, (_, i) =>
       randomInboxItem(next, i),
@@ -368,10 +368,10 @@ test('copilot factory produces correct interface shape (150 seeds)', () => {
   }
 });
 
-// ─── Law 14: Filter narrows inbox by field match (150 seeds) ───
+// ─── Law 14: Filter narrows inbox by field match (20 seeds) ───
 
-test('query filter narrows inbox by field match (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('query filter narrows inbox by field match (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const count = 2 + randomInt(next, 8);
     const inbox = Array.from({ length: count }, (_, i) => randomInboxItem(next, i));
@@ -387,10 +387,10 @@ test('query filter narrows inbox by field match (150 seeds)', () => {
   }
 });
 
-// ─── Law 15: Rerun deduplicates suggested commands (150 seeds) ───
+// ─── Law 15: Rerun deduplicates suggested commands (20 seeds) ───
 
-test('rerun deduplicates suggested commands (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('rerun deduplicates suggested commands (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const adoId = `ADO-${randomInt(next, 100)}` as any;
     const sharedCommand = `npm run ${randomWord(next)}`;

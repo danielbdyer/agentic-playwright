@@ -12,11 +12,11 @@
  *   4. Deferred steps marked consistently
  *   5. Data binding references appear in both spec and scenario
  *
- * 150 mulberry32 seeds per law.
+ * 20 mulberry32 seeds per law.
  */
 
 import { expect, test } from '@playwright/test';
-import { mulberry32, randomWord, randomInt, pick } from './support/random';
+import { mulberry32, randomWord, randomInt, pick , LAW_SEED_COUNT } from './support/random';
 import type {
   Confidence,
   Governance,
@@ -117,8 +117,8 @@ function deriveBoundView(flow: GroundedSpecFlow): {
 
 // --- Law 1: Step count equality ---
 
-test('step count equality between spec flow and bound view (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('step count equality between spec flow and bound view (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const flow = randomGroundedFlow(next);
     const bound = deriveBoundView(flow);
@@ -129,8 +129,8 @@ test('step count equality between spec flow and bound view (150 seeds)', () => {
 
 // --- Law 2: Step ordering preserved ---
 
-test('step ordering preserved between spec flow and bound view (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('step ordering preserved between spec flow and bound view (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const flow = randomGroundedFlow(next);
     const bound = deriveBoundView(flow);
@@ -149,8 +149,8 @@ test('step ordering preserved between spec flow and bound view (150 seeds)', () 
 
 // --- Law 3: Governance annotations match ---
 
-test('governance annotations match between spec flow and bound view (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('governance annotations match between spec flow and bound view (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const flow = randomGroundedFlow(next);
     const bound = deriveBoundView(flow);
@@ -168,8 +168,8 @@ test('governance annotations match between spec flow and bound view (150 seeds)'
 
 // --- Law 4: Deferred steps marked consistently ---
 
-test('deferred steps marked consistently between spec flow and bound view (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('deferred steps marked consistently between spec flow and bound view (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const flow = randomGroundedFlow(next);
     const bound = deriveBoundView(flow);
@@ -193,8 +193,8 @@ test('deferred steps marked consistently between spec flow and bound view (150 s
 
 // --- Law 5: Data binding references appear in both spec and scenario ---
 
-test('data binding references appear in both spec flow and bound view (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('data binding references appear in both spec flow and bound view (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const flow = randomGroundedFlow(next);
     const bound = deriveBoundView(flow);

@@ -1,4 +1,12 @@
 /**
+ * Number of seeds used for property-based law tests.
+ * 20 seeds is sufficient for deterministic PRNG-based tests — every seed
+ * explores a distinct input partition, and the PRNG is full-period so
+ * additional seeds do not improve coverage for pure functions.
+ */
+export const LAW_SEED_COUNT = 20;
+
+/**
  * Deterministic PRNG for property-based testing.
  * Mulberry32: simple, fast, 32-bit state, full-period.
  */

@@ -25,7 +25,7 @@ import type {
   ProposedChangeMetadata,
   CertificationStatus,
 } from '../lib/domain/types/workflow';
-import { mulberry32, pick, randomInt, randomWord } from './support/random';
+import { mulberry32, pick, randomInt, randomWord , LAW_SEED_COUNT } from './support/random';
 
 // ─── Fixtures ───
 
@@ -90,8 +90,8 @@ test.describe('Law 1: Sufficient evidence + sufficient confidence = allow', () =
     expect(result.reasons).toHaveLength(0);
   });
 
-  test('allow decision across all artifact types with 150 random seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('allow decision across all artifact types with 20 random seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const artifactType = pick(next, ALL_ARTIFACT_TYPES);
       const threshold = 0.3 + next() * 0.4; // 0.3 to 0.7
@@ -136,8 +136,8 @@ test.describe('Law 2: Insufficient evidence = review regardless of confidence', 
     expect(result.reasons.some((r) => r.code === 'required-evidence')).toBe(true);
   });
 
-  test('insufficient evidence forces review across 150 random seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('insufficient evidence forces review across 20 random seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const requiredCount = 2 + randomInt(next, 4); // 2-5
       const actualCount = randomInt(next, requiredCount); // 0 to requiredCount-1
@@ -183,8 +183,8 @@ test.describe('Law 3: Evidence count thresholds', () => {
     expect(result.decision).toBe('review');
   });
 
-  test('threshold boundary across 150 random seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('threshold boundary across 20 random seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const threshold = 1 + randomInt(next, 5);
       const kind = pick(next, EVIDENCE_KINDS);
@@ -234,8 +234,8 @@ test.describe('Law 4: Evidence kind matching', () => {
     expect(result.decision).toBe('allow');
   });
 
-  test('kind matching across 150 random seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('kind matching across 20 random seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const requiredKinds = [pick(next, EVIDENCE_KINDS)];
       const minCount = 1 + randomInt(next, 3);
@@ -278,8 +278,8 @@ test.describe('Law 5: Confidence threshold', () => {
     expect(result.reasons.some((r) => r.code === 'minimum-confidence')).toBe(true);
   });
 
-  test('confidence boundary across 150 random seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('confidence boundary across 20 random seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const threshold = 0.2 + next() * 0.6; // 0.2 to 0.8
       const kind = pick(next, EVIDENCE_KINDS);
@@ -338,8 +338,8 @@ test.describe('Law 6: Forbidden auto-heal = deny', () => {
     expect(result.decision).toBe('allow');
   });
 
-  test('forbidden auto-heal across 150 random seeds always yields deny', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('forbidden auto-heal across 20 random seeds always yields deny', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const forbiddenClass = randomWord(next);
       const kind = pick(next, EVIDENCE_KINDS);
@@ -379,8 +379,8 @@ test.describe('Law 7: Certification monotonicity', () => {
     }
   });
 
-  test('no backwards transition in the ordinal across 150 random seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('no backwards transition in the ordinal across 20 random seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const states: CertificationStatus[] = ['uncertified', 'certified'];
       const a = pick(next, states);

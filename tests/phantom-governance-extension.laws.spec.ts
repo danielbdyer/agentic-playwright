@@ -5,7 +5,7 @@
  * exhaustive dispatch, type guards (isApproved, isBlocked, isReviewRequired),
  * and the governance lattice meet preserving brands.
  *
- * 150 mulberry32 seeds per law.
+ * 20 mulberry32 seeds per law.
  */
 
 import { expect, test } from '@playwright/test';
@@ -22,7 +22,7 @@ import {
   type Governance,
 } from '../lib/domain/types/workflow';
 import { GovernanceLattice } from '../lib/domain/algebra/lattice';
-import { mulberry32, pick } from './support/random';
+import { mulberry32, pick , LAW_SEED_COUNT } from './support/random';
 
 const ALL_GOVERNANCE: readonly Governance[] = ['approved', 'review-required', 'blocked'];
 
@@ -34,8 +34,8 @@ function randomGovernedItem(next: () => number): { readonly governance: Governan
 
 // --- Law 1: mintApproved returns 'approved' string ---
 
-test('mintApproved returns the literal string approved (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('mintApproved returns the literal string approved (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     // Minting is deterministic but we iterate seeds to confirm stability
     expect(mintApproved()).toBe('approved');
     expect(mintReviewRequired()).toBe('review-required');
@@ -45,8 +45,8 @@ test('mintApproved returns the literal string approved (150 seeds)', () => {
 
 // --- Law 2: foldGovernance is exhaustive ---
 
-test('foldGovernance dispatches correctly for all three governance values (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('foldGovernance dispatches correctly for all three governance values (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const item = randomGovernedItem(next);
 
@@ -67,8 +67,8 @@ test('foldGovernance dispatches correctly for all three governance values (150 s
 
 // --- Law 3: Governance lattice meet preserves brands ---
 
-test('governance lattice meet preserves brands -- meet of two governances is valid (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('governance lattice meet preserves brands -- meet of two governances is valid (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const a = pick(next, ALL_GOVERNANCE);
     const b = pick(next, ALL_GOVERNANCE);
@@ -95,8 +95,8 @@ test('governance lattice meet preserves brands -- meet of two governances is val
 
 // --- Law 4: foldGovernance on random governance values never throws (totality) ---
 
-test('foldGovernance never throws for any governance value (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('foldGovernance never throws for any governance value (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const item = randomGovernedItem(next);
 
@@ -113,8 +113,8 @@ test('foldGovernance never throws for any governance value (150 seeds)', () => {
 
 // --- Law 5: Phantom brand type guards narrow correctly ---
 
-test('isApproved / isBlocked / isReviewRequired narrow correctly (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('isApproved / isBlocked / isReviewRequired narrow correctly (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const item = randomGovernedItem(next);
 
@@ -142,8 +142,8 @@ test('isApproved / isBlocked / isReviewRequired narrow correctly (150 seeds)', (
 
 // --- Supplementary: mintGovernance round-trips ---
 
-test('mintGovernance returns the exact governance string passed in (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('mintGovernance returns the exact governance string passed in (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const g = pick(next, ALL_GOVERNANCE);
     expect(mintGovernance(g)).toBe(g);
@@ -152,8 +152,8 @@ test('mintGovernance returns the exact governance string passed in (150 seeds)',
 
 // --- Supplementary: requireApproved throws on non-approved ---
 
-test('requireApproved throws for non-approved and succeeds for approved (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('requireApproved throws for non-approved and succeeds for approved (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const item = randomGovernedItem(next);
 

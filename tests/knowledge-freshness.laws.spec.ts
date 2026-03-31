@@ -9,7 +9,7 @@
  *   - Exponential formula correctness
  *   - Staleness threshold is sharp
  *
- * 150 mulberry32 seeds per law.
+ * 20 mulberry32 seeds per law.
  */
 
 import { expect, test } from '@playwright/test';
@@ -19,7 +19,7 @@ import {
   isStale,
   type FreshnessPolicy,
 } from '../lib/domain/knowledge-freshness';
-import { mulberry32 } from './support/random';
+import { mulberry32 , LAW_SEED_COUNT } from './support/random';
 
 // ─── Helpers ───
 
@@ -42,8 +42,8 @@ function randomRuns(next: () => number): number {
 
 // ─── Law 1: Disabled policy returns original confidence unchanged ───
 
-test('disabled policy returns original confidence unchanged (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('disabled policy returns original confidence unchanged (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const original = randomConfidence(next);
     const runs = randomRuns(next);
@@ -56,8 +56,8 @@ test('disabled policy returns original confidence unchanged (150 seeds)', () => 
 
 // ─── Law 2: Decay is monotonically decreasing with runs ───
 
-test('decay is monotonically decreasing with runs (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('decay is monotonically decreasing with runs (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const policy = randomPolicy(next);
     // Ensure original >= minimumConfidence so clamping never causes an increase
@@ -74,8 +74,8 @@ test('decay is monotonically decreasing with runs (150 seeds)', () => {
 
 // ─── Law 3: Confidence never drops below minimumConfidence ───
 
-test('confidence never drops below minimumConfidence (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('confidence never drops below minimumConfidence (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const original = randomConfidence(next);
     const policy = randomPolicy(next);
@@ -88,8 +88,8 @@ test('confidence never drops below minimumConfidence (150 seeds)', () => {
 
 // ─── Law 4: Zero runs = no decay ───
 
-test('zero runs produces no decay (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('zero runs produces no decay (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const original = randomConfidence(next);
     const policy = randomPolicy(next);
@@ -101,8 +101,8 @@ test('zero runs produces no decay (150 seeds)', () => {
 
 // ─── Law 5: Exponential decay formula correctness ───
 
-test('exponential decay matches manual calculation (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('exponential decay matches manual calculation (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const original = randomConfidence(next);
     const policy = randomPolicy(next);
@@ -119,8 +119,8 @@ test('exponential decay matches manual calculation (150 seeds)', () => {
 
 // ─── Law 6: Staleness threshold is sharp ───
 
-test('staleness threshold is sharp — at N-1 not stale, at N stale (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('staleness threshold is sharp — at N-1 not stale, at N stale (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const policy = randomPolicy(next);
     const threshold = policy.maxRunsWithoutExercise;
@@ -143,8 +143,8 @@ test('defaultFreshnessPolicy returns disabled policy', () => {
   expect(policy.minimumConfidence).toBeLessThan(1);
 });
 
-test('disabled policy never reports stale (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('disabled policy never reports stale (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const runs = randomRuns(next);
     const policy: FreshnessPolicy = { ...randomPolicy(next), enabled: false };

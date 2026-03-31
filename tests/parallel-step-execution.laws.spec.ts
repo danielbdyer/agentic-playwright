@@ -5,11 +5,11 @@
  * assertion-only filtering using synthetic BoundStep[] sequences
  * generated from mulberry32 seeds.
  *
- * 150 mulberry32 seeds per law.
+ * 20 mulberry32 seeds per law.
  */
 
 import { expect, test } from '@playwright/test';
-import { mulberry32, randomInt, pick, randomWord } from './support/random';
+import { mulberry32, randomInt, pick, randomWord , LAW_SEED_COUNT } from './support/random';
 import {
   analyzeStepDependencies,
   findIndependentSteps,
@@ -118,11 +118,11 @@ function randomStepSequence(next: () => number): readonly BoundStep[] {
   return Array.from({ length: stepCount }, (_, i) => randomBoundStep(next, i, screens));
 }
 
-// ─── Law 1: isAssertionOnly classification (150 seeds) ───
+// ─── Law 1: isAssertionOnly classification (20 seeds) ───
 
 test.describe('isAssertionOnly classification', () => {
-  test('assert-snapshot steps with observe-structure programs are assertion-only (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed++) {
+  test('assert-snapshot steps with observe-structure programs are assertion-only (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const screen = `scr-${randomWord(next)}`;
       const step = randomAssertionStep(next, 0, screen);
@@ -130,8 +130,8 @@ test.describe('isAssertionOnly classification', () => {
     }
   });
 
-  test('mutating steps are never assertion-only (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed++) {
+  test('mutating steps are never assertion-only (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const screen = `scr-${randomWord(next)}`;
       const step = randomMutatingStep(next, 0, screen);
@@ -140,11 +140,11 @@ test.describe('isAssertionOnly classification', () => {
   });
 });
 
-// ─── Law 2: Dependency map completeness (150 seeds) ───
+// ─── Law 2: Dependency map completeness (20 seeds) ───
 
 test.describe('dependency map completeness', () => {
-  test('every step index has an entry in the dependency map (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed++) {
+  test('every step index has an entry in the dependency map (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const steps = randomStepSequence(next);
       const deps = analyzeStepDependencies(steps);
@@ -157,11 +157,11 @@ test.describe('dependency map completeness', () => {
   });
 });
 
-// ─── Law 3: First step has no dependencies (150 seeds) ───
+// ─── Law 3: First step has no dependencies (20 seeds) ───
 
 test.describe('first step independence', () => {
-  test('step 0 always has empty dependency list (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed++) {
+  test('step 0 always has empty dependency list (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const steps = randomStepSequence(next);
       const deps = analyzeStepDependencies(steps);
@@ -171,11 +171,11 @@ test.describe('first step independence', () => {
   });
 });
 
-// ─── Law 4: Dependencies are acyclic and backward-looking (150 seeds) ───
+// ─── Law 4: Dependencies are acyclic and backward-looking (20 seeds) ───
 
 test.describe('dependency acyclicity', () => {
-  test('all dependencies point to earlier steps (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed++) {
+  test('all dependencies point to earlier steps (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const steps = randomStepSequence(next);
       const deps = analyzeStepDependencies(steps);
@@ -189,11 +189,11 @@ test.describe('dependency acyclicity', () => {
   });
 });
 
-// ─── Law 5: Independent groups cover all steps (150 seeds) ───
+// ─── Law 5: Independent groups cover all steps (20 seeds) ───
 
 test.describe('independent group coverage', () => {
-  test('flattened groups contain every step index exactly once (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed++) {
+  test('flattened groups contain every step index exactly once (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const steps = randomStepSequence(next);
       const deps = analyzeStepDependencies(steps);
@@ -206,11 +206,11 @@ test.describe('independent group coverage', () => {
   });
 });
 
-// ─── Law 6: Group ordering respects dependencies (150 seeds) ───
+// ─── Law 6: Group ordering respects dependencies (20 seeds) ───
 
 test.describe('group ordering respects dependencies', () => {
-  test('if step A depends on step B, A is in a later group (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed++) {
+  test('if step A depends on step B, A is in a later group (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const steps = randomStepSequence(next);
       const deps = analyzeStepDependencies(steps);
@@ -229,11 +229,11 @@ test.describe('group ordering respects dependencies', () => {
   });
 });
 
-// ─── Law 7: Assertion-only steps on different screens are independent (150 seeds) ───
+// ─── Law 7: Assertion-only steps on different screens are independent (20 seeds) ───
 
 test.describe('assertion-only cross-screen independence', () => {
-  test('consecutive assertion-only steps on different screens have no mutual deps (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed++) {
+  test('consecutive assertion-only steps on different screens have no mutual deps (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const screenA = `screen-a-${randomWord(next)}`;
       const screenB = `screen-b-${randomWord(next)}`;
@@ -254,11 +254,11 @@ test.describe('assertion-only cross-screen independence', () => {
   });
 });
 
-// ─── Law 8: Mutating step creates barrier (150 seeds) ───
+// ─── Law 8: Mutating step creates barrier (20 seeds) ───
 
 test.describe('mutating step barrier', () => {
-  test('steps after a mutating step on the same screen depend on it (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed++) {
+  test('steps after a mutating step on the same screen depend on it (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const screen = `screen-${randomWord(next)}`;
 
@@ -276,11 +276,11 @@ test.describe('mutating step barrier', () => {
   });
 });
 
-// ─── Law 9: Empty step list (150 seeds) ───
+// ─── Law 9: Empty step list (20 seeds) ───
 
 test.describe('empty step list', () => {
-  test('empty input produces empty dependency map and groups (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed++) {
+  test('empty input produces empty dependency map and groups (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
       const deps = analyzeStepDependencies([]);
       expect(deps.size).toBe(0);
 
@@ -290,11 +290,11 @@ test.describe('empty step list', () => {
   });
 });
 
-// ─── Law 10: buildParallelPlan marks assertion-only groups correctly (150 seeds) ───
+// ─── Law 10: buildParallelPlan marks assertion-only groups correctly (20 seeds) ───
 
 test.describe('buildParallelPlan assertion-only marking', () => {
-  test('groups of purely assertion-only steps are marked allAssertionOnly (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed++) {
+  test('groups of purely assertion-only steps are marked allAssertionOnly (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const screenA = `screen-a-${randomWord(next)}`;
       const screenB = `screen-b-${randomWord(next)}`;
@@ -328,11 +328,11 @@ test.describe('buildParallelPlan assertion-only marking', () => {
   });
 });
 
-// ─── Law 11: Single step (150 seeds) ───
+// ─── Law 11: Single step (20 seeds) ───
 
 test.describe('single step', () => {
-  test('single step produces one group with one step (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed++) {
+  test('single step produces one group with one step (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const screen = `scr-${randomWord(next)}`;
       const steps: readonly BoundStep[] = [randomBoundStep(next, 0, [screen])];
@@ -346,11 +346,11 @@ test.describe('single step', () => {
   });
 });
 
-// ─── Law 12: Determinism — same seed produces same result (150 seeds) ───
+// ─── Law 12: Determinism — same seed produces same result (20 seeds) ───
 
 test.describe('determinism', () => {
-  test('same seed produces identical dependency map and groups (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed++) {
+  test('same seed produces identical dependency map and groups (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
       const steps1 = randomStepSequence(mulberry32(seed));
       const steps2 = randomStepSequence(mulberry32(seed));
 

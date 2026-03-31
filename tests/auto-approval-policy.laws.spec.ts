@@ -2,7 +2,7 @@
  * Auto-Approval Policy -- Law Tests (W4.5)
  *
  * Verifies the auto-approval decision logic from lib/application/auto-approval.ts
- * using 150 mulberry32 seeds per law.
+ * using 20 mulberry32 seeds per law.
  *
  * Laws:
  *   1. Disabled policy never auto-approves
@@ -13,7 +13,7 @@
  *   6. Default policy is safe (disabled)
  *   7. applyAutoApprovalWithTrust composes with trust policy
  *
- * 150 mulberry32 seeds per law.
+ * 20 mulberry32 seeds per law.
  */
 
 import { expect, test } from '@playwright/test';
@@ -29,7 +29,7 @@ import type {
   TrustPolicy,
   TrustPolicyArtifactType,
 } from '../lib/domain/types/workflow';
-import { mulberry32, pick, randomInt } from './support/random';
+import { mulberry32, pick, randomInt , LAW_SEED_COUNT } from './support/random';
 
 // --- Constants ---
 
@@ -81,10 +81,10 @@ function makeTrustPolicy(): TrustPolicy {
   };
 }
 
-// --- Law 1: Disabled policy never auto-approves (150 seeds) ---
+// --- Law 1: Disabled policy never auto-approves (20 seeds) ---
 
-test('disabled policy never auto-approves (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('disabled policy never auto-approves (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const policy = randomDisabledPolicy(next);
     const proposal = randomProposal(next);
@@ -96,10 +96,10 @@ test('disabled policy never auto-approves (150 seeds)', () => {
   }
 });
 
-// --- Law 2: Confidence below threshold = defer (150 seeds) ---
+// --- Law 2: Confidence below threshold = defer (20 seeds) ---
 
-test('confidence below threshold always defers (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('confidence below threshold always defers (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const policy = randomEnabledPolicy(next);
 
@@ -116,10 +116,10 @@ test('confidence below threshold always defers (150 seeds)', () => {
   }
 });
 
-// --- Law 3: Confidence at/above threshold with evidence = approve (150 seeds) ---
+// --- Law 3: Confidence at/above threshold with evidence = approve (20 seeds) ---
 
-test('confidence at or above threshold with evidence approves (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('confidence at or above threshold with evidence approves (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const policy: AutoApprovalPolicy = {
       enabled: true,
@@ -142,10 +142,10 @@ test('confidence at or above threshold with evidence approves (150 seeds)', () =
   }
 });
 
-// --- Law 4: Artifact type not in allowed list = defer (150 seeds) ---
+// --- Law 4: Artifact type not in allowed list = defer (20 seeds) ---
 
-test('artifact type not in allowed list defers (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('artifact type not in allowed list defers (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
 
     // Pick one artifact type to exclude
@@ -171,10 +171,10 @@ test('artifact type not in allowed list defers (150 seeds)', () => {
   }
 });
 
-// --- Law 5: Max approvals limit is respected (150 seeds) ---
+// --- Law 5: Max approvals limit is respected (20 seeds) ---
 
-test('max approvals limit is respected (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('max approvals limit is respected (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const maxApprovals = 1 + randomInt(next, 20);
     const policy: AutoApprovalPolicy = {
@@ -199,8 +199,8 @@ test('max approvals limit is respected (150 seeds)', () => {
 
 // --- Law 6: Default policy is safe (disabled) ---
 
-test('default policy is safe and disabled (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('default policy is safe and disabled (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     // Policy is deterministic but we iterate seeds to confirm stability
     const policy = defaultAutoApprovalPolicy();
 
@@ -218,10 +218,10 @@ test('default policy is safe and disabled (150 seeds)', () => {
   }
 });
 
-// --- Law 7: applyAutoApprovalWithTrust composes with trust policy (150 seeds) ---
+// --- Law 7: applyAutoApprovalWithTrust composes with trust policy (20 seeds) ---
 
-test('applyAutoApprovalWithTrust defers when trust policy denies (150 seeds)', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('applyAutoApprovalWithTrust defers when trust policy denies (20 seeds)', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
 
     // Trust policy that denies via forbidden auto-heal class

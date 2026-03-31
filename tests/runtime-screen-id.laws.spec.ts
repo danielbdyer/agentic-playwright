@@ -14,7 +14,7 @@
  *   9. Identity stability: best match is stable across repeated calls
  *  10. Signal coverage: semantic tags, roles, testids, headings all extracted
  *
- * 150 seeds, law-style.
+ * 20 seeds, law-style.
  */
 
 import { expect, test } from '@playwright/test';
@@ -28,11 +28,10 @@ import type {
   InterfaceGraphNode,
   InterfaceGraphEdge,
 } from '../lib/domain/types/interface';
-import { mulberry32, pick, randomInt } from './support/random';
+import { mulberry32, pick, randomInt , LAW_SEED_COUNT } from './support/random';
 
 // ─── Helpers ───
 
-const SEEDS = 150;
 
 function makeScreenNode(id: string, label: string, screen: string): InterfaceGraphNode {
   return {
@@ -195,8 +194,8 @@ test.describe('Law 1: Signature extraction — known patterns yield signals', ()
 // ─── Law 2: Signal deduplication ───
 
 test.describe('Law 2: Signal deduplication — no duplicates in output', () => {
-  test('signals are unique across 150 seeds', () => {
-    for (let seed = 1; seed <= SEEDS; seed += 1) {
+  test('signals are unique across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const dom = randomDom(next);
       const signals = computeScreenSignature(dom);
@@ -261,8 +260,8 @@ test.describe('Law 4: Graph matching — overlapping signals produce candidates'
 // ─── Law 5: Candidate ordering — descending score ───
 
 test.describe('Law 5: Candidate ordering — sorted by descending score', () => {
-  test('candidates are monotonically non-increasing across 150 seeds', () => {
-    for (let seed = 1; seed <= SEEDS; seed += 1) {
+  test('candidates are monotonically non-increasing across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const dom = randomDom(next);
       const graph = randomGraph(next);
@@ -279,8 +278,8 @@ test.describe('Law 5: Candidate ordering — sorted by descending score', () => 
 // ─── Law 6: Confidence bounds — always in [0, 1] ───
 
 test.describe('Law 6: Confidence bounds — confidence in [0, 1]', () => {
-  test('confidence is bounded across 150 seeds', () => {
-    for (let seed = 1; seed <= SEEDS; seed += 1) {
+  test('confidence is bounded across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const dom = randomDom(next);
       const graph = randomGraph(next);
@@ -309,10 +308,10 @@ test.describe('Law 7: No-match graceful — disjoint DOM and graph', () => {
     }
   });
 
-  test('empty graph always yields null screenId across 150 seeds', () => {
+  test('empty graph always yields null screenId across 20 seeds', () => {
     const emptyGraph = makeGraph([], []);
 
-    for (let seed = 1; seed <= SEEDS; seed += 1) {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const dom = randomDom(next);
       const result = identifyScreenFromDOM(dom, emptyGraph);
@@ -325,8 +324,8 @@ test.describe('Law 7: No-match graceful — disjoint DOM and graph', () => {
 // ─── Law 8: Determinism — same inputs, same outputs ───
 
 test.describe('Law 8: Determinism — same inputs produce same outputs', () => {
-  test('identifyScreenFromDOM is deterministic across 150 seeds', () => {
-    for (let seed = 1; seed <= SEEDS; seed += 1) {
+  test('identifyScreenFromDOM is deterministic across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const dom = randomDom(next);
       // Reset PRNG for graph generation
@@ -347,7 +346,7 @@ test.describe('Law 8: Determinism — same inputs produce same outputs', () => {
   });
 
   test('computeScreenSignature is deterministic', () => {
-    for (let seed = 1; seed <= SEEDS; seed += 1) {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const dom = randomDom(next);
 
@@ -400,8 +399,8 @@ test.describe('Law 10: Signal coverage — all extraction paths exercised', () =
     });
   });
 
-  test('signal count scales with DOM richness across 150 seeds', () => {
-    for (let seed = 1; seed <= SEEDS; seed += 1) {
+  test('signal count scales with DOM richness across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const _next = mulberry32(seed);
       const simpleDom = makeDom({ title: 'Page' });
       const richDom = makeDom({

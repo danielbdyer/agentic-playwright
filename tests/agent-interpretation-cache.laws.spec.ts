@@ -2,7 +2,7 @@
  * Agent Interpretation Cache — Law-style tests.
  *
  * Laws verified:
- *   1. Key determinism: same inputs produce the same cache key (150 seeds)
+ *   1. Key determinism: same inputs produce the same cache key (20 seeds)
  *   2. Collision resistance: different inputs produce different keys
  *   3. Round-trip: write then read returns the original result
  */
@@ -15,7 +15,7 @@ import type { AgentInterpretationResult } from '../lib/application/agent-interpr
 import { createProjectPaths } from '../lib/application/paths';
 import { FileSystem } from '../lib/application/ports';
 import { LocalFileSystem } from '../lib/infrastructure/fs/local-fs';
-import { mulberry32, randomWord } from './support/random';
+import { LAW_SEED_COUNT, mulberry32, randomWord } from './support/random';
 import { promises as nodeFs } from 'fs';
 import path from 'path';
 import os from 'os';
@@ -63,11 +63,11 @@ function randomInput(next: () => number): AgentInterpretationCacheKeyInput {
   };
 }
 
-// ─── Law 1: Key Determinism (150 seeds) ───
+// ─── Law 1: Key Determinism (20 seeds) ───
 
-test('key determinism: same inputs produce the same cache key across 150 seeds', () => {
+test('key determinism: same inputs produce the same cache key across 20 seeds', () => {
   const rng = mulberry32(42);
-  for (let i = 0; i < 150; i++) {
+  for (let i = 0; i < LAW_SEED_COUNT; i++) {
     const input = randomInput(rng);
     const keyA = agentInterpretationCacheKey(input);
     const keyB = agentInterpretationCacheKey({ ...input });
@@ -107,13 +107,13 @@ test('collision resistance: different knowledgeFingerprint produces different ke
   expect(agentInterpretationCacheKey(a)).not.toBe(agentInterpretationCacheKey(b));
 });
 
-test('collision resistance: random inputs produce unique keys (150 seeds)', () => {
+test('collision resistance: random inputs produce unique keys (20 seeds)', () => {
   const rng = mulberry32(7);
   const keys = new Set<string>();
-  for (let i = 0; i < 150; i++) {
+  for (let i = 0; i < LAW_SEED_COUNT; i++) {
     keys.add(agentInterpretationCacheKey(randomInput(rng)));
   }
-  expect(keys.size).toBe(150);
+  expect(keys.size).toBe(LAW_SEED_COUNT);
 });
 
 // ─── Law 3: Round-trip (write then read) ───

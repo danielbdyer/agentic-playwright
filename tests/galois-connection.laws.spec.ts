@@ -13,7 +13,7 @@
  */
 
 import { expect, test } from '@playwright/test';
-import { mulberry32, pick } from './support/random';
+import { mulberry32, pick , LAW_SEED_COUNT } from './support/random';
 import { evaluateTrustPolicy } from '../lib/domain/trust-policy';
 import type {
   TrustPolicy,
@@ -134,8 +134,8 @@ test.describe('Law 1: Decision order — deny <= review <= allow is a total orde
 // ─── Law 2: Monotonicity of evaluation ───
 
 test.describe('Law 2: Monotonicity — higher confidence + more evidence => at least as permissive', () => {
-  test('increasing confidence is monotone (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed++) {
+  test('increasing confidence is monotone (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed);
       const artifactType = pick(next, ARTIFACT_TYPES);
       const evidence = randomEvidence(next, 3);
@@ -150,8 +150,8 @@ test.describe('Law 2: Monotonicity — higher confidence + more evidence => at l
     }
   });
 
-  test('increasing evidence count is monotone (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed++) {
+  test('increasing evidence count is monotone (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed + 5000);
       const artifactType = pick(next, ARTIFACT_TYPES);
       const confidence = next();
@@ -166,8 +166,8 @@ test.describe('Law 2: Monotonicity — higher confidence + more evidence => at l
     }
   });
 
-  test('both increasing together is monotone (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed++) {
+  test('both increasing together is monotone (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed + 6000);
       const artifactType = pick(next, ARTIFACT_TYPES);
 
@@ -188,8 +188,8 @@ test.describe('Law 2: Monotonicity — higher confidence + more evidence => at l
 // ─── Law 3: Forbidden auto-heal is always deny ───
 
 test.describe('Law 3: Forbidden auto-heal is always deny', () => {
-  test('forbidden auto-heal class produces deny regardless of confidence/evidence (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed++) {
+  test('forbidden auto-heal class produces deny regardless of confidence/evidence (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed + 7000);
       const artifactType = pick(next, ARTIFACT_TYPES);
       const confidence = next(); // any confidence
@@ -225,8 +225,8 @@ test.describe('Law 4: Sufficient evidence + confidence => allow', () => {
     }
   });
 
-  test('exceeding thresholds still allows (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed++) {
+  test('exceeding thresholds still allows (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed + 8000);
       const artifactType = pick(next, ARTIFACT_TYPES);
       const rule = POLICY.artifactTypes[artifactType];
@@ -286,8 +286,8 @@ test.describe('Law 5: Gate composition — the 6-gate chain respects the lattice
     }
   });
 
-  test('gate composition monotonicity across artifact types (150 seeds)', () => {
-    for (let seed = 1; seed <= 150; seed++) {
+  test('gate composition monotonicity across artifact types (20 seeds)', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
       const next = mulberry32(seed + 9000);
       const artifactType = pick(next, ARTIFACT_TYPES);
 

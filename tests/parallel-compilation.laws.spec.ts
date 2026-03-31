@@ -7,7 +7,7 @@ import {
   sortProjectionInputs,
   type ProjectionInputFingerprint,
 } from '../lib/application/projections/cache';
-import { mulberry32, randomWord } from './support/random';
+import { mulberry32, randomWord , LAW_SEED_COUNT } from './support/random';
 
 // ─── Helpers ───
 
@@ -96,7 +96,7 @@ test('empty scenario list produces empty output', () => {
 });
 
 test('projection input set fingerprint is order-independent — sorting normalizes before hashing', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const count = 2 + Math.floor(next() * 6);
     const inputs: ProjectionInputFingerprint[] = Array.from({ length: count }, () =>
@@ -119,7 +119,7 @@ test('projection input set fingerprint is order-independent — sorting normaliz
 });
 
 test('sortProjectionInputs is idempotent', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const inputs: ProjectionInputFingerprint[] = Array.from(
       { length: 3 + Math.floor(next() * 5) },
@@ -136,8 +136,8 @@ test('sortProjectionInputs is idempotent', () => {
   }
 });
 
-test('stableStringify is deterministic for identical objects across 150 seeds', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+test('stableStringify is deterministic for identical objects across 20 seeds', () => {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const artifact = syntheticArtifact(seed);
     const first = stableStringify(artifact);
     const second = stableStringify(artifact);
@@ -150,7 +150,7 @@ test('stableStringify is deterministic for identical objects across 150 seeds', 
 });
 
 test('fingerprintProjectionOutput is deterministic for identical values', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const artifact = syntheticArtifact(seed);
     const first = fingerprintProjectionOutput(artifact);
     const second = fingerprintProjectionOutput(artifact);

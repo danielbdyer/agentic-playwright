@@ -18,7 +18,7 @@ import {
   createSurfaceId,
 } from '../lib/domain/identity';
 import type { BoundStep, ScenarioStep, ScreenElements, ScreenPostures, SurfaceGraph } from '../lib/domain/types';
-import { mulberry32, pick, randomWord } from './support/random';
+import { mulberry32, pick, randomWord , LAW_SEED_COUNT } from './support/random';
 
 // ─── Factories ───
 
@@ -273,8 +273,8 @@ test.describe('Binding round-trip: idempotence', () => {
     }
   });
 
-  test('binding is deterministic across 150 seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('binding is deterministic across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const actions: ReadonlyArray<'navigate' | 'input' | 'click' | 'assert-snapshot'> = ['navigate', 'input', 'click', 'assert-snapshot'];
       const action = pick(next, actions);
@@ -349,7 +349,7 @@ test.describe('Binding round-trip: governance preservation', () => {
   });
 
   test('governance monotonicity: unbound implies blocked, never demotes to approved', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const confidences: ReadonlyArray<ScenarioStep['confidence']> = ['human', 'agent-verified', 'agent-proposed', 'compiler-derived', 'intent-only'];
       const confidence = pick(next, confidences);

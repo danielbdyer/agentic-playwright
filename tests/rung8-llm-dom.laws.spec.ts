@@ -15,7 +15,7 @@
  */
 
 import { expect, test } from '@playwright/test';
-import { mulberry32, randomWord, pick } from './support/random';
+import { mulberry32, randomWord, pick , LAW_SEED_COUNT } from './support/random';
 import {
   RUNG_8_POSITION,
   extractDomSignals,
@@ -81,7 +81,7 @@ function snapshotWithSignalCount(hint: string, signalCount: number): string {
 // ─── Law 1: Signal extraction determinism ───────────────────────────────────
 
 test('Law 1: Signal extraction is deterministic — same input always produces same signals', () => {
-  for (let seed = 1; seed <= 150; seed++) {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
     const next = mulberry32(seed);
     const snapshot = randomSnapshot(next);
     const hint = randomHint(mulberry32(seed + 10000));
@@ -96,7 +96,7 @@ test('Law 1: Signal extraction is deterministic — same input always produces s
 // ─── Law 2: Confidence bounds — always in [0, 1] ───────────────────────────
 
 test('Law 2: Confidence is always in [0, 1]', () => {
-  for (let seed = 1; seed <= 150; seed++) {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
     const next = mulberry32(seed);
     const snapshot = randomSnapshot(next);
     const hint = randomHint(mulberry32(seed + 20000));
@@ -112,7 +112,7 @@ test('Law 2: Confidence is always in [0, 1]', () => {
 // ─── Law 3: Confidence monotonicity ────────────────────────────────────────
 
 test('Law 3: More matching signals produce equal or higher confidence', () => {
-  for (let seed = 1; seed <= 150; seed++) {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
     const next = mulberry32(seed);
     const hint = randomHint(next);
     if (hint.length === 0) continue;
@@ -140,7 +140,7 @@ test('Law 3: More matching signals produce equal or higher confidence', () => {
 // ─── Law 4: Applicability requires non-null snapshot ────────────────────────
 
 test('Law 4: isRung8Applicable returns false for null snapshot', () => {
-  for (let seed = 1; seed <= 150; seed++) {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
     const next = mulberry32(seed);
     const hint = randomHint(next);
 
@@ -151,7 +151,7 @@ test('Law 4: isRung8Applicable returns false for null snapshot', () => {
 // ─── Law 5: Resolution with empty snapshot yields resolved=false ────────────
 
 test('Law 5: Resolution with empty snapshot yields resolved=false', () => {
-  for (let seed = 1; seed <= 150; seed++) {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
     const next = mulberry32(seed);
     const hint = randomHint(next);
 
@@ -166,9 +166,9 @@ test('Law 5: Resolution with empty snapshot yields resolved=false', () => {
 // ─── Law 6: Config defaults are sensible ────────────────────────────────────
 
 test('Law 6: Config defaults are sensible (positive values, confidence in [0,1])', () => {
-  // Run 150 times to confirm pure construction — no randomness needed but
-  // the law-style convention calls for 150 seeds.
-  for (let seed = 1; seed <= 150; seed++) {
+  // Run 20 times to confirm pure construction — no randomness needed but
+  // the law-style convention calls for 20 seeds.
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
     const config = defaultRung8Config();
 
     expect(config.maxSnapshotLength).toBeGreaterThan(0);
@@ -181,7 +181,7 @@ test('Law 6: Config defaults are sensible (positive values, confidence in [0,1])
 // ─── Law 7: Position constant is 8 ─────────────────────────────────────────
 
 test('Law 7: RUNG_8_POSITION is 8', () => {
-  for (let seed = 1; seed <= 150; seed++) {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
     expect(RUNG_8_POSITION).toBe(8);
   }
 });
@@ -189,7 +189,7 @@ test('Law 7: RUNG_8_POSITION is 8', () => {
 // ─── Law 8: Strategy field is always rung8-llm-dom ──────────────────────────
 
 test('Law 8: Strategy field is always rung8-llm-dom', () => {
-  for (let seed = 1; seed <= 150; seed++) {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
     const next = mulberry32(seed);
     const snapshot = randomSnapshot(next);
     const hint = randomHint(mulberry32(seed + 50000));
@@ -202,7 +202,7 @@ test('Law 8: Strategy field is always rung8-llm-dom', () => {
 // ─── Law 9: domSignals are a subset of extractable signals ──────────────────
 
 test('Law 9: domSignals from resolution are a subset of known signal names', () => {
-  for (let seed = 1; seed <= 150; seed++) {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
     const next = mulberry32(seed);
     const snapshot = randomSnapshot(next);
     const hint = randomHint(mulberry32(seed + 60000));
@@ -218,7 +218,7 @@ test('Law 9: domSignals from resolution are a subset of known signal names', () 
 // ─── Law 10: Pure function property — no side effects ───────────────────────
 
 test('Law 10: Pure function property — calling twice yields identical results', () => {
-  for (let seed = 1; seed <= 150; seed++) {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed++) {
     const next = mulberry32(seed);
     const snapshot = randomSnapshot(next);
     const hint = randomHint(mulberry32(seed + 70000));

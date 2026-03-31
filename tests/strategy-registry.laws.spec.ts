@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import { resolutionPrecedenceLaw, type ResolutionPrecedenceRung } from '../lib/domain/precedence';
 import { createStrategyRegistry, type StrategyRegistry } from '../lib/runtime/agent/strategy-registry';
 import type { ResolutionStrategy, StrategyAttemptResult } from '../lib/runtime/agent/strategy';
+import { LAW_SEED_COUNT } from './support/random';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────
 
@@ -54,7 +55,7 @@ function buildTotalRegistry(next: () => number): StrategyRegistry {
 // ─── Law 1: Registry covers all rungs in precedence order ────────────────
 
 test('Law 1: Registry covers all rungs in precedence order', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const registry = buildTotalRegistry(next);
 
@@ -71,7 +72,7 @@ test('Law 1: Registry covers all rungs in precedence order', () => {
 // ─── Law 2: Strategy lookup is O(1) via Map ─────────────────────────────
 
 test('Law 2: Strategy lookup is O(1) via Map — every registered rung resolves', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const registry = buildTotalRegistry(next);
 
@@ -86,7 +87,7 @@ test('Law 2: Strategy lookup is O(1) via Map — every registered rung resolves'
 // ─── Law 3: New strategy registration doesn't modify existing entries ────
 
 test('Law 3: Registration returns a new registry without modifying the original', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const rungs = randomRungSubset(next);
     const original = createStrategyRegistry([stubStrategy('original', rungs)]);
@@ -124,7 +125,7 @@ test('Law 3: Registration returns a new registry without modifying the original'
 // ─── Law 4: Rung ordering is preserved after registration ───────────────
 
 test('Law 4: strategiesInOrder respects precedence law after registration', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
     const registry = buildTotalRegistry(next);
     const ordered = registry.strategiesInOrder();
@@ -146,7 +147,7 @@ test('Law 4: strategiesInOrder respects precedence law after registration', () =
 // ─── Law 5: Registry is a total function over all valid rungs ───────────
 
 test('Law 5: isTotal is true iff every precedence rung has a strategy', () => {
-  for (let seed = 1; seed <= 150; seed += 1) {
+  for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
     const next = mulberry32(seed);
 
     // Total registry

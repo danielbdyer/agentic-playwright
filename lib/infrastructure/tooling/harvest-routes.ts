@@ -30,7 +30,7 @@ import {
   type PlaywrightStateObservationContext,
 } from '../../playwright/state-topology';
 import { discoverScreenScaffold } from './discover-screen';
-import { resolvePlaywrightHeadless, resolvePreferredPlaywrightChannel } from './browser-options';
+import { launchSharedBrowser, resolvePlaywrightHeadless, resolvePreferredPlaywrightChannel } from './browser-options';
 
 export interface HarvestRoutesResult {
   generatedAt: string;
@@ -282,6 +282,7 @@ async function collectBehaviorObservations(input: {
   screen: string;
   routeVariantRef: string;
   url: string;
+  sharedBrowser?: import('@playwright/test').Browser;
 }) {
   const stateGraph = buildHarvestStateGraph({ catalog: input.catalog, screen: input.screen });
   if (!stateGraph) {
@@ -308,9 +309,10 @@ async function collectBehaviorObservations(input: {
     };
   }
 
+  const ownsBrowser = !input.sharedBrowser;
   const environment = process.env;
   const channel = resolvePreferredPlaywrightChannel(environment);
-  const browser = await chromium.launch({
+  const browser = input.sharedBrowser ?? await chromium.launch({
     headless: resolvePlaywrightHeadless(environment),
     ...(channel ? { channel } : {}),
   });
@@ -318,7 +320,6 @@ async function collectBehaviorObservations(input: {
   try {
     const baselinePage = await browser.newPage();
     await baselinePage.goto(input.url, { waitUntil: 'load' });
-    await baselinePage.waitForLoadState('networkidle').catch(() => undefined);
     const baselineObservations = await observeStateRefsOnPage({
       page: baselinePage,
       context: observationContext,
@@ -353,7 +354,6 @@ async function collectBehaviorObservations(input: {
     for (const event of stateGraph.eventSignatures.filter((entry) => entry.screen === input.screen)) {
       const page = await browser.newPage();
       await page.goto(input.url, { waitUntil: 'load' });
-      await page.waitForLoadState('networkidle').catch(() => undefined);
 
       await primeRequiredStatesOnPage({
         page,
@@ -442,7 +442,9 @@ async function collectBehaviorObservations(input: {
       ),
     };
   } finally {
-    await browser.close();
+    if (ownsBrowser) {
+      await browser.close();
+    }
   }
 }
 
@@ -466,6 +468,10 @@ export function harvestDeclaredRoutes(options: {
     const receipts: string[] = [];
     const failures: HarvestRoutesResult['failures'] = [];
     const generatedAt = new Date().toISOString();
+
+    // Launch a single browser to reuse across all variants, avoiding the
+    // ~2-5s Chromium startup cost per variant pair (discover + behavior).
+    const sharedBrowser = yield* Effect.promise(() => launchSharedBrowser());
 
     for (const manifest of manifests) {
       const appIndexPath = path.join(options.paths.discoveryDir, manifest.artifact.app, 'index.json');
@@ -517,6 +523,7 @@ export function harvestDeclaredRoutes(options: {
               url: resolvedUrl,
               rootSelector: variant.rootSelector ?? route.rootSelector ?? 'body',
               paths: options.paths,
+              sharedBrowser,
             });
             const rawValue = yield* fs.readJson(discovery.crawlPath);
             const raw = rawValue as DiscoveryRun;
@@ -528,6 +535,7 @@ export function harvestDeclaredRoutes(options: {
               screen: variant.screen,
               routeVariantRef,
               url: resolvedUrl,
+              sharedBrowser,
             }));
             const receiptId = createDiscoveryReceiptId({
               app: manifest.artifact.app,
@@ -650,6 +658,8 @@ export function harvestDeclaredRoutes(options: {
         yield* fs.writeJson(appIndexPath, candidateIndex);
       }
     }
+
+    yield* Effect.promise(() => sharedBrowser.close());
 
     return {
       generatedAt,

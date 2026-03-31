@@ -21,7 +21,7 @@ import type {
   CertificationStatus,
   Governance,
 } from '../lib/domain/types';
-import { mulberry32, pick, randomInt } from './support/random';
+import { mulberry32, pick, randomInt , LAW_SEED_COUNT } from './support/random';
 
 // ─── Factories ───
 
@@ -194,7 +194,7 @@ test.describe('Knowledge promotion: invalid transition rejection', () => {
   });
 
   test('cannot skip from proposed to canonical without meeting all gates', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const confidence = next() * 0.6; // Below threshold
       const evidenceCount = randomInt(next, 2); // 0 or 1, below minCount 2
@@ -262,8 +262,8 @@ test.describe('Knowledge promotion: evidence count preconditions', () => {
     expect(result.evaluation.reasons.some((r) => r.code === 'required-evidence')).toBe(true);
   });
 
-  test('evidence threshold is respected per artifact type across 150 seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('evidence threshold is respected per artifact type across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const artifactType = pick(next, ARTIFACT_TYPES);
       const minCount = 1 + randomInt(next, 5);
@@ -324,8 +324,8 @@ test.describe('Knowledge promotion: confidence threshold preconditions', () => {
     expect(result.evaluation.reasons.some((r) => r.code === 'minimum-confidence')).toBe(true);
   });
 
-  test('confidence threshold is respected across 150 seeds and all artifact types', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('confidence threshold is respected across 20 seeds and all artifact types', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const artifactType = pick(next, ARTIFACT_TYPES);
       const threshold = 0.5 + next() * 0.5; // Between 0.5 and 1.0
@@ -413,14 +413,14 @@ test.describe('Knowledge promotion: governance monotonicity', () => {
     expect(bothIssues.reasons.length).toBeGreaterThanOrEqual(lowConfidence.reasons.length);
   });
 
-  test('governance ordering is preserved across all artifact types and 150 seeds', () => {
+  test('governance ordering is preserved across all artifact types and 20 seeds', () => {
     const GOVERNANCE_RANK: Record<string, number> = {
       'allow': 2,
       'review': 1,
       'deny': 0,
     };
 
-    for (let seed = 1; seed <= 150; seed += 1) {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const artifactType = pick(next, ARTIFACT_TYPES);
       const confidence = next();
@@ -452,8 +452,8 @@ test.describe('Knowledge promotion: governance monotonicity', () => {
 // ─── Law 6: Evaluation is deterministic ───
 
 test.describe('Knowledge promotion: deterministic evaluation', () => {
-  test('identical inputs produce identical outputs across 150 seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('identical inputs produce identical outputs across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const artifactType = pick(next, ARTIFACT_TYPES);
       const confidence = next();

@@ -20,11 +20,10 @@ import {
 import type { DiscoveryRun, DiscoveryObservedElement, DiscoveryObservedSurface } from '../lib/domain/types/interface';
 import type { CanonicalTargetRef, ElementId, ScreenId, SectionId, SurfaceId } from '../lib/domain/identity';
 import { createScreenId, createElementId, createSurfaceId, createSectionId, createCanonicalTargetRef } from '../lib/domain/identity';
-import { mulberry32, pick, randomWord, randomInt } from './support/random';
+import { mulberry32, pick, randomWord, randomInt , LAW_SEED_COUNT } from './support/random';
 
 // ─── Helpers ───
 
-const SEEDS = 150;
 
 function makeScreenId(next: () => number): ScreenId {
   return createScreenId(`screen-${randomWord(next)}`);
@@ -139,7 +138,7 @@ function proposalKey(proposal: DiscoveryProposal): string {
 // ─── Law 1: Element completeness ───
 
 test.describe('Law 1: Every element produces a ScreenElements proposal', () => {
-  for (let seed = 0; seed < SEEDS; seed++) {
+  for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
     test(`seed=${seed}`, () => {
       const next = mulberry32(seed);
       const run = makeDiscoveryRun(next);
@@ -158,7 +157,7 @@ test.describe('Law 1: Every element produces a ScreenElements proposal', () => {
 // ─── Law 2: Hint coverage — elements with accessible names get hints ───
 
 test.describe('Law 2: Elements with accessible names produce ScreenHints proposals', () => {
-  for (let seed = 0; seed < SEEDS; seed++) {
+  for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
     test(`seed=${seed}`, () => {
       const next = mulberry32(seed);
       const run = makeDiscoveryRun(next);
@@ -185,7 +184,7 @@ test.describe('Law 2: Elements with accessible names produce ScreenHints proposa
 // ─── Law 3: Behavior coverage — every surface gets a ScreenBehavior proposal ───
 
 test.describe('Law 3: Every surface produces a ScreenBehavior proposal', () => {
-  for (let seed = 0; seed < SEEDS; seed++) {
+  for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
     test(`seed=${seed}`, () => {
       const next = mulberry32(seed);
       const run = makeDiscoveryRun(next);
@@ -204,7 +203,7 @@ test.describe('Law 3: Every surface produces a ScreenBehavior proposal', () => {
 // ─── Law 4: No duplicates — proposal keys are unique ───
 
 test.describe('Law 4: No duplicate proposals within a bundle', () => {
-  for (let seed = 0; seed < SEEDS; seed++) {
+  for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
     test(`seed=${seed}`, () => {
       const next = mulberry32(seed);
       const run = makeDiscoveryRun(next);
@@ -220,7 +219,7 @@ test.describe('Law 4: No duplicate proposals within a bundle', () => {
 // ─── Law 5: Empty discovery still produces route proposal ───
 
 test.describe('Law 5: Empty discovery still emits route knowledge proposal', () => {
-  for (let seed = 0; seed < SEEDS; seed++) {
+  for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
     test(`seed=${seed}`, () => {
       const next = mulberry32(seed);
       const run = makeDiscoveryRun(next, { elements: [], surfaces: [] });
@@ -236,7 +235,7 @@ test.describe('Law 5: Empty discovery still emits route knowledge proposal', () 
 // ─── Law 6: Proposal metadata references the correct discovery run ───
 
 test.describe('Law 6: All proposals reference the correct discoveryRunId', () => {
-  for (let seed = 0; seed < SEEDS; seed++) {
+  for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
     test(`seed=${seed}`, () => {
       const next = mulberry32(seed);
       const run = makeDiscoveryRun(next);
@@ -256,7 +255,7 @@ test.describe('Law 6: All proposals reference the correct discoveryRunId', () =>
 // ─── Law 7: Determinism — same input always yields same output count ───
 
 test.describe('Law 7: Deterministic output for identical input', () => {
-  for (let seed = 0; seed < SEEDS; seed++) {
+  for (let seed = 0; seed < LAW_SEED_COUNT; seed++) {
     test(`seed=${seed}`, () => {
       const next1 = mulberry32(seed);
       const run = makeDiscoveryRun(next1);

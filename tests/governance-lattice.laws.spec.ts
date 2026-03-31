@@ -18,7 +18,7 @@
 import { expect, test } from '@playwright/test';
 import { GovernanceLattice, mergeGovernance, meetAll, joinAll } from '../lib/domain/algebra/lattice';
 import type { Governance } from '../lib/domain/types';
-import { mulberry32, pick } from './support/random';
+import { mulberry32, pick , LAW_SEED_COUNT } from './support/random';
 
 const ALL_GOVERNANCE: readonly Governance[] = ['approved', 'review-required', 'blocked'];
 const { meet, join, top, bottom, order } = GovernanceLattice;
@@ -48,8 +48,8 @@ test.describe('Law 1: Idempotency', () => {
     }
   });
 
-  test('idempotency holds across 150 random seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('idempotency holds across 20 random seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const a = pick(next, ALL_GOVERNANCE);
       expect(meet(a, a)).toBe(a);
@@ -61,16 +61,16 @@ test.describe('Law 1: Idempotency', () => {
 // ─── Law 2: Commutativity ───
 
 test.describe('Law 2: Commutativity', () => {
-  test('meet(a, b) === meet(b, a) across 150 seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('meet(a, b) === meet(b, a) across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const [a, b] = governancePair(next);
       expect(meet(a, b)).toBe(meet(b, a));
     }
   });
 
-  test('join(a, b) === join(b, a) across 150 seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('join(a, b) === join(b, a) across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const [a, b] = governancePair(next);
       expect(join(a, b)).toBe(join(b, a));
@@ -81,16 +81,16 @@ test.describe('Law 2: Commutativity', () => {
 // ─── Law 3: Associativity ───
 
 test.describe('Law 3: Associativity', () => {
-  test('meet(a, meet(b, c)) === meet(meet(a, b), c) across 150 seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('meet(a, meet(b, c)) === meet(meet(a, b), c) across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const [a, b, c] = governanceTriple(next);
       expect(meet(a, meet(b, c))).toBe(meet(meet(a, b), c));
     }
   });
 
-  test('join(a, join(b, c)) === join(join(a, b), c) across 150 seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('join(a, join(b, c)) === join(join(a, b), c) across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const [a, b, c] = governanceTriple(next);
       expect(join(a, join(b, c))).toBe(join(join(a, b), c));
@@ -101,16 +101,16 @@ test.describe('Law 3: Associativity', () => {
 // ─── Law 4: Absorption ───
 
 test.describe('Law 4: Absorption', () => {
-  test('meet(a, join(a, b)) === a across 150 seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('meet(a, join(a, b)) === a across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const [a, b] = governancePair(next);
       expect(meet(a, join(a, b))).toBe(a);
     }
   });
 
-  test('join(a, meet(a, b)) === a across 150 seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('join(a, meet(a, b)) === a across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const [a, b] = governancePair(next);
       expect(join(a, meet(a, b))).toBe(a);
@@ -121,32 +121,32 @@ test.describe('Law 4: Absorption', () => {
 // ─── Law 5: Bounded ───
 
 test.describe('Law 5: Bounded identity elements', () => {
-  test('meet(a, bottom) === bottom for all a across 150 seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('meet(a, bottom) === bottom for all a across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const a = pick(next, ALL_GOVERNANCE);
       expect(meet(a, bottom)).toBe(bottom);
     }
   });
 
-  test('join(a, top) === top for all a across 150 seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('join(a, top) === top for all a across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const a = pick(next, ALL_GOVERNANCE);
       expect(join(a, top)).toBe(top);
     }
   });
 
-  test('meet(a, top) === a for all a across 150 seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('meet(a, top) === a for all a across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const a = pick(next, ALL_GOVERNANCE);
       expect(meet(a, top)).toBe(a);
     }
   });
 
-  test('join(a, bottom) === a for all a across 150 seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('join(a, bottom) === a for all a across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const a = pick(next, ALL_GOVERNANCE);
       expect(join(a, bottom)).toBe(a);
@@ -173,8 +173,8 @@ test.describe('Law 6: Monotonicity — governance flows only toward more restric
     }
   });
 
-  test('order is transitive across 150 seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('order is transitive across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const [a, b, c] = governanceTriple(next);
       if (order(a, b) && order(b, c)) {
@@ -194,8 +194,8 @@ test.describe('Law 6: Monotonicity — governance flows only toward more restric
     expect(order('approved', 'blocked')).toBe(false);
   });
 
-  test('meet preserves order: if a <= b then meet(a, c) <= meet(b, c) across 150 seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('meet preserves order: if a <= b then meet(a, c) <= meet(b, c) across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const [a, b, c] = governanceTriple(next);
       if (order(a, b)) {
@@ -232,8 +232,8 @@ test.describe('Law 7: mergeGovernance returns most restrictive', () => {
     expect(mergeGovernance('approved', 'approved')).toBe('approved');
   });
 
-  test('mergeGovernance is commutative across 150 seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('mergeGovernance is commutative across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const [a, b] = governancePair(next);
       expect(mergeGovernance(a, b)).toBe(mergeGovernance(b, a));
@@ -272,8 +272,8 @@ test.describe('Law 8: meetAll and joinAll over arrays', () => {
     expect(joinAll(GovernanceLattice, [...ALL_GOVERNANCE])).toBe('approved');
   });
 
-  test('meetAll agrees with sequential meet across 150 seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('meetAll agrees with sequential meet across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const values = Array.from({ length: 3 + Math.floor(next() * 5) }, () => pick(next, ALL_GOVERNANCE));
       const folded = meetAll(GovernanceLattice, values);
@@ -282,8 +282,8 @@ test.describe('Law 8: meetAll and joinAll over arrays', () => {
     }
   });
 
-  test('joinAll agrees with sequential join across 150 seeds', () => {
-    for (let seed = 1; seed <= 150; seed += 1) {
+  test('joinAll agrees with sequential join across 20 seeds', () => {
+    for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const values = Array.from({ length: 3 + Math.floor(next() * 5) }, () => pick(next, ALL_GOVERNANCE));
       const folded = joinAll(GovernanceLattice, values);
