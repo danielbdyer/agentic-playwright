@@ -1,22 +1,28 @@
 import { Effect, Layer } from 'effect';
 import {
   AdoSource,
+  ApplicationInterfaceGraphStore,
   Dashboard,
   DisabledDashboard,
   DisabledMcpServer,
   DisabledStageTracer,
   ExecutionContext,
   FileSystem,
+  ImprovementRunStore,
   McpServer,
   PipelineConfigService,
   RuntimeScenarioRunner,
   StageTracer,
+  InterventionLedgerStore,
   VersionControl,
 } from '../application/ports';
 import { makeLocalAdoSource } from '../infrastructure/ado/local-ado-source';
 import { makeLiveAdoSource, readLiveAdoSourceConfigFromEnv } from '../infrastructure/ado/live-ado-source';
 import { LocalFileSystem } from '../infrastructure/fs/local-fs';
 import { createRecordingWorkspaceFileSystem } from '../infrastructure/fs/recording-fs';
+import { LocalApplicationInterfaceGraphRepository } from '../infrastructure/repositories/local-application-interface-graph-repository';
+import { LocalImprovementRunRepository } from '../infrastructure/repositories/local-improvement-run-repository';
+import { LocalInterventionLedgerRepository } from '../infrastructure/repositories/local-intervention-ledger-repository';
 import { makeLocalVersionControl } from '../infrastructure/tooling/local-version-control';
 import { LocalRuntimeScenarioRunner, createLocalRuntimeScenarioRunnerWithInterpreter } from './local-runtime-scenario-runner';
 import type { AgentInterpreterProvider } from '../application/agent-interpreter-provider';
@@ -122,6 +128,9 @@ export function createLocalServiceContext(rootDir: string, options?: LocalServic
     Layer.succeed(StageTracer, stageTracer),
     Layer.succeed(McpServer, options?.mcpServer ?? DisabledMcpServer),
     Layer.succeed(PlaywrightBridge, options?.playwrightBridge ?? DisabledPlaywrightBridge),
+    Layer.succeed(ApplicationInterfaceGraphStore, LocalApplicationInterfaceGraphRepository),
+    Layer.succeed(InterventionLedgerStore, LocalInterventionLedgerRepository),
+    Layer.succeed(ImprovementRunStore, LocalImprovementRunRepository),
   );
 
   return {
@@ -129,7 +138,7 @@ export function createLocalServiceContext(rootDir: string, options?: LocalServic
     writeJournal: () => executionContext.writeJournal(),
     provide<A, E, R>(program: Effect.Effect<A, E, R>): Effect.Effect<A, E, never> {
       return Effect.provide(
-        program as Effect.Effect<A, E, FileSystem | AdoSource | RuntimeScenarioRunner | ExecutionContext | PipelineConfigService | VersionControl | Dashboard | StageTracer | McpServer | PlaywrightBridge>,
+        program as Effect.Effect<A, E, FileSystem | AdoSource | RuntimeScenarioRunner | ExecutionContext | PipelineConfigService | VersionControl | Dashboard | StageTracer | McpServer | PlaywrightBridge | ApplicationInterfaceGraphStore | InterventionLedgerStore | ImprovementRunStore>,
         layer,
       ) as Effect.Effect<A, E, never>;
     },
