@@ -1,29 +1,29 @@
 import { Effect } from 'effect';
-import type { RuntimeScenarioRunnerPort } from '../ports';
+import type { ExecutionScenarioRunnerPort } from '../ports/execution-ports';
 import type { AdoId } from '../../domain/identity';
 import type { ResolutionGraphRecord, ScenarioRunPlan } from '../../domain/types';
-import type { RuntimeScenarioStepResult } from '../ports';
+import type { ExecutionScenarioStepResult } from '../ports/execution-ports';
 import { interpretScenarioFromPlan } from './interpret';
 
 export interface ExecuteStepsResult {
-  stepResults: RuntimeScenarioStepResult[];
+  stepResults: ExecutionScenarioStepResult[];
   interpretationOutput: {
     kind: 'scenario-interpretation-record';
     adoId: AdoId;
     runId: string;
-    steps: Array<{ stepIndex: number; interpretation: RuntimeScenarioStepResult['interpretation'] }>;
+    steps: Array<{ stepIndex: number; interpretation: ExecutionScenarioStepResult['interpretation'] }>;
   };
   resolutionGraphOutput: ResolutionGraphRecord;
   executionOutput: {
     kind: 'scenario-execution-record';
     adoId: AdoId;
     runId: string;
-    steps: Array<{ stepIndex: number; execution: RuntimeScenarioStepResult['execution'] }>;
+    steps: Array<{ stepIndex: number; execution: ExecutionScenarioStepResult['execution'] }>;
   };
 }
 
 export function executeSteps(input: {
-  runtimeScenarioRunner: RuntimeScenarioRunnerPort;
+  runtimeScenarioRunner: ExecutionScenarioRunnerPort;
   rootDir: string;
   adoId: AdoId;
   plan: ScenarioRunPlan;

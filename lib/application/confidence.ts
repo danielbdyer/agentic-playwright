@@ -8,11 +8,11 @@ import type {
   TrustPolicyArtifactType,
 } from '../domain/types';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
-import { Dashboard } from './ports';
+import { Dashboard } from './ports/intervention-ports';
 import { dashboardEvent } from '../domain/types/intervention-context';
 import type { ProjectPaths } from './paths';
 import { relativeProjectPath } from './paths';
-import { FileSystem } from './ports';
+import { FileSystem } from './ports/infrastructure-ports';
 import { compareStrings, uniqueSorted } from '../domain/collections';
 
 function round(value: number): number {

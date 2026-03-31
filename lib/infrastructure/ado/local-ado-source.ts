@@ -1,7 +1,7 @@
 ﻿import { promises as fs } from 'fs';
 import path from 'path';
 import { Effect } from 'effect';
-import type { AdoSourcePort } from '../../application/ports';
+import type { AdoSourcePort } from '../../application/ports/infrastructure-ports';
 import { createAdoId } from '../../domain/identity';
 import { tryFileSystem } from '../../application/effect';
 import { RETRY_POLICIES, retryScheduleForTaggedErrors } from '../../application/resilience/schedules';

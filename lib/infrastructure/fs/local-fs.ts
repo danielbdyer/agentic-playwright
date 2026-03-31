@@ -2,7 +2,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { Effect } from 'effect';
-import type { FileSystemPort } from '../../application/ports';
+import type { FileSystemPort } from '../../application/ports/infrastructure-ports';
 import { FileSystemError, toFileSystemError, toFileSystemOperationError } from '../../domain/errors';
 
 function stripBom(value: string): string {

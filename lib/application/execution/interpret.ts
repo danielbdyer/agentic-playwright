@@ -11,25 +11,25 @@ import type {
 } from '../../domain/types';
 import { WINNING_SOURCE_TO_RUNG } from '../../domain/visitors';
 import { isApproved, mintApproved, mintReviewRequired } from '../../domain/types/shared-context';
-import type { RuntimeScenarioRunnerPort, RuntimeScenarioStepResult } from '../ports';
+import type { ExecutionScenarioRunnerPort, ExecutionScenarioStepResult } from '../ports/execution-ports';
 import { resolveResolutionEngine } from '../provider-registry';
 import { validateStepResults } from './validate-step-results';
 import type { RecoveryPolicy } from '../../domain/execution/recovery-policy';
 
 export interface InterpretScenarioResult {
-  stepResults: RuntimeScenarioStepResult[];
+  stepResults: ExecutionScenarioStepResult[];
   interpretationOutput: {
     kind: 'scenario-interpretation-record';
     adoId: AdoId;
     runId: string;
-    steps: Array<{ stepIndex: number; interpretation: RuntimeScenarioStepResult['interpretation'] }>;
+    steps: Array<{ stepIndex: number; interpretation: ExecutionScenarioStepResult['interpretation'] }>;
   };
   resolutionGraphOutput: ResolutionGraphRecord;
   executionOutput: {
     kind: 'scenario-execution-record';
     adoId: AdoId;
     runId: string;
-    steps: Array<{ stepIndex: number; execution: RuntimeScenarioStepResult['execution'] }>;
+    steps: Array<{ stepIndex: number; execution: ExecutionScenarioStepResult['execution'] }>;
   };
 }
 
@@ -52,7 +52,7 @@ function scoreCandidates(candidates: NonNullable<ResolutionReceipt['exhaustion']
   }));
 }
 
-function buildStepResolutionGraph(step: RuntimeScenarioStepResult, task: GroundedStep): StepResolutionGraph {
+function buildStepResolutionGraph(step: ExecutionScenarioStepResult, task: GroundedStep): StepResolutionGraph {
   const receipt = step.interpretation;
   const traversal = receipt.exhaustion
     .map((entry) => ({ rung: toRung(entry.stage), outcome: entry.outcome, reason: entry.reason }));
@@ -102,7 +102,7 @@ function buildStepResolutionGraph(step: RuntimeScenarioStepResult, task: Grounde
 }
 
 export function interpretScenarioSurface(input: {
-  runtimeScenarioRunner: RuntimeScenarioRunnerPort;
+  runtimeScenarioRunner: ExecutionScenarioRunnerPort;
   rootDir: string;
   adoId: AdoId;
   runId: string;
@@ -170,7 +170,7 @@ export function interpretScenarioSurface(input: {
 }
 
 export function interpretScenarioFromPlan(input: {
-  runtimeScenarioRunner: RuntimeScenarioRunnerPort;
+  runtimeScenarioRunner: ExecutionScenarioRunnerPort;
   rootDir: string;
   suiteRoot?: string | undefined;
   plan: ScenarioRunPlan;

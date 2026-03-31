@@ -4,7 +4,7 @@ import type { AdoId, ScreenId } from '../domain/identity';
 import { validateAdoSnapshot, validateScenario } from '../domain/validation';
 import { loadWorkspaceCatalog } from './catalog';
 import { trySync } from './effect';
-import { AdoSource, FileSystem } from './ports';
+import { AdoSource, FileSystem } from './ports/infrastructure-ports';
 import type { ProjectPaths } from './paths';
 import {
   boundPath,

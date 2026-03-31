@@ -1,6 +1,6 @@
 import path from 'path';
 import { Effect } from 'effect';
-import type { FileSystemPort } from '../../application/ports';
+import type { FileSystemPort } from '../../application/ports/infrastructure-ports';
 import { createProjectPaths } from '../../application/paths';
 import type { ExecutionPosture, WriteJournalEntry } from '../../domain/types';
 import { uniqueSorted } from '../../domain/collections';

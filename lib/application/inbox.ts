@@ -4,7 +4,8 @@ import { renderOperatorInboxMarkdown, buildOperatorInboxItems } from './operator
 import { buildWorkflowHotspots } from './hotspots';
 import type { ProjectPaths } from './paths';
 import { relativeProjectPath } from './paths';
-import { FileSystem, Dashboard } from './ports';
+import { FileSystem } from './ports/infrastructure-ports';
+import { Dashboard } from './ports/intervention-ports';
 import { dashboardEvent } from '../domain/types/intervention-context';
 import { mintReviewRequired } from '../domain/types/shared-context';
 import { decodeUnknownEither } from '../domain/schemas/decode';

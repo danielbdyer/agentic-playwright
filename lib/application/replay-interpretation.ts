@@ -3,7 +3,8 @@ import type { AdoId } from '../domain/identity';
 import type { InterpretationDriftChange, InterpretationDriftRecord, ResolutionReceipt, ScenarioInterpretationSurface } from '../domain/types';
 import type { ProjectPaths } from './paths';
 import { interpretationDriftPath, interpretationPath, resolutionGraphPath, taskPacketPath } from './paths';
-import { FileSystem, RuntimeScenarioRunner } from './ports';
+import { FileSystem } from './ports/infrastructure-ports';
+import { ExecutionScenarioRunner } from './ports/execution-ports';
 import { loadWorkspaceCatalog } from './catalog';
 import { loadScenarioInterpretationSurfaceFromCatalog, prepareScenarioRunPlan } from './execution/select-run-context';
 import { interpretScenarioFromPlan } from './execution/interpret';
@@ -162,7 +163,7 @@ export function replayInterpretation(options: {
 }) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
-    const runtimeScenarioRunner = yield* RuntimeScenarioRunner;
+    const runtimeScenarioRunner = yield* ExecutionScenarioRunner;
     const catalog = yield* loadWorkspaceCatalog({ paths: options.paths });
     const surfaceEntry = loadScenarioInterpretationSurfaceFromCatalog(catalog, options.adoId);
     const plan = prepareScenarioRunPlan({

@@ -1,5 +1,6 @@
 import { Layer } from 'effect';
-import { AdoSource, ExecutionContext, FileSystem, RuntimeScenarioRunner } from '../application/ports';
+import { AdoSource, FileSystem } from '../application/ports/infrastructure-ports';
+import { ExecutionContext, ExecutionScenarioRunner } from '../application/ports/execution-ports';
 import { makeLocalAdoSource } from '../infrastructure/ado/local-ado-source';
 import { LocalFileSystem } from '../infrastructure/fs/local-fs';
 import { createRecordingWorkspaceFileSystem } from '../infrastructure/fs/recording-fs';
@@ -11,8 +12,8 @@ export const FileSystemLive = Layer.succeed(FileSystem, LocalFileSystem);
 export const AdoSourceLive = (rootDir: string, suiteRoot?: string) =>
   Layer.succeed(AdoSource, makeLocalAdoSource(rootDir, suiteRoot));
 
-export const RuntimeScenarioRunnerLive =
-  Layer.succeed(RuntimeScenarioRunner, LocalRuntimeScenarioRunner);
+export const ExecutionScenarioRunnerLive =
+  Layer.succeed(ExecutionScenarioRunner, LocalRuntimeScenarioRunner);
 
 export const ExecutionContextLive = (posture: ExecutionPosture) =>
   Layer.succeed(ExecutionContext, {
@@ -36,6 +37,6 @@ export const LocalServicesLive = (rootDir: string, posture: ExecutionPosture, jo
   Layer.mergeAll(
     RecordingFileSystemLive(rootDir, posture, journal, suiteRoot),
     AdoSourceLive(rootDir, suiteRoot),
-    RuntimeScenarioRunnerLive,
+    ExecutionScenarioRunnerLive,
     ExecutionContextLive(posture),
   );

@@ -13,7 +13,7 @@
  */
 
 import { Effect } from 'effect';
-import type { McpServerPort, McpToolInvocation, McpToolResult } from '../../application/ports';
+import type { McpServerPort, McpToolInvocation, McpToolResult } from '../../application/ports/observation-ports';
 import type { McpToolDefinition, WorkItemDecision, ScreenCapturedEvent } from '../../domain/types';
 import { dashboardMcpTools, dashboardEvent } from '../../domain/types/intervention-context';
 import { resolveResource, buildResourceUri } from './resource-provider';

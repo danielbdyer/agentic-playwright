@@ -1,6 +1,6 @@
 import path from 'path';
 import { Effect } from 'effect';
-import { FileSystem } from './ports';
+import { FileSystem } from './ports/infrastructure-ports';
 import type { ProjectPaths } from './paths';
 import type {
   AcceptanceDecision,

@@ -13,7 +13,8 @@ import {
   relativeProjectPath,
 } from './paths';
 import { resolveEffectConcurrency } from './concurrency';
-import { ExecutionContext, FileSystem } from './ports';
+import { ExecutionContext } from './ports/execution-ports';
+import { FileSystem } from './ports/infrastructure-ports';
 import { TesseractError } from '../domain/errors';
 import { groupBy, uniqueSorted } from '../domain/collections';
 import { concatAll } from '../domain/algebra/monoid';

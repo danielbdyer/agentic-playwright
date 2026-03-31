@@ -1,5 +1,5 @@
 import { execSync } from 'child_process';
-import type { VersionControlPort } from '../../application/ports';
+import type { VersionControlPort } from '../../application/ports/governance-ports';
 import { trySync } from '../../application/effect';
 
 export function makeLocalVersionControl(rootDir: string): VersionControlPort {

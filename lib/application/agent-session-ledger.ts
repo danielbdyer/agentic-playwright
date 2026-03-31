@@ -17,7 +17,7 @@ import {
   relativeProjectPath,
   type ProjectPaths,
 } from './paths';
-import { FileSystem } from './ports';
+import { FileSystem } from './ports/infrastructure-ports';
 
 export interface AgentSessionLedgerResult {
   session: AgentSession;

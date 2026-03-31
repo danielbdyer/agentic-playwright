@@ -16,7 +16,9 @@ import {
   resolutionGraphPath,
   runRecordPath,
 } from './paths';
-import { ExecutionContext, FileSystem, RuntimeScenarioRunner, Dashboard } from './ports';
+import { ExecutionContext, ExecutionScenarioRunner } from './ports/execution-ports';
+import { FileSystem } from './ports/infrastructure-ports';
+import { Dashboard } from './ports/intervention-ports';
 import type { ExecutionPosture, Confidence, ActorKind } from '../domain/types';
 import { dashboardEvent } from '../domain/types/intervention-context';
 import type { AdoId } from '../domain/identity';
@@ -92,7 +94,7 @@ export function runScenarioCore(options: RunScenarioOptions) {
       name: 'run',
       loadDependencies: () => Effect.gen(function* () {
         const fs = yield* FileSystem;
-        const runtimeScenarioRunner = yield* RuntimeScenarioRunner;
+        const runtimeScenarioRunner = yield* ExecutionScenarioRunner;
         const executionContext = yield* ExecutionContext;
         const catalog = options.catalog ?? (yield* loadWorkspaceCatalog({ paths: options.paths }));
         return { fs, runtimeScenarioRunner, executionContext, catalog };

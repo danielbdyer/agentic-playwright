@@ -1,7 +1,7 @@
 import YAML from 'yaml';
 import { Effect } from 'effect';
 import { isRecord } from '../domain/collections';
-import { FileSystem } from './ports';
+import { FileSystem } from './ports/infrastructure-ports';
 import type { ProjectPaths } from './paths';
 
 export interface DriftTarget {
