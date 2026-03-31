@@ -7,7 +7,7 @@ export const harvestCommand = createCommandSpec({
   parse: ({ flags }) => ({
     command: 'harvest',
     strictExitOnUnbound: false,
-    environment: flags.headed ? { TESSERACT_HEADLESS: '0' } : undefined,
+    ...(flags.headed ? { environment: { TESSERACT_HEADLESS: '0' } } : {}),
     postureInput: withDefinedValues({
       headed: flags.headed,
     }),

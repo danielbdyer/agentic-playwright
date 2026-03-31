@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { Effect } from 'effect';
 import { createLlmApiProvider, DEFAULT_TRANSLATION_CONFIG } from '../lib/application/translation-provider';
 import { DEFAULT_AGENT_INTERPRETER_CONFIG, resolveAgentInterpreterProvider } from '../lib/application/agent-interpreter-provider';
 import type { TranslationRequest } from '../lib/domain/types';
@@ -25,13 +26,19 @@ const request: TranslationRequest = {
 
 const agentRequest: AgentInterpretationRequest = {
   taskFingerprint: 'sha256:task',
+  knowledgeFingerprint: 'sha256:knowledge',
   actionText: 'Enter policy number',
   expectedText: 'Policy number is accepted',
+  normalizedIntent: 'enter policy number => policy number is accepted',
+  inferredAction: null,
   screens: [{
     screen: createScreenId('policy-search'),
     screenAliases: ['policy search'],
-    elements: [{ element: createElementId('policyNumberInput'), aliases: ['policy number'] }],
+    elements: [{ element: createElementId('policyNumberInput'), name: null, aliases: ['policy number'], widget: 'text-input', role: 'textbox' }],
   }],
+  exhaustionTrail: [],
+  domSnapshot: null,
+  priorTarget: null,
 };
 
 class TimeoutErr extends Error {
@@ -51,7 +58,7 @@ test.describe('retry resilience laws', () => {
       },
     });
 
-    const receipt = await provider.translate(request);
+    const receipt = await Effect.runPromise(provider.translate(request));
     expect(receipt.matched).toBe(false);
     expect(receipt.failureClass).toBe('translator-error');
     expect(receipt.rationale).toContain('retry[');
@@ -67,7 +74,7 @@ test.describe('retry resilience laws', () => {
       },
     });
 
-    const receipt = await provider.translate(request);
+    const receipt = await Effect.runPromise(provider.translate(request));
     expect(receipt.failureClass).toBe('translator-error');
     expect(calls).toBe(1);
   });
@@ -86,7 +93,7 @@ test.describe('retry resilience laws', () => {
       'llm-api',
     );
 
-    const result = await provider.interpret(agentRequest);
+    const result = await Effect.runPromise(provider.interpret(agentRequest));
     expect(result.interpreted).toBe(false);
     expect(result.rationale).toContain('Escalating to needs-human');
     expect(calls).toBeLessThanOrEqual(4);
