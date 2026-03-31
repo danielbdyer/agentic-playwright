@@ -13,6 +13,7 @@ const baseTrustPolicy: TrustPolicy = {
     snapshot: { minimumConfidence: 0.8, requiredEvidence: { minCount: 0, kinds: [] } },
     hints: { minimumConfidence: 0.7, requiredEvidence: { minCount: 0, kinds: [] } },
     patterns: { minimumConfidence: 0.8, requiredEvidence: { minCount: 0, kinds: [] } },
+    routes: { minimumConfidence: 0.8, requiredEvidence: { minCount: 0, kinds: [] } },
   },
   forbiddenAutoHealClasses: ['dangerous-mutation'],
 };

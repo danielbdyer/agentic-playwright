@@ -119,11 +119,11 @@ function proposalsForScenarios(bundles: readonly ProposalBundle[], scenarioIds: 
   return bundles.filter((bundle) => scenarioIds.includes(bundle.adoId));
 }
 
-export function collectRunbookScenarioIds(options: {
+export function collectRunbookScenarioIds<R>(options: {
   readonly runbooks: readonly BenchmarkRunbookSelection[];
   readonly concurrency: number;
-  readonly selectRunbook: (runbook: BenchmarkRunbookSelection) => Effect.Effect<readonly string[], unknown, unknown>;
-}): Effect.Effect<string[], unknown, unknown> {
+  readonly selectRunbook: (runbook: BenchmarkRunbookSelection) => Effect.Effect<readonly string[], unknown, R>;
+}): Effect.Effect<string[], unknown, R> {
   return Effect.gen(function* () {
     const selections = yield* Effect.forEach(options.runbooks, options.selectRunbook, {
       concurrency: options.concurrency,

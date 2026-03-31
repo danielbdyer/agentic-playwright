@@ -40,6 +40,7 @@ function createTrustPolicy(overrides?: Partial<TrustPolicy>): TrustPolicy {
       snapshot: { ...defaultRule },
       hints: { ...defaultRule },
       patterns: { ...defaultRule },
+      routes: { ...defaultRule },
     },
     forbiddenAutoHealClasses: ['destructive-mutation'],
     ...overrides,
@@ -275,6 +276,7 @@ test.describe('Knowledge promotion: evidence count preconditions', () => {
           snapshot: { minimumConfidence: 0.8, requiredEvidence: { minCount, kinds: ['runtime-success'] } },
           hints: { minimumConfidence: 0.8, requiredEvidence: { minCount, kinds: ['runtime-success'] } },
           patterns: { minimumConfidence: 0.8, requiredEvidence: { minCount, kinds: ['runtime-success'] } },
+          routes: { minimumConfidence: 0.8, requiredEvidence: { minCount, kinds: ['runtime-success'] } },
         },
       });
 
@@ -336,6 +338,7 @@ test.describe('Knowledge promotion: confidence threshold preconditions', () => {
           snapshot: { minimumConfidence: threshold, requiredEvidence: { minCount: 0, kinds: [] } },
           hints: { minimumConfidence: threshold, requiredEvidence: { minCount: 0, kinds: [] } },
           patterns: { minimumConfidence: threshold, requiredEvidence: { minCount: 0, kinds: [] } },
+          routes: { minimumConfidence: threshold, requiredEvidence: { minCount: 0, kinds: [] } },
         },
       });
 

@@ -75,6 +75,7 @@ function makeTrustPolicy(): TrustPolicy {
       snapshot: rule,
       hints: rule,
       patterns: rule,
+      routes: rule,
     },
     forbiddenAutoHealClasses: [],
   };
