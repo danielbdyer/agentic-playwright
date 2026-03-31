@@ -4,6 +4,7 @@ export const resolutionPrecedenceLaw = [
   'approved-screen-knowledge',
   'shared-patterns',
   'prior-evidence',
+  'semantic-dictionary',
   'approved-equivalent-overlay',
   'structured-translation',
   'live-dom',
