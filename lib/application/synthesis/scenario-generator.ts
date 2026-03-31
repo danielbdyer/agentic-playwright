@@ -14,11 +14,23 @@ import {
 export { resolvePerturbation, ZERO_PERTURBATION };
 export type { PerturbationConfig };
 
+import type { ScreenPostures } from '../../domain/types/knowledge';
+import type { PostureValue } from '../../domain/synthesis/scenario-plan';
+
+function extractPostureValues(postures: ScreenPostures | undefined, elementId: string): readonly PostureValue[] {
+  const elementPostures = postures?.postures?.[elementId];
+  return elementPostures
+    ? Object.entries(elementPostures).map(([posture, p]) => ({ posture, values: p.values }))
+    : [];
+}
+
 function normalizeCatalog(catalog: WorkspaceCatalog): SyntheticCatalogPlanInput {
   const hintsByScreen = new Map(catalog.screenHints.map((entry) => [entry.artifact.screen, entry.artifact]));
+  const posturesByScreen = new Map(catalog.screenPostures.map((entry) => [entry.artifact.screen, entry.artifact]));
   return {
     screens: catalog.screenElements.map((entry) => {
       const hints = hintsByScreen.get(entry.artifact.screen);
+      const postures = posturesByScreen.get(entry.artifact.screen);
       return {
         screenId: entry.artifact.screen,
         screenAliases: hints?.screenAliases ?? [],
@@ -27,6 +39,7 @@ function normalizeCatalog(catalog: WorkspaceCatalog): SyntheticCatalogPlanInput 
           widget: element.widget ?? 'os-region',
           aliases: hints?.elements?.[elementId]?.aliases ?? [],
           required: element.required ?? false,
+          postureValues: extractPostureValues(postures, elementId),
         })),
       };
     }),

@@ -1,13 +1,21 @@
-import { hashSeed, createSeededRng, pick, shuffle, type SeededRng } from '../random';
+import { hashSeed, createSeededRng, type SeededRng } from '../random';
 import { sha256, stableStringify } from '../hash';
+import { selectArchetype, composeWorkflowSteps } from './workflow-archetype';
 
-type ActionType = 'navigate' | 'input' | 'click' | 'select' | 'assert';
+// ─── Public types ───
+
+export interface PostureValue {
+  readonly posture: string;
+  readonly values: readonly string[];
+}
 
 export interface ScreenElementPlanInput {
   readonly elementId: string;
   readonly widget: string;
   readonly aliases: readonly string[];
   readonly required: boolean;
+  /** Posture-driven values for data variation (e.g. valid, invalid, empty). */
+  readonly postureValues?: readonly PostureValue[];
 }
 
 export interface ScreenPlanInput {
@@ -20,22 +28,50 @@ export interface SyntheticCatalogPlanInput {
   readonly screens: readonly ScreenPlanInput[];
 }
 
+// ─── Perturbation config ───
+//
+// Controls the calibrated gap between generated step text and the knowledge model's
+// alias pools. Higher values produce text that is harder for the translation pipeline
+// to resolve, which tests genuine generalization rather than echo-chamber matching.
+
 export interface PerturbationConfig {
-  readonly vocab: number;
-  readonly aliasGap: number;
-  readonly crossScreen: number;
+  /**
+   * Lexical gap distance [0, 1].
+   * - 0: Use known aliases verbatim (echo chamber — should always resolve)
+   * - 1: Use fully held-out domain vocabulary (maximum gap — tests generalization)
+   * - 0.3–0.7: The interesting range where pipeline quality is differentiated
+   */
+  readonly lexicalGap: number;
+  /** Probability of using posture-driven data values instead of generic placeholders [0, 1]. */
+  readonly dataVariation: number;
+  /** Probability of omitting optional steps [0, 1]. */
   readonly coverageGap: number;
+  /** Controls cross-screen journey probability [0, 1]. */
+  readonly crossScreen: number;
 }
 
-export const ZERO_PERTURBATION: PerturbationConfig = { vocab: 0, aliasGap: 0, crossScreen: 0, coverageGap: 0 };
+export const ZERO_PERTURBATION: PerturbationConfig = {
+  lexicalGap: 0, dataVariation: 0, coverageGap: 0, crossScreen: 0,
+};
+
+const clampUnitInterval = (value: number): number => Math.max(0, Math.min(1, value));
 
 export function resolvePerturbation(rate?: number, config?: Partial<PerturbationConfig>): PerturbationConfig {
-  return config
+  const resolved = config
     ? { ...ZERO_PERTURBATION, ...config }
-    : rate && rate > 0
-      ? { ...ZERO_PERTURBATION, vocab: rate }
+    : rate !== undefined && rate > 0
+      ? { ...ZERO_PERTURBATION, lexicalGap: rate }
       : ZERO_PERTURBATION;
+
+  return {
+    lexicalGap: clampUnitInterval(resolved.lexicalGap),
+    dataVariation: clampUnitInterval(resolved.dataVariation),
+    coverageGap: clampUnitInterval(resolved.coverageGap),
+    crossScreen: clampUnitInterval(resolved.crossScreen),
+  };
 }
+
+// ─── Internal types ───
 
 interface SyntheticStep {
   readonly index: number;
@@ -44,8 +80,6 @@ interface SyntheticStep {
   readonly expected_text: string;
 }
 
-type Strategy = 'single-screen' | 'cross-screen' | 'workflow';
-
 interface ScenarioPlanInternal {
   readonly adoId: string;
   readonly screenId: string;
@@ -53,6 +87,11 @@ interface ScenarioPlanInternal {
   readonly suite: string;
   readonly tags: readonly string[];
   readonly steps: readonly SyntheticStep[];
+}
+
+interface CoverageAwareStep {
+  readonly required: boolean;
+  readonly role: 'navigation' | 'interaction' | 'verification';
 }
 
 export interface ScenarioPlan {
@@ -81,39 +120,7 @@ export interface ScenarioPlanningResult {
   readonly screenDistribution: ReadonlyArray<{ readonly screen: string; readonly count: number }>;
 }
 
-const TEMPLATES: Readonly<Record<ActionType, readonly string[]>> = {
-  navigate: ['Navigate to {screen}', 'Open {screen}', 'Go to {screen}'],
-  input: ['Enter {value} in {element}', 'Type {value} into {element}'],
-  click: ['Click {element}', 'Press {element}'],
-  select: ['Select {value} from {element}', 'Choose {value} in {element}'],
-  assert: ['Verify {element} is visible', 'Check {element} is displayed'],
-} as const;
-
-const SYNONYM_SUBSTITUTIONS: ReadonlyArray<readonly [RegExp, readonly string[]]> = [
-  [/\bsearch\b/gi, ['find', 'lookup']],
-  [/\bresults?\b/gi, ['matches', 'outcome']],
-  [/\bfield\b/gi, ['input', 'box']],
-  [/\bbutton\b/gi, ['control', 'trigger']],
-];
-
-const actionForWidget = (widget: string): ActionType =>
-  widget === 'os-input' || widget === 'os-textarea'
-    ? 'input'
-    : widget === 'os-button'
-      ? 'click'
-      : widget === 'os-select'
-        ? 'select'
-        : 'assert';
-
-const humanize = (value: string): string => value.replace(/([A-Z])/g, ' $1').replace(/-/g, ' ').trim().toLowerCase();
-
-const perturbVocab = (text: string, rate: number, rng: SeededRng): string =>
-  SYNONYM_SUBSTITUTIONS.reduce(
-    (result, [pattern, synonyms]) => (rng() < rate && pattern.test(result)
-      ? result.replace(pattern, pick(synonyms, rng))
-      : result),
-    text,
-  );
+// ─── YAML rendering ───
 
 const deterministicSyncedAt = (seed: string): string => {
   const days = hashSeed(seed) % 3650;
@@ -159,87 +166,73 @@ const renderYaml = (plan: ScenarioPlanInternal, syncedAt: string): string => {
   ].join('\n') + '\n';
 };
 
-const generateStep = (
-  element: ScreenElementPlanInput,
-  screen: ScreenPlanInput,
-  stepIndex: number,
-  allScreens: readonly ScreenPlanInput[],
-  perturbation: PerturbationConfig,
-  rng: SeededRng,
-): SyntheticStep | null => {
-  if (rng() < perturbation.coverageGap) return null;
-  const action = actionForWidget(element.widget);
-  const baseAlias = element.aliases.length > 0 ? pick(element.aliases, rng) : humanize(element.elementId);
-  const crossAlias = perturbation.crossScreen > 0 && rng() < perturbation.crossScreen && allScreens.length > 1
-    ? (() => {
-      const alternatives = allScreens
-        .filter((candidate) => candidate.screenId !== screen.screenId)
-        .flatMap((candidate) => candidate.elements)
-        .map((candidate) => (candidate.aliases.length > 0 ? pick(candidate.aliases, rng) : humanize(candidate.elementId)));
-      return alternatives.length > 0 ? pick(alternatives, rng) : baseAlias;
-    })()
-    : baseAlias;
-  const alias = perturbation.aliasGap > 0 && rng() < perturbation.aliasGap ? element.elementId : crossAlias;
-  const value = action === 'input' ? 'a valid value' : action === 'select' ? 'the correct option' : '';
-  const template = pick(TEMPLATES[action], rng)
-    .replace('{screen}', screen.screenAliases[0] ?? humanize(screen.screenId))
-    .replace('{element}', alias)
-    .replace('{value}', value);
-  const actionText = perturbation.vocab > 0 ? perturbVocab(template, perturbation.vocab, rng) : template;
-  return {
-    index: stepIndex,
-    intent: actionText,
-    action_text: actionText,
-    expected_text: `${alias} handled`,
-  };
+const retainedStepsWithNonNavigationGuarantee = <T extends CoverageAwareStep>(
+  archetypeSteps: readonly T[],
+  retainedSteps: readonly T[],
+): ReadonlySet<T> => {
+  const fallbackStep = archetypeSteps.find((step) => step.role !== 'navigation');
+  const hasNonNavigationStep = retainedSteps.some((step) => step.role !== 'navigation');
+  return new Set(
+    !hasNonNavigationStep && fallbackStep !== undefined
+      ? [...retainedSteps, fallbackStep]
+      : retainedSteps,
+  );
 };
+
+// ─── Scenario composition via workflow archetypes ───
+//
+// Instead of randomly picking elements and applying templates from the alias pool
+// (echo chamber), scenarios are composed as coherent QA workflows. Each workflow
+// archetype represents a real testing pattern (search-verify, detail-inspect, etc.)
+// and generates step text at a calibrated lexical gap distance from known aliases.
+//
+// At lexicalGap=0 the text uses known aliases (baseline, should always resolve).
+// At lexicalGap=1 the text uses held-out domain vocabulary (maximum gap, tests generalization).
+// The translation pipeline's quality is measured by how well it bridges this gap.
 
 const generateScenario = (
   screen: ScreenPlanInput,
-  strategy: Strategy,
   scenarioIndex: number,
   screens: readonly ScreenPlanInput[],
   perturbation: PerturbationConfig,
   rng: SeededRng,
 ): ScenarioPlanInternal => {
-  const selectedScreens = strategy === 'cross-screen'
-    ? shuffle(screens, rng).slice(0, Math.min(2, screens.length))
-    : [screen];
+  const archetypeId = selectArchetype(screen, screens, rng, perturbation.crossScreen);
+  const isCrossScreen = archetypeId === 'cross-screen-journey';
 
-  const navSteps = selectedScreens.map((selected, idx) => {
-    const alias = selected.screenAliases[0] ?? humanize(selected.screenId);
-    const navText = pick(TEMPLATES.navigate, rng).replace('{screen}', alias);
-    return { index: idx + 1, intent: navText, action_text: navText, expected_text: `${alias} loads successfully` } satisfies SyntheticStep;
+  const archetypeSteps = composeWorkflowSteps(archetypeId, {
+    screens,
+    primaryScreen: screen,
+    lexicalGap: perturbation.lexicalGap,
+    dataVariation: perturbation.dataVariation,
+    rng,
   });
 
-  const stepSeed = navSteps.length + 1;
-  const interactionSteps = selectedScreens.flatMap((selected, screenIdx) =>
-    shuffle(selected.elements, rng)
-      .slice(0, strategy === 'workflow' ? 3 : 2)
-      .flatMap((element, elementIdx) => {
-        const generated = generateStep(
-          element,
-          selected,
-          stepSeed + screenIdx * 3 + elementIdx,
-          screens,
-          perturbation,
-          rng,
-        );
-        return generated ? [generated] : [];
-      }),
-  );
+  const retainedSteps = archetypeSteps
+    .filter((step) => step.required || rng() >= perturbation.coverageGap);
+  const retainedSet = retainedStepsWithNonNavigationGuarantee(archetypeSteps, retainedSteps);
 
-  const steps = [...navSteps, ...interactionSteps].map((step, index) => ({ ...step, index: index + 1 }));
-  const primary = selectedScreens[0]?.screenId ?? screen.screenId;
+  const steps = archetypeSteps
+    .filter((step) => retainedSet.has(step))
+    .map((step, idx) => ({
+      index: idx + 1,
+      intent: step.intent,
+      action_text: step.actionText,
+      expected_text: step.expectedText,
+    }));
+
+  const primary = screen.screenId;
   return {
-    adoId: String((20000) + scenarioIndex),
-    screenId: strategy === 'cross-screen' ? 'cross-screen' : primary,
-    title: `Synthetic ${strategy} ${scenarioIndex}: ${selectedScreens.map((item) => item.screenId).join(' -> ')}`,
-    suite: `synthetic/${strategy === 'cross-screen' ? 'cross-screen' : primary}`,
+    adoId: String(20000 + scenarioIndex),
+    screenId: isCrossScreen ? 'cross-screen' : primary,
+    title: `Synthetic ${archetypeId} ${scenarioIndex}: ${primary}`,
+    suite: `synthetic/${isCrossScreen ? 'cross-screen' : primary}`,
     tags: [],
     steps,
   };
 };
+
+// ─── Main entry point ───
 
 export function planSyntheticScenarios(input: ScenarioPlanningInput): ScenarioPlanningResult {
   const rng = createSeededRng(input.seed);
@@ -248,17 +241,16 @@ export function planSyntheticScenarios(input: ScenarioPlanningInput): ScenarioPl
   const syncedAt = deterministicSyncedAt(input.seed);
   const baseId = input.baseId ?? 20000;
 
-  const allocations = Array.from({ length: input.count }, (_, index) => ({
-    screen: screens[index % Math.max(screens.length, 1)] ?? { screenId: 'empty', screenAliases: ['empty'], elements: [] },
-    strategy: pick((['single-screen', 'workflow', 'cross-screen'] as const), rng),
-    index,
-  }));
+  const plans = Array.from({ length: input.count }, (_, index) => {
+    const screen = screens[index % Math.max(screens.length, 1)]
+      ?? { screenId: 'empty', screenAliases: ['empty'], elements: [] };
 
-  const plans = allocations.map(({ screen, strategy, index }) => {
-    const scenario = generateScenario(screen, strategy, index, screens, perturbation, rng);
+    const scenario = generateScenario(screen, index, screens, perturbation, rng);
     const adoId = String(baseId + index);
     const materialized = { ...scenario, adoId };
-    const split = input.validationSplit && input.validationSplit > 0 && rng() < input.validationSplit ? ['validation-heldout'] : ['training'];
+    const split = input.validationSplit && input.validationSplit > 0 && rng() < input.validationSplit
+      ? ['validation-heldout']
+      : ['training'];
     const yaml = renderYaml({ ...materialized, tags: split }, syncedAt);
     return {
       adoId,
