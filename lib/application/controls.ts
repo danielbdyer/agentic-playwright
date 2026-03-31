@@ -11,7 +11,8 @@ import type {
 } from '../domain/types';
 import type { WorkspaceCatalog } from './catalog';
 import { compareStrings, uniqueSorted } from '../domain/collections';
-import { chooseByPrecedence, runSelectionPrecedenceLaw } from '../domain/precedence';
+import { chooseByPrecedence } from '../domain/precedence';
+import { runSelectionPrecedencePolicy } from '../domain/precedence-policy';
 
 function selectorMatchesScenario(
   selector: { adoIds: readonly string[]; suites: readonly string[]; tags: readonly string[] },
@@ -93,7 +94,7 @@ export function controlResolutionForStep(
   return chooseByPrecedence([
     { rung: 'cli-flag', value: selectedControlName ? scoped.find((entry) => entry.name === selectedControlName)?.resolution ?? null : null },
     { rung: 'runbook', value: scoped[0]?.resolution ?? null },
-  ], runSelectionPrecedenceLaw);
+  ], runSelectionPrecedencePolicy.rungs);
 }
 
 export function findRunbook(
@@ -107,7 +108,7 @@ export function findRunbook(
     { rung: 'cli-flag', value: options.runbookName ? runtimeRunbooks.find((entry) => entry.name === options.runbookName) ?? null : null },
     { rung: 'runbook', value: runtimeRunbooks.find((entry) => entry.isDefault) ?? null },
     { rung: 'repo-default', value: options.scenario ? runtimeRunbooks.find((entry) => selectorMatchesScenario(entry.selector, options.scenario as Scenario)) ?? null : null },
-  ], runSelectionPrecedenceLaw);
+  ], runSelectionPrecedencePolicy.rungs);
 }
 
 export function resolveRunSelection(
@@ -145,5 +146,5 @@ export function activeDatasetForRun(
   return chooseByPrecedence([
     { rung: 'runbook', value: runbook?.dataset ? controls.datasets.find((entry) => entry.name === runbook.dataset) ?? null : null },
     { rung: 'repo-default', value: controls.datasets.find((entry) => entry.isDefault) ?? controls.datasets[0] ?? null },
-  ], runSelectionPrecedenceLaw);
+  ], runSelectionPrecedencePolicy.rungs);
 }

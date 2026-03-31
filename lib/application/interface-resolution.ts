@@ -12,6 +12,7 @@ import type {
 import { createStateNodeRef } from '../domain/identity';
 import type { CanonicalTargetRef, PostureId, ScreenId, SelectorRef, SnapshotTemplateId } from '../domain/identity';
 import { computeDecayedConfidence, type FreshnessPolicy, defaultFreshnessPolicy } from '../domain/knowledge-freshness';
+import { precedencePolicies } from '../domain/precedence';
 import type { WorkspaceCatalog } from './catalog';
 import { TesseractError } from '../domain/errors';
 import type { DerivedGraph } from '../domain/types/execution-context';
@@ -208,6 +209,11 @@ export function buildInterfaceResolutionContext(input: {
     evidenceRefs: input.catalog.evidenceRecords.map((entry) => entry.artifactPath).sort((left, right) => left.localeCompare(right)),
     confidenceOverlays,
     controls: input.runtimeControls,
+    precedence: {
+      resolution: precedencePolicies.resolution.rungs,
+      dataResolution: precedencePolicies.dataResolution.rungs,
+      runSelection: precedencePolicies.runSelection.rungs,
+    },
     stateGraph: input.stateGraph,
     derivedGraph: input.derivedGraph ?? null,
   };
