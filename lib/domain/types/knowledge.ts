@@ -26,6 +26,7 @@ import type { StepResolution } from './intent';
 import type { RuntimeControlSession } from './resolution';
 import type { StateTransitionGraph } from './interface';
 import type { DerivedGraph } from './projection';
+import type { DataResolutionPrecedenceRung, ResolutionPrecedenceRung, RunSelectionPrecedenceRung } from '../precedence-policy';
 
 export interface StepTaskElementCandidate {
   readonly element: ElementId;
@@ -127,6 +128,11 @@ export interface InterfaceResolutionContext {
   readonly evidenceRefs: readonly string[];
   readonly confidenceOverlays: readonly ArtifactConfidenceRecord[];
   readonly controls: RuntimeControlSession;
+  readonly precedence?: {
+    readonly resolution: readonly ResolutionPrecedenceRung[];
+    readonly dataResolution: readonly DataResolutionPrecedenceRung[];
+    readonly runSelection: readonly RunSelectionPrecedenceRung[];
+  } | undefined;
   readonly stateGraph?: StateTransitionGraph | null | undefined;
   /** DerivedGraph reference for runtime graph queries (transitions, reachability). */
   readonly derivedGraph?: DerivedGraph | null | undefined;

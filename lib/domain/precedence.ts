@@ -1,31 +1,15 @@
-export const resolutionPrecedenceLaw = [
-  'explicit',
-  'control',
-  'approved-screen-knowledge',
-  'shared-patterns',
-  'prior-evidence',
-  'semantic-dictionary',
-  'approved-equivalent-overlay',
-  'structured-translation',
-  'live-dom',
-  'agent-interpreted',
-  'needs-human',
-] as const;
+import {
+  dataResolutionPrecedencePolicy,
+  precedencePolicies,
+  resolutionPrecedencePolicy,
+  runSelectionPrecedencePolicy,
+} from './precedence-policy';
 
-export const dataResolutionPrecedenceLaw = [
-  'explicit',
-  'runbook-dataset-binding',
-  'dataset-default',
-  'hint-default-value',
-  'posture-sample',
-  'generated-token',
-] as const;
+export const resolutionPrecedenceLaw = resolutionPrecedencePolicy.rungs;
 
-export const runSelectionPrecedenceLaw = [
-  'cli-flag',
-  'runbook',
-  'repo-default',
-] as const;
+export const dataResolutionPrecedenceLaw = dataResolutionPrecedencePolicy.rungs;
+
+export const runSelectionPrecedenceLaw = runSelectionPrecedencePolicy.rungs;
 
 /**
  * Route navigation precedence law:
@@ -45,6 +29,7 @@ export type ResolutionPrecedenceRung = (typeof resolutionPrecedenceLaw)[number];
 export type DataResolutionPrecedenceRung = (typeof dataResolutionPrecedenceLaw)[number];
 export type RunSelectionPrecedenceRung = (typeof runSelectionPrecedenceLaw)[number];
 export type RouteSelectionPrecedenceRung = (typeof routeSelectionPrecedenceLaw)[number];
+export { precedencePolicies };
 
 /**
  * Select the highest-precedence candidate value according to a rung law.
