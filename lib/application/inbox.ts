@@ -45,23 +45,32 @@ export function emitOperatorInbox(options: {
       catalog.interpretationDriftRecords.map((entry) => entry.artifact),
       catalog.resolutionGraphRecords.map((entry) => entry.artifact),
     );
-    const markdown = renderOperatorInboxMarkdown(filteredItems, rerunPlans, hotspots, filteredImprovementRuns);
-    yield* fs.writeJson(options.paths.inboxIndexPath, {
-      kind: 'operator-inbox',
-      version: 1,
-      generatedAt: new Date().toISOString(),
-      items: filteredItems,
-      improvementRuns: filteredImprovementRuns,
-      rerunPlans,
-      hotspots,
-    });
-    yield* fs.writeText(options.paths.inboxReportPath, markdown);
-    yield* fs.writeJson(options.paths.hotspotIndexPath, {
-      kind: 'workflow-hotspot-index',
-      version: 1,
-      generatedAt: new Date().toISOString(),
-      hotspots,
-    });
+    // Cap rendered markdown to 2MB to prevent OOM on huge catalogs
+    const MAX_MARKDOWN_LENGTH = 2 * 1024 * 1024;
+    let markdown = renderOperatorInboxMarkdown(filteredItems, rerunPlans, hotspots, filteredImprovementRuns);
+    if (markdown.length > MAX_MARKDOWN_LENGTH) {
+      markdown = markdown.slice(0, MAX_MARKDOWN_LENGTH) + '\n\n---\n*Truncated: report exceeded 2MB. Filter by adoId/kind/status for focused results.*\n';
+    }
+    // Parallelize independent file writes
+    const generatedAt = new Date().toISOString();
+    yield* Effect.all([
+      fs.writeJson(options.paths.inboxIndexPath, {
+        kind: 'operator-inbox',
+        version: 1,
+        generatedAt,
+        items: filteredItems,
+        improvementRuns: filteredImprovementRuns,
+        rerunPlans,
+        hotspots,
+      }),
+      fs.writeText(options.paths.inboxReportPath, markdown),
+      fs.writeJson(options.paths.hotspotIndexPath, {
+        kind: 'workflow-hotspot-index',
+        version: 1,
+        generatedAt,
+        hotspots,
+      }),
+    ]);
 
     // Emit inbox-item-arrived for each actionable item
     const dashboard = yield* Dashboard;
@@ -70,16 +79,12 @@ export function emitOperatorInbox(options: {
       yield* Effect.forEach(
         actionableItems,
         (item) => {
-          const eventData = Either.match(decodeOperatorInboxDashboardEventData(item), {
-            onLeft: (error) => {
-              throw new TesseractError(
-                'operator-inbox-dashboard-event-decode-failed',
-                `emitOperatorInbox action item ${item.id} failed event decode${error.path ? ` at ${error.path}` : ''}`,
-                error,
-              );
-            },
-            onRight: (value) => value,
-          });
+          const decoded = decodeOperatorInboxDashboardEventData(item);
+          // Skip items that fail decode instead of stopping the entire broadcast
+          if (Either.isLeft(decoded)) {
+            return Effect.void;
+          }
+          const eventData = decoded.right;
           return dashboard.emit(dashboardEvent('inbox-item-arrived', {
             id: item.id,
             element: eventData.element ?? item.id,

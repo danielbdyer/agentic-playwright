@@ -23,6 +23,23 @@ import { RETRY_POLICIES, formatRetryMetadata, retryMetadata, retryScheduleForTag
 
 // ─── Configuration ───
 
+/** Default page size for paginated list responses. */
+const DEFAULT_PAGE_SIZE = 100;
+/** Maximum page size allowed. */
+const MAX_PAGE_SIZE = 500;
+
+function paginationArgs(args: Record<string, unknown>): { offset: number; limit: number } {
+  const offset = Math.max(0, Number(args.offset) || 0);
+  const limit = Math.min(MAX_PAGE_SIZE, Math.max(1, Number(args.limit) || DEFAULT_PAGE_SIZE));
+  return { offset, limit };
+}
+
+function paginate<T>(items: readonly T[], args: Record<string, unknown>): { items: readonly T[]; total: number; offset: number; limit: number; hasMore: boolean } {
+  const { offset, limit } = paginationArgs(args);
+  const page = items.slice(offset, offset + limit);
+  return { items: page, total: items.length, offset, limit, hasMore: offset + limit < items.length };
+}
+
 export interface DashboardMcpServerOptions {
   /** Read a JSON artifact from the .tesseract/ directory. Returns null if not found. */
   readonly readArtifact: (relativePath: string) => unknown | null;
@@ -62,7 +79,8 @@ const listProbedElements: ToolHandler = (args, options) => {
       sources: (item.evidence as { sources?: readonly string[] })?.sources ?? [],
     }));
 
-  return { elements, count: elements.length };
+  const page = paginate(elements, args);
+  return { elements: page.items, count: page.total, offset: page.offset, limit: page.limit, hasMore: page.hasMore };
 };
 
 const getScreenCapture: ToolHandler = (_args, options) => {
@@ -83,10 +101,14 @@ const getKnowledgeState: ToolHandler = (args, options) => {
     ? nodes.filter((n) => (n.id as string)?.includes(screenFilter))
     : nodes;
 
+  const page = paginate(filtered, args);
   return {
-    nodes: filtered.slice(0, 100),
-    totalNodes: filtered.length,
+    nodes: page.items,
+    totalNodes: page.total,
     totalEdges: (graph.edges ?? []).length,
+    offset: page.offset,
+    limit: page.limit,
+    hasMore: page.hasMore,
   };
 };
 
@@ -98,19 +120,24 @@ const getQueueItems: ToolHandler = (args, options) => {
   if (!workbench?.items) return { items: [], count: 0 };
 
   const statusFilter = (args.status as string) ?? 'all';
-  const items = statusFilter === 'all'
-    ? workbench.items
-    : workbench.items.filter((item) => {
-        const completions = options.readArtifact('.tesseract/workbench/completions.json') as {
-          readonly completions?: readonly { readonly workItemId: string }[];
-        } | null;
-        const completedIds = new Set((completions?.completions ?? []).map((c) => c.workItemId));
-        return statusFilter === 'pending'
-          ? !completedIds.has(item.id as string)
-          : completedIds.has(item.id as string);
-      });
+  let items: readonly Record<string, unknown>[];
+  if (statusFilter === 'all') {
+    items = workbench.items;
+  } else {
+    // Read completions ONCE outside the filter loop (was O(N) artifact reads)
+    const completions = options.readArtifact('.tesseract/workbench/completions.json') as {
+      readonly completions?: readonly { readonly workItemId: string }[];
+    } | null;
+    const completedIds = new Set((completions?.completions ?? []).map((c) => c.workItemId));
+    items = workbench.items.filter((item) =>
+      statusFilter === 'pending'
+        ? !completedIds.has(item.id as string)
+        : completedIds.has(item.id as string),
+    );
+  }
 
-  return { items, count: items.length, summary: workbench.summary ?? null };
+  const page = paginate(items, args);
+  return { items: page.items, count: page.total, offset: page.offset, limit: page.limit, hasMore: page.hasMore, summary: workbench.summary ?? null };
 };
 
 const getFitnessMetrics: ToolHandler = (_args, options) => {
@@ -120,11 +147,23 @@ const getFitnessMetrics: ToolHandler = (_args, options) => {
   return scorecard?.highWaterMark ?? { error: 'No scorecard available yet' };
 };
 
+/**
+ * Atomically claim a pending decision resolver: get + delete in one step.
+ * Prevents race conditions when two agents approve/skip the same item concurrently.
+ */
+function claimResolver(pendingDecisions: ReadonlyMap<string, (d: WorkItemDecision) => void>, workItemId: string): ((d: WorkItemDecision) => void) | null {
+  const map = pendingDecisions as Map<string, (d: WorkItemDecision) => void>;
+  const resolver = map.get(workItemId);
+  if (!resolver) return null;
+  map.delete(workItemId);
+  return resolver;
+}
+
 const approveWorkItem: ToolHandler = (args, options) => {
   const workItemId = args.workItemId as string;
   if (!workItemId) return { error: 'workItemId is required', isError: true };
 
-  const resolver = (options.pendingDecisions as Map<string, (d: WorkItemDecision) => void>).get(workItemId);
+  const resolver = claimResolver(options.pendingDecisions, workItemId);
   if (!resolver) return { error: `No pending decision for ${workItemId}`, isError: true };
 
   const decision: WorkItemDecision = {
@@ -132,7 +171,6 @@ const approveWorkItem: ToolHandler = (args, options) => {
     status: 'completed',
     rationale: (args.rationale as string) ?? 'Approved via MCP tool',
   };
-  (options.pendingDecisions as Map<string, (d: WorkItemDecision) => void>).delete(workItemId);
   resolver(decision);
   options.broadcast(dashboardEvent('item-completed', decision));
   return { ok: true, workItemId, status: 'completed' };
@@ -142,7 +180,7 @@ const skipWorkItem: ToolHandler = (args, options) => {
   const workItemId = args.workItemId as string;
   if (!workItemId) return { error: 'workItemId is required', isError: true };
 
-  const resolver = (options.pendingDecisions as Map<string, (d: WorkItemDecision) => void>).get(workItemId);
+  const resolver = claimResolver(options.pendingDecisions, workItemId);
   if (!resolver) return { error: `No pending decision for ${workItemId}`, isError: true };
 
   const decision: WorkItemDecision = {
@@ -150,7 +188,6 @@ const skipWorkItem: ToolHandler = (args, options) => {
     status: 'skipped',
     rationale: (args.rationale as string) ?? 'Skipped via MCP tool',
   };
-  (options.pendingDecisions as Map<string, (d: WorkItemDecision) => void>).delete(workItemId);
   resolver(decision);
   options.broadcast(dashboardEvent('item-completed', decision));
   return { ok: true, workItemId, status: 'skipped' };
@@ -161,9 +198,11 @@ const getIterationStatus: ToolHandler = (_args, options) => {
   if (!progressFile || typeof progressFile !== 'string') {
     return { error: 'No progress data available', phase: 'idle' };
   }
-  const lines = progressFile.trim().split('\n');
-  const lastLine = lines[lines.length - 1];
-  try { return JSON.parse(lastLine!); }
+  // Extract only the last line without splitting entire file into array
+  const trimmed = progressFile.trimEnd();
+  const lastNewline = trimmed.lastIndexOf('\n');
+  const lastLine = lastNewline === -1 ? trimmed : trimmed.slice(lastNewline + 1);
+  try { return JSON.parse(lastLine); }
   catch { return { error: 'Could not parse progress data', phase: 'unknown' }; }
 };
 
@@ -196,7 +235,8 @@ const listProposalsHandler: ToolHandler = (args, options) => {
   const filtered = statusFilter === 'all'
     ? all
     : all.filter((p) => (p.status as string) === statusFilter);
-  return { proposals: filtered, count: filtered.length };
+  const page = paginate(filtered, args);
+  return { proposals: page.items, count: page.total, offset: page.offset, limit: page.limit, hasMore: page.hasMore };
 };
 
 const getBottleneck: ToolHandler = (args, options) => {
@@ -225,7 +265,8 @@ const getResolutionGraph: ToolHandler = (args, options) => {
   const filteredNodes = screenFilter
     ? nodes.filter((n) => (n.screen as string) === screenFilter)
     : nodes;
-  return { nodes: filteredNodes, edges, totalNodes: filteredNodes.length, totalEdges: edges.length };
+  const page = paginate(filteredNodes, args);
+  return { nodes: page.items, edges: edges.slice(0, MAX_PAGE_SIZE), totalNodes: page.total, totalEdges: edges.length, offset: page.offset, limit: page.limit, hasMore: page.hasMore };
 };
 
 const getTaskResolution: ToolHandler = (args, options) => {
