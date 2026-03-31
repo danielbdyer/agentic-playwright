@@ -285,9 +285,9 @@ async function evaluateStateNode(
   }, { concurrency: browserObservationConcurrency });
 
   const observed = predicateOutcomes.every((outcome) => outcome.observed);
-  const detail = normalizeDetailRecord(predicateOutcomes.reduce<Record<string, string>>(
-    (acc, outcome) => ({ ...acc, ...outcome.detail }),
-    {},
+  const detail = normalizeDetailRecord(Object.assign(
+    {} as Record<string, string>,
+    ...predicateOutcomes.map((outcome) => outcome.detail),
   ));
 
   return {
@@ -481,7 +481,7 @@ export async function observeTransitionOnPage(input: {
     afterObservations
       .filter((entry) => entry.detail)
       .map((entry) => [entry.stateRef, JSON.stringify(normalizeDetailRecord(entry.detail))])
-      .sort(([left], [right]) => left.localeCompare(right)),
+      .sort(([left], [right]) => (left ?? '').localeCompare(right ?? '')),
   );
 
   return {
