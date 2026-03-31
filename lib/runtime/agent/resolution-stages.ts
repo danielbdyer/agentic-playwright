@@ -288,7 +288,15 @@ export function trySemanticDictionaryResolution(stage: RuntimeAgentStageContext,
   }
 
   const normalized = normalizedCombined(stage.task);
-  const match = lookupSemanticDictionary(normalized, catalog);
+  const match = lookupSemanticDictionary(normalized, catalog, {
+    retrievalContext: {
+      allowedActions: [...stage.task.allowedActions],
+      currentScreen: stage.memory.currentScreen?.screen ?? null,
+      availableScreens: stage.context.resolutionContext.screens.map((s) => s.screen),
+      activeRouteVariantRefs: [...stage.memory.activeRouteVariantRefs],
+      governanceFilter: 'include-review',
+    },
+  });
 
   if (!match) {
     return {
@@ -344,9 +352,14 @@ export function trySemanticDictionaryResolution(stage: RuntimeAgentStageContext,
 
   const override = resolveOverride(stage.task, screen, element, entry.target.posture, stage.controlResolution, stage.context);
 
+  const scoring = match.scoring;
+  const scoringSummary = scoring
+    ? `text: ${scoring.textSimilarity.toFixed(3)}, structural: ${scoring.structuralScore.toFixed(3)}, confidence: ${scoring.confidence.toFixed(3)}, combined: ${scoring.combined.toFixed(3)}`
+    : `similarity: ${match.similarityScore.toFixed(3)}, confidence: ${entry.confidence.toFixed(3)}, combined: ${match.combinedScore.toFixed(3)}`;
+
   const observation = {
     source: 'semantic-dictionary' as const,
-    summary: `Semantic dictionary resolved via accrued LLM decision (similarity: ${match.similarityScore.toFixed(3)}, confidence: ${entry.confidence.toFixed(3)}, combined: ${match.combinedScore.toFixed(3)}, reuses: ${entry.successCount}).`,
+    summary: `Semantic dictionary resolved via accrued LLM decision (${scoringSummary}, reuses: ${entry.successCount}).`,
     detail: {
       entryId: entry.id,
       provenance: entry.provenance,
@@ -354,12 +367,16 @@ export function trySemanticDictionaryResolution(stage: RuntimeAgentStageContext,
       confidence: entry.confidence.toFixed(3),
       combinedScore: match.combinedScore.toFixed(3),
       successCount: String(entry.successCount),
+      ...(scoring ? {
+        textSimilarity: scoring.textSimilarity.toFixed(3),
+        structuralScore: scoring.structuralScore.toFixed(3),
+      } : {}),
     },
   };
 
   const effects: StageEffects = {
     ...EMPTY_EFFECTS,
-    exhaustion: [exhaustionEntry('semantic-dictionary', 'resolved', `Accrued LLM decision matched with combined score ${match.combinedScore.toFixed(3)} (similarity: ${match.similarityScore.toFixed(3)} × confidence: ${entry.confidence.toFixed(3)})`)],
+    exhaustion: [exhaustionEntry('semantic-dictionary', 'resolved', `Accrued LLM decision matched (${scoringSummary})`)],
     observations: [observation],
   };
 

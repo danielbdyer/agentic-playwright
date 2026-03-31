@@ -92,14 +92,53 @@ export interface SemanticDictionaryCatalog {
   };
 }
 
+// ─── Retrieval Context ───
+
+/**
+ * Structural context supplied to the lookup function so it can score
+ * not just textual similarity but also structural compatibility:
+ * - Does the entry's action match the allowed actions?
+ * - Is the entry's screen the current or a reachable screen?
+ * - Does the entry's posture match a feasible posture?
+ * - Does the entry's route overlap with active route variants?
+ *
+ * This moves the system from "text similarity only" to
+ * "text similarity + structural plausibility + governance state".
+ */
+export interface SemanticRetrievalContext {
+  /** Allowed actions for the current step. */
+  readonly allowedActions: readonly StepAction[];
+  /** Current screen from the observed state session (if any). */
+  readonly currentScreen: ScreenId | null;
+  /** Screens available in the resolution context. */
+  readonly availableScreens: readonly ScreenId[];
+  /** Active route variant refs from memory. */
+  readonly activeRouteVariantRefs: readonly string[];
+  /** Governance filter: which governance states are auto-applicable. */
+  readonly governanceFilter: 'approved-only' | 'include-review' | 'all';
+}
+
 // ─── Lookup Result ───
+
+export interface SemanticDictionaryMatchScoring {
+  /** Token Jaccard similarity between query and stored intent. */
+  readonly textSimilarity: number;
+  /** Structural compatibility score [0, 1]. */
+  readonly structuralScore: number;
+  /** Entry confidence [0, 1]. */
+  readonly confidence: number;
+  /** Final combined score: weighted blend of all dimensions. */
+  readonly combined: number;
+}
 
 export interface SemanticDictionaryMatch {
   readonly entry: SemanticDictionaryEntry;
   /** Token Jaccard similarity score between query and stored intent. */
   readonly similarityScore: number;
-  /** Combined score: similarity × confidence. */
+  /** Combined score: similarity × confidence (backwards compat). */
   readonly combinedScore: number;
+  /** Full scoring breakdown (when retrieval context is provided). */
+  readonly scoring?: SemanticDictionaryMatchScoring | undefined;
 }
 
 // ─── Accrual Input ───

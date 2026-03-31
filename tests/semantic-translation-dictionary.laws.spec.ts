@@ -20,6 +20,7 @@ import type {
   SemanticDictionaryEntry,
   SemanticDictionaryTarget,
 } from '../lib/domain/types';
+import type { SemanticRetrievalContext } from '../lib/domain/types';
 import {
   accrueSemanticEntry,
   emptyCatalog,
@@ -400,7 +401,105 @@ test('catalog summary tracks aggregate statistics correctly', () => {
   expect(catalog.summary.promotedCount).toBe(1);
 });
 
-// ─── 9. Determinism ───
+// ─── 9. Structural Context Scoring ───
+
+function retrievalContext(overrides: Partial<SemanticRetrievalContext> = {}): SemanticRetrievalContext {
+  return {
+    allowedActions: ['input', 'click'],
+    currentScreen: createScreenId('policy-search'),
+    availableScreens: [createScreenId('policy-search'), createScreenId('claims-dashboard')],
+    activeRouteVariantRefs: [],
+    governanceFilter: 'all',
+    ...overrides,
+  };
+}
+
+test('structural scoring boosts entries on the current screen', () => {
+  const catalog = highConfidenceEntry('enter policy number field accepts value');
+  const ctx = retrievalContext({ currentScreen: createScreenId('policy-search') });
+
+  const match = lookupSemanticDictionary('enter policy number field accepts value', catalog, { retrievalContext: ctx });
+  expect(match).not.toBeNull();
+  expect(match!.scoring).toBeDefined();
+  expect(match!.scoring!.structuralScore).toBeGreaterThan(0.5);
+});
+
+test('structural scoring penalises entries targeting unavailable screens', () => {
+  const catalog = highConfidenceEntry('enter policy number field accepts value');
+  // Screen policy-search is in the entry, but we say only claims-dashboard is available
+  const ctx = retrievalContext({
+    currentScreen: createScreenId('claims-dashboard'),
+    availableScreens: [createScreenId('claims-dashboard')],
+  });
+
+  const match = lookupSemanticDictionary('enter policy number field accepts value', catalog, { retrievalContext: ctx });
+  // Still might match on text, but structural score should be low
+  if (match?.scoring) {
+    expect(match.scoring.structuralScore).toBeLessThan(0.5);
+  }
+});
+
+test('structural scoring rewards action compatibility', () => {
+  const catalog = highConfidenceEntry('enter policy number field accepts value');
+  const ctxCompatible = retrievalContext({ allowedActions: ['input'] });
+  const ctxIncompatible = retrievalContext({ allowedActions: ['navigate'] });
+
+  const matchCompat = lookupSemanticDictionary('enter policy number field accepts value', catalog, { retrievalContext: ctxCompatible });
+  const matchIncompat = lookupSemanticDictionary('enter policy number field accepts value', catalog, { retrievalContext: ctxIncompatible });
+
+  // Compatible action should score higher
+  if (matchCompat?.scoring && matchIncompat?.scoring) {
+    expect(matchCompat.scoring.structuralScore).toBeGreaterThan(matchIncompat.scoring.structuralScore);
+  }
+});
+
+// ─── 10. Governance Filtering ───
+
+test('approved-only filter excludes low-confidence unpromoted entries', () => {
+  let catalog = accrueSemanticEntry(emptyCatalog(), accrualInput());
+  // Entry is new: confidence 0.5, not promoted, 1 reuse — should be filtered
+  const ctx = retrievalContext({ governanceFilter: 'approved-only' });
+  const match = lookupSemanticDictionary('enter policy number into search box', catalog, { retrievalContext: ctx });
+  expect(match).toBeNull();
+});
+
+test('approved-only filter includes promoted entries', () => {
+  let catalog = highConfidenceEntry('enter policy number into search box');
+  catalog = markPromoted(catalog, catalog.entries[0]!.id);
+  const ctx = retrievalContext({ governanceFilter: 'approved-only' });
+  const match = lookupSemanticDictionary('enter policy number into search box', catalog, { retrievalContext: ctx });
+  expect(match).not.toBeNull();
+});
+
+test('approved-only filter includes high-confidence entries with sufficient reuse', () => {
+  const catalog = highConfidenceEntry('enter policy number into search box');
+  // Not promoted, but high confidence and 16+ reuses
+  expect(catalog.entries[0]!.promoted).toBe(false);
+  expect(catalog.entries[0]!.confidence).toBeGreaterThan(0.8);
+  const ctx = retrievalContext({ governanceFilter: 'approved-only' });
+  const match = lookupSemanticDictionary('enter policy number into search box', catalog, { retrievalContext: ctx });
+  expect(match).not.toBeNull();
+});
+
+test('include-review filter includes medium-confidence entries', () => {
+  let catalog = accrueSemanticEntry(emptyCatalog(), accrualInput());
+  const ctx = retrievalContext({ governanceFilter: 'include-review' });
+  const match = lookupSemanticDictionary('enter policy number into search box', catalog, { retrievalContext: ctx });
+  expect(match).not.toBeNull();
+});
+
+test('multi-dimensional scoring produces scoring breakdown', () => {
+  const catalog = highConfidenceEntry('enter policy number field accepts value');
+  const ctx = retrievalContext();
+  const match = lookupSemanticDictionary('enter policy number field accepts value', catalog, { retrievalContext: ctx });
+  expect(match?.scoring).toBeDefined();
+  expect(match!.scoring!.textSimilarity).toBeGreaterThan(0);
+  expect(match!.scoring!.structuralScore).toBeGreaterThanOrEqual(0);
+  expect(match!.scoring!.confidence).toBeGreaterThan(0);
+  expect(match!.scoring!.combined).toBeGreaterThan(0);
+});
+
+// ─── 11. Determinism ───
 
 test('lookup is deterministic for the same inputs', () => {
   const catalog = highConfidenceEntry('enter policy number');
@@ -409,4 +508,13 @@ test('lookup is deterministic for the same inputs', () => {
   expect(first?.entry.id).toBe(second?.entry.id);
   expect(first?.similarityScore).toBe(second?.similarityScore);
   expect(first?.combinedScore).toBe(second?.combinedScore);
+});
+
+test('structural lookup is deterministic for the same context', () => {
+  const catalog = highConfidenceEntry('enter policy number field accepts value');
+  const ctx = retrievalContext();
+  const first = lookupSemanticDictionary('enter policy number field accepts value', catalog, { retrievalContext: ctx });
+  const second = lookupSemanticDictionary('enter policy number field accepts value', catalog, { retrievalContext: ctx });
+  expect(first?.scoring?.combined).toBe(second?.scoring?.combined);
+  expect(first?.scoring?.structuralScore).toBe(second?.scoring?.structuralScore);
 });

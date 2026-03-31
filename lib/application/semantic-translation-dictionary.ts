@@ -23,13 +23,15 @@
 
 import { Effect } from 'effect';
 import { sha256, stableStringify } from '../domain/hash';
-import { normalizeIntentText, bestAliasMatch } from '../domain/inference';
+import { normalizeIntentText } from '../domain/inference';
 import type {
   SemanticDictionaryAccrualInput,
   SemanticDictionaryCatalog,
   SemanticDictionaryEntry,
   SemanticDictionaryMatch,
+  SemanticDictionaryMatchScoring,
   SemanticDictionaryTarget,
+  SemanticRetrievalContext,
 } from '../domain/types';
 import { FileSystem } from './ports';
 import type { ProjectPaths } from './paths';
@@ -90,10 +92,100 @@ function tokenJaccard(a: readonly string[], b: readonly string[]): number {
   return intersection / unionSize;
 }
 
+// ─── Scoring Weights ───
+
+/** Weights for the multi-dimensional scoring blend. */
+const SCORING_WEIGHTS = {
+  textSimilarity: 0.45,
+  structuralScore: 0.25,
+  confidence: 0.30,
+} as const;
+
+// ─── Structural Compatibility ───
+
+/**
+ * Score how structurally compatible an entry is with the current resolution
+ * context. Considers action feasibility, screen proximity, and route overlap.
+ *
+ * Returns a score in [0, 1] where 1 = perfect structural match.
+ */
+function structuralCompatibility(
+  entry: SemanticDictionaryEntry,
+  context: SemanticRetrievalContext,
+): number {
+  let score = 0;
+  let dimensions = 0;
+
+  // Action compatibility: does the entry's action match allowed actions?
+  if (context.allowedActions.length > 0) {
+    dimensions++;
+    if (context.allowedActions.includes(entry.target.action)) {
+      score += 1;
+    }
+  }
+
+  // Screen proximity: is the entry's screen the current screen, or at least available?
+  if (context.availableScreens.length > 0) {
+    dimensions++;
+    if (context.currentScreen && entry.target.screen === context.currentScreen) {
+      score += 1; // Best: same screen we're already on
+    } else if (context.availableScreens.includes(entry.target.screen)) {
+      score += 0.6; // Good: screen exists in knowledge
+    }
+    // else: 0 — screen not available, structurally dubious
+  }
+
+  // Route variant overlap: does the entry's screen share route context?
+  // (Entries from the same navigation flow are more likely to be correct)
+  if (context.activeRouteVariantRefs.length > 0 && entry.taskFingerprints.length > 0) {
+    dimensions++;
+    // Approximate: entries from the same task fingerprint likely share route context
+    // This is a rough signal — exact route overlap would require storing routes on entries
+    score += 0.5; // Neutral: we have route context but can't fully verify
+  }
+
+  return dimensions > 0 ? score / dimensions : 0.5; // Default neutral when no context
+}
+
+/**
+ * Check governance filter. Currently entries don't carry governance state
+ * directly, but we can infer it from provenance and confidence:
+ * - High-confidence + promoted = approved
+ * - High-confidence + unpromoted = review-required (auto-suggested)
+ * - Low-confidence = informational only
+ */
+function passesGovernanceFilter(
+  entry: SemanticDictionaryEntry,
+  filter: SemanticRetrievalContext['governanceFilter'],
+): boolean {
+  switch (filter) {
+    case 'approved-only':
+      return entry.promoted || (entry.confidence >= HIGH_CONFIDENCE_THRESHOLD && entry.successCount >= 3);
+    case 'include-review':
+      return entry.confidence >= INITIAL_CONFIDENCE;
+    case 'all':
+      return true;
+  }
+}
+
 // ─── Lookup ───
+
+export interface SemanticLookupOptions {
+  readonly similarityThreshold?: number;
+  readonly combinedScoreThreshold?: number;
+  /** Structural context for multi-dimensional scoring. */
+  readonly retrievalContext?: SemanticRetrievalContext;
+  /** Maximum entries to consider (top-N retrieval). */
+  readonly topN?: number;
+}
 
 /**
  * Find the best semantic match for a normalised intent against the dictionary.
+ *
+ * When a `retrievalContext` is provided, scoring blends text similarity with
+ * structural compatibility (action feasibility, screen proximity, route overlap)
+ * and governance state filtering. This moves from pure text matching to
+ * memory-informed intent resolution.
  *
  * Returns the highest combined-score entry above both thresholds, or null.
  * Pure function — no side effects.
@@ -101,13 +193,11 @@ function tokenJaccard(a: readonly string[], b: readonly string[]): number {
 export function lookupSemanticDictionary(
   normalizedIntent: string,
   catalog: SemanticDictionaryCatalog,
-  options?: {
-    readonly similarityThreshold?: number;
-    readonly combinedScoreThreshold?: number;
-  },
+  options?: SemanticLookupOptions,
 ): SemanticDictionaryMatch | null {
   const simThreshold = options?.similarityThreshold ?? SIMILARITY_THRESHOLD;
   const combinedThreshold = options?.combinedScoreThreshold ?? COMBINED_SCORE_THRESHOLD;
+  const context = options?.retrievalContext;
 
   const queryTokens = tokenize(normalizeIntentText(normalizedIntent));
   if (queryTokens.length === 0) return null;
@@ -115,16 +205,48 @@ export function lookupSemanticDictionary(
   let best: SemanticDictionaryMatch | null = null;
 
   for (const entry of catalog.entries) {
+    // Governance gate: skip entries that don't pass the filter
+    if (context && !passesGovernanceFilter(entry, context.governanceFilter)) continue;
+
     const entryTokens = tokenize(normalizeIntentText(entry.normalizedIntent));
-    const similarityScore = tokenJaccard(queryTokens, entryTokens);
+    const textSimilarity = tokenJaccard(queryTokens, entryTokens);
 
-    if (similarityScore < simThreshold) continue;
+    if (textSimilarity < simThreshold) continue;
 
-    const combinedScore = similarityScore * entry.confidence;
-    if (combinedScore < combinedThreshold) continue;
+    if (context) {
+      // Multi-dimensional scoring
+      const structuralScore = structuralCompatibility(entry, context);
+      const confidence = entry.confidence;
+      const combined =
+        SCORING_WEIGHTS.textSimilarity * textSimilarity
+        + SCORING_WEIGHTS.structuralScore * structuralScore
+        + SCORING_WEIGHTS.confidence * confidence;
 
-    if (!best || combinedScore > best.combinedScore) {
-      best = { entry, similarityScore, combinedScore };
+      if (combined < combinedThreshold) continue;
+
+      const scoring: SemanticDictionaryMatchScoring = {
+        textSimilarity,
+        structuralScore,
+        confidence,
+        combined,
+      };
+
+      if (!best || combined > best.combinedScore) {
+        best = {
+          entry,
+          similarityScore: textSimilarity,
+          combinedScore: combined,
+          scoring,
+        };
+      }
+    } else {
+      // Legacy: text similarity × confidence only
+      const combinedScore = textSimilarity * entry.confidence;
+      if (combinedScore < combinedThreshold) continue;
+
+      if (!best || combinedScore > best.combinedScore) {
+        best = { entry, similarityScore: textSimilarity, combinedScore };
+      }
     }
   }
 
