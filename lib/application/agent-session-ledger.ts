@@ -17,7 +17,7 @@ import {
   relativeProjectPath,
   type ProjectPaths,
 } from './paths';
-import { FileSystem } from './ports';
+import { InterventionLedgerStore } from './ports';
 
 export interface AgentSessionLedgerResult {
   session: AgentSession;
@@ -47,7 +47,7 @@ export function writeAgentSessionLedger(input: {
   learningManifest: TrainingCorpusManifest | null;
 }) {
   return Effect.gen(function* () {
-    const fs = yield* FileSystem;
+    const interventionLedgerStore = yield* InterventionLedgerStore;
     const sessionId = `${input.runId}`;
     const adapter = resolveAgentSessionAdapter(adapterForProvider(input.providerId));
     const participants = adapter.participants({
@@ -96,17 +96,23 @@ export function writeAgentSessionLedger(input: {
       transcripts,
       events,
     });
-    const ledger = events.reduce(
+    const draftLedger = events.reduce(
       (state, event) => appendEvent(state, event),
       createInterventionLedger({ session: sessionSummary }),
     );
-    const session = ledger.session;
     const sessionPath = agentSessionPath(input.paths, sessionId);
     const eventsPath = agentSessionEventsPath(input.paths, sessionId);
     const transcriptRefsPath = agentSessionTranscriptRefsPath(input.paths, sessionId);
-    yield* fs.writeJson(sessionPath, session);
-    yield* fs.writeText(eventsPath, `${events.map((event) => JSON.stringify(event)).join('\n')}\n`);
-    yield* fs.writeJson(transcriptRefsPath, transcripts);
+    const persistedLedger = yield* Effect.promise(() => interventionLedgerStore.save({
+      sessionPath,
+      eventsPath,
+      transcriptsPath: transcriptRefsPath,
+    }, {
+      session: draftLedger.session,
+      events: draftLedger.events,
+      transcripts,
+    }));
+    const session = persistedLedger.session;
     return {
       session,
       sessionId,

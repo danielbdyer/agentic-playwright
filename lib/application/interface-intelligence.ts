@@ -63,7 +63,7 @@ import { readJsonArtifact } from './catalog/loaders';
 import type { ArtifactEnvelope, WorkspaceCatalog } from './catalog/types';
 import type { ProjectPaths } from './paths';
 import { relativeProjectPath } from './paths';
-import { FileSystem } from './ports';
+import { ApplicationInterfaceGraphStore, FileSystem } from './ports';
 import {
   fingerprintProjectionArtifact,
   fingerprintProjectionOutput,
@@ -1506,6 +1506,7 @@ export function loadDiscoveryRuns(options: { paths: ProjectPaths }) {
 export function projectInterfaceIntelligence(options: { paths: ProjectPaths; catalog?: WorkspaceCatalog }) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
+    const graphStore = yield* ApplicationInterfaceGraphStore;
     const catalog = options.catalog ?? null;
     if (!catalog) return yield* Effect.fail(new TesseractError('missing-catalog', 'projectInterfaceIntelligence requires a loaded catalog'));
     const discoveryRuns = catalog.discoveryRuns.length > 0 ? catalog.discoveryRuns : yield* loadDiscoveryRuns({ paths: options.paths });
@@ -1535,19 +1536,22 @@ export function projectInterfaceIntelligence(options: { paths: ProjectPaths; cat
       inputFingerprints,
       outputFingerprint,
       verifyPersistedOutput: (expectedOutputFingerprint) => Effect.gen(function* () {
-        const interfaceExists = yield* fs.exists(options.paths.interfaceGraphIndexPath);
+        const persistedInterfaceResult = yield* Effect.promise(() => graphStore.load(options.paths.interfaceGraphIndexPath));
         const selectorExists = yield* fs.exists(options.paths.selectorCanonPath);
         const stateGraphExists = yield* fs.exists(options.paths.stateGraphPath);
-        if (!interfaceExists || !selectorExists || !stateGraphExists) return { status: 'missing-output' as const };
-        const persistedInterface = yield* fs.readJson(options.paths.interfaceGraphIndexPath);
+        if (!persistedInterfaceResult.found || !persistedInterfaceResult.graph || !selectorExists || !stateGraphExists) return { status: 'missing-output' as const };
         const persistedSelectors = yield* fs.readJson(options.paths.selectorCanonPath);
         const persistedStateGraph = yield* fs.readJson(options.paths.stateGraphPath);
-        const persistedFingerprint = fingerprintProjectionOutput({ interfaceGraph: persistedInterface, selectorCanon: persistedSelectors, stateGraph: persistedStateGraph });
+        const persistedFingerprint = fingerprintProjectionOutput({
+          interfaceGraph: persistedInterfaceResult.graph,
+          selectorCanon: persistedSelectors,
+          stateGraph: persistedStateGraph,
+        });
         if (persistedFingerprint !== expectedOutputFingerprint) return { status: 'invalid-output' as const };
         return { status: 'ok' as const, outputFingerprint: persistedFingerprint };
       }),
       buildAndWrite: () => Effect.gen(function* () {
-        yield* fs.writeJson(options.paths.interfaceGraphIndexPath, interfaceGraph);
+        yield* Effect.promise(() => graphStore.save(options.paths.interfaceGraphIndexPath, interfaceGraph));
         yield* fs.writeJson(options.paths.selectorCanonPath, selectorCanon);
         yield* fs.writeJson(options.paths.stateGraphPath, stateGraph);
         return {

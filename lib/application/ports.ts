@@ -3,6 +3,9 @@ import type { AdoId } from '../domain/identity';
 import type { ResolutionEngine } from './resolution-engine';
 import type { TranslationProvider } from './translation-provider';
 import type { TesseractError } from '../domain/errors';
+import type { ApplicationInterfaceGraphRepository } from '../domain/interface/application-interface-graph-repository';
+import type { InterventionLedgerRepository } from '../domain/intervention/intervention-ledger-repository';
+import type { ImprovementRunRepository } from '../domain/improvement/improvement-run-repository';
 import type {
   AgentWorkItem,
   DashboardEvent,
@@ -162,6 +165,10 @@ export const DisabledStageTracer: StageTracerPort = {
 };
 
 export class StageTracer extends Context.Tag('tesseract/StageTracer')<StageTracer, StageTracerPort>() {}
+
+export class ApplicationInterfaceGraphStore extends Context.Tag('tesseract/ApplicationInterfaceGraphStore')<ApplicationInterfaceGraphStore, ApplicationInterfaceGraphRepository>() {}
+export class InterventionLedgerStore extends Context.Tag('tesseract/InterventionLedgerStore')<InterventionLedgerStore, InterventionLedgerRepository>() {}
+export class ImprovementRunStore extends Context.Tag('tesseract/ImprovementRunStore')<ImprovementRunStore, ImprovementRunRepository>() {}
 
 // ─── MCP Tool Server (WebMCP / Playwright MCP progressive enhancement) ───
 //

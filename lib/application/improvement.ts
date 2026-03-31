@@ -1,6 +1,6 @@
 import path from 'path';
 import { Effect } from 'effect';
-import { FileSystem } from './ports';
+import { ImprovementRunStore } from './ports';
 import type { ProjectPaths } from './paths';
 import type {
   AcceptanceDecision,
@@ -23,7 +23,7 @@ import type {
   PipelineFitnessReport,
   SubstrateContext,
 } from '../domain/types';
-import { appendImprovementRun, checkpointRun, createImprovementRun, emptyImprovementLedger } from '../domain/aggregates/improvement-run';
+import { checkpointRun, createImprovementRun } from '../domain/aggregates/improvement-run';
 
 export interface BuildImprovementRunInput {
   readonly paths: ProjectPaths;
@@ -510,26 +510,6 @@ export function buildImprovementRun(input: BuildImprovementRunInput): Improvemen
     : baseRun;
 }
 
-function normalizeImprovementLedger(value: unknown): ImprovementLedger {
-  const record = value as Partial<ImprovementLedger> | null | undefined;
-  return record?.kind === 'improvement-ledger'
-    && record.version === 1
-    && Array.isArray(record.runs)
-    ? {
-        kind: 'improvement-ledger',
-        version: 1,
-        runs: record.runs.filter(
-          (run): run is ImprovementRun =>
-            typeof run === 'object'
-            && run !== null
-            && (run as Partial<ImprovementRun>).kind === 'improvement-run'
-            && (run as Partial<ImprovementRun>).version === 1
-            && typeof (run as Partial<ImprovementRun>).improvementRunId === 'string',
-        ),
-      }
-    : emptyImprovementLedger();
-}
-
 export function toExperimentRecord(run: ImprovementRun): ExperimentRecord {
   return {
     id: run.improvementRunId,
@@ -550,22 +530,15 @@ export function toExperimentRecord(run: ImprovementRun): ExperimentRecord {
 
 export function loadImprovementLedger(paths: ProjectPaths) {
   return Effect.gen(function* () {
-    const fs = yield* FileSystem;
-    const filePath = improvementLedgerPath(paths);
-    const exists = yield* fs.exists(filePath);
-    if (!exists) {
-      return emptyImprovementLedger();
-    }
-
-    const raw = yield* fs.readJson(filePath);
-    return normalizeImprovementLedger(raw);
+    const repository = yield* ImprovementRunStore;
+    return yield* Effect.promise(() => repository.loadLedger(improvementLedgerPath(paths)));
   });
 }
 
 export function saveImprovementLedger(paths: ProjectPaths, ledger: ImprovementLedger) {
   return Effect.gen(function* () {
-    const fs = yield* FileSystem;
-    yield* fs.writeJson(improvementLedgerPath(paths), ledger);
+    const repository = yield* ImprovementRunStore;
+    return yield* Effect.promise(() => repository.saveLedger(improvementLedgerPath(paths), ledger));
   });
 }
 
@@ -574,9 +547,7 @@ export function recordImprovementRun(options: {
   readonly run: ImprovementRun;
 }) {
   return Effect.gen(function* () {
-    const ledger = yield* loadImprovementLedger(options.paths);
-    const updated = appendImprovementRun(ledger, options.run);
-    yield* saveImprovementLedger(options.paths, updated);
-    return updated;
+    const repository = yield* ImprovementRunStore;
+    return yield* Effect.promise(() => repository.appendRun(improvementLedgerPath(options.paths), options.run));
   });
 }
