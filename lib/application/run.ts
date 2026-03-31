@@ -9,14 +9,7 @@ import { emitOperatorInbox } from './inbox';
 import { projectLearningArtifacts } from './learning';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
 import type { ProjectPaths } from './paths';
-import {
-  executionPath,
-  generatedProposalsPath,
-  interpretationPath,
-  resolutionGraphPath,
-  runRecordPath,
-} from './paths';
-import { ExecutionContext, FileSystem, RuntimeScenarioRunner, Dashboard } from './ports';
+import { ExecutionContext, ExecutionRepository, FileSystem, RuntimeScenarioRunner, Dashboard } from './ports';
 import type { ExecutionPosture, Confidence, ActorKind } from '../domain/types';
 import { dashboardEvent } from '../domain/types/intervention-context';
 import type { AdoId } from '../domain/identity';
@@ -256,20 +249,25 @@ export function runScenarioCore(options: RunScenarioOptions) {
           learningManifest: learning.manifest,
         });
 
-        const interpretationFile = interpretationPath(options.paths, options.adoId, plan.runId);
-        const executionFile = executionPath(options.paths, options.adoId, plan.runId);
-        const resolutionGraphFile = resolutionGraphPath(options.paths, options.adoId, plan.runId);
-        const runFile = runRecordPath(options.paths, options.adoId, plan.runId);
-        const proposalsFile = generatedProposalsPath(options.paths, scenarioEntry.artifact.metadata.suite, options.adoId);
+        const executionRepository = yield* ExecutionRepository;
+        const persistedArtifacts = yield* executionRepository.writeRunArtifacts({
+          adoId: options.adoId,
+          runId: plan.runId,
+          suite: scenarioEntry.artifact.metadata.suite,
+          interpretation: executionStage.interpretationOutput,
+          execution: executionStage.executionOutput,
+          resolutionGraph: executionStage.resolutionGraphOutput,
+          runRecord: runRecordStage.runRecord,
+          proposalBundle: activationStage.proposalBundle,
+        });
 
-        const writtenFiles = [interpretationFile, executionFile, resolutionGraphFile, runFile, proposalsFile];
-        yield* Effect.all([
-          fs.writeJson(interpretationFile, executionStage.interpretationOutput),
-          fs.writeJson(executionFile, executionStage.executionOutput),
-          fs.writeJson(resolutionGraphFile, executionStage.resolutionGraphOutput),
-          fs.writeJson(runFile, runRecordStage.runRecord),
-          fs.writeJson(proposalsFile, activationStage.proposalBundle),
-        ], { concurrency: 'unbounded' });
+        const writtenFiles = [
+          persistedArtifacts.interpretationPath,
+          persistedArtifacts.executionPath,
+          persistedArtifacts.resolutionGraphPath,
+          persistedArtifacts.runPath,
+          persistedArtifacts.proposalsPath,
+        ];
 
         // Layer 3: emit artifact-written for each persisted file
         yield* Effect.forEach(
@@ -285,11 +283,11 @@ export function runScenarioCore(options: RunScenarioOptions) {
           runId: plan.runId,
           runbook: plan.controlSelection.runbook ?? null,
           dataset: plan.controlSelection.dataset ?? null,
-          interpretationPath: interpretationFile,
-          executionPath: executionFile,
-          resolutionGraphPath: resolutionGraphFile,
-          runPath: runFile,
-          proposalsPath: proposalsFile,
+          interpretationPath: persistedArtifacts.interpretationPath,
+          executionPath: persistedArtifacts.executionPath,
+          resolutionGraphPath: persistedArtifacts.resolutionGraphPath,
+          runPath: persistedArtifacts.runPath,
+          proposalsPath: persistedArtifacts.proposalsPath,
           evidence: evidenceStage.evidenceWrites.map((entry) => entry.absolutePath),
           activatedCanonPaths: activationStage.activatedPaths,
           blockedProposalIds: activationStage.blockedProposalIds,

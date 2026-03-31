@@ -24,7 +24,7 @@ import { deriveGovernanceState } from './catalog/envelope';
 import { buildInterfaceResolutionContext } from './interface-resolution';
 import type { ProjectPaths } from './paths';
 import { relativeProjectPath, taskPacketPath } from './paths';
-import { FileSystem } from './ports';
+import { FileSystem, ResolutionTaskRepository } from './ports';
 import {
   fingerprintProjectionArtifact,
   fingerprintProjectionOutput,
@@ -309,6 +309,7 @@ export function buildInterpretationSurfaceProjection(options:
   | { paths: ProjectPaths; adoId: AdoId; catalog?: WorkspaceCatalog; interfaceGraph?: ApplicationInterfaceGraph | null | undefined; selectorCanon?: SelectorCanon | null | undefined; stateGraph?: StateTransitionGraph | null | undefined }): Effect.Effect<TaskProjectionResult, unknown, unknown> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
+    const taskRepository = yield* ResolutionTaskRepository;
     const catalog = options.catalog ?? (yield* loadWorkspaceCatalog({ paths: options.paths, scope: 'compile' }));
     const compileSnapshot: CompileSnapshotInput = 'compileSnapshot' in options
       ? options.compileSnapshot
@@ -374,11 +375,11 @@ export function buildInterpretationSurfaceProjection(options:
       verifyPersistedOutput: () => Effect.gen(function* () {
         const exists = yield* fs.exists(packetPath);
         if (!exists) return { status: 'missing-output' as const };
-        const raw = yield* fs.readJson(packetPath);
+        const raw = yield* taskRepository.readTaskPacket(compileSnapshot.adoId);
         return { status: 'ok' as const, outputFingerprint: fingerprintProjectionOutput(raw) };
       }),
       persist: () => Effect.gen(function* () {
-        yield* fs.writeJson(packetPath, surface);
+        yield* taskRepository.writeTaskPacket(compileSnapshot.adoId, surface);
         return {
           result: { surface, surfacePath: packetPath },
           outputFingerprint,

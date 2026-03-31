@@ -2,13 +2,19 @@ import { Effect, Layer } from 'effect';
 import {
   AdoSource,
   Dashboard,
+  ExecutionRepository,
   DisabledDashboard,
   DisabledMcpServer,
   DisabledStageTracer,
+  GovernanceRepository,
+  IntentRepository,
+  KnowledgeRepository,
   ExecutionContext,
   FileSystem,
   McpServer,
   PipelineConfigService,
+  ControlRepository,
+  ResolutionTaskRepository,
   RuntimeScenarioRunner,
   StageTracer,
   VersionControl,
@@ -16,6 +22,14 @@ import {
 import { makeLocalAdoSource } from '../infrastructure/ado/local-ado-source';
 import { makeLiveAdoSource, readLiveAdoSourceConfigFromEnv } from '../infrastructure/ado/live-ado-source';
 import { LocalFileSystem } from '../infrastructure/fs/local-fs';
+import {
+  makeLocalControlRepository,
+  makeLocalExecutionRepository,
+  makeLocalGovernanceRepository,
+  makeLocalIntentRepository,
+  makeLocalKnowledgeRepository,
+  makeLocalResolutionTaskRepository,
+} from '../infrastructure/repositories/local-context-repositories';
 import { createRecordingWorkspaceFileSystem } from '../infrastructure/fs/recording-fs';
 import { makeLocalVersionControl } from '../infrastructure/tooling/local-version-control';
 import { LocalRuntimeScenarioRunner, createLocalRuntimeScenarioRunnerWithInterpreter } from './local-runtime-scenario-runner';
@@ -27,6 +41,7 @@ import { DEFAULT_PIPELINE_CONFIG } from '../domain/types';
 import type { DashboardPort, McpServerPort, StageTracerPort } from '../application/ports';
 import { enrichEventDataWithExecutionContext } from '../application/context/execution-context';
 import type { PlaywrightBridgePort } from '../infrastructure/mcp/playwright-mcp-bridge';
+import { createProjectPaths } from '../application/paths';
 
 export interface LocalServiceOptions {
   readonly posture?: Partial<ExecutionPosture> | undefined;
@@ -94,6 +109,7 @@ export function createLocalServiceContext(rootDir: string, options?: LocalServic
   };
 
   const pipelineConfig = options?.pipelineConfig ?? DEFAULT_PIPELINE_CONFIG;
+  const projectPaths = createProjectPaths(rootDir, suiteRoot);
   const runtimeScenarioRunner = options?.agentInterpreter
     ? createLocalRuntimeScenarioRunnerWithInterpreter(options.agentInterpreter)
     : LocalRuntimeScenarioRunner;
@@ -113,6 +129,12 @@ export function createLocalServiceContext(rootDir: string, options?: LocalServic
 
   const layer = Layer.mergeAll(
     Layer.succeed(FileSystem, fileSystem),
+    Layer.succeed(IntentRepository, makeLocalIntentRepository(projectPaths, fileSystem)),
+    Layer.succeed(KnowledgeRepository, makeLocalKnowledgeRepository(projectPaths, fileSystem)),
+    Layer.succeed(ControlRepository, makeLocalControlRepository(projectPaths, fileSystem)),
+    Layer.succeed(ResolutionTaskRepository, makeLocalResolutionTaskRepository(projectPaths, fileSystem)),
+    Layer.succeed(ExecutionRepository, makeLocalExecutionRepository(projectPaths, fileSystem)),
+    Layer.succeed(GovernanceRepository, makeLocalGovernanceRepository(projectPaths, fileSystem)),
     Layer.succeed(AdoSource, resolveAdoSource(rootDir, suiteRoot)),
     Layer.succeed(RuntimeScenarioRunner, runtimeScenarioRunner),
     Layer.succeed(ExecutionContext, executionContext),
@@ -129,7 +151,7 @@ export function createLocalServiceContext(rootDir: string, options?: LocalServic
     writeJournal: () => executionContext.writeJournal(),
     provide<A, E, R>(program: Effect.Effect<A, E, R>): Effect.Effect<A, E, never> {
       return Effect.provide(
-        program as Effect.Effect<A, E, FileSystem | AdoSource | RuntimeScenarioRunner | ExecutionContext | PipelineConfigService | VersionControl | Dashboard | StageTracer | McpServer | PlaywrightBridge>,
+        program as Effect.Effect<A, E, FileSystem | IntentRepository | KnowledgeRepository | ControlRepository | ResolutionTaskRepository | ExecutionRepository | GovernanceRepository | AdoSource | RuntimeScenarioRunner | ExecutionContext | PipelineConfigService | VersionControl | Dashboard | StageTracer | McpServer | PlaywrightBridge>,
         layer,
       ) as Effect.Effect<A, E, never>;
     },

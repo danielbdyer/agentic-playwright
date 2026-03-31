@@ -1,5 +1,5 @@
 ﻿import { Effect, Context } from 'effect';
-import type { AdoId } from '../domain/identity';
+import type { AdoId, ScreenId } from '../domain/identity';
 import type { ResolutionEngine } from './resolution-engine';
 import type { TranslationProvider } from './translation-provider';
 import type { TesseractError } from '../domain/errors';
@@ -41,6 +41,55 @@ export interface VersionControlPort {
   restoreToHead(paths: readonly string[]): Effect.Effect<void, TesseractError>;
 }
 
+export interface IntentRepositoryPort {
+  readSnapshot(adoId: AdoId): Effect.Effect<unknown, TesseractError>;
+  writeSnapshot(adoId: AdoId, snapshot: unknown): Effect.Effect<void, TesseractError>;
+  readManifest(): Effect.Effect<unknown, TesseractError>;
+  writeManifest(manifest: unknown): Effect.Effect<void, TesseractError>;
+}
+
+export interface KnowledgeRepositoryPort {
+  readScreenElements(screen: ScreenId): Effect.Effect<Record<string, unknown>, TesseractError>;
+  writeScreenElements(screen: ScreenId, document: Record<string, unknown>): Effect.Effect<void, TesseractError>;
+  readScreenHints(screen: ScreenId): Effect.Effect<Record<string, unknown>, TesseractError>;
+  writeScreenHints(screen: ScreenId, document: Record<string, unknown>): Effect.Effect<void, TesseractError>;
+}
+
+export interface ControlRepositoryPort {
+  readDataset(name: string): Effect.Effect<unknown, TesseractError>;
+  readResolutionControl(name: string): Effect.Effect<unknown, TesseractError>;
+  readRunbook(name: string): Effect.Effect<unknown, TesseractError>;
+}
+
+export interface ResolutionTaskRepositoryPort {
+  readTaskPacket(adoId: AdoId): Effect.Effect<unknown, TesseractError>;
+  writeTaskPacket(adoId: AdoId, packet: unknown): Effect.Effect<void, TesseractError>;
+}
+
+export interface ExecutionRepositoryPort {
+  writeRunArtifacts(input: {
+    readonly adoId: AdoId;
+    readonly runId: string;
+    readonly suite: string;
+    readonly interpretation: unknown;
+    readonly execution: unknown;
+    readonly resolutionGraph: unknown;
+    readonly runRecord: unknown;
+    readonly proposalBundle: unknown;
+  }): Effect.Effect<{
+    readonly interpretationPath: string;
+    readonly executionPath: string;
+    readonly resolutionGraphPath: string;
+    readonly runPath: string;
+    readonly proposalsPath: string;
+  }, TesseractError>;
+}
+
+export interface GovernanceRepositoryPort {
+  writeGraphIndex(graph: unknown): Effect.Effect<void, TesseractError>;
+  writeMcpCatalog(catalog: unknown): Effect.Effect<void, TesseractError>;
+}
+
 export interface AdoSourcePort {
   listSnapshotIds(): Effect.Effect<AdoId[], TesseractError>;
   loadSnapshot(adoId: AdoId): Effect.Effect<unknown, TesseractError>;
@@ -73,6 +122,12 @@ export class RuntimeScenarioRunner extends Context.Tag('tesseract/RuntimeScenari
 export class ExecutionContext extends Context.Tag('tesseract/ExecutionContext')<ExecutionContext, ExecutionContextPort>() {}
 export class PipelineConfigService extends Context.Tag('tesseract/PipelineConfig')<PipelineConfigService, { readonly config: PipelineConfig }>() {}
 export class VersionControl extends Context.Tag('tesseract/VersionControl')<VersionControl, VersionControlPort>() {}
+export class IntentRepository extends Context.Tag('tesseract/IntentRepository')<IntentRepository, IntentRepositoryPort>() {}
+export class KnowledgeRepository extends Context.Tag('tesseract/KnowledgeRepository')<KnowledgeRepository, KnowledgeRepositoryPort>() {}
+export class ControlRepository extends Context.Tag('tesseract/ControlRepository')<ControlRepository, ControlRepositoryPort>() {}
+export class ResolutionTaskRepository extends Context.Tag('tesseract/ResolutionTaskRepository')<ResolutionTaskRepository, ResolutionTaskRepositoryPort>() {}
+export class ExecutionRepository extends Context.Tag('tesseract/ExecutionRepository')<ExecutionRepository, ExecutionRepositoryPort>() {}
+export class GovernanceRepository extends Context.Tag('tesseract/GovernanceRepository')<GovernanceRepository, GovernanceRepositoryPort>() {}
 
 // ─── Screen Observation (MCP integration surface) ───
 

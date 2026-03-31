@@ -1,8 +1,9 @@
 import YAML from 'yaml';
 import { Effect } from 'effect';
 import { isRecord } from '../domain/collections';
-import { FileSystem } from './ports';
-import type { ProjectPaths } from './paths';
+import { FileSystem, KnowledgeRepository } from './ports';
+import { elementsPath, hintsPath, type ProjectPaths } from './paths';
+import type { ScreenId } from '../domain/identity';
 
 export interface DriftTarget {
   readonly screen: string;
@@ -137,21 +138,20 @@ export function applyDriftEvents(options: {
 }) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
+    const knowledgeRepository = yield* KnowledgeRepository;
     const { manifest, paths, eventIds } = options;
     const events = eventIds
       ? manifest['drift-events'].filter((e) => eventIds.includes(e.id))
       : manifest['drift-events'];
 
-    const elementsPath = `${paths.rootDir}/knowledge/screens/${manifest.screen}.elements.yaml`;
-    const hintsPath = `${paths.rootDir}/knowledge/screens/${manifest.screen}.hints.yaml`;
+    const screen = manifest.screen as ScreenId;
+    const elementsFilePath = elementsPath(paths, screen);
+    const hintsFilePath = hintsPath(paths, screen);
 
-    const { elementsText, hintsText } = yield* Effect.all({
-      elementsText: fs.readText(elementsPath),
-      hintsText: fs.readText(hintsPath),
+    const { initialElements, initialHints } = yield* Effect.all({
+      initialElements: knowledgeRepository.readScreenElements(screen),
+      initialHints: knowledgeRepository.readScreenHints(screen),
     }, { concurrency: 'unbounded' });
-
-    const initialElements = YAML.parse(elementsText) as Record<string, unknown>;
-    const initialHints = YAML.parse(hintsText) as Record<string, unknown>;
 
     const elementEvents = events.filter((e) =>
       e.type === 'label-change' || e.type === 'locator-degradation' || e.type === 'element-addition',
@@ -169,16 +169,15 @@ export function applyDriftEvents(options: {
     );
 
     const modifiedFiles = [
-      ...collectModifiedFile(elementsPath, initialElements, finalElements),
-      ...collectModifiedFile(hintsPath, initialHints, finalHints),
+      ...collectModifiedFile(elementsFilePath, initialElements, finalElements),
+      ...collectModifiedFile(hintsFilePath, initialHints, finalHints),
     ];
 
     yield* Effect.all(
       modifiedFiles.map((filePath) => {
-        const content = filePath === elementsPath
-          ? YAML.stringify(finalElements)
-          : YAML.stringify(finalHints);
-        return fs.writeText(filePath, content);
+        return filePath === elementsFilePath
+          ? knowledgeRepository.writeScreenElements(screen, finalElements)
+          : knowledgeRepository.writeScreenHints(screen, finalHints);
       }),
       { concurrency: 'unbounded' },
     );
