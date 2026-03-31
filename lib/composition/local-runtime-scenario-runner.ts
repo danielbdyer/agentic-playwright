@@ -1,7 +1,7 @@
 import { Effect } from 'effect';
 import { FileSystem } from '../application/ports';
 import type { RuntimeScenarioRunnerPort } from '../application/ports';
-import { createProjectPaths } from '../application/paths';
+import { createProjectPaths, type ProjectPaths } from '../application/paths';
 import { readTranslationCache, translationCacheKey, writeTranslationCache } from '../application/translation-cache';
 import {
   accrueSemanticEntry,
@@ -19,7 +19,7 @@ import { createLocalRuntimeEnvironment, type LocalRuntimeAgentInterpreter } from
 import { createScenarioRunState, runScenarioStep } from '../runtime/scenario';
 
 export function buildCachedTranslator(
-  paths: ReturnType<typeof createProjectPaths>,
+  paths: ProjectPaths,
   cacheDisabled: boolean,
   provider: TranslationProvider,
 ): (request: TranslationRequest) => Effect.Effect<TranslationReceipt, never, never> {
@@ -55,7 +55,7 @@ export function buildCachedTranslator(
 }
 
 export function buildDefaultTranslator(
-  paths: ReturnType<typeof createProjectPaths>,
+  paths: ProjectPaths,
   cacheDisabled: boolean,
 ): (request: TranslationRequest) => Effect.Effect<TranslationReceipt, never, never> {
   return (request) => Effect.gen(function* () {
