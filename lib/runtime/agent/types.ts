@@ -9,7 +9,7 @@ import type {
   StepResolution,
   GroundedStep,
 } from '../../domain/types';
-import type { AgentInterpretationRequest, AgentInterpretationResult } from '../../domain/types/agent-interpreter';
+import type { AgentInterpretationRequest, AgentInterpretationResult } from '../../domain/types/resolution-context';
 import type { ElementId, PostureId, ScreenId } from '../../domain/identity';
 import type { ResolutionTarget, TranslationReceipt, TranslationRequest } from '../../domain/types';
 

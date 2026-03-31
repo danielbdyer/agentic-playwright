@@ -18,7 +18,7 @@ import {
 } from './paths';
 import { ExecutionContext, FileSystem, RuntimeScenarioRunner, Dashboard } from './ports';
 import type { ExecutionPosture, Confidence, ActorKind } from '../domain/types';
-import { dashboardEvent } from '../domain/types/dashboard';
+import { dashboardEvent } from '../domain/types/intervention-context';
 import type { AdoId } from '../domain/identity';
 import { loadScenarioInterpretationSurfaceFromCatalog, prepareScenarioRunPlan } from './execution/select-run-context';
 import { runPipelineStage } from './pipeline';

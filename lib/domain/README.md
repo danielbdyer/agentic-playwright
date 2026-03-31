@@ -70,3 +70,37 @@ These modules power the spatial dashboard's time-lapse replay:
 - **Modify graph derivation**: edit `derived-graph.ts`
 - **Change code emission**: edit `spec-codegen.ts`
 - **Understand governance**: start with `governance/` + `types/workflow.ts`
+
+## Domain Type Ownership Map (Bounded Contexts)
+
+The root barrel `lib/domain/types.ts` is now intentionally thin. It only re-exports bounded context barrels and shared value objects:
+
+- `types/shared-context.ts`
+- `types/intent-context.ts`
+- `types/knowledge-context.ts`
+- `types/resolution-context.ts`
+- `types/execution-context.ts`
+- `types/intervention-context.ts`
+- `types/improvement-context.ts`
+- `types/interface-context.ts`
+
+### Inventory by context (leaf modules)
+
+| Context | Leaf type modules |
+| --- | --- |
+| `shared` | `workflow.ts` |
+| `intent` | `intent.ts`, `routes.ts`, `route-knowledge.ts` |
+| `knowledge` | `knowledge.ts`, `semantic-dictionary.ts`, `contradiction.ts`, `affordance.ts`, `widgets.ts` |
+| `resolution` | `resolution.ts`, `pipeline-config.ts`, `agent-interpreter.ts` |
+| `execution` | `execution.ts`, `projection.ts` |
+| `intervention` | `intervention.ts`, `session.ts`, `workbench.ts`, `dashboard.ts` |
+| `improvement` | `improvement.ts`, `learning.ts`, `fitness.ts`, `experiment.ts`, `architecture-fitness.ts` |
+| `interface` | `interface.ts` |
+
+### Where to add a new type
+
+1. Add the type to the owning **leaf module** listed above.
+2. Re-export through the owning **context barrel** (`*-context.ts`).
+3. Only add to `shared-context.ts` if it is a true cross-context value object (for example governance or envelope primitives).
+4. Do **not** deep-import `lib/domain/types/<leaf-module>` from `lib/application`, `lib/runtime`, or `lib/infrastructure`; import via context barrels.
+5. If ownership changes, update `tests/domain-type-barrels.spec.ts` and this map in the same PR.

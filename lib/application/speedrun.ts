@@ -48,7 +48,7 @@ import type {
   SubstrateContext,
 } from '../domain/types';
 import { DEFAULT_PIPELINE_CONFIG } from '../domain/types';
-import type { RunRecord } from '../domain/types/execution';
+import type { RunRecord } from '../domain/types/execution-context';
 import type { PerturbationConfig } from './synthesis/scenario-generator';
 import { TesseractError } from '../domain/errors';
 

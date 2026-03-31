@@ -1,20 +1,14 @@
-export * from './types/workflow';
-export * from './types/intent';
-export * from './types/knowledge';
-export * from './types/routes';
-export * from './types/interface';
-export * from './types/resolution';
-export * from './types/execution';
-export * from './types/projection';
-export * from './types/intervention';
-export * from './types/session';
-export * from './types/learning';
-export * from './types/widgets';
-export * from './types/fitness';
-export * from './types/pipeline-config';
-export * from './types/improvement';
-export * from './types/experiment';
-export * from './types/workbench';
-export * from './types/dashboard';
-export * from './types/semantic-dictionary';
-export * from './types/architecture-fitness';
+/**
+ * Thin public barrel for approved bounded contexts.
+ *
+ * Avoid adding direct exports from leaf modules here — expose new
+ * contracts through the owning bounded context barrel.
+ */
+export * from './types/shared-context';
+export * from './types/intent-context';
+export * from './types/knowledge-context';
+export * from './types/resolution-context';
+export * from './types/execution-context';
+export * from './types/intervention-context';
+export * from './types/improvement-context';
+export * from './types/interface-context';

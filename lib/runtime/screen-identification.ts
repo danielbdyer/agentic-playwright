@@ -12,7 +12,7 @@
 import type {
   ApplicationInterfaceGraph,
   InterfaceGraphNode,
-} from '../domain/types/interface';
+} from '../domain/types/interface-context';
 
 // ─── Types ───
 

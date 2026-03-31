@@ -1,7 +1,7 @@
 import { Effect } from 'effect';
 import { TesseractError } from '../domain/errors';
-import { foldGovernance } from '../domain/types/workflow';
-import type { Approved } from '../domain/types/workflow';
+import { foldGovernance } from '../domain/types/shared-context';
+import type { Approved } from '../domain/types/shared-context';
 import type {
   InterventionCommandAction,
   InterventionCommandBatch,

@@ -10,7 +10,7 @@ import { emptyExecutionTiming, evaluateExecutionBudget, normalizeFailureFamily }
 import { compileStepProgram } from '../domain/program';
 import type { SnapshotTemplateLoader } from '../domain/runtime-loaders';
 import { RuntimeError } from '../domain/errors';
-import { mintBlocked } from '../domain/types/workflow';
+import { mintBlocked } from '../domain/types/shared-context';
 import type {
   ExecutionPosture,
   ExecutionDiagnostic,
@@ -27,7 +27,7 @@ import type {
   TranslationRequest,
   TranslationReceipt,
 } from '../domain/types';
-import type { RouteVariantKnowledge } from '../domain/types/route-knowledge';
+import type { RouteVariantKnowledge } from '../domain/types/intent-context';
 import { runStaticInterpreter } from './interpreters/execute';
 import type { InterpreterMode, InterpreterScreenRegistry } from './interpreters/types';
 import { playwrightStepProgramInterpreter } from './program';

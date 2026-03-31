@@ -7,7 +7,7 @@ import type {
   WorkflowStage,
 } from '../../domain/types';
 import { buildReasonChain } from '../../domain/reason-chain';
-import { mintApproved, mintReviewRequired } from '../../domain/types/workflow';
+import { mintApproved, mintReviewRequired } from '../../domain/types/shared-context';
 import { selectedDataset, selectedRunbook } from './select-controls';
 import type { RuntimeAgentStageContext, StageEffects } from './types';
 import { uniqueSorted } from './shared';

@@ -18,7 +18,7 @@ import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
 import { buildWorkflowHotspots, type WorkflowHotspot } from './hotspots';
 import type { ProjectPaths } from './paths';
 import { FileSystem, Dashboard } from './ports';
-import { dashboardEvent } from '../domain/types/dashboard';
+import { dashboardEvent } from '../domain/types/intervention-context';
 import {
   combineScoringRules,
   weightedScoringRule,

@@ -10,8 +10,8 @@
  */
 
 import { knowledgePaths } from '../domain/ids';
-import type { DiscoveryRun, DiscoveryObservedElement, DiscoveryObservedSurface } from '../domain/types/interface';
-import type { TrustPolicyArtifactType } from '../domain/types/workflow';
+import type { DiscoveryRun, DiscoveryObservedElement, DiscoveryObservedSurface } from '../domain/types/interface-context';
+import type { TrustPolicyArtifactType } from '../domain/types/shared-context';
 import type { ScreenId } from '../domain/identity';
 
 // ─── Output types ───

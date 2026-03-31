@@ -1,4 +1,4 @@
-import { isApproved, isReviewRequired } from '../../domain/types/workflow';
+import { isApproved, isReviewRequired } from '../../domain/types/shared-context';
 import { foldResolutionReceipt } from '../../domain/visitors';
 import type { RuntimeScenarioStepResult } from '../ports';
 import { TesseractError } from '../../domain/errors';

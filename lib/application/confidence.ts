@@ -9,7 +9,7 @@ import type {
 } from '../domain/types';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
 import { Dashboard } from './ports';
-import { dashboardEvent } from '../domain/types/dashboard';
+import { dashboardEvent } from '../domain/types/intervention-context';
 import type { ProjectPaths } from './paths';
 import { relativeProjectPath } from './paths';
 import { FileSystem } from './ports';

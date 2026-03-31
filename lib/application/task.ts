@@ -16,7 +16,7 @@ import type {
   StepResolution,
   StepGrounding,
 } from '../domain/types';
-import { isBlocked, isReviewRequired } from '../domain/types/workflow';
+import { isBlocked, isReviewRequired } from '../domain/types/shared-context';
 import { controlResolutionForStep, runtimeControlsForScenario } from './controls';
 import type { CompileSnapshot } from './compile-snapshot';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';

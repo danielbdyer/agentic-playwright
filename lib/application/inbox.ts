@@ -5,8 +5,8 @@ import { buildWorkflowHotspots } from './hotspots';
 import type { ProjectPaths } from './paths';
 import { relativeProjectPath } from './paths';
 import { FileSystem, Dashboard } from './ports';
-import { dashboardEvent } from '../domain/types/dashboard';
-import { mintReviewRequired } from '../domain/types/workflow';
+import { dashboardEvent } from '../domain/types/intervention-context';
+import { mintReviewRequired } from '../domain/types/shared-context';
 import { decodeUnknownEither } from '../domain/schemas/decode';
 import { TesseractError } from '../domain/errors';
 

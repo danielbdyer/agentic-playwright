@@ -14,7 +14,7 @@ import type { CanonicalTargetRef, PostureId, ScreenId, SelectorRef, SnapshotTemp
 import { computeDecayedConfidence, type FreshnessPolicy, defaultFreshnessPolicy } from '../domain/knowledge-freshness';
 import type { WorkspaceCatalog } from './catalog';
 import { TesseractError } from '../domain/errors';
-import type { DerivedGraph } from '../domain/types/projection';
+import type { DerivedGraph } from '../domain/types/execution-context';
 
 interface GraphScreenPayload {
   url?: string | null;
