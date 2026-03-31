@@ -132,7 +132,7 @@ test.describe('gap distance selection laws', () => {
     expect(heldOutTexts).toContain(result.text);
   });
 
-  test('distance=0.5 produces a mix over many samples', () => {
+  test('distance=0.5 produces a mix of partial-gap and fully held-out phrasing', () => {
     const rng = createSeededRng('dist-half');
     const heldOut = generateHeldOutPhrases('policyNumber', 'os-region', 'policy-detail', rng);
 
@@ -141,11 +141,47 @@ test.describe('gap distance selection laws', () => {
       return selectAtGapDistance('policy number', heldOut, 0.5, sampleRng);
     });
 
-    const identityCount = samples.filter((s) => s.anchor.gapKind === 'identity').length;
-    const heldOutCount = samples.filter((s) => s.anchor.gapKind !== 'identity').length;
+    const partialGapCount = samples.filter((sample) => sample.anchor.gapKind === 'partial-gap').length;
+    const heldOutCount = samples.filter((sample) =>
+      sample.anchor.gapKind !== 'identity' && sample.anchor.gapKind !== 'partial-gap',
+    ).length;
 
-    // Should be a meaningful mix
-    expect(identityCount).toBeGreaterThan(10);
+    expect(partialGapCount).toBeGreaterThan(10);
     expect(heldOutCount).toBeGreaterThan(10);
+  });
+
+  test('intermediate distances can synthesize partial lexical gaps rather than only binary jumps', () => {
+    const samples = Array.from({ length: 40 }, (_, i) => {
+      const heldOut = generateHeldOutPhrases(
+        'policyNumber',
+        'os-region',
+        'policy-detail',
+        createSeededRng(`partial-gap-heldout-${i}`),
+      );
+      return selectAtGapDistance('policy number', heldOut, 0.5, createSeededRng(`partial-gap-select-${i}`));
+    });
+
+    const partialGapSamples = samples.filter((sample) => sample.anchor.gapKind === 'partial-gap');
+
+    expect(partialGapSamples.length).toBeGreaterThan(0);
+    for (const sample of partialGapSamples) {
+      expect(sample.text.toLowerCase()).not.toBe('policy number');
+      expect(sample.text.toLowerCase()).not.toBe('policyNumber'.toLowerCase());
+    }
+  });
+
+  test('distance values outside the supported range are clamped safely', () => {
+    const heldOut = generateHeldOutPhrases(
+      'policyNumber',
+      'os-region',
+      'policy-detail',
+      createSeededRng('clamp-heldout'),
+    );
+
+    const belowRange = selectAtGapDistance('policy number', heldOut, -1, createSeededRng('clamp-low'));
+    const aboveRange = selectAtGapDistance('policy number', heldOut, 2, createSeededRng('clamp-high'));
+
+    expect(belowRange.anchor.gapKind).toBe('identity');
+    expect(aboveRange.anchor.gapKind).not.toBe('identity');
   });
 });

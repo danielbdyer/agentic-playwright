@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { planSyntheticScenarios } from '../lib/domain/synthesis/scenario-plan';
+import { planSyntheticScenarios, resolvePerturbation } from '../lib/domain/synthesis/scenario-plan';
 
 const CATALOG = {
   screens: [
@@ -66,6 +66,12 @@ const CATALOG_WITH_POSTURES = {
   ],
 } as const;
 
+const extractIntents = (yaml: string): readonly string[] =>
+  yaml
+    .split('\n')
+    .filter((line) => line.includes('intent:'))
+    .map((line) => line.replace(/^\s*intent:\s*/, '').replace(/^"/, '').replace(/"$/, ''));
+
 // --- Determinism laws ---
 
 test.describe('scenario planner determinism laws', () => {
@@ -111,10 +117,7 @@ test.describe('lexical gap laws', () => {
     );
 
     const allIntents = result.plans.flatMap((plan) => {
-      const lines = plan.yaml.split('\n');
-      return lines
-        .filter((line) => line.includes('intent:'))
-        .map((line) => line.replace(/^\s*intent:\s*/, '').replace(/^"/, '').replace(/"$/, '').toLowerCase());
+      return extractIntents(plan.yaml).map((intent) => intent.toLowerCase());
     });
 
     const containsKnownAlias = allIntents.filter((intent) =>
@@ -141,10 +144,7 @@ test.describe('lexical gap laws', () => {
     ].map((t) => t.toLowerCase());
 
     const allIntents = result.plans.flatMap((plan) => {
-      const lines = plan.yaml.split('\n');
-      return lines
-        .filter((line) => line.includes('intent:'))
-        .map((line) => line.replace(/^\s*intent:\s*/, '').replace(/^"/, '').replace(/"$/, '').toLowerCase());
+      return extractIntents(plan.yaml).map((intent) => intent.toLowerCase());
     });
 
     const allText = allIntents.join(' ');
@@ -169,10 +169,7 @@ test.describe('lexical gap laws', () => {
     );
 
     const allIntents = result.plans.flatMap((plan) => {
-      const lines = plan.yaml.split('\n');
-      return lines
-        .filter((line) => line.includes('intent:'))
-        .map((line) => line.replace(/^\s*intent:\s*/, '').replace(/^"/, '').replace(/"$/, '').toLowerCase());
+      return extractIntents(plan.yaml).map((intent) => intent.toLowerCase());
     });
 
     const withKnown = allIntents.filter((intent) =>
@@ -197,6 +194,20 @@ test.describe('lexical gap laws', () => {
 
     expect(first.plans.map((plan) => plan.yaml)).toEqual(second.plans.map((plan) => plan.yaml));
   });
+
+  test('resolvePerturbation clamps out-of-range values into the supported [0,1] interval', () => {
+    expect(resolvePerturbation(undefined, {
+      lexicalGap: 2,
+      dataVariation: -1,
+      coverageGap: 9,
+      crossScreen: -5,
+    })).toEqual({
+      lexicalGap: 1,
+      dataVariation: 0,
+      coverageGap: 1,
+      crossScreen: 0,
+    });
+  });
 });
 
 // --- Workflow archetype laws ---
@@ -210,10 +221,7 @@ test.describe('workflow archetype laws', () => {
     });
 
     for (const plan of result.plans) {
-      const lines = plan.yaml.split('\n');
-      const firstIntent = lines
-        .filter((line) => line.includes('intent:'))
-        .map((line) => line.replace(/^\s*intent:\s*/, '').replace(/^"/, '').replace(/"$/, '').toLowerCase())[0];
+      const firstIntent = extractIntents(plan.yaml)[0]?.toLowerCase();
 
       const isNav = firstIntent !== undefined && (
         firstIntent.includes('navigate') ||
@@ -237,10 +245,7 @@ test.describe('workflow archetype laws', () => {
     });
 
     for (const plan of result.plans) {
-      const lines = plan.yaml.split('\n');
-      const intents = lines
-        .filter((line) => line.includes('intent:'))
-        .map((line) => line.replace(/^\s*intent:\s*/, '').replace(/^"/, '').replace(/"$/, '').toLowerCase());
+      const intents = extractIntents(plan.yaml).map((intent) => intent.toLowerCase());
 
       expect(intents.length).toBeGreaterThanOrEqual(2);
 
@@ -265,6 +270,28 @@ test.describe('workflow archetype laws', () => {
     const screenIds = new Set(result.screenDistribution.map((d) => d.screen));
     expect(screenIds.size).toBeGreaterThanOrEqual(CATALOG.screens.length);
   });
+
+  test('crossScreen perturbation materially increases cross-screen journeys', () => {
+    const withoutCrossScreen = planSyntheticScenarios({
+      catalog: CATALOG,
+      seed: 'cross-screen-weight',
+      count: 60,
+      perturbation: { crossScreen: 0 },
+    });
+
+    const withCrossScreen = planSyntheticScenarios({
+      catalog: CATALOG,
+      seed: 'cross-screen-weight',
+      count: 60,
+      perturbation: { crossScreen: 1 },
+    });
+
+    const baseCrossScreenCount = withoutCrossScreen.plans.filter((plan) => plan.screenId === 'cross-screen').length;
+    const weightedCrossScreenCount = withCrossScreen.plans.filter((plan) => plan.screenId === 'cross-screen').length;
+
+    expect(baseCrossScreenCount).toBe(0);
+    expect(weightedCrossScreenCount).toBeGreaterThan(0);
+  });
 });
 
 // --- Data variation laws ---
@@ -278,10 +305,7 @@ test.describe('data variation laws', () => {
     });
 
     const inputSteps = result.plans.flatMap((plan) => {
-      const lines = plan.yaml.split('\n');
-      return lines
-        .filter((line) => line.includes('intent:'))
-        .map((line) => line.replace(/^\s*intent:\s*/, '').replace(/^"/, '').replace(/"$/, ''))
+      return extractIntents(plan.yaml)
         .filter((intent) => intent.match(/\b(Enter|Type|Fill in|Set|Input|Provide|Supply|Key in|Put in)\b/));
     });
 
@@ -299,10 +323,7 @@ test.describe('data variation laws', () => {
     });
 
     const inputSteps = result.plans.flatMap((plan) => {
-      const lines = plan.yaml.split('\n');
-      return lines
-        .filter((line) => line.includes('intent:'))
-        .map((line) => line.replace(/^\s*intent:\s*/, '').replace(/^"/, '').replace(/"$/, ''))
+      return extractIntents(plan.yaml)
         .filter((intent) => intent.match(/\b(Enter|Type|Fill in|Set|Input|Provide|Supply|Key in|Put in)\b/));
     });
 
@@ -331,15 +352,28 @@ test.describe('coverage gap laws', () => {
     });
 
     const avgStepsNoCovGap = resultNoCovGap.plans.reduce((sum, plan) => {
-      const stepCount = plan.yaml.split('\n').filter((l) => l.includes('intent:')).length;
+      const stepCount = extractIntents(plan.yaml).length;
       return sum + stepCount;
     }, 0) / resultNoCovGap.plans.length;
 
     const avgStepsHighCovGap = resultHighCovGap.plans.reduce((sum, plan) => {
-      const stepCount = plan.yaml.split('\n').filter((l) => l.includes('intent:')).length;
+      const stepCount = extractIntents(plan.yaml).length;
       return sum + stepCount;
     }, 0) / resultHighCovGap.plans.length;
 
     expect(avgStepsNoCovGap).toBeGreaterThan(avgStepsHighCovGap);
+  });
+
+  test('coverageGap still preserves at least one non-navigation step per scenario', () => {
+    const result = planSyntheticScenarios({
+      catalog: CATALOG,
+      seed: 'coverage-floor',
+      count: 20,
+      perturbation: { coverageGap: 1 },
+    });
+
+    for (const plan of result.plans) {
+      expect(extractIntents(plan.yaml).length).toBeGreaterThanOrEqual(2);
+    }
   });
 });

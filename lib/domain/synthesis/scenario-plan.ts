@@ -54,12 +54,21 @@ export const ZERO_PERTURBATION: PerturbationConfig = {
   lexicalGap: 0, dataVariation: 0, coverageGap: 0, crossScreen: 0,
 };
 
+const clampUnitInterval = (value: number): number => Math.max(0, Math.min(1, value));
+
 export function resolvePerturbation(rate?: number, config?: Partial<PerturbationConfig>): PerturbationConfig {
-  return config
+  const resolved = config
     ? { ...ZERO_PERTURBATION, ...config }
     : rate !== undefined && rate > 0
       ? { ...ZERO_PERTURBATION, lexicalGap: rate }
       : ZERO_PERTURBATION;
+
+  return {
+    lexicalGap: clampUnitInterval(resolved.lexicalGap),
+    dataVariation: clampUnitInterval(resolved.dataVariation),
+    coverageGap: clampUnitInterval(resolved.coverageGap),
+    crossScreen: clampUnitInterval(resolved.crossScreen),
+  };
 }
 
 // ─── Internal types ───
@@ -170,7 +179,7 @@ const generateScenario = (
   perturbation: PerturbationConfig,
   rng: SeededRng,
 ): ScenarioPlanInternal => {
-  const archetypeId = selectArchetype(screen, screens, rng);
+  const archetypeId = selectArchetype(screen, screens, rng, perturbation.crossScreen);
   const isCrossScreen = archetypeId === 'cross-screen-journey';
 
   const archetypeSteps = composeWorkflowSteps(archetypeId, {
@@ -181,9 +190,18 @@ const generateScenario = (
     rng,
   });
 
-  // Apply coverage gap — probabilistically omit non-navigation steps
+  const retainedSteps = archetypeSteps
+    .filter((step) => step.required || rng() >= perturbation.coverageGap);
+  const fallbackStep = archetypeSteps.find((step) => step.role !== 'navigation');
+  const hasNonNavigationStep = retainedSteps.some((step) => step.role !== 'navigation');
+  const retainedSet = new Set(
+    !hasNonNavigationStep && fallbackStep !== undefined
+      ? [...retainedSteps, fallbackStep]
+      : retainedSteps,
+  );
+
   const steps = archetypeSteps
-    .filter((_, idx) => idx === 0 || rng() >= perturbation.coverageGap)
+    .filter((step) => retainedSet.has(step))
     .map((step, idx) => ({
       index: idx + 1,
       intent: step.intent,

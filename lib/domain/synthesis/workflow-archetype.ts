@@ -15,6 +15,8 @@ export interface ArchetypeStep {
   readonly intent: string;
   readonly actionText: string;
   readonly expectedText: string;
+  readonly required: boolean;
+  readonly role: 'navigation' | 'interaction' | 'verification';
 }
 
 export interface ArchetypeContext {
@@ -76,6 +78,44 @@ const phraseForElement = (
   return selected.text;
 };
 
+const navigationStep = (
+  actionText: string,
+  expectedText: string,
+): ArchetypeStep => ({
+  intent: actionText,
+  actionText,
+  expectedText,
+  required: true,
+  role: 'navigation',
+});
+
+const interactionStep = (
+  actionText: string,
+  expectedText: string,
+  required: boolean,
+): ArchetypeStep => ({
+  intent: actionText,
+  actionText,
+  expectedText,
+  required,
+  role: 'interaction',
+});
+
+const verificationStep = (
+  actionText: string,
+  expectedText: string,
+  required: boolean,
+): ArchetypeStep => ({
+  intent: actionText,
+  actionText,
+  expectedText,
+  required,
+  role: 'verification',
+});
+
+const repeatCandidate = (candidate: ArchetypeId, weight: number): readonly ArchetypeId[] =>
+  Array.from({ length: Math.max(0, weight) }, () => candidate);
+
 // ─── search-verify: Navigate → enter criteria → search → verify results ───
 
 const searchVerify = (ctx: ArchetypeContext): readonly ArchetypeStep[] => {
@@ -89,7 +129,7 @@ const searchVerify = (ctx: ArchetypeContext): readonly ArchetypeStep[] => {
     ? generateNavExpectation(primaryScreen.screenId, rng)
     : `${screenAlias} loads successfully`;
 
-  const navStep: ArchetypeStep = { intent: navAction, actionText: navAction, expectedText: navExpected };
+  const navStep = navigationStep(navAction, navExpected);
 
   // Enter search criteria
   const inputSteps = inputs.length > 0
@@ -97,11 +137,7 @@ const searchVerify = (ctx: ArchetypeContext): readonly ArchetypeStep[] => {
       const phrase = phraseForElement(input, primaryScreen, lexicalGap, rng);
       const value = pickValue(input, rng, dataVariation);
       const actionText = `Enter ${value} in the ${phrase}`;
-      return {
-        intent: actionText,
-        actionText,
-        expectedText: `${phrase} accepts the value`,
-      };
+      return interactionStep(actionText, `${phrase} accepts the value`, input.required);
     })
     : [];
 
@@ -110,11 +146,7 @@ const searchVerify = (ctx: ArchetypeContext): readonly ArchetypeStep[] => {
     ? [buttons[0]!].map((button) => {
       const phrase = phraseForElement(button, primaryScreen, lexicalGap, rng);
       const actionText = `Click the ${phrase}`;
-      return {
-        intent: actionText,
-        actionText,
-        expectedText: `${phrase} is activated`,
-      };
+      return interactionStep(actionText, `${phrase} is activated`, button.required);
     })
     : [];
 
@@ -124,11 +156,7 @@ const searchVerify = (ctx: ArchetypeContext): readonly ArchetypeStep[] => {
     ? [verifyTargets[0]!].map((target) => {
       const phrase = phraseForElement(target, primaryScreen, lexicalGap, rng);
       const actionText = `Verify ${phrase} shows the expected results`;
-      return {
-        intent: actionText,
-        actionText,
-        expectedText: `${phrase} displays matching data`,
-      };
+      return verificationStep(actionText, `${phrase} displays matching data`, target.required);
     })
     : [];
 
@@ -148,18 +176,14 @@ const detailInspect = (ctx: ArchetypeContext): readonly ArchetypeStep[] => {
     ? generateNavExpectation(primaryScreen.screenId, rng)
     : `${screenAlias} loads successfully`;
 
-  const navStep: ArchetypeStep = { intent: navAction, actionText: navAction, expectedText: navExpected };
+  const navStep = navigationStep(navAction, navExpected);
 
   // Inspect multiple fields
   const inspectTargets = shuffle([...readOnly, ...tables], rng).slice(0, Math.min(3, readOnly.length + tables.length));
   const inspectSteps = inspectTargets.map((target) => {
     const phrase = phraseForElement(target, primaryScreen, lexicalGap, rng);
     const actionText = `Check that ${phrase} is displayed correctly`;
-    return {
-      intent: actionText,
-      actionText,
-      expectedText: `${phrase} shows the correct information`,
-    };
+    return verificationStep(actionText, `${phrase} shows the correct information`, target.required);
   });
 
   return [navStep, ...inspectSteps];
@@ -188,20 +212,16 @@ const crossScreenJourney = (ctx: ArchetypeContext): readonly ArchetypeStep[] => 
     ? [inputs[0]!].map((input) => {
       const phrase = phraseForElement(input, primaryScreen, lexicalGap, rng);
       const value = pickValue(input, rng, dataVariation);
-      return {
-        intent: `Enter ${value} in the ${phrase}`,
-        actionText: `Enter ${value} in the ${phrase}`,
-        expectedText: `${phrase} accepts the value`,
-      };
-    })
+        return interactionStep(
+          `Enter ${value} in the ${phrase}`,
+          `${phrase} accepts the value`,
+          input.required,
+        );
+      })
     : buttons.length > 0
       ? [buttons[0]!].map((btn) => {
         const phrase = phraseForElement(btn, primaryScreen, lexicalGap, rng);
-        return {
-          intent: `Click the ${phrase}`,
-          actionText: `Click the ${phrase}`,
-          expectedText: `${phrase} is activated`,
-        };
+        return interactionStep(`Click the ${phrase}`, `${phrase} is activated`, btn.required);
       })
       : [];
 
@@ -218,18 +238,18 @@ const crossScreenJourney = (ctx: ArchetypeContext): readonly ArchetypeStep[] => 
   const verifySteps = verifyTargets.length > 0
     ? [verifyTargets[0]!].map((target) => {
       const phrase = phraseForElement(target, secondScreen, lexicalGap, rng);
-      return {
-        intent: `Verify ${phrase} on ${screenAlias2}`,
-        actionText: `Verify ${phrase} on ${screenAlias2}`,
-        expectedText: `${phrase} is displayed correctly`,
-      };
+      return verificationStep(
+        `Verify ${phrase} on ${screenAlias2}`,
+        `${phrase} is displayed correctly`,
+        target.required,
+      );
     })
     : [];
 
   return [
-    { intent: nav1Action, actionText: nav1Action, expectedText: nav1Expected },
+    navigationStep(nav1Action, nav1Expected),
     ...interactSteps,
-    { intent: nav2Action, actionText: nav2Action, expectedText: nav2Expected },
+    navigationStep(nav2Action, nav2Expected),
     ...verifySteps,
   ];
 };
@@ -252,22 +272,18 @@ const formSubmit = (ctx: ArchetypeContext): readonly ArchetypeStep[] => {
     const phrase = phraseForElement(field, primaryScreen, lexicalGap, rng);
     const value = pickValue(field, rng, dataVariation);
     const verb = field.widget === 'os-select' ? 'Select' : 'Enter';
-    return {
-      intent: `${verb} ${value} in the ${phrase}`,
-      actionText: `${verb} ${value} in the ${phrase}`,
-      expectedText: `${phrase} accepts the value`,
-    };
+    return interactionStep(
+      `${verb} ${value} in the ${phrase}`,
+      `${phrase} accepts the value`,
+      field.required,
+    );
   });
 
   // Submit
   const submitSteps = buttons.length > 0
     ? [buttons[0]!].map((btn) => {
       const phrase = phraseForElement(btn, primaryScreen, lexicalGap, rng);
-      return {
-        intent: `Submit by clicking ${phrase}`,
-        actionText: `Submit by clicking ${phrase}`,
-        expectedText: `Form submission is processed`,
-      };
+      return interactionStep(`Submit by clicking ${phrase}`, 'Form submission is processed', btn.required);
     })
     : [];
 
@@ -275,16 +291,16 @@ const formSubmit = (ctx: ArchetypeContext): readonly ArchetypeStep[] => {
   const verifySteps = readOnly.length > 0
     ? [readOnly[0]!].map((target) => {
       const phrase = phraseForElement(target, primaryScreen, lexicalGap, rng);
-      return {
-        intent: `Verify ${phrase} shows the updated information`,
-        actionText: `Verify ${phrase} shows the updated information`,
-        expectedText: `${phrase} reflects the changes`,
-      };
+      return verificationStep(
+        `Verify ${phrase} shows the updated information`,
+        `${phrase} reflects the changes`,
+        target.required,
+      );
     })
     : [];
 
   return [
-    { intent: navAction, actionText: navAction, expectedText: navExpected },
+    navigationStep(navAction, navExpected),
     ...fillSteps,
     ...submitSteps,
     ...verifySteps,
@@ -308,15 +324,11 @@ const readOnlyAudit = (ctx: ArchetypeContext): readonly ArchetypeStep[] => {
   const auditSteps = allElements.slice(0, Math.min(4, allElements.length)).map((target) => {
     const phrase = phraseForElement(target, primaryScreen, lexicalGap, rng);
     const actionText = `Confirm ${phrase} is present on the page`;
-    return {
-      intent: actionText,
-      actionText,
-      expectedText: `${phrase} is visible and shows expected data`,
-    };
+    return verificationStep(actionText, `${phrase} is visible and shows expected data`, target.required);
   });
 
   return [
-    { intent: navAction, actionText: navAction, expectedText: navExpected },
+    navigationStep(navAction, navExpected),
     ...auditSteps,
   ];
 };
@@ -339,19 +351,28 @@ const ARCHETYPE_IDS: readonly ArchetypeId[] = [
  * Select an archetype appropriate for the given screen's element composition.
  * Screens with inputs get search-verify or form-submit; read-only screens get audit or inspect.
  */
-export function selectArchetype(screen: ScreenPlanInput, screens: readonly ScreenPlanInput[], rng: SeededRng): ArchetypeId {
-  const { inputs, buttons } = classifyElements(screen.elements);
+export function selectArchetype(
+  screen: ScreenPlanInput,
+  screens: readonly ScreenPlanInput[],
+  rng: SeededRng,
+  crossScreen = 0,
+): ArchetypeId {
+  const { inputs, buttons, readOnly, tables, selects } = classifyElements(screen.elements);
   const hasInputs = inputs.length > 0;
   const hasButtons = buttons.length > 0;
+  const hasOutputs = readOnly.length > 0 || tables.length > 0;
+  const hasSelectableFields = selects.length > 0;
   const hasMultipleScreens = screens.length > 1;
 
-  // Weight archetypes by screen composition
   const candidates: readonly ArchetypeId[] = [
-    ...(hasInputs && hasButtons ? ['search-verify' as const, 'form-submit' as const] : []),
-    ...(hasInputs ? ['form-submit' as const] : []),
-    ...(hasMultipleScreens ? ['cross-screen-journey' as const] : []),
-    'detail-inspect' as const,
-    'read-only-audit' as const,
+    ...repeatCandidate('search-verify', hasInputs && hasButtons && hasOutputs ? 4 : 0),
+    ...repeatCandidate('form-submit', hasInputs && (hasButtons || hasSelectableFields) ? 3 : 0),
+    ...repeatCandidate('detail-inspect', hasOutputs ? 2 : 1),
+    ...repeatCandidate('read-only-audit', screen.elements.length > 0 ? 1 : 0),
+    ...repeatCandidate(
+      'cross-screen-journey',
+      hasMultipleScreens ? Math.round(Math.max(0, Math.min(1, crossScreen)) * 4) : 0,
+    ),
   ];
 
   return candidates.length > 0 ? pick(candidates, rng) : pick(ARCHETYPE_IDS, rng);

@@ -84,7 +84,7 @@ export interface GapAnchor {
   readonly screenId: string;
   readonly elementId: string | null;
   readonly knownAlias: string;
-  readonly gapKind: 'domain-synonym' | 'affordance-rephrase' | 'natural-language' | 'identity';
+  readonly gapKind: 'domain-synonym' | 'affordance-rephrase' | 'natural-language' | 'identity' | 'partial-gap';
 }
 
 /** A generated phrase with its ground truth anchor. */
@@ -114,6 +114,19 @@ function splitIdentifier(id: string): readonly string[] {
 function domainSynonymsFor(word: string): readonly string[] {
   return DOMAIN_SYNONYMS[word.toLowerCase()] ?? [word];
 }
+
+const clampGapDistance = (distance: number): number => Math.max(0, Math.min(1, distance));
+
+const distinctSynonymsFor = (word: string): readonly string[] =>
+  domainSynonymsFor(word).filter((candidate) => candidate.toLowerCase() !== word.toLowerCase());
+
+const dedupePhrases = (phrases: readonly GapPhrase[]): readonly GapPhrase[] =>
+  phrases.reduce<readonly GapPhrase[]>(
+    (unique, phrase) => unique.some((candidate) => candidate.text.toLowerCase() === phrase.text.toLowerCase())
+      ? unique
+      : [...unique, phrase],
+    [],
+  );
 
 /**
  * Generate held-out phrases for an element by substituting domain synonyms
@@ -173,7 +186,11 @@ export function generateHeldOutPhrases(
     };
   });
 
-  return [...synonymPhrases, ...affordancePhrases, ...assertionPhrases];
+  return dedupePhrases(
+    [...synonymPhrases, ...affordancePhrases, ...assertionPhrases]
+      .filter((phrase) => phrase.text.trim().length > 0)
+      .filter((phrase) => phrase.text.toLowerCase() !== knownAlias.toLowerCase()),
+  );
 }
 
 /**
@@ -225,21 +242,38 @@ export function selectAtGapDistance(
   screenId = '',
   elementId: string | null = null,
 ): GapPhrase {
+  const normalizedDistance = clampGapDistance(distance);
   const identityAnchor = { screenId, elementId, knownAlias, gapKind: 'identity' as const };
 
   // distance=0: return the known alias verbatim
-  if (distance <= 0 || heldOutPhrases.length === 0) {
+  if (normalizedDistance <= 0 || heldOutPhrases.length === 0) {
     return { text: knownAlias, anchor: identityAnchor };
   }
 
   // distance=1: pick from held-out vocabulary (maximum gap)
-  if (distance >= 1) {
+  if (normalizedDistance >= 1) {
     return pick(heldOutPhrases, rng);
   }
 
-  // Intermediate: blend known alias with held-out vocabulary
-  // Use the distance as probability of picking held-out vs known
-  return rng() < distance
-    ? pick(heldOutPhrases, rng)
-    : { text: knownAlias, anchor: identityAnchor };
+  const knownWords = splitIdentifier(knownAlias);
+  const blendedWords = knownWords.map((word) => {
+    const replacements = distinctSynonymsFor(word);
+    return replacements.length > 0 && rng() < normalizedDistance
+      ? pick(replacements, rng)
+      : word;
+  });
+  const blendedText = blendedWords.join(' ').trim();
+  const hasLexicalShift = blendedText.length > 0 && blendedText.toLowerCase() !== knownAlias.toLowerCase();
+
+  return hasLexicalShift
+    ? {
+      text: blendedText,
+      anchor: {
+        screenId,
+        elementId,
+        knownAlias,
+        gapKind: 'partial-gap',
+      },
+    }
+    : pick(heldOutPhrases, rng);
 }
