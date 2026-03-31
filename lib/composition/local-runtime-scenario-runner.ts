@@ -12,11 +12,15 @@ import {
 } from '../application/semantic-translation-dictionary';
 import { translateIntentToOntology } from '../application/translate';
 import type { TranslationProvider } from '../application/translation-provider';
-import { resolveAgentInterpreterProvider, type AgentInterpreterProvider } from '../application/agent-interpreter-provider';
+import { resolveAgentInterpreterPort } from '../application/agent-interpreter-provider';
+import type { AgentInterpretationResult } from '../domain/types/agent-interpreter';
+import type { AgentInterpreterPort } from '../domain/resolution/model';
 import type { SemanticDictionaryCatalog, TranslationReceipt, TranslationRequest } from '../domain/types';
 import { LocalFileSystem } from '../infrastructure/fs/local-fs';
 import { createLocalRuntimeEnvironment, type LocalRuntimeAgentInterpreter } from '../infrastructure/runtime/local-runtime-environment';
 import { createScenarioRunState, runScenarioStep } from '../runtime/scenario';
+
+type EffectfulAgentInterpreterPort = AgentInterpreterPort<Effect.Effect<AgentInterpretationResult, never, never>>;
 
 export function buildCachedTranslator(
   paths: ProjectPaths,
@@ -87,7 +91,7 @@ export function buildDefaultTranslator(
   }).pipe(Effect.provideService(FileSystem, LocalFileSystem));
 }
 
-export function bridgeAgentInterpreterForRuntime(provider: AgentInterpreterProvider): LocalRuntimeAgentInterpreter {
+export function bridgeAgentInterpreterForRuntime(provider: EffectfulAgentInterpreterPort): LocalRuntimeAgentInterpreter {
   return {
     id: provider.id,
     kind: provider.kind,
@@ -97,7 +101,7 @@ export function bridgeAgentInterpreterForRuntime(provider: AgentInterpreterProvi
 
 /** Create a RuntimeScenarioRunnerPort with a specific agent interpreter provider.
  *  This is the injection point for agent sessions, Copilot, and dashboard integrations. */
-function buildRunnerWithInterpreter(interpreterOverride?: AgentInterpreterProvider | undefined): RuntimeScenarioRunnerPort {
+function buildRunnerWithInterpreter(interpreterOverride?: EffectfulAgentInterpreterPort | undefined): RuntimeScenarioRunnerPort {
   return {
     runSteps(input) {
       return Effect.gen(function* () {
@@ -117,7 +121,7 @@ function buildRunnerWithInterpreter(interpreterOverride?: AgentInterpreterProvid
           : undefined;
 
         const agentInterpreter = bridgeAgentInterpreterForRuntime(
-          interpreterOverride ?? resolveAgentInterpreterProvider(),
+          interpreterOverride ?? resolveAgentInterpreterPort(),
         );
 
       // ─── Semantic Dictionary: load once per run ───
@@ -196,5 +200,5 @@ export const LocalRuntimeScenarioRunner: RuntimeScenarioRunnerPort = buildRunner
 /** Factory: create a runner with a specific agent interpreter injected.
  *  Used by composition layer when an agent session provides its own interpreter. */
 export const createLocalRuntimeScenarioRunnerWithInterpreter = (
-  interpreter: AgentInterpreterProvider,
+  interpreter: EffectfulAgentInterpreterPort,
 ): RuntimeScenarioRunnerPort => buildRunnerWithInterpreter(interpreter);

@@ -1,5 +1,5 @@
 /**
- * AgentInterpreterProvider — Strategy pattern for pluggable agent interpretation backends.
+ * AgentInterpreterPort — Strategy pattern for pluggable agent interpretation backends.
  *
  * Three provider implementations share a single contract:
  *   1. disabled — stub that always declines (free, always available)
@@ -41,19 +41,14 @@ import {
   retryScheduleForTaggedErrors,
 } from './resilience/schedules';
 
-// Re-export type interfaces from domain layer for backwards compatibility
-export type {
-  AgentInterpretationRequest,
-  AgentInterpretationResult,
-  AgentInterpreterKind,
-  AgentInterpreterProvider,
-} from '../domain/types/resolution-context';
+import type { AgentInterpretationRequest, AgentInterpretationResult } from '../domain/types/agent-interpreter';
+import type { AgentInterpreterKind, AgentInterpreterPort } from '../domain/resolution/model';
 
-import type { AgentInterpretationRequest, AgentInterpretationResult, AgentInterpreterKind, AgentInterpreterProvider } from '../domain/types/resolution-context';
+type ApplicationAgentInterpreterPort = AgentInterpreterPort<Effect.Effect<AgentInterpretationResult, never, never>>;
 
 // ─── Provider: Disabled (stub, always available) ───
 
-function createDisabledProvider(): AgentInterpreterProvider {
+function createDisabledProvider(): ApplicationAgentInterpreterPort {
   return {
     id: 'agent-interpreter-disabled',
     kind: 'disabled',
@@ -107,7 +102,7 @@ function inferAction(actionText: string): StepAction {
   return 'click';
 }
 
-function createHeuristicProvider(): AgentInterpreterProvider {
+function createHeuristicProvider(): ApplicationAgentInterpreterPort {
   return {
     id: 'agent-interpreter-heuristic',
     kind: 'heuristic',
@@ -481,7 +476,7 @@ function withAgentRetries(
 function createLlmApiAgentProvider(
   config: AgentInterpreterConfig,
   deps: AgentLlmApiDependencies,
-): AgentInterpreterProvider {
+): ApplicationAgentInterpreterPort {
   return {
     id: `agent-llm-api-${config.model}`,
     kind: 'llm-api',
@@ -550,7 +545,7 @@ export function createScopedLlmApiAgentProvider(
  */
 function createSessionProvider(
   deps?: AgentLlmApiDependencies | undefined,
-): AgentInterpreterProvider {
+): ApplicationAgentInterpreterPort {
   if (!deps) {
     return {
       id: 'agent-session-stub',
@@ -649,7 +644,7 @@ function timeoutFallbackResult(provider: string, budgetMs: number): AgentInterpr
  * `needs-human` result with `reason: 'token-budget-exceeded'`. Uses Effect
  * fiber interruption semantics — no leaked timers.
  *
- * Can be composed around any `AgentInterpreterProvider.interpret` call.
+ * Can be composed around any `AgentInterpreterPort.interpret` call.
  */
 export function withAgentTimeout(
   interpret: (request: AgentInterpretationRequest) => Effect.Effect<AgentInterpretationResult, never, never>,
@@ -683,9 +678,9 @@ export function withAgentTimeoutEffect(
  * latency) or 30 seconds, whichever is smaller.
  */
 export function createTimeoutBoundedProvider(
-  provider: AgentInterpreterProvider,
+  provider: ApplicationAgentInterpreterPort,
   config?: AgentInterpreterConfig,
-): AgentInterpreterProvider {
+): ApplicationAgentInterpreterPort {
   const budgetMs = config
     ? Math.min(config.budget.maxTokensPerStep * 8, DEFAULT_AGENT_TIMEOUT_MS)
     : DEFAULT_AGENT_TIMEOUT_MS;
@@ -703,9 +698,9 @@ export function createTimeoutBoundedProvider(
 // ─── Composite Provider (session → llm-api fallback) ───
 
 function createCompositeAgentProvider(
-  primary: AgentInterpreterProvider,
-  fallback: AgentInterpreterProvider,
-): AgentInterpreterProvider {
+  primary: ApplicationAgentInterpreterPort,
+  fallback: ApplicationAgentInterpreterPort,
+): ApplicationAgentInterpreterPort {
   return {
     id: `composite-${primary.id}-${fallback.id}`,
     kind: primary.kind,
@@ -724,7 +719,7 @@ function createAgentProviderByKind(
   kind: AgentInterpreterKind,
   config: AgentInterpreterConfig,
   deps?: AgentLlmApiDependencies,
-): AgentInterpreterProvider {
+): ApplicationAgentInterpreterPort {
   switch (kind) {
     case 'disabled':
       return createDisabledProvider();
@@ -740,7 +735,7 @@ function createAgentProviderByKind(
 }
 
 /**
- * Resolve the appropriate AgentInterpreterProvider based on configuration.
+ * Resolve the appropriate AgentInterpreterPort based on configuration.
  *
  * Selection precedence:
  *   1. Session agent (if available) — Claude Code, VSCode Copilot, MCP
@@ -752,12 +747,12 @@ function createAgentProviderByKind(
  *   - CLI flag --agent-provider
  *   - Environment variable TESSERACT_AGENT_PROVIDER
  */
-export function resolveAgentInterpreterProvider(
+export function resolveAgentInterpreterPort(
   config?: AgentInterpreterConfig | undefined,
   deps?: AgentLlmApiDependencies | undefined,
   abTestConfig?: ABTestConfig | undefined,
   providerOverride?: AgentInterpreterKind | undefined,
-): AgentInterpreterProvider {
+): ApplicationAgentInterpreterPort {
   const effectiveConfig = config ?? DEFAULT_AGENT_INTERPRETER_CONFIG;
 
   const providerKind = providerOverride ?? effectiveConfig.provider;
@@ -789,6 +784,8 @@ export function resolveAgentInterpreterProvider(
     : resolved;
 }
 
+export const resolveAgentInterpreterProvider = resolveAgentInterpreterPort;
+
 // ─── A/B Testing Provider ───
 
 /**
@@ -798,11 +795,11 @@ export function resolveAgentInterpreterProvider(
  * resolution quality between provider strategies.
  */
 function createABTestingProvider(
-  treatmentProvider: AgentInterpreterProvider,
+  treatmentProvider: ApplicationAgentInterpreterPort,
   abTestConfig: ABTestConfig,
   config: AgentInterpreterConfig,
   _deps?: AgentLlmApiDependencies,
-): AgentInterpreterProvider {
+): ApplicationAgentInterpreterPort {
   const controlProvider = createAgentProviderByKind(
     abTestConfig.controlProvider as AgentInterpreterKind,
     config,
