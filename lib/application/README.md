@@ -6,7 +6,7 @@ reports, improvement loops, and workspace catalog management.
 ## Boundary Rules
 
 - **May import** from `lib/domain/` only.
-- **Must not import** from `lib/runtime/` or `lib/infrastructure/` (one known baseline violation: `agent-interpreter-provider.ts` imports a runtime type for the pluggable interpreter strategy — tracked for refactoring).
+- **Must not import** from `lib/runtime/` or `lib/infrastructure/`.
 - All side effects are modeled through **Effect** services and layers.
 
 ## What Lives Here
@@ -41,7 +41,11 @@ reports, improvement loops, and workspace catalog management.
 | `interface-intelligence.ts` | Pre-indexed screen catalog with O(1) lookups and dynamic targeting |
 | `improvement.ts` | Improvement run building with intervention lineage tracking |
 | `agent-workbench.ts` | Agent workbench — projection from iteration data to structured work items |
-| `agent-interpreter-provider.ts` | Strategy pattern for pluggable agent interpretation backends |
+| `agent-interpreter-provider.ts` | Compatibility shim re-exporting the modular agent interpreter factory |
+| `agent-interpreter/factory.ts` | Resolves provider selection precedence and fallback composition |
+| `agent-interpreter/providers/*.ts` | Focused provider implementations (disabled, heuristic, llm-api, session) |
+| `agent-interpreter/resilience.ts` | Retry, timeout, and fallback decorators for provider calls |
+| `agent-interpreter/ab-testing.ts` | Deterministic variant assignment wrapper for provider routing |
 | `paths.ts` | `ProjectPaths` — defines all artifact paths in the workspace structure |
 | `surface.ts` | Surface inspection — approved surface graph and capabilities for a screen |
 | `workflow.ts` | Workflow inspection — lane ownership, controls, precedence, fingerprints |
