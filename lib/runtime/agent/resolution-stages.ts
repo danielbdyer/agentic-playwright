@@ -3,6 +3,7 @@ import type {
   ProposalConfidenceValues,
   ResolutionCandidateSummary,
   ResolutionReceipt,
+  SemanticDictionaryMatch,
   StepAction,
   StepTaskElementCandidate,
   StepTaskScreenCandidate,
@@ -16,8 +17,9 @@ import { agentInterpretedReceipt, explicitResolvedReceipt, needsHumanReceipt } f
 import type { AgentInterpretationRequest } from '../../domain/types/agent-interpreter';
 import { resolveOverride } from './resolve-target';
 import { selectedDomExplorationPolicy } from './select-controls';
-import { exhaustionEntry } from './shared';
+import { exhaustionEntry, normalizedCombined } from './shared';
 import { resolveWithConfidenceOverlay, resolveWithTranslation } from './translation';
+import { lookupSemanticDictionary } from '../../application/semantic-translation-dictionary';
 import type { RuntimeAgentStageContext, StageEffects } from './types';
 import { EMPTY_EFFECTS } from './types';
 import {
@@ -270,6 +272,138 @@ export function tryApprovedKnowledgeResolution(stage: RuntimeAgentStageContext, 
     };
   }
   return { receipt: null, effects: EMPTY_EFFECTS };
+}
+
+export function trySemanticDictionaryResolution(stage: RuntimeAgentStageContext, acc: ResolutionAccumulator): StageResult & { match: SemanticDictionaryMatch | null } {
+  const catalog = stage.context.semanticDictionary;
+  if (!catalog || catalog.entries.length === 0) {
+    return {
+      receipt: null,
+      effects: {
+        ...EMPTY_EFFECTS,
+        exhaustion: [exhaustionEntry('semantic-dictionary', 'skipped', 'No semantic dictionary available or empty')],
+      },
+      match: null,
+    };
+  }
+
+  const normalized = normalizedCombined(stage.task);
+  const match = lookupSemanticDictionary(normalized, catalog, {
+    retrievalContext: {
+      allowedActions: [...stage.task.allowedActions],
+      currentScreen: stage.memory.currentScreen?.screen ?? null,
+      availableScreens: stage.context.resolutionContext.screens.map((s) => s.screen),
+      activeRouteVariantRefs: [...stage.memory.activeRouteVariantRefs],
+      governanceFilter: 'include-review',
+    },
+  });
+
+  if (!match) {
+    return {
+      receipt: null,
+      effects: {
+        ...EMPTY_EFFECTS,
+        exhaustion: [exhaustionEntry('semantic-dictionary', 'failed', `No semantic dictionary entry matched above thresholds (${catalog.entries.length} entries searched)`)],
+      },
+      match: null,
+    };
+  }
+
+  const { entry } = match;
+
+  // Validate the matched target still exists in the resolution context
+  const screen = stage.context.resolutionContext.screens.find((s) => s.screen === entry.target.screen);
+  if (!screen) {
+    return {
+      receipt: null,
+      effects: {
+        ...EMPTY_EFFECTS,
+        exhaustion: [exhaustionEntry('semantic-dictionary', 'failed', `Semantic dictionary matched entry ${entry.id} but screen ${entry.target.screen} no longer exists in resolution context`)],
+      },
+      match,
+    };
+  }
+
+  const element = entry.target.element
+    ? screen.elements.find((e) => e.element === entry.target.element) ?? null
+    : null;
+  if (entry.target.element && !element) {
+    return {
+      receipt: null,
+      effects: {
+        ...EMPTY_EFFECTS,
+        exhaustion: [exhaustionEntry('semantic-dictionary', 'failed', `Semantic dictionary matched but element ${entry.target.element} no longer exists on screen ${entry.target.screen}`)],
+      },
+      match,
+    };
+  }
+
+  const action = entry.target.action ?? acc.action;
+  if (!action || (requiresElement(action) && !element)) {
+    return {
+      receipt: null,
+      effects: {
+        ...EMPTY_EFFECTS,
+        exhaustion: [exhaustionEntry('semantic-dictionary', 'failed', 'Semantic dictionary match lacks required element for action')],
+      },
+      match,
+    };
+  }
+
+  const override = resolveOverride(stage.task, screen, element, entry.target.posture, stage.controlResolution, stage.context);
+
+  const scoring = match.scoring;
+  const scoringSummary = scoring
+    ? `text: ${scoring.textSimilarity.toFixed(3)}, structural: ${scoring.structuralScore.toFixed(3)}, confidence: ${scoring.confidence.toFixed(3)}, combined: ${scoring.combined.toFixed(3)}`
+    : `similarity: ${match.similarityScore.toFixed(3)}, confidence: ${entry.confidence.toFixed(3)}, combined: ${match.combinedScore.toFixed(3)}`;
+
+  const observation = {
+    source: 'semantic-dictionary' as const,
+    summary: `Semantic dictionary resolved via accrued LLM decision (${scoringSummary}, reuses: ${entry.successCount}).`,
+    detail: {
+      entryId: entry.id,
+      provenance: entry.provenance,
+      similarityScore: match.similarityScore.toFixed(3),
+      confidence: entry.confidence.toFixed(3),
+      combinedScore: match.combinedScore.toFixed(3),
+      successCount: String(entry.successCount),
+      ...(scoring ? {
+        textSimilarity: scoring.textSimilarity.toFixed(3),
+        structuralScore: scoring.structuralScore.toFixed(3),
+      } : {}),
+    },
+  };
+
+  const effects: StageEffects = {
+    ...EMPTY_EFFECTS,
+    exhaustion: [exhaustionEntry('semantic-dictionary', 'resolved', `Accrued LLM decision matched (${scoringSummary})`)],
+    observations: [observation],
+  };
+
+  return {
+    receipt: {
+      ...needsHumanReceipt(stage, [], null, effects),
+      kind: 'resolved',
+      governance: mintApproved(),
+      resolutionMode: 'deterministic',
+      overlayRefs: [],
+      winningConcern: 'knowledge',
+      winningSource: 'semantic-dictionary',
+      translation: null,
+      confidence: 'agent-verified',
+      provenanceKind: 'approved-knowledge',
+      target: {
+        action,
+        screen: screen.screen,
+        element: element?.element ?? null,
+        posture: entry.target.posture,
+        override: override.override,
+        snapshot_template: entry.target.snapshotTemplate,
+      },
+    } as ResolutionReceipt,
+    effects,
+    match,
+  };
 }
 
 export function tryOverlayResolution(stage: RuntimeAgentStageContext, acc: ResolutionAccumulator): AccumulatorStageResult {

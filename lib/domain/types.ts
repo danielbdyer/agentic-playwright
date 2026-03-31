@@ -16,3 +16,4 @@ export * from './types/improvement';
 export * from './types/experiment';
 export * from './types/workbench';
 export * from './types/dashboard';
+export * from './types/semantic-dictionary';

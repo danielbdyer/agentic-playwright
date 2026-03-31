@@ -31,6 +31,7 @@ import type {
 import type { StepResolution } from './intent';
 import type { InterfaceResolutionContext } from './knowledge';
 import type { RecoveryPolicy } from '../execution/recovery-policy';
+import type { SemanticDictionaryAccrualInput } from './semantic-dictionary';
 
 export interface TranslationCandidate {
   readonly kind: 'screen' | 'element' | 'posture' | 'snapshot-template';
@@ -469,6 +470,7 @@ export interface ResolutionCandidateSummary {
     | 'approved-screen-knowledge'
     | 'shared-patterns'
     | 'prior-evidence'
+    | 'semantic-dictionary'
     | 'approved-equivalent-overlay'
     | 'structured-translation'
     | 'live-dom';
@@ -482,6 +484,7 @@ export interface ResolutionObservation {
     | 'approved-screen-knowledge'
     | 'shared-patterns'
     | 'prior-evidence'
+    | 'semantic-dictionary'
     | 'approved-equivalent-overlay'
     | 'structured-translation'
     | 'live-dom'
@@ -532,6 +535,10 @@ export type ResolutionEvent =
 export interface ResolutionPipelineResult {
   readonly receipt: ResolutionReceipt;
   readonly events: readonly ResolutionEvent[];
+  /** Semantic dictionary accrual input, if the resolution produced a learnable decision. */
+  readonly semanticAccrual?: SemanticDictionaryAccrualInput | null | undefined;
+  /** Entry ID of the semantic dictionary entry that was used (for success/failure tracking). */
+  readonly semanticDictionaryHitId?: string | null | undefined;
 }
 
 export interface ResolutionEvidenceDraft {
