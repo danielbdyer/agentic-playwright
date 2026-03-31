@@ -92,7 +92,9 @@ export function resolveExecutionPosture(input: CommandExecution['postureInput'])
 }
 
 export function createCliPaths(rootDir: string, suiteRoot?: string): ProjectPaths {
-  return createProjectPaths(rootDir, suiteRoot ?? path.join(rootDir, 'dogfood'));
+  const paths = createProjectPaths(rootDir, suiteRoot ?? path.join(rootDir, 'dogfood'));
+  // Prefer lane-grouped access patterns in new callsites while preserving legacy aliases.
+  return paths;
 }
 
 /** Exposes the full command registry for introspection and testing. */

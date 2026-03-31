@@ -1,32 +1,63 @@
 import path from 'path';
 import { expect, test } from '@playwright/test';
-import { createProjectPaths, generatedSpecPath, knowledgeArtifactPath, scenarioPath } from '../lib/application/paths';
+import {
+  createProjectPaths,
+  generatedSpecPath,
+  knowledgeArtifactPath,
+  scenarioPath,
+  taskPacketPath,
+  translationCachePath,
+  runbookPath,
+  agentSessionPath,
+} from '../lib/application/paths';
 import { createAdoId, createSnapshotTemplateId } from '../lib/domain/identity';
 import { computeAdoContentHash } from '../lib/domain/hash';
 import { validateAdoSnapshot } from '../lib/domain/validation';
 
-const paths = createProjectPaths(path.join(process.cwd(), 'tmp-root'));
+const rootDir = path.join(process.cwd(), 'tmp-root');
+const suiteRoot = path.join(rootDir, 'dogfood');
+const paths = createProjectPaths(rootDir, suiteRoot);
 const adoId = createAdoId('10001');
 
-test('path helpers accept normal nested suite paths', () => {
-  const suitePath = 'demo/policy-search';
+test('createProjectPaths exposes lane aggregates with root/suite separation', () => {
+  expect(paths.engine.rootDir).toBe(rootDir);
+  expect(paths.engine.suiteRoot).toBe(suiteRoot);
 
-  expect(scenarioPath(paths, suitePath, adoId)).toBe(path.join(paths.scenariosDir, 'demo', 'policy-search', '10001.scenario.yaml'));
-  expect(generatedSpecPath(paths, suitePath, adoId)).toBe(path.join(paths.generatedDir, 'demo', 'policy-search', '10001.spec.ts'));
-  expect(knowledgeArtifactPath(paths, 'snapshots/policy-search/results-with-policy.yaml')).toBe(
-    path.join(paths.knowledgeDir, 'snapshots', 'policy-search', 'results-with-policy.yaml'),
-  );
+  expect(paths.intent.scenariosDir).toBe(path.join(suiteRoot, 'scenarios'));
+  expect(paths.governance.generatedDir).toBe(path.join(suiteRoot, 'generated'));
+  expect(paths.resolution.tasksDir).toBe(path.join(rootDir, '.tesseract', 'tasks'));
+  expect(paths.execution.runsDir).toBe(path.join(rootDir, '.tesseract', 'runs'));
+
+  // Transitional aliases remain available for existing callsites.
+  expect(paths.scenariosDir).toBe(paths.intent.scenariosDir);
+  expect(paths.tasksDir).toBe(paths.resolution.tasksDir);
+  expect(paths.generatedDir).toBe(paths.governance.generatedDir);
+  expect(paths.runsDir).toBe(paths.execution.runsDir);
 });
 
-test('path helpers reject traversal attempts with ../ segments', () => {
+test('path helpers route suite scoped artifacts under suite root and engine artifacts under root', () => {
+  const suitePath = 'demo/policy-search';
+
+  expect(scenarioPath(paths, suitePath, adoId)).toBe(path.join(paths.intent.scenariosDir, 'demo', 'policy-search', '10001.scenario.yaml'));
+  expect(generatedSpecPath(paths, suitePath, adoId)).toBe(path.join(paths.governance.generatedDir, 'demo', 'policy-search', '10001.spec.ts'));
+  expect(knowledgeArtifactPath(paths, 'snapshots/policy-search/results-with-policy.yaml')).toBe(
+    path.join(paths.knowledge.knowledgeDir, 'snapshots', 'policy-search', 'results-with-policy.yaml'),
+  );
+  expect(taskPacketPath(paths, adoId)).toBe(path.join(paths.resolution.tasksDir, '10001.resolution.json'));
+  expect(translationCachePath(paths, 'intent-key')).toBe(path.join(paths.engine.translationCacheDir, 'intent-key.translation.json'));
+});
+
+test('control and execution helpers reject traversal attempts', () => {
+  expect(() => runbookPath(paths, '../escape')).toThrow(/escapes expected root/i);
+  expect(() => agentSessionPath(paths, '../session')).toThrow(/escapes expected root/i);
+});
+
+test('suite scoped helpers reject traversal and absolute path attempts', () => {
+  const absolutePath = path.join(path.sep, 'tmp', 'attack');
+
   expect(() => scenarioPath(paths, '../escape', adoId)).toThrow(/escapes expected root/i);
   expect(() => generatedSpecPath(paths, '../../escape', adoId)).toThrow(/escapes expected root/i);
   expect(() => knowledgeArtifactPath(paths, '../screens/policy-search.elements.yaml')).toThrow(/escapes expected root/i);
-});
-
-test('path helpers reject absolute path attempts', () => {
-  const absolutePath = path.join(path.sep, 'tmp', 'attack');
-
   expect(() => scenarioPath(paths, absolutePath, adoId)).toThrow(/escapes expected root/i);
   expect(() => generatedSpecPath(paths, absolutePath, adoId)).toThrow(/escapes expected root/i);
   expect(() => knowledgeArtifactPath(paths, absolutePath)).toThrow(/escapes expected root/i);
