@@ -36,6 +36,12 @@ artifactTypes:
       minCount: 1
       kinds:
         - assertion-run
+  routes:
+    minimumConfidence: 0.95
+    requiredEvidence:
+      minCount: 1
+      kinds:
+        - assertion-run
 forbiddenAutoHealClasses:
   - assertion-mismatch
   - structural-mismatch
