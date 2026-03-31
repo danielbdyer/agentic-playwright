@@ -14,7 +14,7 @@ import { requiresElement, allowedActionFallback } from './resolve-action';
 import { resolveFromDom } from './dom-fallback';
 import { proposalForSupplementGap, proposalsFromInterpretation, proposalsForNeedsHuman } from './proposals';
 import { agentInterpretedReceipt, explicitResolvedReceipt, needsHumanReceipt } from './receipt';
-import type { AgentInterpretationRequest } from '../../domain/types/resolution-context';
+import type { AgentInterpretationRequest } from '../../domain/types/agent-interpreter';
 import { resolveOverride } from './resolve-target';
 import { selectedDomExplorationPolicy } from './select-controls';
 import { exhaustionEntry, normalizedCombined } from './shared';

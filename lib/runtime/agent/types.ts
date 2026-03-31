@@ -9,15 +9,11 @@ import type {
   StepResolution,
   GroundedStep,
 } from '../../domain/types';
-import type { AgentInterpretationRequest, AgentInterpretationResult } from '../../domain/types/resolution-context';
+import type { AgentInterpreterPort } from '../../domain/resolution/model';
 import type { ElementId, PostureId, ScreenId } from '../../domain/identity';
 import type { ResolutionTarget, TranslationReceipt, TranslationRequest } from '../../domain/types';
 
-export interface RuntimeAgentInterpreter {
-  readonly id: string;
-  readonly kind: string;
-  readonly interpret: (request: AgentInterpretationRequest) => Promise<AgentInterpretationResult>;
-}
+export type RuntimeAgentInterpreter = AgentInterpreterPort;
 
 export interface RuntimeStepAgentContext {
   resolutionContext: InterfaceResolutionContext;

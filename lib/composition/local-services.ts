@@ -25,7 +25,8 @@ import { LocalImprovementRunRepository } from '../infrastructure/repositories/lo
 import { LocalInterventionLedgerRepository } from '../infrastructure/repositories/local-intervention-ledger-repository';
 import { makeLocalVersionControl } from '../infrastructure/tooling/local-version-control';
 import { LocalRuntimeScenarioRunner, createLocalRuntimeScenarioRunnerWithInterpreter } from './local-runtime-scenario-runner';
-import type { AgentInterpreterProvider } from '../application/agent-interpreter-provider';
+import type { AgentInterpreterPort } from '../domain/resolution/model';
+import type { AgentInterpretationResult } from '../domain/types/agent-interpreter';
 import { PlaywrightBridge, DisabledPlaywrightBridge } from '../infrastructure/mcp/playwright-mcp-bridge';
 import { dashboardEvent } from '../domain/types/dashboard';
 import type { ExecutionPosture, PipelineConfig, WriteJournalEntry } from '../domain/types';
@@ -33,6 +34,8 @@ import { DEFAULT_PIPELINE_CONFIG } from '../domain/types';
 import type { DashboardPort, McpServerPort, StageTracerPort } from '../application/ports';
 import { enrichEventDataWithExecutionContext } from '../application/context/execution-context';
 import type { PlaywrightBridgePort } from '../infrastructure/mcp/playwright-mcp-bridge';
+
+type EffectfulAgentInterpreterPort = AgentInterpreterPort<Effect.Effect<AgentInterpretationResult, never, never>>;
 
 export interface LocalServiceOptions {
   readonly posture?: Partial<ExecutionPosture> | undefined;
@@ -42,7 +45,7 @@ export interface LocalServiceOptions {
    *  uses this provider at rung 9 instead of the default (env-resolved) provider.
    *  This is the injection point for Claude Code sessions, VSCode Copilot, MCP tools,
    *  and future dashboard integrations. */
-  readonly agentInterpreter?: AgentInterpreterProvider | undefined;
+  readonly agentInterpreter?: EffectfulAgentInterpreterPort | undefined;
   /** Inject a dashboard port for Effect-driven real-time visualization.
    *  When provided, the fiber emits events and pauses for human decisions. */
   readonly dashboard?: DashboardPort | undefined;

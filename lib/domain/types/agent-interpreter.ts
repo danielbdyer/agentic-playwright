@@ -1,7 +1,4 @@
-// Agent interpreter port types — pure domain interfaces with no Effect or Playwright dependencies.
-// Extracted from lib/application/agent-interpreter-provider.ts for cross-layer type sharing.
-
-import type { Effect } from 'effect';
+// Agent interpreter value-object schemas (request/response only).
 import type { ResolutionTarget, ResolutionProposalDraft, ResolutionObservation, StepAction } from '../types';
 
 export interface AgentInterpretationRequest {
@@ -84,14 +81,4 @@ export interface AgentInterpretationResult {
   readonly proposalDrafts: readonly ResolutionProposalDraft[];
   readonly observation?: ResolutionObservation | undefined;
   readonly provider: string;
-}
-
-export type AgentInterpreterKind = 'disabled' | 'heuristic' | 'llm-api' | 'session';
-
-export interface AgentInterpreterProvider {
-  readonly id: string;
-  readonly kind: AgentInterpreterKind;
-  readonly interpret: (
-    request: AgentInterpretationRequest,
-  ) => Effect.Effect<AgentInterpretationResult, never, never>;
 }

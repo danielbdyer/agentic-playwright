@@ -199,6 +199,35 @@ module.exports = [
     },
   },
   {
+    files: ['lib/composition/**/*.ts', 'lib/runtime/**/*.ts', 'lib/infrastructure/**/*.ts'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        paths: [
+          {
+            name: '../application/agent-interpreter-provider',
+            importNames: ['AgentInterpreterPort', 'ApplicationAgentInterpreterPort'],
+            message: 'Import agent interpreter contracts from lib/domain/resolution/model or lib/domain/types/agent-interpreter.',
+          },
+          {
+            name: '../../application/agent-interpreter-provider',
+            importNames: ['AgentInterpreterPort', 'ApplicationAgentInterpreterPort'],
+            message: 'Import agent interpreter contracts from lib/domain/resolution/model or lib/domain/types/agent-interpreter.',
+          },
+          {
+            name: '../../../application/agent-interpreter-provider',
+            importNames: ['AgentInterpreterPort', 'ApplicationAgentInterpreterPort'],
+            message: 'Import agent interpreter contracts from lib/domain/resolution/model or lib/domain/types/agent-interpreter.',
+          },
+          {
+            name: './agent-interpreter-provider',
+            importNames: ['AgentInterpreterPort', 'ApplicationAgentInterpreterPort'],
+            message: 'Application modules must not become canonical type owners for domain contracts.',
+          },
+        ],
+      }],
+    },
+  },
+  {
     files: ['lib/infrastructure/**/*.ts'],
     rules: {
       'no-restricted-imports': ['error', {
