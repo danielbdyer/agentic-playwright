@@ -13,8 +13,8 @@ import {
 } from './paths';
 import { hasSnapshotDrift } from './diff';
 import { trySync } from './effect';
-import type { AdoSnapshot } from '../domain/types/intent';
-import type { CompilerDiagnostic } from '../domain/types/workflow';
+import type { AdoSnapshot } from '../domain/types/intent-context';
+import type { CompilerDiagnostic } from '../domain/types/shared-context';
 
 function emptyManifest(): Manifest {
   return { entries: {} };

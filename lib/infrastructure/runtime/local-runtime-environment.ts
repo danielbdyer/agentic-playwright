@@ -3,7 +3,7 @@ import type { ScreenId } from '../../domain/identity';
 import type { ScreenRegistry, SnapshotTemplateLoader } from '../../domain/runtime-loaders';
 import type { ExecutionPosture, RuntimeDomResolver, TranslationRequest, TranslationReceipt } from '../../domain/types';
 import type { RecoveryPolicy } from '../../domain/execution/recovery-policy';
-import type { AgentInterpretationRequest, AgentInterpretationResult } from '../../domain/types/agent-interpreter';
+import type { AgentInterpretationRequest, AgentInterpretationResult } from '../../domain/types/resolution-context';
 import { createLocalScreenRegistryLoader } from '../screen-registry/local-screen-registry-loader';
 import { createLocalSnapshotTemplateLoader } from '../snapshots/local-snapshot-template-loader';
 

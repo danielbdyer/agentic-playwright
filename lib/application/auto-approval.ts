@@ -3,7 +3,7 @@ import type {
   EvidenceDescriptor,
   ProposedChangeMetadata,
   TrustPolicy,
-} from '../domain/types/workflow';
+} from '../domain/types/shared-context';
 
 // ─── Auto-Approval Policy ───
 

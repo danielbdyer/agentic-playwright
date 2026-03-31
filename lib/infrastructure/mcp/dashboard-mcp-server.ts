@@ -15,7 +15,7 @@
 import { Effect } from 'effect';
 import type { McpServerPort, McpToolInvocation, McpToolResult } from '../../application/ports';
 import type { McpToolDefinition, WorkItemDecision, ScreenCapturedEvent } from '../../domain/types';
-import { dashboardMcpTools, dashboardEvent } from '../../domain/types/dashboard';
+import { dashboardMcpTools, dashboardEvent } from '../../domain/types/intervention-context';
 import { resolveResource, buildResourceUri } from './resource-provider';
 import type { ResourceArtifactReader } from './resource-provider';
 import type { PlaywrightBridgePort, BrowserAction } from './playwright-mcp-bridge';

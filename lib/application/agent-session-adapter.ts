@@ -11,7 +11,7 @@ import type {
   TrainingCorpusManifest,
   TranscriptRef,
 } from '../domain/types';
-import { mintApproved } from '../domain/types/workflow';
+import { mintApproved } from '../domain/types/shared-context';
 import type { AdoId } from '../domain/identity';
 import { TesseractError } from '../domain/errors';
 

@@ -47,9 +47,9 @@ export type {
   AgentInterpretationResult,
   AgentInterpreterKind,
   AgentInterpreterProvider,
-} from '../domain/types/agent-interpreter';
+} from '../domain/types/resolution-context';
 
-import type { AgentInterpretationRequest, AgentInterpretationResult, AgentInterpreterKind, AgentInterpreterProvider } from '../domain/types/agent-interpreter';
+import type { AgentInterpretationRequest, AgentInterpretationResult, AgentInterpreterKind, AgentInterpreterProvider } from '../domain/types/resolution-context';
 
 // ─── Provider: Disabled (stub, always available) ───
 

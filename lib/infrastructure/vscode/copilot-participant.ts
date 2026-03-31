@@ -8,8 +8,8 @@
  * values from domain artifacts.
  */
 
-import type { OperatorInboxItem } from '../../domain/types/resolution';
-import type { ProposalBundle } from '../../domain/types/execution';
+import type { OperatorInboxItem } from '../../domain/types/resolution-context';
+import type { ProposalBundle } from '../../domain/types/execution-context';
 import type {
   CopilotArtifactRef,
   CopilotRequest,

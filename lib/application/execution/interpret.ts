@@ -10,7 +10,7 @@ import type {
   StepResolutionGraph,
 } from '../../domain/types';
 import { WINNING_SOURCE_TO_RUNG } from '../../domain/visitors';
-import { isApproved, mintApproved, mintReviewRequired } from '../../domain/types/workflow';
+import { isApproved, mintApproved, mintReviewRequired } from '../../domain/types/shared-context';
 import type { RuntimeScenarioRunnerPort, RuntimeScenarioStepResult } from '../ports';
 import { resolveResolutionEngine } from '../provider-registry';
 import { validateStepResults } from './validate-step-results';

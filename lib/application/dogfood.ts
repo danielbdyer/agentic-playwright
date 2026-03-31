@@ -8,7 +8,7 @@ import { emitAgentWorkbench, processWorkItems, emitInterventionLineage } from '.
 import { createDashboardDecider } from './dashboard-decider';
 import { createDualModeDecider, createAgentDecider } from './agent-decider';
 import type { AgentWorkItem, BottleneckWeightCorrelation, WorkItemCompletion } from '../domain/types';
-import { dashboardEvent } from '../domain/types/dashboard';
+import { dashboardEvent } from '../domain/types/intervention-context';
 import type { DashboardPort } from './ports';
 import { Dashboard } from './ports';
 import { improvementLoopLedgerPath, type ProjectPaths } from './paths';
@@ -42,7 +42,7 @@ import type {
 import { DEFAULT_AUTO_APPROVAL_POLICY } from '../domain/trust-policy';
 import { matureComponentKnowledge, type ComponentEvidence } from '../domain/component-maturation';
 import { aggregateQualityMetrics, type AliasOutcome } from '../domain/proposal-quality';
-import type { RungRate } from '../domain/types/fitness';
+import type { RungRate } from '../domain/types/improvement-context';
 import type { ScreenGroupDecider, WorkItemDecider } from './agent-workbench';
 
 export type DogfoodIterationResult = ImprovementLoopIteration;

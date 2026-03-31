@@ -20,7 +20,7 @@ import { captureAriaYaml } from '../../playwright/aria';
 import { resolvePlaywrightHeadless, resolvePreferredPlaywrightChannel } from './browser-options';
 import type { Browser } from '@playwright/test';
 import type { DiscoveryRun, LocatorStrategy } from '../../domain/types';
-import { mintApproved } from '../../domain/types/workflow';
+import { mintApproved } from '../../domain/types/shared-context';
 
 interface BrowserDiscoveryPayload {
   title: string;
