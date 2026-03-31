@@ -51,6 +51,45 @@ export function resolvePerturbation(rate?: number, config?: Partial<Perturbation
       : ZERO_PERTURBATION;
 }
 
+// ─── Phrasing provider abstraction ───
+//
+// The PhrasingProvider is the extension point for how step text is generated.
+// The deterministic template approach is the fallback. An agentic implementation
+// uses an LLM to produce diverse, realistic QA phrasing that genuinely challenges
+// the translation layer — text that is semantically valid but lexically distant
+// from any alias in the knowledge model. See docs/recursive-self-improvement.md.
+
+/** Structured intent for a single step, used by PhrasingProvider to generate text. */
+export interface PhrasingRequest {
+  readonly action: ActionType;
+  readonly screenId: string;
+  readonly screenAlias: string;
+  readonly elementId: string | null;
+  readonly elementAlias: string | null;
+  readonly value: string;
+}
+
+/** Result of phrasing a step — the natural-language text and its provenance. */
+export interface PhrasingResult {
+  readonly actionText: string;
+  readonly expectedText: string;
+  readonly source: 'template' | 'agentic';
+}
+
+/**
+ * Produces natural-language step text from a structured intent.
+ *
+ * - **template**: Deterministic, fast, CI-safe. Uses finite template pool with
+ *   optional synonym substitution. Tests lexical matching breadth.
+ * - **agentic**: LLM-backed, produces phrasing that a real QA tester would write.
+ *   Tests semantic understanding and forces the translation pipeline to fall through
+ *   to lower rungs, which drives genuine proposal generation and knowledge accumulation.
+ *
+ * The planner accepts this as an optional input. When absent, falls back to
+ * `templatePhrasing` (the deterministic path).
+ */
+export type PhrasingProvider = (request: PhrasingRequest, rng: SeededRng) => PhrasingResult;
+
 interface SyntheticStep {
   readonly index: number;
   readonly intent: string;
@@ -87,6 +126,11 @@ export interface ScenarioPlanningInput {
   readonly perturbationRate?: number;
   readonly perturbation?: Partial<PerturbationConfig>;
   readonly validationSplit?: number;
+  /**
+   * Optional phrasing provider. When absent, uses deterministic template phrasing.
+   * Supply an agentic provider to generate diverse, realistic QA phrasing via LLM.
+   */
+  readonly phrasingProvider?: PhrasingProvider;
 }
 
 export interface ScenarioPlanningResult {
@@ -261,6 +305,27 @@ const renderYaml = (plan: ScenarioPlanInternal, syncedAt: string): string => {
   ].join('\n') + '\n';
 };
 
+// ─── Default template phrasing (deterministic fallback) ───
+//
+// Tests lexical matching breadth: synonym substitution and template variety.
+// Does NOT produce semantically novel phrasing — for that, use an agentic provider.
+
+export const templatePhrasing: PhrasingProvider = (request, rng) => {
+  const { action, screenAlias, elementAlias, value } = request;
+
+  if (action === 'navigate') {
+    const navText = pick(TEMPLATES.navigate, rng).replace('{screen}', screenAlias);
+    return { actionText: navText, expectedText: `${screenAlias} loads successfully`, source: 'template' };
+  }
+
+  const alias = elementAlias ?? screenAlias;
+  const template = pick(TEMPLATES[action], rng)
+    .replace('{screen}', screenAlias)
+    .replace('{element}', alias)
+    .replace('{value}', value);
+  return { actionText: template, expectedText: `${alias} handled`, source: 'template' };
+};
+
 const generateStep = (
   element: ScreenElementPlanInput,
   screen: ScreenPlanInput,
@@ -268,6 +333,7 @@ const generateStep = (
   allScreens: readonly ScreenPlanInput[],
   perturbation: PerturbationConfig,
   rng: SeededRng,
+  phrasing: PhrasingProvider,
 ): SyntheticStep | null => {
   if (rng() < perturbation.coverageGap) return null;
   const action = actionForWidget(element.widget);
@@ -283,12 +349,26 @@ const generateStep = (
     : baseAlias;
   const alias = perturbation.aliasGap > 0 && rng() < perturbation.aliasGap ? element.elementId : crossAlias;
   const value = pickDataValue(element, action, perturbation, rng);
-  const template = pick(TEMPLATES[action], rng)
-    .replace('{screen}', screen.screenAliases[0] ?? humanize(screen.screenId))
-    .replace('{element}', alias)
-    .replace('{value}', value);
-  const actionText = perturbation.vocab > 0 ? perturbVocab(template, perturbation.vocab, rng) : template;
-  const expectedText = pickAssertionText(alias, perturbation, rng);
+
+  const phrasingResult = phrasing({
+    action,
+    screenId: screen.screenId,
+    screenAlias: screen.screenAliases[0] ?? humanize(screen.screenId),
+    elementId: element.elementId,
+    elementAlias: alias,
+    value,
+  }, rng);
+
+  // Apply vocab perturbation on template-sourced text (agentic text is already diverse)
+  const actionText = phrasingResult.source === 'template' && perturbation.vocab > 0
+    ? perturbVocab(phrasingResult.actionText, perturbation.vocab, rng)
+    : phrasingResult.actionText;
+
+  // Apply assertion variation on template-sourced text
+  const expectedText = phrasingResult.source === 'template'
+    ? pickAssertionText(alias, perturbation, rng)
+    : phrasingResult.expectedText;
+
   return {
     index: stepIndex,
     intent: actionText,
@@ -308,6 +388,7 @@ const generateScenario = (
   screens: readonly ScreenPlanInput[],
   perturbation: PerturbationConfig,
   rng: SeededRng,
+  phrasing: PhrasingProvider,
 ): ScenarioPlanInternal => {
   const selectedScreens = strategy === 'cross-screen'
     ? shuffle(screens, rng).slice(0, Math.min(2, screens.length))
@@ -315,10 +396,25 @@ const generateScenario = (
 
   const navSteps = selectedScreens.map((selected, idx) => {
     const alias = selected.screenAliases[0] ?? humanize(selected.screenId);
-    const navText = pick(TEMPLATES.navigate, rng).replace('{screen}', alias);
-    const expectedText = perturbation.assertionVariation > 0 && rng() < perturbation.assertionVariation
+    const phrasingResult = phrasing({
+      action: 'navigate' as ActionType,
+      screenId: selected.screenId,
+      screenAlias: alias,
+      elementId: null,
+      elementAlias: null,
+      value: '',
+    }, rng);
+
+    // Apply vocab perturbation on template-sourced nav text
+    const navText = phrasingResult.source === 'template' && perturbation.vocab > 0
+      ? perturbVocab(phrasingResult.actionText, perturbation.vocab, rng)
+      : phrasingResult.actionText;
+
+    // Apply assertion variation on template-sourced nav expectations
+    const expectedText = phrasingResult.source === 'template' && perturbation.assertionVariation > 0 && rng() < perturbation.assertionVariation
       ? `${alias} ${pick(NAV_EXPECTATIONS, rng)}`
-      : `${alias} loads successfully`;
+      : phrasingResult.expectedText;
+
     return { index: idx + 1, intent: navText, action_text: navText, expected_text: expectedText } satisfies SyntheticStep;
   });
 
@@ -334,6 +430,7 @@ const generateScenario = (
           screens,
           perturbation,
           rng,
+          phrasing,
         );
         return generated ? [generated] : [];
       }),
@@ -357,6 +454,7 @@ export function planSyntheticScenarios(input: ScenarioPlanningInput): ScenarioPl
   const screens = input.catalog.screens;
   const syncedAt = deterministicSyncedAt(input.seed);
   const baseId = input.baseId ?? 20000;
+  const phrasing = input.phrasingProvider ?? templatePhrasing;
 
   const allocations = Array.from({ length: input.count }, (_, index) => ({
     screen: screens[index % Math.max(screens.length, 1)] ?? { screenId: 'empty', screenAliases: ['empty'], elements: [] },
@@ -365,7 +463,7 @@ export function planSyntheticScenarios(input: ScenarioPlanningInput): ScenarioPl
   }));
 
   const plans = allocations.map(({ screen, strategy, index }) => {
-    const scenario = generateScenario(screen, strategy, index, screens, perturbation, rng);
+    const scenario = generateScenario(screen, strategy, index, screens, perturbation, rng, phrasing);
     const adoId = String(baseId + index);
     const materialized = { ...scenario, adoId };
     const split = input.validationSplit && input.validationSplit > 0 && rng() < input.validationSplit ? ['validation-heldout'] : ['training'];
