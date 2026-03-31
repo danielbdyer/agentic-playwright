@@ -9,6 +9,7 @@ import type {
 } from '../domain/types';
 import type { AdoId } from '../domain/identity';
 import { resolveAgentSessionAdapter } from './provider-registry';
+import { appendEvent, createInterventionLedger } from '../domain/aggregates/intervention-ledger';
 import {
   agentSessionEventsPath,
   agentSessionPath,
@@ -81,7 +82,7 @@ export function writeAgentSessionLedger(input: {
       participants,
       interventions,
     });
-    const session = adapter.sessionSummary({
+    const sessionSummary = adapter.sessionSummary({
       sessionId,
       providerId: input.providerId,
       executionProfile: input.executionProfile,
@@ -95,6 +96,11 @@ export function writeAgentSessionLedger(input: {
       transcripts,
       events,
     });
+    const ledger = events.reduce(
+      (state, event) => appendEvent(state, event),
+      createInterventionLedger({ session: sessionSummary }),
+    );
+    const session = ledger.session;
     const sessionPath = agentSessionPath(input.paths, sessionId);
     const eventsPath = agentSessionEventsPath(input.paths, sessionId);
     const transcriptRefsPath = agentSessionTranscriptRefsPath(input.paths, sessionId);

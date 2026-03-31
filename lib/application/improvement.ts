@@ -23,7 +23,7 @@ import type {
   PipelineFitnessReport,
   SubstrateContext,
 } from '../domain/types';
-import { appendImprovementRun, emptyImprovementLedger } from '../domain/types';
+import { appendImprovementRun, checkpointRun, createImprovementRun, emptyImprovementLedger } from '../domain/aggregates/improvement-run';
 
 export interface BuildImprovementRunInput {
   readonly paths: ProjectPaths;
@@ -471,7 +471,7 @@ export function buildImprovementRun(input: BuildImprovementRunInput): Improvemen
     improvementIntervention(input, participants, signals, candidates, decision),
   ];
 
-  return {
+  const baseRun = createImprovementRun({
     kind: 'improvement-run',
     version: 1,
     improvementRunId: resolvedImprovementRunId(input),
@@ -496,7 +496,18 @@ export function buildImprovementRun(input: BuildImprovementRunInput): Improvemen
     lineage: lineageEntries(input, signals, candidates, decision),
     accepted: input.scorecardComparison.improved,
     parentExperimentId: input.parentExperimentId,
-  };
+  });
+
+  return input.scorecardComparison.improved
+    ? checkpointRun(baseRun, {
+        entryId: `${resolvedImprovementRunId(input)}:lineage:checkpoint:run`,
+        at: input.completedAt ?? input.fitnessReport.runAt,
+        kind: 'checkpoint',
+        summary: 'Run checkpointed as accepted by governed scorecard.',
+        relatedIds: [decision.decisionId],
+        artifactPaths: [improvementLedgerPath(input.paths)],
+      })
+    : baseRun;
 }
 
 function normalizeImprovementLedger(value: unknown): ImprovementLedger {

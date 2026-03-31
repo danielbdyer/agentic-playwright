@@ -39,6 +39,7 @@ import {
   type TransitionRef,
 } from '../domain/identity';
 import { graphIds } from '../domain/ids';
+import { createApplicationInterfaceGraph, recordTransition } from '../domain/aggregates/application-interface-graph';
 import type {
   ApplicationInterfaceGraph,
   ArtifactConfidenceRecord,
@@ -1295,14 +1296,13 @@ function buildApplicationInterfaceGraph(_input: {
     }
   }
 
-  const graph = {
-    kind: 'application-interface-graph' as const,
-    version: 2 as const,
+  const baseGraph = createApplicationInterfaceGraph({
+    kind: 'application-interface-graph',
+    version: 2,
     generatedAt: latestDeterministicTimestamp({
       discoveryRuns: input.discoveryRuns,
       confidenceRecords: input.catalog.confidenceCatalog?.artifact.records ?? [],
     }),
-    fingerprint: '',
     discoveryRunIds: sortStrings(input.discoveryRuns.map((entry) => entry.artifact.runId)),
     routeRefs: sortStrings(routes.map((binding) => routeRef(binding.app, binding.routeId))),
     routeVariantRefs: sortStrings(routes.flatMap((binding) =>
@@ -1311,25 +1311,15 @@ function buildApplicationInterfaceGraph(_input: {
     targetRefs: [...targetRefs].sort((left, right) => left.localeCompare(right)),
     stateRefs: input.stateGraph.stateRefs,
     eventSignatureRefs: input.stateGraph.eventSignatureRefs,
-    transitionRefs: input.stateGraph.transitionRefs,
+    transitionRefs: [],
     nodes: [...nodes.values()].sort((left, right) => left.id.localeCompare(right.id)),
     edges: [...edges.values()].sort((left, right) => left.id.localeCompare(right.id)),
-  };
+  });
 
-  return {
-    ...graph,
-    fingerprint: fingerprintProjectionOutput({
-      discoveryRunIds: graph.discoveryRunIds,
-      routeRefs: graph.routeRefs,
-      routeVariantRefs: graph.routeVariantRefs,
-      targetRefs: graph.targetRefs,
-      stateRefs: graph.stateRefs,
-      eventSignatureRefs: graph.eventSignatureRefs,
-      transitionRefs: graph.transitionRefs,
-      nodes: graph.nodes,
-      edges: graph.edges,
-    }),
-  };
+  return input.stateGraph.transitions.reduce(
+    (graph, transition) => recordTransition(graph, transition.ref),
+    baseGraph,
+  );
 }
 
 function buildSelectorCanon(_input: {
