@@ -234,21 +234,27 @@ function preFilterCandidates(
   topN: number,
   context?: SemanticRetrievalContext,
 ): readonly SemanticDictionaryEntry[] {
-  // Get top candidates by TF-IDF similarity
+  // Get candidates by TF-IDF similarity (sorted descending by score)
   const shingleResults = queryShingleIndex(normalizedIntent, index, 0.05);
 
-  // Build a Set of candidate IDs
-  const candidateIds = new Set(shingleResults.slice(0, topN).map((r) => r.entryId));
+  // Build a lookup of entry eligibility — governance and failure filters
+  // are applied BEFORE the top-N slice to avoid losing valid candidates
+  // that would be displaced by ineligible high-TF-IDF entries.
+  const entryById = new Map(catalog.entries.map((e) => [e.id, e]));
+  const eligible = new Set<string>();
+  let collected = 0;
+  for (const result of shingleResults) {
+    if (collected >= topN) break;
+    const entry = entryById.get(result.entryId);
+    if (!entry) continue;
+    if (context && !passesGovernanceFilter(entry, context.governanceFilter)) continue;
+    if (entry.consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) continue;
+    eligible.add(result.entryId);
+    collected++;
+  }
 
   // Return matching catalog entries, preserving catalog order
-  return catalog.entries.filter((e) => {
-    if (!candidateIds.has(e.id)) return false;
-    // Apply governance pre-filter to avoid wasted scoring
-    if (context && !passesGovernanceFilter(e, context.governanceFilter)) return false;
-    // Suppress entries with too many consecutive failures
-    if (e.consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) return false;
-    return true;
-  });
+  return catalog.entries.filter((e) => eligible.has(e.id));
 }
 
 // ─── Lookup ───
@@ -292,10 +298,10 @@ export function lookupSemanticDictionary(
 
   // Pre-filter: use shingle index to get top-N candidates by TF-IDF,
   // then score only those with full multi-dimensional scoring.
-  // Falls back to full scan when no index is available.
+  // Falls back to capped scan when no index is available.
   const candidateEntries = index && indexedCatalog.entries.length > topN
     ? preFilterCandidates(normalizedIntent, indexedCatalog, index, topN, context)
-    : indexedCatalog.entries;
+    : indexedCatalog.entries.slice(0, topN);
 
   let best: SemanticDictionaryMatch | null = null;
 
@@ -471,18 +477,31 @@ export function markPromoted(catalog: SemanticDictionaryCatalog, promotedEntryId
 /**
  * Prune the catalog to MAX_ENTRIES, removing lowest-confidence entries first.
  */
+/** Stale promoted entries older than this TTL (ms) become prunable. */
+const PROMOTED_STALE_TTL_MS = 90 * 24 * 60 * 60 * 1000; // 90 days
+
 export function pruneSemanticDictionary(
   catalog: SemanticDictionaryCatalog,
   maxEntries: number = MAX_ENTRIES,
 ): SemanticDictionaryCatalog {
   if (catalog.entries.length <= maxEntries) return catalog;
+  const now = Date.now();
   const sorted = [...catalog.entries].sort((a, b) => {
-    // Keep promoted and high-confidence entries; prune low-confidence stale ones first
-    if (a.promoted !== b.promoted) return a.promoted ? -1 : 1;
+    // TTL-based demotion: promoted entries unused for 90+ days lose priority
+    const aStale = a.promoted && (now - new Date(a.lastUsedAt).getTime()) > PROMOTED_STALE_TTL_MS;
+    const bStale = b.promoted && (now - new Date(b.lastUsedAt).getTime()) > PROMOTED_STALE_TTL_MS;
+    // Non-stale promoted entries sort first; stale promoted entries lose their shield
+    const aProtected = a.promoted && !aStale;
+    const bProtected = b.promoted && !bStale;
+    if (aProtected !== bProtected) return aProtected ? -1 : 1;
     if (a.confidence !== b.confidence) return b.confidence - a.confidence;
     return a.lastUsedAt.localeCompare(b.lastUsedAt); // oldest first among equal confidence
   });
-  return rebuildCatalog(sorted.slice(0, maxEntries));
+  const pruned = sorted.slice(0, maxEntries);
+  // Proactively rebuild shingle index for the surviving entries
+  const corpus = pruned.map((e) => ({ id: e.id, text: e.normalizedIntent }));
+  const newIndex = buildShingleIndex(corpus);
+  return rebuildCatalog(pruned, newIndex);
 }
 
 /**
@@ -534,6 +553,9 @@ export function readSemanticDictionary(paths: ProjectPaths): Effect.Effect<Seman
   }).pipe(Effect.catchAll(() => Effect.succeed(emptyCatalog())));
 }
 
+/** Advisory lock timeout: abandon stale locks older than 30s. */
+const LOCK_STALE_MS = 30_000;
+
 export function writeSemanticDictionary(
   paths: ProjectPaths,
   catalog: SemanticDictionaryCatalog,
@@ -541,6 +563,22 @@ export function writeSemanticDictionary(
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     yield* fs.ensureDir(paths.semanticDictionaryDir).pipe(Effect.catchTag('FileSystemError', () => Effect.void));
+
+    // Advisory file locking to prevent concurrent writer corruption
+    const lockPath = paths.semanticDictionaryIndexPath + '.lock';
+    const lockExists = yield* fs.exists(lockPath).pipe(Effect.catchAll(() => Effect.succeed(false)));
+    if (lockExists) {
+      // Check for stale lock (process crash, etc.)
+      const stat = yield* fs.stat(lockPath).pipe(Effect.catchAll(() => Effect.succeed(null)));
+      if (stat && (Date.now() - stat.mtimeMs) < LOCK_STALE_MS) {
+        // Lock is fresh — another writer is active, skip this write
+        return;
+      }
+      // Stale lock — remove and proceed
+      yield* fs.removeFile(lockPath).pipe(Effect.catchAll(() => Effect.void));
+    }
+    // Acquire lock
+    yield* fs.writeText(lockPath, `${process.pid}:${Date.now()}`).pipe(Effect.catchAll(() => Effect.void));
 
     // Serialize ShingleIndex (Maps → arrays) for JSON persistence
     const indexedCatalog = ensureShingleIndex(catalog);
@@ -556,6 +594,9 @@ export function writeSemanticDictionary(
     };
 
     yield* fs.writeJson(paths.semanticDictionaryIndexPath, serializable).pipe(Effect.catchTag('FileSystemError', () => Effect.void));
+
+    // Release lock
+    yield* fs.removeFile(lockPath).pipe(Effect.catchAll(() => Effect.void));
   }).pipe(Effect.catchAll(() => Effect.void));
 }
 

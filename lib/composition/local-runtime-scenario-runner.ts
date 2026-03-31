@@ -125,6 +125,7 @@ function buildRunnerWithInterpreter(interpreterOverride?: AgentInterpreterProvid
         Effect.provideService(FileSystem, LocalFileSystem),
       );
       let catalog = semanticDictionary;
+      let catalogDirty = false;
 
       const runtimeEnvironment = createLocalRuntimeEnvironment({
         rootDir: input.rootDir,
@@ -161,12 +162,14 @@ function buildRunnerWithInterpreter(interpreterOverride?: AgentInterpreterProvid
           // ─── Semantic Dictionary: accrue + track success/failure ───
           if (stepResult.semanticAccrual) {
             catalog = accrueSemanticEntry(catalog, stepResult.semanticAccrual);
+            catalogDirty = true;
           }
           const stepSucceeded = stepResult.execution.execution.status === 'ok';
           if (stepResult.semanticDictionaryHitId) {
             catalog = stepSucceeded
               ? recordSemanticSuccess(catalog, stepResult.semanticDictionaryHitId)
               : recordSemanticFailure(catalog, stepResult.semanticDictionaryHitId);
+            catalogDirty = true;
           }
 
           return stepResult;
@@ -175,8 +178,7 @@ function buildRunnerWithInterpreter(interpreterOverride?: AgentInterpreterProvid
       );
 
       // ─── Semantic Dictionary: persist once at end of run ───
-      if (catalog.entries.length !== semanticDictionary.entries.length
-          || catalog.entries.some((e, i) => e.id !== semanticDictionary.entries[i]?.id || e.confidence !== semanticDictionary.entries[i]?.confidence)) {
+      if (catalogDirty) {
         yield* writeSemanticDictionary(paths, catalog).pipe(
           Effect.provideService(FileSystem, LocalFileSystem),
         );

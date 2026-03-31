@@ -169,6 +169,8 @@ export interface ShingleIndex {
   readonly idfWeights: ReadonlyMap<string, number>;
   /** Per-entry shingle data for fast lookup. */
   readonly entries: ReadonlyMap<string, ShingleIndexEntry>;
+  /** Inverted index: shingle → entry IDs containing it. Enables O(Q) candidate lookup instead of O(N) scan. */
+  readonly invertedIndex: ReadonlyMap<string, ReadonlySet<string>>;
   /** Corpus statistics. */
   readonly stats: {
     readonly totalEntries: number;
@@ -187,6 +189,7 @@ export interface SerializedShingleIndex {
     readonly tf: ReadonlyArray<readonly [string, number]>;
     readonly shingles: readonly string[];
   }>;
+  readonly invertedIndex?: ReadonlyArray<readonly [string, readonly string[]]>;
   readonly stats: ShingleIndex['stats'];
 }
 
@@ -199,6 +202,7 @@ export function serializeShingleIndex(index: ShingleIndex): SerializedShingleInd
       tf: [...e.tf],
       shingles: [...e.shingles],
     })),
+    invertedIndex: [...index.invertedIndex].map(([shingle, ids]) => [shingle, [...ids]]),
     stats: index.stats,
   };
 }
@@ -214,7 +218,29 @@ export function deserializeShingleIndex(raw: SerializedShingleIndex): ShingleInd
       shingles: new Set(e.shingles),
     });
   }
-  return { idfWeights, entries, stats: raw.stats };
+  // Rebuild inverted index from serialized form or reconstruct from entries
+  const invertedIndex = raw.invertedIndex
+    ? new Map(raw.invertedIndex.map(([shingle, ids]) => [shingle, new Set(ids)]))
+    : buildInvertedIndex(entries);
+  return { idfWeights, entries, invertedIndex, stats: raw.stats };
+}
+
+// ─── Inverted Index ───
+
+/** Build an inverted index (shingle → entry IDs) from entry data. */
+function buildInvertedIndex(entries: ReadonlyMap<string, ShingleIndexEntry>): ReadonlyMap<string, ReadonlySet<string>> {
+  const inverted = new Map<string, Set<string>>();
+  for (const [entryId, entryData] of entries) {
+    for (const shingle of entryData.shingles) {
+      let ids = inverted.get(shingle);
+      if (!ids) {
+        ids = new Set();
+        inverted.set(shingle, ids);
+      }
+      ids.add(entryId);
+    }
+  }
+  return inverted;
 }
 
 // ─── Incremental Index Update ───
@@ -243,7 +269,7 @@ export function addEntryToShingleIndex(
   // Update existing shingles whose df increases (present in new entry)
   for (const shingle of shingles) {
     const oldDf = updatedIdf.has(shingle)
-      ? Math.round(Math.exp(((updatedIdf.get(shingle)! - 1)) ) * (index.stats.totalEntries + 1)) - 1
+      ? Math.round((index.stats.totalEntries + 1) / Math.exp(updatedIdf.get(shingle)! - 1)) - 1
       : 0;
     // Simpler: just recompute using smoothed formula with incremented N and df+1
     updatedIdf.set(shingle, Math.log((N + 1) / (oldDf + 1 + 1)) + 1);
@@ -259,11 +285,26 @@ export function addEntryToShingleIndex(
   const updatedEntries = new Map(index.entries);
   updatedEntries.set(entry.id, { entryId: entry.id, tf, shingles });
 
+  // Incrementally update inverted index
+  const updatedInverted = new Map<string, Set<string>>();
+  for (const [shingle, ids] of index.invertedIndex) {
+    updatedInverted.set(shingle, new Set(ids));
+  }
+  for (const shingle of shingles) {
+    let ids = updatedInverted.get(shingle);
+    if (!ids) {
+      ids = new Set();
+      updatedInverted.set(shingle, ids);
+    }
+    ids.add(entry.id);
+  }
+
   const totalShingles = [...updatedEntries.values()].reduce((sum, e) => sum + e.shingles.size, 0);
 
   return {
     idfWeights: updatedIdf,
     entries: updatedEntries,
+    invertedIndex: updatedInverted,
     stats: {
       totalEntries: N,
       uniqueShingles: updatedIdf.size,
@@ -290,6 +331,7 @@ export function buildShingleIndex(
     return {
       idfWeights: new Map(),
       entries: new Map(),
+      invertedIndex: new Map(),
       stats: { totalEntries: 0, uniqueShingles: 0, avgShinglesPerEntry: 0 },
     };
   }
@@ -312,9 +354,13 @@ export function buildShingleIndex(
     totalShingles += entry.shingles.size;
   }
 
+  // Build inverted index for O(Q) candidate lookup
+  const invertedIndex = buildInvertedIndex(entries);
+
   return {
     idfWeights,
     entries,
+    invertedIndex,
     stats: {
       totalEntries: corpus.length,
       uniqueShingles: idfWeights.size,
@@ -340,8 +386,22 @@ export function queryShingleIndex(
   const queryTf = shingleTermFrequencies(queryText, n);
   if (queryTf.size === 0) return [];
 
+  // Use inverted index to find candidate entries sharing at least one shingle
+  // with the query. This is O(Q × avg_postings) instead of O(N).
+  const candidateIds = new Set<string>();
+  for (const shingle of queryTf.keys()) {
+    const postings = index.invertedIndex.get(shingle);
+    if (postings) {
+      for (const id of postings) {
+        candidateIds.add(id);
+      }
+    }
+  }
+
   const results: Array<{ entryId: string; score: number }> = [];
-  for (const [entryId, entryData] of index.entries) {
+  for (const entryId of candidateIds) {
+    const entryData = index.entries.get(entryId);
+    if (!entryData) continue;
     const score = tfidfCosineSimilarity(queryTf, entryData.tf, index.idfWeights);
     if (score >= threshold) {
       results.push({ entryId, score });

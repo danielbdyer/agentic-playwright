@@ -31,6 +31,12 @@ const ROOT_DIR = argAfter('--root-dir') ?? process.env.TESSERACT_ROOT ?? process
 
 function readArtifact(relativePath: string): unknown | null {
   const absolutePath = path.resolve(ROOT_DIR, relativePath);
+  // Guard against path traversal: resolved path must stay within ROOT_DIR
+  const normalizedRoot = path.resolve(ROOT_DIR) + path.sep;
+  if (!absolutePath.startsWith(normalizedRoot) && absolutePath !== path.resolve(ROOT_DIR)) {
+    process.stderr.write(`Blocked path traversal attempt: ${relativePath}\n`);
+    return null;
+  }
   try {
     const content = fs.readFileSync(absolutePath, 'utf-8');
     return JSON.parse(content);
@@ -133,12 +139,24 @@ async function handleRequest(request: JsonRpcRequest): Promise<void> {
 
 // ─── Stdio Transport (Content-Length framing) ───
 
+/** Maximum buffer size (10 MB) to prevent memory exhaustion from malformed input. */
+const MAX_BUFFER_SIZE = 10 * 1024 * 1024;
+/** Request handling timeout (30s). */
+const REQUEST_TIMEOUT_MS = 30_000;
+
 let buffer = '';
 
 const rl = readline.createInterface({ input: process.stdin });
 
 rl.on('line', (line) => {
   buffer += line + '\n';
+
+  // Guard against unbounded buffer growth from malformed input
+  if (Buffer.byteLength(buffer) > MAX_BUFFER_SIZE) {
+    process.stderr.write(`Buffer exceeded ${MAX_BUFFER_SIZE} bytes, resetting\n`);
+    buffer = '';
+    return;
+  }
 
   // Try to parse complete JSON-RPC messages from the buffer.
   // MCP uses Content-Length framing, but also works with newline-delimited JSON.
@@ -159,9 +177,12 @@ rl.on('line', (line) => {
     buffer = body.slice(contentLength);
     try {
       const request = JSON.parse(jsonStr) as JsonRpcRequest;
+      const timer = setTimeout(() => {
+        sendError(request.id, -32000, 'Request timed out');
+      }, REQUEST_TIMEOUT_MS);
       handleRequest(request).catch((err) => {
         process.stderr.write(`Error handling request: ${err}\n`);
-      });
+      }).finally(() => clearTimeout(timer));
     } catch {
       process.stderr.write(`Failed to parse JSON-RPC request\n`);
     }
@@ -172,9 +193,12 @@ rl.on('line', (line) => {
   try {
     const request = JSON.parse(trimmed) as JsonRpcRequest;
     buffer = '';
+    const timer = setTimeout(() => {
+      sendError(request.id, -32000, 'Request timed out');
+    }, REQUEST_TIMEOUT_MS);
     handleRequest(request).catch((err) => {
       process.stderr.write(`Error handling request: ${err}\n`);
-    });
+    }).finally(() => clearTimeout(timer));
   } catch {
     // Not yet a complete JSON object — keep buffering
   }
