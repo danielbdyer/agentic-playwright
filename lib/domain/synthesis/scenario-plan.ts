@@ -89,6 +89,11 @@ interface ScenarioPlanInternal {
   readonly steps: readonly SyntheticStep[];
 }
 
+interface CoverageAwareStep {
+  readonly required: boolean;
+  readonly role: 'navigation' | 'interaction' | 'verification';
+}
+
 export interface ScenarioPlan {
   readonly adoId: string;
   readonly screenId: string;
@@ -161,6 +166,19 @@ const renderYaml = (plan: ScenarioPlanInternal, syncedAt: string): string => {
   ].join('\n') + '\n';
 };
 
+const retainedStepsWithNonNavigationGuarantee = <T extends CoverageAwareStep>(
+  archetypeSteps: readonly T[],
+  retainedSteps: readonly T[],
+): ReadonlySet<T> => {
+  const fallbackStep = archetypeSteps.find((step) => step.role !== 'navigation');
+  const hasNonNavigationStep = retainedSteps.some((step) => step.role !== 'navigation');
+  return new Set(
+    !hasNonNavigationStep && fallbackStep !== undefined
+      ? [...retainedSteps, fallbackStep]
+      : retainedSteps,
+  );
+};
+
 // ─── Scenario composition via workflow archetypes ───
 //
 // Instead of randomly picking elements and applying templates from the alias pool
@@ -192,13 +210,7 @@ const generateScenario = (
 
   const retainedSteps = archetypeSteps
     .filter((step) => step.required || rng() >= perturbation.coverageGap);
-  const fallbackStep = archetypeSteps.find((step) => step.role !== 'navigation');
-  const hasNonNavigationStep = retainedSteps.some((step) => step.role !== 'navigation');
-  const retainedSet = new Set(
-    !hasNonNavigationStep && fallbackStep !== undefined
-      ? [...retainedSteps, fallbackStep]
-      : retainedSteps,
-  );
+  const retainedSet = retainedStepsWithNonNavigationGuarantee(archetypeSteps, retainedSteps);
 
   const steps = archetypeSteps
     .filter((step) => retainedSet.has(step))

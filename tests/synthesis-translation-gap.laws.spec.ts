@@ -2,6 +2,8 @@ import { expect, test } from '@playwright/test';
 import { createSeededRng } from '../lib/domain/random';
 import { generateHeldOutPhrases, generateNavPhrase, selectAtGapDistance } from '../lib/domain/synthesis/translation-gap';
 
+const GENERATED_GAP_KINDS = ['domain-synonym', 'affordance-rephrase', 'natural-language'] as const;
+
 // ─── Held-out vocabulary generation laws ───
 
 test.describe('held-out vocabulary generation laws', () => {
@@ -73,7 +75,7 @@ test.describe('held-out vocabulary generation laws', () => {
       expect(phrase.anchor).toBeDefined();
       expect(phrase.anchor.screenId).toBe('policy-detail');
       expect(phrase.anchor.elementId).toBe('effectiveDate');
-      expect(phrase.anchor.gapKind).toMatch(/^(domain-synonym|affordance-rephrase|natural-language)$/);
+      expect(GENERATED_GAP_KINDS).toContain(phrase.anchor.gapKind);
     }
   });
 });

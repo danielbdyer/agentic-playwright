@@ -113,8 +113,14 @@ const verificationStep = (
   role: 'verification',
 });
 
-const repeatCandidate = (candidate: ArchetypeId, weight: number): readonly ArchetypeId[] =>
+const replicateArchetypeByWeight = (candidate: ArchetypeId, weight: number): readonly ArchetypeId[] =>
   Array.from({ length: Math.max(0, weight) }, () => candidate);
+
+const enterValueStep = (
+  value: string,
+  phrase: string,
+  required: boolean,
+): ArchetypeStep => interactionStep(`Enter ${value} in the ${phrase}`, `${phrase} accepts the value`, required);
 
 // ─── search-verify: Navigate → enter criteria → search → verify results ───
 
@@ -136,8 +142,7 @@ const searchVerify = (ctx: ArchetypeContext): readonly ArchetypeStep[] => {
     ? [inputs[0]!].map((input) => {
       const phrase = phraseForElement(input, primaryScreen, lexicalGap, rng);
       const value = pickValue(input, rng, dataVariation);
-      const actionText = `Enter ${value} in the ${phrase}`;
-      return interactionStep(actionText, `${phrase} accepts the value`, input.required);
+      return enterValueStep(value, phrase, input.required);
     })
     : [];
 
@@ -210,13 +215,9 @@ const crossScreenJourney = (ctx: ArchetypeContext): readonly ArchetypeStep[] => 
   const { inputs, buttons } = classifyElements(primaryScreen.elements);
   const interactSteps = inputs.length > 0
     ? [inputs[0]!].map((input) => {
-      const phrase = phraseForElement(input, primaryScreen, lexicalGap, rng);
-      const value = pickValue(input, rng, dataVariation);
-        return interactionStep(
-          `Enter ${value} in the ${phrase}`,
-          `${phrase} accepts the value`,
-          input.required,
-        );
+        const phrase = phraseForElement(input, primaryScreen, lexicalGap, rng);
+        const value = pickValue(input, rng, dataVariation);
+        return enterValueStep(value, phrase, input.required);
       })
     : buttons.length > 0
       ? [buttons[0]!].map((btn) => {
@@ -365,11 +366,11 @@ export function selectArchetype(
   const hasMultipleScreens = screens.length > 1;
 
   const candidates: readonly ArchetypeId[] = [
-    ...repeatCandidate('search-verify', hasInputs && hasButtons && hasOutputs ? 4 : 0),
-    ...repeatCandidate('form-submit', hasInputs && (hasButtons || hasSelectableFields) ? 3 : 0),
-    ...repeatCandidate('detail-inspect', hasOutputs ? 2 : 1),
-    ...repeatCandidate('read-only-audit', screen.elements.length > 0 ? 1 : 0),
-    ...repeatCandidate(
+    ...replicateArchetypeByWeight('search-verify', hasInputs && hasButtons && hasOutputs ? 4 : 0),
+    ...replicateArchetypeByWeight('form-submit', hasInputs && (hasButtons || hasSelectableFields) ? 3 : 0),
+    ...replicateArchetypeByWeight('detail-inspect', hasOutputs ? 2 : 1),
+    ...replicateArchetypeByWeight('read-only-audit', screen.elements.length > 0 ? 1 : 0),
+    ...replicateArchetypeByWeight(
       'cross-screen-journey',
       hasMultipleScreens ? Math.round(Math.max(0, Math.min(1, crossScreen)) * 4) : 0,
     ),

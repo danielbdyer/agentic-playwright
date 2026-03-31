@@ -72,6 +72,9 @@ const extractIntents = (yaml: string): readonly string[] =>
     .filter((line) => line.includes('intent:'))
     .map((line) => line.replace(/^\s*intent:\s*/, '').replace(/^"/, '').replace(/"$/, ''));
 
+const STEP_INTENT_PATTERN =
+  /enter|type|click|press|tap|hit|activate|submit|verify|check|confirm|select|choose|pick|navigate|open|go to|pull up|access|load|visit|bring up/;
+
 // --- Determinism laws ---
 
 test.describe('scenario planner determinism laws', () => {
@@ -252,9 +255,7 @@ test.describe('workflow archetype laws', () => {
       // Steps after the first should be either interactions, verifications, or mid-scenario navigation
       const subsequentSteps = intents.slice(1);
       for (const step of subsequentSteps) {
-        const isValid = step.match(
-          /enter|type|click|press|tap|hit|activate|submit|verify|check|confirm|select|choose|pick|navigate|open|go to|pull up|access|load|visit|bring up/,
-        );
+        const isValid = step.match(STEP_INTENT_PATTERN);
         expect(isValid).toBeTruthy();
       }
     }
@@ -286,11 +287,13 @@ test.describe('workflow archetype laws', () => {
       perturbation: { crossScreen: 1 },
     });
 
-    const baseCrossScreenCount = withoutCrossScreen.plans.filter((plan) => plan.screenId === 'cross-screen').length;
-    const weightedCrossScreenCount = withCrossScreen.plans.filter((plan) => plan.screenId === 'cross-screen').length;
+    const noCrossScreenPerturbationCount = withoutCrossScreen.plans
+      .filter((plan) => plan.screenId === 'cross-screen').length;
+    const withCrossScreenPerturbationCount = withCrossScreen.plans
+      .filter((plan) => plan.screenId === 'cross-screen').length;
 
-    expect(baseCrossScreenCount).toBe(0);
-    expect(weightedCrossScreenCount).toBeGreaterThan(0);
+    expect(noCrossScreenPerturbationCount).toBe(0);
+    expect(withCrossScreenPerturbationCount).toBeGreaterThan(0);
   });
 });
 
