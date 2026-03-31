@@ -12,6 +12,15 @@ export interface ApplicationInterfaceGraphInvariantReport {
   readonly referencesKnownNodes: boolean;
 }
 
+export interface ApplicationInterfaceGraphInvariantError {
+  readonly kind: 'application-interface-graph-invariant-error';
+  readonly report: ApplicationInterfaceGraphInvariantReport;
+}
+
+export type ApplicationInterfaceGraphResult =
+  | { readonly ok: true; readonly value: ApplicationInterfaceGraph }
+  | { readonly ok: false; readonly error: ApplicationInterfaceGraphInvariantError };
+
 function hasUniqueIds<T extends { readonly id: string }>(items: readonly T[]): boolean {
   return new Set(items.map((item) => item.id)).size === items.length;
 }
@@ -48,7 +57,7 @@ function graphFingerprint(graph: Omit<ApplicationInterfaceGraph, 'fingerprint'>)
 
 export function createApplicationInterfaceGraph(
   input: Omit<ApplicationInterfaceGraph, 'fingerprint'>,
-): ApplicationInterfaceGraph {
+): ApplicationInterfaceGraphResult {
   const graph = {
     ...input,
     nodes: [...input.nodes].sort((left, right) => left.id.localeCompare(right.id)),
@@ -58,20 +67,31 @@ export function createApplicationInterfaceGraph(
     routeVariantRefs: [...input.routeVariantRefs].sort((left, right) => left.localeCompare(right)),
   } satisfies Omit<ApplicationInterfaceGraph, 'fingerprint'>;
 
-  return {
+  const created = {
     ...graph,
     fingerprint: graphFingerprint(graph),
   };
+  const report = graphInvariants(created);
+  return report.uniqueNodeIds && report.uniqueEdgeIds && report.referencesKnownNodes
+    ? { ok: true, value: created }
+    : {
+        ok: false,
+        error: {
+          kind: 'application-interface-graph-invariant-error',
+          report,
+        },
+      };
 }
 
 export function recordTransition(
   graph: ApplicationInterfaceGraph,
   transitionRef: TransitionRef,
-): ApplicationInterfaceGraph {
-  return {
-    ...graph,
+): ApplicationInterfaceGraphResult {
+  const { fingerprint: _fingerprint, ...baseGraph } = graph;
+  return createApplicationInterfaceGraph({
+    ...baseGraph,
     transitionRefs: [...new Set([...graph.transitionRefs, transitionRef])].sort((left, right) => left.localeCompare(right)),
-  };
+  });
 }
 
 export function foldApplicationInterfaceGraph<R>(

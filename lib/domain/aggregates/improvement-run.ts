@@ -4,22 +4,57 @@ import type {
   ImprovementRun,
 } from '../types';
 
-export function createImprovementRun(run: ImprovementRun): ImprovementRun {
-  return {
+export interface ImprovementRunInvariantReport {
+  readonly uniqueIdentity: boolean;
+  readonly lineageContinuity: boolean;
+  readonly governanceConsistency: boolean;
+}
+
+export interface ImprovementRunInvariantError {
+  readonly kind: 'improvement-run-invariant-error';
+  readonly report: ImprovementRunInvariantReport;
+}
+
+export type ImprovementRunResult =
+  | { readonly ok: true; readonly value: ImprovementRun }
+  | { readonly ok: false; readonly error: ImprovementRunInvariantError };
+
+export interface ImprovementLedgerInvariantError {
+  readonly kind: 'improvement-ledger-invariant-error';
+  readonly runId: string;
+  readonly runError: ImprovementRunInvariantError;
+}
+
+export type ImprovementLedgerResult =
+  | { readonly ok: true; readonly value: ImprovementLedger }
+  | { readonly ok: false; readonly error: ImprovementLedgerInvariantError };
+
+export function createImprovementRun(run: ImprovementRun): ImprovementRunResult {
+  const normalized = {
     ...run,
     iterations: [...run.iterations].sort((left, right) => left.iteration - right.iteration),
     lineage: [...run.lineage].sort((left, right) => left.at.localeCompare(right.at)),
   };
+  const report = improvementRunInvariants(normalized);
+  return report.uniqueIdentity && report.lineageContinuity && report.governanceConsistency
+    ? { ok: true, value: normalized }
+    : {
+        ok: false,
+        error: {
+          kind: 'improvement-run-invariant-error',
+          report,
+        },
+      };
 }
 
-export function checkpointRun(
+export function recordCheckpoint(
   run: ImprovementRun,
   checkpoint: ImprovementLineageEntry,
-): ImprovementRun {
-  return {
+): ImprovementRunResult {
+  return createImprovementRun({
     ...run,
     lineage: [...run.lineage, checkpoint],
-  };
+  });
 }
 
 export function emptyImprovementLedger(): ImprovementLedger {
@@ -33,18 +68,28 @@ export function emptyImprovementLedger(): ImprovementLedger {
 export function appendImprovementRun(
   ledger: ImprovementLedger,
   run: ImprovementRun,
-): ImprovementLedger {
+): ImprovementLedgerResult {
+  const normalizedRun = createImprovementRun(run);
+  if (!normalizedRun.ok) {
+    return {
+      ok: false,
+      error: {
+        kind: 'improvement-ledger-invariant-error',
+        runId: run.improvementRunId,
+        runError: normalizedRun.error,
+      },
+    };
+  }
   return {
-    ...ledger,
-    runs: [...ledger.runs, createImprovementRun(run)],
+    ok: true,
+    value: {
+      ...ledger,
+      runs: [...ledger.runs, normalizedRun.value],
+    },
   };
 }
 
-export function improvementRunInvariants(run: ImprovementRun): {
-  readonly uniqueIdentity: boolean;
-  readonly lineageContinuity: boolean;
-  readonly governanceConsistency: boolean;
-} {
+export function improvementRunInvariants(run: ImprovementRun): ImprovementRunInvariantReport {
   const identities = [
     ...run.signals.map((signal) => signal.signalId),
     ...run.candidateInterventions.map((candidate) => candidate.candidateId),

@@ -2,6 +2,7 @@ import path from 'path';
 import { Effect } from 'effect';
 import { FileSystem } from './ports';
 import type { ProjectPaths } from './paths';
+import { TesseractError } from '../domain/errors';
 import type {
   AcceptanceDecision,
   CandidateIntervention,
@@ -23,7 +24,7 @@ import type {
   PipelineFitnessReport,
   SubstrateContext,
 } from '../domain/types';
-import { appendImprovementRun, checkpointRun, createImprovementRun, emptyImprovementLedger } from '../domain/aggregates/improvement-run';
+import { appendImprovementRun, recordCheckpoint, createImprovementRun, emptyImprovementLedger } from '../domain/aggregates/improvement-run';
 
 export interface BuildImprovementRunInput {
   readonly paths: ProjectPaths;
@@ -498,16 +499,24 @@ export function buildImprovementRun(input: BuildImprovementRunInput): Improvemen
     parentExperimentId: input.parentExperimentId,
   });
 
-  return input.scorecardComparison.improved
-    ? checkpointRun(baseRun, {
-        entryId: `${resolvedImprovementRunId(input)}:lineage:checkpoint:run`,
-        at: input.completedAt ?? input.fitnessReport.runAt,
-        kind: 'checkpoint',
-        summary: 'Run checkpointed as accepted by governed scorecard.',
-        relatedIds: [decision.decisionId],
-        artifactPaths: [improvementLedgerPath(input.paths)],
-      })
-    : baseRun;
+  if (!baseRun.ok) {
+    throw new TesseractError('improvement-run-invariant-violation', 'Improvement run construction violated aggregate invariants', baseRun.error);
+  }
+  if (!input.scorecardComparison.improved) {
+    return baseRun.value;
+  }
+  const checkpointed = recordCheckpoint(baseRun.value, {
+    entryId: `${resolvedImprovementRunId(input)}:lineage:checkpoint:run`,
+    at: input.completedAt ?? input.fitnessReport.runAt,
+    kind: 'checkpoint',
+    summary: 'Run checkpointed as accepted by governed scorecard.',
+    relatedIds: [decision.decisionId],
+    artifactPaths: [improvementLedgerPath(input.paths)],
+  });
+  if (!checkpointed.ok) {
+    throw new TesseractError('improvement-run-invariant-violation', 'Improvement run checkpoint violated aggregate invariants', checkpointed.error);
+  }
+  return checkpointed.value;
 }
 
 function normalizeImprovementLedger(value: unknown): ImprovementLedger {
@@ -576,7 +585,14 @@ export function recordImprovementRun(options: {
   return Effect.gen(function* () {
     const ledger = yield* loadImprovementLedger(options.paths);
     const updated = appendImprovementRun(ledger, options.run);
-    yield* saveImprovementLedger(options.paths, updated);
-    return updated;
+    if (!updated.ok) {
+      return yield* Effect.fail(new TesseractError(
+        'improvement-ledger-invariant-violation',
+        `Improvement ledger append rejected run ${updated.error.runId}`,
+        updated.error,
+      ));
+    }
+    yield* saveImprovementLedger(options.paths, updated.value);
+    return updated.value;
   });
 }

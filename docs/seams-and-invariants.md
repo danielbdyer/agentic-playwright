@@ -223,6 +223,30 @@ interface PipelineStage<Dependencies, Computed, Persisted, Error, Requirements> 
 }
 ```
 
+## Aggregate Lifecycle Rules (Interface / Intervention / Improvement)
+
+Three domain aggregates now enforce invariants at their own constructor/mutator boundary and return explicit success/error values.
+
+- `ApplicationInterfaceGraph` lifecycle is defined in `lib/domain/aggregates/application-interface-graph.ts`.
+  - Construct only via `createApplicationInterfaceGraph(...)`.
+  - Mutate transition lineage only via `recordTransition(...)`.
+  - Both return `{ ok: true, value } | { ok: false, error }`; invalid node/edge identity or unknown references are rejected before persistence.
+- `InterventionLedgerAggregate` lifecycle is defined in `lib/domain/aggregates/intervention-ledger.ts`.
+  - Construct only via `createInterventionLedger(...)`.
+  - Append events only via `appendEvent(...)`.
+  - Unknown intervention IDs or participant references return explicit invariant errors and must not be persisted.
+- `ImprovementRun`/`ImprovementLedger` lifecycle is defined in `lib/domain/aggregates/improvement-run.ts`.
+  - Construct run via `createImprovementRun(...)`.
+  - Add lineage checkpoints via `recordCheckpoint(...)`.
+  - Append to ledger via `appendImprovementRun(...)`.
+  - Identity collisions, broken lineage continuity, or governance inconsistency return explicit errors and block ledger writes.
+
+Application workflows must handle these outcomes deterministically:
+
+- fail fast with typed error context when aggregate construction fails,
+- never write invalid aggregate state to disk,
+- treat aggregate constructors/mutators as the only write path for aggregate values.
+
 Stages compose sequentially. Each stage declares its dependencies, computes its output, optionally fingerprints both sides, and persists if needed.
 
 ### Incremental Caching

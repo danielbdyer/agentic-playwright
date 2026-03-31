@@ -10,6 +10,7 @@ import type {
 import type { AdoId } from '../domain/identity';
 import { resolveAgentSessionAdapter } from './provider-registry';
 import { appendEvent, createInterventionLedger } from '../domain/aggregates/intervention-ledger';
+import { TesseractError } from '../domain/errors';
 import {
   agentSessionEventsPath,
   agentSessionPath,
@@ -96,10 +97,25 @@ export function writeAgentSessionLedger(input: {
       transcripts,
       events,
     });
-    const ledger = events.reduce(
-      (state, event) => appendEvent(state, event),
-      createInterventionLedger({ session: sessionSummary }),
-    );
+    const initialLedger = createInterventionLedger({ session: sessionSummary });
+    if (!initialLedger.ok) {
+      return yield* Effect.fail(new TesseractError(
+        'intervention-ledger-invariant-violation',
+        'Agent session ledger creation violated aggregate invariants',
+        initialLedger.error,
+      ));
+    }
+    const ledger = events.reduce((state, event) => {
+      const updated = appendEvent(state, event);
+      if (!updated.ok) {
+        throw new TesseractError(
+          'intervention-ledger-invariant-violation',
+          `Agent session event ${event.id} violated intervention ledger invariants`,
+          updated.error,
+        );
+      }
+      return updated.value;
+    }, initialLedger.value);
     const session = ledger.session;
     const sessionPath = agentSessionPath(input.paths, sessionId);
     const eventsPath = agentSessionEventsPath(input.paths, sessionId);

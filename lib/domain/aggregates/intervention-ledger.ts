@@ -5,6 +5,20 @@ export interface InterventionLedgerAggregate {
   readonly events: readonly AgentEvent[];
 }
 
+export interface InterventionLedgerInvariantReport {
+  readonly interventionIdsKnown: boolean;
+  readonly participantRefsKnown: boolean;
+}
+
+export interface InterventionLedgerInvariantError {
+  readonly kind: 'intervention-ledger-invariant-error';
+  readonly report: InterventionLedgerInvariantReport;
+}
+
+export type InterventionLedgerResult =
+  | { readonly ok: true; readonly value: InterventionLedgerAggregate }
+  | { readonly ok: false; readonly error: InterventionLedgerInvariantError };
+
 const AGENT_EVENT_TYPES: readonly AgentEventType[] = [
   'orientation',
   'artifact-inspection',
@@ -44,29 +58,36 @@ function withSessionDerivedFields(session: AgentSession, events: readonly AgentE
 export function createInterventionLedger(input: {
   readonly session: AgentSession;
   readonly events?: readonly AgentEvent[];
-}): InterventionLedgerAggregate {
+}): InterventionLedgerResult {
   const events = input.events ?? [];
-  return {
+  const ledger = {
     session: withSessionDerivedFields(input.session, events),
     events,
   };
+  const report = interventionLedgerInvariants(ledger);
+  return report.interventionIdsKnown && report.participantRefsKnown
+    ? { ok: true, value: ledger }
+    : {
+        ok: false,
+        error: {
+          kind: 'intervention-ledger-invariant-error',
+          report,
+        },
+      };
 }
 
 export function appendEvent(
   ledger: InterventionLedgerAggregate,
   event: AgentEvent,
-): InterventionLedgerAggregate {
+): InterventionLedgerResult {
   const events = [...ledger.events, event];
-  return {
+  return createInterventionLedger({
     session: withSessionDerivedFields(ledger.session, events),
     events,
-  };
+  });
 }
 
-export function interventionLedgerInvariants(ledger: InterventionLedgerAggregate): {
-  readonly interventionIdsKnown: boolean;
-  readonly participantRefsKnown: boolean;
-} {
+export function interventionLedgerInvariants(ledger: InterventionLedgerAggregate): InterventionLedgerInvariantReport {
   const interventionIds = new Set(ledger.session.interventions.map((intervention) => intervention.interventionId));
   const participantIds = new Set(ledger.session.participants.map((participant) => participant.participantId));
   return {

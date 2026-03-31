@@ -1316,10 +1316,25 @@ function buildApplicationInterfaceGraph(_input: {
     edges: [...edges.values()].sort((left, right) => left.id.localeCompare(right.id)),
   });
 
-  return input.stateGraph.transitions.reduce(
-    (graph, transition) => recordTransition(graph, transition.ref),
-    baseGraph,
-  );
+  if (!baseGraph.ok) {
+    throw new TesseractError(
+      'application-interface-graph-invariant-violation',
+      'Interface graph construction violated aggregate invariants',
+      baseGraph.error,
+    );
+  }
+
+  return input.stateGraph.transitions.reduce((graph, transition) => {
+    const updated = recordTransition(graph, transition.ref);
+    if (!updated.ok) {
+      throw new TesseractError(
+        'application-interface-graph-invariant-violation',
+        `Interface graph transition update rejected for ${transition.ref}`,
+        updated.error,
+      );
+    }
+    return updated.value;
+  }, baseGraph.value);
 }
 
 function buildSelectorCanon(_input: {

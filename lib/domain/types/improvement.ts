@@ -9,6 +9,7 @@ import type {
   ParticipantRef,
 } from './intervention';
 import { appendImprovementRun as appendImprovementRunAggregate, emptyImprovementLedger as emptyImprovementLedgerAggregate } from '../aggregates/improvement-run';
+import { TesseractError } from '../errors';
 
 export type ExperimentSubstrate = 'synthetic' | 'production' | 'hybrid';
 
@@ -241,7 +242,15 @@ export function appendImprovementRun(
   ledger: ImprovementLedger,
   run: ImprovementRun,
 ): ImprovementLedger {
-  return appendImprovementRunAggregate(ledger, run);
+  const result = appendImprovementRunAggregate(ledger, run);
+  if (!result.ok) {
+    throw new TesseractError(
+      'improvement-ledger-invariant-violation',
+      `Improvement ledger append rejected run ${result.error.runId}`,
+      result.error,
+    );
+  }
+  return result.value;
 }
 
 export function acceptedImprovementRuns(

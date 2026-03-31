@@ -23,6 +23,7 @@ import {
   matchSignatureToGraph,
   identifyScreenFromDOM,
 } from '../lib/runtime/screen-identification';
+import { createApplicationInterfaceGraph } from '../lib/domain/aggregates/application-interface-graph';
 import type {
   ApplicationInterfaceGraph,
   InterfaceGraphNode,
@@ -72,11 +73,10 @@ function makeGraph(
   nodes: readonly InterfaceGraphNode[],
   edges: readonly InterfaceGraphEdge[],
 ): ApplicationInterfaceGraph {
-  return {
+  const graph = createApplicationInterfaceGraph({
     kind: 'application-interface-graph',
     version: 2,
     generatedAt: '2026-01-01T00:00:00Z',
-    fingerprint: 'test-fp',
     discoveryRunIds: [],
     routeRefs: [],
     routeVariantRefs: [],
@@ -86,7 +86,11 @@ function makeGraph(
     transitionRefs: [],
     nodes,
     edges,
-  };
+  });
+  if (!graph.ok) {
+    throw new Error('test graph invariant violation');
+  }
+  return graph.value;
 }
 
 function makeDom(parts: {

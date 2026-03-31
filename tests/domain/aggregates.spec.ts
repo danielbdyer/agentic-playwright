@@ -9,7 +9,7 @@ import {
   createInterventionLedger,
   interventionLedgerInvariants,
 } from '../../lib/domain/aggregates/intervention-ledger';
-import { checkpointRun, improvementRunInvariants } from '../../lib/domain/aggregates/improvement-run';
+import { recordCheckpoint, improvementRunInvariants } from '../../lib/domain/aggregates/improvement-run';
 import type { AgentEvent, AgentSession, ImprovementRun } from '../../lib/domain/types';
 
 const baseSession = {
@@ -85,13 +85,19 @@ test('application-interface-graph aggregate maintains identity invariants', () =
     edges: [],
   });
 
-  const transitioned = recordTransition(graph, 'transition:1' as never);
-  expect(graphInvariants(transitioned)).toEqual({
+  expect(graph.ok).toBe(true);
+  if (!graph.ok) return;
+
+  const transitioned = recordTransition(graph.value, 'transition:1' as never);
+  expect(transitioned.ok).toBe(true);
+  if (!transitioned.ok) return;
+
+  expect(graphInvariants(transitioned.value)).toEqual({
     uniqueNodeIds: true,
     uniqueEdgeIds: true,
     referencesKnownNodes: true,
   });
-  expect(transitioned.transitionRefs).toEqual(['transition:1']);
+  expect(transitioned.value.transitionRefs).toEqual(['transition:1']);
 });
 
 test('intervention-ledger aggregate appendEvent preserves lineage integrity', () => {
@@ -109,10 +115,17 @@ test('intervention-ledger aggregate appendEvent preserves lineage integrity', ()
     payload: {},
   } as AgentEvent;
 
-  const ledger = appendEvent(createInterventionLedger({ session: baseSession }), event);
-  expect(ledger.session.eventCount).toBe(1);
-  expect(ledger.session.eventTypes.orientation).toBe(1);
-  expect(interventionLedgerInvariants(ledger)).toEqual({
+  const created = createInterventionLedger({ session: baseSession });
+  expect(created.ok).toBe(true);
+  if (!created.ok) return;
+
+  const ledger = appendEvent(created.value, event);
+  expect(ledger.ok).toBe(true);
+  if (!ledger.ok) return;
+
+  expect(ledger.value.session.eventCount).toBe(1);
+  expect(ledger.value.session.eventTypes.orientation).toBe(1);
+  expect(interventionLedgerInvariants(ledger.value)).toEqual({
     interventionIdsKnown: true,
     participantRefsKnown: true,
   });
@@ -213,7 +226,7 @@ test('improvement-run aggregate enforces lineage continuity and governance consi
     parentExperimentId: null,
   } as unknown as ImprovementRun;
 
-  const checkpointed = checkpointRun(run, {
+  const checkpointed = recordCheckpoint(run, {
     entryId: 'lineage-1',
     at: '2026-03-31T00:01:00.000Z',
     kind: 'checkpoint',
@@ -222,7 +235,10 @@ test('improvement-run aggregate enforces lineage continuity and governance consi
     artifactPaths: ['.tesseract/benchmarks/improvement-ledger.json'],
   });
 
-  expect(improvementRunInvariants(checkpointed)).toEqual({
+  expect(checkpointed.ok).toBe(true);
+  if (!checkpointed.ok) return;
+
+  expect(improvementRunInvariants(checkpointed.value)).toEqual({
     uniqueIdentity: true,
     lineageContinuity: true,
     governanceConsistency: true,
