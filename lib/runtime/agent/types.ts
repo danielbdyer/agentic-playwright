@@ -8,7 +8,10 @@ import type {
   StepAction,
   StepResolution,
   GroundedStep,
+  ResolutionStepOutcome,
 } from '../../domain/types';
+import { Effect } from 'effect';
+import type { TesseractError } from '../../domain/errors';
 import type { AgentInterpretationRequest, AgentInterpretationResult } from '../../domain/types/resolution-context';
 import type { ElementId, PostureId, ScreenId } from '../../domain/identity';
 import type { ResolutionTarget, TranslationReceipt, TranslationRequest } from '../../domain/types';
@@ -17,6 +20,10 @@ export interface RuntimeAgentInterpreter {
   readonly id: string;
   readonly kind: string;
   readonly interpret: (request: AgentInterpretationRequest) => Promise<AgentInterpretationResult>;
+}
+
+export interface RuntimeResolutionAdapter {
+  readonly resolveStep: (task: GroundedStep, context: RuntimeStepAgentContext) => Effect.Effect<ResolutionStepOutcome, TesseractError>;
 }
 
 export interface RuntimeStepAgentContext {

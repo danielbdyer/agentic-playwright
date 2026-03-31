@@ -67,9 +67,18 @@ export interface RuntimeScenarioRunnerPort {
   }): Effect.Effect<RuntimeScenarioStepResult[], unknown>;
 }
 
+export interface ResolutionEngineResolverPort {
+  resolve(input: {
+    providerId?: string | null | undefined;
+    mode: RuntimeInterpreterMode;
+    translationEnabled: boolean;
+  }): Effect.Effect<ResolutionEngine, TesseractError>;
+}
+
 export class FileSystem extends Context.Tag('tesseract/FileSystem')<FileSystem, FileSystemPort>() {}
 export class AdoSource extends Context.Tag('tesseract/AdoSource')<AdoSource, AdoSourcePort>() {}
 export class RuntimeScenarioRunner extends Context.Tag('tesseract/RuntimeScenarioRunner')<RuntimeScenarioRunner, RuntimeScenarioRunnerPort>() {}
+export class ResolutionEngineResolver extends Context.Tag('tesseract/ResolutionEngineResolver')<ResolutionEngineResolver, ResolutionEngineResolverPort>() {}
 export class ExecutionContext extends Context.Tag('tesseract/ExecutionContext')<ExecutionContext, ExecutionContextPort>() {}
 export class PipelineConfigService extends Context.Tag('tesseract/PipelineConfig')<PipelineConfigService, { readonly config: PipelineConfig }>() {}
 export class VersionControl extends Context.Tag('tesseract/VersionControl')<VersionControl, VersionControlPort>() {}

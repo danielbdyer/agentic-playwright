@@ -1,5 +1,6 @@
+import { Effect } from 'effect';
 import type { ResolutionPipelineResult, ResolutionReceipt, GroundedStep, ResolutionStepOutcome } from '../domain/types';
-import { runResolutionPipeline, type RuntimeStepAgentContext } from './agent/index';
+import { deterministicResolutionEngine, runResolutionPipeline, type RuntimeStepAgentContext } from './agent/index';
 
 export type { ResolutionStepOutcome };
 
@@ -8,15 +9,9 @@ export interface RuntimeStepAgent {
 }
 
 export const deterministicRuntimeStepAgent: RuntimeStepAgent = {
-  async resolve(task: GroundedStep, context: RuntimeStepAgentContext): Promise<ResolutionStepOutcome> {
-    const { receipt, semanticAccrual, semanticDictionaryHitId } = await runResolutionPipeline(task, context);
-    return {
-      receipt,
-      semanticAccrual: semanticAccrual ?? null,
-      semanticDictionaryHitId: semanticDictionaryHitId ?? null,
-    };
-  },
+  resolve: (task: GroundedStep, context: RuntimeStepAgentContext): Promise<ResolutionStepOutcome> =>
+    Effect.runPromise(deterministicResolutionEngine.resolveStep(task, context)),
 };
 
 export type { RuntimeStepAgentContext, ResolutionPipelineResult };
-export { runResolutionPipeline, RESOLUTION_PRECEDENCE } from './agent/index';
+export { runResolutionPipeline, RESOLUTION_PRECEDENCE, deterministicResolutionEngine } from './agent/index';

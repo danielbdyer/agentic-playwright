@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { CausalLink, ConfidenceScaling, MemoryCapacityConfig, ObservedStateSession, ResolutionEvent, ResolutionPipelineResult, ResolutionReceipt, GroundedStep } from '../../domain/types';
 import { DEFAULT_PIPELINE_CONFIG } from '../../domain/types';
 import { resolutionPrecedenceLaw } from '../../domain/precedence';
@@ -7,7 +8,8 @@ import type { ResolutionStrategy, StrategyAttemptResult, StrategyChainResult } f
 import { runStrategyChain } from './strategy';
 import { createStrategyRegistry } from './strategy-registry';
 import { buildPipelineDAG, validateDAG } from '../../application/pipeline-dag';
-import { TesseractError } from '../../domain/errors';
+import { TesseractError, toTesseractError } from '../../domain/errors';
+import type { ResolutionEngine } from '../../application/resolution-engine';
 import type { RuntimeAgentStageContext, RuntimeStepAgentContext, StageEffects } from './types';
 import { mergeEffectsIntoStage } from './types';
 import { interpretStepIntent } from './interpret-intent';
@@ -24,6 +26,24 @@ import {
 import type { SemanticDictionaryAccrualInput, SemanticDictionaryMatch } from '../../domain/types';
 
 export const RESOLUTION_PRECEDENCE = resolutionPrecedenceLaw;
+
+export const deterministicResolutionEngine: ResolutionEngine = {
+  id: 'deterministic-runtime-step-agent',
+  capabilities: {
+    supportsTranslation: true,
+    supportsDom: true,
+    supportsProposalDrafts: true,
+    deterministicMode: true,
+  },
+  resolveStep: (task, context) => Effect.tryPromise({
+    try: () => runResolutionPipeline(task, context as RuntimeStepAgentContext).then(({ receipt, semanticAccrual, semanticDictionaryHitId }) => ({
+      receipt,
+      semanticAccrual: semanticAccrual ?? null,
+      semanticDictionaryHitId: semanticDictionaryHitId ?? null,
+    })),
+    catch: (cause) => toTesseractError(cause, 'runtime-resolution-failed', 'Runtime step resolution failed'),
+  }),
+};
 
 export type MemoryCapacity = MemoryCapacityConfig;
 

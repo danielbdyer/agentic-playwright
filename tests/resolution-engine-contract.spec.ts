@@ -1,9 +1,11 @@
 import { expect, test } from '@playwright/test';
+import { Effect } from 'effect';
 import { createResolutionEngineRegistry, resolveResolutionEngine, type ResolutionEngine } from '../lib/application/resolution-engine';
 import { validateStepResults } from '../lib/application/execution/validate-step-results';
 import { runResolutionPipeline } from '../lib/runtime/agent';
 import type { RuntimeStepAgentContext } from '../lib/runtime/agent/types';
 import type { StepExecutionReceipt } from '../lib/domain/types';
+import { toTesseractError } from '../lib/domain/errors';
 import { createAgentContext, createInterfaceResolutionContext, createGroundedStep } from './support/interface-fixtures';
 
 function baseFixture(explicit = false) {
@@ -31,16 +33,59 @@ test('provider capability negotiation rejects incompatible mode', () => {
       supportsProposalDrafts: true,
       deterministicMode: false,
     },
-    resolveStep: async (task, context) => (await runResolutionPipeline(task, context as RuntimeStepAgentContext)).receipt,
+    resolveStep: (task, context) => Effect.tryPromise({
+      try: () => runResolutionPipeline(task, context as RuntimeStepAgentContext).then((result) => ({
+        receipt: result.receipt,
+        semanticAccrual: result.semanticAccrual ?? null,
+        semanticDictionaryHitId: result.semanticDictionaryHitId ?? null,
+      })),
+      catch: (cause) => toTesseractError(cause),
+    }),
   };
   const registry = createResolutionEngineRegistry([provider]);
 
-  expect(() => resolveResolutionEngine({
+  return Effect.runPromiseExit(resolveResolutionEngine({
     providerId: 'no-dom',
     mode: 'playwright',
     translationEnabled: true,
     registry,
-  })).toThrow(/cannot run in playwright mode/);
+  })).then((exit) => {
+    expect(exit._tag).toBe('Failure');
+  });
+});
+
+test('resolver contract stays equivalent in diagnostic and dry-run modes', async () => {
+  const registry = createResolutionEngineRegistry([{
+    id: 'deterministic-runtime-step-agent',
+    capabilities: {
+      supportsTranslation: true,
+      supportsDom: true,
+      supportsProposalDrafts: true,
+      deterministicMode: true,
+    },
+    resolveStep: (task, context) => Effect.tryPromise({
+      try: () => runResolutionPipeline(task, context as RuntimeStepAgentContext).then((result) => ({
+        receipt: result.receipt,
+        semanticAccrual: result.semanticAccrual ?? null,
+        semanticDictionaryHitId: result.semanticDictionaryHitId ?? null,
+      })),
+      catch: (cause) => toTesseractError(cause),
+    }),
+  }]);
+  const diagnostic = await Effect.runPromise(resolveResolutionEngine({
+    providerId: 'deterministic-runtime-step-agent',
+    mode: 'diagnostic',
+    translationEnabled: true,
+    registry,
+  }));
+  const headless = await Effect.runPromise(resolveResolutionEngine({
+    providerId: 'deterministic-runtime-step-agent',
+    mode: 'dry-run',
+    translationEnabled: true,
+    registry,
+  }));
+  expect(diagnostic.id).toBe(headless.id);
+  expect(diagnostic.capabilities.deterministicMode).toBe(true);
 });
 
 test('post-provider validation enforces governance invariants', async () => {

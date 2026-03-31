@@ -9,10 +9,12 @@ import {
   FileSystem,
   McpServer,
   PipelineConfigService,
+  ResolutionEngineResolver,
   RuntimeScenarioRunner,
   StageTracer,
   VersionControl,
 } from '../application/ports';
+import { createResolutionEngineRegistry, resolveResolutionEngine } from '../application/resolution-engine';
 import { makeLocalAdoSource } from '../infrastructure/ado/local-ado-source';
 import { makeLiveAdoSource, readLiveAdoSourceConfigFromEnv } from '../infrastructure/ado/live-ado-source';
 import { LocalFileSystem } from '../infrastructure/fs/local-fs';
@@ -27,6 +29,7 @@ import { DEFAULT_PIPELINE_CONFIG } from '../domain/types';
 import type { DashboardPort, McpServerPort, StageTracerPort } from '../application/ports';
 import { enrichEventDataWithExecutionContext } from '../application/context/execution-context';
 import type { PlaywrightBridgePort } from '../infrastructure/mcp/playwright-mcp-bridge';
+import { deterministicResolutionEngine } from '../runtime/agent';
 
 export interface LocalServiceOptions {
   readonly posture?: Partial<ExecutionPosture> | undefined;
@@ -98,6 +101,16 @@ export function createLocalServiceContext(rootDir: string, options?: LocalServic
     ? createLocalRuntimeScenarioRunnerWithInterpreter(options.agentInterpreter)
     : LocalRuntimeScenarioRunner;
   const dashboard = options?.dashboard ?? DisabledDashboard;
+  const resolutionEngineRegistry = createResolutionEngineRegistry([deterministicResolutionEngine]);
+  const resolutionEngineResolver = {
+    resolve: (input: { providerId?: string | null | undefined; mode: 'diagnostic' | 'playwright' | 'dry-run'; translationEnabled: boolean }) =>
+      resolveResolutionEngine({
+        providerId: input.providerId,
+        mode: input.mode,
+        translationEnabled: input.translationEnabled,
+        registry: resolutionEngineRegistry,
+      }),
+  };
   const stageTracer: StageTracerPort = options?.dashboard
     ? {
       emitStageStart: (data: unknown) => Effect.flatMap(
@@ -115,6 +128,7 @@ export function createLocalServiceContext(rootDir: string, options?: LocalServic
     Layer.succeed(FileSystem, fileSystem),
     Layer.succeed(AdoSource, resolveAdoSource(rootDir, suiteRoot)),
     Layer.succeed(RuntimeScenarioRunner, runtimeScenarioRunner),
+    Layer.succeed(ResolutionEngineResolver, resolutionEngineResolver),
     Layer.succeed(ExecutionContext, executionContext),
     Layer.succeed(PipelineConfigService, { config: pipelineConfig }),
     Layer.succeed(VersionControl, makeLocalVersionControl(rootDir)),
@@ -129,7 +143,7 @@ export function createLocalServiceContext(rootDir: string, options?: LocalServic
     writeJournal: () => executionContext.writeJournal(),
     provide<A, E, R>(program: Effect.Effect<A, E, R>): Effect.Effect<A, E, never> {
       return Effect.provide(
-        program as Effect.Effect<A, E, FileSystem | AdoSource | RuntimeScenarioRunner | ExecutionContext | PipelineConfigService | VersionControl | Dashboard | StageTracer | McpServer | PlaywrightBridge>,
+        program as Effect.Effect<A, E, FileSystem | AdoSource | RuntimeScenarioRunner | ResolutionEngineResolver | ExecutionContext | PipelineConfigService | VersionControl | Dashboard | StageTracer | McpServer | PlaywrightBridge>,
         layer,
       ) as Effect.Effect<A, E, never>;
     },

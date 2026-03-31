@@ -142,7 +142,8 @@ function buildRunnerWithInterpreter(interpreterOverride?: AgentInterpreterProvid
       });
       const runState = createScenarioRunState();
       const agent = {
-        resolve: input.resolutionEngine.resolveStep,
+        resolve: (task: Parameters<typeof input.resolutionEngine.resolveStep>[0], context: Parameters<typeof input.resolutionEngine.resolveStep>[1]) =>
+          Effect.runPromise(input.resolutionEngine.resolveStep(task, context)),
       };
 
       const results = yield* Effect.forEach(

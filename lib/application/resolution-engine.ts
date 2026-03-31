@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { ResolutionEngineCapabilities, RuntimeInterpreterMode, GroundedStep, ResolutionStepOutcome } from '../domain/types';
 import { TesseractError } from '../domain/errors';
 
@@ -6,23 +7,7 @@ export type ResolutionEngineId = string;
 export interface ResolutionEngine {
   id: ResolutionEngineId;
   capabilities: ResolutionEngineCapabilities;
-  resolveStep(task: GroundedStep, context: unknown): Promise<ResolutionStepOutcome>;
-}
-
-function deterministicEngine(): ResolutionEngine {
-  return {
-    id: 'deterministic-runtime-step-agent',
-    capabilities: {
-      supportsTranslation: true,
-      supportsDom: true,
-      supportsProposalDrafts: true,
-      deterministicMode: true,
-    },
-    async resolveStep(task, context) {
-      const runtimeAgent = await import('../runtime/agent');
-      return runtimeAgent.deterministicRuntimeStepAgent.resolve(task, context as never);
-    },
-  };
+  resolveStep(task: GroundedStep, context: unknown): Effect.Effect<ResolutionStepOutcome, TesseractError>;
 }
 
 function engineCompatibilityError(engine: ResolutionEngine, mode: RuntimeInterpreterMode): string | null {
@@ -32,30 +17,27 @@ function engineCompatibilityError(engine: ResolutionEngine, mode: RuntimeInterpr
   return null;
 }
 
-export function createResolutionEngineRegistry(engines: ResolutionEngine[] = [deterministicEngine()]): Map<ResolutionEngineId, ResolutionEngine> {
+export function createResolutionEngineRegistry(engines: readonly ResolutionEngine[]): Map<ResolutionEngineId, ResolutionEngine> {
   return new Map(engines.map((engine) => [engine.id, engine]));
 }
-
-const defaultRegistry = createResolutionEngineRegistry();
 
 export function resolveResolutionEngine(input: {
   providerId?: ResolutionEngineId | null | undefined;
   mode: RuntimeInterpreterMode;
   translationEnabled: boolean;
-  registry?: Map<ResolutionEngineId, ResolutionEngine>;
-}): ResolutionEngine {
+  registry: Map<ResolutionEngineId, ResolutionEngine>;
+}): Effect.Effect<ResolutionEngine, TesseractError> {
   const providerId = input.providerId ?? 'deterministic-runtime-step-agent';
-  const registry = input.registry ?? defaultRegistry;
-  const engine = registry.get(providerId);
+  const engine = input.registry.get(providerId);
   if (!engine) {
-    throw new TesseractError('resolution-error', `Unknown resolution engine "${providerId}".`);
+    return Effect.fail(new TesseractError('resolution-error', `Unknown resolution engine "${providerId}".`));
   }
   const incompatibility = engineCompatibilityError(engine, input.mode);
   if (incompatibility) {
-    throw new TesseractError('resolution-error', incompatibility);
+    return Effect.fail(new TesseractError('resolution-error', incompatibility));
   }
   if (input.translationEnabled && !engine.capabilities.supportsTranslation) {
-    throw new TesseractError('resolution-error', `Resolution engine "${engine.id}" does not support translation.`);
+    return Effect.fail(new TesseractError('resolution-error', `Resolution engine "${engine.id}" does not support translation.`));
   }
-  return engine;
+  return Effect.succeed(engine);
 }
