@@ -319,6 +319,10 @@ async function collectBehaviorObservations(input: {
 
   try {
     const baselinePage = await browser.newPage();
+    // Local file:// pages load instantly — 5s is generous for any selector
+    // resolution. Without this, each non-matching locator waits 30s (the
+    // Playwright default), which cascades across multiple states/events.
+    baselinePage.setDefaultTimeout(5_000);
     await baselinePage.goto(input.url, { waitUntil: 'load' });
     const baselineObservations = await observeStateRefsOnPage({
       page: baselinePage,
@@ -353,6 +357,7 @@ async function collectBehaviorObservations(input: {
 
     for (const event of stateGraph.eventSignatures.filter((entry) => entry.screen === input.screen)) {
       const page = await browser.newPage();
+      page.setDefaultTimeout(5_000);
       await page.goto(input.url, { waitUntil: 'load' });
 
       await primeRequiredStatesOnPage({

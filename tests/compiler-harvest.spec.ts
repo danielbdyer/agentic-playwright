@@ -5,7 +5,7 @@ import { runWithLocalServices } from '../lib/composition/local-services';
 import { createTestWorkspace } from './support/workspace';
 
 test('harvest visits declared route variants and writes route-scoped receipts', async () => {
-  test.setTimeout(180_000);
+  test.setTimeout(60_000);
   const workspace = createTestWorkspace('compiler-harvest');
   try {
     const result = await runWithLocalServices(

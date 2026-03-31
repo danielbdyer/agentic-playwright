@@ -7,7 +7,7 @@ import { createTestWorkspace } from './support/workspace';
 import { wait } from './support/compiler-helpers';
 
 test('harvest reuses unchanged route receipts and rewrites deterministically on drift', async () => {
-  test.setTimeout(180_000);
+  test.setTimeout(60_000);
   const workspace = createTestWorkspace('compiler-harvest-idempotence');
   try {
     // === First harvest: everything is new → rewritten ===
