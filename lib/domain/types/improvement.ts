@@ -8,6 +8,7 @@ import type {
   Participant,
   ParticipantRef,
 } from './intervention';
+import { appendImprovementRun as appendImprovementRunAggregate, emptyImprovementLedger as emptyImprovementLedgerAggregate } from '../aggregates/improvement-run';
 
 export type ExperimentSubstrate = 'synthetic' | 'production' | 'hybrid';
 
@@ -231,22 +232,16 @@ export interface ImprovementLedger {
   readonly runs: readonly ImprovementRun[];
 }
 
+
 export function emptyImprovementLedger(): ImprovementLedger {
-  return {
-    kind: 'improvement-ledger',
-    version: 1,
-    runs: [],
-  };
+  return emptyImprovementLedgerAggregate();
 }
 
 export function appendImprovementRun(
   ledger: ImprovementLedger,
   run: ImprovementRun,
 ): ImprovementLedger {
-  return {
-    ...ledger,
-    runs: [...ledger.runs, run],
-  };
+  return appendImprovementRunAggregate(ledger, run);
 }
 
 export function acceptedImprovementRuns(
