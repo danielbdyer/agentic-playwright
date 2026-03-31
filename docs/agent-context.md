@@ -35,14 +35,14 @@ Operator workflows are documented in `docs/operator-handbook.md`.
 
 | Layer | Directory | Files | Description |
 | --- | --- | --- | --- |
-| **Domain** | `lib/domain/` | 176 | Pure domain logic — types, validation, graph derivation, code generation |
+| **Domain** | `lib/domain/` | 134 | Pure domain logic — types, validation, graph derivation, code generation |
 | **Application** | `lib/application/` | 145 | Effect orchestration — CLI commands, execution pipelines, fitness, improvement |
 | **Runtime** | `lib/runtime/` | 46 | Playwright execution — scenario steps, agent resolution, screen identification |
 | **Infrastructure** | `lib/infrastructure/` | 28 | Ports and adapters — ADO, filesystem, dashboard, MCP, VSCode |
 | **Composition** | `lib/composition/` | 6 | Dependency injection — Effect Layers, service wiring |
 | **Playwright** | `lib/playwright/` | 3 | ARIA capture, locator resolution, state topology |
 
-**Total**: 404 TypeScript modules across 6 layers.
+**Total**: 362 TypeScript modules across 6 layers.
 
 Each layer has a `README.md` with detailed module inventory and entry points.
 Run `npm run map` for the full auto-generated module map, or see [`docs/module-map.md`](module-map.md).
@@ -77,31 +77,47 @@ Run `npm run map` for the full auto-generated module map, or see [`docs/module-m
 
 ## Command Surface
 
-- `npm run context` - print a generated repo brief from current sources
-- `npm run agent:sync` - refresh docs/agent-context.md from current sources
-- `npm run refresh` - sync -> parse -> bind -> task -> emit -> graph -> types
-- `npm run run` - interpret -> execute -> evidence -> proposals -> re-emit -> graph
+- `npm run refresh` - full pipeline: sync → parse → bind → task → emit → graph → types
+- `npm run run` - runtime pipeline: interpret → execute → evidence → proposals → re-emit → graph
+- `npm run compile` - compile one scenario (parse → bind → task → emit)
+- `npm run sync` - sync ADO cases to .ado-sync/snapshots/
+- `npm run parse` - parse one scenario from canonical YAML
+- `npm run bind` - bind scenario with knowledge (add --strict for strict mode)
+- `npm run emit` - emit generated artifacts for one scenario
+- `npm run generate` - generate synthetic scenarios from seed templates
 - `npm run workflow` - inspect lane ownership, controls, precedence, and fingerprints
 - `npm run paths` - show canonical and derived artifact paths for one scenario
-- `npm run inbox` - project the operator inbox from proposals, degraded locators, and needs-human steps
-- `npm run benchmark` - execute the flagship benchmark lane and emit scorecards + variant projections
-- `npm run scorecard` - reproject the latest benchmark scorecard without running scenarios
-- `npm run approve` - apply an approved proposal patch and emit a rerun plan
-- `npm run rerun-plan` - compute the smallest safe rerun set for one proposal id
+- `npm run inbox` - project operator inbox from proposals, degraded locators, and needs-human steps
+- `npm run trace` - return the scenario-centric subgraph from the dependency graph
+- `npm run impact` - return the impacted subgraph for a node id
 - `npm run surface` - inspect approved surface graph and derived capabilities
 - `npm run graph` - rebuild the dependency/provenance graph
-- `npm run trace` - return the scenario-centric subgraph
-- `npm run impact` - return the impacted subgraph for a node id
 - `npm run types` - regenerate lib/generated/tesseract-knowledge.ts
 - `npm run capture` - capture or refresh ARIA snapshot knowledge
-- `npm run test:generated` - execute emitted specs against the demo harness with the real Playwright interpreter
-- `npm run test:generated:headed` - same, but with a visible browser so an operator can follow along
-- `npm run build` - emit runtime artifacts with the build-only TS config
+- `npm run discover` - discover screen structure from a live URL (add --headed for visible browser)
+- `npm run harvest` - harvest interface intelligence from execution evidence
+- `npm run approve` - apply an approved proposal patch and emit a rerun plan
+- `npm run rerun-plan` - compute the smallest safe rerun set for one proposal id
+- `npm run benchmark` - execute flagship benchmark lane and emit scorecards
+- `npm run scorecard` - reproject latest benchmark scorecard without running
+- `npm run dogfood` - run the internal dogfood improvement loop
+- `npm run speedrun` - rapid scenario generation + iteration with seed/substrate
+- `npm run evolve` - evolutionary improvement over scenario populations
+- `npm run experiments` - run experimental improvement strategies
+- `npm run workbench` - interactive workbench for scenario development
+- `npm run replay` - replay a previous run from stored receipts
+- `npm run dashboard` - start the visual dashboard server
+- `npm run dashboard:live` - dashboard with continuous speedrun (50 iterations)
+- `npm run test:generated` - execute emitted specs with Playwright interpreter
+- `npm run test:generated:headed` - same, with visible browser for operator follow-along
+- `npm run context` - print generated repo brief from current sources
+- `npm run agent:sync` - refresh docs/agent-context.md from current sources
+- `npm run build` - emit runtime artifacts
 - `npm run typecheck` - strict repo-wide typecheck including tests
 - `npm run lint` - typed lint over hand-authored sources
-- `npm run check` - quiet build + typecheck + lint + test gate for local/CI use
+- `npm run check` - quiet gate: build + typecheck + lint + test
 - `npm run knip` - maintainer-only dependency hygiene scan
-- `npm test` - run compiler/runtime/documentation laws
+- `npm test` - run compiler/runtime/documentation law tests
 
 ## ADO Adapter Selection
 

@@ -74,18 +74,33 @@ function collectCodeBlockAfterHeading(markdown, heading) {
 }
 
 function collectCommands(readme) {
-  return collectCodeBlockAfterHeading(readme, 'Commands')
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const match = line.match(/^(npm(?:\s+run)?\s+[^\s]+)\s+#\s+(.+)$/);
-      if (!match) {
-        return null;
+  // Collect commands from ALL code blocks under ## Commands (not just the first)
+  const headingMarker = '## Commands';
+  const headingIndex = readme.indexOf(headingMarker);
+  if (headingIndex === -1) {
+    throw new Error('Could not find heading: Commands');
+  }
+
+  const afterHeading = readme.slice(headingIndex + headingMarker.length);
+  // Stop at the next ## heading
+  const nextSectionMatch = afterHeading.match(/\n## [^#]/);
+  const section = nextSectionMatch ? afterHeading.slice(0, nextSectionMatch.index) : afterHeading;
+
+  const commands = [];
+  const fenceRegex = /```\w*\n([\s\S]*?)```/g;
+  let match;
+  while ((match = fenceRegex.exec(section)) !== null) {
+    const block = match[1];
+    for (const line of block.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      const cmdMatch = trimmed.match(/^(npm(?:\s+run)?\s+[^\s]+)\s+#\s+(.+)$/);
+      if (cmdMatch) {
+        commands.push({ command: cmdMatch[1], description: cmdMatch[2].trim() });
       }
-      return { command: match[1], description: match[2].trim() };
-    })
-    .filter(Boolean);
+    }
+  }
+  return commands;
 }
 
 function collectIntro(markdown) {
