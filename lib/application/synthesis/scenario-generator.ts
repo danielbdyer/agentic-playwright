@@ -18,6 +18,16 @@ import {
 export { resolvePerturbation, templatePhrasing, ZERO_PERTURBATION };
 export type { PerturbationConfig, PhrasingProvider, PhrasingRequest, PhrasingResult };
 
+import type { ScreenPostures } from '../../domain/types/knowledge';
+import type { PostureValue } from '../../domain/synthesis/scenario-plan';
+
+function extractPostureValues(postures: ScreenPostures | undefined, elementId: string): readonly PostureValue[] {
+  const elementPostures = postures?.postures?.[elementId];
+  return elementPostures
+    ? Object.entries(elementPostures).map(([posture, p]) => ({ posture, values: p.values }))
+    : [];
+}
+
 function normalizeCatalog(catalog: WorkspaceCatalog): SyntheticCatalogPlanInput {
   const hintsByScreen = new Map(catalog.screenHints.map((entry) => [entry.artifact.screen, entry.artifact]));
   const posturesByScreen = new Map(catalog.screenPostures.map((entry) => [entry.artifact.screen, entry.artifact]));
@@ -33,12 +43,7 @@ function normalizeCatalog(catalog: WorkspaceCatalog): SyntheticCatalogPlanInput 
           widget: element.widget ?? 'os-region',
           aliases: hints?.elements?.[elementId]?.aliases ?? [],
           required: element.required ?? false,
-          postureValues: postures?.postures?.[elementId]
-            ? Object.entries(postures.postures[elementId]!).map(([posture, p]) => ({
-              posture,
-              values: p.values,
-            }))
-            : [],
+          postureValues: extractPostureValues(postures, elementId),
         })),
       };
     }),
