@@ -81,6 +81,6 @@ test('translation-disabled replay is reproducible for runtime interpretation', a
   const second = await deterministicRuntimeStepAgent.resolve(task, context);
 
   expect(first).toEqual(second);
-  expect(first.translation).toBeNull();
-  expect(first.kind).toBe('needs-human');
+  expect(first.receipt.translation ?? null).toBeNull();
+  expect(first.receipt.kind).toBe('needs-human');
 });

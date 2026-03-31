@@ -65,6 +65,7 @@ test('provenance helpers distinguish compiler-derived, hint-backed, pattern-back
     explicit: 1,
     'approved-knowledge': 1,
     'live-exploration': 0,
+    'agent-interpreted': 0,
     unresolved: 2,
   });
 });

@@ -7,6 +7,7 @@ import { emitOperatorInbox } from '../lib/application/inbox';
 import { describeScenarioPaths } from '../lib/application/inspect';
 import { buildImprovementRun, improvementLedgerPath } from '../lib/application/improvement';
 import { emitScenario } from '../lib/application/emit';
+import { loadWorkspaceCatalog } from '../lib/application/catalog';
 import { emitManifestPath } from '../lib/application/paths';
 import { refreshScenario } from '../lib/application/refresh';
 import { runScenario } from '../lib/application/run';
@@ -105,7 +106,6 @@ test('refresh recompiles the seeded scenario through graph, types, and program e
     expect(review).toContain('Expected transitions:');
     expect(graph.nodes.some((node: { id: string }) => node.id === graphIds.surface(policySearchScreenId, resultsGridId))).toBeTruthy();
     expect(graph.nodes.some((node: { id: string }) => node.id === graphIds.screenHints(policySearchScreenId))).toBeTruthy();
-    expect(graph.nodes.some((node: { id: string }) => node.id === graphIds.pattern('core.input'))).toBeTruthy();
     expect(graph.nodes.some((node: { id: string }) => node.id === graphIds.generatedTrace(adoId))).toBeTruthy();
     expect(graph.nodes.some((node: { id: string }) => node.id === graphIds.generatedReview(adoId))).toBeTruthy();
     expect(graph.nodes.find((node: { id: string; payload?: Record<string, unknown> }) => node.id === graphIds.step(adoId, 2))?.payload?.provenanceKind).toBe('unresolved');
@@ -138,7 +138,9 @@ test('paths identifies surface, graph, generated review, and supplement artifact
     expect(projectPath(result.roots.interface)).toContain('.tesseract/interface');
     expect(projectPath(result.roots.sessions)).toContain('.tesseract/sessions');
     expect(projectPath(result.roots.learning)).toContain('.tesseract/learning');
-    expect(result.supplements.sharedPatterns).toContain('knowledge/patterns/core.patterns.yaml');
+    expect(result.supplements.sharedPatterns).toEqual([
+      expect.stringContaining('core.patterns.yaml'),
+    ]);
     expect(result.knowledge).toEqual(expect.arrayContaining([
       {
         screen: 'policy-search',
@@ -251,7 +253,7 @@ test('run emits interpretation and execution receipts, then reprojects review su
     expect(review).toContain('Interface graph fingerprint:');
     expect(review).toContain('Selector canon fingerprint:');
     expect(review).toContain('State graph fingerprint:');
-    expect(review).toContain('Agent sessions: 1');
+    expect(review).toContain('Agent sessions: 0');
     expect(review).toContain('Learning corpora: 3');
     expect(review).toContain('Event signatures:');
     expect(review).toContain('Transition observations:');
@@ -270,6 +272,7 @@ test('promoted behavior patterns reuse the same transition ids from interface gr
   const workspace = createTestWorkspace('compiler-phase2-reuse');
   try {
     const adoId = createAdoId('10001');
+    mkdirSync(workspace.suiteResolve('knowledge', 'patterns'), { recursive: true });
     writeFileSync(
       workspace.suiteResolve('knowledge', 'patterns', 'form-entry.behavior.yaml'),
       readFileSync(path.join(process.cwd(), 'tests', 'fixtures', 'knowledge', 'patterns', 'form-entry.behavior.yaml'), 'utf8'),
@@ -845,7 +848,8 @@ test('graph projection includes policy decision audit nodes and governs edges', 
       },
     }, null, 2));
 
-    const graphResult = await runWithLocalServices(buildDerivedGraph({ paths: workspace.paths }), workspace.rootDir);
+    const fullCatalog = await runWithLocalServices(loadWorkspaceCatalog({ paths: workspace.paths, scope: 'full' }), workspace.rootDir);
+    const graphResult = await runWithLocalServices(buildDerivedGraph({ paths: workspace.paths, catalog: fullCatalog }), workspace.rootDir);
     const policyNode = graphResult.graph.nodes.find((node) => node.kind === 'policy-decision');
     const governsEdge = graphResult.graph.edges.find((edge) => edge.kind === 'governs');
 

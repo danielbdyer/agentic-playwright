@@ -120,6 +120,7 @@ test.describe('Resolution artifact schema migration laws', () => {
           posture: null,
           override: null,
           snapshot_template: null,
+          route_state: null,
         },
       }],
     };

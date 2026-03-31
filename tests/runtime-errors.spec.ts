@@ -81,6 +81,10 @@ function createRuntimeHarness(widget: WidgetId = osButtonWidgetId): {
     click: async () => {
       clicks.count += 1;
     },
+    count: async () => 1,
+    isVisible: async () => true,
+    isEnabled: async () => true,
+    isEditable: async () => true,
     or: () => locator,
     locator: () => locator,
   };
@@ -165,6 +169,8 @@ test('interact fails with stable error codes for unsupported widget actions', as
 test('interact passes affordance context through widget handlers', async () => {
   const locator = {
     click: async () => undefined,
+    isVisible: async () => true,
+    isEnabled: async () => true,
   };
   const buttonHandlers = widgetActionHandlers[osButtonWidgetId];
   expect(buttonHandlers).toBeDefined();
@@ -278,11 +284,14 @@ test('enter prefers fill over clear when an input widget supports both actions',
 test('playwright interpreter records degraded locator use when a fallback rung succeeds', async () => {
   const primaryLocator = {
     count: async () => 0,
+    isVisible: async () => false,
     or: () => primaryLocator,
   };
   const fallbackLocator = {
     count: async () => 1,
     click: async () => undefined,
+    isVisible: async () => true,
+    isEnabled: async () => true,
     or: () => fallbackLocator,
   };
   const page = {

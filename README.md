@@ -134,23 +134,60 @@ The review artifact exists so a QA can answer:
 - Which approved files, supplements, interface graph bindings, and prior evidence were used?
 - Did the agent resolve safely, resolve with proposals, or truly need a human?
 
-## Deterministic precedence
+## Resolution ladder
 
-Precedence is concern-specific and intentionally testable.
+Resolution precedence is the core of the system. It determines how each scenario step gets resolved from intent to executable action. The ladder has 11 rungs, walked in order — the first match wins.
 
-Resolution:
+| Rung | Source | Description |
+|------|--------|-------------|
+| 1 | `explicit` | Explicit scenario fields that override everything |
+| 2 | `control` | `controls/resolution/*.resolution.yaml` tuning overrides |
+| 3 | `approved-screen-knowledge` | Approved screen elements, hints, and deterministic heuristics |
+| 4 | `shared-patterns` | Cross-screen `knowledge/patterns/*.yaml` reusable patterns |
+| 5 | `prior-evidence` | Prior successful evidence and runtime observations |
+| 6 | `semantic-dictionary` | Learned intent→target mappings from prior resolutions (see below) |
+| 7 | `approved-equivalent-overlay` | High-confidence derived overlays from `.tesseract/confidence/index.json` |
+| 8 | `structured-translation` | LLM structured translation over typed ontology candidates |
+| 9 | `live-dom` | Live DOM exploration and safe degraded resolution |
+| 10 | `agent-interpreted` | Agent interpreter final fallback |
+| 11 | `needs-human` | Explicit blocker — all non-human paths exhausted |
 
-1. explicit scenario fields
-2. `controls/resolution/*.resolution.yaml`
-3. approved knowledge priors from screens, hints, patterns, and deterministic heuristics
-4. approved-equivalent confidence overlays from `.tesseract/confidence/index.json`
-5. structured translation over typed ontology candidates
-6. live DOM exploration and safe degraded resolution
-7. `needs-human`
+Rungs 1–5 use approved or pre-existing knowledge (no LLM call). Rung 6 uses learned associations. Rungs 7–10 involve active inference. Rung 11 is an explicit failure receipt.
 
-Prior evidence and run history feed overlays, translation, and the runtime agent. They are not a separate winning tier.
+The precedence law is defined in `lib/domain/precedence.ts` and enforced by law tests. If you change the rung order, you change compiler semantics.
 
-Data:
+### Semantic dictionary (rung 6)
+
+The semantic dictionary is a learning flywheel that accumulates successful resolution decisions and replays them for semantically similar intents — without an LLM call.
+
+**How it works:**
+
+1. A scenario step like "Click Search button" reaches the resolution ladder
+2. Rungs 1–5 miss (no explicit binding, no approved knowledge for this exact intent)
+3. Rung 6 queries the semantic dictionary: does any prior resolution match this intent?
+4. Match found → reuse the stored target (action, screen, element), bump confidence
+5. Match not found → fall through to rung 8+ (structured translation via LLM)
+6. After successful resolution at any rung, the decision is accrued into the dictionary
+7. On execution failure, the dictionary entry's confidence decays
+
+**Similarity engine:**
+
+- Token-level Jaccard similarity + TF-IDF cosine scoring via a shingle index
+- Inverted index maps shingles → entry IDs for O(Q) candidate lookup (not O(N) scan)
+- Multi-dimensional scoring: text similarity (0.45), structural compatibility (0.25), confidence history (0.30)
+- Combined score threshold: 0.35 to reuse an entry
+
+**Promotion to approved knowledge:**
+
+High-confidence dictionary entries (≥0.8 confidence, ≥3 successful reuses) are promoted to approved screen knowledge (`knowledge/screens/*.hints.yaml`), graduating from rung 6 to rung 3 permanently.
+
+**Persistence:** `.tesseract/semantic-dictionary/index.json` with advisory file locking, 4096-entry cap, 90-day TTL for stale promoted entries.
+
+See `docs/semantic-dictionary.md` for the full technical reference.
+
+### Other precedence laws
+
+Data resolution:
 
 1. explicit scenario override
 2. runbook dataset binding
@@ -165,7 +202,14 @@ Run selection:
 2. `controls/runbooks/*.runbook.yaml`
 3. repo defaults
 
-This order is part of the product. It must stay stable and testable.
+Route navigation:
+
+1. explicit scenario URL
+2. runbook route binding
+3. approved route knowledge
+4. screen canonical URL fallback
+
+These orders are part of the product. They must stay stable and testable.
 
 ## Supplement hierarchy
 
@@ -213,35 +257,119 @@ The runtime resolves the ladder in order. If a fallback rung succeeds, the execu
 
 ## Commands
 
-The repo is intentionally CLI-first.
+The repo is intentionally CLI-first. All commands go through `node dist/bin/tesseract.js <command>` (or `npm run <alias>`).
+
+### Pipeline — compilation and execution
 
 ```powershell
-npm run context    # print a generated repo brief from current sources
-npm run agent:sync # refresh docs/agent-context.md from current sources
-npm run refresh    # sync -> parse -> bind -> task -> emit -> graph -> types
-npm run run        # interpret -> execute -> evidence -> proposals -> re-emit -> graph
+npm run refresh    # full pipeline: sync → parse → bind → task → emit → graph → types
+npm run run        # runtime pipeline: interpret → execute → evidence → proposals → re-emit → graph
+npm run compile    # compile one scenario (parse → bind → task → emit)
+npm run sync       # sync ADO cases to .ado-sync/snapshots/
+npm run parse      # parse one scenario from canonical YAML
+npm run bind       # bind scenario with knowledge (add --strict for strict mode)
+npm run emit       # emit generated artifacts for one scenario
+npm run generate   # generate synthetic scenarios from seed templates
+```
+
+### Inspection — analysis and visibility
+
+```powershell
 npm run workflow   # inspect lane ownership, controls, precedence, and fingerprints
 npm run paths      # show canonical and derived artifact paths for one scenario
-npm run inbox      # project the operator inbox from proposals, degraded locators, and needs-human steps
-npm run benchmark  # execute the flagship benchmark lane and emit scorecards + variant projections
-npm run scorecard  # reproject the latest benchmark scorecard without running scenarios
-npm run approve    # apply an approved proposal patch and emit a rerun plan
-npm run rerun-plan # compute the smallest safe rerun set for one proposal id
+npm run inbox      # project operator inbox from proposals, degraded locators, and needs-human steps
+npm run trace      # return the scenario-centric subgraph from the dependency graph
+npm run impact     # return the impacted subgraph for a node id
 npm run surface    # inspect approved surface graph and derived capabilities
 npm run graph      # rebuild the dependency/provenance graph
-npm run trace      # return the scenario-centric subgraph
-npm run impact     # return the impacted subgraph for a node id
 npm run types      # regenerate lib/generated/tesseract-knowledge.ts
+```
+
+### Knowledge — discovery and capture
+
+```powershell
 npm run capture    # capture or refresh ARIA snapshot knowledge
-npm run test:generated        # execute emitted specs against the demo harness with the real Playwright interpreter
-npm run test:generated:headed # same, but with a visible browser so an operator can follow along
-npm run build      # emit runtime artifacts with the build-only TS config
+npm run discover   # discover screen structure from a live URL (add --headed for visible browser)
+npm run harvest    # harvest interface intelligence from execution evidence
+```
+
+### Approval — governance and rerun
+
+```powershell
+npm run approve    # apply an approved proposal patch and emit a rerun plan
+npm run rerun-plan # compute the smallest safe rerun set for one proposal id
+```
+
+`certify` is an alias for `approve`.
+
+### Benchmarks and improvement
+
+```powershell
+npm run benchmark  # execute flagship benchmark lane and emit scorecards
+npm run scorecard  # reproject latest benchmark scorecard without running
+npm run dogfood    # run the internal dogfood improvement loop
+npm run speedrun   # rapid scenario generation + iteration with seed/substrate
+npm run evolve     # evolutionary improvement over scenario populations
+npm run experiments # run experimental improvement strategies
+npm run workbench  # interactive workbench for scenario development
+npm run replay     # replay a previous run from stored receipts
+```
+
+### Dashboard and MCP server
+
+```powershell
+npm run dashboard       # start the visual dashboard server
+npm run dashboard:live  # dashboard with continuous speedrun (50 iterations)
+```
+
+The MCP server exposes the same data as the dashboard for agent consumption:
+
+```powershell
+node dist/bin/tesseract-mcp.js          # start MCP server (stdio, JSON-RPC)
+node dist/bin/tesseract-mcp.js --root-dir /path/to/project  # custom root
+```
+
+See [Agent integration](#agent-integration-mcp) below for Claude Code / VSCode setup.
+
+### Execution — generated specs against demo harness
+
+```powershell
+npm run test:generated        # execute emitted specs with Playwright interpreter
+npm run test:generated:headed # same, with visible browser for operator follow-along
+```
+
+### Meta — build, lint, test
+
+```powershell
+npm run context    # print generated repo brief from current sources
+npm run agent:sync # refresh docs/agent-context.md from current sources
+npm run build      # emit runtime artifacts
 npm run typecheck  # strict repo-wide typecheck including tests
 npm run lint       # typed lint over hand-authored sources
-npm run check      # quiet build + typecheck + lint + test gate for local/CI use
+npm run check      # quiet gate: build + typecheck + lint + test
 npm run knip       # maintainer-only dependency hygiene scan
-npm test           # run compiler/runtime/documentation laws
+npm test           # run compiler/runtime/documentation law tests
 ```
+
+### Common flags
+
+| Flag | Effect |
+|------|--------|
+| `--ado-id <id>` | Target a specific scenario (default: `10001`) |
+| `--strict` | Exit code 1 on any unbound step |
+| `--headed` | Keep browser visible during execution |
+| `--no-write` | Compute results but keep writes in would-write ledger |
+| `--baseline` | Alias for `--no-write --interpreter-mode dry-run` |
+| `--ci-batch` | Headless non-interactive; allow proposals, forbid approval |
+| `--interpreter-mode <mode>` | `playwright`, `dry-run`, or `diagnostic` |
+| `--execution-profile <profile>` | `interactive` or `ci-batch` |
+| `--disable-translation` | Skip structured translation (rung 8) |
+| `--disable-translation-cache` | Skip semantic dictionary (rung 6) |
+| `--posture <posture>` | Knowledge posture: `cold-start`, `warm-start`, or `production` |
+| `--max-iterations <n>` | Cap iteration count for dogfood/speedrun loops |
+| `--seed <name>` | Seed template for speedrun/generate |
+| `--screen <name>` | Filter by screen name |
+| `--tag <tag>` | Filter scenarios by tag |
 
 ### ADO adapter selection
 
@@ -270,6 +398,102 @@ Global operator flags for mutating commands:
 - `--no-write`: compute and project results, but keep writes in the would-write ledger
 - `--baseline`: alias for `--no-write --interpreter-mode dry-run`
 - `--ci-batch` or `--execution-profile ci-batch`: force headless non-interactive execution, allow proposal generation, and forbid approval/apply behavior
+
+## Agent integration (MCP)
+
+Tesseract exposes a Model Context Protocol (MCP) server so that Claude Code, VSCode Copilot, and other MCP-aware agents can interact with the dashboard, proposals, and browser programmatically.
+
+### Setup
+
+The repo includes a `.mcp.json` that registers the server automatically:
+
+```json
+{
+  "mcpServers": {
+    "tesseract-dashboard": {
+      "command": "node",
+      "args": ["dist/bin/tesseract-mcp.js"],
+      "env": { "TESSERACT_ROOT": "." }
+    }
+  }
+}
+```
+
+Claude Code and VSCode Copilot discover this file automatically. Run `npm run build` first so `dist/bin/tesseract-mcp.js` exists.
+
+### Available MCP tools
+
+**Observation:**
+
+| Tool | Description |
+|------|-------------|
+| `list_probed_elements` | List elements from workbench with screen filter and pagination |
+| `get_knowledge_state` | Get graph nodes/edges from `.tesseract/graph/index.json` |
+| `get_screen_capture` | Get latest screenshot from cache |
+
+**Workflow:**
+
+| Tool | Description |
+|------|-------------|
+| `get_queue_items` | Get workbench items with status filter (pending/completed) |
+| `decide_work_item` | Make a decision on a pending work item |
+
+**Metrics and proposals:**
+
+| Tool | Description |
+|------|-------------|
+| `get_fitness_metrics` | Get latest benchmark scorecard |
+| `get_proposal_detail` | Get specific proposal details by ID |
+| `get_scenario_trace` | Get scenario-specific subgraph |
+| `list_proposals` | List proposals by status with pagination |
+| `approve_work_item` | Approve a pending work item |
+| `skip_work_item` | Skip a pending work item |
+
+**Browser (Playwright bridge, headed mode only):**
+
+| Tool | Description |
+|------|-------------|
+| `browser_navigate` | Navigate to URL |
+| `browser_click` | Click an element by selector |
+| `browser_fill` | Fill a form field |
+| `browser_screenshot` | Capture screenshot (capped at 5MB) |
+| `browser_aria_snapshot` | Get page accessibility snapshot |
+
+All list tools return paginated envelopes: `{ items, total, offset, limit, hasMore }`.
+
+### The agentic loop
+
+An agent (Claude Code or VSCode Copilot) can close the full loop:
+
+1. **Inspect** — `tesseract inbox --status actionable` to see what needs attention
+2. **Understand** — read proposal details via MCP `get_proposal_detail` or `list_proposals`
+3. **Approve** — `tesseract approve --proposal-id <id>` to accept a proposal
+4. **Verify** — re-run the scenario to confirm the proposal resolves deterministically
+5. **Observe** — semantic dictionary accrues the decision; future similar intents resolve without LLM
+
+## Demo harness
+
+The dogfood demo harness is a static HTTP server that serves mock insurance application screens:
+
+- `dogfood/fixtures/demo-harness/server.cjs` — Node.js HTTP server on port 3100
+- Screens: `policy-search.html`, `policy-detail.html`, `policy-journey.html`
+- Auto-started by `playwright.config.ts` via `webServer` configuration
+
+The seeded vertical slice uses ADO case `10001` against the policy-search screen. Running the full pipeline:
+
+```powershell
+npm run refresh                    # compile the scenario
+npm run run                        # execute with runtime interpretation
+npm run test:generated             # run emitted spec against demo harness
+npm run test:generated:headed      # same, with visible browser
+```
+
+For rapid iteration with synthetic scenarios:
+
+```powershell
+npm run speedrun -- --seed ember-seed --count 20 --max-iterations 5
+npm run dogfood -- --max-iterations 3
+```
 
 ## Quality Gate
 
@@ -342,12 +566,15 @@ The system should make it obvious which steps are:
 
 - `compiler-derived` from approved knowledge only
 - `intent-only` and intentionally deferred to runtime
-- resolved from approved knowledge at runtime
-- resolved from approved-equivalent confidence overlays
-- resolved through structured translation over known ontology
-- resolved through live exploration with reviewable proposals
+- resolved from approved screen knowledge or shared patterns at runtime (rungs 3–4)
+- resolved from prior evidence (rung 5)
+- resolved from the semantic dictionary without LLM call (rung 6)
+- resolved from approved-equivalent confidence overlays (rung 7)
+- resolved through structured translation over known ontology (rung 8)
+- resolved through live DOM exploration with reviewable proposals (rung 9)
+- resolved through agent interpretation as final fallback (rung 10)
 - still `unbound` because explicit structure contradicts approved knowledge
-- blocked by `needs-human` after all non-human paths were exhausted
+- blocked by `needs-human` after all non-human paths were exhausted (rung 11)
 
 The graph, trace JSON, and review Markdown should all agree on that answer.
 

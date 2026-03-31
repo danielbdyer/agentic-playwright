@@ -1,5 +1,4 @@
-import type { ResolutionEngineCapabilities, RuntimeInterpreterMode, GroundedStep } from '../domain/types';
-import type { ResolutionStepOutcome } from '../runtime/agent';
+import type { ResolutionEngineCapabilities, RuntimeInterpreterMode, GroundedStep, ResolutionStepOutcome } from '../domain/types';
 import { TesseractError } from '../domain/errors';
 
 export type ResolutionEngineId = string;

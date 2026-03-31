@@ -1,4 +1,4 @@
-import { writeFileSync } from 'fs';
+import { mkdirSync, writeFileSync } from 'fs';
 import { expect, test } from '@playwright/test';
 import { loadWorkspaceCatalog } from '../lib/application/catalog';
 import { projectInterfaceIntelligence } from '../lib/application/interface-intelligence';
@@ -64,6 +64,7 @@ test('behavior pattern validation requires effect assertions', () => {
 test('interface projection rejects duplicate transition semantics under different refs', async () => {
   const workspace = createTestWorkspace('phase2-duplicate-transition');
   try {
+    mkdirSync(workspace.suiteResolve('knowledge', 'patterns'), { recursive: true });
     writeFileSync(
       workspace.suiteResolve('knowledge', 'patterns', 'duplicate-transition.behavior.yaml'),
       [
@@ -179,6 +180,7 @@ test('interface projection rejects duplicate transition semantics under differen
 test('interface projection rejects support cycles in event prerequisites', async () => {
   const workspace = createTestWorkspace('phase2-support-cycle');
   try {
+    mkdirSync(workspace.suiteResolve('knowledge', 'patterns'), { recursive: true });
     writeFileSync(
       workspace.suiteResolve('knowledge', 'patterns', 'support-cycle.behavior.yaml'),
       [

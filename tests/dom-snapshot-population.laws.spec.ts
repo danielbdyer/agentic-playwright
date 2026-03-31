@@ -21,6 +21,7 @@ function mockPage(snapshot: object | null, shouldThrow = false) {
         return snapshot;
       },
     },
+    locator: (_selector: string) => ({}),
   };
 }
 

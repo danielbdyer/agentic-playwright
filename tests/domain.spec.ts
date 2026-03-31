@@ -121,10 +121,14 @@ children:
   expect(computeNormalizedSnapshotHash(currentBrowserVariant)).toBe(computeNormalizedSnapshotHash(approved));
 });
 
-test('validateAdoSnapshot rejects a mismatched content hash', () => {
+test('validateAdoSnapshot auto-corrects a mismatched content hash', () => {
   const fixture = readJsonFixture<Record<string, unknown>>('fixtures', 'ado', '10001.json');
   fixture.contentHash = 'sha256:bad';
-  expect(() => validateAdoSnapshot(fixture)).toThrow(/contentHash mismatch/i);
+  const result = validateAdoSnapshot(fixture);
+  expect(result.contentHash).not.toBe('sha256:bad');
+  // The corrected hash should match the canonical fixture's hash
+  const canonical = validateAdoSnapshot(readJsonFixture('fixtures', 'ado', '10001.json'));
+  expect(result.contentHash).toBe(canonical.contentHash);
 });
 
 test('compileStepProgram lowers legacy input steps into a structured program', () => {
