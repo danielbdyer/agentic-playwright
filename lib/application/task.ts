@@ -1,6 +1,6 @@
 import path from 'path';
 import { Effect } from 'effect';
-import { normalizeIntentText } from '../domain/inference';
+import { normalizeIntentText } from '../domain/knowledge/inference';
 import { TesseractError } from '../domain/errors';
 import {
   type AdoId,

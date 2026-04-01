@@ -37,7 +37,7 @@ import {
   findNearestCheckpoint,
   type SceneState,
   type SceneCheckpoint,
-} from '../../../lib/domain/scene-state-accumulator';
+} from '../../../lib/domain/projection/scene-state-accumulator';
 import {
   detectAutoBookmarks,
   finalizeBookmarks,

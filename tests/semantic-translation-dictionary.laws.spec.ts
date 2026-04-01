@@ -40,7 +40,7 @@ import {
   blendedSimilarity,
   buildShingleIndex,
   queryShingleIndex,
-} from '../lib/domain/shingles';
+} from '../lib/domain/knowledge/shingles';
 import { trySemanticDictionaryResolution } from '../lib/runtime/agent/resolution-stages';
 import {
   createAgentContext,
@@ -723,7 +723,7 @@ import {
   serializeShingleIndex,
   deserializeShingleIndex,
   addEntryToShingleIndex,
-} from '../lib/domain/shingles';
+} from '../lib/domain/knowledge/shingles';
 
 test('shingle index round-trips through JSON serialization', () => {
   const index = buildShingleIndex([

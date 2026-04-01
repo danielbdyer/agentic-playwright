@@ -7,7 +7,7 @@
  */
 
 import { expect, test } from '@playwright/test';
-import { renderReadableSpecModule } from '../lib/domain/spec-codegen';
+import { renderReadableSpecModule } from '../lib/domain/codegen/spec-codegen';
 import type { GroundedFlowStep, GroundedSpecFlow } from '../lib/domain/types';
 import type { Confidence, StepBindingKind } from '../lib/domain/types/workflow';
 import { createAdoId, createScreenId, createElementId } from '../lib/domain/identity';

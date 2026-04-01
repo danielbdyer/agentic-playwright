@@ -32,7 +32,7 @@ import {
 import type { ResolutionTarget, ResolutionProposalDraft } from '../domain/types';
 import type { StepAction } from '../domain/types';
 import type { ScreenId, ElementId, PostureId, SnapshotTemplateId } from '../domain/identity';
-import { normalizeIntentText, bestAliasMatch, humanizeIdentifier } from '../domain/inference';
+import { normalizeIntentText, bestAliasMatch, humanizeIdentifier } from '../domain/knowledge/inference';
 import { assignVariant, type ABTestConfig } from './agent-ab-testing';
 import {
   RETRY_POLICIES,

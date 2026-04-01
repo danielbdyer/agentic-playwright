@@ -10,7 +10,7 @@ import {
   INITIAL_CLUSTER_STATE,
   type ArtifactType,
   type ClusterPhase,
-} from '../lib/domain/proposal-cluster';
+} from '../lib/domain/governance/proposal-cluster';
 
 const ALL_ARTIFACT_TYPES: readonly ArtifactType[] = [
   'knowledge', 'element', 'pattern', 'screen', 'snapshot',

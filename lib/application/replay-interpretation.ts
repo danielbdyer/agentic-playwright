@@ -18,7 +18,7 @@ interface InterpretationRecord {
   steps: Array<{ stepIndex: number; interpretation: ResolutionReceipt }>;
 }
 
-import { targetKey, exhaustionPath, resolutionGraphDigest } from '../domain/comparison-rules';
+import { targetKey, exhaustionPath, resolutionGraphDigest } from '../domain/resolution/comparison-rules';
 
 function createDriftRecord(input: {
   adoId: AdoId;

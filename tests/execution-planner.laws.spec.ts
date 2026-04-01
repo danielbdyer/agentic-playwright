@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { createEventSignatureRef, createScreenId, createStateNodeRef, createTransitionRef } from '../lib/domain/identity';
 import type { StateTransitionGraph } from '../lib/domain/types';
 import { planExecutionStep } from '../lib/application/execution/planner';
-import { dataResolutionPrecedenceLaw, resolutionPrecedenceLaw, runSelectionPrecedenceLaw } from '../lib/domain/precedence';
+import { dataResolutionPrecedenceLaw, resolutionPrecedenceLaw, runSelectionPrecedenceLaw } from '../lib/domain/resolution/precedence';
 
 const stateA = createStateNodeRef('state:a');
 const stateB = createStateNodeRef('state:b');

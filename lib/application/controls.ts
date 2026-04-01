@@ -11,8 +11,8 @@ import type {
 } from '../domain/types';
 import type { WorkspaceCatalog } from './catalog';
 import { compareStrings, uniqueSorted } from '../domain/collections';
-import { chooseByPrecedence } from '../domain/precedence';
-import { runSelectionPrecedencePolicy } from '../domain/precedence-policy';
+import { chooseByPrecedence } from '../domain/resolution/precedence';
+import { runSelectionPrecedencePolicy } from '../domain/resolution/precedence-policy';
 
 function selectorMatchesScenario(
   selector: { adoIds: readonly string[]; suites: readonly string[]; tags: readonly string[] },

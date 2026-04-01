@@ -25,7 +25,7 @@ import {
   shouldQuarantine,
   defaultQualityThresholds,
   type AliasOutcome,
-} from '../lib/domain/proposal-quality';
+} from '../lib/domain/governance/proposal-quality';
 import { mulberry32, randomInt, randomWord, pick , LAW_SEED_COUNT } from './support/random';
 
 // ─── Helpers ───

@@ -17,7 +17,7 @@ import {
   selectedCount,
   formatTimeRemaining,
   type DecisionStatus,
-} from '../lib/domain/batch-decision';
+} from '../lib/domain/governance/batch-decision';
 
 const ALL_STATUSES: readonly DecisionStatus[] = [
   'pending', 'approved', 'skipped', 'auto-approved', 'blocked',

@@ -1,4 +1,4 @@
-import { normalizeIntentText } from '../../domain/inference';
+import { normalizeIntentText } from '../../domain/knowledge/inference';
 import { createPostureId, createSnapshotTemplateId } from '../../domain/identity';
 import { knowledgePaths } from '../../domain/ids';
 import type {
@@ -10,7 +10,7 @@ import type {
   StepTaskElementCandidate,
   StepTaskScreenCandidate,
 } from '../../domain/types';
-import { precedenceWeight, resolutionPrecedenceLaw } from '../../domain/precedence';
+import { precedenceWeight, resolutionPrecedenceLaw } from '../../domain/resolution/precedence';
 import { allowedActionFallback } from './resolve-action';
 import { bestAliasMatch, humanizeIdentifier, normalizedCombined, uniqueSorted } from './shared';
 import type { ResolutionTarget } from '../../domain/types';

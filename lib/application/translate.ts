@@ -1,4 +1,4 @@
-import { normalizeIntentText } from '../domain/inference';
+import { normalizeIntentText } from '../domain/knowledge/inference';
 import type { TranslationCandidate, TranslationReceipt, TranslationRequest } from '../domain/types';
 import { DEFAULT_PIPELINE_CONFIG } from '../domain/types';
 import { compareStrings, uniqueSorted } from '../domain/collections';

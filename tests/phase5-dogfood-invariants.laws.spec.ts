@@ -8,7 +8,7 @@ import type {
   Participant,
   TrustPolicy,
 } from '../lib/domain/types';
-import { evaluateAutoApproval, DEFAULT_AUTO_APPROVAL_POLICY } from '../lib/domain/trust-policy';
+import { evaluateAutoApproval, DEFAULT_AUTO_APPROVAL_POLICY } from '../lib/domain/governance/trust-policy';
 import {
   createAgentSessionAdapterRegistry,
   resolveAgentSessionAdapter,

@@ -23,7 +23,7 @@ import {
   initialConvergenceState,
   isTerminal,
   transitionConvergence,
-} from '../domain/convergence-fsm';
+} from '../domain/projection/convergence-fsm';
 import type { AdoId } from '../domain/identity';
 import { groupBy } from '../domain/collections';
 import { asDogfoodLedgerProjection, asImprovementLoopLedger, DEFAULT_PIPELINE_CONFIG } from '../domain/types';
@@ -39,9 +39,9 @@ import type {
   SpeedrunProgressEvent,
   TrustPolicy,
 } from '../domain/types';
-import { DEFAULT_AUTO_APPROVAL_POLICY } from '../domain/trust-policy';
-import { matureComponentKnowledge, type ComponentEvidence } from '../domain/component-maturation';
-import { aggregateQualityMetrics, type AliasOutcome } from '../domain/proposal-quality';
+import { DEFAULT_AUTO_APPROVAL_POLICY } from '../domain/governance/trust-policy';
+import { matureComponentKnowledge, type ComponentEvidence } from '../domain/projection/component-maturation';
+import { aggregateQualityMetrics, type AliasOutcome } from '../domain/governance/proposal-quality';
 import type { RungRate } from '../domain/types/improvement-context';
 import type { ScreenGroupDecider, WorkItemDecider } from './agent-workbench';
 

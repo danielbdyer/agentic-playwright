@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { collectImpactSubgraph } from '../lib/domain/graph-query';
+import { collectImpactSubgraph } from '../lib/domain/codegen/graph-query';
 import type { DerivedGraph } from '../lib/domain/types';
 
 function node(id: string, kind: DerivedGraph['nodes'][number]['kind']) {

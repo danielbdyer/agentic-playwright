@@ -11,7 +11,7 @@ import type {
   TransitionRef,
 } from '../identity';
 import type { StepTaskElementCandidate, StepTaskScreenCandidate } from './knowledge';
-import type { ResolutionPrecedenceRung } from '../precedence';
+import type { ResolutionPrecedenceRung } from '../resolution/precedence';
 import type {
   Governance,
   ExecutionPosture,

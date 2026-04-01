@@ -23,7 +23,7 @@
 
 import { Effect } from 'effect';
 import { sha256, stableStringify } from '../domain/hash';
-import { normalizeIntentText } from '../domain/inference';
+import { normalizeIntentText } from '../domain/knowledge/inference';
 import {
   addEntryToShingleIndex,
   buildShingleIndex,
@@ -35,7 +35,7 @@ import {
   blendedSimilarity,
   type ShingleIndex,
   type SerializedShingleIndex,
-} from '../domain/shingles';
+} from '../domain/knowledge/shingles';
 import type {
   SemanticDictionaryAccrualInput,
   SemanticDictionaryCatalog,

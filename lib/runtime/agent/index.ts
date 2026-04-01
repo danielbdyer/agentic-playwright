@@ -1,6 +1,6 @@
 import type { CausalLink, ConfidenceScaling, MemoryCapacityConfig, ObservedStateSession, ResolutionEvent, ResolutionPipelineResult, ResolutionReceipt, GroundedStep } from '../../domain/types';
 import { DEFAULT_PIPELINE_CONFIG } from '../../domain/types';
-import { resolutionPrecedenceLaw } from '../../domain/precedence';
+import { resolutionPrecedenceLaw } from '../../domain/resolution/precedence';
 import { selectedControlRefs, selectedControlResolution } from './select-controls';
 import { uniqueSorted } from './shared';
 import type { ResolutionStrategy, StrategyAttemptResult, StrategyChainResult } from './strategy';

@@ -6,7 +6,7 @@ import type {
   ReplayStepResult,
   ResolutionReceipt,
 } from '../domain/types';
-import { targetKey, driftFields as computeDriftFields } from '../domain/comparison-rules';
+import { targetKey, driftFields as computeDriftFields } from '../domain/resolution/comparison-rules';
 import { round4 } from './learning-shared';
 
 /** Compare two resolution receipts at a step. Pure. Uses shared comparison rules. */

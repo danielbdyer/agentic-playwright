@@ -3,7 +3,7 @@ import path from 'path';
 import { chromium } from '@playwright/test';
 import YAML from 'yaml';
 import { relativeProjectPath, type ProjectPaths } from '../../application/paths';
-import { buildDiscoveryArtifacts, deriveScreenIdFromUrl, type RawDiscoveredElement, type RawDiscoveredSurface } from '../../domain/discovery';
+import { buildDiscoveryArtifacts, deriveScreenIdFromUrl, type RawDiscoveredElement, type RawDiscoveredSurface } from '../../domain/knowledge/discovery';
 import { graphIds } from '../../domain/ids';
 import {
   createCanonicalTargetRef,

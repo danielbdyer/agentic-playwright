@@ -4,7 +4,7 @@ import type { TesseractError } from '../domain/errors';
 import { widgetCapabilityContracts } from '../domain/widgets/contracts';
 import { deriveCapabilities } from '../domain/grammar';
 import { sha256 } from '../domain/hash';
-import { renderGeneratedKnowledgeModule } from '../domain/typegen';
+import { renderGeneratedKnowledgeModule } from '../domain/codegen/typegen';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
 import type { ProjectPaths } from './paths';
 import { generatedKnowledgePath, relativeProjectPath } from './paths';

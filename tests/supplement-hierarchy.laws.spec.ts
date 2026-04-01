@@ -21,7 +21,7 @@ import {
   precedenceWeight,
   resolutionPrecedenceLaw,
   type ResolutionPrecedenceRung,
-} from '../lib/domain/precedence';
+} from '../lib/domain/resolution/precedence';
 import { mergeScreenElementsWithHints } from '../lib/domain/knowledge/screen-bundle';
 import type { ScreenElements, ScreenHints, ScreenElementHint, ElementSig } from '../lib/domain/types';
 import { createScreenId, createSurfaceId, createWidgetId } from '../lib/domain/identity';

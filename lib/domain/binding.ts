@@ -1,5 +1,5 @@
 import { deriveCapabilities, findCapability } from './grammar';
-import { normalizeIntentText } from './inference';
+import { normalizeIntentText } from './knowledge/inference';
 import type { ScreenId, SnapshotTemplateId } from './identity';
 import { knowledgePaths } from './ids';
 import { capabilityForInstruction, compileStepProgram, type StepProgram } from './program';

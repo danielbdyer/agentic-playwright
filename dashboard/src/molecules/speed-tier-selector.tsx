@@ -10,7 +10,7 @@
  */
 
 import { memo, useCallback, useState } from 'react';
-import { SPEED_TIERS, type SpeedTier } from '../../../lib/domain/speed-tier-batcher';
+import { SPEED_TIERS, type SpeedTier } from '../../../lib/domain/projection/speed-tier-batcher';
 
 // ─── Component Props ───
 

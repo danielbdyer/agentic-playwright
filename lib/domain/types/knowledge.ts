@@ -26,7 +26,7 @@ import type { StepResolution } from './intent';
 import type { RuntimeControlSession } from './resolution';
 import type { StateTransitionGraph } from './interface';
 import type { DerivedGraph } from './projection';
-import type { DataResolutionPrecedenceRung, ResolutionPrecedenceRung, RunSelectionPrecedenceRung } from '../precedence-policy';
+import type { DataResolutionPrecedenceRung, ResolutionPrecedenceRung, RunSelectionPrecedenceRung } from '../resolution/precedence-policy';
 
 export interface StepTaskElementCandidate {
   readonly element: ElementId;

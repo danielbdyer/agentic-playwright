@@ -1,4 +1,4 @@
-import type { ResolutionPrecedenceRung } from '../../domain/precedence';
+import type { ResolutionPrecedenceRung } from '../../domain/resolution/precedence';
 import type { ResolutionEvent, ResolutionReceipt } from '../../domain/types';
 import type { RuntimeAgentStageContext } from './types';
 import type { ResolutionAccumulator } from './resolution-stages';

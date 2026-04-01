@@ -9,10 +9,10 @@
  */
 import { sortByStringKey } from './collections';
 import { deriveCapabilities } from './grammar';
-import { normalizeIntentText } from './inference';
+import { normalizeIntentText } from './knowledge/inference';
 import type { ScreenId, SnapshotTemplateId } from './identity';
 import { createElementId, createPostureId, createSurfaceId } from './identity';
-import { provenanceKindForBoundStep } from './provenance';
+import { provenanceKindForBoundStep } from './governance/provenance';
 import { explainBoundScenario } from './scenario/explanation';
 import { capabilityForInstruction, compileStepProgram, traceStepProgram } from './program';
 import { sha256, stableStringify } from './hash';

@@ -32,7 +32,7 @@ import {
   objectivesFromMetrics,
 } from '../domain/types';
 import { foldPipelineFailureClass } from '../domain/visitors';
-import { resolutionPrecedenceLaw, type ResolutionPrecedenceRung } from '../domain/precedence';
+import { resolutionPrecedenceLaw, type ResolutionPrecedenceRung } from '../domain/resolution/precedence';
 import type { BottleneckWeightCorrelation, GeneralizationMetrics } from '../domain/types';
 
 // ─── Step-level classification ───

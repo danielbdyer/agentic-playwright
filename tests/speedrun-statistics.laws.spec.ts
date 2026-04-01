@@ -20,7 +20,7 @@ import {
   DEFAULT_BUDGET_MULTIPLIERS,
   type PhaseTimingSample,
   type PhaseTimingBaseline,
-} from '../lib/domain/speedrun-statistics';
+} from '../lib/domain/projection/speedrun-statistics';
 
 // ─── Core statistics laws ───
 

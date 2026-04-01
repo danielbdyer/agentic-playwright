@@ -1,6 +1,6 @@
 import type { Locator } from '@playwright/test';
 import { expect } from '@playwright/test';
-import { normalizeAriaSnapshot, renderAriaSnapshot } from '../domain/aria-snapshot';
+import { normalizeAriaSnapshot, renderAriaSnapshot } from '../domain/knowledge/aria-snapshot';
 import { snapshotHandleResolutionError } from '../domain/errors';
 import type { RuntimeResult } from '../runtime/result';
 import { runtimeErr, runtimeOk } from '../runtime/result';

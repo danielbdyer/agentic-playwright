@@ -1,7 +1,7 @@
 import path from 'path';
 import { Effect } from 'effect';
 import { createTrustPolicyDiagnostic } from '../domain/diagnostics';
-import { evaluateTrustPolicy } from '../domain/trust-policy';
+import { evaluateTrustPolicy } from '../domain/governance/trust-policy';
 import type { AdoId } from '../domain/identity';
 import { createScreenId } from '../domain/identity';
 import { graphIds } from '../domain/ids';

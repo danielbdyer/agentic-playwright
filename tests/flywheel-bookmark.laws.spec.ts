@@ -9,7 +9,7 @@ import {
   assignBookmarkSlots,
 } from '../dashboard/src/bookmark-system';
 import type { DashboardEventKind } from '../lib/domain/types/dashboard';
-import type { FlywheelAct } from '../lib/domain/scene-state-accumulator';
+import type { FlywheelAct } from '../lib/domain/projection/scene-state-accumulator';
 
 // ─── Helpers ───
 

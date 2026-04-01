@@ -1,5 +1,5 @@
 import type { StepResolution, GroundedStep } from '../../domain/types';
-import { chooseByPrecedence, dataResolutionPrecedenceLaw, resolutionPrecedenceLaw, runSelectionPrecedenceLaw } from '../../domain/precedence';
+import { chooseByPrecedence, dataResolutionPrecedenceLaw, resolutionPrecedenceLaw, runSelectionPrecedenceLaw } from '../../domain/resolution/precedence';
 import { uniqueSorted } from './shared';
 import type { RuntimeStepAgentContext } from './types';
 

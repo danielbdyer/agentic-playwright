@@ -1,4 +1,4 @@
-import { normalizeIntentText } from '../../domain/inference';
+import { normalizeIntentText } from '../../domain/knowledge/inference';
 import { knowledgePaths } from '../../domain/ids';
 import type { InterfaceResolutionContext, StepAction, StepResolution, GroundedStep } from '../../domain/types';
 import { bestAliasMatch } from './shared';

@@ -29,7 +29,7 @@ import { compileStepProgram, traceStepProgram } from '../lib/domain/program';
 import { parseEffectTargetRef } from '../lib/domain/effect-target';
 import { validatePostureContract } from '../lib/domain/posture-contract';
 import { createRefPath, formatRefPath, parseRefPath } from '../lib/domain/ref-path';
-import { renderGeneratedKnowledgeModule } from '../lib/domain/typegen';
+import { renderGeneratedKnowledgeModule } from '../lib/domain/codegen/typegen';
 import {
   validateAdoSnapshot,
   validatePatternDocument,

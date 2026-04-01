@@ -15,7 +15,7 @@ import {
   normalizeBox,
   screenCount,
   type AriaRole,
-} from '../lib/domain/surface-overlay';
+} from '../lib/domain/projection/surface-overlay';
 
 const ALL_ROLES: readonly AriaRole[] = [
   'navigation', 'main', 'form', 'complementary', 'banner',

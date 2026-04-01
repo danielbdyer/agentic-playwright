@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { evaluateAutoApproval, DEFAULT_AUTO_APPROVAL_POLICY } from '../lib/domain/trust-policy';
+import { evaluateAutoApproval, DEFAULT_AUTO_APPROVAL_POLICY } from '../lib/domain/governance/trust-policy';
 import type { AutoApprovalPolicy, TrustPolicy, TrustPolicyEvaluation, ProposedChangeMetadata } from '../lib/domain/types';
 
 // ─── Fixtures ───

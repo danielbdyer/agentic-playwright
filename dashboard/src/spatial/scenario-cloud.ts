@@ -19,7 +19,7 @@
  * @see docs/first-day-flywheel-visualization.md Part I (Act 1), Part I (Act 3), Part VIII
  */
 
-import type { FlywheelAct } from '../../../lib/domain/scene-state-accumulator';
+import type { FlywheelAct } from '../../../lib/domain/projection/scene-state-accumulator';
 
 // ─── Domain Types ───
 

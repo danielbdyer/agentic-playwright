@@ -11,8 +11,8 @@ import type {
 } from '../domain/types';
 import { createStateNodeRef } from '../domain/identity';
 import type { CanonicalTargetRef, PostureId, ScreenId, SelectorRef, SnapshotTemplateId } from '../domain/identity';
-import { computeDecayedConfidence, type FreshnessPolicy, defaultFreshnessPolicy } from '../domain/knowledge-freshness';
-import { precedencePolicies } from '../domain/precedence';
+import { computeDecayedConfidence, type FreshnessPolicy, defaultFreshnessPolicy } from '../domain/knowledge/knowledge-freshness';
+import { precedencePolicies } from '../domain/resolution/precedence';
 import type { WorkspaceCatalog } from './catalog';
 import { TesseractError } from '../domain/errors';
 import type { DerivedGraph } from '../domain/types/execution-context';

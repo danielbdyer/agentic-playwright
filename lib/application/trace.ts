@@ -1,6 +1,6 @@
 ﻿import { Effect } from 'effect';
 import type { AdoId } from '../domain/identity';
-import { collectRelatedSubgraph } from '../domain/graph-query';
+import { collectRelatedSubgraph } from '../domain/codegen/graph-query';
 import { graphIds } from '../domain/ids';
 import { TesseractError } from '../domain/errors';
 import { ensureDerivedGraph } from './graph';

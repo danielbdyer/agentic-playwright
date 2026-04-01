@@ -29,7 +29,7 @@ import {
   tfidfCosineSimilarity,
   shingleTermFrequencies,
   type ShingleIndex,
-} from '../lib/domain/shingles';
+} from '../lib/domain/knowledge/shingles';
 import {
   accrueSemanticEntry,
   emptyCatalog,

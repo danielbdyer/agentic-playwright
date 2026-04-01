@@ -18,7 +18,7 @@ import {
   shouldProposeUpdate,
   matureComponentKnowledge,
   type ComponentEvidence,
-} from '../lib/domain/component-maturation';
+} from '../lib/domain/projection/component-maturation';
 import { mulberry32, pick, randomWord, randomInt , LAW_SEED_COUNT } from './support/random';
 
 // ─── Helpers ───
