@@ -52,6 +52,10 @@ function toLegacyPathAliases(
     sessionsDir: execution.sessionsDir,
     learningDir: execution.learningDir,
     learningManifestPath: execution.learningManifestPath,
+    learningStatePath: execution.learningStatePath,
+    intelligenceDir: execution.intelligenceDir,
+    screenshotDir: execution.screenshotDir,
+    screenshotManifestPath: execution.screenshotManifestPath,
     inboxDir: governance.inboxDir,
     inboxIndexPath: governance.inboxIndexPath,
     inboxReportPath: governance.inboxReportPath,
@@ -126,10 +130,14 @@ export function createProjectPaths(rootDir: string, suiteRoot?: string): Project
     sessionsDir: path.join(rootDir, '.tesseract', 'sessions'),
     learningDir: path.join(rootDir, '.tesseract', 'learning'),
     learningManifestPath: path.join(rootDir, '.tesseract', 'learning', 'manifest.json'),
+    learningStatePath: path.join(rootDir, '.tesseract', 'learning', 'state.json'),
     benchmarkRunsDir: path.join(rootDir, '.tesseract', 'benchmarks'),
     evidenceDir: path.join(rootDir, '.tesseract', 'evidence'),
     confidenceDir: path.join(rootDir, '.tesseract', 'confidence'),
     confidenceIndexPath: path.join(rootDir, '.tesseract', 'confidence', 'index.json'),
+    intelligenceDir: path.join(rootDir, '.tesseract', 'intelligence'),
+    screenshotDir: path.join(rootDir, '.tesseract', 'evidence', 'screenshots'),
+    screenshotManifestPath: path.join(rootDir, '.tesseract', 'evidence', 'screenshots', 'manifest.json'),
   };
 
   const governance: GovernancePaths = {

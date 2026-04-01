@@ -25,7 +25,8 @@ export type ConvergenceReason = 'no-proposals' | 'threshold-met' | 'budget-exhau
 export type ConvergenceEvent =
   | { readonly kind: 'iteration-complete'; readonly proposalsGenerated: number; readonly proposalsActivated: number; readonly hitRateDelta: number; readonly convergenceThreshold?: number }
   | { readonly kind: 'budget-check'; readonly instructionsUsed: number; readonly maxInstructions: number }
-  | { readonly kind: 'iteration-limit'; readonly current: number; readonly max: number };
+  | { readonly kind: 'iteration-limit'; readonly current: number; readonly max: number }
+  | { readonly kind: 'learning-signal'; readonly degradingCount: number; readonly maturity: number };
 
 // ─── Constructors ───
 
@@ -57,6 +58,16 @@ export function transitionConvergence(
   // Iteration limit overrides all non-terminal states
   if (event.kind === 'iteration-limit' && event.current >= event.max) {
     return { kind: 'converged', reason: 'max-iterations' };
+  }
+
+  // Learning-signal: multiple degrading dimensions backs FSM out of plateau
+  // to prevent premature convergence when hit rate improves but quality worsens.
+  if (event.kind === 'learning-signal') {
+    const threshold = Math.max(1, Math.ceil(3 * event.maturity));
+    if (event.degradingCount >= threshold && state.kind === 'plateau') {
+      return { kind: 'narrowing', hitRateImproving: false, delta: 0 };
+    }
+    return state;
   }
 
   // Non-terminal transitions for iteration-complete events

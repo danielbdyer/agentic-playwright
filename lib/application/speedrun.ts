@@ -138,6 +138,18 @@ function loadScorecard(paths: ProjectPaths) {
   });
 }
 
+const LearningSignalsSummarySchema = Schema.Struct({
+  timingRegressionRate: Schema.Number,
+  selectorFlakinessRate: Schema.Number,
+  recoveryEfficiency: Schema.Number,
+  consoleNoiseLevel: Schema.Number,
+  costEfficiency: Schema.Number,
+  rungStability: Schema.Number,
+  componentMaturityRate: Schema.Number,
+  compositeHealthScore: Schema.Number,
+  hotScreenCount: Schema.Number,
+});
+
 const ImprovementLoopIterationSchema = Schema.Struct({
   iteration: Schema.Number,
   scenarioIds: Schema.Array(Schema.String),
@@ -148,6 +160,7 @@ const ImprovementLoopIterationSchema = Schema.Struct({
   unresolvedStepCount: Schema.Number,
   totalStepCount: Schema.Number,
   instructionCount: Schema.Number,
+  learningSignals: Schema.optional(LearningSignalsSummarySchema),
 });
 
 const ImprovementLoopLedgerSchema = Schema.Struct({

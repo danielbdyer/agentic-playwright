@@ -45,6 +45,8 @@ interface WorkItemContext {
   readonly confidence: number;
   readonly occurrenceCount: number;
   readonly isBlocking: boolean;
+  /** Health boost from learning signals — higher when execution health is degraded. */
+  readonly healthBoost: number;
 }
 
 const KIND_WEIGHTS: Readonly<Record<WorkItemKind, number>> = {
@@ -60,16 +62,18 @@ const urgencyRule: ScoringRule<WorkItemContext> = { score: (ctx) => ctx.isBlocki
 const impactRule: ScoringRule<WorkItemContext> = { score: (ctx) => Math.min(ctx.occurrenceCount / 5, 1) };
 const confidenceRule: ScoringRule<WorkItemContext> = { score: (ctx) => ctx.confidence };
 const kindRule: ScoringRule<WorkItemContext> = { score: (ctx) => KIND_WEIGHTS[ctx.kind] ?? 0.5 };
+const healthRule: ScoringRule<WorkItemContext> = { score: (ctx) => ctx.healthBoost };
 
 const workItemScoring = combineScoringRules<WorkItemContext>(
-  weightedScoringRule(0.25, urgencyRule),
-  weightedScoringRule(0.30, impactRule),
+  weightedScoringRule(0.20, urgencyRule),
+  weightedScoringRule(0.25, impactRule),
   weightedScoringRule(0.20, confidenceRule),
-  weightedScoringRule(0.25, kindRule),
+  weightedScoringRule(0.20, kindRule),
+  weightedScoringRule(0.15, healthRule),
 );
 
-function scoreWorkItem(kind: WorkItemKind, confidence: number, occurrenceCount: number, isBlocking: boolean): number {
-  return round4(workItemScoring.score({ kind, confidence, occurrenceCount, isBlocking }));
+function scoreWorkItem(kind: WorkItemKind, confidence: number, occurrenceCount: number, isBlocking: boolean, healthBoost: number = 0): number {
+  return round4(workItemScoring.score({ kind, confidence, occurrenceCount, isBlocking, healthBoost }));
 }
 
 function stableWorkItemId(kind: WorkItemKind, screen: string, element: string): string {
@@ -195,12 +199,66 @@ function hotspotWorkItems(hotspots: readonly WorkflowHotspot[], iteration: numbe
   });
 }
 
+// ─── Health-Aware Work Items ───
+
+/** Emit validate-calibration work items when health dimensions are critically degraded
+ *  AND signal maturity is high enough to trust the signal (maturity > 0.4).
+ *  Pure function: learning signals → work items. */
+function healthWorkItems(
+  learningSignals: import('../domain/types').LearningSignalsSummary | undefined,
+  iteration: number,
+): readonly AgentWorkItem[] {
+  if (!learningSignals) return [];
+
+  // Only trust health signals after sufficient iterations
+  const maturity = 1 - 1 / (1 + Math.max(0, iteration) / 3);
+  if (maturity <= 0.4) return [];
+
+  const dims: readonly { readonly name: string; readonly value: number; readonly lowerIsBetter: boolean; readonly target: string }[] = [
+    { name: 'timingRegression', value: learningSignals.timingRegressionRate, lowerIsBetter: true, target: 'lib/application/timing-baseline.ts' },
+    { name: 'selectorFlakiness', value: learningSignals.selectorFlakinessRate, lowerIsBetter: true, target: 'knowledge/screens/' },
+    { name: 'consoleNoise', value: learningSignals.consoleNoiseLevel, lowerIsBetter: true, target: 'lib/application/console-intelligence.ts' },
+    { name: 'recoveryEfficiency', value: learningSignals.recoveryEfficiency, lowerIsBetter: false, target: 'lib/application/recovery-effectiveness.ts' },
+    { name: 'costEfficiency', value: learningSignals.costEfficiency, lowerIsBetter: false, target: 'lib/application/execution-cost.ts' },
+    { name: 'rungStability', value: learningSignals.rungStability, lowerIsBetter: false, target: 'lib/application/rung-drift.ts' },
+    { name: 'componentMaturity', value: learningSignals.componentMaturityRate, lowerIsBetter: false, target: 'lib/domain/projection/component-maturation.ts' },
+  ];
+
+  // Critical threshold: lower-is-better > 0.5, higher-is-better < 0.3
+  const critical = dims.filter((d) => d.lowerIsBetter ? d.value > 0.5 : d.value < 0.3);
+
+  return critical.map((dim): AgentWorkItem => ({
+    id: stableWorkItemId('validate-calibration', 'health', dim.name),
+    kind: 'validate-calibration',
+    priority: scoreWorkItem('validate-calibration', round4(maturity), 1, false, round4(1 - learningSignals.compositeHealthScore)),
+    title: `Health: ${dim.name} critically degraded (${dim.value.toFixed(2)})`,
+    rationale: `Execution health dimension "${dim.name}" is critically ${dim.lowerIsBetter ? 'high' : 'low'} at maturity ${maturity.toFixed(2)}.`,
+    adoId: null,
+    iteration,
+    actions: [{
+      kind: 'inspect',
+      target: makeTarget('knowledge', dim.target, `Investigate ${dim.name} degradation`),
+      params: { dimension: dim.name, value: dim.value, maturity },
+    }],
+    context: {
+      screen: undefined,
+      element: dim.name,
+      artifactRefs: [dim.target],
+    },
+    evidence: { confidence: round4(maturity), sources: [] },
+    linkedProposals: [],
+    linkedHotspots: [],
+    linkedBottlenecks: [],
+  }));
+}
+
 // ─── Composition ───
 
 export function buildAgentWorkItems(
   catalog: WorkspaceCatalog,
   iteration: number,
   precomputedHotspots?: readonly WorkflowHotspot[],
+  learningSignals?: import('../domain/types').LearningSignalsSummary | undefined,
 ): readonly AgentWorkItem[] {
   const hotspots = precomputedHotspots ?? buildWorkflowHotspots(
     catalog.runRecords.map((e) => e.artifact),
@@ -211,6 +269,7 @@ export function buildAgentWorkItems(
     ...proposalWorkItems(catalog, iteration),
     ...needsHumanWorkItems(catalog, iteration),
     ...hotspotWorkItems(hotspots, iteration),
+    ...healthWorkItems(learningSignals, iteration),
   ].sort((a, b) => b.priority - a.priority);
 }
 
@@ -532,12 +591,13 @@ export function emitAgentWorkbench(options: {
   readonly catalog?: WorkspaceCatalog | undefined;
   readonly iteration?: number | undefined;
   readonly hotspots?: readonly WorkflowHotspot[] | undefined;
+  readonly learningSignals?: import('../domain/types').LearningSignalsSummary | undefined;
 }) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const catalog = options.catalog ?? (yield* loadWorkspaceCatalog({ paths: options.paths, scope: 'post-run' }));
     const completions = yield* loadCompletions(options.paths);
-    const allItems = buildAgentWorkItems(catalog, options.iteration ?? 0, options.hotspots);
+    const allItems = buildAgentWorkItems(catalog, options.iteration ?? 0, options.hotspots, options.learningSignals);
     const pendingItems = excludeCompleted(allItems, completions);
     const projection: AgentWorkbenchProjection = {
       kind: 'agent-workbench',

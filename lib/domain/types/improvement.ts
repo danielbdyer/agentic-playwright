@@ -57,6 +57,12 @@ export interface SpeedrunProgressEvent {
     /** Strongest correlation signal observed. */
     readonly topCorrelation: { readonly signal: string; readonly strength: number } | null;
   } | undefined;
+  /** Execution health signals from intelligence modules (when available). */
+  readonly executionHealth?: {
+    readonly healthScore: number;
+    readonly degradingDimensions: readonly string[];
+    readonly maturity: number;
+  } | undefined;
 }
 
 export interface ExperimentScorecardComparison {
@@ -64,6 +70,25 @@ export interface ExperimentScorecardComparison {
   readonly knowledgeHitRateDelta: number;
   readonly translationPrecisionDelta: number;
   readonly convergenceVelocityDelta: number;
+}
+
+/**
+ * Iteration-level execution health summary derived from all intelligence modules.
+ *
+ * Rates are [0,1]. For "lower is better" dimensions (regression, flakiness, noise),
+ * 0 = healthy. For "higher is better" dimensions (efficiency, stability, maturity),
+ * 1 = healthy. compositeHealthScore is a weighted aggregate where 1 = fully healthy.
+ */
+export interface LearningSignalsSummary {
+  readonly timingRegressionRate: number;
+  readonly selectorFlakinessRate: number;
+  readonly recoveryEfficiency: number;
+  readonly consoleNoiseLevel: number;
+  readonly costEfficiency: number;
+  readonly rungStability: number;
+  readonly componentMaturityRate: number;
+  readonly compositeHealthScore: number;
+  readonly hotScreenCount: number;
 }
 
 export interface ImprovementLoopIteration {
@@ -76,6 +101,9 @@ export interface ImprovementLoopIteration {
   readonly unresolvedStepCount: number;
   readonly totalStepCount: number;
   readonly instructionCount: number;
+  /** Execution health signals aggregated from all intelligence modules.
+   *  Optional for backward compatibility with older serialized ledgers. */
+  readonly learningSignals?: LearningSignalsSummary | undefined;
 }
 
 export type ImprovementLoopConvergenceReason =

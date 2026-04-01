@@ -4,6 +4,9 @@ import { activateProposalBundle, autoApproveEligibleProposals } from './activate
 import { loadWorkspaceCatalog } from './catalog';
 import { buildPartialFitnessMetrics } from './fitness';
 import { calibrateWeightsFromCorrelations } from './learning-bottlenecks';
+import { aggregateLearningState, type LearningState } from './learning-state';
+import { buildExecutionCoherence } from './execution-coherence';
+import { signalMaturity, buildLearningSignalsSummary, countDegradingSignals } from './signal-maturation';
 import { emitAgentWorkbench, processWorkItems, emitInterventionLineage } from './agent-workbench';
 import { createDashboardDecider } from './dashboard-decider';
 import { createDualModeDecider, createAgentDecider } from './agent-decider';
@@ -35,6 +38,7 @@ import type {
   ImprovementLoopConvergenceReason,
   ImprovementLoopIteration,
   KnowledgePosture,
+  LearningSignalsSummary,
   ProposalBundle,
   SpeedrunProgressEvent,
   TrustPolicy,
@@ -98,6 +102,10 @@ interface LoopState {
   readonly bottleneckWeights: BottleneckWeights;
   /** Typed convergence FSM state, threaded through iterations. */
   readonly convergenceFsm: ConvergenceState;
+  /** Accumulated learning state from intelligence modules, threaded through iterations.
+   *  Each iteration refines this by feeding step execution receipts into the aggregator.
+   *  Null on first iteration or when no receipts are available. */
+  readonly learningState: LearningState | null;
 }
 
 function createInitialState(): LoopState {
@@ -109,6 +117,7 @@ function createInitialState(): LoopState {
     startedAt: Date.now(),
     bottleneckWeights: DEFAULT_PIPELINE_CONFIG.bottleneckWeights,
     convergenceFsm: initialConvergenceState(),
+    learningState: null,
   };
 }
 
@@ -132,17 +141,36 @@ function collectPendingProposals(bundles: readonly ProposalBundle[]): readonly P
  * This is the "gradient signal" for the self-calibrating scoring rule.
  */
 /** Extract bottleneck signal strengths from a single iteration's characteristics.
- *  Pure function: maps iteration metrics to weighted bottleneck signals. */
+ *  Pure function: maps iteration metrics to weighted bottleneck signals.
+ *  When learningSignals are present on the iteration, enriches with 7 maturity-dampened
+ *  health dimensions (selector flakiness, timing regression, etc.). */
 export function iterationSignalStrengths(iteration: DogfoodIterationResult): readonly { readonly signal: string; readonly strength: number }[] {
   const unresolvedRate = iteration.totalStepCount > 0
     ? iteration.unresolvedStepCount / iteration.totalStepCount
     : 0;
-  return [
+  const baseSignals = [
     { signal: 'high-unresolved-rate', strength: unresolvedRate },
     { signal: 'repair-recovery-hotspot', strength: iteration.proposalsActivated > 0 ? 0.3 : 0 },
     { signal: 'translation-fallback-dominant', strength: unresolvedRate > 0.5 ? 0.2 : 0 },
     { signal: 'thin-screen-coverage', strength: unresolvedRate > 0.3 ? 0.1 : 0 },
-  ].filter(({ strength }) => strength > 0);
+  ];
+
+  const ls = iteration.learningSignals;
+  if (!ls) return baseSignals.filter(({ strength }) => strength > 0);
+
+  // Dampen health signals by iteration maturity — early signals have low weight
+  const maturity = signalMaturity(iteration.iteration);
+  const healthSignals = [
+    { signal: 'selector-flakiness', strength: round4(ls.selectorFlakinessRate * maturity) },
+    { signal: 'timing-regression', strength: round4(ls.timingRegressionRate * maturity) },
+    { signal: 'console-noise', strength: round4(ls.consoleNoiseLevel * maturity) },
+    { signal: 'cost-anomaly', strength: round4((1 - ls.costEfficiency) * maturity) },
+    { signal: 'rung-degradation', strength: round4((1 - ls.rungStability) * maturity) },
+    { signal: 'recovery-inefficiency', strength: round4((1 - ls.recoveryEfficiency) * maturity) },
+    { signal: 'component-maturation-stall', strength: round4((1 - ls.componentMaturityRate) * maturity) },
+  ];
+
+  return [...baseSignals, ...healthSignals].filter(({ strength }) => strength > 0);
 }
 
 /** Zip consecutive items into (current, next) tuples for fold analysis over adjacent pairs. */
@@ -411,10 +439,29 @@ function buildProgressEvent(
         ? { signal: topCorrelation.signal, strength: topCorrelation.correlationWithImprovement }
         : null,
     },
+    ...(result.learningSignals ? {
+      executionHealth: {
+        healthScore: result.learningSignals.compositeHealthScore,
+        degradingDimensions: getDegradingDimensionNames(result.learningSignals),
+        maturity: signalMaturity(result.iteration),
+      },
+    } : {}),
   };
 }
 
-function runIteration(iteration: number, options: DogfoodOptions) {
+function getDegradingDimensionNames(ls: LearningSignalsSummary): readonly string[] {
+  const dims: string[] = [];
+  if (ls.timingRegressionRate > 0.3) dims.push('timingRegression');
+  if (ls.selectorFlakinessRate > 0.3) dims.push('selectorFlakiness');
+  if (ls.consoleNoiseLevel > 0.3) dims.push('consoleNoise');
+  if (ls.recoveryEfficiency < 0.5) dims.push('recoveryEfficiency');
+  if (ls.costEfficiency < 0.5) dims.push('costEfficiency');
+  if (ls.rungStability < 0.5) dims.push('rungStability');
+  if (ls.componentMaturityRate < 0.5) dims.push('componentMaturity');
+  return dims;
+}
+
+function runIteration(iteration: number, options: DogfoodOptions, state: LoopState) {
   // On iteration 1, use the configured posture (which may be cold-start).
   // On subsequent iterations, always use warm-start — the loop has activated
   // proposals into the knowledge directory, so we need to read them back.
@@ -486,7 +533,19 @@ function runIteration(iteration: number, options: DogfoodOptions) {
     const componentEvidence = extractComponentEvidence(postRunCatalog.runRecords as never);
     const componentProposals = matureComponentKnowledge(componentEvidence);
 
-    // Step 3d: proposal quality metrics — classify alias outcomes across runs
+    // Step 3d: aggregate learning state from all intelligence modules
+    const executionReceipts = (postRunCatalog.runRecords as unknown as ReadonlyArray<{
+      readonly artifact: { readonly steps: ReadonlyArray<{ readonly execution: import('../domain/types').StepExecutionReceipt }> };
+    }>).flatMap((entry) => entry.artifact.steps.map((step) => step.execution));
+    const updatedLearningState = aggregateLearningState(executionReceipts, state.learningState);
+    const coherence = buildExecutionCoherence({ learningState: updatedLearningState });
+    const learningSignals = buildLearningSignalsSummary(
+      updatedLearningState.signals,
+      coherence.compositeHealthScore,
+      coherence.hotScreens.length,
+    );
+
+    // Step 3e: proposal quality metrics — classify alias outcomes across runs
     const allBundles = postRunCatalog.proposalBundles.map((entry) => entry.artifact);
     const aliasOutcomes = extractAliasOutcomes(allBundles, iteration);
     const proposalQuality = aggregateQualityMetrics(aliasOutcomes);
@@ -528,7 +587,7 @@ function runIteration(iteration: number, options: DogfoodOptions) {
     }
 
     // Step 4b: emit agent workbench (structured work items for agent consumption)
-    yield* emitAgentWorkbench({ paths: options.paths, catalog: postRunCatalog, iteration });
+    yield* emitAgentWorkbench({ paths: options.paths, catalog: postRunCatalog, iteration, learningSignals });
 
     // Step 4c: inter-iteration act loop — process work items before next iteration
     // Resolve decider: dual-mode (agent + human) > explicit > none
@@ -576,9 +635,10 @@ function runIteration(iteration: number, options: DogfoodOptions) {
       unresolvedStepCount: metrics.totalUnresolved,
       totalStepCount: metrics.totalSteps,
       instructionCount: metrics.totalInstructions,
+      learningSignals,
     };
 
-    return { result, partialFitness };
+    return { result, partialFitness, learningState: updatedLearningState };
   });
 }
 
@@ -599,7 +659,7 @@ function dogfoodMachine(options: DogfoodOptions) {
       }));
 
       const iterationStart = Date.now();
-      const { result, partialFitness } = yield* runIteration(iteration, options);
+      const { result, partialFitness, learningState: iterationLearning } = yield* runIteration(iteration, options, state);
       const iterationDuration = Date.now() - iterationStart;
       const nextCumulativeInstructions = state.cumulativeInstructions + result.instructionCount;
       const prevHitRate = state.iterations.length > 0
@@ -622,11 +682,20 @@ function dogfoodMachine(options: DogfoodOptions) {
             maxInstructions: options.maxInstructionCount,
           })
         : afterIteration;
-      const nextFsm = transitionConvergence(afterBudget, {
+      const afterLimit = transitionConvergence(afterBudget, {
         kind: 'iteration-limit',
         current: iteration,
         max: options.maxIterations,
       });
+      // Feed learning signals into FSM — prevents premature convergence
+      // when hit rate improves but underlying execution quality degrades.
+      const nextFsm = result.learningSignals
+        ? transitionConvergence(afterLimit, {
+            kind: 'learning-signal',
+            degradingCount: countDegradingSignals(result.learningSignals),
+            maturity: signalMaturity(iteration),
+          })
+        : afterLimit;
       const convergence = isTerminal(nextFsm)
         ? { converged: true, reason: nextFsm.reason as ImprovementLoopConvergenceReason }
         : { converged: false, reason: null as ImprovementLoopConvergenceReason };
@@ -648,6 +717,7 @@ function dogfoodMachine(options: DogfoodOptions) {
         convergenceReason: convergence.reason ?? state.convergenceReason,
         bottleneckWeights: calibratedWeights,
         convergenceFsm: nextFsm,
+        learningState: iterationLearning,
       };
 
       // Emit progress event after each iteration (with calibration observability)
@@ -702,6 +772,16 @@ function dogfoodMachine(options: DogfoodOptions) {
         correlations: correlations.map((c) => ({ signal: c.signal, strength: c.correlationWithImprovement })),
       }));
 
+      // Layer 2: learning-signals — execution health from intelligence modules
+      if (result.learningSignals) {
+        yield* dashboard.emit(dashboardEvent('learning-signals', {
+          iteration,
+          signals: result.learningSignals,
+          compositeHealth: result.learningSignals.compositeHealthScore,
+          maturity: signalMaturity(iteration),
+        }));
+      }
+
       return { next: nextState, done: convergence.converged || convergence.reason === 'max-iterations' };
     }),
   };
@@ -737,10 +817,21 @@ export function runDogfoodLoop(options: DogfoodOptions) {
     const ledgerPath = improvementLoopLedgerPath(options.paths);
     const compatibilityLedgerPath = `${options.paths.rootDir}/.tesseract/runs/dogfood-ledger.json`;
     yield* fs.ensureDir(options.paths.runsDir);
-    yield* Effect.all([
+    const writes = [
       fs.writeJson(ledgerPath, ledger),
       fs.writeJson(compatibilityLedgerPath, compatibilityLedger),
-    ], { concurrency: 'unbounded' });
+    ];
+    // Persist accumulated learning state for cross-run accumulation
+    if (finalState.learningState) {
+      const learningDir = path.dirname(options.paths.execution.learningStatePath);
+      writes.push(
+        Effect.gen(function* () {
+          yield* fs.ensureDir(learningDir);
+          yield* fs.writeJson(options.paths.execution.learningStatePath, finalState.learningState);
+        }),
+      );
+    }
+    yield* Effect.all(writes, { concurrency: 'unbounded' });
 
     return { ledger, ledgerPath, compatibilityLedger, compatibilityLedgerPath };
   });

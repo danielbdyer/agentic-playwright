@@ -108,6 +108,8 @@ export interface FitnessInputData {
   readonly runSteps: readonly RunStepData[];
   readonly proposalBundles: readonly ProposalBundle[];
   readonly experimentHistory?: readonly ExperimentRecord[] | undefined;
+  /** Learning signals from the last iteration — enriches fitness metrics with execution health. */
+  readonly learningSignals?: import('../domain/types').LearningSignalsSummary | undefined;
 }
 
 function extractStepOutcomes(data: FitnessInputData): readonly StepOutcome[] {
@@ -357,6 +359,22 @@ export function buildFitnessReport(data: FitnessInputData): PipelineFitnessRepor
     ? round4(recoveryAttempted.filter((s) => s.recoverySucceeded).length / recoveryAttempted.length)
     : 1;
 
+  // Extract execution health from learning signals on the last iteration
+  const lastIteration = data.ledger.iterations[data.ledger.iterations.length - 1];
+  const ls = data.learningSignals ?? lastIteration?.learningSignals;
+  const executionHealth = ls ? {
+    compositeScore: ls.compositeHealthScore,
+    dimensions: [
+      { name: 'timingRegression', value: ls.timingRegressionRate, status: ls.timingRegressionRate > 0.3 ? 'critical' : ls.timingRegressionRate > 0.1 ? 'warning' : 'healthy' },
+      { name: 'selectorFlakiness', value: ls.selectorFlakinessRate, status: ls.selectorFlakinessRate > 0.3 ? 'critical' : ls.selectorFlakinessRate > 0.1 ? 'warning' : 'healthy' },
+      { name: 'consoleNoise', value: ls.consoleNoiseLevel, status: ls.consoleNoiseLevel > 0.3 ? 'critical' : ls.consoleNoiseLevel > 0.1 ? 'warning' : 'healthy' },
+      { name: 'recoveryEfficiency', value: ls.recoveryEfficiency, status: ls.recoveryEfficiency < 0.5 ? 'critical' : ls.recoveryEfficiency < 0.8 ? 'warning' : 'healthy' },
+      { name: 'costEfficiency', value: ls.costEfficiency, status: ls.costEfficiency < 0.5 ? 'critical' : ls.costEfficiency < 0.8 ? 'warning' : 'healthy' },
+      { name: 'rungStability', value: ls.rungStability, status: ls.rungStability < 0.5 ? 'critical' : ls.rungStability < 0.8 ? 'warning' : 'healthy' },
+      { name: 'componentMaturity', value: ls.componentMaturityRate, status: ls.componentMaturityRate < 0.5 ? 'critical' : ls.componentMaturityRate < 0.8 ? 'warning' : 'healthy' },
+    ],
+  } : undefined;
+
   const metrics: PipelineFitnessMetrics = {
     knowledgeHitRate: data.ledger.iterations.length > 0
       ? data.ledger.iterations[data.ledger.iterations.length - 1]!.knowledgeHitRate
@@ -376,6 +394,7 @@ export function buildFitnessReport(data: FitnessInputData): PipelineFitnessRepor
       ? round4(steps.filter((s) => s.degraded).length / totalSteps)
       : 0,
     recoverySuccessRate,
+    executionHealth,
   };
 
   // Scoring effectiveness — compute real correlations from experiment history

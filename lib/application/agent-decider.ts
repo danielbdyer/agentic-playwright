@@ -34,11 +34,14 @@ export interface DualModeDeciderOptions {
 
 // ─── Pure Heuristics ───
 
-/** Default escalation heuristic: escalate low-confidence and blocking items. Pure. */
+/** Default escalation heuristic: escalate low-confidence, blocking, and health-critical items. Pure.
+ *  validate-calibration items with high confidence (maturity-backed) are agent-routable;
+ *  low-confidence ones escalate to human for review. */
 export const defaultEscalationHeuristic = (item: AgentWorkItem): boolean =>
   item.evidence.confidence < 0.4
   || item.kind === 'interpret-step'
-  || (item.kind === 'investigate-hotspot' && item.evidence.sources.length < 2);
+  || (item.kind === 'investigate-hotspot' && item.evidence.sources.length < 2)
+  || (item.kind === 'validate-calibration' && item.evidence.confidence < 0.5);
 
 // ─── Pure: extract MCP tool arguments from a work item ───
 
@@ -53,6 +56,15 @@ const workItemToToolArgs = (item: AgentWorkItem): Record<string, unknown> => ({
   screen: item.context.screen ?? null,
   element: item.context.element ?? null,
   actions: item.actions.map((a) => a.kind),
+  // Health context: include dimension details for validate-calibration items
+  // so the agent can make informed decisions about health degradation
+  ...(item.kind === 'validate-calibration' && item.actions[0]?.params
+    ? {
+        healthDimension: item.actions[0].params.dimension ?? null,
+        healthValue: item.actions[0].params.value ?? null,
+        healthMaturity: item.actions[0].params.maturity ?? null,
+      }
+    : {}),
 });
 
 // ─── Pure: parse agent response into a decision ───

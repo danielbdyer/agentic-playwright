@@ -141,9 +141,17 @@ function iterationObjectiveVector(iteration: ImprovementLoopIteration): Objectiv
     ? iteration.proposalsBlocked / (iteration.proposalsActivated + iteration.proposalsBlocked)
     : 0;
 
+  // Health penalty: penalize architectureFitness when execution health is degraded.
+  // Dampened by signal maturity to avoid distortion from early noisy signals.
+  const ls = iteration.learningSignals;
+  const maturity = ls ? (1 - 1 / (1 + iteration.iteration / 3)) : 0;
+  const healthPenalty = ls
+    ? round4((1 - ls.compositeHealthScore) * maturity * 0.15)
+    : 0;
+
   return {
     pipelineFitness: round4(iteration.knowledgeHitRate),
-    architectureFitness: round4(resolvedRate),
+    architectureFitness: round4(Math.max(0, resolvedRate - healthPenalty)),
     operatorCost: round4((instructionLoad + blockedRate) / 2),
   };
 }
@@ -190,6 +198,51 @@ function failureSignals(input: BuildImprovementRunInput): readonly ImprovementSi
   }));
 }
 
+function targetPathsForHealthDimension(name: string): readonly string[] {
+  switch (name) {
+    case 'timingRegression': return ['lib/application/timing-baseline.ts'];
+    case 'selectorFlakiness': return ['lib/application/selector-health.ts', 'knowledge/screens/'];
+    case 'consoleNoise': return ['lib/application/console-intelligence.ts'];
+    case 'recoveryEfficiency': return ['lib/application/recovery-effectiveness.ts', 'lib/runtime/recovery-strategies.ts'];
+    case 'costEfficiency': return ['lib/application/execution-cost.ts'];
+    case 'rungStability': return ['lib/application/rung-drift.ts', 'knowledge/surfaces/'];
+    case 'componentMaturity': return ['lib/domain/projection/component-maturation.ts', 'knowledge/components/'];
+    default: return [];
+  }
+}
+
+function healthDimensionSignals(input: BuildImprovementRunInput): readonly ImprovementSignal[] {
+  const lastIteration = input.ledger.iterations[input.ledger.iterations.length - 1];
+  const ls = lastIteration?.learningSignals;
+  if (!ls) return [];
+
+  const maturity = 1 - 1 / (1 + lastIteration.iteration / 3);
+  const runId = resolvedImprovementRunId(input);
+
+  const dims: readonly { readonly name: string; readonly value: number; readonly lowerIsBetter: boolean }[] = [
+    { name: 'timingRegression', value: ls.timingRegressionRate, lowerIsBetter: true },
+    { name: 'selectorFlakiness', value: ls.selectorFlakinessRate, lowerIsBetter: true },
+    { name: 'consoleNoise', value: ls.consoleNoiseLevel, lowerIsBetter: true },
+    { name: 'recoveryEfficiency', value: ls.recoveryEfficiency, lowerIsBetter: false },
+    { name: 'costEfficiency', value: ls.costEfficiency, lowerIsBetter: false },
+    { name: 'rungStability', value: ls.rungStability, lowerIsBetter: false },
+    { name: 'componentMaturity', value: ls.componentMaturityRate, lowerIsBetter: false },
+  ];
+
+  return dims
+    .filter((d) => d.lowerIsBetter ? d.value > 0.3 : d.value < 0.5)
+    .map((d, index) => ({
+      signalId: `${runId}:signal:health:${d.name}:${index}`,
+      kind: 'architecture-fitness' as const,
+      summary: `Execution health dimension "${d.name}" is degraded (${d.value.toFixed(2)})`,
+      detail: `Signal maturity: ${maturity.toFixed(2)}. ${d.lowerIsBetter ? 'Lower is better' : 'Higher is better'}.`,
+      severity: (maturity > 0.5 ? 'warn' : 'info') as 'info' | 'warn',
+      targetPaths: targetPathsForHealthDimension(d.name),
+      interventionKinds: ['self-improvement-action'] as const,
+      metrics: { value: d.value, maturity },
+    }));
+}
+
 function improvementSignals(input: BuildImprovementRunInput): readonly ImprovementSignal[] {
   const baseSignals: readonly ImprovementSignal[] = [
     {
@@ -223,7 +276,7 @@ function improvementSignals(input: BuildImprovementRunInput): readonly Improveme
     },
   ];
 
-  return [...baseSignals, ...failureSignals(input)];
+  return [...baseSignals, ...failureSignals(input), ...healthDimensionSignals(input)];
 }
 
 function candidateInterventions(

@@ -81,6 +81,7 @@ export type DashboardEventKind =
   | 'convergence-evaluated'
   | 'iteration-summary'
   | 'diagnostics'
+  | 'learning-signals'
   | 'connected'
   | 'error';
 
