@@ -24,7 +24,7 @@ import { LocalApplicationInterfaceGraphRepository } from '../infrastructure/repo
 import { LocalImprovementRunRepository } from '../infrastructure/repositories/local-improvement-run-repository';
 import { LocalInterventionLedgerRepository } from '../infrastructure/repositories/local-intervention-ledger-repository';
 import { makeLocalVersionControl } from '../infrastructure/tooling/local-version-control';
-import { LocalRuntimeScenarioRunner, createLocalRuntimeScenarioRunnerWithInterpreter } from './local-runtime-scenario-runner';
+import { LocalRuntimeScenarioRunner, createLocalRuntimeScenarioRunnerWithInterpreter, createLocalRuntimeScenarioRunnerWithPool } from './local-runtime-scenario-runner';
 import type { AgentInterpreterPort } from '../domain/resolution/model';
 import type { AgentInterpretationResult } from '../domain/types/agent-interpreter';
 import { PlaywrightBridge, DisabledPlaywrightBridge } from '../infrastructure/mcp/playwright-mcp-bridge';
@@ -56,6 +56,10 @@ export interface LocalServiceOptions {
   /** Inject a Playwright bridge for headed browser interaction.
    *  Progressive enhancement: when available, agents get direct DOM access. */
   readonly playwrightBridge?: PlaywrightBridgePort | undefined;
+  /** Inject a browser pool for page reuse across scenario runs.
+   *  When provided, the runtime scenario runner acquires/releases pages from the pool
+   *  instead of launching a new browser per scenario. */
+  readonly browserPool?: import('../application/browser-pool').BrowserPoolPort | undefined;
 }
 
 export interface LocalServiceContext {
@@ -103,9 +107,11 @@ export function createLocalServiceContext(rootDir: string, options?: LocalServic
   };
 
   const pipelineConfig = options?.pipelineConfig ?? DEFAULT_PIPELINE_CONFIG;
-  const runtimeScenarioRunner = options?.agentInterpreter
-    ? createLocalRuntimeScenarioRunnerWithInterpreter(options.agentInterpreter)
-    : LocalRuntimeScenarioRunner;
+  const runtimeScenarioRunner = options?.browserPool
+    ? createLocalRuntimeScenarioRunnerWithPool(options.browserPool, options.agentInterpreter)
+    : options?.agentInterpreter
+      ? createLocalRuntimeScenarioRunnerWithInterpreter(options.agentInterpreter)
+      : LocalRuntimeScenarioRunner;
   const dashboard = options?.dashboard ?? DisabledDashboard;
   const stageTracer: StageTracerPort = options?.dashboard
     ? {

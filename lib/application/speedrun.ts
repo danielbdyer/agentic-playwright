@@ -80,6 +80,8 @@ export interface SpeedrunInput {
   readonly interpreterMode?: 'dry-run' | 'diagnostic' | 'playwright' | undefined;
   /** Base URL of the SUT for Playwright execution (e.g., http://127.0.0.1:3200). */
   readonly baseUrl?: string | undefined;
+  /** Browser pool for page reuse across scenarios. Managed by caller. */
+  readonly browserPool?: import('./browser-pool').BrowserPoolPort | undefined;
 }
 
 export interface SpeedrunResult {
@@ -110,6 +112,8 @@ export interface MultiSeedInput {
   /** Interpreter mode for the dogfood loop. Default: 'playwright'. */
   readonly interpreterMode?: 'dry-run' | 'diagnostic' | 'playwright' | undefined;
   readonly baseUrl?: string | undefined;
+  /** Browser pool for page reuse across scenarios. Managed by caller. */
+  readonly browserPool?: import('./browser-pool').BrowserPoolPort | undefined;
 }
 
 export interface MultiSeedResult {
@@ -292,6 +296,7 @@ export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunRes
       seed: input.seed,
       dashboard,
       baseUrl: input.baseUrl,
+      browserPool: input.browserPool,
     });
 
     const fitnessStart = Date.now();
@@ -433,6 +438,7 @@ export function multiSeedSpeedrun(input: MultiSeedInput): Effect.Effect<MultiSee
           onProgress: input.onProgress,
           interpreterMode: input.interpreterMode,
           baseUrl: input.baseUrl,
+          browserPool: input.browserPool,
         });
 
         // Save per-seed fitness report
@@ -618,6 +624,8 @@ export interface IteratePhaseInput {
   /** Interpreter mode for the dogfood loop. Default: 'playwright'. */
   readonly interpreterMode?: 'dry-run' | 'diagnostic' | 'playwright' | undefined;
   readonly baseUrl?: string | undefined;
+  /** Browser pool for page reuse across scenarios. Managed by caller. */
+  readonly browserPool?: import('./browser-pool').BrowserPoolPort | undefined;
 }
 
 export function iteratePhase(input: IteratePhaseInput) {
@@ -636,6 +644,7 @@ export function iteratePhase(input: IteratePhaseInput) {
       seed: input.seed,
       dashboard,
       baseUrl: input.baseUrl,
+      browserPool: input.browserPool,
     });
     const durationMs = Date.now() - start;
     return { ledger, durationMs };

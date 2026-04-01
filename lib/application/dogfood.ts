@@ -21,6 +21,12 @@ import { FileSystem } from './ports';
 import { runStateMachine } from './state-machine';
 import { pruneTranslationCache } from './translation-cache';
 import { round4 } from './learning-shared';
+import type { BrowserPoolPort, BrowserPoolStats } from './browser-pool';
+import {
+  readSemanticDictionary,
+  writeSemanticDictionary,
+  decayUnusedEntries,
+} from './semantic-translation-dictionary';
 import {
   type ConvergenceState,
   initialConvergenceState,
@@ -83,6 +89,10 @@ export interface DogfoodOptions {
   /** Base URL of the SUT for Playwright execution (e.g., http://127.0.0.1:3200).
    *  Required when interpreterMode is 'playwright'. */
   readonly baseUrl?: string | undefined;
+  /** Browser pool for page reuse across scenarios within iterations.
+   *  When provided, the runner acquires/releases pages instead of launching new browsers.
+   *  The pool lifecycle is managed by the caller (created before loop, closed after). */
+  readonly browserPool?: BrowserPoolPort | undefined;
   /**
    * Fire-and-forget progress callback. Invoked after each iteration completes
    * with the current metrics. The callback is a side channel for observability —
@@ -109,9 +119,11 @@ interface LoopState {
    *  Each iteration refines this by feeding step execution receipts into the aggregator.
    *  Null on first iteration or when no receipts are available. */
   readonly learningState: LearningState | null;
+  /** Snapshot of browser pool stats after each iteration (when pool is available). */
+  readonly browserPoolStats: BrowserPoolStats | null;
 }
 
-function createInitialState(): LoopState {
+function createInitialState(priorLearningState?: LearningState | null): LoopState {
   return {
     iterations: [],
     cumulativeInstructions: 0,
@@ -120,8 +132,23 @@ function createInitialState(): LoopState {
     startedAt: Date.now(),
     bottleneckWeights: DEFAULT_PIPELINE_CONFIG.bottleneckWeights,
     convergenceFsm: initialConvergenceState(),
-    learningState: null,
+    learningState: priorLearningState ?? null,
+    browserPoolStats: null,
   };
+}
+
+/** Load persisted learning state from a prior invocation. Returns null if none exists. */
+function loadPersistedLearningState(paths: ProjectPaths) {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const raw = yield* fs.readJson(paths.execution.learningStatePath).pipe(
+      Effect.catchAll(() => Effect.succeed(null)),
+    );
+    if (!raw || typeof raw !== 'object' || (raw as Record<string, unknown>).kind !== 'learning-state') {
+      return null;
+    }
+    return raw as LearningState;
+  });
 }
 
 function collectPendingProposals(bundles: readonly ProposalBundle[]): readonly ProposalBundle[] {
@@ -377,8 +404,9 @@ function accumulateProposalTotals(
   });
 }
 
-/** Wipe transient artifacts between iterations to cap memory and disk growth. */
-function cleanupBetweenIterations(options: DogfoodOptions) {
+/** Wipe transient artifacts between iterations to cap memory and disk growth.
+ *  Also applies confidence decay to unused semantic dictionary entries. */
+function cleanupBetweenIterations(options: DogfoodOptions, iterationStartTime: string) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const sessionsDir = path.join(options.paths.rootDir, '.tesseract', 'sessions');
@@ -389,7 +417,20 @@ function cleanupBetweenIterations(options: DogfoodOptions) {
     );
     // Prune translation cache to keep disk bounded across iterations
     yield* pruneTranslationCache({ paths: options.paths, maxEntries: 200 });
+    // Decay unused semantic dictionary entries to prevent stale mappings
+    yield* decaySemanticDictionaryEntries(options.paths, iterationStartTime);
   });
+}
+
+/** Apply confidence decay to semantic dictionary entries not used in this iteration. */
+function decaySemanticDictionaryEntries(paths: ProjectPaths, iterationStartTime: string) {
+  return Effect.gen(function* () {
+    const catalog = yield* readSemanticDictionary(paths);
+    const decayed = decayUnusedEntries(catalog, iterationStartTime);
+    if (decayed.entries.length !== catalog.entries.length || decayed.summary.averageConfidence !== catalog.summary.averageConfidence) {
+      yield* writeSemanticDictionary(paths, decayed);
+    }
+  }).pipe(Effect.catchAll(() => Effect.void));
 }
 
 /** Compute L2 (Euclidean) distance between two weight vectors. Pure. */
@@ -473,6 +514,7 @@ function runIteration(iteration: number, options: DogfoodOptions, state: LoopSta
     : 'warm-start';
 
   return Effect.gen(function* () {
+    const iterationStartTime = new Date().toISOString();
     // Step 1: Load catalog once for the iteration (compile-scope: scenarios + knowledge + controls)
     const catalog = yield* loadWorkspaceCatalog({
       paths: options.paths,
@@ -625,7 +667,7 @@ function runIteration(iteration: number, options: DogfoodOptions, state: LoopSta
     }
 
     // Step 5: cleanup transient artifacts to cap memory growth
-    yield* cleanupBetweenIterations(options);
+    yield* cleanupBetweenIterations(options, iterationStartTime);
 
     const result: DogfoodIterationResult = {
       iteration,
@@ -644,9 +686,9 @@ function runIteration(iteration: number, options: DogfoodOptions, state: LoopSta
   });
 }
 
-function dogfoodMachine(options: DogfoodOptions) {
+function dogfoodMachine(options: DogfoodOptions, priorLearningState?: LearningState | null) {
   return {
-    initial: createInitialState(),
+    initial: createInitialState(priorLearningState),
     step: (state: LoopState) => Effect.gen(function* () {
       const iteration = state.iterations.length + 1;
       if (iteration > options.maxIterations) {
@@ -691,13 +733,23 @@ function dogfoodMachine(options: DogfoodOptions) {
       });
       // Feed learning signals into FSM — prevents premature convergence
       // when hit rate improves but underlying execution quality degrades.
-      const nextFsm = result.learningSignals
+      const afterLearning = result.learningSignals
         ? transitionConvergence(afterLimit, {
             kind: 'learning-signal',
             degradingCount: countDegradingSignals(result.learningSignals),
             maturity: signalMaturity(iteration),
           })
         : afterLimit;
+      // Feed browser pool health into FSM — high overflow rate prevents
+      // premature convergence when the pool is exhausted under load.
+      const poolStats = options.browserPool?.stats ?? null;
+      const nextFsm = poolStats && poolStats.totalAcquired > 0
+        ? transitionConvergence(afterLearning, {
+            kind: 'browser-health',
+            overflowRate: round4(poolStats.totalOverflow / poolStats.totalAcquired),
+            reuseRate: round4(1 - poolStats.totalOverflow / poolStats.totalAcquired),
+          })
+        : afterLearning;
       const convergence = isTerminal(nextFsm)
         ? { converged: true, reason: nextFsm.reason as ImprovementLoopConvergenceReason }
         : { converged: false, reason: null as ImprovementLoopConvergenceReason };
@@ -720,6 +772,7 @@ function dogfoodMachine(options: DogfoodOptions) {
         bottleneckWeights: calibratedWeights,
         convergenceFsm: nextFsm,
         learningState: iterationLearning,
+        browserPoolStats: poolStats,
       };
 
       // Emit progress event after each iteration (with calibration observability)
@@ -784,6 +837,20 @@ function dogfoodMachine(options: DogfoodOptions) {
         }));
       }
 
+      // Layer 2: browser-pool-health — pool reuse efficiency
+      if (poolStats) {
+        yield* dashboard.emit(dashboardEvent('browser-pool-health', {
+          iteration,
+          stats: poolStats,
+          overflowRate: poolStats.totalAcquired > 0
+            ? round4(poolStats.totalOverflow / poolStats.totalAcquired)
+            : 0,
+          reuseRate: poolStats.totalAcquired > 0
+            ? round4(1 - poolStats.totalOverflow / poolStats.totalAcquired)
+            : 0,
+        }));
+      }
+
       return { next: nextState, done: convergence.converged || convergence.reason === 'max-iterations' };
     }),
   };
@@ -812,7 +879,9 @@ function buildLedger(state: LoopState, options: DogfoodOptions): ImprovementLoop
 export function runDogfoodLoop(options: DogfoodOptions) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
-    const finalState = yield* runStateMachine(dogfoodMachine(options));
+    // Load persisted learning state from prior invocation for cross-session continuity
+    const priorLearningState = yield* loadPersistedLearningState(options.paths);
+    const finalState = yield* runStateMachine(dogfoodMachine(options, priorLearningState));
     const ledger = asImprovementLoopLedger(buildLedger(finalState, options));
     const compatibilityLedger = asDogfoodLedgerProjection(ledger);
 

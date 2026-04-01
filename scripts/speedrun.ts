@@ -48,6 +48,8 @@ import {
   type PhaseTimingBudget,
 } from '../lib/domain/projection/speedrun-statistics';
 import { startFixtureServer, type FixtureServer } from '../lib/infrastructure/fixture-server';
+import { createPlaywrightBrowserPool } from '../lib/infrastructure/playwright-browser-pool';
+import type { BrowserPoolPort } from '../lib/application/browser-pool';
 
 // ─── CLI argument parsing ───
 
@@ -270,7 +272,7 @@ async function runIterate(): Promise<void> {
   const progressPath = path.join(rootDir, '.tesseract', 'runs', 'speedrun-progress.jsonl');
   const onProgress = createProgressCallback(progressPath);
 
-  const result = await withFixtureServerIfNeeded((baseUrl) => runWithLocalServices(
+  const result = await withPlaywrightEnvironment((env) => runWithLocalServices(
     iteratePhase({
       paths,
       maxIterations,
@@ -280,10 +282,11 @@ async function runIterate(): Promise<void> {
       seed: singleSeed,
       onProgress,
       interpreterMode: effectiveMode as 'dry-run' | 'diagnostic' | 'playwright',
-      baseUrl,
+      baseUrl: env.baseUrl,
+      browserPool: env.browserPool,
     }),
     rootDir,
-    serviceOptions,
+    { ...serviceOptions, browserPool: env.browserPool },
   ));
   console.log(`\nDogfood loop: ${result.ledger.completedIterations} iterations, converged=${result.ledger.converged} (${result.ledger.convergenceReason ?? 'n/a'})`);
   console.log(`  Knowledge hit rate delta: ${result.ledger.knowledgeHitRateDelta > 0 ? '+' : ''}${result.ledger.knowledgeHitRateDelta}`);
@@ -321,20 +324,47 @@ async function runReport(): Promise<void> {
     : '\nScorecard unchanged — did not beat the mark.');
 }
 
-// ─── Fixture server lifecycle helper ───
+// ─── Fixture server + browser pool lifecycle helper ───
 
-async function withFixtureServerIfNeeded<T>(fn: (baseUrl: string | undefined) => Promise<T>): Promise<T> {
-  if (effectiveMode === 'diagnostic') return fn(undefined);
-  if (explicitBaseUrl) return fn(explicitBaseUrl);
+interface PlaywrightEnvironment {
+  readonly baseUrl: string | undefined;
+  readonly browserPool: BrowserPoolPort | undefined;
+}
 
-  console.log('Starting fixture server for Playwright execution...');
-  const server = await startFixtureServer({ rootDir });
-  console.log(`Fixture server ready at ${server.baseUrl}`);
+async function withPlaywrightEnvironment<T>(fn: (env: PlaywrightEnvironment) => Promise<T>): Promise<T> {
+  if (effectiveMode === 'diagnostic') return fn({ baseUrl: undefined, browserPool: undefined });
+
+  const resolvedBaseUrl = explicitBaseUrl || undefined;
+  let server: FixtureServer | null = null;
+  let pool: BrowserPoolPort | null = null;
+
   try {
-    return await fn(server.baseUrl);
+    // Start fixture server if no explicit base URL
+    if (!resolvedBaseUrl) {
+      console.log('Starting fixture server for Playwright execution...');
+      server = await startFixtureServer({ rootDir });
+      console.log(`Fixture server ready at ${server.baseUrl}`);
+    }
+
+    const baseUrl = resolvedBaseUrl ?? server?.baseUrl;
+
+    // Create browser pool for page reuse across scenarios
+    console.log('Creating browser pool for cross-scenario page reuse...');
+    pool = await createPlaywrightBrowserPool({ config: { poolSize: 4, preWarm: true, maxPageAgeMs: 300_000 } });
+    console.log('Browser pool ready (4 warm pages).');
+
+    return await fn({ baseUrl, browserPool: pool });
   } finally {
-    await server.stop();
-    console.log('Fixture server stopped.');
+    if (pool) {
+      const stats = pool.stats;
+      console.log(`Browser pool stats: acquired=${stats.totalAcquired} released=${stats.totalReleased} overflow=${stats.totalOverflow} resets=${stats.totalResets}`);
+      await pool.close();
+      console.log('Browser pool closed.');
+    }
+    if (server) {
+      await server.stop();
+      console.log('Fixture server stopped.');
+    }
   }
 }
 
@@ -353,7 +383,7 @@ async function runFull(): Promise<void> {
   if (lexicalGap > 0) console.log(`Lexical gap: ${lexicalGap}`);
   if (driftCount > 0) console.log(`Drift mutations: ${driftCount}`);
 
-  const result = await withFixtureServerIfNeeded((baseUrl) => runWithLocalServices(
+  const result = await withPlaywrightEnvironment((env) => runWithLocalServices(
     multiSeedSpeedrun({
       paths,
       config: pipelineConfig,
@@ -368,12 +398,14 @@ async function runFull(): Promise<void> {
       driftCount: driftCount > 0 ? driftCount : undefined,
       onProgress,
       interpreterMode: effectiveMode as 'dry-run' | 'diagnostic' | 'playwright',
-      baseUrl,
+      baseUrl: env.baseUrl,
+      browserPool: env.browserPool,
     }),
     rootDir,
     {
       ...serviceOptions,
       pipelineConfig,
+      browserPool: env.browserPool,
     },
   ));
 

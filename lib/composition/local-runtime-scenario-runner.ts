@@ -8,6 +8,7 @@ import {
   readSemanticDictionary,
   recordSemanticFailure,
   recordSemanticSuccess,
+  recordValidatedSuccess,
   writeSemanticDictionary,
 } from '../application/semantic-translation-dictionary';
 import { translateIntentToOntology } from '../application/translate';
@@ -198,9 +199,22 @@ function buildRunnerWithInterpreter(interpreterOverride?: EffectfulAgentInterpre
             }
             const stepSucceeded = stepResult.execution.execution.status === 'ok';
             if (stepResult.semanticDictionaryHitId) {
-              catalog = stepSucceeded
-                ? recordSemanticSuccess(catalog, stepResult.semanticDictionaryHitId)
-                : recordSemanticFailure(catalog, stepResult.semanticDictionaryHitId);
+              // Execution-validated success: browser confirmed DOM state change
+              // (transition observations present or effect assertions passed).
+              // This gives a stronger confidence boost than a bare execution success.
+              const receipt = stepResult.execution;
+              const hasValidation = activePage !== null
+                && stepSucceeded
+                && (
+                  (receipt.transitionObservations && receipt.transitionObservations.length > 0)
+                  || (receipt.observedStateRefs && receipt.observedStateRefs.length > 0)
+                  || (receipt.effectAssertions && receipt.effectAssertions.length > 0)
+                );
+              catalog = !stepSucceeded
+                ? recordSemanticFailure(catalog, stepResult.semanticDictionaryHitId)
+                : hasValidation
+                  ? recordValidatedSuccess(catalog, stepResult.semanticDictionaryHitId)
+                  : recordSemanticSuccess(catalog, stepResult.semanticDictionaryHitId);
               catalogDirty = true;
             }
 

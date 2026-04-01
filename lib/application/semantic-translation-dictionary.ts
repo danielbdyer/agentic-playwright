@@ -27,6 +27,8 @@ export {
   accrueSemanticEntry,
   recordSemanticSuccess,
   recordSemanticFailure,
+  recordValidatedSuccess,
+  decayUnusedEntries,
   markPromoted,
   pruneSemanticDictionary,
   promotionCandidates,
