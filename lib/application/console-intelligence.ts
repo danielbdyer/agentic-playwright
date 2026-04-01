@@ -153,6 +153,9 @@ export function aggregateConsolePatterns(
     }
   }
 
+  // Cap output to top 200 patterns by occurrence — prevents unbounded growth
+  // when console output is highly diverse (e.g., timestamps in messages).
+  const MAX_PATTERNS = 200;
   const patterns: ConsolePatternMetrics[] = [...patternMap.entries()]
     .map(([pattern, data]) => ({
       pattern,
@@ -164,7 +167,8 @@ export function aggregateConsolePatterns(
       firstSeen: new Date().toISOString(),
       lastSeen: new Date().toISOString(),
     }))
-    .sort((a, b) => b.occurrences - a.occurrences);
+    .sort((a, b) => b.occurrences - a.occurrences)
+    .slice(0, MAX_PATTERNS);
 
   return { patterns };
 }

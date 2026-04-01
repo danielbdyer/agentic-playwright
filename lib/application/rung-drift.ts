@@ -164,10 +164,15 @@ export function buildRungHistory(
     }
   }
 
+  // Cap rung history per intent to last 20 observations and total entries to 500
+  // to prevent unbounded growth with many unique intents.
+  const MAX_HISTORY_PER_INTENT = 20;
+  const MAX_ENTRIES = 500;
+
   const entries: RungHistoryEntry[] = [...groups.entries()]
     .map(([intent, obs]) => {
       const sorted = [...obs].sort((a, b) => a.runAt.localeCompare(b.runAt));
-      const rungHistory = sorted.map((o) => o.rung);
+      const rungHistory = sorted.slice(-MAX_HISTORY_PER_INTENT).map((o) => o.rung);
       const modalRung = mode(rungHistory);
       const currentRung = rungHistory[rungHistory.length - 1]!;
 
@@ -179,7 +184,8 @@ export function buildRungHistory(
         driftDirection: computeDriftDirection(rungHistory, config),
       };
     })
-    .sort((a, b) => a.intentRef.localeCompare(b.intentRef));
+    .sort((a, b) => a.intentRef.localeCompare(b.intentRef))
+    .slice(0, MAX_ENTRIES);
 
   return { entries };
 }
