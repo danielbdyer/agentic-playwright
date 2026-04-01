@@ -6,7 +6,7 @@ import { uniqueSorted } from './shared';
 import type { ResolutionStrategy, StrategyAttemptResult, StrategyChainResult } from './strategy';
 import { runStrategyChain } from './strategy';
 import { createStrategyRegistry } from './strategy-registry';
-import { buildPipelineDAG, validateDAG } from '../../application/pipeline-dag';
+import { buildPipelineDAG, validateDAG } from '../../domain/resolution/pipeline-dag';
 import { TesseractError } from '../../domain/errors';
 import type { RuntimeAgentStageContext, RuntimeStepAgentContext, StageEffects } from './types';
 import { mergeEffectsIntoStage } from './types';

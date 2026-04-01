@@ -422,6 +422,19 @@ export interface McpToolDefinition {
   readonly inputSchema: Record<string, unknown>;
 }
 
+/** Structured invocation of an MCP tool. */
+export interface McpToolInvocation {
+  readonly tool: string;
+  readonly arguments: Record<string, unknown>;
+}
+
+/** Structured result from an MCP tool invocation. */
+export interface McpToolResult {
+  readonly tool: string;
+  readonly result: unknown;
+  readonly isError: boolean;
+}
+
 /** The dashboard's MCP tool catalog — all tools an agent can invoke. */
 export const dashboardMcpTools: readonly McpToolDefinition[] = [
   // Observation tools — same data the spatial canvas renders

@@ -17,8 +17,7 @@
  */
 
 import { Effect } from 'effect';
-import type { McpToolDefinition } from '../../domain/types';
-import type { McpToolInvocation, McpToolResult } from '../../application/ports';
+import type { McpToolDefinition, McpToolInvocation, McpToolResult } from '../../domain/types';
 
 // ─── Agent Tool Provider Contract ───
 

@@ -19,7 +19,7 @@ import { resolveOverride } from './resolve-target';
 import { selectedDomExplorationPolicy } from './select-controls';
 import { exhaustionEntry, normalizedCombined } from './shared';
 import { resolveWithConfidenceOverlay, resolveWithTranslation } from './translation';
-import { lookupSemanticDictionary } from '../../application/semantic-translation-dictionary';
+import { lookupSemanticDictionary } from '../../domain/knowledge/semantic-dictionary';
 import type { RuntimeAgentStageContext, StageEffects } from './types';
 import { EMPTY_EFFECTS } from './types';
 import {
