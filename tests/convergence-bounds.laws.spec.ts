@@ -21,12 +21,12 @@ import {
   isMonotonicallyDecreasing,
   isFixedPoint,
   estimateRateOfDecrease,
-  type ConvergenceMetrics,
+  type StabilityMetrics,
 } from '../lib/domain/projection/convergence-bounds';
 
 // ─── Fixtures ───
 
-function createMetrics(overrides: Partial<ConvergenceMetrics> = {}): ConvergenceMetrics {
+function createMetrics(overrides: Partial<StabilityMetrics> = {}): StabilityMetrics {
   return {
     knowledgeHitRate: 0.5,
     proposalYield: 0.5,
@@ -36,7 +36,7 @@ function createMetrics(overrides: Partial<ConvergenceMetrics> = {}): Convergence
   };
 }
 
-function perfectMetrics(): ConvergenceMetrics {
+function perfectMetrics(): StabilityMetrics {
   return createMetrics({
     knowledgeHitRate: 1,
     proposalYield: 1,
@@ -45,7 +45,7 @@ function perfectMetrics(): ConvergenceMetrics {
   });
 }
 
-function zeroMetrics(): ConvergenceMetrics {
+function zeroMetrics(): StabilityMetrics {
   return createMetrics({
     knowledgeHitRate: 0,
     proposalYield: 0,
@@ -522,7 +522,7 @@ test('compositeLyapunov energy is in [0, 1] for metrics in [0, 1]', () => {
     proposalYield: 2,
     translationPrecision: 1,
   });
-  const testSets: ReadonlyArray<Partial<ConvergenceMetrics>> = [
+  const testSets: ReadonlyArray<Partial<StabilityMetrics>> = [
     { knowledgeHitRate: 0, proposalYield: 0, translationPrecision: 0 },
     { knowledgeHitRate: 1, proposalYield: 1, translationPrecision: 1 },
     { knowledgeHitRate: 0.5, proposalYield: 0.5, translationPrecision: 0.5 },

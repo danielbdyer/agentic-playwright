@@ -22,13 +22,10 @@
  * @see docs/first-day-flywheel-visualization.md Part IX
  */
 
-// ─── Convergence Reason ───
+// ─── Convergence Reason (canonical definition in convergence-fsm.ts) ───
 
-export type ConvergenceReason =
-  | 'threshold-met'
-  | 'no-proposals'
-  | 'budget-exhausted'
-  | 'max-iterations';
+import type { ConvergenceReason } from './convergence-fsm';
+export type { ConvergenceReason } from './convergence-fsm';
 
 // ─── Finale Phase ───
 

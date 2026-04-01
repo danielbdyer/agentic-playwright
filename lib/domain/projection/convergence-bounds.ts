@@ -11,7 +11,7 @@
 
 // ─── Convergence Metrics ───
 
-export interface ConvergenceMetrics {
+export interface StabilityMetrics {
   readonly knowledgeHitRate: number;
   readonly proposalYield: number;
   readonly translationPrecision: number;
@@ -22,7 +22,7 @@ export interface ConvergenceMetrics {
 
 export interface LyapunovFunction {
   /** Map system state to a scalar energy value. Lower = better. */
-  readonly evaluate: (state: ConvergenceMetrics) => number;
+  readonly evaluate: (state: StabilityMetrics) => number;
   /** True when the energy has decreased by more than epsilon. */
   readonly isDecreasing: (prev: number, current: number, epsilon: number) => boolean;
 }
@@ -37,7 +37,7 @@ export interface LyapunovFunction {
  */
 export function knowledgeHitRateLyapunov(): LyapunovFunction {
   return {
-    evaluate: (state: ConvergenceMetrics): number => 1 - state.knowledgeHitRate,
+    evaluate: (state: StabilityMetrics): number => 1 - state.knowledgeHitRate,
     isDecreasing: (prev: number, current: number, epsilon: number): boolean =>
       prev - current > epsilon,
   };
@@ -56,7 +56,7 @@ export function compositeLyapunov(
 ): LyapunovFunction {
   const totalWeight = weights.knowledgeHitRate + weights.proposalYield + weights.translationPrecision;
   return {
-    evaluate: (state: ConvergenceMetrics): number =>
+    evaluate: (state: StabilityMetrics): number =>
       (weights.knowledgeHitRate * (1 - state.knowledgeHitRate) +
         weights.proposalYield * (1 - state.proposalYield) +
         weights.translationPrecision * (1 - state.translationPrecision)) /
