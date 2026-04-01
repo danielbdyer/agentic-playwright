@@ -45,7 +45,7 @@ import {
   formatBaselineSummary,
   type PhaseTimingBaseline,
   type PhaseTimingBudget,
-} from '../lib/domain/speedrun-statistics';
+} from '../lib/domain/projection/speedrun-statistics';
 
 // ─── CLI argument parsing ───
 
