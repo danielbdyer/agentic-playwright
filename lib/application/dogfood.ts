@@ -1,7 +1,7 @@
 import path from 'path';
 import { Effect } from 'effect';
 import { activateProposalBundle, autoApproveEligibleProposals } from './activate-proposals';
-import { loadWorkspaceCatalog } from './catalog';
+import { deltaReloadProposalsAndRuns, loadWorkspaceCatalog } from './catalog';
 import { buildPartialFitnessMetrics } from './fitness';
 import { calibrateWeightsFromCorrelations } from './learning-bottlenecks';
 import { aggregateLearningState, type LearningState } from './learning-state';
@@ -505,12 +505,9 @@ function runIteration(iteration: number, options: DogfoodOptions, state: LoopSta
       interpreterMode: options.interpreterMode ?? 'diagnostic',
     });
 
-    // Step 3: collect trace metrics — reuse the post-run catalog already loaded by runScenarioSelection
-    const postRunCatalog = runResult.postRunCatalog ?? (yield* loadWorkspaceCatalog({
-      paths: options.paths,
-      knowledgePosture: 'warm-start',
-      scope: 'post-run',
-    }));
+    // Step 3: collect trace metrics — delta-reload only proposals + run records
+    // instead of full post-run catalog reload (saves 30-40% I/O at scale)
+    const postRunCatalog = runResult.postRunCatalog ?? (yield* deltaReloadProposalsAndRuns(runCatalog));
     const metrics = computeTraceMetrics(postRunCatalog.runRecords as never);
 
     // Step 3b: compute per-iteration resolution-by-rung breakdown

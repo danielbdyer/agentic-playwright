@@ -316,15 +316,26 @@ export function trySemanticDictionaryResolution(stage: RuntimeAgentStageContext,
   }
 
   const normalized = normalizedCombined(stage.task);
-  const match = lookupSemanticDictionary(normalized, catalog, {
-    retrievalContext: {
-      allowedActions: [...stage.task.allowedActions],
-      currentScreen: stage.memory.currentScreen?.screen ?? null,
-      availableScreens: stage.context.resolutionContext.screens.map((s) => s.screen),
-      activeRouteVariantRefs: [...stage.memory.activeRouteVariantRefs],
-      governanceFilter: 'include-review',
-    },
-  });
+
+  // Check semantic dictionary cache — avoids re-scoring all entries for similar intents
+  const dictCache = stage.context.semanticDictCache;
+  const cached = dictCache?.has(normalized) ? dictCache.get(normalized) : undefined;
+  const match = cached !== undefined
+    ? cached
+    : lookupSemanticDictionary(normalized, catalog, {
+        retrievalContext: {
+          allowedActions: [...stage.task.allowedActions],
+          currentScreen: stage.memory.currentScreen?.screen ?? null,
+          availableScreens: stage.context.resolutionContext.screens.map((s) => s.screen),
+          activeRouteVariantRefs: [...stage.memory.activeRouteVariantRefs],
+          governanceFilter: 'include-review',
+        },
+      });
+
+  // Cache the result for this intent (including null = no match)
+  if (cached === undefined && dictCache) {
+    dictCache.set(normalized, match ?? null);
+  }
 
   if (!match) {
     return {
@@ -663,7 +674,10 @@ export async function tryLiveDomOrFallback(stage: RuntimeAgentStageContext, acc:
   // ─── Rung 8: LLM-DOM Semantic Resolution ───
   // Between structural DOM (Rung 7) and full agent interpretation (Rung 9),
   // attempt lightweight semantic matching using the ARIA snapshot.
-  const rung8Snapshot = await captureTruncatedAriaSnapshot(stage.context.page);
+  const ariaCache = stage.context.ariaSnapshotCache;
+  const rung8Snapshot = ariaCache
+    ? await ariaCache.get(stage.context.page)
+    : await captureTruncatedAriaSnapshot(stage.context.page);
   const rung8ElementHint = acc.element?.element ?? stage.task.actionText ?? '';
   const rung8ElementId: ElementId = acc.element?.element ?? (rung8ElementHint as ElementId);
   if (isRung8Applicable(rung8Snapshot, rung8ElementHint)) {
@@ -704,7 +718,9 @@ export async function tryLiveDomOrFallback(stage: RuntimeAgentStageContext, acc:
   if (agentInterpreter && agentInterpreter.kind !== 'disabled') {
     // Capture ARIA snapshot and visual screenshot in parallel
     const [domSnapshot, screenshotBase64] = await Promise.all([
-      captureTruncatedAriaSnapshot(stage.context.page),
+      ariaCache
+        ? ariaCache.get(stage.context.page)
+        : captureTruncatedAriaSnapshot(stage.context.page),
       capturePageScreenshot(stage.context.page),
     ]);
     const agentRequest: AgentInterpretationRequest = {

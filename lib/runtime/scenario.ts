@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test';
+import { navigationOptionsForUrl } from './navigation-strategy';
 import { attachConsoleSentinel } from './console-sentinel';
 import { uniqueSorted } from '../domain/kernel/collections';
 import { rankRouteVariants } from '../domain/knowledge/route-knowledge';
@@ -628,7 +629,11 @@ export async function runScenarioStep(
     && routeSelection.preNavigationRequested
     && routeSelection.selectedRouteUrl
   ) {
-    await environment.page.goto(routeSelection.selectedRouteUrl);
+    const navOpts = navigationOptionsForUrl(routeSelection.selectedRouteUrl);
+    await environment.page.goto(routeSelection.selectedRouteUrl, {
+      waitUntil: navOpts.waitUntil,
+      timeout: navOpts.timeout,
+    });
   }
 
   const result = environment.mode === 'playwright'

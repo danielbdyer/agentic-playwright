@@ -16,6 +16,7 @@ export {
 export { loadOptionalYamlArtifact, readJsonArtifact, readYamlArtifact } from './loaders';
 export { assembleScreenBundles, byScreen, createScreenBundleEntry, loadScreenBundle } from './screen-bundles';
 export {
+  deltaReloadProposalsAndRuns,
   getCatalogLoadCount,
   resetCatalogLoadCount,
   loadScenarioArtifact,

@@ -22,6 +22,8 @@ import {
   tryLiveDomOrFallback,
 } from './resolution-stages';
 import type { SemanticDictionaryAccrualInput, SemanticDictionaryMatch } from '../../domain/types';
+import { createAriaSnapshotCache, type AriaSnapshotCache } from './aria-snapshot-cache';
+import { createSemanticDictCache, type SemanticDictCache } from './semantic-dict-cache';
 
 export const RESOLUTION_PRECEDENCE = resolutionPrecedenceLaw;
 
@@ -270,6 +272,15 @@ export async function runResolutionPipeline(
   const memory = normalizeObservedStateSession(task, context.observedStateSession ?? createEmptyObservedStateSession(), capacity);
   context.observedStateSession = memory;
 
+  // Create per-step ARIA snapshot cache (avoids redundant DOM traversals across rungs)
+  const ariaSnapshotCache = context.ariaSnapshotCache ?? createAriaSnapshotCache();
+  context.ariaSnapshotCache = ariaSnapshotCache;
+
+  // Reuse or create per-scenario semantic dictionary cache
+  if (!context.semanticDictCache) {
+    context.semanticDictCache = createSemanticDictCache();
+  }
+
   const stage: RuntimeAgentStageContext = {
     task,
     context,
@@ -349,6 +360,8 @@ export async function runResolutionPipeline(
 
   const result = await runPipelinePhases(phases, stage);
   const receipt = result.receipt!;
+  // Invalidate per-step ARIA cache so next step captures fresh DOM state
+  ariaSnapshotCache.invalidate();
   const memoryEvent = applyMemory(receipt);
 
   // ─── Semantic Dictionary: derive accrual input ───
