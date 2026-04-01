@@ -8,7 +8,8 @@
  * a real SUT (system under test) to inspect.
  */
 
-import { type ChildProcess, spawn } from 'child_process';
+import { type ChildProcess, spawn, execSync } from 'child_process';
+import * as fs from 'fs';
 import * as http from 'http';
 import * as path from 'path';
 
@@ -28,6 +29,8 @@ export interface FixtureServerOptions {
   readonly port?: number;
   /** Readiness timeout in ms. Default: 10000. */
   readonly readinessTimeoutMs?: number;
+  /** Skip the demo-harness build step. Default: false. */
+  readonly skipBuild?: boolean;
 }
 
 /**
@@ -56,6 +59,23 @@ export async function startFixtureServer(
   const port = options.port ?? 3200;
   const readinessTimeoutMs = options.readinessTimeoutMs ?? 10_000;
   const baseUrl = `http://127.0.0.1:${port}`;
+
+  // ─── Build prerequisite: ensure demo-harness JS bundle exists ───
+  if (!options.skipBuild) {
+    const builtJs = path.join(rootDir, 'dogfood', 'fixtures', 'demo-harness', 'policy-journey.js');
+    const sourceTsx = path.join(rootDir, 'dogfood', 'fixtures', 'demo-harness', 'src', 'policy-journey.tsx');
+    const needsBuild = !fs.existsSync(builtJs)
+      || (fs.existsSync(sourceTsx)
+        && fs.statSync(sourceTsx).mtimeMs > fs.statSync(builtJs).mtimeMs);
+
+    if (needsBuild) {
+      execSync('node scripts/build.cjs --demo-harness-only', {
+        cwd: rootDir,
+        stdio: 'pipe',
+        timeout: 30_000,
+      });
+    }
+  }
 
   const serverScript = path.join(rootDir, 'dogfood', 'fixtures', 'demo-harness', 'server.cjs');
 
