@@ -52,8 +52,8 @@ export function buildRunRecord(input: {
       handshakes: ['preparation', 'resolution', 'execution', 'evidence'],
     }),
     governance: deriveGovernanceState({
-      hasBlocked: steps.some((step) => step.interpretation.kind === 'needs-human' || step.execution.execution.status === 'failed'),
-      hasReviewRequired: false,
+      hasBlocked: false,
+      hasReviewRequired: steps.some((step) => step.interpretation.kind === 'needs-human' || step.execution.execution.status === 'failed'),
     }),
     payload: {
       runId: input.plan.runId,

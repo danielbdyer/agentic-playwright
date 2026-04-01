@@ -479,7 +479,7 @@ export function validateResolutionObservation(value: unknown, path: string) {
 export function validateResolutionExhaustionEntry(value: unknown, path: string) {
   const entry = expectRecord(value, path);
   return {
-    stage: expectEnum(entry.stage, `${path}.stage`, ['explicit', 'control', 'approved-screen-knowledge', 'shared-patterns', 'prior-evidence', 'approved-equivalent-overlay', 'structured-translation', 'live-dom', 'agent-interpreted', 'needs-human'] as const),
+    stage: expectEnum(entry.stage, `${path}.stage`, ['explicit', 'control', 'approved-screen-knowledge', 'shared-patterns', 'prior-evidence', 'approved-equivalent-overlay', 'semantic-dictionary', 'structured-translation', 'live-dom', 'agent-interpreted', 'needs-human'] as const),
     outcome: expectEnum(entry.outcome, `${path}.outcome`, ['attempted', 'resolved', 'skipped', 'failed'] as const),
     reason: expectString(entry.reason, `${path}.reason`),
     topCandidates: entry.topCandidates === undefined ? undefined : expectArray(entry.topCandidates, `${path}.topCandidates`).map((candidate, index) => validateResolutionCandidateSummary(candidate, `${path}.topCandidates[${index}]`)),
@@ -732,7 +732,7 @@ export function validateStepExecutionReceipt(value: unknown, path: string): Step
   const header = validateWorkflowEnvelopeHeader(receipt, path, {
     stage: 'execution',
     scope: 'step',
-    governance: execution.status === 'failed' ? 'blocked' : 'approved',
+    governance: execution.status === 'failed' ? 'review-required' : 'approved',
     artifactFingerprint: expectOptionalString(receipt.taskFingerprint, `${path}.taskFingerprint`) ?? `${path}:execution`,
     ids: {
       stepIndex: receipt.stepIndex === undefined ? null : expectNumber(receipt.stepIndex, `${path}.stepIndex`),

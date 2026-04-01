@@ -11,7 +11,6 @@ import { emptyExecutionTiming, normalizeFailureFamily } from '../domain/executio
 import { compileStepProgram } from '../domain/execution/program';
 import type { SnapshotTemplateLoader } from '../domain/execution/runtime-loaders';
 import { RuntimeError } from '../domain/kernel/errors';
-import { mintBlocked } from '../domain/types/shared-context';
 import {
   advanceScenarioRunState,
   createScenarioRunState as createScenarioRunStateAggregate,
@@ -429,7 +428,7 @@ export async function runScenarioStep(
           parents: [task.taskFingerprint],
           handshakes: ['preparation', 'resolution', 'execution'],
         },
-        governance: mintBlocked(),
+        governance: 'review-required' as const,
         stepIndex: task.index,
         taskFingerprint: task.taskFingerprint,
         knowledgeFingerprint: agentContext.resolutionContext.knowledgeFingerprint,
@@ -549,7 +548,7 @@ export async function runScenarioStep(
           parents: [task.taskFingerprint],
           handshakes: ['preparation', 'resolution', 'execution'],
         },
-        governance: mintBlocked(),
+        governance: 'review-required' as const,
         stepIndex: task.index,
         taskFingerprint: task.taskFingerprint,
         knowledgeFingerprint: interfaceResolutionContext.knowledgeFingerprint,
@@ -792,7 +791,7 @@ export async function runScenarioStep(
       parents: [task.taskFingerprint],
       handshakes: ['preparation', 'resolution', 'execution'],
     },
-    governance: result.ok || recovery.recovered ? 'approved' : 'blocked',
+    governance: result.ok || recovery.recovered ? 'approved' : 'review-required',
     stepIndex: task.index,
     taskFingerprint: task.taskFingerprint,
     knowledgeFingerprint: agentContext.resolutionContext.knowledgeFingerprint,
