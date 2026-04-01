@@ -1,4 +1,4 @@
-import { type SeededRng, pick } from '../random';
+import { type SeededRng, pick } from '../kernel/random';
 
 // ─── Domain vocabulary ───
 //

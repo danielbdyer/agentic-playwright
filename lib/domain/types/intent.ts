@@ -5,7 +5,7 @@ import type {
   PostureId,
   ScreenId,
   SnapshotTemplateId,
-} from '../identity';
+} from '../kernel/identity';
 import type {
   CompilerDiagnostic,
   Confidence,

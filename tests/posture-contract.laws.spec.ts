@@ -4,7 +4,7 @@ import {
   normalizeScreenPostures,
   resolveEffectTargetKind,
   validatePostureContract,
-} from '../lib/domain/posture-contract';
+} from '../lib/domain/governance/posture-contract';
 import {
   createElementId,
   createPostureId,
@@ -12,7 +12,7 @@ import {
   createSectionId,
   createSurfaceId,
   createWidgetId,
-} from '../lib/domain/identity';
+} from '../lib/domain/kernel/identity';
 import type { PostureEffect, ScreenElements, ScreenPostures, SurfaceGraph } from '../lib/domain/types';
 import { validateScreenElements, validateScreenPostures, validateSurfaceGraph } from '../lib/domain/validation';
 import { maybe, mulberry32, pick, randomInt } from './support/random';

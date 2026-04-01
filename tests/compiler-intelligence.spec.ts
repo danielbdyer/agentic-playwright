@@ -12,8 +12,8 @@ import { resolveAgentSessionAdapter } from '../lib/application/provider-registry
 import { refreshScenario } from '../lib/application/refresh';
 import { runScenario } from '../lib/application/run';
 import { runWithLocalServices } from '../lib/composition/local-services';
-import { createAdoId } from '../lib/domain/identity';
-import { graphIds } from '../lib/domain/ids';
+import { createAdoId } from '../lib/domain/kernel/identity';
+import { graphIds } from '../lib/domain/kernel/ids';
 import type { ProposalEntry } from '../lib/domain/types';
 import { createTestWorkspace } from './support/workspace';
 import { policySearchScreenId, policyNumberInputId } from './support/compiler-helpers';

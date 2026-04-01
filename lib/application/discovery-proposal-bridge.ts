@@ -9,10 +9,10 @@
  * For each discovered behavior -> ScreenBehavior proposal
  */
 
-import { knowledgePaths } from '../domain/ids';
+import { knowledgePaths } from '../domain/kernel/ids';
 import type { DiscoveryRun, DiscoveryObservedElement, DiscoveryObservedSurface } from '../domain/types/interface-context';
 import type { TrustPolicyArtifactType } from '../domain/types/shared-context';
-import type { ScreenId } from '../domain/identity';
+import type { ScreenId } from '../domain/kernel/identity';
 
 // ─── Output types ───
 

@@ -4,5 +4,5 @@ export {
   type PlannedTransitionEdge,
   type PlannedTransitionStep,
   type PlannedExecutionStep,
-} from '../../domain/execution-planner';
+} from '../../domain/resolution/execution-planner';
 

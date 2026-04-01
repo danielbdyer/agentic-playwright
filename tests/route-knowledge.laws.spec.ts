@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { extractRoutePatterns, proposeRouteKnowledge, rankRouteVariants } from '../lib/domain/route-knowledge';
+import { extractRoutePatterns, proposeRouteKnowledge, rankRouteVariants } from '../lib/domain/knowledge/route-knowledge';
 import type { ObservedRoute } from '../lib/domain/types/route-knowledge';
 
 function makeRoute(overrides: Partial<ObservedRoute> & Pick<ObservedRoute, 'url' | 'screenId'>): ObservedRoute {

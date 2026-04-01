@@ -10,7 +10,7 @@
  * so that knowledge changes automatically invalidate stale entries.
  */
 
-import { sha256, stableStringify } from '../domain/hash';
+import { sha256, stableStringify } from '../domain/kernel/hash';
 import type { AgentInterpretationResult } from '../domain/types/agent-interpreter';
 import { readJsonCacheRecord, writeJsonCacheRecord, pruneCacheFiles } from './cache/file-cache';
 import type { ProjectPaths } from './paths';

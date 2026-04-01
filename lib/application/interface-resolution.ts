@@ -9,12 +9,12 @@ import type {
   StepTaskElementCandidate,
   StepTaskScreenCandidate,
 } from '../domain/types';
-import { createStateNodeRef } from '../domain/identity';
-import type { CanonicalTargetRef, PostureId, ScreenId, SelectorRef, SnapshotTemplateId } from '../domain/identity';
-import { computeDecayedConfidence, type FreshnessPolicy, defaultFreshnessPolicy } from '../domain/knowledge-freshness';
-import { precedencePolicies } from '../domain/precedence';
+import { createStateNodeRef } from '../domain/kernel/identity';
+import type { CanonicalTargetRef, PostureId, ScreenId, SelectorRef, SnapshotTemplateId } from '../domain/kernel/identity';
+import { computeDecayedConfidence, type FreshnessPolicy, defaultFreshnessPolicy } from '../domain/knowledge/knowledge-freshness';
+import { precedencePolicies } from '../domain/resolution/precedence';
 import type { WorkspaceCatalog } from './catalog';
-import { TesseractError } from '../domain/errors';
+import { TesseractError } from '../domain/kernel/errors';
 import type { DerivedGraph } from '../domain/types/execution-context';
 
 interface GraphScreenPayload {

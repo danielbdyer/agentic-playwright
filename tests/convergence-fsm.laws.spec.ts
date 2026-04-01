@@ -5,8 +5,8 @@ import {
   foldConvergenceState,
   isTerminal,
   stateOrdinal,
-} from '../lib/domain/convergence-fsm';
-import type { ConvergenceState, ConvergenceEvent } from '../lib/domain/convergence-fsm';
+} from '../lib/domain/projection/convergence-fsm';
+import type { ConvergenceState, ConvergenceEvent } from '../lib/domain/projection/convergence-fsm';
 
 // ─── Law: Terminal states are absorbing ───
 

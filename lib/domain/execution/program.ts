@@ -1,0 +1,219 @@
+﻿import { Match, pipe } from 'effect';
+import { parseRefPath } from '../kernel/ref-path';
+import type { AdoId, ElementId, ScreenId, SnapshotTemplateId } from '../kernel/identity';
+import type { CapabilityName, CompilerDiagnostic, ScenarioStep, StepInstruction, StepProgram, ValueRef } from '../types';
+import { uniqueSorted } from '../kernel/collections';
+
+const TEMPLATE_PATTERN = /^\{\{([a-zA-Z0-9_.]+)\}\}$/;
+const GENERATED_TOKEN_PATTERN = /^<<generated:(.+)>>$/;
+
+export interface StepProgramTrace {
+  instructionKinds: StepInstruction['kind'][];
+  screens: ScreenId[];
+  elements: ElementId[];
+  snapshotTemplates: SnapshotTemplateId[];
+  hasEscapeHatch: boolean;
+}
+
+export function parseValueRef(raw: string | null | undefined, step?: Pick<ScenarioStep, 'element' | 'posture'>): ValueRef | null {
+  if (raw === undefined || raw === null) {
+    if (step?.element && step.posture) {
+      return {
+        kind: 'posture-sample',
+        element: step.element,
+        posture: step.posture,
+        sampleIndex: 0,
+      };
+    }
+    return null;
+  }
+
+  const match = raw.match(TEMPLATE_PATTERN);
+  const refPath = match?.[1];
+  if (refPath) {
+    return {
+      kind: 'fixture-path',
+      path: parseRefPath(refPath),
+    };
+  }
+
+  const generatedToken = raw.match(GENERATED_TOKEN_PATTERN)?.[1];
+  if (generatedToken) {
+    return {
+      kind: 'generated-token',
+      token: generatedToken,
+    };
+  }
+
+  return {
+    kind: 'literal',
+    value: raw,
+  };
+}
+
+export function compileStepProgram(step: ScenarioStep): StepProgram {
+  switch (step.action) {
+    case 'navigate':
+      return {
+        kind: 'step-program',
+        instructions: step.screen
+          ? [{ kind: 'navigate', screen: step.screen }]
+          : [{ kind: 'custom-escape-hatch', reason: 'missing-screen' }],
+      };
+    case 'input':
+      return {
+        kind: 'step-program',
+        instructions: step.screen && step.element
+          ? [{
+              kind: 'enter',
+              screen: step.screen,
+              element: step.element,
+              posture: step.posture ?? null,
+              value: parseValueRef(step.override, { element: step.element, posture: step.posture ?? null }),
+            }]
+          : [{ kind: 'custom-escape-hatch', reason: 'missing-input-target' }],
+      };
+    case 'click':
+      return {
+        kind: 'step-program',
+        instructions: step.screen && step.element
+          ? [{
+              kind: 'invoke',
+              screen: step.screen,
+              element: step.element,
+              action: 'click',
+            }]
+          : [{ kind: 'custom-escape-hatch', reason: 'missing-click-target' }],
+      };
+    case 'assert-snapshot':
+      return {
+        kind: 'step-program',
+        instructions: step.screen && step.element && step.snapshot_template
+          ? [{
+              kind: 'observe-structure',
+              screen: step.screen,
+              element: step.element,
+              snapshotTemplate: step.snapshot_template,
+            }]
+          : [{ kind: 'custom-escape-hatch', reason: 'missing-assertion-target' }],
+      };
+    case 'custom':
+    default:
+      return {
+        kind: 'step-program',
+        instructions: [{ kind: 'custom-escape-hatch', reason: 'custom-step' }],
+      };
+  }
+}
+
+export function capabilityForInstruction(instruction: StepInstruction): CapabilityName {
+  return pipe(
+    Match.type<StepInstruction>(),
+    Match.discriminatorsExhaustive('kind')({
+      'navigate': () => 'navigate' as const,
+      'enter': () => 'enter' as const,
+      'invoke': () => 'invoke' as const,
+      'observe-structure': () => 'observe-structure' as const,
+      'custom-escape-hatch': () => 'custom-escape-hatch' as const,
+    }),
+  )(instruction);
+}
+
+export function traceStepProgram(program: StepProgram): StepProgramTrace {
+  const seed: StepProgramTrace = {
+    instructionKinds: [],
+    screens: [],
+    elements: [],
+    snapshotTemplates: [],
+    hasEscapeHatch: false,
+  };
+
+  const traceInstruction = pipe(
+    Match.type<StepInstruction>(),
+    Match.discriminatorsExhaustive('kind')({
+      'navigate': (i) => (base: StepProgramTrace) => ({ ...base, screens: [...base.screens, i.screen] }),
+      'enter': (i) => (base: StepProgramTrace) => ({ ...base, screens: [...base.screens, i.screen], elements: [...base.elements, i.element] }),
+      'invoke': (i) => (base: StepProgramTrace) => ({ ...base, screens: [...base.screens, i.screen], elements: [...base.elements, i.element] }),
+      'observe-structure': (i) => (base: StepProgramTrace) => ({ ...base, screens: [...base.screens, i.screen], elements: [...base.elements, i.element], snapshotTemplates: [...base.snapshotTemplates, i.snapshotTemplate] }),
+      'custom-escape-hatch': () => (base: StepProgramTrace) => ({ ...base, hasEscapeHatch: true }),
+    }),
+  );
+
+  const raw = program.instructions.reduce((acc, instruction) => {
+    const base = { ...acc, instructionKinds: [...acc.instructionKinds, instruction.kind] };
+    return traceInstruction(instruction)(base);
+  }, seed);
+
+  return {
+    ...raw,
+    screens: uniqueSorted(raw.screens),
+    elements: uniqueSorted(raw.elements),
+    snapshotTemplates: uniqueSorted(raw.snapshotTemplates),
+  };
+}
+
+
+export type ProgramFailureCode =
+  | 'runtime-unknown-screen'
+  | 'runtime-unknown-effect-target'
+  | 'runtime-missing-action-handler'
+  | 'runtime-widget-precondition-failed'
+  | 'runtime-snapshot-handle-resolution-failed'
+  | 'runtime-unresolved-value-ref'
+  | 'runtime-missing-snapshot-template'
+  | 'runtime-step-program-escape-hatch'
+  | 'runtime-execution-failed';
+
+export interface ProgramFailure {
+  code: ProgramFailureCode;
+  message: string;
+  context?: Record<string, string> | undefined;
+  cause?: unknown | undefined;
+}
+
+export interface StepProgramDiagnosticContext {
+  adoId: AdoId;
+  stepIndex?: number | undefined;
+  artifactPath?: string | undefined;
+  provenance?: {
+    sourceRevision?: number | undefined;
+    contentHash?: string | undefined;
+  } | undefined;
+}
+
+export interface StepInterpreterDiagnostic {
+  code: ProgramFailureCode;
+  message: string;
+  context?: Record<string, string> | undefined;
+}
+
+export interface StepProgramInstructionOutcome {
+  instructionIndex: number;
+  instructionKind: StepInstruction['kind'];
+  expectedEffects: string[];
+  observedEffects: string[];
+  status: 'ok' | 'failed';
+  diagnostics: StepInterpreterDiagnostic[];
+  failureCode?: ProgramFailureCode | undefined;
+  locatorStrategy?: string | undefined;
+  locatorRung?: number | undefined;
+  widgetContract?: string | undefined;
+}
+
+export interface StepProgramExecution {
+  mode: string;
+  outcomes: StepProgramInstructionOutcome[];
+}
+
+export type StepProgramExecutionResult =
+  | { ok: true; value: StepProgramExecution }
+  | { ok: false; error: ProgramFailure; diagnostic?: CompilerDiagnostic | undefined; value: StepProgramExecution };
+
+export interface StepProgramInterpreter<TEnvironment> {
+  mode: string;
+  run(program: StepProgram, environment: TEnvironment, context?: StepProgramDiagnosticContext): Promise<StepProgramExecutionResult>;
+}
+
+export type { StepProgram };
+
+

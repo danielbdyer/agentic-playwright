@@ -1,13 +1,13 @@
 import type { CausalLink, ConfidenceScaling, MemoryCapacityConfig, ObservedStateSession, ResolutionEvent, ResolutionPipelineResult, ResolutionReceipt, GroundedStep } from '../../domain/types';
 import { DEFAULT_PIPELINE_CONFIG } from '../../domain/types';
-import { resolutionPrecedenceLaw } from '../../domain/precedence';
+import { resolutionPrecedenceLaw } from '../../domain/resolution/precedence';
 import { selectedControlRefs, selectedControlResolution } from './select-controls';
 import { uniqueSorted } from './shared';
 import type { ResolutionStrategy, StrategyAttemptResult, StrategyChainResult } from './strategy';
 import { runStrategyChain } from './strategy';
 import { createStrategyRegistry } from './strategy-registry';
-import { buildPipelineDAG, validateDAG } from '../../application/pipeline-dag';
-import { TesseractError } from '../../domain/errors';
+import { buildPipelineDAG, validateDAG } from '../../domain/resolution/pipeline-dag';
+import { TesseractError } from '../../domain/kernel/errors';
 import type { RuntimeAgentStageContext, RuntimeStepAgentContext, StageEffects } from './types';
 import { mergeEffectsIntoStage } from './types';
 import { interpretStepIntent } from './interpret-intent';

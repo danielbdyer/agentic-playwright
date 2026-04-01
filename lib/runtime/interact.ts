@@ -1,5 +1,5 @@
 import type { Locator } from '@playwright/test';
-import { missingActionHandlerError, widgetPreconditionError } from '../domain/errors';
+import { missingActionHandlerError, widgetPreconditionError } from '../domain/kernel/errors';
 import type { WidgetInteractionContext, WidgetPrecondition } from '../domain/types';
 import { widgetCapabilityContracts } from '../domain/widgets/contracts';
 import { widgetActionHandlers } from './widgets';

@@ -16,7 +16,7 @@ import type { ScreenObservationPort, ScreenObservationResult } from '../../appli
 import type { LocatorStrategy, ElementSig } from '../../domain/types';
 import { resolveLocator, describeLocatorStrategy } from '../../playwright/locate';
 import { captureAriaYaml } from '../../playwright/aria';
-import { TesseractError } from '../../domain/errors';
+import { TesseractError } from '../../domain/kernel/errors';
 
 /** Observe a single element by trying its locator strategies in order. Pure async. */
 async function observeElement(

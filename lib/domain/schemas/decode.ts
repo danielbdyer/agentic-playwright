@@ -1,6 +1,6 @@
 import { ParseResult, Schema } from 'effect';
 import { Either } from 'effect';
-import { SchemaError } from '../errors';
+import { SchemaError } from '../kernel/errors';
 
 /**
  * Extract a dotted path from an Effect ParseError issue tree.

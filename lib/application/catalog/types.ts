@@ -1,5 +1,5 @@
 import type { ScreenBundle } from '../../domain/knowledge/screen-bundle';
-import type { SnapshotTemplateId } from '../../domain/identity';
+import type { SnapshotTemplateId } from '../../domain/kernel/identity';
 import type {
   AdoSnapshot,
   AgentSession,

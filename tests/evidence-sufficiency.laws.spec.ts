@@ -17,7 +17,7 @@
  */
 
 import { expect, test } from '@playwright/test';
-import { evaluateTrustPolicy } from '../lib/domain/trust-policy';
+import { evaluateTrustPolicy } from '../lib/domain/governance/trust-policy';
 import type {
   TrustPolicy,
   TrustPolicyArtifactType,

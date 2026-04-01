@@ -9,7 +9,7 @@ import { expect, test } from '@playwright/test';
 import { refreshScenario } from '../lib/application/refresh';
 import { buildDerivedGraph } from '../lib/application/graph';
 import { runWithLocalServices } from '../lib/composition/local-services';
-import { createAdoId } from '../lib/domain/identity';
+import { createAdoId } from '../lib/domain/kernel/identity';
 import { createTestWorkspace } from './support/workspace';
 
 test.describe('end-to-end pipeline integration', () => {

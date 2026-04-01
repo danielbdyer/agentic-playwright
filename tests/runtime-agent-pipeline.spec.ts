@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { createAdoId, createCanonicalTargetRef, createElementId, createScreenId, createSurfaceId, createWidgetId } from '../lib/domain/identity';
+import { createAdoId, createCanonicalTargetRef, createElementId, createScreenId, createSurfaceId, createWidgetId } from '../lib/domain/kernel/identity';
 import type { GroundedStep, StepAction, ResolutionReceipt } from '../lib/domain/types';
 import { RESOLUTION_PRECEDENCE, runResolutionPipeline, type RuntimeStepAgentContext } from '../lib/runtime/agent';
 import { createScenarioRunState, runScenarioStep } from '../lib/runtime/scenario';

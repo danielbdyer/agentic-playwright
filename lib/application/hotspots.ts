@@ -11,7 +11,7 @@
  */
 
 import type { InterpretationDriftRecord, ResolutionGraphRecord, RunRecord } from '../domain/types';
-import { compareStrings } from '../domain/collections';
+import { compareStrings } from '../domain/kernel/collections';
 
 const compareNumbers = (left: number, right: number): number => left - right;
 

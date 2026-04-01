@@ -3,7 +3,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { Effect } from 'effect';
 import type { FileSystemPort } from '../../application/ports';
-import { FileSystemError, toFileSystemError, toFileSystemOperationError } from '../../domain/errors';
+import { FileSystemError, toFileSystemError, toFileSystemOperationError } from '../../domain/kernel/errors';
 
 function stripBom(value: string): string {
   return value.replace(/^\uFEFF/, '');

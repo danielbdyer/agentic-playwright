@@ -7,7 +7,7 @@ import {
   createScenarioEnvelopeIds,
 } from '../lib/application/catalog/envelope';
 import { runWithLocalServices } from '../lib/composition/local-services';
-import { createAdoId } from '../lib/domain/identity';
+import { createAdoId } from '../lib/domain/kernel/identity';
 import type { ProposalBundle, ProposalEntry } from '../lib/domain/types';
 import { createTestWorkspace } from './support/workspace';
 

@@ -5,7 +5,7 @@ import { applyDriftEvents, type VarianceManifest } from '../lib/application/drif
 import { runDogfoodLoop } from '../lib/application/dogfood';
 import { refreshScenario } from '../lib/application/refresh';
 import { runWithLocalServices } from '../lib/composition/local-services';
-import { createAdoId } from '../lib/domain/identity';
+import { createAdoId } from '../lib/domain/kernel/identity';
 import type { DogfoodLedgerProjection, ImprovementLoopLedger } from '../lib/domain/types';
 import { createTestWorkspace } from './support/workspace';
 

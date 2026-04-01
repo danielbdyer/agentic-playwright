@@ -7,7 +7,7 @@ import type {
   RankingWeights,
 } from '../domain/types';
 import { DEFAULT_PIPELINE_CONFIG } from '../domain/types';
-import { uniqueSorted } from '../domain/collections';
+import { uniqueSorted } from '../domain/kernel/collections';
 import {
   round4,
   combineScoringRules,

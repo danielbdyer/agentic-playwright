@@ -1,6 +1,6 @@
-import { SchemaError } from '../errors';
+import { SchemaError } from '../kernel/errors';
 import type { MergedPatterns, PatternActionName, PatternAliasSet, PatternDocument } from '../types';
-import { uniqueSorted } from '../collections';
+import { uniqueSorted } from '../kernel/collections';
 
 const requiredActions = ['navigate', 'input', 'click', 'assert-snapshot'] as const satisfies ReadonlyArray<PatternActionName>;
 

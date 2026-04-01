@@ -14,7 +14,7 @@
 
 import { expect, test } from '@playwright/test';
 import { mulberry32, pick , LAW_SEED_COUNT } from './support/random';
-import { evaluateTrustPolicy } from '../lib/domain/trust-policy';
+import { evaluateTrustPolicy } from '../lib/domain/governance/trust-policy';
 import type {
   TrustPolicy,
   TrustPolicyDecision,

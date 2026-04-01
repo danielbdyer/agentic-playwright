@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { SchemaError } from '../lib/domain/errors';
+import { SchemaError } from '../lib/domain/kernel/errors';
 import {
   validateBenchmarkContext,
   validateBenchmarkImprovementProjection,

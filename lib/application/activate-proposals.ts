@@ -6,7 +6,7 @@ import type { ProjectPaths } from './paths';
 import { FileSystem } from './ports';
 import { trySync } from './effect';
 import { applyProposalPatch, parseProposalArtifact, serializeProposalArtifact, validatePatchedProposalArtifact } from './proposal-patches';
-import { evaluateAutoApproval } from '../domain/trust-policy';
+import { evaluateAutoApproval } from '../domain/governance/trust-policy';
 import type { FileSystemPort } from './ports';
 
 function certificationForProposal(proposal: ProposalEntry): ProposalEntry['certification'] {

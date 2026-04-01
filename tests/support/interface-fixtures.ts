@@ -8,7 +8,7 @@ import {
   createSurfaceId,
   createTransitionRef,
   createWidgetId,
-} from '../../lib/domain/identity';
+} from '../../lib/domain/kernel/identity';
 import type {
   GroundedStep,
   InterfaceResolutionContext,

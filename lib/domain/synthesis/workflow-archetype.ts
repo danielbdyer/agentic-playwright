@@ -1,4 +1,4 @@
-import { type SeededRng, pick, shuffle } from '../random';
+import { type SeededRng, pick, shuffle } from '../kernel/random';
 import type { ScreenElementPlanInput, ScreenPlanInput } from './scenario-plan';
 import { generateHeldOutPhrases, generateNavPhrase, generateNavExpectation, selectAtGapDistance } from './translation-gap';
 

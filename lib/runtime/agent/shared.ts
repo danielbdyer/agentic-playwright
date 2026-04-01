@@ -1,11 +1,11 @@
-import { uniqueSorted } from '../../domain/collections';
-import { normalizeIntentText } from '../../domain/inference';
+import { uniqueSorted } from '../../domain/kernel/collections';
+import { normalizeIntentText } from '../../domain/knowledge/inference';
 import type { ResolutionExhaustionEntry, GroundedStep } from '../../domain/types';
 
 export { uniqueSorted };
 
 // Re-export from domain layer — alias matching is a pure inference concern
-export { bestAliasMatch, humanizeIdentifier, type AliasMatch } from '../../domain/inference';
+export { bestAliasMatch, humanizeIdentifier, type AliasMatch } from '../../domain/knowledge/inference';
 
 export function exhaustionEntry(
   stage: ResolutionExhaustionEntry['stage'],

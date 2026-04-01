@@ -1,11 +1,11 @@
-import { uniqueSorted } from '../collections';
+import { uniqueSorted } from '../kernel/collections';
 import type {
   GroundedStep,
   ResolutionReceipt,
   TransitionObservation,
   ObservedStateSession,
 } from '../types';
-import type { StateNodeRef, TransitionRef } from '../identity';
+import type { StateNodeRef, TransitionRef } from '../kernel/identity';
 
 export interface ScenarioRunState {
   previousResolution: import('../types').ResolutionTarget | null;

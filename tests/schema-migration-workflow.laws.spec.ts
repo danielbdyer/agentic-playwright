@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { SchemaError } from '../lib/domain/errors';
+import { SchemaError } from '../lib/domain/kernel/errors';
 import { validateBoundStep } from '../lib/domain/validation/intent';
 import { validateTrustPolicy } from '../lib/domain/validation/trust-policy';
 import { decodeWorkflowEnvelope } from '../lib/domain/validation/schema-validators';

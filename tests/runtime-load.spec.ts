@@ -5,7 +5,7 @@ import { expect, test } from '@playwright/test';
 import { createProjectPaths } from '../lib/application/paths';
 import { inspectSurface } from '../lib/application/surface';
 import { runWithLocalServices } from '../lib/composition/local-services';
-import { createScreenId } from '../lib/domain/identity';
+import { createScreenId } from '../lib/domain/kernel/identity';
 import { createLocalScreenRegistryLoader } from '../lib/infrastructure/screen-registry/local-screen-registry-loader';
 
 function createWorkspace(

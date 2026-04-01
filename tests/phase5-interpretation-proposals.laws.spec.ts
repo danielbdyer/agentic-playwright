@@ -7,7 +7,7 @@ import {
 } from './support/interface-fixtures';
 import { proposalsFromInterpretation, proposalForSupplementGap } from '../lib/runtime/agent/proposals';
 import type { IntentInterpretation } from '../lib/runtime/agent/types';
-import { createScreenId, createElementId } from '../lib/domain/identity';
+import { createScreenId, createElementId } from '../lib/domain/kernel/identity';
 
 // ─── Fixtures ───
 

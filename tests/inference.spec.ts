@@ -2,7 +2,7 @@ import { readFileSync } from 'fs';
 import path from 'path';
 import { expect, test } from '@playwright/test';
 import { parseSnapshotToScenario } from '../lib/application/parse';
-import { normalizeIntentText } from '../lib/domain/inference';
+import { normalizeIntentText } from '../lib/domain/knowledge/inference';
 import { validateAdoSnapshot } from '../lib/domain/validation';
 
 const rootDir = process.cwd();

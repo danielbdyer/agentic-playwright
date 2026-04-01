@@ -1,7 +1,7 @@
 import path from 'path';
 import { createProjectPaths, type ProjectPaths } from '../paths';
 import type { ExecutionPosture } from '../../domain/types';
-import { TesseractError } from '../../domain/errors';
+import { TesseractError } from '../../domain/kernel/errors';
 import { commandRegistry } from './commands/index';
 import {
   type CommandExecution,

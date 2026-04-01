@@ -30,7 +30,7 @@ import type {
   SubstrateContext,
 } from '../domain/types';
 import { DEFAULT_PIPELINE_CONFIG } from '../domain/types';
-import { TesseractError } from '../domain/errors';
+import { TesseractError } from '../domain/kernel/errors';
 
 // ─── Public types ───
 

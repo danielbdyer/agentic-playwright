@@ -6,8 +6,8 @@ import type {
   StepProgramExecutionResult,
   StepProgramInstructionOutcome,
   StepProgramInterpreter,
-} from '../../domain/program';
-import type { PostureId, ScreenId, SnapshotTemplateId } from '../../domain/identity';
+} from '../../domain/execution/program';
+import type { PostureId, ScreenId, SnapshotTemplateId } from '../../domain/kernel/identity';
 import type { ScreenElements, ScreenPostures, SurfaceGraph, ValueRef } from '../../domain/types';
 
 export type InterpreterMode = 'playwright' | 'dry-run' | 'diagnostic';

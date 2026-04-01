@@ -1,8 +1,8 @@
 ﻿import { existsSync, readFileSync } from 'fs';
 import path from 'path';
 import type { FullConfig, FullResult, Reporter, Suite, TestCase, TestResult } from '@playwright/test/reporter';
-import { createAdoId } from '../../domain/identity';
-import { graphIds } from '../../domain/ids';
+import { createAdoId } from '../../domain/kernel/identity';
+import { graphIds } from '../../domain/kernel/ids';
 import type { DerivedGraph } from '../../domain/types';
 import { validateDerivedGraph } from '../../domain/validation';
 

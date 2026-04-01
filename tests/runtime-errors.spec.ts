@@ -4,7 +4,7 @@ import {
   snapshotHandleResolutionError,
   unknownEffectTargetError,
   unknownScreenError,
-} from '../lib/domain/errors';
+} from '../lib/domain/kernel/errors';
 import {
   createAdoId,
   createElementId,
@@ -13,9 +13,9 @@ import {
   createSurfaceId,
   createWidgetId,
   type WidgetId,
-} from '../lib/domain/identity';
+} from '../lib/domain/kernel/identity';
 import { type StepProgram } from '../lib/domain/types';
-import { deriveCapabilities } from '../lib/domain/grammar';
+import { deriveCapabilities } from '../lib/domain/execution/grammar';
 import { playwrightStepProgramInterpreter, runStepProgram, runtimeFailureDiagnostic } from '../lib/runtime/program';
 import { interact } from '../lib/runtime/interact';
 import { widgetActionHandlers } from '../dogfood/knowledge/components';

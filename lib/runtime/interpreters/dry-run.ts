@@ -5,9 +5,9 @@ import type {
   StepProgramDiagnosticContext,
   StepProgramExecutionResult,
   StepProgramInterpreter,
-} from '../../domain/program';
-import { createDiagnostic } from '../../domain/diagnostics';
-import { runtimeEscapeHatchError } from '../../domain/errors';
+} from '../../domain/execution/program';
+import { createDiagnostic } from '../../domain/governance/diagnostics';
+import { runtimeEscapeHatchError } from '../../domain/kernel/errors';
 import type { StepInstruction } from '../../domain/types';
 import type { InterpreterEnvironment } from './types';
 import { interpreterOutcome, requireScreen, resolvePosture } from './types';

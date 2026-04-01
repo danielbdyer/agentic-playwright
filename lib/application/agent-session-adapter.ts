@@ -12,8 +12,8 @@ import type {
   TranscriptRef,
 } from '../domain/types';
 import { mintApproved } from '../domain/types/shared-context';
-import type { AdoId } from '../domain/identity';
-import { TesseractError } from '../domain/errors';
+import type { AdoId } from '../domain/kernel/identity';
+import { TesseractError } from '../domain/kernel/errors';
 
 export type AgentSessionAdapterId = string;
 

@@ -16,7 +16,7 @@
  */
 import path from 'path';
 import { Effect } from 'effect';
-import { SchemaError, TesseractError } from '../domain/errors';
+import { SchemaError, TesseractError } from '../domain/kernel/errors';
 import {
   createCanonicalTargetRef,
   createElementId,
@@ -37,8 +37,8 @@ import {
   type StateNodeRef,
   type SurfaceId,
   type TransitionRef,
-} from '../domain/identity';
-import { graphIds } from '../domain/ids';
+} from '../domain/kernel/identity';
+import { graphIds } from '../domain/kernel/ids';
 import { createApplicationInterfaceGraph, recordTransition } from '../domain/aggregates/application-interface-graph';
 import type {
   ApplicationInterfaceGraph,

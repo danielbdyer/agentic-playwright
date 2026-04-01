@@ -6,9 +6,9 @@ import type {
   StepProgramDiagnosticContext,
   StepProgramExecutionResult,
   StepProgramInstructionOutcome,
-} from '../../domain/program';
+} from '../../domain/execution/program';
 import { interpreterOutcome } from './types';
-import type { ProgramFailureCode, StepInterpreterDiagnostic } from '../../domain/program';
+import type { ProgramFailureCode, StepInterpreterDiagnostic } from '../../domain/execution/program';
 
 export interface InstructionOutcome {
   status: 'ok' | 'failed';

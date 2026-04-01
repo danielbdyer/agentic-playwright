@@ -1,5 +1,5 @@
-import { sha256, stableStringify } from '../../domain/hash';
-import type { AdoId } from '../../domain/identity';
+import { sha256, stableStringify } from '../../domain/kernel/hash';
+import type { AdoId } from '../../domain/kernel/identity';
 import type { ProposalBundle, RunRecord, ScenarioRunStep } from '../../domain/types';
 import type { Governance, WorkflowEnvelopeFingerprints, WorkflowEnvelopeIds, WorkflowEnvelopeLineage } from '../../domain/types/shared-context';
 import { GovernanceLattice } from '../../domain/algebra/lattice';

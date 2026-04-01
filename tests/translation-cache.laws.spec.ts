@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { translationCacheKey } from '../lib/application/translation-cache';
 import type { TranslationRequest } from '../lib/domain/types';
-import { createElementId, createScreenId } from '../lib/domain/identity';
+import { createElementId, createScreenId } from '../lib/domain/kernel/identity';
 import { deterministicRuntimeStepAgent } from '../lib/runtime/agent';
 import { createAgentContext, createInterfaceResolutionContext, createGroundedStep } from './support/interface-fixtures';
 

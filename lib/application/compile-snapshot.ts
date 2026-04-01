@@ -1,4 +1,4 @@
-import type { AdoId } from '../domain/identity';
+import type { AdoId } from '../domain/kernel/identity';
 import type { BoundScenario, Scenario, ScenarioInterpretationSurface } from '../domain/types';
 
 export interface CompileSnapshot {

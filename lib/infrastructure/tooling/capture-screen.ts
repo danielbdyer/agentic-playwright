@@ -1,6 +1,6 @@
 ﻿import path from 'path';
 import { execFile } from 'child_process';
-import type { ScreenId } from '../../domain/identity';
+import type { ScreenId } from '../../domain/kernel/identity';
 import type { ProjectPaths } from '../../application/paths';
 import { tryAsync } from '../../application/effect';
 

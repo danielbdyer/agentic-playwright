@@ -1,5 +1,5 @@
 import { Effect } from 'effect';
-import { TesseractError } from '../domain/errors';
+import { TesseractError } from '../domain/kernel/errors';
 import { foldGovernance } from '../domain/types/shared-context';
 import type { Approved } from '../domain/types/shared-context';
 import type {

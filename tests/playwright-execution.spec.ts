@@ -4,8 +4,8 @@
  * fill inputs, click buttons, and observe DOM structure.
  */
 import { expect, test } from '@playwright/test';
-import { createElementId, createScreenId, createSectionId, createSurfaceId, createWidgetId } from '../lib/domain/identity';
-import type { LoadedScreen, ScreenRegistry } from '../lib/domain/runtime-loaders';
+import { createElementId, createScreenId, createSectionId, createSurfaceId, createWidgetId } from '../lib/domain/kernel/identity';
+import type { LoadedScreen, ScreenRegistry } from '../lib/domain/execution/runtime-loaders';
 import type { StepProgram, ValueRef } from '../lib/domain/types';
 import { playwrightStepProgramInterpreter } from '../lib/runtime/program';
 

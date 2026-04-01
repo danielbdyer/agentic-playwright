@@ -11,7 +11,7 @@ import {
   createStateNodeRef,
   createSurfaceId,
   createTransitionRef,
-} from '../identity';
+} from '../kernel/identity';
 import * as schemaDecode from '../schemas/decode';
 import * as schemas from '../schemas';
 import type {

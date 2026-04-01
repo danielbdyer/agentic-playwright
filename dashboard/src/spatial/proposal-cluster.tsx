@@ -19,7 +19,7 @@ import * as THREE from 'three';
 import {
   ARTIFACT_COLORS,
   type ProposalCluster as ProposalClusterData,
-} from '../../../lib/domain/proposal-cluster';
+} from '../../../lib/domain/governance/proposal-cluster';
 
 // ─── Types ───
 

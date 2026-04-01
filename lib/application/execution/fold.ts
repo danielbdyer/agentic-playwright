@@ -1,7 +1,7 @@
 import type { ScenarioRunFold, ScenarioRunPlan, StepExecutionReceipt, TranslationRunMetrics } from '../../domain/types';
 import type { RuntimeScenarioStepResult } from '../ports';
 import type { PersistedEvidenceArtifact } from './persist-evidence';
-import { uniqueSorted } from '../../domain/collections';
+import { uniqueSorted } from '../../domain/kernel/collections';
 
 // ─── Monoid Combinators ───
 // Each has an `empty` (identity) and `combine` (associative binary op).

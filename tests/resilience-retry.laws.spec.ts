@@ -3,7 +3,7 @@ import { Effect } from 'effect';
 import { createLlmApiProvider, DEFAULT_TRANSLATION_CONFIG } from '../lib/application/translation-provider';
 import { DEFAULT_AGENT_INTERPRETER_CONFIG, resolveAgentInterpreterProvider } from '../lib/application/agent-interpreter-provider';
 import type { TranslationRequest } from '../lib/domain/types';
-import { createElementId, createScreenId } from '../lib/domain/identity';
+import { createElementId, createScreenId } from '../lib/domain/kernel/identity';
 import type { AgentInterpretationRequest } from '../lib/domain/types/agent-interpreter';
 
 const request: TranslationRequest = {

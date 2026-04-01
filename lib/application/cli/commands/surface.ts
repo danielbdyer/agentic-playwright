@@ -1,5 +1,5 @@
 import { inspectSurface } from '../../surface';
-import { createScreenId } from '../../../domain/identity';
+import { createScreenId } from '../../../domain/kernel/identity';
 import { createCommandSpec } from '../shared';
 import { requireScreen } from '../shared';
 

@@ -1,4 +1,4 @@
-import type { AdoId, EventSignatureRef, StateNodeRef, TransitionRef } from '../identity';
+import type { AdoId, EventSignatureRef, StateNodeRef, TransitionRef } from '../kernel/identity';
 import type { RecoveryStrategyId } from '../execution/recovery-policy';
 import type {
   CanonicalLineage,
@@ -15,7 +15,7 @@ import type {
   WorkflowEnvelopeLineage,
 } from './workflow';
 import type { ResolutionReceipt, ResolutionRungOverride, StepResolutionGraph, TranslationReceipt } from './resolution';
-import type { ResolutionPrecedenceRung } from '../precedence';
+import type { ResolutionPrecedenceRung } from '../resolution/precedence';
 import type { TransitionObservation } from './interface';
 
 

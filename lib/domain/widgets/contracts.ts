@@ -1,4 +1,4 @@
-import { createWidgetId } from '../identity';
+import { createWidgetId } from '../kernel/identity';
 import type { WidgetCapabilityContract } from '../types/widgets';
 
 export type WidgetContractRegistry = Record<string, WidgetCapabilityContract>;

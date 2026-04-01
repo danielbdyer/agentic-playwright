@@ -1,15 +1,15 @@
 import type { Page } from '@playwright/test';
 import { attachConsoleSentinel } from './console-sentinel';
-import { uniqueSorted } from '../domain/collections';
-import { rankRouteVariants } from '../domain/route-knowledge';
-import { chooseByPrecedence, routeSelectionPrecedenceLaw } from '../domain/precedence';
-import type { AdoId, StateNodeRef, TransitionRef } from '../domain/identity';
+import { uniqueSorted } from '../domain/kernel/collections';
+import { rankRouteVariants } from '../domain/knowledge/route-knowledge';
+import { chooseByPrecedence, routeSelectionPrecedenceLaw } from '../domain/resolution/precedence';
+import type { AdoId, StateNodeRef, TransitionRef } from '../domain/kernel/identity';
 import type { ExecutionBudgetThresholds } from '../domain/execution/telemetry';
 import { defaultRecoveryPolicy, recoveryFamilyConfig, type RecoveryAttempt, type RecoveryPolicy, type RecoveryStrategy } from '../domain/execution/recovery-policy';
 import { emptyExecutionTiming, normalizeFailureFamily } from '../domain/execution/telemetry';
-import { compileStepProgram } from '../domain/program';
-import type { SnapshotTemplateLoader } from '../domain/runtime-loaders';
-import { RuntimeError } from '../domain/errors';
+import { compileStepProgram } from '../domain/execution/program';
+import type { SnapshotTemplateLoader } from '../domain/execution/runtime-loaders';
+import { RuntimeError } from '../domain/kernel/errors';
 import { mintBlocked } from '../domain/types/shared-context';
 import {
   advanceScenarioRunState,
@@ -44,7 +44,7 @@ import { applyProposalDraftsToRuntimeContext } from './agent/proposals';
 import type { RuntimeAgentInterpreter } from './agent/types';
 import type { RuntimeDomResolver } from '../domain/types';
 import { observeStateRefsOnPage, observeTransitionOnPage } from '../playwright/state-topology';
-import { planExecutionStep } from '../domain/execution-planner';
+import { planExecutionStep } from '../domain/resolution/execution-planner';
 
 export interface RuntimeScenarioEnvironment {
   mode: InterpreterMode;

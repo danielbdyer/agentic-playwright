@@ -16,7 +16,7 @@ import {
   type IterationMetrics,
   type TimelineEntry,
   type TimelineState,
-} from '../../../lib/domain/iteration-timeline';
+} from '../../../lib/domain/projection/iteration-timeline';
 import { ConvergenceArrow } from '../molecules/convergence-arrow';
 
 // ─── Component Props ───

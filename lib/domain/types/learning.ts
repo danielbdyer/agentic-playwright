@@ -1,4 +1,4 @@
-import type { AdoId } from '../identity';
+import type { AdoId } from '../kernel/identity';
 import type { Confidence, StepAction } from './workflow';
 
 export type LearningRuntime = 'decomposition' | 'repair-recovery' | 'workflow';

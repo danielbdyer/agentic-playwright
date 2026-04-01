@@ -1,6 +1,6 @@
 import { Effect } from 'effect';
 import YAML from 'yaml';
-import type { AdoId, ScreenId } from '../domain/identity';
+import type { AdoId, ScreenId } from '../domain/kernel/identity';
 import { validateAdoSnapshot, validateScenario } from '../domain/validation';
 import { loadWorkspaceCatalog } from './catalog';
 import { trySync } from './effect';

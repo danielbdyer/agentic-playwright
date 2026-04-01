@@ -26,7 +26,7 @@ import { dashboardEvent } from '../lib/domain/types/dashboard';
 import type { AgentWorkItem, WorkItemKind } from '../lib/domain/types/workbench';
 import { runPipelineStage } from '../lib/application/pipeline';
 import { mulberry32, pick, randomInt , LAW_SEED_COUNT } from './support/random';
-import type { AdoId } from '../lib/domain/identity';
+import type { AdoId } from '../lib/domain/kernel/identity';
 
 // ─── Recording Dashboard ───
 

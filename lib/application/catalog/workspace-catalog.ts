@@ -1,7 +1,7 @@
 import path from 'path';
 import { Effect } from 'effect';
 import { resolveEffectConcurrency } from '../concurrency';
-import { createSnapshotTemplateId } from '../../domain/identity';
+import { createSnapshotTemplateId } from '../../domain/kernel/identity';
 import { mergePatternDocuments } from '../../domain/knowledge/patterns';
 import type {
   AdoSnapshot,

@@ -13,7 +13,7 @@ import {
   trendColor,
   type BindingKind,
   type StepBinding,
-} from '../lib/domain/binding-distribution';
+} from '../lib/domain/projection/binding-distribution';
 
 const makeBinding = (kind: BindingKind, confidence: number): StepBinding => ({
   adoId: 'test-1', stepIndex: 0, kind, confidence,

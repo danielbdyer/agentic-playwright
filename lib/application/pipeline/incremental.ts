@@ -1,5 +1,5 @@
 import { Effect } from 'effect';
-import type { TesseractError } from '../../domain/errors';
+import type { TesseractError } from '../../domain/kernel/errors';
 import { FileSystem } from '../ports';
 import {
   computeProjectionInputSetFingerprint,

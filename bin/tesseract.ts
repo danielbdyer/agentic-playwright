@@ -1,5 +1,5 @@
 ﻿#!/usr/bin/env node
-import { TesseractError } from '../lib/domain/errors';
+import { TesseractError } from '../lib/domain/kernel/errors';
 import { runWithLocalServicesDetailed } from '../lib/composition/local-services';
 import { createCliPaths, parseCliInvocation, resolveExecutionPosture } from '../lib/application/cli/registry';
 

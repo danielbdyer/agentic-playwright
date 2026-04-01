@@ -1,4 +1,4 @@
-import { evaluateTrustPolicy } from '../domain/trust-policy';
+import { evaluateTrustPolicy } from '../domain/governance/trust-policy';
 import type {
   EvidenceDescriptor,
   ProposedChangeMetadata,

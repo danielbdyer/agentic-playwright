@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from 'fs';
 import { expect, test } from '@playwright/test';
 import { loadWorkspaceCatalog } from '../lib/application/catalog';
 import { projectInterfaceIntelligence } from '../lib/application/interface-intelligence';
-import { SchemaError } from '../lib/domain/errors';
+import { SchemaError } from '../lib/domain/kernel/errors';
 import { validateBehaviorPatternDocument } from '../lib/domain/validation';
 import { runWithLocalServices } from '../lib/composition/local-services';
 import { createTestWorkspace } from './support/workspace';

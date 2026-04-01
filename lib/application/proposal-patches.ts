@@ -1,5 +1,5 @@
 import YAML from 'yaml';
-import { isRecord } from '../domain/collections';
+import { isRecord } from '../domain/kernel/collections';
 import type { ProposalEntry } from '../domain/types';
 import { validateScreenHints } from '../domain/validation';
 

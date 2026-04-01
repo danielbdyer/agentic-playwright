@@ -9,7 +9,7 @@
  * of pipeline fidelity measured from clean-slate runs.
  */
 
-import type { ResolutionPrecedenceRung } from '../precedence';
+import type { ResolutionPrecedenceRung } from '../resolution/precedence';
 
 // ─── Pipeline Failure Classification ───
 

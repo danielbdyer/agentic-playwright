@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { chooseByPrecedence, precedencePolicies } from '../lib/domain/precedence';
+import { chooseByPrecedence, precedencePolicies } from '../lib/domain/resolution/precedence';
 import { controlResolutionForStep } from '../lib/application/controls';
 import type { RuntimeControlSession } from '../lib/domain/types';
 

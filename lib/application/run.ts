@@ -19,7 +19,7 @@ import {
 import { ExecutionContext, FileSystem, RuntimeScenarioRunner, Dashboard } from './ports';
 import type { ExecutionPosture, Confidence, ActorKind } from '../domain/types';
 import { dashboardEvent } from '../domain/types/intervention-context';
-import type { AdoId } from '../domain/identity';
+import type { AdoId } from '../domain/kernel/identity';
 import { loadScenarioInterpretationSurfaceFromCatalog, prepareScenarioRunPlan } from './execution/select-run-context';
 import { runPipelineStage } from './pipeline';
 import { interpretScenarioFromPlan } from './execution/interpret';
@@ -28,7 +28,7 @@ import { buildProposals } from './execution/build-proposals';
 import { buildRunRecord } from './execution/build-run-record';
 import { foldScenarioRun } from './execution/fold';
 import { resolveEffectConcurrency } from './concurrency';
-import { TesseractError } from '../domain/errors';
+import { TesseractError } from '../domain/kernel/errors';
 
 // ─── Dashboard probe helpers (pure) ───
 

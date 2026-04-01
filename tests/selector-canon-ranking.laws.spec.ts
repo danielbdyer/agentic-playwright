@@ -20,7 +20,7 @@
 import { expect, test } from '@playwright/test';
 import type { LocatorStrategy, LocatorStrategyKind } from '../lib/domain/types/workflow';
 import type { SelectorProbe, SelectorCanonEntry } from '../lib/domain/types/interface';
-import type { CanonicalTargetRef, SelectorRef } from '../lib/domain/identity';
+import type { CanonicalTargetRef, SelectorRef } from '../lib/domain/kernel/identity';
 import { mulberry32, pick, randomWord, randomInt , LAW_SEED_COUNT } from './support/random';
 
 // ─── Specificity order ───

@@ -1,4 +1,4 @@
-import { sha256, stableStringify } from '../domain/hash';
+import { sha256, stableStringify } from '../domain/kernel/hash';
 import type { TranslationReceipt, TranslationRequest } from '../domain/types';
 import { readJsonCacheRecord, writeJsonCacheRecord, pruneCacheFiles } from './cache/file-cache';
 import type { ProjectPaths } from './paths';

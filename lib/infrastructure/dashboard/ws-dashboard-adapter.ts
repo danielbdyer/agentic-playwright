@@ -15,7 +15,7 @@ import type { DashboardPort } from '../../application/ports';
 import type { DashboardEvent, WorkItemDecision } from '../../domain/types';
 import type { AgentWorkItem } from '../../domain/types';
 import { dashboardEvent } from '../../domain/types';
-import { TesseractError } from '../../domain/errors';
+import { TesseractError } from '../../domain/kernel/errors';
 import { RETRY_POLICIES, retryScheduleForTaggedErrors } from '../../application/resilience/schedules';
 
 export interface WsBroadcaster {

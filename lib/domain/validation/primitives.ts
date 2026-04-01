@@ -1,4 +1,4 @@
-import { SchemaError } from '../errors';
+import { SchemaError } from '../kernel/errors';
 
 export type UnknownRecord = Record<string, unknown>;
 

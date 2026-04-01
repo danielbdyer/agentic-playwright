@@ -26,7 +26,7 @@ import {
   foldImprovementTarget,
   foldResolutionEvent,
   foldPipelineFailureClass,
-} from '../lib/domain/visitors';
+} from '../lib/domain/kernel/visitors';
 import type {
   ValueRef,
   StepInstruction,

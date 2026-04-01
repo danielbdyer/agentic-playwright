@@ -18,7 +18,7 @@ import {
   defaultFreshnessPolicy,
   isStale,
   type FreshnessPolicy,
-} from '../lib/domain/knowledge-freshness';
+} from '../lib/domain/knowledge/knowledge-freshness';
 import { mulberry32 , LAW_SEED_COUNT } from './support/random';
 
 // ─── Helpers ───

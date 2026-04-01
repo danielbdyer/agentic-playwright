@@ -1,4 +1,4 @@
-import { compareStrings } from '../../domain/collections';
+import { compareStrings } from '../../domain/kernel/collections';
 import { humanizeIdentifier } from './shared';
 import { widgetCapabilityContracts } from '../../domain/widgets/contracts';
 import type {

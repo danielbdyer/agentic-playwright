@@ -1,10 +1,10 @@
 import path from 'path';
 import { Effect } from 'effect';
-import { createTrustPolicyDiagnostic } from '../domain/diagnostics';
-import { evaluateTrustPolicy } from '../domain/trust-policy';
-import type { AdoId } from '../domain/identity';
-import { createScreenId } from '../domain/identity';
-import { graphIds } from '../domain/ids';
+import { createTrustPolicyDiagnostic } from '../domain/governance/diagnostics';
+import { evaluateTrustPolicy } from '../domain/governance/trust-policy';
+import type { AdoId } from '../domain/kernel/identity';
+import { createScreenId } from '../domain/kernel/identity';
+import { graphIds } from '../domain/kernel/ids';
 import type { EvidenceDescriptor, EvidenceRecord, ProposedChangeMetadata, TrustPolicy, TrustPolicyEvaluation } from '../domain/types';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
 import type { ProjectPaths } from './paths';

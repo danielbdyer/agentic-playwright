@@ -10,7 +10,7 @@ import type {
   GroundedStep,
 } from '../../domain/types';
 import type { AgentInterpreterPort } from '../../domain/resolution/model';
-import type { ElementId, PostureId, ScreenId } from '../../domain/identity';
+import type { ElementId, PostureId, ScreenId } from '../../domain/kernel/identity';
 import type { ResolutionTarget, TranslationReceipt, TranslationRequest } from '../../domain/types';
 
 export type RuntimeAgentInterpreter = AgentInterpreterPort;

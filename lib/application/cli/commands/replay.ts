@@ -1,5 +1,5 @@
 import { replayInterpretation } from '../../replay-interpretation';
-import { createAdoId } from '../../../domain/identity';
+import { createAdoId } from '../../../domain/kernel/identity';
 import { createCommandSpec } from '../shared';
 import { requireAdoId, withDefinedValues } from '../shared';
 

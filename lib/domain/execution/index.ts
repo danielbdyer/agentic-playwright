@@ -1,5 +1,11 @@
 /**
- * Bounded workflow seam — domain/execution
- * Re-exports the public surface of this workflow package.
+ * Bounded context — domain/execution
+ *
+ * Step program compilation, runtime loader ports, grammar/capability
+ * derivation, grounded flow projection, and scenario lifecycle status.
  */
-export {};
+export * from './program';
+export * from './runtime-loaders';
+export * from './grammar';
+export * from './grounded-flow';
+export * from './status';

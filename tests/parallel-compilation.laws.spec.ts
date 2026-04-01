@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { sha256, stableStringify } from '../lib/domain/hash';
+import { sha256, stableStringify } from '../lib/domain/kernel/hash';
 import {
   computeProjectionInputSetFingerprint,
   fingerprintProjectionArtifact,
