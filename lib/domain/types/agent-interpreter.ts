@@ -28,6 +28,9 @@ export interface AgentInterpretationRequest {
   }>;
   /** DOM context: ARIA snapshot of the current page state (if available). */
   readonly domSnapshot: string | null;
+  /** Visual context: base64-encoded JPEG screenshot of the current page (if available).
+   *  Enables visual disambiguation: color, position, layout, visual state. */
+  readonly screenshotBase64?: string | undefined;
   /** Prior resolution for context (e.g., what screen we're already on). */
   readonly priorTarget: ResolutionTarget | null;
   /** Task fingerprint for caching. */

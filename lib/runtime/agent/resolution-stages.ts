@@ -42,6 +42,34 @@ function isPlaywrightPageLike(page: unknown): page is PlaywrightPageLike {
   return typeof page === 'object' && page !== null && 'accessibility' in page && 'locator' in page;
 }
 
+type PlaywrightScreenshotLike = { screenshot: (opts: { readonly type: 'jpeg'; readonly quality: number; readonly fullPage: boolean }) => Promise<Buffer> };
+
+function isPlaywrightScreenshotCapable(page: unknown): page is PlaywrightScreenshotLike {
+  return typeof page === 'object' && page !== null && 'screenshot' in page;
+}
+
+/**
+ * Capture a JPEG screenshot from a live Playwright page as a base64 string.
+ * Returns null when no page is available, when capture fails, or when vision is disabled.
+ * Uses JPEG at configurable quality (default 50) to minimise vision token cost.
+ */
+export async function capturePageScreenshot(
+  page: unknown,
+  options?: { readonly quality?: number },
+): Promise<string | null> {
+  if (!isPlaywrightScreenshotCapable(page)) return null;
+  try {
+    const buffer = await page.screenshot({
+      type: 'jpeg',
+      quality: options?.quality ?? 50,
+      fullPage: false,
+    });
+    return buffer.toString('base64');
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Capture a truncated ARIA/accessibility snapshot from a live Playwright page.
  * Returns null when no page is available or when capture fails.
@@ -674,7 +702,11 @@ export async function tryLiveDomOrFallback(stage: RuntimeAgentStageContext, acc:
   // The agent receives the full context of what was tried and the DOM state.
   const agentInterpreter = stage.context.agentInterpreter;
   if (agentInterpreter && agentInterpreter.kind !== 'disabled') {
-    const domSnapshot = await captureTruncatedAriaSnapshot(stage.context.page);
+    // Capture ARIA snapshot and visual screenshot in parallel
+    const [domSnapshot, screenshotBase64] = await Promise.all([
+      captureTruncatedAriaSnapshot(stage.context.page),
+      capturePageScreenshot(stage.context.page),
+    ]);
     const agentRequest: AgentInterpretationRequest = {
       actionText: stage.task.actionText,
       expectedText: stage.task.expectedText,
@@ -697,6 +729,7 @@ export async function tryLiveDomOrFallback(stage: RuntimeAgentStageContext, acc:
         reason: entry.reason,
       })),
       domSnapshot,
+      screenshotBase64: screenshotBase64 ?? undefined,
       priorTarget: stage.context.previousResolution ?? null,
       taskFingerprint: stage.task.taskFingerprint,
       knowledgeFingerprint: stage.context.resolutionContext.knowledgeFingerprint,
