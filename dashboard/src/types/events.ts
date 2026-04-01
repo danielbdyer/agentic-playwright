@@ -84,6 +84,9 @@ export interface DashboardEventMap {
   readonly 'convergence-evaluated': ConvergenceEvaluatedEvent;
   readonly 'iteration-summary': IterationSummaryEvent;
   readonly 'diagnostics': DiagnosticsPayload;
+  readonly 'learning-signals': Record<string, unknown>;
+  readonly 'browser-pool-health': Record<string, unknown>;
+  readonly 'proposal-quarantined': Record<string, unknown>;
   readonly 'connected': ConnectedPayload;
   readonly 'error': ErrorPayload;
 }

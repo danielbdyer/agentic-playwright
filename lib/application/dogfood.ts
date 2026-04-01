@@ -1,6 +1,6 @@
 import path from 'path';
 import { Effect } from 'effect';
-import { activateProposalBundle, autoApproveEligibleProposals } from './activate-proposals';
+import { activateProposalBundle, autoApproveEligibleProposals, quarantineToxicProposals } from './activate-proposals';
 import { deltaReloadProposalsAndRuns, loadWorkspaceCatalog } from './catalog';
 import { buildPartialFitnessMetrics } from './fitness';
 import { calibrateWeightsFromCorrelations } from './learning-bottlenecks';
@@ -51,7 +51,7 @@ import type {
 } from '../domain/types';
 import { DEFAULT_AUTO_APPROVAL_POLICY } from '../domain/governance/trust-policy';
 import { matureComponentKnowledge, type ComponentEvidence } from '../domain/projection/component-maturation';
-import { aggregateQualityMetrics, type AliasOutcome } from '../domain/governance/proposal-quality';
+import { aggregateQualityMetrics, findToxicAliases, type AliasOutcome } from '../domain/governance/proposal-quality';
 import type { RungRate } from '../domain/types/improvement-context';
 import type { ScreenGroupDecider, WorkItemDecider } from './agent-workbench';
 
@@ -121,6 +121,9 @@ interface LoopState {
   readonly learningState: LearningState | null;
   /** Snapshot of browser pool stats after each iteration (when pool is available). */
   readonly browserPoolStats: BrowserPoolStats | null;
+  /** Hot screens from execution coherence — screens with multiple degraded signal
+   *  dimensions. Threaded to the next iteration's scenario selection for prioritization. */
+  readonly hotScreens: readonly string[];
 }
 
 function createInitialState(priorLearningState?: LearningState | null): LoopState {
@@ -134,6 +137,7 @@ function createInitialState(priorLearningState?: LearningState | null): LoopStat
     convergenceFsm: initialConvergenceState(),
     learningState: priorLearningState ?? null,
     browserPoolStats: null,
+    hotScreens: [],
   };
 }
 
@@ -351,6 +355,8 @@ function accumulateProposalTotals(
   paths: ProjectPaths,
   autoApprovalPolicy?: AutoApprovalPolicy | undefined,
   trustPolicy?: TrustPolicy | undefined,
+  bottleneckWeights?: BottleneckWeights | undefined,
+  aliasOutcomes?: readonly AliasOutcome[] | undefined,
 ): Effect.Effect<{ readonly activated: number; readonly blocked: number }, unknown, unknown> {
   return Effect.gen(function* () {
     const useAutoApproval = autoApprovalPolicy?.enabled && trustPolicy;
@@ -362,6 +368,8 @@ function accumulateProposalTotals(
               proposalBundle: bundle,
               autoApprovalPolicy: autoApprovalPolicy!,
               trustPolicy: trustPolicy!,
+              aliasOutcomes,
+              bottleneckWeights,
             })
           : activateProposalBundle({ paths, proposalBundle: bundle }),
       ),
@@ -550,6 +558,7 @@ function runIteration(iteration: number, options: DogfoodOptions, state: LoopSta
       runbookName: options.runbook,
       interpreterMode: effectiveMode,
       baseUrl: options.baseUrl,
+      priorityScreens: state.hotScreens.length > 0 ? state.hotScreens : undefined,
     });
 
     // Step 3: collect trace metrics — delta-reload only proposals + run records
@@ -594,7 +603,23 @@ function runIteration(iteration: number, options: DogfoodOptions, state: LoopSta
     const aliasOutcomes = extractAliasOutcomes(allBundles, iteration);
     const proposalQuality = aggregateQualityMetrics(aliasOutcomes);
 
-    // Step 4: collect and activate pending proposals
+    // Step 3f: quarantine toxic aliases — remove them from hints files
+    // so they stop misdirecting resolution in future iterations.
+    const toxicAliases = findToxicAliases(aliasOutcomes);
+    const quarantineResult = yield* quarantineToxicProposals({
+      paths: options.paths,
+      toxicAliases,
+    });
+    if (quarantineResult.quarantinedCount > 0) {
+      const qDashboard = yield* Dashboard;
+      yield* qDashboard.emit(dashboardEvent('proposal-quarantined', {
+        iteration,
+        quarantinedCount: quarantineResult.quarantinedCount,
+        quarantinedPaths: quarantineResult.quarantinedPaths,
+      }));
+    }
+
+    // Step 4: collect and activate pending proposals (with bottleneck weights + toxic gate)
     const proposalsGenerated = allBundles.reduce((sum, bundle) => sum + bundle.proposals.length, 0);
     const pendingBundles = collectPendingProposals(allBundles);
     const resolvedAutoPolicy = options.autoApprovalPolicy ?? {
@@ -607,6 +632,8 @@ function runIteration(iteration: number, options: DogfoodOptions, state: LoopSta
       options.paths,
       resolvedAutoPolicy,
       postRunCatalog.trustPolicy.artifact,
+      state.bottleneckWeights,
+      aliasOutcomes,
     );
 
     // Step 4a½: emit component maturation and proposal quality diagnostics
@@ -682,7 +709,7 @@ function runIteration(iteration: number, options: DogfoodOptions, state: LoopSta
       learningSignals,
     };
 
-    return { result, partialFitness, learningState: updatedLearningState };
+    return { result, partialFitness, learningState: updatedLearningState, hotScreens: coherence.hotScreens };
   });
 }
 
@@ -703,7 +730,7 @@ function dogfoodMachine(options: DogfoodOptions, priorLearningState?: LearningSt
       }));
 
       const iterationStart = Date.now();
-      const { result, partialFitness, learningState: iterationLearning } = yield* runIteration(iteration, options, state);
+      const { result, partialFitness, learningState: iterationLearning, hotScreens: iterationHotScreens } = yield* runIteration(iteration, options, state);
       const iterationDuration = Date.now() - iterationStart;
       const nextCumulativeInstructions = state.cumulativeInstructions + result.instructionCount;
       const prevHitRate = state.iterations.length > 0
@@ -773,6 +800,7 @@ function dogfoodMachine(options: DogfoodOptions, priorLearningState?: LearningSt
         convergenceFsm: nextFsm,
         learningState: iterationLearning,
         browserPoolStats: poolStats,
+        hotScreens: iterationHotScreens,
       };
 
       // Emit progress event after each iteration (with calibration observability)

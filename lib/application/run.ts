@@ -29,6 +29,46 @@ import { buildRunRecord } from './execution/build-run-record';
 import { foldScenarioRun } from './execution/fold';
 import { resolveEffectConcurrency } from './concurrency';
 import { TesseractError } from '../domain/kernel/errors';
+import type { Scenario } from '../domain/types';
+
+// ─── Hot-screen scenario prioritization ───
+
+/**
+ * Reorder adoIds so scenarios touching priority screens run first.
+ *
+ * For each adoId, counts how many of its step screens overlap with
+ * priorityScreens. Stable-sorts by overlap descending — scenarios
+ * with more degraded-screen overlap execute first, focusing browser
+ * budget on the screens that need the most attention.
+ *
+ * Pure function — reusable by any caller with a screen health signal.
+ */
+export function prioritizeByScreens(
+  adoIds: readonly string[],
+  scenarios: readonly { readonly artifact: Scenario }[],
+  priorityScreens: readonly string[],
+): readonly string[] {
+  if (priorityScreens.length === 0 || adoIds.length <= 1) return adoIds;
+
+  const prioritySet = new Set(priorityScreens);
+  const scenarioByAdoId = new Map<string, Scenario>(
+    scenarios.map((entry) => [String(entry.artifact.source.ado_id), entry.artifact]),
+  );
+
+  const scored = adoIds.map((adoId, originalIndex) => {
+    const scenario = scenarioByAdoId.get(adoId);
+    const screens = scenario
+      ? scenario.steps.flatMap((step) => step.screen ? [String(step.screen)] : [])
+      : [];
+    const overlap = new Set(screens.filter((s) => prioritySet.has(s))).size;
+    return { adoId, overlap, originalIndex };
+  });
+
+  // Stable sort: higher overlap first, then preserve original order
+  return scored
+    .sort((a, b) => b.overlap - a.overlap || a.originalIndex - b.originalIndex)
+    .map((entry) => entry.adoId);
+}
 
 // ─── Dashboard probe helpers (pure) ───
 
@@ -354,6 +394,8 @@ export function runScenarioSelection(options: {
   disableTranslationCache?: boolean | undefined;
   providerId?: string | undefined;
   baseUrl?: string | undefined;
+  /** Optional priority screens — scenarios touching these screens run first. */
+  priorityScreens?: readonly string[] | undefined;
 }) {
   return Effect.gen(function* () {
     const catalog = options.catalog ?? (yield* loadWorkspaceCatalog({ paths: options.paths }));
@@ -362,6 +404,11 @@ export function runScenarioSelection(options: {
       runbookName: options.runbookName ?? null,
       tag: options.tag ?? null,
     });
+
+    // Apply hot-screen prioritization if priority screens are provided
+    const orderedAdoIds = options.priorityScreens && options.priorityScreens.length > 0
+      ? prioritizeByScreens(selection.adoIds, catalog.scenarios, options.priorityScreens)
+      : selection.adoIds;
 
     const runbookName = selection.runbook?.name ?? options.runbookName;
     const buildRunOptions = (adoId: AdoId): RunScenarioOptions => ({
@@ -379,12 +426,12 @@ export function runScenarioSelection(options: {
 
     // For a single scenario, run the full pipeline (core + projections).
     // For multiple scenarios, run cores concurrently then project once.
-    const isSingleScenario = selection.adoIds.length <= 1;
+    const isSingleScenario = orderedAdoIds.length <= 1;
 
     const { runs, postRunCatalog } = isSingleScenario
       ? yield* Effect.gen(function* () {
           const scenarioRuns = yield* Effect.all(
-            selection.adoIds.map((adoId) => runScenario(buildRunOptions(adoId as AdoId))),
+            orderedAdoIds.map((adoId) => runScenario(buildRunOptions(adoId as AdoId))),
           );
           // Grab the post-run catalog from the last scenario run (single-scenario path)
           const postRunCatalog = foldOptionalProjection(Option.fromNullable(scenarioRuns[0]), {
@@ -396,7 +443,7 @@ export function runScenarioSelection(options: {
       : yield* Effect.gen(function* () {
           const concurrency = resolveEffectConcurrency();
           const coreRuns = yield* Effect.all(
-            selection.adoIds.map((adoId) => runScenarioCore(buildRunOptions(adoId as AdoId))),
+            orderedAdoIds.map((adoId) => runScenarioCore(buildRunOptions(adoId as AdoId))),
             { concurrency },
           );
           // Single catalog reload + global projections after all runs complete
@@ -408,7 +455,7 @@ export function runScenarioSelection(options: {
           }, { concurrency: 'unbounded' });
           // Per-scenario projections (emit + inbox) can run concurrently
           const perScenario = yield* Effect.all(
-            selection.adoIds.map((adoId) => Effect.all({
+            orderedAdoIds.map((adoId) => Effect.all({
               emitted: emitScenario({ adoId: adoId as AdoId, paths: options.paths, catalog: postWriteCatalog }),
               inbox: emitOperatorInbox({ paths: options.paths, catalog: postWriteCatalog, filter: { adoId: adoId as AdoId } }),
             }, { concurrency: 'unbounded' })),
@@ -427,7 +474,7 @@ export function runScenarioSelection(options: {
 
     return {
       selection: {
-        adoIds: selection.adoIds,
+        adoIds: orderedAdoIds,
         runbook: selection.runbook?.name ?? null,
         tag: options.tag ?? null,
       },

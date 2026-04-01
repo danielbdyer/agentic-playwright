@@ -83,6 +83,7 @@ export type DashboardEventKind =
   | 'diagnostics'
   | 'learning-signals'
   | 'browser-pool-health'
+  | 'proposal-quarantined'
   | 'connected'
   | 'error';
 
