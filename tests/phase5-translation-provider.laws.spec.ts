@@ -14,7 +14,7 @@ import {
 } from '../lib/application/translation-provider';
 import { translateIntentToOntology } from '../lib/application/translate';
 import type { TranslationRequest } from '../lib/domain/types';
-import { createScreenId, createElementId } from '../lib/domain/identity';
+import { createScreenId, createElementId } from '../lib/domain/kernel/identity';
 
 // ─── Fixtures ───
 

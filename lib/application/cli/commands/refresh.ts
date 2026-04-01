@@ -1,5 +1,5 @@
 import { refreshScenario } from '../../refresh';
-import { createAdoId } from '../../../domain/identity';
+import { createAdoId } from '../../../domain/kernel/identity';
 import { createCommandSpec } from '../shared';
 import { requireAdoId } from '../shared';
 

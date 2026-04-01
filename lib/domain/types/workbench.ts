@@ -10,7 +10,7 @@
  * produces an InterventionReceipt that feeds back into the next iteration.
  */
 
-import type { AdoId } from '../identity';
+import type { AdoId } from '../kernel/identity';
 import type { InterventionTarget } from './intervention';
 import type { StepTaskScreenCandidate } from './knowledge';
 import type { ResolutionTarget } from './workflow';

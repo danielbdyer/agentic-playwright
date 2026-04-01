@@ -1,8 +1,8 @@
 ﻿import { Match, pipe } from 'effect';
-import { parseRefPath } from './ref-path';
-import type { AdoId, ElementId, ScreenId, SnapshotTemplateId } from './identity';
-import type { CapabilityName, CompilerDiagnostic, ScenarioStep, StepInstruction, StepProgram, ValueRef } from './types';
-import { uniqueSorted } from './collections';
+import { parseRefPath } from '../kernel/ref-path';
+import type { AdoId, ElementId, ScreenId, SnapshotTemplateId } from '../kernel/identity';
+import type { CapabilityName, CompilerDiagnostic, ScenarioStep, StepInstruction, StepProgram, ValueRef } from '../types';
+import { uniqueSorted } from '../kernel/collections';
 
 const TEMPLATE_PATTERN = /^\{\{([a-zA-Z0-9_.]+)\}\}$/;
 const GENERATED_TOKEN_PATTERN = /^<<generated:(.+)>>$/;

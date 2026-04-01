@@ -1,4 +1,4 @@
-import type { WidgetId } from '../identity';
+import type { WidgetId } from '../kernel/identity';
 import type { EffectState } from './workflow';
 
 export type WidgetAction = 'click' | 'fill' | 'clear' | 'get-value';

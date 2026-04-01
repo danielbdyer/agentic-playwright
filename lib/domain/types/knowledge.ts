@@ -11,7 +11,7 @@ import type {
   SurfaceId,
   TransitionRef,
   WidgetId,
-} from '../identity';
+} from '../kernel/identity';
 import type {
   CanonicalKnowledgeMetadata,
   AssertionKind,

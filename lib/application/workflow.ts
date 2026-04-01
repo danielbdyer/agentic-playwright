@@ -1,5 +1,5 @@
 import { Effect } from 'effect';
-import type { AdoId } from '../domain/identity';
+import type { AdoId } from '../domain/kernel/identity';
 import { loadWorkspaceCatalog } from './catalog';
 import { findRunbook, runtimeControlsForScenario } from './controls';
 import { buildOperatorInboxItems, operatorInboxItemsForScenario } from './operator';

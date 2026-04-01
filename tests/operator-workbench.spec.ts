@@ -8,7 +8,7 @@ import { generatedProposalsPath } from '../lib/application/paths';
 import { refreshScenario } from '../lib/application/refresh';
 import { proposalIdForEntry } from '../lib/application/operator';
 import { runWithLocalServices, runWithLocalServicesDetailed } from '../lib/composition/local-services';
-import { createAdoId } from '../lib/domain/identity';
+import { createAdoId } from '../lib/domain/kernel/identity';
 import type { ProposalBundle } from '../lib/domain/types';
 import { createTestWorkspace } from './support/workspace';
 

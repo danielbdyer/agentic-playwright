@@ -2,8 +2,8 @@ import { existsSync, readFileSync } from 'fs';
 import path from 'path';
 import YAML from 'yaml';
 import { createScreenBundle } from '../../domain/knowledge/screen-bundle';
-import type { ScreenId } from '../../domain/identity';
-import type { LoadedScreen, ScreenRegistry, ScreenRegistryLoader } from '../../domain/runtime-loaders';
+import type { ScreenId } from '../../domain/kernel/identity';
+import type { LoadedScreen, ScreenRegistry, ScreenRegistryLoader } from '../../domain/execution/runtime-loaders';
 import { validateScreenElements, validateScreenHints, validateScreenPostures, validateSurfaceGraph } from '../../domain/validation';
 
 export function createLocalScreenRegistryLoader(rootDir: string): ScreenRegistryLoader {

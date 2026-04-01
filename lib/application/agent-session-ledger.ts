@@ -7,7 +7,7 @@ import type {
   SelectorCanon,
   TrainingCorpusManifest,
 } from '../domain/types';
-import type { AdoId } from '../domain/identity';
+import type { AdoId } from '../domain/kernel/identity';
 import { resolveAgentSessionAdapter } from './provider-registry';
 import { appendEvent, createInterventionLedger } from '../domain/aggregates/intervention-ledger';
 import {

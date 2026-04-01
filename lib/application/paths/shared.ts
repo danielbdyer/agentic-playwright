@@ -1,5 +1,5 @@
 import path from 'path';
-import { SchemaError } from '../../domain/errors';
+import { SchemaError } from '../../domain/kernel/errors';
 import type { ProjectPaths } from './types';
 
 export function resolvePathWithinRoot(rootDir: string, pathLike: string, valuePath: string): string {

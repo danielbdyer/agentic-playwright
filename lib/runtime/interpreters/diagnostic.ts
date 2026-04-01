@@ -1,5 +1,5 @@
-import type { ProgramFailure, StepProgram, StepProgramDiagnosticContext, StepProgramExecutionResult, StepProgramInterpreter } from '../../domain/program';
-import { createDiagnostic } from '../../domain/diagnostics';
+import type { ProgramFailure, StepProgram, StepProgramDiagnosticContext, StepProgramExecutionResult, StepProgramInterpreter } from '../../domain/execution/program';
+import { createDiagnostic } from '../../domain/governance/diagnostics';
 import { dryRunInterpreter } from './dry-run';
 import type { InterpreterEnvironment } from './types';
 

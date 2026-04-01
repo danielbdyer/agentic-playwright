@@ -22,7 +22,7 @@
 
 import { Effect } from 'effect';
 import { Context } from 'effect';
-import { TesseractError } from '../../domain/errors';
+import { TesseractError } from '../../domain/kernel/errors';
 import { RETRY_POLICIES, retryScheduleForTaggedErrors } from '../../application/resilience/schedules';
 
 // ─── Port Interface ───

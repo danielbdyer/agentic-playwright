@@ -1,8 +1,8 @@
-﻿import type { ElementId, PostureId, SurfaceId } from './identity';
+﻿import type { ElementId, PostureId, SurfaceId } from '../kernel/identity';
 import type { ResolveEffectTargetContext } from './effect-target';
 import { normalizePostureEffectTarget, parseEffectTargetRef } from './effect-target';
-import type { PostureEffect, ScreenElements, ScreenPostures, SurfaceGraph } from './types';
-import { compareStrings, uniqueSorted } from './collections';
+import type { PostureEffect, ScreenElements, ScreenPostures, SurfaceGraph } from '../types';
+import { compareStrings, uniqueSorted } from '../kernel/collections';
 
 export type PostureContractIssueCode =
   | 'unknown-posture'

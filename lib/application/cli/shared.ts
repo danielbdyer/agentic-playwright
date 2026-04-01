@@ -1,7 +1,7 @@
 import type { Effect } from 'effect';
 import type { ProjectPaths } from '../paths';
 import type { ExecutionPosture, RuntimeInterpreterMode } from '../../domain/types';
-import { TesseractError } from '../../domain/errors';
+import { TesseractError } from '../../domain/kernel/errors';
 
 export const interpreterModes = ['playwright', 'dry-run', 'diagnostic'] as const;
 export const executionProfiles = ['interactive', 'ci-batch'] as const;

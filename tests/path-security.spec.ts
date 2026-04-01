@@ -10,8 +10,8 @@ import {
   runbookPath,
   agentSessionPath,
 } from '../lib/application/paths';
-import { createAdoId, createSnapshotTemplateId } from '../lib/domain/identity';
-import { computeAdoContentHash } from '../lib/domain/hash';
+import { createAdoId, createSnapshotTemplateId } from '../lib/domain/kernel/identity';
+import { computeAdoContentHash } from '../lib/domain/kernel/hash';
 import { validateAdoSnapshot } from '../lib/domain/validation';
 
 const rootDir = path.join(process.cwd(), 'tmp-root');

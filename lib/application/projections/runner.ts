@@ -1,5 +1,5 @@
 import type { Effect } from 'effect';
-import type { TesseractError } from '../../domain/errors';
+import type { TesseractError } from '../../domain/kernel/errors';
 import type { FileSystem } from '../ports';
 import { runIncrementalStage } from '../pipeline';
 import {

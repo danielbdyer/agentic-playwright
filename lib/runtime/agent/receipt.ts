@@ -1,4 +1,4 @@
-import { knowledgePaths } from '../../domain/ids';
+import { knowledgePaths } from '../../domain/kernel/ids';
 import type {
   ResolutionReceipt,
   ResolutionTarget,
@@ -6,12 +6,12 @@ import type {
   TranslationReceipt,
   WorkflowStage,
 } from '../../domain/types';
-import { buildReasonChain } from '../../domain/reason-chain';
+import { buildReasonChain } from '../../domain/resolution/reason-chain';
 import { mintApproved, mintReviewRequired } from '../../domain/types/shared-context';
 import { selectedDataset, selectedRunbook } from './select-controls';
 import type { RuntimeAgentStageContext, StageEffects } from './types';
 import { uniqueSorted } from './shared';
-import { TesseractError } from '../../domain/errors';
+import { TesseractError } from '../../domain/kernel/errors';
 
 function baseReceiptFields(stage: RuntimeAgentStageContext, pendingEffects?: StageEffects, winningSource?: StepWinningSource) {
   const { task, context } = stage;

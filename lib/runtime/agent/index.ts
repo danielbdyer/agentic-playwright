@@ -7,7 +7,7 @@ import type { ResolutionStrategy, StrategyAttemptResult, StrategyChainResult } f
 import { runStrategyChain } from './strategy';
 import { createStrategyRegistry } from './strategy-registry';
 import { buildPipelineDAG, validateDAG } from '../../domain/resolution/pipeline-dag';
-import { TesseractError } from '../../domain/errors';
+import { TesseractError } from '../../domain/kernel/errors';
 import type { RuntimeAgentStageContext, RuntimeStepAgentContext, StageEffects } from './types';
 import { mergeEffectsIntoStage } from './types';
 import { interpretStepIntent } from './interpret-intent';

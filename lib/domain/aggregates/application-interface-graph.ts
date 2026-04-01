@@ -1,10 +1,10 @@
-import { sha256, stableStringify } from '../hash';
+import { sha256, stableStringify } from '../kernel/hash';
 import type {
   ApplicationInterfaceGraph,
   InterfaceGraphEdge,
   InterfaceGraphNode,
 } from '../types';
-import type { TransitionRef } from '../identity';
+import type { TransitionRef } from '../kernel/identity';
 
 export interface ApplicationInterfaceGraphInvariantReport {
   readonly uniqueNodeIds: boolean;

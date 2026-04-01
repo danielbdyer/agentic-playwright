@@ -6,9 +6,9 @@ import type {
   GroundedSpecFlow,
   ScenarioInterpretationSurface,
   StepResolution,
-} from './types';
-import type { Governance, StepProvenanceKind } from './types/workflow';
-import { isBlocked, isReviewRequired } from './types/workflow';
+} from '../types';
+import type { Governance, StepProvenanceKind } from '../types/workflow';
+import { isBlocked, isReviewRequired } from '../types/workflow';
 import { lifecycleForScenario, aggregateConfidence } from './status';
 
 function resolveDataSource(

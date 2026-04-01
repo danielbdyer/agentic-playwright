@@ -6,7 +6,7 @@ import { foldScenarioRun } from '../lib/application/execution/fold';
 import { selectRunContext } from '../lib/application/execution/select-run-context';
 import { runWithLocalServices } from '../lib/composition/local-services';
 import { refreshScenario } from '../lib/application/refresh';
-import { createAdoId } from '../lib/domain/identity';
+import { createAdoId } from '../lib/domain/kernel/identity';
 import type { ScenarioRunPlan } from '../lib/domain/types';
 import type { RuntimeScenarioStepResult } from '../lib/application/ports';
 import type { PersistedEvidenceArtifact } from '../lib/application/execution/persist-evidence';

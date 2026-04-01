@@ -10,9 +10,9 @@ import type {
   StepTaskScreenCandidate,
   TransitionObservation,
 } from '../domain/types';
-import type { CanonicalTargetRef, EventSignatureRef, StateNodeRef, TransitionRef } from '../domain/identity';
-import { uniqueSorted } from '../domain/collections';
-import { foldLocatorStrategy } from '../domain/visitors';
+import type { CanonicalTargetRef, EventSignatureRef, StateNodeRef, TransitionRef } from '../domain/kernel/identity';
+import { uniqueSorted } from '../domain/kernel/collections';
+import { foldLocatorStrategy } from '../domain/kernel/visitors';
 import { resolveEffectConcurrency } from '../application/concurrency';
 
 export interface ObservationContextScreen {

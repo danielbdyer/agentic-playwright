@@ -6,4 +6,4 @@ export {
   workflow,
   type WorkflowDirective,
   type WorkflowStepHandshake,
-} from './workflow-facade';
+} from './governance/workflow-facade';

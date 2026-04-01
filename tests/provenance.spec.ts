@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { summarizeProvenanceKinds, summarizeUnresolvedReasons, provenanceKindForBoundStep } from '../lib/domain/governance/provenance';
-import { createElementId, createScreenId } from '../lib/domain/identity';
+import { createElementId, createScreenId } from '../lib/domain/kernel/identity';
 import type { BoundStep } from '../lib/domain/types';
 
 const screenId = createScreenId('policy-search');

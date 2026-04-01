@@ -11,9 +11,9 @@
  */
 
 import { Effect } from 'effect';
-import { sha256 } from '../domain/hash';
-import { foldResolutionReceipt } from '../domain/visitors';
-import { groupBy } from '../domain/collections';
+import { sha256 } from '../domain/kernel/hash';
+import { foldResolutionReceipt } from '../domain/kernel/visitors';
+import { groupBy } from '../domain/kernel/collections';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
 import { buildWorkflowHotspots, type WorkflowHotspot } from './hotspots';
 import type { ProjectPaths } from './paths';
@@ -35,7 +35,7 @@ import type {
   StepTaskScreenCandidate,
   InterfaceResolutionContext,
 } from '../domain/types';
-import type { ScreenId } from '../domain/identity';
+import type { ScreenId } from '../domain/kernel/identity';
 import type { InterventionLineageEntry, InterventionLineageEnvelope, InterventionTarget } from '../domain/types';
 
 // ─── Work Item Scoring (Composite ScoringRule semigroup) ───

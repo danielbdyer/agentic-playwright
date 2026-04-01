@@ -4,7 +4,7 @@ import { chromium } from '@playwright/test';
 import YAML from 'yaml';
 import { relativeProjectPath, type ProjectPaths } from '../../application/paths';
 import { buildDiscoveryArtifacts, deriveScreenIdFromUrl, type RawDiscoveredElement, type RawDiscoveredSurface } from '../../domain/knowledge/discovery';
-import { graphIds } from '../../domain/ids';
+import { graphIds } from '../../domain/kernel/ids';
 import {
   createCanonicalTargetRef,
   createElementId,
@@ -14,7 +14,7 @@ import {
   createSectionId,
   createSelectorRef,
   createSurfaceId,
-} from '../../domain/identity';
+} from '../../domain/kernel/identity';
 import { tryAsync } from '../../application/effect';
 import { captureAriaYaml } from '../../playwright/aria';
 import { resolvePlaywrightHeadless, resolvePreferredPlaywrightChannel } from './browser-options';

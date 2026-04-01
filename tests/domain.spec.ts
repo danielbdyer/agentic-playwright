@@ -2,7 +2,7 @@
 import path from 'path';
 import YAML from 'yaml';
 import { expect, test } from '@playwright/test';
-import { bindScenarioStep } from '../lib/domain/binding';
+import { bindScenarioStep } from '../lib/domain/governance/binding';
 import {
   deriveGraph,
   mergeAccumulators,
@@ -11,9 +11,9 @@ import {
   type GraphBuildInput,
   type GraphAccumulator,
   type ConditionalEdge,
-} from '../lib/domain/derived-graph';
-import { deriveCapabilities, findCapability } from '../lib/domain/grammar';
-import { computeAdoContentHash, computeNormalizedSnapshotHash, normalizeAriaSnapshot } from '../lib/domain/hash';
+} from '../lib/domain/codegen/derived-graph';
+import { deriveCapabilities, findCapability } from '../lib/domain/execution/grammar';
+import { computeAdoContentHash, computeNormalizedSnapshotHash, normalizeAriaSnapshot } from '../lib/domain/kernel/hash';
 import {
   createAdoId,
   createElementId,
@@ -22,13 +22,13 @@ import {
   createSnapshotTemplateId,
   createSurfaceId,
   createWidgetId,
-} from '../lib/domain/identity';
-import { graphIds } from '../lib/domain/ids';
+} from '../lib/domain/kernel/identity';
+import { graphIds } from '../lib/domain/kernel/ids';
 import { mergePatternDocuments } from '../lib/domain/knowledge/patterns';
-import { compileStepProgram, traceStepProgram } from '../lib/domain/program';
-import { parseEffectTargetRef } from '../lib/domain/effect-target';
-import { validatePostureContract } from '../lib/domain/posture-contract';
-import { createRefPath, formatRefPath, parseRefPath } from '../lib/domain/ref-path';
+import { compileStepProgram, traceStepProgram } from '../lib/domain/execution/program';
+import { parseEffectTargetRef } from '../lib/domain/governance/effect-target';
+import { validatePostureContract } from '../lib/domain/governance/posture-contract';
+import { createRefPath, formatRefPath, parseRefPath } from '../lib/domain/kernel/ref-path';
 import { renderGeneratedKnowledgeModule } from '../lib/domain/codegen/typegen';
 import {
   validateAdoSnapshot,

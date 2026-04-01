@@ -1,6 +1,6 @@
 import { normalizeIntentText } from '../../domain/knowledge/inference';
-import { createPostureId, createSnapshotTemplateId } from '../../domain/identity';
-import { knowledgePaths } from '../../domain/ids';
+import { createPostureId, createSnapshotTemplateId } from '../../domain/kernel/identity';
+import { knowledgePaths } from '../../domain/kernel/ids';
 import type {
   InterfaceResolutionContext,
   ObservedStateSession,

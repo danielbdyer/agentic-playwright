@@ -1,7 +1,7 @@
 import * as ts from 'typescript';
 import type { GroundedFlowStep, GroundedSpecFlow } from '../types';
 import type { Confidence, ScenarioLifecycle, StepBindingKind } from '../types/workflow';
-import { deriveMethodName, deduplicateMethodNames } from '../method-name';
+import { deriveMethodName, deduplicateMethodNames } from './method-name';
 import {
   awaitExpression,
   callExpression,

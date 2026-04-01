@@ -1,5 +1,5 @@
-import { normalizeHtmlText } from '../hash';
-import { uniqueSorted } from '../collections';
+import { normalizeHtmlText } from '../kernel/hash';
+import { uniqueSorted } from '../kernel/collections';
 import type { ScreenElements, ScreenHints, ScreenPostures, SharedPatterns, SurfaceGraph } from '../types';
 
 export interface InferenceKnowledge {

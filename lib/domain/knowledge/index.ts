@@ -12,3 +12,4 @@ export * from './route-knowledge';
 export * from './inference';
 export * from './discovery';
 export * from './aria-snapshot';
+export * from './semantic-dictionary';

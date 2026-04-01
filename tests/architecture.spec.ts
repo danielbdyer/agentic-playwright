@@ -195,12 +195,10 @@ test('active source no longer references legacy phase-one runtime and graph comp
 
 test('bounded workflow packages expose explicit seam files instead of hidden lane contracts', () => {
   const expectedFiles = [
+    'lib/domain/kernel/index.ts',
     'lib/domain/knowledge/index.ts',
     'lib/domain/resolution/model.ts',
     'lib/domain/resolution/index.ts',
-    'lib/domain/execution/model.ts',
-    'lib/domain/execution/validation.ts',
-    'lib/domain/execution/ops.ts',
     'lib/domain/execution/index.ts',
     'lib/domain/governance/index.ts',
     'lib/domain/projection/index.ts',

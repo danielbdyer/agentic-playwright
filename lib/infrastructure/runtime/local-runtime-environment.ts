@@ -1,6 +1,6 @@
 import type { RuntimeScenarioMode } from '../../application/ports';
-import type { ScreenId } from '../../domain/identity';
-import type { ScreenRegistry, SnapshotTemplateLoader } from '../../domain/runtime-loaders';
+import type { ScreenId } from '../../domain/kernel/identity';
+import type { ScreenRegistry, SnapshotTemplateLoader } from '../../domain/execution/runtime-loaders';
 import type { ExecutionPosture, RuntimeDomResolver, TranslationRequest, TranslationReceipt } from '../../domain/types';
 import type { RecoveryPolicy } from '../../domain/execution/recovery-policy';
 import type { AgentInterpreterPort } from '../../domain/resolution/model';

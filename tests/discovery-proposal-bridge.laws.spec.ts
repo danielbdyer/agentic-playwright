@@ -18,8 +18,8 @@ import {
   type DiscoveryProposal,
 } from '../lib/application/discovery-proposal-bridge';
 import type { DiscoveryRun, DiscoveryObservedElement, DiscoveryObservedSurface } from '../lib/domain/types/interface';
-import type { CanonicalTargetRef, ElementId, ScreenId, SectionId, SurfaceId } from '../lib/domain/identity';
-import { createScreenId, createElementId, createSurfaceId, createSectionId, createCanonicalTargetRef } from '../lib/domain/identity';
+import type { CanonicalTargetRef, ElementId, ScreenId, SectionId, SurfaceId } from '../lib/domain/kernel/identity';
+import { createScreenId, createElementId, createSurfaceId, createSectionId, createCanonicalTargetRef } from '../lib/domain/kernel/identity';
 import { mulberry32, pick, randomWord, randomInt , LAW_SEED_COUNT } from './support/random';
 
 // ─── Helpers ───

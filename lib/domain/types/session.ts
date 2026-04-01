@@ -1,4 +1,4 @@
-import type { AdoId } from '../identity';
+import type { AdoId } from '../kernel/identity';
 import type { InterventionKind, InterventionReceipt, Participant, ParticipantRef } from './intervention';
 import type { WorkflowEnvelopeIds } from './workflow';
 

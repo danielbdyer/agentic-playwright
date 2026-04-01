@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { createCanonicalTargetRef, createElementId, createScreenId } from '../lib/domain/identity';
+import { createCanonicalTargetRef, createElementId, createScreenId } from '../lib/domain/kernel/identity';
 import { rankActionCandidates, rankElementCandidates, rankScreenCandidates } from '../lib/runtime/agent/candidate-lattice';
 import { cloneJson, createInterfaceResolutionContext, createPolicySearchScreen, createGroundedStep } from './support/interface-fixtures';
 

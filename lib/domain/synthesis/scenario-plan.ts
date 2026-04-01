@@ -1,5 +1,5 @@
-import { hashSeed, createSeededRng, type SeededRng } from '../random';
-import { sha256, stableStringify } from '../hash';
+import { hashSeed, createSeededRng, type SeededRng } from '../kernel/random';
+import { sha256, stableStringify } from '../kernel/hash';
 import { selectArchetype, composeWorkflowSteps } from './workflow-archetype';
 
 // ─── Public types ───

@@ -7,7 +7,7 @@
  * the scorecard comparison is the "beat-the-mark" gate.
  */
 
-import { TesseractError } from '../domain/errors';
+import { TesseractError } from '../domain/kernel/errors';
 import type {
   ExperimentRecord,
   ImprovementLoopLedger,
@@ -31,7 +31,7 @@ import {
   addToParetoFrontier,
   objectivesFromMetrics,
 } from '../domain/types';
-import { foldPipelineFailureClass } from '../domain/visitors';
+import { foldPipelineFailureClass } from '../domain/kernel/visitors';
 import { resolutionPrecedenceLaw, type ResolutionPrecedenceRung } from '../domain/resolution/precedence';
 import type { BottleneckWeightCorrelation, GeneralizationMetrics } from '../domain/types';
 

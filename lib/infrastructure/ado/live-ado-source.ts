@@ -1,8 +1,8 @@
 import type { AdoSourcePort } from '../../application/ports';
 import { Effect } from 'effect';
-import { computeAdoContentHash, normalizeHtmlText } from '../../domain/hash';
-import { createAdoId } from '../../domain/identity';
-import { TesseractError, toTesseractError } from '../../domain/errors';
+import { computeAdoContentHash, normalizeHtmlText } from '../../domain/kernel/hash';
+import { createAdoId } from '../../domain/kernel/identity';
+import { TesseractError, toTesseractError } from '../../domain/kernel/errors';
 import { RETRY_POLICIES, retryScheduleForTaggedErrors } from '../../application/resilience/schedules';
 
 export interface LiveAdoSourceConfig {

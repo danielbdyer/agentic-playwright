@@ -14,8 +14,8 @@ import {
 } from './paths';
 import { resolveEffectConcurrency } from './concurrency';
 import { ExecutionContext, FileSystem } from './ports';
-import { TesseractError } from '../domain/errors';
-import { groupBy, uniqueSorted } from '../domain/collections';
+import { TesseractError } from '../domain/kernel/errors';
+import { groupBy, uniqueSorted } from '../domain/kernel/collections';
 import { concatAll } from '../domain/algebra/monoid';
 import { numberRecordSumMonoid, structMonoid, sumMonoid } from '../domain/algebra/envelope-mergers';
 import type {
@@ -29,7 +29,7 @@ import type {
   LearningScorecard,
   ProposalBundle,
 } from '../domain/types';
-import { createAdoId } from '../domain/identity';
+import { createAdoId } from '../domain/kernel/identity';
 import { decodeUnknownEither } from '../domain/schemas/decode';
 
 const decodeScenarioIds = decodeUnknownEither(
@@ -284,7 +284,7 @@ function scorecardForBenchmark(input: {
 function renderVariantSpec(benchmark: BenchmarkContext, variants: readonly BenchmarkVariant[]): string {
   const lines: string[] = [
     `// Benchmark variants for ${benchmark.name}`,
-    `import { literal, workflow } from '../../lib/domain/workflow-facade';`,
+    `import { literal, workflow } from '../../lib/domain/governance/workflow-facade';`,
     '',
     'export const benchmarkVariants = [',
     ...variants.map((variant) =>

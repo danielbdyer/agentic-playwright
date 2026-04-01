@@ -3,7 +3,7 @@ import { Effect } from 'effect';
 import type { FileSystemPort } from '../../application/ports';
 import { createProjectPaths } from '../../application/paths';
 import type { ExecutionPosture, WriteJournalEntry } from '../../domain/types';
-import { uniqueSorted } from '../../domain/collections';
+import { uniqueSorted } from '../../domain/kernel/collections';
 
 function normalizePath(filePath: string): string {
   return path.resolve(filePath);

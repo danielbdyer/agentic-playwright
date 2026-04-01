@@ -1,6 +1,6 @@
 ﻿import { Effect } from 'effect';
-import type { TesseractError, FileSystemError } from '../domain/errors';
-import { toTesseractError, toFileSystemError } from '../domain/errors';
+import type { TesseractError, FileSystemError } from '../domain/kernel/errors';
+import { toTesseractError, toFileSystemError } from '../domain/kernel/errors';
 
 export function trySync<A>(
   thunk: () => A,

@@ -36,8 +36,8 @@ import {
   ensureShingleIndex,
   pruneSemanticDictionary,
 } from '../lib/application/semantic-translation-dictionary';
-import { uniqueSorted } from '../lib/domain/collections';
-import { createElementId, createScreenId } from '../lib/domain/identity';
+import { uniqueSorted } from '../lib/domain/kernel/collections';
+import { createElementId, createScreenId } from '../lib/domain/kernel/identity';
 import type { SemanticDictionaryAccrualInput, SemanticDictionaryTarget } from '../lib/domain/types';
 
 // ─── Fixtures ───

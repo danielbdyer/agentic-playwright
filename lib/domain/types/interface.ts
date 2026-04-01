@@ -11,7 +11,7 @@ import type {
   StateNodeRef,
   SurfaceId,
   TransitionRef,
-} from '../identity';
+} from '../kernel/identity';
 import type { EventSignature, StateNode, StateTransition } from './knowledge';
 import type { AssertionKind, LocatorStrategy, SurfaceKind } from './workflow';
 

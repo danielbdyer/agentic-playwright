@@ -21,7 +21,7 @@ import {
   createScenarioEnvelopeIds,
 } from '../lib/application/catalog/envelope';
 import { runWithLocalServices } from '../lib/composition/local-services';
-import { createAdoId, createElementId, createScreenId } from '../lib/domain/identity';
+import { createAdoId, createElementId, createScreenId } from '../lib/domain/kernel/identity';
 import type { ProposalBundle, ProposalEntry, ResolutionReceipt, StepAction } from '../lib/domain/types';
 import { runResolutionPipeline, type RuntimeStepAgentContext } from '../lib/runtime/agent';
 import { createTestWorkspace } from './support/workspace';

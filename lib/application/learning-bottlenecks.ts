@@ -8,7 +8,7 @@ import type {
   KnowledgeBottleneckReport,
 } from '../domain/types';
 import { DEFAULT_PIPELINE_CONFIG } from '../domain/types';
-import { groupBy, uniqueSorted } from '../domain/collections';
+import { groupBy, uniqueSorted } from '../domain/kernel/collections';
 import {
   round4,
   screenFromGraphNodeIds,

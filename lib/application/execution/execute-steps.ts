@@ -1,6 +1,6 @@
 import { Effect } from 'effect';
 import type { RuntimeScenarioRunnerPort } from '../ports';
-import type { AdoId } from '../../domain/identity';
+import type { AdoId } from '../../domain/kernel/identity';
 import type { ResolutionGraphRecord, ScenarioRunPlan } from '../../domain/types';
 import type { RuntimeScenarioStepResult } from '../ports';
 import { interpretScenarioFromPlan } from './interpret';

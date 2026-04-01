@@ -2,7 +2,7 @@ import type { ArtifactConfidenceRecord, ResolutionObservation, StepAction, Groun
 import { normalizedCombined, bestAliasMatch, humanizeIdentifier, uniqueSorted } from './shared';
 import { requiresElement } from './resolve-action';
 import type { RuntimeStepAgentContext } from './types';
-import type { PostureId, SnapshotTemplateId } from '../../domain/identity';
+import type { PostureId, SnapshotTemplateId } from '../../domain/kernel/identity';
 
 function overlayAliases(record: ArtifactConfidenceRecord): string[] {
   return uniqueSorted([

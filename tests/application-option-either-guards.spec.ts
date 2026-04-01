@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { Either, Option } from 'effect';
-import { TesseractError } from '../lib/domain/errors';
+import { TesseractError } from '../lib/domain/kernel/errors';
 import { decideCandidate, foldTopFailureClass } from '../lib/application/evolve';
 import { foldOptionalProjection, getRequiredCatalogEntry } from '../lib/application/run';
 import type { CandidateConfig } from '../lib/application/knob-search';

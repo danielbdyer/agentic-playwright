@@ -14,7 +14,7 @@ import {
   inferActionFromText,
 } from '../lib/runtime/agent/interpret-intent';
 import { runResolutionPipeline } from '../lib/runtime/agent/index';
-import { createScreenId } from '../lib/domain/identity';
+import { createScreenId } from '../lib/domain/kernel/identity';
 
 // ─── Fixtures ───
 

@@ -1,4 +1,4 @@
-import type { ElementId, PostureId, SnapshotTemplateId } from '../../domain/identity';
+import type { ElementId, PostureId, SnapshotTemplateId } from '../../domain/kernel/identity';
 import type {
   ProposalConfidenceValues,
   ResolutionCandidateSummary,

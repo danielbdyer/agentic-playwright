@@ -11,9 +11,9 @@ import type {
   ScenarioRunPlan,
   StepResolution,
 } from '../../domain/types';
-import type { AdoId, ScreenId } from '../../domain/identity';
-import { uniqueSorted } from '../../domain/collections';
-import { TesseractError } from '../../domain/errors';
+import type { AdoId, ScreenId } from '../../domain/kernel/identity';
+import { uniqueSorted } from '../../domain/kernel/collections';
+import { TesseractError } from '../../domain/kernel/errors';
 import { activeDatasetForRun, findRunbook } from '../controls';
 import { chooseByPrecedence, runSelectionPrecedenceLaw } from '../../domain/resolution/precedence';
 

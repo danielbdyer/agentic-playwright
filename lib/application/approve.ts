@@ -1,6 +1,6 @@
 import path from 'path';
 import { Effect } from 'effect';
-import { TesseractError } from '../domain/errors';
+import { TesseractError } from '../domain/kernel/errors';
 import { mapPayload } from '../domain/types/shared-context';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
 import { emitOperatorInbox } from './inbox';

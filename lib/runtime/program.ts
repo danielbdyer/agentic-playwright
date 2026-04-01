@@ -1,10 +1,10 @@
 import type { Page } from '@playwright/test';
 import { Match, pipe } from 'effect';
-import { createDiagnostic } from '../domain/diagnostics';
-import { runtimeEscapeHatchError, toTesseractError, unknownScreenError } from '../domain/errors';
-import type { ScreenId } from '../domain/identity';
-import { createPostureId } from '../domain/identity';
-import type { SnapshotTemplateLoader } from '../domain/runtime-loaders';
+import { createDiagnostic } from '../domain/governance/diagnostics';
+import { runtimeEscapeHatchError, toTesseractError, unknownScreenError } from '../domain/kernel/errors';
+import type { ScreenId } from '../domain/kernel/identity';
+import { createPostureId } from '../domain/kernel/identity';
+import type { SnapshotTemplateLoader } from '../domain/execution/runtime-loaders';
 import type {
   ProgramFailure,
   StepInterpreterDiagnostic,
@@ -12,7 +12,7 @@ import type {
   StepProgramExecutionResult,
   StepProgramInstructionOutcome,
   StepProgramInterpreter,
-} from '../domain/program';
+} from '../domain/execution/program';
 import type { CompilerDiagnostic, StepInstruction, StepProgram } from '../domain/types';
 import { resolveDataValue } from './data';
 import { engage } from './engage';

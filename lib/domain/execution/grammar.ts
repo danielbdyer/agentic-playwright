@@ -1,10 +1,10 @@
-﻿import type { ElementId, ScreenId, SurfaceId } from './identity';
-import { createSurfaceId } from './identity';
-import { unknownWidgetActionError } from './errors';
-import type { CapabilityName, DerivedCapability, ElementSig, ScreenElements, SurfaceGraph, WidgetAction } from './types';
-import { graphIds, knowledgePaths } from './ids';
-import { widgetCapabilityContracts } from './widgets/contracts';
-import { compareStrings, uniqueSorted } from './collections';
+﻿import type { ElementId, ScreenId, SurfaceId } from '../kernel/identity';
+import { createSurfaceId } from '../kernel/identity';
+import { unknownWidgetActionError } from '../kernel/errors';
+import type { CapabilityName, DerivedCapability, ElementSig, ScreenElements, SurfaceGraph, WidgetAction } from '../types';
+import { graphIds, knowledgePaths } from '../kernel/ids';
+import { widgetCapabilityContracts } from '../widgets/contracts';
+import { compareStrings, uniqueSorted } from '../kernel/collections';
 
 const roleCapabilities: Record<string, CapabilityName[]> = {
   alert: ['observe-state'],

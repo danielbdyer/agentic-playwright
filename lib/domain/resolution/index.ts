@@ -9,3 +9,5 @@ export * from './precedence';
 // precedence-policy is consumed via precedence.ts (which re-exports what it needs)
 export * from './comparison-rules';
 export * from './execution-planner';
+export * from './pipeline-dag';
+export * from './reason-chain';

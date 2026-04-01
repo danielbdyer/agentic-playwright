@@ -1,5 +1,5 @@
-import { sha256, stableStringify } from '../domain/hash';
-import type { AdoId } from '../domain/identity';
+import { sha256, stableStringify } from '../domain/kernel/hash';
+import type { AdoId } from '../domain/kernel/identity';
 import type {
   ImprovementRun,
   OperatorInboxItem,
@@ -10,7 +10,7 @@ import type {
   WorkflowLane,
 } from '../domain/types';
 import type { WorkspaceCatalog } from './catalog';
-import { compareStrings, uniqueSorted } from '../domain/collections';
+import { compareStrings, uniqueSorted } from '../domain/kernel/collections';
 import type { WorkflowHotspot } from './hotspots';
 import type { RerunPlan } from '../domain/types';
 

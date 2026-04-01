@@ -10,7 +10,7 @@ import { runWithLocalServices } from '../lib/composition/local-services';
 import {
   createElementId,
   createScreenId,
-} from '../lib/domain/identity';
+} from '../lib/domain/kernel/identity';
 import type { TranslationRequest } from '../lib/domain/types';
 import { deterministicRuntimeStepAgent } from '../lib/runtime/agent';
 import { createTestWorkspace } from './support/workspace';

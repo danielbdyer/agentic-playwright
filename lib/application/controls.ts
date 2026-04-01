@@ -10,7 +10,7 @@ import type {
   StepResolution,
 } from '../domain/types';
 import type { WorkspaceCatalog } from './catalog';
-import { compareStrings, uniqueSorted } from '../domain/collections';
+import { compareStrings, uniqueSorted } from '../domain/kernel/collections';
 import { chooseByPrecedence } from '../domain/resolution/precedence';
 import { runSelectionPrecedencePolicy } from '../domain/resolution/precedence-policy';
 

@@ -75,11 +75,11 @@ import type {
   WidgetCapabilityContract,
 } from '../../types';
 import type { RecoveryPolicy } from '../../execution/recovery-policy';
-import { computeAdoContentHash } from '../../hash';
+import { computeAdoContentHash } from '../../kernel/hash';
 import { validatePatternDocument as validatePatternDocumentRecord } from '../../knowledge/patterns';
-import { normalizeScreenPostures } from '../../posture-contract';
-import { SchemaError } from '../../errors';
-import { uniqueSorted } from '../../collections';
+import { normalizeScreenPostures } from '../../governance/posture-contract';
+import { SchemaError } from '../../kernel/errors';
+import { uniqueSorted } from '../../kernel/collections';
 import {
   createAdoId,
   createCanonicalTargetRef,
@@ -96,7 +96,7 @@ import {
   createTransitionRef,
   createWidgetId,
   ensureSafeRelativePathLike,
-} from '../../identity';
+} from '../../kernel/identity';
 import {
   expectArray,
   expectBoolean,

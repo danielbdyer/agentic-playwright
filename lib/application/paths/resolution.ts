@@ -1,5 +1,5 @@
 import path from 'path';
-import type { AdoId } from '../../domain/identity';
+import type { AdoId } from '../../domain/kernel/identity';
 import type { ProjectPaths } from './types';
 import { resolvePathWithinRoot } from './shared';
 

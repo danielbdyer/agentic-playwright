@@ -1,5 +1,5 @@
 import { inspectWorkflow } from '../../workflow';
-import { createAdoId } from '../../../domain/identity';
+import { createAdoId } from '../../../domain/kernel/identity';
 import { createCommandSpec } from '../shared';
 
 export const workflowCommand = createCommandSpec({

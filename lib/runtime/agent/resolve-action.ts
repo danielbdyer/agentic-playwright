@@ -1,5 +1,5 @@
 import { normalizeIntentText } from '../../domain/knowledge/inference';
-import { knowledgePaths } from '../../domain/ids';
+import { knowledgePaths } from '../../domain/kernel/ids';
 import type { InterfaceResolutionContext, StepAction, StepResolution, GroundedStep } from '../../domain/types';
 import { bestAliasMatch } from './shared';
 

@@ -1,4 +1,4 @@
-import { uniqueSorted } from '../../domain/collections';
+import { uniqueSorted } from '../../domain/kernel/collections';
 import { normalizeIntentText } from '../../domain/knowledge/inference';
 import type { ResolutionExhaustionEntry, GroundedStep } from '../../domain/types';
 

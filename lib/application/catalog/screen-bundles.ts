@@ -1,6 +1,6 @@
 import { Effect } from 'effect';
 import { createScreenBundle } from '../../domain/knowledge/screen-bundle';
-import type { ScreenId } from '../../domain/identity';
+import type { ScreenId } from '../../domain/kernel/identity';
 import type { ScreenElements, ScreenHints, ScreenPostures, SurfaceGraph } from '../../domain/types';
 import {
   validateScreenElements,

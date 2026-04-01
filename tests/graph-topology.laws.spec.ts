@@ -15,15 +15,15 @@ import {
   resolveConditionalEdges,
   EMPTY_GRAPH,
   type GraphBuildInput,
-} from '../lib/domain/derived-graph';
-import type { ConditionalEdge, GraphAccumulator } from '../lib/domain/derived-graph';
+} from '../lib/domain/codegen/derived-graph';
+import type { ConditionalEdge, GraphAccumulator } from '../lib/domain/codegen/derived-graph';
 import {
   createAdoId,
   createElementId,
   createPostureId,
   createScreenId,
   createSurfaceId,
-} from '../lib/domain/identity';
+} from '../lib/domain/kernel/identity';
 import type { AdoSnapshot, Scenario, SurfaceGraph, ScreenElements, ScreenPostures } from '../lib/domain/types';
 import { mulberry32, randomWord, randomInt , LAW_SEED_COUNT } from './support/random';
 

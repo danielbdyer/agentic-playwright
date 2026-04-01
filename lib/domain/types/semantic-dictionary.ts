@@ -14,7 +14,7 @@
  * rather than the *input*.
  */
 
-import type { ElementId, PostureId, ScreenId, SnapshotTemplateId } from '../identity';
+import type { ElementId, PostureId, ScreenId, SnapshotTemplateId } from '../kernel/identity';
 import type { StepAction, StepWinningSource } from './workflow';
 import type { ShingleIndex } from '../knowledge/shingles';
 

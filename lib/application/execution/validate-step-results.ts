@@ -1,7 +1,7 @@
 import { isApproved, isReviewRequired } from '../../domain/types/shared-context';
-import { foldResolutionReceipt } from '../../domain/visitors';
+import { foldResolutionReceipt } from '../../domain/kernel/visitors';
 import type { RuntimeScenarioStepResult } from '../ports';
-import { TesseractError } from '../../domain/errors';
+import { TesseractError } from '../../domain/kernel/errors';
 
 function assertInvariant(condition: boolean, message: string): asserts condition {
   if (!condition) {

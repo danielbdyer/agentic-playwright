@@ -1,5 +1,5 @@
-import type { AdoId } from './identity';
-import type { CompilerDiagnostic, DiagnosticProvenance, DiagnosticSeverity, TrustPolicyDecision, TrustPolicyEvaluationReason } from './types';
+import type { AdoId } from '../kernel/identity';
+import type { CompilerDiagnostic, DiagnosticProvenance, DiagnosticSeverity, TrustPolicyDecision, TrustPolicyEvaluationReason } from '../types';
 
 export function createDiagnostic(input: {
   code: string;

@@ -1,12 +1,12 @@
-import { deriveCapabilities, findCapability } from './grammar';
-import { normalizeIntentText } from './knowledge/inference';
-import type { ScreenId, SnapshotTemplateId } from './identity';
-import { knowledgePaths } from './ids';
-import { capabilityForInstruction, compileStepProgram, type StepProgram } from './program';
+import { deriveCapabilities, findCapability } from '../execution/grammar';
+import { normalizeIntentText } from '../knowledge/inference';
+import type { ScreenId, SnapshotTemplateId } from '../kernel/identity';
+import { knowledgePaths } from '../kernel/ids';
+import { capabilityForInstruction, compileStepProgram, type StepProgram } from '../execution/program';
 import type { PostureContractIssueCode } from './posture-contract';
 import { validatePostureContract } from './posture-contract';
-import type { BoundStep, Governance, ScenarioStep, ScreenElements, ScreenPostures, SurfaceGraph } from './types';
-import { uniqueSorted } from './collections';
+import type { BoundStep, Governance, ScenarioStep, ScreenElements, ScreenPostures, SurfaceGraph } from '../types';
+import { uniqueSorted } from '../kernel/collections';
 
 export type StepBindingReason =
   | 'missing-screen'

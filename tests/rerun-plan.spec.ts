@@ -1,8 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'fs';
 import path from 'path';
-import { createAdoId, createElementId, createScreenId } from '../lib/domain/identity';
-import { graphIds } from '../lib/domain/ids';
+import { createAdoId, createElementId, createScreenId } from '../lib/domain/kernel/identity';
+import { graphIds } from '../lib/domain/kernel/ids';
 import { loadWorkspaceCatalog } from '../lib/application/catalog';
 import { refreshScenario } from '../lib/application/refresh';
 import { internalRerunPlan } from '../lib/application/rerun-plan';

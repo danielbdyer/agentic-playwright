@@ -2,7 +2,7 @@
 import path from 'path';
 import { Effect } from 'effect';
 import type { AdoSourcePort } from '../../application/ports';
-import { createAdoId } from '../../domain/identity';
+import { createAdoId } from '../../domain/kernel/identity';
 import { tryFileSystem } from '../../application/effect';
 import { RETRY_POLICIES, retryScheduleForTaggedErrors } from '../../application/resilience/schedules';
 

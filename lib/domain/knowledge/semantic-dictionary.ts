@@ -5,7 +5,7 @@
  * Persistence and Effect-based orchestration live in the application layer.
  */
 
-import { sha256, stableStringify } from '../hash';
+import { sha256, stableStringify } from '../kernel/hash';
 import { normalizeIntentText } from './inference';
 import {
   addEntryToShingleIndex,

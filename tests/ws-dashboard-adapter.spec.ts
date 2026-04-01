@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { Duration, Effect, Fiber } from 'effect';
-import type { AdoId } from '../lib/domain/identity';
+import type { AdoId } from '../lib/domain/kernel/identity';
 import type { AgentWorkItem, DashboardEvent } from '../lib/domain/types';
 import { createWsDashboardAdapter } from '../lib/infrastructure/dashboard/ws-dashboard-adapter';
 import type { WsBroadcaster } from '../lib/infrastructure/dashboard/ws-dashboard-adapter';

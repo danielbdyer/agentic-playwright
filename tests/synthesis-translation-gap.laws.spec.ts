@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { createSeededRng } from '../lib/domain/random';
+import { createSeededRng } from '../lib/domain/kernel/random';
 import { generateHeldOutPhrases, generateNavPhrase, selectAtGapDistance } from '../lib/domain/synthesis/translation-gap';
 
 const GENERATED_GAP_KINDS = ['domain-synonym', 'affordance-rephrase', 'natural-language'] as const;

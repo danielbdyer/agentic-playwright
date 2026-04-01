@@ -1,7 +1,7 @@
 import { normalizeIntentText } from '../domain/knowledge/inference';
 import type { TranslationCandidate, TranslationReceipt, TranslationRequest } from '../domain/types';
 import { DEFAULT_PIPELINE_CONFIG } from '../domain/types';
-import { compareStrings, uniqueSorted } from '../domain/collections';
+import { compareStrings, uniqueSorted } from '../domain/kernel/collections';
 
 function tokenize(value: string): string[] {
   return uniqueSorted(normalizeIntentText(value).split(/[^a-z0-9]+/).filter((token) => token.length > 1));

@@ -9,14 +9,14 @@
  */
 
 import { expect, test } from '@playwright/test';
-import { bindScenarioStep, type StepBindingContext } from '../lib/domain/binding';
+import { bindScenarioStep, type StepBindingContext } from '../lib/domain/governance/binding';
 import {
   createElementId,
   createPostureId,
   createScreenId,
   createSnapshotTemplateId,
   createSurfaceId,
-} from '../lib/domain/identity';
+} from '../lib/domain/kernel/identity';
 import type { BoundStep, ScenarioStep, ScreenElements, ScreenPostures, SurfaceGraph } from '../lib/domain/types';
 import { mulberry32, pick, randomWord , LAW_SEED_COUNT } from './support/random';
 

@@ -13,7 +13,7 @@
  */
 
 import { expect, test } from '@playwright/test';
-import { createElementId, createScreenId } from '../lib/domain/identity';
+import { createElementId, createScreenId } from '../lib/domain/kernel/identity';
 import type {
   SemanticDictionaryAccrualInput,
   SemanticDictionaryCatalog,

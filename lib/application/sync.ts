@@ -1,6 +1,6 @@
 ﻿import { Effect } from 'effect';
-import { createDiagnostic } from '../domain/diagnostics';
-import type { AdoId } from '../domain/identity';
+import { createDiagnostic } from '../domain/governance/diagnostics';
+import type { AdoId } from '../domain/kernel/identity';
 import type { Manifest } from '../domain/types';
 import { validateAdoSnapshot, validateManifest } from '../domain/validation';
 import { AdoSource, FileSystem } from './ports';

@@ -11,7 +11,7 @@
 import { Effect } from 'effect';
 import { FileSystem } from '../ports';
 import type { ProjectPaths } from '../paths';
-import { createSeededRng, pick } from '../../domain/random';
+import { createSeededRng, pick } from '../../domain/kernel/random';
 
 // ─── Drift Event Types ───
 

@@ -7,13 +7,13 @@ import type { ProjectPaths } from './paths';
 import { relativeProjectPath, rerunPlanPath } from './paths';
 import { FileSystem } from './ports';
 import { policyDecisionGraphTarget } from './trust-policy';
-import { TesseractError } from '../domain/errors';
-import { sha256, stableStringify } from '../domain/hash';
-import { graphIds, knowledgePaths } from '../domain/ids';
-import type { AdoId } from '../domain/identity';
-import { createAdoId } from '../domain/identity';
+import { TesseractError } from '../domain/kernel/errors';
+import { sha256, stableStringify } from '../domain/kernel/hash';
+import { graphIds, knowledgePaths } from '../domain/kernel/ids';
+import type { AdoId } from '../domain/kernel/identity';
+import { createAdoId } from '../domain/kernel/identity';
 import type { GraphEdge, GraphNode, RerunPlan, RunbookControl, Scenario } from '../domain/types';
-import { compareStrings, uniqueSorted } from '../domain/collections';
+import { compareStrings, uniqueSorted } from '../domain/kernel/collections';
 import type { ActionExecutionResult } from './intervention-kernel';
 
 interface SelectionExplanation {

@@ -2,8 +2,8 @@ import path from 'path';
 import { pathToFileURL } from 'url';
 import { chromium } from '@playwright/test';
 import { Effect } from 'effect';
-import { sha256, stableStringify } from '../../domain/hash';
-import { createCanonicalTargetRef, createElementId } from '../../domain/identity';
+import { sha256, stableStringify } from '../../domain/kernel/hash';
+import { createCanonicalTargetRef, createElementId } from '../../domain/kernel/identity';
 import type {
   DiscoveryIndex,
   DiscoveryIndexEntry,

@@ -1,7 +1,7 @@
 ﻿import { Effect } from 'effect';
 import { ensureDerivedGraph } from './graph';
 import type { ProjectPaths } from './paths';
-import { TesseractError } from '../domain/errors';
+import { TesseractError } from '../domain/kernel/errors';
 import { collectImpactSubgraph } from '../domain/codegen/graph-query';
 import type { DerivedGraph } from '../domain/types';
 

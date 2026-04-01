@@ -1,9 +1,9 @@
 import path from 'path';
 import { Effect } from 'effect';
-import type { TesseractError } from '../domain/errors';
+import type { TesseractError } from '../domain/kernel/errors';
 import { widgetCapabilityContracts } from '../domain/widgets/contracts';
-import { deriveCapabilities } from '../domain/grammar';
-import { sha256 } from '../domain/hash';
+import { deriveCapabilities } from '../domain/execution/grammar';
+import { sha256 } from '../domain/kernel/hash';
 import { renderGeneratedKnowledgeModule } from '../domain/codegen/typegen';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
 import type { ProjectPaths } from './paths';

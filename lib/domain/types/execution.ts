@@ -1,4 +1,4 @@
-import type { AdoId, EventSignatureRef, StateNodeRef, TransitionRef } from '../identity';
+import type { AdoId, EventSignatureRef, StateNodeRef, TransitionRef } from '../kernel/identity';
 import type { RecoveryStrategyId } from '../execution/recovery-policy';
 import type {
   CanonicalLineage,

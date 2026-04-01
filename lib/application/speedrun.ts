@@ -18,7 +18,7 @@ import { generateSyntheticScenarios } from './synthesis/scenario-generator';
 import { generateDriftVariants } from './synthesis/interface-fuzzer';
 import { compileScenariosParallel } from './compile';
 import { runDogfoodLoop } from './dogfood';
-import type { AdoId } from '../domain/identity';
+import type { AdoId } from '../domain/kernel/identity';
 import {
   averageFitnessReports,
   buildFitnessReport,
@@ -50,7 +50,7 @@ import type {
 import { DEFAULT_PIPELINE_CONFIG } from '../domain/types';
 import type { RunRecord } from '../domain/types/execution-context';
 import type { PerturbationConfig } from './synthesis/scenario-generator';
-import { TesseractError } from '../domain/errors';
+import { TesseractError } from '../domain/kernel/errors';
 
 // ─── Public input/result types ───
 

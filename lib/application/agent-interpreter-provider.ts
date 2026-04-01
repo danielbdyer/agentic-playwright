@@ -28,10 +28,10 @@ import {
   agentInterpreterProviderError,
   type AgentInterpreterParseError,
   type AgentInterpreterTimeoutError,
-} from '../domain/errors';
+} from '../domain/kernel/errors';
 import type { ResolutionTarget, ResolutionProposalDraft } from '../domain/types';
 import type { StepAction } from '../domain/types';
-import type { ScreenId, ElementId, PostureId, SnapshotTemplateId } from '../domain/identity';
+import type { ScreenId, ElementId, PostureId, SnapshotTemplateId } from '../domain/kernel/identity';
 import { normalizeIntentText, bestAliasMatch, humanizeIdentifier } from '../domain/knowledge/inference';
 import { assignVariant, type ABTestConfig } from './agent-ab-testing';
 import {

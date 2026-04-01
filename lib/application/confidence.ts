@@ -1,6 +1,6 @@
 import { Effect } from 'effect';
-import { sha256, stableStringify } from '../domain/hash';
-import { knowledgePaths } from '../domain/ids';
+import { sha256, stableStringify } from '../domain/kernel/hash';
+import { knowledgePaths } from '../domain/kernel/ids';
 import type {
   ArtifactConfidenceRecord,
   ConfidenceOverlayCatalog,
@@ -13,7 +13,7 @@ import { dashboardEvent } from '../domain/types/intervention-context';
 import type { ProjectPaths } from './paths';
 import { relativeProjectPath } from './paths';
 import { FileSystem } from './ports';
-import { compareStrings, uniqueSorted } from '../domain/collections';
+import { compareStrings, uniqueSorted } from '../domain/kernel/collections';
 
 function round(value: number): number {
   return Number(value.toFixed(2));

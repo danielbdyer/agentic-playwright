@@ -17,8 +17,8 @@ import { traceScenario } from '../lib/application/trace';
 import { generateTypes } from '../lib/application/types';
 import { inspectWorkflow } from '../lib/application/workflow';
 import { runWithLocalServices } from '../lib/composition/local-services';
-import { createAdoId } from '../lib/domain/identity';
-import { graphIds } from '../lib/domain/ids';
+import { createAdoId } from '../lib/domain/kernel/identity';
+import { graphIds } from '../lib/domain/kernel/ids';
 import {
   DEFAULT_PIPELINE_CONFIG,
   type PipelineFitnessReport,

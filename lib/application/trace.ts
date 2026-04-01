@@ -1,8 +1,8 @@
 ﻿import { Effect } from 'effect';
-import type { AdoId } from '../domain/identity';
+import type { AdoId } from '../domain/kernel/identity';
 import { collectRelatedSubgraph } from '../domain/codegen/graph-query';
-import { graphIds } from '../domain/ids';
-import { TesseractError } from '../domain/errors';
+import { graphIds } from '../domain/kernel/ids';
+import { TesseractError } from '../domain/kernel/errors';
 import { ensureDerivedGraph } from './graph';
 import type { ProjectPaths } from './paths';
 import type { DerivedGraph } from '../domain/types';

@@ -1,5 +1,5 @@
 import { Effect } from 'effect';
-import type { AdoId } from '../domain/identity';
+import type { AdoId } from '../domain/kernel/identity';
 import { bindScenario } from './bind';
 import { createCompileSnapshot } from './compile-snapshot';
 import type { WorkspaceCatalog } from './catalog';

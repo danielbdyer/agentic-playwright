@@ -3,7 +3,7 @@ import path from 'path';
 import { expect, test } from '@playwright/test';
 import { refreshScenario } from '../lib/application/refresh';
 import { runWithLocalServices } from '../lib/composition/local-services';
-import { createAdoId } from '../lib/domain/identity';
+import { createAdoId } from '../lib/domain/kernel/identity';
 import { classifyFailure, findFailureContext } from '../lib/infrastructure/reporting/tesseract-reporter';
 import { validateDerivedGraph } from '../lib/domain/validation';
 import { createTestWorkspace } from './support/workspace';

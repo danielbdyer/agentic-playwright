@@ -1,5 +1,5 @@
 import { Effect } from 'effect';
-import type { AdoId } from '../domain/identity';
+import type { AdoId } from '../domain/kernel/identity';
 import type { InterpretationDriftChange, InterpretationDriftRecord, ResolutionReceipt, ScenarioInterpretationSurface } from '../domain/types';
 import type { ProjectPaths } from './paths';
 import { interpretationDriftPath, interpretationPath, resolutionGraphPath, taskPacketPath } from './paths';

@@ -1,8 +1,8 @@
 ﻿import { Effect, Context } from 'effect';
-import type { AdoId } from '../domain/identity';
+import type { AdoId } from '../domain/kernel/identity';
 import type { ResolutionEngine } from './resolution-engine';
 import type { TranslationProvider } from './translation-provider';
-import type { TesseractError } from '../domain/errors';
+import type { TesseractError } from '../domain/kernel/errors';
 import type { ApplicationInterfaceGraphRepository } from '../domain/interface/application-interface-graph-repository';
 import type { InterventionLedgerRepository } from '../domain/intervention/intervention-ledger-repository';
 import type { ImprovementRunRepository } from '../domain/improvement/improvement-run-repository';

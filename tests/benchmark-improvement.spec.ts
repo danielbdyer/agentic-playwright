@@ -5,7 +5,7 @@ import { projectBenchmarkScorecard } from '../lib/application/benchmark';
 import { buildImprovementRun, improvementLedgerPath } from '../lib/application/improvement';
 import { benchmarkDogfoodRunPath, benchmarkImprovementProjectionPath } from '../lib/application/paths';
 import { runWithLocalServices } from '../lib/composition/local-services';
-import { createAdoId } from '../lib/domain/identity';
+import { createAdoId } from '../lib/domain/kernel/identity';
 import { DEFAULT_PIPELINE_CONFIG, type PipelineFitnessReport } from '../lib/domain/types';
 import { validateBenchmarkImprovementProjection, validateDogfoodRun } from '../lib/domain/validation/execution';
 import { createTestWorkspace } from './support/workspace';

@@ -24,8 +24,8 @@ import {
   isTerminal,
   transitionConvergence,
 } from '../domain/projection/convergence-fsm';
-import type { AdoId } from '../domain/identity';
-import { groupBy } from '../domain/collections';
+import type { AdoId } from '../domain/kernel/identity';
+import { groupBy } from '../domain/kernel/collections';
 import { asDogfoodLedgerProjection, asImprovementLoopLedger, DEFAULT_PIPELINE_CONFIG } from '../domain/types';
 import type {
   AutoApprovalPolicy,

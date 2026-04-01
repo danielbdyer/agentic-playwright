@@ -1,10 +1,10 @@
 import path from 'path';
 import { Effect } from 'effect';
 import { normalizeIntentText } from '../domain/knowledge/inference';
-import { TesseractError } from '../domain/errors';
+import { TesseractError } from '../domain/kernel/errors';
 import {
   type AdoId,
-} from '../domain/identity';
+} from '../domain/kernel/identity';
 import type {
   ApplicationInterfaceGraph,
   GroundedStep,

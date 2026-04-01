@@ -1,7 +1,7 @@
 ﻿import type { Locator, Page} from '@playwright/test';
 import { expect } from '@playwright/test';
-import type { ElementId, PostureId } from '../domain/identity';
-import { unknownEffectTargetError } from '../domain/errors';
+import type { ElementId, PostureId } from '../domain/kernel/identity';
+import { unknownEffectTargetError } from '../domain/kernel/errors';
 import type { ElementSig, Posture, SurfaceDefinition } from '../domain/types';
 import { widgetCapabilityContracts } from '../domain/widgets/contracts';
 import { interact } from './interact';

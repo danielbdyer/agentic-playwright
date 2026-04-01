@@ -1,6 +1,6 @@
 import YAML from 'yaml';
 import { Effect } from 'effect';
-import { isRecord } from '../domain/collections';
+import { isRecord } from '../domain/kernel/collections';
 import { FileSystem } from './ports';
 import type { ProjectPaths } from './paths';
 

@@ -2,7 +2,7 @@ import { proposalIdForEntry } from '../operator';
 import { evaluateArtifactPolicy } from '../trust-policy';
 import type { LoadedEvidenceRecord } from '../trust-policy';
 import type { WorkspaceCatalog } from '../catalog';
-import type { AdoId } from '../../domain/identity';
+import type { AdoId } from '../../domain/kernel/identity';
 import type { ProposalBundle, ScenarioRunPlan } from '../../domain/types';
 import {
   createEnvelopeLineage,

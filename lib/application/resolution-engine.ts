@@ -1,5 +1,5 @@
 import type { ResolutionEngineCapabilities, RuntimeInterpreterMode, GroundedStep, ResolutionStepOutcome } from '../domain/types';
-import { TesseractError } from '../domain/errors';
+import { TesseractError } from '../domain/kernel/errors';
 
 export type ResolutionEngineId = string;
 

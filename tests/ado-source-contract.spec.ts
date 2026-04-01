@@ -3,7 +3,7 @@ import { Effect } from 'effect';
 import { makeLocalAdoSource } from '../lib/infrastructure/ado/local-ado-source';
 import { makeLiveAdoSource, readLiveAdoSourceConfigFromEnv } from '../lib/infrastructure/ado/live-ado-source';
 import { parseSnapshotToScenario } from '../lib/application/parse';
-import { createAdoId } from '../lib/domain/identity';
+import { createAdoId } from '../lib/domain/kernel/identity';
 import { validateAdoSnapshot } from '../lib/domain/validation';
 
 import path from 'path';

@@ -1,6 +1,6 @@
 import { Effect } from 'effect';
 import type { InferenceKnowledge } from '../domain/knowledge/inference';
-import type { ScreenId } from '../domain/identity';
+import type { ScreenId } from '../domain/kernel/identity';
 import type { BoundScenario, HarvestManifest, Scenario, ScreenElements, ScreenHints, ScreenPostures, SurfaceGraph } from '../domain/types';
 import {
   loadWorkspaceCatalog,

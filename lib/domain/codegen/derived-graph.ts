@@ -7,16 +7,16 @@
  * | scenarioPhase (taskStep lookup)   | O(steps^2)        | O(steps)  | Pre-indexed Map<index, taskStep> per scenario             |
  * | decisionItems (candidateId check) | O(decisions*cands)| O(decisions)| Replaced array.includes with Set.has per decision       |
  */
-import { sortByStringKey } from './collections';
-import { deriveCapabilities } from './grammar';
-import { normalizeIntentText } from './knowledge/inference';
-import type { ScreenId, SnapshotTemplateId } from './identity';
-import { createElementId, createPostureId, createSurfaceId } from './identity';
-import { provenanceKindForBoundStep } from './governance/provenance';
-import { explainBoundScenario } from './scenario/explanation';
-import { capabilityForInstruction, compileStepProgram, traceStepProgram } from './program';
-import { sha256, stableStringify } from './hash';
-import { graphIds, mcpUris } from './ids';
+import { sortByStringKey } from '../kernel/collections';
+import { deriveCapabilities } from '../execution/grammar';
+import { normalizeIntentText } from '../knowledge/inference';
+import type { ScreenId, SnapshotTemplateId } from '../kernel/identity';
+import { createElementId, createPostureId, createSurfaceId } from '../kernel/identity';
+import { provenanceKindForBoundStep } from '../governance/provenance';
+import { explainBoundScenario } from '../scenario/explanation';
+import { capabilityForInstruction, compileStepProgram, traceStepProgram } from '../execution/program';
+import { sha256, stableStringify } from '../kernel/hash';
+import { graphIds, mcpUris } from '../kernel/ids';
 import type {
   AdoSnapshot,
   ConfidenceOverlayCatalog,
@@ -42,7 +42,7 @@ import type {
   ScreenHints,
   ScreenPostures,
   SurfaceGraph,
-} from './types';
+} from '../types';
 
 interface ArtifactEnvelope<T> {
   readonly artifact: T;

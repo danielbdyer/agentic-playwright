@@ -1,7 +1,7 @@
 ﻿import path from 'path';
 import { Effect } from 'effect';
 import type { FileSystemPort } from './ports';
-import type { TesseractError } from '../domain/errors';
+import type { TesseractError } from '../domain/kernel/errors';
 
 export function walkFiles(
   fs: FileSystemPort,

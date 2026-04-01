@@ -1,6 +1,6 @@
-import { computeNormalizedSnapshotHash, normalizeAriaSnapshot } from '../hash';
+import { computeNormalizedSnapshotHash, normalizeAriaSnapshot } from '../kernel/hash';
 import type { AssertionKind, SurfaceKind } from '../types/workflow';
-import { uniqueSorted } from '../collections';
+import { uniqueSorted } from '../kernel/collections';
 
 export interface RawDiscoveredSurface {
   selector: string;

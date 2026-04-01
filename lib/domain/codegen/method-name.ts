@@ -1,5 +1,5 @@
-import type { ElementId } from './identity';
-import type { StepAction } from './types/workflow';
+import type { ElementId } from '../kernel/identity';
+import type { StepAction } from '../types/workflow';
 
 /**
  * Derive a POM-style method name from a grounded step's action, element, and intent.

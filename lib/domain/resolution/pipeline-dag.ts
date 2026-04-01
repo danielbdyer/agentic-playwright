@@ -8,7 +8,7 @@
  * All functions are pure: no mutation, no side effects.
  */
 
-import { TesseractError } from '../errors';
+import { TesseractError } from '../kernel/errors';
 
 // ─── Types ───
 

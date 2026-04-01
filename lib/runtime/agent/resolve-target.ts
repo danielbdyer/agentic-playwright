@@ -1,5 +1,5 @@
-import { createPostureId } from '../../domain/identity';
-import { knowledgePaths } from '../../domain/ids';
+import { createPostureId } from '../../domain/kernel/identity';
+import { knowledgePaths } from '../../domain/kernel/ids';
 import type {
   GroundedStep,
   ResolutionTarget,

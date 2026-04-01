@@ -7,7 +7,7 @@
  * new data rather than mutating inputs.
  */
 
-import type { StateNodeRef, TransitionRef } from '../../domain/identity';
+import type { StateNodeRef, TransitionRef } from '../../domain/kernel/identity';
 import type {
   GroundedStep,
   ObservedStateSession,
@@ -15,7 +15,7 @@ import type {
   ResolutionTarget,
   TransitionObservation,
 } from '../../domain/types';
-import { uniqueSorted } from '../../domain/collections';
+import { uniqueSorted } from '../../domain/kernel/collections';
 
 // ─── Types ───────────────────────────────────────────────────────────────
 

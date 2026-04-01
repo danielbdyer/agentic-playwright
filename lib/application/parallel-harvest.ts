@@ -7,7 +7,7 @@
  */
 
 import { Effect, Ref } from 'effect';
-import type { ScreenId } from '../domain/identity';
+import type { ScreenId } from '../domain/kernel/identity';
 import type { SelectorCanon } from '../domain/types';
 import { concatAll, type Monoid } from '../domain/algebra/monoid';
 import { sortedReadonlyArrayMonoid, structMonoid, sumMonoid } from '../domain/algebra/envelope-mergers';

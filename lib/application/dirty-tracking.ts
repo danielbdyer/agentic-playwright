@@ -1,4 +1,4 @@
-import { sha256, stableStringify } from '../domain/hash';
+import { sha256, stableStringify } from '../domain/kernel/hash';
 
 // ─── Stage Manifest ───
 

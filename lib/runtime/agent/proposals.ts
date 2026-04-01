@@ -1,4 +1,4 @@
-import { knowledgePaths } from '../../domain/ids';
+import { knowledgePaths } from '../../domain/kernel/ids';
 import type { InterfaceResolutionContext, ResolutionProposalDraft, GroundedStep, StepTaskElementCandidate, StepTaskScreenCandidate } from '../../domain/types';
 import type { IntentInterpretation, InterpretationSource } from './types';
 

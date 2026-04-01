@@ -1,4 +1,4 @@
-import type { RouteId, RouteVariantId, ScreenId } from '../identity';
+import type { RouteId, RouteVariantId, ScreenId } from '../kernel/identity';
 import type { Governance } from './workflow';
 
 export type RouteVariantDimension = 'query' | 'hash' | 'tab' | 'segment';

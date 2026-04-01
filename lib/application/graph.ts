@@ -1,6 +1,6 @@
 import path from 'path';
 import { Effect } from 'effect';
-import { deriveGraph } from '../domain/derived-graph';
+import { deriveGraph } from '../domain/codegen/derived-graph';
 import { resolveEffectConcurrency } from './concurrency';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
 import type {
@@ -15,7 +15,7 @@ import type {
   ScenarioGraphArtifact,
   ScreenHintsArtifact,
   SharedPatternsArtifact,
-} from '../domain/derived-graph';
+} from '../domain/codegen/derived-graph';
 import type { DerivedGraph, ProposedChangeMetadata } from '../domain/types';
 import { validateDerivedGraph } from '../domain/validation';
 import { trySync } from './effect';
@@ -35,7 +35,7 @@ import {
 import { type ProjectionIncremental } from './projections/runner';
 import { runIncrementalStage } from './pipeline';
 import { evaluateArtifactPolicy, policyDecisionGraphTarget } from './trust-policy';
-import { TesseractError } from '../domain/errors';
+import { TesseractError } from '../domain/kernel/errors';
 
 export interface DerivedGraphProjectionResult {
   graph: DerivedGraph;

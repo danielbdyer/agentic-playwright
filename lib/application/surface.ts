@@ -1,6 +1,6 @@
 import { Effect } from 'effect';
-import { deriveCapabilities } from '../domain/grammar';
-import type { ScreenId } from '../domain/identity';
+import { deriveCapabilities } from '../domain/execution/grammar';
+import type { ScreenId } from '../domain/kernel/identity';
 import { loadScreenBundle } from './catalog';
 import type { ProjectPaths } from './paths';
 
