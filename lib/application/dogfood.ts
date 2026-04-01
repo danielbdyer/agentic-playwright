@@ -86,6 +86,8 @@ export interface DogfoodOptions {
   readonly enablePlaywrightEscalation?: boolean | undefined;
   /** Thresholds for the escalation policy. Uses defaults when omitted. */
   readonly escalationThresholds?: EscalationThresholds | undefined;
+  /** Base URL of the SUT for Playwright escalation (e.g., http://127.0.0.1:3200). */
+  readonly baseUrl?: string | undefined;
   /**
    * Fire-and-forget progress callback. Invoked after each iteration completes
    * with the current metrics. The callback is a side channel for observability —
@@ -558,6 +560,7 @@ function runIteration(iteration: number, options: DogfoodOptions, state: LoopSta
             adoId: escalatedAdoId,
             runbookName: options.runbook,
             interpreterMode: 'playwright',
+            baseUrl: options.baseUrl,
           });
         }
       }

@@ -78,6 +78,9 @@ export interface SpeedrunInput {
   readonly onProgress?: ((event: SpeedrunProgressEvent) => void) | undefined;
   /** When true, diagnostic iterations escalate failing scenarios to headless Playwright. */
   readonly enablePlaywrightEscalation?: boolean | undefined;
+  /** Base URL of the SUT for Playwright escalation. When omitted and escalation is enabled,
+   *  the speedrun automatically starts the demo-harness fixture server. */
+  readonly baseUrl?: string | undefined;
 }
 
 export interface SpeedrunResult {
@@ -107,6 +110,7 @@ export interface MultiSeedInput {
   readonly onProgress?: ((event: SpeedrunProgressEvent) => void) | undefined;
   /** When true, diagnostic iterations escalate failing scenarios to headless Playwright. */
   readonly enablePlaywrightEscalation?: boolean | undefined;
+  readonly baseUrl?: string | undefined;
 }
 
 export interface MultiSeedResult {
@@ -289,6 +293,7 @@ export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunRes
       seed: input.seed,
       dashboard,
       enablePlaywrightEscalation: input.enablePlaywrightEscalation,
+      baseUrl: input.baseUrl,
     });
 
     const fitnessStart = Date.now();
@@ -429,6 +434,7 @@ export function multiSeedSpeedrun(input: MultiSeedInput): Effect.Effect<MultiSee
           driftCount: input.driftCount,
           onProgress: input.onProgress,
           enablePlaywrightEscalation: input.enablePlaywrightEscalation,
+          baseUrl: input.baseUrl,
         });
 
         // Save per-seed fitness report
@@ -612,6 +618,7 @@ export interface IteratePhaseInput {
   readonly seed?: string | undefined;
   readonly onProgress?: ((event: SpeedrunProgressEvent) => void) | undefined;
   readonly enablePlaywrightEscalation?: boolean | undefined;
+  readonly baseUrl?: string | undefined;
 }
 
 export function iteratePhase(input: IteratePhaseInput) {
@@ -630,6 +637,7 @@ export function iteratePhase(input: IteratePhaseInput) {
       seed: input.seed,
       dashboard,
       enablePlaywrightEscalation: input.enablePlaywrightEscalation,
+      baseUrl: input.baseUrl,
     });
     const durationMs = Date.now() - start;
     return { ledger, durationMs };

@@ -153,7 +153,10 @@ function buildRunnerWithInterpreter(interpreterOverride?: EffectfulAgentInterpre
       // ─── Playwright Escalation: launch headless browser when mode requires it ───
       const needsBrowser = input.plan.mode === 'playwright';
       const harness = needsBrowser
-        ? yield* Effect.promise(() => launchHeadedHarness({ headless: true }))
+        ? yield* Effect.promise(() => launchHeadedHarness({
+            headless: true,
+            ...(input.plan.baseUrl ? { initialUrl: input.plan.baseUrl } : {}),
+          }))
         : null;
 
       const runStepsEffect = Effect.forEach(

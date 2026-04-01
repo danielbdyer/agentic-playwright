@@ -47,6 +47,7 @@ import {
   type PhaseTimingBaseline,
   type PhaseTimingBudget,
 } from '../lib/domain/projection/speedrun-statistics';
+import { startFixtureServer, type FixtureServer } from '../lib/infrastructure/fixture-server';
 
 // ─── CLI argument parsing ───
 
@@ -73,6 +74,7 @@ const driftCount = args.includes('--drift-count') ? Number(argVal('--drift-count
 const explicitPosture = args.includes('--posture') ? argVal('--posture', '') as KnowledgePosture : undefined;
 const mode = args.includes('--mode') ? argVal('--mode', 'diagnostic') : 'diagnostic';
 const enablePlaywrightEscalation = mode === 'escalate';
+const explicitBaseUrl = args.includes('--base-url') ? argVal('--base-url', '') : '';
 
 const rootDir = process.cwd();
 const paths = createProjectPaths(rootDir, path.join(rootDir, 'dogfood'));
@@ -265,7 +267,7 @@ async function runIterate(): Promise<void> {
   const progressPath = path.join(rootDir, '.tesseract', 'runs', 'speedrun-progress.jsonl');
   const onProgress = createProgressCallback(progressPath);
 
-  const result = await runWithLocalServices(
+  const result = await withFixtureServerIfNeeded((baseUrl) => runWithLocalServices(
     iteratePhase({
       paths,
       maxIterations,
@@ -275,10 +277,11 @@ async function runIterate(): Promise<void> {
       seed: singleSeed,
       onProgress,
       enablePlaywrightEscalation,
+      baseUrl,
     }),
     rootDir,
     serviceOptions,
-  );
+  ));
   console.log(`\nDogfood loop: ${result.ledger.completedIterations} iterations, converged=${result.ledger.converged} (${result.ledger.convergenceReason ?? 'n/a'})`);
   console.log(`  Knowledge hit rate delta: ${result.ledger.knowledgeHitRateDelta > 0 ? '+' : ''}${result.ledger.knowledgeHitRateDelta}`);
   console.log(`  Total proposals activated: ${result.ledger.totalProposalsActivated}`);
@@ -315,6 +318,23 @@ async function runReport(): Promise<void> {
     : '\nScorecard unchanged — did not beat the mark.');
 }
 
+// ─── Fixture server lifecycle helper ───
+
+async function withFixtureServerIfNeeded<T>(fn: (baseUrl: string | undefined) => Promise<T>): Promise<T> {
+  if (!enablePlaywrightEscalation) return fn(undefined);
+  if (explicitBaseUrl) return fn(explicitBaseUrl);
+
+  console.log('Starting fixture server for Playwright escalation...');
+  const server = await startFixtureServer({ rootDir });
+  console.log(`Fixture server ready at ${server.baseUrl}`);
+  try {
+    return await fn(server.baseUrl);
+  } finally {
+    await server.stop();
+    console.log('Fixture server stopped.');
+  }
+}
+
 // ─── Full speedrun (default, no subcommand) ───
 
 async function runFull(): Promise<void> {
@@ -330,7 +350,7 @@ async function runFull(): Promise<void> {
   if (lexicalGap > 0) console.log(`Lexical gap: ${lexicalGap}`);
   if (driftCount > 0) console.log(`Drift mutations: ${driftCount}`);
 
-  const result = await runWithLocalServices(
+  const result = await withFixtureServerIfNeeded((baseUrl) => runWithLocalServices(
     multiSeedSpeedrun({
       paths,
       config: pipelineConfig,
@@ -345,13 +365,14 @@ async function runFull(): Promise<void> {
       driftCount: driftCount > 0 ? driftCount : undefined,
       onProgress,
       enablePlaywrightEscalation,
+      baseUrl,
     }),
     rootDir,
     {
       ...serviceOptions,
       pipelineConfig,
     },
-  );
+  ));
 
   printResult(result);
 }

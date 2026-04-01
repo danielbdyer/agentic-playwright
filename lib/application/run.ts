@@ -78,6 +78,7 @@ type RunScenarioOptions = {
   disableTranslation?: boolean | undefined;
   disableTranslationCache?: boolean | undefined;
   providerId?: string | undefined;
+  baseUrl?: string | undefined;
 };
 
 /**
@@ -99,16 +100,19 @@ export function runScenarioCore(options: RunScenarioOptions) {
       }),
       compute: ({ fs, runtimeScenarioRunner, executionContext, catalog }) => Effect.gen(function* () {
         const surfaceEntry = loadScenarioInterpretationSurfaceFromCatalog(catalog, options.adoId);
-        const plan = prepareScenarioRunPlan({
-          surface: surfaceEntry.artifact,
-          catalog,
-          paths: options.paths,
-          ...(options.runbookName ? { runbookName: options.runbookName } : {}),
-          ...(options.interpreterMode ? { interpreterMode: options.interpreterMode } : {}),
-          ...(options.posture ? { posture: options.posture } : {}),
-          ...(options.providerId ? { providerId: options.providerId } : {}),
-          executionContextPosture: executionContext.posture,
-        });
+        const plan = {
+          ...prepareScenarioRunPlan({
+            surface: surfaceEntry.artifact,
+            catalog,
+            paths: options.paths,
+            ...(options.runbookName ? { runbookName: options.runbookName } : {}),
+            ...(options.interpreterMode ? { interpreterMode: options.interpreterMode } : {}),
+            ...(options.posture ? { posture: options.posture } : {}),
+            ...(options.providerId ? { providerId: options.providerId } : {}),
+            executionContextPosture: executionContext.posture,
+          }),
+          ...(options.baseUrl ? { baseUrl: options.baseUrl } : {}),
+        };
         const scenarioEntryEither = getRequiredCatalogEntry(
           catalog.scenarios.find((entry) => entry.artifact.source.ado_id === options.adoId),
           () => new TesseractError('run-plan-missing-scenario', `Missing scenario for ${options.adoId}`),
@@ -349,6 +353,7 @@ export function runScenarioSelection(options: {
   disableTranslation?: boolean | undefined;
   disableTranslationCache?: boolean | undefined;
   providerId?: string | undefined;
+  baseUrl?: string | undefined;
 }) {
   return Effect.gen(function* () {
     const catalog = options.catalog ?? (yield* loadWorkspaceCatalog({ paths: options.paths }));
@@ -369,6 +374,7 @@ export function runScenarioSelection(options: {
       ...(options.disableTranslation ? { disableTranslation: true } : {}),
       ...(options.disableTranslationCache ? { disableTranslationCache: true } : {}),
       ...(options.providerId ? { providerId: options.providerId } : {}),
+      ...(options.baseUrl ? { baseUrl: options.baseUrl } : {}),
     });
 
     // For a single scenario, run the full pipeline (core + projections).
