@@ -66,7 +66,7 @@ export interface LocalServiceContext {
 
 function resolveExecutionPosture(posture?: Partial<ExecutionPosture> | undefined): ExecutionPosture {
   return {
-    interpreterMode: posture?.interpreterMode ?? 'diagnostic',
+    interpreterMode: posture?.interpreterMode ?? 'playwright',
     writeMode: posture?.writeMode ?? 'persist',
     headed: posture?.headed ?? false,
     executionProfile: posture?.executionProfile ?? (process.env.CI ? 'ci-batch' : 'interactive'),

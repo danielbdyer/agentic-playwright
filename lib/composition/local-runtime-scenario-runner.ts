@@ -102,7 +102,14 @@ export function bridgeAgentInterpreterForRuntime(provider: EffectfulAgentInterpr
 
 /** Create a RuntimeScenarioRunnerPort with a specific agent interpreter provider.
  *  This is the injection point for agent sessions, Copilot, and dashboard integrations. */
-function buildRunnerWithInterpreter(interpreterOverride?: EffectfulAgentInterpreterPort | undefined): RuntimeScenarioRunnerPort {
+interface RunnerOptions {
+  readonly interpreterOverride?: EffectfulAgentInterpreterPort | undefined;
+  /** Optional browser pool for page reuse across scenarios.
+   *  When provided, acquires/releases pages instead of launching new browsers. */
+  readonly browserPool?: import('../application/browser-pool').BrowserPoolPort | undefined;
+}
+
+function buildRunnerWithInterpreter(interpreterOverride?: EffectfulAgentInterpreterPort | undefined, runnerOptions?: RunnerOptions): RuntimeScenarioRunnerPort {
   return {
     runSteps(input) {
       return Effect.gen(function* () {
@@ -150,14 +157,20 @@ function buildRunnerWithInterpreter(interpreterOverride?: EffectfulAgentInterpre
         resolve: input.resolutionEngine.resolveStep,
       };
 
-      // ─── Playwright Escalation: launch headless browser when mode requires it ───
+      // ─── Browser lifecycle: launch or acquire from pool when playwright mode ───
       const needsBrowser = input.plan.mode === 'playwright';
-      const harness = needsBrowser
+      const pool = runnerOptions?.browserPool;
+      const poolHandle = needsBrowser && pool
+        ? yield* Effect.promise(() => pool.acquire())
+        : null;
+      const harness = needsBrowser && !poolHandle
         ? yield* Effect.promise(() => launchHeadedHarness({
             headless: true,
             ...(input.plan.baseUrl ? { initialUrl: input.plan.baseUrl } : {}),
           }))
         : null;
+      // Unified page reference: pool page or harness page
+      const activePage = poolHandle?.page ?? harness?.page ?? null;
 
       const runStepsEffect = Effect.forEach(
           input.plan.steps,
@@ -170,7 +183,7 @@ function buildRunnerWithInterpreter(interpreterOverride?: EffectfulAgentInterpre
                   ...runtimeEnvironment,
                   agent,
                   semanticDictionary: catalog,
-                  ...(harness ? { page: harness.page as import('@playwright/test').Page } : {}),
+                  ...(activePage ? { page: activePage as import('@playwright/test').Page } : {}),
                 },
                 runState,
                 input.plan.context,
@@ -196,12 +209,15 @@ function buildRunnerWithInterpreter(interpreterOverride?: EffectfulAgentInterpre
           { concurrency: 1 },
         );
 
-      // Use Effect.ensuring so the browser harness is always disposed,
-      // even if step execution fails.
-      const results = yield* (harness
-        ? runStepsEffect.pipe(
-            Effect.ensuring(Effect.promise(() => harness.dispose())),
-          )
+      // Use Effect.ensuring so the browser page is always cleaned up,
+      // even if step execution fails. Pool pages are released; harness pages are disposed.
+      const disposeOrRelease = poolHandle && pool
+        ? Effect.promise(() => pool.release(poolHandle))
+        : harness
+          ? Effect.promise(() => harness.dispose())
+          : null;
+      const results = yield* (disposeOrRelease
+        ? runStepsEffect.pipe(Effect.ensuring(disposeOrRelease))
         : runStepsEffect);
 
       // ─── Semantic Dictionary: persist once at end of run ───
@@ -224,4 +240,11 @@ export const LocalRuntimeScenarioRunner: RuntimeScenarioRunnerPort = buildRunner
  *  Used by composition layer when an agent session provides its own interpreter. */
 export const createLocalRuntimeScenarioRunnerWithInterpreter = (
   interpreter: EffectfulAgentInterpreterPort,
-): RuntimeScenarioRunnerPort => buildRunnerWithInterpreter(interpreter);
+  options?: RunnerOptions,
+): RuntimeScenarioRunnerPort => buildRunnerWithInterpreter(interpreter, options);
+
+/** Factory: create a runner with a browser pool for page reuse across scenarios. */
+export const createLocalRuntimeScenarioRunnerWithPool = (
+  pool: import('../application/browser-pool').BrowserPoolPort,
+  interpreter?: EffectfulAgentInterpreterPort,
+): RuntimeScenarioRunnerPort => buildRunnerWithInterpreter(interpreter, { browserPool: pool });

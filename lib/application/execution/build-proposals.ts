@@ -84,7 +84,7 @@ export function buildProposals(input: {
           policy: input.evidenceCatalog.trustPolicy.artifact,
           proposedChange: {
             artifactType: proposal.artifactType,
-            confidence: 0.9,
+            confidence: step.interpretation.provenanceKind === 'live-exploration' ? 0.95 : 0.85,
             autoHealClass: 'runtime-intent-cutover',
           },
           evidence: loadedEvidence,

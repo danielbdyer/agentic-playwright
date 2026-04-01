@@ -37,6 +37,9 @@ const COMBINED_SCORE_THRESHOLD = 0.35;
 /** Initial confidence for a newly accrued entry. */
 const INITIAL_CONFIDENCE = 0.5;
 
+/** Higher initial confidence for DOM-sourced entries (ground truth from live page). */
+const DOM_EXPLORATION_INITIAL_CONFIDENCE = 0.7;
+
 /** Confidence boost per successful reuse. Diminishing: scaled by (1 - current). */
 const SUCCESS_BOOST = 0.12;
 
@@ -356,7 +359,7 @@ export function accrueSemanticEntry(
     target: input.target,
     provenance: input.provenance,
     winningSource: input.winningSource,
-    confidence: INITIAL_CONFIDENCE,
+    confidence: input.provenance === 'dom-exploration' ? DOM_EXPLORATION_INITIAL_CONFIDENCE : INITIAL_CONFIDENCE,
     successCount: 1,
     failureCount: 0,
     consecutiveFailures: 0,

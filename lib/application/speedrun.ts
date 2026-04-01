@@ -76,10 +76,9 @@ export interface SpeedrunInput {
    * side channel for observability — it does not participate in the pipeline.
    */
   readonly onProgress?: ((event: SpeedrunProgressEvent) => void) | undefined;
-  /** When true, diagnostic iterations escalate failing scenarios to headless Playwright. */
-  readonly enablePlaywrightEscalation?: boolean | undefined;
-  /** Base URL of the SUT for Playwright escalation. When omitted and escalation is enabled,
-   *  the speedrun automatically starts the demo-harness fixture server. */
+  /** Interpreter mode for the dogfood loop. Default: 'playwright'. */
+  readonly interpreterMode?: 'dry-run' | 'diagnostic' | 'playwright' | undefined;
+  /** Base URL of the SUT for Playwright execution (e.g., http://127.0.0.1:3200). */
   readonly baseUrl?: string | undefined;
 }
 
@@ -108,8 +107,8 @@ export interface MultiSeedInput {
   /** Number of knowledge drift mutations to apply before scenario generation. 0 = no drift. */
   readonly driftCount?: number | undefined;
   readonly onProgress?: ((event: SpeedrunProgressEvent) => void) | undefined;
-  /** When true, diagnostic iterations escalate failing scenarios to headless Playwright. */
-  readonly enablePlaywrightEscalation?: boolean | undefined;
+  /** Interpreter mode for the dogfood loop. Default: 'playwright'. */
+  readonly interpreterMode?: 'dry-run' | 'diagnostic' | 'playwright' | undefined;
   readonly baseUrl?: string | undefined;
 }
 
@@ -285,14 +284,13 @@ export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunRes
       paths: input.paths,
       maxIterations: input.maxIterations,
       convergenceThreshold: input.config.convergenceThreshold,
-      interpreterMode: 'diagnostic',
+      interpreterMode: input.interpreterMode ?? 'playwright',
       tag: input.tag ?? 'synthetic',
       runbook: 'synthetic-dogfood',
       knowledgePosture: input.knowledgePosture,
       onProgress: input.onProgress,
       seed: input.seed,
       dashboard,
-      enablePlaywrightEscalation: input.enablePlaywrightEscalation,
       baseUrl: input.baseUrl,
     });
 
@@ -433,7 +431,7 @@ export function multiSeedSpeedrun(input: MultiSeedInput): Effect.Effect<MultiSee
           knowledgePosture: input.knowledgePosture,
           driftCount: input.driftCount,
           onProgress: input.onProgress,
-          enablePlaywrightEscalation: input.enablePlaywrightEscalation,
+          interpreterMode: input.interpreterMode,
           baseUrl: input.baseUrl,
         });
 
@@ -617,7 +615,8 @@ export interface IteratePhaseInput {
   readonly knowledgePosture?: KnowledgePosture | undefined;
   readonly seed?: string | undefined;
   readonly onProgress?: ((event: SpeedrunProgressEvent) => void) | undefined;
-  readonly enablePlaywrightEscalation?: boolean | undefined;
+  /** Interpreter mode for the dogfood loop. Default: 'playwright'. */
+  readonly interpreterMode?: 'dry-run' | 'diagnostic' | 'playwright' | undefined;
   readonly baseUrl?: string | undefined;
 }
 
@@ -629,14 +628,13 @@ export function iteratePhase(input: IteratePhaseInput) {
       paths: input.paths,
       maxIterations: input.maxIterations,
       convergenceThreshold: input.convergenceThreshold,
-      interpreterMode: 'diagnostic',
+      interpreterMode: input.interpreterMode ?? 'playwright',
       tag: input.tag ?? 'synthetic',
       runbook: input.runbook ?? 'synthetic-dogfood',
       knowledgePosture: input.knowledgePosture,
       onProgress: input.onProgress,
       seed: input.seed,
       dashboard,
-      enablePlaywrightEscalation: input.enablePlaywrightEscalation,
       baseUrl: input.baseUrl,
     });
     const durationMs = Date.now() - start;

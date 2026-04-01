@@ -4,7 +4,7 @@
  * Full mode:
  *   npx tsx scripts/speedrun.ts [--count N] [--seed S] [--seeds S1,S2,S3]
  *        [--max-iterations N] [--posture cold-start|warm-start|production]
- *        [--mode diagnostic|escalate]
+ *        [--mode playwright|diagnostic]
  *        [--lexical-gap G] [--data-var D] [--coverage-gap G] [--cross-screen C]
  *        [--drift-count N]
  *
@@ -72,8 +72,11 @@ const crossScreen = args.includes('--cross-screen') ? Number(argVal('--cross-scr
 const hasFineGrainedPerturb = lexicalGap > 0 || dataVariation > 0 || coverageGap > 0 || crossScreen > 0;
 const driftCount = args.includes('--drift-count') ? Number(argVal('--drift-count', '0')) : 0;
 const explicitPosture = args.includes('--posture') ? argVal('--posture', '') as KnowledgePosture : undefined;
-const mode = args.includes('--mode') ? argVal('--mode', 'diagnostic') : 'diagnostic';
-const enablePlaywrightEscalation = mode === 'escalate';
+const rawMode = args.includes('--mode') ? argVal('--mode', 'playwright') : 'playwright';
+const effectiveMode = rawMode === 'escalate' ? 'playwright' : rawMode;
+if (rawMode === 'escalate') {
+  console.error('WARNING: --mode escalate is deprecated. Playwright is now the default mode. Use --mode diagnostic for offline runs.');
+}
 const explicitBaseUrl = args.includes('--base-url') ? argVal('--base-url', '') : '';
 
 const rootDir = process.cwd();
@@ -229,7 +232,7 @@ const subcommand: Subcommand | null =
   args.length > 0 && SUBCOMMANDS.includes(args[0] as Subcommand) ? args[0] as Subcommand : null;
 
 const serviceOptions = {
-  posture: { interpreterMode: 'diagnostic' as const, writeMode: 'persist' as const, executionProfile: 'dogfood' as const },
+  posture: { interpreterMode: effectiveMode as 'diagnostic' | 'playwright' | 'dry-run', writeMode: 'persist' as const, executionProfile: 'dogfood' as const },
   suiteRoot: paths.suiteRoot,
   pipelineConfig: loadPipelineConfig(),
 };
@@ -276,7 +279,7 @@ async function runIterate(): Promise<void> {
       knowledgePosture,
       seed: singleSeed,
       onProgress,
-      enablePlaywrightEscalation,
+      interpreterMode: effectiveMode as 'dry-run' | 'diagnostic' | 'playwright',
       baseUrl,
     }),
     rootDir,
@@ -321,10 +324,10 @@ async function runReport(): Promise<void> {
 // ─── Fixture server lifecycle helper ───
 
 async function withFixtureServerIfNeeded<T>(fn: (baseUrl: string | undefined) => Promise<T>): Promise<T> {
-  if (!enablePlaywrightEscalation) return fn(undefined);
+  if (effectiveMode === 'diagnostic') return fn(undefined);
   if (explicitBaseUrl) return fn(explicitBaseUrl);
 
-  console.log('Starting fixture server for Playwright escalation...');
+  console.log('Starting fixture server for Playwright execution...');
   const server = await startFixtureServer({ rootDir });
   console.log(`Fixture server ready at ${server.baseUrl}`);
   try {
@@ -344,7 +347,7 @@ async function runFull(): Promise<void> {
 
   console.log(`Pipeline version: (resolved at runtime)`);
   console.log(`Knowledge posture: ${knowledgePosture}`);
-  console.log(`Mode: ${mode}${enablePlaywrightEscalation ? ' (Playwright escalation enabled)' : ''}`);
+  console.log(`Mode: ${effectiveMode}`);
   console.log(`Seeds: ${seeds.join(', ')}`);
   console.log(`Count: ${count}, Max iterations: ${maxIterations}`);
   if (lexicalGap > 0) console.log(`Lexical gap: ${lexicalGap}`);
@@ -364,7 +367,7 @@ async function runFull(): Promise<void> {
       knowledgePosture,
       driftCount: driftCount > 0 ? driftCount : undefined,
       onProgress,
-      enablePlaywrightEscalation,
+      interpreterMode: effectiveMode as 'dry-run' | 'diagnostic' | 'playwright',
       baseUrl,
     }),
     rootDir,

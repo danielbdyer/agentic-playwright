@@ -1,4 +1,9 @@
 /**
+ * @deprecated Playwright is now the default execution mode. The two-pass
+ * "diagnostic then escalate" approach has been replaced by single-pass
+ * browser-first execution. This module is retained for backward compatibility
+ * but is no longer invoked by the speedrun/dogfood loop.
+ *
  * Playwright Escalation Policy — decides which scenarios need browser
  * execution after a diagnostic-mode iteration.
  *

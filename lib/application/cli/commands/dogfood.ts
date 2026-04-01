@@ -17,7 +17,7 @@ export const dogfoodCommand = createCommandSpec({
       maxInstructionCount: flags.maxCost,
       tag: flags.tag,
       runbook: flags.runbook,
-      interpreterMode: (flags.interpreterMode === 'playwright' ? 'diagnostic' : flags.interpreterMode) as 'dry-run' | 'diagnostic' | undefined,
+      interpreterMode: flags.interpreterMode as 'dry-run' | 'diagnostic' | 'playwright' | undefined,
     }),
   }),
 });

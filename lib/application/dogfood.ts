@@ -28,7 +28,6 @@ import {
   transitionConvergence,
 } from '../domain/projection/convergence-fsm';
 import type { AdoId } from '../domain/kernel/identity';
-import { evaluateEscalationPolicy, type EscalationThresholds } from './escalation-policy';
 import { groupBy } from '../domain/kernel/collections';
 import { asDogfoodLedgerProjection, asImprovementLoopLedger, DEFAULT_PIPELINE_CONFIG } from '../domain/types';
 import type {
@@ -81,12 +80,8 @@ export interface DogfoodOptions {
   readonly mcpInvokeTool?: ((toolName: string, args: Record<string, unknown>) => Promise<unknown>) | undefined;
   /** Knowledge posture for catalog loading. Defaults to 'warm-start'. */
   readonly knowledgePosture?: KnowledgePosture | undefined;
-  /** When true and interpreterMode is 'diagnostic', escalate failing scenarios
-   *  to headless Playwright after each iteration. Default: false. */
-  readonly enablePlaywrightEscalation?: boolean | undefined;
-  /** Thresholds for the escalation policy. Uses defaults when omitted. */
-  readonly escalationThresholds?: EscalationThresholds | undefined;
-  /** Base URL of the SUT for Playwright escalation (e.g., http://127.0.0.1:3200). */
+  /** Base URL of the SUT for Playwright execution (e.g., http://127.0.0.1:3200).
+   *  Required when interpreterMode is 'playwright'. */
   readonly baseUrl?: string | undefined;
   /**
    * Fire-and-forget progress callback. Invoked after each iteration completes
@@ -505,73 +500,19 @@ function runIteration(iteration: number, options: DogfoodOptions, state: LoopSta
       knowledgePosture: 'warm-start',
       scope: 'post-run',
     });
-    const effectiveMode = options.interpreterMode ?? 'diagnostic';
+    const effectiveMode = options.interpreterMode ?? 'playwright';
     const runResult = yield* runScenarioSelection({
       paths: options.paths,
       catalog: runCatalog,
       tag: options.tag,
       runbookName: options.runbook,
       interpreterMode: effectiveMode,
+      baseUrl: options.baseUrl,
     });
-
-    // Step 2b: Playwright escalation pass — after diagnostic run, identify failing
-    // scenarios and re-run them with a real headless browser.
-    // Only fires when: (a) diagnostic mode, (b) escalation enabled, (c) iteration >= threshold.
-    const shouldEscalate = options.enablePlaywrightEscalation
-      && (effectiveMode === 'diagnostic')
-      && iteration >= (options.escalationThresholds?.minIterationForEscalation ?? 1);
-
-    if (shouldEscalate) {
-      // Build escalation input from the post-diagnostic-run catalog's run records
-      const preEscalationCatalog = runResult.postRunCatalog ?? (yield* deltaReloadProposalsAndRuns(runCatalog));
-      const escalationInput = (preEscalationCatalog.runRecords as unknown as ReadonlyArray<{
-        readonly artifact: {
-          readonly adoId: AdoId;
-          readonly steps: ReadonlyArray<{
-            readonly stepIndex: number;
-            readonly interpretation: { readonly kind: string; readonly confidence?: string; readonly winningSource?: string };
-          }>;
-        };
-      }>).flatMap((entry) =>
-        entry.artifact.steps.map((step) => ({
-          adoId: entry.artifact.adoId,
-          stepIndex: step.stepIndex,
-          interpretation: {
-            kind: step.interpretation.kind,
-            confidence: step.interpretation.confidence,
-            winningSource: step.interpretation.winningSource,
-          },
-        })),
-      );
-
-      const escalation = evaluateEscalationPolicy(
-        escalationInput as Parameters<typeof evaluateEscalationPolicy>[0],
-        iteration,
-        options.escalationThresholds,
-      );
-
-      // Re-run escalated scenarios with Playwright (headless browser)
-      if (escalation.escalatedScenarios.length > 0) {
-        const escalatedIds = escalation.escalatedScenarios.map((s) => s.adoId);
-        for (const escalatedAdoId of escalatedIds) {
-          yield* runScenarioSelection({
-            paths: options.paths,
-            catalog: runCatalog,
-            adoId: escalatedAdoId,
-            runbookName: options.runbook,
-            interpreterMode: 'playwright',
-            baseUrl: options.baseUrl,
-          });
-        }
-      }
-    }
 
     // Step 3: collect trace metrics — delta-reload only proposals + run records
     // instead of full post-run catalog reload (saves 30-40% I/O at scale).
-    // After escalation, reload to include both diagnostic and playwright run results.
-    const postRunCatalog = shouldEscalate
-      ? yield* deltaReloadProposalsAndRuns(runCatalog)
-      : (runResult.postRunCatalog ?? (yield* deltaReloadProposalsAndRuns(runCatalog)));
+    const postRunCatalog = runResult.postRunCatalog ?? (yield* deltaReloadProposalsAndRuns(runCatalog));
     const metrics = computeTraceMetrics(postRunCatalog.runRecords as never);
 
     // Step 3b: compute per-iteration resolution-by-rung breakdown
