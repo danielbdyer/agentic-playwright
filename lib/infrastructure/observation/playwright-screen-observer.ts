@@ -17,6 +17,7 @@ import type { LocatorStrategy, ElementSig } from '../../domain/types';
 import { resolveLocator, describeLocatorStrategy } from '../../playwright/locate';
 import { captureAriaYaml } from '../../playwright/aria';
 import { TesseractError } from '../../domain/kernel/errors';
+import { navigationOptionsForUrl } from '../../runtime/navigation-strategy';
 
 /** Observe a single element by trying its locator strategies in order. Pure async. */
 async function observeElement(
@@ -84,7 +85,8 @@ async function observeScreen(
   if (input.url) {
     const currentUrl = page.url();
     if (input.url !== currentUrl && !currentUrl.includes(input.url)) {
-      await page.goto(input.url, { waitUntil: 'domcontentloaded', timeout: 10000 }).catch(() => {});
+      const navOpts = navigationOptionsForUrl(input.url);
+      await page.goto(input.url, { waitUntil: navOpts.waitUntil, timeout: navOpts.timeout }).catch(() => {});
     }
   }
 

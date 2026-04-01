@@ -49,6 +49,27 @@ function isPlaywrightScreenshotCapable(page: unknown): page is PlaywrightScreens
 }
 
 /**
+ * Capture a raw JPEG screenshot buffer from a live Playwright page.
+ * Returns null when no page is available or when capture fails.
+ * Used by the deferred screenshot collector to delay base64 encoding.
+ */
+export async function capturePageScreenshotBuffer(
+  page: unknown,
+  options?: { readonly quality?: number },
+): Promise<Buffer | null> {
+  if (!isPlaywrightScreenshotCapable(page)) return null;
+  try {
+    return await page.screenshot({
+      type: 'jpeg',
+      quality: options?.quality ?? 50,
+      fullPage: false,
+    });
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Capture a JPEG screenshot from a live Playwright page as a base64 string.
  * Returns null when no page is available, when capture fails, or when vision is disabled.
  * Uses JPEG at configurable quality (default 50) to minimise vision token cost.
@@ -57,17 +78,8 @@ export async function capturePageScreenshot(
   page: unknown,
   options?: { readonly quality?: number },
 ): Promise<string | null> {
-  if (!isPlaywrightScreenshotCapable(page)) return null;
-  try {
-    const buffer = await page.screenshot({
-      type: 'jpeg',
-      quality: options?.quality ?? 50,
-      fullPage: false,
-    });
-    return buffer.toString('base64');
-  } catch {
-    return null;
-  }
+  const buffer = await capturePageScreenshotBuffer(page, options);
+  return buffer ? buffer.toString('base64') : null;
 }
 
 /**
