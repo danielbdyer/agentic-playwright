@@ -13,3 +13,4 @@ export * from './inference';
 export * from './discovery';
 export * from './aria-snapshot';
 export * from './semantic-dictionary';
+export * from './screen-bundle-repository';

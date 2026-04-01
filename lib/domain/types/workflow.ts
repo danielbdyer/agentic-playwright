@@ -49,6 +49,48 @@ export function foldGovernance<T extends { governance: Governance }, R>(
     case 'blocked': return cases.blocked(item as Blocked<T>);
   }
 }
+// ─── Resolution Source Branding ───
+
+/**
+ * Phantom brand for resolution candidates, tagged by the precedence rung
+ * that produced them. Makes it a compile-time error to mix candidates from
+ * different resolution sources without explicit coercion.
+ */
+declare const ResolutionSourceBrand: unique symbol;
+export type SourcedCandidate<T, Rung extends string> = T & { readonly [ResolutionSourceBrand]: Rung };
+
+export function brandBySource<T, Rung extends string>(candidate: T, _rung: Rung): SourcedCandidate<T, Rung> {
+  return candidate as SourcedCandidate<T, Rung>;
+}
+
+export function foldSourcedCandidate<T, Rung extends string, R>(
+  candidate: SourcedCandidate<T, Rung>,
+  rung: Rung,
+  cases: { match: (c: SourcedCandidate<T, Rung>) => R; mismatch: (c: T) => R },
+): R {
+  return (candidate as unknown as { [ResolutionSourceBrand]: string })[ResolutionSourceBrand] === rung
+    ? cases.match(candidate)
+    : cases.mismatch(candidate);
+}
+
+// ─── Pipeline Stage Branding ───
+
+/**
+ * Phantom brand for artifact envelopes, tagged by the pipeline stage that
+ * produced them. Ensures preparation-stage artifacts cannot be confused with
+ * execution-stage artifacts at the type level.
+ */
+declare const PipelineStageBrand: unique symbol;
+export type StagedEnvelope<T, Stage extends WorkflowStage> = T & { readonly [PipelineStageBrand]: Stage };
+
+export function brandByStage<T, Stage extends WorkflowStage>(envelope: T, _stage: Stage): StagedEnvelope<T, Stage> {
+  return envelope as StagedEnvelope<T, Stage>;
+}
+
+export type PreparationEnvelope<T> = StagedEnvelope<WorkflowEnvelope<T>, 'preparation'>;
+export type ResolutionEnvelope<T> = StagedEnvelope<WorkflowEnvelope<T>, 'resolution'>;
+export type ExecutionEnvelope<T> = StagedEnvelope<WorkflowEnvelope<T>, 'execution'>;
+
 export type CertificationStatus = 'uncertified' | 'certified';
 export type StepProvenanceKind = 'explicit' | 'approved-knowledge' | 'live-exploration' | 'agent-interpreted' | 'unresolved';
 export type ScenarioStatus = 'stub' | 'draft' | 'active' | 'needs-repair' | 'blocked' | 'deprecated';
