@@ -1,13 +1,24 @@
 import { expect, test } from '@playwright/test';
 import { SchemaError } from '../../../lib/domain/kernel/errors';
 import {
-  validateBenchmarkImprovementProjection as validateBenchmarkImprovementProjectionLegacy,
-  validateDerivedGraph as validateDerivedGraphLegacy,
-  validateResolutionControl as validateResolutionControlLegacy,
-  validateScenario as validateScenarioLegacy,
-  validateScreenElements as validateScreenElementsLegacy,
-  validateTrustPolicy as validateTrustPolicyLegacy,
-} from '../../../lib/domain/validation/core/legacy-core-validator';
+  validateBenchmarkImprovementProjectionArtifact as validateBenchmarkImprovementProjectionDirect,
+  validateDogfoodRunArtifact as validateDogfoodRunDirect,
+} from '../../../lib/domain/validation/core/execution-validator';
+import {
+  validateDerivedGraphArtifact as validateDerivedGraphDirect,
+} from '../../../lib/domain/validation/core/graph-validator';
+import {
+  validateScenarioArtifact as validateScenarioDirect,
+} from '../../../lib/domain/validation/core/intent-validator';
+import {
+  validateScreenElementsArtifact as validateScreenElementsDirect,
+} from '../../../lib/domain/validation/core/knowledge-validator';
+import {
+  validateResolutionControlArtifact as validateResolutionControlDirect,
+} from '../../../lib/domain/validation/core/resolution-validator';
+import {
+  validateTrustPolicyArtifact as validateTrustPolicyDirect,
+} from '../../../lib/domain/validation/core/governance-validator';
 import { validateBenchmarkImprovementProjection } from '../../../lib/domain/validation/execution';
 import { validateScenario } from '../../../lib/domain/validation/intent';
 import { validateScreenElements } from '../../../lib/domain/validation/knowledge';
@@ -127,13 +138,13 @@ const benchmarkImprovementFixture = {
 } as const;
 
 test('registry-backed validators preserve legacy successful outputs', () => {
-  expect(validateScenario(scenarioFixture)).toEqual(validateScenarioLegacy(scenarioFixture));
-  expect(validateScreenElements(screenElementsFixture)).toEqual(validateScreenElementsLegacy(screenElementsFixture));
-  expect(validateResolutionControl(resolutionControlFixture)).toEqual(validateResolutionControlLegacy(resolutionControlFixture));
-  expect(validateTrustPolicy(trustPolicyFixture)).toEqual(validateTrustPolicyLegacy(trustPolicyFixture));
-  expect(validateDerivedGraph(derivedGraphFixture)).toEqual(validateDerivedGraphLegacy(derivedGraphFixture));
+  expect(validateScenario(scenarioFixture)).toEqual(validateScenarioDirect(scenarioFixture));
+  expect(validateScreenElements(screenElementsFixture)).toEqual(validateScreenElementsDirect(screenElementsFixture));
+  expect(validateResolutionControl(resolutionControlFixture)).toEqual(validateResolutionControlDirect(resolutionControlFixture));
+  expect(validateTrustPolicy(trustPolicyFixture)).toEqual(validateTrustPolicyDirect(trustPolicyFixture));
+  expect(validateDerivedGraph(derivedGraphFixture)).toEqual(validateDerivedGraphDirect(derivedGraphFixture));
   expect(validateBenchmarkImprovementProjection(benchmarkImprovementFixture)).toEqual(
-    validateBenchmarkImprovementProjectionLegacy(benchmarkImprovementFixture),
+    validateBenchmarkImprovementProjectionDirect(benchmarkImprovementFixture),
   );
 });
 
@@ -150,11 +161,11 @@ test('registry-backed validators preserve legacy schema paths on failures', () =
 
   const invalidScenario = { ...scenarioFixture, metadata: { ...scenarioFixture.metadata, priority: 'bad' } };
   expect(runAndCapturePath(() => validateScenario(invalidScenario))).toEqual(
-    runAndCapturePath(() => validateScenarioLegacy(invalidScenario)),
+    runAndCapturePath(() => validateScenarioDirect(invalidScenario)),
   );
 
   const invalidResolution = { ...resolutionControlFixture, steps: [{ stepIndex: 'x', resolution: { action: 'click' } }] };
   expect(runAndCapturePath(() => validateResolutionControl(invalidResolution))).toEqual(
-    runAndCapturePath(() => validateResolutionControlLegacy(invalidResolution)),
+    runAndCapturePath(() => validateResolutionControlDirect(invalidResolution)),
   );
 });
