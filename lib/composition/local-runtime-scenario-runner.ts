@@ -17,6 +17,7 @@ import type { AgentInterpretationResult } from '../domain/types/agent-interprete
 import type { AgentInterpreterPort } from '../domain/resolution/model';
 import type { SemanticDictionaryCatalog, TranslationReceipt, TranslationRequest } from '../domain/types';
 import { LocalFileSystem } from '../infrastructure/fs/local-fs';
+import { launchHeadedHarness } from '../infrastructure/headed-harness';
 import { createLocalRuntimeEnvironment, type LocalRuntimeAgentInterpreter } from '../infrastructure/runtime/local-runtime-environment';
 import { createScenarioRunState, runScenarioStep } from '../runtime/scenario';
 
@@ -149,37 +150,56 @@ function buildRunnerWithInterpreter(interpreterOverride?: EffectfulAgentInterpre
         resolve: input.resolutionEngine.resolveStep,
       };
 
-      const results = yield* Effect.forEach(
-        input.plan.steps,
-        (step) => Effect.gen(function* () {
-          // Inject the latest catalog into the environment for each step
-          const stepResult = yield* Effect.promise(() =>
-            runScenarioStep(
-              step,
-              { ...runtimeEnvironment, agent, semanticDictionary: catalog },
-              runState,
-              input.plan.context,
-              input.plan.resolutionContext,
-            ),
-          );
+      // ─── Playwright Escalation: launch headless browser when mode requires it ───
+      const needsBrowser = input.plan.mode === 'playwright';
+      const harness = needsBrowser
+        ? yield* Effect.promise(() => launchHeadedHarness({ headless: true }))
+        : null;
 
-          // ─── Semantic Dictionary: accrue + track success/failure ───
-          if (stepResult.semanticAccrual) {
-            catalog = accrueSemanticEntry(catalog, stepResult.semanticAccrual);
-            catalogDirty = true;
-          }
-          const stepSucceeded = stepResult.execution.execution.status === 'ok';
-          if (stepResult.semanticDictionaryHitId) {
-            catalog = stepSucceeded
-              ? recordSemanticSuccess(catalog, stepResult.semanticDictionaryHitId)
-              : recordSemanticFailure(catalog, stepResult.semanticDictionaryHitId);
-            catalogDirty = true;
-          }
+      const runStepsEffect = Effect.forEach(
+          input.plan.steps,
+          (step) => Effect.gen(function* () {
+            // Inject the latest catalog (and optional browser page) into the environment
+            const stepResult = yield* Effect.promise(() =>
+              runScenarioStep(
+                step,
+                {
+                  ...runtimeEnvironment,
+                  agent,
+                  semanticDictionary: catalog,
+                  ...(harness ? { page: harness.page as import('@playwright/test').Page } : {}),
+                },
+                runState,
+                input.plan.context,
+                input.plan.resolutionContext,
+              ),
+            );
 
-          return stepResult;
-        }),
-        { concurrency: 1 },
-      );
+            // ─── Semantic Dictionary: accrue + track success/failure ───
+            if (stepResult.semanticAccrual) {
+              catalog = accrueSemanticEntry(catalog, stepResult.semanticAccrual);
+              catalogDirty = true;
+            }
+            const stepSucceeded = stepResult.execution.execution.status === 'ok';
+            if (stepResult.semanticDictionaryHitId) {
+              catalog = stepSucceeded
+                ? recordSemanticSuccess(catalog, stepResult.semanticDictionaryHitId)
+                : recordSemanticFailure(catalog, stepResult.semanticDictionaryHitId);
+              catalogDirty = true;
+            }
+
+            return stepResult;
+          }),
+          { concurrency: 1 },
+        );
+
+      // Use Effect.ensuring so the browser harness is always disposed,
+      // even if step execution fails.
+      const results = yield* (harness
+        ? runStepsEffect.pipe(
+            Effect.ensuring(Effect.promise(() => harness.dispose())),
+          )
+        : runStepsEffect);
 
       // ─── Semantic Dictionary: persist once at end of run ───
       if (catalogDirty) {

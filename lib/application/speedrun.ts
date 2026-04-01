@@ -76,6 +76,8 @@ export interface SpeedrunInput {
    * side channel for observability — it does not participate in the pipeline.
    */
   readonly onProgress?: ((event: SpeedrunProgressEvent) => void) | undefined;
+  /** When true, diagnostic iterations escalate failing scenarios to headless Playwright. */
+  readonly enablePlaywrightEscalation?: boolean | undefined;
 }
 
 export interface SpeedrunResult {
@@ -103,6 +105,8 @@ export interface MultiSeedInput {
   /** Number of knowledge drift mutations to apply before scenario generation. 0 = no drift. */
   readonly driftCount?: number | undefined;
   readonly onProgress?: ((event: SpeedrunProgressEvent) => void) | undefined;
+  /** When true, diagnostic iterations escalate failing scenarios to headless Playwright. */
+  readonly enablePlaywrightEscalation?: boolean | undefined;
 }
 
 export interface MultiSeedResult {
@@ -284,6 +288,7 @@ export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunRes
       onProgress: input.onProgress,
       seed: input.seed,
       dashboard,
+      enablePlaywrightEscalation: input.enablePlaywrightEscalation,
     });
 
     const fitnessStart = Date.now();
@@ -423,6 +428,7 @@ export function multiSeedSpeedrun(input: MultiSeedInput): Effect.Effect<MultiSee
           knowledgePosture: input.knowledgePosture,
           driftCount: input.driftCount,
           onProgress: input.onProgress,
+          enablePlaywrightEscalation: input.enablePlaywrightEscalation,
         });
 
         // Save per-seed fitness report
@@ -605,6 +611,7 @@ export interface IteratePhaseInput {
   readonly knowledgePosture?: KnowledgePosture | undefined;
   readonly seed?: string | undefined;
   readonly onProgress?: ((event: SpeedrunProgressEvent) => void) | undefined;
+  readonly enablePlaywrightEscalation?: boolean | undefined;
 }
 
 export function iteratePhase(input: IteratePhaseInput) {
@@ -622,6 +629,7 @@ export function iteratePhase(input: IteratePhaseInput) {
       onProgress: input.onProgress,
       seed: input.seed,
       dashboard,
+      enablePlaywrightEscalation: input.enablePlaywrightEscalation,
     });
     const durationMs = Date.now() - start;
     return { ledger, durationMs };

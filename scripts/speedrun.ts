@@ -4,6 +4,7 @@
  * Full mode:
  *   npx tsx scripts/speedrun.ts [--count N] [--seed S] [--seeds S1,S2,S3]
  *        [--max-iterations N] [--posture cold-start|warm-start|production]
+ *        [--mode diagnostic|escalate]
  *        [--lexical-gap G] [--data-var D] [--coverage-gap G] [--cross-screen C]
  *        [--drift-count N]
  *
@@ -70,6 +71,8 @@ const crossScreen = args.includes('--cross-screen') ? Number(argVal('--cross-scr
 const hasFineGrainedPerturb = lexicalGap > 0 || dataVariation > 0 || coverageGap > 0 || crossScreen > 0;
 const driftCount = args.includes('--drift-count') ? Number(argVal('--drift-count', '0')) : 0;
 const explicitPosture = args.includes('--posture') ? argVal('--posture', '') as KnowledgePosture : undefined;
+const mode = args.includes('--mode') ? argVal('--mode', 'diagnostic') : 'diagnostic';
+const enablePlaywrightEscalation = mode === 'escalate';
 
 const rootDir = process.cwd();
 const paths = createProjectPaths(rootDir, path.join(rootDir, 'dogfood'));
@@ -271,6 +274,7 @@ async function runIterate(): Promise<void> {
       knowledgePosture,
       seed: singleSeed,
       onProgress,
+      enablePlaywrightEscalation,
     }),
     rootDir,
     serviceOptions,
@@ -320,6 +324,7 @@ async function runFull(): Promise<void> {
 
   console.log(`Pipeline version: (resolved at runtime)`);
   console.log(`Knowledge posture: ${knowledgePosture}`);
+  console.log(`Mode: ${mode}${enablePlaywrightEscalation ? ' (Playwright escalation enabled)' : ''}`);
   console.log(`Seeds: ${seeds.join(', ')}`);
   console.log(`Count: ${count}, Max iterations: ${maxIterations}`);
   if (lexicalGap > 0) console.log(`Lexical gap: ${lexicalGap}`);
@@ -339,6 +344,7 @@ async function runFull(): Promise<void> {
       knowledgePosture,
       driftCount: driftCount > 0 ? driftCount : undefined,
       onProgress,
+      enablePlaywrightEscalation,
     }),
     rootDir,
     {

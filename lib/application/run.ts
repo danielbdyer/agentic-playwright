@@ -72,7 +72,7 @@ type RunScenarioOptions = {
   adoId: AdoId;
   paths: ProjectPaths;
   catalog?: WorkspaceCatalog | undefined;
-  interpreterMode?: 'dry-run' | 'diagnostic';
+  interpreterMode?: 'dry-run' | 'diagnostic' | 'playwright';
   runbookName?: string | undefined;
   posture?: ExecutionPosture | undefined;
   disableTranslation?: boolean | undefined;
@@ -344,7 +344,7 @@ export function runScenarioSelection(options: {
   adoId?: AdoId | undefined;
   runbookName?: string | undefined;
   tag?: string | undefined;
-  interpreterMode?: 'dry-run' | 'diagnostic';
+  interpreterMode?: 'dry-run' | 'diagnostic' | 'playwright';
   posture?: ExecutionPosture | undefined;
   disableTranslation?: boolean | undefined;
   disableTranslationCache?: boolean | undefined;
