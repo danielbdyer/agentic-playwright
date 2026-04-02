@@ -91,6 +91,8 @@ export interface SpeedrunResult {
   readonly completedIterations: number;
   readonly converged: boolean;
   readonly improvementRun: ImprovementRun;
+  /** The dogfood loop ledger — carries per-iteration proposalsGenerated counts. */
+  readonly ledger: ImprovementLoopLedger;
 }
 
 export interface MultiSeedInput {
@@ -393,6 +395,7 @@ export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunRes
       completedIterations: ledger.completedIterations,
       converged: ledger.converged,
       improvementRun,
+      ledger,
     };
   });
 }

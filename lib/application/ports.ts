@@ -2,7 +2,7 @@
 import type { AdoId } from '../domain/kernel/identity';
 import type { ResolutionEngine } from './resolution-engine';
 import type { TranslationProvider } from './translation-provider';
-import type { TesseractError } from '../domain/kernel/errors';
+import { TesseractError } from '../domain/kernel/errors';
 import type { ApplicationInterfaceGraphRepository } from '../domain/interface/application-interface-graph-repository';
 import type { InterventionLedgerRepository } from '../domain/intervention/intervention-ledger-repository';
 import type { ImprovementRunRepository } from '../domain/improvement/improvement-run-repository';
@@ -183,17 +183,38 @@ export class ImprovementRunStore extends Context.Tag('tesseract/ImprovementRunSt
 import type { McpToolInvocation, McpToolResult } from '../domain/types';
 export type { McpToolInvocation, McpToolResult } from '../domain/types';
 
+/** MCP resource descriptor for resources/list. */
+export interface McpResource {
+  readonly uri: string;
+  readonly name: string;
+  readonly description: string;
+  readonly mimeType: string;
+}
+
+/** MCP resource content for resources/read. */
+export interface McpResourceContent {
+  readonly uri: string;
+  readonly mimeType: string;
+  readonly text: string;
+}
+
 export interface McpServerPort {
   /** Handle an incoming MCP tool invocation. Returns the tool result. */
   readonly handleToolCall: (invocation: McpToolInvocation) => Effect.Effect<McpToolResult, TesseractError>;
   /** List available tools (for MCP catalog negotiation). */
   readonly listTools: () => Effect.Effect<readonly McpToolDefinition[], never, never>;
+  /** List available resources (for MCP resource negotiation). */
+  readonly listResources: () => Effect.Effect<readonly McpResource[], never, never>;
+  /** Read a resource by URI. */
+  readonly readResource: (uri: string) => Effect.Effect<McpResourceContent, TesseractError>;
 }
 
 /** Disabled MCP server for environments without MCP support. */
 export const DisabledMcpServer: McpServerPort = {
   handleToolCall: (inv) => Effect.succeed({ tool: inv.tool, result: { error: 'MCP server not available' }, isError: true }),
   listTools: () => Effect.succeed([]),
+  listResources: () => Effect.succeed([]),
+  readResource: (uri) => Effect.fail(new TesseractError('mcp-disabled', `MCP server not available (requested: ${uri})`)),
 };
 
 export class McpServer extends Context.Tag('tesseract/McpServer')<McpServer, McpServerPort>() {}

@@ -225,6 +225,9 @@ export function accumulate(state: SceneState, event: EventEnvelope): SceneState 
     case 'diagnostics':
     case 'connected':
       return base;
+
+    default:
+      return base;
   }
 }
 

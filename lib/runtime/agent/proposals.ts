@@ -118,6 +118,12 @@ export function proposalsForNeedsHuman(
   element: StepTaskElementCandidate | null,
   resolutionContext: InterfaceResolutionContext,
 ): ResolutionProposalDraft[] {
+  // Cold-start fallback: when no screens exist in knowledge, emit a discovery
+  // proposal so the learning loop has something to activate in subsequent iterations.
+  if (!screen && resolutionContext.screens.length === 0) {
+    return proposalsForColdStartDiscovery(task);
+  }
+
   const screenNoElement: readonly ResolutionProposalDraft[] =
     screen && !element && screen.elements.length > 0
       ? [{
@@ -161,6 +167,65 @@ export function proposalsForNeedsHuman(
       : [];
 
   return [...screenNoElement, ...bothMatched];
+}
+
+/**
+ * Generate alias-stabilization proposals when a step resolves deterministically
+ * through Rungs 3-6 (approved knowledge, semantic dictionary, overlay, translation).
+ *
+ * If the step's action text is not already an alias on the resolved element,
+ * propose adding it. This ensures future phrasing variations also resolve
+ * deterministically without falling through to expensive interpretation rungs.
+ */
+export function proposalsForDeterministicResolution(
+  task: GroundedStep,
+  screen: StepTaskScreenCandidate | null,
+  element: StepTaskElementCandidate | null,
+  winningSource: string,
+): ResolutionProposalDraft[] {
+  if (!screen || !element) return [];
+  const alias = task.actionText?.trim();
+  if (!alias) return [];
+  // Don't propose if the alias is already known
+  if (element.aliases.some((a) => a.toLowerCase() === alias.toLowerCase())) return [];
+  return [{
+    artifactType: 'hints',
+    targetPath: knowledgePaths.hints(screen.screen),
+    title: `Stabilize alias from ${winningSource} resolution (step ${task.index})`,
+    patch: {
+      screen: screen.screen,
+      element: element.element,
+      alias,
+      source: winningSource,
+    },
+    rationale: `Step resolved deterministically via ${winningSource} but the action text "${alias}" is not yet a known alias. Adding it prevents future phrasing drift from falling through to more expensive resolution rungs.`,
+  }];
+}
+
+/**
+ * Generate discovery proposals when resolution fails with no context (cold-start).
+ *
+ * When no screens exist in the resolution context, propose a placeholder screen
+ * discovery hint so the learning loop has something to activate in subsequent
+ * iterations. Without this, cold-start iteration 1 produces zero proposals
+ * and the convergence FSM prematurely terminates.
+ */
+export function proposalsForColdStartDiscovery(
+  task: GroundedStep,
+): ResolutionProposalDraft[] {
+  const alias = task.actionText?.trim();
+  if (!alias) return [];
+  return [{
+    artifactType: 'hints',
+    targetPath: 'knowledge/screens/discovered.hints.yaml',
+    title: `Cold-start discovery for step ${task.index}`,
+    patch: {
+      screen: 'discovered',
+      element: 'unknown',
+      alias,
+    },
+    rationale: `Cold-start resolution had no knowledge context. Recording action text "${alias}" as a discovery signal for future iterations.`,
+  }];
 }
 
 export function applyProposalDraftsToRuntimeContext(

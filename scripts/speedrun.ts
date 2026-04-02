@@ -50,6 +50,7 @@ import {
 import { startFixtureServer, type FixtureServer } from '../lib/infrastructure/fixture-server';
 import { createPlaywrightBrowserPool } from '../lib/infrastructure/playwright-browser-pool';
 import type { BrowserPoolPort } from '../lib/application/browser-pool';
+import { createFileBackedDashboardPort } from '../lib/infrastructure/dashboard/file-dashboard-port';
 
 // ─── CLI argument parsing ───
 
@@ -233,10 +234,23 @@ type Subcommand = typeof SUBCOMMANDS[number];
 const subcommand: Subcommand | null =
   args.length > 0 && SUBCOMMANDS.includes(args[0] as Subcommand) ? args[0] as Subcommand : null;
 
+const mcpDecisions = args.includes('--mcp-decisions');
+const mcpDashboard = mcpDecisions
+  ? createFileBackedDashboardPort({
+      decisionsDir: paths.decisionsDir,
+      decisionTimeoutMs: Number(argVal('--decision-timeout', '120000')),
+    })
+  : undefined;
+
+if (mcpDecisions) {
+  console.log(`MCP decision mode: waiting for agent decisions via ${paths.decisionsDir}`);
+}
+
 const serviceOptions = {
   posture: { interpreterMode: effectiveMode as 'diagnostic' | 'playwright' | 'dry-run', writeMode: 'persist' as const, executionProfile: 'dogfood' as const },
   suiteRoot: paths.suiteRoot,
   pipelineConfig: loadPipelineConfig(),
+  dashboard: mcpDashboard,
 };
 
 // ─── Segmented phase runners ───

@@ -15,12 +15,15 @@ export function walkFiles(
 
     const entries = yield* fs.listDir(dirPath);
     const nested = yield* Effect.all(
-      entries.map((entry) => {
-        const fullPath = path.join(dirPath, entry);
-        return entry.includes('.')
-          ? Effect.succeed([fullPath])
-          : walkFiles(fs, fullPath);
-      }),
+      entries
+        // Skip atomic-write temp files — they are transient and will be renamed
+        .filter((entry) => !entry.startsWith('.tmp-'))
+        .map((entry) => {
+          const fullPath = path.join(dirPath, entry);
+          return entry.includes('.')
+            ? Effect.succeed([fullPath])
+            : walkFiles(fs, fullPath);
+        }),
       { concurrency: 1 },
     );
 
