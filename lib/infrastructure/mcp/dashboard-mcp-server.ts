@@ -411,6 +411,85 @@ const browserFill: ToolHandler = (args, options) =>
 const browserNavigate: ToolHandler = (args, options) =>
   executeBrowserAction({ kind: 'navigate', url: args.url as string }, options);
 
+// ─── Decision Context Enrichment ───
+
+const getDecisionContext: ToolHandler = (args, options) => {
+  const workItemId = args.workItemId as string;
+  if (!workItemId) return { error: 'workItemId is required', isError: true };
+
+  // 1. Find the work item
+  const workbench = options.readArtifact('.tesseract/workbench/index.json') as {
+    readonly items?: readonly Record<string, unknown>[];
+  } | null;
+  const workItem = workbench?.items?.find((i) => (i.id as string) === workItemId);
+  if (!workItem) return { error: `Work item ${workItemId} not found`, isError: true };
+
+  // 2. Check completion status
+  const completions = options.readArtifact('.tesseract/workbench/completions.json') as {
+    readonly entries?: readonly { readonly workItemId: string; readonly status: string; readonly rationale: string }[];
+  } | null;
+  const completion = completions?.entries?.find((c) => c.workItemId === workItemId);
+
+  // 3. Resolve linked proposals
+  const reader = asReader(options);
+  const linkedProposals = ((workItem.linkedProposals ?? []) as readonly string[]).map((id) => {
+    const response = resolveResource(buildResourceUri('proposal', id), reader);
+    return response.found ? response.data : { id, error: 'not found' };
+  });
+
+  // 4. Resolve the primary proposal (from context)
+  const ctx = workItem.context as Record<string, unknown> | undefined;
+  const primaryProposal = ctx?.proposalId
+    ? (() => { const r = resolveResource(buildResourceUri('proposal', ctx.proposalId as string), reader); return r.found ? r.data : null; })()
+    : null;
+
+  // 5. Resolve linked bottlenecks
+  const linkedBottlenecks = ((workItem.linkedBottlenecks ?? []) as readonly string[]).map((screen) => {
+    const response = resolveResource(buildResourceUri('bottleneck', screen), reader);
+    return response.data;
+  });
+
+  // 6. Load evidence artifacts
+  const artifactRefs = ((ctx?.artifactRefs ?? []) as readonly string[]).slice(0, 5); // Cap at 5 to avoid huge responses
+  const evidence = artifactRefs.map((ref) => {
+    const data = options.readArtifact(ref);
+    return data ? { path: ref, data } : { path: ref, error: 'not found' };
+  });
+
+  // 7. Load task resolution if ADO ID is present
+  const adoId = workItem.adoId as string | null;
+  const taskResolution = adoId ? options.readArtifact(`.tesseract/tasks/${adoId}.resolution.json`) : null;
+
+  // 8. Screenshot (if available)
+  const screenshot = options.screenshotCache.get();
+
+  // 9. Derive suggested action based on evidence confidence
+  const confidence = ((workItem.evidence as Record<string, unknown>)?.confidence as number) ?? 0;
+  const suggestedAction = completion ? 'already-decided'
+    : confidence >= 0.8 ? 'approve'
+    : confidence >= 0.4 ? 'investigate'
+    : 'skip';
+
+  return {
+    workItem,
+    completion: completion ?? null,
+    primaryProposal,
+    linkedProposals,
+    linkedBottlenecks,
+    evidence,
+    taskResolution,
+    screenshot: screenshot ? { available: true, width: screenshot.width, height: screenshot.height, url: screenshot.url } : { available: false },
+    suggestedAction,
+    suggestedRationale: completion
+      ? `Already ${completion.status}: ${completion.rationale}`
+      : suggestedAction === 'approve'
+        ? `High confidence (${confidence}) — evidence supports approval`
+        : suggestedAction === 'investigate'
+          ? `Medium confidence (${confidence}) — review linked proposals and bottlenecks before deciding`
+          : `Low confidence (${confidence}) — insufficient evidence, consider skipping`,
+  };
+};
+
 // ─── Lifecycle Tool Handlers ───
 
 const startSpeedrun: ToolHandler = (args, options) => {
@@ -482,6 +561,87 @@ const suggestLocatorAlias: ToolHandler = (args, options) => {
     : { error: `Failed to write alias for ${screen}/${element}`, isError: true };
 };
 
+// ─── Contribution Impact Tool Handler ───
+
+const getContributionImpact: ToolHandler = (args, options) => {
+  const screen = args.screen as string | undefined;
+
+  // Read the knowledge graph for confidence data
+  const graph = options.readArtifact('.tesseract/graph/index.json') as {
+    readonly nodes?: readonly Record<string, unknown>[];
+  } | null;
+
+  // Read proposals to find activated vs pending
+  const reader = asReader(options);
+  const proposalsRaw = reader.readArtifact('.tesseract/learning/proposals.json') as {
+    readonly proposals?: readonly Record<string, unknown>[];
+  } | null;
+  const indexProposals = reader.readArtifact('.tesseract/learning/proposals/index.json') as {
+    readonly proposals?: readonly Record<string, unknown>[];
+  } | null;
+  const allProposals = [
+    ...(proposalsRaw?.proposals ?? []),
+    ...(indexProposals?.proposals ?? []),
+  ];
+
+  // Read scorecard for before/after metrics
+  const scorecard = options.readArtifact('.tesseract/benchmarks/scorecard.json') as {
+    readonly highWaterMark?: Record<string, unknown>;
+    readonly history?: readonly Record<string, unknown>[];
+  } | null;
+
+  // Read workbench completions to see what was approved
+  const completions = options.readArtifact('.tesseract/workbench/completions.json') as {
+    readonly entries?: readonly { readonly workItemId: string; readonly status: string; readonly artifactsWritten: readonly string[] }[];
+  } | null;
+
+  // Analyze proposals by status
+  const proposalsByStatus = {
+    activated: allProposals.filter((p) => (p.activation as Record<string, unknown>)?.status === 'activated' || p.status === 'activated'),
+    pending: allProposals.filter((p) => (p.activation as Record<string, unknown>)?.status === 'pending' || p.status === 'pending'),
+    blocked: allProposals.filter((p) => (p.activation as Record<string, unknown>)?.status === 'blocked' || p.status === 'blocked'),
+  };
+
+  // Screen-level impact (if filter provided)
+  const screenNodes = screen
+    ? (graph?.nodes ?? []).filter((n) => (n.screen as string) === screen)
+    : (graph?.nodes ?? []);
+
+  const avgConfidence = screenNodes.length > 0
+    ? screenNodes.reduce((sum, n) => sum + ((n.confidence as number) ?? 0), 0) / screenNodes.length
+    : 0;
+
+  // Artifacts written by completed work items
+  const completedEntries = (completions?.entries ?? []).filter((e) => e.status === 'completed');
+  const artifactsWritten = completedEntries.flatMap((e) => e.artifactsWritten);
+  const hintsWritten = artifactsWritten.filter((p) => p.includes('.hints.yaml'));
+
+  return {
+    summary: {
+      totalProposals: allProposals.length,
+      activated: proposalsByStatus.activated.length,
+      pending: proposalsByStatus.pending.length,
+      blocked: proposalsByStatus.blocked.length,
+      avgNodeConfidence: Math.round(avgConfidence * 1000) / 1000,
+      totalNodesTracked: screenNodes.length,
+      workItemsCompleted: completedEntries.length,
+      hintsFilesWritten: hintsWritten.length,
+    },
+    ...(screen ? { screen } : {}),
+    activatedProposals: proposalsByStatus.activated.slice(0, 20).map((p) => ({
+      id: p.id ?? p.proposalId,
+      title: p.title,
+      targetPath: p.targetPath,
+      activatedAt: (p.activation as Record<string, unknown>)?.activatedAt,
+    })),
+    fitnessHighWaterMark: scorecard?.highWaterMark ?? null,
+    recentCompletions: completedEntries.slice(0, 10).map((e) => ({
+      workItemId: e.workItemId,
+      artifactsWritten: e.artifactsWritten,
+    })),
+  };
+};
+
 // ─── Tool Router (pure dispatch) ───
 
 const toolHandlers: Readonly<Record<string, ToolHandler>> = {
@@ -492,6 +652,7 @@ const toolHandlers: Readonly<Record<string, ToolHandler>> = {
   'get_fitness_metrics': getFitnessMetrics,
   'approve_work_item': approveWorkItem,
   'skip_work_item': skipWorkItem,
+  'get_decision_context': getDecisionContext,
   'get_iteration_status': getIterationStatus,
   'get_proposal': getProposal,
   'list_proposals': listProposalsHandler,
@@ -513,6 +674,8 @@ const toolHandlers: Readonly<Record<string, ToolHandler>> = {
   // Knowledge contribution tools
   'suggest_hint': suggestHint,
   'suggest_locator_alias': suggestLocatorAlias,
+  // Contribution impact
+  'get_contribution_impact': getContributionImpact,
 };
 
 const routeToolCall = (

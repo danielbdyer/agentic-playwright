@@ -484,6 +484,12 @@ export const dashboardMcpTools: readonly McpToolDefinition[] = [
     description: 'Skip a pending work item, resuming the paused Effect fiber with skip status.',
     inputSchema: { type: 'object', properties: { workItemId: { type: 'string' }, rationale: { type: 'string' } }, required: ['workItemId'] },
   },
+  {
+    name: 'get_decision_context',
+    category: 'observe',
+    description: 'Get the complete decision package for a work item in one call: the item itself, linked proposals with patches, bottleneck analysis, resolution evidence, task resolution, screenshot availability, and a suggested action with rationale. Use this before approve_work_item or skip_work_item.',
+    inputSchema: { type: 'object', properties: { workItemId: { type: 'string', description: 'The work item ID to get context for' } }, required: ['workItemId'] },
+  },
   // Control tools — fiber lifecycle
   {
     name: 'get_iteration_status',
@@ -572,6 +578,12 @@ export const dashboardMcpTools: readonly McpToolDefinition[] = [
     category: 'observe',
     description: 'List all screens with element counts, confidence summaries, and governance status.',
     inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'get_contribution_impact',
+    category: 'observe',
+    description: 'Get the impact of knowledge contributions: how many proposals were activated vs pending, average node confidence, hints files written, and fitness high-water-mark. Use after contributing hints or aliases to see if they helped.',
+    inputSchema: { type: 'object', properties: { screen: { type: 'string', description: 'Optional screen filter' } } },
   },
 ] as const;
 

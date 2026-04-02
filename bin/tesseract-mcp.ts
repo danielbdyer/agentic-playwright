@@ -7,16 +7,15 @@
  *
  *   1. **Observation**: Read .tesseract/ artifacts from disk (always available)
  *   2. **Host process**: Own the speedrun lifecycle, browser pool, fixture server,
- *      and pipeline event bus. Lifecycle and knowledge tools are available when
- *      the host process is active.
+ *      and in-memory decision bridge. Lifecycle and knowledge tools are available.
  *
  * The agent workflow:
  *   1. Call start_speedrun to launch the dogfood loop as a background fiber
- *   2. Call get_loop_status / get_queue_items to monitor progress
- *   3. Call approve_work_item / skip_work_item to decide on pending items
+ *   2. Receive push notifications when decisions are pending (tools/list_changed)
+ *   3. Call get_decision_context for rich context, then approve/skip
  *   4. Call suggest_hint / suggest_locator_alias to contribute knowledge
- *   5. Call get_fitness_metrics to see results
- *   6. Call stop_speedrun to abort early if needed
+ *   5. Call get_contribution_impact to see if contributions helped
+ *   6. Call get_fitness_metrics to see results
  */
 
 import { Effect, Fiber } from 'effect';
@@ -28,17 +27,17 @@ import {
 } from '../lib/infrastructure/mcp/dashboard-mcp-server';
 import type { McpToolDefinition } from '../lib/domain/types';
 import type { WorkItemDecision } from '../lib/domain/types/dashboard';
+import type { ScreenCapturedEvent } from '../lib/domain/types/dashboard';
 import { createProjectPaths } from '../lib/application/paths';
 import { multiSeedSpeedrun, type MultiSeedResult } from '../lib/application/speedrun';
 import { createLocalServiceContext, type LocalServiceOptions } from '../lib/composition/local-services';
-import { createPipelineEventBus } from '../lib/infrastructure/dashboard/pipeline-event-bus';
 import { createPlaywrightBrowserPool } from '../lib/infrastructure/playwright-browser-pool';
 import { startFixtureServer, type FixtureServer } from '../lib/infrastructure/fixture-server';
+import { createHintsWriter } from '../lib/infrastructure/knowledge/hints-writer';
 import { DEFAULT_PIPELINE_CONFIG, mergePipelineConfig } from '../lib/domain/types';
 import type { BrowserPoolPort } from '../lib/application/browser-pool';
 import type { DashboardPort } from '../lib/application/ports';
 import type { KnowledgePosture, PipelineConfig, SpeedrunProgressEvent } from '../lib/domain/types';
-import { createHintsWriter } from '../lib/infrastructure/knowledge/hints-writer';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as readline from 'readline';
@@ -52,7 +51,6 @@ const argAfter = (flag: string): string | null => {
 
 const ROOT_DIR = argAfter('--root-dir') ?? process.env.TESSERACT_ROOT ?? process.cwd();
 const SUITE_ROOT = path.join(ROOT_DIR, 'dogfood');
-const DECISIONS_DIR = path.join(ROOT_DIR, '.tesseract', 'workbench', 'decisions');
 
 // ─── Artifact Reader ───
 
@@ -84,6 +82,7 @@ interface HostState {
   startTime: number | null;
   result: MultiSeedResult | null;
   error: string | null;
+  config: SpeedrunStartConfig | null;
 }
 
 const hostState: HostState = {
@@ -97,11 +96,10 @@ const hostState: HostState = {
   startTime: null,
   result: null,
   error: null,
+  config: null,
 };
 
 // ─── Screenshot Cache ───
-
-import type { ScreenCapturedEvent } from '../lib/domain/types/dashboard';
 
 let latestScreenshot: ScreenCapturedEvent | null = null;
 const screenshotCache = { get: () => latestScreenshot };
@@ -110,13 +108,34 @@ const screenshotCache = { get: () => latestScreenshot };
 
 const { writeHint, writeLocatorAlias } = createHintsWriter(SUITE_ROOT);
 
+// ─── MCP Push Notifications ───
+
+/** Send a JSON-RPC notification to the client (no id, no response expected). */
+function sendNotification(method: string, params?: Record<string, unknown>): void {
+  const notification = JSON.stringify({
+    jsonrpc: '2.0',
+    method,
+    ...(params ? { params } : {}),
+  });
+  process.stdout.write(`Content-Length: ${Buffer.byteLength(notification)}\r\n\r\n${notification}`);
+}
+
+/**
+ * Notify the client that the tool list may have changed.
+ * Claude Code responds by re-fetching tools, which triggers re-engagement.
+ */
+function notifyToolsChanged(): void {
+  sendNotification('notifications/tools/list_changed');
+}
+
 // ─── Speedrun Lifecycle ───
 
 function getLoopStatus(): LoopStatus {
+  const progress = hostState.lastProgress as Record<string, unknown> | null;
   return {
     phase: hostState.phase,
-    iteration: (hostState.lastProgress as Record<string, unknown> | null)?.iteration as number | undefined,
-    maxIterations: (hostState.lastProgress as Record<string, unknown> | null)?.maxIterations as number | undefined,
+    iteration: progress?.iteration as number | undefined,
+    maxIterations: progress?.maxIterations as number | undefined,
     pendingDecisionCount: hostState.pendingDecisions.size,
     elapsedMs: hostState.startTime ? Date.now() - hostState.startTime : undefined,
     error: hostState.error ?? undefined,
@@ -124,6 +143,11 @@ function getLoopStatus(): LoopStatus {
   };
 }
 
+/**
+ * Start the speedrun loop. Blocks through infrastructure setup (fixture server,
+ * browser pool) so the caller sees errors immediately. The dogfood loop itself
+ * runs as a background fiber.
+ */
 async function startSpeedrunHost(config: SpeedrunStartConfig): Promise<{ status: 'started'; seeds: readonly string[]; maxIterations: number }> {
   const seeds = config.seeds?.length ? config.seeds : ['speedrun-v1'];
   const count = config.count ?? 50;
@@ -131,11 +155,18 @@ async function startSpeedrunHost(config: SpeedrunStartConfig): Promise<{ status:
   const knowledgePosture = (config.knowledgePosture ?? 'warm-start') as KnowledgePosture;
   const interpreterMode = (config.interpreterMode ?? 'playwright') as 'playwright' | 'diagnostic' | 'dry-run';
 
+  // Item 7: Extract configuration from start config
+  const poolSize = (config as Record<string, unknown>).poolSize as number | undefined ?? 4;
+  const decisionTimeoutMs = (config as Record<string, unknown>).decisionTimeoutMs as number | undefined ?? 120_000;
+  const headed = (config as Record<string, unknown>).headed as boolean | undefined ?? false;
+  const baseUrlOverride = (config as Record<string, unknown>).baseUrl as string | undefined;
+
   hostState.phase = 'running';
   hostState.startTime = Date.now();
   hostState.error = null;
   hostState.result = null;
   hostState.lastProgress = null;
+  hostState.config = config;
 
   // Load pipeline config
   const configPath = path.join(ROOT_DIR, 'pipeline.config.json');
@@ -147,38 +178,30 @@ async function startSpeedrunHost(config: SpeedrunStartConfig): Promise<{ status:
 
   const paths = createProjectPaths(ROOT_DIR, SUITE_ROOT);
 
-  // Start fixture server (for Playwright mode)
-  if (interpreterMode === 'playwright' && !hostState.fixtureServer) {
-    try {
-      process.stderr.write('Starting fixture server...\n');
-      hostState.fixtureServer = await startFixtureServer({ rootDir: ROOT_DIR });
-      process.stderr.write(`Fixture server ready at ${hostState.fixtureServer.baseUrl}\n`);
-    } catch (err) {
-      process.stderr.write(`Fixture server failed: ${err}\n`);
-      // Fall through — the speedrun can still run in diagnostic mode
-    }
+  // Item 4: Synchronous infrastructure setup — block until ready or fail
+  // Start fixture server (for Playwright mode, unless baseUrl overridden)
+  if (interpreterMode === 'playwright' && !baseUrlOverride && !hostState.fixtureServer) {
+    process.stderr.write('[MCP] Starting fixture server...\n');
+    hostState.fixtureServer = await startFixtureServer({ rootDir: ROOT_DIR });
+    process.stderr.write(`[MCP] Fixture server ready at ${hostState.fixtureServer.baseUrl}\n`);
   }
 
   // Create browser pool (for Playwright mode)
   if (interpreterMode === 'playwright' && !hostState.browserPool) {
-    try {
-      process.stderr.write('Creating browser pool...\n');
-      hostState.browserPool = await createPlaywrightBrowserPool({
-        config: { poolSize: 4, preWarm: true, maxPageAgeMs: 300_000 },
-      });
-      process.stderr.write('Browser pool ready.\n');
-    } catch (err) {
-      process.stderr.write(`Browser pool failed: ${err}\n`);
-    }
+    process.stderr.write(`[MCP] Creating browser pool (size=${poolSize}, headed=${headed})...\n`);
+    hostState.browserPool = await createPlaywrightBrowserPool({
+      config: { poolSize, preWarm: true, maxPageAgeMs: 300_000 },
+      headless: !headed,
+    });
+    process.stderr.write('[MCP] Browser pool ready.\n');
   }
 
-  // Create pipeline event bus for in-memory decision sharing
+  const resolvedBaseUrl = baseUrlOverride ?? hostState.fixtureServer?.baseUrl;
   const pendingDecisions = hostState.pendingDecisions;
 
-  // Progress callback — updates hostState so get_loop_status is always fresh
+  // Progress callback — updates hostState and notifies client
   const onProgress = (event: SpeedrunProgressEvent) => {
     hostState.lastProgress = event;
-    // Track pending decision state
     if (pendingDecisions.size > 0) {
       hostState.phase = 'paused-for-decisions';
     } else {
@@ -186,37 +209,40 @@ async function startSpeedrunHost(config: SpeedrunStartConfig): Promise<{ status:
     }
   };
 
-  // Create the DashboardPort that shares pendingDecisions in-memory
+  // Item 3: Consolidated DashboardPort with configurable timeout
   const dashboardPort: DashboardPort = {
     emit: () => Effect.void,
     awaitDecision: (item) => Effect.async<WorkItemDecision, never, never>((resume) => {
       hostState.phase = 'paused-for-decisions';
-      process.stderr.write(`[MCP] Awaiting decision for work item: ${item.id} (${item.title})\n`);
+      process.stderr.write(`[MCP] Awaiting decision: ${item.id} (${item.title})\n`);
 
       pendingDecisions.set(item.id, (decision) => {
-        process.stderr.write(`[MCP] Decision received for ${item.id}: ${decision.status}\n`);
+        process.stderr.write(`[MCP] Decision received: ${item.id} → ${decision.status}\n`);
         if (pendingDecisions.size === 0) {
           hostState.phase = 'running';
         }
         resume(Effect.succeed(decision));
       });
 
-      // Auto-skip timeout (120s)
+      // Item 2: Push notification — tell the client decisions are pending
+      notifyToolsChanged();
+
+      // Configurable auto-skip timeout
       const timer = setTimeout(() => {
         if (pendingDecisions.has(item.id)) {
           pendingDecisions.delete(item.id);
           const d: WorkItemDecision = {
             workItemId: item.id,
             status: 'skipped',
-            rationale: 'Auto-skip (120s timeout — no agent decision received)',
+            rationale: `Auto-skip (${decisionTimeoutMs}ms timeout — no agent decision received)`,
           };
-          process.stderr.write(`[MCP] Auto-skipped ${item.id} (timeout)\n`);
+          process.stderr.write(`[MCP] Auto-skipped ${item.id} (${decisionTimeoutMs}ms timeout)\n`);
           if (pendingDecisions.size === 0) {
             hostState.phase = 'running';
           }
           resume(Effect.succeed(d));
         }
-      }, 120_000);
+      }, decisionTimeoutMs);
 
       return Effect.sync(() => {
         clearTimeout(timer);
@@ -233,6 +259,7 @@ async function startSpeedrunHost(config: SpeedrunStartConfig): Promise<{ status:
       interpreterMode,
       writeMode: 'persist',
       executionProfile: 'dogfood',
+      headed,
     },
     suiteRoot: SUITE_ROOT,
     pipelineConfig,
@@ -252,7 +279,7 @@ async function startSpeedrunHost(config: SpeedrunStartConfig): Promise<{ status:
     knowledgePosture,
     onProgress,
     interpreterMode,
-    baseUrl: hostState.fixtureServer?.baseUrl,
+    baseUrl: resolvedBaseUrl,
     browserPool: hostState.browserPool ?? undefined,
   });
 
@@ -266,11 +293,13 @@ async function startSpeedrunHost(config: SpeedrunStartConfig): Promise<{ status:
       hostState.phase = 'completed';
       hostState.result = result;
       process.stderr.write(`[MCP] Speedrun completed. Scorecard ${result.scorecardUpdated ? 'UPDATED' : 'unchanged'}.\n`);
+      notifyToolsChanged(); // Notify client that loop completed
     },
     (error) => {
       hostState.phase = 'failed';
       hostState.error = String(error);
       process.stderr.write(`[MCP] Speedrun failed: ${error}\n`);
+      notifyToolsChanged(); // Notify client that loop failed
     },
   );
 
@@ -340,7 +369,7 @@ async function handleRequest(request: JsonRpcRequest): Promise<void> {
         capabilities: { tools: {} },
         serverInfo: {
           name: 'tesseract-dashboard',
-          version: '0.2.0',
+          version: '0.3.0',
         },
       });
       break;
@@ -444,22 +473,65 @@ rl.on('line', (line) => {
   }
 });
 
-// ─── Graceful Shutdown ───
+// ─── Graceful Shutdown (Item 5) ───
+
+let shuttingDown = false;
 
 async function shutdown(): Promise<void> {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  process.stderr.write('[MCP] Shutting down...\n');
+
+  // Interrupt the speedrun fiber
   if (hostState.fiber) {
-    Effect.runFork(Fiber.interrupt(hostState.fiber));
+    try {
+      Effect.runFork(Fiber.interrupt(hostState.fiber));
+      hostState.fiber = null;
+    } catch { /* ignore interrupt errors */ }
   }
+
+  // Close browser pool (returns pages, closes browser)
   if (hostState.browserPool) {
-    await hostState.browserPool.close().catch(() => {});
+    try {
+      const stats = hostState.browserPool.stats;
+      process.stderr.write(`[MCP] Browser pool stats: acquired=${stats.totalAcquired} released=${stats.totalReleased}\n`);
+      await hostState.browserPool.close();
+      process.stderr.write('[MCP] Browser pool closed.\n');
+    } catch (err) {
+      process.stderr.write(`[MCP] Browser pool close error: ${err}\n`);
+    }
+    hostState.browserPool = null;
   }
+
+  // Stop fixture server (kills child process)
   if (hostState.fixtureServer) {
-    await hostState.fixtureServer.stop().catch(() => {});
+    try {
+      await hostState.fixtureServer.stop();
+      process.stderr.write('[MCP] Fixture server stopped.\n');
+    } catch (err) {
+      process.stderr.write(`[MCP] Fixture server stop error: ${err}\n`);
+    }
+    hostState.fixtureServer = null;
   }
+
+  process.stderr.write('[MCP] Shutdown complete.\n');
 }
 
-process.on('SIGINT', () => { shutdown().then(() => process.exit(0)); });
-process.on('SIGTERM', () => { shutdown().then(() => process.exit(0)); });
-process.on('exit', () => { shutdown().catch(() => {}); });
+// SIGINT/SIGTERM: async cleanup then exit
+process.on('SIGINT', () => {
+  shutdown().then(() => process.exit(0)).catch(() => process.exit(1));
+  // Safety net: force exit after 5s if cleanup hangs
+  setTimeout(() => process.exit(1), 5000).unref();
+});
+
+process.on('SIGTERM', () => {
+  shutdown().then(() => process.exit(0)).catch(() => process.exit(1));
+  setTimeout(() => process.exit(1), 5000).unref();
+});
+
+// stdin close (parent process died)
+process.stdin.on('end', () => {
+  shutdown().then(() => process.exit(0)).catch(() => process.exit(1));
+});
 
 process.stderr.write('Tesseract MCP server started (stdio, host-mode)\n');
