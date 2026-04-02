@@ -70,6 +70,11 @@ export interface PipelineFitnessMetrics {
   readonly resolutionByRung: readonly RungRate[];
   readonly degradedLocatorRate: number;
   readonly recoverySuccessRate: number;
+  /** Execution health from intelligence modules — present when learning signals are available. */
+  readonly executionHealth?: {
+    readonly compositeScore: number;
+    readonly dimensions: readonly { readonly name: string; readonly value: number; readonly status: string }[];
+  } | undefined;
 }
 
 export interface PipelineFitnessReport {
@@ -93,6 +98,8 @@ export interface ScorecardHighWaterMark {
   readonly convergenceVelocity: number;
   readonly proposalYield: number;
   readonly resolutionByRung: readonly RungRate[];
+  /** Execution health score at the time of high-water mark. */
+  readonly executionHealthScore?: number | undefined;
 }
 
 export interface ScorecardHistoryEntry {

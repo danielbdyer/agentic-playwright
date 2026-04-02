@@ -42,6 +42,46 @@ function isPlaywrightPageLike(page: unknown): page is PlaywrightPageLike {
   return typeof page === 'object' && page !== null && 'accessibility' in page && 'locator' in page;
 }
 
+type PlaywrightScreenshotLike = { screenshot: (opts: { readonly type: 'jpeg'; readonly quality: number; readonly fullPage: boolean }) => Promise<Buffer> };
+
+function isPlaywrightScreenshotCapable(page: unknown): page is PlaywrightScreenshotLike {
+  return typeof page === 'object' && page !== null && 'screenshot' in page;
+}
+
+/**
+ * Capture a raw JPEG screenshot buffer from a live Playwright page.
+ * Returns null when no page is available or when capture fails.
+ * Used by the deferred screenshot collector to delay base64 encoding.
+ */
+export async function capturePageScreenshotBuffer(
+  page: unknown,
+  options?: { readonly quality?: number },
+): Promise<Buffer | null> {
+  if (!isPlaywrightScreenshotCapable(page)) return null;
+  try {
+    return await page.screenshot({
+      type: 'jpeg',
+      quality: options?.quality ?? 50,
+      fullPage: false,
+    });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Capture a JPEG screenshot from a live Playwright page as a base64 string.
+ * Returns null when no page is available, when capture fails, or when vision is disabled.
+ * Uses JPEG at configurable quality (default 50) to minimise vision token cost.
+ */
+export async function capturePageScreenshot(
+  page: unknown,
+  options?: { readonly quality?: number },
+): Promise<string | null> {
+  const buffer = await capturePageScreenshotBuffer(page, options);
+  return buffer ? buffer.toString('base64') : null;
+}
+
 /**
  * Capture a truncated ARIA/accessibility snapshot from a live Playwright page.
  * Returns null when no page is available or when capture fails.
@@ -288,15 +328,26 @@ export function trySemanticDictionaryResolution(stage: RuntimeAgentStageContext,
   }
 
   const normalized = normalizedCombined(stage.task);
-  const match = lookupSemanticDictionary(normalized, catalog, {
-    retrievalContext: {
-      allowedActions: [...stage.task.allowedActions],
-      currentScreen: stage.memory.currentScreen?.screen ?? null,
-      availableScreens: stage.context.resolutionContext.screens.map((s) => s.screen),
-      activeRouteVariantRefs: [...stage.memory.activeRouteVariantRefs],
-      governanceFilter: 'include-review',
-    },
-  });
+
+  // Check semantic dictionary cache — avoids re-scoring all entries for similar intents
+  const dictCache = stage.context.semanticDictCache;
+  const cached = dictCache?.has(normalized) ? dictCache.get(normalized) : undefined;
+  const match = cached !== undefined
+    ? cached
+    : lookupSemanticDictionary(normalized, catalog, {
+        retrievalContext: {
+          allowedActions: [...stage.task.allowedActions],
+          currentScreen: stage.memory.currentScreen?.screen ?? null,
+          availableScreens: stage.context.resolutionContext.screens.map((s) => s.screen),
+          activeRouteVariantRefs: [...stage.memory.activeRouteVariantRefs],
+          governanceFilter: 'include-review',
+        },
+      });
+
+  // Cache the result for this intent (including null = no match)
+  if (cached === undefined && dictCache) {
+    dictCache.set(normalized, match ?? null);
+  }
 
   if (!match) {
     return {
@@ -635,7 +686,10 @@ export async function tryLiveDomOrFallback(stage: RuntimeAgentStageContext, acc:
   // ─── Rung 8: LLM-DOM Semantic Resolution ───
   // Between structural DOM (Rung 7) and full agent interpretation (Rung 9),
   // attempt lightweight semantic matching using the ARIA snapshot.
-  const rung8Snapshot = await captureTruncatedAriaSnapshot(stage.context.page);
+  const ariaCache = stage.context.ariaSnapshotCache;
+  const rung8Snapshot = ariaCache
+    ? await ariaCache.get(stage.context.page)
+    : await captureTruncatedAriaSnapshot(stage.context.page);
   const rung8ElementHint = acc.element?.element ?? stage.task.actionText ?? '';
   const rung8ElementId: ElementId = acc.element?.element ?? (rung8ElementHint as ElementId);
   if (isRung8Applicable(rung8Snapshot, rung8ElementHint)) {
@@ -674,7 +728,13 @@ export async function tryLiveDomOrFallback(stage: RuntimeAgentStageContext, acc:
   // The agent receives the full context of what was tried and the DOM state.
   const agentInterpreter = stage.context.agentInterpreter;
   if (agentInterpreter && agentInterpreter.kind !== 'disabled') {
-    const domSnapshot = await captureTruncatedAriaSnapshot(stage.context.page);
+    // Capture ARIA snapshot and visual screenshot in parallel
+    const [domSnapshot, screenshotBase64] = await Promise.all([
+      ariaCache
+        ? ariaCache.get(stage.context.page)
+        : captureTruncatedAriaSnapshot(stage.context.page),
+      capturePageScreenshot(stage.context.page),
+    ]);
     const agentRequest: AgentInterpretationRequest = {
       actionText: stage.task.actionText,
       expectedText: stage.task.expectedText,
@@ -697,6 +757,7 @@ export async function tryLiveDomOrFallback(stage: RuntimeAgentStageContext, acc:
         reason: entry.reason,
       })),
       domSnapshot,
+      screenshotBase64: screenshotBase64 ?? undefined,
       priorTarget: stage.context.previousResolution ?? null,
       taskFingerprint: stage.task.taskFingerprint,
       knowledgeFingerprint: stage.context.resolutionContext.knowledgeFingerprint,

@@ -12,6 +12,8 @@ import type {
 import type { AgentInterpreterPort } from '../../domain/resolution/model';
 import type { ElementId, PostureId, ScreenId } from '../../domain/kernel/identity';
 import type { ResolutionTarget, TranslationReceipt, TranslationRequest } from '../../domain/types';
+import type { AriaSnapshotCache } from './aria-snapshot-cache';
+import type { SemanticDictCache } from './semantic-dict-cache';
 
 export type RuntimeAgentInterpreter = AgentInterpreterPort;
 
@@ -32,6 +34,10 @@ export interface RuntimeStepAgentContext {
     resolutionControl?: string | null | undefined;
   } | undefined;
   semanticDictionary?: SemanticDictionaryCatalog | undefined;
+  /** Per-step ARIA snapshot cache — avoids redundant DOM traversals across rungs. */
+  ariaSnapshotCache?: AriaSnapshotCache | undefined;
+  /** Per-scenario semantic dictionary cache — avoids redundant lookups for similar intents. */
+  semanticDictCache?: SemanticDictCache | undefined;
 }
 
 export interface RuntimeAgentStageContext {

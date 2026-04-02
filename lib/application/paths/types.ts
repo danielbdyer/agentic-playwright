@@ -45,10 +45,14 @@ export interface ExecutionPaths {
   readonly sessionsDir: string;
   readonly learningDir: string;
   readonly learningManifestPath: string;
+  readonly learningStatePath: string;
   readonly benchmarkRunsDir: string;
   readonly evidenceDir: string;
   readonly confidenceDir: string;
   readonly confidenceIndexPath: string;
+  readonly intelligenceDir: string;
+  readonly screenshotDir: string;
+  readonly screenshotManifestPath: string;
 }
 
 export interface GovernancePaths {
@@ -103,6 +107,10 @@ export interface LegacyProjectPathAliases {
   readonly sessionsDir: string;
   readonly learningDir: string;
   readonly learningManifestPath: string;
+  readonly learningStatePath: string;
+  readonly intelligenceDir: string;
+  readonly screenshotDir: string;
+  readonly screenshotManifestPath: string;
   readonly inboxDir: string;
   readonly inboxIndexPath: string;
   readonly inboxReportPath: string;

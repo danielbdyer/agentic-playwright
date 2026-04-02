@@ -43,6 +43,9 @@ export interface LoopMetrics {
   readonly convergenceVelocity: number;
   readonly costSoFar: number;
   readonly energyHistory: readonly number[];
+  /** Composite execution health score from intelligence modules. [0,1], 1 = healthy.
+   *  When present, prevents stopping when health is critically low even if hit rate converged. */
+  readonly healthScore?: number | undefined;
 }
 
 /**
@@ -64,20 +67,24 @@ export function shouldContinueLoop(
   if (iteration >= config.maxIterations) return false;
   if (metrics.costSoFar >= config.maxCost) return false;
 
-  // Convergence threshold met
-  if (metrics.knowledgeHitRate >= config.convergenceThreshold) return false;
+  // Execution health critically low — override convergence checks and keep iterating.
+  // The healthScore is maturity-dampened, so early iterations won't trigger this.
+  const healthCritical = metrics.healthScore !== undefined && metrics.healthScore < 0.3;
+
+  // Convergence threshold met (but health can override)
+  if (metrics.knowledgeHitRate >= config.convergenceThreshold && !healthCritical) return false;
 
   // Lyapunov fixed-point detection on energy history
   const _lyapunov = knowledgeHitRateLyapunov();
   const energyHistory = metrics.energyHistory;
-  if (energyHistory.length >= 3) {
+  if (energyHistory.length >= 3 && !healthCritical) {
     const window = energyHistory.slice(-3);
     const spread = Math.max(...window) - Math.min(...window);
     if (spread <= 0.001) return false; // fixed point reached
   }
 
   // Estimated termination bound exceeds remaining iterations
-  if (energyHistory.length >= 2) {
+  if (energyHistory.length >= 2 && !healthCritical) {
     const rate = estimateRateOfDecrease(energyHistory);
     const currentEnergy = energyHistory[energyHistory.length - 1]!;
     const targetEnergy = 1 - config.convergenceThreshold;

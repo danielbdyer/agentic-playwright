@@ -76,6 +76,12 @@ export interface SpeedrunInput {
    * side channel for observability — it does not participate in the pipeline.
    */
   readonly onProgress?: ((event: SpeedrunProgressEvent) => void) | undefined;
+  /** Interpreter mode for the dogfood loop. Default: 'playwright'. */
+  readonly interpreterMode?: 'dry-run' | 'diagnostic' | 'playwright' | undefined;
+  /** Base URL of the SUT for Playwright execution (e.g., http://127.0.0.1:3200). */
+  readonly baseUrl?: string | undefined;
+  /** Browser pool for page reuse across scenarios. Managed by caller. */
+  readonly browserPool?: import('./browser-pool').BrowserPoolPort | undefined;
 }
 
 export interface SpeedrunResult {
@@ -103,6 +109,11 @@ export interface MultiSeedInput {
   /** Number of knowledge drift mutations to apply before scenario generation. 0 = no drift. */
   readonly driftCount?: number | undefined;
   readonly onProgress?: ((event: SpeedrunProgressEvent) => void) | undefined;
+  /** Interpreter mode for the dogfood loop. Default: 'playwright'. */
+  readonly interpreterMode?: 'dry-run' | 'diagnostic' | 'playwright' | undefined;
+  readonly baseUrl?: string | undefined;
+  /** Browser pool for page reuse across scenarios. Managed by caller. */
+  readonly browserPool?: import('./browser-pool').BrowserPoolPort | undefined;
 }
 
 export interface MultiSeedResult {
@@ -138,6 +149,18 @@ function loadScorecard(paths: ProjectPaths) {
   });
 }
 
+const LearningSignalsSummarySchema = Schema.Struct({
+  timingRegressionRate: Schema.Number,
+  selectorFlakinessRate: Schema.Number,
+  recoveryEfficiency: Schema.Number,
+  consoleNoiseLevel: Schema.Number,
+  costEfficiency: Schema.Number,
+  rungStability: Schema.Number,
+  componentMaturityRate: Schema.Number,
+  compositeHealthScore: Schema.Number,
+  hotScreenCount: Schema.Number,
+});
+
 const ImprovementLoopIterationSchema = Schema.Struct({
   iteration: Schema.Number,
   scenarioIds: Schema.Array(Schema.String),
@@ -148,6 +171,7 @@ const ImprovementLoopIterationSchema = Schema.Struct({
   unresolvedStepCount: Schema.Number,
   totalStepCount: Schema.Number,
   instructionCount: Schema.Number,
+  learningSignals: Schema.optional(LearningSignalsSummarySchema),
 });
 
 const ImprovementLoopLedgerSchema = Schema.Struct({
@@ -264,13 +288,15 @@ export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunRes
       paths: input.paths,
       maxIterations: input.maxIterations,
       convergenceThreshold: input.config.convergenceThreshold,
-      interpreterMode: 'diagnostic',
+      interpreterMode: input.interpreterMode ?? 'playwright',
       tag: input.tag ?? 'synthetic',
       runbook: 'synthetic-dogfood',
       knowledgePosture: input.knowledgePosture,
       onProgress: input.onProgress,
       seed: input.seed,
       dashboard,
+      baseUrl: input.baseUrl,
+      browserPool: input.browserPool,
     });
 
     const fitnessStart = Date.now();
@@ -410,6 +436,9 @@ export function multiSeedSpeedrun(input: MultiSeedInput): Effect.Effect<MultiSee
           knowledgePosture: input.knowledgePosture,
           driftCount: input.driftCount,
           onProgress: input.onProgress,
+          interpreterMode: input.interpreterMode,
+          baseUrl: input.baseUrl,
+          browserPool: input.browserPool,
         });
 
         // Save per-seed fitness report
@@ -592,6 +621,11 @@ export interface IteratePhaseInput {
   readonly knowledgePosture?: KnowledgePosture | undefined;
   readonly seed?: string | undefined;
   readonly onProgress?: ((event: SpeedrunProgressEvent) => void) | undefined;
+  /** Interpreter mode for the dogfood loop. Default: 'playwright'. */
+  readonly interpreterMode?: 'dry-run' | 'diagnostic' | 'playwright' | undefined;
+  readonly baseUrl?: string | undefined;
+  /** Browser pool for page reuse across scenarios. Managed by caller. */
+  readonly browserPool?: import('./browser-pool').BrowserPoolPort | undefined;
 }
 
 export function iteratePhase(input: IteratePhaseInput) {
@@ -602,13 +636,15 @@ export function iteratePhase(input: IteratePhaseInput) {
       paths: input.paths,
       maxIterations: input.maxIterations,
       convergenceThreshold: input.convergenceThreshold,
-      interpreterMode: 'diagnostic',
+      interpreterMode: input.interpreterMode ?? 'playwright',
       tag: input.tag ?? 'synthetic',
       runbook: input.runbook ?? 'synthetic-dogfood',
       knowledgePosture: input.knowledgePosture,
       onProgress: input.onProgress,
       seed: input.seed,
       dashboard,
+      baseUrl: input.baseUrl,
+      browserPool: input.browserPool,
     });
     const durationMs = Date.now() - start;
     return { ledger, durationMs };

@@ -81,21 +81,21 @@ function matureSingle(evidence: ComponentEvidence): ComponentProposal | null {
  * Pure function: evidence list in, merged evidence list out.
  */
 function mergeEvidence(evidence: readonly ComponentEvidence[]): readonly ComponentEvidence[] {
-  const merged = evidence.reduce<ReadonlyMap<string, ComponentEvidence>>(
-    (acc, entry) => {
-      const existing = acc.get(entry.componentType);
-      return new Map([...acc, [entry.componentType, existing
-        ? {
-            componentType: entry.componentType,
-            actions: uniqueSortedActions([...existing.actions, ...entry.actions]),
-            successCount: existing.successCount + entry.successCount,
-            totalAttempts: existing.totalAttempts + entry.totalAttempts,
-          }
-        : entry,
-      ]]);
-    },
-    new Map(),
-  );
+  // O(E) single-pass merge using mutable Map internally, immutable output.
+  // Previous implementation spread the entire Map on each iteration: O(E²).
+  const merged = new Map<string, ComponentEvidence>();
+  for (const entry of evidence) {
+    const existing = merged.get(entry.componentType);
+    merged.set(entry.componentType, existing
+      ? {
+          componentType: entry.componentType,
+          actions: uniqueSortedActions([...existing.actions, ...entry.actions]),
+          successCount: existing.successCount + entry.successCount,
+          totalAttempts: existing.totalAttempts + entry.totalAttempts,
+        }
+      : entry,
+    );
+  }
   return [...merged.values()];
 }
 

@@ -25,7 +25,9 @@ export type ConvergenceReason = 'no-proposals' | 'threshold-met' | 'budget-exhau
 export type ConvergenceEvent =
   | { readonly kind: 'iteration-complete'; readonly proposalsGenerated: number; readonly proposalsActivated: number; readonly hitRateDelta: number; readonly convergenceThreshold?: number }
   | { readonly kind: 'budget-check'; readonly instructionsUsed: number; readonly maxInstructions: number }
-  | { readonly kind: 'iteration-limit'; readonly current: number; readonly max: number };
+  | { readonly kind: 'iteration-limit'; readonly current: number; readonly max: number }
+  | { readonly kind: 'learning-signal'; readonly degradingCount: number; readonly maturity: number }
+  | { readonly kind: 'browser-health'; readonly overflowRate: number; readonly reuseRate: number };
 
 // ─── Constructors ───
 
@@ -57,6 +59,26 @@ export function transitionConvergence(
   // Iteration limit overrides all non-terminal states
   if (event.kind === 'iteration-limit' && event.current >= event.max) {
     return { kind: 'converged', reason: 'max-iterations' };
+  }
+
+  // Learning-signal: multiple degrading dimensions backs FSM out of plateau
+  // to prevent premature convergence when hit rate improves but quality worsens.
+  if (event.kind === 'learning-signal') {
+    const threshold = Math.max(1, Math.ceil(3 * event.maturity));
+    if (event.degradingCount >= threshold && state.kind === 'plateau') {
+      return { kind: 'narrowing', hitRateImproving: false, delta: 0 };
+    }
+    return state;
+  }
+
+  // Browser-health: high overflow rate signals pool exhaustion — the system is
+  // creating more pages than the pool can hold, indicating the pool is too small
+  // for the current scenario load. Back out of plateau to keep exploring.
+  if (event.kind === 'browser-health') {
+    if (event.overflowRate > 0.5 && state.kind === 'plateau') {
+      return { kind: 'narrowing', hitRateImproving: false, delta: 0 };
+    }
+    return state;
   }
 
   // Non-terminal transitions for iteration-complete events

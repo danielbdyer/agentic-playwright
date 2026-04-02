@@ -196,6 +196,10 @@ export interface ScenarioRunPlan {
   readonly translationEnabled: boolean;
   readonly translationCacheEnabled: boolean;
   readonly recoveryPolicy?: RecoveryPolicy | undefined;
+  /** Base URL of the SUT (system under test) for Playwright escalation.
+   *  When present and mode is 'playwright', the harness navigates here first
+   *  so that relative screen URLs resolve correctly. */
+  readonly baseUrl?: string | undefined;
 }
 
 /** @deprecated Use `ScenarioInterpretationSurface`. */

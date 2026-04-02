@@ -222,16 +222,30 @@ function createHeuristicProvider(): ApplicationAgentInterpreterPort {
 
 // ─── Provider: LLM API (Azure AI Foundry / OpenAI-compatible) ───
 
+/** A base64-encoded image to include in the LLM request (vision-capable models). */
+export interface VisionImage {
+  readonly base64: string;
+  readonly mediaType: 'image/png' | 'image/jpeg';
+}
+
 export interface AgentLlmApiDependencies {
   readonly createChatCompletion: (input: {
     readonly model: string;
     readonly maxTokens: number;
     readonly systemPrompt: string;
     readonly userMessage: string;
+    readonly images?: ReadonlyArray<VisionImage> | undefined;
     readonly signal?: AbortSignal | undefined;
   }) => Promise<string>;
   /** Optional release hook for session-style clients (MCP sockets, SDK clients). */
   readonly release?: (() => Promise<void>) | undefined;
+}
+
+export interface AgentInterpreterVisionConfig {
+  /** Enable sending page screenshots to the LLM for visual disambiguation. Default: true. */
+  readonly enabled: boolean;
+  /** JPEG quality 1-100 for screenshot encoding. Lower = fewer tokens. Default: 50. */
+  readonly quality: number;
 }
 
 export interface AgentInterpreterConfig {
@@ -242,6 +256,8 @@ export interface AgentInterpreterConfig {
     readonly maxTokensPerStep: number;
     readonly maxCallsPerRun: number;
   };
+  /** Vision configuration for sending page screenshots alongside ARIA text. */
+  readonly vision?: AgentInterpreterVisionConfig | undefined;
 }
 
 export const DEFAULT_AGENT_INTERPRETER_CONFIG: AgentInterpreterConfig = {
@@ -253,6 +269,13 @@ export const DEFAULT_AGENT_INTERPRETER_CONFIG: AgentInterpreterConfig = {
     maxCallsPerRun: 100,
   },
 };
+
+/** Build vision images array from the request when a screenshot is available. */
+function visionImagesFromRequest(request: AgentInterpretationRequest): ReadonlyArray<VisionImage> | undefined {
+  return request.screenshotBase64
+    ? [{ base64: request.screenshotBase64, mediaType: 'image/jpeg' as const }]
+    : undefined;
+}
 
 function buildAgentSystemPrompt(request: AgentInterpretationRequest): string {
   const screenDescriptions = request.screens.map((screen) => {
@@ -317,8 +340,11 @@ function buildAgentSystemPrompt(request: AgentInterpretationRequest): string {
     '1. The original step text (action + expected outcome)',
     '2. The available screens and elements with their aliases and widget types',
     '3. What the pipeline already tried and why each rung failed',
-    request.domSnapshot ? '4. The current DOM state (ARIA snapshot)' : '',
-    request.priorTarget ? `5. Prior step resolved to: screen=${request.priorTarget.screen}, element=${request.priorTarget.element}` : '',
+    request.screenshotBase64 ? '4. A screenshot of the current page (visual context for disambiguation)' : '',
+    request.domSnapshot ? `${request.screenshotBase64 ? '5' : '4'}. The current DOM state (ARIA snapshot)` : '',
+    request.priorTarget ? `${request.screenshotBase64 && request.domSnapshot ? '6' : request.screenshotBase64 || request.domSnapshot ? '5' : '4'}. Prior step resolved to: screen=${request.priorTarget.screen}, element=${request.priorTarget.element}` : '',
+    '',
+    request.screenshotBase64 ? 'When a screenshot is provided, use visual cues (color, position, size, layout, visual state) to disambiguate elements that are structurally similar in the DOM.' : '',
     '',
     'Known screens and elements:',
     screenDescriptions,
@@ -355,6 +381,7 @@ function buildAgentUserMessage(request: AgentInterpretationRequest): string {
     `Expected outcome: ${request.expectedText}`,
     `Normalized intent: ${request.normalizedIntent}`,
     request.inferredAction ? `Inferred action type: ${request.inferredAction}` : '',
+    request.screenshotBase64 ? '\n[A screenshot of the current page is attached. Use it for visual disambiguation: element position, color, visual state, layout.]' : '',
     request.domSnapshot ? `\nCurrent DOM state:\n${request.domSnapshot.slice(0, 2000)}` : '',
   ].filter(Boolean).join('\n');
 }
@@ -487,6 +514,7 @@ function createLlmApiAgentProvider(
           maxTokens: config.budget.maxTokensPerStep,
           systemPrompt: buildAgentSystemPrompt(request),
           userMessage: buildAgentUserMessage(request),
+          images: visionImagesFromRequest(request),
         }),
       ).pipe(
         Effect.flatMap((raw) => Effect.try({
@@ -571,6 +599,7 @@ function createSessionProvider(
           maxTokens: 4000,
           systemPrompt: buildAgentSystemPrompt(request),
           userMessage: buildAgentUserMessage(request),
+          images: visionImagesFromRequest(request),
         }),
       ).pipe(
         Effect.flatMap((raw) => Effect.try({

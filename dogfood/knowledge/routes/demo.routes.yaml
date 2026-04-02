@@ -25,3 +25,12 @@ routes:
         url: /policy-detail.html?id=POL-001
         screen: policy-detail
         rootSelector: body
+  - id: policy-amendment
+    screen: policy-amendment
+    entryUrl: /policy-amendment.html?id=AMD-001
+    rootSelector: body
+    variants:
+      - id: with-amendment
+        url: /policy-amendment.html?id=AMD-001
+        screen: policy-amendment
+        rootSelector: body

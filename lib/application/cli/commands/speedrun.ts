@@ -12,7 +12,7 @@ export const speedrunCommand = createCommandSpec({
     command: 'speedrun',
     strictExitOnUnbound: false,
     postureInput: withDefinedValues({
-      interpreterMode: 'diagnostic' as InterpreterMode,
+      interpreterMode: 'playwright' as InterpreterMode,
       executionProfile: 'dogfood' as ExecutionProfile,
     }),
     execute: (paths) => {

@@ -8,6 +8,7 @@ import {
   readSemanticDictionary,
   recordSemanticFailure,
   recordSemanticSuccess,
+  recordValidatedSuccess,
   writeSemanticDictionary,
 } from '../application/semantic-translation-dictionary';
 import { translateIntentToOntology } from '../application/translate';
@@ -17,6 +18,7 @@ import type { AgentInterpretationResult } from '../domain/types/agent-interprete
 import type { AgentInterpreterPort } from '../domain/resolution/model';
 import type { SemanticDictionaryCatalog, TranslationReceipt, TranslationRequest } from '../domain/types';
 import { LocalFileSystem } from '../infrastructure/fs/local-fs';
+import { launchHeadedHarness } from '../infrastructure/headed-harness';
 import { createLocalRuntimeEnvironment, type LocalRuntimeAgentInterpreter } from '../infrastructure/runtime/local-runtime-environment';
 import { createScenarioRunState, runScenarioStep } from '../runtime/scenario';
 
@@ -101,7 +103,14 @@ export function bridgeAgentInterpreterForRuntime(provider: EffectfulAgentInterpr
 
 /** Create a RuntimeScenarioRunnerPort with a specific agent interpreter provider.
  *  This is the injection point for agent sessions, Copilot, and dashboard integrations. */
-function buildRunnerWithInterpreter(interpreterOverride?: EffectfulAgentInterpreterPort | undefined): RuntimeScenarioRunnerPort {
+interface RunnerOptions {
+  readonly interpreterOverride?: EffectfulAgentInterpreterPort | undefined;
+  /** Optional browser pool for page reuse across scenarios.
+   *  When provided, acquires/releases pages instead of launching new browsers. */
+  readonly browserPool?: import('../application/browser-pool').BrowserPoolPort | undefined;
+}
+
+function buildRunnerWithInterpreter(interpreterOverride?: EffectfulAgentInterpreterPort | undefined, runnerOptions?: RunnerOptions): RuntimeScenarioRunnerPort {
   return {
     runSteps(input) {
       return Effect.gen(function* () {
@@ -149,37 +158,81 @@ function buildRunnerWithInterpreter(interpreterOverride?: EffectfulAgentInterpre
         resolve: input.resolutionEngine.resolveStep,
       };
 
-      const results = yield* Effect.forEach(
-        input.plan.steps,
-        (step) => Effect.gen(function* () {
-          // Inject the latest catalog into the environment for each step
-          const stepResult = yield* Effect.promise(() =>
-            runScenarioStep(
-              step,
-              { ...runtimeEnvironment, agent, semanticDictionary: catalog },
-              runState,
-              input.plan.context,
-              input.plan.resolutionContext,
-            ),
-          );
+      // ─── Browser lifecycle: launch or acquire from pool when playwright mode ───
+      const needsBrowser = input.plan.mode === 'playwright';
+      const pool = runnerOptions?.browserPool;
+      const poolHandle = needsBrowser && pool
+        ? yield* Effect.promise(() => pool.acquire())
+        : null;
+      const harness = needsBrowser && !poolHandle
+        ? yield* Effect.promise(() => launchHeadedHarness({
+            headless: true,
+            ...(input.plan.baseUrl ? { initialUrl: input.plan.baseUrl } : {}),
+          }))
+        : null;
+      // Unified page reference: pool page or harness page
+      const activePage = poolHandle?.page ?? harness?.page ?? null;
 
-          // ─── Semantic Dictionary: accrue + track success/failure ───
-          if (stepResult.semanticAccrual) {
-            catalog = accrueSemanticEntry(catalog, stepResult.semanticAccrual);
-            catalogDirty = true;
-          }
-          const stepSucceeded = stepResult.execution.execution.status === 'ok';
-          if (stepResult.semanticDictionaryHitId) {
-            catalog = stepSucceeded
-              ? recordSemanticSuccess(catalog, stepResult.semanticDictionaryHitId)
-              : recordSemanticFailure(catalog, stepResult.semanticDictionaryHitId);
-            catalogDirty = true;
-          }
+      const runStepsEffect = Effect.forEach(
+          input.plan.steps,
+          (step) => Effect.gen(function* () {
+            // Inject the latest catalog (and optional browser page) into the environment
+            const stepResult = yield* Effect.promise(() =>
+              runScenarioStep(
+                step,
+                {
+                  ...runtimeEnvironment,
+                  agent,
+                  semanticDictionary: catalog,
+                  ...(activePage ? { page: activePage as import('@playwright/test').Page } : {}),
+                },
+                runState,
+                input.plan.context,
+                input.plan.resolutionContext,
+              ),
+            );
 
-          return stepResult;
-        }),
-        { concurrency: 1 },
-      );
+            // ─── Semantic Dictionary: accrue + track success/failure ───
+            if (stepResult.semanticAccrual) {
+              catalog = accrueSemanticEntry(catalog, stepResult.semanticAccrual);
+              catalogDirty = true;
+            }
+            const stepSucceeded = stepResult.execution.execution.status === 'ok';
+            if (stepResult.semanticDictionaryHitId) {
+              // Execution-validated success: browser confirmed DOM state change
+              // (transition observations present or effect assertions passed).
+              // This gives a stronger confidence boost than a bare execution success.
+              const receipt = stepResult.execution;
+              const hasValidation = activePage !== null
+                && stepSucceeded
+                && (
+                  (receipt.transitionObservations && receipt.transitionObservations.length > 0)
+                  || (receipt.observedStateRefs && receipt.observedStateRefs.length > 0)
+                  || (receipt.effectAssertions && receipt.effectAssertions.length > 0)
+                );
+              catalog = !stepSucceeded
+                ? recordSemanticFailure(catalog, stepResult.semanticDictionaryHitId)
+                : hasValidation
+                  ? recordValidatedSuccess(catalog, stepResult.semanticDictionaryHitId)
+                  : recordSemanticSuccess(catalog, stepResult.semanticDictionaryHitId);
+              catalogDirty = true;
+            }
+
+            return stepResult;
+          }),
+          { concurrency: 1 },
+        );
+
+      // Use Effect.ensuring so the browser page is always cleaned up,
+      // even if step execution fails. Pool pages are released; harness pages are disposed.
+      const disposeOrRelease = poolHandle && pool
+        ? Effect.promise(() => pool.release(poolHandle))
+        : harness
+          ? Effect.promise(() => harness.dispose())
+          : null;
+      const results = yield* (disposeOrRelease
+        ? runStepsEffect.pipe(Effect.ensuring(disposeOrRelease))
+        : runStepsEffect);
 
       // ─── Semantic Dictionary: persist once at end of run ───
       if (catalogDirty) {
@@ -201,4 +254,11 @@ export const LocalRuntimeScenarioRunner: RuntimeScenarioRunnerPort = buildRunner
  *  Used by composition layer when an agent session provides its own interpreter. */
 export const createLocalRuntimeScenarioRunnerWithInterpreter = (
   interpreter: EffectfulAgentInterpreterPort,
-): RuntimeScenarioRunnerPort => buildRunnerWithInterpreter(interpreter);
+  options?: RunnerOptions,
+): RuntimeScenarioRunnerPort => buildRunnerWithInterpreter(interpreter, options);
+
+/** Factory: create a runner with a browser pool for page reuse across scenarios. */
+export const createLocalRuntimeScenarioRunnerWithPool = (
+  pool: import('../application/browser-pool').BrowserPoolPort,
+  interpreter?: EffectfulAgentInterpreterPort,
+): RuntimeScenarioRunnerPort => buildRunnerWithInterpreter(interpreter, { browserPool: pool });

@@ -37,6 +37,9 @@ const COMBINED_SCORE_THRESHOLD = 0.35;
 /** Initial confidence for a newly accrued entry. */
 const INITIAL_CONFIDENCE = 0.5;
 
+/** Higher initial confidence for DOM-sourced entries (ground truth from live page). */
+const DOM_EXPLORATION_INITIAL_CONFIDENCE = 0.7;
+
 /** Confidence boost per successful reuse. Diminishing: scaled by (1 - current). */
 const SUCCESS_BOOST = 0.12;
 
@@ -356,7 +359,7 @@ export function accrueSemanticEntry(
     target: input.target,
     provenance: input.provenance,
     winningSource: input.winningSource,
-    confidence: INITIAL_CONFIDENCE,
+    confidence: input.provenance === 'dom-exploration' ? DOM_EXPLORATION_INITIAL_CONFIDENCE : INITIAL_CONFIDENCE,
     successCount: 1,
     failureCount: 0,
     consecutiveFailures: 0,
@@ -438,6 +441,61 @@ export function promotionCandidates(catalog: SemanticDictionaryCatalog): readonl
     && e.confidence >= HIGH_CONFIDENCE_THRESHOLD
     && e.successCount >= 3,
   );
+}
+
+/** Confidence boost for execution-validated successes (DOM state change confirmed). */
+const VALIDATED_SUCCESS_BOOST = 0.18;
+
+/** Per-iteration decay rate for entries not used in the current iteration. */
+const UNUSED_DECAY_RATE = 0.03;
+
+/** Minimum confidence floor below which decayed entries are removed entirely. */
+const DECAY_REMOVAL_FLOOR = 0.05;
+
+/**
+ * Record a validated success — the action executed AND the DOM state changed as expected.
+ * Gives a stronger confidence boost than a plain execution success because it confirms
+ * the semantic mapping was correct, not just that the element was clickable.
+ */
+export function recordValidatedSuccess(catalog: SemanticDictionaryCatalog, entryIdValue: string): SemanticDictionaryCatalog {
+  const now = new Date().toISOString();
+  return rebuildCatalog(catalog.entries.map((e) =>
+    e.id === entryIdValue
+      ? {
+          ...e,
+          confidence: round(Math.min(0.99, e.confidence + VALIDATED_SUCCESS_BOOST * (1 - e.confidence))),
+          successCount: e.successCount + 1,
+          consecutiveFailures: 0,
+          lastUsedAt: now,
+        }
+      : e,
+  ), catalog.shingleIndex);
+}
+
+/**
+ * Apply confidence decay to entries not used in the current iteration.
+ *
+ * Entries that were used (lastUsedAt >= iterationStartTime) are untouched.
+ * Unused entries lose a small amount of confidence per iteration, preventing
+ * stale mappings from persisting indefinitely. Entries that decay below the
+ * removal floor are pruned.
+ *
+ * Pure function: catalog + timestamp → decayed catalog.
+ */
+export function decayUnusedEntries(
+  catalog: SemanticDictionaryCatalog,
+  iterationStartTime: string,
+): SemanticDictionaryCatalog {
+  const startMs = new Date(iterationStartTime).getTime();
+  const decayed = catalog.entries
+    .map((e) => {
+      const usedInIteration = new Date(e.lastUsedAt).getTime() >= startMs;
+      if (usedInIteration || e.promoted) return e;
+      const newConfidence = round(Math.max(0, e.confidence - UNUSED_DECAY_RATE));
+      return { ...e, confidence: newConfidence };
+    })
+    .filter((e) => e.confidence >= DECAY_REMOVAL_FLOOR || e.promoted);
+  return rebuildCatalog(decayed);
 }
 
 export function emptyCatalog(): SemanticDictionaryCatalog {

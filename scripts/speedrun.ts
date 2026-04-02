@@ -4,6 +4,7 @@
  * Full mode:
  *   npx tsx scripts/speedrun.ts [--count N] [--seed S] [--seeds S1,S2,S3]
  *        [--max-iterations N] [--posture cold-start|warm-start|production]
+ *        [--mode playwright|diagnostic]
  *        [--lexical-gap G] [--data-var D] [--coverage-gap G] [--cross-screen C]
  *        [--drift-count N]
  *
@@ -45,7 +46,10 @@ import {
   formatBaselineSummary,
   type PhaseTimingBaseline,
   type PhaseTimingBudget,
-} from '../lib/domain/speedrun-statistics';
+} from '../lib/domain/projection/speedrun-statistics';
+import { startFixtureServer, type FixtureServer } from '../lib/infrastructure/fixture-server';
+import { createPlaywrightBrowserPool } from '../lib/infrastructure/playwright-browser-pool';
+import type { BrowserPoolPort } from '../lib/application/browser-pool';
 
 // ─── CLI argument parsing ───
 
@@ -70,6 +74,12 @@ const crossScreen = args.includes('--cross-screen') ? Number(argVal('--cross-scr
 const hasFineGrainedPerturb = lexicalGap > 0 || dataVariation > 0 || coverageGap > 0 || crossScreen > 0;
 const driftCount = args.includes('--drift-count') ? Number(argVal('--drift-count', '0')) : 0;
 const explicitPosture = args.includes('--posture') ? argVal('--posture', '') as KnowledgePosture : undefined;
+const rawMode = args.includes('--mode') ? argVal('--mode', 'playwright') : 'playwright';
+const effectiveMode = rawMode === 'escalate' ? 'playwright' : rawMode;
+if (rawMode === 'escalate') {
+  console.error('WARNING: --mode escalate is deprecated. Playwright is now the default mode. Use --mode diagnostic for offline runs.');
+}
+const explicitBaseUrl = args.includes('--base-url') ? argVal('--base-url', '') : '';
 
 const rootDir = process.cwd();
 const paths = createProjectPaths(rootDir, path.join(rootDir, 'dogfood'));
@@ -224,7 +234,7 @@ const subcommand: Subcommand | null =
   args.length > 0 && SUBCOMMANDS.includes(args[0] as Subcommand) ? args[0] as Subcommand : null;
 
 const serviceOptions = {
-  posture: { interpreterMode: 'diagnostic' as const, writeMode: 'persist' as const, executionProfile: 'dogfood' as const },
+  posture: { interpreterMode: effectiveMode as 'diagnostic' | 'playwright' | 'dry-run', writeMode: 'persist' as const, executionProfile: 'dogfood' as const },
   suiteRoot: paths.suiteRoot,
   pipelineConfig: loadPipelineConfig(),
 };
@@ -262,7 +272,7 @@ async function runIterate(): Promise<void> {
   const progressPath = path.join(rootDir, '.tesseract', 'runs', 'speedrun-progress.jsonl');
   const onProgress = createProgressCallback(progressPath);
 
-  const result = await runWithLocalServices(
+  const result = await withPlaywrightEnvironment((env) => runWithLocalServices(
     iteratePhase({
       paths,
       maxIterations,
@@ -271,10 +281,13 @@ async function runIterate(): Promise<void> {
       knowledgePosture,
       seed: singleSeed,
       onProgress,
+      interpreterMode: effectiveMode as 'dry-run' | 'diagnostic' | 'playwright',
+      baseUrl: env.baseUrl,
+      browserPool: env.browserPool,
     }),
     rootDir,
-    serviceOptions,
-  );
+    { ...serviceOptions, browserPool: env.browserPool },
+  ));
   console.log(`\nDogfood loop: ${result.ledger.completedIterations} iterations, converged=${result.ledger.converged} (${result.ledger.convergenceReason ?? 'n/a'})`);
   console.log(`  Knowledge hit rate delta: ${result.ledger.knowledgeHitRateDelta > 0 ? '+' : ''}${result.ledger.knowledgeHitRateDelta}`);
   console.log(`  Total proposals activated: ${result.ledger.totalProposalsActivated}`);
@@ -311,6 +324,50 @@ async function runReport(): Promise<void> {
     : '\nScorecard unchanged — did not beat the mark.');
 }
 
+// ─── Fixture server + browser pool lifecycle helper ───
+
+interface PlaywrightEnvironment {
+  readonly baseUrl: string | undefined;
+  readonly browserPool: BrowserPoolPort | undefined;
+}
+
+async function withPlaywrightEnvironment<T>(fn: (env: PlaywrightEnvironment) => Promise<T>): Promise<T> {
+  if (effectiveMode === 'diagnostic') return fn({ baseUrl: undefined, browserPool: undefined });
+
+  const resolvedBaseUrl = explicitBaseUrl || undefined;
+  let server: FixtureServer | null = null;
+  let pool: BrowserPoolPort | null = null;
+
+  try {
+    // Start fixture server if no explicit base URL
+    if (!resolvedBaseUrl) {
+      console.log('Starting fixture server for Playwright execution...');
+      server = await startFixtureServer({ rootDir });
+      console.log(`Fixture server ready at ${server.baseUrl}`);
+    }
+
+    const baseUrl = resolvedBaseUrl ?? server?.baseUrl;
+
+    // Create browser pool for page reuse across scenarios
+    console.log('Creating browser pool for cross-scenario page reuse...');
+    pool = await createPlaywrightBrowserPool({ config: { poolSize: 4, preWarm: true, maxPageAgeMs: 300_000 } });
+    console.log('Browser pool ready (4 warm pages).');
+
+    return await fn({ baseUrl, browserPool: pool });
+  } finally {
+    if (pool) {
+      const stats = pool.stats;
+      console.log(`Browser pool stats: acquired=${stats.totalAcquired} released=${stats.totalReleased} overflow=${stats.totalOverflow} resets=${stats.totalResets}`);
+      await pool.close();
+      console.log('Browser pool closed.');
+    }
+    if (server) {
+      await server.stop();
+      console.log('Fixture server stopped.');
+    }
+  }
+}
+
 // ─── Full speedrun (default, no subcommand) ───
 
 async function runFull(): Promise<void> {
@@ -320,12 +377,13 @@ async function runFull(): Promise<void> {
 
   console.log(`Pipeline version: (resolved at runtime)`);
   console.log(`Knowledge posture: ${knowledgePosture}`);
+  console.log(`Mode: ${effectiveMode}`);
   console.log(`Seeds: ${seeds.join(', ')}`);
   console.log(`Count: ${count}, Max iterations: ${maxIterations}`);
   if (lexicalGap > 0) console.log(`Lexical gap: ${lexicalGap}`);
   if (driftCount > 0) console.log(`Drift mutations: ${driftCount}`);
 
-  const result = await runWithLocalServices(
+  const result = await withPlaywrightEnvironment((env) => runWithLocalServices(
     multiSeedSpeedrun({
       paths,
       config: pipelineConfig,
@@ -339,13 +397,17 @@ async function runFull(): Promise<void> {
       knowledgePosture,
       driftCount: driftCount > 0 ? driftCount : undefined,
       onProgress,
+      interpreterMode: effectiveMode as 'dry-run' | 'diagnostic' | 'playwright',
+      baseUrl: env.baseUrl,
+      browserPool: env.browserPool,
     }),
     rootDir,
     {
       ...serviceOptions,
       pipelineConfig,
+      browserPool: env.browserPool,
     },
-  );
+  ));
 
   printResult(result);
 }

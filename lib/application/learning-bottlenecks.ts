@@ -53,6 +53,59 @@ function buildBottleneckScoring(weights: BottleneckWeights = DEFAULT_PIPELINE_CO
 
 const bottleneckScoring = buildBottleneckScoring();
 
+// ─── Per-proposal scoring for activation priority ───
+
+/**
+ * Score a single proposal by its target screen's bottleneck impact.
+ *
+ * Extracts the screen name from the proposal's targetPath (e.g.
+ * "knowledge/screens/policy-search.hints.yaml" → "policy-search"),
+ * then evaluates the composite bottleneck score using the supplied weights
+ * and optional per-screen metrics.
+ *
+ * Returns 0.5 when no screen metrics are available (neutral priority).
+ * Pure function — reusable by any proposal ranking caller.
+ */
+export function scoreProposalByBottleneck(
+  targetPath: string,
+  weights?: BottleneckWeights | undefined,
+  screenMetrics?: ReadonlyMap<string, {
+    readonly repairDensity: number;
+    readonly translationRate: number;
+    readonly unresolvedRate: number;
+    readonly screenFragmentShare: number;
+  }> | undefined,
+): number {
+  const screen = extractScreenFromTargetPath(targetPath);
+  if (!screen) return 0.5;
+
+  const metrics = screenMetrics?.get(screen);
+  if (!metrics) return 0.5;
+
+  const scoring = weights ? buildBottleneckScoring(weights) : bottleneckScoring;
+  return round4(scoring.score({
+    screen,
+    action: 'composite',
+    repairDensity: metrics.repairDensity,
+    translationRate: metrics.translationRate,
+    unresolvedRate: metrics.unresolvedRate,
+    screenFragmentShare: metrics.screenFragmentShare,
+  }));
+}
+
+function extractScreenFromTargetPath(targetPath: string): string | null {
+  // Match patterns like "knowledge/screens/{screen}.hints.yaml",
+  // "knowledge/screens/{screen}.elements.yaml", etc.
+  const screenMatch = targetPath.match(/knowledge\/screens\/([^/.]+)\./);
+  if (screenMatch) return screenMatch[1]!;
+
+  // Match patterns like "knowledge/surfaces/{screen}.surface.yaml"
+  const surfaceMatch = targetPath.match(/knowledge\/surfaces\/([^/.]+)\./);
+  if (surfaceMatch) return surfaceMatch[1]!;
+
+  return null;
+}
+
 // ─── Self-calibrating weights from correlation data ───
 //
 // Maps bottleneck signals to weight keys, then adjusts weights proportionally

@@ -1,12 +1,14 @@
 import path from 'path';
 import { Effect } from 'effect';
-import type { AutoApprovalPolicy, ProposalBundle, ProposalEntry, TrustPolicy } from '../domain/types';
+import type { AutoApprovalPolicy, BottleneckWeights, ProposalBundle, ProposalEntry, TrustPolicy } from '../domain/types';
 import { GovernanceLattice } from '../domain/algebra/lattice';
 import type { ProjectPaths } from './paths';
 import { FileSystem } from './ports';
 import { trySync } from './effect';
 import { applyProposalPatch, parseProposalArtifact, serializeProposalArtifact, validatePatchedProposalArtifact } from './proposal-patches';
 import { evaluateAutoApproval } from '../domain/governance/trust-policy';
+import { findToxicAliases, type AliasOutcome } from '../domain/governance/proposal-quality';
+import { scoreProposalByBottleneck } from './learning-bottlenecks';
 import type { FileSystemPort } from './ports';
 
 function certificationForProposal(proposal: ProposalEntry): ProposalEntry['certification'] {
@@ -162,6 +164,74 @@ export function deactivateProposals(backups: CompensationBackup[]) {
   });
 }
 
+// ─── Toxic Alias Quarantine ───
+
+/**
+ * Remove toxic aliases from hints files, preventing them from misdirecting
+ * future resolution attempts.
+ *
+ * For each toxic alias outcome, reads the corresponding hints file,
+ * removes the alias entry, and writes back. Idempotent — quarantining
+ * an already-removed alias is a no-op.
+ *
+ * This is the inverse of `activateProposalBundle` — deactivation for
+ * aliases that have proven harmful. Lives alongside activation because
+ * both are proposal lifecycle operations.
+ */
+export function quarantineToxicProposals(options: {
+  readonly paths: ProjectPaths;
+  readonly toxicAliases: readonly AliasOutcome[];
+}): Effect.Effect<{ readonly quarantinedCount: number; readonly quarantinedPaths: readonly string[] }, unknown, unknown> {
+  if (options.toxicAliases.length === 0) {
+    return Effect.succeed({ quarantinedCount: 0, quarantinedPaths: [] });
+  }
+
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const quarantinedPaths: string[] = [];
+
+    // Group toxic aliases by screenId to batch file operations
+    const byScreen = new Map<string, AliasOutcome[]>();
+    for (const alias of options.toxicAliases) {
+      const group = byScreen.get(alias.screenId) ?? [];
+      group.push(alias);
+      byScreen.set(alias.screenId, group);
+    }
+
+    yield* Effect.forEach(
+      [...byScreen.entries()],
+      ([screenId, aliases]) => Effect.gen(function* () {
+        const hintsPath = path.join(options.paths.rootDir, `knowledge/screens/${screenId}.hints.yaml`);
+        const exists = yield* fs.exists(hintsPath);
+        if (!exists) return;
+
+        const content = yield* fs.readText(hintsPath);
+        const aliasIds = new Set(aliases.map((a) => a.aliasId));
+
+        // Remove lines containing toxic alias IDs from the hints YAML.
+        // This is a conservative line-level filter that preserves structure.
+        const lines = content.split('\n');
+        const filtered = lines.filter((line) => {
+          const trimmed = line.trim();
+          return !Array.from(aliasIds).some((id) => trimmed.includes(id));
+        });
+
+        const nextContent = filtered.join('\n');
+        if (nextContent !== content) {
+          yield* fs.writeText(hintsPath, nextContent);
+          quarantinedPaths.push(hintsPath);
+        }
+      }),
+      { concurrency: 10 },
+    );
+
+    return {
+      quarantinedCount: options.toxicAliases.length,
+      quarantinedPaths: quarantinedPaths.sort((a, b) => a.localeCompare(b)),
+    };
+  });
+}
+
 // ─── WP5: Auto-Approval Activation ───
 
 /**
@@ -183,14 +253,49 @@ export function autoApproveEligibleProposals(options: {
   readonly proposalBundle: ProposalBundle;
   readonly autoApprovalPolicy: AutoApprovalPolicy;
   readonly trustPolicy: TrustPolicy;
+  /** Optional alias outcomes — toxic aliases are blocked before activation. */
+  readonly aliasOutcomes?: readonly AliasOutcome[] | undefined;
+  /** Optional bottleneck weights — used to sort proposals by impact before activation. */
+  readonly bottleneckWeights?: BottleneckWeights | undefined;
+  /** Optional per-screen metrics for bottleneck scoring. */
+  readonly screenMetrics?: ReadonlyMap<string, {
+    readonly repairDensity: number;
+    readonly translationRate: number;
+    readonly unresolvedRate: number;
+    readonly screenFragmentShare: number;
+  }> | undefined;
 }): Effect.Effect<ActivateProposalBundleResult, unknown, unknown> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const activatedAt = new Date().toISOString();
 
+    // Build toxic alias lookup for O(1) gating
+    const toxicAliasIds = options.aliasOutcomes
+      ? new Set(findToxicAliases(options.aliasOutcomes).map((a) => a.aliasId))
+      : new Set<string>();
+
+    // Sort proposals by bottleneck impact if weights are provided.
+    // Higher-impact proposals activate first, focusing budget on degraded screens.
+    const orderedProposals = options.bottleneckWeights
+      ? [...options.proposalBundle.proposals].sort((a, b) => {
+          const scoreA = scoreProposalByBottleneck(a.targetPath, options.bottleneckWeights, options.screenMetrics);
+          const scoreB = scoreProposalByBottleneck(b.targetPath, options.bottleneckWeights, options.screenMetrics);
+          return scoreB - scoreA;
+        })
+      : options.proposalBundle.proposals;
+
     const results: AutoApprovalStepResult[] = yield* Effect.forEach(
-      options.proposalBundle.proposals,
+      orderedProposals,
       (proposal): Effect.Effect<AutoApprovalStepResult, never, never> => {
+        // Gate: block proposals targeting known-toxic aliases
+        if (toxicAliasIds.has(proposal.proposalId)) {
+          return Effect.succeed({
+            proposal: blockedProposal(proposal, `quarantined: toxic alias`),
+            activatedPath: null,
+            blocked: true,
+          });
+        }
+
         const autoResult = evaluateAutoApproval({
           policy: options.autoApprovalPolicy,
           trustEvaluation: proposal.trustPolicy,

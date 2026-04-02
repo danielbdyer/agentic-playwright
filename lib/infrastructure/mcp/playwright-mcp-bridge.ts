@@ -23,6 +23,7 @@
 import { Effect } from 'effect';
 import { Context } from 'effect';
 import { TesseractError } from '../../domain/kernel/errors';
+import { navigationOptionsForUrl } from '../../runtime/navigation-strategy';
 import { RETRY_POLICIES, retryScheduleForTaggedErrors } from '../../application/resilience/schedules';
 
 // ─── Port Interface ───
@@ -123,7 +124,7 @@ function createActionQueue() {
 export function createPlaywrightBridge(page: {
   readonly click: (selector: string) => Promise<void>;
   readonly fill: (selector: string, value: string) => Promise<void>;
-  readonly goto: (url: string) => Promise<unknown>;
+  readonly goto: (url: string, options?: { waitUntil?: string; timeout?: number }) => Promise<unknown>;
   readonly screenshot: (options?: { fullPage?: boolean }) => Promise<Buffer>;
   readonly locator: (selector: string) => { boundingBox: () => Promise<{ x: number; y: number; width: number; height: number } | null> };
   readonly url: () => string;
@@ -148,10 +149,12 @@ export function createPlaywrightBridge(page: {
             await page.fill(action.selector, action.value);
             return { success: true, action: 'fill' as const, data: { selector: action.selector, value: action.value } };
 
-          case 'navigate':
+          case 'navigate': {
             if (!action.url) return { success: false, action: 'navigate' as const, data: null, error: 'url required' };
-            await page.goto(action.url);
+            const navOpts = navigationOptionsForUrl(action.url);
+            await page.goto(action.url, { waitUntil: navOpts.waitUntil, timeout: navOpts.timeout });
             return { success: true, action: 'navigate' as const, data: { url: action.url } };
+          }
 
           case 'screenshot': {
             const buffer = await page.screenshot({ fullPage: false });
@@ -204,7 +207,7 @@ export function createScopedPlaywrightBridge(
   page: {
     readonly click: (selector: string) => Promise<void>;
     readonly fill: (selector: string, value: string) => Promise<void>;
-    readonly goto: (url: string) => Promise<unknown>;
+    readonly goto: (url: string, options?: { waitUntil?: string; timeout?: number }) => Promise<unknown>;
     readonly screenshot: (options?: { fullPage?: boolean }) => Promise<Buffer>;
     readonly locator: (selector: string) => { boundingBox: () => Promise<{ x: number; y: number; width: number; height: number } | null> };
     readonly url: () => string;

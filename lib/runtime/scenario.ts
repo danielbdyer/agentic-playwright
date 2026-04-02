@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test';
+import { navigationOptionsForUrl } from './navigation-strategy';
 import { attachConsoleSentinel } from './console-sentinel';
 import { uniqueSorted } from '../domain/kernel/collections';
 import { rankRouteVariants } from '../domain/knowledge/route-knowledge';
@@ -10,7 +11,6 @@ import { emptyExecutionTiming, normalizeFailureFamily } from '../domain/executio
 import { compileStepProgram } from '../domain/execution/program';
 import type { SnapshotTemplateLoader } from '../domain/execution/runtime-loaders';
 import { RuntimeError } from '../domain/kernel/errors';
-import { mintBlocked } from '../domain/types/shared-context';
 import {
   advanceScenarioRunState,
   createScenarioRunState as createScenarioRunStateAggregate,
@@ -428,7 +428,7 @@ export async function runScenarioStep(
           parents: [task.taskFingerprint],
           handshakes: ['preparation', 'resolution', 'execution'],
         },
-        governance: mintBlocked(),
+        governance: 'review-required' as const,
         stepIndex: task.index,
         taskFingerprint: task.taskFingerprint,
         knowledgeFingerprint: agentContext.resolutionContext.knowledgeFingerprint,
@@ -548,7 +548,7 @@ export async function runScenarioStep(
           parents: [task.taskFingerprint],
           handshakes: ['preparation', 'resolution', 'execution'],
         },
-        governance: mintBlocked(),
+        governance: 'review-required' as const,
         stepIndex: task.index,
         taskFingerprint: task.taskFingerprint,
         knowledgeFingerprint: interfaceResolutionContext.knowledgeFingerprint,
@@ -628,7 +628,11 @@ export async function runScenarioStep(
     && routeSelection.preNavigationRequested
     && routeSelection.selectedRouteUrl
   ) {
-    await environment.page.goto(routeSelection.selectedRouteUrl);
+    const navOpts = navigationOptionsForUrl(routeSelection.selectedRouteUrl);
+    await environment.page.goto(routeSelection.selectedRouteUrl, {
+      waitUntil: navOpts.waitUntil,
+      timeout: navOpts.timeout,
+    });
   }
 
   const result = environment.mode === 'playwright'
@@ -787,7 +791,7 @@ export async function runScenarioStep(
       parents: [task.taskFingerprint],
       handshakes: ['preparation', 'resolution', 'execution'],
     },
-    governance: result.ok || recovery.recovered ? 'approved' : 'blocked',
+    governance: result.ok || recovery.recovered ? 'approved' : 'review-required',
     stepIndex: task.index,
     taskFingerprint: task.taskFingerprint,
     knowledgeFingerprint: agentContext.resolutionContext.knowledgeFingerprint,
