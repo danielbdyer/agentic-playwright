@@ -17,22 +17,26 @@ elements:
       - Access policy search screen
       - Activate search button
       - Browse to policy search screen
+      - Click search
       - Load the policy search screen page
+      - Open policy search screen
+      - Press the search
       - search
       - search button
+      - Tap search
       - Trigger search button
+      - Verify search results is visible
       - Visit the policy search screen
     acquired:
       certification: uncertified
-      activatedAt: 2026-03-17T23:35:47.652Z
+      activatedAt: 2026-04-02T22:39:51.677Z
       certifiedAt: null
       lineage:
         runIds:
-          - 2026-03-17T23-35-47-177Z
-        evidenceIds:
-          - .tesseract/evidence/runs/20046/2026-03-17T23-35-47-177Z/step-5-0.json
+          - 2026-04-02T22-39-51-648Z
+        evidenceIds: []
         sourceArtifactPaths:
-          - .tesseract/tasks/20046.resolution.json
+          - .tesseract/tasks/20009.resolution.json
           - controls/runbooks/synthetic-dogfood.runbook.yaml
           - controls/datasets/demo-default.dataset.yaml
         role: null
@@ -40,13 +44,48 @@ elements:
         driftSeed: null
   resultsTable:
     aliases:
-      - search results
+      - Check that results table is displayed
       - results table
+      - search results
     snapshotAliases:
       snapshots/policy-search/results-with-policy.yaml:
         - verify search results show policy
         - matching policy appears in search results
+    acquired:
+      certification: uncertified
+      activatedAt: 2026-04-02T22:39:21.207Z
+      certifiedAt: null
+      lineage:
+        runIds:
+          - 2026-04-02T22-39-21-006Z
+        evidenceIds: []
+        sourceArtifactPaths:
+          - .tesseract/tasks/20002.resolution.json
+          - controls/runbooks/synthetic-dogfood.runbook.yaml
+          - controls/datasets/demo-default.dataset.yaml
+        role: null
+        state: null
+        driftSeed: null
   validationSummary:
     aliases:
-      - validation summary
+      - Assert validation summary is shown
+      - Confirm error summary appears
+      - Confirm validation summary appears
       - error summary
+      - validation summary
+      - Verify error summary is visible
+    acquired:
+      certification: uncertified
+      activatedAt: 2026-04-02T22:39:51.677Z
+      certifiedAt: null
+      lineage:
+        runIds:
+          - 2026-04-02T22-39-51-648Z
+        evidenceIds: []
+        sourceArtifactPaths:
+          - .tesseract/tasks/20009.resolution.json
+          - controls/runbooks/synthetic-dogfood.runbook.yaml
+          - controls/datasets/demo-default.dataset.yaml
+        role: null
+        state: null
+        driftSeed: null

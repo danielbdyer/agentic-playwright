@@ -7,11 +7,27 @@ screenAliases:
 elements:
   amendmentNumber:
     aliases:
-      - amendment number
-      - change number
       - amendment ID
+      - amendment number
       - amendment reference
+      - change number
+      - Enter test data in search field
     affordance: read-only
+    acquired:
+      certification: uncertified
+      activatedAt: 2026-04-02T22:39:51.513Z
+      certifiedAt: null
+      lineage:
+        runIds:
+          - 2026-04-02T22-39-21-232Z
+        evidenceIds: []
+        sourceArtifactPaths:
+          - .tesseract/tasks/20004.resolution.json
+          - controls/runbooks/synthetic-dogfood.runbook.yaml
+          - controls/datasets/demo-default.dataset.yaml
+        role: null
+        state: null
+        driftSeed: null
   amendmentStatus:
     aliases:
       - amendment status

@@ -270,6 +270,8 @@ async function startSpeedrunHost(config: SpeedrunStartConfig): Promise<{ status:
   const ctx = createLocalServiceContext(ROOT_DIR, serviceOptions);
 
   // Build the speedrun program
+  const aggressiveActivation = (config as Record<string, unknown>).aggressiveActivation as boolean | undefined ?? false;
+
   const program = multiSeedSpeedrun({
     paths,
     config: pipelineConfig,
@@ -281,6 +283,7 @@ async function startSpeedrunHost(config: SpeedrunStartConfig): Promise<{ status:
     interpreterMode,
     baseUrl: resolvedBaseUrl,
     browserPool: hostState.browserPool ?? undefined,
+    aggressiveActivation,
   });
 
   // Run as background fiber

@@ -92,6 +92,8 @@ export interface SpeedrunStartConfig {
   readonly maxIterations?: number | undefined;
   readonly knowledgePosture?: string | undefined;
   readonly interpreterMode?: string | undefined;
+  /** Bypass trust-gated auto-approval and directly activate ALL proposals for fastest convergence. */
+  readonly aggressiveActivation?: boolean | undefined;
 }
 
 /** Handle to a running speedrun fiber. */

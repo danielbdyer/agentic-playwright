@@ -4,7 +4,7 @@
  * Full mode:
  *   npx tsx scripts/speedrun.ts [--count N] [--seed S] [--seeds S1,S2,S3]
  *        [--max-iterations N] [--posture cold-start|warm-start|production]
- *        [--mode playwright|diagnostic]
+ *        [--mode playwright|diagnostic] [--aggressive]
  *        [--lexical-gap G] [--data-var D] [--coverage-gap G] [--cross-screen C]
  *        [--drift-count N]
  *
@@ -80,6 +80,7 @@ const effectiveMode = rawMode === 'escalate' ? 'playwright' : rawMode;
 if (rawMode === 'escalate') {
   console.error('WARNING: --mode escalate is deprecated. Playwright is now the default mode. Use --mode diagnostic for offline runs.');
 }
+const aggressiveActivation = args.includes('--aggressive');
 const explicitBaseUrl = args.includes('--base-url') ? argVal('--base-url', '') : '';
 
 const rootDir = process.cwd();
@@ -298,6 +299,7 @@ async function runIterate(): Promise<void> {
       interpreterMode: effectiveMode as 'dry-run' | 'diagnostic' | 'playwright',
       baseUrl: env.baseUrl,
       browserPool: env.browserPool,
+      aggressiveActivation,
     }),
     rootDir,
     { ...serviceOptions, browserPool: env.browserPool },
@@ -414,6 +416,7 @@ async function runFull(): Promise<void> {
       interpreterMode: effectiveMode as 'dry-run' | 'diagnostic' | 'playwright',
       baseUrl: env.baseUrl,
       browserPool: env.browserPool,
+      aggressiveActivation,
     }),
     rootDir,
     {
