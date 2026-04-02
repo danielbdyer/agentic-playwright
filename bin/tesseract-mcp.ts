@@ -366,7 +366,7 @@ async function handleRequest(request: JsonRpcRequest): Promise<void> {
     case 'initialize': {
       sendResponse(request.id, {
         protocolVersion: '2024-11-05',
-        capabilities: { tools: {} },
+        capabilities: { tools: {}, resources: {}, notifications: {} },
         serverInfo: {
           name: 'tesseract-dashboard',
           version: '0.3.0',
@@ -402,6 +402,27 @@ async function handleRequest(request: JsonRpcRequest): Promise<void> {
         content: [{ type: 'text', text: JSON.stringify(result.result, null, 2) }],
         isError: result.isError,
       });
+      break;
+    }
+
+    case 'resources/list': {
+      const resources = Effect.runSync(mcpServer.listResources());
+      sendResponse(request.id, { resources });
+      break;
+    }
+
+    case 'resources/read': {
+      const params = request.params as { uri?: string } | undefined;
+      if (!params?.uri) {
+        sendError(request.id, -32602, 'Missing resource URI');
+        break;
+      }
+      try {
+        const content = Effect.runSync(mcpServer.readResource(params.uri));
+        sendResponse(request.id, { contents: [content] });
+      } catch (err) {
+        sendError(request.id, -32002, String(err));
+      }
       break;
     }
 

@@ -585,6 +585,12 @@ export const dashboardMcpTools: readonly McpToolDefinition[] = [
     description: 'Get the impact of knowledge contributions: how many proposals were activated vs pending, average node confidence, hints files written, and fitness high-water-mark. Use after contributing hints or aliases to see if they helped.',
     inputSchema: { type: 'object', properties: { screen: { type: 'string', description: 'Optional screen filter' } } },
   },
+  {
+    name: 'get_suggested_action',
+    category: 'observe',
+    description: 'Get ranked suggestions for what to do next based on current system state. Examines loop phase, pending decisions, bottlenecks, knowledge gaps, and fitness trends to recommend the highest-value next action.',
+    inputSchema: { type: 'object', properties: {} },
+  },
 ] as const;
 
 // ─── Headed Runtime Capability ───

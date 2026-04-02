@@ -13,13 +13,28 @@
  */
 
 import { Effect } from 'effect';
-import type { McpServerPort, McpToolInvocation, McpToolResult } from '../../application/ports';
+import type { McpServerPort, McpToolInvocation, McpToolResult, McpResource, McpResourceContent } from '../../application/ports';
+import { TesseractError } from '../../domain/kernel/errors';
 import type { McpToolDefinition, WorkItemDecision, ScreenCapturedEvent } from '../../domain/types';
 import { dashboardMcpTools, dashboardEvent } from '../../domain/types/intervention-context';
 import { resolveResource, buildResourceUri } from './resource-provider';
 import type { ResourceArtifactReader } from './resource-provider';
 import type { PlaywrightBridgePort, BrowserAction } from './playwright-mcp-bridge';
 import { RETRY_POLICIES, formatRetryMetadata, retryMetadata, retryScheduleForTaggedErrors } from '../../application/resilience/schedules';
+
+// ─── Actionable Errors ───
+
+/** Structured error with recovery guidance for agent callers. */
+function actionableError(error: string, suggestedAction: string, suggestedTool?: string): { error: string; suggestedAction: string; suggestedTool?: string; isError: true } {
+  return { error, suggestedAction, ...(suggestedTool ? { suggestedTool } : {}), isError: true as const };
+}
+
+// ─── Phase Context ───
+
+/** Return the current loop phase for embedding in observation responses. */
+function currentPhase(options: DashboardMcpServerOptions): string {
+  return options.getLoopStatus?.().phase ?? 'unknown';
+}
 
 // ─── Configuration ───
 
@@ -224,7 +239,11 @@ const approveWorkItem: ToolHandler = (args, options) => {
   if (!workItemId) return { error: 'workItemId is required', isError: true };
 
   const resolver = claimResolver(options.pendingDecisions, workItemId);
-  if (!resolver) return { error: `No pending decision for ${workItemId}`, isError: true };
+  if (!resolver) return actionableError(
+    `No pending decision for ${workItemId}`,
+    "Call get_queue_items with status='pending' to see current pending items, or get_loop_status to check the loop phase.",
+    'get_queue_items',
+  );
 
   const decision: WorkItemDecision = {
     workItemId,
@@ -241,7 +260,11 @@ const skipWorkItem: ToolHandler = (args, options) => {
   if (!workItemId) return { error: 'workItemId is required', isError: true };
 
   const resolver = claimResolver(options.pendingDecisions, workItemId);
-  if (!resolver) return { error: `No pending decision for ${workItemId}`, isError: true };
+  if (!resolver) return actionableError(
+    `No pending decision for ${workItemId}`,
+    "Call get_queue_items with status='pending' to see current pending items, or get_loop_status to check the loop phase.",
+    'get_queue_items',
+  );
 
   const decision: WorkItemDecision = {
     workItemId,
@@ -301,7 +324,7 @@ const listProposalsHandler: ToolHandler = (args, options) => {
 
 const getBottleneck: ToolHandler = (args, options) => {
   const screen = args.screen as string;
-  if (!screen) return { error: 'screen is required', isError: true };
+  if (!screen) return actionableError('screen is required', 'Call list_screens to see available screen IDs.', 'list_screens');
   const response = resolveResource(buildResourceUri('bottleneck', screen), asReader(options));
   return response.data;
 };
@@ -333,7 +356,7 @@ const getTaskResolution: ToolHandler = (args, options) => {
   const taskId = args.taskId as string;
   if (!taskId) return { error: 'taskId is required', isError: true };
   const resolution = options.readArtifact(`.tesseract/tasks/${taskId}.resolution.json`);
-  return resolution ?? { error: `Resolution for ${taskId} not found`, isError: true };
+  return resolution ?? actionableError(`Resolution for ${taskId} not found`, 'Call get_queue_items to find valid task IDs, or get_resolution_graph to explore the graph.', 'get_queue_items');
 };
 
 const listScreens: ToolHandler = (_args, options) => {
@@ -362,7 +385,7 @@ const executeBrowserAction = (
   options: DashboardMcpServerOptions,
 ): unknown => {
   const bridge = options.playwrightBridge;
-  if (!bridge) return { error: 'Playwright bridge not available (headless mode)', available: false };
+  if (!bridge) return { error: 'Playwright bridge not available (headless mode)', available: false, suggestedAction: 'Start speedrun with headed: true to enable browser tools, or use observation tools (get_screen_capture, list_probed_elements) instead.' };
   const startedAt = Date.now();
   let attempts = 0;
   let result: unknown = null;
@@ -422,7 +445,7 @@ const getDecisionContext: ToolHandler = (args, options) => {
     readonly items?: readonly Record<string, unknown>[];
   } | null;
   const workItem = workbench?.items?.find((i) => (i.id as string) === workItemId);
-  if (!workItem) return { error: `Work item ${workItemId} not found`, isError: true };
+  if (!workItem) return actionableError(`Work item ${workItemId} not found`, 'Call get_queue_items to see available work items, or get_loop_status to check if a speedrun is running.', 'get_queue_items');
 
   // 2. Check completion status
   const completions = options.readArtifact('.tesseract/workbench/completions.json') as {
@@ -493,7 +516,7 @@ const getDecisionContext: ToolHandler = (args, options) => {
 // ─── Lifecycle Tool Handlers ───
 
 const startSpeedrun: ToolHandler = (args, options) => {
-  if (!options.startSpeedrun) return { error: 'Speedrun lifecycle not available (standalone mode). Start the MCP server with lifecycle support.', isError: true };
+  if (!options.startSpeedrun) return actionableError('Speedrun lifecycle not available (standalone mode)', 'Server must run via bin/tesseract-mcp.ts for lifecycle control. Observation tools that read .tesseract/ artifacts still work.');
   const status = options.getLoopStatus?.();
   if (status?.phase === 'running' || status?.phase === 'paused-for-decisions') {
     return { error: `Speedrun already ${status.phase}. Stop it first with stop_speedrun.`, isError: true };
@@ -512,7 +535,7 @@ const startSpeedrun: ToolHandler = (args, options) => {
 };
 
 const stopSpeedrun: ToolHandler = (_args, options) => {
-  if (!options.stopSpeedrun) return { error: 'Speedrun lifecycle not available (standalone mode)', isError: true };
+  if (!options.stopSpeedrun) return actionableError('Speedrun lifecycle not available (standalone mode)', 'Server must run via bin/tesseract-mcp.ts for lifecycle control. Observation tools that read .tesseract/ artifacts still work.');
   const status = options.getLoopStatus?.();
   if (!status || status.phase === 'idle' || status.phase === 'completed' || status.phase === 'failed') {
     return { error: `No active speedrun to stop (phase: ${status?.phase ?? 'idle'})`, isError: true };
@@ -642,6 +665,77 @@ const getContributionImpact: ToolHandler = (args, options) => {
   };
 };
 
+// ─── Workflow Guidance ───
+
+interface Suggestion {
+  readonly priority: number;
+  readonly action: string;
+  readonly tool: string;
+  readonly rationale: string;
+}
+
+const getSuggestedAction: ToolHandler = (_args, options) => {
+  const status = options.getLoopStatus?.() ?? { phase: 'unknown' as const };
+  const suggestions: Suggestion[] = [];
+
+  // Phase-based primary suggestion
+  switch (status.phase) {
+    case 'idle':
+      suggestions.push({ priority: 1, action: 'start', tool: 'start_speedrun', rationale: 'No active speedrun. Start one to begin the recursive improvement loop.' });
+      break;
+    case 'paused-for-decisions': {
+      const count = (status as { pendingDecisionCount?: number }).pendingDecisionCount ?? 0;
+      suggestions.push({ priority: 1, action: 'decide', tool: 'get_queue_items', rationale: `${count} pending decision(s) blocking the loop. Review and approve or skip to unblock.` });
+      break;
+    }
+    case 'running':
+      suggestions.push({ priority: 2, action: 'observe', tool: 'get_loop_status', rationale: 'Loop is running. Monitor progress and watch for bottlenecks.' });
+      break;
+    case 'completed':
+      suggestions.push({ priority: 1, action: 'review', tool: 'get_fitness_metrics', rationale: 'Speedrun completed. Review fitness metrics to see what improved.' });
+      suggestions.push({ priority: 2, action: 'analyze', tool: 'get_contribution_impact', rationale: 'See how your knowledge contributions affected outcomes.' });
+      break;
+    case 'failed': {
+      const error = (status as { error?: string }).error ?? 'unknown error';
+      suggestions.push({ priority: 1, action: 'diagnose', tool: 'get_loop_status', rationale: `Speedrun failed: ${error}. Check status for details before restarting.` });
+      break;
+    }
+  }
+
+  // Secondary suggestions from artifact state
+  const scorecard = options.readArtifact('.tesseract/benchmarks/scorecard.json') as {
+    readonly highWaterMark?: Record<string, unknown>;
+  } | null;
+  if (scorecard?.highWaterMark) {
+    const hwm = scorecard.highWaterMark;
+    const hitRate = hwm.knowledgeHitRate as number | undefined;
+    if (hitRate !== undefined && hitRate < 0.6) {
+      suggestions.push({ priority: 3, action: 'contribute', tool: 'suggest_hint', rationale: `Knowledge hit rate is ${(hitRate * 100).toFixed(0)}% — consider contributing hints for screens with low resolution success.` });
+    }
+  }
+
+  const proposals = options.readArtifact('.tesseract/learning/proposals.json') as {
+    readonly proposals?: readonly Record<string, unknown>[];
+  } | null;
+  if (proposals?.proposals?.length) {
+    const pending = proposals.proposals.filter((p) => !(p.activation as Record<string, unknown>)?.activatedAt);
+    if (pending.length > 0) {
+      suggestions.push({ priority: 3, action: 'review-proposals', tool: 'list_proposals', rationale: `${pending.length} proposal(s) pending activation. Review to see if any should be approved.` });
+    }
+  }
+
+  const graph = options.readArtifact('.tesseract/graph/index.json') as {
+    readonly nodes?: readonly Record<string, unknown>[];
+  } | null;
+  if (graph?.nodes?.length) {
+    suggestions.push({ priority: 4, action: 'explore', tool: 'list_screens', rationale: 'Resolution graph available. Check screens for bottlenecks and knowledge gaps.' });
+  }
+
+  // Sort by priority (lowest number = highest priority)
+  suggestions.sort((a, b) => a.priority - b.priority);
+  return { suggestions, count: suggestions.length };
+};
+
 // ─── Tool Router (pure dispatch) ───
 
 const toolHandlers: Readonly<Record<string, ToolHandler>> = {
@@ -676,7 +770,21 @@ const toolHandlers: Readonly<Record<string, ToolHandler>> = {
   'suggest_locator_alias': suggestLocatorAlias,
   // Contribution impact
   'get_contribution_impact': getContributionImpact,
+  // Workflow guidance
+  'get_suggested_action': getSuggestedAction,
 };
+
+/**
+ * Enrich every tool response with system phase.
+ *
+ * This is a router-level concern, not a handler concern. Handlers stay pure
+ * and focused on their domain. The router adds cross-cutting context that
+ * helps agents orient regardless of which tool they called.
+ */
+function enrichWithPhase(result: unknown, options: DashboardMcpServerOptions): unknown {
+  if (typeof result !== 'object' || result === null) return result;
+  return { ...(result as object), phase: currentPhase(options) };
+}
 
 const routeToolCall = (
   invocation: McpToolInvocation,
@@ -684,17 +792,24 @@ const routeToolCall = (
 ): McpToolResult => {
   const handler = toolHandlers[invocation.tool];
   if (!handler) {
-    return { tool: invocation.tool, result: { error: `Unknown tool: ${invocation.tool}` }, isError: true };
+    return { tool: invocation.tool, result: { error: `Unknown tool: ${invocation.tool}`, suggestedAction: 'Call tools/list to see available tools.', availableTools: Object.keys(toolHandlers), phase: currentPhase(options) }, isError: true };
   }
   try {
     const result = handler(invocation.arguments, options);
-    return { tool: invocation.tool, result, isError: false };
+    return { tool: invocation.tool, result: enrichWithPhase(result, options), isError: false };
   } catch (err) {
-    return { tool: invocation.tool, result: { error: String(err) }, isError: true };
+    return { tool: invocation.tool, result: enrichWithPhase({ error: String(err) }, options), isError: true };
   }
 };
 
 // ─── McpServerPort Implementation ───
+
+/** Static resource catalog — the three tesseract:// URI-template resources. */
+const mcpResources: readonly McpResource[] = [
+  { uri: 'tesseract://proposal/{id}', name: 'Proposal', description: 'Proposal details by ID', mimeType: 'application/json' },
+  { uri: 'tesseract://bottleneck/{screen}', name: 'Bottleneck', description: 'Bottleneck analysis for a screen', mimeType: 'application/json' },
+  { uri: 'tesseract://run/{runId}', name: 'Run', description: 'Run details by ID or "latest"', mimeType: 'application/json' },
+];
 
 export function createDashboardMcpServer(options: DashboardMcpServerOptions): McpServerPort {
   // Compose tool catalog: base tools + lifecycle tools (when host-mode) + knowledge tools (when host-mode)
@@ -707,6 +822,20 @@ export function createDashboardMcpServer(options: DashboardMcpServerOptions): Mc
 
     handleToolCall: (invocation: McpToolInvocation) =>
       Effect.sync(() => routeToolCall(invocation, options)),
+
+    listResources: () => Effect.succeed(mcpResources),
+
+    readResource: (uri: string) => Effect.sync(() => {
+      const response = resolveResource(uri, asReader(options));
+      if (!response.found) {
+        throw new TesseractError('resource-not-found', `Resource not found: ${uri}`);
+      }
+      return {
+        uri: response.uri,
+        mimeType: 'application/json',
+        text: JSON.stringify(response.data, null, 2),
+      } satisfies McpResourceContent;
+    }),
   };
 }
 
