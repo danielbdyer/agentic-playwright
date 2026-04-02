@@ -21,6 +21,7 @@ import { resolveResource, buildResourceUri } from './resource-provider';
 import type { ResourceArtifactReader } from './resource-provider';
 import type { PlaywrightBridgePort, BrowserAction } from './playwright-mcp-bridge';
 import { RETRY_POLICIES, formatRetryMetadata, retryMetadata, retryScheduleForTaggedErrors } from '../../application/resilience/schedules';
+import { writeDecisionFile } from '../dashboard/file-decision-bridge';
 
 // ─── Actionable Errors ───
 
@@ -81,6 +82,10 @@ export interface DashboardMcpServerOptions {
 
   /** Write a hint to a screen's hints.yaml file. Returns the written path. */
   readonly writeHint?: (params: HintContribution) => string | null;
+  /** Decisions directory for file-backed cross-process decisions (standalone mode fallback).
+   *  When no in-memory resolver exists for a work item, the server writes a decision file
+   *  to this directory. A running --mcp-decisions speedrun watches for these files. */
+  readonly decisionsDir?: string | undefined;
   /** Write a locator alias to a screen's hints.yaml file. Returns the written path. */
   readonly writeLocatorAlias?: (params: LocatorAliasContribution) => string | null;
 }
@@ -240,42 +245,62 @@ const approveWorkItem: ToolHandler = (args, options) => {
   const workItemId = args.workItemId as string;
   if (!workItemId) return { error: 'workItemId is required', isError: true };
 
-  const resolver = claimResolver(options.pendingDecisions, workItemId);
-  if (!resolver) return actionableError(
-    `No pending decision for ${workItemId}`,
-    "Call get_queue_items with status='pending' to see current pending items, or get_loop_status to check the loop phase.",
-    'get_queue_items',
-  );
-
   const decision: WorkItemDecision = {
     workItemId,
     status: 'completed',
     rationale: (args.rationale as string) ?? 'Approved via MCP tool',
   };
-  resolver(decision);
-  options.broadcast(dashboardEvent('item-completed', decision));
-  return { ok: true, workItemId, status: 'completed' };
+
+  // Try in-memory resolver first (host-mode: MCP server owns the speedrun fiber)
+  const resolver = claimResolver(options.pendingDecisions, workItemId);
+  if (resolver) {
+    resolver(decision);
+    options.broadcast(dashboardEvent('item-completed', decision));
+    return { ok: true, workItemId, status: 'completed', mode: 'in-memory' };
+  }
+
+  // Fall back to file-based decision bridge (standalone mode: separate speedrun process)
+  if (options.decisionsDir) {
+    writeDecisionFile(options.decisionsDir, decision);
+    return { ok: true, workItemId, status: 'completed', mode: 'file-bridge', writtenTo: options.decisionsDir };
+  }
+
+  return actionableError(
+    `No pending decision for ${workItemId} and no file-bridge configured`,
+    "Call get_queue_items with status='pending' to see current pending items, or get_loop_status to check the loop phase.",
+    'get_queue_items',
+  );
 };
 
 const skipWorkItem: ToolHandler = (args, options) => {
   const workItemId = args.workItemId as string;
   if (!workItemId) return { error: 'workItemId is required', isError: true };
 
-  const resolver = claimResolver(options.pendingDecisions, workItemId);
-  if (!resolver) return actionableError(
-    `No pending decision for ${workItemId}`,
-    "Call get_queue_items with status='pending' to see current pending items, or get_loop_status to check the loop phase.",
-    'get_queue_items',
-  );
-
   const decision: WorkItemDecision = {
     workItemId,
     status: 'skipped',
     rationale: (args.rationale as string) ?? 'Skipped via MCP tool',
   };
-  resolver(decision);
-  options.broadcast(dashboardEvent('item-completed', decision));
-  return { ok: true, workItemId, status: 'skipped' };
+
+  // Try in-memory resolver first (host-mode)
+  const resolver = claimResolver(options.pendingDecisions, workItemId);
+  if (resolver) {
+    resolver(decision);
+    options.broadcast(dashboardEvent('item-completed', decision));
+    return { ok: true, workItemId, status: 'skipped', mode: 'in-memory' };
+  }
+
+  // Fall back to file-based decision bridge (standalone mode)
+  if (options.decisionsDir) {
+    writeDecisionFile(options.decisionsDir, decision);
+    return { ok: true, workItemId, status: 'skipped', mode: 'file-bridge', writtenTo: options.decisionsDir };
+  }
+
+  return actionableError(
+    `No pending decision for ${workItemId} and no file-bridge configured`,
+    "Call get_queue_items with status='pending' to see current pending items, or get_loop_status to check the loop phase.",
+    'get_queue_items',
+  );
 };
 
 const getIterationStatus: ToolHandler = (_args, options) => {

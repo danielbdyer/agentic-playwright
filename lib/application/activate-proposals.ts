@@ -50,7 +50,7 @@ export interface ActivateProposalBundleResult {
   blockedProposalIds: string[];
 }
 
-function tryActivateProposal(fsPort: FileSystemPort, rootDir: string, proposal: ProposalEntry, activatedAt: string) {
+export function tryActivateProposal(fsPort: FileSystemPort, rootDir: string, proposal: ProposalEntry, activatedAt: string) {
   const candidate = activatedProposal(proposal, activatedAt);
   const absoluteTargetPath = path.join(rootDir, proposal.targetPath);
 

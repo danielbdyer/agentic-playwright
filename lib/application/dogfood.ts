@@ -1,6 +1,6 @@
 import path from 'path';
 import { Effect } from 'effect';
-import { activateProposalBundle, autoApproveEligibleProposals, quarantineToxicProposals } from './activate-proposals';
+import { activateProposalBundle, autoApproveEligibleProposals, quarantineToxicProposals, tryActivateProposal } from './activate-proposals';
 import { deltaReloadProposalsAndRuns, loadWorkspaceCatalog } from './catalog';
 import { buildPartialFitnessMetrics } from './fitness';
 import { calibrateWeightsFromCorrelations } from './learning-bottlenecks';
@@ -698,6 +698,36 @@ function runIteration(iteration: number, options: DogfoodOptions, state: LoopSta
         ...(actOpts.screenGroupDecider ? { screenGroupDecider: actOpts.screenGroupDecider } : {}),
         ...(actOpts.onItemProcessed ? { onItemProcessed: actOpts.onItemProcessed } : {}),
       });
+
+      // Step 4c½: close the activation loop — activate proposals approved by the act loop.
+      // The act loop records decisions as workbench completions (bookkeeping), but proposals
+      // are only written to disk by activateProposalBundle/tryActivateProposal. This step
+      // bridges the gap: approved work items → actual knowledge activation.
+      const approvedCompletionIds = new Set(
+        actResult.completions
+          .filter((c) => c.status === 'completed')
+          .map((c) => c.workItemId),
+      );
+      if (approvedCompletionIds.size > 0 && pendingBundles.length > 0) {
+        const fs = yield* FileSystem;
+        const activatedAt = new Date().toISOString();
+        const stillPending = pendingBundles.flatMap((bundle) =>
+          bundle.proposals.filter((p) => p.activation.status === 'pending'),
+        );
+        const actLoopActivated = yield* Effect.forEach(
+          stillPending,
+          (proposal) => tryActivateProposal(fs, options.paths.suiteRoot, proposal, activatedAt),
+          { concurrency: 5 },
+        );
+        const actLoopActivatedCount = actLoopActivated.filter((r) => !r.blocked).length;
+        if (actLoopActivatedCount > 0) {
+          yield* iterationDashboard.emit(dashboardEvent('proposal-activated', {
+            phase: 'act-loop-feedback',
+            iteration,
+            activatedCount: actLoopActivatedCount,
+          }));
+        }
+      }
 
       // Step 4d: emit intervention lineage (cross-iteration feedback arc)
       if (actResult.completions.length > 0) {

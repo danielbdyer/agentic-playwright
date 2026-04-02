@@ -2,17 +2,20 @@
 /**
  * Direct MCP tool caller — bypasses stdio transport.
  *
+ * Thin CLI wrapper: parse args → call MCP server handler → print result.
+ * All domain logic lives in the MCP server itself (dashboard-mcp-server.ts).
+ *
  * Usage: npx tsx scripts/mcp-call.ts <tool-name> [json-args]
  * Example: npx tsx scripts/mcp-call.ts get_learning_summary
  * Example: npx tsx scripts/mcp-call.ts list_proposals '{"status":"activated"}'
+ * Example: npx tsx scripts/mcp-call.ts approve_work_item '{"workItemId":"abc","rationale":"..."}'
  */
 
 import { Effect } from 'effect';
 import { createDashboardMcpServer } from '../lib/infrastructure/mcp/dashboard-mcp-server';
 import { createHintsWriter } from '../lib/infrastructure/knowledge/hints-writer';
-import { writeDecisionFile } from '../lib/infrastructure/dashboard/file-decision-bridge';
 import { createProjectPaths } from '../lib/application/paths';
-import type { ScreenCapturedEvent, WorkItemDecision } from '../lib/domain/types/dashboard';
+import type { ScreenCapturedEvent } from '../lib/domain/types/dashboard';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -41,31 +44,10 @@ const server = createDashboardMcpServer({
   broadcast: () => {},
   writeHint,
   writeLocatorAlias,
+  decisionsDir: paths.decisionsDir,
 });
 
 const toolName = process.argv[2];
-
-// ─── File-bridge intercept for cross-process decisions ───
-// When a speedrun is running with --mcp-decisions, approve_work_item and
-// skip_work_item need to write decision files instead of resolving in-memory
-// callbacks (which don't exist in this standalone process).
-
-const FILE_BRIDGE_TOOLS = new Set(['approve_work_item', 'skip_work_item']);
-
-function handleFileBridgeDecision(tool: string, args: Record<string, unknown>): void {
-  const workItemId = args.workItemId as string;
-  if (!workItemId) {
-    console.error(JSON.stringify({ error: 'workItemId is required' }));
-    process.exit(1);
-  }
-  const decision: WorkItemDecision = {
-    workItemId,
-    status: tool === 'approve_work_item' ? 'completed' : 'skipped',
-    rationale: (args.rationale as string) ?? `${tool} via bridge`,
-  };
-  writeDecisionFile(paths.decisionsDir, decision);
-  console.log(JSON.stringify({ ok: true, ...decision, writtenTo: paths.decisionsDir }));
-}
 
 async function main() {
   if (!toolName) {
@@ -75,12 +57,6 @@ async function main() {
   }
 
   const args = process.argv[3] ? JSON.parse(process.argv[3]) : {};
-
-  // File-bridge intercept: write decision files for a running --mcp-decisions speedrun
-  if (FILE_BRIDGE_TOOLS.has(toolName)) {
-    handleFileBridgeDecision(toolName, args);
-    return;
-  }
 
   const result = await Effect.runPromise(
     server.handleToolCall({ tool: toolName, arguments: args }),
