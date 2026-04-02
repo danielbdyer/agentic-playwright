@@ -98,6 +98,14 @@ export function transitionConvergence(
       return { kind: 'narrowing', hitRateImproving: true, delta: event.hitRateDelta };
     }
 
+    // Proposals were generated but hit rate didn't improve — the loop has
+    // new knowledge to activate but hasn't seen the effect yet. Stay in
+    // exploring/narrowing to give the activated proposals a chance to take
+    // effect in the next iteration before declaring plateau.
+    if (event.proposalsGenerated > 0 && state.kind === 'exploring') {
+      return { kind: 'exploring', proposalsGenerated: state.proposalsGenerated + event.proposalsGenerated };
+    }
+
     // Hit rate stalled, declining, or improving below threshold
     return foldConvergenceState<ConvergenceState>(state, {
       exploring: (): ConvergenceState =>

@@ -12,7 +12,7 @@ import { DEFAULT_PIPELINE_CONFIG } from '../../domain/types';
 import { mintApproved, mintReviewRequired } from '../../domain/types/shared-context';
 import { requiresElement, allowedActionFallback } from './resolve-action';
 import { resolveFromDom } from './dom-fallback';
-import { proposalForSupplementGap, proposalsFromInterpretation, proposalsForNeedsHuman } from './proposals';
+import { proposalForSupplementGap, proposalsFromInterpretation, proposalsForNeedsHuman, proposalsForDeterministicResolution } from './proposals';
 import { agentInterpretedReceipt, explicitResolvedReceipt, needsHumanReceipt } from './receipt';
 import type { AgentInterpretationRequest } from '../../domain/types/agent-interpreter';
 import { resolveOverride } from './resolve-target';
@@ -280,6 +280,9 @@ export function tryApprovedKnowledgeResolution(stage: RuntimeAgentStageContext, 
           : postureLattice.selected?.source === 'shared-patterns' || actionLattice.selected?.source === 'shared-patterns'
             ? 'shared-patterns'
             : 'approved-screen-knowledge';
+    // Alias-stabilization: propose action text as alias if not already known
+    const aliasProposals = proposalsForDeterministicResolution(stage.task, screen, element ?? null, winningSource);
+    const hasProposals = aliasProposals.length > 0;
     const effects: StageEffects = {
       ...EMPTY_EFFECTS,
       exhaustion: [exhaustionEntry(winningSource, 'resolved', 'Approved deterministic priors produced an executable target')],
@@ -287,7 +290,7 @@ export function tryApprovedKnowledgeResolution(stage: RuntimeAgentStageContext, 
     return {
       receipt: {
         ...needsHumanReceipt(stage, [], null, effects),
-        kind: 'resolved',
+        kind: hasProposals ? 'resolved-with-proposals' as const : 'resolved' as const,
         governance: mintApproved(),
         resolutionMode: 'deterministic',
         overlayRefs: [],
@@ -304,6 +307,7 @@ export function tryApprovedKnowledgeResolution(stage: RuntimeAgentStageContext, 
           override: override.override,
           snapshot_template: snapshotTemplate,
         },
+        ...(hasProposals ? { proposalDrafts: aliasProposals } : {}),
       } as ResolutionReceipt,
       effects: {
         ...EMPTY_EFFECTS,
@@ -431,10 +435,13 @@ export function trySemanticDictionaryResolution(stage: RuntimeAgentStageContext,
     observations: [observation],
   };
 
+  // Alias-stabilization for semantic dictionary resolutions
+  const dictAliasProposals = proposalsForDeterministicResolution(stage.task, screen, element, 'semantic-dictionary');
+  const dictHasProposals = dictAliasProposals.length > 0;
   return {
     receipt: {
       ...needsHumanReceipt(stage, [], null, effects),
-      kind: 'resolved',
+      kind: dictHasProposals ? 'resolved-with-proposals' as const : 'resolved' as const,
       governance: mintApproved(),
       resolutionMode: 'deterministic',
       overlayRefs: [],
@@ -451,6 +458,7 @@ export function trySemanticDictionaryResolution(stage: RuntimeAgentStageContext,
         override: override.override,
         snapshot_template: entry.target.snapshotTemplate,
       },
+      ...(dictHasProposals ? { proposalDrafts: dictAliasProposals } : {}),
     } as ResolutionReceipt,
     effects,
     match,
@@ -469,10 +477,15 @@ export function tryOverlayResolution(stage: RuntimeAgentStageContext, acc: Resol
       exhaustion: [exhaustionEntry('approved-equivalent-overlay', 'resolved', `Approved-equivalent overlays resolved ${overlayResult.overlayRefs.join(', ')}`)],
       observations,
     };
+    // Alias-stabilization for overlay resolutions
+    const overlayAliasProposals = proposalsForDeterministicResolution(
+      stage.task, overlayResult.screen ?? acc.screen ?? null, overlayResult.element ?? null, 'approved-equivalent-overlay',
+    );
+    const overlayHasProposals = overlayAliasProposals.length > 0;
     return {
       receipt: {
         ...needsHumanReceipt(stage, [], null, resolvedEffects),
-        kind: 'resolved',
+        kind: overlayHasProposals ? 'resolved-with-proposals' as const : 'resolved' as const,
         governance: mintApproved(),
         resolutionMode: 'deterministic',
         lineage: { sources: [...stage.controlRefs, ...stage.evidenceRefs, ...overlayResult.overlayRefs], parents: [stage.task.taskFingerprint], handshakes: ['preparation', 'resolution'] },
@@ -490,6 +503,7 @@ export function tryOverlayResolution(stage: RuntimeAgentStageContext, acc: Resol
           override: overlayOverride.override,
           snapshot_template: overlayResult.snapshotTemplate,
         },
+        ...(overlayHasProposals ? { proposalDrafts: overlayAliasProposals } : {}),
       } as ResolutionReceipt,
       effects: {
         ...EMPTY_EFFECTS,

@@ -80,7 +80,7 @@ export function buildTrialResult(
   const hitRateTrajectory = iterations.map((it) => it.knowledgeHitRate);
   let cumulativeProposals = 0;
   const proposalTrajectory = iterations.map((it) => {
-    cumulativeProposals += it.proposalsActivated;
+    cumulativeProposals += it.proposalsGenerated;
     return cumulativeProposals;
   });
   const unresolvedTrajectory = iterations.map((it) => it.unresolvedStepCount);

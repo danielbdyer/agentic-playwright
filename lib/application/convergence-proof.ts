@@ -101,18 +101,8 @@ export function convergenceProofProgram(
           onProgress: input.onProgress,
         });
 
-        // Extract iteration data from the improvement run's ledger copy
-        const iterations = result.improvementRun.iterations.map((it) => ({
-          iteration: it.iteration,
-          scenarioIds: it.scenarioIds,
-          proposalsGenerated: 0, // not carried on ImprovementIteration — 0 as placeholder
-          proposalsActivated: it.proposalsActivated,
-          proposalsBlocked: it.proposalsBlocked,
-          knowledgeHitRate: it.knowledgeHitRate,
-          unresolvedStepCount: it.unresolvedStepCount,
-          totalStepCount: it.totalStepCount,
-          instructionCount: it.instructionCount,
-        }));
+        // Extract iteration data from the dogfood ledger (has proposalsGenerated)
+        const iterations = result.ledger.iterations;
 
         const trial = buildTrialResult(
           currentSeed!,
@@ -174,12 +164,12 @@ export function formatConvergenceReport(result: ConvergenceProofResult): string 
 
   // Iteration-level detail
   lines.push('## Iteration-Level Detail');
-  lines.push('| Trial | Iter | HitRate | Proposals | Unresolved | Total Steps |');
-  lines.push('|-------|------|---------|-----------|------------|-------------|');
+  lines.push('| Trial | Iter | HitRate | Generated | Activated | Unresolved | Total Steps |');
+  lines.push('|-------|------|---------|-----------|-----------|------------|-------------|');
   for (let i = 0; i < trials.length; i++) {
     const t = trials[i]!;
     for (const it of t.iterations) {
-      lines.push(`| ${i + 1} | ${it.iteration} | ${it.knowledgeHitRate.toFixed(4)} | ${it.proposalsActivated} | ${it.unresolvedStepCount} | ${it.totalStepCount} |`);
+      lines.push(`| ${i + 1} | ${it.iteration} | ${it.knowledgeHitRate.toFixed(4)} | ${it.proposalsGenerated} | ${it.proposalsActivated} | ${it.unresolvedStepCount} | ${it.totalStepCount} |`);
     }
   }
   lines.push('');
