@@ -327,18 +327,6 @@ npx tsx scripts/mcp-call.ts skip_work_item '{"workItemId":"<id>","rationale":"Lo
 
 The file-backed decision bridge (`lib/infrastructure/dashboard/file-decision-bridge.ts`) uses atomic temp-file + rename writes to `.tesseract/workbench/decisions/`. The running speedrun watches this directory with `fs.watch` and resumes the paused fiber when a decision arrives.
 
-### Aggressive activation (fastest headless convergence)
-
-Use `--aggressive` to bypass trust-gated auto-approval and directly activate ALL proposals. No agent intervention needed — every proposal immediately feeds back into the resolution pipeline:
-
-```bash
-# Maximum convergence speed — all proposals activated, no trust checks
-npx tsx scripts/speedrun.ts --aggressive --count 10 --max-iterations 4
-
-# Can be combined with other flags
-npx tsx scripts/speedrun.ts iterate --aggressive --max-iterations 3 --mode diagnostic --posture cold-start
-```
-
 ### Speedrun via CLI (when MCP start_speedrun is unavailable)
 
 ```bash

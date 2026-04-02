@@ -82,8 +82,6 @@ export interface SpeedrunInput {
   readonly baseUrl?: string | undefined;
   /** Browser pool for page reuse across scenarios. Managed by caller. */
   readonly browserPool?: import('./browser-pool').BrowserPoolPort | undefined;
-  /** Bypass trust-gated auto-approval and directly activate ALL proposals for fastest convergence. */
-  readonly aggressiveActivation?: boolean | undefined;
 }
 
 export interface SpeedrunResult {
@@ -118,8 +116,6 @@ export interface MultiSeedInput {
   readonly baseUrl?: string | undefined;
   /** Browser pool for page reuse across scenarios. Managed by caller. */
   readonly browserPool?: import('./browser-pool').BrowserPoolPort | undefined;
-  /** Bypass trust-gated auto-approval and directly activate ALL proposals for fastest convergence. */
-  readonly aggressiveActivation?: boolean | undefined;
 }
 
 export interface MultiSeedResult {
@@ -303,7 +299,6 @@ export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunRes
       dashboard,
       baseUrl: input.baseUrl,
       browserPool: input.browserPool,
-      aggressiveActivation: input.aggressiveActivation,
     });
 
     const fitnessStart = Date.now();
@@ -634,8 +629,6 @@ export interface IteratePhaseInput {
   readonly baseUrl?: string | undefined;
   /** Browser pool for page reuse across scenarios. Managed by caller. */
   readonly browserPool?: import('./browser-pool').BrowserPoolPort | undefined;
-  /** Bypass trust-gated auto-approval and directly activate ALL proposals for fastest convergence. */
-  readonly aggressiveActivation?: boolean | undefined;
 }
 
 export function iteratePhase(input: IteratePhaseInput) {
@@ -655,7 +648,6 @@ export function iteratePhase(input: IteratePhaseInput) {
       dashboard,
       baseUrl: input.baseUrl,
       browserPool: input.browserPool,
-      aggressiveActivation: input.aggressiveActivation,
     });
     const durationMs = Date.now() - start;
     return { ledger, durationMs };

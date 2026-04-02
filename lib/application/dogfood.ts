@@ -67,10 +67,6 @@ export interface DogfoodOptions {
   readonly runbook?: string | undefined;
   readonly interpreterMode?: 'dry-run' | 'diagnostic' | 'playwright' | undefined;
   readonly autoApprovalPolicy?: AutoApprovalPolicy | undefined;
-  /** When true, bypass trust-gated auto-approval and directly activate ALL proposals.
-   *  This is the fastest convergence path — every proposal immediately feeds back into
-   *  the resolution pipeline without trust policy checks. Use for rapid convergence. */
-  readonly aggressiveActivation?: boolean | undefined;
   /** When provided, process work items between iterations (inter-iteration act loop).
    *  The decider is invoked per screen group after each iteration's workbench is emitted.
    *  This enables the agent to act on hotspots/proposals before the next iteration runs. */
@@ -361,10 +357,9 @@ function accumulateProposalTotals(
   trustPolicy?: TrustPolicy | undefined,
   bottleneckWeights?: BottleneckWeights | undefined,
   aliasOutcomes?: readonly AliasOutcome[] | undefined,
-  aggressiveActivation?: boolean | undefined,
 ): Effect.Effect<{ readonly activated: number; readonly blocked: number }, unknown, unknown> {
   return Effect.gen(function* () {
-    const useAutoApproval = !aggressiveActivation && autoApprovalPolicy?.enabled && trustPolicy;
+    const useAutoApproval = autoApprovalPolicy?.enabled && trustPolicy;
     const results = yield* Effect.all(
       pendingBundles.map((bundle) =>
         useAutoApproval
@@ -647,7 +642,6 @@ function runIteration(iteration: number, options: DogfoodOptions, state: LoopSta
       postRunCatalog.trustPolicy.artifact,
       state.bottleneckWeights,
       aliasOutcomes,
-      options.aggressiveActivation,
     );
 
     // Step 4a½: emit component maturation and proposal quality diagnostics
