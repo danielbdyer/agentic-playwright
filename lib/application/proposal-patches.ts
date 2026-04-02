@@ -33,6 +33,17 @@ function applyHintsPatch(existing: Record<string, unknown>, proposal: ProposalEn
   const screen = typeof patch.screen === 'string' ? patch.screen : existing.screen;
   const element = typeof patch.element === 'string' ? patch.element : null;
   const alias = typeof patch.alias === 'string' ? patch.alias : null;
+  const screenAlias = typeof patch.screenAlias === 'string' ? patch.screenAlias : null;
+
+  // Screen-level alias patch: append to screenAliases array
+  if (screen && screenAlias) {
+    const existingAliases = Array.isArray(existing.screenAliases) ? existing.screenAliases : [];
+    return {
+      ...existing,
+      screen,
+      screenAliases: withAlias(existingAliases, screenAlias),
+    };
+  }
 
   if (!screen || !element || !alias) return mergeRecords(existing, patch);
 

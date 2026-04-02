@@ -621,6 +621,14 @@ function runIteration(iteration: number, options: DogfoodOptions, state: LoopSta
 
     // Step 4: collect and activate pending proposals (with bottleneck weights + toxic gate)
     const proposalsGenerated = allBundles.reduce((sum, bundle) => sum + bundle.proposals.length, 0);
+    // Count proposals already activated during the run phase — these were
+    // written to knowledge files by activateProposalBundle() in run.ts and
+    // are the primary vehicle for learning. The dogfood loop's second-pass
+    // activation only catches stragglers.
+    const runPhaseActivated = allBundles.reduce(
+      (sum, bundle) => sum + bundle.proposals.filter((p) => p.activation.status === 'activated').length,
+      0,
+    );
     const pendingBundles = collectPendingProposals(allBundles);
     const resolvedAutoPolicy = options.autoApprovalPolicy ?? {
       ...DEFAULT_AUTO_APPROVAL_POLICY,
@@ -700,7 +708,7 @@ function runIteration(iteration: number, options: DogfoodOptions, state: LoopSta
       iteration,
       scenarioIds: runResult.selection.adoIds,
       proposalsGenerated,
-      proposalsActivated: proposalTotals.activated,
+      proposalsActivated: runPhaseActivated + proposalTotals.activated,
       proposalsBlocked: proposalTotals.blocked,
       knowledgeHitRate: metrics.avgHitRate,
       unresolvedStepCount: metrics.totalUnresolved,

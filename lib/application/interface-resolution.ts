@@ -4,6 +4,7 @@ import type {
   InterfaceResolutionContext,
   LocatorStrategy,
   RuntimeControlSession,
+  ScreenHints,
   SelectorCanon,
   StateTransitionGraph,
   StepTaskElementCandidate,
@@ -85,12 +86,18 @@ function elementCandidatesForScreen(input: {
   interfaceGraph: ApplicationInterfaceGraph;
   selectorCanon: SelectorCanon;
   screen: ScreenId;
+  screenHints: ScreenHints | null;
 }): StepTaskElementCandidate[] {
   return input.interfaceGraph.nodes
     .flatMap((node) => node.kind === 'target' && node.screen === input.screen && node.element ? [node] : [])
     .map((node) => {
       const payload = targetPayload(node);
       const probes = probesForTarget(input.selectorCanon, node.targetRef ?? null);
+      // Merge aliases from hint files — these are acquired through proposal
+      // activation and must flow into element candidates so the resolution
+      // ladder can match action text at higher rungs (approved-screen-knowledge).
+      const hintElement = input.screenHints?.elements[node.element!];
+      const hintAliases = hintElement?.aliases ?? [];
       return {
         element: node.element!,
         targetRef: node.targetRef!,
@@ -98,13 +105,13 @@ function elementCandidatesForScreen(input: {
         name: payload.name ?? null,
         surface: node.surface ?? (() => { throw new TesseractError('missing-required', `Missing surface for target ${node.id}`); })(),
         widget: (payload.widget ?? 'os-region') as StepTaskElementCandidate['widget'],
-        affordance: payload.affordance ?? null,
-        aliases: sortStrings([node.element!, ...(payload.aliases ?? [])]),
+        affordance: hintElement?.affordance ?? payload.affordance ?? null,
+        aliases: sortStrings([node.element!, ...(payload.aliases ?? []), ...hintAliases]),
         locator: probes.map((probe) => probe.strategy),
         postures: sortStrings(payload.postures ?? []),
-        defaultValueRef: payload.defaultValueRef ?? null,
-        parameter: payload.parameter ?? null,
-        snapshotAliases: payload.snapshotAliases ?? {},
+        defaultValueRef: hintElement?.defaultValueRef ?? payload.defaultValueRef ?? null,
+        parameter: hintElement?.parameter ?? payload.parameter ?? null,
+        snapshotAliases: { ...(payload.snapshotAliases ?? {}), ...(hintElement?.snapshotAliases ?? {}) },
         graphNodeId: node.id,
         selectorRefs: sortStrings(probes.map((probe) => probe.selectorRef)),
       } satisfies StepTaskElementCandidate;
@@ -116,12 +123,14 @@ function screenCandidates(input: {
   interfaceGraph: ApplicationInterfaceGraph;
   selectorCanon: SelectorCanon;
   screenRefs?: readonly ScreenId[] | undefined;
+  hintsByScreen: ReadonlyMap<ScreenId, ScreenHints>;
 }): StepTaskScreenCandidate[] {
   const allowedScreens = input.screenRefs ? new Set(input.screenRefs) : null;
   return input.interfaceGraph.nodes
     .flatMap((node) => node.kind === 'screen' && node.screen && (!allowedScreens || allowedScreens.has(node.screen)) ? [node] : [])
     .map((node) => {
       const payload = screenPayload(node);
+      const screenHints = input.hintsByScreen.get(node.screen! as ScreenId) ?? null;
       return {
         screen: node.screen!,
         url: payload.url ?? '',
@@ -146,13 +155,14 @@ function screenCandidates(input: {
             }
             : undefined,
         })),
-        screenAliases: sortStrings([node.screen!, ...(payload.aliases ?? [])]),
+        screenAliases: sortStrings([node.screen!, ...(payload.aliases ?? []), ...(screenHints?.screenAliases ?? [])]),
         knowledgeRefs: sortStrings(payload.knowledgeRefs ?? []),
         supplementRefs: sortStrings(payload.supplementRefs ?? []),
         elements: elementCandidatesForScreen({
           interfaceGraph: input.interfaceGraph,
           selectorCanon: input.selectorCanon,
           screen: node.screen!,
+          screenHints,
         }),
         sectionSnapshots: sortStrings(payload.sectionSnapshots ?? []),
         graphNodeId: node.id,
@@ -191,6 +201,14 @@ export function buildInterfaceResolutionContext(input: {
         : { ...record, score: decayedScore };
     });
 
+  // Build hints lookup from catalog so proposal-acquired aliases flow into
+  // element candidates. This is the critical link: proposals write aliases to
+  // hints files → catalog loads them → resolution context merges them →
+  // next iteration resolves at higher rungs instead of needs-human.
+  const hintsByScreen = new Map<ScreenId, ScreenHints>(
+    input.catalog.screenHints.map((entry) => [entry.artifact.screen as ScreenId, entry.artifact]),
+  );
+
   return {
     knowledgeFingerprint: input.knowledgeFingerprint,
     confidenceFingerprint: input.catalog.confidenceCatalog?.fingerprint ?? null,
@@ -205,6 +223,7 @@ export function buildInterfaceResolutionContext(input: {
       interfaceGraph: input.interfaceGraph,
       selectorCanon: input.selectorCanon,
       screenRefs: input.screenRefs,
+      hintsByScreen,
     }),
     evidenceRefs: input.catalog.evidenceRecords.map((entry) => entry.artifactPath).sort((left, right) => left.localeCompare(right)),
     confidenceOverlays,
