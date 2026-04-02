@@ -420,7 +420,7 @@ function cleanupBetweenIterations(options: DogfoodOptions, iterationStartTime: s
     const sessionsDir = path.join(options.paths.rootDir, '.tesseract', 'sessions');
     const evidenceRunsDir = path.join(options.paths.rootDir, '.tesseract', 'evidence', 'runs');
     yield* Effect.all(
-      [sessionsDir, evidenceRunsDir].map((dir) => fs.removeDir(dir)),
+      [sessionsDir, evidenceRunsDir, options.paths.decisionsDir].map((dir) => fs.removeDir(dir)),
       { concurrency: 'unbounded' },
     );
     // Prune translation cache to keep disk bounded across iterations

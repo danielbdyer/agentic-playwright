@@ -14,6 +14,8 @@
 import { Effect } from 'effect';
 import { createDashboardMcpServer, type DashboardMcpServerOptions } from '../lib/infrastructure/mcp/dashboard-mcp-server';
 import type { McpToolDefinition } from '../lib/domain/types';
+import type { WorkItemDecision } from '../lib/domain/types/dashboard';
+import { writeDecisionFile } from '../lib/infrastructure/dashboard/file-decision-bridge';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as readline from 'readline';
@@ -26,6 +28,7 @@ const argAfter = (flag: string): string | null => {
 };
 
 const ROOT_DIR = argAfter('--root-dir') ?? process.env.TESSERACT_ROOT ?? process.cwd();
+const DECISIONS_DIR = path.join(ROOT_DIR, '.tesseract', 'workbench', 'decisions');
 
 // ─── Artifact Reader ───
 
@@ -118,6 +121,25 @@ async function handleRequest(request: JsonRpcRequest): Promise<void> {
         sendError(request.id, -32602, 'Missing tool name');
         break;
       }
+
+      // Intercept decision tools: write to filesystem instead of in-memory Map.
+      // The speedrun process watches for these files and resumes paused fibers.
+      if (params.name === 'approve_work_item' || params.name === 'skip_work_item') {
+        const workItemId = (params.arguments?.workItemId) as string;
+        if (!workItemId) { sendError(request.id, -32602, 'workItemId is required'); break; }
+        const decision: WorkItemDecision = {
+          workItemId,
+          status: params.name === 'approve_work_item' ? 'completed' : 'skipped',
+          rationale: (params.arguments?.rationale as string) ?? `${params.name} via MCP`,
+        };
+        writeDecisionFile(DECISIONS_DIR, decision);
+        sendResponse(request.id, {
+          content: [{ type: 'text', text: JSON.stringify({ ok: true, workItemId, status: decision.status }) }],
+          isError: false,
+        });
+        break;
+      }
+
       const result = Effect.runSync(mcpServer.handleToolCall({
         tool: params.name,
         arguments: params.arguments ?? {},

@@ -69,6 +69,7 @@ export interface GovernancePaths {
   readonly workbenchDir: string;
   readonly workbenchIndexPath: string;
   readonly workbenchCompletionsPath: string;
+  readonly decisionsDir: string;
   readonly graphDir: string;
   readonly graphIndexPath: string;
   readonly mcpCatalogPath: string;
@@ -118,6 +119,7 @@ export interface LegacyProjectPathAliases {
   readonly workbenchDir: string;
   readonly workbenchIndexPath: string;
   readonly workbenchCompletionsPath: string;
+  readonly decisionsDir: string;
   readonly benchmarkRunsDir: string;
   readonly evidenceDir: string;
   readonly confidenceDir: string;
