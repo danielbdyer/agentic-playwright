@@ -99,7 +99,7 @@ export function activateProposalBundle(options: {
       [...byTarget.values()],
       (group) => Effect.forEach(
         group,
-        (proposal) => tryActivateProposal(fs, options.paths.rootDir, proposal, activatedAt),
+        (proposal) => tryActivateProposal(fs, options.paths.suiteRoot, proposal, activatedAt),
         { concurrency: 1 },
       ),
       { concurrency: 10 },
@@ -147,7 +147,7 @@ export function backupBeforeActivation(options: {
     const fs = yield* FileSystem;
     const all = yield* Effect.forEach(options.proposalBundle.proposals, (proposal) =>
       Effect.gen(function* () {
-        const absoluteTargetPath = path.join(options.paths.rootDir, proposal.targetPath);
+        const absoluteTargetPath = path.join(options.paths.suiteRoot, proposal.targetPath);
         return yield* fs.readText(absoluteTargetPath).pipe(
           Effect.map((originalContent): CompensationBackup => ({ filePath: absoluteTargetPath, originalContent })),
           Effect.catchTag('FileSystemError', () => Effect.succeed(null)),
@@ -201,7 +201,7 @@ export function quarantineToxicProposals(options: {
     yield* Effect.forEach(
       [...byScreen.entries()],
       ([screenId, aliases]) => Effect.gen(function* () {
-        const hintsPath = path.join(options.paths.rootDir, `knowledge/screens/${screenId}.hints.yaml`);
+        const hintsPath = path.join(options.paths.suiteRoot, `knowledge/screens/${screenId}.hints.yaml`);
         const exists = yield* fs.exists(hintsPath);
         if (!exists) return;
 
@@ -321,7 +321,7 @@ export function autoApproveEligibleProposals(options: {
           });
         }
 
-        return tryActivateProposal(fs, options.paths.rootDir, proposal, activatedAt).pipe(
+        return tryActivateProposal(fs, options.paths.suiteRoot, proposal, activatedAt).pipe(
           Effect.map((result) => ({
             proposal: result.proposal,
             activatedPath: result.activatedPath,
