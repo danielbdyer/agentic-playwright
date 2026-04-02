@@ -736,6 +736,208 @@ const getSuggestedAction: ToolHandler = (_args, options) => {
   return { suggestions, count: suggestions.length };
 };
 
+// ─── Proposal Activation ───
+
+const activateProposal: ToolHandler = (args, options) => {
+  const proposalId = args.proposalId as string;
+  if (!proposalId) return actionableError('proposalId is required', 'Provide the proposal ID from list_proposals', 'list_proposals');
+
+  // Find the proposal across all bundles
+  const reader = asReader(options);
+  const proposals = reader.readArtifact('.tesseract/learning/proposals.json') as {
+    readonly proposals?: readonly Record<string, unknown>[];
+  } | null;
+  const indexProposals = reader.readArtifact('.tesseract/learning/proposals/index.json') as {
+    readonly proposals?: readonly Record<string, unknown>[];
+  } | null;
+  const all = [...(proposals?.proposals ?? []), ...(indexProposals?.proposals ?? [])];
+  const proposal = all.find((p) => (p.proposalId ?? p.id) === proposalId);
+
+  if (!proposal) {
+    return actionableError(`Proposal "${proposalId}" not found`, 'Use list_proposals to see available proposals', 'list_proposals');
+  }
+
+  const activation = proposal.activation as Record<string, unknown> | undefined;
+  if (activation?.status === 'activated') {
+    return {
+      status: 'already-activated',
+      proposalId,
+      activatedAt: activation.activatedAt,
+      targetPath: proposal.targetPath,
+      message: 'This proposal was already activated and its knowledge is available to the resolution pipeline.',
+    };
+  }
+
+  // For direct activation, we use the writeHint callback if available
+  if (!options.writeHint) {
+    return actionableError(
+      'Direct proposal activation requires host-mode MCP server',
+      'The MCP server must be running in host mode (via bin/tesseract-mcp.ts) to activate proposals. In read-only mode, proposals are activated automatically during speedrun iterations.',
+      'start_speedrun',
+    );
+  }
+
+  const patch = proposal.patch as Record<string, unknown> | undefined;
+  const screen = (patch?.screen ?? '') as string;
+  const element = (patch?.element ?? '') as string;
+  const alias = (patch?.alias ?? '') as string;
+
+  if (screen && element && alias) {
+    const written = options.writeLocatorAlias?.({ screen, element, alias, source: 'agent-approved' });
+    if (written) {
+      return {
+        status: 'activated',
+        proposalId,
+        targetPath: written,
+        patch: { screen, element, alias },
+        message: `Proposal activated. Alias "${alias}" added to ${screen}/${element}. It will be used in the next iteration.`,
+      };
+    }
+  }
+
+  return actionableError(
+    'Could not activate proposal — patch format not recognized',
+    'Check the proposal patch structure with get_proposal',
+    'get_proposal',
+  );
+};
+
+// ─── Convergence Proof ───
+
+const getConvergenceProof: ToolHandler = (_args, options) => {
+  const proof = options.readArtifact('.tesseract/benchmarks/convergence-proof.json') as {
+    readonly trials?: readonly Record<string, unknown>[];
+    readonly verdict?: Record<string, unknown>;
+    readonly runAt?: string;
+    readonly pipelineVersion?: string;
+  } | null;
+
+  if (!proof) {
+    return actionableError(
+      'No convergence proof data found',
+      'Run a convergence proof first: npx tsx scripts/convergence-proof.ts',
+    );
+  }
+
+  const verdict = proof.verdict;
+  const trials = proof.trials ?? [];
+
+  // Build concise summary
+  const trialSummaries = trials.map((t, i) => ({
+    trial: i + 1,
+    seed: t.seed,
+    iterations: (t.iterations as readonly unknown[])?.length ?? 0,
+    finalHitRate: t.finalHitRate,
+    hitRateDelta: t.hitRateDelta,
+    converged: t.converged,
+    hitRateTrajectory: t.hitRateTrajectory,
+    proposalTrajectory: t.proposalTrajectory,
+  }));
+
+  return {
+    converges: verdict?.converges ?? false,
+    confidence: verdict?.confidenceLevel ?? 'unknown',
+    learningContribution: verdict?.learningContribution,
+    meanHitRateDelta: verdict?.meanHitRateDelta,
+    meanFinalHitRate: verdict?.meanFinalHitRate,
+    medianIterationsToConverge: verdict?.medianIterationsToConverge,
+    plateauLevel: verdict?.plateauLevel,
+    bottleneckSummary: verdict?.bottleneckSummary,
+    trials: trialSummaries,
+    trialCount: trials.length,
+    runAt: proof.runAt,
+    pipelineVersion: proof.pipelineVersion,
+  };
+};
+
+// ─── Learning Summary ───
+
+const getLearningState: ToolHandler = (_args, options) => {
+  // Gather all the data sources an agent needs to orient
+  const reader = asReader(options);
+
+  // Convergence proof
+  const proof = options.readArtifact('.tesseract/benchmarks/convergence-proof.json') as {
+    readonly verdict?: Record<string, unknown>;
+    readonly trials?: readonly Record<string, unknown>[];
+    readonly runAt?: string;
+  } | null;
+
+  // Scorecard
+  const scorecard = options.readArtifact('.tesseract/benchmarks/scorecard.json') as {
+    readonly highWaterMark?: Record<string, unknown>;
+    readonly history?: readonly Record<string, unknown>[];
+  } | null;
+
+  // Proposals
+  const proposalsRaw = reader.readArtifact('.tesseract/learning/proposals.json') as {
+    readonly proposals?: readonly Record<string, unknown>[];
+  } | null;
+  const indexProposals = reader.readArtifact('.tesseract/learning/proposals/index.json') as {
+    readonly proposals?: readonly Record<string, unknown>[];
+  } | null;
+  const allProposals = [...(proposalsRaw?.proposals ?? []), ...(indexProposals?.proposals ?? [])];
+
+  // Workbench
+  const workbench = options.readArtifact('.tesseract/workbench/index.json') as {
+    readonly items?: readonly Record<string, unknown>[];
+    readonly summary?: Record<string, unknown>;
+  } | null;
+
+  // Inbox
+  const inbox = options.readArtifact('.tesseract/inbox/index.json') as {
+    readonly items?: readonly Record<string, unknown>[];
+  } | null;
+
+  // Progress
+  const progress = options.readArtifact('.tesseract/runs/speedrun-progress.jsonl') as string | null;
+
+  // Loop status
+  const loopStatus = options.getLoopStatus?.() ?? null;
+
+  // Analyze proposals
+  const proposalStats = {
+    total: allProposals.length,
+    activated: allProposals.filter((p) => (p.activation as Record<string, unknown>)?.status === 'activated').length,
+    pending: allProposals.filter((p) => (p.activation as Record<string, unknown>)?.status === 'pending').length,
+    blocked: allProposals.filter((p) => (p.activation as Record<string, unknown>)?.status === 'blocked').length,
+  };
+
+  // Build learning trajectory from convergence proof
+  const latestTrial = proof?.trials?.[proof.trials.length - 1] as Record<string, unknown> | undefined;
+  const trajectory = latestTrial
+    ? { hitRateTrajectory: latestTrial.hitRateTrajectory, proposalTrajectory: latestTrial.proposalTrajectory }
+    : null;
+
+  // Pending decisions
+  const pendingDecisions = options.pendingDecisions.size;
+
+  // Build actionable summary
+  const actions: string[] = [];
+  if (pendingDecisions > 0) actions.push(`${pendingDecisions} decision(s) blocking the loop — use get_queue_items to review`);
+  if (proposalStats.pending > 0) actions.push(`${proposalStats.pending} proposal(s) pending activation — use list_proposals to review`);
+  if ((inbox?.items?.length ?? 0) > 0) actions.push(`${inbox!.items!.length} inbox item(s) requiring attention`);
+  if (!proof) actions.push('No convergence proof yet — run one to measure learning effectiveness');
+  if (loopStatus?.phase === 'idle') actions.push('Loop is idle — use start_speedrun to begin');
+
+  return {
+    loopStatus: loopStatus ? { phase: loopStatus.phase, iteration: (loopStatus as unknown as Record<string, unknown>).iteration } : null,
+    convergence: proof ? {
+      converges: proof.verdict?.converges,
+      confidence: proof.verdict?.confidenceLevel,
+      learningContribution: proof.verdict?.learningContribution,
+      lastRunAt: proof.runAt,
+    } : null,
+    fitness: scorecard?.highWaterMark ?? null,
+    proposals: proposalStats,
+    trajectory,
+    pendingDecisions,
+    workbenchItems: workbench?.items?.length ?? 0,
+    inboxItems: inbox?.items?.length ?? 0,
+    actionRequired: actions,
+  };
+};
+
 // ─── Tool Router (pure dispatch) ───
 
 const toolHandlers: Readonly<Record<string, ToolHandler>> = {
@@ -772,6 +974,12 @@ const toolHandlers: Readonly<Record<string, ToolHandler>> = {
   'get_contribution_impact': getContributionImpact,
   // Workflow guidance
   'get_suggested_action': getSuggestedAction,
+  // Proposal activation
+  'activate_proposal': activateProposal,
+  // Convergence proof
+  'get_convergence_proof': getConvergenceProof,
+  // Learning summary
+  'get_learning_summary': getLearningState,
 };
 
 /**

@@ -591,6 +591,33 @@ export const dashboardMcpTools: readonly McpToolDefinition[] = [
     description: 'Get ranked suggestions for what to do next based on current system state. Examines loop phase, pending decisions, bottlenecks, knowledge gaps, and fitness trends to recommend the highest-value next action.',
     inputSchema: { type: 'object', properties: {} },
   },
+  // Proposal lifecycle tools
+  {
+    name: 'activate_proposal',
+    category: 'decide',
+    description: 'Activate a specific pending proposal, writing its knowledge (alias, hint) to the appropriate hints.yaml file. The activated knowledge is used by the resolution pipeline in subsequent iterations. Use list_proposals to find proposal IDs.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        proposalId: { type: 'string', description: 'The proposal ID to activate' },
+      },
+      required: ['proposalId'],
+    },
+  },
+  // Convergence proof results
+  {
+    name: 'get_convergence_proof',
+    category: 'observe',
+    description: 'Get the latest convergence proof results: whether the recursive improvement loop converges, the learning contribution per iteration, hit rate trajectories, proposal consumption rates, and bottleneck analysis across trials.',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  // Learning summary — the "orient me" tool
+  {
+    name: 'get_learning_summary',
+    category: 'observe',
+    description: 'Get a holistic learning summary combining loop status, convergence proof, fitness metrics, proposal statistics, pending decisions, and inbox items. This is the first tool to call when starting a session — it tells you everything you need to orient and the highest-priority actions to take.',
+    inputSchema: { type: 'object', properties: {} },
+  },
 ] as const;
 
 // ─── Headed Runtime Capability ───
