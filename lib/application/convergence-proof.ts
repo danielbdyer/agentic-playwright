@@ -13,11 +13,12 @@
  * confidence. Scripts are thin CLI wrappers that call this program.
  */
 
+import path from 'path';
 import { Effect } from 'effect';
 import type { ProjectPaths } from './paths';
 import { speedrunProgram, type SpeedrunResult } from './speedrun';
 import { cleanSlateProgram } from './clean-slate';
-import { VersionControl } from './ports';
+import { FileSystem, VersionControl } from './ports';
 import type {
   KnowledgePosture,
   PipelineConfig,
@@ -81,8 +82,11 @@ export function convergenceProofProgram(
         if (remaining.length === 0) return acc;
         const [currentSeed, ...rest] = remaining;
 
-        // Clean slate before trial
+        // Clean slate before trial — wipe bound artifacts too to prevent
+        // stale file races during parallel compilation in the next trial
         yield* cleanSlateProgram(input.paths.rootDir, input.paths);
+        const fs = yield* FileSystem;
+        yield* fs.removeDir(path.join(input.paths.rootDir, '.tesseract', 'bound'));
 
         const result: SpeedrunResult = yield* speedrunProgram({
           paths: input.paths,
