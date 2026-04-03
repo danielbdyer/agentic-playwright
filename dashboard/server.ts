@@ -23,6 +23,7 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { WebSocketServer, WebSocket as WsWebSocket } from 'ws';
 import { Effect, PubSub, Queue, Fiber, Scope } from 'effect';
 import type { DashboardEvent } from '../lib/domain/types';
 import { dashboardEvent } from '../lib/domain/types/dashboard';
@@ -39,6 +40,10 @@ import { createProjectPaths, type ProjectPaths } from '../lib/application/paths'
 import { runWithLocalServices, type LocalServiceOptions } from '../lib/composition/local-services';
 import { speedrunProgram } from '../lib/application/speedrun';
 import { DEFAULT_PIPELINE_CONFIG } from '../lib/domain/types';
+import { startFixtureServer, type FixtureServer } from '../lib/infrastructure/fixture-server';
+import { createPlaywrightBrowserPool } from '../lib/infrastructure/playwright-browser-pool';
+import { resolvePlaywrightHeadless } from '../lib/infrastructure/tooling/browser-options';
+import { withScreencast } from '../lib/infrastructure/dashboard/cdp-screencast';
 
 // ─── CLI Flags ───
 
@@ -59,6 +64,13 @@ function generateRunId(): string {
 }
 const JOURNAL_RUN_ID = argAfter('--run-id') ?? generateRunId();
 
+// ─── Runtime State (mutable, set by speedrun fiber) ───
+
+/** URL of the fixture server (AUT) when active. Enables LiveDomPortal fallback. */
+let activeFixtureUrl: string | null = null;
+/** Whether CDP screencast is actively streaming frames. */
+let screencastActive = false;
+
 // ─── MIME + File Helpers ───
 
 const MIME: Readonly<Record<string, string>> = {
@@ -76,44 +88,47 @@ const readTextFile = (filePath: string): string | null => {
   catch { return null; }
 };
 
-// ─── WebSocket (minimal, zero-dependency) ───
+// ─── WebSocket (ws library — RFC 6455 compliant) ───
 
-interface WsClient { readonly socket: import('net').Socket; alive: boolean }
-const wsClients = new Set<WsClient>();
+const wsClients = new Set<WsWebSocket>();
 
-const encodeWsFrame = (data: unknown): Buffer => {
-  const json = JSON.stringify(data);
-  const buf = Buffer.from(json, 'utf8');
-  const header = buf.length < 126
-    ? Buffer.from([0x81, buf.length])
-    : buf.length < 65536
-      ? Buffer.from([0x81, 126, (buf.length >> 8) & 0xff, buf.length & 0xff])
-      : (() => { const h = Buffer.alloc(10); h[0] = 0x81; h[1] = 127; h.writeBigUInt64BE(BigInt(buf.length), 2); return h; })();
-  return Buffer.concat([header, buf]);
-};
-
+let broadcastCount = 0;
 const broadcast = (msg: unknown): void => {
-  const frame = encodeWsFrame(msg);
+  broadcastCount++;
+  if (broadcastCount <= 5 || broadcastCount % 100 === 0) {
+    console.log(`  [ws-broadcast] #${broadcastCount} clients=${wsClients.size} type=${(msg as { type?: string })?.type ?? '?'}`);
+  }
+  const json = JSON.stringify(msg);
   for (const ws of wsClients) {
-    try { ws.socket.write(frame); } catch { wsClients.delete(ws); }
+    if (ws.readyState === WsWebSocket.OPEN) {
+      ws.send(json, (err) => { if (err) wsClients.delete(ws); });
+    }
   }
 };
 
-const decodeWsFrame = (buf: Buffer): Record<string, unknown> | null => {
-  if (buf.length < 2) return null;
-  const opcode = buf[0]! & 0x0f;
-  if (opcode === 0x8 || opcode === 0x9) return null;
-  const masked = (buf[1]! & 0x80) !== 0;
-  let len = buf[1]! & 0x7f;
-  let offset = 2;
-  if (len === 126) { len = buf.readUInt16BE(2); offset = 4; }
-  else if (len === 127) { len = Number(buf.readBigUInt64BE(2)); offset = 10; }
-  const mask = masked ? buf.subarray(offset, offset + 4) : null;
-  if (masked) offset += 4;
-  const data = buf.subarray(offset, offset + len);
-  if (mask) for (let i = 0; i < data.length; i++) data[i]! ^= mask[i % 4]!;
-  try { return JSON.parse(data.toString('utf8')); }
-  catch { return null; }
+/**
+ * Binary frame broadcast — sends raw JPEG bytes with a minimal header.
+ * Format: [0x01 (type)] [uint16 width] [uint16 height] [JPEG bytes]
+ * This avoids JSON+base64 overhead (~33% savings) and lets the client
+ * decode off-thread via createImageBitmap.
+ */
+let frameCount = 0;
+const broadcastFrame = (base64: string, width: number, height: number): void => {
+  frameCount++;
+  if (frameCount <= 3 || frameCount % 50 === 0) {
+    console.log(`  [ws-frame] #${frameCount} ${width}x${height} clients=${wsClients.size}`);
+  }
+  const jpegBytes = Buffer.from(base64, 'base64');
+  const header = Buffer.alloc(5);
+  header[0] = 0x01; // message type: screencast frame
+  header.writeUInt16BE(width, 1);
+  header.writeUInt16BE(height, 3);
+  const packet = Buffer.concat([header, jpegBytes]);
+  for (const ws of wsClients) {
+    if (ws.readyState === WsWebSocket.OPEN) {
+      ws.send(packet, (err) => { if (err) wsClients.delete(ws); });
+    }
+  }
 };
 
 // ─── MCP Tools ───
@@ -206,7 +221,15 @@ const handleRequest = (req: http.IncomingMessage, res: http.ServerResponse): voi
   }
   if (url.pathname === '/api/capabilities') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ screenshotStream: true, liveDomPortal: false, mcpServer: true, mcpEndpoint: `http://localhost:${PORT}/api/mcp`, playwrightMcp: false, version: '2.0' }));
+    res.end(JSON.stringify({
+      screenshotStream: screencastActive,
+      liveDomPortal: activeFixtureUrl !== null,
+      mcpServer: true,
+      mcpEndpoint: `http://localhost:${PORT}/api/mcp`,
+      playwrightMcp: false,
+      appUrl: activeFixtureUrl,
+      version: '2.1',
+    }));
     return;
   }
 
@@ -285,18 +308,9 @@ const handleRequest = (req: http.IncomingMessage, res: http.ServerResponse): voi
   });
 };
 
-// ─── WebSocket Accept ───
+// ─── WebSocket Server (ws library) ───
 
-const acceptWebSocket = (req: http.IncomingMessage, socket: import('net').Socket): void => {
-  const key = req.headers['sec-websocket-key']!;
-  const accept = crypto.createHash('sha1').update(key + '258EAFA5-E914-47DA-95CA-5AB5DC11B65B').digest('base64');
-  socket.write(['HTTP/1.1 101 Switching Protocols', 'Upgrade: websocket', 'Connection: Upgrade', `Sec-WebSocket-Accept: ${accept}`, '', ''].join('\r\n'));
-  const ws: WsClient = { socket, alive: true };
-  wsClients.add(ws);
-  socket.on('data', (buf: Buffer) => { const msg = decodeWsFrame(buf); if (msg?.type === 'ping') socket.write(encodeWsFrame({ type: 'pong' })); });
-  socket.on('close', () => wsClients.delete(ws));
-  socket.on('error', () => wsClients.delete(ws));
-};
+let wss: InstanceType<typeof WebSocketServer> | null = null;
 
 // ─── File Watchers ───
 
@@ -344,9 +358,21 @@ const main = Effect.gen(function* () {
     console.log(`  Journal:    ${journalPath}`);
   }
 
-  // 4. Start HTTP server
+  // 4. Start HTTP server + WebSocket server (ws library)
   const server = http.createServer(handleRequest);
-  server.on('upgrade', (req, socket) => { if (req.url === '/ws') acceptWebSocket(req, socket as import('net').Socket); else (socket as import('net').Socket).destroy(); });
+  wss = new WebSocketServer({ server, path: '/ws' });
+  wss.on('connection', (ws) => {
+    wsClients.add(ws);
+    console.log(`  [ws-accept] client connected, total=${wsClients.size}`);
+    ws.on('close', () => { wsClients.delete(ws); console.log(`  [ws-close] client disconnected, remaining=${wsClients.size}`); });
+    ws.on('error', () => { wsClients.delete(ws); });
+    ws.on('message', (data) => {
+      try {
+        const msg = JSON.parse(data.toString());
+        if (msg?.type === 'ping') ws.send(JSON.stringify({ type: 'pong' }));
+      } catch { /* ignore malformed */ }
+    });
+  });
 
   yield* Effect.async<void>((resume) => {
     server.listen(PORT, () => {
@@ -369,28 +395,85 @@ const main = Effect.gen(function* () {
     const seed = argAfter('--seed') ?? 'speedrun-v1';
     const maxIterations = parseInt(argAfter('--max-iterations') ?? '5', 10);
     const posture = argAfter('--posture') ?? 'warm-start';
+    const headless = resolvePlaywrightHeadless(process.env);
+    const interpreterMode = (argAfter('--mode') ?? 'playwright') as 'dry-run' | 'diagnostic' | 'playwright';
+    const needsBrowser = interpreterMode === 'playwright';
 
-    console.log(`  Speedrun: count=${count} seed=${seed} maxIterations=${maxIterations} posture=${posture}\n`);
-
-    const program = speedrunProgram({
-      paths,
-      config: DEFAULT_PIPELINE_CONFIG,
-      count,
-      seed,
-      maxIterations,
-      knowledgePosture: posture as 'warm-start' | 'cold-start' | 'production',
-      onProgress: (event) => {
-        broadcast({ type: 'progress', timestamp: new Date().toISOString(), data: event });
-      },
-    });
+    console.log(`  Speedrun: count=${count} seed=${seed} maxIterations=${maxIterations} posture=${posture} headless=${headless}\n`);
 
     yield* Effect.fork(
       Effect.gen(function* () {
-        yield* Effect.promise(() => runWithLocalServices(program, ROOT, {
-          suiteRoot: paths.suiteRoot,
-          dashboard: bus.dashboardPort,
-        }));
-        console.log('\n  Speedrun complete. Dashboard remains active.\n');
+        // Acquire fixture server + browser pool for Playwright mode
+        const fixtureServer = needsBrowser
+          ? yield* Effect.promise(() => startFixtureServer({ rootDir: ROOT }))
+          : null;
+        const browserPool = needsBrowser
+          ? yield* Effect.promise(() => createPlaywrightBrowserPool({
+              headless,
+              config: { poolSize: 4, preWarm: true, maxPageAgeMs: 300_000 },
+            }))
+          : undefined;
+
+        const baseUrl = fixtureServer?.baseUrl;
+
+        // Expose fixture URL for LiveDomPortal fallback (via /api/capabilities)
+        if (baseUrl) activeFixtureUrl = baseUrl;
+
+        if (fixtureServer) console.log(`  Fixture server: ${fixtureServer.baseUrl}`);
+        if (browserPool) console.log(`  Browser pool: 4 pages (${headless ? 'headless' : 'HEADED'})`);
+
+        // Wrap pool with CDP screencast — frames stream to dashboard via WS broadcast.
+        // Falls back gracefully: if CDP is unavailable, the pool works normally and
+        // the dashboard uses LiveDomPortal (iframe) instead.
+        let screencastFrameCount = 0;
+        const poolWithScreencast = browserPool
+          ? withScreencast(browserPool, (frame) => {
+              if (!screencastActive) {
+                screencastActive = true;
+                broadcast({ type: 'connected', data: { connected: true } });
+                console.log('  CDP screencast: first frame — streaming live.');
+              }
+              screencastFrameCount++;
+              // Binary WS: raw JPEG bytes with 5-byte header — no JSON/base64 overhead
+              broadcastFrame(frame.imageBase64, frame.width, frame.height);
+            }, { quality: 60, maxWidth: 1280, maxHeight: 720 })
+          : undefined;
+
+        if (browserPool) console.log(`  CDP screencast: ${headless ? 'headless (may not produce frames)' : 'HEADED — live frames will stream to dashboard'}`);
+
+        const program = speedrunProgram({
+          paths,
+          config: DEFAULT_PIPELINE_CONFIG,
+          count,
+          seed,
+          maxIterations,
+          interpreterMode,
+          knowledgePosture: posture as 'warm-start' | 'cold-start' | 'production',
+          baseUrl,
+          browserPool: poolWithScreencast,
+          onProgress: (event) => {
+            broadcast({ type: 'progress', timestamp: new Date().toISOString(), data: event });
+          },
+        });
+
+        try {
+          yield* Effect.promise(() => runWithLocalServices(program, ROOT, {
+            suiteRoot: paths.suiteRoot,
+            dashboard: bus.dashboardPort,
+            browserPool: poolWithScreencast,
+          }));
+          console.log(`\n  Speedrun complete. Screencast frames: ${screencastFrameCount}. Dashboard remains active.\n`);
+        } finally {
+          screencastActive = false;
+          activeFixtureUrl = null;
+          const poolToClose = poolWithScreencast ?? browserPool;
+          if (poolToClose) {
+            const stats = poolToClose.stats;
+            console.log(`  Browser pool stats: acquired=${stats.totalAcquired} released=${stats.totalReleased} overflow=${stats.totalOverflow} resets=${stats.totalResets}`);
+            yield* Effect.promise(() => poolToClose.close());
+          }
+          if (fixtureServer) yield* Effect.promise(() => fixtureServer.stop());
+        }
       }),
     );
   }

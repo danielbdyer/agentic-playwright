@@ -39,6 +39,10 @@ const applyOptimisticDecision = (
 ): readonly WorkItem[] =>
   items.filter((item) => item.id !== decision.id);
 
+/** Deduplicate items by id, keeping the last occurrence. O(n). */
+const deduplicateById = (items: readonly WorkItem[]): readonly WorkItem[] =>
+  [...new Map(items.map((item) => [item.id, item] as const)).values()];
+
 /** Group items by screen via immutable reduce. O(n). */
 const groupByScreen = (items: readonly WorkItem[]): readonly (readonly [string, readonly WorkItem[]])[] =>
   Object.entries(
@@ -67,12 +71,13 @@ export const WorkbenchPanel = memo(function WorkbenchPanel({ workbench, onApprov
   }, [addOptimisticDecision, onSkip]);
 
   // React Compiler auto-memoizes this grouping derivation
-  const byScreen = optimisticItems.length > 0 ? groupByScreen(optimisticItems) : [];
+  const uniqueItems = deduplicateById(optimisticItems);
+  const byScreen = uniqueItems.length > 0 ? groupByScreen(uniqueItems) : [];
 
   if (byScreen.length === 0) return <div className="card card-full"><h2>Workbench</h2><div className="empty">No pending items. Converged.</div></div>;
   return (
     <div className="card card-full">
-      <h2>Workbench — {optimisticItems.length} pending</h2>
+      <h2>Workbench — {uniqueItems.length} pending</h2>
       {byScreen.map(([screen, items]) => (
         <div key={screen} className="screen-group">
           <div className="screen-header">{screen} ({items.length})</div>

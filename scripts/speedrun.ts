@@ -51,6 +51,7 @@ import { startFixtureServer, type FixtureServer } from '../lib/infrastructure/fi
 import { createPlaywrightBrowserPool } from '../lib/infrastructure/playwright-browser-pool';
 import type { BrowserPoolPort } from '../lib/application/browser-pool';
 import { createFileBackedDashboardPort } from '../lib/infrastructure/dashboard/file-dashboard-port';
+import { resolvePlaywrightHeadless } from '../lib/infrastructure/tooling/browser-options';
 
 // ─── CLI argument parsing ───
 
@@ -128,6 +129,13 @@ function createProgressCallback(progressPath: string): (event: SpeedrunProgressE
   return (event: SpeedrunProgressEvent): void => {
     fs.mkdirSync(path.dirname(progressPath), { recursive: true });
     fs.appendFileSync(progressPath, JSON.stringify(event) + '\n');
+
+    // Emit a prominent banner on phase transitions so the operator knows what's happening
+    if (event.phase === 'iterate' && event.iteration === 1 && !event.metrics) {
+      process.stderr.write('\n>>> ITERATE PHASE — browser is now running scenarios <<<\n\n');
+    } else if (event.phase === 'fitness' && !event.metrics) {
+      process.stderr.write('\n>>> FITNESS PHASE — computing metrics <<<\n\n');
+    }
 
     const phaseLabel = event.phase === 'iterate' && event.metrics
       ? `[iter ${event.iteration}/${event.maxIterations}]`
@@ -363,9 +371,10 @@ async function withPlaywrightEnvironment<T>(fn: (env: PlaywrightEnvironment) => 
     const baseUrl = resolvedBaseUrl ?? server?.baseUrl;
 
     // Create browser pool for page reuse across scenarios
-    console.log('Creating browser pool for cross-scenario page reuse...');
-    pool = await createPlaywrightBrowserPool({ config: { poolSize: 4, preWarm: true, maxPageAgeMs: 300_000 } });
-    console.log('Browser pool ready (4 warm pages).');
+    const headless = resolvePlaywrightHeadless(process.env);
+    console.log(`Creating browser pool (headless=${headless})...`);
+    pool = await createPlaywrightBrowserPool({ headless, config: { poolSize: 4, preWarm: true, maxPageAgeMs: 300_000 } });
+    console.log(`Browser pool ready (4 warm pages, ${headless ? 'headless' : 'HEADED — watch for the Chromium window'}).`);
 
     return await fn({ baseUrl, browserPool: pool });
   } finally {

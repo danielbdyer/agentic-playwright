@@ -21,7 +21,7 @@ interface FitnessCardProps { readonly scorecard: Scorecard | null }
 const cls = (v: number): string => v >= 0.8 ? 'good' : v >= 0.5 ? 'warn' : 'bad';
 
 export const FitnessCard = memo(function FitnessCard({ scorecard }: FitnessCardProps) {
-  if (!scorecard) return <div className="card"><h2>Fitness</h2><div className="empty">No scorecard yet.</div></div>;
+  if (!scorecard?.highWaterMark) return <div className="card"><h2>Fitness</h2><div className="empty">No scorecard yet.</div></div>;
   const h = scorecard.highWaterMark;
   return (
     <div className="card">

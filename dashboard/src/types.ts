@@ -98,6 +98,32 @@ export interface PauseContext {
 /** Result of a decision burst animation (approve = green toward knowledge, skip = red scatter). */
 export type DecisionResult = 'approved' | 'skipped';
 
+/** Dashboard WebSocket connection state projected for UI consumption. */
+export interface DashboardConnectionState {
+  readonly connected: boolean;
+}
+
+/** Dashboard-level error state for display in the observation panel. */
+export interface DashboardErrorState {
+  readonly message: string;
+  readonly code?: string;
+}
+
+/** Optimistic decision applied before server confirms. */
+export interface OptimisticDecision {
+  readonly workItemId: string;
+  readonly status: 'completed' | 'skipped';
+  readonly rationale: string;
+  readonly issuedAt: number;
+}
+
+/** Input shape for submitting a work item decision. */
+export interface WorkItemDecisionInput {
+  readonly workItemId: string;
+  readonly status: 'completed' | 'skipped';
+  readonly rationale: string;
+}
+
 /** Flywheel act identifier used for replay policy and diagnostics. */
 export type FlywheelAct = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 

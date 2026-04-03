@@ -23,6 +23,7 @@ import { LiveDomPortal, PortalLoading } from './spatial/live-dom-portal';
 import { SceneErrorBoundary } from './atoms/error-boundary';
 import { useIngestionQueue } from './hooks/use-ingestion-queue';
 import { useWebSocket } from './hooks/use-web-socket';
+import { useScreencastStream } from './hooks/use-screencast-stream';
 import { useWebMcpCapabilities } from './hooks/use-mcp-capabilities';
 import { useConvergenceState } from './hooks/use-convergence-state';
 import { useStageTracker } from './hooks/use-stage-tracker';
@@ -185,7 +186,8 @@ function useEffectStream(url: string) {
     else if (msg.type === 'fitness-updated') qc.setQueryData(['fitness'], msg.data);
   }, [qc]);
 
-  const { connected, send } = useWebSocket(url, handleMessage);
+  const screencastStream = useScreencastStream();
+  const { connected, send } = useWebSocket(url, handleMessage, screencastStream.onBinaryFrame);
 
   // W3.2: Wire SharedArrayBuffer zero-copy path for high-frequency events.
   // When the pipeline runs in-process, window.__PIPELINE_SAB is set and the
@@ -209,6 +211,7 @@ function useEffectStream(url: string) {
     processingId,
     capture,
     appViewport,
+    screencastStream,
     probeQueue,
     escalationQueue,
     pauseContext,
@@ -305,6 +308,7 @@ function App() {
     queue,
     capture,
     appViewport,
+    screencastStream,
     probeQueue,
     pauseContext,
     convergence,
@@ -324,7 +328,11 @@ function App() {
 
   const capabilities = useWebMcpCapabilities(capture?.url);
   const [portalLoaded, setPortalLoaded] = useState(false);
-  const portalActive = capabilities.liveDomPortal && portalLoaded;
+  // CDP screencast takes priority over LiveDomPortal — if we're receiving
+  // real compositor frames, there's no need for the iframe fallback.
+  // Check the binary stream ref (no re-render) OR the legacy capture state.
+  const hasScreencast = screencastStream.hasFrame.current || capture !== null;
+  const portalActive = !hasScreencast && capabilities.liveDomPortal && portalLoaded;
 
   const handleApprove = useCallback((id: string) => {
     decisionMutation.mutate({ workItemId: id, status: 'completed', rationale: `Dashboard approved` });
@@ -349,11 +357,13 @@ function App() {
     setFrameSample(sample);
   }, []);
 
+  const probeActiveLength = probeQueue.active.length;
   useEffect(() => {
     const lastProbe = probeQueue.active[probeQueue.active.length - 1];
     if (!lastProbe || lastProbe.emittedAt == null) return;
     setLastEventLagMs(Math.max(0, performance.now() - lastProbe.queuedAt));
-  }, [probeQueue.active]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on length to avoid infinite loop from array identity
+  }, [probeActiveLength]);
 
   // Phase 6: decision burst state — set when approve/skip triggers, cleared when animation completes
   const [decisionBurst, setDecisionBurst] = useState<{ readonly origin: readonly [number, number, number]; readonly result: DecisionResult } | null>(null);
@@ -412,16 +422,17 @@ function App() {
   return (
     <div className="dashboard-layout">
       <div className="spatial-viewport" role="main" aria-label="Pipeline visualization">
-        {capabilities.liveDomPortal && capabilities.appUrl && (
+        {!hasScreencast && capabilities.liveDomPortal && capabilities.appUrl && (
           <LiveDomPortal appUrl={capabilities.appUrl} onLoad={handlePortalLoaded} />
         )}
-        <PortalLoading visible={capabilities.liveDomPortal && !portalLoaded} />
+        <PortalLoading visible={!hasScreencast && capabilities.liveDomPortal && !portalLoaded} />
 
         <SceneErrorBoundary>
           <SpatialCanvas
             probes={activeProbes}
             capture={portalActive ? null : capture}
-            viewport={appViewport}
+            stream={screencastStream}
+            viewport={screencastStream.hasFrame.current ? screencastStream.dimensions.current : appViewport}
             knowledgeNodes={knowledgeNodes ?? []}
             onParticleArrived={handleParticleArrived}
             portalActive={portalActive}

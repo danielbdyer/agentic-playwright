@@ -47,7 +47,7 @@ const demoHarnessEntries = [
 ];
 
 const dashboardEntry = {
-  entry: path.join(ROOT_DIR, 'dashboard', 'src', 'app.tsx'),
+  entry: path.join(ROOT_DIR, 'dashboard', 'src', 'app', 'bootstrap.tsx'),
   outfile: path.join(ROOT_DIR, 'dashboard', 'dashboard.js'),
 };
 

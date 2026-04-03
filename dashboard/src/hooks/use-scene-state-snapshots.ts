@@ -20,28 +20,36 @@ export function useSceneStateSnapshots(input: UseSceneStateSnapshotsInput) {
   const [snapshots, setSnapshots] = useState<readonly SceneStateSnapshot[]>([]);
   const lastSnapshotAtRef = useRef(0);
 
+  // Stable scalar deps — avoids infinite loop from object identity churn on `input`.
+  const { enabled, everyNEvents, everyMs, eventSequence, iteration, act,
+    knowledgeNodeCount, activeProbeCount, activeProposalCount, activeArtifactCount,
+    throughputPerSecond, queueDepthByAct } = input;
+
   useEffect(() => {
-    if (!input.enabled) return;
+    if (!enabled) return;
     const now = Date.now();
-    const eventBoundary = input.everyNEvents ? input.eventSequence % input.everyNEvents === 0 : false;
-    const timeBoundary = input.everyMs ? now - lastSnapshotAtRef.current >= input.everyMs : false;
+    const eventBoundary = everyNEvents ? eventSequence % everyNEvents === 0 : false;
+    const timeBoundary = everyMs ? now - lastSnapshotAtRef.current >= everyMs : false;
     if (!eventBoundary && !timeBoundary) return;
 
     const snapshot: SceneStateSnapshot = {
-      sequenceNumber: input.eventSequence,
+      sequenceNumber: eventSequence,
       timestamp: new Date(now).toISOString(),
-      iteration: input.iteration,
-      act: input.act,
-      knowledgeNodeCount: input.knowledgeNodeCount,
-      activeProbeCount: input.activeProbeCount,
-      activeProposalCount: input.activeProposalCount,
-      activeArtifactCount: input.activeArtifactCount,
-      throughputPerSecond: input.throughputPerSecond,
-      queueDepthByAct: input.queueDepthByAct,
+      iteration,
+      act,
+      knowledgeNodeCount,
+      activeProbeCount,
+      activeProposalCount,
+      activeArtifactCount,
+      throughputPerSecond,
+      queueDepthByAct,
     };
     setSnapshots((prev) => [...prev, snapshot]);
     lastSnapshotAtRef.current = now;
-  }, [input]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- scalar deps only to avoid object identity churn
+  }, [enabled, everyNEvents, everyMs, eventSequence, iteration, act,
+    knowledgeNodeCount, activeProbeCount, activeProposalCount, activeArtifactCount,
+    throughputPerSecond]);
 
   return { snapshots } as const;
 }

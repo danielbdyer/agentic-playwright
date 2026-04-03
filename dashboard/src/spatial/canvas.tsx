@@ -32,6 +32,7 @@ import { Canvas } from '@react-three/fiber';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import type { ProbeEvent, ScreenCapture, ViewportDimensions, KnowledgeNode, ProposalActivatedEvent, ArtifactWrittenEvent } from './types';
 import type { PauseContext, DecisionResult } from '../types';
+import type { ScreencastStream } from '../hooks/use-screencast-stream';
 import { ScreenPlane } from './screen-plane';
 import { SelectorGlows } from './selector-glows';
 import { ParticleTransport } from './particle-transport';
@@ -63,6 +64,8 @@ export interface SpatialCanvasProps {
   readonly probes: readonly ProbeEvent[];
   /** Latest screen capture for the texture plane (Layer 0). Null if portal active. */
   readonly capture: ScreenCapture | null;
+  /** Binary screencast stream — preferred over capture when available. */
+  readonly stream: ScreencastStream | null;
   /** Viewport dimensions of the application under test. */
   readonly viewport: ViewportDimensions;
   /** Knowledge nodes for the observatory (right side of glass). */
@@ -96,6 +99,7 @@ export interface SpatialCanvasProps {
 const SceneContent = memo(function SceneContent({
   probes,
   capture,
+  stream,
   viewport,
   knowledgeNodes = [],
   onParticleArrived,
@@ -133,6 +137,7 @@ const SceneContent = memo(function SceneContent({
           height={screen.height}
           position={[screen.x, 0, 0]}
           capture={capture}
+          stream={stream}
         />
       )}
 

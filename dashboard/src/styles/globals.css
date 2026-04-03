@@ -68,15 +68,58 @@
 @utility governance-review   { @apply text-gov-review bg-gov-review/10; }
 @utility governance-blocked  { @apply text-gov-blocked bg-gov-blocked/10; }
 
-/* ─── Layout ─── */
+/* ─── Five-Zone Layout ─── */
 @layer components {
-  .dashboard-layout { @apply grid grid-cols-[1fr_420px] h-screen; }
+  .dashboard-layout {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    grid-template-columns: 1fr 380px;
+    grid-template-areas:
+      "presence  presence"
+      "stage     inspector"
+      "storyline storyline";
+    @apply h-screen;
+  }
+
+  .presence-bar {
+    grid-area: presence;
+    @apply flex items-center gap-4 py-2 px-4 bg-surface border-b border-surface-border z-10;
+  }
+  .presence-bar h1 {
+    @apply text-base text-actor-system m-0 whitespace-nowrap;
+  }
+
+  .surface-stage {
+    grid-area: stage;
+    @apply relative bg-[#080b10] overflow-hidden;
+  }
+
+  .inspector-drawer {
+    grid-area: inspector;
+    @apply overflow-y-auto p-4 bg-surface border-l border-surface-border;
+  }
+  .inspector-drawer h2:first-child { @apply mt-0; }
+
+  .storyline-rail {
+    grid-area: storyline;
+    @apply flex items-center gap-3 py-2 px-4 bg-surface-raised border-t border-surface-border;
+  }
+
+  /* Legacy compat: keep old class names working during migration */
   .spatial-viewport { @apply relative bg-[#080b10] overflow-hidden; }
-  .control-panel    { @apply overflow-y-auto p-5 bg-surface border-l border-surface-border; }
+  .control-panel    { @apply overflow-y-auto p-4 bg-surface border-l border-surface-border; }
 
   @media (max-width: 900px) {
-    .dashboard-layout { @apply grid-cols-1 grid-rows-[50vh_1fr]; }
-    .control-panel { @apply border-l-0 border-t border-surface-border; }
+    .dashboard-layout {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto 50vh auto 1fr;
+      grid-template-areas:
+        "presence"
+        "stage"
+        "storyline"
+        "inspector";
+    }
+    .inspector-drawer { @apply border-l-0 border-t border-surface-border; }
   }
 }
 
@@ -178,10 +221,24 @@
 
 /* ─── Stage Pipeline ─── */
 @layer components {
-  .stage-pipeline { @apply flex gap-2 items-start py-2 flex-wrap; }
+  .stage-pipeline { @apply flex gap-2 items-center py-2 flex-wrap; }
   .stage-dot          { @apply w-2.5 h-2.5 rounded-full bg-surface-border transition-colors duration-200; }
   .stage-dot.active   { @apply bg-actor-system animate-stage-pulse; }
   .stage-dot.complete { @apply bg-gov-approved; }
+
+  /* Storyline variant: horizontal rail with labels visible */
+  .storyline-rail .stage-pipeline { @apply flex-nowrap gap-1.5; }
+  .storyline-rail .stage-node {
+    @apply flex items-center gap-1.5 text-xs text-fg-muted whitespace-nowrap;
+  }
+  .storyline-rail .stage-node.active { @apply text-actor-system font-semibold; }
+  .storyline-rail .stage-node.complete { @apply text-gov-approved; }
+  .storyline-rail .stage-connector {
+    @apply w-4 h-px bg-surface-border;
+  }
+  .storyline-rail .stage-connector.complete {
+    @apply bg-gov-approved;
+  }
 }
 
 /* ─── Indicators ─── */

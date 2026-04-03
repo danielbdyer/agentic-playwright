@@ -25,6 +25,13 @@ const SLOT_SIZE = 18;
 const HEADER_SIZE = 2;
 const HEADER_BYTES = HEADER_SIZE * 4;
 
+/** Exported layout constants for probe-event-buffer to allocate SharedArrayBuffers. */
+export const PIPELINE_BUFFER_LAYOUT = {
+  slotSize: SLOT_SIZE,
+  headerSize: HEADER_SIZE,
+  headerBytes: HEADER_BYTES,
+} as const;
+
 /** Decoded event from the ring buffer. Numeric fields only — no strings, no GC. */
 export interface BufferEvent {
   readonly eventType: number;

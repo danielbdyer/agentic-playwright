@@ -73,20 +73,50 @@ const detectWebMcp: Effect.Effect<boolean, never, never> = Effect.sync(() =>
   typeof window !== 'undefined' && 'ai' in window && 'mcpServer' in (window as unknown as Record<string, unknown>),
 );
 
-/** O(3). Detect all capabilities in parallel. Structured concurrency via Effect.all. */
-const detectCapabilities = (appUrl: string | null, baseUrl: string): Effect.Effect<McpCapabilities, never, never> =>
+/** O(1). Fetch server-reported capabilities from /api/capabilities. */
+const fetchServerCapabilities = (baseUrl: string): Effect.Effect<{
+  readonly screenshotStream: boolean;
+  readonly liveDomPortal: boolean;
+  readonly appUrl: string | null;
+  readonly mcpEndpoint: string | null;
+} | null, never, never> =>
+  Effect.tryPromise({
+    try: () => fetch(`${baseUrl}/api/capabilities`).then((r) => r.ok ? r.json() : null),
+    catch: () => null,
+  }).pipe(
+    Effect.timeout(Duration.seconds(3)),
+    Effect.map((opt) => opt ?? null),
+    Effect.catchAll(() => Effect.succeed(null)),
+  );
+
+/** O(3). Detect all capabilities in parallel. Structured concurrency via Effect.all.
+ *  Server-reported capabilities take precedence; client-side probing fills gaps. */
+const detectCapabilities = (captureUrl: string | null, baseUrl: string): Effect.Effect<McpCapabilities, never, never> =>
   Effect.all({
-    domReachable: appUrl ? probeUrl(appUrl) : Effect.succeed(false),
+    server: fetchServerCapabilities(baseUrl),
     mcpEndpoint: probeMcpEndpoint(baseUrl),
     webMcp: detectWebMcp,
   }).pipe(
-    Effect.map(({ domReachable, mcpEndpoint, webMcp }) => ({
-      screenshotStream: true,
-      liveDomPortal: domReachable,
-      mcpAvailable: webMcp || mcpEndpoint !== null,
-      appUrl: domReachable ? appUrl : null,
-      mcpEndpoint,
-    })),
+    Effect.flatMap(({ server, mcpEndpoint, webMcp }) => {
+      // Server-authoritative: use its appUrl and flags when available
+      const appUrl = server?.appUrl ?? captureUrl ?? null;
+      const serverLiveDom = server?.liveDomPortal ?? false;
+
+      // If server says portal is available, trust it; otherwise probe the URL
+      const portalCheck = serverLiveDom
+        ? Effect.succeed(true)
+        : appUrl
+          ? probeUrl(appUrl)
+          : Effect.succeed(false);
+
+      return Effect.map(portalCheck, (domReachable) => ({
+        screenshotStream: server?.screenshotStream ?? true,
+        liveDomPortal: domReachable,
+        mcpAvailable: webMcp || mcpEndpoint !== null,
+        appUrl: domReachable ? appUrl : null,
+        mcpEndpoint: server?.mcpEndpoint ?? mcpEndpoint,
+      }));
+    }),
   );
 
 // ─── Hook ───

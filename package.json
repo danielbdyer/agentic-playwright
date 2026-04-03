@@ -10,6 +10,12 @@
   "engines": {
     "node": ">=20.9.0"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "@parcel/watcher"
+    ]
+  },
   "scripts": {
     "context": "node scripts/agent-context.cjs",
     "agent:sync": "node scripts/agent-context.cjs --write",
@@ -76,6 +82,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@types/three": "^0.183.1",
+    "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "^8.57.2",
     "@typescript-eslint/parser": "^8.57.2",
     "babel-plugin-react-compiler": "^1.0.0",
@@ -88,6 +95,7 @@
     "react-compiler-runtime": "^1.0.0",
     "react-dom": "^19.2.4",
     "tailwindcss": "^4.2.2",
-    "three": "^0.183.2"
+    "three": "^0.183.2",
+    "ws": "^8.20.0"
   }
 }
