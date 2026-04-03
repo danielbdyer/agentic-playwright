@@ -554,15 +554,191 @@ function applyVarianceProfile(
 
 ---
 
+---
+
+## Structural Derivation Audit
+
+> Added 2026-04-03: Audit of the backlog for additional places where hand-authorship
+> can be replaced with structural derivation, following the same principle as the
+> role-affordance revision in Phase 1.
+
+Three additional derivation opportunities were identified. Each eliminates a
+category of hand-authored mapping by deriving it from the role-affordance table
+(P1-1), the same way the widget handler registry was eliminated.
+
+### Derivation 1: Action Resolution (constrains P3-2)
+
+**Current antipattern:** When a scenario says "Select the Active Only checkbox", the
+resolution pipeline must figure out that "select" means `check` (not `selectOption`).
+This disambiguation is currently learned through alias matching and the semantic
+dictionary — the same verb maps to different Playwright calls depending on context.
+
+**Structural derivation:** Once you know the target element's ARIA role (from Phase 1),
+the legal actions are a closed set. A `role="checkbox"` has exactly two state-changing
+affordances: `check` and `uncheck`. The verb "select" applied to a checkbox can ONLY
+mean `check`. The role constrains the action space — no disambiguation needed.
+
+The derivation is:
+```
+(intent verb, target role) → affordancesForRole(role)
+                           → find affordance whose action best matches the verb
+                           → exactly one result (or error if no match)
+```
+
+This replaces learned verb→action mappings with a deterministic lookup. The
+`core.patterns.yaml` action aliases (`click: [press, tap, select, hit]`) become
+derivable from the role-affordance table rather than hand-authored:
+
+| Canonical Action | ARIA Roles Where Legal | Natural Synonyms |
+|-----------------|----------------------|------------------|
+| `click` | button, link, tab | press, tap, hit, activate |
+| `fill` | textbox, combobox, spinbutton, slider | enter, type, input, key in, provide |
+| `check` | checkbox, radio | select, enable, tick, mark |
+| `select` (option) | combobox, listbox | choose, pick, set to, change to |
+| `get-value` | (all roles) | verify, check, confirm, see, read |
+
+The synonym sets are linguistic constants — they don't change per application.
+They can be declared alongside the role-affordance table in `lib/domain/widgets/role-affordances.ts`.
+
+**Impact on backlog:**
+- P3-2 (populate `inferredAction`) becomes a pure lookup instead of text inference
+- `core.patterns.yaml` action aliases become derivable (can be generated or validated against the table)
+- Resolution pipeline verb disambiguation is eliminated for any element with a known role
+
+### Derivation 2: Scenario Generation Vocabulary (replaces P1-5, simplifies P4-2)
+
+**Current antipattern:** `lib/domain/synthesis/translation-gap.ts:35-42` hand-authors
+`AFFORDANCE_VERBS` per `os-*` widget type:
+
+```typescript
+const AFFORDANCE_VERBS = {
+  'os-input': ['type in', 'enter', 'fill in', ...],
+  'os-button': ['click', 'press', 'hit', ...],
+  'os-select': ['choose', 'pick', 'select', ...],
+};
+```
+
+And `lib/domain/synthesis/workflow-archetype.ts:43-49` hand-classifies elements:
+
+```typescript
+const classifyElements = (elements) => ({
+  inputs: elements.filter(e => e.widget === 'os-input'),
+  buttons: elements.filter(e => e.widget === 'os-button'),
+  ...
+});
+```
+
+Both are keyed by hand-authored `os-*` widget strings. Both are treadmills.
+
+**Structural derivation:** With the role-affordance table and its synonym sets
+(from Derivation 1), both become derivable:
+
+```typescript
+// Classification: derived from role, not widget string
+const classifyElements = (elements) => {
+  const byRole = groupBy(elements, e => deriveRoleFromSignature(e));
+  return {
+    fillable:   byRole.textbox ?? [],
+    clickable:  [...(byRole.button ?? []), ...(byRole.link ?? [])],
+    checkable:  [...(byRole.checkbox ?? []), ...(byRole.radio ?? [])],
+    selectable: [...(byRole.combobox ?? []), ...(byRole.listbox ?? [])],
+    readable:   byRole.table ?? [],
+  };
+};
+
+// Verb selection: derived from role affordances + synonym table
+const verbsForRole = (role: string): readonly string[] => {
+  const affordances = affordancesForRole(role);
+  return affordances.flatMap(a => ACTION_SYNONYMS[a.action] ?? [a.action]);
+};
+```
+
+**Impact on backlog:**
+- P1-5 ("Update seed templates for new element types") is **eliminated** — new
+  element types automatically get correct verb vocabulary from their role
+- P4-2 (entropy injector synonym injection) uses the same derivation instead of
+  reading from `core.patterns.yaml` — the synonym source is structural, not authored
+- P4-4 ("Seed a default variance profile") simplifies — the injector's synonym
+  vocabulary is built-in, not configured
+- Adding a new element type to the demo harness (e.g., `<input type="range">`)
+  immediately produces correct scenario phrases without any template changes
+
+### Derivation 3: Element Classification in Workflow Archetypes (constrains P1-4)
+
+**Current antipattern:** The five workflow archetypes (`search-verify`,
+`detail-inspect`, `form-submit`, `read-only-audit`, `cross-screen-journey`)
+compose steps by classifying elements into `inputs`, `buttons`, `readOnly`,
+`tables`, `selects` — each checked against an `os-*` widget string.
+
+When we add `<input type="checkbox">` to the demo harness, the archetype
+composer won't know what to do with it. It doesn't match any classification.
+The element is invisible to scenario generation.
+
+**Structural derivation:** Replace the widget-string classification with
+a role-based classification using affordance categories:
+
+```typescript
+type ElementRole =
+  | 'fillable'      // textbox, spinbutton, slider — affordance includes 'fill'
+  | 'clickable'     // button, link, tab — affordance includes 'click'
+  | 'checkable'     // checkbox, radio — affordance includes 'check'
+  | 'selectable'    // combobox, listbox — affordance includes 'select'
+  | 'readable'      // table, grid — affordance includes only 'get-value'
+  | 'container';    // dialog — no direct interaction
+
+function classifyByAffordance(role: string): ElementRole {
+  const affordances = affordancesForRole(role);
+  const actions = new Set(affordances.map(a => a.action));
+  if (actions.has('fill'))   return 'fillable';
+  if (actions.has('check'))  return 'checkable';
+  if (actions.has('select')) return 'selectable';
+  if (actions.has('click'))  return 'clickable';
+  return 'readable';
+}
+```
+
+The archetypes then compose over these role-derived categories:
+
+- `search-verify`: navigate → fill `fillable` → click `clickable` → verify `readable`
+- `form-submit`: navigate → fill `fillable` → check `checkable` → select `selectable` → click `clickable`
+- etc.
+
+**Impact on backlog:**
+- P1-4 (demo harness expansion) automatically produces correctly-classified elements
+  without updating archetype code
+- New archetypes (e.g., `form-with-checkboxes`) become possible without code changes
+- The `ScreenElementPlanInput.widget` field evolves from a hand-authored string to
+  a role-derived classification
+
+---
+
+### Revised Backlog Items After Audit
+
+Items **eliminated** by structural derivation:
+- ~~P1-5 ("Update seed templates for new element types")~~ — verb vocabulary derived from role
+- ~~P4-4 ("Seed a default variance profile")~~ — synonym source is structural, not configured
+
+Items **simplified:**
+- P3-2 (`inferredAction`) — becomes a pure lookup on (verb, role) instead of text inference
+- P4-2 (entropy injector) — synonym injection uses role-derived vocabulary, no external config needed
+- P1-4 (demo harness) — new elements auto-classify, no archetype code changes
+
+Items **added:**
+- P1-1 extended: `ACTION_SYNONYMS` table alongside `ROLE_AFFORDANCES` in same module
+- P1-6 (new): Refactor `classifyElements()` and `AFFORDANCE_VERBS` to derive from role table
+
+---
+
 ## Sequencing Summary
 
 ```
 Week 1          Week 2          Week 3          Week 4          Week 5+
 ────────        ────────        ────────        ────────        ────────
 
-P0-1,P0-2       P1-1,P1-2       P1-4,P1-5       P3-3,P3-4       P4-3,P4-4
+P0-1,P0-2       P1-1,P1-2       P1-4,P1-6       P3-3,P3-4       P4-3
 (test suite)    (role table +    (demo harness   (patch apply +   (wire entropy
-                 dispatcher)      + seeds)        supplementary)   into speedrun)
+                 dispatcher +     + archetype     supplementary)   into speedrun)
+                 synonyms)        refactor)
 
                 P2-1,P2-2       P1-3            P4-1,P4-2        P5-1,P5-2
                 (route schema   (role in         (entropy         (briefing +
@@ -575,6 +751,13 @@ P0-1,P0-2       P1-1,P1-2       P1-4,P1-5       P3-3,P3-4       P4-3,P4-4
 ```
 
 **Critical path:** P0 → P1-1 → P1-2 → P1-3 → P3-1 → P3-2 → P3-3 → P4-2 → P4-3
+
+**Eliminated items (subsumed by structural derivation):**
+- ~~P1-5~~ — seed template updates derived from role-affordance synonym table
+- ~~P4-4~~ — default variance profile unnecessary when synonyms are structural
+
+**Added items:**
+- P1-6 — refactor `classifyElements()` and `AFFORDANCE_VERBS` to derive from role table
 
 **Parallel tracks:**
 - Route knowledge (P2-*) is independent of role derivation and can start in Week 2
