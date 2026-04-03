@@ -51,11 +51,14 @@ elements:
       - Browse to policy search screen
       - Click on the search
       - Click search
+      - Enter test data in search field
       - Go to the policy search
       - Go to the policy search screen
       - Hit the back to search
+      - Hit the return to search
       - Hit the search button
       - Key in test data at search field
+      - Load the policy search page
       - Load the policy search screen page
       - Navigate to policy search
       - Navigate to policy search screen
@@ -75,11 +78,11 @@ elements:
       - Visit the policy search screen
     acquired:
       certification: uncertified
-      activatedAt: 2026-04-03T02:09:12.768Z
+      activatedAt: 2026-04-03T03:02:47.853Z
       certifiedAt: null
       lineage:
         runIds:
-          - 2026-04-03T02-09-12-735Z
+          - 2026-04-03T03-02-47-800Z
         evidenceIds: []
         sourceArtifactPaths:
           - .tesseract/tasks/20046.resolution.json
@@ -117,11 +120,11 @@ elements:
         - matching policy appears in search results
     acquired:
       certification: uncertified
-      activatedAt: 2026-04-03T02:09:11.739Z
+      activatedAt: 2026-04-03T02:58:53.773Z
       certifiedAt: null
       lineage:
         runIds:
-          - 2026-04-03T02-09-11-658Z
+          - 2026-04-03T02-58-53-731Z
         evidenceIds: []
         sourceArtifactPaths:
           - .tesseract/tasks/20014.resolution.json

@@ -58,11 +58,11 @@ elements:
     affordance: read-only
     acquired:
       certification: uncertified
-      activatedAt: 2026-04-03T02:09:12.336Z
+      activatedAt: 2026-04-03T03:02:47.277Z
       certifiedAt: null
       lineage:
         runIds:
-          - 2026-04-03T02-09-12-278Z
+          - 2026-04-03T03-02-47-233Z
         evidenceIds: []
         sourceArtifactPaths:
           - .tesseract/tasks/20032.resolution.json
@@ -163,6 +163,8 @@ elements:
       - Go to the policy details
       - Hit the back link
       - Hit the back to search
+      - Load the policy detail page
+      - Load the policy details page
       - Navigate to policy detail
       - Navigate to policy detail screen
       - Open policy detail
@@ -182,11 +184,11 @@ elements:
       - Visit the policy details
     acquired:
       certification: uncertified
-      activatedAt: 2026-04-03T02:09:12.728Z
+      activatedAt: 2026-04-03T03:02:47.814Z
       certifiedAt: null
       lineage:
         runIds:
-          - 2026-04-03T02-09-12-646Z
+          - 2026-04-03T03-02-47-729Z
         evidenceIds: []
         sourceArtifactPaths:
           - .tesseract/tasks/20043.resolution.json
