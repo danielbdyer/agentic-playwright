@@ -7,23 +7,33 @@ elements:
   policyNumber:
     aliases:
       - Assert policy number display is shown
+      - Check that policy number display is displayed
       - Check that policy number is displayed
+      - Confirm policy number appears
+      - Confirm policy number display appears
+      - Confirm policy status appears
       - Observe policy number display content
       - policy number
       - policy number display
       - Provide a valid value for policy number
+      - Provide a valid value for policy number field
+      - Put test data in policy number field
       - See that policy number display is on screen
+      - See that policy number is on screen
+      - Set policy number field to a valid value
+      - Validate policy number is present
+      - Verify policy number is visible
     affordance: read-only
     acquired:
       certification: uncertified
-      activatedAt: 2026-04-02T22:40:21.624Z
+      activatedAt: 2026-04-03T02:06:40.294Z
       certifiedAt: null
       lineage:
         runIds:
-          - 2026-04-02T22-39-51-533Z
+          - 2026-04-03T02-06-40-237Z
         evidenceIds: []
         sourceArtifactPaths:
-          - .tesseract/tasks/20007.resolution.json
+          - .tesseract/tasks/20044.resolution.json
           - controls/runbooks/synthetic-dogfood.runbook.yaml
           - controls/datasets/demo-default.dataset.yaml
         role: null
@@ -31,43 +41,66 @@ elements:
         driftSeed: null
   policyStatus:
     aliases:
+      - Assert policy status is shown
       - Assert status badge is shown
+      - Assert status is shown
+      - Check that policy status is displayed
+      - Check that status badge is displayed
+      - Ensure error message can be seen
+      - Ensure status badge can be seen
       - Ensure status can be seen
       - policy status
+      - See that policy status is on screen
+      - See that status badge is on screen
       - status
       - status badge
+      - Validate status badge is present
     affordance: read-only
     acquired:
       certification: uncertified
-      activatedAt: 2026-04-02T22:39:51.623Z
+      activatedAt: 2026-04-03T02:09:12.336Z
       certifiedAt: null
       lineage:
         runIds:
-          - 2026-04-02T22-39-51-586Z
+          - 2026-04-03T02-09-12-278Z
         evidenceIds: []
         sourceArtifactPaths:
-          - .tesseract/tasks/20008.resolution.json
+          - .tesseract/tasks/20032.resolution.json
           - controls/runbooks/synthetic-dogfood.runbook.yaml
           - controls/datasets/demo-default.dataset.yaml
         role: null
         state: null
         driftSeed: null
+    role: text
+    widget: os-region
+    locator:
+      - kind: test-id
+        value: policy-status
+      - kind: role-name
+        role: text
+        name: Policy Status
   effectiveDate:
     aliases:
+      - Assert date is shown
       - Assert effective date is shown
+      - Check that effective date is displayed
+      - Confirm effective date appears
       - date
       - effective date
+      - Observe effective date content
+      - See that effective date is on screen
+      - Verify date is visible
     affordance: read-only
     acquired:
       certification: uncertified
-      activatedAt: 2026-04-02T22:40:21.219Z
+      activatedAt: 2026-04-03T02:06:40.294Z
       certifiedAt: null
       lineage:
         runIds:
-          - 2026-04-02T22-39-21-004Z
+          - 2026-04-03T02-06-40-237Z
         evidenceIds: []
         sourceArtifactPaths:
-          - .tesseract/tasks/20000.resolution.json
+          - .tesseract/tasks/20044.resolution.json
           - controls/runbooks/synthetic-dogfood.runbook.yaml
           - controls/datasets/demo-default.dataset.yaml
         role: null
@@ -75,26 +108,36 @@ elements:
         driftSeed: null
   claimsTable:
     aliases:
+      - Assert claims is shown
+      - Assert claims list is shown
       - claims
       - claims list
       - claims table
+      - Confirm claims list appears
       - Confirm claims table appears
+      - Ensure claims list can be seen
+      - Observe claims content
       - See that claims is on screen
+      - See that claims list is on screen
       - Validate claims is present
+      - Validate date is present
+      - Validate error message is present
+      - Validate policy status is present
+      - Validate status is present
     snapshotAliases:
       snapshots/policy-detail/with-claims.yaml:
         - verify claims table shows claims
         - claims are listed
     acquired:
       certification: uncertified
-      activatedAt: 2026-04-02T22:39:51.513Z
+      activatedAt: 2026-04-03T02:06:40.456Z
       certifiedAt: null
       lineage:
         runIds:
-          - 2026-04-02T22-39-21-232Z
+          - 2026-04-03T02-06-40-402Z
         evidenceIds: []
         sourceArtifactPaths:
-          - .tesseract/tasks/20004.resolution.json
+          - .tesseract/tasks/20048.resolution.json
           - controls/runbooks/synthetic-dogfood.runbook.yaml
           - controls/datasets/demo-default.dataset.yaml
         role: null
@@ -105,53 +148,84 @@ elements:
       - Access policy detail
       - Access policy detail screen
       - Access policy details
+      - Activate back link
       - back link
       - back to search
+      - Browse to policy detail
       - Browse to policy detail screen
+      - Browse to policy details
+      - Click back to search
       - Click on the back link
       - Click on the return to search
+      - Click return to search
       - Go to the policy detail
+      - Go to the policy detail screen
+      - Go to the policy details
+      - Hit the back link
+      - Hit the back to search
+      - Navigate to policy detail
       - Navigate to policy detail screen
       - Open policy detail
+      - Open policy detail screen
       - Open policy details
       - Press the back to search
       - return to search
+      - Select back to search
+      - Select return to search
       - Switch to policy detail
       - Switch to policy detail screen
+      - Tap back link
       - Trigger back to search
+      - Trigger return to search
+      - Visit the policy detail
       - Visit the policy detail screen
+      - Visit the policy details
     acquired:
       certification: uncertified
-      activatedAt: 2026-04-02T22:42:07.008Z
+      activatedAt: 2026-04-03T02:09:12.728Z
       certifiedAt: null
       lineage:
         runIds:
-          - 2026-04-02T22-41-36-883Z
+          - 2026-04-03T02-09-12-646Z
         evidenceIds: []
         sourceArtifactPaths:
-          - .tesseract/tasks/20001.resolution.json
+          - .tesseract/tasks/20043.resolution.json
           - controls/runbooks/synthetic-dogfood.runbook.yaml
           - controls/datasets/demo-default.dataset.yaml
         role: null
         state: null
         driftSeed: null
+    role: link
+    widget: os-button
+    locator:
+      - kind: test-id
+        value: back-to-search
+      - kind: role-name
+        role: link
+        name: Back to Search
   errorPanel:
     aliases:
+      - Assert error panel is shown
+      - Assert not found error is shown
+      - Confirm error message appears
+      - Confirm error panel appears
       - Confirm error summary appears
+      - Confirm not found error appears
       - error message
       - error panel
       - not found error
+      - Observe not found error content
       - Verify error message is visible
     acquired:
       certification: uncertified
-      activatedAt: 2026-04-02T22:40:59.343Z
+      activatedAt: 2026-04-03T02:06:39.857Z
       certifiedAt: null
       lineage:
         runIds:
-          - 2026-04-02T22-40-59-316Z
+          - 2026-04-03T02-06-39-785Z
         evidenceIds: []
         sourceArtifactPaths:
-          - .tesseract/tasks/20009.resolution.json
+          - .tesseract/tasks/20031.resolution.json
           - controls/runbooks/synthetic-dogfood.runbook.yaml
           - controls/datasets/demo-default.dataset.yaml
         role: null

@@ -12,22 +12,31 @@ elements:
       - amendment reference
       - change number
       - Enter test data in search field
+      - Hit the return to search
     affordance: read-only
     acquired:
       certification: uncertified
-      activatedAt: 2026-04-02T22:39:51.513Z
+      activatedAt: 2026-04-03T02:09:12.238Z
       certifiedAt: null
       lineage:
         runIds:
-          - 2026-04-02T22-39-21-232Z
+          - 2026-04-03T02-09-12-188Z
         evidenceIds: []
         sourceArtifactPaths:
-          - .tesseract/tasks/20004.resolution.json
+          - .tesseract/tasks/20029.resolution.json
           - controls/runbooks/synthetic-dogfood.runbook.yaml
           - controls/datasets/demo-default.dataset.yaml
         role: null
         state: null
         driftSeed: null
+    role: text
+    widget: os-region
+    locator:
+      - kind: test-id
+        value: amendment-number
+      - kind: role-name
+        role: text
+        name: Amendment Number
   amendmentStatus:
     aliases:
       - amendment status
