@@ -119,6 +119,8 @@ The graph dictates a clear priority order:
 
 This is the order in which the workstreams below are presented. Workstreams E (test suite) and F (operational surface) are orthogonal — they can proceed in parallel with any of the above.
 
+> **Revision (2026-04-03):** Workstream A has been revised. The original proposal to hand-author widget handlers per type was identified as an alias treadmill — the same antipattern that A1 (ADR collapse) eliminated for step text resolution. The revised approach derives widget affordances deterministically from ARIA role signatures. See the execution backlog at `docs/convergence-backlog.md` for the detailed implementation plan.
+
 ---
 
 ## 3. Workstream A: Widget Family Coverage
