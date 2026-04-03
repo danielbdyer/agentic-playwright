@@ -2,16 +2,23 @@ import { knowledgePaths } from '../../domain/kernel/ids';
 import type { InterfaceResolutionContext, ResolutionProposalDraft, GroundedStep, StepTaskElementCandidate, StepTaskScreenCandidate } from '../../domain/types';
 import type { IntentInterpretation, InterpretationSource } from './types';
 
+function enrichedPatch(screen: string, element: StepTaskElementCandidate, alias: string): Record<string, unknown> {
+  return {
+    screen,
+    element: element.element,
+    alias,
+    ...(element.role ? { role: element.role } : {}),
+    ...(element.widget ? { widget: String(element.widget) } : {}),
+    ...(element.locator && element.locator.length > 0 ? { locator: element.locator } : {}),
+  };
+}
+
 export function proposalForSupplementGap(task: GroundedStep, screen: StepTaskScreenCandidate, element: StepTaskElementCandidate): ResolutionProposalDraft[] {
   return [{
     artifactType: 'hints',
     targetPath: knowledgePaths.hints(screen.screen),
     title: `Capture phrasing for step ${task.index}`,
-    patch: {
-      screen: screen.screen,
-      element: element.element,
-      alias: task.actionText,
-    },
+    patch: enrichedPatch(screen.screen, element, task.actionText),
     rationale: 'Runtime resolved the step through live DOM after approved knowledge exhausted its deterministic priors.',
   }];
 }
@@ -130,11 +137,7 @@ export function proposalsForNeedsHuman(
           artifactType: 'hints' as const,
           targetPath: knowledgePaths.hints(screen.screen),
           title: `Add element alias for unresolved step ${task.index}`,
-          patch: {
-            screen: screen.screen,
-            element: screen.elements[0]!.element,
-            alias: task.actionText,
-          },
+          patch: enrichedPatch(screen.screen, screen.elements[0]!, task.actionText),
           rationale: `Screen "${screen.screen}" was matched but no element alias matched the action text "${task.actionText}". Proposing alias on candidate element "${screen.elements[0]!.element}".`,
         }]
       : !screen && resolutionContext.screens.length > 0 && resolutionContext.screens[0]!.elements.length > 0
@@ -142,11 +145,7 @@ export function proposalsForNeedsHuman(
             artifactType: 'hints' as const,
             targetPath: knowledgePaths.hints(resolutionContext.screens[0]!.screen),
             title: `Add alias for unresolved step ${task.index} (no screen matched)`,
-            patch: {
-              screen: resolutionContext.screens[0]!.screen,
-              element: resolutionContext.screens[0]!.elements[0]!.element,
-              alias: task.actionText,
-            },
+            patch: enrichedPatch(resolutionContext.screens[0]!.screen, resolutionContext.screens[0]!.elements[0]!, task.actionText),
             rationale: `No screen alias matched the action text "${task.actionText}". Proposing alias on screen "${resolutionContext.screens[0]!.screen}" element "${resolutionContext.screens[0]!.elements[0]!.element}" as a starting point.`,
           }]
         : [];
@@ -157,11 +156,7 @@ export function proposalsForNeedsHuman(
           artifactType: 'hints' as const,
           targetPath: knowledgePaths.hints(screen.screen),
           title: `Capture phrasing gap for step ${task.index}`,
-          patch: {
-            screen: screen.screen,
-            element: element.element,
-            alias: task.actionText,
-          },
+          patch: enrichedPatch(screen.screen, element, task.actionText),
           rationale: `Screen and element matched but resolution was incomplete. Action text: "${task.actionText}".`,
         }]
       : [];

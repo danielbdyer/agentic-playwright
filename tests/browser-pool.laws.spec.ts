@@ -8,43 +8,43 @@
  *   4. Warm-up URL extraction returns unique entry points, capped by maxUrls.
  *   5. No-op pool returns null on acquire and no-ops on release.
  */
-import { describe, it, expect } from 'vitest';
+import { test, expect } from '@playwright/test';
 import {
   determineResetStrategy,
   extractWarmUpUrls,
   createNoOpBrowserPool,
 } from '../lib/application/browser-pool';
 
-describe('determineResetStrategy', () => {
-  it('same-origin URLs get light reset', () => {
+test.describe('determineResetStrategy', () => {
+  test('same-origin URLs get light reset', () => {
     expect(determineResetStrategy(
       'https://example.com/page-a',
       'https://example.com/page-b',
     )).toBe('light');
   });
 
-  it('cross-origin URLs get full reset', () => {
+  test('cross-origin URLs get full reset', () => {
     expect(determineResetStrategy(
       'https://example.com/page-a',
       'https://other.com/page-b',
     )).toBe('full');
   });
 
-  it('null previous URL gets full reset', () => {
+  test('null previous URL gets full reset', () => {
     expect(determineResetStrategy(null, 'https://example.com/page')).toBe('full');
   });
 
-  it('null next URL gets full reset', () => {
+  test('null next URL gets full reset', () => {
     expect(determineResetStrategy('https://example.com/page', null)).toBe('full');
   });
 
-  it('both null gets full reset', () => {
+  test('both null gets full reset', () => {
     expect(determineResetStrategy(null, null)).toBe('full');
   });
 });
 
-describe('extractWarmUpUrls', () => {
-  it('extracts unique entry-point URLs from scenarios', () => {
+test.describe('extractWarmUpUrls', () => {
+  test('extracts unique entry-point URLs from scenarios', () => {
     const scenarios = [
       { url: 'https://a.com' },
       { url: 'https://b.com' },
@@ -54,7 +54,7 @@ describe('extractWarmUpUrls', () => {
     expect(urls).toEqual(['https://a.com', 'https://b.com']);
   });
 
-  it('caps at maxUrls', () => {
+  test('caps at maxUrls', () => {
     const scenarios = Array.from({ length: 20 }, (_, i) => ({
       url: `https://site-${i}.com`,
     }));
@@ -62,11 +62,11 @@ describe('extractWarmUpUrls', () => {
     expect(urls.length).toBeLessThanOrEqual(3);
   });
 
-  it('returns empty for empty scenarios', () => {
+  test('returns empty for empty scenarios', () => {
     expect(extractWarmUpUrls([], 5)).toEqual([]);
   });
 
-  it('skips scenarios without URL', () => {
+  test('skips scenarios without URL', () => {
     const scenarios = [
       { url: 'https://a.com' },
       { url: null },
@@ -78,22 +78,22 @@ describe('extractWarmUpUrls', () => {
   });
 });
 
-describe('createNoOpBrowserPool', () => {
-  it('acquire returns an overflow handle with null page', async () => {
+test.describe('createNoOpBrowserPool', () => {
+  test('acquire returns an overflow handle with null page', async () => {
     const pool = createNoOpBrowserPool();
     const handle = await pool.acquire();
     expect(handle.page).toBeNull();
     expect(handle.overflow).toBe(true);
   });
 
-  it('release is a no-op', async () => {
+  test('release is a no-op', async () => {
     const pool = createNoOpBrowserPool();
     const handle = await pool.acquire();
     // Should not throw
     await pool.release(handle);
   });
 
-  it('stats track acquisitions', async () => {
+  test('stats track acquisitions', async () => {
     const pool = createNoOpBrowserPool();
     await pool.acquire();
     await pool.acquire();

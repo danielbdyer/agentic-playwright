@@ -8,36 +8,36 @@
  *   4. Eviction fires when maxEntries is exceeded, clearing oldest half.
  *   5. size tracks the current number of cached entries.
  */
-import { describe, it, expect } from 'vitest';
+import { test, expect } from '@playwright/test';
 import { createSemanticDictCache } from '../lib/runtime/agent/semantic-dict-cache';
 
-describe('SemanticDictCache', () => {
-  it('has() returns false for uncached keys', () => {
+test.describe('SemanticDictCache', () => {
+  test('has() returns false for uncached keys', () => {
     const cache = createSemanticDictCache();
     expect(cache.has('click submit button')).toBe(false);
   });
 
-  it('set() + has() returns true', () => {
+  test('set() + has() returns true', () => {
     const cache = createSemanticDictCache();
     cache.set('click submit button', { entry: { id: 'test' } } as never);
     expect(cache.has('click submit button')).toBe(true);
   });
 
-  it('get() returns the cached value', () => {
+  test('get() returns the cached value', () => {
     const cache = createSemanticDictCache();
     const match = { entry: { id: 'test-entry' } } as never;
     cache.set('click submit', match);
     expect(cache.get('click submit')).toBe(match);
   });
 
-  it('caches null for negative results', () => {
+  test('caches null for negative results', () => {
     const cache = createSemanticDictCache();
     cache.set('unknown intent', null);
     expect(cache.has('unknown intent')).toBe(true);
     expect(cache.get('unknown intent')).toBeNull();
   });
 
-  it('evicts oldest half when maxEntries is exceeded', () => {
+  test('evicts oldest half when maxEntries is exceeded', () => {
     const cache = createSemanticDictCache(4);
     cache.set('a', null);
     cache.set('b', null);
@@ -53,7 +53,7 @@ describe('SemanticDictCache', () => {
     expect(cache.has('e')).toBe(true);
   });
 
-  it('size tracks current entries via stats', () => {
+  test('size tracks current entries via stats', () => {
     const cache = createSemanticDictCache();
     expect(cache.stats.size).toBe(0);
     cache.set('x', null);

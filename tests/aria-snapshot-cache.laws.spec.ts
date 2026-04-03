@@ -8,7 +8,7 @@
  *   4. invalidate() forces next call to be a miss.
  *   5. Hit/miss counters are accurate.
  */
-import { describe, it, expect } from 'vitest';
+import { test, expect } from '@playwright/test';
 import { createAriaSnapshotCache } from '../lib/runtime/agent/aria-snapshot-cache';
 
 function makeMockPage(snapshot: object | null = { role: 'WebArea', name: 'Test' }) {
@@ -24,8 +24,8 @@ function makeMockPage(snapshot: object | null = { role: 'WebArea', name: 'Test' 
   };
 }
 
-describe('AriaSnapshotCache', () => {
-  it('first call is a miss, second within TTL is a hit', async () => {
+test.describe('AriaSnapshotCache', () => {
+  test('first call is a miss, second within TTL is a hit', async () => {
     const cache = createAriaSnapshotCache();
     const page = makeMockPage();
 
@@ -42,21 +42,21 @@ describe('AriaSnapshotCache', () => {
     expect(page.callCount).toBe(1); // No additional DOM call
   });
 
-  it('returns null for non-Playwright pages', async () => {
+  test('returns null for non-Playwright pages', async () => {
     const cache = createAriaSnapshotCache();
     const result = await cache.get(null);
     expect(result).toBeNull();
     expect(cache.misses).toBe(1);
   });
 
-  it('returns null when snapshot() returns null', async () => {
+  test('returns null when snapshot() returns null', async () => {
     const cache = createAriaSnapshotCache();
     const page = makeMockPage(null);
     const result = await cache.get(page);
     expect(result).toBeNull();
   });
 
-  it('invalidate forces next call to be a miss', async () => {
+  test('invalidate forces next call to be a miss', async () => {
     const cache = createAriaSnapshotCache();
     const page = makeMockPage();
 
@@ -70,7 +70,7 @@ describe('AriaSnapshotCache', () => {
     expect(page.callCount).toBe(2);
   });
 
-  it('truncates long snapshots', async () => {
+  test('truncates long snapshots', async () => {
     const bigSnapshot = { role: 'WebArea', children: Array.from({ length: 200 }, (_, i) => ({ role: 'text', name: `item-${i}-${'x'.repeat(20)}` })) };
     const cache = createAriaSnapshotCache();
     const page = makeMockPage(bigSnapshot);

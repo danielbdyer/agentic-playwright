@@ -1,4 +1,5 @@
 import { type SeededRng, pick } from '../kernel/random';
+import { ACTION_SYNONYMS, ROLE_AFFORDANCES } from '../widgets/role-affordances';
 
 // ─── Domain vocabulary ───
 //
@@ -30,16 +31,32 @@ const DOMAIN_SYNONYMS: Readonly<Record<string, readonly string[]>> = {
 
 // ─── Affordance vocabulary ───
 //
-// How QA testers describe interactions with different widget types.
+// Derived from ROLE_AFFORDANCES × ACTION_SYNONYMS.
+// Each widget's verbs are the union of synonyms for its role's supported actions.
 
-const AFFORDANCE_VERBS: Readonly<Record<string, readonly string[]>> = {
-  'os-input': ['type in', 'enter', 'fill in', 'key in', 'put in', 'provide', 'supply'],
-  'os-textarea': ['type in', 'enter', 'write in', 'fill out', 'compose in'],
-  'os-button': ['click', 'press', 'hit', 'tap', 'activate', 'use', 'trigger'],
-  'os-select': ['choose', 'pick', 'select', 'set to', 'change to'],
-  'os-table': ['check the', 'look at', 'review the', 'inspect the', 'examine the'],
-  'os-region': ['check', 'verify', 'see that', 'confirm', 'inspect', 'look at'],
-};
+const WIDGET_PRIMARY_ROLE: Readonly<Record<string, string>> = {
+  'os-input': 'textbox',
+  'os-textarea': 'textbox',
+  'os-button': 'button',
+  'os-select': 'combobox',
+  'os-table': 'table',
+  'os-region': 'dialog',
+} as const;
+
+const AFFORDANCE_VERBS: Readonly<Record<string, readonly string[]>> = (() => {
+  const result: Record<string, readonly string[]> = {};
+  for (const [widget, role] of Object.entries(WIDGET_PRIMARY_ROLE)) {
+    const affordances = ROLE_AFFORDANCES[role] ?? [];
+    const primaryAction = affordances.find((a) => a.effectCategory !== 'observation')?.action
+      ?? affordances[0]?.action;
+    if (primaryAction) {
+      result[widget] = ACTION_SYNONYMS[primaryAction] ?? [primaryAction];
+    } else {
+      result[widget] = ['check', 'verify', 'see that', 'confirm', 'inspect', 'look at'];
+    }
+  }
+  return result;
+})();
 
 // ─── Natural language assertion patterns ───
 //

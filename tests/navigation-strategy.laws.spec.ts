@@ -10,7 +10,7 @@
  *   6. Traditional routes use 'load' with longer timeout.
  *   7. Post-navigation check needed for SPA and unknown, not traditional.
  */
-import { describe, it, expect } from 'vitest';
+import { test, expect } from '@playwright/test';
 import {
   classifyRoute,
   navigationOptionsForRoute,
@@ -18,84 +18,84 @@ import {
   needsPostNavigationCheck,
 } from '../lib/runtime/navigation-strategy';
 
-describe('classifyRoute', () => {
-  it('classifies hash-based routing as SPA', () => {
+test.describe('classifyRoute', () => {
+  test('classifies hash-based routing as SPA', () => {
     expect(classifyRoute('https://app.example.com/#/dashboard')).toBe('spa');
   });
 
-  it('classifies /app/ prefix as SPA', () => {
+  test('classifies /app/ prefix as SPA', () => {
     expect(classifyRoute('https://example.com/app/settings')).toBe('spa');
   });
 
-  it('classifies /dashboard as SPA', () => {
+  test('classifies /dashboard as SPA', () => {
     expect(classifyRoute('https://example.com/dashboard')).toBe('spa');
   });
 
-  it('classifies .php as traditional', () => {
+  test('classifies .php as traditional', () => {
     expect(classifyRoute('https://example.com/index.php')).toBe('traditional');
   });
 
-  it('classifies .aspx as traditional', () => {
+  test('classifies .aspx as traditional', () => {
     expect(classifyRoute('https://example.com/page.aspx')).toBe('traditional');
   });
 
-  it('classifies /api/ as traditional', () => {
+  test('classifies /api/ as traditional', () => {
     expect(classifyRoute('https://example.com/api/users')).toBe('traditional');
   });
 
-  it('classifies unknown URLs as unknown', () => {
+  test('classifies unknown URLs as unknown', () => {
     expect(classifyRoute('https://example.com/some/path')).toBe('unknown');
   });
 
-  it('metadata overrides URL pattern', () => {
+  test('metadata overrides URL pattern', () => {
     expect(classifyRoute('https://example.com/index.php', { routeType: 'spa' })).toBe('spa');
     expect(classifyRoute('https://example.com/#/app', { routeType: 'traditional' })).toBe('traditional');
   });
 
-  it('traditional patterns take priority over SPA patterns', () => {
+  test('traditional patterns take priority over SPA patterns', () => {
     // /api/ is traditional even though it could match SPA-like patterns
     expect(classifyRoute('https://example.com/api/dashboard')).toBe('traditional');
   });
 });
 
-describe('navigationOptionsForRoute', () => {
-  it('SPA uses domcontentloaded with 10s timeout', () => {
+test.describe('navigationOptionsForRoute', () => {
+  test('SPA uses domcontentloaded with 10s timeout', () => {
     const opts = navigationOptionsForRoute('spa');
     expect(opts.waitUntil).toBe('domcontentloaded');
     expect(opts.timeout).toBe(10_000);
   });
 
-  it('traditional uses load with 30s timeout', () => {
+  test('traditional uses load with 30s timeout', () => {
     const opts = navigationOptionsForRoute('traditional');
     expect(opts.waitUntil).toBe('load');
     expect(opts.timeout).toBe(30_000);
   });
 
-  it('unknown uses domcontentloaded with 15s timeout', () => {
+  test('unknown uses domcontentloaded with 15s timeout', () => {
     const opts = navigationOptionsForRoute('unknown');
     expect(opts.waitUntil).toBe('domcontentloaded');
     expect(opts.timeout).toBe(15_000);
   });
 });
 
-describe('navigationOptionsForUrl', () => {
-  it('convenience function combines classify + options', () => {
+test.describe('navigationOptionsForUrl', () => {
+  test('convenience function combines classify + options', () => {
     const opts = navigationOptionsForUrl('https://example.com/#/dashboard');
     expect(opts.waitUntil).toBe('domcontentloaded');
     expect(opts.timeout).toBe(10_000);
   });
 });
 
-describe('needsPostNavigationCheck', () => {
-  it('SPA needs post-navigation check', () => {
+test.describe('needsPostNavigationCheck', () => {
+  test('SPA needs post-navigation check', () => {
     expect(needsPostNavigationCheck('spa')).toBe(true);
   });
 
-  it('unknown needs post-navigation check', () => {
+  test('unknown needs post-navigation check', () => {
     expect(needsPostNavigationCheck('unknown')).toBe(true);
   });
 
-  it('traditional does not need post-navigation check', () => {
+  test('traditional does not need post-navigation check', () => {
     expect(needsPostNavigationCheck('traditional')).toBe(false);
   });
 });
