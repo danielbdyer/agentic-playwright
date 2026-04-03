@@ -69,6 +69,7 @@ elements:
       - search button
       - Select search
       - Select search button
+      - Switch to policy search
       - Tap search
       - Trigger search
       - Trigger search button
@@ -78,14 +79,14 @@ elements:
       - Visit the policy search screen
     acquired:
       certification: uncertified
-      activatedAt: 2026-04-03T03:02:47.853Z
+      activatedAt: 2026-04-03T04:49:42.705Z
       certifiedAt: null
       lineage:
         runIds:
-          - 2026-04-03T03-02-47-800Z
+          - 2026-04-03T04-49-42-633Z
         evidenceIds: []
         sourceArtifactPaths:
-          - .tesseract/tasks/20046.resolution.json
+          - .tesseract/tasks/20016.resolution.json
           - controls/runbooks/synthetic-dogfood.runbook.yaml
           - controls/datasets/demo-default.dataset.yaml
         role: null

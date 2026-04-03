@@ -16,11 +16,11 @@ elements:
     affordance: read-only
     acquired:
       certification: uncertified
-      activatedAt: 2026-04-03T03:00:13.640Z
+      activatedAt: 2026-04-03T04:16:53.369Z
       certifiedAt: null
       lineage:
         runIds:
-          - 2026-04-03T03-00-13-579Z
+          - 2026-04-03T04-16-53-298Z
         evidenceIds: []
         sourceArtifactPaths:
           - .tesseract/tasks/20029.resolution.json
