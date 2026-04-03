@@ -1,4 +1,4 @@
-import { normalizeIntentText } from '../../domain/knowledge/inference';
+import { normalizeIntentText, type AliasMatch } from '../../domain/knowledge/inference';
 import { createPostureId, createSnapshotTemplateId } from '../../domain/kernel/identity';
 import { knowledgePaths } from '../../domain/kernel/ids';
 import type {
@@ -260,14 +260,40 @@ export function rankScreenCandidates(
     })];
   });
 
-  const entriesWithCarry = entries.length === 0 && action !== 'navigate' && previousResolution?.screen
+  // Element-routed screen inference: when no screen alias matches directly,
+  // check if any screen's elements have matching aliases. The action text
+  // often names an element (e.g. "Verify error message is visible") without
+  // naming the screen. Infer the screen from the element match.
+  const entriesWithElementRoute = entries.length === 0
+    ? groundedScreens(task, resolutionContext).flatMap((screen) => {
+        const elementMatch = screen.elements.reduce<AliasMatch | null>((best, element) => {
+          const elementAliases = uniqueSorted([element.element, humanizeIdentifier(element.element), element.name ?? '', ...element.aliases]);
+          const match = bestAliasMatch(normalized, elementAliases);
+          return match && (!best || match.score > best.score) ? match : best;
+        }, null);
+        if (!elementMatch) return [];
+        const memoryCarry = observedStateSession?.currentScreen?.screen === screen.screen
+          ? Math.max(0, Math.round(observedStateSession.currentScreen.confidence * 10))
+          : 0;
+        return [candidate({
+          concern: 'screen',
+          source: 'approved-screen-knowledge',
+          value: screen,
+          summary: `Screen inferred from element alias match "${elementMatch.alias}".${memoryCarry > 0 ? ' Working-memory prior reinforced.' : ''}`,
+          refs: [...screen.knowledgeRefs, ...screen.supplementRefs],
+          featureScores: { explicit: 0, control: 0, approvedKnowledge: 40, overlay: 0, translation: 0, dom: 0, alias: elementMatch.score, fallback: 0, carry: memoryCarry },
+        })];
+      })
+    : entries;
+
+  const entriesWithCarry = entriesWithElementRoute.length === 0 && action !== 'navigate' && previousResolution?.screen
     ? (() => {
         const carried = groundedScreens(task, resolutionContext).find((screen) => screen.screen === previousResolution.screen) ?? null;
-        if (!carried) return entries;
+        if (!carried) return entriesWithElementRoute;
         const memoryCarry = observedStateSession?.currentScreen?.screen === carried.screen
           ? Math.max(0, Math.round(observedStateSession.currentScreen.confidence * 10))
           : 0;
-        return [...entries, candidate({
+        return [...entriesWithElementRoute, candidate({
           concern: 'screen',
           source: 'approved-screen-knowledge',
           value: carried,
@@ -278,7 +304,7 @@ export function rankScreenCandidates(
           featureScores: { explicit: 0, control: 0, approvedKnowledge: 15, overlay: 0, translation: 0, dom: 0, alias: 0, fallback: 0, carry: 6 + memoryCarry },
         })];
       })()
-    : entries;
+    : entriesWithElementRoute;
 
   return asRanked(entriesWithCarry);
 }
