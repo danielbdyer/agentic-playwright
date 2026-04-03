@@ -5,32 +5,85 @@ screenAliases:
 elements:
   policyNumberInput:
     aliases:
+      - Fill in policy number with a valid value
+      - Input a valid value in the search field
       - policy number
       - policy number field
+      - Provide a valid value for policy number field
+      - Provide test data for policy number field
+      - Put a valid value in search field field
       - search field
+      - Type a valid value into the policy number field
     defaultValueRef: "{{activePolicy.number}}"
     parameter: policyNumber
     affordance: text-entry
+    acquired:
+      certification: uncertified
+      activatedAt: 2026-04-03T02:06:39.915Z
+      certifiedAt: null
+      lineage:
+        runIds:
+          - 2026-04-03T02-06-39-819Z
+        evidenceIds:
+          - .tesseract/evidence/runs/20033/2026-04-03T02-06-39-819Z/step-2-0.json
+        sourceArtifactPaths:
+          - .tesseract/tasks/20033.resolution.json
+          - controls/runbooks/synthetic-dogfood.runbook.yaml
+          - controls/datasets/demo-default.dataset.yaml
+        role: null
+        state: null
+        driftSeed: null
+    role: textbox
+    widget: os-input
+    locator:
+      - kind: test-id
+        value: policy-number-input
+      - kind: role-name
+        role: textbox
+        name: Policy Number
   searchButton:
     aliases:
       - Access policy search
       - Access policy search screen
       - Activate search button
+      - Assert search results is shown
+      - Browse to policy search
       - Browse to policy search screen
+      - Click on the search
+      - Click search
+      - Enter test data in search field
+      - Go to the policy search
+      - Go to the policy search screen
+      - Hit the back to search
+      - Hit the return to search
+      - Hit the search button
+      - Key in test data at search field
+      - Load the policy search page
       - Load the policy search screen page
+      - Navigate to policy search
+      - Navigate to policy search screen
+      - Open policy search screen
+      - Press the search
+      - Press the search button
       - search
       - search button
+      - Select search
+      - Select search button
+      - Tap search
+      - Trigger search
       - Trigger search button
+      - Type a valid value into the search field
+      - Verify search results is visible
+      - Visit the policy search
       - Visit the policy search screen
     acquired:
       certification: uncertified
-      activatedAt: 2026-03-17T23:35:47.652Z
+      activatedAt: 2026-04-03T03:02:47.853Z
       certifiedAt: null
       lineage:
         runIds:
-          - 2026-03-17T23-35-47-177Z
-        evidenceIds:
-          - .tesseract/evidence/runs/20046/2026-03-17T23-35-47-177Z/step-5-0.json
+          - 2026-04-03T03-02-47-800Z
+        evidenceIds: []
         sourceArtifactPaths:
           - .tesseract/tasks/20046.resolution.json
           - controls/runbooks/synthetic-dogfood.runbook.yaml
@@ -38,15 +91,88 @@ elements:
         role: null
         state: null
         driftSeed: null
+    role: button
+    widget: os-button
+    locator:
+      - kind: test-id
+        value: search-button
+      - kind: role-name
+        role: button
+        name: Search
   resultsTable:
     aliases:
-      - search results
+      - Check that error panel is displayed
+      - Check that results table is displayed
+      - Confirm results table appears
+      - Confirm search results appears
+      - Ensure results table can be seen
+      - Observe results table content
+      - Observe search results content
       - results table
+      - search results
+      - See that results table is on screen
+      - See that search results is on screen
+      - Validate results table is present
+      - Verify results table is visible
     snapshotAliases:
       snapshots/policy-search/results-with-policy.yaml:
         - verify search results show policy
         - matching policy appears in search results
+    acquired:
+      certification: uncertified
+      activatedAt: 2026-04-03T02:58:53.773Z
+      certifiedAt: null
+      lineage:
+        runIds:
+          - 2026-04-03T02-58-53-731Z
+        evidenceIds: []
+        sourceArtifactPaths:
+          - .tesseract/tasks/20014.resolution.json
+          - controls/runbooks/synthetic-dogfood.runbook.yaml
+          - controls/datasets/demo-default.dataset.yaml
+        role: null
+        state: null
+        driftSeed: null
+    role: table
+    widget: os-table
+    locator:
+      - kind: test-id
+        value: search-results-table
+      - kind: role-name
+        role: table
+        name: Search Results
   validationSummary:
     aliases:
-      - validation summary
+      - Assert error summary is shown
+      - Assert validation summary is shown
+      - Check that error summary is displayed
+      - Check that validation summary is displayed
+      - Confirm error summary appears
+      - Confirm validation summary appears
+      - Ensure error summary can be seen
+      - Ensure validation summary can be seen
       - error summary
+      - Observe error panel content
+      - Observe error summary content
+      - Observe validation summary content
+      - See that date is on screen
+      - See that error panel is on screen
+      - See that validation summary is on screen
+      - validation summary
+      - Verify error summary is visible
+      - Verify validation summary is visible
+    acquired:
+      certification: uncertified
+      activatedAt: 2026-04-03T02:06:39.915Z
+      certifiedAt: null
+      lineage:
+        runIds:
+          - 2026-04-03T02-06-39-819Z
+        evidenceIds: []
+        sourceArtifactPaths:
+          - .tesseract/tasks/20033.resolution.json
+          - controls/runbooks/synthetic-dogfood.runbook.yaml
+          - controls/datasets/demo-default.dataset.yaml
+        role: null
+        state: null
+        driftSeed: null

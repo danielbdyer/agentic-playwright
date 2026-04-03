@@ -1,6 +1,6 @@
 import path from 'path';
 import { Effect } from 'effect';
-import { activateProposalBundle, autoApproveEligibleProposals, quarantineToxicProposals } from './activate-proposals';
+import { activateProposalBundle, autoApproveEligibleProposals, quarantineToxicProposals, tryActivateProposal } from './activate-proposals';
 import { deltaReloadProposalsAndRuns, loadWorkspaceCatalog } from './catalog';
 import { buildPartialFitnessMetrics } from './fitness';
 import { calibrateWeightsFromCorrelations } from './learning-bottlenecks';
@@ -11,6 +11,7 @@ import { emitAgentWorkbench, processWorkItems, emitInterventionLineage } from '.
 import { createDashboardDecider } from './dashboard-decider';
 import { createDualModeDecider, createAgentDecider } from './agent-decider';
 import type { AgentWorkItem, BottleneckWeightCorrelation, WorkItemCompletion } from '../domain/types';
+import { detectAliasConflicts } from '../domain/knowledge/inference';
 import { dashboardEvent } from '../domain/types/intervention-context';
 import type { DashboardPort } from './ports';
 import { Dashboard } from './ports';
@@ -619,6 +620,28 @@ function runIteration(iteration: number, options: DogfoodOptions, state: LoopSta
       }));
     }
 
+    // Step 3g (E4): Knowledge conflict detection — find aliases that map to
+    // multiple different elements. These create ambiguous resolution and should
+    // be flagged for the agent to resolve. On warm-start especially, stale or
+    // conflicting aliases degrade resolution quality.
+    const screenHintsMap: Record<string, import('../domain/types').ScreenHints> = {};
+    for (const hintsEnvelope of postRunCatalog.screenHints) {
+      screenHintsMap[hintsEnvelope.artifact.screen] = hintsEnvelope.artifact;
+    }
+    const aliasConflicts = detectAliasConflicts(screenHintsMap);
+    if (aliasConflicts.length > 0) {
+      const cDashboard = yield* Dashboard;
+      yield* cDashboard.emit(dashboardEvent('diagnostics', {
+        phase: 'alias-conflict-detection',
+        iteration,
+        conflictCount: aliasConflicts.length,
+        conflicts: aliasConflicts.slice(0, 10).map((c) => ({
+          alias: c.alias,
+          mappings: c.mappings,
+        })),
+      }));
+    }
+
     // Step 4: collect and activate pending proposals (with bottleneck weights + toxic gate)
     const proposalsGenerated = allBundles.reduce((sum, bundle) => sum + bundle.proposals.length, 0);
     // Count proposals already activated during the run phase — these were
@@ -680,7 +703,10 @@ function runIteration(iteration: number, options: DogfoodOptions, state: LoopSta
           ? createDashboardDecider(options.dashboard)
           : undefined);
 
-    if (options.actBetweenIterations || resolvedDecider) {
+    // Always run the act loop: defaultWorkItemDecider auto-approves proposals
+    // and provides audit trail. When dashboard/mcpInvokeTool are present, the
+    // resolvedDecider handles real-time agent/human decisions instead.
+    {
       const actOpts = options.actBetweenIterations ?? {};
       const actResult = yield* processWorkItems({
         paths: options.paths,
@@ -689,6 +715,36 @@ function runIteration(iteration: number, options: DogfoodOptions, state: LoopSta
         ...(actOpts.screenGroupDecider ? { screenGroupDecider: actOpts.screenGroupDecider } : {}),
         ...(actOpts.onItemProcessed ? { onItemProcessed: actOpts.onItemProcessed } : {}),
       });
+
+      // Step 4c½: close the activation loop — activate proposals approved by the act loop.
+      // The act loop records decisions as workbench completions (bookkeeping), but proposals
+      // are only written to disk by activateProposalBundle/tryActivateProposal. This step
+      // bridges the gap: approved work items → actual knowledge activation.
+      const approvedCompletionIds = new Set(
+        actResult.completions
+          .filter((c) => c.status === 'completed')
+          .map((c) => c.workItemId),
+      );
+      if (approvedCompletionIds.size > 0 && pendingBundles.length > 0) {
+        const fs = yield* FileSystem;
+        const activatedAt = new Date().toISOString();
+        const stillPending = pendingBundles.flatMap((bundle) =>
+          bundle.proposals.filter((p) => p.activation.status === 'pending'),
+        );
+        const actLoopActivated = yield* Effect.forEach(
+          stillPending,
+          (proposal) => tryActivateProposal(fs, options.paths.suiteRoot, proposal, activatedAt),
+          { concurrency: 5 },
+        );
+        const actLoopActivatedCount = actLoopActivated.filter((r) => !r.blocked).length;
+        if (actLoopActivatedCount > 0) {
+          yield* iterationDashboard.emit(dashboardEvent('proposal-activated', {
+            phase: 'act-loop-feedback',
+            iteration,
+            activatedCount: actLoopActivatedCount,
+          }));
+        }
+      }
 
       // Step 4d: emit intervention lineage (cross-iteration feedback arc)
       if (actResult.completions.length > 0) {

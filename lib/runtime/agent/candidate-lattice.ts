@@ -243,8 +243,8 @@ export function rankScreenCandidates(
   const normalized = normalizedCombined(task);
   const entries: Array<LatticeCandidate<StepTaskScreenCandidate>> = groundedScreens(task, resolutionContext).flatMap((screen) => {
     const aliases = uniqueSorted([screen.screen, humanizeIdentifier(screen.screen), ...screen.screenAliases]);
-    const match = bestAliasMatch(normalized, aliases);
-    if (!match) {
+    const bestMatch = bestAliasMatch(normalized, aliases);
+    if (!bestMatch) {
       return [];
     }
     const memoryCarry = observedStateSession?.currentScreen?.screen === screen.screen
@@ -254,9 +254,9 @@ export function rankScreenCandidates(
       concern: 'screen',
       source: 'approved-screen-knowledge',
       value: screen,
-      summary: `Screen matched approved aliases via "${match.alias}".${memoryCarry > 0 ? ' Working-memory prior reinforced same-screen continuation.' : ''}`,
+      summary: `Screen matched approved aliases via "${bestMatch.alias}".${memoryCarry > 0 ? ' Working-memory prior reinforced same-screen continuation.' : ''}`,
       refs: [...screen.knowledgeRefs, ...screen.supplementRefs],
-      featureScores: { explicit: 0, control: 0, approvedKnowledge: 80, overlay: 0, translation: 0, dom: 0, alias: match.score, fallback: 0, carry: memoryCarry },
+      featureScores: { explicit: 0, control: 0, approvedKnowledge: 80, overlay: 0, translation: 0, dom: 0, alias: bestMatch.score, fallback: 0, carry: memoryCarry },
     })];
   });
 

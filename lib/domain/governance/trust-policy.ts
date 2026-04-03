@@ -84,10 +84,13 @@ export function evaluateTrustPolicy(input: {
 
 // ─── WP5: Auto-Approval ───
 
+// Profiles that run autonomously (no human in the loop) auto-approve.
+// Derived from profile semantics: autonomous loops need self-healing.
+const AUTONOMOUS_PROFILES: ReadonlySet<ExecutionProfile> = new Set(['dogfood']);
 const PROFILE_AUTO_APPROVAL: Record<ExecutionProfile, boolean> = {
-  'ci-batch': false,
-  'interactive': false,
-  'dogfood': true,
+  'ci-batch': AUTONOMOUS_PROFILES.has('ci-batch'),
+  'interactive': AUTONOMOUS_PROFILES.has('interactive'),
+  'dogfood': AUTONOMOUS_PROFILES.has('dogfood'),
 };
 
 export const DEFAULT_AUTO_APPROVAL_POLICY: AutoApprovalPolicy = {

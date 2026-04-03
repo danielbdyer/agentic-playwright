@@ -1,4 +1,5 @@
 import { type SeededRng, pick, shuffle } from '../kernel/random';
+import { ROLE_AFFORDANCES } from '../widgets/role-affordances';
 import type { ScreenElementPlanInput, ScreenPlanInput } from './scenario-plan';
 import { generateHeldOutPhrases, generateNavPhrase, generateNavExpectation, selectAtGapDistance } from './translation-gap';
 
@@ -37,16 +38,44 @@ interface ClassifiedElements {
   readonly selects: readonly ScreenElementPlanInput[];
 }
 
+// Widget-to-role mapping (shared with runtime/interact.ts)
+const WIDGET_TO_ROLE: Readonly<Record<string, string>> = {
+  'os-button': 'button',
+  'os-input': 'textbox',
+  'os-textarea': 'textbox',
+  'os-table': 'table',
+  'os-select': 'combobox',
+  'os-checkbox': 'checkbox',
+  'os-radio': 'radio',
+  'os-link': 'link',
+  'os-region': 'dialog',
+} as const;
+
+const hasAction = (widget: string, action: string): boolean => {
+  const role = WIDGET_TO_ROLE[widget];
+  if (!role) return false;
+  const affordances = ROLE_AFFORDANCES[role];
+  return affordances?.some((a) => a.action === action) ?? false;
+};
+
 /**
- * Classify elements by their widget affordance for archetype composition.
+ * Classify elements by their role affordances for archetype composition.
+ * Derived from ROLE_AFFORDANCES: roles with 'fill' → inputs, 'click' → buttons, etc.
  */
-const classifyElements = (elements: readonly ScreenElementPlanInput[]): ClassifiedElements => ({
-  inputs: elements.filter((e) => e.widget === 'os-input' || e.widget === 'os-textarea'),
-  buttons: elements.filter((e) => e.widget === 'os-button'),
-  readOnly: elements.filter((e) => e.widget === 'os-region'),
-  tables: elements.filter((e) => e.widget === 'os-table'),
-  selects: elements.filter((e) => e.widget === 'os-select'),
-});
+const classifyElements = (elements: readonly ScreenElementPlanInput[]): ClassifiedElements => {
+  return {
+    inputs: elements.filter((e) => hasAction(e.widget, 'fill')),
+    buttons: elements.filter((e) => hasAction(e.widget, 'click') && !hasAction(e.widget, 'fill')),
+    readOnly: elements.filter((e) => {
+      const role = WIDGET_TO_ROLE[e.widget];
+      if (!role) return true; // unknown widget → treat as read-only
+      const affordances = ROLE_AFFORDANCES[role] ?? [];
+      return affordances.every((a) => a.effectCategory === 'observation');
+    }),
+    tables: elements.filter((e) => WIDGET_TO_ROLE[e.widget] === 'table' || WIDGET_TO_ROLE[e.widget] === 'grid'),
+    selects: elements.filter((e) => hasAction(e.widget, 'select')),
+  };
+};
 
 /**
  * Pick a value for an input field, using posture data when available.
@@ -272,7 +301,7 @@ const formSubmit = (ctx: ArchetypeContext): readonly ArchetypeStep[] => {
   const fillSteps = [...inputs, ...selects].slice(0, 3).map((field) => {
     const phrase = phraseForElement(field, primaryScreen, lexicalGap, rng);
     const value = pickValue(field, rng, dataVariation);
-    const verb = field.widget === 'os-select' ? 'Select' : 'Enter';
+    const verb = hasAction(field.widget, 'select') ? 'Select' : 'Enter';
     return interactionStep(
       `${verb} ${value} in the ${phrase}`,
       `${phrase} accepts the value`,

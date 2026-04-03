@@ -31,7 +31,7 @@ import {
   addToParetoFrontier,
   objectivesFromMetrics,
 } from '../domain/types';
-import { foldPipelineFailureClass } from '../domain/kernel/visitors';
+import { foldPipelineFailureClass, WINNING_SOURCE_TO_RUNG } from '../domain/kernel/visitors';
 import { resolutionPrecedenceLaw, type ResolutionPrecedenceRung } from '../domain/resolution/precedence';
 import type { BottleneckWeightCorrelation, GeneralizationMetrics } from '../domain/types';
 
@@ -51,9 +51,18 @@ interface StepOutcome {
   readonly proposalBlocked: number;
 }
 
+// Translation score thresholds — extracted from empirical calibration
+const TRANSLATION_NEAR_MISS_LOWER = 0.15;
+const TRANSLATION_NEAR_MISS_UPPER = 0.34;
+
+// Winning sources that indicate a fallback rung was used when a higher one should suffice
+const FALLBACK_RUNGS: ReadonlySet<string> = new Set(['live-dom', 'structured-translation']);
+
 function classifyFailure(step: StepOutcome): PipelineFailureClass | null {
   // Translation scored below threshold but had a near-miss candidate
-  if (!step.translationMatched && step.translationScore !== null && step.translationScore > 0.15 && step.translationScore < 0.34) {
+  if (!step.translationMatched && step.translationScore !== null
+    && step.translationScore > TRANSLATION_NEAR_MISS_LOWER
+    && step.translationScore < TRANSLATION_NEAR_MISS_UPPER) {
     return 'translation-threshold-miss';
   }
 
@@ -75,7 +84,7 @@ function classifyFailure(step: StepOutcome): PipelineFailureClass | null {
   }
 
   // Winning source was a lower-precedence rung when a higher one could have worked
-  if (step.winningSource === 'live-dom' || step.winningSource === 'structured-translation') {
+  if (FALLBACK_RUNGS.has(step.winningSource)) {
     return 'resolution-rung-skip';
   }
 
@@ -138,23 +147,10 @@ function computeRungRates(steps: readonly StepOutcome[]): readonly RungRate[] {
   const total = steps.length;
   if (total === 0) return [];
 
-  const sourceToRung: Readonly<Record<string, ResolutionPrecedenceRung>> = {
-    'scenario-explicit': 'explicit',
-    'resolution-control': 'control',
-    'approved-knowledge': 'approved-screen-knowledge',
-    'knowledge-hint': 'approved-screen-knowledge',
-    'shared-patterns': 'shared-patterns',
-    'prior-evidence': 'prior-evidence',
-    'approved-equivalent': 'approved-equivalent-overlay',
-    'structured-translation': 'structured-translation',
-    'live-dom': 'live-dom',
-    'agent-interpreted': 'agent-interpreted',
-    'none': 'needs-human',
-  };
-
   const wins = new Map<ResolutionPrecedenceRung, number>();
   for (const step of steps) {
-    const rung = sourceToRung[step.winningSource] ?? 'needs-human';
+    const rung = (WINNING_SOURCE_TO_RUNG[step.winningSource as keyof typeof WINNING_SOURCE_TO_RUNG]
+      ?? 'needs-human') as ResolutionPrecedenceRung;
     wins.set(rung, (wins.get(rung) ?? 0) + 1);
   }
 
@@ -186,17 +182,24 @@ const BOTTLENECK_SIGNALS = [
   { signal: 'thin-screen-coverage', weight: 0.2 },
 ] as const;
 
-// Maps failure classes to the bottleneck signal they most closely represent
-const FAILURE_TO_SIGNAL: Readonly<Record<string, string>> = {
-  'recovery-strategy-miss': 'repair-recovery-hotspot',
-  'translation-threshold-miss': 'translation-fallback-dominant',
-  'translation-normalization-gap': 'translation-fallback-dominant',
-  'alias-coverage-gap': 'high-unresolved-rate',
-  'resolution-rung-skip': 'thin-screen-coverage',
-  'convergence-stall': 'thin-screen-coverage',
-  'trust-policy-over-block': 'thin-screen-coverage',
-  'scoring-weight-mismatch': 'repair-recovery-hotspot',
-};
+// Derived: maps improvement target kind → bottleneck signal
+const TARGET_KIND_TO_SIGNAL: Readonly<Record<string, string>> = {
+  recovery: 'repair-recovery-hotspot',
+  translation: 'translation-fallback-dominant',
+  resolution: 'high-unresolved-rate',
+  scoring: 'thin-screen-coverage',
+  'trust-policy': 'thin-screen-coverage',
+} as const;
+
+// Maps failure classes to the bottleneck signal via improvement target derivation
+const FAILURE_TO_SIGNAL: Readonly<Record<string, string>> = Object.fromEntries(
+  (['translation-threshold-miss', 'translation-normalization-gap', 'alias-coverage-gap',
+    'resolution-rung-skip', 'scoring-weight-mismatch', 'recovery-strategy-miss',
+    'convergence-stall', 'trust-policy-over-block'] as const).map((fc) => {
+    const target = improvementTargetFor(fc);
+    return [fc, TARGET_KIND_TO_SIGNAL[target.kind] ?? 'thin-screen-coverage'];
+  }),
+);
 
 function computeBottleneckCorrelations(
   experiments: readonly ExperimentRecord[],

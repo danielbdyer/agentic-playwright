@@ -12,7 +12,7 @@
  * 8. Fully resolved steps → no escalation
  */
 
-import { describe, it, expect } from 'vitest';
+import { test, expect } from '@playwright/test';
 import {
   evaluateEscalationPolicy,
   type EscalationThresholds,
@@ -27,8 +27,8 @@ const DEFAULT_THRESHOLDS: EscalationThresholds = {
   minIterationForEscalation: 1,
 };
 
-describe('Escalation Policy Laws', () => {
-  it('no escalation before minimum iteration threshold', () => {
+test.describe('Escalation Policy Laws', () => {
+  test('no escalation before minimum iteration threshold', () => {
     const result = evaluateEscalationPolicy(
       [{ adoId: adoId('ADO-1'), stepIndex: 0, interpretation: { kind: 'needs-human' } }],
       0, // iteration 0, below threshold
@@ -38,7 +38,7 @@ describe('Escalation Policy Laws', () => {
     expect(result.summary).toContain('below minimum');
   });
 
-  it('needs-human steps always trigger escalation', () => {
+  test('needs-human steps always trigger escalation', () => {
     const result = evaluateEscalationPolicy(
       [
         { adoId: adoId('ADO-1'), stepIndex: 0, interpretation: { kind: 'needs-human' } },
@@ -53,7 +53,7 @@ describe('Escalation Policy Laws', () => {
     expect(result.escalatedSteps).toBe(1);
   });
 
-  it('agent-proposed-low-confidence triggers escalation', () => {
+  test('agent-proposed-low-confidence triggers escalation', () => {
     const result = evaluateEscalationPolicy(
       [{ adoId: adoId('ADO-2'), stepIndex: 0, interpretation: { kind: 'agent-interpreted', confidence: 'agent-proposed' } }],
       1,
@@ -63,7 +63,7 @@ describe('Escalation Policy Laws', () => {
     expect(result.escalatedScenarios[0]!.primaryReason).toBe('agent-proposed-low-confidence');
   });
 
-  it('live-dom winning source triggers escalation', () => {
+  test('live-dom winning source triggers escalation', () => {
     const result = evaluateEscalationPolicy(
       [{ adoId: adoId('ADO-3'), stepIndex: 0, interpretation: { kind: 'resolved', winningSource: 'live-dom' } }],
       1,
@@ -73,7 +73,7 @@ describe('Escalation Policy Laws', () => {
     expect(result.escalatedScenarios[0]!.primaryReason).toBe('live-dom-fallback');
   });
 
-  it('agent-interpreted winning source triggers escalation', () => {
+  test('agent-interpreted winning source triggers escalation', () => {
     const result = evaluateEscalationPolicy(
       [{ adoId: adoId('ADO-4'), stepIndex: 0, interpretation: { kind: 'resolved', winningSource: 'agent-interpreted' } }],
       1,
@@ -83,7 +83,7 @@ describe('Escalation Policy Laws', () => {
     expect(result.escalatedScenarios[0]!.primaryReason).toBe('live-dom-fallback');
   });
 
-  it('escalation capped at maxEscalatedScenarios', () => {
+  test('escalation capped at maxEscalatedScenarios', () => {
     const steps = Array.from({ length: 20 }, (_, i) => ({
       adoId: adoId(`ADO-${i}`),
       stepIndex: 0,
@@ -97,7 +97,7 @@ describe('Escalation Policy Laws', () => {
     expect(result.escalatedSteps).toBe(20);
   });
 
-  it('escalated scenarios sorted by priority (highest first)', () => {
+  test('escalated scenarios sorted by priority (highest first)', () => {
     const steps = [
       { adoId: adoId('ADO-low'), stepIndex: 0, interpretation: { kind: 'resolved', winningSource: 'live-dom' } },
       { adoId: adoId('ADO-high'), stepIndex: 0, interpretation: { kind: 'needs-human' } },
@@ -107,14 +107,14 @@ describe('Escalation Policy Laws', () => {
     expect(result.escalatedScenarios[1]!.adoId).toBe('ADO-low');
   });
 
-  it('empty input → no escalation', () => {
+  test('empty input → no escalation', () => {
     const result = evaluateEscalationPolicy([], 1, DEFAULT_THRESHOLDS);
     expect(result.escalatedScenarios).toHaveLength(0);
     expect(result.totalSteps).toBe(0);
     expect(result.summary).toContain('No steps require');
   });
 
-  it('fully resolved steps → no escalation', () => {
+  test('fully resolved steps → no escalation', () => {
     const result = evaluateEscalationPolicy(
       [
         { adoId: adoId('ADO-1'), stepIndex: 0, interpretation: { kind: 'resolved', confidence: 'compiler-derived', winningSource: 'explicit' } },
@@ -127,7 +127,7 @@ describe('Escalation Policy Laws', () => {
     expect(result.totalSteps).toBe(2);
   });
 
-  it('multiple steps from same scenario grouped into one escalated scenario', () => {
+  test('multiple steps from same scenario grouped into one escalated scenario', () => {
     const result = evaluateEscalationPolicy(
       [
         { adoId: adoId('ADO-1'), stepIndex: 0, interpretation: { kind: 'needs-human' } },

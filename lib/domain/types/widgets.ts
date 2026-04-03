@@ -1,7 +1,7 @@
 import type { WidgetId } from '../kernel/identity';
 import type { EffectState } from './workflow';
 
-export type WidgetAction = 'click' | 'fill' | 'clear' | 'get-value';
+export type WidgetAction = 'click' | 'fill' | 'clear' | 'check' | 'uncheck' | 'select' | 'get-value';
 export type WidgetPrecondition = 'visible' | 'enabled' | 'editable';
 export type WidgetEffectCategory = 'mutation' | 'observation' | 'focus' | 'navigation';
 

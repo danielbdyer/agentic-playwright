@@ -5,7 +5,7 @@ import { bestAliasMatch } from './shared';
 
 export function allowedActionFallback(task: GroundedStep): StepAction | null {
   const normalized = normalizeIntentText(task.actionText);
-  if (normalized.startsWith('navigate')) {
+  if (normalized.startsWith('navigate') || normalized.startsWith('load') || normalized.startsWith('open') || normalized.startsWith('go to')) {
     return 'navigate';
   }
   if (normalized.startsWith('enter')) {

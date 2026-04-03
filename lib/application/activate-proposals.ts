@@ -50,7 +50,7 @@ export interface ActivateProposalBundleResult {
   blockedProposalIds: string[];
 }
 
-function tryActivateProposal(fsPort: FileSystemPort, rootDir: string, proposal: ProposalEntry, activatedAt: string) {
+export function tryActivateProposal(fsPort: FileSystemPort, rootDir: string, proposal: ProposalEntry, activatedAt: string) {
   const candidate = activatedProposal(proposal, activatedAt);
   const absoluteTargetPath = path.join(rootDir, proposal.targetPath);
 
@@ -302,7 +302,7 @@ export function autoApproveEligibleProposals(options: {
           proposedChange: {
             artifactType: proposal.artifactType,
             confidence: 0.9,
-            autoHealClass: 'runtime-intent-cutover',
+            autoHealClass: `activation-${proposal.artifactType}-cutover`,
           },
           trustPolicy: options.trustPolicy,
         });

@@ -74,3 +74,90 @@ export function bestAliasMatch(normalizedText: string, aliases: readonly string[
       return score > 0 && (!best || score > best.score) ? { alias, score } : best;
     }, null);
 }
+
+// ─── E1/E2: Intent Decomposition & Synonym Expansion ───
+//
+// Intent decomposition and synonym expansion are LLM-mediated concerns.
+// The LLM decomposes natural-language action text into structured tokens
+// and proposes alias expansions — see IntentDecomposition below and
+// the translation contract in lib/runtime/agent/types.ts.
+//
+// The deterministic pipeline's role is to:
+// 1. Present structured context to the LLM (screens, elements, aliases)
+// 2. Accept the LLM's decomposition as a typed schema
+// 3. Persist the LLM's proposals as small deterministic knowledge additions
+//
+// This keeps comprehension where it belongs (frontier AI) while the
+// pipeline handles structure, activation, and governance.
+
+/**
+ * LLM-produced intent decomposition. The translation provider returns this
+ * when asked to decompose a step's action text. The pipeline uses it to
+ * generate targeted proposals and improve future deterministic matching.
+ *
+ * Pure data type — no behavior. The LLM fills it, the pipeline consumes it.
+ */
+export interface IntentDecomposition {
+  /** Canonical action verb (e.g. "click", "fill", "navigate", "verify"). */
+  readonly verb: string | null;
+  /** Target noun phrase — the element or screen being acted on. */
+  readonly target: string | null;
+  /** Embedded data value, if any (e.g. "POL-001" from "Enter POL-001 in search"). */
+  readonly data: string | null;
+  /** Synonym variants the LLM suggests for the same intent. */
+  readonly suggestedAliases: readonly string[];
+  /** Confidence the LLM has in this decomposition. */
+  readonly confidence: number;
+}
+
+// ─── E4: Knowledge Conflict Detection ───
+
+/** A detected conflict where the same alias maps to different elements. */
+export interface AliasConflict {
+  readonly alias: string;
+  readonly mappings: readonly { readonly screen: string; readonly element: string }[];
+}
+
+/**
+ * Detect aliases that map to multiple different elements across screens.
+ *
+ * Ambiguous aliases degrade resolution quality because the same action text
+ * could match different elements depending on context. This function scans
+ * all screen hints and identifies aliases shared across different elements.
+ *
+ * Pure function: knowledge in, conflicts out.
+ */
+export function detectAliasConflicts(
+  screenHints: Record<string, ScreenHints>,
+): readonly AliasConflict[] {
+  // Build alias → [(screen, element)] index
+  const aliasIndex = new Map<string, { screen: string; element: string }[]>();
+
+  for (const [_screenId, hints] of Object.entries(screenHints)) {
+    const screen = hints.screen;
+    const elements = hints.elements ?? {};
+    for (const [elementId, elementHints] of Object.entries(elements)) {
+      const aliases = (elementHints as { aliases?: readonly string[] }).aliases ?? [];
+      for (const alias of aliases) {
+        const normalized = normalizeIntentText(alias);
+        if (!normalized) continue;
+        const entries = aliasIndex.get(normalized) ?? [];
+        entries.push({ screen, element: elementId });
+        aliasIndex.set(normalized, entries);
+      }
+    }
+  }
+
+  // Find aliases that map to >1 distinct element
+  const conflicts: AliasConflict[] = [];
+  for (const [alias, mappings] of aliasIndex) {
+    const uniqueMappings = mappings.filter((m, i) =>
+      mappings.findIndex((other) => other.screen === m.screen && other.element === m.element) === i,
+    );
+    if (uniqueMappings.length > 1) {
+      conflicts.push({ alias, mappings: uniqueMappings });
+    }
+  }
+
+  return conflicts.sort((a, b) => b.mappings.length - a.mappings.length);
+}

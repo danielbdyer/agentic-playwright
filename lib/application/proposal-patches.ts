@@ -50,9 +50,17 @@ function applyHintsPatch(existing: Record<string, unknown>, proposal: ProposalEn
   const elements = isRecord(existing.elements) ? existing.elements : {};
   const elementEntry = isRecord(elements[element]) ? elements[element] as Record<string, unknown> : {};
 
+  // Enriched patch data: role, widget, locator (when available from proposals)
+  const role = typeof patch.role === 'string' ? patch.role : elementEntry.role;
+  const widget = typeof patch.widget === 'string' ? patch.widget : elementEntry.widget;
+  const locator = Array.isArray(patch.locator) && patch.locator.length > 0 ? patch.locator : elementEntry.locator;
+
   const updatedEntry: Record<string, unknown> = {
     ...elementEntry,
     aliases: withAlias(Array.isArray(elementEntry.aliases) ? elementEntry.aliases : [], alias),
+    ...(role !== undefined ? { role } : {}),
+    ...(widget !== undefined ? { widget } : {}),
+    ...(locator !== undefined ? { locator } : {}),
     acquired: {
       certification: proposal.certification,
       activatedAt: proposal.activation.activatedAt,

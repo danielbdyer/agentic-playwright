@@ -831,7 +831,9 @@ export async function tryLiveDomOrFallback(stage: RuntimeAgentStageContext, acc:
   }
 
   // ─── Rung 10: Needs Human ───
-  const needsHumanProposals = proposalsForNeedsHuman(stage.task, acc.screen, acc.element, stage.context.resolutionContext);
+  // Pass the interpretation so the LLM's screen/element identification
+  // can guide proposal routing instead of dumping to catch-all.
+  const needsHumanProposals = proposalsForNeedsHuman(stage.task, acc.screen, acc.element, stage.context.resolutionContext, stage.interpretation);
   const fallbackEffects: StageEffects = {
     ...EMPTY_EFFECTS,
     exhaustion: [

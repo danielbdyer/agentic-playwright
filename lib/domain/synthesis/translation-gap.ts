@@ -1,4 +1,5 @@
 import { type SeededRng, pick } from '../kernel/random';
+import { ROLE_AFFORDANCES } from '../widgets/role-affordances';
 
 // ─── Domain vocabulary ───
 //
@@ -30,16 +31,46 @@ const DOMAIN_SYNONYMS: Readonly<Record<string, readonly string[]>> = {
 
 // ─── Affordance vocabulary ───
 //
-// How QA testers describe interactions with different widget types.
+// Derived from ROLE_AFFORDANCES × DOMAIN_SYNONYMS.
+// Each widget's verbs come from domain vocabulary for its primary action,
+// not a hand-authored synonym table. The LLM handles real synonym
+// comprehension at runtime; this is for synthesis diversity only.
 
-const AFFORDANCE_VERBS: Readonly<Record<string, readonly string[]>> = {
-  'os-input': ['type in', 'enter', 'fill in', 'key in', 'put in', 'provide', 'supply'],
-  'os-textarea': ['type in', 'enter', 'write in', 'fill out', 'compose in'],
-  'os-button': ['click', 'press', 'hit', 'tap', 'activate', 'use', 'trigger'],
-  'os-select': ['choose', 'pick', 'select', 'set to', 'change to'],
-  'os-table': ['check the', 'look at', 'review the', 'inspect the', 'examine the'],
-  'os-region': ['check', 'verify', 'see that', 'confirm', 'inspect', 'look at'],
+const WIDGET_PRIMARY_ROLE: Readonly<Record<string, string>> = {
+  'os-input': 'textbox',
+  'os-textarea': 'textbox',
+  'os-button': 'button',
+  'os-select': 'combobox',
+  'os-table': 'table',
+  'os-region': 'dialog',
+} as const;
+
+/** Map from WidgetAction canonical name to the DOMAIN_SYNONYMS key. */
+const ACTION_TO_DOMAIN_KEY: Readonly<Record<string, string>> = {
+  click: 'click',
+  fill: 'enter',
+  clear: 'enter',
+  check: 'click',
+  uncheck: 'click',
+  select: 'click',
+  'get-value': 'verify',
 };
+
+const AFFORDANCE_VERBS: Readonly<Record<string, readonly string[]>> = (() => {
+  const result: Record<string, readonly string[]> = {};
+  for (const [widget, role] of Object.entries(WIDGET_PRIMARY_ROLE)) {
+    const affordances = ROLE_AFFORDANCES[role] ?? [];
+    const primaryAction = affordances.find((a) => a.effectCategory !== 'observation')?.action
+      ?? affordances[0]?.action;
+    if (primaryAction) {
+      const domainKey = ACTION_TO_DOMAIN_KEY[primaryAction];
+      result[widget] = domainKey ? (DOMAIN_SYNONYMS[domainKey] ?? [primaryAction]) : [primaryAction];
+    } else {
+      result[widget] = DOMAIN_SYNONYMS['verify'] ?? ['check', 'verify', 'confirm'];
+    }
+  }
+  return result;
+})();
 
 // ─── Natural language assertion patterns ───
 //

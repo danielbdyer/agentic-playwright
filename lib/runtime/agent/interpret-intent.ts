@@ -196,6 +196,8 @@ async function translationFallbackInterpretation(
       : 'low',
     source: 'knowledge-translation',
     knowledgeRefs: [...heuristicRefs, ...receipt.selected.sourceRefs],
+    // Thread LLM decomposition for downstream proposal generation
+    decomposition: receipt.decomposition ?? null,
   };
 }
 

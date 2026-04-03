@@ -265,6 +265,92 @@ An agent should be able to discover:
 
 without relying on repo lore.
 
+## MCP tool workflow
+
+When the Tesseract MCP server is connected (via `.mcp.json`), prefer MCP tools over CLI commands:
+
+```
+get_learning_summary          # Orient — first call in any session
+list_proposals                # Review pending/activated proposals
+activate_proposal             # Approve a specific proposal by ID
+get_convergence_proof         # Check if the learning loop converges
+get_fitness_metrics           # Scorecard: hit rate, precision, velocity
+get_suggested_action          # Ranked next actions based on system state
+start_speedrun                # Launch the improvement loop
+get_loop_status               # Monitor running loop
+get_queue_items               # See pending decisions
+get_decision_context          # Rich context for a decision
+approve_work_item             # Approve and resume fiber
+suggest_hint                  # Contribute knowledge directly
+get_contribution_impact       # See if contributions helped
+```
+
+### MCP fallback: direct tool bridge
+
+If the MCP server fails to connect (common in web sessions or non-desktop environments), use the bridge script as a fallback. It calls the same tool handlers directly, bypassing stdio transport:
+
+```bash
+# Orient
+npx tsx scripts/mcp-call.ts get_learning_summary
+
+# List tools
+npx tsx scripts/mcp-call.ts
+
+# Call any tool with JSON args
+npx tsx scripts/mcp-call.ts list_proposals '{"status":"activated"}'
+npx tsx scripts/mcp-call.ts get_convergence_proof
+npx tsx scripts/mcp-call.ts activate_proposal '{"proposalId":"abc123"}'
+npx tsx scripts/mcp-call.ts get_fitness_metrics
+npx tsx scripts/mcp-call.ts list_screens
+npx tsx scripts/mcp-call.ts get_suggested_action
+```
+
+The bridge script (`scripts/mcp-call.ts`) supports all tools including host-mode tools like `activate_proposal` and `suggest_hint`. It reads from `.tesseract/` artifacts and writes to `dogfood/knowledge/` — the same paths the MCP server uses.
+
+### Agent-in-the-loop: real-time proposal approval
+
+Run the speedrun with `--mcp-decisions` so the loop pauses at iteration boundaries waiting for agent decisions. The bridge script writes decision files that the running loop picks up:
+
+```bash
+# Terminal 1: Start speedrun with MCP decision mode (pauses for agent approval)
+npx tsx scripts/speedrun.ts iterate --mcp-decisions --max-iterations 4 --decision-timeout 300000
+
+# Terminal 2 (agent): List pending work items
+npx tsx scripts/mcp-call.ts get_queue_items '{"status":"pending"}'
+
+# Terminal 2 (agent): Approve a pending proposal (resumes the paused fiber)
+npx tsx scripts/mcp-call.ts approve_work_item '{"workItemId":"<id>","rationale":"Agent approved"}'
+
+# Terminal 2 (agent): Skip a work item
+npx tsx scripts/mcp-call.ts skip_work_item '{"workItemId":"<id>","rationale":"Low confidence"}'
+```
+
+The file-backed decision bridge (`lib/infrastructure/dashboard/file-decision-bridge.ts`) uses atomic temp-file + rename writes to `.tesseract/workbench/decisions/`. The running speedrun watches this directory with `fs.watch` and resumes the paused fiber when a decision arrives.
+
+### Speedrun via CLI (when MCP start_speedrun is unavailable)
+
+```bash
+# Warm-start speedrun (uses existing knowledge)
+npx tsx scripts/speedrun.ts --count 10 --max-iterations 3
+
+# Cold-start convergence proof (wipes knowledge each trial)
+npx tsx scripts/convergence-proof.ts --trials 2 --count 10 --max-iterations 4
+
+# Diagnostic mode (no Playwright, faster)
+npx tsx scripts/convergence-proof.ts --trials 2 --count 5 --max-iterations 3 --mode diagnostic
+```
+
+### Learning loop health checks
+
+After any speedrun, verify the learning chain:
+
+1. `get_convergence_proof` — does the loop converge? Look for `converges: true` and decreasing proposal counts.
+2. `get_fitness_metrics` — is hit rate improving? `resolutionByRung` shows where steps resolve.
+3. `list_proposals` — are proposals being generated AND activated? Both counts should be non-zero.
+4. `get_learning_summary` — holistic view with `actionRequired` priorities.
+
+If proposals show `generated > 0` but `activated = 0`, the activation pipeline may be broken. Check that `lib/application/activate-proposals.ts` uses `paths.suiteRoot` (not `rootDir`) for knowledge file writes.
+
 ## Trust policy boundary
 
 Trust policy evaluates certification for canonical changes such as:

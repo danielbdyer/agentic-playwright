@@ -11,7 +11,7 @@ import type {
 } from '../../domain/types';
 import type { AgentInterpreterPort } from '../../domain/resolution/model';
 import type { ElementId, PostureId, ScreenId } from '../../domain/kernel/identity';
-import type { ResolutionTarget, TranslationReceipt, TranslationRequest } from '../../domain/types';
+import type { ResolutionTarget, TranslationDecomposition, TranslationReceipt, TranslationRequest } from '../../domain/types';
 import type { AriaSnapshotCache } from './aria-snapshot-cache';
 import type { SemanticDictCache } from './semantic-dict-cache';
 
@@ -93,4 +93,11 @@ export interface IntentInterpretation {
   readonly confidence: InterpretationConfidence;
   readonly source: InterpretationSource;
   readonly knowledgeRefs: readonly string[];
+  /**
+   * LLM-produced intent decomposition, threaded from the translation receipt.
+   * When present, the proposal generator uses suggestedAliases to create
+   * alias proposals that make future resolution deterministic.
+   * Null for heuristic or DOM interpretations (no LLM involved).
+   */
+  readonly decomposition?: TranslationDecomposition | null | undefined;
 }

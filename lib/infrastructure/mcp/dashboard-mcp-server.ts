@@ -21,6 +21,7 @@ import { resolveResource, buildResourceUri } from './resource-provider';
 import type { ResourceArtifactReader } from './resource-provider';
 import type { PlaywrightBridgePort, BrowserAction } from './playwright-mcp-bridge';
 import { RETRY_POLICIES, formatRetryMetadata, retryMetadata, retryScheduleForTaggedErrors } from '../../application/resilience/schedules';
+import { writeDecisionFile } from '../dashboard/file-decision-bridge';
 
 // ─── Actionable Errors ───
 
@@ -81,6 +82,10 @@ export interface DashboardMcpServerOptions {
 
   /** Write a hint to a screen's hints.yaml file. Returns the written path. */
   readonly writeHint?: (params: HintContribution) => string | null;
+  /** Decisions directory for file-backed cross-process decisions (standalone mode fallback).
+   *  When no in-memory resolver exists for a work item, the server writes a decision file
+   *  to this directory. A running --mcp-decisions speedrun watches for these files. */
+  readonly decisionsDir?: string | undefined;
   /** Write a locator alias to a screen's hints.yaml file. Returns the written path. */
   readonly writeLocatorAlias?: (params: LocatorAliasContribution) => string | null;
 }
@@ -238,42 +243,62 @@ const approveWorkItem: ToolHandler = (args, options) => {
   const workItemId = args.workItemId as string;
   if (!workItemId) return { error: 'workItemId is required', isError: true };
 
-  const resolver = claimResolver(options.pendingDecisions, workItemId);
-  if (!resolver) return actionableError(
-    `No pending decision for ${workItemId}`,
-    "Call get_queue_items with status='pending' to see current pending items, or get_loop_status to check the loop phase.",
-    'get_queue_items',
-  );
-
   const decision: WorkItemDecision = {
     workItemId,
     status: 'completed',
     rationale: (args.rationale as string) ?? 'Approved via MCP tool',
   };
-  resolver(decision);
-  options.broadcast(dashboardEvent('item-completed', decision));
-  return { ok: true, workItemId, status: 'completed' };
+
+  // Try in-memory resolver first (host-mode: MCP server owns the speedrun fiber)
+  const resolver = claimResolver(options.pendingDecisions, workItemId);
+  if (resolver) {
+    resolver(decision);
+    options.broadcast(dashboardEvent('item-completed', decision));
+    return { ok: true, workItemId, status: 'completed', mode: 'in-memory' };
+  }
+
+  // Fall back to file-based decision bridge (standalone mode: separate speedrun process)
+  if (options.decisionsDir) {
+    writeDecisionFile(options.decisionsDir, decision);
+    return { ok: true, workItemId, status: 'completed', mode: 'file-bridge', writtenTo: options.decisionsDir };
+  }
+
+  return actionableError(
+    `No pending decision for ${workItemId} and no file-bridge configured`,
+    "Call get_queue_items with status='pending' to see current pending items, or get_loop_status to check the loop phase.",
+    'get_queue_items',
+  );
 };
 
 const skipWorkItem: ToolHandler = (args, options) => {
   const workItemId = args.workItemId as string;
   if (!workItemId) return { error: 'workItemId is required', isError: true };
 
-  const resolver = claimResolver(options.pendingDecisions, workItemId);
-  if (!resolver) return actionableError(
-    `No pending decision for ${workItemId}`,
-    "Call get_queue_items with status='pending' to see current pending items, or get_loop_status to check the loop phase.",
-    'get_queue_items',
-  );
-
   const decision: WorkItemDecision = {
     workItemId,
     status: 'skipped',
     rationale: (args.rationale as string) ?? 'Skipped via MCP tool',
   };
-  resolver(decision);
-  options.broadcast(dashboardEvent('item-completed', decision));
-  return { ok: true, workItemId, status: 'skipped' };
+
+  // Try in-memory resolver first (host-mode)
+  const resolver = claimResolver(options.pendingDecisions, workItemId);
+  if (resolver) {
+    resolver(decision);
+    options.broadcast(dashboardEvent('item-completed', decision));
+    return { ok: true, workItemId, status: 'skipped', mode: 'in-memory' };
+  }
+
+  // Fall back to file-based decision bridge (standalone mode)
+  if (options.decisionsDir) {
+    writeDecisionFile(options.decisionsDir, decision);
+    return { ok: true, workItemId, status: 'skipped', mode: 'file-bridge', writtenTo: options.decisionsDir };
+  }
+
+  return actionableError(
+    `No pending decision for ${workItemId} and no file-bridge configured`,
+    "Call get_queue_items with status='pending' to see current pending items, or get_loop_status to check the loop phase.",
+    'get_queue_items',
+  );
 };
 
 const getIterationStatus: ToolHandler = (_args, options) => {
@@ -731,6 +756,16 @@ const getSuggestedAction: ToolHandler = (_args, options) => {
     suggestions.push({ priority: 4, action: 'explore', tool: 'list_screens', rationale: 'Resolution graph available. Check screens for bottlenecks and knowledge gaps.' });
   }
 
+  // Widget coverage: check if role-based dispatch covers the active element types
+  const elements = graph?.nodes
+    ?.filter((n) => (n.kind as string) === 'element')
+    ?.map((n) => (n.widget as string))
+    .filter(Boolean) ?? [];
+  const uniqueWidgets = [...new Set(elements)];
+  if (uniqueWidgets.length > 3) {
+    suggestions.push({ priority: 5, action: 'expand-coverage', tool: 'get_learning_summary', rationale: `${uniqueWidgets.length} widget types in use. Role-based affordance dispatch covers 14 ARIA roles — verify coverage.` });
+  }
+
   // Sort by priority (lowest number = highest priority)
   suggestions.sort((a, b) => a.priority - b.priority);
   return { suggestions, count: suggestions.length };
@@ -938,6 +973,70 @@ const getLearningState: ToolHandler = (_args, options) => {
   };
 };
 
+// ─── Operator Briefing ───
+
+const getOperatorBriefing: ToolHandler = (_args, options) => {
+  const reader = asReader(options);
+
+  // Knowledge coverage
+  const graph = reader.readArtifact('.tesseract/graph/index.json') as {
+    readonly nodes?: readonly Record<string, unknown>[];
+    readonly edges?: readonly Record<string, unknown>[];
+  } | null;
+
+  const screens = graph?.nodes?.filter((n) => (n.kind as string) === 'screen') ?? [];
+  const elements = graph?.nodes?.filter((n) => (n.kind as string) === 'element') ?? [];
+  const widgetTypes = [...new Set(elements.map((e) => e.widget as string).filter(Boolean))];
+  const roleTypes = [...new Set(elements.map((e) => e.role as string).filter(Boolean))];
+
+  // Fitness
+  const scorecard = reader.readArtifact('.tesseract/benchmarks/scorecard.json') as {
+    readonly highWaterMark?: Record<string, unknown>;
+  } | null;
+  const hitRate = scorecard?.highWaterMark?.knowledgeHitRate as number | undefined;
+
+  // Proposals
+  const proposalsRaw = reader.readArtifact('.tesseract/learning/proposals.json') as {
+    readonly proposals?: readonly Record<string, unknown>[];
+  } | null;
+  const allProposals = proposalsRaw?.proposals ?? [];
+  const activated = allProposals.filter((p) => (p.activation as Record<string, unknown>)?.status === 'activated').length;
+
+  // Route knowledge
+  const routes = reader.readArtifact('.tesseract/graph/routes.json') as {
+    readonly routes?: readonly Record<string, unknown>[];
+  } | null;
+
+  return {
+    coverage: {
+      screens: screens.length,
+      elements: elements.length,
+      widgetTypes,
+      roleTypes,
+      routes: routes?.routes?.length ?? 0,
+    },
+    fitness: hitRate !== undefined ? {
+      knowledgeHitRate: hitRate,
+      hitRatePercent: `${(hitRate * 100).toFixed(1)}%`,
+    } : null,
+    learningLoop: {
+      totalProposals: allProposals.length,
+      activatedProposals: activated,
+      activationRate: allProposals.length > 0 ? `${((activated / allProposals.length) * 100).toFixed(0)}%` : 'N/A',
+    },
+    roleAffordanceCoverage: {
+      coveredRoles: roleTypes.length,
+      totalAriaRoles: 14,
+      coveragePercent: `${((roleTypes.length / 14) * 100).toFixed(0)}%`,
+    },
+    recommendation: hitRate === undefined ? 'Run a speedrun to establish baseline metrics.'
+      : hitRate < 0.3 ? 'Hit rate is low. Focus on expanding screen knowledge and element aliases.'
+      : hitRate < 0.6 ? 'Hit rate is moderate. Investigate proposal activation and phrasing gaps.'
+      : hitRate < 0.8 ? 'Hit rate is good. Fine-tune with structured entropy and edge cases.'
+      : 'Hit rate is excellent. Consider adding cross-screen journey scenarios.',
+  };
+};
+
 // ─── Tool Router (pure dispatch) ───
 
 const toolHandlers: Readonly<Record<string, ToolHandler>> = {
@@ -980,6 +1079,8 @@ const toolHandlers: Readonly<Record<string, ToolHandler>> = {
   'get_convergence_proof': getConvergenceProof,
   // Learning summary
   'get_learning_summary': getLearningState,
+  // Operator briefing
+  'get_operator_briefing': getOperatorBriefing,
 };
 
 /**

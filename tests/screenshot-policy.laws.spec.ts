@@ -12,7 +12,7 @@
  * - Capture rate estimation is accurate
  */
 
-import { describe, it, expect } from 'vitest';
+import { test, expect } from '@playwright/test';
 import {
   evaluateScreenshotPolicy,
   pruneManifest,
@@ -56,15 +56,15 @@ function makeLearningSignals(overrides: Partial<{
 
 // ─── Decision Laws ───
 
-describe('evaluateScreenshotPolicy', () => {
-  it('always captures on step failure', () => {
+test.describe('evaluateScreenshotPolicy', () => {
+  test('always captures on step failure', () => {
     const decision = evaluateScreenshotPolicy(baseContext({ failed: true }));
     expect(decision.capture).toBe(true);
     expect(decision.reason).toBe('step-failure');
     expect(decision.priority).toBe(1.0);
   });
 
-  it('failure takes priority over all other triggers', () => {
+  test('failure takes priority over all other triggers', () => {
     const decision = evaluateScreenshotPolicy(baseContext({
       failed: true,
       provenanceKind: 'unresolved',
@@ -74,7 +74,7 @@ describe('evaluateScreenshotPolicy', () => {
     expect(decision.reason).toBe('step-failure');
   });
 
-  it('captures on agent interpretation (unresolved provenance)', () => {
+  test('captures on agent interpretation (unresolved provenance)', () => {
     const decision = evaluateScreenshotPolicy(baseContext({
       provenanceKind: 'unresolved',
     }));
@@ -83,7 +83,7 @@ describe('evaluateScreenshotPolicy', () => {
     expect(decision.priority).toBe(0.9);
   });
 
-  it('captures on agent-interpreted provenance', () => {
+  test('captures on agent-interpreted provenance', () => {
     const decision = evaluateScreenshotPolicy(baseContext({
       provenanceKind: 'agent-interpreted',
     }));
@@ -91,7 +91,7 @@ describe('evaluateScreenshotPolicy', () => {
     expect(decision.reason).toBe('agent-interpretation');
   });
 
-  it('captures on rung drift (degradation from previous run)', () => {
+  test('captures on rung drift (degradation from previous run)', () => {
     const decision = evaluateScreenshotPolicy(baseContext({
       currentRung: 'live-exploration',
       previousRung: 'approved-knowledge',
@@ -101,7 +101,7 @@ describe('evaluateScreenshotPolicy', () => {
     expect(decision.priority).toBe(0.8);
   });
 
-  it('does not capture when rung improves (opposite of drift)', () => {
+  test('does not capture when rung improves (opposite of drift)', () => {
     const decision = evaluateScreenshotPolicy(baseContext({
       currentRung: 'approved-knowledge',
       previousRung: 'live-exploration',
@@ -109,7 +109,7 @@ describe('evaluateScreenshotPolicy', () => {
     expect(decision.capture).toBe(false);
   });
 
-  it('does not capture when rung stays the same', () => {
+  test('does not capture when rung stays the same', () => {
     const decision = evaluateScreenshotPolicy(baseContext({
       currentRung: 'approved-knowledge',
       previousRung: 'approved-knowledge',
@@ -117,7 +117,7 @@ describe('evaluateScreenshotPolicy', () => {
     expect(decision.capture).toBe(false);
   });
 
-  it('captures on hot screen', () => {
+  test('captures on hot screen', () => {
     const decision = evaluateScreenshotPolicy(baseContext({
       hotScreenIds: new Set(['login', 'dashboard']),
       screenId: 'login',
@@ -127,7 +127,7 @@ describe('evaluateScreenshotPolicy', () => {
     expect(decision.priority).toBe(0.7);
   });
 
-  it('does not capture when screen is not hot', () => {
+  test('does not capture when screen is not hot', () => {
     const decision = evaluateScreenshotPolicy(baseContext({
       hotScreenIds: new Set(['dashboard']),
       screenId: 'login',
@@ -135,7 +135,7 @@ describe('evaluateScreenshotPolicy', () => {
     expect(decision.capture).toBe(false);
   });
 
-  it('captures when health is critical and maturity is sufficient', () => {
+  test('captures when health is critical and maturity is sufficient', () => {
     const decision = evaluateScreenshotPolicy(baseContext({
       learningSignals: makeLearningSignals({ compositeHealthScore: 0.2 }),
       maturity: 0.6,
@@ -145,7 +145,7 @@ describe('evaluateScreenshotPolicy', () => {
     expect(decision.priority).toBe(0.6);
   });
 
-  it('does not capture health-critical when maturity is low', () => {
+  test('does not capture health-critical when maturity is low', () => {
     const decision = evaluateScreenshotPolicy(baseContext({
       learningSignals: makeLearningSignals({ compositeHealthScore: 0.2 }),
       maturity: 0.3,
@@ -154,7 +154,7 @@ describe('evaluateScreenshotPolicy', () => {
     expect(decision.reason).not.toBe('health-critical');
   });
 
-  it('does not capture health-critical when health is above threshold', () => {
+  test('does not capture health-critical when health is above threshold', () => {
     const decision = evaluateScreenshotPolicy(baseContext({
       learningSignals: makeLearningSignals({ compositeHealthScore: 0.5 }),
       maturity: 0.8,
@@ -162,7 +162,7 @@ describe('evaluateScreenshotPolicy', () => {
     expect(decision.capture).toBe(false);
   });
 
-  it('captures first step with lowest priority', () => {
+  test('captures first step with lowest priority', () => {
     const decision = evaluateScreenshotPolicy(baseContext({
       isFirstStep: true,
     }));
@@ -171,14 +171,14 @@ describe('evaluateScreenshotPolicy', () => {
     expect(decision.priority).toBe(0.2);
   });
 
-  it('skips normal healthy step', () => {
+  test('skips normal healthy step', () => {
     const decision = evaluateScreenshotPolicy(baseContext());
     expect(decision.capture).toBe(false);
     expect(decision.reason).toBe('none');
     expect(decision.priority).toBe(0);
   });
 
-  it('priority ordering: failure > agent > drift > hot > health > first', () => {
+  test('priority ordering: failure > agent > drift > hot > health > first', () => {
     const priorities = [
       evaluateScreenshotPolicy(baseContext({ failed: true })).priority,
       evaluateScreenshotPolicy(baseContext({ provenanceKind: 'unresolved' })).priority,
@@ -196,8 +196,8 @@ describe('evaluateScreenshotPolicy', () => {
 
 // ─── Rung Drift Edge Cases ───
 
-describe('rung drift detection', () => {
-  it('no drift when no previous rung', () => {
+test.describe('rung drift detection', () => {
+  test('no drift when no previous rung', () => {
     const decision = evaluateScreenshotPolicy(baseContext({
       currentRung: 'needs-human',
       previousRung: undefined,
@@ -205,7 +205,7 @@ describe('rung drift detection', () => {
     expect(decision.reason).not.toBe('rung-drift');
   });
 
-  it('drift from explicit-scenario to needs-human', () => {
+  test('drift from explicit-scenario to needs-human', () => {
     const decision = evaluateScreenshotPolicy(baseContext({
       currentRung: 'needs-human',
       previousRung: 'explicit-scenario',
@@ -214,7 +214,7 @@ describe('rung drift detection', () => {
     expect(decision.reason).toBe('rung-drift');
   });
 
-  it('unknown rung treated as lowest', () => {
+  test('unknown rung treated as lowest', () => {
     const decision = evaluateScreenshotPolicy(baseContext({
       currentRung: 'unknown-rung',
       previousRung: 'approved-knowledge',
@@ -226,7 +226,7 @@ describe('rung drift detection', () => {
 
 // ─── Manifest Pruning ───
 
-describe('pruneManifest', () => {
+test.describe('pruneManifest', () => {
   function makeEntry(priority: number, stepKey: string): ScreenshotManifestEntry {
     return {
       stepKey,
@@ -238,7 +238,7 @@ describe('pruneManifest', () => {
     };
   }
 
-  it('returns manifest unchanged when under budget', () => {
+  test('returns manifest unchanged when under budget', () => {
     const manifest: ScreenshotManifest = {
       kind: 'screenshot-manifest',
       version: 1,
@@ -247,7 +247,7 @@ describe('pruneManifest', () => {
     expect(pruneManifest(manifest, 5)).toBe(manifest);
   });
 
-  it('prunes to budget keeping highest priority', () => {
+  test('prunes to budget keeping highest priority', () => {
     const manifest: ScreenshotManifest = {
       kind: 'screenshot-manifest',
       version: 1,
@@ -263,7 +263,7 @@ describe('pruneManifest', () => {
     expect(pruned.entries[1]!.stepKey).toBe('mid');
   });
 
-  it('prunes to exactly maxEntries', () => {
+  test('prunes to exactly maxEntries', () => {
     const entries = Array.from({ length: 100 }, (_, i) => makeEntry(i / 100, `step-${i}`));
     const manifest: ScreenshotManifest = { kind: 'screenshot-manifest', version: 1, entries };
     const pruned = pruneManifest(manifest, 10);
@@ -279,22 +279,22 @@ describe('pruneManifest', () => {
 
 // ─── Capture Rate Estimation ───
 
-describe('estimateCaptureRate', () => {
-  it('returns 0 for empty contexts', () => {
+test.describe('estimateCaptureRate', () => {
+  test('returns 0 for empty contexts', () => {
     expect(estimateCaptureRate([])).toBe(0);
   });
 
-  it('returns 1 when all steps fail', () => {
+  test('returns 1 when all steps fail', () => {
     const contexts = Array.from({ length: 5 }, () => baseContext({ failed: true }));
     expect(estimateCaptureRate(contexts)).toBe(1);
   });
 
-  it('returns 0 when all steps are normal', () => {
+  test('returns 0 when all steps are normal', () => {
     const contexts = Array.from({ length: 5 }, () => baseContext());
     expect(estimateCaptureRate(contexts)).toBe(0);
   });
 
-  it('returns correct ratio for mixed contexts', () => {
+  test('returns correct ratio for mixed contexts', () => {
     const contexts = [
       baseContext({ failed: true }),
       baseContext(),

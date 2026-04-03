@@ -163,12 +163,15 @@ function computeMatchScore(
       (label) => label.includes(signalValue) || signalValue.includes(label),
     );
 
-    // Weighted scoring: title/heading matches are stronger
-    const weight = signal.startsWith('title:') || signal.startsWith('heading:')
-      ? 2.0
-      : signal.startsWith('testid:') || signal.startsWith('aria-label:')
-        ? 1.5
-        : 1.0;
+    // Signal reliability weights — derived from signal type specificity
+    const SIGNAL_WEIGHTS: Readonly<Record<string, number>> = {
+      'title:': 2.0,     // page title is highly reliable
+      'heading:': 2.0,   // headings are structural landmarks
+      'testid:': 1.5,    // test IDs are developer-intentional
+      'aria-label:': 1.5, // ARIA labels are accessibility-intentional
+    };
+    const prefix = signal.split(':')[0] + ':';
+    const weight = SIGNAL_WEIGHTS[prefix] ?? 1.0;
 
     return score + (directMatch ? weight : 0);
   }, 0);
