@@ -1,11 +1,34 @@
-import { normalizeIntentText } from '../../domain/knowledge/inference';
+import { normalizeIntentText, decomposeIntent } from '../../domain/knowledge/inference';
 import { knowledgePaths } from '../../domain/kernel/ids';
 import type { InterfaceResolutionContext, StepAction, StepResolution, GroundedStep } from '../../domain/types';
 import { bestAliasMatch } from './shared';
 
+/** Map from canonical action verbs (from role-affordances) to step actions. */
+const VERB_TO_STEP_ACTION: Readonly<Record<string, StepAction>> = {
+  click: 'click',
+  fill: 'input',
+  clear: 'input',
+  check: 'click',
+  uncheck: 'click',
+  select: 'input',
+  'get-value': 'assert-snapshot',
+};
+
 export function allowedActionFallback(task: GroundedStep): StepAction | null {
   const normalized = normalizeIntentText(task.actionText);
-  if (normalized.startsWith('navigate')) {
+
+  // E1: Try intent decomposition first — canonicalized verb is more reliable
+  // than prefix matching (e.g. "hit the return" → verb="click" via synonym)
+  const decomposed = decomposeIntent(normalized);
+  if (decomposed.verb) {
+    const mapped = VERB_TO_STEP_ACTION[decomposed.verb];
+    if (mapped && (task.allowedActions.length === 0 || task.allowedActions.includes(mapped))) {
+      return mapped;
+    }
+  }
+
+  // Legacy prefix fallback
+  if (normalized.startsWith('navigate') || normalized.startsWith('load') || normalized.startsWith('open') || normalized.startsWith('go to')) {
     return 'navigate';
   }
   if (normalized.startsWith('enter')) {

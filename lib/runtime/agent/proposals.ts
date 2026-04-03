@@ -1,4 +1,6 @@
 import { knowledgePaths } from '../../domain/kernel/ids';
+import { decomposeIntent } from '../../domain/knowledge/inference';
+import { ACTION_SYNONYMS } from '../../domain/widgets/role-affordances';
 import type { InterfaceResolutionContext, ResolutionProposalDraft, GroundedStep, StepTaskElementCandidate, StepTaskScreenCandidate } from '../../domain/types';
 import type { IntentInterpretation, InterpretationSource } from './types';
 
@@ -103,7 +105,15 @@ export function proposalsFromInterpretation(
     return [];
   })();
 
-  const proposals: ResolutionProposalDraft[] = [...elementProposal, ...screenAliasProposal];
+  // E2: Synonym-expanded proposals — when we learn "enter search field" → element,
+  // also propose "type search field", "input search field", etc.
+  const synonymProposals: ResolutionProposalDraft[] = elementProposal.length > 0 && screen
+    ? proposalsForSynonymExpansion(task, screen, screen.elements.find(
+        (e) => e.element === interpretation.interpretedElement,
+      )!, task.actionText)
+    : [];
+
+  const proposals: ResolutionProposalDraft[] = [...elementProposal, ...screenAliasProposal, ...synonymProposals];
 
   return proposals;
 }
@@ -250,6 +260,42 @@ export function proposalsForColdStartDiscovery(
     },
     rationale: `Cold-start resolution had no knowledge context. Recording action text "${alias}" as a discovery signal for future iterations.`,
   }];
+}
+
+/**
+ * E2: Generate synonym-expanded alias proposals from a primary alias.
+ *
+ * When the system learns that "enter policy number" maps to an element,
+ * this function also proposes "type policy number", "input policy number", etc.
+ * by replacing the verb with synonyms from ACTION_SYNONYMS.
+ *
+ * This is the agentic suggestion layer: given one confirmed mapping,
+ * deterministically expand it into several small turnkey additions.
+ */
+export function proposalsForSynonymExpansion(
+  task: GroundedStep,
+  screen: StepTaskScreenCandidate,
+  element: StepTaskElementCandidate,
+  primaryAlias: string,
+): ResolutionProposalDraft[] {
+  const decomposed = decomposeIntent(primaryAlias.toLowerCase());
+  if (!decomposed.verb || !decomposed.target) return [];
+
+  // Get all verb forms for the canonical verb
+  const allVerbForms = [decomposed.verb, ...(ACTION_SYNONYMS[decomposed.verb] ?? [])];
+  const existingAliases = new Set(element.aliases.map((a) => a.toLowerCase()));
+
+  return allVerbForms
+    .map((verbForm) => `${verbForm} ${decomposed.target}`)
+    .filter((expanded) => !existingAliases.has(expanded) && expanded !== primaryAlias.toLowerCase())
+    .slice(0, 3) // Cap at 3 synonyms to avoid alias bloat
+    .map((expanded): ResolutionProposalDraft => ({
+      artifactType: 'hints',
+      targetPath: knowledgePaths.hints(screen.screen),
+      title: `Synonym expansion for step ${task.index}: "${expanded}"`,
+      patch: enrichedPatch(screen.screen, element, expanded),
+      rationale: `Verb-synonym expansion from confirmed alias "${primaryAlias}". Adding "${expanded}" to prevent future phrasing variations from falling to expensive resolution rungs.`,
+    }));
 }
 
 export function applyProposalDraftsToRuntimeContext(

@@ -11,6 +11,7 @@ import { emitAgentWorkbench, processWorkItems, emitInterventionLineage } from '.
 import { createDashboardDecider } from './dashboard-decider';
 import { createDualModeDecider, createAgentDecider } from './agent-decider';
 import type { AgentWorkItem, BottleneckWeightCorrelation, WorkItemCompletion } from '../domain/types';
+import { detectAliasConflicts } from '../domain/knowledge/inference';
 import { dashboardEvent } from '../domain/types/intervention-context';
 import type { DashboardPort } from './ports';
 import { Dashboard } from './ports';
@@ -616,6 +617,28 @@ function runIteration(iteration: number, options: DogfoodOptions, state: LoopSta
         iteration,
         quarantinedCount: quarantineResult.quarantinedCount,
         quarantinedPaths: quarantineResult.quarantinedPaths,
+      }));
+    }
+
+    // Step 3g (E4): Knowledge conflict detection — find aliases that map to
+    // multiple different elements. These create ambiguous resolution and should
+    // be flagged for the agent to resolve. On warm-start especially, stale or
+    // conflicting aliases degrade resolution quality.
+    const screenHintsMap: Record<string, import('../domain/types').ScreenHints> = {};
+    for (const hintsEnvelope of postRunCatalog.screenHints) {
+      screenHintsMap[hintsEnvelope.artifact.screen] = hintsEnvelope.artifact;
+    }
+    const aliasConflicts = detectAliasConflicts(screenHintsMap);
+    if (aliasConflicts.length > 0) {
+      const cDashboard = yield* Dashboard;
+      yield* cDashboard.emit(dashboardEvent('diagnostics', {
+        phase: 'alias-conflict-detection',
+        iteration,
+        conflictCount: aliasConflicts.length,
+        conflicts: aliasConflicts.slice(0, 10).map((c) => ({
+          alias: c.alias,
+          mappings: c.mappings,
+        })),
       }));
     }
 
