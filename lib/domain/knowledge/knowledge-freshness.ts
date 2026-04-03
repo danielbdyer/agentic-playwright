@@ -29,6 +29,16 @@ export function defaultFreshnessPolicy(): FreshnessPolicy {
   };
 }
 
+/** Returns an active freshness policy for dogfood/learning modes. */
+export function activeFreshnessPolicy(): FreshnessPolicy {
+  return {
+    enabled: true,
+    maxRunsWithoutExercise: 5,
+    decayRate: 0.15,
+    minimumConfidence: 0.2,
+  };
+}
+
 /**
  * Compute decayed confidence using exponential decay.
  *

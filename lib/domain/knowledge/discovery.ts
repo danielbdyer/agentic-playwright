@@ -1,6 +1,7 @@
 import { computeNormalizedSnapshotHash, normalizeAriaSnapshot } from '../kernel/hash';
 import type { AssertionKind, SurfaceKind } from '../types/workflow';
 import { uniqueSorted } from '../kernel/collections';
+import { ROLE_AFFORDANCES, deriveRoleFromSignature } from '../widgets/role-affordances';
 
 export interface RawDiscoveredSurface {
   selector: string;
@@ -226,36 +227,42 @@ function surfaceAssertionsForRole(role: string | null, tagName: string): Asserti
   return ['state'];
 }
 
+// Role-to-widget mapping derived from ROLE_AFFORDANCES table
+const ROLE_TO_WIDGET: Readonly<Record<string, string>> = {
+  button: 'os-button',
+  link: 'os-link',
+  textbox: 'os-input',
+  searchbox: 'os-input',
+  combobox: 'os-select',
+  checkbox: 'os-checkbox',
+  radio: 'os-radio',
+  switch: 'os-checkbox',
+  table: 'os-table',
+  grid: 'os-table',
+  listbox: 'os-select',
+  tab: 'os-button',
+  slider: 'os-input',
+  spinbutton: 'os-input',
+  dialog: 'os-region',
+} as const;
+
 function widgetForRole(role: string, inputType: string | null): string {
-  if (role === 'button' || role === 'link') {
-    return 'os-button';
-  }
-  if (role === 'table' || role === 'grid') {
-    return 'os-table';
-  }
-  if (
-    role === 'textbox'
-    || role === 'searchbox'
-    || role === 'combobox'
-    || role === 'checkbox'
-    || role === 'radio'
-    || role === 'switch'
-    || inputType === 'text'
-    || inputType === 'search'
-    || inputType === 'date'
-  ) {
-    return 'os-input';
-  }
-  return 'os-region';
+  // Use deriveRoleFromSignature for input type refinement
+  const derivedRole = deriveRoleFromSignature({ role, tag: undefined, inputType: inputType ?? undefined });
+  const resolved = derivedRole ?? role;
+  return ROLE_TO_WIDGET[resolved] ?? 'os-region';
 }
 
 function supportedActionsForRole(role: string, widget: string): ('click' | 'input' | 'assert-snapshot')[] {
-  if (widget === 'os-button' || role === 'button' || role === 'link') {
-    return ['click'];
-  }
-  if (widget === 'os-input') {
-    return ['input'];
-  }
+  // Derive from ROLE_AFFORDANCES: roles with click→'click', fill→'input', else→'assert-snapshot'
+  const affordances = ROLE_AFFORDANCES[role] ?? [];
+  const hasClick = affordances.some((a) => a.action === 'click');
+  const hasFill = affordances.some((a) => a.action === 'fill' || a.action === 'check' || a.action === 'select');
+  if (hasClick && !hasFill) return ['click'];
+  if (hasFill) return ['input'];
+  // Fallback: check widget for backward compat
+  if (widget === 'os-button') return ['click'];
+  if (widget === 'os-input' || widget === 'os-select' || widget === 'os-checkbox' || widget === 'os-radio') return ['input'];
   return ['assert-snapshot'];
 }
 

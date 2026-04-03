@@ -198,6 +198,35 @@ export function proposalsForDeterministicResolution(
 }
 
 /**
+ * Generate supplementary proposals for partially-resolved steps.
+ *
+ * When a screen matches and multiple elements are candidates but none
+ * matched confidently, propose aliases for the top candidates. This increases
+ * the learning loop's yield: future runs can resolve these steps deterministically.
+ */
+export function proposalsForPartialResolution(
+  task: GroundedStep,
+  screen: StepTaskScreenCandidate | null,
+  topCandidates: readonly StepTaskElementCandidate[],
+): ResolutionProposalDraft[] {
+  if (!screen || topCandidates.length === 0) return [];
+  const alias = task.actionText?.trim();
+  if (!alias) return [];
+
+  // Only propose for the top candidate (most likely match)
+  const best = topCandidates[0]!;
+  if (best.aliases.some((a) => a.toLowerCase() === alias.toLowerCase())) return [];
+
+  return [{
+    artifactType: 'hints',
+    targetPath: knowledgePaths.hints(screen.screen),
+    title: `Supplementary alias for ambiguous step ${task.index}`,
+    patch: enrichedPatch(screen.screen, best, alias),
+    rationale: `Screen "${screen.screen}" matched but element resolution was ambiguous among ${topCandidates.length} candidates. Proposing alias on best candidate "${best.element}" to accelerate convergence.`,
+  }];
+}
+
+/**
  * Generate discovery proposals when resolution fails with no context (cold-start).
  *
  * When no screens exist in the resolution context, propose a placeholder screen
