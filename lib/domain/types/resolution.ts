@@ -83,6 +83,37 @@ export interface TranslationReceipt {
     readonly reason?: string | null | undefined;
   } | undefined;
   readonly failureClass?: 'none' | 'no-candidate' | 'runtime-disabled' | 'cache-disabled' | 'cache-miss' | 'cache-invalidated' | 'translator-error' | undefined;
+  /**
+   * LLM-produced intent decomposition, returned alongside translation.
+   * When present, the pipeline uses it to generate targeted alias proposals
+   * (verb synonyms, alternative phrasings) that make future runs deterministic.
+   * Optional — legacy translation providers that don't decompose simply omit it.
+   */
+  readonly decomposition?: TranslationDecomposition | undefined;
+}
+
+/**
+ * Optional intent decomposition returned by the LLM alongside translation.
+ *
+ * When the translation provider decomposes the action text, it returns this
+ * structure so the pipeline can generate targeted alias proposals. The LLM
+ * handles comprehension (verb extraction, synonym suggestion, data extraction);
+ * the pipeline handles activation and governance.
+ *
+ * This is the agentic handshake: frontier AI for comprehension,
+ * deterministic pipeline for structure.
+ */
+export interface TranslationDecomposition {
+  /** Canonical action verb the LLM identified (e.g. "click", "fill", "navigate"). */
+  readonly verb: string | null;
+  /** Target noun phrase — the element or screen being acted on. */
+  readonly target: string | null;
+  /** Embedded data value, if any (e.g. "POL-001" from "Enter POL-001 in search"). */
+  readonly data: string | null;
+  /** Alternative phrasings the LLM suggests for the same intent. */
+  readonly suggestedAliases: readonly string[];
+  /** LLM confidence in this decomposition [0, 1]. */
+  readonly confidence: number;
 }
 
 export interface ResolutionEngineCapabilities {

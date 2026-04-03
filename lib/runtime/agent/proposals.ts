@@ -1,6 +1,5 @@
 import { knowledgePaths } from '../../domain/kernel/ids';
-import { decomposeIntent } from '../../domain/knowledge/inference';
-import { ACTION_SYNONYMS } from '../../domain/widgets/role-affordances';
+import type { IntentDecomposition } from '../../domain/knowledge/inference';
 import type { InterfaceResolutionContext, ResolutionProposalDraft, GroundedStep, StepTaskElementCandidate, StepTaskScreenCandidate } from '../../domain/types';
 import type { IntentInterpretation, InterpretationSource } from './types';
 
@@ -105,15 +104,20 @@ export function proposalsFromInterpretation(
     return [];
   })();
 
-  // E2: Synonym-expanded proposals — when we learn "enter search field" → element,
-  // also propose "type search field", "input search field", etc.
-  const synonymProposals: ResolutionProposalDraft[] = elementProposal.length > 0 && screen
-    ? proposalsForSynonymExpansion(task, screen, screen.elements.find(
-        (e) => e.element === interpretation.interpretedElement,
-      )!, task.actionText)
-    : [];
+  // LLM decomposition proposals — when the translation provider returned
+  // suggested aliases, convert them into proposals. This is the agentic
+  // handshake: the LLM does comprehension, we do activation.
+  const decompositionProposals: ResolutionProposalDraft[] = (() => {
+    if (!interpretation.decomposition?.suggestedAliases?.length) return [];
+    if (!interpretation.interpretedElement) return [];
+    const element = screen.elements.find(
+      (entry) => entry.element === interpretation.interpretedElement,
+    );
+    if (!element) return [];
+    return proposalsFromDecomposition(task, screen, element, interpretation.decomposition);
+  })();
 
-  const proposals: ResolutionProposalDraft[] = [...elementProposal, ...screenAliasProposal, ...synonymProposals];
+  const proposals: ResolutionProposalDraft[] = [...elementProposal, ...screenAliasProposal, ...decompositionProposals];
 
   return proposals;
 }
@@ -263,38 +267,37 @@ export function proposalsForColdStartDiscovery(
 }
 
 /**
- * E2: Generate synonym-expanded alias proposals from a primary alias.
+ * Generate alias proposals from an LLM-produced intent decomposition.
  *
- * When the system learns that "enter policy number" maps to an element,
- * this function also proposes "type policy number", "input policy number", etc.
- * by replacing the verb with synonyms from ACTION_SYNONYMS.
+ * When the LLM decomposes "Enter test data in search field" and suggests
+ * aliases like ["type in search field", "input search field"], this function
+ * converts those suggestions into structured proposals that the activation
+ * pipeline can persist as deterministic knowledge.
  *
- * This is the agentic suggestion layer: given one confirmed mapping,
- * deterministically expand it into several small turnkey additions.
+ * This is the agentic handshake: the LLM does comprehension, the pipeline
+ * does activation and governance. Each suggested alias becomes a small,
+ * turnkey, deterministic addition to the knowledge model.
  */
-export function proposalsForSynonymExpansion(
+export function proposalsFromDecomposition(
   task: GroundedStep,
   screen: StepTaskScreenCandidate,
   element: StepTaskElementCandidate,
-  primaryAlias: string,
+  decomposition: IntentDecomposition,
 ): ResolutionProposalDraft[] {
-  const decomposed = decomposeIntent(primaryAlias.toLowerCase());
-  if (!decomposed.verb || !decomposed.target) return [];
+  if (decomposition.suggestedAliases.length === 0) return [];
 
-  // Get all verb forms for the canonical verb
-  const allVerbForms = [decomposed.verb, ...(ACTION_SYNONYMS[decomposed.verb] ?? [])];
   const existingAliases = new Set(element.aliases.map((a) => a.toLowerCase()));
 
-  return allVerbForms
-    .map((verbForm) => `${verbForm} ${decomposed.target}`)
-    .filter((expanded) => !existingAliases.has(expanded) && expanded !== primaryAlias.toLowerCase())
-    .slice(0, 3) // Cap at 3 synonyms to avoid alias bloat
-    .map((expanded): ResolutionProposalDraft => ({
+  return decomposition.suggestedAliases
+    .map((alias) => alias.toLowerCase().trim())
+    .filter((alias) => alias.length > 0 && !existingAliases.has(alias))
+    .slice(0, 5) // Cap to prevent alias bloat
+    .map((alias): ResolutionProposalDraft => ({
       artifactType: 'hints',
       targetPath: knowledgePaths.hints(screen.screen),
-      title: `Synonym expansion for step ${task.index}: "${expanded}"`,
-      patch: enrichedPatch(screen.screen, element, expanded),
-      rationale: `Verb-synonym expansion from confirmed alias "${primaryAlias}". Adding "${expanded}" to prevent future phrasing variations from falling to expensive resolution rungs.`,
+      title: `LLM-suggested alias for step ${task.index}: "${alias}"`,
+      patch: enrichedPatch(screen.screen, element, alias),
+      rationale: `LLM decomposition suggested "${alias}" as an equivalent phrasing for "${task.actionText}" (confidence: ${decomposition.confidence}). Adding to make future resolution deterministic.`,
     }));
 }
 

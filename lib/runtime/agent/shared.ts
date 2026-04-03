@@ -5,7 +5,9 @@ import type { ResolutionExhaustionEntry, GroundedStep } from '../../domain/types
 export { uniqueSorted };
 
 // Re-export from domain layer — alias matching is a pure inference concern
-export { bestAliasMatch, bestAliasMatchWithSynonyms, humanizeIdentifier, decomposeIntent, type AliasMatch, type DecomposedIntent } from '../../domain/knowledge/inference';
+export { bestAliasMatch, humanizeIdentifier, type AliasMatch } from '../../domain/knowledge/inference';
+// LLM-mediated decomposition schema (consumed by translation provider)
+export type { IntentDecomposition } from '../../domain/knowledge/inference';
 
 export function exhaustionEntry(
   stage: ResolutionExhaustionEntry['stage'],

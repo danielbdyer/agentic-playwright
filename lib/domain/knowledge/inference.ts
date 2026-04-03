@@ -1,6 +1,5 @@
 import { normalizeHtmlText } from '../kernel/hash';
 import { uniqueSorted } from '../kernel/collections';
-import { ACTION_SYNONYMS } from '../widgets/role-affordances';
 import type { ScreenElements, ScreenHints, ScreenPostures, SharedPatterns, SurfaceGraph } from '../types';
 
 export interface InferenceKnowledge {
@@ -76,140 +75,39 @@ export function bestAliasMatch(normalizedText: string, aliases: readonly string[
     }, null);
 }
 
-// ─── E1: Intent Decomposition ───
+// ─── E1/E2: Intent Decomposition & Synonym Expansion ───
+//
+// Intent decomposition and synonym expansion are LLM-mediated concerns.
+// The LLM decomposes natural-language action text into structured tokens
+// and proposes alias expansions — see IntentDecomposition below and
+// the translation contract in lib/runtime/agent/types.ts.
+//
+// The deterministic pipeline's role is to:
+// 1. Present structured context to the LLM (screens, elements, aliases)
+// 2. Accept the LLM's decomposition as a typed schema
+// 3. Persist the LLM's proposals as small deterministic knowledge additions
+//
+// This keeps comprehension where it belongs (frontier AI) while the
+// pipeline handles structure, activation, and governance.
 
-/** Decomposed intent tokens extracted from natural-language action text. */
-export interface DecomposedIntent {
+/**
+ * LLM-produced intent decomposition. The translation provider returns this
+ * when asked to decompose a step's action text. The pipeline uses it to
+ * generate targeted proposals and improve future deterministic matching.
+ *
+ * Pure data type — no behavior. The LLM fills it, the pipeline consumes it.
+ */
+export interface IntentDecomposition {
+  /** Canonical action verb (e.g. "click", "fill", "navigate", "verify"). */
   readonly verb: string | null;
+  /** Target noun phrase — the element or screen being acted on. */
   readonly target: string | null;
+  /** Embedded data value, if any (e.g. "POL-001" from "Enter POL-001 in search"). */
   readonly data: string | null;
-  readonly remainder: string;
-}
-
-/**
- * Build the inverted synonym index: synonym → canonical action verb.
- * Module-level constant, computed once.
- */
-const SYNONYM_TO_CANONICAL: ReadonlyMap<string, string> = (() => {
-  const map = new Map<string, string>();
-  for (const [canonical, synonyms] of Object.entries(ACTION_SYNONYMS)) {
-    map.set(canonical, canonical);
-    for (const syn of synonyms) {
-      map.set(syn, canonical);
-    }
-  }
-  return map;
-})();
-
-/** All known verb tokens, sorted longest-first for greedy matching. */
-const KNOWN_VERBS: readonly string[] = [...SYNONYM_TO_CANONICAL.keys()]
-  .sort((a, b) => b.length - a.length);
-
-/** Prepositions and articles to strip when isolating target from remainder. */
-const FILLER_WORDS = new Set([
-  'the', 'a', 'an', 'in', 'on', 'to', 'for', 'of', 'with', 'into', 'from',
-  'at', 'by', 'as', 'is', 'and', 'or', 'that', 'this', 'its',
-]);
-
-/** Patterns that indicate data follows (e.g. "enter 'hello' in search field"). */
-const DATA_PATTERNS: readonly RegExp[] = [
-  /^['"](.+?)['"]/,           // quoted: 'value' or "value"
-  /^(\d[\d.,]*)/,              // numeric: 42, 3.14
-  /^(true|false|yes|no)\b/i,  // boolean
-];
-
-/**
- * Decompose compound action text into {verb, target, data} tokens.
- *
- * Examples:
- *   "Enter test data in search field" → { verb: "fill", target: "search field", data: "test data" }
- *   "Click the submit button"         → { verb: "click", target: "submit button", data: null }
- *   "Verify the policy number"        → { verb: "get-value", target: "policy number", data: null }
- *   "Hit the return to search"        → { verb: "click", target: "return to search", data: null }
- *
- * The verb is canonicalized via ACTION_SYNONYMS. Target is the remaining noun phrase
- * after stripping the verb, filler words, and any extracted data.
- */
-export function decomposeIntent(normalizedText: string): DecomposedIntent {
-  const tokens = tokenize(normalizedText);
-  if (tokens.length === 0) {
-    return { verb: null, target: null, data: null, remainder: normalizedText };
-  }
-
-  // Phase 1: Extract verb — try multi-word verbs first (e.g. "key in", "set to")
-  let verb: string | null = null;
-  let verbTokenCount = 0;
-
-  for (const candidate of KNOWN_VERBS) {
-    const candidateTokens = tokenize(candidate);
-    const prefix = tokens.slice(0, candidateTokens.length).join(' ');
-    if (prefix === candidate) {
-      verb = SYNONYM_TO_CANONICAL.get(candidate) ?? null;
-      verbTokenCount = candidateTokens.length;
-      break;
-    }
-  }
-
-  const afterVerb = tokens.slice(verbTokenCount).join(' ');
-
-  // Phase 2: Extract data — look for quoted strings, numbers, or boolean literals
-  let data: string | null = null;
-  let afterData = afterVerb;
-
-  for (const pattern of DATA_PATTERNS) {
-    const match = afterVerb.match(pattern);
-    if (match?.[1]) {
-      data = match[1];
-      afterData = afterVerb.slice(match[0].length).trim();
-      break;
-    }
-  }
-
-  // Phase 3: Extract target — strip filler words from what remains
-  const targetTokens = tokenize(afterData).filter((t) => !FILLER_WORDS.has(t));
-  const target = targetTokens.length > 0 ? targetTokens.join(' ') : null;
-
-  return { verb, target, data, remainder: afterVerb };
-}
-
-// ─── E2: Synonym-Expanded Alias Matching ───
-
-/**
- * Match normalized intent text against aliases, expanding verb synonyms.
- *
- * When the text contains a verb synonym (e.g. "enter"), also tries matching
- * with the canonical form ("fill") and all other synonyms ("type", "input", etc.).
- * This catches matches that flat string comparison misses:
- *   text="enter policy number" vs alias="type policy number" → match via synonym expansion.
- *
- * Returns the best match across all synonym variants.
- */
-export function bestAliasMatchWithSynonyms(normalizedText: string, aliases: readonly string[]): AliasMatch | null {
-  // Try the original text first
-  const directMatch = bestAliasMatch(normalizedText, aliases);
-
-  // Decompose to find the verb
-  const decomposed = decomposeIntent(normalizedText);
-  if (!decomposed.verb || !decomposed.target) {
-    return directMatch;
-  }
-
-  // Generate verb-expanded variants
-  const canonicalVerb = decomposed.verb;
-  const allVerbForms = [canonicalVerb, ...(ACTION_SYNONYMS[canonicalVerb] ?? [])];
-  const variants = allVerbForms.map((verbForm) => `${verbForm} ${decomposed.target}`);
-
-  // Match each variant against aliases, track the best
-  let best = directMatch;
-  for (const variant of variants) {
-    const normalized = normalizeIntentText(variant);
-    const match = bestAliasMatch(normalized, aliases);
-    if (match && (!best || match.score > best.score)) {
-      best = match;
-    }
-  }
-
-  return best;
+  /** Synonym variants the LLM suggests for the same intent. */
+  readonly suggestedAliases: readonly string[];
+  /** Confidence the LLM has in this decomposition. */
+  readonly confidence: number;
 }
 
 // ─── E4: Knowledge Conflict Detection ───

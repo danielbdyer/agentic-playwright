@@ -16,7 +16,7 @@ import { DEFAULT_PIPELINE_CONFIG } from '../../domain/types';
 import type { ScreenId, ElementId, PostureId } from '../../domain/kernel/identity';
 import type { RuntimeStepAgentContext, IntentInterpretation, InterpretationConfidence, StageEffects } from './types';
 import { EMPTY_EFFECTS } from './types';
-import { normalizedCombined, bestAliasMatch, bestAliasMatchWithSynonyms, uniqueSorted, humanizeIdentifier, decomposeIntent } from './shared';
+import { normalizedCombined, bestAliasMatch, uniqueSorted, humanizeIdentifier } from './shared';
 import { exhaustionEntry } from './shared';
 
 // ─── Heuristic Scoring ───
@@ -30,16 +30,8 @@ interface HeuristicCandidate {
 
 function scoreScreenMatch(normalized: string, screen: StepTaskScreenCandidate): number {
   const aliases = uniqueSorted([screen.screen, ...screen.screenAliases]);
-  const directScore = bestAliasMatch(normalized, aliases)?.score ?? 0;
-
-  // E1/E3: Also match the decomposed target against screen aliases.
-  // This catches "Load the policy detail page" → target="policy detail page" ≈ screen alias "policy detail".
-  const decomposed = decomposeIntent(normalized);
-  const targetScore = decomposed.target
-    ? (bestAliasMatch(decomposed.target, aliases)?.score ?? 0)
-    : 0;
-
-  return Math.max(directScore, targetScore);
+  const match = bestAliasMatch(normalized, aliases);
+  return match?.score ?? 0;
 }
 
 function scoreElementMatch(normalized: string, element: StepTaskElementCandidate): number {
@@ -48,26 +40,15 @@ function scoreElementMatch(normalized: string, element: StepTaskElementCandidate
     element.name ?? '',
     ...element.aliases,
   ]);
-
-  // Strategy 1: Direct alias match (original)
   const match = bestAliasMatch(normalized, aliases);
   const aliasScore = match?.score ?? 0;
 
-  // Strategy 2: Humanized identifier matching
+  // Bonus: humanized identifier matching
   const humanized = humanizeIdentifier(element.element);
   const humanizedMatch = bestAliasMatch(normalized, [humanized]);
   const humanizedScore = humanizedMatch?.score ?? 0;
 
-  // Strategy 3 (E1): Decomposed target matching — strip verb and match target against aliases
-  const decomposed = decomposeIntent(normalized);
-  const targetScore = decomposed.target
-    ? (bestAliasMatch(decomposed.target, aliases)?.score ?? 0)
-    : 0;
-
-  // Strategy 4 (E2): Synonym-expanded matching — try verb variants
-  const synonymScore = bestAliasMatchWithSynonyms(normalized, aliases)?.score ?? 0;
-
-  return Math.max(aliasScore, humanizedScore, targetScore, synonymScore);
+  return Math.max(aliasScore, humanizedScore);
 }
 
 function rankHeuristicCandidates(
@@ -215,6 +196,8 @@ async function translationFallbackInterpretation(
       : 'low',
     source: 'knowledge-translation',
     knowledgeRefs: [...heuristicRefs, ...receipt.selected.sourceRefs],
+    // Thread LLM decomposition for downstream proposal generation
+    decomposition: receipt.decomposition ?? null,
   };
 }
 

@@ -1,4 +1,4 @@
-import { normalizeIntentText, decomposeIntent, bestAliasMatchWithSynonyms } from '../../domain/knowledge/inference';
+import { normalizeIntentText } from '../../domain/knowledge/inference';
 import { createPostureId, createSnapshotTemplateId } from '../../domain/kernel/identity';
 import { knowledgePaths } from '../../domain/kernel/ids';
 import type {
@@ -241,40 +241,9 @@ export function rankScreenCandidates(
   }
 
   const normalized = normalizedCombined(task);
-  const decomposed = decomposeIntent(normalized);
   const entries: Array<LatticeCandidate<StepTaskScreenCandidate>> = groundedScreens(task, resolutionContext).flatMap((screen) => {
     const aliases = uniqueSorted([screen.screen, humanizeIdentifier(screen.screen), ...screen.screenAliases]);
-
-    // Standard alias match
-    const match = bestAliasMatch(normalized, aliases);
-
-    // E1: Also try decomposed target against aliases (strips verb for better matching)
-    const targetMatch = decomposed.target ? bestAliasMatch(decomposed.target, aliases) : null;
-
-    // E2: Synonym-expanded match
-    const synonymMatch = bestAliasMatchWithSynonyms(normalized, aliases);
-
-    // E3: URL-path matching for navigation steps — extract meaningful tokens from URL
-    // and match against the action text's target. "Load the policy detail page" →
-    // target="policy detail page" matches URL "/policy-detail" or "/policy-amendment.html"
-    const urlMatch = (action === 'navigate' && screen.url && decomposed.target)
-      ? (() => {
-          const urlTokens = screen.url
-            .replace(/\.[^/.]+$/, '')    // strip extension
-            .replace(/\?.*$/, '')        // strip query params
-            .split(/[-_/]+/)
-            .filter(Boolean)
-            .map((t) => t.toLowerCase());
-          const targetTokens = decomposed.target.split(/\s+/);
-          const overlap = targetTokens.filter((t) => urlTokens.includes(t)).length;
-          return overlap >= 2 ? { alias: screen.url, score: overlap * 3 } : null;
-        })()
-      : null;
-
-    const bestMatch = [match, targetMatch, synonymMatch, urlMatch]
-      .filter((m): m is NonNullable<typeof m> => m !== null)
-      .sort((a, b) => b.score - a.score)[0] ?? null;
-
+    const bestMatch = bestAliasMatch(normalized, aliases);
     if (!bestMatch) {
       return [];
     }
@@ -328,18 +297,10 @@ export function rankElementCandidates(task: GroundedStep, screen: StepTaskScreen
   }
 
   const normalized = normalizedCombined(task);
-  const elemDecomposed = decomposeIntent(normalized);
   const entries = groundedElements(task, screen)
     .flatMap((element) => {
       const aliases = uniqueSorted([element.element, humanizeIdentifier(element.element), element.name ?? '', ...element.aliases]);
-
-      // E1: Direct match + decomposed target match + synonym-expanded match
-      const directMatch = bestAliasMatch(normalized, aliases);
-      const targetMatch = elemDecomposed.target ? bestAliasMatch(elemDecomposed.target, aliases) : null;
-      const synonymMatch = bestAliasMatchWithSynonyms(normalized, aliases);
-      const match = [directMatch, targetMatch, synonymMatch]
-        .filter((m): m is NonNullable<typeof m> => m !== null)
-        .sort((a, b) => b.score - a.score)[0] ?? null;
+      const match = bestAliasMatch(normalized, aliases);
       if (!match) {
         return [];
       }
