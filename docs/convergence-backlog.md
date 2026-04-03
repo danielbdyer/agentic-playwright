@@ -712,7 +712,220 @@ The archetypes then compose over these role-derived categories:
 
 ---
 
-### Revised Backlog Items After Audit
+### Derivation 4: Winning Source → Rung Mapping (eliminates duplicate)
+
+**Current antipattern:** Two identical hand-authored `Record<string, string>` mappings exist:
+
+- `lib/domain/kernel/visitors.ts:295-311` — `WINNING_SOURCE_TO_RUNG` (15 entries)
+- `lib/application/fitness.ts:141-153` — `sourceToRung` (11 entries, **subset** of the above)
+
+Both map `StepWinningSource` strings like `'scenario-explicit'` to resolution rung names
+like `'explicit'`. This is a single-source-of-truth violation — the fitness module maintains
+its own copy that can drift from the canonical mapping.
+
+**Structural derivation:** The resolution pipeline's `StrategyRegistry` already declares
+which rungs each strategy owns. Each `ResolutionStrategy` produces receipts tagged with
+a `winningSource`. The mapping from source to rung is implicit in the strategy
+registration — it just isn't surfaced as a queryable function.
+
+```typescript
+// Derived from strategy metadata, not hand-authored:
+function rungForWinningSource(source: StepWinningSource): ResolutionPrecedenceRung {
+  return strategyRegistry.rungOf(source);  // single source of truth
+}
+```
+
+**Impact:** Eliminates the duplicate mapping, prevents drift, and makes the relationship
+between winning sources and rungs machine-verifiable. New strategies automatically register
+their source-to-rung mapping.
+
+### Derivation 5: Failure Classification from Receipt Structure
+
+**Current antipattern:** `lib/application/fitness.ts:54-83` classifies step failures
+using a hand-authored `classifyFailure()` function with explicit string matching on
+`winningSource` and numeric thresholds on `translationScore`:
+
+```typescript
+if (winningSource === 'none' && translationScore > 0.15 && translationScore < 0.34)
+  return 'translation-threshold-miss';
+if (winningSource === 'structured-translation')
+  return 'translation-fallback-dominant';
+```
+
+Lines 141-199 then map these failure classes to bottleneck signal names via another
+hand-authored `FAILURE_TO_SIGNAL` record, with manually assigned weights (0.3, 0.25, etc.).
+
+**Structural derivation:** Resolution receipts already carry structured provenance:
+- `receipt.resolutionRung` — which rung resolved (or didn't)
+- `receipt.translationReceipt.failureClass` — already a typed enum: `'no-candidate'`,
+  `'runtime-disabled'`, `'cache-miss'`, `'low-confidence'`
+- `receipt.evidenceCount` — number of prior evidence entries consulted
+- `receipt.rungs` — the complete rung traversal trace
+
+The failure class is derivable from the rung traversal pattern:
+
+```typescript
+function classifyFromReceipt(receipt: StepResolutionReceipt): FailureClass {
+  const lastRung = receipt.rungs[receipt.rungs.length - 1];
+  if (lastRung === 'needs-human') return 'unresolved';
+  if (lastRung === 'structured-translation') return 'translation-dependent';
+  if (receipt.translationReceipt?.failureClass) return receipt.translationReceipt.failureClass;
+  // ...derived from receipt structure, not from ad-hoc thresholds
+}
+```
+
+Bottleneck weights are already computed dynamically by `computeBottleneckCorrelations()` —
+the hand-authored weights are redundant.
+
+**Impact:** Eliminates magic threshold constants, eliminates the `FAILURE_TO_SIGNAL` mapping,
+and makes failure classification adapt automatically as new resolution strategies are added.
+
+### Derivation 6: Auto-Heal Class from Proposal Provenance
+
+**Current antipattern:** `lib/domain/governance/trust-policy.ts:39-48` defines
+`forbiddenAutoHealClasses` as a string array, and proposals carry a hand-assigned
+`autoHealClass` string (e.g., `'runtime-intent-cutover'` in `activate-proposals.ts:305`).
+
+The auto-approval gate checks `forbiddenAutoHealClasses.includes(proposal.autoHealClass)`.
+
+**Structural derivation:** A proposal's risk category is determined by two things
+already present in its structure:
+1. `artifactType` — what kind of knowledge it modifies (`'hints'`, `'patterns'`, `'surfaces'`)
+2. `provenanceKind` — where it came from (`'live-dom'`, `'translation'`, `'evidence'`)
+
+The `autoHealClass` is a projection of `(artifactType, provenanceKind)`:
+
+```typescript
+function deriveAutoHealClass(
+  artifactType: ProposalArtifactType,
+  provenanceKind: ProvenanceKind,
+): AutoHealClass {
+  if (provenanceKind === 'live-dom') return 'runtime-intent-cutover';
+  if (artifactType === 'surfaces') return 'structural-mutation';
+  return 'knowledge-refinement';
+}
+```
+
+**Impact:** Eliminates hand-assigned `autoHealClass` strings on proposals. New artifact types
+or provenance kinds automatically get the correct heal class via the derivation. The
+`forbiddenAutoHealClasses` gate operates on derived values instead of hand-matched strings.
+
+### Derivation 7: Dashboard Event Kinds from Pipeline Stage + Operation
+
+**Current antipattern:** `lib/domain/types/dashboard.ts:47-88` defines `DashboardEventKind`
+as a 40+ member union of hand-authored string literals:
+
+```typescript
+type DashboardEventKind =
+  | 'iteration-start' | 'iteration-end'
+  | 'item-pending' | 'item-processing' | 'item-completed'
+  | 'element-probed' | 'stage-lifecycle'
+  | 'proposal-activated' | 'proposal-blocked'
+  // ...40+ more
+```
+
+Many follow a `{noun}-{verb}` pattern that encodes two dimensions: the pipeline concept
+and the lifecycle operation.
+
+**Structural derivation:** These events are the Cartesian product of a small set of
+pipeline concepts and lifecycle operations:
+
+```typescript
+type PipelineConcept = 'iteration' | 'item' | 'element' | 'stage' | 'proposal'
+  | 'knowledge' | 'convergence' | 'browser' | 'fiber' | 'workbench';
+type LifecycleOp = 'start' | 'end' | 'pending' | 'processing' | 'completed'
+  | 'activated' | 'blocked' | 'probed' | 'captured' | 'updated';
+
+// Generated event kind:
+type DashboardEventKind = `${PipelineConcept}-${LifecycleOp}`;
+```
+
+Not all combinations are valid (you don't `probe` an `iteration`), so the valid subset
+is declared as a const assertion, but the *naming convention* is derived from the
+two constituent dimensions rather than hand-enumerated.
+
+**Impact:** Adding a new pipeline concept (e.g., `'route'`) automatically generates
+a family of events (`route-start`, `route-completed`, `route-updated`) without editing
+the union. Consumers can match on concept or operation independently.
+
+### Derivation 8: Screen Identification from URL + ARIA Landmarks
+
+**Current state:** `lib/runtime/screen-identification.ts:166-174` uses hand-authored
+signal weights:
+
+```typescript
+const weight = signal.startsWith('title:') ? 2.0
+  : signal.startsWith('testid:') || signal.startsWith('aria-label:') ? 1.5
+  : 1.0;
+```
+
+**Structural derivation:** These weights reflect the reliability hierarchy of HTML/ARIA
+signals — `<title>` is page-level and highly specific, `[data-testid]` is developer-intended,
+`aria-label` is accessibility-authored, and other signals are incidental. This hierarchy
+is a fixed property of the HTML specification:
+
+```typescript
+const SIGNAL_RELIABILITY: Record<string, number> = {
+  'title': 2.0,        // HTML spec: one per page, explicit page identity
+  'testid': 1.5,       // Convention: developer-intended stable identifier
+  'aria-label': 1.5,   // ARIA spec: authored accessible name
+  'aria-labelledby': 1.5,
+  'heading': 1.2,      // HTML spec: document outline hierarchy
+  'landmark': 1.2,     // ARIA spec: page region semantics
+  'url-pattern': 1.0,  // Derived from route knowledge
+};
+```
+
+This is already somewhat derived (signal type → weight) but could be formalized as a
+companion to the role-affordance table — a `SIGNAL_RELIABILITY` table in the domain
+layer that codifies HTML/ARIA signal semantics.
+
+**Impact:** Screen identification weights become a reviewable, testable constant
+instead of inline magic numbers. New signal types (e.g., from route knowledge) get
+correct weights automatically.
+
+### Derivation 9: Execution Profile Capabilities from Posture
+
+**Current antipattern:** `lib/domain/governance/trust-policy.ts:87-91`:
+
+```typescript
+const PROFILE_AUTO_APPROVAL: Record<ExecutionProfile, boolean> = {
+  'ci-batch': false,
+  'interactive': false,
+  'dogfood': true,
+};
+```
+
+**Structural derivation:** The execution profile is already part of `ExecutionPosture`.
+Whether a profile can auto-approve is derivable from its capability set — `ci-batch`
+can't because it's non-interactive, `interactive` can't because it requires explicit
+human approval, `dogfood` can because it's the self-hardening loop.
+
+This can be modeled as a capability derivation:
+
+```typescript
+interface ProfileCapabilities {
+  readonly canAutoApprove: boolean;
+  readonly canWriteKnowledge: boolean;
+  readonly canExecute: boolean;
+  readonly requiresHumanPresence: boolean;
+}
+
+function deriveCapabilities(profile: ExecutionProfile): ProfileCapabilities {
+  return {
+    canAutoApprove: profile === 'dogfood',
+    canWriteKnowledge: profile !== 'ci-batch',
+    canExecute: true,
+    requiresHumanPresence: profile === 'interactive',
+  };
+}
+```
+
+**Impact:** New execution profiles automatically declare their capabilities rather than
+requiring updates to multiple `Record<ExecutionProfile, boolean>` maps scattered across
+the codebase.
+
+### Revised Backlog Items After Full Audit
 
 Items **eliminated** by structural derivation:
 - ~~P1-5 ("Update seed templates for new element types")~~ — verb vocabulary derived from role
@@ -723,9 +936,115 @@ Items **simplified:**
 - P4-2 (entropy injector) — synonym injection uses role-derived vocabulary, no external config needed
 - P1-4 (demo harness) — new elements auto-classify, no archetype code changes
 
-Items **added:**
+Items **added from initial audit:**
 - P1-1 extended: `ACTION_SYNONYMS` table alongside `ROLE_AFFORDANCES` in same module
 - P1-6 (new): Refactor `classifyElements()` and `AFFORDANCE_VERBS` to derive from role table
+
+Items **added from deep codebase audit:**
+- P1-7 (new): Consolidate `sourceToRung` — eliminate duplicate in `fitness.ts`, derive from strategy metadata
+- P1-8 (new): Derive failure classification from receipt rung traversal, eliminate `classifyFailure()` thresholds
+- P1-9 (new): Derive `autoHealClass` from `(artifactType, provenanceKind)` tuple
+- P1-10 (new): Formalize `SIGNAL_RELIABILITY` table for screen identification weights
+- P1-11 (new): Derive execution profile capabilities from posture, eliminate scattered boolean records
+- P5-4 (new): Refactor `DashboardEventKind` to template literal type from concept × operation
+
+### New Backlog Items Detail
+
+#### P1-7. Consolidate winning-source-to-rung mapping
+
+**Problem:** `WINNING_SOURCE_TO_RUNG` (15 entries) in `lib/domain/kernel/visitors.ts:295-311`
+is duplicated as `sourceToRung` (11 entries) in `lib/application/fitness.ts:141-153`.
+The fitness copy is a subset that can drift.
+
+**Fix:** Delete the fitness copy. Export the canonical mapping from `visitors.ts` (or better,
+derive it from the strategy registry's rung declarations). All consumers use the single source.
+
+**Files:** `lib/domain/kernel/visitors.ts`, `lib/application/fitness.ts`
+
+**Acceptance:**
+- Law test: every `StepWinningSource` value maps to exactly one `ResolutionPrecedenceRung`
+- No duplicate mapping exists anywhere in the codebase
+- `grep -r 'sourceToRung' lib/` returns exactly one definition
+
+#### P1-8. Derive failure classification from receipt structure
+
+**Problem:** `classifyFailure()` in `lib/application/fitness.ts:54-83` uses magic numeric
+thresholds (`0.15`, `0.34`) and string matching on `winningSource` to classify failures.
+`FAILURE_TO_SIGNAL` (lines 182-199) maps these classes to bottleneck signals with
+hand-authored weights.
+
+**Fix:** Replace with a derivation over the resolution receipt's rung traversal trace
+and the already-typed `TranslationReceipt.failureClass` enum. Bottleneck weights are
+already computed by `computeBottleneckCorrelations()` — remove the hand-authored ones.
+
+**Files:** `lib/application/fitness.ts`
+
+**Acceptance:**
+- No magic numeric thresholds in failure classification
+- Failure class is derived from receipt fields, not ad-hoc string matching
+- Adding a new resolution strategy does not require updating failure classification
+
+#### P1-9. Derive auto-heal class from proposal provenance
+
+**Problem:** Proposals carry a hand-assigned `autoHealClass` string. The trust policy
+checks this against `forbiddenAutoHealClasses`. The mapping from proposal → heal class
+is implicit and scattered.
+
+**Fix:** Add `deriveAutoHealClass(artifactType, provenanceKind)` pure function. Remove
+hand-assigned `autoHealClass` fields from proposal construction sites.
+
+**Files:** `lib/domain/governance/trust-policy.ts`, `lib/application/activate-proposals.ts`
+
+**Acceptance:**
+- No hand-assigned `autoHealClass` strings in proposal construction
+- `deriveAutoHealClass` is a pure function with exhaustive pattern match
+- Law test: `('hints', 'live-dom')` → `'runtime-intent-cutover'`
+
+#### P1-10. Formalize signal reliability table for screen identification
+
+**Problem:** `lib/runtime/screen-identification.ts:166-174` uses inline magic numbers
+for signal weighting (`2.0`, `1.5`, `1.0`).
+
+**Fix:** Extract to a `SIGNAL_RELIABILITY` constant in the domain layer, alongside the
+role-affordance table. Codifies the HTML/ARIA signal reliability hierarchy.
+
+**Files:** `lib/domain/widgets/role-affordances.ts` (or new `signal-reliability.ts`),
+`lib/runtime/screen-identification.ts`
+
+**Acceptance:**
+- No inline weight constants in screen identification
+- Signal weights are a reviewable, testable domain constant
+- Law test: `'title'` weight > `'heading'` weight > default weight
+
+#### P1-11. Derive execution profile capabilities
+
+**Problem:** `PROFILE_AUTO_APPROVAL` in `trust-policy.ts:87-91` is a hand-authored
+`Record<ExecutionProfile, boolean>`. Similar per-profile boolean maps may exist elsewhere.
+
+**Fix:** Define `ProfileCapabilities` interface and `deriveCapabilities(profile)` function.
+All profile-specific behavior queries this derivation instead of maintaining separate maps.
+
+**Files:** `lib/domain/governance/trust-policy.ts`, `lib/domain/types/workflow.ts`
+
+**Acceptance:**
+- `PROFILE_AUTO_APPROVAL` record eliminated
+- `deriveCapabilities('dogfood').canAutoApprove === true`
+- Adding a new execution profile requires updating exactly one function
+
+#### P5-4. Refactor dashboard event kinds to template literal type
+
+**Problem:** `DashboardEventKind` is a 40+ member hand-enumerated string union.
+
+**Fix:** Refactor to template literal type: `${PipelineConcept}-${LifecycleOp}`.
+Declare valid combinations as a const assertion. Consumers can match on concept or
+operation independently.
+
+**Files:** `lib/domain/types/dashboard.ts`, all `dashboardEvent()` call sites
+
+**Acceptance:**
+- `DashboardEventKind` is generated from concept × operation, not hand-listed
+- Adding a new concept generates a family of events automatically
+- Existing event string values are preserved (backward compat)
 
 ---
 
