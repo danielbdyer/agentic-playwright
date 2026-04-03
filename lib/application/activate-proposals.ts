@@ -302,7 +302,7 @@ export function autoApproveEligibleProposals(options: {
           proposedChange: {
             artifactType: proposal.artifactType,
             confidence: 0.9,
-            autoHealClass: 'runtime-intent-cutover',
+            autoHealClass: `activation-${proposal.artifactType}-cutover`,
           },
           trustPolicy: options.trustPolicy,
         });

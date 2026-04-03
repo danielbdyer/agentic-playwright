@@ -415,6 +415,21 @@ export function multiSeedSpeedrun(input: MultiSeedInput): Effect.Effect<MultiSee
       Effect.catchAll(() => Effect.succeed('unknown')),
     );
 
+    // Structured entropy ramp: perturbation increases across seeds
+    // Seed 0 gets baseline perturbation, final seed gets up to 2× perturbation
+    const totalSeeds = input.seeds.length;
+    const rampPerturbation = (seedIndex: number): typeof input.perturbation => {
+      if (!input.perturbation || totalSeeds <= 1) return input.perturbation;
+      const rampFactor = 1 + (seedIndex / (totalSeeds - 1));
+      const clamp = (v: number) => Math.min(1, v * rampFactor);
+      return {
+        lexicalGap: clamp(input.perturbation.lexicalGap),
+        dataVariation: clamp(input.perturbation.dataVariation),
+        coverageGap: clamp(input.perturbation.coverageGap),
+        crossScreen: clamp(input.perturbation.crossScreen),
+      };
+    };
+
     // Run each seed sequentially via recursive fold
     const runSeeds = (
       remaining: readonly string[],
@@ -423,6 +438,7 @@ export function multiSeedSpeedrun(input: MultiSeedInput): Effect.Effect<MultiSee
       Effect.gen(function* () {
         if (remaining.length === 0) return acc;
         const [currentSeed, ...rest] = remaining;
+        const seedIndex = totalSeeds - remaining.length;
         // Clean slate before each seed
         yield* cleanSlateProgram(input.paths.rootDir, input.paths);
 
@@ -434,7 +450,7 @@ export function multiSeedSpeedrun(input: MultiSeedInput): Effect.Effect<MultiSee
           maxIterations: input.maxIterations,
           substrate: input.substrate,
           perturbationRate: input.perturbationRate,
-          perturbation: input.perturbation,
+          perturbation: rampPerturbation(seedIndex),
           tag: input.tag,
           knowledgePosture: input.knowledgePosture,
           driftCount: input.driftCount,

@@ -756,6 +756,16 @@ const getSuggestedAction: ToolHandler = (_args, options) => {
     suggestions.push({ priority: 4, action: 'explore', tool: 'list_screens', rationale: 'Resolution graph available. Check screens for bottlenecks and knowledge gaps.' });
   }
 
+  // Widget coverage: check if role-based dispatch covers the active element types
+  const elements = graph?.nodes
+    ?.filter((n) => (n.kind as string) === 'element')
+    ?.map((n) => (n.widget as string))
+    .filter(Boolean) ?? [];
+  const uniqueWidgets = [...new Set(elements)];
+  if (uniqueWidgets.length > 3) {
+    suggestions.push({ priority: 5, action: 'expand-coverage', tool: 'get_learning_summary', rationale: `${uniqueWidgets.length} widget types in use. Role-based affordance dispatch covers 14 ARIA roles — verify coverage.` });
+  }
+
   // Sort by priority (lowest number = highest priority)
   suggestions.sort((a, b) => a.priority - b.priority);
   return { suggestions, count: suggestions.length };

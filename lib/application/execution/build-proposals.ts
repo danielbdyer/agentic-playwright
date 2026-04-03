@@ -3,7 +3,7 @@ import { evaluateArtifactPolicy } from '../trust-policy';
 import type { LoadedEvidenceRecord } from '../trust-policy';
 import type { WorkspaceCatalog } from '../catalog';
 import type { AdoId } from '../../domain/kernel/identity';
-import type { ProposalBundle, ScenarioRunPlan } from '../../domain/types';
+import type { ProposalBundle, ScenarioRunPlan, StepProvenanceKind, TrustPolicyArtifactType } from '../../domain/types';
 import {
   createEnvelopeLineage,
   createProposalBundleEnvelope,
@@ -13,6 +13,19 @@ import {
 } from '../catalog/envelope';
 import type { RuntimeScenarioStepResult } from '../ports';
 import type { PersistedEvidenceArtifact } from './persist-evidence';
+
+/**
+ * Derive auto-heal class from provenance + artifact type.
+ * Pure derivation — no hand-authored mapping table needed.
+ */
+function deriveAutoHealClass(provenanceKind: StepProvenanceKind, artifactType: TrustPolicyArtifactType): string {
+  const prefix = provenanceKind === 'live-exploration' ? 'runtime'
+    : provenanceKind === 'agent-interpreted' ? 'agent'
+    : provenanceKind === 'approved-knowledge' ? 'knowledge'
+    : provenanceKind === 'explicit' ? 'explicit'
+    : 'unresolved';
+  return `${prefix}-${artifactType}-cutover`;
+}
 
 export interface BuildProposalsResult {
   proposalBundle: ProposalBundle;
@@ -85,7 +98,7 @@ export function buildProposals(input: {
           proposedChange: {
             artifactType: proposal.artifactType,
             confidence: step.interpretation.provenanceKind === 'live-exploration' ? 0.95 : 0.85,
-            autoHealClass: 'runtime-intent-cutover',
+            autoHealClass: deriveAutoHealClass(step.interpretation.provenanceKind, proposal.artifactType),
           },
           evidence: loadedEvidence,
         }),
