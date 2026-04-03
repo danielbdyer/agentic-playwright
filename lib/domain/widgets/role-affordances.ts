@@ -116,35 +116,6 @@ export const INPUT_TYPE_ROLE: Readonly<Record<string, string>> = {
 } as const;
 
 // ---------------------------------------------------------------------------
-// ACTION_SYNONYMS — canonical action verb synonyms
-// ---------------------------------------------------------------------------
-
-export const ACTION_SYNONYMS: Readonly<Record<string, readonly string[]>> = {
-  click: ['press', 'tap', 'hit', 'activate', 'trigger'],
-  fill: ['enter', 'type', 'input', 'key in', 'provide', 'supply', 'put in', 'write'],
-  clear: ['remove', 'erase', 'wipe', 'empty'],
-  check: ['select', 'enable', 'tick', 'mark', 'turn on'],
-  uncheck: ['deselect', 'disable', 'untick', 'unmark', 'turn off'],
-  select: ['choose', 'pick', 'set to', 'change to'],
-  'get-value': ['verify', 'check', 'confirm', 'see', 'read', 'inspect', 'view'],
-} as const;
-
-// ---------------------------------------------------------------------------
-// Inverted synonym index (built once at module load, still pure)
-// ---------------------------------------------------------------------------
-
-const synonymIndex: ReadonlyMap<string, string> = (() => {
-  const map = new Map<string, string>();
-  for (const [canonical, synonyms] of Object.entries(ACTION_SYNONYMS)) {
-    map.set(canonical, canonical);
-    for (const syn of synonyms) {
-      map.set(syn, canonical);
-    }
-  }
-  return map;
-})();
-
-// ---------------------------------------------------------------------------
 // Pure derivation functions
 // ---------------------------------------------------------------------------
 
@@ -188,32 +159,3 @@ export function affordancesForRole(role: string): readonly RoleAffordance[] {
   return ROLE_AFFORDANCES[role] ?? [];
 }
 
-/**
- * Return the synonym list for a canonical action verb.
- * Returns an empty array for unknown actions.
- */
-export function synonymsForAction(action: string): readonly string[] {
-  return ACTION_SYNONYMS[action] ?? [];
-}
-
-/**
- * Given an intent verb and a target role, find the matching affordance.
- *
- * The verb is matched against canonical action names first, then against
- * each action's synonym list.  Returns the first matching affordance or null.
- */
-export function resolveActionFromIntent(verb: string, role: string): RoleAffordance | null {
-  const affordances = affordancesForRole(role);
-  if (affordances.length === 0) {
-    return null;
-  }
-
-  const normalizedVerb = verb.toLowerCase();
-  const canonical = synonymIndex.get(normalizedVerb);
-
-  if (canonical === undefined) {
-    return null;
-  }
-
-  return affordances.find((a) => a.action === canonical) ?? null;
-}

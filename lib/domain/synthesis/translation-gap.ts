@@ -1,5 +1,5 @@
 import { type SeededRng, pick } from '../kernel/random';
-import { ACTION_SYNONYMS, ROLE_AFFORDANCES } from '../widgets/role-affordances';
+import { ROLE_AFFORDANCES } from '../widgets/role-affordances';
 
 // ─── Domain vocabulary ───
 //
@@ -31,8 +31,10 @@ const DOMAIN_SYNONYMS: Readonly<Record<string, readonly string[]>> = {
 
 // ─── Affordance vocabulary ───
 //
-// Derived from ROLE_AFFORDANCES × ACTION_SYNONYMS.
-// Each widget's verbs are the union of synonyms for its role's supported actions.
+// Derived from ROLE_AFFORDANCES × DOMAIN_SYNONYMS.
+// Each widget's verbs come from domain vocabulary for its primary action,
+// not a hand-authored synonym table. The LLM handles real synonym
+// comprehension at runtime; this is for synthesis diversity only.
 
 const WIDGET_PRIMARY_ROLE: Readonly<Record<string, string>> = {
   'os-input': 'textbox',
@@ -43,6 +45,17 @@ const WIDGET_PRIMARY_ROLE: Readonly<Record<string, string>> = {
   'os-region': 'dialog',
 } as const;
 
+/** Map from WidgetAction canonical name to the DOMAIN_SYNONYMS key. */
+const ACTION_TO_DOMAIN_KEY: Readonly<Record<string, string>> = {
+  click: 'click',
+  fill: 'enter',
+  clear: 'enter',
+  check: 'click',
+  uncheck: 'click',
+  select: 'click',
+  'get-value': 'verify',
+};
+
 const AFFORDANCE_VERBS: Readonly<Record<string, readonly string[]>> = (() => {
   const result: Record<string, readonly string[]> = {};
   for (const [widget, role] of Object.entries(WIDGET_PRIMARY_ROLE)) {
@@ -50,9 +63,10 @@ const AFFORDANCE_VERBS: Readonly<Record<string, readonly string[]>> = (() => {
     const primaryAction = affordances.find((a) => a.effectCategory !== 'observation')?.action
       ?? affordances[0]?.action;
     if (primaryAction) {
-      result[widget] = ACTION_SYNONYMS[primaryAction] ?? [primaryAction];
+      const domainKey = ACTION_TO_DOMAIN_KEY[primaryAction];
+      result[widget] = domainKey ? (DOMAIN_SYNONYMS[domainKey] ?? [primaryAction]) : [primaryAction];
     } else {
-      result[widget] = ['check', 'verify', 'see that', 'confirm', 'inspect', 'look at'];
+      result[widget] = DOMAIN_SYNONYMS['verify'] ?? ['check', 'verify', 'confirm'];
     }
   }
   return result;
