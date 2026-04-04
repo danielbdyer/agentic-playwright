@@ -618,6 +618,32 @@ The braid is the system's theory of action. Every action in Tesseract passes thr
 
 ---
 
+## Implementation Status
+
+The following motifs, algebras, and flow shapes now have concrete implementations in the codebase.
+
+**Motifs with kernel implementations:**
+- **Rung** (Total Order, Galois connection): `lib/domain/resolution/confidence-provenance.ts` — `rungToMinConfidence`, `confidenceToRungs`, `isConsistentProvenance`
+- **Fold** (Catamorphism): `lib/domain/algebra/product-fold.ts` — `Fold<T,A>`, `productFold`, `productFold3`, `contramapFold`, `filterFold`
+- **Exhaustion Trail** (Free Monad): `lib/domain/algebra/free-forgetful.ts` — `SearchTrail<C,O,R>`, `freeSearch`, `forget`, `trailCoverage`
+- **Projection** (Natural Transformation): `lib/domain/algebra/slice-projection.ts` — `verifyNaturality`, `findNaturalityViolations`
+- **Envelope / Receipt**: `lib/domain/types/workflow.ts` — `WorkflowMetadata` extracted as shared base for envelopes and receipts
+
+**Algebras with implementations:**
+- **Join-Semilattice / Contextual Merge**: `lib/domain/algebra/contextual-merge.ts` — `ContextualMerge<V,K>`, `contextualMerge`, `fromBoundedLattice`
+- **Catamorphism + Anamorphism (Hylomorphism)**: `lib/domain/algebra/hylomorphism.ts` — `Hylomorphism<S,T,A>`, `runHylo`, `traceHylo`
+- **Refinement Type / Governance brands**: `lib/domain/kernel/governed-suspension.ts` — `GovernanceVerdict<T,I>`, `approved`/`suspended`/`blocked`, `foldVerdict`, `mapVerdict`, `chainVerdict`
+
+**Flow shapes with implementations:**
+- **Recursive State Machine**: `lib/domain/kernel/finite-state-machine.ts` — `FSMDefinition<S,E>`, `runFSM`, `traceFSM`, `isMonotoneTrace`, `verifyAbsorption`
+- **Observation collapse**: `lib/domain/kernel/observation-collapse.ts` — `ObservationCollapse<R,O,A,S>`, `collapseObservations`, `collapseAll`
+
+**Consumers and bridges:**
+- **Convergence FSM** (first `FSMDefinition` consumer): `lib/domain/projection/convergence-fsm.ts` — `convergenceFSMDefinition`
+- **Strategy chain walker** (bridges free-forgetful with resolution): `lib/runtime/agent/strategy-chain-walker.ts` — `walkStrategyChain`
+
+---
+
 ## Coda: Why It Tessellates
 
 The system is called Tesseract. It tessellates.

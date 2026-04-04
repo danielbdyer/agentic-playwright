@@ -558,3 +558,19 @@ When adding a concept to the system, ask:
 6. **What agency does it require?** Can the compiler handle it? Does it need an agent? Does it need a human? This determines where in the escalation chain it lives.
 
 When the answer to any of these questions is unclear, the concept needs more modeling — not more code.
+
+---
+
+## Implementation Status
+
+The following domain primitives now have algebraic infrastructure backing them:
+
+- **Confidence / Provenance**: Galois connection between rungs and confidence — `lib/domain/resolution/confidence-provenance.ts`
+- **Resolution**: Free search trails with coverage analysis — `lib/domain/algebra/free-forgetful.ts`; strategy chain walker bridging search to runtime — `lib/runtime/agent/strategy-chain-walker.ts`
+- **Governance**: Typed verdicts with fold/map/chain combinators — `lib/domain/kernel/governed-suspension.ts`
+- **Convergence**: FSM definition with monotone traces and absorption verification — `lib/domain/kernel/finite-state-machine.ts`; first consumer in `lib/domain/projection/convergence-fsm.ts`
+- **Observation**: Observation collapse algebra (multi-surface to single action) — `lib/domain/kernel/observation-collapse.ts`
+- **Evidence / Fold**: Product folds with contramap and filter — `lib/domain/algebra/product-fold.ts`; hylomorphisms for recursive unfold-then-fold — `lib/domain/algebra/hylomorphism.ts`
+- **Knowledge / Overlay**: Contextual merge from bounded lattices — `lib/domain/algebra/contextual-merge.ts`
+- **Projection**: Naturality verification for slice projections — `lib/domain/algebra/slice-projection.ts`
+- **Handshake**: Shared `WorkflowMetadata` base for envelopes and receipts — `lib/domain/types/workflow.ts`
