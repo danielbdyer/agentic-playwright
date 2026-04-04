@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from 'fs';
 import { expect, test } from '@playwright/test';
 import { loadWorkspaceCatalog } from '../lib/application/catalog';
-import { projectInterfaceIntelligence } from '../lib/application/interface-intelligence';
+import { projectInterfaceIntelligence } from '../lib/application/intelligence/interface-intelligence';
 import { SchemaError } from '../lib/domain/kernel/errors';
 import { validateBehaviorPatternDocument } from '../lib/domain/validation';
 import { runWithLocalServices } from '../lib/composition/local-services';

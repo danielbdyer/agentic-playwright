@@ -20,18 +20,18 @@ import type {
   ProposalBundle,
   RankedProposal,
   TrainingCorpusManifest,
-} from '../domain/types';
-import type { PipelineFitnessReport, RunRecord } from '../domain/types';
+} from '../../domain/types';
+import type { PipelineFitnessReport, RunRecord } from '../../domain/types';
 import {
   buildProposalIntelligence,
   type ProposalIntelligenceReport,
   type RunStepSummary,
-} from './governance/proposal-intelligence';
+} from '../governance/proposal-intelligence';
 import {
   buildImprovementIntelligence,
   type ImprovementIntelligenceReport,
   type ImprovementPriority,
-} from './improvement/improvement-intelligence';
+} from '../improvement/improvement-intelligence';
 
 // ─── Types ───
 

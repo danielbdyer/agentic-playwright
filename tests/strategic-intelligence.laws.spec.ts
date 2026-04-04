@@ -3,7 +3,7 @@ import {
   buildStrategicIntelligence,
   extractStrategicGaps,
   computeStrategicEfficiency,
-} from '../lib/application/strategic-intelligence';
+} from '../lib/application/intelligence/strategic-intelligence';
 import type {
   TrainingCorpusManifest,
   GroundedSpecFragment,

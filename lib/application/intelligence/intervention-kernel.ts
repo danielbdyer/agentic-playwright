@@ -1,16 +1,16 @@
 import { Effect } from 'effect';
-import { TesseractError } from '../domain/kernel/errors';
-import { foldGovernance } from '../domain/types/shared-context';
-import type { Approved } from '../domain/types/shared-context';
+import { TesseractError } from '../../domain/kernel/errors';
+import { foldGovernance } from '../../domain/types/shared-context';
+import type { Approved } from '../../domain/types/shared-context';
 import type {
   InterventionCommandAction,
   InterventionCommandBatch,
   InterventionLineageProjection,
   InterventionReceipt,
   InterventionStatus,
-} from '../domain/types';
-import type { ProjectPaths } from './paths';
-import { FileSystem } from './ports';
+} from '../../domain/types';
+import type { ProjectPaths } from '../paths';
+import { FileSystem } from '../ports';
 
 interface ActionExecutionContext {
   readonly action: Approved<InterventionCommandAction>;

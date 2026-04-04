@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import {
   buildInterpretationCoherence,
   extractIncoherentIntents,
-} from '../lib/application/interpretation-coherence';
+} from '../lib/application/intelligence/interpretation-coherence';
 import type { RungHistoryIndex } from '../lib/application/learning/rung-drift';
 import type { InterpretationDriftRecord } from '../lib/domain/types';
 

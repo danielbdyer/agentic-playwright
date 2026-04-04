@@ -1,6 +1,6 @@
 import { Effect } from 'effect';
 import { emitApprovedScenarioArtifacts } from '../lib/application/emit';
-import { executeApprovedInterventionAction, type InterventionKernel } from '../lib/application/intervention-kernel';
+import { executeApprovedInterventionAction, type InterventionKernel } from '../lib/application/intelligence/intervention-kernel';
 import type { ProjectPaths } from '../lib/application/paths';
 import type {
   BoundScenario,

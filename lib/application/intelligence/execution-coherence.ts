@@ -18,7 +18,7 @@
  * All functions are pure: immutable inputs, immutable outputs, no side effects.
  */
 
-import type { LearningState } from './learning/learning-state';
+import type { LearningState } from '../learning/learning-state';
 
 // ─── Types ───
 
@@ -314,7 +314,7 @@ export function extractStrongestCorrelations(
 //   A = ExecutionCoherenceReport (the aggregate report)
 //   S = number (composite health score)
 
-import type { ObservationCollapse } from '../domain/kernel/observation-collapse';
+import type { ObservationCollapse } from '../../domain/kernel/observation-collapse';
 
 export const executionCoherenceCollapse: ObservationCollapse<
   ExecutionCoherenceInput,

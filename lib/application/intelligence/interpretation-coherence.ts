@@ -18,8 +18,8 @@
  * All functions are pure: immutable inputs, immutable outputs, no side effects.
  */
 
-import type { RungHistoryEntry, RungHistoryIndex } from './learning/rung-drift';
-import type { InterpretationDriftRecord } from '../domain/types';
+import type { RungHistoryEntry, RungHistoryIndex } from '../learning/rung-drift';
+import type { InterpretationDriftRecord } from '../../domain/types';
 
 // ─── Types ───
 
@@ -244,7 +244,7 @@ export function extractIncoherentIntents(
 //   A = InterpretationCoherenceReport (the aggregate report)
 //   S = number (overall coherence score)
 
-import type { ObservationCollapse } from '../domain/kernel/observation-collapse';
+import type { ObservationCollapse } from '../../domain/kernel/observation-collapse';
 
 export const interpretationCoherenceCollapse: ObservationCollapse<
   InterpretationCoherenceInput,

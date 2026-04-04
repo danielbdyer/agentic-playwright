@@ -16,7 +16,7 @@
  */
 import path from 'path';
 import { Effect } from 'effect';
-import { SchemaError, TesseractError } from '../domain/kernel/errors';
+import { SchemaError, TesseractError } from '../../domain/kernel/errors';
 import {
   createCanonicalTargetRef,
   createElementId,
@@ -37,9 +37,9 @@ import {
   type StateNodeRef,
   type SurfaceId,
   type TransitionRef,
-} from '../domain/kernel/identity';
-import { graphIds } from '../domain/kernel/ids';
-import { createApplicationInterfaceGraph, recordTransition } from '../domain/aggregates/application-interface-graph';
+} from '../../domain/kernel/identity';
+import { graphIds } from '../../domain/kernel/ids';
+import { createApplicationInterfaceGraph, recordTransition } from '../../domain/aggregates/application-interface-graph';
 import type {
   ApplicationInterfaceGraph,
   ArtifactConfidenceRecord,
@@ -56,20 +56,20 @@ import type {
   StateNode,
   StateTransition,
   StateTransitionGraph,
-} from '../domain/types';
-import { validateDiscoveryRun } from '../domain/validation';
-import { walkFiles } from './artifacts';
-import { readJsonArtifact } from './catalog/loaders';
-import type { ArtifactEnvelope, WorkspaceCatalog } from './catalog/types';
-import type { ProjectPaths } from './paths';
-import { relativeProjectPath } from './paths';
-import { ApplicationInterfaceGraphStore, FileSystem } from './ports';
+} from '../../domain/types';
+import { validateDiscoveryRun } from '../../domain/validation';
+import { walkFiles } from '../artifacts';
+import { readJsonArtifact } from '../catalog/loaders';
+import type { ArtifactEnvelope, WorkspaceCatalog } from '../catalog/types';
+import type { ProjectPaths } from '../paths';
+import { relativeProjectPath } from '../paths';
+import { ApplicationInterfaceGraphStore, FileSystem } from '../ports';
 import {
   fingerprintProjectionArtifact,
   fingerprintProjectionOutput,
   type ProjectionInputFingerprint,
-} from './projections/cache';
-import { runProjection, type ProjectionIncremental } from './projections/runner';
+} from '../projections/cache';
+import { runProjection, type ProjectionIncremental } from '../projections/runner';
 
 export interface InterfaceIntelligenceProjectionResult {
   interfaceGraph: ApplicationInterfaceGraph;

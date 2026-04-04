@@ -6,7 +6,7 @@ import { deltaReloadProposalsAndRuns, loadWorkspaceCatalog } from '../catalog';
 import { buildPartialFitnessMetrics } from '../fitness';
 import { calibrateWeightsFromCorrelations } from '../learning/learning-bottlenecks';
 import { aggregateLearningState, type LearningState } from '../learning/learning-state';
-import { buildExecutionCoherence } from '../execution-coherence';
+import { buildExecutionCoherence } from '../intelligence/execution-coherence';
 import { signalMaturity, buildLearningSignalsSummary, countDegradingSignals } from '../learning/signal-maturation';
 import { emitAgentWorkbench, processWorkItems, emitInterventionLineage } from '../agent/agent-workbench';
 import { createDashboardDecider } from '../agent/dashboard-decider';

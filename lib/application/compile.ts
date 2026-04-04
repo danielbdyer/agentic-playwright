@@ -6,7 +6,7 @@ import type { WorkspaceCatalog } from './catalog';
 import { resolveEffectConcurrency } from './concurrency';
 import { emitScenario } from './emit';
 import { buildDerivedGraph } from './graph';
-import { projectInterfaceIntelligence } from './interface-intelligence';
+import { projectInterfaceIntelligence } from './intelligence/interface-intelligence';
 import { projectLearningArtifacts } from './learning/learning';
 import { parseScenario } from './parse';
 import { runPipelineStage } from './pipeline';
