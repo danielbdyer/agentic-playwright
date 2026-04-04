@@ -2,7 +2,7 @@ import type { StepAction } from '../../domain/governance/workflow-types';
 import type { ArtifactConfidenceRecord, StepTaskElementCandidate, StepTaskScreenCandidate } from '../../domain/knowledge/types';
 import type { GroundedStep, ResolutionObservation, TranslationReceipt } from '../../domain/resolution/types';
 import { normalizedCombined, bestAliasMatch, humanizeIdentifier, uniqueSorted } from './shared';
-import { requiresElement } from './intent/resolve-action';
+import { requiresElement } from './resolve-action';
 import type { RuntimeStepAgentContext } from './types';
 import type { PostureId, SnapshotTemplateId } from '../../domain/kernel/identity';
 

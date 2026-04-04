@@ -12,7 +12,7 @@ import {
   flagDecoders,
   flagDescriptorTable,
 } from './shared';
-import { withExecutionContext } from '../context/execution-context';
+import { withExecutionContext } from '../commitment/execution-context';
 
 // Re-export public API so existing consumers are unaffected
 export { commandNames } from './shared';

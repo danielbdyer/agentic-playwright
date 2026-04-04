@@ -1,17 +1,17 @@
 import { Effect } from 'effect';
 import type { AdoId } from '../../domain/kernel/identity';
 import { bindScenario } from './bind';
-import { createCompileSnapshot } from '../execution/compile-snapshot';
+import { createCompileSnapshot } from './compile-snapshot';
 import type { WorkspaceCatalog } from '../catalog';
 import { resolveEffectConcurrency } from '../runtime-support/concurrency';
 import { emitScenario } from '../commitment/emit';
 import { buildDerivedGraph } from '../graph/graph';
 import { projectInterfaceIntelligence } from '../observation/interface-intelligence';
 import { projectLearningArtifacts } from '../learning/learning';
-import { parseScenario } from '../reporting/parse';
+import { parseScenario } from '../intent/parse';
 import { runPipelineStage } from '../pipeline';
 import type { ProjectPaths } from '../paths';
-import { refreshScenarioCore } from '../workspace/refresh';
+import { refreshScenarioCore } from '../resolution/refresh';
 import { buildInterpretationSurfaceProjection, type TaskProjectionResult } from './task';
 import { generateTypes } from '../types';
 import {

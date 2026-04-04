@@ -171,7 +171,7 @@ function targetPathsForSignal(targetKind: string): readonly string[] {
     case 'translation':
       return ['lib/application/translation-provider.ts'];
     case 'resolution':
-      return ['lib/runtime/agent/resolution-stages.ts', 'lib/application/interface-intelligence.ts'];
+      return ['lib/runtime/resolution/resolution-stages.ts', 'lib/application/interface-intelligence.ts'];
     case 'recovery':
       return ['lib/runtime/scenario.ts'];
     case 'scoring':

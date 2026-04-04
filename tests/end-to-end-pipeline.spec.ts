@@ -6,7 +6,7 @@
  * by exercising the full pipeline: parse → bind → compile → emit → graph.
  */
 import { expect, test } from '@playwright/test';
-import { refreshScenario } from '../lib/application/workspace/refresh';
+import { refreshScenario } from '../lib/application/resolution/refresh';
 import { buildDerivedGraph } from '../lib/application/graph/graph';
 import { runWithLocalServices } from '../lib/composition/local-services';
 import { createAdoId } from '../lib/domain/kernel/identity';

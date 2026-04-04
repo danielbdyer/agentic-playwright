@@ -2,9 +2,9 @@ import { expect, test } from '@playwright/test';
 import { createAdoId, createCanonicalTargetRef, createElementId, createScreenId, createSurfaceId, createWidgetId } from '../lib/domain/kernel/identity';
 import type { StepAction } from '../lib/domain/governance/workflow-types';
 import type { GroundedStep, ResolutionReceipt } from '../lib/domain/resolution/types';
-import { RESOLUTION_PRECEDENCE, runResolutionPipeline, type RuntimeStepAgentContext } from '../lib/runtime/agent';
+import { RESOLUTION_PRECEDENCE, runResolutionPipeline, type RuntimeStepAgentContext } from '../lib/runtime/resolution';
 import { createScenarioRunState, runScenarioStep } from '../lib/runtime/scenario';
-import { resolveFromDom } from '../lib/runtime/agent/intent/dom-fallback';
+import { resolveFromDom } from '../lib/runtime/resolution/dom-fallback';
 import {
   createAgentContext,
   createInterfaceResolutionContext,

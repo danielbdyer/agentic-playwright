@@ -6,7 +6,7 @@ import {
   createScopedSessionProvider,
   type AgentLlmApiDependencies,
 } from '../lib/application/agency/agent-interpreter-provider';
-import { createScopedInternalMCPBridge } from '../lib/runtime/agent/mcp-bridge';
+import { createScopedInternalMCPBridge } from '../lib/runtime/resolution/mcp-bridge';
 import type { McpToolDefinition } from '../lib/domain/observation/dashboard';
 
 test.describe('agent resource lifecycle stress tests', () => {

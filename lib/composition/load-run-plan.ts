@@ -1,9 +1,9 @@
 import { Effect } from 'effect';
 import type { ScenarioRunPlan } from '../domain/resolution/types';
-import { loadScenarioRunPlanEffect, type LoadScenarioRunPlanInput } from '../application/execution/load-run-plan';
+import { loadScenarioRunPlanEffect, type LoadScenarioRunPlanInput } from '../application/commitment/load-run-plan';
 import { provideLocalServices } from './local-services';
 
-export { loadScenarioRunPlanEffect, type LoadScenarioRunPlanInput } from '../application/execution/load-run-plan';
+export { loadScenarioRunPlanEffect, type LoadScenarioRunPlanInput } from '../application/commitment/load-run-plan';
 
 export function loadScenarioRunPlan(input: LoadScenarioRunPlanInput): ScenarioRunPlan {
   const program = provideLocalServices(

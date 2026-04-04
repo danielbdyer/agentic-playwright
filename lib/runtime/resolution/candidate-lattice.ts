@@ -1,16 +1,16 @@
-import { normalizeIntentText } from '../../../domain/knowledge/inference';
-import { createPostureId, createSnapshotTemplateId } from '../../../domain/kernel/identity';
-import { knowledgePaths } from '../../../domain/kernel/ids';
-import type { StepAction } from '../../../domain/governance/workflow-types';
-import type { StepResolution } from '../../../domain/intent/types';
-import type { InterfaceResolutionContext, StepTaskElementCandidate, StepTaskScreenCandidate } from '../../../domain/knowledge/types';
-import type { GroundedStep, ObservedStateSession } from '../../../domain/resolution/types';
-import { precedenceWeight, resolutionPrecedenceLaw } from '../../../domain/resolution/precedence';
-import { rungToMinConfidence } from '../../../domain/resolution/confidence-provenance';
-import type { Confidence } from '../../../domain/governance/workflow-types';
-import { allowedActionFallback } from '../intent/resolve-action';
-import { bestAliasMatch, humanizeIdentifier, normalizedCombined, uniqueSorted } from '../shared';
-import type { ResolutionTarget } from '../../../domain/governance/workflow-types';
+import { normalizeIntentText } from '../../domain/knowledge/inference';
+import { createPostureId, createSnapshotTemplateId } from '../../domain/kernel/identity';
+import { knowledgePaths } from '../../domain/kernel/ids';
+import type { StepAction } from '../../domain/governance/workflow-types';
+import type { StepResolution } from '../../domain/intent/types';
+import type { InterfaceResolutionContext, StepTaskElementCandidate, StepTaskScreenCandidate } from '../../domain/knowledge/types';
+import type { GroundedStep, ObservedStateSession } from '../../domain/resolution/types';
+import { precedenceWeight, resolutionPrecedenceLaw } from '../../domain/resolution/precedence';
+import { rungToMinConfidence } from '../../domain/resolution/confidence-provenance';
+import type { Confidence } from '../../domain/governance/workflow-types';
+import { allowedActionFallback } from './resolve-action';
+import { bestAliasMatch, humanizeIdentifier, normalizedCombined, uniqueSorted } from './shared';
+import type { ResolutionTarget } from '../../domain/governance/workflow-types';
 
 export type LatticeSource =
   | 'explicit'

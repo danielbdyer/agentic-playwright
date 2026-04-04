@@ -1,12 +1,12 @@
-import { createPostureId } from '../../../domain/kernel/identity';
-import { knowledgePaths } from '../../../domain/kernel/ids';
-import type { ResolutionTarget, StepAction, StepWinningSource } from '../../../domain/governance/workflow-types';
-import type { StepResolution } from '../../../domain/intent/types';
-import type { StepTaskElementCandidate, StepTaskScreenCandidate } from '../../../domain/knowledge/types';
-import type { GroundedStep } from '../../../domain/resolution/types';
-import { bestAliasMatch, humanizeIdentifier, normalizedCombined, uniqueSorted } from '../shared';
-import { selectedDataset, selectedRunbook } from '../resolution/select-controls';
-import type { RuntimeStepAgentContext } from '../types';
+import { createPostureId } from '../../domain/kernel/identity';
+import { knowledgePaths } from '../../domain/kernel/ids';
+import type { ResolutionTarget, StepAction, StepWinningSource } from '../../domain/governance/workflow-types';
+import type { StepResolution } from '../../domain/intent/types';
+import type { StepTaskElementCandidate, StepTaskScreenCandidate } from '../../domain/knowledge/types';
+import type { GroundedStep } from '../../domain/resolution/types';
+import { bestAliasMatch, humanizeIdentifier, normalizedCombined, uniqueSorted } from './shared';
+import { selectedDataset, selectedRunbook } from './select-controls';
+import type { RuntimeStepAgentContext } from './types';
 
 function groundedScreens(task: GroundedStep, context: RuntimeStepAgentContext): readonly StepTaskScreenCandidate[] {
   const allowedRouteVariantRefs = new Set(task.grounding.routeVariantRefs);

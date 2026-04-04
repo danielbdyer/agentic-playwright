@@ -21,7 +21,7 @@ import { improvementLoopLedgerPath, type ProjectPaths } from '../paths';
 import { compileScenariosParallel } from '../resolution/compile';
 import { runScenarioSelection } from '../commitment/run';
 import { FileSystem } from '../ports';
-import { runStateMachine } from '../execution/state-machine';
+import { runStateMachine } from '../resilience/state-machine';
 import { pruneTranslationCache } from '../resolution/translation/translation-cache';
 import { round4 } from '../learning/learning-shared';
 import type { BrowserPoolPort, BrowserPoolStats } from '../runtime-support/browser-pool';

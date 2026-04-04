@@ -12,7 +12,7 @@ import type {
 import { WINNING_SOURCE_TO_RUNG } from '../../domain/kernel/visitors';
 import { isApproved, mintApproved, mintReviewRequired } from '../../domain/governance/workflow-types';
 import type { RuntimeScenarioRunnerPort, RuntimeScenarioStepResult } from '../ports';
-import { resolveResolutionEngine } from '../workspace/provider-registry';
+import { resolveResolutionEngine } from '../resolution/provider-registry';
 import { validateStepResults } from './validate-step-results';
 import type { RecoveryPolicy } from '../../domain/commitment/recovery-policy';
 

@@ -41,15 +41,15 @@ import {
   buildShingleIndex,
   queryShingleIndex,
 } from '../lib/domain/knowledge/shingles';
-import { trySemanticDictionaryResolution } from '../lib/runtime/agent/resolution/resolution-stages';
+import { trySemanticDictionaryResolution } from '../lib/runtime/resolution/resolution-stages';
 import {
   createAgentContext,
   createGroundedStep,
   createInterfaceResolutionContext,
   createPolicySearchScreen,
 } from './support/interface-fixtures';
-import type { ResolutionAccumulator } from '../lib/runtime/agent/resolution/resolution-stages';
-import type { RuntimeAgentStageContext } from '../lib/runtime/agent/types';
+import type { ResolutionAccumulator } from '../lib/runtime/resolution/resolution-stages';
+import type { RuntimeAgentStageContext } from '../lib/runtime/resolution/types';
 
 // ─── Helpers ───
 

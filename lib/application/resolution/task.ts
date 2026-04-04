@@ -16,7 +16,7 @@ import type {
 import type { ApplicationInterfaceGraph, SelectorCanon, StateTransitionGraph } from '../../domain/target/interface-graph';
 import { isBlocked, isReviewRequired } from '../../domain/governance/workflow-types';
 import { controlResolutionForStep, runtimeControlsForScenario } from '../resolution/controls';
-import type { CompileSnapshot } from '../execution/compile-snapshot';
+import type { CompileSnapshot } from './compile-snapshot';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from '../catalog';
 import { deriveGovernanceState } from '../catalog/envelope';
 import { buildInterfaceResolutionContext } from './interface-resolution';

@@ -20,7 +20,7 @@ function deterministicEngine(): ResolutionEngine {
       deterministicMode: true,
     },
     async resolveStep(task, context) {
-      const runtimeAgent = await import('../../runtime/agent');
+      const runtimeAgent = await import('../../runtime/resolution');
       return runtimeAgent.deterministicRuntimeStepAgent.resolve(task, context as never);
     },
   };

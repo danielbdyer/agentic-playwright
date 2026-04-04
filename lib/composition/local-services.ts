@@ -33,7 +33,7 @@ import type { PipelineConfig } from '../domain/attention/pipeline-config';
 import type { ExecutionPosture, WriteJournalEntry } from '../domain/governance/workflow-types';
 import { DEFAULT_PIPELINE_CONFIG } from '../domain/attention/pipeline-config';
 import type { DashboardPort, McpServerPort, StageTracerPort } from '../application/ports';
-import { enrichEventDataWithExecutionContext } from '../application/context/execution-context';
+import { enrichEventDataWithExecutionContext } from '../application/commitment/execution-context';
 import type { PlaywrightBridgePort } from '../infrastructure/mcp/playwright-mcp-bridge';
 
 type EffectfulAgentInterpreterPort = AgentInterpreterPort<Effect.Effect<AgentInterpretationResult, never, never>>;

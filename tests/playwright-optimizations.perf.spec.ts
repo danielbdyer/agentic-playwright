@@ -13,8 +13,8 @@
  * All benchmarks use pure functions — no Playwright browser required.
  */
 import { test, expect } from '@playwright/test';
-import { createAriaSnapshotCache } from '../lib/runtime/agent/cache/aria-snapshot-cache';
-import { createSemanticDictCache } from '../lib/runtime/agent/cache/semantic-dict-cache';
+import { createAriaSnapshotCache } from '../lib/runtime/resolution/aria-snapshot-cache';
+import { createSemanticDictCache } from '../lib/runtime/resolution/semantic-dict-cache';
 import { classifyRoute, navigationOptionsForUrl } from '../lib/runtime/adapters/navigation-strategy';
 import { determineResetStrategy, extractWarmUpUrls } from '../lib/application/runtime-support/browser-pool';
 import { createScreenshotCollector, qualityForReason } from '../lib/application/runtime-support/deferred-screenshot';

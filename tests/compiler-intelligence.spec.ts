@@ -8,8 +8,8 @@ import {
   createScenarioEnvelopeFingerprints,
   createScenarioEnvelopeIds,
 } from '../lib/application/catalog/envelope';
-import { resolveAgentSessionAdapter } from '../lib/application/workspace/provider-registry';
-import { refreshScenario } from '../lib/application/workspace/refresh';
+import { resolveAgentSessionAdapter } from '../lib/application/resolution/provider-registry';
+import { refreshScenario } from '../lib/application/resolution/refresh';
 import { runScenario } from '../lib/application/commitment/run';
 import { runWithLocalServices } from '../lib/composition/local-services';
 import { createAdoId } from '../lib/domain/kernel/identity';

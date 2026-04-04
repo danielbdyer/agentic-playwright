@@ -14,9 +14,9 @@
  * @see docs/design-calculus.md § Abstraction 1 + Duality 2
  */
 
-import type { ResolutionExhaustionEntry } from '../../../domain/resolution/types';
-import type { SearchTrail, TrailStep } from '../../../domain/algebra/free-forgetful';
-import { freeSearch, freeSearchAsync } from '../../../domain/algebra/free-forgetful';
+import type { ResolutionExhaustionEntry } from '../../domain/resolution/types';
+import type { SearchTrail, TrailStep } from '../../domain/algebra/free-forgetful';
+import { freeSearch, freeSearchAsync } from '../../domain/algebra/free-forgetful';
 
 /**
  * A strategy to be tried at a given rung.

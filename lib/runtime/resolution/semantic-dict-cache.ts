@@ -11,7 +11,7 @@
  * Pure key-value cache — no side effects beyond memoization.
  */
 
-import type { SemanticDictionaryMatch } from '../../../domain/knowledge/semantic-dictionary-types';
+import type { SemanticDictionaryMatch } from '../../domain/knowledge/semantic-dictionary-types';
 
 export interface SemanticDictCacheStats {
   readonly hits: number;

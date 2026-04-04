@@ -23,7 +23,7 @@ import {
   createDisabledToolProvider,
   type AgentToolProvider,
   type McpToolInvoker,
-} from '../lib/runtime/agent/mcp-bridge';
+} from '../lib/runtime/resolution/mcp-bridge';
 import { dashboardMcpTools, type McpToolDefinition } from '../lib/domain/observation/dashboard';
 import type { McpToolInvocation, McpToolResult } from '../lib/application/ports';
 

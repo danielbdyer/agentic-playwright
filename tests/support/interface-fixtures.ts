@@ -11,7 +11,7 @@ import {
 } from '../../lib/domain/kernel/identity';
 import type { InterfaceResolutionContext, StepTaskElementCandidate, StepTaskScreenCandidate } from '../../lib/domain/knowledge/types';
 import type { GroundedStep, StepGrounding } from '../../lib/domain/resolution/types';
-import type { RuntimeStepAgentContext } from '../../lib/runtime/agent/types';
+import type { RuntimeStepAgentContext } from '../../lib/runtime/resolution/types';
 
 /** Strips readonly modifiers from the top-level fields — for test fixture mutation only. */
 export type Mutable<T> = { -readonly [K in keyof T]: T[K] };

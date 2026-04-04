@@ -73,7 +73,7 @@ import {
   validateResolutionGraphRecord,
   validateBehaviorPatternDocument,
 } from '../../domain/validation';
-import { walkFiles } from '../workspace/artifacts';
+import { walkFiles } from '../catalog/artifacts';
 import type { ProjectPaths } from '../paths';
 import { boundPath, relativeProjectPath, snapshotPath } from '../paths';
 import { FileSystem, type FileSystemPort } from '../ports';
@@ -84,7 +84,7 @@ import { assembleScreenBundles } from './screen-bundles';
 import type { ArtifactEnvelope, WorkspaceCatalog } from './types';
 import type { KnowledgePosture } from '../../domain/governance/workflow-types';
 import { postureIncludesKnowledge } from '../../domain/governance/workflow-types';
-import { parseSnapshotToScenario } from '../reporting/parse';
+import { parseSnapshotToScenario } from '../intent/parse';
 import { fingerprintArtifact } from './envelope';
 import { projectScenarioToTier1 } from '../../domain/scenario/tier-projection';
 

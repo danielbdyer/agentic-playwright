@@ -9,13 +9,13 @@ import { buildImprovementRun, improvementLedgerPath } from '../lib/application/i
 import { emitScenario } from '../lib/application/commitment/emit';
 import { loadWorkspaceCatalog } from '../lib/application/catalog';
 import { emitManifestPath } from '../lib/application/paths';
-import { refreshScenario } from '../lib/application/workspace/refresh';
+import { refreshScenario } from '../lib/application/resolution/refresh';
 import { runScenario } from '../lib/application/commitment/run';
 import { replayInterpretation } from '../lib/application/commitment/replay/replay-interpretation';
 import { inspectSurface } from '../lib/application/projections/surface';
 import { traceScenario } from '../lib/application/projections/trace';
 import { generateTypes } from '../lib/application/types';
-import { inspectWorkflow } from '../lib/application/execution/workflow';
+import { inspectWorkflow } from '../lib/application/projections/workflow';
 import { runWithLocalServices } from '../lib/composition/local-services';
 import { createAdoId } from '../lib/domain/kernel/identity';
 import { graphIds } from '../lib/domain/kernel/ids';

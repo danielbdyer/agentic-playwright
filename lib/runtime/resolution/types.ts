@@ -13,8 +13,8 @@ import type { AgentInterpreterPort } from '../../domain/resolution/model';
 import type { ElementId, PostureId, ScreenId } from '../../domain/kernel/identity';
 import type { ResolutionTarget } from '../../domain/governance/workflow-types';
 import type { TranslationDecomposition, TranslationReceipt, TranslationRequest } from '../../domain/resolution/types';
-import type { AriaSnapshotCache } from './cache/aria-snapshot-cache';
-import type { SemanticDictCache } from './cache/semantic-dict-cache';
+import type { AriaSnapshotCache } from './aria-snapshot-cache';
+import type { SemanticDictCache } from './semantic-dict-cache';
 
 export type RuntimeAgentInterpreter = AgentInterpreterPort;
 

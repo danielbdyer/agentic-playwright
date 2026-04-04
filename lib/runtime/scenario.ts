@@ -37,9 +37,9 @@ import type { RouteVariantKnowledge } from '../domain/knowledge/route-knowledge-
 import { runStaticInterpreter } from './interpreters/execute';
 import type { InterpreterMode, InterpreterScreenRegistry } from './interpreters/types';
 import { playwrightStepProgramInterpreter } from './execute/program';
-import { deterministicRuntimeStepAgent, type RuntimeStepAgent, type ResolutionStepOutcome } from './agent/agent';
-import { applyProposalDraftsToRuntimeContext } from './agent/proposals';
-import type { RuntimeAgentInterpreter } from './agent/types';
+import { deterministicRuntimeStepAgent, type RuntimeStepAgent, type ResolutionStepOutcome } from './resolution/agent';
+import { applyProposalDraftsToRuntimeContext } from './resolution/proposals';
+import type { RuntimeAgentInterpreter } from './resolution/types';
 import type { RuntimeDomResolver } from '../domain/resolution/types';
 import { observeStateRefsOnPage, observeTransitionOnPage } from '../playwright/state-topology';
 import { planExecutionStep } from '../domain/resolution/execution-planner';

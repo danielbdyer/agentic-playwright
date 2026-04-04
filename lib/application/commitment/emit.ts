@@ -12,7 +12,7 @@ import type { ImprovementRun } from '../../domain/improvement/types';
 import type { BoundScenario } from '../../domain/intent/types';
 import type { ScenarioProjectionInput } from '../../domain/projection/types';
 import type { ScenarioInterpretationSurface } from '../../domain/resolution/types';
-import type { CompileSnapshot } from '../execution/compile-snapshot';
+import type { CompileSnapshot } from '../resolution/compile-snapshot';
 import { loadWorkspaceCatalog } from '../catalog';
 import { createProposalBundleEnvelope, createScenarioEnvelopeFingerprints, createScenarioEnvelopeIds } from '../catalog/envelope';
 import type { WorkspaceCatalog } from '../catalog';

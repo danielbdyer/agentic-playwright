@@ -5,7 +5,7 @@ import type { TrainingCorpusManifest } from '../../domain/learning/types';
 import type { ScenarioInterpretationSurface } from '../../domain/resolution/types';
 import type { ApplicationInterfaceGraph, SelectorCanon } from '../../domain/target/interface-graph';
 import type { AdoId } from '../../domain/kernel/identity';
-import { resolveAgentSessionAdapter } from '../workspace/provider-registry';
+import { resolveAgentSessionAdapter } from '../resolution/provider-registry';
 import { appendEvent, createInterventionLedger } from '../../domain/aggregates/intervention-ledger';
 import {
   agentSessionEventsPath,

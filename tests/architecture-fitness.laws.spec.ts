@@ -250,7 +250,7 @@ test('Effect.runPromise and Effect.runSync only appear in allowed boundary files
     'composition',
     'application/agent-interpreter-provider.ts',
     'infrastructure/mcp/dashboard-mcp-server.ts',
-    'runtime/agent/mcp-bridge.ts',
+    'runtime/resolution/mcp-bridge.ts',
   ]);
 
   function isAllowed(relPath: string): boolean {

@@ -5,7 +5,7 @@ import { buildRunRecord } from '../lib/application/commitment/build-run-record';
 import { foldScenarioRun } from '../lib/application/commitment/fold';
 import { selectRunContext } from '../lib/application/commitment/select-run-context';
 import { runWithLocalServices } from '../lib/composition/local-services';
-import { refreshScenario } from '../lib/application/workspace/refresh';
+import { refreshScenario } from '../lib/application/resolution/refresh';
 import { createAdoId } from '../lib/domain/kernel/identity';
 import type { ScenarioRunPlan } from '../lib/domain/resolution/types';
 import type { RuntimeScenarioStepResult } from '../lib/application/ports';

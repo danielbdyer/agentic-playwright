@@ -16,7 +16,7 @@ import {
 } from '../lib/domain/knowledge/inference';
 import {
   proposalsFromDecomposition,
-} from '../lib/runtime/agent/proposals';
+} from '../lib/runtime/resolution/proposals';
 import type { IntentDecomposition } from '../lib/domain/knowledge/inference';
 import type { StepTaskElementCandidate, StepTaskScreenCandidate } from '../lib/domain/knowledge/types';
 import type { GroundedStep } from '../lib/domain/resolution/types';

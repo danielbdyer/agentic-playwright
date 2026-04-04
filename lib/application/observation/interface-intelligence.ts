@@ -60,7 +60,7 @@ import type {
   StateTransitionGraph,
 } from '../../domain/target/interface-graph';
 import { validateDiscoveryRun } from '../../domain/validation';
-import { walkFiles } from '../workspace/artifacts';
+import { walkFiles } from '../catalog/artifacts';
 import { readJsonArtifact } from '../catalog/loaders';
 import type { ArtifactEnvelope, WorkspaceCatalog } from '../catalog/types';
 import type { ProjectPaths } from '../paths';

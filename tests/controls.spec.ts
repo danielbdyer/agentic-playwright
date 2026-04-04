@@ -12,7 +12,7 @@ import {
   createScreenId,
 } from '../lib/domain/kernel/identity';
 import type { TranslationRequest } from '../lib/domain/resolution/types';
-import { deterministicRuntimeStepAgent } from '../lib/runtime/agent';
+import { deterministicRuntimeStepAgent } from '../lib/runtime/resolution';
 import { createTestWorkspace } from './support/workspace';
 import {
   cloneJson,

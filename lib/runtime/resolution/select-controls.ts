@@ -1,8 +1,8 @@
-import type { StepResolution } from '../../../domain/intent/types';
-import type { GroundedStep } from '../../../domain/resolution/types';
-import { dispatchByPrecedence, dataResolutionPrecedenceLaw, resolutionPrecedenceLaw, runSelectionPrecedenceLaw } from '../../../domain/resolution/precedence';
-import { uniqueSorted } from '../shared';
-import type { RuntimeStepAgentContext } from '../types';
+import type { StepResolution } from '../../domain/intent/types';
+import type { GroundedStep } from '../../domain/resolution/types';
+import { dispatchByPrecedence, dataResolutionPrecedenceLaw, resolutionPrecedenceLaw, runSelectionPrecedenceLaw } from '../../domain/resolution/precedence';
+import { uniqueSorted } from './shared';
+import type { RuntimeStepAgentContext } from './types';
 
 export function selectedRunbook(task: GroundedStep, context: RuntimeStepAgentContext) {
   const runbooks = context.resolutionContext.controls.runbooks;

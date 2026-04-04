@@ -5,8 +5,8 @@ import {
   createPolicySearchScreen,
   createPolicySearchElement,
 } from './support/interface-fixtures';
-import { proposalsFromInterpretation, proposalForSupplementGap } from '../lib/runtime/agent/proposals';
-import type { IntentInterpretation } from '../lib/runtime/agent/types';
+import { proposalsFromInterpretation, proposalForSupplementGap } from '../lib/runtime/resolution/proposals';
+import type { IntentInterpretation } from '../lib/runtime/resolution/types';
 import { createScreenId, createElementId } from '../lib/domain/kernel/identity';
 
 // ─── Fixtures ───

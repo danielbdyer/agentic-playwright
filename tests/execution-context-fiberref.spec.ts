@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { Effect } from 'effect';
-import { withExecutionContext, getExecutionContext } from '../lib/application/context/execution-context';
+import { withExecutionContext, getExecutionContext } from '../lib/application/commitment/execution-context';
 import { runPipelineStage } from '../lib/application/pipeline/stage';
 import { StageTracer } from '../lib/application/ports';
 

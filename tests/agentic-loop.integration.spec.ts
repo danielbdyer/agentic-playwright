@@ -25,7 +25,7 @@ import { createAdoId, createElementId, createScreenId } from '../lib/domain/kern
 import type { ProposalBundle, ProposalEntry } from '../lib/domain/execution/types';
 import type { StepAction } from '../lib/domain/governance/workflow-types';
 import type { ResolutionReceipt } from '../lib/domain/resolution/types';
-import { runResolutionPipeline, type RuntimeStepAgentContext } from '../lib/runtime/agent';
+import { runResolutionPipeline, type RuntimeStepAgentContext } from '../lib/runtime/resolution';
 import { createTestWorkspace } from './support/workspace';
 import {
   createAgentContext,

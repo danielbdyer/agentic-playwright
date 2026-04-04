@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { translationCacheKey } from '../lib/application/resolution/translation/translation-cache';
 import type { TranslationRequest } from '../lib/domain/resolution/types';
 import { createElementId, createScreenId } from '../lib/domain/kernel/identity';
-import { deterministicRuntimeStepAgent } from '../lib/runtime/agent';
+import { deterministicRuntimeStepAgent } from '../lib/runtime/resolution';
 import { createAgentContext, createInterfaceResolutionContext, createGroundedStep } from './support/interface-fixtures';
 
 function baseRequest(): TranslationRequest {

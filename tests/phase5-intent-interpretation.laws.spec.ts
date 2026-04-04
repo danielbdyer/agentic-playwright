@@ -12,8 +12,8 @@ import {
   confidenceFromScore,
   meetsThreshold,
   inferActionFromText,
-} from '../lib/runtime/agent/intent/interpret-intent';
-import { runResolutionPipeline } from '../lib/runtime/agent/index';
+} from '../lib/runtime/resolution/interpret-intent';
+import { runResolutionPipeline } from '../lib/runtime/resolution/index';
 import { createScreenId } from '../lib/domain/kernel/identity';
 
 // ─── Fixtures ───

@@ -2,7 +2,7 @@ import { Effect } from 'effect';
 import type { AdoId } from '../../domain/kernel/identity';
 import type { WorkspaceCatalog } from '../catalog';
 import { compileScenario, compileScenarioCore } from '../resolution/compile';
-import { syncSnapshots } from '../reporting/sync';
+import { syncSnapshots } from '../intent/sync';
 import type { ProjectPaths } from '../paths';
 
 /**

@@ -3,7 +3,7 @@ import type { ResolutionTarget, StepWinningSource, WorkflowStage } from '../../d
 import type { ResolutionReceipt, TranslationReceipt } from '../../domain/resolution/types';
 import { buildReasonChain } from '../../domain/resolution/reason-chain';
 import { mintApproved, mintReviewRequired } from '../../domain/governance/workflow-types';
-import { selectedDataset, selectedRunbook } from './resolution/select-controls';
+import { selectedDataset, selectedRunbook } from './select-controls';
 import type { RuntimeAgentStageContext, StageEffects } from './types';
 import { uniqueSorted } from './shared';
 import { TesseractError } from '../../domain/kernel/errors';
