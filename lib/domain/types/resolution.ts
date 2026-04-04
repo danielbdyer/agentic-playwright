@@ -26,6 +26,7 @@ import type {
   WorkflowEnvelopeIds,
   WorkflowEnvelopeLineage,
   WorkflowLane,
+  WorkflowMetadata,
   WorkflowStage,
 } from './workflow';
 import type { StepResolution } from './intent';
@@ -643,14 +644,9 @@ export interface StepResolutionGraph {
   };
 }
 
-interface ResolutionReceiptBase {
-  readonly version: 1;
+interface ResolutionReceiptBase extends WorkflowMetadata {
   readonly stage: 'resolution';
   readonly scope: 'step';
-  readonly ids: WorkflowEnvelopeIds;
-  readonly fingerprints: WorkflowEnvelopeFingerprints;
-  readonly lineage: WorkflowEnvelopeLineage;
-  readonly governance: Governance;
   readonly taskFingerprint: string;
   readonly knowledgeFingerprint: string;
   readonly provider: string;

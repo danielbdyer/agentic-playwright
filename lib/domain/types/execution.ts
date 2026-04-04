@@ -9,6 +9,7 @@ import type {
   StepWinningSource,
   TrustPolicyArtifactType,
   TrustPolicyEvaluation,
+  WorkflowMetadata,
   WorkflowStage,
   WorkflowEnvelopeFingerprints,
   WorkflowEnvelopeIds,
@@ -158,14 +159,9 @@ export interface PlannedExecutionStepReceipt {
     readonly forbiddenActiveStates: readonly StateNodeRef[];
   } | undefined;
 }
-export interface StepExecutionReceipt {
-  readonly version: 1;
+export interface StepExecutionReceipt extends WorkflowMetadata {
   readonly stage: 'execution';
   readonly scope: 'step';
-  readonly ids: WorkflowEnvelopeIds;
-  readonly fingerprints: WorkflowEnvelopeFingerprints;
-  readonly lineage: WorkflowEnvelopeLineage;
-  readonly governance: Governance;
   readonly stepIndex: number;
   readonly taskFingerprint: string;
   readonly knowledgeFingerprint: string;

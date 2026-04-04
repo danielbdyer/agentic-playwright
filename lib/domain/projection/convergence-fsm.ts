@@ -8,7 +8,14 @@
  *
  * This replaces the implicit state logic in determineConvergenceReason with
  * an explicit, testable state machine.
+ *
+ * Implements FSMDefinition<ConvergenceState, ConvergenceEvent> from the
+ * generic finite-state-machine kernel module.
+ *
+ * @see lib/domain/kernel/finite-state-machine.ts
  */
+
+import type { FSMDefinition } from '../kernel/finite-state-machine';
 
 // ─── States ───
 
@@ -161,3 +168,17 @@ export function stateOrdinal(state: ConvergenceState): number {
     converged: () => 3,
   });
 }
+
+// ─── Generic FSM Definition ───
+
+/**
+ * The convergence FSM expressed as a generic FSMDefinition instance.
+ * This enables generic FSM operations (traceFSM, isMonotoneTrace,
+ * verifyAbsorption) to work with the convergence state machine.
+ */
+export const convergenceFSMDefinition: FSMDefinition<ConvergenceState, ConvergenceEvent> = {
+  transition: transitionConvergence,
+  initial: initialConvergenceState,
+  terminalKinds: new Set(['converged']),
+  ordinal: stateOrdinal,
+};

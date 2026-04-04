@@ -172,7 +172,17 @@ export interface WorkflowEnvelopeLineage {
   readonly experimentIds?: readonly string[] | undefined;
 }
 
-export interface WorkflowEnvelope<TPayload> {
+/**
+ * Shared metadata carried by both envelopes and receipts.
+ *
+ * This is the formal base of the Envelope ⊣ Receipt adjunction:
+ * WorkflowEnvelope<T> extends this with a payload (comonad side),
+ * while receipts extend this with domain-specific observation fields
+ * (writer monad side). Both carry identical provenance metadata.
+ *
+ * @see docs/design-calculus.md § Collapse 3: Envelope and Receipt as Adjoint Pair
+ */
+export interface WorkflowMetadata {
   readonly version: 1;
   readonly stage: WorkflowStage;
   readonly scope: WorkflowScope;
@@ -180,6 +190,9 @@ export interface WorkflowEnvelope<TPayload> {
   readonly fingerprints: WorkflowEnvelopeFingerprints;
   readonly lineage: WorkflowEnvelopeLineage;
   readonly governance: Governance;
+}
+
+export interface WorkflowEnvelope<TPayload> extends WorkflowMetadata {
   readonly payload: TPayload;
 }
 
