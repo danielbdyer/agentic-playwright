@@ -24,12 +24,12 @@ function latestRuns(catalog: WorkspaceCatalog): Map<AdoId, RunRecord> {
 }
 
 function proposalId(
-  bundle: Pick<ProposalBundle, 'adoId' | 'suite'>,
+  bundle: { readonly payload: Pick<ProposalBundle['payload'], 'adoId' | 'suite'> },
   proposal: Pick<ProposalEntry, 'artifactType' | 'targetPath' | 'title' | 'patch' | 'impactedSteps'>,
 ): string {
   return `proposal-${sha256(stableStringify({
-    adoId: bundle.adoId,
-    suite: bundle.suite,
+    adoId: bundle.payload.adoId,
+    suite: bundle.payload.suite,
     artifactType: proposal.artifactType,
     targetPath: proposal.targetPath,
     title: proposal.title,
@@ -65,7 +65,7 @@ function runStepMetadata(
 }
 
 export function proposalIdForEntry(
-  bundle: Pick<ProposalBundle, 'adoId' | 'suite'>,
+  bundle: { readonly payload: Pick<ProposalBundle['payload'], 'adoId' | 'suite'> },
   proposal: Pick<ProposalEntry, 'artifactType' | 'targetPath' | 'title' | 'patch' | 'impactedSteps'>,
 ): string {
   return proposalId(bundle, proposal);
@@ -78,18 +78,18 @@ export function buildOperatorInboxItems(catalog: WorkspaceCatalog): OperatorInbo
 
   // Source 1: proposal bundles → proposal + blocked-policy items
   const proposalItems = [...catalog.proposalBundles]
-    .sort((a, b) => b.artifact.runId.localeCompare(a.artifact.runId))
+    .sort((a, b) => b.artifact.payload.runId.localeCompare(a.artifact.payload.runId))
     .flatMap((bundleEntry) => {
       const bundle = bundleEntry.artifact;
-      const run = latestRunByAdo.get(bundle.adoId) ?? null;
-      return bundle.proposals.flatMap((proposal): readonly OperatorInboxItem[] => {
+      const run = latestRunByAdo.get(bundle.payload.adoId) ?? null;
+      return bundle.payload.proposals.flatMap((proposal): readonly OperatorInboxItem[] => {
         const stableProposalId = proposal.proposalId || proposalId(bundle, proposal);
         if (seenProposalIds.has(stableProposalId)) return [];
         seenProposalIds.add(stableProposalId);
         const metadata = runStepMetadata(run, proposal.stepIndex);
         const kind = isBlocked(proposal.activation) ? 'blocked-policy' as const : 'proposal' as const;
         return [{
-          id: inboxItemId({ kind, adoId: bundle.adoId, runId: bundle.runId, proposalId: stableProposalId, stepIndex: proposal.stepIndex, targetPath: proposal.targetPath }),
+          id: inboxItemId({ kind, adoId: bundle.payload.adoId, runId: bundle.payload.runId, proposalId: stableProposalId, stepIndex: proposal.stepIndex, targetPath: proposal.targetPath }),
           kind,
           status: isBlocked(proposal.activation) ? 'blocked'
             : proposal.certification === 'certified' || approvals.has(stableProposalId) ? 'approved' : 'actionable',
@@ -99,12 +99,12 @@ export function buildOperatorInboxItems(catalog: WorkspaceCatalog): OperatorInbo
             : proposal.certification === 'certified'
               ? `Certified canon is active for ${proposal.artifactType} at ${proposal.targetPath}.`
               : `Active canon is live for ${proposal.artifactType} at ${proposal.targetPath} and remains uncertified.`,
-          adoId: bundle.adoId, suite: bundle.suite, runId: bundle.runId, stepIndex: proposal.stepIndex,
+          adoId: bundle.payload.adoId, suite: bundle.payload.suite, runId: bundle.payload.runId, stepIndex: proposal.stepIndex,
           proposalId: stableProposalId, artifactPath: bundleEntry.artifactPath, targetPath: proposal.targetPath,
           winningConcern: metadata.winningConcern, winningSource: metadata.winningSource, resolutionMode: metadata.resolutionMode,
           nextCommands: isBlocked(proposal.activation)
-            ? uniqueSorted([`tesseract workflow --ado-id ${bundle.adoId}`, `tesseract inbox`])
-            : uniqueSorted([`tesseract certify --proposal-id ${stableProposalId}`, `tesseract approve --proposal-id ${stableProposalId}`, `tesseract rerun-plan --proposal-id ${stableProposalId}`, `tesseract workflow --ado-id ${bundle.adoId}`]),
+            ? uniqueSorted([`tesseract workflow --ado-id ${bundle.payload.adoId}`, `tesseract inbox`])
+            : uniqueSorted([`tesseract certify --proposal-id ${stableProposalId}`, `tesseract approve --proposal-id ${stableProposalId}`, `tesseract rerun-plan --proposal-id ${stableProposalId}`, `tesseract workflow --ado-id ${bundle.payload.adoId}`]),
         }];
       });
     });
@@ -176,7 +176,7 @@ export function findProposalById(catalog: WorkspaceCatalog, proposalIdValue: str
   artifactPath: string;
 } | null {
   return catalog.proposalBundles
-    .flatMap((entry) => entry.artifact.proposals.map((p) => ({ bundle: entry.artifact, proposal: p, artifactPath: entry.artifactPath })))
+    .flatMap((entry) => entry.artifact.payload.proposals.map((p: ProposalEntry) => ({ bundle: entry.artifact, proposal: p, artifactPath: entry.artifactPath })))
     .find(({ bundle, proposal }) => proposal.proposalId === proposalIdValue || proposalId(bundle, proposal) === proposalIdValue)
     ?? null;
 }

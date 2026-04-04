@@ -102,7 +102,7 @@ export function approveProposal(options: {
                   proposal.proposalId === certifiedProposal.proposalId ? certifiedProposal : proposal);
               const nextBundle = {
                 ...mapPayload(located.bundle, (payload) => ({ ...payload, proposals: replaceProposal(payload.proposals) })),
-                proposals: replaceProposal(located.bundle.proposals),
+                proposals: replaceProposal(located.bundle.payload.proposals),
               };
               yield* fs.writeJson(bundleAbsolutePath, nextBundle);
               return {
@@ -149,7 +149,7 @@ export function approveProposal(options: {
     };
     const receiptPath = approvalReceiptPath(options.paths, options.proposalId);
     yield* fs.writeJson(receiptPath, receipt);
-    const inbox = yield* emitOperatorInbox({ paths: options.paths, filter: { adoId: located.bundle.adoId } });
+    const inbox = yield* emitOperatorInbox({ paths: options.paths, filter: { adoId: located.bundle.payload.adoId } });
 
     return {
       proposalId: options.proposalId,

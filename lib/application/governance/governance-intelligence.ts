@@ -80,7 +80,7 @@ function computeFrictionPoints(
   }>();
 
   for (const bundle of bundles) {
-    for (const proposal of bundle.proposals) {
+    for (const proposal of bundle.payload.proposals) {
       const artifactType = proposal.artifactType ?? 'unknown';
       const existing = byType.get(artifactType) ?? {
         total: 0, blocked: 0, pending: 0, activated: 0,

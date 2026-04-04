@@ -77,7 +77,7 @@ export function activateProposalBundle(options: {
 
     // Group proposals by targetPath to serialize writes to the same file,
     // preventing race conditions on overlapping targets.
-    const byTarget = groupByMap(options.proposalBundle.proposals, (p) => p.targetPath);
+    const byTarget = groupByMap(options.proposalBundle.payload.proposals, (p) => p.targetPath);
 
     // Process each target-group sequentially (same-file writes serialized),
     // but different target groups concurrently (capped at 10).
@@ -109,7 +109,6 @@ export function activateProposalBundle(options: {
         ...options.proposalBundle.payload,
         proposals,
       },
-      proposals,
     };
 
     return {
@@ -131,7 +130,7 @@ export function backupBeforeActivation(options: {
 }) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
-    const all = yield* Effect.forEach(options.proposalBundle.proposals, (proposal) =>
+    const all = yield* Effect.forEach(options.proposalBundle.payload.proposals, (proposal) =>
       Effect.gen(function* () {
         const absoluteTargetPath = path.join(options.paths.suiteRoot, proposal.targetPath);
         return yield* fs.readText(absoluteTargetPath).pipe(
@@ -258,12 +257,12 @@ export function autoApproveEligibleProposals(options: {
     // Sort proposals by bottleneck impact if weights are provided.
     // Higher-impact proposals activate first, focusing budget on degraded screens.
     const orderedProposals = options.bottleneckWeights
-      ? [...options.proposalBundle.proposals].sort((a, b) => {
+      ? [...options.proposalBundle.payload.proposals].sort((a, b) => {
           const scoreA = scoreProposalByBottleneck(a.targetPath, options.bottleneckWeights, options.screenMetrics);
           const scoreB = scoreProposalByBottleneck(b.targetPath, options.bottleneckWeights, options.screenMetrics);
           return scoreB - scoreA;
         })
-      : options.proposalBundle.proposals;
+      : options.proposalBundle.payload.proposals;
 
     const results: AutoApprovalStepResult[] = yield* Effect.forEach(
       orderedProposals,
@@ -328,7 +327,6 @@ export function autoApproveEligibleProposals(options: {
         ...options.proposalBundle.payload,
         proposals,
       },
-      proposals,
     };
 
     return { proposalBundle, activatedPaths, blockedProposalIds };

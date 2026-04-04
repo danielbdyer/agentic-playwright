@@ -203,7 +203,7 @@ const FAILURE_TO_SIGNAL: Readonly<Record<string, string>> = Object.fromEntries(
   }),
 );
 
-function computeBottleneckCorrelations(
+export function computeBottleneckCorrelations(
   experiments: readonly ExperimentRecord[],
 ): readonly BottleneckWeightCorrelation[] {
   if (experiments.length < 2) {
@@ -293,11 +293,11 @@ export function buildFitnessReport(data: FitnessInputData): PipelineFitnessRepor
 
   // Aggregate blocked proposals from bundles
   const totalProposalBlocked = data.proposalBundles.reduce(
-    (sum, bundle) => sum + bundle.proposals.filter((p) => isBlocked(p.activation)).length,
+    (sum, bundle) => sum + bundle.payload.proposals.filter((p) => isBlocked(p.activation)).length,
     0,
   );
   const totalProposals = data.proposalBundles.reduce(
-    (sum, bundle) => sum + bundle.proposals.length,
+    (sum, bundle) => sum + bundle.payload.proposals.length,
     0,
   );
 

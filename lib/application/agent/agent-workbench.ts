@@ -90,7 +90,7 @@ function makeTarget(kind: InterventionTarget['kind'], ref: string, label: string
 
 function proposalWorkItems(catalog: WorkspaceCatalog, iteration: number): readonly AgentWorkItem[] {
   return catalog.proposalBundles.flatMap((bundle) =>
-    bundle.artifact.proposals
+    bundle.artifact.payload.proposals
       .flatMap((p) => isPending(p.activation) ? [p] : [])
       .map((proposal): AgentWorkItem => {
         const screen = proposal.targetPath.split('/').find((seg) => seg.endsWith('.hints.yaml'))?.replace('.hints.yaml', '') ?? '';
@@ -100,7 +100,7 @@ function proposalWorkItems(catalog: WorkspaceCatalog, iteration: number): readon
           priority: scoreWorkItem('approve-proposal', 0.8, 1, false),
           title: proposal.title,
           rationale: `Pending proposal for ${proposal.artifactType} at ${proposal.targetPath}.`,
-          adoId: bundle.artifact.adoId,
+          adoId: bundle.artifact.payload.adoId,
           iteration,
           actions: [{
             kind: 'approve',
@@ -129,17 +129,17 @@ function needsHumanWorkItems(catalog: WorkspaceCatalog, iteration: number): read
         resolvedWithProposals: () => [],
         agentInterpreted: () => [],
         needsHuman: (receipt) => [{
-          id: stableWorkItemId('interpret-step', record.artifact.adoId, String(step.stepIndex)),
+          id: stableWorkItemId('interpret-step', record.artifact.payload.adoId, String(step.stepIndex)),
           kind: 'interpret-step',
           priority: scoreWorkItem('interpret-step', 0.6, 1, true),
           title: `Step ${step.stepIndex}: ${receipt.reason.slice(0, 80)}`,
           rationale: 'Step exhausted all deterministic rungs — agent should interpret.',
-          adoId: record.artifact.adoId,
+          adoId: record.artifact.payload.adoId,
           iteration,
           actions: [{
             kind: 'inspect',
-            target: makeTarget('step', `${record.artifact.adoId}:${step.stepIndex}`, `Step ${step.stepIndex}`),
-            params: { adoId: record.artifact.adoId, stepIndex: step.stepIndex, runId: record.artifact.runId },
+            target: makeTarget('step', `${record.artifact.payload.adoId}:${step.stepIndex}`, `Step ${step.stepIndex}`),
+            params: { adoId: record.artifact.payload.adoId, stepIndex: step.stepIndex, runId: record.artifact.runId },
           }, {
             kind: 'author',
             target: makeTarget('knowledge', 'knowledge/screens/', `Author hint for step ${step.stepIndex}`),

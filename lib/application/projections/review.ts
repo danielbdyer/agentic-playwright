@@ -130,7 +130,7 @@ export function buildReviewDocument(
       confidence: trace.confidence,
       governance: trace.governance,
       lifecycle: trace.lifecycle,
-      proposalBundleRunId: proposalBundle?.runId ?? null,
+      proposalBundleRunId: proposalBundle?.payload.runId ?? null,
       interfaceGraphFingerprint: projectionInput.interfaceGraph?.fingerprint ?? null,
       selectorCanonFingerprint: projectionInput.selectorCanon?.fingerprint ?? null,
       stateGraphFingerprint: projectionInput.stateGraph?.fingerprint ?? null,

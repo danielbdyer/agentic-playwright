@@ -73,7 +73,7 @@ function relativeModule(fromFile: string, toFile: string): string {
 function latestRunForScenario(catalog: WorkspaceCatalog, adoId: AdoId): RunRecord | null {
   return catalog.runRecords.reduce<RunRecord | null>(
     (latest, entry) =>
-      entry.artifact.adoId === adoId &&
+      entry.artifact.payload.adoId === adoId &&
       (latest === null || entry.artifact.completedAt > latest.completedAt)
         ? entry.artifact
         : latest,
@@ -83,8 +83,8 @@ function latestRunForScenario(catalog: WorkspaceCatalog, adoId: AdoId): RunRecor
 
 function latestProposalBundle(catalog: WorkspaceCatalog, adoId: AdoId): ProposalBundle | null {
   return catalog.proposalBundles
-    .filter((entry) => entry.artifact.adoId === adoId)
-    .sort((left, right) => right.artifact.runId.localeCompare(left.artifact.runId))[0]?.artifact ?? null;
+    .filter((entry) => entry.artifact.payload.adoId === adoId)
+    .sort((left, right) => right.artifact.payload.runId.localeCompare(left.artifact.payload.runId))[0]?.artifact ?? null;
 }
 
 function latestSessionsForScenario(catalog: WorkspaceCatalog, adoId: AdoId) {
@@ -456,7 +456,7 @@ export function emitScenario(
     const inputFingerprints: ProjectionInputFingerprint[] = [
       fingerprintProjectionArtifact('bound', relativeProjectPath(options.paths, source.boundPath), source.boundScenario),
       fingerprintProjectionArtifact('task', relativeProjectPath(options.paths, source.surfacePath), source.surface),
-      ...(latestRun ? [fingerprintProjectionArtifact('run', relativeProjectPath(options.paths, catalog.runRecords.find((entry) => entry.artifact.runId === latestRun.runId)?.absolutePath ?? ''), latestRun)] : []),
+      ...(latestRun ? [fingerprintProjectionArtifact('run', relativeProjectPath(options.paths, catalog.runRecords.find((entry) => entry.artifact.payload.runId === latestRun.runId)?.absolutePath ?? ''), latestRun)] : []),
       ...(catalog.interfaceGraph ? [fingerprintProjectionArtifact('interface-graph', catalog.interfaceGraph.artifactPath, catalog.interfaceGraph.artifact)] : []),
       ...(catalog.selectorCanon ? [fingerprintProjectionArtifact('selector-canon', catalog.selectorCanon.artifactPath, catalog.selectorCanon.artifact)] : []),
       ...(catalog.learningManifest ? [fingerprintProjectionArtifact('learning-manifest', catalog.learningManifest.artifactPath, catalog.learningManifest.artifact)] : []),
@@ -466,7 +466,7 @@ export function emitScenario(
         .flatMap((entry) => entry.artifact.scenarioIds.includes(source.adoId) ? [fingerprintProjectionArtifact('agent-session', entry.artifactPath, entry.artifact)] : []),
       fingerprintProjectionArtifact(
         'proposal-bundle',
-        relativeProjectPath(options.paths, catalog.proposalBundles.find((entry) => entry.artifact.runId === artifacts.proposalBundle.runId)?.absolutePath ?? artifacts.proposalsPath),
+        relativeProjectPath(options.paths, catalog.proposalBundles.find((entry) => entry.artifact.payload.runId === artifacts.proposalBundle.payload.runId)?.absolutePath ?? artifacts.proposalsPath),
         artifacts.proposalBundle,
       ),
     ].filter((entry) => entry.path.length > 0);

@@ -23,12 +23,14 @@ import {
   averageFitnessReports,
   buildFitnessReport,
   compareToScorecard,
+  computeBottleneckCorrelations,
   updateScorecard,
   type FitnessInputData,
   type ScorecardComparison,
 } from '../analysis/fitness';
 import { buildImprovementRun, recordImprovementRun, scorecardPath } from './improvement';
-import { recordExperiment } from './experiment-registry';
+import { loadExperimentRegistry, recordExperiment } from './experiment-registry';
+import { calibrateWeightsFromCorrelations } from '../learning/learning-bottlenecks';
 import { loadWorkspaceCatalog } from '../catalog';
 import { cleanSlateProgram } from './clean-slate';
 import { Dashboard, FileSystem, VersionControl } from '../ports';
@@ -286,6 +288,17 @@ export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunRes
     // Thread dashboard port for live visualization (passive — never gates the pipeline)
     const dashboard = yield* Dashboard;
 
+    // Pre-seed bottleneck weights from prior experiment correlations (circuit closure).
+    // This threads cross-run learning: experiment history → correlations → calibrated weights.
+    const priorRegistry = yield* loadExperimentRegistry(input.paths);
+    const priorCorrelations = computeBottleneckCorrelations(priorRegistry.experiments);
+    const calibratedWeights = priorCorrelations.length > 0
+      ? calibrateWeightsFromCorrelations(
+          input.config.bottleneckWeights ?? DEFAULT_PIPELINE_CONFIG.bottleneckWeights,
+          priorCorrelations,
+        )
+      : undefined;
+
     const { ledger } = yield* runDogfoodLoop({
       paths: input.paths,
       maxIterations: input.maxIterations,
@@ -299,6 +312,7 @@ export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunRes
       dashboard,
       baseUrl: input.baseUrl,
       browserPool: input.browserPool,
+      initialBottleneckWeights: calibratedWeights,
     });
 
     const fitnessStart = Date.now();
@@ -332,6 +346,7 @@ export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunRes
       ledger,
       runSteps,
       proposalBundles,
+      experimentHistory: priorRegistry.experiments,
     };
     const fitnessReport = buildFitnessReport(fitnessData);
     const fitnessDuration = Date.now() - fitnessStart;

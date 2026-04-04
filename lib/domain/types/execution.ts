@@ -372,6 +372,15 @@ export interface ProposalEntry {
   readonly lineage: CanonicalLineage;
 }
 
+export interface ProposalBundlePayload {
+  readonly adoId: AdoId;
+  readonly runId: string;
+  readonly revision: number;
+  readonly title: string;
+  readonly suite: string;
+  readonly proposals: readonly ProposalEntry[];
+}
+
 export interface ProposalBundle {
   readonly kind: 'proposal-bundle';
   readonly version: 1;
@@ -381,20 +390,7 @@ export interface ProposalBundle {
   readonly fingerprints: WorkflowEnvelopeFingerprints;
   readonly lineage: WorkflowEnvelopeLineage;
   readonly governance: Governance;
-  readonly payload: {
-    readonly adoId: AdoId;
-    readonly runId: string;
-    readonly revision: number;
-    readonly title: string;
-    readonly suite: string;
-    readonly proposals: readonly ProposalEntry[];
-  };
-  readonly adoId: AdoId;
-  readonly runId: string;
-  readonly revision: number;
-  readonly title: string;
-  readonly suite: string;
-  readonly proposals: readonly ProposalEntry[];
+  readonly payload: ProposalBundlePayload;
 }
 
 // ─── Execution Tempo Awareness (N1.4) ───

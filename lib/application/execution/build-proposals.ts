@@ -49,8 +49,7 @@ export function buildProposals(input: {
   const _activeRunbook = runbookEntry?.artifact ?? null;
   const _activeDataset = datasetEntry?.artifact ?? null;
   const proposalBundleIdentity = {
-    adoId: input.adoId,
-    suite: input.plan.suite,
+    payload: { adoId: input.adoId, suite: input.plan.suite },
   } as const;
   const loadedEvidence: LoadedEvidenceRecord[] = input.evidenceCatalog.evidenceRecords.map((entry) => ({
     artifactPath: entry.artifactPath,

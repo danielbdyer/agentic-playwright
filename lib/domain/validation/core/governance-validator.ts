@@ -34,23 +34,24 @@ import {
 
 export function validateProposalBundleArtifact(value: unknown): ProposalBundle {
   const bundle = expectRecord(value, 'proposalBundle');
-  const proposals = expectArray(bundle.proposals ?? [], 'proposalBundle.proposals').map((entry, index) => {
-    const proposal = expectRecord(entry, `proposalBundle.proposals[${index}]`);
+  const payload = expectRecord(bundle.payload ?? {}, 'proposalBundle.payload');
+  const proposals = expectArray(payload.proposals ?? [], 'proposalBundle.payload.proposals').map((entry, index) => {
+    const proposal = expectRecord(entry, `proposalBundle.payload.proposals[${index}]`);
     return {
-      proposalId: expectString(proposal.proposalId, `proposalBundle.proposals[${index}].proposalId`),
-      stepIndex: expectNumber(proposal.stepIndex, `proposalBundle.proposals[${index}].stepIndex`),
-      artifactType: validateTrustPolicyArtifactType(proposal.artifactType, `proposalBundle.proposals[${index}].artifactType`),
-      targetPath: expectString(proposal.targetPath, `proposalBundle.proposals[${index}].targetPath`),
-      title: expectString(proposal.title, `proposalBundle.proposals[${index}].title`),
-      patch: expectRecord(proposal.patch ?? {}, `proposalBundle.proposals[${index}].patch`),
-      evidenceIds: expectStringArray(proposal.evidenceIds ?? [], `proposalBundle.proposals[${index}].evidenceIds`),
-      impactedSteps: expectArray(proposal.impactedSteps ?? [], `proposalBundle.proposals[${index}].impactedSteps`).map((stepIndex, impactedIndex) =>
-        expectNumber(stepIndex, `proposalBundle.proposals[${index}].impactedSteps[${impactedIndex}]`),
+      proposalId: expectString(proposal.proposalId, `proposalBundle.payload.proposals[${index}].proposalId`),
+      stepIndex: expectNumber(proposal.stepIndex, `proposalBundle.payload.proposals[${index}].stepIndex`),
+      artifactType: validateTrustPolicyArtifactType(proposal.artifactType, `proposalBundle.payload.proposals[${index}].artifactType`),
+      targetPath: expectString(proposal.targetPath, `proposalBundle.payload.proposals[${index}].targetPath`),
+      title: expectString(proposal.title, `proposalBundle.payload.proposals[${index}].title`),
+      patch: expectRecord(proposal.patch ?? {}, `proposalBundle.payload.proposals[${index}].patch`),
+      evidenceIds: expectStringArray(proposal.evidenceIds ?? [], `proposalBundle.payload.proposals[${index}].evidenceIds`),
+      impactedSteps: expectArray(proposal.impactedSteps ?? [], `proposalBundle.payload.proposals[${index}].impactedSteps`).map((stepIndex, impactedIndex) =>
+        expectNumber(stepIndex, `proposalBundle.payload.proposals[${index}].impactedSteps[${impactedIndex}]`),
       ),
       trustPolicy: validateTrustPolicyEvaluationArtifact(proposal.trustPolicy),
-      certification: expectEnum(proposal.certification ?? 'uncertified', `proposalBundle.proposals[${index}].certification`, certificationStates),
-      activation: validateProposalActivation(proposal.activation, `proposalBundle.proposals[${index}].activation`),
-      lineage: validateCanonicalLineage(proposal.lineage, `proposalBundle.proposals[${index}].lineage`),
+      certification: expectEnum(proposal.certification ?? 'uncertified', `proposalBundle.payload.proposals[${index}].certification`, certificationStates),
+      activation: validateProposalActivation(proposal.activation, `proposalBundle.payload.proposals[${index}].activation`),
+      lineage: validateCanonicalLineage(proposal.lineage, `proposalBundle.payload.proposals[${index}].lineage`),
     };
   });
   const header = validateWorkflowEnvelopeHeader(bundle, 'proposalBundle', {
@@ -61,11 +62,11 @@ export function validateProposalBundleArtifact(value: unknown): ProposalBundle {
       : proposals.some((proposal) => proposal.trustPolicy.decision === 'review')
         ? 'review-required'
         : 'approved',
-    artifactFingerprint: expectOptionalString(bundle.runId, 'proposalBundle.runId') ?? 'proposal-bundle',
+    artifactFingerprint: expectOptionalString(payload.runId, 'proposalBundle.payload.runId') ?? 'proposal-bundle',
     ids: {
-      adoId: expectOptionalId(bundle.adoId, 'proposalBundle.adoId', createAdoId) ?? null,
-      suite: expectOptionalString(bundle.suite, 'proposalBundle.suite') ?? null,
-      runId: expectOptionalString(bundle.runId, 'proposalBundle.runId') ?? null,
+      adoId: expectOptionalId(payload.adoId, 'proposalBundle.payload.adoId', createAdoId) ?? null,
+      suite: expectOptionalString(payload.suite, 'proposalBundle.payload.suite') ?? null,
+      runId: expectOptionalString(payload.runId, 'proposalBundle.payload.runId') ?? null,
     },
     lineage: {
       sources: [],
@@ -77,19 +78,13 @@ export function validateProposalBundleArtifact(value: unknown): ProposalBundle {
     kind: expectEnum(bundle.kind, 'proposalBundle.kind', ['proposal-bundle'] as const),
     ...header,
     payload: {
-      adoId: expectId(bundle.adoId, 'proposalBundle.adoId', createAdoId),
-      runId: expectString(bundle.runId, 'proposalBundle.runId'),
-      revision: expectNumber(bundle.revision, 'proposalBundle.revision'),
-      title: expectString(bundle.title, 'proposalBundle.title'),
-      suite: ensureSafeRelativePathLike(expectString(bundle.suite, 'proposalBundle.suite'), 'proposalBundle.suite'),
+      adoId: expectId(payload.adoId, 'proposalBundle.payload.adoId', createAdoId),
+      runId: expectString(payload.runId, 'proposalBundle.payload.runId'),
+      revision: expectNumber(payload.revision, 'proposalBundle.payload.revision'),
+      title: expectString(payload.title, 'proposalBundle.payload.title'),
+      suite: ensureSafeRelativePathLike(expectString(payload.suite, 'proposalBundle.payload.suite'), 'proposalBundle.payload.suite'),
       proposals,
     },
-    adoId: expectId(bundle.adoId, 'proposalBundle.adoId', createAdoId),
-    runId: expectString(bundle.runId, 'proposalBundle.runId'),
-    revision: expectNumber(bundle.revision, 'proposalBundle.revision'),
-    title: expectString(bundle.title, 'proposalBundle.title'),
-    suite: ensureSafeRelativePathLike(expectString(bundle.suite, 'proposalBundle.suite'), 'proposalBundle.suite'),
-    proposals,
   };
 }
 

@@ -152,7 +152,7 @@ export function createProposalBundleEnvelope(input: {
   fingerprints: WorkflowEnvelopeFingerprints;
   lineage: WorkflowEnvelopeLineage;
   payload: ProposalBundle['payload'];
-  proposals: ProposalBundle['proposals'];
+  proposals: ProposalBundle['payload']['proposals'];
   governance: Governance;
 }): ProposalBundle {
   return {
@@ -168,11 +168,5 @@ export function createProposalBundleEnvelope(input: {
       ...input.payload,
       proposals: input.proposals,
     },
-    adoId: input.payload.adoId,
-    runId: input.payload.runId,
-    revision: input.payload.revision,
-    title: input.payload.title,
-    suite: input.payload.suite,
-    proposals: input.proposals,
   };
 }

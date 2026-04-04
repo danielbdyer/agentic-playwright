@@ -302,7 +302,7 @@ function baseInterventions(input: {
       payload: {
         interfaceGraphFingerprint: input.surface.payload.interface.fingerprint ?? null,
         selectorCanonFingerprint: input.surface.payload.selectors.fingerprint ?? null,
-        proposalCount: input.proposalBundle?.proposals.length ?? 0,
+        proposalCount: input.proposalBundle?.payload.proposals.length ?? 0,
       },
     },
     {
@@ -426,7 +426,7 @@ function baseEvents(input: {
       payload: {
         interfaceGraphFingerprint: input.surface.payload.interface.fingerprint ?? null,
         selectorCanonFingerprint: input.surface.payload.selectors.fingerprint ?? null,
-        proposalCount: input.proposalBundle?.proposals.length ?? 0,
+        proposalCount: input.proposalBundle?.payload.proposals.length ?? 0,
       },
     },
     {

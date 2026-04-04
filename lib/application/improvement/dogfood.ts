@@ -88,6 +88,9 @@ export interface DogfoodOptions {
   readonly mcpInvokeTool?: ((toolName: string, args: Record<string, unknown>) => Promise<unknown>) | undefined;
   /** Knowledge posture for catalog loading. Defaults to 'warm-start'. */
   readonly knowledgePosture?: KnowledgePosture | undefined;
+  /** Pre-calibrated bottleneck weights from prior experiment correlations.
+   *  When provided, seeds the loop with learned weights instead of defaults. */
+  readonly initialBottleneckWeights?: BottleneckWeights | undefined;
   /** Base URL of the SUT for Playwright execution (e.g., http://127.0.0.1:3200).
    *  Required when interpreterMode is 'playwright'. */
   readonly baseUrl?: string | undefined;
@@ -128,14 +131,14 @@ interface LoopState {
   readonly hotScreens: readonly string[];
 }
 
-function createInitialState(priorLearningState?: LearningState | null): LoopState {
+function createInitialState(priorLearningState?: LearningState | null, initialBottleneckWeights?: BottleneckWeights): LoopState {
   return {
     iterations: [],
     cumulativeInstructions: 0,
     converged: false,
     convergenceReason: null,
     startedAt: Date.now(),
-    bottleneckWeights: DEFAULT_PIPELINE_CONFIG.bottleneckWeights,
+    bottleneckWeights: initialBottleneckWeights ?? DEFAULT_PIPELINE_CONFIG.bottleneckWeights,
     convergenceFsm: initialConvergenceState(),
     learningState: priorLearningState ?? null,
     browserPoolStats: null,
@@ -159,7 +162,7 @@ function loadPersistedLearningState(paths: ProjectPaths) {
 
 function collectPendingProposals(bundles: readonly ProposalBundle[]): readonly ProposalBundle[] {
   return bundles.filter((bundle) =>
-    bundle.proposals.some((proposal) => isPending(proposal.activation)),
+    bundle.payload.proposals.some((proposal) => isPending(proposal.activation)),
   );
 }
 
@@ -338,7 +341,7 @@ function extractAliasOutcomes(
   runCount: number,
 ): readonly AliasOutcome[] {
   return bundles
-    .flatMap((bundle) => bundle.proposals)
+    .flatMap((bundle) => bundle.payload.proposals)
     .flatMap((proposal) => isActivated(proposal.activation) ? [proposal] : [])
     .map((proposal): AliasOutcome => ({
       aliasId: proposal.proposalId,
@@ -644,13 +647,13 @@ function runIteration(iteration: number, options: DogfoodOptions, state: LoopSta
     }
 
     // Step 4: collect and activate pending proposals (with bottleneck weights + toxic gate)
-    const proposalsGenerated = allBundles.reduce((sum, bundle) => sum + bundle.proposals.length, 0);
+    const proposalsGenerated = allBundles.reduce((sum, bundle) => sum + bundle.payload.proposals.length, 0);
     // Count proposals already activated during the run phase — these were
     // written to knowledge files by activateProposalBundle() in run.ts and
     // are the primary vehicle for learning. The dogfood loop's second-pass
     // activation only catches stragglers.
     const runPhaseActivated = allBundles.reduce(
-      (sum, bundle) => sum + bundle.proposals.filter((p) => isActivated(p.activation)).length,
+      (sum, bundle) => sum + bundle.payload.proposals.filter((p) => isActivated(p.activation)).length,
       0,
     );
     const pendingBundles = collectPendingProposals(allBundles);
@@ -730,7 +733,7 @@ function runIteration(iteration: number, options: DogfoodOptions, state: LoopSta
         const fs = yield* FileSystem;
         const activatedAt = new Date().toISOString();
         const stillPending = pendingBundles.flatMap((bundle) =>
-          bundle.proposals.filter((p) => isPending(p.activation)),
+          bundle.payload.proposals.filter((p) => isPending(p.activation)),
         );
         const actLoopActivated = yield* Effect.forEach(
           stillPending,
@@ -780,7 +783,7 @@ function runIteration(iteration: number, options: DogfoodOptions, state: LoopSta
 
 function dogfoodMachine(options: DogfoodOptions, priorLearningState?: LearningState | null) {
   return {
-    initial: createInitialState(priorLearningState),
+    initial: createInitialState(priorLearningState, options.initialBottleneckWeights),
     step: (state: LoopState) => Effect.gen(function* () {
       const iteration = state.iterations.length + 1;
       if (iteration > options.maxIterations) {

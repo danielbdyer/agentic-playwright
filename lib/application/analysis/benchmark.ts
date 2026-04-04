@@ -116,7 +116,7 @@ function variantsForBenchmark(benchmark: BenchmarkContext): BenchmarkVariant[] {
 }
 
 function proposalsForScenarios(bundles: readonly ProposalBundle[], scenarioIds: readonly string[]): ProposalBundle[] {
-  return bundles.filter((bundle) => scenarioIds.includes(bundle.adoId));
+  return bundles.filter((bundle) => scenarioIds.includes(bundle.payload.adoId));
 }
 
 export function collectRunbookScenarioIds<R>(options: {
@@ -134,7 +134,7 @@ export function collectRunbookScenarioIds<R>(options: {
 
 function knowledgeChurnForBundles(bundles: readonly ProposalBundle[]): Record<string, number> {
   const grouped = groupBy(
-    bundles.flatMap((bundle) => bundle.proposals),
+    bundles.flatMap((bundle) => bundle.payload.proposals),
     (proposal) => proposal.artifactType,
   );
   return Object.fromEntries(
@@ -195,9 +195,9 @@ function scorecardForBenchmark(input: {
   );
   const degradedLocatorRate = round(locatorDriftCount / Math.max(uniqueFieldAwarenessCount, 1));
   const reviewRequiredCount = input.proposalBundles.reduce((count, bundle) =>
-    count + bundle.proposals.filter((proposal) => proposal.trustPolicy.decision !== 'allow').length,
+    count + bundle.payload.proposals.filter((proposal) => proposal.trustPolicy.decision !== 'allow').length,
   0);
-  const repairLoopCount = input.proposalBundles.reduce((count, bundle) => count + bundle.proposals.length, 0);
+  const repairLoopCount = input.proposalBundles.reduce((count, bundle) => count + bundle.payload.proposals.length, 0);
   const benchmarkRuns = input.runRecords.filter((record) => input.scenarioIds.includes(record.adoId));
   const benchmarkSteps = benchmarkRuns.flatMap((record) => record.steps);
   const translationHitRate = round(benchmarkSteps.filter((step) => step.resolutionMode === 'translation').length / Math.max(benchmarkSteps.length, 1));

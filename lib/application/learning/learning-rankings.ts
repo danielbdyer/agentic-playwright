@@ -54,7 +54,7 @@ function pendingProposals(bundles: readonly ProposalBundle[]): ReadonlyArray<{
   readonly proposal: ProposalEntry;
 }> {
   return bundles.flatMap((bundle) =>
-    bundle.proposals
+    bundle.payload.proposals
       .flatMap((p) => isPending(p.activation) ? [{ bundle, proposal: p }] : []),
   );
 }
@@ -63,14 +63,14 @@ function pendingProposals(bundles: readonly ProposalBundle[]): ReadonlyArray<{
 function buildScreenAffinity(allBundles: readonly ProposalBundle[]): ReadonlyMap<string, ReadonlySet<string>> {
   const index = new Map<string, Set<string>>();
   for (const bundle of allBundles) {
-    for (const p of bundle.proposals) {
+    for (const p of bundle.payload.proposals) {
       const screen = extractScreenFromTargetPath(p.targetPath);
       if (screen.length > 0) {
         const existing = index.get(screen);
         if (existing) {
-          existing.add(bundle.adoId);
+          existing.add(bundle.payload.adoId);
         } else {
-          index.set(screen, new Set([bundle.adoId]));
+          index.set(screen, new Set([bundle.payload.adoId]));
         }
       }
     }
@@ -163,8 +163,8 @@ export function rankProposals(input: {
 
     return {
       rank: 0,
-      proposalId: proposal.proposalId ?? `${bundle.adoId}:${proposal.artifactType}:${proposal.stepIndex}`,
-      adoId: bundle.adoId,
+      proposalId: proposal.proposalId ?? `${bundle.payload.adoId}:${proposal.artifactType}:${proposal.stepIndex}`,
+      adoId: bundle.payload.adoId,
       artifactType: proposal.artifactType,
       expectedImpact: {
         affectedScenarioCount,
