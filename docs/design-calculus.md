@@ -475,7 +475,7 @@ Four consumers bridged to `GovernanceVerdict<T, I>`:
 
 | Module | Fold Values | Description |
 |---|---|---|
-| `execution/fold.ts` | `timingFold`, `costFold` | Timing and cost monoids as `Fold<StepEntry, T>` values |
+| `execution/fold.ts` | `timingFold`, `costFold`, `translationFold` | Timing, cost, and translation monoids as `Fold<T, A>` values; timing × cost fused via `productFold` |
 
 ### Contextual Merge Consumers
 
@@ -487,7 +487,28 @@ Four consumers bridged to `GovernanceVerdict<T, I>`:
 
 **Product fold fusion** — `learning-state.ts`: All 6 step-receipt ObservationCollapse instances invoked over the same stream.
 
-**Async hylomorphism** — `hylomorphism.ts` (`runHyloAsync`): Ready for dogfood.ts and convergence-proof.ts deforestation.
+**Hylomorphism hierarchy** — Three levels of the same unfold/fold duality:
+
+| Level | Module | Pattern |
+|---|---|---|
+| Pure | `runHylo` | Synchronous unfold/fold (algebra tests, pure transformations) |
+| Effect | `runHyloEffect` | Effect-threaded unfold/pure fold (convergence-proof trials, state machines) |
+| Degenerate | `runStateMachine` | `runHyloEffect` where seed = accumulator (dogfood loop, any Effect-based FSM) |
+
+**Convergence-proof trials** — `convergence-proof.ts`: Recursive `runTrials` replaced with `runHyloEffect<TrialSeed, ConvergenceTrialResult, trials[]>`. Each unfold step runs one trial (clean slate → speedrun → extract); the fold is pure array append.
+
+**Dogfood iteration loop** — `state-machine.ts` → `runHyloEffect`: `runStateMachine` is now implemented as `runHyloEffect<S, S, S>` with identity fold `(_acc, next) => next`. The dogfood loop inherits hylomorphism structure for free.
+
+**FSM as fold** — `finite-state-machine.ts`: `runFSM` exposed as `fsmFold(def)` — a `{ initial, step }` value identical to `Fold<E, S>` from product-fold.ts. `traceFSM` is its scan variant. This reveals that FSM runs, product folds, and hylomorphisms are the same fold structure at different levels.
+
+**Scoring rule monoid** — `learning-shared.ts`: `combineScoringRules` now delegates to `concatAll(scoringRuleMonoid(), rules)` — the monoid infrastructure from `lib/domain/algebra/monoid.ts`. Makes the algebraic structure explicit.
+
+**Proposal lifecycle FSM** — `lib/domain/governance/proposal-lifecycle.ts`:
+- Typed transition events: `trust-policy-allow`, `trust-policy-review`, `validation-failure`, `toxic-alias`, `auto-approval-declined`, `file-system-error`
+- `transitionProposal(activation, event)` → `{ activation, certification }`
+- Terminal states: `activated`, `blocked` (absorbing — no outgoing transitions)
+- `proposalLifecycleFSM`: `FSMDefinition<ProposalFSMState, ProposalFSMEvent>` instance (enables `traceFSM`, `isMonotoneTrace`, `verifyAbsorption`)
+- Predicate helpers (`isPending`, `isActivated`, `isBlocked`) replace all raw `activation.status === '...'` checks across 12 call sites in 6 files
 
 ### Assessed and Deferred Opportunities
 
@@ -496,15 +517,12 @@ These were assessed during wiring and deferred with rationale:
 | Opportunity | Rationale for deferral |
 |---|---|
 | `learning-health.ts` → ObservationCollapse | Three independent coverage computations over `GroundedSpecFragment[]` + `TrainingCorpusManifest`; not a single extract→aggregate→signal pipeline but three parallel ones. Already well-structured. |
-| `learning-rankings.ts` → ObservationCollapse | Already uses composable `ScoringRule<T>` abstraction via `combineScoringRules`. Adding ObservationCollapse would be redundant naming. |
+| `learning-rankings.ts` → ObservationCollapse | Already uses composable `ScoringRule<T>` abstraction via `combineScoringRules` (now `concatAll(scoringRuleMonoid())`). Adding ObservationCollapse would be redundant naming. |
 | `learning-bottlenecks.ts` → ObservationCollapse | Input is `GroundedSpecFragment[] + RunStepSummary[]` from two sources; the heterogeneous input doesn't fit a single-carrier ObservationCollapse cleanly. |
 | `improvement-intelligence.ts` → ObservationCollapse | Correlates two different observation types (`PipelineFailureMode` and `WorkflowHotspot`); the dual-source pattern doesn't fit the single-carrier combinator. |
 | `signal-maturation.ts` → ObservationCollapse | Utility functions (dampening, threshold checks) with scalar inputs, not an observation stream pattern. |
-| `dogfood.ts` → `runHyloAsync` | The unfold step is deeply interleaved with Effect (Playwright, file system, convergence FSM updates). Requires factoring out a pure fold step from the `buildLedger` function. Infrastructure (`runHyloAsync`) is in place; refactoring is a standalone task. |
-| `convergence-proof.ts` → `runHyloAsync` | Same as dogfood.ts — the trial loop is recursive with Effect I/O. Infrastructure ready. |
-| Proposal lifecycle FSM | Activation states (`pending → activated \| blocked`) are checked across 5+ files via `activation.status` string matching. Formalizing as FSM would require extracting the lifecycle from distributed checks — a significant refactoring. |
+| Resolution exhaustion trail → `SearchTrail` | Already well-structured: `exhaustionEntry()` factory + `mergeEffectsIntoStage` accumulation + `buildReasonChain` transformation IS the search trail pattern. The abstraction exists in domain form, not in need of a wrapper. |
 | Dashboard lazy view (Slice/Projection) | Dashboard currently projects everything then filters. Lazy computation via `verifyNaturality` would require rearchitecting the view pipeline — a performance optimization, not a correctness improvement. |
-| Resolution exhaustion trail → `SearchTrail` | Manual `exhaustionEntry()` construction at 20+ call sites in `resolution-stages.ts`. `strategy-chain-walker.ts` already bridges `freeSearch` with the resolution domain for the outer walk. Inner rung-level exhaustion would need per-rung refactoring. |
 | Knowledge overlay → `ContextualMerge` | `select-controls.ts` overlays multiple control sources but uses precedence selection (winner-take-all), not lattice merge. The two patterns are distinct: precedence selects one value, merge combines all values. |
 
 ---

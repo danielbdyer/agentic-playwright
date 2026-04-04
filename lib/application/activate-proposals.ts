@@ -11,38 +11,27 @@ import { evaluateAutoApproval } from '../domain/governance/trust-policy';
 import { findToxicAliases, type AliasOutcome } from '../domain/governance/proposal-quality';
 import { scoreProposalByBottleneck } from './learning-bottlenecks';
 import type { FileSystemPort } from './ports';
+import {
+  transitionProposal,
+  trustPolicyToEvent,
+  isBlocked,
+  type ProposalTransitionEvent,
+} from '../domain/governance/proposal-lifecycle';
 
-function certificationForProposal(proposal: ProposalEntry): ProposalEntry['certification'] {
-  return proposal.trustPolicy.decision === 'allow' ? 'certified' : 'uncertified';
-}
+// ─── FSM-backed transition helpers ───
+// These delegate to the proposal lifecycle FSM for state transitions,
+// replacing the ad-hoc activatedProposal/blockedProposal functions.
 
 function activatedProposal(proposal: ProposalEntry, activatedAt: string): ProposalEntry {
-  const certification = certificationForProposal(proposal);
-  return {
-    ...proposal,
-    certification,
-    activation: {
-      status: 'activated',
-      activatedAt,
-      certifiedAt: certification === 'certified' ? activatedAt : null,
-      reason: proposal.trustPolicy.decision === 'allow'
-        ? 'active canon certified immediately by trust policy'
-        : `active canon activated without certification (${proposal.trustPolicy.decision})`,
-    },
-  };
+  const event = trustPolicyToEvent(proposal.trustPolicy.decision, activatedAt);
+  const { activation, certification } = transitionProposal(proposal.activation, event);
+  return { ...proposal, certification, activation };
 }
 
 function blockedProposal(proposal: ProposalEntry, reason: string): ProposalEntry {
-  return {
-    ...proposal,
-    certification: 'uncertified',
-    activation: {
-      status: 'blocked',
-      activatedAt: null,
-      certifiedAt: null,
-      reason,
-    },
-  };
+  const event: ProposalTransitionEvent = { kind: 'validation-failure', reason };
+  const { activation, certification } = transitionProposal(proposal.activation, event);
+  return { ...proposal, certification, activation };
 }
 
 export interface ActivateProposalBundleResult {
@@ -115,7 +104,7 @@ export function activateProposalBundle(options: {
       .flatMap((result) => result.blocked ? [(result as { proposalId: string }).proposalId] : []);
 
     const proposalGovernances = proposals.map((p) =>
-      p.activation.status === 'blocked' ? 'blocked' as const : 'approved' as const,
+      isBlocked(p.activation) ? 'blocked' as const : 'approved' as const,
     );
     const proposalBundle: ProposalBundle = {
       ...options.proposalBundle,
@@ -288,10 +277,12 @@ export function autoApproveEligibleProposals(options: {
     const results: AutoApprovalStepResult[] = yield* Effect.forEach(
       orderedProposals,
       (proposal): Effect.Effect<AutoApprovalStepResult, never, never> => {
-        // Gate: block proposals targeting known-toxic aliases
+        // Gate: block proposals targeting known-toxic aliases (FSM transition)
         if (toxicAliasIds.has(proposal.proposalId)) {
+          const event: ProposalTransitionEvent = { kind: 'toxic-alias', reason: 'quarantined: toxic alias' };
+          const { activation, certification } = transitionProposal(proposal.activation, event);
           return Effect.succeed({
-            proposal: blockedProposal(proposal, `quarantined: toxic alias`),
+            proposal: { ...proposal, certification, activation },
             activatedPath: null,
             blocked: true,
           });
@@ -309,14 +300,10 @@ export function autoApproveEligibleProposals(options: {
         });
 
         if (!autoResult.approved) {
+          const event: ProposalTransitionEvent = { kind: 'auto-approval-declined', reason: autoResult.reason };
+          const { activation, certification } = transitionProposal(proposal.activation, event);
           return Effect.succeed({
-            proposal: {
-              ...proposal,
-              activation: {
-                ...proposal.activation,
-                reason: `Auto-approval declined: ${autoResult.reason}`,
-              },
-            },
+            proposal: { ...proposal, certification, activation },
             activatedPath: null,
             blocked: false,
           });
@@ -341,7 +328,7 @@ export function autoApproveEligibleProposals(options: {
       .flatMap((result) => result.blocked ? [result.proposal.proposalId] : []);
 
     const proposalGovernances = proposals.map((p) =>
-      p.activation.status === 'blocked' ? 'blocked' as const : 'approved' as const,
+      isBlocked(p.activation) ? 'blocked' as const : 'approved' as const,
     );
     const proposalBundle: ProposalBundle = {
       ...options.proposalBundle,

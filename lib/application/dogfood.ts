@@ -1,6 +1,7 @@
 import path from 'path';
 import { Effect } from 'effect';
 import { activateProposalBundle, autoApproveEligibleProposals, quarantineToxicProposals, tryActivateProposal } from './activate-proposals';
+import { isPending, isActivated } from '../domain/governance/proposal-lifecycle';
 import { deltaReloadProposalsAndRuns, loadWorkspaceCatalog } from './catalog';
 import { buildPartialFitnessMetrics } from './fitness';
 import { calibrateWeightsFromCorrelations } from './learning-bottlenecks';
@@ -158,7 +159,7 @@ function loadPersistedLearningState(paths: ProjectPaths) {
 
 function collectPendingProposals(bundles: readonly ProposalBundle[]): readonly ProposalBundle[] {
   return bundles.filter((bundle) =>
-    bundle.proposals.some((proposal) => proposal.activation.status === 'pending'),
+    bundle.proposals.some((proposal) => isPending(proposal.activation)),
   );
 }
 
@@ -338,7 +339,7 @@ function extractAliasOutcomes(
 ): readonly AliasOutcome[] {
   return bundles
     .flatMap((bundle) => bundle.proposals)
-    .flatMap((proposal) => proposal.activation.status === 'activated' ? [proposal] : [])
+    .flatMap((proposal) => isActivated(proposal.activation) ? [proposal] : [])
     .map((proposal): AliasOutcome => ({
       aliasId: proposal.proposalId,
       screenId: proposal.targetPath,
@@ -649,7 +650,7 @@ function runIteration(iteration: number, options: DogfoodOptions, state: LoopSta
     // are the primary vehicle for learning. The dogfood loop's second-pass
     // activation only catches stragglers.
     const runPhaseActivated = allBundles.reduce(
-      (sum, bundle) => sum + bundle.proposals.filter((p) => p.activation.status === 'activated').length,
+      (sum, bundle) => sum + bundle.proposals.filter((p) => isActivated(p.activation)).length,
       0,
     );
     const pendingBundles = collectPendingProposals(allBundles);
@@ -729,7 +730,7 @@ function runIteration(iteration: number, options: DogfoodOptions, state: LoopSta
         const fs = yield* FileSystem;
         const activatedAt = new Date().toISOString();
         const stillPending = pendingBundles.flatMap((bundle) =>
-          bundle.proposals.filter((p) => p.activation.status === 'pending'),
+          bundle.proposals.filter((p) => isPending(p.activation)),
         );
         const actLoopActivated = yield* Effect.forEach(
           stillPending,

@@ -32,6 +32,7 @@ import {
   type ConvergenceTrialResult,
 } from '../domain/types/convergence-proof';
 import type { BrowserPoolPort } from './browser-pool';
+import { runHyloEffect, type UnfoldStep } from '../domain/algebra/hylomorphism';
 
 // ─── Input ───
 
@@ -72,15 +73,24 @@ export function convergenceProofProgram(
       ? input.seeds
       : defaultConvergenceSeeds(input.trialCount);
 
-    // Sequential trial loop — same fold pattern as multiSeedSpeedrun
-    const runTrials = (
-      remaining: readonly string[],
-      acc: readonly ConvergenceTrialResult[],
-      trialIndex: number,
-    ): Effect.Effect<readonly ConvergenceTrialResult[], unknown, any> =>
-      Effect.gen(function* () {
-        if (remaining.length === 0) return acc;
-        const [currentSeed, ...rest] = remaining;
+    // ─── Hylomorphism: unfold seeds → fold trial results ───
+    // Each unfold step runs one trial (clean slate → speedrun → extract).
+    // The fold step is pure array append. No intermediate list is allocated.
+    // @see docs/design-calculus.md § Duality 1: Fold / Unfold (hylomorphism)
+
+    interface TrialSeed {
+      readonly remaining: readonly string[];
+      readonly trialIndex: number;
+    }
+
+    const trials = yield* runHyloEffect<TrialSeed, ConvergenceTrialResult, readonly ConvergenceTrialResult[], unknown, any>(
+      { remaining: [...seeds], trialIndex: 0 },
+      [],
+      (seed) => Effect.gen(function* () {
+        if (seed.remaining.length === 0) {
+          return { done: true } as UnfoldStep<TrialSeed, ConvergenceTrialResult>;
+        }
+        const [currentSeed, ...rest] = seed.remaining;
 
         // Clean slate before trial — wipe bound artifacts too to prevent
         // stale file races during parallel compilation in the next trial
@@ -101,9 +111,7 @@ export function convergenceProofProgram(
           onProgress: input.onProgress,
         });
 
-        // Extract iteration data from the dogfood ledger (has proposalsGenerated)
         const iterations = result.ledger.iterations;
-
         const trial = buildTrialResult(
           currentSeed!,
           iterations,
@@ -112,15 +120,19 @@ export function convergenceProofProgram(
           result.fitnessReport,
         );
 
-        input.onTrialComplete?.(trial, trialIndex);
+        input.onTrialComplete?.(trial, seed.trialIndex);
 
         // Clean slate after trial
         yield* cleanSlateProgram(input.paths.rootDir, input.paths);
 
-        return yield* runTrials(rest, [...acc, trial], trialIndex + 1);
-      });
-
-    const trials = yield* runTrials([...seeds], [], 0);
+        return {
+          done: false,
+          value: trial,
+          next: { remaining: rest, trialIndex: seed.trialIndex + 1 },
+        } as UnfoldStep<TrialSeed, ConvergenceTrialResult>;
+      }),
+      (acc, trial) => [...acc, trial],
+    );
     const verdict = buildVerdict(trials);
 
     return {

@@ -1,3 +1,4 @@
+import { isPending } from '../domain/governance/proposal-lifecycle';
 import type {
   KnowledgeBottleneckReport,
   ProposalBundle,
@@ -54,7 +55,7 @@ function pendingProposals(bundles: readonly ProposalBundle[]): ReadonlyArray<{
 }> {
   return bundles.flatMap((bundle) =>
     bundle.proposals
-      .flatMap((p) => p.activation.status === 'pending' ? [{ bundle, proposal: p }] : []),
+      .flatMap((p) => isPending(p.activation) ? [{ bundle, proposal: p }] : []),
   );
 }
 

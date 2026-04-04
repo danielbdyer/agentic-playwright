@@ -1,4 +1,5 @@
 import { sha256, stableStringify } from '../domain/kernel/hash';
+import { isBlocked } from '../domain/governance/proposal-lifecycle';
 import type { AdoId } from '../domain/kernel/identity';
 import type {
   ImprovementRun,
@@ -86,14 +87,14 @@ export function buildOperatorInboxItems(catalog: WorkspaceCatalog): OperatorInbo
         if (seenProposalIds.has(stableProposalId)) return [];
         seenProposalIds.add(stableProposalId);
         const metadata = runStepMetadata(run, proposal.stepIndex);
-        const kind = proposal.activation.status === 'blocked' ? 'blocked-policy' as const : 'proposal' as const;
+        const kind = isBlocked(proposal.activation) ? 'blocked-policy' as const : 'proposal' as const;
         return [{
           id: inboxItemId({ kind, adoId: bundle.adoId, runId: bundle.runId, proposalId: stableProposalId, stepIndex: proposal.stepIndex, targetPath: proposal.targetPath }),
           kind,
-          status: proposal.activation.status === 'blocked' ? 'blocked'
+          status: isBlocked(proposal.activation) ? 'blocked'
             : proposal.certification === 'certified' || approvals.has(stableProposalId) ? 'approved' : 'actionable',
           title: proposal.title,
-          summary: proposal.activation.status === 'blocked'
+          summary: isBlocked(proposal.activation)
             ? `Active-canon activation failed for ${proposal.artifactType} at ${proposal.targetPath}: ${proposal.activation.reason ?? 'unknown reason'}.`
             : proposal.certification === 'certified'
               ? `Certified canon is active for ${proposal.artifactType} at ${proposal.targetPath}.`
@@ -101,7 +102,7 @@ export function buildOperatorInboxItems(catalog: WorkspaceCatalog): OperatorInbo
           adoId: bundle.adoId, suite: bundle.suite, runId: bundle.runId, stepIndex: proposal.stepIndex,
           proposalId: stableProposalId, artifactPath: bundleEntry.artifactPath, targetPath: proposal.targetPath,
           winningConcern: metadata.winningConcern, winningSource: metadata.winningSource, resolutionMode: metadata.resolutionMode,
-          nextCommands: proposal.activation.status === 'blocked'
+          nextCommands: isBlocked(proposal.activation)
             ? uniqueSorted([`tesseract workflow --ado-id ${bundle.adoId}`, `tesseract inbox`])
             : uniqueSorted([`tesseract certify --proposal-id ${stableProposalId}`, `tesseract approve --proposal-id ${stableProposalId}`, `tesseract rerun-plan --proposal-id ${stableProposalId}`, `tesseract workflow --ado-id ${bundle.adoId}`]),
         }];

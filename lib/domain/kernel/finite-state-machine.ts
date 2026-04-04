@@ -11,6 +11,12 @@
  *   - Monotonicity-checkable ordinal mapping
  *   - Run-to-completion (feeding a sequence of events)
  *
+ * runFSM is implemented as a hylomorphism: the event list is unfolded
+ * one event at a time, each event is folded into the state via transition,
+ * with short-circuit on terminal states. No intermediate structure is
+ * allocated (deforestation). This makes explicit that an FSM run is
+ * the composition of an unfold (event stream) and a fold (state accumulation).
+ *
  * Consumers define their specific state/event types and transition logic;
  * the generic provides the structural operations for free.
  *
@@ -49,49 +55,56 @@ export function isTerminalState<S extends { readonly kind: string }>(
 }
 
 /**
+ * An FSM run as a Fold over events: `foldl transition initial events`.
+ *
+ * This makes explicit that an FSM is a catamorphism — the same
+ * fold structure used by product-fold.ts and timing/cost/translation folds.
+ * The fold short-circuits on terminal states for efficiency.
+ */
+export function fsmFold<S extends { readonly kind: string }, E extends { readonly kind: string }>(
+  def: FSMDefinition<S, E>,
+): { readonly initial: S; readonly step: (state: S, event: E) => S } {
+  return {
+    initial: def.initial(),
+    step: (state, event) => isTerminalState(def, state) ? state : def.transition(state, event),
+  };
+}
+
+/**
  * Feed a sequence of events through the FSM, returning the final state.
  * Short-circuits on terminal states — remaining events are not processed.
  *
- * This is the catamorphism over the event list: `foldl transition initial events`.
+ * Implemented as `runFold(fsmFold(def), events)` — an FSM run is a
+ * catamorphism over the event list with the transition function as the
+ * algebra. This is the same fold structure underlying product-fold.ts,
+ * runStateMachine, and runHylo.
  */
 export function runFSM<S extends { readonly kind: string }, E extends { readonly kind: string }>(
   def: FSMDefinition<S, E>,
   events: ReadonlyArray<E>,
 ): S {
-  const step = (
-    state: S,
-    remaining: ReadonlyArray<E>,
-  ): S => {
-    if (remaining.length === 0 || isTerminalState(def, state)) {
-      return state;
-    }
-    const [event, ...rest] = remaining;
-    return step(def.transition(state, event!), rest);
-  };
-  return step(def.initial(), events);
+  const fold = fsmFold(def);
+  return events.reduce(fold.step, fold.initial);
 }
 
 /**
  * Feed a sequence of events, collecting each intermediate state.
- * Useful for testing monotonicity and visualizing state trajectories.
+ * This is a scan (fold with trace) — useful for testing monotonicity
+ * and visualizing state trajectories.
  */
 export function traceFSM<S extends { readonly kind: string }, E extends { readonly kind: string }>(
   def: FSMDefinition<S, E>,
   events: ReadonlyArray<E>,
 ): ReadonlyArray<S> {
-  const step = (
-    state: S,
-    remaining: ReadonlyArray<E>,
-    acc: ReadonlyArray<S>,
-  ): ReadonlyArray<S> => {
-    if (remaining.length === 0 || isTerminalState(def, state)) {
-      return acc;
-    }
-    const [event, ...rest] = remaining;
-    const next = def.transition(state, event!);
-    return step(next, rest, [...acc, next]);
-  };
-  return step(def.initial(), events, [def.initial()]);
+  const fold = fsmFold(def);
+  const trace: S[] = [fold.initial];
+  let state = fold.initial;
+  for (const event of events) {
+    if (isTerminalState(def, state)) break;
+    state = fold.step(state, event);
+    trace.push(state);
+  }
+  return trace;
 }
 
 /**

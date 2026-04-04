@@ -16,12 +16,17 @@ export function actionFamilyOf(action: string): string {
 }
 
 // ─── Composable Scoring Rules ───
+// ScoringRule<T> forms a monoid under addition (identity = 0, combine = +).
+// combineScoringRules is foldMap over that monoid — makes the algebraic
+// structure explicit and enables swapping monoid instances if needed.
 
 export type { ScoringRule } from '../domain/algebra/scoring';
 import type { ScoringRule } from '../domain/algebra/scoring';
+import { scoringRuleMonoid } from '../domain/algebra/scoring';
+import { concatAll } from '../domain/algebra/monoid';
 
 export function combineScoringRules<T>(...rules: readonly ScoringRule<T>[]): ScoringRule<T> {
-  return { score: (input) => rules.reduce((total, rule) => total + rule.score(input), 0) };
+  return concatAll(scoringRuleMonoid<T>(), rules);
 }
 
 export function weightedScoringRule<T>(weight: number, rule: ScoringRule<T>): ScoringRule<T> {

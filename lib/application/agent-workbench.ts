@@ -12,6 +12,7 @@
 
 import { Effect } from 'effect';
 import { sha256 } from '../domain/kernel/hash';
+import { isPending } from '../domain/governance/proposal-lifecycle';
 import { foldResolutionReceipt } from '../domain/kernel/visitors';
 import { groupBy } from '../domain/kernel/collections';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
@@ -89,7 +90,7 @@ function makeTarget(kind: InterventionTarget['kind'], ref: string, label: string
 function proposalWorkItems(catalog: WorkspaceCatalog, iteration: number): readonly AgentWorkItem[] {
   return catalog.proposalBundles.flatMap((bundle) =>
     bundle.artifact.proposals
-      .flatMap((p) => p.activation.status === 'pending' ? [p] : [])
+      .flatMap((p) => isPending(p.activation) ? [p] : [])
       .map((proposal): AgentWorkItem => {
         const screen = proposal.targetPath.split('/').find((seg) => seg.endsWith('.hints.yaml'))?.replace('.hints.yaml', '') ?? '';
         return {

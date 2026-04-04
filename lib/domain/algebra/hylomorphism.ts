@@ -102,3 +102,30 @@ export function runHyloAsync<S, T, A>(
   };
   return loop(seed, initial);
 }
+
+/**
+ * Run an Effect-based hylomorphism — the unfold returns an Effect instead
+ * of a Promise, preserving the Effect dependency context (R) and error
+ * channel (E). The fold step remains pure.
+ *
+ * This is the primary integration point for streaming improvement loops
+ * that need Effect services (FileSystem, Dashboard, VersionControl, etc.).
+ *
+ * @see docs/design-calculus.md § Duality 1: Fold / Unfold (hylomorphism)
+ */
+import { Effect } from 'effect';
+
+export function runHyloEffect<S, T, A, E, R>(
+  seed: S,
+  initial: A,
+  unfold: (state: S) => Effect.Effect<UnfoldStep<S, T>, E, R>,
+  step: (acc: A, item: T) => A,
+): Effect.Effect<A, E, R> {
+  const loop = (state: S, acc: A): Effect.Effect<A, E, R> =>
+    Effect.gen(function* () {
+      const result = yield* unfold(state);
+      if (result.done) return acc;
+      return yield* loop(result.next, step(acc, result.value));
+    });
+  return loop(seed, initial);
+}

@@ -32,6 +32,7 @@ import {
   objectivesFromMetrics,
 } from '../domain/types';
 import { foldPipelineFailureClass, WINNING_SOURCE_TO_RUNG } from '../domain/kernel/visitors';
+import { isBlocked } from '../domain/governance/proposal-lifecycle';
 import { resolutionPrecedenceLaw, type ResolutionPrecedenceRung } from '../domain/resolution/precedence';
 import type { BottleneckWeightCorrelation, GeneralizationMetrics } from '../domain/types';
 
@@ -300,7 +301,7 @@ export function buildFitnessReport(data: FitnessInputData): PipelineFitnessRepor
 
   // Aggregate blocked proposals from bundles
   const totalProposalBlocked = data.proposalBundles.reduce(
-    (sum, bundle) => sum + bundle.proposals.filter((p) => p.activation.status === 'blocked').length,
+    (sum, bundle) => sum + bundle.proposals.filter((p) => isBlocked(p.activation)).length,
     0,
   );
   const totalProposals = data.proposalBundles.reduce(

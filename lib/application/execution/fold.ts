@@ -2,7 +2,7 @@ import type { ScenarioRunFold, ScenarioRunPlan, StepExecutionReceipt, Translatio
 import type { RuntimeScenarioStepResult } from '../ports';
 import type { PersistedEvidenceArtifact } from './persist-evidence';
 import { uniqueSorted } from '../../domain/kernel/collections';
-import type { Fold } from '../../domain/algebra/product-fold';
+import { productFold, productFold3, runFold, type Fold } from '../../domain/algebra/product-fold';
 
 // ─── Monoid Combinators ───
 // Each has an `empty` (identity) and `combine` (associative binary op).
@@ -33,16 +33,16 @@ const combineCost = (a: Cost, b: Cost | null | undefined): Cost => ({
 
 // ─── Fold<T,A> values (design calculus § Collapse 4) ───
 
-type StepEntry = { readonly timing: Timing; readonly cost: Cost };
+type TimingCostEntry = { readonly timing: Timing; readonly cost: Cost };
 
 /** Timing monoid as a Fold<T,A> value. */
-export const timingFold: Fold<StepEntry, Timing> = {
+export const timingFold: Fold<TimingCostEntry, Timing> = {
   initial: emptyTiming,
   step: (acc, item) => combineTiming(acc, item.timing),
 };
 
 /** Cost monoid as a Fold<T,A> value. */
-export const costFold: Fold<StepEntry, Cost> = {
+export const costFold: Fold<TimingCostEntry, Cost> = {
   initial: emptyCost,
   step: (acc, item) => combineCost(acc, item.cost),
 };
@@ -74,11 +74,16 @@ const foldTranslationStep = (acc: TranslationAcc, entry: NonNullable<RuntimeScen
   };
 };
 
+/** Translation metrics as a Fold<T,A> value for product fold composition. */
+export const translationFold: Fold<RuntimeScenarioStepResult, TranslationAcc> = {
+  initial: emptyTranslationAcc,
+  step: (acc, step) => step.interpretation.translation
+    ? foldTranslationStep(acc, step.interpretation.translation)
+    : acc,
+};
+
 function computeTranslationMetrics(stepResults: RuntimeScenarioStepResult[]): TranslationRunMetrics {
-  const acc = stepResults.reduce<TranslationAcc>(
-    (a, step) => step.interpretation.translation ? foldTranslationStep(a, step.interpretation.translation) : a,
-    emptyTranslationAcc,
-  );
+  const acc = runFold(translationFold, stepResults);
   return {
     ...acc,
     hitRate: Number((acc.total === 0 ? 0 : acc.hits / acc.total).toFixed(2)),
@@ -123,8 +128,11 @@ export function foldScenarioRun(input: {
   );
 
   const steps = [...byStep.values()];
-  const timingTotals = steps.reduce((acc, step) => combineTiming(acc, step.timing), emptyTiming);
-  const costTotals = steps.reduce((acc, step) => combineCost(acc, step.cost), emptyCost);
+  // Product fold fusion: timing × cost in a single traversal (cata(φ₁) △ cata(φ₂))
+  const [timingTotals, costTotals] = runFold(
+    productFold(timingFold, costFold),
+    steps.map((s): TimingCostEntry => ({ timing: s.timing, cost: s.cost })),
+  );
 
   const executionMetrics = {
     timingTotals,
