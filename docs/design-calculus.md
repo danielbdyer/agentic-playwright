@@ -185,6 +185,20 @@ type GovernanceVerdict<Post, Input> =
 
 **What naming buys**: every human-in-the-loop interaction point shares identical plumbing — fiber suspension, inbox item creation, decision file writing, fiber resumption. Currently each call site rebuilds this plumbing. The combinator extracts it, and the governance modality (deontic logic from the upper ontology) becomes a first-class runtime concept rather than ad-hoc branching.
 
+### Abstraction 5: Strategy Chain Walker (discovered during implementation)
+
+**The pattern**: Walk a list of rung strategies in precedence order, try each, record an exhaustion trail step per attempt, and short-circuit on the first success. Return both the result and the full trail.
+
+**Where it recurs**:
+- Resolution pipeline: each rung's strategy is tried in order, producing `ResolutionExhaustionEntry[]`
+- Recovery chain: each recovery strategy is tried, producing `RecoveryAttemptReceipt[]`
+- Translation candidates: each candidate is scored, producing a ranked trail
+- Route resolution: each route source is tried, producing navigation reasoning
+
+**The combinator**: This is `freeSearch` (Duality 2) specialized to the resolution domain. It bridges the abstract `SearchTrail<C, O, R>` with the concrete `ResolutionExhaustionEntry[]`, producing both simultaneously. The `exhaustionEntry()` helper is the manual version of what the walker does generically.
+
+**What naming buys**: every rung walk in `resolution-stages.ts` manually constructs exhaustion entries with `exhaustionEntry(rung, outcome, reason)` at 20+ call sites. The walker does this automatically. More importantly, the trail is now a `SearchTrail` — it can be replayed, analyzed for coverage, and interpreted by the learning system without domain-specific parsing.
+
 ---
 
 ## Part III: Dualities
@@ -305,7 +319,7 @@ The four preceding sections describe different kinds of simplifying transformati
 | Kind | Count | Effect |
 |---|---|---|
 | Collapse points | 4 | Eliminate isomorphic duplicates → fewer types, fewer modules |
-| Absent abstractions | 4 | Name recurring compositions → fewer lines, richer vocabulary |
+| Absent abstractions | 5 | Name recurring compositions → fewer lines, richer vocabulary |
 | Dualities | 3 | Derive one side from the other → less hand-written code, more generation |
 | Free theorems | 4 | State implicit laws → more tests, stronger guarantees, new capabilities |
 

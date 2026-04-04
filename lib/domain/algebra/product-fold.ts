@@ -69,14 +69,14 @@ export function productFold3<T, A, B, C>(
 }
 
 /**
- * Map over a fold's result — post-composition.
- * `mapFold(φ, f)` is `f ∘ cata(φ)`.
+ * Post-process a fold's final result.
+ * Unlike a true mapFold (which would require an inverse), this runs
+ * the fold to completion and then transforms the result.
  */
-export function mapFold<T, A, B>(fold: Fold<T, A>, f: (a: A) => B): Fold<T, B> {
-  return {
-    initial: f(fold.initial),
-    step: (acc, item) => f(fold.step(fold.initial, item)),
-  };
+export function postProcessFold<T, A, B>(fold: Fold<T, A>, f: (a: A) => B): {
+  readonly run: (items: ReadonlyArray<T>) => B;
+} {
+  return { run: (items) => f(runFold(fold, items)) };
 }
 
 /**

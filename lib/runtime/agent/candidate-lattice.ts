@@ -11,6 +11,8 @@ import type {
   StepTaskScreenCandidate,
 } from '../../domain/types';
 import { precedenceWeight, resolutionPrecedenceLaw } from '../../domain/resolution/precedence';
+import { rungToMinConfidence } from '../../domain/resolution/confidence-provenance';
+import type { Confidence } from '../../domain/types/workflow';
 import { allowedActionFallback } from './resolve-action';
 import { bestAliasMatch, humanizeIdentifier, normalizedCombined, uniqueSorted } from './shared';
 import type { ResolutionTarget } from '../../domain/types';
@@ -93,14 +95,26 @@ const candidateScoring = combineScoringRules<Omit<LatticeCandidate<unknown>, 'sc
   contramapScoringRule(featureTotalRule, (c) => c.featureScores),
 );
 
+/**
+ * Derive confidence components from the rung-confidence Galois connection.
+ * The Galois connection (α : Rung → Confidence) determines the minimum
+ * confidence a source guarantees; this function converts that to the
+ * weighted vector representation used by the candidate lattice.
+ *
+ * @see lib/domain/resolution/confidence-provenance.ts
+ */
+const CONFIDENCE_TO_COMPONENTS: Readonly<Record<Confidence, LatticeCandidate<unknown>['confidenceComponents']>> = {
+  'human': { compilerDerived: 1, agentVerified: 0, agentProposed: 0 },
+  'compiler-derived': { compilerDerived: 1, agentVerified: 0, agentProposed: 0 },
+  'agent-verified': { compilerDerived: 0, agentVerified: 1, agentProposed: 0 },
+  'agent-proposed': { compilerDerived: 0, agentVerified: 0, agentProposed: 1 },
+  'intent-only': { compilerDerived: 0, agentVerified: 0, agentProposed: 0 },
+  'unbound': { compilerDerived: 0, agentVerified: 0, agentProposed: 0 },
+};
+
 function confidenceFor(source: LatticeSource): LatticeCandidate<unknown>['confidenceComponents'] {
-  if (source === 'approved-equivalent-overlay' || source === 'structured-translation') {
-    return { compilerDerived: 0, agentVerified: 1, agentProposed: 0 };
-  }
-  if (source === 'live-dom') {
-    return { compilerDerived: 0, agentVerified: 0, agentProposed: 1 };
-  }
-  return { compilerDerived: 1, agentVerified: 0, agentProposed: 0 };
+  const minConfidence = rungToMinConfidence(source);
+  return CONFIDENCE_TO_COMPONENTS[minConfidence];
 }
 
 function candidate<T>(input: Omit<LatticeCandidate<T>, 'score' | 'confidenceComponents'>): LatticeCandidate<T> {
