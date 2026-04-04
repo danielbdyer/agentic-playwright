@@ -41,7 +41,7 @@ import {
   retryScheduleForTaggedErrors,
 } from './resilience/schedules';
 
-import type { AgentInterpretationRequest, AgentInterpretationResult } from '../domain/types/agent-interpreter';
+import type { AgentInterpretationRequest, AgentInterpretationResult } from '../domain/types';
 import type { AgentInterpreterKind, AgentInterpreterPort } from '../domain/resolution/model';
 
 type ApplicationAgentInterpreterPort = AgentInterpreterPort<Effect.Effect<AgentInterpretationResult, never, never>>;

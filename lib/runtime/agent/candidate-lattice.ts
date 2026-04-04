@@ -12,7 +12,7 @@ import type {
 } from '../../domain/types';
 import { precedenceWeight, resolutionPrecedenceLaw } from '../../domain/resolution/precedence';
 import { rungToMinConfidence } from '../../domain/resolution/confidence-provenance';
-import type { Confidence } from '../../domain/types/workflow';
+import type { Confidence } from '../../domain/types';
 import { allowedActionFallback } from './resolve-action';
 import { bestAliasMatch, humanizeIdentifier, normalizedCombined, uniqueSorted } from './shared';
 import type { ResolutionTarget } from '../../domain/types';

@@ -78,11 +78,10 @@ export function buildTrialResult(
   fitnessReport: PipelineFitnessReport,
 ): ConvergenceTrialResult {
   const hitRateTrajectory = iterations.map((it) => it.knowledgeHitRate);
-  let cumulativeProposals = 0;
-  const proposalTrajectory = iterations.map((it) => {
-    cumulativeProposals += it.proposalsGenerated;
-    return cumulativeProposals;
-  });
+  const proposalTrajectory = iterations.reduce<readonly number[]>(
+    (acc, it) => [...acc, (acc[acc.length - 1] ?? 0) + it.proposalsGenerated],
+    [],
+  );
   const unresolvedTrajectory = iterations.map((it) => it.unresolvedStepCount);
   const first = hitRateTrajectory[0] ?? 0;
   const last = hitRateTrajectory[hitRateTrajectory.length - 1] ?? 0;

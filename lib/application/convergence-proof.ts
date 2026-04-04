@@ -30,7 +30,7 @@ import {
   buildVerdict,
   type ConvergenceProofResult,
   type ConvergenceTrialResult,
-} from '../domain/types/convergence-proof';
+} from '../domain/types';
 import type { BrowserPoolPort } from './browser-pool';
 import { runHyloEffect, type UnfoldStep } from '../domain/algebra/hylomorphism';
 

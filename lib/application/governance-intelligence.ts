@@ -21,11 +21,7 @@
 import type {
   ContradictionReport,
   ContradictionSeverity,
-} from '../domain/types/contradiction';
-import type {
   ArchitectureFitnessReport,
-} from '../domain/types/architecture-fitness';
-import type {
   PipelineFitnessReport,
   ProposalBundle,
 } from '../domain/types';

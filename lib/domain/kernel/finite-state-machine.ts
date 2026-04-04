@@ -97,14 +97,14 @@ export function traceFSM<S extends { readonly kind: string }, E extends { readon
   events: ReadonlyArray<E>,
 ): ReadonlyArray<S> {
   const fold = fsmFold(def);
-  const trace: S[] = [fold.initial];
-  let state = fold.initial;
-  for (const event of events) {
-    if (isTerminalState(def, state)) break;
-    state = fold.step(state, event);
-    trace.push(state);
-  }
-  return trace;
+  const scan = (acc: readonly S[], remaining: ReadonlyArray<E>): ReadonlyArray<S> => {
+    if (remaining.length === 0) return acc;
+    const current = acc[acc.length - 1]!;
+    if (isTerminalState(def, current)) return acc;
+    const next = fold.step(current, remaining[0]!);
+    return scan([...acc, next], remaining.slice(1));
+  };
+  return scan([fold.initial], events);
 }
 
 /**

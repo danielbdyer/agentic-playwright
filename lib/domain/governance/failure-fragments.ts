@@ -239,15 +239,12 @@ function detectCoalescing(
 
 /** Simple deterministic hash from string → number. */
 function simpleHash(str: string): number {
-  // eslint-disable-next-line no-restricted-syntax -- baseline: imperative hash computation
-  let hash = 0;
-  // eslint-disable-next-line no-restricted-syntax -- baseline: imperative hash computation
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32-bit integer
-  }
-  return Math.abs(hash);
+  return Math.abs(
+    Array.from(str).reduce(
+      (hash, ch) => ((hash << 5) - hash + ch.charCodeAt(0)) | 0,
+      0,
+    ),
+  );
 }
 
 /**

@@ -8,7 +8,7 @@
 
 import { Effect } from 'effect';
 import type { DashboardPort } from '../../application/ports';
-import type { WorkItemDecision } from '../../domain/types/dashboard';
+import type { WorkItemDecision } from '../../domain/types';
 import { watchForDecision } from './file-decision-bridge';
 
 export interface FileBackedDashboardOptions {

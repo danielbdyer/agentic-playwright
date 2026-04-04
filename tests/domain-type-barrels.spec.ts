@@ -40,6 +40,7 @@ const OWNERSHIP: Readonly<Record<string, string>> = {
   'fitness.ts': 'improvement',
   'experiment.ts': 'improvement',
   'architecture-fitness.ts': 'improvement',
+  'convergence-proof.ts': 'improvement',
   'interface.ts': 'interface',
 };
 
