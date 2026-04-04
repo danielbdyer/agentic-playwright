@@ -1,5 +1,13 @@
-import type { CausalLink, ConfidenceScaling, MemoryCapacityConfig, ObservedStateSession, ResolutionEvent, ResolutionPipelineResult, ResolutionReceipt, GroundedStep } from '../../domain/types';
-import { DEFAULT_PIPELINE_CONFIG } from '../../domain/types';
+import type { ConfidenceScaling, MemoryCapacityConfig } from '../../domain/attention/pipeline-config';
+import type {
+  CausalLink,
+  GroundedStep,
+  ObservedStateSession,
+  ResolutionEvent,
+  ResolutionPipelineResult,
+  ResolutionReceipt,
+} from '../../domain/resolution/types';
+import { DEFAULT_PIPELINE_CONFIG } from '../../domain/attention/pipeline-config';
 import { resolutionPrecedenceLaw } from '../../domain/resolution/precedence';
 import { selectedControlRefs, selectedControlResolution } from './resolution/select-controls';
 import { uniqueSorted } from './shared';
@@ -21,7 +29,7 @@ import {
   tryTranslationResolution,
   tryLiveDomOrFallback,
 } from './resolution/resolution-stages';
-import type { SemanticDictionaryAccrualInput, SemanticDictionaryMatch } from '../../domain/types';
+import type { SemanticDictionaryAccrualInput, SemanticDictionaryMatch } from '../../domain/knowledge/semantic-dictionary-types';
 import { createAriaSnapshotCache, type AriaSnapshotCache } from './cache/aria-snapshot-cache';
 import { createSemanticDictCache, type SemanticDictCache } from './cache/semantic-dict-cache';
 

@@ -28,8 +28,9 @@ import {
 } from '../lib/application/improvement/convergence-proof';
 import type { ConvergenceTrialResult } from '../lib/domain/convergence/types';
 import { runWithLocalServices } from '../lib/composition/local-services';
-import type { KnowledgePosture, SpeedrunProgressEvent } from '../lib/domain/types';
-import { DEFAULT_PIPELINE_CONFIG } from '../lib/domain/types';
+import type { KnowledgePosture } from '../lib/domain/governance/workflow-types';
+import type { SpeedrunProgressEvent } from '../lib/domain/improvement/types';
+import { DEFAULT_PIPELINE_CONFIG } from '../lib/domain/attention/pipeline-config';
 import { startFixtureServer, type FixtureServer } from '../lib/infrastructure/tooling/fixture-server';
 import { createPlaywrightBrowserPool } from '../lib/infrastructure/runtime/playwright-browser-pool';
 import type { BrowserPoolPort } from '../lib/application/runtime-support/browser-pool';

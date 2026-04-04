@@ -17,15 +17,15 @@
  * All functions are pure: immutable inputs, immutable outputs, no side effects.
  */
 
+import type { ProposalBundle } from '../../domain/execution/types';
 import type {
   CorpusHealthReport,
   GroundedSpecFragment,
   KnowledgeBottleneckReport,
-  ProposalBundle,
   ProposalRankingReport,
   RankedProposal,
   TrainingCorpusManifest,
-} from '../../domain/types';
+} from '../../domain/learning/types';
 import { projectCorpusHealth } from '../learning/learning-health';
 import { projectBottlenecks } from '../learning/learning-bottlenecks';
 import { rankProposals } from '../learning/learning-rankings';

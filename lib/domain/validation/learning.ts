@@ -1,6 +1,6 @@
 import * as schemas from '../schemas';
 import * as schemaDecode from '../schemas/decode';
-import type { ReplayExample, TrainingCorpusManifest } from '../types';
+import type { ReplayExample, TrainingCorpusManifest } from '../learning/types';
 
 export const validateReplayExample = schemaDecode.decoderFor<ReplayExample>(schemas.ReplayExampleSchema);
 

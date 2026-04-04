@@ -4,7 +4,7 @@ import { createDiagnostic } from '../../domain/governance/diagnostics';
 import type { AdoId} from '../../domain/kernel/identity';
 import { normalizeHtmlText } from '../../domain/kernel/hash';
 import { createFixtureId } from '../../domain/kernel/identity';
-import type { AdoSnapshot, Scenario } from '../../domain/types';
+import type { AdoSnapshot, Scenario } from '../../domain/intent/types';
 import { validateAdoSnapshot } from '../../domain/validation';
 import { trySync } from '../effect';
 import type { ProjectPaths} from '../paths';

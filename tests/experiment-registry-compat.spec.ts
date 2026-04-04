@@ -6,7 +6,8 @@ import { loadExperimentRegistry } from '../lib/application/improvement/experimen
 import { buildImprovementRun, improvementLedgerPath } from '../lib/application/improvement/improvement';
 import { createProjectPaths } from '../lib/application/paths';
 import { runWithLocalServices } from '../lib/composition/local-services';
-import { DEFAULT_PIPELINE_CONFIG, type PipelineFitnessReport } from '../lib/domain/types';
+import { DEFAULT_PIPELINE_CONFIG } from '../lib/domain/attention/pipeline-config';
+import { PipelineFitnessReport } from '../lib/domain/fitness/types';
 
 function sampleFitnessReport(): PipelineFitnessReport {
   return {

@@ -1,4 +1,5 @@
-import type { ScenarioRunFold, ScenarioRunPlan, StepExecutionReceipt, TranslationRunMetrics } from '../../domain/types';
+import type { ScenarioRunFold, StepExecutionReceipt, TranslationRunMetrics } from '../../domain/execution/types';
+import type { ScenarioRunPlan } from '../../domain/resolution/types';
 import type { RuntimeScenarioStepResult } from '../ports';
 import type { PersistedEvidenceArtifact } from './persist-evidence';
 import { uniqueSorted } from '../../domain/kernel/collections';

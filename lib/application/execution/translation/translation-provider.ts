@@ -16,7 +16,8 @@
 
 import { Effect } from 'effect';
 import { translateIntentToOntology } from './translate';
-import type { TranslationReceipt, TranslationRequest, ExecutionProfile } from '../../../domain/types';
+import type { ExecutionProfile } from '../../../domain/governance/workflow-types';
+import type { TranslationReceipt, TranslationRequest } from '../../../domain/resolution/types';
 import type { ElementId, ScreenId } from '../../../domain/kernel/identity';
 import {
   translationProviderError,

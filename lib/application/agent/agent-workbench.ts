@@ -20,7 +20,7 @@ import { loadWorkspaceCatalog, type WorkspaceCatalog } from '../catalog';
 import { buildWorkflowHotspots, type WorkflowHotspot } from '../improvement/hotspots';
 import type { ProjectPaths } from '../paths';
 import { FileSystem, Dashboard } from '../ports';
-import { dashboardEvent } from '../../domain/types/intervention-context';
+import { dashboardEvent } from '../../domain/observation/dashboard';
 import {
   combineScoringRules,
   weightedScoringRule,
@@ -31,14 +31,14 @@ import type {
   AgentWorkItem,
   AgentWorkbenchProjection,
   ScreenGroupContext,
-  WorkbenchCompletionsEnvelope,
   WorkItemCompletion,
   WorkItemKind,
-  StepTaskScreenCandidate,
-  InterfaceResolutionContext,
-} from '../../domain/types';
+  WorkbenchCompletionsEnvelope,
+} from '../../domain/handshake/workbench';
+import type { InterfaceResolutionContext, StepTaskScreenCandidate } from '../../domain/knowledge/types';
 import type { ScreenId } from '../../domain/kernel/identity';
-import type { InterventionLineageEntry, InterventionLineageEnvelope, InterventionTarget } from '../../domain/types';
+import type { InterventionTarget } from '../../domain/handshake/intervention';
+import type { InterventionLineageEntry, InterventionLineageEnvelope } from '../../domain/handshake/workbench';
 
 // ─── Work Item Scoring (Composite ScoringRule semigroup) ───
 
@@ -207,7 +207,7 @@ function hotspotWorkItems(hotspots: readonly WorkflowHotspot[], iteration: numbe
  *  AND signal maturity is high enough to trust the signal (maturity > 0.4).
  *  Pure function: learning signals → work items. */
 function healthWorkItems(
-  learningSignals: import('../../domain/types').LearningSignalsSummary | undefined,
+  learningSignals: import('../../domain/improvement/types').LearningSignalsSummary | undefined,
   iteration: number,
 ): readonly AgentWorkItem[] {
   if (!learningSignals) return [];
@@ -260,7 +260,7 @@ export function buildAgentWorkItems(
   catalog: WorkspaceCatalog,
   iteration: number,
   precomputedHotspots?: readonly WorkflowHotspot[],
-  learningSignals?: import('../../domain/types').LearningSignalsSummary | undefined,
+  learningSignals?: import('../../domain/improvement/types').LearningSignalsSummary | undefined,
 ): readonly AgentWorkItem[] {
   const hotspots = precomputedHotspots ?? buildWorkflowHotspots(
     catalog.runRecords.map((e) => e.artifact),
@@ -610,7 +610,7 @@ export function emitAgentWorkbench(options: {
   readonly catalog?: WorkspaceCatalog | undefined;
   readonly iteration?: number | undefined;
   readonly hotspots?: readonly WorkflowHotspot[] | undefined;
-  readonly learningSignals?: import('../../domain/types').LearningSignalsSummary | undefined;
+  readonly learningSignals?: import('../../domain/improvement/types').LearningSignalsSummary | undefined;
 }) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;

@@ -5,7 +5,7 @@ import { decideCandidate, foldTopFailureClass } from '../lib/application/improve
 import { foldOptionalProjection, getRequiredCatalogEntry } from '../lib/application/execution/run';
 import type { CandidateConfig } from '../lib/application/improvement/knob-search';
 import type { SpeedrunResult } from '../lib/application/improvement/speedrun';
-import { DEFAULT_PIPELINE_CONFIG } from '../lib/domain/types';
+import { DEFAULT_PIPELINE_CONFIG } from '../lib/domain/attention/pipeline-config';
 
 const makeSpeedrunResult = (knowledgeHitRate: number): SpeedrunResult => ({
   fitnessReport: { metrics: { knowledgeHitRate } },

@@ -1,4 +1,4 @@
-import type { StepExecutionReceipt } from '../types';
+import type { StepExecutionReceipt } from '../execution/types';
 
 export type ExecutionFailureFamily = StepExecutionReceipt['failure']['family'];
 export type ExecutionTiming = StepExecutionReceipt['timing'];

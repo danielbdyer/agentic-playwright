@@ -1,5 +1,5 @@
 import { Match, pipe } from 'effect';
-import type { StepInstruction } from '../../domain/types';
+import type { StepInstruction } from '../../domain/intent/types';
 import type {
   ProgramFailure,
   StepProgram,

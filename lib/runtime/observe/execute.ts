@@ -8,13 +8,9 @@
  */
 
 import type { StateNodeRef, TransitionRef } from '../../domain/kernel/identity';
-import type {
-  GroundedStep,
-  ObservedStateSession,
-  ResolutionReceipt,
-  ResolutionTarget,
-  TransitionObservation,
-} from '../../domain/types';
+import type { ResolutionTarget } from '../../domain/governance/workflow-types';
+import type { GroundedStep, ObservedStateSession, ResolutionReceipt } from '../../domain/resolution/types';
+import type { TransitionObservation } from '../../domain/target/interface-graph';
 import { uniqueSorted } from '../../domain/kernel/collections';
 
 // ─── Types ───────────────────────────────────────────────────────────────

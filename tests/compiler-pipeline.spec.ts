@@ -19,10 +19,8 @@ import { inspectWorkflow } from '../lib/application/execution/workflow';
 import { runWithLocalServices } from '../lib/composition/local-services';
 import { createAdoId } from '../lib/domain/kernel/identity';
 import { graphIds } from '../lib/domain/kernel/ids';
-import {
-  DEFAULT_PIPELINE_CONFIG,
-  type PipelineFitnessReport,
-} from '../lib/domain/types';
+import { DEFAULT_PIPELINE_CONFIG } from '../lib/domain/attention/pipeline-config';
+import { PipelineFitnessReport } from '../lib/domain/fitness/types';
 import { createTestWorkspace } from './support/workspace';
 import {
   policySearchScreenId,

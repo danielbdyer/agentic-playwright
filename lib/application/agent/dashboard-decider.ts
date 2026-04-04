@@ -1,8 +1,8 @@
 import { Effect } from 'effect';
 import type { DashboardPort } from '../ports';
 import type { WorkItemDecider } from './agent-workbench';
-import type { AgentWorkItem } from '../../domain/types';
-import { dashboardEvent } from '../../domain/types';
+import type { AgentWorkItem } from '../../domain/handshake/workbench';
+import { dashboardEvent } from '../../domain/observation/dashboard';
 import { type GovernanceVerdict, approved, suspended } from '../../domain/kernel/governed-suspension';
 
 /** Create a WorkItemDecider that routes decisions through the dashboard.

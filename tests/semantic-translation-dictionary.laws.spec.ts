@@ -19,8 +19,8 @@ import type {
   SemanticDictionaryCatalog,
   SemanticDictionaryEntry,
   SemanticDictionaryTarget,
-} from '../lib/domain/types';
-import type { SemanticRetrievalContext } from '../lib/domain/types';
+} from '../lib/domain/knowledge/semantic-dictionary-types';
+import type { SemanticRetrievalContext } from '../lib/domain/knowledge/semantic-dictionary-types';
 import {
   accrueSemanticEntry,
   emptyCatalog,

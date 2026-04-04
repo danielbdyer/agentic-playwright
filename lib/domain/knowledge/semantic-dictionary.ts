@@ -24,7 +24,7 @@ import type {
   SemanticDictionaryMatchScoring,
   SemanticDictionaryTarget,
   SemanticRetrievalContext,
-} from '../types';
+} from './semantic-dictionary-types';
 
 // ─── Constants ───
 

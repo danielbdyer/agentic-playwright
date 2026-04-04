@@ -15,8 +15,8 @@
 import { Effect } from 'effect';
 import type { McpServerPort, McpToolInvocation, McpToolResult, McpResource, McpResourceContent } from '../../application/ports';
 import { TesseractError } from '../../domain/kernel/errors';
-import type { McpToolDefinition, WorkItemDecision, ScreenCapturedEvent } from '../../domain/types';
-import { dashboardMcpTools, dashboardEvent } from '../../domain/types/intervention-context';
+import type { McpToolDefinition, ScreenCapturedEvent, WorkItemDecision } from '../../domain/observation/dashboard';
+import { dashboardEvent, dashboardMcpTools } from '../../domain/observation/dashboard';
 import { resolveResource, buildResourceUri } from './resource-provider';
 import type { ResourceArtifactReader } from './resource-provider';
 import type { PlaywrightBridgePort, BrowserAction } from './playwright-mcp-bridge';

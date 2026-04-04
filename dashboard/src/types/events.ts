@@ -38,7 +38,7 @@ import type {
   KnowledgeActivatedEvent,
   ConvergenceEvaluatedEvent,
   IterationSummaryEvent,
-} from '../../../lib/domain/types/dashboard';
+} from '../../../lib/domain/observation/dashboard';
 import type { ProgressEvent, QueuedItem, Workbench, Scorecard } from '../types';
 
 // ─── Event Map: kind -> payload type ───

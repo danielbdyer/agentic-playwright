@@ -1,20 +1,16 @@
 import type { ElementId, PostureId, SnapshotTemplateId } from '../../../domain/kernel/identity';
-import type {
-  ProposalConfidenceValues,
-  ResolutionCandidateSummary,
-  ResolutionReceipt,
-  SemanticDictionaryMatch,
-  StepAction,
-  StepTaskElementCandidate,
-  StepTaskScreenCandidate,
-} from '../../../domain/types';
-import { DEFAULT_PIPELINE_CONFIG } from '../../../domain/types';
-import { mintApproved, mintReviewRequired } from '../../../domain/types/shared-context';
+import type { ProposalConfidenceValues } from '../../../domain/attention/pipeline-config';
+import type { StepAction } from '../../../domain/governance/workflow-types';
+import type { SemanticDictionaryMatch } from '../../../domain/knowledge/semantic-dictionary-types';
+import type { StepTaskElementCandidate, StepTaskScreenCandidate } from '../../../domain/knowledge/types';
+import type { ResolutionCandidateSummary, ResolutionReceipt } from '../../../domain/resolution/types';
+import { DEFAULT_PIPELINE_CONFIG } from '../../../domain/attention/pipeline-config';
+import { mintApproved, mintReviewRequired } from '../../../domain/governance/workflow-types';
 import { requiresElement, allowedActionFallback } from '../intent/resolve-action';
 import { resolveFromDom } from '../intent/dom-fallback';
 import { proposalForSupplementGap, proposalsFromInterpretation, proposalsForNeedsHuman, proposalsForDeterministicResolution } from '../proposals';
 import { agentInterpretedReceipt, explicitResolvedReceipt, needsHumanReceipt } from '../receipt';
-import type { AgentInterpretationRequest } from '../../../domain/types';
+import type { AgentInterpretationRequest } from '../../../domain/interpretation/agent-interpreter';
 import { resolveOverride } from '../intent/resolve-target';
 import { selectedDomExplorationPolicy } from '../resolution/select-controls';
 import { exhaustionEntry, normalizedCombined } from '../shared';

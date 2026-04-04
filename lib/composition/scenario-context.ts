@@ -12,7 +12,7 @@ import {
   type ScenarioRunState,
   type RuntimeScenarioEnvironment,
 } from '../runtime/scenario';
-import type { ScenarioRunPlan } from '../domain/types';
+import type { ScenarioRunPlan } from '../domain/resolution/types';
 
 /**
  * A screen-scoped context that exposes POM-style step execution.

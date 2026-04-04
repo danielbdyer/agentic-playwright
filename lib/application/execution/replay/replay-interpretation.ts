@@ -1,6 +1,7 @@
 import { Effect } from 'effect';
 import type { AdoId } from '../../../domain/kernel/identity';
-import type { InterpretationDriftChange, InterpretationDriftRecord, ResolutionReceipt, ScenarioInterpretationSurface } from '../../../domain/types';
+import type { InterpretationDriftChange, InterpretationDriftRecord } from '../../../domain/execution/types';
+import type { ResolutionReceipt, ScenarioInterpretationSurface } from '../../../domain/resolution/types';
 import type { ProjectPaths } from '../../paths';
 import { interpretationDriftPath, interpretationPath, resolutionGraphPath, taskPacketPath } from '../../paths';
 import { FileSystem, RuntimeScenarioRunner } from '../../ports';

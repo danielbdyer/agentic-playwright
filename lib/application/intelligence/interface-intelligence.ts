@@ -40,23 +40,25 @@ import {
 } from '../../domain/kernel/identity';
 import { graphIds } from '../../domain/kernel/ids';
 import { createApplicationInterfaceGraph, recordTransition } from '../../domain/aggregates/application-interface-graph';
+import type { LocatorStrategy } from '../../domain/governance/workflow-types';
+import type { HarvestManifest } from '../../domain/intent/routes';
+import type {
+  ArtifactConfidenceRecord,
+  EventSignature,
+  ScreenBehavior,
+  StateNode,
+  StateTransition,
+} from '../../domain/knowledge/types';
 import type {
   ApplicationInterfaceGraph,
-  ArtifactConfidenceRecord,
   DiscoveryRun,
-  EventSignature,
-  HarvestManifest,
   InterfaceGraphEdge,
   InterfaceGraphNode,
-  LocatorStrategy,
-  ScreenBehavior,
   SelectorCanon,
   SelectorCanonEntry,
   SelectorProbe,
-  StateNode,
-  StateTransition,
   StateTransitionGraph,
-} from '../../domain/types';
+} from '../../domain/target/interface-graph';
 import { validateDiscoveryRun } from '../../domain/validation';
 import { walkFiles } from '../workspace/artifacts';
 import { readJsonArtifact } from '../catalog/loaders';

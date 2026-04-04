@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import type { RuntimeDomCandidate, RuntimeDomResolver } from '../../domain/types';
+import type { RuntimeDomCandidate, RuntimeDomResolver } from '../../domain/resolution/types';
 import { describeLocatorStrategy, resolveLocator } from '../widgets/locate';
 
 export function createPlaywrightDomResolver(page: Page): RuntimeDomResolver {

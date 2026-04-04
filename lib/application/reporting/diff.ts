@@ -1,4 +1,4 @@
-﻿import type { ManifestEntry } from '../../domain/types';
+﻿import type { ManifestEntry } from '../../domain/governance/workflow-types';
 
 export function hasSnapshotDrift(
   previous: ManifestEntry | undefined,

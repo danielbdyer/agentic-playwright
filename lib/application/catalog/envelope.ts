@@ -1,7 +1,12 @@
 import { sha256, stableStringify } from '../../domain/kernel/hash';
 import type { AdoId } from '../../domain/kernel/identity';
-import type { ProposalBundle, RunRecord, ScenarioRunStep } from '../../domain/types';
-import type { Governance, WorkflowEnvelopeFingerprints, WorkflowEnvelopeIds, WorkflowEnvelopeLineage } from '../../domain/types/shared-context';
+import type { ProposalBundle, RunRecord, ScenarioRunStep } from '../../domain/execution/types';
+import type {
+  Governance,
+  WorkflowEnvelopeFingerprints,
+  WorkflowEnvelopeIds,
+  WorkflowEnvelopeLineage,
+} from '../../domain/governance/workflow-types';
 import { GovernanceLattice } from '../../domain/algebra/lattice';
 import type { ProjectPaths } from '../paths';
 import { relativeProjectPath } from '../paths';

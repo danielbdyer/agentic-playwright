@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { createAdoId, createCanonicalTargetRef, createElementId, createScreenId, createSurfaceId, createWidgetId } from '../lib/domain/kernel/identity';
-import type { GroundedStep, StepAction, ResolutionReceipt } from '../lib/domain/types';
+import type { StepAction } from '../lib/domain/governance/workflow-types';
+import type { GroundedStep, ResolutionReceipt } from '../lib/domain/resolution/types';
 import { RESOLUTION_PRECEDENCE, runResolutionPipeline, type RuntimeStepAgentContext } from '../lib/runtime/agent';
 import { createScenarioRunState, runScenarioStep } from '../lib/runtime/scenario';
 import { resolveFromDom } from '../lib/runtime/agent/intent/dom-fallback';
@@ -17,7 +18,7 @@ import {
   emptyCatalog,
   recordSemanticSuccess,
 } from '../lib/application/execution/translation/semantic-translation-dictionary';
-import type { SemanticDictionaryAccrualInput } from '../lib/domain/types';
+import type { SemanticDictionaryAccrualInput } from '../lib/domain/knowledge/semantic-dictionary-types';
 
 function mockPageFromRoleCounts(roleCounts: Record<string, number>) {
   const mockLocator = (n: number) => ({

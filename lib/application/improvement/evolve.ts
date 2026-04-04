@@ -21,15 +21,11 @@ import { recordExperiment } from './experiment-registry';
 import { scorecardPath } from './improvement';
 import { cleanSlateProgram } from './clean-slate';
 import { FileSystem } from '../ports';
-import type {
-  ExperimentRecord,
-  ExperimentSubstrate,
-  PipelineConfig,
-  PipelineScorecard,
-  SpeedrunProgressEvent,
-  SubstrateContext,
-} from '../../domain/types';
-import { DEFAULT_PIPELINE_CONFIG } from '../../domain/types';
+import type { PipelineConfig } from '../../domain/attention/pipeline-config';
+import type { PipelineScorecard } from '../../domain/fitness/types';
+import type { ExperimentRecord } from '../../domain/improvement/experiment';
+import type { ExperimentSubstrate, SpeedrunProgressEvent, SubstrateContext } from '../../domain/improvement/types';
+import { DEFAULT_PIPELINE_CONFIG } from '../../domain/attention/pipeline-config';
 import { TesseractError } from '../../domain/kernel/errors';
 
 // ─── Public types ───

@@ -17,12 +17,19 @@ import { explainBoundScenario } from '../scenario/explanation';
 import { capabilityForInstruction, compileStepProgram, traceStepProgram } from '../commitment/program';
 import { sha256, stableStringify } from '../kernel/hash';
 import { graphIds, mcpUris } from '../kernel/ids';
+import type { InterpretationDriftRecord, RunRecord } from '../execution/types';
+import type { DerivedCapability } from '../governance/workflow-types';
+import type { ImprovementRun } from '../improvement/types';
+import type { AdoSnapshot, BoundScenario, Scenario } from '../intent/types';
 import type {
-  AdoSnapshot,
   ConfidenceOverlayCatalog,
-  BoundScenario,
-  DatasetControl,
-  DerivedCapability,
+  PatternDocument,
+  ScreenElements,
+  ScreenHints,
+  ScreenPostures,
+  SurfaceGraph,
+} from '../knowledge/types';
+import type {
   DerivedGraph,
   GraphEdge,
   GraphEdgeKind,
@@ -30,19 +37,13 @@ import type {
   GraphNodeKind,
   MappedMcpResource,
   MappedMcpTemplate,
-  PatternDocument,
+} from '../projection/types';
+import type {
+  DatasetControl,
   ResolutionControl,
-  RunRecord,
-  InterpretationDriftRecord,
-  ImprovementRun,
   RunbookControl,
-  Scenario,
   ScenarioInterpretationSurface,
-  ScreenElements,
-  ScreenHints,
-  ScreenPostures,
-  SurfaceGraph,
-} from '../types';
+} from '../resolution/types';
 
 interface ArtifactEnvelope<T> {
   readonly artifact: T;

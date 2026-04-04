@@ -10,7 +10,7 @@
  */
 
 import type { RecoveryFailureFamily, RecoveryStrategyId, RecoveryAttempt } from '../../domain/commitment/recovery-policy';
-import type { StepExecutionReceipt } from '../../domain/types';
+import type { StepExecutionReceipt } from '../../domain/execution/types';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 

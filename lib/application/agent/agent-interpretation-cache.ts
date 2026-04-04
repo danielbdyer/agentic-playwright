@@ -11,7 +11,7 @@
  */
 
 import { sha256, stableStringify } from '../../domain/kernel/hash';
-import type { AgentInterpretationResult } from '../../domain/types';
+import type { AgentInterpretationResult } from '../../domain/interpretation/agent-interpreter';
 import { readJsonCacheRecord, writeJsonCacheRecord, pruneCacheFiles } from '../cache/file-cache';
 import type { ProjectPaths } from '../paths';
 import { agentInterpretationCachePath } from '../paths';

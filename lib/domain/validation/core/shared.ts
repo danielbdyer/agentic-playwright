@@ -5,36 +5,40 @@
 import * as schemaDecode from '../../schemas/decode';
 import * as schemas from '../../schemas';
 import { mintApproved } from '../../governance/workflow-types';
-import type { ScenarioInterpretationSurface } from '../../types';
+import type { ScenarioInterpretationSurface } from '../../resolution/types';
+import type { StepExecutionReceipt } from '../../execution/types';
 import type {
-  SharedPatterns,
-  BoundStep,
   CompilerDiagnostic,
   Confidence,
   EffectTargetKind,
-  ElementSig,
   Governance,
   LocatorStrategy,
-  PostureEffect,
-  RefPath,
-  ResolutionReceipt,
-  ScenarioStep,
   StepAction,
-  StepExecutionReceipt,
-  StepInstruction,
-  StepProgram,
-  StepResolution,
-  SurfaceDefinition,
-  SurfaceSection,
   TrustPolicyArtifactType,
-  ValueRef,
   WorkflowEnvelopeFingerprints,
   WorkflowEnvelopeIds,
   WorkflowEnvelopeLineage,
   WorkflowLane,
   WorkflowScope,
   WorkflowStage,
-} from '../../types';
+} from '../../governance/workflow-types';
+import type {
+  BoundStep,
+  RefPath,
+  ScenarioStep,
+  StepInstruction,
+  StepProgram,
+  StepResolution,
+  ValueRef,
+} from '../../intent/types';
+import type {
+  ElementSig,
+  PostureEffect,
+  SharedPatterns,
+  SurfaceDefinition,
+  SurfaceSection,
+} from '../../knowledge/types';
+import type { ResolutionReceipt } from '../../resolution/types';
 import type { RecoveryPolicy } from '../../commitment/recovery-policy';
 import { SchemaError } from '../../kernel/errors';
 import { uniqueSorted } from '../../kernel/collections';

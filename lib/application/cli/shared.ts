@@ -1,6 +1,6 @@
 import type { Effect } from 'effect';
 import type { ProjectPaths } from '../paths';
-import type { ExecutionPosture, RuntimeInterpreterMode } from '../../domain/types';
+import type { ExecutionPosture, RuntimeInterpreterMode } from '../../domain/governance/workflow-types';
 import { TesseractError } from '../../domain/kernel/errors';
 
 export const interpreterModes = ['playwright', 'dry-run', 'diagnostic'] as const;

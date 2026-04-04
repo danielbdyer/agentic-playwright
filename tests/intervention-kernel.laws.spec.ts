@@ -6,7 +6,7 @@ import path from 'node:path';
 import { executeInterventionBatch } from '../lib/application/intelligence/intervention-kernel';
 import { createProjectPaths } from '../lib/application/paths';
 import { runWithLocalServices } from '../lib/composition/local-services';
-import type { InterventionCommandBatch } from '../lib/domain/types';
+import type { InterventionCommandBatch } from '../lib/domain/handshake/intervention';
 
 function batchTemplate(batchId: string): InterventionCommandBatch {
   return {

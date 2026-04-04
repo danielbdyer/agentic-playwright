@@ -1,4 +1,4 @@
-import type { DiagnosticSeverity } from '../types';
+import type { DiagnosticSeverity } from '../governance/workflow-types';
 
 export interface ValidationDiagnostic {
   readonly code: string;

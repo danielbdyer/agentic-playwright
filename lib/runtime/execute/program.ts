@@ -14,7 +14,8 @@ import type {
   StepProgramInstructionOutcome,
   StepProgramInterpreter,
 } from '../../domain/commitment/program';
-import type { CompilerDiagnostic, StepInstruction, StepProgram } from '../../domain/types';
+import type { CompilerDiagnostic } from '../../domain/governance/workflow-types';
+import type { StepInstruction, StepProgram } from '../../domain/intent/types';
 import { resolveDataValue } from '../resolve/data';
 import { engage } from '../resolve/engage';
 import type { ScreenRegistry } from '../adapters/load';

@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import type { ApplicationInterfaceGraphRepository, ApplicationInterfaceGraphLoadResult } from '../../domain/interface/application-interface-graph-repository';
-import type { ApplicationInterfaceGraph } from '../../domain/types';
+import type { ApplicationInterfaceGraph } from '../../domain/target/interface-graph';
 import { foldApplicationInterfaceGraph } from '../../domain/aggregates/application-interface-graph';
 import { validateApplicationInterfaceGraph } from '../../domain/validation';
 

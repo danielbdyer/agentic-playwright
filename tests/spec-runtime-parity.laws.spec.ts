@@ -20,11 +20,10 @@ import { mulberry32, randomWord, randomInt, pick , LAW_SEED_COUNT } from './supp
 import type {
   Confidence,
   Governance,
-  GroundedFlowStep,
-  GroundedSpecFlow,
   StepAction,
   StepBindingKind,
-} from '../lib/domain/types';
+} from '../lib/domain/governance/workflow-types';
+import type { GroundedFlowStep, GroundedSpecFlow } from '../lib/domain/intent/types';
 
 // --- Constants ---
 

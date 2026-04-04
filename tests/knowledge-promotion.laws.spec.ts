@@ -11,16 +11,16 @@
 
 import { expect, test } from '@playwright/test';
 import { evaluateTrustPolicy } from '../lib/domain/governance/trust-policy';
+import type { ProposalEntry } from '../lib/domain/execution/types';
 import type {
+  CertificationStatus,
+  Governance,
+  ProposalActivation,
+  ProposedChangeMetadata,
   TrustPolicy,
   TrustPolicyArtifactType,
   TrustPolicyEvaluation,
-  ProposedChangeMetadata,
-  ProposalActivation,
-  ProposalEntry,
-  CertificationStatus,
-  Governance,
-} from '../lib/domain/types';
+} from '../lib/domain/governance/workflow-types';
 import { mulberry32, pick, randomInt , LAW_SEED_COUNT } from './support/random';
 
 // ─── Factories ───

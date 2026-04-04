@@ -17,7 +17,7 @@
 
 import { expect, test } from '@playwright/test';
 import { GovernanceLattice, mergeGovernance, meetAll, joinAll } from '../lib/domain/algebra/lattice';
-import type { Governance } from '../lib/domain/types';
+import type { Governance } from '../lib/domain/governance/workflow-types';
 import { mulberry32, pick , LAW_SEED_COUNT } from './support/random';
 
 const ALL_GOVERNANCE: readonly Governance[] = ['approved', 'review-required', 'blocked'];

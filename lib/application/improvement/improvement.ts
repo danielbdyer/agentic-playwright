@@ -2,27 +2,29 @@ import path from 'path';
 import { Effect } from 'effect';
 import { ImprovementRunStore } from '../ports';
 import type { ProjectPaths } from '../paths';
+import type { PipelineConfig } from '../../domain/attention/pipeline-config';
+import type { PipelineFitnessReport } from '../../domain/fitness/types';
+import type {
+  InterventionReceipt,
+  InterventionTarget,
+  Participant,
+  ParticipantRef,
+} from '../../domain/handshake/intervention';
+import type { ExperimentRecord } from '../../domain/improvement/experiment';
 import type {
   AcceptanceDecision,
   CandidateIntervention,
-  ImprovementLoopIteration,
-  ImprovementLoopLedger,
-  ExperimentRecord,
   ExperimentScorecardComparison,
   ImprovementIteration,
   ImprovementLedger,
   ImprovementLineageEntry,
+  ImprovementLoopIteration,
+  ImprovementLoopLedger,
   ImprovementRun,
   ImprovementSignal,
-  InterventionReceipt,
-  InterventionTarget,
   ObjectiveVector,
-  Participant,
-  ParticipantRef,
-  PipelineConfig,
-  PipelineFitnessReport,
   SubstrateContext,
-} from '../../domain/types';
+} from '../../domain/improvement/types';
 import { checkpointRun, createImprovementRun } from '../../domain/aggregates/improvement-run';
 
 export interface BuildImprovementRunInput {

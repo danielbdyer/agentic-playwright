@@ -1,13 +1,8 @@
 import { isPending } from '../../domain/proposal/lifecycle';
-import type {
-  KnowledgeBottleneckReport,
-  ProposalBundle,
-  ProposalEntry,
-  ProposalRankingReport,
-  RankedProposal,
-  RankingWeights,
-} from '../../domain/types';
-import { DEFAULT_PIPELINE_CONFIG } from '../../domain/types';
+import type { RankingWeights } from '../../domain/attention/pipeline-config';
+import type { ProposalBundle, ProposalEntry } from '../../domain/execution/types';
+import type { KnowledgeBottleneckReport, ProposalRankingReport, RankedProposal } from '../../domain/learning/types';
+import { DEFAULT_PIPELINE_CONFIG } from '../../domain/attention/pipeline-config';
 import { uniqueSorted } from '../../domain/kernel/collections';
 import {
   round4,

@@ -1,22 +1,20 @@
+import type { LocatorStrategy } from '../../domain/governance/workflow-types';
 import type {
   ArtifactConfidenceRecord,
-  ApplicationInterfaceGraph,
   InterfaceResolutionContext,
-  LocatorStrategy,
-  RuntimeControlSession,
   ScreenHints,
-  SelectorCanon,
-  StateTransitionGraph,
   StepTaskElementCandidate,
   StepTaskScreenCandidate,
-} from '../../domain/types';
+} from '../../domain/knowledge/types';
+import type { RuntimeControlSession } from '../../domain/resolution/types';
+import type { ApplicationInterfaceGraph, SelectorCanon, StateTransitionGraph } from '../../domain/target/interface-graph';
 import { createStateNodeRef } from '../../domain/kernel/identity';
 import type { CanonicalTargetRef, PostureId, ScreenId, SelectorRef, SnapshotTemplateId } from '../../domain/kernel/identity';
 import { computeDecayedConfidence, type FreshnessPolicy, defaultFreshnessPolicy } from '../../domain/knowledge/knowledge-freshness';
 import { precedencePolicies } from '../../domain/resolution/precedence';
 import type { WorkspaceCatalog } from '../catalog';
 import { TesseractError } from '../../domain/kernel/errors';
-import type { DerivedGraph } from '../../domain/types/execution-context';
+import type { DerivedGraph } from '../../domain/projection/types';
 
 interface GraphScreenPayload {
   url?: string | null;

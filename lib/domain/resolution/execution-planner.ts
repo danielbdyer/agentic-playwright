@@ -2,7 +2,7 @@
 // Moved from lib/application/execution/planner.ts — no Effect, Playwright, or IO dependencies.
 
 import type { EventSignatureRef, StateNodeRef, TransitionRef } from '../kernel/identity';
-import type { StateTransitionGraph } from '../types';
+import type { StateTransitionGraph } from '../target/interface-graph';
 import { uniqueSorted } from '../kernel/collections';
 
 export interface PlannedTransitionEdge {

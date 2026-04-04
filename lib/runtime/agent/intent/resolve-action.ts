@@ -1,6 +1,9 @@
 import { normalizeIntentText } from '../../../domain/knowledge/inference';
 import { knowledgePaths } from '../../../domain/kernel/ids';
-import type { InterfaceResolutionContext, StepAction, StepResolution, GroundedStep } from '../../../domain/types';
+import type { StepAction } from '../../../domain/governance/workflow-types';
+import type { StepResolution } from '../../../domain/intent/types';
+import type { InterfaceResolutionContext } from '../../../domain/knowledge/types';
+import type { GroundedStep } from '../../../domain/resolution/types';
 import { bestAliasMatch } from '../shared';
 
 export function allowedActionFallback(task: GroundedStep): StepAction | null {

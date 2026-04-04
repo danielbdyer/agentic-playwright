@@ -1,6 +1,6 @@
 import { uniqueSorted } from '../../domain/kernel/collections';
 import { normalizeIntentText } from '../../domain/knowledge/inference';
-import type { ResolutionExhaustionEntry, GroundedStep } from '../../domain/types';
+import type { GroundedStep, ResolutionExhaustionEntry } from '../../domain/resolution/types';
 
 export { uniqueSorted };
 

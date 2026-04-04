@@ -6,7 +6,7 @@ import {
   detectCostAnomalies,
   computeCostEfficiency,
 } from '../lib/application/learning/execution-cost';
-import type { StepExecutionReceipt } from '../lib/domain/types';
+import type { StepExecutionReceipt } from '../lib/domain/execution/types';
 
 function makeStep(overrides: Partial<{
   widgetContract: string;

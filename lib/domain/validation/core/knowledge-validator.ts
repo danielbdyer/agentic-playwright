@@ -5,10 +5,10 @@
  */
 import * as schemaDecode from '../../schemas/decode';
 import * as schemas from '../../schemas';
+import type { Manifest } from '../../governance/workflow-types';
 import type {
   BehaviorPatternDocument,
   EventSignature,
-  Manifest,
   PatternDocument,
   ScreenBehavior,
   ScreenElements,
@@ -17,8 +17,8 @@ import type {
   SharedPatterns,
   StateNode,
   StateTransition,
-  WidgetCapabilityContract,
-} from '../../types';
+} from '../../knowledge/types';
+import type { WidgetCapabilityContract } from '../../knowledge/widget-types';
 import { validatePatternDocument as validatePatternDocumentRecord } from '../../knowledge/patterns';
 import { normalizeScreenPostures } from '../../governance/posture-contract';
 import { SchemaError } from '../../kernel/errors';

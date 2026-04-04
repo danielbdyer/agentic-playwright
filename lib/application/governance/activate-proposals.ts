@@ -1,6 +1,8 @@
 import path from 'path';
 import { Effect } from 'effect';
-import type { AutoApprovalPolicy, BottleneckWeights, ProposalBundle, ProposalEntry, TrustPolicy } from '../../domain/types';
+import type { BottleneckWeights } from '../../domain/attention/pipeline-config';
+import type { ProposalBundle, ProposalEntry } from '../../domain/execution/types';
+import type { AutoApprovalPolicy, TrustPolicy } from '../../domain/governance/workflow-types';
 import { GovernanceLattice } from '../../domain/algebra/lattice';
 import { groupByMap } from '../../domain/kernel/collections';
 import { fromGovernance, type GovernanceVerdict } from '../../domain/kernel/governed-suspension';

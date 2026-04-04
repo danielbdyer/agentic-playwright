@@ -8,7 +8,12 @@
 
 import type { PipelineConfig } from '../attention/pipeline-config';
 import type { PipelineFitnessReport } from '../fitness/types';
-import type { ExperimentScorecardComparison, ExperimentSubstrate, ImprovementRun, SubstrateContext } from './types';
+import type {
+  ExperimentScorecardComparison,
+  ExperimentSubstrate,
+  ImprovementRun,
+  SubstrateContext,
+} from './types';
 
 export interface ExperimentRecord {
   readonly id: string;

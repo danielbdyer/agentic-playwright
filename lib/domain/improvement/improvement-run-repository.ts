@@ -1,4 +1,4 @@
-import type { ImprovementLedger, ImprovementRun } from '../types';
+import type { ImprovementLedger, ImprovementRun } from './types';
 
 export interface ImprovementRunRepository {
   readonly loadLedger: (absolutePath: string) => Promise<ImprovementLedger>;

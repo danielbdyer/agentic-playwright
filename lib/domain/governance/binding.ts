@@ -5,7 +5,9 @@ import { knowledgePaths } from '../kernel/ids';
 import { capabilityForInstruction, compileStepProgram, type StepProgram } from '../commitment/program';
 import type { PostureContractIssueCode } from './posture-contract';
 import { validatePostureContract } from './posture-contract';
-import type { BoundStep, Governance, ScenarioStep, ScreenElements, ScreenPostures, SurfaceGraph } from '../types';
+import type { Governance } from './workflow-types';
+import type { BoundStep, ScenarioStep } from '../intent/types';
+import type { ScreenElements, ScreenPostures, SurfaceGraph } from '../knowledge/types';
 import { uniqueSorted } from '../kernel/collections';
 
 export type StepBindingReason =

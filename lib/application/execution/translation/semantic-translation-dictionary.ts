@@ -13,10 +13,7 @@ import {
   type SerializedShingleIndex,
 } from '../../../domain/knowledge/shingles';
 import { ensureShingleIndex, emptyCatalog } from '../../../domain/knowledge/semantic-dictionary';
-import type {
-  SemanticDictionaryCatalog,
-  SemanticDictionaryEntry,
-} from '../../../domain/types';
+import type { SemanticDictionaryCatalog, SemanticDictionaryEntry } from '../../../domain/knowledge/semantic-dictionary-types';
 import { FileSystem } from '../../ports';
 import type { ProjectPaths } from '../../paths';
 

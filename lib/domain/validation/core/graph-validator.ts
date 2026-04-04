@@ -4,7 +4,8 @@
  */
 import * as schemaDecode from '../../schemas/decode';
 import * as schemas from '../../schemas';
-import type { ConfidenceOverlayCatalog, DerivedGraph, SurfaceGraph } from '../../types';
+import type { ConfidenceOverlayCatalog, SurfaceGraph } from '../../knowledge/types';
+import type { DerivedGraph } from '../../projection/types';
 
 export const validateSurfaceGraphArtifact: (value: unknown) => SurfaceGraph =
   schemaDecode.decoderFor<SurfaceGraph>(schemas.SurfaceGraphSchema);

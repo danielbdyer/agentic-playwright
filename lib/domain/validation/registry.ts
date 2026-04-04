@@ -1,38 +1,40 @@
 import type {
-  AdoSnapshot,
-  ApprovalReceipt,
-  BenchmarkContext,
-  BenchmarkImprovementProjection,
-  BenchmarkScorecard,
-  BehaviorPatternDocument,
-  BoundScenario,
-  ConfidenceOverlayCatalog,
-  DatasetControl,
-  DerivedGraph,
-  DogfoodRun,
   InterpretationDriftRecord,
-  Manifest,
-  OperatorInboxItem,
-  PatternDocument,
   ProposalBundle,
-  ResolutionControl,
   ResolutionGraphRecord,
-  RerunPlan,
   RunRecord,
-  RunbookControl,
-  Scenario,
-  ScenarioInterpretationSurface,
-  ScenarioTaskPacket,
+} from '../execution/types';
+import type { Manifest, TrustPolicy, TrustPolicyEvaluation } from '../governance/workflow-types';
+import type { AdoSnapshot, BoundScenario, Scenario } from '../intent/types';
+import type {
+  BehaviorPatternDocument,
+  ConfidenceOverlayCatalog,
+  PatternDocument,
   ScreenBehavior,
   ScreenElements,
   ScreenHints,
   ScreenPostures,
   SharedPatterns,
   SurfaceGraph,
-  TrustPolicy,
-  TrustPolicyEvaluation,
-  WidgetCapabilityContract,
-} from '../types';
+} from '../knowledge/types';
+import type { WidgetCapabilityContract } from '../knowledge/widget-types';
+import type {
+  BenchmarkContext,
+  BenchmarkImprovementProjection,
+  BenchmarkScorecard,
+  DerivedGraph,
+  DogfoodRun,
+} from '../projection/types';
+import type {
+  ApprovalReceipt,
+  DatasetControl,
+  OperatorInboxItem,
+  RerunPlan,
+  ResolutionControl,
+  RunbookControl,
+  ScenarioInterpretationSurface,
+  ScenarioTaskPacket,
+} from '../resolution/types';
 import { validateDatasetControlArtifact, validateResolutionControlArtifact, validateRunbookControlArtifact } from './core/resolution-validator';
 import { validateConfidenceOverlayCatalogArtifact, validateDerivedGraphArtifact, validateSurfaceGraphArtifact } from './core/graph-validator';
 import {

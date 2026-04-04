@@ -18,7 +18,8 @@ import {
   proposalsFromDecomposition,
 } from '../lib/runtime/agent/proposals';
 import type { IntentDecomposition } from '../lib/domain/knowledge/inference';
-import type { GroundedStep, StepTaskScreenCandidate, StepTaskElementCandidate } from '../lib/domain/types';
+import type { StepTaskElementCandidate, StepTaskScreenCandidate } from '../lib/domain/knowledge/types';
+import type { GroundedStep } from '../lib/domain/resolution/types';
 
 // ─── Test Fixtures ───
 

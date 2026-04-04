@@ -6,7 +6,7 @@ import { runDogfoodLoop } from '../lib/application/improvement/dogfood';
 import { refreshScenario } from '../lib/application/workspace/refresh';
 import { runWithLocalServices } from '../lib/composition/local-services';
 import { createAdoId } from '../lib/domain/kernel/identity';
-import type { DogfoodLedgerProjection, ImprovementLoopLedger } from '../lib/domain/types';
+import type { DogfoodLedgerProjection, ImprovementLoopLedger } from '../lib/domain/improvement/types';
 import { createTestWorkspace } from './support/workspace';
 
 test('dogfood loop completes two iterations and produces a legible ledger', async () => {

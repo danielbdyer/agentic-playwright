@@ -14,7 +14,7 @@ import { runScenario } from '../lib/application/execution/run';
 import { runWithLocalServices } from '../lib/composition/local-services';
 import { createAdoId } from '../lib/domain/kernel/identity';
 import { graphIds } from '../lib/domain/kernel/ids';
-import type { ProposalEntry } from '../lib/domain/types';
+import type { ProposalEntry } from '../lib/domain/execution/types';
 import { createTestWorkspace } from './support/workspace';
 import { policySearchScreenId, policyNumberInputId } from './support/compiler-helpers';
 

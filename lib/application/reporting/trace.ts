@@ -5,7 +5,7 @@ import { graphIds } from '../../domain/kernel/ids';
 import { TesseractError } from '../../domain/kernel/errors';
 import { ensureDerivedGraph } from '../analysis/graph';
 import type { ProjectPaths } from '../paths';
-import type { DerivedGraph } from '../../domain/types';
+import type { DerivedGraph } from '../../domain/projection/types';
 
 export function traceScenario(options: { adoId: AdoId; paths: ProjectPaths }) {
   return Effect.gen(function* () {

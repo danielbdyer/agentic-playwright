@@ -1,6 +1,6 @@
 import path from 'path';
 import { createProjectPaths, type ProjectPaths } from '../paths';
-import type { ExecutionPosture } from '../../domain/types';
+import type { ExecutionPosture } from '../../domain/governance/workflow-types';
 import { TesseractError } from '../../domain/kernel/errors';
 import { commandRegistry } from './commands/index';
 import {

@@ -1,4 +1,5 @@
-import type { RunRecord, ScenarioRunFold, ScenarioRunPlan } from '../../domain/types';
+import type { RunRecord, ScenarioRunFold } from '../../domain/execution/types';
+import type { ScenarioRunPlan } from '../../domain/resolution/types';
 import type { RuntimeScenarioStepResult } from '../ports';
 import {
   createEnvelopeLineage,

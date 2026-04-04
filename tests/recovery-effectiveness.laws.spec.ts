@@ -24,7 +24,7 @@ import {
   type RecoveryEffectivenessIndex,
 } from '../lib/application/learning/recovery-effectiveness';
 import type { RecoveryAttempt } from '../lib/domain/commitment/recovery-policy';
-import type { StepExecutionReceipt } from '../lib/domain/types';
+import type { StepExecutionReceipt } from '../lib/domain/execution/types';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 

@@ -1,17 +1,10 @@
-import type {
-  AgentEvent,
-  AgentSession,
-  ApplicationInterfaceGraph,
-  InterventionReceipt,
-  Participant,
-  ParticipantRef,
-  ProposalBundle,
-  ScenarioInterpretationSurface,
-  SelectorCanon,
-  TrainingCorpusManifest,
-  TranscriptRef,
-} from '../../domain/types';
-import { mintApproved } from '../../domain/types/shared-context';
+import type { ProposalBundle } from '../../domain/execution/types';
+import type { InterventionReceipt, Participant, ParticipantRef } from '../../domain/handshake/intervention';
+import type { AgentEvent, AgentSession, TranscriptRef } from '../../domain/handshake/session';
+import type { TrainingCorpusManifest } from '../../domain/learning/types';
+import type { ScenarioInterpretationSurface } from '../../domain/resolution/types';
+import type { ApplicationInterfaceGraph, SelectorCanon } from '../../domain/target/interface-graph';
+import { mintApproved } from '../../domain/governance/workflow-types';
 import type { AdoId } from '../../domain/kernel/identity';
 import { TesseractError } from '../../domain/kernel/errors';
 

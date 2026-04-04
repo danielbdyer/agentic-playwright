@@ -9,15 +9,10 @@ import {
   foldResolutionEvent,
   foldPipelineFailureClass,
 } from '../lib/domain/kernel/visitors';
-import type {
-  ValueRef,
-  StepInstruction,
-  LocatorStrategy,
-  ResolutionReceipt,
-  PipelineImprovementTarget,
-  ResolutionEvent,
-  PipelineFailureClass,
-} from '../lib/domain/types';
+import type { PipelineFailureClass, PipelineImprovementTarget } from '../lib/domain/fitness/types';
+import type { LocatorStrategy } from '../lib/domain/governance/workflow-types';
+import type { StepInstruction, ValueRef } from '../lib/domain/intent/types';
+import type { ResolutionEvent, ResolutionReceipt } from '../lib/domain/resolution/types';
 
 // ─── Law: every fold dispatches to exactly one case ───
 

@@ -29,8 +29,9 @@ import {
   type AgentInterpreterParseError,
   type AgentInterpreterTimeoutError,
 } from '../../domain/kernel/errors';
-import type { ResolutionTarget, ResolutionProposalDraft } from '../../domain/types';
-import type { StepAction } from '../../domain/types';
+import type { ResolutionTarget } from '../../domain/governance/workflow-types';
+import type { ResolutionProposalDraft } from '../../domain/resolution/types';
+import type { StepAction } from '../../domain/governance/workflow-types';
 import type { ScreenId, ElementId, PostureId, SnapshotTemplateId } from '../../domain/kernel/identity';
 import { normalizeIntentText, bestAliasMatch, humanizeIdentifier } from '../../domain/knowledge/inference';
 import { assignVariant, type ABTestConfig } from './agent-ab-testing';
@@ -41,7 +42,7 @@ import {
   retryScheduleForTaggedErrors,
 } from '../resilience/schedules';
 
-import type { AgentInterpretationRequest, AgentInterpretationResult } from '../../domain/types';
+import type { AgentInterpretationRequest, AgentInterpretationResult } from '../../domain/interpretation/agent-interpreter';
 import type { AgentInterpreterKind, AgentInterpreterPort } from '../../domain/resolution/model';
 
 type ApplicationAgentInterpreterPort = AgentInterpreterPort<Effect.Effect<AgentInterpretationResult, never, never>>;

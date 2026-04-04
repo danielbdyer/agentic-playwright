@@ -1,14 +1,14 @@
 import { expect, test } from '@playwright/test';
 import { buildImprovementRun, toExperimentRecord } from '../lib/application/improvement/improvement';
 import { createProjectPaths } from '../lib/application/paths';
+import { DEFAULT_PIPELINE_CONFIG } from '../lib/domain/attention/pipeline-config';
+import { PipelineFitnessReport } from '../lib/domain/fitness/types';
 import {
-  DEFAULT_PIPELINE_CONFIG,
+  DogfoodLedgerProjection,
   acceptedImprovementRuns,
   appendImprovementRun,
   emptyImprovementLedger,
-  type DogfoodLedgerProjection,
-  type PipelineFitnessReport,
-} from '../lib/domain/types';
+} from '../lib/domain/improvement/types';
 
 function sampleLedger(): DogfoodLedgerProjection {
   return {

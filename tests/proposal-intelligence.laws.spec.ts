@@ -3,11 +3,8 @@ import {
   buildProposalIntelligence,
   extractUncoveredGaps,
 } from '../lib/application/governance/proposal-intelligence';
-import type {
-  TrainingCorpusManifest,
-  GroundedSpecFragment,
-  ProposalBundle,
-} from '../lib/domain/types';
+import type { ProposalBundle } from '../lib/domain/execution/types';
+import type { GroundedSpecFragment, TrainingCorpusManifest } from '../lib/domain/learning/types';
 
 function makeManifest(): TrainingCorpusManifest {
   return {

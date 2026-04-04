@@ -12,8 +12,9 @@
  * pipeline mechanics, not from any particular evaluation corpus.
  */
 
-import type { PipelineConfig, PipelineFailureClass } from '../../domain/types';
-import { mergePipelineConfig } from '../../domain/types';
+import type { PipelineConfig } from '../../domain/attention/pipeline-config';
+import type { PipelineFailureClass } from '../../domain/fitness/types';
+import { mergePipelineConfig } from '../../domain/attention/pipeline-config';
 
 // ─── Failure-to-Parameter Mapping ───
 

@@ -1,12 +1,12 @@
 import { expect, test } from '@playwright/test';
+import type { ProposalBundle } from '../lib/domain/execution/types';
 import type {
   GroundedSpecFragment,
-  ProposalBundle,
   ReplayEvaluationResult,
   ReplayExample,
-  ResolutionReceipt,
   TrainingCorpusManifest,
-} from '../lib/domain/types';
+} from '../lib/domain/learning/types';
+import type { ResolutionReceipt } from '../lib/domain/resolution/types';
 import { projectCorpusHealth } from '../lib/application/learning/learning-health';
 import { evaluateReplayExample, buildReplayEvaluationSummary } from '../lib/application/execution/replay/replay-evaluation';
 import { projectBottlenecks } from '../lib/application/learning/learning-bottlenecks';

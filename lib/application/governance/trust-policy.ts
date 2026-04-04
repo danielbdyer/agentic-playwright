@@ -5,7 +5,13 @@ import { evaluateTrustPolicy } from '../../domain/governance/trust-policy';
 import type { AdoId } from '../../domain/kernel/identity';
 import { createScreenId } from '../../domain/kernel/identity';
 import { graphIds } from '../../domain/kernel/ids';
-import type { EvidenceDescriptor, EvidenceRecord, ProposedChangeMetadata, TrustPolicy, TrustPolicyEvaluation } from '../../domain/types';
+import type {
+  EvidenceDescriptor,
+  ProposedChangeMetadata,
+  TrustPolicy,
+  TrustPolicyEvaluation,
+} from '../../domain/governance/workflow-types';
+import type { EvidenceRecord } from '../../domain/resolution/types';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from '../catalog';
 import type { ProjectPaths } from '../paths';
 

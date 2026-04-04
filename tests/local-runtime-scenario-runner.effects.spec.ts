@@ -5,7 +5,7 @@ import { Effect } from 'effect';
 import { expect, test } from '@playwright/test';
 import { createProjectPaths, translationCachePath } from '../lib/application/paths';
 import { translationCacheKey } from '../lib/application/execution/translation/translation-cache';
-import type { TranslationReceipt, TranslationRequest } from '../lib/domain/types';
+import type { TranslationReceipt, TranslationRequest } from '../lib/domain/resolution/types';
 import { createElementId, createScreenId } from '../lib/domain/kernel/identity';
 import {
   buildCachedTranslator,

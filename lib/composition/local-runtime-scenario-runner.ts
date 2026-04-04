@@ -16,7 +16,8 @@ import type { TranslationProvider } from '../application/execution/translation/t
 import { resolveAgentInterpreterPort } from '../application/agent/agent-interpreter-provider';
 import type { AgentInterpretationResult } from '../domain/interpretation/agent-interpreter';
 import type { AgentInterpreterPort } from '../domain/resolution/model';
-import type { SemanticDictionaryCatalog, TranslationReceipt, TranslationRequest } from '../domain/types';
+import type { SemanticDictionaryCatalog } from '../domain/knowledge/semantic-dictionary-types';
+import type { TranslationReceipt, TranslationRequest } from '../domain/resolution/types';
 import { LocalFileSystem } from '../infrastructure/fs/local-fs';
 import { launchHeadedHarness } from '../infrastructure/tooling/headed-harness';
 import { createLocalRuntimeEnvironment, type LocalRuntimeAgentInterpreter } from '../infrastructure/runtime/local-runtime-environment';

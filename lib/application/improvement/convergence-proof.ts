@@ -19,18 +19,16 @@ import type { ProjectPaths } from '../paths';
 import { speedrunProgram, type SpeedrunResult } from './speedrun';
 import { cleanSlateProgram } from './clean-slate';
 import { FileSystem, VersionControl } from '../ports';
-import type {
-  KnowledgePosture,
-  PipelineConfig,
-  SpeedrunProgressEvent,
-} from '../../domain/types';
-import { DEFAULT_PIPELINE_CONFIG } from '../../domain/types';
+import type { PipelineConfig } from '../../domain/attention/pipeline-config';
+import type { KnowledgePosture } from '../../domain/governance/workflow-types';
+import type { SpeedrunProgressEvent } from '../../domain/improvement/types';
+import { DEFAULT_PIPELINE_CONFIG } from '../../domain/attention/pipeline-config';
 import {
+  ConvergenceProofResult,
+  ConvergenceTrialResult,
   buildTrialResult,
   buildVerdict,
-  type ConvergenceProofResult,
-  type ConvergenceTrialResult,
-} from '../../domain/types';
+} from '../../domain/convergence/types';
 import type { BrowserPoolPort } from '../runtime-support/browser-pool';
 import { runHyloEffect, type UnfoldStep } from '../../domain/algebra/hylomorphism';
 

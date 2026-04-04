@@ -2,11 +2,11 @@ import type {
   ActionFamilyCoverageEntry,
   CorpusHealthReport,
   GroundedSpecFragment,
+  LearningRuntime,
   RuntimeCoverageEntry,
   ScreenCoverageEntry,
   TrainingCorpusManifest,
-  LearningRuntime,
-} from '../../domain/types';
+} from '../../domain/learning/types';
 import { sha256, stableStringify } from '../../domain/kernel/hash';
 import { groupBy, uniqueSorted } from '../../domain/kernel/collections';
 import { round4, screenFromGraphNodeIds, actionFamilyOf } from './learning-shared';

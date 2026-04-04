@@ -1,17 +1,18 @@
+import type { StepAction } from '../../domain/governance/workflow-types';
+import type { StepResolution } from '../../domain/intent/types';
+import type { SemanticDictionaryCatalog } from '../../domain/knowledge/semantic-dictionary-types';
+import type { InterfaceResolutionContext } from '../../domain/knowledge/types';
 import type {
-  InterfaceResolutionContext,
+  GroundedStep,
   ObservedStateSession,
   ResolutionExhaustionEntry,
   ResolutionObservation,
   RuntimeDomResolver,
-  SemanticDictionaryCatalog,
-  StepAction,
-  StepResolution,
-  GroundedStep,
-} from '../../domain/types';
+} from '../../domain/resolution/types';
 import type { AgentInterpreterPort } from '../../domain/resolution/model';
 import type { ElementId, PostureId, ScreenId } from '../../domain/kernel/identity';
-import type { ResolutionTarget, TranslationDecomposition, TranslationReceipt, TranslationRequest } from '../../domain/types';
+import type { ResolutionTarget } from '../../domain/governance/workflow-types';
+import type { TranslationDecomposition, TranslationReceipt, TranslationRequest } from '../../domain/resolution/types';
 import type { AriaSnapshotCache } from './cache/aria-snapshot-cache';
 import type { SemanticDictCache } from './cache/semantic-dict-cache';
 

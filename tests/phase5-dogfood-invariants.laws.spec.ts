@@ -1,13 +1,8 @@
 import { expect, test } from '@playwright/test';
-import type {
-  AgentEvent,
-  AutoApprovalPolicy,
-  DogfoodLedgerProjection,
-  ImprovementLoopIteration,
-  InterventionReceipt,
-  Participant,
-  TrustPolicy,
-} from '../lib/domain/types';
+import type { AutoApprovalPolicy, TrustPolicy } from '../lib/domain/governance/workflow-types';
+import type { InterventionReceipt, Participant } from '../lib/domain/handshake/intervention';
+import type { AgentEvent } from '../lib/domain/handshake/session';
+import type { DogfoodLedgerProjection, ImprovementLoopIteration } from '../lib/domain/improvement/types';
 import { evaluateAutoApproval, DEFAULT_AUTO_APPROVAL_POLICY } from '../lib/domain/governance/trust-policy';
 import {
   createAgentSessionAdapterRegistry,

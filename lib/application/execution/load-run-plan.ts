@@ -1,6 +1,6 @@
 import { Effect } from 'effect';
 import type { AdoId } from '../../domain/kernel/identity';
-import type { ExecutionPosture, RuntimeInterpreterMode } from '../../domain/types';
+import type { ExecutionPosture, RuntimeInterpreterMode } from '../../domain/governance/workflow-types';
 import { loadWorkspaceCatalog } from '../catalog';
 import { createProjectPaths } from '../paths';
 import { loadScenarioInterpretationSurfaceFromCatalog, prepareScenarioRunPlan } from './select-run-context';

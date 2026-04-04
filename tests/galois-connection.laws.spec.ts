@@ -16,11 +16,11 @@ import { expect, test } from '@playwright/test';
 import { mulberry32, pick , LAW_SEED_COUNT } from './support/random';
 import { evaluateTrustPolicy } from '../lib/domain/governance/trust-policy';
 import type {
-  TrustPolicy,
-  TrustPolicyDecision,
-  TrustPolicyArtifactType,
   EvidenceDescriptor,
-} from '../lib/domain/types';
+  TrustPolicy,
+  TrustPolicyArtifactType,
+  TrustPolicyDecision,
+} from '../lib/domain/governance/workflow-types';
 
 // ─── Decision lattice ───
 

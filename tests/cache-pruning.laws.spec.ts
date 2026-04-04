@@ -5,7 +5,7 @@ import { createProjectPaths } from '../lib/application/paths';
 import { FileSystem } from '../lib/application/ports';
 import { pruneTranslationCache, writeTranslationCache } from '../lib/application/execution/translation/translation-cache';
 import type { AgentInterpretationResult } from '../lib/application/agent/agent-interpreter-provider';
-import type { TranslationRequest, TranslationReceipt } from '../lib/domain/types';
+import type { TranslationReceipt, TranslationRequest } from '../lib/domain/resolution/types';
 import { createElementId, createScreenId } from '../lib/domain/kernel/identity';
 import { LocalFileSystem } from '../lib/infrastructure/fs/local-fs';
 import { promises as nodeFs } from 'fs';

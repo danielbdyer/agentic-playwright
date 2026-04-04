@@ -8,13 +8,9 @@
  * values from domain artifacts.
  */
 
-import type { OperatorInboxItem } from '../../domain/types/resolution-context';
-import type { ProposalBundle } from '../../domain/types/execution-context';
-import type {
-  CopilotArtifactRef,
-  CopilotRequest,
-  CopilotResponse,
-} from './types';
+import type { OperatorInboxItem } from '../../domain/resolution/types';
+import type { ProposalBundle } from '../../domain/execution/types';
+import type { CopilotArtifactRef, CopilotRequest, CopilotResponse } from './types';
 
 // ─── CopilotParticipant Interface ───
 

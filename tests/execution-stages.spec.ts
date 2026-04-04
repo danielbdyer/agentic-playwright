@@ -7,7 +7,7 @@ import { selectRunContext } from '../lib/application/execution/select-run-contex
 import { runWithLocalServices } from '../lib/composition/local-services';
 import { refreshScenario } from '../lib/application/workspace/refresh';
 import { createAdoId } from '../lib/domain/kernel/identity';
-import type { ScenarioRunPlan } from '../lib/domain/types';
+import type { ScenarioRunPlan } from '../lib/domain/resolution/types';
 import type { RuntimeScenarioStepResult } from '../lib/application/ports';
 import type { PersistedEvidenceArtifact } from '../lib/application/execution/persist-evidence';
 import { createInterfaceResolutionContext } from './support/interface-fixtures';

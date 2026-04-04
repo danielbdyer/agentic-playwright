@@ -15,7 +15,7 @@ import { LocalApplicationInterfaceGraphRepository } from '../infrastructure/repo
 import { LocalImprovementRunRepository } from '../infrastructure/repositories/local-improvement-run-repository';
 import { LocalInterventionLedgerRepository } from '../infrastructure/repositories/local-intervention-ledger-repository';
 import { LocalRuntimeScenarioRunner } from './local-runtime-scenario-runner';
-import type { ExecutionPosture, WriteJournalEntry } from '../domain/types';
+import type { ExecutionPosture, WriteJournalEntry } from '../domain/governance/workflow-types';
 
 export const FileSystemLive = Layer.succeed(FileSystem, LocalFileSystem);
 

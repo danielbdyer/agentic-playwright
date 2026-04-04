@@ -1,7 +1,7 @@
 ﻿import { Effect } from 'effect';
 import { createDiagnostic } from '../../domain/governance/diagnostics';
 import type { AdoId } from '../../domain/kernel/identity';
-import type { Manifest } from '../../domain/types';
+import type { Manifest } from '../../domain/governance/workflow-types';
 import { validateAdoSnapshot, validateManifest } from '../../domain/validation';
 import { AdoSource, FileSystem } from '../ports';
 import type {
@@ -13,8 +13,8 @@ import {
 } from '../paths';
 import { hasSnapshotDrift } from './diff';
 import { trySync } from '../effect';
-import type { AdoSnapshot } from '../../domain/types/intent-context';
-import type { CompilerDiagnostic } from '../../domain/types/shared-context';
+import type { AdoSnapshot } from '../../domain/intent/types';
+import type { CompilerDiagnostic } from '../../domain/governance/workflow-types';
 
 function emptyManifest(): Manifest {
   return { entries: {} };

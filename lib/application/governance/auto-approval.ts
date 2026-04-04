@@ -1,9 +1,5 @@
 import { evaluateTrustPolicy } from '../../domain/governance/trust-policy';
-import type {
-  EvidenceDescriptor,
-  ProposedChangeMetadata,
-  TrustPolicy,
-} from '../../domain/types/shared-context';
+import type { EvidenceDescriptor, ProposedChangeMetadata, TrustPolicy } from '../../domain/governance/workflow-types';
 import {
   type GovernanceVerdict,
   approved,

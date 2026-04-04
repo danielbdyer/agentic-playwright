@@ -17,7 +17,8 @@ import {
   createSnapshotTemplateId,
   createSurfaceId,
 } from '../lib/domain/kernel/identity';
-import type { BoundStep, ScenarioStep, ScreenElements, ScreenPostures, SurfaceGraph } from '../lib/domain/types';
+import type { BoundStep, ScenarioStep } from '../lib/domain/intent/types';
+import type { ScreenElements, ScreenPostures, SurfaceGraph } from '../lib/domain/knowledge/types';
 import { mulberry32, pick, randomWord , LAW_SEED_COUNT } from './support/random';
 
 // ─── Factories ───

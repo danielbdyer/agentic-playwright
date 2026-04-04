@@ -4,16 +4,14 @@
  */
 import * as schemaDecode from '../../schemas/decode';
 import * as schemas from '../../schemas';
+import type { InterpretationDriftRecord, ResolutionGraphRecord, RunRecord } from '../../execution/types';
 import type {
   BenchmarkContext,
   BenchmarkImprovementProjection,
   BenchmarkScorecard,
   DogfoodRun,
-  InterpretationDriftRecord,
-  ResolutionGraphRecord,
-  RunRecord,
-  StepResolutionGraph,
-} from '../../types';
+} from '../../projection/types';
+import type { StepResolutionGraph } from '../../resolution/types';
 import { createAdoId, ensureSafeRelativePathLike } from '../../kernel/identity';
 import {
   expectArray,

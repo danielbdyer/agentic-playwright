@@ -19,7 +19,7 @@
  */
 
 import type { RungHistoryEntry, RungHistoryIndex } from '../learning/rung-drift';
-import type { InterpretationDriftRecord } from '../../domain/types';
+import type { InterpretationDriftRecord } from '../../domain/execution/types';
 
 // ─── Types ───
 

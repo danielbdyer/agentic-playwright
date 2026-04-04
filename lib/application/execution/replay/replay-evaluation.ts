@@ -4,8 +4,8 @@ import type {
   ReplayEvaluationSummary,
   ReplayExample,
   ReplayStepResult,
-  ResolutionReceipt,
-} from '../../../domain/types';
+} from '../../../domain/learning/types';
+import type { ResolutionReceipt } from '../../../domain/resolution/types';
 import { targetKey, driftFields as computeDriftFields } from '../../../domain/resolution/comparison-rules';
 import { round4 } from '../../learning/learning-shared';
 

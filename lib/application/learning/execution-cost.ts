@@ -10,7 +10,7 @@
  * All functions are pure: immutable inputs, immutable outputs, no side effects.
  */
 
-import type { StepExecutionReceipt } from '../../domain/types';
+import type { StepExecutionReceipt } from '../../domain/execution/types';
 
 // ─── Types ───
 

@@ -11,8 +11,11 @@
  * and which knowledge refs were consulted.
  */
 
-import type { GroundedStep, IntentThresholds, StepAction, StepTaskScreenCandidate, StepTaskElementCandidate } from '../../../domain/types';
-import { DEFAULT_PIPELINE_CONFIG } from '../../../domain/types';
+import type { IntentThresholds } from '../../../domain/attention/pipeline-config';
+import type { StepAction } from '../../../domain/governance/workflow-types';
+import type { StepTaskElementCandidate, StepTaskScreenCandidate } from '../../../domain/knowledge/types';
+import type { GroundedStep } from '../../../domain/resolution/types';
+import { DEFAULT_PIPELINE_CONFIG } from '../../../domain/attention/pipeline-config';
 import type { ScreenId, ElementId, PostureId } from '../../../domain/kernel/identity';
 import type { RuntimeStepAgentContext, IntentInterpretation, InterpretationConfidence, StageEffects } from '../types';
 import { EMPTY_EFFECTS } from '../types';

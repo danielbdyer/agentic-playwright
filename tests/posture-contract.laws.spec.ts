@@ -13,7 +13,12 @@ import {
   createSurfaceId,
   createWidgetId,
 } from '../lib/domain/kernel/identity';
-import type { PostureEffect, ScreenElements, ScreenPostures, SurfaceGraph } from '../lib/domain/types';
+import type {
+  PostureEffect,
+  ScreenElements,
+  ScreenPostures,
+  SurfaceGraph,
+} from '../lib/domain/knowledge/types';
 import { validateScreenElements, validateScreenPostures, validateSurfaceGraph } from '../lib/domain/validation';
 import { maybe, mulberry32, pick, randomInt } from './support/random';
 

@@ -13,7 +13,7 @@ import { getCatalogLoadCount, resetCatalogLoadCount } from '../lib/application/c
 import { speedrunProgram } from '../lib/application/improvement/speedrun';
 import { cleanSlateProgram } from '../lib/application/improvement/clean-slate';
 import { runWithLocalServices } from '../lib/composition/local-services';
-import type { SpeedrunProgressEvent } from '../lib/domain/types';
+import type { SpeedrunProgressEvent } from '../lib/domain/improvement/types';
 
 const rootDir = process.cwd();
 const paths = createProjectPaths(rootDir, path.join(rootDir, 'dogfood'));

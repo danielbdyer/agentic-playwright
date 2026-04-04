@@ -6,20 +6,17 @@ import { TesseractError } from '../domain/kernel/errors';
 import type { ApplicationInterfaceGraphRepository } from '../domain/interface/application-interface-graph-repository';
 import type { InterventionLedgerRepository } from '../domain/agency/intervention-ledger-repository';
 import type { ImprovementRunRepository } from '../domain/improvement/improvement-run-repository';
+import type { PipelineConfig } from '../domain/attention/pipeline-config';
+import type { StepExecutionReceipt } from '../domain/execution/types';
 import type {
-  AgentWorkItem,
-  DashboardEvent,
   ExecutionPosture,
   LocatorStrategy,
-  McpToolDefinition,
-  PipelineConfig,
-  ResolutionReceipt,
   RuntimeInterpreterMode,
-  ScenarioRunPlan,
-  StepExecutionReceipt,
-  WorkItemDecision,
   WriteJournalEntry,
-} from '../domain/types';
+} from '../domain/governance/workflow-types';
+import type { AgentWorkItem } from '../domain/handshake/workbench';
+import type { DashboardEvent, McpToolDefinition, WorkItemDecision } from '../domain/observation/dashboard';
+import type { ResolutionReceipt, ScenarioRunPlan } from '../domain/resolution/types';
 
 export interface FileSystemPort {
   readText(path: string): Effect.Effect<string, TesseractError>;
@@ -180,8 +177,8 @@ export class ImprovementRunStore extends Context.Tag('tesseract/ImprovementRunSt
 // falls back to screenshot textures + WS events. When MCP is available,
 // agents get structured tool access to the same observables.
 
-import type { McpToolInvocation, McpToolResult } from '../domain/types';
-export type { McpToolInvocation, McpToolResult } from '../domain/types';
+import type { McpToolInvocation, McpToolResult } from '../domain/observation/dashboard';
+export type { McpToolInvocation, McpToolResult } from '../domain/observation/dashboard';
 
 /** MCP resource descriptor for resources/list. */
 export interface McpResource {

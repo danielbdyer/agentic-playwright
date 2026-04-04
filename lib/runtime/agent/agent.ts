@@ -1,4 +1,9 @@
-import type { ResolutionPipelineResult, ResolutionReceipt, GroundedStep, ResolutionStepOutcome } from '../../domain/types';
+import type {
+  GroundedStep,
+  ResolutionPipelineResult,
+  ResolutionReceipt,
+  ResolutionStepOutcome,
+} from '../../domain/resolution/types';
 import { runResolutionPipeline, type RuntimeStepAgentContext } from './index';
 
 export type { ResolutionStepOutcome };

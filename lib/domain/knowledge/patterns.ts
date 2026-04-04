@@ -1,5 +1,6 @@
 import { SchemaError } from '../kernel/errors';
-import type { MergedPatterns, PatternActionName, PatternAliasSet, PatternDocument } from '../types';
+import type { PatternActionName } from '../governance/workflow-types';
+import type { MergedPatterns, PatternAliasSet, PatternDocument } from './types';
 import { uniqueSorted } from '../kernel/collections';
 
 const requiredActions = ['navigate', 'input', 'click', 'assert-snapshot'] as const satisfies ReadonlyArray<PatternActionName>;

@@ -11,7 +11,8 @@ import path from 'path';
 import { createProjectPaths } from '../lib/application/paths';
 import { loadImprovementLedger, toExperimentRecord } from '../lib/application/improvement/improvement';
 import { runWithLocalServices } from '../lib/composition/local-services';
-import type { ExperimentRecord, ExperimentSubstrate, ImprovementRun } from '../lib/domain/types';
+import type { ExperimentRecord } from '../lib/domain/improvement/experiment';
+import type { ExperimentSubstrate, ImprovementRun } from '../lib/domain/improvement/types';
 
 const args = process.argv.slice(2);
 

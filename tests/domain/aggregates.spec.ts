@@ -10,7 +10,8 @@ import {
   interventionLedgerInvariants,
 } from '../../lib/domain/aggregates/intervention-ledger';
 import { checkpointRun, improvementRunInvariants } from '../../lib/domain/aggregates/improvement-run';
-import type { AgentEvent, AgentSession, ImprovementRun } from '../../lib/domain/types';
+import type { AgentEvent, AgentSession } from '../../lib/domain/handshake/session';
+import type { ImprovementRun } from '../../lib/domain/improvement/types';
 
 const baseSession = {
   kind: 'agent-session',

@@ -8,7 +8,8 @@ import type {
   StepProgramInterpreter,
 } from '../../domain/commitment/program';
 import type { PostureId, ScreenId, SnapshotTemplateId } from '../../domain/kernel/identity';
-import type { ScreenElements, ScreenPostures, SurfaceGraph, ValueRef } from '../../domain/types';
+import type { ValueRef } from '../../domain/intent/types';
+import type { ScreenElements, ScreenPostures, SurfaceGraph } from '../../domain/knowledge/types';
 
 export type InterpreterMode = 'playwright' | 'dry-run' | 'diagnostic';
 

@@ -4,9 +4,9 @@ import type {
   GroundedFlowMetadata,
   GroundedFlowStep,
   GroundedSpecFlow,
-  ScenarioInterpretationSurface,
   StepResolution,
-} from '../types';
+} from '../intent/types';
+import type { ScenarioInterpretationSurface } from '../resolution/types';
 import type { Governance, StepProvenanceKind } from '../governance/workflow-types';
 import { isBlocked, isReviewRequired } from '../governance/workflow-types';
 import { lifecycleForScenario, aggregateConfidence } from './status';

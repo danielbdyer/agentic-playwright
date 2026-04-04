@@ -5,7 +5,7 @@ import {
   summarizeLearningSignals,
   extractComponentEvidence,
 } from '../lib/application/learning/learning-state';
-import type { StepExecutionReceipt } from '../lib/domain/types';
+import type { StepExecutionReceipt } from '../lib/domain/execution/types';
 
 function makeStep(overrides: Partial<{
   stepIndex: number;

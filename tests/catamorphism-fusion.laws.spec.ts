@@ -27,15 +27,10 @@ import {
   foldResolutionEvent,
   foldPipelineFailureClass,
 } from '../lib/domain/kernel/visitors';
-import type {
-  ValueRef,
-  StepInstruction,
-  LocatorStrategy,
-  ResolutionReceipt,
-  PipelineImprovementTarget,
-  ResolutionEvent,
-  PipelineFailureClass,
-} from '../lib/domain/types';
+import type { PipelineFailureClass, PipelineImprovementTarget } from '../lib/domain/fitness/types';
+import type { LocatorStrategy } from '../lib/domain/governance/workflow-types';
+import type { StepInstruction, ValueRef } from '../lib/domain/intent/types';
+import type { ResolutionEvent, ResolutionReceipt } from '../lib/domain/resolution/types';
 import { mulberry32, pick , LAW_SEED_COUNT } from './support/random';
 
 // ─── Pure transformers for fusion testing ───

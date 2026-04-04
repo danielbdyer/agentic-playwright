@@ -16,7 +16,8 @@ import type {
   ScreenHintsArtifact,
   SharedPatternsArtifact,
 } from '../../domain/graph/derived-graph';
-import type { DerivedGraph, ProposedChangeMetadata } from '../../domain/types';
+import type { ProposedChangeMetadata } from '../../domain/governance/workflow-types';
+import type { DerivedGraph } from '../../domain/projection/types';
 import { validateDerivedGraph } from '../../domain/validation';
 import { trySync } from '../effect';
 import type { ProjectPaths } from '../paths';

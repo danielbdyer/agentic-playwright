@@ -14,7 +14,7 @@ import {
   createWidgetId,
   type WidgetId,
 } from '../lib/domain/kernel/identity';
-import { type StepProgram } from '../lib/domain/types';
+import { StepProgram } from '../lib/domain/intent/types';
 import { deriveCapabilities } from '../lib/domain/commitment/grammar';
 import { playwrightStepProgramInterpreter, runStepProgram, runtimeFailureDiagnostic } from '../lib/runtime/execute/program';
 import { interact } from '../lib/runtime/widgets/interact';

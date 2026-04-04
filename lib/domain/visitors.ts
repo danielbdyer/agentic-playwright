@@ -46,24 +46,25 @@ export type DerivedFoldCases<U extends { readonly kind: string }, R> = {
   readonly [K in U['kind'] as KebabToCamel<K>]: (variant: Extract<U, { readonly kind: K }>) => R;
 };
 
+import type { PipelineFailureClass, PipelineImprovementTarget } from './fitness/types';
+import type { LocatorStrategy } from './governance/workflow-types';
 import type {
-  ValueRef,
-  ValueRefLiteral,
-  ValueRefFixturePath,
-  ValueRefPostureSample,
-  ValueRefParameterRow,
-  ValueRefGeneratedToken,
   StepInstruction,
-  LocatorStrategy,
+  ValueRef,
+  ValueRefFixturePath,
+  ValueRefGeneratedToken,
+  ValueRefLiteral,
+  ValueRefParameterRow,
+  ValueRefPostureSample,
+} from './intent/types';
+import type {
+  AgentInterpretedReceipt,
+  NeedsHumanReceipt,
+  ResolutionEvent,
   ResolutionReceipt,
   ResolvedReceipt,
   ResolvedWithProposalsReceipt,
-  AgentInterpretedReceipt,
-  NeedsHumanReceipt,
-  PipelineImprovementTarget,
-  ResolutionEvent,
-  PipelineFailureClass,
-} from './types';
+} from './resolution/types';
 import type { StepWinningSource } from './governance/workflow-types';
 
 // ─── ValueRef ───

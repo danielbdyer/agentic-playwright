@@ -15,7 +15,7 @@
  */
 
 import * as fs from 'node:fs';
-import type { KnowledgePosture } from '../../domain/types';
+import type { KnowledgePosture } from '../../domain/governance/workflow-types';
 
 const VALID_POSTURES: ReadonlySet<string> = new Set(['cold-start', 'warm-start', 'production']);
 

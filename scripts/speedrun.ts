@@ -36,8 +36,11 @@ import {
 } from '../lib/application/improvement/speedrun';
 import { resolveKnowledgePosture } from '../lib/application/knowledge/knowledge-posture';
 import { runWithLocalServices } from '../lib/composition/local-services';
-import type { KnowledgePosture, PipelineConfig, PipelineFitnessReport, SpeedrunProgressEvent } from '../lib/domain/types';
-import { DEFAULT_PIPELINE_CONFIG, mergePipelineConfig } from '../lib/domain/types';
+import type { PipelineConfig } from '../lib/domain/attention/pipeline-config';
+import type { PipelineFitnessReport } from '../lib/domain/fitness/types';
+import type { KnowledgePosture } from '../lib/domain/governance/workflow-types';
+import type { SpeedrunProgressEvent } from '../lib/domain/improvement/types';
+import { DEFAULT_PIPELINE_CONFIG, mergePipelineConfig } from '../lib/domain/attention/pipeline-config';
 import {
   computeAllBaselines,
   deriveAllBudgets,

@@ -5,13 +5,8 @@
  * Each proposal entry becomes a diagnostic positioned at the target file.
  */
 
-import type { ProposalBundle, ProposalEntry } from '../../domain/types/execution-context';
-import type {
-  VSCodeDiagnostic,
-  VSCodeDiagnosticSeverity,
-  VSCodeRange,
-  VSCodeRelatedInformation,
-} from './types';
+import type { ProposalBundle, ProposalEntry } from '../../domain/execution/types';
+import type { VSCodeDiagnostic, VSCodeDiagnosticSeverity, VSCodeRange, VSCodeRelatedInformation } from './types';
 
 // ─── Governance → Severity ───
 

@@ -5,18 +5,16 @@ import { TesseractError } from '../../domain/kernel/errors';
 import {
   type AdoId,
 } from '../../domain/kernel/identity';
+import type { StepResolution } from '../../domain/intent/types';
+import type { InterfaceResolutionContext } from '../../domain/knowledge/types';
 import type {
-  ApplicationInterfaceGraph,
   GroundedStep,
-  InterfaceResolutionContext,
   ScenarioInterpretationSurface,
   ScenarioKnowledgeSlice,
-  SelectorCanon,
-  StateTransitionGraph,
-  StepResolution,
   StepGrounding,
-} from '../../domain/types';
-import { isBlocked, isReviewRequired } from '../../domain/types/shared-context';
+} from '../../domain/resolution/types';
+import type { ApplicationInterfaceGraph, SelectorCanon, StateTransitionGraph } from '../../domain/target/interface-graph';
+import { isBlocked, isReviewRequired } from '../../domain/governance/workflow-types';
 import { controlResolutionForStep, runtimeControlsForScenario } from '../governance/controls';
 import type { CompileSnapshot } from './compile-snapshot';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from '../catalog';

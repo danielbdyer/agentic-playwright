@@ -1,6 +1,11 @@
 import { expect, test } from '@playwright/test';
 import { evaluateAutoApproval, DEFAULT_AUTO_APPROVAL_POLICY } from '../lib/domain/governance/trust-policy';
-import type { AutoApprovalPolicy, TrustPolicy, TrustPolicyEvaluation, ProposedChangeMetadata } from '../lib/domain/types';
+import type {
+  AutoApprovalPolicy,
+  ProposedChangeMetadata,
+  TrustPolicy,
+  TrustPolicyEvaluation,
+} from '../lib/domain/governance/workflow-types';
 
 // ─── Fixtures ───
 

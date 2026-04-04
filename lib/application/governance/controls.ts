@@ -1,3 +1,4 @@
+import type { Scenario, StepResolution } from '../../domain/intent/types';
 import type {
   DatasetControl,
   ResolutionControl,
@@ -6,9 +7,7 @@ import type {
   RuntimeDatasetBinding,
   RuntimeResolutionControl,
   RuntimeRunbookControl,
-  Scenario,
-  StepResolution,
-} from '../../domain/types';
+} from '../../domain/resolution/types';
 import type { WorkspaceCatalog } from '../catalog';
 import { compareStrings, uniqueSorted } from '../../domain/kernel/collections';
 import { dispatchByPrecedence } from '../../domain/resolution/precedence';

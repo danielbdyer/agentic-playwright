@@ -11,7 +11,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import type { WorkItemDecision } from '../../domain/types';
+import type { WorkItemDecision } from '../../domain/observation/dashboard';
 
 // ─── Writer (used by MCP process) ───
 

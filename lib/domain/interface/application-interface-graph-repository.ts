@@ -1,4 +1,4 @@
-import type { ApplicationInterfaceGraph } from '../types';
+import type { ApplicationInterfaceGraph } from '../target/interface-graph';
 
 export interface ApplicationInterfaceGraphLoadResult {
   readonly found: boolean;

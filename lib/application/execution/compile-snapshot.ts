@@ -1,5 +1,6 @@
 import type { AdoId } from '../../domain/kernel/identity';
-import type { BoundScenario, Scenario, ScenarioInterpretationSurface } from '../../domain/types';
+import type { BoundScenario, Scenario } from '../../domain/intent/types';
+import type { ScenarioInterpretationSurface } from '../../domain/resolution/types';
 
 export interface CompileSnapshot {
   adoId: AdoId;

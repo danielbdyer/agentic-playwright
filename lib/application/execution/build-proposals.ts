@@ -3,7 +3,9 @@ import { evaluateArtifactPolicy } from '../governance/trust-policy';
 import type { LoadedEvidenceRecord } from '../governance/trust-policy';
 import type { WorkspaceCatalog } from '../catalog';
 import type { AdoId } from '../../domain/kernel/identity';
-import type { ProposalBundle, ScenarioRunPlan, StepProvenanceKind, TrustPolicyArtifactType } from '../../domain/types';
+import type { ProposalBundle } from '../../domain/execution/types';
+import type { StepProvenanceKind, TrustPolicyArtifactType } from '../../domain/governance/workflow-types';
+import type { ScenarioRunPlan } from '../../domain/resolution/types';
 import {
   createEnvelopeLineage,
   createProposalBundleEnvelope,

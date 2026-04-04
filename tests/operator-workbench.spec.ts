@@ -9,7 +9,7 @@ import { refreshScenario } from '../lib/application/workspace/refresh';
 import { proposalIdForEntry } from '../lib/application/governance/operator';
 import { runWithLocalServices, runWithLocalServicesDetailed } from '../lib/composition/local-services';
 import { createAdoId } from '../lib/domain/kernel/identity';
-import type { ProposalBundle } from '../lib/domain/types';
+import type { ProposalBundle } from '../lib/domain/execution/types';
 import { createTestWorkspace } from './support/workspace';
 
 function projectPath(value: string): string {

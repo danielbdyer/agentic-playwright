@@ -5,12 +5,9 @@ import {
   updateScorecard,
   type FitnessInputData,
 } from '../lib/application/analysis/fitness';
-import type {
-  PipelineScorecard,
-  ResolutionReceipt,
-  StepExecutionReceipt,
-  ProposalBundle,
-} from '../lib/domain/types';
+import type { ProposalBundle, StepExecutionReceipt } from '../lib/domain/execution/types';
+import type { PipelineScorecard } from '../lib/domain/fitness/types';
+import type { ResolutionReceipt } from '../lib/domain/resolution/types';
 import type { DogfoodIterationResult, DogfoodLedger } from '../lib/application/improvement/dogfood';
 
 // ─── Test Fixtures ───

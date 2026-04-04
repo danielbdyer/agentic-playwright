@@ -1,16 +1,16 @@
 import { Effect } from 'effect';
 import type { AdoId, ScreenId } from '../../domain/kernel/identity';
+import type { ResolutionGraphRecord } from '../../domain/execution/types';
+import type { ExecutionPosture } from '../../domain/governance/workflow-types';
 import type {
-  ExecutionPosture,
   GroundedStep,
-  ResolutionGraphRecord,
   ResolutionReceipt,
   ScenarioInterpretationSurface,
   ScenarioRunPlan,
   StepResolutionGraph,
-} from '../../domain/types';
+} from '../../domain/resolution/types';
 import { WINNING_SOURCE_TO_RUNG } from '../../domain/kernel/visitors';
-import { isApproved, mintApproved, mintReviewRequired } from '../../domain/types/shared-context';
+import { isApproved, mintApproved, mintReviewRequired } from '../../domain/governance/workflow-types';
 import type { RuntimeScenarioRunnerPort, RuntimeScenarioStepResult } from '../ports';
 import { resolveResolutionEngine } from '../workspace/provider-registry';
 import { validateStepResults } from './validate-step-results';

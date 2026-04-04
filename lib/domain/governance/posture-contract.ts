@@ -1,7 +1,12 @@
 ﻿import type { ElementId, PostureId, SurfaceId } from '../kernel/identity';
 import type { ResolveEffectTargetContext } from './effect-target';
 import { normalizePostureEffectTarget, parseEffectTargetRef } from './effect-target';
-import type { PostureEffect, ScreenElements, ScreenPostures, SurfaceGraph } from '../types';
+import type {
+  PostureEffect,
+  ScreenElements,
+  ScreenPostures,
+  SurfaceGraph,
+} from '../knowledge/types';
 import { compareStrings, uniqueSorted } from '../kernel/collections';
 
 export type PostureContractIssueCode =

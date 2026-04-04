@@ -2,7 +2,7 @@ import path from 'path';
 import { Effect } from 'effect';
 import type { FileSystemPort } from '../../application/ports';
 import { createProjectPaths } from '../../application/paths';
-import type { ExecutionPosture, WriteJournalEntry } from '../../domain/types';
+import type { ExecutionPosture, WriteJournalEntry } from '../../domain/governance/workflow-types';
 import { uniqueSorted } from '../../domain/kernel/collections';
 
 function normalizePath(filePath: string): string {

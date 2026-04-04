@@ -16,14 +16,9 @@
  * All functions are pure: immutable inputs, immutable outputs, no side effects.
  */
 
-import type {
-  PipelineFitnessReport,
-  PipelineFailureMode,
-  RunRecord,
-  InterpretationDriftRecord,
-  ResolutionGraphRecord,
-  ImprovementSignal,
-} from '../../domain/types';
+import type { InterpretationDriftRecord, ResolutionGraphRecord, RunRecord } from '../../domain/execution/types';
+import type { PipelineFailureMode, PipelineFitnessReport } from '../../domain/fitness/types';
+import type { ImprovementSignal } from '../../domain/improvement/types';
 import { buildWorkflowHotspots, type WorkflowHotspot } from './hotspots';
 
 // ─── Types ───

@@ -11,9 +11,10 @@ import { signalMaturity, buildLearningSignalsSummary, countDegradingSignals } fr
 import { emitAgentWorkbench, processWorkItems, emitInterventionLineage } from '../agent/agent-workbench';
 import { createDashboardDecider } from '../agent/dashboard-decider';
 import { createDualModeDecider, createAgentDecider } from '../agent/agent-decider';
-import type { AgentWorkItem, BottleneckWeightCorrelation, WorkItemCompletion } from '../../domain/types';
+import type { BottleneckWeightCorrelation } from '../../domain/fitness/types';
+import type { AgentWorkItem, WorkItemCompletion } from '../../domain/handshake/workbench';
 import { detectAliasConflicts } from '../../domain/knowledge/inference';
-import { dashboardEvent } from '../../domain/types/intervention-context';
+import { dashboardEvent } from '../../domain/observation/dashboard';
 import type { DashboardPort } from '../ports';
 import { Dashboard } from '../ports';
 import { improvementLoopLedgerPath, type ProjectPaths } from '../paths';
@@ -37,24 +38,23 @@ import {
 } from '../../domain/projection/convergence-fsm';
 import type { AdoId } from '../../domain/kernel/identity';
 import { groupBy } from '../../domain/kernel/collections';
-import { asDogfoodLedgerProjection, asImprovementLoopLedger, DEFAULT_PIPELINE_CONFIG } from '../../domain/types';
+import { DEFAULT_PIPELINE_CONFIG } from '../../domain/attention/pipeline-config';
+import { asDogfoodLedgerProjection, asImprovementLoopLedger } from '../../domain/improvement/types';
+import type { BottleneckWeights } from '../../domain/attention/pipeline-config';
+import type { ProposalBundle } from '../../domain/execution/types';
+import type { AutoApprovalPolicy, KnowledgePosture, TrustPolicy } from '../../domain/governance/workflow-types';
 import type {
-  AutoApprovalPolicy,
-  BottleneckWeights,
   DogfoodLedgerProjection,
-  ImprovementLoopLedger,
   ImprovementLoopConvergenceReason,
   ImprovementLoopIteration,
-  KnowledgePosture,
+  ImprovementLoopLedger,
   LearningSignalsSummary,
-  ProposalBundle,
   SpeedrunProgressEvent,
-  TrustPolicy,
-} from '../../domain/types';
+} from '../../domain/improvement/types';
 import { DEFAULT_AUTO_APPROVAL_POLICY } from '../../domain/governance/trust-policy';
 import { matureComponentKnowledge, type ComponentEvidence } from '../../domain/projection/component-maturation';
 import { aggregateQualityMetrics, findToxicAliases, type AliasOutcome } from '../../domain/proposal/quality';
-import type { RungRate } from '../../domain/types/improvement-context';
+import type { RungRate } from '../../domain/fitness/types';
 import type { ScreenGroupDecider, WorkItemDecider } from '../agent/agent-workbench';
 
 export type DogfoodIterationResult = ImprovementLoopIteration;
@@ -593,7 +593,7 @@ function runIteration(iteration: number, options: DogfoodOptions, state: LoopSta
 
     // Step 3d: aggregate learning state from all intelligence modules
     const executionReceipts = (postRunCatalog.runRecords as unknown as ReadonlyArray<{
-      readonly artifact: { readonly steps: ReadonlyArray<{ readonly execution: import('../../domain/types').StepExecutionReceipt }> };
+      readonly artifact: { readonly steps: ReadonlyArray<{ readonly execution: import('../../domain/evidence/types').StepExecutionReceipt }> };
     }>).flatMap((entry) => entry.artifact.steps.map((step) => step.execution));
     const updatedLearningState = aggregateLearningState(executionReceipts, state.learningState);
     const coherence = buildExecutionCoherence({ learningState: updatedLearningState });
@@ -628,7 +628,7 @@ function runIteration(iteration: number, options: DogfoodOptions, state: LoopSta
     // multiple different elements. These create ambiguous resolution and should
     // be flagged for the agent to resolve. On warm-start especially, stale or
     // conflicting aliases degrade resolution quality.
-    const screenHintsMap: Record<string, import('../../domain/types').ScreenHints> = {};
+    const screenHintsMap: Record<string, import('../../domain/knowledge/types').ScreenHints> = {};
     for (const hintsEnvelope of postRunCatalog.screenHints) {
       screenHintsMap[hintsEnvelope.artifact.screen] = hintsEnvelope.artifact;
     }

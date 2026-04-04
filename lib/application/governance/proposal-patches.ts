@@ -1,6 +1,6 @@
 import YAML from 'yaml';
 import { isRecord } from '../../domain/kernel/collections';
-import type { ProposalEntry } from '../../domain/types';
+import type { ProposalEntry } from '../../domain/execution/types';
 import { validateScreenHints } from '../../domain/validation';
 import type { Lattice } from '../../domain/algebra/lattice';
 import type { ContextualMerge } from '../../domain/algebra/contextual-merge';

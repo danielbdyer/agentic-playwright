@@ -12,9 +12,9 @@
 
 import { Deferred, Duration, Effect, Ref } from 'effect';
 import type { DashboardPort } from '../../application/ports';
-import type { DashboardEvent, WorkItemDecision } from '../../domain/types';
-import type { AgentWorkItem } from '../../domain/types';
-import { dashboardEvent } from '../../domain/types';
+import type { DashboardEvent, WorkItemDecision } from '../../domain/observation/dashboard';
+import type { AgentWorkItem } from '../../domain/handshake/workbench';
+import { dashboardEvent } from '../../domain/observation/dashboard';
 import { TesseractError } from '../../domain/kernel/errors';
 import { RETRY_POLICIES, retryScheduleForTaggedErrors } from '../../application/resilience/schedules';
 

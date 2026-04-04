@@ -17,8 +17,9 @@ import {
   runRecordPath,
 } from '../paths';
 import { ExecutionContext, FileSystem, RuntimeScenarioRunner, Dashboard } from '../ports';
-import type { ExecutionPosture, Confidence, ActorKind } from '../../domain/types';
-import { dashboardEvent } from '../../domain/types/intervention-context';
+import type { Confidence, ExecutionPosture } from '../../domain/governance/workflow-types';
+import type { ActorKind } from '../../domain/observation/dashboard';
+import { dashboardEvent } from '../../domain/observation/dashboard';
 import type { AdoId } from '../../domain/kernel/identity';
 import { loadScenarioInterpretationSurfaceFromCatalog, prepareScenarioRunPlan } from './select-run-context';
 import { runPipelineStage } from '../pipeline';
@@ -29,7 +30,7 @@ import { buildRunRecord } from './build-run-record';
 import { foldScenarioRun } from './fold';
 import { resolveEffectConcurrency } from '../runtime-support/concurrency';
 import { TesseractError } from '../../domain/kernel/errors';
-import type { Scenario } from '../../domain/types';
+import type { Scenario } from '../../domain/intent/types';
 
 // ─── Hot-screen scenario prioritization ───
 

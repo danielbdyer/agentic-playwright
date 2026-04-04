@@ -6,7 +6,7 @@ import {
 } from '../lib/application/governance/governance-intelligence';
 import type { ContradictionReport } from '../lib/domain/knowledge/contradiction-types';
 import type { ArchitectureFitnessReport } from '../lib/domain/fitness/architecture-fitness';
-import type { ProposalBundle } from '../lib/domain/types';
+import type { ProposalBundle } from '../lib/domain/execution/types';
 
 function makeContradictionReport(overrides?: Partial<{
   contradictions: ContradictionReport['contradictions'];

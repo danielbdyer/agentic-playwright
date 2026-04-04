@@ -36,21 +36,20 @@ import { cleanSlateProgram } from './clean-slate';
 import { Dashboard, FileSystem, VersionControl } from '../ports';
 import { validateRunRecord } from '../../domain/validation';
 import { decodeUnknownEither } from '../../domain/schemas/decode';
+import type { PipelineConfig } from '../../domain/attention/pipeline-config';
+import type { ProposalBundle } from '../../domain/execution/types';
+import type { PipelineFitnessReport, PipelineScorecard } from '../../domain/fitness/types';
+import type { KnowledgePosture } from '../../domain/governance/workflow-types';
+import type { ExperimentRecord } from '../../domain/improvement/experiment';
 import type {
-  ExperimentRecord,
   ExperimentSubstrate,
   ImprovementLoopLedger,
   ImprovementRun,
-  KnowledgePosture,
-  PipelineConfig,
-  PipelineFitnessReport,
-  PipelineScorecard,
-  ProposalBundle,
   SpeedrunProgressEvent,
   SubstrateContext,
-} from '../../domain/types';
-import { DEFAULT_PIPELINE_CONFIG } from '../../domain/types';
-import type { RunRecord } from '../../domain/types/execution-context';
+} from '../../domain/improvement/types';
+import { DEFAULT_PIPELINE_CONFIG } from '../../domain/attention/pipeline-config';
+import type { RunRecord } from '../../domain/execution/types';
 import type { PerturbationConfig } from '../synthesis/scenario-generator';
 import { TesseractError } from '../../domain/kernel/errors';
 

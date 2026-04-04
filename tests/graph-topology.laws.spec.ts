@@ -24,7 +24,8 @@ import {
   createScreenId,
   createSurfaceId,
 } from '../lib/domain/kernel/identity';
-import type { AdoSnapshot, Scenario, SurfaceGraph, ScreenElements, ScreenPostures } from '../lib/domain/types';
+import type { AdoSnapshot, Scenario } from '../lib/domain/intent/types';
+import type { ScreenElements, ScreenPostures, SurfaceGraph } from '../lib/domain/knowledge/types';
 import { mulberry32, randomWord, randomInt , LAW_SEED_COUNT } from './support/random';
 
 // ─── Factories ───

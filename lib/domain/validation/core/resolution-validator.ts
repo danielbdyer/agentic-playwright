@@ -7,11 +7,7 @@
  */
 import * as schemaDecode from '../../schemas/decode';
 import * as schemas from '../../schemas';
-import type {
-  DatasetControl,
-  ResolutionControl,
-  RunbookControl,
-} from '../../types';
+import type { DatasetControl, ResolutionControl, RunbookControl } from '../../resolution/types';
 import { ensureSafeRelativePathLike } from '../../kernel/identity';
 export {
   validateScenarioInterpretationSurfaceArtifact,

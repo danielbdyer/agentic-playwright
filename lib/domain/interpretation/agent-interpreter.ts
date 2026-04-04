@@ -1,5 +1,6 @@
 // Agent interpreter value-object schemas (request/response only).
-import type { ResolutionTarget, ResolutionProposalDraft, ResolutionObservation, StepAction } from '../types';
+import type { ResolutionTarget, StepAction } from '../governance/workflow-types';
+import type { ResolutionObservation, ResolutionProposalDraft } from '../resolution/types';
 
 export interface AgentInterpretationRequest {
   /** Original step text from the QA test case. */

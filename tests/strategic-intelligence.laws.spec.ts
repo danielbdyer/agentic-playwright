@@ -4,12 +4,9 @@ import {
   extractStrategicGaps,
   computeStrategicEfficiency,
 } from '../lib/application/intelligence/strategic-intelligence';
-import type {
-  TrainingCorpusManifest,
-  GroundedSpecFragment,
-  ProposalBundle,
-  PipelineFitnessReport,
-} from '../lib/domain/types';
+import type { ProposalBundle } from '../lib/domain/execution/types';
+import type { PipelineFitnessReport } from '../lib/domain/fitness/types';
+import type { GroundedSpecFragment, TrainingCorpusManifest } from '../lib/domain/learning/types';
 
 function makeManifest(): TrainingCorpusManifest {
   return {

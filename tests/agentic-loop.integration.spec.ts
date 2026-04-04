@@ -22,7 +22,9 @@ import {
 } from '../lib/application/catalog/envelope';
 import { runWithLocalServices } from '../lib/composition/local-services';
 import { createAdoId, createElementId, createScreenId } from '../lib/domain/kernel/identity';
-import type { ProposalBundle, ProposalEntry, ResolutionReceipt, StepAction } from '../lib/domain/types';
+import type { ProposalBundle, ProposalEntry } from '../lib/domain/execution/types';
+import type { StepAction } from '../lib/domain/governance/workflow-types';
+import type { ResolutionReceipt } from '../lib/domain/resolution/types';
 import { runResolutionPipeline, type RuntimeStepAgentContext } from '../lib/runtime/agent';
 import { createTestWorkspace } from './support/workspace';
 import {

@@ -5,7 +5,7 @@
  * No side effects, no VSCode API dependency.
  */
 
-import type { OperatorInboxItem } from '../../domain/types/resolution-context';
+import type { OperatorInboxItem } from '../../domain/resolution/types';
 import type { VSCodeTask, VSCodeTaskGroup } from './types';
 
 // ─── Inbox Status → Task Group ───

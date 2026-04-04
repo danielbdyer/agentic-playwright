@@ -1,4 +1,4 @@
-import { isApproved, isReviewRequired } from '../../domain/types/shared-context';
+import { isApproved, isReviewRequired } from '../../domain/governance/workflow-types';
 import { foldResolutionReceipt } from '../../domain/kernel/visitors';
 import { isResolution } from '../../domain/commitment/pipeline-staging';
 import type { RuntimeScenarioStepResult } from '../ports';

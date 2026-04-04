@@ -1,4 +1,4 @@
-﻿import type { CompilerDiagnostic, DiagnosticProvenance } from '../domain/types';
+﻿import type { CompilerDiagnostic, DiagnosticProvenance } from '../domain/governance/workflow-types';
 import type { ProgramFailure, ProgramFailureCode, StepProgramDiagnosticContext, StepProgramExecutionResult } from '../domain/commitment/program';
 
 export type RuntimeFailureCode = ProgramFailureCode;

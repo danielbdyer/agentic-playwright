@@ -16,7 +16,7 @@
  * The policy produces a decision; the runtime captures (or skips) the screenshot.
  */
 
-import type { LearningSignalsSummary } from '../../domain/types';
+import type { LearningSignalsSummary } from '../../domain/improvement/types';
 
 // ─── Policy Decision ───
 

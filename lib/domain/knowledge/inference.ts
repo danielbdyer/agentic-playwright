@@ -1,6 +1,12 @@
 import { normalizeHtmlText } from '../kernel/hash';
 import { uniqueSorted } from '../kernel/collections';
-import type { ScreenElements, ScreenHints, ScreenPostures, SharedPatterns, SurfaceGraph } from '../types';
+import type {
+  ScreenElements,
+  ScreenHints,
+  ScreenPostures,
+  SharedPatterns,
+  SurfaceGraph,
+} from './types';
 
 export interface InferenceKnowledge {
   surfaceGraphs: Record<string, SurfaceGraph>;

@@ -18,13 +18,10 @@
  * All functions are pure: immutable inputs, immutable outputs, no side effects.
  */
 
-import type {
-  ContradictionReport,
-  ContradictionSeverity,
-  ArchitectureFitnessReport,
-  PipelineFitnessReport,
-  ProposalBundle,
-} from '../../domain/types';
+import type { ProposalBundle } from '../../domain/execution/types';
+import type { ArchitectureFitnessReport } from '../../domain/fitness/architecture-fitness';
+import type { PipelineFitnessReport } from '../../domain/fitness/types';
+import type { ContradictionReport, ContradictionSeverity } from '../../domain/knowledge/contradiction-types';
 
 // ─── Types ───
 

@@ -1,5 +1,5 @@
 import type { Locator } from '@playwright/test';
-import type { WidgetInteractionContext } from '../../domain/types';
+import type { WidgetInteractionContext } from '../../domain/knowledge/widget-types';
 import { osButtonHandlers } from './os-button';
 import { osInputHandlers } from './os-input';
 import { osTableHandlers } from './os-table';

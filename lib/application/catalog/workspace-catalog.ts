@@ -4,39 +4,42 @@ import { resolveEffectConcurrency } from '../runtime-support/concurrency';
 import { createSnapshotTemplateId } from '../../domain/kernel/identity';
 import { mergePatternDocuments } from '../../domain/knowledge/patterns';
 import type {
-  AdoSnapshot,
-  AgentSession,
-  ApprovalReceipt,
-  BenchmarkContext,
-  BehaviorPatternDocument,
-  BoundScenario,
-  ApplicationInterfaceGraph,
-  ConfidenceOverlayCatalog,
-  DatasetControl,
-  DiscoveryRun,
-  EvidenceRecord,
-  HarvestManifest,
-  ImprovementRun,
   InterpretationDriftRecord,
-  ReplayExample,
-  ResolutionGraphRecord,
-  PatternDocument,
   ProposalBundle,
-  ResolutionControl,
-  RerunPlan,
+  ResolutionGraphRecord,
   RunRecord,
-  RunbookControl,
-  Scenario,
-  ScenarioInterpretationSurface,
-  SelectorCanon,
+} from '../../domain/execution/types';
+import type { AgentSession } from '../../domain/handshake/session';
+import type { ImprovementRun } from '../../domain/improvement/types';
+import type { HarvestManifest } from '../../domain/intent/routes';
+import type { AdoSnapshot, BoundScenario, Scenario } from '../../domain/intent/types';
+import type {
+  BehaviorPatternDocument,
+  ConfidenceOverlayCatalog,
+  PatternDocument,
   ScreenBehavior,
   ScreenElements,
   ScreenHints,
   ScreenPostures,
-  StateTransitionGraph,
   SurfaceGraph,
-  TrainingCorpusManifest,
-} from '../../domain/types';
+} from '../../domain/knowledge/types';
+import type { ReplayExample, TrainingCorpusManifest } from '../../domain/learning/types';
+import type { BenchmarkContext } from '../../domain/projection/types';
+import type {
+  ApprovalReceipt,
+  DatasetControl,
+  EvidenceRecord,
+  RerunPlan,
+  ResolutionControl,
+  RunbookControl,
+  ScenarioInterpretationSurface,
+} from '../../domain/resolution/types';
+import type {
+  ApplicationInterfaceGraph,
+  DiscoveryRun,
+  SelectorCanon,
+  StateTransitionGraph,
+} from '../../domain/target/interface-graph';
 import {
   validateAdoSnapshot,
   validateAgentSession,
@@ -79,8 +82,8 @@ import { createArtifactEnvelope, upsertArtifactEnvelope } from './envelope';
 import { readJsonArtifact, readYamlArtifact } from './loaders';
 import { assembleScreenBundles } from './screen-bundles';
 import type { ArtifactEnvelope, WorkspaceCatalog } from './types';
-import type { KnowledgePosture } from '../../domain/types';
-import { postureIncludesKnowledge } from '../../domain/types';
+import type { KnowledgePosture } from '../../domain/governance/workflow-types';
+import { postureIncludesKnowledge } from '../../domain/governance/workflow-types';
 import { parseSnapshotToScenario } from '../reporting/parse';
 import { fingerprintArtifact } from './envelope';
 import { projectScenarioToTier1 } from '../../domain/scenario/tier-projection';

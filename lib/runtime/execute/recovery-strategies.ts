@@ -11,7 +11,7 @@
  */
 
 import type { RecoveryAttempt, RecoveryBudget, RecoveryFailureFamily, RecoveryStrategyId } from '../../domain/commitment/recovery-policy';
-import type { ExecutionDiagnostic } from '../../domain/types';
+import type { ExecutionDiagnostic } from '../../domain/execution/types';
 
 // ─── Recovery context passed to each strategy ───
 

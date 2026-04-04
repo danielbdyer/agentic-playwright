@@ -1,6 +1,6 @@
 import { Effect } from 'effect';
 import { loadExperimentRegistry } from '../../improvement/experiment-registry';
-import { filterExperiments, type ExperimentRecord } from '../../../domain/types';
+import { ExperimentRecord, filterExperiments } from '../../../domain/improvement/experiment';
 import { createCommandSpec } from '../shared';
 
 export const experimentsCommand = createCommandSpec({

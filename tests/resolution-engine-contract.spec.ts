@@ -3,7 +3,7 @@ import { createResolutionEngineRegistry, resolveResolutionEngine, type Resolutio
 import { validateStepResults } from '../lib/application/execution/validate-step-results';
 import { runResolutionPipeline } from '../lib/runtime/agent';
 import type { RuntimeStepAgentContext } from '../lib/runtime/agent/types';
-import type { StepExecutionReceipt } from '../lib/domain/types';
+import type { StepExecutionReceipt } from '../lib/domain/execution/types';
 import { createAgentContext, createInterfaceResolutionContext, createGroundedStep } from './support/interface-fixtures';
 
 function baseFixture(explicit = false) {

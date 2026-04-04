@@ -1,7 +1,14 @@
 import { Effect } from 'effect';
 import type { InferenceKnowledge } from '../../domain/knowledge/inference';
 import type { ScreenId } from '../../domain/kernel/identity';
-import type { BoundScenario, HarvestManifest, Scenario, ScreenElements, ScreenHints, ScreenPostures, SurfaceGraph } from '../../domain/types';
+import type { HarvestManifest } from '../../domain/intent/routes';
+import type { BoundScenario, Scenario } from '../../domain/intent/types';
+import type {
+  ScreenElements,
+  ScreenHints,
+  ScreenPostures,
+  SurfaceGraph,
+} from '../../domain/knowledge/types';
 import {
   loadWorkspaceCatalog,
   type WorkspaceCatalog,

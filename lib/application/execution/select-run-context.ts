@@ -1,16 +1,13 @@
 import type { ProjectPaths } from '../paths';
 import type { WorkspaceCatalog, ArtifactEnvelope } from '../catalog';
+import type { ExecutionPosture, RuntimeInterpreterMode } from '../../domain/governance/workflow-types';
+import type { AdoSnapshot, Scenario, StepResolution } from '../../domain/intent/types';
 import type {
-  AdoSnapshot,
-  ExecutionPosture,
-  RuntimeInterpreterMode,
   RuntimeDatasetBinding,
   RuntimeRunbookControl,
-  Scenario,
   ScenarioInterpretationSurface,
   ScenarioRunPlan,
-  StepResolution,
-} from '../../domain/types';
+} from '../../domain/resolution/types';
 import type { AdoId, ScreenId } from '../../domain/kernel/identity';
 import { uniqueSorted } from '../../domain/kernel/collections';
 import { TesseractError } from '../../domain/kernel/errors';

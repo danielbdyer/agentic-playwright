@@ -1,6 +1,6 @@
 import type { Locator } from '@playwright/test';
 import { missingActionHandlerError, widgetPreconditionError } from '../../domain/kernel/errors';
-import type { WidgetInteractionContext, WidgetPrecondition } from '../../domain/types';
+import type { WidgetInteractionContext, WidgetPrecondition } from '../../domain/knowledge/widget-types';
 import { affordancesForRole, type RoleAffordance } from '../../domain/widgets/role-affordances';
 import { widgetCapabilityContracts } from '../../domain/widgets/contracts';
 import { widgetActionHandlers } from './index';

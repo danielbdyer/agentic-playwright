@@ -1,13 +1,13 @@
+import type { BottleneckWeights } from '../../domain/attention/pipeline-config';
+import type { BottleneckWeightCorrelation } from '../../domain/fitness/types';
 import type {
   BottleneckSignal,
-  BottleneckWeightCorrelation,
-  BottleneckWeights,
   CorpusHealthReport,
   GroundedSpecFragment,
   KnowledgeBottleneck,
   KnowledgeBottleneckReport,
-} from '../../domain/types';
-import { DEFAULT_PIPELINE_CONFIG } from '../../domain/types';
+} from '../../domain/learning/types';
+import { DEFAULT_PIPELINE_CONFIG } from '../../domain/attention/pipeline-config';
 import { groupBy, uniqueSorted } from '../../domain/kernel/collections';
 import {
   round4,

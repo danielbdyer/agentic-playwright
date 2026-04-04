@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { chooseByPrecedence, precedencePolicies } from '../lib/domain/resolution/precedence';
 import { controlResolutionForStep } from '../lib/application/governance/controls';
-import type { RuntimeControlSession } from '../lib/domain/types';
+import type { RuntimeControlSession } from '../lib/domain/resolution/types';
 
 const allPolicies = [
   { name: 'resolution', rungs: precedencePolicies.resolution.rungs },

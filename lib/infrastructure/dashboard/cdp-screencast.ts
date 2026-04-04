@@ -19,7 +19,7 @@
  * LiveDomPortal iframe approach.
  */
 
-import type { ScreenCapturedEvent } from '../../domain/types';
+import type { ScreenCapturedEvent } from '../../domain/observation/dashboard';
 
 // ─── Types ───
 

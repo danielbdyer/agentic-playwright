@@ -1,7 +1,7 @@
 import path from 'path';
 import { Effect } from 'effect';
 import { TesseractError } from '../../domain/kernel/errors';
-import { mapPayload } from '../../domain/types/shared-context';
+import { mapPayload } from '../../domain/governance/workflow-types';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from '../catalog';
 import { emitOperatorInbox } from '../workspace/inbox';
 import { buildOperatorInboxItems, findProposalById } from './operator';
@@ -11,7 +11,8 @@ import { buildRerunPlan } from '../execution/replay/rerun-plan';
 import type { ProjectPaths } from '../paths';
 import { approvalReceiptPath, relativeProjectPath } from '../paths';
 import { ExecutionContext, FileSystem } from '../ports';
-import type { ApprovalReceipt, ProposalEntry, RerunPlan } from '../../domain/types';
+import type { ProposalEntry } from '../../domain/execution/types';
+import type { ApprovalReceipt, RerunPlan } from '../../domain/resolution/types';
 import type { ActionExecutionResult } from '../intelligence/intervention-kernel';
 
 export function approveProposal(options: {

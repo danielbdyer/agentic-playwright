@@ -7,11 +7,7 @@
  * what each rung tried and decided.
  */
 
-import type {
-  ResolutionExhaustionEntry,
-  ResolutionReasonChain,
-  ResolutionReasonStep,
-} from './types';
+import type { ResolutionExhaustionEntry, ResolutionReasonChain, ResolutionReasonStep } from './types';
 import type { StepWinningSource } from '../governance/workflow-types';
 
 /**

@@ -14,7 +14,7 @@ import {
 export { resolvePerturbation, ZERO_PERTURBATION };
 export type { PerturbationConfig };
 
-import type { ScreenPostures } from '../../domain/types/knowledge-context';
+import type { ScreenPostures } from '../../domain/knowledge/types';
 import type { PostureValue } from '../../domain/synthesis/scenario-plan';
 
 function extractPostureValues(postures: ScreenPostures | undefined, elementId: string): readonly PostureValue[] {

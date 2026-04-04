@@ -2,15 +2,11 @@ import { Effect } from 'effect';
 import { emitApprovedScenarioArtifacts } from '../lib/application/execution/emit';
 import { executeApprovedInterventionAction, type InterventionKernel } from '../lib/application/intelligence/intervention-kernel';
 import type { ProjectPaths } from '../lib/application/paths';
-import type {
-  BoundScenario,
-  InterventionCommandAction,
-  InterventionReceipt,
-  ProposalBundle,
-  RunRecord,
-  ScenarioInterpretationSurface,
-  ScenarioProjectionInput,
-} from '../lib/domain/types';
+import type { ProposalBundle, RunRecord } from '../lib/domain/execution/types';
+import type { InterventionCommandAction, InterventionReceipt } from '../lib/domain/handshake/intervention';
+import type { BoundScenario } from '../lib/domain/intent/types';
+import type { ScenarioProjectionInput } from '../lib/domain/projection/types';
+import type { ScenarioInterpretationSurface } from '../lib/domain/resolution/types';
 import type { Approved } from '../lib/domain/governance/workflow-types';
 
 const kernel: InterventionKernel = {

@@ -28,7 +28,7 @@ import {
   type TimingBaselineIndex,
   type TimingPhase,
 } from '../lib/application/learning/timing-baseline';
-import type { StepExecutionReceipt } from '../lib/domain/types';
+import type { StepExecutionReceipt } from '../lib/domain/execution/types';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 

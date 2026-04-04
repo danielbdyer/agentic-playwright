@@ -5,16 +5,13 @@ import { TesseractError } from '../../domain/kernel/errors';
 import type { AdoId } from '../../domain/kernel/identity';
 import { buildGroundedSpecFlow } from '../../domain/commitment/grounded-flow';
 import { renderReadableSpecModule } from '../../domain/codegen/spec-codegen';
-import { foldGovernance, mintApproved } from '../../domain/types/shared-context';
-import type { Approved, Blocked, ReviewRequired } from '../../domain/types/shared-context';
-import type {
-  BoundScenario,
-  ImprovementRun,
-  ProposalBundle,
-  RunRecord,
-  ScenarioInterpretationSurface,
-  ScenarioProjectionInput,
-} from '../../domain/types';
+import { foldGovernance, mintApproved } from '../../domain/governance/workflow-types';
+import type { Approved, Blocked, ReviewRequired } from '../../domain/governance/workflow-types';
+import type { ProposalBundle, RunRecord } from '../../domain/execution/types';
+import type { ImprovementRun } from '../../domain/improvement/types';
+import type { BoundScenario } from '../../domain/intent/types';
+import type { ScenarioProjectionInput } from '../../domain/projection/types';
+import type { ScenarioInterpretationSurface } from '../../domain/resolution/types';
 import type { CompileSnapshot } from './compile-snapshot';
 import { loadWorkspaceCatalog } from '../catalog';
 import { createProposalBundleEnvelope, createScenarioEnvelopeFingerprints, createScenarioEnvelopeIds } from '../catalog/envelope';

@@ -19,8 +19,9 @@ import { tryAsync } from '../../application/effect';
 import { captureAriaYaml } from '../../playwright/aria';
 import { resolvePlaywrightHeadless, resolvePreferredPlaywrightChannel } from './browser-options';
 import type { Browser } from '@playwright/test';
-import type { DiscoveryRun, LocatorStrategy } from '../../domain/types';
-import { mintApproved } from '../../domain/types/shared-context';
+import type { LocatorStrategy } from '../../domain/governance/workflow-types';
+import type { DiscoveryRun } from '../../domain/target/interface-graph';
+import { mintApproved } from '../../domain/governance/workflow-types';
 
 interface BrowserDiscoveryPayload {
   title: string;

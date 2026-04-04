@@ -1,7 +1,9 @@
 ﻿import type { ElementId, ScreenId, SurfaceId } from '../kernel/identity';
 import { createSurfaceId } from '../kernel/identity';
 import { unknownWidgetActionError } from '../kernel/errors';
-import type { CapabilityName, DerivedCapability, ElementSig, ScreenElements, SurfaceGraph, WidgetAction } from '../types';
+import type { CapabilityName, DerivedCapability } from '../governance/workflow-types';
+import type { ElementSig, ScreenElements, SurfaceGraph } from '../knowledge/types';
+import type { WidgetAction } from '../knowledge/widget-types';
 import { graphIds, knowledgePaths } from '../kernel/ids';
 import { widgetCapabilityContracts } from '../widgets/contracts';
 import { compareStrings, uniqueSorted } from '../kernel/collections';

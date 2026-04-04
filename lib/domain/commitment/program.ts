@@ -1,7 +1,13 @@
 ﻿import { Match, pipe } from 'effect';
 import { parseRefPath } from '../kernel/ref-path';
 import type { AdoId, ElementId, ScreenId, SnapshotTemplateId } from '../kernel/identity';
-import type { CapabilityName, CompilerDiagnostic, ScenarioStep, StepInstruction, StepProgram, ValueRef } from '../types';
+import type { CapabilityName, CompilerDiagnostic } from '../governance/workflow-types';
+import type {
+  ScenarioStep,
+  StepInstruction,
+  StepProgram,
+  ValueRef,
+} from '../intent/types';
 import { uniqueSorted } from '../kernel/collections';
 
 const TEMPLATE_PATTERN = /^\{\{([a-zA-Z0-9_.]+)\}\}$/;

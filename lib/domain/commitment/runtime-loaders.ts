@@ -1,5 +1,5 @@
 import type { ScreenId, SnapshotTemplateId } from '../kernel/identity';
-import type { ScreenElements, ScreenPostures, SurfaceGraph } from '../types';
+import type { ScreenElements, ScreenPostures, SurfaceGraph } from '../knowledge/types';
 
 export interface LoadedScreen {
   screen: Pick<SurfaceGraph, 'screen' | 'url' | 'sections'>;

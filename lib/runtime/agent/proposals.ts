@@ -1,6 +1,7 @@
 import { knowledgePaths } from '../../domain/kernel/ids';
 import type { IntentDecomposition } from '../../domain/knowledge/inference';
-import type { InterfaceResolutionContext, ResolutionProposalDraft, GroundedStep, StepTaskElementCandidate, StepTaskScreenCandidate } from '../../domain/types';
+import type { InterfaceResolutionContext, StepTaskElementCandidate, StepTaskScreenCandidate } from '../../domain/knowledge/types';
+import type { GroundedStep, ResolutionProposalDraft } from '../../domain/resolution/types';
 import type { IntentInterpretation, InterpretationSource } from './types';
 
 function enrichedPatch(screen: string, element: StepTaskElementCandidate, alias: string): Record<string, unknown> {

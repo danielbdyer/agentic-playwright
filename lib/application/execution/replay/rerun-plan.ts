@@ -12,7 +12,9 @@ import { sha256, stableStringify } from '../../../domain/kernel/hash';
 import { graphIds, knowledgePaths } from '../../../domain/kernel/ids';
 import type { AdoId } from '../../../domain/kernel/identity';
 import { createAdoId } from '../../../domain/kernel/identity';
-import type { GraphEdge, GraphNode, RerunPlan, RunbookControl, Scenario } from '../../../domain/types';
+import type { Scenario } from '../../../domain/intent/types';
+import type { GraphEdge, GraphNode } from '../../../domain/projection/types';
+import type { RerunPlan, RunbookControl } from '../../../domain/resolution/types';
 import { compareStrings, uniqueSorted } from '../../../domain/kernel/collections';
 import type { ActionExecutionResult } from '../../intelligence/intervention-kernel';
 

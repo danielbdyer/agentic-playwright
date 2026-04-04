@@ -8,7 +8,7 @@
  * All functions are pure — no side effects, no mutation.
  */
 
-import type { StepExecutionReceipt } from '../../domain/types';
+import type { StepExecutionReceipt } from '../../domain/execution/types';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 

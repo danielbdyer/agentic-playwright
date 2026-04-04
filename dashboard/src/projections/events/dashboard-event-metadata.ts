@@ -1,4 +1,4 @@
-import type { DashboardEventKind } from '../../../../lib/domain/types/dashboard';
+import type { DashboardEventKind } from '../../../../lib/domain/observation/dashboard';
 
 export type DashboardEventLane =
   | 'lifecycle'

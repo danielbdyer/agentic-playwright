@@ -1,4 +1,4 @@
-import type { AgentEvent, AgentEventType, AgentSession } from '../types';
+import type { AgentEvent, AgentEventType, AgentSession } from '../handshake/session';
 
 export interface InterventionLedgerAggregate {
   readonly session: AgentSession;

@@ -1,12 +1,10 @@
+import type { InterpretationDriftRecord, ResolutionGraphRecord, RunRecord } from '../execution/types';
 import type {
   BenchmarkContext,
   BenchmarkImprovementProjection,
   BenchmarkScorecard,
   DogfoodRun,
-  InterpretationDriftRecord,
-  ResolutionGraphRecord,
-  RunRecord,
-} from '../types';
+} from '../projection/types';
 import { validateByKind } from './registry';
 
 export const validateRunRecord = (value: unknown): RunRecord => validateByKind('run-record', value);

@@ -8,7 +8,7 @@
 
 import { expect, test } from '@playwright/test';
 import { renderReadableSpecModule } from '../lib/domain/codegen/spec-codegen';
-import type { GroundedFlowStep, GroundedSpecFlow } from '../lib/domain/types';
+import type { GroundedFlowStep, GroundedSpecFlow } from '../lib/domain/intent/types';
 import type { Confidence, StepBindingKind } from '../lib/domain/governance/workflow-types';
 import { createAdoId, createScreenId, createElementId } from '../lib/domain/kernel/identity';
 import { mulberry32 } from './support/random';

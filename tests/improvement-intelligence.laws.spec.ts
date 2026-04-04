@@ -4,7 +4,7 @@ import {
   extractTopPriorities,
   computeImprovementTrends,
 } from '../lib/application/improvement/improvement-intelligence';
-import type { PipelineFitnessReport } from '../lib/domain/types';
+import type { PipelineFitnessReport } from '../lib/domain/fitness/types';
 
 function makeFitnessReport(overrides?: Partial<{
   failureModes: PipelineFitnessReport['failureModes'];

@@ -1,4 +1,4 @@
-import type { AgentEvent, AgentSession, TranscriptRef } from '../types';
+import type { AgentEvent, AgentSession, TranscriptRef } from '../handshake/session';
 import type { InterventionLedgerAggregate } from '../aggregates/intervention-ledger';
 
 export interface PersistedInterventionLedger {

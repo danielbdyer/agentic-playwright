@@ -27,7 +27,7 @@
 
 import { useState, useRef, useCallback, useMemo } from 'react';
 import type { FlywheelAct } from '../types';
-import type { DashboardEventKind } from '../../../lib/domain/types/dashboard';
+import type { DashboardEventKind } from '../../../lib/domain/observation/dashboard';
 import {
   accumulate,
   accumulateBatch,

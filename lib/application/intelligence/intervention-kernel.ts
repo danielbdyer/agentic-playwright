@@ -1,14 +1,14 @@
 import { Effect } from 'effect';
 import { TesseractError } from '../../domain/kernel/errors';
-import { foldGovernance } from '../../domain/types/shared-context';
-import type { Approved } from '../../domain/types/shared-context';
+import { foldGovernance } from '../../domain/governance/workflow-types';
+import type { Approved } from '../../domain/governance/workflow-types';
 import type {
   InterventionCommandAction,
   InterventionCommandBatch,
   InterventionLineageProjection,
   InterventionReceipt,
   InterventionStatus,
-} from '../../domain/types';
+} from '../../domain/handshake/intervention';
 import type { ProjectPaths } from '../paths';
 import { FileSystem } from '../ports';
 

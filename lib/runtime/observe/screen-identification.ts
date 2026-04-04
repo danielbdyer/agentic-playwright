@@ -9,10 +9,7 @@
  * All functions are pure — no side effects, no mutation.
  */
 
-import type {
-  ApplicationInterfaceGraph,
-  InterfaceGraphNode,
-} from '../../domain/types/interface-context';
+import type { ApplicationInterfaceGraph, InterfaceGraphNode } from '../../domain/target/interface-graph';
 
 // ─── Types ───
 

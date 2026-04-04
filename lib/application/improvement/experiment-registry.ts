@@ -9,8 +9,8 @@
 
 import path from 'path';
 import { Effect } from 'effect';
-import type { ExperimentRegistry, ExperimentRecord } from '../../domain/types';
-import { appendExperiment, emptyExperimentRegistry } from '../../domain/types';
+import type { ExperimentRecord, ExperimentRegistry } from '../../domain/improvement/experiment';
+import { appendExperiment, emptyExperimentRegistry } from '../../domain/improvement/experiment';
 import { uniqueByFirst } from '../../domain/kernel/collections';
 import type { ProjectPaths } from '../paths';
 import { FileSystem } from '../ports';

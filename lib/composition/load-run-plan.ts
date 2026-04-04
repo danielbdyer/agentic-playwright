@@ -1,5 +1,5 @@
 import { Effect } from 'effect';
-import type { ScenarioRunPlan } from '../domain/types';
+import type { ScenarioRunPlan } from '../domain/resolution/types';
 import { loadScenarioRunPlanEffect, type LoadScenarioRunPlanInput } from '../application/execution/load-run-plan';
 import { provideLocalServices } from './local-services';
 

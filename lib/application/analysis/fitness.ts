@@ -8,9 +8,8 @@
  */
 
 import { TesseractError } from '../../domain/kernel/errors';
+import type { ProposalBundle, StepExecutionReceipt } from '../../domain/execution/types';
 import type {
-  ExperimentRecord,
-  ImprovementLoopLedger,
   PipelineFailureClass,
   PipelineFailureMode,
   PipelineFitnessMetrics,
@@ -21,21 +20,17 @@ import type {
   ScorecardHighWaterMark,
   ScorecardHistoryEntry,
   ScoringEffectiveness,
-  StepWinningSource,
-  ResolutionReceipt,
-  ProposalBundle,
-  StepExecutionReceipt,
-} from '../../domain/types';
+} from '../../domain/fitness/types';
+import type { StepWinningSource } from '../../domain/governance/workflow-types';
+import type { ExperimentRecord } from '../../domain/improvement/experiment';
+import type { ImprovementLoopLedger } from '../../domain/improvement/types';
+import type { ResolutionReceipt } from '../../domain/resolution/types';
 import { groupByMap } from '../../domain/kernel/collections';
-import {
-  isAcceptedByParetoFrontier,
-  addToParetoFrontier,
-  objectivesFromMetrics,
-} from '../../domain/types';
+import { addToParetoFrontier, isAcceptedByParetoFrontier, objectivesFromMetrics } from '../../domain/fitness/types';
 import { foldPipelineFailureClass, WINNING_SOURCE_TO_RUNG } from '../../domain/kernel/visitors';
 import { isBlocked } from '../../domain/proposal/lifecycle';
 import { resolutionPrecedenceLaw, type ResolutionPrecedenceRung } from '../../domain/resolution/precedence';
-import type { BottleneckWeightCorrelation, GeneralizationMetrics } from '../../domain/types';
+import type { BottleneckWeightCorrelation, GeneralizationMetrics } from '../../domain/fitness/types';
 
 // ─── Step-level classification ───
 
@@ -120,7 +115,7 @@ export interface FitnessInputData {
   readonly proposalBundles: readonly ProposalBundle[];
   readonly experimentHistory?: readonly ExperimentRecord[] | undefined;
   /** Learning signals from the last iteration — enriches fitness metrics with execution health. */
-  readonly learningSignals?: import('../../domain/types').LearningSignalsSummary | undefined;
+  readonly learningSignals?: import('../../domain/improvement/types').LearningSignalsSummary | undefined;
 }
 
 function extractStepOutcomes(data: FitnessInputData): readonly StepOutcome[] {

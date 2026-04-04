@@ -25,7 +25,7 @@ import {
   type SelectorObservation,
   type SelectorHealthIndex,
 } from '../lib/application/learning/selector-health';
-import type { StepExecutionReceipt } from '../lib/domain/types';
+import type { StepExecutionReceipt } from '../lib/domain/execution/types';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 

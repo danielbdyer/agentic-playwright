@@ -1,15 +1,12 @@
 import { Effect } from 'effect';
 import { sha256, stableStringify } from '../../domain/kernel/hash';
 import { knowledgePaths } from '../../domain/kernel/ids';
-import type {
-  ArtifactConfidenceRecord,
-  ConfidenceOverlayCatalog,
-  GroundedStep,
-  TrustPolicyArtifactType,
-} from '../../domain/types';
+import type { TrustPolicyArtifactType } from '../../domain/governance/workflow-types';
+import type { ArtifactConfidenceRecord, ConfidenceOverlayCatalog } from '../../domain/knowledge/types';
+import type { GroundedStep } from '../../domain/resolution/types';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from '../catalog';
 import { Dashboard } from '../ports';
-import { dashboardEvent } from '../../domain/types/intervention-context';
+import { dashboardEvent } from '../../domain/observation/dashboard';
 import type { ProjectPaths } from '../paths';
 import { relativeProjectPath } from '../paths';
 import { FileSystem } from '../ports';

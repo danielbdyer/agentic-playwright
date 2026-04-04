@@ -14,8 +14,9 @@
 import { expect, test } from '@playwright/test';
 import { mulberry32 , LAW_SEED_COUNT } from './support/random';
 import { calibrateWeightsFromCorrelations } from '../lib/application/learning/learning-bottlenecks';
-import { DEFAULT_PIPELINE_CONFIG } from '../lib/domain/types';
-import type { BottleneckWeights, BottleneckWeightCorrelation } from '../lib/domain/types';
+import { DEFAULT_PIPELINE_CONFIG } from '../lib/domain/attention/pipeline-config';
+import type { BottleneckWeights } from '../lib/domain/attention/pipeline-config';
+import type { BottleneckWeightCorrelation } from '../lib/domain/fitness/types';
 
 // ─── Helpers ───
 

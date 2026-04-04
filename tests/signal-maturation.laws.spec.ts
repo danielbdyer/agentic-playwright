@@ -12,7 +12,7 @@ import {
   countDegradingSignals,
   buildLearningSignalsSummary,
 } from '../lib/application/learning/signal-maturation';
-import type { LearningSignalsSummary } from '../lib/domain/types';
+import type { LearningSignalsSummary } from '../lib/domain/improvement/types';
 
 // ─── Helpers ───
 

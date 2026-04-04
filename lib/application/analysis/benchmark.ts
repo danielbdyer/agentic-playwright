@@ -18,17 +18,16 @@ import { TesseractError } from '../../domain/kernel/errors';
 import { groupBy, uniqueSorted } from '../../domain/kernel/collections';
 import { concatAll } from '../../domain/algebra/monoid';
 import { numberRecordSumMonoid, structMonoid, sumMonoid } from '../../domain/algebra/envelope-mergers';
+import type { InterpretationDriftRecord, ProposalBundle } from '../../domain/execution/types';
+import type { ImprovementRun } from '../../domain/improvement/types';
+import type { LearningScorecard } from '../../domain/learning/types';
 import type {
   BenchmarkContext,
   BenchmarkImprovementProjection,
   BenchmarkScorecard,
   DogfoodRun,
   ImprovementProjectionSummary,
-  ImprovementRun,
-  InterpretationDriftRecord,
-  LearningScorecard,
-  ProposalBundle,
-} from '../../domain/types';
+} from '../../domain/projection/types';
 import { createAdoId } from '../../domain/kernel/identity';
 import { decodeUnknownEither } from '../../domain/schemas/decode';
 

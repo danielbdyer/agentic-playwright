@@ -11,7 +11,7 @@ import {
   createTransitionRef,
   createWidgetId,
 } from '../lib/domain/kernel/identity';
-import type { StateTransitionGraph } from '../lib/domain/types';
+import type { StateTransitionGraph } from '../lib/domain/target/interface-graph';
 import {
   observeStateRefsOnPage,
   observeTransitionOnPage,

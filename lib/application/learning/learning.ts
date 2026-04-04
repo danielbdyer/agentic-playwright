@@ -1,16 +1,10 @@
 import path from 'path';
 import { Effect } from 'effect';
-import type {
-  BoundScenario,
-  ApplicationInterfaceGraph,
-  GroundedSpecFragment,
-  ProposalBundle,
-  ReplayExample,
-  RunRecord,
-  ScenarioInterpretationSurface,
-  SelectorCanon,
-  TrainingCorpusManifest,
-} from '../../domain/types';
+import type { ProposalBundle, RunRecord } from '../../domain/execution/types';
+import type { BoundScenario } from '../../domain/intent/types';
+import type { GroundedSpecFragment, ReplayExample, TrainingCorpusManifest } from '../../domain/learning/types';
+import type { ScenarioInterpretationSurface } from '../../domain/resolution/types';
+import type { ApplicationInterfaceGraph, SelectorCanon } from '../../domain/target/interface-graph';
 import type { AdoId } from '../../domain/kernel/identity';
 import { relativeProjectPath, learningRuntimeDirPath } from '../paths';
 import type { ProjectPaths } from '../paths';

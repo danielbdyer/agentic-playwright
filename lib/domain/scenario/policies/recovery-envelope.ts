@@ -1,6 +1,6 @@
 import type { ExecutionFailureFamily } from '../../commitment/telemetry';
 import type { RecoveryPolicy } from '../../commitment/recovery-policy';
-import type { ExecutionDiagnostic } from '../../types';
+import type { ExecutionDiagnostic } from '../../execution/types';
 
 export interface RecoveryStrategyEnvelope {
   readonly family: ExecutionFailureFamily;

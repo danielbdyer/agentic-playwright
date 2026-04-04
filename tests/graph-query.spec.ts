@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { collectImpactSubgraph } from '../lib/domain/graph/graph-query';
-import type { DerivedGraph } from '../lib/domain/types';
+import type { DerivedGraph } from '../lib/domain/projection/types';
 
 function node(id: string, kind: DerivedGraph['nodes'][number]['kind']) {
   return {

@@ -3,7 +3,7 @@ import { ensureDerivedGraph } from './graph';
 import type { ProjectPaths } from '../paths';
 import { TesseractError } from '../../domain/kernel/errors';
 import { collectImpactSubgraph } from '../../domain/graph/graph-query';
-import type { DerivedGraph } from '../../domain/types';
+import type { DerivedGraph } from '../../domain/projection/types';
 
 export function impactNode(options: { nodeId: string; paths: ProjectPaths }) {
   return Effect.gen(function* () {
