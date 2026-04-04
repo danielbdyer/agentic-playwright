@@ -3,7 +3,7 @@ import {
   buildInterpretationCoherence,
   extractIncoherentIntents,
 } from '../lib/application/interpretation-coherence';
-import type { RungHistoryIndex } from '../lib/application/rung-drift';
+import type { RungHistoryIndex } from '../lib/application/learning/rung-drift';
 import type { InterpretationDriftRecord } from '../lib/domain/types';
 
 function makeRungIndex(entries: Array<{

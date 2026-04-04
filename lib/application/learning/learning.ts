@@ -10,12 +10,12 @@ import type {
   ScenarioInterpretationSurface,
   SelectorCanon,
   TrainingCorpusManifest,
-} from '../domain/types';
-import type { AdoId } from '../domain/kernel/identity';
-import { relativeProjectPath, learningRuntimeDirPath } from './paths';
-import type { ProjectPaths } from './paths';
-import { FileSystem, type FileSystemPort } from './ports';
-import { walkFiles } from './artifacts';
+} from '../../domain/types';
+import type { AdoId } from '../../domain/kernel/identity';
+import { relativeProjectPath, learningRuntimeDirPath } from '../paths';
+import type { ProjectPaths } from '../paths';
+import { FileSystem, type FileSystemPort } from '../ports';
+import { walkFiles } from '../artifacts';
 
 export interface LearningProjectionResult {
   manifest: TrainingCorpusManifest;

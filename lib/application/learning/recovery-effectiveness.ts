@@ -9,8 +9,8 @@
  * All functions are pure — no side effects, no mutation.
  */
 
-import type { RecoveryFailureFamily, RecoveryStrategyId, RecoveryAttempt } from '../domain/execution/recovery-policy';
-import type { StepExecutionReceipt } from '../domain/types';
+import type { RecoveryFailureFamily, RecoveryStrategyId, RecoveryAttempt } from '../../domain/execution/recovery-policy';
+import type { StepExecutionReceipt } from '../../domain/types';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -210,7 +210,7 @@ export function computeRecoveryEfficiency(
 
 // ─── ObservationCollapse instance ──────────────────────────────────────────
 
-import type { ObservationCollapse } from '../domain/kernel/observation-collapse';
+import type { ObservationCollapse } from '../../domain/kernel/observation-collapse';
 
 export const recoveryEffectivenessCollapse: ObservationCollapse<
   StepExecutionReceipt,

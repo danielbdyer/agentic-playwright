@@ -8,11 +8,11 @@ import type {
   RuntimeRunbookControl,
   Scenario,
   StepResolution,
-} from '../domain/types';
-import type { WorkspaceCatalog } from './catalog';
-import { compareStrings, uniqueSorted } from '../domain/kernel/collections';
-import { dispatchByPrecedence } from '../domain/resolution/precedence';
-import { runSelectionPrecedencePolicy } from '../domain/resolution/precedence-policy';
+} from '../../domain/types';
+import type { WorkspaceCatalog } from '../catalog';
+import { compareStrings, uniqueSorted } from '../../domain/kernel/collections';
+import { dispatchByPrecedence } from '../../domain/resolution/precedence';
+import { runSelectionPrecedencePolicy } from '../../domain/resolution/precedence-policy';
 
 function selectorMatchesScenario(
   selector: { adoIds: readonly string[]; suites: readonly string[]; tags: readonly string[] },

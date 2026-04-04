@@ -1,15 +1,15 @@
-import { evaluateTrustPolicy } from '../domain/governance/trust-policy';
+import { evaluateTrustPolicy } from '../../domain/governance/trust-policy';
 import type {
   EvidenceDescriptor,
   ProposedChangeMetadata,
   TrustPolicy,
-} from '../domain/types/shared-context';
+} from '../../domain/types/shared-context';
 import {
   type GovernanceVerdict,
   approved,
   suspended,
   chainVerdict,
-} from '../domain/kernel/governed-suspension';
+} from '../../domain/kernel/governed-suspension';
 
 // ─── Auto-Approval Policy ───
 

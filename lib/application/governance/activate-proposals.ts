@@ -1,22 +1,22 @@
 import path from 'path';
 import { Effect } from 'effect';
-import type { AutoApprovalPolicy, BottleneckWeights, ProposalBundle, ProposalEntry, TrustPolicy } from '../domain/types';
-import { GovernanceLattice } from '../domain/algebra/lattice';
-import { fromGovernance, type GovernanceVerdict } from '../domain/kernel/governed-suspension';
-import type { ProjectPaths } from './paths';
-import { FileSystem } from './ports';
-import { trySync } from './effect';
+import type { AutoApprovalPolicy, BottleneckWeights, ProposalBundle, ProposalEntry, TrustPolicy } from '../../domain/types';
+import { GovernanceLattice } from '../../domain/algebra/lattice';
+import { fromGovernance, type GovernanceVerdict } from '../../domain/kernel/governed-suspension';
+import type { ProjectPaths } from '../paths';
+import { FileSystem } from '../ports';
+import { trySync } from '../effect';
 import { applyProposalPatch, parseProposalArtifact, serializeProposalArtifact, validatePatchedProposalArtifact } from './proposal-patches';
-import { evaluateAutoApproval } from '../domain/governance/trust-policy';
-import { findToxicAliases, type AliasOutcome } from '../domain/governance/proposal-quality';
-import { scoreProposalByBottleneck } from './learning-bottlenecks';
-import type { FileSystemPort } from './ports';
+import { evaluateAutoApproval } from '../../domain/governance/trust-policy';
+import { findToxicAliases, type AliasOutcome } from '../../domain/governance/proposal-quality';
+import { scoreProposalByBottleneck } from '../learning/learning-bottlenecks';
+import type { FileSystemPort } from '../ports';
 import {
   transitionProposal,
   trustPolicyToEvent,
   isBlocked,
   type ProposalTransitionEvent,
-} from '../domain/governance/proposal-lifecycle';
+} from '../../domain/governance/proposal-lifecycle';
 
 // ─── FSM-backed transition helpers ───
 // These delegate to the proposal lifecycle FSM for state transitions,

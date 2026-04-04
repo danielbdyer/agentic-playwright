@@ -1,12 +1,12 @@
 import { Effect, Either, Option } from 'effect';
-import { projectConfidenceOverlayCatalog } from './confidence';
-import { resolveRunSelection } from './controls';
-import { activateProposalBundle } from './activate-proposals';
+import { projectConfidenceOverlayCatalog } from './governance/confidence';
+import { resolveRunSelection } from './governance/controls';
+import { activateProposalBundle } from './governance/activate-proposals';
 import { buildDerivedGraph } from './graph';
 import { writeAgentSessionLedger } from './agent-session-ledger';
 import { emitScenario } from './emit';
 import { emitOperatorInbox } from './inbox';
-import { projectLearningArtifacts } from './learning';
+import { projectLearningArtifacts } from './learning/learning';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
 import type { ProjectPaths } from './paths';
 import {

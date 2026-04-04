@@ -1,6 +1,6 @@
-import { proposalIdForEntry } from '../operator';
-import { evaluateArtifactPolicy } from '../trust-policy';
-import type { LoadedEvidenceRecord } from '../trust-policy';
+import { proposalIdForEntry } from '../governance/operator';
+import { evaluateArtifactPolicy } from '../governance/trust-policy';
+import type { LoadedEvidenceRecord } from '../governance/trust-policy';
 import type { WorkspaceCatalog } from '../catalog';
 import type { AdoId } from '../../domain/kernel/identity';
 import type { ProposalBundle, ScenarioRunPlan, StepProvenanceKind, TrustPolicyArtifactType } from '../../domain/types';

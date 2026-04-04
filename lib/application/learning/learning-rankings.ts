@@ -1,4 +1,4 @@
-import { isPending } from '../domain/governance/proposal-lifecycle';
+import { isPending } from '../../domain/governance/proposal-lifecycle';
 import type {
   KnowledgeBottleneckReport,
   ProposalBundle,
@@ -6,9 +6,9 @@ import type {
   ProposalRankingReport,
   RankedProposal,
   RankingWeights,
-} from '../domain/types';
-import { DEFAULT_PIPELINE_CONFIG } from '../domain/types';
-import { uniqueSorted } from '../domain/kernel/collections';
+} from '../../domain/types';
+import { DEFAULT_PIPELINE_CONFIG } from '../../domain/types';
+import { uniqueSorted } from '../../domain/kernel/collections';
 import {
   round4,
   combineScoringRules,

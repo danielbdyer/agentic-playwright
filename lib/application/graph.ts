@@ -34,7 +34,7 @@ import {
 } from './projections/cache';
 import { type ProjectionIncremental } from './projections/runner';
 import { runIncrementalStage } from './pipeline';
-import { evaluateArtifactPolicy, policyDecisionGraphTarget } from './trust-policy';
+import { evaluateArtifactPolicy, policyDecisionGraphTarget } from './governance/trust-policy';
 import { TesseractError } from '../domain/kernel/errors';
 
 export interface DerivedGraphProjectionResult {

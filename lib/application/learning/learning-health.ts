@@ -6,9 +6,9 @@ import type {
   ScreenCoverageEntry,
   TrainingCorpusManifest,
   LearningRuntime,
-} from '../domain/types';
-import { sha256, stableStringify } from '../domain/kernel/hash';
-import { groupBy, uniqueSorted } from '../domain/kernel/collections';
+} from '../../domain/types';
+import { sha256, stableStringify } from '../../domain/kernel/hash';
+import { groupBy, uniqueSorted } from '../../domain/kernel/collections';
 import { round4, screenFromGraphNodeIds, actionFamilyOf } from './learning-shared';
 
 const THIN_SCREEN_THRESHOLD = 3;

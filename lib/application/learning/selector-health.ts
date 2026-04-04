@@ -9,7 +9,7 @@
  * All functions are pure — no side effects, no mutation.
  */
 
-import type { StepExecutionReceipt } from '../domain/types';
+import type { StepExecutionReceipt } from '../../domain/types';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -230,7 +230,7 @@ export function flagProblematicSelectors(
 //   aggregate: SelectorObservation → SelectorHealthIndex
 //   signal: SelectorHealthIndex → SelectorHealthMetrics[] (problematic ones)
 
-import type { ObservationCollapse } from '../domain/kernel/observation-collapse';
+import type { ObservationCollapse } from '../../domain/kernel/observation-collapse';
 
 export const selectorHealthCollapse: ObservationCollapse<
   StepExecutionReceipt,

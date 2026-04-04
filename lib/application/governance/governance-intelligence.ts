@@ -24,7 +24,7 @@ import type {
   ArchitectureFitnessReport,
   PipelineFitnessReport,
   ProposalBundle,
-} from '../domain/types';
+} from '../../domain/types';
 
 // ─── Types ───
 
@@ -281,7 +281,7 @@ export function isGovernanceHealthy(
 //   A = GovernanceIntelligenceReport (the aggregate report)
 //   S = number (overall governance health score)
 
-import type { ObservationCollapse } from '../domain/kernel/observation-collapse';
+import type { ObservationCollapse } from '../../domain/kernel/observation-collapse';
 
 export const governanceIntelligenceCollapse: ObservationCollapse<
   GovernanceIntelligenceInput,

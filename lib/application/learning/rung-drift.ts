@@ -11,7 +11,7 @@
  * All functions are pure: immutable inputs, immutable outputs, no side effects.
  */
 
-import type { StepExecutionReceipt } from '../domain/types';
+import type { StepExecutionReceipt } from '../../domain/types';
 
 // ─── Types ───
 
@@ -243,7 +243,7 @@ export function computeRungStability(
 //   aggregate: RungObservation → RungHistoryIndex
 //   signal: RungHistoryIndex → number (stability fraction)
 
-import type { ObservationCollapse } from '../domain/kernel/observation-collapse';
+import type { ObservationCollapse } from '../../domain/kernel/observation-collapse';
 
 export const rungDriftCollapse: ObservationCollapse<
   StepExecutionReceipt,

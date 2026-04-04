@@ -14,7 +14,7 @@ import type {
 import type { AdoId, ScreenId } from '../../domain/kernel/identity';
 import { uniqueSorted } from '../../domain/kernel/collections';
 import { TesseractError } from '../../domain/kernel/errors';
-import { activeDatasetForRun, findRunbook } from '../controls';
+import { activeDatasetForRun, findRunbook } from '../governance/controls';
 import { dispatchByPrecedence, runSelectionPrecedenceLaw } from '../../domain/resolution/precedence';
 
 const fixtureReferencePattern = /^\{\{\s*([A-Za-z0-9_-]+)(?:\.[^}]*)?\s*\}\}$/;

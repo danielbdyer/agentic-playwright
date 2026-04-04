@@ -10,10 +10,10 @@
  * All functions are pure: immutable inputs, immutable outputs, no side effects.
  */
 
-import type { StepExecutionReceipt } from '../domain/types';
-import type { ComponentProposal } from '../domain/projection/component-maturation';
-import { matureComponentKnowledge } from '../domain/projection/component-maturation';
-import { collapseObservations } from '../domain/kernel/observation-collapse';
+import type { StepExecutionReceipt } from '../../domain/types';
+import type { ComponentProposal } from '../../domain/projection/component-maturation';
+import { matureComponentKnowledge } from '../../domain/projection/component-maturation';
+import { collapseObservations } from '../../domain/kernel/observation-collapse';
 import type { TimingBaselineIndex, TimingRegression } from './timing-baseline';
 import { detectTimingRegressions, timingBaselineCollapse } from './timing-baseline';
 import type { SelectorHealthIndex, SelectorHealthMetrics } from './selector-health';

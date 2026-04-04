@@ -19,7 +19,7 @@ import type { CompileSnapshot } from './compile-snapshot';
 import { loadWorkspaceCatalog } from './catalog';
 import { createProposalBundleEnvelope, createScenarioEnvelopeFingerprints, createScenarioEnvelopeIds } from './catalog/envelope';
 import type { WorkspaceCatalog } from './catalog';
-import { buildOperatorInboxItems, operatorInboxItemsForScenario } from './operator';
+import { buildOperatorInboxItems, operatorInboxItemsForScenario } from './governance/operator';
 import type { ProjectPaths } from './paths';
 import {
   emitManifestPath,

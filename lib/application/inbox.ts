@@ -1,6 +1,6 @@
 import { Effect, Either, Schema } from 'effect';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
-import { renderOperatorInboxMarkdown, buildOperatorInboxItems } from './operator';
+import { renderOperatorInboxMarkdown, buildOperatorInboxItems } from './governance/operator';
 import { buildWorkflowHotspots } from './hotspots';
 import type { ProjectPaths } from './paths';
 import { relativeProjectPath } from './paths';

@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, statSync, writeFileSync } from 'fs';
 import path from 'path';
 import { expect, test } from '@playwright/test';
-import { activateProposalBundle } from '../lib/application/activate-proposals';
+import { activateProposalBundle } from '../lib/application/governance/activate-proposals';
 import { loadWorkspaceCatalog } from '../lib/application/catalog';
 import {
   createProposalBundleEnvelope,

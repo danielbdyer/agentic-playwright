@@ -4,7 +4,7 @@ import {
   extractHotScreens,
   extractStrongestCorrelations,
 } from '../lib/application/execution-coherence';
-import type { LearningState } from '../lib/application/learning-state';
+import type { LearningState } from '../lib/application/learning/learning-state';
 
 function makeLearningState(overrides?: Partial<{
   rungEntries: LearningState['rungDrift']['entries'];

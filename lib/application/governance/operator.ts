@@ -1,6 +1,6 @@
-import { sha256, stableStringify } from '../domain/kernel/hash';
-import { isBlocked } from '../domain/governance/proposal-lifecycle';
-import type { AdoId } from '../domain/kernel/identity';
+import { sha256, stableStringify } from '../../domain/kernel/hash';
+import { isBlocked } from '../../domain/governance/proposal-lifecycle';
+import type { AdoId } from '../../domain/kernel/identity';
 import type {
   ImprovementRun,
   OperatorInboxItem,
@@ -9,11 +9,11 @@ import type {
   RunRecord,
   StepWinningSource,
   WorkflowLane,
-} from '../domain/types';
-import type { WorkspaceCatalog } from './catalog';
-import { compareStrings, uniqueSorted } from '../domain/kernel/collections';
-import type { WorkflowHotspot } from './hotspots';
-import type { RerunPlan } from '../domain/types';
+} from '../../domain/types';
+import type { WorkspaceCatalog } from '../catalog';
+import { compareStrings, uniqueSorted } from '../../domain/kernel/collections';
+import type { WorkflowHotspot } from '../hotspots';
+import type { RerunPlan } from '../../domain/types';
 
 function latestRuns(catalog: WorkspaceCatalog): Map<AdoId, RunRecord> {
   return new Map(

@@ -6,9 +6,9 @@ import type {
   GroundedSpecFragment,
   KnowledgeBottleneck,
   KnowledgeBottleneckReport,
-} from '../domain/types';
-import { DEFAULT_PIPELINE_CONFIG } from '../domain/types';
-import { groupBy, uniqueSorted } from '../domain/kernel/collections';
+} from '../../domain/types';
+import { DEFAULT_PIPELINE_CONFIG } from '../../domain/types';
+import { groupBy, uniqueSorted } from '../../domain/kernel/collections';
 import {
   round4,
   screenFromGraphNodeIds,

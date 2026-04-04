@@ -5,7 +5,7 @@ import {
   buildCostBaselines,
   detectCostAnomalies,
   computeCostEfficiency,
-} from '../lib/application/execution-cost';
+} from '../lib/application/learning/execution-cost';
 import type { StepExecutionReceipt } from '../lib/domain/types';
 
 function makeStep(overrides: Partial<{

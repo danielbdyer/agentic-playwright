@@ -1,13 +1,13 @@
 import path from 'path';
 import { Effect } from 'effect';
-import { activateProposalBundle, autoApproveEligibleProposals, quarantineToxicProposals, tryActivateProposal } from './activate-proposals';
+import { activateProposalBundle, autoApproveEligibleProposals, quarantineToxicProposals, tryActivateProposal } from './governance/activate-proposals';
 import { isPending, isActivated } from '../domain/governance/proposal-lifecycle';
 import { deltaReloadProposalsAndRuns, loadWorkspaceCatalog } from './catalog';
 import { buildPartialFitnessMetrics } from './fitness';
-import { calibrateWeightsFromCorrelations } from './learning-bottlenecks';
-import { aggregateLearningState, type LearningState } from './learning-state';
+import { calibrateWeightsFromCorrelations } from './learning/learning-bottlenecks';
+import { aggregateLearningState, type LearningState } from './learning/learning-state';
 import { buildExecutionCoherence } from './execution-coherence';
-import { signalMaturity, buildLearningSignalsSummary, countDegradingSignals } from './signal-maturation';
+import { signalMaturity, buildLearningSignalsSummary, countDegradingSignals } from './learning/signal-maturation';
 import { emitAgentWorkbench, processWorkItems, emitInterventionLineage } from './agent-workbench';
 import { createDashboardDecider } from './dashboard-decider';
 import { createDualModeDecider, createAgentDecider } from './agent-decider';
@@ -22,7 +22,7 @@ import { runScenarioSelection } from './run';
 import { FileSystem } from './ports';
 import { runStateMachine } from './state-machine';
 import { pruneTranslationCache } from './translation-cache';
-import { round4 } from './learning-shared';
+import { round4 } from './learning/learning-shared';
 import type { BrowserPoolPort, BrowserPoolStats } from './browser-pool';
 import {
   readSemanticDictionary,

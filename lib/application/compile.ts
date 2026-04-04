@@ -7,7 +7,7 @@ import { resolveEffectConcurrency } from './concurrency';
 import { emitScenario } from './emit';
 import { buildDerivedGraph } from './graph';
 import { projectInterfaceIntelligence } from './interface-intelligence';
-import { projectLearningArtifacts } from './learning';
+import { projectLearningArtifacts } from './learning/learning';
 import { parseScenario } from './parse';
 import { runPipelineStage } from './pipeline';
 import type { ProjectPaths } from './paths';

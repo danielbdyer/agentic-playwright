@@ -6,7 +6,7 @@ import {
   buildRungHistory,
   detectRungDrift,
   computeRungStability,
-} from '../lib/application/rung-drift';
+} from '../lib/application/learning/rung-drift';
 import type { StepExecutionReceipt } from '../lib/domain/types';
 
 function makeStep(overrides: Partial<{

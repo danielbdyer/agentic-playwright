@@ -25,10 +25,10 @@ import type {
   ProposalRankingReport,
   RankedProposal,
   TrainingCorpusManifest,
-} from '../domain/types';
-import { projectCorpusHealth } from './learning-health';
-import { projectBottlenecks } from './learning-bottlenecks';
-import { rankProposals } from './learning-rankings';
+} from '../../domain/types';
+import { projectCorpusHealth } from '../learning/learning-health';
+import { projectBottlenecks } from '../learning/learning-bottlenecks';
+import { rankProposals } from '../learning/learning-rankings';
 
 // ─── Run Step Summary (mirrors learning-bottlenecks.ts internal type) ───
 

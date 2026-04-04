@@ -5,7 +5,7 @@ import type {
   ScenarioExplanation,
   ScenarioProjectionInput,
 } from '../../domain/types';
-import type { operatorInboxItemsForScenario } from '../operator';
+import type { operatorInboxItemsForScenario } from '../governance/operator';
 
 interface ReviewMetadata {
   readonly title: string;

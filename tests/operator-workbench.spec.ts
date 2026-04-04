@@ -1,12 +1,12 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'fs';
 import path from 'path';
 import { expect, test } from '@playwright/test';
-import { approveProposal } from '../lib/application/approve';
+import { approveProposal } from '../lib/application/governance/approve';
 import { projectBenchmarkScorecard } from '../lib/application/benchmark';
 import { emitOperatorInbox } from '../lib/application/inbox';
 import { generatedProposalsPath } from '../lib/application/paths';
 import { refreshScenario } from '../lib/application/refresh';
-import { proposalIdForEntry } from '../lib/application/operator';
+import { proposalIdForEntry } from '../lib/application/governance/operator';
 import { runWithLocalServices, runWithLocalServicesDetailed } from '../lib/composition/local-services';
 import { createAdoId } from '../lib/domain/kernel/identity';
 import type { ProposalBundle } from '../lib/domain/types';

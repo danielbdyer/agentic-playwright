@@ -3,7 +3,7 @@ import {
   buildGovernanceIntelligence,
   extractHighFrictionTypes,
   isGovernanceHealthy,
-} from '../lib/application/governance-intelligence';
+} from '../lib/application/governance/governance-intelligence';
 import type { ContradictionReport } from '../lib/domain/types/contradiction';
 import type { ArchitectureFitnessReport } from '../lib/domain/types/architecture-fitness';
 import type { ProposalBundle } from '../lib/domain/types';

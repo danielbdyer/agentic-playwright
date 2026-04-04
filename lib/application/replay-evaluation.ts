@@ -7,7 +7,7 @@ import type {
   ResolutionReceipt,
 } from '../domain/types';
 import { targetKey, driftFields as computeDriftFields } from '../domain/resolution/comparison-rules';
-import { round4 } from './learning-shared';
+import { round4 } from './learning/learning-shared';
 
 /** Compare two resolution receipts at a step. Pure. Uses shared comparison rules. */
 function compareStep(

@@ -1,18 +1,18 @@
 import path from 'path';
 import { Effect } from 'effect';
-import { TesseractError } from '../domain/kernel/errors';
-import { mapPayload } from '../domain/types/shared-context';
-import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
-import { emitOperatorInbox } from './inbox';
+import { TesseractError } from '../../domain/kernel/errors';
+import { mapPayload } from '../../domain/types/shared-context';
+import { loadWorkspaceCatalog, type WorkspaceCatalog } from '../catalog';
+import { emitOperatorInbox } from '../inbox';
 import { buildOperatorInboxItems, findProposalById } from './operator';
 import { applyProposalPatch, parseProposalArtifact, serializeProposalArtifact, validatePatchedProposalArtifact } from './proposal-patches';
-import { executeInterventionBatch } from './intervention-kernel';
-import { buildRerunPlan } from './rerun-plan';
-import type { ProjectPaths } from './paths';
-import { approvalReceiptPath, relativeProjectPath } from './paths';
-import { ExecutionContext, FileSystem } from './ports';
-import type { ApprovalReceipt, ProposalEntry, RerunPlan } from '../domain/types';
-import type { ActionExecutionResult } from './intervention-kernel';
+import { executeInterventionBatch } from '../intervention-kernel';
+import { buildRerunPlan } from '../rerun-plan';
+import type { ProjectPaths } from '../paths';
+import { approvalReceiptPath, relativeProjectPath } from '../paths';
+import { ExecutionContext, FileSystem } from '../ports';
+import type { ApprovalReceipt, ProposalEntry, RerunPlan } from '../../domain/types';
+import type { ActionExecutionResult } from '../intervention-kernel';
 
 export function approveProposal(options: {
   paths: ProjectPaths;

@@ -1,9 +1,9 @@
 import YAML from 'yaml';
-import { isRecord } from '../domain/kernel/collections';
-import type { ProposalEntry } from '../domain/types';
-import { validateScreenHints } from '../domain/validation';
-import type { Lattice } from '../domain/algebra/lattice';
-import type { ContextualMerge } from '../domain/algebra/contextual-merge';
+import { isRecord } from '../../domain/kernel/collections';
+import type { ProposalEntry } from '../../domain/types';
+import { validateScreenHints } from '../../domain/validation';
+import type { Lattice } from '../../domain/algebra/lattice';
+import type { ContextualMerge } from '../../domain/algebra/contextual-merge';
 
 /** Deep merge two records. Pure recursive fold — no mutation. */
 const mergeRecords = (

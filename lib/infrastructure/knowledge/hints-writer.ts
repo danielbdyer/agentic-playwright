@@ -11,7 +11,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { parseProposalArtifact, serializeProposalArtifact } from '../../application/proposal-patches';
+import { parseProposalArtifact, serializeProposalArtifact } from '../../application/governance/proposal-patches';
 import type { HintContribution, LocatorAliasContribution } from '../mcp/dashboard-mcp-server';
 
 /** Read a screen's hints.yaml file, returning a mutable record. Returns empty hints if not found. */

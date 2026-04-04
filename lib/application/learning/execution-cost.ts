@@ -10,7 +10,7 @@
  * All functions are pure: immutable inputs, immutable outputs, no side effects.
  */
 
-import type { StepExecutionReceipt } from '../domain/types';
+import type { StepExecutionReceipt } from '../../domain/types';
 
 // ─── Types ───
 
@@ -233,7 +233,7 @@ export function computeCostEfficiency(
 //   aggregate: CostObservation → CostBaselineIndex
 //   signal: CostBaselineIndex → number (cost efficiency)
 
-import type { ObservationCollapse } from '../domain/kernel/observation-collapse';
+import type { ObservationCollapse } from '../../domain/kernel/observation-collapse';
 
 export const executionCostCollapse: ObservationCollapse<
   StepExecutionReceipt,

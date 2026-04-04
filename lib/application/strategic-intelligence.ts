@@ -26,7 +26,7 @@ import {
   buildProposalIntelligence,
   type ProposalIntelligenceReport,
   type RunStepSummary,
-} from './proposal-intelligence';
+} from './governance/proposal-intelligence';
 import {
   buildImprovementIntelligence,
   type ImprovementIntelligenceReport,

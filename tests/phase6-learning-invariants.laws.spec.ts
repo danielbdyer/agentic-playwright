@@ -7,10 +7,10 @@ import type {
   ResolutionReceipt,
   TrainingCorpusManifest,
 } from '../lib/domain/types';
-import { projectCorpusHealth } from '../lib/application/learning-health';
+import { projectCorpusHealth } from '../lib/application/learning/learning-health';
 import { evaluateReplayExample, buildReplayEvaluationSummary } from '../lib/application/replay-evaluation';
-import { projectBottlenecks } from '../lib/application/learning-bottlenecks';
-import { rankProposals } from '../lib/application/learning-rankings';
+import { projectBottlenecks } from '../lib/application/learning/learning-bottlenecks';
+import { rankProposals } from '../lib/application/learning/learning-rankings';
 
 // ─── Fixtures ───
 
