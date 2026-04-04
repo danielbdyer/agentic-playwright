@@ -11,7 +11,7 @@ import type {
   StepExecutionReceipt,
   ProposalBundle,
 } from '../lib/domain/types';
-import type { DogfoodIterationResult, DogfoodLedger } from '../lib/application/dogfood';
+import type { DogfoodIterationResult, DogfoodLedger } from '../lib/application/improvement/dogfood';
 
 // ─── Test Fixtures ───
 

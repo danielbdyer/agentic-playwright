@@ -14,7 +14,7 @@
 
 import { expect, test } from '@playwright/test';
 import { calibrateWeightsFromCorrelations } from '../lib/application/learning/learning-bottlenecks';
-import { deriveIterationCorrelations, iterationSignalStrengths, consecutivePairs } from '../lib/application/dogfood';
+import { deriveIterationCorrelations, iterationSignalStrengths, consecutivePairs } from '../lib/application/improvement/dogfood';
 import { DEFAULT_PIPELINE_CONFIG } from '../lib/domain/types';
 import type { BottleneckWeights, BottleneckWeightCorrelation, ImprovementLoopIteration } from '../lib/domain/types';
 

@@ -9,10 +9,10 @@
 
 import path from 'path';
 import { Effect } from 'effect';
-import type { ExperimentRegistry, ExperimentRecord } from '../domain/types';
-import { appendExperiment, emptyExperimentRegistry } from '../domain/types';
-import type { ProjectPaths } from './paths';
-import { FileSystem } from './ports';
+import type { ExperimentRegistry, ExperimentRecord } from '../../domain/types';
+import { appendExperiment, emptyExperimentRegistry } from '../../domain/types';
+import type { ProjectPaths } from '../paths';
+import { FileSystem } from '../ports';
 import {
   improvementLedgerPath,
   loadImprovementLedger,

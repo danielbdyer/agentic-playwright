@@ -11,22 +11,22 @@
  */
 
 import { Effect } from 'effect';
-import { sha256 } from '../domain/kernel/hash';
-import { isPending } from '../domain/governance/proposal-lifecycle';
-import { foldResolutionReceipt } from '../domain/kernel/visitors';
-import { groupBy } from '../domain/kernel/collections';
-import type { SliceFn, ProjectionFn } from '../domain/algebra/slice-projection';
-import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
-import { buildWorkflowHotspots, type WorkflowHotspot } from './hotspots';
-import type { ProjectPaths } from './paths';
-import { FileSystem, Dashboard } from './ports';
-import { dashboardEvent } from '../domain/types/intervention-context';
+import { sha256 } from '../../domain/kernel/hash';
+import { isPending } from '../../domain/governance/proposal-lifecycle';
+import { foldResolutionReceipt } from '../../domain/kernel/visitors';
+import { groupBy } from '../../domain/kernel/collections';
+import type { SliceFn, ProjectionFn } from '../../domain/algebra/slice-projection';
+import { loadWorkspaceCatalog, type WorkspaceCatalog } from '../catalog';
+import { buildWorkflowHotspots, type WorkflowHotspot } from '../improvement/hotspots';
+import type { ProjectPaths } from '../paths';
+import { FileSystem, Dashboard } from '../ports';
+import { dashboardEvent } from '../../domain/types/intervention-context';
 import {
   combineScoringRules,
   weightedScoringRule,
   round4,
   type ScoringRule,
-} from './learning/learning-shared';
+} from '../learning/learning-shared';
 import type {
   AgentWorkItem,
   AgentWorkbenchProjection,
@@ -36,9 +36,9 @@ import type {
   WorkItemKind,
   StepTaskScreenCandidate,
   InterfaceResolutionContext,
-} from '../domain/types';
-import type { ScreenId } from '../domain/kernel/identity';
-import type { InterventionLineageEntry, InterventionLineageEnvelope, InterventionTarget } from '../domain/types';
+} from '../../domain/types';
+import type { ScreenId } from '../../domain/kernel/identity';
+import type { InterventionLineageEntry, InterventionLineageEnvelope, InterventionTarget } from '../../domain/types';
 
 // ─── Work Item Scoring (Composite ScoringRule semigroup) ───
 
@@ -207,7 +207,7 @@ function hotspotWorkItems(hotspots: readonly WorkflowHotspot[], iteration: numbe
  *  AND signal maturity is high enough to trust the signal (maturity > 0.4).
  *  Pure function: learning signals → work items. */
 function healthWorkItems(
-  learningSignals: import('../domain/types').LearningSignalsSummary | undefined,
+  learningSignals: import('../../domain/types').LearningSignalsSummary | undefined,
   iteration: number,
 ): readonly AgentWorkItem[] {
   if (!learningSignals) return [];
@@ -260,7 +260,7 @@ export function buildAgentWorkItems(
   catalog: WorkspaceCatalog,
   iteration: number,
   precomputedHotspots?: readonly WorkflowHotspot[],
-  learningSignals?: import('../domain/types').LearningSignalsSummary | undefined,
+  learningSignals?: import('../../domain/types').LearningSignalsSummary | undefined,
 ): readonly AgentWorkItem[] {
   const hotspots = precomputedHotspots ?? buildWorkflowHotspots(
     catalog.runRecords.map((e) => e.artifact),
@@ -610,7 +610,7 @@ export function emitAgentWorkbench(options: {
   readonly catalog?: WorkspaceCatalog | undefined;
   readonly iteration?: number | undefined;
   readonly hotspots?: readonly WorkflowHotspot[] | undefined;
-  readonly learningSignals?: import('../domain/types').LearningSignalsSummary | undefined;
+  readonly learningSignals?: import('../../domain/types').LearningSignalsSummary | undefined;
 }) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;

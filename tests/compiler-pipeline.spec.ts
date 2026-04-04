@@ -5,7 +5,7 @@ import { buildDerivedGraph } from '../lib/application/graph';
 import { impactNode } from '../lib/application/impact';
 import { emitOperatorInbox } from '../lib/application/inbox';
 import { describeScenarioPaths } from '../lib/application/inspect';
-import { buildImprovementRun, improvementLedgerPath } from '../lib/application/improvement';
+import { buildImprovementRun, improvementLedgerPath } from '../lib/application/improvement/improvement';
 import { emitScenario } from '../lib/application/emit';
 import { loadWorkspaceCatalog } from '../lib/application/catalog';
 import { emitManifestPath } from '../lib/application/paths';

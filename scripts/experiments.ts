@@ -9,7 +9,7 @@
 
 import path from 'path';
 import { createProjectPaths } from '../lib/application/paths';
-import { loadImprovementLedger, toExperimentRecord } from '../lib/application/improvement';
+import { loadImprovementLedger, toExperimentRecord } from '../lib/application/improvement/improvement';
 import { runWithLocalServices } from '../lib/composition/local-services';
 import type { ExperimentRecord, ExperimentSubstrate, ImprovementRun } from '../lib/domain/types';
 

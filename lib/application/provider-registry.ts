@@ -9,4 +9,4 @@ export {
   resolveAgentSessionAdapter,
   type AgentSessionAdapter,
   type AgentSessionAdapterId,
-} from './agent-session-adapter';
+} from './agent/agent-session-adapter';

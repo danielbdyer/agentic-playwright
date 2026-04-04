@@ -3,7 +3,7 @@ import { projectConfidenceOverlayCatalog } from './governance/confidence';
 import { resolveRunSelection } from './governance/controls';
 import { activateProposalBundle } from './governance/activate-proposals';
 import { buildDerivedGraph } from './graph';
-import { writeAgentSessionLedger } from './agent-session-ledger';
+import { writeAgentSessionLedger } from './agent/agent-session-ledger';
 import { emitScenario } from './emit';
 import { emitOperatorInbox } from './inbox';
 import { projectLearningArtifacts } from './learning/learning';

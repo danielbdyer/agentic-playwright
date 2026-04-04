@@ -10,8 +10,8 @@
  * Pure: data sources in, sorted hotspots out.
  */
 
-import type { InterpretationDriftRecord, ResolutionGraphRecord, RunRecord } from '../domain/types';
-import { compareStrings } from '../domain/kernel/collections';
+import type { InterpretationDriftRecord, ResolutionGraphRecord, RunRecord } from '../../domain/types';
+import { compareStrings } from '../../domain/kernel/collections';
 
 const compareNumbers = (left: number, right: number): number => left - right;
 

@@ -33,7 +33,7 @@ import {
   fitnessPhase,
   reportPhase,
   type MultiSeedResult,
-} from '../lib/application/speedrun';
+} from '../lib/application/improvement/speedrun';
 import { resolveKnowledgePosture } from '../lib/application/knowledge-posture';
 import { runWithLocalServices } from '../lib/composition/local-services';
 import type { KnowledgePosture, PipelineConfig, PipelineFitnessReport, SpeedrunProgressEvent } from '../lib/domain/types';

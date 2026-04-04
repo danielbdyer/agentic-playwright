@@ -1,7 +1,7 @@
 import path from 'path';
 import { Effect } from 'effect';
-import { ImprovementRunStore } from './ports';
-import type { ProjectPaths } from './paths';
+import { ImprovementRunStore } from '../ports';
+import type { ProjectPaths } from '../paths';
 import type {
   AcceptanceDecision,
   CandidateIntervention,
@@ -22,8 +22,8 @@ import type {
   PipelineConfig,
   PipelineFitnessReport,
   SubstrateContext,
-} from '../domain/types';
-import { checkpointRun, createImprovementRun } from '../domain/aggregates/improvement-run';
+} from '../../domain/types';
+import { checkpointRun, createImprovementRun } from '../../domain/aggregates/improvement-run';
 
 export interface BuildImprovementRunInput {
   readonly paths: ProjectPaths;

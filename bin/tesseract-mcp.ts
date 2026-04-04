@@ -29,7 +29,7 @@ import type { McpToolDefinition } from '../lib/domain/types';
 import type { WorkItemDecision } from '../lib/domain/types/dashboard';
 import type { ScreenCapturedEvent } from '../lib/domain/types/dashboard';
 import { createProjectPaths } from '../lib/application/paths';
-import { multiSeedSpeedrun, type MultiSeedResult } from '../lib/application/speedrun';
+import { multiSeedSpeedrun, type MultiSeedResult } from '../lib/application/improvement/speedrun';
 import { createLocalServiceContext, type LocalServiceOptions } from '../lib/composition/local-services';
 import { createPlaywrightBrowserPool } from '../lib/infrastructure/playwright-browser-pool';
 import { startFixtureServer, type FixtureServer } from '../lib/infrastructure/fixture-server';

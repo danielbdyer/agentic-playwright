@@ -10,10 +10,10 @@ import type {
   SelectorCanon,
   TrainingCorpusManifest,
   TranscriptRef,
-} from '../domain/types';
-import { mintApproved } from '../domain/types/shared-context';
-import type { AdoId } from '../domain/kernel/identity';
-import { TesseractError } from '../domain/kernel/errors';
+} from '../../domain/types';
+import { mintApproved } from '../../domain/types/shared-context';
+import type { AdoId } from '../../domain/kernel/identity';
+import { TesseractError } from '../../domain/kernel/errors';
 
 export type AgentSessionAdapterId = string;
 

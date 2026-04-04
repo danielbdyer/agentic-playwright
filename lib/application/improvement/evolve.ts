@@ -13,14 +13,14 @@
 
 import path from 'path';
 import { Effect, Either, Option } from 'effect';
-import type { ProjectPaths } from './paths';
+import type { ProjectPaths } from '../paths';
 import { speedrunProgram, type SpeedrunInput, type SpeedrunResult } from './speedrun';
 import { mappingForFailureClass, generateCandidates, type CandidateConfig } from './knob-search';
-import { updateScorecard } from './fitness';
+import { updateScorecard } from '../fitness';
 import { recordExperiment } from './experiment-registry';
 import { scorecardPath } from './improvement';
 import { cleanSlateProgram } from './clean-slate';
-import { FileSystem } from './ports';
+import { FileSystem } from '../ports';
 import type {
   ExperimentRecord,
   ExperimentSubstrate,
@@ -28,9 +28,9 @@ import type {
   PipelineScorecard,
   SpeedrunProgressEvent,
   SubstrateContext,
-} from '../domain/types';
-import { DEFAULT_PIPELINE_CONFIG } from '../domain/types';
-import { TesseractError } from '../domain/kernel/errors';
+} from '../../domain/types';
+import { DEFAULT_PIPELINE_CONFIG } from '../../domain/types';
+import { TesseractError } from '../../domain/kernel/errors';
 
 // ─── Public types ───
 

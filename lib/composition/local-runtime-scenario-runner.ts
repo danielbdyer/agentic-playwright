@@ -13,7 +13,7 @@ import {
 } from '../application/semantic-translation-dictionary';
 import { translateIntentToOntology } from '../application/translate';
 import type { TranslationProvider } from '../application/translation-provider';
-import { resolveAgentInterpreterPort } from '../application/agent-interpreter-provider';
+import { resolveAgentInterpreterPort } from '../application/agent/agent-interpreter-provider';
 import type { AgentInterpretationResult } from '../domain/types/agent-interpreter';
 import type { AgentInterpreterPort } from '../domain/resolution/model';
 import type { SemanticDictionaryCatalog, TranslationReceipt, TranslationRequest } from '../domain/types';

@@ -2,7 +2,7 @@ import { readFileSync } from 'fs';
 import path from 'path';
 import { expect, test } from '@playwright/test';
 import { applyDriftEvents, type VarianceManifest } from '../lib/application/drift';
-import { runDogfoodLoop } from '../lib/application/dogfood';
+import { runDogfoodLoop } from '../lib/application/improvement/dogfood';
 import { refreshScenario } from '../lib/application/refresh';
 import { runWithLocalServices } from '../lib/composition/local-services';
 import { createAdoId } from '../lib/domain/kernel/identity';

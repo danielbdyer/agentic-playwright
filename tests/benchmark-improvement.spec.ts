@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'fs';
 import path from 'path';
 import { expect, test } from '@playwright/test';
 import { projectBenchmarkScorecard } from '../lib/application/benchmark';
-import { buildImprovementRun, improvementLedgerPath } from '../lib/application/improvement';
+import { buildImprovementRun, improvementLedgerPath } from '../lib/application/improvement/improvement';
 import { benchmarkDogfoodRunPath, benchmarkImprovementProjectionPath } from '../lib/application/paths';
 import { runWithLocalServices } from '../lib/composition/local-services';
 import { createAdoId } from '../lib/domain/kernel/identity';

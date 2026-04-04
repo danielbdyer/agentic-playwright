@@ -3,7 +3,7 @@ import {
   buildImprovementIntelligence,
   extractTopPriorities,
   computeImprovementTrends,
-} from '../lib/application/improvement-intelligence';
+} from '../lib/application/improvement/improvement-intelligence';
 import type { PipelineFitnessReport } from '../lib/domain/types';
 
 function makeFitnessReport(overrides?: Partial<{

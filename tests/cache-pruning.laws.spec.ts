@@ -1,10 +1,10 @@
 import { expect, test } from '@playwright/test';
 import { Effect } from 'effect';
-import { pruneAgentInterpretationCache, writeAgentInterpretationCache, type AgentInterpretationCacheKeyInput } from '../lib/application/agent-interpretation-cache';
+import { pruneAgentInterpretationCache, writeAgentInterpretationCache, type AgentInterpretationCacheKeyInput } from '../lib/application/agent/agent-interpretation-cache';
 import { createProjectPaths } from '../lib/application/paths';
 import { FileSystem } from '../lib/application/ports';
 import { pruneTranslationCache, writeTranslationCache } from '../lib/application/translation-cache';
-import type { AgentInterpretationResult } from '../lib/application/agent-interpreter-provider';
+import type { AgentInterpretationResult } from '../lib/application/agent/agent-interpreter-provider';
 import type { TranslationRequest, TranslationReceipt } from '../lib/domain/types';
 import { createElementId, createScreenId } from '../lib/domain/kernel/identity';
 import { LocalFileSystem } from '../lib/infrastructure/fs/local-fs';

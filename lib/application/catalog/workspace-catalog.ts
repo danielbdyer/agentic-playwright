@@ -74,7 +74,7 @@ import { walkFiles } from '../artifacts';
 import type { ProjectPaths } from '../paths';
 import { boundPath, relativeProjectPath, snapshotPath } from '../paths';
 import { FileSystem, type FileSystemPort } from '../ports';
-import { improvementLedgerPath, loadImprovementLedger } from '../improvement';
+import { improvementLedgerPath, loadImprovementLedger } from '../improvement/improvement';
 import { createArtifactEnvelope, upsertArtifactEnvelope } from './envelope';
 import { readJsonArtifact, readYamlArtifact } from './loaders';
 import { assembleScreenBundles } from './screen-bundles';

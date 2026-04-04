@@ -1,5 +1,5 @@
 import { Effect } from 'effect';
-import { loadExperimentRegistry } from '../../experiment-registry';
+import { loadExperimentRegistry } from '../../improvement/experiment-registry';
 import { filterExperiments, type ExperimentRecord } from '../../../domain/types';
 import { createCommandSpec } from '../shared';
 

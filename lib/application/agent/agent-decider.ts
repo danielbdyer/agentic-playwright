@@ -9,9 +9,9 @@
  */
 
 import { Effect, Duration } from 'effect';
-import type { AgentWorkItem } from '../domain/types';
+import type { AgentWorkItem } from '../../domain/types';
 import type { WorkItemDecider } from './agent-workbench';
-import { type GovernanceVerdict, approved, suspended } from '../domain/kernel/governed-suspension';
+import { type GovernanceVerdict, approved, suspended } from '../../domain/kernel/governed-suspension';
 
 // ─── Types ───
 

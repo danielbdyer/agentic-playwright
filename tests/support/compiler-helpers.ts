@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from 'fs';
 import path from 'path';
 import { expect } from '@playwright/test';
-import { buildImprovementRun, improvementLedgerPath } from '../../lib/application/improvement';
+import { buildImprovementRun, improvementLedgerPath } from '../../lib/application/improvement/improvement';
 import type { ProjectionCacheMissIncremental, ProjectionIncremental } from '../../lib/application/projections/runner';
 import { createElementId, createScreenId, createSurfaceId } from '../../lib/domain/kernel/identity';
 import type { createAdoId } from '../../lib/domain/kernel/identity';

@@ -17,10 +17,10 @@
 
 import * as path from 'path';
 import { createProjectPaths } from '../lib/application/paths';
-import { loadAgentWorkbench, processWorkItems, type ActLoopResult, type ScreenGroupContext } from '../lib/application/agent-workbench';
-import { multiSeedSpeedrun } from '../lib/application/speedrun';
+import { loadAgentWorkbench, processWorkItems, type ActLoopResult, type ScreenGroupContext } from '../lib/application/agent/agent-workbench';
+import { multiSeedSpeedrun } from '../lib/application/improvement/speedrun';
 import { resolveKnowledgePosture } from '../lib/application/knowledge-posture';
-import { resolveAgentInterpreterProvider, type AgentInterpreterProvider } from '../lib/application/agent-interpreter-provider';
+import { resolveAgentInterpreterProvider, type AgentInterpreterProvider } from '../lib/application/agent/agent-interpreter-provider';
 import { runWithLocalServices } from '../lib/composition/local-services';
 import type { KnowledgePosture, SpeedrunProgressEvent } from '../lib/domain/types';
 import { DEFAULT_PIPELINE_CONFIG } from '../lib/domain/types';

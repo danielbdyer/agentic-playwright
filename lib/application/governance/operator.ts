@@ -12,7 +12,7 @@ import type {
 } from '../../domain/types';
 import type { WorkspaceCatalog } from '../catalog';
 import { compareStrings, uniqueSorted } from '../../domain/kernel/collections';
-import type { WorkflowHotspot } from '../hotspots';
+import type { WorkflowHotspot } from '../improvement/hotspots';
 import type { RerunPlan } from '../../domain/types';
 
 function latestRuns(catalog: WorkspaceCatalog): Map<AdoId, RunRecord> {

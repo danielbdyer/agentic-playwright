@@ -1,6 +1,6 @@
 import { Effect } from 'effect';
-import { multiSeedSpeedrun } from '../../speedrun';
-import { evolveProgram } from '../../evolve';
+import { multiSeedSpeedrun } from '../../improvement/speedrun';
+import { evolveProgram } from '../../improvement/evolve';
 import { DEFAULT_PIPELINE_CONFIG } from '../../../domain/types';
 import type { ExecutionProfile, InterpreterMode } from '../shared';
 import { createCommandSpec } from '../shared';

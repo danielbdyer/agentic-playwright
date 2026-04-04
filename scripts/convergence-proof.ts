@@ -25,7 +25,7 @@ import {
   defaultConvergenceSeeds,
   formatConvergenceReport,
   type ConvergenceProofInput,
-} from '../lib/application/convergence-proof';
+} from '../lib/application/improvement/convergence-proof';
 import type { ConvergenceTrialResult } from '../lib/domain/types/convergence-proof';
 import { runWithLocalServices } from '../lib/composition/local-services';
 import type { KnowledgePosture, SpeedrunProgressEvent } from '../lib/domain/types';

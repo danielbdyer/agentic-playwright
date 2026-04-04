@@ -1,4 +1,4 @@
-import { evolveProgram } from '../../evolve';
+import { evolveProgram } from '../../improvement/evolve';
 import type { ExecutionProfile, InterpreterMode } from '../shared';
 import { createCommandSpec } from '../shared';
 import { withDefinedValues } from '../shared';

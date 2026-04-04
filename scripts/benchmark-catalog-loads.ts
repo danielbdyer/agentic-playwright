@@ -10,8 +10,8 @@
 import * as path from 'path';
 import { createProjectPaths } from '../lib/application/paths';
 import { getCatalogLoadCount, resetCatalogLoadCount } from '../lib/application/catalog';
-import { speedrunProgram } from '../lib/application/speedrun';
-import { cleanSlateProgram } from '../lib/application/clean-slate';
+import { speedrunProgram } from '../lib/application/improvement/speedrun';
+import { cleanSlateProgram } from '../lib/application/improvement/clean-slate';
 import { runWithLocalServices } from '../lib/composition/local-services';
 import type { SpeedrunProgressEvent } from '../lib/domain/types';
 

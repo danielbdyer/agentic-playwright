@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { buildImprovementRun, toExperimentRecord } from '../lib/application/improvement';
+import { buildImprovementRun, toExperimentRecord } from '../lib/application/improvement/improvement';
 import { createProjectPaths } from '../lib/application/paths';
 import {
   DEFAULT_PIPELINE_CONFIG,

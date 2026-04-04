@@ -23,7 +23,7 @@ import type {
   InterpretationDriftRecord,
   ResolutionGraphRecord,
   ImprovementSignal,
-} from '../domain/types';
+} from '../../domain/types';
 import { buildWorkflowHotspots, type WorkflowHotspot } from './hotspots';
 
 // ─── Types ───

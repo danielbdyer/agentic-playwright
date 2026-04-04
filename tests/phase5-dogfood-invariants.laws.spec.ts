@@ -12,7 +12,7 @@ import { evaluateAutoApproval, DEFAULT_AUTO_APPROVAL_POLICY } from '../lib/domai
 import {
   createAgentSessionAdapterRegistry,
   resolveAgentSessionAdapter,
-} from '../lib/application/agent-session-adapter';
+} from '../lib/application/agent/agent-session-adapter';
 
 // ─── Fixtures ───
 

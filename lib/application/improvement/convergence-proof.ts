@@ -15,24 +15,24 @@
 
 import path from 'path';
 import { Effect } from 'effect';
-import type { ProjectPaths } from './paths';
+import type { ProjectPaths } from '../paths';
 import { speedrunProgram, type SpeedrunResult } from './speedrun';
 import { cleanSlateProgram } from './clean-slate';
-import { FileSystem, VersionControl } from './ports';
+import { FileSystem, VersionControl } from '../ports';
 import type {
   KnowledgePosture,
   PipelineConfig,
   SpeedrunProgressEvent,
-} from '../domain/types';
-import { DEFAULT_PIPELINE_CONFIG } from '../domain/types';
+} from '../../domain/types';
+import { DEFAULT_PIPELINE_CONFIG } from '../../domain/types';
 import {
   buildTrialResult,
   buildVerdict,
   type ConvergenceProofResult,
   type ConvergenceTrialResult,
-} from '../domain/types';
-import type { BrowserPoolPort } from './browser-pool';
-import { runHyloEffect, type UnfoldStep } from '../domain/algebra/hylomorphism';
+} from '../../domain/types';
+import type { BrowserPoolPort } from '../browser-pool';
+import { runHyloEffect, type UnfoldStep } from '../../domain/algebra/hylomorphism';
 
 // ─── Input ───
 

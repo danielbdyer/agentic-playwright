@@ -31,7 +31,7 @@ import {
   buildImprovementIntelligence,
   type ImprovementIntelligenceReport,
   type ImprovementPriority,
-} from './improvement-intelligence';
+} from './improvement/improvement-intelligence';
 
 // ─── Types ───
 
