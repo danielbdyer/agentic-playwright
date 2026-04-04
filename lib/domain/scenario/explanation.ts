@@ -1,7 +1,7 @@
 import { provenanceKindForBoundStep } from '../governance/provenance';
 import { aggregateConfidence } from '../execution/status';
 import type { BoundScenario, Governance, RunRecord, ScenarioExplanation, ScenarioLifecycle, StepProvenanceKind } from '../types';
-import { isReviewRequired } from '../types/workflow';
+import { isReviewRequired } from '../governance/workflow-types';
 
 export function aggregateScenarioGovernance(boundScenario: BoundScenario, latestRun?: RunRecord | null): Governance {
   if (latestRun?.steps.some((step) => step.interpretation.kind === 'needs-human')) {

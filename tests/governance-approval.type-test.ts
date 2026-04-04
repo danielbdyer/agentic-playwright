@@ -11,7 +11,7 @@ import type {
   ScenarioInterpretationSurface,
   ScenarioProjectionInput,
 } from '../lib/domain/types';
-import type { Approved } from '../lib/domain/types/workflow';
+import type { Approved } from '../lib/domain/governance/workflow-types';
 
 const kernel: InterventionKernel = {
   executeAction: () => Effect.succeed({ summary: 'ok' }),

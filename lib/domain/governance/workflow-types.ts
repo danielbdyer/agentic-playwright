@@ -1,5 +1,5 @@
 import type { AdoId, ElementId, PostureId, ScreenId, SnapshotTemplateId, SurfaceId } from '../kernel/identity';
-import type { AdoSnapshot } from './intent';
+import type { AdoSnapshot } from '../intent/types';
 
 export type Confidence = 'human' | 'agent-verified' | 'agent-proposed' | 'compiler-derived' | 'intent-only' | 'unbound';
 export type Governance = 'approved' | 'review-required' | 'blocked';

@@ -1,5 +1,5 @@
 import type { WidgetId } from '../kernel/identity';
-import type { EffectState } from './workflow';
+import type { EffectState } from '../governance/workflow-types';
 
 export type WidgetAction = 'click' | 'fill' | 'clear' | 'check' | 'uncheck' | 'select' | 'get-value';
 export type WidgetPrecondition = 'visible' | 'enabled' | 'editable';

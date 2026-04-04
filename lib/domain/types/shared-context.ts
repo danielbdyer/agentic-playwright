@@ -4,4 +4,4 @@
  * Keep this surface small and stable: bounded contexts may depend on
  * these shared contracts, but should not depend on each other.
  */
-export * from './workflow';
+export * from '../governance/workflow-types';

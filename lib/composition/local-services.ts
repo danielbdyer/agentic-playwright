@@ -26,9 +26,9 @@ import { LocalInterventionLedgerRepository } from '../infrastructure/repositorie
 import { makeLocalVersionControl } from '../infrastructure/tooling/local-version-control';
 import { LocalRuntimeScenarioRunner, createLocalRuntimeScenarioRunnerWithInterpreter, createLocalRuntimeScenarioRunnerWithPool } from './local-runtime-scenario-runner';
 import type { AgentInterpreterPort } from '../domain/resolution/model';
-import type { AgentInterpretationResult } from '../domain/types/agent-interpreter';
+import type { AgentInterpretationResult } from '../domain/interpretation/agent-interpreter';
 import { PlaywrightBridge, DisabledPlaywrightBridge } from '../infrastructure/mcp/playwright-mcp-bridge';
-import { dashboardEvent } from '../domain/types/dashboard';
+import { dashboardEvent } from '../domain/observation/dashboard';
 import type { ExecutionPosture, PipelineConfig, WriteJournalEntry } from '../domain/types';
 import { DEFAULT_PIPELINE_CONFIG } from '../domain/types';
 import type { DashboardPort, McpServerPort, StageTracerPort } from '../application/ports';

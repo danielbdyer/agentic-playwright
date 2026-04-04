@@ -12,8 +12,8 @@
 
 import type { AdoId } from '../kernel/identity';
 import type { InterventionTarget } from './intervention';
-import type { StepTaskScreenCandidate } from './knowledge';
-import type { ResolutionTarget } from './workflow';
+import type { StepTaskScreenCandidate } from '../knowledge/types';
+import type { ResolutionTarget } from '../governance/workflow-types';
 
 export type WorkItemKind =
   | 'interpret-step'

@@ -1,4 +1,4 @@
-﻿import type { Confidence, ScenarioStatus } from '../types/workflow';
+﻿import type { Confidence, ScenarioStatus } from '../governance/workflow-types';
 import {
   isStub, isDraft, isNeedsRepair, isScenarioBlocked, isDeprecated,
 } from './scenario-lifecycle';

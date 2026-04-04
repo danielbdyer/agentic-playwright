@@ -40,8 +40,8 @@ import {
   createCopilotParticipant,
   dispatchCopilotRequest,
 } from '../lib/infrastructure/vscode/copilot-participant';
-import type { OperatorInboxItem } from '../lib/domain/types/resolution';
-import type { ProposalBundle, ProposalEntry } from '../lib/domain/types/execution';
+import type { OperatorInboxItem } from '../lib/domain/resolution/types';
+import type { ProposalBundle, ProposalEntry } from '../lib/domain/execution/types';
 import type { VSCodeDiagnosticSeverity } from '../lib/infrastructure/vscode/types';
 import { mulberry32, pick, randomInt, randomWord , LAW_SEED_COUNT } from './support/random';
 

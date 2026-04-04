@@ -34,7 +34,7 @@ import {
   confidenceGte,
 } from '../lib/domain/resolution/confidence-provenance';
 import type { ResolutionPrecedenceRung } from '../lib/domain/resolution/precedence';
-import type { Confidence } from '../lib/domain/types/workflow';
+import type { Confidence } from '../lib/domain/governance/workflow-types';
 
 // ═══════════════════════════════════════════════════════════
 // Abstraction 1: Precedence-Governed Dispatch

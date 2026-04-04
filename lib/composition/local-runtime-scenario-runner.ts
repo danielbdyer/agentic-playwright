@@ -14,7 +14,7 @@ import {
 import { translateIntentToOntology } from '../application/execution/translation/translate';
 import type { TranslationProvider } from '../application/execution/translation/translation-provider';
 import { resolveAgentInterpreterPort } from '../application/agent/agent-interpreter-provider';
-import type { AgentInterpretationResult } from '../domain/types/agent-interpreter';
+import type { AgentInterpretationResult } from '../domain/interpretation/agent-interpreter';
 import type { AgentInterpreterPort } from '../domain/resolution/model';
 import type { SemanticDictionaryCatalog, TranslationReceipt, TranslationRequest } from '../domain/types';
 import { LocalFileSystem } from '../infrastructure/fs/local-fs';

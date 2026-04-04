@@ -1,5 +1,5 @@
 import type { AdoId } from '../kernel/identity';
-import type { Confidence, StepAction } from './workflow';
+import type { Confidence, StepAction } from '../governance/workflow-types';
 
 export type LearningRuntime = 'decomposition' | 'repair-recovery' | 'workflow';
 

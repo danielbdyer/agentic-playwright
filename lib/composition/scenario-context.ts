@@ -2,7 +2,7 @@ import path from 'path';
 import type { Page } from '@playwright/test';
 import { test } from '@playwright/test';
 import type { AdoId } from '../domain/kernel/identity';
-import type { RuntimeInterpreterMode, WriteMode } from '../domain/types/workflow';
+import type { RuntimeInterpreterMode, WriteMode } from '../domain/governance/workflow-types';
 import { loadScenarioRunPlan } from './load-run-plan';
 import { createLocalRuntimeEnvironment } from '../infrastructure/runtime/local-runtime-environment';
 import {

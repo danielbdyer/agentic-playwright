@@ -64,7 +64,7 @@ import type {
   ResolutionEvent,
   PipelineFailureClass,
 } from './types';
-import type { StepWinningSource } from './types/workflow';
+import type { StepWinningSource } from './governance/workflow-types';
 
 // ─── ValueRef ───
 

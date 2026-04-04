@@ -23,7 +23,7 @@ import {
   createPipelineEventBus,
 } from '../lib/infrastructure/dashboard/pipeline-event-bus';
 import type { PipelineBuffer } from '../lib/infrastructure/dashboard/pipeline-event-bus';
-import type { DashboardEvent } from '../lib/domain/types/dashboard';
+import type { DashboardEvent } from '../lib/domain/observation/dashboard';
 
 // ─── Helpers ───
 

@@ -14,10 +14,10 @@ import type {
   WorkflowEnvelopeFingerprints,
   WorkflowEnvelopeIds,
   WorkflowEnvelopeLineage,
-} from './workflow';
-import type { ResolutionReceipt, ResolutionRungOverride, StepResolutionGraph, TranslationReceipt } from './resolution';
+} from '../governance/workflow-types';
+import type { ResolutionReceipt, ResolutionRungOverride, StepResolutionGraph, TranslationReceipt } from '../resolution/types';
 import type { ResolutionPrecedenceRung } from '../resolution/precedence';
-import type { TransitionObservation } from './interface';
+import type { TransitionObservation } from '../observation/interface-graph';
 
 
 export interface ResolutionGraphDriftDelta {

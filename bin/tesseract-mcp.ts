@@ -26,8 +26,8 @@ import {
   type LoopStatus,
 } from '../lib/infrastructure/mcp/dashboard-mcp-server';
 import type { McpToolDefinition } from '../lib/domain/types';
-import type { WorkItemDecision } from '../lib/domain/types/dashboard';
-import type { ScreenCapturedEvent } from '../lib/domain/types/dashboard';
+import type { WorkItemDecision } from '../lib/domain/observation/dashboard';
+import type { ScreenCapturedEvent } from '../lib/domain/observation/dashboard';
 import { createProjectPaths } from '../lib/application/paths';
 import { multiSeedSpeedrun, type MultiSeedResult } from '../lib/application/improvement/speedrun';
 import { createLocalServiceContext, type LocalServiceOptions } from '../lib/composition/local-services';

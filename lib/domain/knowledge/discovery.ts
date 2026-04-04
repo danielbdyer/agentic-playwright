@@ -1,5 +1,5 @@
 import { computeNormalizedSnapshotHash, normalizeAriaSnapshot } from '../kernel/hash';
-import type { AssertionKind, SurfaceKind } from '../types/workflow';
+import type { AssertionKind, SurfaceKind } from '../governance/workflow-types';
 import { uniqueSorted } from '../kernel/collections';
 import { ROLE_AFFORDANCES, deriveRoleFromSignature } from '../widgets/role-affordances';
 

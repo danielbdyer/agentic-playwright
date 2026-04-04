@@ -1,2 +1,2 @@
-export * from './execution';
-export * from './projection';
+export * from '../execution/types';
+export * from '../projection/types';

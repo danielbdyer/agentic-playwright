@@ -4,7 +4,7 @@
  */
 import * as schemaDecode from '../../schemas/decode';
 import * as schemas from '../../schemas';
-import { mintApproved } from '../../types/workflow';
+import { mintApproved } from '../../governance/workflow-types';
 import type { ScenarioInterpretationSurface } from '../../types';
 import type {
   SharedPatterns,

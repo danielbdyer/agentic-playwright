@@ -1,5 +1,5 @@
-export * from './intent';
-export * from './routes';
+export * from '../intent/types';
+export * from '../intent/routes';
 export type {
   ObservedRoute,
   RoutePattern,
@@ -7,4 +7,4 @@ export type {
   RouteVariantKnowledge,
   RouteVariantSelectionInput,
   RankedRouteVariant,
-} from './route-knowledge';
+} from '../knowledge/route-knowledge-types';

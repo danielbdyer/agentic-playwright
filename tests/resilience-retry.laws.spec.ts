@@ -4,7 +4,7 @@ import { createLlmApiProvider, DEFAULT_TRANSLATION_CONFIG } from '../lib/applica
 import { DEFAULT_AGENT_INTERPRETER_CONFIG, resolveAgentInterpreterProvider } from '../lib/application/agent/agent-interpreter-provider';
 import type { TranslationRequest } from '../lib/domain/types';
 import { createElementId, createScreenId } from '../lib/domain/kernel/identity';
-import type { AgentInterpretationRequest } from '../lib/domain/types/agent-interpreter';
+import type { AgentInterpretationRequest } from '../lib/domain/interpretation/agent-interpreter';
 
 const request: TranslationRequest = {
   version: 1,

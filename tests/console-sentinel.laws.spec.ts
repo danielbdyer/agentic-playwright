@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import type { ConsoleEntry } from '../lib/domain/types/execution';
+import type { ConsoleEntry } from '../lib/domain/execution/types';
 
 // ─── Law: ConsoleEntry level is a closed union ───
 

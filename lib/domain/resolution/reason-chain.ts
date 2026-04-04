@@ -11,8 +11,8 @@ import type {
   ResolutionExhaustionEntry,
   ResolutionReasonChain,
   ResolutionReasonStep,
-} from '../types/resolution';
-import type { StepWinningSource } from '../types/workflow';
+} from './types';
+import type { StepWinningSource } from '../governance/workflow-types';
 
 /**
  * Build a reason chain from the accumulated exhaustion entries and the

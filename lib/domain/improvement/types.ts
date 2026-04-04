@@ -1,5 +1,5 @@
-import type { PipelineConfig } from './pipeline-config';
-import type { PipelineFitnessReport, RungRate } from './fitness';
+import type { PipelineConfig } from '../resolution/pipeline-config';
+import type { PipelineFitnessReport, RungRate } from '../fitness/types';
 import type { BottleneckWeights } from '../types';
 import type {
   InterventionKind,
@@ -7,7 +7,7 @@ import type {
   InterventionTarget,
   Participant,
   ParticipantRef,
-} from './intervention';
+} from '../handshake/intervention';
 import { appendImprovementRun as appendImprovementRunAggregate, emptyImprovementLedger as emptyImprovementLedgerAggregate } from '../aggregates/improvement-run';
 
 export type ExperimentSubstrate = 'synthetic' | 'production' | 'hybrid';

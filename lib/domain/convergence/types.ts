@@ -1,5 +1,5 @@
-import type { ImprovementLoopIteration, ImprovementLoopConvergenceReason } from './improvement';
-import type { RungRate, PipelineFitnessReport } from './fitness';
+import type { ImprovementLoopIteration, ImprovementLoopConvergenceReason } from '../improvement/types';
+import type { RungRate, PipelineFitnessReport } from '../fitness/types';
 
 // ─── Per-trial result ───
 

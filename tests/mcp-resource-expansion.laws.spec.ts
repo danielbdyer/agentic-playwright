@@ -31,7 +31,7 @@ import {
   type ResourceArtifactReader,
   type McpResourceKind,
 } from '../lib/infrastructure/mcp/resource-provider';
-import { dashboardMcpTools } from '../lib/domain/types/dashboard';
+import { dashboardMcpTools } from '../lib/domain/observation/dashboard';
 import { createDashboardMcpServer, type DashboardMcpServerOptions } from '../lib/infrastructure/mcp/dashboard-mcp-server';
 import { Effect } from 'effect';
 

@@ -16,7 +16,7 @@ import type {
   WorkflowEnvelopeFingerprints,
   WorkflowEnvelopeIds,
   WorkflowEnvelopeLineage,
-} from './workflow';
+} from '../governance/workflow-types';
 
 export interface RefPath {
   readonly segments: readonly string[];

@@ -24,7 +24,7 @@ import {
   type AgentToolProvider,
   type McpToolInvoker,
 } from '../lib/runtime/agent/mcp-bridge';
-import { dashboardMcpTools, type McpToolDefinition } from '../lib/domain/types/dashboard';
+import { dashboardMcpTools, type McpToolDefinition } from '../lib/domain/observation/dashboard';
 import type { McpToolInvocation, McpToolResult } from '../lib/application/ports';
 
 // ─── Test Fixtures ───

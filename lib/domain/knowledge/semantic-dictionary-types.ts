@@ -15,7 +15,7 @@
  */
 
 import type { ElementId, PostureId, ScreenId, SnapshotTemplateId } from '../kernel/identity';
-import type { StepAction, StepWinningSource } from './workflow';
+import type { StepAction, StepWinningSource } from '../governance/workflow-types';
 import type { ShingleIndex } from '../knowledge/shingles';
 
 // ─── Dictionary Entry ───

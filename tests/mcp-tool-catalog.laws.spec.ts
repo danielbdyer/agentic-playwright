@@ -14,7 +14,7 @@
  */
 
 import { expect, test } from '@playwright/test';
-import { dashboardMcpTools } from '../lib/domain/types/dashboard';
+import { dashboardMcpTools } from '../lib/domain/observation/dashboard';
 import { createDashboardMcpServer } from '../lib/infrastructure/mcp/dashboard-mcp-server';
 import type { DashboardMcpServerOptions } from '../lib/infrastructure/mcp/dashboard-mcp-server';
 import { Effect } from 'effect';

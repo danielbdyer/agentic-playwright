@@ -13,7 +13,7 @@
  * @see docs/design-calculus.md § Collapse 1: The Four State Machines Are One
  */
 
-import type { ScenarioStatus } from '../types/workflow';
+import type { ScenarioStatus } from '../governance/workflow-types';
 import type { FSMDefinition } from '../kernel/finite-state-machine';
 
 // ─── FSM-compatible state wrapper ───

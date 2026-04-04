@@ -21,7 +21,7 @@ import type { Hylomorphism } from '../lib/domain/algebra/hylomorphism';
 import { freeSearch, forget, trailCoverage } from '../lib/domain/algebra/free-forgetful';
 import { verifyNaturality, findNaturalityViolations } from '../lib/domain/algebra/slice-projection';
 import { GovernanceLattice, meetAll, joinAll } from '../lib/domain/algebra/lattice';
-import type { Governance } from '../lib/domain/types/workflow';
+import type { Governance } from '../lib/domain/governance/workflow-types';
 
 // ═══════════════════════════════════════════════════════════
 // Collapse 4: Product Fold Fusion Law

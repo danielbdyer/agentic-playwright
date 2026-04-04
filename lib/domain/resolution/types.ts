@@ -10,7 +10,7 @@ import type {
   StateNodeRef,
   TransitionRef,
 } from '../kernel/identity';
-import type { StepTaskElementCandidate, StepTaskScreenCandidate } from './knowledge';
+import type { StepTaskElementCandidate, StepTaskScreenCandidate } from '../knowledge/types';
 import type { ResolutionPrecedenceRung } from '../resolution/precedence';
 import type {
   Governance,
@@ -28,11 +28,11 @@ import type {
   WorkflowLane,
   WorkflowMetadata,
   WorkflowStage,
-} from './workflow';
-import type { StepResolution } from './intent';
-import type { InterfaceResolutionContext } from './knowledge';
+} from '../governance/workflow-types';
+import type { StepResolution } from '../intent/types';
+import type { InterfaceResolutionContext } from '../knowledge/types';
 import type { RecoveryPolicy } from '../execution/recovery-policy';
-import type { SemanticDictionaryAccrualInput } from './semantic-dictionary';
+import type { SemanticDictionaryAccrualInput } from '../knowledge/semantic-dictionary-types';
 
 export interface TranslationCandidate {
   readonly kind: 'screen' | 'element' | 'posture' | 'snapshot-template';

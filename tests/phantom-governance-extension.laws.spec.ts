@@ -20,7 +20,7 @@ import {
   mintReviewRequired,
   requireApproved,
   type Governance,
-} from '../lib/domain/types/workflow';
+} from '../lib/domain/governance/workflow-types';
 import { GovernanceLattice } from '../lib/domain/algebra/lattice';
 import { mulberry32, pick , LAW_SEED_COUNT } from './support/random';
 

@@ -17,8 +17,8 @@ import {
   liftToEnvelope,
   mapPayload,
   verifyEnvelopeReceiptAdjunction,
-} from '../lib/domain/types/workflow';
-import type { WorkflowEnvelope, WorkflowMetadata } from '../lib/domain/types/workflow';
+} from '../lib/domain/governance/workflow-types';
+import type { WorkflowEnvelope, WorkflowMetadata } from '../lib/domain/governance/workflow-types';
 
 // ─── Fixtures ───
 

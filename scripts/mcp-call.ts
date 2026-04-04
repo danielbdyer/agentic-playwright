@@ -15,7 +15,7 @@ import { Effect } from 'effect';
 import { createDashboardMcpServer } from '../lib/infrastructure/mcp/dashboard-mcp-server';
 import { createHintsWriter } from '../lib/infrastructure/knowledge/hints-writer';
 import { createProjectPaths } from '../lib/application/paths';
-import type { ScreenCapturedEvent } from '../lib/domain/types/dashboard';
+import type { ScreenCapturedEvent } from '../lib/domain/observation/dashboard';
 import * as fs from 'fs';
 import * as path from 'path';
 

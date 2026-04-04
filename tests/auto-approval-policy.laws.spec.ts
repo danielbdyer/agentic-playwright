@@ -28,7 +28,7 @@ import type {
   ProposedChangeMetadata,
   TrustPolicy,
   TrustPolicyArtifactType,
-} from '../lib/domain/types/workflow';
+} from '../lib/domain/governance/workflow-types';
 import { mulberry32, pick, randomInt , LAW_SEED_COUNT } from './support/random';
 
 // --- Constants ---

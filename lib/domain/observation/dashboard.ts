@@ -21,7 +21,7 @@
  * structured interaction affordances.
  */
 
-import type { Governance, ResolutionMode } from './workflow';
+import type { Governance, ResolutionMode } from '../governance/workflow-types';
 
 // ─── Actor Model ───
 // Three-value subset of ParticipantKind scoped to the dashboard observation surface.

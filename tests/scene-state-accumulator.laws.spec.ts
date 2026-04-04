@@ -9,7 +9,7 @@ import {
   type SceneState,
   type SceneCheckpoint,
 } from '../lib/domain/projection/scene-state-accumulator';
-import type { DashboardEventKind } from '../lib/domain/types/dashboard';
+import type { DashboardEventKind } from '../lib/domain/observation/dashboard';
 
 // ─── Helpers ───
 

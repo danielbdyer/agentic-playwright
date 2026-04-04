@@ -1,5 +1,5 @@
 import type { AdoId, EventSignatureRef, StateNodeRef, TransitionRef } from '../kernel/identity';
-import type { AgentSession } from './session';
+import type { AgentSession } from '../handshake/session';
 import type {
   CompilerDiagnostic,
   Confidence,
@@ -13,17 +13,17 @@ import type {
   StepProvenanceKind,
   StepWinningSource,
   WorkflowStage,
-} from './workflow';
-import type { ApplicationInterfaceGraph, StateTransitionGraph } from './interface';
-import type { ImprovementRun } from './improvement';
-import type { LearningScorecard, TrainingCorpusManifest } from './learning';
-import type { StepProgram } from './intent';
-import type { BoundScenario } from './intent';
-import type { SelectorCanon } from './interface';
-import type { ResolutionExhaustionEntry, TranslationReceipt } from './resolution';
-import type { ProposalBundle, RunRecord } from './execution';
-import type { ScenarioInterpretationSurface } from './resolution';
-import type { WorkflowLane } from './workflow';
+} from '../governance/workflow-types';
+import type { ApplicationInterfaceGraph, StateTransitionGraph } from '../observation/interface-graph';
+import type { ImprovementRun } from '../improvement/types';
+import type { LearningScorecard, TrainingCorpusManifest } from '../learning/types';
+import type { StepProgram } from '../intent/types';
+import type { BoundScenario } from '../intent/types';
+import type { SelectorCanon } from '../observation/interface-graph';
+import type { ResolutionExhaustionEntry, TranslationReceipt } from '../resolution/types';
+import type { ProposalBundle, RunRecord } from '../execution/types';
+import type { ScenarioInterpretationSurface } from '../resolution/types';
+import type { WorkflowLane } from '../governance/workflow-types';
 
 export interface BenchmarkField {
   readonly id: string;

@@ -1,5 +1,5 @@
 import type { RouteId, RouteVariantId, ScreenId } from '../kernel/identity';
-import type { Governance } from './workflow';
+import type { Governance } from '../governance/workflow-types';
 
 export type RouteVariantDimension = 'query' | 'hash' | 'tab' | 'segment';
 

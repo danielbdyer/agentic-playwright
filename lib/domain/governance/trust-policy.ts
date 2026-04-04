@@ -7,7 +7,7 @@ import type {
   TrustPolicy,
   TrustPolicyEvaluation,
   TrustPolicyEvaluationReason,
-} from '../types/workflow';
+} from '../governance/workflow-types';
 
 function confidenceThresholdReason(confidence: number, minimumConfidence: number): TrustPolicyEvaluationReason | null {
   if (confidence >= minimumConfidence) {

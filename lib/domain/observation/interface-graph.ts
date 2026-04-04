@@ -12,8 +12,8 @@ import type {
   SurfaceId,
   TransitionRef,
 } from '../kernel/identity';
-import type { EventSignature, StateNode, StateTransition } from './knowledge';
-import type { AssertionKind, LocatorStrategy, SurfaceKind } from './workflow';
+import type { EventSignature, StateNode, StateTransition } from '../knowledge/types';
+import type { AssertionKind, LocatorStrategy, SurfaceKind } from '../governance/workflow-types';
 
 export type InterfaceGraphNodeKind =
   | 'route'

@@ -8,7 +8,7 @@ import {
   findBookmarkBySlot,
   assignBookmarkSlots,
 } from '../dashboard/src/bookmark-system';
-import type { DashboardEventKind } from '../lib/domain/types/dashboard';
+import type { DashboardEventKind } from '../lib/domain/observation/dashboard';
 import type { FlywheelAct } from '../lib/domain/projection/scene-state-accumulator';
 
 // ─── Helpers ───

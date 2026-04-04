@@ -22,7 +22,7 @@ import type {
   CertificationStatus,
   ProposalActivation,
   TrustPolicyDecision,
-} from '../types/workflow';
+} from '../governance/workflow-types';
 import type { FSMDefinition } from '../kernel/finite-state-machine';
 
 // ─── Transition Events ───

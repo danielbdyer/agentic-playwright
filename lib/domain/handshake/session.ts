@@ -1,6 +1,6 @@
 import type { AdoId } from '../kernel/identity';
 import type { InterventionKind, InterventionReceipt, Participant, ParticipantRef } from './intervention';
-import type { WorkflowEnvelopeIds } from './workflow';
+import type { WorkflowEnvelopeIds } from '../governance/workflow-types';
 
 export type AgentEventType = Extract<
   InterventionKind,

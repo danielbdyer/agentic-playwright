@@ -7,8 +7,8 @@ import type {
   ScenarioInterpretationSurface,
   StepResolution,
 } from '../types';
-import type { Governance, StepProvenanceKind } from '../types/workflow';
-import { isBlocked, isReviewRequired } from '../types/workflow';
+import type { Governance, StepProvenanceKind } from '../governance/workflow-types';
+import { isBlocked, isReviewRequired } from '../governance/workflow-types';
 import { lifecycleForScenario, aggregateConfidence } from './status';
 
 function resolveDataSource(

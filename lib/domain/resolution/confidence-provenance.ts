@@ -16,7 +16,7 @@
  * @see docs/design-calculus.md § Collapse 2: Rung Provenance and Confidence Scale
  */
 
-import type { Confidence } from '../types/workflow';
+import type { Confidence } from '../governance/workflow-types';
 import type { ResolutionPrecedenceRung } from './precedence';
 import type { GaloisConnection } from '../algebra/galois-connection';
 

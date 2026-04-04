@@ -21,11 +21,11 @@ import type {
   PatternActionName,
   SurfaceKind,
   TrustPolicyArtifactType,
-} from './workflow';
-import type { StepResolution } from './intent';
-import type { RuntimeControlSession } from './resolution';
-import type { StateTransitionGraph } from './interface';
-import type { DerivedGraph } from './projection';
+} from '../governance/workflow-types';
+import type { StepResolution } from '../intent/types';
+import type { RuntimeControlSession } from '../resolution/types';
+import type { StateTransitionGraph } from '../observation/interface-graph';
+import type { DerivedGraph } from '../projection/types';
 import type { DataResolutionPrecedenceRung, ResolutionPrecedenceRung, RunSelectionPrecedenceRung } from '../resolution/precedence-policy';
 
 export interface StepTaskElementCandidate {

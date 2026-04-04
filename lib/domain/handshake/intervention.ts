@@ -1,4 +1,4 @@
-import type { DiagnosticSeverity, Governance, WorkflowEnvelopeIds } from './workflow';
+import type { DiagnosticSeverity, Governance, WorkflowEnvelopeIds } from '../governance/workflow-types';
 
 export type ParticipantKind =
   | 'agent'

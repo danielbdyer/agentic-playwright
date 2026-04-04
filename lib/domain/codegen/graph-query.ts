@@ -1,5 +1,5 @@
 import { Match, pipe } from 'effect';
-import type { DerivedGraph, GraphEdge, GraphNode } from '../types/projection';
+import type { DerivedGraph, GraphEdge, GraphNode } from '../projection/types';
 
 function nodeLookup(graph: DerivedGraph): Map<string, GraphNode> {
   return new Map(graph.nodes.map((node) => [node.id, node] as const));

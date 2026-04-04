@@ -26,7 +26,7 @@ import {
   formatConvergenceReport,
   type ConvergenceProofInput,
 } from '../lib/application/improvement/convergence-proof';
-import type { ConvergenceTrialResult } from '../lib/domain/types/convergence-proof';
+import type { ConvergenceTrialResult } from '../lib/domain/convergence/types';
 import { runWithLocalServices } from '../lib/composition/local-services';
 import type { KnowledgePosture, SpeedrunProgressEvent } from '../lib/domain/types';
 import { DEFAULT_PIPELINE_CONFIG } from '../lib/domain/types';

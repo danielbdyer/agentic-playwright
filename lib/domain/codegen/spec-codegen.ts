@@ -1,6 +1,6 @@
 import * as ts from 'typescript';
 import type { GroundedFlowStep, GroundedSpecFlow } from '../types';
-import type { Confidence, ScenarioLifecycle, StepBindingKind } from '../types/workflow';
+import type { Confidence, ScenarioLifecycle, StepBindingKind } from '../governance/workflow-types';
 import { groupByMap } from '../kernel/collections';
 import { deriveMethodName, deduplicateMethodNames } from './method-name';
 import {
