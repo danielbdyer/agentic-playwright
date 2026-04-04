@@ -396,16 +396,16 @@ All 16 transformations from Parts I–IV have been implemented as executable Typ
 |---|---|---|
 | Collapse 1: Generic FSM | `lib/domain/kernel/finite-state-machine.ts` | Fully wired — all 4 FSMs (convergence, proposal lifecycle, scenario lifecycle, pipeline staging) implemented as `FSMDefinition<S,E>` instances; predicates replace raw string comparisons in consumers |
 | Collapse 2: Galois Connection | `lib/domain/algebra/galois-connection.ts` + `lib/domain/resolution/confidence-provenance.ts` | Fully wired — `GaloisConnection<A,B>` algebra with verification functions; `rungConfidenceConnection` instance formalizes rung↔confidence duality |
-| Collapse 3: Envelope-Receipt Adjunction | `lib/domain/types/workflow.ts` (WorkflowMetadata) | Implemented; resolution + execution receipts unified |
+| Collapse 3: Envelope-Receipt Adjunction | `lib/domain/types/workflow.ts` (WorkflowMetadata) | Fully wired — `extractMetadata`, `liftToEnvelope`, `verifyEnvelopeReceiptAdjunction`; ResolutionReceiptBase + StepExecutionReceipt extend WorkflowMetadata |
 | Collapse 4: Product Fold | `lib/domain/algebra/product-fold.ts` | Implemented; execution/fold.ts monoids wired |
 | Abstraction 1: Precedence Dispatch | `lib/domain/resolution/precedence.ts` (dispatchByPrecedence) | Fully wired — all consumers upgraded |
 | Abstraction 2: Observation Collapse | `lib/domain/kernel/observation-collapse.ts` | Fully wired — 9 instances across 2 carrier types |
-| Abstraction 3: Contextual Merge | `lib/domain/algebra/contextual-merge.ts` | Implemented; deepMergeLattice in proposal-patches |
+| Abstraction 3: Contextual Merge | `lib/domain/algebra/contextual-merge.ts` | Fully wired — `proposalPatchMerge` config in proposal-patches.ts; `deepMergeLattice.join` replaces raw `mergeRecords` calls |
 | Abstraction 4: Governed Suspension | `lib/domain/kernel/governed-suspension.ts` | Fully wired — 4 consumers |
-| Abstraction 5: Strategy Chain Walker | `lib/runtime/agent/strategy-chain-walker.ts` | Implemented (discovered during wiring) |
+| Abstraction 5: Strategy Chain Walker | `lib/runtime/agent/strategy-chain-walker.ts` | Fully wired — `walkStrategyChainAsync` drives `runStrategyChain` in strategy.ts via `freeSearchAsync` |
 | Duality 1: Hylomorphism | `lib/domain/algebra/hylomorphism.ts` | Fully wired — `runHylo` (pure), `runHyloEffect` (Effect-threaded), `runStateMachine` as degenerate hylomorphism; convergence-proof trials use `runHyloEffect` |
-| Duality 2: Free/Forgetful | `lib/domain/algebra/free-forgetful.ts` | Implemented |
-| Duality 3: Slice/Projection | `lib/domain/algebra/slice-projection.ts` | Implemented |
+| Duality 2: Free/Forgetful | `lib/domain/algebra/free-forgetful.ts` | Fully wired — `freeSearchAsync` added; strategy-chain-walker + strategy.ts use `freeSearch`/`freeSearchAsync` for resolution pipeline |
+| Duality 3: Slice/Projection | `lib/domain/algebra/slice-projection.ts` | Fully wired — `sliceWorkItemsByScreen` + `projectToScreenGroups` typed instances in agent-workbench.ts |
 | Free Theorem 1: Heyting Algebra | Tests only | Verified |
 | Free Theorem 2: Tropical Semiring | Tests only | Verified |
 | Free Theorem 3: Traced Monoidal | Tests only | Verified |
@@ -509,6 +509,20 @@ Four consumers bridged to `GovernanceVerdict<T, I>`:
 - Terminal states: `activated`, `blocked` (absorbing — no outgoing transitions)
 - `proposalLifecycleFSM`: `FSMDefinition<ProposalFSMState, ProposalFSMEvent>` instance (enables `traceFSM`, `isMonotoneTrace`, `verifyAbsorption`)
 - Predicate helpers (`isPending`, `isActivated`, `isBlocked`) replace all raw `activation.status === '...'` checks across 12 call sites in 6 files
+
+### Final Wiring: Telos Completion
+
+The remaining five partially-wired transformations were completed in a final pass:
+
+**Abstraction 3 (Contextual Merge)** — `proposal-patches.ts`: Raw `mergeRecords` calls in `applyProposalPatch` and `applyHintsPatch` now delegate to `deepMergeLattice.join`, making the lattice structure explicit. A `proposalPatchMerge: ContextualMerge<Record<string, unknown>, string>` config is exported — the named instance the design calculus predicted.
+
+**Duality 2 (Free/Forgetful) + Abstraction 5 (Strategy Chain Walker)** — `strategy.ts`: `freeSearchAsync` added to `free-forgetful.ts` for async search processes. `walkStrategyChainAsync` in `strategy-chain-walker.ts` wraps it with resolution-domain types. `runStrategyChain` in `strategy.ts` now adapts `ResolutionStrategy[]` to `AsyncRungStrategy[]` and delegates to `walkStrategyChainAsync` — the resolution pipeline runs through the free monad.
+
+**Duality 3 (Slice/Projection)** — `agent-workbench.ts`: `sliceWorkItemsByScreen` (typed `SliceFn`) and `projectToScreenGroups` (typed `ProjectionFn`) exported as the concrete instance of the contravariance. The naturality law (`project(slice(S, k)) = slice(project(S), k)`) is now verifiable via `verifyNaturality` from the algebra module.
+
+**Collapse 3 (Envelope-Receipt Adjunction)** — `workflow.ts`: `extractMetadata` (the unit — strips payload/observations to recover shared metadata), `liftToEnvelope` (the counit — attaches a payload to metadata), and `verifyEnvelopeReceiptAdjunction` (round-trip law). The adjunction was already structural (`ResolutionReceiptBase extends WorkflowMetadata`, `StepExecutionReceipt extends WorkflowMetadata`); now it's named and verifiable.
+
+**Implementation score: 12/12 wired transformations** (plus 4 free theorems verified by law tests = 16/16 total).
 
 ### Assessed and Deferred Opportunities
 

@@ -3,6 +3,7 @@ import { isRecord } from '../domain/kernel/collections';
 import type { ProposalEntry } from '../domain/types';
 import { validateScreenHints } from '../domain/validation';
 import type { Lattice } from '../domain/algebra/lattice';
+import type { ContextualMerge } from '../domain/algebra/contextual-merge';
 
 /** Deep merge two records. Pure recursive fold — no mutation. */
 const mergeRecords = (
@@ -46,7 +47,7 @@ function applyHintsPatch(existing: Record<string, unknown>, proposal: ProposalEn
     };
   }
 
-  if (!screen || !element || !alias) return mergeRecords(existing, patch);
+  if (!screen || !element || !alias) return deepMergeLattice.join(existing, patch);
 
   const elements = isRecord(existing.elements) ? existing.elements : {};
   const elementEntry = isRecord(elements[element]) ? elements[element] as Record<string, unknown> : {};
@@ -80,7 +81,7 @@ function applyHintsPatch(existing: Record<string, unknown>, proposal: ProposalEn
 export function applyProposalPatch(existing: Record<string, unknown>, proposal: ProposalEntry): Record<string, unknown> {
   return proposal.artifactType === 'hints'
     ? applyHintsPatch(existing, proposal)
-    : mergeRecords(existing, proposal.patch);
+    : deepMergeLattice.join(existing, proposal.patch);
 }
 
 export const serializeProposalArtifact = (targetPath: string, artifact: Record<string, unknown>): string =>
@@ -113,11 +114,6 @@ export function validatePatchedProposalArtifact(targetPath: string, proposal: Pr
 /**
  * Deep merge lattice: the join-semilattice for proposal artifact patching.
  * Join = right-biased deep merge. Meet = intersection of shared keys.
- * This is the lattice that proposal-patches.ts implicitly uses everywhere.
- */
-/**
- * Deep merge lattice: the join-semilattice for proposal artifact patching.
- * Join = right-biased deep merge. Meet = intersection of shared keys.
  * Order = subset-of-keys (a ≤ b iff every key in a is also in b).
  */
 export const deepMergeLattice: Lattice<Record<string, unknown>> = {
@@ -131,4 +127,18 @@ export const deepMergeLattice: Lattice<Record<string, unknown>> = {
   },
   order: (a: Record<string, unknown>, b: Record<string, unknown>) =>
     Object.keys(a).every((key) => key in b),
+};
+
+/**
+ * Proposal patching expressed as a ContextualMerge instance.
+ * Index = artifact target path. Identity = empty record.
+ * Lattice = deepMergeLattice (right-biased deep merge).
+ *
+ * This is the named abstraction from the design calculus: the
+ * slice → overlay → join pattern that all proposal patching follows.
+ */
+export const proposalPatchMerge: ContextualMerge<Record<string, unknown>, string> = {
+  lattice: deepMergeLattice,
+  index: () => '',  // index is external (target path), not intrinsic to the value
+  identity: {},
 };

@@ -2,6 +2,7 @@ import type { ResolutionPrecedenceRung } from '../../domain/resolution/precedenc
 import type { ResolutionEvent, ResolutionReceipt } from '../../domain/types';
 import type { RuntimeAgentStageContext } from './types';
 import type { ResolutionAccumulator } from './resolution-stages';
+import { walkStrategyChainAsync, type AsyncRungStrategy, type RungAttemptResult } from './strategy-chain-walker';
 
 export interface StrategyAttemptResult {
   receipt: ResolutionReceipt | null;
@@ -20,24 +21,44 @@ export interface StrategyChainResult {
   events: ResolutionEvent[];
 }
 
+/**
+ * Run a chain of resolution strategies using the free-forgetful algebra.
+ *
+ * Each strategy is adapted to an AsyncRungStrategy, walked via
+ * `walkStrategyChainAsync` (which uses `freeSearchAsync` under the hood),
+ * and the trail's exhaustion entries are converted back to ResolutionEvents.
+ *
+ * This wires Duality 2 (Free/Forgetful) and Abstraction 5 (Strategy Chain Walker)
+ * into the resolution pipeline.
+ */
 export async function runStrategyChain(
   strategies: readonly ResolutionStrategy[],
   stage: RuntimeAgentStageContext,
   acc: ResolutionAccumulator | null,
 ): Promise<StrategyChainResult> {
-  const step = async (
-    remaining: readonly ResolutionStrategy[],
-    priorEvents: readonly ResolutionEvent[],
-  ): Promise<StrategyChainResult> => {
-    const [head, ...tail] = remaining;
-    if (!head) {
-      return { receipt: null, events: [...priorEvents] };
-    }
-    const { receipt, events } = await head.attempt(stage, acc);
-    const accumulated = [...priorEvents, ...events];
-    return receipt
-      ? { receipt, events: [...accumulated, { kind: 'receipt-produced', receipt }] }
-      : step(tail, accumulated);
-  };
-  return step(strategies, []);
+  // Collect events from all strategies (both successful and failed)
+  const allEvents: ResolutionEvent[] = [];
+
+  // Adapt ResolutionStrategy[] to AsyncRungStrategy<ResolutionReceipt>
+  const rungStrategies: AsyncRungStrategy<ResolutionReceipt>[] = strategies.map(
+    (strategy): AsyncRungStrategy<ResolutionReceipt> => ({
+      rung: strategy.rungs[0] ?? 'needs-human',
+      try: async (): Promise<RungAttemptResult<ResolutionReceipt>> => {
+        const { receipt, events } = await strategy.attempt(stage, acc);
+        allEvents.push(...events);
+        if (receipt) {
+          return { outcome: 'resolved', value: receipt, reason: strategy.name };
+        }
+        return { outcome: 'failed', reason: strategy.name };
+      },
+    }),
+  );
+
+  const { result } = await walkStrategyChainAsync(rungStrategies);
+
+  if (result) {
+    allEvents.push({ kind: 'receipt-produced', receipt: result });
+  }
+
+  return { receipt: result, events: allEvents };
 }

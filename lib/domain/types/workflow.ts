@@ -207,6 +207,47 @@ export function mapPayload<A, B>(
   return { ...envelope, payload: f(envelope.payload) };
 }
 
+// ─── Envelope ⊣ Receipt Adjunction (Design Calculus Collapse 3) ───
+//
+// The adjunction pair:
+//   Left (comonad):  WorkflowEnvelope<T> = metadata + payload
+//   Right (writer):  Receipt extends WorkflowMetadata = metadata + observations
+//   Common base:     WorkflowMetadata (shared provenance)
+//
+// The unit of the adjunction: extract shared metadata from either side.
+// The counit: lift metadata into an envelope (adding a payload).
+
+/** Extract the shared WorkflowMetadata from any artifact that extends it. */
+export function extractMetadata(artifact: WorkflowMetadata): WorkflowMetadata {
+  return {
+    version: artifact.version,
+    stage: artifact.stage,
+    scope: artifact.scope,
+    ids: artifact.ids,
+    fingerprints: artifact.fingerprints,
+    lineage: artifact.lineage,
+    governance: artifact.governance,
+  };
+}
+
+/** Lift metadata into an envelope by attaching a payload (counit of the adjunction). */
+export function liftToEnvelope<T>(metadata: WorkflowMetadata, payload: T): WorkflowEnvelope<T> {
+  return { ...metadata, payload };
+}
+
+/**
+ * Verify the adjunction round-trip law: extractMetadata(liftToEnvelope(m, p)) ≡ m.
+ * Stripping the payload from a freshly-created envelope recovers the original metadata.
+ */
+export function verifyEnvelopeReceiptAdjunction<T>(metadata: WorkflowMetadata, payload: T): boolean {
+  const envelope = liftToEnvelope(metadata, payload);
+  const recovered = extractMetadata(envelope);
+  return recovered.version === metadata.version
+    && recovered.stage === metadata.stage
+    && recovered.scope === metadata.scope
+    && recovered.governance === metadata.governance;
+}
+
 export interface ExecutionPosture {
   readonly interpreterMode: RuntimeInterpreterMode;
   readonly writeMode: WriteMode;

@@ -79,6 +79,35 @@ export function freeSearch<C, O, R>(
 }
 
 /**
+ * Async variant of freeSearch — for search processes that need I/O
+ * (e.g., resolution strategies that hit the DOM or filesystem).
+ *
+ * Same free monad semantics: the trail is lossless, and the result
+ * is uniquely determined by the trail.
+ */
+export async function freeSearchAsync<C, O, R>(
+  candidates: ReadonlyArray<C>,
+  tryCandidate: (candidate: C) => Promise<{ readonly outcome: O; readonly result: R | null }>,
+): Promise<SearchTrail<C, O, R>> {
+  const search = async (
+    remaining: ReadonlyArray<C>,
+    acc: ReadonlyArray<TrailStep<C, O>>,
+  ): Promise<SearchTrail<C, O, R>> => {
+    if (remaining.length === 0) {
+      return { steps: acc, result: null };
+    }
+    const [candidate, ...rest] = remaining;
+    const { outcome, result } = await tryCandidate(candidate!);
+    const step: TrailStep<C, O> = { candidate: candidate!, outcome };
+    if (result !== null) {
+      return { steps: [...acc, step], result };
+    }
+    return search(rest, [...acc, step]);
+  };
+  return search(candidates, []);
+}
+
+/**
  * Replay a trail with a different interpreter.
  *
  * This is the key property of the free monad: the trail is a

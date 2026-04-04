@@ -15,6 +15,7 @@ import { sha256 } from '../domain/kernel/hash';
 import { isPending } from '../domain/governance/proposal-lifecycle';
 import { foldResolutionReceipt } from '../domain/kernel/visitors';
 import { groupBy } from '../domain/kernel/collections';
+import type { SliceFn, ProjectionFn } from '../domain/algebra/slice-projection';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from './catalog';
 import { buildWorkflowHotspots, type WorkflowHotspot } from './hotspots';
 import type { ProjectPaths } from './paths';
@@ -394,6 +395,23 @@ export function groupByScreenWithContext(
     }))
     .sort((a, b) => b.totalOccurrences - a.totalOccurrences);
 }
+
+// ─── Slice / Projection instances (Design Calculus Duality 3) ───
+//
+// The screen-grouped processing above follows the slice → project pattern:
+//   sliceByScreen: extract work items for a single screen
+//   projectToGroups: build ScreenGroupContext[] from all items
+//
+// The naturality law holds: slicing items first then projecting each slice
+// produces the same ScreenGroupContext as projecting all then filtering by screen.
+
+/** Slice: extract work items belonging to a specific screen. */
+export const sliceWorkItemsByScreen: SliceFn<readonly AgentWorkItem[], string, readonly AgentWorkItem[]> =
+  (items, screenId) => items.filter((i) => (i.context.screen ?? 'unknown') === screenId);
+
+/** Project: compute all screen groups from a set of work items. */
+export const projectToScreenGroups: ProjectionFn<readonly AgentWorkItem[], readonly ScreenGroupContext[]> =
+  (items) => groupByScreenWithContext(items);
 
 // ─── Act Loop ───
 

@@ -16,7 +16,7 @@
 
 import type { ResolutionExhaustionEntry } from '../../domain/types/resolution';
 import type { SearchTrail, TrailStep } from '../../domain/algebra/free-forgetful';
-import { freeSearch } from '../../domain/algebra/free-forgetful';
+import { freeSearch, freeSearchAsync } from '../../domain/algebra/free-forgetful';
 
 /**
  * A strategy to be tried at a given rung.
@@ -61,6 +61,54 @@ export function walkStrategyChain<T>(
       reason: step.outcome.reason,
     }),
   );
+
+  return { trail, exhaustion, result: trail.result };
+}
+
+/** Convert a trail's steps to ResolutionExhaustionEntry[]. Reusable across sync/async variants. */
+function trailToExhaustion<S extends { readonly rung: ResolutionExhaustionEntry['stage'] }, T>(
+  steps: ReadonlyArray<TrailStep<S, RungAttemptResult<T>>>,
+): ReadonlyArray<ResolutionExhaustionEntry> {
+  return steps.map((step) => ({
+    stage: step.candidate.rung,
+    outcome: step.outcome.outcome,
+    reason: step.outcome.reason,
+  }));
+}
+
+/**
+ * Async strategy to RungStrategy adapter.
+ * Wraps an async attempt function as a RungStrategy for the async walker.
+ */
+export interface AsyncRungStrategy<T> {
+  readonly rung: ResolutionExhaustionEntry['stage'];
+  readonly try: () => Promise<RungAttemptResult<T>>;
+}
+
+/**
+ * Async variant of walkStrategyChain — for resolution strategies that
+ * need I/O (Playwright, filesystem, network).
+ *
+ * Uses `freeSearchAsync` from the free-forgetful algebra, preserving
+ * the same trail semantics: the trail is lossless, the result is
+ * uniquely determined by the trail.
+ */
+export async function walkStrategyChainAsync<T>(
+  strategies: ReadonlyArray<AsyncRungStrategy<T>>,
+): Promise<{
+  readonly trail: SearchTrail<AsyncRungStrategy<T>, RungAttemptResult<T>, T>;
+  readonly exhaustion: ReadonlyArray<ResolutionExhaustionEntry>;
+  readonly result: T | null;
+}> {
+  const trail = await freeSearchAsync(strategies, async (strategy) => {
+    const attempt = await strategy.try();
+    return {
+      outcome: attempt,
+      result: attempt.outcome === 'resolved' ? (attempt as { value: T }).value : null,
+    };
+  });
+
+  const exhaustion = trailToExhaustion(trail.steps);
 
   return { trail, exhaustion, result: trail.result };
 }
