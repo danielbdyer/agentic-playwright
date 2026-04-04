@@ -394,8 +394,8 @@ All 16 transformations from Parts I–IV have been implemented as executable Typ
 
 | Transformation | Module | Status |
 |---|---|---|
-| Collapse 1: Generic FSM | `lib/domain/kernel/finite-state-machine.ts` | Implemented; convergence FSM migrated |
-| Collapse 2: Galois Connection | `lib/domain/resolution/confidence-provenance.ts` | Implemented; candidate-lattice wired |
+| Collapse 1: Generic FSM | `lib/domain/kernel/finite-state-machine.ts` | Fully wired — all 4 FSMs (convergence, proposal lifecycle, scenario lifecycle, pipeline staging) implemented as `FSMDefinition<S,E>` instances; predicates replace raw string comparisons in consumers |
+| Collapse 2: Galois Connection | `lib/domain/algebra/galois-connection.ts` + `lib/domain/resolution/confidence-provenance.ts` | Fully wired — `GaloisConnection<A,B>` algebra with verification functions; `rungConfidenceConnection` instance formalizes rung↔confidence duality |
 | Collapse 3: Envelope-Receipt Adjunction | `lib/domain/types/workflow.ts` (WorkflowMetadata) | Implemented; resolution + execution receipts unified |
 | Collapse 4: Product Fold | `lib/domain/algebra/product-fold.ts` | Implemented; execution/fold.ts monoids wired |
 | Abstraction 1: Precedence Dispatch | `lib/domain/resolution/precedence.ts` (dispatchByPrecedence) | Fully wired — all consumers upgraded |
@@ -403,7 +403,7 @@ All 16 transformations from Parts I–IV have been implemented as executable Typ
 | Abstraction 3: Contextual Merge | `lib/domain/algebra/contextual-merge.ts` | Implemented; deepMergeLattice in proposal-patches |
 | Abstraction 4: Governed Suspension | `lib/domain/kernel/governed-suspension.ts` | Fully wired — 4 consumers |
 | Abstraction 5: Strategy Chain Walker | `lib/runtime/agent/strategy-chain-walker.ts` | Implemented (discovered during wiring) |
-| Duality 1: Hylomorphism | `lib/domain/algebra/hylomorphism.ts` | Implemented; async variant added |
+| Duality 1: Hylomorphism | `lib/domain/algebra/hylomorphism.ts` | Fully wired — `runHylo` (pure), `runHyloEffect` (Effect-threaded), `runStateMachine` as degenerate hylomorphism; convergence-proof trials use `runHyloEffect` |
 | Duality 2: Free/Forgetful | `lib/domain/algebra/free-forgetful.ts` | Implemented |
 | Duality 3: Slice/Projection | `lib/domain/algebra/slice-projection.ts` | Implemented |
 | Free Theorem 1: Heyting Algebra | Tests only | Verified |

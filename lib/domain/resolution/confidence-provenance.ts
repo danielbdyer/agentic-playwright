@@ -18,6 +18,7 @@
 
 import type { Confidence } from '../types/workflow';
 import type { ResolutionPrecedenceRung } from './precedence';
+import type { GaloisConnection } from '../algebra/galois-connection';
 
 // ─── Confidence total order ───
 
@@ -107,3 +108,37 @@ export function isConsistentProvenance(
 ): boolean {
   return confidenceOrdinal(claimed) <= confidenceOrdinal(rungToMinConfidence(rung));
 }
+
+// ─── GaloisConnection instance ───
+//
+// Formalizes the rung-confidence duality as a GaloisConnection<Rung, Confidence>.
+// α = rungToMinConfidence (left adjoint: rung → confidence)
+// γ = confidenceToRungs (right adjoint: confidence → rungs)
+//
+// The adjunction law: α(r) ≥ c ⟺ r ∈ γ(c)
+// means "a rung guarantees at least confidence c" iff "the rung is in the
+// set of rungs that produce at least c". This is the formal collapse from
+// design-calculus.md § Collapse 2.
+
+import { resolutionPrecedenceLaw } from './precedence';
+
+/** Rung ordering: r1 ≤ r2 if r1 has higher precedence (lower index = higher priority). */
+function rungOrder(r1: ResolutionPrecedenceRung, r2: ResolutionPrecedenceRung): boolean {
+  const rungs = resolutionPrecedenceLaw;
+  return rungs.indexOf(r1) >= rungs.indexOf(r2);
+}
+
+/**
+ * The rung-confidence Galois connection.
+ *
+ * This is the formal object that Collapse 2 describes: the single
+ * bidirectional structure connecting resolution provenance with trust.
+ *
+ * @see docs/design-calculus.md § Collapse 2: Rung Provenance and Confidence Scale
+ */
+export const rungConfidenceConnection: GaloisConnection<ResolutionPrecedenceRung, Confidence> = {
+  alpha: rungToMinConfidence,
+  gamma: confidenceToRungs,
+  orderA: rungOrder,
+  orderB: (b1, b2) => confidenceOrdinal(b1) <= confidenceOrdinal(b2),
+};

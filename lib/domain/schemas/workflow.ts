@@ -13,6 +13,7 @@ import {
   WriteModeSchema,
   ExecutionProfileSchema,
 } from './enums';
+import { isExecution, isProjection } from '../execution/pipeline-staging';
 import {
   AdoIdSchema,
   NullableAdoId,
@@ -74,7 +75,7 @@ export const WorkflowEnvelopeHeaderSchema = Schema.Struct({
     (envelope) =>
       !(
         envelope.governance === 'blocked'
-        && (envelope.stage === 'execution' || envelope.stage === 'projection')
+        && (isExecution(envelope.stage) || isProjection(envelope.stage))
       ),
     {
       identifier: 'WorkflowEnvelopeGovernanceStageDiscipline',

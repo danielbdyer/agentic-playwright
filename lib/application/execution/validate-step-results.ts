@@ -1,5 +1,6 @@
 import { isApproved, isReviewRequired } from '../../domain/types/shared-context';
 import { foldResolutionReceipt } from '../../domain/kernel/visitors';
+import { isResolution } from '../../domain/execution/pipeline-staging';
 import type { RuntimeScenarioStepResult } from '../ports';
 import { TesseractError } from '../../domain/kernel/errors';
 
@@ -15,7 +16,7 @@ export function validateStepResults(input: {
 }) {
   input.results.forEach((step, index) => {
     const receipt = step.interpretation;
-    assertInvariant(receipt.stage === 'resolution', `step[${index}] stage must be "resolution"`);
+    assertInvariant(isResolution(receipt.stage), `step[${index}] stage must be "resolution"`);
     assertInvariant(receipt.scope === 'step', `step[${index}] scope must be "step"`);
     assertInvariant(receipt.provider === input.providerId, `step[${index}] provider mismatch`);
     assertInvariant(receipt.stepIndex === step.execution.stepIndex, `step[${index}] interpretation/execution stepIndex mismatch`);

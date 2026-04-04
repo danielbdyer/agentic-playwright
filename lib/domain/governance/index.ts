@@ -17,3 +17,4 @@ export * from './posture-contract';
 export * from './binding';
 export * from './effect-target';
 export * from './workflow-facade';
+export * from './proposal-lifecycle';

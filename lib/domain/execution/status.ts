@@ -1,18 +1,21 @@
 ﻿import type { Confidence, ScenarioStatus } from '../types/workflow';
+import {
+  isStub, isDraft, isNeedsRepair, isScenarioBlocked, isDeprecated,
+} from './scenario-lifecycle';
 
 export function lifecycleForScenario(
   status: ScenarioStatus,
   hasUnboundSteps: boolean,
 ): 'normal' | 'fixme' | 'skip' | 'fail' {
-  if (hasUnboundSteps || status === 'stub' || status === 'draft') {
+  if (hasUnboundSteps || isStub(status) || isDraft(status)) {
     return 'fixme';
   }
 
-  if (status === 'needs-repair') {
+  if (isNeedsRepair(status)) {
     return 'fail';
   }
 
-  if (status === 'blocked' || status === 'deprecated') {
+  if (isScenarioBlocked(status) || isDeprecated(status)) {
     return 'skip';
   }
 
