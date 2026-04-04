@@ -1,2 +1,2 @@
 export { runScenarioHandshake, runScenarioStep, createScenarioRunState } from '../scenario';
-export { playwrightStepProgramInterpreter } from '../program';
+export { playwrightStepProgramInterpreter } from '../execute/program';

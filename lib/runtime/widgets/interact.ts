@@ -1,11 +1,11 @@
 import type { Locator } from '@playwright/test';
-import { missingActionHandlerError, widgetPreconditionError } from '../domain/kernel/errors';
-import type { WidgetInteractionContext, WidgetPrecondition } from '../domain/types';
-import { affordancesForRole, type RoleAffordance } from '../domain/widgets/role-affordances';
-import { widgetCapabilityContracts } from '../domain/widgets/contracts';
-import { widgetActionHandlers } from './widgets';
-import type { RuntimeResult} from './result';
-import { runtimeErr, runtimeOk } from './result';
+import { missingActionHandlerError, widgetPreconditionError } from '../../domain/kernel/errors';
+import type { WidgetInteractionContext, WidgetPrecondition } from '../../domain/types';
+import { affordancesForRole, type RoleAffordance } from '../../domain/widgets/role-affordances';
+import { widgetCapabilityContracts } from '../../domain/widgets/contracts';
+import { widgetActionHandlers } from './index';
+import type { RuntimeResult} from '../result';
+import { runtimeErr, runtimeOk } from '../result';
 
 async function assertPrecondition(locator: Locator, precondition: WidgetPrecondition): Promise<RuntimeResult<void>> {
   switch (precondition) {

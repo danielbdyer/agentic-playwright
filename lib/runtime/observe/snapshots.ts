@@ -1,7 +1,7 @@
-import type { SnapshotTemplateId } from '../domain/kernel/identity';
-import { RuntimeError } from '../domain/kernel/errors';
-import type { SnapshotTemplateLoader } from '../domain/execution/runtime-loaders';
-export type { SnapshotTemplateLoader } from '../domain/execution/runtime-loaders';
+import type { SnapshotTemplateId } from '../../domain/kernel/identity';
+import { RuntimeError } from '../../domain/kernel/errors';
+import type { SnapshotTemplateLoader } from '../../domain/execution/runtime-loaders';
+export type { SnapshotTemplateLoader } from '../../domain/execution/runtime-loaders';
 
 let snapshotTemplateLoader: SnapshotTemplateLoader | null = null;
 

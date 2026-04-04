@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
-import { navigationOptionsForUrl } from './navigation-strategy';
-import { attachConsoleSentinel } from './console-sentinel';
+import { navigationOptionsForUrl } from './adapters/navigation-strategy';
+import { attachConsoleSentinel } from './observe/console-sentinel';
 import { uniqueSorted } from '../domain/kernel/collections';
 import { rankRouteVariants } from '../domain/knowledge/route-knowledge';
 import { chooseByPrecedence, routeSelectionPrecedenceLaw } from '../domain/resolution/precedence';
@@ -38,8 +38,8 @@ import type {
 import type { RouteVariantKnowledge } from '../domain/types/intent-context';
 import { runStaticInterpreter } from './interpreters/execute';
 import type { InterpreterMode, InterpreterScreenRegistry } from './interpreters/types';
-import { playwrightStepProgramInterpreter } from './program';
-import { deterministicRuntimeStepAgent, type RuntimeStepAgent, type ResolutionStepOutcome } from './agent';
+import { playwrightStepProgramInterpreter } from './execute/program';
+import { deterministicRuntimeStepAgent, type RuntimeStepAgent, type ResolutionStepOutcome } from './agent/agent';
 import { applyProposalDraftsToRuntimeContext } from './agent/proposals';
 import type { RuntimeAgentInterpreter } from './agent/types';
 import type { RuntimeDomResolver } from '../domain/types';

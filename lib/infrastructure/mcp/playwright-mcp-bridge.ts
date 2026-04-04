@@ -23,7 +23,7 @@
 import { Effect } from 'effect';
 import { Context } from 'effect';
 import { TesseractError } from '../../domain/kernel/errors';
-import { navigationOptionsForUrl } from '../../runtime/navigation-strategy';
+import { navigationOptionsForUrl } from '../../runtime/adapters/navigation-strategy';
 import { RETRY_POLICIES, retryScheduleForTaggedErrors } from '../../application/resilience/schedules';
 
 // ─── Port Interface ───

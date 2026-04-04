@@ -407,3 +407,5 @@ export async function runResolutionPipeline(
 }
 
 export type { RuntimeStepAgentContext } from './types';
+export { deterministicRuntimeStepAgent } from './agent';
+export type { RuntimeStepAgent } from './agent';

@@ -1,1 +1,1 @@
-export { deterministicRuntimeStepAgent, type RuntimeStepAgent, type RuntimeStepAgentContext } from '../agent';
+export { deterministicRuntimeStepAgent, type RuntimeStepAgent, type RuntimeStepAgentContext } from '../agent/agent';

@@ -1,5 +1,5 @@
-import type { ResolutionPipelineResult, ResolutionReceipt, GroundedStep, ResolutionStepOutcome } from '../domain/types';
-import { runResolutionPipeline, type RuntimeStepAgentContext } from './agent/index';
+import type { ResolutionPipelineResult, ResolutionReceipt, GroundedStep, ResolutionStepOutcome } from '../../domain/types';
+import { runResolutionPipeline, type RuntimeStepAgentContext } from './index';
 
 export type { ResolutionStepOutcome };
 
@@ -19,4 +19,4 @@ export const deterministicRuntimeStepAgent: RuntimeStepAgent = {
 };
 
 export type { RuntimeStepAgentContext, ResolutionPipelineResult };
-export { runResolutionPipeline, RESOLUTION_PRECEDENCE } from './agent/index';
+export { runResolutionPipeline, RESOLUTION_PRECEDENCE } from './index';

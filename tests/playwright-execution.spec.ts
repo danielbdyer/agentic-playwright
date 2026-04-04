@@ -7,7 +7,7 @@ import { expect, test } from '@playwright/test';
 import { createElementId, createScreenId, createSectionId, createSurfaceId, createWidgetId } from '../lib/domain/kernel/identity';
 import type { LoadedScreen, ScreenRegistry } from '../lib/domain/execution/runtime-loaders';
 import type { StepProgram, ValueRef } from '../lib/domain/types';
-import { playwrightStepProgramInterpreter } from '../lib/runtime/program';
+import { playwrightStepProgramInterpreter } from '../lib/runtime/execute/program';
 
 function buildPolicySearchScreen(): LoadedScreen {
   return {

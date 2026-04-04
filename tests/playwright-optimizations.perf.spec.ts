@@ -15,7 +15,7 @@
 import { test, expect } from '@playwright/test';
 import { createAriaSnapshotCache } from '../lib/runtime/agent/aria-snapshot-cache';
 import { createSemanticDictCache } from '../lib/runtime/agent/semantic-dict-cache';
-import { classifyRoute, navigationOptionsForUrl } from '../lib/runtime/navigation-strategy';
+import { classifyRoute, navigationOptionsForUrl } from '../lib/runtime/adapters/navigation-strategy';
 import { determineResetStrategy, extractWarmUpUrls } from '../lib/application/runtime-support/browser-pool';
 import { createScreenshotCollector, qualityForReason } from '../lib/application/runtime-support/deferred-screenshot';
 import { evaluateScreenshotPolicy } from '../lib/application/runtime-support/screenshot-policy';

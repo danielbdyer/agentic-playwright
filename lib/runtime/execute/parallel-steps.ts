@@ -11,7 +11,7 @@
  *   - Steps with side effects (navigate, enter, invoke) create sequential barriers
  */
 
-import type { BoundStep, StepAction } from '../domain/types';
+import type { BoundStep, StepAction } from '../../domain/types';
 
 // ─── Step Classification ───
 

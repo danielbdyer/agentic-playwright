@@ -13,7 +13,7 @@
  */
 
 import type { Page, ConsoleMessage } from 'playwright';
-import type { ConsoleEntry } from '../domain/types/execution-context';
+import type { ConsoleEntry } from '../../domain/types/execution-context';
 
 export interface ConsoleSentinelConfig {
   /** Which console levels to capture. Defaults to ['warn', 'error']. */

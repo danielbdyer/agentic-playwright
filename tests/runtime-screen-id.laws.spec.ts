@@ -22,7 +22,7 @@ import {
   computeScreenSignature,
   matchSignatureToGraph,
   identifyScreenFromDOM,
-} from '../lib/runtime/screen-identification';
+} from '../lib/runtime/observe/screen-identification';
 import type {
   ApplicationInterfaceGraph,
   InterfaceGraphNode,

@@ -16,10 +16,10 @@ import {
 } from '../lib/domain/kernel/identity';
 import { type StepProgram } from '../lib/domain/types';
 import { deriveCapabilities } from '../lib/domain/execution/grammar';
-import { playwrightStepProgramInterpreter, runStepProgram, runtimeFailureDiagnostic } from '../lib/runtime/program';
-import { interact } from '../lib/runtime/interact';
+import { playwrightStepProgramInterpreter, runStepProgram, runtimeFailureDiagnostic } from '../lib/runtime/execute/program';
+import { interact } from '../lib/runtime/widgets/interact';
 import { widgetActionHandlers } from '../dogfood/knowledge/components';
-import type { ScreenRegistry } from '../lib/runtime/load';
+import type { ScreenRegistry } from '../lib/runtime/adapters/load';
 import { validateScreenElements, validateSurfaceGraph } from '../lib/domain/validation';
 
 const policySearchScreenId = createScreenId('policy-search');

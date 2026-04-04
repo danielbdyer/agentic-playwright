@@ -4,7 +4,7 @@ import { dryRunInterpreter } from '../lib/runtime/interpreters/dry-run';
 import type { InterpreterEnvironment } from '../lib/runtime/interpreters/types';
 import { createAdoId, createElementId, createScreenId, createSurfaceId, createWidgetId, type WidgetId } from '../lib/domain/kernel/identity';
 import type { StepProgram } from '../lib/domain/types';
-import { playwrightStepProgramInterpreter } from '../lib/runtime/program';
+import { playwrightStepProgramInterpreter } from '../lib/runtime/execute/program';
 
 const policySearchScreenId = createScreenId('policy-search');
 const searchButtonId = createElementId('searchButton');

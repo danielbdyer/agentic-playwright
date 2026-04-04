@@ -1,11 +1,11 @@
 import type { Page } from '@playwright/test';
 import { Match, pipe } from 'effect';
-import { navigationOptionsForUrl } from './navigation-strategy';
-import { createDiagnostic } from '../domain/governance/diagnostics';
-import { runtimeEscapeHatchError, toTesseractError, unknownScreenError } from '../domain/kernel/errors';
-import type { ScreenId } from '../domain/kernel/identity';
-import { createPostureId } from '../domain/kernel/identity';
-import type { SnapshotTemplateLoader } from '../domain/execution/runtime-loaders';
+import { navigationOptionsForUrl } from '../adapters/navigation-strategy';
+import { createDiagnostic } from '../../domain/governance/diagnostics';
+import { runtimeEscapeHatchError, toTesseractError, unknownScreenError } from '../../domain/kernel/errors';
+import type { ScreenId } from '../../domain/kernel/identity';
+import { createPostureId } from '../../domain/kernel/identity';
+import type { SnapshotTemplateLoader } from '../../domain/execution/runtime-loaders';
 import type {
   ProgramFailure,
   StepInterpreterDiagnostic,
@@ -13,18 +13,18 @@ import type {
   StepProgramExecutionResult,
   StepProgramInstructionOutcome,
   StepProgramInterpreter,
-} from '../domain/execution/program';
-import type { CompilerDiagnostic, StepInstruction, StepProgram } from '../domain/types';
-import { resolveDataValue } from './data';
-import { engage } from './engage';
-import type { ScreenRegistry } from './load';
-import { resolveLocator } from './locate';
-import { describeLocatorStrategy } from './locate';
-import { expectAriaSnapshot } from '../playwright/aria';
-import { interact } from './interact';
-import { hasSnapshotTemplate, readSnapshotTemplate } from './snapshots';
-import type { RuntimeDiagnosticContext, RuntimeFailure, RuntimeResult } from './result';
-import { runtimeErr, runtimeOk, toRuntimeVoidResult } from './result';
+} from '../../domain/execution/program';
+import type { CompilerDiagnostic, StepInstruction, StepProgram } from '../../domain/types';
+import { resolveDataValue } from '../resolve/data';
+import { engage } from '../resolve/engage';
+import type { ScreenRegistry } from '../adapters/load';
+import { resolveLocator } from '../widgets/locate';
+import { describeLocatorStrategy } from '../widgets/locate';
+import { expectAriaSnapshot } from '../../playwright/aria';
+import { interact } from '../widgets/interact';
+import { hasSnapshotTemplate, readSnapshotTemplate } from '../observe/snapshots';
+import type { RuntimeDiagnosticContext, RuntimeFailure, RuntimeResult } from '../result';
+import { runtimeErr, runtimeOk, toRuntimeVoidResult } from '../result';
 
 interface PlaywrightEnvironment {
   page: Page;

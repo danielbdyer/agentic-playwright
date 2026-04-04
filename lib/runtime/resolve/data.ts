@@ -1,6 +1,6 @@
 ﻿import { Match, pipe } from 'effect';
-import { formatRefPath } from '../domain/kernel/ref-path';
-import type { ValueRef } from '../domain/types';
+import { formatRefPath } from '../../domain/kernel/ref-path';
+import type { ValueRef } from '../../domain/types';
 
 function lookupPath(fixtures: Record<string, unknown>, segments: readonly string[]): unknown {
   let current: unknown = fixtures;

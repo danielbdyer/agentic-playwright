@@ -1,13 +1,13 @@
 ﻿import type { Locator, Page} from '@playwright/test';
 import { expect } from '@playwright/test';
-import type { ElementId, PostureId } from '../domain/kernel/identity';
-import { unknownEffectTargetError } from '../domain/kernel/errors';
-import type { ElementSig, Posture, SurfaceDefinition } from '../domain/types';
-import { widgetCapabilityContracts } from '../domain/widgets/contracts';
-import { interact } from './interact';
-import { locate, resolveLocator } from './locate';
-import type { RuntimeResult} from './result';
-import { runtimeErr, runtimeOk } from './result';
+import type { ElementId, PostureId } from '../../domain/kernel/identity';
+import { unknownEffectTargetError } from '../../domain/kernel/errors';
+import type { ElementSig, Posture, SurfaceDefinition } from '../../domain/types';
+import { widgetCapabilityContracts } from '../../domain/widgets/contracts';
+import { interact } from '../widgets/interact';
+import { locate, resolveLocator } from '../widgets/locate';
+import type { RuntimeResult} from '../result';
+import { runtimeErr, runtimeOk } from '../result';
 
 function coerceMessagePattern(value: string | null | undefined): RegExp | string | undefined {
   if (!value) {
