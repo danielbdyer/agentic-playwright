@@ -11,6 +11,7 @@ import path from 'path';
 import { Effect } from 'effect';
 import type { ExperimentRegistry, ExperimentRecord } from '../../domain/types';
 import { appendExperiment, emptyExperimentRegistry } from '../../domain/types';
+import { uniqueByFirst } from '../../domain/kernel/collections';
 import type { ProjectPaths } from '../paths';
 import { FileSystem } from '../ports';
 import {
@@ -58,15 +59,9 @@ function mergeRegistries(
   primary: ExperimentRegistry,
   secondary: ExperimentRegistry,
 ): ExperimentRegistry {
-  const merged = [...primary.experiments, ...secondary.experiments].reduce<Map<string, ExperimentRecord>>(
-    (acc, experiment) => {
-      const key = experiment.improvementRunId ?? experiment.id;
-      if (!acc.has(key)) {
-        acc.set(key, experiment);
-      }
-      return acc;
-    },
-    new Map(),
+  const merged = uniqueByFirst(
+    [...primary.experiments, ...secondary.experiments],
+    (experiment) => experiment.improvementRunId ?? experiment.id,
   );
 
   return {

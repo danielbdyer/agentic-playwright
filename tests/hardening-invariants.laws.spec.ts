@@ -35,7 +35,7 @@ import {
   emptyCatalog,
   ensureShingleIndex,
   pruneSemanticDictionary,
-} from '../lib/application/execution/semantic-translation-dictionary';
+} from '../lib/application/execution/translation/semantic-translation-dictionary';
 import { uniqueSorted } from '../lib/domain/kernel/collections';
 import { createElementId, createScreenId } from '../lib/domain/kernel/identity';
 import type { SemanticDictionaryAccrualInput, SemanticDictionaryTarget } from '../lib/domain/types';

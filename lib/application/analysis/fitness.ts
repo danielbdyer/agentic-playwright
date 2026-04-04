@@ -26,6 +26,7 @@ import type {
   ProposalBundle,
   StepExecutionReceipt,
 } from '../../domain/types';
+import { groupByMap } from '../../domain/kernel/collections';
 import {
   isAcceptedByParetoFrontier,
   addToParetoFrontier,
@@ -214,13 +215,7 @@ function computeBottleneckCorrelations(
   }
 
   // Group by substrate for within-substrate correlation
-  const bySubstrate = experiments.reduce<ReadonlyMap<string, readonly ExperimentRecord[]>>(
-    (map, exp) => {
-      const key = exp.substrateContext.substrate;
-      return new Map([...map, [key, [...(map.get(key) ?? []), exp]]]);
-    },
-    new Map(),
-  );
+  const bySubstrate = groupByMap(experiments, (exp) => exp.substrateContext.substrate);
 
   // Collect delta signals from consecutive experiment pairs within each substrate
   const signalDeltas = [...bySubstrate.values()].flatMap((subExps) => {
@@ -236,15 +231,12 @@ function computeBottleneckCorrelations(
     });
   });
 
-  const deltasBySignal = signalDeltas.reduce<ReadonlyMap<string, readonly number[]>>(
-    (map, { signal, delta }) => new Map([...map, [signal, [...(map.get(signal) ?? []), delta]]]),
-    new Map(),
-  );
+  const deltasBySignal = groupByMap(signalDeltas, (d) => d.signal);
 
   return BOTTLENECK_SIGNALS.map(({ signal, weight }) => {
-    const deltas = deltasBySignal.get(signal) ?? [];
-    const correlation = deltas.length > 0
-      ? round4(deltas.reduce((sum, d) => sum + d, 0) / deltas.length)
+    const deltaEntries = deltasBySignal.get(signal) ?? [];
+    const correlation = deltaEntries.length > 0
+      ? round4(deltaEntries.reduce((sum, d) => sum + d.delta, 0) / deltaEntries.length)
       : 0;
     return { signal, weight, correlationWithImprovement: correlation };
   });

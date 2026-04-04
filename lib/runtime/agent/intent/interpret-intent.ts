@@ -11,13 +11,13 @@
  * and which knowledge refs were consulted.
  */
 
-import type { GroundedStep, IntentThresholds, StepAction, StepTaskScreenCandidate, StepTaskElementCandidate } from '../../domain/types';
-import { DEFAULT_PIPELINE_CONFIG } from '../../domain/types';
-import type { ScreenId, ElementId, PostureId } from '../../domain/kernel/identity';
-import type { RuntimeStepAgentContext, IntentInterpretation, InterpretationConfidence, StageEffects } from './types';
-import { EMPTY_EFFECTS } from './types';
-import { normalizedCombined, bestAliasMatch, uniqueSorted, humanizeIdentifier } from './shared';
-import { exhaustionEntry } from './shared';
+import type { GroundedStep, IntentThresholds, StepAction, StepTaskScreenCandidate, StepTaskElementCandidate } from '../../../domain/types';
+import { DEFAULT_PIPELINE_CONFIG } from '../../../domain/types';
+import type { ScreenId, ElementId, PostureId } from '../../../domain/kernel/identity';
+import type { RuntimeStepAgentContext, IntentInterpretation, InterpretationConfidence, StageEffects } from '../types';
+import { EMPTY_EFFECTS } from '../types';
+import { normalizedCombined, bestAliasMatch, uniqueSorted, humanizeIdentifier } from '../shared';
+import { exhaustionEntry } from '../shared';
 
 // ─── Heuristic Scoring ───
 

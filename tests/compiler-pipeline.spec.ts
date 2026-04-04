@@ -11,7 +11,7 @@ import { loadWorkspaceCatalog } from '../lib/application/catalog';
 import { emitManifestPath } from '../lib/application/paths';
 import { refreshScenario } from '../lib/application/workspace/refresh';
 import { runScenario } from '../lib/application/execution/run';
-import { replayInterpretation } from '../lib/application/execution/replay-interpretation';
+import { replayInterpretation } from '../lib/application/execution/replay/replay-interpretation';
 import { inspectSurface } from '../lib/application/reporting/surface';
 import { traceScenario } from '../lib/application/reporting/trace';
 import { generateTypes } from '../lib/application/types';

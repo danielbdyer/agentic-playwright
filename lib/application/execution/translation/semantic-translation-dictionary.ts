@@ -11,14 +11,14 @@ import {
   deserializeShingleIndex,
   serializeShingleIndex,
   type SerializedShingleIndex,
-} from '../../domain/knowledge/shingles';
-import { ensureShingleIndex, emptyCatalog } from '../../domain/knowledge/semantic-dictionary';
+} from '../../../domain/knowledge/shingles';
+import { ensureShingleIndex, emptyCatalog } from '../../../domain/knowledge/semantic-dictionary';
 import type {
   SemanticDictionaryCatalog,
   SemanticDictionaryEntry,
-} from '../../domain/types';
-import { FileSystem } from '../ports';
-import type { ProjectPaths } from '../paths';
+} from '../../../domain/types';
+import { FileSystem } from '../../ports';
+import type { ProjectPaths } from '../../paths';
 
 // Re-export pure domain API so existing application-layer consumers don't break
 export {
@@ -33,8 +33,8 @@ export {
   pruneSemanticDictionary,
   promotionCandidates,
   emptyCatalog,
-} from '../../domain/knowledge/semantic-dictionary';
-export type { SemanticLookupOptions } from '../../domain/knowledge/semantic-dictionary';
+} from '../../../domain/knowledge/semantic-dictionary';
+export type { SemanticLookupOptions } from '../../../domain/knowledge/semantic-dictionary';
 
 // ─── Persistence (Effect-based) ───
 

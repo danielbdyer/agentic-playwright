@@ -1,15 +1,15 @@
 import { Effect } from 'effect';
-import type { AdoId } from '../../domain/kernel/identity';
-import type { InterpretationDriftChange, InterpretationDriftRecord, ResolutionReceipt, ScenarioInterpretationSurface } from '../../domain/types';
-import type { ProjectPaths } from '../paths';
-import { interpretationDriftPath, interpretationPath, resolutionGraphPath, taskPacketPath } from '../paths';
-import { FileSystem, RuntimeScenarioRunner } from '../ports';
-import { loadWorkspaceCatalog } from '../catalog';
-import { loadScenarioInterpretationSurfaceFromCatalog, prepareScenarioRunPlan } from './select-run-context';
-import { interpretScenarioFromPlan } from './interpret';
-import { emitOperatorInbox } from '../workspace/inbox';
-import { projectBenchmarkScorecard } from '../analysis/benchmark';
-import { buildDerivedGraph } from '../analysis/graph';
+import type { AdoId } from '../../../domain/kernel/identity';
+import type { InterpretationDriftChange, InterpretationDriftRecord, ResolutionReceipt, ScenarioInterpretationSurface } from '../../../domain/types';
+import type { ProjectPaths } from '../../paths';
+import { interpretationDriftPath, interpretationPath, resolutionGraphPath, taskPacketPath } from '../../paths';
+import { FileSystem, RuntimeScenarioRunner } from '../../ports';
+import { loadWorkspaceCatalog } from '../../catalog';
+import { loadScenarioInterpretationSurfaceFromCatalog, prepareScenarioRunPlan } from '../select-run-context';
+import { interpretScenarioFromPlan } from '../interpret';
+import { emitOperatorInbox } from '../../workspace/inbox';
+import { projectBenchmarkScorecard } from '../../analysis/benchmark';
+import { buildDerivedGraph } from '../../analysis/graph';
 
 interface InterpretationRecord {
   kind: 'scenario-interpretation-record';
@@ -18,7 +18,7 @@ interface InterpretationRecord {
   steps: Array<{ stepIndex: number; interpretation: ResolutionReceipt }>;
 }
 
-import { targetKey, exhaustionPath, resolutionGraphDigest } from '../../domain/resolution/comparison-rules';
+import { targetKey, exhaustionPath, resolutionGraphDigest } from '../../../domain/resolution/comparison-rules';
 
 function createDriftRecord(input: {
   adoId: AdoId;

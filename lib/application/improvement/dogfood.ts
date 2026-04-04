@@ -21,14 +21,14 @@ import { compileScenariosParallel } from '../execution/compile';
 import { runScenarioSelection } from '../execution/run';
 import { FileSystem } from '../ports';
 import { runStateMachine } from '../execution/state-machine';
-import { pruneTranslationCache } from '../execution/translation-cache';
+import { pruneTranslationCache } from '../execution/translation/translation-cache';
 import { round4 } from '../learning/learning-shared';
 import type { BrowserPoolPort, BrowserPoolStats } from '../runtime-support/browser-pool';
 import {
   readSemanticDictionary,
   writeSemanticDictionary,
   decayUnusedEntries,
-} from '../execution/semantic-translation-dictionary';
+} from '../execution/translation/semantic-translation-dictionary';
 import {
   type ConvergenceState,
   initialConvergenceState,

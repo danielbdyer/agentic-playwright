@@ -14,7 +14,7 @@
 
 import { expect, test } from '@playwright/test';
 import { mulberry32 , LAW_SEED_COUNT } from './support/random';
-import { translationCacheKey, type TranslationCacheRecord } from '../lib/application/execution/translation-cache';
+import { translationCacheKey, type TranslationCacheRecord } from '../lib/application/execution/translation/translation-cache';
 import type { TranslationRequest } from '../lib/domain/types';
 
 // ─── Helpers ───

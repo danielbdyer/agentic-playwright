@@ -47,8 +47,8 @@ import {
   type PhaseTimingBaseline,
   type PhaseTimingBudget,
 } from '../lib/domain/projection/speedrun-statistics';
-import { startFixtureServer, type FixtureServer } from '../lib/infrastructure/fixture-server';
-import { createPlaywrightBrowserPool } from '../lib/infrastructure/playwright-browser-pool';
+import { startFixtureServer, type FixtureServer } from '../lib/infrastructure/tooling/fixture-server';
+import { createPlaywrightBrowserPool } from '../lib/infrastructure/runtime/playwright-browser-pool';
 import type { BrowserPoolPort } from '../lib/application/runtime-support/browser-pool';
 import { createFileBackedDashboardPort } from '../lib/infrastructure/dashboard/file-dashboard-port';
 import { resolvePlaywrightHeadless } from '../lib/infrastructure/tooling/browser-options';

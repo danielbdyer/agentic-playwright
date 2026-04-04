@@ -21,3 +21,17 @@ export function groupBy<T, K extends string>(values: Iterable<T>, keyOf: (value:
   }, new Map());
   return Object.fromEntries(sortByStringKey(groups.entries(), ([key]) => key)) as Record<K, T[]>;
 }
+
+export function groupByMap<T, K extends string>(values: Iterable<T>, keyOf: (value: T) => K): ReadonlyMap<K, readonly T[]> {
+  return [...values].reduce<Map<K, T[]>>((acc, value) => {
+    const key = keyOf(value);
+    return acc.set(key, [...(acc.get(key) ?? []), value]);
+  }, new Map());
+}
+
+export function uniqueByFirst<T>(values: Iterable<T>, keyOf: (value: T) => string): ReadonlyMap<string, T> {
+  return [...values].reduce<Map<string, T>>((acc, value) => {
+    const key = keyOf(value);
+    return acc.has(key) ? acc : acc.set(key, value);
+  }, new Map());
+}

@@ -3,7 +3,7 @@ import { createAdoId, createCanonicalTargetRef, createElementId, createScreenId,
 import type { GroundedStep, StepAction, ResolutionReceipt } from '../lib/domain/types';
 import { RESOLUTION_PRECEDENCE, runResolutionPipeline, type RuntimeStepAgentContext } from '../lib/runtime/agent';
 import { createScenarioRunState, runScenarioStep } from '../lib/runtime/scenario';
-import { resolveFromDom } from '../lib/runtime/agent/dom-fallback';
+import { resolveFromDom } from '../lib/runtime/agent/intent/dom-fallback';
 import {
   createAgentContext,
   createInterfaceResolutionContext,
@@ -16,7 +16,7 @@ import {
   accrueSemanticEntry,
   emptyCatalog,
   recordSemanticSuccess,
-} from '../lib/application/execution/semantic-translation-dictionary';
+} from '../lib/application/execution/translation/semantic-translation-dictionary';
 import type { SemanticDictionaryAccrualInput } from '../lib/domain/types';
 
 function mockPageFromRoleCounts(roleCounts: Record<string, number>) {

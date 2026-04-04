@@ -2,6 +2,7 @@ import path from 'path';
 import { Effect } from 'effect';
 import type { AutoApprovalPolicy, BottleneckWeights, ProposalBundle, ProposalEntry, TrustPolicy } from '../../domain/types';
 import { GovernanceLattice } from '../../domain/algebra/lattice';
+import { groupByMap } from '../../domain/kernel/collections';
 import { fromGovernance, type GovernanceVerdict } from '../../domain/kernel/governed-suspension';
 import type { ProjectPaths } from '../paths';
 import { FileSystem } from '../ports';
@@ -76,12 +77,7 @@ export function activateProposalBundle(options: {
 
     // Group proposals by targetPath to serialize writes to the same file,
     // preventing race conditions on overlapping targets.
-    const byTarget = new Map<string, ProposalEntry[]>();
-    for (const proposal of options.proposalBundle.proposals) {
-      const group = byTarget.get(proposal.targetPath) ?? [];
-      group.push(proposal);
-      byTarget.set(proposal.targetPath, group);
-    }
+    const byTarget = groupByMap(options.proposalBundle.proposals, (p) => p.targetPath);
 
     // Process each target-group sequentially (same-file writes serialized),
     // but different target groups concurrently (capped at 10).
@@ -181,12 +177,7 @@ export function quarantineToxicProposals(options: {
     const quarantinedPaths: string[] = [];
 
     // Group toxic aliases by screenId to batch file operations
-    const byScreen = new Map<string, AliasOutcome[]>();
-    for (const alias of options.toxicAliases) {
-      const group = byScreen.get(alias.screenId) ?? [];
-      group.push(alias);
-      byScreen.set(alias.screenId, group);
-    }
+    const byScreen = groupByMap(options.toxicAliases, (a) => a.screenId);
 
     yield* Effect.forEach(
       [...byScreen.entries()],

@@ -1,7 +1,7 @@
-import { normalizeIntentText } from '../../domain/knowledge/inference';
-import { knowledgePaths } from '../../domain/kernel/ids';
-import type { InterfaceResolutionContext, StepAction, StepResolution, GroundedStep } from '../../domain/types';
-import { bestAliasMatch } from './shared';
+import { normalizeIntentText } from '../../../domain/knowledge/inference';
+import { knowledgePaths } from '../../../domain/kernel/ids';
+import type { InterfaceResolutionContext, StepAction, StepResolution, GroundedStep } from '../../../domain/types';
+import { bestAliasMatch } from '../shared';
 
 export function allowedActionFallback(task: GroundedStep): StepAction | null {
   const normalized = normalizeIntentText(task.actionText);

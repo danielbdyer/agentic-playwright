@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { rankActionCandidates } from '../lib/runtime/agent/candidate-lattice';
-import { selectedControlResolution } from '../lib/runtime/agent/select-controls';
+import { rankActionCandidates } from '../lib/runtime/agent/intent/candidate-lattice';
+import { selectedControlResolution } from '../lib/runtime/agent/resolution/select-controls';
 import { runResolutionPipeline } from '../lib/runtime/agent';
 import { chooseByPrecedence, routeSelectionPrecedenceLaw } from '../lib/domain/resolution/precedence';
 import { cloneJson, createAgentContext, createInterfaceResolutionContext, createGroundedStep } from './support/interface-fixtures';

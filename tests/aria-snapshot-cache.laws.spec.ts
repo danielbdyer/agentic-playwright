@@ -9,7 +9,7 @@
  *   5. Hit/miss counters are accurate.
  */
 import { test, expect } from '@playwright/test';
-import { createAriaSnapshotCache } from '../lib/runtime/agent/aria-snapshot-cache';
+import { createAriaSnapshotCache } from '../lib/runtime/agent/cache/aria-snapshot-cache';
 
 function makeMockPage(snapshot: object | null = { role: 'WebArea', name: 'Test' }) {
   let callCount = 0;

@@ -11,8 +11,8 @@
 import {
   resolutionPrecedenceLaw,
   type ResolutionPrecedenceRung,
-} from '../../domain/resolution/precedence';
-import type { ResolutionStrategy } from './strategy';
+} from '../../../domain/resolution/precedence';
+import type { ResolutionStrategy } from '../resolution/strategy';
 
 // ─── Public interface ────────────────────────────────────────────────────
 

@@ -16,8 +16,8 @@ import type {
   BrowserPoolStats,
   PageHandle,
   ResetStrategy,
-} from '../application/runtime-support/browser-pool';
-import { DEFAULT_BROWSER_POOL_CONFIG } from '../application/runtime-support/browser-pool';
+} from '../../application/runtime-support/browser-pool';
+import { DEFAULT_BROWSER_POOL_CONFIG } from '../../application/runtime-support/browser-pool';
 
 interface PooledPage {
   readonly id: string;

@@ -1,5 +1,5 @@
-import { createPostureId } from '../../domain/kernel/identity';
-import { knowledgePaths } from '../../domain/kernel/ids';
+import { createPostureId } from '../../../domain/kernel/identity';
+import { knowledgePaths } from '../../../domain/kernel/ids';
 import type {
   GroundedStep,
   ResolutionTarget,
@@ -8,10 +8,10 @@ import type {
   StepTaskElementCandidate,
   StepTaskScreenCandidate,
   StepWinningSource,
-} from '../../domain/types';
-import { bestAliasMatch, humanizeIdentifier, normalizedCombined, uniqueSorted } from './shared';
-import { selectedDataset, selectedRunbook } from './select-controls';
-import type { RuntimeStepAgentContext } from './types';
+} from '../../../domain/types';
+import { bestAliasMatch, humanizeIdentifier, normalizedCombined, uniqueSorted } from '../shared';
+import { selectedDataset, selectedRunbook } from '../resolution/select-controls';
+import type { RuntimeStepAgentContext } from '../types';
 
 function groundedScreens(task: GroundedStep, context: RuntimeStepAgentContext): readonly StepTaskScreenCandidate[] {
   const allowedRouteVariantRefs = new Set(task.grounding.routeVariantRefs);

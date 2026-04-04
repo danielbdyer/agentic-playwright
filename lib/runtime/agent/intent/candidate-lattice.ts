@@ -1,6 +1,6 @@
-import { normalizeIntentText } from '../../domain/knowledge/inference';
-import { createPostureId, createSnapshotTemplateId } from '../../domain/kernel/identity';
-import { knowledgePaths } from '../../domain/kernel/ids';
+import { normalizeIntentText } from '../../../domain/knowledge/inference';
+import { createPostureId, createSnapshotTemplateId } from '../../../domain/kernel/identity';
+import { knowledgePaths } from '../../../domain/kernel/ids';
 import type {
   InterfaceResolutionContext,
   ObservedStateSession,
@@ -9,13 +9,13 @@ import type {
   GroundedStep,
   StepTaskElementCandidate,
   StepTaskScreenCandidate,
-} from '../../domain/types';
-import { precedenceWeight, resolutionPrecedenceLaw } from '../../domain/resolution/precedence';
-import { rungToMinConfidence } from '../../domain/resolution/confidence-provenance';
-import type { Confidence } from '../../domain/types';
-import { allowedActionFallback } from './resolve-action';
-import { bestAliasMatch, humanizeIdentifier, normalizedCombined, uniqueSorted } from './shared';
-import type { ResolutionTarget } from '../../domain/types';
+} from '../../../domain/types';
+import { precedenceWeight, resolutionPrecedenceLaw } from '../../../domain/resolution/precedence';
+import { rungToMinConfidence } from '../../../domain/resolution/confidence-provenance';
+import type { Confidence } from '../../../domain/types';
+import { allowedActionFallback } from '../intent/resolve-action';
+import { bestAliasMatch, humanizeIdentifier, normalizedCombined, uniqueSorted } from '../shared';
+import type { ResolutionTarget } from '../../../domain/types';
 
 export type LatticeSource =
   | 'explicit'

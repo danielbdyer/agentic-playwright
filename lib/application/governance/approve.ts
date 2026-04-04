@@ -7,7 +7,7 @@ import { emitOperatorInbox } from '../workspace/inbox';
 import { buildOperatorInboxItems, findProposalById } from './operator';
 import { applyProposalPatch, parseProposalArtifact, serializeProposalArtifact, validatePatchedProposalArtifact } from './proposal-patches';
 import { executeInterventionBatch } from '../intelligence/intervention-kernel';
-import { buildRerunPlan } from '../execution/rerun-plan';
+import { buildRerunPlan } from '../execution/replay/rerun-plan';
 import type { ProjectPaths } from '../paths';
 import { approvalReceiptPath, relativeProjectPath } from '../paths';
 import { ExecutionContext, FileSystem } from '../ports';

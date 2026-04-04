@@ -1,8 +1,8 @@
-import type { ResolutionPrecedenceRung } from '../../domain/resolution/precedence';
-import type { ResolutionEvent, ResolutionReceipt } from '../../domain/types';
-import type { RuntimeAgentStageContext } from './types';
-import type { ResolutionAccumulator } from './resolution-stages';
-import { walkStrategyChainAsync, type AsyncRungStrategy, type RungAttemptResult } from './strategy-chain-walker';
+import type { ResolutionPrecedenceRung } from '../../../domain/resolution/precedence';
+import type { ResolutionEvent, ResolutionReceipt } from '../../../domain/types';
+import type { RuntimeAgentStageContext } from '../types';
+import type { ResolutionAccumulator } from '../resolution/resolution-stages';
+import { walkStrategyChainAsync, type AsyncRungStrategy, type RungAttemptResult } from '../resolution/strategy-chain-walker';
 
 export interface StrategyAttemptResult {
   receipt: ResolutionReceipt | null;

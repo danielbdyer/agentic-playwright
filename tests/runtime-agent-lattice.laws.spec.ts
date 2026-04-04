@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { createCanonicalTargetRef, createElementId, createScreenId } from '../lib/domain/kernel/identity';
-import { rankActionCandidates, rankElementCandidates, rankScreenCandidates } from '../lib/runtime/agent/candidate-lattice';
+import { rankActionCandidates, rankElementCandidates, rankScreenCandidates } from '../lib/runtime/agent/intent/candidate-lattice';
 import { cloneJson, createInterfaceResolutionContext, createPolicySearchScreen, createGroundedStep } from './support/interface-fixtures';
 
 test('candidate lattice precedence keeps explicit above control above approved knowledge', () => {

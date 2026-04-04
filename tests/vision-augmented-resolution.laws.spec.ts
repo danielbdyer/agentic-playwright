@@ -15,7 +15,7 @@
  */
 
 import { expect, test } from '@playwright/test';
-import { capturePageScreenshot } from '../lib/runtime/agent/resolution-stages';
+import { capturePageScreenshot } from '../lib/runtime/agent/resolution/resolution-stages';
 import type { AgentInterpretationRequest } from '../lib/domain/types/agent-interpreter';
 import type { AgentLlmApiDependencies, VisionImage } from '../lib/application/agent/agent-interpreter-provider';
 

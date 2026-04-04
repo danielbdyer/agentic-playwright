@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { resolutionPrecedenceLaw, type ResolutionPrecedenceRung } from '../lib/domain/resolution/precedence';
-import { createStrategyRegistry, type StrategyRegistry } from '../lib/runtime/agent/strategy-registry';
-import type { ResolutionStrategy, StrategyAttemptResult } from '../lib/runtime/agent/strategy';
+import { createStrategyRegistry, type StrategyRegistry } from '../lib/runtime/agent/resolution/strategy-registry';
+import type { ResolutionStrategy, StrategyAttemptResult } from '../lib/runtime/agent/resolution/strategy';
 import { LAW_SEED_COUNT } from './support/random';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────

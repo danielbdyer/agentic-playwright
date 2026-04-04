@@ -1,6 +1,6 @@
-import { compareStrings } from '../../domain/kernel/collections';
-import { humanizeIdentifier } from './shared';
-import { widgetCapabilityContracts } from '../../domain/widgets/contracts';
+import { compareStrings } from '../../../domain/kernel/collections';
+import { humanizeIdentifier } from '../shared';
+import { widgetCapabilityContracts } from '../../../domain/widgets/contracts';
 import type {
   DomExplorationPolicy,
   DomScoringWeights,
@@ -10,10 +10,10 @@ import type {
   GroundedStep,
   StepTaskElementCandidate,
   StepTaskScreenCandidate,
-} from '../../domain/types';
-import { DEFAULT_PIPELINE_CONFIG } from '../../domain/types';
-import type { RuntimeDomResolver } from '../../domain/types';
-import { createPlaywrightDomResolver } from '../adapters/playwright-dom-resolver';
+} from '../../../domain/types';
+import { DEFAULT_PIPELINE_CONFIG } from '../../../domain/types';
+import type { RuntimeDomResolver } from '../../../domain/types';
+import { createPlaywrightDomResolver } from '../../adapters/playwright-dom-resolver';
 
 type PlaywrightPageLike = Parameters<typeof createPlaywrightDomResolver>[0];
 

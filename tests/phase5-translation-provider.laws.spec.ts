@@ -11,8 +11,8 @@ import {
   type TranslationProvider,
   type LlmApiProviderDependencies,
   type TranslationConfig,
-} from '../lib/application/execution/translation-provider';
-import { translateIntentToOntology } from '../lib/application/execution/translate';
+} from '../lib/application/execution/translation/translation-provider';
+import { translateIntentToOntology } from '../lib/application/execution/translation/translate';
 import type { TranslationRequest } from '../lib/domain/types';
 import { createScreenId, createElementId } from '../lib/domain/kernel/identity';
 

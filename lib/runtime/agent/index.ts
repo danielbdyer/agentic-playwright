@@ -1,17 +1,17 @@
 import type { CausalLink, ConfidenceScaling, MemoryCapacityConfig, ObservedStateSession, ResolutionEvent, ResolutionPipelineResult, ResolutionReceipt, GroundedStep } from '../../domain/types';
 import { DEFAULT_PIPELINE_CONFIG } from '../../domain/types';
 import { resolutionPrecedenceLaw } from '../../domain/resolution/precedence';
-import { selectedControlRefs, selectedControlResolution } from './select-controls';
+import { selectedControlRefs, selectedControlResolution } from './resolution/select-controls';
 import { uniqueSorted } from './shared';
-import type { ResolutionStrategy, StrategyAttemptResult, StrategyChainResult } from './strategy';
-import { runStrategyChain } from './strategy';
-import { createStrategyRegistry } from './strategy-registry';
+import type { ResolutionStrategy, StrategyAttemptResult, StrategyChainResult } from './resolution/strategy';
+import { runStrategyChain } from './resolution/strategy';
+import { createStrategyRegistry } from './resolution/strategy-registry';
 import { buildPipelineDAG, validateDAG } from '../../domain/resolution/pipeline-dag';
 import { TesseractError } from '../../domain/kernel/errors';
 import type { RuntimeAgentStageContext, RuntimeStepAgentContext, StageEffects } from './types';
 import { mergeEffectsIntoStage } from './types';
-import { interpretStepIntent } from './interpret-intent';
-import type { ResolutionAccumulator } from './resolution-stages';
+import { interpretStepIntent } from './intent/interpret-intent';
+import type { ResolutionAccumulator } from './resolution/resolution-stages';
 import {
   tryExplicitResolution,
   buildLatticeAccumulator,
@@ -20,10 +20,10 @@ import {
   tryOverlayResolution,
   tryTranslationResolution,
   tryLiveDomOrFallback,
-} from './resolution-stages';
+} from './resolution/resolution-stages';
 import type { SemanticDictionaryAccrualInput, SemanticDictionaryMatch } from '../../domain/types';
-import { createAriaSnapshotCache, type AriaSnapshotCache } from './aria-snapshot-cache';
-import { createSemanticDictCache, type SemanticDictCache } from './semantic-dict-cache';
+import { createAriaSnapshotCache, type AriaSnapshotCache } from './cache/aria-snapshot-cache';
+import { createSemanticDictCache, type SemanticDictCache } from './cache/semantic-dict-cache';
 
 export const RESOLUTION_PRECEDENCE = resolutionPrecedenceLaw;
 

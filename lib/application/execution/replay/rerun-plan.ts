@@ -1,20 +1,20 @@
 import { Effect, Match, pipe } from 'effect';
-import { loadWorkspaceCatalog, type WorkspaceCatalog } from '../catalog';
-import { ensureDerivedGraph } from '../analysis/graph';
-import { executeInterventionBatch } from '../intelligence/intervention-kernel';
-import { findProposalById } from '../governance/operator';
-import type { ProjectPaths } from '../paths';
-import { relativeProjectPath, rerunPlanPath } from '../paths';
-import { FileSystem } from '../ports';
-import { policyDecisionGraphTarget } from '../governance/trust-policy';
-import { TesseractError } from '../../domain/kernel/errors';
-import { sha256, stableStringify } from '../../domain/kernel/hash';
-import { graphIds, knowledgePaths } from '../../domain/kernel/ids';
-import type { AdoId } from '../../domain/kernel/identity';
-import { createAdoId } from '../../domain/kernel/identity';
-import type { GraphEdge, GraphNode, RerunPlan, RunbookControl, Scenario } from '../../domain/types';
-import { compareStrings, uniqueSorted } from '../../domain/kernel/collections';
-import type { ActionExecutionResult } from '../intelligence/intervention-kernel';
+import { loadWorkspaceCatalog, type WorkspaceCatalog } from '../../catalog';
+import { ensureDerivedGraph } from '../../analysis/graph';
+import { executeInterventionBatch } from '../../intelligence/intervention-kernel';
+import { findProposalById } from '../../governance/operator';
+import type { ProjectPaths } from '../../paths';
+import { relativeProjectPath, rerunPlanPath } from '../../paths';
+import { FileSystem } from '../../ports';
+import { policyDecisionGraphTarget } from '../../governance/trust-policy';
+import { TesseractError } from '../../../domain/kernel/errors';
+import { sha256, stableStringify } from '../../../domain/kernel/hash';
+import { graphIds, knowledgePaths } from '../../../domain/kernel/ids';
+import type { AdoId } from '../../../domain/kernel/identity';
+import { createAdoId } from '../../../domain/kernel/identity';
+import type { GraphEdge, GraphNode, RerunPlan, RunbookControl, Scenario } from '../../../domain/types';
+import { compareStrings, uniqueSorted } from '../../../domain/kernel/collections';
+import type { ActionExecutionResult } from '../../intelligence/intervention-kernel';
 
 interface SelectionExplanation {
   triggeringChange: string;

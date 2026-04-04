@@ -1,6 +1,6 @@
 import type { ArtifactConfidenceRecord, ResolutionObservation, StepAction, GroundedStep, StepTaskElementCandidate, StepTaskScreenCandidate, TranslationReceipt } from '../../domain/types';
 import { normalizedCombined, bestAliasMatch, humanizeIdentifier, uniqueSorted } from './shared';
-import { requiresElement } from './resolve-action';
+import { requiresElement } from './intent/resolve-action';
 import type { RuntimeStepAgentContext } from './types';
 import type { PostureId, SnapshotTemplateId } from '../../domain/kernel/identity';
 

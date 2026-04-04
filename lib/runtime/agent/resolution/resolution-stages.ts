@@ -1,4 +1,4 @@
-import type { ElementId, PostureId, SnapshotTemplateId } from '../../domain/kernel/identity';
+import type { ElementId, PostureId, SnapshotTemplateId } from '../../../domain/kernel/identity';
 import type {
   ProposalConfidenceValues,
   ResolutionCandidateSummary,
@@ -7,21 +7,21 @@ import type {
   StepAction,
   StepTaskElementCandidate,
   StepTaskScreenCandidate,
-} from '../../domain/types';
-import { DEFAULT_PIPELINE_CONFIG } from '../../domain/types';
-import { mintApproved, mintReviewRequired } from '../../domain/types/shared-context';
-import { requiresElement, allowedActionFallback } from './resolve-action';
-import { resolveFromDom } from './dom-fallback';
-import { proposalForSupplementGap, proposalsFromInterpretation, proposalsForNeedsHuman, proposalsForDeterministicResolution } from './proposals';
-import { agentInterpretedReceipt, explicitResolvedReceipt, needsHumanReceipt } from './receipt';
-import type { AgentInterpretationRequest } from '../../domain/types';
-import { resolveOverride } from './resolve-target';
-import { selectedDomExplorationPolicy } from './select-controls';
-import { exhaustionEntry, normalizedCombined } from './shared';
-import { resolveWithConfidenceOverlay, resolveWithTranslation } from './translation';
-import { lookupSemanticDictionary } from '../../domain/knowledge/semantic-dictionary';
-import type { RuntimeAgentStageContext, StageEffects } from './types';
-import { EMPTY_EFFECTS } from './types';
+} from '../../../domain/types';
+import { DEFAULT_PIPELINE_CONFIG } from '../../../domain/types';
+import { mintApproved, mintReviewRequired } from '../../../domain/types/shared-context';
+import { requiresElement, allowedActionFallback } from '../intent/resolve-action';
+import { resolveFromDom } from '../intent/dom-fallback';
+import { proposalForSupplementGap, proposalsFromInterpretation, proposalsForNeedsHuman, proposalsForDeterministicResolution } from '../proposals';
+import { agentInterpretedReceipt, explicitResolvedReceipt, needsHumanReceipt } from '../receipt';
+import type { AgentInterpretationRequest } from '../../../domain/types';
+import { resolveOverride } from '../intent/resolve-target';
+import { selectedDomExplorationPolicy } from '../resolution/select-controls';
+import { exhaustionEntry, normalizedCombined } from '../shared';
+import { resolveWithConfidenceOverlay, resolveWithTranslation } from '../translation';
+import { lookupSemanticDictionary } from '../../../domain/knowledge/semantic-dictionary';
+import type { RuntimeAgentStageContext, StageEffects } from '../types';
+import { EMPTY_EFFECTS } from '../types';
 import {
   rankActionCandidates,
   rankElementCandidates,
@@ -30,9 +30,9 @@ import {
   rankSnapshotCandidates,
   type LatticeCandidate,
   type RankedLattice,
-} from './candidate-lattice';
-import { createPlaywrightDomResolver } from '../adapters/playwright-dom-resolver';
-import { isRung8Applicable, attemptRung8Resolution } from './rung8-llm-dom';
+} from '../intent/candidate-lattice';
+import { createPlaywrightDomResolver } from '../../adapters/playwright-dom-resolver';
+import { isRung8Applicable, attemptRung8Resolution } from '../intent/rung8-llm-dom';
 
 /** Maximum characters for the DOM snapshot passed to the agent interpreter. */
 const DOM_SNAPSHOT_MAX_CHARS = 2048;
