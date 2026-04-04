@@ -2,7 +2,7 @@ import { Effect } from 'effect';
 import { FileSystem } from '../application/ports';
 import type { RuntimeScenarioRunnerPort } from '../application/ports';
 import { createProjectPaths, type ProjectPaths } from '../application/paths';
-import { readTranslationCache, translationCacheKey, writeTranslationCache } from '../application/execution/translation/translation-cache';
+import { readTranslationCache, translationCacheKey, writeTranslationCache } from '../application/resolution/translation/translation-cache';
 import {
   accrueSemanticEntry,
   readSemanticDictionary,
@@ -10,10 +10,10 @@ import {
   recordSemanticSuccess,
   recordValidatedSuccess,
   writeSemanticDictionary,
-} from '../application/execution/translation/semantic-translation-dictionary';
-import { translateIntentToOntology } from '../application/execution/translation/translate';
-import type { TranslationProvider } from '../application/execution/translation/translation-provider';
-import { resolveAgentInterpreterPort } from '../application/agent/agent-interpreter-provider';
+} from '../application/resolution/translation/semantic-translation-dictionary';
+import { translateIntentToOntology } from '../application/resolution/translation/translate';
+import type { TranslationProvider } from '../application/resolution/translation/translation-provider';
+import { resolveAgentInterpreterPort } from '../application/agency/agent-interpreter-provider';
 import type { AgentInterpretationResult } from '../domain/interpretation/agent-interpreter';
 import type { AgentInterpreterPort } from '../domain/resolution/model';
 import type { SemanticDictionaryCatalog } from '../domain/knowledge/semantic-dictionary-types';

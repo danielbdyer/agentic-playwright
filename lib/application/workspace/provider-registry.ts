@@ -3,10 +3,10 @@ export {
   resolveResolutionEngine,
   type ResolutionEngine,
   type ResolutionEngineId,
-} from '../execution/resolution-engine';
+} from '../resolution/resolution-engine';
 export {
   createAgentSessionAdapterRegistry,
   resolveAgentSessionAdapter,
   type AgentSessionAdapter,
   type AgentSessionAdapterId,
-} from '../agent/agent-session-adapter';
+} from '../agency/agent-session-adapter';

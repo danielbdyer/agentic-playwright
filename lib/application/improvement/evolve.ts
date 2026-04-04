@@ -16,7 +16,7 @@ import { Effect, Either, Option } from 'effect';
 import type { ProjectPaths } from '../paths';
 import { speedrunProgram, type SpeedrunInput, type SpeedrunResult } from './speedrun';
 import { mappingForFailureClass, generateCandidates, type CandidateConfig } from './knob-search';
-import { updateScorecard } from '../analysis/fitness';
+import { updateScorecard } from '../improvement/fitness';
 import { recordExperiment } from './experiment-registry';
 import { scorecardPath } from './improvement';
 import { cleanSlateProgram } from './clean-slate';

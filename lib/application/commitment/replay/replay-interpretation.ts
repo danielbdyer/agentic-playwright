@@ -8,9 +8,9 @@ import { FileSystem, RuntimeScenarioRunner } from '../../ports';
 import { loadWorkspaceCatalog } from '../../catalog';
 import { loadScenarioInterpretationSurfaceFromCatalog, prepareScenarioRunPlan } from '../select-run-context';
 import { interpretScenarioFromPlan } from '../interpret';
-import { emitOperatorInbox } from '../../workspace/inbox';
-import { projectBenchmarkScorecard } from '../../analysis/benchmark';
-import { buildDerivedGraph } from '../../analysis/graph';
+import { emitOperatorInbox } from '../../agency/inbox';
+import { projectBenchmarkScorecard } from '../../improvement/benchmark';
+import { buildDerivedGraph } from '../../graph/graph';
 
 interface InterpretationRecord {
   kind: 'scenario-interpretation-record';

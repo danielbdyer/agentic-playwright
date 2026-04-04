@@ -17,7 +17,7 @@ import {
   accrueSemanticEntry,
   emptyCatalog,
   recordSemanticSuccess,
-} from '../lib/application/execution/translation/semantic-translation-dictionary';
+} from '../lib/application/resolution/translation/semantic-translation-dictionary';
 import type { SemanticDictionaryAccrualInput } from '../lib/domain/knowledge/semantic-dictionary-types';
 
 function mockPageFromRoleCounts(roleCounts: Record<string, number>) {

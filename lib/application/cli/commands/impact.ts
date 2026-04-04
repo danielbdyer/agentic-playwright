@@ -1,4 +1,4 @@
-import { impactNode } from '../../analysis/impact';
+import { impactNode } from '../../graph/impact';
 import { createCommandSpec } from '../shared';
 import { requireNode } from '../shared';
 

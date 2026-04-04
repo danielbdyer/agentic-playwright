@@ -3,7 +3,7 @@ import type { AdoId } from '../../domain/kernel/identity';
 import { collectRelatedSubgraph } from '../../domain/graph/graph-query';
 import { graphIds } from '../../domain/kernel/ids';
 import { TesseractError } from '../../domain/kernel/errors';
-import { ensureDerivedGraph } from '../analysis/graph';
+import { ensureDerivedGraph } from '../graph/graph';
 import type { ProjectPaths } from '../paths';
 import type { DerivedGraph } from '../../domain/projection/types';
 

@@ -1,4 +1,4 @@
-import { emitScenario } from '../../execution/emit';
+import { emitScenario } from '../../commitment/emit';
 import { createAdoId } from '../../../domain/kernel/identity';
 import { createCommandSpec } from '../shared';
 import { requireAdoId } from '../shared';

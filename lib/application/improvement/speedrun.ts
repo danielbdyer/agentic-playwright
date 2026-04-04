@@ -16,7 +16,7 @@ import { Effect, Either, Schema } from 'effect';
 import type { ProjectPaths } from '../paths';
 import { generateSyntheticScenarios } from '../synthesis/scenario-generator';
 import { generateDriftVariants } from '../synthesis/interface-fuzzer';
-import { compileScenariosParallel } from '../execution/compile';
+import { compileScenariosParallel } from '../resolution/compile';
 import { runDogfoodLoop } from './dogfood';
 import type { AdoId } from '../../domain/kernel/identity';
 import {
@@ -27,7 +27,7 @@ import {
   updateScorecard,
   type FitnessInputData,
   type ScorecardComparison,
-} from '../analysis/fitness';
+} from '../improvement/fitness';
 import { buildImprovementRun, recordImprovementRun, scorecardPath } from './improvement';
 import { loadExperimentRegistry, recordExperiment } from './experiment-registry';
 import { calibrateWeightsFromCorrelations } from '../learning/learning-bottlenecks';

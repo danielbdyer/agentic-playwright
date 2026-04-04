@@ -14,7 +14,7 @@ import { trySync } from '../effect';
 import type { ProjectPaths } from '../paths';
 import { boundPath, relativeProjectPath } from '../paths';
 import { FileSystem } from '../ports';
-import type { WorkspaceSession } from '../workspace/workspace-session';
+import type { WorkspaceSession } from '../agency/workspace-session';
 
 function createStepDiagnostics(options: {
   reasons: readonly string[];

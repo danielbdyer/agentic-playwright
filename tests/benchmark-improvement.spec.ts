@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'fs';
 import path from 'path';
 import { expect, test } from '@playwright/test';
-import { projectBenchmarkScorecard } from '../lib/application/analysis/benchmark';
+import { projectBenchmarkScorecard } from '../lib/application/improvement/benchmark';
 import { buildImprovementRun, improvementLedgerPath } from '../lib/application/improvement/improvement';
 import { benchmarkDogfoodRunPath, benchmarkImprovementProjectionPath } from '../lib/application/paths';
 import { runWithLocalServices } from '../lib/composition/local-services';

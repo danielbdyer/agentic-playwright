@@ -10,7 +10,7 @@ import { trySync } from '../effect';
 import type { ProjectPaths} from '../paths';
 import { relativeProjectPath, scenarioPath, snapshotPath } from '../paths';
 import { FileSystem } from '../ports';
-import type { WorkspaceSession } from '../workspace/workspace-session';
+import type { WorkspaceSession } from '../agency/workspace-session';
 
 const fixtureReferencePattern = /\{\{\s*([A-Za-z0-9_-]+)(?:\.[^}]*)?\s*\}\}/g;
 

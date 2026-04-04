@@ -1,6 +1,6 @@
 import { Effect } from 'effect';
 import { expect, test } from '@playwright/test';
-import { collectRunbookScenarioIds } from '../lib/application/analysis/benchmark';
+import { collectRunbookScenarioIds } from '../lib/application/improvement/benchmark';
 
 test('collectRunbookScenarioIds preserves deterministic scenario id ordering across concurrency levels', async () => {
   const runbooks = [

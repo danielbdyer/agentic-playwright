@@ -2,8 +2,8 @@ import { test, expect } from '@playwright/test';
 import {
   buildInterpretationCoherence,
   extractIncoherentIntents,
-} from '../lib/application/intelligence/interpretation-coherence';
-import type { RungHistoryIndex } from '../lib/application/learning/rung-drift';
+} from '../lib/application/drift/interpretation-coherence';
+import type { RungHistoryIndex } from '../lib/application/drift/rung-drift';
 import type { InterpretationDriftRecord } from '../lib/domain/execution/types';
 
 function makeRungIndex(entries: Array<{

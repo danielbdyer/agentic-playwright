@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { createEventSignatureRef, createScreenId, createStateNodeRef, createTransitionRef } from '../lib/domain/kernel/identity';
 import type { StateTransitionGraph } from '../lib/domain/target/interface-graph';
-import { planExecutionStep } from '../lib/application/execution/planner';
+import { planExecutionStep } from '../lib/application/commitment/planner';
 import { dataResolutionPrecedenceLaw, resolutionPrecedenceLaw, runSelectionPrecedenceLaw } from '../lib/domain/resolution/precedence';
 
 const stateA = createStateNodeRef('state:a');

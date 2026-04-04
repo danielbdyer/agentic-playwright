@@ -31,7 +31,7 @@ import {
   pruneSemanticDictionary,
   recordSemanticFailure,
   recordSemanticSuccess,
-} from '../lib/application/execution/translation/semantic-translation-dictionary';
+} from '../lib/application/resolution/translation/semantic-translation-dictionary';
 import {
   charShingles,
   shingleTermFrequencies,

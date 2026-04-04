@@ -1,12 +1,12 @@
 import { Effect } from 'effect';
 import type { AdoId } from '../../domain/kernel/identity';
 import { bindScenario } from './bind';
-import { createCompileSnapshot } from './compile-snapshot';
+import { createCompileSnapshot } from '../execution/compile-snapshot';
 import type { WorkspaceCatalog } from '../catalog';
 import { resolveEffectConcurrency } from '../runtime-support/concurrency';
-import { emitScenario } from './emit';
-import { buildDerivedGraph } from '../analysis/graph';
-import { projectInterfaceIntelligence } from '../intelligence/interface-intelligence';
+import { emitScenario } from '../commitment/emit';
+import { buildDerivedGraph } from '../graph/graph';
+import { projectInterfaceIntelligence } from '../observation/interface-intelligence';
 import { projectLearningArtifacts } from '../learning/learning';
 import { parseScenario } from '../reporting/parse';
 import { runPipelineStage } from '../pipeline';
@@ -18,7 +18,7 @@ import {
   loadWorkspaceSession,
   withBoundScenarioInWorkspaceSession,
   withScenarioInWorkspaceSession,
-} from '../workspace/workspace-session';
+} from '../agency/workspace-session';
 
 /**
  * Core compilation: parse, bind, project surfaces, emit — but skip global

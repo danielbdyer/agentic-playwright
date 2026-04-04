@@ -3,7 +3,7 @@ import path from 'path';
 import { tmpdir } from 'os';
 import { expect, test } from '@playwright/test';
 import { createProjectPaths } from '../lib/application/paths';
-import { inspectSurface } from '../lib/application/reporting/surface';
+import { inspectSurface } from '../lib/application/projections/surface';
 import { runWithLocalServices } from '../lib/composition/local-services';
 import { createScreenId } from '../lib/domain/kernel/identity';
 import { createLocalScreenRegistryLoader } from '../lib/infrastructure/screen-registry/local-screen-registry-loader';

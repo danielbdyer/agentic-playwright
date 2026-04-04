@@ -1,4 +1,4 @@
-import { bindScenario } from '../../execution/bind';
+import { bindScenario } from '../../resolution/bind';
 import { createAdoId } from '../../../domain/kernel/identity';
 import { createCommandSpec } from '../shared';
 import { requireAdoId } from '../shared';

@@ -12,11 +12,11 @@ import type { ImprovementRun } from '../../domain/improvement/types';
 import type { BoundScenario } from '../../domain/intent/types';
 import type { ScenarioProjectionInput } from '../../domain/projection/types';
 import type { ScenarioInterpretationSurface } from '../../domain/resolution/types';
-import type { CompileSnapshot } from './compile-snapshot';
+import type { CompileSnapshot } from '../execution/compile-snapshot';
 import { loadWorkspaceCatalog } from '../catalog';
 import { createProposalBundleEnvelope, createScenarioEnvelopeFingerprints, createScenarioEnvelopeIds } from '../catalog/envelope';
 import type { WorkspaceCatalog } from '../catalog';
-import { buildOperatorInboxItems, operatorInboxItemsForScenario } from '../governance/operator';
+import { buildOperatorInboxItems, operatorInboxItemsForScenario } from '../agency/operator';
 import type { ProjectPaths } from '../paths';
 import {
   emitManifestPath,

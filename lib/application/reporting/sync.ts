@@ -11,7 +11,7 @@ import {
   relativeProjectPath,
   snapshotPath,
 } from '../paths';
-import { hasSnapshotDrift } from './diff';
+import { hasSnapshotDrift } from '../projections/diff';
 import { trySync } from '../effect';
 import type { AdoSnapshot } from '../../domain/intent/types';
 import type { CompilerDiagnostic } from '../../domain/governance/workflow-types';

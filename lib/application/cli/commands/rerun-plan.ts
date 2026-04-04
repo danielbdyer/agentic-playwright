@@ -1,4 +1,4 @@
-import { executeRerunScopeIntervention } from '../../execution/replay/rerun-plan';
+import { executeRerunScopeIntervention } from '../../commitment/replay/rerun-plan';
 import { createCommandSpec } from '../shared';
 import { requireProposalId } from '../shared';
 

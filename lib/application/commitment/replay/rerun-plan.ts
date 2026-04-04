@@ -1,8 +1,8 @@
 import { Effect, Match, pipe } from 'effect';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from '../../catalog';
-import { ensureDerivedGraph } from '../../analysis/graph';
-import { executeInterventionBatch } from '../../intelligence/intervention-kernel';
-import { findProposalById } from '../../governance/operator';
+import { ensureDerivedGraph } from '../../graph/graph';
+import { executeInterventionBatch } from '../../governance/intervention-kernel';
+import { findProposalById } from '../../agency/operator';
 import type { ProjectPaths } from '../../paths';
 import { relativeProjectPath, rerunPlanPath } from '../../paths';
 import { FileSystem } from '../../ports';
@@ -16,7 +16,7 @@ import type { Scenario } from '../../../domain/intent/types';
 import type { GraphEdge, GraphNode } from '../../../domain/projection/types';
 import type { RerunPlan, RunbookControl } from '../../../domain/resolution/types';
 import { compareStrings, uniqueSorted } from '../../../domain/kernel/collections';
-import type { ActionExecutionResult } from '../../intelligence/intervention-kernel';
+import type { ActionExecutionResult } from '../../governance/intervention-kernel';
 
 interface SelectionExplanation {
   triggeringChange: string;

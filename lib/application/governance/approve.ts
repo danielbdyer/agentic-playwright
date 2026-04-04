@@ -3,17 +3,17 @@ import { Effect } from 'effect';
 import { TesseractError } from '../../domain/kernel/errors';
 import { mapPayload } from '../../domain/governance/workflow-types';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from '../catalog';
-import { emitOperatorInbox } from '../workspace/inbox';
-import { buildOperatorInboxItems, findProposalById } from './operator';
-import { applyProposalPatch, parseProposalArtifact, serializeProposalArtifact, validatePatchedProposalArtifact } from './proposal-patches';
-import { executeInterventionBatch } from '../intelligence/intervention-kernel';
-import { buildRerunPlan } from '../execution/replay/rerun-plan';
+import { emitOperatorInbox } from '../agency/inbox';
+import { buildOperatorInboxItems, findProposalById } from '../agency/operator';
+import { applyProposalPatch, parseProposalArtifact, serializeProposalArtifact, validatePatchedProposalArtifact } from '../knowledge/proposal-patches';
+import { executeInterventionBatch } from './intervention-kernel';
+import { buildRerunPlan } from '../commitment/replay/rerun-plan';
 import type { ProjectPaths } from '../paths';
 import { approvalReceiptPath, relativeProjectPath } from '../paths';
 import { ExecutionContext, FileSystem } from '../ports';
 import type { ProposalEntry } from '../../domain/execution/types';
 import type { ApprovalReceipt, RerunPlan } from '../../domain/resolution/types';
-import type { ActionExecutionResult } from '../intelligence/intervention-kernel';
+import type { ActionExecutionResult } from './intervention-kernel';
 
 export function approveProposal(options: {
   paths: ProjectPaths;

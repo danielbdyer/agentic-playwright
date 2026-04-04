@@ -1,6 +1,6 @@
 import { Effect, Either, Schema } from 'effect';
 import { loadWorkspaceCatalog } from '../catalog';
-import { runScenarioSelection } from '../execution/run';
+import { runScenarioSelection } from '../commitment/run';
 import type { ProjectPaths } from '../paths';
 import {
   benchmarkImprovementProjectionPath,

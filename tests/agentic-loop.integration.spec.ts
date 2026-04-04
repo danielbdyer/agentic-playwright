@@ -14,7 +14,7 @@
 
 import { expect, test } from '@playwright/test';
 import YAML from 'yaml';
-import { activateProposalBundle } from '../lib/application/governance/activate-proposals';
+import { activateProposalBundle } from '../lib/application/knowledge/activate-proposals';
 import {
   createProposalBundleEnvelope,
   createScenarioEnvelopeFingerprints,

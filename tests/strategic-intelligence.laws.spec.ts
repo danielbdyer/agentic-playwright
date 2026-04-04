@@ -3,7 +3,7 @@ import {
   buildStrategicIntelligence,
   extractStrategicGaps,
   computeStrategicEfficiency,
-} from '../lib/application/intelligence/strategic-intelligence';
+} from '../lib/application/improvement/strategic-intelligence';
 import type { ProposalBundle } from '../lib/domain/execution/types';
 import type { PipelineFitnessReport } from '../lib/domain/fitness/types';
 import type { GroundedSpecFragment, TrainingCorpusManifest } from '../lib/domain/learning/types';

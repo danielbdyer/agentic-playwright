@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, statSync, writeFileSync } from 'fs';
 import path from 'path';
 import { expect, test } from '@playwright/test';
-import { activateProposalBundle } from '../lib/application/governance/activate-proposals';
+import { activateProposalBundle } from '../lib/application/knowledge/activate-proposals';
 import { loadWorkspaceCatalog } from '../lib/application/catalog';
 import {
   createProposalBundleEnvelope,
@@ -10,7 +10,7 @@ import {
 } from '../lib/application/catalog/envelope';
 import { resolveAgentSessionAdapter } from '../lib/application/workspace/provider-registry';
 import { refreshScenario } from '../lib/application/workspace/refresh';
-import { runScenario } from '../lib/application/execution/run';
+import { runScenario } from '../lib/application/commitment/run';
 import { runWithLocalServices } from '../lib/composition/local-services';
 import { createAdoId } from '../lib/domain/kernel/identity';
 import { graphIds } from '../lib/domain/kernel/ids';

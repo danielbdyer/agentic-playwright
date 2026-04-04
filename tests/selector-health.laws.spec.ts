@@ -24,7 +24,7 @@ import {
   flagProblematicSelectors,
   type SelectorObservation,
   type SelectorHealthIndex,
-} from '../lib/application/learning/selector-health';
+} from '../lib/application/drift/selector-health';
 import type { StepExecutionReceipt } from '../lib/domain/execution/types';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────

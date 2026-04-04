@@ -1,6 +1,6 @@
 import { Effect } from 'effect';
-import { emitApprovedScenarioArtifacts } from '../lib/application/execution/emit';
-import { executeApprovedInterventionAction, type InterventionKernel } from '../lib/application/intelligence/intervention-kernel';
+import { emitApprovedScenarioArtifacts } from '../lib/application/commitment/emit';
+import { executeApprovedInterventionAction, type InterventionKernel } from '../lib/application/governance/intervention-kernel';
 import type { ProjectPaths } from '../lib/application/paths';
 import type { ProposalBundle, RunRecord } from '../lib/domain/execution/types';
 import type { InterventionCommandAction, InterventionReceipt } from '../lib/domain/handshake/intervention';

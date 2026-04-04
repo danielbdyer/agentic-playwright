@@ -5,7 +5,7 @@ import {
   withAgentTimeoutEffect,
   createScopedSessionProvider,
   type AgentLlmApiDependencies,
-} from '../lib/application/agent/agent-interpreter-provider';
+} from '../lib/application/agency/agent-interpreter-provider';
 import { createScopedInternalMCPBridge } from '../lib/runtime/agent/mcp-bridge';
 import type { McpToolDefinition } from '../lib/domain/observation/dashboard';
 

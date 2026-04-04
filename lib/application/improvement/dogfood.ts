@@ -1,16 +1,16 @@
 import path from 'path';
 import { Effect } from 'effect';
-import { activateProposalBundle, autoApproveEligibleProposals, quarantineToxicProposals, tryActivateProposal } from '../governance/activate-proposals';
+import { activateProposalBundle, autoApproveEligibleProposals, quarantineToxicProposals, tryActivateProposal } from '../knowledge/activate-proposals';
 import { isPending, isActivated } from '../../domain/proposal/lifecycle';
 import { deltaReloadProposalsAndRuns, loadWorkspaceCatalog } from '../catalog';
-import { buildPartialFitnessMetrics } from '../analysis/fitness';
+import { buildPartialFitnessMetrics } from '../improvement/fitness';
 import { calibrateWeightsFromCorrelations } from '../learning/learning-bottlenecks';
 import { aggregateLearningState, type LearningState } from '../learning/learning-state';
-import { buildExecutionCoherence } from '../intelligence/execution-coherence';
+import { buildExecutionCoherence } from '../drift/execution-coherence';
 import { signalMaturity, buildLearningSignalsSummary, countDegradingSignals } from '../learning/signal-maturation';
-import { emitAgentWorkbench, processWorkItems, emitInterventionLineage } from '../agent/agent-workbench';
-import { createDashboardDecider } from '../agent/dashboard-decider';
-import { createDualModeDecider, createAgentDecider } from '../agent/agent-decider';
+import { emitAgentWorkbench, processWorkItems, emitInterventionLineage } from '../agency/agent-workbench';
+import { createDashboardDecider } from '../agency/dashboard-decider';
+import { createDualModeDecider, createAgentDecider } from '../agency/agent-decider';
 import type { BottleneckWeightCorrelation } from '../../domain/fitness/types';
 import type { AgentWorkItem, WorkItemCompletion } from '../../domain/handshake/workbench';
 import { detectAliasConflicts } from '../../domain/knowledge/inference';
@@ -18,18 +18,18 @@ import { dashboardEvent } from '../../domain/observation/dashboard';
 import type { DashboardPort } from '../ports';
 import { Dashboard } from '../ports';
 import { improvementLoopLedgerPath, type ProjectPaths } from '../paths';
-import { compileScenariosParallel } from '../execution/compile';
-import { runScenarioSelection } from '../execution/run';
+import { compileScenariosParallel } from '../resolution/compile';
+import { runScenarioSelection } from '../commitment/run';
 import { FileSystem } from '../ports';
 import { runStateMachine } from '../execution/state-machine';
-import { pruneTranslationCache } from '../execution/translation/translation-cache';
+import { pruneTranslationCache } from '../resolution/translation/translation-cache';
 import { round4 } from '../learning/learning-shared';
 import type { BrowserPoolPort, BrowserPoolStats } from '../runtime-support/browser-pool';
 import {
   readSemanticDictionary,
   writeSemanticDictionary,
   decayUnusedEntries,
-} from '../execution/translation/semantic-translation-dictionary';
+} from '../resolution/translation/semantic-translation-dictionary';
 import {
   type ConvergenceState,
   initialConvergenceState,
@@ -55,7 +55,7 @@ import { DEFAULT_AUTO_APPROVAL_POLICY } from '../../domain/governance/trust-poli
 import { matureComponentKnowledge, type ComponentEvidence } from '../../domain/projection/component-maturation';
 import { aggregateQualityMetrics, findToxicAliases, type AliasOutcome } from '../../domain/proposal/quality';
 import type { RungRate } from '../../domain/fitness/types';
-import type { ScreenGroupDecider, WorkItemDecider } from '../agent/agent-workbench';
+import type { ScreenGroupDecider, WorkItemDecider } from '../agency/agent-workbench';
 
 export type DogfoodIterationResult = ImprovementLoopIteration;
 export type DogfoodLedger = DogfoodLedgerProjection;

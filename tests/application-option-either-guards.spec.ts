@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { Either, Option } from 'effect';
 import { TesseractError } from '../lib/domain/kernel/errors';
 import { decideCandidate, foldTopFailureClass } from '../lib/application/improvement/evolve';
-import { foldOptionalProjection, getRequiredCatalogEntry } from '../lib/application/execution/run';
+import { foldOptionalProjection, getRequiredCatalogEntry } from '../lib/application/commitment/run';
 import type { CandidateConfig } from '../lib/application/improvement/knob-search';
 import type { SpeedrunResult } from '../lib/application/improvement/speedrun';
 import { DEFAULT_PIPELINE_CONFIG } from '../lib/domain/attention/pipeline-config';

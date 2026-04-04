@@ -1,5 +1,5 @@
-export { describeScenarioPaths } from '../reporting/inspect';
-export { impactNode } from '../analysis/impact';
-export { inspectSurface } from '../reporting/surface';
-export { traceScenario } from '../reporting/trace';
+export { describeScenarioPaths } from '../projections/inspect';
+export { impactNode } from '../graph/impact';
+export { inspectSurface } from '../projections/surface';
+export { traceScenario } from '../projections/trace';
 export { inspectWorkflow } from '../execution/workflow';

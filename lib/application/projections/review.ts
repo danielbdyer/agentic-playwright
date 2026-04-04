@@ -1,7 +1,7 @@
 import type { ProposalBundle, RunRecord } from '../../domain/execution/types';
 import type { ScenarioExplanation, ScenarioProjectionInput } from '../../domain/projection/types';
 import type { GroundedStep } from '../../domain/resolution/types';
-import type { operatorInboxItemsForScenario } from '../governance/operator';
+import type { operatorInboxItemsForScenario } from '../agency/operator';
 
 interface ReviewMetadata {
   readonly title: string;

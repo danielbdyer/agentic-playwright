@@ -5,7 +5,7 @@ import { createAdoId, createElementId, createScreenId } from '../lib/domain/kern
 import { graphIds } from '../lib/domain/kernel/ids';
 import { loadWorkspaceCatalog } from '../lib/application/catalog';
 import { refreshScenario } from '../lib/application/workspace/refresh';
-import { internalRerunPlan } from '../lib/application/execution/replay/rerun-plan';
+import { internalRerunPlan } from '../lib/application/commitment/replay/rerun-plan';
 import { runWithLocalServices } from '../lib/composition/local-services';
 import { createTestWorkspace } from './support/workspace';
 

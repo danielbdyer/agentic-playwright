@@ -5,7 +5,7 @@ import {
   controlResolutionForStep,
   resolveRunSelection,
   runtimeControlsForScenario,
-} from '../lib/application/governance/controls';
+} from '../lib/application/resolution/controls';
 import { runWithLocalServices } from '../lib/composition/local-services';
 import {
   createElementId,

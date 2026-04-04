@@ -5,7 +5,7 @@ import {
   aggregateConsolePatterns,
   correlateConsoleWithFailures,
   flagNoisySteps,
-} from '../lib/application/learning/console-intelligence';
+} from '../lib/application/drift/console-intelligence';
 import type { StepExecutionReceipt } from '../lib/domain/execution/types';
 
 function makeStep(overrides: Partial<{

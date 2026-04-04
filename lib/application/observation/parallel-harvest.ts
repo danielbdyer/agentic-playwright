@@ -11,7 +11,7 @@ import type { ScreenId } from '../../domain/kernel/identity';
 import type { SelectorCanon } from '../../domain/target/interface-graph';
 import { concatAll, type Monoid } from '../../domain/algebra/monoid';
 import { sortedReadonlyArrayMonoid, structMonoid, sumMonoid } from '../../domain/algebra/envelope-mergers';
-import { resolveEffectConcurrency } from './concurrency';
+import { resolveEffectConcurrency } from '../runtime-support/concurrency';
 
 // ─── Types ───
 

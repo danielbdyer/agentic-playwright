@@ -1,15 +1,15 @@
 import { expect, test } from '@playwright/test';
 import { loadWorkspaceCatalog } from '../lib/application/catalog';
-import { buildProposals } from '../lib/application/execution/build-proposals';
-import { buildRunRecord } from '../lib/application/execution/build-run-record';
-import { foldScenarioRun } from '../lib/application/execution/fold';
-import { selectRunContext } from '../lib/application/execution/select-run-context';
+import { buildProposals } from '../lib/application/commitment/build-proposals';
+import { buildRunRecord } from '../lib/application/commitment/build-run-record';
+import { foldScenarioRun } from '../lib/application/commitment/fold';
+import { selectRunContext } from '../lib/application/commitment/select-run-context';
 import { runWithLocalServices } from '../lib/composition/local-services';
 import { refreshScenario } from '../lib/application/workspace/refresh';
 import { createAdoId } from '../lib/domain/kernel/identity';
 import type { ScenarioRunPlan } from '../lib/domain/resolution/types';
 import type { RuntimeScenarioStepResult } from '../lib/application/ports';
-import type { PersistedEvidenceArtifact } from '../lib/application/execution/persist-evidence';
+import type { PersistedEvidenceArtifact } from '../lib/application/commitment/persist-evidence';
 import { createInterfaceResolutionContext } from './support/interface-fixtures';
 import { createTestWorkspace } from './support/workspace';
 

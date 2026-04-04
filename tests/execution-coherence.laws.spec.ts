@@ -3,7 +3,7 @@ import {
   buildExecutionCoherence,
   extractHotScreens,
   extractStrongestCorrelations,
-} from '../lib/application/intelligence/execution-coherence';
+} from '../lib/application/drift/execution-coherence';
 import type { LearningState } from '../lib/application/learning/learning-state';
 
 function makeLearningState(overrides?: Partial<{

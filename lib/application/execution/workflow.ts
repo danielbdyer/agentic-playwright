@@ -1,8 +1,8 @@
 import { Effect } from 'effect';
 import type { AdoId } from '../../domain/kernel/identity';
 import { loadWorkspaceCatalog } from '../catalog';
-import { findRunbook, runtimeControlsForScenario } from '../governance/controls';
-import { buildOperatorInboxItems, operatorInboxItemsForScenario } from '../governance/operator';
+import { findRunbook, runtimeControlsForScenario } from '../resolution/controls';
+import { buildOperatorInboxItems, operatorInboxItemsForScenario } from '../agency/operator';
 import { buildWorkflowHotspots } from '../improvement/hotspots';
 import type { ProjectPaths } from '../paths';
 

@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import {
   buildProposalIntelligence,
   extractUncoveredGaps,
-} from '../lib/application/governance/proposal-intelligence';
+} from '../lib/application/improvement/proposal-intelligence';
 import type { ProposalBundle } from '../lib/domain/execution/types';
 import type { GroundedSpecFragment, TrainingCorpusManifest } from '../lib/domain/learning/types';
 

@@ -1,4 +1,4 @@
-import { proposalIdForEntry } from '../governance/operator';
+import { proposalIdForEntry } from '../agency/operator';
 import { evaluateArtifactPolicy } from '../governance/trust-policy';
 import type { LoadedEvidenceRecord } from '../governance/trust-policy';
 import type { WorkspaceCatalog } from '../catalog';
