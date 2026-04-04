@@ -1,7 +1,9 @@
 import type { AdoId, ElementId, PostureId, ScreenId, SnapshotTemplateId, SurfaceId } from '../kernel/identity';
 import type { AdoSnapshot } from '../intent/types';
 
-export type Confidence = 'human' | 'agent-verified' | 'agent-proposed' | 'compiler-derived' | 'intent-only' | 'unbound';
+// Import from canonical location and re-export
+import type { Confidence } from '../confidence/levels';
+export type { Confidence } from '../confidence/levels';
 export type Governance = 'approved' | 'review-required' | 'blocked';
 
 declare const GovernanceBrand: unique symbol;
@@ -49,29 +51,9 @@ export function foldGovernance<T extends { governance: Governance }, R>(
     case 'blocked': return cases.blocked(item as Blocked<T>);
   }
 }
-// ─── Resolution Source Branding ───
-
-/**
- * Phantom brand for resolution candidates, tagged by the precedence rung
- * that produced them. Makes it a compile-time error to mix candidates from
- * different resolution sources without explicit coercion.
- */
-declare const ResolutionSourceBrand: unique symbol;
-export type SourcedCandidate<T, Rung extends string> = T & { readonly [ResolutionSourceBrand]: Rung };
-
-export function brandBySource<T, Rung extends string>(candidate: T, _rung: Rung): SourcedCandidate<T, Rung> {
-  return candidate as SourcedCandidate<T, Rung>;
-}
-
-export function foldSourcedCandidate<T, Rung extends string, R>(
-  candidate: SourcedCandidate<T, Rung>,
-  rung: Rung,
-  cases: { match: (c: SourcedCandidate<T, Rung>) => R; mismatch: (c: T) => R },
-): R {
-  return (candidate as unknown as { [ResolutionSourceBrand]: string })[ResolutionSourceBrand] === rung
-    ? cases.match(candidate)
-    : cases.mismatch(candidate);
-}
+// Re-export from canonical location
+export { brandBySource, foldSourcedCandidate } from '../provenance/source-brand';
+export type { SourcedCandidate } from '../provenance/source-brand';
 
 // ─── Pipeline Stage Branding ───
 

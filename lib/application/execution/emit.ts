@@ -3,7 +3,7 @@ import { Effect } from 'effect';
 import { explainBoundScenario } from '../../domain/scenario/explanation';
 import { TesseractError } from '../../domain/kernel/errors';
 import type { AdoId } from '../../domain/kernel/identity';
-import { buildGroundedSpecFlow } from '../../domain/execution/grounded-flow';
+import { buildGroundedSpecFlow } from '../../domain/commitment/grounded-flow';
 import { renderReadableSpecModule } from '../../domain/codegen/spec-codegen';
 import { foldGovernance, mintApproved } from '../../domain/types/shared-context';
 import type { Approved, Blocked, ReviewRequired } from '../../domain/types/shared-context';

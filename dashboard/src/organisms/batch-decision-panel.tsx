@@ -23,7 +23,7 @@ import {
   STATUS_COLORS,
   type BatchDecisionState,
   type DecisionItem,
-} from '../../../lib/domain/governance/batch-decision';
+} from '../../../lib/domain/proposal/batch-decision';
 
 // ─── Component Props ───
 

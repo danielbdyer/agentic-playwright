@@ -33,7 +33,7 @@ import {
   objectivesFromMetrics,
 } from '../../domain/types';
 import { foldPipelineFailureClass, WINNING_SOURCE_TO_RUNG } from '../../domain/kernel/visitors';
-import { isBlocked } from '../../domain/governance/proposal-lifecycle';
+import { isBlocked } from '../../domain/proposal/lifecycle';
 import { resolutionPrecedenceLaw, type ResolutionPrecedenceRung } from '../../domain/resolution/precedence';
 import type { BottleneckWeightCorrelation, GeneralizationMetrics } from '../../domain/types';
 

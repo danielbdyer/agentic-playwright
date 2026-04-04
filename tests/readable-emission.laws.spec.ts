@@ -2,7 +2,7 @@ import * as ts from 'typescript';
 import { expect, test } from '@playwright/test';
 import { readFileSync } from 'fs';
 import { createAdoId, createElementId, createScreenId } from '../lib/domain/kernel/identity';
-import { buildGroundedSpecFlow } from '../lib/domain/execution/grounded-flow';
+import { buildGroundedSpecFlow } from '../lib/domain/commitment/grounded-flow';
 import { renderReadableSpecModule } from '../lib/domain/codegen/spec-codegen';
 import type { BoundScenario, ScenarioInterpretationSurface } from '../lib/domain/types';
 import { refreshScenario } from '../lib/application/workspace/refresh';

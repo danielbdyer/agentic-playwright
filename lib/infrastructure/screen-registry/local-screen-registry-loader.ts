@@ -3,7 +3,7 @@ import path from 'path';
 import YAML from 'yaml';
 import { createScreenBundle } from '../../domain/knowledge/screen-bundle';
 import type { ScreenId } from '../../domain/kernel/identity';
-import type { LoadedScreen, ScreenRegistry, ScreenRegistryLoader } from '../../domain/execution/runtime-loaders';
+import type { LoadedScreen, ScreenRegistry, ScreenRegistryLoader } from '../../domain/commitment/runtime-loaders';
 import { validateScreenElements, validateScreenHints, validateScreenPostures, validateSurfaceGraph } from '../../domain/validation';
 
 export function createLocalScreenRegistryLoader(rootDir: string): ScreenRegistryLoader {

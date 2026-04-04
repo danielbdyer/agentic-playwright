@@ -1,5 +1,5 @@
 import { provenanceKindForBoundStep } from '../governance/provenance';
-import { aggregateConfidence } from '../execution/status';
+import { aggregateConfidence } from '../commitment/status';
 import type { BoundScenario, Governance, RunRecord, ScenarioExplanation, ScenarioLifecycle, StepProvenanceKind } from '../types';
 import { isReviewRequired } from '../governance/workflow-types';
 

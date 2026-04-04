@@ -27,7 +27,7 @@ import type {
   ApplicationInterfaceGraph,
   InterfaceGraphNode,
   InterfaceGraphEdge,
-} from '../lib/domain/observation/interface-graph';
+} from '../lib/domain/target/interface-graph';
 import { mulberry32, pick, randomInt , LAW_SEED_COUNT } from './support/random';
 
 // ─── Helpers ───

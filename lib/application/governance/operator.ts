@@ -1,5 +1,5 @@
 import { sha256, stableStringify } from '../../domain/kernel/hash';
-import { isBlocked } from '../../domain/governance/proposal-lifecycle';
+import { isBlocked } from '../../domain/proposal/lifecycle';
 import type { AdoId } from '../../domain/kernel/identity';
 import type {
   ImprovementRun,

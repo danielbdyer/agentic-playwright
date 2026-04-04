@@ -31,7 +31,7 @@ import type {
 } from '../governance/workflow-types';
 import type { StepResolution } from '../intent/types';
 import type { InterfaceResolutionContext } from '../knowledge/types';
-import type { RecoveryPolicy } from '../execution/recovery-policy';
+import type { RecoveryPolicy } from '../commitment/recovery-policy';
 import type { SemanticDictionaryAccrualInput } from '../knowledge/semantic-dictionary-types';
 
 export interface TranslationCandidate {

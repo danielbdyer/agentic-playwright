@@ -8,13 +8,13 @@
  * | decisionItems (candidateId check) | O(decisions*cands)| O(decisions)| Replaced array.includes with Set.has per decision       |
  */
 import { sortByStringKey } from '../kernel/collections';
-import { deriveCapabilities } from '../execution/grammar';
+import { deriveCapabilities } from '../commitment/grammar';
 import { normalizeIntentText } from '../knowledge/inference';
 import type { ScreenId, SnapshotTemplateId } from '../kernel/identity';
 import { createElementId, createPostureId, createSurfaceId } from '../kernel/identity';
 import { provenanceKindForBoundStep } from '../governance/provenance';
 import { explainBoundScenario } from '../scenario/explanation';
-import { capabilityForInstruction, compileStepProgram, traceStepProgram } from '../execution/program';
+import { capabilityForInstruction, compileStepProgram, traceStepProgram } from '../commitment/program';
 import { sha256, stableStringify } from '../kernel/hash';
 import { graphIds, mcpUris } from '../kernel/ids';
 import type {

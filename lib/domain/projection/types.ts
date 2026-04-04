@@ -14,12 +14,12 @@ import type {
   StepWinningSource,
   WorkflowStage,
 } from '../governance/workflow-types';
-import type { ApplicationInterfaceGraph, StateTransitionGraph } from '../observation/interface-graph';
+import type { ApplicationInterfaceGraph, StateTransitionGraph } from '../target/interface-graph';
 import type { ImprovementRun } from '../improvement/types';
 import type { LearningScorecard, TrainingCorpusManifest } from '../learning/types';
 import type { StepProgram } from '../intent/types';
 import type { BoundScenario } from '../intent/types';
-import type { SelectorCanon } from '../observation/interface-graph';
+import type { SelectorCanon } from '../target/interface-graph';
 import type { ResolutionExhaustionEntry, TranslationReceipt } from '../resolution/types';
 import type { ProposalBundle, RunRecord } from '../execution/types';
 import type { ScenarioInterpretationSurface } from '../resolution/types';

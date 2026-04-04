@@ -24,7 +24,7 @@ import type {
 } from '../governance/workflow-types';
 import type { StepResolution } from '../intent/types';
 import type { RuntimeControlSession } from '../resolution/types';
-import type { StateTransitionGraph } from '../observation/interface-graph';
+import type { StateTransitionGraph } from '../target/interface-graph';
 import type { DerivedGraph } from '../projection/types';
 import type { DataResolutionPrecedenceRung, ResolutionPrecedenceRung, RunSelectionPrecedenceRung } from '../resolution/precedence-policy';
 

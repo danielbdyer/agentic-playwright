@@ -14,7 +14,7 @@ import { isApproved, mintApproved, mintReviewRequired } from '../../domain/types
 import type { RuntimeScenarioRunnerPort, RuntimeScenarioStepResult } from '../ports';
 import { resolveResolutionEngine } from '../workspace/provider-registry';
 import { validateStepResults } from './validate-step-results';
-import type { RecoveryPolicy } from '../../domain/execution/recovery-policy';
+import type { RecoveryPolicy } from '../../domain/commitment/recovery-policy';
 
 export interface InterpretScenarioResult {
   stepResults: RuntimeScenarioStepResult[];

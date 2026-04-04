@@ -6,7 +6,7 @@
  * available for legacy tooling that still consumes `ExperimentRecord`.
  */
 
-import type { PipelineConfig } from '../resolution/pipeline-config';
+import type { PipelineConfig } from '../attention/pipeline-config';
 import type { PipelineFitnessReport } from '../fitness/types';
 import type { ExperimentScorecardComparison, ExperimentSubstrate, ImprovementRun, SubstrateContext } from './types';
 

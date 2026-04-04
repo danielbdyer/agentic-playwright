@@ -1,4 +1,4 @@
-import type { PipelineConfig } from '../resolution/pipeline-config';
+import type { PipelineConfig } from '../attention/pipeline-config';
 import type { PipelineFitnessReport, RungRate } from '../fitness/types';
 import type { BottleneckWeights } from '../types';
 import type {

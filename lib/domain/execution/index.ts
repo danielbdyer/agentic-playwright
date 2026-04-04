@@ -1,11 +1,11 @@
 /**
  * Bounded context — domain/execution
  *
- * Step program compilation, runtime loader ports, grammar/capability
- * derivation, grounded flow projection, and scenario lifecycle status.
+ * Re-exports from commitment/ (the logic) and execution/types (the evidence types).
+ * This barrel preserves backward compatibility during the Phase 2 migration.
  */
-export * from './program';
-export * from './runtime-loaders';
-export * from './grammar';
-export * from './grounded-flow';
-export * from './status';
+export * from '../commitment/program';
+export * from '../commitment/runtime-loaders';
+export * from '../commitment/grammar';
+export * from '../commitment/grounded-flow';
+export * from '../commitment/status';

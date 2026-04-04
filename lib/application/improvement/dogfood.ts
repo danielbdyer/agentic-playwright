@@ -1,7 +1,7 @@
 import path from 'path';
 import { Effect } from 'effect';
 import { activateProposalBundle, autoApproveEligibleProposals, quarantineToxicProposals, tryActivateProposal } from '../governance/activate-proposals';
-import { isPending, isActivated } from '../../domain/governance/proposal-lifecycle';
+import { isPending, isActivated } from '../../domain/proposal/lifecycle';
 import { deltaReloadProposalsAndRuns, loadWorkspaceCatalog } from '../catalog';
 import { buildPartialFitnessMetrics } from '../analysis/fitness';
 import { calibrateWeightsFromCorrelations } from '../learning/learning-bottlenecks';
@@ -53,7 +53,7 @@ import type {
 } from '../../domain/types';
 import { DEFAULT_AUTO_APPROVAL_POLICY } from '../../domain/governance/trust-policy';
 import { matureComponentKnowledge, type ComponentEvidence } from '../../domain/projection/component-maturation';
-import { aggregateQualityMetrics, findToxicAliases, type AliasOutcome } from '../../domain/governance/proposal-quality';
+import { aggregateQualityMetrics, findToxicAliases, type AliasOutcome } from '../../domain/proposal/quality';
 import type { RungRate } from '../../domain/types/improvement-context';
 import type { ScreenGroupDecider, WorkItemDecider } from '../agent/agent-workbench';
 

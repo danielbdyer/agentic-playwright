@@ -20,7 +20,7 @@ import {
   boundedRetryWithBackoff,
 } from '../lib/runtime/execute/recovery-strategies';
 import type { ComposableRecoveryStrategy, RecoveryContext, RecoveryAttemptOutcome } from '../lib/runtime/execute/recovery-strategies';
-import type { RecoveryBudget, RecoveryFailureFamily } from '../lib/domain/execution/recovery-policy';
+import type { RecoveryBudget, RecoveryFailureFamily } from '../lib/domain/commitment/recovery-policy';
 import { mulberry32, pick , LAW_SEED_COUNT } from './support/random';
 
 // ─── Helpers ───

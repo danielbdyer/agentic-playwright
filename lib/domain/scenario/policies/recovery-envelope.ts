@@ -1,5 +1,5 @@
-import type { ExecutionFailureFamily } from '../../execution/telemetry';
-import type { RecoveryPolicy } from '../../execution/recovery-policy';
+import type { ExecutionFailureFamily } from '../../commitment/telemetry';
+import type { RecoveryPolicy } from '../../commitment/recovery-policy';
 import type { ExecutionDiagnostic } from '../../types';
 
 export interface RecoveryStrategyEnvelope {

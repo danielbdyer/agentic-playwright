@@ -5,7 +5,7 @@ import { createDiagnostic } from '../../domain/governance/diagnostics';
 import { runtimeEscapeHatchError, toTesseractError, unknownScreenError } from '../../domain/kernel/errors';
 import type { ScreenId } from '../../domain/kernel/identity';
 import { createPostureId } from '../../domain/kernel/identity';
-import type { SnapshotTemplateLoader } from '../../domain/execution/runtime-loaders';
+import type { SnapshotTemplateLoader } from '../../domain/commitment/runtime-loaders';
 import type {
   ProgramFailure,
   StepInterpreterDiagnostic,
@@ -13,7 +13,7 @@ import type {
   StepProgramExecutionResult,
   StepProgramInstructionOutcome,
   StepProgramInterpreter,
-} from '../../domain/execution/program';
+} from '../../domain/commitment/program';
 import type { CompilerDiagnostic, StepInstruction, StepProgram } from '../../domain/types';
 import { resolveDataValue } from '../resolve/data';
 import { engage } from '../resolve/engage';

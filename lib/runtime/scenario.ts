@@ -5,11 +5,11 @@ import { uniqueSorted } from '../domain/kernel/collections';
 import { rankRouteVariants } from '../domain/knowledge/route-knowledge';
 import { chooseByPrecedence, routeSelectionPrecedenceLaw } from '../domain/resolution/precedence';
 import type { AdoId, StateNodeRef, TransitionRef } from '../domain/kernel/identity';
-import type { ExecutionBudgetThresholds } from '../domain/execution/telemetry';
-import { defaultRecoveryPolicy, recoveryFamilyConfig, type RecoveryAttempt, type RecoveryPolicy, type RecoveryStrategy } from '../domain/execution/recovery-policy';
-import { emptyExecutionTiming, normalizeFailureFamily } from '../domain/execution/telemetry';
-import { compileStepProgram } from '../domain/execution/program';
-import type { SnapshotTemplateLoader } from '../domain/execution/runtime-loaders';
+import type { ExecutionBudgetThresholds } from '../domain/commitment/telemetry';
+import { defaultRecoveryPolicy, recoveryFamilyConfig, type RecoveryAttempt, type RecoveryPolicy, type RecoveryStrategy } from '../domain/commitment/recovery-policy';
+import { emptyExecutionTiming, normalizeFailureFamily } from '../domain/commitment/telemetry';
+import { compileStepProgram } from '../domain/commitment/program';
+import type { SnapshotTemplateLoader } from '../domain/commitment/runtime-loaders';
 import { RuntimeError } from '../domain/kernel/errors';
 import {
   advanceScenarioRunState,

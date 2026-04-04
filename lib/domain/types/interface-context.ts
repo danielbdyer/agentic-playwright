@@ -1,1 +1,1 @@
-export * from '../observation/interface-graph';
+export * from '../target/interface-graph';

@@ -13,7 +13,7 @@ import {
   WriteModeSchema,
   ExecutionProfileSchema,
 } from './enums';
-import { isExecution, isProjection } from '../execution/pipeline-staging';
+import { isExecution, isProjection } from '../commitment/pipeline-staging';
 import {
   AdoIdSchema,
   NullableAdoId,

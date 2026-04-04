@@ -1,4 +1,4 @@
-import { isPending } from '../../domain/governance/proposal-lifecycle';
+import { isPending } from '../../domain/proposal/lifecycle';
 import type {
   KnowledgeBottleneckReport,
   ProposalBundle,

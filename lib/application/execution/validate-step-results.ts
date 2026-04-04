@@ -1,6 +1,6 @@
 import { isApproved, isReviewRequired } from '../../domain/types/shared-context';
 import { foldResolutionReceipt } from '../../domain/kernel/visitors';
-import { isResolution } from '../../domain/execution/pipeline-staging';
+import { isResolution } from '../../domain/commitment/pipeline-staging';
 import type { RuntimeScenarioStepResult } from '../ports';
 import { TesseractError } from '../../domain/kernel/errors';
 

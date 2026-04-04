@@ -6,7 +6,7 @@ import type {
   StepProgramExecutionResult,
   StepProgramInstructionOutcome,
   StepProgramInterpreter,
-} from '../../domain/execution/program';
+} from '../../domain/commitment/program';
 import type { PostureId, ScreenId, SnapshotTemplateId } from '../../domain/kernel/identity';
 import type { ScreenElements, ScreenPostures, SurfaceGraph, ValueRef } from '../../domain/types';
 

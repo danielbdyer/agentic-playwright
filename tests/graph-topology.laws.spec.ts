@@ -15,8 +15,8 @@ import {
   resolveConditionalEdges,
   EMPTY_GRAPH,
   type GraphBuildInput,
-} from '../lib/domain/codegen/derived-graph';
-import type { ConditionalEdge, GraphAccumulator } from '../lib/domain/codegen/derived-graph';
+} from '../lib/domain/graph/derived-graph';
+import type { ConditionalEdge, GraphAccumulator } from '../lib/domain/graph/derived-graph';
 import {
   createAdoId,
   createElementId,

@@ -9,7 +9,7 @@
  * All functions are pure — no side effects, no mutation.
  */
 
-import type { RecoveryFailureFamily, RecoveryStrategyId, RecoveryAttempt } from '../../domain/execution/recovery-policy';
+import type { RecoveryFailureFamily, RecoveryStrategyId, RecoveryAttempt } from '../../domain/commitment/recovery-policy';
 import type { StepExecutionReceipt } from '../../domain/types';
 
 // ─── Types ──────────────────────────────────────────────────────────────────

@@ -12,7 +12,7 @@
 
 import { Effect } from 'effect';
 import { sha256 } from '../../domain/kernel/hash';
-import { isPending } from '../../domain/governance/proposal-lifecycle';
+import { isPending } from '../../domain/proposal/lifecycle';
 import { foldResolutionReceipt } from '../../domain/kernel/visitors';
 import { groupBy } from '../../domain/kernel/collections';
 import type { SliceFn, ProjectionFn } from '../../domain/algebra/slice-projection';

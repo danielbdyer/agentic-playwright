@@ -10,7 +10,7 @@
  * supplying a different ordering or subset of strategies.
  */
 
-import type { RecoveryAttempt, RecoveryBudget, RecoveryFailureFamily, RecoveryStrategyId } from '../../domain/execution/recovery-policy';
+import type { RecoveryAttempt, RecoveryBudget, RecoveryFailureFamily, RecoveryStrategyId } from '../../domain/commitment/recovery-policy';
 import type { ExecutionDiagnostic } from '../../domain/types';
 
 // ─── Recovery context passed to each strategy ───

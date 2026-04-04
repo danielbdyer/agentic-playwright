@@ -15,7 +15,7 @@ import {
   type WidgetId,
 } from '../lib/domain/kernel/identity';
 import { type StepProgram } from '../lib/domain/types';
-import { deriveCapabilities } from '../lib/domain/execution/grammar';
+import { deriveCapabilities } from '../lib/domain/commitment/grammar';
 import { playwrightStepProgramInterpreter, runStepProgram, runtimeFailureDiagnostic } from '../lib/runtime/execute/program';
 import { interact } from '../lib/runtime/widgets/interact';
 import { widgetActionHandlers } from '../dogfood/knowledge/components';

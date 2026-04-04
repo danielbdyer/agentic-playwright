@@ -3,7 +3,7 @@ import { bindScenarioStep } from '../../domain/governance/binding';
 import { createDiagnostic } from '../../domain/governance/diagnostics';
 import { TesseractError } from '../../domain/kernel/errors';
 import type { AdoId } from '../../domain/kernel/identity';
-import { compileStepProgram } from '../../domain/execution/program';
+import { compileStepProgram } from '../../domain/commitment/program';
 import type { BoundScenario, CompilerDiagnostic } from '../../domain/types';
 import { validateBoundScenario } from '../../domain/validation';
 import { isBlocked, isReviewRequired } from '../../domain/types/shared-context';

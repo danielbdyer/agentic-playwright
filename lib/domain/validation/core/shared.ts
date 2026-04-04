@@ -35,7 +35,7 @@ import type {
   WorkflowScope,
   WorkflowStage,
 } from '../../types';
-import type { RecoveryPolicy } from '../../execution/recovery-policy';
+import type { RecoveryPolicy } from '../../commitment/recovery-policy';
 import { SchemaError } from '../../kernel/errors';
 import { uniqueSorted } from '../../kernel/collections';
 import {

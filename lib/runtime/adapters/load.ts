@@ -1,7 +1,7 @@
 import type { ScreenId } from '../../domain/kernel/identity';
 import { RuntimeError } from '../../domain/kernel/errors';
-import type { LoadedScreen, ScreenRegistry, ScreenRegistryLoader } from '../../domain/execution/runtime-loaders';
-export type { LoadedScreen, ScreenRegistry, ScreenRegistryLoader } from '../../domain/execution/runtime-loaders';
+import type { LoadedScreen, ScreenRegistry, ScreenRegistryLoader } from '../../domain/commitment/runtime-loaders';
+export type { LoadedScreen, ScreenRegistry, ScreenRegistryLoader } from '../../domain/commitment/runtime-loaders';
 
 let screenRegistryLoader: ScreenRegistryLoader | null = null;
 

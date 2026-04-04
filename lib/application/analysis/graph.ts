@@ -1,6 +1,6 @@
 import path from 'path';
 import { Effect } from 'effect';
-import { deriveGraph } from '../../domain/codegen/derived-graph';
+import { deriveGraph } from '../../domain/graph/derived-graph';
 import { resolveEffectConcurrency } from '../runtime-support/concurrency';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from '../catalog';
 import type {
@@ -15,7 +15,7 @@ import type {
   ScenarioGraphArtifact,
   ScreenHintsArtifact,
   SharedPatternsArtifact,
-} from '../../domain/codegen/derived-graph';
+} from '../../domain/graph/derived-graph';
 import type { DerivedGraph, ProposedChangeMetadata } from '../../domain/types';
 import { validateDerivedGraph } from '../../domain/validation';
 import { trySync } from '../effect';

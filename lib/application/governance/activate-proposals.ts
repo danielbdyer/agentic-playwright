@@ -9,7 +9,7 @@ import { FileSystem } from '../ports';
 import { trySync } from '../effect';
 import { applyProposalPatch, parseProposalArtifact, serializeProposalArtifact, validatePatchedProposalArtifact } from './proposal-patches';
 import { evaluateAutoApproval } from '../../domain/governance/trust-policy';
-import { findToxicAliases, type AliasOutcome } from '../../domain/governance/proposal-quality';
+import { findToxicAliases, type AliasOutcome } from '../../domain/proposal/quality';
 import { scoreProposalByBottleneck } from '../learning/learning-bottlenecks';
 import type { FileSystemPort } from '../ports';
 import {
@@ -17,7 +17,7 @@ import {
   trustPolicyToEvent,
   isBlocked,
   type ProposalTransitionEvent,
-} from '../../domain/governance/proposal-lifecycle';
+} from '../../domain/proposal/lifecycle';
 
 // ─── FSM-backed transition helpers ───
 // These delegate to the proposal lifecycle FSM for state transitions,
