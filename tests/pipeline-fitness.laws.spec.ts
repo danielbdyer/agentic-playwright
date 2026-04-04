@@ -4,7 +4,7 @@ import {
   compareToScorecard,
   updateScorecard,
   type FitnessInputData,
-} from '../lib/application/fitness';
+} from '../lib/application/analysis/fitness';
 import type {
   PipelineScorecard,
   ResolutionReceipt,

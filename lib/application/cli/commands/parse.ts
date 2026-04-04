@@ -1,4 +1,4 @@
-import { parseScenario } from '../../parse';
+import { parseScenario } from '../../reporting/parse';
 import { createAdoId } from '../../../domain/kernel/identity';
 import { createCommandSpec } from '../shared';
 import { requireAdoId } from '../shared';

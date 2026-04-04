@@ -8,7 +8,7 @@ import type {
   TrainingCorpusManifest,
 } from '../lib/domain/types';
 import { projectCorpusHealth } from '../lib/application/learning/learning-health';
-import { evaluateReplayExample, buildReplayEvaluationSummary } from '../lib/application/replay-evaluation';
+import { evaluateReplayExample, buildReplayEvaluationSummary } from '../lib/application/execution/replay-evaluation';
 import { projectBottlenecks } from '../lib/application/learning/learning-bottlenecks';
 import { rankProposals } from '../lib/application/learning/learning-rankings';
 

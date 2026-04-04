@@ -5,7 +5,7 @@ import { createAdoId, createElementId, createScreenId } from '../lib/domain/kern
 import { buildGroundedSpecFlow } from '../lib/domain/execution/grounded-flow';
 import { renderReadableSpecModule } from '../lib/domain/codegen/spec-codegen';
 import type { BoundScenario, ScenarioInterpretationSurface } from '../lib/domain/types';
-import { refreshScenario } from '../lib/application/refresh';
+import { refreshScenario } from '../lib/application/workspace/refresh';
 import { runWithLocalServices } from '../lib/composition/local-services';
 import { createTestWorkspace } from './support/workspace';
 

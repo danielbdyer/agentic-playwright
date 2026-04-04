@@ -1,6 +1,6 @@
 import path from 'path';
 import { Effect } from 'effect';
-import { resolveEffectConcurrency } from '../concurrency';
+import { resolveEffectConcurrency } from '../runtime-support/concurrency';
 import { createSnapshotTemplateId } from '../../domain/kernel/identity';
 import { mergePatternDocuments } from '../../domain/knowledge/patterns';
 import type {
@@ -70,7 +70,7 @@ import {
   validateResolutionGraphRecord,
   validateBehaviorPatternDocument,
 } from '../../domain/validation';
-import { walkFiles } from '../artifacts';
+import { walkFiles } from '../workspace/artifacts';
 import type { ProjectPaths } from '../paths';
 import { boundPath, relativeProjectPath, snapshotPath } from '../paths';
 import { FileSystem, type FileSystemPort } from '../ports';
@@ -81,7 +81,7 @@ import { assembleScreenBundles } from './screen-bundles';
 import type { ArtifactEnvelope, WorkspaceCatalog } from './types';
 import type { KnowledgePosture } from '../../domain/types';
 import { postureIncludesKnowledge } from '../../domain/types';
-import { parseSnapshotToScenario } from '../parse';
+import { parseSnapshotToScenario } from '../reporting/parse';
 import { fingerprintArtifact } from './envelope';
 import { projectScenarioToTier1 } from '../../domain/scenario/tier-projection';
 

@@ -1,4 +1,4 @@
-import { emitOperatorInbox } from '../../inbox';
+import { emitOperatorInbox } from '../../workspace/inbox';
 import { createCommandSpec } from '../shared';
 
 export const inboxCommand = createCommandSpec({

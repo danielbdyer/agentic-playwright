@@ -3,7 +3,7 @@ import { Effect } from 'effect';
 import { activateProposalBundle, autoApproveEligibleProposals, quarantineToxicProposals, tryActivateProposal } from '../governance/activate-proposals';
 import { isPending, isActivated } from '../../domain/governance/proposal-lifecycle';
 import { deltaReloadProposalsAndRuns, loadWorkspaceCatalog } from '../catalog';
-import { buildPartialFitnessMetrics } from '../fitness';
+import { buildPartialFitnessMetrics } from '../analysis/fitness';
 import { calibrateWeightsFromCorrelations } from '../learning/learning-bottlenecks';
 import { aggregateLearningState, type LearningState } from '../learning/learning-state';
 import { buildExecutionCoherence } from '../intelligence/execution-coherence';
@@ -17,18 +17,18 @@ import { dashboardEvent } from '../../domain/types/intervention-context';
 import type { DashboardPort } from '../ports';
 import { Dashboard } from '../ports';
 import { improvementLoopLedgerPath, type ProjectPaths } from '../paths';
-import { compileScenariosParallel } from '../compile';
-import { runScenarioSelection } from '../run';
+import { compileScenariosParallel } from '../execution/compile';
+import { runScenarioSelection } from '../execution/run';
 import { FileSystem } from '../ports';
-import { runStateMachine } from '../state-machine';
-import { pruneTranslationCache } from '../translation-cache';
+import { runStateMachine } from '../execution/state-machine';
+import { pruneTranslationCache } from '../execution/translation-cache';
 import { round4 } from '../learning/learning-shared';
-import type { BrowserPoolPort, BrowserPoolStats } from '../browser-pool';
+import type { BrowserPoolPort, BrowserPoolStats } from '../runtime-support/browser-pool';
 import {
   readSemanticDictionary,
   writeSemanticDictionary,
   decayUnusedEntries,
-} from '../semantic-translation-dictionary';
+} from '../execution/semantic-translation-dictionary';
 import {
   type ConvergenceState,
   initialConvergenceState,

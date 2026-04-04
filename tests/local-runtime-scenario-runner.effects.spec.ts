@@ -4,7 +4,7 @@ import { promises as fs } from 'fs';
 import { Effect } from 'effect';
 import { expect, test } from '@playwright/test';
 import { createProjectPaths, translationCachePath } from '../lib/application/paths';
-import { translationCacheKey } from '../lib/application/translation-cache';
+import { translationCacheKey } from '../lib/application/execution/translation-cache';
 import type { TranslationReceipt, TranslationRequest } from '../lib/domain/types';
 import { createElementId, createScreenId } from '../lib/domain/kernel/identity';
 import {

@@ -2,7 +2,7 @@ import { Effect } from 'effect';
 import { FileSystem } from '../application/ports';
 import type { RuntimeScenarioRunnerPort } from '../application/ports';
 import { createProjectPaths, type ProjectPaths } from '../application/paths';
-import { readTranslationCache, translationCacheKey, writeTranslationCache } from '../application/translation-cache';
+import { readTranslationCache, translationCacheKey, writeTranslationCache } from '../application/execution/translation-cache';
 import {
   accrueSemanticEntry,
   readSemanticDictionary,
@@ -10,9 +10,9 @@ import {
   recordSemanticSuccess,
   recordValidatedSuccess,
   writeSemanticDictionary,
-} from '../application/semantic-translation-dictionary';
-import { translateIntentToOntology } from '../application/translate';
-import type { TranslationProvider } from '../application/translation-provider';
+} from '../application/execution/semantic-translation-dictionary';
+import { translateIntentToOntology } from '../application/execution/translate';
+import type { TranslationProvider } from '../application/execution/translation-provider';
 import { resolveAgentInterpreterPort } from '../application/agent/agent-interpreter-provider';
 import type { AgentInterpretationResult } from '../domain/types/agent-interpreter';
 import type { AgentInterpreterPort } from '../domain/resolution/model';
@@ -107,7 +107,7 @@ interface RunnerOptions {
   readonly interpreterOverride?: EffectfulAgentInterpreterPort | undefined;
   /** Optional browser pool for page reuse across scenarios.
    *  When provided, acquires/releases pages instead of launching new browsers. */
-  readonly browserPool?: import('../application/browser-pool').BrowserPoolPort | undefined;
+  readonly browserPool?: import('../application/runtime-support/browser-pool').BrowserPoolPort | undefined;
 }
 
 function buildRunnerWithInterpreter(interpreterOverride?: EffectfulAgentInterpreterPort | undefined, runnerOptions?: RunnerOptions): RuntimeScenarioRunnerPort {
@@ -259,6 +259,6 @@ export const createLocalRuntimeScenarioRunnerWithInterpreter = (
 
 /** Factory: create a runner with a browser pool for page reuse across scenarios. */
 export const createLocalRuntimeScenarioRunnerWithPool = (
-  pool: import('../application/browser-pool').BrowserPoolPort,
+  pool: import('../application/runtime-support/browser-pool').BrowserPoolPort,
   interpreter?: EffectfulAgentInterpreterPort,
 ): RuntimeScenarioRunnerPort => buildRunnerWithInterpreter(interpreter, { browserPool: pool });

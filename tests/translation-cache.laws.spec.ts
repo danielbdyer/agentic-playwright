@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { translationCacheKey } from '../lib/application/translation-cache';
+import { translationCacheKey } from '../lib/application/execution/translation-cache';
 import type { TranslationRequest } from '../lib/domain/types';
 import { createElementId, createScreenId } from '../lib/domain/kernel/identity';
 import { deterministicRuntimeStepAgent } from '../lib/runtime/agent';

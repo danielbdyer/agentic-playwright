@@ -1,3 +1,3 @@
-export { bindScenario } from '../bind';
-export { compileScenario, compileScenariosParallel } from '../compile';
-export { buildInterpretationSurfaceProjection } from '../task';
+export { bindScenario } from '../execution/bind';
+export { compileScenario, compileScenariosParallel } from '../execution/compile';
+export { buildInterpretationSurfaceProjection } from '../execution/task';

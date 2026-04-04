@@ -16,9 +16,9 @@ import { test, expect } from '@playwright/test';
 import { createAriaSnapshotCache } from '../lib/runtime/agent/aria-snapshot-cache';
 import { createSemanticDictCache } from '../lib/runtime/agent/semantic-dict-cache';
 import { classifyRoute, navigationOptionsForUrl } from '../lib/runtime/navigation-strategy';
-import { determineResetStrategy, extractWarmUpUrls } from '../lib/application/browser-pool';
-import { createScreenshotCollector, qualityForReason } from '../lib/application/deferred-screenshot';
-import { evaluateScreenshotPolicy } from '../lib/application/screenshot-policy';
+import { determineResetStrategy, extractWarmUpUrls } from '../lib/application/runtime-support/browser-pool';
+import { createScreenshotCollector, qualityForReason } from '../lib/application/runtime-support/deferred-screenshot';
+import { evaluateScreenshotPolicy } from '../lib/application/runtime-support/screenshot-policy';
 
 function measure<T>(label: string, fn: () => T, iterations: number = 10000): { result: T; avgNs: number; totalMs: number } {
   const start = performance.now();

@@ -32,7 +32,7 @@ import type { KnowledgePosture, SpeedrunProgressEvent } from '../lib/domain/type
 import { DEFAULT_PIPELINE_CONFIG } from '../lib/domain/types';
 import { startFixtureServer, type FixtureServer } from '../lib/infrastructure/fixture-server';
 import { createPlaywrightBrowserPool } from '../lib/infrastructure/playwright-browser-pool';
-import type { BrowserPoolPort } from '../lib/application/browser-pool';
+import type { BrowserPoolPort } from '../lib/application/runtime-support/browser-pool';
 
 // ─── CLI argument parsing ───
 

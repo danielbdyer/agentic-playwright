@@ -22,7 +22,7 @@ import {
   generateFixtureRows,
   buildFixtureDataset,
   type HarLog,
-} from '../lib/application/fixture-extractor';
+} from '../lib/application/workspace/fixture-extractor';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 

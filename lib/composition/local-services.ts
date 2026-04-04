@@ -59,7 +59,7 @@ export interface LocalServiceOptions {
   /** Inject a browser pool for page reuse across scenario runs.
    *  When provided, the runtime scenario runner acquires/releases pages from the pool
    *  instead of launching a new browser per scenario. */
-  readonly browserPool?: import('../application/browser-pool').BrowserPoolPort | undefined;
+  readonly browserPool?: import('../application/runtime-support/browser-pool').BrowserPoolPort | undefined;
 }
 
 export interface LocalServiceContext {

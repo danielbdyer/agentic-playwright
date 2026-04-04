@@ -16,7 +16,7 @@ import { Effect, Either, Schema } from 'effect';
 import type { ProjectPaths } from '../paths';
 import { generateSyntheticScenarios } from '../synthesis/scenario-generator';
 import { generateDriftVariants } from '../synthesis/interface-fuzzer';
-import { compileScenariosParallel } from '../compile';
+import { compileScenariosParallel } from '../execution/compile';
 import { runDogfoodLoop } from './dogfood';
 import type { AdoId } from '../../domain/kernel/identity';
 import {
@@ -26,7 +26,7 @@ import {
   updateScorecard,
   type FitnessInputData,
   type ScorecardComparison,
-} from '../fitness';
+} from '../analysis/fitness';
 import { buildImprovementRun, recordImprovementRun, scorecardPath } from './improvement';
 import { recordExperiment } from './experiment-registry';
 import { loadWorkspaceCatalog } from '../catalog';
@@ -81,7 +81,7 @@ export interface SpeedrunInput {
   /** Base URL of the SUT for Playwright execution (e.g., http://127.0.0.1:3200). */
   readonly baseUrl?: string | undefined;
   /** Browser pool for page reuse across scenarios. Managed by caller. */
-  readonly browserPool?: import('../browser-pool').BrowserPoolPort | undefined;
+  readonly browserPool?: import('../runtime-support/browser-pool').BrowserPoolPort | undefined;
 }
 
 export interface SpeedrunResult {
@@ -115,7 +115,7 @@ export interface MultiSeedInput {
   readonly interpreterMode?: 'dry-run' | 'diagnostic' | 'playwright' | undefined;
   readonly baseUrl?: string | undefined;
   /** Browser pool for page reuse across scenarios. Managed by caller. */
-  readonly browserPool?: import('../browser-pool').BrowserPoolPort | undefined;
+  readonly browserPool?: import('../runtime-support/browser-pool').BrowserPoolPort | undefined;
 }
 
 export interface MultiSeedResult {
@@ -644,7 +644,7 @@ export interface IteratePhaseInput {
   readonly interpreterMode?: 'dry-run' | 'diagnostic' | 'playwright' | undefined;
   readonly baseUrl?: string | undefined;
   /** Browser pool for page reuse across scenarios. Managed by caller. */
-  readonly browserPool?: import('../browser-pool').BrowserPoolPort | undefined;
+  readonly browserPool?: import('../runtime-support/browser-pool').BrowserPoolPort | undefined;
 }
 
 export function iteratePhase(input: IteratePhaseInput) {

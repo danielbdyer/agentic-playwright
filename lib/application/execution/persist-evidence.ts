@@ -3,7 +3,7 @@ import { Effect } from 'effect';
 import type { FileSystemPort, RuntimeScenarioStepResult } from '../ports';
 import type { ProjectPaths } from '../paths';
 import { relativeProjectPath } from '../paths';
-import { resolveEffectConcurrency } from '../concurrency';
+import { resolveEffectConcurrency } from '../runtime-support/concurrency';
 import type { AdoId } from '../../domain/kernel/identity';
 
 function evidencePath(paths: ProjectPaths, adoId: AdoId, runId: string, stepIndex: number, evidenceIndex: number): string {

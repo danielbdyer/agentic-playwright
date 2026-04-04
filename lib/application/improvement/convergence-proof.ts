@@ -31,7 +31,7 @@ import {
   type ConvergenceProofResult,
   type ConvergenceTrialResult,
 } from '../../domain/types';
-import type { BrowserPoolPort } from '../browser-pool';
+import type { BrowserPoolPort } from '../runtime-support/browser-pool';
 import { runHyloEffect, type UnfoldStep } from '../../domain/algebra/hylomorphism';
 
 // ─── Input ───

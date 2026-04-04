@@ -34,7 +34,7 @@ import {
   reportPhase,
   type MultiSeedResult,
 } from '../lib/application/improvement/speedrun';
-import { resolveKnowledgePosture } from '../lib/application/knowledge-posture';
+import { resolveKnowledgePosture } from '../lib/application/knowledge/knowledge-posture';
 import { runWithLocalServices } from '../lib/composition/local-services';
 import type { KnowledgePosture, PipelineConfig, PipelineFitnessReport, SpeedrunProgressEvent } from '../lib/domain/types';
 import { DEFAULT_PIPELINE_CONFIG, mergePipelineConfig } from '../lib/domain/types';
@@ -49,7 +49,7 @@ import {
 } from '../lib/domain/projection/speedrun-statistics';
 import { startFixtureServer, type FixtureServer } from '../lib/infrastructure/fixture-server';
 import { createPlaywrightBrowserPool } from '../lib/infrastructure/playwright-browser-pool';
-import type { BrowserPoolPort } from '../lib/application/browser-pool';
+import type { BrowserPoolPort } from '../lib/application/runtime-support/browser-pool';
 import { createFileBackedDashboardPort } from '../lib/infrastructure/dashboard/file-dashboard-port';
 import { resolvePlaywrightHeadless } from '../lib/infrastructure/tooling/browser-options';
 

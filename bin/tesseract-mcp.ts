@@ -35,7 +35,7 @@ import { createPlaywrightBrowserPool } from '../lib/infrastructure/playwright-br
 import { startFixtureServer, type FixtureServer } from '../lib/infrastructure/fixture-server';
 import { createHintsWriter } from '../lib/infrastructure/knowledge/hints-writer';
 import { DEFAULT_PIPELINE_CONFIG, mergePipelineConfig } from '../lib/domain/types';
-import type { BrowserPoolPort } from '../lib/application/browser-pool';
+import type { BrowserPoolPort } from '../lib/application/runtime-support/browser-pool';
 import type { DashboardPort } from '../lib/application/ports';
 import type { KnowledgePosture, PipelineConfig, SpeedrunProgressEvent } from '../lib/domain/types';
 import * as fs from 'fs';

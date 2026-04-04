@@ -1,2 +1,2 @@
-export { parseScenario, parseSnapshotToScenario } from '../parse';
-export { syncSnapshots } from '../sync';
+export { parseScenario, parseSnapshotToScenario } from '../reporting/parse';
+export { syncSnapshots } from '../reporting/sync';

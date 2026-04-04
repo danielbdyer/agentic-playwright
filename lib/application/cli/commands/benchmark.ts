@@ -1,4 +1,4 @@
-import { projectBenchmarkScorecard } from '../../benchmark';
+import { projectBenchmarkScorecard } from '../../analysis/benchmark';
 import { createCommandSpec } from '../shared';
 import { requireBenchmark } from '../shared';
 

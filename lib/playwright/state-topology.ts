@@ -13,7 +13,7 @@ import type {
 import type { CanonicalTargetRef, EventSignatureRef, StateNodeRef, TransitionRef } from '../domain/kernel/identity';
 import { uniqueSorted } from '../domain/kernel/collections';
 import { foldLocatorStrategy } from '../domain/kernel/visitors';
-import { resolveEffectConcurrency } from '../application/concurrency';
+import { resolveEffectConcurrency } from '../application/runtime-support/concurrency';
 
 export interface ObservationContextScreen {
   screen: StepTaskScreenCandidate['screen'];

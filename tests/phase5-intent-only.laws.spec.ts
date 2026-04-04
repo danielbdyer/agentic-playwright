@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { bindScenarioStep } from '../lib/domain/governance/binding';
-import { parseSnapshotToScenario } from '../lib/application/parse';
+import { parseSnapshotToScenario } from '../lib/application/reporting/parse';
 import type { AdoSnapshot, ExecutionProfile } from '../lib/domain/types';
 import type { AdoId } from '../lib/domain/kernel/identity';
 

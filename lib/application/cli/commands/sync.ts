@@ -1,4 +1,4 @@
-import { syncSnapshots } from '../../sync';
+import { syncSnapshots } from '../../reporting/sync';
 import { createAdoId } from '../../../domain/kernel/identity';
 import { createCommandSpec } from '../shared';
 import { withDefinedValues } from '../shared';

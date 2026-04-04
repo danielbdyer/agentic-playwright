@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { createResolutionEngineRegistry, resolveResolutionEngine, type ResolutionEngine } from '../lib/application/resolution-engine';
+import { createResolutionEngineRegistry, resolveResolutionEngine, type ResolutionEngine } from '../lib/application/execution/resolution-engine';
 import { validateStepResults } from '../lib/application/execution/validate-step-results';
 import { runResolutionPipeline } from '../lib/runtime/agent';
 import type { RuntimeStepAgentContext } from '../lib/runtime/agent/types';

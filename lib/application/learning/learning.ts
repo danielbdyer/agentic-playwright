@@ -15,7 +15,7 @@ import type { AdoId } from '../../domain/kernel/identity';
 import { relativeProjectPath, learningRuntimeDirPath } from '../paths';
 import type { ProjectPaths } from '../paths';
 import { FileSystem, type FileSystemPort } from '../ports';
-import { walkFiles } from '../artifacts';
+import { walkFiles } from '../workspace/artifacts';
 
 export interface LearningProjectionResult {
   manifest: TrainingCorpusManifest;

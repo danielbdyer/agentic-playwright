@@ -1,4 +1,4 @@
-import { inspectWorkflow } from '../../workflow';
+import { inspectWorkflow } from '../../execution/workflow';
 import { createAdoId } from '../../../domain/kernel/identity';
 import { createCommandSpec } from '../shared';
 

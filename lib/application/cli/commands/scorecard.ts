@@ -1,4 +1,4 @@
-import { renderBenchmarkScorecard } from '../../scorecard';
+import { renderBenchmarkScorecard } from '../../analysis/scorecard';
 import { createCommandSpec } from '../shared';
 import { requireBenchmark } from '../shared';
 
