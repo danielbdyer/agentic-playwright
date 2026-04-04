@@ -221,3 +221,24 @@ export function flagProblematicSelectors(
     || (s.totalAttempts >= effectiveConfig.minObservationsForTrend && s.successRate < 0.5),
   );
 }
+
+// ─── ObservationCollapse instance ──────────────────────────────────────────
+//
+// The selector health module expressed as an ObservationCollapse<R,O,A,S>.
+// This is the design calculus Abstraction 2 applied concretely:
+//   extract: StepExecutionReceipt → SelectorObservation
+//   aggregate: SelectorObservation → SelectorHealthIndex
+//   signal: SelectorHealthIndex → SelectorHealthMetrics[] (problematic ones)
+
+import type { ObservationCollapse } from '../domain/kernel/observation-collapse';
+
+export const selectorHealthCollapse: ObservationCollapse<
+  StepExecutionReceipt,
+  SelectorObservation,
+  SelectorHealthIndex,
+  readonly SelectorHealthMetrics[]
+> = {
+  extract: extractSelectorObservations,
+  aggregate: (observations, prior) => mergeHealthIndex(prior, observations),
+  signal: flagProblematicSelectors,
+};

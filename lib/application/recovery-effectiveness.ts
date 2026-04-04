@@ -207,3 +207,18 @@ export function computeRecoveryEfficiency(
 
   return weightedTotal > 0 ? weightedSuccess / weightedTotal : 1;
 }
+
+// ─── ObservationCollapse instance ──────────────────────────────────────────
+
+import type { ObservationCollapse } from '../domain/kernel/observation-collapse';
+
+export const recoveryEffectivenessCollapse: ObservationCollapse<
+  StepExecutionReceipt,
+  RecoveryAttempt,
+  RecoveryEffectivenessIndex,
+  number
+> = {
+  extract: extractRecoveryAttempts,
+  aggregate: (attempts, prior) => mergeEffectiveness(prior, attempts),
+  signal: computeRecoveryEfficiency,
+};
