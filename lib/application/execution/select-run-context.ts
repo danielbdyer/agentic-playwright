@@ -15,7 +15,7 @@ import type { AdoId, ScreenId } from '../../domain/kernel/identity';
 import { uniqueSorted } from '../../domain/kernel/collections';
 import { TesseractError } from '../../domain/kernel/errors';
 import { activeDatasetForRun, findRunbook } from '../controls';
-import { chooseByPrecedence, runSelectionPrecedenceLaw } from '../../domain/resolution/precedence';
+import { dispatchByPrecedence, runSelectionPrecedenceLaw } from '../../domain/resolution/precedence';
 
 const fixtureReferencePattern = /^\{\{\s*([A-Za-z0-9_-]+)(?:\.[^}]*)?\s*\}\}$/;
 
@@ -111,11 +111,11 @@ export function prepareScenarioRunPlan(input: {
   const activeDataset = activeDatasetForRun(input.surface.payload.resolutionContext.controls, activeRunbook);
   const runId = new Date().toISOString().replace(/[:.]/g, '-');
   const posture = input.posture ?? input.executionContextPosture;
-  const mode = chooseByPrecedence([
+  const mode = dispatchByPrecedence([
     { rung: 'cli-flag', value: input.interpreterMode ?? null },
     { rung: 'runbook', value: activeRunbook?.interpreterMode ?? null },
     { rung: 'repo-default', value: posture.interpreterMode ?? 'diagnostic' },
-  ], runSelectionPrecedenceLaw) ?? 'diagnostic';
+  ], runSelectionPrecedenceLaw)?.value ?? 'diagnostic';
   const steps = taskStepsForRun(input.surface, activeRunbook?.resolutionControl ?? null);
   const fixtureIds = uniqueSorted([
     ...scenarioEntry.artifact.preconditions.map((precondition) => precondition.fixture),
@@ -170,11 +170,11 @@ export function prepareScenarioRunPlan(input: {
     },
     translationEnabled: activeRunbook?.translationEnabled ?? true,
     translationCacheEnabled: activeRunbook?.translationCacheEnabled ?? true,
-    providerId: chooseByPrecedence([
+    providerId: dispatchByPrecedence([
       { rung: 'cli-flag', value: input.providerId ?? null },
       { rung: 'runbook', value: activeRunbook?.providerId ?? null },
       { rung: 'repo-default', value: 'deterministic-runtime-step-agent' },
-    ], runSelectionPrecedenceLaw) ?? 'deterministic-runtime-step-agent',
+    ], runSelectionPrecedenceLaw)?.value ?? 'deterministic-runtime-step-agent',
     recoveryPolicy: activeRunbook?.recoveryPolicy,
   };
 }

@@ -13,18 +13,19 @@
 import type { StepExecutionReceipt } from '../domain/types';
 import type { ComponentProposal } from '../domain/projection/component-maturation';
 import { matureComponentKnowledge } from '../domain/projection/component-maturation';
+import { collapseObservations } from '../domain/kernel/observation-collapse';
 import type { TimingBaselineIndex, TimingRegression } from './timing-baseline';
-import { updateTimingBaselines, detectTimingRegressions } from './timing-baseline';
+import { detectTimingRegressions, timingBaselineCollapse } from './timing-baseline';
 import type { SelectorHealthIndex, SelectorHealthMetrics } from './selector-health';
-import { mergeHealthIndex, extractSelectorObservations, flagProblematicSelectors } from './selector-health';
+import { flagProblematicSelectors, selectorHealthCollapse } from './selector-health';
 import type { RecoveryEffectivenessIndex, StrategyEffectiveness } from './recovery-effectiveness';
-import { mergeEffectiveness, extractRecoveryAttempts, computeRecoveryEfficiency } from './recovery-effectiveness';
+import { computeRecoveryEfficiency, recoveryEffectivenessCollapse } from './recovery-effectiveness';
 import type { ConsolePatternIndex, ConsolePatternMetrics } from './console-intelligence';
-import { extractConsoleObservations, aggregateConsolePatterns, flagNoisySteps } from './console-intelligence';
+import { extractConsoleObservations, flagNoisySteps, consoleIntelligenceCollapse } from './console-intelligence';
 import type { CostBaselineIndex, CostBaseline } from './execution-cost';
-import { extractCostObservations, buildCostBaselines, detectCostAnomalies, computeCostEfficiency } from './execution-cost';
+import { detectCostAnomalies, computeCostEfficiency, executionCostCollapse } from './execution-cost';
 import type { RungHistoryIndex, RungHistoryEntry } from './rung-drift';
-import { extractRungObservations, buildRungHistory, computeRungStability, detectRungDrift } from './rung-drift';
+import { computeRungStability, detectRungDrift, rungDriftCollapse } from './rung-drift';
 
 // ─── Learning State Types ───
 
@@ -245,30 +246,15 @@ export function aggregateLearningState(
   previous: LearningState | null,
   config: LearningConfig = DEFAULT_LEARNING_CONFIG,
 ): LearningState {
-  // 1. Feed each module independently
-  const timing = updateTimingBaselines(
-    previous?.timing ?? null,
-    steps,
-  );
-
-  const selectors = mergeHealthIndex(
-    previous?.selectors ?? null,
-    extractSelectorObservations(steps),
-  );
-
-  const recovery = mergeEffectiveness(
-    previous?.recovery ?? null,
-    extractRecoveryAttempts(steps),
-  );
-
-  const consoleObs = extractConsoleObservations(steps);
-  const consoleIndex = aggregateConsolePatterns(consoleObs);
-
-  const costObs = extractCostObservations(steps);
-  const costIndex = buildCostBaselines(costObs);
-
-  const rungObs = extractRungObservations(steps);
-  const rungDriftIndex = buildRungHistory(rungObs);
+  // 1. Run all six observation collapse pipelines over the same receipt stream.
+  //    Each pipeline independently extracts, aggregates, and signals — this is
+  //    product fold fusion (catamorphism fusion) from the design calculus.
+  const { aggregate: timing } = collapseObservations(timingBaselineCollapse, steps, previous?.timing ?? null);
+  const { aggregate: selectors } = collapseObservations(selectorHealthCollapse, steps, previous?.selectors ?? null);
+  const { aggregate: recovery } = collapseObservations(recoveryEffectivenessCollapse, steps, previous?.recovery ?? null);
+  const { aggregate: consoleIndex } = collapseObservations(consoleIntelligenceCollapse, steps, previous?.console ?? null);
+  const { aggregate: costIndex } = collapseObservations(executionCostCollapse, steps, previous?.cost ?? null);
+  const { aggregate: rungDriftIndex } = collapseObservations(rungDriftCollapse, steps, previous?.rungDrift ?? null);
 
   const componentEvidence = extractComponentEvidence(steps);
   const componentProposals = matureComponentKnowledge(componentEvidence);

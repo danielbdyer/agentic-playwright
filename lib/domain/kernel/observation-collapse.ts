@@ -54,7 +54,8 @@ export function collapseObservations<R, O, A, S>(
  * produces N results in a single conceptual pass.
  */
 export function collapseAll<R, Results extends Record<string, { readonly aggregate: unknown; readonly signal: unknown }>>(
-  pipelines: { readonly [K in keyof Results]: ObservationCollapse<R, unknown, Results[K]['aggregate'], Results[K]['signal']> },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- O is existentially quantified per pipeline; callers don't observe it
+  pipelines: { readonly [K in keyof Results]: ObservationCollapse<R, any, Results[K]['aggregate'], Results[K]['signal']> },
   receipts: ReadonlyArray<R>,
   priors: { readonly [K in keyof Results]?: Results[K]['aggregate'] | null },
 ): Results {

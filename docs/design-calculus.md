@@ -398,12 +398,12 @@ All 16 transformations from Parts I–IV have been implemented as executable Typ
 | Collapse 2: Galois Connection | `lib/domain/resolution/confidence-provenance.ts` | Implemented; candidate-lattice wired |
 | Collapse 3: Envelope-Receipt Adjunction | `lib/domain/types/workflow.ts` (WorkflowMetadata) | Implemented; resolution + execution receipts unified |
 | Collapse 4: Product Fold | `lib/domain/algebra/product-fold.ts` | Implemented |
-| Abstraction 1: Precedence Dispatch | `lib/domain/resolution/precedence.ts` (dispatchByPrecedence) | Implemented |
-| Abstraction 2: Observation Collapse | `lib/domain/kernel/observation-collapse.ts` | Implemented; 6 concrete instances wired |
+| Abstraction 1: Precedence Dispatch | `lib/domain/resolution/precedence.ts` (dispatchByPrecedence) | Implemented; select-run-context wired |
+| Abstraction 2: Observation Collapse | `lib/domain/kernel/observation-collapse.ts` | Implemented; 6 instances + learning-state fusion |
 | Abstraction 3: Contextual Merge | `lib/domain/algebra/contextual-merge.ts` | Implemented |
-| Abstraction 4: Governed Suspension | `lib/domain/kernel/governed-suspension.ts` | Implemented |
+| Abstraction 4: Governed Suspension | `lib/domain/kernel/governed-suspension.ts` | Implemented; auto-approval + proposal activation wired |
 | Abstraction 5: Strategy Chain Walker | `lib/runtime/agent/strategy-chain-walker.ts` | Implemented (discovered during wiring) |
-| Duality 1: Hylomorphism | `lib/domain/algebra/hylomorphism.ts` | Implemented |
+| Duality 1: Hylomorphism | `lib/domain/algebra/hylomorphism.ts` | Implemented; async variant added |
 | Duality 2: Free/Forgetful | `lib/domain/algebra/free-forgetful.ts` | Implemented |
 | Duality 3: Slice/Projection | `lib/domain/algebra/slice-projection.ts` | Implemented |
 | Free Theorem 1: Heyting Algebra | Tests only | Verified |
@@ -439,6 +439,37 @@ compare:   (R[], A) → S       ← needs both the raw input AND the aggregate
 Where ObservationCollapse has `signal: A → S` (the aggregate alone determines the signal), the Compare variant needs the context of the current observations to produce its signal. This is strictly more expressive — it corresponds to the comonad extract that remembers its context, vs the algebra homomorphism that forgets it.
 
 The collapse instances for these modules use the simpler `A → S` signal (baseline coverage health, max failure correlation), while the full `(R[], A) → S` comparison functions (`detectTimingRegressions`, `flagNoisySteps`) remain available for direct use.
+
+### Consumer Wiring
+
+Beyond the core abstractions and their instances, the design calculus infrastructure has been wired into these application-layer consumers:
+
+**Product fold fusion** — `lib/application/learning-state.ts` (`aggregateLearningState`):
+All six ObservationCollapse instances are invoked via `collapseObservations()` over the same `StepExecutionReceipt[]` stream. This replaces the prior pattern of manually calling individual extract/aggregate/merge functions. The six pipelines run as independent collapses producing typed aggregates that feed into `deriveSignals()`.
+
+**Precedence dispatch provenance** — `lib/application/execution/select-run-context.ts`:
+Mode selection and provider selection upgraded from `chooseByPrecedence` (value-only) to `dispatchByPrecedence` (value + rung + rank). Currently extracts `.value` at call sites; provenance is available for future observability.
+
+**Governed suspension: auto-approval chain** — `lib/application/auto-approval.ts` (`autoApprovalVerdict`):
+The four sequential auto-approval gates (policy enabled → artifact type allowed → confidence threshold → evidence required) expressed as a `chainVerdict` composition. Each gate returns `Approved` or `Suspended` with typed `ReviewRequest` context.
+
+**Governed suspension: proposal activation** — `lib/application/activate-proposals.ts` (`proposalGovernanceVerdict`):
+Trust policy decisions converted to `GovernanceVerdict` via `fromGovernance`, bridging the string-based governance (`'allow' | 'review' | 'deny'`) with the typed ADT.
+
+**Async hylomorphism** — `lib/domain/algebra/hylomorphism.ts` (`runHyloAsync`):
+The async variant of the deforested unfold/fold composition, designed for Effect-based improvement loops where each iteration performs I/O. Integrates via `Effect.promise(() => runHyloAsync(...))`.
+
+### Remaining Wiring Opportunities
+
+| Opportunity | Target | Combinator | Status |
+|---|---|---|---|
+| Streaming improvement loop | `lib/application/dogfood.ts` | `runHyloAsync` | Ready (async hylo implemented) |
+| Convergence proof deforestation | `lib/application/convergence-proof.ts` | `runHyloAsync` | Ready |
+| Control resolution precedence | `lib/application/controls.ts` | `dispatchByPrecedence` | Available |
+| Proposal patch merging | `lib/application/proposal-patches.ts` | `ContextualMerge` | Available |
+| Knowledge overlay composition | `lib/runtime/agent/select-controls.ts` | `ContextualMerge` | Available |
+| Dashboard decision workflow | `lib/application/dashboard-decider.ts` | `GovernanceVerdict` | Available |
+| Agent escalation heuristics | `lib/application/agent-decider.ts` | `GovernanceVerdict` + `chainVerdict` | Available |
 
 ---
 

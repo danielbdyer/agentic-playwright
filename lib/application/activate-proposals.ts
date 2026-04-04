@@ -2,6 +2,7 @@ import path from 'path';
 import { Effect } from 'effect';
 import type { AutoApprovalPolicy, BottleneckWeights, ProposalBundle, ProposalEntry, TrustPolicy } from '../domain/types';
 import { GovernanceLattice } from '../domain/algebra/lattice';
+import { fromGovernance, type GovernanceVerdict } from '../domain/kernel/governed-suspension';
 import type { ProjectPaths } from './paths';
 import { FileSystem } from './ports';
 import { trySync } from './effect';
@@ -354,4 +355,35 @@ export function autoApproveEligibleProposals(options: {
 
     return { proposalBundle, activatedPaths, blockedProposalIds };
   });
+}
+
+// ─── Governed Suspension bridge ──────────────────────────────────────────
+//
+// Express proposal activation governance as GovernanceVerdict.
+// This bridges the existing string-based governance ('approved' | 'blocked')
+// with the typed GovernanceVerdict ADT from the design calculus.
+
+/**
+ * Convert a proposal's trust policy decision to a GovernanceVerdict.
+ * - 'allow' → Approved (proposal proceeds)
+ * - 'review' → Suspended (needs operator review)
+ * - 'deny' → Blocked (proposal cannot proceed)
+ */
+export function proposalGovernanceVerdict(
+  proposal: ProposalEntry,
+): GovernanceVerdict<ProposalEntry, unknown> {
+  const governance = proposal.trustPolicy.decision === 'allow'
+    ? 'approved' as const
+    : proposal.trustPolicy.decision === 'review'
+      ? 'review-required' as const
+      : 'blocked' as const;
+
+  return fromGovernance(
+    governance,
+    proposal,
+    {
+      needs: { proposalId: proposal.proposalId, reason: `Trust policy: ${proposal.trustPolicy.decision}` },
+      reason: `Trust policy requires ${proposal.trustPolicy.decision} for ${proposal.artifactType}`,
+    },
+  );
 }

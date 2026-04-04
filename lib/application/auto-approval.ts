@@ -4,6 +4,12 @@ import type {
   ProposedChangeMetadata,
   TrustPolicy,
 } from '../domain/types/shared-context';
+import {
+  type GovernanceVerdict,
+  approved,
+  suspended,
+  chainVerdict,
+} from '../domain/kernel/governed-suspension';
 
 // ─── Auto-Approval Policy ───
 
@@ -108,4 +114,68 @@ export function isWithinAutoApprovalLimit(
   currentApprovalCount: number,
 ): boolean {
   return currentApprovalCount < policy.maxAutoApprovalsPerRun;
+}
+
+// ─── Governed Suspension bridge ──────────────────────────────────────────
+//
+// The auto-approval gate chain expressed as GovernanceVerdict composition.
+// Each gate is a function T → GovernanceVerdict<T, ReviewRequest>, and
+// the chain is composed via chainVerdict (monadic bind).
+//
+// This provides the same semantics as applyAutoApproval but in the
+// composable GovernanceVerdict algebra from the design calculus.
+
+interface ReviewRequest {
+  readonly kind: 'auto-approval-review';
+  readonly proposalArtifactType: string;
+  readonly reason: string;
+}
+
+/**
+ * Express auto-approval as a GovernanceVerdict chain.
+ * Each gate either passes (Approved) or defers (Suspended).
+ * The chain short-circuits on the first suspension.
+ */
+export function autoApprovalVerdict(
+  proposal: ProposedChangeMetadata,
+  policy: AutoApprovalPolicy,
+  evidenceCount: number,
+): GovernanceVerdict<ProposedChangeMetadata, ReviewRequest> {
+  // Gate 1: Policy enabled
+  const gate1: GovernanceVerdict<ProposedChangeMetadata, ReviewRequest> = policy.enabled
+    ? approved(proposal)
+    : suspended(
+        { kind: 'auto-approval-review', proposalArtifactType: proposal.artifactType, reason: 'disabled' },
+        'Auto-approval policy is disabled',
+      );
+
+  // Gate 2: Artifact type allowed
+  const gate2 = chainVerdict(gate1, (p) =>
+    policy.allowedArtifactTypes.includes(p.artifactType)
+      ? approved(p)
+      : suspended(
+          { kind: 'auto-approval-review', proposalArtifactType: p.artifactType, reason: 'type-not-allowed' },
+          `Artifact type '${p.artifactType}' is not in the allowed list`,
+        ),
+  );
+
+  // Gate 3: Confidence threshold
+  const gate3 = chainVerdict(gate2, (p) =>
+    p.confidence >= policy.minimumConfidence
+      ? approved(p)
+      : suspended(
+          { kind: 'auto-approval-review', proposalArtifactType: p.artifactType, reason: 'low-confidence' },
+          `Confidence ${p.confidence.toFixed(2)} is below minimum threshold ${policy.minimumConfidence.toFixed(2)}`,
+        ),
+  );
+
+  // Gate 4: Evidence required
+  return chainVerdict(gate3, (p) =>
+    !policy.requireEvidence || evidenceCount > 0
+      ? approved(p)
+      : suspended(
+          { kind: 'auto-approval-review', proposalArtifactType: p.artifactType, reason: 'no-evidence' },
+          'Evidence is required but none was provided',
+        ),
+  );
 }

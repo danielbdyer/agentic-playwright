@@ -75,3 +75,30 @@ export function traceHylo<S, T, A>(hylo: Hylomorphism<S, T, A>): ReadonlyArray<A
   };
   return [hylo.initial, ...loop(hylo.seed, hylo.initial, [])];
 }
+
+/**
+ * Run an async hylomorphism — the same unfold/fold deforestation, but
+ * where the unfold step is asynchronous. This is needed for loops
+ * where each iteration performs I/O (Playwright execution, file system,
+ * network, etc.).
+ *
+ * The fold step remains pure since accumulation is deterministic.
+ * No intermediate array is allocated (deforestation preserved).
+ *
+ * Integrates with Effect via `Effect.promise(() => runHyloAsync(...))`.
+ *
+ * @see docs/design-calculus.md § Duality 1: Fold / Unfold (hylomorphism)
+ */
+export function runHyloAsync<S, T, A>(
+  seed: S,
+  initial: A,
+  unfold: (state: S) => Promise<UnfoldStep<S, T>>,
+  step: (acc: A, item: T) => A,
+): Promise<A> {
+  const loop = async (state: S, acc: A): Promise<A> => {
+    const result = await unfold(state);
+    if (result.done) return acc;
+    return loop(result.next, step(acc, result.value));
+  };
+  return loop(seed, initial);
+}
