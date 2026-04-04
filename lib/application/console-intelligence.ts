@@ -220,6 +220,18 @@ export function correlateConsoleWithFailures(
 // ─── Noise detection ───
 
 /**
+ * Compute the maximum failure correlation across all console patterns.
+ * Returns [0, 1] where 0 = no correlation, 1 = perfect correlation.
+ * Used as the scalar signal for the ObservationCollapse instance.
+ */
+export function computeMaxFailureCorrelation(
+  index: ConsolePatternIndex,
+): number {
+  if (index.patterns.length === 0) return 0;
+  return Math.max(...index.patterns.map((p) => p.failureCorrelation));
+}
+
+/**
  * Flag steps that produce more than `threshold` distinct console error patterns.
  * These steps are "noisy" and may indicate systemic issues.
  */
@@ -257,3 +269,28 @@ export function flagNoisySteps(
     noiseRate: totalSteps > 0 ? noisySteps.length / totalSteps : 0,
   };
 }
+
+// ─── ObservationCollapse instance ──────────────────────────────────────────
+//
+// Console intelligence as ObservationCollapse<R,O,A,S>:
+//   extract: StepExecutionReceipt → ConsoleObservation
+//   aggregate: ConsoleObservation → ConsolePatternIndex
+//   signal: ConsolePatternIndex → number (max failure correlation)
+//
+// Note: flagNoisySteps has shape (A, O[], Config) → S, which is
+// an "Observation-Aggregate-Compare" variant that needs both the
+// aggregate AND the original observations. The scalar signal here
+// uses the simpler A → S shape via max failure correlation.
+
+import type { ObservationCollapse } from '../domain/kernel/observation-collapse';
+
+export const consoleIntelligenceCollapse: ObservationCollapse<
+  StepExecutionReceipt,
+  ConsoleObservation,
+  ConsolePatternIndex,
+  number
+> = {
+  extract: extractConsoleObservations,
+  aggregate: (observations, _prior) => aggregateConsolePatterns(observations),
+  signal: computeMaxFailureCorrelation,
+};

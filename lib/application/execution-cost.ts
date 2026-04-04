@@ -225,3 +225,23 @@ export function computeCostEfficiency(
 
   return totalWeight > 0 ? weightedEfficiency / totalWeight : 1;
 }
+
+// ─── ObservationCollapse instance ──────────────────────────────────────────
+//
+// Execution cost as ObservationCollapse<R,O,A,S>:
+//   extract: StepExecutionReceipt → CostObservation
+//   aggregate: CostObservation → CostBaselineIndex
+//   signal: CostBaselineIndex → number (cost efficiency)
+
+import type { ObservationCollapse } from '../domain/kernel/observation-collapse';
+
+export const executionCostCollapse: ObservationCollapse<
+  StepExecutionReceipt,
+  CostObservation,
+  CostBaselineIndex,
+  number
+> = {
+  extract: extractCostObservations,
+  aggregate: (observations, _prior) => buildCostBaselines(observations),
+  signal: computeCostEfficiency,
+};

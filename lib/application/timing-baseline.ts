@@ -197,6 +197,45 @@ export function updateTimingBaselines(
 }
 
 /**
+ * Extract timing observations from step execution receipts.
+ * Each step produces one observation with all phase timings.
+ */
+export interface TimingObservation {
+  readonly category: string;
+  readonly phases: Readonly<Record<TimingPhase, number>>;
+  readonly runAt: string;
+}
+
+export function extractTimingObservations(
+  steps: readonly StepExecutionReceipt[],
+): readonly TimingObservation[] {
+  return steps.map((step) => ({
+    category: stepCategory(step),
+    phases: Object.fromEntries(
+      TIMING_PHASES.map((phase) => [phase, phaseValue(step, phase)]),
+    ) as unknown as Readonly<Record<TimingPhase, number>>,
+    runAt: step.runAt,
+  }));
+}
+
+/**
+ * Compute baseline coverage health: fraction of categories with
+ * statistically meaningful sample counts (≥ minSamples across all phases).
+ * Returns [0, 1] where 1 = all categories are well-sampled.
+ */
+export function computeBaselineCoverage(
+  index: TimingBaselineIndex,
+  config?: TimingBaselineConfig,
+): number {
+  const effectiveConfig = config ?? DEFAULT_TIMING_BASELINE_CONFIG;
+  if (index.baselines.length === 0) return 1; // no baselines needed = healthy
+  const wellSampled = index.baselines.filter((b) =>
+    b.phases.every((p) => p.sampleCount >= effectiveConfig.minSamples),
+  );
+  return wellSampled.length / index.baselines.length;
+}
+
+/**
  * Detect timing regressions by comparing step timings against baselines.
  * Pure function — no side effects.
  */
@@ -243,3 +282,74 @@ export function detectTimingRegressions(
     totalSteps: steps.length,
   };
 }
+
+// ─── ObservationCollapse instance ──────────────────────────────────────────
+//
+// Timing baseline as ObservationCollapse<R,O,A,S>:
+//   extract: StepExecutionReceipt → TimingObservation
+//   aggregate: TimingObservation → TimingBaselineIndex
+//   signal: TimingBaselineIndex → number (baseline coverage health)
+//
+// Structural note: this module also has detectTimingRegressions with shape
+// (R[], A) → S — the "Observation-Aggregate-Compare" pattern where the
+// signal needs both the new receipts AND the aggregate. That pattern is
+// strictly more expressive than ObservationCollapse (it's the comonad
+// extract that remembers its context). The collapse instance here uses
+// the simpler A → S signal via baseline coverage health.
+
+import type { ObservationCollapse } from '../domain/kernel/observation-collapse';
+
+export const timingBaselineCollapse: ObservationCollapse<
+  StepExecutionReceipt,
+  TimingObservation,
+  TimingBaselineIndex,
+  number
+> = {
+  extract: extractTimingObservations,
+  aggregate: (observations, prior) => {
+    // Reconstruct steps-like data from observations for updateTimingBaselines.
+    // Since updateTimingBaselines takes StepExecutionReceipt[], we build
+    // baselines directly from observations here.
+    if (observations.length === 0 && prior) return prior;
+    const now = new Date().toISOString();
+
+    // Group observations by category
+    const byCategory = new Map<string, TimingObservation[]>();
+    for (const obs of observations) {
+      const arr = byCategory.get(obs.category) ?? [];
+      arr.push(obs);
+      byCategory.set(obs.category, arr);
+    }
+
+    // Merge with prior baselines
+    const existingMap = new Map<string, StepTimingBaseline>(
+      (prior?.baselines ?? []).map((b) => [b.stepCategory, b]),
+    );
+    const allCategories = new Set([...existingMap.keys(), ...byCategory.keys()]);
+    const baselines: StepTimingBaseline[] = [];
+
+    for (const cat of allCategories) {
+      const existingBaseline = existingMap.get(cat);
+      const newObs = byCategory.get(cat) ?? [];
+
+      const phaseSamples = new Map<TimingPhase, number[]>();
+      for (const phase of TIMING_PHASES) {
+        const existingPhase = existingBaseline?.phases.find((p) => p.phase === phase);
+        const existingValues: number[] = existingPhase
+          ? Array(Math.min(existingPhase.sampleCount, 50)).fill(existingPhase.median) as number[]
+          : [];
+        const newValues = newObs.map((o) => o.phases[phase]);
+        phaseSamples.set(phase, [...existingValues, ...newValues].slice(-50));
+      }
+
+      baselines.push({
+        stepCategory: cat,
+        phases: buildPhaseBaselines(phaseSamples),
+        updatedAt: now,
+      });
+    }
+
+    return { kind: 'timing-baseline-index', version: 1, baselines, updatedAt: now };
+  },
+  signal: computeBaselineCoverage,
+};

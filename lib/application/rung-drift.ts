@@ -235,3 +235,36 @@ export function computeRungStability(
 
   return stableCount / history.entries.length;
 }
+
+// ─── ObservationCollapse instance ──────────────────────────────────────────
+//
+// Rung drift as ObservationCollapse<R,O,A,S>:
+//   extract: StepExecutionReceipt → RungObservation
+//   aggregate: RungObservation → RungHistoryIndex
+//   signal: RungHistoryIndex → number (stability fraction)
+
+import type { ObservationCollapse } from '../domain/kernel/observation-collapse';
+
+export const rungDriftCollapse: ObservationCollapse<
+  StepExecutionReceipt,
+  RungObservation,
+  RungHistoryIndex,
+  number
+> = {
+  extract: extractRungObservations,
+  aggregate: (observations, prior) => {
+    // Merge new observations with prior history entries' rung data
+    if (!prior) return buildRungHistory(observations);
+    // Reconstruct observations from prior history and append new ones
+    const priorObs: RungObservation[] = prior.entries.flatMap((entry) =>
+      entry.rungHistory.map((rung, i) => ({
+        intentRef: entry.intentRef,
+        rung,
+        succeeded: true, // prior history doesn't track success, assume true
+        runAt: `prior-${i}`,
+      })),
+    );
+    return buildRungHistory([...priorObs, ...observations]);
+  },
+  signal: computeRungStability,
+};

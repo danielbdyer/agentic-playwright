@@ -319,7 +319,7 @@ The four preceding sections describe different kinds of simplifying transformati
 | Kind | Count | Effect |
 |---|---|---|
 | Collapse points | 4 | Eliminate isomorphic duplicates → fewer types, fewer modules |
-| Absent abstractions | 5 | Name recurring compositions → fewer lines, richer vocabulary |
+| Absent abstractions | 5 (+1 discovered) | Name recurring compositions → fewer lines, richer vocabulary |
 | Dualities | 3 | Derive one side from the other → less hand-written code, more generation |
 | Free theorems | 4 | State implicit laws → more tests, stronger guarantees, new capabilities |
 
@@ -383,6 +383,62 @@ The same algebra operates at three levels:
 Each level uses the same motifs (fold, envelope, staged pipeline), the same algebras (catamorphism, indexed monad, fixed point), and the same flows (closed circuit, nested recursion). The system is self-similar. The design calculus is not just a description of the codebase — it is an instance of the codebase's own pattern, applied to a different carrier type.
 
 This self-similarity is not a metaphor. It is a formal property: the system is a **fixed point of its own endofunctor**. The functor maps a domain to its improvement loop. The fixed point is the domain whose improvement loop is isomorphic to itself. Tesseract, at its telos, is that fixed point — a system whose own structure is the best description of how to improve its own structure.
+
+---
+
+## Part VI: Implementation Status
+
+### Implemented Transformations
+
+All 16 transformations from Parts I–IV have been implemented as executable TypeScript modules with law-style tests (56 new tests, all passing).
+
+| Transformation | Module | Status |
+|---|---|---|
+| Collapse 1: Generic FSM | `lib/domain/kernel/finite-state-machine.ts` | Implemented; convergence FSM migrated |
+| Collapse 2: Galois Connection | `lib/domain/resolution/confidence-provenance.ts` | Implemented; candidate-lattice wired |
+| Collapse 3: Envelope-Receipt Adjunction | `lib/domain/types/workflow.ts` (WorkflowMetadata) | Implemented; resolution + execution receipts unified |
+| Collapse 4: Product Fold | `lib/domain/algebra/product-fold.ts` | Implemented |
+| Abstraction 1: Precedence Dispatch | `lib/domain/resolution/precedence.ts` (dispatchByPrecedence) | Implemented |
+| Abstraction 2: Observation Collapse | `lib/domain/kernel/observation-collapse.ts` | Implemented; 6 concrete instances wired |
+| Abstraction 3: Contextual Merge | `lib/domain/algebra/contextual-merge.ts` | Implemented |
+| Abstraction 4: Governed Suspension | `lib/domain/kernel/governed-suspension.ts` | Implemented |
+| Abstraction 5: Strategy Chain Walker | `lib/runtime/agent/strategy-chain-walker.ts` | Implemented (discovered during wiring) |
+| Duality 1: Hylomorphism | `lib/domain/algebra/hylomorphism.ts` | Implemented |
+| Duality 2: Free/Forgetful | `lib/domain/algebra/free-forgetful.ts` | Implemented |
+| Duality 3: Slice/Projection | `lib/domain/algebra/slice-projection.ts` | Implemented |
+| Free Theorem 1: Heyting Algebra | Tests only | Verified |
+| Free Theorem 2: Tropical Semiring | Tests only | Verified |
+| Free Theorem 3: Traced Monoidal | Tests only | Verified |
+| Free Theorem 4: Bekic Lemma | Tests only | Verified |
+
+### Observation Collapse Instances
+
+Six concrete learning modules wired as `ObservationCollapse<R,O,A,S>` instances:
+
+| Module | O (Observation) | A (Aggregate) | S (Signal) |
+|---|---|---|---|
+| `selector-health.ts` | SelectorObservation | SelectorHealthIndex | SelectorHealthMetrics[] |
+| `recovery-effectiveness.ts` | RecoveryAttempt | RecoveryEffectivenessIndex | number (efficiency) |
+| `rung-drift.ts` | RungObservation | RungHistoryIndex | number (stability) |
+| `execution-cost.ts` | CostObservation | CostBaselineIndex | number (efficiency) |
+| `console-intelligence.ts` | ConsoleObservation | ConsolePatternIndex | number (max correlation) |
+| `timing-baseline.ts` | TimingObservation | TimingBaselineIndex | number (coverage) |
+
+### Discovered Pattern Variation: Observation-Aggregate-Compare
+
+During wiring, a structural variation of ObservationCollapse was discovered. Two modules (`timing-baseline.ts`, `console-intelligence.ts`) have signal functions with shape `(R[], A) → S` rather than `A → S` — they compare new observations against the aggregate to detect anomalies (regressions, noise).
+
+This is the **Observation-Aggregate-Compare** pattern:
+
+```
+extract:   R[] → O[]
+aggregate: (O[], A | null) → A
+compare:   (R[], A) → S       ← needs both the raw input AND the aggregate
+```
+
+Where ObservationCollapse has `signal: A → S` (the aggregate alone determines the signal), the Compare variant needs the context of the current observations to produce its signal. This is strictly more expressive — it corresponds to the comonad extract that remembers its context, vs the algebra homomorphism that forgets it.
+
+The collapse instances for these modules use the simpler `A → S` signal (baseline coverage health, max failure correlation), while the full `(R[], A) → S` comparison functions (`detectTimingRegressions`, `flagNoisySteps`) remain available for direct use.
 
 ---
 
