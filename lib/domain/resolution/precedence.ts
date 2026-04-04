@@ -1,3 +1,4 @@
+import type { OrderedPrecedencePolicy } from './precedence-policy';
 import {
   dataResolutionPrecedencePolicy,
   precedencePolicies,
@@ -18,12 +19,19 @@ export const runSelectionPrecedenceLaw = runSelectionPrecedencePolicy.rungs;
  * 3) approved route knowledge variants
  * 4) screen canonical url fallback
  */
-export const routeSelectionPrecedenceLaw = [
-  'explicit-url',
-  'runbook-binding',
-  'route-knowledge',
-  'screen-default',
-] as const;
+export const routeSelectionPrecedencePolicy = {
+  concern: 'route-selection',
+  rungs: [
+    'explicit-url',
+    'runbook-binding',
+    'route-knowledge',
+    'screen-default',
+  ],
+} as const satisfies OrderedPrecedencePolicy<
+  'explicit-url' | 'runbook-binding' | 'route-knowledge' | 'screen-default'
+>;
+
+export const routeSelectionPrecedenceLaw = routeSelectionPrecedencePolicy.rungs;
 
 export type ResolutionPrecedenceRung = (typeof resolutionPrecedenceLaw)[number];
 export type DataResolutionPrecedenceRung = (typeof dataResolutionPrecedenceLaw)[number];
@@ -51,6 +59,39 @@ export function chooseByPrecedence<TEntry, TRung extends string>(
   for (const rung of law) {
     const value = indexed.get(rung);
     if (value !== undefined) return value;
+  }
+  return null;
+}
+
+/**
+ * Precedence-governed dispatch with provenance — the named abstraction.
+ *
+ * Like chooseByPrecedence, but returns both the winning value AND
+ * the rung that produced it. This is the formal "Enveloped<T, { source, rank }>"
+ * from the design calculus: every dispatch result carries its provenance.
+ *
+ * @see docs/design-calculus.md § Abstraction 1: Precedence-Governed Dispatch
+ */
+export interface PrecedenceResult<TEntry, TRung extends string> {
+  readonly value: TEntry;
+  readonly rung: TRung;
+  readonly rank: number;
+}
+
+export function dispatchByPrecedence<TEntry, TRung extends string>(
+  candidates: ReadonlyArray<{ rung: TRung; value: TEntry | null | undefined }>,
+  law: ReadonlyArray<TRung>,
+): PrecedenceResult<TEntry, TRung> | null {
+  const indexed = new Map<TRung, TEntry>();
+  for (const candidate of candidates) {
+    if (candidate.value !== null && candidate.value !== undefined && !indexed.has(candidate.rung)) {
+      indexed.set(candidate.rung, candidate.value);
+    }
+  }
+  for (let rank = 0; rank < law.length; rank++) {
+    const rung = law[rank]!;
+    const value = indexed.get(rung);
+    if (value !== undefined) return { value, rung, rank };
   }
   return null;
 }
