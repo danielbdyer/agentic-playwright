@@ -305,3 +305,49 @@ export function extractStrongestCorrelations(
 ): readonly SignalCorrelation[] {
   return report.signalCorrelations.slice(0, n);
 }
+
+// ─── ObservationCollapse instance ──────────────────────────────────────────
+//
+// Execution coherence as ObservationCollapse<R,O,A,S>:
+//   R = LearningState (the input)
+//   O = ScreenHealthProfile (extracted per-screen health)
+//   A = ExecutionCoherenceReport (the aggregate report)
+//   S = number (composite health score)
+
+import type { ObservationCollapse } from '../domain/kernel/observation-collapse';
+
+export const executionCoherenceCollapse: ObservationCollapse<
+  ExecutionCoherenceInput,
+  ScreenHealthProfile,
+  ExecutionCoherenceReport,
+  number
+> = {
+  extract: (inputs) => {
+    // Extract screen health profiles from each input's learning state
+    return inputs.flatMap((input) => {
+      const screenSignals = aggregateScreenSignals(input.learningState);
+      return [...screenSignals.entries()].map(([screen, signals]) =>
+        computeHealthProfile(screen, signals),
+      );
+    });
+  },
+  aggregate: (profiles, _prior) => {
+    const sorted = [...profiles].sort((a, b) => a.compositeScore - b.compositeScore);
+    const correlations = computeSignalCorrelations(sorted);
+    const hotScreens = sorted.filter((p) => p.signalCount >= 2).map((p) => p.screen);
+    const compositeHealthScore = sorted.length > 0
+      ? sorted.reduce((sum, p) => sum + p.compositeScore, 0) / sorted.length
+      : 1;
+
+    return {
+      kind: 'execution-coherence-report',
+      version: 1,
+      generatedAt: new Date().toISOString(),
+      screenHealth: sorted,
+      signalCorrelations: correlations,
+      compositeHealthScore,
+      hotScreens,
+    };
+  },
+  signal: (report) => report.compositeHealthScore,
+};

@@ -276,3 +276,47 @@ export function isGovernanceHealthy(
 ): boolean {
   return report.overallGovernanceHealth >= threshold;
 }
+
+// ─── ObservationCollapse instance ──────────────────────────────────────────
+//
+// Governance intelligence as ObservationCollapse<R,O,A,S>:
+//   R = GovernanceIntelligenceInput (the full input bundle)
+//   O = GovernanceFrictionPoint (extracted friction analysis)
+//   A = GovernanceIntelligenceReport (the aggregate report)
+//   S = number (overall governance health score)
+
+import type { ObservationCollapse } from '../domain/kernel/observation-collapse';
+
+export const governanceIntelligenceCollapse: ObservationCollapse<
+  GovernanceIntelligenceInput,
+  GovernanceFrictionPoint,
+  GovernanceIntelligenceReport,
+  number
+> = {
+  extract: (inputs) => inputs.flatMap((input) => computeFrictionPoints(input.proposalBundles)),
+  aggregate: (frictionPoints, _prior) => {
+    // Build a minimal report from friction points — this is a projection
+    const totalProposals = frictionPoints.reduce((sum, fp) => sum + fp.totalProposals, 0);
+    const totalBlocked = frictionPoints.reduce((sum, fp) => sum + fp.blockedCount, 0);
+    const totalActivated = frictionPoints.reduce((sum, fp) => sum + fp.activatedCount, 0);
+    const trustPolicyBlockRate = totalProposals > 0 ? totalBlocked / totalProposals : 0;
+    const proposalActivationRate = totalProposals > 0 ? totalActivated / totalProposals : 1;
+    const overallGovernanceHealth = (1 - trustPolicyBlockRate) * 0.55 + proposalActivationRate * 0.45;
+
+    return {
+      kind: 'governance-intelligence-report',
+      version: 1,
+      generatedAt: new Date().toISOString(),
+      contradictionReport: null,
+      architectureReport: null,
+      frictionPoints,
+      contradictionImpacts: [],
+      overallGovernanceHealth,
+      trustPolicyBlockRate,
+      contradictionSeverityScore: 0,
+      architecturePurityRate: 1,
+      proposalActivationRate,
+    };
+  },
+  signal: (report) => report.overallGovernanceHealth,
+};

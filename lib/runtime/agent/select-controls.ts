@@ -1,15 +1,15 @@
 import type { StepResolution, GroundedStep } from '../../domain/types';
-import { chooseByPrecedence, dataResolutionPrecedenceLaw, resolutionPrecedenceLaw, runSelectionPrecedenceLaw } from '../../domain/resolution/precedence';
+import { dispatchByPrecedence, dataResolutionPrecedenceLaw, resolutionPrecedenceLaw, runSelectionPrecedenceLaw } from '../../domain/resolution/precedence';
 import { uniqueSorted } from './shared';
 import type { RuntimeStepAgentContext } from './types';
 
 export function selectedRunbook(task: GroundedStep, context: RuntimeStepAgentContext) {
   const runbooks = context.resolutionContext.controls.runbooks;
-  return chooseByPrecedence([
+  return dispatchByPrecedence([
     { rung: 'cli-flag', value: runbooks.find((entry) => entry.name === context.controlSelection?.runbook) ?? null },
     { rung: 'runbook', value: runbooks.find((entry) => entry.isDefault) ?? null },
     { rung: 'repo-default', value: runbooks[0] ?? null },
-  ], runSelectionPrecedenceLaw);
+  ], runSelectionPrecedenceLaw)?.value ?? null;
 }
 
 export function selectedControlResolution(task: GroundedStep, context: RuntimeStepAgentContext): StepResolution | null {
@@ -19,10 +19,10 @@ export function selectedControlResolution(task: GroundedStep, context: RuntimeSt
   const selected = selectedName
     ? scoped.find((entry) => entry.name === selectedName) ?? null
     : null;
-  return chooseByPrecedence([
+  return dispatchByPrecedence([
     { rung: 'explicit', value: task.controlResolution },
     { rung: 'control', value: selected?.resolution ?? scoped[0]?.resolution ?? null },
-  ], resolutionPrecedenceLaw);
+  ], resolutionPrecedenceLaw)?.value ?? null;
 }
 
 
@@ -39,12 +39,12 @@ export function selectedDomExplorationPolicy(task: GroundedStep, context: Runtim
 export function selectedDataset(task: GroundedStep, context: RuntimeStepAgentContext) {
   const datasets = context.resolutionContext.controls.datasets;
   const runbook = selectedRunbook(task, context);
-  return chooseByPrecedence([
+  return dispatchByPrecedence([
     { rung: 'explicit', value: datasets.find((entry) => entry.name === context.controlSelection?.dataset) ?? null },
     { rung: 'runbook-dataset-binding', value: datasets.find((entry) => entry.name === runbook?.dataset) ?? null },
     { rung: 'dataset-default', value: datasets.find((entry) => entry.isDefault) ?? null },
     { rung: 'hint-default-value', value: datasets[0] ?? null },
-  ], dataResolutionPrecedenceLaw);
+  ], dataResolutionPrecedenceLaw)?.value ?? null;
 }
 
 export function selectedControlRefs(task: GroundedStep, context: RuntimeStepAgentContext): string[] {

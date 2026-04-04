@@ -235,3 +235,47 @@ export function extractIncoherentIntents(
     .sort((a, b) => a.coherenceScore - b.coherenceScore)
     .slice(0, n);
 }
+
+// ─── ObservationCollapse instance ──────────────────────────────────────────
+//
+// Interpretation coherence as ObservationCollapse<R,O,A,S>:
+//   R = InterpretationCoherenceInput (rung index + drift records)
+//   O = IntentCoherenceProfile (per-intent coherence)
+//   A = InterpretationCoherenceReport (the aggregate report)
+//   S = number (overall coherence score)
+
+import type { ObservationCollapse } from '../domain/kernel/observation-collapse';
+
+export const interpretationCoherenceCollapse: ObservationCollapse<
+  InterpretationCoherenceInput,
+  IntentCoherenceProfile,
+  InterpretationCoherenceReport,
+  number
+> = {
+  extract: (inputs) =>
+    inputs.flatMap((input) => computeProfiles(input.rungIndex, input.driftRecords)),
+  aggregate: (profiles, _prior) => {
+    const correlations = detectCorrelations(profiles);
+    const overallCoherenceScore = profiles.length > 0
+      ? profiles.reduce((sum, p) => sum + p.coherenceScore, 0) / profiles.length
+      : 1;
+    const degradingWithChanges = profiles.filter(
+      (p) => p.rungDriftDirection === 'degrading' && p.interpretationChangeCount > 0,
+    ).length;
+    const totalWithChanges = profiles.filter(
+      (p) => p.interpretationChangeCount > 0,
+    ).length;
+
+    return {
+      kind: 'interpretation-coherence-report',
+      version: 1,
+      generatedAt: new Date().toISOString(),
+      profiles,
+      correlations,
+      overallCoherenceScore,
+      driftExplainedByRungChange: totalWithChanges > 0 ? degradingWithChanges / totalWithChanges : 0,
+      incoherentIntentCount: profiles.filter((p) => !p.isCoherent).length,
+    };
+  },
+  signal: (report) => report.overallCoherenceScore,
+};

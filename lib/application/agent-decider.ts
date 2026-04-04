@@ -11,6 +11,7 @@
 import { Effect, Duration } from 'effect';
 import type { AgentWorkItem } from '../domain/types';
 import type { WorkItemDecider } from './agent-workbench';
+import { type GovernanceVerdict, approved, suspended } from '../domain/kernel/governed-suspension';
 
 // ─── Types ───
 
@@ -121,4 +122,24 @@ export function createDualModeDecider(options: DualModeDeciderOptions): WorkItem
               ? options.humanDecider(item)
               : Effect.succeed(agentResult)),
         );
+}
+
+// ─── Governed Suspension bridge ──────────────────────────────────────────
+//
+// The escalation heuristic is a GovernanceVerdict:
+//   - Agent-routable items → Approved (agent can decide)
+//   - Items needing human → Suspended (escalated to human decider)
+
+/**
+ * Express the escalation decision as a GovernanceVerdict.
+ * Approved = agent can handle, Suspended = needs human escalation.
+ * Uses the default escalation heuristic or a custom one.
+ */
+export function escalationVerdict(
+  item: AgentWorkItem,
+  heuristic: (item: AgentWorkItem) => boolean = defaultEscalationHeuristic,
+): GovernanceVerdict<AgentWorkItem, AgentWorkItem> {
+  return heuristic(item)
+    ? suspended(item, `Escalation: confidence=${item.evidence.confidence}, kind=${item.kind}`)
+    : approved(item);
 }

@@ -397,11 +397,11 @@ All 16 transformations from Parts I–IV have been implemented as executable Typ
 | Collapse 1: Generic FSM | `lib/domain/kernel/finite-state-machine.ts` | Implemented; convergence FSM migrated |
 | Collapse 2: Galois Connection | `lib/domain/resolution/confidence-provenance.ts` | Implemented; candidate-lattice wired |
 | Collapse 3: Envelope-Receipt Adjunction | `lib/domain/types/workflow.ts` (WorkflowMetadata) | Implemented; resolution + execution receipts unified |
-| Collapse 4: Product Fold | `lib/domain/algebra/product-fold.ts` | Implemented |
-| Abstraction 1: Precedence Dispatch | `lib/domain/resolution/precedence.ts` (dispatchByPrecedence) | Implemented; select-run-context wired |
-| Abstraction 2: Observation Collapse | `lib/domain/kernel/observation-collapse.ts` | Implemented; 6 instances + learning-state fusion |
-| Abstraction 3: Contextual Merge | `lib/domain/algebra/contextual-merge.ts` | Implemented |
-| Abstraction 4: Governed Suspension | `lib/domain/kernel/governed-suspension.ts` | Implemented; auto-approval + proposal activation wired |
+| Collapse 4: Product Fold | `lib/domain/algebra/product-fold.ts` | Implemented; execution/fold.ts monoids wired |
+| Abstraction 1: Precedence Dispatch | `lib/domain/resolution/precedence.ts` (dispatchByPrecedence) | Fully wired — all consumers upgraded |
+| Abstraction 2: Observation Collapse | `lib/domain/kernel/observation-collapse.ts` | Fully wired — 9 instances across 2 carrier types |
+| Abstraction 3: Contextual Merge | `lib/domain/algebra/contextual-merge.ts` | Implemented; deepMergeLattice in proposal-patches |
+| Abstraction 4: Governed Suspension | `lib/domain/kernel/governed-suspension.ts` | Fully wired — 4 consumers |
 | Abstraction 5: Strategy Chain Walker | `lib/runtime/agent/strategy-chain-walker.ts` | Implemented (discovered during wiring) |
 | Duality 1: Hylomorphism | `lib/domain/algebra/hylomorphism.ts` | Implemented; async variant added |
 | Duality 2: Free/Forgetful | `lib/domain/algebra/free-forgetful.ts` | Implemented |
@@ -413,7 +413,9 @@ All 16 transformations from Parts I–IV have been implemented as executable Typ
 
 ### Observation Collapse Instances
 
-Six concrete learning modules wired as `ObservationCollapse<R,O,A,S>` instances:
+Nine concrete modules wired as `ObservationCollapse<R,O,A,S>` instances across two carrier types:
+
+**Over StepExecutionReceipt (learning pipeline):**
 
 | Module | O (Observation) | A (Aggregate) | S (Signal) |
 |---|---|---|---|
@@ -423,6 +425,16 @@ Six concrete learning modules wired as `ObservationCollapse<R,O,A,S>` instances:
 | `execution-cost.ts` | CostObservation | CostBaselineIndex | number (efficiency) |
 | `console-intelligence.ts` | ConsoleObservation | ConsolePatternIndex | number (max correlation) |
 | `timing-baseline.ts` | TimingObservation | TimingBaselineIndex | number (coverage) |
+
+All six invoked via `collapseObservations()` in `learning-state.ts` (`aggregateLearningState`).
+
+**Over domain-specific carrier types (intelligence pipeline):**
+
+| Module | R (Receipt) | O (Observation) | A (Aggregate) | S (Signal) |
+|---|---|---|---|---|
+| `governance-intelligence.ts` | GovernanceIntelligenceInput | GovernanceFrictionPoint | GovernanceIntelligenceReport | number (health) |
+| `execution-coherence.ts` | ExecutionCoherenceInput | ScreenHealthProfile | ExecutionCoherenceReport | number (composite) |
+| `interpretation-coherence.ts` | InterpretationCoherenceInput | IntentCoherenceProfile | InterpretationCoherenceReport | number (coherence) |
 
 ### Discovered Pattern Variation: Observation-Aggregate-Compare
 
@@ -438,38 +450,62 @@ compare:   (R[], A) → S       ← needs both the raw input AND the aggregate
 
 Where ObservationCollapse has `signal: A → S` (the aggregate alone determines the signal), the Compare variant needs the context of the current observations to produce its signal. This is strictly more expressive — it corresponds to the comonad extract that remembers its context, vs the algebra homomorphism that forgets it.
 
-The collapse instances for these modules use the simpler `A → S` signal (baseline coverage health, max failure correlation), while the full `(R[], A) → S` comparison functions (`detectTimingRegressions`, `flagNoisySteps`) remain available for direct use.
+### Precedence Dispatch Consumers
 
-### Consumer Wiring
+All `chooseByPrecedence` call sites upgraded to `dispatchByPrecedence` (value + rung + rank provenance):
 
-Beyond the core abstractions and their instances, the design calculus infrastructure has been wired into these application-layer consumers:
+| Module | Call Sites | Precedence Law |
+|---|---|---|
+| `select-run-context.ts` | mode, providerId | `runSelectionPrecedenceLaw` |
+| `select-controls.ts` | runbook, controlResolution, dataset | `runSelection`, `resolution`, `dataResolution` |
+| `controls.ts` | controlResolution, findRunbook, activeDataset | `runSelectionPrecedencePolicy` |
 
-**Product fold fusion** — `lib/application/learning-state.ts` (`aggregateLearningState`):
-All six ObservationCollapse instances are invoked via `collapseObservations()` over the same `StepExecutionReceipt[]` stream. This replaces the prior pattern of manually calling individual extract/aggregate/merge functions. The six pipelines run as independent collapses producing typed aggregates that feed into `deriveSignals()`.
+### Governed Suspension Consumers
 
-**Precedence dispatch provenance** — `lib/application/execution/select-run-context.ts`:
-Mode selection and provider selection upgraded from `chooseByPrecedence` (value-only) to `dispatchByPrecedence` (value + rung + rank). Currently extracts `.value` at call sites; provenance is available for future observability.
+Four consumers bridged to `GovernanceVerdict<T, I>`:
 
-**Governed suspension: auto-approval chain** — `lib/application/auto-approval.ts` (`autoApprovalVerdict`):
-The four sequential auto-approval gates (policy enabled → artifact type allowed → confidence threshold → evidence required) expressed as a `chainVerdict` composition. Each gate returns `Approved` or `Suspended` with typed `ReviewRequest` context.
+| Module | Function | Verdict Shape |
+|---|---|---|
+| `auto-approval.ts` | `autoApprovalVerdict` | 4-gate `chainVerdict` chain → Approved / Suspended(ReviewRequest) |
+| `activate-proposals.ts` | `proposalGovernanceVerdict` | `fromGovernance` bridge → Approved / Suspended / Blocked |
+| `dashboard-decider.ts` | `dashboardDecisionVerdict` | auto-decidable → Approved, else → Suspended(AgentWorkItem) |
+| `agent-decider.ts` | `escalationVerdict` | heuristic → Approved (agent), Suspended (human escalation) |
 
-**Governed suspension: proposal activation** — `lib/application/activate-proposals.ts` (`proposalGovernanceVerdict`):
-Trust policy decisions converted to `GovernanceVerdict` via `fromGovernance`, bridging the string-based governance (`'allow' | 'review' | 'deny'`) with the typed ADT.
+### Product Fold Consumers
 
-**Async hylomorphism** — `lib/domain/algebra/hylomorphism.ts` (`runHyloAsync`):
-The async variant of the deforested unfold/fold composition, designed for Effect-based improvement loops where each iteration performs I/O. Integrates via `Effect.promise(() => runHyloAsync(...))`.
+| Module | Fold Values | Description |
+|---|---|---|
+| `execution/fold.ts` | `timingFold`, `costFold` | Timing and cost monoids as `Fold<StepEntry, T>` values |
 
-### Remaining Wiring Opportunities
+### Contextual Merge Consumers
 
-| Opportunity | Target | Combinator | Status |
-|---|---|---|---|
-| Streaming improvement loop | `lib/application/dogfood.ts` | `runHyloAsync` | Ready (async hylo implemented) |
-| Convergence proof deforestation | `lib/application/convergence-proof.ts` | `runHyloAsync` | Ready |
-| Control resolution precedence | `lib/application/controls.ts` | `dispatchByPrecedence` | Available |
-| Proposal patch merging | `lib/application/proposal-patches.ts` | `ContextualMerge` | Available |
-| Knowledge overlay composition | `lib/runtime/agent/select-controls.ts` | `ContextualMerge` | Available |
-| Dashboard decision workflow | `lib/application/dashboard-decider.ts` | `GovernanceVerdict` | Available |
-| Agent escalation heuristics | `lib/application/agent-decider.ts` | `GovernanceVerdict` + `chainVerdict` | Available |
+| Module | Instance | Lattice |
+|---|---|---|
+| `proposal-patches.ts` | `deepMergeLattice` | Right-biased deep merge with subset-of-keys order |
+
+### Consumer Wiring Summary
+
+**Product fold fusion** — `learning-state.ts`: All 6 step-receipt ObservationCollapse instances invoked over the same stream.
+
+**Async hylomorphism** — `hylomorphism.ts` (`runHyloAsync`): Ready for dogfood.ts and convergence-proof.ts deforestation.
+
+### Assessed and Deferred Opportunities
+
+These were assessed during wiring and deferred with rationale:
+
+| Opportunity | Rationale for deferral |
+|---|---|
+| `learning-health.ts` → ObservationCollapse | Three independent coverage computations over `GroundedSpecFragment[]` + `TrainingCorpusManifest`; not a single extract→aggregate→signal pipeline but three parallel ones. Already well-structured. |
+| `learning-rankings.ts` → ObservationCollapse | Already uses composable `ScoringRule<T>` abstraction via `combineScoringRules`. Adding ObservationCollapse would be redundant naming. |
+| `learning-bottlenecks.ts` → ObservationCollapse | Input is `GroundedSpecFragment[] + RunStepSummary[]` from two sources; the heterogeneous input doesn't fit a single-carrier ObservationCollapse cleanly. |
+| `improvement-intelligence.ts` → ObservationCollapse | Correlates two different observation types (`PipelineFailureMode` and `WorkflowHotspot`); the dual-source pattern doesn't fit the single-carrier combinator. |
+| `signal-maturation.ts` → ObservationCollapse | Utility functions (dampening, threshold checks) with scalar inputs, not an observation stream pattern. |
+| `dogfood.ts` → `runHyloAsync` | The unfold step is deeply interleaved with Effect (Playwright, file system, convergence FSM updates). Requires factoring out a pure fold step from the `buildLedger` function. Infrastructure (`runHyloAsync`) is in place; refactoring is a standalone task. |
+| `convergence-proof.ts` → `runHyloAsync` | Same as dogfood.ts — the trial loop is recursive with Effect I/O. Infrastructure ready. |
+| Proposal lifecycle FSM | Activation states (`pending → activated \| blocked`) are checked across 5+ files via `activation.status` string matching. Formalizing as FSM would require extracting the lifecycle from distributed checks — a significant refactoring. |
+| Dashboard lazy view (Slice/Projection) | Dashboard currently projects everything then filters. Lazy computation via `verifyNaturality` would require rearchitecting the view pipeline — a performance optimization, not a correctness improvement. |
+| Resolution exhaustion trail → `SearchTrail` | Manual `exhaustionEntry()` construction at 20+ call sites in `resolution-stages.ts`. `strategy-chain-walker.ts` already bridges `freeSearch` with the resolution domain for the outer walk. Inner rung-level exhaustion would need per-rung refactoring. |
+| Knowledge overlay → `ContextualMerge` | `select-controls.ts` overlays multiple control sources but uses precedence selection (winner-take-all), not lattice merge. The two patterns are distinct: precedence selects one value, merge combines all values. |
 
 ---
 

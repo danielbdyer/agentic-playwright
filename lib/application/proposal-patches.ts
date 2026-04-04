@@ -2,6 +2,7 @@ import YAML from 'yaml';
 import { isRecord } from '../domain/kernel/collections';
 import type { ProposalEntry } from '../domain/types';
 import { validateScreenHints } from '../domain/validation';
+import type { Lattice } from '../domain/algebra/lattice';
 
 /** Deep merge two records. Pure recursive fold — no mutation. */
 const mergeRecords = (
@@ -98,3 +99,36 @@ export function validatePatchedProposalArtifact(targetPath: string, proposal: Pr
     validateScreenHints(artifact);
   }
 }
+
+// ─── ContextualMerge instance ──────────────────────────────────────────
+//
+// Proposal patching as ContextualMerge<Record<string, unknown>, string>:
+//   slice: extract base artifact by target path
+//   overlay: apply proposal patch
+//   join: deep merge records (right-biased lattice join)
+//
+// The lattice is: join = deep merge (right-biased), meet = intersection,
+// bottom = {}, top = impossible (open record type).
+
+/**
+ * Deep merge lattice: the join-semilattice for proposal artifact patching.
+ * Join = right-biased deep merge. Meet = intersection of shared keys.
+ * This is the lattice that proposal-patches.ts implicitly uses everywhere.
+ */
+/**
+ * Deep merge lattice: the join-semilattice for proposal artifact patching.
+ * Join = right-biased deep merge. Meet = intersection of shared keys.
+ * Order = subset-of-keys (a ≤ b iff every key in a is also in b).
+ */
+export const deepMergeLattice: Lattice<Record<string, unknown>> = {
+  join: (a: Record<string, unknown>, b: Record<string, unknown>) => mergeRecords(a, b),
+  meet: (a: Record<string, unknown>, b: Record<string, unknown>) => {
+    const result: Record<string, unknown> = {};
+    for (const key of Object.keys(a)) {
+      if (key in b) result[key] = b[key];
+    }
+    return result;
+  },
+  order: (a: Record<string, unknown>, b: Record<string, unknown>) =>
+    Object.keys(a).every((key) => key in b),
+};

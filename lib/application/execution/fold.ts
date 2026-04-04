@@ -2,10 +2,12 @@ import type { ScenarioRunFold, ScenarioRunPlan, StepExecutionReceipt, Translatio
 import type { RuntimeScenarioStepResult } from '../ports';
 import type { PersistedEvidenceArtifact } from './persist-evidence';
 import { uniqueSorted } from '../../domain/kernel/collections';
+import type { Fold } from '../../domain/algebra/product-fold';
 
 // ─── Monoid Combinators ───
 // Each has an `empty` (identity) and `combine` (associative binary op).
 // Use with .reduce(combine, empty) for type-safe accumulation.
+// Now also exported as Fold<T,A> values for product fold composition.
 
 type Timing = StepExecutionReceipt['timing'];
 type Cost = StepExecutionReceipt['cost'];
@@ -28,6 +30,22 @@ const combineCost = (a: Cost, b: Cost | null | undefined): Cost => ({
   instructionCount: a.instructionCount + (b?.instructionCount ?? 0),
   diagnosticCount: a.diagnosticCount + (b?.diagnosticCount ?? 0),
 });
+
+// ─── Fold<T,A> values (design calculus § Collapse 4) ───
+
+type StepEntry = { readonly timing: Timing; readonly cost: Cost };
+
+/** Timing monoid as a Fold<T,A> value. */
+export const timingFold: Fold<StepEntry, Timing> = {
+  initial: emptyTiming,
+  step: (acc, item) => combineTiming(acc, item.timing),
+};
+
+/** Cost monoid as a Fold<T,A> value. */
+export const costFold: Fold<StepEntry, Cost> = {
+  initial: emptyCost,
+  step: (acc, item) => combineCost(acc, item.cost),
+};
 
 // ─── Translation Metrics (pure fold) ───
 

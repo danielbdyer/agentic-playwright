@@ -11,7 +11,7 @@ import type {
 } from '../domain/types';
 import type { WorkspaceCatalog } from './catalog';
 import { compareStrings, uniqueSorted } from '../domain/kernel/collections';
-import { chooseByPrecedence } from '../domain/resolution/precedence';
+import { dispatchByPrecedence } from '../domain/resolution/precedence';
 import { runSelectionPrecedencePolicy } from '../domain/resolution/precedence-policy';
 
 function selectorMatchesScenario(
@@ -91,10 +91,10 @@ export function controlResolutionForStep(
   selectedControlName?: string | null,
 ): StepResolution | null {
   const scoped = controls.resolutionControls.filter((entry) => entry.stepIndex === stepIndex);
-  return chooseByPrecedence([
+  return dispatchByPrecedence([
     { rung: 'cli-flag', value: selectedControlName ? scoped.find((entry) => entry.name === selectedControlName)?.resolution ?? null : null },
     { rung: 'runbook', value: scoped[0]?.resolution ?? null },
-  ], runSelectionPrecedencePolicy.rungs);
+  ], runSelectionPrecedencePolicy.rungs)?.value ?? null;
 }
 
 export function findRunbook(
@@ -104,11 +104,11 @@ export function findRunbook(
   const runtimeRunbooks = catalog.runbooks
     .map((entry) => runtimeRunbook(entry))
     .sort((left, right) => compareStrings(left.name, right.name));
-  return chooseByPrecedence([
+  return dispatchByPrecedence([
     { rung: 'cli-flag', value: options.runbookName ? runtimeRunbooks.find((entry) => entry.name === options.runbookName) ?? null : null },
     { rung: 'runbook', value: runtimeRunbooks.find((entry) => entry.isDefault) ?? null },
     { rung: 'repo-default', value: options.scenario ? runtimeRunbooks.find((entry) => selectorMatchesScenario(entry.selector, options.scenario as Scenario)) ?? null : null },
-  ], runSelectionPrecedencePolicy.rungs);
+  ], runSelectionPrecedencePolicy.rungs)?.value ?? null;
 }
 
 export function resolveRunSelection(
@@ -143,8 +143,8 @@ export function activeDatasetForRun(
   controls: RuntimeControlSession,
   runbook: RuntimeRunbookControl | null,
 ): RuntimeDatasetBinding | null {
-  return chooseByPrecedence([
+  return dispatchByPrecedence([
     { rung: 'runbook', value: runbook?.dataset ? controls.datasets.find((entry) => entry.name === runbook.dataset) ?? null : null },
     { rung: 'repo-default', value: controls.datasets.find((entry) => entry.isDefault) ?? controls.datasets[0] ?? null },
-  ], runSelectionPrecedencePolicy.rungs);
+  ], runSelectionPrecedencePolicy.rungs)?.value ?? null;
 }
