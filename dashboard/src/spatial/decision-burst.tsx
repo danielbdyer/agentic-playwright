@@ -11,7 +11,7 @@
  * Phase 6: Human-in-the-Loop Integration.
  */
 
-import { useState, useEffect, useMemo, memo } from 'react';
+import { useState, memo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { DecisionResult } from '../types';
@@ -119,26 +119,21 @@ export const DecisionBurst = memo(function DecisionBurst({
   const [done, setDone] = useState(false);
 
   // Generate burst particles once on mount
-  const burstParticles = useMemo(
-    () => createBurstParticles(origin, result, glassX, knowledgeX),
-    [origin, result, glassX, knowledgeX],
-  );
+  const burstParticles = createBurstParticles(origin, result, glassX, knowledgeX);
 
-  const { geometry, material } = useMemo(() => {
-    const max = physics.maxParticles;
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(max * 3), 3));
-    geo.setAttribute('aLife', new THREE.BufferAttribute(new Float32Array(max), 1));
-    geo.setAttribute('aColor', new THREE.BufferAttribute(new Float32Array(max * 3), 3));
-    const mat = new THREE.ShaderMaterial({
-      vertexShader: VERTEX,
-      fragmentShader: FRAGMENT,
-      transparent: true,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-    });
-    return { geometry: geo, material: mat };
-  }, [physics.maxParticles]);
+  const geoMax = physics.maxParticles;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(geoMax * 3), 3));
+  geo.setAttribute('aLife', new THREE.BufferAttribute(new Float32Array(geoMax), 1));
+  geo.setAttribute('aColor', new THREE.BufferAttribute(new Float32Array(geoMax * 3), 3));
+  const material = new THREE.ShaderMaterial({
+    vertexShader: VERTEX,
+    fragmentShader: FRAGMENT,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+  const geometry = geo;
 
   useFrame((_, delta) => {
     if (done) return;

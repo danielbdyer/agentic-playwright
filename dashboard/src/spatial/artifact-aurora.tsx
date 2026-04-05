@@ -8,7 +8,7 @@
  * Zero allocation per frame via module-level buffers.
  */
 
-import { useRef, useMemo, memo } from 'react';
+import { useRef, memo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { ArtifactWrittenEvent } from './types';

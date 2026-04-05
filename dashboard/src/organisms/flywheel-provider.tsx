@@ -8,7 +8,7 @@
  * This is a composition point, not business logic.
  */
 
-import React, { createContext, useContext, useState, useMemo } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import type { FlywheelAct } from '../types';
 import type {
   RouteNavigatedEvent,
@@ -116,8 +116,8 @@ export function FlywheelProvider({
   const [convergence, setConvergence] = useState<ConvergenceEvaluatedEvent | null>(null);
   const [iterationSummaries, setIterationSummaries] = useState<readonly IterationSummaryEvent[]>([]);
 
-  // Stable setters object — memoized so dispatch handler wiring doesn't cause re-renders
-  const setters: FlywheelSetters = useMemo(() => ({
+  // Stable setters object — React Compiler auto-memoizes
+  const setters: FlywheelSetters = {
     setCurrentRoute,
     setAriaTree,
     setSuiteSlice,
@@ -126,10 +126,9 @@ export function FlywheelProvider({
     setExecutedScenarios,
     setConvergence,
     setIterationSummaries,
-  }), []);
+  };
 
-  // Memoize the full context value
-  const value: FlywheelContextValue = useMemo(() => ({
+  const value: FlywheelContextValue = {
     enabled,
     act,
     camera,
@@ -143,12 +142,7 @@ export function FlywheelProvider({
     convergence,
     iterationSummaries,
     setters,
-  }), [
-    enabled, act, camera, narration,
-    currentRoute, ariaTree, suiteSlice, compiledScenarios,
-    executingStep, executedScenarios, convergence, iterationSummaries,
-    setters,
-  ]);
+  };
 
   return (
     <FlywheelContext.Provider value={value}>

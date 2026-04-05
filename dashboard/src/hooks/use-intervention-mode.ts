@@ -19,7 +19,7 @@
  * @see docs/first-day-flywheel-visualization.md Part VI: Intervention Mode
  */
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useRef } from 'react';
 import type { FlywheelAct } from '../types';
 
 // ─── Types ───
@@ -139,7 +139,7 @@ export function useInterventionMode(): InterventionModeState {
 
   const enterTimeRef = useRef(0);
 
-  const enterIntervention = useCallback((ctx: InterventionContext) => {
+  const enterIntervention = (ctx: InterventionContext) => {
     setActive(true);
     setContext(ctx);
     enterTimeRef.current = performance.now();
@@ -156,9 +156,9 @@ export function useInterventionMode(): InterventionModeState {
       cameraTargetOverride: cameraTarget,
       burstPending: false,
     });
-  }, []);
+  };
 
-  const submitDecision = useCallback((decision: InterventionDecision) => {
+  const submitDecision = (decision: InterventionDecision) => {
     const timeSpent = performance.now() - enterTimeRef.current;
 
     // Start burst animation
@@ -184,9 +184,9 @@ export function useInterventionMode(): InterventionModeState {
 
     setCompletedCount((prev) => prev + 1);
     setTotalInterventionTimeMs((prev) => prev + timeSpent);
-  }, [context]);
+  };
 
-  const advanceBurst = useCallback((now: number) => {
+  const advanceBurst = (now: number) => {
     setBurst((prev) => {
       if (!prev.active) return prev;
       const elapsed = now - prev.startTime;
@@ -198,7 +198,7 @@ export function useInterventionMode(): InterventionModeState {
 
       return { ...prev, progress };
     });
-  }, []);
+  };
 
   return {
     active,

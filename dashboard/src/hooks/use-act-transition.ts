@@ -21,7 +21,7 @@
  * @see docs/first-day-flywheel-visualization.md Part IV: Camera Choreography
  */
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type { FlywheelAct } from '../types';
 
 // ─── Transition Effect Descriptors ───

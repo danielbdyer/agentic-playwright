@@ -13,7 +13,7 @@
  * @see docs/first-day-flywheel-visualization.md Part I (Act 6), Part VIII
  */
 
-import { memo, useCallback } from 'react';
+import { memo } from 'react';
 import {
   computeSummary,
   hasPendingDecisions,
@@ -154,9 +154,9 @@ const DecisionRow = memo(function DecisionRow({
   onSkip,
   onToggle,
 }: DecisionRowProps) {
-  const handleApprove = useCallback(() => onApprove(item.proposalId), [onApprove, item.proposalId]);
-  const handleSkip = useCallback(() => onSkip(item.proposalId), [onSkip, item.proposalId]);
-  const handleToggle = useCallback(() => onToggle(item.proposalId), [onToggle, item.proposalId]);
+  const handleApprove = () => onApprove(item.proposalId);
+  const handleSkip = () => onSkip(item.proposalId);
+  const handleToggle = () => onToggle(item.proposalId);
 
   const isPending = item.status === 'pending';
   const statusColor = STATUS_COLORS[item.status];

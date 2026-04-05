@@ -27,7 +27,7 @@
  *   Layer 3: convergence + proposals + aurora (self-improving loop)
  */
 
-import { memo, useMemo } from 'react';
+import { memo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import type { ProbeEvent, ScreenCapture, ViewportDimensions, KnowledgeNode, ProposalActivatedEvent, ArtifactWrittenEvent } from './types';

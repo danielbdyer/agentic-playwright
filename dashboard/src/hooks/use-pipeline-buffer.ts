@@ -17,7 +17,7 @@
  * Falls back gracefully when no SharedArrayBuffer is available (remote browser).
  */
 
-import { useRef, useCallback, useState, useDeferredValue } from 'react';
+import { useRef, useState, useDeferredValue } from 'react';
 
 // ─── Pure readable-window computation (tested in pipeline-buffer-window.laws) ───
 
@@ -153,36 +153,36 @@ export function usePipelineBuffer(sab: SharedArrayBuffer | null, capacity = 1024
   }
 
   /** O(1). Poll for new events. Returns count of unread events. */
-  const poll = useCallback((): number => {
+  const poll = (): number => {
     const header = headerRef.current;
     if (!header) return 0;
     const total = Atomics.load(header, 1);
     const newCount = total - lastReadRef.current;
     return Math.min(newCount, capacity); // Cap to avoid reading stale wrapped slots
-  }, [capacity]);
+  };
 
   /** O(1). Read the i-th event from the current batch.
    *  Uses shared _event buffer — consume before next read(). */
-  const read = useCallback((batchIndex: number): BufferEvent => {
+  const read = (batchIndex: number): BufferEvent => {
     const slots = slotsRef.current;
     if (!slots) return _event;
     const index = lastReadRef.current + batchIndex;
     return decodeSlot(slots, index, capacity);
-  }, [capacity]);
+  };
 
   /** O(1). Advance the read cursor past all polled events. */
-  const totalEvents = useCallback((): number => {
+  const totalEvents = (): number => {
     const header = headerRef.current;
     if (!header) return 0;
     const total = Atomics.load(header, 1);
     lastReadRef.current = total; // Mark as read
     return total;
-  }, []);
+  };
 
   /** O(1). Map a batch-relative index to the absolute ring-buffer index. */
-  const readIndex = useCallback((batchIndex: number): number => {
+  const readIndex = (batchIndex: number): number => {
     return lastReadRef.current + batchIndex;
-  }, []);
+  };
 
   return { poll, read, readIndex, totalEvents, connected: sab !== null } as const;
 }
@@ -209,13 +209,13 @@ export function useDeferredPipelineBuffer(sab: SharedArrayBuffer | null, capacit
   const [events, setEvents] = useState<readonly BufferEvent[]>([]);
   const deferredEvents = useDeferredValue(events);
 
-  const collectFrame = useCallback(() => {
+  const collectFrame = () => {
     const count = handle.poll();
     if (count === 0) return;
     const batch: readonly BufferEvent[] = Array.from({ length: count }, (_, i) => cloneEvent(handle.read(i)));
     handle.totalEvents(); // advance cursor
     setEvents(batch);
-  }, [handle]);
+  };
 
   return { deferredEvents, collectFrame, handle } as const;
 }

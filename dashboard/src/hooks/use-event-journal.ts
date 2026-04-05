@@ -25,7 +25,7 @@
  * @see docs/first-day-flywheel-visualization.md Part VIII, Part X Challenge 3
  */
 
-import { useState, useRef, useCallback, useMemo } from 'react';
+import { useState, useRef } from 'react';
 import type { FlywheelAct } from '../types';
 import type { DashboardEventKind } from '../../../lib/domain/observation/dashboard';
 import {
@@ -119,7 +119,7 @@ export function useEventJournal(options?: EventJournalOptions): EventJournalStat
   const [recording, setRecording] = useState(true);
 
   // ── Append a live event ──
-  const appendEvent = useCallback((
+  const appendEvent = (
     type: DashboardEventKind,
     timestamp: string,
     data: unknown,
@@ -180,10 +180,10 @@ export function useEventJournal(options?: EventJournalOptions): EventJournalStat
       setTotalEvents(seq);
       setSceneState(newState);
     }
-  }, [checkpointInterval, autoBookmarks]);
+  };
 
   // ── Seek to a specific sequence number ──
-  const seekToSequence = useCallback((targetSequence: number): SceneState => {
+  const seekToSequence = (targetSequence: number): SceneState => {
     const events = eventsRef.current;
     const checkpoints = checkpointsRef.current;
 
@@ -214,15 +214,15 @@ export function useEventJournal(options?: EventJournalOptions): EventJournalStat
     setSceneState(reconstructed);
 
     return reconstructed;
-  }, []);
+  };
 
   // ── Get current state ──
-  const currentState = useCallback((): SceneState => {
+  const currentState = (): SceneState => {
     return sceneStateRef.current;
-  }, []);
+  };
 
   // ── Finalize the journal ──
-  const finalize = useCallback(() => {
+  const finalize = () => {
     setRecording(false);
 
     // Add "biggest improvement" bookmark
@@ -235,10 +235,10 @@ export function useEventJournal(options?: EventJournalOptions): EventJournalStat
     // Final state update
     setTotalEvents(eventsRef.current.length);
     setSceneState(sceneStateRef.current);
-  }, []);
+  };
 
   // ── Reset ──
-  const reset = useCallback(() => {
+  const reset = () => {
     eventsRef.current = [];
     checkpointsRef.current = [];
     sceneStateRef.current = INITIAL_SCENE_STATE;
@@ -250,10 +250,10 @@ export function useEventJournal(options?: EventJournalOptions): EventJournalStat
     setBookmarks([]);
     setCheckpointCount(0);
     setRecording(true);
-  }, []);
+  };
 
   // ── Add manual bookmark ──
-  const addBookmark = useCallback((label: string, slotIndex: number | null = null) => {
+  const addBookmark = (label: string, slotIndex: number | null = null) => {
     const events = eventsRef.current;
     if (events.length === 0) return;
 
@@ -266,7 +266,7 @@ export function useEventJournal(options?: EventJournalOptions): EventJournalStat
     );
     bookmarkStateRef.current = newState;
     setBookmarks(newState.bookmarks);
-  }, []);
+  };
 
   return {
     totalEvents,

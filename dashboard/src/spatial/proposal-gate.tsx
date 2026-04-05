@@ -9,7 +9,7 @@
  * Zero-allocation GPU rendering via shared buffers.
  */
 
-import { useMemo, memo, useCallback } from 'react';
+import { memo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { ProposalActivatedEvent } from './types';
@@ -84,26 +84,22 @@ interface ProposalGateProps {
 export const ProposalGate = memo(function ProposalGate({ events, glassX, targetX }: ProposalGateProps) {
   const { step, physics } = useParticleSimulation(GATE_PHYSICS);
 
-  const { geometry, material } = useMemo(() => {
-    const max = physics.maxParticles;
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(max * 3), 3));
-    geo.setAttribute('aLife', new THREE.BufferAttribute(new Float32Array(max), 1));
-    geo.setAttribute('aColor', new THREE.BufferAttribute(new Float32Array(max * 3), 3));
-    const mat = new THREE.ShaderMaterial({
-      vertexShader: VERTEX,
-      fragmentShader: FRAGMENT,
-      transparent: true,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-    });
-    return { geometry: geo, material: mat };
-  }, [physics.maxParticles]);
+  const max = physics.maxParticles;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(max * 3), 3));
+  geo.setAttribute('aLife', new THREE.BufferAttribute(new Float32Array(max), 1));
+  geo.setAttribute('aColor', new THREE.BufferAttribute(new Float32Array(max * 3), 3));
+  const material = new THREE.ShaderMaterial({
+    vertexShader: VERTEX,
+    fragmentShader: FRAGMENT,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+  const geometry = geo;
 
-  const buildSpawns = useCallback(
-    () => events.map((e) => proposalToParticle(e, glassX, targetX)),
-    [events, glassX, targetX],
-  );
+  const buildSpawns =
+    () => events.map((e) => proposalToParticle(e, glassX, targetX));
 
   useFrame((_, delta) => {
     const spawns = buildSpawns();

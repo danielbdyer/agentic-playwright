@@ -24,7 +24,7 @@
  * high-frequency updates (probes, proposals, artifacts).
  */
 
-import { useState, useCallback, useDeferredValue } from 'react';
+import { useState, useDeferredValue } from 'react';
 import { SpatialCanvas, SCENE_LAYOUT } from '../spatial/canvas';
 import { LiveDomPortal, PortalLoading } from '../spatial/live-dom-portal';
 import { SceneErrorBoundary } from '../atoms/error-boundary';
@@ -139,37 +139,28 @@ export function App() {
   const activeProposals = deferredProposalQueue.map((item) => item.data);
   const activeArtifacts = deferredArtifactQueue.map((item) => item.data);
 
-  // ── Callbacks (stable via useCallback) ──
-  const handleParticleArrived = useCallback(
-    (probeId: string) => probeQueue.retire(probeId),
-    [probeQueue],
-  );
+  // ── Callbacks ──
+  const handleParticleArrived = (probeId: string) => probeQueue.retire(probeId);
 
-  const handlePortalLoaded = useCallback(() => setPortalLoaded(true), []);
+  const handlePortalLoaded = () => setPortalLoaded(true);
 
-  const handleApprove3D = useCallback(
-    (workItemId: string) => {
-      setDecisionBurst({
-        origin: burstOriginForElement(activeProbes, pauseContext?.element ?? null, appViewport),
-        result: 'approved',
-      });
-      approve(workItemId);
-    },
-    [activeProbes, appViewport, approve, pauseContext?.element],
-  );
+  const handleApprove3D = (workItemId: string) => {
+    setDecisionBurst({
+      origin: burstOriginForElement(activeProbes, pauseContext?.element ?? null, appViewport),
+      result: 'approved',
+    });
+    approve(workItemId);
+  };
 
-  const handleSkip3D = useCallback(
-    (workItemId: string) => {
-      setDecisionBurst({
-        origin: burstOriginForElement(activeProbes, pauseContext?.element ?? null, appViewport),
-        result: 'skipped',
-      });
-      skip(workItemId);
-    },
-    [activeProbes, appViewport, pauseContext?.element, skip],
-  );
+  const handleSkip3D = (workItemId: string) => {
+    setDecisionBurst({
+      origin: burstOriginForElement(activeProbes, pauseContext?.element ?? null, appViewport),
+      result: 'skipped',
+    });
+    skip(workItemId);
+  };
 
-  const handleBurstComplete = useCallback(() => setDecisionBurst(null), []);
+  const handleBurstComplete = () => setDecisionBurst(null);
 
   // ── Five-zone render ──
   return (

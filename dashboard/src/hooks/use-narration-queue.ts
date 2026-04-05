@@ -7,7 +7,7 @@
  * Uses requestAnimationFrame for smooth opacity animation.
  */
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 /** Caption position on screen. */
 export type CaptionPosition =
@@ -119,7 +119,7 @@ export function useNarrationQueue(options?: {
   const counterRef = useRef(0);
   const rafRef = useRef<number | null>(null);
 
-  const animate = useCallback(() => {
+  const animate = () => {
     const now = performance.now();
     const internals = internalsRef.current;
 
@@ -160,16 +160,15 @@ export function useNarrationQueue(options?: {
     } else {
       rafRef.current = null;
     }
-  }, []);
+  };
 
-  const startLoop = useCallback(() => {
+  const startLoop = () => {
     if (rafRef.current === null) {
       rafRef.current = requestAnimationFrame(animate);
     }
-  }, [animate]);
+  };
 
-  const queueCaption = useCallback(
-    (caption: Omit<NarrationCaption, 'id'>) => {
+  const queueCaption = (caption: Omit<NarrationCaption, 'id'>) => {
       if (!enabled) return;
 
       counterRef.current += 1;
@@ -198,12 +197,9 @@ export function useNarrationQueue(options?: {
 
       internalsRef.current = [...trimmed, internal];
       startLoop();
-    },
-    [enabled, maxVisible, startLoop],
-  );
+    };
 
-  const narrate = useCallback(
-    (text: string, position: CaptionPosition = 'bottom-center', emphasis: CaptionEmphasis = 'normal') => {
+  const narrate = (text: string, position: CaptionPosition = 'bottom-center', emphasis: CaptionEmphasis = 'normal') => {
       queueCaption({
         text,
         position,
@@ -212,20 +208,18 @@ export function useNarrationQueue(options?: {
         fadeInMs: DEFAULT_FADE_IN[emphasis],
         fadeOutMs: DEFAULT_FADE_OUT[emphasis],
       });
-    },
-    [queueCaption],
-  );
+    };
 
-  const clearAll = useCallback(() => {
+  const clearAll = () => {
     internalsRef.current = [];
     if (rafRef.current !== null) {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     }
     setActiveCaptions([]);
-  }, []);
+  };
 
-  const toggleEnabled = useCallback(() => {
+  const toggleEnabled = () => {
     setEnabled((prev) => {
       if (prev) {
         // Disabling — clear everything
@@ -238,7 +232,7 @@ export function useNarrationQueue(options?: {
       }
       return !prev;
     });
-  }, []);
+  };
 
   // Cleanup on unmount
   useEffect(() => {

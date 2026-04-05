@@ -7,7 +7,7 @@
  * @see docs/first-day-flywheel-visualization.md Part III: Bookmark System
  */
 
-import { memo, useCallback } from 'react';
+import { memo } from 'react';
 
 // ─── Types ───
 
@@ -46,9 +46,9 @@ export const BookmarkChip = memo(function BookmarkChip({
   onClick,
   compact = false,
 }: BookmarkChipProps) {
-  const handleClick = useCallback(() => {
+  const handleClick = () => {
     onClick?.(bookmark.id);
-  }, [onClick, bookmark.id]);
+  };
 
   const color = bookmarkColor(bookmark.kind);
 

@@ -11,7 +11,7 @@
  * Pure mapping layer: converts numeric ordinals back to typed dispatch calls.
  */
 
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect } from 'react';
 import { usePipelineBuffer, EVENT_TYPES, type BufferEvent } from './use-pipeline-buffer';
 
 // ─── Ordinal-to-dispatch mapping (pure, no side effects) ───
@@ -108,7 +108,7 @@ export function useSabBridge(options: SabBridgeOptions): SabBridgeHandle {
   const onMessageRef = useRef(onMessage);
   onMessageRef.current = onMessage;
 
-  const tick = useCallback(() => {
+  const tick = () => {
     const count = handle.poll();
     for (let i = 0; i < count; i++) {
       const event = handle.read(i);
@@ -122,7 +122,7 @@ export function useSabBridge(options: SabBridgeOptions): SabBridgeHandle {
       consumedRef.current += count;
     }
     rafRef.current = requestAnimationFrame(tick);
-  }, [handle]);
+  };
 
   useEffect(() => {
     if (!sab) return;
@@ -133,7 +133,7 @@ export function useSabBridge(options: SabBridgeOptions): SabBridgeHandle {
         rafRef.current = null;
       }
     };
-  }, [sab, tick]);
+  }, [sab]);
 
   return {
     connected: handle.connected,

@@ -12,7 +12,7 @@
  * @see docs/first-day-flywheel-visualization.md Part III, Part VIII
  */
 
-import { memo, useCallback } from 'react';
+import { memo } from 'react';
 import {
   PlaybackScrubber,
   type ActSegment,
@@ -82,16 +82,13 @@ export const PlaybackControls = memo(function PlaybackControls({
 }: PlaybackControlsProps) {
   const isCompact = mode === 'compact';
 
-  const handleBookmarkClick = useCallback(
-    (id: string) => {
-      const bm = bookmarks.find((b) => b.id === id);
-      if (bm) {
-        onSeek(bm.fraction);
-        onBookmarkClick?.(id);
-      }
-    },
-    [bookmarks, onSeek, onBookmarkClick],
-  );
+  const handleBookmarkClick = (id: string) => {
+    const bm = bookmarks.find((b) => b.id === id);
+    if (bm) {
+      onSeek(bm.fraction);
+      onBookmarkClick?.(id);
+    }
+  };
 
   if (mode === 'live') {
     return (

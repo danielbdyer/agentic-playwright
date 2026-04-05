@@ -7,7 +7,7 @@
  * should never block particle rendering.
  */
 
-import { useState, useCallback, useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import type { RungShiftEvent, CalibrationUpdateEvent } from '../spatial/types';
 
 export interface ConvergenceState {
@@ -22,7 +22,7 @@ export function useConvergenceState(maxHistory = 20) {
   const [state, setState] = useState<ConvergenceState>(INITIAL);
   const [, startTransition] = useTransition();
 
-  const pushRung = useCallback((event: RungShiftEvent) => {
+  const pushRung = (event: RungShiftEvent) => {
     startTransition(() => {
       setState((prev) => ({
         ...prev,
@@ -30,13 +30,13 @@ export function useConvergenceState(maxHistory = 20) {
         iterationCount: event.iteration,
       }));
     });
-  }, [maxHistory, startTransition]);
+  };
 
-  const pushCalibration = useCallback((event: CalibrationUpdateEvent) => {
+  const pushCalibration = (event: CalibrationUpdateEvent) => {
     startTransition(() => {
       setState((prev) => ({ ...prev, calibration: event, iterationCount: event.iteration }));
     });
-  }, [startTransition]);
+  };
 
   return { state, pushRung, pushCalibration } as const;
 }

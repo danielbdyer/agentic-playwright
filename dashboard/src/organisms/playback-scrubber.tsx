@@ -18,7 +18,7 @@
  * @see docs/first-day-flywheel-visualization.md Part III: Scrubber UI
  */
 
-import { memo, useCallback, useRef, useState } from 'react';
+import { memo, useRef, useState } from 'react';
 import type { FlywheelAct } from '../types';
 
 // ─── Domain Types ───
@@ -155,33 +155,27 @@ export const PlaybackScrubber = memo(function PlaybackScrubber({
   const [preview, setPreview] = useState<ScrubberPreview | null>(null);
   const [hoverX, setHoverX] = useState<number | null>(null);
 
-  const handleTrackClick = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      const rect = trackRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      const fraction = mouseToFraction(e.clientX, rect);
-      onSeek(fraction);
-    },
-    [onSeek],
-  );
+  const handleTrackClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = trackRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const fraction = mouseToFraction(e.clientX, rect);
+    onSeek(fraction);
+  };
 
-  const handleTrackHover = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      const rect = trackRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      const fraction = mouseToFraction(e.clientX, rect);
-      setHoverX(fraction);
-      if (onPreview) {
-        setPreview(onPreview(fraction));
-      }
-    },
-    [onPreview],
-  );
+  const handleTrackHover = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = trackRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const fraction = mouseToFraction(e.clientX, rect);
+    setHoverX(fraction);
+    if (onPreview) {
+      setPreview(onPreview(fraction));
+    }
+  };
 
-  const handleTrackLeave = useCallback(() => {
+  const handleTrackLeave = () => {
     setHoverX(null);
     setPreview(null);
-  }, []);
+  };
 
   const elapsed = totalDurationMs * position;
   const remaining = totalDurationMs - elapsed;

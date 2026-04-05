@@ -16,7 +16,7 @@
  *   Result: glows and particles visually overlay the live DOM
  */
 
-import { memo, useState, useCallback } from 'react';
+import { memo, useState } from 'react';
 
 // ─── Types ───
 

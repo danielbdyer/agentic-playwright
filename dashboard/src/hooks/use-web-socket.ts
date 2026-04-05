@@ -16,7 +16,7 @@
  *   onMessage:  O(1) — delegates to provided handler
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 export type MessageHandler = (msg: { readonly type: string; readonly data: unknown }) => void;
 export type BinaryFrameHandler = (data: ArrayBuffer) => void;
@@ -36,9 +36,9 @@ export function useWebSocket(
   binaryRef.current = onBinaryFrame;
 
   /** O(1). Send a JSON message if the socket is open. Stable callback. */
-  const send = useCallback((msg: unknown) => {
+  const send = (msg: unknown) => {
     wsRef.current?.readyState === WebSocket.OPEN && wsRef.current.send(JSON.stringify(msg));
-  }, []);
+  };
 
   useEffect(() => {
     let reconnectTimer: ReturnType<typeof setTimeout>;
