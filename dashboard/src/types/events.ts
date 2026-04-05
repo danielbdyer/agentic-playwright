@@ -1,174 +1,35 @@
 /**
  * Typed event taxonomy for the Tesseract dashboard subscription system.
- *
- * Replaces the untyped `Record<string, (data: unknown) => void>` dispatch table
- * with an `EventObserver<TEventMap>` that maps each DashboardEventKind to its
- * payload type. Subscribe/unsubscribe by kind. Compile-time exhaustiveness
- * ensures all DashboardEventKind variants have handlers.
- *
- * Design: Strategy pattern — each event kind dispatches to a typed handler.
- * All types are readonly. No mutation.
  */
 
 import type {
   DashboardEventKind,
-  ElementProbedEvent,
-  ScreenCapturedEvent,
-  ElementEscalatedEvent,
-  InboxItemEvent,
-  FiberPauseEvent,
-  FiberResumeEvent,
-  RungShiftEvent,
-  CalibrationUpdateEvent,
-  ProposalActivatedEvent,
-  ConfidenceCrossedEvent,
-  ArtifactWrittenEvent,
-  StageLifecycleEvent,
-  SurfaceDiscoveredEvent,
-  RouteNavigatedEvent,
-  AriaTreeCapturedEvent,
-  SuiteSliceSelectedEvent,
-  ScenarioPrioritizedEvent,
-  StepBoundEvent,
-  ScenarioCompiledEvent,
-  StepExecutingEvent,
-  StepResolvedEvent,
-  ScenarioExecutedEvent,
-  TrustPolicyEvaluatedEvent,
-  KnowledgeActivatedEvent,
-  ConvergenceEvaluatedEvent,
-  IterationSummaryEvent,
+  DashboardEventMap,
+  ScreenGroupStartPayload,
+  ConnectedPayload,
+  DiagnosticsPayload,
+  ErrorPayload,
+  IterationStartPayload,
+  IterationCompletePayload,
+  ItemPendingPayload,
+  ItemProcessingPayload,
+  ItemCompletedPayload,
 } from '../../../lib/domain/observation/dashboard';
-import type { ProgressEvent, QueuedItem, Workbench, Scorecard } from '../types';
+import { DASHBOARD_EVENT_KINDS } from '../../../lib/domain/observation/dashboard';
 
-// ─── Event Map: kind -> payload type ───
-
-/**
- * The canonical map from every DashboardEventKind to its typed payload.
- * This is the single source of truth for event payloads in the dashboard.
- */
-export interface DashboardEventMap {
-  readonly 'iteration-start': IterationStartPayload;
-  readonly 'iteration-complete': IterationCompletePayload;
-  readonly 'progress': ProgressEvent;
-  readonly 'screen-group-start': ScreenGroupStartPayload;
-  readonly 'item-pending': ItemPendingPayload;
-  readonly 'item-processing': ItemProcessingPayload;
-  readonly 'item-completed': ItemCompletedPayload;
-  readonly 'workbench-updated': Workbench;
-  readonly 'fitness-updated': Scorecard;
-  readonly 'element-probed': ElementProbedEvent;
-  readonly 'screen-captured': ScreenCapturedEvent;
-  readonly 'element-escalated': ElementEscalatedEvent;
-  readonly 'inbox-item-arrived': InboxItemEvent;
-  readonly 'fiber-paused': FiberPauseEvent;
-  readonly 'fiber-resumed': FiberResumeEvent;
-  readonly 'rung-shift': RungShiftEvent;
-  readonly 'calibration-update': CalibrationUpdateEvent;
-  readonly 'proposal-activated': ProposalActivatedEvent;
-  readonly 'confidence-crossed': ConfidenceCrossedEvent;
-  readonly 'artifact-written': ArtifactWrittenEvent;
-  readonly 'stage-lifecycle': StageLifecycleEvent;
-  readonly 'surface-discovered': SurfaceDiscoveredEvent;
-  readonly 'route-navigated': RouteNavigatedEvent;
-  readonly 'aria-tree-captured': AriaTreeCapturedEvent;
-  readonly 'suite-slice-selected': SuiteSliceSelectedEvent;
-  readonly 'scenario-prioritized': ScenarioPrioritizedEvent;
-  readonly 'step-bound': StepBoundEvent;
-  readonly 'scenario-compiled': ScenarioCompiledEvent;
-  readonly 'step-executing': StepExecutingEvent;
-  readonly 'step-resolved': StepResolvedEvent;
-  readonly 'scenario-executed': ScenarioExecutedEvent;
-  readonly 'trust-policy-evaluated': TrustPolicyEvaluatedEvent;
-  readonly 'knowledge-activated': KnowledgeActivatedEvent;
-  readonly 'convergence-evaluated': ConvergenceEvaluatedEvent;
-  readonly 'iteration-summary': IterationSummaryEvent;
-  readonly 'diagnostics': DiagnosticsPayload;
-  readonly 'learning-signals': Record<string, unknown>;
-  readonly 'browser-pool-health': Record<string, unknown>;
-  readonly 'proposal-quarantined': Record<string, unknown>;
-  readonly 'connected': ConnectedPayload;
-  readonly 'error': ErrorPayload;
-}
-
-// ─── Payload types for events that lack dedicated domain interfaces ───
-
-export interface IterationStartPayload {
-  readonly iteration?: number;
-}
-
-export interface IterationCompletePayload {
-  readonly iteration?: number;
-  readonly converged?: boolean;
-}
-
-export interface ScreenGroupStartPayload {
-  readonly screen: string;
-  readonly adoId?: string;
-}
-
-export interface ItemPendingPayload {
-  readonly id: string;
-  readonly kind: string;
-  readonly priority: number;
-  readonly title: string;
-  readonly rationale: string;
-  readonly context: {
-    readonly screen?: string;
-    readonly element?: string;
-    readonly proposalId?: string;
-    readonly artifactRefs: readonly string[];
-  };
-  readonly evidence: {
-    readonly confidence: number;
-    readonly sources: readonly string[];
-  };
-}
-
-export interface ItemProcessingPayload {
-  readonly workItemId: string;
-}
-
-export interface ItemCompletedPayload {
-  readonly workItemId: string;
-  readonly status: string;
-}
-
-export interface ConnectedPayload {
-  readonly sessionId?: string;
-}
-
-export interface DiagnosticsPayload {
-  readonly message: string;
-  readonly details?: Record<string, unknown>;
-}
-
-export interface ErrorPayload {
-  readonly message: string;
-  readonly code?: string;
-}
-
-// ─── Compile-time exhaustiveness check ───
-
-/**
- * Static assertion: DashboardEventMap covers exactly the same set of keys
- * as DashboardEventKind. If a new kind is added to the domain and not
- * reflected here, TypeScript will error.
- */
-type AssertExhaustive<
-  TMap extends Record<DashboardEventKind, unknown>,
-  _TCheck extends DashboardEventKind = keyof TMap & DashboardEventKind,
-> = TMap;
-
-// This line causes a compile error if DashboardEventMap is missing any DashboardEventKind.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-type _Exhaustive = AssertExhaustive<DashboardEventMap>;
-
-// Also verify the reverse: every key in DashboardEventMap is a valid DashboardEventKind.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-type _NoExtra = keyof DashboardEventMap extends DashboardEventKind ? true : never;
-
-// ─── EventObserver ───
+export type {
+  DashboardEventKind,
+  DashboardEventMap,
+  ScreenGroupStartPayload,
+  ConnectedPayload,
+  DiagnosticsPayload,
+  ErrorPayload,
+  IterationStartPayload,
+  IterationCompletePayload,
+  ItemPendingPayload,
+  ItemProcessingPayload,
+  ItemCompletedPayload,
+};
 
 /** A typed handler for a single event kind. */
 export type EventHandler<K extends DashboardEventKind> = (data: DashboardEventMap[K]) => void;
@@ -283,43 +144,4 @@ export function createEventObserver(): EventObserver {
 
 // ─── All Dashboard Event Kinds (exported constant for tests and validation) ───
 
-export const ALL_DASHBOARD_EVENT_KINDS: readonly DashboardEventKind[] = [
-  'iteration-start',
-  'iteration-complete',
-  'progress',
-  'screen-group-start',
-  'item-pending',
-  'item-processing',
-  'item-completed',
-  'workbench-updated',
-  'fitness-updated',
-  'element-probed',
-  'screen-captured',
-  'element-escalated',
-  'inbox-item-arrived',
-  'fiber-paused',
-  'fiber-resumed',
-  'rung-shift',
-  'calibration-update',
-  'proposal-activated',
-  'confidence-crossed',
-  'artifact-written',
-  'stage-lifecycle',
-  'surface-discovered',
-  'route-navigated',
-  'aria-tree-captured',
-  'suite-slice-selected',
-  'scenario-prioritized',
-  'step-bound',
-  'scenario-compiled',
-  'step-executing',
-  'step-resolved',
-  'scenario-executed',
-  'trust-policy-evaluated',
-  'knowledge-activated',
-  'convergence-evaluated',
-  'iteration-summary',
-  'diagnostics',
-  'connected',
-  'error',
-] as const;
+export const ALL_DASHBOARD_EVENT_KINDS: readonly DashboardEventKind[] = DASHBOARD_EVENT_KINDS;
