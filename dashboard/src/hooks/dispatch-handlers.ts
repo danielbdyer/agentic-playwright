@@ -5,8 +5,8 @@
  * All use the ref pattern (.current) for closure stability — the dispatch table
  * captures these at build time and never needs to be rebuilt.
  *
- * These are extracted from app.tsx for separation of concerns:
- *   app.tsx owns composition (hooks + components)
+ * These are extracted from the app/App.tsx shell for separation of concerns:
+ *   app/App.tsx owns composition (hooks + components)
  *   dispatch-handlers.ts owns event routing (pure transforms)
  */
 

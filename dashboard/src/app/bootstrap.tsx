@@ -15,5 +15,5 @@ export const bootstrapDashboard = (): void => {
   );
 };
 
-// Auto-run on module load (matches old app.tsx behavior for ESM script tag)
+// Auto-run on module load (matches legacy shell behavior for ESM script tag)
 bootstrapDashboard();
