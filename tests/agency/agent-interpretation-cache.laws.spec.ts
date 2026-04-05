@@ -11,7 +11,7 @@ import { expect, test } from '@playwright/test';
 import { Effect } from 'effect';
 import { agentInterpretationCacheKey, readAgentInterpretationCache, writeAgentInterpretationCache } from '../../lib/application/agency/agent-interpretation-cache';
 import type { AgentInterpretationCacheKeyInput } from '../../lib/application/agency/agent-interpretation-cache';
-import type { AgentInterpretationResult } from '../../lib/application/agency/agent-interpreter-provider';
+import type { AgentInterpretationResult } from '../../lib/domain/interpretation/agent-interpreter';
 import { createProjectPaths } from '../../lib/application/paths';
 import { FileSystem } from '../../lib/application/ports';
 import { LocalFileSystem } from '../../lib/infrastructure/fs/local-fs';

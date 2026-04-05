@@ -4,7 +4,7 @@ import { pruneAgentInterpretationCache, writeAgentInterpretationCache, type Agen
 import { createProjectPaths } from '../../lib/application/paths';
 import { FileSystem } from '../../lib/application/ports';
 import { pruneTranslationCache, writeTranslationCache } from '../../lib/application/resolution/translation/translation-cache';
-import type { AgentInterpretationResult } from '../../lib/application/agency/agent-interpreter-provider';
+import type { AgentInterpretationResult } from '../../lib/domain/interpretation/agent-interpreter';
 import type { TranslationReceipt, TranslationRequest } from '../../lib/domain/resolution/types';
 import { createElementId, createScreenId } from '../../lib/domain/kernel/identity';
 import { LocalFileSystem } from '../../lib/infrastructure/fs/local-fs';
