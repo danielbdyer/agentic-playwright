@@ -43,7 +43,6 @@ const typedRules = {
 module.exports = [
   {
     ignores: [
-      'dashboard/**',
       'dogfood/.ado-sync/**',
       '.tesseract/**',
       '.tools/**',
@@ -87,6 +86,22 @@ module.exports = [
       '@typescript-eslint': tsPlugin,
     },
     rules: typedRules,
+  },
+  {
+    files: ['dashboard/src/**/*.ts', 'dashboard/src/**/*.tsx'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [{
+          group: [
+            '**/lib/domain/observation/dashboard',
+            '**/lib/domain/projection/**',
+            '**/lib/domain/handshake/workbench',
+            '**/lib/domain/governance/workflow-types',
+          ],
+          message: 'Dashboard must import these domain contracts from lib/domain/observation/contracts.',
+        }],
+      }],
+    },
   },
   {
     files: ['lib/domain/schemas/**/*.ts', 'lib/domain/validation/**/*.ts', 'lib/domain/algebra/**/*.ts', 'lib/domain/graph-query.ts', 'lib/domain/program.ts'],

@@ -27,8 +27,8 @@
  * @see docs/first-day-flywheel-visualization.md Part III: Bookmark System
  */
 
-import type { DashboardEventKind } from '../../lib/domain/observation/dashboard';
-import type { FlywheelAct } from '../../lib/domain/projection/scene-state-accumulator';
+import type { DashboardEventKind } from '../../lib/domain/observation/contracts';
+import type { FlywheelAct } from '../../lib/domain/observation/contracts';
 
 // ─── Bookmark Types ───
 

@@ -20,7 +20,7 @@ import {
   trendColor,
   type DistributionBreakdown,
   type BindingTrend,
-} from '../../../lib/domain/projection/binding-distribution';
+} from '../../../lib/domain/observation/contracts';
 
 // ─── Component Props ───
 

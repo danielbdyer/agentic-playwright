@@ -18,7 +18,7 @@ import type {
   InboxItemEvent,
 } from '../spatial/types';
 import type { WorkItem, QueuedItem, DisplayStatus, ProgressEvent, Workbench, Scorecard } from '../types';
-import type { DashboardEventKind } from '../../../lib/domain/observation/dashboard';
+import type { DashboardEventKind } from '../../../lib/domain/observation/contracts';
 import type { DashboardEventMap, EventHandler, ScreenGroupStartPayload, ConnectedPayload, ErrorPayload } from '../types/events';
 import type { QueryClient } from '@tanstack/react-query';
 

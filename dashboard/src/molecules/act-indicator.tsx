@@ -22,7 +22,7 @@ import {
   outgoingOpacity,
   incomingOpacity,
   type ActBadgeState,
-} from '../../../lib/domain/projection/act-indicator';
+} from '../../../lib/domain/observation/contracts';
 
 // ─── Component Props ───
 

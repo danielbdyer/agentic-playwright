@@ -16,7 +16,7 @@ import {
   directionArrow,
   directionColor,
   type ConvergenceDirection,
-} from '../../../lib/domain/projection/iteration-timeline';
+} from '../../../lib/domain/observation/contracts';
 
 // ─── Component Props ───
 

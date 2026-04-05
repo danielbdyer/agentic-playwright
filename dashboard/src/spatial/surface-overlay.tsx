@@ -22,7 +22,7 @@ import {
   staggerDelay,
   STAGGER_DELAY_MS,
   type SurfaceRegion,
-} from '../../../lib/domain/projection/surface-overlay';
+} from '../../../lib/domain/observation/contracts';
 
 // ─── Types ───
 

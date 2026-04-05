@@ -24,8 +24,8 @@ import type {
   ConfidenceCrossedEvent,
   ArtifactWrittenEvent,
   StageLifecycleEvent,
-} from '../../../lib/domain/observation/dashboard';
-import type { Governance } from '../../../lib/domain/governance/workflow-types';
+} from '../../../lib/domain/observation/contracts';
+import type { Governance } from '../../../lib/domain/observation/contracts';
 
 // Re-export domain types as the spatial contract.
 // Aliased names preserve backward compatibility with existing components.

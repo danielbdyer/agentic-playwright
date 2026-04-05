@@ -19,7 +19,7 @@ import * as THREE from 'three';
 import {
   type FinaleState,
   type FinaleTint,
-} from '../../../lib/domain/projection/convergence-finale';
+} from '../../../lib/domain/observation/contracts';
 
 // ─── Types ───
 

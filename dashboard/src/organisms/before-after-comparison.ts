@@ -21,8 +21,8 @@ import {
   computeBeforeAfterComparison,
   type ObservatorySnapshot,
   type BeforeAfterComparison as BeforeAfterComparisonData,
-} from '../../../lib/domain/projection/summary-view';
-import type { SceneState } from '../../../lib/domain/projection/scene-state-accumulator';
+} from '../../../lib/domain/observation/contracts';
+import type { SceneState } from '../../../lib/domain/observation/contracts';
 
 // ─── Domain Logic ───
 

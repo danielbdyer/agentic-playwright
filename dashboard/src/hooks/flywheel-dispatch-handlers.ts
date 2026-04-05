@@ -25,7 +25,7 @@ import type {
   KnowledgeActivatedEvent,
   ConvergenceEvaluatedEvent,
   IterationSummaryEvent,
-} from '../../../lib/domain/observation/dashboard';
+} from '../../../lib/domain/observation/contracts';
 
 /** O(1). Routes surface-discovered events to ingestion queue via stable ref. */
 export const dispatchSurfaceDiscovered = (

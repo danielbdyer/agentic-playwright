@@ -17,7 +17,7 @@
  * @see docs/first-day-flywheel-visualization.md Part V: The Narration Layer
  */
 
-import type { DashboardEventKind } from '../../lib/domain/observation/dashboard';
+import type { DashboardEventKind } from '../../lib/domain/observation/contracts';
 
 // ─── Types (mirror narration queue types without React dependency) ───
 

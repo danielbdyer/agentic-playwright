@@ -27,7 +27,7 @@
 
 import { useState, useRef } from 'react';
 import type { FlywheelAct } from '../types';
-import type { DashboardEventKind } from '../../../lib/domain/observation/dashboard';
+import type { DashboardEventKind } from '../../../lib/domain/observation/contracts';
 import {
   accumulate,
   accumulateBatch,
@@ -37,7 +37,7 @@ import {
   findNearestCheckpoint,
   type SceneState,
   type SceneCheckpoint,
-} from '../../../lib/domain/projection/scene-state-accumulator';
+} from '../../../lib/domain/observation/contracts';
 import {
   detectAutoBookmarks,
   finalizeBookmarks,

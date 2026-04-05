@@ -25,8 +25,8 @@ import path from 'path';
 import crypto from 'crypto';
 import { WebSocketServer, WebSocket as WsWebSocket } from 'ws';
 import { Effect, PubSub, Queue, Fiber, Scope } from 'effect';
-import type { DashboardEvent } from '../lib/domain/observation/dashboard';
-import { dashboardEvent } from '../lib/domain/observation/dashboard';
+import type { DashboardEvent } from '../lib/domain/observation/contracts';
+import { dashboardEvent } from '../lib/domain/observation/contracts';
 import {
   createPipelineEventBus,
   subscribeWsBroadcaster,
