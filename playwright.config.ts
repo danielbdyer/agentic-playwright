@@ -5,7 +5,7 @@ const defaultWorkers = parseInt(process.env.TESSERACT_TEST_WORKERS ?? '', 10);
 
 export default defineConfig({
   testDir: 'tests',
-  testMatch: ['**/*.spec.ts'],
+  testMatch: ['**/*.integration.spec.ts', '**/playwright-*.spec.ts', '**/policy-journey-harness.spec.ts'],
   fullyParallel: true,
   ...Number.isFinite(defaultWorkers) ? { workers: defaultWorkers } : {},
   retries: 0,

@@ -48,8 +48,8 @@
     "lint": "node -e \"const fs=require('fs');const path=require('path');const Module=module.constructor;const file=path.resolve('scripts/lint.cjs');const code=fs.readFileSync(file,'utf8');const m=new Module(file);m.filename=file;m.paths=[path.resolve('node_modules')];process.argv=['node',file,...process.argv.slice(1)];m._compile(code,file);\" --",
     "check": "node -e \"const fs=require('fs');const path=require('path');const Module=module.constructor;const file=path.resolve('scripts/check.cjs');const code=fs.readFileSync(file,'utf8');const m=new Module(file);m.filename=file;m.paths=[path.resolve('node_modules')];process.argv=['node',file];m._compile(code,file);\"",
     "knip": "knip",
-    "test": "node ./node_modules/@playwright/test/cli.js test --ignore-snapshots --config playwright.unit.config.ts",
-    "test:unit": "node ./node_modules/@playwright/test/cli.js test --ignore-snapshots --config playwright.unit.config.ts",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "vitest run --config vitest.config.ts",
     "test:integration": "node ./node_modules/@playwright/test/cli.js test --config playwright.config.ts",
     "test:headed": "node scripts/run-playwright.cjs --config playwright.config.ts --headed",
     "test:generated": "node scripts/run-playwright.cjs --config playwright.generated.config.ts --interpreter-mode playwright",
@@ -61,7 +61,8 @@
     "evolve": "npx tsx scripts/evolve.ts",
     "dashboard": "npm run build && npx tsx dashboard/server.ts",
     "dashboard:live": "npm run build && npx tsx dashboard/server.ts --speedrun --count 50 --max-iterations 5",
-    "dashboard:build": "node scripts/build.cjs --demo-harness-only"
+    "dashboard:build": "node scripts/build.cjs --demo-harness-only",
+    "test:unit:watch": "vitest --config vitest.config.ts"
   },
   "dependencies": {
     "@playwright/test": "1.55.1",
@@ -96,6 +97,7 @@
     "react-dom": "^19.2.4",
     "tailwindcss": "^4.2.2",
     "three": "^0.183.2",
-    "ws": "^8.20.0"
+    "ws": "^8.20.0",
+    "vitest": "^2.1.8"
   }
 }
