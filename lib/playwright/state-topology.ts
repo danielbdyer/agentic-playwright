@@ -1,19 +1,18 @@
 import type { Locator, Page } from '@playwright/test';
+import type { LocatorStrategy } from '../domain/governance/workflow-types';
 import type {
   EventSignature,
   InterfaceResolutionContext,
-  LocatorStrategy,
   StateNode,
   StateTransition,
-  StateTransitionGraph,
   StepTaskElementCandidate,
   StepTaskScreenCandidate,
-  TransitionObservation,
-} from '../domain/types';
+} from '../domain/knowledge/types';
+import type { StateTransitionGraph, TransitionObservation } from '../domain/target/interface-graph';
 import type { CanonicalTargetRef, EventSignatureRef, StateNodeRef, TransitionRef } from '../domain/kernel/identity';
 import { uniqueSorted } from '../domain/kernel/collections';
 import { foldLocatorStrategy } from '../domain/kernel/visitors';
-import { resolveEffectConcurrency } from '../application/concurrency';
+import { resolveEffectConcurrency } from '../application/runtime-support/concurrency';
 
 export interface ObservationContextScreen {
   screen: StepTaskScreenCandidate['screen'];

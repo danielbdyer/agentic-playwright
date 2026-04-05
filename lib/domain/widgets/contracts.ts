@@ -1,5 +1,5 @@
 import { createWidgetId } from '../kernel/identity';
-import type { WidgetCapabilityContract } from '../types/widgets';
+import type { WidgetCapabilityContract } from '../knowledge/widget-types';
 
 export type WidgetContractRegistry = Record<string, WidgetCapabilityContract>;
 

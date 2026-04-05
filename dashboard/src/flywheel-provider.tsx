@@ -26,7 +26,7 @@
  * @see docs/first-day-flywheel-visualization.md Part X, Challenge 7
  */
 
-import React, { createContext, useContext, useMemo, type ReactNode } from 'react';
+import React, { createContext, useContext, type ReactNode } from 'react';
 import type { FlywheelAct } from './types';
 import { useFlywheelAct } from './hooks/use-flywheel-act';
 import { useCameraChoreography, type CameraChoreographyState, CAMERA_STATES } from './hooks/use-camera-choreography';
@@ -180,19 +180,17 @@ export function FlywheelProvider({
 
   // ── Compose context value ──
 
-  const value = useMemo<FlywheelContextValue>(() => {
-    if (!enabled) return DISABLED_CONTEXT;
-
-    return {
-      enabled,
-      currentAct,
-      camera,
-      narration,
-      transition,
-      degradation,
-      iteration,
-    };
-  }, [enabled, currentAct, camera, narration, transition, degradation, iteration]);
+  const value: FlywheelContextValue = !enabled
+    ? DISABLED_CONTEXT
+    : {
+        enabled,
+        currentAct,
+        camera,
+        narration,
+        transition,
+        degradation,
+        iteration,
+      };
 
   return React.createElement(FlywheelContext.Provider, { value }, children);
 }

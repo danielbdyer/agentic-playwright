@@ -25,8 +25,8 @@ import path from 'path';
 import crypto from 'crypto';
 import { WebSocketServer, WebSocket as WsWebSocket } from 'ws';
 import { Effect, PubSub, Queue, Fiber, Scope } from 'effect';
-import type { DashboardEvent } from '../lib/domain/types';
-import { dashboardEvent } from '../lib/domain/types/dashboard';
+import type { DashboardEvent } from '../lib/domain/observation/dashboard';
+import { dashboardEvent } from '../lib/domain/observation/dashboard';
 import {
   createPipelineEventBus,
   subscribeWsBroadcaster,
@@ -39,7 +39,7 @@ import {
 import { createProjectPaths, type ProjectPaths } from '../lib/application/paths';
 import { runWithLocalServices, type LocalServiceOptions } from '../lib/composition/local-services';
 import { speedrunProgram } from '../lib/application/speedrun';
-import { DEFAULT_PIPELINE_CONFIG } from '../lib/domain/types';
+import { DEFAULT_PIPELINE_CONFIG } from '../lib/domain/attention/pipeline-config';
 import { startFixtureServer, type FixtureServer } from '../lib/infrastructure/fixture-server';
 import { createPlaywrightBrowserPool } from '../lib/infrastructure/playwright-browser-pool';
 import { resolvePlaywrightHeadless } from '../lib/infrastructure/tooling/browser-options';

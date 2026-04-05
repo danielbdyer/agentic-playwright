@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import type { FlywheelAct } from '../types';
 
 const stageToAct = (stage: string | null, phase: string | null): FlywheelAct => {
@@ -13,5 +12,5 @@ const stageToAct = (stage: string | null, phase: string | null): FlywheelAct => 
 };
 
 export function useFlywheelAct(activeStage: string | null, progressPhase: string | null): FlywheelAct {
-  return useMemo(() => stageToAct(activeStage, progressPhase), [activeStage, progressPhase]);
+  return stageToAct(activeStage, progressPhase);
 }

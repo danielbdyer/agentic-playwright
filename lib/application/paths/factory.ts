@@ -1,15 +1,5 @@
 import path from 'path';
-import type {
-  ControlPaths,
-  EnginePaths,
-  ExecutionPaths,
-  GovernancePaths,
-  IntentPaths,
-  KnowledgePaths,
-  LegacyProjectPathAliases,
-  ProjectPaths,
-  ResolutionPaths,
-} from './types';
+import type { ControlPaths, EnginePaths, ExecutionPaths, GovernancePaths, IntentPaths, KnowledgePaths, LegacyProjectPathAliases, ProjectPaths, ResolutionPaths } from './types';
 
 function toLegacyPathAliases(
   engine: EnginePaths,

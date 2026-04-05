@@ -16,7 +16,7 @@
  *   ≥ 25×: only emit act-transition events individually; batch the rest
  */
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type { FlywheelAct } from '../types';
 
 // ─── Journal Types (client-local; avoids cross-boundary server import) ───
@@ -183,7 +183,7 @@ export function usePlaybackController(
   useEffect(() => { speedRef.current = speed; }, [speed]);
 
   // ── Sync public state from cursor ──
-  const syncPublicState = useCallback((cursor: number) => {
+  const syncPublicState = (cursor: number) => {
     const events = eventsRef.current;
     const total = events.length;
     if (total === 0) return;
@@ -199,10 +199,10 @@ export function usePlaybackController(
     const firstTs = new Date(events[0]!.timestamp).getTime();
     const currentTs = new Date(event.timestamp).getTime();
     setElapsedMs(currentTs - firstTs);
-  }, []);
+  };
 
   // ── Playback loop (requestAnimationFrame) ──
-  const tick = useCallback((frameTime: number) => {
+  const tick = (frameTime: number) => {
     if (!playingRef.current) return;
 
     const events = eventsRef.current;
@@ -292,11 +292,11 @@ export function usePlaybackController(
     }
 
     rafRef.current = requestAnimationFrame(tick);
-  }, [syncPublicState]);
+  };
 
   // ── Controls ──
 
-  const play = useCallback(() => {
+  const play = () => {
     const events = eventsRef.current;
     if (events.length === 0) return;
 
@@ -312,9 +312,9 @@ export function usePlaybackController(
     accumulatedRef.current = 0;
     setState('playing');
     rafRef.current = requestAnimationFrame(tick);
-  }, [tick, syncPublicState]);
+  };
 
-  const pause = useCallback(() => {
+  const pause = () => {
     playingRef.current = false;
     lastFrameTimeRef.current = null;
     if (rafRef.current !== null) {
@@ -322,30 +322,30 @@ export function usePlaybackController(
       rafRef.current = null;
     }
     setState('paused');
-  }, []);
+  };
 
-  const setSpeed = useCallback((newSpeed: number) => {
+  const setSpeed = (newSpeed: number) => {
     setSpeedState(newSpeed);
     speedRef.current = newSpeed;
-  }, []);
+  };
 
-  const nextSpeedTier = useCallback(() => {
+  const nextSpeedTier = () => {
     const idx = findTierIndex(speedRef.current);
     const next = Math.min(idx + 1, SPEED_TIERS.length - 1);
     const tier = SPEED_TIERS[next]!;
     setSpeedState(tier.speed);
     speedRef.current = tier.speed;
-  }, []);
+  };
 
-  const prevSpeedTier = useCallback(() => {
+  const prevSpeedTier = () => {
     const idx = findTierIndex(speedRef.current);
     const prev = Math.max(idx - 1, 0);
     const tier = SPEED_TIERS[prev]!;
     setSpeedState(tier.speed);
     speedRef.current = tier.speed;
-  }, []);
+  };
 
-  const seekToPosition = useCallback((fraction: number) => {
+  const seekToPosition = (fraction: number) => {
     const events = eventsRef.current;
     if (events.length === 0) return;
 
@@ -370,9 +370,9 @@ export function usePlaybackController(
       setState('playing');
       rafRef.current = requestAnimationFrame(tick);
     }
-  }, [syncPublicState, tick]);
+  };
 
-  const seekToIteration = useCallback((iteration: number) => {
+  const seekToIteration = (iteration: number) => {
     const index = indexRef.current;
     const events = eventsRef.current;
     if (!index || events.length === 0) return;
@@ -403,9 +403,9 @@ export function usePlaybackController(
       setState('playing');
       rafRef.current = requestAnimationFrame(tick);
     }
-  }, [syncPublicState, tick]);
+  };
 
-  const seekToAct = useCallback((iteration: number, act: FlywheelAct) => {
+  const seekToAct = (iteration: number, act: FlywheelAct) => {
     const index = indexRef.current;
     const events = eventsRef.current;
     if (!index || events.length === 0) return;
@@ -438,9 +438,9 @@ export function usePlaybackController(
       setState('playing');
       rafRef.current = requestAnimationFrame(tick);
     }
-  }, [syncPublicState, tick]);
+  };
 
-  const stepForward = useCallback(() => {
+  const stepForward = () => {
     const events = eventsRef.current;
     if (events.length === 0) return;
 
@@ -457,9 +457,9 @@ export function usePlaybackController(
     syncPublicState(next);
 
     setState(next >= events.length - 1 ? 'complete' : 'paused');
-  }, [syncPublicState]);
+  };
 
-  const stepBackward = useCallback(() => {
+  const stepBackward = () => {
     const events = eventsRef.current;
     if (events.length === 0) return;
 
@@ -475,11 +475,11 @@ export function usePlaybackController(
     syncPublicState(prev);
 
     setState('paused');
-  }, [syncPublicState]);
+  };
 
   // ── Journal Loading ──
 
-  const loadJournal = useCallback(async (url: string): Promise<void> => {
+  const loadJournal = async (url: string): Promise<void> => {
     // Stop any active playback
     playingRef.current = false;
     if (rafRef.current !== null) {
@@ -551,7 +551,7 @@ export function usePlaybackController(
       setTotalEvents(0);
       setTotalDurationMs(0);
     }
-  }, [syncPublicState, tick, options?.autoPlay]);
+  };
 
   // ── Cleanup on unmount ──
   useEffect(() => {

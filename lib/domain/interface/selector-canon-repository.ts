@@ -1,4 +1,4 @@
-import type { SelectorCanon } from '../types';
+import type { SelectorCanon } from '../target/interface-graph';
 
 export interface SelectorCanonLoadResult {
   readonly found: boolean;

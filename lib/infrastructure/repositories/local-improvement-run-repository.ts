@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import type { ImprovementRunRepository } from '../../domain/improvement/improvement-run-repository';
-import type { ImprovementLedger, ImprovementRun } from '../../domain/types';
+import type { ImprovementLedger, ImprovementRun } from '../../domain/improvement/types';
 import { appendImprovementRun, emptyImprovementLedger, improvementRunInvariants } from '../../domain/aggregates/improvement-run';
 
 function normalizeImprovementLedger(value: unknown): ImprovementLedger {

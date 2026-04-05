@@ -2,3 +2,8 @@ export * from './lattice';
 export * from './monoid';
 export * from './scoring';
 export * from './envelope-mergers';
+export * from './contextual-merge';
+export * from './product-fold';
+export * from './hylomorphism';
+export * from './free-forgetful';
+export * from './slice-projection';

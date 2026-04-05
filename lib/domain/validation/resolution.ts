@@ -4,7 +4,7 @@ import type {
   RunbookControl,
   ScenarioInterpretationSurface,
   ScenarioTaskPacket,
-} from '../types';
+} from '../resolution/types';
 import { validateByKind } from './registry';
 
 export const validateDatasetControl = (value: unknown): DatasetControl => validateByKind('dataset-control', value);

@@ -1,4 +1,4 @@
-import { inspectSurface } from '../../surface';
+import { inspectSurface } from '../../projections/surface';
 import { createScreenId } from '../../../domain/kernel/identity';
 import { createCommandSpec } from '../shared';
 import { requireScreen } from '../shared';

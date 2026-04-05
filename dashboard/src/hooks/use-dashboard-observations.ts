@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import type { ScreenGroupContext } from '../../../lib/domain/types/workbench';
+import type { ScreenGroupContext } from '../../../lib/domain/handshake/workbench';
 import type {
   ConfidenceCrossedEvent,
   ElementEscalatedEvent,

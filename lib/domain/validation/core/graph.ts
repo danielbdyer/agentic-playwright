@@ -1,4 +1,5 @@
-import type { ConfidenceOverlayCatalog, DerivedGraph, SurfaceGraph } from '../../types';
+import type { ConfidenceOverlayCatalog, SurfaceGraph } from '../../knowledge/types';
+import type { DerivedGraph } from '../../projection/types';
 import { validateConfidenceOverlayCatalog, validateDerivedGraph, validateSurfaceGraph } from '../core';
 
 export const validateSurfaceGraphArtifact: (value: unknown) => SurfaceGraph = validateSurfaceGraph;

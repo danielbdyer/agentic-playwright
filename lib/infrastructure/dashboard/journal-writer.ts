@@ -28,7 +28,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { Effect, PubSub, Queue, Fiber, Schedule } from 'effect';
 import type { Scope } from 'effect';
-import type { DashboardEvent, DashboardEventKind } from '../../domain/types';
+import type { DashboardEvent, DashboardEventKind } from '../../domain/observation/dashboard';
 
 // ─── FlywheelAct (server-side mirror of dashboard/src/types.ts) ───
 // Duplicated here to avoid cross-boundary import from the React frontend.

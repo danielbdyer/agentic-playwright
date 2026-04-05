@@ -25,7 +25,7 @@ import type {
   SelectorProbe,
   StateTransitionGraph,
   TransitionObservation,
-} from '../types';
+} from '../target/interface-graph';
 import {
   expectArray,
   expectBoolean,

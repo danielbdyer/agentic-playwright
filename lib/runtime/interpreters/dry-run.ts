@@ -5,10 +5,10 @@ import type {
   StepProgramDiagnosticContext,
   StepProgramExecutionResult,
   StepProgramInterpreter,
-} from '../../domain/execution/program';
+} from '../../domain/commitment/program';
 import { createDiagnostic } from '../../domain/governance/diagnostics';
 import { runtimeEscapeHatchError } from '../../domain/kernel/errors';
-import type { StepInstruction } from '../../domain/types';
+import type { StepInstruction } from '../../domain/intent/types';
 import type { InterpreterEnvironment } from './types';
 import { interpreterOutcome, requireScreen, resolvePosture } from './types';
 

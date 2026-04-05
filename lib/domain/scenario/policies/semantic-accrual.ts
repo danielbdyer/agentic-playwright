@@ -1,4 +1,5 @@
-import type { ResolutionReceipt, SemanticDictionaryAccrualInput } from '../../types';
+import type { SemanticDictionaryAccrualInput } from '../../knowledge/semantic-dictionary-types';
+import type { ResolutionReceipt } from '../../resolution/types';
 
 export interface SemanticAccrualDecisionInput {
   readonly interpretation: ResolutionReceipt;

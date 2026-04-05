@@ -1,4 +1,5 @@
-import type { BoundStep, StepProvenanceKind } from '../types';
+import type { StepProvenanceKind } from './workflow-types';
+import type { BoundStep } from '../intent/types';
 
 export interface CountByProvenanceKind {
   explicit: number;

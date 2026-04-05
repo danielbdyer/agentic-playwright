@@ -1,14 +1,14 @@
 import { Match, pipe } from 'effect';
-import type { StepInstruction } from '../../domain/types';
+import type { StepInstruction } from '../../domain/intent/types';
 import type {
   ProgramFailure,
   StepProgram,
   StepProgramDiagnosticContext,
   StepProgramExecutionResult,
   StepProgramInstructionOutcome,
-} from '../../domain/execution/program';
+} from '../../domain/commitment/program';
 import { interpreterOutcome } from './types';
-import type { ProgramFailureCode, StepInterpreterDiagnostic } from '../../domain/execution/program';
+import type { ProgramFailureCode, StepInterpreterDiagnostic } from '../../domain/commitment/program';
 
 export interface InstructionOutcome {
   status: 'ok' | 'failed';

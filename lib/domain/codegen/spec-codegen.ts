@@ -1,6 +1,7 @@
 import * as ts from 'typescript';
-import type { GroundedFlowStep, GroundedSpecFlow } from '../types';
-import type { Confidence, ScenarioLifecycle, StepBindingKind } from '../types/workflow';
+import type { GroundedFlowStep, GroundedSpecFlow } from '../intent/types';
+import type { Confidence, ScenarioLifecycle, StepBindingKind } from '../governance/workflow-types';
+import { groupByMap } from '../kernel/collections';
 import { deriveMethodName, deduplicateMethodNames } from './method-name';
 import {
   awaitExpression,
@@ -88,19 +89,6 @@ function screenVarName(screenId: string): string {
     : screenId.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
 }
 
-/**
- * Group items by a key function, preserving insertion order.
- */
-function groupBy<T>(items: ReadonlyArray<T>, keyFn: (item: T) => string): ReadonlyMap<string, ReadonlyArray<T>> {
-  return items.reduce(
-    (acc, item) => {
-      const key = keyFn(item);
-      const existing = acc.get(key) ?? [];
-      return new Map([...acc, [key, [...existing, item]]]);
-    },
-    new Map<string, ReadonlyArray<T>>(),
-  );
-}
 
 /**
  * Collect unique values from an array by key, preserving first-appearance order.
@@ -130,7 +118,7 @@ function resolveScreenMethods(steps: ReadonlyArray<GroundedFlowStep>): ReadonlyA
     originalIndex,
   }));
 
-  const byScreen = groupBy(rawMethods, (m) => m.screenId);
+  const byScreen = groupByMap(rawMethods, (m) => m.screenId);
 
   // Deduplicate per screen, then reassemble in original order
   const deduplicatedEntries: ReadonlyArray<{ readonly originalIndex: number; readonly resolved: ResolvedScreenMethod }> =
@@ -243,7 +231,7 @@ export function renderReadableSpecModule(
   const emitSteps = metadata.lifecycle === 'normal' || metadata.lifecycle === 'fail';
 
   const screenOrder = uniqueBy(resolvedMethods, (m) => m.screenId);
-  const methodsByScreen = groupBy(resolvedMethods, (m) => m.screenId);
+  const methodsByScreen = groupByMap(resolvedMethods, (m) => m.screenId);
 
   const facadeDeclarations: ReadonlyArray<ts.Statement> = emitSteps
     ? screenOrder

@@ -5,7 +5,7 @@
  * where s = number of distinct stages (~6 in practice).
  */
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState } from 'react';
 import type { StageLifecycleEvent } from '../spatial/types';
 
 export interface StageState {
@@ -18,7 +18,7 @@ export interface StageState {
 export function useStageTracker() {
   const [stages, setStages] = useState<ReadonlyMap<string, StageState>>(new Map());
 
-  const dispatch = useCallback((event: StageLifecycleEvent) => {
+  const dispatch = (event: StageLifecycleEvent) => {
     setStages((prev) => {
       const next = new Map(prev);
       const existing = next.get(event.stage);
@@ -33,14 +33,12 @@ export function useStageTracker() {
       );
       return next;
     });
-  }, []);
+  };
 
-  const activeStage = useMemo(() => {
-    for (const [name, s] of stages) {
-      if (s.phase === 'active') return name;
-    }
-    return null;
-  }, [stages]);
+  let activeStage: string | null = null;
+  for (const [name, s] of stages) {
+    if (s.phase === 'active') { activeStage = name; break; }
+  }
 
   return { stages, activeStage, dispatch } as const;
 }

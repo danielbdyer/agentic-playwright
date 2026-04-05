@@ -11,8 +11,8 @@ import {
   type GraphBuildInput,
   type GraphAccumulator,
   type ConditionalEdge,
-} from '../lib/domain/codegen/derived-graph';
-import { deriveCapabilities, findCapability } from '../lib/domain/execution/grammar';
+} from '../lib/domain/graph/derived-graph';
+import { deriveCapabilities, findCapability } from '../lib/domain/commitment/grammar';
 import { computeAdoContentHash, computeNormalizedSnapshotHash, normalizeAriaSnapshot } from '../lib/domain/kernel/hash';
 import {
   createAdoId,
@@ -25,7 +25,7 @@ import {
 } from '../lib/domain/kernel/identity';
 import { graphIds } from '../lib/domain/kernel/ids';
 import { mergePatternDocuments } from '../lib/domain/knowledge/patterns';
-import { compileStepProgram, traceStepProgram } from '../lib/domain/execution/program';
+import { compileStepProgram, traceStepProgram } from '../lib/domain/commitment/program';
 import { parseEffectTargetRef } from '../lib/domain/governance/effect-target';
 import { validatePostureContract } from '../lib/domain/governance/posture-contract';
 import { createRefPath, formatRefPath, parseRefPath } from '../lib/domain/kernel/ref-path';

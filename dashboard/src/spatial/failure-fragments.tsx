@@ -19,7 +19,7 @@ import * as THREE from 'three';
 import {
   stepFragmentPhysics,
   type FragmentSystemState,
-} from '../../../lib/domain/governance/failure-fragments';
+} from '../../../lib/domain/proposal/failure-fragments';
 
 // ─── Types ───
 

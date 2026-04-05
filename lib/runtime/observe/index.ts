@@ -1,5 +1,5 @@
-export { hasSnapshotTemplate, readSnapshotTemplate } from '../snapshots';
-export { describeValueRef, resolveDataValue } from '../data';
+export { hasSnapshotTemplate, readSnapshotTemplate } from '../observe/snapshots';
+export { describeValueRef, resolveDataValue } from '../resolve/data';
 export {
   activeRouteVariantRefs,
   inferTransitionObservations,

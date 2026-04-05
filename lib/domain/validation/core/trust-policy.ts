@@ -1,4 +1,6 @@
-import type { ApprovalReceipt, OperatorInboxItem, ProposalBundle, RerunPlan, TrustPolicy, TrustPolicyEvaluation } from '../../types';
+import type { ProposalBundle } from '../../execution/types';
+import type { TrustPolicy, TrustPolicyEvaluation } from '../../governance/workflow-types';
+import type { ApprovalReceipt, OperatorInboxItem, RerunPlan } from '../../resolution/types';
 import {
   validateApprovalReceipt,
   validateOperatorInboxItem,

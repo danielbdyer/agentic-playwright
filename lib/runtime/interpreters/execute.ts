@@ -1,6 +1,6 @@
-import type { StepProgram, StepProgramDiagnosticContext, StepProgramExecutionResult } from '../../domain/execution/program';
-import type { SnapshotTemplateLoader } from '../../domain/execution/runtime-loaders';
-import type { ValueRef } from '../../domain/types';
+import type { StepProgram, StepProgramDiagnosticContext, StepProgramExecutionResult } from '../../domain/commitment/program';
+import type { SnapshotTemplateLoader } from '../../domain/commitment/runtime-loaders';
+import type { ValueRef } from '../../domain/intent/types';
 import { foldValueRef } from '../../domain/kernel/visitors';
 import { diagnosticInterpreter } from './diagnostic';
 import { dryRunInterpreter } from './dry-run';

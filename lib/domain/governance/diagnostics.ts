@@ -1,5 +1,11 @@
 import type { AdoId } from '../kernel/identity';
-import type { CompilerDiagnostic, DiagnosticProvenance, DiagnosticSeverity, TrustPolicyDecision, TrustPolicyEvaluationReason } from '../types';
+import type {
+  CompilerDiagnostic,
+  DiagnosticProvenance,
+  DiagnosticSeverity,
+  TrustPolicyDecision,
+  TrustPolicyEvaluationReason,
+} from './workflow-types';
 
 export function createDiagnostic(input: {
   code: string;

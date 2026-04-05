@@ -1,9 +1,5 @@
 import { sha256, stableStringify } from '../kernel/hash';
-import type {
-  ApplicationInterfaceGraph,
-  InterfaceGraphEdge,
-  InterfaceGraphNode,
-} from '../types';
+import type { ApplicationInterfaceGraph, InterfaceGraphEdge, InterfaceGraphNode } from '../target/interface-graph';
 import type { TransitionRef } from '../kernel/identity';
 
 export interface ApplicationInterfaceGraphInvariantReport {

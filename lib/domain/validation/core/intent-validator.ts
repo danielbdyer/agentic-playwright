@@ -4,14 +4,9 @@
  */
 import * as schemaDecode from '../../schemas/decode';
 import * as schemas from '../../schemas';
-import { mintApproved } from '../../types/workflow';
-import type {
-  AdoSnapshot,
-  BoundScenario,
-  Scenario,
-  ScenarioInterpretationSurface,
-  ScenarioTaskPacket,
-} from '../../types';
+import { mintApproved } from '../../governance/workflow-types';
+import type { AdoSnapshot, BoundScenario, Scenario } from '../../intent/types';
+import type { ScenarioInterpretationSurface, ScenarioTaskPacket } from '../../resolution/types';
 import { computeAdoContentHash } from '../../kernel/hash';
 import { createAdoId, createCanonicalTargetRef, createEventSignatureRef, createScreenId, createSelectorRef, createStateNodeRef, createTransitionRef, ensureSafeRelativePathLike } from '../../kernel/identity';
 import {

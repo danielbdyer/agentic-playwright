@@ -1,4 +1,5 @@
-import type { AdoSnapshot, BoundScenario, Scenario, ScenarioInterpretationSurface, ScenarioTaskPacket } from '../../types';
+import type { AdoSnapshot, BoundScenario, Scenario } from '../../intent/types';
+import type { ScenarioInterpretationSurface, ScenarioTaskPacket } from '../../resolution/types';
 import {
   validateAdoSnapshot,
   validateBoundScenario,

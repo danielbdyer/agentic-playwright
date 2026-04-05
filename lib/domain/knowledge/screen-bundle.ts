@@ -1,4 +1,9 @@
-import type { ScreenElements, ScreenHints, ScreenPostures, SurfaceGraph } from '../types';
+import type {
+  ScreenElements,
+  ScreenHints,
+  ScreenPostures,
+  SurfaceGraph,
+} from './types';
 
 export interface ScreenBundle {
   screen: SurfaceGraph['screen'];

@@ -1,19 +1,14 @@
+import type { TrustPolicy } from '../../domain/governance/workflow-types';
+import type { BoundScenario, Scenario } from '../../domain/intent/types';
+import type { PatternDocument, ScreenElements, ScreenHints } from '../../domain/knowledge/types';
 import type {
-  BoundScenario,
   DatasetControl,
   EvidenceRecord,
-  PatternDocument,
   ResolutionControl,
   RunbookControl,
-  Scenario,
   ScenarioInterpretationSurface,
-  ApplicationInterfaceGraph,
-  SelectorCanon,
-  ScreenElements,
-  ScreenHints,
-  StateTransitionGraph,
-  TrustPolicy,
-} from '../../domain/types';
+} from '../../domain/resolution/types';
+import type { ApplicationInterfaceGraph, SelectorCanon, StateTransitionGraph } from '../../domain/target/interface-graph';
 import type { ArtifactEnvelope, WorkspaceCatalog } from './types';
 
 export interface ResolutionReadModel {

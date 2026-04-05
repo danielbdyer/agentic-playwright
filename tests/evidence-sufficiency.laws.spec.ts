@@ -24,7 +24,7 @@ import type {
   EvidenceDescriptor,
   ProposedChangeMetadata,
   CertificationStatus,
-} from '../lib/domain/types/workflow';
+} from '../lib/domain/governance/workflow-types';
 import { mulberry32, pick, randomInt, randomWord , LAW_SEED_COUNT } from './support/random';
 
 // ─── Fixtures ───

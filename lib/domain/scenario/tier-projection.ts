@@ -17,7 +17,7 @@
  * than inheriting them from editorial decisions.
  */
 
-import type { Scenario, ScenarioStep, ScenarioPostcondition } from '../types/intent';
+import type { Scenario, ScenarioStep, ScenarioPostcondition } from '../intent/types';
 
 /**
  * Project a scenario step down to Tier 1 (problem statement only).

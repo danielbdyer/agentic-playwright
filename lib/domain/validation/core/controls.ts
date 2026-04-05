@@ -1,4 +1,4 @@
-import type { DatasetControl, ResolutionControl, RunbookControl } from '../../types';
+import type { DatasetControl, ResolutionControl, RunbookControl } from '../../resolution/types';
 import { validateDatasetControl, validateResolutionControl, validateRunbookControl } from '../core';
 
 export const validateDatasetControlArtifact: (value: unknown) => DatasetControl = validateDatasetControl;

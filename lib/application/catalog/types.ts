@@ -1,41 +1,44 @@
 import type { ScreenBundle } from '../../domain/knowledge/screen-bundle';
 import type { SnapshotTemplateId } from '../../domain/kernel/identity';
 import type {
-  AdoSnapshot,
-  AgentSession,
-  ApprovalReceipt,
-  BenchmarkContext,
-  BehaviorPatternDocument,
-  BoundScenario,
-  ApplicationInterfaceGraph,
-  ConfidenceOverlayCatalog,
-  DatasetControl,
-  DiscoveryRun,
-  EvidenceRecord,
-  HarvestManifest,
-  ImprovementRun,
   InterpretationDriftRecord,
-  ReplayExample,
+  ProposalBundle,
   ResolutionGraphRecord,
+  RunRecord,
+} from '../../domain/execution/types';
+import type { TrustPolicy } from '../../domain/governance/workflow-types';
+import type { AgentSession } from '../../domain/handshake/session';
+import type { ImprovementRun } from '../../domain/improvement/types';
+import type { HarvestManifest } from '../../domain/intent/routes';
+import type { AdoSnapshot, BoundScenario, Scenario } from '../../domain/intent/types';
+import type {
+  BehaviorPatternDocument,
+  ConfidenceOverlayCatalog,
   MergedPatterns,
   PatternDocument,
-  ProposalBundle,
-  ResolutionControl,
-  RerunPlan,
-  RunRecord,
-  RunbookControl,
-  Scenario,
-  ScenarioInterpretationSurface,
-  SelectorCanon,
   ScreenBehavior,
   ScreenElements,
   ScreenHints,
   ScreenPostures,
-  StateTransitionGraph,
   SurfaceGraph,
-  TrainingCorpusManifest,
-  TrustPolicy,
-} from '../../domain/types';
+} from '../../domain/knowledge/types';
+import type { ReplayExample, TrainingCorpusManifest } from '../../domain/learning/types';
+import type { BenchmarkContext } from '../../domain/projection/types';
+import type {
+  ApprovalReceipt,
+  DatasetControl,
+  EvidenceRecord,
+  RerunPlan,
+  ResolutionControl,
+  RunbookControl,
+  ScenarioInterpretationSurface,
+} from '../../domain/resolution/types';
+import type {
+  ApplicationInterfaceGraph,
+  DiscoveryRun,
+  SelectorCanon,
+  StateTransitionGraph,
+} from '../../domain/target/interface-graph';
 import type { ProjectPaths } from '../paths';
 
 export interface ArtifactEnvelope<T> {

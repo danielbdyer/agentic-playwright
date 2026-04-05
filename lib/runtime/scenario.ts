@@ -1,15 +1,15 @@
 import type { Page } from '@playwright/test';
-import { navigationOptionsForUrl } from './navigation-strategy';
-import { attachConsoleSentinel } from './console-sentinel';
+import { navigationOptionsForUrl } from './adapters/navigation-strategy';
+import { attachConsoleSentinel } from './observe/console-sentinel';
 import { uniqueSorted } from '../domain/kernel/collections';
 import { rankRouteVariants } from '../domain/knowledge/route-knowledge';
 import { chooseByPrecedence, routeSelectionPrecedenceLaw } from '../domain/resolution/precedence';
 import type { AdoId, StateNodeRef, TransitionRef } from '../domain/kernel/identity';
-import type { ExecutionBudgetThresholds } from '../domain/execution/telemetry';
-import { defaultRecoveryPolicy, recoveryFamilyConfig, type RecoveryAttempt, type RecoveryPolicy, type RecoveryStrategy } from '../domain/execution/recovery-policy';
-import { emptyExecutionTiming, normalizeFailureFamily } from '../domain/execution/telemetry';
-import { compileStepProgram } from '../domain/execution/program';
-import type { SnapshotTemplateLoader } from '../domain/execution/runtime-loaders';
+import type { ExecutionBudgetThresholds } from '../domain/commitment/telemetry';
+import { defaultRecoveryPolicy, recoveryFamilyConfig, type RecoveryAttempt, type RecoveryPolicy, type RecoveryStrategy } from '../domain/commitment/recovery-policy';
+import { emptyExecutionTiming, normalizeFailureFamily } from '../domain/commitment/telemetry';
+import { compileStepProgram } from '../domain/commitment/program';
+import type { SnapshotTemplateLoader } from '../domain/commitment/runtime-loaders';
 import { RuntimeError } from '../domain/kernel/errors';
 import {
   advanceScenarioRunState,
@@ -20,29 +20,27 @@ import {
 import { evaluateExecutionBudgetHandoff } from '../domain/scenario/policies/execution-budget-handoff';
 import { buildRecoveryStrategyEnvelope } from '../domain/scenario/policies/recovery-envelope';
 import { decideSemanticAccrual } from '../domain/scenario/policies/semantic-accrual';
+import type { ExecutionDiagnostic, StepExecutionReceipt } from '../domain/execution/types';
+import type { ExecutionPosture, ResolutionTarget } from '../domain/governance/workflow-types';
+import type { ScenarioStep } from '../domain/intent/types';
+import type { SemanticDictionaryAccrualInput } from '../domain/knowledge/semantic-dictionary-types';
+import type { InterfaceResolutionContext } from '../domain/knowledge/types';
 import type {
-  ExecutionPosture,
-  ExecutionDiagnostic,
-  InterfaceResolutionContext,
+  GroundedStep,
   ResolutionReceipt,
   ScenarioRunPlan,
-  ResolutionTarget,
-  ScenarioStep,
-  SemanticDictionaryAccrualInput,
-  StepExecutionReceipt,
-  GroundedStep,
-  TransitionObservation,
-  TranslationRequest,
   TranslationReceipt,
-} from '../domain/types';
-import type { RouteVariantKnowledge } from '../domain/types/intent-context';
+  TranslationRequest,
+} from '../domain/resolution/types';
+import type { TransitionObservation } from '../domain/target/interface-graph';
+import type { RouteVariantKnowledge } from '../domain/knowledge/route-knowledge-types';
 import { runStaticInterpreter } from './interpreters/execute';
 import type { InterpreterMode, InterpreterScreenRegistry } from './interpreters/types';
-import { playwrightStepProgramInterpreter } from './program';
-import { deterministicRuntimeStepAgent, type RuntimeStepAgent, type ResolutionStepOutcome } from './agent';
-import { applyProposalDraftsToRuntimeContext } from './agent/proposals';
-import type { RuntimeAgentInterpreter } from './agent/types';
-import type { RuntimeDomResolver } from '../domain/types';
+import { playwrightStepProgramInterpreter } from './execute/program';
+import { deterministicRuntimeStepAgent, type RuntimeStepAgent, type ResolutionStepOutcome } from './resolution/agent';
+import { applyProposalDraftsToRuntimeContext } from './resolution/proposals';
+import type { RuntimeAgentInterpreter } from './resolution/types';
+import type { RuntimeDomResolver } from '../domain/resolution/types';
 import { observeStateRefsOnPage, observeTransitionOnPage } from '../playwright/state-topology';
 import { planExecutionStep } from '../domain/resolution/execution-planner';
 
@@ -66,7 +64,7 @@ export interface RuntimeScenarioEnvironment {
   executionBudgetThresholds?: ExecutionBudgetThresholds | undefined;
   recoveryPolicy?: RecoveryPolicy | undefined;
   /** Semantic dictionary catalog, loaded once per run and injected for all steps. */
-  semanticDictionary?: import('../domain/types').SemanticDictionaryCatalog | undefined;
+  semanticDictionary?: import('../domain/knowledge/semantic-dictionary-types').SemanticDictionaryCatalog | undefined;
 }
 
 export type { ScenarioRunState };

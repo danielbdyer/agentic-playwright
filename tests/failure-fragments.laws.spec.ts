@@ -8,7 +8,7 @@ import {
   DEFAULT_PHYSICS,
   INITIAL_FRAGMENT_STATE,
   type FragmentSystemState,
-} from '../lib/domain/governance/failure-fragments';
+} from '../lib/domain/proposal/failure-fragments';
 
 test.describe('FailureFragments laws', () => {
 

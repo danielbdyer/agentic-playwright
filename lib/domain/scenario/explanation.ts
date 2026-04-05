@@ -1,7 +1,10 @@
 import { provenanceKindForBoundStep } from '../governance/provenance';
-import { aggregateConfidence } from '../execution/status';
-import type { BoundScenario, Governance, RunRecord, ScenarioExplanation, ScenarioLifecycle, StepProvenanceKind } from '../types';
-import { isReviewRequired } from '../types/workflow';
+import { aggregateConfidence } from '../commitment/status';
+import type { RunRecord } from '../execution/types';
+import type { Governance, ScenarioLifecycle, StepProvenanceKind } from '../governance/workflow-types';
+import type { BoundScenario } from '../intent/types';
+import type { ScenarioExplanation } from '../projection/types';
+import { isReviewRequired } from '../governance/workflow-types';
 
 export function aggregateScenarioGovernance(boundScenario: BoundScenario, latestRun?: RunRecord | null): Governance {
   if (latestRun?.steps.some((step) => step.interpretation.kind === 'needs-human')) {

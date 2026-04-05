@@ -11,7 +11,7 @@
  *   - No .push(), no mutation — pure functional particle physics
  */
 
-import { useMemo, memo, useCallback } from 'react';
+import { memo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { ProbeEvent, ViewportDimensions } from './types';
@@ -151,33 +151,29 @@ export const ParticleTransport = memo(function ParticleTransport({
 }: ParticleTransportProps) {
   const { step, physics } = useParticleSimulation(customPhysics);
 
-  const { geometry, material } = useMemo(() => {
-    const max = physics.maxParticles;
-    const positions = new Float32Array(max * 3);
-    const lifes = new Float32Array(max);
-    const colors = new Float32Array(max * 3);
+  const max = physics.maxParticles;
+  const positions = new Float32Array(max * 3);
+  const lifes = new Float32Array(max);
+  const colors = new Float32Array(max * 3);
 
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geo.setAttribute('aLife', new THREE.BufferAttribute(lifes, 1));
-    geo.setAttribute('aColor', new THREE.BufferAttribute(colors, 3));
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geo.setAttribute('aLife', new THREE.BufferAttribute(lifes, 1));
+  geo.setAttribute('aColor', new THREE.BufferAttribute(colors, 3));
 
-    const mat = new THREE.ShaderMaterial({
-      vertexShader: VERTEX_SHADER,
-      fragmentShader: FRAGMENT_SHADER,
-      transparent: true,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-    });
+  const material = new THREE.ShaderMaterial({
+    vertexShader: VERTEX_SHADER,
+    fragmentShader: FRAGMENT_SHADER,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
 
-    return { geometry: geo, material: mat };
-  }, [physics.maxParticles]);
+  const geometry = geo;
 
-  // Stable spawn factory
-  const buildSpawns = useCallback(
-    () => probesToParticles(sources, viewport, planeWidth, planeHeight, targetX),
-    [sources, viewport, planeWidth, planeHeight, targetX],
-  );
+  // Spawn factory
+  const buildSpawns =
+    () => probesToParticles(sources, viewport, planeWidth, planeHeight, targetX);
 
   useFrame((_, delta) => {
     const spawns = buildSpawns();

@@ -10,9 +10,9 @@
 
 import * as path from 'path';
 import { createProjectPaths } from '../lib/application/paths';
-import { evolveProgram, type EvolveResult } from '../lib/application/evolve';
+import { evolveProgram, type EvolveResult } from '../lib/application/improvement/evolve';
 import { runWithLocalServices } from '../lib/composition/local-services';
-import { DEFAULT_PIPELINE_CONFIG } from '../lib/domain/types';
+import { DEFAULT_PIPELINE_CONFIG } from '../lib/domain/attention/pipeline-config';
 
 // ─── CLI argument parsing ───
 

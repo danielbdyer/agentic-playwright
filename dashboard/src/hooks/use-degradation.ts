@@ -19,7 +19,7 @@
  * @see docs/first-day-flywheel-visualization.md Part VII: Performance Budget
  */
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 // ─── Degradation Tier ───
 
@@ -189,17 +189,17 @@ export function useDegradation(options?: DegradationOptions): DegradationState {
   const tierRef = useRef(initialTier);
   const rafRef = useRef(0);
 
-  const forceTier = useCallback((t: DegradationTier | null) => {
+  const forceTier = (t: DegradationTier | null) => {
     forcedTierRef.current = t;
     if (t !== null) {
       setTier(t);
       tierRef.current = t;
     }
-  }, []);
+  };
 
-  const toggleAuto = useCallback(() => {
+  const toggleAuto = () => {
     setAutoEnabled((prev) => !prev);
-  }, []);
+  };
 
   useEffect(() => {
     if (!autoEnabled) return;

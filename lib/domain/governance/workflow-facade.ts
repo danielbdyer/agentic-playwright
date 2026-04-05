@@ -1,5 +1,5 @@
 import { createRefPath } from '../kernel/ref-path';
-import type { ValueRef } from '../types';
+import type { ValueRef } from '../intent/types';
 import type { ElementId, FixtureId, ScreenId, ScreenPostureId, SnapshotTemplateId, SurfaceId } from '../../generated/tesseract-knowledge';
 
 export interface WorkflowDirectiveInput<S extends ScreenId = ScreenId> {

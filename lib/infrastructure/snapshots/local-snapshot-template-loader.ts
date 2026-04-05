@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'fs';
 import path from 'path';
 import type { SnapshotTemplateId } from '../../domain/kernel/identity';
-import type { SnapshotTemplateLoader } from '../../domain/execution/runtime-loaders';
+import type { SnapshotTemplateLoader } from '../../domain/commitment/runtime-loaders';
 
 function snapshotTemplatePath(rootDir: string, snapshotTemplate: SnapshotTemplateId): string {
   return path.join(rootDir, 'knowledge', snapshotTemplate);

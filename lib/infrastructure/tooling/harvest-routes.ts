@@ -4,19 +4,19 @@ import { chromium } from '@playwright/test';
 import { Effect } from 'effect';
 import { sha256, stableStringify } from '../../domain/kernel/hash';
 import { createCanonicalTargetRef, createElementId } from '../../domain/kernel/identity';
+import type { HarvestManifest, HarvestRouteDefinition, HarvestRouteVariant } from '../../domain/intent/routes';
+import type {
+  EventSignature,
+  ScreenBehavior,
+  StateNode,
+  StateTransition,
+} from '../../domain/knowledge/types';
 import type {
   DiscoveryIndex,
   DiscoveryIndexEntry,
   DiscoveryRun,
-  EventSignature,
-  HarvestManifest,
-  HarvestRouteDefinition,
-  HarvestRouteVariant,
-  ScreenBehavior,
-  StateNode,
-  StateTransition,
   StateTransitionGraph,
-} from '../../domain/types';
+} from '../../domain/target/interface-graph';
 import { validateDiscoveryIndex, validateDiscoveryRun } from '../../domain/validation';
 import { relativeProjectPath, type ProjectPaths } from '../../application/paths';
 import { loadWorkspaceCatalog } from '../../application/catalog';

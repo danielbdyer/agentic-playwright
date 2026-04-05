@@ -8,7 +8,7 @@
  * These are domain-level pure functions — no IO, no side effects.
  */
 
-import type { ResolutionReceipt } from '../types';
+import type { ResolutionReceipt } from './types';
 
 /** Derive a stable comparison key from a resolution receipt's target. Pure. */
 export const targetKey = (receipt: ResolutionReceipt): string =>

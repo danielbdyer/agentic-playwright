@@ -2,7 +2,7 @@ import { Effect } from 'effect';
 import { FileSystem } from '../application/ports';
 import type { RuntimeScenarioRunnerPort } from '../application/ports';
 import { createProjectPaths, type ProjectPaths } from '../application/paths';
-import { readTranslationCache, translationCacheKey, writeTranslationCache } from '../application/translation-cache';
+import { readTranslationCache, translationCacheKey, writeTranslationCache } from '../application/resolution/translation/translation-cache';
 import {
   accrueSemanticEntry,
   readSemanticDictionary,
@@ -10,15 +10,16 @@ import {
   recordSemanticSuccess,
   recordValidatedSuccess,
   writeSemanticDictionary,
-} from '../application/semantic-translation-dictionary';
-import { translateIntentToOntology } from '../application/translate';
-import type { TranslationProvider } from '../application/translation-provider';
-import { resolveAgentInterpreterPort } from '../application/agent-interpreter-provider';
-import type { AgentInterpretationResult } from '../domain/types/agent-interpreter';
+} from '../application/resolution/translation/semantic-translation-dictionary';
+import { translateIntentToOntology } from '../application/resolution/translation/translate';
+import type { TranslationProvider } from '../application/resolution/translation/translation-provider';
+import { resolveAgentInterpreterPort } from '../application/agency/agent-interpreter-provider';
+import type { AgentInterpretationResult } from '../domain/interpretation/agent-interpreter';
 import type { AgentInterpreterPort } from '../domain/resolution/model';
-import type { SemanticDictionaryCatalog, TranslationReceipt, TranslationRequest } from '../domain/types';
+import type { SemanticDictionaryCatalog } from '../domain/knowledge/semantic-dictionary-types';
+import type { TranslationReceipt, TranslationRequest } from '../domain/resolution/types';
 import { LocalFileSystem } from '../infrastructure/fs/local-fs';
-import { launchHeadedHarness } from '../infrastructure/headed-harness';
+import { launchHeadedHarness } from '../infrastructure/tooling/headed-harness';
 import { createLocalRuntimeEnvironment, type LocalRuntimeAgentInterpreter } from '../infrastructure/runtime/local-runtime-environment';
 import { createScenarioRunState, runScenarioStep } from '../runtime/scenario';
 
@@ -107,7 +108,7 @@ interface RunnerOptions {
   readonly interpreterOverride?: EffectfulAgentInterpreterPort | undefined;
   /** Optional browser pool for page reuse across scenarios.
    *  When provided, acquires/releases pages instead of launching new browsers. */
-  readonly browserPool?: import('../application/browser-pool').BrowserPoolPort | undefined;
+  readonly browserPool?: import('../application/runtime-support/browser-pool').BrowserPoolPort | undefined;
 }
 
 function buildRunnerWithInterpreter(interpreterOverride?: EffectfulAgentInterpreterPort | undefined, runnerOptions?: RunnerOptions): RuntimeScenarioRunnerPort {
@@ -259,6 +260,6 @@ export const createLocalRuntimeScenarioRunnerWithInterpreter = (
 
 /** Factory: create a runner with a browser pool for page reuse across scenarios. */
 export const createLocalRuntimeScenarioRunnerWithPool = (
-  pool: import('../application/browser-pool').BrowserPoolPort,
+  pool: import('../application/runtime-support/browser-pool').BrowserPoolPort,
   interpreter?: EffectfulAgentInterpreterPort,
 ): RuntimeScenarioRunnerPort => buildRunnerWithInterpreter(interpreter, { browserPool: pool });

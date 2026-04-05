@@ -26,13 +26,14 @@ import { LocalInterventionLedgerRepository } from '../infrastructure/repositorie
 import { makeLocalVersionControl } from '../infrastructure/tooling/local-version-control';
 import { LocalRuntimeScenarioRunner, createLocalRuntimeScenarioRunnerWithInterpreter, createLocalRuntimeScenarioRunnerWithPool } from './local-runtime-scenario-runner';
 import type { AgentInterpreterPort } from '../domain/resolution/model';
-import type { AgentInterpretationResult } from '../domain/types/agent-interpreter';
+import type { AgentInterpretationResult } from '../domain/interpretation/agent-interpreter';
 import { PlaywrightBridge, DisabledPlaywrightBridge } from '../infrastructure/mcp/playwright-mcp-bridge';
-import { dashboardEvent } from '../domain/types/dashboard';
-import type { ExecutionPosture, PipelineConfig, WriteJournalEntry } from '../domain/types';
-import { DEFAULT_PIPELINE_CONFIG } from '../domain/types';
+import { dashboardEvent } from '../domain/observation/dashboard';
+import type { PipelineConfig } from '../domain/attention/pipeline-config';
+import type { ExecutionPosture, WriteJournalEntry } from '../domain/governance/workflow-types';
+import { DEFAULT_PIPELINE_CONFIG } from '../domain/attention/pipeline-config';
 import type { DashboardPort, McpServerPort, StageTracerPort } from '../application/ports';
-import { enrichEventDataWithExecutionContext } from '../application/context/execution-context';
+import { enrichEventDataWithExecutionContext } from '../application/commitment/execution-context';
 import type { PlaywrightBridgePort } from '../infrastructure/mcp/playwright-mcp-bridge';
 
 type EffectfulAgentInterpreterPort = AgentInterpreterPort<Effect.Effect<AgentInterpretationResult, never, never>>;
@@ -59,7 +60,7 @@ export interface LocalServiceOptions {
   /** Inject a browser pool for page reuse across scenario runs.
    *  When provided, the runtime scenario runner acquires/releases pages from the pool
    *  instead of launching a new browser per scenario. */
-  readonly browserPool?: import('../application/browser-pool').BrowserPoolPort | undefined;
+  readonly browserPool?: import('../application/runtime-support/browser-pool').BrowserPoolPort | undefined;
 }
 
 export interface LocalServiceContext {

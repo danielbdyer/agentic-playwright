@@ -1,4 +1,4 @@
-import { compileScenario } from '../../compile';
+import { compileScenario } from '../../resolution/compile';
 import { createAdoId } from '../../../domain/kernel/identity';
 import { createCommandSpec } from '../shared';
 import { requireAdoId } from '../shared';

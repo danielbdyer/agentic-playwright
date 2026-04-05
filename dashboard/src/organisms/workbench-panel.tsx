@@ -4,7 +4,7 @@
  * W5.20: useOptimistic provides instant visual feedback on approve/skip.
  * Organism. Memo-wrapped.
  */
-import { memo, useOptimistic, useCallback } from 'react';
+import { memo, useOptimistic } from 'react';
 import { KIND_COLORS } from '../atoms/colors';
 
 interface WorkItem {
@@ -60,15 +60,15 @@ export const WorkbenchPanel = memo(function WorkbenchPanel({ workbench, onApprov
     applyOptimisticDecision,
   );
 
-  const handleApprove = useCallback((id: string) => {
+  const handleApprove = (id: string) => {
     addOptimisticDecision({ id, result: 'approved' });
     onApprove(id);
-  }, [addOptimisticDecision, onApprove]);
+  };
 
-  const handleSkip = useCallback((id: string) => {
+  const handleSkip = (id: string) => {
     addOptimisticDecision({ id, result: 'skipped' });
     onSkip(id);
-  }, [addOptimisticDecision, onSkip]);
+  };
 
   // React Compiler auto-memoizes this grouping derivation
   const uniqueItems = deduplicateById(optimisticItems);

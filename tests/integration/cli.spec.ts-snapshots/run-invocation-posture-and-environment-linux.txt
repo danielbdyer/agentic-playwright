@@ -1,0 +1,11 @@
+{
+  "command": "run",
+  "posture": {
+    "interpreterMode": "dry-run",
+    "writeMode": "no-write",
+    "executionProfile": "interactive",
+    "headed": false
+  },
+  "strictExitOnUnbound": false,
+  "environment": null
+}

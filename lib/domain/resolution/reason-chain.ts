@@ -7,12 +7,8 @@
  * what each rung tried and decided.
  */
 
-import type {
-  ResolutionExhaustionEntry,
-  ResolutionReasonChain,
-  ResolutionReasonStep,
-} from '../types/resolution';
-import type { StepWinningSource } from '../types/workflow';
+import type { ResolutionExhaustionEntry, ResolutionReasonChain, ResolutionReasonStep } from './types';
+import type { StepWinningSource } from '../governance/workflow-types';
 
 /**
  * Build a reason chain from the accumulated exhaustion entries and the

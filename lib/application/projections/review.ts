@@ -1,11 +1,7 @@
-import type {
-  GroundedStep,
-  ProposalBundle,
-  RunRecord,
-  ScenarioExplanation,
-  ScenarioProjectionInput,
-} from '../../domain/types';
-import type { operatorInboxItemsForScenario } from '../operator';
+import type { ProposalBundle, RunRecord } from '../../domain/execution/types';
+import type { ScenarioExplanation, ScenarioProjectionInput } from '../../domain/projection/types';
+import type { GroundedStep } from '../../domain/resolution/types';
+import type { operatorInboxItemsForScenario } from '../agency/operator';
 
 interface ReviewMetadata {
   readonly title: string;
@@ -130,7 +126,7 @@ export function buildReviewDocument(
       confidence: trace.confidence,
       governance: trace.governance,
       lifecycle: trace.lifecycle,
-      proposalBundleRunId: proposalBundle?.runId ?? null,
+      proposalBundleRunId: proposalBundle?.payload.runId ?? null,
       interfaceGraphFingerprint: projectionInput.interfaceGraph?.fingerprint ?? null,
       selectorCanonFingerprint: projectionInput.selectorCanon?.fingerprint ?? null,
       stateGraphFingerprint: projectionInput.stateGraph?.fingerprint ?? null,

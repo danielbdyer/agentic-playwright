@@ -12,7 +12,7 @@ import type {
   ContradictionSeverity,
   ContradictionSummary,
   KnowledgeContradiction,
-} from '../types/contradiction';
+} from '../knowledge/contradiction-types';
 
 // ─── Entry Types ───
 

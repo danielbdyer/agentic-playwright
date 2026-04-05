@@ -1,4 +1,4 @@
-import { approveProposal } from '../../approve';
+import { approveProposal } from '../../governance/approve';
 import { createCommandSpec } from '../shared';
 import { requireProposalId } from '../shared';
 

@@ -15,7 +15,7 @@
  *   frame update:  O(1) — single rAF callback
  */
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type { FlywheelAct } from '../types';
 
 // ─── Camera State Domain ───
@@ -181,12 +181,12 @@ export function useCameraChoreography(
 
   // ─── Operator Override ───
 
-  const setOverride = useCallback((position: Vec3, fov: number, target: Vec3) => {
+  const setOverride = (position: Vec3, fov: number, target: Vec3) => {
     overrideRef.current = { position, fov, target };
     transitionRef.current = null;
-  }, []);
+  };
 
-  const releaseOverride = useCallback(() => {
+  const releaseOverride = () => {
     const prev = overrideRef.current;
     if (!prev) return;
 
@@ -205,9 +205,9 @@ export function useCameraChoreography(
       duration: DEFAULT_DURATION / speedMultiplier,
       startTime: performance.now(),
     };
-  }, [speedMultiplier]);
+  };
 
-  const jumpToAct = useCallback((act: FlywheelAct) => {
+  const jumpToAct = (act: FlywheelAct) => {
     const target = CAMERA_STATES[act];
     overrideRef.current = null;
     transitionRef.current = null;
@@ -224,7 +224,7 @@ export function useCameraChoreography(
       transitioning: false,
       transitionProgress: 0,
     }));
-  }, []);
+  };
 
   // ─── Act Change Detection ───
 

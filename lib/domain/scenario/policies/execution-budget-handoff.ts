@@ -1,5 +1,5 @@
-import { evaluateExecutionBudget, type ExecutionBudgetThresholds, type ExecutionCost, type ExecutionTiming } from '../../execution/telemetry';
-import type { StepExecutionReceipt } from '../../types';
+import { evaluateExecutionBudget, type ExecutionBudgetThresholds, type ExecutionCost, type ExecutionTiming } from '../../commitment/telemetry';
+import type { StepExecutionReceipt } from '../../execution/types';
 
 export interface ExecutionBudgetHandoffInput {
   readonly timing: ExecutionTiming;

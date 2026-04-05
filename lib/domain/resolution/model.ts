@@ -1,7 +1,7 @@
 /**
  * Domain model types for the resolution workflow package.
  */
-import type { AgentInterpretationRequest, AgentInterpretationResult } from '../types/agent-interpreter';
+import type { AgentInterpretationRequest, AgentInterpretationResult } from '../interpretation/agent-interpreter';
 
 export type AgentInterpreterKind = 'disabled' | 'heuristic' | 'llm-api' | 'session';
 

@@ -1,6 +1,11 @@
 import * as schemaDecode from '../schemas/decode';
 import * as schemas from '../schemas';
-import type { AdoSnapshot, BoundScenario, BoundStep, Scenario } from '../types';
+import type {
+  AdoSnapshot,
+  BoundScenario,
+  BoundStep,
+  Scenario,
+} from '../intent/types';
 import { validateByKind } from './registry';
 
 export const validateAdoSnapshot = (value: unknown): AdoSnapshot => validateByKind('ado-snapshot', value);

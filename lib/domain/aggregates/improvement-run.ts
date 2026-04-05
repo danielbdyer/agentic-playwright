@@ -1,8 +1,4 @@
-import type {
-  ImprovementLedger,
-  ImprovementLineageEntry,
-  ImprovementRun,
-} from '../types';
+import type { ImprovementLedger, ImprovementLineageEntry, ImprovementRun } from '../improvement/types';
 
 export function createImprovementRun(run: ImprovementRun): ImprovementRun {
   return {

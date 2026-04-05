@@ -15,7 +15,7 @@
  *   - Spatial:    dashboard/src/spatial/
  */
 
-import { useState, useEffect, useCallback, useRef, useTransition, Suspense, use, useDeferredValue, useOptimistic } from 'react';
+import { useState, useEffect, useRef, useTransition, Suspense, use, useDeferredValue, useOptimistic } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { SpatialCanvas } from './spatial/canvas';
@@ -179,12 +179,12 @@ function useEffectStream(url: string) {
     };
   }
 
-  const handleMessage = useCallback((msg: { readonly type: string; readonly data: unknown }) => {
+  const handleMessage = (msg: { readonly type: string; readonly data: unknown }) => {
     const handler = dispatchRef.current?.[msg.type];
     if (handler && msg.data != null) handler(msg.data);
     else if (msg.type === 'workbench-updated') qc.setQueryData(['workbench'], msg.data);
     else if (msg.type === 'fitness-updated') qc.setQueryData(['fitness'], msg.data);
-  }, [qc]);
+  };
 
   const screencastStream = useScreencastStream();
   const { connected, send } = useWebSocket(url, handleMessage, screencastStream.onBinaryFrame);
@@ -322,9 +322,9 @@ function App() {
   const decisionMutation = useDecision(send);
 
   // W5.19: refresh fitness promise when WebSocket pushes 'fitness-updated'
-  const refreshFitness = useCallback(() => {
+  const refreshFitness = () => {
     fitnessPromiseRef.current = createFitnessPromise();
-  }, []);
+  };
 
   const capabilities = useWebMcpCapabilities(capture?.url);
   const [portalLoaded, setPortalLoaded] = useState(false);
@@ -334,13 +334,13 @@ function App() {
   const hasScreencast = screencastStream.hasFrame.current || capture !== null;
   const portalActive = !hasScreencast && capabilities.liveDomPortal && portalLoaded;
 
-  const handleApprove = useCallback((id: string) => {
+  const handleApprove = (id: string) => {
     decisionMutation.mutate({ workItemId: id, status: 'completed', rationale: `Dashboard approved` });
-  }, [decisionMutation]);
+  };
 
-  const handleSkip = useCallback((id: string) => {
+  const handleSkip = (id: string) => {
     decisionMutation.mutate({ workItemId: id, status: 'skipped', rationale: `Dashboard skipped` });
-  }, [decisionMutation]);
+  };
 
   const activeProbes = probeQueue.active.map((q) => q.data);
   const activeProposals = proposalQueue.active.map((q) => q.data);
@@ -348,14 +348,14 @@ function App() {
   const [frameSample, setFrameSample] = useState<FrameBudgetSample>({ avgFrameTimeMs: 16.67, droppedFrames: 0 });
   const [lastEventLagMs, setLastEventLagMs] = useState(0);
 
-  const handleParticleArrived = useCallback((probeId: string) => {
+  const handleParticleArrived = (probeId: string) => {
     probeQueue.retire(probeId);
-  }, [probeQueue]);
+  };
 
-  const handlePortalLoaded = useCallback(() => setPortalLoaded(true), []);
-  const handleFrameBudgetSample = useCallback((sample: FrameBudgetSample) => {
+  const handlePortalLoaded = () => setPortalLoaded(true);
+  const handleFrameBudgetSample = (sample: FrameBudgetSample) => {
     setFrameSample(sample);
-  }, []);
+  };
 
   const probeActiveLength = probeQueue.active.length;
   useEffect(() => {
@@ -368,7 +368,7 @@ function App() {
   // Phase 6: decision burst state — set when approve/skip triggers, cleared when animation completes
   const [decisionBurst, setDecisionBurst] = useState<{ readonly origin: readonly [number, number, number]; readonly result: DecisionResult } | null>(null);
 
-  const handleApprove3D = useCallback((workItemId: string) => {
+  const handleApprove3D = (workItemId: string) => {
     // Find matching probe to get burst origin position
     const probe = activeProbes.find((p) => pauseContext?.element === p.element && p.boundingBox);
     const origin: [number, number, number] = probe?.boundingBox
@@ -378,9 +378,9 @@ function App() {
       : [-1.8, 0, 0.1];
     setDecisionBurst({ origin, result: 'approved' });
     handleApprove(workItemId);
-  }, [activeProbes, pauseContext, appViewport, handleApprove]);
+  };
 
-  const handleSkip3D = useCallback((workItemId: string) => {
+  const handleSkip3D = (workItemId: string) => {
     const probe = activeProbes.find((p) => pauseContext?.element === p.element && p.boundingBox);
     const origin: [number, number, number] = probe?.boundingBox
       ? [((probe.boundingBox.x + probe.boundingBox.width / 2) / appViewport.width) * 3 - 1.5 - 1.8,
@@ -389,9 +389,9 @@ function App() {
       : [-1.8, 0, 0.1];
     setDecisionBurst({ origin, result: 'skipped' });
     handleSkip(workItemId);
-  }, [activeProbes, pauseContext, appViewport, handleSkip]);
+  };
 
-  const handleBurstComplete = useCallback(() => setDecisionBurst(null), []);
+  const handleBurstComplete = () => setDecisionBurst(null);
   const coalescingRatio = probeQueue.diagnostics.ingestedCount === 0
     ? 0
     : probeQueue.diagnostics.coalescedCount / probeQueue.diagnostics.ingestedCount;

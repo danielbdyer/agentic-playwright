@@ -15,7 +15,7 @@
  *   - useTransition for buffered count (non-urgent UI metric)
  */
 
-import { useState, useEffect, useCallback, useRef, useTransition } from 'react';
+import { useState, useEffect, useRef, useTransition } from 'react';
 import type { FlywheelAct } from '../types';
 
 // ─── Types ───
@@ -185,19 +185,19 @@ export function useIngestionQueue<T>(options: IngestionQueueOptions<T> = {}) {
   }, [policy.coalesceSemantically, policy.maxBatchPerFrame, policy.staggerMs, startTransition]);
 
   /** O(1). Enqueues an event into the ring buffer. */
-  const enqueue = useCallback((id: string, data: T) => {
+  const enqueue = (id: string, data: T) => {
     ringEnqueue(ringRef.current, { id, data, queuedAt: performance.now() });
     startTransition(() => {
       setBuffered(ringRef.current.size);
       setIngestedCount((prev) => prev + 1);
       setQueueDepthByAct((prev) => ({ ...prev, [act]: ringRef.current.size }));
     });
-  }, [act, startTransition]);
+  };
 
   /** O(n). Removes an event from the active set by id. */
-  const retire = useCallback((id: string) => {
+  const retire = (id: string) => {
     setActive((prev) => prev.filter((e) => e.id !== id));
-  }, []);
+  };
 
   const diagnostics = {
     ingestedCount,

@@ -1,5 +1,5 @@
 import { Effect } from 'effect';
-import { enrichEventDataWithExecutionContext, withExecutionContext } from '../context/execution-context';
+import { enrichEventDataWithExecutionContext, withExecutionContext } from '../commitment/execution-context';
 import { StageTracer } from '../ports';
 
 export interface PipelineStage<StageDependencies, StageComputed, StagePersisted, StageError, StageRequirements> {

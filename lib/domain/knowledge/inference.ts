@@ -1,6 +1,12 @@
 import { normalizeHtmlText } from '../kernel/hash';
 import { uniqueSorted } from '../kernel/collections';
-import type { ScreenElements, ScreenHints, ScreenPostures, SharedPatterns, SurfaceGraph } from '../types';
+import type {
+  ScreenElements,
+  ScreenHints,
+  ScreenPostures,
+  SharedPatterns,
+  SurfaceGraph,
+} from './types';
 
 export interface InferenceKnowledge {
   surfaceGraphs: Record<string, SurfaceGraph>;
@@ -14,7 +20,7 @@ export function normalizeIntentText(value: string): string {
   return normalizeHtmlText(value).toLowerCase();
 }
 
-// ─── Alias matching (moved from runtime/agent/shared.ts) ───
+// ─── Alias matching (moved from runtime/resolution/shared.ts) ───
 
 export interface AliasMatch {
   alias: string;
@@ -80,7 +86,7 @@ export function bestAliasMatch(normalizedText: string, aliases: readonly string[
 // Intent decomposition and synonym expansion are LLM-mediated concerns.
 // The LLM decomposes natural-language action text into structured tokens
 // and proposes alias expansions — see IntentDecomposition below and
-// the translation contract in lib/runtime/agent/types.ts.
+// the translation contract in lib/runtime/resolution/types.ts.
 //
 // The deterministic pipeline's role is to:
 // 1. Present structured context to the LLM (screens, elements, aliases)

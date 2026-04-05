@@ -22,7 +22,7 @@
  * @see docs/first-day-flywheel-visualization.md Part X, Challenge 2-3
  */
 
-import type { DashboardEventKind } from '../types/dashboard';
+import type { DashboardEventKind } from '../observation/dashboard';
 
 // ─── Flywheel Act (domain-level, no frontend dependency) ───
 

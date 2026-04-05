@@ -1,0 +1,10 @@
+{
+  "command": "sync",
+  "postureInput": {},
+  "strictExitOnUnbound": false,
+  "environment": {
+    "TESSERACT_ADO_SOURCE": "live",
+    "TESSERACT_ADO_ORG_URL": "https://dev.azure.com/acme",
+    "TESSERACT_ADO_PROJECT": "demo"
+  }
+}

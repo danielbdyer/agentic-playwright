@@ -29,7 +29,7 @@
  * @see docs/first-day-flywheel-visualization.md Part VI
  */
 
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import type { FlywheelAct } from '../types';
 
 // ─── Interaction Mode ───

@@ -13,11 +13,12 @@
 import { Effect } from 'effect';
 import type { Page } from '@playwright/test';
 import type { ScreenObservationPort, ScreenObservationResult } from '../../application/ports';
-import type { LocatorStrategy, ElementSig } from '../../domain/types';
+import type { LocatorStrategy } from '../../domain/governance/workflow-types';
+import type { ElementSig } from '../../domain/knowledge/types';
 import { resolveLocator, describeLocatorStrategy } from '../../playwright/locate';
 import { captureAriaYaml } from '../../playwright/aria';
 import { TesseractError } from '../../domain/kernel/errors';
-import { navigationOptionsForUrl } from '../../runtime/navigation-strategy';
+import { navigationOptionsForUrl } from '../../runtime/adapters/navigation-strategy';
 
 /** Observe a single element by trying its locator strategies in order. Pure async. */
 async function observeElement(

@@ -1,14 +1,12 @@
 import { mkdirSync, writeFileSync } from 'fs';
 import path from 'path';
 import { expect } from '@playwright/test';
-import { buildImprovementRun, improvementLedgerPath } from '../../lib/application/improvement';
+import { buildImprovementRun, improvementLedgerPath } from '../../lib/application/improvement/improvement';
 import type { ProjectionCacheMissIncremental, ProjectionIncremental } from '../../lib/application/projections/runner';
 import { createElementId, createScreenId, createSurfaceId } from '../../lib/domain/kernel/identity';
 import type { createAdoId } from '../../lib/domain/kernel/identity';
-import {
-  DEFAULT_PIPELINE_CONFIG,
-  type PipelineFitnessReport,
-} from '../../lib/domain/types';
+import { DEFAULT_PIPELINE_CONFIG } from '../../lib/domain/attention/pipeline-config';
+import { PipelineFitnessReport } from '../../lib/domain/fitness/types';
 import type { createTestWorkspace } from './workspace';
 
 export const policySearchScreenId = createScreenId('policy-search');

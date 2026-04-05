@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
-import type { WorkItemDecision } from '../../../lib/domain/types/dashboard';
-import type { AgentWorkItem, ScreenGroupContext } from '../../../lib/domain/types/workbench';
+import type { WorkItemDecision } from '../../../lib/domain/observation/dashboard';
+import type { AgentWorkItem, ScreenGroupContext } from '../../../lib/domain/handshake/workbench';
 import {
   DASHBOARD_EVENT_KINDS,
   isDashboardEventKind,

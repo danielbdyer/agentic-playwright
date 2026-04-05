@@ -1,8 +1,9 @@
 import type { RuntimeScenarioMode } from '../../application/ports';
 import type { ScreenId } from '../../domain/kernel/identity';
-import type { ScreenRegistry, SnapshotTemplateLoader } from '../../domain/execution/runtime-loaders';
-import type { ExecutionPosture, RuntimeDomResolver, TranslationRequest, TranslationReceipt } from '../../domain/types';
-import type { RecoveryPolicy } from '../../domain/execution/recovery-policy';
+import type { ScreenRegistry, SnapshotTemplateLoader } from '../../domain/commitment/runtime-loaders';
+import type { ExecutionPosture } from '../../domain/governance/workflow-types';
+import type { RuntimeDomResolver, TranslationReceipt, TranslationRequest } from '../../domain/resolution/types';
+import type { RecoveryPolicy } from '../../domain/commitment/recovery-policy';
 import type { AgentInterpreterPort } from '../../domain/resolution/model';
 import { createLocalScreenRegistryLoader } from '../screen-registry/local-screen-registry-loader';
 import { createLocalSnapshotTemplateLoader } from '../snapshots/local-snapshot-template-loader';

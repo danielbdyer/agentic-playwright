@@ -6,7 +6,7 @@
  * Consumers read it in useFrame or RAF callbacks.
  */
 
-import { useRef, useCallback } from 'react';
+import { useRef } from 'react';
 
 export type IterationPhase = 'idle' | 'running' | 'complete';
 
@@ -14,17 +14,17 @@ export function useIterationPulse(decayRate = 1.5) {
   const pulseRef = useRef(0);
   const phaseRef = useRef<IterationPhase>('idle');
 
-  const onStart = useCallback(() => {
+  const onStart = () => {
     pulseRef.current = 1.0;
     phaseRef.current = 'running';
-  }, []);
+  };
 
-  const onComplete = useCallback(() => {
+  const onComplete = () => {
     phaseRef.current = 'complete';
-  }, []);
+  };
 
   /** Call from useFrame with frame delta. Returns current pulse [0..1]. */
-  const tick = useCallback((delta: number) => {
+  const tick = (delta: number) => {
     if (pulseRef.current > 0) {
       pulseRef.current = Math.max(0, pulseRef.current - delta * decayRate);
     }
@@ -32,7 +32,7 @@ export function useIterationPulse(decayRate = 1.5) {
       phaseRef.current = 'idle';
     }
     return pulseRef.current;
-  }, [decayRate]);
+  };
 
   return { tick, onStart, onComplete, phase: phaseRef } as const;
 }

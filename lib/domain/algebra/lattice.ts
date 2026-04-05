@@ -1,4 +1,4 @@
-import type { Governance } from '../types/workflow';
+import type { Governance } from '../governance/workflow-types';
 
 // ─── Lattice Algebra ───
 

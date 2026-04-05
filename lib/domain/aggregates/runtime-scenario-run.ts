@@ -1,14 +1,10 @@
 import { uniqueSorted } from '../kernel/collections';
-import type {
-  GroundedStep,
-  ResolutionReceipt,
-  TransitionObservation,
-  ObservedStateSession,
-} from '../types';
+import type { GroundedStep, ObservedStateSession, ResolutionReceipt } from '../resolution/types';
+import type { TransitionObservation } from '../target/interface-graph';
 import type { StateNodeRef, TransitionRef } from '../kernel/identity';
 
 export interface ScenarioRunState {
-  previousResolution: import('../types').ResolutionTarget | null;
+  previousResolution: import('../governance/workflow-types').ResolutionTarget | null;
   observedStateSession: ObservedStateSession;
 }
 

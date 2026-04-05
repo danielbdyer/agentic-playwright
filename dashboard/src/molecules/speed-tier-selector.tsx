@@ -9,7 +9,7 @@
  * @see docs/first-day-flywheel-visualization.md Part III: Playback Speed Tiers
  */
 
-import { memo, useCallback, useState } from 'react';
+import { memo, useState } from 'react';
 import { SPEED_TIERS, type SpeedTier } from '../../../lib/domain/projection/speed-tier-batcher';
 
 // ─── Component Props ───
@@ -44,13 +44,10 @@ export const SpeedTierSelector = memo(function SpeedTierSelector({
   const [isOpen, setIsOpen] = useState(false);
   const current = nearestTier(currentSpeed);
 
-  const handleSelect = useCallback(
-    (speed: number) => {
-      onSpeedChange(speed);
-      setIsOpen(false);
-    },
-    [onSpeedChange],
-  );
+  const handleSelect = (speed: number) => {
+    onSpeedChange(speed);
+    setIsOpen(false);
+  };
 
   return (
     <div className="relative inline-block">

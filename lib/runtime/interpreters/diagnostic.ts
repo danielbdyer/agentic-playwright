@@ -1,4 +1,4 @@
-import type { ProgramFailure, StepProgram, StepProgramDiagnosticContext, StepProgramExecutionResult, StepProgramInterpreter } from '../../domain/execution/program';
+import type { ProgramFailure, StepProgram, StepProgramDiagnosticContext, StepProgramExecutionResult, StepProgramInterpreter } from '../../domain/commitment/program';
 import { createDiagnostic } from '../../domain/governance/diagnostics';
 import { dryRunInterpreter } from './dry-run';
 import type { InterpreterEnvironment } from './types';

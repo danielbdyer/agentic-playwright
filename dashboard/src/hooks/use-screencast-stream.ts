@@ -13,7 +13,7 @@
  * the canvas to the GPU.
  */
 
-import { useRef, useCallback } from 'react';
+import { useRef } from 'react';
 import type { BinaryFrameHandler } from './use-web-socket';
 
 /** Binary frame header: [0x01] [u16be width] [u16be height] [JPEG bytes] */
@@ -48,7 +48,7 @@ export function useScreencastStream(): ScreencastStream {
     canvasRef.current.height = 720;
   }
 
-  const onBinaryFrame: BinaryFrameHandler = useCallback((buffer: ArrayBuffer) => {
+  const onBinaryFrame: BinaryFrameHandler = (buffer: ArrayBuffer) => {
     if (buffer.byteLength < HEADER_SIZE) return;
 
     const view = new DataView(buffer);
@@ -90,7 +90,7 @@ export function useScreencastStream(): ScreencastStream {
     }).catch(() => {
       // Decode failed — skip frame silently
     });
-  }, []);
+  };
 
   return { canvasRef, hasFrame, frameSeq, dimensions, onBinaryFrame };
 }

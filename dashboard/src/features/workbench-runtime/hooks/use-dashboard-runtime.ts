@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useTransition } from 'react';
+import { useState, useEffect, useRef, useTransition } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useIngestionQueue } from '../../../hooks/use-ingestion-queue';
 import { useWebSocket } from '../../../hooks/use-web-socket';
@@ -127,7 +127,7 @@ export function useDashboardRuntime(url: string) {
     enqueue: probeQueue.enqueue,
   });
 
-  const handleMessage = useCallback((message: {
+  const handleMessage = (message: {
     readonly type: string;
     readonly data: unknown;
   }) => {
@@ -146,7 +146,7 @@ export function useDashboardRuntime(url: string) {
         message as DashboardEventMessage,
       );
     });
-  }, [startTransition]);
+  };
 
   const { connected, send } = useWebSocket(url, handleMessage);
 

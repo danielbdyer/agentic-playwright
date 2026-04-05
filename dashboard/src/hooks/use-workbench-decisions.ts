@@ -7,7 +7,7 @@
  * server round-trip settles.
  */
 
-import { useCallback, useMemo, useOptimistic, useState } from 'react';
+import { useOptimistic, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { OptimisticDecision, QueuedItem, WorkItemDecisionInput, Workbench } from '../types';
 
@@ -118,7 +118,7 @@ export function useWorkbenchDecisions(input: {
     },
   });
 
-  const submitDecision = useCallback((workItemId: string, status: WorkItemDecisionInput['status'], rationale: string) => {
+  const submitDecision = (workItemId: string, status: WorkItemDecisionInput['status'], rationale: string) => {
     const decision: OptimisticDecision = {
       workItemId,
       status,
@@ -137,29 +137,14 @@ export function useWorkbenchDecisions(input: {
         setPendingDecisions((current) => current.filter((existing) => existing.workItemId !== workItemId));
       },
     });
-  }, [addOptimisticDecision, mutation, queryClient]);
+  };
 
-  const approve = useCallback(
-    (workItemId: string) => submitDecision(workItemId, 'completed', 'Dashboard approved'),
-    [submitDecision],
-  );
-  const skip = useCallback(
-    (workItemId: string) => submitDecision(workItemId, 'skipped', 'Dashboard skipped'),
-    [submitDecision],
-  );
+  const approve = (workItemId: string) => submitDecision(workItemId, 'completed', 'Dashboard approved');
+  const skip = (workItemId: string) => submitDecision(workItemId, 'skipped', 'Dashboard skipped');
 
-  const workbench = useMemo(
-    () => applyWorkbenchDecisionOverlay(input.workbench, optimisticDecisions),
-    [input.workbench, optimisticDecisions],
-  );
-  const queue = useMemo(
-    () => applyQueueDecisionOverlay(input.queue, optimisticDecisions),
-    [input.queue, optimisticDecisions],
-  );
-  const decisionPulse = useMemo(
-    () => describeDecisionPulse(optimisticDecisions[optimisticDecisions.length - 1] ?? null),
-    [optimisticDecisions],
-  );
+  const workbench = applyWorkbenchDecisionOverlay(input.workbench, optimisticDecisions);
+  const queue = applyQueueDecisionOverlay(input.queue, optimisticDecisions);
+  const decisionPulse = describeDecisionPulse(optimisticDecisions[optimisticDecisions.length - 1] ?? null);
 
   return {
     workbench,

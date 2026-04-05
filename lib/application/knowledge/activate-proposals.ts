@@ -1,0 +1,367 @@
+import path from 'path';
+import { Effect } from 'effect';
+import type { BottleneckWeights } from '../../domain/attention/pipeline-config';
+import type { ProposalBundle, ProposalEntry } from '../../domain/execution/types';
+import type { AutoApprovalPolicy, TrustPolicy } from '../../domain/governance/workflow-types';
+import { GovernanceLattice } from '../../domain/algebra/lattice';
+import { groupByMap } from '../../domain/kernel/collections';
+import { fromGovernance, type GovernanceVerdict } from '../../domain/kernel/governed-suspension';
+import type { ProjectPaths } from '../paths';
+import { FileSystem } from '../ports';
+import { trySync } from '../effect';
+import { applyProposalPatch, parseProposalArtifact, serializeProposalArtifact, validatePatchedProposalArtifact } from './proposal-patches';
+import { evaluateAutoApproval } from '../../domain/governance/trust-policy';
+import { findToxicAliases, type AliasOutcome } from '../../domain/proposal/quality';
+import { scoreProposalByBottleneck } from '../learning/learning-bottlenecks';
+import type { FileSystemPort } from '../ports';
+import {
+  transitionProposal,
+  trustPolicyToEvent,
+  isBlocked,
+  type ProposalTransitionEvent,
+} from '../../domain/proposal/lifecycle';
+
+// ─── FSM-backed transition helpers ───
+// These delegate to the proposal lifecycle FSM for state transitions,
+// replacing the ad-hoc activatedProposal/blockedProposal functions.
+
+function activatedProposal(proposal: ProposalEntry, activatedAt: string): ProposalEntry {
+  const event = trustPolicyToEvent(proposal.trustPolicy.decision, activatedAt);
+  const { activation, certification } = transitionProposal(proposal.activation, event);
+  return { ...proposal, certification, activation };
+}
+
+function blockedProposal(proposal: ProposalEntry, reason: string): ProposalEntry {
+  const event: ProposalTransitionEvent = { kind: 'validation-failure', reason };
+  const { activation, certification } = transitionProposal(proposal.activation, event);
+  return { ...proposal, certification, activation };
+}
+
+export interface ActivateProposalBundleResult {
+  proposalBundle: ProposalBundle;
+  activatedPaths: string[];
+  blockedProposalIds: string[];
+}
+
+export function tryActivateProposal(fsPort: FileSystemPort, rootDir: string, proposal: ProposalEntry, activatedAt: string) {
+  const candidate = activatedProposal(proposal, activatedAt);
+  const absoluteTargetPath = path.join(rootDir, proposal.targetPath);
+
+  return Effect.gen(function* () {
+    const currentRaw = (yield* fsPort.exists(absoluteTargetPath))
+      ? yield* fsPort.readText(absoluteTargetPath)
+      : '{}';
+    const nextArtifact = yield* trySync(
+      () => applyProposalPatch(parseProposalArtifact(currentRaw, proposal.targetPath), candidate),
+      'proposal-patch-failed', `Proposal patch failed for ${proposal.targetPath}`);
+    yield* trySync(
+      () => validatePatchedProposalArtifact(proposal.targetPath, candidate, nextArtifact),
+      'proposal-validation-failed', `Proposal validation failed for ${proposal.targetPath}`);
+    yield* fsPort.writeText(absoluteTargetPath, serializeProposalArtifact(proposal.targetPath, nextArtifact));
+    return { proposal: candidate, activatedPath: absoluteTargetPath, blocked: false as const };
+  }).pipe(
+    Effect.catchAll((error) => Effect.succeed({
+      proposal: blockedProposal(proposal, error instanceof Error ? error.message : 'proposal activation failed'),
+      activatedPath: null,
+      blocked: true as const,
+      proposalId: proposal.proposalId,
+    })),
+  );
+}
+
+export function activateProposalBundle(options: {
+  paths: ProjectPaths;
+  proposalBundle: ProposalBundle;
+}) {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const activatedAt = new Date().toISOString();
+
+    // Group proposals by targetPath to serialize writes to the same file,
+    // preventing race conditions on overlapping targets.
+    const byTarget = groupByMap(options.proposalBundle.payload.proposals, (p) => p.targetPath);
+
+    // Process each target-group sequentially (same-file writes serialized),
+    // but different target groups concurrently (capped at 10).
+    const groupResults = yield* Effect.forEach(
+      [...byTarget.values()],
+      (group) => Effect.forEach(
+        group,
+        (proposal) => tryActivateProposal(fs, options.paths.suiteRoot, proposal, activatedAt),
+        { concurrency: 1 },
+      ),
+      { concurrency: 10 },
+    );
+    const results = groupResults.flat();
+
+    const proposals = results.map((result) => result.proposal);
+    const activatedPaths = results
+      .flatMap((result): string[] => result.activatedPath !== null ? [result.activatedPath as string] : [])
+      .sort((left, right) => left.localeCompare(right));
+    const blockedProposalIds = results
+      .flatMap((result) => result.blocked ? [(result as { proposalId: string }).proposalId] : []);
+
+    const proposalGovernances = proposals.map((p) =>
+      isBlocked(p.activation) ? 'blocked' as const : 'approved' as const,
+    );
+    const proposalBundle: ProposalBundle = {
+      ...options.proposalBundle,
+      governance: proposalGovernances.reduce(GovernanceLattice.meet, GovernanceLattice.top),
+      payload: {
+        ...options.proposalBundle.payload,
+        proposals,
+      },
+    };
+
+    return {
+      proposalBundle,
+      activatedPaths,
+      blockedProposalIds,
+    } satisfies ActivateProposalBundleResult;
+  });
+}
+
+export interface CompensationBackup {
+  filePath: string;
+  originalContent: string;
+}
+
+export function backupBeforeActivation(options: {
+  paths: ProjectPaths;
+  proposalBundle: ProposalBundle;
+}) {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const all = yield* Effect.forEach(options.proposalBundle.payload.proposals, (proposal) =>
+      Effect.gen(function* () {
+        const absoluteTargetPath = path.join(options.paths.suiteRoot, proposal.targetPath);
+        return yield* fs.readText(absoluteTargetPath).pipe(
+          Effect.map((originalContent): CompensationBackup => ({ filePath: absoluteTargetPath, originalContent })),
+          Effect.catchTag('FileSystemError', () => Effect.succeed(null)),
+        );
+      }), { concurrency: 10 });
+    return all.filter((entry): entry is CompensationBackup => entry !== null);
+  });
+}
+
+export function deactivateProposals(backups: CompensationBackup[]) {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    yield* Effect.forEach(backups, (backup) => fs.writeText(backup.filePath, backup.originalContent), { concurrency: 10 });
+  });
+}
+
+// ─── Toxic Alias Quarantine ───
+
+/**
+ * Remove toxic aliases from hints files, preventing them from misdirecting
+ * future resolution attempts.
+ *
+ * For each toxic alias outcome, reads the corresponding hints file,
+ * removes the alias entry, and writes back. Idempotent — quarantining
+ * an already-removed alias is a no-op.
+ *
+ * This is the inverse of `activateProposalBundle` — deactivation for
+ * aliases that have proven harmful. Lives alongside activation because
+ * both are proposal lifecycle operations.
+ */
+export function quarantineToxicProposals(options: {
+  readonly paths: ProjectPaths;
+  readonly toxicAliases: readonly AliasOutcome[];
+}): Effect.Effect<{ readonly quarantinedCount: number; readonly quarantinedPaths: readonly string[] }, unknown, unknown> {
+  if (options.toxicAliases.length === 0) {
+    return Effect.succeed({ quarantinedCount: 0, quarantinedPaths: [] });
+  }
+
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const quarantinedPaths: string[] = [];
+
+    // Group toxic aliases by screenId to batch file operations
+    const byScreen = groupByMap(options.toxicAliases, (a) => a.screenId);
+
+    yield* Effect.forEach(
+      [...byScreen.entries()],
+      ([screenId, aliases]) => Effect.gen(function* () {
+        const hintsPath = path.join(options.paths.suiteRoot, `knowledge/screens/${screenId}.hints.yaml`);
+        const exists = yield* fs.exists(hintsPath);
+        if (!exists) return;
+
+        const content = yield* fs.readText(hintsPath);
+        const aliasIds = new Set(aliases.map((a) => a.aliasId));
+
+        // Remove lines containing toxic alias IDs from the hints YAML.
+        // This is a conservative line-level filter that preserves structure.
+        const lines = content.split('\n');
+        const filtered = lines.filter((line) => {
+          const trimmed = line.trim();
+          return !Array.from(aliasIds).some((id) => trimmed.includes(id));
+        });
+
+        const nextContent = filtered.join('\n');
+        if (nextContent !== content) {
+          yield* fs.writeText(hintsPath, nextContent);
+          quarantinedPaths.push(hintsPath);
+        }
+      }),
+      { concurrency: 10 },
+    );
+
+    return {
+      quarantinedCount: options.toxicAliases.length,
+      quarantinedPaths: quarantinedPaths.sort((a, b) => a.localeCompare(b)),
+    };
+  });
+}
+
+// ─── WP5: Auto-Approval Activation ───
+
+/**
+ * Filter proposals eligible for auto-approval, then activate them.
+ *
+ * Proposals that pass auto-approval gates are activated immediately.
+ * Proposals that fail remain in 'pending' status for manual review.
+ * This produces identical receipts to manual activation — the only
+ * difference is the activation.reason field.
+ */
+interface AutoApprovalStepResult {
+  readonly proposal: ProposalEntry;
+  readonly activatedPath: string | null;
+  readonly blocked: boolean;
+}
+
+export function autoApproveEligibleProposals(options: {
+  readonly paths: ProjectPaths;
+  readonly proposalBundle: ProposalBundle;
+  readonly autoApprovalPolicy: AutoApprovalPolicy;
+  readonly trustPolicy: TrustPolicy;
+  /** Optional alias outcomes — toxic aliases are blocked before activation. */
+  readonly aliasOutcomes?: readonly AliasOutcome[] | undefined;
+  /** Optional bottleneck weights — used to sort proposals by impact before activation. */
+  readonly bottleneckWeights?: BottleneckWeights | undefined;
+  /** Optional per-screen metrics for bottleneck scoring. */
+  readonly screenMetrics?: ReadonlyMap<string, {
+    readonly repairDensity: number;
+    readonly translationRate: number;
+    readonly unresolvedRate: number;
+    readonly screenFragmentShare: number;
+  }> | undefined;
+}): Effect.Effect<ActivateProposalBundleResult, unknown, unknown> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const activatedAt = new Date().toISOString();
+
+    // Build toxic alias lookup for O(1) gating
+    const toxicAliasIds = options.aliasOutcomes
+      ? new Set(findToxicAliases(options.aliasOutcomes).map((a) => a.aliasId))
+      : new Set<string>();
+
+    // Sort proposals by bottleneck impact if weights are provided.
+    // Higher-impact proposals activate first, focusing budget on degraded screens.
+    const orderedProposals = options.bottleneckWeights
+      ? [...options.proposalBundle.payload.proposals].sort((a, b) => {
+          const scoreA = scoreProposalByBottleneck(a.targetPath, options.bottleneckWeights, options.screenMetrics);
+          const scoreB = scoreProposalByBottleneck(b.targetPath, options.bottleneckWeights, options.screenMetrics);
+          return scoreB - scoreA;
+        })
+      : options.proposalBundle.payload.proposals;
+
+    const results: AutoApprovalStepResult[] = yield* Effect.forEach(
+      orderedProposals,
+      (proposal): Effect.Effect<AutoApprovalStepResult, never, never> => {
+        // Gate: block proposals targeting known-toxic aliases (FSM transition)
+        if (toxicAliasIds.has(proposal.proposalId)) {
+          const event: ProposalTransitionEvent = { kind: 'toxic-alias', reason: 'quarantined: toxic alias' };
+          const { activation, certification } = transitionProposal(proposal.activation, event);
+          return Effect.succeed({
+            proposal: { ...proposal, certification, activation },
+            activatedPath: null,
+            blocked: true,
+          });
+        }
+
+        const autoResult = evaluateAutoApproval({
+          policy: options.autoApprovalPolicy,
+          trustEvaluation: proposal.trustPolicy,
+          proposedChange: {
+            artifactType: proposal.artifactType,
+            confidence: 0.9,
+            autoHealClass: `activation-${proposal.artifactType}-cutover`,
+          },
+          trustPolicy: options.trustPolicy,
+        });
+
+        if (!autoResult.approved) {
+          const event: ProposalTransitionEvent = { kind: 'auto-approval-declined', reason: autoResult.reason };
+          const { activation, certification } = transitionProposal(proposal.activation, event);
+          return Effect.succeed({
+            proposal: { ...proposal, certification, activation },
+            activatedPath: null,
+            blocked: false,
+          });
+        }
+
+        return tryActivateProposal(fs, options.paths.suiteRoot, proposal, activatedAt).pipe(
+          Effect.map((result) => ({
+            proposal: result.proposal,
+            activatedPath: result.activatedPath,
+            blocked: result.blocked,
+          })),
+        );
+      },
+      { concurrency: 10 },
+    );
+
+    const proposals = results.map((result) => result.proposal);
+    const activatedPaths = results
+      .flatMap((result) => result.activatedPath !== null ? [result.activatedPath!] : [])
+      .sort((left, right) => left.localeCompare(right));
+    const blockedProposalIds = results
+      .flatMap((result) => result.blocked ? [result.proposal.proposalId] : []);
+
+    const proposalGovernances = proposals.map((p) =>
+      isBlocked(p.activation) ? 'blocked' as const : 'approved' as const,
+    );
+    const proposalBundle: ProposalBundle = {
+      ...options.proposalBundle,
+      governance: proposalGovernances.reduce(GovernanceLattice.meet, GovernanceLattice.top),
+      payload: {
+        ...options.proposalBundle.payload,
+        proposals,
+      },
+    };
+
+    return { proposalBundle, activatedPaths, blockedProposalIds };
+  });
+}
+
+// ─── Governed Suspension bridge ──────────────────────────────────────────
+//
+// Express proposal activation governance as GovernanceVerdict.
+// This bridges the existing string-based governance ('approved' | 'blocked')
+// with the typed GovernanceVerdict ADT from the design calculus.
+
+/**
+ * Convert a proposal's trust policy decision to a GovernanceVerdict.
+ * - 'allow' → Approved (proposal proceeds)
+ * - 'review' → Suspended (needs operator review)
+ * - 'deny' → Blocked (proposal cannot proceed)
+ */
+export function proposalGovernanceVerdict(
+  proposal: ProposalEntry,
+): GovernanceVerdict<ProposalEntry, unknown> {
+  const governance = proposal.trustPolicy.decision === 'allow'
+    ? 'approved' as const
+    : proposal.trustPolicy.decision === 'review'
+      ? 'review-required' as const
+      : 'blocked' as const;
+
+  return fromGovernance(
+    governance,
+    proposal,
+    {
+      needs: { proposalId: proposal.proposalId, reason: `Trust policy: ${proposal.trustPolicy.decision}` },
+      reason: `Trust policy requires ${proposal.trustPolicy.decision} for ${proposal.artifactType}`,
+    },
+  );
+}

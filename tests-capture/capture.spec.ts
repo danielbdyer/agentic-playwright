@@ -1,10 +1,10 @@
 import path from 'path';
 import { writeFileSync } from 'fs';
-import { computeNormalizedSnapshotHash, normalizeAriaSnapshot } from '../lib/domain/hash';
-import { createScreenId } from '../lib/domain/identity';
+import { computeNormalizedSnapshotHash, normalizeAriaSnapshot } from '../lib/domain/kernel/hash';
+import { createScreenId } from '../lib/domain/kernel/identity';
 import { test } from '../dogfood/fixtures/index';
-import { captureAriaYaml } from '../lib/runtime/aria';
-import { loadScreen } from '../lib/runtime/load';
+import { captureAriaYaml } from '../lib/runtime/adapters/aria';
+import { loadScreen } from '../lib/runtime/adapters/load';
 
 test('capture requested screen section', async ({ page }, testInfo) => {
   const screenId = process.env.TESSERACT_CAPTURE_SCREEN;

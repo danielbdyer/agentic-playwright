@@ -1,5 +1,5 @@
 ﻿import { expect, test } from '@playwright/test';
-import { agent, fixture, generatedToken, literal } from '../lib/domain/agent-dsl';
+import { agent, fixture, generatedToken, literal } from '../lib/domain/governance/workflow-facade';
 import { fixtureIds, snapshotTemplateIds } from '../lib/generated/tesseract-knowledge';
 
 test('generated knowledge surface provides a typed agent-facing DSL', () => {

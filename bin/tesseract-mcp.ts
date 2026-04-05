@@ -25,19 +25,21 @@ import {
   type SpeedrunStartConfig,
   type LoopStatus,
 } from '../lib/infrastructure/mcp/dashboard-mcp-server';
-import type { McpToolDefinition } from '../lib/domain/types';
-import type { WorkItemDecision } from '../lib/domain/types/dashboard';
-import type { ScreenCapturedEvent } from '../lib/domain/types/dashboard';
+import type { McpToolDefinition } from '../lib/domain/observation/dashboard';
+import type { WorkItemDecision } from '../lib/domain/observation/dashboard';
+import type { ScreenCapturedEvent } from '../lib/domain/observation/dashboard';
 import { createProjectPaths } from '../lib/application/paths';
-import { multiSeedSpeedrun, type MultiSeedResult } from '../lib/application/speedrun';
+import { multiSeedSpeedrun, type MultiSeedResult } from '../lib/application/improvement/speedrun';
 import { createLocalServiceContext, type LocalServiceOptions } from '../lib/composition/local-services';
-import { createPlaywrightBrowserPool } from '../lib/infrastructure/playwright-browser-pool';
-import { startFixtureServer, type FixtureServer } from '../lib/infrastructure/fixture-server';
+import { createPlaywrightBrowserPool } from '../lib/infrastructure/runtime/playwright-browser-pool';
+import { startFixtureServer, type FixtureServer } from '../lib/infrastructure/tooling/fixture-server';
 import { createHintsWriter } from '../lib/infrastructure/knowledge/hints-writer';
-import { DEFAULT_PIPELINE_CONFIG, mergePipelineConfig } from '../lib/domain/types';
-import type { BrowserPoolPort } from '../lib/application/browser-pool';
+import { DEFAULT_PIPELINE_CONFIG, mergePipelineConfig } from '../lib/domain/attention/pipeline-config';
+import type { BrowserPoolPort } from '../lib/application/runtime-support/browser-pool';
 import type { DashboardPort } from '../lib/application/ports';
-import type { KnowledgePosture, PipelineConfig, SpeedrunProgressEvent } from '../lib/domain/types';
+import type { PipelineConfig } from '../lib/domain/attention/pipeline-config';
+import type { KnowledgePosture } from '../lib/domain/governance/workflow-types';
+import type { SpeedrunProgressEvent } from '../lib/domain/improvement/types';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as readline from 'readline';

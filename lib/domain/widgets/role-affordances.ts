@@ -7,7 +7,7 @@
  * Pure domain module — no side effects, no application/infrastructure/runtime imports.
  */
 
-import type { WidgetAction, WidgetEffectCategory, WidgetPrecondition } from '../types/widgets';
+import type { WidgetAction, WidgetEffectCategory, WidgetPrecondition } from '../knowledge/widget-types';
 
 // ---------------------------------------------------------------------------
 // Core interface

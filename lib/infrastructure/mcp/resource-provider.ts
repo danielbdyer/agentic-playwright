@@ -14,7 +14,7 @@
  * dashboard tools.
  */
 
-import type { McpToolDefinition } from '../../domain/types/intervention-context';
+import type { McpToolDefinition } from '../../domain/observation/dashboard';
 
 // ─── URI Parsing ───
 

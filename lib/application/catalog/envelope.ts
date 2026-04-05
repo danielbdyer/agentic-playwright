@@ -1,7 +1,12 @@
 import { sha256, stableStringify } from '../../domain/kernel/hash';
 import type { AdoId } from '../../domain/kernel/identity';
-import type { ProposalBundle, RunRecord, ScenarioRunStep } from '../../domain/types';
-import type { Governance, WorkflowEnvelopeFingerprints, WorkflowEnvelopeIds, WorkflowEnvelopeLineage } from '../../domain/types/shared-context';
+import type { ProposalBundle, RunRecord, ScenarioRunStep } from '../../domain/execution/types';
+import type {
+  Governance,
+  WorkflowEnvelopeFingerprints,
+  WorkflowEnvelopeIds,
+  WorkflowEnvelopeLineage,
+} from '../../domain/governance/workflow-types';
 import { GovernanceLattice } from '../../domain/algebra/lattice';
 import type { ProjectPaths } from '../paths';
 import { relativeProjectPath } from '../paths';
@@ -152,7 +157,7 @@ export function createProposalBundleEnvelope(input: {
   fingerprints: WorkflowEnvelopeFingerprints;
   lineage: WorkflowEnvelopeLineage;
   payload: ProposalBundle['payload'];
-  proposals: ProposalBundle['proposals'];
+  proposals: ProposalBundle['payload']['proposals'];
   governance: Governance;
 }): ProposalBundle {
   return {
@@ -168,11 +173,5 @@ export function createProposalBundleEnvelope(input: {
       ...input.payload,
       proposals: input.proposals,
     },
-    adoId: input.payload.adoId,
-    runId: input.payload.runId,
-    revision: input.payload.revision,
-    title: input.payload.title,
-    suite: input.payload.suite,
-    proposals: input.proposals,
   };
 }

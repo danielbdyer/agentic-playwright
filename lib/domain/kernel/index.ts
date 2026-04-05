@@ -14,3 +14,6 @@ export * from './ids';
 export * from './random';
 export * from './ref-path';
 export * from './visitors';
+export * from './finite-state-machine';
+export * from './observation-collapse';
+export * from './governed-suspension';

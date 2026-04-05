@@ -1,19 +1,19 @@
 import { test, expect } from '@playwright/test';
+import { DEFAULT_PIPELINE_CONFIG, PipelineConfig, mergePipelineConfig } from '../lib/domain/attention/pipeline-config';
 import {
-  DEFAULT_PIPELINE_CONFIG,
-  mergePipelineConfig,
-  paretoDominates,
-  isAcceptedByParetoFrontier,
+  ParetoFrontierEntry,
+  ParetoObjectives,
   addToParetoFrontier,
-  emptyExperimentRegistry,
-  appendExperiment,
+  isAcceptedByParetoFrontier,
+  paretoDominates,
+} from '../lib/domain/fitness/types';
+import {
+  ExperimentRecord,
   acceptedExperiments,
+  appendExperiment,
+  emptyExperimentRegistry,
   experimentsForSubstrate,
-  type ParetoObjectives,
-  type ParetoFrontierEntry,
-  type PipelineConfig,
-  type ExperimentRecord,
-} from '../lib/domain/types';
+} from '../lib/domain/improvement/experiment';
 
 // ─── PipelineConfig ───
 

@@ -22,12 +22,12 @@ import {
   computeScreenSignature,
   matchSignatureToGraph,
   identifyScreenFromDOM,
-} from '../lib/runtime/screen-identification';
+} from '../lib/runtime/observe/screen-identification';
 import type {
   ApplicationInterfaceGraph,
   InterfaceGraphNode,
   InterfaceGraphEdge,
-} from '../lib/domain/types/interface';
+} from '../lib/domain/target/interface-graph';
 import { mulberry32, pick, randomInt , LAW_SEED_COUNT } from './support/random';
 
 // ─── Helpers ───

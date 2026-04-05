@@ -1,4 +1,4 @@
-import { describeScenarioPaths } from '../../inspect';
+import { describeScenarioPaths } from '../../projections/inspect';
 import { createAdoId } from '../../../domain/kernel/identity';
 import { createCommandSpec } from '../shared';
 import { requireAdoId } from '../shared';

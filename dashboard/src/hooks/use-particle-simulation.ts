@@ -23,7 +23,7 @@
  *   - `_pos` shared buffer — zero-allocation optimization. See safety contract.
  */
 
-import { useRef, useCallback } from 'react';
+import { useRef } from 'react';
 
 // ─── Pure Particle Domain ───
 
@@ -120,7 +120,7 @@ export function useParticleSimulation(physics: ParticlePhysics = defaultPhysics)
 
   /** O(n + m). Steps the simulation forward by delta, ingesting new spawns.
    *  n = current particle count, m = new spawn count. */
-  const step = useCallback((delta: number, spawns: readonly Particle[]): {
+  const step = (delta: number, spawns: readonly Particle[]): {
     readonly current: readonly Particle[];
     readonly died: readonly Particle[];
   } => {
@@ -144,12 +144,12 @@ export function useParticleSimulation(physics: ParticlePhysics = defaultPhysics)
     );
     particlesRef.current = alive;
     return { current: alive, died };
-  }, [physics.speed, physics.maxParticles]);
+  };
 
-  const reset = useCallback(() => {
+  const reset = () => {
     particlesRef.current = [];
     spawnedIdsRef.current = new Set();
-  }, []);
+  };
 
   return { step, reset, physics } as const;
 }
