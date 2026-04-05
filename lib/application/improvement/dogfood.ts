@@ -1,7 +1,7 @@
 import path from 'path';
 import { Effect } from 'effect';
 import { activateProposalBundle, autoApproveEligibleProposals, quarantineToxicProposals, tryActivateProposal } from '../knowledge/activate-proposals';
-import { isPending, isActivated } from '../../domain/proposal/lifecycle';
+import { isActivated, isPending } from '../../domain/proposal/lifecycle';
 import { deltaReloadProposalsAndRuns, loadWorkspaceCatalog } from '../catalog';
 import { buildPartialFitnessMetrics } from '../improvement/fitness';
 import { calibrateWeightsFromCorrelations } from '../learning/learning-bottlenecks';
@@ -56,9 +56,18 @@ import { matureComponentKnowledge, type ComponentEvidence } from '../../domain/p
 import { aggregateQualityMetrics, findToxicAliases, type AliasOutcome } from '../../domain/proposal/quality';
 import type { RungRate } from '../../domain/fitness/types';
 import type { ScreenGroupDecider, WorkItemDecider } from '../agency/agent-workbench';
+import { collectPendingProposals } from './dogfood/activation';
+import {
+  consecutivePairs,
+  deriveIterationCorrelations,
+  iterationSignalStrengths,
+} from './dogfood/metrics';
+import { createInitialState, type LoopState } from './dogfood/planner';
+import { getDegradingDimensionNames } from './dogfood/reporting';
 
 export type DogfoodIterationResult = ImprovementLoopIteration;
 export type DogfoodLedger = DogfoodLedgerProjection;
+export { consecutivePairs, deriveIterationCorrelations, iterationSignalStrengths };
 
 export interface DogfoodOptions {
   readonly paths: ProjectPaths;
@@ -108,43 +117,6 @@ export interface DogfoodOptions {
   readonly seed?: string | undefined;
 }
 
-interface LoopState {
-  readonly iterations: readonly DogfoodIterationResult[];
-  readonly cumulativeInstructions: number;
-  readonly converged: boolean;
-  readonly convergenceReason: ImprovementLoopConvergenceReason;
-  readonly startedAt: number;
-  /** Self-calibrating bottleneck weights, threaded through iterations.
-   *  Each iteration may adjust these based on observed correlation between
-   *  bottleneck signals and hit-rate improvement. Pure state transition. */
-  readonly bottleneckWeights: BottleneckWeights;
-  /** Typed convergence FSM state, threaded through iterations. */
-  readonly convergenceFsm: ConvergenceState;
-  /** Accumulated learning state from intelligence modules, threaded through iterations.
-   *  Each iteration refines this by feeding step execution receipts into the aggregator.
-   *  Null on first iteration or when no receipts are available. */
-  readonly learningState: LearningState | null;
-  /** Snapshot of browser pool stats after each iteration (when pool is available). */
-  readonly browserPoolStats: BrowserPoolStats | null;
-  /** Hot screens from execution coherence — screens with multiple degraded signal
-   *  dimensions. Threaded to the next iteration's scenario selection for prioritization. */
-  readonly hotScreens: readonly string[];
-}
-
-function createInitialState(priorLearningState?: LearningState | null, initialBottleneckWeights?: BottleneckWeights): LoopState {
-  return {
-    iterations: [],
-    cumulativeInstructions: 0,
-    converged: false,
-    convergenceReason: null,
-    startedAt: Date.now(),
-    bottleneckWeights: initialBottleneckWeights ?? DEFAULT_PIPELINE_CONFIG.bottleneckWeights,
-    convergenceFsm: initialConvergenceState(),
-    learningState: priorLearningState ?? null,
-    browserPoolStats: null,
-    hotScreens: [],
-  };
-}
 
 /** Load persisted learning state from a prior invocation. Returns null if none exists. */
 function loadPersistedLearningState(paths: ProjectPaths) {
@@ -158,12 +130,6 @@ function loadPersistedLearningState(paths: ProjectPaths) {
     }
     return raw as LearningState;
   });
-}
-
-function collectPendingProposals(bundles: readonly ProposalBundle[]): readonly ProposalBundle[] {
-  return bundles.filter((bundle) =>
-    bundle.payload.proposals.some((proposal) => isPending(proposal.activation)),
-  );
 }
 
 /**
@@ -183,65 +149,6 @@ function collectPendingProposals(bundles: readonly ProposalBundle[]): readonly P
  *  Pure function: maps iteration metrics to weighted bottleneck signals.
  *  When learningSignals are present on the iteration, enriches with 7 maturity-dampened
  *  health dimensions (selector flakiness, timing regression, etc.). */
-export function iterationSignalStrengths(iteration: DogfoodIterationResult): readonly { readonly signal: string; readonly strength: number }[] {
-  const unresolvedRate = iteration.totalStepCount > 0
-    ? iteration.unresolvedStepCount / iteration.totalStepCount
-    : 0;
-  const baseSignals = [
-    { signal: 'high-unresolved-rate', strength: unresolvedRate },
-    { signal: 'repair-recovery-hotspot', strength: iteration.proposalsActivated > 0 ? 0.3 : 0 },
-    { signal: 'translation-fallback-dominant', strength: unresolvedRate > 0.5 ? 0.2 : 0 },
-    { signal: 'thin-screen-coverage', strength: unresolvedRate > 0.3 ? 0.1 : 0 },
-  ];
-
-  const ls = iteration.learningSignals;
-  if (!ls) return baseSignals.filter(({ strength }) => strength > 0);
-
-  // Dampen health signals by iteration maturity — early signals have low weight
-  const maturity = signalMaturity(iteration.iteration);
-  const healthSignals = [
-    { signal: 'selector-flakiness', strength: round4(ls.selectorFlakinessRate * maturity) },
-    { signal: 'timing-regression', strength: round4(ls.timingRegressionRate * maturity) },
-    { signal: 'console-noise', strength: round4(ls.consoleNoiseLevel * maturity) },
-    { signal: 'cost-anomaly', strength: round4((1 - ls.costEfficiency) * maturity) },
-    { signal: 'rung-degradation', strength: round4((1 - ls.rungStability) * maturity) },
-    { signal: 'recovery-inefficiency', strength: round4((1 - ls.recoveryEfficiency) * maturity) },
-    { signal: 'component-maturation-stall', strength: round4((1 - ls.componentMaturityRate) * maturity) },
-  ];
-
-  return [...baseSignals, ...healthSignals].filter(({ strength }) => strength > 0);
-}
-
-/** Zip consecutive items into (current, next) tuples for fold analysis over adjacent pairs. */
-export function consecutivePairs<T>(items: readonly T[]): readonly (readonly [T, T])[] {
-  return items.slice(0, -1).map((item, index) => [item, items[index + 1]!] as const);
-}
-
-export function deriveIterationCorrelations(
-  iterations: readonly DogfoodIterationResult[],
-): readonly BottleneckWeightCorrelation[] {
-  if (iterations.length < 2) {
-    return [];
-  }
-
-  // Flatmap consecutive pairs into weighted signal observations,
-  // then group by signal and average the deltas. O(pairs × signals).
-  const observations = consecutivePairs(iterations).flatMap(([current, next]) => {
-    const hitRateDelta = next.knowledgeHitRate - current.knowledgeHitRate;
-    return iterationSignalStrengths(current)
-      .map(({ signal, strength }) => ({ signal, delta: hitRateDelta * strength }));
-  });
-
-  // Single-pass groupBy (O(n)) then map to averages
-  const bySignal = groupBy(observations, (o) => o.signal);
-  return Object.entries(bySignal).map(([signal, entries]) => ({
-    signal,
-    weight: 0,
-    correlationWithImprovement: round4(
-      entries.reduce((sum, e) => sum + e.delta, 0) / entries.length,
-    ),
-  }));
-}
 
 function computeTraceMetrics(runRecords: ReadonlyArray<{
   readonly artifact: {
@@ -504,18 +411,6 @@ function buildProgressEvent(
       },
     } : {}),
   };
-}
-
-function getDegradingDimensionNames(ls: LearningSignalsSummary): readonly string[] {
-  const dims: string[] = [];
-  if (ls.timingRegressionRate > 0.3) dims.push('timingRegression');
-  if (ls.selectorFlakinessRate > 0.3) dims.push('selectorFlakiness');
-  if (ls.consoleNoiseLevel > 0.3) dims.push('consoleNoise');
-  if (ls.recoveryEfficiency < 0.5) dims.push('recoveryEfficiency');
-  if (ls.costEfficiency < 0.5) dims.push('costEfficiency');
-  if (ls.rungStability < 0.5) dims.push('rungStability');
-  if (ls.componentMaturityRate < 0.5) dims.push('componentMaturity');
-  return dims;
 }
 
 function runIteration(iteration: number, options: DogfoodOptions, state: LoopState) {
