@@ -20,6 +20,7 @@
 
 import type {
   CertificationStatus,
+  Governance,
   ProposalActivation,
   TrustPolicyDecision,
 } from '../governance/workflow-types';
@@ -139,6 +140,23 @@ export const isBlocked = (activation: ProposalActivation): boolean =>
 /** Check if a proposal is in a terminal state (activated or blocked). */
 export const isTerminalProposal = (activation: ProposalActivation): boolean =>
   activation.status === 'activated' || activation.status === 'blocked';
+
+/**
+ * Project ProposalActivation to its Governance value.
+ *
+ * This is the three-valued projection required by coherence law C1.1:
+ *   blocked  → blocked
+ *   activated + certified → approved
+ *   activated + uncertified → review-required
+ *   pending → review-required (not yet decided)
+ *
+ * The projection is a lattice homomorphism: it preserves meet.
+ */
+export function activationToGovernance(activation: ProposalActivation): Governance {
+  if (activation.status === 'blocked') return 'blocked';
+  if (activation.status === 'activated' && activation.certifiedAt != null) return 'approved';
+  return 'review-required';
+}
 
 // ─── FSMDefinition instance ───
 //

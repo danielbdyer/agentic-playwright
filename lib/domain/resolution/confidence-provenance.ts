@@ -109,6 +109,49 @@ export function isConsistentProvenance(
   return confidenceOrdinal(claimed) <= confidenceOrdinal(rungToMinConfidence(rung));
 }
 
+// ─── β : Confidence → Governance (coherence law C1.2) ───
+//
+// The monotone map that connects confidence to governance.
+// Composes with α to form β ∘ α : Rung → Governance.
+//
+// The map must be monotone: higher confidence → governance at least as permissive.
+// This is the bridge between the Galois connection (Collapse 2) and the
+// governance lattice, closing the composition gap identified in
+// activation-conditions.md § Part I.
+
+import type { Governance } from '../governance/workflow-types';
+
+const CONFIDENCE_TO_GOVERNANCE: Readonly<Record<Confidence, Governance>> = {
+  'human': 'approved',
+  'agent-verified': 'approved',
+  'compiler-derived': 'approved',
+  'agent-proposed': 'review-required',
+  'intent-only': 'review-required',
+  'unbound': 'blocked',
+};
+
+/**
+ * β : Confidence → Governance
+ *
+ * Maps a confidence level to the governance state it implies.
+ * Monotone: higher confidence → governance at least as permissive.
+ *
+ * @see docs/activation-conditions.md § C1.2
+ */
+export function confidenceToGovernance(confidence: Confidence): Governance {
+  return CONFIDENCE_TO_GOVERNANCE[confidence];
+}
+
+/**
+ * β ∘ α : Rung → Governance
+ *
+ * The composed map from resolution provenance to governance.
+ * Monotone by composition of two monotone maps.
+ */
+export function rungToGovernance(rung: ResolutionPrecedenceRung): Governance {
+  return confidenceToGovernance(rungToMinConfidence(rung));
+}
+
 // ─── GaloisConnection instance ───
 //
 // Formalizes the rung-confidence duality as a GaloisConnection<Rung, Confidence>.

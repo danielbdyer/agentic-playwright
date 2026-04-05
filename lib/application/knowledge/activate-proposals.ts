@@ -18,6 +18,7 @@ import {
   transitionProposal,
   trustPolicyToEvent,
   isBlocked,
+  activationToGovernance,
   type ProposalTransitionEvent,
 } from '../../domain/proposal/lifecycle';
 
@@ -102,7 +103,7 @@ export function activateProposalBundle(options: {
       .flatMap((result) => result.blocked ? [(result as { proposalId: string }).proposalId] : []);
 
     const proposalGovernances = proposals.map((p) =>
-      isBlocked(p.activation) ? 'blocked' as const : 'approved' as const,
+      activationToGovernance(p.activation),
     );
     const proposalBundle: ProposalBundle = {
       ...options.proposalBundle,
@@ -320,7 +321,7 @@ export function autoApproveEligibleProposals(options: {
       .flatMap((result) => result.blocked ? [result.proposal.proposalId] : []);
 
     const proposalGovernances = proposals.map((p) =>
-      isBlocked(p.activation) ? 'blocked' as const : 'approved' as const,
+      activationToGovernance(p.activation),
     );
     const proposalBundle: ProposalBundle = {
       ...options.proposalBundle,
