@@ -18,8 +18,14 @@ import type {
   InboxItemEvent,
 } from '../spatial/types';
 import type { WorkItem, QueuedItem, DisplayStatus, ProgressEvent, Workbench, Scorecard } from '../types';
-import type { DashboardEventKind } from '../../../lib/domain/observation/dashboard';
-import type { DashboardEventMap, EventHandler, ScreenGroupStartPayload, ConnectedPayload, ErrorPayload } from '../types/events';
+import type {
+  DashboardEventKind,
+  DashboardEventMap,
+  EventHandler,
+  ScreenGroupStartPayload,
+  ConnectedPayload,
+  ErrorPayload,
+} from '../types/events';
 import type { QueryClient } from '@tanstack/react-query';
 
 /** O(1). Routes progress events to state setter. */
