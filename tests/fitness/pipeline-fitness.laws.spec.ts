@@ -237,9 +237,7 @@ test.describe('Pipeline Fitness Report', () => {
         kind: 'proposal-bundle', version: 1, stage: 'proposal', scope: 'scenario',
         ids: {}, fingerprints: { artifact: 'fp' }, lineage: { sources: [], parents: [], handshakes: [] },
         governance: 'approved',
-        payload: { adoId: '20001' as never, runId: 'r1', revision: 1, title: 't', suite: 's', proposals: [] },
-        adoId: '20001' as never, runId: 'r1', revision: 1, title: 't', suite: 's',
-        proposals: [{ proposalId: 'p1', stepIndex: 0, artifactType: 'hints', targetPath: 't', title: 't', patch: {}, evidenceIds: [], impactedSteps: [], trustPolicy: { decision: 'deny', reasons: [] }, certification: 'uncertified', activation: { status: 'blocked' }, lineage: { runIds: [], evidenceIds: [], sourceArtifactPaths: [] } }],
+        payload: { adoId: '20001' as never, runId: 'r1', revision: 1, title: 't', suite: 's', proposals: [{ proposalId: 'p1', stepIndex: 0, artifactType: 'hints', targetPath: 't', title: 't', patch: {}, evidenceIds: [], impactedSteps: [], trustPolicy: { decision: 'deny', reasons: [] }, certification: 'uncertified', activation: { status: 'blocked' }, lineage: { runIds: [], evidenceIds: [], sourceArtifactPaths: [] } }] },
       } as unknown as ProposalBundle],
     });
     const report = buildFitnessReport(input);

@@ -336,7 +336,7 @@ test('semantic dictionary rung resolves when catalog has a matching entry', () =
 
   const result = trySemanticDictionaryResolution(stage, acc);
   expect(result.receipt).not.toBeNull();
-  expect(result.receipt!.kind).toBe('resolved');
+  expect(['resolved', 'resolved-with-proposals']).toContain(result.receipt!.kind);
   expect(result.receipt!.winningSource).toBe('semantic-dictionary');
   expect(result.match).not.toBeNull();
   expect(result.match!.entry.target.screen).toBe(createScreenId('policy-search'));

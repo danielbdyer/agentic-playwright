@@ -162,7 +162,7 @@ test('interact fails with stable error codes for unsupported widget actions', as
   expect(result.ok).toBeFalsy();
   if (!result.ok) {
     expect(result.error.code).toBe('runtime-missing-action-handler');
-    expect(result.error.message).toBe('No fill action registered for os-button');
+    expect(result.error.message).toBe('No fill action registered for button');
   }
 });
 

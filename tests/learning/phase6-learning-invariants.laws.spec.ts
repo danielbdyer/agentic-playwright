@@ -89,30 +89,41 @@ function makeReplayExample(overrides: Partial<ReplayExample> = {}): ReplayExampl
   };
 }
 
-function makeProposalBundle(overrides: Partial<ProposalBundle> = {}): ProposalBundle {
+function makeProposalBundle(overrides: Record<string, unknown> = {}): ProposalBundle {
+  const defaultProposals = [
+    {
+      proposalId: 'prop-1',
+      stepIndex: 0,
+      artifactType: 'hints',
+      targetPath: 'knowledge/screens/policy-search.hints.yaml',
+      title: 'Add hint for policyNumber',
+      patch: { alias: 'policyNum' },
+      evidenceIds: ['ev-1'],
+      impactedSteps: [0],
+      trustPolicy: { decision: 'allow', reason: 'within threshold', confidence: 0.9, evidenceSufficiency: true },
+      certification: 'uncertified',
+      activation: { status: 'pending', activatedAt: null, reason: null },
+      lineage: { sources: [], parents: [], handshakes: [] },
+    },
+  ];
+  const proposals = (overrides.proposals ?? defaultProposals) as typeof defaultProposals;
   return {
     kind: 'proposal-bundle',
     version: 1,
-    adoId: '10001' as never,
-    suite: 'demo/policy-search',
-    runId: 'run-1',
-    generatedAt: TIMESTAMP,
-    proposals: [
-      {
-        proposalId: 'prop-1',
-        stepIndex: 0,
-        artifactType: 'hints',
-        targetPath: 'knowledge/screens/policy-search.hints.yaml',
-        title: 'Add hint for policyNumber',
-        patch: { alias: 'policyNum' },
-        evidenceIds: ['ev-1'],
-        impactedSteps: [0],
-        trustPolicy: { decision: 'allow', reason: 'within threshold', confidence: 0.9, evidenceSufficiency: true },
-        certification: 'uncertified',
-        activation: { status: 'pending', activatedAt: null, reason: null },
-        lineage: { sources: [], parents: [], handshakes: [] },
-      },
-    ],
+    stage: 'proposal',
+    scope: 'scenario',
+    ids: { adoId: overrides.adoId ?? '10001', suite: 'demo/policy-search', sessionId: 's-1', runId: overrides.runId ?? 'run-1', stepIndex: 0, dataset: 'default', runbook: null, resolutionControl: null },
+    fingerprints: { content: 'fp-1', derivation: 'fp-2' },
+    lineage: { parentId: null, rootId: 'r-1', depth: 0 },
+    governance: 'approved',
+    payload: {
+      adoId: (overrides.adoId ?? '10001') as never,
+      runId: (overrides.runId ?? 'run-1') as string,
+      revision: 1,
+      title: 'Test',
+      suite: 'demo/policy-search',
+      proposals,
+    },
     ...overrides,
   } as ProposalBundle;
 }
@@ -442,7 +453,7 @@ test('ranking: trust-policy-allowed proposals outrank review-required with equal
   const allowedBundle = makeProposalBundle({
     adoId: '10001' as never,
     proposals: [{
-      ...makeProposalBundle().proposals[0]!,
+      ...makeProposalBundle().payload.proposals[0]!,
       proposalId: 'prop-allow',
       trustPolicy: { decision: 'allow', reasons: [] },
     }],
@@ -451,7 +462,7 @@ test('ranking: trust-policy-allowed proposals outrank review-required with equal
   const reviewBundle = makeProposalBundle({
     adoId: '10002' as never,
     proposals: [{
-      ...makeProposalBundle().proposals[0]!,
+      ...makeProposalBundle().payload.proposals[0]!,
       proposalId: 'prop-review',
       trustPolicy: { decision: 'review', reasons: [{ code: 'minimum-confidence', message: 'needs review' }] },
     }],
@@ -483,12 +494,12 @@ test('ranking: only pending proposals are ranked', () => {
   const bundle = makeProposalBundle({
     proposals: [
       {
-        ...makeProposalBundle().proposals[0]!,
+        ...makeProposalBundle().payload.proposals[0]!,
         proposalId: 'prop-active',
         activation: { status: 'activated', activatedAt: TIMESTAMP, reason: null },
       },
       {
-        ...makeProposalBundle().proposals[0]!,
+        ...makeProposalBundle().payload.proposals[0]!,
         proposalId: 'prop-pending',
         activation: { status: 'pending', activatedAt: null, reason: null },
       },

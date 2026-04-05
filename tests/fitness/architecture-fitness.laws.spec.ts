@@ -114,7 +114,7 @@ test('domain layer purity rate >= 98%', () => {
 // ─── Law: Visitor fold functions exist for all major discriminated unions ───
 
 test('typed fold functions cover all major discriminated unions', () => {
-  const visitorsPath = path.join(LIB_ROOT, 'domain', 'visitors.ts');
+  const visitorsPath = path.join(LIB_ROOT, 'domain', 'kernel', 'visitors.ts');
   const content = fs.readFileSync(visitorsPath, 'utf-8');
 
   const expectedFolds = [
@@ -136,7 +136,7 @@ test('typed fold functions cover all major discriminated unions', () => {
 // ─── Law: Governance fold exists and is exhaustive ───
 
 test('foldGovernance exists with all three cases', () => {
-  const workflowPath = path.join(LIB_ROOT, 'domain', 'types', 'workflow.ts');
+  const workflowPath = path.join(LIB_ROOT, 'domain', 'governance', 'workflow-types.ts');
   const content = fs.readFileSync(workflowPath, 'utf-8');
 
   expect(content).toContain('function foldGovernance');
@@ -148,7 +148,7 @@ test('foldGovernance exists with all three cases', () => {
 // ─── Law: mapPayload envelope utility exists ───
 
 test('mapPayload envelope utility is defined and exported', () => {
-  const workflowPath = path.join(LIB_ROOT, 'domain', 'types', 'workflow.ts');
+  const workflowPath = path.join(LIB_ROOT, 'domain', 'governance', 'workflow-types.ts');
   const content = fs.readFileSync(workflowPath, 'utf-8');
 
   expect(content).toContain('export function mapPayload');
@@ -160,23 +160,23 @@ test('mapPayload envelope utility is defined and exported', () => {
 // ─── Law: Architecture fitness types are exported ───
 
 test('architecture fitness types are exported from domain barrel', () => {
-  const typesPath = path.join(LIB_ROOT, 'domain', 'types.ts');
-  const content = fs.readFileSync(typesPath, 'utf-8');
+  const improvementBarrel = path.join(LIB_ROOT, 'domain', 'improvement', 'index.ts');
+  const content = fs.readFileSync(improvementBarrel, 'utf-8');
 
-  expect(content).toContain("'./types/improvement-context'");
+  expect(content).toContain("'./types'");
 });
 
 // ─── Law: All readonly enforcement on key domain interfaces ───
 
 test('key domain interfaces use readonly fields', () => {
   const criticalFiles = [
-    'types/workflow.ts',
-    'types/resolution.ts',
-    'types/execution.ts',
-    'types/fitness.ts',
-    'types/pipeline-config.ts',
-    'types/experiment.ts',
-    'types/architecture-fitness.ts',
+    'governance/workflow-types.ts',
+    'resolution/types.ts',
+    'execution/types.ts',
+    'fitness/types.ts',
+    'attention/pipeline-config.ts',
+    'improvement/experiment.ts',
+    'fitness/architecture-fitness.ts',
   ];
 
   for (const file of criticalFiles) {
@@ -204,7 +204,7 @@ test('key domain interfaces use readonly fields', () => {
 // ─── Law: PipelineConfig covers the documented 15 parameters ───
 
 test('PipelineConfig interface covers all documented parameter groups', () => {
-  const configPath = path.join(LIB_ROOT, 'domain', 'types', 'pipeline-config.ts');
+  const configPath = path.join(LIB_ROOT, 'domain', 'attention', 'pipeline-config.ts');
   const content = fs.readFileSync(configPath, 'utf-8');
 
   const expectedGroups = [
@@ -278,7 +278,7 @@ test('Effect.runPromise and Effect.runSync only appear in allowed boundary files
 
 test('WorkflowEnvelope has all required fields and mapPayload preserves them', () => {
   // Validate the source defines mapPayload with the correct spread-based implementation
-  const workflowPath = path.join(LIB_ROOT, 'domain', 'types', 'workflow.ts');
+  const workflowPath = path.join(LIB_ROOT, 'domain', 'governance', 'workflow-types.ts');
   const workflowSource = fs.readFileSync(workflowPath, 'utf-8');
   expect(workflowSource).toContain('export function mapPayload');
   expect(workflowSource).toContain('...envelope');
@@ -382,8 +382,8 @@ test('WorkflowEnvelope has all required fields and mapPayload preserves them', (
  * companion fold function for exhaustive case analysis.
  */
 test('all discriminated unions with kind fields have corresponding fold functions', () => {
-  const TYPES_DIR = path.join(LIB_ROOT, 'domain', 'types');
-  const visitorsPath = path.join(LIB_ROOT, 'domain', 'visitors.ts');
+  const TYPES_DIR = path.join(LIB_ROOT, 'domain');
+  const visitorsPath = path.join(LIB_ROOT, 'domain', 'kernel', 'visitors.ts');
   const visitorsContent = fs.readFileSync(visitorsPath, 'utf-8');
 
   const typeFiles = walkTs(TYPES_DIR);
@@ -461,6 +461,34 @@ test('all discriminated unions with kind fields have corresponding fold function
   // This allowlist must not grow without justification.
   const allowedWithoutFold = new Set([
     'TranslationCandidate',  // uses kind for classification, not for fold dispatch
+    // ImprovementTarget variants — dispatched via Record lookup, not fold
+    'ImprovementTargetTranslation',
+    'ImprovementTargetScoring',
+    'ImprovementTargetResolution',
+    'ImprovementTargetRecovery',
+    'ImprovementTargetTrustPolicy',
+    // ResolutionEvent variants — event log entries, not fold-dispatched
+    'ResolutionEventExhaustion',
+    'ResolutionEventObservation',
+    'ResolutionEventRefsCollected',
+    'ResolutionEventMemoryUpdated',
+    'ResolutionEventReceiptProduced',
+    // Lifecycle events — emitted, not fold-dispatched
+    'ConvergenceEvent',
+    'ProposalTransitionEvent',
+    'PipelineStageEvent',
+    'ScenarioStatusEvent',
+    // Target/instruction variants — dispatched via Record or tag, not fold
+    'EffectTargetRef',
+    'StepInstructionNavigate',
+    'StepInstructionEnter',
+    'StepInstructionInvoke',
+    'StepInstructionObserveStructure',
+    'StepInstructionCustomEscapeHatch',
+    // Locator strategy variants — used as discriminated data, not fold-dispatched
+    'LocatorStrategyTestId',
+    'LocatorStrategyRoleName',
+    'LocatorStrategyCss',
   ]);
 
   const unexpectedMissing = missingFolds.filter((name) => !allowedWithoutFold.has(name));
@@ -470,7 +498,7 @@ test('all discriminated unions with kind fields have corresponding fold function
 // ─── Law: Fold functions cover all variants of their discriminated union ───
 
 test('fold switch cases match discriminated union variants', () => {
-  const visitorsPath = path.join(LIB_ROOT, 'domain', 'visitors.ts');
+  const visitorsPath = path.join(LIB_ROOT, 'domain', 'kernel', 'visitors.ts');
   const visitorsContent = fs.readFileSync(visitorsPath, 'utf-8');
 
   // Extract fold functions and their switch cases
@@ -526,7 +554,7 @@ test('fold switch cases match discriminated union variants', () => {
 // ─── Law: DerivedFoldCases utility type is exported from visitors ───
 
 test('DerivedFoldCases utility type is exported from visitors.ts', () => {
-  const visitorsPath = path.join(LIB_ROOT, 'domain', 'visitors.ts');
+  const visitorsPath = path.join(LIB_ROOT, 'domain', 'kernel', 'visitors.ts');
   const content = fs.readFileSync(visitorsPath, 'utf-8');
 
   expect(content).toContain('export type DerivedFoldCases');

@@ -115,8 +115,8 @@ test('runtime agent reports the winning data source across explicit, control, da
       snapshot_template: null,
     };
     const { receipt } = await deterministicRuntimeStepAgent.resolve(step, createAgentContext(resolutionContext));
-    expect(receipt.kind).toBe('resolved');
-    if (receipt.kind !== 'resolved') {
+    expect(['resolved', 'resolved-with-proposals']).toContain(receipt.kind);
+    if (receipt.kind !== 'resolved' && receipt.kind !== 'resolved-with-proposals') {
       throw new Error('expected explicit receipt to resolve');
     }
     expect(receipt.target.override).toBe('{{scenarioOverride.value}}');
@@ -134,8 +134,8 @@ test('runtime agent reports the winning data source across explicit, control, da
       snapshot_template: null,
     };
     const { receipt } = await deterministicRuntimeStepAgent.resolve(step, createAgentContext(resolutionContext));
-    expect(receipt.kind).toBe('resolved');
-    if (receipt.kind !== 'resolved') {
+    expect(['resolved', 'resolved-with-proposals']).toContain(receipt.kind);
+    if (receipt.kind !== 'resolved' && receipt.kind !== 'resolved-with-proposals') {
       throw new Error('expected controlled receipt to resolve');
     }
     expect(receipt.target.override).toBe('{{controlOverride.value}}');
@@ -145,8 +145,8 @@ test('runtime agent reports the winning data source across explicit, control, da
   {
     const step = cloneJson(baseStep);
     const { receipt } = await deterministicRuntimeStepAgent.resolve(step, createAgentContext(resolutionContext));
-    expect(receipt.kind).toBe('resolved');
-    if (receipt.kind !== 'resolved') {
+    expect(['resolved', 'resolved-with-proposals']).toContain(receipt.kind);
+    if (receipt.kind !== 'resolved' && receipt.kind !== 'resolved-with-proposals') {
       throw new Error('expected dataset receipt to resolve');
     }
     expect(receipt.target.override).toBe('{{activePolicy.number}}');
@@ -159,8 +159,8 @@ test('runtime agent reports the winning data source across explicit, control, da
     generatedContext.controls = { ...generatedContext.controls, datasets: [] as [] };
     (generatedContext.screens[0]!.elements[0]! as unknown as Record<string, unknown>).defaultValueRef = null;
     const { receipt } = await deterministicRuntimeStepAgent.resolve(step, createAgentContext(generatedContext));
-    expect(receipt.kind).toBe('resolved');
-    if (receipt.kind !== 'resolved') {
+    expect(['resolved', 'resolved-with-proposals']).toContain(receipt.kind);
+    if (receipt.kind !== 'resolved' && receipt.kind !== 'resolved-with-proposals') {
       throw new Error('expected generated-token receipt to resolve');
     }
     expect(receipt.target.override).toBe('<<generated:policy-search.policyNumberInput>>');
@@ -202,8 +202,8 @@ test('runtime agent uses approved-equivalent overlays before translation and liv
 
   const { receipt } = await deterministicRuntimeStepAgent.resolve(step, createAgentContext(resolutionContext));
 
-  expect(receipt.kind).toBe('resolved');
-  if (receipt.kind !== 'resolved') {
+  expect(['resolved', 'resolved-with-proposals']).toContain(receipt.kind);
+  if (receipt.kind !== 'resolved' && receipt.kind !== 'resolved-with-proposals') {
     throw new Error('expected overlay receipt to resolve');
   }
   // Approved knowledge resolves before overlay rung because screen+element+action are

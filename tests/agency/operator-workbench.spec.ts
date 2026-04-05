@@ -97,7 +97,7 @@ test('operator inbox, approval receipts, and rerun plans share a stable proposal
       },
     };
     proposal.proposalId = proposalIdForEntry(
-      { adoId, suite: 'demo/policy-search' },
+      { payload: { adoId, suite: 'demo/policy-search' } },
       proposal,
     );
     const bundle: ProposalBundle = {
@@ -135,13 +135,7 @@ test('operator inbox, approval receipts, and rerun plans share a stable proposal
         suite: 'demo/policy-search',
         proposals: [proposal],
       },
-      adoId,
-      runId: 'seeded-run',
-      revision: 1,
-      title: 'Verify policy search returns matching policy',
-      suite: 'demo/policy-search',
-      proposals: [proposal],
-    };
+    } as ProposalBundle;
     const bundlePath = generatedProposalsPath(workspace.paths, 'demo/policy-search', adoId);
     mkdirSync(path.dirname(bundlePath), { recursive: true });
     writeFileSync(bundlePath, JSON.stringify(bundle, null, 2), 'utf8');
@@ -249,7 +243,7 @@ test('ci-batch posture forbids proposal approval', async () => {
       },
     };
     proposal.proposalId = proposalIdForEntry(
-      { adoId, suite: 'demo/policy-search' },
+      { payload: { adoId, suite: 'demo/policy-search' } },
       proposal,
     );
     const bundle: ProposalBundle = {
@@ -287,13 +281,7 @@ test('ci-batch posture forbids proposal approval', async () => {
         suite: 'demo/policy-search',
         proposals: [proposal],
       },
-      adoId,
-      runId: 'seeded-run',
-      revision: 1,
-      title: 'Verify policy search returns matching policy',
-      suite: 'demo/policy-search',
-      proposals: [proposal],
-    };
+    } as ProposalBundle;
     const bundlePath = generatedProposalsPath(workspace.paths, 'demo/policy-search', adoId);
     mkdirSync(path.dirname(bundlePath), { recursive: true });
     writeFileSync(bundlePath, JSON.stringify(bundle, null, 2), 'utf8');

@@ -248,7 +248,7 @@ const ROLE_TO_WIDGET: Readonly<Record<string, string>> = {
 
 function widgetForRole(role: string, inputType: string | null): string {
   // Use deriveRoleFromSignature for input type refinement
-  const derivedRole = deriveRoleFromSignature({ role, tag: undefined, inputType: inputType ?? undefined });
+  const derivedRole = deriveRoleFromSignature({ role, ...(inputType != null ? { inputType } : {}) });
   const resolved = derivedRole ?? role;
   return ROLE_TO_WIDGET[resolved] ?? 'os-region';
 }

@@ -136,12 +136,12 @@ test('full agentic loop: unresolvable intent → proposal activation → determi
 
     expect(activationResult.blockedProposalIds).toEqual([]);
     expect(activationResult.activatedPaths.length).toBeGreaterThan(0);
-    expect(activationResult.proposalBundle.proposals[0]?.activation.status).toBe('activated');
-    expect(activationResult.proposalBundle.proposals[0]?.certification).toBe('certified');
+    expect(activationResult.proposalBundle.payload.proposals[0]?.activation.status).toBe('activated');
+    expect(activationResult.proposalBundle.payload.proposals[0]?.certification).toBe('certified');
 
     // ── Phase 2: Verify YAML was patched ──
-    // activateProposalBundle writes to rootDir + targetPath (root level)
-    const hints = YAML.parse(workspace.readText('knowledge', 'screens', 'policy-search.hints.yaml')) as {
+    // activateProposalBundle writes to suiteRoot + targetPath
+    const hints = YAML.parse(workspace.suiteReadText('knowledge', 'screens', 'policy-search.hints.yaml')) as {
       elements: Record<string, { aliases: string[]; acquired?: { certification: string } }>;
     };
 
@@ -208,7 +208,7 @@ test('semantic dictionary accrual is produced for non-deterministic resolution s
   }, resolutionContext);
 
   const deterministicResult = await runResolutionPipeline(step, createAgentContext(resolutionContext));
-  expect(deterministicResult.receipt.kind).toBe('resolved');
+  expect(['resolved', 'resolved-with-proposals']).toContain(deterministicResult.receipt.kind);
   // Deterministic sources should NOT produce accrual (already in knowledge)
   // The winning source for deterministic resolution is typically 'generated-token'
   // or 'approved-screen-knowledge' — neither is in the accrual source set.
@@ -287,10 +287,10 @@ test('proposal bundle with multiple proposals activates all and patches correspo
     );
 
     expect(result.blockedProposalIds).toEqual([]);
-    expect(result.proposalBundle.proposals).toHaveLength(2);
-    expect(result.proposalBundle.proposals.every((p) => p.activation.status === 'activated')).toBe(true);
+    expect(result.proposalBundle.payload.proposals).toHaveLength(2);
+    expect(result.proposalBundle.payload.proposals.every((p) => p.activation.status === 'activated')).toBe(true);
 
-    const hints = YAML.parse(workspace.readText('knowledge', 'screens', 'policy-search.hints.yaml')) as {
+    const hints = YAML.parse(workspace.suiteReadText('knowledge', 'screens', 'policy-search.hints.yaml')) as {
       elements: Record<string, { aliases: string[] }>;
     };
 

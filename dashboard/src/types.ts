@@ -80,7 +80,7 @@ export interface ProgressEvent {
   } | null;
 }
 
-export type DisplayStatus = 'entering' | 'pending' | 'processing' | 'completed' | 'skipped';
+export type DisplayStatus = 'entering' | 'pending' | 'processing' | 'completed' | 'skipped' | 'optimistic-completed' | 'optimistic-skipped';
 
 export interface QueuedItem extends WorkItem {
   readonly displayStatus: DisplayStatus;

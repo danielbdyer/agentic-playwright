@@ -81,28 +81,41 @@ function proposalBundleWithDecision(decision: ProposalEntry['trustPolicy']['deci
   });
 }
 
-for (const decision of ['review', 'deny'] as const) {
-  test(`activateProposalBundle keeps ${decision} proposals active in canon without certification`, async () => {
-    const workspace = createTestWorkspace(`active-canon-${decision}`);
-    try {
-      const result = await runWithLocalServices(activateProposalBundle({
-        paths: workspace.paths,
-        proposalBundle: proposalBundleWithDecision(decision),
-      }), workspace.rootDir);
+test('activateProposalBundle keeps review proposals active in canon without certification', async () => {
+  const workspace = createTestWorkspace('active-canon-review');
+  try {
+    const result = await runWithLocalServices(activateProposalBundle({
+      paths: workspace.paths,
+      proposalBundle: proposalBundleWithDecision('review'),
+    }), workspace.rootDir);
 
-      expect(result.blockedProposalIds).toEqual([]);
-      expect(result.proposalBundle.governance).toBe('approved');
-      expect(result.proposalBundle.proposals[0]?.activation.status).toBe('activated');
-      expect(result.proposalBundle.proposals[0]?.certification).toBe('uncertified');
+    expect(result.blockedProposalIds).toEqual([]);
+    expect(result.proposalBundle.governance).toBe('approved');
+    expect(result.proposalBundle.payload.proposals[0]?.activation.status).toBe('activated');
+    expect(result.proposalBundle.payload.proposals[0]?.certification).toBe('uncertified');
 
-      const hints = YAML.parse(workspace.readText('knowledge', 'screens', 'policy-search.hints.yaml')) as {
-        elements: Record<string, { aliases: string[]; acquired?: { certification: string; lineage: { role?: string | null } } }>;
-      };
-      expect(hints.elements.searchButton!.aliases).toContain(`Search alias ${decision}`);
-      expect(hints.elements.searchButton!.acquired?.certification).toBe('uncertified');
-      expect(hints.elements.searchButton!.acquired?.lineage.role).toBe('csr');
-    } finally {
-      workspace.cleanup();
-    }
-  });
-}
+    const hints = YAML.parse(workspace.suiteReadText('knowledge', 'screens', 'policy-search.hints.yaml')) as {
+      elements: Record<string, { aliases: string[]; acquired?: { certification: string; lineage: { role?: string | null } } }>;
+    };
+    expect(hints.elements.searchButton!.aliases).toContain('Search alias review');
+    expect(hints.elements.searchButton!.acquired?.certification).toBe('uncertified');
+    expect(hints.elements.searchButton!.acquired?.lineage.role).toBe('csr');
+  } finally {
+    workspace.cleanup();
+  }
+});
+
+test('activateProposalBundle blocks deny proposals per trust policy', async () => {
+  const workspace = createTestWorkspace('active-canon-deny');
+  try {
+    const result = await runWithLocalServices(activateProposalBundle({
+      paths: workspace.paths,
+      proposalBundle: proposalBundleWithDecision('deny'),
+    }), workspace.rootDir);
+
+    expect(result.blockedProposalIds).toContain('proposal-deny');
+    expect(result.proposalBundle.payload.proposals[0]?.activation.status).toBe('blocked');
+  } finally {
+    workspace.cleanup();
+  }
+});

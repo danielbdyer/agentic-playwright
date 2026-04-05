@@ -59,11 +59,13 @@ async function executeAffordance(
   affordance: RoleAffordance,
   value?: string,
 ): Promise<void> {
-  const loc = locator as unknown as Record<string, (...args: unknown[]) => Promise<unknown>>;
+  const loc = locator as unknown as Record<string, ((...args: unknown[]) => Promise<unknown>) | undefined>;
+  const method = loc[affordance.method];
+  if (!method) throw new Error(`Locator does not support method '${affordance.method}'`);
   if (affordance.args === 'value') {
-    await loc[affordance.method](value ?? '');
+    await method(value ?? '');
   } else {
-    await loc[affordance.method]();
+    await method();
   }
 }
 

@@ -19,6 +19,19 @@
 
 import { useRef, useCallback, useState, useDeferredValue } from 'react';
 
+// ─── Pure readable-window computation (tested in pipeline-buffer-window.laws) ───
+
+export function computeReadableWindow(
+  writeHead: number,
+  readCursor: number,
+  capacity: number,
+): { batchStart: number; batchSize: number; nextRead: number } {
+  const gap = writeHead - readCursor;
+  if (gap <= 0) return { batchStart: readCursor, batchSize: 0, nextRead: readCursor };
+  if (gap <= capacity) return { batchStart: readCursor, batchSize: gap, nextRead: writeHead };
+  return { batchStart: writeHead - capacity, batchSize: capacity, nextRead: writeHead };
+}
+
 // ─── Buffer layout (must match pipeline-event-bus.ts) ───
 
 const SLOT_SIZE = 18;
@@ -118,6 +131,8 @@ interface PipelineBufferHandle {
   /** Read the i-th new event from the current batch. Must call poll() first.
    *  Returns the shared _event buffer — consume before next read(). */
   readonly read: (batchIndex: number) => BufferEvent;
+  /** Map a batch-relative index to the absolute ring-buffer index. */
+  readonly readIndex: (batchIndex: number) => number;
   /** Total events ever written to the buffer. */
   readonly totalEvents: () => number;
   /** Whether a buffer is connected. */
@@ -164,7 +179,12 @@ export function usePipelineBuffer(sab: SharedArrayBuffer | null, capacity = 1024
     return total;
   }, []);
 
-  return { poll, read, totalEvents, connected: sab !== null } as const;
+  /** O(1). Map a batch-relative index to the absolute ring-buffer index. */
+  const readIndex = useCallback((batchIndex: number): number => {
+    return lastReadRef.current + batchIndex;
+  }, []);
+
+  return { poll, read, readIndex, totalEvents, connected: sab !== null } as const;
 }
 
 // ─── W5.21: Deferred buffer events for spatial canvas rendering ───

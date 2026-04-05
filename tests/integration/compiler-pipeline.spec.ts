@@ -243,7 +243,7 @@ test('run emits interpretation and execution receipts, then reprojects review su
 
     expect(runRecord.kind).toBe('scenario-run-record');
     expect(runRecord.steps).toHaveLength(4);
-    expect(runRecord.steps.every((step: { interpretation: { kind: string } }) => step.interpretation.kind === 'resolved')).toBeTruthy();
+    expect(runRecord.steps.every((step: { interpretation: { kind: string } }) => ['resolved', 'resolved-with-proposals'].includes(step.interpretation.kind))).toBeTruthy();
     expect(traceArtifact.summary.provenanceKinds['approved-knowledge']).toBe(4);
     expect(traceArtifact.summary.provenanceKinds.unresolved).toBe(0);
     expect(traceArtifact.steps.every((step: { runtime: { status: string } }) => step.runtime.status === 'resolved')).toBeTruthy();

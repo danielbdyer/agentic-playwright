@@ -7,7 +7,7 @@ import {
   type DashboardEventObserverDependencies,
 } from '../../dashboard/src/hooks/dashboard-event-observer';
 import type { KnowledgeNode } from '../../dashboard/src/spatial/types';
-import type { ScreenId } from '../../lib/domain/identity';
+import type { ScreenId } from '../../lib/domain/kernel/identity';
 
 const noop = (): void => void 0;
 

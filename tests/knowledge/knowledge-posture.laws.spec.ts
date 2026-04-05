@@ -15,7 +15,7 @@ const LIB_ROOT = path.resolve(__dirname, '../..', 'lib');
 // ─── Law: KnowledgePosture type exists with all three variants ───
 
 test('KnowledgePosture type and fold function are exported', () => {
-  const workflowPath = path.join(LIB_ROOT, 'domain', 'types', 'workflow.ts');
+  const workflowPath = path.join(LIB_ROOT, 'domain', 'governance', 'workflow-types.ts');
   const content = fs.readFileSync(workflowPath, 'utf-8');
 
   expect(content).toContain("export type KnowledgePosture = 'cold-start' | 'warm-start' | 'production'");
@@ -26,7 +26,7 @@ test('KnowledgePosture type and fold function are exported', () => {
 // ─── Law: foldKnowledgePosture is exhaustive over all three cases ───
 
 test('foldKnowledgePosture handles all three posture variants', () => {
-  const workflowPath = path.join(LIB_ROOT, 'domain', 'types', 'workflow.ts');
+  const workflowPath = path.join(LIB_ROOT, 'domain', 'governance', 'workflow-types.ts');
   const content = fs.readFileSync(workflowPath, 'utf-8');
 
   expect(content).toContain("case 'cold-start'");
@@ -37,7 +37,7 @@ test('foldKnowledgePosture handles all three posture variants', () => {
 // ─── Law: postureIncludesKnowledge returns false only for cold-start ───
 
 test('postureIncludesKnowledge correctly classifies cold-start as excluding knowledge', () => {
-  const workflowPath = path.join(LIB_ROOT, 'domain', 'types', 'workflow.ts');
+  const workflowPath = path.join(LIB_ROOT, 'domain', 'governance', 'workflow-types.ts');
   const content = fs.readFileSync(workflowPath, 'utf-8');
 
   // The function must use foldKnowledgePosture with coldStart returning false
@@ -85,7 +85,7 @@ test('catalog loader defaults to warm-start posture', () => {
 // ─── Law: Dogfood loop passes posture through to catalog on first iteration ───
 
 test('dogfood loop uses cold-start posture only on iteration 1', () => {
-  const dogfoodPath = path.join(LIB_ROOT, 'application', 'dogfood.ts');
+  const dogfoodPath = path.join(LIB_ROOT, 'application', 'improvement', 'dogfood.ts');
   const content = fs.readFileSync(dogfoodPath, 'utf-8');
 
   // Iteration 1 uses configured posture (may be cold-start)
@@ -98,17 +98,19 @@ test('dogfood loop uses cold-start posture only on iteration 1', () => {
 // ─── Law: ProjectPaths includes postureConfigPath ───
 
 test('ProjectPaths interface includes postureConfigPath', () => {
-  const pathsFile = path.join(LIB_ROOT, 'application', 'paths.ts');
-  const content = fs.readFileSync(pathsFile, 'utf-8');
+  const typesFile = path.join(LIB_ROOT, 'application', 'paths', 'types.ts');
+  const typesContent = fs.readFileSync(typesFile, 'utf-8');
+  expect(typesContent).toContain('postureConfigPath');
 
-  expect(content).toContain('postureConfigPath');
-  expect(content).toContain('posture.yaml');
+  const factoryFile = path.join(LIB_ROOT, 'application', 'paths', 'factory.ts');
+  const factoryContent = fs.readFileSync(factoryFile, 'utf-8');
+  expect(factoryContent).toContain('posture.yaml');
 });
 
 // ─── Law: resolveKnowledgePosture respects three-level precedence ───
 
 test('resolveKnowledgePosture implements explicit > file > default precedence', () => {
-  const posturePath = path.join(LIB_ROOT, 'application', 'knowledge-posture.ts');
+  const posturePath = path.join(LIB_ROOT, 'application', 'knowledge', 'knowledge-posture.ts');
   const content = fs.readFileSync(posturePath, 'utf-8');
 
   // Must check explicit override first

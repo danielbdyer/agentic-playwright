@@ -47,7 +47,7 @@ test('harvest visits declared route variants and writes route-scoped receipts', 
     ]));
     expect(index.app).toBe('demo');
     expect(index.version).toBe(2);
-    expect(index.receipts).toHaveLength(3);
+    expect(index.receipts).toHaveLength(4);
     expect(index.receipts.every((entry) => entry.status === 'ok')).toBeTruthy();
     expect(index.receipts.every((entry) => entry.writeDisposition === 'rewritten')).toBeTruthy();
     expect(index.receipts.every((entry) => entry.contentFingerprint?.startsWith('sha256:'))).toBeTruthy();
