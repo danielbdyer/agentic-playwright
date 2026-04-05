@@ -7,18 +7,13 @@
  * | scenarioPhase (taskStep lookup)   | O(steps^2)        | O(steps)  | Pre-indexed Map<index, taskStep> per scenario             |
  * | decisionItems (candidateId check) | O(decisions*cands)| O(decisions)| Replaced array.includes with Set.has per decision       |
  */
-import { sortByStringKey } from '../kernel/collections';
 import { deriveCapabilities } from '../commitment/grammar';
-import { normalizeIntentText } from '../knowledge/inference';
 import type { ScreenId, SnapshotTemplateId } from '../kernel/identity';
 import { createElementId, createPostureId, createSurfaceId } from '../kernel/identity';
-import { provenanceKindForBoundStep } from '../governance/provenance';
 import { explainBoundScenario } from '../scenario/explanation';
 import { capabilityForInstruction, compileStepProgram, traceStepProgram } from '../commitment/program';
-import { sha256, stableStringify } from '../kernel/hash';
-import { graphIds, mcpUris } from '../kernel/ids';
+import { graphIds } from '../kernel/ids';
 import type { InterpretationDriftRecord, RunRecord } from '../execution/types';
-import type { DerivedCapability } from '../governance/workflow-types';
 import type { ImprovementRun } from '../improvement/types';
 import type { AdoSnapshot, BoundScenario, Scenario } from '../intent/types';
 import type {
@@ -32,11 +27,7 @@ import type {
 import type {
   DerivedGraph,
   GraphEdge,
-  GraphEdgeKind,
   GraphNode,
-  GraphNodeKind,
-  MappedMcpResource,
-  MappedMcpTemplate,
 } from '../projection/types';
 import type {
   DatasetControl,
@@ -44,6 +35,31 @@ import type {
   RunbookControl,
   ScenarioInterpretationSurface,
 } from '../resolution/types';
+import {
+  type ConditionalEdge,
+  type GraphAccumulator,
+  type PhaseResult,
+  EMPTY_GRAPH,
+  conditionalEdge,
+  createEdge,
+  createNode,
+  mergeAccumulators,
+  phaseResult,
+  resolveConditionalEdges,
+} from './derived/primitives';
+import {
+  basename,
+  basenameWithoutExtension,
+  bestAliasMatches as _bestAliasMatches,
+  mapKnowledgePathToNodeId,
+  patternFileNodeId,
+  patternIdsForStep,
+  stepBinding,
+  stepConfidence,
+  stepProvenanceKind,
+  type StepGraphContext,
+} from './derived/utilities';
+import { capabilityTargetNodeId, finalize } from './derived/finalize';
 
 interface ArtifactEnvelope<T> {
   readonly artifact: T;
@@ -112,112 +128,13 @@ export interface GraphBuildInput {
   readonly policyDecisions?: readonly PolicyDecisionArtifact[];
 }
 
-interface StepGraphContext {
-  readonly step: Scenario['steps'][number];
-  readonly boundStep: BoundScenario['steps'][number] | null;
-}
-
-function nodeFingerprint(kind: GraphNodeKind, id: string, payload?: Record<string, unknown>): string {
-  return sha256(stableStringify({ kind, id, payload: payload ?? null }));
-}
-
-function edgeFingerprint(kind: GraphEdgeKind, from: string, to: string, payload?: Record<string, unknown>): string {
-  return sha256(stableStringify({ kind, from, to, payload: payload ?? null }));
-}
-
-function createNode(input: {
-  id: string;
-  kind: GraphNodeKind;
-  label: string;
-  artifactPath?: string;
-  provenance?: GraphNode['provenance'];
-  payload?: Record<string, unknown>;
-}): GraphNode {
-  return {
-    id: input.id,
-    kind: input.kind,
-    label: input.label,
-    artifactPath: input.artifactPath,
-    provenance: input.provenance ?? {},
-    payload: input.payload,
-    fingerprint: nodeFingerprint(input.kind, input.id, input.payload),
-  };
-}
-
-function createEdge(input: {
-  kind: GraphEdgeKind;
-  from: string;
-  to: string;
-  provenance?: GraphEdge['provenance'];
-  payload?: Record<string, unknown>;
-}): GraphEdge {
-  const edgeId = `${input.kind}:${input.from}->${input.to}`;
-  return {
-    id: edgeId,
-    kind: input.kind,
-    from: input.from,
-    to: input.to,
-    provenance: input.provenance ?? {},
-    payload: input.payload,
-    fingerprint: edgeFingerprint(input.kind, input.from, input.to, input.payload),
-  };
-}
-
-// --- GraphAccumulator: immutable graph building ---
-
-export interface GraphAccumulator {
-  readonly nodes: ReadonlyMap<string, GraphNode>;
-  readonly edges: ReadonlyMap<string, GraphEdge>;
-}
-
-export const EMPTY_GRAPH: GraphAccumulator = { nodes: new Map(), edges: new Map() };
-
-
-// --- Two-pass conditional edge infrastructure ---
-
-export interface ConditionalEdge {
-  readonly edge: GraphEdge;
-  readonly requiredNodeIds: readonly string[];
-}
-
-interface PhaseResult {
-  readonly accumulator: GraphAccumulator;
-  readonly conditionalEdges: readonly ConditionalEdge[];
-}
-
-export function mergeAccumulators(a: GraphAccumulator, b: GraphAccumulator): GraphAccumulator {
-  return {
-    nodes: new Map([...a.nodes, ...b.nodes]),
-    edges: new Map([...a.edges, ...b.edges]),
-  };
-}
-
-export function resolveConditionalEdges(
-  allNodes: ReadonlyMap<string, GraphNode>,
-  conditionalEdges: readonly ConditionalEdge[],
-): ReadonlyMap<string, GraphEdge> {
-  return new Map(
-    conditionalEdges
-      .flatMap((ce) => ce.requiredNodeIds.every((id) => allNodes.has(id)) ? [[ce.edge.id, ce.edge] as const] : []),
-  );
-}
-
-function phaseResult(
-  items: { readonly nodes?: readonly GraphNode[]; readonly edges?: readonly GraphEdge[] },
-  conditionalEdges?: readonly ConditionalEdge[],
-): PhaseResult {
-  return {
-    accumulator: {
-      nodes: new Map((items.nodes ?? []).map((n) => [n.id, n] as const)),
-      edges: new Map((items.edges ?? []).map((e) => [e.id, e] as const)),
-    },
-    conditionalEdges: conditionalEdges ?? [],
-  };
-}
-
-function conditionalEdge(edge: GraphEdge, ...requiredNodeIds: readonly string[]): ConditionalEdge {
-  return { edge, requiredNodeIds };
-}
+export {
+  EMPTY_GRAPH,
+  mergeAccumulators,
+  resolveConditionalEdges,
+  type ConditionalEdge,
+  type GraphAccumulator,
+} from './derived/primitives';
 
 // --- Phase type ---
 
@@ -1557,168 +1474,6 @@ function improvementPhase(input: GraphBuildInput): PhaseResult {
     { nodes: perRun.flatMap((r) => r.nodes), edges: perRun.flatMap((r) => r.edges) },
     perRun.flatMap((r) => r.conditional),
   );
-}
-
-// --- Finalize ---
-
-function finalize(acc: GraphAccumulator): DerivedGraph {
-  return sortGraph({
-    version: 'v1',
-    nodes: [...acc.nodes.values()],
-    edges: [...acc.edges.values()],
-    resources: createResources(),
-    resourceTemplates: createResourceTemplates(),
-  });
-}
-
-function createResources(): MappedMcpResource[] {
-  return [
-    {
-      uri: mcpUris.graph,
-      description: 'Derived dependency and provenance graph for the current workspace.',
-    },
-  ];
-}
-
-function createResourceTemplates(): MappedMcpTemplate[] {
-  return [
-    {
-      uriTemplate: mcpUris.screenTemplate,
-      description: 'Approved surface graph, elements, postures, and derived capabilities for one screen.',
-    },
-    {
-      uriTemplate: mcpUris.scenarioTemplate,
-      description: 'Scenario trace view for one ADO case.',
-    },
-    {
-      uriTemplate: mcpUris.impactTemplate,
-      description: 'Impact graph view for a graph node id.',
-    },
-  ];
-}
-
-function sortGraph(graph: Omit<DerivedGraph, 'fingerprint'>): DerivedGraph {
-  const nodes = sortByStringKey(graph.nodes, (n) => n.id);
-  const edges = sortByStringKey(graph.edges, (e) => e.id);
-  const resources = sortByStringKey(graph.resources, (r) => r.uri);
-  const resourceTemplates = sortByStringKey(graph.resourceTemplates, (r) => r.uriTemplate);
-  return {
-    ...graph,
-    nodes,
-    edges,
-    resources,
-    resourceTemplates,
-    fingerprint: sha256(stableStringify({ nodes, edges, resources, resourceTemplates })),
-  };
-}
-
-function capabilityTargetNodeId(screenId: ScreenId, capability: DerivedCapability): string {
-  switch (capability.targetKind) {
-    case 'screen':
-      return graphIds.screen(screenId);
-    case 'surface':
-      return graphIds.surface(screenId, capability.target as ReturnType<typeof createSurfaceId>);
-    case 'element':
-    default:
-      return graphIds.element(screenId, capability.target as ReturnType<typeof createElementId>);
-  }
-}
-
-function basenameWithoutExtension(value: string): string {
-  return basename(value).replace(/\.[^.]+$/, '');
-}
-
-function basename(value: string): string {
-  const parts = value.split(/[\\/]/);
-  return parts.at(-1) ?? value;
-}
-
-function patternFileNodeId(artifactPath: string): string {
-  return graphIds.pattern(basenameWithoutExtension(artifactPath));
-}
-
-function stepConfidence(context: StepGraphContext): Scenario['steps'][number]['confidence'] {
-  return context.boundStep?.confidence ?? context.step.confidence;
-}
-
-function stepBinding(context: StepGraphContext): BoundScenario['steps'][number]['binding'] | null {
-  return context.boundStep?.binding ?? null;
-}
-
-function stepProvenanceKind(context: StepGraphContext) {
-  if (context.boundStep) {
-    return provenanceKindForBoundStep(context.boundStep);
-  }
-
-  if (context.step.confidence === 'intent-only' || context.step.confidence === 'unbound') {
-    return 'unresolved';
-  }
-  if (context.step.resolution) {
-    return 'explicit';
-  }
-  return 'approved-knowledge';
-}
-
-function mapKnowledgePathToNodeId(ref: string, context: StepGraphContext): string | null {
-  if (ref.startsWith('knowledge/snapshots/')) {
-    return graphIds.snapshot.knowledge(ref.replace(/^knowledge\//, ''));
-  }
-
-  if (ref.startsWith('knowledge/surfaces/') && ref.endsWith('.surface.yaml')) {
-    return graphIds.screen(basename(ref).replace('.surface.yaml', '') as ScreenId);
-  }
-
-  if (ref.startsWith('knowledge/screens/') && ref.endsWith('.elements.yaml')) {
-    if (context.step.screen && context.step.element) {
-      return graphIds.element(context.step.screen, context.step.element);
-    }
-    return graphIds.screen(basename(ref).replace('.elements.yaml', '') as ScreenId);
-  }
-
-  if (ref.startsWith('knowledge/screens/') && ref.endsWith('.postures.yaml')) {
-    if (context.step.screen && context.step.element && context.step.posture) {
-      return graphIds.posture(context.step.screen, context.step.element, context.step.posture);
-    }
-    return graphIds.screen(basename(ref).replace('.postures.yaml', '') as ScreenId);
-  }
-
-  if (ref.startsWith('knowledge/screens/') && ref.endsWith('.hints.yaml')) {
-    return graphIds.screenHints(basename(ref).replace('.hints.yaml', '') as ScreenId);
-  }
-
-  if (ref.startsWith('knowledge/patterns/')) {
-    return patternFileNodeId(ref);
-  }
-
-  return null;
-}
-
-function patternIdsForStep(stepContext: StepGraphContext, sharedPatternsArtifacts: readonly SharedPatternsArtifact[]): string[] {
-  const binding = stepBinding(stepContext);
-  const bindingIds = binding?.ruleId ? [graphIds.pattern(binding.ruleId)] : [];
-
-  const postureIds = stepContext.step.posture
-    ? sharedPatternsArtifacts
-        .flatMap((entry) => {
-          const id = entry.artifact.postures?.[stepContext.step.posture!]?.id;
-          return id !== undefined && id !== null ? [graphIds.pattern(id)] : [];
-        })
-    : [];
-
-  return [...new Set([...bindingIds, ...postureIds])].sort((left, right) => left.localeCompare(right));
-}
-
-function _bestAliasMatches(normalizedIntent: string, aliases: string[]): string[] {
-  const matches = aliases
-    .flatMap((alias) => {
-      const normalized = normalizeIntentText(alias);
-      return normalized.length > 0 && normalizedIntent.includes(normalized) ? [normalized] : [];
-    });
-  if (matches.length === 0) {
-    return [];
-  }
-  const maxLength = Math.max(...matches.map((alias) => alias.length));
-  return [...new Set(matches.filter((alias) => alias.length === maxLength))].sort((left, right) => left.localeCompare(right));
 }
 
 export function deriveGraph(input: GraphBuildInput): DerivedGraph {
