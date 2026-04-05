@@ -108,7 +108,7 @@ export const governanceToTint = (g: Governance): [number, number, number] => {
 };
 
 // ─── Shared Color Constants ───
-// Extracted from app.tsx for reuse across atoms/molecules.
+// Extracted from the app/App.tsx shell for reuse across atoms/molecules.
 
 export const RUNG_COLORS: Readonly<Record<string, string>> = {
   'explicit': '#3fb950', 'control': '#2ea043', 'approved-screen-knowledge': '#56d364',
