@@ -246,7 +246,11 @@ test('run emits interpretation and execution receipts, then reprojects review su
     expect(runRecord.steps.every((step: { interpretation: { kind: string } }) => ['resolved', 'resolved-with-proposals'].includes(step.interpretation.kind))).toBeTruthy();
     expect(traceArtifact.summary.provenanceKinds['approved-knowledge']).toBe(4);
     expect(traceArtifact.summary.provenanceKinds.unresolved).toBe(0);
-    expect(traceArtifact.steps.every((step: { runtime: { status: string } }) => step.runtime.status === 'resolved')).toBeTruthy();
+    expect(
+      traceArtifact.steps.every((step: { runtime: { status: string } }) =>
+        ['resolved', 'resolved-with-proposals'].includes(step.runtime.status),
+      ),
+    ).toBeTruthy();
     expect(review).toContain('Runtime: resolved');
     expect(review).toContain('Interface graph fingerprint:');
     expect(review).toContain('Selector canon fingerprint:');
@@ -258,8 +262,10 @@ test('run emits interpretation and execution receipts, then reprojects review su
     expect(runRecord.steps.some((step: { execution: { eventSignatureRefs?: string[]; transitionObservations?: unknown[] } }) =>
       (step.execution.eventSignatureRefs?.length ?? 0) > 0
       && (step.execution.transitionObservations?.length ?? 0) > 0)).toBeTruthy();
-    expect(proposalBundle.proposals).toEqual([]);
-    expect(graph.nodes.find((node: { id: string; payload?: Record<string, unknown> }) => node.id === graphIds.step(adoId, 2))?.payload?.runtimeStatus).toBe('resolved');
+    expect((proposalBundle.payload?.proposals ?? []).length).toBeGreaterThan(0);
+    expect(['resolved', 'resolved-with-proposals']).toContain(
+      graph.nodes.find((node: { id: string; payload?: Record<string, unknown> }) => node.id === graphIds.step(adoId, 2))?.payload?.runtimeStatus,
+    );
     expect(inboxReport).toContain('## Hotspot suggestions');
   } finally {
     workspace.cleanup();

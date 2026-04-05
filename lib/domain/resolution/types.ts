@@ -685,7 +685,7 @@ export interface ResolvedReceipt extends ResolutionReceiptBase {
 
 export interface ResolvedWithProposalsReceipt extends ResolutionReceiptBase {
   readonly kind: 'resolved-with-proposals';
-  readonly confidence: 'agent-proposed' | 'agent-verified';
+  readonly confidence: 'compiler-derived' | 'agent-proposed' | 'agent-verified';
   readonly provenanceKind: Extract<StepProvenanceKind, 'approved-knowledge' | 'live-exploration'>;
   readonly target: ResolutionTarget;
   readonly evidenceDrafts: readonly ResolutionEvidenceDraft[];

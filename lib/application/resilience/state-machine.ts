@@ -1,5 +1,4 @@
 import { Effect } from 'effect';
-import { runHyloEffect, type UnfoldStep } from '../../domain/algebra/hylomorphism';
 
 export interface StateMachine<S, E, R> {
   readonly initial: S;
@@ -22,14 +21,13 @@ export interface StateMachine<S, E, R> {
  * @see docs/design-calculus.md § Duality 1: Fold / Unfold (hylomorphism)
  */
 export function runStateMachine<S, E, R>(machine: StateMachine<S, E, R>): Effect.Effect<S, E, R> {
-  return runHyloEffect<S, S, S, E, R>(
-    machine.initial,
-    machine.initial,
-    (state) => Effect.gen(function* () {
+  const loop = (state: S): Effect.Effect<S, E, R> =>
+    Effect.gen(function* () {
       const result = yield* machine.step(state);
-      if (result.done) return { done: true } as UnfoldStep<S, S>;
-      return { done: false, value: result.next, next: result.next } as UnfoldStep<S, S>;
-    }),
-    (_acc, next) => next,
-  );
+      if (result.done) {
+        return result.next;
+      }
+      return yield* loop(result.next);
+    });
+  return loop(machine.initial);
 }

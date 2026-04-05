@@ -176,6 +176,9 @@ export function buildInterfaceResolutionContext(input: {
   interfaceGraph: ApplicationInterfaceGraph;
   selectorCanon: SelectorCanon;
   stateGraph: StateTransitionGraph;
+  interfaceGraphPath?: string | undefined;
+  selectorCanonPath?: string | undefined;
+  stateGraphPath?: string | undefined;
   screenRefs?: readonly ScreenId[] | undefined;
   freshnessPolicy?: FreshnessPolicy | undefined;
   /** Total completed runs so far (used for freshness decay calculation). */
@@ -213,9 +216,9 @@ export function buildInterfaceResolutionContext(input: {
     interfaceGraphFingerprint: input.interfaceGraph.fingerprint,
     selectorCanonFingerprint: input.selectorCanon.fingerprint,
     stateGraphFingerprint: input.stateGraph.fingerprint,
-    interfaceGraphPath: input.catalog.interfaceGraph?.artifactPath ?? null,
-    selectorCanonPath: input.catalog.selectorCanon?.artifactPath ?? null,
-    stateGraphPath: input.catalog.stateGraph?.artifactPath ?? null,
+    interfaceGraphPath: input.catalog.interfaceGraph?.artifactPath ?? input.interfaceGraphPath ?? null,
+    selectorCanonPath: input.catalog.selectorCanon?.artifactPath ?? input.selectorCanonPath ?? null,
+    stateGraphPath: input.catalog.stateGraph?.artifactPath ?? input.stateGraphPath ?? null,
     sharedPatterns: input.catalog.mergedPatterns,
     screens: screenCandidates({
       interfaceGraph: input.interfaceGraph,

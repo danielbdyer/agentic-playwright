@@ -66,15 +66,24 @@ function addElement(
 
 function removeAliases(
   hintsElements: Record<string, unknown>,
-  element: string,
   mutation: AliasRemovalMutation,
 ): Record<string, unknown> {
-  const entry = isRecord(hintsElements[element]) ? { ...hintsElements[element] as Record<string, unknown> } : {};
-  const aliases = Array.isArray(entry.aliases) ? entry.aliases as string[] : [];
-  const filtered = aliases.filter((a) => !mutation.removedAliases.includes(a));
-  return filtered.length === aliases.length
-    ? hintsElements
-    : { ...hintsElements, [element]: { ...entry, aliases: filtered } };
+  const phrases = mutation.removedAliases.map((alias) => alias.toLowerCase());
+  const stripMatchingAliases = (entry: unknown): unknown => {
+    if (!isRecord(entry)) {
+      return entry;
+    }
+    const aliasList = Array.isArray(entry.aliases) ? entry.aliases as string[] : [];
+    const filteredAliases = aliasList.filter((alias) =>
+      !phrases.some((phrase) => alias.toLowerCase().includes(phrase)),
+    );
+    return filteredAliases.length === aliasList.length
+      ? entry
+      : { ...entry, aliases: filteredAliases };
+  };
+  return Object.fromEntries(
+    Object.entries(hintsElements).map(([key, value]) => [key, stripMatchingAliases(value)]),
+  );
 }
 
 function applyDriftToElements(
@@ -110,7 +119,7 @@ function applyDriftToHints(
   const elements = isRecord(doc.elements) ? { ...doc.elements as Record<string, unknown> } : {};
   return {
     ...doc,
-    elements: removeAliases(elements, event.target.element!, event.mutation as AliasRemovalMutation),
+    elements: removeAliases(elements, event.mutation as AliasRemovalMutation),
   };
 }
 

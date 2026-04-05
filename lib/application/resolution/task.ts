@@ -206,6 +206,9 @@ export function buildScenarioInterpretationSurface(input: {
     interfaceGraph,
     selectorCanon,
     stateGraph,
+    interfaceGraphPath: relativeProjectPath(input.paths, input.paths.interfaceGraphIndexPath),
+    selectorCanonPath: relativeProjectPath(input.paths, input.paths.selectorCanonPath),
+    stateGraphPath: relativeProjectPath(input.paths, input.paths.stateGraphPath),
   });
 
   const steps = input.compileSnapshot.boundScenario.steps.map((step) => {

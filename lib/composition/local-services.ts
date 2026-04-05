@@ -74,7 +74,7 @@ function resolveExecutionPosture(posture?: Partial<ExecutionPosture> | undefined
     interpreterMode: posture?.interpreterMode ?? 'playwright',
     writeMode: posture?.writeMode ?? 'persist',
     headed: posture?.headed ?? false,
-    executionProfile: posture?.executionProfile ?? (process.env.CI ? 'ci-batch' : 'interactive'),
+    executionProfile: posture?.executionProfile ?? 'interactive',
   };
 }
 

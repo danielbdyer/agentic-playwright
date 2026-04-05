@@ -1,4 +1,4 @@
-import { cpSync, mkdtempSync, readFileSync, rmSync } from 'fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'fs';
 import path from 'path';
 import { tmpdir } from 'os';
 import { createProjectPaths, type ProjectPaths } from '../../lib/application/paths';
@@ -20,7 +20,13 @@ const engineSeeds = [
 ] as const;
 
 function copySeed(srcRoot: string, dstRoot: string, relativePath: string): void {
-  cpSync(path.join(srcRoot, relativePath), path.join(dstRoot, relativePath), {
+  const sourcePath = path.join(srcRoot, relativePath);
+  const destinationPath = path.join(dstRoot, relativePath);
+  if (!existsSync(sourcePath)) {
+    mkdirSync(destinationPath, { recursive: true });
+    return;
+  }
+  cpSync(sourcePath, destinationPath, {
     recursive: true,
     force: true,
   });

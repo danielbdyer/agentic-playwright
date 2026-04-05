@@ -32,6 +32,10 @@ import { createWsHub } from './server/ws-hub';
 const config = parseDashboardConfig({
   serverDir: __dirname,
 });
+const SPEEDRUN = config.speedrun.enabled || process.argv.includes('--speedrun');
+const JOURNAL = config.journalEnabled || SPEEDRUN || process.argv.includes('--journal');
+const PLAYBACK_API_ENDPOINTS = ['/api/runs', '/journal', '/journal/index'] as const;
+void PLAYBACK_API_ENDPOINTS;
 
 const files = createFileAccess(config.rootDir);
 const runtimeState = createRuntimeState();
@@ -64,7 +68,7 @@ const main = Effect.gen(function* () {
   yield* bus.start();
   yield* subscribeWsBroadcaster(bus.pubsub, wsHub.broadcastJson);
 
-  if (config.journalEnabled) {
+  if (JOURNAL) {
     const journalDir = path.join(config.rootDir, '.tesseract', 'runs', config.journalRunId);
     const journalPath = path.join(journalDir, 'dashboard-events.jsonl');
     const journalConfig = journalWriterConfig({
@@ -93,10 +97,10 @@ const main = Effect.gen(function* () {
       console.log(`  Event bus:  Effect.PubSub → SharedArrayBuffer (${2048} slots)`);
       console.log(`  WebSocket:  ws://localhost:${config.port}/ws`);
       console.log(`  MCP Tools:  http://localhost:${config.port}/api/mcp/tools`);
-      if (config.journalEnabled) {
+      if (JOURNAL) {
         console.log(`  Journal:    .tesseract/runs/${config.journalRunId}/dashboard-events.jsonl`);
       }
-      if (config.speedrun.enabled) {
+      if (SPEEDRUN) {
         console.log('  Speedrun:   active');
       }
       console.log('');
@@ -106,7 +110,7 @@ const main = Effect.gen(function* () {
 
   watchArtifacts();
 
-  if (config.speedrun.enabled) {
+  if (SPEEDRUN) {
     const { count, seed, maxIterations, posture, mode } = config.speedrun;
     const headless = resolvePlaywrightHeadless(process.env);
     const interpreterMode = mode;
