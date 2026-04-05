@@ -145,13 +145,15 @@ test('collapseAll: parallel pipelines produce independent results', () => {
     { value: 20, category: 'metric' },
   ];
 
-  const results = collapseAll(
-    { metrics: testPipeline as ObservationCollapse<TestReceipt, unknown, TestAgg, TestSignal> },
+  type CollapseResults = { metrics: { aggregate: TestAgg; signal: TestSignal } };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const results = collapseAll<TestReceipt, CollapseResults>(
+    { metrics: testPipeline as unknown as ObservationCollapse<TestReceipt, any, TestAgg, TestSignal> },
     receipts,
     {},
   );
-  expect((results.metrics.aggregate as TestAgg).sum).toBe(100);
-  expect(results.metrics.signal).toBe('degraded'); // avg 50, not > 50
+  expect(results.metrics!.aggregate.sum).toBe(100);
+  expect(results.metrics!.signal).toBe('degraded'); // avg 50, not > 50
 });
 
 // ═══════════════════════════════════════════════════════════

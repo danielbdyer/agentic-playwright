@@ -34,7 +34,7 @@ function makeFragment(overrides: Partial<{
     adoId: 'TC-001' as never,
     title: 'Test',
     stepIndexes: [0],
-    action: 'fill',
+    action: 'input',
     intent: 'Fill field',
     graphNodeIds: [`screen:${overrides.screen ?? 'PolicySearch'}`],
     selectorRefs: ['sel-1'],

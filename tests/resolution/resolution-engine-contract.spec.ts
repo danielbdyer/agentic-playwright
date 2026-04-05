@@ -31,7 +31,14 @@ test('provider capability negotiation rejects incompatible mode', () => {
       supportsProposalDrafts: true,
       deterministicMode: false,
     },
-    resolveStep: async (task, context) => (await runResolutionPipeline(task, context as RuntimeStepAgentContext)).receipt,
+    resolveStep: async (task, context) => {
+      const result = await runResolutionPipeline(task, context as RuntimeStepAgentContext);
+      return {
+        receipt: result.receipt,
+        semanticAccrual: result.semanticAccrual ?? null,
+        semanticDictionaryHitId: result.semanticDictionaryHitId ?? null,
+      };
+    },
   };
   const registry = createResolutionEngineRegistry([provider]);
 

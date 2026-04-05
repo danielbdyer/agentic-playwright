@@ -125,7 +125,7 @@ function makeProposalBundle(overrides: Record<string, unknown> = {}): ProposalBu
       proposals,
     },
     ...overrides,
-  } as ProposalBundle;
+  } as unknown as ProposalBundle;
 }
 
 // ─── Invariant 1: Fragment Provenance Completeness ───

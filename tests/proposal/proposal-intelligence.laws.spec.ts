@@ -22,10 +22,12 @@ function makeManifest(): TrainingCorpusManifest {
   };
 }
 
+import type { StepAction } from '../../lib/domain/governance/workflow-types';
+
 function makeFragment(overrides: Partial<{
   id: string;
   screen: string;
-  action: string;
+  action: StepAction | 'composite';
   runtime: 'decomposition' | 'repair-recovery' | 'workflow';
 }>): GroundedSpecFragment {
   return {
@@ -34,7 +36,7 @@ function makeFragment(overrides: Partial<{
     adoId: 'TC-001' as never,
     title: 'Test',
     stepIndexes: [0],
-    action: overrides.action ?? 'fill',
+    action: overrides.action ?? 'input',
     intent: 'Fill field',
     graphNodeIds: [`screen:${overrides.screen ?? 'PolicySearch'}`],
     selectorRefs: ['sel-1'],

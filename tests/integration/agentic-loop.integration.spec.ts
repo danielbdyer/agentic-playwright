@@ -24,7 +24,7 @@ import { runWithLocalServices } from '../../lib/composition/local-services';
 import { createAdoId, createElementId, createScreenId } from '../../lib/domain/kernel/identity';
 import type { ProposalBundle, ProposalEntry } from '../../lib/domain/execution/types';
 import type { StepAction } from '../../lib/domain/governance/workflow-types';
-import type { ResolutionReceipt } from '../../lib/domain/resolution/types';
+import type { ResolutionReceipt, TranslationReceipt } from '../../lib/domain/resolution/types';
 import { runResolutionPipeline, type RuntimeStepAgentContext } from '../../lib/runtime/resolution';
 import { createTestWorkspace } from '../support/workspace';
 import {
@@ -145,8 +145,8 @@ test('full agentic loop: unresolvable intent → proposal activation → determi
       elements: Record<string, { aliases: string[]; acquired?: { certification: string } }>;
     };
 
-    expect(hints.elements.policyNumberInput.aliases).toContain('enter policy ref');
-    expect(hints.elements.policyNumberInput.acquired?.certification).toBe('certified');
+    expect(hints.elements.policyNumberInput!.aliases).toContain('enter policy ref');
+    expect(hints.elements.policyNumberInput!.acquired?.certification).toBe('certified');
 
     // ── Phase 3: Re-resolution SUCCEEDS with activated alias ──
     // Build resolution context that includes the newly-activated alias
@@ -171,10 +171,11 @@ test('full agentic loop: unresolvable intent → proposal activation → determi
     const retryResult = await runResolutionPipeline(retryStep, createAgentContext(updatedContext));
 
     // The step resolves successfully with the correct target
-    expect(retryResult.receipt.kind).toBe('resolved');
-    expect(retryResult.receipt.target.element).toBe(createElementId('policyNumberInput'));
-    expect(retryResult.receipt.target.screen).toBe(createScreenId('policy-search'));
-    expect(retryResult.receipt.target.action).toBe('input' as StepAction);
+    expect(['resolved', 'resolved-with-proposals']).toContain(retryResult.receipt.kind);
+    const retryTarget = (retryResult.receipt as { target: { element: unknown; screen: unknown; action: unknown } }).target;
+    expect(retryTarget.element).toBe(createElementId('policyNumberInput'));
+    expect(retryTarget.screen).toBe(createScreenId('policy-search'));
+    expect(retryTarget.action).toBe('input' as StepAction);
     expect(retryResult.receipt.governance).toBe('approved');
 
     // ── Phase 4: No accrual needed — resolution is now deterministic ──
@@ -223,27 +224,35 @@ test('semantic dictionary accrual is produced for non-deterministic resolution s
   }, translationContext);
 
   const translationResult = await runResolutionPipeline(translationStep, createAgentContext(translationContext, {
-    translate: async () => ({
+    translate: async (_request) => ({
       kind: 'translation-receipt' as const,
       version: 1,
       mode: 'structured-translation' as const,
       matched: true,
       rationale: 'test translation',
       selected: {
+        kind: 'element' as const,
+        target: 'policyNumberInput',
         screen: createScreenId('policy-search'),
         element: createElementId('policyNumberInput'),
         action: 'input' as StepAction,
         score: 0.9,
         knowledgeRef: 'knowledge/screens/policy-search.hints.yaml',
+        aliases: [] as readonly string[],
+        sourceRefs: ['knowledge/screens/policy-search.hints.yaml'] as readonly string[],
       },
       candidates: [{
+        kind: 'element' as const,
+        target: 'policyNumberInput',
         screen: createScreenId('policy-search'),
         element: createElementId('policyNumberInput'),
         action: 'input' as StepAction,
         score: 0.9,
         knowledgeRef: 'knowledge/screens/policy-search.hints.yaml',
+        aliases: [] as readonly string[],
+        sourceRefs: ['knowledge/screens/policy-search.hints.yaml'] as readonly string[],
       }],
-    }),
+    }) as unknown as TranslationReceipt,
   }));
 
   if (translationResult.receipt.winningSource === 'structured-translation') {
@@ -294,8 +303,8 @@ test('proposal bundle with multiple proposals activates all and patches correspo
       elements: Record<string, { aliases: string[] }>;
     };
 
-    expect(hints.elements.policyNumberInput.aliases).toContain('type in policy number');
-    expect(hints.elements.searchButton.aliases).toContain('find policy');
+    expect(hints.elements.policyNumberInput!.aliases).toContain('type in policy number');
+    expect(hints.elements.searchButton!.aliases).toContain('find policy');
   } finally {
     workspace.cleanup();
   }

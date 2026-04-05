@@ -16,9 +16,9 @@ function makeLearningState(overrides?: Partial<{
     kind: 'learning-state',
     version: 1,
     generatedAt: '2026-01-01T00:00:00Z',
-    timing: { baselines: [] },
-    selectors: { selectors: [] },
-    recovery: { strategies: [] },
+    timing: { kind: 'timing-baseline-index', version: 1, baselines: [], updatedAt: '2026-01-01T00:00:00Z' },
+    selectors: { kind: 'selector-health-index', version: 1, selectors: [], updatedAt: '2026-01-01T00:00:00Z' },
+    recovery: { kind: 'recovery-effectiveness-index', version: 1, strategies: [], updatedAt: '2026-01-01T00:00:00Z' },
     console: { patterns: [] },
     cost: { baselines: [] },
     rungDrift: {
@@ -57,7 +57,7 @@ function makeTimingRegression(stepCategory: string) {
   return {
     stepIndex: 0,
     stepCategory,
-    phase: 'resolution' as const,
+    phase: 'resolutionMs' as const,
     actual: 500,
     p95: 200,
     ratio: 2.5,

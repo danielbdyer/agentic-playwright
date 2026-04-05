@@ -660,8 +660,8 @@ test('queryShingleIndex ranks similar entries higher', () => {
   const results = queryShingleIndex('enter policy number', index);
   // The exact match should rank highest
   expect(results.length).toBeGreaterThan(0);
-  expect(results[0].entryId).toBe('policy');
-  expect(results[0].score).toBeGreaterThan(0.5);
+  expect(results[0]!.entryId).toBe('policy');
+  expect(results[0]!.score).toBeGreaterThan(0.5);
 });
 
 test('queryShingleIndex returns empty for unrelated query', () => {
@@ -701,7 +701,7 @@ test('lookup with blended TF-IDF catches sub-word lexical variation', () => {
     normalizedIntent: 'enter policy number into search box',
   }));
   // Boost confidence so it can pass thresholds
-  const entryIdValue = catalog.entries[0].id;
+  const entryIdValue = catalog.entries[0]!.id;
   catalog = recordSemanticSuccess(catalog, entryIdValue);
   catalog = recordSemanticSuccess(catalog, entryIdValue);
   catalog = recordSemanticSuccess(catalog, entryIdValue);
@@ -742,7 +742,7 @@ test('shingle index round-trips through JSON serialization', () => {
   // Verify lookup still works after round-trip
   const results = queryShingleIndex('enter policy number', deserialized);
   expect(results.length).toBeGreaterThan(0);
-  expect(results[0].entryId).toBe('a');
+  expect(results[0]!.entryId).toBe('a');
 });
 
 test('near-miss false positive: high text similarity but wrong screen is penalized', () => {
@@ -753,7 +753,7 @@ test('near-miss false positive: high text similarity but wrong screen is penaliz
     target: target({ screen: createScreenId('claims-dashboard') }),
   }));
   // Boost confidence
-  const entryIdValue = catalog.entries[0].id;
+  const entryIdValue = catalog.entries[0]!.id;
   for (let i = 0; i < 5; i++) {
     catalog = recordSemanticSuccess(catalog, entryIdValue);
   }
@@ -813,7 +813,7 @@ test('poisoned entry suppression: 2 consecutive failures prevents match', () => 
   catalog = accrueSemanticEntry(catalog, accrualInput({
     normalizedIntent: 'enter policy number into search box',
   }));
-  const entryIdValue = catalog.entries[0].id;
+  const entryIdValue = catalog.entries[0]!.id;
   // Boost confidence high
   for (let i = 0; i < 5; i++) {
     catalog = recordSemanticSuccess(catalog, entryIdValue);
@@ -836,7 +836,7 @@ test('poisoned entry recovers after success resets consecutive failures', () => 
   catalog = accrueSemanticEntry(catalog, accrualInput({
     normalizedIntent: 'enter policy number into search box',
   }));
-  const entryIdValue = catalog.entries[0].id;
+  const entryIdValue = catalog.entries[0]!.id;
   for (let i = 0; i < 5; i++) {
     catalog = recordSemanticSuccess(catalog, entryIdValue);
   }
@@ -851,7 +851,7 @@ test('poisoned entry recovers after success resets consecutive failures', () => 
 
   // Success resets consecutive failures
   catalog = recordSemanticSuccess(catalog, entryIdValue);
-  expect(catalog.entries[0].consecutiveFailures).toBe(0);
+  expect(catalog.entries[0]!.consecutiveFailures).toBe(0);
 
   const match = lookupSemanticDictionary('enter policy number into search box', catalog, {
     similarityThreshold: 0.3, combinedScoreThreshold: 0.1,

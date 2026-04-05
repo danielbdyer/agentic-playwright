@@ -265,6 +265,7 @@ test.describe('Performance: Deferred Screenshot Encoding', () => {
     const { totalMs } = measure('screenshot-collect', () => {
       collector.add({
         stepKey: 'step-1',
+        screenId: 'login-screen',
         reason: 'step-failure' as const,
         priority: 1.0,
         buffer: Buffer.alloc(100_000), // 100KB screenshot
@@ -294,8 +295,6 @@ test.describe('Performance: Deferred Screenshot Encoding', () => {
 test.describe('Performance: Screenshot Policy', () => {
   test('evaluateScreenshotPolicy throughput', () => {
     const context = {
-      stepIndex: 5,
-      totalSteps: 20,
       failed: false,
       currentRung: 'approved-screen-knowledge' as const,
       previousRung: 'approved-screen-knowledge' as const,
@@ -315,8 +314,6 @@ test.describe('Performance: Screenshot Policy', () => {
 
   test('policy correctly skips when no triggers match', () => {
     const result = evaluateScreenshotPolicy({
-      stepIndex: 5,
-      totalSteps: 20,
       failed: false,
       currentRung: 'approved-screen-knowledge',
       previousRung: 'approved-screen-knowledge',
@@ -331,8 +328,6 @@ test.describe('Performance: Screenshot Policy', () => {
 
   test('policy captures on step failure', () => {
     const result = evaluateScreenshotPolicy({
-      stepIndex: 5,
-      totalSteps: 20,
       failed: true,
       currentRung: 'live-dom',
       previousRung: 'approved-screen-knowledge',

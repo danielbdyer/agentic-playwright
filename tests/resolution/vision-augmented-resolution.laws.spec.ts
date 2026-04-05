@@ -142,7 +142,7 @@ test('Law 8: createChatCompletion interface accepts images without breaking text
   const calls: Array<{ images?: ReadonlyArray<VisionImage> }> = [];
   const deps: AgentLlmApiDependencies = {
     createChatCompletion: async (input) => {
-      calls.push({ images: input.images });
+      calls.push(input.images !== undefined ? { images: input.images } : {});
       return '{"interpreted": false}';
     },
   };
