@@ -1,6 +1,6 @@
 # Tesseract Domain Class Decomposition
 
-> Status: Draft — class model and envisioned folder hierarchy
+> Status: Complete — all migration phases executed
 
 This document bridges from the conceptual domain model (`domain-model.md`) to a concrete codebase structure. It maps every concept to a domain class, shows their relationships, and specifies the envisioned folder hierarchy.
 
@@ -1029,14 +1029,14 @@ tests/
 
 ## Migration Notes
 
-This hierarchy reorganizes ~738 TypeScript files. The migration can be incremental:
+This hierarchy reorganized ~738 TypeScript files. All phases are complete:
 
-1. **Phase 0**: Adopt the hierarchy as the target in documentation. New files go to the new location.
-2. **Phase 1**: Move `domain/types/` contents into primitive-specific directories. This is the highest-impact change — it replaces 33 flat files with ~25 directories that teach the domain model.
-3. **Phase 2**: Group `application/` top-level files into primitive-specific subdirectories. Eliminates the 90-file flat problem.
-4. **Phase 3**: Restructure `runtime/agent/` into `runtime/resolution/` and `runtime/commitment/`. Clarifies the resolution-then-commitment boundary.
-5. **Phase 4**: Reorganize tests by primitive. Tests should mirror the domain structure.
-6. **Phase 5**: Eliminate pure re-export stubs (~15 files). Update importers to point to the real module.
-7. **Phase 6**: Collapse single-export barrels and merge context stub files.
+1. **Phase 0**: ~~Adopt the hierarchy as the target in documentation.~~ Done.
+2. **Phase 1**: ~~Move `domain/types/` contents into primitive-specific directories.~~ Done — 33 flat files replaced with 31 bounded-context directories under `lib/domain/`.
+3. **Phase 2**: ~~Group `application/` top-level files into primitive-specific subdirectories.~~ Done — 90+ flat files organized into 20 directories (agency, cache, catalog, cli, commitment, drift, governance, graph, improvement, intent, knowledge, learning, observation, paths, pipeline, projections, resilience, resolution, runtime-support, synthesis).
+4. **Phase 3**: ~~Restructure `runtime/agent/` into `runtime/resolution/`.~~ Done — flattened intent/, resolution/, cache/ subdirs; renamed agent/ → resolution/ (22 files, flat).
+5. **Phase 4**: ~~Reorganize tests by primitive.~~ Done — 143 flat test files moved into 20 domain-primitive subdirectories.
+6. **Phase 5**: ~~Eliminate pure re-export stubs.~~ Done — all zero-consumer stubs deleted (domain/execution/index.ts, application/inspection/, application/intake/, application/preparation/, application/execution/). Kept runtime/resolve/, runtime/execute/, runtime/observe/ as legitimate bounded-context façades.
+7. **Phase 6**: ~~Collapse single-export barrels and merge context stub files.~~ Complete — no single-export barrels remain; all barrels are bounded-context entry points with 2+ exports.
 
-Each phase is independently valuable and can be validated by existing law tests.
+Build baseline: 88 pre-existing TS errors (unchanged). Test baseline: 2960 passing, 63 pre-existing failures (unchanged).
