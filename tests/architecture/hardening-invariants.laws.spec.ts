@@ -59,6 +59,8 @@ function syntheticTarget(i: number): SemanticDictionaryTarget {
     action: actions[i % actions.length]! as 'click',
     screen: createScreenId(screens[i % screens.length]!),
     element: createElementId(elements[i % elements.length]!),
+    posture: null,
+    snapshotTemplate: null,
   };
 }
 
@@ -66,7 +68,7 @@ function syntheticAccrualInput(i: number): SemanticDictionaryAccrualInput {
   return {
     normalizedIntent: syntheticEntry(i).text,
     target: syntheticTarget(i),
-    provenance: { source: 'test', sessionId: 'session-0' },
+    provenance: 'translation',
     winningSource: 'structured-translation',
     taskFingerprint: `task-${i}`,
     knowledgeFingerprint: `kfp-${i}`,

@@ -118,5 +118,5 @@ test('calibration with empty correlations returns base weights unchanged', () =>
     DEFAULT_PIPELINE_CONFIG.bottleneckWeights,
     [],
   );
-  expect(calibrated).toEqual(DEFAULT_PIPELINE_CONFIG.bottleneckWeights);
+  expect(calibrated as unknown as Record<string, number>).toEqual(DEFAULT_PIPELINE_CONFIG.bottleneckWeights as unknown as Record<string, number>);
 });

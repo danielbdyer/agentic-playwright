@@ -146,11 +146,11 @@ test('collapseAll: parallel pipelines produce independent results', () => {
   ];
 
   const results = collapseAll(
-    { metrics: testPipeline },
+    { metrics: testPipeline as ObservationCollapse<TestReceipt, unknown, TestAgg, TestSignal> },
     receipts,
     {},
   );
-  expect(results.metrics.aggregate.sum).toBe(100);
+  expect((results.metrics.aggregate as TestAgg).sum).toBe(100);
   expect(results.metrics.signal).toBe('degraded'); // avg 50, not > 50
 });
 
