@@ -1,6 +1,10 @@
 import { hashSeed, createSeededRng, type SeededRng } from '../kernel/random';
 import { sha256, stableStringify } from '../kernel/hash';
-import { selectArchetype, composeWorkflowSteps } from './workflow-archetype';
+import {
+  selectArchetype,
+  composeWorkflowSteps,
+  type ArchetypeSelectionPreference,
+} from './workflow-archetype';
 
 // ─── Public types ───
 
@@ -112,6 +116,15 @@ export interface ScenarioPlanningInput {
   readonly perturbationRate?: number;
   readonly perturbation?: Partial<PerturbationConfig>;
   readonly validationSplit?: number;
+  /** Optional cohort-specific archetype selection bias. When set, the
+   *  planner uses these weights instead of the default
+   *  classification-driven candidate pool. */
+  readonly archetypePreference?: ArchetypeSelectionPreference;
+  /** Optional cohort label. When set, the rendered scenario `suite`
+   *  metadata field becomes `reference/{cohortLabel}` instead of the
+   *  default `synthetic/{screen}`. The orchestrator uses this to keep
+   *  the YAML metadata aligned with the on-disk cohort organization. */
+  readonly cohortLabel?: string;
 }
 
 export interface ScenarioPlanningResult {
@@ -196,8 +209,10 @@ const generateScenario = (
   screens: readonly ScreenPlanInput[],
   perturbation: PerturbationConfig,
   rng: SeededRng,
+  archetypePreference?: ArchetypeSelectionPreference,
+  cohortLabel?: string,
 ): ScenarioPlanInternal => {
-  const archetypeId = selectArchetype(screen, screens, rng, perturbation.crossScreen);
+  const archetypeId = selectArchetype(screen, screens, rng, perturbation.crossScreen, archetypePreference);
   const isCrossScreen = archetypeId === 'cross-screen-journey';
 
   const archetypeSteps = composeWorkflowSteps(archetypeId, {
@@ -222,11 +237,14 @@ const generateScenario = (
     }));
 
   const primary = screen.screenId;
+  const suite = cohortLabel !== undefined
+    ? `reference/${cohortLabel}`
+    : `synthetic/${isCrossScreen ? 'cross-screen' : primary}`;
   return {
     adoId: String(20000 + scenarioIndex),
     screenId: isCrossScreen ? 'cross-screen' : primary,
     title: `Synthetic ${archetypeId} ${scenarioIndex}: ${primary}`,
-    suite: `synthetic/${isCrossScreen ? 'cross-screen' : primary}`,
+    suite,
     tags: [],
     steps,
   };

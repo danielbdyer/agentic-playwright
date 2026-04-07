@@ -404,15 +404,46 @@ const ARCHETYPE_IDS: readonly ArchetypeId[] = [
 ];
 
 /**
+ * Per-cohort archetype selection bias. When supplied to
+ * `selectArchetype()`, replaces the element-classification-based
+ * weighted candidate pool with cohort-specific weights. A cohort that
+ * wants only `search-verify` scenarios passes
+ * `{ weights: { 'search-verify': 1 } }`. A cohort that wants equal
+ * representation passes equal weights for the desired archetypes.
+ *
+ * Pure type — see `lib/domain/synthesis/cohort-plan.ts` for the
+ * canonical definition of `ArchetypePreference`. This declaration is
+ * here only to avoid a circular import; it must stay structurally
+ * identical.
+ */
+export interface ArchetypeSelectionPreference {
+  readonly weights: Readonly<Partial<Record<ArchetypeId, number>>>;
+}
+
+/**
  * Select an archetype appropriate for the given screen's element composition.
  * Screens with inputs get search-verify or form-submit; read-only screens get audit or inspect.
+ *
+ * When `preference` is supplied, the cohort's explicit weights replace
+ * the default classification-driven candidate pool. This is the
+ * extension point the cohort orchestrator uses to ensure each cohort's
+ * archetype distribution matches its declared preference.
  */
 export function selectArchetype(
   screen: ScreenPlanInput,
   screens: readonly ScreenPlanInput[],
   rng: SeededRng,
   crossScreen = 0,
+  preference?: ArchetypeSelectionPreference,
 ): ArchetypeId {
+  if (preference !== undefined) {
+    const preferenceCandidates: readonly ArchetypeId[] = (Object.entries(preference.weights) as ReadonlyArray<[ArchetypeId, number | undefined]>)
+      .flatMap(([id, weight]) => replicateArchetypeByWeight(id, Math.max(0, weight ?? 0)));
+    if (preferenceCandidates.length > 0) {
+      return pick(preferenceCandidates, rng);
+    }
+  }
+
   const { fillable, checkable, selects, activators, readOnly, tables } = classifyElements(screen.elements);
   const hasInputs = fillable.length > 0 || checkable.length > 0 || selects.length > 0;
   const hasButtons = activators.length > 0;
