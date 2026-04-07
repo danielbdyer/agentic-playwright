@@ -4,6 +4,8 @@
 
 This backlog translates the convergence roadmap into concrete, ordered work items. Each item identifies the files to change, the invariants to hold, and the acceptance criteria to verify.
 
+Use this with `docs/current-state.md`. Several Phase 0-4 items are already implemented or partially implemented in code, so these phases should be read as finish-adoption, normalization, and hardening work rather than introduction-from-zero.
+
 ## Architectural Revision: Role-Derived Widget Affordances
 
 The original roadmap (Workstream A) proposed hand-authoring widget handlers per widget type — `os-select.ts`, `os-checkbox.ts`, etc. This is the same alias treadmill that A1 (ADR collapse) eliminated for step text resolution. The correct approach is to derive widget affordances deterministically from ARIA role signatures.
@@ -17,6 +19,8 @@ The original roadmap (Workstream A) proposed hand-authoring widget handlers per 
 ---
 
 ## Phase 0: Test Suite Rehabilitation
+
+Current state note: the runner split is already implemented; remaining work here is verification and drift prevention.
 
 > Unblocks: all subsequent phases (cannot validate changes without passing tests)
 
@@ -48,6 +52,8 @@ The original roadmap (Workstream A) proposed hand-authoring widget handlers per 
 ---
 
 ## Phase 1: Role-Derived Widget Affordances
+
+Current state note: the role-affordance table exists; the remaining work is widening adoption so runtime, synthesis, and contracts all derive from it consistently.
 
 > Unblocks: demo harness expansion, proposal enrichment, convergence acceleration
 >
@@ -260,6 +266,8 @@ This bridge is temporary — once all callers pass roles directly, it can be rem
 
 ## Phase 2: Route Knowledge Persistence
 
+Current state note: route schema, ranking, runtime selection, discovery proposals, and a checked-in demo route file already exist; the remaining work is canon hardening and persistence polish.
+
 > Unblocks: navigation step resolution, screen-state-specific testing
 >
 > The domain model (`lib/domain/knowledge/route-knowledge.ts`) and runtime
@@ -342,6 +350,8 @@ routes:
 ---
 
 ## Phase 3: Proposal Enrichment
+
+Current state note: enrichment already exists in the proposal/runtime path; the remaining work is contract normalization, non-destructive semantics, and reporting.
 
 > Unblocks: high-quality knowledge accumulation, effective hit rate improvement
 >

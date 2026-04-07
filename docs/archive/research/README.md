@@ -31,6 +31,10 @@ This research set is meant to make Backlog Item A1 implementable without overfit
 3. [Agentic scaffold decisions](./agentic-scaffold-decisions.md)
 4. [Scenario kernel and interpreter family](./scenario-kernel-and-interpreters.md)
 
+## Additional Notes
+
+- [Temporal-epistemic specification addendum](./temporal-epistemic-specification-addendum.md) — stored research note on temporal, epistemic, and economic formalization for handoffs, suspension, drift, and compounding.
+
 ## Glossary
 
 | Term | Meaning in this research set |

@@ -1,466 +1,248 @@
 # Tesseract Backlog
 
-## Current framing
+> Status: Active - canonical master execution backlog for temporal-epistemic realization.
 
-The repo keeps the six public concern lanes:
+This is the master execution backlog for realizing the temporal-epistemic specification against the repository's current substrate. It is execution-first on purpose: it tells us what to finish, normalize, harden, and prove from here, while keeping the formal north star and the live implementation truth in view.
 
-1. intent
-2. knowledge
-3. control
-4. resolution
-5. execution
-6. governance/projection
+## Current State Contract
 
-Inside that model, the active resolution ladder is now explicit:
+Read these four documents together:
 
-1. deterministic substrate from scenario, control, and approved knowledge
-2. approved-equivalent confidence overlays
-3. structured translation over typed ontology candidates
-4. runtime agentic DOM resolution
-5. `needs-human`
+- [README.md](README.md) for the operational overview and public model
+- [docs/current-state.md](docs/current-state.md) for implementation truth
+- [docs/convergence-backlog.md](docs/convergence-backlog.md) for the detailed substrate ledger
+- [docs/archive/research/temporal-epistemic-specification-addendum.md](docs/archive/research/temporal-epistemic-specification-addendum.md) for the formal north star
 
-Prior evidence feeds overlays, translation, and the runtime agent. It is not a separate winning tier.
+This file answers:
 
-The offline optimization and evaluation lane remains separate and must not contaminate the deterministic compiler core.
+- what order we execute work in
+- why each tranche matters now
+- how the temporal-epistemic addendum maps onto shipped and missing capabilities
 
-Three architectural spines cut across those lanes:
+`BACKLOG.md` is the canonical master backlog. `docs/convergence-backlog.md` remains the detailed implementation ledger for code-heavy substrate work and should not be duplicated here.
 
-- `interface`: shared application structure, selectors, states, transitions, and provenance
-- `intervention`: participants, sessions, approvals, reruns, review actions, and codebase-touching receipts
-- `improvement`: experiments, objective vectors, scorecards, acceptance decisions, and checkpointed lineage
+## Status Legend
 
-## Agentic surface model
+- `implemented`: shipped and relied on by the current codebase
+- `partially implemented`: live and useful, but not yet the only or final path
+- `planned`: not shipped yet
+- `superseded`: replaced by a better architectural approach
 
-The backlog assumes three execution profiles that share the same pipeline and artifact surface:
+## Strategic Center
+
+The repository now needs to satisfy four obligations together:
+
+1. present a structurally legible surface
+2. preserve semantic memory in a locally repairable way
+3. turn unresolvedness into governed, high-leverage continuation objects
+4. bend the economics of later work through compounding reuse
+
+The six public lanes remain the operating vocabulary:
+
+- `intent`
+- `knowledge`
+- `control`
+- `resolution`
+- `execution`
+- `governance/projection`
+
+The three architectural spines remain the main cross-cuts:
+
+- `interface`
+- `intervention`
+- `improvement`
+
+Use the lanes as tags and coordination language, not as the primary sequencing frame. The execution order below is by substrate leverage and dependency.
+
+## Execution Profiles
+
+The same execution profiles still apply:
 
 | Profile | Agent presence | Approval | Use case |
-|---------|---------------|----------|----------|
-| `ci-batch` | None. Fully deterministic. Evidence and proposals accumulate for later consumption. | Never. | CI, scheduled runs, headless regression. |
-| `interactive` | Agent consumes inbox, proposals, and hotspots from prior runs. Initiates approve/rerun workflows. | Explicit per-proposal. | VSCode extension, Copilot Chat, operator workbench. |
-| `dogfood` | Agent orchestrates discover → compile → run → propose → approve(gated) → rerun loop. | Confidence-gated auto-approval within trust-policy thresholds. | Self-hardening, benchmark, recursive improvement. |
+| --- | --- | --- | --- |
+| `ci-batch` | None. Fully deterministic. Evidence and proposals accumulate for later use. | Never. | CI, scheduled runs, headless regression. |
+| `interactive` | Agent consumes inbox, proposals, and hotspots from prior runs. | Explicit per proposal. | Workbench, Codex, VS Code, operator sessions. |
+| `dogfood` | Agent orchestrates discover -> compile -> run -> propose -> approve(gated) -> rerun. | Confidence-gated auto-approval within trust-policy thresholds. | Recursive hardening, benchmark, convergence work. |
 
-The base case is always `ci-batch`: the full pipeline runs deterministically with no agent intervention, producing structured reports. The `interactive` and `dogfood` profiles layer agentic behavior on top without changing the compiler core.
+All three profiles must continue to share the same pipeline and artifact envelope.
 
-When agentic capability is needed, the primary integration surface is the VSCode extension ecosystem (Copilot Chat, task providers, problem matchers). The agent discovers work through the same inbox, proposal, and hotspot artifacts that the CLI emits. This path degrades gracefully: when no agent is present, the artifacts sit on disk for later human or agent consumption.
+## Already True Now
 
-All agentic orchestration must be agnostic to whether the agent is:
+These items are already live and must be treated as starting conditions, not invention-from-zero work:
 
-- a chained structured-data LLM API caller
-- a VSCode Copilot extension reading the inbox
-- a Claude Code session running CLI commands
-- absent entirely (pure deterministic pipeline)
+| Workstream | Status | Notes |
+| --- | --- | --- |
+| Vitest split and runner separation | `implemented` | `test:unit` and `test:integration` are already distinct. |
+| Role-affordance table | `implemented` | Role semantics are already modeled as the canonical interaction truth. |
+| Runtime role-based dispatch | `implemented` | Runtime interaction already resolves role affordances first. |
+| Affordance-driven synthesis | `implemented` | Translation-gap vocabulary, workflow-archetype classification, and scenario interaction verbs now derive from role-affordance families instead of widget-era verb tables. |
+| Demo route knowledge | `implemented` | Reviewed demo route canon is checked in. |
+| Route knowledge lane | `partially implemented` | Schema, loading, ranking, runtime use, and MCP route-entry projections are real; hardening is still underway. |
+| Proposal enrichment | `partially implemented` | Enrichment metadata is normalized in part, but broader contract/reporting hardening remains. |
+| Intervention receipts with handoff | `partially implemented` | `InterventionReceipt` already carries typed `handoff` structure, including chain metadata and richer continuation surfacing. |
+| Logical proof measurement | `implemented` | Fitness, benchmark, scorecard, scorecard history, improvement-intelligence, and MCP surfaces now emit measured proof obligations plus theorem-baseline coverage (`direct` / `proxy` / `missing`). Direct observability, kernel/posture separability, affordance recoverability, factorability, recoverability, actor-chain coherence, and the decomposed `M` family (`surface-compressibility`, `surface-predictability`, `surface-repairability`, `participatory-repairability`, `memory-worthiness`) are now live on the surfaces that can support them honestly, and cohort trends now track theorem groups graduating from `missing` to `proxy` to `direct`. |
+| Effective hit rate | `implemented` | It already functions as the scorecard gate when present. |
+| Knowledge hit rate | `implemented` | It remains a live informational and diagnostic metric. |
 
-The contract surface is the artifact envelope, not the agent runtime.
+Read older roadmap language as `finish adoption`, `normalize`, `harden`, or `expand`, not as greenfield introduction.
 
-## Done in this direction-alignment slice
+## Execution Epics
 
-- shared `ExecutionPosture` with `interactive` and `ci-batch` execution profiles
-- strict global no-write and baseline mode
-- derived confidence overlay catalog at `.tesseract/confidence/index.json`
-- bounded translation stage and typed translation receipts
-- contract-driven widget/runtime diagnostics with locator rung and degraded-locator reporting
-- workflow, review, inbox, graph, rerun-plan, and scorecard projection of resolution mode and overlay lineage
-- operator inbox, approval flow, rerun planner, and flagship benchmark lane
-- real Azure DevOps adapter behind `AdoSource` with live and fixture modes
+### Epic 0 - Backlog Truth Reconciliation
 
-## Next backlog by lane
+**Current state:** The repository already ships runner separation, role-affordance infrastructure, route canon, partial proposal normalization, partial handoff modeling, and `effectiveHitRate` while retaining `knowledgeHitRate`.
 
-### Lane A — Agentic core (highest priority)
+**Gap:** The master backlog still carries older lane-first and partially greenfield framing, which makes the top-level execution story lag both the code and the formal addendum.
 
-#### A1. ADR collapse: runtime interpretation replaces alias treadmill
+**Execution focus:**
 
-Reference: `docs/adr-collapse-deterministic-parsing.md`
+- rewrite the backlog around current implementation truth and temporal-epistemic realization
+- replace invention-from-zero phrasing with finish-adoption and hardening language
+- state explicitly that `effectiveHitRate` is the primary acceptance gate
+- state equally explicitly that `knowledgeHitRate` remains informational, diagnostic, and historically useful
+- keep `docs/current-state.md` and `docs/convergence-backlog.md` as the live supporting surfaces
 
-**Status (2026-03-29): Partially complete.** The runtime interpretation pipeline is wired end-to-end:
-- `lib/domain/binding.ts` populates `knowledgeRefs` and `supplementRefs` on bound steps so the resolution context carries per-step knowledge paths.
-- `lib/runtime/agent/resolution-stages.ts` executes the full resolution ladder (explicit → control → approved-knowledge → patterns → translation → live-DOM → needs-human).
-- `lib/runtime/agent/proposals.ts` generates `proposalDrafts` at the `needs-human` fallback with properly-structured `{ screen, element, alias }` patches.
-- `lib/application/execution/build-proposals.ts` extracts proposal drafts from step receipts and `activate-proposals.ts` applies them as YAML knowledge updates.
-- `tests/playwright-execution.spec.ts` exercises the real `playwrightStepProgramInterpreter` against the demo harness.
+**Acceptance signals:**
 
-**Remaining work:** Synthetic scenario alias coverage (~32% hit rate) needs improvement. The alias matching path in `candidate-lattice.ts` works but the scenario generator's phrasing templates don't always align with existing aliases. The Level 0 knowledge accumulation loop is the designed mechanism for closing this gap, but the speedrun convergence FSM's proposal counting may need tuning to avoid premature `no-proposals` termination.
+- no backlog item describes shipped work as if it has not started
+- `BACKLOG.md`, `README.md`, and `docs/current-state.md` tell the same story about what is live
+- every epic is written with `Current state`, `Gap`, `Execution focus`, `Acceptance signals`, and `Lane tags`
 
-Goal:
+**Lane tags:** `knowledge`, `governance/projection`, `intervention`, `improvement`
 
-- move step-text → intent interpretation from compile-time alias matching to runtime resolution grounded in the live DOM and knowledge priors
-- break the alias treadmill so that novel ADO phrasing does not require canonical knowledge edits before execution
+### Epic 1 - Structural Surface Completion
 
-What stays deterministic:
+**Current state:** The role-affordance substrate, runtime role dispatch, route ranking and route selection, checked-in demo route canon, and affordance-driven synthesis are already live. Route knowledge hardening remains partial.
 
-- knowledge schema, locator ladders, posture contracts, capability derivation
-- governance model (approved / review-required / blocked)
-- provenance tracking and code generation from bound programs
+**Gap:** The repository still needs fuller structural legibility, route-entry canon, broader affordance adoption, clearer outcome and constraint observability, and stronger proof that moderate drift remains local and recoverable.
 
-What moves to runtime:
+**Execution focus:**
 
-- step text → action/screen/element/posture interpretation
-- screen identification from DOM context
-- element resolution from instruction + live DOM + knowledge priors
+- finish affordance-driven substrate adoption across synthesis, runtime, tests, and remaining coverage gaps
+- complete route knowledge as governed dynamic-topology canon, including route-state and posture-entry coupling
+- make outcome legibility, constraint manifestation, and bounded successor structure explicit workstreams
+- strengthen reviewed route usage across runtime, discovery, proposal activation, and projection surfaces
+- expand harness and proof coverage only where it closes real legibility, factorability, or recoverability gaps
 
-Scaffolding constraint:
+**Acceptance signals:**
 
-- the runtime interpreter must produce the same typed receipts and evidence drafts regardless of whether it is called by an LLM API chain, a VSCode extension agent, or a deterministic fallback path
-- when no agent is present, `intent-only` steps emit structured `unresolved` receipts rather than blocking compilation
-- the interpreter is a pure function from (step intent, knowledge catalog, DOM context) → (resolution receipt, evidence drafts, proposal drafts)
+- law tests cover role derivation, affordance coverage, and route precedence
+- integration tests prove direct role-based execution over the supported affordance families
+- reviewed route knowledge is used as the normal navigation substrate for known demo states
+- scorecards and review artifacts can distinguish route uncertainty, constraint effects, and outcome legibility failures
 
-Success criteria:
+**Lane tags:** `knowledge`, `resolution`, `execution`, `control`, `interface`, `improvement`
 
-- novel ADO test cases produce executable (if degraded) runs without requiring alias authoring first ✅ (degraded runs work; proposals accumulate)
-- the knowledge system grows from agent execution, not from human synonym curation ✅ (proposals generate at needs-human and activate into hints YAML)
-- the review surface explains runtime interpretation with the same fidelity as compile-time inference ✅ (receipts carry provenance, proposals carry rationale)
-- agent sessions become measurably cheaper over time as the knowledge layer matures (partially — activation works, convergence measurement needs tuning)
-- the pipeline degrades to structured reporting when no agent is available ✅
+### Epic 2 - Participatory Continuation and Handoff Integrity
 
-#### A2. Confidence-gated auto-approval
+**Current state:** `InterventionReceipt` already carries a typed `handoff`, requested participation modes exist, token-impact scaffolding exists, and proposal activation is already non-destructive for core hint semantics.
 
-Goal:
+**Gap:** The handoff model is not yet fully validated as a continuation instrument. Minimal sufficient slices, status visibility, provenance retention, interpretive-boundary preservation, staleness, next-move preservation, and multi-actor drift detection still need to become first-class execution work.
 
-- allow proposals that meet trust-policy thresholds to flow into canonical knowledge without explicit human approval
-- enable the `dogfood` execution profile
+**Execution focus:**
 
-Design:
+- harden handoff sufficiency, efficiency, and epistemic integrity around the addendum's `A` and `H` properties
+- preserve status, provenance, requested participation, reversibility class, and semantic-core continuity across suspend -> handoff -> augmentation -> resume
+- add capability and authority routing so interventions land on actors who can actually act
+- preserve competing augmentations as structured candidate sets instead of accidental overwrite
+- keep proposal semantics in this epic where they govern epistemic status, overwrite safety, and candidate preservation
 
-- add `--auto-approve-above-threshold` flag to the run and approve commands
-- the trust-policy thresholds per artifact type remain the tuning surface
-- `forbiddenAutoHealClasses` continue to block dangerous auto-approval (assertion-mismatch, structural-mismatch)
-- auto-approved proposals generate the same approval receipts and rerun plans as manual approvals
-- `ci-batch` profile never auto-approves (existing guardrail)
-- `dogfood` profile auto-approves by default within thresholds
-- `interactive` profile requires explicit opt-in
+**Acceptance signals:**
 
-Success criteria:
+- schema and law tests cover handoff fields, status visibility, participation mode, staleness, and drift tokens
+- continuation flows can resume without losing intent, exhaustion history, or provenance
+- inbox, review, and MCP surfaces render the same handoff semantics without inventing alternative meanings
+- conflicting augmentations for the same region persist as reviewable competing candidates
 
-- the outer loop (run → propose → approve → rerun) can execute unattended when proposals are low-risk and high-confidence
-- operators can inspect every auto-approval through the same receipt and graph surfaces
-- the trust-policy remains the single tuning surface for approval gates
+**Lane tags:** `resolution`, `execution`, `governance/projection`, `intervention`, `improvement`
 
-#### A3. Dogfood orchestrator command
+### Epic 3 - Economic Compounding and Measurement
 
-Goal:
+**Current state:** `effectiveHitRate` already exists as the scorecard gate when present, `knowledgeHitRate` is still emitted broadly, and fitness reporting already includes some runtime and comparison signals.
 
-- a single `npm run dogfood` command that chains the full self-hardening loop
+**Gap:** The repository does not yet measure the broader compounding economics described by the addendum, and most reporting is still too global to reveal where memory and intervention are actually paying off.
 
-Behavior:
+**Execution focus:**
 
-1. discover (for specified URLs, not a spider)
-2. sync (if ADO source configured)
-3. compile --all
-4. run --runbook (selected or default)
-5. inbox (evaluate proposals and hotspots)
-6. auto-approve (within trust-policy thresholds)
-7. recompile affected scenarios
-8. rerun affected scenarios
-9. emit improvement run ledger, compatibility dogfood projection, and scorecard
-10. repeat steps 4-9 until convergence or budget exhaustion
+- keep `effectiveHitRate` as the primary scorecard gate and operational success metric
+- keep `knowledgeHitRate` as a live informational metric for convergence views, historical comparison, diagnostics, and improvement intelligence
+- add first-class measures for ambiguity rate, suspension rate, target access cost, transition reuse, novelty burden, transfer value, seeded-vs-blank bootstrap cost, and intervention-adjusted impact
+- partition reporting by screen, route family, affordance family, proposal category, and intervention source
+- make accepted augmentations prove their value in the regions where they attach
 
-The orchestrator is a thin loop over existing CLI commands. It should now produce a canonical `ImprovementRun` plus a compatibility `Dogfood Run` projection (see `docs/dogfooding-flywheel.md`) that wraps the full exposure.
+**Acceptance signals:**
 
-Budget controls:
+- scorecard and fitness types expose the new metrics without removing `knowledgeHitRate`
+- the gate metric is consistently `effectiveHitRate` wherever acceptance is discussed
+- convergence and historical views continue to expose `knowledgeHitRate` as a comparative signal
+- at least one reporting surface can show regional improvement after accepted augmentations
 
-- `--max-iterations` (default 3)
-- `--max-cost` (token or time budget, when measurable)
-- `--convergence-threshold` (stop when pass-rate improvement drops below threshold)
+**Lane tags:** `governance/projection`, `execution`, `knowledge`, `intervention`, `improvement`
 
-Success criteria:
+### Epic 4 - Drift, Variance, and Recoverability Proof
 
-- a Claude Code session or VSCode agent can invoke the full recursive-improvement loop with one command
-- the ledger explains what improved, what was auto-approved, and what still needs human attention
-- the command degrades to a single compile+run+report cycle when no agent is present
+**Current state:** The repository already has a structured-entropy lane, dogfood execution profiles, and early drift and route-state concepts. The proof story is still fragmented.
 
-### Lane B — Knowledge and discovery
+**Gap:** There is not yet a coherent empirical proof lane that connects replayable variance and drift exposure to the addendum's strongest falsifiers: semantic non-persistence, behavioral non-boundedness, variance explosion, opaque suspension, status collapse, economic flatness, and inert intervention.
 
-#### B1. URL variant discovery and route knowledge
+**Execution focus:**
 
-Goal:
+- recast structured entropy and dogfood variance as the empirical proving ground for recoverability and locality claims
+- define replayable drift events and variance profiles that stress expression drift, affordance drift, posture drift, route drift, and bounded repair scope
+- measure local repair cost against rediscovery cost under moderate non-semantic drift
+- use the addendum's falsifiers as the evaluation language for benchmark and dogfood results
+- keep this proof lane outside the deterministic compiler core
 
-- persist discovered URL-to-screen mappings as knowledge primitives
-- discover intermediate structural mappings: query string parameters, hash fragments, tab indices, and route segments that produce distinct UX outcomes
+**Acceptance signals:**
 
-This is not a general-purpose spider. The operator provides known URL entry points. The system discovers variants within those entry points.
+- variance profiles are declarative, replayable, and measurable
+- drift classifications and repair-scope evidence appear in receipts or scorecards
+- proof runs can distinguish local repair wins from full rediscovery failures
+- benchmark narratives can explain failures in the addendum's falsifier vocabulary instead of generic breakage
 
-Knowledge artifacts:
+**Lane tags:** `control`, `execution`, `governance/projection`, `knowledge`, `improvement`
 
-- `knowledge/routes/{app}.routes.yaml` — maps URL patterns to screen IDs, query parameters to UX outcomes, tab indices to section views
-- route knowledge feeds the discover and run commands so the system knows how to navigate to a screen in a specific state
+### Epic 5 - Operator, MCP, and Projection Surfaces
 
-Examples:
+**Current state:** Review artifacts, inbox/workbench surfaces, MCP tools, and scorecards already exist and consume some resolution, proposal, and fitness fields.
 
-- `/policies?id=12345` → `policy-detail` screen with entity context
-- `/policies?tab=claims` → `policy-detail` screen, claims tab active
-- `/search?type=advanced` → `policy-search` screen, advanced mode
+**Gap:** The projection layer does not yet render the full temporal-epistemic payload uniformly. Status, provenance, participation mode, reversibility, drift status, staleness, token-to-impact, and competing candidates are not yet consistently visible everywhere they should be.
 
-Success criteria:
+**Execution focus:**
 
-- discovered URL variants are persisted as reviewable knowledge
-- the runtime can use route knowledge to navigate to a screen in a target state before executing steps
-- route knowledge participates in the same governance model as other knowledge artifacts
+- make operator, MCP, inbox, review, and scorecard surfaces consumers of the hardened substrate rather than sources of extra semantics
+- render handoff-critical fields consistently across review, continuation, and recommendation surfaces
+- ensure next-action recommendations and approval flows use the same status and provenance vocabulary as the core model
+- position projection upgrades after substrate and metric hardening so surfaces report truth instead of compensating for missing structure
 
-#### B2. Knowledge authoring ergonomics for thin screens
+**Acceptance signals:**
 
-Goal:
+- the same intervention or proposal renders with the same status, provenance, participation mode, and drift semantics across surfaces
+- recommendation surfaces can explain why an item should be inspected, interpreted, verified, approved, enriched, or deferred
+- no projection surface silently invents state that is not present in canonical or derived artifacts
 
-- reduce operator effort when a screen is repeatedly winning through translation or agentic fallback
+**Lane tags:** `governance/projection`, `resolution`, `execution`, `intervention`, `improvement`
 
-Success criteria:
+## Addendum Traceability Matrix
 
-- workflow and inbox can point directly to missing screen-local hints, patterns, or widget contracts
-- benchmark scorecards can group thin-knowledge hotspots by screen and field family
-- proposal bundles stay aligned with trust-policy review targets
-
-#### B3. Confidence threshold tuning and decay policy
-
-Goal:
-
-- make approved-equivalent overlays trustworthy enough to lower operator load without hiding structural drift
-
-Success criteria:
-
-- thresholds are configurable by artifact class
-- repeated failures can lower an overlay below threshold deterministically
-- time-based decay is configurable but off by default
-- operators can inspect overlay lineage and trust-policy thresholds without reading code
-
-### Lane C — Resolution and execution
-
-#### C1. Translation cache and evaluation harness
-
-Goal:
-
-- harden the structured translation bridge without turning it into open-ended prompt lore
-
-Success criteria:
-
-- translation receipts are cached by fingerprint
-- benchmark and dogfood scorecards report translation hit rate and failure classes
-- translation can be disabled cleanly for deterministic reproduction
-
-#### C2. Widget family coverage expansion
-
-Goal:
-
-- grow runtime capability through widget contracts instead of ad hoc string checks
-
-Success criteria:
-
-- missing widget families are modeled as contracts before new handlers are added
-- handlers in `lib/runtime/widgets/` stay thin and Playwright-only
-- execution receipts remain typed and comparable across widget families
-
-#### C3. Runtime cost budgets and failure taxonomy
-
-Goal:
-
-- make CI and batch execution easier to reason about at scale
-
-Success criteria:
-
-- execution receipts expose actionable timing and cost buckets
-- precondition failures and degraded-locator failures are classified consistently
-- scorecards surface bottlenecks by runtime failure family
-
-### Lane D — Dogfooding and structured entropy
-
-#### D1. Structured entropy harness for dogfooding variance
-
-Goal:
-
-- increase the diversity and value of dogfood exposures by injecting controlled variance into the system's inputs, not just into the DOM
-
-The more structured entropy the system encounters, the faster its knowledge layer hardens. Variance should be deliberately introduced at multiple levels:
-
-Input variance (what the system sees):
-
-- ADO step phrasing variants for the same intent (synonym injection, passive voice, abbreviated forms)
-- data posture combinations that exercise boundary conditions
-- screen state permutations (empty, populated, error, loading)
-- navigation path variants to the same screen (direct URL, breadcrumb, menu, deep link)
-
-Structural variance (what the DOM looks like):
-
-- salted accessible-name changes
-- layout changes without semantic changes
-- widget swaps that preserve user intent (dropdown → combobox, text input → search input)
-- validation-flow timing changes
-- result-grid shape changes (column reorder, pagination changes)
-
-Execution variance (how the system runs):
-
-- runbook variant selection (different subsets of the same suite)
-- interpreter mode toggles (deterministic-only vs translation-enabled vs full-agentic)
-- confidence threshold sweeps (strict vs permissive trust policy)
-- resolution precedence overrides (force fallback to lower rungs)
-
-Each variance dimension is a `Drift Event` (see `docs/dogfooding-flywheel.md`). Drift events are tagged, replayable, and measured through the same scorecard surface.
-
-Success criteria:
-
-- dogfood runs can be parameterized with variance profiles
-- each variance dimension produces measurable signal in the scorecard (not just pass/fail, but resolution cost, knowledge churn, and proposal volume)
-- the system demonstrably hardens faster with diverse exposure than with repeated identical runs
-- variance profiles are declarative artifacts, not code changes
-
-#### D1.5. Flywheel/speedrun progress reporting
-
-Goal:
-
-- emit structured, incremental progress events during long-running flywheel and speedrun processes so that operators and agents can monitor execution without waiting for final output
-
-Currently the dogfood loop, speedrun, and evolve scripts emit output only at the start and end of a run. A 100-scenario, 5-iteration cold-start speedrun can run for 30+ minutes with no intermediate signal. Both human operators and agentic sessions need visibility into where the process is and what it has accomplished so far.
-
-Design:
-
-- define a `ProgressEvent` envelope: `{ kind: 'progress', phase, iteration, completedScenarios, totalScenarios, currentMetrics, elapsed, estimatedRemaining }`
-- emit progress events at natural milestones: iteration start/end, scenario batch completion (every 10-25 scenarios), convergence check, knowledge activation, proposal generation
-- write progress to a well-known sidecar file (e.g., `.tesseract/runs/{runId}.progress.json`) that can be tailed or polled
-- emit the same events to stderr as human-readable lines when running in a terminal
-- for multi-seed runs, report per-seed progress and aggregate progress
-- include current fitness metrics (hit rate, resolution distribution, failure mode counts) in each progress event so partial results are visible before completion
-
-Success criteria:
-
-- an agent or operator can determine the current phase, iteration, and approximate completion percentage of any running flywheel/speedrun/evolve process
-- progress events include enough metric detail to decide whether to wait, cancel, or adjust parameters
-- progress reporting adds no measurable overhead to the pipeline
-- the sidecar file is a valid JSON array that can be consumed programmatically at any point during execution
-
-#### D2. Benchmark expansion beyond the flagship slice
-
-Goal:
-
-- broaden the synthetic benchmark lane once the current scorecard is stable
-
-Success criteria:
-
-- additional benchmark apps can reuse the same field-awareness and drift metrics
-- negative/posture expansions remain attributable to field family and source posture
-- benchmark results stay comparable across runs and execution profiles
-
-#### D3. Synthetic React app composer with salted drift
-
-Goal:
-
-- compose discoverable application contexts on demand, then inject replayable change over time
-
-This is a future benchmark harness, not a core product dependency. It is the controlled environment for measuring resilience against `Drift Events`.
-
-Success criteria:
-
-- drift events are tagged and replayable
-- scorecard metrics are comparable across drift profiles
-- the composer stays outside the deterministic compiler path
-
-### Lane E — Governance and projection
-
-#### E1. Operator cockpit over existing artifacts
-
-Goal:
-
-- turn inbox, workflow, trace, review, graph, and scorecards into one coherent operational surface
-
-Success criteria:
-
-- all projections agree on resolution mode, winning source, and overlay provenance
-- operators can move from hotspot to approval to rerun plan without repo lore
-- next-command recipes are emitted consistently
-
-#### E2. VSCode extension integration surface
-
-Goal:
-
-- expose the inbox, proposals, hotspots, and rerun plans through VSCode extension APIs so that Copilot Chat or a custom extension can discover and act on them
-
-Design:
-
-- task provider that surfaces inbox items as VSCode tasks
-- problem matcher that maps proposal and hotspot locations to file positions
-- Copilot Chat participant that can query the knowledge layer, inspect proposals, and invoke approve/rerun commands
-- all integration reads from the same artifact files the CLI produces
-
-Success criteria:
-
-- a Copilot Chat session can orient itself through artifacts without running the full CLI
-- the extension degrades to a read-only artifact viewer when no agentic capability is available
-- the extension does not introduce new domain concepts or artifact types
-
-#### E3. Proposal ranking in the offline optimization lane
-
-Guardrails:
-
-- outside the deterministic compiler path
-- no direct canonical mutation
-- must operate over stored trace and evidence corpora
-
-Potential targets:
-
-- locator repair ranking
-- supplement proposal ranking
-- translation candidate ranking
-- benchmark-driven prompt tuning for bounded operator tasks
-
-### Lane F — Infrastructure
-
-#### F1. CI webhook integration for OutSystems Lifetime API
-
-Goal:
-
-- auto-trigger `ci-batch` runs when modules are published
-
-Success criteria:
-
-- clean exit codes and structured reports
-- proposals generated but never auto-applied in CI
-- run receipts, evidence, and confidence overlays accumulate for later operator review
-- no realtime approval or apply behavior during CI execution
-
-#### F2. Deterministic coverage expansion
-
-Goal:
-
-- increase `compiler-derived` and approved-knowledge resolution wins while keeping `lib/domain/inference.ts` closed-set and auditable
-- this item is reframed by A1: as runtime interpretation takes over, the deterministic coverage goal shifts from "broader alias matching" to "broader knowledge layer coverage that makes runtime interpretation cheaper"
-
-Success criteria:
-
-- stable precedence laws for hints, patterns, heuristics, overlays, and translation
-- explicit exhaustion diagnostics when coverage runs out
-- knowledge coverage metrics in the scorecard
-
-## Priority order
-
-The primary sequencing constraint is that A1 (ADR collapse) unblocks A2 and A3, which together enable the dogfood loop. Everything else can proceed in parallel.
-
-| Priority | Item | Depends on | Unblocks |
-|----------|------|------------|----------|
-| 1 | A1 — ADR collapse | — | A2, A3, D1, F2 |
-| 2 | A2 — Confidence-gated auto-approval | A1 | A3 |
-| 3 | A3 — Dogfood orchestrator | A1, A2 | D1, D2 |
-| 4 | B1 — URL variant discovery | — | D1 |
-| 5 | D1 — Structured entropy harness | A3, B1 | D1.5, D2, D3 |
-| 5.5 | D1.5 — Flywheel/speedrun progress reporting | — | — |
-| 6 | B3 — Confidence decay | — | A2 refinement |
-| 7 | E2 — VSCode extension surface | — | interactive profile |
-| 8 | B2 — Thin-screen ergonomics | — | — |
-| 9 | C1 — Translation cache | — | — |
-| 10 | C2 — Widget family expansion | — | — |
-| 11 | C3 — Cost budgets and failure taxonomy | — | — |
-| 12 | E1 — Operator cockpit | — | — |
-| 13 | E3 — Proposal ranking | A3 | — |
-| 14 | D2 — Benchmark expansion | A3 | D3 |
-| 15 | D3 — Synthetic React composer | D2 | — |
-| 16 | F1 — CI webhook | — | — |
-| 17 | F2 — Deterministic coverage | A1 | — |
-
-## Offline optimization and evaluation
-
-This remains a distinct lane outside the deterministic compiler core. It is the right place for proposal ranking, translation scoring, prompt tuning, and benchmark analysis, but it must never become an implicit shortcut around provenance, precedence, or trust policy.
+| Addendum group | Primary epic home | Main validation surfaces |
+| --- | --- | --- |
+| `K` - kernel properties | Epic 1 | law tests, runtime receipts, integration runs, review artifacts |
+| `L` - legibility | Epic 1 | harness integration tests, discovery outputs, outcome/constraint review surfaces |
+| `S` - semantic persistence | Epic 1 | hints/routes/schema laws, drift repair tests, canonical artifact reviews |
+| `D` - dynamic topology | Epic 1 | route precedence tests, runtime navigation tests, successor and constraint diagnostics |
+| `V` - structured variance | Epic 1 and Epic 4 | role/data/phase variance harnesses, route-state proofs, replayable variance profiles |
+| `R` - drift and recoverability | Epic 1 and Epic 4 | drift classification tests, repair-vs-rediscovery measures, bounded repair evidence |
+| `A` - participatory agency | Epic 2 | continuation flows, intervention schema tests, resume traces, inbox/MCP actionability |
+| `H` - inter-actor handoff properties | Epic 2 and Epic 5 | handoff schema tests, review rendering checks, drift-token and provenance visibility |
+| `C` - compounding economics | Epic 3 | fitness reports, scorecards, convergence proof, intervention impact measures |
+| `M` - meta-properties | Epic 3, Epic 4, and Epic 5 | scorecards, benchmark narratives, operator views, memory-worthiness reporting |
 
 ## Guardrails
 
-- keep the deterministic substrate explicit and testable
-- keep translation bounded and typed
-- keep the runtime agent as the last non-human resolution stage, not the first
-- treat confidence overlays as derived working knowledge, not canon
-- keep CI batch mode non-interactive and approval-free
-- the agent integration surface is the artifact envelope, not the agent runtime
-- all execution profiles share the same pipeline and artifact types
-- agentic orchestration must degrade gracefully to deterministic reporting
+- Keep `BACKLOG.md` execution-first. The addendum is the north star, not the formatting template.
+- Keep `docs/convergence-backlog.md` as the detailed code ledger instead of duplicating file-level work here.
+- Treat `knowledgeHitRate` as informational and diagnostic everywhere; do not use it as the primary acceptance gate.
+- Treat `effectiveHitRate` as the primary gate wherever acceptance, scorecard success, or promotion logic is discussed.
+- Keep the deterministic compiler core explicit, auditable, and separate from the empirical proof lane.
+- Keep the six public lanes and three spines as shared vocabulary across all backlog entries.
