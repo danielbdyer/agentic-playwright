@@ -18,7 +18,6 @@ import { StepProgram } from '../../lib/domain/intent/types';
 import { deriveCapabilities } from '../../lib/domain/commitment/grammar';
 import { playwrightStepProgramInterpreter, runStepProgram, runtimeFailureDiagnostic } from '../../lib/runtime/execute/program';
 import { interact } from '../../lib/runtime/widgets/interact';
-import { widgetActionHandlers } from '../../dogfood/knowledge/components';
 import type { ScreenRegistry } from '../../lib/runtime/adapters/load';
 import { validateScreenElements, validateSurfaceGraph } from '../../lib/domain/validation';
 
@@ -27,6 +26,7 @@ const policyNumberInputId = createElementId('policyNumberInput');
 const searchButtonId = createElementId('searchButton');
 const searchFormId = createSurfaceId('search-form');
 const osButtonWidgetId = createWidgetId('os-button');
+const osCheckboxWidgetId = createWidgetId('os-checkbox');
 const osInputWidgetId = createWidgetId('os-input');
 const osDateWidgetId = createWidgetId('os-date');
 
@@ -132,7 +132,7 @@ function createRuntimeHarness(widget: WidgetId = osButtonWidgetId): {
   };
 }
 
-test('invoke executes through registered widget action handlers', async () => {
+test('invoke executes through role-derived widget dispatch', async () => {
   const harness = createRuntimeHarness(osButtonWidgetId);
   const result = await runStepProgram(harness.page as never, harness.screens, {}, harness.program);
 
@@ -166,41 +166,30 @@ test('interact fails with stable error codes for unsupported widget actions', as
   }
 });
 
-test('interact passes affordance context through widget handlers', async () => {
+test('interact supports checkbox state changes through the widget-role bridge', async () => {
+  const calls: string[] = [];
   const locator = {
-    click: async () => undefined,
+    check: async () => {
+      calls.push('check');
+    },
     isVisible: async () => true,
     isEnabled: async () => true,
   };
-  const buttonHandlers = widgetActionHandlers[osButtonWidgetId];
-  expect(buttonHandlers).toBeDefined();
-  if (!buttonHandlers) {
-    throw new TypeError('os-button handlers are required for this test');
-  }
-
-  const original = buttonHandlers.click;
-  expect(original).toBeDefined();
-  if (!original) {
-    throw new TypeError('os-button click handler is required for this test');
-  }
-
-  let seenAffordance: string | null | undefined;
-  buttonHandlers.click = async (_locator, _value, context) => {
-    seenAffordance = context?.affordance ?? null;
-  };
-
-  try {
-    const result = await interact(locator as never, osButtonWidgetId, 'click', undefined, { affordance: 'menu-trigger' });
-    expect(result.ok).toBeTruthy();
-    expect(seenAffordance).toBe('menu-trigger');
-  } finally {
-    buttonHandlers.click = original;
-  }
+  const result = await interact(locator as never, osCheckboxWidgetId, 'check');
+  expect(result.ok).toBeTruthy();
+  expect(calls).toEqual(['check']);
 });
 
 test('enter prefers fill over clear when an input widget supports both actions', async () => {
+  const calls: string[] = [];
   const locator = {
     count: async () => 1,
+    fill: async (value: string) => {
+      calls.push(`fill:${value}`);
+    },
+    clear: async () => {
+      calls.push('clear');
+    },
     isEditable: async () => true,
     isEnabled: async () => true,
     isVisible: async () => true,
@@ -212,29 +201,8 @@ test('enter prefers fill over clear when an input widget supports both actions',
     locator: () => locator,
     goto: async () => undefined,
   };
-  const inputHandlers = widgetActionHandlers[osInputWidgetId];
-  expect(inputHandlers).toBeDefined();
-  if (!inputHandlers) {
-    throw new TypeError('os-input handlers are required for this test');
-  }
 
-  const originalFill = inputHandlers.fill;
-  const originalClear = inputHandlers.clear;
-  expect(originalFill).toBeDefined();
-  expect(originalClear).toBeDefined();
-  if (!originalFill || !originalClear) {
-    throw new TypeError('os-input fill and clear handlers are required for this test');
-  }
-  const calls: string[] = [];
-  inputHandlers.fill = async (_locator, value) => {
-    calls.push(`fill:${value ?? ''}`);
-  };
-  inputHandlers.clear = async () => {
-    calls.push('clear');
-  };
-
-  try {
-    const result = await runStepProgram(page as never, {
+  const result = await runStepProgram(page as never, {
       [policySearchScreenId]: {
         screen: {
           screen: policySearchScreenId,
@@ -273,12 +241,8 @@ test('enter prefers fill over clear when an input widget supports both actions',
       }],
     });
 
-    expect(result.ok).toBeTruthy();
-    expect(calls).toEqual(['fill:POL-001']);
-  } finally {
-    inputHandlers.fill = originalFill;
-    inputHandlers.clear = originalClear;
-  }
+  expect(result.ok).toBeTruthy();
+  expect(calls).toEqual(['fill:POL-001']);
 });
 
 test('playwright interpreter records degraded locator use when a fallback rung succeeds', async () => {

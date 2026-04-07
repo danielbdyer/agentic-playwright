@@ -282,6 +282,8 @@ test('Law 8: Route proposal includes confidence, evidence, and impacted screens'
   const routeProposal = proposals.find((proposal) => proposal.proposalKind === 'route-knowledge');
   expect(routeProposal).toBeTruthy();
   expect(routeProposal!.confidence).toBe('low');
+  expect(routeProposal!.targetPath).toBe('knowledge/routes/test-app.routes.yaml');
+  expect(routeProposal!.patch.kind).toBe('route-knowledge');
   expect(routeProposal!.evidenceIds).toContain(`discovery-run:${run.runId}`);
   expect(routeProposal!.impactedScreens).toEqual([run.screen]);
 });

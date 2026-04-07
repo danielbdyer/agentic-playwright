@@ -1,10 +1,17 @@
 import { Schema } from 'effect';
 import {
+  InterventionAuthoritySchema,
+  InterventionBlastRadiusSchema,
+  InterventionBlockageTypeSchema,
+  InterventionDriftStatusSchema,
+  InterventionStalenessStatusSchema,
   DiagnosticSeveritySchema,
   GovernanceSchema,
   InterventionEffectKindSchema,
   InterventionCommandActionKindSchema,
+  InterventionEpistemicStatusSchema,
   InterventionKindSchema,
+  InterventionParticipationModeSchema,
   InterventionStatusSchema,
   InterventionTargetKindSchema,
   ParticipantCapabilitySchema,
@@ -52,6 +59,72 @@ export const InterventionEffectSchema = Schema.Struct({
   payload: Schema.Record({ key: Schema.String, value: Schema.Unknown }),
 });
 
+export const InterventionEvidenceSliceSchema = Schema.Struct({
+  artifactPaths: Schema.optionalWith(StringArray, { default: () => [] as readonly string[] }),
+  summaries: Schema.optionalWith(StringArray, { default: () => [] as readonly string[] }),
+});
+
+export const InterventionSemanticCoreSchema = Schema.Struct({
+  token: Schema.String,
+  summary: Schema.String,
+  driftStatus: InterventionDriftStatusSchema,
+});
+
+export const InterventionStalenessSchema = Schema.Struct({
+  observedAt: Schema.String,
+  reviewBy: Schema.optionalWith(NullableString, { default: () => null }),
+  status: InterventionStalenessStatusSchema,
+  rationale: Schema.optionalWith(NullableString, { default: () => null }),
+});
+
+export const InterventionNextMoveSchema = Schema.Struct({
+  action: Schema.String,
+  rationale: Schema.String,
+  command: Schema.optionalWith(NullableString, { default: () => null }),
+});
+
+export const InterventionCompetingCandidateSchema = Schema.Struct({
+  ref: Schema.String,
+  summary: Schema.String,
+  source: Schema.String,
+  status: InterventionEpistemicStatusSchema,
+});
+
+export const InterventionTokenImpactSchema = Schema.Struct({
+  payloadSizeBytes: Schema.Number,
+  estimatedReadTokens: Schema.Number,
+  ambiguityReduction: Schema.optionalWith(Schema.NullOr(Schema.Number), { default: () => null }),
+  suspensionAvoided: Schema.optionalWith(Schema.NullOr(Schema.Boolean), { default: () => null }),
+  rungImprovement: Schema.optionalWith(Schema.NullOr(Schema.Number), { default: () => null }),
+  activationQuality: Schema.optionalWith(Schema.NullOr(Schema.Number), { default: () => null }),
+});
+
+export const InterventionHandoffChainSchema = Schema.Struct({
+  depth: Schema.Number,
+  previousSemanticToken: Schema.optionalWith(NullableString, { default: () => null }),
+  semanticCorePreserved: Schema.Boolean,
+  driftDetectable: Schema.Boolean,
+  competingCandidateCount: Schema.Number,
+});
+
+export const InterventionHandoffSchema = Schema.Struct({
+  unresolvedIntent: Schema.String,
+  attemptedStrategies: Schema.optionalWith(StringArray, { default: () => [] as readonly string[] }),
+  evidenceSlice: InterventionEvidenceSliceSchema,
+  blockageType: InterventionBlockageTypeSchema,
+  requestedParticipation: InterventionParticipationModeSchema,
+  requiredCapabilities: Schema.optionalWith(Schema.Array(ParticipantCapabilitySchema), { default: () => [] as readonly (typeof ParticipantCapabilitySchema.Type)[] }),
+  requiredAuthorities: Schema.optionalWith(Schema.Array(InterventionAuthoritySchema), { default: () => [] as readonly (typeof InterventionAuthoritySchema.Type)[] }),
+  blastRadius: InterventionBlastRadiusSchema,
+  epistemicStatus: InterventionEpistemicStatusSchema,
+  semanticCore: InterventionSemanticCoreSchema,
+  staleness: Schema.optionalWith(Schema.NullOr(InterventionStalenessSchema), { default: () => null }),
+  nextMoves: Schema.optionalWith(Schema.Array(InterventionNextMoveSchema), { default: () => [] as readonly (typeof InterventionNextMoveSchema.Type)[] }),
+  competingCandidates: Schema.optionalWith(Schema.Array(InterventionCompetingCandidateSchema), { default: () => [] as readonly (typeof InterventionCompetingCandidateSchema.Type)[] }),
+  tokenImpact: Schema.optionalWith(Schema.NullOr(InterventionTokenImpactSchema), { default: () => null }),
+  chain: Schema.optionalWith(Schema.NullOr(InterventionHandoffChainSchema), { default: () => null }),
+});
+
 export const InterventionReceiptSchema = Schema.Struct({
   interventionId: Schema.String,
   kind: InterventionKindSchema,
@@ -62,6 +135,7 @@ export const InterventionReceiptSchema = Schema.Struct({
   target: InterventionTargetSchema,
   plan: Schema.optionalWith(Schema.NullOr(InterventionPlanSchema), { default: () => null }),
   effects: Schema.optionalWith(Schema.Array(InterventionEffectSchema), { default: () => [] as readonly (typeof InterventionEffectSchema.Type)[] }),
+  handoff: Schema.optionalWith(Schema.NullOr(InterventionHandoffSchema), { default: () => null }),
   startedAt: Schema.String,
   completedAt: Schema.optionalWith(NullableString, { default: () => null }),
   payload: Schema.Record({ key: Schema.String, value: Schema.Unknown }),

@@ -3,6 +3,14 @@ import { isBlocked } from '../../domain/proposal/lifecycle';
 import type { AdoId } from '../../domain/kernel/identity';
 import type { ProposalBundle, ProposalEntry, RunRecord } from '../../domain/execution/types';
 import type { StepWinningSource, WorkflowLane } from '../../domain/governance/workflow-types';
+import type {
+  InterventionAuthority,
+  InterventionCompetingCandidate,
+  InterventionHandoff,
+  InterventionParticipationMode,
+  InterventionStaleness,
+} from '../../domain/handshake/intervention';
+import { createSemanticCore } from '../../domain/handshake/semantic-core';
 import type { ImprovementRun } from '../../domain/improvement/types';
 import type { OperatorInboxItem } from '../../domain/resolution/types';
 import type { WorkspaceCatalog } from '../catalog';
@@ -44,6 +52,210 @@ function inboxItemId(input: {
   return `inbox-${sha256(stableStringify(input))}`;
 }
 
+function requestedParticipation(kind: OperatorInboxItem['kind']): InterventionParticipationMode {
+  switch (kind) {
+    case 'proposal':
+    case 'blocked-policy':
+      return 'approve';
+    case 'degraded-locator':
+      return 'inspect';
+    case 'needs-human':
+      return 'interpret';
+    case 'approved-equivalent':
+      return 'verify';
+    case 'recovery':
+      return 'choose';
+  }
+}
+
+function blockageType(kind: OperatorInboxItem['kind']): InterventionHandoff['blockageType'] {
+  switch (kind) {
+    case 'proposal':
+      return 'knowledge-gap';
+    case 'blocked-policy':
+      return 'policy-block';
+    case 'degraded-locator':
+      return 'locator-degradation';
+    case 'needs-human':
+      return 'target-ambiguity';
+    case 'approved-equivalent':
+      return 'execution-review';
+    case 'recovery':
+      return 'recovery-gap';
+  }
+}
+
+function blastRadius(kind: OperatorInboxItem['kind']): InterventionHandoff['blastRadius'] {
+  switch (kind) {
+    case 'proposal':
+    case 'blocked-policy':
+      return 'review-bound';
+    case 'approved-equivalent':
+      return 'local';
+    case 'degraded-locator':
+    case 'needs-human':
+    case 'recovery':
+      return 'local';
+  }
+}
+
+function epistemicStatus(item: OperatorInboxItem): InterventionHandoff['epistemicStatus'] {
+  switch (item.status) {
+    case 'approved':
+      return 'approved';
+    case 'blocked':
+      return 'blocked';
+    case 'informational':
+      return 'informational';
+    case 'actionable':
+      return 'review-required';
+  }
+}
+
+function estimateReadTokens(parts: readonly string[]): number {
+  return Math.max(1, Math.ceil(parts.join(' ').length / 4));
+}
+
+function requiredCapabilities(kind: OperatorInboxItem['kind']): NonNullable<InterventionHandoff['requiredCapabilities']> {
+  switch (kind) {
+    case 'proposal':
+    case 'blocked-policy':
+      return ['inspect-artifacts', 'approve-proposals'];
+    case 'degraded-locator':
+      return ['inspect-artifacts', 'review-execution'];
+    case 'needs-human':
+      return ['inspect-artifacts', 'discover-surfaces', 'propose-fragments'];
+    case 'approved-equivalent':
+      return ['inspect-artifacts', 'review-execution'];
+    case 'recovery':
+      return ['inspect-artifacts', 'request-reruns'];
+  }
+}
+
+function requiredAuthorities(kind: OperatorInboxItem['kind']): readonly InterventionAuthority[] {
+  switch (kind) {
+    case 'proposal':
+    case 'blocked-policy':
+      return ['approve-canonical-change'];
+    case 'degraded-locator':
+    case 'needs-human':
+    case 'approved-equivalent':
+      return [];
+    case 'recovery':
+      return ['request-rerun'];
+  }
+}
+
+function nextMoves(item: OperatorInboxItem, requested: InterventionParticipationMode): NonNullable<InterventionHandoff['nextMoves']> {
+  return item.nextCommands.slice(0, 3).map((command) => ({
+    action: command,
+    command,
+    rationale: `Supports the requested participation mode "${requested}".`,
+  }));
+}
+
+function handoffStaleness(observedAt: string | null): InterventionStaleness | null {
+  return observedAt
+    ? {
+        observedAt,
+        reviewBy: null,
+        status: 'fresh',
+        rationale: 'Freshly derived from the latest known run or proposal surface.',
+      }
+    : null;
+}
+
+function finalizeInboxItem(
+  item: OperatorInboxItem,
+  options: {
+    readonly observedAt?: string | null | undefined;
+    readonly competingCandidates?: readonly InterventionCompetingCandidate[] | undefined;
+  } = {},
+): OperatorInboxItem {
+  const requested = requestedParticipation(item.kind);
+  const evidencePaths = [item.artifactPath, item.targetPath].filter((value): value is string => Boolean(value));
+  return {
+    ...item,
+    requestedParticipation: requested,
+    handoff: {
+      unresolvedIntent: item.summary,
+      attemptedStrategies: [item.winningSource, item.resolutionMode].flatMap((value) => (value ? [value] : [])),
+      evidenceSlice: {
+        artifactPaths: evidencePaths,
+        summaries: [item.summary],
+      },
+      blockageType: blockageType(item.kind),
+      requestedParticipation: requested,
+      requiredCapabilities: requiredCapabilities(item.kind),
+      requiredAuthorities: requiredAuthorities(item.kind),
+      blastRadius: blastRadius(item.kind),
+      epistemicStatus: epistemicStatus(item),
+      semanticCore: createSemanticCore({
+        namespace: 'operator-inbox',
+        summary: item.title,
+        stableFields: {
+          id: item.id,
+          kind: item.kind,
+          status: item.status,
+          adoId: item.adoId ?? null,
+          proposalId: item.proposalId ?? null,
+          runId: item.runId ?? null,
+          stepIndex: item.stepIndex ?? null,
+          targetPath: item.targetPath ?? null,
+          artifactPath: item.artifactPath ?? null,
+        },
+      }),
+      staleness: handoffStaleness(options.observedAt ?? null),
+      nextMoves: nextMoves(item, requested),
+      competingCandidates: options.competingCandidates ?? [],
+      tokenImpact: {
+        payloadSizeBytes: item.title.length + item.summary.length,
+        estimatedReadTokens: estimateReadTokens([item.title, item.summary, ...item.nextCommands]),
+      },
+      chain: {
+        depth: 1,
+        previousSemanticToken: null,
+        semanticCorePreserved: true,
+        driftDetectable: true,
+        competingCandidateCount: (options.competingCandidates ?? []).length,
+      },
+    },
+  };
+}
+
+interface ProposalCandidateContext {
+  readonly proposalId: string;
+  readonly targetPath: string;
+  readonly title: string;
+  readonly source: string;
+  readonly status: InterventionHandoff['epistemicStatus'];
+}
+
+function proposalCandidateStatus(
+  proposal: ProposalEntry,
+  approved: boolean,
+): InterventionHandoff['epistemicStatus'] {
+  if (isBlocked(proposal.activation)) return 'blocked';
+  if (proposal.certification === 'certified' || approved) return 'approved';
+  return 'review-required';
+}
+
+function competingCandidatesFor(
+  proposalIdValue: string,
+  targetPath: string,
+  allCandidates: readonly ProposalCandidateContext[],
+): readonly InterventionCompetingCandidate[] {
+  return allCandidates
+    .filter((candidate) => candidate.targetPath === targetPath && candidate.proposalId !== proposalIdValue)
+    .map((candidate) => ({
+      ref: candidate.proposalId,
+      summary: candidate.title,
+      source: candidate.source,
+      status: candidate.status,
+    }))
+    .sort((left, right) => compareStrings(left.ref, right.ref));
+}
+
 function runStepMetadata(
   run: RunRecord | null,
   stepIndex: number | null,
@@ -70,6 +282,18 @@ export function buildOperatorInboxItems(catalog: WorkspaceCatalog): OperatorInbo
   const approvals = new Set(catalog.approvalReceipts.map((entry) => entry.artifact.proposalId));
   const latestRunByAdo = latestRuns(catalog);
   const seenProposalIds = new Set<string>();
+  const proposalContexts = catalog.proposalBundles.flatMap((bundleEntry) =>
+    bundleEntry.artifact.payload.proposals.map((proposal) => {
+      const stableProposalId = proposal.proposalId || proposalId(bundleEntry.artifact, proposal);
+      return {
+        proposalId: stableProposalId,
+        targetPath: proposal.targetPath,
+        title: proposal.title,
+        source: proposal.category ?? 'uncategorized',
+        status: proposalCandidateStatus(proposal, approvals.has(stableProposalId)),
+      } satisfies ProposalCandidateContext;
+    }),
+  );
 
   // Source 1: proposal bundles → proposal + blocked-policy items
   const proposalItems = [...catalog.proposalBundles]
@@ -83,7 +307,7 @@ export function buildOperatorInboxItems(catalog: WorkspaceCatalog): OperatorInbo
         seenProposalIds.add(stableProposalId);
         const metadata = runStepMetadata(run, proposal.stepIndex);
         const kind = isBlocked(proposal.activation) ? 'blocked-policy' as const : 'proposal' as const;
-        return [{
+        return [finalizeInboxItem({
           id: inboxItemId({ kind, adoId: bundle.payload.adoId, runId: bundle.payload.runId, proposalId: stableProposalId, stepIndex: proposal.stepIndex, targetPath: proposal.targetPath }),
           kind,
           status: isBlocked(proposal.activation) ? 'blocked'
@@ -100,7 +324,10 @@ export function buildOperatorInboxItems(catalog: WorkspaceCatalog): OperatorInbo
           nextCommands: isBlocked(proposal.activation)
             ? uniqueSorted([`tesseract workflow --ado-id ${bundle.payload.adoId}`, `tesseract inbox`])
             : uniqueSorted([`tesseract certify --proposal-id ${stableProposalId}`, `tesseract approve --proposal-id ${stableProposalId}`, `tesseract rerun-plan --proposal-id ${stableProposalId}`, `tesseract workflow --ado-id ${bundle.payload.adoId}`]),
-        }];
+        }, {
+          observedAt: run?.payload.completedAt ?? null,
+          competingCandidates: competingCandidatesFor(stableProposalId, proposal.targetPath, proposalContexts),
+        })];
       });
     });
 
@@ -110,7 +337,7 @@ export function buildOperatorInboxItems(catalog: WorkspaceCatalog): OperatorInbo
     const liveDomWins = graph.steps.filter((s) => s.graph.winner.rung === 'live-dom').length;
     const needsHumanWins = graph.steps.filter((s) => s.graph.winner.rung === 'needs-human').length;
     if (liveDomWins === 0 && needsHumanWins === 0) return [];
-    return [{
+    return [finalizeInboxItem({
       id: inboxItemId({ kind: 'needs-human', adoId: graph.adoId, runId: graph.runId, stepIndex: null }),
       kind: 'needs-human', status: needsHumanWins > 0 ? 'actionable' : 'informational',
       title: `Resolution graph hotspot for run ${graph.runId}`,
@@ -119,7 +346,9 @@ export function buildOperatorInboxItems(catalog: WorkspaceCatalog): OperatorInbo
       proposalId: null, artifactPath: null, targetPath: null,
       winningConcern: 'resolution', winningSource: needsHumanWins > 0 ? 'none' : 'live-dom', resolutionMode: 'agentic',
       nextCommands: uniqueSorted([`tesseract replay-interpretation --ado-id ${graph.adoId}`, `tesseract inbox`]),
-    }];
+    }, {
+      observedAt: latestRunByAdo.get(graph.adoId)?.payload.completedAt ?? null,
+    })];
   });
 
   // Source 3: run steps → degraded-locator + needs-human + approved-equivalent items
@@ -138,20 +367,20 @@ export function buildOperatorInboxItems(catalog: WorkspaceCatalog): OperatorInbo
           kind: 'degraded-locator' as const, status: 'actionable' as const, proposalId: null as string | null,
           title: `Degraded locator on step ${step.stepIndex}`,
           summary: `Runtime resolved step ${step.stepIndex} with a degraded locator strategy.`,
-        }] : []),
+        }].map((item) => finalizeInboxItem(item, { observedAt: run.payload.completedAt })) : []),
         ...(step.interpretation.kind === 'needs-human' ? [{
           ...base, id: inboxItemId({ kind: 'needs-human' as const, adoId: run.adoId, runId: run.runId, stepIndex: step.stepIndex }),
           kind: 'needs-human' as const, status: 'actionable' as const, proposalId: null as string | null,
           title: `Needs human on step ${step.stepIndex}`,
           summary: `Runtime exhausted approved knowledge and live DOM resolution for step ${step.stepIndex}.`,
-        }] : []),
+        }].map((item) => finalizeInboxItem(item, { observedAt: run.payload.completedAt })) : []),
         ...(step.interpretation.winningSource === 'approved-equivalent' && step.execution.execution.status === 'ok' ? [{
           ...base, id: inboxItemId({ kind: 'approved-equivalent' as const, adoId: run.adoId, runId: run.runId, stepIndex: step.stepIndex }),
           kind: 'approved-equivalent' as const, status: 'informational' as const, proposalId: null as string | null,
           title: `Approved-equivalent overlay on step ${step.stepIndex}`,
           summary: `Step ${step.stepIndex} executed green using derived confidence overlays instead of approved canon.`,
           targetPath: step.interpretation.overlayRefs[0] ?? null,
-        }] : []),
+        }].map((item) => finalizeInboxItem(item, { observedAt: run.payload.completedAt })) : []),
       ];
     }),
   );
@@ -218,6 +447,41 @@ const renderRerunSection = (plans: readonly RerunPlan[]): readonly string[] =>
     '',
   ];
 
+function renderHandoffDetails(item: OperatorInboxItem): readonly string[] {
+  const handoff = item.handoff;
+  if (!handoff) {
+    return [];
+  }
+  const staleness = handoff.staleness
+    ? `${handoff.staleness.status} (observed ${handoff.staleness.observedAt}${handoff.staleness.reviewBy ? `; review by ${handoff.staleness.reviewBy}` : ''})`
+    : 'n/a';
+  const nextMoves = handoff.nextMoves && handoff.nextMoves.length > 0
+    ? handoff.nextMoves.map((move) => move.command ?? move.action).join(' | ')
+    : 'n/a';
+  const competing = handoff.competingCandidates && handoff.competingCandidates.length > 0
+    ? handoff.competingCandidates.map((candidate) => `${candidate.ref}:${candidate.status}`).join(' | ')
+    : 'none';
+  const tokenImpact = handoff.tokenImpact
+    ? `bytes=${handoff.tokenImpact.payloadSizeBytes}, tokens=${handoff.tokenImpact.estimatedReadTokens}`
+    : 'n/a';
+  const chain = handoff.chain
+    ? `depth=${handoff.chain.depth}, preserved=${handoff.chain.semanticCorePreserved}, driftDetectable=${handoff.chain.driftDetectable}, competing=${handoff.chain.competingCandidateCount}`
+    : 'n/a';
+  return [
+    `- Handoff blockage: ${handoff.blockageType}`,
+    `- Handoff epistemic status: ${handoff.epistemicStatus}`,
+    `- Handoff blast radius: ${handoff.blastRadius}`,
+    `- Handoff required capabilities: ${handoff.requiredCapabilities?.join(', ') || 'none'}`,
+    `- Handoff required authorities: ${handoff.requiredAuthorities?.join(', ') || 'none'}`,
+    `- Handoff semantic core: ${handoff.semanticCore.token} (${handoff.semanticCore.driftStatus})`,
+    `- Handoff staleness: ${staleness}`,
+    `- Handoff next moves: ${nextMoves}`,
+    `- Handoff competing candidates: ${competing}`,
+    `- Handoff token impact: ${tokenImpact}`,
+    `- Handoff chain: ${chain}`,
+  ];
+}
+
 const renderItemSection = (item: OperatorInboxItem): readonly string[] => [
   `## ${item.title}`, '',
   `- Inbox id: ${item.id}`, `- Kind: ${item.kind}`, `- Status: ${item.status}`,
@@ -226,6 +490,8 @@ const renderItemSection = (item: OperatorInboxItem): readonly string[] => [
   `- Proposal id: ${item.proposalId ?? 'n/a'}`, `- Target: ${item.targetPath ?? 'n/a'}`,
   `- Winning concern: ${item.winningConcern ?? 'n/a'}`, `- Winning source: ${item.winningSource ?? 'n/a'}`,
   `- Resolution mode: ${item.resolutionMode ?? 'n/a'}`,
+  `- Requested participation: ${item.requestedParticipation ?? 'n/a'}`,
+  ...renderHandoffDetails(item),
   `- Next commands: ${item.nextCommands.length > 0 ? item.nextCommands.join(' | ') : 'n/a'}`,
   '',
 ];

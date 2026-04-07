@@ -31,6 +31,10 @@ interface ReviewBottlenecks {
   readonly provenanceKinds: Record<string, number>;
   readonly governanceCounts: Record<string, number>;
   readonly knowledgeHitRate: number;
+  readonly effectiveHitRate: number;
+  readonly ambiguityRate: number;
+  readonly suspensionRate: number;
+  readonly routeMismatchRate: number;
   readonly translationHitRate: number;
   readonly translationCacheHitRate: number;
   readonly translationCacheMissReasons: Record<string, number>;
@@ -55,6 +59,24 @@ interface ReviewBottlenecks {
     readonly totalMs: number;
   };
   readonly unresolvedReasons: ReadonlyArray<{ readonly reason: string; readonly count: number }>;
+}
+
+interface ReviewHandoff {
+  readonly id: string;
+  readonly title: string;
+  readonly kind: string;
+  readonly status: string;
+  readonly requestedParticipation: string | null;
+  readonly blockageType: string | null;
+  readonly epistemicStatus: string | null;
+  readonly blastRadius: string | null;
+  readonly driftStatus: string | null;
+  readonly requiredCapabilities: readonly string[];
+  readonly requiredAuthorities: readonly string[];
+  readonly staleness: string;
+  readonly nextMoves: readonly string[];
+  readonly competingCandidates: readonly string[];
+  readonly tokenImpact: string;
 }
 
 interface ReviewStepGrounding {
@@ -95,6 +117,7 @@ interface ReviewStep {
 export interface ReviewDocument {
   readonly metadata: ReviewMetadata;
   readonly bottlenecks: ReviewBottlenecks;
+  readonly handoffs: readonly ReviewHandoff[];
   readonly steps: readonly ReviewStep[];
 }
 
@@ -146,6 +169,10 @@ export function buildReviewDocument(
       provenanceKinds: trace.summary.provenanceKinds,
       governanceCounts: trace.summary.governance,
       knowledgeHitRate: trace.summary.stageMetrics.knowledgeHitRate,
+      effectiveHitRate: trace.summary.stageMetrics.effectiveHitRate ?? 0,
+      ambiguityRate: trace.summary.stageMetrics.ambiguityRate ?? 0,
+      suspensionRate: trace.summary.stageMetrics.suspensionRate ?? 0,
+      routeMismatchRate: trace.summary.stageMetrics.routeMismatchRate ?? 0,
       translationHitRate: trace.summary.stageMetrics.translationHitRate,
       translationCacheHitRate: trace.summary.stageMetrics.translationCacheHitRate,
       translationCacheMissReasons: trace.summary.stageMetrics.translationCacheMissReasons,
@@ -163,6 +190,27 @@ export function buildReviewDocument(
       timing: trace.summary.stageMetrics.timing,
       unresolvedReasons: trace.summary.unresolvedReasons,
     },
+    handoffs: inboxItems.map((item) => ({
+      id: item.id,
+      title: item.title,
+      kind: item.kind,
+      status: item.status,
+      requestedParticipation: item.handoff?.requestedParticipation ?? item.requestedParticipation ?? null,
+      blockageType: item.handoff?.blockageType ?? null,
+      epistemicStatus: item.handoff?.epistemicStatus ?? null,
+      blastRadius: item.handoff?.blastRadius ?? null,
+      driftStatus: item.handoff?.semanticCore.driftStatus ?? null,
+      requiredCapabilities: item.handoff?.requiredCapabilities ?? [],
+      requiredAuthorities: item.handoff?.requiredAuthorities ?? [],
+      staleness: item.handoff?.staleness
+        ? `${item.handoff.staleness.status} @ ${item.handoff.staleness.observedAt}`
+        : 'n/a',
+      nextMoves: (item.handoff?.nextMoves ?? []).map((move) => move.command ?? move.action),
+      competingCandidates: (item.handoff?.competingCandidates ?? []).map((candidate) => `${candidate.ref}:${candidate.status}`),
+      tokenImpact: item.handoff?.tokenImpact
+        ? `bytes=${item.handoff.tokenImpact.payloadSizeBytes}, tokens=${item.handoff.tokenImpact.estimatedReadTokens}`
+        : 'n/a',
+    })),
     steps: trace.steps.map((step) => {
       const grounding = taskByIndex.get(step.index)?.grounding ?? null;
       return {
@@ -199,6 +247,33 @@ export function buildReviewDocument(
       };
     }),
   };
+}
+
+function renderHandoffsMarkdown(handoffs: readonly ReviewHandoff[]): string {
+  if (handoffs.length === 0) {
+    return [
+      '## Operator Handoffs',
+      '',
+      '- No operator handoffs currently attach to this scenario scope.',
+      '',
+    ].join('\n');
+  }
+
+  return [
+    '## Operator Handoffs',
+    '',
+    ...handoffs.flatMap((handoff) => [
+      `- ${handoff.id}: ${handoff.title}`,
+      `  - kind=${handoff.kind}, status=${handoff.status}, participation=${handoff.requestedParticipation ?? 'n/a'}`,
+      `  - blockage=${handoff.blockageType ?? 'n/a'}, epistemic=${handoff.epistemicStatus ?? 'n/a'}, blastRadius=${handoff.blastRadius ?? 'n/a'}, drift=${handoff.driftStatus ?? 'n/a'}`,
+      `  - capabilities=${handoff.requiredCapabilities.join(', ') || 'none'}, authorities=${handoff.requiredAuthorities.join(', ') || 'none'}`,
+      `  - staleness=${handoff.staleness}`,
+      `  - nextMoves=${handoff.nextMoves.join(' | ') || 'none'}`,
+      `  - competingCandidates=${handoff.competingCandidates.join(' | ') || 'none'}`,
+      `  - tokenImpact=${handoff.tokenImpact}`,
+    ]),
+    '',
+  ].join('\n');
 }
 
 function formatRecord(entries: Record<string, number>): string {
@@ -317,6 +392,10 @@ export function renderReviewMarkdown(doc: ReviewDocument): string {
     `- Step provenance: explicit=${b.provenanceKinds['explicit'] ?? 0}, approved-knowledge=${b.provenanceKinds['approved-knowledge'] ?? 0}, live-exploration=${b.provenanceKinds['live-exploration'] ?? 0}, unresolved=${b.provenanceKinds['unresolved'] ?? 0}`,
     `- Governance counts: approved=${b.governanceCounts['approved'] ?? 0}, review-required=${b.governanceCounts['review-required'] ?? 0}, blocked=${b.governanceCounts['blocked'] ?? 0}`,
     `- Knowledge hit rate: ${b.knowledgeHitRate}`,
+    `- Effective hit rate: ${b.effectiveHitRate}`,
+    `- Ambiguity rate: ${b.ambiguityRate}`,
+    `- Suspension rate: ${b.suspensionRate}`,
+    `- Route mismatch rate: ${b.routeMismatchRate}`,
     `- Translation hit rate: ${b.translationHitRate}`,
     `- Translation cache hit rate: ${b.translationCacheHitRate}`,
     `- Translation cache miss reasons: ${formatRecord(b.translationCacheMissReasons)}`,
@@ -336,8 +415,9 @@ export function renderReviewMarkdown(doc: ReviewDocument): string {
     '',
   ].join('\n');
 
+  const handoffSection = renderHandoffsMarkdown(doc.handoffs);
   const stepSections = doc.steps.map(renderStepMarkdown).join('');
-  return `${header}${stepSections}`.trim() + '\n';
+  return `${header}${handoffSection}${stepSections}`.trim() + '\n';
 }
 
 /** @deprecated Use buildReviewDocument + renderReviewMarkdown */

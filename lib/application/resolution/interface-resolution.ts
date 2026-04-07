@@ -61,6 +61,20 @@ function sortStrings<T extends string>(values: Iterable<T>): T[] {
   return [...new Set(values)].sort((left, right) => left.localeCompare(right)) as T[];
 }
 
+function mergeLocatorLadders(values: readonly (readonly LocatorStrategy[])[]): readonly LocatorStrategy[] {
+  const seen = new Set<string>();
+  return values
+    .flatMap((entries) => entries)
+    .filter((entry) => {
+      const key = JSON.stringify(entry);
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
+}
+
 function screenPayload(node: ApplicationInterfaceGraph['nodes'][number]): GraphScreenPayload {
   return (node.payload ?? {}) as GraphScreenPayload;
 }
@@ -99,13 +113,13 @@ function elementCandidatesForScreen(input: {
       return {
         element: node.element!,
         targetRef: node.targetRef!,
-        role: payload.role ?? 'region',
+        role: payload.role ?? hintElement?.role ?? 'region',
         name: payload.name ?? null,
         surface: node.surface ?? (() => { throw new TesseractError('missing-required', `Missing surface for target ${node.id}`); })(),
         widget: (payload.widget ?? 'os-region') as StepTaskElementCandidate['widget'],
         affordance: hintElement?.affordance ?? payload.affordance ?? null,
         aliases: sortStrings([node.element!, ...(payload.aliases ?? []), ...hintAliases]),
-        locator: probes.map((probe) => probe.strategy),
+        locator: mergeLocatorLadders([hintElement?.locatorLadder ?? [], probes.map((probe) => probe.strategy)]),
         postures: sortStrings(payload.postures ?? []),
         defaultValueRef: hintElement?.defaultValueRef ?? payload.defaultValueRef ?? null,
         parameter: hintElement?.parameter ?? payload.parameter ?? null,
@@ -176,6 +190,9 @@ export function buildInterfaceResolutionContext(input: {
   interfaceGraph: ApplicationInterfaceGraph;
   selectorCanon: SelectorCanon;
   stateGraph: StateTransitionGraph;
+  interfaceGraphPath?: string | null | undefined;
+  selectorCanonPath?: string | null | undefined;
+  stateGraphPath?: string | null | undefined;
   screenRefs?: readonly ScreenId[] | undefined;
   freshnessPolicy?: FreshnessPolicy | undefined;
   /** Total completed runs so far (used for freshness decay calculation). */
@@ -213,9 +230,9 @@ export function buildInterfaceResolutionContext(input: {
     interfaceGraphFingerprint: input.interfaceGraph.fingerprint,
     selectorCanonFingerprint: input.selectorCanon.fingerprint,
     stateGraphFingerprint: input.stateGraph.fingerprint,
-    interfaceGraphPath: input.catalog.interfaceGraph?.artifactPath ?? null,
-    selectorCanonPath: input.catalog.selectorCanon?.artifactPath ?? null,
-    stateGraphPath: input.catalog.stateGraph?.artifactPath ?? null,
+    interfaceGraphPath: input.interfaceGraphPath ?? input.catalog.interfaceGraph?.artifactPath ?? null,
+    selectorCanonPath: input.selectorCanonPath ?? input.catalog.selectorCanon?.artifactPath ?? null,
+    stateGraphPath: input.stateGraphPath ?? input.catalog.stateGraph?.artifactPath ?? null,
     sharedPatterns: input.catalog.mergedPatterns,
     screens: screenCandidates({
       interfaceGraph: input.interfaceGraph,

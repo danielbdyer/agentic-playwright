@@ -33,6 +33,8 @@ import type { StepResolution } from '../intent/types';
 import type { InterfaceResolutionContext } from '../knowledge/types';
 import type { RecoveryPolicy } from '../commitment/recovery-policy';
 import type { SemanticDictionaryAccrualInput } from '../knowledge/semantic-dictionary-types';
+import type { ProposalCategory, ProposalEnrichment } from '../execution/types';
+import type { InterventionHandoff, InterventionParticipationMode } from '../handshake/intervention';
 
 export interface TranslationCandidate {
   readonly kind: 'screen' | 'element' | 'posture' | 'snapshot-template';
@@ -424,6 +426,8 @@ export interface OperatorInboxItem {
   readonly winningConcern?: WorkflowLane | null | undefined;
   readonly winningSource?: StepWinningSource | null | undefined;
   readonly resolutionMode?: ResolutionMode | null | undefined;
+  readonly requestedParticipation?: InterventionParticipationMode | null | undefined;
+  readonly handoff?: InterventionHandoff | null | undefined;
   readonly nextCommands: readonly string[];
 }
 
@@ -594,9 +598,11 @@ export interface ResolutionEvidenceDraft {
 
 export interface ResolutionProposalDraft {
   readonly artifactType: TrustPolicyArtifactType;
+  readonly category?: ProposalCategory | null | undefined;
   readonly targetPath: string;
   readonly title: string;
   readonly patch: Readonly<Record<string, unknown>>;
+  readonly enrichment?: ProposalEnrichment | null | undefined;
   readonly rationale: string;
 }
 

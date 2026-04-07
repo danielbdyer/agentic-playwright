@@ -9,6 +9,7 @@ import type {
   InterventionReceipt,
   InterventionStatus,
 } from '../../domain/handshake/intervention';
+import { createSemanticCore } from '../../domain/handshake/semantic-core';
 import type { ProjectPaths } from '../paths';
 import { FileSystem } from '../ports';
 
@@ -59,6 +60,10 @@ export function executeApprovedInterventionAction(input: {
 
 const DEFAULT_NOW = (): string => new Date().toISOString();
 
+function estimateReadTokens(payload: Readonly<Record<string, unknown>>): number {
+  return Math.max(1, Math.ceil(JSON.stringify(payload).length / 4));
+}
+
 function receiptForBlocked(action: InterventionCommandAction, now: string, reason: string): InterventionReceipt {
   return {
     interventionId: action.actionId,
@@ -78,6 +83,13 @@ function receiptForBlocked(action: InterventionCommandAction, now: string, reaso
       target: action.target,
       payload: { reason },
     }],
+    handoff: handoffForAction(action, {
+      summary: reason,
+      status: 'blocked',
+      dependencyReceipts: [],
+      emittedAt: now,
+      previousSemanticToken: null,
+    }),
     startedAt: now,
     completedAt: now,
     payload: { actionKind: action.kind, reason },
@@ -95,6 +107,149 @@ function actionKindToInterventionKind(action: InterventionCommandAction): Interv
     case 'suppress-hotspot':
       return 'operator-action';
   }
+}
+
+function requestedParticipationForAction(action: InterventionCommandAction): NonNullable<InterventionReceipt['handoff']>['requestedParticipation'] {
+  switch (action.kind) {
+    case 'approve-proposal':
+      return 'approve';
+    case 'promote-pattern':
+      return 'enrich';
+    case 'rerun-scope':
+      return 'choose';
+    case 'suppress-hotspot':
+      return 'defer';
+  }
+}
+
+function requiredCapabilitiesForAction(action: InterventionCommandAction): NonNullable<InterventionReceipt['handoff']>['requiredCapabilities'] {
+  switch (action.kind) {
+    case 'approve-proposal':
+      return ['inspect-artifacts', 'approve-proposals'];
+    case 'promote-pattern':
+      return ['inspect-artifacts', 'propose-fragments'];
+    case 'rerun-scope':
+      return ['inspect-artifacts', 'request-reruns'];
+    case 'suppress-hotspot':
+      return ['inspect-artifacts'];
+  }
+}
+
+function requiredAuthoritiesForAction(action: InterventionCommandAction): NonNullable<InterventionReceipt['handoff']>['requiredAuthorities'] {
+  switch (action.kind) {
+    case 'approve-proposal':
+      return ['approve-canonical-change'];
+    case 'promote-pattern':
+      return ['promote-shared-pattern'];
+    case 'rerun-scope':
+      return ['request-rerun'];
+    case 'suppress-hotspot':
+      return ['defer-work-item'];
+  }
+}
+
+function nextMovesForAction(
+  action: InterventionCommandAction,
+  input: {
+    readonly status: InterventionReceipt['status'];
+  },
+): NonNullable<InterventionReceipt['handoff']>['nextMoves'] {
+  if (input.status === 'blocked') {
+    return [{
+      action: 'Review prerequisites',
+      rationale: 'This action blocked before completing. Inspect dependencies or governance state before retrying.',
+      command: null,
+    }];
+  }
+
+  switch (action.kind) {
+    case 'approve-proposal':
+      return [{
+        action: 'Inspect approved knowledge change',
+        rationale: 'Confirm the approved proposal produced the intended canonical update.',
+        command: null,
+      }, {
+        action: 'Trigger rerun for affected scope',
+        rationale: 'Validate downstream execution with the newly approved canon.',
+        command: null,
+      }];
+    case 'promote-pattern':
+      return [{
+        action: 'Review promoted shared pattern',
+        rationale: 'Ensure the promoted pattern generalizes beyond the original local supplement.',
+        command: null,
+      }];
+    case 'rerun-scope':
+      return [{
+        action: 'Inspect rerun outcomes',
+        rationale: 'Use the rerun to verify whether the blocked region or proposal actually improved execution.',
+        command: null,
+      }];
+    case 'suppress-hotspot':
+      return [{
+        action: 'Verify suppression remains intentional',
+        rationale: 'Suppressed hotspots should remain explicit and reviewable instead of silently disappearing.',
+        command: null,
+      }];
+  }
+}
+
+function handoffForAction(
+  action: InterventionCommandAction,
+  input: {
+    readonly summary: string;
+    readonly status: InterventionReceipt['status'];
+    readonly dependencyReceipts: readonly InterventionReceipt[];
+    readonly emittedAt: string;
+    readonly previousSemanticToken?: string | null | undefined;
+  },
+): NonNullable<InterventionReceipt['handoff']> {
+  const semanticCore = createSemanticCore({
+    namespace: 'intervention-action',
+    summary: action.summary,
+    stableFields: {
+      actionId: action.actionId,
+      kind: action.kind,
+      target: action.target,
+      prerequisites: action.prerequisites,
+      reversible: action.reversible,
+      payload: action.payload,
+    },
+  }, input.previousSemanticToken ?? null);
+  return {
+    unresolvedIntent: action.summary,
+    attemptedStrategies: input.dependencyReceipts.map((receipt) => receipt.summary),
+    evidenceSlice: {
+      artifactPaths: [action.target.artifactPath].filter((value): value is string => Boolean(value)),
+      summaries: [input.summary, ...input.dependencyReceipts.map((receipt) => receipt.summary)],
+    },
+    blockageType: input.status === 'blocked' ? 'policy-block' : 'knowledge-gap',
+    requestedParticipation: requestedParticipationForAction(action),
+    requiredCapabilities: requiredCapabilitiesForAction(action),
+    requiredAuthorities: requiredAuthoritiesForAction(action),
+    blastRadius: action.reversible.reversible ? 'review-bound' : 'global',
+    epistemicStatus: input.status === 'blocked' ? 'blocked' : 'approved',
+    semanticCore,
+    staleness: {
+      observedAt: input.emittedAt,
+      reviewBy: null,
+      status: 'fresh',
+      rationale: 'Freshly emitted intervention action handoff.',
+    },
+    nextMoves: nextMovesForAction(action, input),
+    competingCandidates: [],
+    tokenImpact: {
+      payloadSizeBytes: JSON.stringify(action.payload).length,
+      estimatedReadTokens: estimateReadTokens(action.payload),
+    },
+    chain: {
+      depth: input.previousSemanticToken ? 2 : 1,
+      previousSemanticToken: input.previousSemanticToken ?? null,
+      semanticCorePreserved: semanticCore.driftStatus === 'preserved',
+      driftDetectable: Boolean(input.previousSemanticToken),
+      competingCandidateCount: 0,
+    },
+  };
 }
 
 function topologicalOrder(actions: readonly InterventionCommandAction[]): readonly string[] {
@@ -186,7 +341,20 @@ export function executeInterventionBatch(input: InterventionKernelRunInput) {
 
       const resumedReceipt = input.resumeFrom?.get(action.actionId);
       if (resumedReceipt && resumedReceipt.status === 'completed') {
-        return step(rest, [...receipts, resumedReceipt], [...resumed, action.actionId]);
+        const updatedReceipt: InterventionReceipt = resumedReceipt.handoff
+          ? {
+              ...resumedReceipt,
+              handoff: handoffForAction(action, {
+                summary: resumedReceipt.summary,
+                status: resumedReceipt.status,
+                dependencyReceipts: receipts.filter((receipt) =>
+                  action.prerequisites.some((dep) => dep.actionId === receipt.interventionId)),
+                emittedAt: resumedReceipt.completedAt ?? resumedReceipt.startedAt,
+                previousSemanticToken: resumedReceipt.handoff.semanticCore.token,
+              }),
+            }
+          : resumedReceipt;
+        return step(rest, [...receipts, updatedReceipt], [...resumed, action.actionId]);
       }
 
       return foldGovernance(action, {
@@ -226,6 +394,13 @@ export function executeInterventionBatch(input: InterventionKernelRunInput) {
                 target: approvedAction.target,
                 payload: {},
               }],
+              handoff: handoffForAction(approvedAction, {
+                summary: result.summary ?? approvedAction.summary,
+                status: 'completed',
+                dependencyReceipts,
+                emittedAt: startedAt,
+                previousSemanticToken: null,
+              }),
               startedAt,
               completedAt: now(),
               payload: {
@@ -246,6 +421,13 @@ export function executeInterventionBatch(input: InterventionKernelRunInput) {
                 participantRefs: input.participantRefs ?? [],
                 target: approvedAction.target,
                 effects: [{ kind: 'signal-emitted', severity: 'error', summary: normalizedError.message, target: approvedAction.target, payload: { error: normalizedError.code } }],
+                handoff: handoffForAction(approvedAction, {
+                  summary: normalizedError.message,
+                  status: 'blocked',
+                  dependencyReceipts,
+                  emittedAt: startedAt,
+                  previousSemanticToken: null,
+                }),
                 startedAt,
                 completedAt: now(),
                 payload: { ...approvedAction.payload, error: normalizedError.code, reversible: approvedAction.reversible },

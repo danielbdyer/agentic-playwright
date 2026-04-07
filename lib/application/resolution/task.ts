@@ -206,6 +206,9 @@ export function buildScenarioInterpretationSurface(input: {
     interfaceGraph,
     selectorCanon,
     stateGraph,
+    interfaceGraphPath: relativeProjectPath(input.paths, input.paths.interfaceGraphIndexPath),
+    selectorCanonPath: relativeProjectPath(input.paths, input.paths.selectorCanonPath),
+    stateGraphPath: relativeProjectPath(input.paths, input.paths.stateGraphPath),
   });
 
   const steps = input.compileSnapshot.boundScenario.steps.map((step) => {
@@ -334,7 +337,7 @@ export function buildInterpretationSurfaceProjection(options:
     const inputFingerprints: ProjectionInputFingerprint[] = [
       fingerprintProjectionArtifact('scenario', relativeProjectPath(options.paths, compileSnapshot.scenarioPath), compileSnapshot.scenario),
       fingerprintProjectionArtifact('bound', relativeProjectPath(options.paths, compileSnapshot.boundPath), compileSnapshot.boundScenario),
-      ...catalog.routeManifests.map((entry) => fingerprintProjectionArtifact('harvest-manifest', entry.artifactPath, entry.artifact)),
+      ...catalog.routeManifests.map((entry) => fingerprintProjectionArtifact('route-knowledge', entry.artifactPath, entry.artifact)),
       ...catalog.surfaces.map((entry) => fingerprintProjectionArtifact('surface', entry.artifactPath, entry.artifact)),
       ...catalog.screenElements.map((entry) => fingerprintProjectionArtifact('elements', entry.artifactPath, entry.artifact)),
       ...catalog.screenHints.map((entry) => fingerprintProjectionArtifact('hints', entry.artifactPath, entry.artifact)),

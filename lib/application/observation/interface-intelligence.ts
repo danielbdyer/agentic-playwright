@@ -41,7 +41,7 @@ import {
 import { graphIds } from '../../domain/kernel/ids';
 import { createApplicationInterfaceGraph, recordTransition } from '../../domain/aggregates/application-interface-graph';
 import type { LocatorStrategy } from '../../domain/governance/workflow-types';
-import type { HarvestManifest } from '../../domain/intent/routes';
+import type { RouteKnowledgeManifest } from '../../domain/intent/routes';
 import type {
   ArtifactConfidenceRecord,
   EventSignature,
@@ -1513,7 +1513,7 @@ export function projectInterfaceIntelligence(options: { paths: ProjectPaths; cat
     if (!catalog) return yield* Effect.fail(new TesseractError('missing-catalog', 'projectInterfaceIntelligence requires a loaded catalog'));
     const discoveryRuns = catalog.discoveryRuns.length > 0 ? catalog.discoveryRuns : yield* loadDiscoveryRuns({ paths: options.paths });
     const inputFingerprints: ProjectionInputFingerprint[] = [
-      ...catalog.routeManifests.map((entry) => fingerprintProjectionArtifact('harvest-manifest', entry.artifactPath, entry.artifact as HarvestManifest)),
+      ...catalog.routeManifests.map((entry) => fingerprintProjectionArtifact('route-knowledge', entry.artifactPath, entry.artifact as RouteKnowledgeManifest)),
       ...catalog.surfaces.map((entry) => fingerprintProjectionArtifact('surface', entry.artifactPath, entry.artifact)),
       ...catalog.screenElements.map((entry) => fingerprintProjectionArtifact('elements', entry.artifactPath, entry.artifact)),
       ...catalog.screenHints.map((entry) => fingerprintProjectionArtifact('hints', entry.artifactPath, entry.artifact)),

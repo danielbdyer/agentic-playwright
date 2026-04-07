@@ -1,7 +1,7 @@
 import { Effect } from 'effect';
 import type { InferenceKnowledge } from '../../domain/knowledge/inference';
 import type { ScreenId } from '../../domain/kernel/identity';
-import type { HarvestManifest } from '../../domain/intent/routes';
+import type { RouteKnowledgeManifest } from '../../domain/intent/routes';
 import type { BoundScenario, Scenario } from '../../domain/intent/types';
 import type {
   ScreenElements,
@@ -23,7 +23,7 @@ export interface WorkspaceScreenIndexes {
   screenElements: Map<ScreenId, ScreenElements>;
   screenHints: Map<ScreenId, ScreenHints>;
   screenPostures: Map<ScreenId, ScreenPostures>;
-  routeKnowledge: Map<ScreenId, ReadonlyArray<HarvestManifest['routes'][number]['variants'][number]>>;
+  routeKnowledge: Map<ScreenId, ReadonlyArray<RouteKnowledgeManifest['routes'][number]['variants'][number]>>;
 }
 
 export interface WorkspaceSession {
@@ -38,7 +38,7 @@ function createWorkspaceScreenIndexes(catalog: WorkspaceCatalog): WorkspaceScree
   const routeKnowledge = catalog.routeManifests
     .flatMap((entry) => entry.artifact.routes.map((route) => ({ screen: route.screen, variants: route.variants })))
     .sort((left, right) => left.screen.localeCompare(right.screen))
-    .reduce<Map<ScreenId, ReadonlyArray<HarvestManifest['routes'][number]['variants'][number]>>>(
+    .reduce<Map<ScreenId, ReadonlyArray<RouteKnowledgeManifest['routes'][number]['variants'][number]>>>(
       (acc, route) => new Map([
         ...acc,
         [
