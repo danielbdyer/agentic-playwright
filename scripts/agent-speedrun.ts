@@ -44,7 +44,7 @@ const explicitPosture = args.includes('--posture') ? argVal('--posture', '') as 
 
 const rootDir = process.cwd();
 const paths = createProjectPaths(rootDir, path.join(rootDir, 'dogfood'));
-const knowledgePosture = resolveKnowledgePosture(paths.postureConfigPath, explicitPosture);
+const knowledgePosture = resolveKnowledgePosture(explicitPosture);
 
 // ─── Progress reporter ───
 

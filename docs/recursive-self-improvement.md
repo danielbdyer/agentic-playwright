@@ -621,13 +621,15 @@ Before running the clean room, choose a **knowledge posture** — this determine
 | `warm-start` | Loaded | Loaded | "Does the pipeline resolve correctly given known screens?" |
 | `production` | Loaded | Loaded | Full deployment with version-controlled knowledge |
 
-Set the posture in one of three ways (highest precedence first):
+Set the posture in one of two ways (highest precedence first):
 
-1. **CLI flag:** `npx tsx scripts/speedrun.ts iterate --posture cold-start` (or `speedrun full --posture ...` for the deprecated bundled flow)
-2. **Suite config file:** Create `{suiteRoot}/posture.yaml` containing `posture: cold-start`
-3. **Default:** `warm-start` (backward compatible)
+1. **CLI flag:** `npx tsx scripts/speedrun.ts iterate --posture cold-start`
+2. **Default:** `warm-start`
 
-The suite config file approach is "set and forget" — every tool that loads the workspace catalog will respect it automatically without needing CLI flags.
+Per the canon-and-derivation doctrine (`docs/canon-and-derivation.md`),
+posture is configuration for HOW the loop runs, not data about the
+SUT — it belongs on the command. The legacy `posture.yaml` file
+concept and `postureConfigPath` field have been removed.
 
 **Tier 1** (always present): `.ado-sync/`, `scenarios/` (problem statement fields only), `controls/`, `benchmarks/`, `fixtures/`
 **Tier 2** (posture-gated): `knowledge/screens/`, `knowledge/patterns/`, `knowledge/surfaces/`, `knowledge/snapshots/`, `knowledge/components/`, `knowledge/routes/`
@@ -641,7 +643,7 @@ Before entering the loop:
 1. **Working tree is clean.** `git status` shows no modifications. The scorecard (`.tesseract/benchmarks/scorecard.json`) is committed at the current high-water-mark.
 2. **Pipeline version is known.** `git rev-parse --short HEAD` gives the `pipelineVersion` tag for this cycle.
 3. **Architecture fitness passes.** `npx playwright test tests/architecture-fitness.laws.spec.ts` is green.
-4. **Knowledge posture is set.** Either via `posture.yaml` at the suite root or via `--posture` flag.
+4. **Knowledge posture is set.** Via `--posture` CLI flag.
 
 ### Step 1: Wipe Synthetic State
 

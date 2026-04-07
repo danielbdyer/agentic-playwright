@@ -63,7 +63,7 @@ Tier 2 — Learned knowledge (gated by knowledge posture):
 - `knowledge/components/`
 - `knowledge/routes/`
 
-Knowledge posture (`posture.yaml` at suite root or `--posture` CLI flag):
+Knowledge posture (`--posture` CLI flag):
 
 - `cold-start`: Tier 1 only — tests the system's ability to discover and learn from scratch.
 - `warm-start`: Tier 1 + Tier 2 — tests the pipeline given pre-existing knowledge. Default.

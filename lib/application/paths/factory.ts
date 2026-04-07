@@ -13,7 +13,6 @@ function toLegacyPathAliases(
   return {
     rootDir: engine.rootDir,
     suiteRoot: engine.suiteRoot,
-    postureConfigPath: engine.postureConfigPath,
     adoSyncDir: intent.adoSyncDir,
     snapshotDir: intent.snapshotDir,
     archiveDir: intent.archiveDir,
@@ -77,7 +76,6 @@ export function createProjectPaths(rootDir: string, suiteRoot?: string): Project
   const engine: EnginePaths = {
     rootDir,
     suiteRoot: suite,
-    postureConfigPath: path.join(suite, 'posture.yaml'),
     tesseractDir: path.join(rootDir, '.tesseract'),
     generatedTypesDir: path.join(rootDir, 'lib', 'generated'),
     translationCacheDir: path.join(rootDir, '.tesseract', 'translation-cache'),

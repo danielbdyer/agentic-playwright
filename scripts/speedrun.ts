@@ -98,7 +98,7 @@ const explicitBaseUrl = args.includes('--base-url') ? argVal('--base-url', '') :
 
 const rootDir = process.cwd();
 const paths = createProjectPaths(rootDir, path.join(rootDir, 'dogfood'));
-const knowledgePosture = resolveKnowledgePosture(paths.postureConfigPath, explicitPosture);
+const knowledgePosture = resolveKnowledgePosture(explicitPosture);
 
 function loadPipelineConfig(): PipelineConfig {
   if (!configPath) return DEFAULT_PIPELINE_CONFIG;

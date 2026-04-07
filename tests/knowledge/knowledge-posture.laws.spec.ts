@@ -95,33 +95,29 @@ test('dogfood loop uses cold-start posture only on iteration 1', () => {
   expect(content).toContain("'warm-start'");
 });
 
-// ─── Law: ProjectPaths includes postureConfigPath ───
+// ─── Law: resolveKnowledgePosture respects two-level precedence (CLI > default) ───
+//
+// Per the canon-and-derivation doctrine (docs/canon-and-derivation.md),
+// posture is configuration for HOW the loop runs, not data about the
+// SUT — it belongs on the command, not in a persistent file. The
+// legacy `posture.yaml` file concept and `postureConfigPath` field
+// have been removed.
 
-test('ProjectPaths interface includes postureConfigPath', () => {
-  const typesFile = path.join(LIB_ROOT, 'application', 'paths', 'types.ts');
-  const typesContent = fs.readFileSync(typesFile, 'utf-8');
-  expect(typesContent).toContain('postureConfigPath');
-
-  const factoryFile = path.join(LIB_ROOT, 'application', 'paths', 'factory.ts');
-  const factoryContent = fs.readFileSync(factoryFile, 'utf-8');
-  expect(factoryContent).toContain('posture.yaml');
-});
-
-// ─── Law: resolveKnowledgePosture respects three-level precedence ───
-
-test('resolveKnowledgePosture implements explicit > file > default precedence', () => {
+test('resolveKnowledgePosture implements explicit > default precedence', () => {
   const posturePath = path.join(LIB_ROOT, 'application', 'knowledge', 'knowledge-posture.ts');
   const content = fs.readFileSync(posturePath, 'utf-8');
 
   // Must check explicit override first
   expect(content).toContain('explicitOverride');
-  // Must read from file as second precedence
-  expect(content).toContain('readPostureFile');
   // Must default to warm-start
   expect(content).toContain("'warm-start'");
-  // Must validate posture values
-  expect(content).toContain("'cold-start'");
-  expect(content).toContain("'production'");
+  // Must NOT have the deleted readPostureFile function or
+  // the postureConfigPath parameter (the function signature has
+  // collapsed to a single argument).
+  expect(content).not.toContain('function readPostureFile');
+  expect(content).not.toContain('postureConfigPath: string');
+  expect(content).not.toContain("require('node:fs')");
+  expect(content).not.toContain("from 'node:fs'");
 });
 
 // ─── Law: Speedrun script accepts --posture flag ───
@@ -146,7 +142,6 @@ test('CLAUDE.md documents knowledge posture tiers', () => {
   expect(content).toContain('cold-start');
   expect(content).toContain('warm-start');
   expect(content).toContain('production');
-  expect(content).toContain('posture.yaml');
 });
 
 // ─── Law: Clean room protocol documents posture ───
@@ -159,7 +154,6 @@ test('recursive-self-improvement.md documents knowledge posture', () => {
   expect(content).toContain('cold-start');
   expect(content).toContain('warm-start');
   expect(content).toContain('production');
-  expect(content).toContain('posture.yaml');
   expect(content).toContain('projectScenarioToTier1');
 });
 

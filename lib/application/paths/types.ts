@@ -1,7 +1,6 @@
 export interface EnginePaths {
   readonly rootDir: string;
   readonly suiteRoot: string;
-  readonly postureConfigPath: string;
   readonly tesseractDir: string;
   readonly generatedTypesDir: string;
   readonly translationCacheDir: string;
@@ -79,7 +78,6 @@ export interface GovernancePaths {
 export interface LegacyProjectPathAliases {
   readonly rootDir: string;
   readonly suiteRoot: string;
-  readonly postureConfigPath: string;
   readonly adoSyncDir: string;
   readonly snapshotDir: string;
   readonly archiveDir: string;
