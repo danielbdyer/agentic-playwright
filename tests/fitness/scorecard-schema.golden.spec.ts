@@ -81,32 +81,57 @@ test('every proofObligation in highWaterMark has a measurementClass', () => {
   }
 });
 
-test('baseline scorecard has zero direct measurements (honest baseline)', () => {
+test('baseline scorecard has two direct measurements after 4 cohort-comparable runs', () => {
   const scorecard = loadBaseline();
   const obligations = scorecard.highWaterMark.proofObligations ?? [];
-  const directCount = obligations.filter((o) => o.measurementClass === 'direct').length;
-  // On a fresh single-run speedrun, NO obligation should be `direct`.
-  // The cohort-trajectory builder needs ≥3 history points; the
-  // fingerprint-stability probe is not wired into the speedrun yet.
-  // Every obligation produced by `runtimeProofObligations` is
-  // heuristic-proxy by construction (Phase 1.7).
-  expect(directCount).toBe(0);
+  const directObligations = obligations.filter((o) => o.measurementClass === 'direct');
+  // After 4 sequential speedruns the baseline fixture captures TWO
+  // direct obligations:
+  //   1. fingerprint-stability — from the K0 probe (Phase 1.4 + N1)
+  //   2. compounding-economics — graduates once the trajectory has
+  //      ≥3 history samples (Phase 1.3)
+  // This is the honest endpoint after N1–N3: the framework correctly
+  // reports two real structural measurements, not heuristic risk scores.
+  expect(directObligations).toHaveLength(2);
+  const names = new Set(directObligations.map((o) => o.obligation));
+  expect(names.has('fingerprint-stability')).toBe(true);
+  expect(names.has('compounding-economics')).toBe(true);
 });
 
-test('baseline scorecard obligations are all heuristic-proxy', () => {
+test('compounding-economics carries a 3+-sample cohort trajectory', () => {
   const scorecard = loadBaseline();
   const obligations = scorecard.highWaterMark.proofObligations ?? [];
-  const proxyCount = obligations.filter((o) => o.measurementClass === 'heuristic-proxy').length;
-  expect(proxyCount).toBe(obligations.length);
+  const c = obligations.find((o) => o.obligation === 'compounding-economics')!;
+  expect(c.measurementClass).toBe('direct');
+  expect(c.evidence).toMatch(/\d+ samples/);
+  // evidence format: "...trajectory: N samples, direction=..."
+  const samples = Number(c.evidence.match(/(\d+) samples/)?.[1] ?? 0);
+  expect(samples).toBeGreaterThanOrEqual(3);
+});
+
+test('baseline scorecard obligations other than probes are heuristic-proxy', () => {
+  const scorecard = loadBaseline();
+  const obligations = scorecard.highWaterMark.proofObligations ?? [];
+  const directNames = new Set(['fingerprint-stability', 'compounding-economics']);
+  const nonDirect = obligations.filter((o) => !directNames.has(o.obligation));
+  const proxyCount = nonDirect.filter((o) => o.measurementClass === 'heuristic-proxy').length;
+  expect(proxyCount).toBe(nonDirect.length);
 });
 
 // ─── Phase 1.7: theoremBaselineSummary honesty ─────────────────────
 
-test('theoremBaselineSummary reports 0 direct on a fresh single-run', () => {
+test('theoremBaselineSummary shows C graduated to direct after 4 runs', () => {
   const scorecard = loadBaseline();
   const summary = scorecard.highWaterMark.theoremBaselineSummary;
   expect(summary).toBeDefined();
-  expect(summary!.direct).toBe(0);
+  // After 4 cohort-comparable runs, exactly the C theorem group
+  // graduates to `direct`. K does NOT graduate because Phase 1.4
+  // requires BOTH posture-separability AND fingerprint-stability to
+  // be direct, and posture-separability is still heuristic-proxy.
+  // This is the honest partial-credit the framework reports.
+  expect(summary!.direct).toBe(1);
+  expect(summary!.directGroups).toContain('C');
+  expect(summary!.directGroups).not.toContain('K');
   expect(summary!.proxy).toBeGreaterThan(0);
   expect(summary!.fullyBaselined).toBe(false);
 });

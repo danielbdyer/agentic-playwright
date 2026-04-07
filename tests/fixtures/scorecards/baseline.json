@@ -2,12 +2,12 @@
   "kind": "pipeline-scorecard",
   "version": 1,
   "highWaterMark": {
-    "setAt": "2026-04-07T03:04:56.589Z",
-    "pipelineVersion": "b123bf1",
+    "setAt": "2026-04-07T04:23:20.891Z",
+    "pipelineVersion": "5b94fb9",
     "effectiveHitRate": 0.4,
     "knowledgeHitRate": 0.4,
     "translationPrecision": 1,
-    "convergenceVelocity": 2,
+    "convergenceVelocity": 3,
     "proposalYield": 1,
     "proofObligations": [
       {
@@ -35,9 +35,9 @@
         "propertyRefs": [
           "S"
         ],
-        "score": 0.33,
+        "score": 0.4,
         "status": "watch",
-        "evidence": "roleCoverageRate=1, affordanceCoverageRate=0.5333, locatorCoverageRate=0.3333, degradedLocatorRate=0, ambiguityRate=0.6",
+        "evidence": "roleCoverageRate=1, affordanceCoverageRate=0.6667, locatorCoverageRate=0.4667, degradedLocatorRate=0, ambiguityRate=0.6",
         "measurementClass": "heuristic-proxy"
       },
       {
@@ -110,10 +110,10 @@
           "C",
           "M"
         ],
-        "score": 0.4,
+        "score": 0.5,
         "status": "watch",
-        "evidence": "gateHitRate=0.4, proposalYield=1, degradedLocatorRate=0 (heuristic — no cohort trajectory available)",
-        "measurementClass": "heuristic-proxy"
+        "evidence": "effectiveHitRate trajectory: 3 samples, direction=flat, slope=0.0000, oriented=higher-is-better",
+        "measurementClass": "direct"
       },
       {
         "obligation": "surface-compressibility",
@@ -122,7 +122,7 @@
         ],
         "score": 0,
         "status": "critical",
-        "evidence": "translationRecall=0, ambiguityRate=0.6, liveDomFallbackRate=0, coverageShare=0.68",
+        "evidence": "translationRecall=0, ambiguityRate=0.6, liveDomFallbackRate=0, coverageShare=0.72",
         "measurementClass": "heuristic-proxy"
       },
       {
@@ -174,20 +174,32 @@
         "status": "critical",
         "evidence": "surfaceCompressibilityRisk=1, surfacePredictabilityRisk=0.6, surfaceRepairabilityRisk=0.3, participatoryRepairabilityRisk=1, memoryWorthinessRisk=0.76",
         "measurementClass": "heuristic-proxy"
+      },
+      {
+        "obligation": "fingerprint-stability",
+        "propertyRefs": [
+          "K"
+        ],
+        "score": 0.4444,
+        "status": "critical",
+        "evidence": "delta: total=27, stable=12, added=0, removed=0, changed=15, identical=false",
+        "measurementClass": "direct"
       }
     ],
     "theoremBaselineSummary": {
       "total": 10,
       "byStatus": {
-        "direct": 0,
-        "proxy": 9,
+        "direct": 1,
+        "proxy": 8,
         "missing": 1
       },
-      "direct": 0,
-      "proxy": 9,
+      "direct": 1,
+      "proxy": 8,
       "missing": 1,
       "fullyBaselined": false,
-      "directGroups": [],
+      "directGroups": [
+        "C"
+      ],
       "proxyGroups": [
         "K",
         "L",
@@ -196,7 +208,6 @@
         "V",
         "R",
         "A",
-        "C",
         "M"
       ],
       "missingGroups": [
@@ -211,13 +222,13 @@
       },
       {
         "rung": "control",
-        "wins": 0,
-        "rate": 0
+        "wins": 6,
+        "rate": 0.4
       },
       {
         "rung": "approved-screen-knowledge",
-        "wins": 10,
-        "rate": 1
+        "wins": 0,
+        "rate": 0
       },
       {
         "rung": "shared-patterns",
@@ -256,8 +267,8 @@
       },
       {
         "rung": "needs-human",
-        "wins": 0,
-        "rate": 0
+        "wins": 9,
+        "rate": 0.6
       }
     ],
     "memoryMaturity": 4.3923,
@@ -265,12 +276,12 @@
   },
   "history": [
     {
-      "runAt": "2026-04-07T03:04:56.589Z",
-      "pipelineVersion": "b123bf1",
+      "runAt": "2026-04-07T04:21:51.166Z",
+      "pipelineVersion": "5b94fb9",
       "effectiveHitRate": 0.4,
       "knowledgeHitRate": 0.4,
       "translationPrecision": 1,
-      "convergenceVelocity": 2,
+      "convergenceVelocity": 3,
       "theoremBaselineSummary": {
         "total": 10,
         "byStatus": {
@@ -301,17 +312,165 @@
       "improved": true,
       "memoryMaturity": 4.3923,
       "memoryMaturityEntries": 20
+    },
+    {
+      "runAt": "2026-04-07T04:22:32.368Z",
+      "pipelineVersion": "5b94fb9",
+      "effectiveHitRate": 0.4,
+      "knowledgeHitRate": 0.4,
+      "translationPrecision": 1,
+      "convergenceVelocity": 3,
+      "theoremBaselineSummary": {
+        "total": 10,
+        "byStatus": {
+          "direct": 0,
+          "proxy": 9,
+          "missing": 1
+        },
+        "direct": 0,
+        "proxy": 9,
+        "missing": 1,
+        "fullyBaselined": false,
+        "directGroups": [],
+        "proxyGroups": [
+          "K",
+          "L",
+          "S",
+          "D",
+          "V",
+          "R",
+          "A",
+          "C",
+          "M"
+        ],
+        "missingGroups": [
+          "H"
+        ]
+      },
+      "improved": true,
+      "memoryMaturity": 4.3923,
+      "memoryMaturityEntries": 20
+    },
+    {
+      "runAt": "2026-04-07T04:22:51.151Z",
+      "pipelineVersion": "5b94fb9",
+      "effectiveHitRate": 0.4,
+      "knowledgeHitRate": 0.4,
+      "translationPrecision": 1,
+      "convergenceVelocity": 3,
+      "theoremBaselineSummary": {
+        "total": 10,
+        "byStatus": {
+          "direct": 0,
+          "proxy": 9,
+          "missing": 1
+        },
+        "direct": 0,
+        "proxy": 9,
+        "missing": 1,
+        "fullyBaselined": false,
+        "directGroups": [],
+        "proxyGroups": [
+          "K",
+          "L",
+          "S",
+          "D",
+          "V",
+          "R",
+          "A",
+          "C",
+          "M"
+        ],
+        "missingGroups": [
+          "H"
+        ]
+      },
+      "improved": true,
+      "memoryMaturity": 4.3923,
+      "memoryMaturityEntries": 20
+    },
+    {
+      "runAt": "2026-04-07T04:23:20.891Z",
+      "pipelineVersion": "5b94fb9",
+      "effectiveHitRate": 0.4,
+      "knowledgeHitRate": 0.4,
+      "translationPrecision": 1,
+      "convergenceVelocity": 3,
+      "theoremBaselineSummary": {
+        "total": 10,
+        "byStatus": {
+          "direct": 1,
+          "proxy": 8,
+          "missing": 1
+        },
+        "direct": 1,
+        "proxy": 8,
+        "missing": 1,
+        "fullyBaselined": false,
+        "directGroups": [
+          "C"
+        ],
+        "proxyGroups": [
+          "K",
+          "L",
+          "S",
+          "D",
+          "V",
+          "R",
+          "A",
+          "M"
+        ],
+        "missingGroups": [
+          "H"
+        ]
+      },
+      "improved": true,
+      "memoryMaturity": 4.3923,
+      "memoryMaturityEntries": 20
     }
   ],
   "paretoFrontier": [
     {
-      "pipelineVersion": "b123bf1",
-      "addedAt": "2026-04-07T03:04:56.589Z",
+      "pipelineVersion": "5b94fb9",
+      "addedAt": "2026-04-07T04:21:51.166Z",
       "objectives": {
         "effectiveHitRate": 0.4,
         "knowledgeHitRate": 0.4,
         "translationPrecision": 1,
-        "convergenceVelocity": 2,
+        "convergenceVelocity": 3,
+        "proposalYield": 1
+      }
+    },
+    {
+      "pipelineVersion": "5b94fb9",
+      "addedAt": "2026-04-07T04:22:32.368Z",
+      "objectives": {
+        "effectiveHitRate": 0.4,
+        "knowledgeHitRate": 0.4,
+        "translationPrecision": 1,
+        "convergenceVelocity": 3,
+        "proposalYield": 1
+      }
+    },
+    {
+      "pipelineVersion": "5b94fb9",
+      "addedAt": "2026-04-07T04:22:51.151Z",
+      "objectives": {
+        "effectiveHitRate": 0.4,
+        "knowledgeHitRate": 0.4,
+        "translationPrecision": 1,
+        "convergenceVelocity": 3,
+        "proposalYield": 1
+      }
+    },
+    {
+      "pipelineVersion": "5b94fb9",
+      "addedAt": "2026-04-07T04:23:20.891Z",
+      "objectives": {
+        "effectiveHitRate": 0.4,
+        "knowledgeHitRate": 0.4,
+        "translationPrecision": 1,
+        "convergenceVelocity": 3,
         "proposalYield": 1
       }
     }

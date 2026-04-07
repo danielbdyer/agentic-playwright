@@ -32,6 +32,7 @@ import { buildImprovementRun, recordImprovementRun, scorecardPath } from './impr
 import { loadExperimentRegistry, recordExperiment } from './experiment-registry';
 import { summarizeKnowledgeCoverage } from './knowledge-coverage';
 import { projectMemoryMaturityCounts } from './memory-maturity-projection';
+import { runFingerprintStabilityProbe } from './fingerprint-stability-probe';
 import { calibrateWeightsFromCorrelations } from '../learning/learning-bottlenecks';
 import { loadWorkspaceCatalog } from '../catalog';
 import { cleanSlateProgram } from './clean-slate';
@@ -347,6 +348,17 @@ export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunRes
     // history. Without this, every report falls back to the heuristic-proxy
     // form of `compounding-economics`.
     const existingScorecardForTrajectory = yield* loadScorecard(input.paths);
+
+    // Run the K0 fingerprint-stability probe. On the first run it emits
+    // a baseline direct obligation; on subsequent runs it reports real
+    // byte-level churn. Either way, the obligation carries
+    // `measurementClass: 'direct'` and is merged into the fitness report
+    // through `extraObligations`. This is the live path that graduates
+    // fingerprint-stability from slot-only to measured.
+    const probeResult = yield* runFingerprintStabilityProbe({ paths: input.paths }).pipe(
+      Effect.catchAll(() => Effect.succeed(null as { obligation: import('../../domain/fitness/types').LogicalProofObligation; artifactCount: number } | null)),
+    );
+
     const fitnessData: FitnessInputData = {
       pipelineVersion,
       ledger,
@@ -356,6 +368,7 @@ export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunRes
       experimentHistory: priorRegistry.experiments,
       memoryMaturityCounts: projectMemoryMaturityCounts(catalog),
       existingScorecard: existingScorecardForTrajectory,
+      extraObligations: probeResult ? [probeResult.obligation] : [],
     };
     const fitnessReport = buildFitnessReport(fitnessData);
     const fitnessDuration = Date.now() - fitnessStart;
@@ -811,6 +824,9 @@ export function reportPhase(input: ReportPhaseInput) {
       : reportEmptyLedger;
 
     const existingScorecard = yield* loadScorecard(input.paths);
+    const reportPhaseProbe = yield* runFingerprintStabilityProbe({ paths: input.paths }).pipe(
+      Effect.catchAll(() => Effect.succeed(null as { obligation: import('../../domain/fitness/types').LogicalProofObligation; artifactCount: number } | null)),
+    );
     const fitnessReport = buildFitnessReport({
       pipelineVersion,
       ledger: reportLedger,
@@ -819,6 +835,7 @@ export function reportPhase(input: ReportPhaseInput) {
       knowledgeCoverage: summarizeKnowledgeCoverage(catalog),
       memoryMaturityCounts: projectMemoryMaturityCounts(catalog),
       existingScorecard,
+      extraObligations: reportPhaseProbe ? [reportPhaseProbe.obligation] : [],
     });
 
     const comparison = compareToScorecard(fitnessReport, existingScorecard);

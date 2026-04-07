@@ -139,6 +139,11 @@ export interface FitnessInputData {
   readonly knowledgeCoverage?: KnowledgeCoverageSummary | undefined;
   /** Learning signals from the last iteration — enriches fitness metrics with execution health. */
   readonly learningSignals?: import('../../domain/improvement/types').LearningSignalsSummary | undefined;
+  /** Obligations produced by out-of-band probes (e.g. fingerprint-stability)
+   *  whose `measurementClass: 'direct'` is earned through real structural
+   *  measurement rather than heuristic risk scoring. Merged into the
+   *  runtime obligation set and passed through to the scorecard. */
+  readonly extraObligations?: readonly import('../../domain/fitness/types').LogicalProofObligation[] | undefined;
   /** Operational `MemoryMaturity(τ)` counts derived from the catalog at the
    *  time the fitness report is built. Used by C-family obligations and the
    *  scorecard history to track compounding direction across cohorts. */
@@ -832,7 +837,15 @@ export function buildFitnessReport(data: FitnessInputData): PipelineFitnessRepor
         direction: 'higher-is-better',
       })
     : undefined;
-  const proofObligations = runtimeProofObligations(metrics, compoundingTrajectory);
+  const runtimeObligations = runtimeProofObligations(metrics, compoundingTrajectory);
+  // Merge in out-of-band probe obligations (e.g. fingerprint-stability).
+  // Extras override runtime obligations by name — a direct probe result
+  // supersedes the heuristic-proxy entry for the same obligation name
+  // when both exist.
+  const extraByName = new Map((data.extraObligations ?? []).map((o) => [o.obligation, o] as const));
+  const proofObligations = runtimeObligations
+    .filter((o) => !extraByName.has(o.obligation))
+    .concat([...extraByName.values()]);
   const metricsWithProofs: PipelineFitnessMetrics = {
     ...metrics,
     proofObligations,
