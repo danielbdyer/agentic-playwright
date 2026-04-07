@@ -12,7 +12,7 @@ import {
 // keeps the fifth-kind loop's measurement workload separable from the
 // unit-test golden fixtures.
 //
-// See dogfood/scenarios/README.md for the doctrinal explanation.
+// See docs/scenario-partition.md for the doctrinal explanation.
 
 const DEMO_ID_LOW = 10000;
 const DEMO_ID_HIGH = 20000;
