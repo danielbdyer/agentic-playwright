@@ -13,7 +13,7 @@
  * This module owns only the value object.
  */
 
-import type { MetricNode } from './metric-tree';
+import type { MetricNode } from './tree';
 
 // ─── Baseline ───
 

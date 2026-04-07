@@ -12,10 +12,10 @@
  * do not re-interpret raw metric values.
  */
 
-import type { Metric } from './metric';
-import type { MetricNode } from './metric-tree';
-import { flattenMetricTree } from './metric-tree';
-import { metricPolarity, type MetricPolarity } from './metric-catalogue';
+import type { Metric } from './value';
+import type { MetricNode } from './tree';
+import { flattenMetricTree } from './tree';
+import { metricPolarity, type MetricPolarity } from './catalogue';
 
 // ─── Delta direction ───
 

@@ -19,8 +19,8 @@
  * establishes only the typeclass and the registry shape.
  */
 
-import type { MetricNode } from './metric-tree';
-import type { L4MetricKind } from './metric-catalogue';
+import type { MetricNode } from './tree';
+import type { L4MetricKind } from './catalogue';
 
 // ─── Visitor typeclass ───
 

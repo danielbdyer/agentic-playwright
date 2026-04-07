@@ -14,7 +14,7 @@
  * Trees are immutable. All builders return new structures.
  */
 
-import type { Metric } from './metric';
+import type { Metric } from './value';
 
 // ─── Node ───
 

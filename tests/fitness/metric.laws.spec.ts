@@ -4,7 +4,7 @@ import {
   isMetricOfKind,
   type Metric,
   type MetricProvenance,
-} from '../../lib/domain/fitness/metric';
+} from '../../lib/domain/fitness/metric/value';
 import {
   metricNode,
   foldMetricTree,
@@ -14,22 +14,22 @@ import {
   countMetricNodes,
   metricTreeDepth,
   type MetricNode,
-} from '../../lib/domain/fitness/metric-tree';
+} from '../../lib/domain/fitness/metric/tree';
 import {
   L4_METRIC_KINDS,
   L4_METRIC_POLARITY,
   metricPolarity,
   isL4MetricKind,
-} from '../../lib/domain/fitness/metric-catalogue';
+} from '../../lib/domain/fitness/metric/catalogue';
 import {
   metricBaseline,
-} from '../../lib/domain/fitness/metric-baseline';
+} from '../../lib/domain/fitness/metric/baseline';
 import {
   diffMetricTrees,
   deltaVerdict,
-} from '../../lib/domain/fitness/metric-delta';
-import type { MetricVisitor } from '../../lib/domain/fitness/metric-visitor';
-import { applyMetricVisitor, assertL4RegistryComplete } from '../../lib/domain/fitness/metric-visitor';
+} from '../../lib/domain/fitness/metric/delta';
+import type { MetricVisitor } from '../../lib/domain/fitness/metric/visitor';
+import { applyMetricVisitor, assertL4RegistryComplete } from '../../lib/domain/fitness/metric/visitor';
 
 // ─── Provenance helper ─────────────────────────────────────────────
 
