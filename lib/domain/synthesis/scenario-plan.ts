@@ -263,7 +263,15 @@ export function planSyntheticScenarios(input: ScenarioPlanningInput): ScenarioPl
     const screen = screens[index % Math.max(screens.length, 1)]
       ?? { screenId: 'empty', screenAliases: ['empty'], elements: [] };
 
-    const scenario = generateScenario(screen, index, screens, perturbation, rng);
+    const scenario = generateScenario(
+      screen,
+      index,
+      screens,
+      perturbation,
+      rng,
+      input.archetypePreference,
+      input.cohortLabel,
+    );
     const adoId = String(baseId + index);
     const materialized = { ...scenario, adoId };
     const split = input.validationSplit && input.validationSplit > 0 && rng() < input.validationSplit
