@@ -84,10 +84,15 @@ export const ScreenElementsSchema = Schema.Struct({
 
 export const ScreenElementHintSchema = Schema.Struct({
   aliases: Schema.optionalWith(StringArray, { default: () => [] as readonly string[] }),
+  role: Schema.optionalWith(NullableString, { default: () => null }),
   defaultValueRef: Schema.optionalWith(NullableString, { default: () => null }),
   parameter: Schema.optionalWith(NullableString, { default: () => null }),
   snapshotAliases: Schema.optional(Schema.Record({ key: Schema.String, value: StringArray })),
   affordance: Schema.optionalWith(NullableString, { default: () => null }),
+  locatorLadder: Schema.optionalWith(Schema.Array(LocatorStrategySchema), { default: () => [] as readonly (typeof LocatorStrategySchema.Type)[] }),
+  source: Schema.optionalWith(NullableString, { default: () => null }),
+  epistemicStatus: Schema.optionalWith(NullableString, { default: () => null }),
+  activationPolicy: Schema.optionalWith(NullableString, { default: () => null }),
   acquired: Schema.optionalWith(Schema.NullOr(CanonicalKnowledgeMetadataSchema), { default: () => null }),
 });
 

@@ -1,58 +1,57 @@
 import { createWidgetId } from '../kernel/identity';
 import type { WidgetCapabilityContract } from '../knowledge/widget-types';
+import {
+  LEGACY_WIDGET_ROLE_BRIDGE,
+  affordancesForRole,
+  roleForWidget,
+} from './role-affordances';
 
 export type WidgetContractRegistry = Record<string, WidgetCapabilityContract>;
 
-export const osButtonContract: WidgetCapabilityContract = {
-  widget: createWidgetId('os-button'),
-  supportedActions: ['click', 'get-value'],
-  requiredPreconditions: ['enabled', 'visible'],
-  sideEffects: {
-    click: {
-      expectedStates: ['enabled', 'visible'],
-      effectCategories: ['mutation'],
-    },
-    'get-value': {
-      expectedStates: ['visible'],
-      effectCategories: ['observation'],
-    },
-  },
-};
+function uniqueOrdered<T extends string>(values: readonly T[]): readonly T[] {
+  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
+}
 
-export const osInputContract: WidgetCapabilityContract = {
-  widget: createWidgetId('os-input'),
-  supportedActions: ['clear', 'fill', 'get-value'],
-  requiredPreconditions: ['editable', 'enabled', 'visible'],
-  sideEffects: {
-    fill: {
-      expectedStates: ['enabled', 'visible'],
-      effectCategories: ['mutation'],
-    },
-    clear: {
-      expectedStates: ['enabled', 'visible'],
-      effectCategories: ['mutation'],
-    },
-    'get-value': {
-      expectedStates: ['visible'],
-      effectCategories: ['observation'],
-    },
-  },
-};
+function deriveContractForWidget(widget: string): WidgetCapabilityContract | null {
+  const role = roleForWidget(widget);
+  if (!role) {
+    return null;
+  }
 
-export const osTableContract: WidgetCapabilityContract = {
-  widget: createWidgetId('os-table'),
-  supportedActions: ['get-value'],
-  requiredPreconditions: ['visible'],
-  sideEffects: {
-    'get-value': {
-      expectedStates: ['visible'],
-      effectCategories: ['observation'],
-    },
-  },
-};
+  const affordances = affordancesForRole(role);
+  if (affordances.length === 0) {
+    return null;
+  }
 
-export const widgetCapabilityContracts: WidgetContractRegistry = {
-  [osButtonContract.widget]: osButtonContract,
-  [osInputContract.widget]: osInputContract,
-  [osTableContract.widget]: osTableContract,
-};
+  return {
+    widget: createWidgetId(widget),
+    supportedActions: uniqueOrdered(affordances.map((affordance) => affordance.action)),
+    requiredPreconditions: uniqueOrdered(
+      affordances.flatMap((affordance) => affordance.preconditions),
+    ),
+    sideEffects: Object.fromEntries(
+      affordances.map((affordance) => [
+        affordance.action,
+        {
+          expectedStates: uniqueOrdered(
+            affordance.preconditions.filter((state) => state === 'visible' || state === 'enabled'),
+          ),
+          effectCategories: [affordance.effectCategory],
+        },
+      ]),
+    ),
+  };
+}
+
+const derivedContracts = Object.keys(LEGACY_WIDGET_ROLE_BRIDGE)
+  .sort((left, right) => left.localeCompare(right))
+  .flatMap((widget) => {
+    const contract = deriveContractForWidget(widget);
+    return contract ? [[widget, contract] as const] : [];
+  });
+
+export const widgetCapabilityContracts: WidgetContractRegistry = Object.fromEntries(derivedContracts);
+
+export const osButtonContract = widgetCapabilityContracts['os-button']!;
+export const osInputContract = widgetCapabilityContracts['os-input']!;
+export const osTableContract = widgetCapabilityContracts['os-table']!;

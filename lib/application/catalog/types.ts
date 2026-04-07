@@ -9,7 +9,7 @@ import type {
 import type { TrustPolicy } from '../../domain/governance/workflow-types';
 import type { AgentSession } from '../../domain/handshake/session';
 import type { ImprovementRun } from '../../domain/improvement/types';
-import type { HarvestManifest } from '../../domain/intent/routes';
+import type { RouteKnowledgeManifest } from '../../domain/intent/routes';
 import type { AdoSnapshot, BoundScenario, Scenario } from '../../domain/intent/types';
 import type {
   BehaviorPatternDocument,
@@ -74,7 +74,7 @@ export interface WorkspaceCatalog {
   rerunPlans: ArtifactEnvelope<RerunPlan>[];
   datasets: ArtifactEnvelope<DatasetControl>[];
   benchmarks: ArtifactEnvelope<BenchmarkContext>[];
-  routeManifests: ArtifactEnvelope<HarvestManifest>[];
+  routeManifests: ArtifactEnvelope<RouteKnowledgeManifest>[];
   resolutionControls: ArtifactEnvelope<ResolutionControl>[];
   runbooks: ArtifactEnvelope<RunbookControl>[];
   surfaces: ArtifactEnvelope<SurfaceGraph>[];

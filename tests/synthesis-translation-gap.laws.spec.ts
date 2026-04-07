@@ -45,6 +45,27 @@ test.describe('held-out vocabulary generation laws', () => {
     expect(matches.length).toBeGreaterThan(0);
   });
 
+  test('derives select and check vocabulary from role affordances instead of generic click verbs', () => {
+    const selectPhrases = generateHeldOutPhrases(
+      'policyType',
+      'os-select',
+      'policy-search',
+      createSeededRng('select-affordance-verbs'),
+    );
+    const checkboxPhrases = generateHeldOutPhrases(
+      'acceptTerms',
+      'os-checkbox',
+      'policy-search',
+      createSeededRng('checkbox-affordance-verbs'),
+    );
+
+    const selectText = selectPhrases.map((p) => p.text.toLowerCase()).join(' ');
+    const checkboxText = checkboxPhrases.map((p) => p.text.toLowerCase()).join(' ');
+
+    expect(['select', 'choose', 'pick', 'set'].some((verb) => selectText.includes(verb))).toBe(true);
+    expect(['check', 'tick', 'mark', 'enable', 'turn on'].some((verb) => checkboxText.includes(verb))).toBe(true);
+  });
+
   test('includes natural language assertion patterns', () => {
     const rng = createSeededRng('nl-assertions');
     const phrases = generateHeldOutPhrases('claimsTable', 'os-table', 'policy-detail', rng);

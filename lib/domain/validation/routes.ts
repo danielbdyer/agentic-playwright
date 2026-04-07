@@ -1,6 +1,8 @@
 import * as schemas from '../schemas';
 import * as schemaDecode from '../schemas/decode';
-import type { HarvestManifest } from '../intent/routes';
+import type { RouteKnowledgeManifest } from '../intent/routes';
 
-export const validateHarvestManifest = schemaDecode.decoderFor<HarvestManifest>(schemas.HarvestManifestSchema);
-export const validateRouteKnowledgeManifest = validateHarvestManifest;
+export const validateRouteKnowledgeManifest =
+  schemaDecode.decoderFor<RouteKnowledgeManifest>(schemas.RouteKnowledgeManifestSchema);
+/** @deprecated Use validateRouteKnowledgeManifest. */
+export const validateHarvestManifest = validateRouteKnowledgeManifest;

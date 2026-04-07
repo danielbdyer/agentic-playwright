@@ -1,5 +1,6 @@
-kind: harvest-manifest
+kind: route-knowledge
 version: 1
+governance: approved
 app: demo
 baseUrl: fixtures/demo-harness
 routes:
@@ -11,11 +12,41 @@ routes:
       - id: default
         url: /policy-search.html
         screen: policy-search
+        pathTemplate: /policy-search.html
+        query: {}
+        hash: null
+        tab: null
         rootSelector: body
+        urlPattern: /policy-search.html
+        dimensions: []
+        expectedEntryState:
+          requiredStateRefs:
+            - state:policy-search:search-form-visible
+          forbiddenStateRefs:
+            - state:policy-search:results-visible
+        state: {}
+        mappedScreens:
+          - policy-search
       - id: results-with-policy
         url: /policy-search.html?seed=POL-001
         screen: policy-search
+        pathTemplate: /policy-search.html
+        query:
+          seed: POL-001
+        hash: null
+        tab: null
         rootSelector: body
+        urlPattern: /policy-search.html?seed={seed}
+        dimensions:
+          - query
+        expectedEntryState:
+          requiredStateRefs:
+            - state:policy-search:results-visible
+          forbiddenStateRefs: []
+        state:
+          seed: POL-001
+        mappedScreens:
+          - policy-search
   - id: policy-detail
     screen: policy-detail
     entryUrl: /policy-detail.html?id=POL-001
@@ -24,7 +55,23 @@ routes:
       - id: with-policy
         url: /policy-detail.html?id=POL-001
         screen: policy-detail
+        pathTemplate: /policy-detail.html
+        query:
+          id: POL-001
+        hash: null
+        tab: null
         rootSelector: body
+        urlPattern: /policy-detail.html?id={id}
+        dimensions:
+          - query
+        expectedEntryState:
+          requiredStateRefs:
+            - state:policy-detail:loaded
+          forbiddenStateRefs: []
+        state:
+          id: POL-001
+        mappedScreens:
+          - policy-detail
   - id: policy-amendment
     screen: policy-amendment
     entryUrl: /policy-amendment.html?id=AMD-001
@@ -33,4 +80,23 @@ routes:
       - id: with-amendment
         url: /policy-amendment.html?id=AMD-001
         screen: policy-amendment
+        pathTemplate: /policy-amendment.html
+        query:
+          id: AMD-001
+        hash: null
+        tab: approve
         rootSelector: body
+        urlPattern: /policy-amendment.html?id={id}
+        dimensions:
+          - query
+          - tab
+        expectedEntryState:
+          requiredStateRefs:
+            - state:policy-amendment:review-options-visible
+            - state:policy-amendment:approve-tab
+          forbiddenStateRefs: []
+        state:
+          id: AMD-001
+          tab: approve
+        mappedScreens:
+          - policy-amendment

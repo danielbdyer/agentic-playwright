@@ -11,7 +11,7 @@ import type {
 } from '../../domain/execution/types';
 import type { AgentSession } from '../../domain/handshake/session';
 import type { ImprovementRun } from '../../domain/improvement/types';
-import type { HarvestManifest } from '../../domain/intent/routes';
+import type { RouteKnowledgeManifest } from '../../domain/intent/routes';
 import type { AdoSnapshot, BoundScenario, Scenario } from '../../domain/intent/types';
 import type {
   BehaviorPatternDocument,
@@ -50,7 +50,6 @@ import {
   validateConfidenceOverlayCatalog,
   validateDatasetControl,
   validateDiscoveryRun,
-  validateHarvestManifest,
   validatePatternDocument,
   validateProposalBundle,
   validateReplayExample,
@@ -72,6 +71,7 @@ import {
   validateInterpretationDriftRecord,
   validateResolutionGraphRecord,
   validateBehaviorPatternDocument,
+  validateRouteKnowledgeManifest,
 } from '../../domain/validation';
 import { walkFiles } from '../catalog/artifacts';
 import type { ProjectPaths } from '../paths';
@@ -93,7 +93,7 @@ function sortByArtifactPath<T>(envelopes: ArtifactEnvelope<T>[]): ArtifactEnvelo
   return [...envelopes].sort((a, b) => a.artifactPath.localeCompare(b.artifactPath));
 }
 
-function normalizeRouteManifest(manifest: HarvestManifest): HarvestManifest {
+function normalizeRouteManifest(manifest: RouteKnowledgeManifest): RouteKnowledgeManifest {
   return {
     ...manifest,
     routes: [...manifest.routes]
@@ -315,9 +315,9 @@ export function loadWorkspaceCatalog(options: LoadCatalogOptions) {
       runRecords: loadAllDisposableJson<RunRecord>(options.paths,
         walks.runs.filter((f) => path.basename(f) === 'run.json'),
         validateRunRecord, 'run-record-validation-failed', 'Run record'),
-      routeManifests: loadAllYaml<HarvestManifest>(options.paths,
+      routeManifests: loadAllYaml<RouteKnowledgeManifest>(options.paths,
         walks.routes.filter((f) => f.endsWith('.routes.yaml')),
-        validateHarvestManifest, 'harvest-manifest-validation-failed', 'Harvest manifest'),
+        validateRouteKnowledgeManifest, 'route-knowledge-validation-failed', 'Route knowledge'),
       discoveryRuns: loadAllJson<DiscoveryRun>(options.paths,
         walks.discovery.filter((f) => path.basename(f) === 'crawl.json'),
         validateDiscoveryRun, 'discovery-run-validation-failed', 'Discovery run'),
