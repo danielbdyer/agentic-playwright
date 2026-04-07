@@ -145,6 +145,18 @@ test('shouldContinueLoop stops at threshold 1.0 when rate is 1.0', () => {
   expect(shouldContinueLoop(0, metrics, config)).toBe(false);
 });
 
+test('shouldContinueLoop prefers effectiveHitRate as the convergence gate when available', () => {
+  const config = createConfig({ convergenceThreshold: 0.85 });
+  const metrics = createMetrics({ effectiveHitRate: 0.9, knowledgeHitRate: 0.4 });
+  expect(shouldContinueLoop(0, metrics, config)).toBe(false);
+});
+
+test('shouldContinueLoop keeps knowledgeHitRate informational when effectiveHitRate is still below threshold', () => {
+  const config = createConfig({ convergenceThreshold: 0.85 });
+  const metrics = createMetrics({ effectiveHitRate: 0.6, knowledgeHitRate: 0.95 });
+  expect(shouldContinueLoop(0, metrics, config)).toBe(true);
+});
+
 // ─── Law: shouldContinueLoop detects Lyapunov fixed point ───
 
 test('shouldContinueLoop detects fixed point from flat energy history', () => {

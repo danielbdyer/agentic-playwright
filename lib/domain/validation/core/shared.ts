@@ -95,6 +95,9 @@ export const diagnosticConfidences = ['human', 'agent-verified', 'agent-proposed
 export const workflowStages = ['preparation', 'resolution', 'execution', 'evidence', 'proposal', 'projection'] as const;
 export const workflowScopes = ['scenario', 'step', 'run', 'suite', 'workspace', 'control'] as const;
 export const workflowLanes = ['intent', 'knowledge', 'control', 'resolution', 'execution', 'governance', 'projection'] as const;
+export const proposalCategories = ['cold-start-discovery', 'needs-human', 'partial-resolution-stabilization', 'deterministic-alias-stabilization', 'interpretation-enrichment', 'route-discovery'] as const;
+export const proposalEpistemicStatuses = ['discovered', 'observed', 'interpreted', 'stabilized'] as const;
+export const proposalActivationPolicies = ['append-aliases', 'set-if-absent', 'merge-locator-ladder'] as const;
 export const stepWinningSources = ['scenario-explicit', 'resolution-control', 'runbook-dataset', 'default-dataset', 'knowledge-hint', 'posture-sample', 'generated-token', 'approved-knowledge', 'approved-equivalent', 'prior-evidence', 'structured-translation', 'live-dom', 'agent-interpreted', 'none'] as const;
 export const statePredicateSemantics = ['visible', 'hidden', 'enabled', 'disabled', 'valid', 'invalid', 'open', 'closed', 'expanded', 'collapsed', 'populated', 'cleared', 'active-route', 'active-modal'] as const;
 export const transitionEffectKinds = ['reveal', 'hide', 'enable', 'disable', 'validate', 'invalidate', 'open', 'close', 'navigate', 'return', 'expand', 'collapse', 'populate', 'clear'] as const;
@@ -243,6 +246,24 @@ export function validateProposalActivation(value: unknown, path: string) {
     activatedAt: expectOptionalString(activation.activatedAt, `${path}.activatedAt`) ?? null,
     certifiedAt: expectOptionalString(activation.certifiedAt, `${path}.certifiedAt`) ?? null,
     reason: expectOptionalString(activation.reason, `${path}.reason`) ?? null,
+  };
+}
+
+export function validateProposalEnrichment(value: unknown, path: string) {
+  const enrichment = expectRecord(value ?? {}, path);
+  return {
+    role: expectOptionalString(enrichment.role, `${path}.role`) ?? null,
+    affordance: expectOptionalString(enrichment.affordance, `${path}.affordance`) ?? null,
+    locatorLadder: expectArray(enrichment.locatorLadder ?? [], `${path}.locatorLadder`).map((entry, index) =>
+      validateLocatorStrategy(entry, `${path}.locatorLadder[${index}]`),
+    ),
+    source: expectOptionalString(enrichment.source, `${path}.source`) ?? null,
+    epistemicStatus: enrichment.epistemicStatus === undefined
+      ? null
+      : expectEnum(enrichment.epistemicStatus, `${path}.epistemicStatus`, proposalEpistemicStatuses),
+    activationPolicy: enrichment.activationPolicy === undefined
+      ? null
+      : expectEnum(enrichment.activationPolicy, `${path}.activationPolicy`, proposalActivationPolicies),
   };
 }
 
@@ -514,9 +535,15 @@ export function validateResolutionProposalDraft(value: unknown, path: string) {
   const draft = expectRecord(value, path);
   return {
     artifactType: validateTrustPolicyArtifactType(draft.artifactType, `${path}.artifactType`),
+    category: draft.category === undefined
+      ? null
+      : expectEnum(draft.category, `${path}.category`, proposalCategories),
     targetPath: expectString(draft.targetPath, `${path}.targetPath`),
     title: expectString(draft.title, `${path}.title`),
     patch: expectRecord(draft.patch ?? {}, `${path}.patch`),
+    enrichment: draft.enrichment === undefined
+      ? null
+      : validateProposalEnrichment(draft.enrichment, `${path}.enrichment`),
     rationale: expectString(draft.rationale, `${path}.rationale`),
   };
 }

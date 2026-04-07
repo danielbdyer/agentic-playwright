@@ -6,6 +6,7 @@ import {
   StepWinningSourceSchema,
   WorkflowLaneSchema,
   OperatorInboxItemKindSchema,
+  InterventionParticipationModeSchema,
   GraphNodeKindSchema,
   GraphEdgeKindSchema,
 } from './enums';
@@ -20,6 +21,7 @@ import {
   DiagnosticProvenanceSchema,
 } from './workflow';
 import { LearningScorecardSchema } from './learning';
+import { InterventionHandoffSchema } from './intervention';
 
 // ─── Operator Inbox ───
 
@@ -39,6 +41,8 @@ export const OperatorInboxItemSchema = Schema.Struct({
   winningConcern: Schema.optionalWith(Schema.NullOr(WorkflowLaneSchema), { default: () => null }),
   winningSource: Schema.optionalWith(Schema.NullOr(StepWinningSourceSchema), { default: () => null }),
   resolutionMode: Schema.optionalWith(Schema.NullOr(ResolutionModeSchema), { default: () => null }),
+  requestedParticipation: Schema.optionalWith(Schema.NullOr(InterventionParticipationModeSchema), { default: () => null }),
+  handoff: Schema.optionalWith(Schema.NullOr(InterventionHandoffSchema), { default: () => null }),
   nextCommands: Schema.optionalWith(StringArray, { default: () => [] as readonly string[] }),
 });
 
@@ -218,15 +222,58 @@ export const BenchmarkScorecardSchema = Schema.Struct({
   uniqueFieldAwarenessCount: Schema.Number,
   firstPassScreenResolutionRate: Schema.Number,
   firstPassElementResolutionRate: Schema.Number,
+  effectiveHitRate: Schema.optionalWith(Schema.Number, { default: () => 0 }),
+  ambiguityRate: Schema.optionalWith(Schema.Number, { default: () => 0 }),
+  suspensionRate: Schema.optionalWith(Schema.Number, { default: () => 0 }),
+  agentFallbackRate: Schema.optionalWith(Schema.Number, { default: () => 0 }),
+  liveDomFallbackRate: Schema.optionalWith(Schema.Number, { default: () => 0 }),
+  routeMismatchRate: Schema.optionalWith(Schema.Number, { default: () => 0 }),
   degradedLocatorRate: Schema.Number,
   reviewRequiredCount: Schema.Number,
   repairLoopCount: Schema.Number,
   operatorTouchCount: Schema.Number,
   knowledgeChurn: Schema.Record({ key: Schema.String, value: Schema.Number }),
+  proposalCategoryCounts: Schema.optionalWith(Schema.Record({ key: Schema.String, value: Schema.Number }), { default: () => ({}) }),
   generatedVariantCount: Schema.Number,
   translationHitRate: Schema.Number,
   agenticHitRate: Schema.Number,
   approvedEquivalentCount: Schema.Number,
+  winningSourceDistribution: Schema.optionalWith(Schema.Array(Schema.Struct({
+    source: StepWinningSourceSchema,
+    count: Schema.Number,
+    rate: Schema.Number,
+  })), { default: () => [] as const }),
+  proofObligations: Schema.optionalWith(Schema.Array(Schema.Struct({
+    obligation: Schema.Literal(
+      'target-observability',
+      'posture-separability',
+      'affordance-recoverability',
+      'structural-legibility',
+      'semantic-persistence',
+      'dynamic-topology',
+      'variance-factorability',
+      'recoverability',
+      'participatory-unresolvedness',
+      'actor-chain-coherence',
+      'compounding-economics',
+      'surface-compressibility',
+      'surface-predictability',
+      'surface-repairability',
+      'participatory-repairability',
+      'memory-worthiness',
+      'meta-worthiness',
+      'handoff-integrity',
+    ),
+    propertyRefs: Schema.Array(Schema.Literal('K', 'L', 'S', 'D', 'V', 'R', 'A', 'H', 'C', 'M')),
+    score: Schema.Number,
+    status: Schema.Literal('healthy', 'watch', 'critical'),
+    evidence: Schema.String,
+  })), { default: () => [] as const }),
+  falsifierSignals: Schema.optionalWith(Schema.Array(Schema.Struct({
+    name: Schema.Literal('semantic-non-persistence', 'behavioral-non-boundedness', 'opaque-suspension', 'economic-flatness', 'inert-intervention'),
+    status: Schema.Literal('healthy', 'watch', 'critical'),
+    evidence: Schema.String,
+  })), { default: () => [] as const }),
   thinKnowledgeScreenCount: Schema.Number,
   degradedLocatorHotspotCount: Schema.Number,
   interpretationDriftHotspotCount: Schema.Number,

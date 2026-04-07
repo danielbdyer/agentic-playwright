@@ -10,6 +10,7 @@ import type {
   Participant,
   ParticipantRef,
 } from '../../domain/handshake/intervention';
+import { createSemanticCore } from '../../domain/handshake/semantic-core';
 import type { ExperimentRecord } from '../../domain/improvement/experiment';
 import type {
   AcceptanceDecision,
@@ -100,9 +101,10 @@ function objectiveVectorFromLedger(
   report: PipelineFitnessReport,
   ledger: ImprovementLoopLedger<string>,
 ): ObjectiveVector {
+  const gateHitRate = report.metrics.effectiveHitRate ?? report.metrics.knowledgeHitRate;
   const pipelineFitness = round4(
     (
-      report.metrics.knowledgeHitRate +
+      gateHitRate +
       report.metrics.translationPrecision +
       report.metrics.proposalYield +
       report.metrics.recoverySuccessRate
@@ -258,6 +260,7 @@ function improvementSignals(input: BuildImprovementRunInput): readonly Improveme
       targetPaths: ['lib/application/fitness.ts', 'lib/application/improvement.ts'],
       interventionKinds: ['self-improvement-action', 'benchmark-action'],
       metrics: {
+        effectiveHitRateDelta: input.scorecardComparison.effectiveHitRateDelta,
         knowledgeHitRateDelta: input.scorecardComparison.knowledgeHitRateDelta,
         translationPrecisionDelta: input.scorecardComparison.translationPrecisionDelta,
         convergenceVelocityDelta: input.scorecardComparison.convergenceVelocityDelta,
@@ -305,7 +308,7 @@ function candidateInterventions(
       ],
       configDelta: {},
       expectedObjectiveDelta: {
-        pipelineFitness: input.scorecardComparison.knowledgeHitRateDelta,
+        pipelineFitness: input.scorecardComparison.effectiveHitRateDelta,
         architectureFitness: input.scorecardComparison.translationPrecisionDelta,
       },
     };
@@ -432,6 +435,79 @@ function improvementIntervention(
         },
       },
     ],
+    handoff: {
+      unresolvedIntent: 'Evaluate whether the latest recursive-improvement cycle produced a governed scorecard win.',
+      attemptedStrategies: ['benchmark-action', 'self-improvement-action'],
+      evidenceSlice: {
+        artifactPaths: [
+          improvementLedgerPath(input.paths),
+          scorecardPath(input.paths),
+        ],
+        summaries: [input.scorecardSummary],
+      },
+      blockageType: 'self-improvement',
+      requestedParticipation: input.scorecardComparison.improved ? 'verify' : 'choose',
+      requiredCapabilities: ['inspect-artifacts', 'run-benchmarks', 'optimize-pipeline'],
+      requiredAuthorities: input.scorecardComparison.improved
+        ? ['change-pipeline']
+        : ['change-pipeline', 'defer-work-item'],
+      blastRadius: 'review-bound',
+      epistemicStatus: input.scorecardComparison.improved ? 'approved' : 'review-required',
+      semanticCore: createSemanticCore({
+        namespace: 'improvement-run',
+        summary: `Recursive improvement evaluation for ${input.pipelineVersion}`,
+        stableFields: {
+          improvementRunId: resolvedImprovementRunId(input),
+          pipelineVersion: input.pipelineVersion,
+          parentExperimentId: input.parentExperimentId,
+          improved: input.scorecardComparison.improved,
+          decisionId: decision.decisionId,
+        },
+      }),
+      staleness: {
+        observedAt: input.completedAt ?? input.fitnessReport.runAt,
+        reviewBy: null,
+        status: 'fresh',
+        rationale: 'Fresh recursive-improvement receipt awaiting validation or next action.',
+      },
+      nextMoves: input.scorecardComparison.improved
+        ? [{
+            action: 'Verify the new scorecard high-water mark',
+            rationale: 'A governed win should be inspected to confirm the acceptance story and checkpoint lineage.',
+            command: null,
+          }, {
+            action: 'Inspect regional improvements',
+            rationale: 'Check whether the accepted changes improved the targeted screens, routes, or affordance families.',
+            command: null,
+          }]
+        : [{
+            action: 'Inspect top failure modes',
+            rationale: 'Use the current failure stack to pick the highest-leverage next intervention.',
+            command: null,
+          }, {
+            action: 'Choose the next candidate intervention',
+            rationale: 'The recursive loop surfaced multiple candidate moves; select the one with the best expected downstream leverage.',
+            command: null,
+          }],
+      competingCandidates: candidates.slice(0, 3).map((candidate) => ({
+        ref: candidate.candidateId,
+        summary: candidate.rationale,
+        source: candidate.kind,
+        status: 'review-required' as const,
+      })),
+      tokenImpact: {
+        payloadSizeBytes: input.scorecardSummary.length,
+        estimatedReadTokens: Math.max(1, Math.ceil(input.scorecardSummary.length / 4)),
+        rungImprovement: input.scorecardComparison.effectiveHitRateDelta,
+      },
+      chain: {
+        depth: 1,
+        previousSemanticToken: null,
+        semanticCorePreserved: true,
+        driftDetectable: true,
+        competingCandidateCount: Math.min(candidates.length, 3),
+      },
+    },
     startedAt: input.startedAt ?? input.fitnessReport.runAt,
     completedAt: input.completedAt ?? input.fitnessReport.runAt,
     payload: {

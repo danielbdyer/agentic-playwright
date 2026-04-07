@@ -10,6 +10,7 @@
  */
 
 import type { ResolutionPrecedenceRung } from '../resolution/precedence';
+import type { StepWinningSource } from '../governance/workflow-types';
 
 // ─── Pipeline Failure Classification ───
 
@@ -59,10 +60,287 @@ export interface ScoringEffectiveness {
   readonly proposalRankingAccuracy: number;
 }
 
+export type LogicalProofObligationName =
+  | 'target-observability'
+  | 'posture-separability'
+  | 'affordance-recoverability'
+  | 'surface-compressibility'
+  | 'surface-predictability'
+  | 'surface-repairability'
+  | 'participatory-repairability'
+  | 'memory-worthiness'
+  | 'structural-legibility'
+  | 'semantic-persistence'
+  | 'dynamic-topology'
+  | 'variance-factorability'
+  | 'recoverability'
+  | 'participatory-unresolvedness'
+  | 'actor-chain-coherence'
+  | 'compounding-economics'
+  | 'meta-worthiness'
+  | 'handoff-integrity';
+
+export type LogicalTheoremGroup = 'K' | 'L' | 'S' | 'D' | 'V' | 'R' | 'A' | 'H' | 'C' | 'M';
+export type TheoremBaselineStatus = 'direct' | 'proxy' | 'missing';
+
+export interface LogicalProofObligation {
+  readonly obligation: LogicalProofObligationName;
+  readonly propertyRefs: readonly LogicalTheoremGroup[];
+  readonly score: number;
+  readonly status: 'healthy' | 'watch' | 'critical';
+  readonly evidence: string;
+}
+
+export interface KnowledgeCoverageSummary {
+  readonly totalElements: number;
+  readonly totalScreens: number;
+  readonly roleCoverageRate: number;
+  readonly affordanceCoverageRate: number;
+  readonly locatorCoverageRate: number;
+  readonly postureCoverageRate: number;
+  readonly routeScreenCoverageRate: number;
+  readonly routeVariantCoverageRate: number;
+}
+
+export interface TheoremBaselineCoverage {
+  readonly theoremGroup: LogicalTheoremGroup;
+  readonly status: TheoremBaselineStatus;
+  readonly measuredBy: readonly LogicalProofObligationName[];
+  readonly rationale: string;
+}
+
+export interface TheoremBaselineSummary {
+  readonly total: number;
+  readonly byStatus: Readonly<Record<TheoremBaselineStatus, number>>;
+  readonly direct: number;
+  readonly proxy: number;
+  readonly missing: number;
+  readonly fullyBaselined: boolean;
+  readonly directGroups: readonly LogicalTheoremGroup[];
+  readonly proxyGroups: readonly LogicalTheoremGroup[];
+  readonly missingGroups: readonly LogicalTheoremGroup[];
+}
+
+function theoremBaselineEntry(input: {
+  theoremGroup: LogicalTheoremGroup;
+  status: TheoremBaselineStatus;
+  measuredBy: readonly LogicalProofObligationName[];
+  rationale: string;
+}): TheoremBaselineCoverage {
+  return {
+    theoremGroup: input.theoremGroup,
+    status: input.status,
+    measuredBy: input.measuredBy,
+    rationale: input.rationale,
+  };
+}
+
+export function theoremBaselineCoverageForNames(
+  names: ReadonlySet<LogicalProofObligationName>,
+): readonly TheoremBaselineCoverage[] {
+  const hasTargetObservability = names.has('target-observability');
+  const hasPostureSeparability = names.has('posture-separability');
+  const hasAffordanceRecoverability = names.has('affordance-recoverability');
+  const hasStructural = names.has('structural-legibility');
+  const hasPersistence = names.has('semantic-persistence');
+  const hasTopology = names.has('dynamic-topology');
+  const hasVariance = names.has('variance-factorability');
+  const hasRecoverability = names.has('recoverability');
+  const hasParticipation = names.has('participatory-unresolvedness');
+  const hasActorChain = names.has('actor-chain-coherence');
+  const hasEconomics = names.has('compounding-economics');
+  const hasSurfaceCompressibility = names.has('surface-compressibility');
+  const hasSurfacePredictability = names.has('surface-predictability');
+  const hasSurfaceRepairability = names.has('surface-repairability');
+  const hasParticipatoryRepairability = names.has('participatory-repairability');
+  const hasMemoryWorthiness = names.has('memory-worthiness');
+  const hasMeta = names.has('meta-worthiness');
+  const hasHandoff = names.has('handoff-integrity');
+
+  return [
+    theoremBaselineEntry({
+      theoremGroup: 'K',
+      status: hasPostureSeparability ? 'direct' : hasStructural ? 'proxy' : 'missing',
+      measuredBy: [
+        ...(hasPostureSeparability ? ['posture-separability' as const] : []),
+        ...(!hasPostureSeparability && hasStructural ? ['structural-legibility' as const] : []),
+      ],
+      rationale: hasPostureSeparability
+        ? 'Kernel properties now have a dedicated posture-separability obligation backed by posture annotation, route-entry coverage, and suspension pressure.'
+        : hasStructural
+          ? 'Kernel continuity is inferred through structural-legibility proxies such as ambiguity, translation precision, and fallback reliance.'
+          : 'No live structural-legibility obligation is available yet.',
+    }),
+    theoremBaselineEntry({
+      theoremGroup: 'L',
+      status: hasTargetObservability ? 'direct' : hasStructural ? 'proxy' : 'missing',
+      measuredBy: [
+        ...(hasTargetObservability ? ['target-observability' as const] : []),
+        ...(!hasTargetObservability && hasStructural ? ['structural-legibility' as const] : []),
+      ],
+      rationale: hasTargetObservability
+        ? 'Legibility now has a dedicated observability obligation backed by first-pass target access, fallback pressure, and degraded locator signals.'
+        : hasStructural
+          ? 'Legibility is tracked indirectly via the structural-legibility obligation, not by separate theorem-specific observability counters.'
+          : 'No live legibility baseline is available yet.',
+    }),
+    theoremBaselineEntry({
+      theoremGroup: 'S',
+      status: hasAffordanceRecoverability ? 'direct' : hasStructural ? 'proxy' : 'missing',
+      measuredBy: [
+        ...(hasAffordanceRecoverability ? ['affordance-recoverability' as const] : []),
+        ...(!hasAffordanceRecoverability && hasStructural ? ['structural-legibility' as const] : []),
+      ],
+      rationale: hasAffordanceRecoverability
+        ? 'Surface semantics now have a dedicated affordance-recoverability obligation backed by role, affordance, locator, and ambiguity signals.'
+        : hasStructural
+          ? 'Semantic persistence at the target/evidence layer is still inferred from broader structural-legibility signals.'
+          : 'No live semantic persistence proxy is available yet.',
+    }),
+    theoremBaselineEntry({
+      theoremGroup: 'D',
+      status: hasTopology ? 'direct' : 'missing',
+      measuredBy: hasTopology ? ['dynamic-topology'] : [],
+      rationale: hasTopology
+        ? 'Dynamic topology has a dedicated obligation backed by route mismatch, suspension, and bounded-topology runtime signals.'
+        : 'No dedicated dynamic-topology obligation is available yet.',
+    }),
+    theoremBaselineEntry({
+      theoremGroup: 'V',
+      status: hasVariance ? 'direct' : 'missing',
+      measuredBy: hasVariance ? ['variance-factorability'] : [],
+      rationale: hasVariance
+        ? 'Structured variance now has a dedicated factorability obligation backed by overlay reuse and variation-stress signals.'
+        : 'Structured variance and overlay factorability still lack a dedicated baseline; current signals do not directly measure role/data/phase factorization.',
+    }),
+    theoremBaselineEntry({
+      theoremGroup: 'R',
+      status: hasRecoverability ? 'direct' : hasPersistence || hasTopology ? 'proxy' : 'missing',
+      measuredBy: [
+        ...(hasRecoverability ? ['recoverability' as const] : []),
+        ...(hasPersistence ? ['semantic-persistence' as const] : []),
+        ...(hasTopology ? ['dynamic-topology' as const] : []),
+      ],
+      rationale: hasRecoverability
+        ? 'Recoverability now has a dedicated obligation backed by recovery success, drift pressure, and bounded repair signals.'
+        : hasPersistence || hasTopology
+          ? 'Recoverability is inferred from persistence, topology, and recovery signals rather than directly measured as drift-locality proof.'
+          : 'No recoverability proxy is available yet.',
+    }),
+    theoremBaselineEntry({
+      theoremGroup: 'A',
+      status: hasActorChain ? 'direct' : hasParticipation || hasHandoff ? 'proxy' : 'missing',
+      measuredBy: [
+        ...(hasActorChain ? ['actor-chain-coherence' as const] : []),
+        ...(hasParticipation ? ['participatory-unresolvedness' as const] : []),
+        ...(hasHandoff ? ['handoff-integrity' as const] : []),
+      ],
+      rationale: hasActorChain
+        ? 'Participatory agency now has a dedicated actor-chain coherence obligation covering semantic-core preservation, drift detectability, continuation gradient, and competing-candidate preservation.'
+        : hasParticipation || hasHandoff
+          ? 'Participatory agency is visible through unresolvedness and handoff integrity, but cross-actor substitutability and deterministic leverage are still only partially direct.'
+          : 'No participatory-unresolvedness baseline is available yet.',
+    }),
+    theoremBaselineEntry({
+      theoremGroup: 'H',
+      status: hasHandoff ? 'direct' : 'missing',
+      measuredBy: hasHandoff
+        ? [
+          'handoff-integrity',
+          ...(hasActorChain ? ['actor-chain-coherence' as const] : []),
+        ]
+        : [],
+      rationale: hasHandoff
+        ? 'Inter-actor handoff integrity has a dedicated measured obligation covering status, semantic core, staleness, next moves, token impact, and chain completeness.'
+        : 'No dedicated handoff-integrity measurement is available yet.',
+    }),
+    theoremBaselineEntry({
+      theoremGroup: 'C',
+      status: hasEconomics ? 'direct' : 'missing',
+      measuredBy: hasEconomics ? ['compounding-economics'] : [],
+      rationale: hasEconomics
+        ? 'Compounding economics has a dedicated obligation tied to hit-rate, proposal yield, and degradation signals.'
+        : 'No dedicated compounding-economics obligation is available yet.',
+    }),
+    theoremBaselineEntry({
+      theoremGroup: 'M',
+      status: hasSurfaceCompressibility
+        && hasSurfacePredictability
+        && hasSurfaceRepairability
+        && hasParticipatoryRepairability
+        && hasMemoryWorthiness
+        ? 'direct'
+        : hasMeta || hasEconomics
+          ? 'proxy'
+          : 'missing',
+      measuredBy: [
+        ...(hasSurfaceCompressibility ? ['surface-compressibility' as const] : []),
+        ...(hasSurfacePredictability ? ['surface-predictability' as const] : []),
+        ...(hasSurfaceRepairability ? ['surface-repairability' as const] : []),
+        ...(hasParticipatoryRepairability ? ['participatory-repairability' as const] : []),
+        ...(hasMemoryWorthiness ? ['memory-worthiness' as const] : []),
+        ...(hasMeta ? ['meta-worthiness' as const] : []),
+        ...(!hasMeta && hasEconomics ? ['compounding-economics' as const] : []),
+      ],
+      rationale: hasSurfaceCompressibility
+        && hasSurfacePredictability
+        && hasSurfaceRepairability
+        && hasParticipatoryRepairability
+        && hasMemoryWorthiness
+        ? 'Meta-properties now have dedicated obligations for compressibility, predictability, repairability, participatory repairability, and memory worthiness.'
+        : hasMeta
+          ? 'Meta-properties are tracked through a dedicated meta-worthiness obligation, but still summarize several theorem families rather than baselining each meta-property separately.'
+        : hasEconomics
+          ? 'Meta-worthiness is only weakly proxied by economic compounding until the dedicated meta obligation is present.'
+          : 'No meta-worthiness baseline is available yet.',
+    }),
+  ];
+}
+
+export function theoremBaselineCoverageForObligations(
+  obligations: readonly Pick<LogicalProofObligation, 'obligation'>[],
+): readonly TheoremBaselineCoverage[] {
+  return theoremBaselineCoverageForNames(new Set(obligations.map((obligation) => obligation.obligation)));
+}
+
+export function summarizeTheoremBaseline(
+  entries: readonly TheoremBaselineCoverage[],
+): TheoremBaselineSummary {
+  const byStatus = entries.reduce<Record<TheoremBaselineStatus, number>>((acc, entry) => ({
+    ...acc,
+    [entry.status]: acc[entry.status] + 1,
+  }), { direct: 0, proxy: 0, missing: 0 });
+  return {
+    total: entries.length,
+    byStatus,
+    direct: byStatus.direct,
+    proxy: byStatus.proxy,
+    missing: byStatus.missing,
+    fullyBaselined: byStatus.proxy === 0 && byStatus.missing === 0,
+    directGroups: entries.filter((entry) => entry.status === 'direct').map((entry) => entry.theoremGroup),
+    proxyGroups: entries.filter((entry) => entry.status === 'proxy').map((entry) => entry.theoremGroup),
+    missingGroups: entries.filter((entry) => entry.status === 'missing').map((entry) => entry.theoremGroup),
+  };
+}
+
 // ─── Pipeline Fitness Report ───
 
 export interface PipelineFitnessMetrics {
+  readonly effectiveHitRate?: number | undefined;
   readonly knowledgeHitRate: number;
+  readonly ambiguityRate?: number | undefined;
+  readonly suspensionRate?: number | undefined;
+  readonly agentFallbackRate?: number | undefined;
+  readonly liveDomFallbackRate?: number | undefined;
+  readonly routeMismatchRate?: number | undefined;
+  readonly proposalCategoryCounts?: Readonly<Record<string, number>> | undefined;
+  readonly winningSourceDistribution?: readonly {
+    readonly source: StepWinningSource;
+    readonly count: number;
+    readonly rate: number;
+  }[] | undefined;
+  readonly proofObligations?: readonly LogicalProofObligation[] | undefined;
+  readonly knowledgeCoverage?: KnowledgeCoverageSummary | undefined;
   readonly translationPrecision: number;
   readonly translationRecall: number;
   readonly convergenceVelocity: number;
@@ -93,10 +371,13 @@ export interface PipelineFitnessReport {
 export interface ScorecardHighWaterMark {
   readonly setAt: string;
   readonly pipelineVersion: string;
+  readonly effectiveHitRate?: number | undefined;
   readonly knowledgeHitRate: number;
   readonly translationPrecision: number;
   readonly convergenceVelocity: number;
   readonly proposalYield: number;
+  readonly proofObligations?: readonly LogicalProofObligation[] | undefined;
+  readonly theoremBaselineSummary?: TheoremBaselineSummary | undefined;
   readonly resolutionByRung: readonly RungRate[];
   /** Execution health score at the time of high-water mark. */
   readonly executionHealthScore?: number | undefined;
@@ -105,15 +386,18 @@ export interface ScorecardHighWaterMark {
 export interface ScorecardHistoryEntry {
   readonly runAt: string;
   readonly pipelineVersion: string;
+  readonly effectiveHitRate?: number | undefined;
   readonly knowledgeHitRate: number;
   readonly translationPrecision: number;
   readonly convergenceVelocity: number;
+  readonly theoremBaselineSummary?: TheoremBaselineSummary | undefined;
   readonly improved: boolean;
 }
 
 // ─── Pareto Frontier ───
 
 export interface ParetoObjectives {
+  readonly effectiveHitRate?: number | undefined;
   readonly knowledgeHitRate: number;
   readonly translationPrecision: number;
   readonly convergenceVelocity: number;
@@ -131,8 +415,10 @@ export interface ParetoFrontierEntry {
  * convergenceVelocity is inverted (lower = better).
  */
 export function paretoDominates(a: ParetoObjectives, b: ParetoObjectives): boolean {
+  const aEffective = a.effectiveHitRate ?? a.knowledgeHitRate;
+  const bEffective = b.effectiveHitRate ?? b.knowledgeHitRate;
   const pairs: readonly [number, number][] = [
-    [a.knowledgeHitRate, b.knowledgeHitRate],
+    [aEffective, bEffective],
     [a.translationPrecision, b.translationPrecision],
     [-a.convergenceVelocity, -b.convergenceVelocity], // invert: fewer iterations = better
     [a.proposalYield, b.proposalYield],
@@ -167,6 +453,7 @@ export function addToParetoFrontier(
 
 export function objectivesFromMetrics(metrics: PipelineFitnessMetrics): ParetoObjectives {
   return {
+    effectiveHitRate: metrics.effectiveHitRate ?? metrics.knowledgeHitRate,
     knowledgeHitRate: metrics.knowledgeHitRate,
     translationPrecision: metrics.translationPrecision,
     convergenceVelocity: metrics.convergenceVelocity,

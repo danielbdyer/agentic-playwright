@@ -485,6 +485,82 @@ test.describe('Tool Handler Routing', () => {
     expect(loginScreen).toBeDefined();
     expect(loginScreen!.elementCount).toBe(2);
   });
+
+  test('list_screens exposes route knowledge summary when screen nodes carry route variants', () => {
+    const options = mockMcpServerOptions({
+      '.tesseract/graph/index.json': {
+        nodes: [
+          {
+            id: 'screen:login',
+            kind: 'screen',
+            screen: 'login',
+            payload: {
+              routeVariants: [{
+                url: '/login?tab=local',
+                expectedEntryState: { requiredStateRefs: ['state:login:local'], forbiddenStateRefs: [] },
+                historicalSuccess: { successCount: 5, failureCount: 1, lastSuccessAt: '2026-04-01T00:00:00Z' },
+              }],
+            },
+          },
+          { id: 'login/user', screen: 'login', confidence: 0.8 },
+        ],
+      },
+    });
+    const server = createDashboardMcpServer(options);
+    const result = Effect.runSync(server.handleToolCall({ tool: 'list_screens', arguments: {} }));
+    expect(result.isError).toBe(false);
+    const data = result.result as {
+      screens: readonly {
+        screen: string;
+        routeVariantCount: number;
+        expectedEntryStateRefs: readonly string[];
+        totalRecordedRouteSuccess: number;
+      }[];
+    };
+    const loginScreen = data.screens.find((s) => s.screen === 'login');
+    expect(loginScreen?.routeVariantCount).toBe(1);
+    expect(loginScreen?.expectedEntryStateRefs).toContain('state:login:local');
+    expect(loginScreen?.totalRecordedRouteSuccess).toBe(5);
+  });
+
+  test('get_knowledge_state returns route-entry summary for a specific screen', () => {
+    const options = mockMcpServerOptions({
+      '.tesseract/graph/index.json': {
+        nodes: [
+          {
+            id: 'screen:policy-search',
+            kind: 'screen',
+            screen: 'policy-search',
+            payload: {
+              routeVariants: [{
+                url: '/policies?tab=search',
+                pathTemplate: '/policies',
+                tab: 'search',
+                query: { tab: 'search' },
+                expectedEntryState: { requiredStateRefs: ['state:policy-search:ready'], forbiddenStateRefs: [] },
+                historicalSuccess: { successCount: 7, failureCount: 2, lastSuccessAt: '2026-04-02T00:00:00Z' },
+              }],
+            },
+          },
+          { id: 'policy-search/policy-number', screen: 'policy-search', confidence: 0.8 },
+        ],
+      },
+    });
+    const server = createDashboardMcpServer(options);
+    const result = Effect.runSync(server.handleToolCall({ tool: 'get_knowledge_state', arguments: { screen: 'policy-search' } }));
+    expect(result.isError).toBe(false);
+    const data = result.result as {
+      screenSummary: {
+        routeVariantCount: number;
+        expectedEntryStateRefs: readonly string[];
+        routeVariants: readonly { readonly tab: string | null; readonly pathTemplate: string | null }[];
+      };
+    };
+    expect(data.screenSummary.routeVariantCount).toBe(1);
+    expect(data.screenSummary.expectedEntryStateRefs).toContain('state:policy-search:ready');
+    expect(data.screenSummary.routeVariants[0]?.tab).toBe('search');
+    expect(data.screenSummary.routeVariants[0]?.pathTemplate).toBe('/policies');
+  });
 });
 
 // ─── Law 13: Tool Handler Error Cases ───

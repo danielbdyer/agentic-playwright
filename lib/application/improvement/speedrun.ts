@@ -30,6 +30,7 @@ import {
 } from '../improvement/fitness';
 import { buildImprovementRun, recordImprovementRun, scorecardPath } from './improvement';
 import { loadExperimentRegistry, recordExperiment } from './experiment-registry';
+import { summarizeKnowledgeCoverage } from './knowledge-coverage';
 import { calibrateWeightsFromCorrelations } from '../learning/learning-bottlenecks';
 import { loadWorkspaceCatalog } from '../catalog';
 import { cleanSlateProgram } from './clean-slate';
@@ -345,6 +346,7 @@ export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunRes
       ledger,
       runSteps,
       proposalBundles,
+      knowledgeCoverage: summarizeKnowledgeCoverage(catalog),
       experimentHistory: priorRegistry.experiments,
     };
     const fitnessReport = buildFitnessReport(fitnessData);
@@ -390,6 +392,7 @@ export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunRes
       fitnessReport,
       scorecardComparison: {
         improved: comparison.improved,
+        effectiveHitRateDelta: comparison.effectiveHitRateDelta,
         knowledgeHitRateDelta: comparison.knowledgeHitRateDelta,
         translationPrecisionDelta: comparison.translationPrecisionDelta,
         convergenceVelocityDelta: comparison.convergenceVelocityDelta,
@@ -520,6 +523,7 @@ export function multiSeedSpeedrun(input: MultiSeedInput): Effect.Effect<MultiSee
       fitnessReport,
       scorecardComparison: {
         improved: comparison.improved,
+        effectiveHitRateDelta: comparison.effectiveHitRateDelta,
         knowledgeHitRateDelta: comparison.knowledgeHitRateDelta,
         translationPrecisionDelta: comparison.translationPrecisionDelta,
         convergenceVelocityDelta: comparison.convergenceVelocityDelta,
@@ -803,6 +807,7 @@ export function reportPhase(input: ReportPhaseInput) {
       ledger: reportLedger,
       runSteps,
       proposalBundles,
+      knowledgeCoverage: summarizeKnowledgeCoverage(catalog),
     });
 
     const existingScorecard = yield* loadScorecard(input.paths);

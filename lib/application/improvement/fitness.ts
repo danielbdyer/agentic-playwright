@@ -9,7 +9,16 @@
 
 import { TesseractError } from '../../domain/kernel/errors';
 import type { ProposalBundle, StepExecutionReceipt } from '../../domain/execution/types';
+import {
+  addToParetoFrontier,
+  isAcceptedByParetoFrontier,
+  objectivesFromMetrics,
+  summarizeTheoremBaseline,
+  theoremBaselineCoverageForObligations,
+} from '../../domain/fitness/types';
 import type {
+  KnowledgeCoverageSummary,
+  LogicalProofObligation,
   PipelineFailureClass,
   PipelineFailureMode,
   PipelineFitnessMetrics,
@@ -26,7 +35,6 @@ import type { ExperimentRecord } from '../../domain/improvement/experiment';
 import type { ImprovementLoopLedger } from '../../domain/improvement/types';
 import type { ResolutionReceipt } from '../../domain/resolution/types';
 import { groupByMap } from '../../domain/kernel/collections';
-import { addToParetoFrontier, isAcceptedByParetoFrontier, objectivesFromMetrics } from '../../domain/fitness/types';
 import { foldPipelineFailureClass, WINNING_SOURCE_TO_RUNG } from '../../domain/kernel/visitors';
 import { isBlocked } from '../../domain/proposal/lifecycle';
 import { resolutionPrecedenceLaw, type ResolutionPrecedenceRung } from '../../domain/resolution/precedence';
@@ -36,11 +44,14 @@ import type { BottleneckWeightCorrelation, GeneralizationMetrics } from '../../d
 
 interface StepOutcome {
   readonly intent: string;
+  readonly interpretationKind: ResolutionReceipt['kind'];
   readonly winningSource: StepWinningSource;
   readonly provenanceKind: string;
+  readonly executionStatus: string;
   readonly translationMatched: boolean;
   readonly translationScore: number | null;
   readonly translationFailureClass: string | null;
+  readonly routeMismatch: boolean;
   readonly degraded: boolean;
   readonly recoveryAttempts: number;
   readonly recoverySucceeded: boolean;
@@ -114,6 +125,7 @@ export interface FitnessInputData {
   readonly runSteps: readonly RunStepData[];
   readonly proposalBundles: readonly ProposalBundle[];
   readonly experimentHistory?: readonly ExperimentRecord[] | undefined;
+  readonly knowledgeCoverage?: KnowledgeCoverageSummary | undefined;
   /** Learning signals from the last iteration — enriches fitness metrics with execution health. */
   readonly learningSignals?: import('../../domain/improvement/types').LearningSignalsSummary | undefined;
 }
@@ -126,11 +138,14 @@ function extractStepOutcomes(data: FitnessInputData): readonly StepOutcome[] {
 
     return {
       intent: `step-${interp.stepIndex}`,
+      interpretationKind: interp.kind,
       winningSource: interp.winningSource,
       provenanceKind: interp.provenanceKind,
+      executionStatus: String(exec.execution.status),
       translationMatched: translation?.matched ?? false,
       translationScore: translation?.selected?.score ?? (translation?.candidates?.[0]?.score ?? null),
       translationFailureClass: translation?.failureClass ?? null,
+      routeMismatch: exec.navigation?.mismatch ?? false,
       degraded: exec.degraded,
       recoveryAttempts: exec.recovery.attempts.length,
       recoverySucceeded: exec.recovery.attempts.some((a) => a.result === 'recovered'),
@@ -160,6 +175,321 @@ function computeRungRates(steps: readonly StepOutcome[]): readonly RungRate[] {
 
 function round4(value: number): number {
   return Number(value.toFixed(4));
+}
+
+const EFFECTIVE_HIT_MAX_RUNG_INDEX = 5;
+
+function isExecutionSuccess(status: string): boolean {
+  return status === 'ok' || status === 'passed';
+}
+
+function isEffectiveHit(step: StepOutcome): boolean {
+  if (!isExecutionSuccess(step.executionStatus) || step.degraded) {
+    return false;
+  }
+
+  const rung = (WINNING_SOURCE_TO_RUNG[step.winningSource as keyof typeof WINNING_SOURCE_TO_RUNG]
+    ?? 'needs-human') as ResolutionPrecedenceRung;
+  const rungIndex = resolutionPrecedenceLaw.indexOf(rung);
+  return rungIndex >= 0 && rungIndex <= EFFECTIVE_HIT_MAX_RUNG_INDEX;
+}
+
+function winningSourceDistribution(steps: readonly StepOutcome[]): NonNullable<PipelineFitnessMetrics['winningSourceDistribution']> {
+  const total = Math.max(steps.length, 1);
+  const counts = steps.reduce<Map<StepWinningSource, number>>(
+    (map, step) => new Map([...map, [step.winningSource, (map.get(step.winningSource) ?? 0) + 1]]),
+    new Map(),
+  );
+  return [...counts.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([source, count]) => ({
+      source,
+      count,
+      rate: round4(count / total),
+    }));
+}
+
+function proposalCategoryCounts(bundles: readonly ProposalBundle[]): Readonly<Record<string, number>> {
+  return bundles
+    .flatMap((bundle) => bundle.payload.proposals)
+    .reduce<Record<string, number>>((acc, proposal) => ({
+      ...acc,
+      [proposal.category ?? 'uncategorized']: (acc[proposal.category ?? 'uncategorized'] ?? 0) + 1,
+    }), {});
+}
+
+function round2(value: number): number {
+  return Number(value.toFixed(2));
+}
+
+function clampUnit(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}
+
+function averageNumbers(values: readonly number[]): number {
+  return values.reduce((sum, value) => sum + value, 0) / Math.max(values.length, 1);
+}
+
+function knowledgeCoverageShare(knowledgeCoverage: KnowledgeCoverageSummary | undefined): number | null {
+  if (!knowledgeCoverage) {
+    return null;
+  }
+  return clampUnit(round2(averageNumbers([
+    knowledgeCoverage.roleCoverageRate,
+    knowledgeCoverage.affordanceCoverageRate,
+    knowledgeCoverage.locatorCoverageRate,
+    knowledgeCoverage.postureCoverageRate,
+    knowledgeCoverage.routeScreenCoverageRate,
+    knowledgeCoverage.routeVariantCoverageRate,
+  ])));
+}
+
+function proofStatusFromRisk(risk: number): LogicalProofObligation['status'] {
+  if (risk >= 0.7) return 'critical';
+  if (risk >= 0.3) return 'watch';
+  return 'healthy';
+}
+
+function proofObligation(input: {
+  obligation: LogicalProofObligation['obligation'];
+  propertyRefs: LogicalProofObligation['propertyRefs'];
+  risk: number;
+  evidence: string;
+}): LogicalProofObligation {
+  const normalizedRisk = clampUnit(input.risk);
+  return {
+    obligation: input.obligation,
+    propertyRefs: input.propertyRefs,
+    score: round4(1 - normalizedRisk),
+    status: proofStatusFromRisk(normalizedRisk),
+    evidence: input.evidence,
+  };
+}
+
+function winningSourceRate(
+  distribution: PipelineFitnessMetrics['winningSourceDistribution'] | undefined,
+  source: StepWinningSource,
+): number {
+  return distribution?.find((entry) => entry.source === source)?.rate ?? 0;
+}
+
+function proposalCategoryShare(
+  counts: PipelineFitnessMetrics['proposalCategoryCounts'] | undefined,
+  category: string,
+): number {
+  const values = Object.values(counts ?? {});
+  const total = values.reduce((sum, value) => sum + value, 0);
+  return total > 0 ? round2((counts?.[category] ?? 0) / total) : 0;
+}
+
+function runtimeProofObligations(metrics: Pick<
+  PipelineFitnessMetrics,
+  'effectiveHitRate'
+  | 'knowledgeHitRate'
+  | 'ambiguityRate'
+  | 'suspensionRate'
+  | 'agentFallbackRate'
+  | 'liveDomFallbackRate'
+  | 'routeMismatchRate'
+  | 'translationPrecision'
+  | 'translationRecall'
+  | 'proposalYield'
+  | 'degradedLocatorRate'
+  | 'recoverySuccessRate'
+  | 'proposalCategoryCounts'
+  | 'winningSourceDistribution'
+  | 'knowledgeCoverage'
+>): readonly LogicalProofObligation[] {
+  const gateHitRate = metrics.effectiveHitRate ?? metrics.knowledgeHitRate;
+  const ambiguityRate = metrics.ambiguityRate ?? 0;
+  const suspensionRate = metrics.suspensionRate ?? 0;
+  const agentFallbackRate = metrics.agentFallbackRate ?? 0;
+  const liveDomFallbackRate = metrics.liveDomFallbackRate ?? 0;
+  const routeMismatchRate = metrics.routeMismatchRate ?? 0;
+  const approvedEquivalentRate = winningSourceRate(metrics.winningSourceDistribution, 'approved-equivalent');
+  const needsHumanProposalShare = proposalCategoryShare(metrics.proposalCategoryCounts, 'needs-human');
+  const routeDiscoveryProposalShare = proposalCategoryShare(metrics.proposalCategoryCounts, 'route-discovery');
+  const knowledgeCoverage = metrics.knowledgeCoverage;
+  const coverageShare = knowledgeCoverageShare(knowledgeCoverage);
+
+  const targetObservabilityRisk = Math.max(1 - metrics.translationPrecision, ambiguityRate, liveDomFallbackRate, metrics.degradedLocatorRate);
+  const postureSeparabilityRisk = knowledgeCoverage
+    ? clampUnit(round2(Math.max(
+      1 - knowledgeCoverage.postureCoverageRate,
+      1 - knowledgeCoverage.routeScreenCoverageRate,
+      1 - knowledgeCoverage.routeVariantCoverageRate,
+      suspensionRate,
+      ambiguityRate * 0.75,
+    )))
+    : null;
+  const affordanceRecoverabilityRisk = knowledgeCoverage
+    ? clampUnit(round2(Math.max(
+      1 - knowledgeCoverage.roleCoverageRate,
+      1 - knowledgeCoverage.affordanceCoverageRate,
+      1 - knowledgeCoverage.locatorCoverageRate,
+      metrics.degradedLocatorRate,
+      ambiguityRate,
+    )))
+    : null;
+  const structuralRisk = Math.max(targetObservabilityRisk, 1 - metrics.translationRecall);
+  const persistenceRisk = Math.max(metrics.degradedLocatorRate, 1 - metrics.recoverySuccessRate, agentFallbackRate * 0.75);
+  const topologyRisk = Math.max(routeMismatchRate, suspensionRate, ambiguityRate * 0.75);
+  const factorabilityReuseGap = clampUnit(Math.max(0, 0.35 - approvedEquivalentRate) / 0.35);
+  const factorabilityStress = Math.max(
+    ambiguityRate,
+    routeMismatchRate,
+    metrics.degradedLocatorRate,
+    Math.max(needsHumanProposalShare, routeDiscoveryProposalShare),
+  );
+  const factorabilityRisk = clampUnit(round2(factorabilityStress * 0.7 + factorabilityReuseGap * 0.3));
+  const recoverabilityRisk = clampUnit(round2(Math.max(
+    1 - metrics.recoverySuccessRate,
+    metrics.degradedLocatorRate,
+    routeMismatchRate,
+    suspensionRate * 0.75,
+  )));
+  const participationRisk = Math.max(1 - metrics.proposalYield, agentFallbackRate, 1 - metrics.recoverySuccessRate);
+  const economicsRisk = Math.max(1 - gateHitRate, 1 - metrics.proposalYield, metrics.degradedLocatorRate);
+  const surfaceCompressibilityRisk = clampUnit(round2(Math.max(
+    1 - metrics.translationRecall,
+    ambiguityRate,
+    liveDomFallbackRate * 0.75,
+    coverageShare === null ? 0 : 1 - coverageShare,
+  )));
+  const surfacePredictabilityRisk = clampUnit(round2(Math.max(
+    routeMismatchRate,
+    suspensionRate,
+    liveDomFallbackRate,
+    agentFallbackRate * 0.5,
+    ambiguityRate * 0.5,
+  )));
+  const surfaceRepairabilityRisk = clampUnit(round2(Math.max(
+    1 - metrics.recoverySuccessRate,
+    metrics.degradedLocatorRate,
+    routeMismatchRate,
+    suspensionRate * 0.5,
+  )));
+  const participatoryRepairabilityRisk = clampUnit(round2(Math.max(
+    1 - metrics.proposalYield,
+    1 - metrics.recoverySuccessRate,
+    needsHumanProposalShare,
+    agentFallbackRate,
+  )));
+  const memoryReuseGap = clampUnit(Math.max(0, 0.25 - approvedEquivalentRate) / 0.25);
+  const memoryWorthinessRisk = clampUnit(round2(
+    surfaceCompressibilityRisk * 0.2
+    + surfacePredictabilityRisk * 0.15
+    + surfaceRepairabilityRisk * 0.15
+    + participatoryRepairabilityRisk * 0.15
+    + economicsRisk * 0.2
+    + memoryReuseGap * 0.15
+  ));
+  const metaRisk = round2(averageNumbers([
+    surfaceCompressibilityRisk,
+    surfacePredictabilityRisk,
+    surfaceRepairabilityRisk,
+    participatoryRepairabilityRisk,
+    memoryWorthinessRisk,
+  ]));
+
+  return [
+    proofObligation({
+      obligation: 'target-observability',
+      propertyRefs: ['L'],
+      risk: targetObservabilityRisk,
+      evidence: `translationPrecision=${metrics.translationPrecision}, ambiguityRate=${ambiguityRate}, liveDomFallbackRate=${liveDomFallbackRate}, degradedLocatorRate=${metrics.degradedLocatorRate}`,
+    }),
+    ...(postureSeparabilityRisk !== null ? [proofObligation({
+      obligation: 'posture-separability',
+      propertyRefs: ['K'],
+      risk: postureSeparabilityRisk,
+      evidence: `postureCoverageRate=${knowledgeCoverage!.postureCoverageRate}, routeScreenCoverageRate=${knowledgeCoverage!.routeScreenCoverageRate}, routeVariantCoverageRate=${knowledgeCoverage!.routeVariantCoverageRate}, suspensionRate=${suspensionRate}, ambiguityRate=${ambiguityRate}`,
+    })] : []),
+    ...(affordanceRecoverabilityRisk !== null ? [proofObligation({
+      obligation: 'affordance-recoverability',
+      propertyRefs: ['S'],
+      risk: affordanceRecoverabilityRisk,
+      evidence: `roleCoverageRate=${knowledgeCoverage!.roleCoverageRate}, affordanceCoverageRate=${knowledgeCoverage!.affordanceCoverageRate}, locatorCoverageRate=${knowledgeCoverage!.locatorCoverageRate}, degradedLocatorRate=${metrics.degradedLocatorRate}, ambiguityRate=${ambiguityRate}`,
+    })] : []),
+    proofObligation({
+      obligation: 'structural-legibility',
+      propertyRefs: ['K', 'L', 'S'],
+      risk: structuralRisk,
+      evidence: `targetObservabilityRisk=${targetObservabilityRisk}, translationRecall=${metrics.translationRecall}, ambiguityRate=${ambiguityRate}, liveDomFallbackRate=${liveDomFallbackRate}`,
+    }),
+    proofObligation({
+      obligation: 'semantic-persistence',
+      propertyRefs: ['K', 'V', 'R'],
+      risk: persistenceRisk,
+      evidence: `degradedLocatorRate=${metrics.degradedLocatorRate}, recoverySuccessRate=${metrics.recoverySuccessRate}, agentFallbackRate=${agentFallbackRate}`,
+    }),
+    proofObligation({
+      obligation: 'dynamic-topology',
+      propertyRefs: ['D'],
+      risk: topologyRisk,
+      evidence: `routeMismatchRate=${routeMismatchRate}, suspensionRate=${suspensionRate}, ambiguityRate=${ambiguityRate}`,
+    }),
+    proofObligation({
+      obligation: 'variance-factorability',
+      propertyRefs: ['V'],
+      risk: factorabilityRisk,
+      evidence: `approvedEquivalentRate=${approvedEquivalentRate}, ambiguityRate=${ambiguityRate}, routeMismatchRate=${routeMismatchRate}, degradedLocatorRate=${metrics.degradedLocatorRate}, needsHumanProposalShare=${needsHumanProposalShare}, routeDiscoveryProposalShare=${routeDiscoveryProposalShare}`,
+    }),
+    proofObligation({
+      obligation: 'recoverability',
+      propertyRefs: ['R'],
+      risk: recoverabilityRisk,
+      evidence: `recoverySuccessRate=${metrics.recoverySuccessRate}, degradedLocatorRate=${metrics.degradedLocatorRate}, routeMismatchRate=${routeMismatchRate}, suspensionRate=${suspensionRate}`,
+    }),
+    proofObligation({
+      obligation: 'participatory-unresolvedness',
+      propertyRefs: ['A'],
+      risk: participationRisk,
+      evidence: `proposalYield=${metrics.proposalYield}, recoverySuccessRate=${metrics.recoverySuccessRate}, agentFallbackRate=${agentFallbackRate}`,
+    }),
+    proofObligation({
+      obligation: 'compounding-economics',
+      propertyRefs: ['C', 'M'],
+      risk: economicsRisk,
+      evidence: `gateHitRate=${gateHitRate}, proposalYield=${metrics.proposalYield}, degradedLocatorRate=${metrics.degradedLocatorRate}`,
+    }),
+    proofObligation({
+      obligation: 'surface-compressibility',
+      propertyRefs: ['M'],
+      risk: surfaceCompressibilityRisk,
+      evidence: `translationRecall=${metrics.translationRecall}, ambiguityRate=${ambiguityRate}, liveDomFallbackRate=${liveDomFallbackRate}, coverageShare=${coverageShare === null ? 'n/a' : coverageShare}`,
+    }),
+    proofObligation({
+      obligation: 'surface-predictability',
+      propertyRefs: ['M'],
+      risk: surfacePredictabilityRisk,
+      evidence: `routeMismatchRate=${routeMismatchRate}, suspensionRate=${suspensionRate}, liveDomFallbackRate=${liveDomFallbackRate}, agentFallbackRate=${agentFallbackRate}, ambiguityRate=${ambiguityRate}`,
+    }),
+    proofObligation({
+      obligation: 'surface-repairability',
+      propertyRefs: ['M'],
+      risk: surfaceRepairabilityRisk,
+      evidence: `recoverySuccessRate=${metrics.recoverySuccessRate}, degradedLocatorRate=${metrics.degradedLocatorRate}, routeMismatchRate=${routeMismatchRate}, suspensionRate=${suspensionRate}`,
+    }),
+    proofObligation({
+      obligation: 'participatory-repairability',
+      propertyRefs: ['M'],
+      risk: participatoryRepairabilityRisk,
+      evidence: `proposalYield=${metrics.proposalYield}, recoverySuccessRate=${metrics.recoverySuccessRate}, needsHumanProposalShare=${needsHumanProposalShare}, agentFallbackRate=${agentFallbackRate}`,
+    }),
+    proofObligation({
+      obligation: 'memory-worthiness',
+      propertyRefs: ['M'],
+      risk: memoryWorthinessRisk,
+      evidence: `surfaceCompressibilityRisk=${round2(surfaceCompressibilityRisk)}, surfacePredictabilityRisk=${round2(surfacePredictabilityRisk)}, surfaceRepairabilityRisk=${round2(surfaceRepairabilityRisk)}, participatoryRepairabilityRisk=${round2(participatoryRepairabilityRisk)}, economicsRisk=${round2(economicsRisk)}, approvedEquivalentRate=${approvedEquivalentRate}`,
+    }),
+    proofObligation({
+      obligation: 'meta-worthiness',
+      propertyRefs: ['M'],
+      risk: metaRisk,
+      evidence: `surfaceCompressibilityRisk=${round2(surfaceCompressibilityRisk)}, surfacePredictabilityRisk=${round2(surfacePredictabilityRisk)}, surfaceRepairabilityRisk=${round2(surfaceRepairabilityRisk)}, participatoryRepairabilityRisk=${round2(participatoryRepairabilityRisk)}, memoryWorthinessRisk=${round2(memoryWorthinessRisk)}`,
+    }),
+  ];
 }
 
 // ─── Bottleneck Correlation Computation ───
@@ -221,7 +551,9 @@ export function computeBottleneckCorrelations(
       if (!topFailure) return [];
       const signal = FAILURE_TO_SIGNAL[topFailure.class];
       if (!signal) return [];
-      const delta = next.fitnessReport.metrics.knowledgeHitRate - current.fitnessReport.metrics.knowledgeHitRate;
+      const currentGate = current.fitnessReport.metrics.effectiveHitRate ?? current.fitnessReport.metrics.knowledgeHitRate;
+      const nextGate = next.fitnessReport.metrics.effectiveHitRate ?? next.fitnessReport.metrics.knowledgeHitRate;
+      const delta = nextGate - currentGate;
       return [{ signal, delta }];
     });
   });
@@ -262,7 +594,13 @@ export interface PartialFitnessInput {
  */
 export interface PartialFitnessMetrics {
   readonly resolutionByRung: readonly RungRate[];
+  readonly effectiveHitRate: number;
   readonly knowledgeHitRate: number;
+  readonly ambiguityRate?: number | undefined;
+  readonly suspensionRate?: number | undefined;
+  readonly agentFallbackRate?: number | undefined;
+  readonly liveDomFallbackRate?: number | undefined;
+  readonly routeMismatchRate?: number | undefined;
   readonly degradedLocatorRate: number;
   readonly totalSteps: number;
 }
@@ -271,10 +609,22 @@ export function buildPartialFitnessMetrics(input: PartialFitnessInput): PartialF
   const steps = extractStepOutcomes({ ...input, pipelineVersion: '', ledger: { iterations: [], completedIterations: 0, maxIterations: 0, converged: false, convergenceReason: null, kind: 'improvement-loop-ledger', version: 1, totalProposalsActivated: 0, totalInstructionCount: 0, knowledgeHitRateDelta: 0 }, proposalBundles: [] });
   const totalSteps = steps.length;
   const approvedKnowledge = steps.filter((s) => s.provenanceKind === 'approved-knowledge').length;
+  const effectiveHits = steps.filter(isEffectiveHit).length;
+  const ambiguities = steps.filter((s) => s.interpretationKind === 'needs-human').length;
+  const suspensions = steps.filter((s) => s.interpretationKind === 'needs-human' || !isExecutionSuccess(s.executionStatus)).length;
+  const liveDomFallbacks = steps.filter((s) => s.winningSource === 'live-dom').length;
+  const agentFallbacks = steps.filter((s) => s.winningSource === 'live-dom' || s.winningSource === 'none').length;
+  const routeMismatches = steps.filter((s) => s.routeMismatch).length;
 
   return {
     resolutionByRung: computeRungRates(steps),
+    effectiveHitRate: totalSteps > 0 ? round4(effectiveHits / totalSteps) : 0,
     knowledgeHitRate: totalSteps > 0 ? round4(approvedKnowledge / totalSteps) : 0,
+    ambiguityRate: totalSteps > 0 ? round4(ambiguities / totalSteps) : 0,
+    suspensionRate: totalSteps > 0 ? round4(suspensions / totalSteps) : 0,
+    agentFallbackRate: totalSteps > 0 ? round4(agentFallbacks / totalSteps) : 0,
+    liveDomFallbackRate: totalSteps > 0 ? round4(liveDomFallbacks / totalSteps) : 0,
+    routeMismatchRate: totalSteps > 0 ? round4(routeMismatches / totalSteps) : 0,
     degradedLocatorRate: totalSteps > 0 ? round4(steps.filter((s) => s.degraded).length / totalSteps) : 0,
     totalSteps,
   };
@@ -349,6 +699,12 @@ export function buildFitnessReport(data: FitnessInputData): PipelineFitnessRepor
   const recoverySuccessRate = recoveryAttempted.length > 0
     ? round4(recoveryAttempted.filter((s) => s.recoverySucceeded).length / recoveryAttempted.length)
     : 1;
+  const effectiveHits = steps.filter(isEffectiveHit).length;
+  const ambiguities = steps.filter((s) => s.interpretationKind === 'needs-human').length;
+  const suspensions = steps.filter((s) => s.interpretationKind === 'needs-human' || !isExecutionSuccess(s.executionStatus)).length;
+  const liveDomFallbacks = steps.filter((s) => s.winningSource === 'live-dom').length;
+  const agentFallbacks = steps.filter((s) => s.winningSource === 'live-dom' || s.winningSource === 'none').length;
+  const routeMismatches = steps.filter((s) => s.routeMismatch).length;
 
   // Extract execution health from learning signals on the last iteration
   const lastIteration = data.ledger.iterations[data.ledger.iterations.length - 1];
@@ -367,9 +723,20 @@ export function buildFitnessReport(data: FitnessInputData): PipelineFitnessRepor
   } : undefined;
 
   const metrics: PipelineFitnessMetrics = {
+    effectiveHitRate: totalSteps > 0
+      ? round4(effectiveHits / totalSteps)
+      : 0,
     knowledgeHitRate: data.ledger.iterations.length > 0
       ? data.ledger.iterations[data.ledger.iterations.length - 1]!.knowledgeHitRate
       : 0,
+    ambiguityRate: totalSteps > 0 ? round4(ambiguities / totalSteps) : 0,
+    suspensionRate: totalSteps > 0 ? round4(suspensions / totalSteps) : 0,
+    agentFallbackRate: totalSteps > 0 ? round4(agentFallbacks / totalSteps) : 0,
+    liveDomFallbackRate: totalSteps > 0 ? round4(liveDomFallbacks / totalSteps) : 0,
+    routeMismatchRate: totalSteps > 0 ? round4(routeMismatches / totalSteps) : 0,
+    proposalCategoryCounts: proposalCategoryCounts(data.proposalBundles),
+    winningSourceDistribution: winningSourceDistribution(steps),
+    knowledgeCoverage: data.knowledgeCoverage,
     translationPrecision: translationAttempted.length > 0
       ? round4(translationSucceeded.length / translationAttempted.length)
       : 1,
@@ -387,6 +754,11 @@ export function buildFitnessReport(data: FitnessInputData): PipelineFitnessRepor
     recoverySuccessRate,
     executionHealth,
   };
+  const proofObligations = runtimeProofObligations(metrics);
+  const metricsWithProofs: PipelineFitnessMetrics = {
+    ...metrics,
+    proofObligations,
+  };
 
   // Scoring effectiveness — compute real correlations from experiment history
   const correlations = computeBottleneckCorrelations(data.experimentHistory ?? []);
@@ -401,7 +773,7 @@ export function buildFitnessReport(data: FitnessInputData): PipelineFitnessRepor
     pipelineVersion: data.pipelineVersion,
     runAt: new Date().toISOString(),
     baseline: true,
-    metrics,
+    metrics: metricsWithProofs,
     failureModes,
     scoringEffectiveness,
   };
@@ -411,6 +783,7 @@ export function buildFitnessReport(data: FitnessInputData): PipelineFitnessRepor
 
 export interface ScorecardComparison {
   readonly improved: boolean;
+  readonly effectiveHitRateDelta: number;
   readonly knowledgeHitRateDelta: number;
   readonly translationPrecisionDelta: number;
   readonly convergenceVelocityDelta: number;
@@ -421,9 +794,11 @@ export function compareToScorecard(
   report: PipelineFitnessReport,
   scorecard: PipelineScorecard | null,
 ): ScorecardComparison {
+  const currentEffectiveHitRate = report.metrics.effectiveHitRate ?? report.metrics.knowledgeHitRate;
   if (scorecard === null) {
     return {
       improved: true,
+      effectiveHitRateDelta: currentEffectiveHitRate,
       knowledgeHitRateDelta: report.metrics.knowledgeHitRate,
       translationPrecisionDelta: report.metrics.translationPrecision,
       convergenceVelocityDelta: 0,
@@ -432,6 +807,14 @@ export function compareToScorecard(
   }
 
   const hwm = scorecard.highWaterMark;
+  const scorecardUsesEffectiveHitRate = hwm.effectiveHitRate !== undefined;
+  const currentGateHitRate = scorecardUsesEffectiveHitRate
+    ? currentEffectiveHitRate
+    : report.metrics.knowledgeHitRate;
+  const highWaterGateHitRate = scorecardUsesEffectiveHitRate
+    ? (hwm.effectiveHitRate ?? hwm.knowledgeHitRate)
+    : hwm.knowledgeHitRate;
+  const effectiveHitRateDelta = round4(currentGateHitRate - highWaterGateHitRate);
   const hitRateDelta = round4(report.metrics.knowledgeHitRate - hwm.knowledgeHitRate);
   const precisionDelta = round4(report.metrics.translationPrecision - hwm.translationPrecision);
   const velocityDelta = report.metrics.convergenceVelocity - hwm.convergenceVelocity;
@@ -440,17 +823,21 @@ export function compareToScorecard(
   const candidateObjectives = objectivesFromMetrics(report.metrics);
   const improved = scorecard.paretoFrontier
     ? isAcceptedByParetoFrontier(scorecard.paretoFrontier, candidateObjectives)
-    : hitRateDelta > 0;
+    : effectiveHitRateDelta > 0;
+
+  const gateLabel = scorecardUsesEffectiveHitRate ? 'effective hit rate' : 'knowledge hit rate';
+  const gateCurrent = round4(currentGateHitRate);
+  const gateHighWater = round4(highWaterGateHitRate);
 
   const summary = improved
     ? scorecard.paretoFrontier
       ? `Accepted by Pareto frontier: not dominated by any existing entry`
-      : `Beat the mark: hit rate ${hwm.knowledgeHitRate} → ${report.metrics.knowledgeHitRate} (+${hitRateDelta})`
+      : `Beat the mark: ${gateLabel} ${gateHighWater} → ${gateCurrent} (+${effectiveHitRateDelta})`
     : scorecard.paretoFrontier
       ? `Rejected: dominated by existing Pareto frontier entry`
-      : `Did not beat the mark: hit rate ${report.metrics.knowledgeHitRate} vs high-water ${hwm.knowledgeHitRate} (${hitRateDelta})`;
+      : `Did not beat the mark: ${gateLabel} ${gateCurrent} vs high-water ${gateHighWater} (${effectiveHitRateDelta})`;
 
-  return { improved, knowledgeHitRateDelta: hitRateDelta, translationPrecisionDelta: precisionDelta, convergenceVelocityDelta: velocityDelta, summary };
+  return { improved, effectiveHitRateDelta, knowledgeHitRateDelta: hitRateDelta, translationPrecisionDelta: precisionDelta, convergenceVelocityDelta: velocityDelta, summary };
 }
 
 export function updateScorecard(
@@ -458,12 +845,17 @@ export function updateScorecard(
   existing: PipelineScorecard | null,
   comparison: ScorecardComparison,
 ): PipelineScorecard {
+  const theoremBaselineSummary = summarizeTheoremBaseline(
+    theoremBaselineCoverageForObligations(report.metrics.proofObligations ?? []),
+  );
   const historyEntry: ScorecardHistoryEntry = {
     runAt: report.runAt,
     pipelineVersion: report.pipelineVersion,
+    effectiveHitRate: report.metrics.effectiveHitRate ?? report.metrics.knowledgeHitRate,
     knowledgeHitRate: report.metrics.knowledgeHitRate,
     translationPrecision: report.metrics.translationPrecision,
     convergenceVelocity: report.metrics.convergenceVelocity,
+    theoremBaselineSummary,
     improved: comparison.improved,
   };
 
@@ -471,19 +863,25 @@ export function updateScorecard(
     ? {
         setAt: report.runAt,
         pipelineVersion: report.pipelineVersion,
+        effectiveHitRate: report.metrics.effectiveHitRate ?? report.metrics.knowledgeHitRate,
         knowledgeHitRate: report.metrics.knowledgeHitRate,
         translationPrecision: report.metrics.translationPrecision,
         convergenceVelocity: report.metrics.convergenceVelocity,
         proposalYield: report.metrics.proposalYield,
+        proofObligations: report.metrics.proofObligations,
+        theoremBaselineSummary,
         resolutionByRung: report.metrics.resolutionByRung,
       }
     : existing?.highWaterMark ?? {
         setAt: report.runAt,
         pipelineVersion: report.pipelineVersion,
+        effectiveHitRate: report.metrics.effectiveHitRate ?? report.metrics.knowledgeHitRate,
         knowledgeHitRate: report.metrics.knowledgeHitRate,
         translationPrecision: report.metrics.translationPrecision,
         convergenceVelocity: report.metrics.convergenceVelocity,
         proposalYield: report.metrics.proposalYield,
+        proofObligations: report.metrics.proofObligations,
+        theoremBaselineSummary,
         resolutionByRung: report.metrics.resolutionByRung,
       };
 
@@ -550,20 +948,78 @@ export function averageFitnessReports(
 
   const avg = (fn: (r: PipelineFitnessReport) => number): number =>
     round4(reports.reduce((sum, r) => sum + fn(r), 0) / n);
+  const sumCounts = (
+    select: (report: PipelineFitnessReport) => Readonly<Record<string, number>> | undefined,
+  ): Readonly<Record<string, number>> =>
+    reports.reduce<Record<string, number>>((acc, report) => {
+      const counts = select(report) ?? {};
+      return Object.entries(counts).reduce<Record<string, number>>(
+        (inner, [key, value]) => ({ ...inner, [key]: (inner[key] ?? 0) + value }),
+        acc,
+      );
+    }, {});
+  const averageWinningSourceDistribution = (): PipelineFitnessMetrics['winningSourceDistribution'] => {
+    const totals = reports.reduce<Map<StepWinningSource, number>>((acc, report) => {
+      for (const entry of report.metrics.winningSourceDistribution ?? []) {
+        acc.set(entry.source, (acc.get(entry.source) ?? 0) + entry.rate);
+      }
+      return acc;
+    }, new Map());
+    return [...totals.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([source, totalRate]) => ({
+        source,
+        count: 0,
+        rate: round4(totalRate / n),
+      }));
+  };
+  const averageKnowledgeCoverage = (): KnowledgeCoverageSummary | undefined => {
+    const coverageReports = reports
+      .map((report) => report.metrics.knowledgeCoverage)
+      .filter((coverage): coverage is KnowledgeCoverageSummary => coverage !== undefined);
+    if (coverageReports.length === 0) {
+      return undefined;
+    }
+    return {
+      totalElements: Math.round(avg((report) => report.metrics.knowledgeCoverage?.totalElements ?? 0)),
+      totalScreens: Math.round(avg((report) => report.metrics.knowledgeCoverage?.totalScreens ?? 0)),
+      roleCoverageRate: avg((report) => report.metrics.knowledgeCoverage?.roleCoverageRate ?? 0),
+      affordanceCoverageRate: avg((report) => report.metrics.knowledgeCoverage?.affordanceCoverageRate ?? 0),
+      locatorCoverageRate: avg((report) => report.metrics.knowledgeCoverage?.locatorCoverageRate ?? 0),
+      postureCoverageRate: avg((report) => report.metrics.knowledgeCoverage?.postureCoverageRate ?? 0),
+      routeScreenCoverageRate: avg((report) => report.metrics.knowledgeCoverage?.routeScreenCoverageRate ?? 0),
+      routeVariantCoverageRate: avg((report) => report.metrics.knowledgeCoverage?.routeVariantCoverageRate ?? 0),
+    };
+  };
 
   const base = reports[0]!;
   return {
     ...base,
-    metrics: {
+    metrics: (() => {
+      const averagedMetrics: PipelineFitnessMetrics = {
       ...base.metrics,
+      effectiveHitRate: avg((r) => r.metrics.effectiveHitRate ?? r.metrics.knowledgeHitRate),
       knowledgeHitRate: avg((r) => r.metrics.knowledgeHitRate),
+      ambiguityRate: avg((r) => r.metrics.ambiguityRate ?? 0),
+      suspensionRate: avg((r) => r.metrics.suspensionRate ?? 0),
+      agentFallbackRate: avg((r) => r.metrics.agentFallbackRate ?? 0),
+      liveDomFallbackRate: avg((r) => r.metrics.liveDomFallbackRate ?? 0),
+      routeMismatchRate: avg((r) => r.metrics.routeMismatchRate ?? 0),
+      proposalCategoryCounts: sumCounts((report) => report.metrics.proposalCategoryCounts),
+      winningSourceDistribution: averageWinningSourceDistribution(),
+      knowledgeCoverage: averageKnowledgeCoverage(),
       translationPrecision: avg((r) => r.metrics.translationPrecision),
       translationRecall: avg((r) => r.metrics.translationRecall),
       convergenceVelocity: Math.round(avg((r) => r.metrics.convergenceVelocity)),
       proposalYield: avg((r) => r.metrics.proposalYield),
       degradedLocatorRate: avg((r) => r.metrics.degradedLocatorRate),
       recoverySuccessRate: avg((r) => r.metrics.recoverySuccessRate),
-    },
+      };
+      return {
+        ...averagedMetrics,
+        proofObligations: runtimeProofObligations(averagedMetrics),
+      };
+    })(),
     failureModes: mergeFailureModes(reports.flatMap((r) => r.failureModes)),
   };
 }
