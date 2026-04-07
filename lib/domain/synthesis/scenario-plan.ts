@@ -263,10 +263,14 @@ export function planSyntheticScenarios(input: ScenarioPlanningInput): ScenarioPl
     } satisfies ScenarioPlan;
   });
 
-  const screenDistributionMap = plans.reduce<ReadonlyMap<string, number>>(
-    (acc, plan) => new Map([...acc, [plan.screenId, (acc.get(plan.screenId) ?? 0) + 1]]),
-    new Map<string, number>(),
-  );
+  // Phase 2.4 / T7 Big-O fix: single-pass O(N) counter.
+  const screenDistributionMap = ((): ReadonlyMap<string, number> => {
+    const acc = new Map<string, number>();
+    for (const plan of plans) {
+      acc.set(plan.screenId, (acc.get(plan.screenId) ?? 0) + 1);
+    }
+    return acc;
+  })();
 
   return {
     plans,

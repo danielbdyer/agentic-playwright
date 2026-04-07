@@ -403,59 +403,68 @@ function buildCatalogScreenIndex(catalog: WorkspaceCatalog, routes: readonly Rou
   const postures = new Map<ScreenId, PosturesCatalogEntry>(
     catalog.screenPostures.map((entry) => [entry.artifact.screen, entry] as const),
   );
-  // Pre-compute route variant refs per screen: avoids O(R*V) scan per call
-  const unsortedVariants = routes.reduce(
-    (acc, binding) => binding.variants.reduce(
-      (innerAcc, variant) => {
-        const existing = innerAcc.get(variant.screen) ?? [];
-        return new Map([...innerAcc, [variant.screen, [...existing, routeVariantRef(binding.app, binding.routeId, variant.variantId)]]]);
-      },
-      acc,
-    ),
-    new Map<ScreenId, readonly string[]>(),
-  );
+  // Pre-compute route variant refs per screen: avoids O(R*V) scan per call.
+  // Phase 2.4 / T7 Big-O fix: was building new Map per variant inside a
+  // double reduce → O(V²). Single-pass mutation is O(V) and keeps the
+  // immutable result contract (freshly-built Map, never escapes).
+  const unsortedVariants = ((): Map<ScreenId, readonly string[]> => {
+    const acc = new Map<ScreenId, readonly string[]>();
+    for (const binding of routes) {
+      for (const variant of binding.variants) {
+        const existing = acc.get(variant.screen) ?? [];
+        acc.set(variant.screen, [...existing, routeVariantRef(binding.app, binding.routeId, variant.variantId)]);
+      }
+    }
+    return acc;
+  })();
   const routeVariantsByScreen = new Map<ScreenId, readonly string[]>(
     [...unsortedVariants.entries()].map(([screen, refs]) => [screen, sortStrings([...refs])]),
   );
-  const routeVariantDetailsByScreen = routes.reduce(
-    (acc, binding) => binding.variants.reduce((inner, variant) => {
-      const ref = routeVariantRef(binding.app, binding.routeId, variant.variantId);
-      const existing = inner.get(variant.screen) ?? [];
-      const payload = {
-        routeVariantRef: ref,
-        url: variant.url,
-        pathTemplate: (variant.pathTemplate ?? null) as string | null,
-        query: (variant.query ?? {}) as Readonly<Record<string, string>>,
-        hash: (variant.hash ?? null) as string | null,
-        tab: (variant.tab ?? null) as string | null,
-        state: (variant.state ?? {}) as Readonly<Record<string, string>>,
-        mappedScreens: (variant.mappedScreens ?? [variant.screen]) as readonly ScreenId[],
-        urlPattern: (variant as { urlPattern?: string | null }).urlPattern ?? null,
-        dimensions: ((variant as { dimensions?: readonly ('query' | 'hash' | 'tab' | 'segment')[] }).dimensions ?? []) as readonly ('query' | 'hash' | 'tab' | 'segment')[],
-        expectedEntryStateRefs: (((variant as { expectedEntryState?: { requiredStateRefs?: readonly string[] } }).expectedEntryState?.requiredStateRefs) ?? []) as readonly string[],
-        historicalSuccess: {
-          successCount: ((variant as { historicalSuccess?: { successCount?: number } }).historicalSuccess?.successCount) ?? 0,
-          failureCount: ((variant as { historicalSuccess?: { failureCount?: number } }).historicalSuccess?.failureCount) ?? 0,
-          lastSuccessAt: ((variant as { historicalSuccess?: { lastSuccessAt?: string | null } }).historicalSuccess?.lastSuccessAt) ?? null,
-        },
-      };
-      return new Map([...inner, [variant.screen, [...existing, payload]]]);
-    }, acc),
-    new Map<ScreenId, ReadonlyArray<{
-      routeVariantRef: string;
-      url: string;
-      pathTemplate: string | null;
-      query: Readonly<Record<string, string>>;
-      hash: string | null;
-      tab: string | null;
-      state: Readonly<Record<string, string>>;
-      mappedScreens: readonly ScreenId[];
-      urlPattern: string | null;
-      dimensions: readonly ('query' | 'hash' | 'tab' | 'segment')[];
-      expectedEntryStateRefs: readonly string[];
-      historicalSuccess: { successCount: number; failureCount: number; lastSuccessAt: string | null };
-    }>>(),
-  );
+  // Phase 2.4 / T7 Big-O fix: single-pass O(V) instead of O(V²) double
+  // reduce that rebuilt the accumulator on every iteration.
+  type RouteVariantPayload = {
+    routeVariantRef: string;
+    url: string;
+    pathTemplate: string | null;
+    query: Readonly<Record<string, string>>;
+    hash: string | null;
+    tab: string | null;
+    state: Readonly<Record<string, string>>;
+    mappedScreens: readonly ScreenId[];
+    urlPattern: string | null;
+    dimensions: readonly ('query' | 'hash' | 'tab' | 'segment')[];
+    expectedEntryStateRefs: readonly string[];
+    historicalSuccess: { successCount: number; failureCount: number; lastSuccessAt: string | null };
+  };
+  const routeVariantDetailsByScreen = ((): Map<ScreenId, ReadonlyArray<RouteVariantPayload>> => {
+    const acc = new Map<ScreenId, ReadonlyArray<RouteVariantPayload>>();
+    for (const binding of routes) {
+      for (const variant of binding.variants) {
+        const ref = routeVariantRef(binding.app, binding.routeId, variant.variantId);
+        const existing = acc.get(variant.screen) ?? [];
+        const payload: RouteVariantPayload = {
+          routeVariantRef: ref,
+          url: variant.url,
+          pathTemplate: (variant.pathTemplate ?? null) as string | null,
+          query: (variant.query ?? {}) as Readonly<Record<string, string>>,
+          hash: (variant.hash ?? null) as string | null,
+          tab: (variant.tab ?? null) as string | null,
+          state: (variant.state ?? {}) as Readonly<Record<string, string>>,
+          mappedScreens: (variant.mappedScreens ?? [variant.screen]) as readonly ScreenId[],
+          urlPattern: (variant as { urlPattern?: string | null }).urlPattern ?? null,
+          dimensions: ((variant as { dimensions?: readonly ('query' | 'hash' | 'tab' | 'segment')[] }).dimensions ?? []) as readonly ('query' | 'hash' | 'tab' | 'segment')[],
+          expectedEntryStateRefs: (((variant as { expectedEntryState?: { requiredStateRefs?: readonly string[] } }).expectedEntryState?.requiredStateRefs) ?? []) as readonly string[],
+          historicalSuccess: {
+            successCount: ((variant as { historicalSuccess?: { successCount?: number } }).historicalSuccess?.successCount) ?? 0,
+            failureCount: ((variant as { historicalSuccess?: { failureCount?: number } }).historicalSuccess?.failureCount) ?? 0,
+            lastSuccessAt: ((variant as { historicalSuccess?: { lastSuccessAt?: string | null } }).historicalSuccess?.lastSuccessAt) ?? null,
+          },
+        };
+        acc.set(variant.screen, [...existing, payload]);
+      }
+    }
+    return acc;
+  })();
   // Pre-index confidence records by screen:element key: O(1) lookup instead of O(R) scan
   const confidenceByKey = new Map<string, ArtifactConfidenceRecord>();
   for (const record of catalog.confidenceCatalog?.artifact.records ?? []) {

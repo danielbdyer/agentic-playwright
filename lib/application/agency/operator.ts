@@ -10,8 +10,10 @@ import type {
   InterventionParticipationMode,
   InterventionStaleness,
 } from '../../domain/handshake/intervention';
+import { epistemicStatusForSource } from '../../domain/handshake/epistemic-brand';
 import { createSemanticCore } from '../../domain/handshake/semantic-core';
 import type { ImprovementRun } from '../../domain/improvement/types';
+import { foldOperatorInboxKind } from '../../domain/resolution/inbox-fold';
 import type { OperatorInboxItem } from '../../domain/resolution/types';
 import type { WorkspaceCatalog } from '../catalog';
 import { compareStrings, uniqueSorted } from '../../domain/kernel/collections';
@@ -52,98 +54,87 @@ function inboxItemId(input: {
   return `inbox-${sha256(stableStringify(input))}`;
 }
 
-function requestedParticipation(kind: OperatorInboxItem['kind']): InterventionParticipationMode {
-  switch (kind) {
-    case 'proposal':
-    case 'blocked-policy':
-      return 'approve';
-    case 'degraded-locator':
-      return 'inspect';
-    case 'needs-human':
-      return 'interpret';
-    case 'approved-equivalent':
-      return 'verify';
-    case 'recovery':
-      return 'choose';
-  }
+/** Handoff profile — the tuple of fields that depend only on the inbox
+ *  `kind`. Phase 2.3 migration: previously these 5 fields were computed
+ *  by 5 separate `switch` statements. Now they come from a single
+ *  `foldOperatorInboxKind` call that the compiler checks exhaustively.
+ *  Adding a new `OperatorInboxItemKind` variant breaks the build here
+ *  and nowhere else. */
+interface InboxHandoffProfile {
+  readonly requestedParticipation: InterventionParticipationMode;
+  readonly blockageType: InterventionHandoff['blockageType'];
+  readonly blastRadius: InterventionHandoff['blastRadius'];
+  readonly requiredCapabilities: NonNullable<InterventionHandoff['requiredCapabilities']>;
+  readonly requiredAuthorities: readonly InterventionAuthority[];
 }
 
-function blockageType(kind: OperatorInboxItem['kind']): InterventionHandoff['blockageType'] {
-  switch (kind) {
-    case 'proposal':
-      return 'knowledge-gap';
-    case 'blocked-policy':
-      return 'policy-block';
-    case 'degraded-locator':
-      return 'locator-degradation';
-    case 'needs-human':
-      return 'target-ambiguity';
-    case 'approved-equivalent':
-      return 'execution-review';
-    case 'recovery':
-      return 'recovery-gap';
-  }
-}
-
-function blastRadius(kind: OperatorInboxItem['kind']): InterventionHandoff['blastRadius'] {
-  switch (kind) {
-    case 'proposal':
-    case 'blocked-policy':
-      return 'review-bound';
-    case 'approved-equivalent':
-      return 'local';
-    case 'degraded-locator':
-    case 'needs-human':
-    case 'recovery':
-      return 'local';
-  }
+function inboxHandoffProfile(item: OperatorInboxItem): InboxHandoffProfile {
+  return foldOperatorInboxKind<InboxHandoffProfile>(item, {
+    proposal: () => ({
+      requestedParticipation: 'approve',
+      blockageType: 'knowledge-gap',
+      blastRadius: 'review-bound',
+      requiredCapabilities: ['inspect-artifacts', 'approve-proposals'],
+      requiredAuthorities: ['approve-canonical-change'],
+    }),
+    blockedPolicy: () => ({
+      requestedParticipation: 'approve',
+      blockageType: 'policy-block',
+      blastRadius: 'review-bound',
+      requiredCapabilities: ['inspect-artifacts', 'approve-proposals'],
+      requiredAuthorities: ['approve-canonical-change'],
+    }),
+    degradedLocator: () => ({
+      requestedParticipation: 'inspect',
+      blockageType: 'locator-degradation',
+      blastRadius: 'local',
+      requiredCapabilities: ['inspect-artifacts', 'review-execution'],
+      requiredAuthorities: [],
+    }),
+    needsHuman: () => ({
+      requestedParticipation: 'interpret',
+      blockageType: 'target-ambiguity',
+      blastRadius: 'local',
+      requiredCapabilities: ['inspect-artifacts', 'discover-surfaces', 'propose-fragments'],
+      requiredAuthorities: [],
+    }),
+    approvedEquivalent: () => ({
+      requestedParticipation: 'verify',
+      blockageType: 'execution-review',
+      blastRadius: 'local',
+      requiredCapabilities: ['inspect-artifacts', 'review-execution'],
+      requiredAuthorities: [],
+    }),
+    recovery: () => ({
+      requestedParticipation: 'choose',
+      blockageType: 'recovery-gap',
+      blastRadius: 'local',
+      requiredCapabilities: ['inspect-artifacts', 'request-reruns'],
+      requiredAuthorities: ['request-rerun'],
+    }),
+  });
 }
 
 function epistemicStatus(item: OperatorInboxItem): InterventionHandoff['epistemicStatus'] {
+  // Phase 2.2/T6 migration: route through the audited source-to-status
+  // mapping in `lib/domain/handshake/epistemic-brand.ts` so this site can
+  // never accidentally mint `observed` from a non-runtime source. The
+  // inbox item's `status` discriminator is mapped to an explicit source
+  // string that the brand's `epistemicStatusForSource` understands.
   switch (item.status) {
     case 'approved':
-      return 'approved';
+      return epistemicStatusForSource('approved-canon');
     case 'blocked':
-      return 'blocked';
+      return epistemicStatusForSource('trust-policy-block');
     case 'informational':
       return 'informational';
     case 'actionable':
-      return 'review-required';
+      return epistemicStatusForSource('review-pending');
   }
 }
 
 function estimateReadTokens(parts: readonly string[]): number {
   return Math.max(1, Math.ceil(parts.join(' ').length / 4));
-}
-
-function requiredCapabilities(kind: OperatorInboxItem['kind']): NonNullable<InterventionHandoff['requiredCapabilities']> {
-  switch (kind) {
-    case 'proposal':
-    case 'blocked-policy':
-      return ['inspect-artifacts', 'approve-proposals'];
-    case 'degraded-locator':
-      return ['inspect-artifacts', 'review-execution'];
-    case 'needs-human':
-      return ['inspect-artifacts', 'discover-surfaces', 'propose-fragments'];
-    case 'approved-equivalent':
-      return ['inspect-artifacts', 'review-execution'];
-    case 'recovery':
-      return ['inspect-artifacts', 'request-reruns'];
-  }
-}
-
-function requiredAuthorities(kind: OperatorInboxItem['kind']): readonly InterventionAuthority[] {
-  switch (kind) {
-    case 'proposal':
-    case 'blocked-policy':
-      return ['approve-canonical-change'];
-    case 'degraded-locator':
-    case 'needs-human':
-    case 'approved-equivalent':
-      return [];
-    case 'recovery':
-      return ['request-rerun'];
-  }
 }
 
 function nextMoves(item: OperatorInboxItem, requested: InterventionParticipationMode): NonNullable<InterventionHandoff['nextMoves']> {
@@ -172,7 +163,13 @@ function finalizeInboxItem(
     readonly competingCandidates?: readonly InterventionCompetingCandidate[] | undefined;
   } = {},
 ): OperatorInboxItem {
-  const requested = requestedParticipation(item.kind);
+  // Phase 2.3 migration: one exhaustive fold replaces 5 separate switches
+  // (requestedParticipation, blockageType, blastRadius, requiredCapabilities,
+  // requiredAuthorities). The compiler now checks that adding a new
+  // OperatorInboxItemKind breaks the build at exactly one site instead of
+  // silently allowing missing branches to return undefined.
+  const profile = inboxHandoffProfile(item);
+  const requested = profile.requestedParticipation;
   const evidencePaths = [item.artifactPath, item.targetPath].filter((value): value is string => Boolean(value));
   return {
     ...item,
@@ -184,11 +181,11 @@ function finalizeInboxItem(
         artifactPaths: evidencePaths,
         summaries: [item.summary],
       },
-      blockageType: blockageType(item.kind),
+      blockageType: profile.blockageType,
       requestedParticipation: requested,
-      requiredCapabilities: requiredCapabilities(item.kind),
-      requiredAuthorities: requiredAuthorities(item.kind),
-      blastRadius: blastRadius(item.kind),
+      requiredCapabilities: profile.requiredCapabilities,
+      requiredAuthorities: profile.requiredAuthorities,
+      blastRadius: profile.blastRadius,
       epistemicStatus: epistemicStatus(item),
       semanticCore: createSemanticCore({
         namespace: 'operator-inbox',

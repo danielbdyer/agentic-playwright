@@ -337,8 +337,17 @@ export function buildDiscoveryArtifacts(input: DiscoveryInput): DiscoveryArtifac
   const surfaceSelectors = new Set(normalizedSurfaces.map((surface) => surface.selector));
   const normalizedElements = sortElements(input.elements.filter((element) => !surfaceSelectors.has(element.selector)));
 
-  const { surfaceIdsBySelector, seenSurfaceIds } = normalizedSurfaces.reduce(
-    (acc, surface) => {
+  // Phase 2.4 / T7 Big-O fix: single-pass O(N) over surfaces instead of
+  // rebuilding the accumulator Map on every reduce step. `seenSurfaceIds`
+  // is a functional Set replaced per call; `surfaceIdsBySelector` is a
+  // local Map we mutate and return immutably.
+  const { surfaceIdsBySelector, seenSurfaceIds } = ((): {
+    surfaceIdsBySelector: ReadonlyMap<string, string>;
+    seenSurfaceIds: ReadonlySet<string>;
+  } => {
+    const idsBySelector = new Map<string, string>();
+    let seen = initialSurfaceIds;
+    for (const surface of normalizedSurfaces) {
       const baseId = createStableBaseId({
         contract: surface.contract,
         testId: surface.testId,
@@ -347,14 +356,12 @@ export function buildDiscoveryArtifacts(input: DiscoveryInput): DiscoveryArtifac
         role: surface.role,
         suffix: 'surface',
       });
-      const [surfaceId, nextSeen] = ensureUniqueId(baseId, acc.seenSurfaceIds);
-      return {
-        surfaceIdsBySelector: new Map([...acc.surfaceIdsBySelector, [surface.selector, surfaceId]]),
-        seenSurfaceIds: nextSeen,
-      };
-    },
-    { surfaceIdsBySelector: new Map<string, string>(), seenSurfaceIds: initialSurfaceIds },
-  );
+      const [surfaceId, nextSeen] = ensureUniqueId(baseId, seen);
+      idsBySelector.set(surface.selector, surfaceId);
+      seen = nextSeen;
+    }
+    return { surfaceIdsBySelector: idsBySelector, seenSurfaceIds: seen };
+  })();
 
   const rootSurfaceId = normalizedSurfaces
     .flatMap((surface) => surface.parentSelector === null ? [surfaceIdsBySelector.get(surface.selector)] : [])
@@ -379,15 +386,27 @@ export function buildDiscoveryArtifacts(input: DiscoveryInput): DiscoveryArtifac
     };
   });
 
-  const childSurfacesByParent: ReadonlyMap<string, readonly string[]> = surfaceReports.reduce(
-    (map, report) => report.parentSurfaceId
-      ? new Map([...map, [report.parentSurfaceId, [...(map.get(report.parentSurfaceId) ?? []), report.id]]])
-      : map,
-    new Map<string, readonly string[]>(),
-  );
+  // Phase 2.4 / T7 Big-O fix: O(N) in-place accumulation.
+  const childSurfacesByParent = ((): ReadonlyMap<string, readonly string[]> => {
+    const acc = new Map<string, readonly string[]>();
+    for (const report of surfaceReports) {
+      if (!report.parentSurfaceId) continue;
+      const existing = acc.get(report.parentSurfaceId) ?? [];
+      acc.set(report.parentSurfaceId, [...existing, report.id]);
+    }
+    return acc;
+  })();
 
-  const { elementReports, elementsBySurface } = normalizedElements.reduce(
-    (acc, element) => {
+  // Phase 2.4 / T7 Big-O fix: single-pass over elements. Was O(N²)
+  // because of two array/Map spreads per iteration.
+  const { elementReports, elementsBySurface } = ((): {
+    elementReports: readonly DiscoveryElementReport[];
+    elementsBySurface: ReadonlyMap<string, readonly string[]>;
+  } => {
+    const reports: DiscoveryElementReport[] = [];
+    const bySurface = new Map<string, readonly string[]>();
+    let seenIds = seenSurfaceIds;
+    for (const element of normalizedElements) {
       const role = element.role ?? 'region';
       const widget = widgetForRole(role, element.inputType);
       const [elementId, nextSeen] = ensureUniqueId(createStableBaseId({
@@ -397,7 +416,8 @@ export function buildDiscoveryArtifacts(input: DiscoveryInput): DiscoveryArtifac
         name: element.name,
         role,
         suffix: 'element',
-      }), acc.seenIds);
+      }), seenIds);
+      seenIds = nextSeen;
       const surfaceId = element.surfaceSelector
         ? (surfaceIdsBySelector.get(element.surfaceSelector) ?? rootSurfaceId)
         : rootSurfaceId;
@@ -421,18 +441,12 @@ export function buildDiscoveryArtifacts(input: DiscoveryInput): DiscoveryArtifac
         supportedActions: supportedActionsForRole(role, widget),
         required: element.required,
       };
-      return {
-        elementReports: [...acc.elementReports, report],
-        elementsBySurface: new Map([...acc.elementsBySurface, [surfaceId, [...(acc.elementsBySurface.get(surfaceId) ?? []), elementId]]]),
-        seenIds: nextSeen,
-      };
-    },
-    {
-      elementReports: [] as readonly DiscoveryElementReport[],
-      elementsBySurface: new Map<string, readonly string[]>(),
-      seenIds: seenSurfaceIds,
-    },
-  );
+      reports.push(report);
+      const existing = bySurface.get(surfaceId) ?? [];
+      bySurface.set(surfaceId, [...existing, elementId]);
+    }
+    return { elementReports: reports, elementsBySurface: bySurface };
+  })();
 
   const surfaceNotes: DiscoveryReviewNote[] = surfaceReports
     .flatMap((surface) => !surface.name && !surface.testId ? [{

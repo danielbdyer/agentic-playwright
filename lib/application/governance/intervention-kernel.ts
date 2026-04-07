@@ -9,6 +9,7 @@ import type {
   InterventionReceipt,
   InterventionStatus,
 } from '../../domain/handshake/intervention';
+import { epistemicStatusForSource } from '../../domain/handshake/epistemic-brand';
 import { createSemanticCore } from '../../domain/handshake/semantic-core';
 import type { ProjectPaths } from '../paths';
 import { FileSystem } from '../ports';
@@ -96,56 +97,84 @@ function receiptForBlocked(action: InterventionCommandAction, now: string, reaso
   };
 }
 
+/** Action profile — the tuple of fields that depend only on an action's
+ *  `kind`. Phase 2.3 migration: previously these were computed by 4
+ *  separate `switch` statements over `InterventionCommandActionKind`.
+ *  Now they come from one exhaustive fold, so adding a new action kind
+ *  breaks the build at exactly one site. Pattern mirrors
+ *  `inboxHandoffProfile` in `operator.ts`. */
+interface ActionHandoffProfile {
+  readonly interventionKind: InterventionReceipt['kind'];
+  readonly requestedParticipation: NonNullable<InterventionReceipt['handoff']>['requestedParticipation'];
+  readonly requiredCapabilities: NonNullable<InterventionReceipt['handoff']>['requiredCapabilities'];
+  readonly requiredAuthorities: NonNullable<InterventionReceipt['handoff']>['requiredAuthorities'];
+  readonly successNextMoves: NonNullable<InterventionReceipt['handoff']>['nextMoves'];
+}
+
+function actionHandoffProfile(action: InterventionCommandAction): ActionHandoffProfile {
+  // Exhaustive fold over `InterventionCommandActionKind`. Adding a new
+  // kind to the union breaks the build here. No default branch — that
+  // would silently allow missing cases.
+  switch (action.kind) {
+    case 'approve-proposal':
+      return {
+        interventionKind: 'proposal-approved',
+        requestedParticipation: 'approve',
+        requiredCapabilities: ['inspect-artifacts', 'approve-proposals'],
+        requiredAuthorities: ['approve-canonical-change'],
+        successNextMoves: [{
+          action: 'Inspect approved knowledge change',
+          rationale: 'Confirm the approved proposal produced the intended canonical update.',
+          command: null,
+        }, {
+          action: 'Trigger rerun for affected scope',
+          rationale: 'Validate downstream execution with the newly approved canon.',
+          command: null,
+        }],
+      };
+    case 'promote-pattern':
+      return {
+        interventionKind: 'operator-action',
+        requestedParticipation: 'enrich',
+        requiredCapabilities: ['inspect-artifacts', 'propose-fragments'],
+        requiredAuthorities: ['promote-shared-pattern'],
+        successNextMoves: [{
+          action: 'Review promoted shared pattern',
+          rationale: 'Ensure the promoted pattern generalizes beyond the original local supplement.',
+          command: null,
+        }],
+      };
+    case 'rerun-scope':
+      return {
+        interventionKind: 'rerun-requested',
+        requestedParticipation: 'choose',
+        requiredCapabilities: ['inspect-artifacts', 'request-reruns'],
+        requiredAuthorities: ['request-rerun'],
+        successNextMoves: [{
+          action: 'Inspect rerun outcomes',
+          rationale: 'Use the rerun to verify whether the blocked region or proposal actually improved execution.',
+          command: null,
+        }],
+      };
+    case 'suppress-hotspot':
+      return {
+        interventionKind: 'operator-action',
+        requestedParticipation: 'defer',
+        requiredCapabilities: ['inspect-artifacts'],
+        requiredAuthorities: ['defer-work-item'],
+        successNextMoves: [{
+          action: 'Verify suppression remains intentional',
+          rationale: 'Suppressed hotspots should remain explicit and reviewable instead of silently disappearing.',
+          command: null,
+        }],
+      };
+  }
+}
+
+// Backwards-compat accessors — delegate to the fold so callers outside
+// handoffForAction/nextMovesForAction don't have to destructure.
 function actionKindToInterventionKind(action: InterventionCommandAction): InterventionReceipt['kind'] {
-  switch (action.kind) {
-    case 'approve-proposal':
-      return 'proposal-approved';
-    case 'promote-pattern':
-      return 'operator-action';
-    case 'rerun-scope':
-      return 'rerun-requested';
-    case 'suppress-hotspot':
-      return 'operator-action';
-  }
-}
-
-function requestedParticipationForAction(action: InterventionCommandAction): NonNullable<InterventionReceipt['handoff']>['requestedParticipation'] {
-  switch (action.kind) {
-    case 'approve-proposal':
-      return 'approve';
-    case 'promote-pattern':
-      return 'enrich';
-    case 'rerun-scope':
-      return 'choose';
-    case 'suppress-hotspot':
-      return 'defer';
-  }
-}
-
-function requiredCapabilitiesForAction(action: InterventionCommandAction): NonNullable<InterventionReceipt['handoff']>['requiredCapabilities'] {
-  switch (action.kind) {
-    case 'approve-proposal':
-      return ['inspect-artifacts', 'approve-proposals'];
-    case 'promote-pattern':
-      return ['inspect-artifacts', 'propose-fragments'];
-    case 'rerun-scope':
-      return ['inspect-artifacts', 'request-reruns'];
-    case 'suppress-hotspot':
-      return ['inspect-artifacts'];
-  }
-}
-
-function requiredAuthoritiesForAction(action: InterventionCommandAction): NonNullable<InterventionReceipt['handoff']>['requiredAuthorities'] {
-  switch (action.kind) {
-    case 'approve-proposal':
-      return ['approve-canonical-change'];
-    case 'promote-pattern':
-      return ['promote-shared-pattern'];
-    case 'rerun-scope':
-      return ['request-rerun'];
-    case 'suppress-hotspot':
-      return ['defer-work-item'];
-  }
+  return actionHandoffProfile(action).interventionKind;
 }
 
 function nextMovesForAction(
@@ -161,37 +190,9 @@ function nextMovesForAction(
       command: null,
     }];
   }
-
-  switch (action.kind) {
-    case 'approve-proposal':
-      return [{
-        action: 'Inspect approved knowledge change',
-        rationale: 'Confirm the approved proposal produced the intended canonical update.',
-        command: null,
-      }, {
-        action: 'Trigger rerun for affected scope',
-        rationale: 'Validate downstream execution with the newly approved canon.',
-        command: null,
-      }];
-    case 'promote-pattern':
-      return [{
-        action: 'Review promoted shared pattern',
-        rationale: 'Ensure the promoted pattern generalizes beyond the original local supplement.',
-        command: null,
-      }];
-    case 'rerun-scope':
-      return [{
-        action: 'Inspect rerun outcomes',
-        rationale: 'Use the rerun to verify whether the blocked region or proposal actually improved execution.',
-        command: null,
-      }];
-    case 'suppress-hotspot':
-      return [{
-        action: 'Verify suppression remains intentional',
-        rationale: 'Suppressed hotspots should remain explicit and reviewable instead of silently disappearing.',
-        command: null,
-      }];
-  }
+  // Phase 2.3: delegate to the profile's exhaustive fold instead of
+  // repeating the switch.
+  return actionHandoffProfile(action).successNextMoves;
 }
 
 function handoffForAction(
@@ -216,6 +217,8 @@ function handoffForAction(
       payload: action.payload,
     },
   }, input.previousSemanticToken ?? null);
+  // Phase 2.3: one fold replaces 3 individual accessors.
+  const profile = actionHandoffProfile(action);
   return {
     unresolvedIntent: action.summary,
     attemptedStrategies: input.dependencyReceipts.map((receipt) => receipt.summary),
@@ -224,11 +227,17 @@ function handoffForAction(
       summaries: [input.summary, ...input.dependencyReceipts.map((receipt) => receipt.summary)],
     },
     blockageType: input.status === 'blocked' ? 'policy-block' : 'knowledge-gap',
-    requestedParticipation: requestedParticipationForAction(action),
-    requiredCapabilities: requiredCapabilitiesForAction(action),
-    requiredAuthorities: requiredAuthoritiesForAction(action),
+    requestedParticipation: profile.requestedParticipation,
+    requiredCapabilities: profile.requiredCapabilities,
+    requiredAuthorities: profile.requiredAuthorities,
     blastRadius: action.reversible.reversible ? 'review-bound' : 'global',
-    epistemicStatus: input.status === 'blocked' ? 'blocked' : 'approved',
+    // Phase 2.2/T6 migration: route through the audited source mapping
+    // in `lib/domain/handshake/epistemic-brand.ts` so intervention
+    // receipts cannot accidentally mint `observed` from a block or an
+    // approval. The source string names the provenance of this status.
+    epistemicStatus: input.status === 'blocked'
+      ? epistemicStatusForSource('trust-policy-block')
+      : epistemicStatusForSource('approved-canon'),
     semanticCore,
     staleness: {
       observedAt: input.emittedAt,

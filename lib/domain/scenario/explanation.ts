@@ -215,10 +215,14 @@ export function explainBoundScenario(boundScenario: BoundScenario, lifecycle: Sc
     { approved: 0, 'review-required': 0, blocked: 0 },
   );
   const allReasons = steps.flatMap((step) => step.unresolvedGaps);
-  const unresolvedReasonCounts = allReasons.reduce<ReadonlyMap<string, number>>(
-    (map, reason) => new Map([...map, [reason, (map.get(reason) ?? 0) + 1]]),
-    new Map(),
-  );
+  // Phase 2.4 / T7 Big-O fix: single-pass O(N) counter.
+  const unresolvedReasonCounts = ((): ReadonlyMap<string, number> => {
+    const acc = new Map<string, number>();
+    for (const reason of allReasons) {
+      acc.set(reason, (acc.get(reason) ?? 0) + 1);
+    }
+    return acc;
+  })();
   const unresolvedReasons = [...unresolvedReasonCounts.entries()]
     .map(([reason, count]) => ({ reason, count }))
     .sort((left, right) => right.count - left.count || left.reason.localeCompare(right.reason));
