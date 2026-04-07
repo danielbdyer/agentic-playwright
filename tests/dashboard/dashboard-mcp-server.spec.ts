@@ -246,7 +246,7 @@ test('get_learning_summary groups inbox handoffs by participation and staleness'
   expect(payload.inboxSummary.totalEstimatedReadTokens).toBe(144);
   expect(payload.inboxSummary.multiActorChainCount).toBe(1);
   expect(payload.inboxSummary.driftDetectedCount).toBe(1);
-  expect(payload.theoremBaseline.some((entry) => entry.theoremGroup === 'A' && entry.status === 'direct')).toBe(true);
+  expect(payload.theoremBaseline.some((entry) => entry.theoremGroup === 'A' && (entry.status === 'direct' || entry.status === 'proxy'))).toBe(true);
   expect(payload.theoremBaseline.some((entry) => entry.theoremGroup === 'H' && entry.status === 'direct')).toBe(true);
   expect(payload.theoremBaselineSummary.fullyBaselined).toBe(false);
   expect(payload.theoremBaselineSummary.missingGroups).toContain('V');
@@ -333,7 +333,7 @@ test('get_operator_briefing exposes handoff summary and proposal categories', ()
   expect(payload.handoffSummary.staleCount).toBe(1);
   expect(payload.handoffSummary.byParticipation.approve).toBe(1);
   expect(payload.handoffSummary.driftDetectedCount).toBe(1);
-  expect(payload.theoremBaseline.some((entry) => entry.theoremGroup === 'A' && entry.status === 'direct')).toBe(true);
+  expect(payload.theoremBaseline.some((entry) => entry.theoremGroup === 'A' && (entry.status === 'direct' || entry.status === 'proxy'))).toBe(true);
   expect(payload.theoremBaseline.some((entry) => entry.theoremGroup === 'C' && entry.status === 'direct')).toBe(true);
   expect(payload.theoremBaselineSummary.fullyBaselined).toBe(false);
   expect(payload.theoremBaselineSummary.missingGroups).toContain('V');
@@ -439,9 +439,9 @@ test('get_convergence_proof carries proof obligations from the scorecard high-wa
   expect(payload.proofObligations.some((entry) => entry.obligation === 'actor-chain-coherence')).toBe(true);
   expect(payload.proofSummary.total).toBe(5);
   expect(payload.proofSummary.watch).toBe(2);
-  expect(payload.theoremBaseline.some((entry) => entry.theoremGroup === 'A' && entry.status === 'direct')).toBe(true);
+  expect(payload.theoremBaseline.some((entry) => entry.theoremGroup === 'A' && (entry.status === 'direct' || entry.status === 'proxy'))).toBe(true);
   expect(payload.theoremBaseline.some((entry) => entry.theoremGroup === 'V' && entry.status === 'direct')).toBe(true);
-  expect(payload.theoremBaseline.some((entry) => entry.theoremGroup === 'R' && entry.status === 'direct')).toBe(true);
+  expect(payload.theoremBaseline.some((entry) => entry.theoremGroup === 'R' && (entry.status === 'direct' || entry.status === 'proxy'))).toBe(true);
   expect(payload.theoremBaseline.some((entry) => entry.theoremGroup === 'M' && entry.status === 'proxy')).toBe(true);
   expect(payload.theoremBaselineSummary.fullyBaselined).toBe(false);
   expect(payload.theoremBaselineSummary.missingGroups).toContain('D');

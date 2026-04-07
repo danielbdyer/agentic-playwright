@@ -264,6 +264,8 @@ export const BenchmarkScorecardSchema = Schema.Struct({
       'meta-worthiness',
       'handoff-integrity',
       'fingerprint-stability',
+      'operator-intervention-density',
+      'scenario-stability-score',
     ),
     propertyRefs: Schema.Array(Schema.Literal('K', 'L', 'S', 'D', 'V', 'R', 'A', 'H', 'C', 'M')),
     score: Schema.Number,

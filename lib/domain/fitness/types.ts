@@ -82,7 +82,17 @@ export type LogicalProofObligationName =
   /** K0: given identical canon, two compilations produce byte-identical
    *  derived artifacts (modulo timestamps). The strongest single test of
    *  the doctrine's compiler-determinism claim. */
-  | 'fingerprint-stability';
+  | 'fingerprint-stability'
+  /** Outcome metric (A/M): operator decisions per scenario per iteration,
+   *  trended over history. A decreasing curve means the operator is
+   *  earning leverage over the substrate. A flat or rising curve means
+   *  the operator is on a treadmill. */
+  | 'operator-intervention-density'
+  /** Outcome metric (R/M): fraction of previously-green scenarios that
+   *  still resolve at their best-ever rung or better. Catches silent
+   *  regression — the single biggest blind spot in point-in-time
+   *  metrics. */
+  | 'scenario-stability-score';
 
 export type LogicalTheoremGroup = 'K' | 'L' | 'S' | 'D' | 'V' | 'R' | 'A' | 'H' | 'C' | 'M';
 export type TheoremBaselineStatus = 'direct' | 'proxy' | 'missing';
@@ -166,6 +176,8 @@ export function theoremBaselineCoverageForNames(
   const hasMeta = names.has('meta-worthiness');
   const hasHandoff = names.has('handoff-integrity');
   const hasFingerprintStability = names.has('fingerprint-stability');
+  const hasOperatorIntervention = names.has('operator-intervention-density');
+  const hasScenarioStability = names.has('scenario-stability-score');
 
   return [
     theoremBaselineEntry({
@@ -239,31 +251,60 @@ export function theoremBaselineCoverageForNames(
     }),
     theoremBaselineEntry({
       theoremGroup: 'R',
-      status: hasRecoverability ? 'direct' : hasPersistence || hasTopology ? 'proxy' : 'missing',
+      // R graduates to direct when BOTH recoverability AND
+      // scenario-stability-score are present. Recoverability covers
+      // the forward path (can we recover from drift?); SSS covers the
+      // backward path (does previously-green knowledge stay green?).
+      // Without SSS, R-group has a silent-rot blind spot — knowledge
+      // displaced between runs would never register.
+      status: hasRecoverability && hasScenarioStability
+        ? 'direct'
+        : (hasRecoverability || hasScenarioStability || hasPersistence || hasTopology)
+          ? 'proxy'
+          : 'missing',
       measuredBy: [
         ...(hasRecoverability ? ['recoverability' as const] : []),
-        ...(hasPersistence ? ['semantic-persistence' as const] : []),
-        ...(hasTopology ? ['dynamic-topology' as const] : []),
+        ...(hasScenarioStability ? ['scenario-stability-score' as const] : []),
+        ...(!hasRecoverability && !hasScenarioStability && hasPersistence ? ['semantic-persistence' as const] : []),
+        ...(!hasRecoverability && !hasScenarioStability && hasTopology ? ['dynamic-topology' as const] : []),
       ],
-      rationale: hasRecoverability
-        ? 'Recoverability now has a dedicated obligation backed by recovery success, drift pressure, and bounded repair signals.'
-        : hasPersistence || hasTopology
-          ? 'Recoverability is inferred from persistence, topology, and recovery signals rather than directly measured as drift-locality proof.'
-          : 'No recoverability proxy is available yet.',
+      rationale: hasRecoverability && hasScenarioStability
+        ? 'Recoverability now has BOTH a forward obligation (recoverability) and a retention obligation (scenario-stability-score), closing the silent-rot blind spot.'
+        : hasRecoverability
+          ? 'Recoverability has a forward obligation but no retention obligation (scenario-stability-score missing). Knowledge displaced silently between runs would not register.'
+          : hasScenarioStability
+            ? 'Scenario-stability-score catches silent regression but the forward recovery path is not directly measured.'
+            : (hasPersistence || hasTopology)
+              ? 'Recoverability is inferred from persistence and topology signals rather than directly measured.'
+              : 'No recoverability baseline is available yet.',
     }),
     theoremBaselineEntry({
       theoremGroup: 'A',
-      status: hasActorChain ? 'direct' : hasParticipation || hasHandoff ? 'proxy' : 'missing',
+      // A graduates to direct when BOTH actor-chain-coherence AND
+      // operator-intervention-density are present. Actor-chain-coherence
+      // measures the semantic integrity of handoffs; OID measures
+      // whether the operator is earning leverage over the substrate.
+      // Both are required for "participatory agency is working."
+      status: hasActorChain && hasOperatorIntervention
+        ? 'direct'
+        : (hasActorChain || hasOperatorIntervention || hasParticipation || hasHandoff)
+          ? 'proxy'
+          : 'missing',
       measuredBy: [
         ...(hasActorChain ? ['actor-chain-coherence' as const] : []),
-        ...(hasParticipation ? ['participatory-unresolvedness' as const] : []),
-        ...(hasHandoff ? ['handoff-integrity' as const] : []),
+        ...(hasOperatorIntervention ? ['operator-intervention-density' as const] : []),
+        ...(!hasActorChain && !hasOperatorIntervention && hasParticipation ? ['participatory-unresolvedness' as const] : []),
+        ...(!hasActorChain && !hasOperatorIntervention && hasHandoff ? ['handoff-integrity' as const] : []),
       ],
-      rationale: hasActorChain
-        ? 'Participatory agency now has a dedicated actor-chain coherence obligation covering semantic-core preservation, drift detectability, continuation gradient, and competing-candidate preservation.'
-        : hasParticipation || hasHandoff
-          ? 'Participatory agency is visible through unresolvedness and handoff integrity, but cross-actor substitutability and deterministic leverage are still only partially direct.'
-          : 'No participatory-unresolvedness baseline is available yet.',
+      rationale: hasActorChain && hasOperatorIntervention
+        ? 'Participatory agency now has BOTH a semantic obligation (actor-chain-coherence) and an operator-leverage obligation (operator-intervention-density).'
+        : hasActorChain
+          ? 'Actor-chain coherence is present but operator-intervention-density is not — A-group cannot graduate without a leverage signal.'
+          : hasOperatorIntervention
+            ? 'Operator intervention density is measured but actor-chain coherence is missing — the semantic integrity side of A is unmeasured.'
+            : (hasParticipation || hasHandoff)
+              ? 'Participatory agency is visible through unresolvedness and handoff integrity, but cross-actor substitutability and deterministic leverage are still only partially direct.'
+              : 'No participatory-unresolvedness baseline is available yet.',
     }),
     theoremBaselineEntry({
       theoremGroup: 'H',

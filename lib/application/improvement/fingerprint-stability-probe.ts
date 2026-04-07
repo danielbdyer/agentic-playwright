@@ -50,8 +50,72 @@ export function fingerprintSnapshotPath(paths: ProjectPaths): string {
 }
 
 /**
+ * Keys that are non-deterministic by design: timestamps, run IDs,
+ * session IDs, and monotonic generation markers. Stripped from the
+ * hash input so the probe measures *compiler determinism* instead of
+ * wall-clock noise.
+ *
+ * This is the K0 honesty move: two runs against identical canon WILL
+ * produce different `runAt` timestamps and different `runId`s, because
+ * those are the clock and the invocation identity. They are not part
+ * of the compiler's deterministic output. Stripping them lets the
+ * probe answer the real question — "given identical canon, does the
+ * compiler produce byte-identical *content*?"
+ */
+const NON_DETERMINISTIC_KEYS = new Set([
+  'runAt',
+  'runId',
+  'startedAt',
+  'completedAt',
+  'activatedAt',
+  'certifiedAt',
+  'improvementRunId',
+  'sessionId',
+  'generatedAt',
+  'observedAt',
+  'setAt',
+  'pipelineVersion',
+  'timestamp',
+  'lastSuccessAt',
+]);
+
+/**
+ * Recursively strip non-deterministic keys from a JSON value.
+ * Pure: returns a new structure, never mutates the input.
+ */
+function stripNonDeterministic(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => stripNonDeterministic(item));
+  }
+  if (value !== null && typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    const result: Record<string, unknown> = {};
+    for (const key of Object.keys(record).sort()) {
+      if (NON_DETERMINISTIC_KEYS.has(key)) continue;
+      result[key] = stripNonDeterministic(record[key]);
+    }
+    return result;
+  }
+  return value;
+}
+
+/** Normalize an artifact's text content before hashing. JSON files get
+ *  parsed and stripped of non-deterministic keys; other files are
+ *  hashed as-is. */
+function normalizeForHash(filePath: string, content: string): string {
+  if (!filePath.endsWith('.json')) return content;
+  try {
+    const parsed = JSON.parse(content.replace(/^\uFEFF/, ''));
+    return JSON.stringify(stripNonDeterministic(parsed));
+  } catch {
+    return content;
+  }
+}
+
+/**
  * Build a fingerprint map from a set of absolute file paths. Pure-ish:
- * the FileSystem reads are Effects; the hashing is a pure fold.
+ * the FileSystem reads are Effects; the normalization + hashing is a
+ * pure fold.
  */
 function hashFiles(paths: readonly string[]) {
   return Effect.gen(function* () {
@@ -59,7 +123,7 @@ function hashFiles(paths: readonly string[]) {
     const entries = yield* Effect.all(
       paths.map((p) =>
         fs.readText(p).pipe(
-          Effect.map((content) => [p, sha256(content)] as const),
+          Effect.map((content) => [p, sha256(normalizeForHash(p, content))] as const),
           Effect.catchAll(() => Effect.succeed(null as readonly [string, string] | null)),
         ),
       ),

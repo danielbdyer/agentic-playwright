@@ -337,17 +337,16 @@ export function buildDiscoveryArtifacts(input: DiscoveryInput): DiscoveryArtifac
   const surfaceSelectors = new Set(normalizedSurfaces.map((surface) => surface.selector));
   const normalizedElements = sortElements(input.elements.filter((element) => !surfaceSelectors.has(element.selector)));
 
-  // Phase 2.4 / T7 Big-O fix: single-pass O(N) over surfaces instead of
-  // rebuilding the accumulator Map on every reduce step. `seenSurfaceIds`
-  // is a functional Set replaced per call; `surfaceIdsBySelector` is a
-  // local Map we mutate and return immutably.
+  // Pure functional reduce over surfaces. The `idsBySelector` map is a
+  // const local that we mutate via `.set()` (legal — no reassignment),
+  // and `seenSurfaceIds` is threaded through the reduce's accumulator
+  // so there is never a `let` reassignment in domain code.
   const { surfaceIdsBySelector, seenSurfaceIds } = ((): {
     surfaceIdsBySelector: ReadonlyMap<string, string>;
     seenSurfaceIds: ReadonlySet<string>;
   } => {
     const idsBySelector = new Map<string, string>();
-    let seen = initialSurfaceIds;
-    for (const surface of normalizedSurfaces) {
+    const finalSeen = normalizedSurfaces.reduce<ReadonlySet<string>>((seen, surface) => {
       const baseId = createStableBaseId({
         contract: surface.contract,
         testId: surface.testId,
@@ -358,9 +357,9 @@ export function buildDiscoveryArtifacts(input: DiscoveryInput): DiscoveryArtifac
       });
       const [surfaceId, nextSeen] = ensureUniqueId(baseId, seen);
       idsBySelector.set(surface.selector, surfaceId);
-      seen = nextSeen;
-    }
-    return { surfaceIdsBySelector: idsBySelector, seenSurfaceIds: seen };
+      return nextSeen;
+    }, initialSurfaceIds);
+    return { surfaceIdsBySelector: idsBySelector, seenSurfaceIds: finalSeen };
   })();
 
   const rootSurfaceId = normalizedSurfaces
@@ -398,15 +397,16 @@ export function buildDiscoveryArtifacts(input: DiscoveryInput): DiscoveryArtifac
   })();
 
   // Phase 2.4 / T7 Big-O fix: single-pass over elements. Was O(N²)
-  // because of two array/Map spreads per iteration.
+  // Pure reduce: seenIds is threaded through the accumulator so there
+  // is never a `let` reassignment. `reports` and `bySurface` are const
+  // locals we mutate via push/set (legal — no reassignment).
   const { elementReports, elementsBySurface } = ((): {
     elementReports: readonly DiscoveryElementReport[];
     elementsBySurface: ReadonlyMap<string, readonly string[]>;
   } => {
     const reports: DiscoveryElementReport[] = [];
     const bySurface = new Map<string, readonly string[]>();
-    let seenIds = seenSurfaceIds;
-    for (const element of normalizedElements) {
+    normalizedElements.reduce<ReadonlySet<string>>((seenIds, element) => {
       const role = element.role ?? 'region';
       const widget = widgetForRole(role, element.inputType);
       const [elementId, nextSeen] = ensureUniqueId(createStableBaseId({
@@ -417,7 +417,6 @@ export function buildDiscoveryArtifacts(input: DiscoveryInput): DiscoveryArtifac
         role,
         suffix: 'element',
       }), seenIds);
-      seenIds = nextSeen;
       const surfaceId = element.surfaceSelector
         ? (surfaceIdsBySelector.get(element.surfaceSelector) ?? rootSurfaceId)
         : rootSurfaceId;
@@ -444,7 +443,8 @@ export function buildDiscoveryArtifacts(input: DiscoveryInput): DiscoveryArtifac
       reports.push(report);
       const existing = bySurface.get(surfaceId) ?? [];
       bySurface.set(surfaceId, [...existing, elementId]);
-    }
+      return nextSeen;
+    }, seenSurfaceIds);
     return { elementReports: reports, elementsBySurface: bySurface };
   })();
 
