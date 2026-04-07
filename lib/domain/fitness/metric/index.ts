@@ -14,3 +14,4 @@ export * from './catalogue';
 export * from './visitor';
 export * from './baseline';
 export * from './delta';
+export * from './visitors';
