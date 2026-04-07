@@ -138,6 +138,23 @@ export function generateCohortCorpus(options: GenerateCohortCorpusOptions) {
 
     // Write each cohort's scenarios in parallel within the cohort, but
     // sequence cohorts so progress is intelligible if anything fails.
+    // Each scenario produces THREE artifacts:
+    //
+    //   1. The .scenario.yaml under {cohortId}/
+    //   2. The ADO source fixture at {fixtures/ado}/{adoId}.json
+    //      (simulated upstream — what LocalAdoSource reads)
+    //   3. The cached ADO snapshot at {.ado-sync/snapshots}/{adoId}.json
+    //      (what the catalog walker reads at bind time)
+    //
+    // The compile phase reads from BOTH fixture and snapshot
+    // directories, so synthetic scenarios must materialize both to
+    // satisfy the same lookup paths the hand-curated demo scenarios
+    // do via the manual sync flow.
+    const adoFixturesDir = `${options.paths.suiteRoot}/fixtures/ado`;
+    const snapshotsDir = options.paths.snapshotDir;
+    yield* fs.ensureDir(adoFixturesDir);
+    yield* fs.ensureDir(snapshotsDir);
+
     const cohortResults: GenerateCohortCorpusResult['cohorts'][number][] = [];
     for (const group of orchestration.groups) {
       const cohortDir = `${outputDir}/${group.cohort.cohortId}`;
@@ -147,6 +164,10 @@ export function generateCohortCorpus(options: GenerateCohortCorpusOptions) {
         Effect.gen(function* () {
           const filePath = `${cohortDir}/${plan.fileName}`;
           yield* fs.writeText(filePath, plan.yaml);
+          const adoFixturePath = `${adoFixturesDir}/${plan.adoId}.json`;
+          yield* fs.writeJson(adoFixturePath, plan.adoSnapshot);
+          const snapshotPath = `${snapshotsDir}/${plan.adoId}.json`;
+          yield* fs.writeJson(snapshotPath, plan.adoSnapshot);
           return filePath;
         }),
       );

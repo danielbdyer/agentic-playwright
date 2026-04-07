@@ -1,5 +1,9 @@
 import { hashSeed, createSeededRng, type SeededRng } from '../kernel/random';
 import { sha256, stableStringify } from '../kernel/hash';
+import type { AdoSnapshot } from '../intent/types';
+import { createAdoId } from '../kernel/identity';
+
+export type { AdoSnapshot } from '../intent/types';
 import {
   selectArchetype,
   composeWorkflowSteps,
@@ -106,6 +110,10 @@ export interface ScenarioPlan {
   readonly fileName: string;
   readonly yaml: string;
   readonly fingerprint: string;
+  /** Structured ADO source the scenario YAML was derived from. The
+   *  scenario generators write this to `fixtures/ado/{adoId}.json`
+   *  alongside the YAML so iterate's compile phase can resolve it. */
+  readonly adoSnapshot: AdoSnapshot;
 }
 
 export interface ScenarioPlanningInput {
@@ -278,6 +286,38 @@ export function planSyntheticScenarios(input: ScenarioPlanningInput): ScenarioPl
       ? ['validation-heldout']
       : ['training'];
     const yaml = renderYaml({ ...materialized, tags: split }, syncedAt);
+    // Build the structured ADO snapshot in parallel with the YAML so
+    // iterate's compile phase can resolve fixtures/ado/{adoId}.json.
+    // Action and expected text are wrapped in <p> to match the
+    // hand-curated demo fixture format. Synthetic snapshots fill all
+    // canonical AdoSnapshot fields with deterministic values.
+    const suitePath = materialized.suite;
+    const areaPath = suitePath.split('/')[0] ?? 'synthetic';
+    const adoSnapshotContentHash = `sha256:${sha256(stableStringify({
+      adoId,
+      title: materialized.title,
+      suitePath,
+      stepCount: materialized.steps.length,
+    }))}`;
+    const adoSnapshot: AdoSnapshot = {
+      id: createAdoId(adoId),
+      revision: 1,
+      title: materialized.title,
+      suitePath,
+      areaPath,
+      iterationPath: 'synthetic',
+      tags: ['synthetic', ...split],
+      priority: 2,
+      steps: materialized.steps.map((step) => ({
+        index: step.index,
+        action: `<p>${step.action_text}</p>`,
+        expected: `<p>${step.expected_text}</p>`,
+      })),
+      parameters: [],
+      dataRows: [],
+      contentHash: adoSnapshotContentHash,
+      syncedAt: syncedAt,
+    };
     return {
       adoId,
       screenId: materialized.screenId,
@@ -286,6 +326,7 @@ export function planSyntheticScenarios(input: ScenarioPlanningInput): ScenarioPl
       fileName: `${adoId}.scenario.yaml`,
       yaml,
       fingerprint: `sha256:${sha256(stableStringify({ adoId, yaml }))}`,
+      adoSnapshot,
     } satisfies ScenarioPlan;
   });
 
