@@ -380,11 +380,19 @@ test.describe('Scorecard Comparison', () => {
     expect(scorecard.kind).toBe('pipeline-scorecard');
     expect(scorecard.highWaterMark.knowledgeHitRate).toBe(report.metrics.knowledgeHitRate);
     expect(scorecard.highWaterMark.proofObligations?.length).toBeGreaterThan(0);
-    expect(scorecard.highWaterMark.theoremBaselineSummary?.direct).toBeGreaterThan(0);
-    expect(scorecard.highWaterMark.theoremBaselineSummary?.directGroups).toContain('M');
+    // Phase 1.7 honesty: proof obligations from `runtimeProofObligations`
+    // are heuristic-proxy by construction, so they do NOT inflate the
+    // `direct` count. This is the honest baseline — direct status comes
+    // from the cohort-trajectory builder (when ≥2 history points) or the
+    // fingerprint-stability probe (K0). On a first run with no history
+    // and no probe, the baseline summary should show heuristic-proxy
+    // obligations as `proxy`, not `direct`.
+    const summary = scorecard.highWaterMark.theoremBaselineSummary!;
+    expect(summary.direct).toBe(0);
+    expect(summary.proxy).toBeGreaterThan(0);
     expect(scorecard.history).toHaveLength(1);
-    expect(scorecard.history[0]!.theoremBaselineSummary?.direct).toBeGreaterThan(0);
-    expect(scorecard.history[0]!.theoremBaselineSummary?.directGroups).toContain('M');
+    expect(scorecard.history[0]!.theoremBaselineSummary?.direct).toBe(0);
+    expect(scorecard.history[0]!.theoremBaselineSummary?.proxy).toBeGreaterThan(0);
     expect(scorecard.history[0]!.improved).toBe(true);
   });
 

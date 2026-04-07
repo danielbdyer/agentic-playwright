@@ -521,9 +521,23 @@ function actorChainCoherenceProofObligation(items: readonly JsonRecord[]) {
       && asBoolean(chain?.driftDetectable) !== null;
   });
   const multiActor = chainReady.filter((handoff) => (asNumber(asRecord(handoff.chain)?.depth) ?? 0) > 1);
+  // A chain is coherent iff EITHER:
+  //   (a) the semantic core was preserved (no drift), OR
+  //   (b) drift was detected AND a downstream actor explicitly
+  //       acknowledged it via `chain.driftAcknowledgedBy`.
+  // The previous implementation used `||` between `semanticCorePreserved`
+  // and `driftDetectable`, which short-circuited any multi-actor chain
+  // to "coherent" because `driftDetectable` was set to `Boolean(prevToken)`
+  // — i.e. true for every chain with depth > 1. The fix demands an
+  // explicit acknowledgement when drift is present, which is the H19
+  // semantics: silent drift must fail coherence even if it could have
+  // been detected.
   const coherentChains = multiActor.filter((handoff) => {
     const chain = asRecord(handoff.chain);
-    return asBoolean(chain?.semanticCorePreserved) === true || asBoolean(chain?.driftDetectable) === true;
+    if (asBoolean(chain?.semanticCorePreserved) === true) return true;
+    // Drift is present (or unspecified). Coherence requires acknowledgement.
+    const ack = asRecord(chain?.driftAcknowledgedBy);
+    return ack !== null && asString(ack.receiptId) !== null && asString(ack.resolution) !== null;
   });
   const nextMoveCoverage = ratio(
     populated.filter((handoff) => asArray(handoff.nextMoves).length > 0).length,
@@ -856,6 +870,14 @@ const executeBrowserAction = (
   const startedAt = Date.now();
   let attempts = 0;
   let result: unknown = null;
+  // Phase 2.7 audit note: this is the only `Effect.runSync` outside
+  // `lib/composition/`. It is a deliberate exception — the MCP stdio
+  // boundary is synchronous (the tool handler must return a result, not
+  // an Effect), and the playwright bridge IS the Effect-consuming
+  // adapter at the system edge. Lifting this through Effect would
+  // require an async MCP transport, which the current MCP server does
+  // not support. Documented for future cleanup; do not propagate this
+  // pattern to other modules.
   Effect.runSync(
     Effect.suspend(() => {
       attempts += 1;

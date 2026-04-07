@@ -168,12 +168,27 @@ export interface InterventionTokenImpact {
   readonly activationQuality?: number | null | undefined;
 }
 
+/** Records that some downstream actor explicitly noticed and resolved
+ *  the drift between this chain step and its predecessor. Required for
+ *  H19 (drift detectability) — silent reinterpretation must be impossible. */
+export interface DriftAcknowledgement {
+  readonly receiptId: string;
+  readonly resolution: 'accepted' | 'rejected' | 'deferred';
+  readonly acknowledgedAt: string;
+  readonly rationale?: string | null | undefined;
+}
+
 export interface InterventionHandoffChain {
   readonly depth: number;
   readonly previousSemanticToken?: string | null | undefined;
   readonly semanticCorePreserved: boolean;
   readonly driftDetectable: boolean;
   readonly competingCandidateCount: number;
+  /** Required when `semanticCorePreserved === false`. Without an
+   *  acknowledgement, detected drift counts against actor-chain coherence
+   *  even if `driftDetectable === true` — drift that nobody noticed is
+   *  silent drift, regardless of whether it could have been detected. */
+  readonly driftAcknowledgedBy?: DriftAcknowledgement | null | undefined;
 }
 
 export interface InterventionHandoff {

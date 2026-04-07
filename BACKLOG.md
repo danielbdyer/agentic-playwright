@@ -246,3 +246,61 @@ Read older roadmap language as `finish adoption`, `normalize`, `harden`, or `exp
 - Treat `effectiveHitRate` as the primary gate wherever acceptance, scorecard success, or promotion logic is discussed.
 - Keep the deterministic compiler core explicit, auditable, and separate from the empirical proof lane.
 - Keep the six public lanes and three spines as shared vocabulary across all backlog entries.
+- Keep offline optimization and evaluation (DSPy, GEPA, prompt tuning, ranking models) in its own lane outside the deterministic compiler core, never as an implicit shortcut around provenance, precedence, or trust policy.
+
+---
+
+## Appendix: Lane-anchored work index
+
+The epics above frame the strategic direction. This appendix preserves the concrete actionable items from the previous lane-first backlog so individual work units stay discoverable and addressable. Each entry is one line: `id` — name — `status` — primary acceptance signal. Items are grouped by lane and tagged with the epic that owns them.
+
+Status legend: `done` (shipped), `live` (live and partially adopted), `pending` (not started), `superseded` (replaced by a different mechanism).
+
+### Lane A — Agentic core
+
+- **A1 ADR collapse: runtime interpretation replaces alias treadmill** — `done` (Epic 1) — runtime interpreter resolves step text from live DOM + knowledge priors; alias treadmill broken; receipts carry provenance.
+- **A2 Confidence-gated auto-approval** — `live` (Epic 2) — `--auto-approve-above-threshold` and trust-policy gates wired; dogfood profile auto-approves within thresholds; receipts identical to manual approvals.
+- **A3 Dogfood orchestrator command** — `live` (Epic 3) — `runDogfoodLoop` chains discover → compile → run → propose → approve → recompile → rerun with budget controls; emits ImprovementLoopLedger + dogfood-ledger compatibility projection.
+
+### Lane B — Knowledge and discovery
+
+- **B1 URL variant discovery and route knowledge** — `live` (Epic 1) — `knowledge/routes/{app}.routes.yaml` schema, runtime route selection, and discovery proposals shipped; broader projection hardening still in progress.
+- **B2 Knowledge authoring ergonomics for thin screens** — `pending` (Epic 1) — workflow/inbox should point directly to thin-screen hotspots; benchmark scorecards should group thin-knowledge by screen + field family; aligned with trust-policy review targets.
+- **B3 Confidence threshold tuning and decay policy** — `pending` (Epic 2) — thresholds configurable per artifact class; repeated failures lower overlay below threshold deterministically; time-based decay configurable but off by default.
+
+### Lane C — Resolution and execution
+
+- **C1 Translation cache and evaluation harness** — `live` (Epic 3) — translation receipts cached by fingerprint; benchmark/dogfood scorecards report translation hit rate and failure classes; translation can be disabled cleanly for deterministic reproduction.
+- **C2 Widget family coverage expansion** — `done` (Epic 1) — replaced by role-affordance derivation. Widget contracts now derive from `lib/domain/widgets/role-affordances.ts` instead of hand-authored handlers per family.
+- **C3 Runtime cost budgets and failure taxonomy** — `pending` (Epic 3) — execution receipts expose actionable timing/cost buckets; precondition and degraded-locator failures classified consistently; scorecards surface bottlenecks by runtime failure family.
+
+### Lane D — Dogfooding and structured entropy
+
+- **D1 Structured entropy harness for dogfooding variance** — `live` (Epic 4) — variance manifest schema and drift applicator shipped (`lib/application/drift/drift.ts`); dogfood runs parameterizable with variance profiles; each dimension produces measurable scorecard signal.
+- **D1.5 Flywheel/speedrun progress reporting** — `live` (Epic 3) — `SpeedrunProgressEvent` envelope emits per-iteration metrics; sidecar `.tesseract/runs/{runId}.progress.jsonl` is tail-able; multi-seed runs report per-seed and aggregate progress.
+- **D2 Benchmark expansion beyond the flagship slice** — `pending` (Epic 4) — additional benchmark apps reuse field-awareness/drift metrics; negative/posture expansions remain attributable to field family + source posture.
+- **D3 Synthetic React app composer with salted drift** — `pending` (Epic 4) — controlled environment for measuring resilience against `Drift Events`; tagged + replayable; scorecard metrics comparable across drift profiles. Stays outside the deterministic compiler path.
+
+### Lane E — Governance and projection
+
+- **E1 Operator cockpit over existing artifacts** — `live` (Epic 5) — inbox, workflow, trace, review, graph, and scorecard projections agree on resolution mode, winning source, and overlay provenance; operators can move from hotspot → approval → rerun plan without repo lore.
+- **E2 VSCode extension integration surface** — `pending` (Epic 5) — task provider for inbox items; problem matcher for proposal/hotspot file positions; Copilot Chat participant reading the same artifact files the CLI emits; degrades to read-only when no agent.
+- **E3 Proposal ranking in the offline optimization lane** — `pending` (offline lane, NOT in compiler core) — locator repair ranking, supplement proposal ranking, translation candidate ranking, prompt tuning over stored trace + evidence corpora.
+
+### Lane F — Infrastructure
+
+- **F1 CI webhook integration for OutSystems Lifetime API** — `pending` (Epic 5) — auto-trigger `ci-batch` runs when modules are published; clean exit codes + structured reports; proposals generated but never auto-applied in CI.
+- **F2 Deterministic coverage expansion** — `live` (Epic 1) — stable precedence laws for hints/patterns/heuristics/overlays/translation; explicit exhaustion diagnostics; knowledge coverage metrics in scorecard. Reframed by A1: as runtime interpretation handles novel phrasing, this shifts toward broader knowledge coverage that makes runtime interpretation cheaper.
+
+### Cross-lane priority order (sequencing constraint)
+
+| Order | Item | Why now |
+|---|---|---|
+| 1 | Phase 1 (epic-level) — MemoryMaturity, Cohort, RiskFormula | Unblocks honest measurement of every C-family obligation. |
+| 2 | A2 + A3 hardening | Auto-approval and dogfood loop are the primary measurement substrate. |
+| 3 | B1 + F2 finishing | Route knowledge and deterministic coverage gates. |
+| 4 | D1 + D1.5 expansion | More structured entropy → more cohort comparability data. |
+| 5 | B3 + C3 | Confidence decay + cost budgets close the trust loop. |
+| 6 | E1 + E2 | Operator cockpit + VSCode integration. |
+| 7 | D2 + D3 | Benchmark expansion + synthetic harness. |
+| 8 | E3 + F1 | Offline optimization + CI webhooks (separate lane, separate cadence). |

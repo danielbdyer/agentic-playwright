@@ -196,11 +196,13 @@ function isEffectiveHit(step: {
 function winningSourceDistribution(steps: readonly {
   winningSource: string;
 }[]): NonNullable<BenchmarkScorecard['winningSourceDistribution']> {
+  // Phase 2.4 Big-O fix: O(N²) → O(N). See fitness.ts:winningSourceDistribution
+  // for the rationale.
   const total = Math.max(steps.length, 1);
-  const counts = steps.reduce<Map<string, number>>(
-    (acc, step) => new Map([...acc, [step.winningSource, (acc.get(step.winningSource) ?? 0) + 1]]),
-    new Map(),
-  );
+  const counts = new Map<string, number>();
+  for (const step of steps) {
+    counts.set(step.winningSource, (counts.get(step.winningSource) ?? 0) + 1);
+  }
   return [...counts.entries()]
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([source, count]) => ({
@@ -289,6 +291,8 @@ function proofObligation(input: {
     score: round(1 - normalizedRisk),
     status: proofStatusFromRisk(normalizedRisk),
     evidence: input.evidence,
+    // Phase 1.7 honesty: see comment in fitness.ts:proofObligation.
+    measurementClass: 'heuristic-proxy',
   };
 }
 

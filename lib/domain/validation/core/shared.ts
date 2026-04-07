@@ -749,7 +749,7 @@ export function validateResolutionReceipt(value: unknown, path: string): Resolut
   return {
     ...base,
     kind,
-    confidence: expectEnum(receipt.confidence, `${path}.confidence`, ['agent-proposed', 'agent-verified'] as const),
+    confidence: expectEnum(receipt.confidence, `${path}.confidence`, ['compiler-derived', 'agent-proposed', 'agent-verified'] as const),
     provenanceKind: expectEnum(receipt.provenanceKind, `${path}.provenanceKind`, ['approved-knowledge', 'live-exploration'] as const),
     target: validateResolutionTarget(receipt.target, `${path}.target`),
   };

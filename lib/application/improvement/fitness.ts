@@ -16,6 +16,17 @@ import {
   summarizeTheoremBaseline,
   theoremBaselineCoverageForObligations,
 } from '../../domain/fitness/types';
+import {
+  computeMemoryMaturity,
+  memoryMaturityEntryCount,
+} from '../../domain/fitness/memory-maturity';
+import {
+  compoundingObligation,
+  trajectoryMeasurementClass,
+  type CompoundingTrajectory,
+} from '../../domain/fitness/compounding';
+import { hasCriticalFloorViolation } from '../../domain/fitness/targets';
+import { projectCompoundingTrajectory } from './compounding-projection';
 import type {
   KnowledgeCoverageSummary,
   LogicalProofObligation,
@@ -128,6 +139,15 @@ export interface FitnessInputData {
   readonly knowledgeCoverage?: KnowledgeCoverageSummary | undefined;
   /** Learning signals from the last iteration — enriches fitness metrics with execution health. */
   readonly learningSignals?: import('../../domain/improvement/types').LearningSignalsSummary | undefined;
+  /** Operational `MemoryMaturity(τ)` counts derived from the catalog at the
+   *  time the fitness report is built. Used by C-family obligations and the
+   *  scorecard history to track compounding direction across cohorts. */
+  readonly memoryMaturityCounts?: import('../../domain/fitness/memory-maturity').MemoryMaturityCounts | undefined;
+  /** Existing scorecard, when available. Lets `buildFitnessReport` project
+   *  a cohort-trajectory measurement of compounding-economics from history
+   *  instead of the single-frame heuristic. Without this, the C-family
+   *  obligation falls back to its `heuristic-proxy` form. */
+  readonly existingScorecard?: PipelineScorecard | null | undefined;
 }
 
 function extractStepOutcomes(data: FitnessInputData): readonly StepOutcome[] {
@@ -195,11 +215,16 @@ function isEffectiveHit(step: StepOutcome): boolean {
 }
 
 function winningSourceDistribution(steps: readonly StepOutcome[]): NonNullable<PipelineFitnessMetrics['winningSourceDistribution']> {
+  // Phase 2.4 Big-O fix: previously this used `new Map([...map, [k, v]])`
+  // inside a reduce, which copies the entire accumulator on every step
+  // for O(N²) total work. The single-pass form below is O(N): we mutate
+  // a fresh local Map (which is safe — the variable never escapes this
+  // function), then build the immutable result list once at the end.
   const total = Math.max(steps.length, 1);
-  const counts = steps.reduce<Map<StepWinningSource, number>>(
-    (map, step) => new Map([...map, [step.winningSource, (map.get(step.winningSource) ?? 0) + 1]]),
-    new Map(),
-  );
+  const counts = new Map<StepWinningSource, number>();
+  for (const step of steps) {
+    counts.set(step.winningSource, (counts.get(step.winningSource) ?? 0) + 1);
+  }
   return [...counts.entries()]
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([source, count]) => ({
@@ -210,12 +235,19 @@ function winningSourceDistribution(steps: readonly StepOutcome[]): NonNullable<P
 }
 
 function proposalCategoryCounts(bundles: readonly ProposalBundle[]): Readonly<Record<string, number>> {
-  return bundles
-    .flatMap((bundle) => bundle.payload.proposals)
-    .reduce<Record<string, number>>((acc, proposal) => ({
-      ...acc,
-      [proposal.category ?? 'uncategorized']: (acc[proposal.category ?? 'uncategorized'] ?? 0) + 1,
-    }), {});
+  // Phase 2.4 Big-O fix: previously this used `{ ...acc, [k]: v + 1 }`
+  // inside a reduce, which clones the entire accumulator on every step
+  // for O(N²) total work. Single-pass mutation of a fresh local record
+  // is O(N); the result is frozen via `Object.freeze` to keep it
+  // structurally readonly at the boundary.
+  const acc: Record<string, number> = {};
+  for (const bundle of bundles) {
+    for (const proposal of bundle.payload.proposals) {
+      const category = proposal.category ?? 'uncategorized';
+      acc[category] = (acc[category] ?? 0) + 1;
+    }
+  }
+  return Object.freeze(acc);
 }
 
 function round2(value: number): number {
@@ -263,6 +295,13 @@ function proofObligation(input: {
     score: round4(1 - normalizedRisk),
     status: proofStatusFromRisk(normalizedRisk),
     evidence: input.evidence,
+    // Phase 1.7 honesty: obligations built from this factory are derived
+    // from hand-weighted single-frame fitness rates. They are useful as
+    // signals but not as direct measurements of the corresponding
+    // theorem groups. The cohort-trajectory builder in `compounding.ts`
+    // emits its own obligations with `measurementClass: 'direct'` and
+    // those override the heuristic-proxy form when history is available.
+    measurementClass: 'heuristic-proxy',
   };
 }
 
@@ -282,24 +321,27 @@ function proposalCategoryShare(
   return total > 0 ? round2((counts?.[category] ?? 0) / total) : 0;
 }
 
-function runtimeProofObligations(metrics: Pick<
-  PipelineFitnessMetrics,
-  'effectiveHitRate'
-  | 'knowledgeHitRate'
-  | 'ambiguityRate'
-  | 'suspensionRate'
-  | 'agentFallbackRate'
-  | 'liveDomFallbackRate'
-  | 'routeMismatchRate'
-  | 'translationPrecision'
-  | 'translationRecall'
-  | 'proposalYield'
-  | 'degradedLocatorRate'
-  | 'recoverySuccessRate'
-  | 'proposalCategoryCounts'
-  | 'winningSourceDistribution'
-  | 'knowledgeCoverage'
->): readonly LogicalProofObligation[] {
+function runtimeProofObligations(
+  metrics: Pick<
+    PipelineFitnessMetrics,
+    'effectiveHitRate'
+    | 'knowledgeHitRate'
+    | 'ambiguityRate'
+    | 'suspensionRate'
+    | 'agentFallbackRate'
+    | 'liveDomFallbackRate'
+    | 'routeMismatchRate'
+    | 'translationPrecision'
+    | 'translationRecall'
+    | 'proposalYield'
+    | 'degradedLocatorRate'
+    | 'recoverySuccessRate'
+    | 'proposalCategoryCounts'
+    | 'winningSourceDistribution'
+    | 'knowledgeCoverage'
+  >,
+  compoundingTrajectory?: CompoundingTrajectory,
+): readonly LogicalProofObligation[] {
   const gateHitRate = metrics.effectiveHitRate ?? metrics.knowledgeHitRate;
   const ambiguityRate = metrics.ambiguityRate ?? 0;
   const suspensionRate = metrics.suspensionRate ?? 0;
@@ -447,12 +489,29 @@ function runtimeProofObligations(metrics: Pick<
       risk: participationRisk,
       evidence: `proposalYield=${metrics.proposalYield}, recoverySuccessRate=${metrics.recoverySuccessRate}, agentFallbackRate=${agentFallbackRate}`,
     }),
-    proofObligation({
-      obligation: 'compounding-economics',
-      propertyRefs: ['C', 'M'],
-      risk: economicsRisk,
-      evidence: `gateHitRate=${gateHitRate}, proposalYield=${metrics.proposalYield}, degradedLocatorRate=${metrics.degradedLocatorRate}`,
-    }),
+    // Cohort-trajectory measurement when history is available, heuristic
+    // proxy otherwise. The cohort-derived obligation is the honest one
+    // and graduates from `heuristic-proxy` → `direct` once the trajectory
+    // has DIRECT_TRAJECTORY_SAMPLES (3) cohort-comparable samples.
+    compoundingTrajectory && compoundingTrajectory.samples.length >= 2
+      ? {
+          ...compoundingObligation({
+            obligation: 'compounding-economics',
+            propertyRefs: ['C', 'M'],
+            trajectory: compoundingTrajectory,
+            metricName: 'effectiveHitRate',
+          }),
+          measurementClass: trajectoryMeasurementClass(compoundingTrajectory),
+        }
+      : {
+          ...proofObligation({
+            obligation: 'compounding-economics',
+            propertyRefs: ['C', 'M'],
+            risk: economicsRisk,
+            evidence: `gateHitRate=${gateHitRate}, proposalYield=${metrics.proposalYield}, degradedLocatorRate=${metrics.degradedLocatorRate} (heuristic — no cohort trajectory available)`,
+          }),
+          measurementClass: 'heuristic-proxy' as const,
+        },
     proofObligation({
       obligation: 'surface-compressibility',
       propertyRefs: ['M'],
@@ -646,20 +705,23 @@ export function buildFitnessReport(data: FitnessInputData): PipelineFitnessRepor
     0,
   );
 
-  // Classify failures
-  const failureMap = steps.reduce<ReadonlyMap<PipelineFailureClass, { readonly count: number; readonly affectedSteps: number; readonly intents: readonly string[] }>>(
-    (map, step) => {
+  // Classify failures. Phase 2.4 Big-O fix: single-pass O(N) instead of
+  // O(N²). The mutable Map is local and never escapes; the value records
+  // are still constructed immutably.
+  const failureMap = (() => {
+    const acc = new Map<PipelineFailureClass, { readonly count: number; readonly affectedSteps: number; readonly intents: readonly string[] }>();
+    for (const step of steps) {
       const failureClass = classifyFailure(step);
-      if (failureClass === null) return map;
-      const existing = map.get(failureClass) ?? { count: 0, affectedSteps: 0, intents: [] };
-      return new Map([...map, [failureClass, {
+      if (failureClass === null) continue;
+      const existing = acc.get(failureClass) ?? { count: 0, affectedSteps: 0, intents: [] };
+      acc.set(failureClass, {
         count: existing.count + 1,
         affectedSteps: existing.affectedSteps + 1,
         intents: existing.intents.length < 5 ? [...existing.intents, step.intent] : existing.intents,
-      }]]);
-    },
-    new Map(),
-  );
+      });
+    }
+    return acc as ReadonlyMap<PipelineFailureClass, { readonly count: number; readonly affectedSteps: number; readonly intents: readonly string[] }>;
+  })();
 
   // Check for convergence stall before building failure modes
   const ledgerIterations = data.ledger.iterations;
@@ -722,7 +784,16 @@ export function buildFitnessReport(data: FitnessInputData): PipelineFitnessRepor
     ],
   } : undefined;
 
+  const memoryMaturityValue = data.memoryMaturityCounts !== undefined
+    ? computeMemoryMaturity(data.memoryMaturityCounts) as number
+    : undefined;
+  const memoryMaturityEntries = data.memoryMaturityCounts !== undefined
+    ? memoryMaturityEntryCount(data.memoryMaturityCounts)
+    : undefined;
+
   const metrics: PipelineFitnessMetrics = {
+    ...(memoryMaturityValue !== undefined ? { memoryMaturity: round4(memoryMaturityValue) } : {}),
+    ...(memoryMaturityEntries !== undefined ? { memoryMaturityEntries } : {}),
     effectiveHitRate: totalSteps > 0
       ? round4(effectiveHits / totalSteps)
       : 0,
@@ -754,7 +825,14 @@ export function buildFitnessReport(data: FitnessInputData): PipelineFitnessRepor
     recoverySuccessRate,
     executionHealth,
   };
-  const proofObligations = runtimeProofObligations(metrics);
+  const compoundingTrajectory = data.existingScorecard?.history
+    ? projectCompoundingTrajectory({
+        history: data.existingScorecard.history,
+        extractValue: (entry) => entry.effectiveHitRate ?? entry.knowledgeHitRate,
+        direction: 'higher-is-better',
+      })
+    : undefined;
+  const proofObligations = runtimeProofObligations(metrics, compoundingTrajectory);
   const metricsWithProofs: PipelineFitnessMetrics = {
     ...metrics,
     proofObligations,
@@ -819,23 +897,42 @@ export function compareToScorecard(
   const precisionDelta = round4(report.metrics.translationPrecision - hwm.translationPrecision);
   const velocityDelta = report.metrics.convergenceVelocity - hwm.convergenceVelocity;
 
+  // Phase 3.2 veto gate: critical-floor target violations block
+  // acceptance regardless of Pareto outcome. The wall-mounted
+  // alignment targets are the doctrinal "did this scorecard pass
+  // the floor?" check, not just diagnostic signals. A scorecard
+  // that improves Pareto-wise but regresses below a critical floor
+  // is not accepted.
+  const criticalViolation = hasCriticalFloorViolation({
+    effectiveHitRate: report.metrics.effectiveHitRate,
+    knowledgeHitRate: report.metrics.knowledgeHitRate,
+    ambiguityRate: report.metrics.ambiguityRate,
+    suspensionRate: report.metrics.suspensionRate,
+    degradedLocatorRate: report.metrics.degradedLocatorRate,
+    proposalYield: report.metrics.proposalYield,
+    recoverySuccessRate: report.metrics.recoverySuccessRate,
+  });
+
   // Use Pareto comparison when frontier exists, fall back to single-metric
   const candidateObjectives = objectivesFromMetrics(report.metrics);
-  const improved = scorecard.paretoFrontier
+  const paretoOrSingle = scorecard.paretoFrontier
     ? isAcceptedByParetoFrontier(scorecard.paretoFrontier, candidateObjectives)
     : effectiveHitRateDelta > 0;
+  const improved = paretoOrSingle && !criticalViolation;
 
   const gateLabel = scorecardUsesEffectiveHitRate ? 'effective hit rate' : 'knowledge hit rate';
   const gateCurrent = round4(currentGateHitRate);
   const gateHighWater = round4(highWaterGateHitRate);
 
-  const summary = improved
-    ? scorecard.paretoFrontier
-      ? `Accepted by Pareto frontier: not dominated by any existing entry`
-      : `Beat the mark: ${gateLabel} ${gateHighWater} → ${gateCurrent} (+${effectiveHitRateDelta})`
-    : scorecard.paretoFrontier
-      ? `Rejected: dominated by existing Pareto frontier entry`
-      : `Did not beat the mark: ${gateLabel} ${gateCurrent} vs high-water ${gateHighWater} (${effectiveHitRateDelta})`;
+  const summary = criticalViolation
+    ? `Vetoed by critical-floor: a target metric regressed below its alignment floor (see docs/alignment-targets.md). ${gateLabel} ${gateCurrent} vs high-water ${gateHighWater} (${effectiveHitRateDelta}).`
+    : improved
+      ? scorecard.paretoFrontier
+        ? `Accepted by Pareto frontier: not dominated by any existing entry`
+        : `Beat the mark: ${gateLabel} ${gateHighWater} → ${gateCurrent} (+${effectiveHitRateDelta})`
+      : scorecard.paretoFrontier
+        ? `Rejected: dominated by existing Pareto frontier entry`
+        : `Did not beat the mark: ${gateLabel} ${gateCurrent} vs high-water ${gateHighWater} (${effectiveHitRateDelta})`;
 
   return { improved, effectiveHitRateDelta, knowledgeHitRateDelta: hitRateDelta, translationPrecisionDelta: precisionDelta, convergenceVelocityDelta: velocityDelta, summary };
 }
@@ -848,6 +945,13 @@ export function updateScorecard(
   const theoremBaselineSummary = summarizeTheoremBaseline(
     theoremBaselineCoverageForObligations(report.metrics.proofObligations ?? []),
   );
+  const memoryMaturityFields = report.metrics.memoryMaturity !== undefined
+    ? {
+        memoryMaturity: report.metrics.memoryMaturity,
+        memoryMaturityEntries: report.metrics.memoryMaturityEntries,
+      }
+    : {};
+
   const historyEntry: ScorecardHistoryEntry = {
     runAt: report.runAt,
     pipelineVersion: report.pipelineVersion,
@@ -857,6 +961,7 @@ export function updateScorecard(
     convergenceVelocity: report.metrics.convergenceVelocity,
     theoremBaselineSummary,
     improved: comparison.improved,
+    ...memoryMaturityFields,
   };
 
   const highWaterMark: ScorecardHighWaterMark = comparison.improved
@@ -871,6 +976,7 @@ export function updateScorecard(
         proofObligations: report.metrics.proofObligations,
         theoremBaselineSummary,
         resolutionByRung: report.metrics.resolutionByRung,
+        ...memoryMaturityFields,
       }
     : existing?.highWaterMark ?? {
         setAt: report.runAt,
@@ -883,6 +989,7 @@ export function updateScorecard(
         proofObligations: report.metrics.proofObligations,
         theoremBaselineSummary,
         resolutionByRung: report.metrics.resolutionByRung,
+        ...memoryMaturityFields,
       };
 
   // Maintain Pareto frontier
@@ -909,25 +1016,48 @@ export function updateScorecard(
 
 /**
  * Merge failure modes from multiple reports, deduplicating by class
- * and summing counts/affected steps.
+ * and summing counts/affected steps. Phase 2.4 Big-O fix: O(N) instead
+ * of O(N²). Phase 2.8 averaging-bug fix happens in `meanFailureModes`
+ * below — `mergeFailureModes` keeps SUM semantics (used by aggregators
+ * that want totals). Callers that want per-seed averages use
+ * `meanFailureModes(modes, seedCount)`.
  */
 function mergeFailureModes(
   modes: readonly PipelineFailureMode[],
 ): readonly PipelineFailureMode[] {
-  const byClass = modes.reduce<ReadonlyMap<PipelineFailureClass, PipelineFailureMode>>(
-    (map, mode) => {
-      const existing = map.get(mode.class);
-      return existing
-        ? new Map([...map, [mode.class, {
+  const byClass = new Map<PipelineFailureClass, PipelineFailureMode>();
+  for (const mode of modes) {
+    const existing = byClass.get(mode.class);
+    byClass.set(
+      mode.class,
+      existing
+        ? {
             ...existing,
             count: existing.count + mode.count,
             affectedSteps: existing.affectedSteps + mode.affectedSteps,
-          }]])
-        : new Map([...map, [mode.class, mode]]);
-    },
-    new Map(),
-  );
+          }
+        : mode,
+    );
+  }
   return [...byClass.values()].sort((a, b) => b.count - a.count);
+}
+
+/**
+ * Mean of failure modes across N seeds. Phase 2.8 averaging-bug fix:
+ * `mergeFailureModes` summed `affectedSteps` across seeds, inflating
+ * the result by N×. `meanFailureModes` divides by `n` to produce the
+ * average a multi-seed report should report. Counts are rounded.
+ */
+function meanFailureModes(
+  modes: readonly PipelineFailureMode[],
+  seedCount: number,
+): readonly PipelineFailureMode[] {
+  const n = Math.max(seedCount, 1);
+  return mergeFailureModes(modes).map((mode) => ({
+    ...mode,
+    count: Math.round(mode.count / n),
+    affectedSteps: Math.round(mode.affectedSteps / n),
+  }));
 }
 
 /**
@@ -1017,10 +1147,10 @@ export function averageFitnessReports(
       };
       return {
         ...averagedMetrics,
-        proofObligations: runtimeProofObligations(averagedMetrics),
+        proofObligations: runtimeProofObligations(averagedMetrics, undefined),
       };
     })(),
-    failureModes: mergeFailureModes(reports.flatMap((r) => r.failureModes)),
+    failureModes: meanFailureModes(reports.flatMap((r) => r.failureModes), reports.length),
   };
 }
 

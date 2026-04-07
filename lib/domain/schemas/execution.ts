@@ -263,11 +263,13 @@ export const BenchmarkScorecardSchema = Schema.Struct({
       'memory-worthiness',
       'meta-worthiness',
       'handoff-integrity',
+      'fingerprint-stability',
     ),
     propertyRefs: Schema.Array(Schema.Literal('K', 'L', 'S', 'D', 'V', 'R', 'A', 'H', 'C', 'M')),
     score: Schema.Number,
     status: Schema.Literal('healthy', 'watch', 'critical'),
     evidence: Schema.String,
+    measurementClass: Schema.optional(Schema.Literal('direct', 'heuristic-proxy', 'derived')),
   })), { default: () => [] as const }),
   falsifierSignals: Schema.optionalWith(Schema.Array(Schema.Struct({
     name: Schema.Literal('semantic-non-persistence', 'behavioral-non-boundedness', 'opaque-suspension', 'economic-flatness', 'inert-intervention'),

@@ -31,6 +31,7 @@ import {
 import { buildImprovementRun, recordImprovementRun, scorecardPath } from './improvement';
 import { loadExperimentRegistry, recordExperiment } from './experiment-registry';
 import { summarizeKnowledgeCoverage } from './knowledge-coverage';
+import { projectMemoryMaturityCounts } from './memory-maturity-projection';
 import { calibrateWeightsFromCorrelations } from '../learning/learning-bottlenecks';
 import { loadWorkspaceCatalog } from '../catalog';
 import { cleanSlateProgram } from './clean-slate';
@@ -341,6 +342,11 @@ export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunRes
       Effect.catchAll(() => Effect.succeed('unknown')),
     );
 
+    // Load existing scorecard BEFORE building the fitness report so the
+    // C-family compounding obligation can project a cohort trajectory from
+    // history. Without this, every report falls back to the heuristic-proxy
+    // form of `compounding-economics`.
+    const existingScorecardForTrajectory = yield* loadScorecard(input.paths);
     const fitnessData: FitnessInputData = {
       pipelineVersion,
       ledger,
@@ -348,6 +354,8 @@ export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunRes
       proposalBundles,
       knowledgeCoverage: summarizeKnowledgeCoverage(catalog),
       experimentHistory: priorRegistry.experiments,
+      memoryMaturityCounts: projectMemoryMaturityCounts(catalog),
+      existingScorecard: existingScorecardForTrajectory,
     };
     const fitnessReport = buildFitnessReport(fitnessData);
     const fitnessDuration = Date.now() - fitnessStart;
@@ -371,7 +379,7 @@ export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunRes
       seed: input.seed,
     });
 
-    const existingScorecard = yield* loadScorecard(input.paths);
+    const existingScorecard = existingScorecardForTrajectory;
     const comparison = compareToScorecard(fitnessReport, existingScorecard);
 
     const improvementRun = buildImprovementRun({
@@ -802,15 +810,17 @@ export function reportPhase(input: ReportPhaseInput) {
       ? decodeLedgerOrThrow(rawReportLedger, `reportPhase(${reportLedgerPath})`)
       : reportEmptyLedger;
 
+    const existingScorecard = yield* loadScorecard(input.paths);
     const fitnessReport = buildFitnessReport({
       pipelineVersion,
       ledger: reportLedger,
       runSteps,
       proposalBundles,
       knowledgeCoverage: summarizeKnowledgeCoverage(catalog),
+      memoryMaturityCounts: projectMemoryMaturityCounts(catalog),
+      existingScorecard,
     });
 
-    const existingScorecard = yield* loadScorecard(input.paths);
     const comparison = compareToScorecard(fitnessReport, existingScorecard);
 
     if (comparison.improved) {

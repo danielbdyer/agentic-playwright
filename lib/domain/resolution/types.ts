@@ -691,7 +691,12 @@ export interface ResolvedReceipt extends ResolutionReceiptBase {
 
 export interface ResolvedWithProposalsReceipt extends ResolutionReceiptBase {
   readonly kind: 'resolved-with-proposals';
-  readonly confidence: 'agent-proposed' | 'agent-verified';
+  /** A `resolved-with-proposals` step is a successful resolution that ALSO emits
+   *  alias-stabilization proposals. The resolution itself can be `compiler-derived`
+   *  (deterministic explicit/approved-knowledge match), `agent-verified` (overlay
+   *  or semantic-dictionary match), or `agent-proposed` (translation result).
+   *  The proposal status is independent of resolution confidence. */
+  readonly confidence: 'compiler-derived' | 'agent-proposed' | 'agent-verified';
   readonly provenanceKind: Extract<StepProvenanceKind, 'approved-knowledge' | 'live-exploration'>;
   readonly target: ResolutionTarget;
   readonly evidenceDrafts: readonly ResolutionEvidenceDraft[];

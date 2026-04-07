@@ -78,7 +78,11 @@ export type LogicalProofObligationName =
   | 'actor-chain-coherence'
   | 'compounding-economics'
   | 'meta-worthiness'
-  | 'handoff-integrity';
+  | 'handoff-integrity'
+  /** K0: given identical canon, two compilations produce byte-identical
+   *  derived artifacts (modulo timestamps). The strongest single test of
+   *  the doctrine's compiler-determinism claim. */
+  | 'fingerprint-stability';
 
 export type LogicalTheoremGroup = 'K' | 'L' | 'S' | 'D' | 'V' | 'R' | 'A' | 'H' | 'C' | 'M';
 export type TheoremBaselineStatus = 'direct' | 'proxy' | 'missing';
@@ -89,6 +93,11 @@ export interface LogicalProofObligation {
   readonly score: number;
   readonly status: 'healthy' | 'watch' | 'critical';
   readonly evidence: string;
+  /** How the obligation was measured. Phase 1 of the temporal-epistemic
+   *  realization adds this so the theorem-baseline reducer can honestly
+   *  classify K/L/S/C/M groups as `direct` only when the underlying
+   *  obligation is genuinely measured (not heuristically derived). */
+  readonly measurementClass?: 'direct' | 'heuristic-proxy' | 'derived';
 }
 
 export interface KnowledgeCoverageSummary {
@@ -156,20 +165,35 @@ export function theoremBaselineCoverageForNames(
   const hasMemoryWorthiness = names.has('memory-worthiness');
   const hasMeta = names.has('meta-worthiness');
   const hasHandoff = names.has('handoff-integrity');
+  const hasFingerprintStability = names.has('fingerprint-stability');
 
   return [
     theoremBaselineEntry({
       theoremGroup: 'K',
-      status: hasPostureSeparability ? 'direct' : hasStructural ? 'proxy' : 'missing',
+      // K is only `direct` when BOTH posture-separability AND
+      // fingerprint-stability are present. Posture separability covers
+      // the structural side (K1, K2); fingerprint stability covers the
+      // determinism side (the doctrine's compiler-determinism claim).
+      // Without both, K stays at `proxy`.
+      status: hasPostureSeparability && hasFingerprintStability
+        ? 'direct'
+        : (hasPostureSeparability || hasFingerprintStability || hasStructural)
+          ? 'proxy'
+          : 'missing',
       measuredBy: [
         ...(hasPostureSeparability ? ['posture-separability' as const] : []),
-        ...(!hasPostureSeparability && hasStructural ? ['structural-legibility' as const] : []),
+        ...(hasFingerprintStability ? ['fingerprint-stability' as const] : []),
+        ...(!hasPostureSeparability && !hasFingerprintStability && hasStructural ? ['structural-legibility' as const] : []),
       ],
-      rationale: hasPostureSeparability
-        ? 'Kernel properties now have a dedicated posture-separability obligation backed by posture annotation, route-entry coverage, and suspension pressure.'
-        : hasStructural
-          ? 'Kernel continuity is inferred through structural-legibility proxies such as ambiguity, translation precision, and fallback reliance.'
-          : 'No live structural-legibility obligation is available yet.',
+      rationale: hasPostureSeparability && hasFingerprintStability
+        ? 'Kernel properties have BOTH a posture-separability obligation (structural side) AND a fingerprint-stability obligation (determinism side). K1+K2 (canonical target continuity) and the compiler-determinism doctrine are both directly measured.'
+        : hasPostureSeparability
+          ? 'Kernel structural side is direct via posture-separability, but fingerprint-stability (the determinism side) is not yet measured. K is therefore proxy until both are present.'
+          : hasFingerprintStability
+            ? 'Kernel determinism side is direct via fingerprint-stability, but posture-separability is missing. K stays proxy until both are present.'
+            : hasStructural
+              ? 'Kernel continuity is inferred through structural-legibility proxies such as ambiguity, translation precision, and fallback reliance.'
+              : 'No live kernel obligation is available yet.',
     }),
     theoremBaselineEntry({
       theoremGroup: 'L',
@@ -298,7 +322,51 @@ export function theoremBaselineCoverageForNames(
 }
 
 export function theoremBaselineCoverageForObligations(
-  obligations: readonly Pick<LogicalProofObligation, 'obligation'>[],
+  obligations: readonly Pick<LogicalProofObligation, 'obligation' | 'measurementClass'>[],
+): readonly TheoremBaselineCoverage[] {
+  // Phase 1.7 honesty fix: previously every obligation that existed would
+  // graduate its theorem group to `direct` regardless of whether the
+  // underlying measurement was real or a hand-weighted heuristic. The
+  // reducer now distinguishes those two regimes by reading
+  // `measurementClass`.
+  //
+  // Algorithm:
+  //   1. directNames = obligations with measurementClass === 'direct' (or
+  //      undefined, for legacy backwards compat).
+  //   2. allNames    = every obligation present (direct + heuristic).
+  //   3. For each theorem group, take the direct view first. If the
+  //      direct view says `direct`, the group is direct. Otherwise fall
+  //      back to the all-view, which graduates the group to `proxy` for
+  //      heuristic-only coverage.
+  const directNames = new Set(
+    obligations
+      .filter((obligation) =>
+        obligation.measurementClass === undefined || obligation.measurementClass === 'direct',
+      )
+      .map((obligation) => obligation.obligation),
+  );
+  const allNames = new Set(obligations.map((obligation) => obligation.obligation));
+  const directView = theoremBaselineCoverageForNames(directNames);
+  const allView = theoremBaselineCoverageForNames(allNames);
+  return directView.map((direct, index) => {
+    if (direct.status === 'direct') return direct;
+    const proxy = allView[index]!;
+    // Take the proxy view's status, but only if it's at least proxy
+    // (not missing). If the proxy view is also missing, return missing.
+    if (proxy.status === 'direct') {
+      // The proxy view says direct because the obligation name is present,
+      // but it's heuristic — demote to proxy.
+      return { ...proxy, status: 'proxy' as TheoremBaselineStatus };
+    }
+    return proxy;
+  });
+}
+
+/** Variant that returns BOTH direct-graduated and heuristic-proxy
+ *  classifications. Useful for dashboards that want to show "what's
+ *  measured" alongside "what's heuristically inferred". */
+export function theoremBaselineCoverageForObligationsWithProxies(
+  obligations: readonly Pick<LogicalProofObligation, 'obligation' | 'measurementClass'>[],
 ): readonly TheoremBaselineCoverage[] {
   return theoremBaselineCoverageForNames(new Set(obligations.map((obligation) => obligation.obligation)));
 }
@@ -326,6 +394,13 @@ export function summarizeTheoremBaseline(
 // ─── Pipeline Fitness Report ───
 
 export interface PipelineFitnessMetrics {
+  /** Operational `MemoryMaturity(τ)` from the temporal-epistemic addendum.
+   *  log2(1 + |approved knowledge entries|). Used by C-family obligations
+   *  to determine cohort comparability and compounding direction. */
+  readonly memoryMaturity?: number | undefined;
+  /** Raw entry count behind `memoryMaturity`. Surfaced alongside the
+   *  log-scale value so dashboards can show both. */
+  readonly memoryMaturityEntries?: number | undefined;
   readonly effectiveHitRate?: number | undefined;
   readonly knowledgeHitRate: number;
   readonly ambiguityRate?: number | undefined;
@@ -381,6 +456,13 @@ export interface ScorecardHighWaterMark {
   readonly resolutionByRung: readonly RungRate[];
   /** Execution health score at the time of high-water mark. */
   readonly executionHealthScore?: number | undefined;
+  /** Operational `MemoryMaturity(τ)` from the temporal-epistemic addendum.
+   *  log2(1 + |approved knowledge entries|). Used by C-family obligations
+   *  to determine cohort comparability and compounding direction. */
+  readonly memoryMaturity?: number | undefined;
+  /** Raw entry count behind `memoryMaturity`. Surfaced alongside the
+   *  log-scale value so dashboards can show both. */
+  readonly memoryMaturityEntries?: number | undefined;
 }
 
 export interface ScorecardHistoryEntry {
@@ -392,6 +474,9 @@ export interface ScorecardHistoryEntry {
   readonly convergenceVelocity: number;
   readonly theoremBaselineSummary?: TheoremBaselineSummary | undefined;
   readonly improved: boolean;
+  /** Operational `MemoryMaturity(τ)` at the time of this entry. */
+  readonly memoryMaturity?: number | undefined;
+  readonly memoryMaturityEntries?: number | undefined;
 }
 
 // ─── Pareto Frontier ───
