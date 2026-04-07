@@ -41,9 +41,12 @@ import type { LogicalProofObligation } from '../../domain/fitness/types';
 import { walkFiles } from '../catalog/artifacts';
 import type { ProjectPaths } from '../paths';
 
-/** Where the probe stores its canonical snapshot on disk. */
+/** Where the probe stores its canonical snapshot on disk.
+ *  Lives under `.tesseract/` (runtime dir, always gitignored) rather
+ *  than the suite-rooted `benchmarksDir` so the snapshot cannot
+ *  accidentally be committed or shared between suites. */
 export function fingerprintSnapshotPath(paths: ProjectPaths): string {
-  return path.join(paths.benchmarksDir ?? path.join(paths.rootDir, '.tesseract', 'benchmarks'), 'fingerprint-snapshot.json');
+  return path.join(paths.rootDir, '.tesseract', 'benchmarks', 'fingerprint-snapshot.json');
 }
 
 /**
