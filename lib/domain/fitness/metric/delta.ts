@@ -140,12 +140,8 @@ export type DeltaVerdict = 'improvement' | 'regression' | 'mixed' | 'unchanged';
  *  `'unchanged'`, `'neutral'`, and `'incomparable'` entries do not move
  *  the verdict. */
 export function deltaVerdict(delta: MetricTreeDelta): DeltaVerdict {
-  let hasBetter = false;
-  let hasWorse = false;
-  for (const entry of delta.entries) {
-    if (entry.direction === 'better') hasBetter = true;
-    if (entry.direction === 'worse') hasWorse = true;
-  }
+  const hasBetter = delta.entries.some((entry) => entry.direction === 'better');
+  const hasWorse = delta.entries.some((entry) => entry.direction === 'worse');
   if (hasBetter && hasWorse) return 'mixed';
   if (hasBetter) return 'improvement';
   if (hasWorse) return 'regression';

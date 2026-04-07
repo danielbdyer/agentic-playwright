@@ -170,26 +170,19 @@ export interface CohortIdRangeOverlap {
 export function findCohortIdOverlaps(
   cohorts: readonly CohortDefinition[],
 ): readonly CohortIdRangeOverlap[] {
-  const overlaps: CohortIdRangeOverlap[] = [];
-  for (let i = 0; i < cohorts.length; i++) {
-    const a = cohorts[i]!;
-    const aStart = a.idStart;
-    const aEnd = a.idStart + a.count;
-    for (let j = i + 1; j < cohorts.length; j++) {
-      const b = cohorts[j]!;
-      const bStart = b.idStart;
-      const bEnd = b.idStart + b.count;
-      const overlapStart = Math.max(aStart, bStart);
-      const overlapEnd = Math.min(aEnd, bEnd);
-      if (overlapStart < overlapEnd) {
-        overlaps.push({
+  return cohorts.flatMap((a, index) =>
+    cohorts.slice(index + 1).flatMap((b): readonly CohortIdRangeOverlap[] => {
+      const overlapStart = Math.max(a.idStart, b.idStart);
+      const overlapEnd = Math.min(a.idStart + a.count, b.idStart + b.count);
+      if (overlapStart >= overlapEnd) return [];
+      return [
+        {
           cohortA: a.cohortId,
           cohortB: b.cohortId,
           overlapStart,
           overlapEnd,
-        });
-      }
-    }
-  }
-  return overlaps;
+        },
+      ];
+    }),
+  );
 }

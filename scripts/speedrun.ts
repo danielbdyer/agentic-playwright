@@ -1,7 +1,7 @@
 /**
  * Self-improving pipeline speedrun — CLI wrapper.
  *
- * Full mode:
+ * Full mode (legacy bundled flow — still supported):
  *   npx tsx scripts/speedrun.ts [--count N] [--seed S] [--seeds S1,S2,S3]
  *        [--max-iterations N] [--posture cold-start|warm-start|production]
  *        [--mode playwright|diagnostic]
@@ -15,10 +15,26 @@
  *   npx tsx scripts/speedrun.ts fitness   [--seed S]
  *   npx tsx scripts/speedrun.ts report
  *
+ * Loop A / C verbs (fifth-kind loop, doctrinal layering):
+ *   npx tsx scripts/speedrun.ts corpus    [--seed S]
+ *       Generate the 12-cohort reference corpus to dogfood/scenarios/
+ *       reference/. Loop A primitive. Idempotent on seed.
+ *
+ *   npx tsx scripts/speedrun.ts baseline  --label LABEL
+ *       Capture the L4 metric tree from the most recent fitness
+ *       report and persist it as a labeled baseline under
+ *       .tesseract/baselines/{LABEL}.baseline.json.
+ *
+ *   npx tsx scripts/speedrun.ts score     [--baseline LABEL|latest]
+ *       Build the L4 metric tree from the most recent fitness report.
+ *       When --baseline is provided (or 'latest'), diff against the
+ *       captured baseline and emit a typed verdict + delta vector.
+ *       Loop C primitive. Reads receipts only — never regenerates.
+ *
  * Each phase reads from and writes to disk artifacts, enabling agents
  * and operators to inspect intermediate state between phases.
  *
- * All orchestration lives in lib/application/speedrun.ts. This script is a thin
+ * All orchestration lives in lib/application/. This script is a thin
  * CLI wrapper: parse args → build input → call Effect program → print results.
  */
 
@@ -35,6 +51,14 @@ import {
   type MultiSeedResult,
 } from '../lib/application/improvement/speedrun';
 import { resolveKnowledgePosture } from '../lib/application/knowledge/knowledge-posture';
+import { generateCohortCorpus } from '../lib/application/synthesis/cohort-generator';
+import {
+  score as scoreCommand,
+  captureBaseline,
+} from '../lib/application/measurement';
+import { buildL4MetricTree } from '../lib/domain/fitness/metric/visitors';
+import { findLatestFitnessReport } from '../lib/application/measurement/score';
+import { foldMetricTree } from '../lib/domain/fitness/metric/tree';
 import { runWithLocalServices } from '../lib/composition/local-services';
 import type { PipelineConfig } from '../lib/domain/attention/pipeline-config';
 import type { PipelineFitnessReport } from '../lib/domain/fitness/types';
@@ -240,7 +264,17 @@ function printResult(result: MultiSeedResult): void {
 
 // ─── Subcommand detection ───
 
-const SUBCOMMANDS = ['generate', 'compile', 'iterate', 'fitness', 'report'] as const;
+const SUBCOMMANDS = [
+  'generate',
+  'compile',
+  'iterate',
+  'fitness',
+  'report',
+  // Loop A / C verbs (fifth-kind loop)
+  'corpus',
+  'baseline',
+  'score',
+] as const;
 type Subcommand = typeof SUBCOMMANDS[number];
 const subcommand: Subcommand | null =
   args.length > 0 && SUBCOMMANDS.includes(args[0] as Subcommand) ? args[0] as Subcommand : null;
@@ -349,6 +383,104 @@ async function runReport(): Promise<void> {
     : '\nScorecard unchanged — did not beat the mark.');
 }
 
+// ─── Loop A / C verbs (fifth-kind loop) ───
+
+async function runCorpus(): Promise<void> {
+  const masterSeed = singleSeed;
+  console.log(`Generating reference cohort corpus (master seed: ${masterSeed})...`);
+  const result = await runWithLocalServices(
+    generateCohortCorpus({ paths, masterSeed }),
+    rootDir,
+    serviceOptions,
+  );
+  console.log(`Generated ${result.totalScenarios} scenarios across ${result.cohorts.length} cohorts`);
+  console.log(`Aggregate hash: ${result.manifest.contentHash}`);
+  console.log(`Manifest: ${result.manifestPath}`);
+  for (const cohort of result.cohorts) {
+    console.log(`  ${cohort.cohortId.padEnd(22)} ${String(cohort.count).padStart(3)} scenarios  ${cohort.contentHash}`);
+  }
+}
+
+async function runBaseline(): Promise<void> {
+  const label = argVal('--label', '');
+  if (!label) {
+    console.error('baseline subcommand requires --label LABEL');
+    process.exit(2);
+  }
+  console.log(`Capturing L4 metric baseline as '${label}'...`);
+
+  const { Effect } = await import('effect');
+  const captured = await runWithLocalServices(
+    Effect.gen(function* () {
+      const report = yield* findLatestFitnessReport(paths);
+      if (report === null) {
+        return yield* Effect.fail(
+          new Error('No fitness report found in .tesseract/benchmarks/runs/. Run `speedrun fitness` (or full mode) first.'),
+        );
+      }
+      const tree = buildL4MetricTree({
+        metrics: report.metrics,
+        computedAt: new Date().toISOString(),
+      });
+      return yield* captureBaseline({
+        paths,
+        label,
+        tree,
+        commitSha: null,
+        pipelineVersion: report.pipelineVersion,
+      });
+    }),
+    rootDir,
+    serviceOptions,
+  );
+
+  console.log(`Baseline captured: ${captured.path}`);
+  console.log(`Label: ${captured.baseline.label}`);
+}
+
+async function runScore(): Promise<void> {
+  const baselineLabel = args.includes('--baseline') ? argVal('--baseline', 'latest') : undefined;
+  const label = baselineLabel === undefined ? '(no baseline)' : baselineLabel;
+  console.log(`Computing L4 score (baseline: ${label})...`);
+
+  const { Effect } = await import('effect');
+  const result = await runWithLocalServices(
+    Effect.gen(function* () {
+      const opts = baselineLabel !== undefined
+        ? { paths, baselineLabel: baselineLabel as 'latest' | string }
+        : { paths };
+      return yield* scoreCommand(opts);
+    }),
+    rootDir,
+    serviceOptions,
+  );
+
+  console.log(`\n=== L4 metric tree (root: ${result.tree.metric.kind}) ===`);
+  const flat = foldMetricTree<readonly { kind: string; value: number; depth: number }[]>(
+    result.tree,
+    (metric, childResults) => [
+      { kind: metric.kind, value: metric.value, depth: 0 },
+      ...childResults.flatMap((kids) => kids.map((k) => ({ ...k, depth: k.depth + 1 }))),
+    ],
+  );
+  for (const entry of flat) {
+    const indent = '  '.repeat(entry.depth);
+    console.log(`${indent}${entry.kind.padEnd(40 - entry.depth * 2)} ${entry.value.toFixed(4)}`);
+  }
+
+  if (result.delta && result.verdict) {
+    console.log(`\n=== Delta vs '${result.baseline?.label}' (verdict: ${result.verdict}) ===`);
+    for (const entry of result.delta.entries) {
+      if (entry.direction === 'unchanged' || entry.direction === 'incomparable') continue;
+      const arrow = entry.direction === 'better' ? '↑' : entry.direction === 'worse' ? '↓' : '·';
+      const before = entry.before?.toFixed(4) ?? '—';
+      const after = entry.after?.toFixed(4) ?? '—';
+      const abs = entry.absolute !== null ? (entry.absolute >= 0 ? '+' : '') + entry.absolute.toFixed(4) : '—';
+      console.log(`  ${arrow} ${entry.kind.padEnd(38)} ${before} → ${after}  (${abs})  [${entry.direction}]`);
+    }
+  }
+}
+
 // ─── Fixture server + browser pool lifecycle helper ───
 
 interface PlaywrightEnvironment {
@@ -446,6 +578,9 @@ const dispatch: Record<Subcommand, () => Promise<void>> = {
   iterate: runIterate,
   fitness: runFitness,
   report: runReport,
+  corpus: runCorpus,
+  baseline: runBaseline,
+  score: runScore,
 };
 
 const runner = subcommand ? dispatch[subcommand] : runFull;
