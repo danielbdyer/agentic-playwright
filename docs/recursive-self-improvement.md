@@ -623,7 +623,7 @@ Before running the clean room, choose a **knowledge posture** — this determine
 
 Set the posture in one of three ways (highest precedence first):
 
-1. **CLI flag:** `npx tsx scripts/speedrun.ts --posture cold-start`
+1. **CLI flag:** `npx tsx scripts/speedrun.ts iterate --posture cold-start` (or `speedrun full --posture ...` for the deprecated bundled flow)
 2. **Suite config file:** Create `{suiteRoot}/posture.yaml` containing `posture: cold-start`
 3. **Default:** `warm-start` (backward compatible)
 

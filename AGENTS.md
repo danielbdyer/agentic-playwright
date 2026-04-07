@@ -276,7 +276,7 @@ activate_proposal             # Approve a specific proposal by ID
 get_convergence_proof         # Check if the learning loop converges
 get_fitness_metrics           # Scorecard: hit rate, precision, velocity
 get_suggested_action          # Ranked next actions based on system state
-start_speedrun                # Launch the improvement loop
+start_speedrun                # Launch Loop B (iterate) on the checked-in corpus
 get_loop_status               # Monitor running loop
 get_queue_items               # See pending decisions
 get_decision_context          # Rich context for a decision
@@ -329,9 +329,24 @@ The file-backed decision bridge (`lib/infrastructure/dashboard/file-decision-bri
 
 ### Speedrun via CLI (when MCP start_speedrun is unavailable)
 
+The bundled "no-subcommand → multiSeedSpeedrun" mode has been removed.
+Compose the four doctrinal verbs explicitly:
+
 ```bash
-# Warm-start speedrun (uses existing knowledge)
-npx tsx scripts/speedrun.ts --count 10 --max-iterations 3
+# Loop A — produce the frozen reference corpus (run once per workload change)
+npx tsx scripts/speedrun.ts corpus --seed warm-v1
+
+# Loop B — substrate growth on the checked-in corpus
+npx tsx scripts/speedrun.ts iterate --max-iterations 3 --posture warm-start
+
+# Compute the fitness report from run records
+npx tsx scripts/speedrun.ts fitness
+
+# Loop C — project into the L4 metric tree and (optionally) diff a baseline
+npx tsx scripts/speedrun.ts score --baseline latest
+
+# Snapshot the L4 tree as a labeled baseline for future score diffs
+npx tsx scripts/speedrun.ts baseline --label pre-edit
 
 # Cold-start convergence proof (wipes knowledge each trial)
 npx tsx scripts/convergence-proof.ts --trials 2 --count 10 --max-iterations 4

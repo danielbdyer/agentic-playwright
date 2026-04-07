@@ -708,7 +708,7 @@ There is a category gap between "the algebra is sound" and "the system actually 
 | **Law tests** (`tests/fitness/*.laws.spec.ts`) | the math is correct, the algebra composes, the property holds for all inputs | pure functions, synthetic inputs | ~10ms per test |
 | **End-to-end tests** (`tests/fitness/*.e2e.spec.ts`) | the wiring works, the producer → consumer chain is alive, real data flows through | drive the dogfood loop or the MCP tool handler, assert on real artifacts on disk | ~1–2s per test |
 | **Golden tests** (`tests/fitness/*.golden.spec.ts`) | the on-disk artifact format cannot silently regress | load a checked-in fixture, validate schema + critical fields | ~5ms per test |
-| **Empirical runs** (live speedruns) | the substrate actually compounds on a real workload | `npx tsx scripts/speedrun.ts`, inspect `.tesseract/benchmarks/scorecard.json` | seconds to minutes |
+| **Empirical runs** (live iteration) | the substrate actually compounds on a real workload | compose `speedrun generate && speedrun compile && speedrun iterate && speedrun fitness && speedrun report`, inspect `.tesseract/benchmarks/scorecard.json` | seconds to minutes |
 
 **Every new metric needs at least the first two layers.** A law test that `computeFoo({a: 1}) === 2` is necessary but never sufficient. You also need an e2e test that exercises the producer, the projection, and the consumer in one pass and asserts the metric actually lands with non-trivial values on a real workspace.
 

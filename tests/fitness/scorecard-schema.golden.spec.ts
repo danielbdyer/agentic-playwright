@@ -1,9 +1,9 @@
 /**
  * Golden-fixture schema test for `scorecard.json`.
  *
- * The baseline fixture at `tests/fixtures/scorecards/baseline.json` is
- * captured from a real `npx tsx scripts/speedrun.ts` run against the
- * dogfood demo corpus. This test pins the on-disk schema so:
+ * The baseline fixture at `tests/fixtures/scorecards/baseline.json`
+ * is captured from a real run of the four-verb composition against
+ * the dogfood demo corpus. This test pins the on-disk schema so:
  *
  *   - Phase 1+ fields cannot silently regress (`memoryMaturity`,
  *     `memoryMaturityEntries`, `proofObligations[].measurementClass`,
@@ -15,8 +15,15 @@
  *   - Adding a new optional field to `ScorecardHighWaterMark` does
  *     not break reads.
  *
- * If the fixture becomes stale, regenerate with:
- *   rm -rf .tesseract && npx tsx scripts/speedrun.ts --count 3 --max-iterations 2 --mode diagnostic
+ * If the fixture becomes stale, regenerate by composing the four
+ * verbs against a clean .tesseract/ directory:
+ *
+ *   rm -rf .tesseract
+ *   npx tsx scripts/speedrun.ts generate --count 3
+ *   npx tsx scripts/speedrun.ts compile
+ *   npx tsx scripts/speedrun.ts iterate --max-iterations 2 --mode diagnostic
+ *   npx tsx scripts/speedrun.ts fitness
+ *   npx tsx scripts/speedrun.ts report
  *   cp .tesseract/benchmarks/scorecard.json tests/fixtures/scorecards/baseline.json
  */
 

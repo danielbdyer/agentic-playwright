@@ -29,7 +29,16 @@ import type { McpToolDefinition } from '../lib/domain/observation/dashboard';
 import type { WorkItemDecision } from '../lib/domain/observation/dashboard';
 import type { ScreenCapturedEvent } from '../lib/domain/observation/dashboard';
 import { createProjectPaths } from '../lib/application/paths';
-import { multiSeedSpeedrun, type MultiSeedResult } from '../lib/application/improvement/speedrun';
+import { iteratePhase } from '../lib/application/improvement/speedrun';
+import type { ImprovementLoopLedger } from '../lib/domain/improvement/types';
+
+/** Result type for the MCP-hosted iterate phase. Mirrors what
+ *  `iteratePhase()` returns; named locally so HostState retains a
+ *  stable type after the multiSeedSpeedrun removal. */
+interface IterateHostResult {
+  readonly ledger: ImprovementLoopLedger;
+  readonly durationMs: number;
+}
 import { createLocalServiceContext, type LocalServiceOptions } from '../lib/composition/local-services';
 import { createPlaywrightBrowserPool } from '../lib/infrastructure/runtime/playwright-browser-pool';
 import { startFixtureServer, type FixtureServer } from '../lib/infrastructure/tooling/fixture-server';
@@ -75,14 +84,14 @@ function readArtifact(relativePath: string): unknown | null {
 
 interface HostState {
   phase: LoopStatus['phase'];
-  fiber: Fiber.RuntimeFiber<MultiSeedResult, unknown> | null;
+  fiber: Fiber.RuntimeFiber<IterateHostResult, unknown> | null;
   fixtureServer: FixtureServer | null;
   browserPool: BrowserPoolPort | null;
   dashboardPort: DashboardPort | null;
   pendingDecisions: Map<string, (decision: WorkItemDecision) => void>;
   lastProgress: SpeedrunProgressEvent | null;
   startTime: number | null;
-  result: MultiSeedResult | null;
+  result: IterateHostResult | null;
   error: string | null;
   config: SpeedrunStartConfig | null;
 }
@@ -271,18 +280,30 @@ async function startSpeedrunHost(config: SpeedrunStartConfig): Promise<{ status:
 
   const ctx = createLocalServiceContext(ROOT_DIR, serviceOptions);
 
-  // Build the speedrun program
-  const program = multiSeedSpeedrun({
+  // Build the iterate program. The MCP tool used to launch the
+  // bundled multiSeedSpeedrun (generate + compile + iterate + fitness
+  // + report) but the bundled flow has been removed in favor of the
+  // four-verb doctrinal model. The MCP host now drives Loop B
+  // (substrate growth) only, against whatever corpus is on disk.
+  // Operators run `speedrun corpus` upstream and `speedrun fitness` /
+  // `speedrun score` downstream when they want the full pipeline.
+  //
+  // The `count` field on SpeedrunStartConfig is retained for protocol
+  // stability but ignored — iterate operates on the checked-in corpus.
+  // Multiple seeds are no longer supported in a single call; the
+  // first seed wins.
+  const seed = seeds[0] ?? 'speedrun-v1';
+  void count;
+  void pipelineConfig;
+  const program = iteratePhase({
     paths,
-    config: pipelineConfig,
-    seeds: seeds as string[],
-    count,
     maxIterations,
     knowledgePosture,
+    seed,
     onProgress,
     interpreterMode,
-    baseUrl: resolvedBaseUrl,
-    browserPool: hostState.browserPool ?? undefined,
+    ...(resolvedBaseUrl !== undefined ? { baseUrl: resolvedBaseUrl } : {}),
+    ...(hostState.browserPool !== null ? { browserPool: hostState.browserPool } : {}),
   });
 
   // Run as background fiber
@@ -294,7 +315,11 @@ async function startSpeedrunHost(config: SpeedrunStartConfig): Promise<{ status:
     (result) => {
       hostState.phase = 'completed';
       hostState.result = result;
-      process.stderr.write(`[MCP] Speedrun completed. Scorecard ${result.scorecardUpdated ? 'UPDATED' : 'unchanged'}.\n`);
+      process.stderr.write(
+        `[MCP] Iterate completed. ${result.ledger.completedIterations} iterations, ` +
+        `converged=${result.ledger.converged}, ` +
+        `proposalsActivated=${result.ledger.totalProposalsActivated}.\n`,
+      );
       notifyToolsChanged(); // Notify client that loop completed
     },
     (error) => {

@@ -32,8 +32,8 @@ function fakeMetrics(overrides: Partial<PipelineFitnessMetrics> = {}): PipelineF
     convergenceVelocity: 4,
     proposalYield: 0.6,
     resolutionByRung: [
-      { rung: 'screen-knowledge', wins: 70, rate: 0.7 },
-      { rung: 'shared-pattern', wins: 30, rate: 0.3 },
+      { rung: 'approved-screen-knowledge', wins: 70, rate: 0.7 },
+      { rung: 'shared-patterns', wins: 30, rate: 0.3 },
     ],
     degradedLocatorRate: 0.04,
     recoverySuccessRate: 0.9,

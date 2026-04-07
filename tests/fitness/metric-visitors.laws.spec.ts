@@ -33,8 +33,8 @@ function fakeMetrics(overrides: Partial<PipelineFitnessMetrics> = {}): PipelineF
     convergenceVelocity: 4,
     proposalYield: 0.6,
     resolutionByRung: [
-      { rung: 'screen-knowledge', wins: 70, rate: 0.7 },
-      { rung: 'shared-pattern', wins: 15, rate: 0.15 },
+      { rung: 'approved-screen-knowledge', wins: 70, rate: 0.7 },
+      { rung: 'shared-patterns', wins: 15, rate: 0.15 },
       { rung: 'live-dom', wins: 10, rate: 0.1 },
       { rung: 'structured-translation', wins: 5, rate: 0.05 },
     ],
@@ -125,8 +125,8 @@ test('rungDistributionVisitor produces one child per rung', () => {
   expect(node.metric.kind).toBe('rung-distribution');
   expect(node.metric.value).toBe(100); // sum of wins
   expect(node.children).toHaveLength(4);
-  expect(findMetricNode(node, 'rung-screen-knowledge-share')?.metric.value).toBe(0.7);
-  expect(findMetricNode(node, 'rung-shared-pattern-share')?.metric.value).toBe(0.15);
+  expect(findMetricNode(node, 'rung-approved-screen-knowledge-share')?.metric.value).toBe(0.7);
+  expect(findMetricNode(node, 'rung-shared-patterns-share')?.metric.value).toBe(0.15);
 });
 
 test('rungDistributionVisitor children sorted deterministically by rung name', () => {

@@ -1,15 +1,17 @@
 /**
- * Agent-driven speedrun — invocable from a Claude Code session.
+ * Agent-driven iterate — invocable from a Claude Code session.
  *
- * This script runs the speedrun Effect program with the agent interpreter
- * set to 'heuristic' (context-aware scoring) by default, or 'session' when
- * a createChatCompletion callback is provided.
+ * Runs the dogfood substrate-growth loop (Loop B) with the agent
+ * interpreter set to 'heuristic' by default, or 'session' when a
+ * createChatCompletion callback is provided. The agent interpreter
+ * resolves steps that would otherwise hit needs-human.
  *
  * Usage from Claude Code:
- *   npx tsx scripts/agent-speedrun.ts --count 30 --seed my-run --posture warm-start
+ *   npx tsx scripts/agent-speedrun.ts --seed my-run --posture warm-start
  *
- * The agent interpreter resolves steps that would otherwise hit needs-human.
- * Progress is emitted to stderr and JSONL sidecar for real-time monitoring.
+ * Operates strictly on the checked-in corpus — never regenerates it.
+ * Compose with `speedrun corpus` upstream and `speedrun fitness` /
+ * `speedrun score` downstream for the full fifth-kind loop flow.
  *
  * For the session provider (LLM-backed), set TESSERACT_AGENT_PROVIDER=session
  * and provide the LLM endpoint via environment variables.
@@ -18,7 +20,7 @@
 import * as path from 'path';
 import { createProjectPaths } from '../lib/application/paths';
 import { loadAgentWorkbench, processWorkItems, type ActLoopResult, type ScreenGroupContext } from '../lib/application/agency/agent-workbench';
-import { multiSeedSpeedrun } from '../lib/application/improvement/speedrun';
+import { iteratePhase } from '../lib/application/improvement/speedrun';
 import { resolveKnowledgePosture } from '../lib/application/knowledge/knowledge-posture';
 import { resolveAgentInterpreterProvider, type AgentInterpreterProvider } from '../lib/application/agency/agent-interpreter-provider';
 import { runWithLocalServices } from '../lib/composition/local-services';
@@ -34,7 +36,6 @@ function argVal(name: string, fallback: string): string {
   return idx >= 0 ? args[idx + 1]! : fallback;
 }
 
-const count = Number(argVal('--count', '30'));
 const seed = argVal('--seed', 'agent-run');
 const maxIterations = Number(argVal('--max-iterations', '3'));
 const actMode = args.includes('--act');
@@ -83,20 +84,19 @@ const agentInterpreter: AgentInterpreterProvider = resolveAgentInterpreterProvid
 // ─── Run ───
 
 async function main(): Promise<void> {
-  console.log(`Agent Speedrun: ${count} scenarios, ${maxIterations} max iterations, posture=${knowledgePosture}`);
+  console.log(`Agent iterate: ${maxIterations} max iterations, posture=${knowledgePosture}`);
   console.log(`Agent provider: ${agentInterpreter.id} (${agentInterpreter.kind})`);
   console.log(`Seed: ${seed}`);
   console.log('');
 
   const result = await runWithLocalServices(
-    multiSeedSpeedrun({
+    iteratePhase({
       paths,
-      config: DEFAULT_PIPELINE_CONFIG,
-      seeds: [seed],
-      count,
       maxIterations,
       knowledgePosture,
+      seed,
       onProgress,
+      interpreterMode: 'diagnostic',
     }),
     rootDir,
     {
@@ -112,30 +112,12 @@ async function main(): Promise<void> {
   );
 
   console.log('');
-  console.log('=== Agent Speedrun Complete ===');
-  console.log(`  Knowledge hit rate: ${(result.fitnessReport.metrics.knowledgeHitRate * 100).toFixed(1)}%`);
-  console.log(`  Convergence: ${result.fitnessReport.metrics.convergenceVelocity} iterations`);
-
-  const rungRates = result.fitnessReport.metrics.resolutionByRung;
-  if (rungRates.length > 0) {
-    console.log('  Resolution by rung:');
-    for (const { rung, wins, rate } of rungRates) {
-      if (wins > 0) {
-        console.log(`    ${rung}: ${wins} wins (${(rate * 100).toFixed(1)}%)`);
-      }
-    }
-  }
-
-  const agentWins = rungRates.find((r) => r.rung === 'agent-interpreted');
-  const needsHuman = rungRates.find((r) => r.rung === 'needs-human');
-  if (agentWins && agentWins.wins > 0) {
-    console.log(`\n  Agent interpreted ${agentWins.wins} steps that would have been needs-human.`);
-  }
-  if (needsHuman && needsHuman.wins > 0) {
-    console.log(`  ${needsHuman.wins} steps still need human review.`);
-  } else {
-    console.log(`\n  All steps resolved — no human review needed.`);
-  }
+  console.log('=== Agent iterate complete ===');
+  console.log(`  Iterations: ${result.ledger.completedIterations}`);
+  console.log(`  Converged: ${result.ledger.converged} (${result.ledger.convergenceReason ?? 'n/a'})`);
+  console.log(`  Knowledge hit rate delta: ${result.ledger.knowledgeHitRateDelta > 0 ? '+' : ''}${result.ledger.knowledgeHitRateDelta}`);
+  console.log(`  Total proposals activated: ${result.ledger.totalProposalsActivated}`);
+  console.log(`  Duration: ${(result.durationMs / 1000).toFixed(1)}s`);
 
   // Print workbench summary via domain function
   const workbench = await runWithLocalServices(
@@ -192,6 +174,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((error) => {
-  console.error('Agent speedrun failed:', error);
+  console.error('Agent iterate failed:', error);
   process.exit(1);
 });

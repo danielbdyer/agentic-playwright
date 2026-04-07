@@ -50,11 +50,16 @@ for CONC in "${CONCURRENCIES[@]}"; do
 
     START_TIME=$(date +%s%N)
     EXIT=0
-    npx tsx scripts/speedrun.ts \
-      --count "$COUNT" \
-      --max-iterations 1 \
-      --seed "$SEED" \
-      --posture cold-start 2>&1 | tail -5 || EXIT=$?
+    # The bundled "speedrun full" mode has been removed in favor of
+    # the four-verb doctrinal model. Compose generate + compile +
+    # iterate + fitness explicitly to measure the same end-to-end
+    # wall-clock that the legacy bundled flow used to.
+    {
+      npx tsx scripts/speedrun.ts generate --count "$COUNT" --seed "$SEED" \
+      && npx tsx scripts/speedrun.ts compile \
+      && npx tsx scripts/speedrun.ts iterate --max-iterations 1 --seed "$SEED" --posture cold-start \
+      && npx tsx scripts/speedrun.ts fitness --seed "$SEED";
+    } 2>&1 | tail -5 || EXIT=$?
     END_TIME=$(date +%s%N)
 
     # Compute milliseconds
