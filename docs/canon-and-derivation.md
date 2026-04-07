@@ -153,24 +153,48 @@ The pipeline code does not have to know which mode it is in. The
 reads from `.ado-sync/snapshots/` regardless. The doctrinal asymmetry is
 handled at the gitignore policy level, not in code.
 
-### 2.4 Operator answers about intent
+### 2.4 Operator decisions captured in interactive sessions
 
-These are hand-authored files that encode operator decisions about what
-the system should do. They cannot be inferred from observing the SUT or
-the ADO test intent — they require human judgment about intent.
+This category is the structured record of decisions an operator makes
+during interactive work with the system. It is reserved for inputs that
+genuinely encode operator judgment and cannot be derived from any amount
+of observation: which subset of test cases to run, which thresholds
+constitute pass/fail, which scenarios matter for a particular release,
+which drift modes the operator wants to exercise.
 
-- **`{suiteRoot}/controls/resolution/`** — operator overrides for
-  ambiguous resolution.
-- **`{suiteRoot}/controls/runbooks/`** — operator-authored execution
-  recipes.
-- **`{suiteRoot}/controls/datasets/`** — operator-authored data values.
-- **`{suiteRoot}/controls/variance/`** — operator-authored stress-test
-  perturbations.
-- **`{suiteRoot}/benchmarks/`** — operator-labeled measurement targets
-  with pass/fail thresholds. The "labeled training set" of the system.
+In the long-term vision, this category contains:
 
-These are canon forever. No amount of observation produces them. The
-discovery engine cannot derive intent.
+- **Project-level config** (which suite root, which ADO connection, which
+  upstream credentials) — pure operator decision.
+- **Threshold and gate definitions** (what counts as "good enough" for
+  this project) — pure operator judgment.
+- **Test-selection intent** (which ADO test cases the operator cares
+  about right now, e.g., "all cases tagged 'regression'") — pure
+  operator decision.
+- **Demotion approvals** (the operator's decisions about which
+  canonical artifacts to demote when the system proposes a demotion) —
+  pure operator judgment, materialized as a small audit record.
+
+In dogfood today, almost nothing actually lives in this category as
+files. Most of what looks like "operator intent" in the current
+`controls/` and `benchmarks/` directories is in fact agent-authored
+content that BLENDS observable structure (canonical artifact territory)
+with embedded operator judgment fragments. Those files are classified
+as canonical artifacts (§3) — see §3.2 for the agentic-override
+framing and the lifecycle analysis per directory.
+
+The pure-intent fragments inside today's `controls/variance/` and
+`benchmarks/` files (the "which drifts to test" choices, the
+pass/fail thresholds, the flow selections) are the closest current
+examples of true canonical sources at this layer. Long-term they
+should be split out of the agentic-override files and given their own
+structured home so the system can address them independently.
+
+The instinct to call hand-authored YAML files "operator intent" is
+strong but usually wrong. The right test is: **could a sufficiently
+mature agent observing the SUT have written this file?** If yes, it
+is a canonical artifact (§3) regardless of who authored it today. If
+no, it is a canonical source.
 
 ---
 
