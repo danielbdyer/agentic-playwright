@@ -109,6 +109,7 @@ test('buildImprovementRun emits one coherent recursive-improvement aggregate', (
     fitnessReport: sampleFitnessReport(),
     scorecardComparison: {
       improved: true,
+      effectiveHitRateDelta: 0.1,
       knowledgeHitRateDelta: 0.1,
       translationPrecisionDelta: 0.05,
       convergenceVelocityDelta: -1,
@@ -149,6 +150,7 @@ test('improvement ledger stays append-only and filters accepted runs', () => {
     fitnessReport: sampleFitnessReport(),
     scorecardComparison: {
       improved: true,
+      effectiveHitRateDelta: 0.1,
       knowledgeHitRateDelta: 0.1,
       translationPrecisionDelta: 0.05,
       convergenceVelocityDelta: -1,

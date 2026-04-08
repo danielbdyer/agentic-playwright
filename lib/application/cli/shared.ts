@@ -177,7 +177,6 @@ export type CommandName =
   | 'replay'
   | 'dogfood'
   | 'workbench'
-  | 'speedrun'
   | 'evolve'
   | 'experiments'
   | 'generate';
@@ -209,7 +208,6 @@ export const commandNames: readonly CommandName[] = [
   'replay',
   'dogfood',
   'workbench',
-  'speedrun',
   'evolve',
   'experiments',
   'generate',

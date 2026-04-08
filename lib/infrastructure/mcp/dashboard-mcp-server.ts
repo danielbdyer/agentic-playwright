@@ -15,6 +15,14 @@
 import { Effect } from 'effect';
 import type { McpServerPort, McpToolInvocation, McpToolResult, McpResource, McpResourceContent } from '../../application/ports';
 import { TesseractError } from '../../domain/kernel/errors';
+import type {
+  LogicalProofObligationName,
+  TheoremBaselineCoverage,
+} from '../../domain/fitness/types';
+import {
+  summarizeTheoremBaseline,
+  theoremBaselineCoverageForNames,
+} from '../../domain/fitness/types';
 import type { McpToolDefinition, ScreenCapturedEvent, WorkItemDecision } from '../../domain/observation/dashboard';
 import { dashboardEvent, dashboardMcpTools } from '../../domain/observation/dashboard';
 import { resolveResource, buildResourceUri } from './resource-provider';
@@ -178,12 +186,16 @@ const getKnowledgeState: ToolHandler = (args, options) => {
   const screenFilter = args.screen as string | undefined;
   const nodes = graph.nodes ?? [];
   const filtered = screenFilter
-    ? nodes.filter((n) => (n.id as string)?.includes(screenFilter))
+    ? nodes.filter((n) => matchesScreenFilter(n, screenFilter))
     : nodes;
+  const screenSummary = screenFilter
+    ? summarizeScreenKnowledge(findScreenNode(nodes, screenFilter), screenFilter)
+    : null;
 
   const page = paginate(filtered, args);
   return {
     nodes: page.items,
+    screenSummary,
     totalNodes: page.total,
     totalEdges: (graph.edges ?? []).length,
     offset: page.offset,
@@ -204,11 +216,11 @@ const getQueueItems: ToolHandler = (args, options) => {
   if (statusFilter === 'all') {
     items = workbench.items;
   } else {
-    // Read completions ONCE outside the filter loop (was O(N) artifact reads)
-    const completions = options.readArtifact('.tesseract/workbench/completions.json') as {
-      readonly completions?: readonly { readonly workItemId: string }[];
-    } | null;
-    const completedIds = new Set((completions?.completions ?? []).map((c) => c.workItemId));
+    const completedIds = new Set(
+      readWorkbenchCompletions(options)
+        .map((completion) => asString(completion.workItemId))
+        .filter((value): value is string => value !== null),
+    );
     items = workbench.items.filter((item) =>
       statusFilter === 'pending'
         ? !completedIds.has(item.id as string)
@@ -223,9 +235,449 @@ const getQueueItems: ToolHandler = (args, options) => {
 const getFitnessMetrics: ToolHandler = (_args, options) => {
   const scorecard = options.readArtifact('.tesseract/benchmarks/scorecard.json') as {
     readonly highWaterMark?: Record<string, unknown>;
+    readonly history?: readonly Record<string, unknown>[];
   } | null;
   return scorecard?.highWaterMark ?? { error: 'No scorecard available yet' };
 };
+
+type JsonRecord = Record<string, unknown>;
+
+function asRecord(value: unknown): JsonRecord | null {
+  return typeof value === 'object' && value !== null ? value as JsonRecord : null;
+}
+
+function asString(value: unknown): string | null {
+  return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
+function asNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function asBoolean(value: unknown): boolean | null {
+  return typeof value === 'boolean' ? value : null;
+}
+
+function asArray(value: unknown): readonly unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function asStringArray(value: unknown): readonly string[] {
+  return asArray(value).filter((entry): entry is string => typeof entry === 'string' && entry.length > 0);
+}
+
+function matchesScreenFilter(node: Record<string, unknown>, screen: string): boolean {
+  const nodeScreen = asString(node.screen);
+  const nodeId = asString(node.id);
+  return nodeScreen === screen || nodeId?.includes(screen) === true;
+}
+
+function routeVariantsForScreenNode(node: JsonRecord | null): readonly JsonRecord[] {
+  const payload = asRecord(node?.payload);
+  return asArray(payload?.routeVariants)
+    .map((entry) => asRecord(entry))
+    .filter((entry): entry is JsonRecord => entry !== null);
+}
+
+function expectedEntryStateRefsForVariant(variant: JsonRecord): readonly string[] {
+  const expected = asRecord(variant.expectedEntryState);
+  return asStringArray(expected?.requiredStateRefs);
+}
+
+function variantSuccessCount(variant: JsonRecord): number {
+  const historical = asRecord(variant.historicalSuccess);
+  return asNumber(historical?.successCount) ?? 0;
+}
+
+function variantFailureCount(variant: JsonRecord): number {
+  const historical = asRecord(variant.historicalSuccess);
+  return asNumber(historical?.failureCount) ?? 0;
+}
+
+function variantLastSuccessAt(variant: JsonRecord): string | null {
+  const historical = asRecord(variant.historicalSuccess);
+  return asString(historical?.lastSuccessAt);
+}
+
+function summarizeScreenKnowledge(node: JsonRecord | null, screen: string) {
+  const routeVariants = routeVariantsForScreenNode(node);
+  const expectedEntryStateRefs = [...new Set(routeVariants.flatMap((variant) => expectedEntryStateRefsForVariant(variant)))];
+  const latestSuccessfulRouteAt = routeVariants
+    .map((variant) => variantLastSuccessAt(variant))
+    .filter((value): value is string => value !== null)
+    .sort()
+    .at(-1) ?? null;
+  return {
+    screen,
+    routeVariantCount: routeVariants.length,
+    expectedEntryStateRefs,
+    successfulRouteVariants: routeVariants.filter((variant) => variantSuccessCount(variant) > 0).length,
+    totalRecordedRouteSuccess: routeVariants.reduce((sum, variant) => sum + variantSuccessCount(variant), 0),
+    totalRecordedRouteFailures: routeVariants.reduce((sum, variant) => sum + variantFailureCount(variant), 0),
+    latestSuccessfulRouteAt,
+    routeVariants: routeVariants.map((variant) => ({
+      url: asString(variant.url),
+      pathTemplate: asString(variant.pathTemplate),
+      tab: asString(variant.tab),
+      queryKeys: Object.keys(asRecord(variant.query) ?? {}),
+      expectedEntryStateRefs: expectedEntryStateRefsForVariant(variant),
+      successCount: variantSuccessCount(variant),
+      failureCount: variantFailureCount(variant),
+      lastSuccessAt: variantLastSuccessAt(variant),
+    })),
+  };
+}
+
+function findScreenNode(nodes: readonly JsonRecord[], screen: string): JsonRecord | null {
+  return nodes.find((node) => asString(node.kind) === 'screen' && asString(node.screen) === screen) ?? null;
+}
+
+function countBy(
+  values: readonly JsonRecord[],
+  select: (value: JsonRecord) => string | null,
+): Record<string, number> {
+  return values.reduce<Record<string, number>>((acc, value) => {
+    const key = select(value);
+    return key === null
+      ? acc
+      : { ...acc, [key]: (acc[key] ?? 0) + 1 };
+  }, {});
+}
+
+function readWorkbenchCompletions(options: DashboardMcpServerOptions): readonly JsonRecord[] {
+  const completions = options.readArtifact('.tesseract/workbench/completions.json') as {
+    readonly entries?: readonly JsonRecord[];
+    readonly completions?: readonly JsonRecord[];
+  } | null;
+  return completions?.entries ?? completions?.completions ?? [];
+}
+
+function readInboxItems(options: DashboardMcpServerOptions): readonly JsonRecord[] {
+  const inbox = options.readArtifact('.tesseract/inbox/index.json') as {
+    readonly items?: readonly JsonRecord[];
+  } | null;
+  return inbox?.items ?? [];
+}
+
+function proposalCategories(proposals: readonly JsonRecord[]): Record<string, number> {
+  return proposals.reduce<Record<string, number>>((acc, proposal) => {
+    const category = asString(proposal.category) ?? 'uncategorized';
+    return { ...acc, [category]: (acc[category] ?? 0) + 1 };
+  }, {});
+}
+
+function requestedParticipation(item: JsonRecord): string | null {
+  return asString(asRecord(item.handoff)?.requestedParticipation)
+    ?? asString(item.requestedParticipation);
+}
+
+function handoffStalenessStatus(item: JsonRecord): string | null {
+  return asString(asRecord(asRecord(item.handoff)?.staleness)?.status);
+}
+
+function handoffChain(item: JsonRecord): JsonRecord | null {
+  return asRecord(asRecord(item.handoff)?.chain);
+}
+
+function inboxItemForWorkItem(workItem: JsonRecord, inboxItems: readonly JsonRecord[]): JsonRecord | null {
+  const context = asRecord(workItem.context) ?? {};
+  const proposalId = asString(context.proposalId);
+  const adoId = asString(workItem.adoId);
+  const runId = asString(workItem.runId) ?? asString(context.runId);
+  const stepIndex = asNumber(context.stepIndex);
+
+  return inboxItems.find((item) =>
+    (proposalId !== null && asString(item.proposalId) === proposalId)
+    || (
+      adoId !== null
+      && asString(item.adoId) === adoId
+      && (runId === null || asString(item.runId) === runId)
+      && (stepIndex === null || asNumber(item.stepIndex) === stepIndex)
+    )
+  ) ?? null;
+}
+
+function summarizeInboxItems(items: readonly JsonRecord[]) {
+  const actionable = items.filter((item) => asString(item.status) === 'actionable').length;
+  const staleCount = items.filter((item) => handoffStalenessStatus(item) === 'stale').length;
+  const chainDepths = items
+    .map((item) => asNumber(handoffChain(item)?.depth))
+    .filter((value): value is number => value !== null);
+  const multiActorChainCount = chainDepths.filter((depth) => depth > 1).length;
+  const driftDetectedCount = items.filter((item) => {
+    const chain = handoffChain(item);
+    const semanticCore = asRecord(asRecord(item.handoff)?.semanticCore);
+    return asBoolean(chain?.semanticCorePreserved) === false || asString(semanticCore?.driftStatus) === 'drift-detected';
+  }).length;
+  const competingCandidateCount = items.reduce(
+    (sum, item) => sum + asArray(asRecord(item.handoff)?.competingCandidates).length,
+    0,
+  );
+  const nextMoveCount = items.reduce(
+    (sum, item) => sum + asArray(asRecord(item.handoff)?.nextMoves).length,
+    0,
+  );
+  const totalPayloadSizeBytes = items.reduce(
+    (sum, item) => sum + (asNumber(asRecord(asRecord(item.handoff)?.tokenImpact)?.payloadSizeBytes) ?? 0),
+    0,
+  );
+  const totalEstimatedReadTokens = items.reduce(
+    (sum, item) => sum + (asNumber(asRecord(asRecord(item.handoff)?.tokenImpact)?.estimatedReadTokens) ?? 0),
+    0,
+  );
+
+  return {
+    total: items.length,
+    actionable,
+    staleCount,
+    byParticipation: countBy(items, requestedParticipation),
+    byBlockageType: countBy(items, (item) => asString(asRecord(item.handoff)?.blockageType)),
+    byEpistemicStatus: countBy(items, (item) => asString(asRecord(item.handoff)?.epistemicStatus)),
+    byBlastRadius: countBy(items, (item) => asString(asRecord(item.handoff)?.blastRadius)),
+    byStalenessStatus: countBy(items, handoffStalenessStatus),
+    multiActorChainCount,
+    maxChainDepth: chainDepths.length > 0 ? Math.max(...chainDepths) : 0,
+    driftDetectedCount,
+    competingCandidateCount,
+    nextMoveCount,
+    totalPayloadSizeBytes,
+    totalEstimatedReadTokens,
+  };
+}
+
+function handoffIntegrityProofObligation(items: readonly JsonRecord[]) {
+  if (items.length === 0) {
+    return {
+      obligation: 'handoff-integrity',
+      propertyRefs: ['H'],
+      score: 1,
+      status: 'healthy',
+      evidence: 'No active handoffs require integrity preservation right now.',
+    } as const;
+  }
+
+  const populated = items
+    .map((item) => asRecord(item.handoff))
+    .filter((handoff): handoff is JsonRecord => handoff !== null);
+  const ratio = (count: number): number => count / Math.max(items.length, 1);
+  const requestedParticipationCoverage = ratio(populated.filter((handoff) => asString(handoff.requestedParticipation) !== null).length);
+  const epistemicStatusCoverage = ratio(populated.filter((handoff) => asString(handoff.epistemicStatus) !== null).length);
+  const semanticCoreCoverage = ratio(populated.filter((handoff) => asString(asRecord(handoff.semanticCore)?.token) !== null).length);
+  const stalenessCoverage = ratio(populated.filter((handoff) => asString(asRecord(handoff.staleness)?.status) !== null).length);
+  const nextMoveCoverage = ratio(populated.filter((handoff) => asArray(handoff.nextMoves).length > 0).length);
+  const tokenImpactCoverage = ratio(populated.filter((handoff) => asNumber(asRecord(handoff.tokenImpact)?.estimatedReadTokens) !== null).length);
+  const chainCoverage = ratio(populated.filter((handoff) => {
+    const chain = asRecord(handoff.chain);
+    return asNumber(chain?.depth) !== null
+      && asBoolean(chain?.semanticCorePreserved) !== null
+      && asBoolean(chain?.driftDetectable) !== null
+      && asNumber(chain?.competingCandidateCount) !== null;
+  }).length);
+  const chainPreservationCoverage = ratio(populated.filter((handoff) => asBoolean(asRecord(handoff.chain)?.semanticCorePreserved) === true).length);
+  const evidenceCoverage = ratio(populated.filter((handoff) => {
+    const evidenceSlice = asRecord(handoff.evidenceSlice);
+    return asArray(evidenceSlice?.artifactPaths).length > 0 || asArray(evidenceSlice?.summaries).length > 0;
+  }).length);
+  const stalePenalty = ratio(items.filter((item) => handoffStalenessStatus(item) === 'stale').length);
+  const completeness = (
+    requestedParticipationCoverage +
+    epistemicStatusCoverage +
+    semanticCoreCoverage +
+    stalenessCoverage +
+    nextMoveCoverage +
+    tokenImpactCoverage +
+    chainCoverage +
+    evidenceCoverage
+  ) / 8;
+  const risk = Math.max(0, Math.min(1, (1 - completeness) + stalePenalty * 0.25 + (1 - chainPreservationCoverage) * 0.1));
+  return {
+    obligation: 'handoff-integrity',
+    propertyRefs: ['H'],
+    score: Number((1 - risk).toFixed(4)),
+    status: risk >= 0.7 ? 'critical' : risk >= 0.3 ? 'watch' : 'healthy',
+    evidence: `coverage(requested=${requestedParticipationCoverage.toFixed(2)}, epistemic=${epistemicStatusCoverage.toFixed(2)}, semantic=${semanticCoreCoverage.toFixed(2)}, staleness=${stalenessCoverage.toFixed(2)}, nextMoves=${nextMoveCoverage.toFixed(2)}, tokenImpact=${tokenImpactCoverage.toFixed(2)}, chain=${chainCoverage.toFixed(2)}, evidenceSlice=${evidenceCoverage.toFixed(2)}), chainPreserved=${chainPreservationCoverage.toFixed(2)}, stalePenalty=${stalePenalty.toFixed(2)}`,
+  } as const;
+}
+
+function actorChainCoherenceProofObligation(items: readonly JsonRecord[]) {
+  if (items.length === 0) {
+    return {
+      obligation: 'actor-chain-coherence',
+      propertyRefs: ['A'],
+      score: 1,
+      status: 'healthy',
+      evidence: 'No active continuation chains require cross-actor coherence checks right now.',
+    } as const;
+  }
+
+  const populated = items
+    .map((item) => asRecord(item.handoff))
+    .filter((handoff): handoff is JsonRecord => handoff !== null);
+  const ratio = (count: number, total: number): number => count / Math.max(total, 1);
+  const chainReady = populated.filter((handoff) => {
+    const chain = asRecord(handoff.chain);
+    return asNumber(chain?.depth) !== null
+      && asBoolean(chain?.semanticCorePreserved) !== null
+      && asBoolean(chain?.driftDetectable) !== null;
+  });
+  const multiActor = chainReady.filter((handoff) => (asNumber(asRecord(handoff.chain)?.depth) ?? 0) > 1);
+  // A chain is coherent iff EITHER:
+  //   (a) the semantic core was preserved (no drift), OR
+  //   (b) drift was detected AND a downstream actor explicitly
+  //       acknowledged it via `chain.driftAcknowledgedBy`.
+  // The previous implementation used `||` between `semanticCorePreserved`
+  // and `driftDetectable`, which short-circuited any multi-actor chain
+  // to "coherent" because `driftDetectable` was set to `Boolean(prevToken)`
+  // — i.e. true for every chain with depth > 1. The fix demands an
+  // explicit acknowledgement when drift is present, which is the H19
+  // semantics: silent drift must fail coherence even if it could have
+  // been detected.
+  const coherentChains = multiActor.filter((handoff) => {
+    const chain = asRecord(handoff.chain);
+    if (asBoolean(chain?.semanticCorePreserved) === true) return true;
+    // Drift is present (or unspecified). Coherence requires acknowledgement.
+    const ack = asRecord(chain?.driftAcknowledgedBy);
+    return ack !== null && asString(ack.receiptId) !== null && asString(ack.resolution) !== null;
+  });
+  const nextMoveCoverage = ratio(
+    populated.filter((handoff) => asArray(handoff.nextMoves).length > 0).length,
+    populated.length,
+  );
+  const candidateScoped = populated.filter((handoff) => asArray(handoff.competingCandidates).length > 0);
+  const candidatePreservationCoverage = candidateScoped.length === 0
+    ? 1
+    : ratio(
+      candidateScoped.filter((handoff) => {
+        const chain = asRecord(handoff.chain);
+        return (asNumber(chain?.competingCandidateCount) ?? -1) === asArray(handoff.competingCandidates).length;
+      }).length,
+      candidateScoped.length,
+    );
+  const chainCoverage = ratio(chainReady.length, populated.length);
+  const multiActorCoherence = multiActor.length === 0 ? 1 : ratio(coherentChains.length, multiActor.length);
+  const risk = Math.max(
+    0,
+    Math.min(
+      1,
+      ((1 - chainCoverage) * 0.45)
+      + ((1 - multiActorCoherence) * 0.35)
+      + ((1 - nextMoveCoverage) * 0.1)
+      + ((1 - candidatePreservationCoverage) * 0.1),
+    ),
+  );
+
+  return {
+    obligation: 'actor-chain-coherence',
+    propertyRefs: ['A'],
+    score: Number((1 - risk).toFixed(4)),
+    status: risk >= 0.7 ? 'critical' : risk >= 0.3 ? 'watch' : 'healthy',
+    evidence: `coverage(chain=${chainCoverage.toFixed(2)}, multiActorCoherence=${multiActorCoherence.toFixed(2)}, nextMoves=${nextMoveCoverage.toFixed(2)}, competingCandidates=${candidatePreservationCoverage.toFixed(2)}), multiActorCount=${multiActor.length}`,
+  } as const;
+}
+
+function scorecardProofObligations(highWaterMark: JsonRecord | null | undefined): readonly JsonRecord[] {
+  return asArray(highWaterMark?.proofObligations)
+    .map((entry) => asRecord(entry))
+    .filter((entry): entry is JsonRecord => entry !== null);
+}
+
+function mergeProofObligations(
+  scorecardObligations: readonly JsonRecord[],
+  inboxItems: readonly JsonRecord[],
+): readonly JsonRecord[] {
+  return [
+    ...scorecardObligations,
+    handoffIntegrityProofObligation(inboxItems),
+    actorChainCoherenceProofObligation(inboxItems),
+  ];
+}
+
+function proofObligationNames(obligations: readonly JsonRecord[]): ReadonlySet<LogicalProofObligationName> {
+  return new Set(
+    obligations
+      .map((obligation) => asString(obligation.obligation))
+      .filter((value): value is LogicalProofObligationName => value !== null),
+  );
+}
+
+function theoremBaselineCoverage(obligations: readonly JsonRecord[]): readonly TheoremBaselineCoverage[] {
+  return theoremBaselineCoverageForNames(proofObligationNames(obligations));
+}
+
+function summarizeProofObligations(obligations: readonly JsonRecord[]) {
+  const byStatus = countBy(obligations, (obligation) => asString(obligation.status));
+  return {
+    total: obligations.length,
+    byStatus,
+    critical: byStatus.critical ?? 0,
+    watch: byStatus.watch ?? 0,
+    healthy: byStatus.healthy ?? 0,
+    criticalObligations: obligations
+      .filter((obligation) => asString(obligation.status) === 'critical')
+      .map((obligation) => asString(obligation.obligation))
+      .filter((value): value is string => value !== null),
+  };
+}
+
+function theoremBaselineHistory(scorecard: {
+  readonly history?: readonly JsonRecord[];
+} | null | undefined) {
+  const entries = asArray(scorecard?.history)
+    .map((entry) => asRecord(entry))
+    .filter((entry): entry is JsonRecord => entry !== null)
+    .flatMap((entry) => {
+      const summary = asRecord(entry.theoremBaselineSummary);
+      const direct = asNumber(summary?.direct);
+      const proxy = asNumber(summary?.proxy);
+      const missing = asNumber(summary?.missing);
+      return direct === null || proxy === null || missing === null
+        ? []
+        : [{
+          runAt: asString(entry.runAt),
+          pipelineVersion: asString(entry.pipelineVersion),
+          improved: asBoolean(entry.improved),
+          direct,
+          proxy,
+          missing,
+        }];
+    });
+
+  if (entries.length === 0) {
+    return {
+      entries,
+      latest: null,
+      direction: 'unknown' as const,
+    };
+  }
+
+  const first = entries[0]!;
+  const last = entries[entries.length - 1]!;
+  const directDelta = last.direct - first.direct;
+  const missingDelta = last.missing - first.missing;
+  const direction = directDelta > 0 || missingDelta < 0
+    ? 'improving'
+    : directDelta < 0 || missingDelta > 0
+      ? 'degrading'
+      : 'stable';
+
+  return {
+    entries,
+    latest: last,
+    direction,
+  };
+}
+
+function suggestedActionForParticipation(
+  participation: string | null,
+  confidence: number,
+): 'approve' | 'investigate' | 'skip' {
+  if (participation === 'approve') return 'approve';
+  if (participation === 'defer') return 'skip';
+  if (participation !== null) return 'investigate';
+  return confidence >= 0.8 ? 'approve'
+    : confidence >= 0.4 ? 'investigate'
+    : 'skip';
+}
 
 /**
  * Atomically claim a pending decision resolver: get + delete in one step.
@@ -390,13 +842,17 @@ const listScreens: ToolHandler = (_args, options) => {
   } | null;
   if (!graph?.nodes) return { screens: [], count: 0 };
   const screenMap = new Map<string, number>();
+  const screenNodes = new Map<string, JsonRecord>();
   for (const node of graph.nodes) {
     const screen = (node.screen as string) ?? 'unknown';
     screenMap.set(screen, (screenMap.get(screen) ?? 0) + 1);
+    if ((node.kind as string) === 'screen' && !screenNodes.has(screen)) {
+      screenNodes.set(screen, node);
+    }
   }
   const screens = Array.from(screenMap.entries()).map(([screen, elementCount]) => ({
-    screen,
     elementCount,
+    ...summarizeScreenKnowledge(screenNodes.get(screen) ?? null, screen),
   }));
   return { screens, count: screens.length };
 };
@@ -414,6 +870,14 @@ const executeBrowserAction = (
   const startedAt = Date.now();
   let attempts = 0;
   let result: unknown = null;
+  // Phase 2.7 audit note: this is the only `Effect.runSync` outside
+  // `lib/composition/`. It is a deliberate exception — the MCP stdio
+  // boundary is synchronous (the tool handler must return a result, not
+  // an Effect), and the playwright bridge IS the Effect-consuming
+  // adapter at the system edge. Lifting this through Effect would
+  // require an async MCP transport, which the current MCP server does
+  // not support. Documented for future cleanup; do not propagate this
+  // pattern to other modules.
   Effect.runSync(
     Effect.suspend(() => {
       attempts += 1;
@@ -473,10 +937,7 @@ const getDecisionContext: ToolHandler = (args, options) => {
   if (!workItem) return actionableError(`Work item ${workItemId} not found`, 'Call get_queue_items to see available work items, or get_loop_status to check if a speedrun is running.', 'get_queue_items');
 
   // 2. Check completion status
-  const completions = options.readArtifact('.tesseract/workbench/completions.json') as {
-    readonly entries?: readonly { readonly workItemId: string; readonly status: string; readonly rationale: string }[];
-  } | null;
-  const completion = completions?.entries?.find((c) => c.workItemId === workItemId);
+  const completion = readWorkbenchCompletions(options).find((entry) => asString(entry.workItemId) === workItemId) ?? null;
 
   // 3. Resolve linked proposals
   const reader = asReader(options);
@@ -508,33 +969,51 @@ const getDecisionContext: ToolHandler = (args, options) => {
   const adoId = workItem.adoId as string | null;
   const taskResolution = adoId ? options.readArtifact(`.tesseract/tasks/${adoId}.resolution.json`) : null;
 
-  // 8. Screenshot (if available)
+  // 8. Resolve matching inbox handoff if present
+  const inboxItem = inboxItemForWorkItem(workItem, readInboxItems(options));
+  const handoff = asRecord(inboxItem?.handoff) ?? null;
+  const participation = handoff !== null
+    ? asString(handoff.requestedParticipation)
+    : asString(inboxItem?.requestedParticipation);
+  const staleness = asRecord(handoff?.staleness) ?? null;
+  const competingCandidates = asArray(handoff?.competingCandidates);
+
+  // 9. Screenshot (if available)
   const screenshot = options.screenshotCache.get();
 
-  // 9. Derive suggested action based on evidence confidence
+  // 10. Derive suggested action from handoff semantics, then confidence
   const confidence = ((workItem.evidence as Record<string, unknown>)?.confidence as number) ?? 0;
-  const suggestedAction = completion ? 'already-decided'
-    : confidence >= 0.8 ? 'approve'
-    : confidence >= 0.4 ? 'investigate'
-    : 'skip';
+  const suggestedAction = completion ? 'already-decided' : suggestedActionForParticipation(participation, confidence);
+  const suggestedRationale = completion
+    ? `Already ${asString(completion.status) ?? 'completed'}: ${asString(completion.rationale) ?? 'No rationale recorded.'}`
+    : suggestedAction === 'approve'
+      ? participation === 'approve'
+        ? `Handoff explicitly requests approval${staleness !== null ? ` (${asString(staleness.status) ?? 'unknown'} staleness)` : ''}.`
+        : `High confidence (${confidence}) — evidence supports approval.`
+      : suggestedAction === 'investigate'
+        ? participation !== null
+          ? `Handoff requests ${participation}; review the evidence slice, next moves, and any competing candidates before deciding.`
+          : `Medium confidence (${confidence}) — review linked proposals and bottlenecks before deciding.`
+        : participation === 'defer'
+          ? 'Handoff is explicitly defer-oriented; skipping is safer than forcing approval.'
+          : `Low confidence (${confidence}) — insufficient evidence, consider skipping.`;
 
   return {
     workItem,
-    completion: completion ?? null,
+    completion,
     primaryProposal,
     linkedProposals,
     linkedBottlenecks,
+    inboxItem,
+    handoff,
     evidence,
     taskResolution,
     screenshot: screenshot ? { available: true, width: screenshot.width, height: screenshot.height, url: screenshot.url } : { available: false },
     suggestedAction,
-    suggestedRationale: completion
-      ? `Already ${completion.status}: ${completion.rationale}`
-      : suggestedAction === 'approve'
-        ? `High confidence (${confidence}) — evidence supports approval`
-        : suggestedAction === 'investigate'
-          ? `Medium confidence (${confidence}) — review linked proposals and bottlenecks before deciding`
-          : `Low confidence (${confidence}) — insufficient evidence, consider skipping`,
+    suggestedRationale,
+    requestedParticipation: participation,
+    staleness,
+    competingCandidateCount: competingCandidates.length,
   };
 };
 
@@ -639,9 +1118,7 @@ const getContributionImpact: ToolHandler = (args, options) => {
   } | null;
 
   // Read workbench completions to see what was approved
-  const completions = options.readArtifact('.tesseract/workbench/completions.json') as {
-    readonly entries?: readonly { readonly workItemId: string; readonly status: string; readonly artifactsWritten: readonly string[] }[];
-  } | null;
+  const completions = readWorkbenchCompletions(options);
 
   // Analyze proposals by status
   const proposalsByStatus = {
@@ -660,8 +1137,11 @@ const getContributionImpact: ToolHandler = (args, options) => {
     : 0;
 
   // Artifacts written by completed work items
-  const completedEntries = (completions?.entries ?? []).filter((e) => e.status === 'completed');
-  const artifactsWritten = completedEntries.flatMap((e) => e.artifactsWritten);
+  const completedEntries = completions.filter((entry) => asString(entry.status) === 'completed');
+  const artifactsWritten = completedEntries.flatMap((entry) => {
+    const written = entry.artifactsWritten;
+    return Array.isArray(written) ? written.filter((value): value is string => typeof value === 'string') : [];
+  });
   const hintsWritten = artifactsWritten.filter((p) => p.includes('.hints.yaml'));
 
   return {
@@ -683,9 +1163,9 @@ const getContributionImpact: ToolHandler = (args, options) => {
       activatedAt: (p.activation as Record<string, unknown>)?.activatedAt,
     })),
     fitnessHighWaterMark: scorecard?.highWaterMark ?? null,
-    recentCompletions: completedEntries.slice(0, 10).map((e) => ({
-      workItemId: e.workItemId,
-      artifactsWritten: e.artifactsWritten,
+    recentCompletions: completedEntries.slice(0, 10).map((entry) => ({
+      workItemId: asString(entry.workItemId),
+      artifactsWritten: Array.isArray(entry.artifactsWritten) ? entry.artifactsWritten : [],
     })),
   };
 };
@@ -699,9 +1179,26 @@ interface Suggestion {
   readonly rationale: string;
 }
 
+function gateMetrics(highWaterMark: Record<string, unknown> | undefined): {
+  readonly knowledgeHitRate: number | undefined;
+  readonly effectiveHitRate: number | undefined;
+  readonly gateHitRate: number | undefined;
+  readonly gateLabel: 'effective hit rate' | 'knowledge hit rate';
+} {
+  const knowledgeHitRate = typeof highWaterMark?.knowledgeHitRate === 'number' ? highWaterMark.knowledgeHitRate : undefined;
+  const effectiveHitRate = typeof highWaterMark?.effectiveHitRate === 'number' ? highWaterMark.effectiveHitRate : undefined;
+  return {
+    knowledgeHitRate,
+    effectiveHitRate,
+    gateHitRate: effectiveHitRate ?? knowledgeHitRate,
+    gateLabel: effectiveHitRate !== undefined ? 'effective hit rate' : 'knowledge hit rate',
+  };
+}
+
 const getSuggestedAction: ToolHandler = (_args, options) => {
   const status = options.getLoopStatus?.() ?? { phase: 'unknown' as const };
   const suggestions: Suggestion[] = [];
+  const inboxSummary = summarizeInboxItems(readInboxItems(options));
 
   // Phase-based primary suggestion
   switch (status.phase) {
@@ -732,10 +1229,33 @@ const getSuggestedAction: ToolHandler = (_args, options) => {
     readonly highWaterMark?: Record<string, unknown>;
   } | null;
   if (scorecard?.highWaterMark) {
-    const hwm = scorecard.highWaterMark;
-    const hitRate = hwm.knowledgeHitRate as number | undefined;
-    if (hitRate !== undefined && hitRate < 0.6) {
-      suggestions.push({ priority: 3, action: 'contribute', tool: 'suggest_hint', rationale: `Knowledge hit rate is ${(hitRate * 100).toFixed(0)}% — consider contributing hints for screens with low resolution success.` });
+    const { gateHitRate, gateLabel, knowledgeHitRate, effectiveHitRate } = gateMetrics(scorecard.highWaterMark);
+    if (gateHitRate !== undefined && gateHitRate < 0.6) {
+      const diagnostic = effectiveHitRate !== undefined && knowledgeHitRate !== undefined
+        ? ` Diagnostic knowledge hit rate: ${(knowledgeHitRate * 100).toFixed(0)}%.`
+        : '';
+      suggestions.push({ priority: 3, action: 'contribute', tool: 'suggest_hint', rationale: `${gateLabel[0]!.toUpperCase()}${gateLabel.slice(1)} is ${(gateHitRate * 100).toFixed(0)}% — consider contributing hints or reviewed knowledge for low-success regions.${diagnostic}` });
+    }
+  }
+
+  if (inboxSummary.total > 0) {
+    const approveCount = inboxSummary.byParticipation.approve ?? 0;
+    const chooseCount = inboxSummary.byParticipation.choose ?? 0;
+    if (approveCount > 0 || chooseCount > 0) {
+      suggestions.push({
+        priority: 2,
+        action: 'triage-handoffs',
+        tool: 'get_learning_summary',
+        rationale: `${inboxSummary.total} inbox item(s) remain active, including ${approveCount} approval-oriented and ${chooseCount} choice-oriented handoffs.`,
+      });
+    }
+    if (inboxSummary.staleCount > 0) {
+      suggestions.push({
+        priority: 2,
+        action: 'refresh-stale-handoffs',
+        tool: 'get_learning_summary',
+        rationale: `${inboxSummary.staleCount} handoff(s) are stale. Refresh their evidence slice before approving or deferring.`,
+      });
     }
   }
 
@@ -846,6 +1366,10 @@ const getConvergenceProof: ToolHandler = (_args, options) => {
     readonly runAt?: string;
     readonly pipelineVersion?: string;
   } | null;
+  const scorecard = options.readArtifact('.tesseract/benchmarks/scorecard.json') as {
+    readonly highWaterMark?: Record<string, unknown>;
+    readonly history?: readonly Record<string, unknown>[];
+  } | null;
 
   if (!proof) {
     return actionableError(
@@ -856,6 +1380,7 @@ const getConvergenceProof: ToolHandler = (_args, options) => {
 
   const verdict = proof.verdict;
   const trials = proof.trials ?? [];
+  const inboxItems = readInboxItems(options);
 
   // Build concise summary
   const trialSummaries = trials.map((t, i) => ({
@@ -868,6 +1393,12 @@ const getConvergenceProof: ToolHandler = (_args, options) => {
     hitRateTrajectory: t.hitRateTrajectory,
     proposalTrajectory: t.proposalTrajectory,
   }));
+  const proofObligations = mergeProofObligations(
+    scorecardProofObligations(asRecord(scorecard?.highWaterMark)),
+    inboxItems,
+  );
+  const theoremBaseline = theoremBaselineCoverage(proofObligations);
+  const baselineHistory = theoremBaselineHistory(scorecard);
 
   return {
     converges: verdict?.converges ?? false,
@@ -879,6 +1410,11 @@ const getConvergenceProof: ToolHandler = (_args, options) => {
     plateauLevel: verdict?.plateauLevel,
     bottleneckSummary: verdict?.bottleneckSummary,
     trials: trialSummaries,
+    proofObligations,
+    proofSummary: summarizeProofObligations(proofObligations),
+    theoremBaseline,
+    theoremBaselineSummary: summarizeTheoremBaseline(theoremBaseline),
+    theoremBaselineHistory: baselineHistory,
     trialCount: trials.length,
     runAt: proof.runAt,
     pipelineVersion: proof.pipelineVersion,
@@ -920,9 +1456,7 @@ const getLearningState: ToolHandler = (_args, options) => {
   } | null;
 
   // Inbox
-  const inbox = options.readArtifact('.tesseract/inbox/index.json') as {
-    readonly items?: readonly Record<string, unknown>[];
-  } | null;
+  const inboxItems = readInboxItems(options);
 
   // Progress
   const progress = options.readArtifact('.tesseract/runs/speedrun-progress.jsonl') as string | null;
@@ -944,6 +1478,17 @@ const getLearningState: ToolHandler = (_args, options) => {
     ? { hitRateTrajectory: latestTrial.hitRateTrajectory, proposalTrajectory: latestTrial.proposalTrajectory }
     : null;
 
+  const scorecardMetrics = scorecard?.highWaterMark
+    ? gateMetrics(scorecard.highWaterMark)
+    : { knowledgeHitRate: undefined, effectiveHitRate: undefined, gateHitRate: undefined, gateLabel: 'knowledge hit rate' as const };
+  const baselineHistory = theoremBaselineHistory(scorecard);
+  const proofObligations = mergeProofObligations(
+    scorecardProofObligations(asRecord(scorecard?.highWaterMark)),
+    inboxItems,
+  );
+  const theoremBaseline = theoremBaselineCoverage(proofObligations);
+  const theoremBaselineSummary = summarizeTheoremBaseline(theoremBaseline);
+
   // Pending decisions
   const pendingDecisions = options.pendingDecisions.size;
 
@@ -951,7 +1496,12 @@ const getLearningState: ToolHandler = (_args, options) => {
   const actions: string[] = [];
   if (pendingDecisions > 0) actions.push(`${pendingDecisions} decision(s) blocking the loop — use get_queue_items to review`);
   if (proposalStats.pending > 0) actions.push(`${proposalStats.pending} proposal(s) pending activation — use list_proposals to review`);
-  if ((inbox?.items?.length ?? 0) > 0) actions.push(`${inbox!.items!.length} inbox item(s) requiring attention`);
+  const inboxSummary = summarizeInboxItems(inboxItems);
+  if (inboxItems.length > 0) actions.push(`${inboxItems.length} inbox item(s) requiring attention`);
+  if (inboxSummary.staleCount > 0) actions.push(`${inboxSummary.staleCount} handoff(s) are stale — refresh their context before deciding`);
+  if (inboxSummary.driftDetectedCount > 0) actions.push(`${inboxSummary.driftDetectedCount} continuation chain(s) show semantic drift — inspect before resuming`);
+  if (theoremBaselineSummary.missing > 0) actions.push(`Logical theorem baseline is still missing for ${theoremBaselineSummary.missingGroups.join(', ')} — prioritize direct measurement`);
+  else if (theoremBaselineSummary.proxy > 0) actions.push(`Logical theorem baseline remains proxy-backed for ${theoremBaselineSummary.proxyGroups.join(', ')} — tighten direct measurement`);
   if (!proof) actions.push('No convergence proof yet — run one to measure learning effectiveness');
   if (loopStatus?.phase === 'idle') actions.push('Loop is idle — use start_speedrun to begin');
 
@@ -963,12 +1513,27 @@ const getLearningState: ToolHandler = (_args, options) => {
       learningContribution: proof.verdict?.learningContribution,
       lastRunAt: proof.runAt,
     } : null,
-    fitness: scorecard?.highWaterMark ?? null,
+    fitness: scorecard?.highWaterMark
+      ? {
+          ...scorecard.highWaterMark,
+          gateMetric: scorecardMetrics.gateLabel,
+          gateHitRate: scorecardMetrics.gateHitRate ?? null,
+          effectiveHitRate: scorecardMetrics.effectiveHitRate ?? null,
+          knowledgeHitRate: scorecardMetrics.knowledgeHitRate ?? null,
+        }
+      : null,
     proposals: proposalStats,
+    proposalsByCategory: proposalCategories(allProposals),
+    proofObligations,
+    proofSummary: summarizeProofObligations(proofObligations),
+    theoremBaseline,
+    theoremBaselineSummary,
+    theoremBaselineHistory: baselineHistory,
     trajectory,
     pendingDecisions,
     workbenchItems: workbench?.items?.length ?? 0,
-    inboxItems: inbox?.items?.length ?? 0,
+    inboxItems: inboxItems.length,
+    inboxSummary,
     actionRequired: actions,
   };
 };
@@ -977,6 +1542,8 @@ const getLearningState: ToolHandler = (_args, options) => {
 
 const getOperatorBriefing: ToolHandler = (_args, options) => {
   const reader = asReader(options);
+  const inboxItems = readInboxItems(options);
+  const inboxSummary = summarizeInboxItems(inboxItems);
 
   // Knowledge coverage
   const graph = reader.readArtifact('.tesseract/graph/index.json') as {
@@ -992,8 +1559,12 @@ const getOperatorBriefing: ToolHandler = (_args, options) => {
   // Fitness
   const scorecard = reader.readArtifact('.tesseract/benchmarks/scorecard.json') as {
     readonly highWaterMark?: Record<string, unknown>;
+    readonly history?: readonly Record<string, unknown>[];
   } | null;
-  const hitRate = scorecard?.highWaterMark?.knowledgeHitRate as number | undefined;
+  const knowledgeHitRate = scorecard?.highWaterMark?.knowledgeHitRate as number | undefined;
+  const effectiveHitRate = scorecard?.highWaterMark?.effectiveHitRate as number | undefined;
+  const gateHitRate = effectiveHitRate ?? knowledgeHitRate;
+  const gateLabel = effectiveHitRate !== undefined ? 'effectiveHitRate' : 'knowledgeHitRate';
 
   // Proposals
   const proposalsRaw = reader.readArtifact('.tesseract/learning/proposals.json') as {
@@ -1001,11 +1572,19 @@ const getOperatorBriefing: ToolHandler = (_args, options) => {
   } | null;
   const allProposals = proposalsRaw?.proposals ?? [];
   const activated = allProposals.filter((p) => (p.activation as Record<string, unknown>)?.status === 'activated').length;
+  const proposalCategorySummary = proposalCategories(allProposals);
 
   // Route knowledge
   const routes = reader.readArtifact('.tesseract/graph/routes.json') as {
     readonly routes?: readonly Record<string, unknown>[];
   } | null;
+  const proofObligations = mergeProofObligations(
+    scorecardProofObligations(asRecord(scorecard?.highWaterMark)),
+    inboxItems,
+  );
+  const theoremBaseline = theoremBaselineCoverage(proofObligations);
+  const theoremBaselineSummary = summarizeTheoremBaseline(theoremBaseline);
+  const baselineHistory = theoremBaselineHistory(scorecard);
 
   return {
     coverage: {
@@ -1015,24 +1594,44 @@ const getOperatorBriefing: ToolHandler = (_args, options) => {
       roleTypes,
       routes: routes?.routes?.length ?? 0,
     },
-    fitness: hitRate !== undefined ? {
-      knowledgeHitRate: hitRate,
-      hitRatePercent: `${(hitRate * 100).toFixed(1)}%`,
+    fitness: gateHitRate !== undefined ? {
+      gateMetric: gateLabel,
+      gateHitRate,
+      gateHitRatePercent: `${(gateHitRate * 100).toFixed(1)}%`,
+      effectiveHitRate: effectiveHitRate ?? null,
+      knowledgeHitRate: knowledgeHitRate ?? null,
     } : null,
     learningLoop: {
       totalProposals: allProposals.length,
       activatedProposals: activated,
       activationRate: allProposals.length > 0 ? `${((activated / allProposals.length) * 100).toFixed(0)}%` : 'N/A',
     },
+    proposalCategories: proposalCategorySummary,
+    proofObligations,
+    proofSummary: summarizeProofObligations(proofObligations),
+    theoremBaseline,
+    theoremBaselineSummary,
+    theoremBaselineHistory: baselineHistory,
+    handoffSummary: inboxSummary,
     roleAffordanceCoverage: {
       coveredRoles: roleTypes.length,
       totalAriaRoles: 14,
       coveragePercent: `${((roleTypes.length / 14) * 100).toFixed(0)}%`,
     },
-    recommendation: hitRate === undefined ? 'Run a speedrun to establish baseline metrics.'
-      : hitRate < 0.3 ? 'Hit rate is low. Focus on expanding screen knowledge and element aliases.'
-      : hitRate < 0.6 ? 'Hit rate is moderate. Investigate proposal activation and phrasing gaps.'
-      : hitRate < 0.8 ? 'Hit rate is good. Fine-tune with structured entropy and edge cases.'
+    recommendation: inboxSummary.staleCount > 0
+      ? `Refresh ${inboxSummary.staleCount} stale handoff(s) before approving more work so continuations stay faithful.`
+      : (inboxSummary.byParticipation.approve ?? 0) > 0
+        ? `Review ${inboxSummary.byParticipation.approve} approval-oriented handoff(s); the continuation layer is asking for ratification, not more exploration.`
+        : gateHitRate === undefined ? 'Run a speedrun to establish baseline metrics.'
+      : baselineHistory.direction === 'degrading'
+        ? 'Theorem baseline coverage is regressing across cohorts. Stabilize the substrate before adding more surface area.'
+      : theoremBaselineSummary.missing > 0
+        ? `Logical theorem baseline still has missing groups (${theoremBaselineSummary.missingGroups.join(', ')}). Prioritize direct measurement before more polish.`
+      : theoremBaselineSummary.proxy > 0
+        ? `Logical theorem baseline is still proxy-backed for ${theoremBaselineSummary.proxyGroups.join(', ')}. Strengthen direct proof surfaces next.`
+      : gateHitRate < 0.3 ? 'Gate hit rate is low. Focus on expanding reviewed knowledge, route certainty, and handoff clarity.'
+      : gateHitRate < 0.6 ? 'Gate hit rate is moderate. Investigate proposal activation, fallback reliance, and phrasing gaps.'
+      : gateHitRate < 0.8 ? 'Gate hit rate is good. Fine-tune with structured entropy, route-entry coverage, and edge cases.'
       : 'Hit rate is excellent. Consider adding cross-screen journey scenarios.',
   };
 };

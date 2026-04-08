@@ -1,7 +1,12 @@
 import type { Locator } from '@playwright/test';
 import { missingActionHandlerError, widgetPreconditionError } from '../../domain/kernel/errors';
 import type { WidgetInteractionContext, WidgetPrecondition } from '../../domain/knowledge/widget-types';
-import { affordancesForRole, type RoleAffordance } from '../../domain/widgets/role-affordances';
+import {
+  affordancesForRole,
+  roleForWidget,
+  roleSupportsAction,
+  type RoleAffordance,
+} from '../../domain/widgets/role-affordances';
 import { widgetCapabilityContracts } from '../../domain/widgets/contracts';
 import { widgetActionHandlers } from './index';
 import type { RuntimeResult} from '../result';
@@ -28,26 +33,6 @@ async function assertPrecondition(locator: Locator, precondition: WidgetPrecondi
       }
       return runtimeOk(undefined);
   }
-}
-
-// ---------------------------------------------------------------------------
-// Widget-to-role mapping (deterministic, derived from naming convention)
-// ---------------------------------------------------------------------------
-
-const WIDGET_TO_ROLE: Readonly<Record<string, string>> = {
-  'os-button': 'button',
-  'os-input': 'textbox',
-  'os-textarea': 'textbox',
-  'os-table': 'table',
-  'os-select': 'combobox',
-  'os-checkbox': 'checkbox',
-  'os-radio': 'radio',
-  'os-link': 'link',
-  'os-region': 'dialog',
-} as const;
-
-function widgetToRole(widget: string): string | null {
-  return WIDGET_TO_ROLE[widget] ?? null;
 }
 
 // ---------------------------------------------------------------------------
@@ -104,7 +89,15 @@ export async function interact(
   value?: string,
   context?: WidgetInteractionContext,
 ): Promise<RuntimeResult<void>> {
-  // Path 1: Legacy hand-authored handler (backward compatible)
+  // Path 1: Role-based dispatch via the canonical affordance table.
+  const bridgedRole = roleForWidget(widget);
+  const directRole = affordancesForRole(widget).length > 0 ? widget : null;
+  const resolvedRole = directRole ?? bridgedRole;
+  if (resolvedRole && roleSupportsAction(resolvedRole, action as never)) {
+    return interactByRole(locator, resolvedRole, action, value);
+  }
+
+  // Path 2: Legacy hand-authored handler (compatibility only).
   const contract = widgetCapabilityContracts[widget];
   const handlers = widgetActionHandlers[widget];
   const handler = handlers?.[action];
@@ -119,18 +112,6 @@ export async function interact(
     return runtimeOk(undefined);
   }
 
-  // Path 2: Role-based dispatch via affordance table
-  const role = widgetToRole(widget);
-  if (role) {
-    return interactByRole(locator, role, action, value);
-  }
-
-  // Path 3: Direct role string (when widget IS the role)
-  const directAffordances = affordancesForRole(widget);
-  if (directAffordances.length > 0) {
-    return interactByRole(locator, widget, action, value);
-  }
-
-  const error = missingActionHandlerError(widget, action);
+  const error = missingActionHandlerError(resolvedRole ?? widget, action);
   return runtimeErr('runtime-missing-action-handler', error.message, error.context, error);
 }

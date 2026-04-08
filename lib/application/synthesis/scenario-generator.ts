@@ -79,6 +79,16 @@ export function generateSyntheticScenarios(options: GenerateSyntheticScenariosOp
       ...(options.validationSplit !== undefined ? { validationSplit: options.validationSplit } : {}),
     });
 
+    // Each scenario produces THREE artifacts: the .scenario.yaml, the
+    // ADO source fixture at fixtures/ado/{adoId}.json (simulated
+    // upstream), and the cached snapshot at
+    // .ado-sync/snapshots/{adoId}.json (what the catalog walker reads
+    // at bind time). Compile phase reads from BOTH directories.
+    const adoFixturesDir = `${options.paths.suiteRoot}/fixtures/ado`;
+    const snapshotsDir = options.paths.snapshotDir;
+    yield* fs.ensureDir(adoFixturesDir);
+    yield* fs.ensureDir(snapshotsDir);
+
     const writes = planned.plans.map((plan) => {
       const suiteLeaf = plan.suite.replace(/^synthetic\//, '');
       const suiteDir = `${outputDir}/${suiteLeaf}`;
@@ -86,6 +96,10 @@ export function generateSyntheticScenarios(options: GenerateSyntheticScenariosOp
       return Effect.gen(function* () {
         yield* fs.ensureDir(suiteDir);
         yield* fs.writeText(filePath, plan.yaml);
+        const adoFixturePath = `${adoFixturesDir}/${plan.adoId}.json`;
+        yield* fs.writeJson(adoFixturePath, plan.adoSnapshot);
+        const snapshotPath = `${snapshotsDir}/${plan.adoId}.json`;
+        yield* fs.writeJson(snapshotPath, plan.adoSnapshot);
         return filePath;
       });
     });

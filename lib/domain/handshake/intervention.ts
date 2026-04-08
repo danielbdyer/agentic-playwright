@@ -53,6 +53,27 @@ export type InterventionKind =
   | 'self-improvement-action';
 
 export type InterventionStatus = 'planned' | 'completed' | 'blocked' | 'skipped';
+export type InterventionParticipationMode = 'inspect' | 'interpret' | 'verify' | 'choose' | 'approve' | 'enrich' | 'defer';
+export type InterventionBlockageType =
+  | 'target-ambiguity'
+  | 'locator-degradation'
+  | 'route-uncertainty'
+  | 'policy-block'
+  | 'recovery-gap'
+  | 'execution-review'
+  | 'knowledge-gap'
+  | 'self-improvement'
+  | 'unknown';
+export type InterventionEpistemicStatus = 'observed' | 'interpreted' | 'review-required' | 'approved' | 'blocked' | 'informational';
+export type InterventionBlastRadius = 'local' | 'review-bound' | 'global' | 'irreversible';
+export type InterventionDriftStatus = 'preserved' | 'drift-detected' | 'unknown';
+export type InterventionAuthority =
+  | 'approve-canonical-change'
+  | 'request-rerun'
+  | 'promote-shared-pattern'
+  | 'change-pipeline'
+  | 'defer-work-item';
+export type InterventionStalenessStatus = 'fresh' | 'aging' | 'stale';
 
 export type InterventionTargetKind =
   | 'workspace'
@@ -107,6 +128,87 @@ export interface InterventionEffect {
   readonly payload: Readonly<Record<string, unknown>>;
 }
 
+export interface InterventionEvidenceSlice {
+  readonly artifactPaths: readonly string[];
+  readonly summaries: readonly string[];
+}
+
+export interface InterventionSemanticCore {
+  readonly token: string;
+  readonly summary: string;
+  readonly driftStatus: InterventionDriftStatus;
+}
+
+export interface InterventionStaleness {
+  readonly observedAt: string;
+  readonly reviewBy?: string | null | undefined;
+  readonly status: InterventionStalenessStatus;
+  readonly rationale?: string | null | undefined;
+}
+
+export interface InterventionNextMove {
+  readonly action: string;
+  readonly rationale: string;
+  readonly command?: string | null | undefined;
+}
+
+export interface InterventionCompetingCandidate {
+  readonly ref: string;
+  readonly summary: string;
+  readonly source: string;
+  readonly status: InterventionEpistemicStatus;
+}
+
+export interface InterventionTokenImpact {
+  readonly payloadSizeBytes: number;
+  readonly estimatedReadTokens: number;
+  readonly ambiguityReduction?: number | null | undefined;
+  readonly suspensionAvoided?: boolean | null | undefined;
+  readonly rungImprovement?: number | null | undefined;
+  readonly activationQuality?: number | null | undefined;
+}
+
+/** Records that some downstream actor explicitly noticed and resolved
+ *  the drift between this chain step and its predecessor. Required for
+ *  H19 (drift detectability) — silent reinterpretation must be impossible. */
+export interface DriftAcknowledgement {
+  readonly receiptId: string;
+  readonly resolution: 'accepted' | 'rejected' | 'deferred';
+  readonly acknowledgedAt: string;
+  readonly rationale?: string | null | undefined;
+}
+
+export interface InterventionHandoffChain {
+  readonly depth: number;
+  readonly previousSemanticToken?: string | null | undefined;
+  readonly semanticCorePreserved: boolean;
+  readonly driftDetectable: boolean;
+  readonly competingCandidateCount: number;
+  /** Required when `semanticCorePreserved === false`. Without an
+   *  acknowledgement, detected drift counts against actor-chain coherence
+   *  even if `driftDetectable === true` — drift that nobody noticed is
+   *  silent drift, regardless of whether it could have been detected. */
+  readonly driftAcknowledgedBy?: DriftAcknowledgement | null | undefined;
+}
+
+export interface InterventionHandoff {
+  readonly unresolvedIntent: string;
+  readonly attemptedStrategies: readonly string[];
+  readonly evidenceSlice: InterventionEvidenceSlice;
+  readonly blockageType: InterventionBlockageType;
+  readonly requestedParticipation: InterventionParticipationMode;
+  readonly requiredCapabilities?: readonly ParticipantCapability[] | undefined;
+  readonly requiredAuthorities?: readonly InterventionAuthority[] | undefined;
+  readonly blastRadius: InterventionBlastRadius;
+  readonly epistemicStatus: InterventionEpistemicStatus;
+  readonly semanticCore: InterventionSemanticCore;
+  readonly staleness?: InterventionStaleness | null | undefined;
+  readonly nextMoves?: readonly InterventionNextMove[] | undefined;
+  readonly competingCandidates?: readonly InterventionCompetingCandidate[] | undefined;
+  readonly tokenImpact?: InterventionTokenImpact | null | undefined;
+  readonly chain?: InterventionHandoffChain | null | undefined;
+}
+
 export interface InterventionReceipt {
   readonly interventionId: string;
   readonly kind: InterventionKind;
@@ -117,6 +219,7 @@ export interface InterventionReceipt {
   readonly target: InterventionTarget;
   readonly plan?: InterventionPlan | null | undefined;
   readonly effects: readonly InterventionEffect[];
+  readonly handoff?: InterventionHandoff | null | undefined;
   readonly startedAt: string;
   readonly completedAt?: string | null | undefined;
   readonly payload: Readonly<Record<string, unknown>>;

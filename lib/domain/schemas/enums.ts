@@ -59,6 +59,33 @@ export const InterventionCommandActionKindSchema = Schema.Literal(...interventio
 export const interventionStatuses = ['planned', 'completed', 'blocked', 'skipped'] as const;
 export const InterventionStatusSchema = Schema.Literal(...interventionStatuses);
 
+export const interventionParticipationModes = ['inspect', 'interpret', 'verify', 'choose', 'approve', 'enrich', 'defer'] as const;
+export const InterventionParticipationModeSchema = Schema.Literal(...interventionParticipationModes);
+
+export const interventionBlockageTypes = ['target-ambiguity', 'locator-degradation', 'route-uncertainty', 'policy-block', 'recovery-gap', 'execution-review', 'knowledge-gap', 'self-improvement', 'unknown'] as const;
+export const InterventionBlockageTypeSchema = Schema.Literal(...interventionBlockageTypes);
+
+export const interventionEpistemicStatuses = ['observed', 'interpreted', 'review-required', 'approved', 'blocked', 'informational'] as const;
+export const InterventionEpistemicStatusSchema = Schema.Literal(...interventionEpistemicStatuses);
+
+export const interventionBlastRadii = ['local', 'review-bound', 'global', 'irreversible'] as const;
+export const InterventionBlastRadiusSchema = Schema.Literal(...interventionBlastRadii);
+
+export const interventionDriftStatuses = ['preserved', 'drift-detected', 'unknown'] as const;
+export const InterventionDriftStatusSchema = Schema.Literal(...interventionDriftStatuses);
+
+export const interventionAuthorities = [
+  'approve-canonical-change',
+  'request-rerun',
+  'promote-shared-pattern',
+  'change-pipeline',
+  'defer-work-item',
+] as const;
+export const InterventionAuthoritySchema = Schema.Literal(...interventionAuthorities);
+
+export const interventionStalenessStatuses = ['fresh', 'aging', 'stale'] as const;
+export const InterventionStalenessStatusSchema = Schema.Literal(...interventionStalenessStatuses);
+
 export const interventionTargetKinds = [
   'workspace',
   'suite',

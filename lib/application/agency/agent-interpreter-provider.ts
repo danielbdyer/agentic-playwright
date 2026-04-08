@@ -33,6 +33,7 @@ import type { ResolutionTarget } from '../../domain/governance/workflow-types';
 import type { ResolutionProposalDraft } from '../../domain/resolution/types';
 import type { StepAction } from '../../domain/governance/workflow-types';
 import type { ScreenId, ElementId, PostureId, SnapshotTemplateId } from '../../domain/kernel/identity';
+import { primaryAffordanceForRole } from '../../domain/widgets/role-affordances';
 import { normalizeIntentText, bestAliasMatch, humanizeIdentifier } from '../../domain/knowledge/inference';
 import { assignVariant, type ABTestConfig } from './agent-ab-testing';
 import {
@@ -101,6 +102,20 @@ function inferAction(actionText: string): StepAction {
   if (/\b(select|choose|pick)\b/.test(lower)) return 'click';
   if (/\b(verify|check|confirm|assert|ensure|see|observe|validate|expect)\b/.test(lower)) return 'assert-snapshot';
   return 'click';
+}
+
+function agentProposalEnrichment(input: {
+  readonly role: string | null;
+  readonly source: string;
+}): NonNullable<ResolutionProposalDraft['enrichment']> {
+  const affordance = input.role ? primaryAffordanceForRole(input.role) : null;
+  return {
+    ...(input.role ? { role: input.role } : {}),
+    ...(affordance ? { affordance } : {}),
+    source: input.source,
+    epistemicStatus: 'interpreted',
+    activationPolicy: 'set-if-absent',
+  };
 }
 
 function createHeuristicProvider(): ApplicationAgentInterpreterPort {
@@ -191,9 +206,18 @@ function createHeuristicProvider(): ApplicationAgentInterpreterPort {
 
       const proposalDrafts: ResolutionProposalDraft[] = novelTerms.length > 0 && topElement
         ? [{
+            category: 'interpretation-enrichment',
             targetPath: `knowledge/screens/${topScreen.screen.screen}.hints.yaml`,
             title: `Add alias "${novelTerms[0]}" for ${topElement.element.element}`,
-            patch: { op: 'add', path: `/elements/${topElement.element.element}/aliases/-`, value: novelTerms[0]! },
+            patch: {
+              screen: topScreen.screen.screen,
+              element: topElement.element.element,
+              alias: novelTerms[0]!,
+            },
+            enrichment: agentProposalEnrichment({
+              role: topElement.element.role,
+              source: 'agent-interpreted',
+            }),
             artifactType: 'hints' as const,
             rationale: `Heuristic matched "${novelTerms[0]}" to ${topElement.element.element} via context-aware scoring.`,
           }]
@@ -426,23 +450,54 @@ function parseAgentResponse(raw: string, request: AgentInterpretationRequest, pr
   };
 
   // Build proposal drafts for suggested aliases (feeds forward into knowledge)
-  const proposalDrafts: ResolutionProposalDraft[] = (parsed.suggestedAliases ?? []).map((alias) => ({
-    targetPath: parsed.screen && parsed.element
-      ? `knowledge/screens/${parsed.screen}.hints.yaml`
-      : parsed.screen
-        ? `knowledge/screens/${parsed.screen}.hints.yaml`
-        : '',
-    title: `Add alias "${alias}" for ${parsed.element ?? parsed.screen}`,
-    patch: {
-      op: 'add' as const,
-      path: parsed.element
-        ? `/elements/${parsed.element}/aliases/-`
-        : '/screenAliases/-',
-      value: alias,
-    },
-    artifactType: 'hints' as const,
-    rationale: `Agent interpretation suggested alias "${alias}" to improve future deterministic resolution.`,
-  }));
+  const proposalDrafts: ResolutionProposalDraft[] = (parsed.suggestedAliases ?? []).reduce<ResolutionProposalDraft[]>((drafts, alias) => {
+    const trimmedAlias = alias.trim();
+    if (!trimmedAlias || !parsed.screen) {
+      return drafts;
+    }
+
+    if (parsed.element) {
+      const elementRecord = request.screens
+        .find((screen) => screen.screen === parsed.screen)
+        ?.elements.find((element) => element.element === parsed.element) ?? null;
+
+      drafts.push({
+        category: 'interpretation-enrichment' as const,
+        targetPath: `knowledge/screens/${parsed.screen}.hints.yaml`,
+        title: `Add alias "${trimmedAlias}" for ${parsed.element}`,
+        patch: {
+          screen: parsed.screen,
+          element: parsed.element,
+          alias: trimmedAlias,
+        },
+        enrichment: agentProposalEnrichment({
+          role: elementRecord?.role ?? null,
+          source: providerId,
+        }),
+        artifactType: 'hints' as const,
+        rationale: `Agent interpretation suggested alias "${trimmedAlias}" to improve future deterministic resolution.`,
+      });
+      return drafts;
+    }
+
+    drafts.push({
+      category: 'interpretation-enrichment' as const,
+      targetPath: `knowledge/screens/${parsed.screen}.hints.yaml`,
+      title: `Add screen alias "${trimmedAlias}" for ${parsed.screen}`,
+      patch: {
+        screen: parsed.screen,
+        screenAlias: trimmedAlias,
+      },
+      enrichment: {
+        source: providerId,
+        epistemicStatus: 'interpreted',
+        activationPolicy: 'append-aliases',
+      },
+      artifactType: 'hints' as const,
+      rationale: `Agent interpretation suggested screen alias "${trimmedAlias}" to improve future deterministic resolution.`,
+    });
+    return drafts;
+  }, []);
 
   return {
     interpreted: true,

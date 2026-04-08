@@ -184,10 +184,15 @@ export interface ScreenElements {
 
 export interface ScreenElementHint {
   readonly aliases: readonly string[];
+  readonly role?: string | null | undefined;
   readonly defaultValueRef?: string | null | undefined;
   readonly parameter?: string | null | undefined;
   readonly snapshotAliases?: Readonly<Record<string, readonly string[]>> | undefined;
   readonly affordance?: string | null | undefined;
+  readonly locatorLadder?: readonly LocatorStrategy[] | undefined;
+  readonly source?: string | null | undefined;
+  readonly epistemicStatus?: string | null | undefined;
+  readonly activationPolicy?: string | null | undefined;
   readonly acquired?: CanonicalKnowledgeMetadata | null | undefined;
 }
 

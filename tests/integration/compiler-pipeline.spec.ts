@@ -446,6 +446,7 @@ test('derived graph projects recursive improvement artifacts and impact explains
       fitnessReport,
       scorecardComparison: {
         improved: true,
+        effectiveHitRateDelta: 0.1,
         knowledgeHitRateDelta: 0.1,
         translationPrecisionDelta: 0.05,
         convergenceVelocityDelta: -1,

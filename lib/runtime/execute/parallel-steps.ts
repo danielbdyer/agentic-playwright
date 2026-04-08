@@ -69,21 +69,14 @@ export function isAssertionOnly(step: BoundStep): boolean {
 export function analyzeStepDependencies(
   steps: readonly BoundStep[],
 ): ReadonlyMap<number, readonly number[]> {
-  // Track the last mutating step index per screen
+  // Phase 2.4 / T7 Big-O fix: single-pass O(N) mutation. The reduce
+  // previously rebuilt the result Map on every step for O(N²).
   const lastMutatingByScreen = new Map<string, number>();
-  // Track the last mutating step index overall (for screen-less steps)
-  const _result = new Map<number, readonly number[]>();
-
-  return steps.reduce((acc, step, idx) => {
+  const result = new Map<number, readonly number[]>();
+  for (let idx = 0; idx < steps.length; idx++) {
+    const step = steps[idx]!;
     const screen = step.screen ?? step.resolution?.screen ?? null;
-    const deps: readonly number[] = computeDependencies(
-      idx,
-      screen,
-      step,
-      lastMutatingByScreen,
-    );
-
-    // Update tracking state for mutating steps
+    const deps: readonly number[] = computeDependencies(idx, screen, step, lastMutatingByScreen);
     if (!isAssertionOnly(step) && screen) {
       lastMutatingByScreen.set(screen, idx);
     } else if (!isAssertionOnly(step) && !screen) {
@@ -92,9 +85,9 @@ export function analyzeStepDependencies(
         lastMutatingByScreen.set(key, idx);
       }
     }
-
-    return new Map([...acc, [idx, deps]]);
-  }, new Map<number, readonly number[]>());
+    result.set(idx, deps);
+  }
+  return result;
 }
 
 function computeDependencies(

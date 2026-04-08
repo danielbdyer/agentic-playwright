@@ -24,6 +24,7 @@ import type { ResolutionExhaustionEntry, TranslationReceipt } from '../resolutio
 import type { ProposalBundle, RunRecord } from '../execution/types';
 import type { ScenarioInterpretationSurface } from '../resolution/types';
 import type { WorkflowLane } from '../governance/workflow-types';
+import type { LogicalProofObligation } from '../fitness/types';
 
 export interface BenchmarkField {
   readonly id: string;
@@ -89,15 +90,33 @@ export interface BenchmarkScorecard {
   readonly uniqueFieldAwarenessCount: number;
   readonly firstPassScreenResolutionRate: number;
   readonly firstPassElementResolutionRate: number;
+  readonly effectiveHitRate?: number | undefined;
+  readonly ambiguityRate?: number | undefined;
+  readonly suspensionRate?: number | undefined;
+  readonly agentFallbackRate?: number | undefined;
+  readonly liveDomFallbackRate?: number | undefined;
+  readonly routeMismatchRate?: number | undefined;
   readonly degradedLocatorRate: number;
   readonly reviewRequiredCount: number;
   readonly repairLoopCount: number;
   readonly operatorTouchCount: number;
   readonly knowledgeChurn: Readonly<Record<string, number>>;
+  readonly proposalCategoryCounts?: Readonly<Record<string, number>> | undefined;
   readonly generatedVariantCount: number;
   readonly translationHitRate: number;
   readonly agenticHitRate: number;
   readonly approvedEquivalentCount: number;
+  readonly winningSourceDistribution?: readonly {
+    readonly source: StepWinningSource;
+    readonly count: number;
+    readonly rate: number;
+  }[] | undefined;
+  readonly proofObligations?: readonly LogicalProofObligation[] | undefined;
+  readonly falsifierSignals?: readonly {
+    readonly name: 'semantic-non-persistence' | 'behavioral-non-boundedness' | 'opaque-suspension' | 'economic-flatness' | 'inert-intervention';
+    readonly status: 'healthy' | 'watch' | 'critical';
+    readonly evidence: string;
+  }[] | undefined;
   readonly thinKnowledgeScreenCount: number;
   readonly degradedLocatorHotspotCount: number;
   readonly interpretationDriftHotspotCount: number;
@@ -241,6 +260,10 @@ export interface ScenarioExplanationSummary {
   readonly governance: Readonly<Record<Governance, number>>;
   readonly stageMetrics: {
     knowledgeHitRate: number;
+    effectiveHitRate?: number | undefined;
+    ambiguityRate?: number | undefined;
+    suspensionRate?: number | undefined;
+    routeMismatchRate?: number | undefined;
     translationHitRate: number;
     translationCacheHitRate: number;
     translationCacheMissReasons: Readonly<Record<string, number>>;

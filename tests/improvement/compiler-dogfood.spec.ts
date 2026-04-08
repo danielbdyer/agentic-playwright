@@ -172,10 +172,14 @@ test('drift applicator mutates knowledge files according to variance manifest', 
     expect(elementsText).toContain('results-grid-v2');
     expect(elementsText).toContain('resetButton');
 
-    // Verify hints file was mutated (alias removal)
+    // Verify hints file was mutated (alias removal). The drift mutation removes
+    // the literal alias `error summary`; it does NOT sweep substrings, so
+    // compound aliases such as `Assert error summary is shown` (seeded by the
+    // richer proposal/decomposition pipeline) must survive. We test the
+    // semantic invariant: the literal alias line is gone.
     const hintsPath = path.join(workspace.rootDir, 'knowledge/screens/policy-search.hints.yaml');
     const hintsText = readFileSync(hintsPath, 'utf8');
-    expect(hintsText).not.toContain('error summary');
+    expect(hintsText).not.toMatch(/^\s*-\s*error summary\s*$/m);
   } finally {
     workspace.cleanup();
   }

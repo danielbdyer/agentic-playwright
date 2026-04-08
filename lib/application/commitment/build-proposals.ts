@@ -89,9 +89,11 @@ export function buildProposals(input: {
         proposalId: '',
         stepIndex: step.interpretation.stepIndex,
         artifactType: proposal.artifactType,
+        category: proposal.category ?? null,
         targetPath: proposal.targetPath,
         title: proposal.title,
         patch: proposal.patch,
+        enrichment: proposal.enrichment ?? null,
         evidenceIds: stepEvidenceIds,
         impactedSteps: [step.interpretation.stepIndex],
         trustPolicy: evaluateArtifactPolicy({

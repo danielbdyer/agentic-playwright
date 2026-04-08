@@ -1,5 +1,5 @@
 import { type SeededRng, pick } from '../kernel/random';
-import { ROLE_AFFORDANCES } from '../widgets/role-affordances';
+import { preferredScenarioActionForRole, roleForWidget } from '../widgets/role-affordances';
 
 // ─── Domain vocabulary ───
 //
@@ -25,6 +25,10 @@ const DOMAIN_SYNONYMS: Readonly<Record<string, readonly string[]>> = {
   verify: ['confirm', 'check', 'make sure', 'validate', 'ensure', 'see that'],
   enter: ['type', 'input', 'key in', 'fill in', 'provide', 'supply', 'put in'],
   click: ['press', 'tap', 'hit', 'activate', 'trigger', 'select', 'use'],
+  clear: ['clear', 'erase', 'remove', 'empty', 'blank out'],
+  check: ['check', 'tick', 'mark', 'enable', 'turn on'],
+  uncheck: ['uncheck', 'untick', 'clear', 'disable', 'turn off'],
+  select: ['select', 'choose', 'pick', 'set'],
   visible: ['displayed', 'shown', 'present', 'on screen', 'appearing', 'rendered'],
   error: ['warning', 'alert', 'problem', 'issue', 'failure message'],
 };
@@ -36,41 +40,26 @@ const DOMAIN_SYNONYMS: Readonly<Record<string, readonly string[]>> = {
 // not a hand-authored synonym table. The LLM handles real synonym
 // comprehension at runtime; this is for synthesis diversity only.
 
-const WIDGET_PRIMARY_ROLE: Readonly<Record<string, string>> = {
-  'os-input': 'textbox',
-  'os-textarea': 'textbox',
-  'os-button': 'button',
-  'os-select': 'combobox',
-  'os-table': 'table',
-  'os-region': 'dialog',
-} as const;
-
 /** Map from WidgetAction canonical name to the DOMAIN_SYNONYMS key. */
 const ACTION_TO_DOMAIN_KEY: Readonly<Record<string, string>> = {
   click: 'click',
   fill: 'enter',
-  clear: 'enter',
-  check: 'click',
-  uncheck: 'click',
-  select: 'click',
+  clear: 'clear',
+  check: 'check',
+  uncheck: 'uncheck',
+  select: 'select',
   'get-value': 'verify',
 };
 
-const AFFORDANCE_VERBS: Readonly<Record<string, readonly string[]>> = (() => {
-  const result: Record<string, readonly string[]> = {};
-  for (const [widget, role] of Object.entries(WIDGET_PRIMARY_ROLE)) {
-    const affordances = ROLE_AFFORDANCES[role] ?? [];
-    const primaryAction = affordances.find((a) => a.effectCategory !== 'observation')?.action
-      ?? affordances[0]?.action;
-    if (primaryAction) {
-      const domainKey = ACTION_TO_DOMAIN_KEY[primaryAction];
-      result[widget] = domainKey ? (DOMAIN_SYNONYMS[domainKey] ?? [primaryAction]) : [primaryAction];
-    } else {
-      result[widget] = DOMAIN_SYNONYMS['verify'] ?? ['check', 'verify', 'confirm'];
-    }
+function affordanceVerbsForWidget(widget: string): readonly string[] {
+  const role = roleForWidget(widget);
+  const primaryAction = role ? preferredScenarioActionForRole(role) : null;
+  if (!primaryAction) {
+    return DOMAIN_SYNONYMS['verify'] ?? ['check', 'verify', 'confirm'];
   }
-  return result;
-})();
+  const domainKey = ACTION_TO_DOMAIN_KEY[primaryAction];
+  return domainKey ? (DOMAIN_SYNONYMS[domainKey] ?? [primaryAction]) : [primaryAction];
+}
 
 // ─── Natural language assertion patterns ───
 //
@@ -193,7 +182,7 @@ export function generateHeldOutPhrases(
     : [];
 
   // Strategy 2: Affordance-based verb phrases
-  const verbs = AFFORDANCE_VERBS[widget] ?? AFFORDANCE_VERBS['os-region']!;
+  const verbs = affordanceVerbsForWidget(widget);
   const affordancePhrases = Array.from({ length: 2 }, () => {
     const verb = pick(verbs, rng);
     const target = words.length > 0

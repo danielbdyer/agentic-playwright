@@ -96,9 +96,30 @@ test('operator inbox, approval receipts, and rerun plans share a stable proposal
         driftSeed: null,
       },
     };
+    const competingProposal = {
+      ...proposal,
+      proposalId: '',
+      title: 'Capture alternate policy phrasing',
+      patch: {
+        screen: 'policy-search',
+        element: 'policyNumberInput',
+        alias: 'Policy identifier',
+      },
+      trustPolicy: {
+        decision: 'review' as const,
+        reasons: [{
+          code: 'required-evidence' as const,
+          message: 'Competing alias candidate should remain review-required until explicitly approved.',
+        }],
+      },
+    };
     proposal.proposalId = proposalIdForEntry(
       { payload: { adoId, suite: 'demo/policy-search' } },
       proposal,
+    );
+    competingProposal.proposalId = proposalIdForEntry(
+      { payload: { adoId, suite: 'demo/policy-search' } },
+      competingProposal,
     );
     const bundle: ProposalBundle = {
       kind: 'proposal-bundle',
@@ -133,7 +154,7 @@ test('operator inbox, approval receipts, and rerun plans share a stable proposal
         revision: 1,
         title: 'Verify policy search returns matching policy',
         suite: 'demo/policy-search',
-        proposals: [proposal],
+        proposals: [proposal, competingProposal],
       },
     } as ProposalBundle;
     const bundlePath = generatedProposalsPath(workspace.paths, 'demo/policy-search', adoId);
@@ -148,6 +169,10 @@ test('operator inbox, approval receipts, and rerun plans share a stable proposal
     const inboxProposal = inbox.items.find((item) => item.proposalId === proposal.proposalId) ?? null;
     expect(inboxProposal).toBeTruthy();
     expect(inboxProposal?.status).toBe('actionable');
+    expect(inboxProposal?.handoff?.requiredCapabilities).toContain('approve-proposals');
+    expect(inboxProposal?.handoff?.requiredAuthorities).toContain('approve-canonical-change');
+    expect(inboxProposal?.handoff?.nextMoves?.length).toBeGreaterThan(0);
+    expect(inboxProposal?.handoff?.competingCandidates?.some((candidate) => candidate.ref === competingProposal.proposalId)).toBe(true);
     expect(hotspotIndex.kind).toBe('workflow-hotspot-index');
     expect(hotspotIndex.hotspots.every((entry) => entry.suggestions.length > 0)).toBeTruthy();
 

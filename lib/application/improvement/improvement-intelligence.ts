@@ -17,7 +17,16 @@
  */
 
 import type { InterpretationDriftRecord, ResolutionGraphRecord, RunRecord } from '../../domain/execution/types';
-import type { PipelineFailureMode, PipelineFitnessReport } from '../../domain/fitness/types';
+import {
+  summarizeTheoremBaseline,
+  theoremBaselineCoverageForObligations,
+  type LogicalProofObligationName,
+  type LogicalTheoremGroup,
+  type TheoremBaselineCoverage,
+  type TheoremBaselineSummary,
+  type PipelineFailureMode,
+  type PipelineFitnessReport,
+} from '../../domain/fitness/types';
 import type { ImprovementSignal } from '../../domain/improvement/types';
 import { buildWorkflowHotspots, type WorkflowHotspot } from './hotspots';
 
@@ -61,6 +70,8 @@ export interface ImprovementIntelligenceReport {
   readonly correlations: readonly FailureHotspotCorrelation[];
   readonly priorities: readonly ImprovementPriority[];
   readonly trends: readonly ImprovementTrend[];
+  readonly theoremBaseline: readonly TheoremBaselineCoverage[];
+  readonly theoremBaselineSummary: TheoremBaselineSummary;
 
   readonly topFailureIsHotspot: boolean;
   readonly correlationRate: number;
@@ -239,12 +250,49 @@ export function computeImprovementTrends(
 ): readonly ImprovementTrend[] {
   if (reports.length === 0) return [];
 
+  const proofObligationNames = [...new Set(
+    reports.flatMap((report) => report.metrics.proofObligations?.map((entry) => entry.obligation) ?? []),
+  )].sort();
+
+  const theoremGroups: readonly LogicalTheoremGroup[] = ['K', 'L', 'S', 'D', 'V', 'R', 'A', 'H', 'C', 'M'];
+  const theoremStatusScore = (report: PipelineFitnessReport, theoremGroup: LogicalTheoremGroup): number => {
+    const entry = theoremBaselineCoverageForObligations(report.metrics.proofObligations ?? [])
+      .find((coverage) => coverage.theoremGroup === theoremGroup);
+    return entry?.status === 'direct' ? 1 : entry?.status === 'proxy' ? 0.5 : 0;
+  };
+
   const dimensions: { name: string; extract: (r: PipelineFitnessReport) => number; higherIsBetter: boolean }[] = [
+    { name: 'effectiveHitRate', extract: (r) => r.metrics.effectiveHitRate ?? r.metrics.knowledgeHitRate, higherIsBetter: true },
     { name: 'knowledgeHitRate', extract: (r) => r.metrics.knowledgeHitRate, higherIsBetter: true },
     { name: 'translationPrecision', extract: (r) => r.metrics.translationPrecision, higherIsBetter: true },
     { name: 'proposalYield', extract: (r) => r.metrics.proposalYield, higherIsBetter: true },
     { name: 'degradedLocatorRate', extract: (r) => r.metrics.degradedLocatorRate, higherIsBetter: false },
     { name: 'recoverySuccessRate', extract: (r) => r.metrics.recoverySuccessRate, higherIsBetter: true },
+    {
+      name: 'baseline:direct-count',
+      extract: (report) => summarizeTheoremBaseline(theoremBaselineCoverageForObligations(report.metrics.proofObligations ?? [])).direct,
+      higherIsBetter: true,
+    },
+    {
+      name: 'baseline:proxy-count',
+      extract: (report) => summarizeTheoremBaseline(theoremBaselineCoverageForObligations(report.metrics.proofObligations ?? [])).proxy,
+      higherIsBetter: false,
+    },
+    {
+      name: 'baseline:missing-count',
+      extract: (report) => summarizeTheoremBaseline(theoremBaselineCoverageForObligations(report.metrics.proofObligations ?? [])).missing,
+      higherIsBetter: false,
+    },
+    ...theoremGroups.map((group) => ({
+      name: `baseline:${group}`,
+      extract: (report: PipelineFitnessReport) => theoremStatusScore(report, group),
+      higherIsBetter: true,
+    })),
+    ...proofObligationNames.map((obligation) => ({
+      name: `proof:${obligation}`,
+      extract: (report: PipelineFitnessReport) => proofObligationScore(report, obligation),
+      higherIsBetter: true,
+    })),
   ];
 
   return dimensions.map(({ name, extract, higherIsBetter }) => {
@@ -267,6 +315,13 @@ export function computeImprovementTrends(
 
     return { dimension: name, values, direction, currentValue };
   });
+}
+
+function proofObligationScore(
+  report: PipelineFitnessReport,
+  obligation: LogicalProofObligationName,
+): number {
+  return report.metrics.proofObligations?.find((entry) => entry.obligation === obligation)?.score ?? 0;
 }
 
 // ─── Main orchestration ───
@@ -309,6 +364,8 @@ export function buildImprovementIntelligence(
     input.fitnessReport,
   ];
   const trends = computeImprovementTrends(allReports);
+  const theoremBaseline = theoremBaselineCoverageForObligations(input.fitnessReport.metrics.proofObligations ?? []);
+  const theoremBaselineSummary = summarizeTheoremBaseline(theoremBaseline);
 
   // 5. Aggregate scores
   const topFailure = input.fitnessReport.failureModes[0];
@@ -327,12 +384,14 @@ export function buildImprovementIntelligence(
 
   // Health score: weighted average of key fitness metrics
   const m = input.fitnessReport.metrics;
+  const gateHitRate = m.effectiveHitRate ?? m.knowledgeHitRate;
   const overallHealthScore = (
-    m.knowledgeHitRate * 0.3 +
+    gateHitRate * 0.3 +
+    m.knowledgeHitRate * 0.1 +
     m.translationPrecision * 0.2 +
     m.proposalYield * 0.15 +
     m.recoverySuccessRate * 0.15 +
-    (1 - m.degradedLocatorRate) * 0.2
+    (1 - m.degradedLocatorRate) * 0.1
   );
 
   return {
@@ -344,6 +403,8 @@ export function buildImprovementIntelligence(
     correlations,
     priorities,
     trends,
+    theoremBaseline,
+    theoremBaselineSummary,
     topFailureIsHotspot,
     correlationRate,
     overallHealthScore,

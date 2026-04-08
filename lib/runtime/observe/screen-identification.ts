@@ -118,16 +118,17 @@ function buildScreenChildLabels(
     graph.nodes.flatMap((n) => n.kind === 'screen' ? [n.id] : []),
   );
 
-  // Collect child node IDs for each screen via 'contains' edges
-  const screenToChildIds = graph.edges
-    .filter((e) => e.kind === 'contains' && screenNodeIds.has(e.from))
-    .reduce<ReadonlyMap<string, readonly string[]>>(
-      (acc, edge) => {
-        const existing = acc.get(edge.from) ?? [];
-        return new Map([...acc, [edge.from, [...existing, edge.to]]]);
-      },
-      new Map(),
-    );
+  // Collect child node IDs for each screen via 'contains' edges.
+  // Phase 2.4 / T7 Big-O fix: single-pass O(E) instead of O(E²).
+  const screenToChildIds = ((): ReadonlyMap<string, readonly string[]> => {
+    const acc = new Map<string, readonly string[]>();
+    for (const edge of graph.edges) {
+      if (edge.kind !== 'contains' || !screenNodeIds.has(edge.from)) continue;
+      const existing = acc.get(edge.from) ?? [];
+      acc.set(edge.from, [...existing, edge.to]);
+    }
+    return acc;
+  })();
 
   // Map child IDs to their labels
   const nodeById = new Map(graph.nodes.map((n) => [n.id, n]));

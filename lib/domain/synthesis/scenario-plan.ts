@@ -1,6 +1,14 @@
 import { hashSeed, createSeededRng, type SeededRng } from '../kernel/random';
 import { sha256, stableStringify } from '../kernel/hash';
-import { selectArchetype, composeWorkflowSteps } from './workflow-archetype';
+import type { AdoSnapshot } from '../intent/types';
+import { createAdoId } from '../kernel/identity';
+
+export type { AdoSnapshot } from '../intent/types';
+import {
+  selectArchetype,
+  composeWorkflowSteps,
+  type ArchetypeSelectionPreference,
+} from './workflow-archetype';
 
 // ─── Public types ───
 
@@ -102,6 +110,10 @@ export interface ScenarioPlan {
   readonly fileName: string;
   readonly yaml: string;
   readonly fingerprint: string;
+  /** Structured ADO source the scenario YAML was derived from. The
+   *  scenario generators write this to `fixtures/ado/{adoId}.json`
+   *  alongside the YAML so iterate's compile phase can resolve it. */
+  readonly adoSnapshot: AdoSnapshot;
 }
 
 export interface ScenarioPlanningInput {
@@ -112,6 +124,15 @@ export interface ScenarioPlanningInput {
   readonly perturbationRate?: number;
   readonly perturbation?: Partial<PerturbationConfig>;
   readonly validationSplit?: number;
+  /** Optional cohort-specific archetype selection bias. When set, the
+   *  planner uses these weights instead of the default
+   *  classification-driven candidate pool. */
+  readonly archetypePreference?: ArchetypeSelectionPreference;
+  /** Optional cohort label. When set, the rendered scenario `suite`
+   *  metadata field becomes `reference/{cohortLabel}` instead of the
+   *  default `synthetic/{screen}`. The orchestrator uses this to keep
+   *  the YAML metadata aligned with the on-disk cohort organization. */
+  readonly cohortLabel?: string;
 }
 
 export interface ScenarioPlanningResult {
@@ -196,8 +217,10 @@ const generateScenario = (
   screens: readonly ScreenPlanInput[],
   perturbation: PerturbationConfig,
   rng: SeededRng,
+  archetypePreference?: ArchetypeSelectionPreference,
+  cohortLabel?: string,
 ): ScenarioPlanInternal => {
-  const archetypeId = selectArchetype(screen, screens, rng, perturbation.crossScreen);
+  const archetypeId = selectArchetype(screen, screens, rng, perturbation.crossScreen, archetypePreference);
   const isCrossScreen = archetypeId === 'cross-screen-journey';
 
   const archetypeSteps = composeWorkflowSteps(archetypeId, {
@@ -222,11 +245,14 @@ const generateScenario = (
     }));
 
   const primary = screen.screenId;
+  const suite = cohortLabel !== undefined
+    ? `reference/${cohortLabel}`
+    : `synthetic/${isCrossScreen ? 'cross-screen' : primary}`;
   return {
     adoId: String(20000 + scenarioIndex),
     screenId: isCrossScreen ? 'cross-screen' : primary,
     title: `Synthetic ${archetypeId} ${scenarioIndex}: ${primary}`,
-    suite: `synthetic/${isCrossScreen ? 'cross-screen' : primary}`,
+    suite,
     tags: [],
     steps,
   };
@@ -245,13 +271,53 @@ export function planSyntheticScenarios(input: ScenarioPlanningInput): ScenarioPl
     const screen = screens[index % Math.max(screens.length, 1)]
       ?? { screenId: 'empty', screenAliases: ['empty'], elements: [] };
 
-    const scenario = generateScenario(screen, index, screens, perturbation, rng);
+    const scenario = generateScenario(
+      screen,
+      index,
+      screens,
+      perturbation,
+      rng,
+      input.archetypePreference,
+      input.cohortLabel,
+    );
     const adoId = String(baseId + index);
     const materialized = { ...scenario, adoId };
     const split = input.validationSplit && input.validationSplit > 0 && rng() < input.validationSplit
       ? ['validation-heldout']
       : ['training'];
     const yaml = renderYaml({ ...materialized, tags: split }, syncedAt);
+    // Build the structured ADO snapshot in parallel with the YAML so
+    // iterate's compile phase can resolve fixtures/ado/{adoId}.json.
+    // Action and expected text are wrapped in <p> to match the
+    // hand-curated demo fixture format. Synthetic snapshots fill all
+    // canonical AdoSnapshot fields with deterministic values.
+    const suitePath = materialized.suite;
+    const areaPath = suitePath.split('/')[0] ?? 'synthetic';
+    const adoSnapshotContentHash = `sha256:${sha256(stableStringify({
+      adoId,
+      title: materialized.title,
+      suitePath,
+      stepCount: materialized.steps.length,
+    }))}`;
+    const adoSnapshot: AdoSnapshot = {
+      id: createAdoId(adoId),
+      revision: 1,
+      title: materialized.title,
+      suitePath,
+      areaPath,
+      iterationPath: 'synthetic',
+      tags: ['synthetic', ...split],
+      priority: 2,
+      steps: materialized.steps.map((step) => ({
+        index: step.index,
+        action: `<p>${step.action_text}</p>`,
+        expected: `<p>${step.expected_text}</p>`,
+      })),
+      parameters: [],
+      dataRows: [],
+      contentHash: adoSnapshotContentHash,
+      syncedAt: syncedAt,
+    };
     return {
       adoId,
       screenId: materialized.screenId,
@@ -260,13 +326,18 @@ export function planSyntheticScenarios(input: ScenarioPlanningInput): ScenarioPl
       fileName: `${adoId}.scenario.yaml`,
       yaml,
       fingerprint: `sha256:${sha256(stableStringify({ adoId, yaml }))}`,
+      adoSnapshot,
     } satisfies ScenarioPlan;
   });
 
-  const screenDistributionMap = plans.reduce<ReadonlyMap<string, number>>(
-    (acc, plan) => new Map([...acc, [plan.screenId, (acc.get(plan.screenId) ?? 0) + 1]]),
-    new Map<string, number>(),
-  );
+  // Phase 2.4 / T7 Big-O fix: single-pass O(N) counter.
+  const screenDistributionMap = ((): ReadonlyMap<string, number> => {
+    const acc = new Map<string, number>();
+    for (const plan of plans) {
+      acc.set(plan.screenId, (acc.get(plan.screenId) ?? 0) + 1);
+    }
+    return acc;
+  })();
 
   return {
     plans,

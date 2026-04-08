@@ -1,7 +1,6 @@
 export interface EnginePaths {
   readonly rootDir: string;
   readonly suiteRoot: string;
-  readonly postureConfigPath: string;
   readonly tesseractDir: string;
   readonly generatedTypesDir: string;
   readonly translationCacheDir: string;
@@ -76,10 +75,35 @@ export interface GovernancePaths {
   readonly trustPolicyPath: string;
 }
 
+/** Paths for the three-tier interface model canonical artifact store.
+ *  Per docs/canon-and-derivation.md § 10.2, the store lives under
+ *  `{suiteRoot}/.canonical-artifacts/` with subdirectories for atoms
+ *  (Tier 1), compositions (Tier 2), and projections (Tier 3). Each
+ *  tier further divides by source flavor (agentic vs deterministic)
+ *  so an operator can tell at a glance which artifacts were
+ *  promoted from agent observations vs from the discovery engine. */
+export interface PipelinePaths {
+  /** Root of the canonical artifact store. */
+  readonly canonicalArtifactsDir: string;
+  /** Tier 1 — atoms keyed by SUT-primitive identity. */
+  readonly atomsDir: string;
+  /** Tier 1 atoms with agentic-override source flavor. */
+  readonly atomsAgenticDir: string;
+  /** Tier 1 atoms with deterministic-observation source flavor. */
+  readonly atomsDeterministicDir: string;
+  /** Tier 2 — compositions (runbooks, flows, archetypes, etc.). */
+  readonly compositionsDir: string;
+  readonly compositionsAgenticDir: string;
+  readonly compositionsDeterministicDir: string;
+  /** Tier 3 — projections (role visibility, wizard state, etc.). */
+  readonly projectionsDir: string;
+  readonly projectionsAgenticDir: string;
+  readonly projectionsDeterministicDir: string;
+}
+
 export interface LegacyProjectPathAliases {
   readonly rootDir: string;
   readonly suiteRoot: string;
-  readonly postureConfigPath: string;
   readonly adoSyncDir: string;
   readonly snapshotDir: string;
   readonly archiveDir: string;
@@ -144,4 +168,8 @@ export interface ProjectPaths extends LegacyProjectPathAliases {
   readonly resolution: ResolutionPaths;
   readonly execution: ExecutionPaths;
   readonly governance: GovernancePaths;
+  /** The canonical artifact store paths for the three-tier interface
+   *  model (atoms / compositions / projections). Added in Phase 0b.2
+   *  per docs/canon-and-derivation.md § 10.2. */
+  readonly pipeline: PipelinePaths;
 }

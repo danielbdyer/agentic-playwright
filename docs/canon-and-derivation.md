@@ -1,0 +1,2096 @@
+# Canon and Derivation — The Persistence Doctrine
+
+> Status: doctrine. Authoritative model for what the system reads as
+> source of truth, what it produces and trusts, what it produces and
+> discards, and how cold-start and warm-start operation interop over the
+> same substrate. Read this before making any decision about whether a
+> file belongs in git, what directory it lives in, what slot it occupies
+> in the lookup chain, or how the pipeline reads/writes its state.
+
+## Abstract
+
+The system has **three** file populations, not two. Confusing the middle
+category with either of the other two is the root cause of nearly every
+recurring confusion about what to commit, what to regenerate, what
+"cold-start" means, and how the discovery engine relates to the rest of
+the pipeline.
+
+The three populations are:
+
+1. **Canonical sources** — what the operator (and the upstream world)
+   tell the system. Inputs to the pipeline. Authored by humans, by
+   external systems like Azure DevOps, or by the application under test
+   itself. Committed and treated as ground truth.
+
+2. **Canonical artifacts** — what the system has produced and is
+   committed to using as ground truth until a better artifact replaces
+   it. Two flavors with a defined relationship: **deterministic
+   observations** (produced by the discovery engine and promoted via a
+   quality gate) and **agentic overrides** (produced by an agent or
+   operator to bridge a gap the deterministic engine cannot bridge).
+   Both are committed and have doctrinal weight.
+
+3. **Derived output** — what the system produces ephemerally during a
+   run that has not been promoted to canonical artifact status. Run
+   records, fitness reports, live caches, candidate phase outputs that
+   might become canonical artifacts on the next promotion cycle.
+   Gitignored, regenerable, disposable.
+
+The doctrine that follows is load-bearing for every directory layout
+choice, every gitignore entry, every architecture-fitness lint, every
+operator workflow, and the entire phase-output model the pipeline uses
+to address derived state. The two parallel engines (the deterministic
+discovery engine and the agentic intervention engine) are both governed
+by this doctrine.
+
+## Table of contents
+
+1. The trichotomy (canonical sources, canonical artifacts, derived output)
+2. Canonical sources — what the system reads
+3. Canonical artifacts — what the system has earned the right to trust
+   - 3.1 Deterministic observations
+   - 3.2 Agentic overrides
+   - 3.3 The hierarchy between the two flavors
+   - 3.4 What canonical artifacts are NOT
+   - **3.5 The interface model — three tiers of canonical artifact**
+   - **3.6 Tier 1 — Atoms (per-primitive facts about the SUT)**
+   - **3.7 Tier 2 — Compositions (higher-order patterns over atoms)**
+   - **3.8 Tier 3 — Projections (constraints over the atom set)**
+4. Derived output — what the system produces ephemerally
+5. The phase output model
+6. The lookup precedence chain
+   - 6.1–6.4 Precedence justification
+   - 6.5 Modes that change the precedence
+   - **6.6 Qualifier-aware lookup (Tier 3 projections fold in)**
+7. Promotion and demotion
+8. Cold-start and warm-start interop
+9. Two parallel engines
+10. Directory layout convention
+11. Classification table for the dogfood suite
+12. Two metric trees
+13. Operator workflows
+14. Long-term vision
+15. Glossary
+16. **Existing seams in the codebase (Phase 0b implementation guide)**
+
+---
+
+## 1. The trichotomy
+
+| Population | Authorship | Trusted as ground truth? | Committed? | Wiped by `tesseract reset`? |
+|---|---|---|---|---|
+| **Canonical sources** | Operator, external upstream, the SUT itself | Yes — they ARE truth | Always | Never (would destroy the project) |
+| **Canonical artifacts** | The system, then promoted via quality gate or operator/agent decree | Yes — until something better replaces them | Always | Only via deliberate `--demote` or `--reset-artifacts` |
+| **Derived output** | The system, transient | No — they are candidates | Only when an operator deliberately checkpoints them | Yes, freely |
+
+The first two populations are committed. The third is gitignored. That
+is the rule and there are no exceptions.
+
+The load-bearing distinction is between **canonical artifacts** and
+**derived output**. They are both produced by the system, but they have
+fundamentally different doctrinal status. A canonical artifact is what
+the pipeline READS at runtime; derived output is what the pipeline
+WRITES at runtime. The promotion mechanism (§7) is the bridge: derived
+output that passes a quality gate becomes a canonical artifact. The
+demotion mechanism is the inverse: a canonical artifact that has been
+supplanted by a better one (or that has become stale) is removed.
+
+A common mistake is to call canonical artifacts "high-water-mark caches"
+or "best-known snapshots." This is wrong. A canonical artifact is not a
+cache. It is committed code-of-record that the pipeline trusts. The fact
+that it can be replaced over time does not make it cache — it makes it
+versioned canon. Caches are gitignored; canonical artifacts are not.
+
+The other common mistake is to flatten canonical sources and canonical
+artifacts into a single "canon" category. They differ in authorship and
+in lifecycle. Canonical sources are AUTHORED by humans or arrive from
+external systems and the system never produces them. Canonical artifacts
+are PRODUCED by the system through a chain of derivations and
+promotions. Both are trusted, but they have different governance:
+canonical sources change only when a human edits them or an upstream
+sync arrives; canonical artifacts change when the system produces a
+better candidate and promotes it.
+
+---
+
+## 2. Canonical sources — what the system reads
+
+Canonical sources are inputs to the pipeline. They are authored by
+humans, by external systems, or by the application under test, and the
+system treats them as ground truth without question. There are exactly
+four kinds:
+
+### 2.1 Pipeline code, doctrine, and tests
+
+`lib/`, `scripts/`, `bin/`, `tests/`, `docs/`, and the project manifests.
+The system itself. Trivially canonical sources because they ARE the
+system. Authored by contributors, committed normally, governed by code
+review.
+
+### 2.2 The application under test (the SUT)
+
+The thing being tested. In dogfood mode, the SUT is the hand-authored
+HTML+JS harness at `dogfood/fixtures/demo-harness/`. In production mode,
+the SUT is external (a real web application running somewhere) and the
+repo only contains connection details.
+
+The SUT is a canonical source because the system observes it, parses it,
+runs scenarios against it, and treats whatever it observes as truth
+about reality. The system does not produce the SUT; it discovers the
+SUT.
+
+### 2.3 The upstream test intent source
+
+The Azure DevOps test cases the operator wants the system to automate.
+In production this is the real ADO server (external) and the repo only
+contains the persisted sync record at `{suiteRoot}/.ado-sync/snapshots/`.
+In dogfood this is a hand-authored simulator at
+`{suiteRoot}/fixtures/ado/{10001,10002,10010,10011}.json`.
+
+The doctrinal status of this category is asymmetric between dogfood and
+production:
+
+- **In dogfood**, `fixtures/ado/{10001,10002,10010,10011}.json` is the
+  canonical source (the operator wrote it as a stand-in for the
+  upstream), and `.ado-sync/snapshots/` is a downstream cache of the
+  simulator.
+- **In production**, the real ADO server is the upstream, and
+  `.ado-sync/snapshots/` is the persisted record of what the upstream
+  served at the time of the most recent sync. The persisted record IS
+  the canonical source as far as the rest of the pipeline is concerned,
+  because the real upstream is external to the repo.
+
+The pipeline code does not have to know which mode it is in. The
+`LocalAdoSource` adapter abstracts the upstream, and the catalog walker
+reads from `.ado-sync/snapshots/` regardless. The doctrinal asymmetry is
+handled at the gitignore policy level, not in code.
+
+### 2.4 Operator decisions captured in interactive sessions
+
+This category is the structured record of decisions an operator makes
+during interactive work with the system. It is reserved for inputs that
+genuinely encode operator judgment and cannot be derived from any amount
+of observation: which subset of test cases to run, which thresholds
+constitute pass/fail, which scenarios matter for a particular release,
+which drift modes the operator wants to exercise.
+
+In the long-term vision, this category contains:
+
+- **Project-level config** (which suite root, which ADO connection, which
+  upstream credentials) — pure operator decision.
+- **Threshold and gate definitions** (what counts as "good enough" for
+  this project) — pure operator judgment.
+- **Test-selection intent** (which ADO test cases the operator cares
+  about right now, e.g., "all cases tagged 'regression'") — pure
+  operator decision.
+- **Demotion approvals** (the operator's decisions about which
+  canonical artifacts to demote when the system proposes a demotion) —
+  pure operator judgment, materialized as a small audit record.
+
+In dogfood today, almost nothing actually lives in this category as
+files. Most of what looks like "operator intent" in the current
+`controls/` and `benchmarks/` directories is in fact agent-authored
+content that BLENDS observable structure (canonical artifact territory)
+with embedded operator judgment fragments. Those files are classified
+as canonical artifacts (§3) — see §3.2 for the agentic-override
+framing and the lifecycle analysis per directory.
+
+The pure-intent fragments inside today's `controls/variance/` and
+`benchmarks/` files (the "which drifts to test" choices, the
+pass/fail thresholds, the flow selections) are the closest current
+examples of true canonical sources at this layer. Long-term they
+should be split out of the agentic-override files and given their own
+structured home so the system can address them independently.
+
+The instinct to call hand-authored YAML files "operator intent" is
+strong but usually wrong. The right test is: **could a sufficiently
+mature agent observing the SUT have written this file?** If yes, it
+is a canonical artifact (§3) regardless of who authored it today. If
+no, it is a canonical source.
+
+---
+
+## 3. Canonical artifacts — what the system has earned the right to trust
+
+A canonical artifact is something the system produced that has been
+elevated to ground-truth status through a deliberate gate (a quality
+metric, a human review, an automated promotion rule). Once a canonical
+artifact exists, the pipeline READS from it at runtime and treats it as
+truth. Canonical artifacts are committed to git because they have
+doctrinal weight: they are not "convenience caches," they are the
+system's accumulated, trusted understanding of the SUT.
+
+There are two flavors of canonical artifact, with a defined hierarchy
+between them. Both flavors are committed; both are addressable by the
+phase output model (§5); both can be replaced or demoted via the
+mechanisms in §7.
+
+### 3.1 Deterministic observations
+
+A deterministic observation is the canonical record of something the
+**discovery engine** observed about the SUT (or about the test workload,
+or about any input the engine processes deterministically). The engine
+ran, produced a candidate phase output, the candidate passed a quality
+gate, and the result was promoted to canonical artifact status.
+
+Examples in the dogfood suite:
+
+- A route map at `routes/demo` describing which URLs the demo harness
+  serves and which screens they map to. The discovery engine eventually
+  derives this by walking the harness; today it is hand-authored as an
+  agentic override (§3.2) until discovery catches up.
+- A surface declaration at `surfaces/policy-search` describing the
+  widgets and labels visible on the policy search screen.
+- A pattern at `patterns/policy-number-input` capturing a recurring
+  alias/widget combination the system has learned to recognize.
+- A snapshot at `snapshots/policy-detail-loaded` capturing a known-good
+  ARIA tree the system uses to certify execution.
+
+Deterministic observations are committed because they encode the
+system's confident, reproducible understanding of the SUT. They are
+replaced when the discovery engine produces a better candidate (one that
+beats the current canonical artifact on the relevant quality metric).
+They are not wiped by `tesseract reset --derived` because they are not
+derived; they are canon.
+
+### 3.2 Agentic overrides
+
+An agentic override is the canonical record of a decision an agent (or
+operator) made to fill a gap the discovery engine could not bridge. The
+agent observed that the deterministic engine was failing or was
+underconfident, authored an override, and the system uses the override
+as ground truth from then on.
+
+Examples:
+
+- An operator-authored alias for a button the discovery engine kept
+  resolving to the wrong widget.
+- An agent-authored hint that "when the search results table appears,
+  the first row is the canonical match" — captured because the
+  deterministic engine could not infer canonicality from observation
+  alone.
+- A human-corrected pattern after the operator reviewed a proposal and
+  said "this alias is wrong; here is the right one."
+
+Agentic overrides are committed because they encode persistent operator
+or agent decisions. They are doctrinally HIGHER than deterministic
+observations: when both exist for the same phase output, the agentic
+override wins, because the agent put it there explicitly to override
+what the discovery engine produced.
+
+But agentic overrides can become stale. The SUT changes; the discovery
+engine matures past the gap; the operator's original assumption no
+longer holds. The system periodically dry-runs the deterministic path
+even when an agentic override is in place, and surfaces a **demotion
+proposal** to a human when it detects that the override is no longer
+truthy. The demotion mechanism is the system's pressure valve for
+releasing canon back to derivable status as the discovery engine catches
+up. See §7 for the full promotion/demotion semantics.
+
+### 3.3 The hierarchy between the two flavors
+
+When the pipeline needs phase output X and both an agentic override and
+a deterministic observation exist for X, the agentic override wins.
+This is because:
+
+- The agentic override is, by definition, an explicit decision by an
+  agent or operator that the deterministic answer was insufficient.
+- Until that decision is reversed via the demotion mechanism, the
+  override stands.
+- The deterministic observation continues to be tracked as a
+  comparison target — if it eventually agrees with the override, the
+  override can be demoted; if it eventually beats the override on
+  quality metrics, the demotion is proposed automatically.
+
+This hierarchy is not a precedence list of "better vs worse." It is a
+governance statement: agentic overrides are *deliberate* decisions that
+require *deliberate* removal. Deterministic observations are
+*automatic* derivations that are continuously validated.
+
+### 3.4 What canonical artifacts are NOT
+
+Canonical artifacts are NOT:
+
+- **Caches.** Caches are gitignored, evicted by staleness, and
+  populated unconditionally. Canonical artifacts are committed,
+  promoted via quality gate, and demoted via deliberate gesture.
+- **Snapshots of the most recent run.** A canonical artifact is the
+  best output the system has ever produced (or the override an agent
+  decided was correct), not the most recent. The most recent run's
+  output is derived (§4) and only becomes a canonical artifact via
+  promotion.
+- **High-water-marks in the casual sense of "best so far."** The term
+  "high-water-mark" trivializes the doctrinal status of canonical
+  artifacts. They are not just convenient defaults; they are what the
+  pipeline trusts at runtime. Use the precise term.
+- **Inputs to the pipeline.** Canonical artifacts are produced BY the
+  pipeline (or by an agent acting in service of it). Inputs are
+  canonical SOURCES (§2). The two should not be confused.
+
+Canonical artifacts ARE:
+
+- **Trusted at runtime.** The pipeline reads them and uses them as
+  ground truth.
+- **Committed.** They live in git and travel across machines and
+  branches.
+- **Versioned implicitly via promotion.** When a new candidate beats
+  an existing canonical artifact, the new candidate replaces the old
+  one and the change shows up in the diff.
+- **Demotable.** When a canonical artifact is no longer truthy, a
+  deliberate gesture removes it.
+
+### 3.5 The interface model — three tiers of canonical artifact
+
+Canonical artifacts are not a flat collection of files. They form a
+**three-tier interface model** that mirrors the structure of the SUT
+itself: atoms describe what the SUT IS, compositions describe how the
+SUT is DRIVEN, and projections describe the CONSTRAINTS over who can
+see and interact with which parts of it.
+
+All three tiers live in the same canonical artifact store
+(`{suiteRoot}/.canonical-artifacts/`), all three flow through the
+same lookup precedence chain (§6), and all three participate in the
+same promotion/demotion machinery (§7). The distinction is in their
+shape and their addressing, not in their governance:
+
+| Tier | Mirrors | Granularity | Addressing | Authorship |
+|---|---|---|---|---|
+| 1. Atoms | What the SUT *is* | Per-primitive fact | Keyed by SUT-primitive identity | Discovery engine, agents, operators |
+| 2. Compositions | How the SUT is *driven* | Per-recipe / per-pattern | Keyed by composition identity, references atoms | Mostly agents and operators, sometimes deterministic discovery |
+| 3. Projections | Who can see and interact with *what* | Per-constraint over an atom subset | Keyed by qualifier identity, filters atoms | Mostly agents (observed by running as a role / in a state), occasionally operators |
+
+The three tiers together are the system's **digital twin** of the
+SUT. The discovery engine builds Tier 1 by walking the application;
+agents fill Tier 2 with patterns and recipes when the deterministic
+path can't bridge the gap; agents fill Tier 3 by observing the SUT
+from different vantage points (different roles, different wizard
+stages, different permission contexts). Operators occasionally
+override any tier when they have a hard requirement that must hold.
+
+The umbrella name follows existing domain vocabulary: **interface
+model**, the same name used by `ApplicationInterfaceGraph` in
+`lib/domain/types/interface.ts` and the "Interface Intelligence"
+spine in `docs/domain-ontology.md`. The phrase "digital twin" is an
+acceptable informal synonym but the doctrinal term is "interface
+model" to keep continuity with the existing domain documentation.
+
+#### Why three tiers, not two
+
+A two-tier model (atoms + compositions) misses a real category of
+canonical knowledge. Consider:
+
+- "The submit button on the review-submit screen exists" — that's
+  an atom (Tier 1).
+- "To complete the policy creation flow, navigate through these
+  six screens in this order" — that's a composition (Tier 2).
+- "An underwriter sees the submit button; a broker does not" —
+  that's neither. It's a constraint over which atoms are visible
+  to which roles. It's a projection (Tier 3).
+
+Projections are the third axis of the SUT's identity. Without them,
+the system has no way to encode role-based visibility, wizard-state
+visibility, posture availability conditions, or permission-group
+rules. These are first-class features of any non-trivial application,
+and they need first-class canonical artifact treatment.
+
+#### Why three tiers, not more
+
+The temptation is to add a fourth tier for "domain semantics" (the
+business meaning of policies, accounts, claims), a fifth tier for
+"temporal dynamics" (drift, churn), a sixth for "operator rituals"
+(testing conventions, review checklists). Resist this. Domain
+semantics are encoded as compositions (named flows) and projections
+(role visibility) and atoms (entity-state facts). Temporal dynamics
+are encoded as drift atoms and as the demotion mechanism. Operator
+rituals are canonical sources (§2), not canonical artifacts.
+
+The three-tier shape is the minimum that captures the SUT's
+structural, behavioral, and contextual identity without sliding into
+proliferation. Adding tiers later is allowed if a real fourth
+category emerges that none of the three can hold; until then, three
+is the answer.
+
+#### Connection to the existing domain model
+
+The three-tier interface model is not a new invention. It crystallizes
+what the existing domain documentation already prefigures:
+
+- **`docs/domain-model.md` § Target**: "The semantic identity of a
+  thing in reality, prior to any means of finding it... This is the
+  atom of the interface model. Screens, surfaces, and elements are
+  organizational containers for targets... The interface graph is a
+  graph *of* targets." — This is Tier 1, named.
+- **`docs/domain-ontology.md` § Interface Intelligence**: "models
+  what the UI *is*: routes, screens, surfaces, targets, selectors,
+  states, transitions, affordances. Its aggregate is
+  `ApplicationInterfaceGraph`." — This is the umbrella for Tier 1
+  with hooks for Tier 2 (transitions) and Tier 3 (states).
+- **`docs/domain-class-decomposition.md` § Target**: enumerates
+  `CanonicalTargetRef`, `ElementSig`, `ScreenElements`,
+  `SurfaceDefinition`, `SelectorProbe`, `RouteDefinition`,
+  `RouteVariant`, `TransitionObservation`, `ElementAffordance`, etc.
+  — These are the existing types that materialize Tier 1 atoms.
+
+The doctrine here is the persistence and addressing model on top of
+the existing domain types. The domain types describe the shapes;
+this doctrine describes how to store them, look them up, promote
+them, demote them, and reason about which tier each one belongs to.
+
+#### Targets and Surfaces sit OUTSIDE the epistemological loop
+
+A critical insight from `docs/domain-model.md` § The Epistemological
+Loop:
+
+> "**Target** and **Surface** sit outside the loop — they are the
+> stable referents that the loop operates on. Targets are what the
+> loop is *about*. Surfaces are *how* the loop perceives reality.
+> Neither is consumed or produced by the loop; they are the ground
+> it stands on."
+
+The interface model (all three tiers) is the persistent realization
+of these stable referents. The epistemological loop (Intent →
+Resolution → Commitment → Evidence → Knowledge → ...) operates ON
+the interface model but does not consume or produce it directly.
+Iterate runs READ the interface model to resolve and execute steps;
+the only way the interface model changes is via promotion (a
+candidate from a derived output beats an existing canonical
+artifact) or via deliberate operator gesture.
+
+This is why the canonical artifact store is committed and the
+derived output is gitignored: the stable referents must persist
+across runs because they are the ground the loop stands on. Wiping
+the canonical artifact store is the system equivalent of forgetting
+what the SUT is — the loop becomes meaningless until the discovery
+engine rebuilds the referents.
+
+### 3.6 Tier 1 — Atoms (per-primitive facts about the SUT)
+
+The atom tier is the structural backbone of the interface model.
+Each atom describes ONE fact about ONE SUT primitive, addressed by
+its semantic identity. Atoms are the unit of promotion, demotion,
+and discovery: the deterministic discovery engine targets one atom
+class at a time, agents fill gaps for atoms the engine cannot yet
+produce, and operators occasionally override individual atoms.
+
+The atomic principle: **every fact about the SUT's structure that
+the pipeline relies on at runtime should be addressable as an
+atom.** Compound files that bundle facts (today's `benchmarks/`,
+`controls/datasets/`, etc.) are doctrinally wrong shapes — they
+prevent per-fact promotion/demotion and they couple unrelated
+lifecycles into a single change boundary. Compound files survive
+during the migration but their long-term form is decomposed into
+atoms.
+
+#### Atom classes and their identities
+
+Each atom class corresponds to a SUT primitive. The identity tuple
+encodes everything needed to address the atom uniquely. New atom
+classes are added when the discovery engine learns to derive a new
+kind of fact; the doctrine should accommodate growth without
+restructuring.
+
+| Atom class | Identity tuple | What it describes | Existing domain type |
+|---|---|---|---|
+| Route | `RouteId` | A URL pattern that maps to a screen | `RouteDefinition`, `RouteVariant` |
+| Route variant | `(RouteId, VariantId)` | A specific parameterization of a route | `RouteVariant`, `RoutePattern` |
+| Screen | `ScreenId` | A distinct interactive context with a known root | `ScreenElements` (key) |
+| Surface | `(ScreenId, SurfaceId)` | A spatial region within a screen | `SurfaceDefinition`, `SurfaceSection` |
+| Element | `(ScreenId, ElementId)` | A discrete interactive widget | `ElementSig`, `ScreenElements` (entries) |
+| Posture | `(ScreenId, ElementId, PostureName)` | A behavioral disposition (valid, invalid, empty, boundary) | `Posture` |
+| Affordance | `(ScreenId, ElementId, AffordanceKind)` | What the element offers (clickable, typeable, etc.) | `ElementAffordance` |
+| Selector | `(TargetRef, SelectorRung)` | A concrete locator candidate | `SelectorProbe`, `SelectorCanonEntry` |
+| Pattern | `PatternId` | A promoted cross-screen abstraction | Pattern documents in `knowledge/patterns/` |
+| Snapshot | `SnapshotTemplateId` | An ARIA tree template | `SnapshotTemplate` |
+| Drift mode | `(ScreenId, ElementId, DriftKind)` | A way the element can change between runs | embedded in benchmark `driftEvents` today |
+| Resolution override | `(ScreenId, IntentFingerprint)` | An operator/agent decision for an ambiguous resolution | `controls/resolution/` files today |
+| Transition | `(FromScreenId, ToScreenId, TriggerRef)` | A known state transition between screens | `TransitionObservation` |
+| Observation predicate | `(ScreenId, PredicateId)` | A condition the SUT can be checked against | `ObservationPredicate` |
+| Posture sample | `(ScreenId, ElementId, PostureName)` | Default values for the (element, posture) combination | embedded in `controls/datasets/` today |
+
+This list is not closed. Each new SUT primitive that the discovery
+engine learns to address adds a new atom class with its own identity
+tuple. The lookup chain machinery treats them uniformly: every atom
+has a stage (`Atom<ClassName>`), an identity, and an envelope.
+
+#### Atom envelope shape
+
+Every atom is wrapped in an envelope that carries the same metadata
+the rest of the system uses for canonical artifacts:
+
+```
+Atom<TClass> {
+  class: AtomClass;            // which atom class
+  identity: AtomIdentity<TClass>;  // typed tuple per class
+  content: AtomContent<TClass>;    // the actual fact
+  source: PhaseOutputSource;       // operator-override | agentic-override |
+                                   // deterministic-observation | live-derivation | cold-derivation
+  inputFingerprint: string;        // hash of inputs that produced this atom
+  producedAt: string;              // ISO timestamp
+  producedBy: string;              // engine + version that wrote it
+  qualityScore?: number;           // optional, for promotion gating
+}
+```
+
+The `class` and `identity` together form the atom's address. The
+lookup chain reads atoms by address; the promotion/demotion
+machinery operates on atoms one address at a time.
+
+#### Atom lifecycle (per-class)
+
+The lifecycle vocabulary is borrowed from
+`docs/domain-model.md` § Lifecycle:
+
+> Discovery lifecycle: crawled → observed → proposed → reviewed → canonical
+
+Mapped onto the lookup chain:
+
+| Stage | Where the atom lives | Promotion gate |
+|---|---|---|
+| **crawled** | nowhere yet (raw observation in run records) | n/a — not yet a candidate |
+| **observed** | `.tesseract/cache/atoms/{class}/{identity}.yaml` | live cache, slot 4 |
+| **proposed** | `.tesseract/cache/atoms/{class}/{identity}.yaml` + a proposal record | promotion candidate |
+| **reviewed** | promoted to slot 3 (deterministic observation) or slot 2 (agentic override) | passed quality gate |
+| **canonical** | committed at `.canonical-artifacts/{agentic|deterministic}/atoms/{class}/{identity}.yaml` | trusted at runtime |
+
+The discovery engine for class C produces atoms in stage **observed**
+on every run. The promotion machinery evaluates them against the
+existing canonical artifact for the same address (if any) and either
+promotes or discards. Atoms in stage **canonical** stay until a
+better atom replaces them or the operator demotes them.
+
+#### Per-atom-class lifecycle nuances
+
+Different atom classes have different cadences and different
+promotion criteria:
+
+- **Routes**: rarely change. Promoted from a single confident
+  observation; demoted only when the URL pattern stops matching
+  the SUT.
+- **Elements**: change with UI redesigns. Promoted from
+  observations that meet a confidence threshold; demoted when the
+  element no longer renders.
+- **Postures**: change with validation rule updates. Promoted from
+  successful posture exercises; demoted when the posture stops
+  being applicable.
+- **Patterns**: promoted only after recurrence across multiple
+  screens (the supplement hierarchy from
+  `docs/domain-ontology.md` § Supplement hierarchy). Demoted when
+  the underlying pattern stops recurring.
+- **Snapshots**: promoted when an ARIA tree is captured under a
+  known-good condition. Demoted when the structure changes.
+- **Drift modes**: promoted when an agent observes the SUT
+  exhibiting a particular drift. Demoted when the drift no longer
+  occurs.
+- **Resolution overrides**: promoted when an agent or operator
+  resolves an ambiguity. Demoted when the deterministic resolver
+  becomes confident enough to handle the case unaided. This is
+  the highest-cadence demotion target — the resolver improves
+  often.
+
+The doctrine does not enumerate every atom class's promotion
+criteria here; that lives in per-class promotion gate definitions
+in `lib/domain/pipeline/promotion-gates/{class}.ts`.
+
+### 3.7 Tier 2 — Compositions (higher-order patterns over atoms)
+
+The composition tier holds canonical artifacts that REFERENCE atoms
+by identity and encode operator/agent intent about HOW atoms compose
+into useful sequences, recipes, archetypes, or graphs. Compositions
+are NOT atoms — they live at a different granularity and have a
+different shape — but they are committed canonical artifacts under
+the same governance (lookup chain, promotion, demotion).
+
+The composition tier is what saves the doctrine from atomic
+fundamentalism. Decomposing everything to atoms loses the patterns
+operators and agents have learned about HOW the SUT is supposed to
+be driven. Runbooks, flows, archetypes, and route graphs all encode
+genuine higher-order knowledge that cannot be reconstructed from
+atoms alone.
+
+#### Composition sub-types
+
+The composition tier has multiple sub-types, each with a distinct
+shape and addressing scheme. Sub-types are added when a new kind of
+higher-order pattern emerges; the doctrine should accommodate
+growth.
+
+| Sub-type | Identity | What it describes | Existing domain type |
+|---|---|---|---|
+| Workflow archetype | `ArchetypeId` | Abstract pattern of SUT interaction (search-verify, detail-inspect, form-submit, cross-screen-journey, read-only-audit) | `WorkflowArchetype` in `lib/domain/synthesis/workflow-archetype.ts` |
+| Flow | `FlowId` | Concrete ordered sequence of screens/fields constituting a journey | embedded in benchmark `flows` today |
+| Runbook | `RunbookId` | Operator/agent-authored execution recipe with branching logic | `controls/runbooks/*.runbook.yaml` |
+| Route graph | `RouteGraphId` | Connected graph of routes describing navigation topology | embedded in `knowledge/routes/*.routes.yaml` |
+| Expansion rule | `ExpansionRulesId` | Rule for deriving variant atoms from a primitive set | embedded in benchmark `expansionRules` |
+| Surface composition | `(ScreenId, CompositionId)` | Multi-region surface descriptions that span surfaces | partially in `knowledge/surfaces/*.surface.yaml` |
+| Recipe template | `RecipeTemplateId` | Parameterized runbook fragment for reuse | not yet in dogfood; future |
+
+#### Composition envelope shape
+
+```
+Composition<TSubtype> {
+  subtype: CompositionSubtype;
+  identity: CompositionIdentity<TSubtype>;
+  content: CompositionContent<TSubtype>;
+  atomReferences: AtomReference[];     // typed references to Tier 1 atoms
+  source: PhaseOutputSource;
+  inputFingerprint: string;
+  producedAt: string;
+  producedBy: string;
+}
+```
+
+The `atomReferences` field is the critical link: every composition
+declares which atoms it depends on, and that dependency is part of
+the composition's identity. When an atom changes (gets promoted to
+a new version), every composition that references it is candidates
+for re-evaluation. The relationship lets the system reason about
+"if I demote this atom, which compositions break?"
+
+#### Composition lifecycle
+
+Compositions follow the same crawled → observed → proposed →
+reviewed → canonical lifecycle as atoms, but with different
+discovery patterns:
+
+- **Workflow archetypes** are typically discovered statically by
+  analyzing the existing scenario corpus. The discovery engine
+  walks scenarios, recognizes recurring patterns, and proposes
+  archetype candidates. Promoted when a pattern recurs across
+  multiple scenarios.
+- **Flows** are typically authored by agents observing the SUT.
+  An agent walks a journey, captures the screen sequence, and
+  proposes a flow. Promoted when the flow proves stable across
+  multiple runs.
+- **Runbooks** are typically authored by agents (or operators)
+  when they figure out a non-trivial recipe. Promoted on
+  authorship; demoted when the underlying flow changes such that
+  the recipe steps stop applying.
+- **Route graphs** are partly discoverable (by walking links from
+  known routes) and partly agent-authored (when navigation paths
+  involve non-link actions). Promoted from observation; demoted
+  on URL pattern changes.
+- **Expansion rules** are typically operator-authored, embedded in
+  benchmark intent. They survive in compound files until splitting.
+- **Surface compositions** are typically discoverable by analyzing
+  multi-surface relationships. Promoted from observation.
+
+#### Compositions reference atoms; atoms do not reference compositions
+
+The dependency direction is one-way. A composition's `atomReferences`
+field points DOWN the tier hierarchy. Atoms do not know which
+compositions reference them — that's a derived view computed by the
+catalog. This keeps atoms decoupled and reusable across many
+compositions.
+
+When the catalog loads canonical artifacts, it builds a reverse
+index from atom identity to the compositions that reference each
+atom. This reverse index is a derived projection (not committed,
+recomputed on catalog load) that supports queries like "what
+compositions depend on this element atom?"
+
+### 3.8 Tier 3 — Projections (constraints over the atom set)
+
+The projection tier holds canonical artifacts that ENCODE
+CONSTRAINTS over the atom set: which atoms are visible to which
+roles, which atoms are accessible in which wizard states, which
+postures are exercisable under which conditions, which permission
+groups can interact with which surfaces. Projections do NOT add new
+atoms — they tag and filter existing atoms.
+
+The projection tier is what makes the interface model work for
+non-trivial applications. A real SUT has roles, permissions, wizard
+flows, conditional features, and stateful UI elements that change
+visibility based on context. Without projections, the system has no
+way to answer questions like "what does an underwriter see on the
+review-submit screen?" or "when this multi-step wizard is in the
+'pending approval' state, which atoms are interactive?"
+
+#### Projection sub-types
+
+Each projection sub-type captures a different kind of constraint
+over the atom set. Sub-types are added when a new contextual axis
+emerges; the doctrine should accommodate growth.
+
+| Sub-type | Identity | What it constrains | When it applies |
+|---|---|---|---|
+| Role visibility | `RoleId` | Which atoms are visible to a role | Per-role view of the SUT |
+| Role interaction | `RoleId` | Which atoms a role can interact with (vs read-only) | Per-role interaction permissions |
+| Wizard state | `(WizardId, StateId)` | Which atoms are visible/interactive in a wizard state | During multi-stage flow execution |
+| Permission group | `PermissionGroupId` | A composite role definition (union/intersection of roles) | Cross-role visibility composition |
+| Posture availability | `(ScreenId, ElementId, PostureName)` | Conditions under which a posture is exercisable | Posture-aware test generation |
+| Process state | `(EntityKind, StateId)` | Which atoms are visible when a business entity is in a particular state | Domain-aware test selection |
+| Feature flag | `FeatureFlagId` | Which atoms are gated behind a feature flag | A/B testing, gradual rollouts |
+
+#### Projection envelope shape
+
+```
+Projection<TSubtype> {
+  subtype: ProjectionSubtype;
+  identity: ProjectionIdentity<TSubtype>;
+  bindings: AtomBinding[];             // typed (atom, applicability) pairs
+  source: PhaseOutputSource;
+  inputFingerprint: string;
+  producedAt: string;
+  producedBy: string;
+}
+```
+
+Where each `AtomBinding` has the shape:
+
+```
+AtomBinding {
+  atomClass: AtomClass;
+  atomIdentity: AtomIdentity<AtomClass>;
+  applicability: 'visible' | 'interactive' | 'read-only' | 'hidden' | 'gated';
+  conditions?: BindingCondition[];     // optional further refinement
+}
+```
+
+A projection is essentially a typed list of "for atom X, applicability
+is Y." When the lookup chain is queried with a role qualifier (or
+wizard state, or feature flag), it consults the projection layer to
+filter the atom set before returning.
+
+#### Projection lifecycle
+
+Projections follow the same lifecycle stages as atoms and
+compositions, but with discovery patterns specific to context-aware
+observation:
+
+- **Role visibility** is discovered by running the SUT as a
+  particular role and walking the same screens. The agent compares
+  what's visible vs what's visible to other roles, infers the
+  visibility binding, and proposes a projection. Promoted when the
+  binding is observed consistently across multiple runs.
+- **Role interaction** is discovered similarly but additionally
+  attempts interaction (typing, clicking, submitting) and observes
+  whether the action is permitted.
+- **Wizard state** is discovered by walking a multi-stage flow,
+  capturing the visible atoms at each state, and proposing per-state
+  projections. Promoted when the state structure stabilizes.
+- **Posture availability** is discovered by attempting posture
+  exercises and observing which combinations succeed. Promoted from
+  successful exercises.
+- **Process state** is harder — it requires the agent to know what
+  business state the SUT is in, which is partly observable (via UI
+  cues) and partly inferred. Often agent-authored or operator-authored
+  rather than deterministically discoverable.
+- **Feature flags** are typically operator-authored (the operator
+  declares which flags exist) but the BINDINGS to specific atoms
+  can be discovered by running with each flag setting.
+
+#### Projection lookup semantics
+
+Projections change how the lookup chain answers queries. When the
+caller asks "give me element atom (policy-search, submitButton)",
+the chain returns the atom directly. But when the caller asks "give
+me element atom (policy-search, submitButton) AS SEEN BY role
+underwriter", the chain:
+
+1. Looks up the atom (Tier 1) via the normal precedence chain.
+2. Looks up the role-visibility projection for `underwriter`
+   (Tier 3).
+3. Filters the atom through the projection's applicability
+   binding.
+4. Returns the atom annotated with applicability, OR returns null
+   if the projection says the atom is hidden for that role.
+
+The same pattern applies to wizard state, feature flag, and
+process state qualifiers. The lookup chain takes a list of
+"qualifiers" alongside the atom address and applies all relevant
+projections before returning.
+
+#### Why projections are not deferrable
+
+Projections cannot be retrofitted later without restructuring the
+lookup chain interface. Every consumer of the lookup chain has to
+pass qualifiers; every promotion gate has to know about projection
+filters; every cache layer has to be aware that the same atom can
+have different "visible state" depending on context. Adding the
+projection slot AFTER atoms and compositions are wired through the
+codebase would require touching every callsite.
+
+The doctrine accommodates projections from day one. The Phase 0b
+implementation includes the projection slot in the lookup chain
+typed interface (even if the initial discovery engines for
+projections are stubs). Projection-aware queries are part of the
+typed surface from the start. When real role-modeling discovery is
+built later, it slots into an existing seam rather than requiring
+a refactor.
+
+---
+
+## 4. Derived output — what the system produces ephemerally
+
+Derived output is everything the pipeline produces that has not been
+promoted to canonical artifact status. It is the output of running the
+pipeline once, against the current canonical sources and canonical
+artifacts. It exists on disk while a run is in progress (and after, if
+the operator wants to inspect it), but it is gitignored and may be
+wiped at any time without consequence.
+
+Derived output includes:
+
+- **Run records** at `.tesseract/runs/`. Per-step traces of what
+  happened during a single iterate run.
+- **Sessions** at `.tesseract/sessions/`. Per-session execution
+  traces.
+- **Bound artifacts** at `.tesseract/bound/`. Compiled scenarios ready
+  to run.
+- **Fitness reports** at `.tesseract/benchmarks/runs/{ts}.fitness.json`.
+  Per-run efficacy snapshots.
+- **L4 baselines** at `.tesseract/baselines/{label}.baseline.json`.
+  Per-developer-per-commit gradient baselines.
+- **Live phase output cache** at `.tesseract/cache/{phase}/{name}`.
+  The most recent output of each phase, ready to be promoted to a
+  canonical artifact if it beats the existing one.
+- **Generated specs** at `{suiteRoot}/generated/`. Playwright spec
+  emission output, regenerated from canonical sources and canonical
+  artifacts on every run.
+- **Substrate scratch** at `.tesseract/scratch/substrate/`. The
+  substrate state during an in-progress iterate run, before its
+  contents are evaluated for promotion.
+
+Derived output is the candidate pool for promotion. After every run,
+the system has the option to promote candidates to canonical artifact
+status (§7). What does not get promoted stays as derived and is
+eventually wiped.
+
+The mental model: **derived output is the flow; canonical artifacts
+are the river bed.** The flow is constantly changing; the river bed
+changes only when sediment accumulates enough to alter the channel.
+
+### 4.1 Why derived output exists at all if it's not committed
+
+Derived output exists because:
+
+1. **The pipeline needs working memory.** It cannot derive everything
+   in-process every time it needs it; it has to write intermediate
+   state to disk and read it back.
+2. **Operators need to inspect intermediate state.** When debugging a
+   failure, the operator wants to see what the bound artifacts looked
+   like, what the run records say, what the fitness report contained.
+3. **The promotion mechanism needs candidates.** A derived output is
+   exactly the candidate that gets evaluated for promotion to canonical
+   artifact status. Without the derived layer, there is nothing to
+   promote.
+4. **Cold-start needs scratch space.** When the operator runs cold,
+   the discovery engine writes its outputs to derived locations and
+   the system compares them against the existing canonical artifacts
+   for promotion or regression detection.
+
+### 4.2 When derived output should be checkpointed
+
+There are two legitimate reasons to checkpoint derived output into a
+committed location:
+
+- **Integration test fixtures.** When a derived output is being used
+  as the input to a test, the test needs the fixture to be stable
+  across machines and over time. The operator runs
+  `tesseract checkpoint --label foo --include scenarios,fitness` and
+  the named subset is copied to `tests/fixtures/checkpoints/foo/`,
+  where it lives as committed test data (NOT as canonical artifacts —
+  it's test data, a separate concern).
+- **Promotion to canonical artifact.** When a derived phase output
+  beats the current canonical artifact for that phase output, the
+  promotion mechanism (§7) moves it from `.tesseract/cache/` to the
+  canonical artifact store and commits it.
+
+These are the only two legitimate paths from derived to committed.
+Operators MUST NOT manually copy files from `.tesseract/` into
+`{suiteRoot}/` to "preserve" them. If something needs to be
+preserved, it should be promoted (canonical artifact) or checkpointed
+(test fixture). The committed locations have specific governance and
+lookup semantics; ad-hoc copies break those.
+
+---
+
+## 5. The phase output model
+
+The pipeline is a sequence of phases. Each phase consumes the output of
+prior phases (and canonical sources, and canonical artifacts) and
+produces typed output of its own. Phase outputs are first-class
+addressable artifacts: each one has a phase identifier, a name, a
+typed content, a source-of-record (which slot of the lookup chain it
+came from), and an input fingerprint.
+
+### 5.1 The phases
+
+| Phase | Consumes | Produces |
+|---|---|---|
+| **sync** | external upstream (real ADO or `fixtures/ado/`) | `.ado-sync/snapshots/` + manifest |
+| **parse** | `.ado-sync/snapshots/` | scenarios |
+| **discovery** | scenarios + SUT | route, surface, component, posture sub-phase outputs |
+| **bind** | scenarios + discovery outputs + canonical sources (controls) | bound artifacts |
+| **iterate** | bound artifacts + substrate (canonical artifacts) | run records, proposals, candidate substrate updates |
+| **fitness** | run records + ledger | fitness reports |
+| **score** | fitness reports + L4 baselines | metric trees + deltas |
+| **emit** | bound artifacts | playwright spec files |
+
+The discovery phase is composed of sub-phases that mirror the
+canonical artifact taxonomy: route discovery, surface discovery,
+component discovery, posture discovery, screen-knowledge discovery,
+pattern discovery, snapshot discovery. Each sub-phase produces typed
+phase outputs that flow through the same lookup-precedence and
+promotion machinery.
+
+### 5.2 Phase output envelope
+
+Every phase output is wrapped in an envelope:
+
+```
+PhaseOutput<TStage> {
+  stage: PipelineStage;        // which phase produced this
+  name: string;                  // identifier within the stage (e.g., "demo" for routes)
+  content: unknown;              // the actual derived artifact
+  source: PhaseOutputSource;     // operator-override | agent-override |
+                                 // deterministic-observation | live-derivation | cold-derivation
+  inputFingerprint: string;      // hash of all inputs that produced this
+  producedAt: string;            // ISO timestamp
+  producedBy: string;            // pipeline version + sub-engine identifier
+  qualityScore?: number;         // optional, used for promotion gating
+}
+```
+
+The `source` field tells consumers exactly which slot of the lookup
+chain the output came from, which determines how to interpret it. The
+`inputFingerprint` is the cache key — two outputs with the same
+fingerprint were produced from the same inputs and are interchangeable.
+The `qualityScore` is consulted by the promotion mechanism (§7).
+
+### 5.3 Where phase outputs live on disk
+
+Each storage location corresponds to a slot in the lookup precedence
+(§6) and is rooted in the doctrine from §1-§4:
+
+| Storage location | Population | Slot |
+|---|---|---|
+| `{suiteRoot}/controls/<phase>/<name>` | Canonical source (operator answers about intent) | Operator override |
+| `{suiteRoot}/.canonical-artifacts/agentic/<phase>/<name>` | Canonical artifact (agentic flavor) | Agentic override |
+| `{suiteRoot}/.canonical-artifacts/deterministic/<phase>/<name>` | Canonical artifact (deterministic flavor) | Deterministic observation |
+| `.tesseract/cache/<phase>/<name>` | Derived output (live cache) | Live derivation |
+| (in-process) | Derived output (cold derivation) | Cold derivation |
+
+The `.canonical-artifacts/` directory is committed. Its two
+subdirectories (`agentic/` and `deterministic/`) make the doctrinal
+flavor visible at the path level: an operator looking at git can tell
+at a glance which artifacts are agent-authored vs which were promoted
+from deterministic derivations.
+
+The `.tesseract/cache/` directory is gitignored. It is per-developer
+per-machine state, used as a fast path between runs.
+
+The cold derivation slot has no on-disk location — it runs the
+discovery engine in-process and returns the result directly. If the
+operator wants to inspect the result, the live cache slot captures it
+on the next run.
+
+---
+
+## 6. The lookup precedence chain
+
+When the pipeline needs phase output X, it consults the lookup chain
+in order. The first slot that returns a valid output wins. The chain
+has five slots, organized by population:
+
+| Slot | Population | Source | Where it lives | Lifecycle |
+|---|---|---|---|---|
+| 1 | canonical source | Operator override | `{suiteRoot}/controls/<phase>/<name>` | Forever, until operator deletes |
+| 2 | canonical artifact | Agentic override | `{suiteRoot}/.canonical-artifacts/agentic/<phase>/<name>` | Until demoted via human review |
+| 3 | canonical artifact | Deterministic observation | `{suiteRoot}/.canonical-artifacts/deterministic/<phase>/<name>` | Until replaced by a better promotion |
+| 4 | derived output | Live derivation | `.tesseract/cache/<phase>/<name>` | Per-run, regenerated on demand |
+| 5 | derived output | Cold derivation | (in-process) | Per-invocation, never persisted |
+
+The doctrinal partition aligns with the slot numbering: slot 1 is a
+canonical SOURCE; slots 2-3 are canonical ARTIFACTS; slots 4-5 are
+DERIVED. The pipeline trusts slots 1-3 as ground truth at runtime;
+slots 4-5 are candidates for promotion.
+
+### 6.1 Why operator overrides outrank agentic overrides
+
+Slot 1 (canonical source) outranks slot 2 (canonical artifact, agentic
+flavor) because operator-authored intent is forever and cannot be
+demoted. Operators write `controls/` files when they have a hard
+requirement that must hold regardless of what the system observes or
+infers. Agents write override files when they observe a gap and want
+to bridge it; those bridges are subject to demotion when the gap is
+closed.
+
+In practice, an operator override and an agentic override for the same
+phase output should be rare. When it happens, the operator's word wins
+and the agent's intervention should probably be removed.
+
+### 6.2 Why agentic overrides outrank deterministic observations
+
+Slot 2 outranks slot 3 because the agentic override is, by definition,
+an explicit decision that the deterministic answer was insufficient.
+Until the demotion mechanism reverses that decision, the override
+stands.
+
+The system continues to track the deterministic observation in the
+background as a comparison target. When the deterministic observation
+matches the agentic override (or beats it on quality metrics), the
+system surfaces a demotion proposal to a human (§7).
+
+### 6.3 Why deterministic observations outrank live derivation
+
+Slot 3 outranks slot 4 because deterministic observations have passed
+a quality gate and have been promoted to canonical artifact status.
+Live derivations are candidates that have not yet been evaluated for
+promotion. Trusting an unevaluated candidate over a promoted artifact
+would be a regression.
+
+### 6.4 Why live derivation outranks cold derivation
+
+Slot 4 outranks slot 5 because the live cache is faster than running
+the discovery engine. If the live cache is present and its
+`inputFingerprint` matches the current inputs, it is byte-equivalent
+to what cold derivation would produce, and there is no reason to
+recompute.
+
+### 6.5 Modes that change the precedence
+
+The default precedence (1 → 2 → 3 → 4 → 5) can be adjusted by mode
+flags:
+
+- **`--mode warm`** (default): walk the full chain in order.
+- **`--mode cold`**: skip slots 3 and 4. Run cold derivation while
+  still respecting operator overrides (slot 1) and agentic overrides
+  (slot 2). Used to challenge the discovery engine without throwing
+  away operator intent.
+- **`--mode compare`**: walk the chain to load slot 3 (deterministic
+  observation), then ALSO run cold derivation, then report the diff.
+  Does not promote anything. Used to measure how close the discovery
+  engine is to the current canonical artifact.
+- **`--no-overrides`**: also skip slots 1 and 2. Used in extreme
+  cold-start runs that test whether the discovery engine alone is
+  sufficient. The combination `--mode cold --no-overrides` is the
+  strongest cold-start test.
+
+### 6.6 Qualifier-aware lookup (Tier 3 projections fold in)
+
+The five-slot precedence chain is the answer to "give me artifact
+X." But the interface model has a third tier (projections, §3.8)
+that filters and qualifies which atoms are visible under different
+contexts: which role is querying, which wizard state is active,
+which feature flag is set, which business process state the SUT
+is in.
+
+When the caller invokes the lookup chain with **qualifiers**, the
+chain's behavior extends:
+
+```
+lookup(address, qualifiers?) → resolved
+```
+
+Where `qualifiers` is an optional bag of contextual filters:
+
+```
+QualifierBag {
+  role?: RoleId;
+  wizardState?: (WizardId, StateId);
+  processState?: (EntityKind, StateId);
+  featureFlags?: FeatureFlagId[];
+  permissionGroups?: PermissionGroupId[];
+}
+```
+
+The lookup with qualifiers proceeds in two passes:
+
+1. **Pass 1 — atom resolution.** Walk the five-slot chain to
+   resolve the atom at `address`. This is unchanged from the
+   non-qualified case.
+2. **Pass 2 — projection application.** For each qualifier in the
+   bag, look up the corresponding projection (Tier 3) via its own
+   five-slot chain. Apply the projection to the resolved atom. The
+   atom may be returned annotated with applicability (visible /
+   interactive / read-only / hidden / gated), or it may be filtered
+   out entirely if the projection says the atom is hidden in this
+   context.
+
+The two-pass model means projections live in slots 1-5 the same way
+atoms and compositions do. The promotion/demotion machinery applies
+to projections identically. The mode flags (`--mode warm|cold|compare`,
+`--no-overrides`) apply to both passes uniformly.
+
+#### Why qualifier-aware lookup is part of the lookup chain interface
+
+The alternative is to expose qualifiers as a separate "filtering
+layer" that consumers apply after looking up atoms. That would push
+projection knowledge to every callsite and create N filtering paths
+for N consumer types. Folding qualifiers into the lookup chain
+interface keeps the projection layer hidden behind a single seam:
+the lookup chain takes a `(address, qualifiers?)` pair and returns
+the qualified result. Consumers don't need to know that projections
+exist as a tier; they just pass their context.
+
+#### Qualifier-aware lookup is wired from day one
+
+The Phase 0b implementation includes the qualifier parameter in the
+lookup chain's typed interface, even if the initial projection
+discovery engines are stubs. This is the load-bearing reason the
+projection tier is not deferrable: every consumer of the lookup
+chain that we wire today will pass the qualifier (or omit it
+explicitly), and adding the qualifier later would require touching
+every callsite.
+
+The doctrine: **the lookup chain takes qualifiers from day one,
+even when there are no projections to apply.** The seam exists; the
+implementation grows into it.
+
+---
+
+## 7. Promotion and demotion
+
+Promotion is the mechanism that turns a derived output into a
+canonical artifact. Demotion is the inverse: it removes a canonical
+artifact when it has been supplanted or has become stale. Together
+they are how the canon set evolves.
+
+### 7.1 Promotion
+
+A derived phase output is a candidate for promotion when:
+
+1. The discovery engine produced it (slot 5, the cold-derivation
+   path), or it was computed during a normal warm run and stored in
+   slot 4 (live cache), AND
+2. There is either no existing canonical artifact for the same
+   `(stage, name)` tuple, OR there is one and the new candidate beats
+   it on the relevant quality metric.
+
+The "relevant quality metric" depends on the phase:
+
+- For route discovery: completeness (number of routes correctly
+  identified) plus precision (no spurious routes).
+- For surface discovery: alignment with the SUT's actual widget tree
+  plus stability across runs.
+- For component discovery: a combination of correctness and reuse
+  potential.
+- For substrate (screens, patterns, snapshots): the L4 metric tree's
+  knowledge-hit-rate and rung distribution.
+
+When the gate passes, the promotion mechanism:
+
+1. Copies the derived output from the live cache (slot 4) to the
+   canonical artifact store (slot 3).
+2. Updates the input fingerprint and producer metadata.
+3. Records the promotion event in `.tesseract/promotion-log.jsonl`
+   (gitignored, for operator inspection).
+4. Includes the canonical artifact change in the next git commit (the
+   operator sees it in `git status` and chooses whether to commit).
+
+Promotion is **automatic** by default. The operator does not have to
+opt in to each promotion; the system promotes whenever the gate
+passes. If an operator wants to gate promotion behind manual review,
+they can run with `--no-auto-promote` and inspect the candidates
+before deciding.
+
+### 7.2 Demotion
+
+A canonical artifact is a candidate for demotion when:
+
+- For agentic overrides (slot 2): the deterministic engine produces
+  an observation that matches or beats the agentic override on
+  quality metrics. This means "the gap the agent was bridging has
+  been closed by the discovery engine."
+- For deterministic observations (slot 3): a fresh cold derivation
+  with the same inputs produces a different output, AND the
+  difference is not explainable by input changes (input fingerprint
+  matches). This means "the canonical artifact is stale or
+  incorrect."
+
+When a demotion candidate is detected, the system surfaces a
+**demotion proposal** to the operator. A demotion proposal includes:
+
+- The phase output identifier (`stage`, `name`)
+- The current canonical artifact and its provenance
+- The challenger output and its provenance
+- The quality scores of both
+- A confidence assessment ("the system is N% confident this
+  demotion is correct")
+- The recommended action (demote, keep, or escalate for review)
+
+The operator reviews and approves or rejects. Approved demotions
+remove the canonical artifact and the challenger takes its place
+(either as a new deterministic observation, or — if the challenger
+was a cold derivation — by writing it back to the live cache and
+re-running the promotion gate).
+
+Demotion is **deliberate** by default. The system never silently
+removes a canonical artifact. Even when the deterministic engine
+clearly outperforms an agentic override, the human gets the final
+call.
+
+### 7.3 The promotion/demotion loop is the system's improvement engine
+
+Promotion and demotion together form the loop that lets the canon
+set evolve over time:
+
+1. The discovery engine improves and produces better phase outputs.
+2. Promotion captures the improvements as new canonical artifacts.
+3. Some of those new canonical artifacts (deterministic observations)
+   match or beat existing agentic overrides.
+4. Demotion proposals surface for the obsolete agentic overrides.
+5. The operator approves the demotions and the agentic override is
+   removed.
+6. The canon set is now smaller, the discovery engine is doing more
+   work, and the system has graduated.
+
+This is how the long-term vision (no `dogfood/` folder, no hand-curated
+canonical artifacts, just the operator's intent and the discovery
+engine doing its job) is reached: incrementally, one demotion at a
+time, governed by the promotion/demotion gates.
+
+---
+
+## 8. Cold-start and warm-start interop
+
+The lookup precedence chain is the mechanism that lets the same
+pipeline run in cold or warm mode without code branching. Both modes
+call the same phase functions; they only differ in which slots of the
+chain are consulted.
+
+This is a deliberate design choice. Cold and warm are not separate
+code paths or separate substrates. They are **different lookup
+policies over the same canonical artifact store**. The pipeline does
+not know what mode it is in — it asks the lookup chain for phase
+output X and receives the answer. The mode determines whether the
+canonical artifact slots (2 and 3) are consulted, but the calling
+code is identical.
+
+### 8.1 The interop contract
+
+A cold run and a warm run that consume the same canonical sources
+should produce equivalent system state. "Equivalent" is measured by:
+
+1. The L4 metric tree from `score` matches within tolerance.
+2. The discovery fitness metric tree (§12) shows the cold-derived
+   outputs match the canonical artifact outputs within tolerance.
+3. The downstream artifacts (bound, generated specs, run records) are
+   functionally interchangeable.
+
+When the contract holds, the cold run is implicitly validating the
+canonical artifacts that the warm run is using. When the contract
+breaks, the discrepancy points at one of:
+
+- A bug in the discovery engine (cold derives incorrectly).
+- Staleness in a canonical artifact (a deterministic observation that
+  used to be true but isn't anymore — candidate for demotion).
+- A missing operator answer (the gap is real and needs an override
+  or intervention to land in slot 1 or slot 2).
+
+Each of these has a defined remediation path through promotion or
+demotion. The interop contract is the system's tripwire for catching
+silent regressions.
+
+### 8.2 Why interop matters
+
+Without interop, cold-start and warm-start become different products.
+Cold-start becomes a ceremonial regression test that nobody actually
+runs because it always fails for irrelevant reasons. Warm-start
+accumulates state the cold-start engine cannot reproduce, and the
+canonical artifact store ossifies into "stuff we don't dare delete."
+
+With interop, they are two views of the same product. Every cold run
+that beats a canonical artifact triggers a promotion. Every warm run
+that diverges from a fresh cold derivation triggers a demotion
+proposal. The canon set evolves continuously, and "cold-start works"
+is a verifiable, daily fact instead of an aspirational claim.
+
+### 8.3 The cadence of cold-start runs
+
+Cold-start runs should be at least as frequent as warm-start runs.
+Both are first-class outcomes the system optimizes around. In CI, the
+default should be that every commit triggers both: a warm-start run
+to validate the L4 pipeline efficacy gradient, and a cold-start run
+(possibly on a smaller corpus to keep CI time bounded) to validate
+the discovery fitness gradient.
+
+A discovery engine that is challenged regularly is one that improves
+regularly. A discovery engine that is challenged only when an operator
+remembers to run `--mode cold` is one that quietly rots while everyone
+trusts the canonical artifacts.
+
+---
+
+## 9. Two parallel engines
+
+The system contains two engines that improve along orthogonal axes.
+They share the same canonical artifact store but they optimize
+different things, and the doctrine should make their independence
+visible.
+
+### 9.1 The discovery engine (deterministic observation)
+
+The discovery engine takes canonical sources and produces phase
+outputs from cold. It is judged by the **discovery fitness** metric
+tree (§12): how close are its cold-derived outputs to the current
+canonical artifacts?
+
+A good discovery engine eventually eliminates the need for
+hand-curated canonical artifacts. As it matures, the demotion
+mechanism removes agentic overrides one at a time, and the canon set
+shrinks toward "operator intent + the SUT" alone.
+
+The discovery engine code lives in `lib/application/discovery/` (or
+wherever the discovery namespace lands during the lib restructuring).
+It is the cold-start arm of the self-improvement loop.
+
+### 9.2 The agentic intervention engine (agentic override authoring)
+
+The agentic intervention engine handles the gaps the discovery engine
+cannot bridge. When discovery fails, an agent is asked to provide a
+hint, override, or insight. The agent's answer is captured as either
+an operator override (slot 1, canonical source) or an agentic
+override (slot 2, canonical artifact, demotable).
+
+A good intervention engine asks the operator the right questions at
+the right times, captures answers in the right slot, and proposes
+demotions when interventions become stale. It is judged by:
+
+- **Operator burden** (operator-intervention-density in the L4 tree).
+  Lower is better.
+- **Question quality**: are the questions specific and answerable?
+- **Demotion accuracy**: when it proposes a demotion, is it correct?
+- **Intervention longevity**: how long does an intervention stay
+  relevant before being demoted? Longer is better.
+
+The intervention engine code lives in `lib/application/agency/` (or
+wherever the agency namespace lands). It is the warm-start arm of the
+self-improvement loop.
+
+### 9.3 Why both engines matter
+
+Discovery is bounded by what is observable from canonical sources
+alone. Even a perfect discovery engine cannot infer "the operator
+wants to test this scenario under this particular drift configuration"
+— that's intent, and it requires a human or an agent acting on the
+human's behalf.
+
+The right ratio of discovery to intervention varies by project and
+over time:
+
+- **Greenfield project, day one**: mostly intervention. The operator
+  is teaching the system. Few canonical artifacts exist. Most lookups
+  hit slot 5 (cold derivation, often failing) and the system asks for
+  help.
+- **Mature project, year two**: mostly discovery. The system has
+  observed the SUT enough that the canonical artifact store covers
+  most phase outputs. Interventions are rare and reserved for novel
+  test intent.
+- **Forever**: operator overrides (slot 1) remain canonical sources
+  no matter how mature the discovery engine becomes. The operator's
+  intent cannot be discovered.
+
+Both engines write to the canonical artifact store via the same
+promotion mechanism. Both can be challenged by cold-start runs. Both
+contribute to the canonical set over time.
+
+---
+
+## 10. Directory layout convention
+
+The system has one configurable root: `{suiteRoot}`. It is the
+directory containing all project-specific state — canonical sources,
+canonical artifacts, and the cache scratch space for derived output.
+The pipeline accesses it via `paths.suiteRoot` and never hardcodes
+the literal name.
+
+### 10.1 Naming
+
+- **Dogfood mode**: `{suiteRoot}` is `dogfood/`. The name documents
+  that this is the system's self-test environment.
+- **Production mode**: `{suiteRoot}` defaults to `project/`.
+  Operators may override the convention per project (e.g.,
+  `acme-insurance/`, `contoso-banking/`), and the pipeline reads the
+  choice from a top-level config.
+- The literal string `dogfood` should not appear in pipeline code,
+  doctrine prose, or operator-facing commands. Use `{suiteRoot}` in
+  docs and `paths.suiteRoot` in code.
+
+### 10.2 Canonical paths under `{suiteRoot}/`
+
+These are committed and treated as canon. Note that the canonical
+artifact store is structured as the three-tier interface model
+(§3.5/3.6/3.7/3.8) — atoms keyed by SUT-primitive identity,
+compositions keyed by recipe identity, projections keyed by
+qualifier identity. Each tier has its own subdirectory and within
+each tier the agentic-vs-deterministic source flavor is encoded at
+the path level so operators can tell at a glance which artifacts
+were authored by agents vs promoted from the discovery engine.
+
+```
+{suiteRoot}/
+  fixtures/
+    ado/                              # canonical source: simulated upstream (dogfood)
+                                      # — in production this directory does not exist; the
+                                      # canonical source is the .ado-sync/ persisted record below
+      <hand-curated IDs>.json
+    demo-harness/                     # canonical source: the SUT in dogfood mode
+                                      # (absent in production — SUT is external)
+
+  controls/                           # canonical source: operator answers about intent
+                                      # (TRANSITIONAL — today many of these files are hybrid
+                                      # agentic-override compounds; they belong in
+                                      # .canonical-artifacts/atoms/ once decomposed)
+    resolution/                       # → atoms/resolution-overrides/ post-decomposition
+    runbooks/                         # → compositions/runbooks/ post-decomposition
+    datasets/                         # → atoms/posture-samples/ post-decomposition
+    variance/                         # → split: atoms/drifts/ + canonical sources
+
+  benchmarks/                         # canonical source: labeled measurement targets
+                                      # (TRANSITIONAL — today these are hybrid compound files
+                                      # mixing atoms/compositions/projections/intent)
+
+  .canonical-artifacts/               # canonical artifacts (committed, doctrinal weight)
+    atoms/                            # TIER 1: per-primitive facts
+      agentic/                        # — agent-authored (slot 2)
+        routes/
+        screens/
+        elements/
+        postures/
+        affordances/
+        selectors/
+        patterns/
+        snapshots/
+        drifts/
+        transitions/
+        observation-predicates/
+        resolution-overrides/
+        posture-samples/
+      deterministic/                  # — promoted from discovery (slot 3)
+        routes/
+        screens/
+        elements/
+        postures/
+        affordances/
+        selectors/
+        patterns/
+        snapshots/
+        drifts/
+        transitions/
+        observation-predicates/
+        resolution-overrides/
+        posture-samples/
+    compositions/                     # TIER 2: higher-order patterns over atoms
+      agentic/                        # — agent-authored
+        archetypes/                   # WorkflowArchetype instances
+        flows/                        # ordered field/screen sequences
+        runbooks/                     # execution recipes
+        route-graphs/                 # navigation topology
+        expansion-rules/              # variant derivation rules
+        surface-compositions/         # multi-surface descriptions
+        recipe-templates/             # parameterized runbook fragments
+      deterministic/
+        archetypes/
+        flows/
+        runbooks/
+        route-graphs/
+        expansion-rules/
+        surface-compositions/
+        recipe-templates/
+    projections/                      # TIER 3: constraints over the atom set
+      agentic/                        # — agent-authored
+        role-visibility/              # which atoms a role can see
+        role-interaction/             # which atoms a role can interact with
+        wizard-state/                 # which atoms are accessible per wizard state
+        permission-groups/            # composite role definitions
+        posture-availability/         # when each posture is exercisable
+        process-state/                # business-state-aware visibility
+        feature-flags/                # flag-gated atom visibility
+      deterministic/
+        role-visibility/
+        role-interaction/
+        wizard-state/
+        permission-groups/
+        posture-availability/
+        process-state/
+        feature-flags/
+
+  .ado-sync/                          # in production: canonical source (persisted upstream)
+    snapshots/                        # in dogfood: derived (cache of fixtures/ado/)
+                                      # the doctrinal status flips between modes; gitignored in dogfood
+```
+
+### 10.3 Derived paths under `{suiteRoot}/`
+
+These exist on disk during a run and after, but are gitignored. They
+are regenerable from canonical sources plus pipeline code:
+
+```
+{suiteRoot}/
+  scenarios/                          # parse phase output (cache)
+    demo/
+    reference/
+  generated/                          # spec emission output (cache)
+```
+
+### 10.4 Runtime paths outside `{suiteRoot}/`
+
+```
+.tesseract/
+  cache/                              # live phase output cache (slot 4)
+    <phase>/<name>.<ext>
+  runs/                               # per-run records
+  sessions/                           # per-session traces
+  bound/                              # bound artifact cache
+  inbox/                              # handshake inbox
+  scratch/
+    substrate/                        # in-progress substrate during iterate runs
+  benchmarks/
+    runs/<ts>.fitness.json            # fitness reports per run
+    scorecard.json                    # local high-water-mark per developer
+  baselines/
+    <label>.baseline.json             # L4 metric tree baselines per developer
+  promotion-log.jsonl                 # log of promotions and demotions
+```
+
+All of `.tesseract/` is gitignored except for explicit governance
+anchors (scorecard policy files). It is per-developer per-machine
+state.
+
+### 10.5 Test fixture checkpoints
+
+```
+tests/
+  fixtures/
+    checkpoints/
+      <label>/                        # explicitly captured derived state
+                                      # for use as integration test data
+```
+
+The checkpoint store is committed because it is test data, not
+because it is canonical. Its lifecycle is governed by the test suite:
+checkpoints are added when a test needs stable input, and they are
+deleted when the test that depends on them is removed.
+
+---
+
+## 11. Classification table for the dogfood suite
+
+Authoritative classification for every path that currently exists
+under `dogfood/`. Each row maps a path to its trichotomy population
+AND its three-tier interface model classification (where applicable),
+and notes the migration action needed to bring the current state into
+doctrinal alignment.
+
+The "tier" column applies only to canonical artifacts (it identifies
+which of Tier 1 / Tier 2 / Tier 3 the artifact belongs to). For
+canonical sources and derived output, the tier column is `n/a`. For
+HYBRID compound files that span multiple tiers, the tier column lists
+all applicable tiers and the migration action describes the
+decomposition.
+
+| Path | Population | Tier(s) | Verdict | Migration |
+|---|---|---|---|---|
+| `dogfood/fixtures/ado/{10001,10002,10010,10011}.json` | canonical source | n/a | the operator's stand-in upstream | stays committed |
+| `dogfood/fixtures/ado/{2xxxx}.json` | derived | n/a | cohort generator output | gitignore in place |
+| `dogfood/fixtures/demo-harness/**` | canonical source | n/a | the SUT in dogfood mode | stays committed |
+| `dogfood/.ado-sync/snapshots/{10001,10002,10010,10011}.json` | derived (in dogfood) | n/a | cache of `fixtures/ado/` | gitignore in dogfood; in production this becomes canonical source |
+| `dogfood/.ado-sync/snapshots/{2xxxx}.json` | derived | n/a | cohort sync cache | gitignore |
+| `dogfood/.ado-sync/archive/{10001,10002,10010,10011}/N.json` | canonical source | n/a | revision history of the operator-authored simulator | stays committed |
+| `dogfood/.ado-sync/archive/{2xxxx}/N.json` | derived | n/a | synthetic cohort revision history | gitignore |
+| `dogfood/.ado-sync/manifest.json` | derived | n/a | auto-maintained sync metadata | gitignore |
+| `dogfood/benchmarks/*.benchmark.yaml` | canonical artifact (hybrid compound) | 1 + 2 + (operator intent fragments) | hybrid: 28 fieldCatalog rows are Tier 1 element atoms; 1 flow is a Tier 2 composition; 5 driftEvents are Tier 1 drift atoms; thresholds are operator-intent canonical sources; benchmarkRunbooks reference Tier 2 runbooks; expansionRules are Tier 2 compositions | DECOMPOSE (Phase 3+): split rows into per-tier targets; keep file as derived projection or delete |
+| `dogfood/controls/datasets/*.dataset.yaml` | canonical artifact (hybrid compound) | 1 (posture-samples) | per-(screen, element, posture) default values | DECOMPOSE: split into atoms/posture-samples/{screen}/{element}/{posture}.yaml |
+| `dogfood/controls/resolution/*.resolution.yaml` | canonical artifact (hybrid compound) | 1 (resolution-overrides) | per-(screen, intent-fingerprint) resolver decisions | DECOMPOSE: split into atoms/resolution-overrides/{screen}/{intent-fingerprint}.yaml |
+| `dogfood/controls/runbooks/*.runbook.yaml` | canonical artifact | 2 (runbooks) | execution recipe for a flow | move to .canonical-artifacts/compositions/{agentic|deterministic}/runbooks/ |
+| `dogfood/controls/variance/*.variance.yaml` | canonical artifact (hybrid compound) | 1 (drifts) + (operator intent fragments) | drift configs + scenario-selection intent | DECOMPOSE: drift atoms move to atoms/drifts/; selection intent stays as canonical source |
+| `dogfood/scenarios/demo/**` | derived | n/a | should be derivable from `.ado-sync/snapshots/{10001,10002,10010,10011}.json` via parse phase | gitignore (after parser migration) |
+| `dogfood/scenarios/reference/**` | derived | n/a | cohort generator output | gitignore |
+| `dogfood/knowledge/screens/*.elements.yaml` | canonical artifact | 1 (elements) | substrate of element atoms per screen | DECOMPOSE: split into per-element atom files at atoms/{agentic|deterministic}/elements/{screen}/{element}.yaml |
+| `dogfood/knowledge/screens/*.hints.yaml` | canonical artifact (hybrid compound) | 1 (elements) + 1 (resolution-overrides) | mix of element alias atoms and per-(intent, screen) resolution overrides | DECOMPOSE: split into atoms/elements/ and atoms/resolution-overrides/ |
+| `dogfood/knowledge/screens/*.postures.yaml` | canonical artifact | 1 (postures) | per-element posture atoms | DECOMPOSE: split into atoms/{agentic|deterministic}/postures/{screen}/{element}/{posture}.yaml |
+| `dogfood/knowledge/patterns/*.yaml` | canonical artifact | 1 (patterns) | promoted cross-screen abstractions | DECOMPOSE: each pattern doc → atoms/patterns/{pattern-id}.yaml |
+| `dogfood/knowledge/snapshots/**` | canonical artifact | 1 (snapshots) | ARIA tree templates | DECOMPOSE: each snapshot → atoms/snapshots/{snapshot-id}.yaml |
+| `dogfood/knowledge/routes/demo.routes.yaml` | canonical artifact (hybrid compound) | 1 (routes) + 2 (route-graphs) | per-route atoms PLUS the route graph composition that connects them | DECOMPOSE: per-route atoms to atoms/routes/; the connecting graph to compositions/route-graphs/demo.yaml |
+| `dogfood/knowledge/surfaces/*.surface.yaml` | canonical artifact (hybrid compound) | 1 (surfaces) + 2 (surface-compositions) | surface atoms PLUS surface composition descriptions | DECOMPOSE: per-surface atoms to atoms/surfaces/; multi-surface compositions to compositions/surface-compositions/ |
+| `dogfood/knowledge/components/*.ts` | canonical source (code) | n/a | TypeScript widget choreography code | long-term moves to `lib/runtime/widgets/`; near-term stays committed |
+| `dogfood/generated/**` | derived | n/a | playwright spec emission | gitignore |
+| `dogfood/posture.yaml` | (does not exist) | n/a | the `postureConfigPath` concept has been deleted | (already replaced by CLI flag) |
+
+The migration has TWO load-bearing decompositions waiting to land:
+
+**Phase 2 (atom decomposition)**: every row marked DECOMPOSE in the
+table above splits its compound contents into per-atom files at the
+correct tier path. The compound files themselves shrink to nothing and
+are deleted, OR they survive as derived projections that the catalog
+materializes for human inspection.
+
+**Phase 2.5 (composition extraction)**: the hybrid rows that span
+Tier 1 and Tier 2 (`benchmarks/`, `routes/`, `surfaces/`) need
+careful extraction of their composition components into the
+`compositions/` tier alongside their atom decomposition. The flow
+inside benchmark files becomes a Tier 2 flow composition; the route
+graph inside route files becomes a Tier 2 route graph; the
+multi-surface descriptions inside surface files become Tier 2 surface
+compositions.
+
+The Tier 3 projection layer has NO existing files in dogfood today.
+It is built greenfield as the agent intervention engine learns to
+capture role visibility, wizard state, posture availability, and
+permission group bindings. The projection slot in the lookup chain
+exists from day one (Phase 0b) so consumers don't have to retrofit.
+
+---
+
+## 12. Two metric trees
+
+The system tracks pipeline efficacy on two orthogonal axes, each with
+its own L4 metric tree consumed by the `score` command.
+
+### 12.1 L4 pipeline efficacy tree (existing)
+
+The existing L4 metric tree from the fifth-kind loop. It measures how
+well the pipeline runs the workload given the current canonical
+artifacts. Root metrics:
+
+- `extraction-ratio` (higher is better)
+- `handshake-density` (lower is better)
+- `rung-distribution` (composite)
+- `intervention-cost` (lower is better)
+- `compounding-economics` (higher is better)
+
+It answers: **how well does the pipeline run the test workload, given
+the canon it has access to?** It is the gradient signal for changes to
+the runtime, the resolver, the proposal generator, and the substrate
+growth loop.
+
+### 12.2 Discovery fitness tree (new)
+
+A parallel L4 tree that measures how well the discovery engine derives
+phase outputs from cold. Root metrics (initial set):
+
+- `discovery-route-fidelity` — how close are cold-derived routes to
+  the canonical artifact? (higher is better)
+- `discovery-surface-fidelity` — same for surfaces
+- `discovery-component-fidelity` — same for components
+- `discovery-substrate-fidelity` — how close is cold-derived substrate
+  (after iterate convergence) to the canonical artifact substrate?
+- `discovery-coverage` — what fraction of canonical artifacts does the
+  discovery engine produce at all? (higher is better)
+- `intervention-graduation-rate` — what fraction of agentic overrides
+  has been demoted because the deterministic engine caught up?
+  (higher is better, but should be slow and steady)
+
+It answers: **how close is cold-start to warm-start?** It is the
+gradient signal for changes to the discovery engine and to the
+agentic intervention system.
+
+### 12.3 Why two trees instead of one
+
+The two trees measure different things and should not be conflated:
+
+- A change that improves L4 pipeline efficacy without improving
+  discovery fitness means the runtime is better at using the cached
+  canonical artifacts, but the cold-start engine has not progressed.
+- A change that improves discovery fitness without improving L4
+  pipeline efficacy means the cold-start engine has caught up to the
+  canonical artifacts, but the runtime is no faster.
+- A change that improves both is the best kind of change.
+- A change that regresses one and improves the other is a tradeoff
+  that needs explicit operator review.
+
+The score command surfaces both trees side by side and lets the
+operator read each independently.
+
+---
+
+## 13. Operator workflows
+
+The day-to-day operator does not think about the trichotomy. They
+run commands. The commands respect the doctrine internally so the
+operator's mental model can stay simple.
+
+### 13.1 Day-to-day warm-start workflow
+
+```
+tesseract iterate                       # warm: walk full lookup chain, use canonical artifacts
+tesseract fitness                       # produce fitness report from run records
+tesseract score                         # build L4 + discovery fitness trees
+tesseract baseline --label pre-edit     # snapshot for gradient measurement
+# (edit pipeline code)
+tesseract iterate
+tesseract fitness
+tesseract score --baseline pre-edit     # gradient signal
+git status                              # clean (canonical artifacts unchanged unless promoted)
+```
+
+### 13.2 Cold-start challenge workflow
+
+```
+tesseract iterate --mode cold           # cold: skip slots 3 and 4, run discovery
+tesseract fitness
+tesseract score --discovery-fitness     # how close is cold to canonical?
+```
+
+### 13.3 Promotion workflow (mostly automatic)
+
+```
+tesseract iterate                       # may automatically promote candidates
+git status                              # shows promoted canonical artifact diffs
+git commit -m "Promote routes/demo to deterministic observation"
+```
+
+### 13.4 Demotion workflow (deliberate)
+
+```
+tesseract demote --review               # surfaces pending demotion proposals
+# operator reviews each, accepts or rejects
+git status                              # shows removed canonical artifacts
+git commit -m "Demote agentic override for routes/policy-search"
+```
+
+### 13.5 Reset workflows
+
+```
+tesseract reset --derived               # wipes .tesseract/cache/, runs, sessions
+tesseract reset --canonical-artifacts   # wipes .canonical-artifacts/ entirely
+                                        # (extreme; for verifying the discovery
+                                        # engine can rebuild the canon set)
+```
+
+### 13.6 Canonical artifact inspection
+
+```
+tesseract canon list                    # list all canonical artifacts by phase
+tesseract canon show routes/demo        # show the current artifact for a phase output
+tesseract canon history routes/demo     # show the promotion/demotion history
+```
+
+---
+
+## 14. Long-term vision
+
+The doctrine is designed to support a north-star end state where:
+
+1. The `dogfood/` folder does not exist.
+2. The pipeline points at a real Azure DevOps project (via real
+   credentials and the real `tesseract sync` flow) and at a real
+   web application (via a real fixture server or staging URL).
+3. The canonical sources are: pipeline code, doctrine, controls,
+   benchmarks, and the `.ado-sync/` persisted upstream record. No
+   simulator.
+4. The canonical artifacts are populated entirely by the discovery
+   engine (deterministic observations) and a small set of agentic
+   overrides for genuinely novel intent.
+5. The operator's day-to-day experience is: edit pipeline code,
+   run iterate against real ADO + real SUT, watch the canonical
+   artifact store evolve as the system learns.
+
+The trichotomy survives this transition unchanged. The names of
+files, the locations of directories, and the verbs operators run
+all remain the same. What changes is the SOURCE of the canonical
+sources (real ADO instead of simulator) and the SIZE of the canonical
+artifact store (smaller, because real upstream means more discovery
+opportunities).
+
+The dogfood mode is the system's training environment. The trichotomy
+must hold in dogfood for it to hold in production. Every doctrinal
+correctness fix that lands during dogfood development is a free
+correctness fix for the production deployment.
+
+---
+
+## 15. Glossary
+
+- **Canon** — shorthand for "canonical sources OR canonical artifacts."
+  When the doctrine says "canon," it means committed, trusted ground
+  truth, regardless of which subcategory.
+- **Canonical source** — an input to the pipeline. Authored by humans
+  or arrived from external systems. Never produced by the pipeline.
+  Forever canonical.
+- **Canonical artifact** — an output the pipeline has produced and
+  trusts as ground truth at runtime. Two flavors: deterministic
+  observations (promoted via quality gate) and agentic overrides
+  (authored by an agent or operator). Demotable when supplanted or
+  stale.
+- **Derived output** — a candidate for promotion. Produced by a
+  pipeline run, lives in `.tesseract/cache/` until promoted or wiped.
+  Gitignored.
+- **Phase** — a step of the pipeline (sync, parse, discovery, bind,
+  iterate, fitness, score, emit). Each phase consumes typed inputs
+  and produces typed outputs.
+- **Phase output** — the typed artifact a phase produces. Addressable
+  by `(stage, name)`. Stored at one of five lookup-chain slots.
+- **Lookup chain** — the precedence order the pipeline walks when
+  it needs a phase output. Slots 1-3 are committed canon; slots 4-5
+  are derived.
+- **Promotion** — moving a derived output (slot 4 or 5) into the
+  canonical artifact store (slot 3, deterministic) when it beats the
+  current canonical artifact on a quality gate.
+- **Demotion** — removing a canonical artifact when it has been
+  supplanted by a better one or has become stale. Always deliberate
+  (operator approval required).
+- **Discovery engine** — the deterministic system that derives phase
+  outputs from canonical sources alone. Produces deterministic
+  observations.
+- **Intervention engine** — the agentic system that captures
+  operator/agent answers when discovery cannot bridge a gap. Produces
+  agentic overrides.
+- **Cold-start mode** — `--mode cold`. Skip slots 3 and 4, run cold
+  derivation. Used to challenge the discovery engine.
+- **Warm-start mode** — `--mode warm` (default). Walk the full
+  lookup chain, use canonical artifacts as ground truth.
+- **Compare mode** — `--mode compare`. Walk the chain to load slot 3,
+  then also run cold derivation, then report the diff.
+- **Suite root** — the configurable directory containing all
+  project-specific state. `dogfood/` in dogfood mode, `project/` (or
+  a project-specific name) in production. Accessed via
+  `paths.suiteRoot` in code; never hardcoded.
+- **`{suiteRoot}`** — the placeholder used in this document and in
+  architecture-fitness lints to refer to the suite root path.
+
+---
+
+## 16. Existing seams in the codebase (Phase 0b implementation guide)
+
+This section captures the existing pipeline-stage and catalog
+infrastructure that the Phase 0b implementation MUST plug into
+rather than replace. It is here to prevent future sessions from
+re-investigating the same surface and inventing parallel concepts
+that duplicate work that already exists. This is a high-water-mark
+intel snapshot — verify the file paths still hold before relying on
+them.
+
+### 16.1 The PipelineStage interface already exists
+
+`lib/application/pipeline/stage.ts` defines a generic `PipelineStage<>`
+interface with fingerprinting and persistence hooks:
+
+```
+PipelineStage<TInput, TOutput, TPersisted> {
+  name: string;
+  fingerprintInput?: (input: TInput) => string;
+  fingerprintOutput?: (output: TOutput) => string;
+  persist?: (output: TOutput) => Effect<{ result: TPersisted; rewritten: boolean }>;
+}
+```
+
+`PipelineStageRunResult<>` wraps the dependencies, computed value,
+persisted value, rewritten flag, and fingerprints. The Phase 0b
+implementation EXTENDS this with:
+
+- A `source` field (the `PhaseOutputSource` discriminated union)
+- An `address` field (the typed `(stage, identity)` tuple from §3.6)
+- The atom/composition/projection tier classification
+- Hooks for the lookup chain to consult before computing
+
+It does NOT replace this interface. Any new code that wants to
+participate in the canonical artifact store routes through
+`PipelineStage<>` extended with the new fields.
+
+### 16.2 The WorkspaceCatalog is the multi-artifact indexer
+
+`lib/application/catalog/types.ts` defines `ArtifactEnvelope<T>`:
+
+```
+ArtifactEnvelope<T> {
+  artifact: T;
+  artifactPath: string;
+  absolutePath: string;
+  fingerprint: string;
+}
+```
+
+And `WorkspaceCatalog` (lines 65-103) is the loaded state of all
+artifacts in the suite, indexed by ~30 artifact types (scenarios,
+screen elements, screen postures, screen hints, snapshots, patterns,
+routes, surfaces, controls, runbooks, datasets, benchmarks, etc.).
+
+The Phase 0b implementation:
+
+- Adds new artifact-envelope entries to `WorkspaceCatalog` for
+  Tier 1 atoms, Tier 2 compositions, and Tier 3 projections.
+- Reuses the existing `walkFiles` and catalog loading machinery
+  (`workspace-catalog.ts:245-265`) rather than building parallel
+  walkers.
+- Adds reverse-index projections for atom-to-composition references
+  and qualifier-to-projection lookups.
+
+The catalog is loaded at the start of every iterate run. The lookup
+chain consults the catalog as its slot 2/3 layer (canonical
+artifacts come from the catalog). Slot 4 (live cache) is `.tesseract/cache/`
+managed separately. Slot 5 (cold derivation) runs the discovery
+engine in-process.
+
+### 16.3 The phase functions in speedrun.ts are the existing phase enumeration
+
+`lib/application/improvement/speedrun.ts` exports five phase
+functions (lines 423-673):
+
+- `generatePhase` (line 423)
+- `compilePhase` (line 457)
+- `iteratePhase` (line 512)
+- `fitnessPhase` (line 541)
+- `reportPhase` (line 614)
+
+These are the de facto pipeline phases, even though there's no
+explicit `PipelineStage` enum. The `SpeedrunProgressEvent` type
+includes a `phase: 'generate' | 'compile' | 'iterate' | 'fitness' | 'complete'`
+field that confirms the enumeration.
+
+The Phase 0b implementation creates an explicit `PipelineStage` enum
+that includes these five phases plus the discovery sub-phases (route,
+surface, element, posture, pattern, snapshot, etc.) plus the score
+and emit phases. The existing phase functions are reframed as
+implementations of `PipelineStage<>` instances.
+
+### 16.4 Discovery code is scattered, not consolidated
+
+There is no `lib/application/discovery/` directory. Discovery code
+lives in:
+
+- `lib/application/cli/commands/discover.ts` — CLI entry point
+- `lib/application/cli/commands/harvest.ts` — route harvesting
+- `lib/domain/knowledge/discovery.ts` — domain types
+  (`DiscoveryInput`, `DiscoverySectionArtifact`, `DiscoveryReviewNote`)
+- `lib/infrastructure/tooling/discover-screen.ts` — Playwright
+  screen discovery
+- `lib/infrastructure/tooling/harvest-routes.ts` — route harvesting
+
+The Phase 0b implementation establishes `lib/application/discovery/`
+as the consolidation seam. Existing discovery code stays where it
+is for now; new discovery sub-phase implementations land under
+`lib/application/discovery/{atom-class}/` and the existing scattered
+code is migrated incrementally in Phase 3.
+
+### 16.5 No promote/demote concept exists yet
+
+The closest existing analogue is the proposal lifecycle FSM at
+`lib/domain/proposal/lifecycle.ts`:
+
+- States: `pending`, `activated`, `blocked`
+- `CertificationStatus`: `certified` | `uncertified`
+
+Plus the auto-approval flow at
+`lib/application/governance/auto-approval.ts` and
+`tryActivateProposal` in `lib/application/governance/activate-proposals.ts`.
+
+The Phase 0b implementation introduces a NEW `PromotionGate` concept
+and a NEW `demote` verb. The proposal lifecycle is left intact (it
+serves a different concern: what happens to a proposal once it's
+been generated). The promotion machinery is its own state space,
+operating on canonical artifact addresses, with its own gates per
+atom class / composition sub-type / projection sub-type.
+
+### 16.6 Path constants under {suiteRoot}/
+
+`lib/application/paths/factory.ts` (lines 73-163) creates all
+`ProjectPaths`. Notable existing paths under `{suiteRoot}/`:
+
+- `routesDir` → `knowledge/routes/`
+- `surfacesDir` → `knowledge/surfaces/`
+- `patternsDir` → `knowledge/patterns/`
+- `controlsDir`, `datasetsDir`, `resolutionControlsDir`, `runbooksDir`
+- `benchmarksDir`
+- `snapshotDir` → `.ado-sync/snapshots/`
+- `archiveDir` → `.ado-sync/archive/`
+
+The Phase 0b implementation ADDS new path constants for the
+three-tier canonical artifact store layout from §10.2:
+
+- `canonicalArtifactsDir` → `{suiteRoot}/.canonical-artifacts/`
+- `atomsDir` → `{suiteRoot}/.canonical-artifacts/atoms/`
+- `compositionsDir` → `{suiteRoot}/.canonical-artifacts/compositions/`
+- `projectionsDir` → `{suiteRoot}/.canonical-artifacts/projections/`
+- Per-tier sub-paths for agentic vs deterministic flavors
+- Per-atom-class sub-paths
+
+The existing `routesDir`, `surfacesDir`, etc. stay during the
+transition. After Phase 2, the path layer routes them to the new
+locations.
+
+### 16.7 Already-existing types that map to atoms
+
+These domain types are the actual atoms — they should NOT be
+reinvented. The canonical artifact store stores instances of these
+types, not parallel concepts.
+
+| Atom class | Existing domain type | Where defined |
+|---|---|---|
+| Route | `RouteDefinition`, `RouteVariant`, `RoutePattern`, `RouteVariantRanking` | `lib/domain/types/routes.ts`, `lib/domain/types/route-knowledge.ts` |
+| Screen | `ScreenElements` (key), `ScreenId` | `lib/domain/types/knowledge.ts`, `lib/domain/kernel/identity.ts` |
+| Surface | `SurfaceDefinition`, `SurfaceSection`, `SurfaceGraph` | `lib/domain/types/knowledge.ts` |
+| Element | `ElementSig`, `ScreenElements` (entries), `CanonicalTargetRef` | `lib/domain/types/knowledge.ts`, `lib/domain/kernel/ids.ts` |
+| Posture | `Posture`, `PostureId` | `lib/domain/types/knowledge.ts` |
+| Affordance | `ElementAffordance` | `lib/domain/types/affordance.ts` |
+| Selector | `SelectorProbe`, `SelectorCanonEntry`, `SelectorCanon` | `lib/domain/types/interface.ts` |
+| Pattern | Pattern documents (Zod-validated) | `lib/domain/knowledge/patterns.ts` |
+| Snapshot | `SnapshotTemplate` | `lib/domain/types/knowledge.ts` |
+| Transition | `TransitionObservation` | `lib/domain/types/interface.ts` |
+| Observation predicate | `ObservationPredicate`, `StatePredicateSemantics` | `lib/domain/types/knowledge.ts` |
+| Drift mode | (currently embedded in benchmark `driftEvents`) | new domain type needed |
+| Resolution override | (currently in `controls/resolution/*.resolution.yaml`) | new domain type needed |
+
+The Phase 0b implementation references these types directly — it
+defines the atom envelope as `Atom<T>` where T is one of the
+existing types, and the atom store loads existing files into typed
+envelopes without reshaping the underlying content.
+
+### 16.8 Already-existing types that map to compositions
+
+| Composition sub-type | Existing domain type | Where defined |
+|---|---|---|
+| Workflow archetype | `WorkflowArchetype` | `lib/domain/synthesis/workflow-archetype.ts` |
+| Flow | (embedded in benchmark `flows` blocks) | new domain type needed |
+| Runbook | (loaded from `controls/runbooks/*.runbook.yaml`) | existing schema, new typed wrapper |
+| Route graph | `ApplicationInterfaceGraph` (for the SUT-wide graph) | `lib/domain/types/interface.ts` |
+| Expansion rule | (embedded in benchmark `expansionRules`) | new domain type needed |
+| Surface composition | `SurfaceGraph` (multi-surface relationships) | `lib/domain/types/knowledge.ts` |
+| Recipe template | (does not exist) | new, future |
+
+### 16.9 Already-existing types that map to projections
+
+The projection tier is the most greenfield. Existing types are
+limited:
+
+| Projection sub-type | Existing domain type | Where defined |
+|---|---|---|
+| Role visibility | (does not exist) | new |
+| Role interaction | (does not exist) | new |
+| Wizard state | (partially: `StatePredicateSemantics`, observation predicates) | partial |
+| Permission group | (does not exist) | new |
+| Posture availability | (does not exist) | new |
+| Process state | (does not exist) | new |
+| Feature flag | (does not exist) | new |
+
+The Phase 0b implementation defines the projection envelope shape
+and the qualifier-aware lookup chain interface, but the actual
+projection authoring/discovery is mostly stub. Real projection
+discovery comes in later phases when the agency layer learns how
+to run the SUT under different qualifier contexts.
+
+### 16.10 The hub types from the dependency topology
+
+From `docs/domain-class-decomposition.md`:
+
+- `workflow` (13 dependents) — defines governance brands, confidence
+  levels, envelope protocol, pipeline stages. The shared vocabulary.
+- `knowledge` (6 dependents) — screen elements, hints, postures,
+  surfaces, confidence overlays.
+- `resolution` (5 dependents) — translation, grounding, task packets,
+  run plans.
+- `intent` (4 dependents) — scenarios, steps, value refs.
+- `interface` (3 dependents) — interface graph, selectors, discovery.
+
+The Phase 0b implementation adds new types under `lib/domain/pipeline/`
+that depend on `workflow` (for envelope and source brands), `knowledge`
+(for atom content types), and `interface` (for the route/selector atom
+content). This places `pipeline` as a NEW hub at roughly the same
+dependency level as `resolution` — it depends on the shared vocabulary
+and on the structural domain types but is upstream of execution and
+improvement.
+
+---
+
+*End of doctrine. This document is the authoritative reference for
+the canon/derivation model. When in doubt, consult this document
+before acting. When this document is in doubt, edit it deliberately
+and commit the change with the implementation that motivated it.*
+
+*High-water-mark note: the §16 implementation guide is a snapshot
+of the codebase intel as of the doctrine's authorship. Verify file
+paths and type names still hold before relying on them — the
+codebase moves under the doctrine's feet, and rewriting §16 to
+match new realities is a normal maintenance task.*

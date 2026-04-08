@@ -141,7 +141,7 @@ test.describe('proposalsFromDecomposition: LLM handshake', () => {
     expect(proposals).toHaveLength(0);
   });
 
-  test('includes enriched patch data (role, widget, locator)', () => {
+  test('includes normalized enrichment data (role, affordance, locator ladder)', () => {
     const task = makeTask();
     const screen = makeScreen();
     const element = makeElement();
@@ -156,8 +156,11 @@ test.describe('proposalsFromDecomposition: LLM handshake', () => {
     const proposals = proposalsFromDecomposition(task, screen, element, decomposition);
 
     expect(proposals.length).toBe(1);
-    expect(proposals[0]!.patch.role).toBe('textbox');
-    expect(proposals[0]!.patch.widget).toBe('os-input');
+    expect(proposals[0]!.enrichment?.role).toBe('textbox');
+    expect(proposals[0]!.enrichment?.affordance).toBe('fill');
+    expect(proposals[0]!.enrichment?.locatorLadder).toEqual([
+      { kind: 'test-id', value: 'search-field' },
+    ]);
   });
 });
 

@@ -75,6 +75,7 @@ test('benchmark scorecard projects related recursive-improvement lineage into co
       fitnessReport: sampleFitnessReport(),
       scorecardComparison: {
         improved: true,
+        effectiveHitRateDelta: 0.1,
         knowledgeHitRateDelta: 0.1,
         translationPrecisionDelta: 0.05,
         convergenceVelocityDelta: -1,
@@ -159,8 +160,37 @@ test('benchmark scorecard projects related recursive-improvement lineage into co
     expect(dogfoodRunArtifact.improvement?.relatedRunIds).toContain(improvementRun.improvementRunId);
     expect(scorecardMarkdown).toContain('## Recursive Improvement');
     expect(scorecardMarkdown).toContain('## Benchmark Improvement Projection');
+    expect(scorecardMarkdown).toContain('- Effective hit rate:');
+    expect(scorecardMarkdown).toContain('- Proposal categories:');
+    expect(scorecardMarkdown).toContain('## Logical Proof Obligations');
+    expect(scorecardMarkdown).toContain('target-observability:');
+    expect(scorecardMarkdown).toContain('posture-separability:');
+    expect(scorecardMarkdown).toContain('affordance-recoverability:');
+    expect(scorecardMarkdown).toContain('structural-legibility:');
+    expect(scorecardMarkdown).toContain('variance-factorability:');
+    expect(scorecardMarkdown).toContain('recoverability:');
+    expect(scorecardMarkdown).toContain('surface-compressibility:');
+    expect(scorecardMarkdown).toContain('surface-predictability:');
+    expect(scorecardMarkdown).toContain('surface-repairability:');
+    expect(scorecardMarkdown).toContain('participatory-repairability:');
+    expect(scorecardMarkdown).toContain('memory-worthiness:');
+    expect(scorecardMarkdown).toContain('## Proof Signals');
+    expect(scorecardMarkdown).toContain('semantic-non-persistence:');
     expect(scorecardMarkdown).toContain(`- Latest run: ${improvementRun.improvementRunId}`);
     expect(scorecardMarkdown).toContain('- Latest verdict: accepted');
+    expect(result.scorecard.proposalCategoryCounts).toEqual({});
+    expect(result.scorecard.proofObligations?.length).toBeGreaterThan(0);
+    expect(result.scorecard.proofObligations?.some((entry) => entry.obligation === 'target-observability')).toBe(true);
+    expect(result.scorecard.proofObligations?.some((entry) => entry.obligation === 'posture-separability')).toBe(true);
+    expect(result.scorecard.proofObligations?.some((entry) => entry.obligation === 'affordance-recoverability')).toBe(true);
+    expect(result.scorecard.proofObligations?.some((entry) => entry.obligation === 'variance-factorability')).toBe(true);
+    expect(result.scorecard.proofObligations?.some((entry) => entry.obligation === 'recoverability')).toBe(true);
+    expect(result.scorecard.proofObligations?.some((entry) => entry.obligation === 'surface-compressibility')).toBe(true);
+    expect(result.scorecard.proofObligations?.some((entry) => entry.obligation === 'surface-predictability')).toBe(true);
+    expect(result.scorecard.proofObligations?.some((entry) => entry.obligation === 'surface-repairability')).toBe(true);
+    expect(result.scorecard.proofObligations?.some((entry) => entry.obligation === 'participatory-repairability')).toBe(true);
+    expect(result.scorecard.proofObligations?.some((entry) => entry.obligation === 'memory-worthiness')).toBe(true);
+    expect(result.scorecard.falsifierSignals?.length).toBeGreaterThan(0);
   } finally {
     workspace.cleanup();
   }

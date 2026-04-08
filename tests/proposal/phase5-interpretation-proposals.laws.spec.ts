@@ -56,7 +56,7 @@ test('proposalsFromInterpretation generates hint alias when element matches', ()
   expect(hintProposal!.patch.alias).toBe('Type in the policy reference number');
 });
 
-test('proposalsFromInterpretation carries interpretation source in patch', () => {
+test('proposalsFromInterpretation carries interpretation source in enrichment', () => {
   const resolutionContext = baseResolutionContext();
   const step = createGroundedStep({
     actionText: 'Novel phrasing for policy ref',
@@ -69,7 +69,7 @@ test('proposalsFromInterpretation carries interpretation source in patch', () =>
   const proposals = proposalsFromInterpretation(step, interpretation, resolutionContext);
 
   const hintProposal = proposals.find((p) => p.patch.element);
-  expect(hintProposal?.patch.source).toBe('dom-exploration');
+  expect(hintProposal?.enrichment?.source).toBe('dom-exploration');
 });
 
 test('proposalsFromInterpretation skips when element alias already exists', () => {
@@ -170,7 +170,7 @@ test('proposals carry provenance showing runtime interpretation source', () => {
 
   for (const proposal of proposals) {
     expect(proposal.rationale).toContain('DOM exploration');
-    expect(proposal.patch.source).toBe('dom-exploration');
+    expect(proposal.enrichment?.source).toBe('dom-exploration');
     expect(proposal.title).toContain('dom-exploration');
   }
 });

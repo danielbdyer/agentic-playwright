@@ -47,26 +47,25 @@ export function deriveMethodName(
 export function deduplicateMethodNames(
   methods: ReadonlyArray<{ readonly methodName: string; readonly stepIndex: number }>,
 ): ReadonlyArray<string> {
-  const counts: ReadonlyMap<string, number> = methods.reduce(
-    (acc, m) => new Map([...acc, [m.methodName, (acc.get(m.methodName) ?? 0) + 1]]),
-    new Map<string, number>(),
-  );
-
-  return methods.reduce<{ readonly names: ReadonlyArray<string>; readonly seen: ReadonlyMap<string, number> }>(
-    (acc, m) => {
-      const count = counts.get(m.methodName) ?? 1;
-      if (count === 1) {
-        return { names: [...acc.names, m.methodName], seen: acc.seen };
-      }
-      const occurrence = (acc.seen.get(m.methodName) ?? 0) + 1;
-      const name = occurrence === 1 ? m.methodName : `${m.methodName}${m.stepIndex}`;
-      return {
-        names: [...acc.names, name],
-        seen: new Map([...acc.seen, [m.methodName, occurrence]]),
-      };
-    },
-    { names: [], seen: new Map() },
-  ).names;
+  // Phase 2.4 / T7 Big-O fix: single-pass count + single-pass rename.
+  // Was: reduce building new Map per item → O(N²). Now: O(N).
+  const counts = new Map<string, number>();
+  for (const m of methods) {
+    counts.set(m.methodName, (counts.get(m.methodName) ?? 0) + 1);
+  }
+  const seen = new Map<string, number>();
+  const names: string[] = [];
+  for (const m of methods) {
+    const count = counts.get(m.methodName) ?? 1;
+    if (count === 1) {
+      names.push(m.methodName);
+      continue;
+    }
+    const occurrence = (seen.get(m.methodName) ?? 0) + 1;
+    seen.set(m.methodName, occurrence);
+    names.push(occurrence === 1 ? m.methodName : `${m.methodName}${m.stepIndex}`);
+  }
+  return names;
 }
 
 function toCamelCase(s: string): string {

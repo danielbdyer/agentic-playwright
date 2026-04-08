@@ -5,6 +5,24 @@ import type { Governance, ScenarioLifecycle, StepProvenanceKind } from '../gover
 import type { BoundScenario } from '../intent/types';
 import type { ScenarioExplanation } from '../projection/types';
 import { isReviewRequired } from '../governance/workflow-types';
+import { WINNING_SOURCE_TO_RUNG } from '../kernel/visitors';
+import { resolutionPrecedenceLaw, type ResolutionPrecedenceRung } from '../resolution/precedence';
+
+const EFFECTIVE_HIT_MAX_RUNG_INDEX = 5;
+
+function isEffectiveStep(step: ScenarioExplanation['steps'][number]): boolean {
+  if (step.runtime?.status === 'pending' || step.runtime?.degraded) {
+    return false;
+  }
+  const executionStatus = step.runtime?.status;
+  if (executionStatus === 'needs-human') {
+    return false;
+  }
+  const rung = (WINNING_SOURCE_TO_RUNG[step.winningSource as keyof typeof WINNING_SOURCE_TO_RUNG]
+    ?? 'needs-human') as ResolutionPrecedenceRung;
+  const rungIndex = resolutionPrecedenceLaw.indexOf(rung);
+  return rungIndex >= 0 && rungIndex <= EFFECTIVE_HIT_MAX_RUNG_INDEX;
+}
 
 export function aggregateScenarioGovernance(boundScenario: BoundScenario, latestRun?: RunRecord | null): Governance {
   if (latestRun?.steps.some((step) => step.interpretation.kind === 'needs-human')) {
@@ -197,10 +215,14 @@ export function explainBoundScenario(boundScenario: BoundScenario, lifecycle: Sc
     { approved: 0, 'review-required': 0, blocked: 0 },
   );
   const allReasons = steps.flatMap((step) => step.unresolvedGaps);
-  const unresolvedReasonCounts = allReasons.reduce<ReadonlyMap<string, number>>(
-    (map, reason) => new Map([...map, [reason, (map.get(reason) ?? 0) + 1]]),
-    new Map(),
-  );
+  // Phase 2.4 / T7 Big-O fix: single-pass O(N) counter.
+  const unresolvedReasonCounts = ((): ReadonlyMap<string, number> => {
+    const acc = new Map<string, number>();
+    for (const reason of allReasons) {
+      acc.set(reason, (acc.get(reason) ?? 0) + 1);
+    }
+    return acc;
+  })();
   const unresolvedReasons = [...unresolvedReasonCounts.entries()]
     .map(([reason, count]) => ({ reason, count }))
     .sort((left, right) => right.count - left.count || left.reason.localeCompare(right.reason));
@@ -229,6 +251,10 @@ export function explainBoundScenario(boundScenario: BoundScenario, lifecycle: Sc
   const agenticHits = steps.filter((step) => step.resolutionMode === 'agentic').length;
   const liveExplorationHits = steps.filter((step) => step.provenanceKind === 'live-exploration').length;
   const degradedHits = steps.filter((step) => step.runtime?.degraded).length;
+  const effectiveHits = steps.filter((step) => isEffectiveStep(step)).length;
+  const ambiguities = steps.filter((step) => step.runtime?.status === 'needs-human').length;
+  const suspensions = steps.filter((step) => step.runtime?.status === 'needs-human' || step.runtime?.failure?.family !== 'none').length;
+  const routeMismatches = steps.filter((step) => step.runtime?.navigation?.mismatch).length;
   const proposalCount = latestRun?.steps.reduce((count, step) => count + step.interpretation.proposalDrafts.length, 0) ?? 0;
   const reviewRequiredCount = steps.filter((step) => isReviewRequired(step)).length;
   const approvedEquivalentHits = steps.filter((step) => step.winningSource === 'approved-equivalent').length;
@@ -280,6 +306,10 @@ export function explainBoundScenario(boundScenario: BoundScenario, lifecycle: Sc
       governance,
       stageMetrics: {
         knowledgeHitRate: rate(knowledgeHits),
+        effectiveHitRate: rate(effectiveHits),
+        ambiguityRate: rate(ambiguities),
+        suspensionRate: rate(suspensions),
+        routeMismatchRate: rate(routeMismatches),
         translationHitRate: rate(translationHits),
         translationCacheHitRate: Number((translationCacheEntries.length === 0 ? 0 : translationCacheHits / translationCacheEntries.length).toFixed(2)),
         translationCacheMissReasons: translationMissReasons,

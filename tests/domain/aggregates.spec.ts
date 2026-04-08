@@ -162,6 +162,7 @@ test('improvement-run aggregate enforces lineage continuity and governance consi
     fitnessReport: {} as never,
     scorecardComparison: {
       improved: true,
+      effectiveHitRateDelta: 0.1,
       knowledgeHitRateDelta: 0.1,
       translationPrecisionDelta: 0.1,
       convergenceVelocityDelta: 0.1,

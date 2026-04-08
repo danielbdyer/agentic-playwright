@@ -206,16 +206,20 @@ function extractComponentEvidence(runRecords: ReadonlyArray<{
     }>;
   };
 }>): readonly ComponentEvidence[] {
-  const evidenceMap = runRecords
-    .flatMap((entry) => entry.artifact.steps)
-    .filter((step) => step.execution.widgetContract)
-    .reduce<ReadonlyMap<string, ComponentEvidence>>(
-      (acc, step) => {
-        const componentType = step.execution.widgetContract!;
-        const action = step.interpretation.target?.action ?? 'unknown';
-        const isSuccess = step.execution.failure.family === 'none';
-        const existing = acc.get(componentType);
-        return new Map([...acc, [componentType, existing
+  // Phase 2.4 / T7 Big-O fix: previously this built a new Map on every
+  // step for O(N²). Single-pass mutation into a local Map is O(N) and
+  // returns the same immutable values array.
+  const evidenceMap = new Map<string, ComponentEvidence>();
+  for (const entry of runRecords) {
+    for (const step of entry.artifact.steps) {
+      if (!step.execution.widgetContract) continue;
+      const componentType = step.execution.widgetContract;
+      const action = step.interpretation.target?.action ?? 'unknown';
+      const isSuccess = step.execution.failure.family === 'none';
+      const existing = evidenceMap.get(componentType);
+      evidenceMap.set(
+        componentType,
+        existing
           ? {
               componentType,
               actions: [...new Set([...existing.actions, action])].sort(),
@@ -228,10 +232,9 @@ function extractComponentEvidence(runRecords: ReadonlyArray<{
               successCount: isSuccess ? 1 : 0,
               totalAttempts: 1,
             },
-        ]]);
-      },
-      new Map(),
-    );
+      );
+    }
+  }
   return [...evidenceMap.values()];
 }
 

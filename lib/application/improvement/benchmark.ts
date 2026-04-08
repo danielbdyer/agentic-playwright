@@ -16,9 +16,11 @@ import { resolveEffectConcurrency } from '../runtime-support/concurrency';
 import { ExecutionContext, FileSystem } from '../ports';
 import { TesseractError } from '../../domain/kernel/errors';
 import { groupBy, uniqueSorted } from '../../domain/kernel/collections';
+import { WINNING_SOURCE_TO_RUNG } from '../../domain/kernel/visitors';
 import { concatAll } from '../../domain/algebra/monoid';
 import { numberRecordSumMonoid, structMonoid, sumMonoid } from '../../domain/algebra/envelope-mergers';
 import type { InterpretationDriftRecord, ProposalBundle } from '../../domain/execution/types';
+import type { LogicalProofObligation } from '../../domain/fitness/types';
 import type { ImprovementRun } from '../../domain/improvement/types';
 import type { LearningScorecard } from '../../domain/learning/types';
 import type {
@@ -28,8 +30,10 @@ import type {
   DogfoodRun,
   ImprovementProjectionSummary,
 } from '../../domain/projection/types';
+import { resolutionPrecedenceLaw, type ResolutionPrecedenceRung } from '../../domain/resolution/precedence';
 import { createAdoId } from '../../domain/kernel/identity';
 import { decodeUnknownEither } from '../../domain/schemas/decode';
+import { summarizeKnowledgeCoverage } from './knowledge-coverage';
 
 const decodeScenarioIds = decodeUnknownEither(
   Schema.Array(Schema.String),
@@ -83,6 +87,10 @@ interface BenchmarkRunbookSelection {
 
 function round(value: number): number {
   return Number(value.toFixed(2));
+}
+
+function averageNumbers(values: readonly number[]): number {
+  return values.reduce((sum, value) => sum + value, 0) / Math.max(values.length, 1);
 }
 
 function benchmarkByName(benchmarks: readonly BenchmarkContext[], name: string): BenchmarkContext {
@@ -141,6 +149,404 @@ function knowledgeChurnForBundles(bundles: readonly ProposalBundle[]): Record<st
   );
 }
 
+function proposalCategoryCountsForBundles(bundles: readonly ProposalBundle[]): Record<string, number> {
+  return bundles
+    .flatMap((bundle) => bundle.payload.proposals)
+    .reduce<Record<string, number>>((acc, proposal) => ({
+      ...acc,
+      [proposal.category ?? 'uncategorized']: (acc[proposal.category ?? 'uncategorized'] ?? 0) + 1,
+    }), {});
+}
+
+function rate(count: number, total: number): number {
+  return round(count / Math.max(total, 1));
+}
+
+function recordTotal(record: Readonly<Record<string, number>>): number {
+  return Object.values(record).reduce((sum, value) => sum + value, 0);
+}
+
+function recordKeyCount(record: Readonly<Record<string, number>>): number {
+  return Object.keys(record).length;
+}
+
+function isExecutionSuccess(status: string): boolean {
+  return status === 'ok' || status === 'passed';
+}
+
+const EFFECTIVE_HIT_MAX_RUNG_INDEX = 5;
+
+function rungForWinningSource(source: string): ResolutionPrecedenceRung {
+  return (WINNING_SOURCE_TO_RUNG[source as keyof typeof WINNING_SOURCE_TO_RUNG]
+    ?? 'needs-human') as ResolutionPrecedenceRung;
+}
+
+function isEffectiveHit(step: {
+  winningSource: string;
+  executionStatus: string;
+  degraded: boolean;
+}): boolean {
+  if (!isExecutionSuccess(step.executionStatus) || step.degraded) {
+    return false;
+  }
+  const rungIndex = resolutionPrecedenceLaw.indexOf(rungForWinningSource(step.winningSource));
+  return rungIndex >= 0 && rungIndex <= EFFECTIVE_HIT_MAX_RUNG_INDEX;
+}
+
+function winningSourceDistribution(steps: readonly {
+  winningSource: string;
+}[]): NonNullable<BenchmarkScorecard['winningSourceDistribution']> {
+  // Phase 2.4 Big-O fix: O(N²) → O(N). See fitness.ts:winningSourceDistribution
+  // for the rationale.
+  const total = Math.max(steps.length, 1);
+  const counts = new Map<string, number>();
+  for (const step of steps) {
+    counts.set(step.winningSource, (counts.get(step.winningSource) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([source, count]) => ({
+      source: source as NonNullable<BenchmarkScorecard['winningSourceDistribution']>[number]['source'],
+      count,
+      rate: round(count / total),
+    }));
+}
+
+function benchmarkFalsifierSignals(input: {
+  effectiveHitRate: number;
+  ambiguityRate: number;
+  suspensionRate: number;
+  routeMismatchRate: number;
+  degradedLocatorRate: number;
+  interpretationDriftHotspotCount: number;
+  overlayChurn: number;
+  operatorTouchCount: number;
+  repairLoopCount: number;
+  approvedEquivalentCount: number;
+}): NonNullable<BenchmarkScorecard['falsifierSignals']> {
+  const semanticScore = Math.max(
+    input.degradedLocatorRate,
+    input.interpretationDriftHotspotCount > 0 ? 0.35 : 0,
+    input.overlayChurn > 0 ? 0.2 : 0,
+  );
+  const behavioralScore = Math.max(input.suspensionRate, input.routeMismatchRate);
+  const opaqueSuspensionScore = Math.max(input.ambiguityRate, input.suspensionRate);
+  const economicScore = 1 - input.effectiveHitRate;
+  const inertInterventionScore = input.repairLoopCount === 0 && input.operatorTouchCount === 0
+    ? 0
+    : input.effectiveHitRate < 0.5 && input.approvedEquivalentCount === 0
+      ? 0.85
+      : input.effectiveHitRate < 0.7
+        ? 0.45
+        : 0.15;
+
+  const signalStatus = (score: number): 'healthy' | 'watch' | 'critical' =>
+    score >= 0.7 ? 'critical' : score >= 0.3 ? 'watch' : 'healthy';
+
+  return [
+    {
+      name: 'semantic-non-persistence',
+      status: signalStatus(semanticScore),
+      evidence: `degradedLocatorRate=${input.degradedLocatorRate}, interpretationDriftHotspots=${input.interpretationDriftHotspotCount}, overlayChurn=${input.overlayChurn}`,
+    },
+    {
+      name: 'behavioral-non-boundedness',
+      status: signalStatus(behavioralScore),
+      evidence: `suspensionRate=${input.suspensionRate}, routeMismatchRate=${input.routeMismatchRate}`,
+    },
+    {
+      name: 'opaque-suspension',
+      status: signalStatus(opaqueSuspensionScore),
+      evidence: `ambiguityRate=${input.ambiguityRate}, suspensionRate=${input.suspensionRate}`,
+    },
+    {
+      name: 'economic-flatness',
+      status: signalStatus(economicScore),
+      evidence: `effectiveHitRate=${input.effectiveHitRate}, operatorTouchCount=${input.operatorTouchCount}, repairLoopCount=${input.repairLoopCount}`,
+    },
+    {
+      name: 'inert-intervention',
+      status: signalStatus(inertInterventionScore),
+      evidence: `operatorTouchCount=${input.operatorTouchCount}, repairLoopCount=${input.repairLoopCount}, approvedEquivalentCount=${input.approvedEquivalentCount}, effectiveHitRate=${input.effectiveHitRate}`,
+    },
+  ];
+}
+
+function proofStatusFromRisk(risk: number): LogicalProofObligation['status'] {
+  if (risk >= 0.7) return 'critical';
+  if (risk >= 0.3) return 'watch';
+  return 'healthy';
+}
+
+function proofObligation(input: {
+  obligation: LogicalProofObligation['obligation'];
+  propertyRefs: LogicalProofObligation['propertyRefs'];
+  risk: number;
+  evidence: string;
+}): LogicalProofObligation {
+  const normalizedRisk = Math.max(0, Math.min(1, input.risk));
+  return {
+    obligation: input.obligation,
+    propertyRefs: input.propertyRefs,
+    score: round(1 - normalizedRisk),
+    status: proofStatusFromRisk(normalizedRisk),
+    evidence: input.evidence,
+    // Phase 1.7 honesty: see comment in fitness.ts:proofObligation.
+    measurementClass: 'heuristic-proxy',
+  };
+}
+
+function benchmarkProofObligations(input: {
+  knowledgeCoverage: import('../../domain/fitness/types').KnowledgeCoverageSummary;
+  firstPassScreenResolutionRate: number;
+  firstPassElementResolutionRate: number;
+  effectiveHitRate: number;
+  ambiguityRate: number;
+  suspensionRate: number;
+  agentFallbackRate: number;
+  liveDomFallbackRate: number;
+  routeMismatchRate: number;
+  degradedLocatorRate: number;
+  translationHitRate: number;
+  repairLoopCount: number;
+  reviewRequiredCount: number;
+  approvedEquivalentCount: number;
+  operatorTouchCount: number;
+  interpretationDriftHotspotCount: number;
+  overlayChurn: number;
+  thinKnowledgeScreenCount: number;
+  totalScreens: number;
+  totalSteps: number;
+  recoveryFamilies: Readonly<Record<string, number>>;
+  recoveryStrategies: Readonly<Record<string, number>>;
+}): readonly LogicalProofObligation[] {
+  const postureSeparabilityRisk = Math.max(
+    1 - input.knowledgeCoverage.postureCoverageRate,
+    1 - input.knowledgeCoverage.routeScreenCoverageRate,
+    1 - input.knowledgeCoverage.routeVariantCoverageRate,
+    input.suspensionRate,
+    input.ambiguityRate * 0.75,
+  );
+  const affordanceRecoverabilityRisk = Math.max(
+    1 - input.knowledgeCoverage.roleCoverageRate,
+    1 - input.knowledgeCoverage.affordanceCoverageRate,
+    1 - input.knowledgeCoverage.locatorCoverageRate,
+    input.degradedLocatorRate,
+    input.ambiguityRate,
+  );
+  const targetObservabilityRisk = Math.max(
+    1 - input.firstPassScreenResolutionRate,
+    1 - input.firstPassElementResolutionRate,
+    input.degradedLocatorRate,
+    input.liveDomFallbackRate,
+  );
+  const structuralRisk = Math.max(targetObservabilityRisk, 1 - input.translationHitRate, input.ambiguityRate);
+  const persistenceRisk = Math.max(
+    input.degradedLocatorRate,
+    input.interpretationDriftHotspotCount > 0 ? 0.5 : 0,
+    Math.min(1, input.overlayChurn / 5),
+  );
+  const topologyRisk = Math.max(
+    input.routeMismatchRate,
+    input.suspensionRate,
+    input.totalScreens > 0 ? input.thinKnowledgeScreenCount / input.totalScreens : 0,
+  );
+  const approvedEquivalentRate = rate(input.approvedEquivalentCount, input.totalSteps);
+  const factorabilityReuseGap = Math.max(0, Math.min(1, (0.35 - approvedEquivalentRate) / 0.35));
+  const factorabilityStress = Math.max(
+    input.routeMismatchRate,
+    input.ambiguityRate,
+    input.totalScreens > 0 ? input.thinKnowledgeScreenCount / input.totalScreens : 0,
+    input.totalScreens > 0 ? Math.min(1, input.overlayChurn / input.totalScreens) : 0,
+  );
+  const factorabilityRisk = Math.max(0, Math.min(1, round(factorabilityStress * 0.7 + factorabilityReuseGap * 0.3)));
+  const recoveryFamilyTotal = recordTotal(input.recoveryFamilies);
+  const recoveryStrategyTotal = recordTotal(input.recoveryStrategies);
+  const recoveryFamilyKinds = recordKeyCount(input.recoveryFamilies);
+  const recoveryStrategyKinds = recordKeyCount(input.recoveryStrategies);
+  const recoveryCoverage = (
+    input.repairLoopCount === 0
+    && input.interpretationDriftHotspotCount === 0
+    && input.routeMismatchRate === 0
+  )
+    ? 1
+    : Math.min(
+      1,
+      (recoveryFamilyTotal + recoveryStrategyTotal + recoveryFamilyKinds + recoveryStrategyKinds)
+      / Math.max(input.repairLoopCount + input.interpretationDriftHotspotCount, 1),
+  );
+  const recoverabilityRisk = Math.max(
+    input.degradedLocatorRate,
+    input.routeMismatchRate,
+    input.interpretationDriftHotspotCount > 0 ? 0.35 : 0,
+    1 - recoveryCoverage,
+  );
+  const participationRisk = Math.max(
+    input.repairLoopCount > 0 ? input.reviewRequiredCount / Math.max(input.repairLoopCount, 1) : 0,
+    input.repairLoopCount > 0 && input.approvedEquivalentCount === 0 ? 0.75 : 0.15,
+    input.operatorTouchCount > 0 && input.effectiveHitRate < 0.7 ? 0.5 : 0.15,
+  );
+  const economicsRisk = Math.max(1 - input.effectiveHitRate, input.agentFallbackRate, input.degradedLocatorRate);
+  const coverageShare = round(averageNumbers([
+    input.knowledgeCoverage.roleCoverageRate,
+    input.knowledgeCoverage.affordanceCoverageRate,
+    input.knowledgeCoverage.locatorCoverageRate,
+    input.knowledgeCoverage.postureCoverageRate,
+    input.knowledgeCoverage.routeScreenCoverageRate,
+    input.knowledgeCoverage.routeVariantCoverageRate,
+  ]));
+  const surfaceCompressibilityRisk = Math.max(
+    1 - coverageShare,
+    1 - input.translationHitRate,
+    1 - input.firstPassElementResolutionRate,
+    input.totalScreens > 0 ? input.thinKnowledgeScreenCount / input.totalScreens : 0,
+    input.ambiguityRate * 0.75,
+  );
+  const surfacePredictabilityRisk = Math.max(
+    input.routeMismatchRate,
+    input.suspensionRate,
+    input.liveDomFallbackRate,
+    input.agentFallbackRate * 0.5,
+    input.interpretationDriftHotspotCount > 0 ? 0.35 : 0,
+  );
+  const surfaceRepairabilityRisk = Math.max(
+    input.degradedLocatorRate,
+    1 - recoveryCoverage,
+    input.interpretationDriftHotspotCount > 0 ? 0.35 : 0,
+    input.totalScreens > 0 ? Math.min(1, input.overlayChurn / input.totalScreens) : 0,
+  );
+  const reviewPressure = input.repairLoopCount > 0
+    ? input.reviewRequiredCount / Math.max(input.repairLoopCount, 1)
+    : 0;
+  const operatorPressure = input.totalSteps > 0
+    ? Math.min(1, input.operatorTouchCount / input.totalSteps * 2)
+    : 0;
+  const approvedEquivalentReuse = input.repairLoopCount > 0
+    ? Math.min(1, input.approvedEquivalentCount / Math.max(input.repairLoopCount, 1))
+    : 1;
+  const participatoryRepairabilityRisk = Math.max(
+    reviewPressure,
+    operatorPressure,
+    1 - approvedEquivalentReuse,
+    input.agentFallbackRate,
+  );
+  const memoryReuseGap = Math.max(0, Math.min(1, (0.35 - approvedEquivalentRate) / 0.35));
+  const memoryWorthinessRisk = round(
+    surfaceCompressibilityRisk * 0.2
+    + surfacePredictabilityRisk * 0.15
+    + surfaceRepairabilityRisk * 0.15
+    + participatoryRepairabilityRisk * 0.15
+    + economicsRisk * 0.2
+    + memoryReuseGap * 0.15,
+  );
+  const metaRisk = round(averageNumbers([
+    surfaceCompressibilityRisk,
+    surfacePredictabilityRisk,
+    surfaceRepairabilityRisk,
+    participatoryRepairabilityRisk,
+    memoryWorthinessRisk,
+  ]));
+
+  return [
+    proofObligation({
+      obligation: 'target-observability',
+      propertyRefs: ['L'],
+      risk: targetObservabilityRisk,
+      evidence: `firstPassScreenResolutionRate=${input.firstPassScreenResolutionRate}, firstPassElementResolutionRate=${input.firstPassElementResolutionRate}, degradedLocatorRate=${input.degradedLocatorRate}, liveDomFallbackRate=${input.liveDomFallbackRate}`,
+    }),
+    proofObligation({
+      obligation: 'posture-separability',
+      propertyRefs: ['K'],
+      risk: postureSeparabilityRisk,
+      evidence: `postureCoverageRate=${input.knowledgeCoverage.postureCoverageRate}, routeScreenCoverageRate=${input.knowledgeCoverage.routeScreenCoverageRate}, routeVariantCoverageRate=${input.knowledgeCoverage.routeVariantCoverageRate}, suspensionRate=${input.suspensionRate}, ambiguityRate=${input.ambiguityRate}`,
+    }),
+    proofObligation({
+      obligation: 'affordance-recoverability',
+      propertyRefs: ['S'],
+      risk: affordanceRecoverabilityRisk,
+      evidence: `roleCoverageRate=${input.knowledgeCoverage.roleCoverageRate}, affordanceCoverageRate=${input.knowledgeCoverage.affordanceCoverageRate}, locatorCoverageRate=${input.knowledgeCoverage.locatorCoverageRate}, degradedLocatorRate=${input.degradedLocatorRate}, ambiguityRate=${input.ambiguityRate}`,
+    }),
+    proofObligation({
+      obligation: 'structural-legibility',
+      propertyRefs: ['K', 'L', 'S'],
+      risk: structuralRisk,
+      evidence: `targetObservabilityRisk=${targetObservabilityRisk}, translationHitRate=${input.translationHitRate}, ambiguityRate=${input.ambiguityRate}, liveDomFallbackRate=${input.liveDomFallbackRate}`,
+    }),
+    proofObligation({
+      obligation: 'semantic-persistence',
+      propertyRefs: ['K', 'V', 'R'],
+      risk: persistenceRisk,
+      evidence: `degradedLocatorRate=${input.degradedLocatorRate}, interpretationDriftHotspots=${input.interpretationDriftHotspotCount}, overlayChurn=${input.overlayChurn}`,
+    }),
+    proofObligation({
+      obligation: 'dynamic-topology',
+      propertyRefs: ['D'],
+      risk: topologyRisk,
+      evidence: `routeMismatchRate=${input.routeMismatchRate}, suspensionRate=${input.suspensionRate}, thinKnowledgeScreenCount=${input.thinKnowledgeScreenCount}`,
+    }),
+    proofObligation({
+      obligation: 'variance-factorability',
+      propertyRefs: ['V'],
+      risk: factorabilityRisk,
+      evidence: `approvedEquivalentRate=${approvedEquivalentRate}, thinKnowledgeScreenCount=${input.thinKnowledgeScreenCount}, overlayChurn=${input.overlayChurn}, routeMismatchRate=${input.routeMismatchRate}, ambiguityRate=${input.ambiguityRate}`,
+    }),
+    proofObligation({
+      obligation: 'recoverability',
+      propertyRefs: ['R'],
+      risk: recoverabilityRisk,
+      evidence: `recoveryFamilies=${recoveryFamilyKinds}/${recoveryFamilyTotal}, recoveryStrategies=${recoveryStrategyKinds}/${recoveryStrategyTotal}, interpretationDriftHotspots=${input.interpretationDriftHotspotCount}, degradedLocatorRate=${input.degradedLocatorRate}, routeMismatchRate=${input.routeMismatchRate}`,
+    }),
+    proofObligation({
+      obligation: 'participatory-unresolvedness',
+      propertyRefs: ['A'],
+      risk: participationRisk,
+      evidence: `repairLoopCount=${input.repairLoopCount}, reviewRequiredCount=${input.reviewRequiredCount}, approvedEquivalentCount=${input.approvedEquivalentCount}, operatorTouchCount=${input.operatorTouchCount}`,
+    }),
+    proofObligation({
+      obligation: 'compounding-economics',
+      propertyRefs: ['C', 'M'],
+      risk: economicsRisk,
+      evidence: `effectiveHitRate=${input.effectiveHitRate}, agentFallbackRate=${input.agentFallbackRate}, degradedLocatorRate=${input.degradedLocatorRate}`,
+    }),
+    proofObligation({
+      obligation: 'surface-compressibility',
+      propertyRefs: ['M'],
+      risk: surfaceCompressibilityRisk,
+      evidence: `coverageShare=${coverageShare}, translationHitRate=${input.translationHitRate}, firstPassElementResolutionRate=${input.firstPassElementResolutionRate}, thinKnowledgeScreenCount=${input.thinKnowledgeScreenCount}, ambiguityRate=${input.ambiguityRate}`,
+    }),
+    proofObligation({
+      obligation: 'surface-predictability',
+      propertyRefs: ['M'],
+      risk: surfacePredictabilityRisk,
+      evidence: `routeMismatchRate=${input.routeMismatchRate}, suspensionRate=${input.suspensionRate}, liveDomFallbackRate=${input.liveDomFallbackRate}, agentFallbackRate=${input.agentFallbackRate}, interpretationDriftHotspots=${input.interpretationDriftHotspotCount}`,
+    }),
+    proofObligation({
+      obligation: 'surface-repairability',
+      propertyRefs: ['M'],
+      risk: surfaceRepairabilityRisk,
+      evidence: `degradedLocatorRate=${input.degradedLocatorRate}, recoveryCoverage=${round(recoveryCoverage)}, interpretationDriftHotspots=${input.interpretationDriftHotspotCount}, overlayChurn=${input.overlayChurn}`,
+    }),
+    proofObligation({
+      obligation: 'participatory-repairability',
+      propertyRefs: ['M'],
+      risk: participatoryRepairabilityRisk,
+      evidence: `reviewPressure=${round(reviewPressure)}, operatorPressure=${round(operatorPressure)}, approvedEquivalentReuse=${round(approvedEquivalentReuse)}, agentFallbackRate=${input.agentFallbackRate}`,
+    }),
+    proofObligation({
+      obligation: 'memory-worthiness',
+      propertyRefs: ['M'],
+      risk: memoryWorthinessRisk,
+      evidence: `surfaceCompressibilityRisk=${round(surfaceCompressibilityRisk)}, surfacePredictabilityRisk=${round(surfacePredictabilityRisk)}, surfaceRepairabilityRisk=${round(surfaceRepairabilityRisk)}, participatoryRepairabilityRisk=${round(participatoryRepairabilityRisk)}, economicsRisk=${round(economicsRisk)}, approvedEquivalentRate=${approvedEquivalentRate}`,
+    }),
+    proofObligation({
+      obligation: 'meta-worthiness',
+      propertyRefs: ['M'],
+      risk: metaRisk,
+      evidence: `surfaceCompressibilityRisk=${round(surfaceCompressibilityRisk)}, surfacePredictabilityRisk=${round(surfacePredictabilityRisk)}, surfaceRepairabilityRisk=${round(surfaceRepairabilityRisk)}, participatoryRepairabilityRisk=${round(participatoryRepairabilityRisk)}, memoryWorthinessRisk=${round(memoryWorthinessRisk)}`,
+    }),
+  ];
+}
+
 function scorecardForBenchmark(input: {
   benchmark: BenchmarkContext;
   scenarioIds: string[];
@@ -170,7 +576,10 @@ function scorecardForBenchmark(input: {
     };
     steps: Array<{
       resolutionMode: 'deterministic' | 'translation' | 'agentic';
+      interpretationKind: string;
       winningSource: string;
+      executionStatus: string;
+      routeMismatch: boolean;
       degraded: boolean;
     }>;
   }>;
@@ -182,6 +591,7 @@ function scorecardForBenchmark(input: {
   }>;
   interpretationDriftRecords: InterpretationDriftRecord[];
   learningScorecard?: LearningScorecard | null | undefined;
+  knowledgeCoverage: import('../../domain/fitness/types').KnowledgeCoverageSummary;
 }): BenchmarkScorecard {
   const uniqueScreens = uniqueSorted(input.benchmark.fieldCatalog.flatMap((field) => field.screen.length > 0 ? [field.screen] : []));
   const driftCount = input.benchmark.driftEvents.length;
@@ -199,9 +609,27 @@ function scorecardForBenchmark(input: {
   const repairLoopCount = input.proposalBundles.reduce((count, bundle) => count + bundle.payload.proposals.length, 0);
   const benchmarkRuns = input.runRecords.filter((record) => input.scenarioIds.includes(record.adoId));
   const benchmarkSteps = benchmarkRuns.flatMap((record) => record.steps);
-  const translationHitRate = round(benchmarkSteps.filter((step) => step.resolutionMode === 'translation').length / Math.max(benchmarkSteps.length, 1));
-  const agenticHitRate = round(benchmarkSteps.filter((step) => step.resolutionMode === 'agentic').length / Math.max(benchmarkSteps.length, 1));
+  const translationHitRate = rate(benchmarkSteps.filter((step) => step.resolutionMode === 'translation').length, benchmarkSteps.length);
+  const agenticHitRate = rate(benchmarkSteps.filter((step) => step.resolutionMode === 'agentic').length, benchmarkSteps.length);
   const approvedEquivalentCount = benchmarkSteps.filter((step) => step.winningSource === 'approved-equivalent').length;
+  const effectiveHitRate = rate(benchmarkSteps.filter(isEffectiveHit).length, benchmarkSteps.length);
+  const ambiguityRate = rate(benchmarkSteps.filter((step) => step.interpretationKind === 'needs-human').length, benchmarkSteps.length);
+  const suspensionRate = rate(
+    benchmarkSteps.filter((step) => step.interpretationKind === 'needs-human' || !isExecutionSuccess(step.executionStatus)).length,
+    benchmarkSteps.length,
+  );
+  const agentFallbackRate = rate(
+    benchmarkSteps.filter((step) => step.winningSource === 'live-dom' || step.winningSource === 'none').length,
+    benchmarkSteps.length,
+  );
+  const liveDomFallbackRate = rate(
+    benchmarkSteps.filter((step) => step.winningSource === 'live-dom').length,
+    benchmarkSteps.length,
+  );
+  const routeMismatchRate = rate(
+    benchmarkSteps.filter((step) => step.routeMismatch).length,
+    benchmarkSteps.length,
+  );
   const thinKnowledgeScreenCount = uniqueScreens.filter((screen) =>
     input.benchmark.fieldCatalog.filter((field) => field.screen === screen).length < 3,
   ).length;
@@ -247,6 +675,30 @@ function scorecardForBenchmark(input: {
     : reviewRequiredCount > 0
       ? 'warn'
       : 'pass';
+  const proofObligations = benchmarkProofObligations({
+    knowledgeCoverage: input.knowledgeCoverage,
+    firstPassScreenResolutionRate,
+    firstPassElementResolutionRate,
+    effectiveHitRate,
+    ambiguityRate,
+    suspensionRate,
+    agentFallbackRate,
+    liveDomFallbackRate,
+    routeMismatchRate,
+    degradedLocatorRate,
+    translationHitRate,
+    repairLoopCount,
+    reviewRequiredCount,
+    approvedEquivalentCount,
+    operatorTouchCount: input.approvalCount,
+    interpretationDriftHotspotCount,
+    overlayChurn,
+    thinKnowledgeScreenCount,
+    totalScreens: uniqueScreens.length,
+    totalSteps: benchmarkSteps.length,
+    recoveryFamilies,
+    recoveryStrategies,
+  });
 
   return {
     kind: 'benchmark-scorecard',
@@ -256,15 +708,36 @@ function scorecardForBenchmark(input: {
     uniqueFieldAwarenessCount,
     firstPassScreenResolutionRate,
     firstPassElementResolutionRate,
+    effectiveHitRate,
+    ambiguityRate,
+    suspensionRate,
+    agentFallbackRate,
+    liveDomFallbackRate,
+    routeMismatchRate,
     degradedLocatorRate,
     reviewRequiredCount,
     repairLoopCount,
     operatorTouchCount: input.approvalCount,
     knowledgeChurn: knowledgeChurnForBundles(input.proposalBundles),
+    proposalCategoryCounts: proposalCategoryCountsForBundles(input.proposalBundles),
     generatedVariantCount: input.generatedVariantCount,
     translationHitRate,
     agenticHitRate,
     approvedEquivalentCount,
+    winningSourceDistribution: winningSourceDistribution(benchmarkSteps),
+    proofObligations,
+    falsifierSignals: benchmarkFalsifierSignals({
+      effectiveHitRate,
+      ambiguityRate,
+      suspensionRate,
+      routeMismatchRate,
+      degradedLocatorRate,
+      interpretationDriftHotspotCount,
+      overlayChurn,
+      operatorTouchCount: input.approvalCount,
+      repairLoopCount,
+      approvedEquivalentCount,
+    }),
     thinKnowledgeScreenCount,
     degradedLocatorHotspotCount,
     interpretationDriftHotspotCount,
@@ -373,13 +846,21 @@ function renderScorecardMarkdown(
     `- Unique field awareness count: ${scorecard.uniqueFieldAwarenessCount}`,
     `- First-pass screen resolution rate: ${scorecard.firstPassScreenResolutionRate}`,
     `- First-pass element resolution rate: ${scorecard.firstPassElementResolutionRate}`,
+    `- Effective hit rate: ${scorecard.effectiveHitRate ?? 0}`,
+    `- Ambiguity rate: ${scorecard.ambiguityRate ?? 0}`,
+    `- Suspension rate: ${scorecard.suspensionRate ?? 0}`,
+    `- Agent fallback rate: ${scorecard.agentFallbackRate ?? 0}`,
+    `- Live DOM fallback rate: ${scorecard.liveDomFallbackRate ?? 0}`,
+    `- Route mismatch rate: ${scorecard.routeMismatchRate ?? 0}`,
     `- Degraded locator rate: ${scorecard.degradedLocatorRate}`,
     `- Review-required count: ${scorecard.reviewRequiredCount}`,
     `- Repair-loop count: ${scorecard.repairLoopCount}`,
     `- Operator-touch count: ${scorecard.operatorTouchCount}`,
+    `- Proposal categories: ${JSON.stringify(scorecard.proposalCategoryCounts ?? {})}`,
     `- Translation hit rate: ${scorecard.translationHitRate}`,
     `- Agentic hit rate: ${scorecard.agenticHitRate}`,
     `- Approved-equivalent count: ${scorecard.approvedEquivalentCount}`,
+    `- Winning source distribution: ${JSON.stringify(scorecard.winningSourceDistribution ?? [])}`,
     `- Thin-knowledge screens: ${scorecard.thinKnowledgeScreenCount}`,
     `- Degraded locator hotspots: ${scorecard.degradedLocatorHotspotCount}`,
     `- Interpretation drift hotspots: ${scorecard.interpretationDriftHotspotCount}`,
@@ -394,6 +875,19 @@ function renderScorecardMarkdown(
     `- Generated variants: ${scorecard.generatedVariantCount}`,
     `- Next commands: tesseract benchmark --benchmark ${benchmark.name} | tesseract scorecard --benchmark ${benchmark.name} | tesseract inbox`,
     '',
+    ...(scorecard.proofObligations && scorecard.proofObligations.length > 0 ? [
+      '## Logical Proof Obligations',
+      '',
+      ...scorecard.proofObligations.map((obligation) =>
+        `- ${obligation.obligation}: ${obligation.status} score=${obligation.score} refs=${obligation.propertyRefs.join('/')} (${obligation.evidence})`),
+      '',
+    ] : []),
+    ...(scorecard.falsifierSignals && scorecard.falsifierSignals.length > 0 ? [
+      '## Proof Signals',
+      '',
+      ...scorecard.falsifierSignals.map((signal) => `- ${signal.name}: ${signal.status} (${signal.evidence})`),
+      '',
+    ] : []),
     ...(scorecard.learning ? [
       '## Learning',
       '',
@@ -486,7 +980,10 @@ export function projectBenchmarkScorecard(options: {
         executionMetrics: entry.artifact.executionMetrics,
         steps: entry.artifact.steps.map((step) => ({
           resolutionMode: step.interpretation.resolutionMode,
+          interpretationKind: step.interpretation.kind,
           winningSource: step.interpretation.winningSource,
+          executionStatus: step.execution.execution.status,
+          routeMismatch: step.execution.navigation?.mismatch ?? false,
           degraded: step.execution.degraded,
         })),
       })),
@@ -497,6 +994,7 @@ export function projectBenchmarkScorecard(options: {
         failureCount: record.failureCount,
       })),
       interpretationDriftRecords: scorecardCatalog.interpretationDriftRecords.map((entry) => entry.artifact),
+      knowledgeCoverage: summarizeKnowledgeCoverage(scorecardCatalog),
     });
     const improvementRuns = relatedImprovementRuns(
       scorecardCatalog.improvementRuns.map((entry) => entry.artifact),

@@ -9,6 +9,8 @@ import type {
   InterventionReceipt,
   InterventionStatus,
 } from '../../domain/handshake/intervention';
+import { epistemicStatusForSource } from '../../domain/handshake/epistemic-brand';
+import { createSemanticCore } from '../../domain/handshake/semantic-core';
 import type { ProjectPaths } from '../paths';
 import { FileSystem } from '../ports';
 
@@ -59,6 +61,10 @@ export function executeApprovedInterventionAction(input: {
 
 const DEFAULT_NOW = (): string => new Date().toISOString();
 
+function estimateReadTokens(payload: Readonly<Record<string, unknown>>): number {
+  return Math.max(1, Math.ceil(JSON.stringify(payload).length / 4));
+}
+
 function receiptForBlocked(action: InterventionCommandAction, now: string, reason: string): InterventionReceipt {
   return {
     interventionId: action.actionId,
@@ -78,23 +84,181 @@ function receiptForBlocked(action: InterventionCommandAction, now: string, reaso
       target: action.target,
       payload: { reason },
     }],
+    handoff: handoffForAction(action, {
+      summary: reason,
+      status: 'blocked',
+      dependencyReceipts: [],
+      emittedAt: now,
+      previousSemanticToken: null,
+    }),
     startedAt: now,
     completedAt: now,
     payload: { actionKind: action.kind, reason },
   };
 }
 
-function actionKindToInterventionKind(action: InterventionCommandAction): InterventionReceipt['kind'] {
+/** Action profile — the tuple of fields that depend only on an action's
+ *  `kind`. Phase 2.3 migration: previously these were computed by 4
+ *  separate `switch` statements over `InterventionCommandActionKind`.
+ *  Now they come from one exhaustive fold, so adding a new action kind
+ *  breaks the build at exactly one site. Pattern mirrors
+ *  `inboxHandoffProfile` in `operator.ts`. */
+interface ActionHandoffProfile {
+  readonly interventionKind: InterventionReceipt['kind'];
+  readonly requestedParticipation: NonNullable<InterventionReceipt['handoff']>['requestedParticipation'];
+  readonly requiredCapabilities: NonNullable<InterventionReceipt['handoff']>['requiredCapabilities'];
+  readonly requiredAuthorities: NonNullable<InterventionReceipt['handoff']>['requiredAuthorities'];
+  readonly successNextMoves: NonNullable<InterventionReceipt['handoff']>['nextMoves'];
+}
+
+function actionHandoffProfile(action: InterventionCommandAction): ActionHandoffProfile {
+  // Exhaustive fold over `InterventionCommandActionKind`. Adding a new
+  // kind to the union breaks the build here. No default branch — that
+  // would silently allow missing cases.
   switch (action.kind) {
     case 'approve-proposal':
-      return 'proposal-approved';
+      return {
+        interventionKind: 'proposal-approved',
+        requestedParticipation: 'approve',
+        requiredCapabilities: ['inspect-artifacts', 'approve-proposals'],
+        requiredAuthorities: ['approve-canonical-change'],
+        successNextMoves: [{
+          action: 'Inspect approved knowledge change',
+          rationale: 'Confirm the approved proposal produced the intended canonical update.',
+          command: null,
+        }, {
+          action: 'Trigger rerun for affected scope',
+          rationale: 'Validate downstream execution with the newly approved canon.',
+          command: null,
+        }],
+      };
     case 'promote-pattern':
-      return 'operator-action';
+      return {
+        interventionKind: 'operator-action',
+        requestedParticipation: 'enrich',
+        requiredCapabilities: ['inspect-artifacts', 'propose-fragments'],
+        requiredAuthorities: ['promote-shared-pattern'],
+        successNextMoves: [{
+          action: 'Review promoted shared pattern',
+          rationale: 'Ensure the promoted pattern generalizes beyond the original local supplement.',
+          command: null,
+        }],
+      };
     case 'rerun-scope':
-      return 'rerun-requested';
+      return {
+        interventionKind: 'rerun-requested',
+        requestedParticipation: 'choose',
+        requiredCapabilities: ['inspect-artifacts', 'request-reruns'],
+        requiredAuthorities: ['request-rerun'],
+        successNextMoves: [{
+          action: 'Inspect rerun outcomes',
+          rationale: 'Use the rerun to verify whether the blocked region or proposal actually improved execution.',
+          command: null,
+        }],
+      };
     case 'suppress-hotspot':
-      return 'operator-action';
+      return {
+        interventionKind: 'operator-action',
+        requestedParticipation: 'defer',
+        requiredCapabilities: ['inspect-artifacts'],
+        requiredAuthorities: ['defer-work-item'],
+        successNextMoves: [{
+          action: 'Verify suppression remains intentional',
+          rationale: 'Suppressed hotspots should remain explicit and reviewable instead of silently disappearing.',
+          command: null,
+        }],
+      };
   }
+}
+
+// Backwards-compat accessors — delegate to the fold so callers outside
+// handoffForAction/nextMovesForAction don't have to destructure.
+function actionKindToInterventionKind(action: InterventionCommandAction): InterventionReceipt['kind'] {
+  return actionHandoffProfile(action).interventionKind;
+}
+
+function nextMovesForAction(
+  action: InterventionCommandAction,
+  input: {
+    readonly status: InterventionReceipt['status'];
+  },
+): NonNullable<InterventionReceipt['handoff']>['nextMoves'] {
+  if (input.status === 'blocked') {
+    return [{
+      action: 'Review prerequisites',
+      rationale: 'This action blocked before completing. Inspect dependencies or governance state before retrying.',
+      command: null,
+    }];
+  }
+  // Phase 2.3: delegate to the profile's exhaustive fold instead of
+  // repeating the switch.
+  return actionHandoffProfile(action).successNextMoves;
+}
+
+function handoffForAction(
+  action: InterventionCommandAction,
+  input: {
+    readonly summary: string;
+    readonly status: InterventionReceipt['status'];
+    readonly dependencyReceipts: readonly InterventionReceipt[];
+    readonly emittedAt: string;
+    readonly previousSemanticToken?: string | null | undefined;
+  },
+): NonNullable<InterventionReceipt['handoff']> {
+  const semanticCore = createSemanticCore({
+    namespace: 'intervention-action',
+    summary: action.summary,
+    stableFields: {
+      actionId: action.actionId,
+      kind: action.kind,
+      target: action.target,
+      prerequisites: action.prerequisites,
+      reversible: action.reversible,
+      payload: action.payload,
+    },
+  }, input.previousSemanticToken ?? null);
+  // Phase 2.3: one fold replaces 3 individual accessors.
+  const profile = actionHandoffProfile(action);
+  return {
+    unresolvedIntent: action.summary,
+    attemptedStrategies: input.dependencyReceipts.map((receipt) => receipt.summary),
+    evidenceSlice: {
+      artifactPaths: [action.target.artifactPath].filter((value): value is string => Boolean(value)),
+      summaries: [input.summary, ...input.dependencyReceipts.map((receipt) => receipt.summary)],
+    },
+    blockageType: input.status === 'blocked' ? 'policy-block' : 'knowledge-gap',
+    requestedParticipation: profile.requestedParticipation,
+    requiredCapabilities: profile.requiredCapabilities,
+    requiredAuthorities: profile.requiredAuthorities,
+    blastRadius: action.reversible.reversible ? 'review-bound' : 'global',
+    // Phase 2.2/T6 migration: route through the audited source mapping
+    // in `lib/domain/handshake/epistemic-brand.ts` so intervention
+    // receipts cannot accidentally mint `observed` from a block or an
+    // approval. The source string names the provenance of this status.
+    epistemicStatus: input.status === 'blocked'
+      ? epistemicStatusForSource('trust-policy-block')
+      : epistemicStatusForSource('approved-canon'),
+    semanticCore,
+    staleness: {
+      observedAt: input.emittedAt,
+      reviewBy: null,
+      status: 'fresh',
+      rationale: 'Freshly emitted intervention action handoff.',
+    },
+    nextMoves: nextMovesForAction(action, input),
+    competingCandidates: [],
+    tokenImpact: {
+      payloadSizeBytes: JSON.stringify(action.payload).length,
+      estimatedReadTokens: estimateReadTokens(action.payload),
+    },
+    chain: {
+      depth: input.previousSemanticToken ? 2 : 1,
+      previousSemanticToken: input.previousSemanticToken ?? null,
+      semanticCorePreserved: semanticCore.driftStatus === 'preserved',
+      driftDetectable: Boolean(input.previousSemanticToken),
+      competingCandidateCount: 0,
+    },
+  };
 }
 
 function topologicalOrder(actions: readonly InterventionCommandAction[]): readonly string[] {
@@ -186,7 +350,20 @@ export function executeInterventionBatch(input: InterventionKernelRunInput) {
 
       const resumedReceipt = input.resumeFrom?.get(action.actionId);
       if (resumedReceipt && resumedReceipt.status === 'completed') {
-        return step(rest, [...receipts, resumedReceipt], [...resumed, action.actionId]);
+        const updatedReceipt: InterventionReceipt = resumedReceipt.handoff
+          ? {
+              ...resumedReceipt,
+              handoff: handoffForAction(action, {
+                summary: resumedReceipt.summary,
+                status: resumedReceipt.status,
+                dependencyReceipts: receipts.filter((receipt) =>
+                  action.prerequisites.some((dep) => dep.actionId === receipt.interventionId)),
+                emittedAt: resumedReceipt.completedAt ?? resumedReceipt.startedAt,
+                previousSemanticToken: resumedReceipt.handoff.semanticCore.token,
+              }),
+            }
+          : resumedReceipt;
+        return step(rest, [...receipts, updatedReceipt], [...resumed, action.actionId]);
       }
 
       return foldGovernance(action, {
@@ -226,6 +403,13 @@ export function executeInterventionBatch(input: InterventionKernelRunInput) {
                 target: approvedAction.target,
                 payload: {},
               }],
+              handoff: handoffForAction(approvedAction, {
+                summary: result.summary ?? approvedAction.summary,
+                status: 'completed',
+                dependencyReceipts,
+                emittedAt: startedAt,
+                previousSemanticToken: null,
+              }),
               startedAt,
               completedAt: now(),
               payload: {
@@ -246,6 +430,13 @@ export function executeInterventionBatch(input: InterventionKernelRunInput) {
                 participantRefs: input.participantRefs ?? [],
                 target: approvedAction.target,
                 effects: [{ kind: 'signal-emitted', severity: 'error', summary: normalizedError.message, target: approvedAction.target, payload: { error: normalizedError.code } }],
+                handoff: handoffForAction(approvedAction, {
+                  summary: normalizedError.message,
+                  status: 'blocked',
+                  dependencyReceipts,
+                  emittedAt: startedAt,
+                  previousSemanticToken: null,
+                }),
                 startedAt,
                 completedAt: now(),
                 payload: { ...approvedAction.payload, error: normalizedError.code, reversible: approvedAction.reversible },

@@ -21,6 +21,9 @@ export interface RoleAffordance {
   readonly preconditions: readonly WidgetPrecondition[];
 }
 
+export type SupportedStepAction = 'click' | 'input' | 'assert-snapshot';
+export type AffordanceFamily = 'clickable' | 'fillable' | 'checkable' | 'selectable' | 'readable' | 'tabular';
+
 // ---------------------------------------------------------------------------
 // ROLE_AFFORDANCES — the canonical derivation table
 // ---------------------------------------------------------------------------
@@ -116,6 +119,40 @@ export const INPUT_TYPE_ROLE: Readonly<Record<string, string>> = {
 } as const;
 
 // ---------------------------------------------------------------------------
+// Legacy widget bridge — compatibility only, not the source of truth
+// ---------------------------------------------------------------------------
+
+export const LEGACY_WIDGET_ROLE_BRIDGE: Readonly<Record<string, string>> = {
+  'os-button': 'button',
+  'os-input': 'textbox',
+  'os-textarea': 'textbox',
+  'os-table': 'table',
+  'os-select': 'combobox',
+  'os-checkbox': 'checkbox',
+  'os-radio': 'radio',
+  'os-link': 'link',
+  'os-region': 'dialog',
+} as const;
+
+export const PRIMARY_WIDGET_FOR_ROLE: Readonly<Record<string, string>> = {
+  button: 'os-button',
+  link: 'os-link',
+  textbox: 'os-input',
+  searchbox: 'os-input',
+  combobox: 'os-select',
+  listbox: 'os-select',
+  checkbox: 'os-checkbox',
+  radio: 'os-radio',
+  switch: 'os-checkbox',
+  table: 'os-table',
+  grid: 'os-table',
+  tab: 'os-button',
+  slider: 'os-input',
+  spinbutton: 'os-input',
+  dialog: 'os-region',
+} as const;
+
+// ---------------------------------------------------------------------------
 // Pure derivation functions
 // ---------------------------------------------------------------------------
 
@@ -157,5 +194,91 @@ export function deriveRoleFromSignature(signature: {
  */
 export function affordancesForRole(role: string): readonly RoleAffordance[] {
   return ROLE_AFFORDANCES[role] ?? [];
+}
+
+export function roleForWidget(widget: string): string | null {
+  return LEGACY_WIDGET_ROLE_BRIDGE[widget] ?? null;
+}
+
+export function widgetForRole(role: string): string {
+  return PRIMARY_WIDGET_FOR_ROLE[role] ?? 'os-region';
+}
+
+export function roleSupportsAction(role: string, action: WidgetAction): boolean {
+  return affordancesForRole(role).some((affordance) => affordance.action === action);
+}
+
+export function primaryAffordanceForRole(role: string): WidgetAction | null {
+  const affordance = affordancesForRole(role).find((entry) => entry.effectCategory !== 'observation')
+    ?? affordancesForRole(role)[0];
+  return affordance?.action ?? null;
+}
+
+export function preferredScenarioActionForRole(role: string): WidgetAction | null {
+  if (role === 'combobox' || role === 'listbox') {
+    return roleSupportsAction(role, 'select') ? 'select' : primaryAffordanceForRole(role);
+  }
+  if (role === 'checkbox' || role === 'radio') {
+    return roleSupportsAction(role, 'check') ? 'check' : primaryAffordanceForRole(role);
+  }
+  if (role === 'button' || role === 'link' || role === 'tab') {
+    return roleSupportsAction(role, 'click') ? 'click' : primaryAffordanceForRole(role);
+  }
+  return primaryAffordanceForRole(role);
+}
+
+function affordanceFamiliesForAction(action: WidgetAction): readonly AffordanceFamily[] {
+  switch (action) {
+    case 'click':
+      return ['clickable'];
+    case 'fill':
+    case 'clear':
+      return ['fillable'];
+    case 'check':
+    case 'uncheck':
+      return ['checkable'];
+    case 'select':
+      return ['selectable'];
+    case 'get-value':
+      return ['readable'];
+  }
+}
+
+const ROLE_EXTRA_FAMILIES: Readonly<Record<string, readonly AffordanceFamily[]>> = {
+  table: ['tabular'],
+  grid: ['tabular'],
+} as const;
+
+export function affordanceFamiliesForRole(role: string): readonly AffordanceFamily[] {
+  const baseFamilies = affordancesForRole(role).flatMap((affordance) => affordanceFamiliesForAction(affordance.action));
+  return [...new Set([...baseFamilies, ...(ROLE_EXTRA_FAMILIES[role] ?? [])])];
+}
+
+export function affordanceFamiliesForWidget(widget: string): readonly AffordanceFamily[] {
+  const role = roleForWidget(widget);
+  return role ? affordanceFamiliesForRole(role) : ['readable'];
+}
+
+export function roleHasAffordanceFamily(role: string, family: AffordanceFamily): boolean {
+  return affordanceFamiliesForRole(role).includes(family);
+}
+
+export function widgetHasAffordanceFamily(widget: string, family: AffordanceFamily): boolean {
+  return affordanceFamiliesForWidget(widget).includes(family);
+}
+
+export function supportedStepActionsForRole(role: string): readonly SupportedStepAction[] {
+  const affordances = affordancesForRole(role);
+  const hasClick = affordances.some((affordance) => affordance.action === 'click');
+  const hasInput = affordances.some((affordance) =>
+    affordance.action === 'fill' || affordance.action === 'check' || affordance.action === 'select',
+  );
+  if (hasClick && !hasInput) {
+    return ['click'];
+  }
+  if (hasInput) {
+    return ['input'];
+  }
+  return ['assert-snapshot'];
 }
 

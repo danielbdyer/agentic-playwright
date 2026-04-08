@@ -4,7 +4,7 @@ import { chromium } from '@playwright/test';
 import { Effect } from 'effect';
 import { sha256, stableStringify } from '../../domain/kernel/hash';
 import { createCanonicalTargetRef, createElementId } from '../../domain/kernel/identity';
-import type { HarvestManifest, HarvestRouteDefinition, HarvestRouteVariant } from '../../domain/intent/routes';
+import type { RouteKnowledgeManifest, RouteKnowledgeRoute, RouteKnowledgeVariant } from '../../domain/intent/routes';
 import type {
   EventSignature,
   ScreenBehavior,
@@ -44,7 +44,7 @@ export interface HarvestRoutesResult {
   }>;
 }
 
-function resolveManifestBaseUrl(paths: ProjectPaths, manifest: HarvestManifest): URL | null {
+function resolveManifestBaseUrl(paths: ProjectPaths, manifest: RouteKnowledgeManifest): URL | null {
   if (!manifest.baseUrl) {
     return null;
   }
@@ -67,9 +67,9 @@ function normalizeUrlForBase(baseUrl: URL, value: string): string {
 
 function resolveHarvestUrl(input: {
   paths: ProjectPaths;
-  manifest: HarvestManifest;
-  route: HarvestRouteDefinition;
-  variant: HarvestRouteVariant;
+  manifest: RouteKnowledgeManifest;
+  route: RouteKnowledgeRoute;
+  variant: RouteKnowledgeVariant;
 }): string {
   const baseUrl = resolveManifestBaseUrl(input.paths, input.manifest);
   if (!baseUrl) {
@@ -169,8 +169,8 @@ function fingerprintDiscoveryIndex(index: DiscoveryIndex): string {
  */
 function computeHarvestInputFingerprint(input: {
   resolvedUrl: string;
-  route: HarvestRouteDefinition;
-  variant: HarvestRouteVariant;
+  route: RouteKnowledgeRoute;
+  variant: RouteKnowledgeVariant;
   catalog: WorkspaceCatalog;
 }): string {
   const behaviorFingerprints = behaviorArtifactsForScreen(input.catalog, input.variant.screen)
@@ -475,7 +475,7 @@ export function harvestDeclaredRoutes(options: {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const catalog = yield* loadWorkspaceCatalog({ paths: options.paths });
-    const manifests = (options.all ? catalog.routeManifests : catalog.routeManifests.filter((entry) => entry.artifact.app === options.app))
+  const manifests = (options.all ? catalog.routeManifests : catalog.routeManifests.filter((entry) => entry.artifact.app === options.app))
       .sort((left, right) => left.artifact.app.localeCompare(right.artifact.app));
 
     if (manifests.length === 0) {
@@ -512,7 +512,7 @@ export function harvestDeclaredRoutes(options: {
       // Group variants by screen so that variants sharing a screen directory
       // are processed sequentially (discoverScreenScaffold writes to a shared
       // {discoveryDir}/{screen}/ path), while independent screens run in parallel.
-      const variantsByScreen = new Map<string, Array<{ route: HarvestRouteDefinition; variant: HarvestRouteVariant }>>();
+      const variantsByScreen = new Map<string, Array<{ route: RouteKnowledgeRoute; variant: RouteKnowledgeVariant }>>();
       for (const route of manifest.artifact.routes) {
         for (const variant of route.variants) {
           const group = variantsByScreen.get(variant.screen) ?? [];

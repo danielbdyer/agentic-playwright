@@ -690,6 +690,36 @@ Every deterministic invariant should have a law-style test. These tests verify p
 
 Name law tests after the property they verify: `'resolution precedence: explicit wins over knowledge'`, `'content hash is stable for equivalent step orderings'`.
 
+### Measurement instruments vs measurement results
+
+> Pure-function laws prove the measurement *instrument* is correct. Integration tests prove the measurement is *real*. Ship both.
+
+This is the most important testing discipline in the codebase, and the easiest to get wrong. A passing unit test of `computeMemoryMaturity` proves the math is right. It does **not** prove:
+
+- The runtime actually populates the inputs the math expects
+- The producer → consumer chain wires correctly
+- The on-disk artifact format survives schema evolution
+- The reducer actually runs when it's supposed to, with the data it's supposed to
+
+There is a category gap between "the algebra is sound" and "the system actually measures anything." Both need to be tested, at different layers:
+
+| Layer | What it proves | Shape | Speed |
+|---|---|---|---|
+| **Law tests** (`tests/fitness/*.laws.spec.ts`) | the math is correct, the algebra composes, the property holds for all inputs | pure functions, synthetic inputs | ~10ms per test |
+| **End-to-end tests** (`tests/fitness/*.e2e.spec.ts`) | the wiring works, the producer → consumer chain is alive, real data flows through | drive the dogfood loop or the MCP tool handler, assert on real artifacts on disk | ~1–2s per test |
+| **Golden tests** (`tests/fitness/*.golden.spec.ts`) | the on-disk artifact format cannot silently regress | load a checked-in fixture, validate schema + critical fields | ~5ms per test |
+| **Empirical runs** (live iteration) | the substrate actually compounds on a real workload | compose `speedrun generate && speedrun compile && speedrun iterate && speedrun fitness && speedrun report`, inspect `.tesseract/benchmarks/scorecard.json` | seconds to minutes |
+
+**Every new metric needs at least the first two layers.** A law test that `computeFoo({a: 1}) === 2` is necessary but never sufficient. You also need an e2e test that exercises the producer, the projection, and the consumer in one pass and asserts the metric actually lands with non-trivial values on a real workspace.
+
+The load-bearing failure mode this discipline prevents:
+
+> The fitness framework is built and unit-tested. Every obligation has 10 passing law tests. Nothing on disk. The framework cannot falsify anything because no speedrun has ever run it. The instrument is calibrated; it has never been used.
+
+If your work adds a new fitness metric, a new obligation, or a new projection, add a test at each of the first three layers before calling it done. The empirical runs will follow from regular dogfood cycles.
+
+**A concrete anchor**: Phase 0 of the temporal-epistemic realization uncovered a schema-validator bug that silently dropped run records via `loadAllDisposableJson`'s `catchAll(() => null)`. A unit test of `validateRunRecord` would have passed. A unit test of `buildFitnessReport` with synthetic step data would have passed. The e2e test that refreshed a scenario and ran the dogfood loop end-to-end is what caught it. Always have at least one test that executes the full chain.
+
 ### Separation of construction and execution
 
 Functions that build data should not also execute side effects. Separate the "what" from the "when":

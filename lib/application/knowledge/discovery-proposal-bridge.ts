@@ -156,6 +156,7 @@ function behaviorProposals(
 }
 
 function routeProposal(input: {
+  app: string;
   screen: ScreenId;
   discoveryRunId: string;
   routeId: string;
@@ -181,13 +182,13 @@ function routeProposal(input: {
   return {
     proposalKind: 'route-knowledge',
     artifactType: 'routes',
-    targetPath: `knowledge/routes/${input.screen}.routes.yaml`,
+    targetPath: knowledgePaths.routes(input.app),
     title: `Add or update route variant ${input.routeId}:${input.variantId} for ${input.screen}`,
     patch: {
       kind: 'route-knowledge',
       version: 1,
       governance: 'review-required',
-      app: 'discover',
+      app: input.app,
       routes: [{
         id: input.routeId,
         screen: input.screen,
@@ -250,6 +251,7 @@ export function generateProposalsFromDiscovery(
     ...hintProposals(screen, runId, discovery.elements),
     ...behaviorProposals(screen, runId, discovery.surfaces),
     routeProposal({
+      app: discovery.app,
       screen,
       discoveryRunId: runId,
       routeId: discovery.routeId,

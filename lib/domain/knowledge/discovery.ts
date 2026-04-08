@@ -1,7 +1,11 @@
 import { computeNormalizedSnapshotHash, normalizeAriaSnapshot } from '../kernel/hash';
 import type { AssertionKind, SurfaceKind } from '../governance/workflow-types';
 import { uniqueSorted } from '../kernel/collections';
-import { ROLE_AFFORDANCES, deriveRoleFromSignature } from '../widgets/role-affordances';
+import {
+  deriveRoleFromSignature,
+  supportedStepActionsForRole,
+  widgetForRole as widgetForRoleBridge,
+} from '../widgets/role-affordances';
 
 export interface RawDiscoveredSurface {
   selector: string;
@@ -227,39 +231,16 @@ function surfaceAssertionsForRole(role: string | null, tagName: string): Asserti
   return ['state'];
 }
 
-// Role-to-widget mapping derived from ROLE_AFFORDANCES table
-const ROLE_TO_WIDGET: Readonly<Record<string, string>> = {
-  button: 'os-button',
-  link: 'os-link',
-  textbox: 'os-input',
-  searchbox: 'os-input',
-  combobox: 'os-select',
-  checkbox: 'os-checkbox',
-  radio: 'os-radio',
-  switch: 'os-checkbox',
-  table: 'os-table',
-  grid: 'os-table',
-  listbox: 'os-select',
-  tab: 'os-button',
-  slider: 'os-input',
-  spinbutton: 'os-input',
-  dialog: 'os-region',
-} as const;
-
 function widgetForRole(role: string, inputType: string | null): string {
   // Use deriveRoleFromSignature for input type refinement
   const derivedRole = deriveRoleFromSignature({ role, ...(inputType != null ? { inputType } : {}) });
   const resolved = derivedRole ?? role;
-  return ROLE_TO_WIDGET[resolved] ?? 'os-region';
+  return widgetForRoleBridge(resolved);
 }
 
 function supportedActionsForRole(role: string, widget: string): ('click' | 'input' | 'assert-snapshot')[] {
-  // Derive from ROLE_AFFORDANCES: roles with click→'click', fill→'input', else→'assert-snapshot'
-  const affordances = ROLE_AFFORDANCES[role] ?? [];
-  const hasClick = affordances.some((a) => a.action === 'click');
-  const hasFill = affordances.some((a) => a.action === 'fill' || a.action === 'check' || a.action === 'select');
-  if (hasClick && !hasFill) return ['click'];
-  if (hasFill) return ['input'];
+  const supported = supportedStepActionsForRole(role);
+  if (supported.length > 0) return [...supported];
   // Fallback: check widget for backward compat
   if (widget === 'os-button') return ['click'];
   if (widget === 'os-input' || widget === 'os-select' || widget === 'os-checkbox' || widget === 'os-radio') return ['input'];
@@ -356,8 +337,16 @@ export function buildDiscoveryArtifacts(input: DiscoveryInput): DiscoveryArtifac
   const surfaceSelectors = new Set(normalizedSurfaces.map((surface) => surface.selector));
   const normalizedElements = sortElements(input.elements.filter((element) => !surfaceSelectors.has(element.selector)));
 
-  const { surfaceIdsBySelector, seenSurfaceIds } = normalizedSurfaces.reduce(
-    (acc, surface) => {
+  // Pure functional reduce over surfaces. The `idsBySelector` map is a
+  // const local that we mutate via `.set()` (legal — no reassignment),
+  // and `seenSurfaceIds` is threaded through the reduce's accumulator
+  // so there is never a `let` reassignment in domain code.
+  const { surfaceIdsBySelector, seenSurfaceIds } = ((): {
+    surfaceIdsBySelector: ReadonlyMap<string, string>;
+    seenSurfaceIds: ReadonlySet<string>;
+  } => {
+    const idsBySelector = new Map<string, string>();
+    const finalSeen = normalizedSurfaces.reduce<ReadonlySet<string>>((seen, surface) => {
       const baseId = createStableBaseId({
         contract: surface.contract,
         testId: surface.testId,
@@ -366,14 +355,12 @@ export function buildDiscoveryArtifacts(input: DiscoveryInput): DiscoveryArtifac
         role: surface.role,
         suffix: 'surface',
       });
-      const [surfaceId, nextSeen] = ensureUniqueId(baseId, acc.seenSurfaceIds);
-      return {
-        surfaceIdsBySelector: new Map([...acc.surfaceIdsBySelector, [surface.selector, surfaceId]]),
-        seenSurfaceIds: nextSeen,
-      };
-    },
-    { surfaceIdsBySelector: new Map<string, string>(), seenSurfaceIds: initialSurfaceIds },
-  );
+      const [surfaceId, nextSeen] = ensureUniqueId(baseId, seen);
+      idsBySelector.set(surface.selector, surfaceId);
+      return nextSeen;
+    }, initialSurfaceIds);
+    return { surfaceIdsBySelector: idsBySelector, seenSurfaceIds: finalSeen };
+  })();
 
   const rootSurfaceId = normalizedSurfaces
     .flatMap((surface) => surface.parentSelector === null ? [surfaceIdsBySelector.get(surface.selector)] : [])
@@ -398,15 +385,28 @@ export function buildDiscoveryArtifacts(input: DiscoveryInput): DiscoveryArtifac
     };
   });
 
-  const childSurfacesByParent: ReadonlyMap<string, readonly string[]> = surfaceReports.reduce(
-    (map, report) => report.parentSurfaceId
-      ? new Map([...map, [report.parentSurfaceId, [...(map.get(report.parentSurfaceId) ?? []), report.id]]])
-      : map,
-    new Map<string, readonly string[]>(),
-  );
+  // Phase 2.4 / T7 Big-O fix: O(N) in-place accumulation.
+  const childSurfacesByParent = ((): ReadonlyMap<string, readonly string[]> => {
+    const acc = new Map<string, readonly string[]>();
+    for (const report of surfaceReports) {
+      if (!report.parentSurfaceId) continue;
+      const existing = acc.get(report.parentSurfaceId) ?? [];
+      acc.set(report.parentSurfaceId, [...existing, report.id]);
+    }
+    return acc;
+  })();
 
-  const { elementReports, elementsBySurface } = normalizedElements.reduce(
-    (acc, element) => {
+  // Phase 2.4 / T7 Big-O fix: single-pass over elements. Was O(N²)
+  // Pure reduce: seenIds is threaded through the accumulator so there
+  // is never a `let` reassignment. `reports` and `bySurface` are const
+  // locals we mutate via push/set (legal — no reassignment).
+  const { elementReports, elementsBySurface } = ((): {
+    elementReports: readonly DiscoveryElementReport[];
+    elementsBySurface: ReadonlyMap<string, readonly string[]>;
+  } => {
+    const reports: DiscoveryElementReport[] = [];
+    const bySurface = new Map<string, readonly string[]>();
+    normalizedElements.reduce<ReadonlySet<string>>((seenIds, element) => {
       const role = element.role ?? 'region';
       const widget = widgetForRole(role, element.inputType);
       const [elementId, nextSeen] = ensureUniqueId(createStableBaseId({
@@ -416,7 +416,7 @@ export function buildDiscoveryArtifacts(input: DiscoveryInput): DiscoveryArtifac
         name: element.name,
         role,
         suffix: 'element',
-      }), acc.seenIds);
+      }), seenIds);
       const surfaceId = element.surfaceSelector
         ? (surfaceIdsBySelector.get(element.surfaceSelector) ?? rootSurfaceId)
         : rootSurfaceId;
@@ -440,18 +440,13 @@ export function buildDiscoveryArtifacts(input: DiscoveryInput): DiscoveryArtifac
         supportedActions: supportedActionsForRole(role, widget),
         required: element.required,
       };
-      return {
-        elementReports: [...acc.elementReports, report],
-        elementsBySurface: new Map([...acc.elementsBySurface, [surfaceId, [...(acc.elementsBySurface.get(surfaceId) ?? []), elementId]]]),
-        seenIds: nextSeen,
-      };
-    },
-    {
-      elementReports: [] as readonly DiscoveryElementReport[],
-      elementsBySurface: new Map<string, readonly string[]>(),
-      seenIds: seenSurfaceIds,
-    },
-  );
+      reports.push(report);
+      const existing = bySurface.get(surfaceId) ?? [];
+      bySurface.set(surfaceId, [...existing, elementId]);
+      return nextSeen;
+    }, seenSurfaceIds);
+    return { elementReports: reports, elementsBySurface: bySurface };
+  })();
 
   const surfaceNotes: DiscoveryReviewNote[] = surfaceReports
     .flatMap((surface) => !surface.name && !surface.testId ? [{

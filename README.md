@@ -10,6 +10,8 @@ The authoritative architecture doctrine lives in `docs/master-architecture.md`.
 
 Operator workflows are documented in `docs/operator-handbook.md`.
 
+The implementation-truth snapshot lives in `docs/current-state.md`.
+
 ## What is canonical
 
 Approved, reviewable inputs:
@@ -22,6 +24,7 @@ Approved, reviewable inputs:
 - `knowledge/screens/`
 - `knowledge/patterns/`
 - `knowledge/snapshots/`
+- `knowledge/routes/`
 - `.tesseract/evidence/`
 - `.tesseract/policy/`
 
@@ -45,13 +48,15 @@ Derived outputs. Do not hand-edit:
 Tesseract exposes six explicit concern lanes so humans and agents can tune each surface independently:
 
 - `intent`: `.ado-sync/` and `scenarios/`
-- `knowledge`: `knowledge/surfaces/`, `knowledge/screens/`, `knowledge/patterns/`, `knowledge/snapshots/`
+- `knowledge`: `knowledge/surfaces/`, `knowledge/screens/`, `knowledge/patterns/`, `knowledge/snapshots/`, `knowledge/routes/`
 - `control`: `controls/datasets/`, `controls/resolution/`, `controls/runbooks/`
 - `resolution`: `.tesseract/tasks/` plus runtime interpretation receipts
 - `execution`: runtime execution receipts and run records
 - `governance/projection`: generated review surfaces, graph outputs, and trust-policy gates
 
 Every cross-lane handoff is carried as a typed envelope with `kind`, `version`, `stage`, `scope`, `ids`, `fingerprints`, `lineage`, `governance`, and `payload`.
+
+Route knowledge is part of the governed navigation substrate, not a transient discovery sidecar.
 
 Those six lanes remain the operating vocabulary. Architecturally, three cross-cutting spines now cut through them:
 
@@ -516,6 +521,7 @@ Output policy:
 | `benchmarks/*.benchmark.yaml` | canonical benchmark field catalog, drifts, and runbook expansion rules | canonical |
 | `controls/**/*.yaml` | canonical tuning surfaces for datasets, runbooks, and resolution overrides | canonical |
 | `scenarios/{suite}/{ado_id}.scenario.yaml` | canonical scenario IR | canonical |
+| `knowledge/routes/*.routes.yaml` | canonical route and entry-state knowledge for governed navigation | canonical |
 | `.tesseract/bound/{ado_id}.json` | bound scenario with provenance and governance | derived |
 | `.tesseract/tasks/{ado_id}.resolution.json` | runtime task packet and knowledge handshake | derived |
 | `.tesseract/runs/{ado_id}/{run_id}/run.json` | interpretation + execution receipts | derived |

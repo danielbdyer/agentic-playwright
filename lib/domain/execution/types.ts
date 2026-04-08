@@ -46,6 +46,7 @@ import type {
   CanonicalLineage,
   CertificationStatus,
   Governance,
+  LocatorStrategy,
   ProposalActivation,
   TrustPolicyArtifactType,
   TrustPolicyEvaluation,
@@ -54,13 +55,35 @@ import type {
   WorkflowEnvelopeLineage,
 } from '../governance/workflow-types';
 
+export type ProposalCategory =
+  | 'cold-start-discovery'
+  | 'needs-human'
+  | 'partial-resolution-stabilization'
+  | 'deterministic-alias-stabilization'
+  | 'interpretation-enrichment'
+  | 'route-discovery';
+
+export type ProposalEpistemicStatus = 'discovered' | 'observed' | 'interpreted' | 'stabilized';
+export type ProposalActivationPolicy = 'append-aliases' | 'set-if-absent' | 'merge-locator-ladder';
+
+export interface ProposalEnrichment {
+  readonly role?: string | null | undefined;
+  readonly affordance?: string | null | undefined;
+  readonly locatorLadder?: readonly LocatorStrategy[] | undefined;
+  readonly source?: string | null | undefined;
+  readonly epistemicStatus?: ProposalEpistemicStatus | null | undefined;
+  readonly activationPolicy?: ProposalActivationPolicy | null | undefined;
+}
+
 export interface ProposalEntry {
   readonly proposalId: string;
   readonly stepIndex: number;
   readonly artifactType: TrustPolicyArtifactType;
+  readonly category?: ProposalCategory | null | undefined;
   readonly targetPath: string;
   readonly title: string;
   readonly patch: Readonly<Record<string, unknown>>;
+  readonly enrichment?: ProposalEnrichment | null | undefined;
   readonly evidenceIds: readonly string[];
   readonly impactedSteps: readonly number[];
   readonly trustPolicy: TrustPolicyEvaluation;

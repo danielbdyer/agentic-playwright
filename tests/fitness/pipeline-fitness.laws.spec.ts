@@ -138,6 +138,16 @@ function createFitnessInput(overrides: Partial<FitnessInputData> = {}): FitnessI
       },
     ],
     proposalBundles: [],
+    knowledgeCoverage: {
+      totalElements: 4,
+      totalScreens: 2,
+      roleCoverageRate: 1,
+      affordanceCoverageRate: 0.75,
+      locatorCoverageRate: 1,
+      postureCoverageRate: 0.5,
+      routeScreenCoverageRate: 1,
+      routeVariantCoverageRate: 1,
+    },
     ...overrides,
   };
 }
@@ -160,6 +170,16 @@ test.describe('Pipeline Fitness Report', () => {
   test('knowledge hit rate reflects final ledger iteration', () => {
     const report = buildFitnessReport(createFitnessInput());
     expect(report.metrics.knowledgeHitRate).toBe(0.75);
+  });
+
+  test('effective hit rate and unresolvedness economics are emitted', () => {
+    const report = buildFitnessReport(createFitnessInput());
+    expect(report.metrics.effectiveHitRate).toBeGreaterThanOrEqual(0);
+    expect(report.metrics.ambiguityRate).toBeGreaterThanOrEqual(0);
+    expect(report.metrics.suspensionRate).toBeGreaterThanOrEqual(0);
+    expect(report.metrics.agentFallbackRate).toBeGreaterThanOrEqual(0);
+    expect(report.metrics.liveDomFallbackRate).toBeGreaterThanOrEqual(0);
+    expect(report.metrics.routeMismatchRate).toBeGreaterThanOrEqual(0);
   });
 
   test('resolution by rung accounts for all steps', () => {
@@ -244,6 +264,61 @@ test.describe('Pipeline Fitness Report', () => {
     // The step itself has a proposal draft and blocking, so it should detect the blocked proposal in bundles
     expect(report.metrics.proposalYield).toBe(0);
   });
+
+  test('proposal categories and winning source distribution are surfaced', () => {
+    const input = createFitnessInput({
+      proposalBundles: [{
+        kind: 'proposal-bundle', version: 1, stage: 'proposal', scope: 'scenario',
+        ids: {}, fingerprints: { artifact: 'fp' }, lineage: { sources: [], parents: [], handshakes: [] },
+        governance: 'approved',
+        payload: {
+          adoId: '20001' as never,
+          runId: 'r1',
+          revision: 1,
+          title: 't',
+          suite: 's',
+          proposals: [{
+            proposalId: 'p1',
+            stepIndex: 0,
+            artifactType: 'hints',
+            category: 'needs-human',
+            targetPath: 't',
+            title: 't',
+            patch: {},
+            evidenceIds: [],
+            impactedSteps: [],
+            trustPolicy: { decision: 'review', reasons: [] },
+            certification: 'uncertified',
+            activation: { status: 'pending' },
+            lineage: { runIds: [], evidenceIds: [], sourceArtifactPaths: [] },
+          }],
+        },
+      } as unknown as ProposalBundle],
+    });
+    const report = buildFitnessReport(input);
+    expect(report.metrics.proposalCategoryCounts?.['needs-human']).toBe(1);
+    expect(report.metrics.winningSourceDistribution?.some((entry) => entry.source === 'approved-knowledge')).toBe(true);
+  });
+
+  test('logical proof obligations are emitted from measurable runtime evidence', () => {
+    const report = buildFitnessReport(createFitnessInput());
+    const obligations = report.metrics.proofObligations ?? [];
+    expect(obligations.length).toBeGreaterThan(0);
+    expect(obligations.some((entry) => entry.obligation === 'target-observability')).toBe(true);
+    expect(obligations.some((entry) => entry.obligation === 'posture-separability')).toBe(true);
+    expect(obligations.some((entry) => entry.obligation === 'affordance-recoverability')).toBe(true);
+    expect(obligations.some((entry) => entry.obligation === 'structural-legibility')).toBe(true);
+    expect(obligations.some((entry) => entry.obligation === 'variance-factorability')).toBe(true);
+    expect(obligations.some((entry) => entry.obligation === 'recoverability')).toBe(true);
+    expect(obligations.some((entry) => entry.obligation === 'compounding-economics')).toBe(true);
+    expect(obligations.some((entry) => entry.obligation === 'surface-compressibility')).toBe(true);
+    expect(obligations.some((entry) => entry.obligation === 'surface-predictability')).toBe(true);
+    expect(obligations.some((entry) => entry.obligation === 'surface-repairability')).toBe(true);
+    expect(obligations.some((entry) => entry.obligation === 'participatory-repairability')).toBe(true);
+    expect(obligations.some((entry) => entry.obligation === 'memory-worthiness')).toBe(true);
+    expect(obligations.some((entry) => entry.obligation === 'meta-worthiness')).toBe(true);
+    expect(obligations.every((entry) => entry.score >= 0 && entry.score <= 1)).toBe(true);
+  });
 });
 
 // ─── Scorecard Comparison Laws ───
@@ -304,7 +379,20 @@ test.describe('Scorecard Comparison', () => {
     const scorecard = updateScorecard(report, null, comparison);
     expect(scorecard.kind).toBe('pipeline-scorecard');
     expect(scorecard.highWaterMark.knowledgeHitRate).toBe(report.metrics.knowledgeHitRate);
+    expect(scorecard.highWaterMark.proofObligations?.length).toBeGreaterThan(0);
+    // Phase 1.7 honesty: proof obligations from `runtimeProofObligations`
+    // are heuristic-proxy by construction, so they do NOT inflate the
+    // `direct` count. This is the honest baseline — direct status comes
+    // from the cohort-trajectory builder (when ≥2 history points) or the
+    // fingerprint-stability probe (K0). On a first run with no history
+    // and no probe, the baseline summary should show heuristic-proxy
+    // obligations as `proxy`, not `direct`.
+    const summary = scorecard.highWaterMark.theoremBaselineSummary!;
+    expect(summary.direct).toBe(0);
+    expect(summary.proxy).toBeGreaterThan(0);
     expect(scorecard.history).toHaveLength(1);
+    expect(scorecard.history[0]!.theoremBaselineSummary?.direct).toBe(0);
+    expect(scorecard.history[0]!.theoremBaselineSummary?.proxy).toBeGreaterThan(0);
     expect(scorecard.history[0]!.improved).toBe(true);
   });
 

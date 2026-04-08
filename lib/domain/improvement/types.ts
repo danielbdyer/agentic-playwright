@@ -67,6 +67,7 @@ export interface SpeedrunProgressEvent {
 
 export interface ExperimentScorecardComparison {
   readonly improved: boolean;
+  readonly effectiveHitRateDelta: number;
   readonly knowledgeHitRateDelta: number;
   readonly translationPrecisionDelta: number;
   readonly convergenceVelocityDelta: number;

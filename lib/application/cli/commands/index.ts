@@ -25,7 +25,6 @@ import { benchmarkCommand } from './benchmark';
 import { scorecardCommand } from './scorecard';
 import { dogfoodCommand } from './dogfood';
 import { workbenchCommand } from './workbench';
-import { speedrunCommand } from './speedrun';
 import { evolveCommand } from './evolve';
 import { experimentsCommand } from './experiments';
 import { generateCommand } from './generate';
@@ -57,7 +56,6 @@ export const commandRegistry: Record<CommandName, CommandSpec> = {
   scorecard: scorecardCommand,
   dogfood: dogfoodCommand,
   workbench: workbenchCommand,
-  speedrun: speedrunCommand,
   evolve: evolveCommand,
   experiments: experimentsCommand,
   generate: generateCommand,

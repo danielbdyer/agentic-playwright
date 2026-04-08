@@ -14,7 +14,7 @@ export interface RouteVariantHistoricalSuccess {
   readonly lastSuccessAt?: string | null | undefined;
 }
 
-export interface HarvestRouteVariant {
+export interface RouteKnowledgeVariant {
   readonly id: RouteVariantId;
   readonly url: string;
   readonly screen: ScreenId;
@@ -44,19 +44,26 @@ export interface HarvestRouteVariant {
   readonly mappedScreens?: readonly ScreenId[] | undefined;
 }
 
-export interface HarvestRouteDefinition {
+export interface RouteKnowledgeRoute {
   readonly id: RouteId;
   readonly screen: ScreenId;
   readonly entryUrl: string;
   readonly rootSelector?: string | null | undefined;
-  readonly variants: readonly HarvestRouteVariant[];
+  readonly variants: readonly RouteKnowledgeVariant[];
 }
 
-export interface HarvestManifest {
-  readonly kind: 'harvest-manifest' | 'route-knowledge';
+export interface RouteKnowledgeManifest {
+  readonly kind: 'route-knowledge';
   readonly version: 1;
   readonly governance?: Governance | undefined;
   readonly app: string;
   readonly baseUrl?: string | null | undefined;
-  readonly routes: readonly HarvestRouteDefinition[];
+  readonly routes: readonly RouteKnowledgeRoute[];
 }
+
+/** @deprecated Use RouteKnowledgeVariant. */
+export type HarvestRouteVariant = RouteKnowledgeVariant;
+/** @deprecated Use RouteKnowledgeRoute. */
+export type HarvestRouteDefinition = RouteKnowledgeRoute;
+/** @deprecated Use RouteKnowledgeManifest. */
+export type HarvestManifest = RouteKnowledgeManifest;

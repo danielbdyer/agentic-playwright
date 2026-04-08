@@ -296,6 +296,15 @@ export function foldStepWinningSource<R>(source: StepWinningSource, cases: StepW
 export const WINNING_SOURCE_TO_RUNG: Readonly<Record<StepWinningSource, string>> = {
   'scenario-explicit': 'explicit',
   'resolution-control': 'control',
+  // Control-plane data resolutions: runbook datasets, dataset defaults,
+  // and generated tokens are all produced by the control lane and
+  // belong on the `control` rung, not the approved-knowledge rung.
+  // Previously these were mapped to `approved-screen-knowledge` which
+  // caused the resolution-by-rung display to lie about the state of
+  // the system (inflating apparent knowledge coverage).
+  'runbook-dataset': 'control',
+  'default-dataset': 'control',
+  'generated-token': 'control',
   'approved-equivalent': 'approved-equivalent-overlay',
   'semantic-dictionary': 'semantic-dictionary',
   'structured-translation': 'structured-translation',
@@ -303,10 +312,9 @@ export const WINNING_SOURCE_TO_RUNG: Readonly<Record<StepWinningSource, string>>
   'agent-interpreted': 'agent-interpreted',
   'prior-evidence': 'prior-evidence',
   'approved-knowledge': 'approved-screen-knowledge',
-  'runbook-dataset': 'approved-screen-knowledge',
-  'default-dataset': 'approved-screen-knowledge',
   'knowledge-hint': 'approved-screen-knowledge',
   'posture-sample': 'approved-screen-knowledge',
-  'generated-token': 'approved-screen-knowledge',
-  'none': 'approved-screen-knowledge',
+  // Unresolved steps belong at the terminal `needs-human` rung, not
+  // inflating the approved-knowledge rate.
+  'none': 'needs-human',
 };

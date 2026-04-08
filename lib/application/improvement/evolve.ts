@@ -145,6 +145,7 @@ function buildExperimentRecord(
     fitnessReport: result.fitnessReport,
     scorecardComparison: {
       improved: result.comparison.improved,
+      effectiveHitRateDelta: result.comparison.effectiveHitRateDelta,
       knowledgeHitRateDelta: result.comparison.knowledgeHitRateDelta,
       translationPrecisionDelta: result.comparison.translationPrecisionDelta,
       convergenceVelocityDelta: result.comparison.convergenceVelocityDelta,
@@ -155,6 +156,10 @@ function buildExperimentRecord(
     improvementRunId: result.improvementRun.improvementRunId,
     improvementRun: result.improvementRun,
   };
+}
+
+function candidateGateHitRate(result: SpeedrunResult): number {
+  return result.fitnessReport.metrics.effectiveHitRate ?? result.fitnessReport.metrics.knowledgeHitRate;
 }
 
 // ─── Scorecard helpers ───
@@ -250,7 +255,7 @@ function runEpoch(
       if (result.comparison.improved) {
         const shouldReplaceBest = Option.match(bestResult, {
           onNone: () => true,
-          onSome: (existingBest) => result.fitnessReport.metrics.knowledgeHitRate > existingBest.fitnessReport.metrics.knowledgeHitRate,
+          onSome: (existingBest) => candidateGateHitRate(result) > candidateGateHitRate(existingBest),
         });
         if (shouldReplaceBest) {
           bestCandidate = Option.some(candidate);

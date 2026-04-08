@@ -7,9 +7,9 @@ import {
 } from './primitives';
 import { GovernanceSchema } from './enums';
 
-// ─── Harvest Route ───
+// ─── Route Knowledge ───
 
-export const HarvestRouteVariantSchema = Schema.Struct({
+export const RouteKnowledgeVariantSchema = Schema.Struct({
   id: RouteVariantIdSchema,
   url: Schema.String,
   screen: ScreenIdSchema,
@@ -46,19 +46,26 @@ export const HarvestRouteVariantSchema = Schema.Struct({
   mappedScreens: Schema.optionalWith(Schema.Array(ScreenIdSchema), { default: () => [] as const }),
 });
 
-export const HarvestRouteDefinitionSchema = Schema.Struct({
+export const RouteKnowledgeRouteSchema = Schema.Struct({
   id: RouteIdSchema,
   screen: ScreenIdSchema,
   entryUrl: Schema.String,
   rootSelector: Schema.optionalWith(NullableString, { default: () => null }),
-  variants: Schema.Array(HarvestRouteVariantSchema),
+  variants: Schema.Array(RouteKnowledgeVariantSchema),
 });
 
-export const HarvestManifestSchema = Schema.Struct({
-  kind: Schema.Literal('harvest-manifest', 'route-knowledge'),
+export const RouteKnowledgeManifestSchema = Schema.Struct({
+  kind: Schema.Literal('route-knowledge'),
   version: Schema.Literal(1),
   governance: Schema.optionalWith(GovernanceSchema, { default: () => 'approved' }),
   app: Schema.String,
   baseUrl: Schema.optionalWith(NullableString, { default: () => null }),
-  routes: Schema.Array(HarvestRouteDefinitionSchema),
+  routes: Schema.Array(RouteKnowledgeRouteSchema),
 });
+
+/** @deprecated Use RouteKnowledgeVariantSchema. */
+export const HarvestRouteVariantSchema = RouteKnowledgeVariantSchema;
+/** @deprecated Use RouteKnowledgeRouteSchema. */
+export const HarvestRouteDefinitionSchema = RouteKnowledgeRouteSchema;
+/** @deprecated Use RouteKnowledgeManifestSchema. */
+export const HarvestManifestSchema = RouteKnowledgeManifestSchema;

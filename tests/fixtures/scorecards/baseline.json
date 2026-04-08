@@ -1,0 +1,478 @@
+{
+  "kind": "pipeline-scorecard",
+  "version": 1,
+  "highWaterMark": {
+    "setAt": "2026-04-07T04:23:20.891Z",
+    "pipelineVersion": "5b94fb9",
+    "effectiveHitRate": 0.4,
+    "knowledgeHitRate": 0.4,
+    "translationPrecision": 1,
+    "convergenceVelocity": 3,
+    "proposalYield": 1,
+    "proofObligations": [
+      {
+        "obligation": "target-observability",
+        "propertyRefs": [
+          "L"
+        ],
+        "score": 0.4,
+        "status": "watch",
+        "evidence": "translationPrecision=1, ambiguityRate=0.6, liveDomFallbackRate=0, degradedLocatorRate=0",
+        "measurementClass": "heuristic-proxy"
+      },
+      {
+        "obligation": "posture-separability",
+        "propertyRefs": [
+          "K"
+        ],
+        "score": 0.2,
+        "status": "critical",
+        "evidence": "postureCoverageRate=0.2, routeScreenCoverageRate=1, routeVariantCoverageRate=1, suspensionRate=0.6, ambiguityRate=0.6",
+        "measurementClass": "heuristic-proxy"
+      },
+      {
+        "obligation": "affordance-recoverability",
+        "propertyRefs": [
+          "S"
+        ],
+        "score": 0.4,
+        "status": "watch",
+        "evidence": "roleCoverageRate=1, affordanceCoverageRate=0.6667, locatorCoverageRate=0.4667, degradedLocatorRate=0, ambiguityRate=0.6",
+        "measurementClass": "heuristic-proxy"
+      },
+      {
+        "obligation": "structural-legibility",
+        "propertyRefs": [
+          "K",
+          "L",
+          "S"
+        ],
+        "score": 0,
+        "status": "critical",
+        "evidence": "targetObservabilityRisk=0.6, translationRecall=0, ambiguityRate=0.6, liveDomFallbackRate=0",
+        "measurementClass": "heuristic-proxy"
+      },
+      {
+        "obligation": "semantic-persistence",
+        "propertyRefs": [
+          "K",
+          "V",
+          "R"
+        ],
+        "score": 0.55,
+        "status": "watch",
+        "evidence": "degradedLocatorRate=0, recoverySuccessRate=1, agentFallbackRate=0.6",
+        "measurementClass": "heuristic-proxy"
+      },
+      {
+        "obligation": "dynamic-topology",
+        "propertyRefs": [
+          "D"
+        ],
+        "score": 0.4,
+        "status": "watch",
+        "evidence": "routeMismatchRate=0, suspensionRate=0.6, ambiguityRate=0.6",
+        "measurementClass": "heuristic-proxy"
+      },
+      {
+        "obligation": "variance-factorability",
+        "propertyRefs": [
+          "V"
+        ],
+        "score": 0,
+        "status": "critical",
+        "evidence": "approvedEquivalentRate=0, ambiguityRate=0.6, routeMismatchRate=0, degradedLocatorRate=0, needsHumanProposalShare=1, routeDiscoveryProposalShare=0",
+        "measurementClass": "heuristic-proxy"
+      },
+      {
+        "obligation": "recoverability",
+        "propertyRefs": [
+          "R"
+        ],
+        "score": 0.55,
+        "status": "watch",
+        "evidence": "recoverySuccessRate=1, degradedLocatorRate=0, routeMismatchRate=0, suspensionRate=0.6",
+        "measurementClass": "heuristic-proxy"
+      },
+      {
+        "obligation": "participatory-unresolvedness",
+        "propertyRefs": [
+          "A"
+        ],
+        "score": 0.4,
+        "status": "watch",
+        "evidence": "proposalYield=1, recoverySuccessRate=1, agentFallbackRate=0.6",
+        "measurementClass": "heuristic-proxy"
+      },
+      {
+        "obligation": "compounding-economics",
+        "propertyRefs": [
+          "C",
+          "M"
+        ],
+        "score": 0.5,
+        "status": "watch",
+        "evidence": "effectiveHitRate trajectory: 3 samples, direction=flat, slope=0.0000, oriented=higher-is-better",
+        "measurementClass": "direct"
+      },
+      {
+        "obligation": "surface-compressibility",
+        "propertyRefs": [
+          "M"
+        ],
+        "score": 0,
+        "status": "critical",
+        "evidence": "translationRecall=0, ambiguityRate=0.6, liveDomFallbackRate=0, coverageShare=0.72",
+        "measurementClass": "heuristic-proxy"
+      },
+      {
+        "obligation": "surface-predictability",
+        "propertyRefs": [
+          "M"
+        ],
+        "score": 0.4,
+        "status": "watch",
+        "evidence": "routeMismatchRate=0, suspensionRate=0.6, liveDomFallbackRate=0, agentFallbackRate=0.6, ambiguityRate=0.6",
+        "measurementClass": "heuristic-proxy"
+      },
+      {
+        "obligation": "surface-repairability",
+        "propertyRefs": [
+          "M"
+        ],
+        "score": 0.7,
+        "status": "watch",
+        "evidence": "recoverySuccessRate=1, degradedLocatorRate=0, routeMismatchRate=0, suspensionRate=0.6",
+        "measurementClass": "heuristic-proxy"
+      },
+      {
+        "obligation": "participatory-repairability",
+        "propertyRefs": [
+          "M"
+        ],
+        "score": 0,
+        "status": "critical",
+        "evidence": "proposalYield=1, recoverySuccessRate=1, needsHumanProposalShare=1, agentFallbackRate=0.6",
+        "measurementClass": "heuristic-proxy"
+      },
+      {
+        "obligation": "memory-worthiness",
+        "propertyRefs": [
+          "M"
+        ],
+        "score": 0.24,
+        "status": "critical",
+        "evidence": "surfaceCompressibilityRisk=1, surfacePredictabilityRisk=0.6, surfaceRepairabilityRisk=0.3, participatoryRepairabilityRisk=1, economicsRisk=0.6, approvedEquivalentRate=0",
+        "measurementClass": "heuristic-proxy"
+      },
+      {
+        "obligation": "meta-worthiness",
+        "propertyRefs": [
+          "M"
+        ],
+        "score": 0.27,
+        "status": "critical",
+        "evidence": "surfaceCompressibilityRisk=1, surfacePredictabilityRisk=0.6, surfaceRepairabilityRisk=0.3, participatoryRepairabilityRisk=1, memoryWorthinessRisk=0.76",
+        "measurementClass": "heuristic-proxy"
+      },
+      {
+        "obligation": "fingerprint-stability",
+        "propertyRefs": [
+          "K"
+        ],
+        "score": 0.4444,
+        "status": "critical",
+        "evidence": "delta: total=27, stable=12, added=0, removed=0, changed=15, identical=false",
+        "measurementClass": "direct"
+      }
+    ],
+    "theoremBaselineSummary": {
+      "total": 10,
+      "byStatus": {
+        "direct": 1,
+        "proxy": 8,
+        "missing": 1
+      },
+      "direct": 1,
+      "proxy": 8,
+      "missing": 1,
+      "fullyBaselined": false,
+      "directGroups": [
+        "C"
+      ],
+      "proxyGroups": [
+        "K",
+        "L",
+        "S",
+        "D",
+        "V",
+        "R",
+        "A",
+        "M"
+      ],
+      "missingGroups": [
+        "H"
+      ]
+    },
+    "resolutionByRung": [
+      {
+        "rung": "explicit",
+        "wins": 0,
+        "rate": 0
+      },
+      {
+        "rung": "control",
+        "wins": 6,
+        "rate": 0.4
+      },
+      {
+        "rung": "approved-screen-knowledge",
+        "wins": 0,
+        "rate": 0
+      },
+      {
+        "rung": "shared-patterns",
+        "wins": 0,
+        "rate": 0
+      },
+      {
+        "rung": "prior-evidence",
+        "wins": 0,
+        "rate": 0
+      },
+      {
+        "rung": "semantic-dictionary",
+        "wins": 0,
+        "rate": 0
+      },
+      {
+        "rung": "approved-equivalent-overlay",
+        "wins": 0,
+        "rate": 0
+      },
+      {
+        "rung": "structured-translation",
+        "wins": 0,
+        "rate": 0
+      },
+      {
+        "rung": "live-dom",
+        "wins": 0,
+        "rate": 0
+      },
+      {
+        "rung": "agent-interpreted",
+        "wins": 0,
+        "rate": 0
+      },
+      {
+        "rung": "needs-human",
+        "wins": 9,
+        "rate": 0.6
+      }
+    ],
+    "memoryMaturity": 4.3923,
+    "memoryMaturityEntries": 20
+  },
+  "history": [
+    {
+      "runAt": "2026-04-07T04:21:51.166Z",
+      "pipelineVersion": "5b94fb9",
+      "effectiveHitRate": 0.4,
+      "knowledgeHitRate": 0.4,
+      "translationPrecision": 1,
+      "convergenceVelocity": 3,
+      "theoremBaselineSummary": {
+        "total": 10,
+        "byStatus": {
+          "direct": 0,
+          "proxy": 9,
+          "missing": 1
+        },
+        "direct": 0,
+        "proxy": 9,
+        "missing": 1,
+        "fullyBaselined": false,
+        "directGroups": [],
+        "proxyGroups": [
+          "K",
+          "L",
+          "S",
+          "D",
+          "V",
+          "R",
+          "A",
+          "C",
+          "M"
+        ],
+        "missingGroups": [
+          "H"
+        ]
+      },
+      "improved": true,
+      "memoryMaturity": 4.3923,
+      "memoryMaturityEntries": 20
+    },
+    {
+      "runAt": "2026-04-07T04:22:32.368Z",
+      "pipelineVersion": "5b94fb9",
+      "effectiveHitRate": 0.4,
+      "knowledgeHitRate": 0.4,
+      "translationPrecision": 1,
+      "convergenceVelocity": 3,
+      "theoremBaselineSummary": {
+        "total": 10,
+        "byStatus": {
+          "direct": 0,
+          "proxy": 9,
+          "missing": 1
+        },
+        "direct": 0,
+        "proxy": 9,
+        "missing": 1,
+        "fullyBaselined": false,
+        "directGroups": [],
+        "proxyGroups": [
+          "K",
+          "L",
+          "S",
+          "D",
+          "V",
+          "R",
+          "A",
+          "C",
+          "M"
+        ],
+        "missingGroups": [
+          "H"
+        ]
+      },
+      "improved": true,
+      "memoryMaturity": 4.3923,
+      "memoryMaturityEntries": 20
+    },
+    {
+      "runAt": "2026-04-07T04:22:51.151Z",
+      "pipelineVersion": "5b94fb9",
+      "effectiveHitRate": 0.4,
+      "knowledgeHitRate": 0.4,
+      "translationPrecision": 1,
+      "convergenceVelocity": 3,
+      "theoremBaselineSummary": {
+        "total": 10,
+        "byStatus": {
+          "direct": 0,
+          "proxy": 9,
+          "missing": 1
+        },
+        "direct": 0,
+        "proxy": 9,
+        "missing": 1,
+        "fullyBaselined": false,
+        "directGroups": [],
+        "proxyGroups": [
+          "K",
+          "L",
+          "S",
+          "D",
+          "V",
+          "R",
+          "A",
+          "C",
+          "M"
+        ],
+        "missingGroups": [
+          "H"
+        ]
+      },
+      "improved": true,
+      "memoryMaturity": 4.3923,
+      "memoryMaturityEntries": 20
+    },
+    {
+      "runAt": "2026-04-07T04:23:20.891Z",
+      "pipelineVersion": "5b94fb9",
+      "effectiveHitRate": 0.4,
+      "knowledgeHitRate": 0.4,
+      "translationPrecision": 1,
+      "convergenceVelocity": 3,
+      "theoremBaselineSummary": {
+        "total": 10,
+        "byStatus": {
+          "direct": 1,
+          "proxy": 8,
+          "missing": 1
+        },
+        "direct": 1,
+        "proxy": 8,
+        "missing": 1,
+        "fullyBaselined": false,
+        "directGroups": [
+          "C"
+        ],
+        "proxyGroups": [
+          "K",
+          "L",
+          "S",
+          "D",
+          "V",
+          "R",
+          "A",
+          "M"
+        ],
+        "missingGroups": [
+          "H"
+        ]
+      },
+      "improved": true,
+      "memoryMaturity": 4.3923,
+      "memoryMaturityEntries": 20
+    }
+  ],
+  "paretoFrontier": [
+    {
+      "pipelineVersion": "5b94fb9",
+      "addedAt": "2026-04-07T04:21:51.166Z",
+      "objectives": {
+        "effectiveHitRate": 0.4,
+        "knowledgeHitRate": 0.4,
+        "translationPrecision": 1,
+        "convergenceVelocity": 3,
+        "proposalYield": 1
+      }
+    },
+    {
+      "pipelineVersion": "5b94fb9",
+      "addedAt": "2026-04-07T04:22:32.368Z",
+      "objectives": {
+        "effectiveHitRate": 0.4,
+        "knowledgeHitRate": 0.4,
+        "translationPrecision": 1,
+        "convergenceVelocity": 3,
+        "proposalYield": 1
+      }
+    },
+    {
+      "pipelineVersion": "5b94fb9",
+      "addedAt": "2026-04-07T04:22:51.151Z",
+      "objectives": {
+        "effectiveHitRate": 0.4,
+        "knowledgeHitRate": 0.4,
+        "translationPrecision": 1,
+        "convergenceVelocity": 3,
+        "proposalYield": 1
+      }
+    },
+    {
+      "pipelineVersion": "5b94fb9",
+      "addedAt": "2026-04-07T04:23:20.891Z",
+      "objectives": {
+        "effectiveHitRate": 0.4,
+        "knowledgeHitRate": 0.4,
+        "translationPrecision": 1,
+        "convergenceVelocity": 3,
+        "proposalYield": 1
+      }
+    }
+  ]
+}

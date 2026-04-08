@@ -68,10 +68,14 @@ export function summarizeUnresolvedReasons(steps: readonly BoundStep[]): readonl
     ...step.binding.reasons,
     ...(step.binding.kind === 'deferred' ? ['runtime-resolution-required'] : []),
   ]);
-  const counts = allReasons.reduce<ReadonlyMap<string, number>>(
-    (map, reason) => new Map([...map, [reason, (map.get(reason) ?? 0) + 1]]),
-    new Map(),
-  );
+  // Phase 2.4 / T7 Big-O fix: single-pass O(N) counter.
+  const counts = ((): ReadonlyMap<string, number> => {
+    const acc = new Map<string, number>();
+    for (const reason of allReasons) {
+      acc.set(reason, (acc.get(reason) ?? 0) + 1);
+    }
+    return acc;
+  })();
   return [...counts.entries()]
     .map(([reason, count]) => ({ reason, count }))
     .sort((left, right) => right.count - left.count || left.reason.localeCompare(right.reason));

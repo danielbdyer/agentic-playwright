@@ -1,28 +1,125 @@
 import { knowledgePaths } from '../../domain/kernel/ids';
+import type { ProposalCategory, ProposalEnrichment, ProposalEpistemicStatus } from '../../domain/execution/types';
 import type { IntentDecomposition } from '../../domain/knowledge/inference';
 import type { InterfaceResolutionContext, StepTaskElementCandidate, StepTaskScreenCandidate } from '../../domain/knowledge/types';
 import type { GroundedStep, ResolutionProposalDraft } from '../../domain/resolution/types';
+import { primaryAffordanceForRole, roleForWidget } from '../../domain/widgets/role-affordances';
 import type { IntentInterpretation, InterpretationSource } from './types';
+
+function roleForElement(element: StepTaskElementCandidate): string | null {
+  return element.role || (typeof element.widget === 'string' ? roleForWidget(element.widget) : null);
+}
+
+function enrichmentForElement(
+  element: StepTaskElementCandidate,
+  input: {
+    readonly source: string | null;
+    readonly epistemicStatus: ProposalEpistemicStatus;
+  },
+): ProposalEnrichment {
+  const role = roleForElement(element);
+  const affordance = role ? primaryAffordanceForRole(role) : null;
+  return {
+    ...(role ? { role } : {}),
+    ...(affordance ? { affordance } : {}),
+    ...(element.locator.length > 0 ? { locatorLadder: element.locator } : {}),
+    ...(input.source ? { source: input.source } : {}),
+    epistemicStatus: input.epistemicStatus,
+    activationPolicy: element.locator.length > 0 ? 'merge-locator-ladder' : 'set-if-absent',
+  };
+}
+
+function proposalStatusForSource(source: string): ProposalEpistemicStatus {
+  switch (source) {
+    case 'dom-exploration':
+    case 'live-dom':
+      return 'observed';
+    case 'knowledge-translation':
+    case 'agent-interpreted':
+    case 'partial-resolution':
+    case 'needs-human':
+      return 'interpreted';
+    case 'knowledge-heuristic':
+    case 'deterministic-resolution':
+      return 'stabilized';
+    default:
+      return 'discovered';
+  }
+}
 
 function enrichedPatch(screen: string, element: StepTaskElementCandidate, alias: string): Record<string, unknown> {
   return {
     screen,
     element: element.element,
     alias,
-    ...(element.role ? { role: element.role } : {}),
-    ...(element.widget ? { widget: String(element.widget) } : {}),
-    ...(element.locator && element.locator.length > 0 ? { locator: element.locator } : {}),
+  };
+}
+
+function aliasProposal(input: {
+  readonly category: ProposalCategory;
+  readonly task: GroundedStep;
+  readonly screen: StepTaskScreenCandidate;
+  readonly element: StepTaskElementCandidate;
+  readonly alias: string;
+  readonly title: string;
+  readonly rationale: string;
+  readonly source: string | null;
+  readonly epistemicStatus: ProposalEpistemicStatus;
+}): ResolutionProposalDraft {
+  return {
+    artifactType: 'hints',
+    category: input.category,
+    targetPath: knowledgePaths.hints(input.screen.screen),
+    title: input.title,
+    patch: enrichedPatch(input.screen.screen, input.element, input.alias),
+    enrichment: enrichmentForElement(input.element, {
+      source: input.source,
+      epistemicStatus: input.epistemicStatus,
+    }),
+    rationale: input.rationale,
+  };
+}
+
+function screenAliasProposal(input: {
+  readonly category: ProposalCategory;
+  readonly task: GroundedStep;
+  readonly screen: StepTaskScreenCandidate;
+  readonly alias: string;
+  readonly title: string;
+  readonly rationale: string;
+  readonly source: string | null;
+  readonly epistemicStatus: ProposalEpistemicStatus;
+}): ResolutionProposalDraft {
+  return {
+    artifactType: 'hints',
+    category: input.category,
+    targetPath: knowledgePaths.hints(input.screen.screen),
+    title: input.title,
+    patch: {
+      screen: input.screen.screen,
+      screenAlias: input.alias,
+    },
+    enrichment: {
+      ...(input.source ? { source: input.source } : {}),
+      epistemicStatus: input.epistemicStatus,
+      activationPolicy: 'append-aliases',
+    },
+    rationale: input.rationale,
   };
 }
 
 export function proposalForSupplementGap(task: GroundedStep, screen: StepTaskScreenCandidate, element: StepTaskElementCandidate): ResolutionProposalDraft[] {
-  return [{
-    artifactType: 'hints',
-    targetPath: knowledgePaths.hints(screen.screen),
+  return [aliasProposal({
+    category: 'interpretation-enrichment',
+    task,
+    screen,
+    element,
+    alias: task.actionText,
     title: `Capture phrasing for step ${task.index}`,
-    patch: enrichedPatch(screen.screen, element, task.actionText),
     rationale: 'Runtime resolved the step through live DOM after approved knowledge exhausted its deterministic priors.',
-  }];
+    source: 'live-dom',
+    epistemicStatus: 'observed',
+  })];
 }
 
 // ─── WP4: Interpretation-Based Proposal Generation ───
@@ -66,41 +163,39 @@ export function proposalsFromInterpretation(
       (entry) => entry.element === interpretation.interpretedElement,
     );
     if (element && !element.aliases.includes(task.actionText)) {
-      return [{
-        artifactType: 'hints' as const,
-        targetPath: knowledgePaths.hints(screen.screen),
+      return [aliasProposal({
+        category: 'interpretation-enrichment',
+        task,
+        screen,
+        element,
+        alias: task.actionText,
         title: `Add alias from ${interpretation.source} interpretation (step ${task.index})`,
-        patch: {
-          screen: screen.screen,
-          element: element.element,
-          alias: task.actionText,
-          source: interpretation.source,
-        },
         rationale,
-      }];
+        source: interpretation.source,
+        epistemicStatus: proposalStatusForSource(interpretation.source),
+      })];
     }
     return [];
   })();
 
   // Propose screen alias when screen was interpreted but not via approved knowledge
-  const screenAliasProposal: ResolutionProposalDraft[] = (() => {
+  const screenAliasProposals: ResolutionProposalDraft[] = (() => {
     if (interpretation.source === 'knowledge-heuristic') return [];
     const screenAliasCandidate = task.actionText.toLowerCase().trim();
     const existingScreenAliases = [screen.screen, ...screen.screenAliases].map(
       (alias) => alias.toLowerCase(),
     );
     if (!existingScreenAliases.includes(screenAliasCandidate)) {
-      return [{
-        artifactType: 'hints' as const,
-        targetPath: knowledgePaths.hints(screen.screen),
+      return [screenAliasProposal({
+        category: 'interpretation-enrichment',
+        task,
+        screen,
+        alias: task.actionText,
         title: `Add screen alias from ${interpretation.source} interpretation (step ${task.index})`,
-        patch: {
-          screen: screen.screen,
-          screenAlias: task.actionText,
-          source: interpretation.source,
-        },
         rationale,
-      }];
+        source: interpretation.source,
+        epistemicStatus: proposalStatusForSource(interpretation.source),
+      })];
     }
     return [];
   })();
@@ -115,10 +210,14 @@ export function proposalsFromInterpretation(
       (entry) => entry.element === interpretation.interpretedElement,
     );
     if (!element) return [];
-    return proposalsFromDecomposition(task, screen, element, interpretation.decomposition);
+    return proposalsFromDecomposition(task, screen, element, interpretation.decomposition, {
+      category: 'interpretation-enrichment',
+      source: interpretation.source,
+      epistemicStatus: proposalStatusForSource(interpretation.source),
+    });
   })();
 
-  const proposals: ResolutionProposalDraft[] = [...elementProposal, ...screenAliasProposal, ...decompositionProposals];
+  const proposals: ResolutionProposalDraft[] = [...elementProposal, ...screenAliasProposals, ...decompositionProposals];
 
   return proposals;
 }
@@ -164,39 +263,55 @@ export function proposalsForNeedsHuman(
 
   const screenNoElement: readonly ResolutionProposalDraft[] =
     resolvedScreen && !resolvedElement && resolvedScreen.elements.length > 0
-      ? [{
-          artifactType: 'hints' as const,
-          targetPath: knowledgePaths.hints(resolvedScreen.screen),
+      ? [aliasProposal({
+          category: 'needs-human',
+          task,
+          screen: resolvedScreen,
+          element: resolvedScreen.elements[0]!,
+          alias: task.actionText,
           title: `Add element alias for unresolved step ${task.index}`,
-          patch: enrichedPatch(resolvedScreen.screen, resolvedScreen.elements[0]!, task.actionText),
           rationale: `Screen "${resolvedScreen.screen}" was ${screen ? 'matched by lattice' : 'identified by LLM interpretation'} but no element alias matched "${task.actionText}". Proposing alias on candidate element "${resolvedScreen.elements[0]!.element}".`,
-        }]
+          source: interpretation?.source ?? 'needs-human',
+          epistemicStatus: interpretation ? proposalStatusForSource(interpretation.source) : 'discovered',
+        })]
       : !resolvedScreen && resolutionContext.screens.length > 0 && resolutionContext.screens[0]!.elements.length > 0
-        ? [{
-            artifactType: 'hints' as const,
-            targetPath: knowledgePaths.hints(resolutionContext.screens[0]!.screen),
+        ? [aliasProposal({
+            category: 'needs-human',
+            task,
+            screen: resolutionContext.screens[0]!,
+            element: resolutionContext.screens[0]!.elements[0]!,
+            alias: task.actionText,
             title: `Add alias for unresolved step ${task.index} (no screen matched)`,
-            patch: enrichedPatch(resolutionContext.screens[0]!.screen, resolutionContext.screens[0]!.elements[0]!, task.actionText),
             rationale: `No screen alias matched the action text "${task.actionText}". Proposing alias on screen "${resolutionContext.screens[0]!.screen}" element "${resolutionContext.screens[0]!.elements[0]!.element}" as a starting point.`,
-          }]
+            source: interpretation?.source ?? 'needs-human',
+            epistemicStatus: interpretation ? proposalStatusForSource(interpretation.source) : 'discovered',
+          })]
         : [];
 
   // LLM decomposition proposals — if the LLM suggested aliases, include them
   const decompositionProposals: ResolutionProposalDraft[] = (() => {
     if (!interpretation?.decomposition?.suggestedAliases?.length) return [];
     if (!resolvedScreen || !resolvedElement) return [];
-    return proposalsFromDecomposition(task, resolvedScreen, resolvedElement, interpretation.decomposition);
+    return proposalsFromDecomposition(task, resolvedScreen, resolvedElement, interpretation.decomposition, {
+      category: 'needs-human',
+      source: interpretation.source,
+      epistemicStatus: proposalStatusForSource(interpretation.source),
+    });
   })();
 
   const bothMatched: readonly ResolutionProposalDraft[] =
     resolvedScreen && resolvedElement
-      ? [{
-          artifactType: 'hints' as const,
-          targetPath: knowledgePaths.hints(resolvedScreen.screen),
+      ? [aliasProposal({
+          category: 'needs-human',
+          task,
+          screen: resolvedScreen,
+          element: resolvedElement,
+          alias: task.actionText,
           title: `Capture phrasing gap for step ${task.index}`,
-          patch: enrichedPatch(resolvedScreen.screen, resolvedElement, task.actionText),
           rationale: `Screen and element matched but resolution was incomplete. Action text: "${task.actionText}".`,
-        }]
+          source: interpretation?.source ?? 'needs-human',
+          epistemicStatus: interpretation ? proposalStatusForSource(interpretation.source) : 'discovered',
+        })]
       : [];
 
   return [...screenNoElement, ...bothMatched, ...decompositionProposals];
@@ -221,18 +336,17 @@ export function proposalsForDeterministicResolution(
   if (!alias) return [];
   // Don't propose if the alias is already known
   if (element.aliases.some((a) => a.toLowerCase() === alias.toLowerCase())) return [];
-  return [{
-    artifactType: 'hints',
-    targetPath: knowledgePaths.hints(screen.screen),
+  return [aliasProposal({
+    category: 'deterministic-alias-stabilization',
+    task,
+    screen,
+    element,
+    alias,
     title: `Stabilize alias from ${winningSource} resolution (step ${task.index})`,
-    patch: {
-      screen: screen.screen,
-      element: element.element,
-      alias,
-      source: winningSource,
-    },
     rationale: `Step resolved deterministically via ${winningSource} but the action text "${alias}" is not yet a known alias. Adding it prevents future phrasing drift from falling through to more expensive resolution rungs.`,
-  }];
+    source: winningSource,
+    epistemicStatus: 'stabilized',
+  })];
 }
 
 /**
@@ -255,13 +369,17 @@ export function proposalsForPartialResolution(
   const best = topCandidates[0]!;
   if (best.aliases.some((a) => a.toLowerCase() === alias.toLowerCase())) return [];
 
-  return [{
-    artifactType: 'hints',
-    targetPath: knowledgePaths.hints(screen.screen),
+  return [aliasProposal({
+    category: 'partial-resolution-stabilization',
+    task,
+    screen,
+    element: best,
+    alias,
     title: `Supplementary alias for ambiguous step ${task.index}`,
-    patch: enrichedPatch(screen.screen, best, alias),
     rationale: `Screen "${screen.screen}" matched but element resolution was ambiguous among ${topCandidates.length} candidates. Proposing alias on best candidate "${best.element}" to accelerate convergence.`,
-  }];
+    source: 'partial-resolution',
+    epistemicStatus: 'interpreted',
+  })];
 }
 
 /**
@@ -286,6 +404,7 @@ export function proposalsForColdStartDiscovery(
   // Base proposal: the action text itself
   const proposals: ResolutionProposalDraft[] = [{
     artifactType: 'hints',
+    category: 'cold-start-discovery',
     targetPath: 'knowledge/screens/discovered.hints.yaml',
     title: `Cold-start discovery for step ${task.index}`,
     patch: {
@@ -296,6 +415,11 @@ export function proposalsForColdStartDiscovery(
       ...(decomposition?.verb ? { verb: decomposition.verb } : {}),
       ...(decomposition?.target ? { target: decomposition.target } : {}),
       ...(decomposition?.data ? { data: decomposition.data } : {}),
+    },
+    enrichment: {
+      source: 'cold-start-discovery',
+      epistemicStatus: 'discovered',
+      activationPolicy: 'append-aliases',
     },
     rationale: decomposition
       ? `Cold-start discovery with LLM decomposition: verb="${decomposition.verb}", target="${decomposition.target}". The LLM's comprehension will help route this alias to the correct screen once screens are discovered.`
@@ -310,9 +434,15 @@ export function proposalsForColdStartDiscovery(
       if (trimmed && trimmed !== alias.toLowerCase()) {
         proposals.push({
           artifactType: 'hints',
+          category: 'cold-start-discovery',
           targetPath: 'knowledge/screens/discovered.hints.yaml',
           title: `LLM-suggested variant for step ${task.index}: "${trimmed}"`,
           patch: { screen: 'discovered', element: 'unknown', alias: trimmed },
+          enrichment: {
+            source: 'cold-start-discovery',
+            epistemicStatus: 'discovered',
+            activationPolicy: 'append-aliases',
+          },
           rationale: `LLM suggested "${trimmed}" as an equivalent phrasing during cold-start discovery.`,
         });
       }
@@ -339,6 +469,15 @@ export function proposalsFromDecomposition(
   screen: StepTaskScreenCandidate,
   element: StepTaskElementCandidate,
   decomposition: IntentDecomposition,
+  options: {
+    readonly category: ProposalCategory;
+    readonly source: string;
+    readonly epistemicStatus: ProposalEpistemicStatus;
+  } = {
+    category: 'interpretation-enrichment',
+    source: 'knowledge-translation',
+    epistemicStatus: 'interpreted',
+  },
 ): ResolutionProposalDraft[] {
   if (decomposition.suggestedAliases.length === 0) return [];
 
@@ -348,12 +487,16 @@ export function proposalsFromDecomposition(
     .map((alias) => alias.toLowerCase().trim())
     .filter((alias) => alias.length > 0 && !existingAliases.has(alias))
     .slice(0, 5) // Cap to prevent alias bloat
-    .map((alias): ResolutionProposalDraft => ({
-      artifactType: 'hints',
-      targetPath: knowledgePaths.hints(screen.screen),
+    .map((alias): ResolutionProposalDraft => aliasProposal({
+      category: options.category,
+      task,
+      screen,
+      element,
+      alias,
       title: `LLM-suggested alias for step ${task.index}: "${alias}"`,
-      patch: enrichedPatch(screen.screen, element, alias),
       rationale: `LLM decomposition suggested "${alias}" as an equivalent phrasing for "${task.actionText}" (confidence: ${decomposition.confidence}). Adding to make future resolution deterministic.`,
+      source: options.source,
+      epistemicStatus: options.epistemicStatus,
     }));
 }
 

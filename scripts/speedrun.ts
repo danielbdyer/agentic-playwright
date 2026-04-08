@@ -1,24 +1,37 @@
 /**
  * Self-improving pipeline speedrun — CLI wrapper.
  *
- * Full mode:
- *   npx tsx scripts/speedrun.ts [--count N] [--seed S] [--seeds S1,S2,S3]
- *        [--max-iterations N] [--posture cold-start|warm-start|production]
- *        [--mode playwright|diagnostic]
- *        [--lexical-gap G] [--data-var D] [--coverage-gap G] [--cross-screen C]
- *        [--drift-count N]
+ * Doctrinal four-verb model (fifth-kind loop):
  *
- * Segmented mode (step-through individual phases):
+ *   npx tsx scripts/speedrun.ts corpus    [--seed S]
+ *       Loop A: generate the 12-cohort reference workload to
+ *       dogfood/scenarios/reference/. Idempotent on seed.
+ *
+ *   npx tsx scripts/speedrun.ts iterate   [--max-iterations N] [--posture P]
+ *       Loop B: run the dogfood substrate-growth loop against the
+ *       checked-in corpus. Reads the corpus; never regenerates.
+ *
+ *   npx tsx scripts/speedrun.ts fitness   [--seed S]
+ *       Compute the pipeline fitness report from run records.
+ *
+ *   npx tsx scripts/speedrun.ts score     [--baseline LABEL|latest]
+ *       Loop C: build the L4 metric tree from the latest fitness
+ *       report and (optionally) diff against a stored baseline.
+ *
+ *   npx tsx scripts/speedrun.ts baseline  --label LABEL
+ *       Snapshot the L4 metric tree as a labeled baseline.
+ *
+ * Legacy phase verbs (still supported):
+ *
  *   npx tsx scripts/speedrun.ts generate  [--count N] [--seed S]
  *   npx tsx scripts/speedrun.ts compile   [--tag TAG]
- *   npx tsx scripts/speedrun.ts iterate   [--max-iterations N] [--posture P]
- *   npx tsx scripts/speedrun.ts fitness   [--seed S]
  *   npx tsx scripts/speedrun.ts report
  *
- * Each phase reads from and writes to disk artifacts, enabling agents
- * and operators to inspect intermediate state between phases.
+ * Bare invocation prints `help` and exits with code 1. The previous
+ * bundled "no-subcommand → multiSeedSpeedrun" default has been removed
+ * outright — the four-verb model is the only supported entry point.
  *
- * All orchestration lives in lib/application/speedrun.ts. This script is a thin
+ * All orchestration lives in lib/application/. This script is a thin
  * CLI wrapper: parse args → build input → call Effect program → print results.
  */
 
@@ -26,15 +39,21 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { createProjectPaths } from '../lib/application/paths';
 import {
-  multiSeedSpeedrun,
   generatePhase,
   compilePhase,
   iteratePhase,
   fitnessPhase,
   reportPhase,
-  type MultiSeedResult,
 } from '../lib/application/improvement/speedrun';
 import { resolveKnowledgePosture } from '../lib/application/knowledge/knowledge-posture';
+import { generateCohortCorpus } from '../lib/application/synthesis/cohort-generator';
+import {
+  score as scoreCommand,
+  captureBaseline,
+} from '../lib/application/measurement';
+import { buildL4MetricTree } from '../lib/domain/fitness/metric/visitors';
+import { findLatestFitnessReport } from '../lib/application/measurement/score';
+import { foldMetricTree } from '../lib/domain/fitness/metric/tree';
 import { runWithLocalServices } from '../lib/composition/local-services';
 import type { PipelineConfig } from '../lib/domain/attention/pipeline-config';
 import type { PipelineFitnessReport } from '../lib/domain/fitness/types';
@@ -66,18 +85,9 @@ function argVal(name: string, fallback: string): string {
 
 const count = Number(argVal('--count', '50'));
 const singleSeed = argVal('--seed', 'speedrun-v1');
-const multiSeeds = args.includes('--seeds') ? argVal('--seeds', '').split(',').filter(Boolean) : [];
-const seeds = multiSeeds.length > 0 ? multiSeeds : [singleSeed];
 const maxIterations = Number(argVal('--max-iterations', '5'));
 const configPath = argVal('--config', '');
 const experimentTag = argVal('--tag', '');
-const substrate = argVal('--substrate', 'synthetic') as 'synthetic' | 'production' | 'hybrid';
-const lexicalGap = args.includes('--lexical-gap') ? Number(argVal('--lexical-gap', '0')) : 0;
-const dataVariation = args.includes('--data-var') ? Number(argVal('--data-var', '0')) : 0;
-const coverageGap = args.includes('--coverage-gap') ? Number(argVal('--coverage-gap', '0')) : 0;
-const crossScreen = args.includes('--cross-screen') ? Number(argVal('--cross-screen', '0')) : 0;
-const hasFineGrainedPerturb = lexicalGap > 0 || dataVariation > 0 || coverageGap > 0 || crossScreen > 0;
-const driftCount = args.includes('--drift-count') ? Number(argVal('--drift-count', '0')) : 0;
 const explicitPosture = args.includes('--posture') ? argVal('--posture', '') as KnowledgePosture : undefined;
 const rawMode = args.includes('--mode') ? argVal('--mode', 'playwright') : 'playwright';
 const effectiveMode = rawMode === 'escalate' ? 'playwright' : rawMode;
@@ -88,7 +98,7 @@ const explicitBaseUrl = args.includes('--base-url') ? argVal('--base-url', '') :
 
 const rootDir = process.cwd();
 const paths = createProjectPaths(rootDir, path.join(rootDir, 'dogfood'));
-const knowledgePosture = resolveKnowledgePosture(paths.postureConfigPath, explicitPosture);
+const knowledgePosture = resolveKnowledgePosture(explicitPosture);
 
 function loadPipelineConfig(): PipelineConfig {
   if (!configPath) return DEFAULT_PIPELINE_CONFIG;
@@ -217,30 +227,22 @@ function printMetrics(report: PipelineFitnessReport): void {
   }
 }
 
-function printResult(result: MultiSeedResult): void {
-  if (result.seedResults.length > 1) {
-    console.log(`\n${'='.repeat(60)}`);
-    console.log(`=== Averaged Metrics (${result.seedResults.length} seeds) ===`);
-    console.log(`${'='.repeat(60)}`);
-  }
-
-  printMetrics(result.fitnessReport);
-
-  console.log(`\n=== Scorecard Comparison ===\n`);
-  console.log(result.comparison.summary);
-  console.log(`  Knowledge hit rate delta: ${result.comparison.knowledgeHitRateDelta > 0 ? '+' : ''}${result.comparison.knowledgeHitRateDelta}`);
-  console.log(`  Translation precision delta: ${result.comparison.translationPrecisionDelta > 0 ? '+' : ''}${result.comparison.translationPrecisionDelta}`);
-
-  console.log(result.scorecardUpdated
-    ? '\nScorecard UPDATED — new high-water-mark set.'
-    : '\nScorecard unchanged — did not beat the mark.');
-
-  console.log('\nSpeedrun complete.');
-}
-
 // ─── Subcommand detection ───
 
-const SUBCOMMANDS = ['generate', 'compile', 'iterate', 'fitness', 'report'] as const;
+const SUBCOMMANDS = [
+  // Doctrinal four-verb model (fifth-kind loop)
+  'corpus',
+  'iterate',
+  'fitness',
+  'score',
+  'baseline',
+  // Legacy phase verbs (still supported for one-shot use)
+  'generate',
+  'compile',
+  'report',
+  // Help
+  'help',
+] as const;
 type Subcommand = typeof SUBCOMMANDS[number];
 const subcommand: Subcommand | null =
   args.length > 0 && SUBCOMMANDS.includes(args[0] as Subcommand) ? args[0] as Subcommand : null;
@@ -349,6 +351,104 @@ async function runReport(): Promise<void> {
     : '\nScorecard unchanged — did not beat the mark.');
 }
 
+// ─── Loop A / C verbs (fifth-kind loop) ───
+
+async function runCorpus(): Promise<void> {
+  const masterSeed = singleSeed;
+  console.log(`Generating reference cohort corpus (master seed: ${masterSeed})...`);
+  const result = await runWithLocalServices(
+    generateCohortCorpus({ paths, masterSeed }),
+    rootDir,
+    serviceOptions,
+  );
+  console.log(`Generated ${result.totalScenarios} scenarios across ${result.cohorts.length} cohorts`);
+  console.log(`Aggregate hash: ${result.manifest.contentHash}`);
+  console.log(`Manifest: ${result.manifestPath}`);
+  for (const cohort of result.cohorts) {
+    console.log(`  ${cohort.cohortId.padEnd(22)} ${String(cohort.count).padStart(3)} scenarios  ${cohort.contentHash}`);
+  }
+}
+
+async function runBaseline(): Promise<void> {
+  const label = argVal('--label', '');
+  if (!label) {
+    console.error('baseline subcommand requires --label LABEL');
+    process.exit(2);
+  }
+  console.log(`Capturing L4 metric baseline as '${label}'...`);
+
+  const { Effect } = await import('effect');
+  const captured = await runWithLocalServices(
+    Effect.gen(function* () {
+      const report = yield* findLatestFitnessReport(paths);
+      if (report === null) {
+        return yield* Effect.fail(
+          new Error('No fitness report found in .tesseract/benchmarks/runs/. Run `speedrun fitness` (or full mode) first.'),
+        );
+      }
+      const tree = buildL4MetricTree({
+        metrics: report.metrics,
+        computedAt: new Date().toISOString(),
+      });
+      return yield* captureBaseline({
+        paths,
+        label,
+        tree,
+        commitSha: null,
+        pipelineVersion: report.pipelineVersion,
+      });
+    }),
+    rootDir,
+    serviceOptions,
+  );
+
+  console.log(`Baseline captured: ${captured.path}`);
+  console.log(`Label: ${captured.baseline.label}`);
+}
+
+async function runScore(): Promise<void> {
+  const baselineLabel = args.includes('--baseline') ? argVal('--baseline', 'latest') : undefined;
+  const label = baselineLabel === undefined ? '(no baseline)' : baselineLabel;
+  console.log(`Computing L4 score (baseline: ${label})...`);
+
+  const { Effect } = await import('effect');
+  const result = await runWithLocalServices(
+    Effect.gen(function* () {
+      const opts = baselineLabel !== undefined
+        ? { paths, baselineLabel: baselineLabel as 'latest' | string }
+        : { paths };
+      return yield* scoreCommand(opts);
+    }),
+    rootDir,
+    serviceOptions,
+  );
+
+  console.log(`\n=== L4 metric tree (root: ${result.tree.metric.kind}) ===`);
+  const flat = foldMetricTree<readonly { kind: string; value: number; depth: number }[]>(
+    result.tree,
+    (metric, childResults) => [
+      { kind: metric.kind, value: metric.value, depth: 0 },
+      ...childResults.flatMap((kids) => kids.map((k) => ({ ...k, depth: k.depth + 1 }))),
+    ],
+  );
+  for (const entry of flat) {
+    const indent = '  '.repeat(entry.depth);
+    console.log(`${indent}${entry.kind.padEnd(40 - entry.depth * 2)} ${entry.value.toFixed(4)}`);
+  }
+
+  if (result.delta && result.verdict) {
+    console.log(`\n=== Delta vs '${result.baseline?.label}' (verdict: ${result.verdict}) ===`);
+    for (const entry of result.delta.entries) {
+      if (entry.direction === 'unchanged' || entry.direction === 'incomparable') continue;
+      const arrow = entry.direction === 'better' ? '↑' : entry.direction === 'worse' ? '↓' : '·';
+      const before = entry.before?.toFixed(4) ?? '—';
+      const after = entry.after?.toFixed(4) ?? '—';
+      const abs = entry.absolute !== null ? (entry.absolute >= 0 ? '+' : '') + entry.absolute.toFixed(4) : '—';
+      console.log(`  ${arrow} ${entry.kind.padEnd(38)} ${before} → ${after}  (${abs})  [${entry.direction}]`);
+    }
+  }
+}
+
 // ─── Fixture server + browser pool lifecycle helper ───
 
 interface PlaywrightEnvironment {
@@ -394,51 +494,60 @@ async function withPlaywrightEnvironment<T>(fn: (env: PlaywrightEnvironment) => 
   }
 }
 
-// ─── Full speedrun (default, no subcommand) ───
+// ─── Help ───
+//
+// Bare invocation prints help and exits with code 1. The previous
+// "no-subcommand → multiSeedSpeedrun" default has been removed
+// outright. Operators compose the four doctrinal verbs explicitly.
 
-async function runFull(): Promise<void> {
-  const pipelineConfig = loadPipelineConfig();
-  const progressPath = path.join(rootDir, '.tesseract', 'runs', 'speedrun-progress.jsonl');
-  const onProgress = createProgressCallback(progressPath);
-
-  console.log(`Pipeline version: (resolved at runtime)`);
-  console.log(`Knowledge posture: ${knowledgePosture}`);
-  console.log(`Mode: ${effectiveMode}`);
-  console.log(`Seeds: ${seeds.join(', ')}`);
-  console.log(`Count: ${count}, Max iterations: ${maxIterations}`);
-  if (lexicalGap > 0) console.log(`Lexical gap: ${lexicalGap}`);
-  if (driftCount > 0) console.log(`Drift mutations: ${driftCount}`);
-
-  const result = await withPlaywrightEnvironment((env) => runWithLocalServices(
-    multiSeedSpeedrun({
-      paths,
-      config: pipelineConfig,
-      seeds,
-      count,
-      maxIterations,
-      substrate,
-      perturbationRate: lexicalGap > 0 ? lexicalGap : undefined,
-      perturbation: hasFineGrainedPerturb ? { lexicalGap, dataVariation, coverageGap, crossScreen } : undefined,
-      tag: experimentTag || undefined,
-      knowledgePosture,
-      driftCount: driftCount > 0 ? driftCount : undefined,
-      onProgress,
-      interpreterMode: effectiveMode as 'dry-run' | 'diagnostic' | 'playwright',
-      baseUrl: env.baseUrl,
-      browserPool: env.browserPool,
-    }),
-    rootDir,
-    {
-      ...serviceOptions,
-      pipelineConfig,
-      browserPool: env.browserPool,
-    },
-  ));
-
-  printResult(result);
+async function runHelp(): Promise<void> {
+  const lines: readonly string[] = [
+    '',
+    'tesseract speedrun — pipeline iteration shell',
+    '',
+    'Doctrinal four-verb model (fifth-kind loop):',
+    '',
+    '  speedrun corpus    [--seed S]',
+    '      Loop A: generate the 12-cohort reference workload to',
+    '      dogfood/scenarios/reference/. Idempotent on seed.',
+    '',
+    '  speedrun iterate   [--max-iterations N] [--posture P]',
+    '      Loop B: run the dogfood substrate-growth loop against the',
+    '      checked-in corpus. Reads the corpus; never regenerates it.',
+    '',
+    '  speedrun fitness   [--seed S]',
+    '      Compute the pipeline fitness report from run records.',
+    '      Output feeds both the legacy scorecard and the L4 score verb.',
+    '',
+    '  speedrun score     [--baseline LABEL|latest]',
+    '      Loop C: build the L4 metric tree from the latest fitness',
+    '      report and (optionally) diff it against a stored baseline.',
+    '',
+    '  speedrun baseline  --label LABEL',
+    '      Capture the L4 metric tree as a labeled snapshot under',
+    '      .tesseract/baselines/{LABEL}.baseline.json.',
+    '',
+    'Legacy phase verbs (still supported):',
+    '',
+    '  speedrun generate  [--count N] [--seed S]',
+    '      Pre-cohort single-batch generator. Writes to',
+    '      dogfood/scenarios/synthetic/. New work should use `corpus`.',
+    '',
+    '  speedrun compile   [--tag TAG]',
+    '      Compile scenarios into bound form. Internal step of iterate;',
+    '      occasionally useful as a one-shot.',
+    '',
+    '  speedrun report',
+    '      Compare the latest fitness report against the legacy',
+    '      scorecard high-water-mark.',
+    '',
+    'Usage:',
+    '  npx tsx scripts/speedrun.ts <subcommand> [flags]',
+    '  npx tsx scripts/speedrun.ts help     # show this message',
+    '',
+  ];
+  for (const line of lines) console.log(line);
 }
-
-// ─── Dispatch ───
 
 const dispatch: Record<Subcommand, () => Promise<void>> = {
   generate: runGenerate,
@@ -446,9 +555,23 @@ const dispatch: Record<Subcommand, () => Promise<void>> = {
   iterate: runIterate,
   fitness: runFitness,
   report: runReport,
+  corpus: runCorpus,
+  baseline: runBaseline,
+  score: runScore,
+  help: runHelp,
 };
 
-const runner = subcommand ? dispatch[subcommand] : runFull;
+// Bare invocation: print help and exit non-zero. The previous
+// "no-subcommand → multiSeedSpeedrun" default has been removed
+// outright.
+async function runBareDefault(): Promise<void> {
+  console.error('Error: speedrun requires an explicit subcommand. See:');
+  console.error('');
+  await runHelp();
+  process.exit(1);
+}
+
+const runner = subcommand ? dispatch[subcommand] : runBareDefault;
 
 runner().catch((error) => {
   console.error(`Speedrun${subcommand ? ` (${subcommand})` : ''} failed:`, error);

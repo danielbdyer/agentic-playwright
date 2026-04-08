@@ -23,6 +23,7 @@ import {
   certificationStates,
   validateCanonicalLineage,
   validateProposalActivation,
+  validateProposalEnrichment,
   validateTrustPolicyArtifactType,
   validateWorkflowEnvelopeHeader,
 } from './shared';
@@ -36,9 +37,22 @@ export function validateProposalBundleArtifact(value: unknown): ProposalBundle {
       proposalId: expectString(proposal.proposalId, `proposalBundle.payload.proposals[${index}].proposalId`),
       stepIndex: expectNumber(proposal.stepIndex, `proposalBundle.payload.proposals[${index}].stepIndex`),
       artifactType: validateTrustPolicyArtifactType(proposal.artifactType, `proposalBundle.payload.proposals[${index}].artifactType`),
+      category: proposal.category === undefined
+        ? null
+        : expectEnum(proposal.category, `proposalBundle.payload.proposals[${index}].category`, [
+            'cold-start-discovery',
+            'needs-human',
+            'partial-resolution-stabilization',
+            'deterministic-alias-stabilization',
+            'interpretation-enrichment',
+            'route-discovery',
+          ] as const),
       targetPath: expectString(proposal.targetPath, `proposalBundle.payload.proposals[${index}].targetPath`),
       title: expectString(proposal.title, `proposalBundle.payload.proposals[${index}].title`),
       patch: expectRecord(proposal.patch ?? {}, `proposalBundle.payload.proposals[${index}].patch`),
+      enrichment: proposal.enrichment === undefined
+        ? null
+        : validateProposalEnrichment(proposal.enrichment, `proposalBundle.payload.proposals[${index}].enrichment`),
       evidenceIds: expectStringArray(proposal.evidenceIds ?? [], `proposalBundle.payload.proposals[${index}].evidenceIds`),
       impactedSteps: expectArray(proposal.impactedSteps ?? [], `proposalBundle.payload.proposals[${index}].impactedSteps`).map((stepIndex, impactedIndex) =>
         expectNumber(stepIndex, `proposalBundle.payload.proposals[${index}].impactedSteps[${impactedIndex}]`),

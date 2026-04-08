@@ -37,6 +37,7 @@ export function defaultDogfoodConfig(): DogfoodConfig {
 // ─── Loop Continuation Predicate ───
 
 export interface LoopMetrics {
+  readonly effectiveHitRate?: number | undefined;
   readonly knowledgeHitRate: number;
   readonly proposalYield: number;
   readonly translationPrecision: number;
@@ -54,7 +55,7 @@ export interface LoopMetrics {
  * Returns false (stop) when any of:
  * - iteration >= maxIterations
  * - costSoFar >= maxCost
- * - knowledgeHitRate >= convergenceThreshold
+ * - effectiveHitRate (or knowledgeHitRate when unavailable) >= convergenceThreshold
  * - the Lyapunov function detects a fixed point (3-window, epsilon 0.001)
  * - the estimated termination bound from current progress exceeds remaining budget
  */
@@ -70,9 +71,10 @@ export function shouldContinueLoop(
   // Execution health critically low — override convergence checks and keep iterating.
   // The healthScore is maturity-dampened, so early iterations won't trigger this.
   const healthCritical = metrics.healthScore !== undefined && metrics.healthScore < 0.3;
+  const gateHitRate = metrics.effectiveHitRate ?? metrics.knowledgeHitRate;
 
   // Convergence threshold met (but health can override)
-  if (metrics.knowledgeHitRate >= config.convergenceThreshold && !healthCritical) return false;
+  if (gateHitRate >= config.convergenceThreshold && !healthCritical) return false;
 
   // Lyapunov fixed-point detection on energy history
   const _lyapunov = knowledgeHitRateLyapunov();
