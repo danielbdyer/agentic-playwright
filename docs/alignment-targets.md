@@ -6,6 +6,46 @@
 This is the wall. Two scoreboard metrics get top billing; everything
 else is diagnostic.
 
+## Why this wall
+
+The two scoreboard metrics (M5, C6) operationalize the two-engine
+framing from [`docs/canon-and-derivation.md`](./canon-and-derivation.md)
+§ 9:
+
+- **M5 (Memory Worthiness Ratio)** measures the **deterministic
+  discovery engine**'s payoff: is remembering worth more than
+  forgetting across cohort trajectories? It is the quantitative
+  form of K5 (marginal discovery decay) from
+  `docs/archive/research/temporal-epistemic-specification-addendum.md`.
+  A system that compounds has an M5 slope above 1.0 and rising; a
+  system that merely accumulates artifacts without earning
+  compounding leverage has flat or descending M5 regardless of how
+  sophisticated its runtime looks.
+- **C6 (Intervention-Adjusted Economics)** measures the **agentic
+  intervention engine**'s payoff: when an agent writes an agentic
+  override, does the override actually reduce ambiguity /
+  suspension / rung-score in its attachment region within N runs?
+  If fewer than half of accepted augmentations do so, the
+  intervention layer is ornamental — which is the exact regression
+  mode the scoreboard is built to prevent.
+
+Together, M5 and C6 are the operationalization of the ROI target
+in `docs/canon-and-derivation.md` § 14.1: a token-cost trend-line
+that plateaus to a linear floor as the canonical artifact store
+matures. "Token cost per test case" is not itself a first-class
+metric — it is the emergent consequence of M5 and C6 both holding
+simultaneously. The temporal-epistemic addendum's
+`BootstrapCostSeeded(task,τ)` and `BootstrapCostBlank(task,τ)`
+functions are the formal proxies: when the ratio
+`BootstrapCostBlank / BootstrapCostSeeded` grows monotonically with
+cohort maturity, the plateau has arrived. M5's cohort-trajectory
+slope captures this relationship.
+
+Diagnostic metrics (further below) remain useful for situational
+awareness but cannot be used as acceptance gates. A change that
+improves `effectiveHitRate` without moving M5 or C6 is not, by
+itself, compounding.
+
 ## Top-of-wall scoreboard
 
 ### M5 — Memory Worthiness Ratio
@@ -26,6 +66,28 @@ answer — *is remembering worth more than forgetting?*  If M5 is flat or
 descending across a quarter, the architecture is not compounding even
 if it is sophisticated. Compounding is the test; everything else is
 the ground truth.
+
+**Implementation dependency**: M5 is a *cohort-trajectory slope*,
+not a point-in-time value. It cannot be computed from a single
+fitness report. It requires:
+
+1. A branded `MemoryMaturity` scalar — already present at
+   `lib/domain/fitness/memory-maturity.ts:27-93`.
+2. A `MemoryMaturityTrajectory` value object accumulating
+   `(cohortId, maturity, effectiveHitRate, computedAt)` points
+   across comparable cohorts — **not yet implemented**. Lives in
+   `lib/domain/fitness/memory-maturity-trajectory.ts` per Phase B
+   of `docs/cold-start-convergence-plan.md`.
+3. At least three cohort-comparable history points in the
+   improvement ledger before the slope can be computed honestly
+   (per the floor-tightening rule in § How floors get tightened
+   below).
+
+Until the trajectory primitive lands and has ≥ 3 comparable
+points, M5's theorem-group status remains `proxy` (the current
+state in the per-theorem-group floors table below). Graduation to
+`direct` happens only when the trajectory is populated and the
+slope is computable from real history, not heuristics.
 
 ### C6 — Intervention-Adjusted Economics
 
