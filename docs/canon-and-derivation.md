@@ -48,9 +48,20 @@ by this doctrine.
 1. The trichotomy (canonical sources, canonical artifacts, derived output)
 2. Canonical sources — what the system reads
 3. Canonical artifacts — what the system has earned the right to trust
+   - 3.1 Deterministic observations
+   - 3.2 Agentic overrides
+   - 3.3 The hierarchy between the two flavors
+   - 3.4 What canonical artifacts are NOT
+   - **3.5 The interface model — three tiers of canonical artifact**
+   - **3.6 Tier 1 — Atoms (per-primitive facts about the SUT)**
+   - **3.7 Tier 2 — Compositions (higher-order patterns over atoms)**
+   - **3.8 Tier 3 — Projections (constraints over the atom set)**
 4. Derived output — what the system produces ephemerally
 5. The phase output model
 6. The lookup precedence chain
+   - 6.1–6.4 Precedence justification
+   - 6.5 Modes that change the precedence
+   - **6.6 Qualifier-aware lookup (Tier 3 projections fold in)**
 7. Promotion and demotion
 8. Cold-start and warm-start interop
 9. Two parallel engines
@@ -60,6 +71,7 @@ by this doctrine.
 13. Operator workflows
 14. Long-term vision
 15. Glossary
+16. **Existing seams in the codebase (Phase 0b implementation guide)**
 
 ---
 
@@ -327,6 +339,485 @@ Canonical artifacts ARE:
 - **Demotable.** When a canonical artifact is no longer truthy, a
   deliberate gesture removes it.
 
+### 3.5 The interface model — three tiers of canonical artifact
+
+Canonical artifacts are not a flat collection of files. They form a
+**three-tier interface model** that mirrors the structure of the SUT
+itself: atoms describe what the SUT IS, compositions describe how the
+SUT is DRIVEN, and projections describe the CONSTRAINTS over who can
+see and interact with which parts of it.
+
+All three tiers live in the same canonical artifact store
+(`{suiteRoot}/.canonical-artifacts/`), all three flow through the
+same lookup precedence chain (§6), and all three participate in the
+same promotion/demotion machinery (§7). The distinction is in their
+shape and their addressing, not in their governance:
+
+| Tier | Mirrors | Granularity | Addressing | Authorship |
+|---|---|---|---|---|
+| 1. Atoms | What the SUT *is* | Per-primitive fact | Keyed by SUT-primitive identity | Discovery engine, agents, operators |
+| 2. Compositions | How the SUT is *driven* | Per-recipe / per-pattern | Keyed by composition identity, references atoms | Mostly agents and operators, sometimes deterministic discovery |
+| 3. Projections | Who can see and interact with *what* | Per-constraint over an atom subset | Keyed by qualifier identity, filters atoms | Mostly agents (observed by running as a role / in a state), occasionally operators |
+
+The three tiers together are the system's **digital twin** of the
+SUT. The discovery engine builds Tier 1 by walking the application;
+agents fill Tier 2 with patterns and recipes when the deterministic
+path can't bridge the gap; agents fill Tier 3 by observing the SUT
+from different vantage points (different roles, different wizard
+stages, different permission contexts). Operators occasionally
+override any tier when they have a hard requirement that must hold.
+
+The umbrella name follows existing domain vocabulary: **interface
+model**, the same name used by `ApplicationInterfaceGraph` in
+`lib/domain/types/interface.ts` and the "Interface Intelligence"
+spine in `docs/domain-ontology.md`. The phrase "digital twin" is an
+acceptable informal synonym but the doctrinal term is "interface
+model" to keep continuity with the existing domain documentation.
+
+#### Why three tiers, not two
+
+A two-tier model (atoms + compositions) misses a real category of
+canonical knowledge. Consider:
+
+- "The submit button on the review-submit screen exists" — that's
+  an atom (Tier 1).
+- "To complete the policy creation flow, navigate through these
+  six screens in this order" — that's a composition (Tier 2).
+- "An underwriter sees the submit button; a broker does not" —
+  that's neither. It's a constraint over which atoms are visible
+  to which roles. It's a projection (Tier 3).
+
+Projections are the third axis of the SUT's identity. Without them,
+the system has no way to encode role-based visibility, wizard-state
+visibility, posture availability conditions, or permission-group
+rules. These are first-class features of any non-trivial application,
+and they need first-class canonical artifact treatment.
+
+#### Why three tiers, not more
+
+The temptation is to add a fourth tier for "domain semantics" (the
+business meaning of policies, accounts, claims), a fifth tier for
+"temporal dynamics" (drift, churn), a sixth for "operator rituals"
+(testing conventions, review checklists). Resist this. Domain
+semantics are encoded as compositions (named flows) and projections
+(role visibility) and atoms (entity-state facts). Temporal dynamics
+are encoded as drift atoms and as the demotion mechanism. Operator
+rituals are canonical sources (§2), not canonical artifacts.
+
+The three-tier shape is the minimum that captures the SUT's
+structural, behavioral, and contextual identity without sliding into
+proliferation. Adding tiers later is allowed if a real fourth
+category emerges that none of the three can hold; until then, three
+is the answer.
+
+#### Connection to the existing domain model
+
+The three-tier interface model is not a new invention. It crystallizes
+what the existing domain documentation already prefigures:
+
+- **`docs/domain-model.md` § Target**: "The semantic identity of a
+  thing in reality, prior to any means of finding it... This is the
+  atom of the interface model. Screens, surfaces, and elements are
+  organizational containers for targets... The interface graph is a
+  graph *of* targets." — This is Tier 1, named.
+- **`docs/domain-ontology.md` § Interface Intelligence**: "models
+  what the UI *is*: routes, screens, surfaces, targets, selectors,
+  states, transitions, affordances. Its aggregate is
+  `ApplicationInterfaceGraph`." — This is the umbrella for Tier 1
+  with hooks for Tier 2 (transitions) and Tier 3 (states).
+- **`docs/domain-class-decomposition.md` § Target**: enumerates
+  `CanonicalTargetRef`, `ElementSig`, `ScreenElements`,
+  `SurfaceDefinition`, `SelectorProbe`, `RouteDefinition`,
+  `RouteVariant`, `TransitionObservation`, `ElementAffordance`, etc.
+  — These are the existing types that materialize Tier 1 atoms.
+
+The doctrine here is the persistence and addressing model on top of
+the existing domain types. The domain types describe the shapes;
+this doctrine describes how to store them, look them up, promote
+them, demote them, and reason about which tier each one belongs to.
+
+#### Targets and Surfaces sit OUTSIDE the epistemological loop
+
+A critical insight from `docs/domain-model.md` § The Epistemological
+Loop:
+
+> "**Target** and **Surface** sit outside the loop — they are the
+> stable referents that the loop operates on. Targets are what the
+> loop is *about*. Surfaces are *how* the loop perceives reality.
+> Neither is consumed or produced by the loop; they are the ground
+> it stands on."
+
+The interface model (all three tiers) is the persistent realization
+of these stable referents. The epistemological loop (Intent →
+Resolution → Commitment → Evidence → Knowledge → ...) operates ON
+the interface model but does not consume or produce it directly.
+Iterate runs READ the interface model to resolve and execute steps;
+the only way the interface model changes is via promotion (a
+candidate from a derived output beats an existing canonical
+artifact) or via deliberate operator gesture.
+
+This is why the canonical artifact store is committed and the
+derived output is gitignored: the stable referents must persist
+across runs because they are the ground the loop stands on. Wiping
+the canonical artifact store is the system equivalent of forgetting
+what the SUT is — the loop becomes meaningless until the discovery
+engine rebuilds the referents.
+
+### 3.6 Tier 1 — Atoms (per-primitive facts about the SUT)
+
+The atom tier is the structural backbone of the interface model.
+Each atom describes ONE fact about ONE SUT primitive, addressed by
+its semantic identity. Atoms are the unit of promotion, demotion,
+and discovery: the deterministic discovery engine targets one atom
+class at a time, agents fill gaps for atoms the engine cannot yet
+produce, and operators occasionally override individual atoms.
+
+The atomic principle: **every fact about the SUT's structure that
+the pipeline relies on at runtime should be addressable as an
+atom.** Compound files that bundle facts (today's `benchmarks/`,
+`controls/datasets/`, etc.) are doctrinally wrong shapes — they
+prevent per-fact promotion/demotion and they couple unrelated
+lifecycles into a single change boundary. Compound files survive
+during the migration but their long-term form is decomposed into
+atoms.
+
+#### Atom classes and their identities
+
+Each atom class corresponds to a SUT primitive. The identity tuple
+encodes everything needed to address the atom uniquely. New atom
+classes are added when the discovery engine learns to derive a new
+kind of fact; the doctrine should accommodate growth without
+restructuring.
+
+| Atom class | Identity tuple | What it describes | Existing domain type |
+|---|---|---|---|
+| Route | `RouteId` | A URL pattern that maps to a screen | `RouteDefinition`, `RouteVariant` |
+| Route variant | `(RouteId, VariantId)` | A specific parameterization of a route | `RouteVariant`, `RoutePattern` |
+| Screen | `ScreenId` | A distinct interactive context with a known root | `ScreenElements` (key) |
+| Surface | `(ScreenId, SurfaceId)` | A spatial region within a screen | `SurfaceDefinition`, `SurfaceSection` |
+| Element | `(ScreenId, ElementId)` | A discrete interactive widget | `ElementSig`, `ScreenElements` (entries) |
+| Posture | `(ScreenId, ElementId, PostureName)` | A behavioral disposition (valid, invalid, empty, boundary) | `Posture` |
+| Affordance | `(ScreenId, ElementId, AffordanceKind)` | What the element offers (clickable, typeable, etc.) | `ElementAffordance` |
+| Selector | `(TargetRef, SelectorRung)` | A concrete locator candidate | `SelectorProbe`, `SelectorCanonEntry` |
+| Pattern | `PatternId` | A promoted cross-screen abstraction | Pattern documents in `knowledge/patterns/` |
+| Snapshot | `SnapshotTemplateId` | An ARIA tree template | `SnapshotTemplate` |
+| Drift mode | `(ScreenId, ElementId, DriftKind)` | A way the element can change between runs | embedded in benchmark `driftEvents` today |
+| Resolution override | `(ScreenId, IntentFingerprint)` | An operator/agent decision for an ambiguous resolution | `controls/resolution/` files today |
+| Transition | `(FromScreenId, ToScreenId, TriggerRef)` | A known state transition between screens | `TransitionObservation` |
+| Observation predicate | `(ScreenId, PredicateId)` | A condition the SUT can be checked against | `ObservationPredicate` |
+| Posture sample | `(ScreenId, ElementId, PostureName)` | Default values for the (element, posture) combination | embedded in `controls/datasets/` today |
+
+This list is not closed. Each new SUT primitive that the discovery
+engine learns to address adds a new atom class with its own identity
+tuple. The lookup chain machinery treats them uniformly: every atom
+has a stage (`Atom<ClassName>`), an identity, and an envelope.
+
+#### Atom envelope shape
+
+Every atom is wrapped in an envelope that carries the same metadata
+the rest of the system uses for canonical artifacts:
+
+```
+Atom<TClass> {
+  class: AtomClass;            // which atom class
+  identity: AtomIdentity<TClass>;  // typed tuple per class
+  content: AtomContent<TClass>;    // the actual fact
+  source: PhaseOutputSource;       // operator-override | agentic-override |
+                                   // deterministic-observation | live-derivation | cold-derivation
+  inputFingerprint: string;        // hash of inputs that produced this atom
+  producedAt: string;              // ISO timestamp
+  producedBy: string;              // engine + version that wrote it
+  qualityScore?: number;           // optional, for promotion gating
+}
+```
+
+The `class` and `identity` together form the atom's address. The
+lookup chain reads atoms by address; the promotion/demotion
+machinery operates on atoms one address at a time.
+
+#### Atom lifecycle (per-class)
+
+The lifecycle vocabulary is borrowed from
+`docs/domain-model.md` § Lifecycle:
+
+> Discovery lifecycle: crawled → observed → proposed → reviewed → canonical
+
+Mapped onto the lookup chain:
+
+| Stage | Where the atom lives | Promotion gate |
+|---|---|---|
+| **crawled** | nowhere yet (raw observation in run records) | n/a — not yet a candidate |
+| **observed** | `.tesseract/cache/atoms/{class}/{identity}.yaml` | live cache, slot 4 |
+| **proposed** | `.tesseract/cache/atoms/{class}/{identity}.yaml` + a proposal record | promotion candidate |
+| **reviewed** | promoted to slot 3 (deterministic observation) or slot 2 (agentic override) | passed quality gate |
+| **canonical** | committed at `.canonical-artifacts/{agentic|deterministic}/atoms/{class}/{identity}.yaml` | trusted at runtime |
+
+The discovery engine for class C produces atoms in stage **observed**
+on every run. The promotion machinery evaluates them against the
+existing canonical artifact for the same address (if any) and either
+promotes or discards. Atoms in stage **canonical** stay until a
+better atom replaces them or the operator demotes them.
+
+#### Per-atom-class lifecycle nuances
+
+Different atom classes have different cadences and different
+promotion criteria:
+
+- **Routes**: rarely change. Promoted from a single confident
+  observation; demoted only when the URL pattern stops matching
+  the SUT.
+- **Elements**: change with UI redesigns. Promoted from
+  observations that meet a confidence threshold; demoted when the
+  element no longer renders.
+- **Postures**: change with validation rule updates. Promoted from
+  successful posture exercises; demoted when the posture stops
+  being applicable.
+- **Patterns**: promoted only after recurrence across multiple
+  screens (the supplement hierarchy from
+  `docs/domain-ontology.md` § Supplement hierarchy). Demoted when
+  the underlying pattern stops recurring.
+- **Snapshots**: promoted when an ARIA tree is captured under a
+  known-good condition. Demoted when the structure changes.
+- **Drift modes**: promoted when an agent observes the SUT
+  exhibiting a particular drift. Demoted when the drift no longer
+  occurs.
+- **Resolution overrides**: promoted when an agent or operator
+  resolves an ambiguity. Demoted when the deterministic resolver
+  becomes confident enough to handle the case unaided. This is
+  the highest-cadence demotion target — the resolver improves
+  often.
+
+The doctrine does not enumerate every atom class's promotion
+criteria here; that lives in per-class promotion gate definitions
+in `lib/domain/pipeline/promotion-gates/{class}.ts`.
+
+### 3.7 Tier 2 — Compositions (higher-order patterns over atoms)
+
+The composition tier holds canonical artifacts that REFERENCE atoms
+by identity and encode operator/agent intent about HOW atoms compose
+into useful sequences, recipes, archetypes, or graphs. Compositions
+are NOT atoms — they live at a different granularity and have a
+different shape — but they are committed canonical artifacts under
+the same governance (lookup chain, promotion, demotion).
+
+The composition tier is what saves the doctrine from atomic
+fundamentalism. Decomposing everything to atoms loses the patterns
+operators and agents have learned about HOW the SUT is supposed to
+be driven. Runbooks, flows, archetypes, and route graphs all encode
+genuine higher-order knowledge that cannot be reconstructed from
+atoms alone.
+
+#### Composition sub-types
+
+The composition tier has multiple sub-types, each with a distinct
+shape and addressing scheme. Sub-types are added when a new kind of
+higher-order pattern emerges; the doctrine should accommodate
+growth.
+
+| Sub-type | Identity | What it describes | Existing domain type |
+|---|---|---|---|
+| Workflow archetype | `ArchetypeId` | Abstract pattern of SUT interaction (search-verify, detail-inspect, form-submit, cross-screen-journey, read-only-audit) | `WorkflowArchetype` in `lib/domain/synthesis/workflow-archetype.ts` |
+| Flow | `FlowId` | Concrete ordered sequence of screens/fields constituting a journey | embedded in benchmark `flows` today |
+| Runbook | `RunbookId` | Operator/agent-authored execution recipe with branching logic | `controls/runbooks/*.runbook.yaml` |
+| Route graph | `RouteGraphId` | Connected graph of routes describing navigation topology | embedded in `knowledge/routes/*.routes.yaml` |
+| Expansion rule | `ExpansionRulesId` | Rule for deriving variant atoms from a primitive set | embedded in benchmark `expansionRules` |
+| Surface composition | `(ScreenId, CompositionId)` | Multi-region surface descriptions that span surfaces | partially in `knowledge/surfaces/*.surface.yaml` |
+| Recipe template | `RecipeTemplateId` | Parameterized runbook fragment for reuse | not yet in dogfood; future |
+
+#### Composition envelope shape
+
+```
+Composition<TSubtype> {
+  subtype: CompositionSubtype;
+  identity: CompositionIdentity<TSubtype>;
+  content: CompositionContent<TSubtype>;
+  atomReferences: AtomReference[];     // typed references to Tier 1 atoms
+  source: PhaseOutputSource;
+  inputFingerprint: string;
+  producedAt: string;
+  producedBy: string;
+}
+```
+
+The `atomReferences` field is the critical link: every composition
+declares which atoms it depends on, and that dependency is part of
+the composition's identity. When an atom changes (gets promoted to
+a new version), every composition that references it is candidates
+for re-evaluation. The relationship lets the system reason about
+"if I demote this atom, which compositions break?"
+
+#### Composition lifecycle
+
+Compositions follow the same crawled → observed → proposed →
+reviewed → canonical lifecycle as atoms, but with different
+discovery patterns:
+
+- **Workflow archetypes** are typically discovered statically by
+  analyzing the existing scenario corpus. The discovery engine
+  walks scenarios, recognizes recurring patterns, and proposes
+  archetype candidates. Promoted when a pattern recurs across
+  multiple scenarios.
+- **Flows** are typically authored by agents observing the SUT.
+  An agent walks a journey, captures the screen sequence, and
+  proposes a flow. Promoted when the flow proves stable across
+  multiple runs.
+- **Runbooks** are typically authored by agents (or operators)
+  when they figure out a non-trivial recipe. Promoted on
+  authorship; demoted when the underlying flow changes such that
+  the recipe steps stop applying.
+- **Route graphs** are partly discoverable (by walking links from
+  known routes) and partly agent-authored (when navigation paths
+  involve non-link actions). Promoted from observation; demoted
+  on URL pattern changes.
+- **Expansion rules** are typically operator-authored, embedded in
+  benchmark intent. They survive in compound files until splitting.
+- **Surface compositions** are typically discoverable by analyzing
+  multi-surface relationships. Promoted from observation.
+
+#### Compositions reference atoms; atoms do not reference compositions
+
+The dependency direction is one-way. A composition's `atomReferences`
+field points DOWN the tier hierarchy. Atoms do not know which
+compositions reference them — that's a derived view computed by the
+catalog. This keeps atoms decoupled and reusable across many
+compositions.
+
+When the catalog loads canonical artifacts, it builds a reverse
+index from atom identity to the compositions that reference each
+atom. This reverse index is a derived projection (not committed,
+recomputed on catalog load) that supports queries like "what
+compositions depend on this element atom?"
+
+### 3.8 Tier 3 — Projections (constraints over the atom set)
+
+The projection tier holds canonical artifacts that ENCODE
+CONSTRAINTS over the atom set: which atoms are visible to which
+roles, which atoms are accessible in which wizard states, which
+postures are exercisable under which conditions, which permission
+groups can interact with which surfaces. Projections do NOT add new
+atoms — they tag and filter existing atoms.
+
+The projection tier is what makes the interface model work for
+non-trivial applications. A real SUT has roles, permissions, wizard
+flows, conditional features, and stateful UI elements that change
+visibility based on context. Without projections, the system has no
+way to answer questions like "what does an underwriter see on the
+review-submit screen?" or "when this multi-step wizard is in the
+'pending approval' state, which atoms are interactive?"
+
+#### Projection sub-types
+
+Each projection sub-type captures a different kind of constraint
+over the atom set. Sub-types are added when a new contextual axis
+emerges; the doctrine should accommodate growth.
+
+| Sub-type | Identity | What it constrains | When it applies |
+|---|---|---|---|
+| Role visibility | `RoleId` | Which atoms are visible to a role | Per-role view of the SUT |
+| Role interaction | `RoleId` | Which atoms a role can interact with (vs read-only) | Per-role interaction permissions |
+| Wizard state | `(WizardId, StateId)` | Which atoms are visible/interactive in a wizard state | During multi-stage flow execution |
+| Permission group | `PermissionGroupId` | A composite role definition (union/intersection of roles) | Cross-role visibility composition |
+| Posture availability | `(ScreenId, ElementId, PostureName)` | Conditions under which a posture is exercisable | Posture-aware test generation |
+| Process state | `(EntityKind, StateId)` | Which atoms are visible when a business entity is in a particular state | Domain-aware test selection |
+| Feature flag | `FeatureFlagId` | Which atoms are gated behind a feature flag | A/B testing, gradual rollouts |
+
+#### Projection envelope shape
+
+```
+Projection<TSubtype> {
+  subtype: ProjectionSubtype;
+  identity: ProjectionIdentity<TSubtype>;
+  bindings: AtomBinding[];             // typed (atom, applicability) pairs
+  source: PhaseOutputSource;
+  inputFingerprint: string;
+  producedAt: string;
+  producedBy: string;
+}
+```
+
+Where each `AtomBinding` has the shape:
+
+```
+AtomBinding {
+  atomClass: AtomClass;
+  atomIdentity: AtomIdentity<AtomClass>;
+  applicability: 'visible' | 'interactive' | 'read-only' | 'hidden' | 'gated';
+  conditions?: BindingCondition[];     // optional further refinement
+}
+```
+
+A projection is essentially a typed list of "for atom X, applicability
+is Y." When the lookup chain is queried with a role qualifier (or
+wizard state, or feature flag), it consults the projection layer to
+filter the atom set before returning.
+
+#### Projection lifecycle
+
+Projections follow the same lifecycle stages as atoms and
+compositions, but with discovery patterns specific to context-aware
+observation:
+
+- **Role visibility** is discovered by running the SUT as a
+  particular role and walking the same screens. The agent compares
+  what's visible vs what's visible to other roles, infers the
+  visibility binding, and proposes a projection. Promoted when the
+  binding is observed consistently across multiple runs.
+- **Role interaction** is discovered similarly but additionally
+  attempts interaction (typing, clicking, submitting) and observes
+  whether the action is permitted.
+- **Wizard state** is discovered by walking a multi-stage flow,
+  capturing the visible atoms at each state, and proposing per-state
+  projections. Promoted when the state structure stabilizes.
+- **Posture availability** is discovered by attempting posture
+  exercises and observing which combinations succeed. Promoted from
+  successful exercises.
+- **Process state** is harder — it requires the agent to know what
+  business state the SUT is in, which is partly observable (via UI
+  cues) and partly inferred. Often agent-authored or operator-authored
+  rather than deterministically discoverable.
+- **Feature flags** are typically operator-authored (the operator
+  declares which flags exist) but the BINDINGS to specific atoms
+  can be discovered by running with each flag setting.
+
+#### Projection lookup semantics
+
+Projections change how the lookup chain answers queries. When the
+caller asks "give me element atom (policy-search, submitButton)",
+the chain returns the atom directly. But when the caller asks "give
+me element atom (policy-search, submitButton) AS SEEN BY role
+underwriter", the chain:
+
+1. Looks up the atom (Tier 1) via the normal precedence chain.
+2. Looks up the role-visibility projection for `underwriter`
+   (Tier 3).
+3. Filters the atom through the projection's applicability
+   binding.
+4. Returns the atom annotated with applicability, OR returns null
+   if the projection says the atom is hidden for that role.
+
+The same pattern applies to wizard state, feature flag, and
+process state qualifiers. The lookup chain takes a list of
+"qualifiers" alongside the atom address and applies all relevant
+projections before returning.
+
+#### Why projections are not deferrable
+
+Projections cannot be retrofitted later without restructuring the
+lookup chain interface. Every consumer of the lookup chain has to
+pass qualifiers; every promotion gate has to know about projection
+filters; every cache layer has to be aware that the same atom can
+have different "visible state" depending on context. Adding the
+projection slot AFTER atoms and compositions are wired through the
+codebase would require touching every callsite.
+
+The doctrine accommodates projections from day one. The Phase 0b
+implementation includes the projection slot in the lookup chain
+typed interface (even if the initial discovery engines for
+projections are stubs). Projection-aware queries are part of the
+typed surface from the start. When real role-modeling discovery is
+built later, it slots into an existing seam rather than requiring
+a refactor.
+
 ---
 
 ## 4. Derived output — what the system produces ephemerally
@@ -575,6 +1066,77 @@ flags:
   cold-start runs that test whether the discovery engine alone is
   sufficient. The combination `--mode cold --no-overrides` is the
   strongest cold-start test.
+
+### 6.6 Qualifier-aware lookup (Tier 3 projections fold in)
+
+The five-slot precedence chain is the answer to "give me artifact
+X." But the interface model has a third tier (projections, §3.8)
+that filters and qualifies which atoms are visible under different
+contexts: which role is querying, which wizard state is active,
+which feature flag is set, which business process state the SUT
+is in.
+
+When the caller invokes the lookup chain with **qualifiers**, the
+chain's behavior extends:
+
+```
+lookup(address, qualifiers?) → resolved
+```
+
+Where `qualifiers` is an optional bag of contextual filters:
+
+```
+QualifierBag {
+  role?: RoleId;
+  wizardState?: (WizardId, StateId);
+  processState?: (EntityKind, StateId);
+  featureFlags?: FeatureFlagId[];
+  permissionGroups?: PermissionGroupId[];
+}
+```
+
+The lookup with qualifiers proceeds in two passes:
+
+1. **Pass 1 — atom resolution.** Walk the five-slot chain to
+   resolve the atom at `address`. This is unchanged from the
+   non-qualified case.
+2. **Pass 2 — projection application.** For each qualifier in the
+   bag, look up the corresponding projection (Tier 3) via its own
+   five-slot chain. Apply the projection to the resolved atom. The
+   atom may be returned annotated with applicability (visible /
+   interactive / read-only / hidden / gated), or it may be filtered
+   out entirely if the projection says the atom is hidden in this
+   context.
+
+The two-pass model means projections live in slots 1-5 the same way
+atoms and compositions do. The promotion/demotion machinery applies
+to projections identically. The mode flags (`--mode warm|cold|compare`,
+`--no-overrides`) apply to both passes uniformly.
+
+#### Why qualifier-aware lookup is part of the lookup chain interface
+
+The alternative is to expose qualifiers as a separate "filtering
+layer" that consumers apply after looking up atoms. That would push
+projection knowledge to every callsite and create N filtering paths
+for N consumer types. Folding qualifiers into the lookup chain
+interface keeps the projection layer hidden behind a single seam:
+the lookup chain takes a `(address, qualifiers?)` pair and returns
+the qualified result. Consumers don't need to know that projections
+exist as a tier; they just pass their context.
+
+#### Qualifier-aware lookup is wired from day one
+
+The Phase 0b implementation includes the qualifier parameter in the
+lookup chain's typed interface, even if the initial projection
+discovery engines are stubs. This is the load-bearing reason the
+projection tier is not deferrable: every consumer of the lookup
+chain that we wire today will pass the qualifier (or omit it
+explicitly), and adding the qualifier later would require touching
+every callsite.
+
+The doctrine: **the lookup chain takes qualifiers from day one,
+even when there are no projections to apply.** The seam exists; the
+implementation grows into it.
 
 ---
 
@@ -848,7 +1410,14 @@ the literal name.
 
 ### 10.2 Canonical paths under `{suiteRoot}/`
 
-These are committed and treated as canon:
+These are committed and treated as canon. Note that the canonical
+artifact store is structured as the three-tier interface model
+(§3.5/3.6/3.7/3.8) — atoms keyed by SUT-primitive identity,
+compositions keyed by recipe identity, projections keyed by
+qualifier identity. Each tier has its own subdirectory and within
+each tier the agentic-vs-deterministic source flavor is encoded at
+the path level so operators can tell at a glance which artifacts
+were authored by agents vs promoted from the discovery engine.
 
 ```
 {suiteRoot}/
@@ -861,30 +1430,82 @@ These are committed and treated as canon:
                                       # (absent in production — SUT is external)
 
   controls/                           # canonical source: operator answers about intent
-    resolution/
-    runbooks/
-    datasets/
-    variance/
+                                      # (TRANSITIONAL — today many of these files are hybrid
+                                      # agentic-override compounds; they belong in
+                                      # .canonical-artifacts/atoms/ once decomposed)
+    resolution/                       # → atoms/resolution-overrides/ post-decomposition
+    runbooks/                         # → compositions/runbooks/ post-decomposition
+    datasets/                         # → atoms/posture-samples/ post-decomposition
+    variance/                         # → split: atoms/drifts/ + canonical sources
 
   benchmarks/                         # canonical source: labeled measurement targets
+                                      # (TRANSITIONAL — today these are hybrid compound files
+                                      # mixing atoms/compositions/projections/intent)
 
   .canonical-artifacts/               # canonical artifacts (committed, doctrinal weight)
-    agentic/                          # — agentic overrides (slot 2)
-      routes/
-      surfaces/
-      components/
-      posture/
-      screens/
-      patterns/
-      snapshots/
-    deterministic/                    # — deterministic observations (slot 3)
-      routes/
-      surfaces/
-      components/
-      posture/
-      screens/
-      patterns/
-      snapshots/
+    atoms/                            # TIER 1: per-primitive facts
+      agentic/                        # — agent-authored (slot 2)
+        routes/
+        screens/
+        elements/
+        postures/
+        affordances/
+        selectors/
+        patterns/
+        snapshots/
+        drifts/
+        transitions/
+        observation-predicates/
+        resolution-overrides/
+        posture-samples/
+      deterministic/                  # — promoted from discovery (slot 3)
+        routes/
+        screens/
+        elements/
+        postures/
+        affordances/
+        selectors/
+        patterns/
+        snapshots/
+        drifts/
+        transitions/
+        observation-predicates/
+        resolution-overrides/
+        posture-samples/
+    compositions/                     # TIER 2: higher-order patterns over atoms
+      agentic/                        # — agent-authored
+        archetypes/                   # WorkflowArchetype instances
+        flows/                        # ordered field/screen sequences
+        runbooks/                     # execution recipes
+        route-graphs/                 # navigation topology
+        expansion-rules/              # variant derivation rules
+        surface-compositions/         # multi-surface descriptions
+        recipe-templates/             # parameterized runbook fragments
+      deterministic/
+        archetypes/
+        flows/
+        runbooks/
+        route-graphs/
+        expansion-rules/
+        surface-compositions/
+        recipe-templates/
+    projections/                      # TIER 3: constraints over the atom set
+      agentic/                        # — agent-authored
+        role-visibility/              # which atoms a role can see
+        role-interaction/             # which atoms a role can interact with
+        wizard-state/                 # which atoms are accessible per wizard state
+        permission-groups/            # composite role definitions
+        posture-availability/         # when each posture is exercisable
+        process-state/                # business-state-aware visibility
+        feature-flags/                # flag-gated atom visibility
+      deterministic/
+        role-visibility/
+        role-interaction/
+        wizard-state/
+        permission-groups/
+        posture-availability/
+        process-state/
+        feature-flags/
 
   .ado-sync/                          # in production: canonical source (persisted upstream)
     snapshots/                        # in dogfood: derived (cache of fixtures/ado/)
@@ -949,41 +1570,67 @@ deleted when the test that depends on them is removed.
 
 Authoritative classification for every path that currently exists
 under `dogfood/`. Each row maps a path to its trichotomy population
-and notes the migration action (if any) needed to bring the current
-state into doctrinal alignment.
+AND its three-tier interface model classification (where applicable),
+and notes the migration action needed to bring the current state into
+doctrinal alignment.
 
-| Path | Population | Verdict | Migration |
-|---|---|---|---|
-| `dogfood/fixtures/ado/{10001,10002,10010,10011}.json` | canonical source | the operator's stand-in upstream | stays committed |
-| `dogfood/fixtures/ado/{2xxxx}.json` | derived | cohort generator output | move to `.tesseract/cache/` or gitignore in place |
-| `dogfood/fixtures/demo-harness/**` | canonical source | the SUT in dogfood mode | stays committed |
-| `dogfood/.ado-sync/snapshots/{10001,10002,10010,10011}.json` | derived (in dogfood) | cache of `fixtures/ado/` | gitignore in dogfood; in production this becomes canonical source |
-| `dogfood/.ado-sync/snapshots/{2xxxx}.json` | derived | cohort sync cache | gitignore |
-| `dogfood/.ado-sync/archive/{10001,10002,10010,10011}/N.json` | canonical source | revision history of the operator-authored simulator | stays committed |
-| `dogfood/.ado-sync/archive/{2xxxx}/N.json` | derived | synthetic cohort revision history | gitignore |
-| `dogfood/.ado-sync/manifest.json` | derived | auto-maintained sync metadata | gitignore |
-| `dogfood/benchmarks/*.benchmark.yaml` | canonical source | operator-authored measurement targets | stays committed |
-| `dogfood/controls/datasets/*` | canonical source | operator-authored data values | stays committed |
-| `dogfood/controls/resolution/*` | canonical source | operator-authored resolution overrides | stays committed |
-| `dogfood/controls/runbooks/*` | canonical source | operator-authored execution recipes | stays committed |
-| `dogfood/controls/variance/*` | canonical source | operator-authored stress configs | stays committed |
-| `dogfood/scenarios/demo/**` | derived | should be derivable from `.ado-sync/snapshots/{10001,10002,10010,10011}.json` via parse phase | gitignore (after parser migration) |
-| `dogfood/scenarios/reference/**` | derived | cohort generator output | gitignore |
-| `dogfood/knowledge/screens/**` | canonical artifact (transitional) | substrate currently entangling agentic overrides and deterministic observations | move to `.canonical-artifacts/{agentic,deterministic}/screens/` after a one-time per-file split |
-| `dogfood/knowledge/patterns/**` | canonical artifact (transitional) | same | move similarly |
-| `dogfood/knowledge/snapshots/**` | canonical artifact (transitional) | same | move similarly |
-| `dogfood/knowledge/routes/demo.routes.yaml` | canonical artifact (agentic, transitional) | currently hand-authored; eventually a deterministic observation when route discovery matures | move to `.canonical-artifacts/agentic/routes/demo.json` |
-| `dogfood/knowledge/surfaces/*.surface.yaml` | canonical artifact (agentic, transitional) | same | move to `.canonical-artifacts/agentic/surfaces/` |
-| `dogfood/knowledge/components/*.ts` | canonical source | TypeScript widget choreography code | long-term moves to `lib/`; near-term stays committed |
-| `dogfood/generated/**` | derived | playwright spec emission | gitignore |
-| `dogfood/posture.yaml` | (does not exist) | the `postureConfigPath` concept is being deleted | replace with CLI flag |
+The "tier" column applies only to canonical artifacts (it identifies
+which of Tier 1 / Tier 2 / Tier 3 the artifact belongs to). For
+canonical sources and derived output, the tier column is `n/a`. For
+HYBRID compound files that span multiple tiers, the tier column lists
+all applicable tiers and the migration action describes the
+decomposition.
 
-The transitional canonical artifact rows are the load-bearing
-migration: today they are committed at `dogfood/knowledge/{routes,surfaces,...}/`,
-but they belong in `dogfood/.canonical-artifacts/{agentic,deterministic}/`
-once Phase 2 lands. The pipeline path layer routes them to the new
-location and the lookup chain treats them as the doctrinal slot 2 or
-slot 3 artifact they actually are.
+| Path | Population | Tier(s) | Verdict | Migration |
+|---|---|---|---|---|
+| `dogfood/fixtures/ado/{10001,10002,10010,10011}.json` | canonical source | n/a | the operator's stand-in upstream | stays committed |
+| `dogfood/fixtures/ado/{2xxxx}.json` | derived | n/a | cohort generator output | gitignore in place |
+| `dogfood/fixtures/demo-harness/**` | canonical source | n/a | the SUT in dogfood mode | stays committed |
+| `dogfood/.ado-sync/snapshots/{10001,10002,10010,10011}.json` | derived (in dogfood) | n/a | cache of `fixtures/ado/` | gitignore in dogfood; in production this becomes canonical source |
+| `dogfood/.ado-sync/snapshots/{2xxxx}.json` | derived | n/a | cohort sync cache | gitignore |
+| `dogfood/.ado-sync/archive/{10001,10002,10010,10011}/N.json` | canonical source | n/a | revision history of the operator-authored simulator | stays committed |
+| `dogfood/.ado-sync/archive/{2xxxx}/N.json` | derived | n/a | synthetic cohort revision history | gitignore |
+| `dogfood/.ado-sync/manifest.json` | derived | n/a | auto-maintained sync metadata | gitignore |
+| `dogfood/benchmarks/*.benchmark.yaml` | canonical artifact (hybrid compound) | 1 + 2 + (operator intent fragments) | hybrid: 28 fieldCatalog rows are Tier 1 element atoms; 1 flow is a Tier 2 composition; 5 driftEvents are Tier 1 drift atoms; thresholds are operator-intent canonical sources; benchmarkRunbooks reference Tier 2 runbooks; expansionRules are Tier 2 compositions | DECOMPOSE (Phase 3+): split rows into per-tier targets; keep file as derived projection or delete |
+| `dogfood/controls/datasets/*.dataset.yaml` | canonical artifact (hybrid compound) | 1 (posture-samples) | per-(screen, element, posture) default values | DECOMPOSE: split into atoms/posture-samples/{screen}/{element}/{posture}.yaml |
+| `dogfood/controls/resolution/*.resolution.yaml` | canonical artifact (hybrid compound) | 1 (resolution-overrides) | per-(screen, intent-fingerprint) resolver decisions | DECOMPOSE: split into atoms/resolution-overrides/{screen}/{intent-fingerprint}.yaml |
+| `dogfood/controls/runbooks/*.runbook.yaml` | canonical artifact | 2 (runbooks) | execution recipe for a flow | move to .canonical-artifacts/compositions/{agentic|deterministic}/runbooks/ |
+| `dogfood/controls/variance/*.variance.yaml` | canonical artifact (hybrid compound) | 1 (drifts) + (operator intent fragments) | drift configs + scenario-selection intent | DECOMPOSE: drift atoms move to atoms/drifts/; selection intent stays as canonical source |
+| `dogfood/scenarios/demo/**` | derived | n/a | should be derivable from `.ado-sync/snapshots/{10001,10002,10010,10011}.json` via parse phase | gitignore (after parser migration) |
+| `dogfood/scenarios/reference/**` | derived | n/a | cohort generator output | gitignore |
+| `dogfood/knowledge/screens/*.elements.yaml` | canonical artifact | 1 (elements) | substrate of element atoms per screen | DECOMPOSE: split into per-element atom files at atoms/{agentic|deterministic}/elements/{screen}/{element}.yaml |
+| `dogfood/knowledge/screens/*.hints.yaml` | canonical artifact (hybrid compound) | 1 (elements) + 1 (resolution-overrides) | mix of element alias atoms and per-(intent, screen) resolution overrides | DECOMPOSE: split into atoms/elements/ and atoms/resolution-overrides/ |
+| `dogfood/knowledge/screens/*.postures.yaml` | canonical artifact | 1 (postures) | per-element posture atoms | DECOMPOSE: split into atoms/{agentic|deterministic}/postures/{screen}/{element}/{posture}.yaml |
+| `dogfood/knowledge/patterns/*.yaml` | canonical artifact | 1 (patterns) | promoted cross-screen abstractions | DECOMPOSE: each pattern doc → atoms/patterns/{pattern-id}.yaml |
+| `dogfood/knowledge/snapshots/**` | canonical artifact | 1 (snapshots) | ARIA tree templates | DECOMPOSE: each snapshot → atoms/snapshots/{snapshot-id}.yaml |
+| `dogfood/knowledge/routes/demo.routes.yaml` | canonical artifact (hybrid compound) | 1 (routes) + 2 (route-graphs) | per-route atoms PLUS the route graph composition that connects them | DECOMPOSE: per-route atoms to atoms/routes/; the connecting graph to compositions/route-graphs/demo.yaml |
+| `dogfood/knowledge/surfaces/*.surface.yaml` | canonical artifact (hybrid compound) | 1 (surfaces) + 2 (surface-compositions) | surface atoms PLUS surface composition descriptions | DECOMPOSE: per-surface atoms to atoms/surfaces/; multi-surface compositions to compositions/surface-compositions/ |
+| `dogfood/knowledge/components/*.ts` | canonical source (code) | n/a | TypeScript widget choreography code | long-term moves to `lib/runtime/widgets/`; near-term stays committed |
+| `dogfood/generated/**` | derived | n/a | playwright spec emission | gitignore |
+| `dogfood/posture.yaml` | (does not exist) | n/a | the `postureConfigPath` concept has been deleted | (already replaced by CLI flag) |
+
+The migration has TWO load-bearing decompositions waiting to land:
+
+**Phase 2 (atom decomposition)**: every row marked DECOMPOSE in the
+table above splits its compound contents into per-atom files at the
+correct tier path. The compound files themselves shrink to nothing and
+are deleted, OR they survive as derived projections that the catalog
+materializes for human inspection.
+
+**Phase 2.5 (composition extraction)**: the hybrid rows that span
+Tier 1 and Tier 2 (`benchmarks/`, `routes/`, `surfaces/`) need
+careful extraction of their composition components into the
+`compositions/` tier alongside their atom decomposition. The flow
+inside benchmark files becomes a Tier 2 flow composition; the route
+graph inside route files becomes a Tier 2 route graph; the
+multi-surface descriptions inside surface files become Tier 2 surface
+compositions.
+
+The Tier 3 projection layer has NO existing files in dogfood today.
+It is built greenfield as the agent intervention engine learns to
+capture role visibility, wizard state, posture availability, and
+permission group bindings. The projection slot in the lookup chain
+exists from day one (Phase 0b) so consumers don't have to retrofit.
 
 ---
 
@@ -1196,7 +1843,254 @@ correctness fix for the production deployment.
 
 ---
 
+## 16. Existing seams in the codebase (Phase 0b implementation guide)
+
+This section captures the existing pipeline-stage and catalog
+infrastructure that the Phase 0b implementation MUST plug into
+rather than replace. It is here to prevent future sessions from
+re-investigating the same surface and inventing parallel concepts
+that duplicate work that already exists. This is a high-water-mark
+intel snapshot — verify the file paths still hold before relying on
+them.
+
+### 16.1 The PipelineStage interface already exists
+
+`lib/application/pipeline/stage.ts` defines a generic `PipelineStage<>`
+interface with fingerprinting and persistence hooks:
+
+```
+PipelineStage<TInput, TOutput, TPersisted> {
+  name: string;
+  fingerprintInput?: (input: TInput) => string;
+  fingerprintOutput?: (output: TOutput) => string;
+  persist?: (output: TOutput) => Effect<{ result: TPersisted; rewritten: boolean }>;
+}
+```
+
+`PipelineStageRunResult<>` wraps the dependencies, computed value,
+persisted value, rewritten flag, and fingerprints. The Phase 0b
+implementation EXTENDS this with:
+
+- A `source` field (the `PhaseOutputSource` discriminated union)
+- An `address` field (the typed `(stage, identity)` tuple from §3.6)
+- The atom/composition/projection tier classification
+- Hooks for the lookup chain to consult before computing
+
+It does NOT replace this interface. Any new code that wants to
+participate in the canonical artifact store routes through
+`PipelineStage<>` extended with the new fields.
+
+### 16.2 The WorkspaceCatalog is the multi-artifact indexer
+
+`lib/application/catalog/types.ts` defines `ArtifactEnvelope<T>`:
+
+```
+ArtifactEnvelope<T> {
+  artifact: T;
+  artifactPath: string;
+  absolutePath: string;
+  fingerprint: string;
+}
+```
+
+And `WorkspaceCatalog` (lines 65-103) is the loaded state of all
+artifacts in the suite, indexed by ~30 artifact types (scenarios,
+screen elements, screen postures, screen hints, snapshots, patterns,
+routes, surfaces, controls, runbooks, datasets, benchmarks, etc.).
+
+The Phase 0b implementation:
+
+- Adds new artifact-envelope entries to `WorkspaceCatalog` for
+  Tier 1 atoms, Tier 2 compositions, and Tier 3 projections.
+- Reuses the existing `walkFiles` and catalog loading machinery
+  (`workspace-catalog.ts:245-265`) rather than building parallel
+  walkers.
+- Adds reverse-index projections for atom-to-composition references
+  and qualifier-to-projection lookups.
+
+The catalog is loaded at the start of every iterate run. The lookup
+chain consults the catalog as its slot 2/3 layer (canonical
+artifacts come from the catalog). Slot 4 (live cache) is `.tesseract/cache/`
+managed separately. Slot 5 (cold derivation) runs the discovery
+engine in-process.
+
+### 16.3 The phase functions in speedrun.ts are the existing phase enumeration
+
+`lib/application/improvement/speedrun.ts` exports five phase
+functions (lines 423-673):
+
+- `generatePhase` (line 423)
+- `compilePhase` (line 457)
+- `iteratePhase` (line 512)
+- `fitnessPhase` (line 541)
+- `reportPhase` (line 614)
+
+These are the de facto pipeline phases, even though there's no
+explicit `PipelineStage` enum. The `SpeedrunProgressEvent` type
+includes a `phase: 'generate' | 'compile' | 'iterate' | 'fitness' | 'complete'`
+field that confirms the enumeration.
+
+The Phase 0b implementation creates an explicit `PipelineStage` enum
+that includes these five phases plus the discovery sub-phases (route,
+surface, element, posture, pattern, snapshot, etc.) plus the score
+and emit phases. The existing phase functions are reframed as
+implementations of `PipelineStage<>` instances.
+
+### 16.4 Discovery code is scattered, not consolidated
+
+There is no `lib/application/discovery/` directory. Discovery code
+lives in:
+
+- `lib/application/cli/commands/discover.ts` — CLI entry point
+- `lib/application/cli/commands/harvest.ts` — route harvesting
+- `lib/domain/knowledge/discovery.ts` — domain types
+  (`DiscoveryInput`, `DiscoverySectionArtifact`, `DiscoveryReviewNote`)
+- `lib/infrastructure/tooling/discover-screen.ts` — Playwright
+  screen discovery
+- `lib/infrastructure/tooling/harvest-routes.ts` — route harvesting
+
+The Phase 0b implementation establishes `lib/application/discovery/`
+as the consolidation seam. Existing discovery code stays where it
+is for now; new discovery sub-phase implementations land under
+`lib/application/discovery/{atom-class}/` and the existing scattered
+code is migrated incrementally in Phase 3.
+
+### 16.5 No promote/demote concept exists yet
+
+The closest existing analogue is the proposal lifecycle FSM at
+`lib/domain/proposal/lifecycle.ts`:
+
+- States: `pending`, `activated`, `blocked`
+- `CertificationStatus`: `certified` | `uncertified`
+
+Plus the auto-approval flow at
+`lib/application/governance/auto-approval.ts` and
+`tryActivateProposal` in `lib/application/governance/activate-proposals.ts`.
+
+The Phase 0b implementation introduces a NEW `PromotionGate` concept
+and a NEW `demote` verb. The proposal lifecycle is left intact (it
+serves a different concern: what happens to a proposal once it's
+been generated). The promotion machinery is its own state space,
+operating on canonical artifact addresses, with its own gates per
+atom class / composition sub-type / projection sub-type.
+
+### 16.6 Path constants under {suiteRoot}/
+
+`lib/application/paths/factory.ts` (lines 73-163) creates all
+`ProjectPaths`. Notable existing paths under `{suiteRoot}/`:
+
+- `routesDir` → `knowledge/routes/`
+- `surfacesDir` → `knowledge/surfaces/`
+- `patternsDir` → `knowledge/patterns/`
+- `controlsDir`, `datasetsDir`, `resolutionControlsDir`, `runbooksDir`
+- `benchmarksDir`
+- `snapshotDir` → `.ado-sync/snapshots/`
+- `archiveDir` → `.ado-sync/archive/`
+
+The Phase 0b implementation ADDS new path constants for the
+three-tier canonical artifact store layout from §10.2:
+
+- `canonicalArtifactsDir` → `{suiteRoot}/.canonical-artifacts/`
+- `atomsDir` → `{suiteRoot}/.canonical-artifacts/atoms/`
+- `compositionsDir` → `{suiteRoot}/.canonical-artifacts/compositions/`
+- `projectionsDir` → `{suiteRoot}/.canonical-artifacts/projections/`
+- Per-tier sub-paths for agentic vs deterministic flavors
+- Per-atom-class sub-paths
+
+The existing `routesDir`, `surfacesDir`, etc. stay during the
+transition. After Phase 2, the path layer routes them to the new
+locations.
+
+### 16.7 Already-existing types that map to atoms
+
+These domain types are the actual atoms — they should NOT be
+reinvented. The canonical artifact store stores instances of these
+types, not parallel concepts.
+
+| Atom class | Existing domain type | Where defined |
+|---|---|---|
+| Route | `RouteDefinition`, `RouteVariant`, `RoutePattern`, `RouteVariantRanking` | `lib/domain/types/routes.ts`, `lib/domain/types/route-knowledge.ts` |
+| Screen | `ScreenElements` (key), `ScreenId` | `lib/domain/types/knowledge.ts`, `lib/domain/kernel/identity.ts` |
+| Surface | `SurfaceDefinition`, `SurfaceSection`, `SurfaceGraph` | `lib/domain/types/knowledge.ts` |
+| Element | `ElementSig`, `ScreenElements` (entries), `CanonicalTargetRef` | `lib/domain/types/knowledge.ts`, `lib/domain/kernel/ids.ts` |
+| Posture | `Posture`, `PostureId` | `lib/domain/types/knowledge.ts` |
+| Affordance | `ElementAffordance` | `lib/domain/types/affordance.ts` |
+| Selector | `SelectorProbe`, `SelectorCanonEntry`, `SelectorCanon` | `lib/domain/types/interface.ts` |
+| Pattern | Pattern documents (Zod-validated) | `lib/domain/knowledge/patterns.ts` |
+| Snapshot | `SnapshotTemplate` | `lib/domain/types/knowledge.ts` |
+| Transition | `TransitionObservation` | `lib/domain/types/interface.ts` |
+| Observation predicate | `ObservationPredicate`, `StatePredicateSemantics` | `lib/domain/types/knowledge.ts` |
+| Drift mode | (currently embedded in benchmark `driftEvents`) | new domain type needed |
+| Resolution override | (currently in `controls/resolution/*.resolution.yaml`) | new domain type needed |
+
+The Phase 0b implementation references these types directly — it
+defines the atom envelope as `Atom<T>` where T is one of the
+existing types, and the atom store loads existing files into typed
+envelopes without reshaping the underlying content.
+
+### 16.8 Already-existing types that map to compositions
+
+| Composition sub-type | Existing domain type | Where defined |
+|---|---|---|
+| Workflow archetype | `WorkflowArchetype` | `lib/domain/synthesis/workflow-archetype.ts` |
+| Flow | (embedded in benchmark `flows` blocks) | new domain type needed |
+| Runbook | (loaded from `controls/runbooks/*.runbook.yaml`) | existing schema, new typed wrapper |
+| Route graph | `ApplicationInterfaceGraph` (for the SUT-wide graph) | `lib/domain/types/interface.ts` |
+| Expansion rule | (embedded in benchmark `expansionRules`) | new domain type needed |
+| Surface composition | `SurfaceGraph` (multi-surface relationships) | `lib/domain/types/knowledge.ts` |
+| Recipe template | (does not exist) | new, future |
+
+### 16.9 Already-existing types that map to projections
+
+The projection tier is the most greenfield. Existing types are
+limited:
+
+| Projection sub-type | Existing domain type | Where defined |
+|---|---|---|
+| Role visibility | (does not exist) | new |
+| Role interaction | (does not exist) | new |
+| Wizard state | (partially: `StatePredicateSemantics`, observation predicates) | partial |
+| Permission group | (does not exist) | new |
+| Posture availability | (does not exist) | new |
+| Process state | (does not exist) | new |
+| Feature flag | (does not exist) | new |
+
+The Phase 0b implementation defines the projection envelope shape
+and the qualifier-aware lookup chain interface, but the actual
+projection authoring/discovery is mostly stub. Real projection
+discovery comes in later phases when the agency layer learns how
+to run the SUT under different qualifier contexts.
+
+### 16.10 The hub types from the dependency topology
+
+From `docs/domain-class-decomposition.md`:
+
+- `workflow` (13 dependents) — defines governance brands, confidence
+  levels, envelope protocol, pipeline stages. The shared vocabulary.
+- `knowledge` (6 dependents) — screen elements, hints, postures,
+  surfaces, confidence overlays.
+- `resolution` (5 dependents) — translation, grounding, task packets,
+  run plans.
+- `intent` (4 dependents) — scenarios, steps, value refs.
+- `interface` (3 dependents) — interface graph, selectors, discovery.
+
+The Phase 0b implementation adds new types under `lib/domain/pipeline/`
+that depend on `workflow` (for envelope and source brands), `knowledge`
+(for atom content types), and `interface` (for the route/selector atom
+content). This places `pipeline` as a NEW hub at roughly the same
+dependency level as `resolution` — it depends on the shared vocabulary
+and on the structural domain types but is upstream of execution and
+improvement.
+
+---
+
 *End of doctrine. This document is the authoritative reference for
 the canon/derivation model. When in doubt, consult this document
 before acting. When this document is in doubt, edit it deliberately
 and commit the change with the implementation that motivated it.*
+
+*High-water-mark note: the §16 implementation guide is a snapshot
+of the codebase intel as of the doctrine's authorship. Verify file
+paths and type names still hold before relying on them — the
+codebase moves under the doctrine's feet, and rewriting §16 to
+match new realities is a normal maintenance task.*
