@@ -1,10 +1,55 @@
 # Convergence Execution Backlog
 
-> Status: Active — derived from `docs/convergence-roadmap.md`, sequenced for execution.
+> Status: Active but **subordinate** to
+> [`docs/cold-start-convergence-plan.md`](./cold-start-convergence-plan.md),
+> which is the doctrinal spine for substrate convergence work and
+> supersedes this document for sequencing decisions.
+>
+> Read this document as **Surface 1/2 tactical inputs** (hyperparameter
+> tuning, algorithm improvements, structural derivations) that execute
+> *within* the substrate-migration phases of the cold-start plan. The
+> items below remain accurate about *what* to do; the cold-start plan
+> governs *when* relative to atom decomposition (Phase A), the dual L4
+> metric tree (Phase B), intervention-receipt impact wiring (Phase C),
+> confidence-interval promotion scoring (Phase D), runtime-family
+> recognition (Phase E), and Tier 3 projection authoring (Phase F).
+>
+> The primary measurement axis is **cold-start efficacy** and
+> **intervention marginal value** (M5 and C6 in
+> `docs/alignment-targets.md`), not `knowledgeHitRate` alone. A
+> backlog item that improves `knowledgeHitRate` but regresses M5 or
+> C6 below its current-window floor cannot be accepted, per the
+> Pareto gate in `docs/recursive-self-improvement.md` and the
+> scorecard semantics in `docs/alignment-targets.md`.
+>
+> **Phase tags** (added 2026-04-08): every item is conceptually
+> tagged as one of:
+>
+> - `substrate-migration` — load-bearing for the cold-start plan's
+>   Phase A / Phase E work; do not defer.
+> - `surface-1-tactic` — hyperparameter tuning; safe to run in
+>   parallel with substrate work.
+> - `surface-2-tactic` — algorithmic or structural improvements that
+>   benefit compoundingly; prioritize over Surface 1.
+> - `infrastructure-tactic` — test harness, operator surfaces, CI;
+>   independent of substrate phases.
+>
+> Tags are applied per-item in the body below where the tag is
+> non-obvious. When in doubt, Phase 1 (role-affordance derivation)
+> items are `surface-2-tactic`, Phase 2 (route knowledge) items are
+> `substrate-migration` because they land atoms, Phase 3 (proposal
+> enrichment) items are `surface-2-tactic`, Phase 4 (structured
+> entropy) items are `surface-1-tactic`, and Phase 5 (operational
+> surface) items are `infrastructure-tactic`.
 
 This backlog translates the convergence roadmap into concrete, ordered work items. Each item identifies the files to change, the invariants to hold, and the acceptance criteria to verify.
 
-Use this with `docs/current-state.md`. Several Phase 0-4 items are already implemented or partially implemented in code, so these phases should be read as finish-adoption, normalization, and hardening work rather than introduction-from-zero.
+Use this with `docs/current-state.md` and
+[`docs/cold-start-convergence-plan.md`](./cold-start-convergence-plan.md).
+Several Phase 0-4 items are already implemented or partially
+implemented in code, so these phases should be read as
+finish-adoption, normalization, and hardening work rather than
+introduction-from-zero.
 
 ## Architectural Revision: Role-Derived Widget Affordances
 
