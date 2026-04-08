@@ -1,5 +1,5 @@
 import path from 'path';
-import type { ControlPaths, EnginePaths, ExecutionPaths, GovernancePaths, IntentPaths, KnowledgePaths, LegacyProjectPathAliases, ProjectPaths, ResolutionPaths } from './types';
+import type { ControlPaths, EnginePaths, ExecutionPaths, GovernancePaths, IntentPaths, KnowledgePaths, LegacyProjectPathAliases, PipelinePaths, ProjectPaths, ResolutionPaths } from './types';
 
 function toLegacyPathAliases(
   engine: EnginePaths,
@@ -150,6 +150,25 @@ export function createProjectPaths(rootDir: string, suiteRoot?: string): Project
     trustPolicyPath: path.join(rootDir, '.tesseract', 'policy', 'trust-policy.yaml'),
   };
 
+  // Three-tier interface model canonical artifact store paths.
+  // Per docs/canon-and-derivation.md § 10.2, lives at
+  // {suiteRoot}/.canonical-artifacts/ with subdirectories for atoms,
+  // compositions, and projections, each with agentic vs deterministic
+  // source flavors encoded at the path level.
+  const canonicalArtifactsDir = path.join(suite, '.canonical-artifacts');
+  const pipeline: PipelinePaths = {
+    canonicalArtifactsDir,
+    atomsDir: path.join(canonicalArtifactsDir, 'atoms'),
+    atomsAgenticDir: path.join(canonicalArtifactsDir, 'atoms', 'agentic'),
+    atomsDeterministicDir: path.join(canonicalArtifactsDir, 'atoms', 'deterministic'),
+    compositionsDir: path.join(canonicalArtifactsDir, 'compositions'),
+    compositionsAgenticDir: path.join(canonicalArtifactsDir, 'compositions', 'agentic'),
+    compositionsDeterministicDir: path.join(canonicalArtifactsDir, 'compositions', 'deterministic'),
+    projectionsDir: path.join(canonicalArtifactsDir, 'projections'),
+    projectionsAgenticDir: path.join(canonicalArtifactsDir, 'projections', 'agentic'),
+    projectionsDeterministicDir: path.join(canonicalArtifactsDir, 'projections', 'deterministic'),
+  };
+
   return {
     engine,
     intent,
@@ -158,6 +177,7 @@ export function createProjectPaths(rootDir: string, suiteRoot?: string): Project
     resolution,
     execution,
     governance,
+    pipeline,
     ...toLegacyPathAliases(engine, intent, knowledge, control, resolution, execution, governance),
   };
 }

@@ -9,3 +9,4 @@ export * from './intervention';
 export * from './session';
 export * from './learning';
 export * from './trust-policy';
+export * from './canonical-artifacts';

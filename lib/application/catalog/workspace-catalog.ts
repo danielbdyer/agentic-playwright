@@ -72,6 +72,9 @@ import {
   validateResolutionGraphRecord,
   validateBehaviorPatternDocument,
   validateRouteKnowledgeManifest,
+  validateAtomArtifact,
+  validateCompositionArtifact,
+  validateProjectionArtifact,
 } from '../../domain/validation';
 import { walkFiles } from '../catalog/artifacts';
 import type { ProjectPaths } from '../paths';
@@ -82,6 +85,12 @@ import { createArtifactEnvelope, upsertArtifactEnvelope } from './envelope';
 import { readJsonArtifact, readYamlArtifact } from './loaders';
 import { assembleScreenBundles } from './screen-bundles';
 import type { ArtifactEnvelope, WorkspaceCatalog } from './types';
+import type { Atom } from '../../domain/pipeline/atom';
+import type { Composition } from '../../domain/pipeline/composition';
+import type { Projection } from '../../domain/pipeline/projection';
+import type { AtomClass } from '../../domain/pipeline/atom-address';
+import type { CompositionSubType } from '../../domain/pipeline/composition-address';
+import type { ProjectionSubType } from '../../domain/pipeline/projection-address';
 import type { KnowledgePosture } from '../../domain/governance/workflow-types';
 import { postureIncludesKnowledge } from '../../domain/governance/workflow-types';
 import { parseSnapshotToScenario } from '../intent/parse';
@@ -263,6 +272,18 @@ export function loadWorkspaceCatalog(options: LoadCatalogOptions) {
       evidence: walkScopedDir(fs, options.paths.evidenceDir, scope, 'full'),
       sessions: walkScopedDir(fs, options.paths.sessionsDir, scope, 'full'),
       replays: walkScopedDir(fs, path.join(options.paths.learningDir, 'replays'), scope, 'full'),
+
+      // Three-tier interface model canonical artifact store
+      // (docs/canon-and-derivation.md § 3.5–3.8). Each tier walks
+      // both source flavors (agentic + deterministic). The walker
+      // is recursive — per-atom-class subdirectories below the
+      // flavor root are picked up automatically.
+      tier1AtomsAgentic: walkFiles(fs, options.paths.pipeline.atomsAgenticDir),
+      tier1AtomsDeterministic: walkFiles(fs, options.paths.pipeline.atomsDeterministicDir),
+      tier2CompositionsAgentic: walkFiles(fs, options.paths.pipeline.compositionsAgenticDir),
+      tier2CompositionsDeterministic: walkFiles(fs, options.paths.pipeline.compositionsDeterministicDir),
+      tier3ProjectionsAgentic: walkFiles(fs, options.paths.pipeline.projectionsAgenticDir),
+      tier3ProjectionsDeterministic: walkFiles(fs, options.paths.pipeline.projectionsDeterministicDir),
     }, { concurrency: 'unbounded' });
 
     // Phase 2: Load all artifact types in parallel (each group is independent)
@@ -345,6 +366,31 @@ export function loadWorkspaceCatalog(options: LoadCatalogOptions) {
       replayExamples: loadAllJson<ReplayExample>(options.paths,
         walks.replays.filter((f) => f.endsWith('.json')),
         validateReplayExample, 'replay-example-validation-failed', 'Replay example'),
+
+      // Three-tier interface model loaders. Each tier loads both
+      // source flavors (agentic + deterministic) into a single
+      // array; consumers distinguish flavor via the envelope's
+      // `artifact.source` field. Files use the .json extension and
+      // are validated by the Effect Schema decoders in
+      // lib/domain/schemas/pipeline.ts.
+      tier1AtomsAgentic: loadAllJson<Atom<AtomClass, unknown>>(options.paths,
+        walks.tier1AtomsAgentic.filter((f) => f.endsWith('.json')),
+        validateAtomArtifact, 'atom-validation-failed', 'Atom (agentic)'),
+      tier1AtomsDeterministic: loadAllJson<Atom<AtomClass, unknown>>(options.paths,
+        walks.tier1AtomsDeterministic.filter((f) => f.endsWith('.json')),
+        validateAtomArtifact, 'atom-validation-failed', 'Atom (deterministic)'),
+      tier2CompositionsAgentic: loadAllJson<Composition<CompositionSubType, unknown>>(options.paths,
+        walks.tier2CompositionsAgentic.filter((f) => f.endsWith('.json')),
+        validateCompositionArtifact, 'composition-validation-failed', 'Composition (agentic)'),
+      tier2CompositionsDeterministic: loadAllJson<Composition<CompositionSubType, unknown>>(options.paths,
+        walks.tier2CompositionsDeterministic.filter((f) => f.endsWith('.json')),
+        validateCompositionArtifact, 'composition-validation-failed', 'Composition (deterministic)'),
+      tier3ProjectionsAgentic: loadAllJson<Projection<ProjectionSubType>>(options.paths,
+        walks.tier3ProjectionsAgentic.filter((f) => f.endsWith('.json')),
+        validateProjectionArtifact, 'projection-validation-failed', 'Projection (agentic)'),
+      tier3ProjectionsDeterministic: loadAllJson<Projection<ProjectionSubType>>(options.paths,
+        walks.tier3ProjectionsDeterministic.filter((f) => f.endsWith('.json')),
+        validateProjectionArtifact, 'projection-validation-failed', 'Projection (deterministic)'),
     }, { concurrency: 'unbounded' });
 
     const knowledgeSnapshots = walks.knowledgeSnapshots
@@ -493,6 +539,15 @@ export function loadWorkspaceCatalog(options: LoadCatalogOptions) {
       learningManifest,
       replayExamples: loaded.replayExamples,
       trustPolicy,
+      // Three-tier interface model canonical artifacts. Per
+      // docs/canon-and-derivation.md § 3.5–3.8, loaded from
+      // {suiteRoot}/.canonical-artifacts/{atoms,compositions,projections}/{agentic,deterministic}/.
+      // Each tier concatenates both source flavors into one array;
+      // consumers distinguish flavor via envelope.artifact.source.
+      // Empty until Phase 2 decomposition lands.
+      tier1Atoms: [...loaded.tier1AtomsAgentic, ...loaded.tier1AtomsDeterministic],
+      tier2Compositions: [...loaded.tier2CompositionsAgentic, ...loaded.tier2CompositionsDeterministic],
+      tier3Projections: [...loaded.tier3ProjectionsAgentic, ...loaded.tier3ProjectionsDeterministic],
     } satisfies WorkspaceCatalog;
   });
 }

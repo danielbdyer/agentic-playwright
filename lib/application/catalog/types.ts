@@ -39,6 +39,12 @@ import type {
   SelectorCanon,
   StateTransitionGraph,
 } from '../../domain/target/interface-graph';
+import type { Atom } from '../../domain/pipeline/atom';
+import type { Composition } from '../../domain/pipeline/composition';
+import type { Projection } from '../../domain/pipeline/projection';
+import type { AtomClass } from '../../domain/pipeline/atom-address';
+import type { CompositionSubType } from '../../domain/pipeline/composition-address';
+import type { ProjectionSubType } from '../../domain/pipeline/projection-address';
 import type { ProjectPaths } from '../paths';
 
 export interface ArtifactEnvelope<T> {
@@ -100,4 +106,32 @@ export interface WorkspaceCatalog {
   learningManifest: ArtifactEnvelope<TrainingCorpusManifest> | null;
   replayExamples: ArtifactEnvelope<ReplayExample>[];
   trustPolicy: ArtifactEnvelope<TrustPolicy>;
+  /** Tier 1 — atoms (per-SUT-primitive facts). Loaded from
+   *  `{suiteRoot}/.canonical-artifacts/atoms/{agentic|deterministic}/`.
+   *  Per docs/canon-and-derivation.md § 3.6. Empty until Phase 2
+   *  decomposition lands. */
+  tier1Atoms: ArtifactEnvelope<Atom<AtomClass, unknown>>[];
+  /** Tier 2 — compositions (higher-order patterns over atoms).
+   *  Loaded from `{suiteRoot}/.canonical-artifacts/compositions/{agentic|deterministic}/`.
+   *  Per docs/canon-and-derivation.md § 3.7. Empty until Phase 2
+   *  decomposition lands. */
+  tier2Compositions: ArtifactEnvelope<Composition<CompositionSubType, unknown>>[];
+  /** Tier 3 — projections (constraints over the atom set).
+   *  Loaded from `{suiteRoot}/.canonical-artifacts/projections/{agentic|deterministic}/`.
+   *  Per docs/canon-and-derivation.md § 3.8. Empty until projection
+   *  discovery engines come online. */
+  tier3Projections: ArtifactEnvelope<Projection<ProjectionSubType>>[];
 }
+
+/** Empty pipeline-tier fields, for catalog construction sites that
+ *  haven't been wired through the tier-aware loaders yet. Spread
+ *  this into a partial catalog object to satisfy the required
+ *  tier1Atoms/tier2Compositions/tier3Projections fields. The
+ *  spread pattern is preferred over inline `tierN: []` so the
+ *  intent is visible at every callsite — adding a tier here
+ *  surfaces in every consumer that uses the constant. */
+export const EMPTY_PIPELINE_TIERS = {
+  tier1Atoms: [] as ArtifactEnvelope<Atom<AtomClass, unknown>>[],
+  tier2Compositions: [] as ArtifactEnvelope<Composition<CompositionSubType, unknown>>[],
+  tier3Projections: [] as ArtifactEnvelope<Projection<ProjectionSubType>>[],
+} as const;
