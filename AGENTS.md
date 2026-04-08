@@ -8,6 +8,9 @@ Read the doc that matches your task:
 
 - operational overview: [README.md](README.md)
 - authoritative architecture doctrine: [docs/master-architecture.md](docs/master-architecture.md)
+- **canon / derivation persistence doctrine** (load-bearing for every directory and gitignore decision): [docs/canon-and-derivation.md](docs/canon-and-derivation.md)
+- **cold-start convergence plan** (active spine for substrate work; sequences atom decomposition, dual L4 metric tree, intervention impact, promotion scoring, runtime-family recognition, Tier 3 projections): [docs/cold-start-convergence-plan.md](docs/cold-start-convergence-plan.md)
+- **wall-mounted scoreboard** (M5 Memory Worthiness Ratio + C6 Intervention-Adjusted Economics): [docs/alignment-targets.md](docs/alignment-targets.md)
 - product model and QA workflow: [VISION.md](VISION.md)
 - domain ontology and invariants: [docs/domain-ontology.md](docs/domain-ontology.md)
 - authorship and knowledge design: [docs/authoring.md](docs/authoring.md)
