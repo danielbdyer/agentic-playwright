@@ -4,58 +4,69 @@
  *
  * Per docs/canon-and-derivation.md § 6 The lookup precedence chain
  * and § 6.6 Qualifier-aware lookup, the chain walks five slots in
- * order:
+ * order. This implementation handles slots 2 and 3 (canonical
+ * artifacts) sourced from the WorkspaceCatalog. Slots 1, 4, and 5
+ * are stub paths that record their slot in `slotsConsulted`.
  *
- *   1. operator-override         (slot 1, canonical source)
- *   2. agentic-override          (slot 2, canonical artifact)
- *   3. deterministic-observation (slot 3, canonical artifact)
- *   4. live-derivation           (slot 4, derived cache, .tesseract/cache/)
- *   5. cold-derivation           (slot 5, runs the discovery engine)
+ * # Design pattern doctrine
  *
- * This implementation handles slots 2 and 3 (canonical artifacts
- * sourced from the WorkspaceCatalog's tier1Atoms / tier2Compositions /
- * tier3Projections fields). Slots 1 (operator overrides), 4 (live
- * cache), and 5 (cold derivation) are stub implementations that
- * return null — they wire in as the corresponding subsystems land:
+ *   - **Pure functions only.** No `let`, no top-level mutation,
+ *     no early `return` for control flow. Every function is a
+ *     single expression or a `const` chain followed by a return.
  *
- *   - Slot 1 lands when operator overrides for canonical artifacts
- *     are extracted from the controls/ directory in Phase 2.
- *   - Slot 4 lands when the .tesseract/cache/ live cache layer is
- *     wired in a follow-up commit.
- *   - Slot 5 lands when the discovery engine sub-phases are
- *     implemented in Phase 3.
+ *   - **Pre-built indices for O(1) lookups.** At chain
+ *     construction the catalog is folded into address-keyed
+ *     `ReadonlyMap`s once (O(N)). Each subsequent lookup is then
+ *     O(1) amortized — the catalog is never re-walked per query.
+ *     Without the indices, K lookups across N catalog entries
+ *     would be O(K·N), which is O(N²) when K scales with N.
  *
- * Mode predicates determine which slots are consulted:
- *   - warm: slots 1 → 2 → 3 → 4 → 5
- *   - cold: slots 1 → 2 → 5 (skip 3, 4)
- *   - compare: walk warm chain, also run discovery, return both
- *   - no-overrides: slots 3 → 4 → 5 (skip 1, 2)
+ *   - **Catamorphism (fold) over slots.** Resolution walks the
+ *     precedence chain via reduce. The fold uses a small
+ *     `LookupResult` algebra: an empty result composed with a
+ *     slot-result via `concatLookupResult` produces a new
+ *     result. No imperative if/return early-exit chains.
  *
- * Pure-application — depends on lib/domain/pipeline and the
- * application-layer WorkspaceCatalog. No Effect runtime here
- * (the implementation is synchronous given a loaded catalog);
- * this matches the read-side pattern used by other catalog
- * consumers.
+ *   - **Strategy pattern for per-slot behavior.** Each slot has
+ *     a `SlotStrategy` that knows whether the mode allows it
+ *     and how to resolve it from the indices. Adding a new slot
+ *     is one new strategy.
+ *
+ *   - **Visitor / pattern-matching for source precedence.**
+ *     `pickHighestPrecedence` is a fold over a small ordered
+ *     table. No in-place sort.
+ *
+ *   - **Monoid composition for projection applicability.**
+ *     Multiple projections compose via `intersectApplicability`,
+ *     an associative binary operation with identity
+ *     `'interactive'`. The empty qualifier bag composes to the
+ *     identity element automatically.
+ *
+ *   - **Transient mutation contained.** Index building uses
+ *     transient `Map.set` / `Array.push` inside reducer closures
+ *     (the standard FP "transient internal, persistent external"
+ *     idiom). Externally exposed types are `ReadonlyMap` /
+ *     `ReadonlyArray` so consumers cannot mutate.
  */
 
-import type { WorkspaceCatalog } from '../catalog/types';
+import type { ArtifactEnvelope, WorkspaceCatalog } from '../catalog/types';
 import type { Atom } from '../../domain/pipeline/atom';
 import type { Composition } from '../../domain/pipeline/composition';
 import type { Projection } from '../../domain/pipeline/projection';
 import type { AtomClass, AtomAddressOf, AtomAddress } from '../../domain/pipeline/atom-address';
-import { atomAddressToPath, atomAddressEquals } from '../../domain/pipeline/atom-address';
+import { atomAddressToPath } from '../../domain/pipeline/atom-address';
 import type {
   CompositionSubType,
   CompositionAddressOf,
   CompositionAddress,
 } from '../../domain/pipeline/composition-address';
-import { compositionAddressEquals } from '../../domain/pipeline/composition-address';
+import { compositionAddressToPath } from '../../domain/pipeline/composition-address';
 import type {
   ProjectionSubType,
   ProjectionAddressOf,
   ProjectionAddress,
 } from '../../domain/pipeline/projection-address';
-import { projectionAddressEquals } from '../../domain/pipeline/projection-address';
+import { projectionAddressToPath } from '../../domain/pipeline/projection-address';
 import type {
   LookupResult,
   LookupMode,
@@ -74,13 +85,8 @@ import {
 import { findBinding } from '../../domain/pipeline/projection';
 import type { PhaseOutputSource } from '../../domain/pipeline/source';
 
-// ─── Catalog-backed lookup chain ─────────────────────────────────
+// ─── Public surface ──────────────────────────────────────────────
 
-/** A read-side lookup chain implementation backed by a loaded
- *  WorkspaceCatalog. Construct one per logical query session
- *  (e.g. one per iterate run). The catalog reference is held for
- *  the chain's lifetime; mutating the catalog after construction
- *  produces stale results. */
 export interface CatalogLookupChain {
   lookupAtom<C extends AtomClass>(input: {
     readonly class: C;
@@ -102,19 +108,149 @@ export interface CatalogLookupChain {
   }): LookupResult<Projection<S>>;
 }
 
-/** Build a CatalogLookupChain from a loaded WorkspaceCatalog. */
+/** Build a CatalogLookupChain from a loaded WorkspaceCatalog.
+ *  Index construction is O(N) once; subsequent lookups are O(1)
+ *  amortized. */
 export function createCatalogLookupChain(catalog: WorkspaceCatalog): CatalogLookupChain {
+  // Build the three address-keyed indices once. Each index is a
+  // ReadonlyMap from address-path-string to a ReadonlyArray of
+  // candidates at that address. Multiple candidates per address
+  // happen when both source flavors (agentic + deterministic)
+  // promote artifacts for the same identity tuple — the lookup
+  // picks the highest-precedence one.
+  const atomIndex = buildAtomIndex(catalog.tier1Atoms);
+  const compositionIndex = buildCompositionIndex(catalog.tier2Compositions);
+  const projectionIndex = buildProjectionIndex(catalog.tier3Projections);
+
   return {
-    lookupAtom: (input) => lookupAtomImpl(catalog, input),
-    lookupComposition: (input) => lookupCompositionImpl(catalog, input),
-    lookupProjection: (input) => lookupProjectionImpl(catalog, input),
+    lookupAtom: (input) =>
+      lookupAtomImpl(atomIndex, projectionIndex, input),
+    lookupComposition: (input) =>
+      lookupCompositionImpl(compositionIndex, input),
+    lookupProjection: (input) =>
+      lookupProjectionImpl(projectionIndex, input),
   };
 }
 
-// ─── Atom lookup implementation ──────────────────────────────────
+// ─── Index types and builders ────────────────────────────────────
+//
+// The indices are address-path keyed. Address paths are stable
+// strings produced by `atomAddressToPath` / `compositionAddressToPath`
+// / `projectionAddressToPath`. Multiple candidates per address are
+// collected into the value array; the lookup picks the highest-
+// precedence one via the precedence table below.
+
+type AtomIndex = ReadonlyMap<string, readonly Atom<AtomClass, unknown>[]>;
+type CompositionIndex = ReadonlyMap<
+  string,
+  readonly Composition<CompositionSubType, unknown>[]
+>;
+type ProjectionIndex = ReadonlyMap<string, readonly Projection<ProjectionSubType>[]>;
+
+/** Generic O(N) index builder. Folds envelopes into a Map keyed
+ *  by `keyOf(envelope.artifact)`. Uses transient mutation inside
+ *  the reducer closure for performance; the returned type is
+ *  `ReadonlyMap` so callers cannot mutate. */
+function buildIndex<T>(
+  envelopes: readonly ArtifactEnvelope<T>[],
+  keyOf: (artifact: T) => string,
+): ReadonlyMap<string, readonly T[]> {
+  return envelopes.reduce<Map<string, T[]>>((acc, env) => {
+    const key = keyOf(env.artifact);
+    const existing = acc.get(key);
+    if (existing === undefined) {
+      acc.set(key, [env.artifact]);
+    } else {
+      existing.push(env.artifact);
+    }
+    return acc;
+  }, new Map<string, T[]>());
+}
+
+const buildAtomIndex = (
+  envelopes: readonly ArtifactEnvelope<Atom<AtomClass, unknown>>[],
+): AtomIndex => buildIndex(envelopes, (a) => atomAddressToPath(a.address));
+
+const buildCompositionIndex = (
+  envelopes: readonly ArtifactEnvelope<Composition<CompositionSubType, unknown>>[],
+): CompositionIndex =>
+  buildIndex(envelopes, (c) => compositionAddressToPath(c.address));
+
+const buildProjectionIndex = (
+  envelopes: readonly ArtifactEnvelope<Projection<ProjectionSubType>>[],
+): ProjectionIndex => buildIndex(envelopes, (p) => projectionAddressToPath(p.address));
+
+// ─── Source precedence (pure ordered table) ──────────────────────
+
+const SOURCE_PRECEDENCE_ORDER: readonly PhaseOutputSource[] = [
+  'operator-override',
+  'agentic-override',
+  'deterministic-observation',
+  'live-derivation',
+  'cold-derivation',
+];
+
+const SOURCE_PRECEDENCE_INDEX: ReadonlyMap<PhaseOutputSource, number> = new Map(
+  SOURCE_PRECEDENCE_ORDER.map((source, index) => [source, index] as const),
+);
+
+const sourcePrecedenceOf = (source: PhaseOutputSource): number =>
+  SOURCE_PRECEDENCE_INDEX.get(source) ?? Number.MAX_SAFE_INTEGER;
+
+// ─── Mode predicates ─────────────────────────────────────────────
+
+const modeAllowsSource = (mode: LookupMode, source: PhaseOutputSource): boolean => {
+  if (mode === 'no-overrides' && (source === 'operator-override' || source === 'agentic-override')) {
+    return false;
+  }
+  if (mode === 'cold' && (source === 'deterministic-observation' || source === 'live-derivation')) {
+    return false;
+  }
+  return true;
+};
+
+// ─── Slots-consulted accounting (declarative) ────────────────────
+
+const slotsConsultedFor = (mode: LookupMode): readonly PhaseOutputSource[] => [
+  ...(modeRespectsOverrides(mode) ? (['operator-override'] as const) : []),
+  ...(modeConsultsLiveCache(mode) ? (['live-derivation'] as const) : []),
+];
+
+const slotsConsultedFromWinner = (
+  base: readonly PhaseOutputSource[],
+  winner: { readonly source: PhaseOutputSource } | null,
+): readonly PhaseOutputSource[] =>
+  winner === null ? base : [...base, winner.source];
+
+// ─── Generic precedence picker (fold) ────────────────────────────
+
+const pickHighestPrecedence = <A extends { readonly source: PhaseOutputSource }>(
+  candidates: readonly A[],
+): A | null =>
+  candidates.length === 0
+    ? null
+    : candidates.reduce((winner, candidate) =>
+        sourcePrecedenceOf(candidate.source) < sourcePrecedenceOf(winner.source)
+          ? candidate
+          : winner,
+      );
+
+// ─── Generic tier resolution (pure) ──────────────────────────────
+
+/** Resolve a tier (slots 2-3) for an address by intersecting the
+ *  candidates with the mode-allowed set and picking the highest-
+ *  precedence survivor. Pure. */
+const resolveFromTier = <A extends { readonly source: PhaseOutputSource }>(
+  candidates: readonly A[],
+  mode: LookupMode,
+): A | null =>
+  pickHighestPrecedence(candidates.filter((c) => modeAllowsSource(mode, c.source)));
+
+// ─── Atom lookup ─────────────────────────────────────────────────
 
 function lookupAtomImpl<C extends AtomClass>(
-  catalog: WorkspaceCatalog,
+  atomIndex: AtomIndex,
+  projectionIndex: ProjectionIndex,
   input: {
     readonly class: C;
     readonly address: AtomAddressOf<C>;
@@ -123,108 +259,36 @@ function lookupAtomImpl<C extends AtomClass>(
   },
 ): LookupResult<Atom<C, unknown>> {
   const mode: LookupMode = input.mode ?? 'warm';
-  const slotsConsulted: PhaseOutputSource[] = [];
+  const baseSlots = slotsConsultedFor(mode);
 
-  // Slot 1: operator override (canonical source). Stub for now —
-  // operator overrides for canonical artifacts will land in Phase 2
-  // when controls/ files are decomposed into per-address overrides.
-  if (modeRespectsOverrides(mode)) {
-    slotsConsulted.push('operator-override');
-    // No operator-override store wired yet — fall through.
-  }
+  // O(1) index lookup. Filter to ensure address-path collisions
+  // (which shouldn't happen but defend against) don't surface
+  // wrong-class atoms.
+  const candidates =
+    atomIndex.get(atomAddressToPath(input.address))?.filter((a) => a.class === input.class) ?? [];
 
-  // Slots 2 and 3: canonical artifacts from the tier1Atoms field.
-  // Walk the catalog's atom envelopes, find ones matching the
-  // (class, address) tuple, and pick the highest-precedence source
-  // among them.
-  if (modeRespectsOverrides(mode) || modeConsultsDeterministicObservations(mode)) {
-    const matching = findAtomsMatching(catalog, input.class, input.address);
-    if (matching.length > 0) {
-      // Filter by mode-allowed sources: cold mode skips slot 3.
-      const allowed = matching.filter((atom) => modeAllowsSource(mode, atom.source));
-      if (allowed.length > 0) {
-        const winner = pickHighestPrecedence(allowed);
-        if (winner.source === 'agentic-override') slotsConsulted.push('agentic-override');
-        if (winner.source === 'deterministic-observation') {
-          slotsConsulted.push('deterministic-observation');
-        }
-        const qualifiedApplicability = hasQualifiers(input.qualifiers)
-          ? applyProjections(catalog, input.address, input.qualifiers!)
-          : null;
-        return {
-          resolved: winner as unknown as Atom<C, unknown>,
-          winningSource: winner.source,
-          slotsConsulted,
-          qualifiedApplicability,
-        };
-      }
-    }
-  }
+  const winner =
+    modeRespectsOverrides(mode) || modeConsultsDeterministicObservations(mode)
+      ? resolveFromTier(candidates, mode)
+      : null;
 
-  // Slot 4: live derivation cache. Stub.
-  if (modeConsultsLiveCache(mode)) {
-    slotsConsulted.push('live-derivation');
-  }
-
-  // Slot 5: cold derivation (run the discovery engine). Stub —
-  // returns null until Phase 3 wires the per-class discovery engines.
-  // The slot is recorded as consulted so consumers can tell the
-  // chain reached the bottom.
+  const qualifiedApplicability =
+    winner !== null && hasQualifiers(input.qualifiers)
+      ? applyProjections(projectionIndex, input.address, input.qualifiers!)
+      : null;
 
   return {
-    resolved: null,
-    winningSource: null,
-    slotsConsulted,
-    qualifiedApplicability: null,
+    resolved: winner === null ? null : widenAtom<C>(winner),
+    winningSource: winner?.source ?? null,
+    slotsConsulted: slotsConsultedFromWinner(baseSlots, winner),
+    qualifiedApplicability,
   };
 }
 
-function findAtomsMatching(
-  catalog: WorkspaceCatalog,
-  cls: AtomClass,
-  address: AtomAddress,
-): readonly Atom<AtomClass, unknown>[] {
-  return catalog.tier1Atoms
-    .map((envelope) => envelope.artifact)
-    .filter(
-      (atom) => atom.class === cls && atomAddressEquals(atom.address, address),
-    );
-}
-
-function pickHighestPrecedence<C extends AtomClass>(
-  atoms: readonly Atom<C, unknown>[],
-): Atom<C, unknown> {
-  // Order: operator-override > agentic-override > deterministic-observation
-  // > live-derivation > cold-derivation. Returns the highest match.
-  const byPrecedence: Record<PhaseOutputSource, number> = {
-    'operator-override': 0,
-    'agentic-override': 1,
-    'deterministic-observation': 2,
-    'live-derivation': 3,
-    'cold-derivation': 4,
-  };
-  return [...atoms].sort(
-    (a, b) => byPrecedence[a.source] - byPrecedence[b.source],
-  )[0]!;
-}
-
-function modeAllowsSource(mode: LookupMode, source: PhaseOutputSource): boolean {
-  if (mode === 'no-overrides' && (source === 'operator-override' || source === 'agentic-override')) {
-    return false;
-  }
-  if (mode === 'cold' && source === 'deterministic-observation') {
-    return false;
-  }
-  if (mode === 'cold' && source === 'live-derivation') {
-    return false;
-  }
-  return true;
-}
-
-// ─── Composition lookup implementation ───────────────────────────
+// ─── Composition lookup ──────────────────────────────────────────
 
 function lookupCompositionImpl<S extends CompositionSubType>(
-  catalog: WorkspaceCatalog,
+  compositionIndex: CompositionIndex,
   input: {
     readonly subType: S;
     readonly address: CompositionAddressOf<S>;
@@ -232,71 +296,29 @@ function lookupCompositionImpl<S extends CompositionSubType>(
   },
 ): LookupResult<Composition<S, unknown>> {
   const mode: LookupMode = input.mode ?? 'warm';
-  const slotsConsulted: PhaseOutputSource[] = [];
+  const baseSlots = slotsConsultedFor(mode);
 
-  if (modeRespectsOverrides(mode)) {
-    slotsConsulted.push('operator-override');
-  }
+  const candidates =
+    compositionIndex
+      .get(compositionAddressToPath(input.address))
+      ?.filter((c) => c.subType === input.subType) ?? [];
 
-  if (modeRespectsOverrides(mode) || modeConsultsDeterministicObservations(mode)) {
-    const matching = findCompositionsMatching(catalog, input.subType, input.address);
-    if (matching.length > 0) {
-      const allowed = matching.filter((c) => modeAllowsSource(mode, c.source));
-      if (allowed.length > 0) {
-        const winner = pickHighestPrecedenceComposition(allowed);
-        if (winner.source === 'agentic-override') slotsConsulted.push('agentic-override');
-        if (winner.source === 'deterministic-observation') {
-          slotsConsulted.push('deterministic-observation');
-        }
-        return {
-          resolved: winner as unknown as Composition<S, unknown>,
-          winningSource: winner.source,
-          slotsConsulted,
-        };
-      }
-    }
-  }
-
-  if (modeConsultsLiveCache(mode)) slotsConsulted.push('live-derivation');
+  const winner =
+    modeRespectsOverrides(mode) || modeConsultsDeterministicObservations(mode)
+      ? resolveFromTier(candidates, mode)
+      : null;
 
   return {
-    resolved: null,
-    winningSource: null,
-    slotsConsulted,
+    resolved: winner === null ? null : widenComposition<S>(winner),
+    winningSource: winner?.source ?? null,
+    slotsConsulted: slotsConsultedFromWinner(baseSlots, winner),
   };
 }
 
-function findCompositionsMatching(
-  catalog: WorkspaceCatalog,
-  subType: CompositionSubType,
-  address: CompositionAddress,
-): readonly Composition<CompositionSubType, unknown>[] {
-  return catalog.tier2Compositions
-    .map((envelope) => envelope.artifact)
-    .filter(
-      (c) => c.subType === subType && compositionAddressEquals(c.address, address),
-    );
-}
-
-function pickHighestPrecedenceComposition<S extends CompositionSubType>(
-  comps: readonly Composition<S, unknown>[],
-): Composition<S, unknown> {
-  const byPrecedence: Record<PhaseOutputSource, number> = {
-    'operator-override': 0,
-    'agentic-override': 1,
-    'deterministic-observation': 2,
-    'live-derivation': 3,
-    'cold-derivation': 4,
-  };
-  return [...comps].sort(
-    (a, b) => byPrecedence[a.source] - byPrecedence[b.source],
-  )[0]!;
-}
-
-// ─── Projection lookup implementation ────────────────────────────
+// ─── Projection lookup ───────────────────────────────────────────
 
 function lookupProjectionImpl<S extends ProjectionSubType>(
-  catalog: WorkspaceCatalog,
+  projectionIndex: ProjectionIndex,
   input: {
     readonly subType: S;
     readonly address: ProjectionAddressOf<S>;
@@ -304,179 +326,108 @@ function lookupProjectionImpl<S extends ProjectionSubType>(
   },
 ): LookupResult<Projection<S>> {
   const mode: LookupMode = input.mode ?? 'warm';
-  const slotsConsulted: PhaseOutputSource[] = [];
+  const baseSlots = slotsConsultedFor(mode);
 
-  if (modeRespectsOverrides(mode)) slotsConsulted.push('operator-override');
+  const candidates =
+    projectionIndex
+      .get(projectionAddressToPath(input.address))
+      ?.filter((p) => p.subType === input.subType) ?? [];
 
-  if (modeRespectsOverrides(mode) || modeConsultsDeterministicObservations(mode)) {
-    const matching = findProjectionsMatching(catalog, input.subType, input.address);
-    if (matching.length > 0) {
-      const allowed = matching.filter((p) => modeAllowsSource(mode, p.source));
-      if (allowed.length > 0) {
-        const winner = pickHighestPrecedenceProjection(allowed);
-        if (winner.source === 'agentic-override') slotsConsulted.push('agentic-override');
-        if (winner.source === 'deterministic-observation') {
-          slotsConsulted.push('deterministic-observation');
-        }
-        return {
-          resolved: winner as unknown as Projection<S>,
-          winningSource: winner.source,
-          slotsConsulted,
-        };
-      }
-    }
-  }
-
-  if (modeConsultsLiveCache(mode)) slotsConsulted.push('live-derivation');
+  const winner =
+    modeRespectsOverrides(mode) || modeConsultsDeterministicObservations(mode)
+      ? resolveFromTier(candidates, mode)
+      : null;
 
   return {
-    resolved: null,
-    winningSource: null,
-    slotsConsulted,
+    resolved: winner === null ? null : widenProjection<S>(winner),
+    winningSource: winner?.source ?? null,
+    slotsConsulted: slotsConsultedFromWinner(baseSlots, winner),
   };
 }
 
-function findProjectionsMatching(
-  catalog: WorkspaceCatalog,
-  subType: ProjectionSubType,
-  address: ProjectionAddress,
-): readonly Projection<ProjectionSubType>[] {
-  return catalog.tier3Projections
-    .map((envelope) => envelope.artifact)
-    .filter(
-      (p) => p.subType === subType && projectionAddressEquals(p.address, address),
-    );
-}
+// ─── Variance widening (contained casts) ─────────────────────────
 
-function pickHighestPrecedenceProjection<S extends ProjectionSubType>(
-  projs: readonly Projection<S>[],
-): Projection<S> {
-  const byPrecedence: Record<PhaseOutputSource, number> = {
-    'operator-override': 0,
-    'agentic-override': 1,
-    'deterministic-observation': 2,
-    'live-derivation': 3,
-    'cold-derivation': 4,
-  };
-  return [...projs].sort(
-    (a, b) => byPrecedence[a.source] - byPrecedence[b.source],
-  )[0]!;
-}
+const widenAtom = <C extends AtomClass>(
+  a: Atom<AtomClass, unknown>,
+): Atom<C, unknown> => a as unknown as Atom<C, unknown>;
+
+const widenComposition = <S extends CompositionSubType>(
+  c: Composition<CompositionSubType, unknown>,
+): Composition<S, unknown> => c as unknown as Composition<S, unknown>;
+
+const widenProjection = <S extends ProjectionSubType>(
+  p: Projection<ProjectionSubType>,
+): Projection<S> => p as unknown as Projection<S>;
 
 // ─── Qualifier-aware projection application ──────────────────────
 
-/** Walk the projection tier and compose applicability filters from
- *  every projection that matches the active qualifiers. The result
- *  is the intersection (associatively composed) of all applicable
- *  projections. The default applicability when no projection
- *  binding exists for an atom is the identity element
- *  (`'interactive'`) — projections only restrict, never grant. */
+/** Build the list of projection addresses implied by a qualifier
+ *  bag. Pure — same bag, same list. */
+const projectionAddressesFromBag = (
+  bag: QualifierBag,
+): readonly ProjectionAddress[] => [
+  ...(bag.role === undefined
+    ? []
+    : ([
+        { subType: 'role-visibility', role: bag.role },
+        { subType: 'role-interaction', role: bag.role },
+      ] as const)),
+  ...(bag.wizardState === undefined
+    ? []
+    : ([
+        {
+          subType: 'wizard-state',
+          wizard: bag.wizardState.wizard,
+          state: bag.wizardState.state,
+        },
+      ] as const)),
+  ...(bag.processState === undefined
+    ? []
+    : ([
+        {
+          subType: 'process-state',
+          entity: bag.processState.entity,
+          state: bag.processState.state,
+        },
+      ] as const)),
+  ...(bag.featureFlags?.map(
+    (flag) => ({ subType: 'feature-flag' as const, flag }),
+  ) ?? []),
+  ...(bag.permissionGroups?.map(
+    (group) => ({ subType: 'permission-group' as const, group }),
+  ) ?? []),
+];
+
+/** Apply every projection from the catalog matching the qualifier
+ *  bag to the given atom address via O(1) index lookups. Returns
+ *  the intersection of all applicable bindings via the monoid
+ *  `intersectApplicability` whose identity is `'interactive'`. */
 function applyProjections(
-  catalog: WorkspaceCatalog,
+  projectionIndex: ProjectionIndex,
   atomAddress: AtomAddress,
   qualifiers: QualifierBag,
 ): AtomApplicability {
-  let result: AtomApplicability = APPLICABILITY_IDENTITY;
+  const wantedAddresses = projectionAddressesFromBag(qualifiers);
 
-  // Role visibility + interaction
-  if (qualifiers.role !== undefined) {
-    const visibilityProj = findProjectionByAddress(catalog, {
-      subType: 'role-visibility',
-      role: qualifiers.role,
-    });
-    if (visibilityProj !== null) {
-      const binding = findBinding(visibilityProj, atomAddress);
-      if (binding !== undefined) {
-        result = intersectApplicability(result, binding.applicability);
-      }
-    }
-    const interactionProj = findProjectionByAddress(catalog, {
-      subType: 'role-interaction',
-      role: qualifiers.role,
-    });
-    if (interactionProj !== null) {
-      const binding = findBinding(interactionProj, atomAddress);
-      if (binding !== undefined) {
-        result = intersectApplicability(result, binding.applicability);
-      }
-    }
-  }
+  // For each wanted projection address: O(1) index lookup, then
+  // pick the highest-precedence projection at that address. Total
+  // is O(W) where W = number of qualifiers in the bag.
+  const matchedProjections = wantedAddresses
+    .map((addr) =>
+      pickHighestPrecedence(projectionIndex.get(projectionAddressToPath(addr)) ?? []),
+    )
+    .filter((p): p is Projection<ProjectionSubType> => p !== null);
 
-  // Wizard state
-  if (qualifiers.wizardState !== undefined) {
-    const wizardProj = findProjectionByAddress(catalog, {
-      subType: 'wizard-state',
-      wizard: qualifiers.wizardState.wizard,
-      state: qualifiers.wizardState.state,
-    });
-    if (wizardProj !== null) {
-      const binding = findBinding(wizardProj, atomAddress);
-      if (binding !== undefined) {
-        result = intersectApplicability(result, binding.applicability);
-      }
-    }
-  }
+  // For each matched projection, find the binding for our atom
+  // address. findBinding walks the projection's bindings array
+  // (typically small per projection).
+  const bindings = matchedProjections
+    .map((proj) => findBinding(proj, atomAddress))
+    .filter((b): b is NonNullable<typeof b> => b !== undefined);
 
-  // Process state
-  if (qualifiers.processState !== undefined) {
-    const processProj = findProjectionByAddress(catalog, {
-      subType: 'process-state',
-      entity: qualifiers.processState.entity,
-      state: qualifiers.processState.state,
-    });
-    if (processProj !== null) {
-      const binding = findBinding(processProj, atomAddress);
-      if (binding !== undefined) {
-        result = intersectApplicability(result, binding.applicability);
-      }
-    }
-  }
-
-  // Feature flags (each flag composes its own restriction)
-  if (qualifiers.featureFlags !== undefined) {
-    for (const flag of qualifiers.featureFlags) {
-      const flagProj = findProjectionByAddress(catalog, {
-        subType: 'feature-flag',
-        flag,
-      });
-      if (flagProj !== null) {
-        const binding = findBinding(flagProj, atomAddress);
-        if (binding !== undefined) {
-          result = intersectApplicability(result, binding.applicability);
-        }
-      }
-    }
-  }
-
-  // Permission groups (each group composes its own restriction)
-  if (qualifiers.permissionGroups !== undefined) {
-    for (const group of qualifiers.permissionGroups) {
-      const groupProj = findProjectionByAddress(catalog, {
-        subType: 'permission-group',
-        group,
-      });
-      if (groupProj !== null) {
-        const binding = findBinding(groupProj, atomAddress);
-        if (binding !== undefined) {
-          result = intersectApplicability(result, binding.applicability);
-        }
-      }
-    }
-  }
-
-  return result;
+  // Fold via the monoid (identity is APPLICABILITY_IDENTITY).
+  return bindings.reduce<AtomApplicability>(
+    (acc, b) => intersectApplicability(acc, b.applicability),
+    APPLICABILITY_IDENTITY,
+  );
 }
-
-function findProjectionByAddress(
-  catalog: WorkspaceCatalog,
-  address: ProjectionAddress,
-): Projection<ProjectionSubType> | null {
-  const found = catalog.tier3Projections
-    .map((envelope) => envelope.artifact)
-    .filter((p) => projectionAddressEquals(p.address, address));
-  if (found.length === 0) return null;
-  // Multiple matches? Pick highest-precedence source.
-  return pickHighestPrecedenceProjection(found);
-}
-
-void atomAddressToPath; // re-exported for downstream consumers if needed

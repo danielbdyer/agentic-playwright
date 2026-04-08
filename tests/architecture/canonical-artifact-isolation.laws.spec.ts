@@ -168,11 +168,22 @@ test('lib/domain/pipeline/ atom-address.ts references existing kernel identities
 test('lookup chain impl precedence order matches doctrine', () => {
   const implFile = path.join(LIB_ROOT, 'application', 'pipeline', 'lookup-chain-impl.ts');
   const content = fs.readFileSync(implFile, 'utf-8');
-  // The pickHighestPrecedence functions should encode the
-  // operator > agentic > deterministic > live > cold order.
-  expect(content).toContain("'operator-override': 0");
-  expect(content).toContain("'agentic-override': 1");
-  expect(content).toContain("'deterministic-observation': 2");
-  expect(content).toContain("'live-derivation': 3");
-  expect(content).toContain("'cold-derivation': 4");
+  // The implementation must encode the precedence order somewhere.
+  // We require the SOURCE_PRECEDENCE_ORDER constant to exist and
+  // verify the doctrinal sources appear in the file in the correct
+  // ORDER (operator > agentic > deterministic > live > cold).
+  // Index-of comparison on the file content suffices because the
+  // canonical declaration is the first place these literals appear
+  // and the doctrinal order is monotonic within the array.
+  expect(content).toContain('SOURCE_PRECEDENCE_ORDER');
+  const operatorPos = content.indexOf("'operator-override'");
+  const agenticPos = content.indexOf("'agentic-override'");
+  const deterministicPos = content.indexOf("'deterministic-observation'");
+  const livePos = content.indexOf("'live-derivation'");
+  const coldPos = content.indexOf("'cold-derivation'");
+  expect(operatorPos).toBeGreaterThanOrEqual(0);
+  expect(agenticPos).toBeGreaterThan(operatorPos);
+  expect(deterministicPos).toBeGreaterThan(agenticPos);
+  expect(livePos).toBeGreaterThan(deterministicPos);
+  expect(coldPos).toBeGreaterThan(livePos);
 });
