@@ -66,6 +66,7 @@ import type {
   ResolvedWithProposalsReceipt,
 } from '../resolution/types';
 import type { StepWinningSource } from '../governance/workflow-types';
+import type { BottleneckSignal } from '../learning/types';
 
 // ─── ValueRef ───
 
@@ -318,3 +319,34 @@ export const WINNING_SOURCE_TO_RUNG: Readonly<Record<StepWinningSource, string>>
   // inflating the approved-knowledge rate.
   'none': 'needs-human',
 };
+
+// ─── BottleneckSignal ───
+//
+// BottleneckSignal (lib/domain/learning/types.ts:143) is a 5-variant
+// union describing the shape of a knowledge bottleneck. Previously
+// its only dispatch site (recommendArtifacts in
+// lib/application/learning/learning-bottlenecks.ts:179) used an
+// ad-hoc switch. Named fold gives compile-time exhaustiveness so
+// adding a new bottleneck signal variant breaks the build at every
+// dispatch site until the new case is handled.
+
+export interface BottleneckSignalCases<R> {
+  readonly thinScreenCoverage: () => R;
+  readonly repairRecoveryHotspot: () => R;
+  readonly lowProvenanceCompleteness: () => R;
+  readonly highUnresolvedRate: () => R;
+  readonly translationFallbackDominant: () => R;
+}
+
+export function foldBottleneckSignal<R>(
+  signal: BottleneckSignal,
+  cases: BottleneckSignalCases<R>,
+): R {
+  switch (signal) {
+    case 'thin-screen-coverage': return cases.thinScreenCoverage();
+    case 'repair-recovery-hotspot': return cases.repairRecoveryHotspot();
+    case 'low-provenance-completeness': return cases.lowProvenanceCompleteness();
+    case 'high-unresolved-rate': return cases.highUnresolvedRate();
+    case 'translation-fallback-dominant': return cases.translationFallbackDominant();
+  }
+}

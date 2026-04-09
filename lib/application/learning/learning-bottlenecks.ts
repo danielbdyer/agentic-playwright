@@ -8,6 +8,7 @@ import type {
   KnowledgeBottleneckReport,
 } from '../../domain/learning/types';
 import { DEFAULT_PIPELINE_CONFIG } from '../../domain/attention/pipeline-config';
+import { foldBottleneckSignal } from '../../domain/kernel/visitors';
 import { groupBy, uniqueSorted } from '../../domain/kernel/collections';
 import {
   round4,
@@ -177,18 +178,13 @@ function detectSignal(input: {
 }
 
 function recommendArtifacts(screen: string, signal: BottleneckSignal): readonly string[] {
-  switch (signal) {
-    case 'thin-screen-coverage':
-      return [`knowledge/surfaces/${screen}.surface.yaml`, `knowledge/screens/${screen}.hints.yaml`];
-    case 'repair-recovery-hotspot':
-      return [`knowledge/screens/${screen}.hints.yaml`, `knowledge/screens/${screen}.elements.yaml`];
-    case 'low-provenance-completeness':
-      return [`knowledge/screens/${screen}.elements.yaml`];
-    case 'high-unresolved-rate':
-      return [`knowledge/screens/${screen}.hints.yaml`, `knowledge/screens/${screen}.elements.yaml`];
-    case 'translation-fallback-dominant':
-      return [`knowledge/screens/${screen}.hints.yaml`, `knowledge/patterns/`];
-  }
+  return foldBottleneckSignal(signal, {
+    thinScreenCoverage: () => [`knowledge/surfaces/${screen}.surface.yaml`, `knowledge/screens/${screen}.hints.yaml`],
+    repairRecoveryHotspot: () => [`knowledge/screens/${screen}.hints.yaml`, `knowledge/screens/${screen}.elements.yaml`],
+    lowProvenanceCompleteness: () => [`knowledge/screens/${screen}.elements.yaml`],
+    highUnresolvedRate: () => [`knowledge/screens/${screen}.hints.yaml`, `knowledge/screens/${screen}.elements.yaml`],
+    translationFallbackDominant: () => [`knowledge/screens/${screen}.hints.yaml`, `knowledge/patterns/`],
+  });
 }
 
 function buildScreenActionPairs(fragments: readonly GroundedSpecFragment[]): readonly { readonly screen: string; readonly action: string }[] {
