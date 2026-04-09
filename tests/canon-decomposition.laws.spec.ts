@@ -42,7 +42,17 @@ import {
   decomposeScreenElements,
   type DecomposeScreenElementsInput,
 } from '../lib/application/canon/decompose-screen-elements';
-import type { ScreenElements, ElementSig } from '../lib/domain/knowledge/types';
+import {
+  decomposeScreenHints,
+  fingerprintableHintContent,
+  type DecomposeScreenHintsInput,
+} from '../lib/application/canon/decompose-screen-hints';
+import type {
+  ScreenElements,
+  ElementSig,
+  ScreenHints,
+  ScreenElementHint,
+} from '../lib/domain/knowledge/types';
 import { isAtomAddressConsistent } from '../lib/domain/pipeline/atom';
 import type { PhaseOutputSource } from '../lib/domain/pipeline/source';
 import { brandString } from '../lib/domain/kernel/brand';
@@ -290,5 +300,300 @@ test('provenance fields flow through to the atom envelope', () => {
     expect(a.provenance.producedAt).toBe('2030-01-01T00:00:00.000Z');
     expect(a.provenance.pipelineVersion).toBe('sha-deadbeef');
     expect(a.provenance.inputs).toEqual(['screen-elements:policy-search']);
+  }
+});
+
+// ════════════════════════════════════════════════════════════════
+// decomposeScreenHints (Phase A.2)
+// ════════════════════════════════════════════════════════════════
+
+// ─── Hints fixture ───────────────────────────────────────────────
+
+function makeHint(overrides: Partial<ScreenElementHint> = {}): ScreenElementHint {
+  return {
+    aliases: ['policy number', 'policy number field'],
+    role: 'textbox',
+    defaultValueRef: '{{activePolicy.number}}',
+    parameter: 'policyNumber',
+    affordance: 'text-entry',
+    locatorLadder: undefined,
+    snapshotAliases: undefined,
+    source: undefined,
+    epistemicStatus: undefined,
+    activationPolicy: undefined,
+    acquired: {
+      certification: 'uncertified',
+      activatedAt: '2026-04-03T05:17:33.241Z',
+      certifiedAt: null,
+      lineage: {
+        runIds: ['2026-04-03T05-16-01-590Z'],
+        evidenceIds: [],
+        sourceArtifactPaths: ['controls/runbooks/synthetic-dogfood.runbook.yaml'],
+        role: null,
+        state: null,
+        driftSeed: null,
+      },
+    },
+    ...overrides,
+  };
+}
+
+function makeScreenHints(
+  overrides: Partial<Omit<ScreenHints, 'elements'>> = {},
+  elements: Record<string, ScreenElementHint> = {
+    policyNumberInput: makeHint(),
+    searchButton: makeHint({ aliases: ['search', 'search button'], role: 'button' }),
+    resultsTable: makeHint({ aliases: ['results table', 'search results'], role: 'table' }),
+  },
+): ScreenHints {
+  return {
+    screen: brandString<'ScreenId'>('policy-search'),
+    screenAliases: ['policy search', 'policy search screen'],
+    elements,
+    ...overrides,
+  };
+}
+
+function makeHintsInput(
+  overrides: Partial<DecomposeScreenHintsInput> = {},
+): DecomposeScreenHintsInput {
+  return {
+    content: makeScreenHints(),
+    source: 'agentic-override' as PhaseOutputSource,
+    producedBy: 'canon-decomposer:screen-hints:v1',
+    producedAt: '2026-04-09T00:00:00.000Z',
+    pipelineVersion: 'sha-test',
+    ...overrides,
+  };
+}
+
+// ─── Determinism ─────────────────────────────────────────────────
+
+test('decomposeScreenHints is deterministic for the same input', () => {
+  const input = makeHintsInput();
+  const left = decomposeScreenHints(input);
+  const right = decomposeScreenHints(input);
+  expect(left).toEqual(right);
+  for (let i = 0; i < left.length; i += 1) {
+    expect(left[i]?.inputFingerprint).toBe(right[i]?.inputFingerprint);
+  }
+});
+
+// ─── Cardinality ─────────────────────────────────────────────────
+
+test('decomposeScreenHints emits exactly one atom per element entry', () => {
+  const input = makeHintsInput();
+  const atoms = decomposeScreenHints(input);
+  expect(atoms.length).toBe(Object.keys(input.content.elements).length);
+});
+
+test('decomposeScreenHints emits an empty array when elements is empty', () => {
+  const input = makeHintsInput({ content: makeScreenHints({}, {}) });
+  expect(decomposeScreenHints(input)).toEqual([]);
+});
+
+// ─── Address consistency ─────────────────────────────────────────
+
+test('every emitted hint atom passes isAtomAddressConsistent', () => {
+  const atoms = decomposeScreenHints(makeHintsInput());
+  for (const a of atoms) {
+    expect(isAtomAddressConsistent(a)).toBe(true);
+    expect(a.class).toBe('element');
+    expect(a.address.class).toBe('element');
+  }
+});
+
+test('hint atoms share addressing with element atoms (same screen, same element ids)', () => {
+  // The two decomposers must produce atoms with byte-equivalent
+  // addresses for the same (screen, element) tuple. The future
+  // lookup-chain join slice depends on this.
+  const elementInputs = makeInput({
+    content: makeScreenElements({}, {
+      policyNumberInput: makeElementSig(),
+    }),
+  });
+  const hintInputs = makeHintsInput({
+    content: makeScreenHints({}, { policyNumberInput: makeHint() }),
+  });
+  const elementAtom = decomposeScreenElements(elementInputs)[0];
+  const hintAtom = decomposeScreenHints(hintInputs)[0];
+  expect(elementAtom).toBeDefined();
+  expect(hintAtom).toBeDefined();
+  expect(elementAtom?.address).toEqual(hintAtom?.address);
+});
+
+// ─── Source wiring ───────────────────────────────────────────────
+
+test('decomposeScreenHints threads PhaseOutputSource through every atom', () => {
+  const sources: readonly PhaseOutputSource[] = [
+    'operator-override',
+    'agentic-override',
+    'deterministic-observation',
+    'live-derivation',
+    'cold-derivation',
+  ];
+  for (const source of sources) {
+    const atoms = decomposeScreenHints(makeHintsInput({ source }));
+    for (const a of atoms) {
+      expect(a.source).toBe(source);
+    }
+  }
+});
+
+// ─── Content preservation ────────────────────────────────────────
+
+test('hint atom content is byte-equivalent to the source ScreenElementHint (acquired included)', () => {
+  const customHint = makeHint({
+    aliases: ['choose status', 'pick status'],
+    role: 'combobox',
+    parameter: 'status',
+  });
+  const atoms = decomposeScreenHints(
+    makeHintsInput({ content: makeScreenHints({}, { statusFilter: customHint }) }),
+  );
+  expect(atoms.length).toBe(1);
+  expect(atoms[0]?.content).toEqual(customHint);
+  // Acquired must survive in the content even though it is excluded
+  // from the fingerprint.
+  expect(atoms[0]?.content.acquired).toBeDefined();
+});
+
+test('decomposeScreenHints does not mutate the source content', () => {
+  const original = makeScreenHints();
+  const snapshot = JSON.parse(JSON.stringify(original));
+  decomposeScreenHints(makeHintsInput({ content: original }));
+  expect(original).toEqual(snapshot);
+});
+
+// ─── Stable ordering ─────────────────────────────────────────────
+
+test('hint atom output is sorted lexicographically by element id regardless of input order', () => {
+  const a = makeScreenHints({}, {
+    zebra: makeHint(),
+    apple: makeHint({ aliases: ['apple alias'] }),
+    mango: makeHint({ aliases: ['mango alias'] }),
+  });
+  const b = makeScreenHints({}, {
+    apple: makeHint({ aliases: ['apple alias'] }),
+    mango: makeHint({ aliases: ['mango alias'] }),
+    zebra: makeHint(),
+  });
+  const fromA = decomposeScreenHints(makeHintsInput({ content: a }));
+  const fromB = decomposeScreenHints(makeHintsInput({ content: b }));
+  const idsA = fromA.map((x) => x.address.element as string);
+  const idsB = fromB.map((x) => x.address.element as string);
+  expect(idsA).toEqual(['apple', 'mango', 'zebra']);
+  expect(idsB).toEqual(['apple', 'mango', 'zebra']);
+});
+
+// ─── Fingerprint independence from provenance ───────────────────
+
+test('hint inputFingerprint does not depend on producedAt / producedBy / pipelineVersion', () => {
+  const baseline = decomposeScreenHints(makeHintsInput());
+  const variants: ReadonlyArray<Partial<DecomposeScreenHintsInput>> = [
+    { producedAt: '2030-12-31T23:59:59.999Z' },
+    { producedBy: 'canon-decomposer:screen-hints:v9' },
+    { pipelineVersion: 'sha-different' },
+  ];
+  for (const overrides of variants) {
+    const variant = decomposeScreenHints(makeHintsInput(overrides));
+    for (let i = 0; i < baseline.length; i += 1) {
+      expect(baseline[i]?.inputFingerprint).toBe(variant[i]?.inputFingerprint);
+    }
+  }
+});
+
+// ─── Acquired exclusion (the hint-specific load-bearing property) ─
+
+test('hint inputFingerprint does not depend on the acquired block', () => {
+  // Two hints with identical user-meaningful content but different
+  // activation lineage (different runIds, different timestamps,
+  // different source paths). The fingerprint must be identical
+  // because re-running the migration after a knowledge activation
+  // cycle should not produce spurious "content changed" signals.
+  const baseline = decomposeScreenHints(makeHintsInput());
+  const reactivated = decomposeScreenHints(
+    makeHintsInput({
+      content: makeScreenHints({}, {
+        policyNumberInput: makeHint({
+          acquired: {
+            certification: 'uncertified',
+            activatedAt: '2030-01-01T00:00:00.000Z',
+            certifiedAt: null,
+            lineage: {
+              runIds: ['2030-01-01T00-00-00-000Z'],
+              evidenceIds: ['evidence-99'],
+              sourceArtifactPaths: ['some/different/path.yaml'],
+              role: null,
+              state: null,
+              driftSeed: null,
+            },
+          },
+        }),
+        searchButton: makeHint({ aliases: ['search', 'search button'], role: 'button' }),
+        resultsTable: makeHint({ aliases: ['results table', 'search results'], role: 'table' }),
+      }),
+    }),
+  );
+  for (let i = 0; i < baseline.length; i += 1) {
+    expect(baseline[i]?.inputFingerprint).toBe(reactivated[i]?.inputFingerprint);
+  }
+});
+
+test('hint inputFingerprint changes when user-meaningful content changes', () => {
+  const baseline = decomposeScreenHints(makeHintsInput());
+  const mutated = decomposeScreenHints(
+    makeHintsInput({
+      content: makeScreenHints({}, {
+        policyNumberInput: makeHint({ aliases: ['totally different aliases'] }),
+        searchButton: makeHint({ aliases: ['search', 'search button'], role: 'button' }),
+        resultsTable: makeHint({ aliases: ['results table', 'search results'], role: 'table' }),
+      }),
+    }),
+  );
+  const baselineMatch = baseline.find((a) => (a.address.element as string) === 'policyNumberInput');
+  const mutatedMatch = mutated.find((a) => (a.address.element as string) === 'policyNumberInput');
+  expect(baselineMatch?.inputFingerprint).not.toBe(mutatedMatch?.inputFingerprint);
+});
+
+// ─── fingerprintableHintContent helper ───────────────────────────
+
+test('fingerprintableHintContent replaces acquired with null and preserves all other fields', () => {
+  const hint = makeHint({
+    aliases: ['x', 'y'],
+    role: 'textbox',
+    defaultValueRef: 'ref',
+    parameter: 'p',
+    affordance: 'text-entry',
+  });
+  const projected = fingerprintableHintContent(hint);
+  expect(projected.acquired).toBeNull();
+  expect(projected.aliases).toEqual(hint.aliases);
+  expect(projected.role).toBe(hint.role);
+  expect(projected.defaultValueRef).toBe(hint.defaultValueRef);
+  expect(projected.parameter).toBe(hint.parameter);
+  expect(projected.affordance).toBe(hint.affordance);
+});
+
+test('fingerprintableHintContent is deterministic', () => {
+  const hint = makeHint();
+  expect(fingerprintableHintContent(hint)).toEqual(fingerprintableHintContent(hint));
+});
+
+// ─── Provenance plumbing ─────────────────────────────────────────
+
+test('hint provenance fields flow through to the atom envelope', () => {
+  const atoms = decomposeScreenHints(
+    makeHintsInput({
+      producedBy: 'canon-decomposer:screen-hints:v9',
+      producedAt: '2030-01-01T00:00:00.000Z',
+      pipelineVersion: 'sha-cafebabe',
+    }),
+  );
+  for (const a of atoms) {
+    expect(a.provenance.producedBy).toBe('canon-decomposer:screen-hints:v9');
+    expect(a.provenance.producedAt).toBe('2030-01-01T00:00:00.000Z');
+    expect(a.provenance.pipelineVersion).toBe('sha-cafebabe');
+    expect(a.provenance.inputs).toEqual(['screen-hints:policy-search']);
   }
 });

@@ -28,3 +28,4 @@
  */
 
 export * from './decompose-screen-elements';
+export * from './decompose-screen-hints';
