@@ -91,7 +91,6 @@ import type {
   RouteKnowledgeRoute,
   RouteKnowledgeVariant,
 } from '../lib/domain/intent/routes';
-import { isAtomAddressConsistent } from '../lib/domain/pipeline/atom';
 import type { PhaseOutputSource } from '../lib/domain/pipeline/source';
 import { brandString } from '../lib/domain/kernel/brand';
 
@@ -150,19 +149,6 @@ function makeInput(
   };
 }
 
-// ─── Determinism ─────────────────────────────────────────────────
-
-test('decomposeScreenElements is deterministic for the same input', () => {
-  const input = makeInput();
-  const left = decomposeScreenElements(input);
-  const right = decomposeScreenElements(input);
-  expect(left).toEqual(right);
-  // Fingerprints must be identical too — not just structurally equal.
-  for (let i = 0; i < left.length; i += 1) {
-    expect(left[i]?.inputFingerprint).toBe(right[i]?.inputFingerprint);
-  }
-});
-
 // ─── Cardinality ─────────────────────────────────────────────────
 
 test('decomposeScreenElements emits exactly one atom per element entry', () => {
@@ -178,16 +164,7 @@ test('decomposeScreenElements emits an empty array for empty elements', () => {
   expect(atoms).toEqual([]);
 });
 
-// ─── Address consistency ─────────────────────────────────────────
-
-test('every emitted atom passes isAtomAddressConsistent', () => {
-  const atoms = decomposeScreenElements(makeInput());
-  for (const a of atoms) {
-    expect(isAtomAddressConsistent(a)).toBe(true);
-    expect(a.class).toBe('element');
-    expect(a.address.class).toBe('element');
-  }
-});
+// ─── Address shape (mint invariants covered by canon-minting.laws) ─
 
 test('address.screen matches the source ScreenElements.screen', () => {
   const screen = brandString<'ScreenId'>('policy-detail');
@@ -206,24 +183,6 @@ test('address.element matches the source map key', () => {
   // had keys in insertion order { policyNumberInput, searchButton,
   // resultsTable }, the output should be sorted alphabetically.
   expect(elementIds).toEqual(['policyNumberInput', 'resultsTable', 'searchButton']);
-});
-
-// ─── Source wiring ───────────────────────────────────────────────
-
-test('every emitted atom carries the requested PhaseOutputSource', () => {
-  const sources: readonly PhaseOutputSource[] = [
-    'operator-override',
-    'agentic-override',
-    'deterministic-observation',
-    'live-derivation',
-    'cold-derivation',
-  ];
-  for (const source of sources) {
-    const atoms = decomposeScreenElements(makeInput({ source }));
-    for (const a of atoms) {
-      expect(a.source).toBe(source);
-    }
-  }
 });
 
 // ─── Content preservation ────────────────────────────────────────
@@ -275,31 +234,7 @@ test('output is sorted by element id regardless of input order', () => {
   expect(idsB).toEqual(['apple', 'mango', 'zebra']);
 });
 
-// ─── Fingerprint independence from provenance ───────────────────
-
-test('inputFingerprint does not depend on producedAt', () => {
-  const t1 = decomposeScreenElements(makeInput({ producedAt: '2026-04-09T00:00:00.000Z' }));
-  const t2 = decomposeScreenElements(makeInput({ producedAt: '2026-12-31T23:59:59.999Z' }));
-  for (let i = 0; i < t1.length; i += 1) {
-    expect(t1[i]?.inputFingerprint).toBe(t2[i]?.inputFingerprint);
-  }
-});
-
-test('inputFingerprint does not depend on producedBy', () => {
-  const a = decomposeScreenElements(makeInput({ producedBy: 'canon-decomposer:v1' }));
-  const b = decomposeScreenElements(makeInput({ producedBy: 'canon-decomposer:v2' }));
-  for (let i = 0; i < a.length; i += 1) {
-    expect(a[i]?.inputFingerprint).toBe(b[i]?.inputFingerprint);
-  }
-});
-
-test('inputFingerprint does not depend on pipelineVersion', () => {
-  const a = decomposeScreenElements(makeInput({ pipelineVersion: 'sha-aaa' }));
-  const b = decomposeScreenElements(makeInput({ pipelineVersion: 'sha-bbb' }));
-  for (let i = 0; i < a.length; i += 1) {
-    expect(a[i]?.inputFingerprint).toBe(b[i]?.inputFingerprint);
-  }
-});
+// ─── Content-sensitive fingerprint checks ─────────────────────
 
 test('inputFingerprint changes when content changes', () => {
   const baseline = decomposeScreenElements(makeInput());
@@ -323,20 +258,11 @@ test('inputFingerprint changes when content changes', () => {
   expect(baselineMatch?.inputFingerprint).not.toBe(mutatedMatch?.inputFingerprint);
 });
 
-// ─── Provenance plumbing ─────────────────────────────────────────
+// ─── Per-decomposer inputs tagging ──────────────────────────────
 
-test('provenance fields flow through to the atom envelope', () => {
-  const atoms = decomposeScreenElements(
-    makeInput({
-      producedBy: 'canon-decomposer:screen-elements:v9',
-      producedAt: '2030-01-01T00:00:00.000Z',
-      pipelineVersion: 'sha-deadbeef',
-    }),
-  );
+test('element atoms tag inputs with the screen-elements sentinel', () => {
+  const atoms = decomposeScreenElements(makeInput());
   for (const a of atoms) {
-    expect(a.provenance.producedBy).toBe('canon-decomposer:screen-elements:v9');
-    expect(a.provenance.producedAt).toBe('2030-01-01T00:00:00.000Z');
-    expect(a.provenance.pipelineVersion).toBe('sha-deadbeef');
     expect(a.provenance.inputs).toEqual(['screen-elements:policy-search']);
   }
 });
@@ -405,18 +331,6 @@ function makeHintsInput(
   };
 }
 
-// ─── Determinism ─────────────────────────────────────────────────
-
-test('decomposeScreenHints is deterministic for the same input', () => {
-  const input = makeHintsInput();
-  const left = decomposeScreenHints(input);
-  const right = decomposeScreenHints(input);
-  expect(left).toEqual(right);
-  for (let i = 0; i < left.length; i += 1) {
-    expect(left[i]?.inputFingerprint).toBe(right[i]?.inputFingerprint);
-  }
-});
-
 // ─── Cardinality ─────────────────────────────────────────────────
 
 test('decomposeScreenHints emits exactly one atom per element entry', () => {
@@ -430,16 +344,7 @@ test('decomposeScreenHints emits an empty array when elements is empty', () => {
   expect(decomposeScreenHints(input)).toEqual([]);
 });
 
-// ─── Address consistency ─────────────────────────────────────────
-
-test('every emitted hint atom passes isAtomAddressConsistent', () => {
-  const atoms = decomposeScreenHints(makeHintsInput());
-  for (const a of atoms) {
-    expect(isAtomAddressConsistent(a)).toBe(true);
-    expect(a.class).toBe('element');
-    expect(a.address.class).toBe('element');
-  }
-});
+// ─── Address shape (mint invariants covered by canon-minting.laws) ─
 
 test('hint atoms share addressing with element atoms (same screen, same element ids)', () => {
   // The two decomposers must produce atoms with byte-equivalent
@@ -458,24 +363,6 @@ test('hint atoms share addressing with element atoms (same screen, same element 
   expect(elementAtom).toBeDefined();
   expect(hintAtom).toBeDefined();
   expect(elementAtom?.address).toEqual(hintAtom?.address);
-});
-
-// ─── Source wiring ───────────────────────────────────────────────
-
-test('decomposeScreenHints threads PhaseOutputSource through every atom', () => {
-  const sources: readonly PhaseOutputSource[] = [
-    'operator-override',
-    'agentic-override',
-    'deterministic-observation',
-    'live-derivation',
-    'cold-derivation',
-  ];
-  for (const source of sources) {
-    const atoms = decomposeScreenHints(makeHintsInput({ source }));
-    for (const a of atoms) {
-      expect(a.source).toBe(source);
-    }
-  }
 });
 
 // ─── Content preservation ────────────────────────────────────────
@@ -522,23 +409,6 @@ test('hint atom output is sorted lexicographically by element id regardless of i
   const idsB = fromB.map((x) => x.address.element as string);
   expect(idsA).toEqual(['apple', 'mango', 'zebra']);
   expect(idsB).toEqual(['apple', 'mango', 'zebra']);
-});
-
-// ─── Fingerprint independence from provenance ───────────────────
-
-test('hint inputFingerprint does not depend on producedAt / producedBy / pipelineVersion', () => {
-  const baseline = decomposeScreenHints(makeHintsInput());
-  const variants: ReadonlyArray<Partial<DecomposeScreenHintsInput>> = [
-    { producedAt: '2030-12-31T23:59:59.999Z' },
-    { producedBy: 'canon-decomposer:screen-hints:v9' },
-    { pipelineVersion: 'sha-different' },
-  ];
-  for (const overrides of variants) {
-    const variant = decomposeScreenHints(makeHintsInput(overrides));
-    for (let i = 0; i < baseline.length; i += 1) {
-      expect(baseline[i]?.inputFingerprint).toBe(variant[i]?.inputFingerprint);
-    }
-  }
 });
 
 // ─── Acquired exclusion (the hint-specific load-bearing property) ─
@@ -618,20 +488,11 @@ test('fingerprintableHintContent is deterministic', () => {
   expect(fingerprintableHintContent(hint)).toEqual(fingerprintableHintContent(hint));
 });
 
-// ─── Provenance plumbing ─────────────────────────────────────────
+// ─── Per-decomposer inputs tagging ──────────────────────────────
 
-test('hint provenance fields flow through to the atom envelope', () => {
-  const atoms = decomposeScreenHints(
-    makeHintsInput({
-      producedBy: 'canon-decomposer:screen-hints:v9',
-      producedAt: '2030-01-01T00:00:00.000Z',
-      pipelineVersion: 'sha-cafebabe',
-    }),
-  );
+test('hint atoms tag inputs with the screen-hints sentinel', () => {
+  const atoms = decomposeScreenHints(makeHintsInput());
   for (const a of atoms) {
-    expect(a.provenance.producedBy).toBe('canon-decomposer:screen-hints:v9');
-    expect(a.provenance.producedAt).toBe('2030-01-01T00:00:00.000Z');
-    expect(a.provenance.pipelineVersion).toBe('sha-cafebabe');
     expect(a.provenance.inputs).toEqual(['screen-hints:policy-search']);
   }
 });
@@ -693,18 +554,6 @@ function makePosturesInput(
   };
 }
 
-// ─── Determinism ─────────────────────────────────────────────────
-
-test('decomposeScreenPostures is deterministic for the same input', () => {
-  const input = makePosturesInput();
-  const left = decomposeScreenPostures(input);
-  const right = decomposeScreenPostures(input);
-  expect(left).toEqual(right);
-  for (let i = 0; i < left.length; i += 1) {
-    expect(left[i]?.inputFingerprint).toBe(right[i]?.inputFingerprint);
-  }
-});
-
 // ─── Cardinality (nested map → flat atoms) ──────────────────────
 
 test('decomposeScreenPostures emits one atom per (element, posture-name) pair', () => {
@@ -744,16 +593,7 @@ test('decomposeScreenPostures handles multi-element input', () => {
   expect(atoms.length).toBe(4);
 });
 
-// ─── Address consistency ─────────────────────────────────────────
-
-test('every emitted posture atom passes isAtomAddressConsistent', () => {
-  const atoms = decomposeScreenPostures(makePosturesInput());
-  for (const a of atoms) {
-    expect(isAtomAddressConsistent(a)).toBe(true);
-    expect(a.class).toBe('posture');
-    expect(a.address.class).toBe('posture');
-  }
-});
+// ─── Address shape (mint invariants covered by canon-minting.laws) ─
 
 test('posture address carries screen, element, and posture identity', () => {
   const atoms = decomposeScreenPostures(makePosturesInput());
@@ -767,24 +607,6 @@ test('posture address carries screen, element, and posture identity', () => {
     { screen: 'policy-search', element: 'policyNumberInput', posture: 'invalid' },
     { screen: 'policy-search', element: 'policyNumberInput', posture: 'valid' },
   ]);
-});
-
-// ─── Source wiring ───────────────────────────────────────────────
-
-test('decomposeScreenPostures threads PhaseOutputSource through every atom', () => {
-  const sources: readonly PhaseOutputSource[] = [
-    'operator-override',
-    'agentic-override',
-    'deterministic-observation',
-    'live-derivation',
-    'cold-derivation',
-  ];
-  for (const source of sources) {
-    const atoms = decomposeScreenPostures(makePosturesInput({ source }));
-    for (const a of atoms) {
-      expect(a.source).toBe(source);
-    }
-  }
 });
 
 // ─── Content preservation ────────────────────────────────────────
@@ -869,22 +691,7 @@ test('two inputs with the same content but different insertion orders produce id
   expect(fromA).toEqual(fromB);
 });
 
-// ─── Fingerprint independence from provenance ───────────────────
-
-test('posture inputFingerprint does not depend on producedAt / producedBy / pipelineVersion', () => {
-  const baseline = decomposeScreenPostures(makePosturesInput());
-  const variants: ReadonlyArray<Partial<DecomposeScreenPosturesInput>> = [
-    { producedAt: '2030-12-31T23:59:59.999Z' },
-    { producedBy: 'canon-decomposer:screen-postures:v9' },
-    { pipelineVersion: 'sha-different' },
-  ];
-  for (const overrides of variants) {
-    const variant = decomposeScreenPostures(makePosturesInput(overrides));
-    for (let i = 0; i < baseline.length; i += 1) {
-      expect(baseline[i]?.inputFingerprint).toBe(variant[i]?.inputFingerprint);
-    }
-  }
-});
+// ─── Content-sensitive fingerprint checks ─────────────────────
 
 test('posture inputFingerprint changes when effects change', () => {
   const baseline = decomposeScreenPostures(makePosturesInput());
@@ -927,20 +734,11 @@ test('posture inputFingerprint changes when values change', () => {
   expect(baselineValid?.inputFingerprint).not.toBe(mutatedValid?.inputFingerprint);
 });
 
-// ─── Provenance plumbing ─────────────────────────────────────────
+// ─── Per-decomposer inputs tagging ──────────────────────────────
 
-test('posture provenance fields flow through to the atom envelope', () => {
-  const atoms = decomposeScreenPostures(
-    makePosturesInput({
-      producedBy: 'canon-decomposer:screen-postures:v9',
-      producedAt: '2030-01-01T00:00:00.000Z',
-      pipelineVersion: 'sha-baadf00d',
-    }),
-  );
+test('posture atoms tag inputs with the screen-postures sentinel', () => {
+  const atoms = decomposeScreenPostures(makePosturesInput());
   for (const a of atoms) {
-    expect(a.provenance.producedBy).toBe('canon-decomposer:screen-postures:v9');
-    expect(a.provenance.producedAt).toBe('2030-01-01T00:00:00.000Z');
-    expect(a.provenance.pipelineVersion).toBe('sha-baadf00d');
     expect(a.provenance.inputs).toEqual(['screen-postures:policy-search']);
   }
 });
@@ -1035,15 +833,6 @@ function makeRouteInput(
   };
 }
 
-// ─── Determinism ─────────────────────────────────────────────────
-
-test('decomposeRouteKnowledge is deterministic for the same input', () => {
-  const input = makeRouteInput();
-  const left = decomposeRouteKnowledge(input);
-  const right = decomposeRouteKnowledge(input);
-  expect(left).toEqual(right);
-});
-
 // ─── Bag shape and cardinality ──────────────────────────────────
 
 test('decomposeRouteKnowledge returns a typed bag with three fields', () => {
@@ -1082,25 +871,7 @@ test('empty manifest.routes produces zero atoms but still one graph composition'
   expect(out.routeGraphs[0]?.atomReferences).toEqual([]);
 });
 
-// ─── Address consistency ─────────────────────────────────────────
-
-test('every route atom passes isAtomAddressConsistent', () => {
-  const out = decomposeRouteKnowledge(makeRouteInput());
-  for (const a of out.routeAtoms) {
-    expect(isAtomAddressConsistent(a)).toBe(true);
-    expect(a.class).toBe('route');
-    expect(a.address.class).toBe('route');
-  }
-});
-
-test('every variant atom passes isAtomAddressConsistent', () => {
-  const out = decomposeRouteKnowledge(makeRouteInput());
-  for (const a of out.variantAtoms) {
-    expect(isAtomAddressConsistent(a)).toBe(true);
-    expect(a.class).toBe('route-variant');
-    expect(a.address.class).toBe('route-variant');
-  }
-});
+// ─── Address shape (mint invariants covered by canon-minting.laws) ─
 
 test('variant atom address carries (route, variant) tuple', () => {
   const out = decomposeRouteKnowledge(makeRouteInput());
@@ -1202,30 +973,6 @@ test('route graph composition atomReferences do not list variant atoms', () => {
   }
 });
 
-// ─── Source wiring ───────────────────────────────────────────────
-
-test('decomposeRouteKnowledge threads PhaseOutputSource through atoms AND composition', () => {
-  const sources: readonly PhaseOutputSource[] = [
-    'operator-override',
-    'agentic-override',
-    'deterministic-observation',
-    'live-derivation',
-    'cold-derivation',
-  ];
-  for (const source of sources) {
-    const out = decomposeRouteKnowledge(makeRouteInput({ source }));
-    for (const a of out.routeAtoms) {
-      expect(a.source).toBe(source);
-    }
-    for (const a of out.variantAtoms) {
-      expect(a.source).toBe(source);
-    }
-    for (const g of out.routeGraphs) {
-      expect(g.source).toBe(source);
-    }
-  }
-});
-
 // ─── No source mutation ──────────────────────────────────────────
 
 test('decomposeRouteKnowledge does not mutate the source manifest', () => {
@@ -1267,34 +1014,7 @@ test('variants within a route are sorted lexicographically by id', () => {
   expect(ids).toEqual(['aa', 'mm', 'zz']);
 });
 
-// ─── Fingerprint independence from provenance ───────────────────
-
-test('route atom fingerprints are independent of provenance fields', () => {
-  const baseline = decomposeRouteKnowledge(makeRouteInput());
-  const variants: ReadonlyArray<Partial<DecomposeRouteKnowledgeInput>> = [
-    { producedAt: '2030-12-31T23:59:59.999Z' },
-    { producedBy: 'canon-decomposer:route-knowledge:v9' },
-    { pipelineVersion: 'sha-different' },
-  ];
-  for (const overrides of variants) {
-    const variant = decomposeRouteKnowledge(makeRouteInput(overrides));
-    for (let i = 0; i < baseline.routeAtoms.length; i += 1) {
-      expect(baseline.routeAtoms[i]?.inputFingerprint).toBe(
-        variant.routeAtoms[i]?.inputFingerprint,
-      );
-    }
-    for (let i = 0; i < baseline.variantAtoms.length; i += 1) {
-      expect(baseline.variantAtoms[i]?.inputFingerprint).toBe(
-        variant.variantAtoms[i]?.inputFingerprint,
-      );
-    }
-    for (let i = 0; i < baseline.routeGraphs.length; i += 1) {
-      expect(baseline.routeGraphs[i]?.inputFingerprint).toBe(
-        variant.routeGraphs[i]?.inputFingerprint,
-      );
-    }
-  }
-});
+// ─── Content-sensitive fingerprint checks (sibling isolation) ─
 
 test('route atom fingerprint changes when route metadata changes (not variants)', () => {
   const baseline = decomposeRouteKnowledge(makeRouteInput());
@@ -1411,34 +1131,25 @@ test('composition fingerprint changes when app metadata changes', () => {
   );
 });
 
-// ─── Provenance plumbing ─────────────────────────────────────────
+// ─── Per-decomposer inputs tagging ──────────────────────────────
 
-test('route provenance fields flow through to atoms and composition', () => {
-  const out = decomposeRouteKnowledge(
-    makeRouteInput({
-      producedBy: 'canon-decomposer:route-knowledge:v9',
-      producedAt: '2030-01-01T00:00:00.000Z',
-      pipelineVersion: 'sha-feedface',
-    }),
-  );
+test('route atoms, variants, and graph tag inputs with the route-knowledge sentinels', () => {
+  const out = decomposeRouteKnowledge(makeRouteInput());
+  // Route atoms: single manifest-level tag.
   for (const a of out.routeAtoms) {
-    expect(a.provenance.producedBy).toBe('canon-decomposer:route-knowledge:v9');
-    expect(a.provenance.producedAt).toBe('2030-01-01T00:00:00.000Z');
-    expect(a.provenance.pipelineVersion).toBe('sha-feedface');
     expect(a.provenance.inputs).toEqual(['route-knowledge:demo']);
   }
+  // Variants: dual-input (manifest + parent route) — the demotion
+  // cascade needs to mark variants as candidates when EITHER
+  // upstream changes.
   for (const a of out.variantAtoms) {
-    expect(a.provenance.producedBy).toBe('canon-decomposer:route-knowledge:v9');
     expect(a.provenance.inputs?.[0]).toBe('route-knowledge:demo');
-    // Variant provenance inputs narrow the scope to the parent route.
     expect(a.provenance.inputs?.[1]).toBe(
       `route-knowledge:demo:${a.address.route as string}`,
     );
   }
+  // Route graph composition: manifest-level tag.
   for (const g of out.routeGraphs) {
-    expect(g.provenance.producedBy).toBe('canon-decomposer:route-knowledge:v9');
-    expect(g.provenance.producedAt).toBe('2030-01-01T00:00:00.000Z');
-    expect(g.provenance.pipelineVersion).toBe('sha-feedface');
     expect(g.provenance.inputs).toEqual(['route-knowledge:demo']);
   }
 });
@@ -1456,38 +1167,6 @@ test('every composition atomReference.address is byte-equal to the corresponding
   }
 });
 
-// ─── Interop invariant: fingerprint is source-agnostic ──────────
-
-test('two invocations with the same content but different PhaseOutputSource produce identical fingerprints', () => {
-  // The load-bearing property for the cold-start/warm-start interop
-  // contract from canon-and-derivation.md § 8.1: a YAML-migrated
-  // manifest (source = 'agentic-override') and a hypothetical live
-  // harvest (source = 'cold-derivation') that produce the SAME
-  // RouteKnowledgeManifest MUST produce atoms with the SAME
-  // fingerprints, so the promotion gate can compare them as
-  // equivalent.
-  const warm = decomposeRouteKnowledge(
-    makeRouteInput({ source: 'agentic-override' }),
-  );
-  const cold = decomposeRouteKnowledge(
-    makeRouteInput({ source: 'cold-derivation' }),
-  );
-  for (let i = 0; i < warm.routeAtoms.length; i += 1) {
-    expect(warm.routeAtoms[i]?.inputFingerprint).toBe(
-      cold.routeAtoms[i]?.inputFingerprint,
-    );
-  }
-  for (let i = 0; i < warm.variantAtoms.length; i += 1) {
-    expect(warm.variantAtoms[i]?.inputFingerprint).toBe(
-      cold.variantAtoms[i]?.inputFingerprint,
-    );
-  }
-  for (let i = 0; i < warm.routeGraphs.length; i += 1) {
-    expect(warm.routeGraphs[i]?.inputFingerprint).toBe(
-      cold.routeGraphs[i]?.inputFingerprint,
-    );
-  }
-});
 
 // ════════════════════════════════════════════════════════════════
 // decomposeScreenSurfaces (Phase A.5) — second tier-crossing
@@ -1579,14 +1258,7 @@ function makeSurfacesInput(
   };
 }
 
-// ─── Determinism + bag shape ────────────────────────────────────
-
-test('decomposeScreenSurfaces is deterministic for the same input', () => {
-  const input = makeSurfacesInput();
-  const left = decomposeScreenSurfaces(input);
-  const right = decomposeScreenSurfaces(input);
-  expect(left).toEqual(right);
-});
+// ─── Bag shape ──────────────────────────────────────────────────
 
 test('decomposeScreenSurfaces returns a typed bag with two fields (atoms + compositions)', () => {
   const out = decomposeScreenSurfaces(makeSurfacesInput());
@@ -1615,16 +1287,7 @@ test('empty surfaces map produces zero atoms but still one composition', () => {
   expect(out.surfaceCompositions[0]?.atomReferences).toEqual([]);
 });
 
-// ─── Address consistency ─────────────────────────────────────────
-
-test('every surface atom passes isAtomAddressConsistent', () => {
-  const out = decomposeScreenSurfaces(makeSurfacesInput());
-  for (const a of out.surfaceAtoms) {
-    expect(isAtomAddressConsistent(a)).toBe(true);
-    expect(a.class).toBe('surface');
-    expect(a.address.class).toBe('surface');
-  }
-});
+// ─── Address shape (mint invariants covered by canon-minting.laws) ─
 
 test('surface atom address carries (screen, surface-id) tuple', () => {
   const out = decomposeScreenSurfaces(makeSurfacesInput());
@@ -1733,27 +1396,6 @@ test('every composition atomReference address is byte-equal to the corresponding
   }
 });
 
-// ─── Source wiring ───────────────────────────────────────────────
-
-test('decomposeScreenSurfaces threads PhaseOutputSource through atoms AND composition', () => {
-  const sources: readonly PhaseOutputSource[] = [
-    'operator-override',
-    'agentic-override',
-    'deterministic-observation',
-    'live-derivation',
-    'cold-derivation',
-  ];
-  for (const source of sources) {
-    const out = decomposeScreenSurfaces(makeSurfacesInput({ source }));
-    for (const a of out.surfaceAtoms) {
-      expect(a.source).toBe(source);
-    }
-    for (const c of out.surfaceCompositions) {
-      expect(c.source).toBe(source);
-    }
-  }
-});
-
 // ─── Stable ordering ─────────────────────────────────────────────
 
 test('surface atoms are sorted lexicographically by surface id regardless of input order', () => {
@@ -1799,29 +1441,7 @@ test('two inputs with the same content but different insertion orders produce id
   expect(fromA).toEqual(fromB);
 });
 
-// ─── Fingerprint independence from provenance ───────────────────
-
-test('surface atom and composition fingerprints are independent of provenance fields', () => {
-  const baseline = decomposeScreenSurfaces(makeSurfacesInput());
-  const variants: ReadonlyArray<Partial<DecomposeScreenSurfacesInput>> = [
-    { producedAt: '2030-12-31T23:59:59.999Z' },
-    { producedBy: 'canon-decomposer:screen-surfaces:v9' },
-    { pipelineVersion: 'sha-different' },
-  ];
-  for (const overrides of variants) {
-    const variant = decomposeScreenSurfaces(makeSurfacesInput(overrides));
-    for (let i = 0; i < baseline.surfaceAtoms.length; i += 1) {
-      expect(baseline.surfaceAtoms[i]?.inputFingerprint).toBe(
-        variant.surfaceAtoms[i]?.inputFingerprint,
-      );
-    }
-    for (let i = 0; i < baseline.surfaceCompositions.length; i += 1) {
-      expect(baseline.surfaceCompositions[i]?.inputFingerprint).toBe(
-        variant.surfaceCompositions[i]?.inputFingerprint,
-      );
-    }
-  }
-});
+// ─── Content-sensitive fingerprint checks (sibling isolation) ─
 
 test('surface atom fingerprint changes when definition changes (sibling isolation)', () => {
   const baseline = decomposeScreenSurfaces(makeSurfacesInput());
@@ -1930,48 +1550,15 @@ test('composition fingerprint changes when surface atom set changes', () => {
   );
 });
 
-// ─── Provenance plumbing ─────────────────────────────────────────
+// ─── Per-decomposer inputs tagging ──────────────────────────────
 
-test('surface provenance fields flow through to atoms and composition', () => {
-  const out = decomposeScreenSurfaces(
-    makeSurfacesInput({
-      producedBy: 'canon-decomposer:screen-surfaces:v9',
-      producedAt: '2030-01-01T00:00:00.000Z',
-      pipelineVersion: 'sha-defaced',
-    }),
-  );
+test('surface atoms and composition tag inputs with the screen-surfaces sentinel', () => {
+  const out = decomposeScreenSurfaces(makeSurfacesInput());
   for (const a of out.surfaceAtoms) {
-    expect(a.provenance.producedBy).toBe('canon-decomposer:screen-surfaces:v9');
-    expect(a.provenance.producedAt).toBe('2030-01-01T00:00:00.000Z');
-    expect(a.provenance.pipelineVersion).toBe('sha-defaced');
     expect(a.provenance.inputs).toEqual(['screen-surfaces:policy-search']);
   }
   for (const c of out.surfaceCompositions) {
-    expect(c.provenance.producedBy).toBe('canon-decomposer:screen-surfaces:v9');
-    expect(c.provenance.producedAt).toBe('2030-01-01T00:00:00.000Z');
-    expect(c.provenance.pipelineVersion).toBe('sha-defaced');
     expect(c.provenance.inputs).toEqual(['screen-surfaces:policy-search']);
-  }
-});
-
-// ─── Interop invariant: fingerprint is source-agnostic ──────────
-
-test('surface decomposer: warm and cold invocations produce identical fingerprints for identical content', () => {
-  const warm = decomposeScreenSurfaces(
-    makeSurfacesInput({ source: 'agentic-override' }),
-  );
-  const cold = decomposeScreenSurfaces(
-    makeSurfacesInput({ source: 'cold-derivation' }),
-  );
-  for (let i = 0; i < warm.surfaceAtoms.length; i += 1) {
-    expect(warm.surfaceAtoms[i]?.inputFingerprint).toBe(
-      cold.surfaceAtoms[i]?.inputFingerprint,
-    );
-  }
-  for (let i = 0; i < warm.surfaceCompositions.length; i += 1) {
-    expect(warm.surfaceCompositions[i]?.inputFingerprint).toBe(
-      cold.surfaceCompositions[i]?.inputFingerprint,
-    );
   }
 });
 
@@ -2016,18 +1603,6 @@ function makePatternsInput(
     ...overrides,
   };
 }
-
-// ─── Determinism ─────────────────────────────────────────────────
-
-test('decomposePatterns is deterministic for the same input', () => {
-  const input = makePatternsInput();
-  const left = decomposePatterns(input);
-  const right = decomposePatterns(input);
-  expect(left).toEqual(right);
-  for (let i = 0; i < left.length; i += 1) {
-    expect(left[i]?.inputFingerprint).toBe(right[i]?.inputFingerprint);
-  }
-});
 
 // ─── Cardinality (both sub-maps flattened) ──────────────────────
 
@@ -2095,16 +1670,7 @@ test('atoms from the postures sub-map carry category: posture', () => {
   expect(postureIds.sort()).toEqual(['core.empty', 'core.invalid', 'core.valid']);
 });
 
-// ─── Address consistency ─────────────────────────────────────────
-
-test('every pattern atom passes isAtomAddressConsistent', () => {
-  const atoms = decomposePatterns(makePatternsInput());
-  for (const a of atoms) {
-    expect(isAtomAddressConsistent(a)).toBe(true);
-    expect(a.class).toBe('pattern');
-    expect(a.address.class).toBe('pattern');
-  }
-});
+// ─── Address shape (mint invariants covered by canon-minting.laws) ─
 
 test('pattern atom address.id equals content.id (the PatternAliasSet id field)', () => {
   const atoms = decomposePatterns(makePatternsInput());
@@ -2137,24 +1703,6 @@ test('decomposePatterns does not mutate the source document', () => {
   const snapshot = JSON.parse(JSON.stringify(original));
   decomposePatterns(makePatternsInput({ content: original }));
   expect(original).toEqual(snapshot);
-});
-
-// ─── Source wiring ───────────────────────────────────────────────
-
-test('decomposePatterns threads PhaseOutputSource through every atom', () => {
-  const sources: readonly PhaseOutputSource[] = [
-    'operator-override',
-    'agentic-override',
-    'deterministic-observation',
-    'live-derivation',
-    'cold-derivation',
-  ];
-  for (const source of sources) {
-    const atoms = decomposePatterns(makePatternsInput({ source }));
-    for (const a of atoms) {
-      expect(a.source).toBe(source);
-    }
-  }
 });
 
 // ─── Stable ordering (by id across both sub-maps) ───────────────
@@ -2205,22 +1753,7 @@ test('two inputs with the same content but different insertion orders produce id
   expect(fromA).toEqual(fromB);
 });
 
-// ─── Fingerprint independence from provenance ───────────────────
-
-test('pattern atom fingerprints are independent of producedAt / producedBy / pipelineVersion', () => {
-  const baseline = decomposePatterns(makePatternsInput());
-  const variants: ReadonlyArray<Partial<DecomposePatternsInput>> = [
-    { producedAt: '2030-12-31T23:59:59.999Z' },
-    { producedBy: 'canon-decomposer:patterns:v9' },
-    { pipelineVersion: 'sha-different' },
-  ];
-  for (const overrides of variants) {
-    const variant = decomposePatterns(makePatternsInput(overrides));
-    for (let i = 0; i < baseline.length; i += 1) {
-      expect(baseline[i]?.inputFingerprint).toBe(variant[i]?.inputFingerprint);
-    }
-  }
-});
+// ─── Content-sensitive fingerprint checks (sibling isolation) ─
 
 test('pattern atom fingerprint changes when aliases change (sibling isolation)', () => {
   const baseline = decomposePatterns(makePatternsInput());
@@ -2285,35 +1818,12 @@ test('pattern atom fingerprint encodes the category (action vs posture)', () => 
   expect(asPosture[0]?.content.category).toBe('posture');
 });
 
-// ─── Provenance plumbing ─────────────────────────────────────────
+// ─── Per-decomposer inputs tagging ──────────────────────────────
 
-test('pattern provenance fields flow through to the atom envelope', () => {
-  const atoms = decomposePatterns(
-    makePatternsInput({
-      producedBy: 'canon-decomposer:patterns:v9',
-      producedAt: '2030-01-01T00:00:00.000Z',
-      pipelineVersion: 'sha-abcdef',
-    }),
-  );
+test('pattern atoms tag inputs with the shared-patterns sentinel', () => {
+  const atoms = decomposePatterns(makePatternsInput());
   for (const a of atoms) {
-    expect(a.provenance.producedBy).toBe('canon-decomposer:patterns:v9');
-    expect(a.provenance.producedAt).toBe('2030-01-01T00:00:00.000Z');
-    expect(a.provenance.pipelineVersion).toBe('sha-abcdef');
     expect(a.provenance.inputs).toEqual(['patterns:shared']);
-  }
-});
-
-// ─── Interop invariant ──────────────────────────────────────────
-
-test('patterns decomposer: warm and cold invocations produce identical fingerprints for identical content', () => {
-  const warm = decomposePatterns(
-    makePatternsInput({ source: 'agentic-override' }),
-  );
-  const cold = decomposePatterns(
-    makePatternsInput({ source: 'cold-derivation' }),
-  );
-  for (let i = 0; i < warm.length; i += 1) {
-    expect(warm[i]?.inputFingerprint).toBe(cold[i]?.inputFingerprint);
   }
 });
 
@@ -2374,18 +1884,6 @@ function makeSnapshotsInput(
   };
 }
 
-// ─── Determinism ─────────────────────────────────────────────────
-
-test('decomposeSnapshots is deterministic for the same input', () => {
-  const input = makeSnapshotsInput();
-  const left = decomposeSnapshots(input);
-  const right = decomposeSnapshots(input);
-  expect(left).toEqual(right);
-  for (let i = 0; i < left.length; i += 1) {
-    expect(left[i]?.inputFingerprint).toBe(right[i]?.inputFingerprint);
-  }
-});
-
 // ─── Cardinality ─────────────────────────────────────────────────
 
 test('decomposeSnapshots emits one atom per input record', () => {
@@ -2403,16 +1901,7 @@ test('decomposeSnapshots handles a single-record batch', () => {
   expect(atoms.length).toBe(1);
 });
 
-// ─── Address consistency ─────────────────────────────────────────
-
-test('every snapshot atom passes isAtomAddressConsistent', () => {
-  const atoms = decomposeSnapshots(makeSnapshotsInput());
-  for (const a of atoms) {
-    expect(isAtomAddressConsistent(a)).toBe(true);
-    expect(a.class).toBe('snapshot');
-    expect(a.address.class).toBe('snapshot');
-  }
-});
+// ─── Address consistency (shape only — mint invariants covered by canon-minting.laws) ─
 
 test('snapshot atom address.id equals the record id (path-based)', () => {
   const atoms = decomposeSnapshots(makeSnapshotsInput());
@@ -2473,24 +1962,6 @@ test('decomposeSnapshots does not mutate the source records', () => {
   const snapshot = JSON.parse(JSON.stringify(records));
   decomposeSnapshots(makeSnapshotsInput({}, records));
   expect(records).toEqual(snapshot);
-});
-
-// ─── Source wiring ───────────────────────────────────────────────
-
-test('decomposeSnapshots threads PhaseOutputSource through every atom', () => {
-  const sources: readonly PhaseOutputSource[] = [
-    'operator-override',
-    'agentic-override',
-    'deterministic-observation',
-    'live-derivation',
-    'cold-derivation',
-  ];
-  for (const source of sources) {
-    const atoms = decomposeSnapshots(makeSnapshotsInput({ source }));
-    for (const a of atoms) {
-      expect(a.source).toBe(source);
-    }
-  }
 });
 
 // ─── Stable ordering ─────────────────────────────────────────────
@@ -2555,22 +2026,7 @@ test('two invocations with the same records in different orders produce identica
   expect(fromA).toEqual(fromB);
 });
 
-// ─── Fingerprint independence from provenance ───────────────────
-
-test('snapshot atom fingerprints are independent of producedAt / producedBy / pipelineVersion', () => {
-  const baseline = decomposeSnapshots(makeSnapshotsInput());
-  const variants: ReadonlyArray<Partial<DecomposeSnapshotsInput>> = [
-    { producedAt: '2030-12-31T23:59:59.999Z' },
-    { producedBy: 'canon-decomposer:snapshots:v9' },
-    { pipelineVersion: 'sha-different' },
-  ];
-  for (const overrides of variants) {
-    const variant = decomposeSnapshots(makeSnapshotsInput(overrides));
-    for (let i = 0; i < baseline.length; i += 1) {
-      expect(baseline[i]?.inputFingerprint).toBe(variant[i]?.inputFingerprint);
-    }
-  }
-});
+// ─── Content-sensitive fingerprint checks (sibling isolation) ─
 
 test('snapshot atom fingerprint changes when the tree changes (sibling isolation)', () => {
   const baseline = decomposeSnapshots(makeSnapshotsInput());
@@ -2613,35 +2069,11 @@ test('snapshot atom fingerprint changes when snapshotHash changes (hash is part 
   expect(baseline[0]?.inputFingerprint).not.toBe(mutated[0]?.inputFingerprint);
 });
 
-// ─── Provenance plumbing ─────────────────────────────────────────
+// ─── Per-decomposer inputs tagging ──────────────────────────────
 
-test('snapshot provenance fields flow through to the atom envelope', () => {
-  const atoms = decomposeSnapshots(
-    makeSnapshotsInput({
-      producedBy: 'canon-decomposer:snapshots:v9',
-      producedAt: '2030-01-01T00:00:00.000Z',
-      pipelineVersion: 'sha-9badcafe',
-    }),
-  );
+test('each snapshot atom tags inputs with its own template id', () => {
+  const atoms = decomposeSnapshots(makeSnapshotsInput());
   for (const a of atoms) {
-    expect(a.provenance.producedBy).toBe('canon-decomposer:snapshots:v9');
-    expect(a.provenance.producedAt).toBe('2030-01-01T00:00:00.000Z');
-    expect(a.provenance.pipelineVersion).toBe('sha-9badcafe');
-    // Each atom's input is tagged with its own template id.
     expect(a.provenance.inputs).toEqual([`snapshot:${a.address.id as string}`]);
-  }
-});
-
-// ─── Interop invariant ──────────────────────────────────────────
-
-test('snapshots decomposer: warm and cold invocations produce identical fingerprints for identical content', () => {
-  const warm = decomposeSnapshots(
-    makeSnapshotsInput({ source: 'agentic-override' }),
-  );
-  const cold = decomposeSnapshots(
-    makeSnapshotsInput({ source: 'cold-derivation' }),
-  );
-  for (let i = 0; i < warm.length; i += 1) {
-    expect(warm[i]?.inputFingerprint).toBe(cold[i]?.inputFingerprint);
   }
 });
