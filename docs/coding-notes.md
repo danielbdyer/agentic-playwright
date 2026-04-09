@@ -578,9 +578,47 @@ When adding a new compilation phase or lowering step:
 
 Every cross-boundary artifact carries a standard envelope: `kind`, `version`, `stage`, `scope`, `ids`, `fingerprints`, `lineage`, `governance`, `payload`. Use `mapPayload(envelope, f)` for transforms. Never destructure and reassemble envelopes manually.
 
-When creating a new artifact type, define it as a `WorkflowEnvelope<T>` variant. The envelope header is the contract that makes artifacts comparable, traceable, and governable across the system.
+**Declaring a new envelope type.** Extend `WorkflowMetadata<'stage'>` with the narrow stage literal for your concrete type. Do NOT inline the envelope header fields — they come from the base. This is Phase 0a's stage-phantom discipline; see `docs/envelope-axis-refactor-plan.md` and `docs/master-architecture.md` § "Envelope Axis Vocabulary" for the full story.
+
+```typescript
+// ✅ Correct: extend WorkflowMetadata with a narrow stage literal.
+export interface NewResolutionRecord extends WorkflowMetadata<'resolution'> {
+  readonly kind: 'new-resolution-record';
+  readonly scope: 'run';  // narrow via declaration merging
+  readonly payload: { /* domain-specific */ };
+}
+
+// ❌ Wrong: inlining `stage: 'resolution'` as a free field bypasses
+//    the phantom lift and makes the envelope structurally identical
+//    to `WorkflowMetadata<WorkflowStage>` instead of the narrow form.
+export interface NewResolutionRecord {
+  readonly kind: 'new-resolution-record';
+  readonly version: 1;
+  readonly stage: 'resolution';
+  readonly scope: 'run';
+  readonly ids: WorkflowEnvelopeIds;
+  readonly fingerprints: WorkflowEnvelopeFingerprints;
+  readonly lineage: WorkflowEnvelopeLineage;
+  readonly governance: Governance;
+  readonly payload: { /* ... */ };
+}
+```
+
+**Declaring a stage-aware function signature.** Use the narrow stage literal in the parameter type to make the function's place in the forward progression compile-checkable:
+
+```typescript
+// Function signature says "I need an execution-stage envelope and
+// I return a proposal-stage envelope" — compile-time readable.
+function buildProposals(
+  run: WorkflowEnvelope<RunRecordPayload, 'execution'>,
+): WorkflowEnvelope<ProposalBundlePayload, 'proposal'> { ... }
+```
+
+The back-compat form `WorkflowEnvelope<Payload>` (single-arg) still works via the default stage parameter (`S = WorkflowStage`), but prefer the narrow two-arg form in new code. Passing a preparation-stage envelope where an execution-stage envelope is expected is a compile error — verified by `tests/architecture/envelope-stage-phantom.laws.spec.ts`.
 
 **Caveat:** `ProposalBundle` has an identical `proposals` field at both `payload.proposals` and top-level `proposals`. This duplication means `mapPayload` alone cannot fully update the bundle — you must also update the top-level field. This is a known structural debt, not a pattern to replicate.
+
+**Caveat:** `DiscoveryRun`, `AgentInterpretationCacheRecord`, and `TranslationCacheRecord` do not yet extend `WorkflowMetadata<'stage'>` — the first has `version: 2` without `ids`/`fingerprints`/`lineage`, and the cache records use non-standard scopes (`'agent-interpretation'`, `'translation'`) that are not members of `WorkflowScope`. Bringing them into the envelope contract is a structural refactor that belongs with the convergence plan's Phase A, not Phase 0a. For now, they inline their `stage` literal without extending the base.
 
 ### Exhaustive Match (`Effect.Match`)
 

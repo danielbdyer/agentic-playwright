@@ -116,6 +116,8 @@ Use this vocabulary consistently:
 
 Every cross-lane handoff should expose the same envelope header: `kind`, `version`, `stage`, `scope`, `ids`, `fingerprints`, `lineage`, `governance`, and `payload`.
 
+Envelope types declare their pipeline stage as a narrow literal via `extends WorkflowMetadata<'stage'>` — for example, `RunRecord extends WorkflowMetadata<'execution'>`. Do NOT inline the envelope header fields when declaring a new type; they come from the base. See `docs/master-architecture.md` § "Envelope Axis Vocabulary" for the full 4-axis model (Stage, Source, Verdict, Fingerprint<Tag>) and `docs/envelope-axis-refactor-plan.md` for the phased refactor that lifts each axis from runtime string to compile-time invariant.
+
 ## Governance vocabulary
 
 Use these terms consistently:

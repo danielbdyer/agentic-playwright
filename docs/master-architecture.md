@@ -50,6 +50,32 @@ Those lanes are not the true conceptual center anymore. Three cross-cutting spin
 
 The six lanes tell us where a concern lives operationally. The three spines tell us what the system is really made of.
 
+## Envelope Axis Vocabulary
+
+Every artifact that crosses a seam in this system is an envelope. Envelopes sit at a point in a 4-axis typed space, and the pipeline is a typed path through that space. Each axis answers a different question about the artifact.
+
+- **Stage** — *where in the forward progression is this?* — `preparation → resolution → execution → evidence → proposal → projection`. Declared via the `S` parameter on `WorkflowMetadata<S>` and `WorkflowEnvelope<T, S>` in `lib/domain/governance/workflow-types.ts`. Concrete envelope types extend `WorkflowMetadata<'stage'>` for their specific literal — for example, `RunRecord extends WorkflowMetadata<'execution'>`. The temporal axis.
+
+- **Source** — *which slot of the 5-rung precedence ladder produced this?* — `operator-override → agentic-override → deterministic-observation → live-derivation → cold-derivation`. Currently a runtime string field on `Atom`, `Composition`, `Projection`; Phase 0b lifts it to a phantom parameter. The epistemic axis.
+
+- **Verdict** — *what is governance's three-way decision about this?* — `Approved | Suspended | Blocked`. Currently carried as `governance: Governance` string on envelopes and `GovernanceVerdict<T, I>` ADT at gate sites; Phase 0d unifies them so every envelope carries an in-memory verdict that gates payload access. The normative axis.
+
+- **Fingerprint<Tag>** — *what does this identifier point at?* — A phantom-tagged branded string. Currently every fingerprint field is bare `string`; Phase 0c introduces `Fingerprint<Tag>` so `TaskFingerprint` and `KnowledgeFingerprint` are not interchangeable at the type level. The identity-projection axis.
+
+These four axes are orthogonal. A function signature like `buildProposals(run: WorkflowEnvelope<RunRecordPayload, 'execution'>): WorkflowEnvelope<ProposalBundlePayload, 'proposal'>` tells you exactly where in the 4D space the function lives. The phase 0 refactor (`docs/envelope-axis-refactor-plan.md`) moves each axis from runtime string to compile-time invariant in dependency order: Stage first, then Source, then Fingerprint, then Verdict.
+
+Declaring a new envelope type follows one idiom:
+
+```typescript
+export interface NewKindRecord extends WorkflowMetadata<'resolution'> {
+  readonly kind: 'new-kind-record';
+  readonly scope: 'run';  // narrow via declaration merging
+  readonly payload: { /* domain-specific */ };
+}
+```
+
+The narrow stage parameter is the contract. `version`, `ids`, `fingerprints`, `lineage`, `governance` are inherited from the base. `scope` is narrowed inline to the concrete scope literal. Only the domain-specific `kind` and `payload` fields are new.
+
 ## Canonical Model
 
 The canonical model extends the existing ontology with the following first-class contracts.
