@@ -2,11 +2,9 @@ import type { RunRecord, ScenarioRunFold } from '../../domain/execution/types';
 import type { ScenarioRunPlan } from '../../domain/resolution/types';
 import type { RuntimeScenarioStepResult } from '../ports';
 import {
-  createEnvelopeLineage,
   createRunRecordEnvelope,
-  createScenarioEnvelopeFingerprints,
-  createScenarioEnvelopeIds,
   deriveGovernanceState,
+  mintScenarioEnvelopeHeader,
 } from '../catalog/envelope';
 import type { PersistedEvidenceArtifact } from './persist-evidence';
 
@@ -28,30 +26,28 @@ export function buildRunRecord(input: {
   }));
   const evidenceIds = input.fold.evidenceIds;
 
+  const header = mintScenarioEnvelopeHeader({
+    adoId: input.plan.adoId,
+    suite: input.plan.suite,
+    runId: input.plan.runId,
+    dataset: input.plan.controlSelection.dataset,
+    runbook: input.plan.controlSelection.runbook,
+    resolutionControl: input.plan.controlSelection.resolutionControl,
+    contentHash: input.plan.context.contentHash,
+    knowledgeFingerprint: input.plan.resolutionContext.knowledgeFingerprint,
+    controlsFingerprint: input.plan.controlsFingerprint,
+    surfaceFingerprint: input.plan.surfaceFingerprint,
+    runbookArtifactPath: input.plan.controlArtifactPaths.runbook ?? null,
+    datasetArtifactPath: input.plan.controlArtifactPaths.dataset ?? null,
+    artifactFingerprint: input.plan.runId,
+    parents: [input.plan.surfaceFingerprint],
+    handshakes: ['preparation', 'resolution', 'execution', 'evidence'],
+  });
+
   const runRecord = createRunRecordEnvelope({
-    ids: createScenarioEnvelopeIds({
-      adoId: input.plan.adoId,
-      suite: input.plan.suite,
-      runId: input.plan.runId,
-      dataset: input.plan.controlSelection.dataset,
-      runbook: input.plan.controlSelection.runbook,
-      resolutionControl: input.plan.controlSelection.resolutionControl,
-    }),
-    fingerprints: createScenarioEnvelopeFingerprints({
-      artifact: input.plan.runId,
-      content: input.plan.context.contentHash,
-      knowledge: input.plan.resolutionContext.knowledgeFingerprint,
-      controls: input.plan.controlsFingerprint,
-      task: input.plan.surfaceFingerprint,
-      run: input.plan.runId,
-    }),
-    lineage: createEnvelopeLineage({
-      taskFingerprint: input.plan.surfaceFingerprint,
-      runbookArtifactPath: input.plan.controlArtifactPaths.runbook ?? null,
-      datasetArtifactPath: input.plan.controlArtifactPaths.dataset ?? null,
-      parents: [input.plan.surfaceFingerprint],
-      handshakes: ['preparation', 'resolution', 'execution', 'evidence'],
-    }),
+    ids: header.ids,
+    fingerprints: header.fingerprints,
+    lineage: header.lineage,
     governance: deriveGovernanceState({
       hasBlocked: steps.some((step) => step.execution.execution.status === 'failed'),
       hasReviewRequired: steps.some((step) => step.interpretation.kind === 'needs-human'),

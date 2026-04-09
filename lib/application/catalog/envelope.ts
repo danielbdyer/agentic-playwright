@@ -7,7 +7,9 @@ import type {
   WorkflowEnvelopeIds,
   WorkflowEnvelopeLineage,
 } from '../../domain/governance/workflow-types';
+import { mintApproved } from '../../domain/governance/workflow-types';
 import { GovernanceLattice, meetAll } from '../../domain/algebra/lattice';
+import type { BoundScenario } from '../../domain/intent/types';
 import type { ProjectPaths } from '../paths';
 import { relativeProjectPath } from '../paths';
 import type { ArtifactEnvelope } from './types';
@@ -110,6 +112,125 @@ export function deriveGovernanceState(input: {
  *  `meetAll` invocation in a governance-specific context. */
 export function mergeGovernanceValues(values: readonly Governance[]): Governance {
   return meetAll(GovernanceLattice, values);
+}
+
+// ─── Scenario envelope header helper ─────────────────────────────
+//
+// Both `createRunRecordEnvelope` and `createProposalBundleEnvelope`
+// need the same trio — `ids`, `fingerprints`, `lineage` — built
+// from a scenario plan's context (ado id, suite, run id, control
+// selection, fingerprints, artifact paths). Each of the four call
+// sites that used to build these from scratch (build-run-record,
+// build-proposals, two fallbacks in emit.ts) would repeat ~17
+// field assignments across three helper calls.
+//
+// `mintScenarioEnvelopeHeader` collapses the three helper calls
+// into one. The caller supplies the shared scenario context once
+// plus the per-envelope specific bits (artifact fingerprint,
+// parents, handshakes) that actually differ between run records
+// and proposal bundles. This is the scenario-stage equivalent of
+// `mintAtom` / `mintComposition`: one place to read the envelope
+// construction rule, automatic consistency across every site that
+// builds a scenario-run or proposal-bundle envelope.
+
+export interface ScenarioEnvelopeHeaderInput {
+  readonly adoId: AdoId;
+  readonly suite: string;
+  readonly runId: string;
+  readonly dataset?: string | null;
+  readonly runbook?: string | null;
+  readonly resolutionControl?: string | null;
+  readonly contentHash: string;
+  readonly knowledgeFingerprint?: string | null;
+  readonly controlsFingerprint?: string | null;
+  readonly surfaceFingerprint?: string | null;
+  readonly runbookArtifactPath?: string | null;
+  readonly datasetArtifactPath?: string | null;
+  readonly artifactFingerprint: string;
+  readonly parents: readonly string[];
+  readonly handshakes: WorkflowEnvelopeLineage['handshakes'];
+}
+
+export interface ScenarioEnvelopeHeader {
+  readonly ids: WorkflowEnvelopeIds;
+  readonly fingerprints: WorkflowEnvelopeFingerprints;
+  readonly lineage: WorkflowEnvelopeLineage;
+}
+
+/** Mint the shared envelope header trio (ids, fingerprints,
+ *  lineage) for a scenario-stage workflow envelope. Used by every
+ *  call site that builds a RunRecord or ProposalBundle. When
+ *  `surfaceFingerprint` is absent the lineage is empty — matches
+ *  the emit.ts fallback shape. */
+export function mintScenarioEnvelopeHeader(
+  input: ScenarioEnvelopeHeaderInput,
+): ScenarioEnvelopeHeader {
+  return {
+    ids: createScenarioEnvelopeIds({
+      adoId: input.adoId,
+      suite: input.suite,
+      runId: input.runId,
+      dataset: input.dataset ?? null,
+      runbook: input.runbook ?? null,
+      resolutionControl: input.resolutionControl ?? null,
+    }),
+    fingerprints: createScenarioEnvelopeFingerprints({
+      artifact: input.artifactFingerprint,
+      content: input.contentHash,
+      knowledge: input.knowledgeFingerprint ?? null,
+      controls: input.controlsFingerprint ?? null,
+      task: input.surfaceFingerprint ?? null,
+      run: input.runId,
+    }),
+    lineage: input.surfaceFingerprint
+      ? createEnvelopeLineage({
+          taskFingerprint: input.surfaceFingerprint,
+          runbookArtifactPath: input.runbookArtifactPath ?? null,
+          datasetArtifactPath: input.datasetArtifactPath ?? null,
+          parents: [...input.parents],
+          handshakes: input.handshakes,
+        })
+      : {
+          sources: [],
+          parents: [...input.parents],
+          handshakes: input.handshakes,
+        },
+  };
+}
+
+/** Build an empty placeholder `ProposalBundle` envelope for a
+ *  bound scenario with no live proposals — the "no changes to
+ *  propose" shape used by the emit.ts fallbacks when a scenario
+ *  has no run record with proposals. Previously duplicated
+ *  verbatim at two call sites in `emit.ts`. */
+export function emptyProposalBundleForBound(input: {
+  readonly boundScenario: BoundScenario;
+  readonly runId: string;
+}): ProposalBundle {
+  const header = mintScenarioEnvelopeHeader({
+    adoId: input.boundScenario.source.ado_id,
+    suite: input.boundScenario.metadata.suite,
+    runId: input.runId,
+    contentHash: input.boundScenario.source.content_hash,
+    artifactFingerprint: input.runId,
+    parents: [],
+    handshakes: ['preparation', 'resolution', 'execution', 'evidence', 'proposal'],
+  });
+  return createProposalBundleEnvelope({
+    ids: header.ids,
+    fingerprints: header.fingerprints,
+    lineage: header.lineage,
+    governance: mintApproved(),
+    payload: {
+      adoId: input.boundScenario.source.ado_id,
+      runId: input.runId,
+      revision: input.boundScenario.source.revision,
+      title: input.boundScenario.metadata.title,
+      suite: input.boundScenario.metadata.suite,
+      proposals: [],
+    },
+    proposals: [],
+  });
 }
 
 export function createRunRecordEnvelope(input: {

@@ -7,11 +7,9 @@ import type { ProposalBundle } from '../../domain/execution/types';
 import type { StepProvenanceKind, TrustPolicyArtifactType } from '../../domain/governance/workflow-types';
 import type { ScenarioRunPlan } from '../../domain/resolution/types';
 import {
-  createEnvelopeLineage,
   createProposalBundleEnvelope,
-  createScenarioEnvelopeFingerprints,
-  createScenarioEnvelopeIds,
   deriveGovernanceState,
+  mintScenarioEnvelopeHeader,
 } from '../catalog/envelope';
 import type { RuntimeScenarioStepResult } from '../ports';
 import type { PersistedEvidenceArtifact } from './persist-evidence';
@@ -130,30 +128,28 @@ export function buildProposals(input: {
     }),
   );
 
+  const header = mintScenarioEnvelopeHeader({
+    adoId: input.adoId,
+    suite: input.plan.suite,
+    runId: input.runId,
+    dataset: input.plan.controlSelection.dataset,
+    runbook: input.plan.controlSelection.runbook,
+    resolutionControl: input.plan.controlSelection.resolutionControl,
+    contentHash: input.plan.context.contentHash,
+    knowledgeFingerprint: input.plan.resolutionContext.knowledgeFingerprint,
+    controlsFingerprint: input.plan.controlsFingerprint,
+    surfaceFingerprint: input.plan.surfaceFingerprint,
+    runbookArtifactPath: input.plan.controlArtifactPaths.runbook ?? null,
+    datasetArtifactPath: input.plan.controlArtifactPaths.dataset ?? null,
+    artifactFingerprint: `${input.runId}:proposal`,
+    parents: [input.plan.surfaceFingerprint, input.runId],
+    handshakes: ['preparation', 'resolution', 'execution', 'evidence', 'proposal'],
+  });
+
   const proposalBundle = createProposalBundleEnvelope({
-    ids: createScenarioEnvelopeIds({
-      adoId: input.adoId,
-      suite: input.plan.suite,
-      runId: input.runId,
-      dataset: input.plan.controlSelection.dataset,
-      runbook: input.plan.controlSelection.runbook,
-      resolutionControl: input.plan.controlSelection.resolutionControl,
-    }),
-    fingerprints: createScenarioEnvelopeFingerprints({
-      artifact: `${input.runId}:proposal`,
-      content: input.plan.context.contentHash,
-      knowledge: input.plan.resolutionContext.knowledgeFingerprint,
-      controls: input.plan.controlsFingerprint,
-      task: input.plan.surfaceFingerprint,
-      run: input.runId,
-    }),
-    lineage: createEnvelopeLineage({
-      taskFingerprint: input.plan.surfaceFingerprint,
-      runbookArtifactPath: input.plan.controlArtifactPaths.runbook ?? null,
-      datasetArtifactPath: input.plan.controlArtifactPaths.dataset ?? null,
-      parents: [input.plan.surfaceFingerprint, input.runId],
-      handshakes: ['preparation', 'resolution', 'execution', 'evidence', 'proposal'],
-    }),
+    ids: header.ids,
+    fingerprints: header.fingerprints,
+    lineage: header.lineage,
     governance: deriveGovernanceState({
       hasBlocked: proposals.some((proposal) => proposal.trustPolicy.decision === 'deny'),
       hasReviewRequired: proposals.some((proposal) => proposal.trustPolicy.decision === 'review'),
