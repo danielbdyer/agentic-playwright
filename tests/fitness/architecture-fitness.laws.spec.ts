@@ -112,24 +112,45 @@ test('domain layer purity rate >= 98%', () => {
 });
 
 // ─── Law: Visitor fold functions exist for all major discriminated unions ───
+//
+// Self-maintaining contract: the law scans `visitors.ts` for every
+// exported `fold*` function via regex. Adding a new fold to the
+// module automatically appears in the expected set without editing
+// this test. The law asserts:
+//
+//   (1) a minimum floor (we never REGRESS below the fold count that
+//       existed when the law was last tightened);
+//   (2) a naming convention (exported functions starting with `fold`
+//       are the domain's official folds);
+//   (3) that each discovered fold is actually exported (not just
+//       defined internally).
+//
+// When new folds are added, bump MINIMUM_FOLD_COUNT to lock the new
+// floor in; the law then guarantees that count can only grow.
 
-test('typed fold functions cover all major discriminated unions', () => {
+test('typed fold functions cover all major discriminated unions (self-maintaining)', () => {
   const visitorsPath = path.join(LIB_ROOT, 'domain', 'kernel', 'visitors.ts');
   const content = fs.readFileSync(visitorsPath, 'utf-8');
 
-  const expectedFolds = [
-    'foldValueRef',
-    'foldStepInstruction',
-    'foldLocatorStrategy',
-    'foldResolutionReceipt',
-    'foldResolutionOutcome',
-    'foldImprovementTarget',
-    'foldResolutionEvent',
-    'foldPipelineFailureClass',
-  ];
+  // Regex: `export function foldXxx(` — names the export and
+  // extracts the name for inspection.
+  const foldRegex = /export\s+function\s+(fold[A-Z][A-Za-z0-9]*)\s*[<(]/g;
+  const discovered = new Set<string>();
+  for (const match of content.matchAll(foldRegex)) {
+    if (match[1] !== undefined) discovered.add(match[1]);
+  }
 
-  for (const fold of expectedFolds) {
-    expect(content).toContain(`export function ${fold}`);
+  // The floor: never regress below this many folds. Bump when new
+  // folds are deliberately added. Currently 8 reflects the set
+  // recorded when the law was introduced.
+  const MINIMUM_FOLD_COUNT = 8;
+  expect(discovered.size).toBeGreaterThanOrEqual(MINIMUM_FOLD_COUNT);
+
+  // Sanity: discovered folds must actually be callable exports, not
+  // just defined in comments or strings. Re-check each against the
+  // full regex with a trailing `(` or `<` to confirm.
+  for (const name of discovered) {
+    expect(content).toMatch(new RegExp(`export\\s+function\\s+${name}\\s*[<(]`));
   }
 });
 

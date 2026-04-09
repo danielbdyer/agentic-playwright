@@ -7,6 +7,7 @@ import type {
   StepProgramInstructionOutcome,
   StepProgramInterpreter,
 } from '../../domain/commitment/program';
+import { foldStepInstruction } from '../../domain/kernel/visitors';
 import type { PostureId, ScreenId, SnapshotTemplateId } from '../../domain/kernel/identity';
 import type { ValueRef } from '../../domain/intent/types';
 import type { ScreenElements, ScreenPostures, SurfaceGraph } from '../../domain/knowledge/types';
@@ -29,19 +30,16 @@ export interface InterpreterEnvironment {
   resolveValue: (fixtures: Record<string, unknown>, value: ValueRef | null | undefined) => string | undefined;
 }
 
-export function expectedEffectsForInstruction(kind: StepProgram['instructions'][number]['kind']): string[] {
-  switch (kind) {
-    case 'navigate':
-      return ['navigation'];
-    case 'enter':
-      return ['value-entry'];
-    case 'invoke':
-      return ['interaction'];
-    case 'observe-structure':
-      return ['snapshot-observation'];
-    case 'custom-escape-hatch':
-      return ['escape-hatch'];
-  }
+export function expectedEffectsForInstruction(
+  instruction: StepProgram['instructions'][number],
+): string[] {
+  return foldStepInstruction(instruction, {
+    navigate: () => ['navigation'],
+    enter: () => ['value-entry'],
+    invoke: () => ['interaction'],
+    observeStructure: () => ['snapshot-observation'],
+    customEscapeHatch: () => ['escape-hatch'],
+  });
 }
 
 export function interpreterOutcome(input: {
@@ -56,7 +54,7 @@ export function interpreterOutcome(input: {
     instructionIndex: input.index,
     instructionKind: input.instruction.kind,
     status: input.status,
-    expectedEffects: expectedEffectsForInstruction(input.instruction.kind),
+    expectedEffects: expectedEffectsForInstruction(input.instruction),
     observedEffects: input.observedEffects ?? [],
     diagnostics: input.diagnostics ?? [],
     failureCode: input.failureCode,
