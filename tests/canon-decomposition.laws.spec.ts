@@ -56,6 +56,11 @@ import {
   type DecomposeRouteKnowledgeInput,
   type RouteAtomContent,
 } from '../lib/application/canon/decompose-route-knowledge';
+import {
+  decomposeScreenSurfaces,
+  type DecomposeScreenSurfacesInput,
+  type SurfaceCompositionContent,
+} from '../lib/application/canon/decompose-screen-surfaces';
 import type {
   ScreenElements,
   ElementSig,
@@ -64,6 +69,9 @@ import type {
   ScreenPostures,
   Posture,
   PostureEffect,
+  SurfaceGraph,
+  SurfaceDefinition,
+  SurfaceSection,
 } from '../lib/domain/knowledge/types';
 import type {
   RouteKnowledgeManifest,
@@ -1464,6 +1472,492 @@ test('two invocations with the same content but different PhaseOutputSource prod
   for (let i = 0; i < warm.routeGraphs.length; i += 1) {
     expect(warm.routeGraphs[i]?.inputFingerprint).toBe(
       cold.routeGraphs[i]?.inputFingerprint,
+    );
+  }
+});
+
+// ════════════════════════════════════════════════════════════════
+// decomposeScreenSurfaces (Phase A.5) — second tier-crossing
+// ════════════════════════════════════════════════════════════════
+
+// ─── Surface graph fixture ───────────────────────────────────────
+
+function makeSurfaceDefinition(
+  overrides: Partial<SurfaceDefinition> = {},
+): SurfaceDefinition {
+  return {
+    kind: 'form',
+    section: brandString<'SectionId'>('search-form'),
+    selector: '#search-form',
+    parents: [],
+    children: [],
+    elements: [brandString<'ElementId'>('policyNumberInput')],
+    assertions: ['state'],
+    required: true,
+    ...overrides,
+  };
+}
+
+function makeSurfaceSection(
+  overrides: Partial<SurfaceSection> = {},
+): SurfaceSection {
+  return {
+    selector: '#search-form',
+    kind: 'form',
+    surfaces: [brandString<'SurfaceId'>('search-form')],
+    ...overrides,
+  };
+}
+
+function makeSurfaceGraph(
+  overrides: Partial<Omit<SurfaceGraph, 'surfaces' | 'sections'>> = {},
+  sections: Record<string, SurfaceSection> = {
+    'search-form': makeSurfaceSection({
+      surfaces: [
+        brandString<'SurfaceId'>('search-form'),
+        brandString<'SurfaceId'>('search-actions'),
+        brandString<'SurfaceId'>('validation-surface'),
+      ],
+    }),
+  },
+  surfaces: Record<string, SurfaceDefinition> = {
+    'search-form': makeSurfaceDefinition({
+      children: [
+        brandString<'SurfaceId'>('search-actions'),
+        brandString<'SurfaceId'>('validation-surface'),
+      ],
+    }),
+    'search-actions': makeSurfaceDefinition({
+      kind: 'action-cluster',
+      selector: '[data-testid="search-button"]',
+      parents: [brandString<'SurfaceId'>('search-form')],
+      children: [],
+      elements: [brandString<'ElementId'>('searchButton')],
+    }),
+    'validation-surface': makeSurfaceDefinition({
+      kind: 'validation-region',
+      selector: '[data-testid="validation-summary"]',
+      parents: [brandString<'SurfaceId'>('search-form')],
+      children: [],
+      elements: [brandString<'ElementId'>('validationSummary')],
+      required: false,
+    }),
+  },
+): SurfaceGraph {
+  return {
+    screen: brandString<'ScreenId'>('policy-search'),
+    url: '/policy-search.html',
+    sections,
+    surfaces,
+    ...overrides,
+  };
+}
+
+function makeSurfacesInput(
+  overrides: Partial<DecomposeScreenSurfacesInput> = {},
+): DecomposeScreenSurfacesInput {
+  return {
+    content: makeSurfaceGraph(),
+    source: 'agentic-override' as PhaseOutputSource,
+    producedBy: 'canon-decomposer:screen-surfaces:v1',
+    producedAt: '2026-04-09T00:00:00.000Z',
+    pipelineVersion: 'sha-test',
+    ...overrides,
+  };
+}
+
+// ─── Determinism + bag shape ────────────────────────────────────
+
+test('decomposeScreenSurfaces is deterministic for the same input', () => {
+  const input = makeSurfacesInput();
+  const left = decomposeScreenSurfaces(input);
+  const right = decomposeScreenSurfaces(input);
+  expect(left).toEqual(right);
+});
+
+test('decomposeScreenSurfaces returns a typed bag with two fields (atoms + compositions)', () => {
+  const out = decomposeScreenSurfaces(makeSurfacesInput());
+  expect(Array.isArray(out.surfaceAtoms)).toBe(true);
+  expect(Array.isArray(out.surfaceCompositions)).toBe(true);
+});
+
+// ─── Cardinality ─────────────────────────────────────────────────
+
+test('surface atom count equals the number of entries in surfaces map', () => {
+  const out = decomposeScreenSurfaces(makeSurfacesInput());
+  expect(out.surfaceAtoms.length).toBe(3);
+});
+
+test('surface composition count is exactly one per surface graph', () => {
+  const out = decomposeScreenSurfaces(makeSurfacesInput());
+  expect(out.surfaceCompositions.length).toBe(1);
+});
+
+test('empty surfaces map produces zero atoms but still one composition', () => {
+  const out = decomposeScreenSurfaces(
+    makeSurfacesInput({ content: makeSurfaceGraph({}, {}, {}) }),
+  );
+  expect(out.surfaceAtoms).toEqual([]);
+  expect(out.surfaceCompositions.length).toBe(1);
+  expect(out.surfaceCompositions[0]?.atomReferences).toEqual([]);
+});
+
+// ─── Address consistency ─────────────────────────────────────────
+
+test('every surface atom passes isAtomAddressConsistent', () => {
+  const out = decomposeScreenSurfaces(makeSurfacesInput());
+  for (const a of out.surfaceAtoms) {
+    expect(isAtomAddressConsistent(a)).toBe(true);
+    expect(a.class).toBe('surface');
+    expect(a.address.class).toBe('surface');
+  }
+});
+
+test('surface atom address carries (screen, surface-id) tuple', () => {
+  const out = decomposeScreenSurfaces(makeSurfacesInput());
+  const tuples = out.surfaceAtoms.map((a) => ({
+    screen: a.address.screen as string,
+    surface: a.address.surface as string,
+  }));
+  expect(tuples).toEqual([
+    { screen: 'policy-search', surface: 'search-actions' },
+    { screen: 'policy-search', surface: 'search-form' },
+    { screen: 'policy-search', surface: 'validation-surface' },
+  ]);
+});
+
+// ─── Content preservation ────────────────────────────────────────
+
+test('surface atom content is byte-equivalent to the source SurfaceDefinition', () => {
+  const customDef = makeSurfaceDefinition({
+    kind: 'dialog',
+    selector: '[role="dialog"]',
+    assertions: ['state', 'structure'],
+    required: false,
+  });
+  const out = decomposeScreenSurfaces(
+    makeSurfacesInput({
+      content: makeSurfaceGraph({}, {}, { 'custom-dialog': customDef }),
+    }),
+  );
+  expect(out.surfaceAtoms.length).toBe(1);
+  expect(out.surfaceAtoms[0]?.content).toEqual(customDef);
+});
+
+test('decomposeScreenSurfaces does not mutate the source graph', () => {
+  const original = makeSurfaceGraph();
+  const snapshot = JSON.parse(JSON.stringify(original));
+  decomposeScreenSurfaces(makeSurfacesInput({ content: original }));
+  expect(original).toEqual(snapshot);
+});
+
+// ─── Composition content derivation ─────────────────────────────
+
+test('composition content carries screen, url, and sections (no surfaces field)', () => {
+  const out = decomposeScreenSurfaces(makeSurfacesInput());
+  const comp = out.surfaceCompositions[0];
+  expect(comp).toBeDefined();
+  expect(comp?.content.screen as string).toBe('policy-search');
+  expect(comp?.content.url).toBe('/policy-search.html');
+  expect(comp?.content.sections).toBeDefined();
+  // The surfaces field must NOT be present in the composition
+  // content — surfaces are split out into Tier 1 atoms.
+  expect('surfaces' in (comp?.content as object)).toBe(false);
+});
+
+test('composition address identifies (screen, default)', () => {
+  const out = decomposeScreenSurfaces(makeSurfacesInput());
+  const comp = out.surfaceCompositions[0];
+  expect(comp?.subType).toBe('surface-composition');
+  expect(comp?.address.subType).toBe('surface-composition');
+  expect(comp?.address.screen as string).toBe('policy-search');
+  expect(comp?.address.id as string).toBe('default');
+});
+
+test('composition sections carry all original entries verbatim', () => {
+  const customSection = makeSurfaceSection({
+    selector: '#custom',
+    url: '/policy-search.html?custom=1',
+    kind: 'result-set',
+    surfaces: [brandString<'SurfaceId'>('results-grid')],
+  });
+  const out = decomposeScreenSurfaces(
+    makeSurfacesInput({
+      content: makeSurfaceGraph(
+        {},
+        { 'custom-section': customSection },
+        { 'results-grid': makeSurfaceDefinition({ kind: 'result-set' }) },
+      ),
+    }),
+  );
+  const comp = out.surfaceCompositions[0];
+  expect(comp?.content.sections['custom-section']).toEqual(customSection);
+});
+
+// ─── Composition atom references ────────────────────────────────
+
+test('composition atomReferences list every surface atom in sorted order', () => {
+  const out = decomposeScreenSurfaces(makeSurfacesInput());
+  const comp = out.surfaceCompositions[0];
+  expect(comp?.atomReferences.length).toBe(out.surfaceAtoms.length);
+  for (let i = 0; i < out.surfaceAtoms.length; i += 1) {
+    const ref = comp?.atomReferences[i];
+    const atom = out.surfaceAtoms[i];
+    expect(ref?.address).toEqual(atom?.address);
+    expect(ref?.role).toBe('member');
+    expect(ref?.order).toBe(i);
+  }
+});
+
+test('every composition atomReference address is byte-equal to the corresponding surface atom address', () => {
+  const out = decomposeScreenSurfaces(makeSurfacesInput());
+  const comp = out.surfaceCompositions[0];
+  for (const ref of comp?.atomReferences ?? []) {
+    const matchingAtom = out.surfaceAtoms.find(
+      (a) => JSON.stringify(a.address) === JSON.stringify(ref.address),
+    );
+    expect(matchingAtom).toBeDefined();
+  }
+});
+
+// ─── Source wiring ───────────────────────────────────────────────
+
+test('decomposeScreenSurfaces threads PhaseOutputSource through atoms AND composition', () => {
+  const sources: readonly PhaseOutputSource[] = [
+    'operator-override',
+    'agentic-override',
+    'deterministic-observation',
+    'live-derivation',
+    'cold-derivation',
+  ];
+  for (const source of sources) {
+    const out = decomposeScreenSurfaces(makeSurfacesInput({ source }));
+    for (const a of out.surfaceAtoms) {
+      expect(a.source).toBe(source);
+    }
+    for (const c of out.surfaceCompositions) {
+      expect(c.source).toBe(source);
+    }
+  }
+});
+
+// ─── Stable ordering ─────────────────────────────────────────────
+
+test('surface atoms are sorted lexicographically by surface id regardless of input order', () => {
+  const shuffled = makeSurfaceGraph(
+    {},
+    {},
+    {
+      zebra: makeSurfaceDefinition(),
+      apple: makeSurfaceDefinition({ kind: 'action-cluster' }),
+      mango: makeSurfaceDefinition({ kind: 'result-set' }),
+    },
+  );
+  const out = decomposeScreenSurfaces(makeSurfacesInput({ content: shuffled }));
+  const ids = out.surfaceAtoms.map((a) => a.address.surface as string);
+  expect(ids).toEqual(['apple', 'mango', 'zebra']);
+});
+
+test('two inputs with the same content but different insertion orders produce identical output', () => {
+  const a = makeSurfaceGraph(
+    {},
+    {
+      apple: makeSurfaceSection(),
+      zebra: makeSurfaceSection({ kind: 'result-set' }),
+    },
+    {
+      b: makeSurfaceDefinition({ kind: 'form' }),
+      a: makeSurfaceDefinition({ kind: 'action-cluster' }),
+    },
+  );
+  const b = makeSurfaceGraph(
+    {},
+    {
+      zebra: makeSurfaceSection({ kind: 'result-set' }),
+      apple: makeSurfaceSection(),
+    },
+    {
+      a: makeSurfaceDefinition({ kind: 'action-cluster' }),
+      b: makeSurfaceDefinition({ kind: 'form' }),
+    },
+  );
+  const fromA = decomposeScreenSurfaces(makeSurfacesInput({ content: a }));
+  const fromB = decomposeScreenSurfaces(makeSurfacesInput({ content: b }));
+  expect(fromA).toEqual(fromB);
+});
+
+// ─── Fingerprint independence from provenance ───────────────────
+
+test('surface atom and composition fingerprints are independent of provenance fields', () => {
+  const baseline = decomposeScreenSurfaces(makeSurfacesInput());
+  const variants: ReadonlyArray<Partial<DecomposeScreenSurfacesInput>> = [
+    { producedAt: '2030-12-31T23:59:59.999Z' },
+    { producedBy: 'canon-decomposer:screen-surfaces:v9' },
+    { pipelineVersion: 'sha-different' },
+  ];
+  for (const overrides of variants) {
+    const variant = decomposeScreenSurfaces(makeSurfacesInput(overrides));
+    for (let i = 0; i < baseline.surfaceAtoms.length; i += 1) {
+      expect(baseline.surfaceAtoms[i]?.inputFingerprint).toBe(
+        variant.surfaceAtoms[i]?.inputFingerprint,
+      );
+    }
+    for (let i = 0; i < baseline.surfaceCompositions.length; i += 1) {
+      expect(baseline.surfaceCompositions[i]?.inputFingerprint).toBe(
+        variant.surfaceCompositions[i]?.inputFingerprint,
+      );
+    }
+  }
+});
+
+test('surface atom fingerprint changes when definition changes (sibling isolation)', () => {
+  const baseline = decomposeScreenSurfaces(makeSurfacesInput());
+  const mutated = decomposeScreenSurfaces(
+    makeSurfacesInput({
+      content: makeSurfaceGraph(
+        {},
+        {
+          'search-form': makeSurfaceSection({
+            surfaces: [
+              brandString<'SurfaceId'>('search-form'),
+              brandString<'SurfaceId'>('search-actions'),
+              brandString<'SurfaceId'>('validation-surface'),
+            ],
+          }),
+        },
+        {
+          'search-form': makeSurfaceDefinition({
+            selector: '#DIFFERENT-selector',
+            children: [
+              brandString<'SurfaceId'>('search-actions'),
+              brandString<'SurfaceId'>('validation-surface'),
+            ],
+          }),
+          'search-actions': makeSurfaceDefinition({
+            kind: 'action-cluster',
+            selector: '[data-testid="search-button"]',
+            parents: [brandString<'SurfaceId'>('search-form')],
+            elements: [brandString<'ElementId'>('searchButton')],
+          }),
+          'validation-surface': makeSurfaceDefinition({
+            kind: 'validation-region',
+            selector: '[data-testid="validation-summary"]',
+            parents: [brandString<'SurfaceId'>('search-form')],
+            elements: [brandString<'ElementId'>('validationSummary')],
+            required: false,
+          }),
+        },
+      ),
+    }),
+  );
+  const baselineSearch = baseline.surfaceAtoms.find(
+    (a) => (a.address.surface as string) === 'search-form',
+  );
+  const mutatedSearch = mutated.surfaceAtoms.find(
+    (a) => (a.address.surface as string) === 'search-form',
+  );
+  expect(baselineSearch?.inputFingerprint).not.toBe(mutatedSearch?.inputFingerprint);
+  // Sibling isolation: mutating search-form must not change the
+  // search-actions or validation-surface fingerprints.
+  const baselineActions = baseline.surfaceAtoms.find(
+    (a) => (a.address.surface as string) === 'search-actions',
+  );
+  const mutatedActions = mutated.surfaceAtoms.find(
+    (a) => (a.address.surface as string) === 'search-actions',
+  );
+  expect(baselineActions?.inputFingerprint).toBe(mutatedActions?.inputFingerprint);
+});
+
+test('composition fingerprint changes when sections change', () => {
+  const baseline = decomposeScreenSurfaces(makeSurfacesInput());
+  const mutated = decomposeScreenSurfaces(
+    makeSurfacesInput({
+      content: makeSurfaceGraph(
+        {},
+        {
+          'search-form': makeSurfaceSection({
+            selector: '#completely-different',
+            surfaces: [
+              brandString<'SurfaceId'>('search-form'),
+              brandString<'SurfaceId'>('search-actions'),
+              brandString<'SurfaceId'>('validation-surface'),
+            ],
+          }),
+        },
+      ),
+    }),
+  );
+  expect(baseline.surfaceCompositions[0]?.inputFingerprint).not.toBe(
+    mutated.surfaceCompositions[0]?.inputFingerprint,
+  );
+});
+
+test('composition fingerprint changes when surface atom set changes', () => {
+  const baseline = decomposeScreenSurfaces(makeSurfacesInput());
+  const mutated = decomposeScreenSurfaces(
+    makeSurfacesInput({
+      content: makeSurfaceGraph(
+        {},
+        {},
+        {
+          // Remove validation-surface, keep the other two.
+          'search-form': makeSurfaceDefinition({
+            children: [brandString<'SurfaceId'>('search-actions')],
+          }),
+          'search-actions': makeSurfaceDefinition({
+            kind: 'action-cluster',
+            parents: [brandString<'SurfaceId'>('search-form')],
+          }),
+        },
+      ),
+    }),
+  );
+  expect(baseline.surfaceCompositions[0]?.inputFingerprint).not.toBe(
+    mutated.surfaceCompositions[0]?.inputFingerprint,
+  );
+});
+
+// ─── Provenance plumbing ─────────────────────────────────────────
+
+test('surface provenance fields flow through to atoms and composition', () => {
+  const out = decomposeScreenSurfaces(
+    makeSurfacesInput({
+      producedBy: 'canon-decomposer:screen-surfaces:v9',
+      producedAt: '2030-01-01T00:00:00.000Z',
+      pipelineVersion: 'sha-defaced',
+    }),
+  );
+  for (const a of out.surfaceAtoms) {
+    expect(a.provenance.producedBy).toBe('canon-decomposer:screen-surfaces:v9');
+    expect(a.provenance.producedAt).toBe('2030-01-01T00:00:00.000Z');
+    expect(a.provenance.pipelineVersion).toBe('sha-defaced');
+    expect(a.provenance.inputs).toEqual(['screen-surfaces:policy-search']);
+  }
+  for (const c of out.surfaceCompositions) {
+    expect(c.provenance.producedBy).toBe('canon-decomposer:screen-surfaces:v9');
+    expect(c.provenance.producedAt).toBe('2030-01-01T00:00:00.000Z');
+    expect(c.provenance.pipelineVersion).toBe('sha-defaced');
+    expect(c.provenance.inputs).toEqual(['screen-surfaces:policy-search']);
+  }
+});
+
+// ─── Interop invariant: fingerprint is source-agnostic ──────────
+
+test('surface decomposer: warm and cold invocations produce identical fingerprints for identical content', () => {
+  const warm = decomposeScreenSurfaces(
+    makeSurfacesInput({ source: 'agentic-override' }),
+  );
+  const cold = decomposeScreenSurfaces(
+    makeSurfacesInput({ source: 'cold-derivation' }),
+  );
+  for (let i = 0; i < warm.surfaceAtoms.length; i += 1) {
+    expect(warm.surfaceAtoms[i]?.inputFingerprint).toBe(
+      cold.surfaceAtoms[i]?.inputFingerprint,
+    );
+  }
+  for (let i = 0; i < warm.surfaceCompositions.length; i += 1) {
+    expect(warm.surfaceCompositions[i]?.inputFingerprint).toBe(
+      cold.surfaceCompositions[i]?.inputFingerprint,
     );
   }
 });
