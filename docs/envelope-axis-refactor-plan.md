@@ -526,12 +526,23 @@ valuable** if we stop at a natural checkpoint:
   partial state on a branch that can be paused if higher-priority
   work interrupts.
 
-## 5. Phase 0b — Source axis + precedence consolidation
+## 5. Phase 0b — Source axis (scoped-down from original plan)
 
 **Goal.** Make `source` a phantom type parameter on canonical
-artifacts (`Atom`, `Composition`, `Projection`) and consolidate the
-two competing precedence dispatchers (`freeSearch` and
-`dispatchByPrecedence`) into one abstraction.
+artifacts (`Atom`, `Composition`, `Projection`) so functions can
+constrain the source slots they accept.
+
+**Scope narrowing (executed 2026-04-09).** The original plan called
+for also consolidating the four ad-hoc precedence dispatchers
+(`dispatchByPrecedence` → `freeSearch` migration) and lifting
+`KnowledgePosture` to a `Source` bound. Closer inspection during
+Phase 0b execution showed that `dispatchByPrecedence` (static
+candidate lookup) and `freeSearch` (strategy-chain walk with
+inner computation) serve different purposes and forcibly unifying
+them would make both worse. The precedence consolidation is
+deferred to its own follow-up. Posture-as-bound is also deferred
+so the source phantom can settle first. The Phase 0b work items
+below have been revised to reflect what actually landed.
 
 ### 5.1 Doctrinal seams
 
