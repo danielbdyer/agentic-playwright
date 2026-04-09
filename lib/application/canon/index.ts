@@ -27,6 +27,7 @@
  * adding a new decomposer to this namespace.
  */
 
+export * from './minting';
 export * from './decompose-screen-elements';
 export * from './decompose-screen-hints';
 export * from './decompose-screen-postures';
