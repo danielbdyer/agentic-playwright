@@ -339,3 +339,36 @@ export const DogfoodRunSchema = Schema.Struct({
   kind: Schema.Literal('dogfood-run'),
   ...BenchmarkImprovementProjectionFields,
 });
+
+// ─── Evidence record ───
+//
+// Structural schema for the `EvidenceRecord` shape defined at
+// lib/domain/resolution/types.ts:486. Previously the catalog
+// loader at workspace-catalog.ts:362 used a bare
+// `(v) => v as EvidenceRecord` cast with no validator —
+// malformed evidence files would silently flow through and crash
+// downstream consumers with cryptic errors. This schema closes
+// the loophole: evidence records now pass the same decoder gate
+// as every other artifact kind.
+
+const EvidenceRecordProposalSchema = Schema.Struct({
+  file: Schema.String,
+  field: Schema.String,
+  old_value: Schema.NullOr(Schema.String),
+  new_value: Schema.NullOr(Schema.String),
+});
+
+const EvidenceRecordEvidenceSchema = Schema.Struct({
+  type: Schema.String,
+  timestamp: Schema.String,
+  trigger: Schema.String,
+  observation: Schema.Record({ key: Schema.String, value: Schema.String }),
+  proposal: EvidenceRecordProposalSchema,
+  confidence: Schema.Number,
+  risk: Schema.Literal('low', 'medium', 'high'),
+  scope: Schema.String,
+});
+
+export const EvidenceRecordSchema = Schema.Struct({
+  evidence: EvidenceRecordEvidenceSchema,
+});
