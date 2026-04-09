@@ -91,6 +91,79 @@ export function chainVerdict<T, I, U>(
 }
 
 /**
+ * A gate in a verdict chain — a function that takes the current
+ * approved value and returns either a new approved value or a
+ * suspension/block that short-circuits the chain.
+ *
+ * Gates are the first-class "data" form of chained governance
+ * checks. Code that previously looked like:
+ *
+ *     const gate1 = initial;
+ *     const gate2 = chainVerdict(gate1, (v) => check1(v));
+ *     const gate3 = chainVerdict(gate2, (v) => check2(v));
+ *     return chainVerdict(gate3, (v) => check3(v));
+ *
+ * becomes:
+ *
+ *     return runGateChain(initial, [
+ *       (v) => check1(v),
+ *       (v) => check2(v),
+ *       (v) => check3(v),
+ *     ]);
+ *
+ * The gate list is ordered: the first gate runs first, each
+ * approved result feeds the next gate, and the first
+ * suspension/blocked verdict short-circuits the rest of the chain.
+ * This is the same algebra as `runPipelinePhases` /
+ * `runRecoveryChain` / `walkStrategyChainAsync` — sequential steps
+ * with threaded state and early termination — but specialized to
+ * the verdict monad instead of the free-forgetful iterator.
+ */
+export type VerdictGate<A, I> = (value: A) => GovernanceVerdict<A, I>;
+
+/**
+ * Run a list of verdict gates sequentially, short-circuiting on
+ * the first suspension or blocked verdict. The type parameter `A`
+ * stays the same across every gate — each gate refines the
+ * approved value or rejects it.
+ *
+ * Pure function. Equivalent to folding `chainVerdict` over the
+ * list, but makes the "gates as data" shape visible at the call
+ * site. The law tests verify:
+ *
+ *   - empty gate list returns `approved(initial)` unchanged
+ *   - if all gates approve, the final approved value is returned
+ *   - a suspended gate short-circuits the chain (later gates are
+ *     NOT invoked — verified via side-effect counting)
+ *   - a blocked gate short-circuits the chain
+ *   - identity gate list is a no-op
+ */
+export function runGateChain<A, I>(
+  initial: A,
+  gates: readonly VerdictGate<A, I>[],
+): GovernanceVerdict<A, I> {
+  return gates.reduce<GovernanceVerdict<A, I>>(
+    (verdict, gate) => chainVerdict(verdict, gate),
+    approved(initial),
+  );
+}
+
+/**
+ * Variant of `runGateChain` that starts from an existing verdict
+ * instead of a raw value. Useful when the initial value has
+ * already been through a previous chain. Short-circuits identically.
+ */
+export function runGateChainFrom<A, I>(
+  initial: GovernanceVerdict<A, I>,
+  gates: readonly VerdictGate<A, I>[],
+): GovernanceVerdict<A, I> {
+  return gates.reduce<GovernanceVerdict<A, I>>(
+    (verdict, gate) => chainVerdict(verdict, gate),
+    initial,
+  );
+}
+
+/**
  * Convert a Governance string to a verdict, using the provided value
  * for the approved case and a reason generator for the others.
  */
