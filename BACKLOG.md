@@ -6,11 +6,12 @@ This is the master execution backlog for realizing the temporal-epistemic specif
 
 ## Current State Contract
 
-Read these four documents together:
+Read these five documents together:
 
 - [README.md](README.md) for the operational overview and public model
 - [docs/current-state.md](docs/current-state.md) for implementation truth
 - [docs/convergence-backlog.md](docs/convergence-backlog.md) for the detailed substrate ledger
+- [docs/envelope-axis-refactor-plan.md](docs/envelope-axis-refactor-plan.md) for the **structural prerequisite (Phase 0)** that lifts `stage`, `source`, `verdict`, and fingerprint addresses into phantom-typed envelope axes — a hard gate on the convergence plan's Phase A–C landing cleanly
 - [docs/archive/research/temporal-epistemic-specification-addendum.md](docs/archive/research/temporal-epistemic-specification-addendum.md) for the formal north star
 
 This file answers:
@@ -294,13 +295,23 @@ Status legend: `done` (shipped), `live` (live and partially adopted), `pending` 
 
 ### Cross-lane priority order (sequencing constraint)
 
+> **Sequencing note.** Phase 0 of the envelope-axis refactor plan
+> (`docs/envelope-axis-refactor-plan.md`) has been inserted as a
+> structural prerequisite to items 1–9 below. The refactor lifts
+> `stage`, `source`, `verdict`, and fingerprint addresses into
+> phantom-typed envelope axes so that every item below inherits a
+> typed scaffolding instead of string-typed conventions. Items 1–9
+> assume Phase 0 has completed. See the refactor plan § 13 for the
+> detailed rationale.
+
 | Order | Item | Why now |
 |---|---|---|
+| **0** | **Phase 0 — envelope-axis refactor** (`docs/envelope-axis-refactor-plan.md`) | **Scaffolds every envelope-touching item below. Unblocks clean landing of the cold-start convergence plan's Phase A–C. Cost curve is asymmetric: refactor now ≈ 150 call sites; refactor in 6 months ≈ 300; refactor in 12 months ≈ 500.** |
 | 1 | Phase 1 (epic-level) — MemoryMaturity, Cohort, RiskFormula | Unblocks honest measurement of every C-family obligation. |
-| 2 | A2 + A3 hardening | Auto-approval and dogfood loop are the primary measurement substrate. |
-| 3 | B1 + F2 finishing | Route knowledge and deterministic coverage gates. |
-| 4 | D1 + D1.5 expansion | More structured entropy → more cohort comparability data. |
-| 5 | B3 + C3 | Confidence decay + cost budgets close the trust loop. |
-| 6 | E1 + E2 | Operator cockpit + VSCode integration. |
-| 7 | D2 + D3 | Benchmark expansion + synthetic harness. |
+| 2 | A2 + A3 hardening | Auto-approval and dogfood loop are the primary measurement substrate. After Phase 0d, both run on `runGateChain` instead of ad-hoc governance checks. |
+| 3 | B1 + F2 finishing | Route knowledge and deterministic coverage gates. After Phase 0c, route fingerprints and lineage edges are typed. |
+| 4 | D1 + D1.5 expansion | More structured entropy → more cohort comparability data. Benefits from Phase 0a (stage-typed drift events) and 0c (tagged fingerprint lineage). |
+| 5 | B3 + C3 | Confidence decay + cost budgets close the trust loop. Confidence thresholds become gate chain instances after Phase 0d. |
+| 6 | E1 + E2 | Operator cockpit + VSCode integration. Projection layer consumes the typed envelopes directly. |
+| 7 | D2 + D3 | Benchmark expansion + synthetic harness. Envelope-heavy; benefits from all four Phase 0 lifts. |
 | 8 | E3 + F1 | Offline optimization + CI webhooks (separate lane, separate cadence). |

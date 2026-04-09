@@ -5,6 +5,17 @@
 > as the sequencing source of truth; those documents are now read as
 > Surface 1/2 tactical inputs that execute *within* this plan's phases.
 > When this document conflicts with them, this document wins.
+>
+> **Prerequisite (Phase 0):** Before this plan's Phase A begins,
+> `docs/envelope-axis-refactor-plan.md` must land. That plan lifts
+> `stage`, `source`, `verdict`, and fingerprint addresses into
+> phantom-typed envelope axes so Phase A's decomposers, Phase B's L4
+> visitors, and Phase C's intervention braid all inherit a typed
+> scaffolding instead of string-typed conventions. Attempting Phase A
+> before Phase 0 stabilizes means the decomposers are born with the
+> bugs the refactor was designed to prevent. See the refactor plan's
+> § 2 "Relationship to existing plans" for the full sequencing
+> argument.
 
 ## TL;DR
 
