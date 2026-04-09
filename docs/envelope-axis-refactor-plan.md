@@ -203,7 +203,7 @@ one tells you nothing about the values of the others.
 **Question answered.** *Where in the forward progression is this
 artifact?*
 
-**Values.** `'preparation' | 'resolution' | 'execution' | 'evidence' | 'proposal' | 'improvement'`.
+**Values.** `'preparation' | 'resolution' | 'execution' | 'evidence' | 'proposal' | 'projection'`.
 
 **Runtime shadow today.** The `stage: WorkflowStage` field on every
 envelope and receipt. Checked at runtime by
@@ -212,10 +212,14 @@ envelope and receipt. Checked at runtime by
 validators in `lib/domain/validation/core/*`, and by a round-trip
 assertion in `workflow-types.ts:228`.
 
-**Compile-time lift.** `WorkflowEnvelope<S extends WorkflowStage, P>`
-carries `S` as a phantom type parameter. `StagedEnvelope<T, Stage>`
-at `workflow-types.ts:66` already exists and is uncalled — this is
-the lift-in-waiting that Phase 0a completes.
+**Compile-time lift.** `WorkflowEnvelope<TPayload, S extends WorkflowStage = WorkflowStage>`
+carries `S` as a phantom type parameter with a default that
+preserves back-compat for existing single-arg call sites.
+`StagedEnvelope<T, Stage>` at `workflow-types.ts:66` is **dead
+scaffolding** (zero call sites in `lib/`); Phase 0a deletes it and
+the associated `brandByStage`, `PreparationEnvelope<T>`,
+`ResolutionEnvelope<T>`, `ExecutionEnvelope<T>` aliases. The
+generic-parameter version supersedes the brand-pattern version.
 
 **What it unlocks.** Function signatures become protocol steps:
 `buildProposals(run: WorkflowEnvelope<'execution', ExecutionPayload>): WorkflowEnvelope<'proposal', ProposalPayload>`

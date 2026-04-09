@@ -55,23 +55,14 @@ export function foldGovernance<T extends { governance: Governance }, R>(
 export { brandBySource, foldSourcedCandidate } from '../provenance/source-brand';
 export type { SourcedCandidate } from '../provenance/source-brand';
 
-// ─── Pipeline Stage Branding ───
-
-/**
- * Phantom brand for artifact envelopes, tagged by the pipeline stage that
- * produced them. Ensures preparation-stage artifacts cannot be confused with
- * execution-stage artifacts at the type level.
- */
-declare const PipelineStageBrand: unique symbol;
-export type StagedEnvelope<T, Stage extends WorkflowStage> = T & { readonly [PipelineStageBrand]: Stage };
-
-export function brandByStage<T, Stage extends WorkflowStage>(envelope: T, _stage: Stage): StagedEnvelope<T, Stage> {
-  return envelope as StagedEnvelope<T, Stage>;
-}
-
-export type PreparationEnvelope<T> = StagedEnvelope<WorkflowEnvelope<T>, 'preparation'>;
-export type ResolutionEnvelope<T> = StagedEnvelope<WorkflowEnvelope<T>, 'resolution'>;
-export type ExecutionEnvelope<T> = StagedEnvelope<WorkflowEnvelope<T>, 'execution'>;
+// ─── Pipeline Stage (lifted to WorkflowMetadata generic) ───
+//
+// The previous implementation carried stage as a phantom brand applied
+// externally (`StagedEnvelope<T, Stage>` + `brandByStage`). That scaffolding
+// was dead code (zero call sites) and has been deleted in Phase 0a of the
+// envelope-axis refactor. Stage now lives as a narrow literal generic
+// parameter on `WorkflowMetadata<S>` and `WorkflowEnvelope<P, S>` directly
+// — see the type definitions below.
 
 export type CertificationStatus = 'uncertified' | 'certified';
 export type StepProvenanceKind = 'explicit' | 'approved-knowledge' | 'live-exploration' | 'agent-interpreted' | 'unresolved';
@@ -164,9 +155,20 @@ export interface WorkflowEnvelopeLineage {
  *
  * @see docs/design-calculus.md § Collapse 3: Envelope and Receipt as Adjoint Pair
  */
-export interface WorkflowMetadata {
+/**
+ * Shared envelope header, parameterized by pipeline stage as a narrow
+ * literal via `S extends WorkflowStage`. The default parameter
+ * (`= WorkflowStage`) preserves back-compat for call sites that do not
+ * yet constrain the stage — they continue to see `stage: WorkflowStage`
+ * (the wide union). Concrete envelope types declare their narrow stage
+ * literal explicitly: `interface RunRecord extends WorkflowMetadata<'execution'>`.
+ *
+ * Phase 0a of the envelope-axis refactor lifted the stage parameter
+ * into this type. See `docs/envelope-axis-refactor-plan.md` § 4.
+ */
+export interface WorkflowMetadata<S extends WorkflowStage = WorkflowStage> {
   readonly version: 1;
-  readonly stage: WorkflowStage;
+  readonly stage: S;
   readonly scope: WorkflowScope;
   readonly ids: WorkflowEnvelopeIds;
   readonly fingerprints: WorkflowEnvelopeFingerprints;
@@ -174,18 +176,26 @@ export interface WorkflowMetadata {
   readonly governance: Governance;
 }
 
-export interface WorkflowEnvelope<TPayload> extends WorkflowMetadata {
+/**
+ * Generic envelope: metadata + payload. Argument order is
+ * `<TPayload, S>` with `S` defaulting to the wide `WorkflowStage`
+ * union for back-compat with existing single-arg call sites.
+ * New code that cares about stage at the type level passes the
+ * literal explicitly: `WorkflowEnvelope<RunRecordPayload, 'execution'>`.
+ */
+export interface WorkflowEnvelope<TPayload, S extends WorkflowStage = WorkflowStage>
+  extends WorkflowMetadata<S> {
   readonly payload: TPayload;
 }
 
-export type PayloadOf<T> = T extends WorkflowEnvelope<infer P> ? P : never;
-export type ApprovedEnvelope<T> = Approved<WorkflowEnvelope<T>>;
-export type BlockedEnvelope<T> = Blocked<WorkflowEnvelope<T>>;
+export type PayloadOf<T> = T extends WorkflowEnvelope<infer P, WorkflowStage> ? P : never;
+export type ApprovedEnvelope<T, S extends WorkflowStage = WorkflowStage> = Approved<WorkflowEnvelope<T, S>>;
+export type BlockedEnvelope<T, S extends WorkflowStage = WorkflowStage> = Blocked<WorkflowEnvelope<T, S>>;
 
-export function mapPayload<A, B>(
-  envelope: WorkflowEnvelope<A>,
+export function mapPayload<A, B, S extends WorkflowStage = WorkflowStage>(
+  envelope: WorkflowEnvelope<A, S>,
   f: (payload: A) => B,
-): WorkflowEnvelope<B> {
+): WorkflowEnvelope<B, S> {
   return { ...envelope, payload: f(envelope.payload) };
 }
 
@@ -199,8 +209,11 @@ export function mapPayload<A, B>(
 // The unit of the adjunction: extract shared metadata from either side.
 // The counit: lift metadata into an envelope (adding a payload).
 
-/** Extract the shared WorkflowMetadata from any artifact that extends it. */
-export function extractMetadata(artifact: WorkflowMetadata): WorkflowMetadata {
+/** Extract the shared WorkflowMetadata from any artifact that extends it.
+ *  Preserves the stage generic parameter. */
+export function extractMetadata<S extends WorkflowStage>(
+  artifact: WorkflowMetadata<S>,
+): WorkflowMetadata<S> {
   return {
     version: artifact.version,
     stage: artifact.stage,
@@ -212,8 +225,12 @@ export function extractMetadata(artifact: WorkflowMetadata): WorkflowMetadata {
   };
 }
 
-/** Lift metadata into an envelope by attaching a payload (counit of the adjunction). */
-export function liftToEnvelope<T>(metadata: WorkflowMetadata, payload: T): WorkflowEnvelope<T> {
+/** Lift metadata into an envelope by attaching a payload (counit of the adjunction).
+ *  Preserves the stage generic parameter. */
+export function liftToEnvelope<T, S extends WorkflowStage = WorkflowStage>(
+  metadata: WorkflowMetadata<S>,
+  payload: T,
+): WorkflowEnvelope<T, S> {
   return { ...metadata, payload };
 }
 
@@ -221,7 +238,10 @@ export function liftToEnvelope<T>(metadata: WorkflowMetadata, payload: T): Workf
  * Verify the adjunction round-trip law: extractMetadata(liftToEnvelope(m, p)) ≡ m.
  * Stripping the payload from a freshly-created envelope recovers the original metadata.
  */
-export function verifyEnvelopeReceiptAdjunction<T>(metadata: WorkflowMetadata, payload: T): boolean {
+export function verifyEnvelopeReceiptAdjunction<T, S extends WorkflowStage = WorkflowStage>(
+  metadata: WorkflowMetadata<S>,
+  payload: T,
+): boolean {
   const envelope = liftToEnvelope(metadata, payload);
   const recovered = extractMetadata(envelope);
   return recovered.version === metadata.version
