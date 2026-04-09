@@ -23,15 +23,15 @@ import type {
   CompositionAddressOf,
 } from './composition-address';
 import type { PhaseOutputSource } from './source';
+import type { CanonProvenance } from './provenance';
 
 // ─── Provenance ───────────────────────────────────────────────────
 
-export interface CompositionProvenance {
-  readonly producedBy: string;
-  readonly producedAt: string;
-  readonly pipelineVersion?: string | undefined;
-  readonly inputs?: readonly string[] | undefined;
-}
+/** @deprecated Use `CanonProvenance`. Kept as a type alias for
+ *  source-compatibility; the three tier-specific provenance types
+ *  are byte-identical and share one canonical definition in
+ *  `provenance.ts`. */
+export type CompositionProvenance = CanonProvenance;
 
 // ─── Atom reference (the link from Tier 2 to Tier 1) ─────────────
 

@@ -27,15 +27,15 @@ import type {
 } from './projection-address';
 import type { PhaseOutputSource } from './source';
 import type { AtomApplicability } from './qualifier';
+import type { CanonProvenance } from './provenance';
 
 // ─── Provenance ───────────────────────────────────────────────────
 
-export interface ProjectionProvenance {
-  readonly producedBy: string;
-  readonly producedAt: string;
-  readonly pipelineVersion?: string | undefined;
-  readonly inputs?: readonly string[] | undefined;
-}
+/** @deprecated Use `CanonProvenance`. Kept as a type alias for
+ *  source-compatibility; the three tier-specific provenance types
+ *  are byte-identical and share one canonical definition in
+ *  `provenance.ts`. */
+export type ProjectionProvenance = CanonProvenance;
 
 // ─── Atom binding (the unit of projection content) ───────────────
 

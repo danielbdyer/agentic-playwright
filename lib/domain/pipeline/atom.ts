@@ -16,25 +16,17 @@
 
 import type { AtomClass, AtomAddress, AtomAddressOf } from './atom-address';
 import type { PhaseOutputSource } from './source';
+import type { CanonProvenance } from './provenance';
 
 // ─── Provenance ───────────────────────────────────────────────────
 
-/** Where the atom came from. Every atom carries enough provenance
- *  for an operator to trace it back to the inputs and engine that
- *  produced it. */
-export interface AtomProvenance {
-  /** Stable identifier of the engine or sub-engine that produced
-   *  this atom (e.g. `discovery.routes.playwright-walker`). */
-  readonly producedBy: string;
-  /** ISO timestamp the atom was produced at. */
-  readonly producedAt: string;
-  /** Optional pipeline version (commit SHA, build tag, etc.). */
-  readonly pipelineVersion?: string | undefined;
-  /** Optional list of inputs the engine consumed to produce this
-   *  atom. Lets the demotion machinery know which atoms become
-   *  candidates when an upstream input changes. */
-  readonly inputs?: readonly string[] | undefined;
-}
+/** @deprecated Use `CanonProvenance` directly. Retained as a type
+ *  alias for source-compatibility with existing callers. The three
+ *  tier-specific provenance types (`AtomProvenance`,
+ *  `CompositionProvenance`, `ProjectionProvenance`) are byte-
+ *  identical and collapsed to one canonical shape in
+ *  `lib/domain/pipeline/provenance.ts`. */
+export type AtomProvenance = CanonProvenance;
 
 // ─── The Atom envelope ───────────────────────────────────────────
 
