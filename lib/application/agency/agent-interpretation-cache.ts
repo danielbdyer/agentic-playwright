@@ -10,7 +10,7 @@
  * so that knowledge changes automatically invalidate stale entries.
  */
 
-import { contentFingerprint, taggedContentFingerprint } from '../../domain/kernel/hash';
+import { fingerprintFor, taggedFingerprintFor } from '../../domain/kernel/hash';
 import type { AgentInterpretationResult } from '../../domain/interpretation/agent-interpreter';
 import { readJsonCacheRecord, writeJsonCacheRecord, pruneCacheFiles } from '../cache/file-cache';
 import type { ProjectPaths } from '../paths';
@@ -59,7 +59,7 @@ export interface AgentInterpretationCacheKeyInput {
  * interpretation identity: step text, normalized intent, and context fingerprints.
  */
 function requestFingerprint(input: AgentInterpretationCacheKeyInput): string {
-  return taggedContentFingerprint({
+  return taggedFingerprintFor('content', {
     actionText: input.actionText,
     expectedText: input.expectedText,
     normalizedIntent: input.normalizedIntent,
@@ -71,7 +71,7 @@ function requestFingerprint(input: AgentInterpretationCacheKeyInput): string {
  * and the request content fingerprint. Knowledge changes invalidate entries.
  */
 export function agentInterpretationCacheKey(input: AgentInterpretationCacheKeyInput): string {
-  return `agent-interp-${contentFingerprint({
+  return `agent-interp-${fingerprintFor('agent-interp-cache-key', {
     task: input.taskFingerprint,
     knowledge: input.knowledgeFingerprint,
     request: requestFingerprint(input),
@@ -106,7 +106,7 @@ export function writeAgentInterpretationCache(input: {
     stage: 'resolution',
     scope: 'agent-interpretation',
     cacheKey: key,
-    fingerprint: taggedContentFingerprint({ key, result: input.result, fingerprint }),
+    fingerprint: taggedFingerprintFor('artifact', { key, result: input.result, fingerprint }),
     fingerprints: {
       task: input.request.taskFingerprint,
       knowledge: input.request.knowledgeFingerprint,

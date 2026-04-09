@@ -5,7 +5,7 @@
  * Persistence and Effect-based orchestration live in the application layer.
  */
 
-import { contentFingerprint } from '../kernel/hash';
+import { fingerprintFor } from '../kernel/hash';
 import { normalizeIntentText } from './inference';
 import {
   addEntryToShingleIndex,
@@ -64,7 +64,7 @@ const MAX_CONSECUTIVE_FAILURES = 2;
 // ─── Entry Identity ───
 
 function entryId(normalizedIntent: string, target: SemanticDictionaryTarget): string {
-  return `sem-${contentFingerprint({
+  return `sem-${fingerprintFor('semantic-entry-id', {
     intent: normalizedIntent,
     screen: target.screen,
     element: target.element,

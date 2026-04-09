@@ -19,7 +19,7 @@
  *     diff (intentional — order is part of the manifest's identity).
  */
 
-import { taggedContentFingerprint } from '../kernel/hash';
+import { taggedFingerprintFor } from '../kernel/hash';
 import {
   planSyntheticScenarios,
   type ScenarioPlan,
@@ -91,7 +91,7 @@ function generateCohortGroup(
   // order so insertion order does not affect the hash.
   const sortedPlans = [...planning.plans].sort((a, b) => a.adoId.localeCompare(b.adoId));
   const fingerprints = sortedPlans.map((plan) => plan.fingerprint);
-  const contentHash = taggedContentFingerprint({
+  const contentHash = taggedFingerprintFor('cohort', {
     cohortId: cohort.cohortId,
     fingerprints,
   });
@@ -134,7 +134,7 @@ export function orchestrateCohorts(
 
   // Aggregate hash: fold per-cohort content hashes in declaration order.
   // Reordering cohorts changes this hash by design — order is identity.
-  const aggregateHash = taggedContentFingerprint({
+  const aggregateHash = taggedFingerprintFor('cohort-aggregate', {
     masterSeed: input.masterSeed,
     cohortHashes: groups.map((group) => ({
       cohortId: group.cohort.cohortId,

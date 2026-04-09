@@ -1,5 +1,5 @@
 import { sortByStringKey } from '../../kernel/collections';
-import { contentFingerprint } from '../../kernel/hash';
+import { fingerprintFor } from '../../kernel/hash';
 import { graphIds, mcpUris } from '../../kernel/ids';
 import { createElementId, createSurfaceId } from '../../kernel/identity';
 import type { ScreenId } from '../../kernel/identity';
@@ -44,7 +44,7 @@ function sortGraph(graph: Omit<DerivedGraph, 'fingerprint'>): DerivedGraph {
     edges,
     resources,
     resourceTemplates,
-    fingerprint: contentFingerprint({ nodes, edges, resources, resourceTemplates }),
+    fingerprint: fingerprintFor('derived-graph', { nodes, edges, resources, resourceTemplates }),
   };
 }
 

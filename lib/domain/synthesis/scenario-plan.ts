@@ -1,5 +1,5 @@
 import { hashSeed, createSeededRng, type SeededRng } from '../kernel/random';
-import { taggedContentFingerprint } from '../kernel/hash';
+import { taggedFingerprintFor } from '../kernel/hash';
 import type { AdoSnapshot } from '../intent/types';
 import { createAdoId } from '../kernel/identity';
 
@@ -293,7 +293,7 @@ export function planSyntheticScenarios(input: ScenarioPlanningInput): ScenarioPl
     // canonical AdoSnapshot fields with deterministic values.
     const suitePath = materialized.suite;
     const areaPath = suitePath.split('/')[0] ?? 'synthetic';
-    const adoSnapshotContentHash = taggedContentFingerprint({
+    const adoSnapshotContentHash = taggedFingerprintFor('ado-content', {
       adoId,
       title: materialized.title,
       suitePath,
@@ -325,7 +325,7 @@ export function planSyntheticScenarios(input: ScenarioPlanningInput): ScenarioPl
       suite: materialized.suite,
       fileName: `${adoId}.scenario.yaml`,
       yaml,
-      fingerprint: taggedContentFingerprint({ adoId, yaml }),
+      fingerprint: taggedFingerprintFor('content', { adoId, yaml }),
       adoSnapshot,
     } satisfies ScenarioPlan;
   });

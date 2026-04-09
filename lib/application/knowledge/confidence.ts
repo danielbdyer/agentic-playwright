@@ -1,5 +1,5 @@
 import { Effect } from 'effect';
-import { contentFingerprint } from '../../domain/kernel/hash';
+import { fingerprintFor } from '../../domain/kernel/hash';
 import { knowledgePaths } from '../../domain/kernel/ids';
 import type { TrustPolicyArtifactType } from '../../domain/governance/workflow-types';
 import type { ArtifactConfidenceRecord, ConfidenceOverlayCatalog } from '../../domain/knowledge/types';
@@ -24,7 +24,7 @@ function confidenceRecordId(input: {
   posture?: string | null;
   snapshotTemplate?: string | null;
 }): string {
-  return `overlay-${contentFingerprint(input)}`;
+  return `overlay-${fingerprintFor('overlay-id', input)}`;
 }
 
 function snapshotArtifactPath(snapshotTemplate: string): string {

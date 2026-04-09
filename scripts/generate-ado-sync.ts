@@ -6,7 +6,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { taggedContentFingerprint } from '../lib/domain/kernel/hash';
+import { taggedFingerprintFor } from '../lib/domain/kernel/hash';
 
 function findScenarioFiles(dir: string): string[] {
   const results: string[] = [];
@@ -45,7 +45,7 @@ function computeAdoContentHash(steps: Array<{ action: string; expected: string; 
       sharedStepId: null,
     })),
   };
-  return taggedContentFingerprint(normalized);
+  return taggedFingerprintFor('ado-content', normalized);
 }
 
 // Simple YAML line parser for our scenario format

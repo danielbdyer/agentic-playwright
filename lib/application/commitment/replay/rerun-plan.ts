@@ -8,7 +8,7 @@ import { relativeProjectPath, rerunPlanPath } from '../../paths';
 import { FileSystem } from '../../ports';
 import { policyDecisionGraphTarget } from '../../governance/trust-policy';
 import { TesseractError } from '../../../domain/kernel/errors';
-import { contentFingerprint } from '../../../domain/kernel/hash';
+import { fingerprintFor } from '../../../domain/kernel/hash';
 import { graphIds, knowledgePaths } from '../../../domain/kernel/ids';
 import type { AdoId } from '../../../domain/kernel/identity';
 import { createAdoId } from '../../../domain/kernel/identity';
@@ -153,7 +153,7 @@ function scenariosReferencingArtifact(catalog: WorkspaceCatalog, artifactPath: s
 }
 
 function explanationFingerprint(explanation: Omit<SelectionExplanation, 'fingerprint'>): string {
-  return contentFingerprint(explanation);
+  return fingerprintFor('explanation', explanation);
 }
 
 function finalizeExplanations(explanations: readonly Omit<SelectionExplanation, 'fingerprint'>[]): SelectionExplanation[] {
@@ -319,12 +319,12 @@ function planRerunSelection(options: {
       })),
     };
 
-    const explanationFingerprintValue = contentFingerprint({
+    const explanationFingerprintValue = fingerprintFor('explanation', {
       scenarios: selection.scenarios.map((entry) => ({ id: entry.id, explanations: entry.explanations })),
       runbooks: selection.runbooks.map((entry) => ({ name: entry.name, explanations: entry.explanations })),
     });
 
-    const planId = `rerun-${contentFingerprint({
+    const planId = `rerun-${fingerprintFor('rerun-plan', {
       sourceNodeIds,
       changedArtifactPaths,
       impactedScenarioIds,

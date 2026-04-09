@@ -1,12 +1,12 @@
-import { contentFingerprint } from '../../kernel/hash';
+import { fingerprintFor } from '../../kernel/hash';
 import type { GraphEdge, GraphEdgeKind, GraphNode, GraphNodeKind } from '../../projection/types';
 
 function nodeFingerprint(kind: GraphNodeKind, id: string, payload?: Record<string, unknown>): string {
-  return contentFingerprint({ kind, id, payload: payload ?? null });
+  return fingerprintFor('graph-node', { kind, id, payload: payload ?? null });
 }
 
 function edgeFingerprint(kind: GraphEdgeKind, from: string, to: string, payload?: Record<string, unknown>): string {
-  return contentFingerprint({ kind, from, to, payload: payload ?? null });
+  return fingerprintFor('graph-edge', { kind, from, to, payload: payload ?? null });
 }
 
 export function createNode(input: {

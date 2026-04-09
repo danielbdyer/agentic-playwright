@@ -1,4 +1,4 @@
-import { contentFingerprint } from '../kernel/hash';
+import { fingerprintFor } from '../kernel/hash';
 import type { ApplicationInterfaceGraph, InterfaceGraphEdge, InterfaceGraphNode } from '../target/interface-graph';
 import type { TransitionRef } from '../kernel/identity';
 
@@ -29,7 +29,7 @@ export function graphInvariants(graph: ApplicationInterfaceGraph): ApplicationIn
 }
 
 function graphFingerprint(graph: Omit<ApplicationInterfaceGraph, 'fingerprint'>): string {
-  return contentFingerprint({
+  return fingerprintFor('interface-graph', {
     discoveryRunIds: graph.discoveryRunIds,
     routeRefs: graph.routeRefs,
     routeVariantRefs: graph.routeVariantRefs,

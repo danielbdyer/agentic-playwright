@@ -66,7 +66,7 @@ import type {
   CompositionAddressOf,
 } from '../../domain/pipeline/composition-address';
 import type { PhaseOutputSource } from '../../domain/pipeline/source';
-import { taggedContentFingerprint } from '../../domain/kernel/hash';
+import { taggedFingerprintFor } from '../../domain/kernel/hash';
 
 // ─── Producer context (the Reader environment) ──────────────────
 
@@ -155,7 +155,7 @@ export function mintAtom<C extends AtomClass, T, Src extends PhaseOutputSource>(
   producer: CanonProducer<Src>,
   candidate: AtomCandidate<C, T>,
 ): Atom<C, T, Src> {
-  const inputFingerprint = taggedContentFingerprint({
+  const inputFingerprint = taggedFingerprintFor('atom-input', {
     address: candidate.address,
     content: candidate.content,
   });
@@ -224,7 +224,7 @@ export function mintComposition<S extends CompositionSubType, T, Src extends Pha
   producer: CanonProducer<Src>,
   candidate: CompositionCandidate<S, T>,
 ): Composition<S, T, Src> {
-  const inputFingerprint = taggedContentFingerprint({
+  const inputFingerprint = taggedFingerprintFor('composition-input', {
     address: candidate.address,
     content: candidate.content,
     atomReferences: candidate.atomReferences.map((ref) => ({
