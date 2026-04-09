@@ -31,8 +31,25 @@ export type AtomProvenance = CanonProvenance;
 // ─── The Atom envelope ───────────────────────────────────────────
 
 /** A canonical-artifact (or candidate) wrapper around a fact about
- *  one SUT primitive. */
-export interface Atom<C extends AtomClass, T = unknown> {
+ *  one SUT primitive.
+ *
+ *  The `Src` generic parameter carries the source slot as a phantom
+ *  literal so functions can constrain the sources they accept. The
+ *  default (`= PhaseOutputSource`) preserves back-compat for call
+ *  sites that don't care about source discrimination. Functions that
+ *  do care declare their constraint explicitly:
+ *
+ *    function promoteCandidate<C extends AtomClass, T>(
+ *      atom: Atom<C, T, 'cold-derivation' | 'live-derivation'>,
+ *    ): Atom<C, T, 'deterministic-observation'> { ... }
+ *
+ *  Phase 0b of the envelope-axis refactor introduces this parameter.
+ *  See `docs/envelope-axis-refactor-plan.md` § 5. */
+export interface Atom<
+  C extends AtomClass,
+  T = unknown,
+  Src extends PhaseOutputSource = PhaseOutputSource,
+> {
   /** The atom class (also encoded in `address.class`). */
   readonly class: C;
   /** The atom's address — its semantic identity. */
@@ -42,7 +59,7 @@ export interface Atom<C extends AtomClass, T = unknown> {
    *  (e.g. `RouteDefinition` for class `'route'`). */
   readonly content: T;
   /** Which slot of the lookup chain this atom came from. */
-  readonly source: PhaseOutputSource;
+  readonly source: Src;
   /** Hash of the inputs that produced this atom. Stable when the
    *  inputs are stable. Used to detect cache invalidation. */
   readonly inputFingerprint: string;
@@ -56,16 +73,24 @@ export interface Atom<C extends AtomClass, T = unknown> {
 
 /** Construct an atom envelope. The constructor exists so callers
  *  do not have to remember the field shape and so the type system
- *  can enforce the (class, address) invariant. */
-export function atom<C extends AtomClass, T>(input: {
+ *  can enforce the (class, address) invariant.
+ *
+ *  The return type carries the narrow source parameter inferred from
+ *  `input.source`, so `atom({ source: 'cold-derivation', ... })`
+ *  returns `Atom<C, T, 'cold-derivation'>`. */
+export function atom<
+  C extends AtomClass,
+  T,
+  Src extends PhaseOutputSource = PhaseOutputSource,
+>(input: {
   readonly class: C;
   readonly address: AtomAddressOf<C>;
   readonly content: T;
-  readonly source: PhaseOutputSource;
+  readonly source: Src;
   readonly inputFingerprint: string;
   readonly provenance: AtomProvenance;
   readonly qualityScore?: number | undefined;
-}): Atom<C, T> {
+}): Atom<C, T, Src> {
   return {
     class: input.class,
     address: input.address,

@@ -53,7 +53,15 @@ export interface AtomReference {
 
 // ─── The Composition envelope ────────────────────────────────────
 
-export interface Composition<S extends CompositionSubType, T = unknown> {
+/** A composition envelope. The `Src` generic parameter carries the
+ *  source slot as a phantom literal for source-discriminated
+ *  signatures; default preserves back-compat. See `Atom<C, T, Src>`
+ *  for the full rationale. */
+export interface Composition<
+  S extends CompositionSubType,
+  T = unknown,
+  Src extends PhaseOutputSource = PhaseOutputSource,
+> {
   /** The composition sub-type. */
   readonly subType: S;
   /** The composition's address. */
@@ -63,7 +71,7 @@ export interface Composition<S extends CompositionSubType, T = unknown> {
   /** Typed references to the atoms this composition depends on. */
   readonly atomReferences: readonly AtomReference[];
   /** Which slot of the lookup chain this composition came from. */
-  readonly source: PhaseOutputSource;
+  readonly source: Src;
   /** Hash of inputs (atom fingerprints + content) that produced
    *  this composition. */
   readonly inputFingerprint: string;
@@ -73,17 +81,22 @@ export interface Composition<S extends CompositionSubType, T = unknown> {
   readonly qualityScore?: number | undefined;
 }
 
-/** Construct a composition envelope. */
-export function composition<S extends CompositionSubType, T>(input: {
+/** Construct a composition envelope. Return type infers the narrow
+ *  source parameter from `input.source`. */
+export function composition<
+  S extends CompositionSubType,
+  T,
+  Src extends PhaseOutputSource = PhaseOutputSource,
+>(input: {
   readonly subType: S;
   readonly address: CompositionAddressOf<S>;
   readonly content: T;
   readonly atomReferences: readonly AtomReference[];
-  readonly source: PhaseOutputSource;
+  readonly source: Src;
   readonly inputFingerprint: string;
   readonly provenance: CompositionProvenance;
   readonly qualityScore?: number | undefined;
-}): Composition<S, T> {
+}): Composition<S, T, Src> {
   return {
     subType: input.subType,
     address: input.address,

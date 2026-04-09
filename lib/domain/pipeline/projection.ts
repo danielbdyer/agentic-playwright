@@ -66,7 +66,14 @@ export interface BindingCondition {
 
 // ─── The Projection envelope ─────────────────────────────────────
 
-export interface Projection<S extends ProjectionSubType> {
+/** A projection envelope. The `Src` generic parameter carries the
+ *  source slot as a phantom literal for source-discriminated
+ *  signatures; default preserves back-compat. See `Atom<C, T, Src>`
+ *  for the full rationale. */
+export interface Projection<
+  S extends ProjectionSubType,
+  Src extends PhaseOutputSource = PhaseOutputSource,
+> {
   /** The projection sub-type. */
   readonly subType: S;
   /** The projection's address. */
@@ -75,7 +82,7 @@ export interface Projection<S extends ProjectionSubType> {
    *  this projection's content. */
   readonly bindings: readonly AtomBinding[];
   /** Which slot of the lookup chain this projection came from. */
-  readonly source: PhaseOutputSource;
+  readonly source: Src;
   /** Hash of inputs (qualifier identity + atom dependencies) that
    *  produced this projection. */
   readonly inputFingerprint: string;
@@ -85,16 +92,20 @@ export interface Projection<S extends ProjectionSubType> {
   readonly qualityScore?: number | undefined;
 }
 
-/** Construct a projection envelope. */
-export function projection<S extends ProjectionSubType>(input: {
+/** Construct a projection envelope. Return type infers the narrow
+ *  source parameter from `input.source`. */
+export function projection<
+  S extends ProjectionSubType,
+  Src extends PhaseOutputSource = PhaseOutputSource,
+>(input: {
   readonly subType: S;
   readonly address: ProjectionAddressOf<S>;
   readonly bindings: readonly AtomBinding[];
-  readonly source: PhaseOutputSource;
+  readonly source: Src;
   readonly inputFingerprint: string;
   readonly provenance: ProjectionProvenance;
   readonly qualityScore?: number | undefined;
-}): Projection<S> {
+}): Projection<S, Src> {
   return {
     subType: input.subType,
     address: input.address,
