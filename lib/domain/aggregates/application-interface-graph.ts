@@ -1,4 +1,4 @@
-import { sha256, stableStringify } from '../kernel/hash';
+import { contentFingerprint } from '../kernel/hash';
 import type { ApplicationInterfaceGraph, InterfaceGraphEdge, InterfaceGraphNode } from '../target/interface-graph';
 import type { TransitionRef } from '../kernel/identity';
 
@@ -29,7 +29,7 @@ export function graphInvariants(graph: ApplicationInterfaceGraph): ApplicationIn
 }
 
 function graphFingerprint(graph: Omit<ApplicationInterfaceGraph, 'fingerprint'>): string {
-  return sha256(stableStringify({
+  return contentFingerprint({
     discoveryRunIds: graph.discoveryRunIds,
     routeRefs: graph.routeRefs,
     routeVariantRefs: graph.routeVariantRefs,
@@ -39,7 +39,7 @@ function graphFingerprint(graph: Omit<ApplicationInterfaceGraph, 'fingerprint'>)
     transitionRefs: graph.transitionRefs,
     nodes: graph.nodes,
     edges: graph.edges,
-  }));
+  });
 }
 
 export function createApplicationInterfaceGraph(

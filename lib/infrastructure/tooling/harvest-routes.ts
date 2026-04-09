@@ -2,7 +2,7 @@ import path from 'path';
 import { pathToFileURL } from 'url';
 import { chromium } from '@playwright/test';
 import { Effect } from 'effect';
-import { sha256, stableStringify } from '../../domain/kernel/hash';
+import { contentFingerprint, taggedContentFingerprint } from '../../domain/kernel/hash';
 import { createCanonicalTargetRef, createElementId } from '../../domain/kernel/identity';
 import type { RouteKnowledgeManifest, RouteKnowledgeRoute, RouteKnowledgeVariant } from '../../domain/intent/routes';
 import type {
@@ -86,7 +86,7 @@ function createDiscoveryReceiptId(input: {
   variantId: string;
   snapshotHash: string;
 }): string {
-  return sha256(stableStringify(input));
+  return contentFingerprint(input);
 }
 
 function normalizeDiscoveryRun(receipt: DiscoveryRun): DiscoveryRun {
@@ -144,7 +144,7 @@ function normalizeDiscoveryRun(receipt: DiscoveryRun): DiscoveryRun {
 
 function fingerprintDiscoveryRun(receipt: DiscoveryRun): string {
   const { discoveredAt: _discoveredAt, ...stableReceipt } = normalizeDiscoveryRun(receipt);
-  return `sha256:${sha256(stableStringify(stableReceipt))}`;
+  return taggedContentFingerprint(stableReceipt);
 }
 
 function fingerprintDiscoveryIndex(index: DiscoveryIndex): string {
@@ -159,7 +159,7 @@ function fingerprintDiscoveryIndex(index: DiscoveryIndex): string {
       return left.variantId.localeCompare(right.variantId);
     }),
   };
-  return `sha256:${sha256(stableStringify(stableIndex))}`;
+  return taggedContentFingerprint(stableIndex);
 }
 
 
@@ -174,7 +174,7 @@ function computeHarvestInputFingerprint(input: {
   catalog: WorkspaceCatalog;
 }): string {
   const behaviorFingerprints = behaviorArtifactsForScreen(input.catalog, input.variant.screen)
-    .map((entry) => ({ path: entry.artifactPath, hash: sha256(stableStringify(entry.artifact)) }));
+    .map((entry) => ({ path: entry.artifactPath, hash: contentFingerprint(entry.artifact) }));
   const knowledgeInputs = {
     url: input.resolvedUrl,
     routeId: input.route.id,
@@ -185,7 +185,7 @@ function computeHarvestInputFingerprint(input: {
     variantScreen: input.variant.screen,
     behaviorFingerprints,
   };
-  return `sha256:${sha256(stableStringify(knowledgeInputs))}`;
+  return taggedContentFingerprint(knowledgeInputs);
 }
 
 function behaviorArtifactsForScreen(catalog: WorkspaceCatalog, screen: string): Array<{
@@ -228,11 +228,11 @@ function buildHarvestStateGraph(input: {
     kind: 'state-transition-graph',
     version: 1,
     generatedAt: new Date(0).toISOString(),
-    fingerprint: `sha256:${sha256(stableStringify({
+    fingerprint: taggedContentFingerprint({
       states: [...states.values()],
       events: [...events.values()],
       transitions: [...transitions.values()],
-    }))}`,
+    }),
     stateRefs: [...states.keys()].sort((left, right) => left.localeCompare(right)) as unknown as StateTransitionGraph['stateRefs'],
     eventSignatureRefs: [...events.keys()].sort((left, right) => left.localeCompare(right)) as unknown as StateTransitionGraph['eventSignatureRefs'],
     transitionRefs: [...transitions.keys()].sort((left, right) => left.localeCompare(right)) as unknown as StateTransitionGraph['transitionRefs'],

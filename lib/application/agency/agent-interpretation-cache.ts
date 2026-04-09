@@ -10,7 +10,7 @@
  * so that knowledge changes automatically invalidate stale entries.
  */
 
-import { sha256, stableStringify } from '../../domain/kernel/hash';
+import { contentFingerprint, taggedContentFingerprint } from '../../domain/kernel/hash';
 import type { AgentInterpretationResult } from '../../domain/interpretation/agent-interpreter';
 import { readJsonCacheRecord, writeJsonCacheRecord, pruneCacheFiles } from '../cache/file-cache';
 import type { ProjectPaths } from '../paths';
@@ -59,11 +59,11 @@ export interface AgentInterpretationCacheKeyInput {
  * interpretation identity: step text, normalized intent, and context fingerprints.
  */
 function requestFingerprint(input: AgentInterpretationCacheKeyInput): string {
-  return `sha256:${sha256(stableStringify({
+  return taggedContentFingerprint({
     actionText: input.actionText,
     expectedText: input.expectedText,
     normalizedIntent: input.normalizedIntent,
-  }))}`;
+  });
 }
 
 /**
@@ -71,11 +71,11 @@ function requestFingerprint(input: AgentInterpretationCacheKeyInput): string {
  * and the request content fingerprint. Knowledge changes invalidate entries.
  */
 export function agentInterpretationCacheKey(input: AgentInterpretationCacheKeyInput): string {
-  return `agent-interp-${sha256(stableStringify({
+  return `agent-interp-${contentFingerprint({
     task: input.taskFingerprint,
     knowledge: input.knowledgeFingerprint,
     request: requestFingerprint(input),
-  }))}`;
+  })}`;
 }
 
 // ─── Read / Write ───
@@ -106,7 +106,7 @@ export function writeAgentInterpretationCache(input: {
     stage: 'resolution',
     scope: 'agent-interpretation',
     cacheKey: key,
-    fingerprint: `sha256:${sha256(stableStringify({ key, result: input.result, fingerprint }))}`,
+    fingerprint: taggedContentFingerprint({ key, result: input.result, fingerprint }),
     fingerprints: {
       task: input.request.taskFingerprint,
       knowledge: input.request.knowledgeFingerprint,

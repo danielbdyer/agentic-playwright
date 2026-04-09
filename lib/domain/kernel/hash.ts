@@ -92,6 +92,42 @@ export function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');
 }
 
+/**
+ * Compute a content fingerprint: `sha256(stableStringify(value))`.
+ *
+ * This is the load-bearing fingerprint recipe used throughout the
+ * codebase — atoms, compositions, projections, caches, rerun plans,
+ * agent interpretation envelopes, and the replay machinery all
+ * compute their content hash by `stableStringify`-ing a value object
+ * and SHA-256-ing the resulting string. Centralizing the recipe
+ * here means any future tweak to the stringify normalization (e.g.
+ * the undefined-omission fix that lived in stableStringify) cascades
+ * to every call site automatically — no scattered `sha256(stableStringify(…))`
+ * islands that could drift.
+ *
+ * Use `contentFingerprint` when you want the raw 64-char hex digest.
+ * Use `taggedContentFingerprint` when the fingerprint is going into
+ * a field that carries the `sha256:` prefix convention (atoms,
+ * cache artifacts, envelope fingerprints, rerun plan fingerprints).
+ *
+ * Pure domain — no Effect, no IO.
+ */
+export function contentFingerprint(value: unknown): string {
+  return sha256(stableStringify(value));
+}
+
+/**
+ * Compute a content fingerprint with the `sha256:` prefix applied.
+ * Equivalent to `\`sha256:${contentFingerprint(value)}\``.
+ *
+ * This is the canonical form for envelope fingerprints, cache keys
+ * whose consumers use the prefix to disambiguate hash algorithms,
+ * and atom/composition `inputFingerprint` fields.
+ */
+export function taggedContentFingerprint(value: unknown): string {
+  return `sha256:${contentFingerprint(value)}`;
+}
+
 function decodeHtmlEntities(value: string): string {
   return value.replace(/&(amp|apos|gt|lt|nbsp|quot);/g, (entity) => HTML_ENTITIES[entity] ?? entity);
 }
@@ -122,7 +158,7 @@ export function computeAdoContentHash(input: {
     })),
   };
 
-  return `sha256:${sha256(stableStringify(normalized))}`;
+  return taggedContentFingerprint(normalized);
 }
 
 export function computeNormalizedSnapshotHash(snapshot: string): string {

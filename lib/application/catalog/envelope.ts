@@ -1,4 +1,4 @@
-import { sha256, stableStringify } from '../../domain/kernel/hash';
+import { taggedContentFingerprint } from '../../domain/kernel/hash';
 import type { AdoId } from '../../domain/kernel/identity';
 import type { ProposalBundle, RunRecord, ScenarioRunStep } from '../../domain/execution/types';
 import type {
@@ -13,7 +13,7 @@ import { relativeProjectPath } from '../paths';
 import type { ArtifactEnvelope } from './types';
 
 export function fingerprintArtifact(artifact: unknown): string {
-  return `sha256:${sha256(stableStringify(artifact))}`;
+  return taggedContentFingerprint(artifact);
 }
 
 export function createArtifactEnvelope<T>(paths: ProjectPaths, absolutePath: string, artifact: T): ArtifactEnvelope<T> {

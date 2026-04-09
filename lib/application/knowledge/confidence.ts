@@ -1,5 +1,5 @@
 import { Effect } from 'effect';
-import { sha256, stableStringify } from '../../domain/kernel/hash';
+import { contentFingerprint } from '../../domain/kernel/hash';
 import { knowledgePaths } from '../../domain/kernel/ids';
 import type { TrustPolicyArtifactType } from '../../domain/governance/workflow-types';
 import type { ArtifactConfidenceRecord, ConfidenceOverlayCatalog } from '../../domain/knowledge/types';
@@ -24,7 +24,7 @@ function confidenceRecordId(input: {
   posture?: string | null;
   snapshotTemplate?: string | null;
 }): string {
-  return `overlay-${sha256(stableStringify(input))}`;
+  return `overlay-${contentFingerprint(input)}`;
 }
 
 function snapshotArtifactPath(snapshotTemplate: string): string {

@@ -7,7 +7,7 @@ import type {
   ScreenCoverageEntry,
   TrainingCorpusManifest,
 } from '../../domain/learning/types';
-import { sha256, stableStringify } from '../../domain/kernel/hash';
+import { contentFingerprint } from '../../domain/kernel/hash';
 import { groupBy, uniqueSorted } from '../../domain/kernel/collections';
 import { round4, screenFromGraphNodeIds, actionFamilyOf } from './learning-shared';
 
@@ -105,7 +105,7 @@ export function projectCorpusHealth(input: {
     kind: 'corpus-health-report',
     version: 1,
     generatedAt: input.generatedAt ?? new Date(0).toISOString(),
-    manifestFingerprint: sha256(stableStringify(input.manifest)),
+    manifestFingerprint: contentFingerprint(input.manifest),
     runtimeCoverage,
     screenCoverage,
     actionFamilyCoverage,

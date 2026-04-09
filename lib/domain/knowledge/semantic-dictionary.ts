@@ -5,7 +5,7 @@
  * Persistence and Effect-based orchestration live in the application layer.
  */
 
-import { sha256, stableStringify } from '../kernel/hash';
+import { contentFingerprint } from '../kernel/hash';
 import { normalizeIntentText } from './inference';
 import {
   addEntryToShingleIndex,
@@ -64,12 +64,12 @@ const MAX_CONSECUTIVE_FAILURES = 2;
 // ─── Entry Identity ───
 
 function entryId(normalizedIntent: string, target: SemanticDictionaryTarget): string {
-  return `sem-${sha256(stableStringify({
+  return `sem-${contentFingerprint({
     intent: normalizedIntent,
     screen: target.screen,
     element: target.element,
     action: target.action,
-  }))}`;
+  })}`;
 }
 
 // ─── Token Jaccard ───

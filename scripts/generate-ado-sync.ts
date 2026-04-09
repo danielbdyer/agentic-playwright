@@ -6,7 +6,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as crypto from 'node:crypto';
+import { taggedContentFingerprint } from '../lib/domain/kernel/hash';
 
 function findScenarioFiles(dir: string): string[] {
   const results: string[] = [];
@@ -35,22 +35,6 @@ function normalizeHtmlText(input: string): string {
     .trim();
 }
 
-function stableStringify(value: unknown): string {
-  if (Array.isArray(value)) {
-    return `[${value.map((item) => stableStringify(item)).join(',')}]`;
-  }
-  if (value && typeof value === 'object') {
-    const entries = Object.entries(value as Record<string, unknown>)
-      .sort(([a], [b]) => a.localeCompare(b));
-    return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${stableStringify(v)}`).join(',')}}`;
-  }
-  return JSON.stringify(value);
-}
-
-function sha256(value: string): string {
-  return crypto.createHash('sha256').update(value).digest('hex');
-}
-
 function computeAdoContentHash(steps: Array<{ action: string; expected: string; index: number }>): string {
   const normalized = {
     parameters: [],
@@ -61,7 +45,7 @@ function computeAdoContentHash(steps: Array<{ action: string; expected: string; 
       sharedStepId: null,
     })),
   };
-  return `sha256:${sha256(stableStringify(normalized))}`;
+  return taggedContentFingerprint(normalized);
 }
 
 // Simple YAML line parser for our scenario format

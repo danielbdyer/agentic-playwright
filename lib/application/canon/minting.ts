@@ -66,7 +66,7 @@ import type {
   CompositionAddressOf,
 } from '../../domain/pipeline/composition-address';
 import type { PhaseOutputSource } from '../../domain/pipeline/source';
-import { stableStringify, sha256 } from '../../domain/kernel/hash';
+import { taggedContentFingerprint } from '../../domain/kernel/hash';
 
 // ─── Producer context (the Reader environment) ──────────────────
 
@@ -151,9 +151,10 @@ export function mintAtom<C extends AtomClass, T>(
   producer: CanonProducer,
   candidate: AtomCandidate<C, T>,
 ): Atom<C, T> {
-  const inputFingerprint = `sha256:${sha256(
-    stableStringify({ address: candidate.address, content: candidate.content }),
-  )}`;
+  const inputFingerprint = taggedContentFingerprint({
+    address: candidate.address,
+    content: candidate.content,
+  });
   return atom<C, T>({
     class: candidate.address.class as C,
     address: candidate.address,
@@ -219,17 +220,15 @@ export function mintComposition<S extends CompositionSubType, T>(
   producer: CanonProducer,
   candidate: CompositionCandidate<S, T>,
 ): Composition<S, T> {
-  const inputFingerprint = `sha256:${sha256(
-    stableStringify({
-      address: candidate.address,
-      content: candidate.content,
-      atomReferences: candidate.atomReferences.map((ref) => ({
-        address: ref.address,
-        role: ref.role,
-        order: ref.order,
-      })),
-    }),
-  )}`;
+  const inputFingerprint = taggedContentFingerprint({
+    address: candidate.address,
+    content: candidate.content,
+    atomReferences: candidate.atomReferences.map((ref) => ({
+      address: ref.address,
+      role: ref.role,
+      order: ref.order,
+    })),
+  });
   return composition<S, T>({
     subType: candidate.address.subType as S,
     address: candidate.address,
