@@ -33,3 +33,4 @@ export * from './decompose-screen-postures';
 export * from './decompose-route-knowledge';
 export * from './decompose-screen-surfaces';
 export * from './decompose-patterns';
+export * from './decompose-snapshots';

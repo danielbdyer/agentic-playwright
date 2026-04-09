@@ -66,6 +66,12 @@ import {
   type DecomposePatternsInput,
   type PatternAtomContent,
 } from '../lib/application/canon/decompose-patterns';
+import {
+  decomposeSnapshots,
+  type DecomposeSnapshotsInput,
+  type SnapshotRecord,
+  type SnapshotAtomContent,
+} from '../lib/application/canon/decompose-snapshots';
 import type {
   ScreenElements,
   ElementSig,
@@ -2305,6 +2311,335 @@ test('patterns decomposer: warm and cold invocations produce identical fingerpri
   );
   const cold = decomposePatterns(
     makePatternsInput({ source: 'cold-derivation' }),
+  );
+  for (let i = 0; i < warm.length; i += 1) {
+    expect(warm[i]?.inputFingerprint).toBe(cold[i]?.inputFingerprint);
+  }
+});
+
+// ════════════════════════════════════════════════════════════════
+// decomposeSnapshots (Phase A.7) — first collection-based decomposer
+// ════════════════════════════════════════════════════════════════
+
+// ─── Snapshot fixtures ───────────────────────────────────────────
+
+function makeAriaTree(role: string, name: string): unknown {
+  return {
+    role,
+    name,
+    children: [
+      {
+        role: 'rowgroup',
+        children: [
+          {
+            role: 'row',
+            children: [{ role: 'cell', name: 'POL-001' }],
+          },
+        ],
+      },
+    ],
+  };
+}
+
+function makeSnapshotRecord(overrides: Partial<SnapshotRecord> = {}): SnapshotRecord {
+  return {
+    id: brandString<'SnapshotTemplateId'>('policy-search/results-with-policy'),
+    screen: brandString<'ScreenId'>('policy-search'),
+    snapshotHash:
+      '866d8e42c03724d2d08429a09dbf221dfc0461a4fb1d0ddcb620edf1a0c8f2bf',
+    tree: makeAriaTree('table', 'Search Results'),
+    ...overrides,
+  };
+}
+
+function makeSnapshotsInput(
+  overrides: Partial<DecomposeSnapshotsInput> = {},
+  records: readonly SnapshotRecord[] = [
+    makeSnapshotRecord(),
+    makeSnapshotRecord({
+      id: brandString<'SnapshotTemplateId'>('policy-detail/with-claims'),
+      screen: brandString<'ScreenId'>('policy-detail'),
+      snapshotHash: 'deadbeefcafe0000',
+      tree: makeAriaTree('list', 'Claims List'),
+    }),
+  ],
+): DecomposeSnapshotsInput {
+  return {
+    content: records,
+    source: 'agentic-override' as PhaseOutputSource,
+    producedBy: 'canon-decomposer:snapshots:v1',
+    producedAt: '2026-04-09T00:00:00.000Z',
+    pipelineVersion: 'sha-test',
+    ...overrides,
+  };
+}
+
+// ─── Determinism ─────────────────────────────────────────────────
+
+test('decomposeSnapshots is deterministic for the same input', () => {
+  const input = makeSnapshotsInput();
+  const left = decomposeSnapshots(input);
+  const right = decomposeSnapshots(input);
+  expect(left).toEqual(right);
+  for (let i = 0; i < left.length; i += 1) {
+    expect(left[i]?.inputFingerprint).toBe(right[i]?.inputFingerprint);
+  }
+});
+
+// ─── Cardinality ─────────────────────────────────────────────────
+
+test('decomposeSnapshots emits one atom per input record', () => {
+  const atoms = decomposeSnapshots(makeSnapshotsInput());
+  expect(atoms.length).toBe(2);
+});
+
+test('decomposeSnapshots emits an empty array when content is empty', () => {
+  const atoms = decomposeSnapshots(makeSnapshotsInput({}, []));
+  expect(atoms).toEqual([]);
+});
+
+test('decomposeSnapshots handles a single-record batch', () => {
+  const atoms = decomposeSnapshots(makeSnapshotsInput({}, [makeSnapshotRecord()]));
+  expect(atoms.length).toBe(1);
+});
+
+// ─── Address consistency ─────────────────────────────────────────
+
+test('every snapshot atom passes isAtomAddressConsistent', () => {
+  const atoms = decomposeSnapshots(makeSnapshotsInput());
+  for (const a of atoms) {
+    expect(isAtomAddressConsistent(a)).toBe(true);
+    expect(a.class).toBe('snapshot');
+    expect(a.address.class).toBe('snapshot');
+  }
+});
+
+test('snapshot atom address.id equals the record id (path-based)', () => {
+  const atoms = decomposeSnapshots(makeSnapshotsInput());
+  // Fixture order after lex sort: policy-detail/with-claims
+  // before policy-search/results-with-policy.
+  expect(atoms[0]?.address.id as string).toBe('policy-detail/with-claims');
+  expect(atoms[1]?.address.id as string).toBe(
+    'policy-search/results-with-policy',
+  );
+});
+
+// ─── Content shape ───────────────────────────────────────────────
+
+test('snapshot atom content carries screen, snapshotHash, and tree', () => {
+  const atoms = decomposeSnapshots(makeSnapshotsInput());
+  for (const a of atoms) {
+    expect(a.content.screen).toBeDefined();
+    expect(typeof a.content.snapshotHash).toBe('string');
+    expect(a.content.tree).toBeDefined();
+  }
+});
+
+test('snapshot atom content.tree is byte-equivalent to the source record.tree', () => {
+  const customTree = { role: 'custom', children: [{ role: 'nested', name: 'thing' }] };
+  const atoms = decomposeSnapshots(
+    makeSnapshotsInput({}, [
+      makeSnapshotRecord({ tree: customTree }),
+    ]),
+  );
+  expect(atoms.length).toBe(1);
+  expect(atoms[0]?.content.tree).toEqual(customTree);
+});
+
+test('snapshot atom content.screen matches the source record.screen', () => {
+  const atoms = decomposeSnapshots(makeSnapshotsInput());
+  const byId = new Map(atoms.map((a) => [a.address.id as string, a]));
+  expect((byId.get('policy-detail/with-claims')?.content.screen as string)).toBe(
+    'policy-detail',
+  );
+  expect(
+    (byId.get('policy-search/results-with-policy')?.content.screen as string),
+  ).toBe('policy-search');
+});
+
+test('snapshot atom content.snapshotHash matches the source record.snapshotHash', () => {
+  const atoms = decomposeSnapshots(makeSnapshotsInput());
+  const byId = new Map(atoms.map((a) => [a.address.id as string, a]));
+  expect(byId.get('policy-detail/with-claims')?.content.snapshotHash).toBe(
+    'deadbeefcafe0000',
+  );
+  expect(
+    byId.get('policy-search/results-with-policy')?.content.snapshotHash,
+  ).toBe('866d8e42c03724d2d08429a09dbf221dfc0461a4fb1d0ddcb620edf1a0c8f2bf');
+});
+
+test('decomposeSnapshots does not mutate the source records', () => {
+  const records = [makeSnapshotRecord()];
+  const snapshot = JSON.parse(JSON.stringify(records));
+  decomposeSnapshots(makeSnapshotsInput({}, records));
+  expect(records).toEqual(snapshot);
+});
+
+// ─── Source wiring ───────────────────────────────────────────────
+
+test('decomposeSnapshots threads PhaseOutputSource through every atom', () => {
+  const sources: readonly PhaseOutputSource[] = [
+    'operator-override',
+    'agentic-override',
+    'deterministic-observation',
+    'live-derivation',
+    'cold-derivation',
+  ];
+  for (const source of sources) {
+    const atoms = decomposeSnapshots(makeSnapshotsInput({ source }));
+    for (const a of atoms) {
+      expect(a.source).toBe(source);
+    }
+  }
+});
+
+// ─── Stable ordering ─────────────────────────────────────────────
+
+test('snapshot atoms are sorted lexicographically by id regardless of input order', () => {
+  const records: readonly SnapshotRecord[] = [
+    makeSnapshotRecord({
+      id: brandString<'SnapshotTemplateId'>('zebra/z'),
+      screen: brandString<'ScreenId'>('zebra'),
+      snapshotHash: 'zzz',
+      tree: { role: 'generic' },
+    }),
+    makeSnapshotRecord({
+      id: brandString<'SnapshotTemplateId'>('apple/a'),
+      screen: brandString<'ScreenId'>('apple'),
+      snapshotHash: 'aaa',
+      tree: { role: 'generic' },
+    }),
+    makeSnapshotRecord({
+      id: brandString<'SnapshotTemplateId'>('mango/m'),
+      screen: brandString<'ScreenId'>('mango'),
+      snapshotHash: 'mmm',
+      tree: { role: 'generic' },
+    }),
+  ];
+  const atoms = decomposeSnapshots(makeSnapshotsInput({}, records));
+  const ids = atoms.map((a) => a.address.id as string);
+  expect(ids).toEqual(['apple/a', 'mango/m', 'zebra/z']);
+});
+
+test('two invocations with the same records in different orders produce identical output', () => {
+  const a: readonly SnapshotRecord[] = [
+    makeSnapshotRecord({
+      id: brandString<'SnapshotTemplateId'>('b'),
+      screen: brandString<'ScreenId'>('s'),
+      snapshotHash: 'bbb',
+      tree: { role: 'a' },
+    }),
+    makeSnapshotRecord({
+      id: brandString<'SnapshotTemplateId'>('a'),
+      screen: brandString<'ScreenId'>('s'),
+      snapshotHash: 'aaa',
+      tree: { role: 'a' },
+    }),
+  ];
+  const b: readonly SnapshotRecord[] = [
+    makeSnapshotRecord({
+      id: brandString<'SnapshotTemplateId'>('a'),
+      screen: brandString<'ScreenId'>('s'),
+      snapshotHash: 'aaa',
+      tree: { role: 'a' },
+    }),
+    makeSnapshotRecord({
+      id: brandString<'SnapshotTemplateId'>('b'),
+      screen: brandString<'ScreenId'>('s'),
+      snapshotHash: 'bbb',
+      tree: { role: 'a' },
+    }),
+  ];
+  const fromA = decomposeSnapshots(makeSnapshotsInput({}, a));
+  const fromB = decomposeSnapshots(makeSnapshotsInput({}, b));
+  expect(fromA).toEqual(fromB);
+});
+
+// ─── Fingerprint independence from provenance ───────────────────
+
+test('snapshot atom fingerprints are independent of producedAt / producedBy / pipelineVersion', () => {
+  const baseline = decomposeSnapshots(makeSnapshotsInput());
+  const variants: ReadonlyArray<Partial<DecomposeSnapshotsInput>> = [
+    { producedAt: '2030-12-31T23:59:59.999Z' },
+    { producedBy: 'canon-decomposer:snapshots:v9' },
+    { pipelineVersion: 'sha-different' },
+  ];
+  for (const overrides of variants) {
+    const variant = decomposeSnapshots(makeSnapshotsInput(overrides));
+    for (let i = 0; i < baseline.length; i += 1) {
+      expect(baseline[i]?.inputFingerprint).toBe(variant[i]?.inputFingerprint);
+    }
+  }
+});
+
+test('snapshot atom fingerprint changes when the tree changes (sibling isolation)', () => {
+  const baseline = decomposeSnapshots(makeSnapshotsInput());
+  const mutated = decomposeSnapshots(
+    makeSnapshotsInput({}, [
+      makeSnapshotRecord(), // unchanged
+      makeSnapshotRecord({
+        id: brandString<'SnapshotTemplateId'>('policy-detail/with-claims'),
+        screen: brandString<'ScreenId'>('policy-detail'),
+        snapshotHash: 'deadbeefcafe0000',
+        tree: makeAriaTree('list', 'COMPLETELY-DIFFERENT'),
+      }),
+    ]),
+  );
+  const baselineDetail = baseline.find(
+    (a) => (a.address.id as string) === 'policy-detail/with-claims',
+  );
+  const mutatedDetail = mutated.find(
+    (a) => (a.address.id as string) === 'policy-detail/with-claims',
+  );
+  expect(baselineDetail?.inputFingerprint).not.toBe(mutatedDetail?.inputFingerprint);
+  // Sibling isolation: mutating policy-detail must not change the
+  // policy-search atom's fingerprint.
+  const baselineSearch = baseline.find(
+    (a) => (a.address.id as string) === 'policy-search/results-with-policy',
+  );
+  const mutatedSearch = mutated.find(
+    (a) => (a.address.id as string) === 'policy-search/results-with-policy',
+  );
+  expect(baselineSearch?.inputFingerprint).toBe(mutatedSearch?.inputFingerprint);
+});
+
+test('snapshot atom fingerprint changes when snapshotHash changes (hash is part of content)', () => {
+  const baseline = decomposeSnapshots(makeSnapshotsInput({}, [makeSnapshotRecord()]));
+  const mutated = decomposeSnapshots(
+    makeSnapshotsInput({}, [
+      makeSnapshotRecord({ snapshotHash: 'different-hash-value' }),
+    ]),
+  );
+  expect(baseline[0]?.inputFingerprint).not.toBe(mutated[0]?.inputFingerprint);
+});
+
+// ─── Provenance plumbing ─────────────────────────────────────────
+
+test('snapshot provenance fields flow through to the atom envelope', () => {
+  const atoms = decomposeSnapshots(
+    makeSnapshotsInput({
+      producedBy: 'canon-decomposer:snapshots:v9',
+      producedAt: '2030-01-01T00:00:00.000Z',
+      pipelineVersion: 'sha-9badcafe',
+    }),
+  );
+  for (const a of atoms) {
+    expect(a.provenance.producedBy).toBe('canon-decomposer:snapshots:v9');
+    expect(a.provenance.producedAt).toBe('2030-01-01T00:00:00.000Z');
+    expect(a.provenance.pipelineVersion).toBe('sha-9badcafe');
+    // Each atom's input is tagged with its own template id.
+    expect(a.provenance.inputs).toEqual([`snapshot:${a.address.id as string}`]);
+  }
+});
+
+// ─── Interop invariant ──────────────────────────────────────────
+
+test('snapshots decomposer: warm and cold invocations produce identical fingerprints for identical content', () => {
+  const warm = decomposeSnapshots(
+    makeSnapshotsInput({ source: 'agentic-override' }),
+  );
+  const cold = decomposeSnapshots(
+    makeSnapshotsInput({ source: 'cold-derivation' }),
   );
   for (let i = 0; i < warm.length; i += 1) {
     expect(warm[i]?.inputFingerprint).toBe(cold[i]?.inputFingerprint);
