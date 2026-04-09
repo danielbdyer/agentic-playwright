@@ -53,6 +53,7 @@ import type {
   WorkflowEnvelopeFingerprints,
   WorkflowEnvelopeIds,
   WorkflowEnvelopeLineage,
+  WorkflowMetadata,
 } from '../governance/workflow-types';
 
 export type ProposalCategory =
@@ -101,15 +102,9 @@ export interface ProposalBundlePayload {
   readonly proposals: readonly ProposalEntry[];
 }
 
-export interface ProposalBundle {
+export interface ProposalBundle extends WorkflowMetadata<'proposal'> {
   readonly kind: 'proposal-bundle';
-  readonly version: 1;
-  readonly stage: 'proposal';
   readonly scope: 'scenario';
-  readonly ids: WorkflowEnvelopeIds;
-  readonly fingerprints: WorkflowEnvelopeFingerprints;
-  readonly lineage: WorkflowEnvelopeLineage;
-  readonly governance: Governance;
   readonly payload: ProposalBundlePayload;
 }
 

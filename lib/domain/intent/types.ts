@@ -16,6 +16,7 @@ import type {
   WorkflowEnvelopeFingerprints,
   WorkflowEnvelopeIds,
   WorkflowEnvelopeLineage,
+  WorkflowMetadata,
 } from '../governance/workflow-types';
 
 export interface RefPath {
@@ -214,15 +215,9 @@ export interface GroundedSpecFlow {
   readonly steps: ReadonlyArray<GroundedFlowStep>;
 }
 
-export interface BoundScenario extends Omit<Scenario, 'steps'> {
+export interface BoundScenario extends Omit<Scenario, 'steps'>, WorkflowMetadata<'preparation'> {
   readonly kind: 'bound-scenario';
-  readonly version: 1;
-  readonly stage: 'preparation';
   readonly scope: 'scenario';
-  readonly ids: WorkflowEnvelopeIds;
-  readonly fingerprints: WorkflowEnvelopeFingerprints;
-  readonly lineage: WorkflowEnvelopeLineage;
-  readonly governance: Governance;
   readonly payload: {
     readonly source: ScenarioSource;
     readonly metadata: ScenarioMetadata;

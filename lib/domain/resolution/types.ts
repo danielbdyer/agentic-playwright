@@ -171,15 +171,9 @@ export interface GroundedStep {
   readonly taskFingerprint: string;
 }
 
-export interface ScenarioInterpretationSurface {
+export interface ScenarioInterpretationSurface extends WorkflowMetadata<'preparation'> {
   readonly kind: 'scenario-interpretation-surface';
-  readonly version: 1;
-  readonly stage: 'preparation';
   readonly scope: 'scenario';
-  readonly ids: WorkflowEnvelopeIds;
-  readonly fingerprints: WorkflowEnvelopeFingerprints;
-  readonly lineage: WorkflowEnvelopeLineage;
-  readonly governance: Governance;
   readonly payload: {
     readonly adoId: AdoId;
     readonly revision: number;
@@ -625,8 +619,7 @@ export interface StepResolutionGraph {
   };
 }
 
-interface ResolutionReceiptBase extends WorkflowMetadata {
-  readonly stage: 'resolution';
+interface ResolutionReceiptBase extends WorkflowMetadata<'resolution'> {
   readonly scope: 'step';
   readonly taskFingerprint: string;
   readonly knowledgeFingerprint: string;

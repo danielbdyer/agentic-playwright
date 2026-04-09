@@ -9,6 +9,7 @@ import type {
   WorkflowEnvelopeFingerprints,
   WorkflowEnvelopeIds,
   WorkflowEnvelopeLineage,
+  WorkflowMetadata,
 } from '../governance/workflow-types';
 import type { StepResolutionGraph } from '../resolution/types';
 
@@ -23,15 +24,9 @@ export interface ResolutionGraphStepRecord {
   readonly graph: StepResolutionGraph;
 }
 
-export interface ResolutionGraphRecord {
+export interface ResolutionGraphRecord extends WorkflowMetadata<'resolution'> {
   readonly kind: 'resolution-graph-record';
-  readonly version: 1;
-  readonly stage: 'resolution';
   readonly scope: 'run';
-  readonly ids: WorkflowEnvelopeIds;
-  readonly fingerprints: WorkflowEnvelopeFingerprints;
-  readonly lineage: WorkflowEnvelopeLineage;
-  readonly governance: Governance;
   readonly adoId: AdoId;
   readonly runId: string;
   readonly providerId: string;
@@ -69,15 +64,9 @@ export interface InterpretationDriftStep {
   readonly resolutionGraphDrift: ResolutionGraphDriftDelta;
 }
 
-export interface InterpretationDriftRecord {
+export interface InterpretationDriftRecord extends WorkflowMetadata<'resolution'> {
   readonly kind: 'interpretation-drift-record';
-  readonly version: 1;
-  readonly stage: 'resolution';
   readonly scope: 'run';
-  readonly ids: WorkflowEnvelopeIds;
-  readonly fingerprints: WorkflowEnvelopeFingerprints;
-  readonly lineage: WorkflowEnvelopeLineage;
-  readonly governance: Governance;
   readonly adoId: AdoId;
   readonly runId: string;
   readonly comparedRunId: string | null;
