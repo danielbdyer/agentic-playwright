@@ -1,6 +1,7 @@
 ﻿import { existsSync, readFileSync } from 'fs';
 import path from 'path';
 import type { FullConfig, FullResult, Reporter, Suite, TestCase, TestResult } from '@playwright/test/reporter';
+import { classifyOrFallback, type ClassificationRule } from '../../domain/kernel/classify';
 import { createAdoId } from '../../domain/kernel/identity';
 import { graphIds } from '../../domain/kernel/ids';
 import type { DerivedGraph } from '../../domain/projection/types';
@@ -24,15 +25,17 @@ function runtimeCodeFromMessage(message: string): string | undefined {
   return match?.[1]?.toLowerCase();
 }
 
+const FAILURE_MESSAGE_RULES: readonly ClassificationRule<string, FailureClassification>[] = [
+  { test: (m) => m.includes('strict mode violation'), result: () => 'locator-ambiguous' },
+  { test: (m) => m.includes('to match aria snapshot'), result: () => 'structural-mismatch' },
+  { test: (m) => m.includes('timed out'), result: () => 'locator-timeout' },
+  { test: (m) => m.includes('expect('), result: () => 'assertion-mismatch' },
+  { test: (m) => m.includes('goto'), result: () => 'navigation-failure' },
+  { test: (m) => runtimeCodeFromMessage(m) !== undefined, result: () => 'runtime-domain' },
+];
+
 export function classifyFailure(message: string): FailureClassification {
-  const normalized = message.toLowerCase();
-  if (normalized.includes('strict mode violation')) return 'locator-ambiguous';
-  if (normalized.includes('to match aria snapshot')) return 'structural-mismatch';
-  if (normalized.includes('timed out')) return 'locator-timeout';
-  if (normalized.includes('expect(')) return 'assertion-mismatch';
-  if (normalized.includes('goto')) return 'navigation-failure';
-  if (runtimeCodeFromMessage(message)) return 'runtime-domain';
-  return 'unknown';
+  return classifyOrFallback(message.toLowerCase(), FAILURE_MESSAGE_RULES, 'unknown');
 }
 
 function readDerivedGraph(rootDir: string): DerivedGraph | undefined {

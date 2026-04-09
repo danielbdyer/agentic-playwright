@@ -3,7 +3,7 @@ import { Effect } from 'effect';
 import type { BottleneckWeights } from '../../domain/attention/pipeline-config';
 import type { ProposalBundle, ProposalEntry } from '../../domain/execution/types';
 import type { AutoApprovalPolicy, TrustPolicy } from '../../domain/governance/workflow-types';
-import { GovernanceLattice } from '../../domain/algebra/lattice';
+import { GovernanceLattice, meetAll } from '../../domain/algebra/lattice';
 import { groupByMap } from '../../domain/kernel/collections';
 import { fromGovernance, type GovernanceVerdict } from '../../domain/kernel/governed-suspension';
 import type { ProjectPaths } from '../paths';
@@ -106,7 +106,7 @@ export function activateProposalBundle(options: {
     );
     const proposalBundle: ProposalBundle = {
       ...options.proposalBundle,
-      governance: proposalGovernances.reduce(GovernanceLattice.meet, GovernanceLattice.top),
+      governance: meetAll(GovernanceLattice, proposalGovernances),
       payload: {
         ...options.proposalBundle.payload,
         proposals,
@@ -324,7 +324,7 @@ export function autoApproveEligibleProposals(options: {
     );
     const proposalBundle: ProposalBundle = {
       ...options.proposalBundle,
-      governance: proposalGovernances.reduce(GovernanceLattice.meet, GovernanceLattice.top),
+      governance: meetAll(GovernanceLattice, proposalGovernances),
       payload: {
         ...options.proposalBundle.payload,
         proposals,

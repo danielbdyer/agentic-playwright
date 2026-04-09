@@ -7,6 +7,7 @@
  * the scorecard comparison is the "beat-the-mark" gate.
  */
 
+import { classify, type ClassificationRule } from '../../domain/kernel/classify';
 import { TesseractError } from '../../domain/kernel/errors';
 import type { ProposalBundle, StepExecutionReceipt } from '../../domain/execution/types';
 import {
@@ -77,37 +78,50 @@ const TRANSLATION_NEAR_MISS_UPPER = 0.34;
 // Winning sources that indicate a fallback rung was used when a higher one should suffice
 const FALLBACK_RUNGS: ReadonlySet<string> = new Set(['live-dom', 'structured-translation']);
 
-function classifyFailure(step: StepOutcome): PipelineFailureClass | null {
+// First-match-wins classifier rules. Order matters: earlier rules
+// take precedence. The rule table is data now rather than inline
+// control flow — tests can enumerate it, documentation can list
+// it, and reordering is a row swap.
+const FAILURE_CLASSIFICATION_RULES: readonly ClassificationRule<
+  StepOutcome,
+  PipelineFailureClass
+>[] = [
   // Translation scored below threshold but had a near-miss candidate
-  if (!step.translationMatched && step.translationScore !== null
-    && step.translationScore > TRANSLATION_NEAR_MISS_LOWER
-    && step.translationScore < TRANSLATION_NEAR_MISS_UPPER) {
-    return 'translation-threshold-miss';
-  }
-
+  {
+    test: (s) =>
+      !s.translationMatched &&
+      s.translationScore !== null &&
+      s.translationScore > TRANSLATION_NEAR_MISS_LOWER &&
+      s.translationScore < TRANSLATION_NEAR_MISS_UPPER,
+    result: () => 'translation-threshold-miss',
+  },
   // Translation found no candidates at all — normalization or alias gap
-  if (!step.translationMatched && (step.translationScore === null || step.translationScore === 0)) {
-    return step.winningSource === 'none'
-      ? 'alias-coverage-gap'
-      : 'translation-normalization-gap';
-  }
-
+  {
+    test: (s) =>
+      !s.translationMatched &&
+      (s.translationScore === null || s.translationScore === 0),
+    result: (s) =>
+      s.winningSource === 'none' ? 'alias-coverage-gap' : 'translation-normalization-gap',
+  },
   // Recovery was attempted but failed
-  if (step.recoveryAttempts > 0 && !step.recoverySucceeded) {
-    return 'recovery-strategy-miss';
-  }
-
+  {
+    test: (s) => s.recoveryAttempts > 0 && !s.recoverySucceeded,
+    result: () => 'recovery-strategy-miss',
+  },
   // Proposals were generated but blocked by trust policy
-  if (step.proposalBlocked > 0 && step.proposalCount === step.proposalBlocked) {
-    return 'trust-policy-over-block';
-  }
-
+  {
+    test: (s) => s.proposalBlocked > 0 && s.proposalCount === s.proposalBlocked,
+    result: () => 'trust-policy-over-block',
+  },
   // Winning source was a lower-precedence rung when a higher one could have worked
-  if (FALLBACK_RUNGS.has(step.winningSource)) {
-    return 'resolution-rung-skip';
-  }
+  {
+    test: (s) => FALLBACK_RUNGS.has(s.winningSource),
+    result: () => 'resolution-rung-skip',
+  },
+];
 
-  return null;
+function classifyFailure(step: StepOutcome): PipelineFailureClass | null {
+  return classify(step, FAILURE_CLASSIFICATION_RULES);
 }
 
 function improvementTargetFor(failureClass: PipelineFailureClass): PipelineImprovementTarget {

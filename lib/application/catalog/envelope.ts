@@ -7,7 +7,7 @@ import type {
   WorkflowEnvelopeIds,
   WorkflowEnvelopeLineage,
 } from '../../domain/governance/workflow-types';
-import { GovernanceLattice } from '../../domain/algebra/lattice';
+import { GovernanceLattice, meetAll } from '../../domain/algebra/lattice';
 import type { ProjectPaths } from '../paths';
 import { relativeProjectPath } from '../paths';
 import type { ArtifactEnvelope } from './types';
@@ -104,9 +104,12 @@ export function deriveGovernanceState(input: {
   return input.hasReviewRequired ? meet(afterBlocked, 'review-required') : afterBlocked;
 }
 
-/** Fold an array of governance values to the most restrictive (lattice meet). */
+/** Fold an array of governance values to the most restrictive (lattice meet).
+ *  Thin alias for `meetAll(GovernanceLattice, values)`. Retained as a
+ *  named export so call sites read more clearly than a generic
+ *  `meetAll` invocation in a governance-specific context. */
 export function mergeGovernanceValues(values: readonly Governance[]): Governance {
-  return values.reduce(GovernanceLattice.meet, GovernanceLattice.top);
+  return meetAll(GovernanceLattice, values);
 }
 
 export function createRunRecordEnvelope(input: {
