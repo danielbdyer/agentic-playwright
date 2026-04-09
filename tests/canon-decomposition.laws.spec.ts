@@ -47,11 +47,18 @@ import {
   fingerprintableHintContent,
   type DecomposeScreenHintsInput,
 } from '../lib/application/canon/decompose-screen-hints';
+import {
+  decomposeScreenPostures,
+  type DecomposeScreenPosturesInput,
+} from '../lib/application/canon/decompose-screen-postures';
 import type {
   ScreenElements,
   ElementSig,
   ScreenHints,
   ScreenElementHint,
+  ScreenPostures,
+  Posture,
+  PostureEffect,
 } from '../lib/domain/knowledge/types';
 import { isAtomAddressConsistent } from '../lib/domain/pipeline/atom';
 import type { PhaseOutputSource } from '../lib/domain/pipeline/source';
@@ -595,5 +602,314 @@ test('hint provenance fields flow through to the atom envelope', () => {
     expect(a.provenance.producedAt).toBe('2030-01-01T00:00:00.000Z');
     expect(a.provenance.pipelineVersion).toBe('sha-cafebabe');
     expect(a.provenance.inputs).toEqual(['screen-hints:policy-search']);
+  }
+});
+
+// ════════════════════════════════════════════════════════════════
+// decomposeScreenPostures (Phase A.3)
+// ════════════════════════════════════════════════════════════════
+
+// ─── Posture fixture ─────────────────────────────────────────────
+
+function makePostureEffect(overrides: Partial<PostureEffect> = {}): PostureEffect {
+  return {
+    target: brandString<'SurfaceId'>('validation-surface'),
+    targetKind: 'surface',
+    state: 'visible',
+    message: '/no matching policy found/i',
+    ...overrides,
+  };
+}
+
+function makePosture(overrides: Partial<Posture> = {}): Posture {
+  return {
+    values: ['POL-001'],
+    effects: [],
+    ...overrides,
+  };
+}
+
+function makeScreenPostures(
+  overrides: Partial<Omit<ScreenPostures, 'postures'>> = {},
+  postures: Record<string, Record<string, Posture>> = {
+    policyNumberInput: {
+      valid: makePosture({ values: ['POL-001'], effects: [] }),
+      invalid: makePosture({
+        values: ['NOTAPOLICY'],
+        effects: [makePostureEffect()],
+      }),
+      empty: makePosture({ values: [''], effects: [] }),
+    },
+  },
+): ScreenPostures {
+  return {
+    screen: brandString<'ScreenId'>('policy-search'),
+    postures,
+    ...overrides,
+  };
+}
+
+function makePosturesInput(
+  overrides: Partial<DecomposeScreenPosturesInput> = {},
+): DecomposeScreenPosturesInput {
+  return {
+    content: makeScreenPostures(),
+    source: 'agentic-override' as PhaseOutputSource,
+    producedBy: 'canon-decomposer:screen-postures:v1',
+    producedAt: '2026-04-09T00:00:00.000Z',
+    pipelineVersion: 'sha-test',
+    ...overrides,
+  };
+}
+
+// ─── Determinism ─────────────────────────────────────────────────
+
+test('decomposeScreenPostures is deterministic for the same input', () => {
+  const input = makePosturesInput();
+  const left = decomposeScreenPostures(input);
+  const right = decomposeScreenPostures(input);
+  expect(left).toEqual(right);
+  for (let i = 0; i < left.length; i += 1) {
+    expect(left[i]?.inputFingerprint).toBe(right[i]?.inputFingerprint);
+  }
+});
+
+// ─── Cardinality (nested map → flat atoms) ──────────────────────
+
+test('decomposeScreenPostures emits one atom per (element, posture-name) pair', () => {
+  const input = makePosturesInput();
+  const atoms = decomposeScreenPostures(input);
+  // Fixture has 1 element × 3 postures = 3 atoms.
+  expect(atoms.length).toBe(3);
+});
+
+test('decomposeScreenPostures emits an empty array when postures map is empty', () => {
+  const input = makePosturesInput({ content: makeScreenPostures({}, {}) });
+  expect(decomposeScreenPostures(input)).toEqual([]);
+});
+
+test('decomposeScreenPostures emits an empty array when an element has no postures', () => {
+  const input = makePosturesInput({
+    content: makeScreenPostures({}, { policyNumberInput: {} }),
+  });
+  expect(decomposeScreenPostures(input)).toEqual([]);
+});
+
+test('decomposeScreenPostures handles multi-element input', () => {
+  const input = makePosturesInput({
+    content: makeScreenPostures({}, {
+      policyNumberInput: {
+        valid: makePosture(),
+        invalid: makePosture(),
+      },
+      statusFilter: {
+        valid: makePosture(),
+        empty: makePosture(),
+      },
+    }),
+  });
+  const atoms = decomposeScreenPostures(input);
+  // 2 elements × 2 postures each = 4 atoms.
+  expect(atoms.length).toBe(4);
+});
+
+// ─── Address consistency ─────────────────────────────────────────
+
+test('every emitted posture atom passes isAtomAddressConsistent', () => {
+  const atoms = decomposeScreenPostures(makePosturesInput());
+  for (const a of atoms) {
+    expect(isAtomAddressConsistent(a)).toBe(true);
+    expect(a.class).toBe('posture');
+    expect(a.address.class).toBe('posture');
+  }
+});
+
+test('posture address carries screen, element, and posture identity', () => {
+  const atoms = decomposeScreenPostures(makePosturesInput());
+  const triples = atoms.map((a) => ({
+    screen: a.address.screen,
+    element: a.address.element as string,
+    posture: a.address.posture as string,
+  }));
+  expect(triples).toEqual([
+    { screen: 'policy-search', element: 'policyNumberInput', posture: 'empty' },
+    { screen: 'policy-search', element: 'policyNumberInput', posture: 'invalid' },
+    { screen: 'policy-search', element: 'policyNumberInput', posture: 'valid' },
+  ]);
+});
+
+// ─── Source wiring ───────────────────────────────────────────────
+
+test('decomposeScreenPostures threads PhaseOutputSource through every atom', () => {
+  const sources: readonly PhaseOutputSource[] = [
+    'operator-override',
+    'agentic-override',
+    'deterministic-observation',
+    'live-derivation',
+    'cold-derivation',
+  ];
+  for (const source of sources) {
+    const atoms = decomposeScreenPostures(makePosturesInput({ source }));
+    for (const a of atoms) {
+      expect(a.source).toBe(source);
+    }
+  }
+});
+
+// ─── Content preservation ────────────────────────────────────────
+
+test('posture atom content is byte-equivalent to the source Posture', () => {
+  const customPosture = makePosture({
+    values: ['ABC', 'XYZ'],
+    effects: [
+      makePostureEffect({ state: 'hidden', message: null }),
+      makePostureEffect({
+        target: brandString<'ElementId'>('somethingElse'),
+        targetKind: 'element',
+        state: 'disabled',
+      }),
+    ],
+  });
+  const atoms = decomposeScreenPostures(
+    makePosturesInput({
+      content: makeScreenPostures({}, {
+        someElement: { boundary: customPosture },
+      }),
+    }),
+  );
+  expect(atoms.length).toBe(1);
+  expect(atoms[0]?.content).toEqual(customPosture);
+});
+
+test('decomposeScreenPostures does not mutate the source content', () => {
+  const original = makeScreenPostures();
+  const snapshot = JSON.parse(JSON.stringify(original));
+  decomposeScreenPostures(makePosturesInput({ content: original }));
+  expect(original).toEqual(snapshot);
+});
+
+// ─── Stable ordering (outer and inner) ──────────────────────────
+
+test('posture output is sorted by element id then by posture name', () => {
+  // Shuffle both levels: insert elements in reverse order and
+  // inner posture names in reverse order. The decomposer must
+  // still produce the same lexicographic sequence.
+  const shuffled = makeScreenPostures({}, {
+    zebra: {
+      valid: makePosture(),
+      invalid: makePosture(),
+      boundary: makePosture(),
+    },
+    apple: {
+      valid: makePosture(),
+      empty: makePosture(),
+    },
+    mango: {
+      invalid: makePosture(),
+      valid: makePosture(),
+    },
+  });
+  const atoms = decomposeScreenPostures(makePosturesInput({ content: shuffled }));
+  const sequence = atoms.map(
+    (a) => `${a.address.element as string}/${a.address.posture as string}`,
+  );
+  expect(sequence).toEqual([
+    'apple/empty',
+    'apple/valid',
+    'mango/invalid',
+    'mango/valid',
+    'zebra/boundary',
+    'zebra/invalid',
+    'zebra/valid',
+  ]);
+});
+
+test('two inputs with the same content but different insertion orders produce identical output', () => {
+  const a = makeScreenPostures({}, {
+    apple: { valid: makePosture(), invalid: makePosture() },
+    mango: { boundary: makePosture() },
+  });
+  const b = makeScreenPostures({}, {
+    mango: { boundary: makePosture() },
+    apple: { invalid: makePosture(), valid: makePosture() },
+  });
+  const fromA = decomposeScreenPostures(makePosturesInput({ content: a }));
+  const fromB = decomposeScreenPostures(makePosturesInput({ content: b }));
+  expect(fromA).toEqual(fromB);
+});
+
+// ─── Fingerprint independence from provenance ───────────────────
+
+test('posture inputFingerprint does not depend on producedAt / producedBy / pipelineVersion', () => {
+  const baseline = decomposeScreenPostures(makePosturesInput());
+  const variants: ReadonlyArray<Partial<DecomposeScreenPosturesInput>> = [
+    { producedAt: '2030-12-31T23:59:59.999Z' },
+    { producedBy: 'canon-decomposer:screen-postures:v9' },
+    { pipelineVersion: 'sha-different' },
+  ];
+  for (const overrides of variants) {
+    const variant = decomposeScreenPostures(makePosturesInput(overrides));
+    for (let i = 0; i < baseline.length; i += 1) {
+      expect(baseline[i]?.inputFingerprint).toBe(variant[i]?.inputFingerprint);
+    }
+  }
+});
+
+test('posture inputFingerprint changes when effects change', () => {
+  const baseline = decomposeScreenPostures(makePosturesInput());
+  const mutated = decomposeScreenPostures(
+    makePosturesInput({
+      content: makeScreenPostures({}, {
+        policyNumberInput: {
+          valid: makePosture(),
+          invalid: makePosture({
+            effects: [makePostureEffect({ state: 'hidden' })],
+          }),
+          empty: makePosture({ values: [''], effects: [] }),
+        },
+      }),
+    }),
+  );
+  const baselineInvalid = baseline.find((a) => (a.address.posture as string) === 'invalid');
+  const mutatedInvalid = mutated.find((a) => (a.address.posture as string) === 'invalid');
+  expect(baselineInvalid?.inputFingerprint).not.toBe(mutatedInvalid?.inputFingerprint);
+});
+
+test('posture inputFingerprint changes when values change', () => {
+  const baseline = decomposeScreenPostures(makePosturesInput());
+  const mutated = decomposeScreenPostures(
+    makePosturesInput({
+      content: makeScreenPostures({}, {
+        policyNumberInput: {
+          valid: makePosture({ values: ['DIFFERENT-VALUE'] }),
+          invalid: makePosture({
+            values: ['NOTAPOLICY'],
+            effects: [makePostureEffect()],
+          }),
+          empty: makePosture({ values: [''], effects: [] }),
+        },
+      }),
+    }),
+  );
+  const baselineValid = baseline.find((a) => (a.address.posture as string) === 'valid');
+  const mutatedValid = mutated.find((a) => (a.address.posture as string) === 'valid');
+  expect(baselineValid?.inputFingerprint).not.toBe(mutatedValid?.inputFingerprint);
+});
+
+// ─── Provenance plumbing ─────────────────────────────────────────
+
+test('posture provenance fields flow through to the atom envelope', () => {
+  const atoms = decomposeScreenPostures(
+    makePosturesInput({
+      producedBy: 'canon-decomposer:screen-postures:v9',
+      producedAt: '2030-01-01T00:00:00.000Z',
+      pipelineVersion: 'sha-baadf00d',
+    }),
+  );
+  for (const a of atoms) {
+    expect(a.provenance.producedBy).toBe('canon-decomposer:screen-postures:v9');
+    expect(a.provenance.producedAt).toBe('2030-01-01T00:00:00.000Z');
+    expect(a.provenance.pipelineVersion).toBe('sha-baadf00d');
+    expect(a.provenance.inputs).toEqual(['screen-postures:policy-search']);
   }
 });
