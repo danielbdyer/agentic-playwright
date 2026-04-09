@@ -9,126 +9,106 @@
  * handles the per-element-enrichment portion. The resolution-override
  * portion is handled by a separate decomposer when a real
  * resolution-override-bearing hints file appears in the dogfood
- * suite (none of the current hints files actually contain resolution
- * overrides, so the decomposer for that portion is deferred).
+ * suite.
  *
- * Phase A.2 of `docs/cold-start-convergence-plan.md`. Peer of
- * `decomposeScreenElements` at
- * `lib/application/canon/decompose-screen-elements.ts`. Same shape,
- * different input type, same scalability pattern (pure catamorphism,
- * stable lex ordering, fingerprint independent of provenance).
+ * **Structure after the mint-helper refactor.** The decomposer is a
+ * pure fan-out that returns `AtomCandidate`s with content-level
+ * fingerprint projection (for the `acquired`-exclusion behavior).
+ * The envelope construction happens in `mintAtoms`.
  *
  * **Coexistence with element atoms from elements.yaml.** This
  * decomposer produces atoms with class `'element'` and the SAME
  * address as the atoms produced by `decomposeScreenElements` — the
  * `(screen, element)` tuple. The two atoms differ in their content
- * type: structural data lives in the `Atom<'element', ElementSig>`
- * variant; alias / locator-ladder / snapshot-alias enrichment lives
- * in the `Atom<'element', ScreenElementHint>` variant. Per
+ * type: structural data lives in `Atom<'element', ElementSig>`;
+ * enrichment data (aliases, locator ladder, snapshot aliases,
+ * affordance, default value ref, parameter binding) lives in
+ * `Atom<'element', ScreenElementHint>`. Per
  * `lib/application/catalog/types.ts:113`, the catalog stores
  * `tier1Atoms` as an array (not a map), so two atoms with the same
- * address coexist without overwriting. The lookup chain at
- * `lib/domain/pipeline/lookup-chain.ts` is responsible for joining
- * them at read time; the join semantics are a future slice.
+ * address coexist without overwriting.
  *
  * **Fingerprint stability across activation cycles.** The
  * `ScreenElementHint.acquired` block carries activation lineage —
  * `activatedAt`, `certifiedAt`, `runIds`, `evidenceIds`,
  * `sourceArtifactPaths` — which is conceptually provenance even
- * though it lives inside the content type. Re-running the migration
- * after a knowledge activation cycle should NOT produce a new
- * fingerprint just because the activation timestamps moved; the
- * promotion machinery would otherwise see spurious "content
- * changed" signals on every activation. To preserve the slice 1
- * property "fingerprint independent of provenance", the fingerprint
- * is computed over a stripped projection of the content with
- * `acquired` replaced by `null`. The atom envelope's `content` field
- * still carries the full `ScreenElementHint` (including `acquired`)
- * — only the fingerprint omits it.
+ * though it lives inside the content type. Re-running the
+ * migration after a knowledge activation cycle should NOT produce
+ * a new fingerprint.
+ *
+ * The refactor preserves this behavior by projecting each hint to
+ * its fingerprintable form (`acquired → null`) BEFORE handing it
+ * to the mint helper. The atom's stored content is still the full
+ * `ScreenElementHint` (including `acquired`) — only the value the
+ * mint hashes over is the stripped projection. Since `mintAtom`'s
+ * fingerprint formula is
+ * `sha256(stableStringify({ address, content }))`, this is
+ * achieved by passing the stripped projection as the candidate's
+ * content field AND re-attaching the original on a post-mint
+ * rewrite... actually, more simply: since mintAtom hashes exactly
+ * the candidate's content, we set candidate.content to the
+ * stripped form. But the consumer expects the FULL hint in the
+ * atom's content. To reconcile both, we use a second pass:
+ * candidates are built with the stripped form, and then a post-
+ * mint projection re-attaches the original acquired block to the
+ * returned envelope's content.
+ *
+ * See `decomposeScreenHints` implementation for the two-pass
+ * strategy. The interface is unchanged from the pre-refactor
+ * version; the behavior (stripped-content fingerprint + full
+ * content in atom) is preserved exactly.
  *
  * **Deferred for a later slice:**
- *   - `screenAliases` at the top of the hints file (these belong on
- *     a screen atom; the screen atom content shape needs to land
- *     first via `decompose-discovery-run.ts` consolidation).
- *   - Resolution-override entries (no current hints file actually
- *     contains them; will be handled when a real one appears).
+ *   - `screenAliases` at the top of the hints file.
+ *   - Resolution-override entries.
  *
  * **Type reuse — no parallel content shapes.** Per
  * `docs/domain-class-decomposition.md` § Knowledge row, the existing
  * domain type `ScreenElementHint` (defined at
  * `lib/domain/knowledge/types.ts:185-197`) IS the hint atom's
- * canonical content shape. Per `docs/canon-and-derivation.md`
- * § 16.7, the atom envelope stores existing domain types — it does
- * NOT reinvent them. This decomposer respects that rule: emitted
- * atoms carry `ScreenElementHint` verbatim as their content.
+ * canonical content shape.
  *
  * **Stable referent positioning.** Per `docs/domain-model.md`
- * § Knowledge, hints are knowledge that mediates between intent and
- * reality. They sit *inside* the epistemological loop (knowledge is
- * accumulated belief, not a stable referent), but the per-element
- * alias enrichment they carry is *about* a stable referent (an
- * element atom). The decomposer therefore addresses each emitted
- * hint atom by its element identity tuple, anchoring the
- * loop-internal knowledge to the loop-external referent.
+ * § Knowledge, hints are knowledge that mediates between intent
+ * and reality.
  *
  * **Ontology alignment.** Per `docs/domain-ontology.md` § Hint, a
  * hint's canonical home today is
- * `knowledge/screens/{screen}.hints.yaml`; the long-term canonical
- * home is one file per element-hint atom under the canonical
- * artifact store. The hint's identity tuple (`(ScreenId, ElementId)`)
- * and its `ScreenElementHint` content are unchanged across the
- * decomposition.
+ * `knowledge/screens/{screen}.hints.yaml`.
  *
- * Pure application — depends only on `lib/domain/pipeline` (typed
- * envelopes), `lib/domain/knowledge/types` (`ScreenHints`,
- * `ScreenElementHint`), `lib/domain/kernel/identity` (id
- * constructors), and `lib/domain/kernel/hash` (deterministic
- * stringification + sha256). No Effect, no IO, no mutation.
+ * Pure application — depends only on `lib/application/canon/minting`
+ * (shared envelope machinery), `lib/domain/pipeline`, and
+ * `lib/domain/knowledge/types`. No Effect, no IO, no mutation.
  */
 
 import type { ScreenHints, ScreenElementHint } from '../../domain/knowledge/types';
 import type { Atom } from '../../domain/pipeline/atom';
-import { atom } from '../../domain/pipeline/atom';
 import type { ElementAtomAddress } from '../../domain/pipeline/atom-address';
 import type { PhaseOutputSource } from '../../domain/pipeline/source';
-import { stableStringify, sha256 } from '../../domain/kernel/hash';
 import { createElementId } from '../../domain/kernel/identity';
+import {
+  mintAtom,
+  producerFrom,
+} from './minting';
 
 // ─── Public input shape ──────────────────────────────────────────
 
 export interface DecomposeScreenHintsInput {
-  /** The parsed-and-typed hybrid file content. The caller is
-   *  responsible for parsing the YAML and validating it against
-   *  the existing knowledge schema before invoking the decomposer. */
   readonly content: ScreenHints;
-  /** Which slot of the lookup chain the hybrid file came from. For
-   *  files migrated from `dogfood/knowledge/screens/`, this should
-   *  be `'agentic-override'` because the existing files are
-   *  hand-authored canonical artifacts (or proposal-activated, which
-   *  is still agentic in origin). */
   readonly source: PhaseOutputSource;
-  /** Stable identifier for the producer (atom provenance). For the
-   *  one-shot migration script, use a constant like
-   *  `'canon-decomposer:screen-hints:v1'` so re-runs of the same
-   *  script version produce identical provenance. */
   readonly producedBy: string;
-  /** ISO timestamp the migration was performed at. */
   readonly producedAt: string;
-  /** Optional pipeline version (commit SHA) for provenance. */
   readonly pipelineVersion?: string;
 }
 
 // ─── Fingerprint stripping ───────────────────────────────────────
 
 /** Project a `ScreenElementHint` to its fingerprintable form by
- *  replacing the `acquired` block (which carries activation
- *  lineage and is provenance-shaped) with `null`. The returned
- *  value is structurally identical to the input except for the
- *  `acquired` field, and is suitable for `stableStringify` /
- *  `sha256` consumption.
+ *  replacing the `acquired` block with `null`. The returned value
+ *  is structurally identical to the input except for the
+ *  `acquired` field, and is suitable for content-hash consumption.
  *
- *  This function is intentionally pure and exported so the law
- *  tests can verify its behavior in isolation. */
+ *  Exported so tests can verify its behavior in isolation. */
 export function fingerprintableHintContent(
   hint: ScreenElementHint,
 ): Omit<ScreenElementHint, 'acquired'> & { readonly acquired: null } {
@@ -152,64 +132,49 @@ export function fingerprintableHintContent(
 /** Decompose a `ScreenHints` hybrid into a flat list of element
  *  hint atom envelopes — one per entry in `content.elements`.
  *
- *  Pure function: same input → same output. The output is ordered
- *  by element identifier (lexicographic), matching the convention
- *  established by `decomposeScreenElements`. The two decomposers
- *  produce atoms with the same address ordering for the same
- *  screen, so cross-decomposer joins (a future slice) can rely on
- *  positional alignment.
+ *  Pure function. Uses the two-pass strategy for `acquired`
+ *  stripping:
  *
- *  The function follows the same shape as `decomposeScreenElements`
- *  and `decomposeDiscoveryRun`: pure catamorphism over the input,
- *  no mutation, no early return, no `let`. The three together are
- *  intentionally pattern-matched so future readers see one
- *  decomposition idiom, not three.
+ *    1. Mint with the stripped projection as the candidate's
+ *       content. This ensures the fingerprint covers the stripped
+ *       form (provenance-stable across activation cycles).
+ *    2. Re-attach the original `acquired` block to the minted
+ *       atom's content, so consumers see the full hint even
+ *       though the fingerprint was computed over the stripped
+ *       form.
  *
- *  `content.screenAliases` is intentionally NOT consumed by this
- *  decomposer. Screen-level aliases belong on a `screen` atom and
- *  the screen atom content shape needs to be reconciled with the
- *  discovery decomposer's output (`decomposeDiscoveryRun` already
- *  emits screen atoms with structural content) before screen
- *  aliases can be added. That reconciliation is a separate slice.
+ *  This preserves the pre-refactor behavior exactly. The law
+ *  tests in `tests/canon-decomposition.laws.spec.ts` verify both
+ *  the fingerprint-stability property AND the content-preservation
+ *  property.
  */
 export function decomposeScreenHints(
   input: DecomposeScreenHintsInput,
 ): readonly Atom<'element', ScreenElementHint>[] {
+  const producer = producerFrom(input);
   const screen = input.content.screen;
-
   const sortedEntries = Object.entries(input.content.elements).sort(
     ([leftId], [rightId]) => leftId.localeCompare(rightId),
   );
-
   return sortedEntries.map(([elementIdString, hint]) => {
     const address: ElementAtomAddress = {
       class: 'element',
       screen,
       element: createElementId(elementIdString),
     };
-    // Fingerprint covers (address, stripped content). The stripping
-    // omits the `acquired` block so re-running the migration after
-    // an activation cycle does not produce a new fingerprint.
-    const inputFingerprint = `sha256:${sha256(
-      stableStringify({
-        address,
-        content: fingerprintableHintContent(hint),
-      }),
-    )}`;
-    return atom<'element', ScreenElementHint>({
-      class: 'element',
+    // Mint with the stripped projection as the content, so the
+    // fingerprint is computed over (address, stripped content)
+    // and is stable across activation cycles.
+    const mintedWithStripped = mintAtom<'element', ScreenElementHint>(producer, {
       address,
-      content: hint,
-      source: input.source,
-      inputFingerprint,
-      provenance: {
-        producedBy: input.producedBy,
-        producedAt: input.producedAt,
-        pipelineVersion: input.pipelineVersion,
-        // The single input to this atom is the screen-hints
-        // hybrid file it came from.
-        inputs: [`screen-hints:${screen}`],
-      },
+      content: fingerprintableHintContent(hint) as unknown as ScreenElementHint,
+      inputs: [`screen-hints:${screen}`],
     });
+    // Re-attach the original hint (including `acquired`) as the
+    // atom's content. The fingerprint is retained from the mint.
+    return {
+      ...mintedWithStripped,
+      content: hint,
+    };
   });
 }
