@@ -84,7 +84,14 @@ const rungToNumber = (rung: string): number => {
   return idx >= 0 ? idx : RUNG_ORDER.length;
 };
 
-const confidenceToNumber = (c: Confidence | string): number => {
+/** Map each Confidence variant to a numeric score. Previously this
+ *  function accepted `Confidence | string` with a `default: 0.5`
+ *  fallback — new Confidence variants would silently get a neutral
+ *  0.5 score instead of an explicit mapping. Tightening the
+ *  parameter to `Confidence` makes the dispatch exhaustive; the
+ *  TypeScript compiler now forces a score to be assigned for any
+ *  new Confidence variant. */
+const confidenceToNumber = (c: Confidence): number => {
   switch (c) {
     case 'human': return 1.0;
     case 'compiler-derived': return 0.95;
@@ -92,7 +99,6 @@ const confidenceToNumber = (c: Confidence | string): number => {
     case 'agent-proposed': return 0.6;
     case 'intent-only': return 0.3;
     case 'unbound': return 0.1;
-    default: return 0.5;
   }
 };
 
