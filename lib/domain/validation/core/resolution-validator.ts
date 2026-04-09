@@ -1,9 +1,9 @@
 /**
  * Resolution context validators: DatasetControl, ResolutionControl, RunbookControl,
- * ScenarioInterpretationSurface, ScenarioTaskPacket.
+ * ScenarioInterpretationSurface.
  *
- * ScenarioInterpretationSurface and ScenarioTaskPacket are re-exported from intent-validator
- * since they belong to the intent/resolution boundary.
+ * ScenarioInterpretationSurface is re-exported from intent-validator
+ * since it belongs to the intent/resolution boundary.
  */
 import * as schemaDecode from '../../schemas/decode';
 import * as schemas from '../../schemas';
@@ -11,7 +11,6 @@ import type { DatasetControl, ResolutionControl, RunbookControl } from '../../re
 import { ensureSafeRelativePathLike } from '../../kernel/identity';
 export {
   validateScenarioInterpretationSurfaceArtifact,
-  validateScenarioTaskPacketArtifact,
 } from './intent-validator';
 
 export const validateDatasetControlArtifact: (value: unknown) => DatasetControl =

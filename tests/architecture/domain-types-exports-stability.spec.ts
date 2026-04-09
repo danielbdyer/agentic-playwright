@@ -191,7 +191,6 @@ import type {
   RuntimeDatasetBinding,
   RuntimeResolutionControl,
   RuntimeRunbookControl,
-  ScenarioTaskPacket,
   TranslationCandidate,
   TranslationReceipt,
   TranslationRequest,
@@ -281,7 +280,6 @@ type _AssertExported =
   | ArtifactConfidenceRecord
   | ConfidenceOverlayCatalog
   | InterfaceResolutionContext
-  | ScenarioTaskPacket
   | SurfaceSection
   | SurfaceDefinition
   | SurfaceGraph

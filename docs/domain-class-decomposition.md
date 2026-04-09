@@ -196,7 +196,6 @@ Not a domain primitive — the foundation everything is built on.
 | `ResolutionPrecedenceRung`, `DataResolutionPrecedenceRung`, `RunSelectionPrecedenceRung` | resolution/precedence-policy.ts | Rung definitions per concern |
 | `StepGrounding`, `GroundedStep` | types/resolution.ts | Fully resolved step |
 | `ScenarioInterpretationSurface` | types/resolution.ts | Machine contract for one scenario |
-| `ScenarioTaskPacket` | types/resolution.ts | Complete resolution for execution |
 | `ScenarioRunPlan` | types/resolution.ts | What will be executed and how |
 | `ScenarioKnowledgeSlice` | types/resolution.ts | Subset of knowledge for resolution |
 | `ResolutionEngineCapabilities` | types/resolution.ts | What the engine can do |
@@ -551,7 +550,7 @@ domain/
   resolution/                      # Connecting intent to reality
     precedence-policy.ts           #   Rung orderings per concern
     grounding.ts                   #   StepGrounding, GroundedStep
-    task-packet.ts                 #   ScenarioTaskPacket, ScenarioRunPlan
+    run-plan.ts                    #   ScenarioRunPlan
     knowledge-slice.ts             #   ScenarioKnowledgeSlice
     interpretation-surface.ts      #   ScenarioInterpretationSurface
     pipeline-dag.ts                #   Resolution as DAG of rungs

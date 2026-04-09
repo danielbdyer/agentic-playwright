@@ -87,7 +87,7 @@ export interface CanonProducer {
   /** ISO timestamp the mint operation was performed at. */
   readonly producedAt: string;
   /** Optional pipeline version (commit SHA or build tag). */
-  readonly pipelineVersion?: string;
+  readonly pipelineVersion?: string | undefined;
 }
 
 /** Project a `CanonProducer` out of a decomposer's existing Input
@@ -98,7 +98,7 @@ export function producerFrom<T extends {
   readonly source: PhaseOutputSource;
   readonly producedBy: string;
   readonly producedAt: string;
-  readonly pipelineVersion?: string;
+  readonly pipelineVersion?: string | undefined;
 }>(input: T): CanonProducer {
   return {
     source: input.source,

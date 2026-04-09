@@ -236,31 +236,6 @@ export interface ScenarioRunPlan {
   readonly baseUrl?: string | undefined;
 }
 
-/** @deprecated Use `ScenarioInterpretationSurface`. */
-export interface ScenarioTaskPacket {
-  readonly kind: 'scenario-task-packet';
-  readonly version: 5;
-  readonly stage: 'preparation';
-  readonly scope: 'scenario';
-  readonly ids: WorkflowEnvelopeIds;
-  readonly fingerprints: WorkflowEnvelopeFingerprints;
-  readonly lineage: WorkflowEnvelopeLineage;
-  readonly governance: Governance;
-  readonly payload: {
-    readonly adoId: AdoId;
-    readonly revision: number;
-    readonly title: string;
-    readonly suite: string;
-    readonly knowledgeFingerprint: string;
-    readonly interface: TaskArtifactRef;
-    readonly selectors: TaskArtifactRef;
-    readonly stateGraph: TaskArtifactRef;
-    readonly knowledgeSlice: ScenarioKnowledgeSlice;
-    readonly steps: readonly GroundedStep[];
-  };
-  readonly taskFingerprint: string;
-}
-
 export interface ObservedStateSessionScreenState {
   readonly screen: ScreenId;
   readonly confidence: number;

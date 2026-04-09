@@ -3,7 +3,6 @@ import type {
   ResolutionControl,
   RunbookControl,
   ScenarioInterpretationSurface,
-  ScenarioTaskPacket,
 } from '../resolution/types';
 import { validateByKind } from './registry';
 
@@ -12,4 +11,3 @@ export const validateResolutionControl = (value: unknown): ResolutionControl => 
 export const validateRunbookControl = (value: unknown): RunbookControl => validateByKind('runbook-control', value);
 export const validateScenarioInterpretationSurface = (value: unknown): ScenarioInterpretationSurface =>
   validateByKind('scenario-interpretation-surface', value);
-export const validateScenarioTaskPacket = (value: unknown): ScenarioTaskPacket => validateByKind('scenario-task-packet', value);

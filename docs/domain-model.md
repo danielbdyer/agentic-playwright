@@ -238,7 +238,7 @@ Resolution is not a single act. It is a search through a prioritized space of st
 - Precedence policies for resolution, data, run-selection, route-selection
 - StepGrounding, GroundedStep — a fully resolved step
 - ScenarioInterpretationSurface — the machine contract for one scenario
-- ScenarioTaskPacket, ScenarioRunPlan — complete resolution for execution
+- ScenarioRunPlan — complete resolution for execution
 - ScenarioKnowledgeSlice — the subset of knowledge available
 - Resolution engine — registry and selection of strategies
 - Resolution exhaustion — ordered record of what was tried at each rung

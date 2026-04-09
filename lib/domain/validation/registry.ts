@@ -33,7 +33,6 @@ import type {
   ResolutionControl,
   RunbookControl,
   ScenarioInterpretationSurface,
-  ScenarioTaskPacket,
 } from '../resolution/types';
 import { validateDatasetControlArtifact, validateResolutionControlArtifact, validateRunbookControlArtifact } from './core/resolution-validator';
 import { validateConfidenceOverlayCatalogArtifact, validateDerivedGraphArtifact, validateSurfaceGraphArtifact } from './core/graph-validator';
@@ -51,7 +50,6 @@ import {
   validateBoundScenarioArtifact,
   validateScenarioArtifact,
   validateScenarioInterpretationSurfaceArtifact,
-  validateScenarioTaskPacketArtifact,
 } from './core/intent-validator';
 import {
   validateApprovalReceiptArtifact,
@@ -79,7 +77,6 @@ export type ValidatorResultByKind = {
   scenario: Scenario;
   'bound-scenario': BoundScenario;
   'scenario-interpretation-surface': ScenarioInterpretationSurface;
-  'scenario-task-packet': ScenarioTaskPacket;
   'run-record': RunRecord;
   'proposal-bundle': ProposalBundle;
   'surface-graph': SurfaceGraph;
@@ -118,7 +115,6 @@ const validatorRegistry: { [K in keyof ValidatorResultByKind]: ValidatorFn<K> } 
   scenario: validateScenarioArtifact,
   'bound-scenario': validateBoundScenarioArtifact,
   'scenario-interpretation-surface': validateScenarioInterpretationSurfaceArtifact,
-  'scenario-task-packet': validateScenarioTaskPacketArtifact,
   'run-record': validateRunRecordArtifact,
   'proposal-bundle': validateProposalBundleArtifact,
   'surface-graph': validateSurfaceGraphArtifact,

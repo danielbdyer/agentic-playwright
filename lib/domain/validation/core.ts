@@ -33,7 +33,6 @@ import type {
   ResolutionControl,
   RunbookControl,
   ScenarioInterpretationSurface,
-  ScenarioTaskPacket,
 } from '../resolution/types';
 import {
   validateAdoSnapshotArtifact,
@@ -56,7 +55,6 @@ import {
   validateResolutionControlArtifact,
   validateRunbookControlArtifact,
   validateScenarioInterpretationSurfaceArtifact,
-  validateScenarioTaskPacketArtifact,
 } from './core/resolution-validator';
 import {
   validateBenchmarkContextArtifact,
@@ -88,7 +86,6 @@ export const validateScenario: (value: unknown) => Scenario = validateScenarioAr
 export const validateBoundScenario: (value: unknown) => BoundScenario = validateBoundScenarioArtifact;
 export const validateScenarioInterpretationSurface: (value: unknown) => ScenarioInterpretationSurface =
   validateScenarioInterpretationSurfaceArtifact;
-export const validateScenarioTaskPacket: (value: unknown) => ScenarioTaskPacket = validateScenarioTaskPacketArtifact;
 export const validateRunRecord: (value: unknown) => RunRecord = validateRunRecordArtifact;
 export const validateProposalBundle: (value: unknown) => ProposalBundle = validateProposalBundleArtifact;
 export const validateSurfaceGraph: (value: unknown) => SurfaceGraph = validateSurfaceGraphArtifact;

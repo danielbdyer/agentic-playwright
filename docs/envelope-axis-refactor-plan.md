@@ -1352,39 +1352,206 @@ The "Cross-lane priority order" in `BACKLOG.md` gets a prepended
 row for Phase 0 and a note explaining that the ordering of 1–9
 assumes Phase 0 has completed.
 
-## 14. Open questions
+## 14. Decisions (locked)
 
-Questions that need operator decision before Phase 0 starts, or
-during Phase 0 if they arise:
+The decisions below are locked for Phase 0 execution. If any of
+them needs revisiting mid-phase, it is a replan event, not an
+improvisation. Each decision records the alternatives that were
+considered and the reason the locked choice won.
 
-1. **Surface vs task semantic.** Is the `WorkflowEnvelopeFingerprints.task`
-   slot meant to hold a "task" (a resolved ADO step) or a
-   "surface" (the interface at which the task will run)? The
-   current code uses the field name `task` but populates it
-   from `surfaceFingerprint`. Phase 0c forces a decision. Operator
-   input needed during Phase 0c planning.
+### D1. Surface vs task semantic — RENAME `task` → `surface`
 
-2. **Scope of the `FingerprintTag` registry.** Should every new
-   fingerprint introduction require adding a tag to a central
-   enum, or should tags be open? Open tags are more flexible;
-   closed tags are more disciplined. Recommend closed, but
-   operator confirmation before Phase 0c.
+**Locked.** The `WorkflowEnvelopeFingerprints.task` slot is
+renamed to `surface`. Every call site that populates the slot
+from a variable called `surfaceFingerprint` stops lying about
+what it holds. Every call site that reads
+`envelope.fingerprints.task` migrates to
+`envelope.fingerprints.surface`.
 
-3. **Verdict payload generic parameter.** For envelopes that
-   carry a `GovernanceVerdict<Payload, ReviewRequest>`, should
-   `Payload` be the full envelope type (self-referential) or a
-   projection of the payload (simpler)? Recommend projection,
-   but the choice affects Phase 0d's type signatures.
+**Alternatives considered.**
 
-4. **`ScenarioTaskPacket` deletion.** Audit result pending. If
-   the audit shows any live consumers, decide whether to migrate
-   or to deprecate first, then migrate.
+- Keep the name `task` and add an explicit derivation function
+  `taskFingerprintFromSurface(surface: SurfaceFingerprint): TaskFingerprint`.
+  Rejected: preserves the lie by documenting it rather than
+  fixing it. The "task" concept in the current codebase is
+  structurally identical to the resolved surface at the
+  fingerprint level, so the derivation would be the identity
+  function.
+- Introduce both `task` and `surface` slots and populate them
+  identically until a true task-as-intent concept emerges.
+  Rejected: doubles the field count without type-level benefit.
 
-5. **Does Phase 0 block `dogfood` speedruns?** The speedruns
-   exercise the envelope types. During Phase 0a, envelope types
-   are under active lift; speedruns may fail. Decide whether
-   speedruns pause during 0a or run on a pinned pre-refactor
-   commit.
+**Implication for future work.** If/when the codebase grows a
+task-as-intent concept distinct from the resolved surface (e.g.,
+a scenario content hash computed before surface resolution),
+that concept gets a new slot — it does not reuse the slot
+whose name we just fixed.
+
+### D2. FingerprintTag registry — CLOSED
+
+**Locked.** `FingerprintTag` is a closed union of specific
+string literals enumerated in a single canonical location
+(`lib/domain/kernel/hash.ts`). Adding a new fingerprint kind
+requires editing the registry. Law test: every registered tag
+has at least one producer function in the codebase.
+
+**Alternatives considered.**
+
+- Open tags (`Fingerprint<T extends string>` with any string).
+  Rejected: inconsistent with the mapped-type registry discipline
+  the codebase already uses for `L4_VISITORS`,
+  `AtomPromotionGateRegistry`, `foldPhaseOutputSource`, and the
+  atom/composition/projection sub-type enumerations. No
+  third-party extension use case justifies opening the tag space.
+
+**Starting registry** (subject to extension during Phase 0c):
+
+```typescript
+export type FingerprintTag =
+  | 'artifact'
+  | 'content'
+  | 'surface'        // replaces 'task' per D1
+  | 'knowledge'
+  | 'controls'
+  | 'run'
+  | 'atom-input'
+  | 'composition-input'
+  | 'projection-input'
+  | 'ado-content'
+  | 'rerun-plan'
+  | 'translation-cache-key'
+  | 'agent-interp-cache-key'
+  | 'proposal-cache-key'
+  | 'snapshot'
+  | 'node'           // graph node
+  | 'edge'           // graph edge
+  | 'manifest'       // route manifest, learning manifest
+  | 'ledger'         // improvement ledger
+  | 'discovery-run';
+```
+
+### D3. Verdict payload location — PAYLOAD LIVES INSIDE THE VERDICT
+
+**Locked.** Envelope types carry their payload inside the
+verdict, not alongside it:
+
+```typescript
+interface RunRecord extends WorkflowMetadata<'execution'> {
+  readonly verdict: GovernanceVerdict<RunRecordPayload, ReviewRequest>;
+  // no separate `payload` field
+}
+```
+
+Reading an envelope's payload is only possible through
+`foldVerdict` or an explicit type guard. The compiler cannot
+skip the non-approved case. A blocked or suspended envelope's
+payload is not silently consumable.
+
+**Alternatives considered.**
+
+- **(a) Self-referential**:
+  `verdict: GovernanceVerdict<RunRecord, ReviewRequest>`.
+  Rejected: circular and wasteful; the verdict would wrap the
+  envelope that contains the verdict.
+- **(c) Verdict as marker**: `RunRecord = { ..., payload: RunRecordPayload, verdict: GovernanceVerdict<void, ReviewRequest> }`.
+  Rejected: lets the verdict float alongside the payload as
+  decoration. A blocked envelope's payload is still accessible
+  via `envelope.payload`, so the verdict lift has no teeth. This
+  option costs less to migrate but provides no correctness
+  guarantee, which defeats the purpose of Phase 0d.
+
+**Migration cost acknowledged.** Every site that currently reads
+`envelope.payload` becomes `foldVerdict(envelope.verdict, {...})`.
+Dozens of sites. This is exactly where we want the compiler to
+force the question "what do you do if this isn't approved?" and
+the cost is the point of the lift, not a side effect.
+
+**Helper discipline.** A convenience type guard
+`approvedPayload<T>(verdict: GovernanceVerdict<T, _>): T | null`
+is available, but it is explicitly **not** the recommended access
+pattern. Prefer `foldVerdict` for the common case because it
+forces case analysis at the call site.
+
+### D4. `ScenarioTaskPacket` — DELETE AS DAY 0 CLEANUP
+
+**Locked.** `ScenarioTaskPacket` at
+`lib/domain/resolution/types.ts:243` is deleted before Phase 0a
+begins. If the audit surfaces live consumers, those consumers
+are migrated off first as part of Day 0, then the type is
+deleted.
+
+**Alternatives considered.**
+
+- Migrate it through Phase 0a alongside the other envelope types.
+  Rejected: deprecated code that costs migration effort through
+  a refactor is strictly worse than deprecated code that is
+  deleted. The refactor is the forcing function for the cleanup.
+
+### D5. Speedrun policy during Phase 0a — PIN TO MAIN
+
+**Locked.** Main stays frozen at the pre-Phase-0a commit until
+Phase 0a's checkpoint PR merges. Speedruns continue to run
+against main exactly as they would with no refactor happening.
+After the merge, speedruns resume against the new main.
+
+**Alternatives considered.**
+
+- Pause speedrun scheduling entirely during Phase 0a. Rejected:
+  unnecessary; normal git hygiene already provides the isolation.
+- Run speedruns against the refactor branch to catch envelope
+  breakage early. Rejected: the refactor branch will have
+  transient inconsistencies during per-file migration; running
+  speedruns against it would produce false negatives.
+
+### D6. Branch strategy — PHASE-PER-PR
+
+**Locked.** 5 PRs total: one per phase (0a, 0b, 0c, 0d) plus one
+for stabilization. Each PR merges to main before the next phase
+begins. The branch for the next phase is cut from the merged main.
+
+**Alternatives considered.**
+
+- Single branch for all four phases, merged at the end.
+  Rejected: makes the "one bad day" problem (an inference
+  cascade in 0a that propagates to 0b decisions) significantly
+  worse. Bad decisions get compounded before anyone reviews
+  them. Each PR being reviewable in isolation is load-bearing.
+
+**PR sizing target.** Each phase PR should be 500-1500 lines of
+production diff (excluding test migration, which can double the
+count). If a phase PR exceeds 2000 lines of production diff, the
+phase is split into sub-phases with intermediate merges.
+
+### D7. Governance brand reconciliation — UNIFY IN PHASE 0D
+
+**Locked.** The three existing governance representations are
+unified during Phase 0d:
+
+1. `Governance` string union — stays as the persistence format
+   (JSON serialization of the verdict's tag).
+2. `GovernanceVerdict<T, I>` ADT — becomes the canonical
+   in-memory representation.
+3. `Approved<T>` / `ReviewRequired<T>` / `Blocked<T>` phantom
+   brands in `workflow-types.ts` — become type aliases over
+   verdict states. `Approved<T>` is a verdict value where
+   `_tag === 'Approved'`; same for the others.
+
+`foldGovernance` becomes a thin alias over `foldVerdict`.
+`mintApproved<T>(value)` becomes `approved(value)`. The codebase
+has one algebra, one set of combinators, one persistence format.
+
+**Alternatives considered.**
+
+- Leave the phantom brands and the verdict ADT as parallel
+  representations. Rejected: leaving two representations of the
+  same concept would undercut Phase 0d's premise. Consistency is
+  the point.
+
+**Scope implication.** Phase 0d grows slightly to include the
+phantom brand migration. This adds ~10 files to its scope but
+does not change the phase's risk profile — the phantom brands are
+already adjacent to the verdict ADT and the migration is
+mechanical.
 
 ## 15. Success signals
 
