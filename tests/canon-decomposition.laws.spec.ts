@@ -61,6 +61,11 @@ import {
   type DecomposeScreenSurfacesInput,
   type SurfaceCompositionContent,
 } from '../lib/application/canon/decompose-screen-surfaces';
+import {
+  decomposePatterns,
+  type DecomposePatternsInput,
+  type PatternAtomContent,
+} from '../lib/application/canon/decompose-patterns';
 import type {
   ScreenElements,
   ElementSig,
@@ -72,6 +77,8 @@ import type {
   SurfaceGraph,
   SurfaceDefinition,
   SurfaceSection,
+  PatternDocument,
+  PatternAliasSet,
 } from '../lib/domain/knowledge/types';
 import type {
   RouteKnowledgeManifest,
@@ -1959,5 +1966,347 @@ test('surface decomposer: warm and cold invocations produce identical fingerprin
     expect(warm.surfaceCompositions[i]?.inputFingerprint).toBe(
       cold.surfaceCompositions[i]?.inputFingerprint,
     );
+  }
+});
+
+// ════════════════════════════════════════════════════════════════
+// decomposePatterns (Phase A.6) — two-sub-map flatten
+// ════════════════════════════════════════════════════════════════
+
+// ─── Pattern fixture ─────────────────────────────────────────────
+
+function makeAliasSet(id: string, aliases: readonly string[]): PatternAliasSet {
+  return { id, aliases };
+}
+
+function makePatternDocument(
+  overrides: Partial<PatternDocument> = {},
+): PatternDocument {
+  return {
+    version: 1,
+    actions: {
+      click: makeAliasSet('core.click', ['press', 'tap', 'select']),
+      input: makeAliasSet('core.input', ['enter', 'type', 'fill']),
+      navigate: makeAliasSet('core.navigate', ['go to', 'open', 'visit']),
+    },
+    postures: {
+      valid: makeAliasSet('core.valid', ['valid', 'correct', 'proper']),
+      invalid: makeAliasSet('core.invalid', ['invalid', 'incorrect', 'wrong']),
+      empty: makeAliasSet('core.empty', ['empty', 'blank', 'cleared']),
+    },
+    ...overrides,
+  };
+}
+
+function makePatternsInput(
+  overrides: Partial<DecomposePatternsInput> = {},
+): DecomposePatternsInput {
+  return {
+    content: makePatternDocument(),
+    source: 'agentic-override' as PhaseOutputSource,
+    producedBy: 'canon-decomposer:patterns:v1',
+    producedAt: '2026-04-09T00:00:00.000Z',
+    pipelineVersion: 'sha-test',
+    ...overrides,
+  };
+}
+
+// ─── Determinism ─────────────────────────────────────────────────
+
+test('decomposePatterns is deterministic for the same input', () => {
+  const input = makePatternsInput();
+  const left = decomposePatterns(input);
+  const right = decomposePatterns(input);
+  expect(left).toEqual(right);
+  for (let i = 0; i < left.length; i += 1) {
+    expect(left[i]?.inputFingerprint).toBe(right[i]?.inputFingerprint);
+  }
+});
+
+// ─── Cardinality (both sub-maps flattened) ──────────────────────
+
+test('decomposePatterns emits one atom per actions entry plus one per postures entry', () => {
+  const atoms = decomposePatterns(makePatternsInput());
+  // Fixture: 3 actions + 3 postures = 6 atoms.
+  expect(atoms.length).toBe(6);
+});
+
+test('decomposePatterns emits an empty array when both sub-maps are empty', () => {
+  const atoms = decomposePatterns(
+    makePatternsInput({
+      content: { version: 1, actions: {}, postures: {} },
+    }),
+  );
+  expect(atoms).toEqual([]);
+});
+
+test('decomposePatterns handles an undefined actions sub-map', () => {
+  const atoms = decomposePatterns(
+    makePatternsInput({
+      content: {
+        version: 1,
+        postures: { valid: makeAliasSet('p.valid', ['ok']) },
+      },
+    }),
+  );
+  expect(atoms.length).toBe(1);
+  expect(atoms[0]?.content.category).toBe('posture');
+});
+
+test('decomposePatterns handles an undefined postures sub-map', () => {
+  const atoms = decomposePatterns(
+    makePatternsInput({
+      content: {
+        version: 1,
+        actions: { click: makeAliasSet('a.click', ['press']) },
+      },
+    }),
+  );
+  expect(atoms.length).toBe(1);
+  expect(atoms[0]?.content.category).toBe('action');
+});
+
+test('decomposePatterns handles both sub-maps being undefined', () => {
+  const atoms = decomposePatterns(
+    makePatternsInput({ content: { version: 1 } }),
+  );
+  expect(atoms).toEqual([]);
+});
+
+// ─── Category tagging ────────────────────────────────────────────
+
+test('atoms from the actions sub-map carry category: action', () => {
+  const atoms = decomposePatterns(makePatternsInput());
+  const actionAtoms = atoms.filter((a) => a.content.category === 'action');
+  const actionIds = actionAtoms.map((a) => a.content.id);
+  expect(actionIds.sort()).toEqual(['core.click', 'core.input', 'core.navigate']);
+});
+
+test('atoms from the postures sub-map carry category: posture', () => {
+  const atoms = decomposePatterns(makePatternsInput());
+  const postureAtoms = atoms.filter((a) => a.content.category === 'posture');
+  const postureIds = postureAtoms.map((a) => a.content.id);
+  expect(postureIds.sort()).toEqual(['core.empty', 'core.invalid', 'core.valid']);
+});
+
+// ─── Address consistency ─────────────────────────────────────────
+
+test('every pattern atom passes isAtomAddressConsistent', () => {
+  const atoms = decomposePatterns(makePatternsInput());
+  for (const a of atoms) {
+    expect(isAtomAddressConsistent(a)).toBe(true);
+    expect(a.class).toBe('pattern');
+    expect(a.address.class).toBe('pattern');
+  }
+});
+
+test('pattern atom address.id equals content.id (the PatternAliasSet id field)', () => {
+  const atoms = decomposePatterns(makePatternsInput());
+  for (const a of atoms) {
+    expect(a.address.id).toBe(a.content.id);
+  }
+});
+
+// ─── Content preservation (aliases survive verbatim) ────────────
+
+test('pattern atom content preserves the source PatternAliasSet aliases byte-equivalent', () => {
+  const customAliases = ['custom-1', 'custom-2', 'custom-3'];
+  const atoms = decomposePatterns(
+    makePatternsInput({
+      content: {
+        version: 1,
+        actions: {
+          click: makeAliasSet('custom.click', customAliases),
+        },
+        postures: {},
+      },
+    }),
+  );
+  expect(atoms.length).toBe(1);
+  expect(atoms[0]?.content.aliases).toEqual(customAliases);
+});
+
+test('decomposePatterns does not mutate the source document', () => {
+  const original = makePatternDocument();
+  const snapshot = JSON.parse(JSON.stringify(original));
+  decomposePatterns(makePatternsInput({ content: original }));
+  expect(original).toEqual(snapshot);
+});
+
+// ─── Source wiring ───────────────────────────────────────────────
+
+test('decomposePatterns threads PhaseOutputSource through every atom', () => {
+  const sources: readonly PhaseOutputSource[] = [
+    'operator-override',
+    'agentic-override',
+    'deterministic-observation',
+    'live-derivation',
+    'cold-derivation',
+  ];
+  for (const source of sources) {
+    const atoms = decomposePatterns(makePatternsInput({ source }));
+    for (const a of atoms) {
+      expect(a.source).toBe(source);
+    }
+  }
+});
+
+// ─── Stable ordering (by id across both sub-maps) ───────────────
+
+test('pattern atoms are sorted lexicographically by id regardless of sub-map origin', () => {
+  const atoms = decomposePatterns(makePatternsInput());
+  const ids = atoms.map((a) => a.content.id);
+  // Mixed action + posture ids in lexicographic order.
+  expect(ids).toEqual([
+    'core.click',
+    'core.empty',
+    'core.input',
+    'core.invalid',
+    'core.navigate',
+    'core.valid',
+  ]);
+});
+
+test('two inputs with the same content but different insertion orders produce identical output', () => {
+  const a: PatternDocument = {
+    version: 1,
+    actions: {
+      navigate: makeAliasSet('core.navigate', ['go to']),
+      click: makeAliasSet('core.click', ['press']),
+      input: makeAliasSet('core.input', ['type']),
+    },
+    postures: {
+      invalid: makeAliasSet('core.invalid', ['wrong']),
+      valid: makeAliasSet('core.valid', ['ok']),
+      empty: makeAliasSet('core.empty', ['blank']),
+    },
+  };
+  const b: PatternDocument = {
+    version: 1,
+    actions: {
+      click: makeAliasSet('core.click', ['press']),
+      input: makeAliasSet('core.input', ['type']),
+      navigate: makeAliasSet('core.navigate', ['go to']),
+    },
+    postures: {
+      empty: makeAliasSet('core.empty', ['blank']),
+      invalid: makeAliasSet('core.invalid', ['wrong']),
+      valid: makeAliasSet('core.valid', ['ok']),
+    },
+  };
+  const fromA = decomposePatterns(makePatternsInput({ content: a }));
+  const fromB = decomposePatterns(makePatternsInput({ content: b }));
+  expect(fromA).toEqual(fromB);
+});
+
+// ─── Fingerprint independence from provenance ───────────────────
+
+test('pattern atom fingerprints are independent of producedAt / producedBy / pipelineVersion', () => {
+  const baseline = decomposePatterns(makePatternsInput());
+  const variants: ReadonlyArray<Partial<DecomposePatternsInput>> = [
+    { producedAt: '2030-12-31T23:59:59.999Z' },
+    { producedBy: 'canon-decomposer:patterns:v9' },
+    { pipelineVersion: 'sha-different' },
+  ];
+  for (const overrides of variants) {
+    const variant = decomposePatterns(makePatternsInput(overrides));
+    for (let i = 0; i < baseline.length; i += 1) {
+      expect(baseline[i]?.inputFingerprint).toBe(variant[i]?.inputFingerprint);
+    }
+  }
+});
+
+test('pattern atom fingerprint changes when aliases change (sibling isolation)', () => {
+  const baseline = decomposePatterns(makePatternsInput());
+  const mutated = decomposePatterns(
+    makePatternsInput({
+      content: {
+        version: 1,
+        actions: {
+          click: makeAliasSet('core.click', ['completely', 'different', 'aliases']),
+          input: makeAliasSet('core.input', ['enter', 'type', 'fill']),
+          navigate: makeAliasSet('core.navigate', ['go to', 'open', 'visit']),
+        },
+        postures: {
+          valid: makeAliasSet('core.valid', ['valid', 'correct', 'proper']),
+          invalid: makeAliasSet('core.invalid', ['invalid', 'incorrect', 'wrong']),
+          empty: makeAliasSet('core.empty', ['empty', 'blank', 'cleared']),
+        },
+      },
+    }),
+  );
+  const baselineClick = baseline.find((a) => a.content.id === 'core.click');
+  const mutatedClick = mutated.find((a) => a.content.id === 'core.click');
+  expect(baselineClick?.inputFingerprint).not.toBe(mutatedClick?.inputFingerprint);
+  // Sibling isolation: mutating core.click must not change
+  // core.input's fingerprint.
+  const baselineInput = baseline.find((a) => a.content.id === 'core.input');
+  const mutatedInput = mutated.find((a) => a.content.id === 'core.input');
+  expect(baselineInput?.inputFingerprint).toBe(mutatedInput?.inputFingerprint);
+});
+
+// ─── Category is part of the fingerprint ────────────────────────
+
+test('pattern atom fingerprint encodes the category (action vs posture)', () => {
+  // Two atoms with the SAME id and the SAME aliases but different
+  // categories must produce different fingerprints. This is the
+  // load-bearing property that makes the category extension of
+  // PatternAliasSet meaningful for the promotion gate.
+  const asAction = decomposePatterns(
+    makePatternsInput({
+      content: {
+        version: 1,
+        actions: {
+          click: makeAliasSet('shared.thing', ['do it']),
+        },
+        postures: {},
+      },
+    }),
+  );
+  const asPosture = decomposePatterns(
+    makePatternsInput({
+      content: {
+        version: 1,
+        actions: {},
+        postures: {
+          thing: makeAliasSet('shared.thing', ['do it']),
+        },
+      },
+    }),
+  );
+  expect(asAction[0]?.inputFingerprint).not.toBe(asPosture[0]?.inputFingerprint);
+  expect(asAction[0]?.content.category).toBe('action');
+  expect(asPosture[0]?.content.category).toBe('posture');
+});
+
+// ─── Provenance plumbing ─────────────────────────────────────────
+
+test('pattern provenance fields flow through to the atom envelope', () => {
+  const atoms = decomposePatterns(
+    makePatternsInput({
+      producedBy: 'canon-decomposer:patterns:v9',
+      producedAt: '2030-01-01T00:00:00.000Z',
+      pipelineVersion: 'sha-abcdef',
+    }),
+  );
+  for (const a of atoms) {
+    expect(a.provenance.producedBy).toBe('canon-decomposer:patterns:v9');
+    expect(a.provenance.producedAt).toBe('2030-01-01T00:00:00.000Z');
+    expect(a.provenance.pipelineVersion).toBe('sha-abcdef');
+    expect(a.provenance.inputs).toEqual(['patterns:shared']);
+  }
+});
+
+// ─── Interop invariant ──────────────────────────────────────────
+
+test('patterns decomposer: warm and cold invocations produce identical fingerprints for identical content', () => {
+  const warm = decomposePatterns(
+    makePatternsInput({ source: 'agentic-override' }),
+  );
+  const cold = decomposePatterns(
+    makePatternsInput({ source: 'cold-derivation' }),
+  );
+  for (let i = 0; i < warm.length; i += 1) {
+    expect(warm[i]?.inputFingerprint).toBe(cold[i]?.inputFingerprint);
   }
 });
