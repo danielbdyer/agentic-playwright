@@ -391,17 +391,19 @@ const readOnlyAudit = (ctx: ArchetypeContext): readonly ArchetypeStep[] => {
 
 // ─── Archetype registry ───
 
-const ARCHETYPES: Readonly<Record<ArchetypeId, (ctx: ArchetypeContext) => readonly ArchetypeStep[]>> = {
+const ARCHETYPES = {
   'search-verify': searchVerify,
   'detail-inspect': detailInspect,
   'cross-screen-journey': crossScreenJourney,
   'form-submit': formSubmit,
   'read-only-audit': readOnlyAudit,
-};
+} as const satisfies Readonly<Record<ArchetypeId, (ctx: ArchetypeContext) => readonly ArchetypeStep[]>>;
 
-const ARCHETYPE_IDS: readonly ArchetypeId[] = [
-  'search-verify', 'detail-inspect', 'cross-screen-journey', 'form-submit', 'read-only-audit',
-];
+// Previously this was a hand-maintained parallel array to ARCHETYPES
+// that drift-risked going out of sync. Derived via Object.keys()
+// against the `as const satisfies` registry so adding a new
+// archetype to ARCHETYPES automatically updates the id list.
+const ARCHETYPE_IDS: readonly ArchetypeId[] = Object.keys(ARCHETYPES) as readonly ArchetypeId[];
 
 /**
  * Per-cohort archetype selection bias. When supplied to

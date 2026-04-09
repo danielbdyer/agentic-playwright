@@ -191,5 +191,10 @@ export function selectRecoveryChain(
   family: RecoveryFailureFamily,
   overrides?: Readonly<Partial<Record<RecoveryFailureFamily, readonly ComposableRecoveryStrategy[]>>>,
 ): readonly ComposableRecoveryStrategy[] {
-  return overrides?.[family] ?? defaultRecoveryChains[family] ?? [];
+  // Overrides is Partial, so may be undefined per family.
+  // defaultRecoveryChains is a full Record<RecoveryFailureFamily, ...>
+  // so its lookup is non-nullable — no trailing `?? []` fallback
+  // needed. Previously there was a dead `?? []` that masked the
+  // (correct) compile-time guarantee.
+  return overrides?.[family] ?? defaultRecoveryChains[family];
 }
