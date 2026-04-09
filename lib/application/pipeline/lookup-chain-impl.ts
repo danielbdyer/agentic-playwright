@@ -93,19 +93,19 @@ export interface CatalogLookupChain {
     readonly address: AtomAddressOf<C>;
     readonly mode?: LookupMode;
     readonly qualifiers?: QualifierBag;
-  }): LookupResult<Atom<C, unknown>>;
+  }): LookupResult<Atom<C, unknown, PhaseOutputSource>>;
 
   lookupComposition<S extends CompositionSubType>(input: {
     readonly subType: S;
     readonly address: CompositionAddressOf<S>;
     readonly mode?: LookupMode;
-  }): LookupResult<Composition<S, unknown>>;
+  }): LookupResult<Composition<S, unknown, PhaseOutputSource>>;
 
   lookupProjection<S extends ProjectionSubType>(input: {
     readonly subType: S;
     readonly address: ProjectionAddressOf<S>;
     readonly mode?: LookupMode;
-  }): LookupResult<Projection<S>>;
+  }): LookupResult<Projection<S, PhaseOutputSource>>;
 }
 
 /** Build a CatalogLookupChain from a loaded WorkspaceCatalog.
@@ -140,12 +140,12 @@ export function createCatalogLookupChain(catalog: WorkspaceCatalog): CatalogLook
 // collected into the value array; the lookup picks the highest-
 // precedence one via the precedence table below.
 
-type AtomIndex = ReadonlyMap<string, readonly Atom<AtomClass, unknown>[]>;
+type AtomIndex = ReadonlyMap<string, readonly Atom<AtomClass, unknown, PhaseOutputSource>[]>;
 type CompositionIndex = ReadonlyMap<
   string,
-  readonly Composition<CompositionSubType, unknown>[]
+  readonly Composition<CompositionSubType, unknown, PhaseOutputSource>[]
 >;
-type ProjectionIndex = ReadonlyMap<string, readonly Projection<ProjectionSubType>[]>;
+type ProjectionIndex = ReadonlyMap<string, readonly Projection<ProjectionSubType, PhaseOutputSource>[]>;
 
 /** Generic O(N) index builder. Folds envelopes into a Map keyed
  *  by `keyOf(envelope.artifact)`. Uses transient mutation inside
@@ -168,16 +168,16 @@ function buildIndex<T>(
 }
 
 const buildAtomIndex = (
-  envelopes: readonly ArtifactEnvelope<Atom<AtomClass, unknown>>[],
+  envelopes: readonly ArtifactEnvelope<Atom<AtomClass, unknown, PhaseOutputSource>>[],
 ): AtomIndex => buildIndex(envelopes, (a) => atomAddressToPath(a.address));
 
 const buildCompositionIndex = (
-  envelopes: readonly ArtifactEnvelope<Composition<CompositionSubType, unknown>>[],
+  envelopes: readonly ArtifactEnvelope<Composition<CompositionSubType, unknown, PhaseOutputSource>>[],
 ): CompositionIndex =>
   buildIndex(envelopes, (c) => compositionAddressToPath(c.address));
 
 const buildProjectionIndex = (
-  envelopes: readonly ArtifactEnvelope<Projection<ProjectionSubType>>[],
+  envelopes: readonly ArtifactEnvelope<Projection<ProjectionSubType, PhaseOutputSource>>[],
 ): ProjectionIndex => buildIndex(envelopes, (p) => projectionAddressToPath(p.address));
 
 // ─── Source precedence (pure ordered table) ──────────────────────
@@ -257,7 +257,7 @@ function lookupAtomImpl<C extends AtomClass>(
     readonly mode?: LookupMode;
     readonly qualifiers?: QualifierBag;
   },
-): LookupResult<Atom<C, unknown>> {
+): LookupResult<Atom<C, unknown, PhaseOutputSource>> {
   const mode: LookupMode = input.mode ?? 'warm';
   const baseSlots = slotsConsultedFor(mode);
 
@@ -294,7 +294,7 @@ function lookupCompositionImpl<S extends CompositionSubType>(
     readonly address: CompositionAddressOf<S>;
     readonly mode?: LookupMode;
   },
-): LookupResult<Composition<S, unknown>> {
+): LookupResult<Composition<S, unknown, PhaseOutputSource>> {
   const mode: LookupMode = input.mode ?? 'warm';
   const baseSlots = slotsConsultedFor(mode);
 
@@ -324,7 +324,7 @@ function lookupProjectionImpl<S extends ProjectionSubType>(
     readonly address: ProjectionAddressOf<S>;
     readonly mode?: LookupMode;
   },
-): LookupResult<Projection<S>> {
+): LookupResult<Projection<S, PhaseOutputSource>> {
   const mode: LookupMode = input.mode ?? 'warm';
   const baseSlots = slotsConsultedFor(mode);
 
@@ -348,16 +348,19 @@ function lookupProjectionImpl<S extends ProjectionSubType>(
 // ─── Variance widening (contained casts) ─────────────────────────
 
 const widenAtom = <C extends AtomClass>(
-  a: Atom<AtomClass, unknown>,
-): Atom<C, unknown> => a as unknown as Atom<C, unknown>;
+  a: Atom<AtomClass, unknown, PhaseOutputSource>,
+): Atom<C, unknown, PhaseOutputSource> =>
+  a as unknown as Atom<C, unknown, PhaseOutputSource>;
 
 const widenComposition = <S extends CompositionSubType>(
-  c: Composition<CompositionSubType, unknown>,
-): Composition<S, unknown> => c as unknown as Composition<S, unknown>;
+  c: Composition<CompositionSubType, unknown, PhaseOutputSource>,
+): Composition<S, unknown, PhaseOutputSource> =>
+  c as unknown as Composition<S, unknown, PhaseOutputSource>;
 
 const widenProjection = <S extends ProjectionSubType>(
-  p: Projection<ProjectionSubType>,
-): Projection<S> => p as unknown as Projection<S>;
+  p: Projection<ProjectionSubType, PhaseOutputSource>,
+): Projection<S, PhaseOutputSource> =>
+  p as unknown as Projection<S, PhaseOutputSource>;
 
 // ─── Qualifier-aware projection application ──────────────────────
 
@@ -416,7 +419,7 @@ function applyProjections(
     .map((addr) =>
       pickHighestPrecedence(projectionIndex.get(projectionAddressToPath(addr)) ?? []),
     )
-    .filter((p): p is Projection<ProjectionSubType> => p !== null);
+    .filter((p): p is Projection<ProjectionSubType, PhaseOutputSource> => p !== null);
 
   // For each matched projection, find the binding for our atom
   // address. findBinding walks the projection's bindings array

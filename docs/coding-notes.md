@@ -8,6 +8,40 @@ If something here contradicts `docs/master-architecture.md`, the master architec
 
 ---
 
+## Universal Operator Principles
+
+These are operator-level doctrinal rules that override situational convenience. They apply to every refactor, every migration, and every new surface the system grows. When a local decision conflicts with one of these principles, the principle wins.
+
+### No backward-compatibility shims
+
+When migrating to a new type, helper, signature, or contract, **adopt the new path forward fully and delete the old one**. Do not leave the old function as a deprecated alias. Do not give generic parameters default values that preserve the old call-site shape. Do not introduce an "old name and new name both work for now" window that lingers across commits.
+
+Back-compat shims look cheap at the moment of migration because they let callers stay unchanged. They are not cheap over time:
+
+- **They double the surface area.** Every reader has to decide which form to use, and the distinction between "what we're moving to" and "what we're moving away from" blurs.
+- **They make the migration invisible.** A codebase that still compiles against the old shape never actually moved.
+- **They invite re-introduction.** New code written against the shim re-seats the migration cost for the next refactor pass.
+- **They hide the true call-site count.** The refactor looks like "2 helpers replaced" when it should look like "2 helpers replaced + 35 call sites updated to reflect the new contract."
+
+The correct idiom is: rename the function to its new shape, update every caller in the same commit, delete the old name. If the migration is too large for one commit, split it by **call-site group** (e.g., "all commitment builders migrated") rather than by **version window** (e.g., "both names work for now"). Every commit on the branch should leave the codebase with exactly one canonical way to do the thing.
+
+This applies to:
+
+- generic type parameter defaults that preserve old call-site shapes (`Foo<T, S = DefaultS>` is a shim — delete the default and migrate every consumer)
+- helper aliases (`export const oldName = newName` is a shim — delete the old name and migrate every caller)
+- optional fields added to preserve schema compatibility (`field?: T | undefined` alongside the new required field is a shim — decide and commit)
+- parallel constructor signatures (`buildFoo(input)` and `buildFoo.v2(input)` side by side is a shim — delete the old one)
+
+Exception: cross-boundary persistence formats (e.g., on-disk JSON schemas that older tool versions still read) are not shims — they are versioned external contracts, which follow their own versioning rules.
+
+### Every commit leaves the branch buildable and testable
+
+No staging commits. No "WIP" commits. No "this will be fixed in the next commit." Every commit on the branch must build clean and pass the existing test suite minus documented pre-existing failures. The branch should be a valid merge target at every sha.
+
+This lets reviewers bisect freely, lets `git checkout` land on any commit without lighting up the terminal red, and prevents the "we'll fix it later" slippage that accumulates when commits are treated as scratchpads.
+
+---
+
 ## Functional Programming Style
 
 This codebase has a strong preference for functional programming, pure functions, and immutable data design. These are not absolute rules, but they are the default — deviations should be deliberate and justified, not accidental.

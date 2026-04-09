@@ -109,9 +109,9 @@ export interface DecomposeRouteKnowledgeInput {
 // ─── Output bag ─────────────────────────────────────────────────
 
 export interface DecomposeRouteKnowledgeOutput {
-  readonly routeAtoms: readonly Atom<'route', RouteAtomContent>[];
-  readonly variantAtoms: readonly Atom<'route-variant', RouteKnowledgeVariant>[];
-  readonly routeGraphs: readonly Composition<'route-graph', RouteGraphCompositionContent>[];
+  readonly routeAtoms: readonly Atom<'route', RouteAtomContent, PhaseOutputSource>[];
+  readonly variantAtoms: readonly Atom<'route-variant', RouteKnowledgeVariant, PhaseOutputSource>[];
+  readonly routeGraphs: readonly Composition<'route-graph', RouteGraphCompositionContent, PhaseOutputSource>[];
 }
 
 // ─── Fan-out bag ────────────────────────────────────────────────

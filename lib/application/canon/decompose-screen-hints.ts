@@ -150,7 +150,7 @@ export function fingerprintableHintContent(
  */
 export function decomposeScreenHints(
   input: DecomposeScreenHintsInput,
-): readonly Atom<'element', ScreenElementHint>[] {
+): readonly Atom<'element', ScreenElementHint, PhaseOutputSource>[] {
   const producer = producerFrom(input);
   const screen = input.content.screen;
   const sortedEntries = Object.entries(input.content.elements).sort(
@@ -165,7 +165,7 @@ export function decomposeScreenHints(
     // Mint with the stripped projection as the content, so the
     // fingerprint is computed over (address, stripped content)
     // and is stable across activation cycles.
-    const mintedWithStripped = mintAtom<'element', ScreenElementHint>(producer, {
+    const mintedWithStripped = mintAtom<'element', ScreenElementHint, PhaseOutputSource>(producer, {
       address,
       content: fingerprintableHintContent(hint) as unknown as ScreenElementHint,
       inputs: [`screen-hints:${screen}`],

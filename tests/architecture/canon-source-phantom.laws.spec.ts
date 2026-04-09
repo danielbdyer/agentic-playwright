@@ -67,15 +67,16 @@ describe('Phase 0b: canon source phantom', () => {
     expect(result.source).toBe('cold-derivation');
   });
 
-  // ─── Law 2: Default parameter preserves back-compat ────────
+  // ─── Law 2: Source parameter is required (no shim) ────────
 
-  test('Law 2: Atom<C, T> single-arg form defaults to wide source union', () => {
-    // Existing single-arg references continue to compile. A value
-    // typed as `Atom<'element', X>` without a source parameter
-    // resolves to `Atom<'element', X, PhaseOutputSource>`.
-    type WideAtom = Atom<'element', { shape: 'minimal' }>;
-    type _DefaultsToWide = WideAtom extends { source: PhaseOutputSource } ? true : false;
-    const assertion: _DefaultsToWide = true;
+  test('Law 2: Atom requires an explicit source parameter', () => {
+    // After the Phase 0b tightening pass, the default source
+    // parameter is gone. Generic consumers pass the wide
+    // `PhaseOutputSource` union explicitly to signal "works
+    // across all sources":
+    type WideAtom = Atom<'element', { shape: 'minimal' }, PhaseOutputSource>;
+    type _HasWideSource = WideAtom extends { source: PhaseOutputSource } ? true : false;
+    const assertion: _HasWideSource = true;
     expect(assertion).toBe(true);
   });
 

@@ -31,6 +31,7 @@ import type { Effect } from 'effect';
 import type { ProjectPaths } from '../paths';
 import type { DiscoveryRun } from '../../domain/target/interface-graph';
 import type { Atom } from '../../domain/pipeline/atom';
+import type { PhaseOutputSource } from '../../domain/pipeline/source';
 import type { AtomClass } from '../../domain/pipeline/atom-address';
 
 // ─── Runner identity ─────────────────────────────────────────────
@@ -138,4 +139,4 @@ export function createDiscoveryRunnerRegistry(
 
 /** Look up the atom (suppress unused warning when consumers don't
  *  destructure all helpers). */
-export type _AtomReference = Atom<AtomClass, unknown>;
+export type _AtomReference = Atom<AtomClass, unknown, PhaseOutputSource>;

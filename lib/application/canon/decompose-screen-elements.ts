@@ -110,6 +110,6 @@ export function fanOutScreenElements(
  */
 export function decomposeScreenElements(
   input: DecomposeScreenElementsInput,
-): readonly Atom<'element', ElementSig>[] {
+): readonly Atom<'element', ElementSig, PhaseOutputSource>[] {
   return mintAtoms(producerFrom(input), fanOutScreenElements(input.content));
 }

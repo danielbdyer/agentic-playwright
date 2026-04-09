@@ -30,6 +30,7 @@ import { atom } from '../lib/domain/pipeline/atom';
 import type { ArtifactEnvelope } from '../lib/application/catalog/types';
 import type { Atom } from '../lib/domain/pipeline/atom';
 import type { AtomClass } from '../lib/domain/pipeline/atom-address';
+import type { PhaseOutputSource } from '../lib/domain/pipeline/source';
 import { brandString } from '../lib/domain/kernel/brand';
 
 // ─── Helpers ─────────────────────────────────────────────────────
@@ -102,8 +103,8 @@ test('warm mode prefers agentic-override over deterministic-observation', () => 
   const catalog: WorkspaceCatalog = {
     ...makeMinimalEmptyCatalog(),
     tier1Atoms: [
-      envelope(agentic as Atom<AtomClass, unknown>, 'home-agentic.json'),
-      envelope(deterministic as Atom<AtomClass, unknown>, 'home-deterministic.json'),
+      envelope(agentic as Atom<AtomClass, unknown, PhaseOutputSource>, 'home-agentic.json'),
+      envelope(deterministic as Atom<AtomClass, unknown, PhaseOutputSource>, 'home-deterministic.json'),
     ],
   };
   const chain = createCatalogLookupChain(catalog);
@@ -119,7 +120,7 @@ test('warm mode falls back to deterministic-observation when agentic absent', ()
   const deterministic = makeRouteAtom('home', 'deterministic-observation');
   const catalog: WorkspaceCatalog = {
     ...makeMinimalEmptyCatalog(),
-    tier1Atoms: [envelope(deterministic as Atom<AtomClass, unknown>, 'home-det.json')],
+    tier1Atoms: [envelope(deterministic as Atom<AtomClass, unknown, PhaseOutputSource>, 'home-det.json')],
   };
   const chain = createCatalogLookupChain(catalog);
   const result = chain.lookupAtom({
@@ -135,7 +136,7 @@ test('cold mode does not return deterministic-observation atoms', () => {
   const deterministic = makeRouteAtom('home', 'deterministic-observation');
   const catalog: WorkspaceCatalog = {
     ...makeMinimalEmptyCatalog(),
-    tier1Atoms: [envelope(deterministic as Atom<AtomClass, unknown>, 'home-det.json')],
+    tier1Atoms: [envelope(deterministic as Atom<AtomClass, unknown, PhaseOutputSource>, 'home-det.json')],
   };
   const chain = createCatalogLookupChain(catalog);
   const result = chain.lookupAtom({
@@ -151,7 +152,7 @@ test('cold mode still respects agentic-override (slot 2)', () => {
   const agentic = makeRouteAtom('home', 'agentic-override');
   const catalog: WorkspaceCatalog = {
     ...makeMinimalEmptyCatalog(),
-    tier1Atoms: [envelope(agentic as Atom<AtomClass, unknown>, 'home-ag.json')],
+    tier1Atoms: [envelope(agentic as Atom<AtomClass, unknown, PhaseOutputSource>, 'home-ag.json')],
   };
   const chain = createCatalogLookupChain(catalog);
   const result = chain.lookupAtom({
@@ -168,7 +169,7 @@ test('no-overrides mode does not return agentic-override atoms', () => {
   const agentic = makeRouteAtom('home', 'agentic-override');
   const catalog: WorkspaceCatalog = {
     ...makeMinimalEmptyCatalog(),
-    tier1Atoms: [envelope(agentic as Atom<AtomClass, unknown>, 'home-ag.json')],
+    tier1Atoms: [envelope(agentic as Atom<AtomClass, unknown, PhaseOutputSource>, 'home-ag.json')],
   };
   const chain = createCatalogLookupChain(catalog);
   const result = chain.lookupAtom({
@@ -183,7 +184,7 @@ test('no-overrides mode still returns deterministic-observation', () => {
   const deterministic = makeRouteAtom('home', 'deterministic-observation');
   const catalog: WorkspaceCatalog = {
     ...makeMinimalEmptyCatalog(),
-    tier1Atoms: [envelope(deterministic as Atom<AtomClass, unknown>, 'home-det.json')],
+    tier1Atoms: [envelope(deterministic as Atom<AtomClass, unknown, PhaseOutputSource>, 'home-det.json')],
   };
   const chain = createCatalogLookupChain(catalog);
   const result = chain.lookupAtom({
@@ -202,8 +203,8 @@ test('lookupAtom does not return atoms with the wrong address', () => {
   const catalog: WorkspaceCatalog = {
     ...makeMinimalEmptyCatalog(),
     tier1Atoms: [
-      envelope(a as Atom<AtomClass, unknown>, 'home.json'),
-      envelope(b as Atom<AtomClass, unknown>, 'search.json'),
+      envelope(a as Atom<AtomClass, unknown, PhaseOutputSource>, 'home.json'),
+      envelope(b as Atom<AtomClass, unknown, PhaseOutputSource>, 'search.json'),
     ],
   };
   const chain = createCatalogLookupChain(catalog);
@@ -218,7 +219,7 @@ test('lookupAtom does not match across atom classes', () => {
   const a = makeRouteAtom('home', 'agentic-override');
   const catalog: WorkspaceCatalog = {
     ...makeMinimalEmptyCatalog(),
-    tier1Atoms: [envelope(a as Atom<AtomClass, unknown>, 'home.json')],
+    tier1Atoms: [envelope(a as Atom<AtomClass, unknown, PhaseOutputSource>, 'home.json')],
   };
   const chain = createCatalogLookupChain(catalog);
   // Look up a screen with the same id as the route — should not match.

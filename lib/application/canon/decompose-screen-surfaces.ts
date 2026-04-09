@@ -86,10 +86,11 @@ export interface DecomposeScreenSurfacesInput {
 // ─── Output bag ─────────────────────────────────────────────────
 
 export interface DecomposeScreenSurfacesOutput {
-  readonly surfaceAtoms: readonly Atom<'surface', SurfaceDefinition>[];
+  readonly surfaceAtoms: readonly Atom<'surface', SurfaceDefinition, PhaseOutputSource>[];
   readonly surfaceCompositions: readonly Composition<
     'surface-composition',
-    SurfaceCompositionContent
+    SurfaceCompositionContent,
+    PhaseOutputSource
   >[];
 }
 

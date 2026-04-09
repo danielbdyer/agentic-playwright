@@ -55,12 +55,13 @@ export interface AtomReference {
 
 /** A composition envelope. The `Src` generic parameter carries the
  *  source slot as a phantom literal for source-discriminated
- *  signatures; default preserves back-compat. See `Atom<C, T, Src>`
- *  for the full rationale. */
+ *  signatures. There is no default parameter — every call site
+ *  declares the source explicitly. See `Atom<C, T, Src>` for the
+ *  full rationale. */
 export interface Composition<
   S extends CompositionSubType,
-  T = unknown,
-  Src extends PhaseOutputSource = PhaseOutputSource,
+  T,
+  Src extends PhaseOutputSource,
 > {
   /** The composition sub-type. */
   readonly subType: S;
@@ -86,7 +87,7 @@ export interface Composition<
 export function composition<
   S extends CompositionSubType,
   T,
-  Src extends PhaseOutputSource = PhaseOutputSource,
+  Src extends PhaseOutputSource,
 >(input: {
   readonly subType: S;
   readonly address: CompositionAddressOf<S>;

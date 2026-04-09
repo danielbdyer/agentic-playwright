@@ -34,10 +34,12 @@ export type AtomProvenance = CanonProvenance;
  *  one SUT primitive.
  *
  *  The `Src` generic parameter carries the source slot as a phantom
- *  literal so functions can constrain the sources they accept. The
- *  default (`= PhaseOutputSource`) preserves back-compat for call
- *  sites that don't care about source discrimination. Functions that
- *  do care declare their constraint explicitly:
+ *  literal so functions can constrain the sources they accept.
+ *  There is NO default parameter — every call site declares the
+ *  source explicitly, per the no-back-compat-shims discipline in
+ *  `docs/coding-notes.md` § Universal Operator Principles. Generic
+ *  consumers that legitimately work across all sources pass the
+ *  wide `PhaseOutputSource` union.
  *
  *    function promoteCandidate<C extends AtomClass, T>(
  *      atom: Atom<C, T, 'cold-derivation' | 'live-derivation'>,
@@ -47,8 +49,8 @@ export type AtomProvenance = CanonProvenance;
  *  See `docs/envelope-axis-refactor-plan.md` § 5. */
 export interface Atom<
   C extends AtomClass,
-  T = unknown,
-  Src extends PhaseOutputSource = PhaseOutputSource,
+  T,
+  Src extends PhaseOutputSource,
 > {
   /** The atom class (also encoded in `address.class`). */
   readonly class: C;
@@ -81,7 +83,7 @@ export interface Atom<
 export function atom<
   C extends AtomClass,
   T,
-  Src extends PhaseOutputSource = PhaseOutputSource,
+  Src extends PhaseOutputSource,
 >(input: {
   readonly class: C;
   readonly address: AtomAddressOf<C>;

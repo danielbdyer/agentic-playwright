@@ -72,7 +72,9 @@ import { brandString } from '../lib/domain/kernel/brand';
 
 // ─── Fixtures ────────────────────────────────────────────────────
 
-function makeProducer(overrides: Partial<CanonProducer> = {}): CanonProducer {
+function makeProducer(
+  overrides: Partial<CanonProducer<PhaseOutputSource>> = {},
+): CanonProducer<PhaseOutputSource> {
   return {
     source: 'agentic-override' as PhaseOutputSource,
     producedBy: 'canon-minting:test:v1',

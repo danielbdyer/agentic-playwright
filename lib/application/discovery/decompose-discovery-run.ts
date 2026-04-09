@@ -39,16 +39,19 @@
 import type { DiscoveryRun, TransitionObservation } from '../../domain/target/interface-graph';
 import type { Atom, AtomProvenance } from '../../domain/pipeline/atom';
 import { atom } from '../../domain/pipeline/atom';
+import type { PhaseOutputSource } from '../../domain/pipeline/source';
 import type { AtomClass } from '../../domain/pipeline/atom-address';
 import { brandString } from '../../domain/kernel/brand';
 
 // ─── Public API ─────────────────────────────────────────────────
 
 /** Generic atom alias for the decomposer's flat output. The
- *  TypeScript variance on `Atom<C, T>` requires an `unknown` cast
- *  at the extractor boundary; that cast is contained inside this
- *  module via `widenAtom`. */
-export type AnyAtom = Atom<AtomClass, unknown>;
+ *  TypeScript variance on `Atom<C, T, Src>` requires an `unknown`
+ *  cast at the extractor boundary; that cast is contained inside
+ *  this module via `widenAtom`. The source is wide because the
+ *  discovery decomposer materializes atoms from multiple phases
+ *  of the discovery run. */
+export type AnyAtom = Atom<AtomClass, unknown, PhaseOutputSource>;
 
 export interface DecomposeDiscoveryRunInput {
   readonly run: DiscoveryRun;
@@ -139,7 +142,9 @@ type Extractor = (ctx: ExtractorContext) => readonly AnyAtom[];
 /** Widen a typed atom to the variance-erased AnyAtom. The cast is
  *  contained in this single helper so the rest of the module
  *  reads as type-safe. */
-function widenAtom<C extends AtomClass, T>(typed: Atom<C, T>): AnyAtom {
+function widenAtom<C extends AtomClass, T, Src extends PhaseOutputSource>(
+  typed: Atom<C, T, Src>,
+): AnyAtom {
   return typed as unknown as AnyAtom;
 }
 

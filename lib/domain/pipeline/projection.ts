@@ -68,11 +68,12 @@ export interface BindingCondition {
 
 /** A projection envelope. The `Src` generic parameter carries the
  *  source slot as a phantom literal for source-discriminated
- *  signatures; default preserves back-compat. See `Atom<C, T, Src>`
- *  for the full rationale. */
+ *  signatures. There is no default parameter — every call site
+ *  declares the source explicitly. See `Atom<C, T, Src>` for the
+ *  full rationale. */
 export interface Projection<
   S extends ProjectionSubType,
-  Src extends PhaseOutputSource = PhaseOutputSource,
+  Src extends PhaseOutputSource,
 > {
   /** The projection sub-type. */
   readonly subType: S;
@@ -96,7 +97,7 @@ export interface Projection<
  *  source parameter from `input.source`. */
 export function projection<
   S extends ProjectionSubType,
-  Src extends PhaseOutputSource = PhaseOutputSource,
+  Src extends PhaseOutputSource,
 >(input: {
   readonly subType: S;
   readonly address: ProjectionAddressOf<S>;

@@ -24,7 +24,7 @@ import type { WorkflowEnvelope, WorkflowMetadata } from '../lib/domain/governanc
 
 const ENVELOPE_FIELDS = ['version', 'stage', 'scope', 'ids', 'fingerprints', 'lineage', 'governance'] as const;
 
-function createTestMetadata(): WorkflowMetadata {
+function createTestMetadata(): WorkflowMetadata<'execution'> {
   return {
     version: 1,
     stage: 'execution',
@@ -36,7 +36,7 @@ function createTestMetadata(): WorkflowMetadata {
   };
 }
 
-function createTestEnvelope<T>(payload: T): WorkflowEnvelope<T> {
+function createTestEnvelope<T>(payload: T): WorkflowEnvelope<T, 'execution'> {
   return {
     ...createTestMetadata(),
     payload,

@@ -19,6 +19,7 @@
 import type { Atom } from './atom';
 import type { Composition } from './composition';
 import type { Projection } from './projection';
+import type { PhaseOutputSource } from './source';
 import type { AtomClass } from './atom-address';
 import type { CompositionSubType } from './composition-address';
 import type { ProjectionSubType } from './projection-address';
@@ -55,10 +56,14 @@ export interface AtomPromotionGate<C extends AtomClass> {
   /** The atom class this gate handles. */
   readonly class: C;
   /** Pure evaluation: given a candidate and the existing canonical
-   *  artifact (if any), decide what to do. */
+   *  artifact (if any), decide what to do. Sources are wide for
+   *  now; the residual cleanup backlog has an item to constrain
+   *  candidate to discovery sources (`'cold-derivation' | 'live-derivation'`)
+   *  and existing to canon sources
+   *  (`'operator-override' | 'agentic-override' | 'deterministic-observation'`). */
   readonly evaluate: (input: {
-    readonly candidate: Atom<C, unknown>;
-    readonly existing: Atom<C, unknown> | null;
+    readonly candidate: Atom<C, unknown, PhaseOutputSource>;
+    readonly existing: Atom<C, unknown, PhaseOutputSource> | null;
   }) => PromotionEvaluation;
 }
 
@@ -66,8 +71,8 @@ export interface AtomPromotionGate<C extends AtomClass> {
 export interface CompositionPromotionGate<S extends CompositionSubType> {
   readonly subType: S;
   readonly evaluate: (input: {
-    readonly candidate: Composition<S, unknown>;
-    readonly existing: Composition<S, unknown> | null;
+    readonly candidate: Composition<S, unknown, PhaseOutputSource>;
+    readonly existing: Composition<S, unknown, PhaseOutputSource> | null;
   }) => PromotionEvaluation;
 }
 
@@ -75,8 +80,8 @@ export interface CompositionPromotionGate<S extends CompositionSubType> {
 export interface ProjectionPromotionGate<S extends ProjectionSubType> {
   readonly subType: S;
   readonly evaluate: (input: {
-    readonly candidate: Projection<S>;
-    readonly existing: Projection<S> | null;
+    readonly candidate: Projection<S, PhaseOutputSource>;
+    readonly existing: Projection<S, PhaseOutputSource> | null;
   }) => PromotionEvaluation;
 }
 
@@ -107,8 +112,8 @@ export interface DemotionProposal {
 export interface AtomDemotionGate<C extends AtomClass> {
   readonly class: C;
   readonly evaluate: (input: {
-    readonly existing: Atom<C, unknown>;
-    readonly challenger: Atom<C, unknown> | null;
+    readonly existing: Atom<C, unknown, PhaseOutputSource>;
+    readonly challenger: Atom<C, unknown, PhaseOutputSource> | null;
   }) => DemotionProposal;
 }
 

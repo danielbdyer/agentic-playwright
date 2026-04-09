@@ -228,7 +228,7 @@ type _AssertExported =
   | WorkflowEnvelopeIds
   | WorkflowEnvelopeFingerprints
   | WorkflowEnvelopeLineage
-  | WorkflowEnvelope<unknown>
+  | WorkflowEnvelope<unknown, WorkflowStage>
   | ParticipantKind
   | ParticipantCapability
   | ParticipantRef

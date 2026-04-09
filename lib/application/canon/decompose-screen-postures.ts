@@ -94,6 +94,6 @@ export function fanOutScreenPostures(
  *  atom envelopes — one per `(element, posture-name)` pair. */
 export function decomposeScreenPostures(
   input: DecomposeScreenPosturesInput,
-): readonly Atom<'posture', Posture>[] {
+): readonly Atom<'posture', Posture, PhaseOutputSource>[] {
   return mintAtoms(producerFrom(input), fanOutScreenPostures(input.content));
 }

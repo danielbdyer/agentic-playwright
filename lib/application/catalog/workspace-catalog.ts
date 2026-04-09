@@ -96,6 +96,7 @@ import type { ArtifactEnvelope, WorkspaceCatalog } from './types';
 import type { Atom } from '../../domain/pipeline/atom';
 import type { Composition } from '../../domain/pipeline/composition';
 import type { Projection } from '../../domain/pipeline/projection';
+import type { PhaseOutputSource } from '../../domain/pipeline/source';
 import type { AtomClass } from '../../domain/pipeline/atom-address';
 import type { CompositionSubType } from '../../domain/pipeline/composition-address';
 import type { ProjectionSubType } from '../../domain/pipeline/projection-address';
@@ -367,27 +368,27 @@ export function loadWorkspaceCatalog(options: LoadCatalogOptions) {
       // `artifact.source` field. Files use the .json extension and
       // are validated by the Effect Schema decoders in
       // lib/domain/schemas/pipeline.ts.
-      tier1AtomsAgentic: loadArtifactsMatching<Atom<AtomClass, unknown>>(options.paths, walks.tier1AtomsAgentic, {
+      tier1AtomsAgentic: loadArtifactsMatching<Atom<AtomClass, unknown, PhaseOutputSource>>(options.paths, walks.tier1AtomsAgentic, {
         source: 'json', lifetime: 'required', match: bySuffix('.json'),
         validate: validateAtomArtifact, errorCode: 'atom-validation-failed', label: 'Atom (agentic)',
       }),
-      tier1AtomsDeterministic: loadArtifactsMatching<Atom<AtomClass, unknown>>(options.paths, walks.tier1AtomsDeterministic, {
+      tier1AtomsDeterministic: loadArtifactsMatching<Atom<AtomClass, unknown, PhaseOutputSource>>(options.paths, walks.tier1AtomsDeterministic, {
         source: 'json', lifetime: 'required', match: bySuffix('.json'),
         validate: validateAtomArtifact, errorCode: 'atom-validation-failed', label: 'Atom (deterministic)',
       }),
-      tier2CompositionsAgentic: loadArtifactsMatching<Composition<CompositionSubType, unknown>>(options.paths, walks.tier2CompositionsAgentic, {
+      tier2CompositionsAgentic: loadArtifactsMatching<Composition<CompositionSubType, unknown, PhaseOutputSource>>(options.paths, walks.tier2CompositionsAgentic, {
         source: 'json', lifetime: 'required', match: bySuffix('.json'),
         validate: validateCompositionArtifact, errorCode: 'composition-validation-failed', label: 'Composition (agentic)',
       }),
-      tier2CompositionsDeterministic: loadArtifactsMatching<Composition<CompositionSubType, unknown>>(options.paths, walks.tier2CompositionsDeterministic, {
+      tier2CompositionsDeterministic: loadArtifactsMatching<Composition<CompositionSubType, unknown, PhaseOutputSource>>(options.paths, walks.tier2CompositionsDeterministic, {
         source: 'json', lifetime: 'required', match: bySuffix('.json'),
         validate: validateCompositionArtifact, errorCode: 'composition-validation-failed', label: 'Composition (deterministic)',
       }),
-      tier3ProjectionsAgentic: loadArtifactsMatching<Projection<ProjectionSubType>>(options.paths, walks.tier3ProjectionsAgentic, {
+      tier3ProjectionsAgentic: loadArtifactsMatching<Projection<ProjectionSubType, PhaseOutputSource>>(options.paths, walks.tier3ProjectionsAgentic, {
         source: 'json', lifetime: 'required', match: bySuffix('.json'),
         validate: validateProjectionArtifact, errorCode: 'projection-validation-failed', label: 'Projection (agentic)',
       }),
-      tier3ProjectionsDeterministic: loadArtifactsMatching<Projection<ProjectionSubType>>(options.paths, walks.tier3ProjectionsDeterministic, {
+      tier3ProjectionsDeterministic: loadArtifactsMatching<Projection<ProjectionSubType, PhaseOutputSource>>(options.paths, walks.tier3ProjectionsDeterministic, {
         source: 'json', lifetime: 'required', match: bySuffix('.json'),
         validate: validateProjectionArtifact, errorCode: 'projection-validation-failed', label: 'Projection (deterministic)',
       }),

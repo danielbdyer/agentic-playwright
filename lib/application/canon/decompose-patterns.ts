@@ -118,6 +118,6 @@ export function fanOutPatterns(
  *  envelopes drawn from both the actions and postures sub-maps. */
 export function decomposePatterns(
   input: DecomposePatternsInput,
-): readonly Atom<'pattern', PatternAtomContent>[] {
+): readonly Atom<'pattern', PatternAtomContent, PhaseOutputSource>[] {
   return mintAtoms(producerFrom(input), fanOutPatterns(input.content));
 }

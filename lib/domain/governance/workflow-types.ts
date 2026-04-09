@@ -157,16 +157,22 @@ export interface WorkflowEnvelopeLineage {
  */
 /**
  * Shared envelope header, parameterized by pipeline stage as a narrow
- * literal via `S extends WorkflowStage`. The default parameter
- * (`= WorkflowStage`) preserves back-compat for call sites that do not
- * yet constrain the stage — they continue to see `stage: WorkflowStage`
- * (the wide union). Concrete envelope types declare their narrow stage
- * literal explicitly: `interface RunRecord extends WorkflowMetadata<'execution'>`.
+ * literal. There is NO default parameter — every call site must
+ * declare the stage explicitly. This is the "no back-compat shim"
+ * discipline from `docs/coding-notes.md` § Universal Operator
+ * Principles.
+ *
+ * Concrete envelope types declare their narrow stage literal:
+ * `interface RunRecord extends WorkflowMetadata<'execution'>`.
+ * Generic consumers that legitimately work across all stages pass
+ * the wide union explicitly: `WorkflowMetadata<WorkflowStage>`.
  *
  * Phase 0a of the envelope-axis refactor lifted the stage parameter
- * into this type. See `docs/envelope-axis-refactor-plan.md` § 4.
+ * into this type; the Phase 0a tightening pass removed the default
+ * parameter so the shim form is no longer available. See
+ * `docs/envelope-axis-refactor-plan.md` § 4.
  */
-export interface WorkflowMetadata<S extends WorkflowStage = WorkflowStage> {
+export interface WorkflowMetadata<S extends WorkflowStage> {
   readonly version: 1;
   readonly stage: S;
   readonly scope: WorkflowScope;
@@ -177,22 +183,21 @@ export interface WorkflowMetadata<S extends WorkflowStage = WorkflowStage> {
 }
 
 /**
- * Generic envelope: metadata + payload. Argument order is
- * `<TPayload, S>` with `S` defaulting to the wide `WorkflowStage`
- * union for back-compat with existing single-arg call sites.
- * New code that cares about stage at the type level passes the
- * literal explicitly: `WorkflowEnvelope<RunRecordPayload, 'execution'>`.
+ * Generic envelope: metadata + payload. Both type parameters are
+ * required; there is no single-arg shim form. Call sites declare
+ * their stage explicitly as the second argument, or use one of the
+ * concrete envelope types (`RunRecord`, `ProposalBundle`, etc.).
  */
-export interface WorkflowEnvelope<TPayload, S extends WorkflowStage = WorkflowStage>
+export interface WorkflowEnvelope<TPayload, S extends WorkflowStage>
   extends WorkflowMetadata<S> {
   readonly payload: TPayload;
 }
 
 export type PayloadOf<T> = T extends WorkflowEnvelope<infer P, WorkflowStage> ? P : never;
-export type ApprovedEnvelope<T, S extends WorkflowStage = WorkflowStage> = Approved<WorkflowEnvelope<T, S>>;
-export type BlockedEnvelope<T, S extends WorkflowStage = WorkflowStage> = Blocked<WorkflowEnvelope<T, S>>;
+export type ApprovedEnvelope<T, S extends WorkflowStage> = Approved<WorkflowEnvelope<T, S>>;
+export type BlockedEnvelope<T, S extends WorkflowStage> = Blocked<WorkflowEnvelope<T, S>>;
 
-export function mapPayload<A, B, S extends WorkflowStage = WorkflowStage>(
+export function mapPayload<A, B, S extends WorkflowStage>(
   envelope: WorkflowEnvelope<A, S>,
   f: (payload: A) => B,
 ): WorkflowEnvelope<B, S> {
@@ -226,8 +231,10 @@ export function extractMetadata<S extends WorkflowStage>(
 }
 
 /** Lift metadata into an envelope by attaching a payload (counit of the adjunction).
- *  Preserves the stage generic parameter. */
-export function liftToEnvelope<T, S extends WorkflowStage = WorkflowStage>(
+ *  Preserves the stage generic parameter. No default parameter — every
+ *  caller declares the stage explicitly or passes a metadata value whose
+ *  stage is already narrow. */
+export function liftToEnvelope<T, S extends WorkflowStage>(
   metadata: WorkflowMetadata<S>,
   payload: T,
 ): WorkflowEnvelope<T, S> {
@@ -238,7 +245,7 @@ export function liftToEnvelope<T, S extends WorkflowStage = WorkflowStage>(
  * Verify the adjunction round-trip law: extractMetadata(liftToEnvelope(m, p)) ≡ m.
  * Stripping the payload from a freshly-created envelope recovers the original metadata.
  */
-export function verifyEnvelopeReceiptAdjunction<T, S extends WorkflowStage = WorkflowStage>(
+export function verifyEnvelopeReceiptAdjunction<T, S extends WorkflowStage>(
   metadata: WorkflowMetadata<S>,
   payload: T,
 ): boolean {

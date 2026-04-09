@@ -84,21 +84,21 @@ export interface LookupChain {
     readonly address: AtomAddressOf<C>;
     readonly mode?: LookupMode;
     readonly qualifiers?: QualifierBag;
-  }): Promise<LookupResult<Atom<C, unknown>>>;
+  }): Promise<LookupResult<Atom<C, unknown, PhaseOutputSource>>>;
 
   /** Resolve a Tier 2 composition by typed address. */
   lookupComposition<S extends CompositionSubType>(input: {
     readonly subType: S;
     readonly address: CompositionAddressOf<S>;
     readonly mode?: LookupMode;
-  }): Promise<LookupResult<Composition<S, unknown>>>;
+  }): Promise<LookupResult<Composition<S, unknown, PhaseOutputSource>>>;
 
   /** Resolve a Tier 3 projection by typed address. */
   lookupProjection<S extends ProjectionSubType>(input: {
     readonly subType: S;
     readonly address: ProjectionAddressOf<S>;
     readonly mode?: LookupMode;
-  }): Promise<LookupResult<Projection<S>>>;
+  }): Promise<LookupResult<Projection<S, PhaseOutputSource>>>;
 }
 
 // ─── Default mode constant ───────────────────────────────────────

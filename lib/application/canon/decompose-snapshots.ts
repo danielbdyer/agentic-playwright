@@ -111,6 +111,6 @@ export function fanOutSnapshots(
  *  snapshot atom envelopes — one per record. */
 export function decomposeSnapshots(
   input: DecomposeSnapshotsInput,
-): readonly Atom<'snapshot', SnapshotAtomContent>[] {
+): readonly Atom<'snapshot', SnapshotAtomContent, PhaseOutputSource>[] {
   return mintAtoms(producerFrom(input), fanOutSnapshots(input.content));
 }

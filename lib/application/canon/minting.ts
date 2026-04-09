@@ -75,12 +75,14 @@ import { taggedContentFingerprint } from '../../domain/kernel/hash';
  *  it to every mint invocation, instead of threading producedBy /
  *  producedAt / pipelineVersion / source through every intermediate
  *  step. */
-export interface CanonProducer {
+export interface CanonProducer<Src extends PhaseOutputSource> {
   /** Which slot of the lookup chain the minted envelopes belong
    *  to. For YAML-migrated canon, use `'agentic-override'`. For
    *  live DOM harvest output, use `'cold-derivation'` or
-   *  `'live-derivation'`. */
-  readonly source: PhaseOutputSource;
+   *  `'live-derivation'`. The narrow literal flows through
+   *  `mintAtom` / `mintComposition` into the minted envelope's
+   *  phantom `Src` parameter. */
+  readonly source: Src;
   /** Stable identifier for the producer. Convention:
    *  `'canon-decomposer:{kind}:v{n}'`. */
   readonly producedBy: string;
@@ -90,16 +92,18 @@ export interface CanonProducer {
   readonly pipelineVersion?: string | undefined;
 }
 
-/** Project a `CanonProducer` out of a decomposer's existing Input
- *  shape. Every canon decomposer's input type has the same four
- *  fields; this helper saves every decomposer from re-spelling the
- *  projection. */
-export function producerFrom<T extends {
-  readonly source: PhaseOutputSource;
+/** Project a `CanonProducer<Src>` out of a decomposer's existing
+ *  Input shape. Every canon decomposer's input type has the same
+ *  four fields; this helper saves every decomposer from re-spelling
+ *  the projection. The `Src` generic is inferred from the caller's
+ *  input type so decomposers that declare `source: 'agentic-override'`
+ *  produce a `CanonProducer<'agentic-override'>`. */
+export function producerFrom<Src extends PhaseOutputSource, T extends {
+  readonly source: Src;
   readonly producedBy: string;
   readonly producedAt: string;
   readonly pipelineVersion?: string | undefined;
-}>(input: T): CanonProducer {
+}>(input: T): CanonProducer<Src> {
   return {
     source: input.source,
     producedBy: input.producedBy,
@@ -147,15 +151,15 @@ export interface AtomCandidate<C extends AtomClass, T> {
  *  cold-start ↔ warm-start interop contract from
  *  `docs/canon-and-derivation.md` § 8.1).
  */
-export function mintAtom<C extends AtomClass, T>(
-  producer: CanonProducer,
+export function mintAtom<C extends AtomClass, T, Src extends PhaseOutputSource>(
+  producer: CanonProducer<Src>,
   candidate: AtomCandidate<C, T>,
-): Atom<C, T> {
+): Atom<C, T, Src> {
   const inputFingerprint = taggedContentFingerprint({
     address: candidate.address,
     content: candidate.content,
   });
-  return atom<C, T>({
+  return atom<C, T, Src>({
     class: candidate.address.class as C,
     address: candidate.address,
     content: candidate.content,
@@ -174,10 +178,10 @@ export function mintAtom<C extends AtomClass, T>(
 /** Batch-mint atom candidates with the same producer. Pure function
  *  — equivalent to `candidates.map(c => mintAtom(producer, c))` but
  *  reads more naturally at the decomposer call site. */
-export function mintAtoms<C extends AtomClass, T>(
-  producer: CanonProducer,
+export function mintAtoms<C extends AtomClass, T, Src extends PhaseOutputSource>(
+  producer: CanonProducer<Src>,
   candidates: ReadonlyArray<AtomCandidate<C, T>>,
-): readonly Atom<C, T>[] {
+): readonly Atom<C, T, Src>[] {
   return candidates.map((c) => mintAtom(producer, c));
 }
 
@@ -216,10 +220,10 @@ export interface CompositionCandidate<S extends CompositionSubType, T> {
  *  projection. This matches the prior per-decomposer behavior from
  *  `decomposeRouteKnowledge` and `decomposeScreenSurfaces`.
  */
-export function mintComposition<S extends CompositionSubType, T>(
-  producer: CanonProducer,
+export function mintComposition<S extends CompositionSubType, T, Src extends PhaseOutputSource>(
+  producer: CanonProducer<Src>,
   candidate: CompositionCandidate<S, T>,
-): Composition<S, T> {
+): Composition<S, T, Src> {
   const inputFingerprint = taggedContentFingerprint({
     address: candidate.address,
     content: candidate.content,
@@ -229,7 +233,7 @@ export function mintComposition<S extends CompositionSubType, T>(
       order: ref.order,
     })),
   });
-  return composition<S, T>({
+  return composition<S, T, Src>({
     subType: candidate.address.subType as S,
     address: candidate.address,
     content: candidate.content,
@@ -247,9 +251,9 @@ export function mintComposition<S extends CompositionSubType, T>(
 }
 
 /** Batch-mint composition candidates with the same producer. */
-export function mintCompositions<S extends CompositionSubType, T>(
-  producer: CanonProducer,
+export function mintCompositions<S extends CompositionSubType, T, Src extends PhaseOutputSource>(
+  producer: CanonProducer<Src>,
   candidates: ReadonlyArray<CompositionCandidate<S, T>>,
-): readonly Composition<S, T>[] {
+): readonly Composition<S, T, Src>[] {
   return candidates.map((c) => mintComposition(producer, c));
 }

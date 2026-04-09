@@ -106,15 +106,18 @@ describe('Phase 0a: envelope stage phantom', () => {
     expect(assertion).toBe(true);
   });
 
-  // ─── Law 8: Wide-union fallback preserves back-compat ──────
+  // ─── Law 8: The stage parameter is required (no shim) ──────
 
-  test('Law 8: WorkflowEnvelope<T> single-arg form defaults to wide stage union', () => {
-    // Existing single-arg call sites continue to compile. The
-    // stage defaults to the wide `WorkflowStage` union, which
-    // accepts any of the 6 literal values. This is the back-compat
-    // property that allowed Phase 0a to land incrementally.
-    type _DefaultsToWide = WorkflowEnvelope<{ x: number }> extends { stage: WorkflowStage } ? true : false;
-    const assertion: _DefaultsToWide = true;
+  test('Law 8: WorkflowEnvelope requires an explicit stage parameter', () => {
+    // After the Phase 0a tightening pass, the default stage
+    // parameter is gone. Every call site must declare its stage.
+    // Legitimate generic usage passes the wide `WorkflowStage`
+    // union explicitly:
+    type GenericWorkflowEnvelope = WorkflowEnvelope<{ x: number }, WorkflowStage>;
+    type _HasWideStage = GenericWorkflowEnvelope extends { stage: WorkflowStage }
+      ? true
+      : false;
+    const assertion: _HasWideStage = true;
     expect(assertion).toBe(true);
   });
 
