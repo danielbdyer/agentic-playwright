@@ -82,15 +82,15 @@ describe('Phase 0d: Governance verdict laws', () => {
   test('Law 4: approved/suspended/blocked constructors produce correct tags', () => {
     const a = approved(42);
     expect(a._tag).toBe('Approved');
-    expect(a.value).toBe(42);
+    expect(foldVerdict(a, { onApproved: v => v, onSuspended: () => -1, onBlocked: () => -1 })).toBe(42);
 
     const s = suspended({ kind: 'needs-review' }, 'pending review');
     expect(s._tag).toBe('Suspended');
-    expect(s.reason).toBe('pending review');
+    expect(foldVerdict(s, { onApproved: () => '', onSuspended: (_, r) => r, onBlocked: r => r })).toBe('pending review');
 
     const b = blocked('policy denied');
     expect(b._tag).toBe('Blocked');
-    expect(b.reason).toBe('policy denied');
+    expect(foldVerdict(b, { onApproved: () => '', onSuspended: (_, r) => r, onBlocked: r => r })).toBe('policy denied');
   });
 
   // ─── Law 5: foldVerdict is exhaustive ──────────────────────
