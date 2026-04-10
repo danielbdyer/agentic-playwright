@@ -247,7 +247,6 @@ export function emptyProposalBundleForBound(input: {
       suite: input.boundScenario.metadata.suite,
       proposals: [],
     },
-    proposals: [],
   });
 }
 
@@ -294,12 +293,17 @@ export function createRunRecordEnvelope(input: {
   };
 }
 
+/** Build a ProposalBundle envelope. The proposals live in
+ *  `payload.proposals` — there is no separate top-level
+ *  `proposals` field. This was previously a duplication (the
+ *  builder accepted both `payload.proposals` and a separate
+ *  `proposals` param that overrode it). The duplication has been
+ *  removed so `mapPayload` works correctly on proposal bundles. */
 export function createProposalBundleEnvelope(input: {
   ids: WorkflowEnvelopeIds;
   fingerprints: WorkflowEnvelopeFingerprints;
   lineage: WorkflowEnvelopeLineage;
   payload: ProposalBundle['payload'];
-  proposals: ProposalBundle['payload']['proposals'];
   governance: Governance;
 }): ProposalBundle {
   return {
@@ -311,9 +315,6 @@ export function createProposalBundleEnvelope(input: {
     fingerprints: input.fingerprints,
     lineage: input.lineage,
     governance: input.governance,
-    payload: {
-      ...input.payload,
-      proposals: input.proposals,
-    },
+    payload: input.payload,
   };
 }

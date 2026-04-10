@@ -160,9 +160,8 @@ export function buildProposals(input: {
       revision: input.plan.context.revision,
       title: input.plan.title,
       suite: input.plan.suite,
-      proposals: [],
+      proposals,
     },
-    proposals,
   });
 
   return { proposalBundle };
