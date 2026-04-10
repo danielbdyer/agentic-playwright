@@ -1,4 +1,5 @@
 import type { ImprovementLedger, ImprovementLineageEntry, ImprovementRun } from '../improvement/types';
+import { isApproved } from '../governance/workflow-types';
 
 export function createImprovementRun(run: ImprovementRun): ImprovementRun {
   return {
@@ -62,7 +63,9 @@ export function improvementRunInvariants(run: ImprovementRun): {
   const governanceConsistency = run.accepted === acceptedDecision
     && run.interventions.every((intervention) =>
       intervention.kind !== 'self-improvement-action'
-      || (run.accepted ? intervention.plan?.governance === 'approved' : intervention.plan?.governance !== 'approved')
+      || (run.accepted
+        ? isApproved(intervention.plan ?? { governance: 'blocked' })
+        : !isApproved(intervention.plan ?? { governance: 'blocked' }))
     );
 
   return {

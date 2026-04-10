@@ -16,6 +16,7 @@
  * Pure domain — no Effect, no IO, no application imports.
  */
 
+import type { Fingerprint } from '../kernel/hash';
 import type { AtomAddress } from './atom-address';
 import type {
   CompositionSubType,
@@ -23,15 +24,15 @@ import type {
   CompositionAddressOf,
 } from './composition-address';
 import type { PhaseOutputSource } from './source';
+import type { CanonProvenance } from './provenance';
 
 // ─── Provenance ───────────────────────────────────────────────────
 
-export interface CompositionProvenance {
-  readonly producedBy: string;
-  readonly producedAt: string;
-  readonly pipelineVersion?: string | undefined;
-  readonly inputs?: readonly string[] | undefined;
-}
+/** @deprecated Use `CanonProvenance`. Kept as a type alias for
+ *  source-compatibility; the three tier-specific provenance types
+ *  are byte-identical and share one canonical definition in
+ *  `provenance.ts`. */
+export type CompositionProvenance = CanonProvenance;
 
 // ─── Atom reference (the link from Tier 2 to Tier 1) ─────────────
 
@@ -53,7 +54,16 @@ export interface AtomReference {
 
 // ─── The Composition envelope ────────────────────────────────────
 
-export interface Composition<S extends CompositionSubType, T = unknown> {
+/** A composition envelope. The `Src` generic parameter carries the
+ *  source slot as a phantom literal for source-discriminated
+ *  signatures. There is no default parameter — every call site
+ *  declares the source explicitly. See `Atom<C, T, Src>` for the
+ *  full rationale. */
+export interface Composition<
+  S extends CompositionSubType,
+  T,
+  Src extends PhaseOutputSource,
+> {
   /** The composition sub-type. */
   readonly subType: S;
   /** The composition's address. */
@@ -63,27 +73,32 @@ export interface Composition<S extends CompositionSubType, T = unknown> {
   /** Typed references to the atoms this composition depends on. */
   readonly atomReferences: readonly AtomReference[];
   /** Which slot of the lookup chain this composition came from. */
-  readonly source: PhaseOutputSource;
+  readonly source: Src;
   /** Hash of inputs (atom fingerprints + content) that produced
    *  this composition. */
-  readonly inputFingerprint: string;
+  readonly inputFingerprint: Fingerprint<'composition-input'>;
   /** Provenance metadata. */
   readonly provenance: CompositionProvenance;
   /** Optional quality score for promotion gating. */
   readonly qualityScore?: number | undefined;
 }
 
-/** Construct a composition envelope. */
-export function composition<S extends CompositionSubType, T>(input: {
+/** Construct a composition envelope. Return type infers the narrow
+ *  source parameter from `input.source`. */
+export function composition<
+  S extends CompositionSubType,
+  T,
+  Src extends PhaseOutputSource,
+>(input: {
   readonly subType: S;
   readonly address: CompositionAddressOf<S>;
   readonly content: T;
   readonly atomReferences: readonly AtomReference[];
-  readonly source: PhaseOutputSource;
-  readonly inputFingerprint: string;
+  readonly source: Src;
+  readonly inputFingerprint: Fingerprint<'composition-input'>;
   readonly provenance: CompositionProvenance;
   readonly qualityScore?: number | undefined;
-}): Composition<S, T> {
+}): Composition<S, T, Src> {
   return {
     subType: input.subType,
     address: input.address,

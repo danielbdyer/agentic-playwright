@@ -13,6 +13,7 @@ import { WINNING_SOURCE_TO_RUNG } from '../../domain/kernel/visitors';
 import { isApproved, mintApproved, mintReviewRequired } from '../../domain/governance/workflow-types';
 import type { RuntimeScenarioRunnerPort, RuntimeScenarioStepResult } from '../ports';
 import { resolveResolutionEngine } from '../resolution/provider-registry';
+import { createScenarioEnvelopeFingerprints } from '../catalog/envelope';
 import { validateStepResults } from './validate-step-results';
 import type { RecoveryPolicy } from '../../domain/commitment/recovery-policy';
 
@@ -240,14 +241,14 @@ export function interpretScenarioFromPlan(input: {
           runbook: input.plan.controlSelection.runbook ?? null,
           resolutionControl: input.plan.controlSelection.resolutionControl ?? null,
         },
-        fingerprints: {
+        fingerprints: createScenarioEnvelopeFingerprints({
           artifact: input.plan.runId,
-          content: null,
+          content: '',
           knowledge: input.knowledgeFingerprint ?? input.plan.resolutionContext.knowledgeFingerprint,
           controls: input.controlsFingerprint ?? null,
-          task: input.plan.surfaceFingerprint,
+          surface: input.plan.surfaceFingerprint,
           run: input.plan.runId,
-        },
+        }),
         lineage: {
           sources: [input.plan.surfaceFingerprint],
           parents: [input.plan.surfaceFingerprint],

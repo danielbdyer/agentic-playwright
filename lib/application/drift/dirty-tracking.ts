@@ -1,4 +1,4 @@
-import { sha256, stableStringify } from '../../domain/kernel/hash';
+import { fingerprintFor } from '../../domain/kernel/hash';
 
 // ─── Stage Manifest ───
 
@@ -24,7 +24,7 @@ export interface DirtyTracker {
  */
 export function computeStageFingerprint(inputs: readonly string[]): string {
   const sorted = [...inputs].sort((a, b) => a.localeCompare(b));
-  return sha256(stableStringify(sorted));
+  return fingerprintFor('stage-input-set', sorted);
 }
 
 /**

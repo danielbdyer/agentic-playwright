@@ -370,9 +370,26 @@ override any tier when they have a hard requirement that must hold.
 The umbrella name follows existing domain vocabulary: **interface
 model**, the same name used by `ApplicationInterfaceGraph` in
 `lib/domain/types/interface.ts` and the "Interface Intelligence"
-spine in `docs/domain-ontology.md`. The phrase "digital twin" is an
-acceptable informal synonym but the doctrinal term is "interface
-model" to keep continuity with the existing domain documentation.
+spine in `docs/domain-ontology.md`. The doctrinal term is
+"interface model" to keep continuity with the existing domain
+documentation.
+
+When an informal synonym is useful, prefer **digital evidentiary
+interface model**: every tier of the model is populated by evidence
+— atoms are observations or agent-authored bridges over observation
+gaps, compositions reference atoms by identity, projections are
+constraints derived from observed behavior under different
+contexts. The informal phrase "digital twin" is acceptable but
+understates the evidentiary nature: a twin is a mirror, and the
+interface model is not a mirror — it is a typed, promoted,
+demotable, provenance-carrying belief structure about the SUT that
+happens to be addressable by primitive identity.
+
+The distinction matters operationally: when an atom is wrong, the
+remediation is to demote it and rebuild it from fresh evidence, not
+to "sync" it against a source of truth that the system doesn't have.
+The SUT is the only source of truth; the interface model is the
+system's best evidence-backed understanding of what the SUT is.
 
 #### Why three tiers, not two
 
@@ -503,14 +520,73 @@ restructuring.
 | Snapshot | `SnapshotTemplateId` | An ARIA tree template | `SnapshotTemplate` |
 | Drift mode | `(ScreenId, ElementId, DriftKind)` | A way the element can change between runs | embedded in benchmark `driftEvents` today |
 | Resolution override | `(ScreenId, IntentFingerprint)` | An operator/agent decision for an ambiguous resolution | `controls/resolution/` files today |
-| Transition | `(FromScreenId, ToScreenId, TriggerRef)` | A known state transition between screens | `TransitionObservation` |
+| Transition | `(FromScreenId, ToScreenId, TriggerRef)` + optional `reverseOf` linkage + optional `precondition: ObservationPredicateRef` | A known state transition between screens, possibly bidirectional under a condition | `TransitionObservation` |
 | Observation predicate | `(ScreenId, PredicateId)` | A condition the SUT can be checked against | `ObservationPredicate` |
 | Posture sample | `(ScreenId, ElementId, PostureName)` | Default values for the (element, posture) combination | embedded in `controls/datasets/` today |
+| Runtime family | `RuntimeFamilyId` | The runtime substrate a target SUT is built on (e.g. `outsystems-reactive-11`), carrying a signature bundle used by per-family discovery specializers | new — Phase E of `docs/cold-start-convergence-plan.md` |
 
 This list is not closed. Each new SUT primitive that the discovery
 engine learns to address adds a new atom class with its own identity
 tuple. The lookup chain machinery treats them uniformly: every atom
 has a stage (`Atom<ClassName>`), an identity, and an envelope.
+
+#### Bidirectional transitions and reverse-of linkage
+
+Real SUTs — especially enterprise wizard workflows — contain
+transitions whose inverse is *also* a valid transition under a
+different condition. An "approve" transition sends a policy from
+`pending-review` to `approved`; a "reject" transition sends it back
+from `pending-review` to `draft`; a "recall" transition sends it
+from `approved` back to `pending-review`. The simplest model — a
+directed edge per trigger — silently loses the semantic link
+between the forward and reverse flows.
+
+The Transition atom's `reverseOf` field is optional and, when
+populated, carries the identity tuple of the reverse transition.
+The runtime's state-transition planner uses `reverseOf` to compute
+rollback paths for recovery and to recognize that a failed forward
+attempt followed by a successful reverse is an observation of
+*both* transitions, not one.
+
+The `precondition` field references an `observation-predicate` atom
+by address. The transition is only valid when the predicate holds.
+A reject transition may have a precondition like "the reviewer has
+recorded a rejection reason." The planner consults the predicate
+before attempting the transition.
+
+Both fields are optional. Pre-existing transitions without these
+fields continue to work. Discovery engines that learn about
+bidirectional flows populate them during promotion; agents can
+author them explicitly via agentic override.
+
+#### Runtime-family atoms
+
+A `runtime-family` atom asserts that a specific runtime substrate
+(OutSystems Reactive 11, a particular React design system, a
+Servlet-based JSF stack, etc.) is the host for a set of screens or
+surfaces. The identity is a `RuntimeFamilyId` brand; the content is
+a typed **signature bundle** listing the DOM signals, class
+prefixes, script globals, ARIA landmark patterns, and widget idiom
+names that identify the family.
+
+Runtime-family atoms are addressable through the same machinery as
+every other atom class: they are loaded by the workspace catalog,
+resolved through the lookup chain, gated by promotion policies, and
+demotable when the family evolves (e.g. a platform version upgrade
+changes the signature). They are agent-authored initially as
+agentic overrides because no deterministic detector exists; the
+detector runs as a discovery runner adapter at
+`lib/application/discovery/runtime-family-detector.ts` (Phase E of
+`docs/cold-start-convergence-plan.md`) and promotes deterministic
+observations once the signature bundle passes a minimum
+observation-count threshold.
+
+The doctrinal point: family identity is *canon, not code*. No
+particulars of OutSystems (or any other runtime) should appear in
+`lib/application/` or `lib/runtime/` outside a per-family
+specializer adapter keyed by the atom's identity. New family
+coverage is added by promoting new atoms and registering a new
+specializer, not by editing existing source.
 
 #### Atom envelope shape
 
@@ -778,6 +854,67 @@ observation:
 - **Feature flags** are typically operator-authored (the operator
   declares which flags exist) but the BINDINGS to specific atoms
   can be discovered by running with each flag setting.
+
+#### Worked example — OutSystems Reactive 11 wizard workflow
+
+An enterprise OutSystems Reactive 11 application with role-based
+field-level authorization is the canonical worked example. Consider
+a policy amendment wizard with four roles (`broker`, `underwriter`,
+`reviewer`, `auditor`), three wizard steps
+(`enter-amendment`, `review-premium`, `submit-for-approval`), and a
+process-state machine (`draft → pending-review → approved | rejected`)
+with bidirectional `approve` and `reject` transitions. The interface
+model for this application, expressed as projections, looks like
+this:
+
+- **Role visibility**: a `role-visibility` projection keyed by
+  `broker` binds the `premium-override` element atom on the
+  `review-premium` screen with applicability `hidden`. The same
+  projection binds the `amendment-reason` element on the
+  `enter-amendment` screen with applicability `interactive`. The
+  `auditor` role's `role-visibility` projection binds every
+  element on every screen with applicability `read-only` —
+  auditors see everything, change nothing.
+- **Wizard state**: a `wizard-state` projection keyed by
+  `(amendment-wizard, review-premium)` binds the
+  `edit-amendment` button atom on the `enter-amendment` screen
+  with applicability `gated` — the button still exists but is
+  disabled because the wizard has advanced past its step.
+- **Process state**: a `process-state` projection keyed by
+  `(policy-entity, pending-review)` binds the `premium` field with
+  applicability `read-only` for the `broker` role and
+  `interactive` for the `underwriter` role. When both a role
+  projection and a process-state projection apply to the same
+  atom, the lookup chain composes them via
+  `intersectApplicability` (Monoid meet) — `read-only ∧ interactive
+  → read-only`, so the broker cannot edit the premium while the
+  policy is pending review.
+- **Bidirectional transitions**: the `approve` and `reject`
+  transition atoms both point between `pending-review` and either
+  `approved` or `draft`. The Transition atom's `reverseOf` field
+  links them so the runtime's planner understands that a reject is
+  the reverse of a prior submit. The precondition on `reject` is
+  an observation predicate "the reviewer has recorded a rejection
+  reason."
+
+An agent generating a test case for "the broker attempts to
+override the premium on a pending-review policy and verifies the
+system rejects the action" now has a deterministic path from
+scenario intent to resolved atoms: the resolver calls the lookup
+chain with `QualifierBag({ role: 'broker', processState: (policy, pending-review) })`,
+the projections compose to mark the `premium` field `read-only`,
+and the generated test asserts that attempting to type into it is
+blocked. No live DOM consultation is needed beyond the initial
+discovery pass — the interface model carries the authorization
+knowledge as canon.
+
+Without the projection tier, this test cannot be generated
+deterministically. The resolver would either find the `premium`
+element and treat it as interactive (producing a test that fails
+in practice) or would fall through to `needs-human` (blocking the
+generation pipeline on human intervention). Projections are what
+make role-aware enterprise applications first-class targets rather
+than second-class exceptions.
 
 #### Projection lookup semantics
 
@@ -1185,6 +1322,70 @@ passes. If an operator wants to gate promotion behind manual review,
 they can run with `--no-auto-promote` and inspect the candidates
 before deciding.
 
+### 7.1a Confidence-interval scoring on promotion gates
+
+The "relevant quality metric" bullets above describe the *direction*
+of the gate ("more routes = better") but not the *threshold* ("how
+many observations do we need before we believe the cold derivation?").
+A naive threshold is a scalar — "beats the existing by > 0.05" — and
+fails in two ways: a single flaky observation can promote a bad atom,
+and a consistently-improving-but-still-uncertain observation either
+over-promotes or under-promotes depending on where the scalar sits.
+
+The doctrinal gate uses a **dynamic confidence interval** over
+observation counts. Each promotion-eligible atom address accumulates
+an observation series — every cold derivation either agrees with
+the existing canonical artifact (a success) or disagrees (a
+failure). The gate models this as a Beta posterior
+`Beta(α, β)` where `α = successes + 1` and `β = failures + 1`, and
+derives a confidence interval at a per-atom-class significance
+level (e.g. 90% CI, α = 0.10).
+
+The promotion verdict depends on three quantities, not one:
+
+1. **Sample count** (`successes + failures`). Below a per-class
+   minimum floor, the verdict is `needs-review` — the gate declines
+   to decide automatically because the sample is too small to
+   distinguish signal from noise.
+2. **Lower bound of the CI.** Above a per-class quality floor, the
+   candidate is considered reliable. Below the floor, the verdict
+   is `insufficient-quality` regardless of point estimate.
+3. **Margin over the existing artifact's CI.** The candidate's
+   lower bound must exceed the existing artifact's upper bound by
+   a per-class margin before the verdict is `promote`. This
+   prevents flip-flopping between two nearly-equivalent candidates.
+
+The per-class policy lives in
+`lib/domain/pipeline/promotion-policies.ts` (Phase D of
+`docs/cold-start-convergence-plan.md`) as a compile-time-exhaustive
+`Record<AtomClass, PromotionConfidencePolicy>`. Routes get
+conservative policies (rare changes, small sample counts should
+still allow promotion); elements get moderate policies;
+resolution overrides get the tightest because they are the
+highest-cadence demotion target and the cost of a wrong
+resolution override is runtime-visible.
+
+The Beta posterior is combined via conjugate-prior addition, which
+is a Monoid (`combinePosteriors(a, b)` with identity
+`{ successes: 0, failures: 0 }`). The Monoid composition lets the
+gate accumulate observations across cohorts without losing
+statistical validity, and the Monoid laws are tested by
+`tests/promotion-confidence.laws.spec.ts` (Phase D).
+
+Demotion (§7.2) uses the same confidence-interval machinery with
+symmetric semantics: a canonical artifact is a demotion candidate
+when its observation series has accumulated enough failures that
+the CI's upper bound has fallen below the per-class quality floor.
+Because demotion is always deliberate, the gate's output is a
+proposal, not an action — but the statistical basis for the
+proposal is the same Beta posterior as promotion.
+
+This replaces the optional scalar `scores` field on
+`PromotionEvaluation` with a richer
+`confidence?: ConfidenceInterval` field. Existing gates that only
+populate the scalar continue to work (the gate falls back to scalar
+comparison when no CI is available); new gates populate both.
+
 ### 7.2 Demotion
 
 A canonical artifact is a candidate for demotion when:
@@ -1336,28 +1537,71 @@ The discovery engine code lives in `lib/application/discovery/` (or
 wherever the discovery namespace lands during the lib restructuring).
 It is the cold-start arm of the self-improvement loop.
 
-### 9.2 The agentic intervention engine (agentic override authoring)
+### 9.2 The agentic intervention engine (braided inference ↔ evidence)
 
 The agentic intervention engine handles the gaps the discovery engine
-cannot bridge. When discovery fails, an agent is asked to provide a
-hint, override, or insight. The agent's answer is captured as either
-an operator override (slot 1, canonical source) or an agentic
-override (slot 2, canonical artifact, demotable).
+cannot bridge, but its output is not "an operator answer." Its
+output is a **braid**: the agent forms a hypothesis from runtime
+evidence, the hypothesis becomes a typed `InterventionReceipt` with
+a populated `handoff.semanticCore`, the receipt writes an agentic
+override to slot 2 of the canon store, and subsequent runs weave
+runtime evidence back through the same receipt lineage to measure
+whether the inference paid off.
 
-A good intervention engine asks the operator the right questions at
-the right times, captures answers in the right slot, and proposes
-demotions when interventions become stale. It is judged by:
+Inference and evidence are not alternating layers; they are twisted
+together per intervention receipt. An intervention that cannot show
+its evidence ancestry cannot participate in the C6 measurement
+(§12.2). An evidence record that cannot show which intervention it
+is counting against cannot either.
 
-- **Operator burden** (operator-intervention-density in the L4 tree).
-  Lower is better.
-- **Question quality**: are the questions specific and answerable?
-- **Demotion accuracy**: when it proposes a demotion, is it correct?
+The substrate for the braid already exists in
+`lib/domain/handshake/intervention.ts`:
+
+- **`InterventionHandoff.evidenceSlice`** — the bounded evidence
+  the agent had at the moment of inference (pre-hypothesis).
+- **`InterventionHandoff.semanticCore`** — the typed semantic
+  fingerprint of the hypothesis the agent committed to.
+- **`InterventionHandoffChain.previousSemanticToken`** and
+  **`driftAcknowledgedBy`** — the per-receipt lineage that lets
+  subsequent runs detect whether the hypothesis has drifted from
+  observed reality and whether that drift was acknowledged.
+- **`InterventionTokenImpact`** — the populated-post-hoc record of
+  downstream effect: ambiguity reduced, suspensions avoided, rung
+  improvement, activation quality. Fields are optional because the
+  scheduler that populates them (from before/after runs in the
+  attachment region) is the missing piece.
+
+A good intervention engine is judged by:
+
+- **C6 — Intervention-Adjusted Economics**: fraction of accepted
+  augmentations whose `InterventionTokenImpact` shows positive
+  `ambiguityReduction | suspensionAvoided | rungImprovement`
+  within a rolling N-run window. This is the primary scoreboard
+  metric for the engine, per `docs/alignment-targets.md`. Direct
+  measurement requires the impact scheduler, which is Phase C of
+  `docs/cold-start-convergence-plan.md`.
 - **Intervention longevity**: how long does an intervention stay
-  relevant before being demoted? Longer is better.
+  relevant before the discovery engine catches up and a demotion
+  proposal surfaces? Longer is better (the intervention was
+  bridging a real gap, not a momentary blip).
+- **Semantic-core preservation**: across a multi-step receipt
+  chain, does the semantic token survive actor handoffs without
+  silent drift? The `InterventionHandoffChain.semanticCorePreserved`
+  and `driftAcknowledgedBy` fields must be truthful per receipt.
+- **Operator burden** (operator-intervention-density in the L4
+  tree). Lower is better.
+- **Question quality**: when the engine escalates to a human,
+  are the questions specific and answerable?
+- **Demotion accuracy**: when the engine proposes a demotion, is
+  it correct?
 
-The intervention engine code lives in `lib/application/agency/` (or
-wherever the agency namespace lands). It is the warm-start arm of the
-self-improvement loop.
+The intervention engine code lives in `lib/application/agency/`
+(or wherever the agency namespace lands). Its measurement pipeline
+lives in `lib/application/intervention/impact-scheduler.ts` (new in
+Phase C of the cold-start convergence plan). It is the warm-start
+arm of the self-improvement loop — but it is not "the human in the
+loop." It is the typed substrate for turning agent hypotheses into
+measurable, demotable, evidence-anchored canonical artifacts.
 
 ### 9.3 Why both engines matter
 
@@ -1446,7 +1690,9 @@ were authored by agents vs promoted from the discovery engine.
     atoms/                            # TIER 1: per-primitive facts
       agentic/                        # — agent-authored (slot 2)
         routes/
+        route-variants/
         screens/
+        surfaces/
         elements/
         postures/
         affordances/
@@ -1454,13 +1700,16 @@ were authored by agents vs promoted from the discovery engine.
         patterns/
         snapshots/
         drifts/
-        transitions/
+        transitions/                  # includes reverseOf linkage + optional precondition
         observation-predicates/
         resolution-overrides/
         posture-samples/
+        runtime-family/               # signature bundles per runtime family
       deterministic/                  # — promoted from discovery (slot 3)
         routes/
+        route-variants/
         screens/
+        surfaces/
         elements/
         postures/
         affordances/
@@ -1472,6 +1721,7 @@ were authored by agents vs promoted from the discovery engine.
         observation-predicates/
         resolution-overrides/
         posture-samples/
+        runtime-family/
     compositions/                     # TIER 2: higher-order patterns over atoms
       agentic/                        # — agent-authored
         archetypes/                   # WorkflowArchetype instances
@@ -1659,23 +1909,55 @@ growth loop.
 ### 12.2 Discovery fitness tree (new)
 
 A parallel L4 tree that measures how well the discovery engine derives
-phase outputs from cold. Root metrics (initial set):
+phase outputs from cold. Implementation lives under
+`lib/domain/fitness/metric/visitors-discovery/` with its own
+compile-time-exhaustive registry
+`DISCOVERY_L4_VISITORS: { readonly [K in DiscoveryL4MetricKind]: MetricVisitor<DiscoveryL4VisitorInput, K> }`
+mirroring the existing pipeline-efficacy registry at
+`lib/domain/fitness/metric/visitors/index.ts:42-50` (the pattern is
+identical — only the input shape differs). Root metrics (initial
+set):
 
 - `discovery-route-fidelity` — how close are cold-derived routes to
   the canonical artifact? (higher is better)
 - `discovery-surface-fidelity` — same for surfaces
-- `discovery-component-fidelity` — same for components
+- `discovery-element-fidelity` — same for elements
+- `discovery-posture-fidelity` — same for postures
+- `discovery-selector-fidelity` — same for selectors
 - `discovery-substrate-fidelity` — how close is cold-derived substrate
   (after iterate convergence) to the canonical artifact substrate?
 - `discovery-coverage` — what fraction of canonical artifacts does the
   discovery engine produce at all? (higher is better)
+- `discovery-family-recognition-rate` — for targets with a known
+  runtime family, what fraction of screens produce a matching
+  `runtime-family` atom? (higher is better; flat is fine once the
+  family is stable, spikes after a platform upgrade)
 - `intervention-graduation-rate` — what fraction of agentic overrides
   has been demoted because the deterministic engine caught up?
   (higher is better, but should be slow and steady)
 
-It answers: **how close is cold-start to warm-start?** It is the
-gradient signal for changes to the discovery engine and to the
-agentic intervention system.
+And two metrics that live in the **pipeline-efficacy tree** (not the
+discovery-fitness tree) but that depend on substrate maturity to be
+computable at all:
+
+- `memory-worthiness-ratio` — M5 per `docs/alignment-targets.md`.
+  Cohort-trajectory slope of `effectiveHitRate` over
+  `MemoryMaturity(τ)` divided by per-iteration scorecard maintenance
+  overhead. Requires the trajectory primitive at
+  `lib/domain/fitness/memory-maturity-trajectory.ts` to accumulate
+  at least three cohort-comparable history points.
+- `intervention-marginal-value` — C6 per
+  `docs/alignment-targets.md`. Rolling-window fraction of accepted
+  agentic augmentations with positive
+  `InterventionTokenImpact.ambiguityReduction | suspensionAvoided | rungImprovement`.
+  Requires the before/after impact scheduler at
+  `lib/application/intervention/impact-scheduler.ts` to populate
+  the fields (Phase C of `docs/cold-start-convergence-plan.md`).
+
+It answers: **how close is cold-start to warm-start, and are the
+interventions that bridge the gap actually earning their seat at the
+table?** It is the gradient signal for changes to the discovery
+engine and to the agentic intervention system.
 
 ### 12.3 Why two trees instead of one
 
@@ -1789,6 +2071,78 @@ The dogfood mode is the system's training environment. The trichotomy
 must hold in dogfood for it to hold in production. Every doctrinal
 correctness fix that lands during dogfood development is a free
 correctness fix for the production deployment.
+
+### 14.1 The ROI shape
+
+The end-state ROI target is a **token-cost trend-line that plateaus
+to a linear floor** as the canonical artifact store matures. Pointed
+at a mature enterprise application and a mature ADO backlog of
+thousands of test cases, the cost of generating test case `N+1`
+should approach a near-constant floor — not because the resolver
+has become cleverer, but because the substrate bears the weight
+the resolver used to carry. Non-novel steps resolve from canon
+without consulting live DOM at all.
+
+This is the emergent consequence of two properties holding
+simultaneously:
+
+- **K5 (marginal discovery decay)** from the temporal-epistemic
+  addendum: as `MemoryMaturity(τ)` grows across comparable
+  cohorts, `MeanNovelty(C,τ)` monotonically decreases.
+- **L2s (strong target observability)**: the substrate contains
+  enough atoms that every important target has at least one
+  bounded evidence path resolvable without live DOM.
+
+If K5 is flat the plateau never arrives; the substrate keeps
+growing without the resolver offloading work to it. If L2s is
+local instead of strong, the resolver keeps falling back to live
+DOM on non-novel steps and per-case cost grows. Both must hold;
+both are measured by the two metric trees in §12. The token-cost
+plateau is *observed indirectly* through M5's cohort trajectory
+and C6's marginal-value accounting, not via a standalone "token
+accountant" visitor.
+
+### 14.2 The concrete target
+
+The first production target is an enterprise OutSystems Reactive 11
+application with:
+
+- Wizard-style multi-step workflows with per-step visibility
+  constraints (Tier 3 `wizard-state` projections).
+- Role-based field-level authorization where the dominant
+  observable is visible vs hidden vs read-only per role
+  (Tier 3 `role-visibility` and `role-interaction` projections).
+- Multi-party collaborative flows where entities (policies,
+  projects, claims) transition through process states by way of
+  approvals and rejects, with reject transitions that return the
+  entity to a prior state (bidirectional `Transition` atoms with
+  `reverseOf` linkage).
+- A detectable runtime substrate (`runtime-family: outsystems-reactive-11`)
+  whose signature bundle can be hand-authored once and promoted
+  to canonical artifact status for recognition across many
+  deployed applications of the same platform.
+
+The demo harness at `dogfood/fixtures/demo-harness/` exists to
+exercise these concerns in a controlled, self-contained way. It
+should grow toward the target's structural profile — wizard flows,
+role-based visibility, bidirectional transitions — without
+hardcoding any OutSystems particulars into `lib/`. Every
+OutSystems-specific behavior lives in canonical artifacts (runtime
+family signatures, role projections, transition atoms) or in a
+per-family specializer adapter keyed by runtime-family identity.
+New runtime family coverage — a different OutSystems version, a
+different platform altogether — is added by promoting new atoms
+and registering a new adapter, not by editing existing source.
+
+The cold-start ROI target implies a measurement discipline: when
+the system is pointed at a fresh OutSystems application, the
+discovery-fitness tree should show recognition happening within
+the first cohort, the M5 cohort trajectory should show positive
+slope within three comparable cohorts, and the C6 marginal-value
+metric should show accepted agentic interventions earning their
+seat at the table within the rolling N-run window. All three must
+hold for the ROI claim to be measurable — and all three are
+directly-measurable in the dual L4 metric tree from §12.
 
 ---
 

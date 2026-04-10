@@ -5,7 +5,7 @@ import { TesseractError } from '../../domain/kernel/errors';
 import type { AdoId } from '../../domain/kernel/identity';
 import { buildGroundedSpecFlow } from '../../domain/commitment/grounded-flow';
 import { renderReadableSpecModule } from '../../domain/codegen/spec-codegen';
-import { foldGovernance, mintApproved } from '../../domain/governance/workflow-types';
+import { foldGovernance } from '../../domain/governance/workflow-types';
 import type { Approved, Blocked, ReviewRequired } from '../../domain/governance/workflow-types';
 import type { ProposalBundle, RunRecord } from '../../domain/execution/types';
 import type { ImprovementRun } from '../../domain/improvement/types';
@@ -14,7 +14,7 @@ import type { ScenarioProjectionInput } from '../../domain/projection/types';
 import type { ScenarioInterpretationSurface } from '../../domain/resolution/types';
 import type { CompileSnapshot } from '../resolution/compile-snapshot';
 import { loadWorkspaceCatalog } from '../catalog';
-import { createProposalBundleEnvelope, createScenarioEnvelopeFingerprints, createScenarioEnvelopeIds } from '../catalog/envelope';
+import { emptyProposalBundleForBound } from '../catalog/envelope';
 import type { WorkspaceCatalog } from '../catalog';
 import { buildOperatorInboxItems, operatorInboxItemsForScenario } from '../agency/operator';
 import type { ProjectPaths } from '../paths';
@@ -175,35 +175,9 @@ function renderExecutableEmitArtifacts(
     rendered,
     traceArtifact,
     reviewText,
-    proposalBundle: proposalBundle ?? createProposalBundleEnvelope({
-      ids: createScenarioEnvelopeIds({
-        adoId: boundScenario.source.ado_id,
-        suite: boundScenario.metadata.suite,
-        runId: latestRun?.runId ?? 'pending',
-      }),
-      fingerprints: createScenarioEnvelopeFingerprints({
-        artifact: latestRun?.runId ?? 'pending',
-        content: boundScenario.source.content_hash,
-        knowledge: null,
-        controls: null,
-        task: null,
-        run: latestRun?.runId ?? 'pending',
-      }),
-      lineage: {
-        sources: [],
-        parents: [],
-        handshakes: ['preparation', 'resolution', 'execution', 'evidence', 'proposal'],
-      },
-      governance: mintApproved(),
-      payload: {
-        adoId: boundScenario.source.ado_id,
-        runId: latestRun?.runId ?? 'pending',
-        revision: boundScenario.source.revision,
-        title: boundScenario.metadata.title,
-        suite: boundScenario.metadata.suite,
-        proposals: [],
-      },
-      proposals: [],
+    proposalBundle: proposalBundle ?? emptyProposalBundleForBound({
+      boundScenario,
+      runId: latestRun?.runId ?? 'pending',
     }),
   };
 }
@@ -313,35 +287,9 @@ function renderBlockedEmitArtifacts(
     rendered: { ...rendered, lifecycle: 'skip' as const },
     traceArtifact,
     reviewText,
-    proposalBundle: proposalBundle ?? createProposalBundleEnvelope({
-      ids: createScenarioEnvelopeIds({
-        adoId: boundScenario.source.ado_id,
-        suite: boundScenario.metadata.suite,
-        runId: latestRun?.runId ?? 'pending',
-      }),
-      fingerprints: createScenarioEnvelopeFingerprints({
-        artifact: latestRun?.runId ?? 'pending',
-        content: boundScenario.source.content_hash,
-        knowledge: null,
-        controls: null,
-        task: null,
-        run: latestRun?.runId ?? 'pending',
-      }),
-      lineage: {
-        sources: [],
-        parents: [],
-        handshakes: ['preparation', 'resolution', 'execution', 'evidence', 'proposal'],
-      },
-      governance: mintApproved(),
-      payload: {
-        adoId: boundScenario.source.ado_id,
-        runId: latestRun?.runId ?? 'pending',
-        revision: boundScenario.source.revision,
-        title: boundScenario.metadata.title,
-        suite: boundScenario.metadata.suite,
-        proposals: [],
-      },
-      proposals: [],
+    proposalBundle: proposalBundle ?? emptyProposalBundleForBound({
+      boundScenario,
+      runId: latestRun?.runId ?? 'pending',
     }),
   };
 }

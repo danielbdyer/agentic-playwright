@@ -1,7 +1,7 @@
 /**
- * Static catalogue of L4 (Layer-4) observability metric kinds.
+ * Static catalogue of pipeline-efficacy observability metric kinds.
  *
- * L4 metrics are pipeline-efficacy signals derived from execution receipts
+ * Pipeline metrics are efficacy signals derived from execution receipts
  * by `MetricVisitor`s. The catalogue is the authoritative list — adding a
  * new metric kind here forces every consumer (visitor registry, polarity
  * map, renderer) to handle it via TypeScript exhaustiveness, by design.
@@ -11,20 +11,22 @@
  * counters used by single visitors do not need a catalogue entry.
  */
 
-// ─── L4 metric kinds ───
+// ─── pipeline metric kinds ───
 
 /** The authoritative list. Add new entries here AND register a visitor in
  *  `metric-visitor.ts` AND declare a polarity below. The TypeScript
  *  compiler enforces all three. */
-export const L4_METRIC_KINDS = [
+export const PIPELINE_METRIC_KINDS = [
   'extraction-ratio',
   'handshake-density',
   'rung-distribution',
   'intervention-cost',
   'compounding-economics',
+  'memory-worthiness-ratio',
+  'intervention-marginal-value',
 ] as const;
 
-export type L4MetricKind = typeof L4_METRIC_KINDS[number];
+export type PipelineMetricKind = typeof PIPELINE_METRIC_KINDS[number];
 
 // ─── Polarity ───
 
@@ -34,27 +36,29 @@ export type MetricPolarity =
   | 'lower-is-better'
   | 'neutral';
 
-/** Polarity for each L4 metric kind. The `Record<L4MetricKind, ...>` shape
+/** Polarity for each pipeline metric kind. The `Record<PipelineMetricKind, ...>` shape
  *  forces compile-time exhaustiveness — adding a new kind without declaring
  *  its polarity is a type error. */
-export const L4_METRIC_POLARITY: Readonly<Record<L4MetricKind, MetricPolarity>> = {
+export const PIPELINE_METRIC_POLARITY: Readonly<Record<PipelineMetricKind, MetricPolarity>> = {
   'extraction-ratio': 'higher-is-better',
   'handshake-density': 'lower-is-better',
   'rung-distribution': 'neutral',
   'intervention-cost': 'lower-is-better',
   'compounding-economics': 'higher-is-better',
+  'memory-worthiness-ratio': 'higher-is-better',
+  'intervention-marginal-value': 'higher-is-better',
 };
 
 /** Look up the polarity of an arbitrary metric kind. Returns `'neutral'`
- *  for non-L4 kinds (sub-metrics inside a tree, custom kinds, etc.). */
+ *  for non-pipeline kinds (sub-metrics inside a tree, custom kinds, etc.). */
 export function metricPolarity(kind: string): MetricPolarity {
-  if ((L4_METRIC_KINDS as readonly string[]).includes(kind)) {
-    return L4_METRIC_POLARITY[kind as L4MetricKind];
+  if ((PIPELINE_METRIC_KINDS as readonly string[]).includes(kind)) {
+    return PIPELINE_METRIC_POLARITY[kind as PipelineMetricKind];
   }
   return 'neutral';
 }
 
 /** Type-narrowing predicate. */
-export function isL4MetricKind(kind: string): kind is L4MetricKind {
-  return (L4_METRIC_KINDS as readonly string[]).includes(kind);
+export function isPipelineMetricKind(kind: string): kind is PipelineMetricKind {
+  return (PIPELINE_METRIC_KINDS as readonly string[]).includes(kind);
 }

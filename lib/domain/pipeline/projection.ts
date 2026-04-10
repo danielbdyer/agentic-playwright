@@ -19,6 +19,7 @@
  * Pure domain — no Effect, no IO, no application imports.
  */
 
+import type { Fingerprint } from '../kernel/hash';
 import type { AtomAddress } from './atom-address';
 import type {
   ProjectionSubType,
@@ -27,15 +28,15 @@ import type {
 } from './projection-address';
 import type { PhaseOutputSource } from './source';
 import type { AtomApplicability } from './qualifier';
+import type { CanonProvenance } from './provenance';
 
 // ─── Provenance ───────────────────────────────────────────────────
 
-export interface ProjectionProvenance {
-  readonly producedBy: string;
-  readonly producedAt: string;
-  readonly pipelineVersion?: string | undefined;
-  readonly inputs?: readonly string[] | undefined;
-}
+/** @deprecated Use `CanonProvenance`. Kept as a type alias for
+ *  source-compatibility; the three tier-specific provenance types
+ *  are byte-identical and share one canonical definition in
+ *  `provenance.ts`. */
+export type ProjectionProvenance = CanonProvenance;
 
 // ─── Atom binding (the unit of projection content) ───────────────
 
@@ -66,7 +67,15 @@ export interface BindingCondition {
 
 // ─── The Projection envelope ─────────────────────────────────────
 
-export interface Projection<S extends ProjectionSubType> {
+/** A projection envelope. The `Src` generic parameter carries the
+ *  source slot as a phantom literal for source-discriminated
+ *  signatures. There is no default parameter — every call site
+ *  declares the source explicitly. See `Atom<C, T, Src>` for the
+ *  full rationale. */
+export interface Projection<
+  S extends ProjectionSubType,
+  Src extends PhaseOutputSource,
+> {
   /** The projection sub-type. */
   readonly subType: S;
   /** The projection's address. */
@@ -75,26 +84,30 @@ export interface Projection<S extends ProjectionSubType> {
    *  this projection's content. */
   readonly bindings: readonly AtomBinding[];
   /** Which slot of the lookup chain this projection came from. */
-  readonly source: PhaseOutputSource;
+  readonly source: Src;
   /** Hash of inputs (qualifier identity + atom dependencies) that
    *  produced this projection. */
-  readonly inputFingerprint: string;
+  readonly inputFingerprint: Fingerprint<'projection-input'>;
   /** Provenance metadata. */
   readonly provenance: ProjectionProvenance;
   /** Optional quality score for promotion gating. */
   readonly qualityScore?: number | undefined;
 }
 
-/** Construct a projection envelope. */
-export function projection<S extends ProjectionSubType>(input: {
+/** Construct a projection envelope. Return type infers the narrow
+ *  source parameter from `input.source`. */
+export function projection<
+  S extends ProjectionSubType,
+  Src extends PhaseOutputSource,
+>(input: {
   readonly subType: S;
   readonly address: ProjectionAddressOf<S>;
   readonly bindings: readonly AtomBinding[];
-  readonly source: PhaseOutputSource;
-  readonly inputFingerprint: string;
+  readonly source: Src;
+  readonly inputFingerprint: Fingerprint<'projection-input'>;
   readonly provenance: ProjectionProvenance;
   readonly qualityScore?: number | undefined;
-}): Projection<S> {
+}): Projection<S, Src> {
   return {
     subType: input.subType,
     address: input.address,

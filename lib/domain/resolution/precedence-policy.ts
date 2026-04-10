@@ -1,7 +1,9 @@
-export interface OrderedPrecedencePolicy<TRung extends string> {
-  readonly concern: string;
-  readonly rungs: readonly TRung[];
-}
+import type { PrecedenceLadder } from './precedence';
+
+/** @deprecated Use `PrecedenceLadder<TRung>` directly. Retained
+ *  as a type alias for source-compatibility with existing callers
+ *  until the next rename pass. */
+export type OrderedPrecedencePolicy<TRung extends string> = PrecedenceLadder<TRung>;
 
 export const resolutionPrecedencePolicy = {
   concern: 'resolution',

@@ -3,7 +3,6 @@ export const artifactValidationKinds = [
   'scenario',
   'bound-scenario',
   'scenario-interpretation-surface',
-  'scenario-task-packet',
   'run-record',
   'proposal-bundle',
   'surface-graph',

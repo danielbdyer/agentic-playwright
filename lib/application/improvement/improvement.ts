@@ -3,7 +3,8 @@ import { Effect } from 'effect';
 import { ImprovementRunStore } from '../ports';
 import type { ProjectPaths } from '../paths';
 import type { PipelineConfig } from '../../domain/attention/pipeline-config';
-import type { PipelineFitnessReport } from '../../domain/fitness/types';
+import type { PipelineFitnessReport, PipelineImprovementTarget } from '../../domain/fitness/types';
+import { foldImprovementTarget } from '../../domain/kernel/visitors';
 import type {
   InterventionReceipt,
   InterventionTarget,
@@ -168,21 +169,19 @@ function signalSeverity(
   return ratio >= 0.3 ? 'error' : ratio >= 0.1 ? 'warn' : 'info';
 }
 
-function targetPathsForSignal(targetKind: string): readonly string[] {
-  switch (targetKind) {
-    case 'translation':
-      return ['lib/application/translation-provider.ts'];
-    case 'resolution':
-      return ['lib/runtime/resolution/resolution-stages.ts', 'lib/application/interface-intelligence.ts'];
-    case 'recovery':
-      return ['lib/runtime/scenario.ts'];
-    case 'scoring':
-      return ['lib/application/fitness.ts', 'lib/application/knob-search.ts'];
-    case 'trust-policy':
-      return ['lib/application/trust-policy.ts'];
-    default:
-      return [];
-  }
+function targetPathsForSignal(target: PipelineImprovementTarget): readonly string[] {
+  // Exhaustive fold over PipelineImprovementTarget. Previously this
+  // function accepted `string` with a `default: []` fallback — new
+  // target kinds would silently produce empty guidance paths. The
+  // existing foldImprovementTarget at lib/domain/kernel/visitors.ts
+  // already exhaustively covers the 5 variants.
+  return foldImprovementTarget(target, {
+    translation: () => ['lib/application/translation-provider.ts'],
+    resolution: () => ['lib/runtime/resolution/resolution-stages.ts', 'lib/application/interface-intelligence.ts'],
+    recovery: () => ['lib/runtime/scenario.ts'],
+    scoring: () => ['lib/application/fitness.ts', 'lib/application/knob-search.ts'],
+    trustPolicy: () => ['lib/application/trust-policy.ts'],
+  });
 }
 
 function failureSignals(input: BuildImprovementRunInput): readonly ImprovementSignal[] {
@@ -193,7 +192,7 @@ function failureSignals(input: BuildImprovementRunInput): readonly ImprovementSi
     summary: `${mode.class} surfaced ${mode.count} times`,
     detail: mode.improvementTarget.detail,
     severity: signalSeverity(mode.affectedSteps, totalSteps),
-    targetPaths: targetPathsForSignal(mode.improvementTarget.kind),
+    targetPaths: targetPathsForSignal(mode.improvementTarget),
     interventionKinds: ['self-improvement-action'],
     metrics: {
       count: mode.count,
@@ -202,7 +201,26 @@ function failureSignals(input: BuildImprovementRunInput): readonly ImprovementSi
   }));
 }
 
-function targetPathsForHealthDimension(name: string): readonly string[] {
+/** The closed set of health dimension names surfaced by
+ *  `healthDimensionSignals`. The `dims` array in that function is
+ *  the single source of truth for the variants; this type is the
+ *  typed alias for the string literals it uses. */
+type HealthDimensionName =
+  | 'timingRegression'
+  | 'selectorFlakiness'
+  | 'consoleNoise'
+  | 'recoveryEfficiency'
+  | 'costEfficiency'
+  | 'rungStability'
+  | 'componentMaturity';
+
+function targetPathsForHealthDimension(name: HealthDimensionName): readonly string[] {
+  // Exhaustive switch — no default. Previously `name: string` with
+  // a `default: []` fallback, which silently returned empty
+  // guidance paths for any unexpected dimension. Tightening the
+  // parameter type forces every caller to pass a known dimension
+  // name and makes adding a new dimension a compile-time error
+  // at both the dispatch site and the `dims` array below.
   switch (name) {
     case 'timingRegression': return ['lib/application/timing-baseline.ts'];
     case 'selectorFlakiness': return ['lib/application/selector-health.ts', 'knowledge/screens/'];
@@ -211,7 +229,6 @@ function targetPathsForHealthDimension(name: string): readonly string[] {
     case 'costEfficiency': return ['lib/application/execution-cost.ts'];
     case 'rungStability': return ['lib/application/rung-drift.ts', 'knowledge/surfaces/'];
     case 'componentMaturity': return ['lib/domain/projection/component-maturation.ts', 'knowledge/components/'];
-    default: return [];
   }
 }
 
@@ -223,7 +240,7 @@ function healthDimensionSignals(input: BuildImprovementRunInput): readonly Impro
   const maturity = 1 - 1 / (1 + lastIteration.iteration / 3);
   const runId = resolvedImprovementRunId(input);
 
-  const dims: readonly { readonly name: string; readonly value: number; readonly lowerIsBetter: boolean }[] = [
+  const dims: readonly { readonly name: HealthDimensionName; readonly value: number; readonly lowerIsBetter: boolean }[] = [
     { name: 'timingRegression', value: ls.timingRegressionRate, lowerIsBetter: true },
     { name: 'selectorFlakiness', value: ls.selectorFlakinessRate, lowerIsBetter: true },
     { name: 'consoleNoise', value: ls.consoleNoiseLevel, lowerIsBetter: true },

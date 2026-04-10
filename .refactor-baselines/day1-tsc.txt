@@ -1,0 +1,22 @@
+lib/application/canon/minting.ts(103,3): error TS2375: Type '{ source: PhaseOutputSource; producedBy: string; producedAt: string; pipelineVersion: string | undefined; }' is not assignable to type 'CanonProducer' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'pipelineVersion' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+lib/application/commitment/build-proposals.ts(131,45): error TS2379: Argument of type '{ adoId: AdoId; suite: string; runId: string; dataset: string | null | undefined; runbook: string | null | undefined; resolutionControl: string | null | undefined; contentHash: string; ... 7 more ...; handshakes: ("preparation" | ... 3 more ... | "proposal")[]; }' is not assignable to parameter of type 'ScenarioEnvelopeHeaderInput' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'dataset' are incompatible.
+    Type 'string | null | undefined' is not assignable to type 'string | null'.
+      Type 'undefined' is not assignable to type 'string | null'.
+lib/application/commitment/build-run-record.ts(29,45): error TS2379: Argument of type '{ adoId: AdoId; suite: string; runId: string; dataset: string | null | undefined; runbook: string | null | undefined; resolutionControl: string | null | undefined; contentHash: string; ... 7 more ...; handshakes: ("preparation" | ... 2 more ... | "evidence")[]; }' is not assignable to parameter of type 'ScenarioEnvelopeHeaderInput' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'dataset' are incompatible.
+    Type 'string | null | undefined' is not assignable to type 'string | null'.
+      Type 'undefined' is not assignable to type 'string | null'.
+lib/application/improvement/fitness.ts(933,55): error TS2379: Argument of type '{ effectiveHitRate: number | undefined; knowledgeHitRate: number; ambiguityRate: number | undefined; suspensionRate: number | undefined; degradedLocatorRate: number; proposalYield: number; recoverySuccessRate: number; }' is not assignable to parameter of type 'Partial<Record<TargetMetricName, number>>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'effectiveHitRate' are incompatible.
+    Type 'number | undefined' is not assignable to type 'number'.
+      Type 'undefined' is not assignable to type 'number'.
+tests/architecture/design-calculus-abstractions.laws.spec.ts(338,27): error TS2558: Expected 0 type arguments, but got 1.
+tests/canon-decomposition.laws.spec.ts(1309,5): error TS2322: Type '"dialog"' is not assignable to type 'SurfaceKind | undefined'.
+tests/fitness/measurement-class.laws.spec.ts(13,3): error TS2375: Type '{ obligation: LogicalProofObligationName; propertyRefs: "K"[]; score: number; status: "healthy"; evidence: string; measurementClass: "direct" | "heuristic-proxy" | "derived" | undefined; }' is not assignable to type 'LogicalProofObligation' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'measurementClass' are incompatible.
+    Type '"direct" | "heuristic-proxy" | "derived" | undefined' is not assignable to type '"direct" | "heuristic-proxy" | "derived"'.
+      Type 'undefined' is not assignable to type '"direct" | "heuristic-proxy" | "derived"'.

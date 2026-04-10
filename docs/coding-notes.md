@@ -8,6 +8,40 @@ If something here contradicts `docs/master-architecture.md`, the master architec
 
 ---
 
+## Universal Operator Principles
+
+These are operator-level doctrinal rules that override situational convenience. They apply to every refactor, every migration, and every new surface the system grows. When a local decision conflicts with one of these principles, the principle wins.
+
+### No backward-compatibility shims
+
+When migrating to a new type, helper, signature, or contract, **adopt the new path forward fully and delete the old one**. Do not leave the old function as a deprecated alias. Do not give generic parameters default values that preserve the old call-site shape. Do not introduce an "old name and new name both work for now" window that lingers across commits.
+
+Back-compat shims look cheap at the moment of migration because they let callers stay unchanged. They are not cheap over time:
+
+- **They double the surface area.** Every reader has to decide which form to use, and the distinction between "what we're moving to" and "what we're moving away from" blurs.
+- **They make the migration invisible.** A codebase that still compiles against the old shape never actually moved.
+- **They invite re-introduction.** New code written against the shim re-seats the migration cost for the next refactor pass.
+- **They hide the true call-site count.** The refactor looks like "2 helpers replaced" when it should look like "2 helpers replaced + 35 call sites updated to reflect the new contract."
+
+The correct idiom is: rename the function to its new shape, update every caller in the same commit, delete the old name. If the migration is too large for one commit, split it by **call-site group** (e.g., "all commitment builders migrated") rather than by **version window** (e.g., "both names work for now"). Every commit on the branch should leave the codebase with exactly one canonical way to do the thing.
+
+This applies to:
+
+- generic type parameter defaults that preserve old call-site shapes (`Foo<T, S = DefaultS>` is a shim — delete the default and migrate every consumer)
+- helper aliases (`export const oldName = newName` is a shim — delete the old name and migrate every caller)
+- optional fields added to preserve schema compatibility (`field?: T | undefined` alongside the new required field is a shim — decide and commit)
+- parallel constructor signatures (`buildFoo(input)` and `buildFoo.v2(input)` side by side is a shim — delete the old one)
+
+Exception: cross-boundary persistence formats (e.g., on-disk JSON schemas that older tool versions still read) are not shims — they are versioned external contracts, which follow their own versioning rules.
+
+### Every commit leaves the branch buildable and testable
+
+No staging commits. No "WIP" commits. No "this will be fixed in the next commit." Every commit on the branch must build clean and pass the existing test suite minus documented pre-existing failures. The branch should be a valid merge target at every sha.
+
+This lets reviewers bisect freely, lets `git checkout` land on any commit without lighting up the terminal red, and prevents the "we'll fix it later" slippage that accumulates when commits are treated as scratchpads.
+
+---
+
 ## Functional Programming Style
 
 This codebase has a strong preference for functional programming, pure functions, and immutable data design. These are not absolute rules, but they are the default — deviations should be deliberate and justified, not accidental.
@@ -578,9 +612,85 @@ When adding a new compilation phase or lowering step:
 
 Every cross-boundary artifact carries a standard envelope: `kind`, `version`, `stage`, `scope`, `ids`, `fingerprints`, `lineage`, `governance`, `payload`. Use `mapPayload(envelope, f)` for transforms. Never destructure and reassemble envelopes manually.
 
-When creating a new artifact type, define it as a `WorkflowEnvelope<T>` variant. The envelope header is the contract that makes artifacts comparable, traceable, and governable across the system.
+**Declaring a new envelope type.** Extend `WorkflowMetadata<'stage'>` with the narrow stage literal for your concrete type. Do NOT inline the envelope header fields — they come from the base. This is Phase 0a's stage-phantom discipline; see `docs/envelope-axis-refactor-plan.md` and `docs/master-architecture.md` § "Envelope Axis Vocabulary" for the full story.
+
+```typescript
+// ✅ Correct: extend WorkflowMetadata with a narrow stage literal.
+export interface NewResolutionRecord extends WorkflowMetadata<'resolution'> {
+  readonly kind: 'new-resolution-record';
+  readonly scope: 'run';  // narrow via declaration merging
+  readonly payload: { /* domain-specific */ };
+}
+
+// ❌ Wrong: inlining `stage: 'resolution'` as a free field bypasses
+//    the phantom lift and makes the envelope structurally identical
+//    to `WorkflowMetadata<WorkflowStage>` instead of the narrow form.
+export interface NewResolutionRecord {
+  readonly kind: 'new-resolution-record';
+  readonly version: 1;
+  readonly stage: 'resolution';
+  readonly scope: 'run';
+  readonly ids: WorkflowEnvelopeIds;
+  readonly fingerprints: WorkflowEnvelopeFingerprints;
+  readonly lineage: WorkflowEnvelopeLineage;
+  readonly governance: Governance;
+  readonly payload: { /* ... */ };
+}
+```
+
+**Declaring a stage-aware function signature.** Use the narrow stage literal in the parameter type to make the function's place in the forward progression compile-checkable:
+
+```typescript
+// Function signature says "I need an execution-stage envelope and
+// I return a proposal-stage envelope" — compile-time readable.
+function buildProposals(
+  run: WorkflowEnvelope<RunRecordPayload, 'execution'>,
+): WorkflowEnvelope<ProposalBundlePayload, 'proposal'> { ... }
+```
+
+There is no single-arg shim form. Every call site declares its stage explicitly. Passing a preparation-stage envelope where an execution-stage envelope is expected is a compile error — verified by `tests/architecture/envelope-stage-phantom.laws.spec.ts`.
+
+**Declaring a source-aware function signature.** Canon artifacts carry a `Src` phantom parameter that restricts which precedence-ladder slot they came from:
+
+```typescript
+// Promotion gates constrain their inputs by source origin:
+interface AtomPromotionGate<C extends AtomClass> {
+  readonly evaluate: (input: {
+    // Only discovery-engine output is eligible for promotion
+    readonly candidate: Atom<C, unknown, PromotionCandidateSource>;
+    // Existing canon comes from approved/observed slots
+    readonly existing: Atom<C, unknown, CanonicalSource> | null;
+  }) => PromotionEvaluation;
+}
+```
+
+The `PromotionCandidateSource` (`'cold-derivation' | 'live-derivation'`) and `CanonicalSource` (`'operator-override' | 'agentic-override' | 'deterministic-observation'`) type aliases live in `lib/domain/pipeline/promotion-gate.ts`.
+
+**Declaring fingerprint-typed fields.** Every fingerprint field uses `Fingerprint<Tag>` from `lib/domain/kernel/hash.ts`. The tag registry (`FingerprintTag`) is closed — adding a new fingerprint kind requires editing the union. Fingerprint producers use `fingerprintFor<Tag>(tag, value)` (raw hex) or `taggedFingerprintFor<Tag>(tag, value)` (sha256:-prefixed). At persistence boundaries, use `asFingerprint(tag, rawString)` to adopt a string as a tagged fingerprint.
+
+```typescript
+// Canon artifact fingerprints are tag-specific:
+interface Atom<C, T, Src> {
+  readonly inputFingerprint: Fingerprint<'atom-input'>;
+  // ...
+}
+
+// Envelope fingerprint slots are typed:
+interface WorkflowEnvelopeFingerprints {
+  readonly artifact: Fingerprint<'artifact'>;
+  readonly surface?: Fingerprint<'surface'> | null;  // was 'task'
+  readonly knowledge?: Fingerprint<'knowledge'> | null;
+  // ...
+}
+```
+
+Cross-tag assignment is a compile error — `Fingerprint<'knowledge'>` cannot be passed where `Fingerprint<'surface'>` is expected. Verified by `tests/architecture/fingerprint-tags.laws.spec.ts`.
+
+**Governance consumption.** Every governance read goes through the typed API (`isApproved`, `isBlocked`, `isReviewRequired`, `foldGovernance`). Ad-hoc `=== 'approved'` string comparisons are an architecture violation enforced by `tests/architecture/governance-verdict.laws.spec.ts` Law 8. Gate composition uses `GovernanceVerdict<T, I>` with `runGateChain` — see `lib/application/governance/auto-approval.ts` for the worked example.
 
 **Caveat:** `ProposalBundle` has an identical `proposals` field at both `payload.proposals` and top-level `proposals`. This duplication means `mapPayload` alone cannot fully update the bundle — you must also update the top-level field. This is a known structural debt, not a pattern to replicate.
+
+**Caveat:** `DiscoveryRun`, `AgentInterpretationCacheRecord`, and `TranslationCacheRecord` do not yet extend `WorkflowMetadata<'stage'>` — the first has `version: 2` without `ids`/`fingerprints`/`lineage`, and the cache records use non-standard scopes. Bringing them into the envelope contract is a structural refactor that belongs with the convergence plan's Phase A.
 
 ### Exhaustive Match (`Effect.Match`)
 

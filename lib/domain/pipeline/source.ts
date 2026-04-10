@@ -116,3 +116,34 @@ export function compareSourcePrecedence(
 ): number {
   return SOURCE_PRECEDENCE.indexOf(a) - SOURCE_PRECEDENCE.indexOf(b);
 }
+
+// ─── Posture-to-Source bounds ─────────────────────────────────────
+//
+// Each knowledge posture restricts which PhaseOutputSource values
+// are valid for artifacts in a catalog loaded at that posture.
+// These types make the restriction compile-checkable.
+
+/** cold-start: the agent derived everything from scratch.
+ *  Only cold and live derivation are valid. */
+export type ColdStartSource = 'cold-derivation' | 'live-derivation';
+
+/** warm-start: prior knowledge is available. All sources except
+ *  operator-override (which implies production governance). */
+export type WarmStartSource =
+  | 'agentic-override'
+  | 'deterministic-observation'
+  | 'live-derivation'
+  | 'cold-derivation';
+
+/** production: the full source ladder including operator-approved
+ *  overrides. */
+export type ProductionSource = PhaseOutputSource;
+
+/** Map a KnowledgePosture to its allowed source bound. Use in
+ *  function signatures to constrain atoms/compositions/projections
+ *  to sources valid for the given posture. */
+export type PostureSourceBound<P extends import('../governance/workflow-types').KnowledgePosture> =
+  P extends 'cold-start' ? ColdStartSource :
+  P extends 'warm-start' ? WarmStartSource :
+  P extends 'production' ? ProductionSource :
+  PhaseOutputSource;

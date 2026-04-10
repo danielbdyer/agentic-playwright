@@ -1,4 +1,4 @@
-import { sha256, stableStringify } from '../../domain/kernel/hash';
+import { taggedFingerprintFor } from '../../domain/kernel/hash';
 
 export interface ProjectionInputFingerprint {
   kind: string;
@@ -20,7 +20,7 @@ export function fingerprintProjectionArtifact(kind: string, artifactPath: string
   return {
     kind,
     path: artifactPath,
-    fingerprint: `sha256:${sha256(stableStringify(artifact))}`,
+    fingerprint: taggedFingerprintFor('artifact', artifact),
   };
 }
 
@@ -35,7 +35,7 @@ export function sortProjectionInputs(values: ProjectionInputFingerprint[]): Proj
 }
 
 export function computeProjectionInputSetFingerprint(inputs: ProjectionInputFingerprint[]): string {
-  return `sha256:${sha256(stableStringify(sortProjectionInputs(inputs)))}`;
+  return taggedFingerprintFor('projection-cache-key', sortProjectionInputs(inputs));
 }
 
 function normalizeProjectionValue(value: unknown): unknown {
@@ -54,7 +54,7 @@ function normalizeProjectionValue(value: unknown): unknown {
 }
 
 export function fingerprintProjectionOutput(value: unknown): string {
-  return `sha256:${sha256(stableStringify(normalizeProjectionValue(value)))}`;
+  return taggedFingerprintFor('projection-input', normalizeProjectionValue(value));
 }
 
 export function diffProjectionInputs(inputs: ProjectionInputFingerprint[], previousManifest: ProjectionBuildManifest | null) {

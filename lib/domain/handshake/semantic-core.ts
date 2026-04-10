@@ -1,4 +1,4 @@
-import { sha256, stableStringify } from '../kernel/hash';
+import { fingerprintFor } from '../kernel/hash';
 import type { InterventionDriftStatus, InterventionSemanticCore } from './intervention';
 
 export interface SemanticCoreSeed {
@@ -8,7 +8,7 @@ export interface SemanticCoreSeed {
 }
 
 export function semanticCoreToken(seed: SemanticCoreSeed): string {
-  return `${seed.namespace}:${sha256(stableStringify(seed.stableFields))}`;
+  return `${seed.namespace}:${fingerprintFor('semantic-core', seed.stableFields)}`;
 }
 
 export function semanticCoreDriftStatus(

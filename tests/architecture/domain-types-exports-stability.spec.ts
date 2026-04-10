@@ -191,7 +191,6 @@ import type {
   RuntimeDatasetBinding,
   RuntimeResolutionControl,
   RuntimeRunbookControl,
-  ScenarioTaskPacket,
   TranslationCandidate,
   TranslationReceipt,
   TranslationRequest,
@@ -229,7 +228,7 @@ type _AssertExported =
   | WorkflowEnvelopeIds
   | WorkflowEnvelopeFingerprints
   | WorkflowEnvelopeLineage
-  | WorkflowEnvelope<unknown>
+  | WorkflowEnvelope<unknown, WorkflowStage>
   | ParticipantKind
   | ParticipantCapability
   | ParticipantRef
@@ -281,7 +280,6 @@ type _AssertExported =
   | ArtifactConfidenceRecord
   | ConfidenceOverlayCatalog
   | InterfaceResolutionContext
-  | ScenarioTaskPacket
   | SurfaceSection
   | SurfaceDefinition
   | SurfaceGraph

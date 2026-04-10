@@ -1,6 +1,5 @@
 import path from 'path';
 import { Effect } from 'effect';
-import { resolveEffectConcurrency } from '../runtime-support/concurrency';
 import { createSnapshotTemplateId } from '../../domain/kernel/identity';
 import { mergePatternDocuments } from '../../domain/knowledge/patterns';
 import type {
@@ -50,6 +49,7 @@ import {
   validateConfidenceOverlayCatalog,
   validateDatasetControl,
   validateDiscoveryRun,
+  validateEvidenceRecord,
   validatePatternDocument,
   validateProposalBundle,
   validateReplayExample,
@@ -82,12 +82,21 @@ import { boundPath, relativeProjectPath, snapshotPath } from '../paths';
 import { FileSystem, type FileSystemPort } from '../ports';
 import { improvementLedgerPath, loadImprovementLedger } from '../improvement/improvement';
 import { createArtifactEnvelope, upsertArtifactEnvelope } from './envelope';
-import { readJsonArtifact, readYamlArtifact } from './loaders';
+import {
+  bySuffix,
+  byBasename,
+  loadArtifactsMatching,
+  loadOptionalSingleton,
+  readJsonArtifact,
+  readYamlArtifact,
+  type ArtifactLoaderSpec,
+} from './loaders';
 import { assembleScreenBundles } from './screen-bundles';
 import type { ArtifactEnvelope, WorkspaceCatalog } from './types';
 import type { Atom } from '../../domain/pipeline/atom';
 import type { Composition } from '../../domain/pipeline/composition';
 import type { Projection } from '../../domain/pipeline/projection';
+import type { PhaseOutputSource } from '../../domain/pipeline/source';
 import type { AtomClass } from '../../domain/pipeline/atom-address';
 import type { CompositionSubType } from '../../domain/pipeline/composition-address';
 import type { ProjectionSubType } from '../../domain/pipeline/projection-address';
@@ -97,11 +106,10 @@ import { parseSnapshotToScenario } from '../intent/parse';
 import { fingerprintArtifact } from './envelope';
 import { projectScenarioToTier1 } from '../../domain/scenario/tier-projection';
 
-/** Stable sort on artifactPath ensures deterministic fingerprinting regardless of load order. */
-function sortByArtifactPath<T>(envelopes: ArtifactEnvelope<T>[]): ArtifactEnvelope<T>[] {
-  return [...envelopes].sort((a, b) => a.artifactPath.localeCompare(b.artifactPath));
-}
-
+/** Normalize a route manifest so fingerprinting sees a canonical
+ *  shape regardless of on-disk key order. Applied as the
+ *  `postprocess` hook on the routeManifests loader spec so the
+ *  artifact's fingerprint is recomputed after normalization. */
 function normalizeRouteManifest(manifest: RouteKnowledgeManifest): RouteKnowledgeManifest {
   return {
     ...manifest,
@@ -119,54 +127,6 @@ function normalizeRouteManifest(manifest: RouteKnowledgeManifest): RouteKnowledg
       }))
       .sort((left, right) => left.id.localeCompare(right.id)),
   };
-}
-
-const catalogIoConcurrency = resolveEffectConcurrency({ ceiling: 20 });
-
-function loadAllYaml<T>(
-  paths: ProjectPaths, files: readonly string[], validate: (value: unknown) => T, errorCode: string, label: string,
-) {
-  return Effect.forEach(files, (filePath) =>
-    readYamlArtifact(paths, filePath, validate, errorCode, `${label} ${filePath} failed validation`),
-    { concurrency: catalogIoConcurrency },
-  ).pipe(Effect.map(sortByArtifactPath));
-}
-
-function loadAllJson<T>(
-  paths: ProjectPaths, files: readonly string[], validate: (value: unknown) => T, errorCode: string, label: string,
-) {
-  return Effect.forEach(files, (filePath) =>
-    readJsonArtifact(paths, filePath, validate, errorCode, `${label} ${filePath} failed validation`),
-    { concurrency: catalogIoConcurrency },
-  ).pipe(Effect.map(sortByArtifactPath));
-}
-
-function readDisposableJsonArtifact<T>(
-  paths: ProjectPaths,
-  absolutePath: string,
-  validate: (value: unknown) => T,
-  errorCode: string,
-  errorMessage: string,
-) {
-  return readJsonArtifact(paths, absolutePath, validate, errorCode, errorMessage).pipe(
-    Effect.map((envelope): ArtifactEnvelope<T> | null => envelope),
-    Effect.catchAll(() => Effect.succeed(null as ArtifactEnvelope<T> | null)),
-  );
-}
-
-function loadAllDisposableJson<T>(
-  paths: ProjectPaths, files: readonly string[], validate: (value: unknown) => T, errorCode: string, label: string,
-) {
-  return Effect.forEach(files, (filePath) =>
-    readDisposableJsonArtifact(paths, filePath, validate, errorCode, `${label} ${filePath} failed validation`),
-    { concurrency: catalogIoConcurrency },
-  ).pipe(Effect.map((results) => sortByArtifactPath(results.filter((entry): entry is ArtifactEnvelope<T> => entry !== null))));
-}
-
-function readDisposableSingleton<T>(
-  paths: ProjectPaths, absolutePath: string, validate: (value: unknown) => T, errorCode: string, label: string,
-) {
-  return readDisposableJsonArtifact(paths, absolutePath, validate, errorCode, `${label} ${absolutePath} failed validation`);
 }
 
 /**
@@ -286,86 +246,121 @@ export function loadWorkspaceCatalog(options: LoadCatalogOptions) {
       tier3ProjectionsDeterministic: walkFiles(fs, options.paths.pipeline.projectionsDeterministicDir),
     }, { concurrency: 'unbounded' });
 
-    // Phase 2: Load all artifact types in parallel (each group is independent)
+    // Phase 2: Load all artifact types in parallel (each group is
+    // independent). Every entry is a `loadArtifactsMatching(paths,
+    // files, spec)` call — the spec is first-class data describing
+    // (source format, lifetime, filter predicate, validator,
+    // error code, label, optional postprocess). Adding a new
+    // artifact kind means adding one entry below.
     const loaded = yield* Effect.all({
-      surfaces: loadAllYaml<SurfaceGraph>(options.paths,
-        walks.surfaces.filter((f) => f.endsWith('.surface.yaml')),
-        validateSurfaceGraph, 'surface-validation-failed', 'Surface graph'),
-      screenElements: loadAllYaml<ScreenElements>(options.paths,
-        walks.screens.filter((f) => f.endsWith('.elements.yaml')),
-        validateScreenElements, 'elements-validation-failed', 'Elements'),
-      screenHints: loadAllYaml<ScreenHints>(options.paths,
-        walks.screens.filter((f) => f.endsWith('.hints.yaml')),
-        validateScreenHints, 'screen-hints-validation-failed', 'Hints'),
-      screenPostures: loadAllYaml<ScreenPostures>(options.paths,
-        walks.screens.filter((f) => f.endsWith('.postures.yaml')),
-        validateScreenPostures, 'postures-validation-failed', 'Postures'),
-      screenBehaviors: loadAllYaml<ScreenBehavior>(options.paths,
-        walks.screens.filter((f) => f.endsWith('.behavior.yaml')),
-        validateScreenBehavior, 'screen-behavior-validation-failed', 'Screen behavior'),
-      patternDocuments: loadAllYaml<PatternDocument>(options.paths,
-        walks.patterns.filter((f) => f.endsWith('.yaml') && !f.endsWith('.behavior.yaml')),
-        validatePatternDocument, 'pattern-document-validation-failed', 'Pattern document'),
-      behaviorPatterns: loadAllYaml<BehaviorPatternDocument>(options.paths,
-        walks.patterns.filter((f) => f.endsWith('.behavior.yaml')),
-        validateBehaviorPatternDocument, 'behavior-pattern-document-validation-failed', 'Behavior pattern'),
-      datasets: loadAllYaml<DatasetControl>(options.paths,
-        walks.datasets.filter((f) => f.endsWith('.dataset.yaml')),
-        validateDatasetControl, 'dataset-control-validation-failed', 'Dataset control'),
-      benchmarks: loadAllYaml<BenchmarkContext>(options.paths,
-        walks.benchmarks.filter((f) => f.endsWith('.benchmark.yaml')),
-        validateBenchmarkContext, 'benchmark-context-validation-failed', 'Benchmark'),
-      resolutionControls: loadAllYaml<ResolutionControl>(options.paths,
-        walks.resolutionControls.filter((f) => f.endsWith('.resolution.yaml')),
-        validateResolutionControl, 'resolution-control-validation-failed', 'Resolution control'),
-      runbooks: loadAllYaml<RunbookControl>(options.paths,
-        walks.runbooks.filter((f) => f.endsWith('.runbook.yaml')),
-        validateRunbookControl, 'runbook-control-validation-failed', 'Runbook'),
-      snapshots: loadAllJson<AdoSnapshot>(options.paths,
-        walks.snapshots.filter((f) => f.endsWith('.json')),
-        validateAdoSnapshot, 'snapshot-validation-failed', 'Snapshot'),
-      scenarios: loadAllYaml<Scenario>(options.paths,
-        walks.scenarios.filter((f) => f.endsWith('.scenario.yaml')),
-        validateScenario, 'scenario-validation-failed', 'Scenario'),
-      boundScenarios: loadAllJson<BoundScenario>(options.paths,
-        walks.bound.filter((f) => f.endsWith('.json')),
-        validateBoundScenario, 'bound-scenario-validation-failed', 'Bound scenario'),
-      interpretationSurfaces: loadAllDisposableJson<ScenarioInterpretationSurface>(options.paths,
-        walks.tasks.filter((f) => f.endsWith('.resolution.json')),
-        validateScenarioInterpretationSurface, 'scenario-interpretation-surface-validation-failed', 'Scenario interpretation surface'),
-      runRecords: loadAllDisposableJson<RunRecord>(options.paths,
-        walks.runs.filter((f) => path.basename(f) === 'run.json'),
-        validateRunRecord, 'run-record-validation-failed', 'Run record'),
-      routeManifests: loadAllYaml<RouteKnowledgeManifest>(options.paths,
-        walks.routes.filter((f) => f.endsWith('.routes.yaml')),
-        validateRouteKnowledgeManifest, 'route-knowledge-validation-failed', 'Route knowledge'),
-      discoveryRuns: loadAllJson<DiscoveryRun>(options.paths,
-        walks.discovery.filter((f) => path.basename(f) === 'crawl.json'),
-        validateDiscoveryRun, 'discovery-run-validation-failed', 'Discovery run'),
-      resolutionGraphRecords: loadAllDisposableJson<ResolutionGraphRecord>(options.paths,
-        walks.runs.filter((f) => path.basename(f) === 'resolution-graph.json'),
-        validateResolutionGraphRecord, 'resolution-graph-validation-failed', 'Resolution graph'),
-      interpretationDriftRecords: loadAllDisposableJson<InterpretationDriftRecord>(options.paths,
-        walks.runs.filter((f) => path.basename(f) === 'interpretation-drift.json'),
-        validateInterpretationDriftRecord, 'interpretation-drift-validation-failed', 'Interpretation drift'),
-      proposalBundles: loadAllDisposableJson<ProposalBundle>(options.paths,
-        walks.generated.filter((f) => f.endsWith('.proposals.json')),
-        validateProposalBundle, 'proposal-bundle-validation-failed', 'Proposal bundle'),
-      rerunPlans: loadAllDisposableJson<RerunPlan>(options.paths,
-        walks.inbox.filter((f) => f.endsWith('.rerun-plan.json')),
-        validateRerunPlan, 'rerun-plan-validation-failed', 'Rerun plan'),
-      approvalReceipts: loadAllDisposableJson<ApprovalReceipt>(options.paths,
-        walks.approvals.filter((f) => f.endsWith('.approval.json')),
-        validateApprovalReceipt, 'approval-receipt-validation-failed', 'Approval receipt'),
-      evidenceRecords: loadAllJson<EvidenceRecord>(options.paths,
-        walks.evidence.filter((f) => f.endsWith('.json')),
-        (value) => value as EvidenceRecord, 'evidence-validation-failed', 'Evidence'),
-      agentSessions: loadAllDisposableJson<AgentSession>(options.paths,
-        walks.sessions.filter((f) => path.basename(f) === 'session.json'),
-        validateAgentSession, 'agent-session-validation-failed', 'Agent session'),
-      replayExamples: loadAllJson<ReplayExample>(options.paths,
-        walks.replays.filter((f) => f.endsWith('.json')),
-        validateReplayExample, 'replay-example-validation-failed', 'Replay example'),
+      surfaces: loadArtifactsMatching<SurfaceGraph>(options.paths, walks.surfaces, {
+        source: 'yaml', lifetime: 'required', match: bySuffix('.surface.yaml'),
+        validate: validateSurfaceGraph, errorCode: 'surface-validation-failed', label: 'Surface graph',
+      }),
+      screenElements: loadArtifactsMatching<ScreenElements>(options.paths, walks.screens, {
+        source: 'yaml', lifetime: 'required', match: bySuffix('.elements.yaml'),
+        validate: validateScreenElements, errorCode: 'elements-validation-failed', label: 'Elements',
+      }),
+      screenHints: loadArtifactsMatching<ScreenHints>(options.paths, walks.screens, {
+        source: 'yaml', lifetime: 'required', match: bySuffix('.hints.yaml'),
+        validate: validateScreenHints, errorCode: 'screen-hints-validation-failed', label: 'Hints',
+      }),
+      screenPostures: loadArtifactsMatching<ScreenPostures>(options.paths, walks.screens, {
+        source: 'yaml', lifetime: 'required', match: bySuffix('.postures.yaml'),
+        validate: validateScreenPostures, errorCode: 'postures-validation-failed', label: 'Postures',
+      }),
+      screenBehaviors: loadArtifactsMatching<ScreenBehavior>(options.paths, walks.screens, {
+        source: 'yaml', lifetime: 'required', match: bySuffix('.behavior.yaml'),
+        validate: validateScreenBehavior, errorCode: 'screen-behavior-validation-failed', label: 'Screen behavior',
+      }),
+      patternDocuments: loadArtifactsMatching<PatternDocument>(options.paths, walks.patterns, {
+        source: 'yaml', lifetime: 'required',
+        match: (f) => f.endsWith('.yaml') && !f.endsWith('.behavior.yaml'),
+        validate: validatePatternDocument, errorCode: 'pattern-document-validation-failed', label: 'Pattern document',
+      }),
+      behaviorPatterns: loadArtifactsMatching<BehaviorPatternDocument>(options.paths, walks.patterns, {
+        source: 'yaml', lifetime: 'required', match: bySuffix('.behavior.yaml'),
+        validate: validateBehaviorPatternDocument, errorCode: 'behavior-pattern-document-validation-failed', label: 'Behavior pattern',
+      }),
+      datasets: loadArtifactsMatching<DatasetControl>(options.paths, walks.datasets, {
+        source: 'yaml', lifetime: 'required', match: bySuffix('.dataset.yaml'),
+        validate: validateDatasetControl, errorCode: 'dataset-control-validation-failed', label: 'Dataset control',
+      }),
+      benchmarks: loadArtifactsMatching<BenchmarkContext>(options.paths, walks.benchmarks, {
+        source: 'yaml', lifetime: 'required', match: bySuffix('.benchmark.yaml'),
+        validate: validateBenchmarkContext, errorCode: 'benchmark-context-validation-failed', label: 'Benchmark',
+      }),
+      resolutionControls: loadArtifactsMatching<ResolutionControl>(options.paths, walks.resolutionControls, {
+        source: 'yaml', lifetime: 'required', match: bySuffix('.resolution.yaml'),
+        validate: validateResolutionControl, errorCode: 'resolution-control-validation-failed', label: 'Resolution control',
+      }),
+      runbooks: loadArtifactsMatching<RunbookControl>(options.paths, walks.runbooks, {
+        source: 'yaml', lifetime: 'required', match: bySuffix('.runbook.yaml'),
+        validate: validateRunbookControl, errorCode: 'runbook-control-validation-failed', label: 'Runbook',
+      }),
+      snapshots: loadArtifactsMatching<AdoSnapshot>(options.paths, walks.snapshots, {
+        source: 'json', lifetime: 'required', match: bySuffix('.json'),
+        validate: validateAdoSnapshot, errorCode: 'snapshot-validation-failed', label: 'Snapshot',
+      }),
+      scenarios: loadArtifactsMatching<Scenario>(options.paths, walks.scenarios, {
+        source: 'yaml', lifetime: 'required', match: bySuffix('.scenario.yaml'),
+        validate: validateScenario, errorCode: 'scenario-validation-failed', label: 'Scenario',
+      }),
+      boundScenarios: loadArtifactsMatching<BoundScenario>(options.paths, walks.bound, {
+        source: 'json', lifetime: 'required', match: bySuffix('.json'),
+        validate: validateBoundScenario, errorCode: 'bound-scenario-validation-failed', label: 'Bound scenario',
+      }),
+      interpretationSurfaces: loadArtifactsMatching<ScenarioInterpretationSurface>(options.paths, walks.tasks, {
+        source: 'json', lifetime: 'disposable', match: bySuffix('.resolution.json'),
+        validate: validateScenarioInterpretationSurface,
+        errorCode: 'scenario-interpretation-surface-validation-failed',
+        label: 'Scenario interpretation surface',
+      }),
+      runRecords: loadArtifactsMatching<RunRecord>(options.paths, walks.runs, {
+        source: 'json', lifetime: 'disposable', match: byBasename('run.json'),
+        validate: validateRunRecord, errorCode: 'run-record-validation-failed', label: 'Run record',
+      }),
+      routeManifests: loadArtifactsMatching<RouteKnowledgeManifest>(options.paths, walks.routes, {
+        source: 'yaml', lifetime: 'required', match: bySuffix('.routes.yaml'),
+        validate: validateRouteKnowledgeManifest, errorCode: 'route-knowledge-validation-failed', label: 'Route knowledge',
+        postprocess: normalizeRouteManifest,
+      }),
+      discoveryRuns: loadArtifactsMatching<DiscoveryRun>(options.paths, walks.discovery, {
+        source: 'json', lifetime: 'required', match: byBasename('crawl.json'),
+        validate: validateDiscoveryRun, errorCode: 'discovery-run-validation-failed', label: 'Discovery run',
+      }),
+      resolutionGraphRecords: loadArtifactsMatching<ResolutionGraphRecord>(options.paths, walks.runs, {
+        source: 'json', lifetime: 'disposable', match: byBasename('resolution-graph.json'),
+        validate: validateResolutionGraphRecord, errorCode: 'resolution-graph-validation-failed', label: 'Resolution graph',
+      }),
+      interpretationDriftRecords: loadArtifactsMatching<InterpretationDriftRecord>(options.paths, walks.runs, {
+        source: 'json', lifetime: 'disposable', match: byBasename('interpretation-drift.json'),
+        validate: validateInterpretationDriftRecord, errorCode: 'interpretation-drift-validation-failed', label: 'Interpretation drift',
+      }),
+      proposalBundles: loadArtifactsMatching<ProposalBundle>(options.paths, walks.generated, {
+        source: 'json', lifetime: 'disposable', match: bySuffix('.proposals.json'),
+        validate: validateProposalBundle, errorCode: 'proposal-bundle-validation-failed', label: 'Proposal bundle',
+      }),
+      rerunPlans: loadArtifactsMatching<RerunPlan>(options.paths, walks.inbox, {
+        source: 'json', lifetime: 'disposable', match: bySuffix('.rerun-plan.json'),
+        validate: validateRerunPlan, errorCode: 'rerun-plan-validation-failed', label: 'Rerun plan',
+      }),
+      approvalReceipts: loadArtifactsMatching<ApprovalReceipt>(options.paths, walks.approvals, {
+        source: 'json', lifetime: 'disposable', match: bySuffix('.approval.json'),
+        validate: validateApprovalReceipt, errorCode: 'approval-receipt-validation-failed', label: 'Approval receipt',
+      }),
+      evidenceRecords: loadArtifactsMatching<EvidenceRecord>(options.paths, walks.evidence, {
+        source: 'json', lifetime: 'required', match: bySuffix('.json'),
+        validate: validateEvidenceRecord, errorCode: 'evidence-validation-failed', label: 'Evidence',
+      }),
+      agentSessions: loadArtifactsMatching<AgentSession>(options.paths, walks.sessions, {
+        source: 'json', lifetime: 'disposable', match: byBasename('session.json'),
+        validate: validateAgentSession, errorCode: 'agent-session-validation-failed', label: 'Agent session',
+      }),
+      replayExamples: loadArtifactsMatching<ReplayExample>(options.paths, walks.replays, {
+        source: 'json', lifetime: 'required', match: bySuffix('.json'),
+        validate: validateReplayExample, errorCode: 'replay-example-validation-failed', label: 'Replay example',
+      }),
 
       // Three-tier interface model loaders. Each tier loads both
       // source flavors (agentic + deterministic) into a single
@@ -373,24 +368,30 @@ export function loadWorkspaceCatalog(options: LoadCatalogOptions) {
       // `artifact.source` field. Files use the .json extension and
       // are validated by the Effect Schema decoders in
       // lib/domain/schemas/pipeline.ts.
-      tier1AtomsAgentic: loadAllJson<Atom<AtomClass, unknown>>(options.paths,
-        walks.tier1AtomsAgentic.filter((f) => f.endsWith('.json')),
-        validateAtomArtifact, 'atom-validation-failed', 'Atom (agentic)'),
-      tier1AtomsDeterministic: loadAllJson<Atom<AtomClass, unknown>>(options.paths,
-        walks.tier1AtomsDeterministic.filter((f) => f.endsWith('.json')),
-        validateAtomArtifact, 'atom-validation-failed', 'Atom (deterministic)'),
-      tier2CompositionsAgentic: loadAllJson<Composition<CompositionSubType, unknown>>(options.paths,
-        walks.tier2CompositionsAgentic.filter((f) => f.endsWith('.json')),
-        validateCompositionArtifact, 'composition-validation-failed', 'Composition (agentic)'),
-      tier2CompositionsDeterministic: loadAllJson<Composition<CompositionSubType, unknown>>(options.paths,
-        walks.tier2CompositionsDeterministic.filter((f) => f.endsWith('.json')),
-        validateCompositionArtifact, 'composition-validation-failed', 'Composition (deterministic)'),
-      tier3ProjectionsAgentic: loadAllJson<Projection<ProjectionSubType>>(options.paths,
-        walks.tier3ProjectionsAgentic.filter((f) => f.endsWith('.json')),
-        validateProjectionArtifact, 'projection-validation-failed', 'Projection (agentic)'),
-      tier3ProjectionsDeterministic: loadAllJson<Projection<ProjectionSubType>>(options.paths,
-        walks.tier3ProjectionsDeterministic.filter((f) => f.endsWith('.json')),
-        validateProjectionArtifact, 'projection-validation-failed', 'Projection (deterministic)'),
+      tier1AtomsAgentic: loadArtifactsMatching<Atom<AtomClass, unknown, PhaseOutputSource>>(options.paths, walks.tier1AtomsAgentic, {
+        source: 'json', lifetime: 'required', match: bySuffix('.json'),
+        validate: validateAtomArtifact, errorCode: 'atom-validation-failed', label: 'Atom (agentic)',
+      }),
+      tier1AtomsDeterministic: loadArtifactsMatching<Atom<AtomClass, unknown, PhaseOutputSource>>(options.paths, walks.tier1AtomsDeterministic, {
+        source: 'json', lifetime: 'required', match: bySuffix('.json'),
+        validate: validateAtomArtifact, errorCode: 'atom-validation-failed', label: 'Atom (deterministic)',
+      }),
+      tier2CompositionsAgentic: loadArtifactsMatching<Composition<CompositionSubType, unknown, PhaseOutputSource>>(options.paths, walks.tier2CompositionsAgentic, {
+        source: 'json', lifetime: 'required', match: bySuffix('.json'),
+        validate: validateCompositionArtifact, errorCode: 'composition-validation-failed', label: 'Composition (agentic)',
+      }),
+      tier2CompositionsDeterministic: loadArtifactsMatching<Composition<CompositionSubType, unknown, PhaseOutputSource>>(options.paths, walks.tier2CompositionsDeterministic, {
+        source: 'json', lifetime: 'required', match: bySuffix('.json'),
+        validate: validateCompositionArtifact, errorCode: 'composition-validation-failed', label: 'Composition (deterministic)',
+      }),
+      tier3ProjectionsAgentic: loadArtifactsMatching<Projection<ProjectionSubType, PhaseOutputSource>>(options.paths, walks.tier3ProjectionsAgentic, {
+        source: 'json', lifetime: 'required', match: bySuffix('.json'),
+        validate: validateProjectionArtifact, errorCode: 'projection-validation-failed', label: 'Projection (agentic)',
+      }),
+      tier3ProjectionsDeterministic: loadArtifactsMatching<Projection<ProjectionSubType, PhaseOutputSource>>(options.paths, walks.tier3ProjectionsDeterministic, {
+        source: 'json', lifetime: 'required', match: bySuffix('.json'),
+        validate: validateProjectionArtifact, errorCode: 'projection-validation-failed', label: 'Projection (deterministic)',
+      }),
     }, { concurrency: 'unbounded' });
 
     const knowledgeSnapshots = walks.knowledgeSnapshots
@@ -400,44 +401,50 @@ export function loadWorkspaceCatalog(options: LoadCatalogOptions) {
         absolutePath: filePath,
       }] : []);
 
-    // Phase 3: Load optional singletons (conditional on existence)
-    const confidenceCatalog = (yield* fs.exists(options.paths.confidenceIndexPath))
-      ? yield* readJsonArtifact(
-          options.paths,
-          options.paths.confidenceIndexPath,
-          validateConfidenceOverlayCatalog,
-          'confidence-overlay-catalog-validation-failed',
-          `Confidence overlay catalog ${options.paths.confidenceIndexPath} failed validation`,
-        )
-      : null as ArtifactEnvelope<ConfidenceOverlayCatalog> | null;
+    // Phase 3: Load optional singletons (conditional on existence).
+    // Each `loadOptionalSingleton` call handles the fs.exists check
+    // and returns null if the file is missing. Disposable-lifetime
+    // singletons catch validation errors and return null too,
+    // matching the prior `readDisposableSingleton` behavior.
+    const confidenceCatalog = yield* loadOptionalSingleton<ConfidenceOverlayCatalog>(
+      options.paths, options.paths.confidenceIndexPath, {
+        source: 'json', lifetime: 'required',
+        validate: validateConfidenceOverlayCatalog,
+        errorCode: 'confidence-overlay-catalog-validation-failed',
+        label: 'Confidence overlay catalog',
+      });
 
-    const interfaceGraph = (yield* fs.exists(options.paths.interfaceGraphIndexPath))
-      ? yield* readDisposableSingleton<ApplicationInterfaceGraph>(
-          options.paths, options.paths.interfaceGraphIndexPath, validateApplicationInterfaceGraph,
-          'application-interface-graph-validation-failed', 'Application interface graph')
-      : null as ArtifactEnvelope<ApplicationInterfaceGraph> | null;
+    const interfaceGraph = yield* loadOptionalSingleton<ApplicationInterfaceGraph>(
+      options.paths, options.paths.interfaceGraphIndexPath, {
+        source: 'json', lifetime: 'disposable',
+        validate: validateApplicationInterfaceGraph,
+        errorCode: 'application-interface-graph-validation-failed',
+        label: 'Application interface graph',
+      });
 
-    const selectorCanon = (yield* fs.exists(options.paths.selectorCanonPath))
-      ? yield* readDisposableSingleton<SelectorCanon>(
-          options.paths, options.paths.selectorCanonPath, validateSelectorCanon,
-          'selector-canon-validation-failed', 'Selector canon')
-      : null as ArtifactEnvelope<SelectorCanon> | null;
+    const selectorCanon = yield* loadOptionalSingleton<SelectorCanon>(
+      options.paths, options.paths.selectorCanonPath, {
+        source: 'json', lifetime: 'disposable',
+        validate: validateSelectorCanon,
+        errorCode: 'selector-canon-validation-failed',
+        label: 'Selector canon',
+      });
 
-    const stateGraph = (yield* fs.exists(options.paths.stateGraphPath))
-      ? yield* readDisposableSingleton<StateTransitionGraph>(
-          options.paths, options.paths.stateGraphPath, validateStateTransitionGraph,
-          'state-transition-graph-validation-failed', 'State transition graph')
-      : null as ArtifactEnvelope<StateTransitionGraph> | null;
+    const stateGraph = yield* loadOptionalSingleton<StateTransitionGraph>(
+      options.paths, options.paths.stateGraphPath, {
+        source: 'json', lifetime: 'disposable',
+        validate: validateStateTransitionGraph,
+        errorCode: 'state-transition-graph-validation-failed',
+        label: 'State transition graph',
+      });
 
-    const learningManifest = (yield* fs.exists(options.paths.learningManifestPath))
-      ? yield* readJsonArtifact(
-          options.paths,
-          options.paths.learningManifestPath,
-          validateTrainingCorpusManifest,
-          'training-corpus-manifest-validation-failed',
-          `Training corpus manifest ${options.paths.learningManifestPath} failed validation`,
-        )
-      : null as ArtifactEnvelope<TrainingCorpusManifest> | null;
+    const learningManifest = yield* loadOptionalSingleton<TrainingCorpusManifest>(
+      options.paths, options.paths.learningManifestPath, {
+        source: 'json', lifetime: 'required',
+        validate: validateTrainingCorpusManifest,
+        errorCode: 'training-corpus-manifest-validation-failed',
+        label: 'Training corpus manifest',
+      });
 
     const improvementRuns = (() => {
       const absolutePath = improvementLedgerPath(options.paths);
@@ -498,14 +505,10 @@ export function loadWorkspaceCatalog(options: LoadCatalogOptions) {
       rerunPlans: loaded.rerunPlans,
       datasets: loaded.datasets,
       benchmarks: loaded.benchmarks,
-      routeManifests: loaded.routeManifests.map((entry) => {
-        const normalized = normalizeRouteManifest(entry.artifact);
-        return {
-          ...entry,
-          artifact: normalized,
-          fingerprint: fingerprintArtifact(normalized),
-        };
-      }),
+      // routeManifests are already normalized + re-fingerprinted
+      // via the `postprocess: normalizeRouteManifest` hook on their
+      // loader spec above. No additional post-processing needed.
+      routeManifests: loaded.routeManifests,
       resolutionControls: loaded.resolutionControls,
       runbooks: loaded.runbooks,
       surfaces: loaded.surfaces,
@@ -614,18 +617,22 @@ export function deltaReloadProposalsAndRuns(
     ], { concurrency: 'unbounded' });
 
     const [proposalBundles, runRecords, resolutionGraphRecords, interpretationDriftRecords] = yield* Effect.all([
-      loadAllDisposableJson<ProposalBundle>(catalog.paths,
-        generatedFiles.filter((f) => f.endsWith('.proposals.json')),
-        validateProposalBundle, 'proposal-bundle-validation-failed', 'Proposal bundle'),
-      loadAllDisposableJson<RunRecord>(catalog.paths,
-        runFiles.filter((f) => path.basename(f) === 'run.json'),
-        validateRunRecord, 'run-record-validation-failed', 'Run record'),
-      loadAllDisposableJson<ResolutionGraphRecord>(catalog.paths,
-        runFiles.filter((f) => path.basename(f) === 'resolution-graph.json'),
-        validateResolutionGraphRecord, 'resolution-graph-validation-failed', 'Resolution graph'),
-      loadAllDisposableJson<InterpretationDriftRecord>(catalog.paths,
-        runFiles.filter((f) => path.basename(f) === 'interpretation-drift.json'),
-        validateInterpretationDriftRecord, 'interpretation-drift-validation-failed', 'Interpretation drift'),
+      loadArtifactsMatching<ProposalBundle>(catalog.paths, generatedFiles, {
+        source: 'json', lifetime: 'disposable', match: bySuffix('.proposals.json'),
+        validate: validateProposalBundle, errorCode: 'proposal-bundle-validation-failed', label: 'Proposal bundle',
+      }),
+      loadArtifactsMatching<RunRecord>(catalog.paths, runFiles, {
+        source: 'json', lifetime: 'disposable', match: byBasename('run.json'),
+        validate: validateRunRecord, errorCode: 'run-record-validation-failed', label: 'Run record',
+      }),
+      loadArtifactsMatching<ResolutionGraphRecord>(catalog.paths, runFiles, {
+        source: 'json', lifetime: 'disposable', match: byBasename('resolution-graph.json'),
+        validate: validateResolutionGraphRecord, errorCode: 'resolution-graph-validation-failed', label: 'Resolution graph',
+      }),
+      loadArtifactsMatching<InterpretationDriftRecord>(catalog.paths, runFiles, {
+        source: 'json', lifetime: 'disposable', match: byBasename('interpretation-drift.json'),
+        validate: validateInterpretationDriftRecord, errorCode: 'interpretation-drift-validation-failed', label: 'Interpretation drift',
+      }),
     ], { concurrency: 'unbounded' });
 
     return {

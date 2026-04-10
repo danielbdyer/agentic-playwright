@@ -29,21 +29,23 @@ function enrichmentForElement(
   };
 }
 
-function proposalStatusForSource(source: string): ProposalEpistemicStatus {
+function proposalStatusForSource(source: InterpretationSource): ProposalEpistemicStatus {
+  // InterpretationSource is a 3-variant union (lib/runtime/resolution/types.ts:85).
+  // Exhaustive switch — no default. Adding a new source variant
+  // breaks the build here until it's handled, which is what we want.
+  // Previously this function accepted `string` and had 8 cases plus a
+  // `default: 'discovered'` fallback. Five of those cases were dead
+  // code (unreachable under the actual domain type) and the default
+  // was hiding a silent-misclassification risk. All call sites pass
+  // `interpretation.source` which is already typed, so tightening the
+  // parameter type was zero-impact at the call sites.
   switch (source) {
     case 'dom-exploration':
-    case 'live-dom':
       return 'observed';
     case 'knowledge-translation':
-    case 'agent-interpreted':
-    case 'partial-resolution':
-    case 'needs-human':
       return 'interpreted';
     case 'knowledge-heuristic':
-    case 'deterministic-resolution':
       return 'stabilized';
-    default:
-      return 'discovered';
   }
 }
 

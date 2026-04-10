@@ -8,8 +8,14 @@ Read the doc that matches your task:
 
 - operational overview: [README.md](README.md)
 - authoritative architecture doctrine: [docs/master-architecture.md](docs/master-architecture.md)
+- **canon / derivation persistence doctrine** (load-bearing for every directory and gitignore decision): [docs/canon-and-derivation.md](docs/canon-and-derivation.md)
+- **envelope-axis refactor plan** (Phase 0 — structural prerequisite to the convergence plan; lifts `stage`, `source`, `verdict`, and fingerprint addresses into phantom-typed envelope axes): [docs/envelope-axis-refactor-plan.md](docs/envelope-axis-refactor-plan.md)
+- **cold-start convergence plan** (active spine for substrate work; sequences atom decomposition, dual L4 metric tree, intervention impact, promotion scoring, runtime-family recognition, Tier 3 projections — **depends on Phase 0 above**): [docs/cold-start-convergence-plan.md](docs/cold-start-convergence-plan.md)
+- **wall-mounted scoreboard** (M5 Memory Worthiness Ratio + C6 Intervention-Adjusted Economics): [docs/alignment-targets.md](docs/alignment-targets.md)
 - product model and QA workflow: [VISION.md](VISION.md)
+- conceptual domain model — primitives and gravitational wells: [docs/domain-model.md](docs/domain-model.md)
 - domain ontology and invariants: [docs/domain-ontology.md](docs/domain-ontology.md)
+- domain class decomposition — every primitive mapped to its concrete domain types and the dependency topology hubs (consult before inventing parallel content shapes): [docs/domain-class-decomposition.md](docs/domain-class-decomposition.md)
 - authorship and knowledge design: [docs/authoring.md](docs/authoring.md)
 - operator workflow and approvals: [docs/operator-handbook.md](docs/operator-handbook.md)
 - planned work split by lane: [BACKLOG.md](BACKLOG.md)
@@ -109,6 +115,8 @@ Use this vocabulary consistently:
 - `governance/projection`: generated outputs, graph surfaces, and trust policy
 
 Every cross-lane handoff should expose the same envelope header: `kind`, `version`, `stage`, `scope`, `ids`, `fingerprints`, `lineage`, `governance`, and `payload`.
+
+Envelope types declare their pipeline stage as a narrow literal via `extends WorkflowMetadata<'stage'>` — for example, `RunRecord extends WorkflowMetadata<'execution'>`. Do NOT inline the envelope header fields when declaring a new type; they come from the base. See `docs/master-architecture.md` § "Envelope Axis Vocabulary" for the full 4-axis model (Stage, Source, Verdict, Fingerprint<Tag>) and `docs/envelope-axis-refactor-plan.md` for the phased refactor that lifts each axis from runtime string to compile-time invariant.
 
 ## Governance vocabulary
 

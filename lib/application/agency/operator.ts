@@ -1,4 +1,4 @@
-import { sha256, stableStringify } from '../../domain/kernel/hash';
+import { fingerprintFor } from '../../domain/kernel/hash';
 import { isBlocked } from '../../domain/proposal/lifecycle';
 import type { AdoId } from '../../domain/kernel/identity';
 import type { ProposalBundle, ProposalEntry, RunRecord } from '../../domain/execution/types';
@@ -32,7 +32,7 @@ function proposalId(
   bundle: { readonly payload: Pick<ProposalBundle['payload'], 'adoId' | 'suite'> },
   proposal: Pick<ProposalEntry, 'artifactType' | 'targetPath' | 'title' | 'patch' | 'impactedSteps'>,
 ): string {
-  return `proposal-${sha256(stableStringify({
+  return `proposal-${fingerprintFor('proposal-id', {
     adoId: bundle.payload.adoId,
     suite: bundle.payload.suite,
     artifactType: proposal.artifactType,
@@ -40,7 +40,7 @@ function proposalId(
     title: proposal.title,
     patch: proposal.patch,
     impactedSteps: proposal.impactedSteps,
-  }))}`;
+  })}`;
 }
 
 function inboxItemId(input: {
@@ -51,7 +51,7 @@ function inboxItemId(input: {
   stepIndex?: number | null | undefined;
   targetPath?: string | null | undefined;
 }): string {
-  return `inbox-${sha256(stableStringify(input))}`;
+  return `inbox-${fingerprintFor('inbox-item-id', input)}`;
 }
 
 /** Handoff profile — the tuple of fields that depend only on the inbox

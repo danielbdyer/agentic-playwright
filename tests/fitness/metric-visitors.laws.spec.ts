@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import {
-  buildL4MetricTree,
-  L4_VISITORS,
+  buildPipelineMetricTree,
+  PIPELINE_VISITORS,
   extractionRatioVisitor,
   handshakeDensityVisitor,
   rungDistributionVisitor,
@@ -9,7 +9,7 @@ import {
   compoundingEconomicsVisitor,
 } from '../../lib/domain/fitness/metric/visitors';
 import {
-  L4_METRIC_KINDS,
+  PIPELINE_METRIC_KINDS,
 } from '../../lib/domain/fitness/metric/catalogue';
 import {
   flattenMetricTree,
@@ -68,15 +68,15 @@ const COMPUTED_AT = '2026-04-07T00:00:00.000Z';
 
 // ─── Registry exhaustiveness ────────────────────────────────────
 
-test('L4_VISITORS has an entry for every L4_METRIC_KINDS entry', () => {
-  for (const kind of L4_METRIC_KINDS) {
-    expect(L4_VISITORS[kind]).toBeDefined();
-    expect(L4_VISITORS[kind]?.outputKind).toBe(kind);
+test('PIPELINE_VISITORS has an entry for every PIPELINE_METRIC_KINDS entry', () => {
+  for (const kind of PIPELINE_METRIC_KINDS) {
+    expect(PIPELINE_VISITORS[kind]).toBeDefined();
+    expect(PIPELINE_VISITORS[kind]?.outputKind).toBe(kind);
   }
 });
 
-test('L4_VISITORS has no extra entries beyond the catalogue', () => {
-  expect(Object.keys(L4_VISITORS).sort()).toEqual([...L4_METRIC_KINDS].sort());
+test('PIPELINE_VISITORS has no extra entries beyond the catalogue', () => {
+  expect(Object.keys(PIPELINE_VISITORS).sort()).toEqual([...PIPELINE_METRIC_KINDS].sort());
 });
 
 // ─── Per-visitor projections ────────────────────────────────────
@@ -177,43 +177,43 @@ test('compoundingEconomicsVisitor falls back to proposalYield when obligation mi
 
 // ─── Aggregate tree builder ─────────────────────────────────────
 
-test('buildL4MetricTree returns one root with one child per L4 kind', () => {
-  const tree = buildL4MetricTree({ metrics: fakeMetrics(), computedAt: COMPUTED_AT });
-  expect(tree.metric.kind).toBe('l4-root');
-  expect(tree.children).toHaveLength(L4_METRIC_KINDS.length);
+test('buildPipelineMetricTree returns one root with one child per pipeline kind', () => {
+  const tree = buildPipelineMetricTree({ metrics: fakeMetrics(), computedAt: COMPUTED_AT });
+  expect(tree.metric.kind).toBe('pipeline-root');
+  expect(tree.children).toHaveLength(PIPELINE_METRIC_KINDS.length);
 });
 
-test('buildL4MetricTree children are in L4_METRIC_KINDS declaration order', () => {
-  const tree = buildL4MetricTree({ metrics: fakeMetrics(), computedAt: COMPUTED_AT });
+test('buildPipelineMetricTree children are in PIPELINE_METRIC_KINDS declaration order', () => {
+  const tree = buildPipelineMetricTree({ metrics: fakeMetrics(), computedAt: COMPUTED_AT });
   const childKinds = tree.children.map((c) => c.metric.kind);
-  expect(childKinds).toEqual([...L4_METRIC_KINDS]);
+  expect(childKinds).toEqual([...PIPELINE_METRIC_KINDS]);
 });
 
-test('buildL4MetricTree is deterministic', () => {
-  const a = buildL4MetricTree({ metrics: fakeMetrics(), computedAt: COMPUTED_AT });
-  const b = buildL4MetricTree({ metrics: fakeMetrics(), computedAt: COMPUTED_AT });
+test('buildPipelineMetricTree is deterministic', () => {
+  const a = buildPipelineMetricTree({ metrics: fakeMetrics(), computedAt: COMPUTED_AT });
+  const b = buildPipelineMetricTree({ metrics: fakeMetrics(), computedAt: COMPUTED_AT });
   expect(JSON.stringify(a)).toBe(JSON.stringify(b));
 });
 
-test('buildL4MetricTree contains every L4 kind reachable via flatten', () => {
-  const tree = buildL4MetricTree({ metrics: fakeMetrics(), computedAt: COMPUTED_AT });
+test('buildPipelineMetricTree contains every L4 kind reachable via flatten', () => {
+  const tree = buildPipelineMetricTree({ metrics: fakeMetrics(), computedAt: COMPUTED_AT });
   const flat = flattenMetricTree(tree);
   const kinds = new Set(flat.map((m) => m.kind));
-  for (const kind of L4_METRIC_KINDS) {
+  for (const kind of PIPELINE_METRIC_KINDS) {
     expect(kinds.has(kind)).toBe(true);
   }
 });
 
-test('buildL4MetricTree node count is non-trivial (> L4 kind count)', () => {
+test('buildPipelineMetricTree node count is non-trivial (> L4 kind count)', () => {
   // Sub-metrics should make the tree larger than just the L4 kinds.
-  const tree = buildL4MetricTree({ metrics: fakeMetrics(), computedAt: COMPUTED_AT });
-  expect(countMetricNodes(tree)).toBeGreaterThan(L4_METRIC_KINDS.length + 1);
+  const tree = buildPipelineMetricTree({ metrics: fakeMetrics(), computedAt: COMPUTED_AT });
+  expect(countMetricNodes(tree)).toBeGreaterThan(PIPELINE_METRIC_KINDS.length + 1);
 });
 
 // ─── Diff between two L4 trees ──────────────────────────────────
 
 test('diff between identical L4 trees is unchanged', () => {
-  const tree = buildL4MetricTree({ metrics: fakeMetrics(), computedAt: COMPUTED_AT });
+  const tree = buildPipelineMetricTree({ metrics: fakeMetrics(), computedAt: COMPUTED_AT });
   const delta = diffMetricTrees({
     baselineLabel: 'self',
     comparedAt: COMPUTED_AT,
@@ -224,11 +224,11 @@ test('diff between identical L4 trees is unchanged', () => {
 });
 
 test('improving knowledgeHitRate produces a better extraction-ratio delta', () => {
-  const before = buildL4MetricTree({
+  const before = buildPipelineMetricTree({
     metrics: fakeMetrics({ knowledgeHitRate: 0.5 }),
     computedAt: COMPUTED_AT,
   });
-  const after = buildL4MetricTree({
+  const after = buildPipelineMetricTree({
     metrics: fakeMetrics({ knowledgeHitRate: 0.8 }),
     computedAt: COMPUTED_AT,
   });
@@ -243,11 +243,11 @@ test('improving knowledgeHitRate produces a better extraction-ratio delta', () =
 });
 
 test('worsening suspensionRate produces a worse handshake-density delta', () => {
-  const before = buildL4MetricTree({
+  const before = buildPipelineMetricTree({
     metrics: fakeMetrics({ suspensionRate: 0.05 }),
     computedAt: COMPUTED_AT,
   });
-  const after = buildL4MetricTree({
+  const after = buildPipelineMetricTree({
     metrics: fakeMetrics({ suspensionRate: 0.25 }),
     computedAt: COMPUTED_AT,
   });

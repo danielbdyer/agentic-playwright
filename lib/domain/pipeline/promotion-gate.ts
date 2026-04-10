@@ -46,6 +46,27 @@ export interface PromotionEvaluation {
   };
 }
 
+// ─── Source constraints for promotion ───────────────────────────
+//
+// Promotion candidates come from the discovery engine (cold or
+// live derivation). Existing canonical artifacts come from the
+// higher-precedence slots (operator-approved, agent-approved, or
+// deterministically-observed). These types make the source
+// constraint compile-checked at every gate call site.
+
+/** Sources eligible for promotion candidacy: the discovery engine's
+ *  own output. */
+export type PromotionCandidateSource =
+  | 'cold-derivation'
+  | 'live-derivation';
+
+/** Sources that constitute existing canon: the artifacts that have
+ *  already been promoted or hand-approved. */
+export type CanonicalSource =
+  | 'operator-override'
+  | 'agentic-override'
+  | 'deterministic-observation';
+
 // ─── Gate interface ──────────────────────────────────────────────
 
 /** A promotion gate for one specific atom class. The application
@@ -54,11 +75,14 @@ export interface PromotionEvaluation {
 export interface AtomPromotionGate<C extends AtomClass> {
   /** The atom class this gate handles. */
   readonly class: C;
-  /** Pure evaluation: given a candidate and the existing canonical
-   *  artifact (if any), decide what to do. */
+  /** Pure evaluation: given a discovery candidate and the existing
+   *  canonical artifact (if any), decide whether to promote. The
+   *  source constraints are enforced by the type system: candidates
+   *  must come from discovery sources, existing must come from
+   *  canon sources. */
   readonly evaluate: (input: {
-    readonly candidate: Atom<C, unknown>;
-    readonly existing: Atom<C, unknown> | null;
+    readonly candidate: Atom<C, unknown, PromotionCandidateSource>;
+    readonly existing: Atom<C, unknown, CanonicalSource> | null;
   }) => PromotionEvaluation;
 }
 
@@ -66,8 +90,8 @@ export interface AtomPromotionGate<C extends AtomClass> {
 export interface CompositionPromotionGate<S extends CompositionSubType> {
   readonly subType: S;
   readonly evaluate: (input: {
-    readonly candidate: Composition<S, unknown>;
-    readonly existing: Composition<S, unknown> | null;
+    readonly candidate: Composition<S, unknown, PromotionCandidateSource>;
+    readonly existing: Composition<S, unknown, CanonicalSource> | null;
   }) => PromotionEvaluation;
 }
 
@@ -75,8 +99,8 @@ export interface CompositionPromotionGate<S extends CompositionSubType> {
 export interface ProjectionPromotionGate<S extends ProjectionSubType> {
   readonly subType: S;
   readonly evaluate: (input: {
-    readonly candidate: Projection<S>;
-    readonly existing: Projection<S> | null;
+    readonly candidate: Projection<S, PromotionCandidateSource>;
+    readonly existing: Projection<S, CanonicalSource> | null;
   }) => PromotionEvaluation;
 }
 
@@ -107,8 +131,8 @@ export interface DemotionProposal {
 export interface AtomDemotionGate<C extends AtomClass> {
   readonly class: C;
   readonly evaluate: (input: {
-    readonly existing: Atom<C, unknown>;
-    readonly challenger: Atom<C, unknown> | null;
+    readonly existing: Atom<C, unknown, CanonicalSource>;
+    readonly challenger: Atom<C, unknown, PromotionCandidateSource> | null;
   }) => DemotionProposal;
 }
 

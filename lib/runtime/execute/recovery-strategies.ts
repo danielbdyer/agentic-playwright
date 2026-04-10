@@ -12,6 +12,7 @@
 
 import type { RecoveryAttempt, RecoveryBudget, RecoveryFailureFamily, RecoveryStrategyId } from '../../domain/commitment/recovery-policy';
 import type { ExecutionDiagnostic } from '../../domain/execution/types';
+import { freeSearch } from '../../domain/algebra/free-forgetful';
 
 // ─── Recovery context passed to each strategy ───
 
@@ -140,31 +141,49 @@ export function runRecoveryChain(
   budget: RecoveryBudget,
   policyProfile: string,
 ): RecoveryChainResult {
-  const tryStrategy = (
-    remainingStrategies: readonly ComposableRecoveryStrategy[],
-    priorAttempts: readonly RecoveryAttempt[],
-  ): RecoveryChainResult => {
-    if (remainingStrategies.length === 0) {
-      return { policyProfile, attempts: [...priorAttempts], recovered: false };
-    }
-    const [head, ...restStrategies] = remainingStrategies;
-    const strategy = head!;
+  // Delegate to the Kleisli iterator `freeSearch` from
+  // lib/domain/algebra/free-forgetful.ts. Each strategy is a
+  // candidate; the per-candidate attempt runs its own inner loop
+  // over `attempt: 1..maxAttempts`, accumulates RecoveryAttempt
+  // records, and returns a "result" of true when recovery
+  // succeeds (freeSearch short-circuits on non-null results).
+  //
+  // Global budget-cap: freeSearch doesn't thread state between
+  // candidates, but the budget applies CUMULATIVELY across all
+  // strategies. We handle this with a contained closure-scoped
+  // array `accumulatedAttempts` that every inner loop appends to.
+  // This is the legitimate "transient internal, persistent
+  // external" idiom from docs/coding-notes.md § Where mutation is
+  // acceptable — the mutation is scoped to one closure invocation
+  // and invisible outside this function.
+  //
+  // When the budget cap trips mid-strategy, the inner loop
+  // returns a non-null sentinel ('budget-exhausted') via the
+  // result channel. The outer aggregation distinguishes success
+  // from budget exhaustion by inspecting the trail's final step.
+
+  type InnerResult =
+    | { readonly kind: 'recovered' }
+    | { readonly kind: 'budget-exhausted' };
+
+  const accumulatedAttempts: RecoveryAttempt[] = [];
+
+  const trail = freeSearch<
+    ComposableRecoveryStrategy,
+    { readonly ran: boolean },
+    InnerResult
+  >(chain, (strategy) => {
     if (!strategy.canRecover(context)) {
-      return tryStrategy(restStrategies, priorAttempts);
+      return { outcome: { ran: false }, result: null };
     }
     const maxAttempts = Math.max(1, strategy.maxAttempts);
-    const tryAttempt = (
-      attempt: number,
-      accumulated: readonly RecoveryAttempt[],
-    ): RecoveryChainResult => {
-      if (attempt > maxAttempts || accumulated.length >= budget.maxAttempts) {
-        return accumulated.length >= budget.maxAttempts
-          ? { policyProfile, attempts: [...accumulated], recovered: false }
-          : tryStrategy(restStrategies, accumulated);
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      if (accumulatedAttempts.length >= budget.maxAttempts) {
+        return { outcome: { ran: true }, result: { kind: 'budget-exhausted' } };
       }
       const startedAt = new Date().toISOString();
       const outcome = strategy.recover(context, attempt);
-      const updated = [...accumulated, {
+      accumulatedAttempts.push({
         strategyId: strategy.id,
         family: context.family,
         attempt,
@@ -172,15 +191,19 @@ export function runRecoveryChain(
         durationMs: 0,
         result: outcome.result,
         diagnostics: [...outcome.diagnostics],
-      }];
+      });
       if (outcome.result === 'recovered') {
-        return { policyProfile, attempts: updated, recovered: true };
+        return { outcome: { ran: true }, result: { kind: 'recovered' } };
       }
-      return tryAttempt(attempt + 1, updated);
-    };
-    return tryAttempt(1, priorAttempts);
+    }
+    return { outcome: { ran: true }, result: null };
+  });
+
+  return {
+    policyProfile,
+    attempts: [...accumulatedAttempts],
+    recovered: trail.result?.kind === 'recovered',
   };
-  return tryStrategy([...chain], []);
 }
 
 /**
@@ -191,5 +214,10 @@ export function selectRecoveryChain(
   family: RecoveryFailureFamily,
   overrides?: Readonly<Partial<Record<RecoveryFailureFamily, readonly ComposableRecoveryStrategy[]>>>,
 ): readonly ComposableRecoveryStrategy[] {
-  return overrides?.[family] ?? defaultRecoveryChains[family] ?? [];
+  // Overrides is Partial, so may be undefined per family.
+  // defaultRecoveryChains is a full Record<RecoveryFailureFamily, ...>
+  // so its lookup is non-nullable — no trailing `?? []` fallback
+  // needed. Previously there was a dead `?? []` that masked the
+  // (correct) compile-time guarantee.
+  return overrides?.[family] ?? defaultRecoveryChains[family];
 }

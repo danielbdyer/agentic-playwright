@@ -139,7 +139,7 @@ test('operator inbox, approval receipts, and rerun plans share a stable proposal
         content: 'sha256:seeded',
         knowledge: 'sha256:knowledge',
         controls: 'sha256:controls',
-        task: 'sha256:task',
+        surface: 'sha256:task',
         run: 'seeded-run',
       },
       lineage: {
@@ -156,7 +156,7 @@ test('operator inbox, approval receipts, and rerun plans share a stable proposal
         suite: 'demo/policy-search',
         proposals: [proposal, competingProposal],
       },
-    } as ProposalBundle;
+    } as unknown as ProposalBundle;
     const bundlePath = generatedProposalsPath(workspace.paths, 'demo/policy-search', adoId);
     mkdirSync(path.dirname(bundlePath), { recursive: true });
     writeFileSync(bundlePath, JSON.stringify(bundle, null, 2), 'utf8');
@@ -289,7 +289,7 @@ test('ci-batch posture forbids proposal approval', async () => {
         content: 'sha256:seeded',
         knowledge: 'sha256:knowledge',
         controls: 'sha256:controls',
-        task: 'sha256:task',
+        surface: 'sha256:task',
         run: 'seeded-run',
       },
       lineage: {
@@ -306,7 +306,7 @@ test('ci-batch posture forbids proposal approval', async () => {
         suite: 'demo/policy-search',
         proposals: [proposal],
       },
-    } as ProposalBundle;
+    } as unknown as ProposalBundle;
     const bundlePath = generatedProposalsPath(workspace.paths, 'demo/policy-search', adoId);
     mkdirSync(path.dirname(bundlePath), { recursive: true });
     writeFileSync(bundlePath, JSON.stringify(bundle, null, 2), 'utf8');

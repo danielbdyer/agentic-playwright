@@ -171,15 +171,9 @@ export interface GroundedStep {
   readonly taskFingerprint: string;
 }
 
-export interface ScenarioInterpretationSurface {
+export interface ScenarioInterpretationSurface extends WorkflowMetadata<'preparation'> {
   readonly kind: 'scenario-interpretation-surface';
-  readonly version: 1;
-  readonly stage: 'preparation';
   readonly scope: 'scenario';
-  readonly ids: WorkflowEnvelopeIds;
-  readonly fingerprints: WorkflowEnvelopeFingerprints;
-  readonly lineage: WorkflowEnvelopeLineage;
-  readonly governance: Governance;
   readonly payload: {
     readonly adoId: AdoId;
     readonly revision: number;
@@ -234,31 +228,6 @@ export interface ScenarioRunPlan {
    *  When present and mode is 'playwright', the harness navigates here first
    *  so that relative screen URLs resolve correctly. */
   readonly baseUrl?: string | undefined;
-}
-
-/** @deprecated Use `ScenarioInterpretationSurface`. */
-export interface ScenarioTaskPacket {
-  readonly kind: 'scenario-task-packet';
-  readonly version: 5;
-  readonly stage: 'preparation';
-  readonly scope: 'scenario';
-  readonly ids: WorkflowEnvelopeIds;
-  readonly fingerprints: WorkflowEnvelopeFingerprints;
-  readonly lineage: WorkflowEnvelopeLineage;
-  readonly governance: Governance;
-  readonly payload: {
-    readonly adoId: AdoId;
-    readonly revision: number;
-    readonly title: string;
-    readonly suite: string;
-    readonly knowledgeFingerprint: string;
-    readonly interface: TaskArtifactRef;
-    readonly selectors: TaskArtifactRef;
-    readonly stateGraph: TaskArtifactRef;
-    readonly knowledgeSlice: ScenarioKnowledgeSlice;
-    readonly steps: readonly GroundedStep[];
-  };
-  readonly taskFingerprint: string;
 }
 
 export interface ObservedStateSessionScreenState {
@@ -650,8 +619,7 @@ export interface StepResolutionGraph {
   };
 }
 
-interface ResolutionReceiptBase extends WorkflowMetadata {
-  readonly stage: 'resolution';
+interface ResolutionReceiptBase extends WorkflowMetadata<'resolution'> {
   readonly scope: 'step';
   readonly taskFingerprint: string;
   readonly knowledgeFingerprint: string;

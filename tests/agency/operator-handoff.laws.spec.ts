@@ -46,7 +46,7 @@ function mockCatalog(): WorkspaceCatalog {
       runbook: null,
       resolutionControl: null,
     },
-    fingerprints: { artifact: 'fp', content: 'fp', knowledge: 'fp', controls: 'fp', task: 'fp', run: 'run-1' },
+    fingerprints: { artifact: 'fp', content: 'fp', knowledge: 'fp', controls: 'fp', surface: 'fp', run: 'run-1' },
     lineage: { sources: [], parents: [], handshakes: [] },
     governance: 'review-required',
     payload: {
@@ -57,7 +57,7 @@ function mockCatalog(): WorkspaceCatalog {
       suite: 'demo/policy-search',
       proposals: [proposalA, proposalB],
     },
-  } as ProposalBundle;
+  } as unknown as ProposalBundle;
 
   return {
     approvalReceipts: [],

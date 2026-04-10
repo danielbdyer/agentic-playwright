@@ -6,6 +6,7 @@ import type { ProjectPaths } from '../../paths';
 import { interpretationDriftPath, interpretationPath, resolutionGraphPath, taskPacketPath } from '../../paths';
 import { FileSystem, RuntimeScenarioRunner } from '../../ports';
 import { loadWorkspaceCatalog } from '../../catalog';
+import { createScenarioEnvelopeFingerprints } from '../../catalog/envelope';
 import { loadScenarioInterpretationSurfaceFromCatalog, prepareScenarioRunPlan } from '../select-run-context';
 import { interpretScenarioFromPlan } from '../interpret';
 import { emitOperatorInbox } from '../../agency/inbox';
@@ -109,14 +110,14 @@ function createDriftRecord(input: {
       runbook: null,
       resolutionControl: null,
     },
-    fingerprints: {
+    fingerprints: createScenarioEnvelopeFingerprints({
       artifact: input.runId,
-      content: null,
+      content: '',
       knowledge: firstReceipt?.knowledgeFingerprint ?? input.surface.payload.knowledgeFingerprint,
       controls: firstReceipt?.fingerprints.controls ?? null,
-      task: input.surface.surfaceFingerprint,
+      surface: input.surface.surfaceFingerprint,
       run: input.runId,
-    },
+    }),
     lineage: {
       sources: [input.surfaceArtifactPath],
       parents: input.previous ? [input.previous.runId] : [],

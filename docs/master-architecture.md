@@ -50,6 +50,32 @@ Those lanes are not the true conceptual center anymore. Three cross-cutting spin
 
 The six lanes tell us where a concern lives operationally. The three spines tell us what the system is really made of.
 
+## Envelope Axis Vocabulary
+
+Every artifact that crosses a seam in this system is an envelope. Envelopes sit at a point in a 4-axis typed space, and the pipeline is a typed path through that space. Each axis answers a different question about the artifact.
+
+- **Stage** — *where in the forward progression is this?* — `preparation → resolution → execution → evidence → proposal → projection`. Declared via the `S` parameter on `WorkflowMetadata<S>` and `WorkflowEnvelope<T, S>` in `lib/domain/governance/workflow-types.ts`. Concrete envelope types extend `WorkflowMetadata<'stage'>` for their specific literal — for example, `RunRecord extends WorkflowMetadata<'execution'>`. The temporal axis.
+
+- **Source** — *which slot of the 5-rung precedence ladder produced this?* — `operator-override → agentic-override → deterministic-observation → live-derivation → cold-derivation`. Declared via the `Src` parameter on `Atom<C, T, Src>`, `Composition<S, T, Src>`, `Projection<S, Src>` in `lib/domain/pipeline/{atom,composition,projection}.ts`. No default parameter — every call site declares source explicitly. The epistemic axis.
+
+- **Verdict** — *what is governance's three-way decision about this?* — `Approved | Suspended | Blocked`. Carried as `governance: Governance` string on envelopes for persistence; consumed exclusively through the typed API (`isApproved`, `isBlocked`, `isReviewRequired`, `foldGovernance`). Gate composition uses `GovernanceVerdict<T, I>` ADT with `chainVerdict` and `runGateChain`. Architecture law test (`tests/architecture/governance-verdict.laws.spec.ts` Law 8) enforces zero ad-hoc string comparisons in production code. The normative axis.
+
+- **Fingerprint<Tag>** — *what does this identifier point at?* — `Fingerprint<Tag>` branded string in `lib/domain/kernel/hash.ts`. Tag registry is closed (`FingerprintTag` union). Fingerprint producers use `fingerprintFor<Tag>(tag, value)` / `taggedFingerprintFor<Tag>(tag, value)` — no untagged form exists. `WorkflowEnvelopeFingerprints` slots are typed: `artifact: Fingerprint<'artifact'>`, `surface: Fingerprint<'surface'>` (renamed from `task` per D1), etc. The identity-projection axis.
+
+These four axes are orthogonal. A function signature like `buildProposals(run: WorkflowEnvelope<RunRecordPayload, 'execution'>): WorkflowEnvelope<ProposalBundlePayload, 'proposal'>` tells you exactly where in the 4D space the function lives. The phase 0 refactor (`docs/envelope-axis-refactor-plan.md`) moves each axis from runtime string to compile-time invariant in dependency order: Stage first, then Source, then Fingerprint, then Verdict.
+
+Declaring a new envelope type follows one idiom:
+
+```typescript
+export interface NewKindRecord extends WorkflowMetadata<'resolution'> {
+  readonly kind: 'new-kind-record';
+  readonly scope: 'run';  // narrow via declaration merging
+  readonly payload: { /* domain-specific */ };
+}
+```
+
+The narrow stage parameter is the contract. `version`, `ids`, `fingerprints`, `lineage`, `governance` are inherited from the base. `scope` is narrowed inline to the concrete scope literal. Only the domain-specific `kind` and `payload` fields are new.
+
 ## Canonical Model
 
 The canonical model extends the existing ontology with the following first-class contracts.

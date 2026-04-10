@@ -8,7 +8,7 @@
  *
  *   1. findLatestFitnessReport() — read the most recent fitness report
  *      from .tesseract/benchmarks/runs/
- *   2. buildL4MetricTree()       — pure visitor projection
+ *   2. buildPipelineMetricTree()       — pure visitor projection
  *   3. optional baseline diff    — if a label or "latest" is provided
  *
  * The function does NOT regenerate scenarios, run the dogfood loop,
@@ -23,8 +23,10 @@ import { FileSystem } from '../ports';
 import type { ProjectPaths } from '../paths';
 import { TesseractError } from '../../domain/kernel/errors';
 import type { PipelineFitnessReport } from '../../domain/fitness/types';
-import { buildL4MetricTree } from '../../domain/fitness/metric/visitors';
+import { buildPipelineMetricTree } from '../../domain/fitness/metric/visitors';
+import { buildDiscoveryMetricTree } from '../../domain/fitness/metric/visitors-discovery';
 import type { MetricNode } from '../../domain/fitness/metric/tree';
+import { loadWorkspaceCatalog } from '../catalog/workspace-catalog';
 import {
   diffMetricTrees,
   deltaVerdict,
@@ -75,6 +77,36 @@ export function findLatestFitnessReport(
   });
 }
 
+// ─── Discovery tree helper ──────────────────────────────────────
+
+/** Load the catalog and build the discovery-fitness tree. Returns
+ *  null if the catalog can't be loaded or has no tier1Atoms.
+ *  Separated from the main score function so the Effect service
+ *  types compose cleanly (loadWorkspaceCatalog and score both
+ *  require FileSystem). */
+function buildDiscoveryTreeSafe(
+  paths: ProjectPaths,
+  computedAt: string,
+): Effect.Effect<MetricNode | null, never, FileSystem> {
+  return loadWorkspaceCatalog({
+    paths,
+    knowledgePosture: 'warm-start',
+    scope: 'compile',
+  }).pipe(
+    Effect.map((catalog) =>
+      catalog.tier1Atoms.length > 0
+        ? buildDiscoveryMetricTree({
+            discoveredAtoms: [],
+            canonicalAtoms: catalog.tier1Atoms.map((e) => e.artifact),
+            computedAt,
+          })
+        : null,
+    ),
+    Effect.option,
+    Effect.map((option) => option._tag === 'Some' ? option.value : null),
+  ) as Effect.Effect<MetricNode | null, never, FileSystem>;
+}
+
 // ─── Score orchestration ─────────────────────────────────────────
 
 export interface ScoreOptions {
@@ -90,6 +122,11 @@ export interface ScoreOptions {
 
 export interface ScoreResult {
   readonly tree: MetricNode;
+  /** The discovery-fitness tree — a parallel peer to the pipeline
+   *  tree that measures how well the discovery engine derives
+   *  knowledge from scratch. Built from the canonical artifact store
+   *  when available; null when no canonical artifacts exist yet. */
+  readonly discoveryTree: MetricNode | null;
   readonly fitnessReport: PipelineFitnessReport;
   readonly baseline?: MetricBaseline | undefined;
   readonly delta?: MetricTreeDelta | undefined;
@@ -115,13 +152,23 @@ export function score(
       );
     }
 
-    const tree = buildL4MetricTree({
+    const tree = buildPipelineMetricTree({
       metrics: report.metrics,
       computedAt,
     });
 
+    // Build the discovery-fitness tree alongside the pipeline tree.
+    // Load the catalog to get canonical atoms. discoveredAtoms is
+    // empty until the discovery engine is wired to the speedrun
+    // (Phase E); until then, all fidelity metrics are zero proxies.
+    // Non-fatal: if catalog loading fails, discoveryTree is null.
+    const discoveryTree: MetricNode | null = yield* buildDiscoveryTreeSafe(
+      options.paths,
+      computedAt,
+    );
+
     if (options.baselineLabel === undefined) {
-      return { tree, fitnessReport: report };
+      return { tree, discoveryTree, fitnessReport: report };
     }
 
     const baseline =
@@ -132,7 +179,7 @@ export function score(
     if (baseline === null) {
       // 'latest' was requested but no baselines exist — return the
       // tree alone, no diff. This is a non-fatal "first run" case.
-      return { tree, fitnessReport: report };
+      return { tree, discoveryTree, fitnessReport: report };
     }
 
     const delta = diffMetricTrees({
@@ -144,6 +191,7 @@ export function score(
 
     return {
       tree,
+      discoveryTree,
       fitnessReport: report,
       baseline,
       delta,

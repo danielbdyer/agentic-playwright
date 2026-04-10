@@ -42,6 +42,7 @@ import type {
 import type { Atom } from '../../domain/pipeline/atom';
 import type { Composition } from '../../domain/pipeline/composition';
 import type { Projection } from '../../domain/pipeline/projection';
+import type { PhaseOutputSource } from '../../domain/pipeline/source';
 import type { AtomClass } from '../../domain/pipeline/atom-address';
 import type { CompositionSubType } from '../../domain/pipeline/composition-address';
 import type { ProjectionSubType } from '../../domain/pipeline/projection-address';
@@ -109,18 +110,21 @@ export interface WorkspaceCatalog {
   /** Tier 1 — atoms (per-SUT-primitive facts). Loaded from
    *  `{suiteRoot}/.canonical-artifacts/atoms/{agentic|deterministic}/`.
    *  Per docs/canon-and-derivation.md § 3.6. Empty until Phase 2
-   *  decomposition lands. */
-  tier1Atoms: ArtifactEnvelope<Atom<AtomClass, unknown>>[];
+   *  decomposition lands. Source is wide at this layer because the
+   *  catalog holds atoms from every slot of the lookup chain;
+   *  per-source narrowing happens at decomposer and promotion-gate
+   *  sites. */
+  tier1Atoms: ArtifactEnvelope<Atom<AtomClass, unknown, PhaseOutputSource>>[];
   /** Tier 2 — compositions (higher-order patterns over atoms).
    *  Loaded from `{suiteRoot}/.canonical-artifacts/compositions/{agentic|deterministic}/`.
    *  Per docs/canon-and-derivation.md § 3.7. Empty until Phase 2
    *  decomposition lands. */
-  tier2Compositions: ArtifactEnvelope<Composition<CompositionSubType, unknown>>[];
+  tier2Compositions: ArtifactEnvelope<Composition<CompositionSubType, unknown, PhaseOutputSource>>[];
   /** Tier 3 — projections (constraints over the atom set).
    *  Loaded from `{suiteRoot}/.canonical-artifacts/projections/{agentic|deterministic}/`.
    *  Per docs/canon-and-derivation.md § 3.8. Empty until projection
    *  discovery engines come online. */
-  tier3Projections: ArtifactEnvelope<Projection<ProjectionSubType>>[];
+  tier3Projections: ArtifactEnvelope<Projection<ProjectionSubType, PhaseOutputSource>>[];
 }
 
 /** Empty pipeline-tier fields, for catalog construction sites that
@@ -131,7 +135,7 @@ export interface WorkspaceCatalog {
  *  intent is visible at every callsite — adding a tier here
  *  surfaces in every consumer that uses the constant. */
 export const EMPTY_PIPELINE_TIERS = {
-  tier1Atoms: [] as ArtifactEnvelope<Atom<AtomClass, unknown>>[],
-  tier2Compositions: [] as ArtifactEnvelope<Composition<CompositionSubType, unknown>>[],
-  tier3Projections: [] as ArtifactEnvelope<Projection<ProjectionSubType>>[],
+  tier1Atoms: [] as ArtifactEnvelope<Atom<AtomClass, unknown, PhaseOutputSource>>[],
+  tier2Compositions: [] as ArtifactEnvelope<Composition<CompositionSubType, unknown, PhaseOutputSource>>[],
+  tier3Projections: [] as ArtifactEnvelope<Projection<ProjectionSubType, PhaseOutputSource>>[],
 } as const;

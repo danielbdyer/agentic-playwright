@@ -24,6 +24,10 @@ import {
   foldVerdict,
   mapVerdict,
   chainVerdict,
+  runGateChain,
+  runGateChainFrom,
+  type VerdictGate,
+  type GovernanceVerdict,
   fromGovernance,
 } from '../../lib/domain/kernel/governed-suspension';
 import {
@@ -258,6 +262,103 @@ test('fromGovernance: maps governance strings to verdicts', () => {
   expect(fromGovernance('approved', 'val')._tag).toBe('Approved');
   expect(fromGovernance('review-required', 'val')._tag).toBe('Suspended');
   expect(fromGovernance('blocked', 'val')._tag).toBe('Blocked');
+});
+
+// ─── runGateChain laws ───
+
+test('runGateChain: empty gate list returns approved(initial) unchanged', () => {
+  const result = runGateChain<number, string>(42, []);
+  expect(result._tag).toBe('Approved');
+  if (result._tag === 'Approved') expect(result.value).toBe(42);
+});
+
+test('runGateChain: all-approving gates thread the value through the chain', () => {
+  const gates: VerdictGate<number, string>[] = [
+    (v) => approved(v + 1),
+    (v) => approved(v * 2),
+    (v) => approved(v - 3),
+  ];
+  const result = runGateChain(10, gates);
+  // (10 + 1) * 2 - 3 = 19
+  expect(result._tag).toBe('Approved');
+  if (result._tag === 'Approved') expect(result.value).toBe(19);
+});
+
+test('runGateChain: a suspended gate short-circuits the chain (later gates not invoked)', () => {
+  const invocations: string[] = [];
+  const gates: VerdictGate<number, string>[] = [
+    (v) => { invocations.push('gate-1'); return approved(v); },
+    (v) => { invocations.push('gate-2'); return suspended('need-review', 'gate 2 suspended'); },
+    (v) => { invocations.push('gate-3'); return approved(v + 100); },
+  ];
+  const result = runGateChain(5, gates);
+  expect(result._tag).toBe('Suspended');
+  // Gate 3 must NOT have been invoked.
+  expect(invocations).toEqual(['gate-1', 'gate-2']);
+});
+
+test('runGateChain: a blocked gate short-circuits the chain (later gates not invoked)', () => {
+  const invocations: string[] = [];
+  const gates: VerdictGate<number, string>[] = [
+    (v) => { invocations.push('gate-1'); return approved(v); },
+    () => { invocations.push('gate-2'); return blocked('gate 2 rejected'); },
+    (v) => { invocations.push('gate-3'); return approved(v + 100); },
+  ];
+  const result = runGateChain(5, gates);
+  expect(result._tag).toBe('Blocked');
+  expect(invocations).toEqual(['gate-1', 'gate-2']);
+});
+
+test('runGateChain: blocked carries the gate reason forward', () => {
+  const result = runGateChain<number, string>(5, [
+    (v) => approved(v),
+    () => blocked('specific reason from gate 2'),
+  ]);
+  expect(result._tag).toBe('Blocked');
+  if (result._tag === 'Blocked') expect(result.reason).toBe('specific reason from gate 2');
+});
+
+test('runGateChain: identity gate is a no-op', () => {
+  const identity: VerdictGate<number, string> = (v) => approved(v);
+  const result = runGateChain(42, [identity, identity, identity]);
+  expect(result._tag).toBe('Approved');
+  if (result._tag === 'Approved') expect(result.value).toBe(42);
+});
+
+test('runGateChainFrom: starts from an existing verdict, not a raw value', () => {
+  const initial = approved(5);
+  const gates: VerdictGate<number, string>[] = [(v) => approved(v * 2)];
+  const result = runGateChainFrom(initial, gates);
+  expect(result._tag).toBe('Approved');
+  if (result._tag === 'Approved') expect(result.value).toBe(10);
+});
+
+test('runGateChainFrom: short-circuits when the initial verdict is not approved', () => {
+  const invocations: string[] = [];
+  const initial = blocked<string>('blocked upstream');
+  const gates: VerdictGate<number, string>[] = [
+    (v) => { invocations.push('gate-1'); return approved(v); },
+  ];
+  const result = runGateChainFrom<number, string>(initial as GovernanceVerdict<number, string>, gates);
+  expect(result._tag).toBe('Blocked');
+  expect(invocations).toEqual([]);
+});
+
+test('runGateChain: equivalent to folding chainVerdict manually', () => {
+  const gates: VerdictGate<number, string>[] = [
+    (v) => approved(v + 1),
+    (v) => approved(v * 3),
+    (v) => approved(v - 7),
+  ];
+  const viaChain = runGateChain(10, gates);
+  const manual = chainVerdict(
+    chainVerdict(
+      chainVerdict(approved<number>(10), gates[0]!),
+      gates[1]!,
+    ),
+    gates[2]!,
+  );
+  expect(viaChain).toEqual(manual);
 });
 
 // ═══════════════════════════════════════════════════════════

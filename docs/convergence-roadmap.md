@@ -1,6 +1,27 @@
 # Convergence Roadmap: Closing the Gap Between Vision and Reality
 
-> Status: Active — authoritative roadmap for the next phase of Tesseract development.
+> Status: Active but **subordinate** to
+> [`docs/cold-start-convergence-plan.md`](./cold-start-convergence-plan.md),
+> which is the doctrinal spine for substrate convergence work.
+>
+> Read this document as the **tactical diagnosis** of why
+> convergence was slow at authoring time (Apr 2026). The
+> four-bottleneck decomposition (widget coverage, route knowledge,
+> proposal sparsity, demo-harness narrowness) is accurate but
+> under-scoped — it treats the problem as "the resolver is missing
+> tactics" when the load-bearing issue is also "the canonical
+> artifact substrate is still hybrid-compound shape, the promotion
+> gate has no dynamic-confidence scoring, and the two engines
+> (discovery + intervention) have no scoreboard that measures their
+> orthogonal progress."
+>
+> The workstreams in this document remain valid as Surface 1/2
+> tactical execution. The sequencing that relates them to substrate
+> migration (atom decomposition, dual L4 metric tree, intervention
+> impact wiring, confidence-interval promotion, runtime-family
+> recognition, Tier 3 projections) lives in
+> `docs/cold-start-convergence-plan.md` and supersedes §9 of this
+> document.
 
 This document is a rigorous gap analysis and implementation roadmap grounded in the actual codebase as of 2026-04-03. It identifies the precise architectural seams where work is needed, explains the causal relationships between gaps, and prescribes implementation strategies that respect the existing invariants documented in `docs/master-architecture.md`, `docs/coding-notes.md`, and `docs/seams-and-invariants.md`.
 

@@ -68,8 +68,7 @@ export interface PlannedExecutionStepReceipt {
   } | undefined;
 }
 
-export interface StepExecutionReceipt extends WorkflowMetadata {
-  readonly stage: 'execution';
+export interface StepExecutionReceipt extends WorkflowMetadata<'execution'> {
   readonly scope: 'step';
   readonly stepIndex: number;
   readonly taskFingerprint: string;
@@ -207,15 +206,9 @@ export interface ScenarioRunStep {
   readonly evidenceIds: readonly string[];
 }
 
-export interface RunRecord {
+export interface RunRecord extends WorkflowMetadata<'execution'> {
   readonly kind: 'scenario-run-record';
-  readonly version: 1;
-  readonly stage: 'execution';
   readonly scope: 'run';
-  readonly ids: WorkflowEnvelopeIds;
-  readonly fingerprints: WorkflowEnvelopeFingerprints;
-  readonly lineage: WorkflowEnvelopeLineage;
-  readonly governance: Governance;
   readonly payload: {
     readonly runId: string;
     readonly adoId: AdoId;

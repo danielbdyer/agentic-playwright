@@ -39,6 +39,37 @@ export type RunSelectionPrecedenceRung = (typeof runSelectionPrecedenceLaw)[numb
 export type RouteSelectionPrecedenceRung = (typeof routeSelectionPrecedenceLaw)[number];
 export { precedencePolicies };
 
+// ─── Named abstraction: PrecedenceLadder ────────────────────────
+//
+// A PrecedenceLadder is an ordered rung list + a dispatch function
+// that resolves candidates by walking the rungs in order. Every
+// precedence concern in the codebase (resolution, data binding,
+// run selection, route selection, phase output source) is an
+// instance of this shape. The named type makes the pattern
+// first-class at the domain vocabulary level.
+
+/** A named precedence ladder: an ordered set of rungs and the
+ *  policy identity that owns the ordering. Use `dispatchByPrecedence`
+ *  to walk the ladder and resolve a winning candidate with
+ *  provenance. */
+export interface PrecedenceLadder<TRung extends string> {
+  /** Which concern this ladder governs — used for logging and
+   *  provenance in receipts. */
+  readonly concern: string;
+  /** The rungs in precedence order (first = highest priority). */
+  readonly rungs: readonly TRung[];
+}
+
+/** Resolve candidates against a PrecedenceLadder. Convenience
+ *  wrapper over `dispatchByPrecedence` that takes a ladder instead
+ *  of a raw rung array. */
+export function resolveByLadder<TEntry, TRung extends string>(
+  ladder: PrecedenceLadder<TRung>,
+  candidates: ReadonlyArray<{ rung: TRung; value: TEntry | null | undefined }>,
+): PrecedenceResult<TEntry, TRung> | null {
+  return dispatchByPrecedence(candidates, ladder.rungs);
+}
+
 /**
  * Select the highest-precedence candidate value according to a rung law.
  *

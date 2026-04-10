@@ -20,6 +20,10 @@ export * from './stage-enum';
 // Source classifier (the discriminated union for the 5 lookup chain slots)
 export * from './source';
 
+// Shared provenance shape (collapsed from the 3 identical tier-specific
+// provenance types; the tier-specific names survive as aliases).
+export * from './provenance';
+
 // Tier 1 — Atoms
 export * from './atom-address';
 export * from './atom';

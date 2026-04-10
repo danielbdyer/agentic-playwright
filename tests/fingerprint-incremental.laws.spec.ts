@@ -169,6 +169,119 @@ test('stableStringify key ordering is deterministic regardless of insertion orde
   }
 });
 
+// ─── stableStringify JSON-parity for undefined / null ──────────
+//
+// These laws lock down the load-bearing property that explicit
+// `undefined` and structurally-absent fields produce the SAME
+// output, while `null` and `undefined` remain distinguishable. The
+// prior implementation emitted the literal token `undefined` for
+// explicit undefined values, which (a) was not valid JSON and (b)
+// silently broke fingerprint stability for every atom/composition
+// whose content had optional fields — the canon-decomposer
+// fingerprint story, the discovery decomposer's snapshot extractor,
+// the projection input set fingerprinter, and more.
+
+test('stableStringify omits object keys whose values are undefined (JSON.stringify parity)', () => {
+  expect(stableStringify({ a: 1, b: undefined })).toBe(stableStringify({ a: 1 }));
+  expect(stableStringify({ a: 1, b: undefined })).toBe('{"a":1}');
+});
+
+test('stableStringify distinguishes null from undefined', () => {
+  // null is a present-but-null fact; undefined is an absent fact.
+  expect(stableStringify({ a: null })).not.toBe(stableStringify({ a: undefined }));
+  expect(stableStringify({ a: null })).toBe('{"a":null}');
+  expect(stableStringify({ a: undefined })).toBe('{}');
+});
+
+test('stableStringify omits nested undefined-valued keys recursively', () => {
+  const withUndef = stableStringify({
+    outer: { name: 'alice', opt: undefined, inner: { x: 1, y: undefined } },
+  });
+  const without = stableStringify({
+    outer: { name: 'alice', inner: { x: 1 } },
+  });
+  expect(withUndef).toBe(without);
+});
+
+test('stableStringify output is always valid JSON', () => {
+  // JSON.parse(stableStringify(x)) must succeed for any JSON-like
+  // input — this catches the "literal undefined token" bug class.
+  const cases: unknown[] = [
+    { a: 1, b: undefined, c: 'hello' },
+    { outer: { opt: undefined } },
+    [],
+    [1, 2, 3],
+    [1, undefined, 3],
+    { nested: [undefined, { a: undefined }] },
+    null,
+    'string',
+    42,
+    true,
+    false,
+  ];
+  for (const value of cases) {
+    const serialized = stableStringify(value);
+    expect(() => JSON.parse(serialized)).not.toThrow();
+  }
+});
+
+test('stableStringify replaces undefined array elements with null (JSON.stringify parity)', () => {
+  // Arrays are position-significant. Omitting an undefined element
+  // would shift subsequent indices; the JSON convention is to
+  // serialize undefined as null.
+  expect(stableStringify([1, undefined, 3])).toBe('[1,null,3]');
+  expect(stableStringify([undefined])).toBe('[null]');
+  expect(stableStringify([undefined, undefined])).toBe('[null,null]');
+});
+
+test('stableStringify is JSON-parity-equivalent for pure JSON values', () => {
+  // For any value that contains no undefined fields, stableStringify
+  // must produce output that JSON.parse round-trips back to an
+  // equivalent structure. This is the strict JSON-parity property.
+  const cases: unknown[] = [
+    { simple: 1 },
+    { nested: { deeper: { deepest: true } } },
+    [1, 2, 3],
+    { list: [1, 2, 3], nested: { a: null, b: 'x' } },
+  ];
+  for (const value of cases) {
+    const serialized = stableStringify(value);
+    expect(JSON.parse(serialized)).toEqual(value);
+  }
+});
+
+test('stableStringify: explicit undefined and structural absence are byte-equivalent at every nesting depth', () => {
+  // The load-bearing canon-decomposer fingerprint property: an
+  // upstream parser that sometimes fills in `{ foo: undefined }`
+  // and sometimes omits `foo` entirely MUST produce byte-equal
+  // fingerprints for the same semantic content.
+  const explicitUndefined = {
+    address: { class: 'element', screen: 'policy-search', element: 'policyNumberInput' },
+    content: {
+      role: 'textbox',
+      name: 'Policy Number',
+      testId: 'policy-number-input',
+      cssFallback: undefined,        // explicitly undefined
+      affordance: undefined,          // explicitly undefined
+      locator: undefined,             // explicitly undefined
+    },
+  };
+  const structurallyAbsent = {
+    address: { class: 'element', screen: 'policy-search', element: 'policyNumberInput' },
+    content: {
+      role: 'textbox',
+      name: 'Policy Number',
+      testId: 'policy-number-input',
+      // cssFallback, affordance, locator all omitted
+    },
+  };
+  expect(stableStringify(explicitUndefined)).toBe(stableStringify(structurallyAbsent));
+  // And by extension, their sha256 fingerprints must match.
+  expect(sha256(stableStringify(explicitUndefined))).toBe(
+    sha256(stableStringify(structurallyAbsent)),
+  );
+});
+
 test('null manifest always triggers rebuild', () => {
   const next = mulberry32(7);
   const inputs = buildInputSet(next, 3);

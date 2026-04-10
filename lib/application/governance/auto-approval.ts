@@ -2,9 +2,10 @@ import { evaluateTrustPolicy } from '../../domain/governance/trust-policy';
 import type { EvidenceDescriptor, ProposedChangeMetadata, TrustPolicy } from '../../domain/governance/workflow-types';
 import {
   type GovernanceVerdict,
+  type VerdictGate,
   approved,
   suspended,
-  chainVerdict,
+  runGateChain,
 } from '../../domain/kernel/governed-suspension';
 
 // ─── Auto-Approval Policy ───
@@ -115,16 +116,81 @@ export function isWithinAutoApprovalLimit(
 // ─── Governed Suspension bridge ──────────────────────────────────────────
 //
 // The auto-approval gate chain expressed as GovernanceVerdict composition.
-// Each gate is a function T → GovernanceVerdict<T, ReviewRequest>, and
-// the chain is composed via chainVerdict (monadic bind).
+// Each gate is a VerdictGate<T, ReviewRequest> — a function from an
+// approved value to a new verdict. The chain is composed via
+// `runGateChain`, which folds `chainVerdict` over the list with
+// short-circuit on the first suspension.
 //
-// This provides the same semantics as applyAutoApproval but in the
-// composable GovernanceVerdict algebra from the design calculus.
+// Before this refactor, the four gates were spelled out as four
+// sequential `chainVerdict` calls with intermediate variables
+// (gate1, gate2, gate3, gate4) — the "sequential bind" idiom. The
+// gates are now a plain array of functions, which:
+//
+//   - Reads more declaratively at the call site
+//   - Matches the algebra used by runPipelinePhases /
+//     freeSearchAsync / walkStrategyChainAsync (sequential steps
+//     with threaded state and early termination), just specialized
+//     to the verdict monad
+//   - Makes each gate individually testable as a standalone function
+//   - Lets adding a new gate be a single-row addition instead of a
+//     restructuring of variable assignments
 
 interface ReviewRequest {
   readonly kind: 'auto-approval-review';
   readonly proposalArtifactType: string;
   readonly reason: string;
+}
+
+type AutoApprovalGate = VerdictGate<ProposedChangeMetadata, ReviewRequest>;
+
+/** Helper: suspend with the standard ReviewRequest shape. */
+function suspendAutoApproval(
+  proposal: ProposedChangeMetadata,
+  reason: ReviewRequest['reason'],
+  message: string,
+): GovernanceVerdict<ProposedChangeMetadata, ReviewRequest> {
+  return suspended(
+    { kind: 'auto-approval-review', proposalArtifactType: proposal.artifactType, reason },
+    message,
+  );
+}
+
+/** The ordered list of gates that auto-approval must pass. Each
+ *  gate is a pure function from the approved proposal to a verdict.
+ *  Adding a new gate = adding a row to this array. */
+function autoApprovalGates(
+  policy: AutoApprovalPolicy,
+  evidenceCount: number,
+): readonly AutoApprovalGate[] {
+  return [
+    // Gate 1: Policy enabled
+    (p) => policy.enabled
+      ? approved(p)
+      : suspendAutoApproval(p, 'disabled', 'Auto-approval policy is disabled'),
+
+    // Gate 2: Artifact type allowed
+    (p) => policy.allowedArtifactTypes.includes(p.artifactType)
+      ? approved(p)
+      : suspendAutoApproval(
+          p,
+          'type-not-allowed',
+          `Artifact type '${p.artifactType}' is not in the allowed list`,
+        ),
+
+    // Gate 3: Confidence threshold
+    (p) => p.confidence >= policy.minimumConfidence
+      ? approved(p)
+      : suspendAutoApproval(
+          p,
+          'low-confidence',
+          `Confidence ${p.confidence.toFixed(2)} is below minimum threshold ${policy.minimumConfidence.toFixed(2)}`,
+        ),
+
+    // Gate 4: Evidence required
+    (p) => !policy.requireEvidence || evidenceCount > 0
+      ? approved(p)
+      : suspendAutoApproval(p, 'no-evidence', 'Evidence is required but none was provided'),
+  ];
 }
 
 /**
@@ -137,41 +203,5 @@ export function autoApprovalVerdict(
   policy: AutoApprovalPolicy,
   evidenceCount: number,
 ): GovernanceVerdict<ProposedChangeMetadata, ReviewRequest> {
-  // Gate 1: Policy enabled
-  const gate1: GovernanceVerdict<ProposedChangeMetadata, ReviewRequest> = policy.enabled
-    ? approved(proposal)
-    : suspended(
-        { kind: 'auto-approval-review', proposalArtifactType: proposal.artifactType, reason: 'disabled' },
-        'Auto-approval policy is disabled',
-      );
-
-  // Gate 2: Artifact type allowed
-  const gate2 = chainVerdict(gate1, (p) =>
-    policy.allowedArtifactTypes.includes(p.artifactType)
-      ? approved(p)
-      : suspended(
-          { kind: 'auto-approval-review', proposalArtifactType: p.artifactType, reason: 'type-not-allowed' },
-          `Artifact type '${p.artifactType}' is not in the allowed list`,
-        ),
-  );
-
-  // Gate 3: Confidence threshold
-  const gate3 = chainVerdict(gate2, (p) =>
-    p.confidence >= policy.minimumConfidence
-      ? approved(p)
-      : suspended(
-          { kind: 'auto-approval-review', proposalArtifactType: p.artifactType, reason: 'low-confidence' },
-          `Confidence ${p.confidence.toFixed(2)} is below minimum threshold ${policy.minimumConfidence.toFixed(2)}`,
-        ),
-  );
-
-  // Gate 4: Evidence required
-  return chainVerdict(gate3, (p) =>
-    !policy.requireEvidence || evidenceCount > 0
-      ? approved(p)
-      : suspended(
-          { kind: 'auto-approval-review', proposalArtifactType: p.artifactType, reason: 'no-evidence' },
-          'Evidence is required but none was provided',
-        ),
-  );
+  return runGateChain(proposal, autoApprovalGates(policy, evidenceCount));
 }

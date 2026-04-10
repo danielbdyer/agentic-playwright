@@ -1,4 +1,4 @@
-import { sha256, stableStringify } from '../../../domain/kernel/hash';
+import { fingerprintFor, taggedFingerprintFor } from '../../../domain/kernel/hash';
 import type { TranslationReceipt, TranslationRequest } from '../../../domain/resolution/types';
 import { readJsonCacheRecord, writeJsonCacheRecord, pruneCacheFiles } from '../../cache/file-cache';
 import type { ProjectPaths } from '../../paths';
@@ -32,23 +32,23 @@ function isTranslationCacheRecord(value: unknown): value is TranslationCacheReco
 }
 
 function requestFingerprint(request: TranslationRequest): string {
-  return `sha256:${sha256(stableStringify({
+  return taggedFingerprintFor('content', {
     actionText: request.actionText,
     expectedText: request.expectedText,
     allowedActions: request.allowedActions,
     screens: request.screens,
     overlayRefs: request.overlayRefs,
     evidenceRefs: request.evidenceRefs,
-  }))}`;
+  });
 }
 
 export function translationCacheKey(request: TranslationRequest): string {
-  return `translation-${sha256(stableStringify({
+  return `translation-${fingerprintFor('translation-cache-key', {
     task: request.taskFingerprint,
     knowledge: request.knowledgeFingerprint,
     controls: request.controlsFingerprint ?? null,
     request: requestFingerprint(request),
-  }))}`;
+  })}`;
 }
 
 export function readTranslationCache(input: {
@@ -77,7 +77,7 @@ export function writeTranslationCache(input: {
     stage: 'resolution',
     scope: 'translation',
     cacheKey: key,
-    fingerprint: `sha256:${sha256(stableStringify({ key, receipt: input.receipt, fingerprint }))}`,
+    fingerprint: taggedFingerprintFor('artifact', { key, receipt: input.receipt, fingerprint }),
     fingerprints: {
       task: input.request.taskFingerprint,
       knowledge: input.request.knowledgeFingerprint,

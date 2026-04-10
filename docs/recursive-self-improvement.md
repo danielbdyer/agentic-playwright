@@ -1,10 +1,54 @@
 # Recursive Self-Improvement
 
-> Active design — Level 1 improvement loop specification
+> Active design — Level 1 improvement loop specification.
+>
+> **Relationship to canon-and-derivation.** The 15-knob parameter
+> space this document enumerates is a **Surface 1** tactic
+> (hyperparameter tuning) plus some **Surface 2** tactics (algorithm
+> and pattern improvements) inside the larger substrate-convergence
+> program described in
+> [`docs/canon-and-derivation.md`](./canon-and-derivation.md) and
+> sequenced in
+> [`docs/cold-start-convergence-plan.md`](./cold-start-convergence-plan.md).
+> The parameter-space training loop is useful and stays valid, but
+> its gradient signal is a *subset* of the doctrinal gradient, not
+> the whole of it. Specifically:
+>
+> 1. The fitness report this document describes
+>    (`lib/application/improvement/fitness.ts`) measures **pipeline
+>    efficacy** — how well the runtime uses cached canonical
+>    artifacts. It does not measure **cold-start efficacy** (how
+>    close the discovery engine's cold-derived output is to the
+>    canonical artifact store) or **intervention marginal value**
+>    (whether agentic augmentations actually reduced downstream
+>    ambiguity / suspension / rung-score in their attachment region).
+>    Cold-start efficacy lives in the discovery-fitness L4 tree
+>    introduced in `canon-and-derivation.md` § 12.2; intervention
+>    marginal value lives as C6 in `docs/alignment-targets.md` and is
+>    populated from the `InterventionTokenImpact` fields at
+>    `lib/domain/handshake/intervention.ts:162-169`.
+> 2. `knowledgeHitRate` is a useful informational metric but is
+>    **not** the doctrinal acceptance gate. The gate is
+>    `effectiveHitRate` with floor checks against M5 (Memory
+>    Worthiness Ratio) and C6 (Intervention-Adjusted Economics) from
+>    `docs/alignment-targets.md`. A change that improves
+>    `knowledgeHitRate` but regresses M5 or C6 below its current
+>    window's floor cannot be accepted.
+> 3. The "training loop" analogy remains exact, but the forward
+>    pass now runs across *two* L4 trees (pipeline efficacy and
+>    discovery fitness) and the scorecard is a Pareto frontier over
+>    the full alignment-targets metric set, not just knowledge
+>    hit rate.
+>
+> When this document conflicts with `canon-and-derivation.md`,
+> canon-and-derivation wins. When it conflicts with
+> `cold-start-convergence-plan.md` on sequencing, the plan wins.
+> The parameter space below remains the authoritative enumeration
+> of Surface 1 tuning knobs.
 
 This document describes how Tesseract enters a recursive self-improvement loop. It is the Level 1 doctrine: where [dogfooding-flywheel.md](./dogfooding-flywheel.md) describes the Level 0 loop (accumulate knowledge), this document describes how synthetic runs produce gradient signal that improves the pipeline code itself.
 
-Use this document for the self-improvement model. Use [dogfooding-flywheel.md](./dogfooding-flywheel.md) for the operating model. Use [direction.md](./direction.md) for composition direction. Use [master-architecture.md](./master-architecture.md) for the north-star doctrine.
+Use this document for the self-improvement model's parameter space and clean-room protocol. Use [`canon-and-derivation.md`](./canon-and-derivation.md) for the substrate model and the two-engine framing. Use [`cold-start-convergence-plan.md`](./cold-start-convergence-plan.md) for the sequenced execution of the substrate migration. Use [dogfooding-flywheel.md](./dogfooding-flywheel.md) for the operating model. Use [direction.md](./direction.md) for composition direction. Use [master-architecture.md](./master-architecture.md) for the north-star doctrine.
 
 ## The Two-Level Model
 
@@ -44,6 +88,46 @@ Level 0 is linear: every new application needs its own knowledge accumulation pa
 
 The speedrun loop is a training loop for the pipeline itself.
 
+### Braided Intervention — Why "Level 1" is Not Just About Knobs
+
+The 15-knob parameter space (later in this document) is a necessary
+but insufficient description of what the recursive loop optimizes.
+Per `docs/canon-and-derivation.md` § 9, the system has two engines
+sharing one canonical artifact store:
+
+1. The **deterministic discovery engine** (slot 5 of the lookup
+   chain; runner interface at
+   `lib/application/discovery/discovery-runner.ts:88-92`).
+2. The **agentic intervention engine** (writes to slot 2 as agentic
+   overrides; substrate at
+   `lib/domain/handshake/intervention.ts:162-226`).
+
+The intervention engine is not "the human in the loop." It is a
+**braid**: the agent forms a hypothesis from runtime evidence, the
+hypothesis becomes a typed `InterventionReceipt` with a populated
+`handoff.semanticCore`, the receipt writes an agentic override to
+slot 2 of the canon store, and subsequent runs weave runtime
+evidence back through the same receipt lineage to measure whether
+the inference paid off via `InterventionTokenImpact` population.
+C6 (Intervention-Adjusted Economics) in
+`docs/alignment-targets.md` folds those impacts into a scoreboard
+value. An intervention that cannot show its evidence ancestry
+cannot participate in the braid, and therefore cannot earn C6
+credit, and therefore cannot be accepted by the scorecard gate.
+
+The upshot for this document: the "backward pass" in the training
+analogy is not just "edit a constant in `lib/`." It is also "the
+agent authored an intervention receipt, the receipt became canon,
+the next N runs measured the impact, C6 moved." Both kinds of
+backward pass converge on the same scorecard because the
+scorecard gates on M5 and C6, not just on parameter deltas.
+
+Parameter tuning (Surface 1) and intervention authoring (part of
+Surface 2 in the broader taxonomy below) are peers, not
+alternatives. The 15-knob space is the finest-grained tuning
+surface; the intervention engine operates at the substrate level
+and can produce improvements the knob space cannot reach.
+
 ## The Training Analogy
 
 This is not a metaphor. The speedrun loop has the same structure as a machine learning training loop, and the mapping is concrete at every level.
@@ -54,14 +138,18 @@ This is not a metaphor. The speedrun loop has the same structure as a machine le
 | Parameters | 15 tunable thresholds and weights | Enumerated in [Parameter Space](#the-parameter-space) |
 | Training data | Synthetic scenarios | `lib/application/synthesis/scenario-generator.ts` (regenerated each run) |
 | Forward pass | Clean-slate flywheel run | `lib/application/dogfood.ts` (convergence detection, metric computation) |
-| Loss function | Composite of 8 metrics | `lib/application/fitness.ts` (`buildFitnessReport`) |
-| Gradient | 8 classified failure modes | `lib/domain/types/fitness.ts` (`PipelineFailureClass`) |
+| Loss function (pipeline efficacy) | L4 pipeline-efficacy metric tree via `MetricVisitor` registry | `lib/domain/fitness/metric/visitors/index.ts:42-83` (`L4_VISITORS` + `buildL4MetricTree`) |
+| Loss function (cold-start efficacy) | L4 discovery-fitness metric tree via parallel visitor registry | `lib/domain/fitness/metric/visitors-discovery/` (Phase B of `docs/cold-start-convergence-plan.md`) |
+| Loss function (intervention value) | C6 visitor folded over `InterventionTokenImpact` | `lib/domain/fitness/metric/visitors/intervention-marginal-value.ts` (Phase C) |
+| Gradient (pipeline-efficacy) | 8 classified failure modes | `lib/domain/types/fitness.ts` (`PipelineFailureClass`) |
+| Gradient (discovery) | Per-atom-class cold-vs-canon delta | Phase B of the cold-start plan |
+| Gradient (intervention) | `InterventionTokenImpact` deltas before/after promotion | Phase C of the cold-start plan |
 | Backward pass | Targeted code change at top failure mode | Manual or agent-driven |
 | Learning rate | Per-knob change magnitude | Per-experiment decision |
 | Epoch | One full speedrun cycle | `scripts/speedrun.ts` |
 | Overfitting guard | Scenarios regenerated from knowledge model | Seeded RNG in `scenario-generator.ts` |
-| Loss curve | Scorecard history | `.tesseract/benchmarks/scorecard.json` |
-| Checkpoint | Git commit of pipeline code + scorecard | Monotonic: only committed if improved |
+| Loss curve | Scorecard history with Pareto frontier over M5/C6/effectiveHitRate | `.tesseract/benchmarks/scorecard.json` |
+| Checkpoint | Git commit of pipeline code + scorecard | Monotonic: accepted only if Pareto-undominated AND no floor regression per `docs/alignment-targets.md` |
 
 ### Why This Is Not Metaphorical
 

@@ -341,22 +341,36 @@ function createHybridProvider(
 }
 
 // ─── Provider Factory ───
+//
+// Compile-time-exhaustive mapped-type registry over
+// TranslationProviderKind. Adding a new variant to the union
+// becomes a TypeScript error here until a corresponding factory
+// is registered, matching the pattern used by L4_VISITORS at
+// lib/domain/fitness/metric/visitors/index.ts:42-50 and
+// AtomPromotionGateRegistry at lib/domain/pipeline/promotion-gate.ts:120-122.
+
+type TranslationProviderFactory = (
+  config: TranslationConfig,
+  deps?: LlmApiProviderDependencies,
+) => TranslationProvider;
+
+const TRANSLATION_PROVIDER_FACTORIES: {
+  readonly [K in TranslationProviderKind]: TranslationProviderFactory;
+} = {
+  deterministic: () => createDeterministicProvider(),
+  // llm-api falls back to deterministic when deps are missing —
+  // this is a deliberate degradation, not an exhaustiveness hole.
+  'llm-api': (config, deps) =>
+    deps ? createLlmApiProvider(config, deps) : createDeterministicProvider(),
+  copilot: (_config, deps) => createCopilotProvider(deps),
+};
 
 function createProviderByKind(
   kind: TranslationProviderKind,
   config: TranslationConfig,
   deps?: LlmApiProviderDependencies,
 ): TranslationProvider {
-  switch (kind) {
-    case 'deterministic':
-      return createDeterministicProvider();
-    case 'llm-api':
-      return deps
-        ? createLlmApiProvider(config, deps)
-        : createDeterministicProvider();
-    case 'copilot':
-      return createCopilotProvider(deps);
-  }
+  return TRANSLATION_PROVIDER_FACTORIES[kind](config, deps);
 }
 
 /**

@@ -13,6 +13,7 @@ import type { PipelineFailureClass, PipelineImprovementTarget } from '../../lib/
 import type { LocatorStrategy } from '../../lib/domain/governance/workflow-types';
 import type { StepInstruction, ValueRef } from '../../lib/domain/intent/types';
 import type { ResolutionEvent, ResolutionReceipt } from '../../lib/domain/resolution/types';
+import { asFingerprint } from '../../lib/domain/kernel/hash';
 
 // ─── Law: every fold dispatches to exactly one case ───
 
@@ -102,7 +103,7 @@ function makeReceiptBase() {
     stage: 'resolution' as const,
     scope: 'step' as const,
     ids: {},
-    fingerprints: { artifact: 'fp' },
+    fingerprints: { artifact: asFingerprint('artifact', 'fp') },
     lineage: { sources: [], parents: [], handshakes: [] },
     governance: 'approved' as const,
     taskFingerprint: 'tf',

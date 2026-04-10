@@ -15,6 +15,7 @@ import type { ResolutionStrategy, StrategyAttemptResult, StrategyChainResult } f
 import { runStrategyChain } from './strategy';
 import { createStrategyRegistry } from './strategy-registry';
 import { buildPipelineDAG, validateDAG } from '../../domain/resolution/pipeline-dag';
+import { freeSearchAsync } from '../../domain/algebra/free-forgetful';
 import { TesseractError } from '../../domain/kernel/errors';
 import type { RuntimeAgentStageContext, RuntimeStepAgentContext, StageEffects } from './types';
 import { mergeEffectsIntoStage } from './types';
@@ -255,21 +256,40 @@ async function runPipelinePhases(
     throw new TesseractError('validation-error', `Pipeline phase DAG invalid: ${diagnostics.join('; ')}`);
   }
 
-  const step = async (
-    remaining: readonly PipelinePhase[],
-    priorEvents: readonly ResolutionEvent[],
-  ): Promise<StrategyChainResult> => {
-    const [head, ...tail] = remaining;
-    if (!head) {
-      return { receipt: null, events: [...priorEvents] };
-    }
-    const result = await head.run(stage);
-    const accumulated = [...priorEvents, ...result.events];
-    return result.receipt
-      ? { receipt: result.receipt, events: accumulated }
-      : step(tail, accumulated);
-  };
-  return step(phases, []);
+  // Delegate to freeSearchAsync (the Kleisli iterator from
+  // lib/domain/algebra/free-forgetful.ts). Each phase is a
+  // candidate; the per-candidate outcome carries its emitted
+  // events; the "result" is a receipt if the phase produced one.
+  // freeSearchAsync walks phases in order, short-circuits on the
+  // first non-null result, and preserves every step's outcome in
+  // the trail — which lets us aggregate events across all
+  // attempted phases regardless of early termination.
+  //
+  // This replaces the hand-rolled recursive fold that previously
+  // threaded `priorEvents` through a closure. Same observable
+  // behavior (verified by tests), same algebra as
+  // walkStrategyChainAsync.
+  const trail = await freeSearchAsync<
+    PipelinePhase,
+    { readonly events: readonly ResolutionEvent[] },
+    ResolutionReceipt
+  >(phases, async (phase) => {
+    const result = await phase.run(stage);
+    return {
+      outcome: { events: result.events },
+      result: result.receipt,
+    };
+  });
+
+  // Aggregate events across every phase that ran (short-circuit
+  // preserves the trail of attempted phases, so we see events from
+  // phases 1..N where phase N produced the receipt, or events from
+  // all phases if none produced one).
+  const events: ResolutionEvent[] = [];
+  for (const step of trail.steps) {
+    events.push(...step.outcome.events);
+  }
+  return { receipt: trail.result, events };
 }
 
 export async function runResolutionPipeline(

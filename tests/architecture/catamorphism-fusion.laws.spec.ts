@@ -32,6 +32,7 @@ import type { LocatorStrategy } from '../../lib/domain/governance/workflow-types
 import type { StepInstruction, ValueRef } from '../../lib/domain/intent/types';
 import type { ResolutionEvent, ResolutionReceipt } from '../../lib/domain/resolution/types';
 import { mulberry32, pick , LAW_SEED_COUNT } from '../support/random';
+import { asFingerprint } from '../../lib/domain/kernel/hash';
 
 // ─── Pure transformers for fusion testing ───
 
@@ -82,7 +83,7 @@ function makeReceiptBase() {
     stage: 'resolution' as const,
     scope: 'step' as const,
     ids: {},
-    fingerprints: { artifact: 'fp' },
+    fingerprints: { artifact: asFingerprint('artifact', 'fp') },
     lineage: { sources: [], parents: [], handshakes: [] },
     governance: 'approved' as const,
     taskFingerprint: 'tf',

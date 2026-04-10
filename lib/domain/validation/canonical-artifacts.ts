@@ -24,27 +24,38 @@ import {
 import type { Atom } from '../pipeline/atom';
 import type { Composition } from '../pipeline/composition';
 import type { Projection } from '../pipeline/projection';
+import type { PhaseOutputSource } from '../pipeline/source';
 import type { AtomClass } from '../pipeline/atom-address';
 import type { CompositionSubType } from '../pipeline/composition-address';
 import type { ProjectionSubType } from '../pipeline/projection-address';
 
+// Validators return atoms/compositions/projections with the wide
+// `PhaseOutputSource` union because validation runs at the
+// persistence boundary — the source is carried as a runtime string
+// field loaded from disk, not statically known at the call site.
+// Downstream consumers that want to narrow can do so via type
+// guards or explicit assignment.
+
 // ─── Atom validator ──────────────────────────────────────────────
 
-export const validateAtomArtifact: (value: unknown) => Atom<AtomClass, unknown> =
-  schemaDecode.decoderFor<Atom<AtomClass, unknown>>(AtomEnvelopeSchema);
+export const validateAtomArtifact: (
+  value: unknown,
+) => Atom<AtomClass, unknown, PhaseOutputSource> = schemaDecode.decoderFor<
+  Atom<AtomClass, unknown, PhaseOutputSource>
+>(AtomEnvelopeSchema);
 
 // ─── Composition validator ───────────────────────────────────────
 
 export const validateCompositionArtifact: (
   value: unknown,
-) => Composition<CompositionSubType, unknown> = schemaDecode.decoderFor<
-  Composition<CompositionSubType, unknown>
+) => Composition<CompositionSubType, unknown, PhaseOutputSource> = schemaDecode.decoderFor<
+  Composition<CompositionSubType, unknown, PhaseOutputSource>
 >(CompositionEnvelopeSchema);
 
 // ─── Projection validator ────────────────────────────────────────
 
 export const validateProjectionArtifact: (
   value: unknown,
-) => Projection<ProjectionSubType> = schemaDecode.decoderFor<Projection<ProjectionSubType>>(
-  ProjectionEnvelopeSchema,
-);
+) => Projection<ProjectionSubType, PhaseOutputSource> = schemaDecode.decoderFor<
+  Projection<ProjectionSubType, PhaseOutputSource>
+>(ProjectionEnvelopeSchema);

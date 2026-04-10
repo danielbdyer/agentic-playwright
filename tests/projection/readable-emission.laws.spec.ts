@@ -2,6 +2,7 @@ import * as ts from 'typescript';
 import { expect, test } from '@playwright/test';
 import { readFileSync } from 'fs';
 import { createAdoId, createElementId, createScreenId } from '../../lib/domain/kernel/identity';
+import { asFingerprint } from '../../lib/domain/kernel/hash';
 import { buildGroundedSpecFlow } from '../../lib/domain/commitment/grounded-flow';
 import { renderReadableSpecModule } from '../../lib/domain/codegen/spec-codegen';
 import type { BoundScenario } from '../../lib/domain/intent/types';
@@ -54,7 +55,14 @@ function createTestBoundScenario(overrides?: Partial<{ stepCount: number; hasUnb
     stage: 'preparation',
     scope: 'scenario',
     ids: { adoId, suite: 'demo' },
-    fingerprints: { artifact: 'test-fingerprint', content: 'sha256:test', knowledge: null, controls: null, task: null, run: null },
+    fingerprints: {
+      artifact: asFingerprint('artifact', 'test-fingerprint'),
+      content: asFingerprint('content', 'sha256:test'),
+      knowledge: null,
+      controls: null,
+      surface: null,
+      run: null,
+    },
     lineage: { sources: [], parents: [], handshakes: ['preparation'] },
     governance: 'approved',
     source: { ado_id: adoId, revision: 1, content_hash: 'sha256:test', synced_at: '2025-01-01T00:00:00Z' },
@@ -82,7 +90,14 @@ function createTestSurface(boundScenario: BoundScenario): ScenarioInterpretation
     stage: 'preparation',
     scope: 'scenario',
     ids: { adoId, suite: boundScenario.metadata.suite },
-    fingerprints: { artifact: 'test-surface-fingerprint', content: 'sha256:test-surface', knowledge: null, controls: null, task: null, run: null },
+    fingerprints: {
+      artifact: asFingerprint('artifact', 'test-surface-fingerprint'),
+      content: asFingerprint('content', 'sha256:test-surface'),
+      knowledge: null,
+      controls: null,
+      surface: null,
+      run: null,
+    },
     lineage: { sources: [], parents: [], handshakes: ['preparation'] },
     governance: 'approved',
     payload: {

@@ -9,7 +9,7 @@ import type { BoundScenario } from '../../domain/intent/types';
 import { validateBoundScenario } from '../../domain/validation';
 import { isBlocked, isReviewRequired } from '../../domain/governance/workflow-types';
 import { loadWorkspaceCatalog } from '../catalog';
-import { deriveGovernanceState } from '../catalog/envelope';
+import { createScenarioEnvelopeFingerprints, deriveGovernanceState } from '../catalog/envelope';
 import { trySync } from '../effect';
 import type { ProjectPaths } from '../paths';
 import { boundPath, relativeProjectPath } from '../paths';
@@ -112,14 +112,14 @@ export function bindScenario(options: { adoId: AdoId; paths: ProjectPaths; sessi
         runbook: null,
         resolutionControl: null,
       },
-      fingerprints: {
+      fingerprints: createScenarioEnvelopeFingerprints({
         artifact: scenario.source.content_hash,
         content: scenario.source.content_hash,
         knowledge: null,
         controls: null,
-        task: null,
+        surface: null,
         run: null,
-      },
+      }),
       lineage: {
         sources: [relativeProjectPath(options.paths, scenarioFile)],
         parents: [relativeProjectPath(options.paths, snapshotArtifact.absolutePath)],
