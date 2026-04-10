@@ -12,12 +12,22 @@
  * compiler.
  *
  * The registry is consumed by:
- *   - scripts/decompose-canon.ts (the one-shot migration script)
- *   - future catalog-loader extensions that walk .canonical-artifacts/
+ *   - the discovery engine, when it needs to convert fat observation
+ *     surfaces (e.g. a discovered screen's raw element list) into
+ *     per-atom envelopes
+ *   - the catalog loader, when it tags reference-canon entries with
+ *     their canonical atom addresses during load
+ *
+ * NOTE (2026-04-10): An earlier version of this comment pointed at
+ * `scripts/decompose-canon.ts` as a consumer. That script was
+ * deprecated and deleted as part of the reference-canon reframe;
+ * see `docs/canon-and-derivation.md` §§ 3.2a and 11.1 for the
+ * reasoning. The decomposer functions themselves are kept because
+ * they are useful independent of the retired migration script.
  *
  * Pure domain vocabulary — no Effect, no IO.
  *
- * @see docs/cold-start-convergence-plan.md § 4.A item 4
+ * @see docs/cold-start-convergence-plan.md § 4.A (reframed)
  */
 
 import type { AtomClass } from '../../domain/pipeline/atom-address';

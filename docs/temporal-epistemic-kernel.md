@@ -1,7 +1,18 @@
-# Temporal-Epistemic Specification Addendum
+# Temporal-Epistemic Kernel
 
-> Status: archived research note
-> Source: user-authored note stored on April 5, 2026 for later reference
+> Status: **Active doctrine** (promoted out of archive 2026-04-10).
+> The formal model behind the alignment-targets wall and the
+> cold-start convergence plan. K5, L2s, L2, M5, C6, and the H1–H20
+> handoff properties are its labels; `docs/alignment-targets.md`
+> operationalizes M5 and C6 as the top-of-wall scoreboard,
+> `docs/canon-and-derivation.md` cites K5 and L2s as the formal
+> proxies for the ROI plateau, and `docs/cold-start-convergence-plan.md`
+> sequences the phases that move the K / L / S / A / C / M theorem
+> groups from `proxy` to `direct` measurement.
+>
+> Originally authored 2026-04-05; moved out of
+> `docs/archive/research/` on 2026-04-10 because it is load-bearing
+> for every active alignment decision and "archived" was misleading.
 
 A **pure first-order treatment** is too weak for three things that matter centrally in your system:
 

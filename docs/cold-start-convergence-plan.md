@@ -357,8 +357,8 @@ state hasn't drifted.
 
 | Gap | Why it matters for this plan | Phase that closes it |
 |---|---|---|
-| No `.canonical-artifacts/{atoms,compositions,projections}/{agentic,deterministic}/` tree on disk under any suite root | The lookup chain's slot 2/3 has nothing to walk; every warm run effectively falls through to slot 4/5. Hybrid compounds (`controls/*`, `benchmarks/*`, `knowledge/screens/*.{elements,hints,postures}.yaml`, `knowledge/routes/demo.routes.yaml`, `knowledge/surfaces/*.surface.yaml`) are still in `{suiteRoot}/` per the canon-and-derivation § 11 classification table. | **A** |
-| No atom/composition decomposition from hybrid compounds to per-atom files | Promotion and demotion are defined per-address. As long as atoms live inside compound YAML files, per-fact promotion cannot fire and the canon substrate cannot evolve at atom granularity. | **A** |
+| No `.canonical-artifacts/{atoms,compositions,projections}/{agentic,deterministic}/` tree on disk under any suite root | The lookup chain's slot 2/3 has nothing to walk yet. Per the 2026-04-10 reframe in canon-and-derivation § 11, this tree is populated ONLY by real promotions; the existing `dogfood/knowledge/`, `dogfood/benchmarks/`, `dogfood/controls/` contents stay in place as reference canon (slot 4) until superseded by real overrides or discovery promotions. | **A** (empty tree creation + reference-canon slot wiring) |
+| No `reference-canon` slot in the lookup chain | Without it, warm-start collapses into cold-start every time `.canonical-artifacts/` is sparse, and there's no measurable split between "hit real canon" and "hit pre-gate YAMLs." Phase A adds the slot + source variant. | **A** |
 | No discovery-fitness L4 metric tree | Without a parallel tree, the `score` command only tells us how well the runtime *uses* canon, not how well the discovery engine *derives* canon. The cold-start gradient has no scoreboard. | **B** |
 | No C6 (intervention marginal value) L4 visitor | `InterventionTokenImpact` fields exist but no visitor folds them into the scoreboard. C6 is the C-group direct measurement target per alignment-targets and is currently `proxy` at best. | **B/C** |
 | No `MemoryMaturityTrajectory` / cohort-indexed history point series | M5 is defined as a cohort-trajectory slope. With only point-in-time `MemoryMaturity` and no history accumulator, M5 cannot be computed at all. | **B** |
@@ -426,129 +426,209 @@ Every phase below includes:
 - **Law tests** — which existing law test must be extended or what
   new law test must be added.
 
-### Phase A — Atom decomposition (hybrid compounds → per-atom files)
+### Phase A — Reference canon slot + greenfield `.canonical-artifacts/` (REFRAMED 2026-04-10)
 
-**Goal.** Close the top row of § 3.2: materialize
-`{suiteRoot}/.canonical-artifacts/{atoms,compositions}/{agentic,deterministic}/`
-on disk and decompose the hybrid compounds listed in
-`docs/canon-and-derivation.md` § 11 into per-atom files keyed by
-their `atomAddressToPath` string
-(`lib/domain/pipeline/atom-address.ts:177-210`). Until this lands,
-the lookup chain's slot 2/3 has nothing to read, promotion is
-scalar-at-best, and M5 / C6 cannot be computed because the cohort
-trajectory needs per-fact lineage.
+**What this phase used to say and why that was wrong.** The prior
+version of Phase A prescribed a one-shot migration script
+(`scripts/decompose-canon.ts`) that would split the dogfood hybrid
+YAMLs into per-atom files under
+`{suiteRoot}/.canonical-artifacts/{atoms,compositions}/{agentic,deterministic}/`.
+That framing conflated "put the atoms in the right on-disk shape"
+with "earn canonical-artifact status through a real gate." It was
+wrong: the dogfood YAMLs were hand-authored in prior sessions
+without ever flowing through an intervention receipt or a promotion
+evaluation, so copying them into `.canonical-artifacts/` would
+stamp them with provenance they never earned, and the C6
+(intervention marginal value) + discovery-fitness metrics would
+both silently ingest the false positives as ground truth.
+
+The corrected framing — see
+[`docs/canon-and-derivation.md`](./canon-and-derivation.md) § 3.2a
+(reference canon) and § 11 — is:
+
+1. **`.canonical-artifacts/` starts greenfield and is only ever
+   populated by real promotions through real gates** (an
+   intervention receipt passing auto-approval for slot 2, a
+   discovery run passing the promotion gate for slot 3).
+2. **The existing dogfood YAMLs are reclassified as reference canon**
+   (slot 4 of the lookup chain, below both canonical-artifact
+   flavors, above live and cold derivation). They are committed,
+   they are consulted at runtime as fallback, and they are tagged
+   clearly in every lookup receipt so the fraction-of-hits coming
+   from reference canon is a measurable migration-debt signal.
+3. **No migration script runs.** `scripts/decompose-canon.ts` is
+   deprecated and will be deleted in a follow-up. The per-class
+   decomposer functions under `lib/application/canon/decompose-*.ts`
+   are kept — they remain useful as pure conversion utilities for
+   the discovery engine (turning fat observation surfaces into
+   per-atom envelopes at runtime), just not as a one-shot migration
+   target.
+
+**Goal (reframed).** Wire the reference-canon slot into the lookup
+chain so that (a) `.canonical-artifacts/` can be empty without
+warm-start collapsing, (b) the fraction of warm-run hits coming
+from reference canon vs. real canon is a first-class metric, and
+(c) the runway for C6 is clear — every file that ever lands under
+`.canonical-artifacts/agentic/` was authored through a real
+receipt and so carries an honest C6 denominator.
 
 **Doctrinal seams.**
 
-- `lib/domain/pipeline/atom-address.ts` — the 15-class enumeration
-  and path-stringification function are the one-and-only mapping
-  from addresses to on-disk locations.
-- `lib/domain/pipeline/composition-address.ts` — the 7-sub-type
-  enumeration and `compositionAddressToPath`
-  (`lib/domain/pipeline/composition-address.ts:103-120`).
-- `lib/application/catalog/types.ts:109-123` — the `tier1Atoms`,
-  `tier2Compositions`, `tier3Projections` slots on
-  `WorkspaceCatalog` already exist; they need loader implementations
-  that walk the new directory tree and produce
-  `ArtifactEnvelope<Atom<C, unknown>>` / `ArtifactEnvelope<Composition<S, unknown>>` values.
-- `lib/application/discovery/decompose-discovery-run.ts` — the fat
-  surface → per-atom envelope converter. Phase A extends it to also
-  decompose *existing hybrid files* (a one-shot migration), not only
-  fresh discovery runs.
+- `lib/domain/pipeline/source.ts` — the `PhaseOutputSource`
+  discriminated union. Phase A extends it with a new
+  `'reference-canon'` variant, which is a breaking change that the
+  compile-time-exhaustive `foldPhaseOutputSource` will surface at
+  every call site.
+- `lib/domain/pipeline/lookup-chain.ts` — the typed `LookupChain`
+  interface. Phase A adds slot 4 (`reference-canon`) between the
+  existing slot 3 (`deterministic-observation`) and slot 4-now-5
+  (`live-derivation`).
+- `lib/application/catalog/types.ts` — the `WorkspaceCatalog` has
+  slots for `tier1Atoms`, `tier2Compositions`, `tier3Projections`.
+  Phase A adds a parallel `referenceCanon` slot (or a
+  `source`-tagged union inside the existing slots) that tracks
+  which catalog entries were loaded from the reference canon paths
+  vs. from `.canonical-artifacts/`.
+- `lib/application/catalog/loaders/` — the existing workspace
+  catalog loader already walks `{suiteRoot}/knowledge/`,
+  `{suiteRoot}/benchmarks/`, `{suiteRoot}/controls/`. Phase A tags
+  everything loaded from those paths with `source:
+  'reference-canon'` instead of pretending they were promoted
+  canonical artifacts.
+- `lib/application/canon/decompose-*.ts` — the per-class decomposer
+  functions. Phase A's work item 4 below reclassifies these as
+  **runtime utilities** (not migration utilities) and adds a law
+  test asserting they round-trip correctly.
+- `scripts/decompose-canon.ts` — deprecated, slated for deletion.
+  Phase A adds a deprecation header pointing at this section and
+  at `canon-and-derivation.md` § 11.1.
 
-**Work items.**
+**Work items (reframed).**
 
-1. **`dogfood/.canonical-artifacts/` tree creation (one-shot
-   migration script).** A new `scripts/decompose-canon.ts` reads
-   each row of the § 11 classification table, loads the existing
-   hybrid YAML, and emits per-atom / per-composition files under
-   the new tree. The script is idempotent: re-running against a
-   decomposed tree produces no changes. The source files stay on
-   disk during the transition; Phase A does *not* delete them
-   until the law tests confirm equivalence.
-2. **Extend the workspace catalog loader to walk
-   `.canonical-artifacts/`.** New loader functions in
-   `lib/application/catalog/loaders/` that walk
-   `atoms/{agentic,deterministic}/{class}/...` and
-   `compositions/{agentic,deterministic}/{sub-type}/...` and
-   populate `WorkspaceCatalog.tier1Atoms` /
-   `.tier2Compositions`. The loader must attach the correct
-   `PhaseOutputSource` (slot 2 for `agentic/`, slot 3 for
-   `deterministic/`) from the path prefix.
-3. **Equivalence law test.** A new
-   `tests/canon-decomposition.laws.spec.ts` that loads the
-   un-decomposed catalog and the decomposed catalog and asserts
-   that the set of atoms is bit-equivalent (address-normalized).
-   This is the migration tripwire: we cannot delete a hybrid
-   file until this law passes for it.
-4. **Per-class decomposers.** The decomposer dispatches per atom
-   class (a fold over `AtomClass`). Each decomposer is a pure
-   function `(hybrid: HybridFile, source: PhaseOutputSource) → readonly Atom<C, unknown>[]`.
-   The compile-time-exhaustive registry `Record<AtomClass, Decomposer>`
-   enforces that every atom class has one, matching the existing
-   `L4_VISITORS` and `AtomPromotionGateRegistry` pattern.
-5. **Transition atom schema extension.** Before decomposing
-   transitions out of hybrid compounds, extend
-   `TransitionAtomAddress`
+1. **Extend `PhaseOutputSource` with `'reference-canon'`.** Add the
+   variant, extend `foldPhaseOutputSource`, extend
+   `compareSourcePrecedence` (reference canon sits between
+   deterministic observation and live derivation). Update the
+   architecture-fitness laws that assert exhaustiveness.
+
+2. **Wire the reference-canon slot into the lookup chain.** The
+   `LookupChain` interface gains a sixth slot. The default warm
+   lookup walks `operator-override → agentic-override →
+   deterministic-observation → reference-canon → live-derivation
+   → cold-derivation`. Add a `--no-reference-canon` mode flag that
+   skips slot 4 for the "is the real canon store actually
+   sufficient?" measurement.
+
+3. **Catalog loader tags entries by source.** When the workspace
+   catalog loads `{suiteRoot}/knowledge/**`, `{suiteRoot}/benchmarks/**`,
+   and non-pure-intent `{suiteRoot}/controls/**`, each loaded
+   envelope is tagged `source: 'reference-canon'`. When the catalog
+   loads `{suiteRoot}/.canonical-artifacts/agentic/**`, entries are
+   tagged `'agentic-override'`. When it loads
+   `{suiteRoot}/.canonical-artifacts/deterministic/**`, entries are
+   tagged `'deterministic-observation'`. The `WorkspaceCatalog`
+   type surfaces these as queryable facets so downstream tooling
+   can report the split.
+
+4. **Round-trip law test for the per-class decomposers.** The
+   existing `lib/application/canon/decompose-*.ts` functions are
+   kept and formalized: each one is now a pure
+   `(hybrid, source) → readonly Atom<C, unknown>[]` with the
+   expected property that applying the decomposer to a reference-
+   canon hybrid file produces atoms whose addresses round-trip
+   through `atomAddressToPath`. This is NOT a migration equivalence
+   test — it's a property test on the decomposer functions
+   themselves, which exist as runtime utilities.
+
+5. **`.canonical-artifacts/` directory creation (empty tree).** The
+   greenfield tree is created with empty `agentic/` and
+   `deterministic/` subdirectories under each tier. A `README.md`
+   in each explains the rule: "Files here are only created through
+   real promotion gates or real intervention receipts. Do not copy
+   files here from `{suiteRoot}/knowledge/` — that is reference
+   canon, which lives at its original paths."
+
+6. **Deprecate `scripts/decompose-canon.ts`.** Add a deprecation
+   header pointing at `canon-and-derivation.md` § 11.1. The script
+   remains on disk for this commit (to avoid breaking anything
+   that might reference it in a transient state) and is deleted in
+   a follow-up once we've verified nothing invokes it.
+
+7. **Transition atom schema extension (unchanged).** This work
+   item from the prior version of Phase A is still needed for Phase
+   E's OutSystems target, and it's independent of the migration
+   framing. Extend `TransitionAtomAddress`
    (`lib/domain/pipeline/atom-address.ts:113-118`) with optional
    `reverseOf?: { fromScreen: ScreenId; toScreen: ScreenId; trigger: string }`
-   and update `atomAddressToPath` for the new shape (paths stay
-   backward-compatible because the field is optional). The
-   `precondition: ObservationPredicate` linkage can be an
-   `observation-predicate` atom cross-reference rather than an
-   inlined field. See Phase E work items for the runtime wiring;
-   the schema extension belongs in Phase A because transitions
-   decompose here.
+   and update `atomAddressToPath`. The `precondition:
+   ObservationPredicate` linkage can be an `observation-predicate`
+   atom cross-reference. Keep this work item; move it to Phase A
+   or Phase E depending on scheduling.
 
-**Scalability pattern.**
+**Scalability pattern (preserved).**
 
-- **Mapped-type decomposer registry** (same template as
-  `L4_VISITORS` at `lib/domain/fitness/metric/visitors/index.ts:42-50`).
-- **Compile-time-exhaustive fold** over `AtomClass` (template at
-  `lib/domain/pipeline/atom-address.ts:177-210`'s switch on `address.class`).
-- **Pure functions** — the decomposer is a domain-layer function
-  with no IO. The script in `scripts/` runs it, reads from disk,
-  writes to disk. Domain purity law (architecture-fitness law 1 at
-  `tests/fitness/architecture-fitness.laws.spec.ts:58-87`) stays
-  green.
+- **Discriminated union + exhaustive fold**: adding the
+  `'reference-canon'` variant to `PhaseOutputSource` propagates
+  through every `foldPhaseOutputSource` call site at compile time.
+- **Mapped-type registries**: the per-class decomposer functions
+  remain a `Record<AtomClass, Decomposer>` shape; the TypeScript
+  compiler enforces completeness.
+- **Pure functions**: the catalog loader's source-tagging is pure
+  over the loaded bytes; there is no filesystem write happening in
+  Phase A outside the empty `.canonical-artifacts/` directory
+  creation.
 
 **Exit criteria.**
 
-- Every hybrid compound in § 11 has either been decomposed or
-  been added to a short-list with a migration reason.
-- `tests/canon-decomposition.laws.spec.ts` is green for every
-  decomposed file.
-- `WorkspaceCatalog.tier1Atoms.size > 0` after loading the dogfood
-  suite.
-- An `npm run iterate` warm run that previously hit slot 4 for
-  element atoms now hits slot 3 for at least one atom class (the
-  lookup chain result's `winningSource` field at
-  `lib/domain/pipeline/lookup-chain.ts:57-73` is
-  `'deterministic-observation'`).
-- Architecture-fitness laws remain green. If Phase A adds new
-  folds, architecture-fitness law 3 at
-  `tests/fitness/architecture-fitness.laws.spec.ts:116-134`
-  (currently expecting 8 fold functions in `visitors.ts`) must be
-  updated to reflect the new count.
+- `PhaseOutputSource` includes `'reference-canon'`; every
+  `foldPhaseOutputSource` call site handles it.
+- The lookup chain walks six slots in warm mode and five slots
+  with `--no-reference-canon`.
+- The workspace catalog tags every loaded entry with its source
+  slot, queryable via the catalog's facet interface.
+- A default warm run's score report includes a "reference canon
+  hit rate" bucket alongside the existing rung distribution.
+- `.canonical-artifacts/` exists as an empty tree under
+  `{suiteRoot}/` with its two subdirectories and their READMEs.
+- `scripts/decompose-canon.ts` carries the deprecation header.
+- The per-class decomposer round-trip law test is green.
+- Architecture-fitness laws remain green.
 
 **Metric movement.**
 
-- Pipeline-efficacy L4 tree: `extraction-ratio` and
-  `rung-distribution` shift toward higher-precedence rungs as the
-  lookup chain actually has canon to return. Magnitude depends on
-  how much of the hybrid content was hit by the existing resolver.
-- Discovery-fitness tree: not yet built, so no movement here until
-  Phase B.
-- M5: still uncomputable until Phase B adds the trajectory
-  primitive; but Phase A is the precondition because the cohort
-  trajectory needs per-atom provenance to build.
+- Pipeline-efficacy L4 tree: no immediate change. Warm runs still
+  resolve what they resolved before; they're just labeled honestly
+  as reference-canon hits.
+- Score report: **new bucket shows reference-canon hit fraction**.
+  This is the first honest measurement of how far from graduated
+  the dogfood suite is. Expect a high number at first; the
+  subsequent phases are aimed at driving it down.
+- Discovery-fitness tree: not yet built (Phase B).
+- C6 (intervention marginal value): stays `proxy`; Phase C is
+  where C6 graduates to `direct`, and the reference-canon slot is
+  the precondition (every denominator entry is now honest because
+  reference canon is distinguishable from agentic overrides).
 
 **Law tests added.**
 
-- `tests/canon-decomposition.laws.spec.ts` — equivalence between
-  hybrid and decomposed forms per atom class.
-- Extension to `tests/fitness/architecture-fitness.laws.spec.ts`
-  law 3 if new folds land.
+- `tests/pipeline/phase-output-source.laws.spec.ts` — exhaustive
+  fold over `PhaseOutputSource` including the new variant.
+- `tests/pipeline/lookup-chain-slots.laws.spec.ts` — the six-slot
+  ordering and the `--no-reference-canon` mode skip.
+- `tests/canon/decomposer-round-trip.laws.spec.ts` — the per-class
+  decomposers produce address-round-trip-valid atoms from reference
+  canon hybrids. (Property test, not migration test.)
+
+**What is explicitly NOT in Phase A (reframed).**
+
+- No migration script run. No files move from `dogfood/knowledge/`
+  or `dogfood/benchmarks/` into `.canonical-artifacts/`.
+- No `tests/canon-decomposition.laws.spec.ts` equivalence tripwire.
+  The test file is either not created, or it is created only as
+  the round-trip property test above.
+- No bulk promotion of reference canon to agentic overrides. The
+  doctrinal point is that agentic overrides must carry a real
+  intervention receipt; bulk-promoting would counterfeit receipts.
 
 ### Phase B — Dual L4 metric tree (discovery-fitness peer) + trajectory primitives
 
@@ -1595,25 +1675,39 @@ promotion gates use the same confidence-interval machinery from
 Phase D; a projection that produces too many `hidden` verdicts
 compared to ground-truth evidence becomes a demotion candidate.
 
-### 7.7 Phase A leaves hybrid files on disk past their lifetime
+### 7.7 Reference canon never shrinks
 
-**Risk.** Phase A's migration is idempotent and leaves the
-original hybrid files on disk during transition. If the transition
-never completes, the canon store has two sources of truth and the
-lookup chain's behavior becomes ambiguous (which slot wins when
-both `{suiteRoot}/knowledge/screens/policy-search.elements.yaml`
-and `{suiteRoot}/.canonical-artifacts/deterministic/atoms/elements/policy-search/**`
-exist?).
+**Risk.** Post-reframe (2026-04-10), Phase A no longer migrates
+dogfood YAMLs into `.canonical-artifacts/`. Instead, the YAMLs stay
+as reference canon (slot 4) and are supposed to shrink over time as
+agentic overrides and deterministic observations earn their
+addresses back through real gates. If no override ever earns any
+address, the reference-canon slot never shrinks and the system is
+permanently dependent on pre-gate content. The migration debt is
+honest but not decreasing.
 
-**Detection.** The equivalence law test
-`tests/canon-decomposition.laws.spec.ts` runs for every hybrid
-file; once it passes, that hybrid file becomes deletion-eligible.
-A follow-up CI law asserts that any file listed in the § 11
-classification table as `DECOMPOSE` which has a green equivalence
-test has also been deleted.
+**Detection.** Phase A's score report emits a "reference canon hit
+fraction" bucket on every warm run. Track it across cycles. If the
+fraction is flat or increasing over a two-week window, the C6
+pipeline (Phase C) is not producing accepted agentic overrides at
+a rate that moves the needle — which is itself a C6 regression
+that the scoreboard should catch. If the fraction is slowly
+decreasing, the system is working as designed.
 
-**Remediation.** Delete the hybrid files on the same commit as
-the equivalence test goes green for them, not "later."
+**Remediation.** If reference canon isn't shrinking, the diagnosis
+is usually one of:
+1. The auto-approval gate is too strict and rejecting valid agent
+   proposals. Check `lib/application/governance/auto-approval.ts`.
+2. The intervention engine isn't observing the right evidence to
+   form valid proposals. Check
+   `lib/application/intervention/impact-scheduler.ts` (Phase C).
+3. The promotion gate is too strict and rejecting valid discovery
+   outputs. Check per-class gates under
+   `lib/domain/pipeline/promotion-policies.ts` (Phase D).
+
+The fix is NEVER to bulk-promote reference canon into
+`.canonical-artifacts/` to paper over the signal. Reference canon
+shrinks through real gates or it doesn't shrink at all.
 
 ### 7.8 The fold-count law becomes load-bearing in an unexpected way
 
@@ -1647,7 +1741,7 @@ its vocabulary. Other planning documents become subordinate.
 | `docs/recursive-self-improvement.md` | Unchanged parameter space, relationship section added | The Level-1 loop. This plan explicitly relates its Surface 1 parameter tuning to the substrate work here. The 15-knob parameter space is a Surface 1 tactic that runs *within* the phases, not in lieu of them. |
 | `docs/convergence-roadmap.md` | Subordinate; banner added | Read as the tactical diagnosis of the convergence bottlenecks. The four-bottleneck model (widget coverage, route knowledge, proposal sparsity, demo harness) remains accurate but under-scoped. |
 | `docs/convergence-backlog.md` | Subordinate; banner + phase retag added | Read as Surface 1/2 tactics that execute within the substrate migration. Each item retagged as `substrate-migration`, `surface-1-tactic`, `surface-2-tactic`, or `infrastructure-tactic`. |
-| `docs/archive/research/temporal-epistemic-specification-addendum.md` | Unchanged | The formal model behind the alignment-targets wall. K5, L2s, L2, M5, C6 are its labels. |
+| `docs/temporal-epistemic-kernel.md` | Promoted out of archive 2026-04-10; header updated | The formal model behind the alignment-targets wall. K5, L2s, L2, M5, C6, H1–H20 are its labels. |
 | `docs/domain-model.md`, `docs/domain-ontology.md`, `docs/domain-class-decomposition.md` | Unchanged | Domain docs remain the ontological baseline. This plan extends them only by adding the `runtime-family` atom class and the `reverseOf` field on transitions — both of which slot into existing sections rather than inventing new ones. |
 | `docs/seams-and-invariants.md` | Unchanged | The architectural guardrails. § 5 of this plan cross-references them. |
 | `docs/coding-notes.md` | Unchanged | The FP/Effect/pattern language. Every work item in § 4 complies with it. |

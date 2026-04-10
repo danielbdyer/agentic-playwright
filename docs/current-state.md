@@ -4,10 +4,20 @@
 
 This document is the fast reality check for the current Tesseract substrate. Use it with [README.md](../README.md) and [docs/convergence-backlog.md](./convergence-backlog.md) so roadmap work is aimed at live gaps instead of already-closed ones.
 
+## Active doctrinal reframes
+
+- **Reference-canon reframe (2026-04-10).** The dogfood YAMLs under `dogfood/knowledge/`, `dogfood/benchmarks/`, and non-intent `dogfood/controls/` are reclassified as **reference canon** — a transitional population that lives at lookup-chain slot 4, below real canonical artifacts. `.canonical-artifacts/` is greenfield and is populated only by real promotions through real gates (intervention receipts for slot 2, discovery promotions for slot 3). The prior one-shot migration script (`scripts/decompose-canon.ts`) is deprecated. See [`docs/canon-and-derivation.md`](./canon-and-derivation.md) §§ 3.2a, 6, 11, 14.0 and [`docs/cold-start-convergence-plan.md`](./cold-start-convergence-plan.md) Phase A.
+- **Single-corpus direction (2026-04-10).** The 20000-series reference cohort is the go-forward scenario corpus. The 10000-series golden scenarios remain only until their unit-test pins migrate to `tests/fixtures/`. See [`docs/scenario-partition.md`](./scenario-partition.md).
+- **Temporal-epistemic kernel promotion (2026-04-10).** The formal K/L/S/V/D/R/A/C/M/H theorem groups moved out of archive to [`docs/temporal-epistemic-kernel.md`](./temporal-epistemic-kernel.md) and are now active doctrine for the alignment-targets wall.
+- **M5/C6 operational definitions locked (2026-04-10).** M5 denominator = wall-clock + agentic-override maintenance. C6 N-window = one full loop iteration (harvest → scenario run → agentic intervention → fitness → demotion sweep). Cohort-comparable = same scenario IDs. See [`docs/alignment-targets.md`](./alignment-targets.md).
+
 ## Status Matrix
 
 | Workstream | Status | Notes |
 |---|---|---|
+| Reference-canon slot in lookup chain | `planned` | Phase A of cold-start plan. Adds `'reference-canon'` as a 6th `PhaseOutputSource` variant and wires slot 4 between `deterministic-observation` and `live-derivation`. The catalog loader tags entries by source so fitness reports can break down warm-run hits by slot. |
+| `.canonical-artifacts/` greenfield tree | `planned` | Phase A of cold-start plan. Empty `agentic/` and `deterministic/` trees under each tier, populated only through real gates. No migration script. |
+| `scripts/decompose-canon.ts` retirement | `implemented` | Script deleted 2026-04-10 as part of the reference-canon reframe. The per-class decomposer functions under `lib/application/canon/decompose-*.ts` are KEPT as runtime utilities (the discovery engine may use them to convert fat observation surfaces into per-atom envelopes at runtime); only the one-shot migration target was retired. |
 | Vitest split and runner separation | `implemented` | `package.json` splits `test:unit` and `test:integration`; `vitest.config.ts` is live; unit typecheck/test flows now run against the Vitest lane. |
 | Role-affordance table | `implemented` | `lib/domain/widgets/role-affordances.ts` is the canonical role-to-affordance table, including widget bridge mappings and step-action derivation helpers. |
 | Runtime role-based dispatch | `implemented` | Runtime interaction now resolves role affordances first and uses legacy widget handlers as compatibility fallback only. |
