@@ -1,12 +1,29 @@
 # Envelope-Axis Refactor Plan
 
-> Status: Active — structural prerequisite to
-> `docs/cold-start-convergence-plan.md` Phases A–C. Treat this plan as
-> **Phase 0** of the convergence work: it lands the typed envelope
-> axes on which the substrate, discovery-fitness tree, and C6 braid
-> all depend. When this plan conflicts with the convergence plan's
-> sequencing, this plan wins for the axes it touches; the convergence
-> plan still owns every phase after Phase 0 completes.
+> Status: **Phase 0 complete** — all four axes landed. Structural
+> prerequisite to `docs/cold-start-convergence-plan.md` Phases A–C.
+> Convergence plan's Phase A can proceed on the typed scaffolding.
+>
+> **Execution actuals vs plan:**
+> - Phase 0a (Stage): landed as planned. Dead `StagedEnvelope`
+>   scaffolding deleted; 8 envelope types migrated; runtime assertion
+>   → compile-time. Scope was ~40% of plan estimate due to default-
+>   parameter back-compat (later removed per tightening doctrine).
+> - Phase 0b (Source): scoped down. Phantom lift landed on Atom/
+>   Composition/Projection. Precedence dispatcher consolidation
+>   deferred — `dispatchByPrecedence` and `freeSearch` serve
+>   different purposes. Posture-as-Source-bound deferred.
+> - Phase 0c (Fingerprint): landed fully. `Fingerprint<Tag>` brand
+>   with closed tag registry. `task` slot renamed to `surface` (D1).
+>   All call sites migrated to tag-required helpers. No untagged shim.
+> - Phase 0d (Verdict): scoped down. Audit showed codebase already
+>   well-disciplined (1 ad-hoc comparison, fixed). Architecture law
+>   test enforces zero ad-hoc comparisons. D3 (payload inside
+>   verdict) and D7 (phantom brand unification) deferred as future
+>   structural changes.
+> - Tightening: all default parameters removed per operator doctrine
+>   ("no backward-compatibility shims"). Every call site declares
+>   its axis explicitly.
 
 ## TL;DR
 
