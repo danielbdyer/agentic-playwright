@@ -86,7 +86,7 @@ function createBundle(proposals: ProposalEntry[]): ProposalBundle {
       content: 'sha256:content',
       knowledge: 'sha256:knowledge',
       controls: 'sha256:controls',
-      task: 'sha256:task',
+      surface: 'sha256:task',
       run: 'run-1',
     }),
     lineage: {

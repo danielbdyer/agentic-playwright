@@ -41,6 +41,7 @@ import type {
 import type { ResolutionReceipt } from '../../resolution/types';
 import type { RecoveryPolicy } from '../../commitment/recovery-policy';
 import { SchemaError } from '../../kernel/errors';
+import { asFingerprint } from '../../kernel/hash';
 import { uniqueSorted } from '../../kernel/collections';
 import {
   createAdoId,
@@ -141,13 +142,33 @@ export function validateWorkflowEnvelopeIds(value: unknown, path: string): Workf
 
 export function validateWorkflowEnvelopeFingerprints(value: unknown, path: string, fallbackArtifact: string): WorkflowEnvelopeFingerprints {
   const fingerprints = expectRecord(value ?? {}, path);
+  // The persistence boundary is a versioned external contract, so
+  // this validator reads `surface` (the current name per D1) and
+  // falls back to `task` for artifacts written before the rename.
+  // The in-memory representation is always `surface`; the on-disk
+  // `task` field is tolerated for backward read only.
+  const surfaceValue = expectOptionalString(fingerprints.surface, `${path}.surface`)
+    ?? expectOptionalString(fingerprints.task, `${path}.task`)
+    ?? null;
   return {
-    artifact: expectOptionalString(fingerprints.artifact, `${path}.artifact`) ?? fallbackArtifact,
-    content: expectOptionalString(fingerprints.content, `${path}.content`) ?? null,
-    knowledge: expectOptionalString(fingerprints.knowledge, `${path}.knowledge`) ?? null,
-    controls: expectOptionalString(fingerprints.controls, `${path}.controls`) ?? null,
-    task: expectOptionalString(fingerprints.task, `${path}.task`) ?? null,
-    run: expectOptionalString(fingerprints.run, `${path}.run`) ?? null,
+    artifact: asFingerprint('artifact', expectOptionalString(fingerprints.artifact, `${path}.artifact`) ?? fallbackArtifact),
+    content: (() => {
+      const content = expectOptionalString(fingerprints.content, `${path}.content`);
+      return content === undefined || content === null ? null : asFingerprint('content', content);
+    })(),
+    knowledge: (() => {
+      const knowledge = expectOptionalString(fingerprints.knowledge, `${path}.knowledge`);
+      return knowledge === undefined || knowledge === null ? null : asFingerprint('knowledge', knowledge);
+    })(),
+    controls: (() => {
+      const controls = expectOptionalString(fingerprints.controls, `${path}.controls`);
+      return controls === undefined || controls === null ? null : asFingerprint('controls', controls);
+    })(),
+    surface: surfaceValue === null ? null : asFingerprint('surface', surfaceValue),
+    run: (() => {
+      const run = expectOptionalString(fingerprints.run, `${path}.run`);
+      return run === undefined || run === null ? null : asFingerprint('run', run);
+    })(),
   };
 }
 

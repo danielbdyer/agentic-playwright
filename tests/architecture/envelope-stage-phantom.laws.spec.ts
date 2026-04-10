@@ -24,6 +24,7 @@ import type {
   WorkflowEnvelope,
   WorkflowStage,
 } from '../../lib/domain/governance/workflow-types';
+import { asFingerprint } from '../../lib/domain/kernel/hash';
 import type { RunRecord, StepExecutionReceipt } from '../../lib/domain/evidence/types';
 import type { ProposalBundle } from '../../lib/domain/execution/types';
 import type { BoundScenario } from '../../lib/domain/intent/types';
@@ -143,7 +144,14 @@ describe('Phase 0a: envelope stage phantom', () => {
       stage: 'preparation',
       scope: 'scenario',
       ids: { adoId: null, suite: null, runId: null, dataset: null, runbook: null, resolutionControl: null },
-      fingerprints: { artifact: '', content: null, task: null, knowledge: null, controls: null, run: '' },
+      fingerprints: {
+        artifact: asFingerprint('artifact', ''),
+        content: null,
+        surface: null,
+        knowledge: null,
+        controls: null,
+        run: asFingerprint('run', ''),
+      },
       lineage: { sources: [], parents: [], handshakes: ['preparation'] },
       governance: 'approved',
     };
@@ -162,7 +170,14 @@ describe('Phase 0a: envelope stage phantom', () => {
       stage: 'execution',
       scope: 'run',
       ids: { adoId: null, suite: null, runId: null, dataset: null, runbook: null, resolutionControl: null },
-      fingerprints: { artifact: '', content: null, task: null, knowledge: null, controls: null, run: '' },
+      fingerprints: {
+        artifact: asFingerprint('artifact', ''),
+        content: null,
+        surface: null,
+        knowledge: null,
+        controls: null,
+        run: asFingerprint('run', ''),
+      },
       lineage: { sources: [], parents: [], handshakes: ['preparation', 'resolution', 'execution'] },
       governance: 'approved',
     };

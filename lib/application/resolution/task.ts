@@ -18,7 +18,8 @@ import { isBlocked, isReviewRequired } from '../../domain/governance/workflow-ty
 import { controlResolutionForStep, runtimeControlsForScenario } from '../resolution/controls';
 import type { CompileSnapshot } from './compile-snapshot';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from '../catalog';
-import { deriveGovernanceState } from '../catalog/envelope';
+import { createScenarioEnvelopeFingerprints, deriveGovernanceState } from '../catalog/envelope';
+import { asFingerprint } from '../../domain/kernel/hash';
 import { buildInterfaceResolutionContext } from './interface-resolution';
 import type { ProjectPaths } from '../paths';
 import { relativeProjectPath, taskPacketPath } from '../paths';
@@ -271,14 +272,14 @@ export function buildScenarioInterpretationSurface(input: {
       runbook: runtimeControls.runbooks.find((entry) => entry.isDefault)?.name ?? null,
       resolutionControl: runtimeControls.resolutionControls[0]?.name ?? null,
     },
-    fingerprints: {
+    fingerprints: createScenarioEnvelopeFingerprints({
       artifact: '',
       content: input.compileSnapshot.scenario.source.content_hash,
       knowledge: knowledgeFingerprint,
       controls: controlsFingerprint,
-      task: null,
+      surface: null,
       run: null,
-    },
+    }),
     lineage: {
       sources: [
         input.compileSnapshot.scenarioPath,
@@ -298,8 +299,8 @@ export function buildScenarioInterpretationSurface(input: {
     ...surface,
     fingerprints: {
       ...surface.fingerprints,
-      artifact: surfaceFingerprint,
-      task: surfaceFingerprint,
+      artifact: asFingerprint('artifact', surfaceFingerprint),
+      surface: asFingerprint('surface', surfaceFingerprint),
     },
     surfaceFingerprint,
   };

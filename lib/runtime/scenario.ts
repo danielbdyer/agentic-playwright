@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { navigationOptionsForUrl } from './adapters/navigation-strategy';
 import { attachConsoleSentinel } from './observe/console-sentinel';
+import { asFingerprint } from '../domain/kernel/hash';
 import { uniqueSorted } from '../domain/kernel/collections';
 import { rankRouteVariants } from '../domain/knowledge/route-knowledge';
 import { chooseByPrecedence, routeSelectionPrecedenceLaw } from '../domain/resolution/precedence';
@@ -414,11 +415,11 @@ export async function runScenarioStep(
           resolutionControl: environment.controlSelection?.resolutionControl ?? null,
         },
         fingerprints: {
-          artifact: task.taskFingerprint,
-          knowledge: agentContext.resolutionContext.knowledgeFingerprint,
-          task: task.taskFingerprint,
+          artifact: asFingerprint('artifact', task.taskFingerprint),
+          content: asFingerprint('content', context?.contentHash ?? ''),
+          knowledge: asFingerprint('knowledge', agentContext.resolutionContext.knowledgeFingerprint),
           controls: null,
-          content: context?.contentHash ?? null,
+          surface: asFingerprint('surface', task.taskFingerprint),
           run: null,
         },
         lineage: {
@@ -534,11 +535,11 @@ export async function runScenarioStep(
           resolutionControl: environment.controlSelection?.resolutionControl ?? null,
         },
         fingerprints: {
-          artifact: task.taskFingerprint,
-          knowledge: interfaceResolutionContext.knowledgeFingerprint,
-          task: task.taskFingerprint,
+          artifact: asFingerprint('artifact', task.taskFingerprint),
+          content: asFingerprint('content', context?.contentHash ?? ''),
+          knowledge: asFingerprint('knowledge', interfaceResolutionContext.knowledgeFingerprint),
           controls: null,
-          content: context?.contentHash ?? null,
+          surface: asFingerprint('surface', task.taskFingerprint),
           run: null,
         },
         lineage: {
@@ -777,11 +778,11 @@ export async function runScenarioStep(
       resolutionControl: environment.controlSelection?.resolutionControl ?? null,
     },
     fingerprints: {
-      artifact: task.taskFingerprint,
-      knowledge: agentContext.resolutionContext.knowledgeFingerprint,
-      task: task.taskFingerprint,
+      artifact: asFingerprint('artifact', task.taskFingerprint),
+      content: asFingerprint('content', context?.contentHash ?? ''),
+      knowledge: asFingerprint('knowledge', agentContext.resolutionContext.knowledgeFingerprint),
       controls: null,
-      content: context?.contentHash ?? null,
+      surface: asFingerprint('surface', task.taskFingerprint),
       run: null,
     },
     lineage: {

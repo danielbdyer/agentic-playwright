@@ -1,5 +1,6 @@
 import type { AdoId, ElementId, PostureId, ScreenId, SnapshotTemplateId, SurfaceId } from '../kernel/identity';
 import type { AdoSnapshot } from '../intent/types';
+import type { Fingerprint } from '../kernel/hash';
 
 // Import from canonical location and re-export
 import type { Confidence } from '../confidence/levels';
@@ -130,12 +131,30 @@ export interface WorkflowEnvelopeIds {
 }
 
 export interface WorkflowEnvelopeFingerprints {
-  readonly artifact: string;
-  readonly content?: string | null | undefined;
-  readonly knowledge?: string | null | undefined;
-  readonly controls?: string | null | undefined;
-  readonly task?: string | null | undefined;
-  readonly run?: string | null | undefined;
+  /** The fingerprint that uniquely identifies this envelope instance.
+   *  Typically a runId, a `${runId}:proposal` composite, or similar. */
+  readonly artifact: Fingerprint<'artifact'>;
+  /** Content hash of the envelope's payload. Stable across renamings
+   *  of envelope-level fields; changes when the payload content changes. */
+  readonly content?: Fingerprint<'content'> | null | undefined;
+  /** Fingerprint of the knowledge catalog state the envelope was
+   *  produced against. Invalidates entries when knowledge changes. */
+  readonly knowledge?: Fingerprint<'knowledge'> | null | undefined;
+  /** Fingerprint of the controls selection (dataset, runbook,
+   *  resolution control) the envelope was produced against. */
+  readonly controls?: Fingerprint<'controls'> | null | undefined;
+  /** Fingerprint of the resolved interface surface — the screens,
+   *  elements, and route state under which the envelope's task
+   *  operated. Renamed from `task` per decision D1 in
+   *  `docs/envelope-axis-refactor-plan.md` § 14: the previous slot
+   *  name lied about its content (every call site assigned a
+   *  surface fingerprint to the `task` field), and the rename
+   *  fixes the lie. If a true task-as-intent concept ever diverges
+   *  from surface identity, it gets its own new slot — this slot
+   *  stays as the surface identity it always was. */
+  readonly surface?: Fingerprint<'surface'> | null | undefined;
+  /** Execution session identity (runId). */
+  readonly run?: Fingerprint<'run'> | null | undefined;
 }
 
 export interface WorkflowEnvelopeLineage {

@@ -5,6 +5,7 @@ import { runResolutionPipeline } from '../../lib/runtime/resolution';
 import type { RuntimeStepAgentContext } from '../../lib/runtime/resolution/types';
 import type { StepExecutionReceipt } from '../../lib/domain/execution/types';
 import { createAgentContext, createInterfaceResolutionContext, createGroundedStep } from '../support/interface-fixtures';
+import { asFingerprint } from '../../lib/domain/kernel/hash';
 
 function baseFixture(explicit = false) {
   const resolutionContext = createInterfaceResolutionContext();
@@ -69,9 +70,10 @@ test('post-provider validation enforces governance invariants', async () => {
       resolutionControl: null,
     },
     fingerprints: {
-      artifact: 'sha256:task',
-      task: 'sha256:task',
-      knowledge: 'sha256:knowledge',
+      artifact: asFingerprint('artifact', 'sha256:task'),
+      content: null,
+      surface: asFingerprint('surface', 'sha256:task'),
+      knowledge: asFingerprint('knowledge', 'sha256:knowledge'),
       controls: null,
       run: null,
     },

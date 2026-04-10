@@ -506,7 +506,7 @@ test('flywheel: proposal activation improves knowledge hit rate on recompile for
         content: 'sha256:content',
         knowledge: 'sha256:knowledge',
         controls: 'sha256:controls',
-        task: 'sha256:task',
+        surface: 'sha256:task',
         run: 'flywheel-run-1',
       }),
       lineage: {

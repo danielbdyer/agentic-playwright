@@ -19,6 +19,7 @@ import {
   verifyEnvelopeReceiptAdjunction,
 } from '../lib/domain/governance/workflow-types';
 import type { WorkflowEnvelope, WorkflowMetadata } from '../lib/domain/governance/workflow-types';
+import { asFingerprint } from '../lib/domain/kernel/hash';
 
 // ─── Fixtures ───
 
@@ -30,7 +31,7 @@ function createTestMetadata(): WorkflowMetadata<'execution'> {
     stage: 'execution',
     scope: 'step',
     ids: { adoId: 'ADO-1' as any, suite: 'test' },
-    fingerprints: { artifact: 'sha256:abc123' },
+    fingerprints: { artifact: asFingerprint('artifact', 'sha256:abc123') },
     lineage: { sources: ['src-1'], parents: ['parent-1'], handshakes: ['preparation'] },
     governance: 'approved',
   };

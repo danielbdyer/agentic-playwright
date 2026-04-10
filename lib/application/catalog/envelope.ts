@@ -1,4 +1,4 @@
-import { taggedFingerprintFor } from '../../domain/kernel/hash';
+import { asFingerprint, taggedFingerprintFor } from '../../domain/kernel/hash';
 import type { Fingerprint } from '../../domain/kernel/hash';
 import type { AdoId } from '../../domain/kernel/identity';
 import type { ProposalBundle, RunRecord, ScenarioRunStep } from '../../domain/execution/types';
@@ -56,20 +56,37 @@ export function createScenarioEnvelopeIds(input: {
 }
 
 export function createScenarioEnvelopeFingerprints(input: {
-  artifact: string;
-  content: string;
-  knowledge?: string | null | undefined;
-  controls?: string | null | undefined;
-  task?: string | null | undefined;
-  run?: string | null | undefined;
+  readonly artifact: string;
+  readonly content: string;
+  readonly knowledge?: string | null | undefined;
+  readonly controls?: string | null | undefined;
+  /** Renamed from `task` per decision D1: the slot holds a surface
+   *  fingerprint, not a task fingerprint. The old name lied about
+   *  the content. */
+  readonly surface?: string | null | undefined;
+  readonly run?: string | null | undefined;
 }): WorkflowEnvelopeFingerprints {
+  // `asFingerprint` is the documented boundary crossing: these
+  // upstream strings come from runIds, content-hash helpers, and
+  // resolution-layer computations that aren't yet typed at the
+  // producer level. Per docs/coding-notes.md § Universal Operator
+  // Principles, this helper is the single funnel so the boundary
+  // exists once, not at every envelope construction site.
   return {
-    artifact: input.artifact,
-    content: input.content,
-    knowledge: input.knowledge ?? null,
-    controls: input.controls ?? null,
-    task: input.task ?? null,
-    run: input.run ?? null,
+    artifact: asFingerprint('artifact', input.artifact),
+    content: asFingerprint('content', input.content),
+    knowledge: input.knowledge === null || input.knowledge === undefined
+      ? null
+      : asFingerprint('knowledge', input.knowledge),
+    controls: input.controls === null || input.controls === undefined
+      ? null
+      : asFingerprint('controls', input.controls),
+    surface: input.surface === null || input.surface === undefined
+      ? null
+      : asFingerprint('surface', input.surface),
+    run: input.run === null || input.run === undefined
+      ? null
+      : asFingerprint('run', input.run),
   };
 }
 
@@ -180,7 +197,7 @@ export function mintScenarioEnvelopeHeader(
       content: input.contentHash,
       knowledge: input.knowledgeFingerprint ?? null,
       controls: input.controlsFingerprint ?? null,
-      task: input.surfaceFingerprint ?? null,
+      surface: input.surfaceFingerprint ?? null,
       run: input.runId,
     }),
     lineage: input.surfaceFingerprint

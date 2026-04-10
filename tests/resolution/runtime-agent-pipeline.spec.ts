@@ -268,7 +268,7 @@ test('runScenarioStep activates live-dom hint proposals into the shared runtime 
           fingerprints: {
             artifact: task.taskFingerprint,
             knowledge: context.resolutionContext.knowledgeFingerprint,
-            task: task.taskFingerprint,
+            surface: task.taskFingerprint,
             controls: null,
             content: null,
             run: null,
@@ -320,7 +320,7 @@ test('runScenarioStep activates live-dom hint proposals into the shared runtime 
             },
             rationale: 'prove same-run alias activation',
           }],
-        } as ResolutionReceipt,
+        } as unknown as ResolutionReceipt,
         semanticAccrual: null,
         semanticDictionaryHitId: null,
       }),

@@ -7,6 +7,7 @@ import { selectedDataset, selectedRunbook } from './select-controls';
 import type { RuntimeAgentStageContext, StageEffects } from './types';
 import { uniqueSorted } from './shared';
 import { TesseractError } from '../../domain/kernel/errors';
+import { asFingerprint } from '../../domain/kernel/hash';
 
 function baseReceiptFields(stage: RuntimeAgentStageContext, pendingEffects?: StageEffects, winningSource?: StepWinningSource) {
   const { task, context } = stage;
@@ -30,11 +31,13 @@ function baseReceiptFields(stage: RuntimeAgentStageContext, pendingEffects?: Sta
       resolutionControl: context.controlSelection?.resolutionControl ?? selectedRunbook(task, context)?.resolutionControl ?? null,
     },
     fingerprints: {
-      artifact: task.taskFingerprint,
-      knowledge: context.resolutionContext.knowledgeFingerprint,
-      task: task.taskFingerprint,
-      controls: context.resolutionContext.confidenceFingerprint ?? null,
+      artifact: asFingerprint('artifact', task.taskFingerprint),
       content: null,
+      knowledge: asFingerprint('knowledge', context.resolutionContext.knowledgeFingerprint),
+      controls: context.resolutionContext.confidenceFingerprint
+        ? asFingerprint('controls', context.resolutionContext.confidenceFingerprint)
+        : null,
+      surface: asFingerprint('surface', task.taskFingerprint),
       run: null,
     },
     lineage: {
