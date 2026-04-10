@@ -3,40 +3,34 @@
  * visitors produce correct coverage ratios from real atom data.
  */
 import { describe, test, expect } from 'vitest';
-import { atom } from '../../lib/domain/pipeline/atom';
-import { asFingerprint } from '../../lib/domain/kernel/hash';
 import { createElementId, createScreenId } from '../../lib/domain/kernel/identity';
-import type { ElementAtomAddress } from '../../lib/domain/pipeline/atom-address';
 import {
   DISCOVERY_VISITORS,
   buildDiscoveryMetricTree,
-  type DiscoveryVisitorInput,
 } from '../../lib/domain/fitness/metric/visitors-discovery';
 
-function makeElementAtom(screen: string, element: string, source: 'cold-derivation' | 'agentic-override') {
-  return atom({
+import type { DiscoveryAtomShape } from '../../lib/domain/fitness/metric/visitors-discovery';
+
+function makeElementAtom(screen: string, element: string): DiscoveryAtomShape {
+  return {
     class: 'element',
     address: {
       class: 'element',
       screen: createScreenId(screen),
       element: createElementId(element),
-    } satisfies ElementAtomAddress,
-    content: { role: 'textbox', name: element },
-    source,
-    inputFingerprint: asFingerprint('atom-input', `sha256:${screen}-${element}`),
-    provenance: { producedBy: 'test', producedAt: '2026-04-10T00:00:00Z' },
-  });
+    },
+  };
 }
 
 describe('Discovery fidelity visitor laws', () => {
   test('Law 1: perfect match → fidelity 1.0', () => {
     const canonical = [
-      makeElementAtom('search', 'btn', 'agentic-override'),
-      makeElementAtom('search', 'input', 'agentic-override'),
+      makeElementAtom('search', 'btn'),
+      makeElementAtom('search', 'input'),
     ];
     const discovered = [
-      makeElementAtom('search', 'btn', 'cold-derivation'),
-      makeElementAtom('search', 'input', 'cold-derivation'),
+      makeElementAtom('search', 'btn'),
+      makeElementAtom('search', 'input'),
     ];
 
     const node = DISCOVERY_VISITORS['discovery-element-fidelity'].visit({
@@ -50,11 +44,11 @@ describe('Discovery fidelity visitor laws', () => {
 
   test('Law 2: partial match → fidelity 0.5', () => {
     const canonical = [
-      makeElementAtom('search', 'btn', 'agentic-override'),
-      makeElementAtom('search', 'input', 'agentic-override'),
+      makeElementAtom('search', 'btn'),
+      makeElementAtom('search', 'input'),
     ];
     const discovered = [
-      makeElementAtom('search', 'btn', 'cold-derivation'),
+      makeElementAtom('search', 'btn'),
       // input is missing
     ];
 
@@ -69,7 +63,7 @@ describe('Discovery fidelity visitor laws', () => {
 
   test('Law 3: no match → fidelity 0', () => {
     const canonical = [
-      makeElementAtom('search', 'btn', 'agentic-override'),
+      makeElementAtom('search', 'btn'),
     ];
 
     const node = DISCOVERY_VISITORS['discovery-element-fidelity'].visit({
@@ -83,7 +77,7 @@ describe('Discovery fidelity visitor laws', () => {
 
   test('Law 4: empty canonical → fidelity 0 (nothing to match against)', () => {
     const discovered = [
-      makeElementAtom('search', 'btn', 'cold-derivation'),
+      makeElementAtom('search', 'btn'),
     ];
 
     const node = DISCOVERY_VISITORS['discovery-element-fidelity'].visit({
@@ -97,11 +91,11 @@ describe('Discovery fidelity visitor laws', () => {
 
   test('Law 5: discovery-coverage computes across all classes', () => {
     const canonical = [
-      makeElementAtom('search', 'btn', 'agentic-override'),
-      makeElementAtom('detail', 'title', 'agentic-override'),
+      makeElementAtom('search', 'btn'),
+      makeElementAtom('detail', 'title'),
     ];
     const discovered = [
-      makeElementAtom('search', 'btn', 'cold-derivation'),
+      makeElementAtom('search', 'btn'),
     ];
 
     const node = DISCOVERY_VISITORS['discovery-coverage'].visit({
@@ -115,10 +109,10 @@ describe('Discovery fidelity visitor laws', () => {
 
   test('Law 6: full tree builds with fidelity visitors producing real values', () => {
     const canonical = [
-      makeElementAtom('search', 'btn', 'agentic-override'),
+      makeElementAtom('search', 'btn'),
     ];
     const discovered = [
-      makeElementAtom('search', 'btn', 'cold-derivation'),
+      makeElementAtom('search', 'btn'),
     ];
 
     const tree = buildDiscoveryMetricTree({

@@ -23,12 +23,20 @@ import {
   type DiscoveryFitnessMetricKind,
 } from '../catalogue-discovery';
 import type { MetricVisitor } from '../visitor';
-import type { Atom } from '../../../pipeline/atom';
-import type { AtomClass } from '../../../pipeline/atom-address';
-import type { PhaseOutputSource } from '../../../pipeline/source';
+import type { AtomClass, AtomAddress } from '../../../pipeline/atom-address';
 import { fidelityVisitor, coverageVisitor } from './fidelity';
 
 // ─── Visitor input shape ────────────────────────────────────────
+
+/** Structural atom shape for discovery-fitness visitors. Uses a
+ *  structural type (not the full generic `Atom<C, T, Src>`) so
+ *  atoms of any class/content/source are accepted without
+ *  variance issues on the generic parameters. Visitors only read
+ *  `class` and `address` for fidelity computation. */
+export interface DiscoveryAtomShape {
+  readonly class: AtomClass;
+  readonly address: AtomAddress;
+}
 
 /** The input shape for discovery-fitness visitors. Carries the
  *  cold-derivation manifest (the atoms the discovery engine
@@ -36,9 +44,9 @@ import { fidelityVisitor, coverageVisitor } from './fidelity';
  *  canon store). */
 export interface DiscoveryVisitorInput {
   /** Atoms produced by the cold-derivation engine in this run. */
-  readonly discoveredAtoms: readonly Atom<AtomClass, unknown, PhaseOutputSource>[];
+  readonly discoveredAtoms: readonly DiscoveryAtomShape[];
   /** Atoms currently in the canonical store (from the catalog). */
-  readonly canonicalAtoms: readonly Atom<AtomClass, unknown, PhaseOutputSource>[];
+  readonly canonicalAtoms: readonly DiscoveryAtomShape[];
   /** ISO timestamp of the computation. */
   readonly computedAt: string;
 }

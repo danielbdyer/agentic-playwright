@@ -17,12 +17,10 @@
 
 import type { AtomClass } from '../../../pipeline/atom-address';
 import { atomAddressToPath } from '../../../pipeline/atom-address';
-import type { Atom } from '../../../pipeline/atom';
-import type { PhaseOutputSource } from '../../../pipeline/source';
 import { metric, type MetricProvenance } from '../value';
 import { metricNode, type MetricNode } from '../tree';
 import type { MetricVisitor } from '../visitor';
-import type { DiscoveryVisitorInput } from './index';
+import type { DiscoveryVisitorInput, DiscoveryAtomShape } from './index';
 import type { DiscoveryFitnessMetricKind } from '../catalogue-discovery';
 
 /** Build a fidelity visitor for a specific atom class. The visitor
@@ -90,13 +88,13 @@ export function fidelityVisitor<K extends DiscoveryFitnessMetricKind>(
 
 /** Extract the set of address paths for atoms of a specific class. */
 function addressSetForClass(
-  atoms: readonly Atom<AtomClass, unknown, PhaseOutputSource>[],
+  atoms: readonly DiscoveryAtomShape[],
   targetClass: AtomClass,
 ): Set<string> {
   const result = new Set<string>();
-  for (const atom of atoms) {
-    if (atom.class === targetClass) {
-      result.add(atomAddressToPath(atom.address));
+  for (const a of atoms) {
+    if (a.class === targetClass) {
+      result.add(atomAddressToPath(a.address));
     }
   }
   return result;
