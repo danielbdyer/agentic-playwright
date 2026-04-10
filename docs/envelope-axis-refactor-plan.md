@@ -29,20 +29,40 @@
 
 Every artifact in this codebase is a point in a 4-axis typed space —
 **`Envelope<Stage, Source, Verdict><Payload: Fingerprint<Stage, Source>>`**
-— and the pipeline is a typed path through that space. Today only the
-runtime shadow of each axis exists: `stage` as a string, `source` as a
-string, `governance` as a string, fingerprints as bare strings. Four
-phantom-typing lifts move each axis from runtime shadow to compile-time
-invariant. After those four lifts the cold-start convergence plan's
-Phase A (atom decomposition) lands on a scaffolding where every mint,
-promotion, and lookup is self-documenting at the type level, rather
-than on a scaffolding where every decomposer has to agree by convention.
+— and the pipeline is a typed path through that space. The four
+phantom-typing lifts have moved each axis from runtime shadow to
+compile-time invariant:
 
-The four lifts are sequenced by dependency: Stage first (every other
-axis attaches to it), Source second (consolidates the two competing
-precedence dispatchers), Fingerprint third (refines identity over the
-Stage × Source product), Verdict fourth (the largest raw migration but
-the smallest conceptual move once the phantoms exist).
+- **Stage** (`WorkflowMetadata<S>`) — landed, no default parameter.
+  8 concrete envelope types carry narrow stage literals. The runtime
+  assertion at `validate-step-results.ts` is now compile-time.
+- **Source** (`Atom<C, T, Src>`, `Composition<S, T, Src>`,
+  `Projection<S, Src>`) — landed, no default parameter. Every
+  canon artifact declares its source slot explicitly.
+- **Fingerprint** (`Fingerprint<Tag>`) — landed. Closed tag
+  registry, tag-required helpers, D1 `task` → `surface` rename,
+  `WorkflowEnvelopeFingerprints` slots typed.
+- **Verdict** — governance consumption exclusively through typed
+  API (`isApproved`, `foldGovernance`, `runGateChain`). Architecture
+  law test enforces zero ad-hoc string comparisons. D3 (payload
+  inside verdict) deferred.
+
+These axes exist to serve the **agentic learning loop** — the
+observe-then-suggest chain where the agent watches execution,
+forms intervention hypotheses from runtime evidence, proposes
+knowledge changes through the trust gate chain, and measures
+whether those changes improved interaction efficacy. The Stage
+phantom makes the agent's observe → propose transition visible in
+function signatures. The Source phantom distinguishes the agent's
+contribution from the compiler's. The Fingerprint tags trace the
+agent's lineage through typed references. The Verdict gates every
+promotion through composable gate chains.
+
+The convergence plan's Phase A (atom decomposition) has landed on
+this scaffolding: 46 atoms and 4 compositions materialized from
+the dogfood corpus, loadable by the catalog, verified by 8
+equivalence laws. Phase B (discovery-fitness L4 tree) and Phase C
+(C6 intervention braid) are next.
 
 Deferred indefinitely: the Lane axis (lanes do not exist in code
 today; typing them would require introducing separation first),
@@ -50,13 +70,16 @@ the three-loop unification (two of the three "loops" are not loops),
 and the composition→projection promotion path (that is a write, not a
 refactor).
 
-## 1. Why now — the cost curve
+## 1. Why this was done first — the cost curve (retrospective)
 
-The argument for prioritizing this work over continuing feature
-development on today's scaffolding is not aesthetic. It is economic.
+The refactor was prioritized over feature development because the
+cost curve was asymmetric: every week of feature work on the
+untyped scaffolding would have made the eventual refactor larger.
+The refactor landed at ~150 call sites; six months later it would
+have been ~300. This section preserves the original rationale for
+future reference.
 
-The refactor has an **asymmetric cost curve** against time. Three
-forces drive the curve:
+Three forces drove the curve:
 
 1. **Envelope accretion.** Every new feature adds envelope types or
    extends existing ones. The cold-start convergence plan's Phase A
