@@ -90,6 +90,11 @@ export interface ScoreOptions {
 
 export interface ScoreResult {
   readonly tree: MetricNode;
+  /** The discovery-fitness tree — a parallel peer to the pipeline
+   *  tree that measures how well the discovery engine derives
+   *  knowledge from scratch. Built from the canonical artifact store
+   *  when available; null when no canonical artifacts exist yet. */
+  readonly discoveryTree: MetricNode | null;
   readonly fitnessReport: PipelineFitnessReport;
   readonly baseline?: MetricBaseline | undefined;
   readonly delta?: MetricTreeDelta | undefined;
@@ -120,8 +125,20 @@ export function score(
       computedAt,
     });
 
+    // Build the discovery-fitness tree alongside the pipeline tree.
+    // The discovery tree needs canonical atoms from the catalog.
+    // discoveredAtoms is empty until the discovery engine is wired
+    // to the speedrun (Phase E); until then, all fidelity metrics
+    // are zero-value proxies.
+    // Discovery-fitness tree: Phase B item 6 adds the wiring to load
+    // the catalog and build buildDiscoveryMetricTree here. For now,
+    // the discovery tree is null — the interface is in place so
+    // downstream consumers (renderers, baseline diffs) can start
+    // handling the dual-tree shape.
+    const discoveryTree: MetricNode | null = null;
+
     if (options.baselineLabel === undefined) {
-      return { tree, fitnessReport: report };
+      return { tree, discoveryTree, fitnessReport: report };
     }
 
     const baseline =
@@ -132,7 +149,7 @@ export function score(
     if (baseline === null) {
       // 'latest' was requested but no baselines exist — return the
       // tree alone, no diff. This is a non-fatal "first run" case.
-      return { tree, fitnessReport: report };
+      return { tree, discoveryTree, fitnessReport: report };
     }
 
     const delta = diffMetricTrees({
@@ -144,6 +161,7 @@ export function score(
 
     return {
       tree,
+      discoveryTree,
       fitnessReport: report,
       baseline,
       delta,
