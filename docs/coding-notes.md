@@ -648,11 +648,49 @@ function buildProposals(
 ): WorkflowEnvelope<ProposalBundlePayload, 'proposal'> { ... }
 ```
 
-The back-compat form `WorkflowEnvelope<Payload>` (single-arg) still works via the default stage parameter (`S = WorkflowStage`), but prefer the narrow two-arg form in new code. Passing a preparation-stage envelope where an execution-stage envelope is expected is a compile error — verified by `tests/architecture/envelope-stage-phantom.laws.spec.ts`.
+There is no single-arg shim form. Every call site declares its stage explicitly. Passing a preparation-stage envelope where an execution-stage envelope is expected is a compile error — verified by `tests/architecture/envelope-stage-phantom.laws.spec.ts`.
+
+**Declaring a source-aware function signature.** Canon artifacts carry a `Src` phantom parameter that restricts which precedence-ladder slot they came from:
+
+```typescript
+// Promotion gates constrain their inputs by source origin:
+interface AtomPromotionGate<C extends AtomClass> {
+  readonly evaluate: (input: {
+    // Only discovery-engine output is eligible for promotion
+    readonly candidate: Atom<C, unknown, PromotionCandidateSource>;
+    // Existing canon comes from approved/observed slots
+    readonly existing: Atom<C, unknown, CanonicalSource> | null;
+  }) => PromotionEvaluation;
+}
+```
+
+The `PromotionCandidateSource` (`'cold-derivation' | 'live-derivation'`) and `CanonicalSource` (`'operator-override' | 'agentic-override' | 'deterministic-observation'`) type aliases live in `lib/domain/pipeline/promotion-gate.ts`.
+
+**Declaring fingerprint-typed fields.** Every fingerprint field uses `Fingerprint<Tag>` from `lib/domain/kernel/hash.ts`. The tag registry (`FingerprintTag`) is closed — adding a new fingerprint kind requires editing the union. Fingerprint producers use `fingerprintFor<Tag>(tag, value)` (raw hex) or `taggedFingerprintFor<Tag>(tag, value)` (sha256:-prefixed). At persistence boundaries, use `asFingerprint(tag, rawString)` to adopt a string as a tagged fingerprint.
+
+```typescript
+// Canon artifact fingerprints are tag-specific:
+interface Atom<C, T, Src> {
+  readonly inputFingerprint: Fingerprint<'atom-input'>;
+  // ...
+}
+
+// Envelope fingerprint slots are typed:
+interface WorkflowEnvelopeFingerprints {
+  readonly artifact: Fingerprint<'artifact'>;
+  readonly surface?: Fingerprint<'surface'> | null;  // was 'task'
+  readonly knowledge?: Fingerprint<'knowledge'> | null;
+  // ...
+}
+```
+
+Cross-tag assignment is a compile error — `Fingerprint<'knowledge'>` cannot be passed where `Fingerprint<'surface'>` is expected. Verified by `tests/architecture/fingerprint-tags.laws.spec.ts`.
+
+**Governance consumption.** Every governance read goes through the typed API (`isApproved`, `isBlocked`, `isReviewRequired`, `foldGovernance`). Ad-hoc `=== 'approved'` string comparisons are an architecture violation enforced by `tests/architecture/governance-verdict.laws.spec.ts` Law 8. Gate composition uses `GovernanceVerdict<T, I>` with `runGateChain` — see `lib/application/governance/auto-approval.ts` for the worked example.
 
 **Caveat:** `ProposalBundle` has an identical `proposals` field at both `payload.proposals` and top-level `proposals`. This duplication means `mapPayload` alone cannot fully update the bundle — you must also update the top-level field. This is a known structural debt, not a pattern to replicate.
 
-**Caveat:** `DiscoveryRun`, `AgentInterpretationCacheRecord`, and `TranslationCacheRecord` do not yet extend `WorkflowMetadata<'stage'>` — the first has `version: 2` without `ids`/`fingerprints`/`lineage`, and the cache records use non-standard scopes (`'agent-interpretation'`, `'translation'`) that are not members of `WorkflowScope`. Bringing them into the envelope contract is a structural refactor that belongs with the convergence plan's Phase A, not Phase 0a. For now, they inline their `stage` literal without extending the base.
+**Caveat:** `DiscoveryRun`, `AgentInterpretationCacheRecord`, and `TranslationCacheRecord` do not yet extend `WorkflowMetadata<'stage'>` — the first has `version: 2` without `ids`/`fingerprints`/`lineage`, and the cache records use non-standard scopes. Bringing them into the envelope contract is a structural refactor that belongs with the convergence plan's Phase A.
 
 ### Exhaustive Match (`Effect.Match`)
 
