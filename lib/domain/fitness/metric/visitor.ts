@@ -12,15 +12,15 @@
  *   - Kind is the phantom brand on the output metric, ensuring the
  *     visitor's `outputKind` matches the metric it actually emits.
  *
- * The `L4VisitorRegistry` type is a structural map that forces compile-time
- * exhaustiveness over `L4MetricKind`. Adding a new L4 kind without
+ * The `PipelineVisitorRegistry` type is a structural map that forces compile-time
+ * exhaustiveness over `PipelineMetricKind`. Adding a new L4 kind without
  * registering a visitor is a type error in any module that constructs the
  * registry. Visitor implementations land in subsequent commits; this module
  * establishes only the typeclass and the registry shape.
  */
 
 import type { MetricNode } from './tree';
-import type { L4MetricKind } from './catalogue';
+import type { PipelineMetricKind } from './catalogue';
 
 // ─── Visitor typeclass ───
 
@@ -46,17 +46,17 @@ export interface MetricVisitor<Input, Kind extends string> {
  *  input type is `unknown` at the registry boundary because different
  *  visitors consume different receipt shapes; concrete bindings live in
  *  the application layer (`lib/application/measurement/`). */
-export type L4VisitorRegistry = {
-  readonly [K in L4MetricKind]: MetricVisitor<unknown, K>;
+export type PipelineVisitorRegistry = {
+  readonly [K in PipelineMetricKind]: MetricVisitor<unknown, K>;
 };
 
 /** Type guard: assert that a candidate registry covers every L4 metric
  *  kind. Use at module boundaries to catch incomplete registrations. */
-export function assertL4RegistryComplete(
+export function assertPipelineRegistryComplete(
   candidate: Readonly<Record<string, MetricVisitor<unknown, string>>>,
-): asserts candidate is L4VisitorRegistry {
+): asserts candidate is PipelineVisitorRegistry {
   // The check is structural: TypeScript enforces shape at compile time
-  // via `L4VisitorRegistry`, but a runtime guard catches dynamic
+  // via `PipelineVisitorRegistry`, but a runtime guard catches dynamic
   // construction (e.g. from a config file). We rely on the catalogue
   // module's `L4_METRIC_KINDS` for the source of truth.
   // (Importing it here would create a cycle through the index; callers

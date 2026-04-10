@@ -13,7 +13,7 @@ import {
   findLatestBaseline,
 } from '../../lib/application/measurement/baseline-store';
 import { score, findLatestFitnessReport } from '../../lib/application/measurement/score';
-import { buildL4MetricTree } from '../../lib/domain/fitness/metric/visitors';
+import { buildPipelineMetricTree } from '../../lib/domain/fitness/metric/visitors';
 import type { PipelineFitnessReport, PipelineFitnessMetrics } from '../../lib/domain/fitness/types';
 
 function withFileSystem<A, E>(program: Effect.Effect<A, E, FileSystem>): Promise<A> {
@@ -76,7 +76,7 @@ test('captureBaseline persists a baseline that loadBaseline can read back', asyn
   const tmpDir = await nodeFs.mkdtemp(path.join(os.tmpdir(), 'measurement-baseline-'));
   try {
     const paths = createProjectPaths(tmpDir);
-    const tree = buildL4MetricTree({ metrics: fakeMetrics(), computedAt: '2026-04-07T00:00:00.000Z' });
+    const tree = buildPipelineMetricTree({ metrics: fakeMetrics(), computedAt: '2026-04-07T00:00:00.000Z' });
 
     const captured = await withFileSystem(
       captureBaseline({
@@ -103,7 +103,7 @@ test('listBaselines returns all captured baselines sorted alphabetically', async
   const tmpDir = await nodeFs.mkdtemp(path.join(os.tmpdir(), 'measurement-list-'));
   try {
     const paths = createProjectPaths(tmpDir);
-    const tree = buildL4MetricTree({ metrics: fakeMetrics(), computedAt: '2026-04-07T00:00:00.000Z' });
+    const tree = buildPipelineMetricTree({ metrics: fakeMetrics(), computedAt: '2026-04-07T00:00:00.000Z' });
 
     for (const label of ['zebra', 'apple', 'mango']) {
       await withFileSystem(
@@ -190,7 +190,7 @@ test('score builds an L4 tree from the latest fitness report', async () => {
     const result = await withFileSystem(
       score({ paths, computedAt: '2026-04-07T12:30:00.000Z' }),
     );
-    expect(result.tree.metric.kind).toBe('l4-root');
+    expect(result.tree.metric.kind).toBe('pipeline-root');
     expect(result.tree.children.length).toBeGreaterThan(0);
     expect(result.fitnessReport.runAt).toBe(report.runAt);
     expect(result.delta).toBeUndefined();
@@ -205,7 +205,7 @@ test('score with baselineLabel diffs against the captured baseline', async () =>
     const paths = createProjectPaths(tmpDir);
 
     // Capture a baseline from "before" metrics.
-    const beforeTree = buildL4MetricTree({
+    const beforeTree = buildPipelineMetricTree({
       metrics: fakeMetrics({ knowledgeHitRate: 0.5 }),
       computedAt: '2026-04-07T00:00:00.000Z',
     });
@@ -240,7 +240,7 @@ test('score with baselineLabel="latest" finds the most recent baseline', async (
   const tmpDir = await nodeFs.mkdtemp(path.join(os.tmpdir(), 'measurement-score-latest-'));
   try {
     const paths = createProjectPaths(tmpDir);
-    const tree = buildL4MetricTree({
+    const tree = buildPipelineMetricTree({
       metrics: fakeMetrics({ knowledgeHitRate: 0.5 }),
       computedAt: '2026-04-07T00:00:00.000Z',
     });

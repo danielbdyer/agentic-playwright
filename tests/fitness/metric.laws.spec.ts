@@ -16,10 +16,10 @@ import {
   type MetricNode,
 } from '../../lib/domain/fitness/metric/tree';
 import {
-  L4_METRIC_KINDS,
-  L4_METRIC_POLARITY,
+  PIPELINE_METRIC_KINDS,
+  PIPELINE_METRIC_POLARITY,
   metricPolarity,
-  isL4MetricKind,
+  isPipelineMetricKind,
 } from '../../lib/domain/fitness/metric/catalogue';
 import {
   metricBaseline,
@@ -29,7 +29,7 @@ import {
   deltaVerdict,
 } from '../../lib/domain/fitness/metric/delta';
 import type { MetricVisitor } from '../../lib/domain/fitness/metric/visitor';
-import { applyMetricVisitor, assertL4RegistryComplete } from '../../lib/domain/fitness/metric/visitor';
+import { applyMetricVisitor, assertPipelineRegistryComplete } from '../../lib/domain/fitness/metric/visitor';
 
 // ─── Provenance helper ─────────────────────────────────────────────
 
@@ -147,14 +147,14 @@ test('mapMetricTree preserves node count and depth', () => {
 // ─── Catalogue exhaustiveness ─────────────────────────────────────
 
 test('every L4 metric kind has a declared polarity', () => {
-  for (const kind of L4_METRIC_KINDS) {
-    expect(L4_METRIC_POLARITY[kind]).toBeDefined();
+  for (const kind of PIPELINE_METRIC_KINDS) {
+    expect(PIPELINE_METRIC_POLARITY[kind]).toBeDefined();
   }
 });
 
-test('isL4MetricKind narrows correctly', () => {
-  expect(isL4MetricKind('extraction-ratio')).toBe(true);
-  expect(isL4MetricKind('not-a-real-kind')).toBe(false);
+test('isPipelineMetricKind narrows correctly', () => {
+  expect(isPipelineMetricKind('extraction-ratio')).toBe(true);
+  expect(isPipelineMetricKind('not-a-real-kind')).toBe(false);
 });
 
 test('metricPolarity returns neutral for non-L4 kinds', () => {
@@ -177,7 +177,7 @@ test('applyMetricVisitor returns the visitor output unchanged', () => {
   expect(result.metric.kind).toBe('extraction-ratio');
 });
 
-test('assertL4RegistryComplete throws on outputKind mismatch', () => {
+test('assertPipelineRegistryComplete throws on outputKind mismatch', () => {
   const bad = {
     'extraction-ratio': {
       id: 'bogus',
@@ -186,7 +186,7 @@ test('assertL4RegistryComplete throws on outputKind mismatch', () => {
       visit: () => metricNode(m('handshake-density', 0)),
     } as MetricVisitor<unknown, string>,
   };
-  expect(() => assertL4RegistryComplete(bad)).toThrow(/mismatch/);
+  expect(() => assertPipelineRegistryComplete(bad)).toThrow(/mismatch/);
 });
 
 // ─── Baseline construction ───────────────────────────────────────

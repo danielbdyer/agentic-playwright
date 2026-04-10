@@ -8,7 +8,7 @@
  *
  *   1. findLatestFitnessReport() — read the most recent fitness report
  *      from .tesseract/benchmarks/runs/
- *   2. buildL4MetricTree()       — pure visitor projection
+ *   2. buildPipelineMetricTree()       — pure visitor projection
  *   3. optional baseline diff    — if a label or "latest" is provided
  *
  * The function does NOT regenerate scenarios, run the dogfood loop,
@@ -23,7 +23,7 @@ import { FileSystem } from '../ports';
 import type { ProjectPaths } from '../paths';
 import { TesseractError } from '../../domain/kernel/errors';
 import type { PipelineFitnessReport } from '../../domain/fitness/types';
-import { buildL4MetricTree } from '../../domain/fitness/metric/visitors';
+import { buildPipelineMetricTree } from '../../domain/fitness/metric/visitors';
 import type { MetricNode } from '../../domain/fitness/metric/tree';
 import {
   diffMetricTrees,
@@ -115,7 +115,7 @@ export function score(
       );
     }
 
-    const tree = buildL4MetricTree({
+    const tree = buildPipelineMetricTree({
       metrics: report.metrics,
       computedAt,
     });

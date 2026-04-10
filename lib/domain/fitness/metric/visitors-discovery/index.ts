@@ -33,7 +33,7 @@ import type { PhaseOutputSource } from '../../../pipeline/source';
  *  cold-derivation manifest (the atoms the discovery engine
  *  produced) and the canonical snapshot (the atoms already in the
  *  canon store). */
-export interface DiscoveryL4VisitorInput {
+export interface DiscoveryVisitorInput {
   /** Atoms produced by the cold-derivation engine in this run. */
   readonly discoveredAtoms: readonly Atom<AtomClass, unknown, PhaseOutputSource>[];
   /** Atoms currently in the canonical store (from the catalog). */
@@ -51,7 +51,7 @@ export interface DiscoveryL4VisitorInput {
 function stubVisitor<K extends DiscoveryFitnessMetricKind>(
   kind: K,
   description: string,
-): MetricVisitor<DiscoveryL4VisitorInput, K> {
+): MetricVisitor<DiscoveryVisitorInput, K> {
   return {
     id: `discovery:${kind}`,
     outputKind: kind,
@@ -59,7 +59,7 @@ function stubVisitor<K extends DiscoveryFitnessMetricKind>(
     visit: (input) => {
       const provenance: MetricProvenance = {
         visitorId: `discovery:${kind}`,
-        receiptKinds: ['discovery-l4-input'],
+        receiptKinds: ['discovery-input'],
         receiptCount: input.discoveredAtoms.length + input.canonicalAtoms.length,
         computedAt: input.computedAt,
       };
@@ -81,9 +81,9 @@ function stubVisitor<K extends DiscoveryFitnessMetricKind>(
 /** Compile-time-exhaustive registry over discovery-fitness metric
  *  kinds. Adding a kind to `DISCOVERY_FITNESS_METRIC_KINDS` without
  *  an entry here is a type error. */
-export const DISCOVERY_L4_VISITORS: {
+export const DISCOVERY_VISITORS: {
   readonly [K in DiscoveryFitnessMetricKind]: MetricVisitor<
-    DiscoveryL4VisitorInput,
+    DiscoveryVisitorInput,
     K
   >;
 } = {
@@ -124,26 +124,26 @@ export const DISCOVERY_L4_VISITORS: {
 // ─── Tree builder ───────────────────────────────────────────────
 
 /** Aggregate discovery-fitness metric tree. Same shape as
- *  `buildL4MetricTree` in `visitors/index.ts` — a synthetic root
- *  with one child per discovery-fitness metric kind. */
-export function buildDiscoveryL4MetricTree(
-  input: DiscoveryL4VisitorInput,
+ *  `buildPipelineMetricTree` in `visitors/index.ts` — a synthetic
+ *  root with one child per discovery-fitness metric kind. */
+export function buildDiscoveryMetricTree(
+  input: DiscoveryVisitorInput,
 ): MetricNode {
   const provenance: MetricProvenance = {
     visitorId: 'discovery:root',
-    receiptKinds: ['discovery-l4-input'],
+    receiptKinds: ['discovery-input'],
     receiptCount: DISCOVERY_FITNESS_METRIC_KINDS.length,
     computedAt: input.computedAt,
   };
 
   const children: readonly MetricNode[] =
     DISCOVERY_FITNESS_METRIC_KINDS.map((kind) => {
-      const visitor = DISCOVERY_L4_VISITORS[kind];
+      const visitor = DISCOVERY_VISITORS[kind];
       return visitor.visit(input);
     });
 
   const root = metric({
-    kind: 'discovery-l4-root',
+    kind: 'discovery-root',
     value: DISCOVERY_FITNESS_METRIC_KINDS.length,
     unit: 'count',
     provenance,

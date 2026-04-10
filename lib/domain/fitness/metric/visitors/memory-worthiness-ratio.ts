@@ -37,11 +37,12 @@ const VISITOR_ID = 'l4:memory-worthiness-ratio';
  *  directly computed (not a proxy zero). */
 const MIN_TRAJECTORY_POINTS = 3;
 
-/** The visitor's input shape mirrors L4VisitorInput but is declared
- *  locally to avoid a circular import (index.ts imports this file,
- *  so this file cannot import from index.ts). L4VisitorInput is a
- *  structural supertype of this shape — TypeScript's structural
- *  typing ensures compatibility at the registry boundary. */
+/** The visitor's input shape mirrors PipelineVisitorInput but is
+ *  declared locally to avoid a circular import (index.ts imports
+ *  this file, so this file cannot import from index.ts).
+ *  PipelineVisitorInput is a structural supertype of this shape —
+ *  TypeScript's structural typing ensures compatibility at the
+ *  registry boundary. */
 interface M5Input {
   readonly trajectory?: import('../../memory-maturity-trajectory').MemoryMaturityTrajectory | undefined;
   readonly maintenanceOverhead?: number | undefined;
