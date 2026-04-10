@@ -23,6 +23,7 @@ export const PIPELINE_METRIC_KINDS = [
   'intervention-cost',
   'compounding-economics',
   'memory-worthiness-ratio',
+  'intervention-marginal-value',
 ] as const;
 
 export type PipelineMetricKind = typeof PIPELINE_METRIC_KINDS[number];
@@ -45,6 +46,7 @@ export const PIPELINE_METRIC_POLARITY: Readonly<Record<PipelineMetricKind, Metri
   'intervention-cost': 'lower-is-better',
   'compounding-economics': 'higher-is-better',
   'memory-worthiness-ratio': 'higher-is-better',
+  'intervention-marginal-value': 'higher-is-better',
 };
 
 /** Look up the polarity of an arbitrary metric kind. Returns `'neutral'`

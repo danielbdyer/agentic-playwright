@@ -24,6 +24,7 @@ import { rungDistributionVisitor } from './rung-distribution';
 import { interventionCostVisitor } from './intervention-cost';
 import { compoundingEconomicsVisitor } from './compounding-economics';
 import { memoryWorthinessRatioVisitor } from './memory-worthiness-ratio';
+import { interventionMarginalValueVisitor } from './intervention-marginal-value';
 
 // ─── Per-visitor input shape ────────────────────────────────────
 
@@ -55,6 +56,7 @@ export const PIPELINE_VISITORS: {
   'intervention-cost': interventionCostVisitor,
   'compounding-economics': compoundingEconomicsVisitor,
   'memory-worthiness-ratio': memoryWorthinessRatioVisitor,
+  'intervention-marginal-value': interventionMarginalValueVisitor,
 };
 
 // ─── Tree builder ────────────────────────────────────────────────
