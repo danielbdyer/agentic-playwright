@@ -22,6 +22,7 @@ export const L4_METRIC_KINDS = [
   'rung-distribution',
   'intervention-cost',
   'compounding-economics',
+  'memory-worthiness-ratio',
 ] as const;
 
 export type L4MetricKind = typeof L4_METRIC_KINDS[number];
@@ -43,6 +44,7 @@ export const L4_METRIC_POLARITY: Readonly<Record<L4MetricKind, MetricPolarity>> 
   'rung-distribution': 'neutral',
   'intervention-cost': 'lower-is-better',
   'compounding-economics': 'higher-is-better',
+  'memory-worthiness-ratio': 'higher-is-better',
 };
 
 /** Look up the polarity of an arbitrary metric kind. Returns `'neutral'`

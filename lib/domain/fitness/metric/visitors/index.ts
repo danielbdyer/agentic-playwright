@@ -12,6 +12,8 @@
  */
 
 import type { PipelineFitnessMetrics } from '../../types';
+import type { MemoryMaturityTrajectory } from '../../memory-maturity-trajectory';
+import { EMPTY_TRAJECTORY } from '../../memory-maturity-trajectory';
 import { metric, type MetricProvenance } from '../value';
 import { metricNode, type MetricNode } from '../tree';
 import { L4_METRIC_KINDS, type L4MetricKind } from '../catalogue';
@@ -21,17 +23,22 @@ import { handshakeDensityVisitor } from './handshake-density';
 import { rungDistributionVisitor } from './rung-distribution';
 import { interventionCostVisitor } from './intervention-cost';
 import { compoundingEconomicsVisitor } from './compounding-economics';
+import { memoryWorthinessRatioVisitor } from './memory-worthiness-ratio';
 
 // ─── Per-visitor input shape ────────────────────────────────────
 
-/** All current L4 visitors share the same input shape: a fitness
- *  metrics value object plus the wall-clock time the metric is being
- *  computed at (for provenance). New visitors with different input
- *  shapes can break this convention; the registry treats inputs as
- *  `unknown` precisely because shapes can diverge. */
+/** All L4 visitors share this input shape. The trajectory field was
+ *  added for the M5 (memory-worthiness-ratio) visitor; other visitors
+ *  ignore it. */
 export interface L4VisitorInput {
   readonly metrics: PipelineFitnessMetrics;
   readonly computedAt: string;
+  /** The memory-maturity trajectory for the M5 visitor. Other
+   *  visitors ignore this field. Defaults to EMPTY_TRAJECTORY if
+   *  not provided at the call site. */
+  readonly trajectory?: MemoryMaturityTrajectory | undefined;
+  /** Per-iteration scorecard overhead for the M5 denominator. */
+  readonly maintenanceOverhead?: number | undefined;
 }
 
 // ─── Registry ────────────────────────────────────────────────────
@@ -47,6 +54,7 @@ export const L4_VISITORS: {
   'rung-distribution': rungDistributionVisitor,
   'intervention-cost': interventionCostVisitor,
   'compounding-economics': compoundingEconomicsVisitor,
+  'memory-worthiness-ratio': memoryWorthinessRatioVisitor,
 };
 
 // ─── Tree builder ────────────────────────────────────────────────
