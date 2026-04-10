@@ -27,8 +27,73 @@ The north-star question this plan makes measurable is:
 > token cost decays toward a linear floor as `MeanNovelty(C,τ)`
 > decays per K5?*
 
-Two engines converge on that question, sharing one canonical-artifact
-store via the lookup chain:
+That question is answered through a **participatory learning loop**
+where the agent observes runtime evidence, forms structured
+intervention hypotheses, proposes changes to the canonical
+knowledge, and measures whether those changes improved interaction
+efficacy. The system does not merely "run tests" — it **learns how
+to interact with the target application** through governed
+observation, and the operator's role is to shape the pace, trust
+boundaries, and quality of that learning.
+
+The learning loop's teleology:
+
+1. **Observe**: the agent watches execution and records what
+   the resolution ladder tried, where it fell back, what the DOM
+   looked like, what evidence was available.
+2. **Hypothesize**: from the observation, the agent forms a
+   typed `InterventionReceipt` with a `semanticCore` (the stable
+   semantic identity of the hypothesis), `tokenImpact` (the
+   predicted effect on resolution quality), and `handoff`
+   (the continuation structure for multi-actor review).
+3. **Propose**: the hypothesis becomes a `ProposalEntry` with
+   `artifactType`, `targetPath`, `patch`, and a `trustPolicy`
+   evaluation from the gate chain.
+4. **Activate or govern**: the trust policy gate chain evaluates
+   the proposal — auto-approving within confidence thresholds or
+   suspending for operator review. The gate chain is the formal
+   boundary between "the agent suggests" and "the system accepts."
+5. **Re-observe**: subsequent runs hit the activated knowledge at
+   a higher resolution rung. The C6 measurement compares rung
+   distribution before vs after the intervention.
+6. **Converge or correct**: if the intervention reduced ambiguity
+   and improved hit rate, it stays as canon. If not, it is a
+   demotion candidate, surfaced to the operator with its
+   measured impact.
+
+This loop embeds the system in a **posture reality** relative to
+the target application. Cold-start means "I know nothing;
+everything I learn comes from observation, and every hypothesis
+is an agent contribution." Warm-start means "I have prior
+knowledge; new observations refine it." Production means "my
+knowledge is versioned and governed; changes go through trust
+policy." The posture is not a mode flag — it is the epistemic
+stance of the agent toward the target, and every artifact the
+agent produces carries that stance as a typed fact.
+
+The four phantom-typed axes of the envelope scaffolding
+(`docs/envelope-axis-refactor-plan.md`) serve this loop directly:
+
+- **Stage** makes the observe-then-suggest chain visible in
+  function signatures. A function that takes `'execution'`-stage
+  data and returns `'proposal'`-stage data is literally saying
+  "I observe evidence and I suggest changes."
+- **Source** makes the agent's epistemic contribution
+  distinguishable from the compiler's. `'agentic-override'`
+  was the agent's hypothesis; `'deterministic-observation'` was
+  the compiler's derivation; `'operator-override'` was the
+  human's explicit choice.
+- **Fingerprint<Tag>** makes the agent's lineage traceable.
+  Proposals carry tagged fingerprints of the knowledge context
+  under which the observation was made; context drift is
+  detectable by fingerprint mismatch.
+- **Verdict** makes the trust gate composable. The agent does
+  not unilaterally write to canon; every proposal goes through
+  `runGateChain`, and the operator can read which gate stopped
+  a proposal and why.
+
+Two engines converge on the north-star question, sharing one
+canonical-artifact store via the lookup chain:
 
 1. **The deterministic discovery engine** (cold-derivation, slot 5 of
    the lookup chain) — judged by the **discovery-fitness** L4 tree
