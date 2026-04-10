@@ -19,6 +19,7 @@
  * Pure domain — no Effect, no IO, no application imports.
  */
 
+import type { Fingerprint } from '../kernel/hash';
 import type { AtomAddress } from './atom-address';
 import type {
   ProjectionSubType,
@@ -86,7 +87,7 @@ export interface Projection<
   readonly source: Src;
   /** Hash of inputs (qualifier identity + atom dependencies) that
    *  produced this projection. */
-  readonly inputFingerprint: string;
+  readonly inputFingerprint: Fingerprint<'projection-input'>;
   /** Provenance metadata. */
   readonly provenance: ProjectionProvenance;
   /** Optional quality score for promotion gating. */
@@ -103,7 +104,7 @@ export function projection<
   readonly address: ProjectionAddressOf<S>;
   readonly bindings: readonly AtomBinding[];
   readonly source: Src;
-  readonly inputFingerprint: string;
+  readonly inputFingerprint: Fingerprint<'projection-input'>;
   readonly provenance: ProjectionProvenance;
   readonly qualityScore?: number | undefined;
 }): Projection<S, Src> {

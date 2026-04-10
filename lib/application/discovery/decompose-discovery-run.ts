@@ -41,6 +41,7 @@ import type { Atom, AtomProvenance } from '../../domain/pipeline/atom';
 import { atom } from '../../domain/pipeline/atom';
 import type { PhaseOutputSource } from '../../domain/pipeline/source';
 import type { AtomClass } from '../../domain/pipeline/atom-address';
+import { asFingerprint, type Fingerprint } from '../../domain/kernel/hash';
 import { brandString } from '../../domain/kernel/brand';
 
 // ─── Public API ─────────────────────────────────────────────────
@@ -71,7 +72,7 @@ export function decomposeDiscoveryRun(
 ): readonly AnyAtom[] {
   const ctx: ExtractorContext = {
     run: input.run,
-    inputFingerprint: `sha256:discovery-run:${input.run.runId}`,
+    inputFingerprint: asFingerprint('atom-input', `sha256:discovery-run:${input.run.runId}`),
     provenance: {
       producedBy: input.producedBy,
       producedAt: input.producedAt ?? input.run.discoveredAt,
@@ -133,7 +134,7 @@ export function groupAtomsByClass(
 
 interface ExtractorContext {
   readonly run: DiscoveryRun;
-  readonly inputFingerprint: string;
+  readonly inputFingerprint: Fingerprint<'atom-input'>;
   readonly provenance: AtomProvenance;
 }
 

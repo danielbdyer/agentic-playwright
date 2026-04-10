@@ -17,6 +17,7 @@
 import type { AtomClass, AtomAddress, AtomAddressOf } from './atom-address';
 import type { PhaseOutputSource } from './source';
 import type { CanonProvenance } from './provenance';
+import type { Fingerprint } from '../kernel/hash';
 
 // ─── Provenance ───────────────────────────────────────────────────
 
@@ -64,7 +65,7 @@ export interface Atom<
   readonly source: Src;
   /** Hash of the inputs that produced this atom. Stable when the
    *  inputs are stable. Used to detect cache invalidation. */
-  readonly inputFingerprint: string;
+  readonly inputFingerprint: Fingerprint<'atom-input'>;
   /** Provenance metadata. */
   readonly provenance: AtomProvenance;
   /** Optional quality score from the discovery engine. Used by the
@@ -89,7 +90,7 @@ export function atom<
   readonly address: AtomAddressOf<C>;
   readonly content: T;
   readonly source: Src;
-  readonly inputFingerprint: string;
+  readonly inputFingerprint: Fingerprint<'atom-input'>;
   readonly provenance: AtomProvenance;
   readonly qualityScore?: number | undefined;
 }): Atom<C, T, Src> {

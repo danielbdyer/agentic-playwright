@@ -16,6 +16,7 @@
  * Pure domain — no Effect, no IO, no application imports.
  */
 
+import type { Fingerprint } from '../kernel/hash';
 import type { AtomAddress } from './atom-address';
 import type {
   CompositionSubType,
@@ -75,7 +76,7 @@ export interface Composition<
   readonly source: Src;
   /** Hash of inputs (atom fingerprints + content) that produced
    *  this composition. */
-  readonly inputFingerprint: string;
+  readonly inputFingerprint: Fingerprint<'composition-input'>;
   /** Provenance metadata. */
   readonly provenance: CompositionProvenance;
   /** Optional quality score for promotion gating. */
@@ -94,7 +95,7 @@ export function composition<
   readonly content: T;
   readonly atomReferences: readonly AtomReference[];
   readonly source: Src;
-  readonly inputFingerprint: string;
+  readonly inputFingerprint: Fingerprint<'composition-input'>;
   readonly provenance: CompositionProvenance;
   readonly qualityScore?: number | undefined;
 }): Composition<S, T, Src> {
